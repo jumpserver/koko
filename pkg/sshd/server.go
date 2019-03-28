@@ -22,7 +22,7 @@ var (
 
 func init() {
 	log = logrus.New()
-	displayTemplate = template.Must(template.New("display").Parse(Displaytemplate))
+	displayTemplate = template.Must(template.New("display").Parse(welcomeTemplate))
 	SSHPort = 2333
 	SSHKeyPath = "data/host_rsa_key"
 	authService = auth.NewService()

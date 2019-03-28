@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-const Displaytemplate = `
+const welcomeTemplate = `
 		{{.UserName}}	Welcome to use Jumpserver open source fortress system
 {{.Tab}}1) Enter {{.ColorCode}}ID{{.ColorEnd}} directly login or enter {{.ColorCode}}part IP, Hostname, Comment{{.ColorEnd}} to search login(if unique). {{.EndLine}}
 {{.Tab}}2) Enter {{.ColorCode}}/{{.ColorEnd}} + {{.ColorCode}}IP, Hostname{{.ColorEnd}} or {{.ColorCode}}Comment{{.ColorEnd}} search, such as: /ip. {{.EndLine}}
