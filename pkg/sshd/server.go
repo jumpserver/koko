@@ -30,7 +30,7 @@ func init() {
 
 func StartServer() {
 
-	serverSig := getPrivatekey(SSHKeyPath)
+	serverSig := getPrivateKey(SSHKeyPath)
 	ser := ssh.Server{
 		Addr:            "0.0.0.0:" + strconv.Itoa(SSHPort),
 		PasswordHandler: authService.SSHPassword,
