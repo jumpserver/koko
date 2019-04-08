@@ -1,12 +1,7 @@
-package sshd
+package core
 
 import (
 	"regexp"
-)
-
-const (
-	actionDeny  = true
-	actionAllow = false
 )
 
 type RuleFilter interface {
@@ -31,7 +26,6 @@ type Rule struct {
 func (w *Rule) Match(s string) bool {
 	switch w.ruleType {
 	case "command":
-
 		for _, content := range w.contents {
 			if content == s {
 				return true

@@ -14,7 +14,7 @@ func NewService() *Service {
 }
 
 func (s *Service) SSHPassword(ctx ssh.Context, password string) bool {
-
+	ctx.SessionID()
 	Username := "softwareuser1"
 	Password := "123456"
 

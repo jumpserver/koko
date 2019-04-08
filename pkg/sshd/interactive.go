@@ -2,10 +2,15 @@ package sshd
 
 import (
 	"cocogo/pkg/asset"
+	"cocogo/pkg/core"
+	"context"
+	"fmt"
 	"io"
+	"runtime"
 	"strings"
 
 	"github.com/gliderlabs/ssh"
+	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -38,7 +43,7 @@ func (d HelpInfo) displayHelpInfo(sess ssh.Session) {
 }
 
 func InteractiveHandler(sess ssh.Session) {
-	_, _, ptyOk := sess.Pty()
+	_, winCh, ptyOk := sess.Pty()
 	if ptyOk {
 
 		helpInfo := HelpInfo{
@@ -52,10 +57,29 @@ func InteractiveHandler(sess ssh.Session) {
 		log.Info("accept one session")
 		helpInfo.displayHelpInfo(sess)
 		term := terminal.NewTerminal(sess, "Opt>")
+
 		for {
+			fmt.Println("start g num:", runtime.NumGoroutine())
+			ctx, cancelFuc := context.WithCancel(sess.Context())
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						fmt.Println("ctx done")
+						return
+					case win, ok := <-winCh:
+						if !ok {
+							return
+						}
+						fmt.Println("InteractiveHandler term change:", win)
+						_ = term.SetSize(win.Width, win.Height)
+					}
+				}
+			}()
 			line, err := term.ReadLine()
+			cancelFuc()
 			if err != nil {
-				log.Error(err)
+				log.Error("ReadLine done", err)
 				break
 			}
 			switch line {
@@ -87,6 +111,7 @@ func InteractiveHandler(sess ssh.Session) {
 				return
 			default:
 				searchNodeAndProxy(line, sess)
+				fmt.Println("end g num:", runtime.NumGoroutine())
 			}
 		}
 
@@ -100,9 +125,39 @@ func InteractiveHandler(sess ssh.Session) {
 }
 
 func searchNodeAndProxy(line string, sess ssh.Session) {
-	searchKey := strings.TrimPrefix(line, "/")
-	if node, ok := searchNode(searchKey); ok {
-		err := Proxy(sess, node)
+	searchWord := strings.TrimPrefix(line, "/")
+	if strings.Contains(searchWord, "join") {
+
+		roomID := strings.TrimSpace(strings.Join(strings.Split(searchWord, "join"), ""))
+		sshConn := &SSHConn{
+			conn: sess,
+			uuid: generateNewUUID(),
+		}
+		log.Info("join room id: ", roomID)
+		ctx, cancelFuc := context.WithCancel(context.Background())
+
+		_, winCh, _ := sess.Pty()
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case win, ok := <-winCh:
+					if !ok {
+						return
+					}
+					fmt.Println("join term change:", win)
+				}
+			}
+		}()
+		core.JoinShareRoom(roomID, sshConn)
+		log.Info("exit room id:", roomID)
+		cancelFuc()
+		return
+
+	}
+	if node, ok := searchNode(searchWord); ok {
+		err := MyProxy(sess, node)
 		if err != nil {
 			log.Info("proxy err ", err)
 		}
@@ -119,4 +174,57 @@ func searchNode(key string) (asset.Node, bool) {
 		}, true
 	}
 	return asset.Node{}, false
+}
+
+func MyProxy(userSess ssh.Session, node asset.Node) error {
+
+	/*
+		1. 创建SSHConn，符合core.Conn接口
+		2. 创建一个session Home
+		3. 创建一个NodeConn，及相关的channel 可以是MemoryChannel 或者是redisChannel
+		4. session Home 与 proxy channel 交换数据
+	*/
+	sshConn := &SSHConn{
+		conn: userSess,
+		uuid: generateNewUUID(),
+	}
+
+	userHome := core.NewUserSessionHome(sshConn)
+	log.Info("session room id:", userHome.SessionID())
+
+	c, s, err := CreateNodeSession(node)
+	if err != nil {
+		return err
+	}
+	nodeC, err := core.NewNodeConn(c, s, sshConn)
+	if err != nil {
+		return err
+	}
+	mc := core.NewMemoryChannel(nodeC)
+	err = core.Switch(sshConn.Context(), userHome, mc)
+	return err
+
+}
+
+func CreateNodeSession(node asset.Node) (c *gossh.Client, s *gossh.Session, err error) {
+	config := &gossh.ClientConfig{
+		User: node.UserName,
+		Auth: []gossh.AuthMethod{
+			gossh.Password(node.PassWord),
+			gossh.PublicKeys(node.PublicKey),
+		},
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+	}
+	client, err := gossh.Dial("tcp", node.IP+":"+node.Port, config)
+	if err != nil {
+		log.Info(err)
+		return c, s, err
+	}
+	s, err = client.NewSession()
+	if err != nil {
+		log.Error(err)
+		return c, s, err
+	}
+
+	return client, s, nil
 }

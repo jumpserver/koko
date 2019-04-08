@@ -1,4 +1,4 @@
-package sshd
+package core
 
 type SpecialRuler interface {
 
