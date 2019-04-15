@@ -1,31 +1,22 @@
 package sshd
 
 import (
-	"cocogo/pkg/asset"
 	"cocogo/pkg/core"
+	"cocogo/pkg/model"
 	"context"
 	"fmt"
 	"io"
-	"runtime"
+	"strconv"
 	"strings"
+	"sync"
+
+	"github.com/olekukonko/tablewriter"
+
+	"github.com/xlab/treeprint"
 
 	"github.com/gliderlabs/ssh"
-	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 )
-
-const welcomeTemplate = `
-		{{.UserName}}	Welcome to use Jumpserver open source fortress system
-{{.Tab}}1) Enter {{.ColorCode}}ID{{.ColorEnd}} directly login or enter {{.ColorCode}}part IP, Hostname, Comment{{.ColorEnd}} to search login(if unique). {{.EndLine}}
-{{.Tab}}2) Enter {{.ColorCode}}/{{.ColorEnd}} + {{.ColorCode}}IP, Hostname{{.ColorEnd}} or {{.ColorCode}}Comment{{.ColorEnd}} search, such as: /ip. {{.EndLine}}
-{{.Tab}}3) Enter {{.ColorCode}}p{{.ColorEnd}} to display the host you have permission.{{.EndLine}}
-{{.Tab}}4) Enter {{.ColorCode}}g{{.ColorEnd}} to display the node that you have permission.{{.EndLine}}
-{{.Tab}}5) Enter {{.ColorCode}}g{{.ColorEnd}} + {{.ColorCode}}NodeID{{.ColorEnd}} to display the host under the node, such as g1. {{.EndLine}}
-{{.Tab}}6) Enter {{.ColorCode}}s{{.ColorEnd}} Chinese-english switch.{{.EndLine}}
-{{.Tab}}7) Enter {{.ColorCode}}h{{.ColorEnd}} help.{{.EndLine}}
-{{.Tab}}8) Enter {{.ColorCode}}r{{.ColorEnd}} to refresh your assets and nodes.{{.EndLine}}
-{{.Tab}}0) Enter {{.ColorCode}}q{{.ColorEnd}} exit.{{.EndLine}}
-`
 
 type HelpInfo struct {
 	UserName  string
@@ -42,142 +33,326 @@ func (d HelpInfo) displayHelpInfo(sess ssh.Session) {
 	}
 }
 
-func InteractiveHandler(sess ssh.Session) {
-	_, winCh, ptyOk := sess.Pty()
-	if ptyOk {
+type sshInteractive struct {
+	sess                ssh.Session
+	term                *terminal.Terminal
+	assetData           sync.Map
+	user                model.User
+	helpInfo            HelpInfo
+	currentSearchAssets []model.Asset
+	onceLoad            sync.Once
+	sync.RWMutex
+}
 
-		helpInfo := HelpInfo{
-			UserName:  sess.User(),
-			ColorCode: "\033[32m",
-			ColorEnd:  "\033[0m",
-			Tab:       "\t",
-			EndLine:   "\r\n\r",
+func (s *sshInteractive) displayHelpInfo() {
+	s.helpInfo.displayHelpInfo(s.sess)
+}
+
+func (s *sshInteractive) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
+	table := tablewriter.NewWriter(s.sess)
+	table.SetHeader([]string{"ID", "UserName"})
+	for i := 0; i < len(systemUsers); i++ {
+		table.Append([]string{strconv.Itoa(i + 1), systemUsers[i].UserName})
+	}
+	table.SetBorder(false)
+	count := 0
+	term := terminal.NewTerminal(s.sess, "num:")
+	for count < 3 {
+		table.Render()
+		line, err := term.ReadLine()
+		if err != nil {
+			continue
 		}
-
-		log.Info("accept one session")
-		helpInfo.displayHelpInfo(sess)
-		term := terminal.NewTerminal(sess, "Opt>")
-
-		for {
-			fmt.Println("start g num:", runtime.NumGoroutine())
-			ctx, cancelFuc := context.WithCancel(sess.Context())
-			go func() {
-				for {
-					select {
-					case <-ctx.Done():
-						fmt.Println("ctx done")
-						return
-					case win, ok := <-winCh:
-						if !ok {
-							return
-						}
-						fmt.Println("InteractiveHandler term change:", win)
-						_ = term.SetSize(win.Width, win.Height)
-					}
-				}
-			}()
-			line, err := term.ReadLine()
-			cancelFuc()
-			if err != nil {
-				log.Error("ReadLine done", err)
-				break
-			}
-			switch line {
-			case "p", "P":
-				_, err := io.WriteString(sess, "p cmd execute\r\n")
-				if err != nil {
-					return
-				}
-			case "g", "G":
-				_, err := io.WriteString(sess, "g cmd execute\r\n")
-				if err != nil {
-					return
-				}
-			case "s", "S":
-				_, err := io.WriteString(sess, "s cmd execute\r\n")
-				if err != nil {
-					return
-				}
-			case "h", "H":
-				helpInfo.displayHelpInfo(sess)
-
-			case "r", "R":
-				_, err := io.WriteString(sess, "r cmd execute\r\n")
-				if err != nil {
-					return
-				}
-			case "q", "Q", "exit", "quit":
-				log.Info("exit session")
-				return
-			default:
-				searchNodeAndProxy(line, sess)
-				fmt.Println("end g num:", runtime.NumGoroutine())
+		if num, err := strconv.Atoi(line); err == nil {
+			if num > 0 && num <= len(systemUsers) {
+				return systemUsers[num-1]
 			}
 		}
+		count++
+	}
+	return systemUsers[0]
+}
 
-	} else {
-		_, err := io.WriteString(sess, "No PTY requested.\n")
+// 当资产的数量为1的时候，就进行代理转化
+func (s *sshInteractive) displayAssetsOrProxy(assets []model.Asset) {
+	if len(assets) == 1 {
+		var systemUser model.SystemUser
+		switch len(assets[0].SystemUsers) {
+		case 0:
+			// 有授权的资产，但是资产用户信息，无法登陆
+			s.displayAssets(assets)
+			return
+		case 1:
+			systemUser = assets[0].SystemUsers[0]
+		default:
+			systemUser = s.chooseSystemUser(assets[0].SystemUsers)
+		}
+
+		authInfo, err := appService.GetSystemUserAssetAuthInfo(systemUser.Id, assets[0].Id)
 		if err != nil {
 			return
 		}
+		if ok := appService.ValidateUserAssetPermission(s.user.Id, systemUser.Id, assets[0].Id); !ok {
+			// 检查user 是否对该资产有权限
+			return
+		}
+
+		err = s.Proxy(assets[0], authInfo)
+		if err != nil {
+			log.Info(err)
+		}
+		return
+	} else {
+		s.displayAssets(assets)
+	}
+}
+
+func (s *sshInteractive) displayAssets(assets []model.Asset) {
+	if len(assets) == 0 {
+		_, _ = io.WriteString(s.sess, "\r\n No Assets\r\n\r")
+	} else {
+		table := tablewriter.NewWriter(s.sess)
+		table.SetHeader([]string{"ID", "Hostname", "IP", "LoginAs", "Comment"})
+		for index, assetItem := range assets {
+			sysUserArray := make([]string, len(assetItem.SystemUsers))
+			for index, sysUser := range assetItem.SystemUsers {
+				sysUserArray[index] = sysUser.Name
+			}
+			sysUsers := "[" + strings.Join(sysUserArray, " ") + "]"
+			table.Append([]string{strconv.Itoa(index + 1), assetItem.Hostname, assetItem.Ip, sysUsers, assetItem.Comment})
+		}
+
+		table.SetBorder(false)
+		table.Render()
 	}
 
 }
 
-func searchNodeAndProxy(line string, sess ssh.Session) {
-	searchWord := strings.TrimPrefix(line, "/")
-	if strings.Contains(searchWord, "join") {
+func (s *sshInteractive) displayAssetNodes(nodes []model.AssetNode) {
+	tree := ConstructAssetNodeTree(nodes)
+	tipHeaderMsg := "\r\nNode: [ ID.Name(Asset amount) ]"
+	tipEndMsg := "Tips: Enter g+NodeID to display the host under the node, such as g1\r\n\r"
 
-		roomID := strings.TrimSpace(strings.Join(strings.Split(searchWord, "join"), ""))
-		sshConn := &SSHConn{
-			conn: sess,
-			uuid: generateNewUUID(),
+	_, err := io.WriteString(s.sess, tipHeaderMsg)
+	_, err = io.WriteString(s.sess, tree.String())
+	_, err = io.WriteString(s.sess, tipEndMsg)
+	if err != nil {
+		log.Info("displayAssetNodes err:", err)
+	}
+
+}
+
+func (s *sshInteractive) refreshAssetsAndNodesData() {
+	s.loadUserAssets()
+	s.loadUserAssetNodes()
+	_, err := io.WriteString(s.sess, "Refresh done\r\n")
+	if err != nil {
+		log.Error("refresh Assets  Nodes err:", err)
+	}
+
+}
+
+func (s *sshInteractive) loadUserAssets() {
+	assets, err := appService.GetUserAssets(s.user.Id)
+	if err != nil {
+		log.Error("load Assets failed")
+		return
+	}
+	log.Info("load Assets success")
+	Cached.Store(s.user.Id, assets)
+	s.assetData.Store(AssetsMapKey, assets)
+}
+
+func (s *sshInteractive) loadUserAssetNodes() {
+	assetNodes, err := appService.GetUserAssetNodes(s.user.Id)
+	if err != nil {
+		log.Error("load Asset Nodes failed")
+		return
+	}
+	log.Info("load Asset Nodes success")
+	s.assetData.Store(AssetNodesMapKey, assetNodes)
+}
+
+func (s *sshInteractive) changeLanguage() {
+
+}
+
+func (s *sshInteractive) JoinShareRoom(roomID string) {
+	sshConn := &SSHConn{
+		conn: s.sess,
+		uuid: generateNewUUID(),
+	}
+	ctx, cancelFuc := context.WithCancel(s.sess.Context())
+
+	_, winCh, _ := s.sess.Pty()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case win, ok := <-winCh:
+				if !ok {
+					return
+				}
+				fmt.Println("join term change:", win)
+			}
 		}
-		log.Info("join room id: ", roomID)
-		ctx, cancelFuc := context.WithCancel(context.Background())
+	}()
+	core.Manager.JoinShareRoom(roomID, sshConn)
+	log.Info("exit room id:", roomID)
+	cancelFuc()
 
-		_, winCh, _ := sess.Pty()
+}
+
+func (s *sshInteractive) StartDispatch() {
+	_, winCh, _ := s.sess.Pty()
+	for {
+		ctx, cancelFuc := context.WithCancel(s.sess.Context())
 		go func() {
+
 			for {
 				select {
 				case <-ctx.Done():
+					log.Info("ctx done")
 					return
 				case win, ok := <-winCh:
 					if !ok {
 						return
 					}
-					fmt.Println("join term change:", win)
+					log.Info("InteractiveHandler term change:", win)
+					_ = s.term.SetSize(win.Width, win.Height)
 				}
 			}
 		}()
-		core.JoinShareRoom(roomID, sshConn)
-		log.Info("exit room id:", roomID)
+		line, err := s.term.ReadLine()
 		cancelFuc()
-		return
+		if err != nil {
+			log.Error("ReadLine done", err)
+			break
+		}
+		if line == "" {
+			continue
+		}
+
+		s.onceLoad.Do(func() {
+			if _, ok := Cached.Load(s.user.Id); !ok {
+				s.loadUserAssets()
+				s.loadUserAssetNodes()
+
+			} else {
+				log.Info("first load this user asset data ")
+				go func() {
+					s.loadUserAssets()
+					s.loadUserAssetNodes()
+				}()
+			}
+		})
+
+		if len(line) == 1 {
+			switch line {
+			case "p", "P":
+				if assets, ok := s.assetData.Load(AssetsMapKey); ok {
+					s.displayAssets(assets.([]model.Asset))
+					s.currentSearchAssets = assets.([]model.Asset)
+				} else if assets, _ := Cached.Load(s.user.Id); ok {
+					s.displayAssets(assets.([]model.Asset))
+					s.currentSearchAssets = assets.([]model.Asset)
+				}
+
+			case "g", "G":
+				if assetNodes, ok := s.assetData.Load(AssetNodesMapKey); ok {
+					s.displayAssetNodes(assetNodes.([]model.AssetNode))
+				} else {
+					s.displayAssetNodes([]model.AssetNode{})
+				}
+			case "s", "S":
+				s.changeLanguage()
+			case "h", "H":
+				s.displayHelpInfo()
+			case "r", "R":
+				s.refreshAssetsAndNodesData()
+			case "q", "Q":
+				log.Info("exit session")
+				return
+			default:
+				assets := s.searchAsset(line)
+				s.currentSearchAssets = assets
+				s.displayAssetsOrProxy(assets)
+			}
+			continue
+		}
+		if strings.Index(line, "/") == 0 {
+			searchWord := strings.TrimSpace(strings.TrimPrefix(line, "/"))
+			assets := s.searchAsset(searchWord)
+			s.currentSearchAssets = assets
+			s.displayAssets(assets)
+			continue
+		}
+
+		if strings.Index(line, "g") == 0 {
+			searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
+			if num, err := strconv.Atoi(searchWord); err == nil {
+				if num >= 0 {
+					assets := s.searchNodeAssets(num)
+					s.displayAssets(assets)
+					s.currentSearchAssets = assets
+					continue
+				}
+			}
+		}
+
+		if strings.Index(line, "join") == 0 {
+			roomID := strings.TrimSpace(strings.TrimPrefix(line, "join"))
+			s.JoinShareRoom(roomID)
+			continue
+		}
+
+		assets := s.searchAsset(line)
+		s.currentSearchAssets = assets
+		s.displayAssetsOrProxy(assets)
 
 	}
-	if node, ok := searchNode(searchWord); ok {
-		err := MyProxy(sess, node)
-		if err != nil {
-			log.Info("proxy err ", err)
+}
+
+func (s *sshInteractive) searchAsset(key string) (assets []model.Asset) {
+	if indexNum, err := strconv.Atoi(key); err == nil {
+		if indexNum > 0 && indexNum <= len(s.currentSearchAssets) {
+			return []model.Asset{s.currentSearchAssets[indexNum-1]}
 		}
 	}
-}
 
-func searchNode(key string) (asset.Node, bool) {
-	if key == "docker" {
-		return asset.Node{
-			IP:       "127.0.0.1",
-			Port:     "32768",
-			UserName: "root",
-			PassWord: "screencast",
-		}, true
+	if assetsData, ok := s.assetData.Load(AssetsMapKey); ok {
+		for _, assetValue := range assetsData.([]model.Asset) {
+			if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
+				assets = append(assets, assetValue)
+			}
+		}
+	} else {
+		assetsData, _ := Cached.Load(s.user.Id)
+		for _, assetValue := range assetsData.([]model.Asset) {
+			if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
+				assets = append(assets, assetValue)
+			}
+		}
 	}
-	return asset.Node{}, false
+
+	return assets
 }
 
-func MyProxy(userSess ssh.Session, node asset.Node) error {
+func (s *sshInteractive) searchNodeAssets(num int) (assets []model.Asset) {
+	var assetNodesData []model.AssetNode
+	if assetNodes, ok := s.assetData.Load(AssetNodesMapKey); ok {
+		assetNodesData = assetNodes.([]model.AssetNode)
+		if num > len(assetNodesData) || num == 0 {
+			return assets
+		}
+		return assetNodesData[num-1].AssetsGranted
+	}
+	return assets
 
+}
+
+func (s *sshInteractive) Proxy(asset model.Asset, systemUser model.SystemUserAuthInfo) error {
 	/*
 		1. 创建SSHConn，符合core.Conn接口
 		2. 创建一个session Home
@@ -185,46 +360,65 @@ func MyProxy(userSess ssh.Session, node asset.Node) error {
 		4. session Home 与 proxy channel 交换数据
 	*/
 	sshConn := &SSHConn{
-		conn: userSess,
+		conn: s.sess,
 		uuid: generateNewUUID(),
 	}
+	serverAuth := core.ServerAuth{
+		IP:        asset.Ip,
+		Port:      asset.Port,
+		UserName:  systemUser.UserName,
+		Password:  systemUser.Password,
+		PublicKey: parsePrivateKey(systemUser.PrivateKey)}
+
+	nodeConn, err := core.NewNodeConn(serverAuth, sshConn)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	defer nodeConn.Close()
+
+	memChan := core.NewMemoryChannel(nodeConn, sshConn)
 
 	userHome := core.NewUserSessionHome(sshConn)
-	log.Info("session room id:", userHome.SessionID())
+	log.Info("session Home ID: ", userHome.SessionID())
 
-	c, s, err := CreateNodeSession(node)
+	err = core.Manager.Switch(context.TODO(), userHome, memChan)
 	if err != nil {
-		return err
+		log.Error(err)
 	}
-	nodeC, err := core.NewNodeConn(c, s, sshConn)
-	if err != nil {
-		return err
-	}
-	mc := core.NewMemoryChannel(nodeC)
-	err = core.Switch(sshConn.Context(), userHome, mc)
 	return err
 
 }
 
-func CreateNodeSession(node asset.Node) (c *gossh.Client, s *gossh.Session, err error) {
-	config := &gossh.ClientConfig{
-		User: node.UserName,
-		Auth: []gossh.AuthMethod{
-			gossh.Password(node.PassWord),
-			gossh.PublicKeys(node.PublicKey),
-		},
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+func isSubstring(sArray []string, substr string) bool {
+	for _, s := range sArray {
+		if strings.Contains(s, substr) {
+			return true
+		}
 	}
-	client, err := gossh.Dial("tcp", node.IP+":"+node.Port, config)
-	if err != nil {
-		log.Info(err)
-		return c, s, err
-	}
-	s, err = client.NewSession()
-	if err != nil {
-		log.Error(err)
-		return c, s, err
-	}
+	return false
+}
 
-	return client, s, nil
+func ConstructAssetNodeTree(assetNodes []model.AssetNode) treeprint.Tree {
+	model.SortAssetNodesByKey(assetNodes)
+	var treeMap = map[string]treeprint.Tree{}
+	tree := treeprint.New()
+	for i := 0; i < len(assetNodes); i++ {
+		r := strings.LastIndex(assetNodes[i].Key, ":")
+		if r < 0 {
+			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
+				strconv.Itoa(i+1), assetNodes[i].Name,
+				strconv.Itoa(assetNodes[i].AssetsAmount)))
+			treeMap[assetNodes[i].Key] = subtree
+			continue
+		}
+		if subtree, ok := treeMap[assetNodes[i].Key[:r]]; ok {
+			nodeTree := subtree.AddBranch(fmt.Sprintf("%s.%s(%s)",
+				strconv.Itoa(i+1), assetNodes[i].Name,
+				strconv.Itoa(assetNodes[i].AssetsAmount)))
+			treeMap[assetNodes[i].Key] = nodeTree
+		}
+
+	}
+	return tree
 }

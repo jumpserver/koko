@@ -20,6 +20,7 @@ func (s *SSHConn) SessionID() string {
 func (s *SSHConn) User() string {
 	return s.conn.User()
 }
+
 func (s *SSHConn) UUID() uuid.UUID {
 	return s.uuid
 }

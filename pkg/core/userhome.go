@@ -2,27 +2,8 @@ package core
 
 import (
 	"context"
-	"io"
 	"sync"
-
-	"github.com/gliderlabs/ssh"
-	uuid "github.com/satori/go.uuid"
 )
-
-type Conn interface {
-	SessionID() string
-
-	User() string
-
-	UUID() uuid.UUID
-
-	Pty() (ssh.Pty, <-chan ssh.Window, bool)
-
-	Context() context.Context
-
-	io.Reader
-	io.WriteCloser
-}
 
 type SessionHome interface {
 	SessionID() string
@@ -33,21 +14,22 @@ type SessionHome interface {
 }
 
 func NewUserSessionHome(con Conn) *userSessionHome {
-	return &userSessionHome{
+	uHome := &userSessionHome{
 		readStream: make(chan []byte),
 		mainConn:   con,
-		connMap:    map[string]Conn{con.UUID().String(): con},
-		cancelMap:  map[string]context.CancelFunc{},
+		connMap:    new(sync.Map),
+		cancelMap:  new(sync.Map),
 	}
+	uHome.connMap.Store(con.SessionID(), con)
+	return uHome
 
 }
 
 type userSessionHome struct {
 	readStream chan []byte
 	mainConn   Conn
-	connMap    map[string]Conn
-	cancelMap  map[string]context.CancelFunc
-	sync.RWMutex
+	connMap    *sync.Map
+	cancelMap  *sync.Map
 }
 
 func (r *userSessionHome) SessionID() string {
@@ -57,9 +39,9 @@ func (r *userSessionHome) SessionID() string {
 func (r *userSessionHome) AddConnection(c Conn) {
 
 	key := c.SessionID()
-	if _, ok := r.connMap[key]; !ok {
+	if _, ok := r.connMap.Load(key); !ok {
 		log.Info("add connection ", c)
-		r.connMap[key] = c
+		r.connMap.Store(key, c)
 	} else {
 		log.Info("already add connection")
 		return
@@ -68,7 +50,7 @@ func (r *userSessionHome) AddConnection(c Conn) {
 	log.Info("add conn session room: ", r.SessionID())
 
 	ctx, cancelFunc := context.WithCancel(r.mainConn.Context())
-	r.cancelMap[key] = cancelFunc
+	r.cancelMap.Store(key, cancelFunc)
 
 	defer r.RemoveConnection(c)
 
@@ -82,10 +64,12 @@ func (r *userSessionHome) AddConnection(c Conn) {
 
 		select {
 		case <-ctx.Done():
-			log.Info("conn ctx done")
+			log.Info(" user conn ctx done")
 			return
 		default:
-			r.readStream <- buf[:nr]
+			copyBuf := make([]byte, nr)
+			copy(copyBuf, buf[:nr])
+			r.readStream <- copyBuf
 
 		}
 
@@ -94,13 +78,13 @@ func (r *userSessionHome) AddConnection(c Conn) {
 }
 
 func (r *userSessionHome) RemoveConnection(c Conn) {
-	r.Lock()
-	defer r.Unlock()
+
 	key := c.SessionID()
-	if _, ok := r.connMap[key]; ok {
-		delete(r.connMap, key)
-		delete(r.cancelMap, key)
+	if cancelFunc, ok := r.cancelMap.Load(key); ok {
+		cancelFunc.(context.CancelFunc)()
 	}
+	r.connMap.Delete(key)
+
 }
 
 func (r *userSessionHome) SendRequestChannel(ctx context.Context) <-chan []byte {
@@ -118,7 +102,9 @@ func (r *userSessionHome) SendRequestChannel(ctx context.Context) <-chan []byte 
 			case <-ctx.Done():
 				return
 			default:
-				r.readStream <- buf[:nr]
+				var respCopy []byte
+				respCopy = append(respCopy, buf[:nr]...)
+				r.readStream <- respCopy
 			}
 
 		}
@@ -132,11 +118,10 @@ func (r *userSessionHome) ReceiveResponseChannel(ctx context.Context) chan<- []b
 	writeStream := make(chan []byte)
 	go func() {
 		defer func() {
-			r.RLock()
-			for _, cancel := range r.cancelMap {
-				cancel()
-			}
-			r.RUnlock()
+			r.cancelMap.Range(func(key, cancelFunc interface{}) bool {
+				cancelFunc.(context.CancelFunc)()
+				return true
+			})
 		}()
 
 		for {
@@ -147,13 +132,15 @@ func (r *userSessionHome) ReceiveResponseChannel(ctx context.Context) chan<- []b
 				if !ok {
 					return
 				}
-				for _, c := range r.connMap {
-					nw, err := c.Write(buf)
+				r.connMap.Range(func(key, connItem interface{}) bool {
+					nw, err := connItem.(Conn).Write(buf)
 					if err != nil || nw != len(buf) {
-						log.Error("Write Conn err", c)
-						r.cancelMap[c.SessionID()]()
+						log.Error("Write Conn err", connItem)
+						r.RemoveConnection(connItem.(Conn))
+
 					}
-				}
+					return true
+				})
 
 			}
 		}

@@ -23,17 +23,17 @@ type Rule struct {
 	action bool
 }
 
-func (w *Rule) Match(s string) bool {
-	switch w.ruleType {
+func (r *Rule) Match(s string) bool {
+	switch r.ruleType {
 	case "command":
-		for _, content := range w.contents {
+		for _, content := range r.contents {
 			if content == s {
 				return true
 			}
 		}
 		return false
 	default:
-		for _, content := range w.contents {
+		for _, content := range r.contents {
 			if matched, _ := regexp.MatchString(content, s); matched {
 				return true
 			}
@@ -43,6 +43,6 @@ func (w *Rule) Match(s string) bool {
 
 }
 
-func (w *Rule) BlockCommand() bool {
-	return w.action
+func (r *Rule) BlockCommand() bool {
+	return r.action
 }

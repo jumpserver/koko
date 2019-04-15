@@ -5,95 +5,76 @@ import (
 	"sync"
 )
 
-type room struct {
-	sessionID string
-	uHome     SessionHome
-	pChan     ProxyChannel
+var Manager = &manager{
+	container: new(sync.Map),
 }
-
-var Manager = &manager{container: map[string]room{}}
 
 type manager struct {
-	container map[string]room
-	sync.RWMutex
+	container *sync.Map
 }
 
-func (m *manager) add(uHome SessionHome, pChan ProxyChannel) {
-	m.Lock()
-	m.container[uHome.SessionID()] = room{
-		sessionID: uHome.SessionID(),
-		uHome:     uHome,
-		pChan:     pChan,
-	}
-	m.Unlock()
+func (m *manager) add(uHome SessionHome) {
+	m.container.Store(uHome.SessionID(), uHome)
+
 }
 
 func (m *manager) delete(roomID string) {
-	m.Lock()
-	delete(m.container, roomID)
-	m.Unlock()
+	m.container.Delete(roomID)
+
 }
 
 func (m *manager) search(roomID string) (SessionHome, bool) {
-	m.RLock()
-	defer m.RUnlock()
-	if room, ok := m.container[roomID]; ok {
-		return room.uHome, ok
+	if uHome, ok := m.container.Load(roomID); ok {
+		return uHome.(SessionHome), ok
 	}
 	return nil, false
 }
 
-func JoinShareRoom(roomID string, uConn Conn) {
-	if userHome, ok := Manager.search(roomID); ok {
+func (m *manager) JoinShareRoom(roomID string, uConn Conn) {
+	if userHome, ok := m.search(roomID); ok {
 		userHome.AddConnection(uConn)
 	}
 }
 
-func ExitShareRoom(roomID string, uConn Conn) {
-	if userHome, ok := Manager.search(roomID); ok {
+func (m *manager) ExitShareRoom(roomID string, uConn Conn) {
+	if userHome, ok := m.search(roomID); ok {
 		userHome.RemoveConnection(uConn)
 	}
 
 }
 
-func Switch(ctx context.Context, userHome SessionHome, pChannel ProxyChannel) error {
-	Manager.add(userHome, pChannel)
-	defer Manager.delete(userHome.SessionID())
-	subCtx, cancel := context.WithCancel(ctx)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func(ctx context.Context, wg *sync.WaitGroup) {
-		defer wg.Done()
+func (m *manager) Switch(ctx context.Context, userHome SessionHome, pChannel ProxyChannel) error {
+	m.add(userHome)
+	defer m.delete(userHome.SessionID())
 
-		userSendRequestStream := userHome.SendRequestChannel(ctx)
-		nodeRequestChan := pChannel.ReceiveRequestChannel(ctx)
+	subCtx, cancelFunc := context.WithCancel(ctx)
+	userSendRequestStream := userHome.SendRequestChannel(subCtx)
+	userReceiveStream := userHome.ReceiveResponseChannel(subCtx)
+	nodeRequestChan := pChannel.ReceiveRequestChannel(subCtx)
+	nodeSendResponseStream := pChannel.SendResponseChannel(subCtx)
 
-		for reqFromUser := range userSendRequestStream {
-			nodeRequestChan <- reqFromUser
+	for userSendRequestStream != nil || nodeSendResponseStream != nil {
+		select {
+		case buf1, ok := <-userSendRequestStream:
+			if !ok {
+				log.Warn("userSendRequestStream close")
+				userSendRequestStream = nil
+				continue
+			}
+			nodeRequestChan <- buf1
+		case buf2, ok := <-nodeSendResponseStream:
+			if !ok {
+				log.Warn("nodeSendResponseStream close")
+				nodeSendResponseStream = nil
+				close(userReceiveStream)
+				cancelFunc()
+				continue
+			}
+			userReceiveStream <- buf2
+		case <-ctx.Done():
+			return nil
 		}
-		log.Info("userSendRequestStream close")
-		close(nodeRequestChan)
-
-	}(subCtx, &wg)
-
-	go func(ctx context.Context, wg *sync.WaitGroup) {
-		defer wg.Done()
-		userReceiveStream := userHome.ReceiveResponseChannel(ctx)
-		nodeSendResponseStream := pChannel.SendResponseChannel(ctx)
-
-		for resFromNode := range nodeSendResponseStream {
-			userReceiveStream <- resFromNode
-		}
-		log.Info("nodeSendResponseStream close")
-		close(userReceiveStream)
-	}(subCtx, &wg)
-	err := pChannel.Wait()
-	if err != nil {
-		log.Info("pChannel err:", err)
 	}
-	cancel()
-	wg.Wait()
 	log.Info("switch end")
-	return err
-
+	return nil
 }

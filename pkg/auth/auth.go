@@ -1,25 +1,12 @@
 package auth
 
-import "github.com/gliderlabs/ssh"
+import "fmt"
 
-type Service struct {
+type accessAuth struct {
+	accessKey    string
+	accessSecret string
 }
 
-var (
-	service = new(Service)
-)
-
-func NewService() *Service {
-	return service
-}
-
-func (s *Service) SSHPassword(ctx ssh.Context, password string) bool {
-	ctx.SessionID()
-	Username := "softwareuser1"
-	Password := "123456"
-
-	if ctx.User() == Username && password == Password {
-		return true
-	}
-	return false
+func (a accessAuth) Signature(date string) string {
+	return fmt.Sprintf("Sign %s:%s", a.accessKey, MakeSignature(a.accessSecret, date))
 }
