@@ -1,4 +1,4 @@
-package sshd
+package userhome
 
 import (
 	"context"
@@ -7,7 +7,13 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// ssh方式连接coco的用户request 将实现Conn接口
+func NewSSHConn(sess ssh.Session) *SSHConn {
+	return &SSHConn{
+		conn: sess,
+		uuid: uuid.NewV4(),
+	}
+}
+
 type SSHConn struct {
 	conn ssh.Session
 	uuid uuid.UUID
@@ -43,8 +49,4 @@ func (s *SSHConn) Write(b []byte) (n int, err error) {
 
 func (s *SSHConn) Close() error {
 	return s.conn.Close()
-}
-
-// ws方式连接coco的用户request 将实现Conn接口
-type WSConn struct {
 }

@@ -5,6 +5,7 @@ import (
 	"cocogo/pkg/config"
 	"cocogo/pkg/model"
 	"io"
+	"runtime"
 	"strconv"
 	"sync"
 	"text/template"
@@ -75,6 +76,8 @@ func connectHandler(sess ssh.Session) {
 		log.Info("accept one session")
 		userInteractive.displayHelpInfo()
 		userInteractive.StartDispatch()
+		log.Info("finish one session")
+		runtime.GC()
 
 	} else {
 		_, err := io.WriteString(sess, "No PTY requested.\n")

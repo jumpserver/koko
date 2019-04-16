@@ -1,8 +1,10 @@
 package sshd
 
 import (
-	"cocogo/pkg/core"
 	"cocogo/pkg/model"
+	"cocogo/pkg/proxy"
+	"cocogo/pkg/transport"
+	"cocogo/pkg/userhome"
 	"context"
 	"fmt"
 	"io"
@@ -178,10 +180,7 @@ func (s *sshInteractive) changeLanguage() {
 }
 
 func (s *sshInteractive) JoinShareRoom(roomID string) {
-	sshConn := &SSHConn{
-		conn: s.sess,
-		uuid: generateNewUUID(),
-	}
+	sshConn := userhome.NewSSHConn(s.sess)
 	ctx, cancelFuc := context.WithCancel(s.sess.Context())
 
 	_, winCh, _ := s.sess.Pty()
@@ -198,7 +197,7 @@ func (s *sshInteractive) JoinShareRoom(roomID string) {
 			}
 		}
 	}()
-	core.Manager.JoinShareRoom(roomID, sshConn)
+	proxy.Manager.JoinShareRoom(roomID, sshConn)
 	log.Info("exit room id:", roomID)
 	cancelFuc()
 
@@ -359,30 +358,28 @@ func (s *sshInteractive) Proxy(asset model.Asset, systemUser model.SystemUserAut
 		3. 创建一个NodeConn，及相关的channel 可以是MemoryChannel 或者是redisChannel
 		4. session Home 与 proxy channel 交换数据
 	*/
-	sshConn := &SSHConn{
-		conn: s.sess,
-		uuid: generateNewUUID(),
-	}
-	serverAuth := core.ServerAuth{
+	ptyReq, winChan, _ := s.sess.Pty()
+	sshConn := userhome.NewSSHConn(s.sess)
+	serverAuth := transport.ServerAuth{
 		IP:        asset.Ip,
 		Port:      asset.Port,
 		UserName:  systemUser.UserName,
 		Password:  systemUser.Password,
 		PublicKey: parsePrivateKey(systemUser.PrivateKey)}
 
-	nodeConn, err := core.NewNodeConn(serverAuth, sshConn)
+	nodeConn, err := transport.NewNodeConn(s.sess.Context(), serverAuth, ptyReq, winChan)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 	defer nodeConn.Close()
 
-	memChan := core.NewMemoryChannel(nodeConn, sshConn)
+	memChan := transport.NewMemoryAgent(nodeConn)
 
-	userHome := core.NewUserSessionHome(sshConn)
-	log.Info("session Home ID: ", userHome.SessionID())
+	Home := userhome.NewUserSessionHome(sshConn)
+	log.Info("session Home ID: ", Home.SessionID())
 
-	err = core.Manager.Switch(context.TODO(), userHome, memChan)
+	err = proxy.Manager.Switch(s.sess.Context(), Home, memChan)
 	if err != nil {
 		log.Error(err)
 	}

@@ -1,9 +1,12 @@
-package core
+package transport
 
 import (
+	"cocogo/pkg/parser"
 	"context"
 	"fmt"
 	"io"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/gliderlabs/ssh"
 
@@ -11,20 +14,9 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
-type Conn interface {
-	SessionID() string
+var log = logrus.New()
 
-	User() string
-
-	UUID() uuid.UUID
-
-	Pty() (ssh.Pty, <-chan ssh.Window, bool)
-
-	Context() context.Context
-
-	io.Reader
-	io.WriteCloser
-}
+const maxBufferSize = 1024 * 4
 
 type ServerAuth struct {
 	IP        string
@@ -57,13 +49,12 @@ func CreateNodeSession(authInfo ServerAuth) (c *gossh.Client, s *gossh.Session, 
 	return client, s, nil
 }
 
-func NewNodeConn(authInfo ServerAuth, userS Conn) (*NodeConn, error) {
+func NewNodeConn(ctx context.Context, authInfo ServerAuth, ptyReq ssh.Pty, winCh <-chan ssh.Window) (*NodeConn, error) {
 	c, s, err := CreateNodeSession(authInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	ptyReq, winCh, _ := userS.Pty()
 	err = s.RequestPty(ptyReq.Term, ptyReq.Window.Height, ptyReq.Window.Width, gossh.TerminalModes{})
 	if err != nil {
 		return nil, err
@@ -81,7 +72,7 @@ func NewNodeConn(authInfo ServerAuth, userS Conn) (*NodeConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancelFunc := context.WithCancel(userS.Context())
+	ctx, cancelFunc := context.WithCancel(ctx)
 
 	nConn := &NodeConn{
 		uuid:          uuid.NewV4(),
@@ -91,9 +82,7 @@ func NewNodeConn(authInfo ServerAuth, userS Conn) (*NodeConn, error) {
 		ctxCancelFunc: cancelFunc,
 		stdin:         nodeStdin,
 		stdout:        nodeStdout,
-		tParser:       NewTerminalParser(),
-		inChan:        make(chan []byte),
-		outChan:       make(chan []byte),
+		tParser:       parser.NewTerminalParser(),
 	}
 
 	go nConn.windowChangeHandler(winCh)
@@ -107,16 +96,14 @@ type NodeConn struct {
 	conn                 *gossh.Session
 	stdin                io.Writer
 	stdout               io.Reader
-	tParser              *TerminalParser
+	tParser              *parser.TerminalParser
 	currentCommandInput  string
 	currentCommandResult string
-	rulerFilters         []RuleFilter
-	specialCommands      []SpecialRuler
+	rulerFilters         []parser.RuleFilter
+	specialCommands      []parser.SpecialRuler
 	inSpecialStatus      bool
 	ctx                  context.Context
 	ctxCancelFunc        context.CancelFunc
-	inChan               chan []byte
-	outChan              chan []byte
 }
 
 func (n *NodeConn) UUID() uuid.UUID {
@@ -171,13 +158,69 @@ func (n *NodeConn) windowChangeHandler(winCH <-chan ssh.Window) {
 
 }
 
-func (n *NodeConn) handleRequest(ctx context.Context) {
+func (n *NodeConn) Close() {
+
+	select {
+	case <-n.ctx.Done():
+		return
+	default:
+		_ = n.conn.Close()
+		_ = n.client.Close()
+		n.ctxCancelFunc()
+		log.Info("Close conn")
+	}
+}
+
+func (n *NodeConn) SendResponse(ctx context.Context, outChan chan<- []byte) {
+
+	buf := make([]byte, maxBufferSize)
+	defer close(outChan)
+	for {
+		nr, err := n.stdout.Read(buf)
+		if err != nil {
+			log.Error("read conn err:", err)
+			return
+		}
+
+		if n.tParser.Started && nr > 0 {
+			n.FilterSpecialCommand(buf[:nr])
+
+			switch {
+			case n.inSpecialStatus:
+				// 进入特殊命令状态，
+			case n.tParser.InputStatus:
+				n.tParser.CmdInputBuf.Write(buf[:nr])
+			case n.tParser.OutputStatus:
+				n.tParser.CmdOutputBuf.Write(buf[:nr])
+			default:
+
+			}
+
+		}
+
+		select {
+		case <-ctx.Done():
+			log.Info("SendResponse finish by context done")
+			return
+		default:
+			copyBuf := make([]byte, len(buf[:nr]))
+			copy(copyBuf, buf[:nr])
+			outChan <- copyBuf
+		}
+	}
+
+}
+
+func (n *NodeConn) ReceiveRequest(ctx context.Context, inChan <-chan []byte, outChan chan<- []byte) {
+	defer n.Close()
 	for {
 		select {
 		case <-ctx.Done():
+			log.Error("ReceiveRequest finish by context  done")
 			return
-		case buf, ok := <-n.inChan:
+		case buf, ok := <-inChan:
 			if !ok {
+				log.Error("ReceiveRequest finish by inChan  close")
 				return
 			}
 
@@ -194,7 +237,7 @@ func (n *NodeConn) handleRequest(ctx context.Context) {
 				n.currentCommandInput = n.tParser.ParseCommandInput()
 				if n.FilterWhiteBlackRule(n.currentCommandInput) {
 					msg := fmt.Sprintf("\r\n cmd '%s' is forbidden \r\n", n.currentCommandInput)
-					n.outChan <- []byte(msg)
+					outChan <- []byte(msg)
 					ctrU := []byte{21, 13} // 清除行并换行
 					_, err := n.stdin.Write(ctrU)
 					if err != nil {
@@ -219,56 +262,12 @@ func (n *NodeConn) handleRequest(ctx context.Context) {
 				n.tParser.InputStatus = true
 			}
 
-			_, _ = n.stdin.Write(buf)
-
-		}
-	}
-}
-
-func (n *NodeConn) handleResponse(ctx context.Context) {
-	buf := make([]byte, maxBufferSize)
-	defer close(n.outChan)
-	for {
-		nr, err := n.stdout.Read(buf)
-		if err != nil {
-			return
-		}
-
-		if n.tParser.Started && nr > 0 {
-			n.FilterSpecialCommand(buf[:nr])
-
-			switch {
-			case n.inSpecialStatus:
-				// 进入特殊命令状态，
-			case n.tParser.InputStatus:
-				n.tParser.CmdInputBuf.Write(buf[:nr])
-			case n.tParser.OutputStatus:
-				n.tParser.CmdOutputBuf.Write(buf[:nr])
-			default:
-
+			_, err := n.stdin.Write(buf)
+			if err != nil {
+				log.Error("write conn err:", err)
+				return
 			}
 
 		}
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			copyBuf := make([]byte, len(buf[:nr]))
-			copy(copyBuf, buf[:nr])
-			n.outChan <- copyBuf
-		}
-	}
-}
-
-func (n *NodeConn) Close() {
-
-	select {
-	case <-n.ctx.Done():
-		return
-	default:
-		_ = n.conn.Close()
-		_ = n.client.Close()
-		n.ctxCancelFunc()
 	}
 }
