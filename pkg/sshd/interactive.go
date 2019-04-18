@@ -6,11 +6,15 @@ import (
 	"cocogo/pkg/transport"
 	"cocogo/pkg/userhome"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
+
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/olekukonko/tablewriter"
 
@@ -38,7 +42,7 @@ func (d HelpInfo) displayHelpInfo(sess ssh.Session) {
 type sshInteractive struct {
 	sess                ssh.Session
 	term                *terminal.Terminal
-	assetData           sync.Map
+	assetData           *sync.Map
 	user                model.User
 	helpInfo            HelpInfo
 	currentSearchAssets []model.Asset
@@ -235,11 +239,11 @@ func (s *sshInteractive) StartDispatch() {
 
 		s.onceLoad.Do(func() {
 			if _, ok := Cached.Load(s.user.Id); !ok {
+				log.Info("first load this user asset data ")
 				s.loadUserAssets()
 				s.loadUserAssetNodes()
 
 			} else {
-				log.Info("first load this user asset data ")
 				go func() {
 					s.loadUserAssets()
 					s.loadUserAssetNodes()
@@ -253,7 +257,7 @@ func (s *sshInteractive) StartDispatch() {
 				if assets, ok := s.assetData.Load(AssetsMapKey); ok {
 					s.displayAssets(assets.([]model.Asset))
 					s.currentSearchAssets = assets.([]model.Asset)
-				} else if assets, _ := Cached.Load(s.user.Id); ok {
+				} else if assets, ok := Cached.Load(s.user.Id); ok {
 					s.displayAssets(assets.([]model.Asset))
 					s.currentSearchAssets = assets.([]model.Asset)
 				}
@@ -361,6 +365,7 @@ func (s *sshInteractive) Proxy(asset model.Asset, systemUser model.SystemUserAut
 	ptyReq, winChan, _ := s.sess.Pty()
 	sshConn := userhome.NewSSHConn(s.sess)
 	serverAuth := transport.ServerAuth{
+		SessionID: uuid.NewV4().String(),
 		IP:        asset.Ip,
 		Port:      asset.Port,
 		UserName:  systemUser.UserName,
@@ -372,7 +377,41 @@ func (s *sshInteractive) Proxy(asset model.Asset, systemUser model.SystemUserAut
 		log.Error(err)
 		return err
 	}
-	defer nodeConn.Close()
+	defer func() {
+		nodeConn.Close()
+		data := map[string]interface{}{
+			"id":          nodeConn.SessionID,
+			"user":        s.user.UserName,
+			"asset":       asset.Hostname,
+			"org_id":      asset.OrgID,
+			"system_user": systemUser.UserName,
+			"login_from":  "ST",
+			"remote_addr": s.sess.RemoteAddr().String(),
+			"is_finished": true,
+			"date_start":  nodeConn.StartTime.Format("2006-01-02 15:04:05 +0000"),
+			"date_end":    time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		}
+		postData, _ := json.Marshal(data)
+		appService.FinishSession(nodeConn.SessionID, postData)
+		appService.FinishReply(nodeConn.SessionID)
+	}()
+	data := map[string]interface{}{
+		"id":          nodeConn.SessionID,
+		"user":        s.user.UserName,
+		"asset":       asset.Hostname,
+		"org_id":      asset.OrgID,
+		"system_user": systemUser.UserName,
+		"login_from":  "ST",
+		"remote_addr": s.sess.RemoteAddr().String(),
+		"is_finished": false,
+		"date_start":  nodeConn.StartTime.Format("2006-01-02 15:04:05 +0000"),
+		"date_end":    nil,
+	}
+	postData, err := json.Marshal(data)
+
+	if !appService.CreateSession(postData) {
+		return err
+	}
 
 	memChan := transport.NewMemoryAgent(nodeConn)
 
@@ -384,7 +423,6 @@ func (s *sshInteractive) Proxy(asset model.Asset, systemUser model.SystemUserAut
 		log.Error(err)
 	}
 	return err
-
 }
 
 func isSubstring(sArray []string, substr string) bool {

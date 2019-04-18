@@ -5,7 +5,6 @@ import (
 	"cocogo/pkg/config"
 	"cocogo/pkg/model"
 	"io"
-	"runtime"
 	"strconv"
 	"sync"
 	"text/template"
@@ -23,18 +22,19 @@ var (
 	displayTemplate *template.Template
 	log             *logrus.Logger
 
-	Cached sync.Map
+	Cached *sync.Map
 )
 
-func Initial(config *config.Config, service *auth.Service) {
+func Initial() {
 	displayTemplate = template.Must(template.New("display").Parse(welcomeTemplate))
-	conf = config
-	appService = service
-	serverSig = parsePrivateKey(config.TermConfig.HostKey)
+	Cached = new(sync.Map)
+	conf = config.GetGlobalConfig()
+	appService = auth.GetGlobalService()
+	serverSig = parsePrivateKey(conf.TermConfig.HostKey)
 
 	log = logrus.New()
 
-	if level, err := logrus.ParseLevel(config.LogLevel); err != nil {
+	if level, err := logrus.ParseLevel(conf.LogLevel); err != nil {
 		log.SetLevel(logrus.InfoLevel)
 	} else {
 		log.SetLevel(level)
@@ -64,9 +64,10 @@ func connectHandler(sess ssh.Session) {
 		}
 
 		userInteractive := &sshInteractive{
-			sess: sess,
-			term: terminal.NewTerminal(sess, "Opt>"),
-			user: user,
+			sess:      sess,
+			term:      terminal.NewTerminal(sess, "Opt>"),
+			user:      user,
+			assetData: new(sync.Map),
 			helpInfo: HelpInfo{UserName: sess.User(),
 				ColorCode: GreenColorCode,
 				ColorEnd:  ColorEnd,
@@ -76,8 +77,6 @@ func connectHandler(sess ssh.Session) {
 		log.Info("accept one session")
 		userInteractive.displayHelpInfo()
 		userInteractive.StartDispatch()
-		log.Info("finish one session")
-		runtime.GC()
 
 	} else {
 		_, err := io.WriteString(sess, "No PTY requested.\n")

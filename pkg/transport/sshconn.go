@@ -2,15 +2,16 @@ package transport
 
 import (
 	"cocogo/pkg/parser"
+	"cocogo/pkg/record"
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/gliderlabs/ssh"
 
-	uuid "github.com/satori/go.uuid"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -19,6 +20,7 @@ var log = logrus.New()
 const maxBufferSize = 1024 * 4
 
 type ServerAuth struct {
+	SessionID string
 	IP        string
 	Port      int
 	UserName  string
@@ -72,17 +74,22 @@ func NewNodeConn(ctx context.Context, authInfo ServerAuth, ptyReq ssh.Pty, winCh
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancelFunc := context.WithCancel(ctx)
+	subCtx, cancelFunc := context.WithCancel(ctx)
 
+	replyRecord := record.NewReplyRecord(authInfo.SessionID)
+	replyRecord.StartRecord()
+	go replyRecord.EndRecord(subCtx)
 	nConn := &NodeConn{
-		uuid:          uuid.NewV4(),
+		SessionID:     authInfo.SessionID,
 		client:        c,
 		conn:          s,
-		ctx:           ctx,
+		ctx:           subCtx,
 		ctxCancelFunc: cancelFunc,
 		stdin:         nodeStdin,
 		stdout:        nodeStdout,
 		tParser:       parser.NewTerminalParser(),
+		replyRecord:   replyRecord,
+		StartTime:     time.Now().UTC(),
 	}
 
 	go nConn.windowChangeHandler(winCh)
@@ -91,7 +98,7 @@ func NewNodeConn(ctx context.Context, authInfo ServerAuth, ptyReq ssh.Pty, winCh
 
 // coco连接远程Node的连接
 type NodeConn struct {
-	uuid                 uuid.UUID
+	SessionID            string
 	client               *gossh.Client
 	conn                 *gossh.Session
 	stdin                io.Writer
@@ -104,10 +111,9 @@ type NodeConn struct {
 	inSpecialStatus      bool
 	ctx                  context.Context
 	ctxCancelFunc        context.CancelFunc
-}
-
-func (n *NodeConn) UUID() uuid.UUID {
-	return n.uuid
+	replyRecord          *record.Reply
+	cmdRecord            *record.Command
+	StartTime            time.Time
 }
 
 func (n *NodeConn) Wait() error {
@@ -206,6 +212,7 @@ func (n *NodeConn) SendResponse(ctx context.Context, outChan chan<- []byte) {
 			copyBuf := make([]byte, len(buf[:nr]))
 			copy(copyBuf, buf[:nr])
 			outChan <- copyBuf
+			n.replyRecord.Record(buf[:nr])
 		}
 	}
 
@@ -238,6 +245,7 @@ func (n *NodeConn) ReceiveRequest(ctx context.Context, inChan <-chan []byte, out
 				if n.FilterWhiteBlackRule(n.currentCommandInput) {
 					msg := fmt.Sprintf("\r\n cmd '%s' is forbidden \r\n", n.currentCommandInput)
 					outChan <- []byte(msg)
+					n.replyRecord.Record([]byte(msg))
 					ctrU := []byte{21, 13} // 清除行并换行
 					_, err := n.stdin.Write(ctrU)
 					if err != nil {

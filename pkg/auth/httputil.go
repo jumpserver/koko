@@ -31,7 +31,7 @@ func MD5Encode(b []byte) string {
 func MakeSureDirExit(filePath string) {
 	dirPath := filepath.Dir(filePath)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		err = os.Mkdir(dirPath, os.ModePerm)
+		err = os.MkdirAll(dirPath, os.ModePerm)
 		if err != nil {
 			log.Info("could not create dir path:", dirPath)
 			os.Exit(1)
