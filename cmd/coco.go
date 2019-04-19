@@ -6,19 +6,10 @@ import (
 	"cocogo/pkg/sshd"
 )
 
-var (
-	conf       *config.Config
-	appService *auth.Service
-)
-
 func init() {
-	configFile := "config.yml"
-	conf = config.LoadFromYaml(configFile)
-	appService = auth.NewAuthService(conf)
-	appService.LoadAccessKey()
-	appService.EnsureValidAuth()
-	appService.LoadTerminalConfig()
-	sshd.Initial(conf, appService)
+	config.Initial()
+	auth.Initial()
+	sshd.Initial()
 }
 
 func main() {

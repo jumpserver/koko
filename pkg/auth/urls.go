@@ -11,6 +11,10 @@ const (
 	SystemUserAuthUrl      = "/api/assets/v1/system-user/%s/auth-info/"          // 该系统用户的授权
 
 	ValidateUserAssetPermission = "/api/perms/v1/asset-permission/user/validate/" //0不使用缓存 1 使用缓存 2 刷新缓存
+
+	SessionList   = "/api/terminal/v1/sessions/"           //上传创建的资产会话session id
+	SessionDetail = "/api/terminal/v1/sessions/%s/"        // finish session的时候发送
+	SessionReplay = "/api/terminal/v1/sessions/%s/replay/" //上传录像
 )
 
 /*
