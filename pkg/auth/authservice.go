@@ -327,7 +327,6 @@ func (s *Service) saveAccessKey() error {
 func (s *Service) getProfile() bool {
 
 	url := fmt.Sprintf("%s%s", s.Conf.CoreHost, UserProfileUrl)
-
 	body, err := s.SendHTTPRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Info("Read response Body err:", err)
@@ -353,11 +352,11 @@ func (s *Service) SendHTTPRequest(method, url string, jsonData []byte) ([]byte, 
 	req.Header.Set("Date", currentDate)
 	req.Header.Set("Authorization", s.auth.Signature(currentDate))
 	resp, err := s.http.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		log.Info("Send HTTP Request failed:", err)
 		return nil, err
 	}
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	return body, nil
 }
