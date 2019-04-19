@@ -43,7 +43,7 @@ func Initial(config *config.Config, service *auth.Service) {
 }
 
 func StartServer() {
-	ser := ssh.Server{
+	srv := ssh.Server{
 		Addr:             conf.BindHost + ":" + strconv.Itoa(conf.SshPort),
 		PasswordHandler:  appService.CheckSSHPassword,
 		PublicKeyHandler: appService.CheckSSHPublicKey,
@@ -51,7 +51,7 @@ func StartServer() {
 		Version:          "coco-v1.4",
 		Handler:          connectHandler,
 	}
-	log.Fatal(ser.ListenAndServe())
+	log.Fatal(srv.ListenAndServe())
 }
 
 func connectHandler(sess ssh.Session) {
