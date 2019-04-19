@@ -1,9 +1,10 @@
-package auth
+package common
 
 import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"strings"

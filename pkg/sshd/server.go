@@ -44,7 +44,7 @@ func Initial() {
 
 func StartServer() {
 	srv := ssh.Server{
-		Addr:             conf.BindHost + ":" + strconv.Itoa(conf.SshPort),
+		Addr:             conf.BindHost + ":" + strconv.Itoa(conf.SSHPort),
 		PasswordHandler:  appService.CheckSSHPassword,
 		PublicKeyHandler: appService.CheckSSHPublicKey,
 		HostSigners:      []ssh.Signer{serverSig},

@@ -18,6 +18,14 @@
   version = "v0.1.3"
 
 [[projects]]
+  digest = "1:e77a03f1e4f1e4e035e46dc3cd79b1e33acbf651540aaa5e148caf1296884d18"
+  name = "github.com/jarcoal/httpmock"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e598472b238f5d2a505e1316886da2171f86bfa4"
+  version = "v1.0.3"
+
+[[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
   name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
@@ -107,6 +115,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/gliderlabs/ssh",
+    "github.com/jarcoal/httpmock",
     "github.com/olekukonko/tablewriter",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
