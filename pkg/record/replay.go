@@ -71,6 +71,7 @@ func (r *Reply) uploadReplay() {
 	if sto := storage.NewStorageServer(); sto != nil {
 		sto.Upload(r.absGzFilePath, r.target)
 	}
+	_ = os.Remove(r.absFilePath)
 	_ = os.Remove(r.absGzFilePath)
 
 }
