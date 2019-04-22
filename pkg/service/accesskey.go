@@ -1,87 +1,93 @@
 package service
 
 import (
+	"cocogo/pkg/logger"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
-	"path/filepath"
 	"strings"
 
 	"cocogo/pkg/common"
 )
 
+var (
+	AccessKeyNotFound     = errors.New("access key not found")
+	AccessKeyFileNotFound = errors.New("access key file not found")
+	AccessKeyInvalid      = errors.New("access key not valid")
+)
+
 type AccessKey struct {
-	Id     string
-	Secret string
+	Id      string
+	Secret  string
+	Path    string
+	Context string
 }
 
-func (ak *AccessKey) Signature(date string) string {
+func (ak AccessKey) Sign() string {
+	date := common.HTTPGMTDate()
 	signature := common.MakeSignature(ak.Secret, date)
 	return fmt.Sprintf("Sign %s:%s", ak.Id, signature)
 }
 
+func (ak *AccessKey) LoadAccessKeyFromStr(key string) error {
+	if key == "" {
+		return AccessKeyNotFound
+	}
+	keySlice := strings.Split(strings.TrimSpace(key), ":")
+	if len(ak.Context) != 2 {
+		return AccessKeyInvalid
+	}
+	ak.Id = keySlice[0]
+	ak.Secret = keySlice[1]
+	return nil
+}
+
+func (ak *AccessKey) LoadAccessKeyFromFile(keyPath string) error {
+	if keyPath == "" {
+		return AccessKeyNotFound
+	}
+	_, err := os.Stat(keyPath)
+	if err != nil {
+		return AccessKeyFileNotFound
+	}
+	buf, err := ioutil.ReadFile(keyPath)
+	if err != nil {
+		msg := fmt.Sprintf("read access key failed: %s", err)
+		return errors.New(msg)
+	}
+	return ak.LoadAccessKeyFromStr(string(buf))
+}
+
+func (ak *AccessKey) SaveToFile() error {
+	return nil
+}
+
+func (ak *AccessKey) Register(times int) error {
+	return nil
+}
+
 // LoadAccessKey 加载AccessKey用来与 Core Api 交互
-func (s *Service) LoadAccessKey() {
-	/*
-	   1. 查看配置文件是否包含accessKey，解析不正确则退出程序
-	   2. 检查是否已经注册过accessKey，
-	   		1）已经注册过则进行解析，解析不正确则退出程序
-	   		2）未注册则新注册
-	*/
-	if s.Conf.AccessKey != "" {
-		fmt.Println(s.Conf.AccessKey)
-		keyAndSecret := strings.Split(s.Conf.AccessKey, ":")
-		if len(keyAndSecret) == 2 {
-			s.auth = accessAuth{
-				accessKey:    keyAndSecret[0],
-				accessSecret: keyAndSecret[1],
-			}
-		} else {
-			fmt.Println("ACCESS_KEY format err")
-			os.Exit(1)
-		}
+func (ak *AccessKey) Load() (err error) {
+	err = ak.LoadAccessKeyFromStr(ak.Context)
+	if err == nil {
 		return
 	}
-	var configPath string
-
-	if !path.IsAbs(s.Conf.AccessKeyFile) {
-		configPath = filepath.Join(s.Conf.RootPath, s.Conf.AccessKeyFile)
-	} else {
-		configPath = s.Conf.AccessKeyFile
+	err = ak.LoadAccessKeyFromFile(ak.Path)
+	if err == nil {
+		return
 	}
-	_, err := os.Stat(configPath)
+	err = ak.Register(10)
 	if err != nil {
-		if os.IsNotExist(err) {
-			fmt.Println("Do not have access key, register it!")
-			err := s.registerTerminalAndSave()
-			if err != nil {
-				log.Info("register Failed:", err)
-				os.Exit(1)
-			}
-			return
-		} else {
-			fmt.Println("sys err:", err)
-			os.Exit(1)
-		}
-
+		msg := "register access key failed"
+		logger.Error(msg)
+		return errors.New(msg)
 	}
-
-	buf, err := ioutil.ReadFile(configPath)
+	err = ak.SaveToFile()
 	if err != nil {
-		fmt.Println("read Access key Failed:", err)
-		os.Exit(1)
+		msg := fmt.Sprintf("save to access key to file error: %s", err)
+		logger.Error(msg)
+		return errors.New(msg)
 	}
-	keyAndSecret := strings.Split(string(buf), ":")
-	if len(keyAndSecret) == 2 {
-		s.auth = accessAuth{
-			accessKey:    keyAndSecret[0],
-			accessSecret: keyAndSecret[1],
-		}
-	} else {
-		fmt.Println("ACCESS_KEY format err")
-		os.Exit(1)
-	}
-
+	return nil
 }

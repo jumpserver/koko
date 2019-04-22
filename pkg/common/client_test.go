@@ -26,29 +26,24 @@ var user = User{ID: 2, Name: "Jumpserver", Age: 5}
 var userDeleteUrl = fmt.Sprintf("%s/%d", usersUrl, user.ID)
 
 func TestClient_Do(t *testing.T) {
-	c := NewClient()
-	req, err := http.NewRequest("GET", usersUrl, nil)
-	if err != nil {
-		t.Error("Failed NewRequest() ...")
-	}
-
-	err = c.Do(req, nil)
+	c := NewClient(10)
+	err := c.Do("GET", usersUrl, nil, nil)
 	if err == nil {
 		t.Error("Failed Do(), want get err but not")
 	}
 	c.SetBasicAuth(username, password)
 	var res []User
-	err = c.Do(req, &res)
+	err = c.Do("GET", usersUrl, nil, &res)
 	if err != nil {
-		t.Errorf("Failed Do(), %s", err.Error())
+		t.Errorf("Failed Do() error: %s", err.Error())
 	}
 	if len(res) != 2 {
-		t.Errorf("User not equal 2")
+		t.Errorf("User not equal 2: %d", len(res))
 	}
 }
 
 func TestClient_Get(t *testing.T) {
-	c := NewClient()
+	c := NewClient(10)
 	err := c.Get(usersUrl, nil)
 	if err == nil {
 		t.Errorf("Failed Get(%s): want get err but not", usersUrl)
@@ -61,7 +56,7 @@ func TestClient_Get(t *testing.T) {
 }
 
 func TestClient_Post(t *testing.T) {
-	c := NewClient()
+	c := NewClient(10)
 	var userCreated User
 	err := c.Post(usersUrl, user, &userCreated)
 	if err != nil {
@@ -73,7 +68,7 @@ func TestClient_Post(t *testing.T) {
 }
 
 func TestClient_Put(t *testing.T) {
-	c := NewClient()
+	c := NewClient(10)
 	var userUpdated User
 	err := c.Put(usersUrl, user, &userUpdated)
 	if err != nil {
@@ -85,7 +80,7 @@ func TestClient_Put(t *testing.T) {
 }
 
 func TestClient_Delete(t *testing.T) {
-	c := NewClient()
+	c := NewClient(10)
 	c.SetBasicAuth(username, password)
 	err := c.Delete(userDeleteUrl, nil)
 	if err != nil {
