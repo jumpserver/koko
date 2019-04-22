@@ -51,7 +51,7 @@ func (c *WrapperClient) LoadAuth() error {
 	if !path.IsAbs(config.Conf.AccessKeyFile) {
 		keyPath = filepath.Join(config.Conf.RootPath, keyPath)
 	}
-	ak := AccessKey{Context: config.Conf.AccessKey, Path: keyPath}
+	ak := AccessKey{Value: config.Conf.AccessKey, Path: keyPath}
 	err := ak.Load()
 	if err != nil {
 		return err

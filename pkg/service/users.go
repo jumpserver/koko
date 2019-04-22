@@ -53,7 +53,7 @@ package service
 //	return result.User, nil
 //}
 //
-//func (s *Service) CheckSSHPassword(ctx ssh.Context, password string) bool {
+//func (s *Service) CheckSSHPassword(ctx ssh.Value, password string) bool {
 //
 //	username := ctx.User()
 //	remoteAddr := ctx.RemoteAddr().String()

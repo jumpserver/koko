@@ -18,10 +18,10 @@ var (
 )
 
 type AccessKey struct {
-	Id      string
-	Secret  string
-	Path    string
-	Context string
+	Id     string
+	Secret string
+	Path   string
+	Value  string
 }
 
 func (ak AccessKey) Sign() string {
@@ -35,7 +35,7 @@ func (ak *AccessKey) LoadAccessKeyFromStr(key string) error {
 		return AccessKeyNotFound
 	}
 	keySlice := strings.Split(strings.TrimSpace(key), ":")
-	if len(ak.Context) != 2 {
+	if len(ak.Value) != 2 {
 		return AccessKeyInvalid
 	}
 	ak.Id = keySlice[0]
@@ -69,7 +69,7 @@ func (ak *AccessKey) Register(times int) error {
 
 // LoadAccessKey 加载AccessKey用来与 Core Api 交互
 func (ak *AccessKey) Load() (err error) {
-	err = ak.LoadAccessKeyFromStr(ak.Context)
+	err = ak.LoadAccessKeyFromStr(ak.Value)
 	if err == nil {
 		return
 	}
