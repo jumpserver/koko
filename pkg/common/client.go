@@ -76,13 +76,7 @@ func (c *Client) ParseUrlQuery(url string, query map[string]string) string {
 	return url
 }
 
-func (c *Client) ParseUrl(url string, params ...map[string]string) string {
-	if len(params) == 1 {
-		url = c.ParseUrlQuery(url, params[0])
-	}
-	for _, parser := range c.UrlParsers {
-		url = parser.parse(url, params...)
-	}
+func (c *Client) ParseUrl(url string) string {
 	return url
 }
 
@@ -117,14 +111,14 @@ func (c *Client) SetReqHeaders(req *http.Request, params ...map[string]string) {
 	c.SetAuthHeader(req)
 }
 
-func (c *Client) NewRequest(method, url string, body interface{}, params ...map[string]string) (req *http.Request, err error) {
-	url = c.ParseUrl(url, params...)
+func (c *Client) NewRequest(method, url string, body interface{}) (req *http.Request, err error) {
+	url = c.ParseUrl(url)
 	reader, err := c.marshalData(body)
 	if err != nil {
 		return
 	}
 	req, err = http.NewRequest(method, url, reader)
-	c.SetReqHeaders(req, params...)
+	c.SetReqHeaders(req)
 	return req, err
 }
 
@@ -132,7 +126,7 @@ func (c *Client) NewRequest(method, url string, body interface{}, params ...map[
 // params:
 //   1. query string if set {"name": "ibuler"}
 func (c *Client) Do(method, url string, data, res interface{}, params ...map[string]string) (err error) {
-	req, err := c.NewRequest(method, url, data, params...)
+	req, err := c.NewRequest(method, url, data)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return
@@ -158,8 +152,8 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 	return
 }
 
-func (c *Client) Get(url string, res interface{}, params ...map[string]string) (err error) {
-	return c.Do("GET", url, nil, res, params...)
+func (c *Client) Get(url string, query map[string]string, res interface{}) (err error) {
+	return c.Do("GET", url, nil, res)
 }
 
 func (c *Client) Post(url string, data interface{}, res interface{}) (err error) {

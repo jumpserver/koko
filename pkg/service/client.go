@@ -29,7 +29,7 @@ func (c *WrapperClient) SetAuthHeader(r *http.Request) {
 }
 
 func (c *WrapperClient) ExpandUrl(url string, query map[string]string) string {
-
+	return ""
 }
 
 func (c *WrapperClient) ParseUrl(url string, params ...map[string]string) string {
@@ -42,10 +42,6 @@ func (c *WrapperClient) ParseUrl(url string, params ...map[string]string) string
 	}
 	if len(params) == 1 {
 		url = c.ParseUrlQuery(url, params[0])
-	}
-	if len(params) == 2 {
-		url =
-
 	}
 	return newUrl
 }
