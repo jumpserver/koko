@@ -1,6 +1,8 @@
 package service
 
-import "cocogo/pkg/sdk"
+import (
+	"cocogo/pkg/sdk"
+)
 
 func GetUserAssets(userId string) (assets []sdk.Asset) {
 	return
@@ -8,4 +10,8 @@ func GetUserAssets(userId string) (assets []sdk.Asset) {
 
 func GetUserNodes(userId string) (nodes []sdk.Node) {
 	return
+}
+
+func ValidateUserAssetPermission(userId, assetId, systemUserId string) bool {
+	return true
 }
