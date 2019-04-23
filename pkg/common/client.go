@@ -152,7 +152,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 	return
 }
 
-func (c *Client) Get(url string, query map[string]string, res interface{}) (err error) {
+func (c *Client) Get(url string, res interface{}) (err error) {
 	return c.Do("GET", url, nil, res)
 }
 

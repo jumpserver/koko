@@ -5,7 +5,7 @@ var urls = map[string]string{
 	"UserProfileUrl": "/api/users/v1/profile/", // 获取当前用户的基本信息
 
 	"SystemUserAssetAuthUrl": "/api/assets/v1/system-user/%s/asset/%s/auth-info/", // 该系统用户对某资产的授权
-	"SystemUserAuthUrl":      "/api/assets/v1/system-user/%s/auth-info/",          // 该系统用户的授权
+	"SystemUserAuthInfo":     "/api/assets/v1/system-user/%s/auth-info/",          // 该系统用户的授权
 
 	"TerminalRegisterUrl": "/api/terminal/v2/terminal-registrations/", // 注册当前coco
 	"TerminalConfigUrl":   "/api/terminal/v1/terminal/config/",        // 从jumpserver获取coco的配置
