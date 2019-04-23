@@ -13,9 +13,10 @@ type ClientAuth interface {
 }
 
 type WrapperClient struct {
-	Http     *common.Client
-	Auth     ClientAuth
-	BaseHost string
+	Http       *common.Client
+	AuthClient *common.Client
+	Auth       ClientAuth
+	BaseHost   string
 }
 
 func (c *WrapperClient) LoadAuth() error {
@@ -43,46 +44,41 @@ func (c *WrapperClient) CheckAuth() error {
 
 func (c *WrapperClient) Get(url string, res interface{}, needAuth bool) error {
 	if needAuth {
-		c.Http.SetAuth(c.Auth.Sign())
+		return c.AuthClient.Get(c.BaseHost+url, res)
 	} else {
-		c.Http.SetAuth("")
+		return c.Http.Get(c.BaseHost+url, res)
 	}
 
-	return c.Http.Get(c.BaseHost+url, res)
 }
 
 func (c *WrapperClient) Post(url string, data interface{}, res interface{}, needAuth bool) error {
 	if needAuth {
-		c.Http.SetAuth(c.Auth.Sign())
+		return c.AuthClient.Post(url, data, res)
 	} else {
-		c.Http.SetAuth("")
+		return c.Http.Post(url, data, res)
 	}
-	return c.Http.Post(url, data, res)
 }
 
 func (c *WrapperClient) Delete(url string, res interface{}, needAuth bool) error {
 	if needAuth {
-		c.Http.SetAuth(c.Auth.Sign())
+		return c.AuthClient.Delete(url, res)
 	} else {
-		c.Http.SetAuth("")
+		return c.Http.Delete(url, res)
 	}
-	return c.Http.Delete(url, res)
 }
 
 func (c *WrapperClient) Put(url string, data interface{}, res interface{}, needAuth bool) error {
 	if needAuth {
-		c.Http.SetAuth(c.Auth.Sign())
+		return c.AuthClient.Put(url, data, res)
 	} else {
-		c.Http.SetAuth("")
+		return c.Http.Put(url, data, res)
 	}
-	return c.Http.Put(url, data, res)
 }
 
 func (c *WrapperClient) Patch(url string, data interface{}, res interface{}, needAuth bool) error {
 	if needAuth {
-		c.Http.SetAuth(c.Auth.Sign())
+		return c.AuthClient.Patch(url, data, res)
 	} else {
-		c.Http.SetAuth("")
+		return c.Http.Patch(url, data, res)
 	}
-	return c.Http.Patch(url, data, res)
 }
