@@ -14,14 +14,17 @@ import (
 	"time"
 )
 
+type ClientAuth interface {
+	Sign() string
+}
+
 type Client struct {
-	Timeout       time.Duration
-	Headers       map[string]string
-	basicAuth     []string
-	authorization string
-	cookie        map[string]string
-	http          *http.Client
-	UrlParsers    []UrlParser
+	Timeout    time.Duration
+	Headers    map[string]string
+	Auth       ClientAuth
+	cookie     map[string]string
+	http       *http.Client
+	UrlParsers []UrlParser
 }
 
 type UrlParser interface {
@@ -40,17 +43,12 @@ func NewClient(timeout time.Duration) *Client {
 	}
 }
 
-func (c *Client) SetBasicAuth(username, password string) {
-	c.basicAuth = append(c.basicAuth, username)
-	c.basicAuth = append(c.basicAuth, password)
-}
-
-func (c *Client) SetAuth(authorization string) {
-	c.authorization = authorization
-}
-
 func (c *Client) SetCookie(k, v string) {
 	c.cookie[k] = v
+}
+
+func (c *Client) SetAuth(auth ClientAuth) {
+	c.Auth = auth
 }
 
 func (c *Client) marshalData(data interface{}) (reader io.Reader, error error) {
@@ -81,20 +79,15 @@ func (c *Client) ParseUrl(url string) string {
 }
 
 func (c *Client) SetAuthHeader(r *http.Request, params ...map[string]string) {
-	if len(c.basicAuth) == 2 {
-		r.SetBasicAuth(c.basicAuth[0], c.basicAuth[1])
-		return
-	}
-	if c.authorization != "" {
-		r.Header.Add("Authorization", c.authorization)
-		return
-	}
 	if len(c.cookie) != 0 {
 		cookie := make([]string, 0)
 		for k, v := range c.cookie {
 			cookie = append(cookie, fmt.Sprintf("%s=%s", k, v))
 		}
 		r.Header.Add("Cookie", strings.Join(cookie, ";"))
+	}
+	if c.Auth != nil {
+		r.Header.Set("Authorization", c.Auth.Sign())
 	}
 }
 

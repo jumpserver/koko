@@ -1,11 +1,5 @@
 package sdk
 
-import (
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
-	"fmt"
-)
-
 //
 //func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (authInfo model.SystemUserAuthInfo, err error) {
 //
@@ -19,13 +13,3 @@ import (
 //
 //}
 //
-func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.SystemUserAuthInfo, err error) {
-	var authInfo model.SystemUserAuthInfo
-	systemUrl := fmt.Sprintf(urls["SystemUserAuthInfo"], systemUserID)
-	err = Client.Get(systemUrl, &authInfo, true)
-	if err != nil {
-		logger.Info("get User Assets Groups err:", err)
-		return
-	}
-	return
-}

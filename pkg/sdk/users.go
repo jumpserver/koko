@@ -1,8 +1,6 @@
 package sdk
 
-import "cocogo/pkg/model"
-
-func CheckAuth(username, password, publicKey, remoteAddr, loginType string) (user model.User, err error) {
+func CheckAuth(username, password, publicKey, remoteAddr, loginType string) (user User, err error) {
 	return user, nil
 }
 
