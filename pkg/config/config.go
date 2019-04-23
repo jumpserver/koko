@@ -26,6 +26,7 @@ type Config struct {
 	TelnetRegex         string            `json:"TERMINAL_TELNET_REGEX"`
 	MaxIdleTime         time.Duration     `json:"SECURITY_MAX_IDLE_TIME"`
 	Name                string            `yaml:"NAME"`
+	HostKeyFile         string            `yaml:"HOST_KEY_FILE"`
 	CoreHost            string            `yaml:"CORE_HOST"`
 	BootstrapToken      string            `yaml:"BOOTSTRAP_TOKEN"`
 	BindHost            string            `yaml:"BIND_HOST"`

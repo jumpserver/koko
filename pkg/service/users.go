@@ -1,5 +1,11 @@
 package service
 
+import "cocogo/pkg/model"
+
+func CheckAuth(username, password, publicKey, remoteAddr, loginType string) (user model.User, err error) {
+	return user, nil
+}
+
 //
 //func (s *Service) CheckAuth(username, password, publicKey, remoteAddr, loginType string) (model.User, error) {
 //	/*

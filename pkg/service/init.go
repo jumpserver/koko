@@ -6,15 +6,15 @@ import (
 	"cocogo/pkg/logger"
 )
 
-var client = WrapperClient{}
+var Client = WrapperClient{}
 
 func init() {
-	err := client.LoadAuth()
+	err := Client.LoadAuth()
 	if err != nil {
 		logger.Error("Load client access key error: %s", err)
 		os.Exit(10)
 	}
-	err = client.CheckAuth()
+	err = Client.CheckAuth()
 	if err != nil {
 		logger.Error("Check client auth error: %s", err)
 		os.Exit(11)

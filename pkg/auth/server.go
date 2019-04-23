@@ -1,11 +1,17 @@
 package auth
 
 import (
+	gossh "golang.org/x/crypto/ssh"
+
 	"github.com/gliderlabs/ssh"
 
 	"cocogo/pkg/common"
 	"cocogo/pkg/service"
 )
+
+func CheckUserPassword(ctx ssh.Context, password string) bool {
+	return true
+}
 
 func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) bool {
 	username := ctx.User()
@@ -18,5 +24,8 @@ func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) bool {
 	}
 	ctx.SetValue("LoginUser", authUser)
 	return true
+}
 
+func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) bool {
+	return true
 }

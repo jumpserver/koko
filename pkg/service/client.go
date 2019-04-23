@@ -1,7 +1,6 @@
 package service
 
 import (
-	"cocogo/pkg/model"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -61,10 +60,10 @@ func (c *WrapperClient) LoadAuth() error {
 }
 
 func (c *WrapperClient) CheckAuth() error {
-	var user model.User
-	err := c.Get("UserProfileUrl", &user)
-	if err != nil {
-		return err
-	}
+	//var user model.User
+	//err := c.Get("UserProfileUrl", &user)
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }

@@ -1,9 +1,6 @@
 package record
 
 import (
-	"cocogo/pkg/auth"
-	"cocogo/pkg/config"
-	"cocogo/pkg/storage"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -13,10 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"cocogo/pkg/config"
+	"cocogo/pkg/storage"
 )
 
+var conf = config.Conf
+
 func NewReplyRecord(sessionID string) *Reply {
-	rootPath := config.GetGlobalConfig().RootPath
+	rootPath := conf.RootPath
 	currentData := time.Now().UTC().Format("2006-01-02")
 	gzFileName := sessionID + ".replay.gz"
 	absFilePath := filepath.Join(rootPath, "data", "replays", currentData, sessionID)
@@ -52,9 +54,9 @@ func (r *Reply) Record(b []byte) {
 }
 
 func (r *Reply) StartRecord() {
-	auth.MakeSureDirExit(r.absFilePath)
-	r.WriteF, _ = os.Create(r.absFilePath)
-	_, _ = r.WriteF.Write([]byte("{"))
+	//auth.MakeSureDirExit(r.absFilePath)
+	//r.WriteF, _ = os.Create(r.absFilePath)
+	//_, _ = r.WriteF.Write([]byte("{"))
 }
 
 func (r *Reply) EndRecord(ctx context.Context) {

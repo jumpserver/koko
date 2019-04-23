@@ -1,4 +1,4 @@
-package sshd
+package handlers
 
 const (
 	GreenColorCode = "\033[32m"

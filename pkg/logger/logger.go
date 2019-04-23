@@ -40,3 +40,7 @@ func Error(args ...interface{}) {
 func Panic(args ...interface{}) {
 	logrus.Panic(args...)
 }
+
+func Fatal(args ...interface{}) {
+	logrus.Fatal(args...)
+}

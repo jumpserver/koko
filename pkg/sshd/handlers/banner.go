@@ -1,6 +1,14 @@
-package sshd
+package handlers
 
-const welcomeTemplate = `
+import (
+	"text/template"
+
+	"github.com/gliderlabs/ssh"
+
+	"cocogo/pkg/logger"
+)
+
+const bannerTemplate = `
 		{{.UserName}}	Welcome to use Jumpserver open source fortress system{{.EndLine}}
 {{.Tab}}1) Enter {{.ColorCode}}ID{{.ColorEnd}} directly login or enter {{.ColorCode}}part IP, Hostname, Comment{{.ColorEnd}} to search login(if unique). {{.EndLine}}
 {{.Tab}}2) Enter {{.ColorCode}}/{{.ColorEnd}} + {{.ColorCode}}IP, Hostname{{.ColorEnd}} or {{.ColorCode}}Comment{{.ColorEnd}} search, such as: /ip. {{.EndLine}}
@@ -12,3 +20,30 @@ const welcomeTemplate = `
 {{.Tab}}8) Enter {{.ColorCode}}r{{.ColorEnd}} to refresh your assets and nodes.{{.EndLine}}
 {{.Tab}}0) Enter {{.ColorCode}}q{{.ColorEnd}} exit.{{.EndLine}}
 `
+
+var displayTemplate = template.Must(template.New("display").Parse(bannerTemplate))
+
+type Banner struct {
+	UserName  string
+	ColorCode string
+	ColorEnd  string
+	Tab       string
+	EndLine   string
+}
+
+func (h *Banner) display(sess ssh.Session) {
+	e := displayTemplate.Execute(sess, h)
+	if e != nil {
+		logger.Warn("Display help info failed")
+	}
+}
+
+func NewBanner(userName string) *Banner {
+	return &Banner{
+		UserName:  userName,
+		ColorCode: GreenColorCode,
+		ColorEnd:  ColorEnd,
+		Tab:       Tab,
+		EndLine:   EndLine,
+	}
+}
