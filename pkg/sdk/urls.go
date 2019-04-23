@@ -1,4 +1,4 @@
-package service
+package sdk
 
 var urls = map[string]string{
 	"UserAuthUrl":    "/api/users/v1/auth/",    // post 验证用户登陆

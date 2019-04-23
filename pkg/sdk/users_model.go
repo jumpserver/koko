@@ -1,4 +1,4 @@
-package model
+package sdk
 
 /*
 	{'id': '1f8e54a8-d99d-4074-b35d-45264adb4e34',

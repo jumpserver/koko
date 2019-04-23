@@ -110,6 +110,8 @@ var Conf = &Config{
 	AccessKey:      "",
 	AccessKeyFile:  "access_key",
 	LogLevel:       "DEBUG",
+	HostKeyFile:    "host_key",
+	HostKey:        "",
 	RootPath:       rootPath,
 	Comment:        "Coco",
 	ReplayStorage:  map[string]string{},

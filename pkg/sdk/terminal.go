@@ -1,4 +1,4 @@
-package service
+package sdk
 
 //
 //func (s *Service) PushSessionReplay(gZipFile, sessionID string) error {

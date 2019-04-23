@@ -1,9 +1,12 @@
 package sshd
 
 import (
-	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"os"
+
+	"golang.org/x/crypto/ssh"
+
+	"cocogo/pkg/common"
 )
 
 type HostKey struct {
@@ -29,11 +32,16 @@ func (hk *HostKey) loadHostKeyFromString(value string) (signer ssh.Signer, err e
 }
 
 func (hk *HostKey) Gen() (signer ssh.Signer, err error) {
-	return
-}
-
-func (hk *HostKey) SaveToFile(signer ssh.Signer) (err error) {
-	return
+	key, err := common.GeneratePrivateKey(2048)
+	if err != nil {
+		return
+	}
+	keyBytes := common.EncodePrivateKeyToPEM(key)
+	err = common.WriteKeyToFile(keyBytes, hk.Path)
+	if err != nil {
+		return
+	}
+	return ssh.NewSignerFromKey(key)
 }
 
 func (hk *HostKey) Load() (signer ssh.Signer, err error) {
@@ -50,12 +58,5 @@ func (hk *HostKey) Load() (signer ssh.Signer, err error) {
 		}
 	}
 	signer, err = hk.Gen()
-	if err != nil {
-		return
-	}
-	err = hk.SaveToFile(signer)
-	if err != nil {
-		return
-	}
 	return
 }

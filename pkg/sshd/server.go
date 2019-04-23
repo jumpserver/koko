@@ -7,8 +7,8 @@ import (
 
 	"cocogo/pkg/auth"
 	"cocogo/pkg/config"
+	"cocogo/pkg/handler"
 	"cocogo/pkg/logger"
-	"cocogo/pkg/sshd/handlers"
 )
 
 var (
@@ -16,6 +16,7 @@ var (
 )
 
 func StartServer() {
+	logger.Debug("Load host access key")
 	hostKey := HostKey{Value: conf.HostKey, Path: conf.HostKeyFile}
 	signer, err := hostKey.Load()
 	if err != nil {
@@ -29,7 +30,7 @@ func StartServer() {
 		KeyboardInteractiveHandler: auth.CheckMFA,
 		HostSigners:                []ssh.Signer{signer},
 		Version:                    "coco-v1.4",
-		Handler:                    handlers.SessionHandler,
+		Handler:                    handler.TestHandler,
 	}
 	logger.Fatal(srv.ListenAndServe())
 }

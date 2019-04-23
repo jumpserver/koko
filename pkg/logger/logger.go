@@ -9,9 +9,13 @@ import (
 var logger = logrus.New()
 
 func init() {
-	customFormatter := new(logrus.TextFormatter)
+	customFormatter := &logrus.TextFormatter{
+		DisableColors:          false,
+		FullTimestamp:          true,
+		DisableLevelTruncation: true,
+	}
 	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
-	logger.SetFormatter(&logrus.TextFormatter{})
+	logger.SetFormatter(customFormatter)
 
 	// Output to stdout instead of the default stderr
 	// Can be any io.Writer, see below for File example

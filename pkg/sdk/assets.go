@@ -1,4 +1,4 @@
-package service
+package sdk
 
 import (
 	"cocogo/pkg/logger"

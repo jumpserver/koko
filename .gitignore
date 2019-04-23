@@ -16,3 +16,4 @@ go.sum
 .idea/
 vendor/
 config.yml
+host_key
