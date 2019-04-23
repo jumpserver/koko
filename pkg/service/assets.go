@@ -1,10 +1,9 @@
 package service
 
 import (
-	"fmt"
-
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
+	"fmt"
 )
 
 //
@@ -22,10 +21,10 @@ import (
 //
 func GetSystemUserAuthInfo(systemUserID string) {
 	var authInfo model.SystemUserAuthInfo
-	err := client.Get("systemUserAuthInfo", nil, &authInfo)
+	systemUrl := fmt.Sprintf(urls["SystemUserAuthInfo"], systemUserID)
+	err := client.Get(systemUrl, &authInfo, true)
 	if err != nil {
 		logger.Info("get User Assets Groups err:", err)
 		return
 	}
-	fmt.Println(authInfo)
 }

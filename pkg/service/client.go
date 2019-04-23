@@ -1,14 +1,12 @@
 package service
 
 import (
+	"cocogo/pkg/common"
+	"cocogo/pkg/config"
 	"cocogo/pkg/model"
-	"net/http"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"cocogo/pkg/common"
-	"cocogo/pkg/config"
 )
 
 type ClientAuth interface {
@@ -16,16 +14,9 @@ type ClientAuth interface {
 }
 
 type WrapperClient struct {
-	*common.Client
+	Http     *common.Client
 	Auth     ClientAuth
 	BaseHost string
-}
-
-func (c *WrapperClient) SetAuthHeader(r *http.Request) {
-	if c.Auth != nil {
-		signature := c.Auth.Sign()
-		r.Header.Add("Authorization", signature)
-	}
 }
 
 func (c *WrapperClient) ExpandUrl(url string, query map[string]string) string {
@@ -41,7 +32,7 @@ func (c *WrapperClient) ParseUrl(url string, params ...map[string]string) string
 		newUrl = strings.TrimRight(c.BaseHost, "/") + newUrl
 	}
 	if len(params) == 1 {
-		url = c.ParseUrlQuery(url, params[0])
+		url = c.Http.ParseUrlQuery(url, params[0])
 	}
 	return newUrl
 }
@@ -62,9 +53,17 @@ func (c *WrapperClient) LoadAuth() error {
 
 func (c *WrapperClient) CheckAuth() error {
 	var user model.User
-	err := c.Get("UserProfileUrl", &user)
+	err := c.Http.Get("UserProfileUrl", &user)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (c *WrapperClient) Get(url string, res interface{}, needAuth bool) error {
+	if needAuth {
+		c.Http.SetAuth(c.Auth.Sign())
+	}
+
+	return c.Http.Get(c.BaseHost+url, res)
 }
