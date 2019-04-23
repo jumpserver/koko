@@ -6,7 +6,6 @@ import (
 
 	"cocogo/pkg/common"
 	"cocogo/pkg/config"
-	"cocogo/pkg/model"
 )
 
 type ClientAuth interface {
@@ -34,7 +33,7 @@ func (c *WrapperClient) LoadAuth() error {
 }
 
 func (c *WrapperClient) CheckAuth() error {
-	var user model.User
+	var user User
 	err := c.Http.Get("UserProfileUrl", &user)
 	if err != nil {
 		return err

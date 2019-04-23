@@ -7,8 +7,9 @@ import (
 
 	"cocogo/pkg/auth"
 	"cocogo/pkg/config"
-	"cocogo/pkg/handler"
 	"cocogo/pkg/logger"
+
+	"./handler"
 )
 
 var (
