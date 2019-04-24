@@ -51,37 +51,35 @@ func (c *WrapperClient) Get(url string, res interface{}, needAuth bool) error {
 }
 
 func (c *WrapperClient) Post(url string, data interface{}, res interface{}, needAuth bool) error {
-	//if needAuth {
-	//	c.Http.SetAuth(c.Auth.Sign())
-	//} else {
-	//	c.Http.SetAuth("")
-	//}
-	return c.Http.Post(url, data, res)
+	if needAuth {
+		return c.AuthClient.Post(url, data, res)
+	} else {
+		return c.Http.Post(url, data, res)
+	}
 }
 
 func (c *WrapperClient) Delete(url string, res interface{}, needAuth bool) error {
-	//if needAuth {
-	//	c.Http.SetAuth(c.Auth.Sign())
-	//} else {
-	//	c.Http.SetAuth("")
-	//}
-	return c.Http.Delete(url, res)
+	if needAuth {
+		return c.AuthClient.Delete(url, res)
+	} else {
+		return c.Http.Delete(url, res)
+	}
 }
 
 func (c *WrapperClient) Put(url string, data interface{}, res interface{}, needAuth bool) error {
-	//if needAuth {
-	//	c.Http.SetAuth(c.Auth.Sign())
-	//} else {
-	//	c.Http.SetAuth("")
-	//}
-	return c.Http.Put(url, data, res)
+	if needAuth {
+		return c.AuthClient.Put(url, data, res)
+	} else {
+		return c.Http.Put(url, data, res)
+	}
+
 }
 
 func (c *WrapperClient) Patch(url string, data interface{}, res interface{}, needAuth bool) error {
-	//if needAuth {
-	//	c.Http.SetAuth(c.Auth.Sign())
-	//} else {
-	//	c.Http.SetAuth("")
-	//}
-	return c.Http.Patch(url, data, res)
+	if needAuth {
+		return c.AuthClient.Patch(url, data, res)
+	} else {
+		return c.Http.Patch(url, data, res)
+	}
+
 }
