@@ -1,4 +1,4 @@
-package transport
+package proxy
 
 import (
 	"cocogo/pkg/parser"

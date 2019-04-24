@@ -1,15 +1,15 @@
 package proxy
 
 import (
-	"cocogo/pkg/transport"
 	"cocogo/pkg/userhome"
 	"context"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"cocogo/pkg/logger"
 )
 
-var log = logrus.New()
+type Switch struct {
+}
 
 var Manager = &manager{
 	container: new(sync.Map),
@@ -63,7 +63,7 @@ func (m *manager) Switch(ctx context.Context, uHome userhome.SessionHome, agent 
 		select {
 		case buf1, ok := <-userSendRequestStream:
 			if !ok {
-				log.Warn("userSendRequestStream close")
+				logger.Warn("userSendRequestStream close")
 				userSendRequestStream = nil
 				close(nodeRequestChan)
 				continue
@@ -71,7 +71,7 @@ func (m *manager) Switch(ctx context.Context, uHome userhome.SessionHome, agent 
 			nodeRequestChan <- buf1
 		case buf2, ok := <-nodeSendResponseStream:
 			if !ok {
-				log.Warn("nodeSendResponseStream close")
+				logger.Warn("nodeSendResponseStream close")
 				nodeSendResponseStream = nil
 				close(userReceiveStream)
 				cancelFunc()
@@ -79,11 +79,11 @@ func (m *manager) Switch(ctx context.Context, uHome userhome.SessionHome, agent 
 			}
 			userReceiveStream <- buf2
 		case <-ctx.Done():
-			log.Info("proxy end by context done")
+			logger.Info("proxy end by context done")
 			cancelFunc()
 			return nil
 		}
 	}
-	log.Info("proxy end")
+	logger.Info("proxy end")
 	return nil
 }

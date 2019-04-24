@@ -28,7 +28,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (ok bool) {
 		ctx.SetValue(cctx.ContextKeyUser, user)
 	}
 	logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
-	return false
+	return ok
 }
 
 func CheckUserPassword(ctx ssh.Context, password string) bool {

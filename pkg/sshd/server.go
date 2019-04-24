@@ -12,6 +12,8 @@ import (
 	"cocogo/pkg/sshd/handler"
 )
 
+const version = "coco-v1.4"
+
 var (
 	conf = config.Conf
 )
@@ -30,7 +32,7 @@ func StartServer() {
 		PublicKeyHandler:           auth.CheckUserPublicKey,
 		KeyboardInteractiveHandler: auth.CheckMFA,
 		HostSigners:                []ssh.Signer{signer},
-		Version:                    "coco-v1.4",
+		Version:                    version,
 		Handler:                    handler.SessionHandler,
 	}
 	logger.Fatal(srv.ListenAndServe())

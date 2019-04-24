@@ -31,10 +31,12 @@ type Context interface {
 	SetValue(key, value interface{})
 }
 
+// Context coco内部使用的Context
 type CocoContext struct {
 	context.Context
 }
 
+// User 返回当前连接的用户model
 func (ctx *CocoContext) User() *sdk.User {
 	return ctx.Value(ContextKeyUser).(*sdk.User)
 }
@@ -62,7 +64,6 @@ func (ctx *CocoContext) SetValue(key, value interface{}) {
 func applySessionMetadata(ctx *CocoContext, sess ssh.Session) {
 	ctx.SetValue(ContextKeySSHSession, &sess)
 	ctx.SetValue(ContextKeySSHCtx, sess.Context())
-	//ctx.SetValue(ContextKeyUser, &sdk.User{Username: sess.User()})
 	ctx.SetValue(ContextKeyLocalAddr, sess.LocalAddr())
 }
 
