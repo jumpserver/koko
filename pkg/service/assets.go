@@ -13,7 +13,7 @@ func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info sdk.SystemUs
 func GetSystemUserAuthInfo(systemUserID string) (info sdk.SystemUserAuthInfo) {
 	Url := fmt.Sprintf(sdk.SystemUserAuthInfoURL, systemUserID)
 
-	err := Client.Get(Url, &info, true)
+	err := client.Get(Url, &info, true)
 	if err != nil {
 		logger.Error("Get system user auth info failed")
 	}
