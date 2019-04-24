@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"cocogo/pkg/config"
 	"fmt"
 	"io"
@@ -14,8 +15,26 @@ import (
 const defaultTitle = `Welcome to use Jumpserver open source fortress system`
 
 type MenuItem struct {
+	id       int
 	instruct string
 	helpText string
+	showText string
+}
+
+func (mi *MenuItem) Text() string {
+	if mi.showText != "" {
+		return mi.showText
+	}
+	cm := ColorMeta{GreenBoldColor: "\033[1;32m", ColorEnd: "\033[0m"}
+	line := fmt.Sprintf("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.\r\n", mi.id, mi.instruct, mi.helpText)
+	tmpl := template.Must(template.New("item").Parse(line))
+	var buf bytes.Buffer
+	err := tmpl.Execute(&buf, cm)
+	if err != nil {
+		logger.Error(err)
+	}
+	mi.showText = string(buf.Bytes())
+	return mi.showText
 }
 
 type Menu []MenuItem
@@ -30,10 +49,6 @@ var menu = Menu{
 	{instruct: "s", helpText: "switch Chinese-english language."},
 	{instruct: "h", helpText: "print help"},
 	{instruct: "q", helpText: "exit"},
-}
-
-type Banner struct {
-	user string
 }
 
 type ColorMeta struct {

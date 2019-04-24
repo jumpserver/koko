@@ -9,7 +9,7 @@ import (
 	"cocogo/pkg/config"
 	"cocogo/pkg/logger"
 
-	"./handler"
+	"cocogo/pkg/sshd/handler"
 )
 
 var (
@@ -31,7 +31,7 @@ func StartServer() {
 		KeyboardInteractiveHandler: auth.CheckMFA,
 		HostSigners:                []ssh.Signer{signer},
 		Version:                    "coco-v1.4",
-		Handler:                    handler.TestHandler,
+		Handler:                    handler.SessionHandler,
 	}
 	logger.Fatal(srv.ListenAndServe())
 }

@@ -63,7 +63,7 @@ func (i *InteractiveHandler) preDispatch() {
 	})
 }
 
-func (i *InteractiveHandler) watchSizeChange(winCh <-chan ssh.Window) {
+func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window) {
 	ctx, cancelFunc := context.WithCancel(i.sess.Context())
 	defer cancelFunc()
 	for {
@@ -85,7 +85,7 @@ func (i *InteractiveHandler) Dispatch() {
 	i.preDispatch()
 	_, winCh, _ := i.sess.Pty()
 	for {
-		go i.watchSizeChange(winCh)
+		go i.watchWinSizeChange(winCh)
 
 		line, err := i.term.ReadLine()
 		if err != nil {
@@ -163,36 +163,36 @@ func (i *InteractiveHandler) chooseSystemUser(systemUsers []sdk.SystemUser) sdk.
 
 // 当资产的数量为1的时候，就进行代理转化
 func (i *InteractiveHandler) displayAssetsOrProxy(assets []sdk.Asset) {
-	if len(assets) == 1 {
-		var systemUser sdk.SystemUser
-		switch len(assets[0].SystemUsers) {
-		case 0:
-			// 有授权的资产，但是资产用户信息，无法登陆
-			i.displayAssets(assets)
-			return
-		case 1:
-			systemUser = assets[0].SystemUsers[0]
-		default:
-			systemUser = i.chooseSystemUser(assets[0].SystemUsers)
-		}
-
-		authInfo, err := sdk.GetSystemUserAssetAuthInfo(systemUser.Id, assets[0].Id)
-		if err != nil {
-			return
-		}
-		if ok := service.ValidateUserAssetPermission(i.user.Id, systemUser.Id, assets[0].Id); !ok {
-			// 检查user 是否对该资产有权限
-			return
-		}
-
-		err = i.Proxy(assets[0], authInfo)
-		if err != nil {
-			logger.Info(err)
-		}
-		return
-	} else {
-		i.displayAssets(assets)
-	}
+	//if len(assets) == 1 {
+	//	var systemUser sdk.SystemUser
+	//	switch len(assets[0].SystemUsers) {
+	//	case 0:
+	//		// 有授权的资产，但是资产用户信息，无法登陆
+	//		i.displayAssets(assets)
+	//		return
+	//	case 1:
+	//		systemUser = assets[0].SystemUsers[0]
+	//	default:
+	//		systemUser = i.chooseSystemUser(assets[0].SystemUsers)
+	//	}
+	//
+	//	authInfo, err := sdk.GetSystemUserAssetAuthInfo(systemUser.Id, assets[0].Id)
+	//	if err != nil {
+	//		return
+	//	}
+	//	if ok := service.ValidateUserAssetPermission(i.user.Id, systemUser.Id, assets[0].Id); !ok {
+	//		// 检查user 是否对该资产有权限
+	//		return
+	//	}
+	//
+	//	err = i.Proxy(assets[0], authInfo)
+	//	if err != nil {
+	//		logger.Info(err)
+	//	}
+	//	return
+	//} else {
+	//	i.displayAssets(assets)
+	//}
 }
 
 func (i *InteractiveHandler) displayAssets(assets model.AssetList) {
