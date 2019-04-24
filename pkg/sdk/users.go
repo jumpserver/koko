@@ -57,14 +57,14 @@ func CheckAuth(username, password, publicKey, remoteAddr, loginType string) (use
 //	return result.User, nil
 //}
 //
-//func (s *Service) CheckSSHPassword(ctx ssh.Value, password string) bool {
+//func (s *Service) CheckSSHPassword(cctx ssh.Value, password string) bool {
 //
-//	username := ctx.User()
-//	remoteAddr := ctx.RemoteAddr().String()
+//	username := cctx.User()
+//	remoteAddr := cctx.RemoteAddr().String()
 //	authUser, err := s.CheckAuth(username, password, "", remoteAddr, "T")
 //	if err != nil {
 //		return false
 //	}
-//	ctx.SetValue("LoginUser", authUser)
+//	cctx.SetValue("LoginUser", authUser)
 //	return true
 //}

@@ -64,7 +64,7 @@ func (r *userSessionHome) AddConnection(c Conn) {
 
 		select {
 		case <-ctx.Done():
-			log.Info(" user conn ctx done")
+			log.Info(" user conn cctx done")
 			return
 		default:
 			copyBuf := make([]byte, nr)

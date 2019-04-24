@@ -1,29 +1,17 @@
 package handler
 
 import (
+	"context"
 	//"context"
 	//"strconv"
-
-	"cocogo/pkg/model"
-	"cocogo/pkg/proxy"
-	"cocogo/pkg/sdk"
-	"cocogo/pkg/service"
-	"cocogo/pkg/userhome"
-	"context"
 	"fmt"
-	"github.com/olekukonko/tablewriter"
-	"github.com/xlab/treeprint"
-
 	//"encoding/json"
 	//"fmt"
 	"io"
 	"strconv"
 	"strings"
-
 	//"strings"
-
 	//"strconv"
-	//"strings"
 	"sync"
 	//"time"
 
@@ -31,19 +19,46 @@ import (
 	//"github.com/olekukonko/tablewriter"
 	//"github.com/satori/go.uuid"
 	//"github.com/xlab/treeprint"
+	"github.com/olekukonko/tablewriter"
+	"github.com/xlab/treeprint"
 	"golang.org/x/crypto/ssh/terminal"
 
+	"cocogo/pkg/cctx"
 	"cocogo/pkg/logger"
+	"cocogo/pkg/model"
+	"cocogo/pkg/proxy"
+	"cocogo/pkg/sdk"
+	"cocogo/pkg/service"
+	"cocogo/pkg/userhome"
 	//"cocogo/pkg/proxy"
-	//"cocogo/pkg/service"
 	//"cocogo/pkg/transport"
 	//"cocogo/pkg/userhome"
 )
 
+func SessionHandler(sess ssh.Session) {
+	_, _, ptyOk := sess.Pty()
+	if ptyOk {
+		ctx, cancel := cctx.NewContext(sess)
+		handler := &InteractiveHandler{
+			sess: sess,
+			user: ctx.User(),
+			term: terminal.NewTerminal(sess, "Opt> "),
+		}
+		logger.Infof("New connection from: %s %s", sess.User(), sess.RemoteAddr().String())
+		handler.Dispatch(ctx)
+		cancel()
+	} else {
+		_, err := io.WriteString(sess, "No PTY requested.\n")
+		if err != nil {
+			return
+		}
+	}
+}
+
 type InteractiveHandler struct {
 	sess         ssh.Session
 	term         *terminal.Terminal
-	user         sdk.User
+	user         *sdk.User
 	assets       model.AssetList
 	searchResult model.AssetList
 	nodes        model.NodeList
@@ -69,7 +84,7 @@ func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window) {
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Info("ctx done")
+			logger.Info("Ctx done")
 			return
 		case win, ok := <-winCh:
 			if !ok {
@@ -81,7 +96,7 @@ func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window) {
 	}
 }
 
-func (i *InteractiveHandler) Dispatch() {
+func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 	i.preDispatch()
 	_, winCh, _ := i.sess.Pty()
 	for {
@@ -415,22 +430,4 @@ func ConstructAssetNodeTree(assetNodes []sdk.Node) treeprint.Tree {
 
 	}
 	return tree
-}
-
-func SessionHandler(sess ssh.Session) {
-	_, _, ptyOk := sess.Pty()
-	if ptyOk {
-		handler := &InteractiveHandler{
-			sess: sess,
-			term: terminal.NewTerminal(sess, "Opt> "),
-		}
-
-		logger.Info("Accept one session")
-		handler.Dispatch()
-	} else {
-		_, err := io.WriteString(sess, "No PTY requested.\n")
-		if err != nil {
-			return
-		}
-	}
 }

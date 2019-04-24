@@ -1,28 +1,47 @@
 package auth
 
 import (
-	gossh "golang.org/x/crypto/ssh"
+	"strings"
 
 	"github.com/gliderlabs/ssh"
+	gossh "golang.org/x/crypto/ssh"
+
+	"cocogo/pkg/cctx"
+	"cocogo/pkg/common"
+	"cocogo/pkg/logger"
+	"cocogo/pkg/service"
 )
 
+func checkAuth(ctx ssh.Context, password, publicKey string) (ok bool) {
+	username := ctx.User()
+	remoteAddr := strings.Split(ctx.RemoteAddr().String(), ":")[0]
+	user := service.Authenticate(username, password, publicKey, remoteAddr, "T")
+	authMethod := "publickey"
+	action := "Accepted"
+	if password != "" {
+		authMethod = "password"
+	}
+	if user == nil {
+		action = "Failed"
+		ok = false
+	} else {
+		ctx.SetValue(cctx.ContextKeyUser, user)
+	}
+	logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
+	return false
+}
+
 func CheckUserPassword(ctx ssh.Context, password string) bool {
-	return true
+	ok := checkAuth(ctx, password, "")
+	return ok
 }
 
 func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) bool {
-	//username := ctx.User()
-	//b := key.Marshal()
-	//publicKeyBase64 := common.Base64Encode(string(b))
-	//remoteAddr := ctx.RemoteAddr().String()
-	//authUser, err := service.CheckAuth(username, "", publicKeyBase64, remoteAddr, "T")
-	//if err != nil {
-	//	return false
-	//}
-	//ctx.SetValue("LoginUser", authUser)
-	return true
+	b := key.Marshal()
+	publicKey := common.Base64Encode(string(b))
+	return checkAuth(ctx, "", publicKey)
 }
 
 func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) bool {
-	return true
+	return false
 }

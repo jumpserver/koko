@@ -20,8 +20,8 @@ package sdk
 
 type User struct {
 	Id       string `json:"id"`
+	Username string `json:"username"`
 	Name     string `json:"name"`
-	UserName string `json:"username"`
 	Email    string `json:"email"`
 
 	Role     string `json:"role"`
