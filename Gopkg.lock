@@ -34,6 +34,14 @@
   version = "v1.0.2"
 
 [[projects]]
+  digest = "1:47dc4f6ee8a7dda99b516b56cb7fcc4f53ca94756263bdcea55c918a60126062"
+  name = "github.com/kr/pty"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "521317be5ebc228a0f0ede099fa2a0b5ece22e49"
+  version = "v1.1.4"
+
+[[projects]]
   digest = "1:0356f3312c9bd1cbeda81505b7fd437501d8e778ab66998ef69f00d7f9b3a0d7"
   name = "github.com/mattn/go-runewidth"
   packages = ["."]
@@ -116,6 +124,7 @@
   input-imports = [
     "github.com/gliderlabs/ssh",
     "github.com/jarcoal/httpmock",
+    "github.com/kr/pty",
     "github.com/olekukonko/tablewriter",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",

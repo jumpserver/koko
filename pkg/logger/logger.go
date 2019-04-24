@@ -12,7 +12,7 @@ func init() {
 	customFormatter := &logrus.TextFormatter{
 		DisableColors:          false,
 		FullTimestamp:          true,
-		DisableLevelTruncation: true,
+		DisableLevelTruncation: false,
 	}
 	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
 	logger.SetFormatter(customFormatter)

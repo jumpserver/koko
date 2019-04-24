@@ -95,18 +95,18 @@ func (i *InteractiveHandler) Dispatch() {
 
 		switch len(line) {
 		case 0, 1:
-			switch line {
-			case "", "p", "P":
+			switch strings.ToLower(line) {
+			case "", "p":
 				i.displayAssets(i.assets)
-			case "g", "G":
+			case "g":
 				i.displayNodes(i.nodes)
-			case "s", "S":
+			case "s":
 				i.changeLanguage()
-			case "h", "H":
+			case "h":
 				i.displayBanner()
-			case "r", "R":
+			case "r":
 				i.refreshAssetsAndNodesData()
-			case "q", "Q":
+			case "q":
 				logger.Info("exit session")
 				return
 			default:
