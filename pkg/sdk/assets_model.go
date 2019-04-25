@@ -91,14 +91,18 @@ func SortAssetNodesByKey(assetNodes []Node) {
 	nodeSortBy(keySort).Sort(assetNodes)
 }
 
+const LoginModeManual = "manual"
+
 type SystemUser struct {
-	Id        string `json:"id"`
-	Name      string `json:"name"`
-	UserName  string `json:"username"`
-	Priority  int    `json:"priority"`
-	Protocol  string `json:"protocol"`
-	Comment   string `json:"comment"`
-	LoginMode string `json:"login_mode"`
+	Id         string `json:"id"`
+	Name       string `json:"name"`
+	UserName   string `json:"username"`
+	Priority   int    `json:"priority"`
+	Protocol   string `json:"protocol"`
+	Comment    string `json:"comment"`
+	LoginMode  string `json:"login_mode"`
+	Password   string `json:"password"`
+	PrivateKey string `json:"private_key"`
 }
 
 type SystemUserAuthInfo struct {

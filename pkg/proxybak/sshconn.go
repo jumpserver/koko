@@ -1,4 +1,4 @@
-package proxy
+package proxybak
 
 import (
 	"cocogo/pkg/parser"
@@ -26,6 +26,11 @@ type ServerAuth struct {
 	UserName  string
 	Password  string
 	PublicKey gossh.Signer
+}
+
+type Conn interface {
+	ReceiveRequest(context.Context, <-chan []byte, chan<- []byte)
+	SendResponse(context.Context, chan<- []byte)
 }
 
 func CreateNodeSession(authInfo ServerAuth) (c *gossh.Client, s *gossh.Session, err error) {

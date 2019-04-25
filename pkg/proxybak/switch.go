@@ -1,14 +1,35 @@
-package proxy
+package proxybak
 
 import (
-	"cocogo/pkg/userhome"
 	"context"
 	"sync"
 
+	"github.com/gliderlabs/ssh"
+
 	"cocogo/pkg/logger"
+	"cocogo/pkg/sdk"
+	"cocogo/pkg/userhome"
 )
 
-type Switch struct {
+type UserSessionEndpoint struct {
+	UserSessions []ssh.Session
+	Transport    Transport
+}
+
+type ServerSessionEndpoint struct {
+	ServerSession []ssh.Session
+	Transport     Transport
+}
+
+type Switcher struct {
+	User  sdk.User
+	Asset sdk.Asset
+
+	PrimarySession  *ssh.Session
+	ShareSessions   []*ssh.Session
+	WatcherSessions []*ssh.Session
+
+	ServerConn ServerSessionEndpoint
 }
 
 var Manager = &manager{

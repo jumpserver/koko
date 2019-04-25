@@ -1,10 +1,15 @@
-package proxy
+package proxybak
 
 import (
 	"context"
 
 	uuid "github.com/satori/go.uuid"
 )
+
+type Transport interface {
+	ReceiveChannel(ctx context.Context) chan<- []byte
+	SendChannel(ctx context.Context) <-chan []byte
+}
 
 type Agent interface {
 	ReceiveRequestChannel(ctx context.Context) chan<- []byte

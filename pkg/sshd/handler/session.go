@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"cocogo/pkg/proxybak"
 	"context"
 	//"context"
 	//"strconv"
@@ -26,7 +27,6 @@ import (
 	"cocogo/pkg/cctx"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
-	"cocogo/pkg/proxy"
 	"cocogo/pkg/sdk"
 	"cocogo/pkg/service"
 	"cocogo/pkg/userhome"
@@ -282,7 +282,7 @@ func (i *InteractiveHandler) JoinShareRoom(roomID string) {
 			}
 		}
 	}()
-	proxy.Manager.JoinShareRoom(roomID, sshConn)
+	proxybak.Manager.JoinShareRoom(roomID, sshConn)
 	logger.Info("exit room id:", roomID)
 	cancelFuc()
 
