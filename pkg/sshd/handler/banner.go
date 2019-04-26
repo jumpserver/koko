@@ -7,7 +7,7 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/logger"
 )

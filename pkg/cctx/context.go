@@ -2,7 +2,7 @@ package cctx
 
 import (
 	"context"
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/sdk"
 )

@@ -10,12 +10,12 @@
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
 
 [[projects]]
-  digest = "1:c3f0e909d9834aede2dca8824d35f8def272defc400e530bd0e76481a43e1f38"
-  name = "github.com/gliderlabs/ssh"
+  digest = "1:74d60c90a8daf329b92887e404a23d999ff95bc7a9c111476c1753bcf178e384"
+  name = "github.com/ibuler/ssh"
   packages = ["."]
   pruneopts = "UT"
-  revision = "4b72c663cfb315ecfb9f6be5c106c0c693ce196b"
-  version = "v0.1.3"
+  revision = "d3a6756290240931faaf90ec97ddd5d9290623d8"
+  version = "v0.1.1"
 
 [[projects]]
   digest = "1:e77a03f1e4f1e4e035e46dc3cd79b1e33acbf651540aaa5e148caf1296884d18"
@@ -32,6 +32,14 @@
   pruneopts = "UT"
   revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
   version = "v1.0.2"
+
+[[projects]]
+  digest = "1:9cedee824c21326bd26950bd9e1ffe9dc4e7ca03dc8634d0e6f954ee6a383172"
+  name = "github.com/kr/fs"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1455def202f6e05b95cc7bfc7e8ae67ae5141eba"
+  version = "v0.1.0"
 
 [[projects]]
   digest = "1:47dc4f6ee8a7dda99b516b56cb7fcc4f53ca94756263bdcea55c918a60126062"
@@ -56,6 +64,22 @@
   pruneopts = "UT"
   revision = "e6d60cf7ba1f42d86d54cdf5508611c4aafb3970"
   version = "v0.0.1"
+
+[[projects]]
+  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
+
+[[projects]]
+  digest = "1:6c187bc42f50a341b0dd25da7f5bcf84b4bbffa7193b92f3c983c1a9803a447a"
+  name = "github.com/pkg/sftp"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a713b07e6d90e1831d7fefcb69f1310edb3783ae"
+  version = "v1.10.0"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
@@ -83,7 +107,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7d2f4682bbf020a09e42b95e3ab8ff8eaf1301ccd3184c98fb8baffd3cf02427"
+  digest = "1:7ba755bbcaaf821fd0c73c96069883c4467d6e261e3ecc81adddb8e0bfc67527"
   name = "golang.org/x/crypto"
   packages = [
     "curve25519",
@@ -96,11 +120,11 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "88737f569e3a9c7ab309cdc09a07fe7fc87233c3"
+  revision = "c05e17bb3b2dca130fc919668a96b4bec9eb9442"
 
 [[projects]]
   branch = "master"
-  digest = "1:dd68f2bed31a27f4e2aff98c48d185b9e19d29d0b81fb0f81f58ec50469c2e4b"
+  digest = "1:91f01f15f85f43f18cbed401dfc839879a12678f8254fcfe93daaddd4a3e52e0"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -108,7 +132,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "16da32be82c5df9a338c27758247c0b7b0bd8fea"
+  revision = "16072639606ea9e22c7d86e4cbd6af6314f4193c"
 
 [[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
@@ -122,10 +146,11 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/gliderlabs/ssh",
+    "github.com/ibuler/ssh",
     "github.com/jarcoal/httpmock",
     "github.com/kr/pty",
     "github.com/olekukonko/tablewriter",
+    "github.com/pkg/sftp",
     "github.com/satori/go.uuid",
     "github.com/sirupsen/logrus",
     "github.com/xlab/treeprint",

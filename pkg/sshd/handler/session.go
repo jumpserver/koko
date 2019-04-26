@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"cocogo/pkg/proxybak"
+	//"cocogo/pkg/proxybak"
+	//"cocogo/pkg/proxybak"
 	"context"
 	//"context"
 	//"strconv"
@@ -16,7 +17,7 @@ import (
 	"sync"
 	//"time"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 	//"github.com/olekukonko/tablewriter"
 	//"github.com/satori/go.uuid"
 	//"github.com/xlab/treeprint"
@@ -29,7 +30,6 @@ import (
 	"cocogo/pkg/model"
 	"cocogo/pkg/sdk"
 	"cocogo/pkg/service"
-	"cocogo/pkg/userhome"
 	//"cocogo/pkg/proxy"
 	//"cocogo/pkg/transport"
 	//"cocogo/pkg/userhome"
@@ -265,26 +265,26 @@ func (i *InteractiveHandler) changeLanguage() {
 }
 
 func (i *InteractiveHandler) JoinShareRoom(roomID string) {
-	sshConn := userhome.NewSSHConn(i.sess)
-	ctx, cancelFuc := context.WithCancel(i.sess.Context())
-
-	_, winCh, _ := i.sess.Pty()
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case win, ok := <-winCh:
-				if !ok {
-					return
-				}
-				fmt.Println("join term change:", win)
-			}
-		}
-	}()
-	proxybak.Manager.JoinShareRoom(roomID, sshConn)
+	//sshConn := userhome.NewSSHConn(i.sess)
+	//ctx, cancelFuc := context.WithCancel(i.sess.Context())
+	//
+	//_, winCh, _ := i.sess.Pty()
+	//go func() {
+	//	for {
+	//		select {
+	//		case <-ctx.Done():
+	//			return
+	//		case win, ok := <-winCh:
+	//			if !ok {
+	//				return
+	//			}
+	//			fmt.Println("join term change:", win)
+	//		}
+	//	}
+	//}()
+	//proxybak.Manager.JoinShareRoom(roomID, sshConn)
 	logger.Info("exit room id:", roomID)
-	cancelFuc()
+	//cancelFuc()
 
 }
 

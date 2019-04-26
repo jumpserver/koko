@@ -3,7 +3,7 @@ package auth
 import (
 	"strings"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
 	"cocogo/pkg/cctx"
@@ -23,9 +23,9 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (ok bool) {
 	}
 	if user == nil {
 		action = "Failed"
-		ok = false
 	} else {
 		ctx.SetValue(cctx.ContextKeyUser, user)
+		ok = true
 	}
 	logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
 	return ok

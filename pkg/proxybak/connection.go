@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
 	"cocogo/pkg/logger"

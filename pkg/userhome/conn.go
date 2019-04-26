@@ -6,7 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 	uuid "github.com/satori/go.uuid"
 )
 

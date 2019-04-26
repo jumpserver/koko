@@ -3,7 +3,7 @@ package sshd
 import (
 	"strconv"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/auth"
 	"cocogo/pkg/config"
@@ -34,6 +34,8 @@ func StartServer() {
 		HostSigners:                []ssh.Signer{signer},
 		Version:                    version,
 		Handler:                    handler.SessionHandler,
+		SubsystemHandlers:          map[string]ssh.SubsystemHandler{},
 	}
+	srv.SetSubsystemHandler("sftp", handler.SftpHandler)
 	logger.Fatal(srv.ListenAndServe())
 }

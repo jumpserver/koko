@@ -26,8 +26,16 @@
 
 
 [[constraint]]
-  name = "github.com/gliderlabs/ssh"
-  version = "0.1.3"
+  name = "github.com/ibuler/ssh"
+  version = "0.1.1"
+
+[[constraint]]
+  name = "github.com/jarcoal/httpmock"
+  version = "1.0.3"
+
+[[constraint]]
+  name = "github.com/kr/pty"
+  version = "1.1.4"
 
 [[constraint]]
   name = "github.com/olekukonko/tablewriter"
@@ -56,3 +64,7 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/pkg/sftp"
+  version = "1.10.0"

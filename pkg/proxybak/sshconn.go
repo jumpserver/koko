@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 
 	gossh "golang.org/x/crypto/ssh"
 )

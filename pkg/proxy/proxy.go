@@ -3,7 +3,7 @@ package proxy
 import (
 	"cocogo/pkg/logger"
 	"cocogo/pkg/service"
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/sdk"
 )

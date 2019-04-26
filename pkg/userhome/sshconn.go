@@ -3,7 +3,7 @@ package userhome
 import (
 	"context"
 
-	"github.com/gliderlabs/ssh"
+	"github.com/ibuler/ssh"
 	uuid "github.com/satori/go.uuid"
 )
 
