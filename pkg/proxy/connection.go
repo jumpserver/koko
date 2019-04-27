@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -9,8 +10,8 @@ import (
 )
 
 type ServerConnection interface {
-	SendChannel() chan<- []byte
-	RecvChannel() <-chan []byte
+	Writer() io.WriteCloser
+	Reader() io.Reader
 	Protocol() string
 	Connect() error
 	Close()
@@ -27,81 +28,95 @@ type SSHConnection struct {
 	Proxy          *SSHConnection
 
 	client    *gossh.Client
+	Session   *gossh.Session
 	proxyConn gossh.Conn
 }
 
-func (s *SSHConnection) Protocol() string {
+func (sc *SSHConnection) Protocol() string {
 	return "ssh"
 }
 
-func (s *SSHConnection) Config() (config *gossh.ClientConfig, err error) {
+func (sc *SSHConnection) Config() (config *gossh.ClientConfig, err error) {
 	auths := make([]gossh.AuthMethod, 0)
-	if s.Password != "" {
-		auths = append(auths, gossh.Password(s.Password))
+	if sc.Password != "" {
+		auths = append(auths, gossh.Password(sc.Password))
 	}
-	if s.PrivateKeyPath != "" {
-		if pubkey, err := GetPubKeyFromFile(s.PrivateKeyPath); err != nil {
-			err = fmt.Errorf("parse private key from file error: %s", err)
+	if sc.PrivateKeyPath != "" {
+		if pubkey, err := GetPubKeyFromFile(sc.PrivateKeyPath); err != nil {
+			err = fmt.Errorf("parse private key from file error: %sc", err)
 			return config, err
 		} else {
 			auths = append(auths, gossh.PublicKeys(pubkey))
 		}
 	}
-	if s.PrivateKey != "" {
-		if signer, err := gossh.ParsePrivateKey([]byte(s.PrivateKey)); err != nil {
-			err = fmt.Errorf("parse private key error: %s", err)
+	if sc.PrivateKey != "" {
+		if signer, err := gossh.ParsePrivateKey([]byte(sc.PrivateKey)); err != nil {
+			err = fmt.Errorf("parse private key error: %sc", err)
 			return config, err
 		} else {
 			auths = append(auths, gossh.PublicKeys(signer))
 		}
 	}
 	config = &gossh.ClientConfig{
-		User:            s.User,
+		User:            sc.User,
 		Auth:            auths,
 		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
-		Timeout:         s.Timeout,
+		Timeout:         sc.Timeout,
 	}
 	return config, nil
 }
 
-func (s *SSHConnection) Connect() (client *gossh.Client, err error) {
-	config, err := s.Config()
+func (sc *SSHConnection) Connect() (client *gossh.Client, err error) {
+	config, err := sc.Config()
 	if err != nil {
 		return
 	}
-	if s.Proxy != nil {
-		proxyClient, err := s.Proxy.Connect()
+	if sc.Proxy != nil {
+		proxyClient, err := sc.Proxy.Connect()
 		if err != nil {
 			return client, err
 		}
-		proxySock, err := proxyClient.Dial("tcp", net.JoinHostPort(s.Host, s.Port))
+		proxySock, err := proxyClient.Dial("tcp", net.JoinHostPort(sc.Host, sc.Port))
 		if err != nil {
 			return client, err
 		}
-		proxyConn, chans, reqs, err := gossh.NewClientConn(proxySock, net.JoinHostPort(s.Host, s.Port), config)
+		proxyConn, chans, reqs, err := gossh.NewClientConn(proxySock, net.JoinHostPort(sc.Host, sc.Port), config)
 		if err != nil {
 			return client, err
 		}
-		s.proxyConn = proxyConn
+		sc.proxyConn = proxyConn
 		client = gossh.NewClient(proxyConn, chans, reqs)
 	} else {
-		client, err = gossh.Dial("tcp", net.JoinHostPort(s.Host, s.Port), config)
+		client, err = gossh.Dial("tcp", net.JoinHostPort(sc.Host, sc.Port), config)
 		if err != nil {
-			err = fmt.Errorf("connect host %s error: %s", s.Host, err)
+			err = fmt.Errorf("connect host %sc error: %sc", sc.Host, err)
 			return
 		}
 	}
-	s.client = client
+	sc.client = client
+	sess, err := sc.client.NewSession()
+	if err != nil {
+		return
+	}
+	sc.Session = sess
 	return client, nil
 }
 
-func (s *SSHConnection) Close() error {
-	err := s.client.Close()
+func (sc *SSHConnection) Reader() (reader io.Reader, err error) {
+	return sc.Session.StdoutPipe()
+}
+
+func (sc *SSHConnection) Writer() (writer io.WriteCloser, err error) {
+	return sc.Session.StdinPipe()
+}
+
+func (sc *SSHConnection) Close() error {
+	err := sc.client.Close()
 	if err != nil {
 		return err
 	}
-	if s.proxyConn != nil {
-		err = s.proxyConn.Close()
+	if sc.proxyConn != nil {
+		err = sc.proxyConn.Close()
 	}
 	return err
 }

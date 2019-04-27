@@ -83,7 +83,7 @@ func NewNodeConn(ctx context.Context, authInfo ServerAuth, ptyReq ssh.Pty, winCh
 
 	replyRecord := record.NewReplyRecord(authInfo.SessionID)
 	replyRecord.StartRecord()
-	go replyRecord.EndRecord(subCtx)
+	//go replyRecord.EndRecord(subCtx)
 	nConn := &NodeConn{
 		SessionID:     authInfo.SessionID,
 		client:        c,

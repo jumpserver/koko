@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"cocogo/pkg/proxy"
 	//"cocogo/pkg/proxybak"
 	//"cocogo/pkg/proxybak"
 	"context"
@@ -96,7 +97,7 @@ func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window) {
 	}
 }
 
-func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
+func (i *InteractiveHandler) Dispatch(ctx context.Context) {
 	i.preDispatch()
 	_, winCh, _ := i.sess.Pty()
 	for {
@@ -112,7 +113,7 @@ func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "", "p":
-				i.displayAssets(i.assets)
+				i.Proxy(ctx)
 			case "g":
 				i.displayNodes(i.nodes)
 			case "s":
@@ -326,8 +327,9 @@ func (i *InteractiveHandler) searchNodeAssets(num int) (assets []sdk.Asset) {
 
 }
 
-func (i *InteractiveHandler) Proxy(asset sdk.Asset, systemUser sdk.SystemUserAuthInfo) error {
-	return nil
+func (i *InteractiveHandler) Proxy(ctx context.Context) {
+	p := proxy.ProxyServer{Session: i.sess}
+	p.Proxy()
 }
 
 //	/*

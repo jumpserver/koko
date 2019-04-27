@@ -1,15 +1,19 @@
 package proxy
 
 import (
-	"cocogo/pkg/logger"
-	"cocogo/pkg/service"
-	"github.com/ibuler/ssh"
+	"fmt"
+	"time"
 
+	"github.com/ibuler/ssh"
+	gossh "golang.org/x/crypto/ssh"
+
+	"cocogo/pkg/logger"
 	"cocogo/pkg/sdk"
+	"cocogo/pkg/service"
 )
 
 type ProxyServer struct {
-	sess       ssh.Session
+	Session    ssh.Session
 	User       *sdk.User
 	Asset      *sdk.Asset
 	SystemUser *sdk.SystemUser
@@ -49,5 +53,62 @@ func (p *ProxyServer) Proxy() {
 	if !p.checkProtocol() {
 		return
 	}
+	conn := SSHConnection{
+		Host:     "192.168.244.143",
+		Port:     "22",
+		User:     "root",
+		Password: "redhat",
+	}
+	_, err := conn.Connect()
+	if err != nil {
+		return
+	}
+	ptyReq, _, ok := p.Session.Pty()
+	if !ok {
+		logger.Error("Pty not ok")
+		return
+	}
 
+	fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	modes := gossh.TerminalModes{
+		gossh.ECHO:          1,     // enable echoing
+		gossh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
+		gossh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
+	}
+	err = conn.Session.RequestPty("xterm", ptyReq.Window.Height, ptyReq.Window.Width, modes)
+	if err != nil {
+		logger.Errorf("Request pty error: %s", err)
+		return
+	}
+
+	go func() {
+		buf := make([]byte, 1024)
+		writer, err := conn.Session.StdinPipe()
+		if err != nil {
+			return
+		}
+		for {
+			nr, err := p.Session.Read(buf)
+			if err != nil {
+				writer.Write(buf[:nr])
+			}
+		}
+	}()
+
+	go func() {
+		buf := make([]byte, 1024)
+		reader, err := conn.Reader()
+		if err != nil {
+			return
+		}
+		for {
+			nr, err := reader.Read(buf)
+			if err != nil {
+				logger.Error("Read error")
+			}
+			p.Session.Write(buf[:nr])
+		}
+	}()
+
+	time.Sleep(time.Second * 20)
 }
