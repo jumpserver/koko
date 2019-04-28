@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"cocogo/pkg/logger"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +15,7 @@ type ServerConnection interface {
 	Reader() io.Reader
 	Protocol() string
 	Connect() error
+	SetWinSize(w, h int)
 	Close()
 }
 
@@ -30,6 +32,9 @@ type SSHConnection struct {
 	client    *gossh.Client
 	Session   *gossh.Session
 	proxyConn gossh.Conn
+	stdin     io.WriteCloser
+	stdout    io.Reader
+	closed    bool
 }
 
 func (sc *SSHConnection) Protocol() string {
@@ -66,13 +71,13 @@ func (sc *SSHConnection) Config() (config *gossh.ClientConfig, err error) {
 	return config, nil
 }
 
-func (sc *SSHConnection) Connect() (client *gossh.Client, err error) {
+func (sc *SSHConnection) connect() (client *gossh.Client, err error) {
 	config, err := sc.Config()
 	if err != nil {
 		return
 	}
 	if sc.Proxy != nil {
-		proxyClient, err := sc.Proxy.Connect()
+		proxyClient, err := sc.Proxy.connect()
 		if err != nil {
 			return client, err
 		}
@@ -94,29 +99,58 @@ func (sc *SSHConnection) Connect() (client *gossh.Client, err error) {
 		}
 	}
 	sc.client = client
-	sess, err := sc.client.NewSession()
+	return client, nil
+}
+
+func (sc *SSHConnection) Connect(h, w int, term string) (err error) {
+	client, err := sc.connect()
+	sess, err := client.NewSession()
 	if err != nil {
 		return
 	}
 	sc.Session = sess
-	return client, nil
-}
-
-func (sc *SSHConnection) Reader() (reader io.Reader, err error) {
-	return sc.Session.StdoutPipe()
-}
-
-func (sc *SSHConnection) Writer() (writer io.WriteCloser, err error) {
-	return sc.Session.StdinPipe()
-}
-
-func (sc *SSHConnection) Close() error {
-	err := sc.client.Close()
+	modes := gossh.TerminalModes{
+		gossh.ECHO:          1,     // enable echoing
+		gossh.TTY_OP_ISPEED: 14400, // input speed = 14.4 kbaud
+		gossh.TTY_OP_OSPEED: 14400, // output speed = 14.4 kbaud
+	}
+	err = sess.RequestPty(term, h, w, modes)
 	if err != nil {
-		return err
+		logger.Errorf("Request pty error: %s", err)
+		return
 	}
-	if sc.proxyConn != nil {
-		err = sc.proxyConn.Close()
+	sc.stdin, err = sess.StdinPipe()
+	if err != nil {
+		return
 	}
+	sc.stdout, err = sess.StdoutPipe()
+	if err != nil {
+		return
+	}
+	err = sess.Shell()
 	return err
+}
+
+func (sc *SSHConnection) Reader() (reader io.Reader) {
+	return sc.stdout
+}
+
+func (sc *SSHConnection) Writer() (writer io.WriteCloser) {
+	return sc.stdin
+}
+
+func (sc *SSHConnection) SetWinSize(h, w int) error {
+	return sc.Session.WindowChange(h, w)
+}
+
+func (sc *SSHConnection) Close() {
+	if sc.closed {
+		return
+	}
+	_ = sc.Session.Close()
+	_ = sc.client.Close()
+	if sc.proxyConn != nil {
+		_ = sc.proxyConn.Close()
+	}
+	sc.closed = true
 }

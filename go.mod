@@ -2,7 +2,7 @@ module cocogo
 
 require (
 	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239
-	github.com/ibuler/ssh v0.1.1
+	github.com/ibuler/ssh v0.1.5
 	github.com/jarcoal/httpmock v1.0.3
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2
 	github.com/kr/fs v0.1.0
