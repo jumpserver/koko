@@ -1,11 +1,15 @@
 package proxy
 
 import (
+	"bytes"
+	"context"
+	"sync"
+
+	"github.com/ibuler/ssh"
+
 	"cocogo/pkg/logger"
 	"cocogo/pkg/sdk"
 	"cocogo/pkg/service"
-	"fmt"
-	"github.com/ibuler/ssh"
 )
 
 type ProxyServer struct {
@@ -45,14 +49,8 @@ func (p *ProxyServer) sendConnectingMsg() {
 
 }
 
-func (p *ProxyServer) Proxy() {
+func (p *ProxyServer) Proxy(ctx context.Context) {
 	if !p.checkProtocol() {
-		return
-	}
-	fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>Proxy")
-	ptyReq, winCh, ok := p.Session.Pty()
-	if !ok {
-		logger.Error("Pty not ok")
 		return
 	}
 	conn := SSHConnection{
@@ -61,56 +59,25 @@ func (p *ProxyServer) Proxy() {
 		User:     "root",
 		Password: "redhat",
 	}
+	ptyReq, _, ok := p.Session.Pty()
+	if !ok {
+		logger.Error("Pty not ok")
+		return
+	}
 	err := conn.Connect(ptyReq.Window.Height, ptyReq.Window.Width, ptyReq.Term)
 	if err != nil {
 		return
 	}
-
-	go func() {
-		for {
-			select {
-			case win, ok := <-winCh:
-				if !ok {
-					return
-				}
-				err := conn.SetWinSize(win.Height, win.Width)
-				if err != nil {
-					logger.Error("windowChange err: ", win)
-					return
-				}
-				logger.Info("windowChange: ", win)
-			}
-		}
-	}()
-
-	go func() {
-		buf := make([]byte, 1024)
-		writer := conn.Writer()
-		for {
-			fmt.Println("Start read from user session")
-			nr, err := p.Session.Read(buf)
-			fmt.Printf("get ddata from user: %s\n", buf)
-			if err != nil {
-				logger.Error("...............")
-			}
-			writer.Write(buf[:nr])
-		}
-	}()
-
-	go func() {
-		buf := make([]byte, 1024)
-		reader := conn.Reader()
-		fmt.Printf("Go func stdout pip")
-		for {
-			fmt.Printf("Start read from server\n")
-			nr, err := reader.Read(buf)
-			fmt.Printf("Read data from server: %s\n", buf)
-			if err != nil {
-				logger.Error("Read error")
-			}
-			p.Session.Write(buf[:nr])
-		}
-	}()
-
-	conn.Session.Wait()
+	sw := Switch{
+		userSession: p.Session,
+		serverConn:  &conn,
+		parser: &Parser{
+			once:          sync.Once{},
+			userInputChan: make(chan []byte, 5),
+			inputBuf:      new(bytes.Buffer),
+			outputBuf:     new(bytes.Buffer),
+			cmdBuf:        new(bytes.Buffer),
+		},
+	}
+	sw.Bridge(ctx)
 }

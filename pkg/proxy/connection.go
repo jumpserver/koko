@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"cocogo/pkg/logger"
 	"fmt"
 	"io"
 	"net"
@@ -14,8 +13,8 @@ type ServerConnection interface {
 	Writer() io.WriteCloser
 	Reader() io.Reader
 	Protocol() string
-	Connect() error
-	SetWinSize(w, h int)
+	Connect(h, w int, term string) error
+	SetWinSize(w, h int) error
 	Close()
 }
 
@@ -102,9 +101,8 @@ func (sc *SSHConnection) connect() (client *gossh.Client, err error) {
 	return client, nil
 }
 
-func (sc *SSHConnection) Connect(h, w int, term string) (err error) {
-	client, err := sc.connect()
-	sess, err := client.NewSession()
+func (sc *SSHConnection) invokeShell(h, w int, term string) (err error) {
+	sess, err := sc.client.NewSession()
 	if err != nil {
 		return
 	}
@@ -116,7 +114,6 @@ func (sc *SSHConnection) Connect(h, w int, term string) (err error) {
 	}
 	err = sess.RequestPty(term, h, w, modes)
 	if err != nil {
-		logger.Errorf("Request pty error: %s", err)
 		return
 	}
 	sc.stdin, err = sess.StdinPipe()
@@ -129,6 +126,18 @@ func (sc *SSHConnection) Connect(h, w int, term string) (err error) {
 	}
 	err = sess.Shell()
 	return err
+}
+
+func (sc *SSHConnection) Connect(h, w int, term string) (err error) {
+	_, err = sc.connect()
+	if err != nil {
+		return
+	}
+	err = sc.invokeShell(h, w, term)
+	if err != nil {
+		return
+	}
+	return nil
 }
 
 func (sc *SSHConnection) Reader() (reader io.Reader) {

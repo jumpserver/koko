@@ -329,7 +329,7 @@ func (i *InteractiveHandler) searchNodeAssets(num int) (assets []sdk.Asset) {
 
 func (i *InteractiveHandler) Proxy(ctx context.Context) {
 	p := proxy.ProxyServer{Session: i.sess}
-	p.Proxy()
+	p.Proxy(ctx)
 }
 
 //	/*
