@@ -57,13 +57,15 @@ func SessionHandler(sess ssh.Session) {
 }
 
 type InteractiveHandler struct {
-	sess         ssh.Session
-	term         *terminal.Terminal
-	user         *sdk.User
-	assets       model.AssetList
-	searchResult model.AssetList
-	nodes        model.NodeList
-	onceLoad     sync.Once
+	sess             ssh.Session
+	term             *terminal.Terminal
+	user             *sdk.User
+	assetSelect      *sdk.Asset
+	systemUserSelect *sdk.SystemUser
+	assets           model.AssetList
+	searchResult     model.AssetList
+	nodes            model.NodeList
+	onceLoad         sync.Once
 	sync.RWMutex
 }
 
@@ -328,7 +330,7 @@ func (i *InteractiveHandler) searchNodeAssets(num int) (assets []sdk.Asset) {
 }
 
 func (i *InteractiveHandler) Proxy(ctx context.Context) {
-	p := proxy.ProxyServer{Session: i.sess}
+	p := proxy.ProxyServer{Session: i.sess, Asset: i.assetSelect, SystemUser: i.systemUserSelect}
 	p.Proxy(ctx)
 }
 
