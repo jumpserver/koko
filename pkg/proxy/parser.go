@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"cocogo/pkg/logger"
+	"cocogo/pkg/model"
 )
 
 type ParseRule func([]byte) bool
@@ -33,6 +34,8 @@ type Parser struct {
 
 	userInputChan   chan []byte
 	serverInputChan chan []byte
+
+	filterRules []model.SystemUserFilterRule
 
 	inputInitial    bool
 	inputPreState   bool

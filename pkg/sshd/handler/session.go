@@ -20,7 +20,6 @@ import (
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/proxy"
-	"cocogo/pkg/sdk"
 	"cocogo/pkg/service"
 	//"cocogo/pkg/transport"
 	//"cocogo/pkg/userhome"
@@ -49,9 +48,9 @@ func SessionHandler(sess ssh.Session) {
 type InteractiveHandler struct {
 	sess             ssh.Session
 	term             *terminal.Terminal
-	user             *sdk.User
-	assetSelect      *sdk.Asset
-	systemUserSelect *sdk.SystemUser
+	user             *model.User
+	assetSelect      *model.Asset
+	systemUserSelect *model.SystemUser
 	assets           model.AssetList
 	searchResult     model.AssetList
 	nodes            model.NodeList
@@ -144,7 +143,7 @@ func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 	}
 }
 
-func (i *InteractiveHandler) chooseSystemUser(systemUsers []sdk.SystemUser) sdk.SystemUser {
+func (i *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
 	table := tablewriter.NewWriter(i.sess)
 	table.SetHeader([]string{"ID", "UserName"})
 	for i := 0; i < len(systemUsers); i++ {
@@ -170,9 +169,9 @@ func (i *InteractiveHandler) chooseSystemUser(systemUsers []sdk.SystemUser) sdk.
 }
 
 // 当资产的数量为1的时候，就进行代理转化
-func (i *InteractiveHandler) displayAssetsOrProxy(assets []sdk.Asset) {
+func (i *InteractiveHandler) displayAssetsOrProxy(assets []model.Asset) {
 	//if len(assets) == 1 {
-	//	var systemUser sdk.SystemUser
+	//	var systemUser model.SystemUser
 	//	switch len(assets[0].SystemUsers) {
 	//	case 0:
 	//		// 有授权的资产，但是资产用户信息，无法登陆
@@ -184,7 +183,7 @@ func (i *InteractiveHandler) displayAssetsOrProxy(assets []sdk.Asset) {
 	//		systemUser = i.chooseSystemUser(assets[0].SystemUsers)
 	//	}
 	//
-	//	authInfo, err := sdk.GetSystemUserAssetAuthInfo(systemUser.Id, assets[0].Id)
+	//	authInfo, err := model.GetSystemUserAssetAuthInfo(systemUser.Id, assets[0].Id)
 	//	if err != nil {
 	//		return
 	//	}
@@ -224,7 +223,7 @@ func (i *InteractiveHandler) displayAssets(assets model.AssetList) {
 
 }
 
-func (i *InteractiveHandler) displayNodes(nodes []sdk.Node) {
+func (i *InteractiveHandler) displayNodes(nodes []model.Node) {
 	tree := ConstructAssetNodeTree(nodes)
 	tipHeaderMsg := "\r\nNode: [ ID.Name(Asset amount) ]"
 	tipEndMsg := "Tips: Enter g+NodeID to display the host under the node, such as g1\r\n\r"
@@ -281,22 +280,22 @@ func (i *InteractiveHandler) JoinShareRoom(roomID string) {
 
 }
 
-func (i *InteractiveHandler) searchAsset(key string) (assets []sdk.Asset) {
+func (i *InteractiveHandler) searchAsset(key string) (assets []model.Asset) {
 	//if indexNum, err := strconv.Atoi(key); err == nil {
 	//	if indexNum > 0 && indexNum <= len(i.searchResult) {
-	//		return []sdk.Asset{i.searchResult[indexNum-1]}
+	//		return []model.Asset{i.searchResult[indexNum-1]}
 	//	}
 	//}
 	//
 	//if assetsData, ok := i.assetData.Load(AssetsMapKey); ok {
-	//	for _, assetValue := range assetsData.([]sdk.Asset) {
+	//	for _, assetValue := range assetsData.([]model.Asset) {
 	//		if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
 	//			assets = append(assets, assetValue)
 	//		}
 	//	}
 	//} else {
 	//	assetsData, _ := Cached.Load(i.user.Id)
-	//	for _, assetValue := range assetsData.([]sdk.Asset) {
+	//	for _, assetValue := range assetsData.([]model.Asset) {
 	//		if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
 	//			assets = append(assets, assetValue)
 	//		}
@@ -306,10 +305,10 @@ func (i *InteractiveHandler) searchAsset(key string) (assets []sdk.Asset) {
 	return assets
 }
 
-func (i *InteractiveHandler) searchNodeAssets(num int) (assets []sdk.Asset) {
-	//var assetNodesData []sdk.Node
+func (i *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
+	//var assetNodesData []model.Node
 	//if assetNodes, ok := i.assetData.Load(AssetNodesMapKey); ok {
-	//	assetNodesData = assetNodes.([]sdk.Node)
+	//	assetNodesData = assetNodes.([]model.Node)
 	//	if num > len(assetNodesData) || num == 0 {
 	//		return assets
 	//	}
@@ -406,8 +405,8 @@ func (i *InteractiveHandler) Proxy(ctx context.Context) {
 //	return false
 //}
 //
-func ConstructAssetNodeTree(assetNodes []sdk.Node) treeprint.Tree {
-	sdk.SortAssetNodesByKey(assetNodes)
+func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
+	model.SortAssetNodesByKey(assetNodes)
 	var treeMap = map[string]treeprint.Tree{}
 	tree := treeprint.New()
 	for i := 0; i < len(assetNodes); i++ {

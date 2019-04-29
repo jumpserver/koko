@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/ibuler/ssh"
 
-	"cocogo/pkg/sdk"
+	"cocogo/pkg/model"
 )
 
 type contextKey struct {
@@ -16,16 +16,15 @@ var (
 	ContextKeyAsset      = &contextKey{"asset"}
 	ContextKeySystemUser = &contextKey{"systemUser"}
 	ContextKeySSHSession = &contextKey{"sshSession"}
-	ContextKeyRemoteAddr = &contextKey{"remoteAddr"}
 	ContextKeyLocalAddr  = &contextKey{"localAddr"}
 	ContextKeySSHCtx     = &contextKey{"sshCtx"}
 )
 
 type Context interface {
 	context.Context
-	User() *sdk.User
-	Asset() *sdk.Asset
-	SystemUser() *sdk.SystemUser
+	User() *model.User
+	Asset() *model.Asset
+	SystemUser() *model.SystemUser
 	SSHSession() *ssh.Session
 	SSHCtx() *ssh.Context
 	SetValue(key, value interface{})
@@ -37,16 +36,16 @@ type CocoContext struct {
 }
 
 // User 返回当前连接的用户model
-func (ctx *CocoContext) User() *sdk.User {
-	return ctx.Value(ContextKeyUser).(*sdk.User)
+func (ctx *CocoContext) User() *model.User {
+	return ctx.Value(ContextKeyUser).(*model.User)
 }
 
-func (ctx *CocoContext) Asset() *sdk.Asset {
-	return ctx.Value(ContextKeyAsset).(*sdk.Asset)
+func (ctx *CocoContext) Asset() *model.Asset {
+	return ctx.Value(ContextKeyAsset).(*model.Asset)
 }
 
-func (ctx *CocoContext) SystemUser() *sdk.SystemUser {
-	return ctx.Value(ContextKeySystemUser).(*sdk.SystemUser)
+func (ctx *CocoContext) SystemUser() *model.SystemUser {
+	return ctx.Value(ContextKeySystemUser).(*model.SystemUser)
 }
 
 func (ctx *CocoContext) SSHSession() *ssh.Session {

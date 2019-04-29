@@ -1,4 +1,4 @@
-package sdk
+package service
 
 const (
 	UserAuthURL    = "/api/users/v1/auth/"    // post 验证用户登陆

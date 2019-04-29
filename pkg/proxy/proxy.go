@@ -8,20 +8,20 @@ import (
 	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/logger"
-	"cocogo/pkg/sdk"
+	"cocogo/pkg/model"
 	"cocogo/pkg/service"
 )
 
 type ProxyServer struct {
 	Session    ssh.Session
-	User       *sdk.User
-	Asset      *sdk.Asset
-	SystemUser *sdk.SystemUser
+	User       *model.User
+	Asset      *model.Asset
+	SystemUser *model.SystemUser
 }
 
 func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 	info := service.GetSystemUserAssetAuthInfo(p.SystemUser.Id, p.Asset.Id)
-	if p.SystemUser.LoginMode == sdk.LoginModeManual ||
+	if p.SystemUser.LoginMode == model.LoginModeManual ||
 		(p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "") {
 		logger.Info("Get password fom user input")
 	}
@@ -68,6 +68,10 @@ func (p *ProxyServer) Proxy(ctx context.Context) {
 	if err != nil {
 		return
 	}
+	rules, err := service.GetSystemUserFilterRules("")
+	if err != nil {
+		logger.Error("Get system user filter rule error: ", err)
+	}
 	sw := Switch{
 		userSession: p.Session,
 		serverConn:  &conn,
@@ -77,6 +81,7 @@ func (p *ProxyServer) Proxy(ctx context.Context) {
 			inputBuf:      new(bytes.Buffer),
 			outputBuf:     new(bytes.Buffer),
 			cmdBuf:        new(bytes.Buffer),
+			filterRules:   rules,
 		},
 	}
 	sw.Bridge(ctx)

@@ -1,4 +1,4 @@
-package sdk
+package service
 
 import (
 	"errors"
