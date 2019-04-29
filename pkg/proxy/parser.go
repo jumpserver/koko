@@ -3,10 +3,13 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
+	"cocogo/pkg/utils"
 )
 
 type ParseRule func([]byte) bool
@@ -26,14 +29,33 @@ var (
 	charEnter = []byte("\r")
 )
 
+type CmdParser struct {
+	term *utils.Terminal
+	buf  *bytes.Buffer
+}
+
+func (cp *CmdParser) Reset() {
+	cp.buf.Reset()
+}
+
+func (cp *CmdParser) Initial() {
+	cp.buf = new(bytes.Buffer)
+	cp.term = utils.NewTerminal(cp.buf, "")
+	cp.term.SetEcho(false)
+}
+
+func (cp *CmdParser) Parse(b []byte) string {
+	cp.buf.Write(b)
+	cp.buf.WriteString("\r")
+	lines, _ := cp.term.ReadLines()
+	return strings.TrimSpace(strings.Join(lines, "\r\n"))
+}
+
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
 	inputBuf  *bytes.Buffer
 	cmdBuf    *bytes.Buffer
 	outputBuf *bytes.Buffer
-
-	userInputChan   chan []byte
-	serverInputChan chan []byte
 
 	filterRules []model.SystemUserFilterRule
 
@@ -44,6 +66,25 @@ type Parser struct {
 	zmodemState     string
 	inVimState      bool
 	once            sync.Once
+
+	command         string
+	output          string
+	cmdInputParser  *CmdParser
+	cmdOutputParser *CmdParser
+	counter         int
+}
+
+func (p *Parser) Initial() {
+	p.inputBuf = new(bytes.Buffer)
+	p.cmdBuf = new(bytes.Buffer)
+	p.outputBuf = new(bytes.Buffer)
+
+	p.once = sync.Once{}
+
+	p.cmdInputParser = &CmdParser{}
+	p.cmdOutputParser = &CmdParser{}
+	p.cmdInputParser.Initial()
+	p.cmdOutputParser.Initial()
 }
 
 // Todo: parseMultipleInput 依然存在问题
@@ -56,15 +97,39 @@ func (p *Parser) parseInputState(b []byte) {
 	p.inputPreState = p.inputState
 	if bytes.Contains(b, charEnter) {
 		p.inputState = false
-		//fmt.Printf("Command: %s\n", p.inputBuf.String())
-		p.inputBuf.Reset()
+		p.parseCmdInput()
 	} else {
 		p.inputState = true
 		if !p.inputPreState {
-			//fmt.Printf("Output: %s\n", p.outputBuf.String())
-			p.outputBuf.Reset()
+			p.parseCmdOutput()
 		}
 	}
+}
+
+var f, _ = os.Create("/tmp/cmd.text")
+
+func (p *Parser) parseCmdInput() {
+	parser := CmdParser{}
+	parser.Initial()
+	data := p.cmdBuf.Bytes()
+	fmt.Printf("原始输入: %b\n", data)
+	line := parser.Parse(data)
+	data2 := fmt.Sprintf("[%d] 命令: %s\n", p.counter, line)
+	fmt.Printf(data2)
+	p.cmdBuf.Reset()
+	p.inputBuf.Reset()
+	f.WriteString(data2)
+}
+
+func (p *Parser) parseCmdOutput() {
+	data := p.outputBuf.Bytes()
+	line := p.cmdOutputParser.Parse(data)
+	data2 := fmt.Sprintf("[%d] 结果: %s\n", p.counter, line)
+	_ = fmt.Sprintf("[%d] 结果: %s\n", p.counter, line)
+	fmt.Printf(data2)
+	p.outputBuf.Reset()
+	f.WriteString(data2)
+	p.counter += 1
 }
 
 func (p *Parser) parseInputNewLine(b []byte) []byte {
@@ -80,7 +145,6 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 	})
 	nb := p.parseInputNewLine(b)
 	p.inputBuf.Write(nb)
-	fmt.Printf("User input: %b\n", b)
 	p.parseInputState(nb)
 	return b
 }
@@ -117,6 +181,9 @@ func (p *Parser) parseZmodemState(b []byte) {
 }
 
 func (p *Parser) parseCommand(b []byte) {
+	if !p.inputInitial {
+		return
+	}
 	if p.inputState {
 		p.cmdBuf.Write(b)
 	} else {
@@ -128,6 +195,5 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 	p.parseVimState(b)
 	p.parseZmodemState(b)
 	p.parseCommand(b)
-	fmt.Printf("Server output: %s\n", b)
 	return b
 }

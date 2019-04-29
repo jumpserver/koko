@@ -1,10 +1,7 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
-	"sync"
-
 	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/logger"
@@ -72,17 +69,14 @@ func (p *ProxyServer) Proxy(ctx context.Context) {
 	if err != nil {
 		logger.Error("Get system user filter rule error: ", err)
 	}
+	parser := &Parser{
+		filterRules: rules,
+	}
+	parser.Initial()
 	sw := Switch{
 		userSession: p.Session,
 		serverConn:  &conn,
-		parser: &Parser{
-			once:          sync.Once{},
-			userInputChan: make(chan []byte, 5),
-			inputBuf:      new(bytes.Buffer),
-			outputBuf:     new(bytes.Buffer),
-			cmdBuf:        new(bytes.Buffer),
-			filterRules:   rules,
-		},
+		parser:      parser,
 	}
 	sw.Bridge(ctx)
 }
