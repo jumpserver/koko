@@ -1,22 +1,12 @@
 package handler
 
 import (
-	"cocogo/pkg/proxy"
-	//"cocogo/pkg/proxybak"
-	//"cocogo/pkg/proxybak"
 	"context"
-	//"context"
-	//"strconv"
 	"fmt"
-	//"encoding/json"
-	//"fmt"
 	"io"
 	"strconv"
 	"strings"
-	//"strings"
-	//"strconv"
 	"sync"
-	//"time"
 
 	"github.com/ibuler/ssh"
 	//"github.com/olekukonko/tablewriter"
@@ -29,9 +19,9 @@ import (
 	"cocogo/pkg/cctx"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
+	"cocogo/pkg/proxy"
 	"cocogo/pkg/sdk"
 	"cocogo/pkg/service"
-	//"cocogo/pkg/proxy"
 	//"cocogo/pkg/transport"
 	//"cocogo/pkg/userhome"
 )
@@ -81,33 +71,33 @@ func (i *InteractiveHandler) preDispatch() {
 	})
 }
 
-func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window) {
-	ctx, cancelFunc := context.WithCancel(i.sess.Context())
-	defer cancelFunc()
+func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-chan struct{}) {
 	for {
 		select {
-		case <-ctx.Done():
-			logger.Info("Ctx done")
+		case <-done:
+			logger.Debug("Interactive handler watch win size done")
 			return
 		case win, ok := <-winCh:
 			if !ok {
 				return
 			}
-			logger.Info("Term change:", win)
+			logger.Debugf("Term change: %d*%d", win.Height, win.Width)
 			_ = i.term.SetSize(win.Width, win.Height)
 		}
 	}
 }
 
-func (i *InteractiveHandler) Dispatch(ctx context.Context) {
+func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 	i.preDispatch()
 	_, winCh, _ := i.sess.Pty()
 	for {
-		go i.watchWinSizeChange(winCh)
-
+		doneChan := make(chan struct{})
+		go i.watchWinSizeChange(winCh, doneChan)
 		line, err := i.term.ReadLine()
+		close(doneChan)
+
 		if err != nil {
-			logger.Error("ReadLine done", err)
+			logger.Error("Read line from user err:", err)
 			break
 		}
 
@@ -330,7 +320,11 @@ func (i *InteractiveHandler) searchNodeAssets(num int) (assets []sdk.Asset) {
 }
 
 func (i *InteractiveHandler) Proxy(ctx context.Context) {
-	p := proxy.ProxyServer{Session: i.sess, Asset: i.assetSelect, SystemUser: i.systemUserSelect}
+	p := proxy.ProxyServer{
+		Session:    i.sess,
+		Asset:      i.assetSelect,
+		SystemUser: i.systemUserSelect,
+	}
 	p.Proxy(ctx)
 }
 

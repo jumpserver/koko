@@ -2,14 +2,16 @@ package proxy
 
 import (
 	"bytes"
-	"cocogo/pkg/logger"
 	"fmt"
 	"sync"
+
+	"cocogo/pkg/logger"
 )
 
 type ParseRule func([]byte) bool
 
 var (
+	// Todo: Vim过滤依然存在问题
 	vimEnterMark = []byte("\x1b[?25l\x1b[37;1H\x1b[1m")
 	vimExitMark  = []byte("\x1b[37;1H\x1b[K\x1b")
 
@@ -40,6 +42,8 @@ type Parser struct {
 	inVimState      bool
 	once            sync.Once
 }
+
+// Todo: parseMultipleInput 依然存在问题
 
 // parseInputState 切换用户输入状态
 func (p *Parser) parseInputState(b []byte) {
