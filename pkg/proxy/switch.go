@@ -50,12 +50,12 @@ func (s *Switch) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window,
 			return
 		case win, ok := <-winCh:
 			if !ok {
-				break
+				return
 			}
 			err := s.serverConn.SetWinSize(win.Height, win.Width)
 			if err != nil {
 				logger.Error("Change server win size err: ", err)
-				break
+				return
 			}
 			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
 		}

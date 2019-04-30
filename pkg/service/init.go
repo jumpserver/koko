@@ -1,21 +1,19 @@
 package service
 
 import (
-	"path"
-	"path/filepath"
-	"strings"
-
 	"cocogo/pkg/common"
 	"cocogo/pkg/config"
+	"path"
+	"path/filepath"
 )
 
-var client = common.NewClient(10)
-var authClient = common.NewClient(10)
-var baseHost string
+var client = common.NewClient(30, "")
+var authClient = common.NewClient(30, "")
 
 func Initial() {
 	keyPath := config.Conf.AccessKeyFile
-	baseHost = strings.TrimRight(config.Conf.CoreHost, "/")
+	client.BaseHost = config.Conf.CoreHost
+	authClient.BaseHost = config.Conf.CoreHost
 
 	if !path.IsAbs(config.Conf.AccessKeyFile) {
 		keyPath = filepath.Join(config.Conf.RootPath, keyPath)

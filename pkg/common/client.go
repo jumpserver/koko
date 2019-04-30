@@ -22,6 +22,7 @@ type Client struct {
 	Timeout    time.Duration
 	Headers    map[string]string
 	Auth       ClientAuth
+	BaseHost   string
 	basicAuth  []string
 	cookie     map[string]string
 	http       *http.Client
@@ -32,15 +33,16 @@ type UrlParser interface {
 	parse(url string, params ...map[string]string) string
 }
 
-func NewClient(timeout time.Duration) *Client {
-	headers := make(map[string]string, 1)
+func NewClient(timeout time.Duration, baseHost string) *Client {
+	headers := make(map[string]string, 0)
 	client := http.DefaultClient
 	client.Timeout = timeout * time.Second
 	return &Client{
-		Timeout: timeout * time.Second,
-		Headers: headers,
-		http:    client,
-		cookie:  make(map[string]string, 0),
+		BaseHost: baseHost,
+		Timeout:  timeout * time.Second,
+		Headers:  headers,
+		http:     client,
+		cookie:   make(map[string]string, 0),
 	}
 }
 
@@ -76,6 +78,9 @@ func (c *Client) ParseUrlQuery(url string, query map[string]string) string {
 		url += "&" + param
 	} else {
 		url += "?" + param
+	}
+	if c.BaseHost != "" {
+		url = strings.TrimRight(c.BaseHost, "/") + url
 	}
 	return url
 }

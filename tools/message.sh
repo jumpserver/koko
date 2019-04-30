@@ -7,7 +7,7 @@ LANG="zh_CN en_US"
 DOMAIN=coco
 BIN=${PROJECT_DIR}/cmd/geni18n.go
 INPUT=pkg
-OUTPUT=${PROJECT_DIR}/pkg/i18n/locale/
+OUTPUT=${PROJECT_DIR}/cmd/locale/
 
 init_message() {
     for lang in $LANG;do
