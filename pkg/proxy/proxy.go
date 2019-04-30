@@ -51,10 +51,10 @@ func (p *ProxyServer) Proxy(ctx context.Context) {
 		return
 	}
 	conn := SSHConnection{
-		Host:     "192.168.244.185",
-		Port:     "22",
+		Host:     "127.0.0.1",
+		Port:     "1337",
 		User:     "root",
-		Password: "redhat",
+		Password: "MyRootPW123",
 	}
 	ptyReq, _, ok := p.Session.Pty()
 	if !ok {

@@ -1,0 +1,48 @@
+msgid ""
+msgstr ""
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: xgotext\n"
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:16
+msgid "Welcome to use Jumpserver open source fortress system"
+msgstr ""
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:30
+msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr ""
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:44
+msgid "directly login"
+msgstr ""
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:45
+msgid "part IP, Hostname, Comment"
+msgstr ""
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:45
+msgid "to search login if unique"
+msgstr ""
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:46
+msgid "/ + IP, Hostname, Comment"
+msgstr ""
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:46
+msgid "to search, such as: /192.168"
+msgstr ""
+
+#. i18n.T
+#: pkg/sshd/handler/banner.go:47
+msgid "display the host you have permission"
+msgstr ""

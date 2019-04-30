@@ -2,17 +2,19 @@ package handler
 
 import (
 	"bytes"
-	"cocogo/pkg/config"
 	"fmt"
 	"io"
 	"text/template"
 
 	"github.com/ibuler/ssh"
 
+	"cocogo/pkg/config"
+	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
 )
 
-const defaultTitle = `Welcome to use Jumpserver open source fortress system`
+var defaultTitle string
+var menu Menu
 
 type MenuItem struct {
 	id       int
@@ -26,7 +28,7 @@ func (mi *MenuItem) Text() string {
 		return mi.showText
 	}
 	cm := ColorMeta{GreenBoldColor: "\033[1;32m", ColorEnd: "\033[0m"}
-	line := fmt.Sprintf("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.\r\n", mi.id, mi.instruct, mi.helpText)
+	line := fmt.Sprintf(i18n.T("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"), mi.id, mi.instruct, mi.helpText, "\r\n")
 	tmpl := template.Must(template.New("item").Parse(line))
 	var buf bytes.Buffer
 	err := tmpl.Execute(&buf, cm)
@@ -39,16 +41,20 @@ func (mi *MenuItem) Text() string {
 
 type Menu []MenuItem
 
-var menu = Menu{
-	{id: 1, instruct: "ID", helpText: "directly login or enter"},
-	{id: 2, instruct: "part IP, Hostname, Comment", helpText: "to search login if unique"},
-	{id: 3, instruct: "/ + IP, Hostname, Comment", helpText: "to search, such as: /192.168"},
-	{id: 4, instruct: "p", helpText: "display the host you have permission"},
-	{id: 5, instruct: "g", helpText: "display the node that you have permission"},
-	{id: 6, instruct: "r", helpText: "refresh your assets and nodes"},
-	{id: 7, instruct: "s", helpText: "switch Chinese-english language"},
-	{id: 8, instruct: "h", helpText: "print help"},
-	{id: 9, instruct: "q", helpText: "exit"},
+func init() {
+	fmt.Println("Init bnanner")
+	defaultTitle = i18n.T("Welcome to use Jumpserver open source fortress system")
+	menu = Menu{
+		{id: 1, instruct: "ID", helpText: i18n.T("directly login")},
+		{id: 2, instruct: i18n.T("part IP, Hostname, Comment"), helpText: i18n.T("to search login if unique")},
+		{id: 3, instruct: i18n.T("/ + IP, Hostname, Comment"), helpText: i18n.T("to search, such as: /192.168")},
+		{id: 4, instruct: "p", helpText: i18n.T("display the host you have permission")},
+		{id: 5, instruct: "g", helpText: "display the node that you have permission"},
+		{id: 6, instruct: "r", helpText: "refresh your assets and nodes"},
+		{id: 7, instruct: "s", helpText: "switch Chinese-english language"},
+		{id: 8, instruct: "h", helpText: "print help"},
+		{id: 9, instruct: "q", helpText: "exit"},
+	}
 }
 
 type ColorMeta struct {

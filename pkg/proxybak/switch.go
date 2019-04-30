@@ -7,7 +7,6 @@ import (
 	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/logger"
-	"cocogo/pkg/sdk"
 	"cocogo/pkg/userhome"
 )
 

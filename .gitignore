@@ -17,3 +17,4 @@ go.sum
 vendor/
 config.yml
 host_key
+cmd/coco

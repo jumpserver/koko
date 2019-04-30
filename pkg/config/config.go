@@ -38,6 +38,7 @@ type Config struct {
 	HeartbeatDuration   time.Duration     `yaml:"HEARTBEAT_INTERVAL"`
 	RootPath            string
 	Comment             string
+	Language            string
 
 	mux sync.RWMutex
 }
@@ -114,6 +115,7 @@ var Conf = &Config{
 	HostKey:        "",
 	RootPath:       rootPath,
 	Comment:        "Coco",
+	Language:       "zh_CN",
 	ReplayStorage:  map[string]string{},
 	CommandStorage: map[string]string{},
 }
