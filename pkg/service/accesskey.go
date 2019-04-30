@@ -24,10 +24,10 @@ type AccessKey struct {
 	Value  string
 }
 
-func (ak AccessKey) Sign() string {
+func (ak AccessKey) Sign() (string, string) {
 	date := common.HTTPGMTDate()
 	signature := common.MakeSignature(ak.Secret, date)
-	return fmt.Sprintf("Sign %s:%s", ak.Id, signature)
+	return date, fmt.Sprintf("Sign %s:%s", ak.Id, signature)
 }
 
 func (ak *AccessKey) LoadAccessKeyFromStr(key string) error {

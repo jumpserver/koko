@@ -15,7 +15,7 @@ import (
 )
 
 type ClientAuth interface {
-	Sign() string
+	Sign() (date, sign string)
 }
 
 type Client struct {
@@ -97,7 +97,9 @@ func (c *Client) SetAuthHeader(r *http.Request, params ...map[string]string) {
 		return
 	}
 	if c.Auth != nil {
-		r.Header.Set("Authorization", c.Auth.Sign())
+		date, sign := c.Auth.Sign()
+		r.Header.Set("Date", date)
+		r.Header.Set("Authorization", sign)
 	}
 }
 
