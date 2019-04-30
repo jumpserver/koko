@@ -16,6 +16,8 @@ const (
 	SessionDetailURL = "/api/terminal/v1/sessions/%s/"        // finish session的时候发送
 	SessionReplayURL = "/api/terminal/v1/sessions/%s/replay/" //上传录像
 
+	FinishTaskURL = "/api/terminal/v1/tasks/%s/"
+
 	UserAssetsURL                  = "/api/perms/v1/user/%s/assets/"                 //获取用户授权的所有资产
 	UserNodesAssetsURL             = "/api/perms/v1/user/%s/nodes-assets/"           // 获取用户授权的所有节点信息 节点分组
 	ValidateUserAssetPermissionURL = "/api/perms/v1/asset-permission/user/validate/" //0不使用缓存 1 使用缓存 2 刷新缓存
