@@ -35,7 +35,7 @@ func (ak *AccessKey) LoadAccessKeyFromStr(key string) error {
 		return AccessKeyNotFound
 	}
 	keySlice := strings.Split(strings.TrimSpace(key), ":")
-	if len(ak.Value) != 2 {
+	if len(keySlice) != 2 {
 		return AccessKeyInvalid
 	}
 	ak.Id = keySlice[0]
