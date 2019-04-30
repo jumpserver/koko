@@ -35,7 +35,8 @@ func TerminalHeartBeat(sIds []string) (res []model.TerminalTask) {
 
 func CreateSession(data map[string]interface{}) bool {
 	var res map[string]interface{}
-	err := authClient.Post(SessionListURL, data, &res)
+	Url := authClient.ParseUrlQuery(SessionListURL, nil)
+	err := authClient.Post(Url, data, &res)
 	if err == nil {
 		return true
 	}

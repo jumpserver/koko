@@ -19,7 +19,7 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 		User  model.User `json:"user"`
 	}
 
-	err := client.Post(baseHost+UserAuthURL, data, &resp)
+	err := client.Post(UserAuthURL, data, &resp)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -27,7 +27,7 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 }
 
 func GetUserProfile(userId string) (user model.User) {
-	Url := fmt.Sprintf(baseHost+UserUserURL, userId)
+	Url := fmt.Sprintf(UserUserURL, userId)
 	err := authClient.Get(Url, &user)
 	if err != nil {
 		logger.Error(err)
@@ -38,7 +38,8 @@ func GetUserProfile(userId string) (user model.User) {
 func CheckUserCookie(sessionId, csrfToken string) (user model.User) {
 	client.SetCookie("csrftoken", csrfToken)
 	client.SetCookie("sessionid", sessionId)
-	err := client.Get(baseHost+UserProfileURL, &user)
+	Url := client.ParseUrlQuery(UserProfileURL, nil)
+	err := client.Get(Url, &user)
 	if err != nil {
 		logger.Error(err)
 	}
