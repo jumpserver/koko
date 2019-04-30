@@ -21,7 +21,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (ok bool) {
 	if password != "" {
 		authMethod = "password"
 	}
-	if user == nil {
+	if user.Id == "" {
 		action = "Failed"
 	} else {
 		ctx.SetValue(cctx.ContextKeyUser, user)

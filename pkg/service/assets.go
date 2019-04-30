@@ -1,10 +1,11 @@
 package service
 
 import (
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
 	"encoding/json"
 	"fmt"
+
+	"cocogo/pkg/logger"
+	"cocogo/pkg/model"
 )
 
 func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.SystemUserAuthInfo) {
@@ -14,7 +15,7 @@ func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.System
 func GetSystemUserAuthInfo(systemUserID string) (info model.SystemUserAuthInfo) {
 	Url := fmt.Sprintf(SystemUserAuthInfoURL, systemUserID)
 
-	err := client.Get(Url, &info, true)
+	err := authClient.Get(Url, &info)
 	if err != nil {
 		logger.Error("Get system user auth info failed")
 	}
