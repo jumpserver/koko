@@ -33,19 +33,23 @@ func GetUserNodes(userId, cachePolicy string) (nodes model.NodeList) {
 	return
 }
 
-func ValidateUserAssetPermission(userId, assetId, systemUserId string) bool {
+func ValidateUserAssetPermission(userId, assetId, systemUserId, action string) bool {
 	params := map[string]string{
 		"user_id":        userId,
 		"asset_id":       assetId,
 		"system_user_id": systemUserId,
-		"cache_policy":   "1",
+		"action_name":    action,
 	}
 	Url := authClient.ParseUrlQuery(ValidateUserAssetPermissionURL, params)
-	err := authClient.Get(Url, nil)
+	var res struct {
+		Msg bool `json:"msg"`
+	}
+	err := authClient.Get(Url, &res)
+
 	if err != nil {
 		logger.Error(err)
 		return false
 	}
 
-	return true
+	return res.Msg
 }
