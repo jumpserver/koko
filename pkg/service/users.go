@@ -18,8 +18,8 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 		Token string     `json:"token"`
 		User  model.User `json:"user"`
 	}
-
-	err := client.Post(UserAuthURL, data, &resp)
+	Url := client.ParseUrlQuery(UserAuthURL, nil)
+	err := client.Post(Url, data, &resp)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -27,7 +27,7 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 }
 
 func GetUserProfile(userId string) (user model.User) {
-	Url := fmt.Sprintf(UserUserURL, userId)
+	Url := authClient.ParseUrlQuery(fmt.Sprintf(UserUserURL, userId), nil)
 	err := authClient.Get(Url, &user)
 	if err != nil {
 		logger.Error(err)

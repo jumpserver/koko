@@ -36,7 +36,8 @@ func TerminalHeartBeat(sIds []string) (res []model.TerminalTask) {
 	data := map[string][]string{
 		"sessions": sIds,
 	}
-	err := authClient.Post(TerminalHeartBeatURL, data, &res)
+	Url := authClient.ParseUrlQuery(TerminalHeartBeatURL, nil)
+	err := authClient.Post(Url, data, &res)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -60,7 +61,7 @@ func FinishSession(sid, dataEnd string) {
 		"is_finished": true,
 		"date_end":    dataEnd,
 	}
-	Url := fmt.Sprintf(SessionDetailURL, sid)
+	Url := authClient.ParseUrlQuery(fmt.Sprintf(SessionDetailURL, sid), nil)
 	err := authClient.Patch(Url, data, &res)
 	if err != nil {
 		logger.Error(err)
@@ -70,7 +71,7 @@ func FinishSession(sid, dataEnd string) {
 func FinishReply(sid string) bool {
 	var res map[string]interface{}
 	data := map[string]bool{"has_replay": true}
-	Url := fmt.Sprintf(SessionDetailURL, sid)
+	Url := authClient.ParseUrlQuery(fmt.Sprintf(SessionDetailURL, sid), nil)
 	err := authClient.Patch(Url, data, &res)
 	if err != nil {
 		logger.Error(err)
@@ -82,7 +83,7 @@ func FinishReply(sid string) bool {
 func FinishTask(tid string) bool {
 	var res map[string]interface{}
 	data := map[string]bool{"is_finished": true}
-	Url := fmt.Sprintf(FinishTaskURL, tid)
+	Url := authClient.ParseUrlQuery(fmt.Sprintf(FinishTaskURL, tid), nil)
 	err := authClient.Patch(Url, data, res)
 	if err != nil {
 		logger.Error(err)
@@ -92,7 +93,8 @@ func FinishTask(tid string) bool {
 }
 
 func LoadConfigFromServer() (res model.TerminalConf) {
-	err := authClient.Get(TerminalConfigURL, &res)
+	Url := authClient.ParseUrlQuery(TerminalConfigURL, nil)
+	err := authClient.Get(Url, &res)
 	if err != nil {
 		logger.Error(err)
 	}
