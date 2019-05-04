@@ -245,11 +245,11 @@ func (i *InteractiveHandler) refreshAssetsAndNodesData() {
 }
 
 func (i *InteractiveHandler) loadUserAssets() {
-	i.assets = service.GetUserAssets(i.user.Id)
+	i.assets = service.GetUserAssets(i.user.Id, "1")
 }
 
 func (i *InteractiveHandler) loadUserAssetNodes() {
-	i.nodes = service.GetUserNodes(i.user.Id)
+	i.nodes = service.GetUserNodes(i.user.Id, "1")
 }
 
 func (i *InteractiveHandler) changeLanguage() {

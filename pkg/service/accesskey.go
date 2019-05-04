@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"cocogo/pkg/common"
+	"cocogo/pkg/config"
 	"cocogo/pkg/logger"
 )
 
@@ -60,10 +61,31 @@ func (ak *AccessKey) LoadAccessKeyFromFile(keyPath string) error {
 }
 
 func (ak *AccessKey) SaveToFile() error {
-	return nil
+	f, err := os.Create(ak.Path)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(fmt.Sprintf("%s:%s", ak.Id, ak.Secret))
+	if err != nil {
+		logger.Error(err)
+	}
+	return err
 }
 
 func (ak *AccessKey) Register(times int) error {
+	name := config.Conf.Name
+	token := config.Conf.BootstrapToken
+	comment := "Coco"
+
+	res := RegisterTerminal(name, token, comment)
+	if res.Name != name {
+		msg := "register access key failed"
+		logger.Error(msg)
+		os.Exit(1)
+	}
+	ak.Id = res.ServiceAccount.AccessKey.Id
+	ak.Secret = res.ServiceAccount.AccessKey.Secret
 	return nil
 }
 

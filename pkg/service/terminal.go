@@ -13,8 +13,18 @@ func RegisterTerminal(name, token, comment string) (res model.Terminal) {
 	}
 	client.Headers["Authorization"] = fmt.Sprintf("BootstrapToken %s", token)
 	data := map[string]string{"name": name, "comment": comment}
+	Url := client.ParseUrlQuery(TerminalRegisterURL, nil)
+	err := client.Post(Url, data, &res)
+	if err != nil {
+		logger.Error(err)
+	}
+	return
+}
 
-	err := client.Post(TerminalRegisterURL, data, &res)
+func getTerminalProfile() (user model.User) {
+	Url := authClient.ParseUrlQuery(UserProfileURL, nil)
+
+	err := authClient.Get(Url, &user)
 	if err != nil {
 		logger.Error(err)
 	}

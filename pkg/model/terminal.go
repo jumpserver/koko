@@ -9,7 +9,7 @@ type Terminal struct {
 		AccessKey struct {
 			Id     string `json:"id"`
 			Secret string `json:"secret"`
-		}
+		} `json:"access_key"`
 	} `json:"service_account"`
 }
 
