@@ -74,6 +74,7 @@ func (ak *AccessKey) SaveToFile() error {
 }
 
 func (ak *AccessKey) Register(times int) error {
+	fmt.Println(config.Conf.Name)
 	name := config.Conf.Name
 	token := config.Conf.BootstrapToken
 	comment := "Coco"

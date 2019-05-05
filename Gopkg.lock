@@ -10,6 +10,41 @@
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
 
 [[projects]]
+  digest = "1:6b7e9b1e2f944a0c84f29943f705954d2d8cfbf6477c37a10d0c80acdbc2445f"
+  name = "github.com/googollee/go-engine.io"
+  packages = [
+    ".",
+    "base",
+    "packet",
+    "payload",
+    "transport",
+    "transport/polling",
+    "transport/websocket",
+  ]
+  pruneopts = "UT"
+  revision = "cc5b8c07e074e97f6bc6f4c6dbc03cf06267e6e0"
+  version = "v1.4.1"
+
+[[projects]]
+  digest = "1:25fa43cb2f30c0ab54aaabf05167c56c7e385635b3651015c5726ecb737a905e"
+  name = "github.com/googollee/go-socket.io"
+  packages = [
+    ".",
+    "parser",
+  ]
+  pruneopts = "UT"
+  revision = "96da97a7c8f269421388fbb0dca12aa3c0699088"
+  version = "v1.4.1"
+
+[[projects]]
+  digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
+  version = "v1.4.0"
+
+[[projects]]
   digest = "1:c9aca0b305d2cf7925af6a5b1bdc24b99e5fd901271ba6e0cbb562f4112d01e3"
   name = "github.com/ibuler/ssh"
   packages = ["."]
@@ -48,6 +83,17 @@
   pruneopts = "UT"
   revision = "521317be5ebc228a0f0ede099fa2a0b5ece22e49"
   version = "v1.1.4"
+
+[[projects]]
+  digest = "1:c1969ca636a3249ca89cc658fb22280f69bb6f191787b0a2437690daddb25e7d"
+  name = "github.com/leonelquinteros/gotext"
+  packages = [
+    ".",
+    "plurals",
+  ]
+  pruneopts = "UT"
+  revision = "477ce49ddf8f201350f40fdb5ed80a65d155cc33"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:0356f3312c9bd1cbeda81505b7fd437501d8e778ab66998ef69f00d7f9b3a0d7"
@@ -135,29 +181,6 @@
   revision = "a129542de9ae0895210abff9c95d67a1f33cb93d"
 
 [[projects]]
-  digest = "1:137714ae7838cec8b48918205cb3cd96b17afebaa715e35a8213e6e0cc739d56"
-  name = "golang.org/x/text"
-  packages = [
-    "feature/plural",
-    "internal",
-    "internal/catmsg",
-    "internal/format",
-    "internal/gen",
-    "internal/language",
-    "internal/language/compact",
-    "internal/number",
-    "internal/stringset",
-    "internal/tag",
-    "language",
-    "message",
-    "message/catalog",
-    "unicode/cldr",
-  ]
-  pruneopts = "UT"
-  revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
-  version = "v0.3.2"
-
-[[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -169,9 +192,11 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/googollee/go-socket.io",
     "github.com/ibuler/ssh",
     "github.com/jarcoal/httpmock",
     "github.com/kr/pty",
+    "github.com/leonelquinteros/gotext",
     "github.com/olekukonko/tablewriter",
     "github.com/pkg/sftp",
     "github.com/satori/go.uuid",
@@ -179,8 +204,6 @@
     "github.com/xlab/treeprint",
     "golang.org/x/crypto/ssh",
     "golang.org/x/crypto/ssh/terminal",
-    "golang.org/x/text/language",
-    "golang.org/x/text/message",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
