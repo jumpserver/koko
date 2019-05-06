@@ -49,11 +49,11 @@ func (p *ProxyServer) Proxy() {
 	if !p.checkProtocol() {
 		return
 	}
-	conn := SSHConnection{
-		Host:     "192.168.244.185",
-		Port:     "22",
-		User:     "root",
-		Password: "redhat",
+	conn := ServerSSHConnection{
+		host:     "192.168.244.185",
+		port:     "22",
+		user:     "root",
+		password: "redhat",
 	}
 	ptyReq, _, ok := p.Session.Pty()
 	if !ok {
@@ -66,9 +66,9 @@ func (p *ProxyServer) Proxy() {
 	}
 
 	sw := Switch{
-		userSession: p.Session,
-		serverConn:  &conn,
-		parser:      parser,
+		userConn:   p.Session,
+		serverConn: &conn,
+		parser:     parser,
 	}
 	_ = sw.Bridge()
 	_ = conn.Close()

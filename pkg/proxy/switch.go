@@ -1,16 +1,15 @@
 package proxy
 
 import (
+	"cocogo/pkg/logger"
 	"cocogo/pkg/service"
 	"context"
 	"github.com/ibuler/ssh"
 	"github.com/satori/go.uuid"
 	"time"
-
-	"cocogo/pkg/logger"
 )
 
-func NewSwitch(userSess ssh.Session, serverConn ServerConnection) (sw *Switch) {
+func NewSwitch(userConn UserConnection, serverConn ServerConnection) (sw *Switch) {
 	rules, err := service.GetSystemUserFilterRules("")
 	if err != nil {
 		logger.Error("Get system user filter rule error: ", err)
@@ -19,14 +18,14 @@ func NewSwitch(userSess ssh.Session, serverConn ServerConnection) (sw *Switch) {
 		cmdFilterRules: rules,
 	}
 	parser.Initial()
-	sw = &Switch{userSession: userSess, serverConn: serverConn, parser: parser}
+	sw = &Switch{userConn: userConn, serverConn: serverConn, parser: parser}
 	return sw
 }
 
-type SwitchInfo struct {
-	Id         string    `json:"id"`
+type Switch struct {
+	Id         string
 	User       string    `json:"user"`
-	Asset      string    `json:"asset"`
+	Server     string    `json:"asset"`
 	SystemUser string    `json:"system_user"`
 	Org        string    `json:"org_id"`
 	LoginFrom  string    `json:"login_from"`
@@ -36,20 +35,23 @@ type SwitchInfo struct {
 	DateActive time.Time `json:"date_last_active"`
 	Finished   bool      `json:"is_finished"`
 	Closed     bool
-}
 
-type Switch struct {
-	Info        *SwitchInfo
-	parser      *Parser
-	userSession ssh.Session
-	serverConn  ServerConnection
-	userTran    Transport
-	serverTran  Transport
-	cancelFunc  context.CancelFunc
+	parser     *Parser
+	userConn   UserConnection
+	serverConn ServerConnection
+	userTran   Transport
+	serverTran Transport
+	cancelFunc context.CancelFunc
 }
 
 func (s *Switch) Initial() {
 	s.Id = uuid.NewV4().String()
+	s.User = s.userConn.User()
+	s.Server = s.serverConn.Name()
+	s.SystemUser = s.serverConn.User()
+	s.LoginFrom = s.userConn.LoginFrom()
+	s.RemoteAddr = s.userConn.RemoteAddr()
+	s.DateStart = time.Now()
 }
 
 func (s *Switch) preBridge() {
@@ -128,11 +130,11 @@ func (s *Switch) readServerToUser(ctx context.Context) {
 }
 
 func (s *Switch) Bridge() (err error) {
-	_, winCh, _ := s.userSession.Pty()
+	winCh := s.userConn.WinCh()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancelFunc = cancel
 
-	s.userTran = NewDirectTransport("", s.userSession)
+	s.userTran = NewDirectTransport("", s.userConn)
 	s.serverTran = NewDirectTransport("", s.serverConn)
 	go s.watchWindowChange(ctx, winCh)
 	go s.readServerToUser(ctx)

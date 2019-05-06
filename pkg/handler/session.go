@@ -97,7 +97,7 @@ func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 
 		if err != nil {
 			if err != io.EOF {
-				logger.Debug("User disconnected")
+				logger.Debug("user disconnected")
 			} else {
 				logger.Error("Read from user err: ", err)
 			}
@@ -342,10 +342,10 @@ func (i *InteractiveHandler) Proxy(ctx context.Context) {
 //	serverAuth := transport.ServerAuth{
 //		SessionID: uuid.NewV4().String(),
 //		IP:        asset.Ip,
-//		Port:      asset.Port,
+//		port:      asset.port,
 //		UserName:  systemUser.UserName,
-//		Password:  systemUser.Password,
-//		PublicKey: parsePrivateKey(systemUser.PrivateKey)}
+//		password:  systemUser.password,
+//		PublicKey: parsePrivateKey(systemUser.privateKey)}
 //
 //	nodeConn, err := transport.NewNodeConn(i.sess.Context(), serverAuth, ptyReq, winChan)
 //	if err != nil {

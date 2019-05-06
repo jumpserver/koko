@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-var testConnection = SSHConnection{
-	Host:     "127.0.0.1",
-	Port:     "22",
-	User:     "root",
-	Password: "redhat",
-	Proxy:    &SSHConnection{Host: "192.168.244.185", Port: "22", User: "root", Password: "redhat"},
+var testConnection = ServerSSHConnection{
+	host:     "127.0.0.1",
+	port:     "22",
+	user:     "root",
+	password: "redhat",
+	Proxy:    &ServerSSHConnection{host: "192.168.244.185", port: "22", user: "root", password: "redhat"},
 }
 
 func TestSSHConnection_Config(t *testing.T) {

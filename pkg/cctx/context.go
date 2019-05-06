@@ -12,7 +12,7 @@ type contextKey struct {
 }
 
 var (
-	ContextKeyUser       = &contextKey{"User"}
+	ContextKeyUser       = &contextKey{"user"}
 	ContextKeyAsset      = &contextKey{"asset"}
 	ContextKeySystemUser = &contextKey{"systemUser"}
 	ContextKeySSHSession = &contextKey{"sshSession"}
@@ -35,7 +35,7 @@ type CocoContext struct {
 	context.Context
 }
 
-// User 返回当前连接的用户model
+// user 返回当前连接的用户model
 func (ctx *CocoContext) User() *model.User {
 	return ctx.Value(ContextKeyUser).(*model.User)
 }

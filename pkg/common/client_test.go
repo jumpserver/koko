@@ -38,7 +38,7 @@ func TestClient_Do(t *testing.T) {
 		t.Errorf("Failed Do() error: %s", err.Error())
 	}
 	if len(res) != 2 {
-		t.Errorf("User not equal 2: %d", len(res))
+		t.Errorf("user not equal 2: %d", len(res))
 	}
 }
 
