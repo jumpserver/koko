@@ -1,8 +1,9 @@
 package proxy
 
 import (
-	"cocogo/pkg/logger"
 	"io"
+
+	"cocogo/pkg/logger"
 )
 
 type Transport interface {
@@ -58,9 +59,9 @@ func (dt *DirectTransport) Keep() {
 	return
 }
 
-func NewDirectTransport(name string, readWriter io.ReadWriter) (tr Transport) {
+func NewDirectTransport(name string, readWriter io.ReadWriter) Transport {
 	ch := make(chan []byte, 1024)
-	dtr := DirectTransport{readWriter: readWriter, ch: ch}
-	go dtr.Keep()
-	return &dtr
+	tr := DirectTransport{readWriter: readWriter, ch: ch}
+	go tr.Keep()
+	return &tr
 }

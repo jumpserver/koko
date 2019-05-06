@@ -7,8 +7,8 @@ import (
 
 	"cocogo/pkg/auth"
 	"cocogo/pkg/config"
+	"cocogo/pkg/handler"
 	"cocogo/pkg/logger"
-	"cocogo/pkg/sshd/handler"
 )
 
 const version = "coco-v1.4"
