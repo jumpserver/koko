@@ -55,7 +55,7 @@ type InteractiveHandler struct {
 	searchResult     model.AssetList
 	nodes            model.NodeList
 	onceLoad         sync.Once
-	sync.RWMutex
+	mu               sync.RWMutex
 }
 
 func (i *InteractiveHandler) displayBanner() {
@@ -96,7 +96,11 @@ func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 		close(doneChan)
 
 		if err != nil {
-			logger.Error("Read line from user err:", err)
+			if err != io.EOF {
+				logger.Debug("User disconnected")
+			} else {
+				logger.Error("Read from user err: ", err)
+			}
 			break
 		}
 
@@ -324,7 +328,7 @@ func (i *InteractiveHandler) Proxy(ctx context.Context) {
 		Asset:      i.assetSelect,
 		SystemUser: i.systemUserSelect,
 	}
-	p.Proxy(ctx)
+	p.Proxy()
 }
 
 //	/*

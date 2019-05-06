@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"context"
 	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/logger"
@@ -46,15 +45,15 @@ func (p *ProxyServer) sendConnectingMsg() {
 
 }
 
-func (p *ProxyServer) Proxy(ctx context.Context) {
+func (p *ProxyServer) Proxy() {
 	if !p.checkProtocol() {
 		return
 	}
 	conn := SSHConnection{
-		Host:     "127.0.0.1",
-		Port:     "1337",
+		Host:     "192.168.244.185",
+		Port:     "22",
 		User:     "root",
-		Password: "MyRootPW123",
+		Password: "redhat",
 	}
 	ptyReq, _, ok := p.Session.Pty()
 	if !ok {
@@ -65,18 +64,12 @@ func (p *ProxyServer) Proxy(ctx context.Context) {
 	if err != nil {
 		return
 	}
-	rules, err := service.GetSystemUserFilterRules("")
-	if err != nil {
-		logger.Error("Get system user filter rule error: ", err)
-	}
-	parser := &Parser{
-		filterRules: rules,
-	}
-	parser.Initial()
+
 	sw := Switch{
 		userSession: p.Session,
 		serverConn:  &conn,
 		parser:      parser,
 	}
-	sw.Bridge(ctx)
+	_ = sw.Bridge()
+	_ = conn.Close()
 }

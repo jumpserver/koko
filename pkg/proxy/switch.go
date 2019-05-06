@@ -1,17 +1,29 @@
 package proxy
 
 import (
+	"cocogo/pkg/service"
 	"context"
-	"fmt"
-	"sync"
-	"time"
-
 	"github.com/ibuler/ssh"
+	"github.com/satori/go.uuid"
+	"time"
 
 	"cocogo/pkg/logger"
 )
 
-type Switch struct {
+func NewSwitch(userSess ssh.Session, serverConn ServerConnection) (sw *Switch) {
+	rules, err := service.GetSystemUserFilterRules("")
+	if err != nil {
+		logger.Error("Get system user filter rule error: ", err)
+	}
+	parser := &Parser{
+		cmdFilterRules: rules,
+	}
+	parser.Initial()
+	sw = &Switch{userSession: userSess, serverConn: serverConn, parser: parser}
+	return sw
+}
+
+type SwitchInfo struct {
 	Id         string    `json:"id"`
 	User       string    `json:"user"`
 	Asset      string    `json:"asset"`
@@ -24,11 +36,20 @@ type Switch struct {
 	DateActive time.Time `json:"date_last_active"`
 	Finished   bool      `json:"is_finished"`
 	Closed     bool
+}
 
+type Switch struct {
+	Info        *SwitchInfo
 	parser      *Parser
 	userSession ssh.Session
 	serverConn  ServerConnection
-	closeChan   chan struct{}
+	userTran    Transport
+	serverTran  Transport
+	cancelFunc  context.CancelFunc
+}
+
+func (s *Switch) Initial() {
+	s.Id = uuid.NewV4().String()
 }
 
 func (s *Switch) preBridge() {
@@ -39,8 +60,7 @@ func (s *Switch) postBridge() {
 
 }
 
-func (s *Switch) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (s *Switch) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window) {
 	defer func() {
 		logger.Debug("Watch window change routine end")
 	}()
@@ -62,56 +82,61 @@ func (s *Switch) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window,
 	}
 }
 
-func (s *Switch) readUserToServer(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (s *Switch) readUserToServer(ctx context.Context) {
 	defer func() {
 		logger.Debug("Read user to server end")
 	}()
-	buf := make([]byte, 1024)
-	writer := s.serverConn.Writer()
 	for {
-		nr, err := s.userSession.Read(buf)
-		if err != nil {
+		select {
+		case <-ctx.Done():
+			_ = s.userTran.Close()
 			return
-		}
-		buf2 := s.parser.ParseUserInput(buf[:nr])
-		_, err = writer.Write(buf2)
-		if err != nil {
-			return
+		case p, ok := <-s.userTran.Chan():
+			if !ok {
+				s.cancelFunc()
+			}
+			buf2 := s.parser.ParseUserInput(p)
+			logger.Debug("Send to server: ", string(buf2))
+			_, err := s.serverTran.Write(buf2)
+			if err != nil {
+				return
+			}
 		}
 	}
-
 }
 
-func (s *Switch) readServerToUser(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (s *Switch) readServerToUser(ctx context.Context) {
 	defer func() {
 		logger.Debug("Read server to user end")
 	}()
-	buf := make([]byte, 1024)
-	reader := s.serverConn.Reader()
 	for {
-		nr, err := reader.Read(buf)
-		if err != nil {
-			logger.Errorf("Read from server error: %s", err)
-			break
-		}
-		buf2 := s.parser.ParseServerOutput(buf[:nr])
-		_, err = s.userSession.Write(buf2)
-		if err != nil {
-			break
+		select {
+		case <-ctx.Done():
+			_ = s.serverTran.Close()
+			return
+		case p, ok := <-s.serverTran.Chan():
+			if !ok {
+				s.cancelFunc()
+			}
+			buf2 := s.parser.ParseServerOutput(p)
+			_, err := s.userTran.Write(buf2)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
 
-func (s *Switch) Bridge(ctx context.Context) (err error) {
+func (s *Switch) Bridge() (err error) {
 	_, winCh, _ := s.userSession.Pty()
-	wg := sync.WaitGroup{}
-	wg.Add(3)
-	go s.watchWindowChange(ctx, winCh, &wg)
-	go s.readUserToServer(&wg)
-	go s.readServerToUser(&wg)
-	wg.Wait()
-	fmt.Println("Bride end")
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancelFunc = cancel
+
+	s.userTran = NewDirectTransport("", s.userSession)
+	s.serverTran = NewDirectTransport("", s.serverConn)
+	go s.watchWindowChange(ctx, winCh)
+	go s.readServerToUser(ctx)
+	s.readUserToServer(ctx)
+	logger.Debug("Switch bridge end")
 	return
 }

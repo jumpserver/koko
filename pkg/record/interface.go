@@ -1,4 +1,4 @@
-package storage
+package record
 
 type Storage interface {
 	Upload(gZipFile, target string)

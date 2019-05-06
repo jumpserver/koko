@@ -3,16 +3,11 @@ package proxy
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"strings"
 	"sync"
 
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
-	"cocogo/pkg/utils"
 )
-
-type ParseRule func([]byte) bool
 
 var (
 	// Todo: Vim过滤依然存在问题
@@ -29,43 +24,20 @@ var (
 	charEnter = []byte("\r")
 )
 
-type CmdParser struct {
-	term *utils.Terminal
-	buf  *bytes.Buffer
-}
-
-func (cp *CmdParser) Reset() {
-	cp.buf.Reset()
-}
-
-func (cp *CmdParser) Initial() {
-	cp.buf = new(bytes.Buffer)
-	cp.term = utils.NewTerminal(cp.buf, "")
-	cp.term.SetEcho(false)
-}
-
-func (cp *CmdParser) Parse(b []byte) string {
-	cp.buf.Write(b)
-	cp.buf.WriteString("\r")
-	lines, _ := cp.term.ReadLines()
-	return strings.TrimSpace(strings.Join(lines, "\r\n"))
-}
-
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
 	inputBuf  *bytes.Buffer
 	cmdBuf    *bytes.Buffer
 	outputBuf *bytes.Buffer
 
-	filterRules []model.SystemUserFilterRule
+	cmdFilterRules []model.SystemUserFilterRule
 
-	inputInitial    bool
-	inputPreState   bool
-	inputState      bool
-	multiInputState bool
-	zmodemState     string
-	inVimState      bool
-	once            sync.Once
+	inputInitial  bool
+	inputPreState bool
+	inputState    bool
+	zmodemState   string
+	inVimState    bool
+	once          sync.Once
 
 	command         string
 	output          string
@@ -106,19 +78,16 @@ func (p *Parser) parseInputState(b []byte) {
 	}
 }
 
-var f, _ = os.Create("/tmp/cmd.text")
-
 func (p *Parser) parseCmdInput() {
 	parser := CmdParser{}
 	parser.Initial()
 	data := p.cmdBuf.Bytes()
-	fmt.Printf("原始输入: %b\n", data)
 	line := parser.Parse(data)
 	data2 := fmt.Sprintf("[%d] 命令: %s\n", p.counter, line)
 	fmt.Printf(data2)
 	p.cmdBuf.Reset()
 	p.inputBuf.Reset()
-	f.WriteString(data2)
+	p.counter += 1
 }
 
 func (p *Parser) parseCmdOutput() {
@@ -128,8 +97,6 @@ func (p *Parser) parseCmdOutput() {
 	_ = fmt.Sprintf("[%d] 结果: %s\n", p.counter, line)
 	fmt.Printf(data2)
 	p.outputBuf.Reset()
-	f.WriteString(data2)
-	p.counter += 1
 }
 
 func (p *Parser) parseInputNewLine(b []byte) []byte {
@@ -161,8 +128,11 @@ func (p *Parser) parseVimState(b []byte) {
 }
 
 func (p *Parser) parseZmodemState(b []byte) {
+	if len(b) < 25 {
+		return
+	}
 	if p.zmodemState == "" {
-		if bytes.Contains(b[:50], zmodemRecvStartMark) {
+		if len(b) > 50 && bytes.Contains(b[:50], zmodemRecvStartMark) {
 			p.zmodemState = zmodemStateRecv
 			logger.Debug("Zmodem in recv state")
 		} else if bytes.Contains(b[:24], zmodemSendStartMark) {
@@ -196,4 +166,8 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 	p.parseZmodemState(b)
 	p.parseCommand(b)
 	return b
+}
+
+func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
+	p.cmdFilterRules = rules
 }

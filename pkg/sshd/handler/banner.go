@@ -42,7 +42,6 @@ func (mi *MenuItem) Text() string {
 type Menu []MenuItem
 
 func init() {
-	fmt.Println("Init bnanner")
 	defaultTitle = i18n.T("Welcome to use Jumpserver open source fortress system")
 	menu = Menu{
 		{id: 1, instruct: "ID", helpText: i18n.T("directly login")},

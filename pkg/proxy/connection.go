@@ -10,12 +10,10 @@ import (
 )
 
 type ServerConnection interface {
-	Writer() io.WriteCloser
-	Reader() io.Reader
+	io.ReadWriteCloser
 	Protocol() string
 	Connect(h, w int, term string) error
 	SetWinSize(w, h int) error
-	Close()
 }
 
 type SSHConnection struct {
@@ -41,16 +39,16 @@ func (sc *SSHConnection) Protocol() string {
 }
 
 func (sc *SSHConnection) Config() (config *gossh.ClientConfig, err error) {
-	auths := make([]gossh.AuthMethod, 0)
+	authMethods := make([]gossh.AuthMethod, 0)
 	if sc.Password != "" {
-		auths = append(auths, gossh.Password(sc.Password))
+		authMethods = append(authMethods, gossh.Password(sc.Password))
 	}
 	if sc.PrivateKeyPath != "" {
 		if pubkey, err := GetPubKeyFromFile(sc.PrivateKeyPath); err != nil {
 			err = fmt.Errorf("parse private key from file error: %sc", err)
 			return config, err
 		} else {
-			auths = append(auths, gossh.PublicKeys(pubkey))
+			authMethods = append(authMethods, gossh.PublicKeys(pubkey))
 		}
 	}
 	if sc.PrivateKey != "" {
@@ -58,12 +56,12 @@ func (sc *SSHConnection) Config() (config *gossh.ClientConfig, err error) {
 			err = fmt.Errorf("parse private key error: %sc", err)
 			return config, err
 		} else {
-			auths = append(auths, gossh.PublicKeys(signer))
+			authMethods = append(authMethods, gossh.PublicKeys(signer))
 		}
 	}
 	config = &gossh.ClientConfig{
 		User:            sc.User,
-		Auth:            auths,
+		Auth:            authMethods,
 		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
 		Timeout:         sc.Timeout,
 	}
@@ -140,26 +138,27 @@ func (sc *SSHConnection) Connect(h, w int, term string) (err error) {
 	return nil
 }
 
-func (sc *SSHConnection) Reader() (reader io.Reader) {
-	return sc.stdout
-}
-
-func (sc *SSHConnection) Writer() (writer io.WriteCloser) {
-	return sc.stdin
-}
-
 func (sc *SSHConnection) SetWinSize(h, w int) error {
 	return sc.Session.WindowChange(h, w)
 }
 
-func (sc *SSHConnection) Close() {
+func (sc *SSHConnection) Read(p []byte) (n int, err error) {
+	return sc.stdout.Read(p)
+}
+
+func (sc *SSHConnection) Write(p []byte) (n int, err error) {
+	return sc.stdin.Write(p)
+}
+
+func (sc *SSHConnection) Close() (err error) {
 	if sc.closed {
 		return
 	}
-	_ = sc.Session.Close()
-	_ = sc.client.Close()
+	err = sc.Session.Close()
+	err = sc.client.Close()
 	if sc.proxyConn != nil {
-		_ = sc.proxyConn.Close()
+		err = sc.proxyConn.Close()
 	}
 	sc.closed = true
+	return
 }
