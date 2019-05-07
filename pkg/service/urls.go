@@ -8,6 +8,8 @@ const (
 	SystemUserAssetAuthURL   = "/api/assets/v1/system-user/%s/asset/%s/auth-info/" // 该系统用户对某资产的授权
 	SystemUserAuthInfoURL    = "/api/assets/v1/system-user/%s/auth-info/"          // 该系统用户的授权
 	SystemUserCmdFilterRules = "/api/assets/v1/system-user/%s/cmd-filter-rules/"   // 过滤规则url
+	SystemUser               = "/api/assets/v1/system-user/%s"                     //	某个系统用户的信息
+	Asset                    = "/api/assets/v1/assets/%s/"                         // 某一个资产信息
 
 	TerminalRegisterURL  = "/api/terminal/v2/terminal-registrations/" // 注册当前coco
 	TerminalConfigURL    = "/api/terminal/v1/terminal/config/"        // 从jumpserver获取coco的配置

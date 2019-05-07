@@ -75,3 +75,21 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 	}
 	return
 }
+
+func GetSystemUser(systemUserID string) (info model.SystemUser) {
+	Url := authClient.ParseUrlQuery(fmt.Sprintf(SystemUser, systemUserID), nil)
+	err := authClient.Get(Url, &info)
+	if err != nil {
+		logger.Errorf("Get system user %s failed", systemUserID)
+	}
+	return
+}
+
+func GetAsset(assetID string) (asset model.Asset) {
+	Url := authClient.ParseUrlQuery(fmt.Sprintf(Asset, assetID), nil)
+	err := authClient.Get(Url, &asset)
+	if err != nil {
+		logger.Errorf("Get Asset %s failed", assetID)
+	}
+	return
+}
