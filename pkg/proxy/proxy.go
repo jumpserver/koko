@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"cocogo/pkg/recorder"
 	"fmt"
 	"io"
 	"strings"
@@ -99,7 +100,9 @@ func (p *ProxyServer) Proxy() {
 		logger.Error("Get system user filter rule error: ", err)
 	}
 	sw.parser.SetCMDFilterRules(cmdRules)
-	sw.parser.SetReplayRecorder()
+	replayRecorder := recorder.NewReplyRecord(sw.Id)
+	sw.parser.SetReplayRecorder(replayRecorder)
+	cmdR
 	sw.parser.SetCommandRecorder()
 	_ = sw.Bridge()
 	_ = srvConn.Close()

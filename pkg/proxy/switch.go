@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-func NewSwitch(userConn UserConnection, serverConn ServerConnection) (sw *Switch) {
+func NewSwitch(userConn UserConnection, serverConn ServerConnection) (sw *Session) {
 	parser := new(Parser)
 	parser.Initial()
-	sw = &Switch{userConn: userConn, serverConn: serverConn, parser: parser}
+	sw = &Session{userConn: userConn, serverConn: serverConn, parser: parser}
 	return sw
 }
 
-type Switch struct {
+type Session struct {
 	Id         string
 	User       string    `json:"user"`
 	Server     string    `json:"asset"`
@@ -37,7 +37,7 @@ type Switch struct {
 	cancelFunc context.CancelFunc
 }
 
-func (s *Switch) Initial() {
+func (s *Session) Initial() {
 	s.Id = uuid.NewV4().String()
 	s.User = s.userConn.User()
 	s.Server = s.serverConn.Name()
@@ -47,15 +47,15 @@ func (s *Switch) Initial() {
 	s.DateStart = time.Now()
 }
 
-func (s *Switch) preBridge() {
+func (s *Session) preBridge() {
 
 }
 
-func (s *Switch) postBridge() {
+func (s *Session) postBridge() {
 
 }
 
-func (s *Switch) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window) {
+func (s *Session) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window) {
 	defer func() {
 		logger.Debug("Watch window change routine end")
 	}()
@@ -77,7 +77,7 @@ func (s *Switch) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window)
 	}
 }
 
-func (s *Switch) readUserToServer(ctx context.Context) {
+func (s *Session) readUserToServer(ctx context.Context) {
 	defer func() {
 		logger.Debug("Read user to server end")
 	}()
@@ -99,7 +99,7 @@ func (s *Switch) readUserToServer(ctx context.Context) {
 	}
 }
 
-func (s *Switch) readServerToUser(ctx context.Context) {
+func (s *Session) readServerToUser(ctx context.Context) {
 	defer func() {
 		logger.Debug("Read server to user end")
 	}()
@@ -121,7 +121,7 @@ func (s *Switch) readServerToUser(ctx context.Context) {
 	}
 }
 
-func (s *Switch) Bridge() (err error) {
+func (s *Session) Bridge() (err error) {
 	winCh := s.userConn.WinCh()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancelFunc = cancel
@@ -131,6 +131,6 @@ func (s *Switch) Bridge() (err error) {
 	go s.watchWindowChange(ctx, winCh)
 	go s.readServerToUser(ctx)
 	s.readUserToServer(ctx)
-	logger.Debug("Switch bridge end")
+	logger.Debug("Session bridge end")
 	return
 }

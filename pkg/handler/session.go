@@ -396,7 +396,7 @@ func (i *InteractiveHandler) Proxy(ctx context.Context) {
 //	Home := userhome.NewUserSessionHome(sshConn)
 //	logger.Info("session Home ID: ", Home.SessionID())
 //
-//	err = proxy.Manager.Switch(i.sess.Context(), Home, memChan)
+//	err = proxy.Manager.Session(i.sess.Context(), Home, memChan)
 //	if err != nil {
 //		logger.Error(err)
 //	}

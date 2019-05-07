@@ -1,6 +1,12 @@
-package storage
+package proxy
 
-//var client = service.Client
+type ReplayStorage interface {
+	Upload(gZipFile, target string)
+}
+
+func NewStorageServer() ReplayStorage {
+	return nil
+}
 
 func NewJmsStorage() ReplayStorage {
 	//appService := auth.GetGlobalService()

@@ -2,8 +2,9 @@ package proxy
 
 import (
 	"bytes"
-	"fmt"
+	"cocogo/pkg/recorder"
 	"sync"
+	"time"
 
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
@@ -26,11 +27,10 @@ var (
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
+	session   *Session
 	inputBuf  *bytes.Buffer
 	cmdBuf    *bytes.Buffer
 	outputBuf *bytes.Buffer
-
-	cmdFilterRules []model.SystemUserFilterRule
 
 	inputInitial  bool
 	inputPreState bool
@@ -44,6 +44,10 @@ type Parser struct {
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 	counter         int
+
+	cmdFilterRules  []model.SystemUserFilterRule
+	commandRecorder *recorder.CommandRecorder
+	replayRecorder  *recorder.ReplyRecorder
 }
 
 func (p *Parser) Initial() {
@@ -61,7 +65,7 @@ func (p *Parser) Initial() {
 
 // Todo: parseMultipleInput 依然存在问题
 
-// parseInputState 切换用户输入状态
+// parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) {
 	if p.inVimState || p.zmodemState != "" {
 		return
@@ -69,22 +73,22 @@ func (p *Parser) parseInputState(b []byte) {
 	p.inputPreState = p.inputState
 	if bytes.Contains(b, charEnter) {
 		p.inputState = false
+		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
 	} else {
 		p.inputState = true
+		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
 			p.parseCmdOutput()
+			// 开始记录命令
+			p.recordCommand()
 		}
 	}
 }
 
 func (p *Parser) parseCmdInput() {
-	parser := CmdParser{}
-	parser.Initial()
 	data := p.cmdBuf.Bytes()
-	line := parser.Parse(data)
-	data2 := fmt.Sprintf("[%d] 命令: %s\n", p.counter, line)
-	fmt.Printf(data2)
+	p.command = p.cmdInputParser.Parse(data)
 	p.cmdBuf.Reset()
 	p.inputBuf.Reset()
 	p.counter += 1
@@ -92,14 +96,11 @@ func (p *Parser) parseCmdInput() {
 
 func (p *Parser) parseCmdOutput() {
 	data := p.outputBuf.Bytes()
-	line := p.cmdOutputParser.Parse(data)
-	data2 := fmt.Sprintf("[%d] 结果: %s\n", p.counter, line)
-	_ = fmt.Sprintf("[%d] 结果: %s\n", p.counter, line)
-	fmt.Printf(data2)
+	p.output = p.cmdOutputParser.Parse(data)
 	p.outputBuf.Reset()
 }
 
-func (p *Parser) parseInputNewLine(b []byte) []byte {
+func (p *Parser) replaceInputNewLine(b []byte) []byte {
 	b = bytes.Replace(b, []byte{'\r', '\r', '\n'}, []byte{'\r'}, -1)
 	b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\r'}, -1)
 	b = bytes.Replace(b, []byte{'\n'}, []byte{'\r'}, -1)
@@ -110,21 +111,10 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 	p.once.Do(func() {
 		p.inputInitial = true
 	})
-	nb := p.parseInputNewLine(b)
+	nb := p.replaceInputNewLine(b)
 	p.inputBuf.Write(nb)
 	p.parseInputState(nb)
 	return b
-}
-
-func (p *Parser) parseVimState(b []byte) {
-	if p.zmodemState == "" && !p.inVimState && bytes.Contains(b, vimEnterMark) {
-		p.inVimState = true
-		logger.Debug("In vim state: true")
-	}
-	if p.zmodemState == "" && p.inVimState && bytes.Contains(b, vimExitMark) {
-		p.inVimState = false
-		logger.Debug("In vim state: false")
-	}
 }
 
 func (p *Parser) parseZmodemState(b []byte) {
@@ -150,8 +140,22 @@ func (p *Parser) parseZmodemState(b []byte) {
 	}
 }
 
-func (p *Parser) parseCommand(b []byte) {
-	if !p.inputInitial {
+func (p *Parser) parseVimState(b []byte) {
+	if p.zmodemState == "" && !p.inVimState && bytes.Contains(b, vimEnterMark) {
+		p.inVimState = true
+		logger.Debug("In vim state: true")
+	}
+	if p.zmodemState == "" && p.inVimState && bytes.Contains(b, vimExitMark) {
+		p.inVimState = false
+		logger.Debug("In vim state: false")
+	}
+}
+
+// splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
+func (p *Parser) splitCmdStream(b []byte) {
+	p.parseVimState(b)
+	p.parseZmodemState(b)
+	if p.zmodemState != "" || p.inVimState || p.inputInitial {
 		return
 	}
 	if p.inputState {
@@ -162,9 +166,7 @@ func (p *Parser) parseCommand(b []byte) {
 }
 
 func (p *Parser) ParseServerOutput(b []byte) []byte {
-	p.parseVimState(b)
-	p.parseZmodemState(b)
-	p.parseCommand(b)
+	p.splitCmdStream(b)
 	return b
 }
 
@@ -172,10 +174,29 @@ func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 	p.cmdFilterRules = rules
 }
 
-func (p *Parser) SetReplayRecorder() {
+func (p *Parser) SetReplayRecorder(recorder *recorder.ReplyRecorder) {
+	p.replayRecorder = recorder
 
 }
 
-func (p *Parser) SetCommandRecorder() {
+func (p *Parser) recordCommand() {
+	cmd := &recorder.Command{
+		SessionId:  p.session.Id,
+		OrgId:      p.session.Org,
+		Input:      p.command,
+		Output:     p.output,
+		User:       p.session.User,
+		Server:     p.session.Server,
+		SystemUser: p.session.SystemUser,
+		Timestamp:  time.Now(),
+	}
+	p.commandRecorder.Record(cmd)
+}
 
+func (p *Parser) SetCommandRecorder(recorder *recorder.CommandRecorder) {
+	p.commandRecorder = recorder
+}
+
+func (p *Parser) recordReplay(b []byte) {
+	p.replayRecorder.Record(b)
 }

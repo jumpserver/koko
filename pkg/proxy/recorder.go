@@ -1,4 +1,4 @@
-package recorder
+package proxy
 
 import (
 	"compress/gzip"
@@ -12,8 +12,35 @@ import (
 	"time"
 
 	"cocogo/pkg/config"
-	"cocogo/pkg/recorder/storage"
+	"cocogo/pkg/logger"
 )
+
+type CommandRecorder struct {
+	Session *Session
+}
+
+func NewCommandRecorder(sess *Session) (recorder *CommandRecorder) {
+	return &CommandRecorder{Session: sess}
+}
+
+type Command struct {
+	SessionId  string    `json:"session"`
+	OrgId      string    `json:"org_id"`
+	Input      string    `json:"input"`
+	Output     string    `json:"output"`
+	User       string    `json:"user"`
+	Server     string    `json:"asset"`
+	SystemUser string    `json:"system_user"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
+func (c *CommandRecorder) Record(cmd *Command) {
+	data, err := json.MarshalIndent(cmd, "", "  ")
+	if err != nil {
+		logger.Error("Marshal command error: ", err)
+	}
+	fmt.Printf("Record cmd: %s\n", data)
+}
 
 var conf = config.Conf
 
@@ -70,7 +97,7 @@ func (r *ReplyRecorder) End(ctx context.Context) {
 
 func (r *ReplyRecorder) uploadReplay() {
 	_ = GzipCompressFile(r.absFilePath, r.absGzFilePath)
-	if store := storage.NewStorageServer(); store != nil {
+	if store := NewStorageServer(); store != nil {
 		store.Upload(r.absGzFilePath, r.target)
 	}
 	_ = os.Remove(r.absFilePath)
