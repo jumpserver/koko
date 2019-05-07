@@ -1,4 +1,4 @@
-package record
+package recorder
 
 import (
 	"compress/gzip"
@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"cocogo/pkg/config"
-	"cocogo/pkg/storage"
+	"cocogo/pkg/recorder/storage"
 )
 
 var conf = config.Conf
 
-func NewReplyRecord(sessionID string) *Reply {
+func NewReplyRecord(sessionID string) *ReplyRecorder {
 	rootPath := conf.RootPath
 	currentData := time.Now().UTC().Format("2006-01-02")
 	gzFileName := sessionID + ".replay.gz"
@@ -25,7 +25,7 @@ func NewReplyRecord(sessionID string) *Reply {
 	absGzFilePath := filepath.Join(rootPath, "data", "replays", currentData, gzFileName)
 
 	target := strings.Join([]string{currentData, gzFileName}, "/")
-	return &Reply{
+	return &ReplyRecorder{
 		SessionID:     sessionID,
 		FileName:      sessionID,
 		absFilePath:   absFilePath,
@@ -36,7 +36,7 @@ func NewReplyRecord(sessionID string) *Reply {
 	}
 }
 
-type Reply struct {
+type ReplyRecorder struct {
 	SessionID     string
 	FileName      string
 	gzFileName    string
@@ -47,19 +47,19 @@ type Reply struct {
 	StartTime     time.Time
 }
 
-func (r *Reply) Record(b []byte) {
+func (r *ReplyRecorder) Record(b []byte) {
 	interval := time.Now().UTC().Sub(r.StartTime).Seconds()
 	data, _ := json.Marshal(string(b))
 	_, _ = r.WriteF.WriteString(fmt.Sprintf("\"%0.6f\":%s,", interval, data))
 }
 
-func (r *Reply) StartRecord() {
+func (r *ReplyRecorder) Start() {
 	//auth.MakeSureDirExit(r.absFilePath)
 	//r.WriteF, _ = os.Create(r.absFilePath)
 	//_, _ = r.WriteF.Write([]byte("{"))
 }
 
-func (r *Reply) EndRecord(ctx context.Context) {
+func (r *ReplyRecorder) End(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		_, _ = r.WriteF.WriteString(`"0":""}`)
@@ -68,10 +68,10 @@ func (r *Reply) EndRecord(ctx context.Context) {
 	r.uploadReplay()
 }
 
-func (r *Reply) uploadReplay() {
+func (r *ReplyRecorder) uploadReplay() {
 	_ = GzipCompressFile(r.absFilePath, r.absGzFilePath)
-	if sto := storage.NewStorageServer(); sto != nil {
-		sto.Upload(r.absGzFilePath, r.target)
+	if store := storage.NewStorageServer(); store != nil {
+		store.Upload(r.absGzFilePath, r.target)
 	}
 	_ = os.Remove(r.absFilePath)
 	_ = os.Remove(r.absGzFilePath)

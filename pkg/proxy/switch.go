@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"cocogo/pkg/logger"
-	"cocogo/pkg/service"
 	"context"
 	"github.com/ibuler/ssh"
 	"github.com/satori/go.uuid"
@@ -10,13 +9,7 @@ import (
 )
 
 func NewSwitch(userConn UserConnection, serverConn ServerConnection) (sw *Switch) {
-	rules, err := service.GetSystemUserFilterRules("")
-	if err != nil {
-		logger.Error("Get system user filter rule error: ", err)
-	}
-	parser := &Parser{
-		cmdFilterRules: rules,
-	}
+	parser := new(Parser)
 	parser.Initial()
 	sw = &Switch{userConn: userConn, serverConn: serverConn, parser: parser}
 	return sw
@@ -98,7 +91,6 @@ func (s *Switch) readUserToServer(ctx context.Context) {
 				s.cancelFunc()
 			}
 			buf2 := s.parser.ParseUserInput(p)
-			logger.Debug("Send to server: ", string(buf2))
 			_, err := s.serverTran.Write(buf2)
 			if err != nil {
 				return

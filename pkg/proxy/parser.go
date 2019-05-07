@@ -171,3 +171,11 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 	p.cmdFilterRules = rules
 }
+
+func (p *Parser) SetReplayRecorder() {
+
+}
+
+func (p *Parser) SetCommandRecorder() {
+
+}

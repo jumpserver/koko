@@ -1,8 +1,15 @@
 package proxy
 
 import (
+	"fmt"
+	"io"
+	"strings"
+	"time"
+
 	"github.com/ibuler/ssh"
 
+	"cocogo/pkg/config"
+	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/service"
@@ -37,39 +44,63 @@ func (p *ProxyServer) validatePermission() bool {
 	return true
 }
 
-func (p *ProxyServer) getServerConn() {
-
+func (p *ProxyServer) getServerConn() (srvConn ServerConnection, err error) {
+	srvConn = &ServerSSHConnection{
+		host:     "192.168.244.145",
+		port:     "22",
+		user:     "root",
+		password: "redhat",
+	}
+	pty, _, ok := p.Session.Pty()
+	if !ok {
+		logger.Error("User not request Pty")
+		return
+	}
+	done := make(chan struct{})
+	go p.sendConnectingMsg(done)
+	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
+	_, _ = io.WriteString(p.Session, "\r\n")
+	done <- struct{}{}
+	return
 }
 
-func (p *ProxyServer) sendConnectingMsg() {
-
+func (p *ProxyServer) sendConnectingMsg(done chan struct{}) {
+	delay := 0.0
+	msg := fmt.Sprintf(i18n.T("Connecting to %s@%s  %.1f"), p.SystemUser.UserName, p.Asset.Ip, delay)
+	_, _ = io.WriteString(p.Session, msg)
+	for int(delay) < config.Conf.SSHTimeout {
+		select {
+		case <-done:
+			return
+		default:
+			delayS := fmt.Sprintf("%.1f", delay)
+			data := strings.Repeat("\x08", len(delayS)) + delayS
+			_, _ = io.WriteString(p.Session, data)
+			time.Sleep(100 * time.Millisecond)
+			delay += 0.1
+		}
+	}
 }
 
 func (p *ProxyServer) Proxy() {
 	if !p.checkProtocol() {
 		return
 	}
-	conn := ServerSSHConnection{
-		host:     "192.168.244.185",
-		port:     "22",
-		user:     "root",
-		password: "redhat",
-	}
-	ptyReq, _, ok := p.Session.Pty()
-	if !ok {
-		logger.Error("Pty not ok")
-		return
-	}
-	err := conn.Connect(ptyReq.Window.Height, ptyReq.Window.Width, ptyReq.Term)
+	srvConn, err := p.getServerConn()
 	if err != nil {
+		logger.Errorf("Connect host error: %s\n", err)
 		return
 	}
 
-	sw := Switch{
-		userConn:   p.Session,
-		serverConn: &conn,
-		parser:     parser,
+	userConn := &UserSSHConnection{Session: p.Session, winch: make(chan ssh.Window)}
+	sw := NewSwitch(userConn, srvConn)
+	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.Id)
+	if err != nil {
+		logger.Error("Get system user filter rule error: ", err)
 	}
+	sw.parser.SetCMDFilterRules(cmdRules)
+	sw.parser.SetReplayRecorder()
+	sw.parser.SetCommandRecorder()
 	_ = sw.Bridge()
-	_ = conn.Close()
+	_ = srvConn.Close()
 }

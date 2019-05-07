@@ -1,8 +1,8 @@
-package record
+package storage
 
 //var client = service.Client
 
-func NewJmsStorage() Storage {
+func NewJmsStorage() ReplayStorage {
 	//appService := auth.GetGlobalService()
 	//return &Server{
 	//	StorageType: "jms",

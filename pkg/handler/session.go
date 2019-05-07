@@ -323,8 +323,11 @@ func (i *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 }
 
 func (i *InteractiveHandler) Proxy(ctx context.Context) {
+	i.assetSelect = &model.Asset{Hostname: "centos", Port: 22, Ip: "192.168.244.185"}
+	i.systemUserSelect = &model.SystemUser{Name: "web", UserName: "web", Password: "redhat"}
 	p := proxy.ProxyServer{
 		Session:    i.sess,
+		User:       i.user,
 		Asset:      i.assetSelect,
 		SystemUser: i.systemUserSelect,
 	}
