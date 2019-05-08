@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"cocogo/pkg/recorder"
 	"sync"
 	"time"
 
@@ -46,8 +45,8 @@ type Parser struct {
 	counter         int
 
 	cmdFilterRules  []model.SystemUserFilterRule
-	commandRecorder *recorder.CommandRecorder
-	replayRecorder  *recorder.ReplyRecorder
+	commandRecorder *CommandRecorder
+	replayRecorder  *ReplyRecorder
 }
 
 func (p *Parser) Initial() {
@@ -174,13 +173,13 @@ func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 	p.cmdFilterRules = rules
 }
 
-func (p *Parser) SetReplayRecorder(recorder *recorder.ReplyRecorder) {
+func (p *Parser) SetReplayRecorder(recorder *ReplyRecorder) {
 	p.replayRecorder = recorder
 
 }
 
 func (p *Parser) recordCommand() {
-	cmd := &recorder.Command{
+	cmd := &Command{
 		SessionId:  p.session.Id,
 		OrgId:      p.session.Org,
 		Input:      p.command,
@@ -193,7 +192,7 @@ func (p *Parser) recordCommand() {
 	p.commandRecorder.Record(cmd)
 }
 
-func (p *Parser) SetCommandRecorder(recorder *recorder.CommandRecorder) {
+func (p *Parser) SetCommandRecorder(recorder *CommandRecorder) {
 	p.commandRecorder = recorder
 }
 

@@ -3,6 +3,7 @@ package sshd
 import (
 	"io/ioutil"
 	"os"
+	"path"
 
 	"golang.org/x/crypto/ssh"
 
@@ -37,6 +38,13 @@ func (hk *HostKey) Gen() (signer ssh.Signer, err error) {
 		return
 	}
 	keyBytes := common.EncodePrivateKeyToPEM(key)
+	keyDir := path.Dir(hk.Path)
+	if !common.FileExists(keyDir) {
+		err := os.MkdirAll(keyDir, os.ModePerm)
+		if err != nil {
+			return signer, err
+		}
+	}
 	err = common.WriteKeyToFile(keyBytes, hk.Path)
 	if err != nil {
 		return
