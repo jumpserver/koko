@@ -3,7 +3,7 @@ package cctx
 import (
 	"context"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 
 	"cocogo/pkg/model"
 )

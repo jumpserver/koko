@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
 	"cocogo/pkg/auth"

@@ -4,7 +4,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 )
 
 type UserConnection interface {

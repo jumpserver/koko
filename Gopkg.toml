@@ -25,20 +25,9 @@
 #   unused-packages = true
 
 [[constraint]]
-  name = "github.com/googollee/go-engine.io"
-  version = "1.4.1"
-
-[[constraint]]
-  name = "github.com/googollee/go-socket.io"
-  version = "1.4.1"
-
-[[constraint]]
-  name = "github.com/gorilla/websocket"
-  version = "1.4.0"
-
-[[constraint]]
-  name = "github.com/ibuler/ssh"
-  version = "0.1.5"
+  name = "github.com/gliderlabs/ssh"
+  source = "github.com/ibuler/ssh"
+  branch = "dev"
 
 [[constraint]]
   name = "github.com/jarcoal/httpmock"
@@ -71,6 +60,7 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/crypto"
+  source = "github.com/ibuler/crypto"
 
 [[constraint]]
   name = "gopkg.in/yaml.v2"

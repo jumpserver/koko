@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 	"github.com/satori/go.uuid"
 
 	"cocogo/pkg/logger"

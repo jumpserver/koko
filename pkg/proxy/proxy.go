@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 
 	"cocogo/pkg/config"
 	"cocogo/pkg/i18n"

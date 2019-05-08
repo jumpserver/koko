@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 	"github.com/kr/pty"
 )
 

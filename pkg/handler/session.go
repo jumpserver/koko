@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 	//"github.com/olekukonko/tablewriter"
 	//"github.com/satori/go.uuid"
 	//"github.com/xlab/treeprint"

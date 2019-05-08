@@ -10,6 +10,15 @@
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
 
 [[projects]]
+  branch = "dev"
+  digest = "1:35649cbef81554217a919e5214dd33b3ab449ef742284887d583a4e431330bc8"
+  name = "github.com/gliderlabs/ssh"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f6ff00ebef0e6e6f324e1199f69bb2b9d8dcf2ed"
+  source = "github.com/ibuler/ssh"
+
+[[projects]]
   digest = "1:6b7e9b1e2f944a0c84f29943f705954d2d8cfbf6477c37a10d0c80acdbc2445f"
   name = "github.com/googollee/go-engine.io"
   packages = [
@@ -45,20 +54,12 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:c9aca0b305d2cf7925af6a5b1bdc24b99e5fd901271ba6e0cbb562f4112d01e3"
-  name = "github.com/ibuler/ssh"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "6e3e06f8bbc854467434a7c66e98566c506c0502"
-  version = "0.1.5"
-
-[[projects]]
-  digest = "1:e77a03f1e4f1e4e035e46dc3cd79b1e33acbf651540aaa5e148caf1296884d18"
+  digest = "1:8cff1b38298ac6c9f02bce11df3a7b9026bba6540c52adcf3fc8b328bf0fc149"
   name = "github.com/jarcoal/httpmock"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e598472b238f5d2a505e1316886da2171f86bfa4"
-  version = "v1.0.3"
+  revision = "ac2099de8d3789d30b99b740d1a9d242097462df"
+  version = "v1.0.4"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -153,7 +154,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7ba755bbcaaf821fd0c73c96069883c4467d6e261e3ecc81adddb8e0bfc67527"
+  digest = "1:f8fa0c03fa1a9b220cd6e7984cd5ab923a83065f338a5fe2b2f61020d62f0991"
   name = "golang.org/x/crypto"
   packages = [
     "curve25519",
@@ -166,11 +167,12 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "a29dc8fdc73485234dbef99ebedb95d2eced08de"
+  revision = "40738d426814df40c4d54d5e7017f7af7725da47"
+  source = "github.com/ibuler/crypto"
 
 [[projects]]
   branch = "master"
-  digest = "1:91f01f15f85f43f18cbed401dfc839879a12678f8254fcfe93daaddd4a3e52e0"
+  digest = "1:7a36766813b41d353a9055448789d5776e583f92dd1f68c79818dc0494b73855"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -178,7 +180,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "a129542de9ae0895210abff9c95d67a1f33cb93d"
+  revision = "12bbe5a7a5209180b72cc7e3ed9da40442fe3246"
 
 [[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
@@ -192,8 +194,8 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/gliderlabs/ssh",
     "github.com/googollee/go-socket.io",
-    "github.com/ibuler/ssh",
     "github.com/jarcoal/httpmock",
     "github.com/kr/pty",
     "github.com/leonelquinteros/gotext",
