@@ -7,7 +7,7 @@ import (
 	"cocogo/pkg/model"
 )
 
-func Authenticate(username, password, publicKey, remoteAddr, loginType string) (user *model.User, err error) {
+func Authenticate(username, password, publicKey, remoteAddr, loginType string) (resp *model.AuthResponse, err error) {
 	data := map[string]string{
 		"username":    username,
 		"password":    password,
@@ -15,18 +15,37 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 		"remote_addr": remoteAddr,
 		"login_type":  loginType,
 	}
-	var resp struct {
-		Token string      `json:"token"`
-		User  *model.User `json:"user"`
-	}
 	Url := client.ParseUrlQuery(UserAuthURL, nil)
-	err = client.Post(Url, data, &resp)
+	err = client.Post(Url, data, resp)
 	if err != nil {
 		logger.Error(err)
-		return
 	}
-	user = resp.User
 	return
+}
+
+func AuthenticateMFA(seed, code, loginType string) (resp *model.AuthResponse, err error) {
+	/*
+		data = {
+		            'seed': seed,
+		            'otp_code': otp_code,
+		            'login_type': login_type,
+		        }
+
+	*/
+
+	data := map[string]string{
+		"seed":       seed,
+		"otp_code":   code,
+		"login_type": loginType,
+	}
+
+	Url := client.ParseUrlQuery(AuthMFAURL, nil)
+	err = client.Post(Url, data, resp)
+	if err != nil {
+		logger.Error(err)
+	}
+	return
+
 }
 
 func GetUserProfile(userId string) (user *model.User) {

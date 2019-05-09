@@ -154,7 +154,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f8fa0c03fa1a9b220cd6e7984cd5ab923a83065f338a5fe2b2f61020d62f0991"
+  digest = "1:d275874accb1537f7bd7ac28985aeb1ddc32b22884e5f57b68c32591437f822b"
   name = "golang.org/x/crypto"
   packages = [
     "curve25519",
@@ -167,7 +167,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "40738d426814df40c4d54d5e7017f7af7725da47"
+  revision = "ef0d1a6f5b87067803518089d4cbc349777a56bd"
   source = "github.com/ibuler/crypto"
 
 [[projects]]

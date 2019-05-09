@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/service"
-	"strconv"
 )
 
 type ProxyServer struct {

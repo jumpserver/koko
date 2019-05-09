@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"cocogo/pkg/model"
-	"fmt"
 	"strings"
 
 	"github.com/gliderlabs/ssh"
@@ -17,7 +15,7 @@ import (
 func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult) {
 	username := ctx.User()
 	remoteAddr := strings.Split(ctx.RemoteAddr().String(), ":")[0]
-	user, err := service.Authenticate(username, password, publicKey, remoteAddr, "T")
+	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "T")
 	authMethod := "publickey"
 	action := "Accepted"
 	res = ssh.AuthFailed
@@ -26,10 +24,23 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	}
 	if err != nil {
 		action = "Failed"
-	} else {
-		ctx.SetValue(cctx.ContextKeyUser, user)
-		res = ssh.AuthPartiallySuccessful
+		res = ssh.AuthFailed
 	}
+	if resp != nil {
+		switch resp.User.IsMFA {
+		case 0:
+			res = ssh.AuthSuccessful
+		case 1:
+			res = ssh.AuthPartiallySuccessful
+		case 2:
+			res = ssh.AuthPartiallySuccessful
+		default:
+		}
+		ctx.SetValue(cctx.ContextKeyUser, resp.User)
+		ctx.SetValue(cctx.ContextKeySeed, resp.Seed)
+		ctx.SetValue(cctx.ContextKeyToken, resp.Token)
+	}
+
 	logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
 	return res
 }
@@ -46,13 +57,17 @@ func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
 }
 
 func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) ssh.AuthResult {
-	answers, err := challenger("admin", "> ", []string{"MFA"}, []bool{true})
+	answers, err := challenger(ctx.User(), "Please enter 6 digits.", []string{"[MFA auth]: "}, []bool{true})
 	if err != nil {
 		return ssh.AuthFailed
 	}
-	fmt.Println(answers)
+	seed := ctx.Value(cctx.ContextKeySeed).(string)
+	code := answers[0]
+	res, err := service.AuthenticateMFA(seed, code, "T")
+	if err != nil || res != nil {
+		return ssh.AuthFailed
+	}
 
 	//ok := checkAuth(ctx, "admin", "")
-	ctx.SetValue(cctx.ContextKeyUser, &model.User{Username: "admin", Name: "admin"})
 	return ssh.AuthSuccessful
 }

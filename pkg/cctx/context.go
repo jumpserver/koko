@@ -19,6 +19,8 @@ var (
 	ContextKeySSHSession = &contextKey{"sshSession"}
 	ContextKeyLocalAddr  = &contextKey{"localAddr"}
 	ContextKeySSHCtx     = &contextKey{"sshCtx"}
+	ContextKeySeed       = &contextKey{"seed"}
+	ContextKeyToken      = &contextKey{"token"}
 )
 
 type Context interface {

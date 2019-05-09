@@ -18,12 +18,18 @@ const version = "v1.4.0"
 
 func defaultConfig(ctx ssh.Context) (conf *gossh.ServerConfig) {
 	conf = new(gossh.ServerConfig)
+	conf.AuthLogCallback = func(conn gossh.ConnMetadata, method string, err error) {
+		fmt.Println(err)
+		fmt.Println(method)
+		result := "failed"
+		if err == nil {
+			result = "success"
+		}
+		logger.Debugf("%s use AuthMethod %s %s\n", conn.User(), method, result)
+	}
 	conf.NextAuthMethodsCallback = func(conn gossh.ConnMetadata) (methods []string) {
 		fmt.Println("Username: ", conn.User())
-		if conn.User() == "ibuler" {
-			return []string{"keyboard-interactive"}
-		}
-		return
+		return []string{"keyboard-interactive"}
 	}
 	return conf
 }
