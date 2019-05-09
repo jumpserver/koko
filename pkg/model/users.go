@@ -20,10 +20,10 @@ package model
 
 type User struct {
 	Id       string `json:"id"`
-	Username string `json:"username"`
 	Name     string `json:"name"`
+	Username string `json:"username"`
 	Email    string `json:"email"`
-
+	OTPLevel int    `json:"otp_level"`
 	Role     string `json:"role"`
 	IsValid  bool   `json:"is_valid"`
 	IsActive bool   `json:"is_active"`

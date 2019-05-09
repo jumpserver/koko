@@ -8,7 +8,7 @@ import (
 )
 
 func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.SystemUserAuthInfo) {
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(SystemUserAssetAuthURL, systemUserID, assetID), nil)
+	Url := fmt.Sprintf(SystemUserAssetAuthURL, systemUserID, assetID)
 	err := authClient.Get(Url, &info)
 	if err != nil {
 		logger.Error("Get system user Asset auth info failed")
@@ -17,8 +17,7 @@ func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.System
 }
 
 func GetSystemUserAuthInfo(systemUserID string) (info model.SystemUserAuthInfo) {
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(SystemUserAuthInfoURL, systemUserID), nil)
-
+	Url := fmt.Sprintf(SystemUserAuthInfoURL, systemUserID)
 	err := authClient.Get(Url, &info)
 	if err != nil {
 		logger.Error("Get system user auth info failed")
@@ -67,7 +66,7 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 	        "filter": "de7693ca-75d5-4639-986b-44ed390260a0"
 	    }
 	]`*/
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(SystemUserCmdFilterRules, systemUserID), nil)
+	Url := fmt.Sprintf(SystemUserCmdFilterRules, systemUserID)
 
 	err = authClient.Get(Url, &rules)
 	if err != nil {
@@ -77,7 +76,7 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 }
 
 func GetSystemUser(systemUserID string) (info model.SystemUser) {
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(SystemUser, systemUserID), nil)
+	Url := fmt.Sprintf(SystemUser, systemUserID)
 	err := authClient.Get(Url, &info)
 	if err != nil {
 		logger.Errorf("Get system user %s failed", systemUserID)
@@ -86,7 +85,7 @@ func GetSystemUser(systemUserID string) (info model.SystemUser) {
 }
 
 func GetAsset(assetID string) (asset model.Asset) {
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(Asset, assetID), nil)
+	Url := fmt.Sprintf(Asset, assetID)
 	err := authClient.Get(Url, &asset)
 	if err != nil {
 		logger.Errorf("Get Asset %s failed", assetID)
@@ -95,7 +94,7 @@ func GetAsset(assetID string) (asset model.Asset) {
 }
 
 func GetTokenAsset(token string) (tokenUser model.TokenUser) {
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(TokenAsset, token), nil)
+	Url := fmt.Sprintf(TokenAsset, token)
 	err := authClient.Get(Url, &tokenUser)
 	if err != nil {
 		logger.Error("Get Token Asset info failed")

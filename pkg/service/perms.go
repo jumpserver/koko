@@ -11,9 +11,9 @@ func GetUserAssets(userId, cachePolicy string) (assets model.AssetList) {
 	if cachePolicy == "" {
 		cachePolicy = "0"
 	}
-	params := map[string]string{"cache_policy": cachePolicy}
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(UserAssetsURL, userId), params)
-	err := authClient.Get(Url, &assets)
+	payload := map[string]string{"cache_policy": cachePolicy}
+	Url := fmt.Sprintf(UserAssetsURL, userId)
+	err := authClient.Get(Url, &assets, payload)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -24,9 +24,9 @@ func GetUserNodes(userId, cachePolicy string) (nodes model.NodeList) {
 	if cachePolicy == "" {
 		cachePolicy = "0"
 	}
-	params := map[string]string{"cache_policy": cachePolicy}
-	Url := authClient.ParseUrlQuery(fmt.Sprintf(UserNodesAssetsURL, userId), params)
-	err := authClient.Get(Url, &nodes)
+	payload := map[string]string{"cache_policy": cachePolicy}
+	Url := fmt.Sprintf(UserNodesAssetsURL, userId)
+	err := authClient.Get(Url, &nodes, payload)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -34,17 +34,17 @@ func GetUserNodes(userId, cachePolicy string) (nodes model.NodeList) {
 }
 
 func ValidateUserAssetPermission(userId, assetId, systemUserId, action string) bool {
-	params := map[string]string{
+	payload := map[string]string{
 		"user_id":        userId,
 		"asset_id":       assetId,
 		"system_user_id": systemUserId,
 		"action_name":    action,
 	}
-	Url := authClient.ParseUrlQuery(ValidateUserAssetPermissionURL, params)
+	Url := ValidateUserAssetPermissionURL
 	var res struct {
 		Msg bool `json:"msg"`
 	}
-	err := authClient.Get(Url, &res)
+	err := authClient.Get(Url, &res, payload)
 
 	if err != nil {
 		logger.Error(err)

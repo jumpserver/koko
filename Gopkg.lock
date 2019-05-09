@@ -11,11 +11,11 @@
 
 [[projects]]
   branch = "dev"
-  digest = "1:6385b015971978bc1cc76802e9bc7b29984c104d35fe941ef311d0e758641a2b"
+  digest = "1:b728156c8c642481f6b30c46bfd5f6117f7e3c8495b1f0c47795e2db958c6729"
   name = "github.com/gliderlabs/ssh"
   packages = ["."]
   pruneopts = "UT"
-  revision = "624e955a0ae6c0e82fe0095ad5276051483ae67d"
+  revision = "1c00c8e8b607f53b40cdcb98816d682b0d007d12"
   source = "github.com/ibuler/ssh"
 
 [[projects]]
@@ -154,7 +154,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f8fa0c03fa1a9b220cd6e7984cd5ab923a83065f338a5fe2b2f61020d62f0991"
+  digest = "1:d275874accb1537f7bd7ac28985aeb1ddc32b22884e5f57b68c32591437f822b"
   name = "golang.org/x/crypto"
   packages = [
     "curve25519",
@@ -167,7 +167,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "40738d426814df40c4d54d5e7017f7af7725da47"
+  revision = "ef0d1a6f5b87067803518089d4cbc349777a56bd"
   source = "github.com/ibuler/crypto"
 
 [[projects]]

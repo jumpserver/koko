@@ -4,6 +4,7 @@ const (
 	UserAuthURL    = "/api/users/v1/auth/"     // post 验证用户登陆
 	UserProfileURL = "/api/users/v1/profile/"  // 获取当前用户的基本信息
 	UserUserURL    = "/api/users/v1/users/%s/" // 获取用户信息
+	UserAuthOTPURL = "/api/users/v1/otp/auth/" // 验证OTP
 
 	SystemUserAssetAuthURL   = "/api/assets/v1/system-user/%s/asset/%s/auth-info/" // 该系统用户对某资产的授权
 	SystemUserAuthInfoURL    = "/api/assets/v1/system-user/%s/auth-info/"          // 该系统用户的授权
