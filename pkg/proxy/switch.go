@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"cocogo/pkg/logger"
 )
@@ -14,6 +14,7 @@ func NewSwitch(userConn UserConnection, serverConn ServerConnection) (sw *Sessio
 	parser := new(Parser)
 	parser.Initial()
 	sw = &Session{userConn: userConn, serverConn: serverConn, parser: parser}
+	parser.session = sw
 	return sw
 }
 

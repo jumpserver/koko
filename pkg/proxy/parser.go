@@ -60,6 +60,8 @@ func (p *Parser) Initial() {
 	p.cmdOutputParser = &CmdParser{}
 	p.cmdInputParser.Initial()
 	p.cmdOutputParser.Initial()
+	record := NewCommandRecorder(p.session)
+	p.SetCommandRecorder(record)
 }
 
 // Todo: parseMultipleInput 依然存在问题

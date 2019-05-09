@@ -13,6 +13,7 @@ import (
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/service"
+	"strconv"
 )
 
 type ProxyServer struct {
@@ -46,10 +47,10 @@ func (p *ProxyServer) validatePermission() bool {
 
 func (p *ProxyServer) getServerConn() (srvConn ServerConnection, err error) {
 	srvConn = &ServerSSHConnection{
-		host:     "192.168.244.185",
-		port:     "22",
-		user:     "web",
-		password: "redhat",
+		host:     p.Asset.Ip,
+		port:     strconv.Itoa(p.Asset.Port),
+		user:     p.SystemUser.UserName,
+		password: p.SystemUser.Password,
 		timeout:  config.Conf.SSHTimeout,
 	}
 	pty, _, ok := p.Session.Pty()
