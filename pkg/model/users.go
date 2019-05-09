@@ -28,3 +28,12 @@ type User struct {
 	IsValid  bool   `json:"is_valid"`
 	IsActive bool   `json:"is_active"`
 }
+
+type TokenUser struct {
+	UserId         string `json:"user"`
+	UserName       string `json:"username"`
+	AssetId        string `json:"asset"`
+	Hostname       string `json:"hostname"`
+	SystemUserId   string `json:"system_user"`
+	SystemUserName string `json:"system_user_name"`
+}

@@ -3,9 +3,10 @@ package webssh
 import (
 	"sync"
 
-	"cocogo/pkg/model"
-
 	socketio "github.com/googollee/go-socket.io"
+	"github.com/ibuler/ssh"
+
+	"cocogo/pkg/model"
 )
 
 type connections struct {
@@ -57,4 +58,12 @@ func (w *WebConn) AddClient(clientID string, conn *Client) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.Clients[clientID] = conn
+}
+
+func (w *WebConn) SetWinSize(winSize ssh.Window) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	for _, client := range w.Clients {
+		client.WinChan <- winSize
+	}
 }

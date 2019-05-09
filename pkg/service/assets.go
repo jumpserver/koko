@@ -93,3 +93,12 @@ func GetAsset(assetID string) (asset model.Asset) {
 	}
 	return
 }
+
+func GetTokenAsset(token string) (tokenUser model.TokenUser) {
+	Url := authClient.ParseUrlQuery(fmt.Sprintf(TokenAsset, token), nil)
+	err := authClient.Get(Url, &tokenUser)
+	if err != nil {
+		logger.Error("Get Token Asset info failed")
+	}
+	return
+}
