@@ -1,8 +1,8 @@
 package config
 
 import (
+	"cocogo/pkg/logger"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -73,7 +73,7 @@ func (c *Config) LoadFromJSON(body []byte) error {
 	defer c.mux.Unlock()
 	err := json.Unmarshal(body, c)
 	if err != nil {
-		fmt.Println("Load yaml err")
+		logger.Error("Config load yaml error")
 		os.Exit(1)
 	}
 	return nil
@@ -113,9 +113,9 @@ var Conf = &Config{
 	SSHTimeout:     60,
 	HTTPPort:       5000,
 	AccessKey:      "",
-	AccessKeyFile:  "access_key",
+	AccessKeyFile:  "data/keys/.access_key",
 	LogLevel:       "DEBUG",
-	HostKeyFile:    "host_key",
+	HostKeyFile:    "data/keys/host_key",
 	HostKey:        "",
 	RootPath:       rootPath,
 	Comment:        "Coco",

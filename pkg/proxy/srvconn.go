@@ -29,7 +29,7 @@ type ServerSSHConnection struct {
 	password       string
 	privateKey     string
 	privateKeyPath string
-	timeout        time.Duration
+	timeout        int
 	Proxy          *ServerSSHConnection
 
 	client    *gossh.Client
@@ -61,7 +61,7 @@ func (sc *ServerSSHConnection) Port() string {
 }
 
 func (sc *ServerSSHConnection) Timeout() time.Duration {
-	return sc.timeout
+	return time.Duration(sc.timeout) * time.Second
 }
 
 func (sc *ServerSSHConnection) String() string {
@@ -93,7 +93,7 @@ func (sc *ServerSSHConnection) Config() (config *gossh.ClientConfig, err error) 
 		User:            sc.user,
 		Auth:            authMethods,
 		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
-		Timeout:         sc.timeout,
+		Timeout:         sc.Timeout(),
 	}
 	return config, nil
 }
@@ -158,6 +158,7 @@ func (sc *ServerSSHConnection) invokeShell(h, w int, term string) (err error) {
 
 func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
 	_, err = sc.connect()
+	fmt.Println("error")
 	if err != nil {
 		return
 	}

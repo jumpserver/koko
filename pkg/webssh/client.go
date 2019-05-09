@@ -3,8 +3,8 @@ package webssh
 import (
 	"io"
 
+	"github.com/gliderlabs/ssh"
 	socketio "github.com/googollee/go-socket.io"
-	"github.com/ibuler/ssh"
 
 	"cocogo/pkg/model"
 )

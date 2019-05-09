@@ -4,7 +4,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 	"github.com/pkg/sftp"
 
 	"cocogo/pkg/logger"

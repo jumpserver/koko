@@ -7,7 +7,7 @@ import (
 	"cocogo/pkg/model"
 )
 
-func Authenticate(username, password, publicKey, remoteAddr, loginType string) (user *model.User) {
+func Authenticate(username, password, publicKey, remoteAddr, loginType string) (user *model.User, err error) {
 	data := map[string]string{
 		"username":    username,
 		"password":    password,
@@ -20,11 +20,13 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 		User  *model.User `json:"user"`
 	}
 	Url := client.ParseUrlQuery(UserAuthURL, nil)
-	err := client.Post(Url, data, &resp)
+	err = client.Post(Url, data, &resp)
 	if err != nil {
 		logger.Error(err)
+		return
 	}
-	return resp.User
+	user = resp.User
+	return
 }
 
 func GetUserProfile(userId string) (user *model.User) {

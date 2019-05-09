@@ -1,11 +1,13 @@
 package proxy
 
 import (
-	"cocogo/pkg/logger"
 	"context"
-	"github.com/ibuler/ssh"
-	"github.com/satori/go.uuid"
 	"time"
+
+	"github.com/gliderlabs/ssh"
+	"github.com/satori/go.uuid"
+
+	"cocogo/pkg/logger"
 )
 
 func NewSwitch(userConn UserConnection, serverConn ServerConnection) (sw *Session) {

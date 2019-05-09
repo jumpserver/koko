@@ -1,13 +1,12 @@
 package proxy
 
 import (
-	"cocogo/pkg/recorder"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
-	"github.com/ibuler/ssh"
+	"github.com/gliderlabs/ssh"
 
 	"cocogo/pkg/config"
 	"cocogo/pkg/i18n"
@@ -47,10 +46,11 @@ func (p *ProxyServer) validatePermission() bool {
 
 func (p *ProxyServer) getServerConn() (srvConn ServerConnection, err error) {
 	srvConn = &ServerSSHConnection{
-		host:     "192.168.244.145",
+		host:     "192.168.244.185",
 		port:     "22",
-		user:     "root",
+		user:     "web",
 		password: "redhat",
+		timeout:  config.Conf.SSHTimeout,
 	}
 	pty, _, ok := p.Session.Pty()
 	if !ok {
@@ -61,7 +61,7 @@ func (p *ProxyServer) getServerConn() (srvConn ServerConnection, err error) {
 	go p.sendConnectingMsg(done)
 	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	_, _ = io.WriteString(p.Session, "\r\n")
-	done <- struct{}{}
+	close(done)
 	return
 }
 
@@ -100,10 +100,8 @@ func (p *ProxyServer) Proxy() {
 		logger.Error("Get system user filter rule error: ", err)
 	}
 	sw.parser.SetCMDFilterRules(cmdRules)
-	replayRecorder := recorder.NewReplyRecord(sw.Id)
+	replayRecorder := NewReplyRecord(sw.Id)
 	sw.parser.SetReplayRecorder(replayRecorder)
-	cmdR
-	sw.parser.SetCommandRecorder()
 	_ = sw.Bridge()
 	_ = srvConn.Close()
 }

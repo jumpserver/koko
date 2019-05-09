@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	"cocogo/pkg/common"
@@ -61,6 +62,13 @@ func (ak *AccessKey) LoadAccessKeyFromFile(keyPath string) error {
 }
 
 func (ak *AccessKey) SaveToFile() error {
+	keyDir := path.Dir(ak.Path)
+	if !common.FileExists(keyDir) {
+		err := os.MkdirAll(keyDir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
 	f, err := os.Create(ak.Path)
 	defer f.Close()
 	if err != nil {
@@ -74,7 +82,6 @@ func (ak *AccessKey) SaveToFile() error {
 }
 
 func (ak *AccessKey) Register(times int) error {
-	fmt.Println(config.Conf.Name)
 	name := config.Conf.Name
 	token := config.Conf.BootstrapToken
 	comment := "Coco"
