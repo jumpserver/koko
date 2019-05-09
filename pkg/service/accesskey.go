@@ -20,7 +20,7 @@ var (
 )
 
 type AccessKey struct {
-	Id     string
+	ID     string
 	Secret string
 	Path   string
 	Value  string
@@ -29,7 +29,7 @@ type AccessKey struct {
 func (ak AccessKey) Sign() (string, string) {
 	date := common.HTTPGMTDate()
 	signature := common.MakeSignature(ak.Secret, date)
-	return date, fmt.Sprintf("Sign %s:%s", ak.Id, signature)
+	return date, fmt.Sprintf("Sign %s:%s", ak.ID, signature)
 }
 
 func (ak *AccessKey) LoadAccessKeyFromStr(key string) error {
@@ -40,7 +40,7 @@ func (ak *AccessKey) LoadAccessKeyFromStr(key string) error {
 	if len(keySlice) != 2 {
 		return AccessKeyInvalid
 	}
-	ak.Id = keySlice[0]
+	ak.ID = keySlice[0]
 	ak.Secret = keySlice[1]
 	return nil
 }
@@ -74,7 +74,7 @@ func (ak *AccessKey) SaveToFile() error {
 	if err != nil {
 		return err
 	}
-	_, err = f.WriteString(fmt.Sprintf("%s:%s", ak.Id, ak.Secret))
+	_, err = f.WriteString(fmt.Sprintf("%s:%s", ak.ID, ak.Secret))
 	if err != nil {
 		logger.Error(err)
 	}
@@ -92,7 +92,7 @@ func (ak *AccessKey) Register(times int) error {
 		logger.Error(msg)
 		os.Exit(1)
 	}
-	ak.Id = res.ServiceAccount.AccessKey.Id
+	ak.ID = res.ServiceAccount.AccessKey.ID
 	ak.Secret = res.ServiceAccount.AccessKey.Secret
 	return nil
 }

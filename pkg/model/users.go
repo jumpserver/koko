@@ -25,15 +25,14 @@ type AuthResponse struct {
 }
 
 type User struct {
-	Id       string `json:"id"`
+	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
-	OTPLevel int    `json:"otp_level"`
 	Role     string `json:"role"`
 	IsValid  bool   `json:"is_valid"`
 	IsActive bool   `json:"is_active"`
-	IsMFA    int    `json:"otp_level"`
+	OTPLevel int    `json:"otp_level"`
 }
 
 type TokenUser struct {

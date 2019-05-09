@@ -59,19 +59,19 @@ type InteractiveHandler struct {
 	mu               sync.RWMutex
 }
 
-func (i *InteractiveHandler) displayBanner() {
-	displayBanner(i.sess, i.user.Name)
+func (h *InteractiveHandler) displayBanner() {
+	displayBanner(h.sess, h.user.Name)
 }
 
-func (i *InteractiveHandler) preDispatch() {
-	i.displayBanner()
-	i.onceLoad.Do(func() {
-		i.loadUserAssets()
-		i.loadUserAssetNodes()
+func (h *InteractiveHandler) preDispatch() {
+	h.displayBanner()
+	h.onceLoad.Do(func() {
+		h.loadUserAssets()
+		h.loadUserAssetNodes()
 	})
 }
 
-func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-chan struct{}) {
+func (h *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -82,19 +82,19 @@ func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-
 				return
 			}
 			logger.Debugf("Term change: %d*%d", win.Height, win.Width)
-			_ = i.term.SetSize(win.Width, win.Height)
+			_ = h.term.SetSize(win.Width, win.Height)
 		}
 	}
 }
 
-func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
-	i.preDispatch()
-	fmt.Println(i.user)
-	_, winCh, _ := i.sess.Pty()
+func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
+	h.preDispatch()
+	fmt.Println(h.user)
+	_, winCh, _ := h.sess.Pty()
 	for {
 		doneChan := make(chan struct{})
-		go i.watchWinSizeChange(winCh, doneChan)
-		line, err := i.term.ReadLine()
+		go h.watchWinSizeChange(winCh, doneChan)
+		line, err := h.term.ReadLine()
 		close(doneChan)
 
 		if err != nil {
@@ -110,37 +110,37 @@ func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "", "p":
-				i.Proxy(ctx)
+				h.Proxy(ctx)
 			case "g":
-				i.displayNodes(i.nodes)
+				h.displayNodes(h.nodes)
 			case "s":
-				i.changeLanguage()
+				h.changeLanguage()
 			case "h":
-				i.displayBanner()
+				h.displayBanner()
 			case "r":
-				i.refreshAssetsAndNodesData()
+				h.refreshAssetsAndNodesData()
 			case "q":
 				logger.Info("exit session")
 				return
 			default:
-				assets := i.searchAsset(line)
-				i.searchResult = assets
-				i.displayAssetsOrProxy(assets)
+				assets := h.searchAsset(line)
+				h.searchResult = assets
+				h.displayAssetsOrProxy(assets)
 			}
 		default:
 			switch {
 			case strings.Index(line, "/") == 0:
 				searchWord := strings.TrimSpace(line[1:])
-				assets := i.searchAsset(searchWord)
-				i.searchResult = assets
-				i.displayAssets(assets)
+				assets := h.searchAsset(searchWord)
+				h.searchResult = assets
+				h.displayAssets(assets)
 			case strings.Index(line, "g") == 0:
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
 				if num, err := strconv.Atoi(searchWord); err == nil {
 					if num >= 0 {
-						assets := i.searchNodeAssets(num)
-						i.displayAssets(assets)
-						i.searchResult = assets
+						assets := h.searchNodeAssets(num)
+						h.displayAssets(assets)
+						h.searchResult = assets
 						continue
 					}
 				}
@@ -149,15 +149,15 @@ func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 	}
 }
 
-func (i *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
-	table := tablewriter.NewWriter(i.sess)
+func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
+	table := tablewriter.NewWriter(h.sess)
 	table.SetHeader([]string{"ID", "UserName"})
 	for i := 0; i < len(systemUsers); i++ {
 		table.Append([]string{strconv.Itoa(i + 1), systemUsers[i].UserName})
 	}
 	table.SetBorder(false)
 	count := 0
-	term := terminal.NewTerminal(i.sess, "num:")
+	term := terminal.NewTerminal(h.sess, "num:")
 	for count < 3 {
 		table.Render()
 		line, err := term.ReadLine()
@@ -175,44 +175,44 @@ func (i *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 }
 
 // 当资产的数量为1的时候，就进行代理转化
-func (i *InteractiveHandler) displayAssetsOrProxy(assets []model.Asset) {
+func (h *InteractiveHandler) displayAssetsOrProxy(assets []model.Asset) {
 	//if len(assets) == 1 {
 	//	var systemUser model.SystemUser
 	//	switch len(assets[0].SystemUsers) {
 	//	case 0:
 	//		// 有授权的资产，但是资产用户信息，无法登陆
-	//		i.displayAssets(assets)
+	//		h.displayAssets(assets)
 	//		return
 	//	case 1:
 	//		systemUser = assets[0].SystemUsers[0]
 	//	default:
-	//		systemUser = i.chooseSystemUser(assets[0].SystemUsers)
+	//		systemUser = h.chooseSystemUser(assets[0].SystemUsers)
 	//	}
 	//
-	//	authInfo, err := model.GetSystemUserAssetAuthInfo(systemUser.Id, assets[0].Id)
+	//	authInfo, err := model.GetSystemUserAssetAuthInfo(systemUser.ID, assets[0].ID)
 	//	if err != nil {
 	//		return
 	//	}
-	//	if ok := service.ValidateUserAssetPermission(i.user.Id, systemUser.Id, assets[0].Id); !ok {
+	//	if ok := service.ValidateUserAssetPermission(h.user.ID, systemUser.ID, assets[0].ID); !ok {
 	//		// 检查user 是否对该资产有权限
 	//		return
 	//	}
 	//
-	//	err = i.Proxy(assets[0], authInfo)
+	//	err = h.Proxy(assets[0], authInfo)
 	//	if err != nil {
 	//		logger.Info(err)
 	//	}
 	//	return
 	//} else {
-	//	i.displayAssets(assets)
+	//	h.displayAssets(assets)
 	//}
 }
 
-func (i *InteractiveHandler) displayAssets(assets model.AssetList) {
+func (h *InteractiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
-		_, _ = io.WriteString(i.sess, "\r\n No Assets\r\n\r")
+		_, _ = io.WriteString(h.sess, "\r\n No Assets\r\n\r")
 	} else {
-		table := tablewriter.NewWriter(i.sess)
+		table := tablewriter.NewWriter(h.sess)
 		table.SetHeader([]string{"ID", "Hostname", "IP", "LoginAs", "Comment"})
 		for index, assetItem := range assets {
 			sysUserArray := make([]string, len(assetItem.SystemUsers))
@@ -229,44 +229,44 @@ func (i *InteractiveHandler) displayAssets(assets model.AssetList) {
 
 }
 
-func (i *InteractiveHandler) displayNodes(nodes []model.Node) {
+func (h *InteractiveHandler) displayNodes(nodes []model.Node) {
 	tree := ConstructAssetNodeTree(nodes)
 	tipHeaderMsg := "\r\nNode: [ ID.Name(Asset amount) ]"
 	tipEndMsg := "Tips: Enter g+NodeID to display the host under the node, such as g1\r\n\r"
 
-	_, err := io.WriteString(i.sess, tipHeaderMsg)
-	_, err = io.WriteString(i.sess, tree.String())
-	_, err = io.WriteString(i.sess, tipEndMsg)
+	_, err := io.WriteString(h.sess, tipHeaderMsg)
+	_, err = io.WriteString(h.sess, tree.String())
+	_, err = io.WriteString(h.sess, tipEndMsg)
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}
 
 }
 
-func (i *InteractiveHandler) refreshAssetsAndNodesData() {
-	_, err := io.WriteString(i.sess, "Refresh done\r\n")
+func (h *InteractiveHandler) refreshAssetsAndNodesData() {
+	_, err := io.WriteString(h.sess, "Refresh done\r\n")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
 }
 
-func (i *InteractiveHandler) loadUserAssets() {
-	i.assets = service.GetUserAssets(i.user.Id, "1")
+func (h *InteractiveHandler) loadUserAssets() {
+	h.assets = service.GetUserAssets(h.user.ID, "1")
 }
 
-func (i *InteractiveHandler) loadUserAssetNodes() {
-	i.nodes = service.GetUserNodes(i.user.Id, "1")
+func (h *InteractiveHandler) loadUserAssetNodes() {
+	h.nodes = service.GetUserNodes(h.user.ID, "1")
 }
 
-func (i *InteractiveHandler) changeLanguage() {
+func (h *InteractiveHandler) changeLanguage() {
 
 }
 
-func (i *InteractiveHandler) JoinShareRoom(roomID string) {
-	//sshConn := userhome.NewSSHConn(i.sess)
-	//ctx, cancelFuc := context.WithCancel(i.sess.Context())
+func (h *InteractiveHandler) JoinShareRoom(roomID string) {
+	//sshConn := userhome.NewSSHConn(h.sess)
+	//ctx, cancelFuc := context.WithCancel(h.sess.Context())
 	//
-	//_, winCh, _ := i.sess.Pty()
+	//_, winCh, _ := h.sess.Pty()
 	//go func() {
 	//	for {
 	//		select {
@@ -286,21 +286,21 @@ func (i *InteractiveHandler) JoinShareRoom(roomID string) {
 
 }
 
-func (i *InteractiveHandler) searchAsset(key string) (assets []model.Asset) {
+func (h *InteractiveHandler) searchAsset(key string) (assets []model.Asset) {
 	//if indexNum, err := strconv.Atoi(key); err == nil {
-	//	if indexNum > 0 && indexNum <= len(i.searchResult) {
-	//		return []model.Asset{i.searchResult[indexNum-1]}
+	//	if indexNum > 0 && indexNum <= len(h.searchResult) {
+	//		return []model.Asset{h.searchResult[indexNum-1]}
 	//	}
 	//}
 	//
-	//if assetsData, ok := i.assetData.Load(AssetsMapKey); ok {
+	//if assetsData, ok := h.assetData.Load(AssetsMapKey); ok {
 	//	for _, assetValue := range assetsData.([]model.Asset) {
 	//		if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
 	//			assets = append(assets, assetValue)
 	//		}
 	//	}
 	//} else {
-	//	assetsData, _ := Cached.Load(i.user.Id)
+	//	assetsData, _ := Cached.Load(h.user.ID)
 	//	for _, assetValue := range assetsData.([]model.Asset) {
 	//		if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
 	//			assets = append(assets, assetValue)
@@ -311,9 +311,9 @@ func (i *InteractiveHandler) searchAsset(key string) (assets []model.Asset) {
 	return assets
 }
 
-func (i *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
+func (h *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 	//var assetNodesData []model.Node
-	//if assetNodes, ok := i.assetData.Load(AssetNodesMapKey); ok {
+	//if assetNodes, ok := h.assetData.Load(AssetNodesMapKey); ok {
 	//	assetNodesData = assetNodes.([]model.Node)
 	//	if num > len(assetNodesData) || num == 0 {
 	//		return assets
@@ -324,14 +324,14 @@ func (i *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 
 }
 
-func (i *InteractiveHandler) Proxy(ctx context.Context) {
-	i.assetSelect = &model.Asset{Hostname: "centos", Port: 32768, Ip: "127.0.0.1"}
-	i.systemUserSelect = &model.SystemUser{Name: "web", UserName: "root", Password: "screencast"}
+func (h *InteractiveHandler) Proxy(ctx context.Context) {
+	h.assetSelect = &model.Asset{Hostname: "centos", Port: 32768, Ip: "127.0.0.1"}
+	h.systemUserSelect = &model.SystemUser{Name: "web", UserName: "root", Password: "screencast"}
 	p := proxy.ProxyServer{
-		Session:    i.sess,
-		User:       i.user,
-		Asset:      i.assetSelect,
-		SystemUser: i.systemUserSelect,
+		Session:    h.sess,
+		User:       h.user,
+		Asset:      h.assetSelect,
+		SystemUser: h.systemUserSelect,
 	}
 	p.Proxy()
 }

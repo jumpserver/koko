@@ -7,12 +7,12 @@ import (
 	"cocogo/pkg/model"
 )
 
-func GetUserAssets(userId, cachePolicy string) (assets model.AssetList) {
+func GetUserAssets(userID, cachePolicy string) (assets model.AssetList) {
 	if cachePolicy == "" {
 		cachePolicy = "0"
 	}
 	payload := map[string]string{"cache_policy": cachePolicy}
-	Url := fmt.Sprintf(UserAssetsURL, userId)
+	Url := fmt.Sprintf(UserAssetsURL, userID)
 	err := authClient.Get(Url, &assets, payload)
 	if err != nil {
 		logger.Error("GetUserAssets---err")

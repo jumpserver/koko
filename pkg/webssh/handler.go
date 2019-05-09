@@ -28,7 +28,7 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 		user := service.CheckUserCookie(sessionid, csrfToken)
-		if user.Id == "" {
+		if user.ID == "" {
 			// Todo: 构建login的url
 			http.Redirect(responseWriter, request, "", http.StatusFound)
 			return

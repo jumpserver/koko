@@ -85,7 +85,7 @@ func (c *Client) parseUrlQuery(url string, params []map[string]string) string {
 	return url
 }
 
-func (c *Client) ParseUrl(url string, params []map[string]string) string {
+func (c *Client) parseUrl(url string, params []map[string]string) string {
 	url = c.parseUrlQuery(url, params)
 	if c.BaseHost != "" {
 		url = strings.TrimRight(c.BaseHost, "/") + url
@@ -126,7 +126,7 @@ func (c *Client) SetReqHeaders(req *http.Request) {
 }
 
 func (c *Client) NewRequest(method, url string, body interface{}, params []map[string]string) (req *http.Request, err error) {
-	url = c.ParseUrl(url, params)
+	url = c.parseUrl(url, params)
 	reader, err := c.marshalData(body)
 	if err != nil {
 		return

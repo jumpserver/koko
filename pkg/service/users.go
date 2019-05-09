@@ -23,8 +23,7 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 		"remote_addr": remoteAddr,
 		"login_type":  loginType,
 	}
-	Url := client.ParseUrl(UserAuthURL, nil)
-	err = client.Post(Url, data, &resp)
+	err = client.Post(UserAuthURL, data, &resp)
 
 	if err != nil {
 		logger.Error(err)
@@ -32,33 +31,8 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 	return
 }
 
-func AuthenticateMFA(seed, code, loginType string) (resp *model.AuthResponse, err error) {
-	/*
-		data = {
-		            'seed': seed,
-		            'otp_code': otp_code,
-		            'login_type': login_type,
-		        }
-
-	*/
-
-	data := map[string]string{
-		"seed":       seed,
-		"otp_code":   code,
-		"login_type": loginType,
-	}
-
-	Url := client.ParseUrl(AuthMFAURL, nil)
-	err = client.Post(Url, data, resp)
-	if err != nil {
-		logger.Error(err)
-	}
-	return
-
-}
-
-func GetUserProfile(userId string) (user *model.User) {
-	Url := fmt.Sprintf(UserDetailURL, userId)
+func GetUserProfile(userID string) (user *model.User) {
+	Url := fmt.Sprintf(UserDetailURL, userID)
 	err := authClient.Get(Url, user)
 	if err != nil {
 		logger.Error(err)
@@ -98,9 +72,9 @@ func CheckUserOTP(seed, code string) (resp *AuthResp, err error) {
 	return
 }
 
-func CheckUserCookie(sessionId, csrfToken string) (user *model.User) {
+func CheckUserCookie(sessionID, csrfToken string) (user *model.User) {
 	client.SetCookie("csrftoken", csrfToken)
-	client.SetCookie("sessionid", sessionId)
+	client.SetCookie("sessionid", sessionID)
 	err := client.Get(UserProfileURL, &user)
 	if err != nil {
 		logger.Error(err)
