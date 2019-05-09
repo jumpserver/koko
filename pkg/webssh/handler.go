@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gliderlabs/ssh"
 	socketio "github.com/googollee/go-socket.io"
-	"github.com/ibuler/ssh"
 	uuid "github.com/satori/go.uuid"
 
 	"cocogo/pkg/logger"
