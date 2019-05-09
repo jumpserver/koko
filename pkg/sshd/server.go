@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	gossh "golang.org/x/crypto/ssh"
 
 	"cocogo/pkg/auth"
 	"cocogo/pkg/config"
@@ -15,24 +14,6 @@ import (
 )
 
 const version = "v1.4.0"
-
-func defaultConfig(ctx ssh.Context) (conf *gossh.ServerConfig) {
-	conf = new(gossh.ServerConfig)
-	conf.AuthLogCallback = func(conn gossh.ConnMetadata, method string, err error) {
-		fmt.Println(err)
-		fmt.Println(method)
-		result := "failed"
-		if err == nil {
-			result = "success"
-		}
-		logger.Debugf("%s use AuthMethod %s %s\n", conn.User(), method, result)
-	}
-	conf.NextAuthMethodsCallback = func(conn gossh.ConnMetadata) (methods []string) {
-		fmt.Println("Username: ", conn.User())
-		return []string{"keyboard-interactive"}
-	}
-	return conf
-}
 
 var (
 	conf = config.Conf
@@ -51,14 +32,14 @@ func StartServer() {
 	fmt.Println("Quit the server with CONTROL-C.")
 
 	srv := ssh.Server{
-		Addr:                        conf.BindHost + ":" + strconv.Itoa(conf.SSHPort),
-		PasswordHandler:             auth.CheckUserPassword,
-		PublicKeyHandler:            auth.CheckUserPublicKey,
-		KeyboardInteractiveHandler:  auth.CheckMFA,
-		DefaultServerConfigCallback: defaultConfig,
-		HostSigners:                 []ssh.Signer{signer},
-		Handler:                     handler.SessionHandler,
-		SubsystemHandlers:           map[string]ssh.SubsystemHandler{},
+		Addr:                       conf.BindHost + ":" + strconv.Itoa(conf.SSHPort),
+		PasswordHandler:            auth.CheckUserPassword,
+		PublicKeyHandler:           auth.CheckUserPublicKey,
+		KeyboardInteractiveHandler: auth.CheckMFA,
+		NextAuthMethodsHandler:     auth.CheckUserNeedMFA,
+		HostSigners:                []ssh.Signer{signer},
+		Handler:                    handler.SessionHandler,
+		SubsystemHandlers:          map[string]ssh.SubsystemHandler{},
 	}
 	srv.SetSubsystemHandler("sftp", handler.SftpHandler)
 	logger.Fatal(srv.ListenAndServe())

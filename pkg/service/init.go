@@ -29,18 +29,23 @@ func Initial() {
 }
 
 func ValidateAccessAuth() {
+	maxTry := 30
 	count := 0
-	for count < 100 {
-		user := getTerminalProfile()
-		if user.Id != "" {
+	for count < maxTry {
+		user, err := GetProfile()
+		if err == nil && user.Role == "App" {
 			break
 		}
-		msg := `Connect server error or access key is invalid,
-				remove %s run again`
-		logger.Errorf(msg, config.Conf.AccessKeyFile)
+		if err != nil {
+			msg := `Connect server error or access key is invalid, remove %s run again`
+			logger.Errorf(msg, config.Conf.AccessKeyFile)
+		}
+		if user.Role != "App" {
+			logger.Error("Access role is not App, is: ", user.Role)
+		}
 		time.Sleep(3 * time.Second)
 		count++
-		if count >= 3 {
+		if count >= maxTry {
 			os.Exit(1)
 		}
 	}

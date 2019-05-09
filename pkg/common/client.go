@@ -68,28 +68,32 @@ func (c *Client) marshalData(data interface{}) (reader io.Reader, error error) {
 	return
 }
 
-func (c *Client) ParseUrlQuery(url string, query map[string]string) string {
-	var paramSlice []string
-	for k, v := range query {
-		paramSlice = append(paramSlice, fmt.Sprintf("%s=%s", k, v))
+func (c *Client) parseUrlQuery(url string, params []map[string]string) string {
+	if len(params) != 1 {
+		return url
 	}
-	param := strings.Join(paramSlice, "&")
+	var query []string
+	for k, v := range params[0] {
+		query = append(query, fmt.Sprintf("%s=%s", k, v))
+	}
+	param := strings.Join(query, "&")
 	if strings.Contains(url, "?") {
 		url += "&" + param
 	} else {
 		url += "?" + param
 	}
+	return url
+}
+
+func (c *Client) ParseUrl(url string, params []map[string]string) string {
+	url = c.parseUrlQuery(url, params)
 	if c.BaseHost != "" {
 		url = strings.TrimRight(c.BaseHost, "/") + url
 	}
 	return url
 }
 
-func (c *Client) ParseUrl(url string) string {
-	return url
-}
-
-func (c *Client) SetAuthHeader(r *http.Request, params ...map[string]string) {
+func (c *Client) setAuthHeader(r *http.Request) {
 	if len(c.cookie) != 0 {
 		cookie := make([]string, 0)
 		for k, v := range c.cookie {
@@ -108,7 +112,7 @@ func (c *Client) SetAuthHeader(r *http.Request, params ...map[string]string) {
 	}
 }
 
-func (c *Client) SetReqHeaders(req *http.Request, params ...map[string]string) {
+func (c *Client) SetReqHeaders(req *http.Request) {
 	if len(c.Headers) != 0 {
 		for k, v := range c.Headers {
 			req.Header.Set(k, v)
@@ -118,11 +122,11 @@ func (c *Client) SetReqHeaders(req *http.Request, params ...map[string]string) {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("user-Agent", "coco-client")
-	c.SetAuthHeader(req)
+	c.setAuthHeader(req)
 }
 
-func (c *Client) NewRequest(method, url string, body interface{}) (req *http.Request, err error) {
-	url = c.ParseUrl(url)
+func (c *Client) NewRequest(method, url string, body interface{}, params []map[string]string) (req *http.Request, err error) {
+	url = c.ParseUrl(url, params)
 	reader, err := c.marshalData(body)
 	if err != nil {
 		return
@@ -136,7 +140,7 @@ func (c *Client) NewRequest(method, url string, body interface{}) (req *http.Req
 // params:
 //   1. query string if set {"name": "ibuler"}
 func (c *Client) Do(method, url string, data, res interface{}, params ...map[string]string) (err error) {
-	req, err := c.NewRequest(method, url, data)
+	req, err := c.NewRequest(method, url, data, params)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return
@@ -154,7 +158,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 	if res != nil {
 		err = json.Unmarshal(body, res)
 		if err != nil {
-			msg := fmt.Sprintf("%s %s failed, unmarshal `%s` response failed", req.Method, req.URL, string(body)[:50])
+			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body, err)
 			err = errors.New(msg)
 			return
 		}
@@ -162,24 +166,24 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 	return
 }
 
-func (c *Client) Get(url string, res interface{}) (err error) {
-	return c.Do("GET", url, nil, res)
+func (c *Client) Get(url string, res interface{}, params ...map[string]string) (err error) {
+	return c.Do("GET", url, nil, res, params...)
 }
 
-func (c *Client) Post(url string, data interface{}, res interface{}) (err error) {
-	return c.Do("POST", url, data, res)
+func (c *Client) Post(url string, data interface{}, res interface{}, params ...map[string]string) (err error) {
+	return c.Do("POST", url, data, res, params...)
 }
 
-func (c *Client) Delete(url string, res interface{}) (err error) {
-	return c.Do("DELETE", url, nil, res)
+func (c *Client) Delete(url string, res interface{}, params ...map[string]string) (err error) {
+	return c.Do("DELETE", url, nil, res, params...)
 }
 
-func (c *Client) Put(url string, data interface{}, res interface{}) (err error) {
-	return c.Do("PUT", url, data, res)
+func (c *Client) Put(url string, data interface{}, res interface{}, params ...map[string]string) (err error) {
+	return c.Do("PUT", url, data, res, params...)
 }
 
-func (c *Client) Patch(url string, data interface{}, res interface{}) (err error) {
-	return c.Do("PATCH", url, data, res)
+func (c *Client) Patch(url string, data interface{}, res interface{}, params ...map[string]string) (err error) {
+	return c.Do("PATCH", url, data, res, params...)
 }
 
 func (c *Client) PostForm(url string, data interface{}, res interface{}) (err error) {

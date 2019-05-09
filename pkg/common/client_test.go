@@ -12,7 +12,8 @@ import (
 const (
 	username = "admin"
 	password = "admin"
-	usersUrl = "http://localhost/api/v1/users"
+	baseHost = "http://localhost"
+	usersUrl = "/api/v1/users"
 )
 
 type User struct {
@@ -26,7 +27,7 @@ var user = User{ID: 2, Name: "Jumpserver", Age: 5}
 var userDeleteUrl = fmt.Sprintf("%s/%d", usersUrl, user.ID)
 
 func TestClient_Do(t *testing.T) {
-	c := NewClient(10)
+	c := NewClient(10, "")
 	err := c.Do("GET", usersUrl, nil, nil)
 	if err == nil {
 		t.Error("Failed Do(), want get err but not")
@@ -43,7 +44,7 @@ func TestClient_Do(t *testing.T) {
 }
 
 func TestClient_Get(t *testing.T) {
-	c := NewClient(10)
+	c := NewClient(10, baseHost)
 	err := c.Get(usersUrl, nil)
 	if err == nil {
 		t.Errorf("Failed Get(%s): want get err but not", usersUrl)
@@ -56,7 +57,7 @@ func TestClient_Get(t *testing.T) {
 }
 
 func TestClient_Post(t *testing.T) {
-	c := NewClient(10)
+	c := NewClient(10, baseHost)
 	var userCreated User
 	err := c.Post(usersUrl, user, &userCreated)
 	if err != nil {
@@ -68,7 +69,7 @@ func TestClient_Post(t *testing.T) {
 }
 
 func TestClient_Put(t *testing.T) {
-	c := NewClient(10)
+	c := NewClient(10, "")
 	var userUpdated User
 	err := c.Put(usersUrl, user, &userUpdated)
 	if err != nil {
@@ -80,7 +81,7 @@ func TestClient_Put(t *testing.T) {
 }
 
 func TestClient_Delete(t *testing.T) {
-	c := NewClient(10)
+	c := NewClient(10, baseHost)
 	c.SetBasicAuth(username, password)
 	err := c.Delete(userDeleteUrl, nil)
 	if err != nil {
