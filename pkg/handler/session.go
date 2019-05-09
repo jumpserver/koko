@@ -29,12 +29,7 @@ func SessionHandler(sess ssh.Session) {
 	_, _, ptyOk := sess.Pty()
 	if ptyOk {
 		ctx, cancel := cctx.NewContext(sess)
-		fmt.Println(ctx.User())
-		handler := &InteractiveHandler{
-			sess: sess,
-			user: ctx.User(),
-			term: terminal.NewTerminal(sess, "Opt> "),
-		}
+		handler := newInteractiveHandler(sess, ctx.User())
 		logger.Infof("New connection from: %s %s", sess.User(), sess.RemoteAddr().String())
 		handler.Dispatch(ctx)
 		cancel()
@@ -46,29 +41,34 @@ func SessionHandler(sess ssh.Session) {
 	}
 }
 
+func newInteractiveHandler(sess ssh.Session, user *model.User) *InteractiveHandler {
+	term := terminal.NewTerminal(sess, "Opt> ")
+	handler := &InteractiveHandler{sess: sess, user: user, term: term}
+	handler.Initial()
+	return handler
+}
+
 type InteractiveHandler struct {
-	sess             ssh.Session
-	term             *terminal.Terminal
-	user             *model.User
+	sess ssh.Session
+	user *model.User
+	term *terminal.Terminal
+
 	assetSelect      *model.Asset
 	systemUserSelect *model.SystemUser
 	assets           model.AssetList
 	searchResult     model.AssetList
 	nodes            model.NodeList
-	onceLoad         sync.Once
-	mu               sync.RWMutex
+	mu               *sync.RWMutex
+}
+
+func (h *InteractiveHandler) Initial() {
+	h.displayBanner()
+	h.loadUserAssets()
+	h.loadUserAssetNodes()
 }
 
 func (h *InteractiveHandler) displayBanner() {
 	displayBanner(h.sess, h.user.Name)
-}
-
-func (h *InteractiveHandler) preDispatch() {
-	h.displayBanner()
-	h.onceLoad.Do(func() {
-		h.loadUserAssets()
-		h.loadUserAssetNodes()
-	})
 }
 
 func (h *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-chan struct{}) {
@@ -88,8 +88,6 @@ func (h *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-
 }
 
 func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
-	h.preDispatch()
-	fmt.Println(h.user)
 	_, winCh, _ := h.sess.Pty()
 	for {
 		doneChan := make(chan struct{})
@@ -113,8 +111,6 @@ func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
 				h.Proxy(ctx)
 			case "g":
 				h.displayNodes(h.nodes)
-			case "s":
-				h.changeLanguage()
 			case "h":
 				h.displayBanner()
 			case "r":
@@ -144,6 +140,10 @@ func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
 						continue
 					}
 				}
+			default:
+				assets := h.searchAsset(line)
+				h.searchResult = assets
+				h.displayAssetsOrProxy(assets)
 			}
 		}
 	}
@@ -151,9 +151,9 @@ func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
 
 func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
 	table := tablewriter.NewWriter(h.sess)
-	table.SetHeader([]string{"ID", "UserName"})
+	table.SetHeader([]string{"ID", "Username"})
 	for i := 0; i < len(systemUsers); i++ {
-		table.Append([]string{strconv.Itoa(i + 1), systemUsers[i].UserName})
+		table.Append([]string{strconv.Itoa(i + 1), systemUsers[i].Username})
 	}
 	table.SetBorder(false)
 	count := 0
@@ -325,10 +325,12 @@ func (h *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 }
 
 func (h *InteractiveHandler) Proxy(ctx context.Context) {
-	h.assetSelect = &model.Asset{Hostname: "centos", Port: 32768, Ip: "127.0.0.1"}
-	h.systemUserSelect = &model.SystemUser{Name: "web", UserName: "root", Password: "screencast"}
+	h.assetSelect = &model.Asset{Hostname: "centos", Port: 22, Ip: "192.168.244.185", Protocol: "ssh"}
+	h.systemUserSelect = &model.SystemUser{Id: "5dd8b5a0-8cdb-4857-8629-faf811c525e1", Name: "web", Username: "root", Password: "redhat", Protocol: "telnet"}
+
+	userConn := &proxy.UserSSHConnection{Session: h.sess}
 	p := proxy.ProxyServer{
-		Session:    h.sess,
+		UserConn:   userConn,
 		User:       h.user,
 		Asset:      h.assetSelect,
 		SystemUser: h.systemUserSelect,
@@ -348,7 +350,7 @@ func (h *InteractiveHandler) Proxy(ctx context.Context) {
 //		SessionID: uuid.NewV4().String(),
 //		IP:        asset.Ip,
 //		port:      asset.port,
-//		UserName:  systemUser.UserName,
+//		Username:  systemUser.Username,
 //		password:  systemUser.password,
 //		PublicKey: parsePrivateKey(systemUser.privateKey)}
 //
@@ -361,10 +363,10 @@ func (h *InteractiveHandler) Proxy(ctx context.Context) {
 //		nodeConn.Close()
 //		data := map[string]interface{}{
 //			"id":          nodeConn.SessionID,
-//			"user":        i.user.UserName,
+//			"user":        i.user.Username,
 //			"asset":       asset.Hostname,
 //			"org_id":      asset.OrgID,
-//			"system_user": systemUser.UserName,
+//			"system_user": systemUser.Username,
 //			"login_from":  "ST",
 //			"remote_addr": i.sess.RemoteAddr().String(),
 //			"is_finished": true,
@@ -377,10 +379,10 @@ func (h *InteractiveHandler) Proxy(ctx context.Context) {
 //	}()
 //	data := map[string]interface{}{
 //		"id":          nodeConn.SessionID,
-//		"user":        i.user.UserName,
+//		"user":        i.user.Username,
 //		"asset":       asset.Hostname,
 //		"org_id":      asset.OrgID,
-//		"system_user": systemUser.UserName,
+//		"system_user": systemUser.Username,
 //		"login_from":  "ST",
 //		"remote_addr": i.sess.RemoteAddr().String(),
 //		"is_finished": false,

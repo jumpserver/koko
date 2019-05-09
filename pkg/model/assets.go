@@ -111,7 +111,7 @@ const LoginModeManual = "manual"
 type SystemUser struct {
 	Id         string `json:"id"`
 	Name       string `json:"name"`
-	UserName   string `json:"username"`
+	Username   string `json:"username"`
 	Priority   int    `json:"priority"`
 	Protocol   string `json:"protocol"`
 	Comment    string `json:"comment"`

@@ -14,11 +14,11 @@ type UserConnection interface {
 	User() string
 	LoginFrom() string
 	RemoteAddr() string
+	Pty() ssh.Pty
 }
 
 type UserSSHConnection struct {
 	ssh.Session
-	winch <-chan ssh.Window
 }
 
 func (uc *UserSSHConnection) Protocol() string {
@@ -30,7 +30,7 @@ func (uc *UserSSHConnection) User() string {
 }
 
 func (uc *UserSSHConnection) WinCh() (winch <-chan ssh.Window) {
-	_, winch, ok := uc.Pty()
+	_, winch, ok := uc.Session.Pty()
 	if ok {
 		return
 	}
@@ -43,4 +43,9 @@ func (uc *UserSSHConnection) LoginFrom() string {
 
 func (uc *UserSSHConnection) RemoteAddr() string {
 	return strings.Split(uc.Session.RemoteAddr().String(), ":")[0]
+}
+
+func (uc *UserSSHConnection) Pty() ssh.Pty {
+	pty, _, _ := uc.Session.Pty()
+	return pty
 }
