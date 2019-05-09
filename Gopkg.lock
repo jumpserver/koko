@@ -11,11 +11,11 @@
 
 [[projects]]
   branch = "dev"
-  digest = "1:35649cbef81554217a919e5214dd33b3ab449ef742284887d583a4e431330bc8"
+  digest = "1:6385b015971978bc1cc76802e9bc7b29984c104d35fe941ef311d0e758641a2b"
   name = "github.com/gliderlabs/ssh"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f6ff00ebef0e6e6f324e1199f69bb2b9d8dcf2ed"
+  revision = "624e955a0ae6c0e82fe0095ad5276051483ae67d"
   source = "github.com/ibuler/ssh"
 
 [[projects]]
@@ -172,7 +172,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7a36766813b41d353a9055448789d5776e583f92dd1f68c79818dc0494b73855"
+  digest = "1:343efc58e056071ced09d112d201b64af4d38e31bc81a5cb77744f2c74fe9e7f"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -180,7 +180,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "12bbe5a7a5209180b72cc7e3ed9da40442fe3246"
+  revision = "2d0786266e9cd132da844109aa05016f11f3df28"
 
 [[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
