@@ -56,7 +56,7 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) ss
 	if err != nil {
 		return ssh.AuthFailed
 	}
-	if len(answers) != 0 {
+	if len(answers) != 1 {
 		return ssh.AuthFailed
 	}
 	mfaCode := answers[0]
@@ -77,13 +77,5 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) ss
 }
 
 func CheckUserNeedMFA(ctx ssh.Context) (methods []string) {
-	username := ctx.User()
-	user, err := service.GetUserByUsername(username)
-	if err != nil {
-		return
-	}
-	if user.OTPLevel > 0 {
-		return []string{"keyboard-interactive"}
-	}
-	return
+	return []string{"keyboard-interactive"}
 }

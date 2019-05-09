@@ -31,7 +31,7 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 }
 
 func GetUserProfile(userId string) (user *model.User) {
-	Url := fmt.Sprintf(UserUserURL, userId)
+	Url := fmt.Sprintf(UserDetailURL, userId)
 	err := authClient.Get(Url, user)
 	if err != nil {
 		logger.Error(err)
@@ -41,13 +41,13 @@ func GetUserProfile(userId string) (user *model.User) {
 
 func GetProfile() (user *model.User, err error) {
 	err = authClient.Get(UserProfileURL, &user)
-	return
+	return user, err
 }
 
 func GetUserByUsername(username string) (user *model.User, err error) {
 	var users []*model.User
 	payload := map[string]string{"username": username}
-	err = authClient.Get(UserUserURL, &users, payload)
+	err = authClient.Get(UserListUrl, &users, payload)
 	if err != nil {
 		return
 	}
@@ -64,7 +64,7 @@ func CheckUserOTP(seed, code string) (resp *AuthResp, err error) {
 		"seed":     seed,
 		"otp_code": code,
 	}
-	err = client.Post(UserAuthOTPURL, data, resp)
+	err = client.Post(UserAuthOTPURL, data, &resp)
 	if err != nil {
 		return
 	}
