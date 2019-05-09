@@ -29,6 +29,7 @@ func SessionHandler(sess ssh.Session) {
 	_, _, ptyOk := sess.Pty()
 	if ptyOk {
 		ctx, cancel := cctx.NewContext(sess)
+		fmt.Println(ctx.User())
 		handler := &InteractiveHandler{
 			sess: sess,
 			user: ctx.User(),
@@ -88,6 +89,7 @@ func (i *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-
 
 func (i *InteractiveHandler) Dispatch(ctx cctx.Context) {
 	i.preDispatch()
+	fmt.Println(i.user)
 	_, winCh, _ := i.sess.Pty()
 	for {
 		doneChan := make(chan struct{})
@@ -323,8 +325,8 @@ func (i *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 }
 
 func (i *InteractiveHandler) Proxy(ctx context.Context) {
-	i.assetSelect = &model.Asset{Hostname: "centos", Port: 22, Ip: "192.168.244.185"}
-	i.systemUserSelect = &model.SystemUser{Name: "web", UserName: "web", Password: "redhat"}
+	i.assetSelect = &model.Asset{Hostname: "centos", Port: 32768, Ip: "127.0.0.1"}
+	i.systemUserSelect = &model.SystemUser{Name: "web", UserName: "root", Password: "screencast"}
 	p := proxy.ProxyServer{
 		Session:    i.sess,
 		User:       i.user,

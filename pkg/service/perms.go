@@ -15,7 +15,7 @@ func GetUserAssets(userId, cachePolicy string) (assets model.AssetList) {
 	Url := fmt.Sprintf(UserAssetsURL, userId)
 	err := authClient.Get(Url, &assets, payload)
 	if err != nil {
-		logger.Error(err)
+		logger.Error("GetUserAssets---err")
 	}
 	return
 }
@@ -28,7 +28,7 @@ func GetUserNodes(userId, cachePolicy string) (nodes model.NodeList) {
 	Url := fmt.Sprintf(UserNodesAssetsURL, userId)
 	err := authClient.Get(Url, &nodes, payload)
 	if err != nil {
-		logger.Error(err)
+		logger.Error("GetUserNodes err")
 	}
 	return
 }

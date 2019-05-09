@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"cocogo/pkg/cctx"
 	"cocogo/pkg/i18n"
 	"strings"
 
@@ -29,12 +30,28 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	}
 	if err != nil {
 		action = "Failed"
+
 	} else if resp.Seed != "" && resp.Token == "" {
 		ctx.SetValue(contentKeyMFASeed, resp.Seed)
 		res = ssh.AuthPartiallySuccessful
 	} else {
 		res = ssh.AuthSuccessful
 	}
+	if resp != nil {
+		switch resp.User.IsMFA {
+		case 0:
+			res = ssh.AuthSuccessful
+		case 1:
+			res = ssh.AuthPartiallySuccessful
+		case 2:
+			res = ssh.AuthPartiallySuccessful
+		default:
+		}
+		ctx.SetValue(cctx.ContextKeyUser, resp.User)
+		ctx.SetValue(cctx.ContextKeySeed, resp.Seed)
+		ctx.SetValue(cctx.ContextKeyToken, resp.Token)
+	}
+
 	logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
 	return res
 }
@@ -51,6 +68,7 @@ func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
 }
 
 func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) ssh.AuthResult {
+
 	username := ctx.User()
 	answers, err := challenger(username, mfaInstruction, []string{mfaQuestion}, []bool{true})
 	if err != nil {
@@ -66,6 +84,7 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) ss
 		return ssh.AuthFailed
 	}
 	resp, err := service.CheckUserOTP(seed, mfaCode)
+
 	if err != nil {
 		logger.Error("Mfa Auth failed: ", err)
 		return ssh.AuthFailed

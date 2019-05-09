@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 
 	"cocogo/pkg/logger"
@@ -22,12 +23,38 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 		"remote_addr": remoteAddr,
 		"login_type":  loginType,
 	}
-	err = client.Post(UserAuthURL, data, &resp)
+	Url := client.ParseUrl(UserAuthURL, nil)
+	err = client.Post(Url, data, &resp)
+
 	if err != nil {
 		logger.Error(err)
-		return
 	}
 	return
+}
+
+func AuthenticateMFA(seed, code, loginType string) (resp *model.AuthResponse, err error) {
+	/*
+		data = {
+		            'seed': seed,
+		            'otp_code': otp_code,
+		            'login_type': login_type,
+		        }
+
+	*/
+
+	data := map[string]string{
+		"seed":       seed,
+		"otp_code":   code,
+		"login_type": loginType,
+	}
+
+	Url := client.ParseUrl(AuthMFAURL, nil)
+	err = client.Post(Url, data, resp)
+	if err != nil {
+		logger.Error(err)
+	}
+	return
+
 }
 
 func GetUserProfile(userId string) (user *model.User) {

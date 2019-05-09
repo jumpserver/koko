@@ -7,6 +7,8 @@ const (
 	UserDetailURL  = "/api/users/v1/users/%s/" // 获取用户信息
 	UserAuthOTPURL = "/api/users/v1/otp/auth/" // 验证OTP
 
+	AuthMFAURL = "/api/authentication/v1/otp/auth/" // MFA 验证用户信息
+
 	SystemUserAssetAuthURL   = "/api/assets/v1/system-user/%s/asset/%s/auth-info/" // 该系统用户对某资产的授权
 	SystemUserAuthInfoURL    = "/api/assets/v1/system-user/%s/auth-info/"          // 该系统用户的授权
 	SystemUserCmdFilterRules = "/api/assets/v1/system-user/%s/cmd-filter-rules/"   // 过滤规则url
