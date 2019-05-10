@@ -73,7 +73,7 @@ func displayBanner(sess ssh.Session, user string) {
 	welcomeMsg := prefix + utils.WrapperTitle(user+",") + "  " + title + suffix
 	_, err := io.WriteString(sess, welcomeMsg)
 	if err != nil {
-		logger.Error("Send to client error, %s", err)
+		logger.Errorf("Send to client error, %s", err)
 		return
 	}
 	for _, v := range menu {

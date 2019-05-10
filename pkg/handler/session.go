@@ -9,9 +9,6 @@ import (
 	"sync"
 
 	"github.com/gliderlabs/ssh"
-	//"github.com/olekukonko/tablewriter"
-	//"github.com/satori/go.uuid"
-	//"github.com/xlab/treeprint"
 	"github.com/olekukonko/tablewriter"
 	"github.com/xlab/treeprint"
 	"golang.org/x/crypto/ssh/terminal"
@@ -21,8 +18,6 @@ import (
 	"cocogo/pkg/model"
 	"cocogo/pkg/proxy"
 	"cocogo/pkg/service"
-	//"cocogo/pkg/transport"
-	//"cocogo/pkg/userhome"
 )
 
 func SessionHandler(sess ssh.Session) {
@@ -65,6 +60,7 @@ func (h *InteractiveHandler) Initial() {
 	h.displayBanner()
 	h.loadUserAssets()
 	h.loadUserAssetNodes()
+	h.searchResult = h.assets
 }
 
 func (h *InteractiveHandler) displayBanner() {
@@ -108,7 +104,8 @@ func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "", "p":
-				h.Proxy(ctx)
+				h.displayAssets(h.assets)
+				//h.Proxy(ctx)
 			case "g":
 				h.displayNodes(h.nodes)
 			case "h":
@@ -146,13 +143,36 @@ func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
 				h.displayAssetsOrProxy(assets)
 			}
 		}
+
 	}
 }
 
 func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
-	table := tablewriter.NewWriter(h.sess)
+	length := len(systemUsers)
+	switch length {
+	case 0:
+		return model.SystemUser{}
+	case 1:
+		return systemUsers[0]
+	default:
+	}
+	displaySystemUsers := make([]model.SystemUser, 0)
+	model.SortSystemUserByPriority(systemUsers)
+
+	highestPriority := systemUsers[length-1].Priority
+
+	displaySystemUsers = append(displaySystemUsers, systemUsers[length-1])
+	for i := length - 2; i <= 0; i-- {
+		if highestPriority == systemUsers[i].Priority {
+			displaySystemUsers = append(displaySystemUsers, systemUsers[length-1])
+		}
+	}
+	if len(displaySystemUsers) == 1 {
+		return displaySystemUsers[0]
+	}
+	table := tablewriter.NewWriter(h.term)
 	table.SetHeader([]string{"ID", "Username"})
-	for i := 0; i < len(systemUsers); i++ {
+	for i := 0; i < len(displaySystemUsers); i++ {
 		table.Append([]string{strconv.Itoa(i + 1), systemUsers[i].Username})
 	}
 	table.SetBorder(false)
@@ -171,48 +191,27 @@ func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 		}
 		count++
 	}
-	return systemUsers[0]
+	return displaySystemUsers[0]
 }
 
 // 当资产的数量为1的时候，就进行代理转化
 func (h *InteractiveHandler) displayAssetsOrProxy(assets []model.Asset) {
-	//if len(assets) == 1 {
-	//	var systemUser model.SystemUser
-	//	switch len(assets[0].SystemUsers) {
-	//	case 0:
-	//		// 有授权的资产，但是资产用户信息，无法登陆
-	//		h.displayAssets(assets)
-	//		return
-	//	case 1:
-	//		systemUser = assets[0].SystemUsers[0]
-	//	default:
-	//		systemUser = h.chooseSystemUser(assets[0].SystemUsers)
-	//	}
-	//
-	//	authInfo, err := model.GetSystemUserAssetAuthInfo(systemUser.ID, assets[0].ID)
-	//	if err != nil {
-	//		return
-	//	}
-	//	if ok := service.ValidateUserAssetPermission(h.user.ID, systemUser.ID, assets[0].ID); !ok {
-	//		// 检查user 是否对该资产有权限
-	//		return
-	//	}
-	//
-	//	err = h.Proxy(assets[0], authInfo)
-	//	if err != nil {
-	//		logger.Info(err)
-	//	}
-	//	return
-	//} else {
-	//	h.displayAssets(assets)
-	//}
+	if len(assets) == 1 {
+		logger.Debug(assets[0].SystemUsers)
+		systemUser := h.chooseSystemUser(assets[0].SystemUsers)
+		h.assetSelect = &assets[0]
+		h.systemUserSelect = &systemUser
+		h.Proxy(context.TODO())
+	} else {
+		h.displayAssets(assets)
+	}
 }
 
 func (h *InteractiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
-		_, _ = io.WriteString(h.sess, "\r\n No Assets\r\n\r")
+		_, _ = io.WriteString(h.term, "\r\n No Assets\r\n\r")
 	} else {
-		table := tablewriter.NewWriter(h.sess)
+		table := tablewriter.NewWriter(h.term)
 		table.SetHeader([]string{"ID", "Hostname", "IP", "LoginAs", "Comment"})
 		for index, assetItem := range assets {
 			sysUserArray := make([]string, len(assetItem.SystemUsers))
@@ -234,9 +233,9 @@ func (h *InteractiveHandler) displayNodes(nodes []model.Node) {
 	tipHeaderMsg := "\r\nNode: [ ID.Name(Asset amount) ]"
 	tipEndMsg := "Tips: Enter g+NodeID to display the host under the node, such as g1\r\n\r"
 
-	_, err := io.WriteString(h.sess, tipHeaderMsg)
-	_, err = io.WriteString(h.sess, tree.String())
-	_, err = io.WriteString(h.sess, tipEndMsg)
+	_, err := io.WriteString(h.term, tipHeaderMsg)
+	_, err = io.WriteString(h.term, tree.String())
+	_, err = io.WriteString(h.term, tipEndMsg)
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}
@@ -258,75 +257,41 @@ func (h *InteractiveHandler) loadUserAssetNodes() {
 	h.nodes = service.GetUserNodes(h.user.ID, "1")
 }
 
-func (h *InteractiveHandler) changeLanguage() {
-
-}
-
-func (h *InteractiveHandler) JoinShareRoom(roomID string) {
-	//sshConn := userhome.NewSSHConn(h.sess)
-	//ctx, cancelFuc := context.WithCancel(h.sess.Context())
-	//
-	//_, winCh, _ := h.sess.Pty()
-	//go func() {
-	//	for {
-	//		select {
-	//		case <-ctx.Done():
-	//			return
-	//		case win, ok := <-winCh:
-	//			if !ok {
-	//				return
-	//			}
-	//			fmt.Println("join term change:", win)
-	//		}
-	//	}
-	//}()
-	//proxybak.Manager.JoinShareRoom(roomID, sshConn)
-	logger.Info("exit room id:", roomID)
-	//cancelFuc()
-
-}
-
 func (h *InteractiveHandler) searchAsset(key string) (assets []model.Asset) {
-	//if indexNum, err := strconv.Atoi(key); err == nil {
-	//	if indexNum > 0 && indexNum <= len(h.searchResult) {
-	//		return []model.Asset{h.searchResult[indexNum-1]}
-	//	}
-	//}
-	//
-	//if assetsData, ok := h.assetData.Load(AssetsMapKey); ok {
-	//	for _, assetValue := range assetsData.([]model.Asset) {
-	//		if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
-	//			assets = append(assets, assetValue)
-	//		}
-	//	}
-	//} else {
+	if indexNum, err := strconv.Atoi(key); err == nil {
+		if indexNum > 0 && indexNum <= len(h.searchResult) {
+			assets = []model.Asset{h.searchResult[indexNum-1]}
+			return
+		}
+	}
+	for _, assetValue := range h.searchResult {
+		contents := []string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}
+		if isSubstring(contents, key) {
+			assets = append(assets, assetValue)
+		}
+	}
+
 	//	assetsData, _ := Cached.Load(h.user.ID)
 	//	for _, assetValue := range assetsData.([]model.Asset) {
 	//		if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
 	//			assets = append(assets, assetValue)
 	//		}
 	//	}
-	//}
 
 	return assets
 }
 
 func (h *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
-	//var assetNodesData []model.Node
-	//if assetNodes, ok := h.assetData.Load(AssetNodesMapKey); ok {
-	//	assetNodesData = assetNodes.([]model.Node)
-	//	if num > len(assetNodesData) || num == 0 {
-	//		return assets
-	//	}
-	//	return assetNodesData[num-1].AssetsGranted
-	//}
-	return assets
+	if num > len(h.nodes) || num == 0 {
+		return assets
+	}
+	return h.nodes[num-1].AssetsGranted
 
 }
 
 func (h *InteractiveHandler) Proxy(ctx context.Context) {
-	h.assetSelect = &model.Asset{Hostname: "centos", Port: 22, Ip: "192.168.244.185", Protocol: "ssh"}
-	h.systemUserSelect = &model.SystemUser{Id: "5dd8b5a0-8cdb-4857-8629-faf811c525e1", Name: "web", Username: "root", Password: "redhat", Protocol: "telnet"}
+	//h.assetSelect = &model.Asset{Hostname: "centos", Port: 22, Ip: "192.168.244.185", Protocol: "ssh"}
+	//h.systemUserSelect = &model.SystemUser{Id: "5dd8b5a0-8cdb-4857-8629-faf811c525e1", Name: "web", Username: "root", Password: "redhat", Protocol: "telnet"}
 
 	userConn := &proxy.UserSSHConnection{Session: h.sess}
 	p := proxy.ProxyServer{
@@ -337,6 +302,63 @@ func (h *InteractiveHandler) Proxy(ctx context.Context) {
 	}
 	p.Proxy()
 }
+
+func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
+	model.SortAssetNodesByKey(assetNodes)
+	var treeMap = map[string]treeprint.Tree{}
+	tree := treeprint.New()
+	for i := 0; i < len(assetNodes); i++ {
+		r := strings.LastIndex(assetNodes[i].Key, ":")
+		if r < 0 {
+			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
+				strconv.Itoa(i+1), assetNodes[i].Name,
+				strconv.Itoa(assetNodes[i].AssetsAmount)))
+			treeMap[assetNodes[i].Key] = subtree
+			continue
+		}
+		if subtree, ok := treeMap[assetNodes[i].Key[:r]]; ok {
+			nodeTree := subtree.AddBranch(fmt.Sprintf("%s.%s(%s)",
+				strconv.Itoa(i+1), assetNodes[i].Name,
+				strconv.Itoa(assetNodes[i].AssetsAmount)))
+			treeMap[assetNodes[i].Key] = nodeTree
+		}
+
+	}
+	return tree
+}
+
+func isSubstring(sArray []string, substr string) bool {
+	for _, s := range sArray {
+		if strings.Contains(s, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+//func (h *InteractiveHandler) JoinShareRoom(roomID string) {
+//sshConn := userhome.NewSSHConn(h.sess)
+//ctx, cancelFuc := context.WithCancel(h.sess.Context())
+//
+//_, winCh, _ := h.sess.Pty()
+//go func() {
+//	for {
+//		select {
+//		case <-ctx.Done():
+//			return
+//		case win, ok := <-winCh:
+//			if !ok {
+//				return
+//			}
+//			fmt.Println("join term change:", win)
+//		}
+//	}
+//}()
+//proxybak.Manager.JoinShareRoom(roomID, sshConn)
+//logger.Info("exit room id:", roomID)
+//cancelFuc()
+//
+//}
 
 //	/*
 //		1. 创建SSHConn，符合core.Conn接口
@@ -407,35 +429,3 @@ func (h *InteractiveHandler) Proxy(ctx context.Context) {
 //	return err
 //}
 //
-//func isSubstring(sArray []string, substr string) bool {
-//	for _, s := range sArray {
-//		if strings.Contains(s, substr) {
-//			return true
-//		}
-//	}
-//	return false
-//}
-//
-func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
-	model.SortAssetNodesByKey(assetNodes)
-	var treeMap = map[string]treeprint.Tree{}
-	tree := treeprint.New()
-	for i := 0; i < len(assetNodes); i++ {
-		r := strings.LastIndex(assetNodes[i].Key, ":")
-		if r < 0 {
-			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
-				strconv.Itoa(i+1), assetNodes[i].Name,
-				strconv.Itoa(assetNodes[i].AssetsAmount)))
-			treeMap[assetNodes[i].Key] = subtree
-			continue
-		}
-		if subtree, ok := treeMap[assetNodes[i].Key[:r]]; ok {
-			nodeTree := subtree.AddBranch(fmt.Sprintf("%s.%s(%s)",
-				strconv.Itoa(i+1), assetNodes[i].Name,
-				strconv.Itoa(assetNodes[i].AssetsAmount)))
-			treeMap[assetNodes[i].Key] = nodeTree
-		}
-
-	}
-	return tree
-}
