@@ -6,13 +6,18 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 
 	"cocogo/pkg/logger"
 )
 
 func NewSwitchSession(userConn UserConnection, serverConn ServerConnection) (sw *SwitchSession) {
-	parser := new(Parser)
+	parser := &Parser{
+		userInputChan:  make(chan []byte, 1024),
+		userOutputChan: make(chan []byte, 1024),
+		srvInputChan:   make(chan []byte, 1024),
+		srvOutputChan:  make(chan []byte, 1024),
+	}
 	parser.Initial()
 	sw = &SwitchSession{userConn: userConn, serverConn: serverConn, parser: parser}
 	return sw
@@ -100,11 +105,12 @@ func (s *SwitchSession) readUserToServer(ctx context.Context) {
 			if !ok {
 				s.cancelFunc()
 			}
-			buf2 := s.parser.ParseUserInput(p)
-			_, err := s.serverTran.Write(buf2)
-			if err != nil {
-				return
+			s.parser.userInputChan <- p
+		case p, ok := <-s.parser.userOutputChan:
+			if !ok {
+				s.cancelFunc()
 			}
+			_, _ = s.serverTran.Write(p)
 		}
 	}
 }
@@ -122,11 +128,12 @@ func (s *SwitchSession) readServerToUser(ctx context.Context) {
 			if !ok {
 				s.cancelFunc()
 			}
-			buf2 := s.parser.ParseServerOutput(p)
-			_, err := s.userTran.Write(buf2)
-			if err != nil {
-				return
+			s.parser.srvInputChan <- p
+		case p, ok := <-s.parser.srvOutputChan:
+			if !ok {
+				s.cancelFunc()
 			}
+			_, _ = s.userConn.Write(p)
 		}
 	}
 }
@@ -138,6 +145,7 @@ func (s *SwitchSession) Bridge() (err error) {
 
 	s.userTran = NewDirectTransport("", s.userConn)
 	s.serverTran = NewDirectTransport("", s.serverConn)
+	go s.parser.Parse()
 	go s.watchWindowChange(ctx, winCh)
 	go s.readServerToUser(ctx)
 	s.readUserToServer(ctx)

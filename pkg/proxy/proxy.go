@@ -23,15 +23,18 @@ type ProxyServer struct {
 
 func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 	info := service.GetSystemUserAssetAuthInfo(p.SystemUser.Id, p.Asset.Id)
-	if p.SystemUser.LoginMode == model.LoginModeManual ||
-		(p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "") {
-		logger.Info("Get password fom user input")
-	}
 	p.SystemUser.Password = info.Password
 	p.SystemUser.PrivateKey = info.PrivateKey
+
+	if p.SystemUser.LoginMode == model.LoginModeManual ||
+		(p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "") {
+		// Todo: terminal
+		logger.Info("Get password fom user input")
+	}
 }
 
 func (p *ProxyServer) getSystemUserUsernameIfNeed() {
+	// Todo: terminal
 
 }
 
@@ -74,6 +77,8 @@ func (p *ProxyServer) getTelnetConn() (srvConn *ServerSSHConnection, err error) 
 }
 
 func (p *ProxyServer) getServerConn() (srvConn ServerConnection, err error) {
+	p.getSystemUserUsernameIfNeed()
+	p.getSystemUserAuthOrManualSet()
 	if p.Asset.Protocol == "telnet" {
 		return p.getTelnetConn()
 	} else {
@@ -138,8 +143,6 @@ func (p *ProxyServer) Proxy() {
 		logger.Error("Get system user filter rule error: ", err)
 	}
 	sw.parser.SetCMDFilterRules(cmdRules)
-	replayRecorder := NewReplyRecord(sw.Id)
-	sw.parser.SetReplayRecorder(replayRecorder)
 	_ = sw.Bridge()
 	_ = srvConn.Close()
 }

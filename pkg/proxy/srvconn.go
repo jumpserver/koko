@@ -121,7 +121,6 @@ func (sc *ServerSSHConnection) connect() (client *gossh.Client, err error) {
 	} else {
 		client, err = gossh.Dial("tcp", net.JoinHostPort(sc.host, sc.port), config)
 		if err != nil {
-			err = fmt.Errorf("connect host %sc error: %sc", sc.host, err)
 			return
 		}
 	}

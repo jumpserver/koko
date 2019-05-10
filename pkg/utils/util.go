@@ -19,9 +19,10 @@ const (
 )
 
 const (
-	CharClear   = "\x1b[H\x1b[2J"
-	CharTab     = "\t"
-	CharNewLine = "\r\n"
+	CharClear     = "\x1b[H\x1b[2J"
+	CharTab       = "\t"
+	CharNewLine   = "\r\n"
+	CharCleanLine = '\x15'
 )
 
 func WrapperString(text string, color string, meta ...bool) string {

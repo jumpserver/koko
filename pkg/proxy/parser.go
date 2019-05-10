@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
+	"cocogo/pkg/utils"
+	"fmt"
 	"sync"
 )
 
@@ -27,6 +29,11 @@ type Parser struct {
 	inputBuf  *bytes.Buffer
 	cmdBuf    *bytes.Buffer
 	outputBuf *bytes.Buffer
+
+	userInputChan  chan []byte
+	userOutputChan chan []byte
+	srvInputChan   chan []byte
+	srvOutputChan  chan []byte
 
 	cmdCh chan *[2]string
 
@@ -59,31 +66,59 @@ func (p *Parser) Initial() {
 	p.cmdOutputParser.Initial()
 }
 
+func (p *Parser) Parse() {
+	defer func() {
+		fmt.Println("Parse done")
+	}()
+	for {
+		select {
+		case ub, ok := <-p.userInputChan:
+			if !ok {
+				return
+			}
+			b := p.ParseUserInput(ub)
+			p.userOutputChan <- b
+
+		case sb, ok := <-p.srvInputChan:
+			if !ok {
+				return
+			}
+			b := p.ParseServerOutput(sb)
+			p.srvOutputChan <- b
+		}
+	}
+}
+
 // Todo: parseMultipleInput 依然存在问题
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
-func (p *Parser) parseInputState(b []byte) {
+func (p *Parser) parseInputState(b []byte) []byte {
 	if p.inVimState || p.zmodemState != "" {
-		return
+		return b
 	}
 	p.inputPreState = p.inputState
 	if bytes.Contains(b, charEnter) {
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
+		if p.IsCommandForbidden() {
+			p.srvOutputChan <- []byte("\r\nCommand ls is forbidden")
+			return []byte{utils.CharCleanLine, '\r'}
+		}
 	} else {
 		p.inputState = true
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
 			p.parseCmdOutput()
-			p.cmdCh <- &[2]string{p.command, p.output}
 		}
 	}
+	return b
 }
 
 func (p *Parser) parseCmdInput() {
 	data := p.cmdBuf.Bytes()
 	p.command = p.cmdInputParser.Parse(data)
+	fmt.Println("parse Command is ", p.command)
 	p.cmdBuf.Reset()
 	p.inputBuf.Reset()
 }
@@ -106,9 +141,8 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 		p.inputInitial = true
 	})
 	nb := p.replaceInputNewLine(b)
-	p.inputBuf.Write(nb)
-	p.parseInputState(nb)
-	return b
+	nb = p.parseInputState(nb)
+	return nb
 }
 
 func (p *Parser) parseZmodemState(b []byte) {
@@ -149,9 +183,10 @@ func (p *Parser) parseVimState(b []byte) {
 func (p *Parser) splitCmdStream(b []byte) {
 	p.parseVimState(b)
 	p.parseZmodemState(b)
-	if p.zmodemState != "" || p.inVimState || p.inputInitial {
+	if p.zmodemState != "" || p.inVimState || !p.inputInitial {
 		return
 	}
+	fmt.Println("Input state: ", p.inputState)
 	if p.inputState {
 		p.cmdBuf.Write(b)
 	} else {
@@ -166,4 +201,12 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 
 func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 	p.cmdFilterRules = rules
+}
+
+func (p *Parser) IsCommandForbidden() bool {
+	fmt.Println("Command is: ", p.command)
+	if p.command == "ls" {
+		return true
+	}
+	return false
 }

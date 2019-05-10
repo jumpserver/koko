@@ -32,7 +32,7 @@ func Initial() {
 func validateAccessAuth() {
 	maxTry := 30
 	count := 0
-	for count < maxTry {
+	for {
 		user, err := GetProfile()
 		if err == nil && user.Role == "App" {
 			break
@@ -40,12 +40,11 @@ func validateAccessAuth() {
 		if err != nil {
 			msg := "Connect server error or access key is invalid, remove %s run again"
 			logger.Errorf(msg, config.Conf.AccessKeyFile)
-		}
-		if user.Role != "App" {
+		} else if user.Role != "App" {
 			logger.Error("Access role is not App, is: ", user.Role)
 		}
-		time.Sleep(3 * time.Second)
 		count++
+		time.Sleep(3 * time.Second)
 		if count >= maxTry {
 			os.Exit(1)
 		}
