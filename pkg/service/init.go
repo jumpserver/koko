@@ -25,10 +25,10 @@ func Initial() {
 	ak := AccessKey{Value: config.Conf.AccessKey, Path: keyPath}
 	_ = ak.Load()
 	authClient.Auth = ak
-	ValidateAccessAuth()
+	validateAccessAuth()
 }
 
-func ValidateAccessAuth() {
+func validateAccessAuth() {
 	maxTry := 30
 	count := 0
 	for count < maxTry {

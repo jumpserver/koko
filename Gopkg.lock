@@ -183,6 +183,14 @@
   revision = "2d0786266e9cd132da844109aa05016f11f3df28"
 
 [[projects]]
+  digest = "1:c805e517269b0ba4c21ded5836019ed7d16953d4026cb7d00041d039c7906be9"
+  name = "gopkg.in/natefinch/lumberjack.v2"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a96e63847dc3c67d17befa69c303767e2f84e54f"
+  version = "v2.1"
+
+[[projects]]
   digest = "1:4d2e5a73dc1500038e504a8d78b986630e3626dc027bc030ba5c75da257cdb96"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -207,6 +215,7 @@
     "github.com/xlab/treeprint",
     "golang.org/x/crypto/ssh",
     "golang.org/x/crypto/ssh/terminal",
+    "gopkg.in/natefinch/lumberjack.v2",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"

@@ -41,14 +41,14 @@ func SessionHandler(sess ssh.Session) {
 	}
 }
 
-func newInteractiveHandler(sess ssh.Session, user *model.User) *InteractiveHandler {
+func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandler {
 	term := terminal.NewTerminal(sess, "Opt> ")
-	handler := &InteractiveHandler{sess: sess, user: user, term: term}
+	handler := &interactiveHandler{sess: sess, user: user, term: term}
 	handler.Initial()
 	return handler
 }
 
-type InteractiveHandler struct {
+type interactiveHandler struct {
 	sess ssh.Session
 	user *model.User
 	term *terminal.Terminal
@@ -61,17 +61,17 @@ type InteractiveHandler struct {
 	mu               *sync.RWMutex
 }
 
-func (h *InteractiveHandler) Initial() {
+func (h *interactiveHandler) Initial() {
 	h.displayBanner()
 	h.loadUserAssets()
 	h.loadUserAssetNodes()
 }
 
-func (h *InteractiveHandler) displayBanner() {
+func (h *interactiveHandler) displayBanner() {
 	displayBanner(h.sess, h.user.Name)
 }
 
-func (h *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-chan struct{}) {
+func (h *interactiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -81,13 +81,13 @@ func (h *InteractiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-
 			if !ok {
 				return
 			}
-			logger.Debugf("Term change: %d*%d", win.Height, win.Width)
+			logger.Debugf("Term window size change: %d*%d", win.Height, win.Width)
 			_ = h.term.SetSize(win.Width, win.Height)
 		}
 	}
 }
 
-func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
+func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 	_, winCh, _ := h.sess.Pty()
 	for {
 		doneChan := make(chan struct{})
@@ -149,7 +149,7 @@ func (h *InteractiveHandler) Dispatch(ctx cctx.Context) {
 	}
 }
 
-func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
+func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
 	table := tablewriter.NewWriter(h.sess)
 	table.SetHeader([]string{"ID", "Username"})
 	for i := 0; i < len(systemUsers); i++ {
@@ -175,7 +175,7 @@ func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 }
 
 // 当资产的数量为1的时候，就进行代理转化
-func (h *InteractiveHandler) displayAssetsOrProxy(assets []model.Asset) {
+func (h *interactiveHandler) displayAssetsOrProxy(assets []model.Asset) {
 	//if len(assets) == 1 {
 	//	var systemUser model.SystemUser
 	//	switch len(assets[0].SystemUsers) {
@@ -208,7 +208,7 @@ func (h *InteractiveHandler) displayAssetsOrProxy(assets []model.Asset) {
 	//}
 }
 
-func (h *InteractiveHandler) displayAssets(assets model.AssetList) {
+func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
 		_, _ = io.WriteString(h.sess, "\r\n No Assets\r\n\r")
 	} else {
@@ -229,7 +229,7 @@ func (h *InteractiveHandler) displayAssets(assets model.AssetList) {
 
 }
 
-func (h *InteractiveHandler) displayNodes(nodes []model.Node) {
+func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 	tree := ConstructAssetNodeTree(nodes)
 	tipHeaderMsg := "\r\nNode: [ ID.Name(Asset amount) ]"
 	tipEndMsg := "Tips: Enter g+NodeID to display the host under the node, such as g1\r\n\r"
@@ -243,26 +243,26 @@ func (h *InteractiveHandler) displayNodes(nodes []model.Node) {
 
 }
 
-func (h *InteractiveHandler) refreshAssetsAndNodesData() {
+func (h *interactiveHandler) refreshAssetsAndNodesData() {
 	_, err := io.WriteString(h.sess, "Refresh done\r\n")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
 }
 
-func (h *InteractiveHandler) loadUserAssets() {
+func (h *interactiveHandler) loadUserAssets() {
 	h.assets = service.GetUserAssets(h.user.ID, "1")
 }
 
-func (h *InteractiveHandler) loadUserAssetNodes() {
+func (h *interactiveHandler) loadUserAssetNodes() {
 	h.nodes = service.GetUserNodes(h.user.ID, "1")
 }
 
-func (h *InteractiveHandler) changeLanguage() {
+func (h *interactiveHandler) changeLanguage() {
 
 }
 
-func (h *InteractiveHandler) JoinShareRoom(roomID string) {
+func (h *interactiveHandler) JoinShareRoom(roomID string) {
 	//sshConn := userhome.NewSSHConn(h.sess)
 	//ctx, cancelFuc := context.WithCancel(h.sess.Context())
 	//
@@ -286,7 +286,7 @@ func (h *InteractiveHandler) JoinShareRoom(roomID string) {
 
 }
 
-func (h *InteractiveHandler) searchAsset(key string) (assets []model.Asset) {
+func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
 	//if indexNum, err := strconv.Atoi(key); err == nil {
 	//	if indexNum > 0 && indexNum <= len(h.searchResult) {
 	//		return []model.Asset{h.searchResult[indexNum-1]}
@@ -311,7 +311,7 @@ func (h *InteractiveHandler) searchAsset(key string) (assets []model.Asset) {
 	return assets
 }
 
-func (h *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
+func (h *interactiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 	//var assetNodesData []model.Node
 	//if assetNodes, ok := h.assetData.Load(AssetNodesMapKey); ok {
 	//	assetNodesData = assetNodes.([]model.Node)
@@ -324,7 +324,7 @@ func (h *InteractiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 
 }
 
-func (h *InteractiveHandler) Proxy(ctx context.Context) {
+func (h *interactiveHandler) Proxy(ctx context.Context) {
 	h.assetSelect = &model.Asset{Hostname: "centos", Port: 22, Ip: "192.168.244.185", Protocol: "ssh"}
 	h.systemUserSelect = &model.SystemUser{Id: "5dd8b5a0-8cdb-4857-8629-faf811c525e1", Name: "web", Username: "root", Password: "redhat", Protocol: "telnet"}
 

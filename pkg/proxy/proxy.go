@@ -132,7 +132,7 @@ func (p *ProxyServer) Proxy() {
 		return
 	}
 
-	sw := NewSwitch(p.UserConn, srvConn)
+	sw := NewSwitchSession(p.UserConn, srvConn)
 	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.Id)
 	if err != nil {
 		logger.Error("Get system user filter rule error: ", err)

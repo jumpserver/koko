@@ -10,15 +10,15 @@ import (
 	"cocogo/pkg/logger"
 )
 
-func NewSwitch(userConn UserConnection, serverConn ServerConnection) (sw *Session) {
+func NewSwitchSession(userConn UserConnection, serverConn ServerConnection) (sw *SwitchSession) {
 	parser := new(Parser)
 	parser.Initial()
-	sw = &Session{userConn: userConn, serverConn: serverConn, parser: parser}
+	sw = &SwitchSession{userConn: userConn, serverConn: serverConn, parser: parser}
 	parser.session = sw
 	return sw
 }
 
-type Session struct {
+type SwitchSession struct {
 	Id         string
 	User       string    `json:"user"`
 	Server     string    `json:"asset"`
@@ -40,7 +40,7 @@ type Session struct {
 	cancelFunc context.CancelFunc
 }
 
-func (s *Session) Initial() {
+func (s *SwitchSession) Initial() {
 	s.Id = uuid.NewV4().String()
 	s.User = s.userConn.User()
 	s.Server = s.serverConn.Name()
@@ -50,15 +50,15 @@ func (s *Session) Initial() {
 	s.DateStart = time.Now()
 }
 
-func (s *Session) preBridge() {
+func (s *SwitchSession) preBridge() {
 
 }
 
-func (s *Session) postBridge() {
+func (s *SwitchSession) postBridge() {
 
 }
 
-func (s *Session) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window) {
+func (s *SwitchSession) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window) {
 	defer func() {
 		logger.Debug("Watch window change routine end")
 	}()
@@ -80,7 +80,7 @@ func (s *Session) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window
 	}
 }
 
-func (s *Session) readUserToServer(ctx context.Context) {
+func (s *SwitchSession) readUserToServer(ctx context.Context) {
 	defer func() {
 		logger.Debug("Read user to server end")
 	}()
@@ -102,7 +102,7 @@ func (s *Session) readUserToServer(ctx context.Context) {
 	}
 }
 
-func (s *Session) readServerToUser(ctx context.Context) {
+func (s *SwitchSession) readServerToUser(ctx context.Context) {
 	defer func() {
 		logger.Debug("Read server to user end")
 	}()
@@ -124,7 +124,7 @@ func (s *Session) readServerToUser(ctx context.Context) {
 	}
 }
 
-func (s *Session) Bridge() (err error) {
+func (s *SwitchSession) Bridge() (err error) {
 	winCh := s.userConn.WinCh()
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancelFunc = cancel
