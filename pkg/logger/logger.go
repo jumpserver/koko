@@ -1,28 +1,66 @@
 package logger
 
 import (
+	"cocogo/pkg/common"
+	"fmt"
 	"os"
+	"path"
+	"strings"
 
 	"github.com/sirupsen/logrus"
+
+	"cocogo/pkg/config"
 )
 
 var logger = logrus.New()
+var logLevels = map[string]logrus.Level{
+	"DEBUG": logrus.DebugLevel,
+	"INFO":  logrus.InfoLevel,
+	"WARN":  logrus.WarnLevel,
+	"ERROR": logrus.ErrorLevel,
+}
 
-func init() {
-	customFormatter := &logrus.TextFormatter{
-		DisableColors:          false,
-		FullTimestamp:          true,
-		DisableLevelTruncation: false,
+func Initial() {
+	formatter := &Formatter{
+		LogFormat:       "%time% [%lvl%] %msg%",
+		TimestampFormat: "2006-01-02 15:04:05",
 	}
-	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
-	logger.SetFormatter(customFormatter)
+	level, ok := logLevels[strings.ToUpper(config.Conf.LogLevel)]
+	if !ok {
+		level = logrus.InfoLevel
+	}
 
 	// Output to stdout instead of the default stderr
 	// Can be any io.Writer, see below for File example
+	logger.SetFormatter(formatter)
 	logger.SetOutput(os.Stdout)
+	logger.SetLevel(level)
 
-	// Only logger the warning severity or above.
-	logger.SetLevel(logrus.DebugLevel)
+	// Output to file
+	logFilePath := path.Join(config.Conf.RootPath, "logs", "coco.log")
+	logDirPath := path.Dir(logFilePath)
+	if common.FileExists(logDirPath) {
+		err := os.MkdirAll(logDirPath, os.ModePerm)
+		if err != nil {
+			fmt.Printf("Create log dir %s error: %s\n", logDirPath, err)
+			return
+		}
+	}
+
+	rotateFileHook, err := NewRotateFileHook(RotateFileConfig{
+		Filename:   logFilePath,
+		MaxSize:    50,
+		MaxBackups: 7,
+		MaxAge:     7,
+		LocalTime:  true,
+		Level:      level,
+		Formatter:  formatter,
+	})
+	if err != nil {
+		fmt.Printf("Create log rotate hook error: %s\n", err)
+		return
+	}
+	logger.AddHook(rotateFileHook)
 }
 
 func Debug(args ...interface{}) {

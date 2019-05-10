@@ -16,10 +16,10 @@ import (
 )
 
 type CommandRecorder struct {
-	Session *Session
+	Session *SwitchSession
 }
 
-func NewCommandRecorder(sess *Session) (recorder *CommandRecorder) {
+func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
 	return &CommandRecorder{Session: sess}
 }
 

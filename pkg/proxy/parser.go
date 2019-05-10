@@ -26,7 +26,7 @@ var (
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
-	session   *Session
+	session   *SwitchSession
 	inputBuf  *bytes.Buffer
 	cmdBuf    *bytes.Buffer
 	outputBuf *bytes.Buffer

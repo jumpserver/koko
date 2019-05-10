@@ -1,15 +1,14 @@
 package config
 
 import (
-	"cocogo/pkg/logger"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -54,7 +53,7 @@ func (c *Config) LoadFromYAML(body []byte) error {
 	defer c.mux.Unlock()
 	err := yaml.Unmarshal(body, c)
 	if err != nil {
-		log.Errorf("Load yaml error: %v", err)
+		log.Printf("Load yaml error: %v", err)
 	}
 	return err
 }
@@ -62,8 +61,7 @@ func (c *Config) LoadFromYAML(body []byte) error {
 func (c *Config) LoadFromYAMLPath(filepath string) error {
 	body, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		log.Errorf("Not found file: %s", filepath)
-		os.Exit(1)
+		log.Printf("Not found file: %s", filepath)
 	}
 	return c.LoadFromYAML(body)
 }
@@ -73,8 +71,7 @@ func (c *Config) LoadFromJSON(body []byte) error {
 	defer c.mux.Unlock()
 	err := json.Unmarshal(body, c)
 	if err != nil {
-		logger.Error("Config load yaml error")
-		os.Exit(1)
+		log.Printf("Config load yaml error")
 	}
 	return nil
 }
@@ -88,7 +85,7 @@ func (c *Config) LoadFromEnv() error {
 	}
 	envYAML, err := yaml.Marshal(envMap)
 	if err != nil {
-		log.Errorf("Error occur: %v", err)
+		log.Fatalf("Error occur: %v", err)
 	}
 	return c.LoadFromYAML(envYAML)
 }
