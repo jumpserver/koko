@@ -2,14 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"sync"
-	"time"
-
-	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -23,7 +21,7 @@ type Config struct {
 	ReplayStorage       map[string]string `json:"TERMINAL_REPLAY_STORAGE" yaml:"REPLAY_STORAGE"`
 	SessionKeepDuration int               `json:"TERMINAL_SESSION_KEEP_DURATION"`
 	TelnetRegex         string            `json:"TERMINAL_TELNET_REGEX"`
-	MaxIdleTime         time.Duration     `json:"SECURITY_MAX_IDLE_TIME"`
+	MaxIdleTime         int               `json:"SECURITY_MAX_IDLE_TIME"`
 	SftpRoot            string            `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
 	Name                string            `yaml:"NAME"`
 	SecretKey           string            `yaml:"SECRET_KEY"`
@@ -37,20 +35,29 @@ type Config struct {
 	AccessKey           string            `yaml:"ACCESS_KEY"`
 	AccessKeyFile       string            `yaml:"ACCESS_KEY_FILE"`
 	LogLevel            string            `yaml:"LOG_LEVEL"`
-	HeartbeatDuration   time.Duration     `yaml:"HEARTBEAT_INTERVAL"`
+	HeartbeatDuration   int               `yaml:"HEARTBEAT_INTERVAL"`
 	RootPath            string            `yaml:"ROOT_PATH"`
 	Comment             string            `yaml:"COMMENT"`
 	Language            string            `yaml:"LANG"`
+	LanguageCode        string            `yaml:"LANGUAGE_CODE"` // Abandon
 
-	mux sync.RWMutex
+	Mux sync.RWMutex
 }
 
 func (c *Config) EnsureConfigValid() {
+	// 兼容原来config
+	if c.LanguageCode != "" && c.Language == "" {
+		c.Language = c.LanguageCode
+	}
+	// 确保至少有一个认证
+	if !c.PublicKeyAuth && !c.PasswordAuth {
+		c.PasswordAuth = true
+	}
 }
 
 func (c *Config) LoadFromYAML(body []byte) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.Mux.Lock()
+	defer c.Mux.Unlock()
 	err := yaml.Unmarshal(body, c)
 	if err != nil {
 		log.Printf("Load yaml error: %v", err)
@@ -67,8 +74,8 @@ func (c *Config) LoadFromYAMLPath(filepath string) error {
 }
 
 func (c *Config) LoadFromJSON(body []byte) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.Mux.Lock()
+	defer c.Mux.Unlock()
 	err := json.Unmarshal(body, c)
 	if err != nil {
 		log.Printf("Config load yaml error")
@@ -117,6 +124,6 @@ var Conf = &Config{
 	RootPath:       rootPath,
 	Comment:        "Coco",
 	Language:       "zh",
-	ReplayStorage:  map[string]string{},
-	CommandStorage: map[string]string{},
+	ReplayStorage:  map[string]string{"TYPE": "server"},
+	CommandStorage: map[string]string{"TYPE": "server"},
 }

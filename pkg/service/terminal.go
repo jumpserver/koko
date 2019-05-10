@@ -79,14 +79,6 @@ func FinishTask(tid string) bool {
 	return true
 }
 
-func LoadConfigFromServer() (res model.TerminalConf) {
-	err := authClient.Get(TerminalConfigURL, &res)
-	if err != nil {
-		logger.Error(err)
-	}
-	return
-}
-
 func PushSessionReplay(sessionID, gZipFile string) {
 
 }

@@ -9,9 +9,6 @@ import (
 	"sync"
 
 	"github.com/gliderlabs/ssh"
-	//"github.com/olekukonko/tablewriter"
-	//"github.com/satori/go.uuid"
-	//"github.com/xlab/treeprint"
 	"github.com/olekukonko/tablewriter"
 	"github.com/xlab/treeprint"
 	"golang.org/x/crypto/ssh/terminal"
@@ -21,23 +18,20 @@ import (
 	"cocogo/pkg/model"
 	"cocogo/pkg/proxy"
 	"cocogo/pkg/service"
-	//"cocogo/pkg/transport"
-	//"cocogo/pkg/userhome"
+	"cocogo/pkg/utils"
 )
 
 func SessionHandler(sess ssh.Session) {
-	_, _, ptyOk := sess.Pty()
-	if ptyOk {
+	pty, _, ok := sess.Pty()
+	if ok {
 		ctx, cancel := cctx.NewContext(sess)
+		defer cancel()
 		handler := newInteractiveHandler(sess, ctx.User())
-		logger.Infof("New connection from: %s %s", sess.User(), sess.RemoteAddr().String())
+		logger.Debugf("User Request pty: %s %s", sess.User(), pty.Term)
 		handler.Dispatch(ctx)
-		cancel()
 	} else {
-		_, err := io.WriteString(sess, "No PTY requested.\n")
-		if err != nil {
-			return
-		}
+		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
+		return
 	}
 }
 

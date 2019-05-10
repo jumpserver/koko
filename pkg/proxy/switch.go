@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"cocogo/pkg/model"
 	"context"
 	"time"
 
@@ -14,7 +15,6 @@ func NewSwitchSession(userConn UserConnection, serverConn ServerConnection) (sw 
 	parser := new(Parser)
 	parser.Initial()
 	sw = &SwitchSession{userConn: userConn, serverConn: serverConn, parser: parser}
-	parser.session = sw
 	return sw
 }
 
@@ -32,7 +32,14 @@ type SwitchSession struct {
 	Finished   bool      `json:"is_finished"`
 	Closed     bool
 
-	parser     *Parser
+	srvChan  chan []byte
+	userChan chan []byte
+
+	cmdFilterRules []model.SystemUserFilterRule
+	cmdRecorder    *CommandRecorder
+	replayRecorder *ReplayStorage
+	parser         *Parser
+
 	userConn   UserConnection
 	serverConn ServerConnection
 	userTran   Transport

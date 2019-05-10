@@ -26,6 +26,7 @@ func Initial() {
 	_ = ak.Load()
 	authClient.Auth = ak
 	validateAccessAuth()
+	go KeepSyncConfigWithServer()
 }
 
 func validateAccessAuth() {
@@ -37,7 +38,7 @@ func validateAccessAuth() {
 			break
 		}
 		if err != nil {
-			msg := `Connect server error or access key is invalid, remove %s run again`
+			msg := "Connect server error or access key is invalid, remove %s run again"
 			logger.Errorf(msg, config.Conf.AccessKeyFile)
 		}
 		if user.Role != "App" {
@@ -49,5 +50,28 @@ func validateAccessAuth() {
 			os.Exit(1)
 		}
 	}
+}
 
+func MustLoadServerConfigOnce() {
+
+}
+
+func LoadConfigFromServer(conf *config.Config) (err error) {
+	conf.Mux.Lock()
+	defer conf.Mux.Unlock()
+	err = authClient.Get(TerminalConfigURL, conf)
+	if err != nil {
+		logger.Warn("Sync config with server error: ", err)
+	}
+	return err
+}
+
+func KeepSyncConfigWithServer() {
+	for {
+		err := LoadConfigFromServer(config.Conf)
+		if err != nil {
+			logger.Warn("Sync config with server error: ", err)
+		}
+		time.Sleep(60 * time.Second)
+	}
 }

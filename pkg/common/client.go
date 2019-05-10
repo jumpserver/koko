@@ -154,6 +154,11 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		return
 	}
 
+	// If is buffer return the raw response body
+	if buf, ok := res.(*bytes.Buffer); ok {
+		buf.Write(body)
+		return
+	}
 	// Unmarshal response body to result struct
 	if res != nil {
 		err = json.Unmarshal(body, res)

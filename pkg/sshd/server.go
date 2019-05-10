@@ -15,7 +15,6 @@ var conf = config.Conf
 
 func StartServer() {
 	hostKey := HostKey{Value: conf.HostKey, Path: conf.HostKeyFile}
-
 	logger.Debug("Loading host key")
 	signer, err := hostKey.Load()
 	if err != nil {

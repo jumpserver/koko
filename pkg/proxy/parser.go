@@ -2,11 +2,9 @@ package proxy
 
 import (
 	"bytes"
-	"sync"
-	"time"
-
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
+	"sync"
 )
 
 var (
@@ -26,10 +24,11 @@ var (
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
-	session   *SwitchSession
 	inputBuf  *bytes.Buffer
 	cmdBuf    *bytes.Buffer
 	outputBuf *bytes.Buffer
+
+	cmdCh chan *[2]string
 
 	inputInitial  bool
 	inputPreState bool
@@ -44,9 +43,7 @@ type Parser struct {
 	cmdOutputParser *CmdParser
 	counter         int
 
-	cmdFilterRules  []model.SystemUserFilterRule
-	commandRecorder *CommandRecorder
-	replayRecorder  *ReplyRecorder
+	cmdFilterRules []model.SystemUserFilterRule
 }
 
 func (p *Parser) Initial() {
@@ -60,8 +57,6 @@ func (p *Parser) Initial() {
 	p.cmdOutputParser = &CmdParser{}
 	p.cmdInputParser.Initial()
 	p.cmdOutputParser.Initial()
-	record := NewCommandRecorder(p.session)
-	p.SetCommandRecorder(record)
 }
 
 // Todo: parseMultipleInput 依然存在问题
@@ -81,8 +76,7 @@ func (p *Parser) parseInputState(b []byte) {
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
 			p.parseCmdOutput()
-			// 开始记录命令
-			p.recordCommand()
+			p.cmdCh <- &[2]string{p.command, p.output}
 		}
 	}
 }
@@ -92,7 +86,6 @@ func (p *Parser) parseCmdInput() {
 	p.command = p.cmdInputParser.Parse(data)
 	p.cmdBuf.Reset()
 	p.inputBuf.Reset()
-	p.counter += 1
 }
 
 func (p *Parser) parseCmdOutput() {
@@ -173,31 +166,4 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 
 func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 	p.cmdFilterRules = rules
-}
-
-func (p *Parser) SetReplayRecorder(recorder *ReplyRecorder) {
-	p.replayRecorder = recorder
-
-}
-
-func (p *Parser) recordCommand() {
-	cmd := &Command{
-		SessionId:  p.session.Id,
-		OrgId:      p.session.Org,
-		Input:      p.command,
-		Output:     p.output,
-		User:       p.session.User,
-		Server:     p.session.Server,
-		SystemUser: p.session.SystemUser,
-		Timestamp:  time.Now(),
-	}
-	p.commandRecorder.Record(cmd)
-}
-
-func (p *Parser) SetCommandRecorder(recorder *CommandRecorder) {
-	p.commandRecorder = recorder
-}
-
-func (p *Parser) recordReplay(b []byte) {
-	p.replayRecorder.Record(b)
 }
