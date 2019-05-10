@@ -126,7 +126,7 @@ func (p *ProxyServer) Proxy() {
 	}
 	srvConn, err := p.getServerConn()
 	if err != nil {
-		msg := fmt.Sprintf("Connect asset %s error: %s\n", p.Asset.Hostname, err)
+		msg := fmt.Sprintf("Connect asset %s error: %s\n\r", p.Asset.Hostname, err)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf(msg)
 		return

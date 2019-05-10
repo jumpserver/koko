@@ -158,7 +158,6 @@ func (sc *ServerSSHConnection) invokeShell(h, w int, term string) (err error) {
 
 func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
 	_, err = sc.connect()
-	fmt.Println("error")
 	if err != nil {
 		return
 	}
