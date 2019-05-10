@@ -162,18 +162,19 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 	highestPriority := systemUsers[length-1].Priority
 
 	displaySystemUsers = append(displaySystemUsers, systemUsers[length-1])
-	for i := length - 2; i <= 0; i-- {
+	for i := length - 2; i >= 0; i-- {
 		if highestPriority == systemUsers[i].Priority {
-			displaySystemUsers = append(displaySystemUsers, systemUsers[length-1])
+			displaySystemUsers = append(displaySystemUsers, systemUsers[i])
 		}
 	}
 	if len(displaySystemUsers) == 1 {
 		return displaySystemUsers[0]
 	}
+
 	table := tablewriter.NewWriter(h.term)
 	table.SetHeader([]string{"ID", "Username"})
 	for i := 0; i < len(displaySystemUsers); i++ {
-		table.Append([]string{strconv.Itoa(i + 1), systemUsers[i].Username})
+		table.Append([]string{strconv.Itoa(i + 1), displaySystemUsers[i].Username})
 	}
 	table.SetBorder(false)
 	count := 0
@@ -185,8 +186,8 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 			continue
 		}
 		if num, err := strconv.Atoi(line); err == nil {
-			if num > 0 && num <= len(systemUsers) {
-				return systemUsers[num-1]
+			if num > 0 && num <= len(displaySystemUsers) {
+				return displaySystemUsers[num-1]
 			}
 		}
 		count++
@@ -197,7 +198,6 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 // 当资产的数量为1的时候，就进行代理转化
 func (h *interactiveHandler) displayAssetsOrProxy(assets []model.Asset) {
 	if len(assets) == 1 {
-		logger.Debug(assets[0].SystemUsers)
 		systemUser := h.chooseSystemUser(assets[0].SystemUsers)
 		h.assetSelect = &assets[0]
 		h.systemUserSelect = &systemUser
