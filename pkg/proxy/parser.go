@@ -2,11 +2,12 @@ package proxy
 
 import (
 	"bytes"
+	"fmt"
+	"sync"
+
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/utils"
-	"fmt"
-	"sync"
 )
 
 var (
@@ -35,7 +36,7 @@ type Parser struct {
 	srvInputChan   chan []byte
 	srvOutputChan  chan []byte
 
-	cmdCh chan *[2]string
+	cmdChan chan [2]string
 
 	inputInitial  bool
 	inputPreState bool
@@ -48,9 +49,9 @@ type Parser struct {
 	output          string
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
-	counter         int
 
 	cmdFilterRules []model.SystemUserFilterRule
+	closed         bool
 }
 
 func (p *Parser) Initial() {
@@ -68,22 +69,22 @@ func (p *Parser) Initial() {
 
 func (p *Parser) Parse() {
 	defer func() {
-		fmt.Println("Parse done")
+		logger.Debug("Parser parse routine done")
 	}()
 	for {
 		select {
-		case ub, ok := <-p.userInputChan:
+		case b, ok := <-p.userInputChan:
 			if !ok {
 				return
 			}
-			b := p.ParseUserInput(ub)
+			b = p.ParseUserInput(b)
 			p.userOutputChan <- b
 
-		case sb, ok := <-p.srvInputChan:
+		case b, ok := <-p.srvInputChan:
 			if !ok {
 				return
 			}
-			b := p.ParseServerOutput(sb)
+			b = p.ParseServerOutput(b)
 			p.srvOutputChan <- b
 		}
 	}
@@ -110,6 +111,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
 			p.parseCmdOutput()
+			p.cmdChan <- [2]string{p.command, p.output}
 		}
 	}
 	return b
@@ -118,7 +120,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 func (p *Parser) parseCmdInput() {
 	data := p.cmdBuf.Bytes()
 	p.command = p.cmdInputParser.Parse(data)
-	fmt.Println("parse Command is ", p.command)
 	p.cmdBuf.Reset()
 	p.inputBuf.Reset()
 }
@@ -186,7 +187,6 @@ func (p *Parser) splitCmdStream(b []byte) {
 	if p.zmodemState != "" || p.inVimState || !p.inputInitial {
 		return
 	}
-	fmt.Println("Input state: ", p.inputState)
 	if p.inputState {
 		p.cmdBuf.Write(b)
 	} else {
@@ -209,4 +209,16 @@ func (p *Parser) IsCommandForbidden() bool {
 		return true
 	}
 	return false
+}
+
+func (p *Parser) Close() {
+	if p.closed {
+		return
+	}
+	close(p.userInputChan)
+	close(p.userOutputChan)
+	close(p.srvInputChan)
+	close(p.srvOutputChan)
+	close(p.cmdChan)
+	p.closed = true
 }

@@ -74,3 +74,7 @@
 [[constraint]]
   name = "gopkg.in/natefinch/lumberjack.v2"
   version = "2.1.0"
+
+[[constraint]]
+  name = "github.com/mattn/go-sqlite3"
+  version = "1.10.0"

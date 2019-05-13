@@ -25,21 +25,14 @@ func StartServer() {
 	srv := ssh.Server{
 		Addr:                       conf.BindHost + ":" + strconv.Itoa(conf.SSHPort),
 		KeyboardInteractiveHandler: auth.CheckMFA,
-		NextAuthMethodsHandler:     auth.CheckUserNeedMFA,
+		PasswordHandler:            auth.CheckUserPassword,
+		PublicKeyHandler:           auth.CheckUserPublicKey,
+		NextAuthMethodsHandler:     auth.MFAAuthMethods,
 		HostSigners:                []ssh.Signer{signer},
 		Handler:                    handler.SessionHandler,
 		SubsystemHandlers:          map[string]ssh.SubsystemHandler{},
 	}
 	// Set Auth Handler
-	if conf.PasswordAuth {
-		srv.PasswordHandler = auth.CheckUserPassword
-	}
-	if conf.PublicKeyAuth {
-		srv.PublicKeyHandler = auth.CheckUserPublicKey
-	}
-	if !conf.PasswordAuth && !conf.PublicKeyAuth {
-		srv.PasswordHandler = auth.CheckUserPassword
-	}
 	srv.SetSubsystemHandler("sftp", handler.SftpHandler)
 	logger.Fatal(srv.ListenAndServe())
 }

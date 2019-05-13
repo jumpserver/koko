@@ -1,130 +1,160 @@
 package proxy
 
 import (
-	"compress/gzip"
-	"context"
-	"encoding/json"
-	"fmt"
-	"io"
+	"cocogo/pkg/common"
+	"cocogo/pkg/logger"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"cocogo/pkg/config"
-	"cocogo/pkg/logger"
+	"cocogo/pkg/model"
 )
-
-type CommandRecorder struct {
-	Session *SwitchSession
-}
-
-func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
-	return &CommandRecorder{Session: sess}
-}
-
-type Command struct {
-	SessionId  string    `json:"session"`
-	OrgId      string    `json:"org_id"`
-	Input      string    `json:"input"`
-	Output     string    `json:"output"`
-	User       string    `json:"user"`
-	Server     string    `json:"asset"`
-	SystemUser string    `json:"system_user"`
-	Timestamp  time.Time `json:"timestamp"`
-}
-
-func (c *CommandRecorder) Record(cmd *Command) {
-	data, err := json.MarshalIndent(cmd, "", "  ")
-	if err != nil {
-		logger.Error("Marshal command error: ", err)
-	}
-	fmt.Printf("Record cmd: %s\n", data)
-}
 
 var conf = config.Conf
 
-func NewReplyRecord(sessionID string) *ReplyRecorder {
-	rootPath := conf.RootPath
-	currentData := time.Now().UTC().Format("2006-01-02")
-	gzFileName := sessionID + ".replay.gz"
-	absFilePath := filepath.Join(rootPath, "data", "replays", currentData, sessionID)
-	absGzFilePath := filepath.Join(rootPath, "data", "replays", currentData, gzFileName)
+type CommandRecorder struct {
+	Session *SwitchSession
+	storage CommandStorage
 
-	target := strings.Join([]string{currentData, gzFileName}, "/")
-	return &ReplyRecorder{
-		SessionID:     sessionID,
-		FileName:      sessionID,
-		absFilePath:   absFilePath,
-		gzFileName:    gzFileName,
-		absGzFilePath: absGzFilePath,
-		StartTime:     time.Now().UTC(),
-		target:        target,
+	queue chan *model.Command
+}
+
+func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
+	storage := NewCommandStorage()
+	recorder = &CommandRecorder{Session: sess, queue: make(chan *model.Command, 10), storage: storage}
+	go recorder.record()
+	return recorder
+}
+
+func NewReplyRecord(sess *SwitchSession) *ReplyRecorder {
+	storage := NewReplayStorage()
+	srvStorage := &ServerReplayStorage{}
+	return &ReplyRecorder{SessionID: sess.Id, storage: storage, backOffStorage: srvStorage}
+}
+
+func (c *CommandRecorder) Record(command [2]string) {
+	if command[0] == "" && command[1] == "" {
+		return
+	}
+	cmd := &model.Command{
+		SessionId:  c.Session.Id,
+		OrgId:      c.Session.Org,
+		Input:      command[0],
+		Output:     command[1],
+		User:       c.Session.User,
+		Server:     c.Session.Server,
+		SystemUser: c.Session.SystemUser,
+		Timestamp:  time.Now().Unix(),
+	}
+	c.queue <- cmd
+}
+
+func (c *CommandRecorder) Start() {
+}
+
+func (c *CommandRecorder) End() {
+	close(c.queue)
+}
+
+func (c *CommandRecorder) record() {
+	cmdList := make([]*model.Command, 0)
+	for {
+		select {
+		case p := <-c.queue:
+			cmdList = append(cmdList, p)
+			if len(cmdList) < 5 {
+				continue
+			}
+		case <-time.After(time.Second * 5):
+			if len(cmdList) == 0 {
+				continue
+			}
+		}
+
+		err := c.storage.BulkSave(cmdList)
+		if err == nil {
+			cmdList = cmdList[:0]
+			continue
+		}
+		if len(cmdList) > 10 {
+			cmdList = cmdList[1:]
+		}
 	}
 }
 
 type ReplyRecorder struct {
-	SessionID     string
-	FileName      string
-	gzFileName    string
+	SessionID string
+
 	absFilePath   string
 	absGzFilePath string
 	target        string
-	WriteF        *os.File
+	file          *os.File
 	StartTime     time.Time
+
+	storage        ReplayStorage
+	backOffStorage ReplayStorage
 }
 
 func (r *ReplyRecorder) Record(b []byte) {
-	interval := time.Now().UTC().Sub(r.StartTime).Seconds()
-	data, _ := json.Marshal(string(b))
-	_, _ = r.WriteF.WriteString(fmt.Sprintf("\"%0.6f\":%s,", interval, data))
 }
 
 func (r *ReplyRecorder) Start() {
-	//auth.MakeSureDirExit(r.absFilePath)
-	//r.WriteF, _ = os.Create(r.absFilePath)
-	//_, _ = r.WriteF.Write([]byte("{"))
+	rootPath := conf.RootPath
+	today := time.Now().UTC().Format("2006-01-02")
+	gzFileName := r.SessionID + ".replay.gz"
+	replayDir := filepath.Join(rootPath, "data", "replays", today)
+
+	r.absFilePath = filepath.Join(replayDir, r.SessionID)
+	r.absGzFilePath = filepath.Join(replayDir, today, gzFileName)
+	r.target = strings.Join([]string{today, gzFileName}, "/")
+
+	err := common.EnsureDirExist(replayDir)
+	if err != nil {
+		logger.Errorf("Create dir %s error: %s\n", replayDir, err)
+		return
+	}
+
+	r.file, err = os.Create(r.absFilePath)
+	if err != nil {
+		logger.Errorf("Create file %s error: %s\n", r.absFilePath, err)
+	}
+	_, _ = r.file.Write([]byte("{"))
 }
 
-func (r *ReplyRecorder) End(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		_, _ = r.WriteF.WriteString(`"0":""}`)
-		_ = r.WriteF.Close()
+func (r *ReplyRecorder) End() {
+	_ = r.file.Close()
+	if !common.FileExists(r.absFilePath) {
+		return
 	}
-	r.uploadReplay()
+	if stat, err := os.Stat(r.absGzFilePath); err == nil && stat.Size() == 0 {
+		_ = os.Remove(r.absFilePath)
+		return
+	}
+	go r.uploadReplay()
+	if !common.FileExists(r.absGzFilePath) {
+		_ = common.GzipCompressFile(r.absFilePath, r.absGzFilePath)
+		_ = os.Remove(r.absFilePath)
+	}
 }
 
 func (r *ReplyRecorder) uploadReplay() {
-	_ = GzipCompressFile(r.absFilePath, r.absGzFilePath)
-	if store := NewStorageServer(); store != nil {
-		store.Upload(r.absGzFilePath, r.target)
-	}
-	_ = os.Remove(r.absFilePath)
-	_ = os.Remove(r.absGzFilePath)
+	maxRetry := 3
 
-}
-
-func GzipCompressFile(srcPath, dstPath string) error {
-	srcf, err := os.Open(srcPath)
-	if err != nil {
-		return err
+	for i := 0; i <= maxRetry; i++ {
+		logger.Debug("Upload replay file: ", r.absGzFilePath)
+		err := r.storage.Upload(r.absGzFilePath, r.target)
+		if err == nil {
+			_ = os.Remove(r.absGzFilePath)
+			break
+		}
+		// 如果还是失败，使用备用storage再传一次
+		if i == maxRetry {
+			logger.Errorf("Using back off storage retry upload")
+			r.storage = r.backOffStorage
+			r.uploadReplay()
+			break
+		}
 	}
-	dstf, err := os.Create(dstPath)
-	if err != nil {
-		return err
-	}
-	zw := gzip.NewWriter(dstf)
-	zw.Name = dstPath
-	zw.ModTime = time.Now().UTC()
-	_, err = io.Copy(zw, srcf)
-	if err != nil {
-		return err
-	}
-	if err := zw.Close(); err != nil {
-		return err
-	}
-
-	return nil
-
 }
