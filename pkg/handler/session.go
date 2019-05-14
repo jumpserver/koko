@@ -22,11 +22,12 @@ import (
 )
 
 func SessionHandler(sess ssh.Session) {
-	pty, _, ok := sess.Pty()
+	pty, winCH, ok := sess.Pty()
 	if ok {
 		ctx, cancel := cctx.NewContext(sess)
 		defer cancel()
-		handler := newInteractiveHandler(sess, ctx.User())
+		handler := newInteractiveHandler(sess, ctx.User(), winCH)
+		handler.termHeight, handler.termWidth = pty.Window.Height, pty.Window.Width
 		logger.Debugf("User Request pty: %s %s", sess.User(), pty.Term)
 		handler.Dispatch(ctx)
 	} else {
@@ -35,17 +36,18 @@ func SessionHandler(sess ssh.Session) {
 	}
 }
 
-func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandler {
+func newInteractiveHandler(sess ssh.Session, user *model.User, winCh <-chan ssh.Window) *interactiveHandler {
 	term := terminal.NewTerminal(sess, "Opt> ")
-	handler := &interactiveHandler{sess: sess, user: user, term: term}
+	handler := &interactiveHandler{sess: sess, user: user, term: term, winChan: winCh}
 	handler.Initial()
 	return handler
 }
 
 type interactiveHandler struct {
-	sess ssh.Session
-	user *model.User
-	term *terminal.Terminal
+	sess    ssh.Session
+	user    *model.User
+	term    *terminal.Terminal
+	winChan <-chan ssh.Window
 
 	assetSelect      *model.Asset
 	systemUserSelect *model.SystemUser
@@ -53,6 +55,9 @@ type interactiveHandler struct {
 	searchResult     model.AssetList
 	nodes            model.NodeList
 	mu               *sync.RWMutex
+
+	termWidth  int
+	termHeight int
 }
 
 func (h *interactiveHandler) Initial() {
@@ -66,16 +71,17 @@ func (h *interactiveHandler) displayBanner() {
 	displayBanner(h.sess, h.user.Name)
 }
 
-func (h *interactiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-chan struct{}) {
+func (h *interactiveHandler) watchWinSizeChange(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
 			logger.Debug("Interactive handler watch win size done")
 			return
-		case win, ok := <-winCh:
+		case win, ok := <-h.winChan:
 			if !ok {
 				return
 			}
+			h.termHeight, h.termWidth = win.Height, win.Width
 			logger.Debugf("Term window size change: %d*%d", win.Height, win.Width)
 			_ = h.term.SetSize(win.Width, win.Height)
 		}
@@ -83,10 +89,9 @@ func (h *interactiveHandler) watchWinSizeChange(winCh <-chan ssh.Window, done <-
 }
 
 func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
-	_, winCh, _ := h.sess.Pty()
 	for {
 		doneChan := make(chan struct{})
-		go h.watchWinSizeChange(winCh, doneChan)
+		go h.watchWinSizeChange(doneChan)
 		line, err := h.term.ReadLine()
 		close(doneChan)
 
@@ -98,13 +103,12 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 			}
 			break
 		}
-
+		line = strings.TrimSpace(line)
 		switch len(line) {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "", "p":
 				h.displayAssets(h.assets)
-				//h.Proxy(ctx)
 			case "g":
 				h.displayNodes(h.nodes)
 			case "h":
@@ -210,19 +214,22 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
 		_, _ = io.WriteString(h.term, "\r\n No Assets\r\n\r")
 	} else {
-		table := tablewriter.NewWriter(h.term)
-		table.SetHeader([]string{"ID", "Hostname", "IP", "LoginAs", "Comment"})
-		for index, assetItem := range assets {
-			sysUserArray := make([]string, len(assetItem.SystemUsers))
-			for index, sysUser := range assetItem.SystemUsers {
-				sysUserArray[index] = sysUser.Name
-			}
-			sysUsers := "[" + strings.Join(sysUserArray, " ") + "]"
-			table.Append([]string{strconv.Itoa(index + 1), assetItem.Hostname, assetItem.Ip, sysUsers, assetItem.Comment})
+		pageTerm := terminal.NewTerminal(h.sess, ":")
+		pag := AssetPagination{
+			term:        pageTerm,
+			TermWidth:   h.termWidth,
+			TermHeight:  h.termHeight,
+			TotalNumber: len(assets),
+			winChan:     h.winChan,
+			Data:        assets}
+		pag.Initial()
+		selectOneAssets := pag.PaginationState()
+		if len(selectOneAssets) == 1 {
+			systemUser := h.chooseSystemUser(selectOneAssets[0].SystemUsers)
+			h.assetSelect = &selectOneAssets[0]
+			h.systemUserSelect = &systemUser
+			h.Proxy(context.TODO())
 		}
-
-		table.SetBorder(false)
-		table.Render()
 	}
 
 }
@@ -333,6 +340,22 @@ func isSubstring(sArray []string, substr string) bool {
 		}
 	}
 	return false
+}
+
+func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.SystemUser {
+	var result = make([]model.SystemUser, 0)
+	length := len(systemUsers)
+	model.SortSystemUserByPriority(systemUsers)
+
+	highestPriority := systemUsers[length-1].Priority
+
+	result = append(result, systemUsers[length-1])
+	for i := length - 2; i >= 0; i-- {
+		if highestPriority == systemUsers[i].Priority {
+			result = append(result, systemUsers[i])
+		}
+	}
+	return result
 }
 
 //func (h *InteractiveHandler) JoinShareRoom(roomID string) {
