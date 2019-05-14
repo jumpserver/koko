@@ -8,6 +8,7 @@ import (
 
 	"cocogo/pkg/cctx"
 	"cocogo/pkg/common"
+	"cocogo/pkg/config"
 	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/service"
@@ -56,10 +57,16 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 }
 
 func CheckUserPassword(ctx ssh.Context, password string) ssh.AuthResult {
+	if !config.Conf.PasswordAuth {
+		return ssh.AuthFailed
+	}
 	return checkAuth(ctx, password, "")
 }
 
 func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
+	if !config.Conf.PublicKeyAuth {
+		return ssh.AuthFailed
+	}
 	b := key.Marshal()
 	publicKey := common.Base64Encode(string(b))
 	return checkAuth(ctx, "", publicKey)
@@ -101,6 +108,6 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 	return
 }
 
-func CheckUserNeedMFA(ctx ssh.Context) (methods []string) {
+func MFAAuthMethods(ctx ssh.Context) (methods []string) {
 	return []string{"keyboard-interactive"}
 }
