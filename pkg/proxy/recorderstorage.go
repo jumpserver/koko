@@ -4,6 +4,8 @@ import (
 	"cocogo/pkg/config"
 	"cocogo/pkg/model"
 	"cocogo/pkg/service"
+	"fmt"
+	"os"
 )
 
 type ReplayStorage interface {
@@ -43,6 +45,28 @@ type ServerCommandStorage struct {
 
 func (s *ServerCommandStorage) BulkSave(commands []*model.Command) (err error) {
 	return service.PushSessionCommand(commands)
+}
+
+func NewFileCommandStorage(name string) (storage *FileCommandStorage, err error) {
+	file, err := os.Create(name)
+	if err != nil {
+		return
+	}
+	storage = &FileCommandStorage{file: file}
+	return
+}
+
+type FileCommandStorage struct {
+	file *os.File
+}
+
+func (f *FileCommandStorage) BulkSave(commands []*model.Command) (err error) {
+	for _, cmd := range commands {
+		f.file.WriteString(fmt.Sprintf("命令: %s\n", cmd.Input))
+		f.file.WriteString(fmt.Sprintf("结果: %s\n", cmd.Output))
+		f.file.WriteString("---\n")
+	}
+	return
 }
 
 type ServerReplayStorage struct {

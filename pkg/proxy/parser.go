@@ -67,10 +67,8 @@ func (p *Parser) initial() {
 
 	p.once = sync.Once{}
 
-	p.cmdInputParser = &CmdParser{}
-	p.cmdOutputParser = &CmdParser{}
-	p.cmdInputParser.Initial()
-	p.cmdOutputParser.Initial()
+	p.cmdInputParser = NewCmdParser()
+	p.cmdOutputParser = NewCmdParser()
 
 	p.userInputChan = make(chan []byte, 1024)
 	p.userOutputChan = make(chan []byte, 1024)
@@ -116,6 +114,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.parseCmdInput()
 		if p.IsCommandForbidden() {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), p.command))
+			p.outputBuf.WriteString(fbdMsg)
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			return []byte{utils.CharCleanLine, '\r'}
 		}
@@ -144,9 +143,9 @@ func (p *Parser) parseCmdOutput() {
 }
 
 func (p *Parser) replaceInputNewLine(b []byte) []byte {
-	b = bytes.Replace(b, []byte{'\r', '\r', '\n'}, []byte{'\r'}, -1)
-	b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\r'}, -1)
-	b = bytes.Replace(b, []byte{'\n'}, []byte{'\r'}, -1)
+	//b = bytes.Replace(b, []byte{'\r', '\r', '\n'}, []byte{'\r'}, -1)
+	//b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\r'}, -1)
+	//b = bytes.Replace(b, []byte{'\n'}, []byte{'\r'}, -1)
 	return b
 }
 
@@ -202,7 +201,11 @@ func (p *Parser) splitCmdStream(b []byte) {
 	}
 	if p.inputState {
 		p.cmdBuf.Write(b)
-	} else {
+		return
+	}
+	// outputBuff 最大存储1024， 否则可能撑爆内存
+	// 如果最后一个字符不是ascii, 可以截断了某个中文字符的一部分，为了安全继续添加
+	if p.outputBuf.Len() < 1024 || p.outputBuf.Bytes()[p.outputBuf.Len()-1] > 128 {
 		p.outputBuf.Write(b)
 	}
 }

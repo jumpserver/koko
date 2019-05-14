@@ -16,6 +16,18 @@ import (
 
 var conf = config.Conf
 
+func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
+	recorder = &CommandRecorder{Session: sess}
+	recorder.initial()
+	return recorder
+}
+
+func NewReplyRecord(sess *SwitchSession) (recorder *ReplyRecorder) {
+	recorder = &ReplyRecorder{Session: sess}
+	recorder.initial()
+	return recorder
+}
+
 type CommandRecorder struct {
 	Session *SwitchSession
 	storage CommandStorage
@@ -23,20 +35,11 @@ type CommandRecorder struct {
 	queue chan *model.Command
 }
 
-func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
-	storage := NewCommandStorage()
-	recorder = &CommandRecorder{Session: sess, queue: make(chan *model.Command, 10), storage: storage}
-	go recorder.record()
-	recorder.Start()
-	return recorder
-}
-
-func NewReplyRecord(sess *SwitchSession) (recorder *ReplyRecorder) {
-	storage := NewReplayStorage()
-	srvStorage := &ServerReplayStorage{}
-	recorder = &ReplyRecorder{SessionID: sess.Id, storage: storage, backOffStorage: srvStorage}
-	recorder.Start()
-	return recorder
+func (c *CommandRecorder) initial() {
+	c.queue = make(chan *model.Command, 10)
+	//c.storage = NewCommandStorage()
+	c.storage, _ = NewFileCommandStorage("/tmp/abc.log")
+	go c.record()
 }
 
 func (c *CommandRecorder) Record(command [2]string) {
@@ -54,9 +57,6 @@ func (c *CommandRecorder) Record(command [2]string) {
 		Timestamp:  time.Now().Unix(),
 	}
 	c.queue <- cmd
-}
-
-func (c *CommandRecorder) Start() {
 }
 
 func (c *CommandRecorder) End() {
@@ -87,14 +87,14 @@ func (c *CommandRecorder) record() {
 			cmdList = cmdList[:0]
 			continue
 		}
-		if len(cmdList) > 10 {
+		if len(cmdList) > 1024 {
 			cmdList = cmdList[1:]
 		}
 	}
 }
 
 type ReplyRecorder struct {
-	SessionID string
+	Session *SwitchSession
 
 	absFilePath   string
 	absGzFilePath string
@@ -106,21 +106,31 @@ type ReplyRecorder struct {
 	backOffStorage ReplayStorage
 }
 
+func (r *ReplyRecorder) initial() {
+	storage := NewReplayStorage()
+	backOffStorage := &ServerReplayStorage{}
+	r.storage = storage
+	r.backOffStorage = backOffStorage
+
+	r.prepare()
+}
+
 func (r *ReplyRecorder) Record(b []byte) {
 	if len(b) > 0 {
 		delta := float64(time.Now().UnixNano()-r.timeStartNano) / 1000 / 1000 / 1000
 		data, _ := json.Marshal(string(b))
-		_, _ = r.file.WriteString(fmt.Sprintf(`"%.3f":%s`, delta, data))
+		_, _ = r.file.WriteString(fmt.Sprintf(`"%.3f":%s,`, delta, data))
 	}
 }
 
-func (r *ReplyRecorder) Start() {
+func (r *ReplyRecorder) prepare() {
+	sessionId := r.Session.Id
 	rootPath := conf.RootPath
 	today := time.Now().UTC().Format("2006-01-02")
-	gzFileName := r.SessionID + ".replay.gz"
+	gzFileName := sessionId + ".replay.gz"
 	replayDir := filepath.Join(rootPath, "data", "replays", today)
 
-	r.absFilePath = filepath.Join(replayDir, r.SessionID)
+	r.absFilePath = filepath.Join(replayDir, sessionId)
 	r.absGzFilePath = filepath.Join(replayDir, today, gzFileName)
 	r.target = strings.Join([]string{today, gzFileName}, "/")
 	r.timeStartNano = time.Now().UnixNano()
@@ -140,6 +150,7 @@ func (r *ReplyRecorder) Start() {
 }
 
 func (r *ReplyRecorder) End() {
+	_, _ = r.file.WriteString(fmt.Sprintf(`"%.3f":%s}`, 0.0, ""))
 	_ = r.file.Close()
 	go r.uploadReplay()
 }
