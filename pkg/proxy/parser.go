@@ -42,7 +42,7 @@ type Parser struct {
 	userOutputChan chan []byte
 	srvInputChan   chan []byte
 	srvOutputChan  chan []byte
-	cmdChan        chan [2]string
+	cmdRecordChan  chan [2]string
 
 	inputInitial  bool
 	inputPreState bool
@@ -76,7 +76,7 @@ func (p *Parser) initial() {
 	p.userOutputChan = make(chan []byte, 1024)
 	p.srvInputChan = make(chan []byte, 1024)
 	p.srvOutputChan = make(chan []byte, 1024)
-	p.cmdChan = make(chan [2]string, 1024)
+	p.cmdRecordChan = make(chan [2]string, 1024)
 }
 
 func (p *Parser) Parse() {
@@ -124,7 +124,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
 			p.parseCmdOutput()
-			p.cmdChan <- [2]string{p.command, p.output}
+			p.cmdRecordChan <- [2]string{p.command, p.output}
 		}
 	}
 	return b
@@ -232,6 +232,6 @@ func (p *Parser) Close() {
 	close(p.userOutputChan)
 	close(p.srvInputChan)
 	close(p.srvOutputChan)
-	close(p.cmdChan)
+	close(p.cmdRecordChan)
 	p.closed = true
 }

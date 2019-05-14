@@ -150,7 +150,7 @@ func (s *SwitchSession) readParserToUser(ctx context.Context) {
 }
 
 func (s *SwitchSession) recordCmd() {
-	for cmd := range s.cmdRecordChan {
+	for cmd := range s.parser.cmdRecordChan {
 		s.cmdRecorder.Record(cmd)
 	}
 }

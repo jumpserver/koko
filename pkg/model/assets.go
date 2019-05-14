@@ -158,7 +158,7 @@ func (s *systemUserSorter) Less(i, j int) bool {
 }
 
 func systemUserPrioritySort(use1, user2 *SystemUser) bool {
-	return use1.Priority <= user2.Priority
+	return use1.Priority < user2.Priority
 }
 
 func SortSystemUserByPriority(users []SystemUser) {
