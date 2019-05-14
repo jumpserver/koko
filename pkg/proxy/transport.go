@@ -42,8 +42,8 @@ func (dt *DirectTransport) Chan() <-chan []byte {
 }
 
 func (dt *DirectTransport) Keep() {
-	buf := make([]byte, 1024)
 	for {
+		buf := make([]byte, 1024)
 		n, err := dt.readWriter.Read(buf)
 		if err != nil {
 			_ = dt.Close()
@@ -60,7 +60,7 @@ func (dt *DirectTransport) Keep() {
 }
 
 func NewDirectTransport(name string, readWriter io.ReadWriter) Transport {
-	ch := make(chan []byte, 1024)
+	ch := make(chan []byte, 1024*32)
 	tr := DirectTransport{readWriter: readWriter, ch: ch}
 	go tr.Keep()
 	return &tr

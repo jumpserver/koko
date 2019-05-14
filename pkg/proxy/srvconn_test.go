@@ -22,9 +22,8 @@ func TestSSHConnection_Config(t *testing.T) {
 }
 
 func TestSSHConnection_Connect(t *testing.T) {
-	client, err := testConnection.Connect()
+	err := testConnection.Connect(24, 80, "xterm")
 	if err != nil {
 		t.Errorf("Connect error %s", err)
 	}
-	fmt.Println(string(client.ServerVersion()))
 }

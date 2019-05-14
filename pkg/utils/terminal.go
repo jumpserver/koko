@@ -6,7 +6,6 @@ package utils
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strconv"
 	"sync"
@@ -796,9 +795,7 @@ func (t *Terminal) readLine() (line string, err error) {
 		lineOk := false
 		for !lineOk {
 			var key rune
-			fmt.Printf("Before: Rest %d\n", len(rest))
 			key, rest = bytesToKey(rest, t.pasteActive)
-			fmt.Printf("After: Key: %v Rest %d\n", key, len(rest))
 			time.Sleep(10 * time.Millisecond)
 			if key == utf8.RuneError {
 				break
