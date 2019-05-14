@@ -84,6 +84,5 @@ func PushSessionReplay(sessionID, gZipFile string) {
 }
 
 func PushSessionCommand(commands []*model.Command) (err error) {
-	fmt.Println("Commands: ", commands)
 	return
 }

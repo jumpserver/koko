@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,6 +19,8 @@ func Initial() {
 	keyPath := config.Conf.AccessKeyFile
 	client.BaseHost = config.Conf.CoreHost
 	authClient.BaseHost = config.Conf.CoreHost
+	client.SetHeader("X-JMS-ORG", "ROOT")
+	authClient.SetHeader("X-JMS-ORG", "ROOT")
 
 	if !path.IsAbs(config.Conf.AccessKeyFile) {
 		keyPath = filepath.Join(config.Conf.RootPath, keyPath)
@@ -26,6 +29,7 @@ func Initial() {
 	_ = ak.Load()
 	authClient.Auth = ak
 	validateAccessAuth()
+	MustLoadServerConfigOnce()
 	go KeepSyncConfigWithServer()
 }
 
@@ -52,22 +56,37 @@ func validateAccessAuth() {
 }
 
 func MustLoadServerConfigOnce() {
-
+	var data map[string]interface{}
+	err := authClient.Get(TerminalConfigURL, &data)
+	if err != nil {
+		logger.Error("Load config from server error: ", err)
+		return
+	}
+	data["TERMINAL_HOST_KEY"] = "Hidden"
+	msg, err := json.Marshal(data)
+	if err != nil {
+		logger.Error("Marsha server config error: %s", err)
+		return
+	}
+	logger.Debug("Load config from server: " + string(msg))
+	err = LoadConfigFromServer()
+	if err != nil {
+		logger.Error("Load config from server error: ", err)
+	}
 }
 
-func LoadConfigFromServer(conf *config.Config) (err error) {
+func LoadConfigFromServer() (err error) {
+	conf := config.Conf
 	conf.Mux.Lock()
 	defer conf.Mux.Unlock()
 	err = authClient.Get(TerminalConfigURL, conf)
-	if err != nil {
-		logger.Warn("Sync config with server error: ", err)
-	}
 	return err
 }
 
 func KeepSyncConfigWithServer() {
 	for {
-		err := LoadConfigFromServer(config.Conf)
+		logger.Debug("Sync config from server")
+		err := LoadConfigFromServer()
 		if err != nil {
 			logger.Warn("Sync config with server error: ", err)
 		}

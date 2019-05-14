@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"cocogo/pkg/i18n"
 	"fmt"
 	"sync"
 
@@ -25,6 +26,12 @@ var (
 	charEnter = []byte("\r")
 )
 
+func newParser() *Parser {
+	parser := &Parser{}
+	parser.initial()
+	return parser
+}
+
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
 	inputBuf  *bytes.Buffer
@@ -35,8 +42,7 @@ type Parser struct {
 	userOutputChan chan []byte
 	srvInputChan   chan []byte
 	srvOutputChan  chan []byte
-
-	cmdChan chan [2]string
+	cmdChan        chan [2]string
 
 	inputInitial  bool
 	inputPreState bool
@@ -54,7 +60,7 @@ type Parser struct {
 	closed         bool
 }
 
-func (p *Parser) Initial() {
+func (p *Parser) initial() {
 	p.inputBuf = new(bytes.Buffer)
 	p.cmdBuf = new(bytes.Buffer)
 	p.outputBuf = new(bytes.Buffer)
@@ -65,6 +71,12 @@ func (p *Parser) Initial() {
 	p.cmdOutputParser = &CmdParser{}
 	p.cmdInputParser.Initial()
 	p.cmdOutputParser.Initial()
+
+	p.userInputChan = make(chan []byte, 1024)
+	p.userOutputChan = make(chan []byte, 1024)
+	p.srvInputChan = make(chan []byte, 1024)
+	p.srvOutputChan = make(chan []byte, 1024)
+	p.cmdChan = make(chan [2]string, 1024)
 }
 
 func (p *Parser) Parse() {
@@ -103,7 +115,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
 		if p.IsCommandForbidden() {
-			p.srvOutputChan <- []byte("\r\nCommand ls is forbidden")
+			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), p.command))
+			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			return []byte{utils.CharCleanLine, '\r'}
 		}
 	} else {

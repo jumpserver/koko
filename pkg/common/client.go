@@ -59,6 +59,10 @@ func (c *Client) SetAuth(auth ClientAuth) {
 	c.Auth = auth
 }
 
+func (c *Client) SetHeader(k, v string) {
+	c.Headers[k] = v
+}
+
 func (c *Client) marshalData(data interface{}) (reader io.Reader, error error) {
 	dataRaw, err := json.Marshal(data)
 	if err != nil {

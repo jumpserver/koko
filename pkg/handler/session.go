@@ -27,7 +27,7 @@ func SessionHandler(sess ssh.Session) {
 		ctx, cancel := cctx.NewContext(sess)
 		defer cancel()
 		handler := newInteractiveHandler(sess, ctx.User())
-		logger.Debugf("User Request pty: %s %s", sess.User(), pty.Term)
+		logger.Debugf("User Request pty %s: %s", pty.Term, sess.User())
 		handler.Dispatch(ctx)
 	} else {
 		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")

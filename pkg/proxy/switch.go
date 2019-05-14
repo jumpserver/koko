@@ -34,12 +34,11 @@ type SwitchSession struct {
 	replayRecorder *ReplyRecorder
 	parser         *Parser
 
-	cmdRecordChan chan [2]string
-	userConn      UserConnection
-	srvConn       ServerConnection
-	userChan      Transport
-	srvChan       Transport
-	cancelFunc    context.CancelFunc
+	userConn   UserConnection
+	srvConn    ServerConnection
+	userChan   Transport
+	srvChan    Transport
+	cancelFunc context.CancelFunc
 }
 
 func (s *SwitchSession) Initial() {
@@ -51,19 +50,10 @@ func (s *SwitchSession) Initial() {
 	s.RemoteAddr = s.userConn.RemoteAddr()
 	s.DateStart = time.Now()
 
-	s.cmdRecordChan = make(chan [2]string, 1024)
 	s.cmdRecorder = NewCommandRecorder(s)
 	s.replayRecorder = NewReplyRecord(s)
 
-	parser := &Parser{
-		userInputChan:  make(chan []byte, 1024),
-		userOutputChan: make(chan []byte, 1024),
-		srvInputChan:   make(chan []byte, 1024),
-		srvOutputChan:  make(chan []byte, 1024),
-		cmdChan:        s.cmdRecordChan,
-	}
-	parser.Initial()
-	s.parser = parser
+	s.parser = newParser()
 }
 
 func (s *SwitchSession) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window) {
