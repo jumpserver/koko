@@ -14,6 +14,7 @@ const (
 )
 
 type WrapperTable struct {
+	Labels      []string
 	Fields      []string
 	FieldsSize  map[string][3]int // 列宽，列最小宽，列最大宽
 	Data        []map[string]string
@@ -30,10 +31,16 @@ type WrapperTable struct {
 
 func (t *WrapperTable) Initial() {
 	// 如果设置的宽度小于title的size， 重写
+	if t.Labels == nil {
+		t.Labels = t.Fields
+	}
+	if len(t.Fields) != len(t.Labels) {
+		panic("Labels should be equal with Fields")
+	}
 	t.paddingSize = 1
 	t.bolderSize = 1
-	for _, k := range t.Fields {
-		titleSize := len(k)
+	for i, k := range t.Fields {
+		titleSize := len(t.Labels[i])
 		sizeDefine := t.FieldsSize[k]
 		if titleSize > sizeDefine[1] {
 			sizeDefine[1] = titleSize
@@ -121,7 +128,12 @@ func (t *WrapperTable) CalculateColumnsSize() {
 		for _, k := range canChangeCols {
 			t.fieldsSize[k] += step
 			delta--
+			if delta == 0 {
+				break
+			}
+			fmt.Println(t.fieldsSize)
 		}
+		fmt.Println(canChangeCols)
 	}
 }
 
@@ -130,7 +142,21 @@ func (t *WrapperTable) convertDataToSlice() [][]string {
 	for i, j := range t.Data {
 		row := make([]string, len(t.Fields))
 		for m, n := range t.Fields {
-			row[m] = j[n]
+			columSize := t.fieldsSize[n]
+			if len(j[n]) <= columSize {
+				row[m] = j[n]
+			} else {
+				switch t.TruncPolicy {
+				case TruncSuffix:
+					row[m] = j[n][:columSize-3] + "..."
+				case TruncPrefix:
+					row[m] = "..." + j[n][len(j[n])-columSize-3:]
+				case TruncMiddle:
+					midValue := (columSize - 3) / 2
+					row[m] = j[n][:midValue] + "..." + j[n][len(j[n])-midValue:]
+				}
+			}
+
 		}
 		data[i] = row
 	}
@@ -144,7 +170,7 @@ func (t *WrapperTable) Display() string {
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)
 	table.SetBorder(false)
-	table.SetHeader(t.Fields)
+	table.SetHeader(t.Labels)
 	colors := make([]tablewriter.Colors, len(t.Fields))
 	for i := 0; i < len(t.Fields); i++ {
 		colors[i] = tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor}

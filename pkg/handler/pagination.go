@@ -130,15 +130,23 @@ func (p *AssetPagination) Start() []model.Asset {
 }
 
 func (p *AssetPagination) displayPageAssets() {
-	fields := []string{"ID", "主机名", "IP", "系统用户", "Comment"}
+	Labels := []string{i18n.T("ID"), i18n.T("主机名"), i18n.T("IP"), i18n.T("系统用户"), i18n.T("Comment")}
+	fields := []string{"ID", "hostname", "IP", "systemUsers", "comment"}
 	data := make([]map[string]string, len(p.currentData))
 	for i, j := range p.currentData {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		row["主机名"] = j.Hostname
+		row["hostname"] = j.Hostname
 		row["IP"] = j.Ip
-		row["系统用户"] = ""
-		row["Comment"] = "你好"
+
+		systemUser := selectHighestPrioritySystemUsers(j.SystemUsers)
+		names := make([]string, len(systemUser))
+		for i := range systemUser {
+			names[i] = systemUser[i].Name
+		}
+		row["systemUsers"] = strings.Join(names, ",")
+		fmt.Println(row["系统用户"], len(row["系统用户"]))
+		row["comment"] = j.Comment
 		data[i] = row
 	}
 	w, _ := p.term.GetSize()
@@ -148,16 +156,18 @@ func (p *AssetPagination) displayPageAssets() {
 	caption = utils.WrapperString(caption, utils.Green)
 	table := common.WrapperTable{
 		Fields: fields,
+		Labels: Labels,
 		FieldsSize: map[string][3]int{
-			"ID":      {0, 0, 5},
-			"主机名":     {0, 8, 25},
-			"IP":      {15, 0, 0},
-			"系统用户":    {0, 12, 20},
-			"Comment": {0, 0, 0},
+			"ID":          {0, 0, 0},
+			"hostname":    {0, 8, 0},
+			"IP":          {15, 0, 0},
+			"systemUsers": {0, 12, 0},
+			"comment":     {0, 0, 0},
 		},
-		Data:      data,
-		TotalSize: w,
-		Caption:   caption,
+		Data:        data,
+		TotalSize:   w,
+		Caption:     caption,
+		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
 
