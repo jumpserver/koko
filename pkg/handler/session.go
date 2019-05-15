@@ -230,11 +230,8 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
 		_, _ = io.WriteString(h.term, "\r\n No Assets\r\n\r")
 	} else {
-		pag := AssetPagination{
-			term:        h.term,
-			TotalNumber: len(assets),
-			Data:        assets,
-		}
+		h.term.SetPrompt(": ")
+		pag := NewAssetPagination(h.term, assets)
 		pag.Initial()
 		selectOneAssets := pag.PaginationState()
 		if len(selectOneAssets) == 1 {
@@ -243,6 +240,7 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 			h.systemUserSelect = &systemUser
 			h.Proxy(context.TODO())
 		}
+		h.term.SetPrompt("Opt> ")
 	}
 
 }
