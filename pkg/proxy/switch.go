@@ -1,14 +1,14 @@
 package proxy
 
 import (
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/utils"
 	"context"
 	"time"
 
 	"github.com/satori/go.uuid"
 
+	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
+	"cocogo/pkg/utils"
 )
 
 func NewSwitchSession(userConn UserConnection, serverConn ServerConnection) (sw *SwitchSession) {
