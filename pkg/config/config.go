@@ -6,9 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"reflect"
 	"strings"
-	"sync"
 )
 
 type Config struct {
@@ -41,8 +39,6 @@ type Config struct {
 	Comment             string            `yaml:"COMMENT"`
 	Language            string            `yaml:"LANG"`
 	LanguageCode        string            `yaml:"LANGUAGE_CODE"` // Abandon
-
-	mu sync.RWMutex
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -57,8 +53,6 @@ func (c *Config) EnsureConfigValid() {
 }
 
 func (c *Config) LoadFromYAML(body []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	err := yaml.Unmarshal(body, c)
 	if err != nil {
 		log.Printf("Load yaml error: %v", err)
@@ -75,8 +69,6 @@ func (c *Config) LoadFromYAMLPath(filepath string) error {
 }
 
 func (c *Config) LoadFromJSON(body []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	err := json.Unmarshal(body, c)
 	if err != nil {
 		log.Printf("Config load yaml error")
@@ -98,44 +90,6 @@ func (c *Config) LoadFromEnv() error {
 	return c.LoadFromYAML(envYAML)
 }
 
-func (c *Config) Get(key string) reflect.Value {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	//t := reflect.TypeOf(c)
-	v := reflect.ValueOf(c)
-	return v.FieldByName(key)
-	//for i := 0; i < v.NumField(); i++ {
-	//	if v.Field(i).CanInterface() && t.Field(i).Name == key {
-	//		return v.Field(i).Interface()
-	//	}
-	//}
-	//return nil
-}
-
-func (c *Config) GetString(key string) string {
-	value := c.Get(key)
-	return value.String()
-}
-
-func (c *Config) GetBool(key string) bool {
-	value := c.Get(key)
-	return value.Bool()
-}
-
-func (c *Config) GetInt(key string) int {
-	value := c.Get(key)
-	return int(value.Int())
-}
-
-func (c *Config) GetMap(key string) map[string]string {
-	//value := c.Get(key)
-	//
-	//if val, ok := value.(map[string]string); ok {
-	//	return val
-	//}
-	return map[string]string{}
-}
-
 func (c *Config) Load(filepath string) error {
 	err := c.LoadFromYAMLPath(filepath)
 	if err != nil {
@@ -147,7 +101,7 @@ func (c *Config) Load(filepath string) error {
 
 var name, _ = os.Hostname()
 var rootPath, _ = os.Getwd()
-var Conf = &Config{
+var Conf = Config{
 	Name:           name,
 	CoreHost:       "http://localhost:8080",
 	BootstrapToken: "",

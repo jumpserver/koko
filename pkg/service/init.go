@@ -76,10 +76,7 @@ func MustLoadServerConfigOnce() {
 }
 
 func LoadConfigFromServer() (err error) {
-	conf := config.Conf
-	conf.mu.Lock()
-	defer conf.mu.Unlock()
-	err = authClient.Get(TerminalConfigURL, conf)
+	err = authClient.Get(TerminalConfigURL, &config.Conf)
 	return err
 }
 

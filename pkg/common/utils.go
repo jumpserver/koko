@@ -44,3 +44,18 @@ func GzipCompressFile(srcPath, dstPath string) error {
 	}
 	return nil
 }
+
+func Sum(i []int) int {
+	sum := 0
+	for _, v := range i {
+		sum += v
+	}
+	return sum
+}
+
+func Abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}

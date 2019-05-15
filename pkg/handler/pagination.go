@@ -1,189 +1,96 @@
 package handler
 
 import (
+	"cocogo/pkg/common"
+	"cocogo/pkg/i18n"
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
-
-	"github.com/olekukonko/tablewriter"
 
 	"cocogo/pkg/config"
 	"cocogo/pkg/model"
 	"cocogo/pkg/utils"
 )
 
-const (
-	IDColumnMinSize       = 4
-	HostNameColumnMaxSize = 15
-	IPColumnSize          = 16
-	CommentColumnMinSize  = 2
-)
-
 func NewAssetPagination(term *utils.Terminal, assets []model.Asset) *AssetPagination {
-	fields := []string{"ID", "Hostname", "IP", "LoginAs", "Comment"}
-	wtable := WrapperTable{
-		Fields:     fields,
-		DataBulk:   make([][]string, 0),
-		ColumnSize: make([]int, len(fields)),
-	}
-	var interfaceSlice = make([]interface{}, len(assets))
-	for i, d := range assets {
-		interfaceSlice[i] = d
-	}
-	page := &Pagination{
-		data:        interfaceSlice,
-		lock:        new(sync.RWMutex),
-		currentPage: 1,
-	}
-
-	assetPage := &AssetPagination{term: term,
-		tableWriter: &wtable,
-		page:        page,
-	}
+	assetPage := &AssetPagination{term: term, assets: assets}
 	assetPage.Initial()
 	return assetPage
-
 }
 
 type AssetPagination struct {
 	term        *utils.Terminal
-	tableWriter *WrapperTable
-	page        *Pagination
+	assets      []model.Asset
+	page        *common.Pagination
 	currentData []model.Asset
 }
 
 func (p *AssetPagination) Initial() {
+	pageData := make([]interface{}, len(p.assets))
+	for i, v := range p.assets {
+		pageData[i] = v
+	}
+	pageSize := p.getPageSize()
+	p.page = common.NewPagination(pageData, pageSize)
+
+	firstPageData := p.page.GetPageData(1)
+	p.currentData = make([]model.Asset, len(firstPageData))
+
+	for i, item := range firstPageData {
+		p.currentData[i] = item.(model.Asset)
+	}
+
+}
+
+func (p *AssetPagination) getPageSize() int {
 	var (
 		pageSize int
 	)
 	_, height := p.term.GetSize()
 	switch config.Conf.AssetListPageSize {
 	case "auto":
-		pageSize = height - 7
+		pageSize = height - 8
 	case "all":
-		pageSize = len(p.page.data)
+		pageSize = len(p.assets)
 	default:
 		if value, err := strconv.Atoi(config.Conf.AssetListPageSize); err == nil {
 			pageSize = value
 		} else {
-			pageSize = height - 7
+			pageSize = height - 8
 		}
 	}
 	if pageSize <= 0 {
 		pageSize = 1
 	}
-	p.page.SetPageSize(pageSize)
-	tmpdata := p.page.GetPageData(1)
-	p.currentData = make([]model.Asset, len(tmpdata))
-
-	for i, item := range tmpdata {
-		p.currentData[i] = item.(model.Asset)
-	}
-
+	return pageSize
 }
 
-func (p *AssetPagination) setPageSize() {
-	if config.Conf.AssetListPageSize == "auto" {
-		var pageSize int
-		_, height := p.term.GetSize()
-		remainSize := height - 7
-		if remainSize > 0 {
-			pageSize = remainSize
-		} else {
-			pageSize = 1
-		}
-		if p.page.GetPageSize() != pageSize {
-			p.page.SetPageSize(pageSize)
-		}
-	}
-}
-
-func (p *AssetPagination) getColumnMaxSize() {
-	var (
-		IDSize         int
-		HostNameSize   int
-		systemUserSize int
-		CommentSize    int
-	)
-	IDSize = IDColumnMinSize
-	CommentSize = CommentColumnMinSize
-
-	if len(strconv.Itoa(len(p.currentData))) > IDColumnMinSize {
-		IDSize = len(strconv.Itoa(len(p.currentData)))
-	}
-	p.tableWriter.DataBulk = p.tableWriter.DataBulk[:0]
-	for i, item := range p.currentData {
-		tmpDat := make([]string, 5)
-		var tmpSystemUserArray []string
-		result := selectHighestPrioritySystemUsers(item.SystemUsers)
-		tmpSystemUserArray = make([]string, len(result))
-		for index, sysUser := range result {
-			tmpSystemUserArray[index] = sysUser.Name
-		}
-		tmpSystemUserStr := fmt.Sprintf("[%s]", strings.Join(tmpSystemUserArray, ","))
-		if len(tmpSystemUserStr) > systemUserSize {
-			systemUserSize = len(tmpSystemUserStr)
-		}
-
-		if len(item.Hostname) >= HostNameColumnMaxSize {
-			HostNameSize = HostNameColumnMaxSize
-			tmpDat[1] = item.Hostname[:HostNameColumnMaxSize]
-		} else if len(item.Hostname) < HostNameColumnMaxSize && len(item.Hostname) > HostNameSize {
-			HostNameSize = len(item.Hostname)
-			tmpDat[1] = item.Hostname
-		} else {
-			tmpDat[1] = item.Hostname
-		}
-
-		if len(item.Comment) > CommentSize {
-			CommentSize = len(item.Comment)
-		}
-		tmpDat[0] = strconv.Itoa(i + 1)
-		tmpDat[2] = item.Ip
-		tmpDat[3] = tmpSystemUserStr
-		p.tableWriter.DataBulk = append(p.tableWriter.DataBulk, tmpDat)
-	}
-	// table writer 空白空间占用宽度 4 + (columnNum - 1) * 4
-	width, _ := p.term.GetSize()
-	remainSize := width - 16 - IDSize - HostNameSize - IPColumnSize - systemUserSize
-	if remainSize > 0 && CommentSize < remainSize {
-		CommentSize = remainSize
-	}
-	for i, item := range p.currentData {
-		if len(item.Comment) > CommentSize {
-			p.tableWriter.DataBulk[i][4] = item.Comment[:CommentSize]
-		} else {
-			p.tableWriter.DataBulk[i][4] = item.Comment
-		}
-	}
-	currentCapMsg := fmt.Sprintf("Page: %d, Count: %d, Total Page: %d, Total Count:%d\n",
-		p.page.CurrentPage(), p.page.GetPageSize(), p.page.TotalPage(), p.page.TotalCount())
-	msg := utils.WrapperString(currentCapMsg, utils.Green)
-	p.tableWriter.SetCaption(msg)
-	p.tableWriter.SetColumnSize(IDSize, HostNameSize, IPColumnSize, systemUserSize, CommentSize)
-
-}
-
-func (p *AssetPagination) PaginationState() []model.Asset {
+func (p *AssetPagination) Start() []model.Asset {
 
 	for {
+		// 当前页是第一个，如果当前页数据小于page size，显示所有
 		if p.page.CurrentPage() == 1 && p.page.GetPageSize() > len(p.currentData) {
-			p.displayAssets()
+			p.displayPageAssets()
 			return []model.Asset{}
 		}
-		p.displayAssets()
+		p.displayPageAssets()
 		p.displayTipsInfo()
 		line, err := p.term.ReadLine()
-		p.setPageSize()
 		if err != nil {
 			return []model.Asset{}
 		}
+
+		pageSize := p.getPageSize()
+		p.page.SetPageSize(pageSize)
+
 		line = strings.TrimSpace(line)
 		switch len(line) {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "p":
+				if !p.page.HasPrePage() {
+					continue
+				}
 				tmpData := p.page.GetPrePageData()
 				if len(p.currentData) != len(tmpData) {
 					p.currentData = make([]model.Asset, len(tmpData))
@@ -193,6 +100,9 @@ func (p *AssetPagination) PaginationState() []model.Asset {
 				}
 
 			case "", "n":
+				if !p.page.HasNextPage() {
+					continue
+				}
 				tmpData := p.page.GetNextPageData()
 				if len(p.currentData) != len(tmpData) {
 					p.currentData = make([]model.Asset, len(tmpData))
@@ -200,7 +110,7 @@ func (p *AssetPagination) PaginationState() []model.Asset {
 				for i, item := range tmpData {
 					p.currentData[i] = item.(model.Asset)
 				}
-			case "b":
+			case "b", "q":
 				return []model.Asset{}
 			default:
 				if indexID, err := strconv.Atoi(line); err == nil {
@@ -216,15 +126,43 @@ func (p *AssetPagination) PaginationState() []model.Asset {
 				}
 			}
 		}
-
 	}
 }
 
-func (p *AssetPagination) displayAssets() {
-	p.getColumnMaxSize()
+func (p *AssetPagination) displayPageAssets() {
+	fields := []string{"ID", "主机名", "IP", "系统用户", "Comment"}
+	data := make([]map[string]string, len(p.currentData))
+	for i, j := range p.currentData {
+		row := make(map[string]string)
+		row["ID"] = strconv.Itoa(i + 1)
+		row["主机名"] = j.Hostname
+		row["IP"] = j.Ip
+		row["系统用户"] = ""
+		row["Comment"] = "你好"
+		data[i] = row
+	}
+	w, _ := p.term.GetSize()
+	caption := fmt.Sprintf(i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
+		p.page.CurrentPage(), p.page.GetPageSize(), p.page.TotalPage(), p.page.TotalCount(),
+	)
+	caption = utils.WrapperString(caption, utils.Green)
+	table := common.WrapperTable{
+		Fields: fields,
+		FieldsSize: map[string][3]int{
+			"ID":      {0, 0, 5},
+			"主机名":     {0, 8, 25},
+			"IP":      {15, 0, 0},
+			"系统用户":    {0, 12, 20},
+			"Comment": {0, 0, 0},
+		},
+		Data:      data,
+		TotalSize: w,
+		Caption:   caption,
+	}
+	table.Initial()
 
 	_, _ = p.term.Write([]byte(utils.CharClear))
-	_, _ = p.term.Write([]byte(p.tableWriter.Display()))
+	_, _ = p.term.Write([]byte(table.Display()))
 }
 
 func (p *AssetPagination) displayTipsInfo() {
@@ -236,148 +174,4 @@ func (p *AssetPagination) displayTipsInfo() {
 		_, _ = p.term.Write([]byte(tip))
 	}
 
-}
-
-type WrapperTable struct {
-	Fields     []string
-	DataBulk   [][]string
-	ColumnSize []int
-	Caption    string
-}
-
-func (w *WrapperTable) SetColumnSize(columnSizes ...int) {
-	if len(columnSizes) != len(w.Fields) {
-		panic("fields' number could not match column size")
-	}
-
-	for i, size := range columnSizes {
-		w.ColumnSize[i] = size
-	}
-}
-
-func (w *WrapperTable) SetCaption(cap string) {
-	w.Caption = cap
-}
-
-func (w *WrapperTable) Display() string {
-	tableString := &strings.Builder{}
-	table := tablewriter.NewWriter(tableString)
-	table.SetBorder(false)
-	table.SetHeader(w.Fields)
-	colors := make([]tablewriter.Colors, len(w.Fields))
-	for i := 0; i < len(w.Fields); i++ {
-		colors[i] = tablewriter.Colors{tablewriter.Bold, tablewriter.FgGreenColor}
-	}
-	table.SetHeaderColor(colors...)
-	table.AppendBulk(w.DataBulk)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	for i, value := range w.ColumnSize {
-		table.SetColMinWidth(i, value)
-	}
-	if w.Caption != "" {
-		table.SetCaption(true, w.Caption)
-	}
-	table.Render()
-	return tableString.String()
-}
-
-type Pagination struct {
-	data        []interface{}
-	currentPage int
-	pageSize    int
-	totalPage   int
-	lock        *sync.RWMutex
-}
-
-func (p *Pagination) GetNextPageData() []interface{} {
-	if p.HasNextPage() {
-		p.lock.Lock()
-		p.currentPage++
-		p.lock.Unlock()
-	}
-	return p.GetPageData(p.currentPage)
-
-}
-
-func (p *Pagination) GetPrePageData() []interface{} {
-	if p.HasPrePage() {
-		p.lock.Lock()
-		p.currentPage--
-		p.lock.Unlock()
-	}
-
-	return p.GetPageData(p.currentPage)
-}
-
-func (p *Pagination) GetPageData(pageIndex int) []interface{} {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	var (
-		endIndex   int
-		startIndex int
-	)
-
-	endIndex = p.pageSize * pageIndex
-	startIndex = endIndex - p.pageSize
-	if endIndex > len(p.data) {
-		endIndex = len(p.data)
-	}
-	return p.data[startIndex:endIndex]
-}
-
-func (p *Pagination) CurrentPage() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.currentPage
-}
-
-func (p *Pagination) TotalCount() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return len(p.data)
-}
-
-func (p *Pagination) TotalPage() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.totalPage
-}
-
-func (p *Pagination) SetPageSize(size int) {
-
-	if size <= 0 {
-		panic("Pagination size should be larger than zero")
-	}
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	if p.pageSize == size {
-		return
-	}
-	p.pageSize = size
-	if len(p.data)%size == 0 {
-		p.totalPage = len(p.data) / size
-	} else {
-		p.totalPage = len(p.data)/size + 1
-	}
-	p.currentPage = 1
-
-}
-
-func (p *Pagination) GetPageSize() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.pageSize
-}
-
-func (p *Pagination) HasNextPage() bool {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.currentPage < p.totalPage
-}
-
-func (p *Pagination) HasPrePage() bool {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.currentPage > 1
 }

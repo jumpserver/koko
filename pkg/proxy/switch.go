@@ -80,6 +80,8 @@ func (s *SwitchSession) postBridge() {
 	s.cmdRecorder.End()
 	s.replayRecorder.End()
 	s.parser.Close()
+	_ = s.userTran.Close()
+	_ = s.srvTran.Close()
 }
 
 func (s *SwitchSession) Bridge() (err error) {

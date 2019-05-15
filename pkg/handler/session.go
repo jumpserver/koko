@@ -233,7 +233,7 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 		h.term.SetPrompt(": ")
 		pag := NewAssetPagination(h.term, assets)
 		pag.Initial()
-		selectOneAssets := pag.PaginationState()
+		selectOneAssets := pag.Start()
 		if len(selectOneAssets) == 1 {
 			systemUser := h.chooseSystemUser(selectOneAssets[0].SystemUsers)
 			h.assetSelect = &selectOneAssets[0]
