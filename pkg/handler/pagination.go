@@ -166,12 +166,12 @@ func (p *AssetPagination) getColumnMaxSize() {
 }
 
 func (p *AssetPagination) PaginationState() []model.Asset {
-	if !p.page.HasNextPage() {
-		p.displayAssets()
-		return []model.Asset{}
-	}
 
 	for {
+		if p.page.CurrentPage() == 1 && p.page.GetPageSize() > len(p.currentData) {
+			p.displayAssets()
+			return []model.Asset{}
+		}
 		p.displayAssets()
 		p.displayTipsInfo()
 		line, err := p.term.ReadLine()
@@ -202,18 +202,21 @@ func (p *AssetPagination) PaginationState() []model.Asset {
 				}
 			case "b":
 				return []model.Asset{}
+			default:
+				if indexID, err := strconv.Atoi(line); err == nil {
+					if indexID > 0 && indexID <= len(p.currentData) {
+						return []model.Asset{p.currentData[indexID-1]}
+					}
+				}
 			}
-		}
-		if indexID, err := strconv.Atoi(line); err == nil {
-			if indexID > 0 && indexID <= p.page.TotalCount() {
-				return []model.Asset{p.currentData[indexID-1]}
+		default:
+			if indexID, err := strconv.Atoi(line); err == nil {
+				if indexID > 0 && indexID <= len(p.currentData) {
+					return []model.Asset{p.currentData[indexID-1]}
+				}
 			}
 		}
 
-		if p.page.CurrentPage() == 1 && p.page.GetPageSize() > len(p.currentData) {
-			p.displayAssets()
-			return []model.Asset{}
-		}
 	}
 }
 

@@ -105,14 +105,6 @@
   version = "v0.0.4"
 
 [[projects]]
-  digest = "1:4a49346ca45376a2bba679ca0e83bec949d780d4e927931317904bad482943ec"
-  name = "github.com/mattn/go-sqlite3"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "c7c4067b79cc51e6dfdcef5c702e74b1e0fa7c75"
-  version = "v1.10.0"
-
-[[projects]]
   digest = "1:abcdbf03ca6ca13d3697e2186edc1f33863bbdac2b3a44dfa39015e8903f7409"
   name = "github.com/olekukonko/tablewriter"
   packages = ["."]
@@ -180,7 +172,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ed3d25dee9c9d77611e5ce1bd3a5a078930e8efb31afac120ccb1fbba7ec08d1"
+  digest = "1:1a1855ef6bc1338dd3870260716214046cefd69855c5a5a772d44d2791478abc"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -188,7 +180,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "a5b02f93d862f065920dd6a40dddc66b60d0dec4"
+  revision = "3a4b5fb9f71f5874b2374ae059bc0e0bcb52e145"
 
 [[projects]]
   digest = "1:c805e517269b0ba4c21ded5836019ed7d16953d4026cb7d00041d039c7906be9"
@@ -215,7 +207,6 @@
     "github.com/jarcoal/httpmock",
     "github.com/kr/pty",
     "github.com/leonelquinteros/gotext",
-    "github.com/mattn/go-sqlite3",
     "github.com/olekukonko/tablewriter",
     "github.com/pkg/errors",
     "github.com/pkg/sftp",
