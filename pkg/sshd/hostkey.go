@@ -16,11 +16,11 @@ type HostKey struct {
 }
 
 func (hk *HostKey) loadHostKeyFromFile(keyPath string) (signer ssh.Signer, err error) {
-	_, err = os.Stat(conf.HostKeyFile)
+	_, err = os.Stat(keyPath)
 	if err != nil {
 		return
 	}
-	buf, err := ioutil.ReadFile(conf.HostKeyFile)
+	buf, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return
 	}

@@ -3,12 +3,12 @@ package common
 import "sync"
 
 func NewPagination(data []interface{}, size int) *Pagination {
-	return &Pagination{
-		data:        data,
-		pageSize:    size,
-		currentPage: 1,
-		lock:        new(sync.RWMutex),
+	p := &Pagination{
+		data: data,
+		lock: new(sync.RWMutex),
 	}
+	p.SetPageSize(size)
+	return p
 }
 
 type Pagination struct {

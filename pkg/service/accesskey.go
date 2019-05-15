@@ -82,8 +82,9 @@ func (ak *AccessKey) SaveToFile() error {
 }
 
 func (ak *AccessKey) Register(times int) error {
-	name := config.Conf.Name
-	token := config.Conf.BootstrapToken
+	cf := config.GetConf()
+	name := cf.Name
+	token := cf.BootstrapToken
 	comment := "Coco"
 
 	res := RegisterTerminal(name, token, comment)

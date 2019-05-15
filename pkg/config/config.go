@@ -2,11 +2,13 @@ package config
 
 import (
 	"encoding/json"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+	"sync"
+
+	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -99,9 +101,10 @@ func (c *Config) Load(filepath string) error {
 	return err
 }
 
+var lock = new(sync.RWMutex)
 var name, _ = os.Hostname()
 var rootPath, _ = os.Getwd()
-var Conf = Config{
+var Conf = &Config{
 	Name:           name,
 	CoreHost:       "http://localhost:8080",
 	BootstrapToken: "",
@@ -119,4 +122,20 @@ var Conf = Config{
 	Language:       "zh",
 	ReplayStorage:  map[string]string{"TYPE": "server"},
 	CommandStorage: map[string]string{"TYPE": "server"},
+}
+
+func SetConf(conf *Config) {
+	lock.Lock()
+	defer lock.Unlock()
+	Conf = conf
+}
+
+func GetConf() *Config {
+	lock.RLock()
+	defer lock.RUnlock()
+	var conf Config
+	if confBytes, err := json.Marshal(Conf); err == nil {
+		_ = json.Unmarshal(confBytes, &conf)
+	}
+	return &conf
 }

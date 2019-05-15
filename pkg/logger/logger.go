@@ -25,7 +25,8 @@ func Initial() {
 		LogFormat:       "%time% [%lvl%] %msg%",
 		TimestampFormat: "2006-01-02 15:04:05",
 	}
-	level, ok := logLevels[strings.ToUpper(config.Conf.LogLevel)]
+	conf := config.GetConf()
+	level, ok := logLevels[strings.ToUpper(conf.LogLevel)]
 	if !ok {
 		level = logrus.InfoLevel
 	}
@@ -37,7 +38,7 @@ func Initial() {
 	logger.SetLevel(level)
 
 	// Output to file
-	logFilePath := path.Join(config.Conf.RootPath, "logs", "coco.log")
+	logFilePath := path.Join(conf.RootPath, "logs", "coco.log")
 	logDirPath := path.Dir(logFilePath)
 	if common.FileExists(logDirPath) {
 		err := os.MkdirAll(logDirPath, os.ModePerm)

@@ -16,16 +16,17 @@ var client = common.NewClient(30, "")
 var authClient = common.NewClient(30, "")
 
 func Initial() {
-	keyPath := config.Conf.AccessKeyFile
-	client.BaseHost = config.Conf.CoreHost
-	authClient.BaseHost = config.Conf.CoreHost
+	cf := config.GetConf()
+	keyPath := cf.AccessKeyFile
+	client.BaseHost = cf.CoreHost
+	authClient.BaseHost = cf.CoreHost
 	client.SetHeader("X-JMS-ORG", "ROOT")
 	authClient.SetHeader("X-JMS-ORG", "ROOT")
 
-	if !path.IsAbs(config.Conf.AccessKeyFile) {
-		keyPath = filepath.Join(config.Conf.RootPath, keyPath)
+	if !path.IsAbs(cf.AccessKeyFile) {
+		keyPath = filepath.Join(cf.RootPath, keyPath)
 	}
-	ak := AccessKey{Value: config.Conf.AccessKey, Path: keyPath}
+	ak := AccessKey{Value: cf.AccessKey, Path: keyPath}
 	_ = ak.Load()
 	authClient.Auth = ak
 	validateAccessAuth()
@@ -34,6 +35,7 @@ func Initial() {
 }
 
 func validateAccessAuth() {
+	cf := config.GetConf()
 	maxTry := 30
 	count := 0
 	for {
@@ -43,7 +45,7 @@ func validateAccessAuth() {
 		}
 		if err != nil {
 			msg := "Connect server error or access key is invalid, remove %s run again"
-			logger.Errorf(msg, config.Conf.AccessKeyFile)
+			logger.Errorf(msg, cf.AccessKeyFile)
 		} else if user.Role != "App" {
 			logger.Error("Access role is not App, is: ", user.Role)
 		}
@@ -76,8 +78,13 @@ func MustLoadServerConfigOnce() {
 }
 
 func LoadConfigFromServer() (err error) {
-	err = authClient.Get(TerminalConfigURL, &config.Conf)
-	return err
+	conf := config.GetConf()
+	err = authClient.Get(TerminalConfigURL, conf)
+	if err != nil {
+		return err
+	}
+	config.SetConf(conf)
+	return nil
 }
 
 func KeepSyncConfigWithServer() {

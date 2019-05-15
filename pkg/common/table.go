@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
@@ -131,9 +130,7 @@ func (t *WrapperTable) CalculateColumnsSize() {
 			if delta == 0 {
 				break
 			}
-			fmt.Println(t.fieldsSize)
 		}
-		fmt.Println(canChangeCols)
 	}
 }
 
@@ -165,7 +162,6 @@ func (t *WrapperTable) convertDataToSlice() [][]string {
 
 func (t *WrapperTable) Display() string {
 	t.CalculateColumnsSize()
-	fmt.Println(t.fieldsSize)
 
 	tableString := &strings.Builder{}
 	table := tablewriter.NewWriter(tableString)

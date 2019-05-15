@@ -10,8 +10,9 @@ import (
 )
 
 func init() {
-	localePath := path.Join(config.Conf.RootPath, "locale")
-	if strings.HasPrefix(config.Conf.Language, "zh") {
+	cf := config.GetConf()
+	localePath := path.Join(cf.RootPath, "locale")
+	if strings.HasPrefix(cf.Language, "zh") {
 		gotext.Configure(localePath, "zh_CN", "coco")
 	} else {
 		gotext.Configure(localePath, "en_US", "coco")

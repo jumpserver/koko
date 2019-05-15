@@ -12,12 +12,12 @@ import (
 )
 
 var (
-	conf       = config.Conf
 	httpServer *http.Server
 	cons       = &connections{container: make(map[string]*WebConn), mu: new(sync.RWMutex)}
 )
 
 func StartHTTPServer() {
+	conf := config.GetConf()
 	server, err := socketio.NewServer(nil)
 	if err != nil {
 		logger.Fatal(err)

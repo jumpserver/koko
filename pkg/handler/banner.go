@@ -64,8 +64,9 @@ type ColorMeta struct {
 
 func displayBanner(sess ssh.Session, user string) {
 	title := defaultTitle
-	if config.Conf.HeaderTitle != "" {
-		title = config.Conf.HeaderTitle
+	cf := config.GetConf()
+	if cf.HeaderTitle != "" {
+		title = cf.HeaderTitle
 	}
 
 	prefix := utils.CharClear + utils.CharTab + utils.CharTab

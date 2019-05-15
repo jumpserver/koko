@@ -57,14 +57,14 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 }
 
 func CheckUserPassword(ctx ssh.Context, password string) ssh.AuthResult {
-	if !config.Conf.PasswordAuth {
+	if !config.GetConf().PasswordAuth {
 		return ssh.AuthFailed
 	}
 	return checkAuth(ctx, password, "")
 }
 
 func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
-	if !config.Conf.PublicKeyAuth {
+	if !config.GetConf().PublicKeyAuth {
 		return ssh.AuthFailed
 	}
 	b := key.Marshal()

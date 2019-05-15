@@ -11,7 +11,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/olekukonko/tablewriter"
 	"github.com/xlab/treeprint"
-	"golang.org/x/crypto/ssh/terminal"
 
 	"cocogo/pkg/cctx"
 	"cocogo/pkg/logger"
@@ -175,17 +174,7 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 		return systemUsers[0]
 	default:
 	}
-	displaySystemUsers := make([]model.SystemUser, 0)
-	model.SortSystemUserByPriority(systemUsers)
-
-	highestPriority := systemUsers[length-1].Priority
-
-	displaySystemUsers = append(displaySystemUsers, systemUsers[length-1])
-	for i := length - 2; i >= 0; i-- {
-		if highestPriority == systemUsers[i].Priority {
-			displaySystemUsers = append(displaySystemUsers, systemUsers[i])
-		}
-	}
+	displaySystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	if len(displaySystemUsers) == 1 {
 		return displaySystemUsers[0]
 	}
@@ -196,20 +185,21 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 		table.Append([]string{strconv.Itoa(i + 1), displaySystemUsers[i].Username})
 	}
 	table.SetBorder(false)
-	count := 0
-	term := terminal.NewTerminal(h.sess, "num:")
-	for count < 3 {
+
+	h.term.SetPrompt("Select User: ")
+	defer h.term.SetPrompt("Opt> ")
+	for count := 0; count < 3; count++ {
 		table.Render()
-		line, err := term.ReadLine()
+		line, err := h.term.ReadLine()
 		if err != nil {
-			continue
+			break
 		}
+		line = strings.TrimSpace(line)
 		if num, err := strconv.Atoi(line); err == nil {
 			if num > 0 && num <= len(displaySystemUsers) {
 				return displaySystemUsers[num-1]
 			}
 		}
-		count++
 	}
 	return displaySystemUsers[0]
 }
@@ -224,15 +214,14 @@ func (h *interactiveHandler) displayAssetsOrProxy(assets []model.Asset) {
 	} else {
 		h.displayAssets(assets)
 	}
+
 }
 
 func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
 		_, _ = io.WriteString(h.term, "\r\n No Assets\r\n\r")
 	} else {
-		h.term.SetPrompt(": ")
 		pag := NewAssetPagination(h.term, assets)
-		pag.Initial()
 		selectOneAssets := pag.Start()
 		if len(selectOneAssets) == 1 {
 			systemUser := h.chooseSystemUser(selectOneAssets[0].SystemUsers)
@@ -240,7 +229,6 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 			h.systemUserSelect = &systemUser
 			h.Proxy(context.TODO())
 		}
-		h.term.SetPrompt("Opt> ")
 	}
 
 }

@@ -32,31 +32,29 @@ func (p *AssetPagination) Initial() {
 	}
 	pageSize := p.getPageSize()
 	p.page = common.NewPagination(pageData, pageSize)
-
 	firstPageData := p.page.GetPageData(1)
 	p.currentData = make([]model.Asset, len(firstPageData))
-
 	for i, item := range firstPageData {
 		p.currentData[i] = item.(model.Asset)
 	}
-
 }
 
 func (p *AssetPagination) getPageSize() int {
 	var (
-		pageSize int
+		pageSize  int
+		minHeight = 8 // 分页显示的最小高度
 	)
 	_, height := p.term.GetSize()
-	switch config.Conf.AssetListPageSize {
+	switch config.GetConf().AssetListPageSize {
 	case "auto":
-		pageSize = height - 8
+		pageSize = height - minHeight
 	case "all":
 		pageSize = len(p.assets)
 	default:
-		if value, err := strconv.Atoi(config.Conf.AssetListPageSize); err == nil {
+		if value, err := strconv.Atoi(config.GetConf().AssetListPageSize); err == nil {
 			pageSize = value
 		} else {
-			pageSize = height - 8
+			pageSize = height - minHeight
 		}
 	}
 	if pageSize <= 0 {
@@ -66,20 +64,22 @@ func (p *AssetPagination) getPageSize() int {
 }
 
 func (p *AssetPagination) Start() []model.Asset {
-
+	p.term.SetPrompt(": ")
+	defer p.term.SetPrompt("Opt> ")
 	for {
-		// 当前页是第一个，如果当前页数据小于page size，显示所有
-		if p.page.CurrentPage() == 1 && p.page.GetPageSize() > len(p.currentData) {
+		// 总数据小于page size，则显示所有资产且退出
+		if p.page.GetPageSize() >= p.page.TotalCount() {
+			p.currentData = p.assets
 			p.displayPageAssets()
 			return []model.Asset{}
 		}
+
 		p.displayPageAssets()
 		p.displayTipsInfo()
 		line, err := p.term.ReadLine()
 		if err != nil {
 			return []model.Asset{}
 		}
-
 		pageSize := p.getPageSize()
 		p.page.SetPageSize(pageSize)
 
@@ -91,11 +91,11 @@ func (p *AssetPagination) Start() []model.Asset {
 				if !p.page.HasPrePage() {
 					continue
 				}
-				tmpData := p.page.GetPrePageData()
-				if len(p.currentData) != len(tmpData) {
-					p.currentData = make([]model.Asset, len(tmpData))
+				prePageData := p.page.GetPrePageData()
+				if len(p.currentData) != len(prePageData) {
+					p.currentData = make([]model.Asset, len(prePageData))
 				}
-				for i, item := range tmpData {
+				for i, item := range prePageData {
 					p.currentData[i] = item.(model.Asset)
 				}
 
@@ -103,11 +103,11 @@ func (p *AssetPagination) Start() []model.Asset {
 				if !p.page.HasNextPage() {
 					continue
 				}
-				tmpData := p.page.GetNextPageData()
-				if len(p.currentData) != len(tmpData) {
-					p.currentData = make([]model.Asset, len(tmpData))
+				nextPageData := p.page.GetNextPageData()
+				if len(p.currentData) != len(nextPageData) {
+					p.currentData = make([]model.Asset, len(nextPageData))
 				}
-				for i, item := range tmpData {
+				for i, item := range nextPageData {
 					p.currentData[i] = item.(model.Asset)
 				}
 			case "b", "q":
@@ -145,7 +145,6 @@ func (p *AssetPagination) displayPageAssets() {
 			names[i] = systemUser[i].Name
 		}
 		row["systemUsers"] = strings.Join(names, ",")
-		fmt.Println(row["系统用户"], len(row["系统用户"]))
 		row["comment"] = j.Comment
 		data[i] = row
 	}

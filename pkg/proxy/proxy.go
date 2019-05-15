@@ -61,7 +61,7 @@ func (p *ProxyServer) getSSHConn() (srvConn *ServerSSHConnection, err error) {
 		port:     strconv.Itoa(p.Asset.Port),
 		user:     p.SystemUser.Username,
 		password: p.SystemUser.Password,
-		timeout:  config.Conf.SSHTimeout,
+		timeout:  config.GetConf().SSHTimeout,
 	}
 	pty := p.UserConn.Pty()
 	done := make(chan struct{})
@@ -90,7 +90,8 @@ func (p *ProxyServer) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
 	msg := fmt.Sprintf(i18n.T("Connecting to %s@%s  %.1f"), p.SystemUser.Username, p.Asset.Ip, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
-	for int(delay) < config.Conf.SSHTimeout {
+	cf := config.GetConf()
+	for int(delay) < cf.SSHTimeout {
 		select {
 		case <-done:
 			return

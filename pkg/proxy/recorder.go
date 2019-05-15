@@ -14,8 +14,6 @@ import (
 	"cocogo/pkg/model"
 )
 
-var conf = config.Conf
-
 func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
 	recorder = &CommandRecorder{Session: sess}
 	recorder.initial()
@@ -125,7 +123,7 @@ func (r *ReplyRecorder) Record(b []byte) {
 
 func (r *ReplyRecorder) prepare() {
 	sessionId := r.Session.Id
-	rootPath := conf.RootPath
+	rootPath := config.GetConf().RootPath
 	today := time.Now().UTC().Format("2006-01-02")
 	gzFileName := sessionId + ".replay.gz"
 	replayDir := filepath.Join(rootPath, "data", "replays", today)
