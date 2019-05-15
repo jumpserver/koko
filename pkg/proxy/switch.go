@@ -1,10 +1,11 @@
 package proxy
 
 import (
+	"cocogo/pkg/i18n"
+	"cocogo/pkg/utils"
 	"context"
 	"time"
 
-	"github.com/gliderlabs/ssh"
 	"github.com/satori/go.uuid"
 
 	"cocogo/pkg/logger"
@@ -34,11 +35,13 @@ type SwitchSession struct {
 	replayRecorder *ReplyRecorder
 	parser         *Parser
 
-	userConn   UserConnection
-	srvConn    ServerConnection
-	userChan   Transport
-	srvChan    Transport
-	cancelFunc context.CancelFunc
+	userConn UserConnection
+	srvConn  ServerConnection
+	userTran Transport
+	srvTran  Transport
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func (s *SwitchSession) Initial() {
@@ -54,98 +57,16 @@ func (s *SwitchSession) Initial() {
 	s.replayRecorder = NewReplyRecord(s)
 
 	s.parser = newParser()
+
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
 
-func (s *SwitchSession) watchWindowChange(ctx context.Context, winCh <-chan ssh.Window) {
-	defer func() {
-		logger.Debug("Watch window change routine end")
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case win, ok := <-winCh:
-			if !ok {
-				return
-			}
-			err := s.srvConn.SetWinSize(win.Height, win.Width)
-			if err != nil {
-				logger.Error("Change server win size err: ", err)
-				return
-			}
-			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
-		}
-	}
-}
-
-func (s *SwitchSession) readParserToServer(ctx context.Context) {
-	defer func() {
-		logger.Debug("Read parser to server end")
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case p, ok := <-s.parser.userOutputChan:
-			if !ok {
-				s.cancelFunc()
-			}
-			_, _ = s.srvChan.Write(p)
-		}
-	}
-}
-
-func (s *SwitchSession) readUserToParser(ctx context.Context) {
-	defer func() {
-		logger.Debug("Read user to server end")
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			_ = s.userChan.Close()
-			return
-		case p, ok := <-s.userChan.Chan():
-			if !ok {
-				s.cancelFunc()
-			}
-			s.parser.userInputChan <- p
-		}
-	}
-}
-
-func (s *SwitchSession) readServerToParser(ctx context.Context) {
-	defer func() {
-		logger.Debug("Read server to parser end")
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			_ = s.srvChan.Close()
-			return
-		case p, ok := <-s.srvChan.Chan():
-			if !ok {
-				s.cancelFunc()
-			}
-			s.parser.srvInputChan <- p
-		}
-	}
-}
-
-func (s *SwitchSession) readParserToUser(ctx context.Context) {
-	defer func() {
-		logger.Debug("Read parser to user end")
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case p, ok := <-s.parser.srvOutputChan:
-			if !ok {
-				s.cancelFunc()
-			}
-			s.replayRecorder.Record(p)
-			_, _ = s.userChan.Write(p)
-		}
+func (s *SwitchSession) Terminate() {
+	if !s.Closed {
+		msg := i18n.T("Terminated by administrator")
+		utils.IgnoreErrWriteString(s.userConn, msg)
+		s.cancel()
+		s.Closed = true
 	}
 }
 
@@ -163,19 +84,42 @@ func (s *SwitchSession) postBridge() {
 
 func (s *SwitchSession) Bridge() (err error) {
 	winCh := s.userConn.WinCh()
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancelFunc = cancel
+	s.userTran = NewDirectTransport("", s.userConn)
+	s.srvTran = NewDirectTransport("", s.srvConn)
 
-	s.userChan = NewDirectTransport("", s.userConn)
-	s.srvChan = NewDirectTransport("", s.srvConn)
+	defer func() {
+		logger.Info("Session bridge done: ", s.Id)
+	}()
+
 	go s.parser.Parse()
-	go s.watchWindowChange(ctx, winCh)
-	go s.readServerToParser(ctx)
-	go s.readParserToUser(ctx)
-	go s.readParserToServer(ctx)
-	go s.recordCmd()
 	defer s.postBridge()
-	s.readUserToParser(ctx)
-	logger.Debug("Session bridge end")
-	return
+	for {
+		select {
+		// 手动结束
+		case <-s.ctx.Done():
+			return
+		// 监控窗口大小变化
+		case win := <-winCh:
+			_ = s.srvConn.SetWinSize(win.Height, win.Width)
+			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
+		// Server发来数据流入parser中
+		case p, ok := <-s.srvTran.Chan():
+			if !ok {
+				return
+			}
+			s.parser.srvInputChan <- p
+		// Server流入parser数据，经处理发给用户
+		case p := <-s.parser.srvOutputChan:
+			_, _ = s.userTran.Write(p)
+		// User发来的数据流流入parser
+		case p, ok := <-s.userTran.Chan():
+			if !ok {
+				return
+			}
+			s.parser.userInputChan <- p
+		// User发来的数据经parser初六，发给Server
+		case p := <-s.parser.userOutputChan:
+			_, _ = s.srvTran.Write(p)
+		}
+	}
 }
