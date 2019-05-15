@@ -2,12 +2,13 @@ package proxy
 
 import (
 	"bytes"
-	"cocogo/pkg/utils"
 	"regexp"
 	"strings"
+
+	"cocogo/pkg/utils"
 )
 
-var ps1Pattern, _ = regexp.Compile("^\\[?.*@.*\\]?[\\$#]\\s|mysql>\\s")
+var ps1Pattern = regexp.MustCompile(`^\[?.*@.*\]?[\\$#]\s|mysql>\s`)
 
 func NewCmdParser() *CmdParser {
 	parser := &CmdParser{}

@@ -77,15 +77,15 @@ func MustLoadServerConfigOnce() {
 
 func LoadConfigFromServer() (err error) {
 	conf := config.Conf
-	conf.Mux.Lock()
-	defer conf.Mux.Unlock()
+	conf.mu.Lock()
+	defer conf.mu.Unlock()
 	err = authClient.Get(TerminalConfigURL, conf)
 	return err
 }
 
 func KeepSyncConfigWithServer() {
 	for {
-		logger.Debug("Sync config from server")
+		logger.Debug("Sync config with server")
 		err := LoadConfigFromServer()
 		if err != nil {
 			logger.Warn("Sync config with server error: ", err)
