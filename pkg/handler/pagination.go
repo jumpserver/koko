@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"cocogo/pkg/common"
-	"cocogo/pkg/i18n"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"cocogo/pkg/common"
 	"cocogo/pkg/config"
+	"cocogo/pkg/i18n"
 	"cocogo/pkg/model"
 	"cocogo/pkg/utils"
 )
@@ -68,7 +68,7 @@ func (p *AssetPagination) Start() []model.Asset {
 	defer p.term.SetPrompt("Opt> ")
 	for {
 		// 总数据小于page size，则显示所有资产且退出
-		if p.page.GetPageSize() >= p.page.TotalCount() {
+		if p.page.PageSize() >= p.page.TotalCount() {
 			p.currentData = p.assets
 			p.displayPageAssets()
 			return []model.Asset{}
@@ -88,10 +88,10 @@ func (p *AssetPagination) Start() []model.Asset {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "p":
-				if !p.page.HasPrePage() {
+				if !p.page.HasPrev() {
 					continue
 				}
-				prePageData := p.page.GetPrePageData()
+				prePageData := p.page.GetPrevPageData()
 				if len(p.currentData) != len(prePageData) {
 					p.currentData = make([]model.Asset, len(prePageData))
 				}
@@ -100,7 +100,7 @@ func (p *AssetPagination) Start() []model.Asset {
 				}
 
 			case "", "n":
-				if !p.page.HasNextPage() {
+				if !p.page.HasNext() {
 					continue
 				}
 				nextPageData := p.page.GetNextPageData()
@@ -150,7 +150,7 @@ func (p *AssetPagination) displayPageAssets() {
 	}
 	w, _ := p.term.GetSize()
 	caption := fmt.Sprintf(i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
-		p.page.CurrentPage(), p.page.GetPageSize(), p.page.TotalPage(), p.page.TotalCount(),
+		p.page.CurrentPage(), p.page.PageSize(), p.page.TotalPage(), p.page.TotalCount(),
 	)
 	caption = utils.WrapperString(caption, utils.Green)
 	table := common.WrapperTable{

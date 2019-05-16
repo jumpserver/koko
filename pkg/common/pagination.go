@@ -21,7 +21,7 @@ type Pagination struct {
 }
 
 func (p *Pagination) GetNextPageData() []interface{} {
-	if !p.HasNextPage() {
+	if !p.HasNext() {
 		return []interface{}{}
 	}
 	p.lock.Lock()
@@ -30,8 +30,8 @@ func (p *Pagination) GetNextPageData() []interface{} {
 	return p.GetPageData(p.currentPage)
 }
 
-func (p *Pagination) GetPrePageData() []interface{} {
-	if !p.HasPrePage() {
+func (p *Pagination) GetPrevPageData() []interface{} {
+	if !p.HasPrev() {
 		return []interface{}{}
 	}
 	p.lock.Lock()
@@ -94,19 +94,19 @@ func (p *Pagination) SetPageSize(size int) {
 
 }
 
-func (p *Pagination) GetPageSize() int {
+func (p *Pagination) PageSize() int {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.pageSize
 }
 
-func (p *Pagination) HasNextPage() bool {
+func (p *Pagination) HasNext() bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.currentPage < p.totalPage
 }
 
-func (p *Pagination) HasPrePage() bool {
+func (p *Pagination) HasPrev() bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.currentPage > 1
