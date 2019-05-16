@@ -13,6 +13,7 @@ import (
 	"github.com/xlab/treeprint"
 
 	"cocogo/pkg/cctx"
+	"cocogo/pkg/config"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/proxy"
@@ -259,7 +260,8 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
 		_, _ = io.WriteString(h.term, "\r\n No Assets\r\n\r")
 	} else {
-		pag := NewAssetPagination(h.term, assets)
+		sortedAssets := assets.SortBy(config.GetConf().AssetListSortBy)
+		pag := NewAssetPagination(h.term, sortedAssets)
 		selectOneAssets := pag.Start()
 		if len(selectOneAssets) == 1 {
 			systemUser := h.chooseSystemUser(selectOneAssets[0].SystemUsers)
@@ -268,7 +270,7 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 			h.Proxy(context.TODO())
 		}
 		if pag.page.PageSize() >= pag.page.TotalCount() {
-			h.searchResult = assets
+			h.searchResult = sortedAssets
 		} else {
 			h.searchResult = h.searchResult[:0]
 		}
