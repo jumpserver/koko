@@ -20,13 +20,32 @@ import (
 	"cocogo/pkg/utils"
 )
 
+type assetsCacheContainer struct {
+	mapData map[string][]model.Asset
+	lock    *sync.RWMutex
+}
+
+func (c *assetsCacheContainer) Get(key string) ([]model.Asset, bool) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	value, ok := c.mapData[key]
+	return value, ok
+}
+
+func (c *assetsCacheContainer) SetValue(key string, value []model.Asset) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.mapData[key] = value
+}
+
+var userAssetsCached = assetsCacheContainer{mapData: make(map[string][]model.Asset), lock: new(sync.RWMutex)}
+
 func SessionHandler(sess ssh.Session) {
 	pty, _, ok := sess.Pty()
 	if ok {
 		ctx, cancel := cctx.NewContext(sess)
 		defer cancel()
 		handler := newInteractiveHandler(sess, ctx.User())
-		handler.termHeight, handler.termWidth = pty.Window.Height, pty.Window.Width
 		logger.Debugf("User Request pty: %s %s", sess.User(), pty.Term)
 		handler.Dispatch(ctx)
 	} else {
@@ -37,7 +56,13 @@ func SessionHandler(sess ssh.Session) {
 
 func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandler {
 	term := utils.NewTerminal(sess, "Opt> ")
-	handler := &interactiveHandler{sess: sess, user: user, term: term}
+	handler := &interactiveHandler{
+		sess:           sess,
+		user:           user,
+		term:           term,
+		mu:             new(sync.RWMutex),
+		finishedLoaded: make(chan struct{}),
+	}
 	handler.Initial()
 	return handler
 }
@@ -54,17 +79,31 @@ type interactiveHandler struct {
 	searchResult     model.AssetList
 	nodes            model.NodeList
 	mu               *sync.RWMutex
-
-	termWidth  int
-	termHeight int
+	finishedLoaded   chan struct{}
 }
 
 func (h *interactiveHandler) Initial() {
 	h.displayBanner()
-	h.loadUserAssets()
-	h.loadUserAssetNodes()
-	h.searchResult = h.assets[:0]
+	h.loadAssetsFromCache()
+	h.searchResult = make([]model.Asset, 0)
 	h.winWatchChan = make(chan bool)
+}
+
+func (h *interactiveHandler) loadAssetsFromCache() {
+	if assets, ok := userAssetsCached.Get(h.user.ID); ok {
+		h.assets = assets
+		go h.firstLoadAssetAndNodes()
+	} else {
+		h.assets = make([]model.Asset, 0)
+		h.firstLoadAssetAndNodes()
+	}
+}
+
+func (h *interactiveHandler) firstLoadAssetAndNodes() {
+	h.loadUserAssets("1")
+	h.loadUserAssetNodes("1")
+	close(h.finishedLoaded)
+	logger.Debug("first Load Asset And Nodes done")
 }
 
 func (h *interactiveHandler) displayBanner() {
@@ -123,8 +162,11 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "", "p":
+				h.mu.RLock()
 				h.displayAssets(h.assets)
+				h.mu.RUnlock()
 			case "g":
+				<-h.finishedLoaded
 				h.displayNodes(h.nodes)
 			case "h":
 				h.displayBanner()
@@ -249,18 +291,24 @@ func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 }
 
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
+	h.loadUserAssets("2")
+	h.loadUserAssetNodes("2")
 	_, err := io.WriteString(h.sess, "Refresh done\r\n")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
 }
 
-func (h *interactiveHandler) loadUserAssets() {
-	h.assets = service.GetUserAssets(h.user.ID, "1")
+func (h *interactiveHandler) loadUserAssets(cachePolicy string) {
+	assets := service.GetUserAssets(h.user.ID, cachePolicy)
+	userAssetsCached.SetValue(h.user.ID, assets)
+	h.mu.Lock()
+	h.assets = assets
+	h.mu.Unlock()
 }
 
-func (h *interactiveHandler) loadUserAssetNodes() {
-	h.nodes = service.GetUserNodes(h.user.ID, "1")
+func (h *interactiveHandler) loadUserAssetNodes(cachePolicy string) {
+	h.nodes = service.GetUserNodes(h.user.ID, cachePolicy)
 }
 
 func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
@@ -273,7 +321,9 @@ func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
 	var searchData []model.Asset
 	switch len(h.searchResult) {
 	case 0:
+		h.mu.RLock()
 		searchData = h.assets
+		h.mu.RUnlock()
 	default:
 		searchData = h.searchResult
 	}
