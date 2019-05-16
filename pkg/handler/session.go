@@ -225,7 +225,7 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 			h.systemUserSelect = &systemUser
 			h.Proxy(context.TODO())
 		}
-		if pag.page.GetPageSize() >= pag.page.TotalCount() {
+		if pag.page.PageSize() >= pag.page.TotalCount() {
 			h.searchResult = assets
 		} else {
 			h.searchResult = h.searchResult[:0]
