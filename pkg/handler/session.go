@@ -63,7 +63,7 @@ func (h *interactiveHandler) Initial() {
 	h.displayBanner()
 	h.loadUserAssets()
 	h.loadUserAssetNodes()
-	h.searchResult = h.assets
+	h.searchResult = h.assets[:0]
 	h.winWatchChan = make(chan bool)
 }
 
@@ -135,7 +135,6 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 				return
 			default:
 				assets := h.searchAsset(line)
-				h.searchResult = assets
 				h.displayAssetsOrProxy(assets)
 			}
 		default:
@@ -143,7 +142,6 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 			case strings.Index(line, "/") == 0:
 				searchWord := strings.TrimSpace(line[1:])
 				assets := h.searchAsset(searchWord)
-				h.searchResult = assets
 				h.displayAssets(assets)
 			case strings.Index(line, "g") == 0:
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
@@ -151,13 +149,11 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 					if num >= 0 {
 						assets := h.searchNodeAssets(num)
 						h.displayAssets(assets)
-						h.searchResult = assets
 						continue
 					}
 				}
 			default:
 				assets := h.searchAsset(line)
-				h.searchResult = assets
 				h.displayAssetsOrProxy(assets)
 			}
 		}
@@ -229,6 +225,11 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 			h.systemUserSelect = &systemUser
 			h.Proxy(context.TODO())
 		}
+		if pag.page.GetPageSize() >= pag.page.TotalCount() {
+			h.searchResult = assets
+		} else {
+			h.searchResult = h.searchResult[:0]
+		}
 	}
 
 }
@@ -263,14 +264,22 @@ func (h *interactiveHandler) loadUserAssetNodes() {
 }
 
 func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
-	if indexNum, err := strconv.Atoi(key); err == nil {
+	if indexNum, err := strconv.Atoi(key); err == nil && len(h.searchResult) > 0 {
 		if indexNum > 0 && indexNum <= len(h.searchResult) {
 			assets = []model.Asset{h.searchResult[indexNum-1]}
 			return
 		}
 	}
-	for _, assetValue := range h.searchResult {
-		contents := []string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}
+	var searchData []model.Asset
+	switch len(h.searchResult) {
+	case 0:
+		searchData = h.assets
+	default:
+		searchData = h.searchResult
+	}
+
+	for _, assetValue := range searchData {
+		contents := []string{assetValue.Hostname, assetValue.Ip, assetValue.Comment}
 		if isSubstring(contents, key) {
 			assets = append(assets, assetValue)
 		}
