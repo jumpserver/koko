@@ -57,15 +57,17 @@ func (p *ProxyServer) validatePermission() bool {
 
 func (p *ProxyServer) getSSHConn() (srvConn *ServerSSHConnection, err error) {
 	srvConn = &ServerSSHConnection{
-		host:     p.Asset.Ip,
-		port:     strconv.Itoa(p.Asset.Port),
-		user:     p.SystemUser.Username,
-		password: p.SystemUser.Password,
-		timeout:  config.GetConf().SSHTimeout,
+		name:       p.Asset.Id,
+		host:       p.Asset.Ip,
+		port:       strconv.Itoa(p.Asset.Port),
+		user:       p.SystemUser.Username,
+		password:   p.SystemUser.Password,
+		privateKey: p.SystemUser.PrivateKey,
+		timeout:    config.GetConf().SSHTimeout,
 	}
 	pty := p.UserConn.Pty()
 	done := make(chan struct{})
-	go p.sendConnectingMsg(done)
+	go p.sendConnectingMsg(done, srvConn.timeout)
 	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 	close(done)
@@ -86,12 +88,11 @@ func (p *ProxyServer) getServerConn() (srvConn ServerConnection, err error) {
 	}
 }
 
-func (p *ProxyServer) sendConnectingMsg(done chan struct{}) {
+func (p *ProxyServer) sendConnectingMsg(done chan struct{}, delaySecond int) {
 	delay := 0.0
 	msg := fmt.Sprintf(i18n.T("Connecting to %s@%s  %.1f"), p.SystemUser.Username, p.Asset.Ip, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
-	cf := config.GetConf()
-	for int(delay) < cf.SSHTimeout {
+	for int(delay) < delaySecond {
 		select {
 		case <-done:
 			return
@@ -145,5 +146,4 @@ func (p *ProxyServer) Proxy() {
 	}
 	sw.parser.SetCMDFilterRules(cmdRules)
 	_ = sw.Bridge()
-	_ = srvConn.Close()
 }

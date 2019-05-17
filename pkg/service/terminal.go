@@ -84,5 +84,9 @@ func PushSessionReplay(sessionID, gZipFile string) {
 }
 
 func PushSessionCommand(commands []*model.Command) (err error) {
+	err = authClient.Post(SessionCommandURL, commands, nil)
+	if err != nil {
+		logger.Error(err)
+	}
 	return
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 
 	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
@@ -51,7 +51,7 @@ func (s *SwitchSession) Initial() {
 	s.SystemUser = s.srvConn.User()
 	s.LoginFrom = s.userConn.LoginFrom()
 	s.RemoteAddr = s.userConn.RemoteAddr()
-	s.DateStart = time.Now()
+	s.DateStart = time.Now().UTC()
 
 	s.cmdRecorder = NewCommandRecorder(s)
 	s.replayRecorder = NewReplyRecord(s)
@@ -77,11 +77,13 @@ func (s *SwitchSession) recordCmd() {
 }
 
 func (s *SwitchSession) postBridge() {
-	s.cmdRecorder.End()
-	s.replayRecorder.End()
-	s.parser.Close()
+	s.DateEnd = time.Now().UTC()
 	_ = s.userTran.Close()
 	_ = s.srvTran.Close()
+	s.parser.Close()
+	s.replayRecorder.End()
+	s.cmdRecorder.End()
+
 }
 
 func (s *SwitchSession) Bridge() (err error) {
@@ -94,6 +96,7 @@ func (s *SwitchSession) Bridge() (err error) {
 	}()
 
 	go s.parser.Parse()
+	go s.recordCmd()
 	defer s.postBridge()
 	for {
 		select {

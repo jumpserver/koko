@@ -20,9 +20,10 @@ const (
 	TerminalConfigURL    = "/api/terminal/v1/terminal/config/"        // 从jumpserver获取coco的配置
 	TerminalHeartBeatURL = "/api/terminal/v1/terminal/status/"
 
-	SessionListURL   = "/api/terminal/v1/sessions/"           //上传创建的资产会话session id
-	SessionDetailURL = "/api/terminal/v1/sessions/%s/"        // finish session的时候发送
-	SessionReplayURL = "/api/terminal/v1/sessions/%s/replay/" //上传录像
+	SessionListURL    = "/api/terminal/v1/sessions/"           //上传创建的资产会话session id
+	SessionDetailURL  = "/api/terminal/v1/sessions/%s/"        // finish session的时候发送
+	SessionReplayURL  = "/api/terminal/v1/sessions/%s/replay/" //上传录像
+	SessionCommandURL = "/api/terminal/v1/command/"            //上传批量命令
 
 	FinishTaskURL = "/api/terminal/v1/tasks/%s/"
 

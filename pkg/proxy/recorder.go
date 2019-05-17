@@ -30,13 +30,15 @@ type CommandRecorder struct {
 	Session *SwitchSession
 	storage CommandStorage
 
-	queue chan *model.Command
+	queue  chan *model.Command
+	closed chan struct{}
 }
 
 func (c *CommandRecorder) initial() {
 	c.queue = make(chan *model.Command, 10)
-	//c.storage = NewCommandStorage()
-	c.storage, _ = NewFileCommandStorage("/tmp/abc.log")
+	c.storage = NewCommandStorage()
+	c.closed = make(chan struct{})
+	//c.storage, _ = NewFileCommandStorage("/tmp/abc.log")
 	go c.record()
 }
 
@@ -58,13 +60,22 @@ func (c *CommandRecorder) Record(command [2]string) {
 }
 
 func (c *CommandRecorder) End() {
-	close(c.queue)
+	select {
+	case <-c.closed:
+		return
+	default:
+	}
+	close(c.closed)
 }
 
 func (c *CommandRecorder) record() {
 	cmdList := make([]*model.Command, 0)
 	for {
 		select {
+		case <-c.closed:
+			if len(cmdList) == 0 {
+				return
+			}
 		case p, ok := <-c.queue:
 			if !ok {
 				logger.Debug("Session command recorder close: ", c.Session.Id)
@@ -79,7 +90,6 @@ func (c *CommandRecorder) record() {
 				continue
 			}
 		}
-
 		err := c.storage.BulkSave(cmdList)
 		if err == nil {
 			cmdList = cmdList[:0]
