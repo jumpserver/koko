@@ -154,7 +154,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:940277eb8ecf4938e0760fecd917bdc24d45d78c22b32b83267682c3409075d2"
+  digest = "1:f8c5898dd07a4ac155a612d8f9479f0b504a278322396db2290708c2a096710f"
   name = "golang.org/x/crypto"
   packages = [
     "curve25519",
@@ -164,7 +164,6 @@
     "internal/subtle",
     "poly1305",
     "ssh",
-    "ssh/terminal",
   ]
   pruneopts = "UT"
   revision = "a7099eef26a7fdc97f3ac5f5b2b61f9f136dd16f"
@@ -172,12 +171,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1a1855ef6bc1338dd3870260716214046cefd69855c5a5a772d44d2791478abc"
+  digest = "1:00a3a12527dd7a3af0d24260fd14887ebd69aaf924303b6a4a67f35eb9b6c012"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
-    "windows",
   ]
   pruneopts = "UT"
   revision = "3a4b5fb9f71f5874b2374ae059bc0e0bcb52e145"
@@ -214,7 +212,6 @@
     "github.com/sirupsen/logrus",
     "github.com/xlab/treeprint",
     "golang.org/x/crypto/ssh",
-    "golang.org/x/crypto/ssh/terminal",
     "gopkg.in/natefinch/lumberjack.v2",
     "gopkg.in/yaml.v2",
   ]

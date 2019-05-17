@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
 	neturl "net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
@@ -223,4 +226,54 @@ func (c *Client) PostForm(url string, data interface{}, res interface{}) (err er
 	req, err := http.NewRequest("POST", url, reader)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return nil
+}
+
+func (c *Client) UploadFile(url string, gFile string, res interface{}, params ...map[string]string) (err error) {
+	f, err := os.Open(gFile)
+	if err != nil {
+		return err
+	}
+	buf := new(bytes.Buffer)
+	bodyWriter := multipart.NewWriter(buf)
+	gName := filepath.Base(gFile)
+	part, err := bodyWriter.CreateFormFile("file", gName)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(part, f)
+	err = bodyWriter.Close()
+	if err != nil {
+		return err
+	}
+	url = c.parseUrl(url, params)
+	req, err := http.NewRequest("POST", url, buf)
+	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
+	c.SetReqHeaders(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, string(body))
+		err = errors.New(msg)
+		return
+	}
+
+	// If is buffer return the raw response body
+	if buf, ok := res.(*bytes.Buffer); ok {
+		buf.Write(body)
+		return
+	}
+	// Unmarshal response body to result struct
+	if res != nil {
+		err = json.Unmarshal(body, res)
+		if err != nil {
+			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body, err)
+			err = errors.New(msg)
+			return
+		}
+	}
+	return
 }

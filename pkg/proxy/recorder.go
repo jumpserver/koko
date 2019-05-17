@@ -46,11 +46,31 @@ func (c *CommandRecorder) Record(command [2]string) {
 	if command[0] == "" && command[1] == "" {
 		return
 	}
+	if command[0] == "" {
+		fmt.Println("command kong=======")
+	}
+	var input string
+	var output string
+	if len(command[0]) > 128 {
+		input = command[0][:128]
+	} else {
+		input = command[0]
+	}
+	i := strings.LastIndexByte(command[1], '\r')
+
+	if i > 1024 {
+		output = output[:1024]
+	} else if i > 0 {
+		output = command[1][:i]
+	} else {
+		output = command[1]
+	}
+
 	cmd := &model.Command{
 		SessionId:  c.Session.Id,
 		OrgId:      c.Session.Org,
-		Input:      command[0],
-		Output:     command[1],
+		Input:      input,
+		Output:     output,
 		User:       c.Session.User,
 		Server:     c.Session.Server,
 		SystemUser: c.Session.SystemUser,
@@ -70,6 +90,7 @@ func (c *CommandRecorder) End() {
 
 func (c *CommandRecorder) record() {
 	cmdList := make([]*model.Command, 0)
+	maxRetry := 0
 	for {
 		select {
 		case <-c.closed:
@@ -95,9 +116,11 @@ func (c *CommandRecorder) record() {
 			cmdList = cmdList[:0]
 			continue
 		}
-		if len(cmdList) > 1024 {
+
+		if maxRetry > 5 {
 			cmdList = cmdList[1:]
 		}
+		maxRetry++
 	}
 }
 
@@ -115,11 +138,8 @@ type ReplyRecorder struct {
 }
 
 func (r *ReplyRecorder) initial() {
-	storage := NewReplayStorage()
-	backOffStorage := &ServerReplayStorage{}
-	r.storage = storage
-	r.backOffStorage = backOffStorage
-
+	r.storage = NewReplayStorage()
+	r.backOffStorage = defaultReplayStorage
 	r.prepare()
 }
 
@@ -139,7 +159,7 @@ func (r *ReplyRecorder) prepare() {
 	replayDir := filepath.Join(rootPath, "data", "replays", today)
 
 	r.absFilePath = filepath.Join(replayDir, sessionId)
-	r.absGzFilePath = filepath.Join(replayDir, today, gzFileName)
+	r.absGzFilePath = filepath.Join(replayDir, gzFileName)
 	r.target = strings.Join([]string{today, gzFileName}, "/")
 	r.timeStartNano = time.Now().UnixNano()
 
@@ -164,7 +184,6 @@ func (r *ReplyRecorder) End() {
 }
 
 func (r *ReplyRecorder) uploadReplay() {
-	maxRetry := 3
 	if !common.FileExists(r.absFilePath) {
 		logger.Debug("Replay file not found, passed: ", r.absFilePath)
 		return
@@ -179,7 +198,11 @@ func (r *ReplyRecorder) uploadReplay() {
 		_ = common.GzipCompressFile(r.absFilePath, r.absGzFilePath)
 		_ = os.Remove(r.absFilePath)
 	}
+	r.uploadGzipFile(3)
 
+}
+
+func (r *ReplyRecorder) uploadGzipFile(maxRetry int) {
 	for i := 0; i <= maxRetry; i++ {
 		logger.Debug("Upload replay file: ", r.absGzFilePath)
 		err := r.storage.Upload(r.absGzFilePath, r.target)
@@ -189,9 +212,12 @@ func (r *ReplyRecorder) uploadReplay() {
 		}
 		// 如果还是失败，使用备用storage再传一次
 		if i == maxRetry {
+			if r.storage == r.backOffStorage {
+				break
+			}
 			logger.Errorf("Using back off storage retry upload")
 			r.storage = r.backOffStorage
-			r.uploadReplay()
+			r.uploadGzipFile(3)
 			break
 		}
 	}

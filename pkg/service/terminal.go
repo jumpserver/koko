@@ -42,17 +42,21 @@ func CreateSession(data map[string]interface{}) bool {
 	return false
 }
 
-func FinishSession(sid, dataEnd string) {
+func FinishSession(data map[string]interface{}) {
+
 	var res map[string]interface{}
-	data := map[string]interface{}{
-		"is_finished": true,
-		"date_end":    dataEnd,
+	if sid, ok := data["id"]; ok {
+		playborad := map[string]interface{}{
+			"is_finished": true,
+			"date_end":    data["date_end"],
+		}
+		Url := fmt.Sprintf(SessionDetailURL, sid)
+		err := authClient.Patch(Url, playborad, &res)
+		if err != nil {
+			logger.Error(err)
+		}
 	}
-	Url := fmt.Sprintf(SessionDetailURL, sid)
-	err := authClient.Patch(Url, data, &res)
-	if err != nil {
-		logger.Error(err)
-	}
+
 }
 
 func FinishReply(sid string) bool {
@@ -79,8 +83,14 @@ func FinishTask(tid string) bool {
 	return true
 }
 
-func PushSessionReplay(sessionID, gZipFile string) {
-
+func PushSessionReplay(sessionID, gZipFile string) (err error) {
+	var res map[string]interface{}
+	Url := fmt.Sprintf(SessionReplayURL, sessionID)
+	err = authClient.UploadFile(Url, gZipFile, &res)
+	if err != nil {
+		logger.Error(err)
+	}
+	return
 }
 
 func PushSessionCommand(commands []*model.Command) (err error) {

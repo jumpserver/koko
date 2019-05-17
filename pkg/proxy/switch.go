@@ -6,8 +6,10 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
+	"cocogo/pkg/config"
 	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
+	"cocogo/pkg/service"
 	"cocogo/pkg/utils"
 )
 
@@ -25,11 +27,13 @@ type SwitchSession struct {
 	Org        string    `json:"org_id"`
 	LoginFrom  string    `json:"login_from"`
 	RemoteAddr string    `json:"remote_addr"`
-	DateStart  time.Time `json:"date_start"`
-	DateEnd    time.Time `json:"date_end"`
+	DateStart  string    `json:"date_start"`
+	DateEnd    string    `json:"date_end"`
 	DateActive time.Time `json:"date_last_active"`
 	Finished   bool      `json:"is_finished"`
 	Closed     bool
+
+	MaxIdleTime int
 
 	cmdRecorder    *CommandRecorder
 	replayRecorder *ReplyRecorder
@@ -51,8 +55,8 @@ func (s *SwitchSession) Initial() {
 	s.SystemUser = s.srvConn.User()
 	s.LoginFrom = s.userConn.LoginFrom()
 	s.RemoteAddr = s.userConn.RemoteAddr()
-	s.DateStart = time.Now().UTC()
-
+	s.DateStart = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
+	s.MaxIdleTime = config.GetConf().MaxIdleTime
 	s.cmdRecorder = NewCommandRecorder(s)
 	s.replayRecorder = NewReplyRecord(s)
 
@@ -76,17 +80,68 @@ func (s *SwitchSession) recordCmd() {
 	}
 }
 
+func (s *SwitchSession) MapData() map[string]interface{} {
+	var dataEnd interface{}
+	if s.DateEnd == "" {
+		dataEnd = nil
+	} else {
+		dataEnd = s.DateEnd
+	}
+	return map[string]interface{}{
+		"id":          s.Id,
+		"user":        s.User,
+		"asset":       s.Server,
+		"org_id":      s.Org,
+		"login_from":  s.LoginFrom,
+		"system_user": s.SystemUser,
+		"remote_addr": s.RemoteAddr,
+		"is_finished": s.Finished,
+		"date_start":  s.DateStart,
+		"date_end":    dataEnd,
+	}
+}
+
 func (s *SwitchSession) postBridge() {
-	s.DateEnd = time.Now().UTC()
 	_ = s.userTran.Close()
 	_ = s.srvTran.Close()
 	s.parser.Close()
 	s.replayRecorder.End()
 	s.cmdRecorder.End()
+	s.finishSession()
+}
 
+func (s *SwitchSession) finishSession() {
+	s.DateEnd = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
+	service.FinishSession(s.MapData())
+	service.FinishReply(s.Id)
+	logger.Debugf("finish Session: %s", s.Id)
+}
+
+func (s *SwitchSession) creatSession() bool {
+	for i := 0; i < 5; i++ {
+		if service.CreateSession(s.MapData()) {
+			return true
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return false
+}
+
+func (s *SwitchSession) SetFilterRules(systemUserId string) {
+	cmdRules, err := service.GetSystemUserFilterRules(systemUserId)
+	if err != nil {
+		logger.Error("Get system user filter rule error: ", err)
+	}
+	s.parser.SetCMDFilterRules(cmdRules)
 }
 
 func (s *SwitchSession) Bridge() (err error) {
+	if !s.creatSession() {
+		msg := i18n.T("Connect with api server failed")
+		msg = utils.WrapperWarn(msg)
+		utils.IgnoreErrWriteString(s.userConn, msg)
+		return
+	}
 	winCh := s.userConn.WinCh()
 	s.userTran = NewDirectTransport("", s.userConn)
 	s.srvTran = NewDirectTransport("", s.srvConn)
@@ -100,6 +155,9 @@ func (s *SwitchSession) Bridge() (err error) {
 	defer s.postBridge()
 	for {
 		select {
+		// 检测是否超过最大空闲时间
+		case <-time.After(time.Duration(s.MaxIdleTime) * time.Minute):
+			return
 		// 手动结束
 		case <-s.ctx.Done():
 			return
@@ -115,16 +173,25 @@ func (s *SwitchSession) Bridge() (err error) {
 			s.parser.srvInputChan <- p
 		// Server流入parser数据，经处理发给用户
 		case p := <-s.parser.srvOutputChan:
-			_, _ = s.userTran.Write(p)
+			nw, err := s.userTran.Write(p)
+			if !s.parser.IsRecvState() {
+				s.replayRecorder.Record(p[:nw])
+			}
+			if err != nil {
+				return err
+			}
 		// User发来的数据流流入parser
 		case p, ok := <-s.userTran.Chan():
 			if !ok {
 				return
 			}
 			s.parser.userInputChan <- p
-		// User发来的数据经parser初六，发给Server
+		// User发来的数据经parser处理，发给Server
 		case p := <-s.parser.userOutputChan:
-			_, _ = s.srvTran.Write(p)
+			_, err = s.srvTran.Write(p)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }

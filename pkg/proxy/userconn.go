@@ -38,7 +38,7 @@ func (uc *UserSSHConnection) WinCh() (winch <-chan ssh.Window) {
 }
 
 func (uc *UserSSHConnection) LoginFrom() string {
-	return "T"
+	return "ST"
 }
 
 func (uc *UserSSHConnection) RemoteAddr() string {

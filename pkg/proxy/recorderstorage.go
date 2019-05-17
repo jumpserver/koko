@@ -6,6 +6,8 @@ import (
 	"cocogo/pkg/service"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 type ReplayStorage interface {
@@ -16,6 +18,9 @@ type CommandStorage interface {
 	BulkSave(commands []*model.Command) error
 }
 
+var defaultCommandStorage = &ServerCommandStorage{}
+var defaultReplayStorage = &ServerReplayStorage{StorageType: "server"}
+
 func NewReplayStorage() ReplayStorage {
 	cf := config.GetConf().ReplayStorage
 	tp, ok := cf["TYPE"]
@@ -24,7 +29,7 @@ func NewReplayStorage() ReplayStorage {
 	}
 	switch tp {
 	default:
-		return &ServerReplayStorage{}
+		return defaultReplayStorage
 	}
 }
 
@@ -36,7 +41,7 @@ func NewCommandStorage() CommandStorage {
 	}
 	switch tp {
 	default:
-		return &ServerCommandStorage{}
+		return defaultCommandStorage
 	}
 }
 
@@ -74,7 +79,6 @@ type ServerReplayStorage struct {
 }
 
 func (s *ServerReplayStorage) Upload(gZipFilePath, target string) (err error) {
-	//sessionID := strings.Split(filepath.Base(gZipFilePath), ".")[0]
-	//_ = client.PushSessionReplay(gZipFilePath, sessionID)
-	return
+	sessionID := strings.Split(filepath.Base(gZipFilePath), ".")[0]
+	return service.PushSessionReplay(sessionID, gZipFilePath)
 }

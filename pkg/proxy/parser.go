@@ -49,7 +49,8 @@ type Parser struct {
 	inputState    bool
 	zmodemState   string
 	inVimState    bool
-	once          sync.Once
+	once          *sync.Once
+	lock          *sync.RWMutex
 
 	command         string
 	output          string
@@ -65,7 +66,8 @@ func (p *Parser) initial() {
 	p.cmdBuf = new(bytes.Buffer)
 	p.outputBuf = new(bytes.Buffer)
 
-	p.once = sync.Once{}
+	p.once = new(sync.Once)
+	p.lock = new(sync.RWMutex)
 
 	p.cmdInputParser = NewCmdParser()
 	p.cmdOutputParser = NewCmdParser()
@@ -162,6 +164,8 @@ func (p *Parser) parseZmodemState(b []byte) {
 	if len(b) < 25 {
 		return
 	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if p.zmodemState == "" {
 		if len(b) > 50 && bytes.Contains(b[:50], zmodemRecvStartMark) {
 			p.zmodemState = zmodemStateRecv
@@ -225,6 +229,12 @@ func (p *Parser) IsCommandForbidden() bool {
 		return true
 	}
 	return false
+}
+
+func (p *Parser) IsRecvState() bool {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.zmodemState == zmodemStateRecv
 }
 
 func (p *Parser) Close() {
