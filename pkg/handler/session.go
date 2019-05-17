@@ -185,7 +185,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 			case strings.Index(line, "/") == 0:
 				searchWord := strings.TrimSpace(line[1:])
 				assets := h.searchAsset(searchWord)
-				h.displayAssetsOrProxy(assets)
+				h.displayAssets(assets)
 			case strings.Index(line, "g") == 0:
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
 				if num, err := strconv.Atoi(searchWord); err == nil {

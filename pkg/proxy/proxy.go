@@ -57,7 +57,7 @@ func (p *ProxyServer) validatePermission() bool {
 
 func (p *ProxyServer) getSSHConn() (srvConn *ServerSSHConnection, err error) {
 	srvConn = &ServerSSHConnection{
-		name:       p.Asset.Id,
+		name:       p.Asset.Hostname,
 		host:       p.Asset.Ip,
 		port:       strconv.Itoa(p.Asset.Port),
 		user:       p.SystemUser.Username,
