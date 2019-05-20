@@ -9,7 +9,6 @@ import (
 
 	"cocogo/pkg/config"
 	"cocogo/pkg/logger"
-	"cocogo/pkg/proxy"
 	"cocogo/pkg/service"
 	"cocogo/pkg/sshd"
 )
@@ -45,5 +44,5 @@ func loadingBoot() {
 	config.Initial()
 	logger.Initial()
 	service.Initial()
-	proxy.Initial()
+	Initial()
 }
