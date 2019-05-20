@@ -75,7 +75,7 @@ func FinishTask(tid string) bool {
 	var res map[string]interface{}
 	data := map[string]bool{"is_finished": true}
 	Url := fmt.Sprintf(FinishTaskURL, tid)
-	err := authClient.Patch(Url, data, res)
+	err := authClient.Patch(Url, data, &res)
 	if err != nil {
 		logger.Error(err)
 		return false

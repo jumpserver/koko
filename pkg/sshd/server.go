@@ -11,6 +11,8 @@ import (
 	"cocogo/pkg/logger"
 )
 
+var sshServer *ssh.Server
+
 func StartServer() {
 	conf := config.GetConf()
 	hostKey := HostKey{Value: conf.HostKey, Path: conf.HostKeyFile}
@@ -21,7 +23,7 @@ func StartServer() {
 	}
 
 	logger.Infof("Start ssh server at %s:%d", conf.BindHost, conf.SSHPort)
-	srv := ssh.Server{
+	sshServer = &ssh.Server{
 		Addr:                       conf.BindHost + ":" + strconv.Itoa(conf.SSHPort),
 		KeyboardInteractiveHandler: auth.CheckMFA,
 		PasswordHandler:            auth.CheckUserPassword,
@@ -32,6 +34,15 @@ func StartServer() {
 		SubsystemHandlers:          map[string]ssh.SubsystemHandler{},
 	}
 	// Set Auth Handler
-	srv.SetSubsystemHandler("sftp", handler.SftpHandler)
-	logger.Fatal(srv.ListenAndServe())
+	sshServer.SetSubsystemHandler("sftp", handler.SftpHandler)
+	logger.Fatal(sshServer.ListenAndServe())
+}
+
+func StopServer() {
+	err := sshServer.Close()
+	if err != nil {
+		logger.Debugf("ssh server close failed: %s", err.Error())
+	}
+	logger.Debug("Close ssh Server")
+
 }

@@ -47,8 +47,8 @@ func (s *SwitchSession) Initial() {
 	s.Id = uuid.NewV4().String()
 	s.DateStart = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
-	s.cmdRecorder = NewCommandRecorder(s)
-	s.replayRecorder = NewReplyRecord(s)
+	s.cmdRecorder = NewCommandRecorder(s.Id)
+	s.replayRecorder = NewReplyRecord(s.Id)
 
 	s.parser = newParser()
 
@@ -83,13 +83,12 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		input = command[0]
 	}
 	i := strings.LastIndexByte(command[1], '\r')
-
-	if i > 1024 {
-		output = output[:1024]
-	} else if i > 0 {
+	if i < 0 {
+		output = command[1]
+	} else if i > 0 && i < 1024 {
 		output = command[1][:i]
 	} else {
-		output = command[1]
+		output = command[1][:1024]
 	}
 
 	return &model.Command{
@@ -134,13 +133,14 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn ServerConnection
 		select {
 		// 检测是否超过最大空闲时间
 		case <-time.After(time.Duration(s.MaxIdleTime) * time.Minute):
-			msg := i18n.T(fmt.Sprintf("Connect idle more than %d minutes, disconnect", s.MaxIdleTime))
+			msg := i18n.T(fmt.Sprintf("\n\nConnect idle more than %d minutes, disconnect", s.MaxIdleTime))
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(s.userTran, msg)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
-			msg := i18n.T("Terminated by administrator")
+			msg := i18n.T("\n\rTerminated by administrator")
+			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, msg)
 			return
 		// 监控窗口大小变化

@@ -14,14 +14,14 @@ import (
 	"cocogo/pkg/model"
 )
 
-func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
-	recorder = &CommandRecorder{sessionID: sess.Id}
+func NewCommandRecorder(sid string) (recorder *CommandRecorder) {
+	recorder = &CommandRecorder{sessionID: sid}
 	recorder.initial()
 	return recorder
 }
 
-func NewReplyRecord(sess *SwitchSession) (recorder *ReplyRecorder) {
-	recorder = &ReplyRecorder{sessionID: sess.Id}
+func NewReplyRecord(sid string) (recorder *ReplyRecorder) {
+	recorder = &ReplyRecorder{sessionID: sid}
 	recorder.initial()
 	return recorder
 }

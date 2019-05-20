@@ -148,8 +148,10 @@ func (p *ProxyServer) Proxy() {
 	}
 	cmdRules := p.GetFilterRules()
 	sw.SetFilterRules(cmdRules)
+	AddSession(sw)
 	_ = sw.Bridge(p.UserConn, srvConn)
 	p.finishSession(sw)
+	RemoveSession(sw)
 }
 
 func (p *ProxyServer) createSession(s *SwitchSession) bool {

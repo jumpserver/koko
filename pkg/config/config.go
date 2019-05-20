@@ -41,6 +41,7 @@ type Config struct {
 	Comment             string            `yaml:"COMMENT"`
 	Language            string            `yaml:"LANG"`
 	LanguageCode        string            `yaml:"LANGUAGE_CODE"` // Abandon
+	UploadFailedReplay  bool              `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -105,23 +106,25 @@ var lock = new(sync.RWMutex)
 var name, _ = os.Hostname()
 var rootPath, _ = os.Getwd()
 var Conf = &Config{
-	Name:           name,
-	CoreHost:       "http://localhost:8080",
-	BootstrapToken: "",
-	BindHost:       "0.0.0.0",
-	SSHPort:        2222,
-	SSHTimeout:     60,
-	HTTPPort:       5000,
-	AccessKey:      "",
-	AccessKeyFile:  "data/keys/.access_key",
-	LogLevel:       "DEBUG",
-	HostKeyFile:    "data/keys/host_key",
-	HostKey:        "",
-	RootPath:       rootPath,
-	Comment:        "Coco",
-	Language:       "zh",
-	ReplayStorage:  map[string]string{"TYPE": "server"},
-	CommandStorage: map[string]string{"TYPE": "server"},
+	Name:               name,
+	CoreHost:           "http://localhost:8080",
+	BootstrapToken:     "",
+	BindHost:           "0.0.0.0",
+	SSHPort:            2222,
+	SSHTimeout:         15,
+	HTTPPort:           5000,
+	HeartbeatDuration:  10,
+	AccessKey:          "",
+	AccessKeyFile:      "data/keys/.access_key",
+	LogLevel:           "DEBUG",
+	HostKeyFile:        "data/keys/host_key",
+	HostKey:            "",
+	RootPath:           rootPath,
+	Comment:            "Coco",
+	Language:           "zh",
+	ReplayStorage:      map[string]string{"TYPE": "server"},
+	CommandStorage:     map[string]string{"TYPE": "server"},
+	UploadFailedReplay: true,
 }
 
 func SetConf(conf *Config) {

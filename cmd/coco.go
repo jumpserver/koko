@@ -5,6 +5,5 @@ import (
 )
 
 func main() {
-	app := &coco.Coco{}
-	app.Start()
+	coco.RunForever()
 }

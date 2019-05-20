@@ -268,7 +268,6 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 
 func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
 	found := sf.Pattern().FindString(cmd)
-	fmt.Println(found)
 	if found == "" {
 		return ActionUnknown, ""
 	}

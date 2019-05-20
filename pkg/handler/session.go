@@ -330,8 +330,10 @@ func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
 		searchData = h.searchResult
 	}
 
+	key = strings.ToLower(key)
 	for _, assetValue := range searchData {
-		contents := []string{assetValue.Hostname, assetValue.Ip, assetValue.Comment}
+		contents := []string{strings.ToLower(assetValue.Hostname),
+			strings.ToLower(assetValue.Ip), strings.ToLower(assetValue.Comment)}
 		if isSubstring(contents, key) {
 			assets = append(assets, assetValue)
 		}

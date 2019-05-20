@@ -2,10 +2,10 @@ package proxy
 
 import (
 	"bytes"
-	"cocogo/pkg/i18n"
 	"fmt"
 	"sync"
 
+	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/utils"
@@ -114,8 +114,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
-		if p.IsCommandForbidden() {
-			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), p.command))
+		if cmd, ok := p.IsCommandForbidden(); !ok {
+			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
 			p.outputBuf.WriteString(fbdMsg)
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			return []byte{utils.CharCleanLine, '\r'}
@@ -223,12 +223,20 @@ func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 	p.cmdFilterRules = rules
 }
 
-func (p *Parser) IsCommandForbidden() bool {
+func (p *Parser) IsCommandForbidden() (string, bool) {
 	fmt.Println("Command is: ", p.command)
-	if p.command == "ls" {
-		return true
+	for _, rule := range p.cmdFilterRules {
+		allowed, cmd := rule.Match(p.command)
+		switch allowed {
+		case model.ActionAllow:
+			return "", true
+		case model.ActionDeny:
+			return cmd, false
+		default:
+
+		}
 	}
-	return false
+	return "", true
 }
 
 func (p *Parser) IsRecvState() bool {

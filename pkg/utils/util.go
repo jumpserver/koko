@@ -41,6 +41,6 @@ func WrapperTitle(text string) string {
 }
 
 func WrapperWarn(text string) string {
-	text += "\r\n"
+	text += "\n\r"
 	return WrapperString(text, Red)
 }
