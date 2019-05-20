@@ -44,12 +44,14 @@ func uploadFailedReplay(rootPath string) {
 			sid := strings.Split(filename, ".")[0]
 			if len(sid) == 36 {
 				relayRecord := NewReplyRecord(sid)
+				relayRecord.absGzFilePath = path
+				relayRecord.target, _ = filepath.Rel(path, rootPath)
 				go relayRecord.uploadGzipFile(3)
 			}
 		}
 		return nil
 	})
-	logger.Debug("upload Failed Replay Done")
+	logger.Debug("upload Replay Done")
 }
 
 func KeepHeartbeat(interval int) {
