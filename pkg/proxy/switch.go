@@ -2,6 +2,8 @@ package proxy
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -9,29 +11,24 @@ import (
 	"cocogo/pkg/config"
 	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
-	"cocogo/pkg/service"
+	"cocogo/pkg/model"
 	"cocogo/pkg/utils"
 )
 
-func NewSwitchSession(userConn UserConnection, serverConn ServerConnection) (sw *SwitchSession) {
-	sw = &SwitchSession{userConn: userConn, srvConn: serverConn}
+func NewSwitchSession(p *ProxyServer) (sw *SwitchSession) {
+	sw = &SwitchSession{p: p}
 	sw.Initial()
 	return sw
 }
 
 type SwitchSession struct {
-	Id         string
-	User       string    `json:"user"`
-	Server     string    `json:"asset"`
-	SystemUser string    `json:"system_user"`
-	Org        string    `json:"org_id"`
-	LoginFrom  string    `json:"login_from"`
-	RemoteAddr string    `json:"remote_addr"`
-	DateStart  string    `json:"date_start"`
-	DateEnd    string    `json:"date_end"`
-	DateActive time.Time `json:"date_last_active"`
-	Finished   bool      `json:"is_finished"`
-	Closed     bool
+	Id string
+	p  *ProxyServer
+
+	DateStart  string
+	DateEnd    string
+	DateActive time.Time
+	finished   bool
 
 	MaxIdleTime int
 
@@ -39,8 +36,6 @@ type SwitchSession struct {
 	replayRecorder *ReplyRecorder
 	parser         *Parser
 
-	userConn UserConnection
-	srvConn  ServerConnection
 	userTran Transport
 	srvTran  Transport
 
@@ -50,11 +45,6 @@ type SwitchSession struct {
 
 func (s *SwitchSession) Initial() {
 	s.Id = uuid.NewV4().String()
-	s.User = s.userConn.User()
-	s.Server = s.srvConn.Name()
-	s.SystemUser = s.srvConn.User()
-	s.LoginFrom = s.userConn.LoginFrom()
-	s.RemoteAddr = s.userConn.RemoteAddr()
 	s.DateStart = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
 	s.cmdRecorder = NewCommandRecorder(s)
@@ -66,104 +56,96 @@ func (s *SwitchSession) Initial() {
 }
 
 func (s *SwitchSession) Terminate() {
-	if !s.Closed {
-		msg := i18n.T("Terminated by administrator")
-		utils.IgnoreErrWriteString(s.userConn, msg)
-		s.cancel()
-		s.Closed = true
+	select {
+	case <-s.ctx.Done():
+		return
+	default:
 	}
+	s.cancel()
 }
 
-func (s *SwitchSession) recordCmd() {
-	for cmd := range s.parser.cmdRecordChan {
+func (s *SwitchSession) recordCommand() {
+	for command := range s.parser.cmdRecordChan {
+		if command[0] == "" && command[1] == "" {
+			continue
+		}
+		cmd := s.generateCommandResult(command)
 		s.cmdRecorder.Record(cmd)
 	}
 }
 
-func (s *SwitchSession) MapData() map[string]interface{} {
-	var dataEnd interface{}
-	if s.DateEnd == "" {
-		dataEnd = nil
+func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command {
+	var input string
+	var output string
+	if len(command[0]) > 128 {
+		input = command[0][:128]
 	} else {
-		dataEnd = s.DateEnd
+		input = command[0]
 	}
-	return map[string]interface{}{
-		"id":          s.Id,
-		"user":        s.User,
-		"asset":       s.Server,
-		"org_id":      s.Org,
-		"login_from":  s.LoginFrom,
-		"system_user": s.SystemUser,
-		"remote_addr": s.RemoteAddr,
-		"is_finished": s.Finished,
-		"date_start":  s.DateStart,
-		"date_end":    dataEnd,
+	i := strings.LastIndexByte(command[1], '\r')
+
+	if i > 1024 {
+		output = output[:1024]
+	} else if i > 0 {
+		output = command[1][:i]
+	} else {
+		output = command[1]
+	}
+
+	return &model.Command{
+		SessionId:  s.Id,
+		OrgId:      s.p.Asset.OrgID,
+		Input:      input,
+		Output:     output,
+		User:       s.p.User.Username,
+		Server:     s.p.Asset.Hostname,
+		SystemUser: s.p.SystemUser.Username,
+		Timestamp:  time.Now().Unix(),
 	}
 }
 
 func (s *SwitchSession) postBridge() {
+	s.DateEnd = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
+	s.finished = true
 	_ = s.userTran.Close()
 	_ = s.srvTran.Close()
 	s.parser.Close()
 	s.replayRecorder.End()
 	s.cmdRecorder.End()
-	s.finishSession()
 }
 
-func (s *SwitchSession) finishSession() {
-	s.DateEnd = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
-	service.FinishSession(s.MapData())
-	service.FinishReply(s.Id)
-	logger.Debugf("finish Session: %s", s.Id)
-}
-
-func (s *SwitchSession) creatSession() bool {
-	for i := 0; i < 5; i++ {
-		if service.CreateSession(s.MapData()) {
-			return true
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	return false
-}
-
-func (s *SwitchSession) SetFilterRules(systemUserId string) {
-	cmdRules, err := service.GetSystemUserFilterRules(systemUserId)
-	if err != nil {
-		logger.Error("Get system user filter rule error: ", err)
-	}
+func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
 	s.parser.SetCMDFilterRules(cmdRules)
 }
 
-func (s *SwitchSession) Bridge() (err error) {
-	if !s.creatSession() {
-		msg := i18n.T("Connect with api server failed")
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(s.userConn, msg)
-		return
-	}
-	winCh := s.userConn.WinCh()
-	s.userTran = NewDirectTransport("", s.userConn)
-	s.srvTran = NewDirectTransport("", s.srvConn)
+func (s *SwitchSession) Bridge(userConn UserConnection, srvConn ServerConnection) (err error) {
+	winCh := userConn.WinCh()
+	s.srvTran = NewDirectTransport(s.Id, srvConn)
+	s.userTran = NewDirectTransport(s.Id, userConn)
 
 	defer func() {
 		logger.Info("Session bridge done: ", s.Id)
 	}()
 
 	go s.parser.Parse()
-	go s.recordCmd()
+	go s.recordCommand()
 	defer s.postBridge()
 	for {
 		select {
 		// 检测是否超过最大空闲时间
 		case <-time.After(time.Duration(s.MaxIdleTime) * time.Minute):
+			msg := i18n.T(fmt.Sprintf("Connect idle more than %d minutes, disconnect", s.MaxIdleTime))
+			msg = utils.WrapperWarn(msg)
+			utils.IgnoreErrWriteString(s.userTran, msg)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
+			msg := i18n.T("Terminated by administrator")
+			utils.IgnoreErrWriteString(userConn, msg)
 			return
 		// 监控窗口大小变化
 		case win := <-winCh:
-			_ = s.srvConn.SetWinSize(win.Height, win.Width)
+			_ = srvConn.SetWinSize(win.Height, win.Width)
 			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
 		// Server发来数据流入parser中
 		case p, ok := <-s.srvTran.Chan():
@@ -193,5 +175,24 @@ func (s *SwitchSession) Bridge() (err error) {
 				return err
 			}
 		}
+	}
+}
+
+func (s *SwitchSession) MapData() map[string]interface{} {
+	var dataEnd interface{}
+	if s.DateEnd != "" {
+		dataEnd = s.DateEnd
+	}
+	return map[string]interface{}{
+		"id":          s.Id,
+		"user":        s.p.User.Name,
+		"asset":       s.p.Asset.Hostname,
+		"org_id":      s.p.Asset.OrgID,
+		"login_from":  s.p.UserConn.LoginFrom(),
+		"system_user": s.p.SystemUser.Username,
+		"remote_addr": s.p.UserConn.RemoteAddr(),
+		"is_finished": s.finished,
+		"date_start":  s.DateStart,
+		"date_end":    dataEnd,
 	}
 }

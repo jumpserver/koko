@@ -15,20 +15,20 @@ import (
 )
 
 func NewCommandRecorder(sess *SwitchSession) (recorder *CommandRecorder) {
-	recorder = &CommandRecorder{Session: sess}
+	recorder = &CommandRecorder{sessionID: sess.Id}
 	recorder.initial()
 	return recorder
 }
 
 func NewReplyRecord(sess *SwitchSession) (recorder *ReplyRecorder) {
-	recorder = &ReplyRecorder{Session: sess}
+	recorder = &ReplyRecorder{sessionID: sess.Id}
 	recorder.initial()
 	return recorder
 }
 
 type CommandRecorder struct {
-	Session *SwitchSession
-	storage CommandStorage
+	sessionID string
+	storage   CommandStorage
 
 	queue  chan *model.Command
 	closed chan struct{}
@@ -42,41 +42,8 @@ func (c *CommandRecorder) initial() {
 	go c.record()
 }
 
-func (c *CommandRecorder) Record(command [2]string) {
-	if command[0] == "" && command[1] == "" {
-		return
-	}
-	if command[0] == "" {
-		fmt.Println("command kong=======")
-	}
-	var input string
-	var output string
-	if len(command[0]) > 128 {
-		input = command[0][:128]
-	} else {
-		input = command[0]
-	}
-	i := strings.LastIndexByte(command[1], '\r')
-
-	if i > 1024 {
-		output = output[:1024]
-	} else if i > 0 {
-		output = command[1][:i]
-	} else {
-		output = command[1]
-	}
-
-	cmd := &model.Command{
-		SessionId:  c.Session.Id,
-		OrgId:      c.Session.Org,
-		Input:      input,
-		Output:     output,
-		User:       c.Session.User,
-		Server:     c.Session.Server,
-		SystemUser: c.Session.SystemUser,
-		Timestamp:  time.Now().Unix(),
-	}
-	c.queue <- cmd
+func (c *CommandRecorder) Record(command *model.Command) {
+	c.queue <- command
 }
 
 func (c *CommandRecorder) End() {
@@ -99,7 +66,7 @@ func (c *CommandRecorder) record() {
 			}
 		case p, ok := <-c.queue:
 			if !ok {
-				logger.Debug("Session command recorder close: ", c.Session.Id)
+				logger.Debug("Session command recorder close: ", c.sessionID)
 				return
 			}
 			cmdList = append(cmdList, p)
@@ -125,7 +92,7 @@ func (c *CommandRecorder) record() {
 }
 
 type ReplyRecorder struct {
-	Session *SwitchSession
+	sessionID string
 
 	absFilePath   string
 	absGzFilePath string
@@ -152,7 +119,7 @@ func (r *ReplyRecorder) Record(b []byte) {
 }
 
 func (r *ReplyRecorder) prepare() {
-	sessionId := r.Session.Id
+	sessionId := r.sessionID
 	rootPath := config.GetConf().RootPath
 	today := time.Now().UTC().Format("2006-01-02")
 	gzFileName := sessionId + ".replay.gz"

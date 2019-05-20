@@ -138,8 +138,42 @@ func (p *ProxyServer) Proxy() {
 		logger.Errorf(msg)
 		return
 	}
+	sw := NewSwitchSession(p)
+	ok := p.createSession(sw)
+	if !ok {
+		msg := i18n.T("Connect with api server failed")
+		msg = utils.WrapperWarn(msg)
+		utils.IgnoreErrWriteString(p.UserConn, msg)
+		return
+	}
+	cmdRules := p.GetFilterRules()
+	sw.SetFilterRules(cmdRules)
+	_ = sw.Bridge(p.UserConn, srvConn)
+	p.finishSession(sw)
+}
 
-	sw := NewSwitchSession(p.UserConn, srvConn)
-	sw.SetFilterRules(p.SystemUser.Id)
-	_ = sw.Bridge()
+func (p *ProxyServer) createSession(s *SwitchSession) bool {
+	data := s.MapData()
+	for i := 0; i < 5; i++ {
+		if service.CreateSession(data) {
+			return true
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return false
+}
+
+func (p *ProxyServer) finishSession(s *SwitchSession) {
+	data := s.MapData()
+	service.FinishSession(data)
+	service.FinishReply(s.Id)
+	logger.Debugf("finish Session: %s", s.Id)
+}
+
+func (p *ProxyServer) GetFilterRules() []model.SystemUserFilterRule {
+	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.Id)
+	if err != nil {
+		logger.Error("Get system user filter rule error: ", err)
+	}
+	return cmdRules
 }
