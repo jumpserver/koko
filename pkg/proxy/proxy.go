@@ -28,14 +28,30 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 
 	if p.SystemUser.LoginMode == model.LoginModeManual ||
 		(p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "") {
-		// Todo: terminal
-		logger.Info("Get password fom user input")
+		term := utils.NewTerminal(p.UserConn, "password: ")
+		line, err := term.ReadPassword("password")
+		if err != nil {
+			logger.Errorf("Get password from user err %s", err.Error())
+		}
+		logger.Info("Get password fom user input: ", line)
+		p.SystemUser.Password = line
 	}
 }
 
 func (p *ProxyServer) getSystemUserUsernameIfNeed() {
-	// Todo: terminal
-
+	if p.SystemUser.Username == "" {
+		var username string
+		term := utils.NewTerminal(p.UserConn, "username: ")
+		for {
+			username, _ = term.ReadLine()
+			username = strings.TrimSpace(username)
+			if username != "" {
+				break
+			}
+		}
+		p.SystemUser.Username = username
+		logger.Info("Get username from user input: ", username)
+	}
 }
 
 func (p *ProxyServer) checkProtocolMatch() bool {
