@@ -2,12 +2,93 @@
 
 
 [[projects]]
+  digest = "1:279540310125d2b219920588d7e2edb2a85b3317b528839166e896ce6b6f211c"
+  name = "github.com/Azure/azure-pipeline-go"
+  packages = ["pipeline"]
+  pruneopts = "UT"
+  revision = "55fedc85a614dcd0e942a66f302ae3efb83d563c"
+  version = "v0.1.9"
+
+[[projects]]
+  digest = "1:b15d5bdadce5d98f1e06353508a4029fccfeb68761957b3a2a8cb38ebb8caca4"
+  name = "github.com/Azure/azure-storage-blob-go"
+  packages = ["azblob"]
+  pruneopts = "UT"
+  revision = "678206e7e6e55abf0265a6440135e92005176ebf"
+  version = "v0.6.0"
+
+[[projects]]
+  digest = "1:c5c73365822fb6a7bbe288316868057ae58447ddd95ecef466b6dbe93c37670e"
+  name = "github.com/aliyun/aliyun-oss-go-sdk"
+  packages = ["oss"]
+  pruneopts = "UT"
+  revision = "08079eb9f6aaa13ee00b8fade6ceeffa138bf877"
+  version = "v1.9.6"
+
+[[projects]]
   branch = "master"
   digest = "1:1a200e7e73293b75eb8e5c93d023b5472663432da0b663e1532624fcfede9ca8"
   name = "github.com/anmitsu/go-shlex"
   packages = ["."]
   pruneopts = "UT"
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
+
+[[projects]]
+  digest = "1:495d57b9444476dbdcad8420c73a84b5b72e7e058b011b17e218e759c16f66fd"
+  name = "github.com/aws/aws-sdk-go"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
+    "aws/credentials/stscreds",
+    "aws/csm",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/ini",
+    "internal/s3err",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/eventstream",
+    "private/protocol/eventstream/eventstreamapi",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/restxml",
+    "private/protocol/xml/xmlutil",
+    "service/s3",
+    "service/s3/s3iface",
+    "service/s3/s3manager",
+    "service/sts",
+  ]
+  pruneopts = "UT"
+  revision = "0db84dcbcc56669065730700b054eb6d1438a0f7"
+  version = "v1.19.33"
+
+[[projects]]
+  digest = "1:2af3a6e1f12e54cef95c6051cd1cb1e154629a4b82c692ac8a92f00259f570eb"
+  name = "github.com/elastic/go-elasticsearch"
+  packages = [
+    ".",
+    "esapi",
+    "estransport",
+  ]
+  pruneopts = "UT"
+  revision = "3aa68f5e96e138fa4dafc9403b10674b4310a632"
+  version = "v0.0.0"
 
 [[projects]]
   branch = "dev"
@@ -60,6 +141,13 @@
   pruneopts = "UT"
   revision = "ac2099de8d3789d30b99b740d1a9d242097462df"
   version = "v1.0.4"
+
+[[projects]]
+  digest = "1:bb81097a5b62634f3e9fec1014657855610c82d19b9a40c17612e32651e35dca"
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2b33e84"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -181,6 +269,14 @@
   revision = "3a4b5fb9f71f5874b2374ae059bc0e0bcb52e145"
 
 [[projects]]
+  branch = "master"
+  digest = "1:9fdc2b55e8e0fafe4b41884091e51e77344f7dc511c5acedcfd98200003bff90"
+  name = "golang.org/x/time"
+  packages = ["rate"]
+  pruneopts = "UT"
+  revision = "9d24e82272b4f38b78bc8cff74fa936d31ccd8ef"
+
+[[projects]]
   digest = "1:c805e517269b0ba4c21ded5836019ed7d16953d4026cb7d00041d039c7906be9"
   name = "gopkg.in/natefinch/lumberjack.v2"
   packages = ["."]
@@ -200,6 +296,13 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/Azure/azure-storage-blob-go/azblob",
+    "github.com/aliyun/aliyun-oss-go-sdk/oss",
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/credentials",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/s3/s3manager",
+    "github.com/elastic/go-elasticsearch",
     "github.com/gliderlabs/ssh",
     "github.com/googollee/go-socket.io",
     "github.com/jarcoal/httpmock",
