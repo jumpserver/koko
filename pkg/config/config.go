@@ -12,36 +12,36 @@ import (
 )
 
 type Config struct {
-	AssetListPageSize   string            `json:"TERMINAL_ASSET_LIST_PAGE_SIZE"`
-	AssetListSortBy     string            `json:"TERMINAL_ASSET_LIST_SORT_BY"`
-	HeaderTitle         string            `json:"TERMINAL_HEADER_TITLE"`
-	HostKey             string            `json:"TERMINAL_HOST_KEY" yaml:"HOST_KEY"`
-	PasswordAuth        bool              `json:"TERMINAL_PASSWORD_AUTH" yaml:"PASSWORD_AUTH"`
-	PublicKeyAuth       bool              `json:"TERMINAL_PUBLIC_KEY_AUTH" yaml:"PUBLIC_KEY_AUTH"`
-	CommandStorage      map[string]string `json:"TERMINAL_COMMAND_STORAGE"`
-	ReplayStorage       map[string]string `json:"TERMINAL_REPLAY_STORAGE" yaml:"REPLAY_STORAGE"`
-	SessionKeepDuration int               `json:"TERMINAL_SESSION_KEEP_DURATION"`
-	TelnetRegex         string            `json:"TERMINAL_TELNET_REGEX"`
-	MaxIdleTime         int               `json:"SECURITY_MAX_IDLE_TIME"`
-	SftpRoot            string            `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
-	Name                string            `yaml:"NAME"`
-	SecretKey           string            `yaml:"SECRET_KEY"`
-	HostKeyFile         string            `yaml:"HOST_KEY_FILE"`
-	CoreHost            string            `yaml:"CORE_HOST"`
-	BootstrapToken      string            `yaml:"BOOTSTRAP_TOKEN"`
-	BindHost            string            `yaml:"BIND_HOST"`
-	SSHPort             int               `yaml:"SSHD_PORT"`
-	HTTPPort            int               `yaml:"HTTPD_PORT"`
-	SSHTimeout          int               `yaml:"SSH_TIMEOUT"`
-	AccessKey           string            `yaml:"ACCESS_KEY"`
-	AccessKeyFile       string            `yaml:"ACCESS_KEY_FILE"`
-	LogLevel            string            `yaml:"LOG_LEVEL"`
-	HeartbeatDuration   int               `yaml:"HEARTBEAT_INTERVAL"`
-	RootPath            string            `yaml:"ROOT_PATH"`
-	Comment             string            `yaml:"COMMENT"`
-	Language            string            `yaml:"LANG"`
-	LanguageCode        string            `yaml:"LANGUAGE_CODE"` // Abandon
-	UploadFailedReplay  bool              `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
+	AssetListPageSize   string                 `json:"TERMINAL_ASSET_LIST_PAGE_SIZE"`
+	AssetListSortBy     string                 `json:"TERMINAL_ASSET_LIST_SORT_BY"`
+	HeaderTitle         string                 `json:"TERMINAL_HEADER_TITLE"`
+	HostKey             string                 `json:"TERMINAL_HOST_KEY" yaml:"HOST_KEY"`
+	PasswordAuth        bool                   `json:"TERMINAL_PASSWORD_AUTH" yaml:"PASSWORD_AUTH"`
+	PublicKeyAuth       bool                   `json:"TERMINAL_PUBLIC_KEY_AUTH" yaml:"PUBLIC_KEY_AUTH"`
+	CommandStorage      map[string]interface{} `json:"TERMINAL_COMMAND_STORAGE"`
+	ReplayStorage       map[string]interface{} `json:"TERMINAL_REPLAY_STORAGE" yaml:"REPLAY_STORAGE"`
+	SessionKeepDuration int                    `json:"TERMINAL_SESSION_KEEP_DURATION"`
+	TelnetRegex         string                 `json:"TERMINAL_TELNET_REGEX"`
+	MaxIdleTime         int                    `json:"SECURITY_MAX_IDLE_TIME"`
+	SftpRoot            string                 `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
+	Name                string                 `yaml:"NAME"`
+	SecretKey           string                 `yaml:"SECRET_KEY"`
+	HostKeyFile         string                 `yaml:"HOST_KEY_FILE"`
+	CoreHost            string                 `yaml:"CORE_HOST"`
+	BootstrapToken      string                 `yaml:"BOOTSTRAP_TOKEN"`
+	BindHost            string                 `yaml:"BIND_HOST"`
+	SSHPort             int                    `yaml:"SSHD_PORT"`
+	HTTPPort            int                    `yaml:"HTTPD_PORT"`
+	SSHTimeout          int                    `yaml:"SSH_TIMEOUT"`
+	AccessKey           string                 `yaml:"ACCESS_KEY"`
+	AccessKeyFile       string                 `yaml:"ACCESS_KEY_FILE"`
+	LogLevel            string                 `yaml:"LOG_LEVEL"`
+	HeartbeatDuration   int                    `yaml:"HEARTBEAT_INTERVAL"`
+	RootPath            string                 `yaml:"ROOT_PATH"`
+	Comment             string                 `yaml:"COMMENT"`
+	Language            string                 `yaml:"LANG"`
+	LanguageCode        string                 `yaml:"LANGUAGE_CODE"` // Abandon
+	UploadFailedReplay  bool                   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -122,8 +122,8 @@ var Conf = &Config{
 	RootPath:           rootPath,
 	Comment:            "Coco",
 	Language:           "zh",
-	ReplayStorage:      map[string]string{"TYPE": "server"},
-	CommandStorage:     map[string]string{"TYPE": "server"},
+	ReplayStorage:      map[string]interface{}{"TYPE": "server"},
+	CommandStorage:     map[string]interface{}{"TYPE": "server"},
 	UploadFailedReplay: true,
 }
 

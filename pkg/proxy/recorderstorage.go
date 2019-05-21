@@ -43,34 +43,34 @@ func NewReplayStorage() ReplayStorage {
 	}
 	switch tp {
 	case "azure":
-		endpointSuffix := cf["ENDPOINT_SUFFIX"]
+		endpointSuffix := cf["ENDPOINT_SUFFIX"].(string)
 		if endpointSuffix == "" {
 			endpointSuffix = "core.chinacloudapi.cn"
 		}
 		return &AzureReplayStorage{
-			accountName:    cf["ACCOUNT_NAME"],
-			accountKey:     cf["ACCOUNT_KEY"],
-			containerName:  cf["CONTAINER_NAME"],
+			accountName:    cf["ACCOUNT_NAME"].(string),
+			accountKey:     cf["ACCOUNT_KEY"].(string),
+			containerName:  cf["CONTAINER_NAME"].(string),
 			endpointSuffix: endpointSuffix,
 		}
 	case "oss":
 		return &OSSReplayStorage{
-			endpoint:  cf["ENDPOINT"],
-			bucket:    cf["BUCKET"],
-			accessKey: cf["ACCESS_KEY"],
-			secretKey: cf["SECRET_KEY"],
+			endpoint:  cf["ENDPOINT"].(string),
+			bucket:    cf["BUCKET"].(string),
+			accessKey: cf["ACCESS_KEY"].(string),
+			secretKey: cf["SECRET_KEY"].(string),
 		}
 	case "s3":
-		bucket := cf["BUCKET"]
+		bucket := cf["BUCKET"].(string)
 		if bucket == "" {
 			bucket = "jumpserver"
 		}
 		return &S3ReplayStorage{
 			bucket:    bucket,
-			region:    cf["REGION"],
-			accessKey: cf["ACCESS_KEY"],
-			secretKey: cf["SECRET_KEY"],
-			endpoint:  cf["ENDPOINT"],
+			region:    cf["REGION"].(string),
+			accessKey: cf["ACCESS_KEY"].(string),
+			secretKey: cf["SECRET_KEY"].(string),
+			endpoint:  cf["ENDPOINT"].(string),
 		}
 	default:
 		return defaultReplayStorage
@@ -85,17 +85,19 @@ func NewCommandStorage() CommandStorage {
 	}
 	switch tp {
 	case "es", "elasticsearch":
-		hosts := cf["HOSTS"]
-		index := cf["INDEX"]
-		docType := cf["DOC_TYPE"]
-		hostsArray := strings.Split(strings.Trim(hosts, ","), ",")
+		var hosts = make([]string, len(cf["HOSTS"].([]interface{})))
+		for i, item := range cf["HOSTS"].([]interface{}) {
+			hosts[i] = item.(string)
+		}
+		index := cf["INDEX"].(string)
+		docType := cf["DOC_TYPE"].(string)
 		if index == "" {
 			index = "jumpserver"
 		}
 		if docType == "" {
 			docType = "command_store"
 		}
-		return &ESCommandStorage{hosts: hostsArray, index: index, docType: docType}
+		return &ESCommandStorage{hosts: hosts, index: index, docType: docType}
 	default:
 		return defaultCommandStorage
 	}
@@ -115,11 +117,7 @@ type ESCommandStorage struct {
 }
 
 func (es *ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
-	data, err := json.Marshal(commands)
-	if err != nil {
-
-		return
-	}
+	var buf bytes.Buffer
 	esClinet, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: es.hosts,
 	})
@@ -127,15 +125,25 @@ func (es *ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 		logger.Error(err.Error())
 		return
 	}
-
-	_, err = esClinet.Bulk(bytes.NewBuffer(data),
-		esClinet.Bulk.WithIndex(es.index), esClinet.Bulk.WithDocumentType(es.docType))
-	if err == nil {
-		logger.Debug("Successfully uploaded total %d commands to Elasticsearch\n", len(commands))
+	for _, item := range commands {
+		meta := []byte(fmt.Sprintf(`{ "index" : { } }%s`, "\n"))
+		data, err := json.Marshal(item)
+		if err != nil {
+			return err
+		}
+		data = append(data, "\n"...)
+		buf.Write(meta)
+		buf.Write(data)
 	}
 
+	_, err = esClinet.Bulk(bytes.NewReader(buf.Bytes()),
+		esClinet.Bulk.WithIndex(es.index), esClinet.Bulk.WithDocumentType(es.docType))
+	if err != nil {
+		logger.Error(err.Error())
+	}
 	return
 }
+
 func NewFileCommandStorage(name string) (storage *FileCommandStorage, err error) {
 	file, err := os.Create(name)
 	if err != nil {
@@ -181,6 +189,7 @@ func (o *OSSReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	}
 	bucket, err := client.Bucket(o.bucket)
 	if err != nil {
+		logger.Error(err.Error())
 		return
 	}
 	return bucket.PutObjectFromFile(target, gZipFilePath)
@@ -217,8 +226,8 @@ func (s *S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 		Key:    aws.String(target),
 		Body:   file,
 	})
-	if err == nil {
-		logger.Debug("Successfully uploaded %q to %q\n", file.Name(), s.bucket)
+	if err != nil {
+		logger.Error(err.Error())
 	}
 
 	return
@@ -250,8 +259,8 @@ func (a *AzureReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	_, err = azblob.UploadFileToBlockBlob(context.TODO(), file, blobURL, azblob.UploadToBlockBlobOptions{
 		BlockSize:   4 * 1024 * 1024,
 		Parallelism: 16})
-	if err == nil {
-		logger.Debug("Successfully uploaded %q to Azure\n", file.Name())
+	if err != nil {
+		logger.Error(err.Error())
 	}
 	return
 }
