@@ -133,7 +133,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn ServerConnection
 		select {
 		// 检测是否超过最大空闲时间
 		case <-time.After(time.Duration(s.MaxIdleTime) * time.Minute):
-			msg := i18n.T(fmt.Sprintf("\n\nConnect idle more than %d minutes, disconnect", s.MaxIdleTime))
+			msg := i18n.T(fmt.Sprintf("\n\rConnect idle more than %d minutes, disconnect", s.MaxIdleTime))
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(s.userTran, msg)
 			return
