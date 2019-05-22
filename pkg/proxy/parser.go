@@ -58,7 +58,7 @@ type Parser struct {
 	cmdOutputParser *CmdParser
 
 	cmdFilterRules []model.SystemUserFilterRule
-	closed         bool
+	closed         chan struct{}
 }
 
 func (p *Parser) initial() {
@@ -72,6 +72,7 @@ func (p *Parser) initial() {
 	p.cmdInputParser = NewCmdParser()
 	p.cmdOutputParser = NewCmdParser()
 
+	p.closed = make(chan struct{})
 	p.userInputChan = make(chan []byte, 1024)
 	p.userOutputChan = make(chan []byte, 1024)
 	p.srvInputChan = make(chan []byte, 1024)
@@ -85,6 +86,8 @@ func (p *Parser) Parse() {
 	}()
 	for {
 		select {
+		case <-p.closed:
+			return
 		case b, ok := <-p.userInputChan:
 			if !ok {
 				return
@@ -224,7 +227,6 @@ func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 }
 
 func (p *Parser) IsCommandForbidden() (string, bool) {
-	fmt.Println("Command is: ", p.command)
 	for _, rule := range p.cmdFilterRules {
 		allowed, cmd := rule.Match(p.command)
 		switch allowed {
@@ -246,13 +248,16 @@ func (p *Parser) IsRecvState() bool {
 }
 
 func (p *Parser) Close() {
-	if p.closed {
+	select {
+	case <-p.closed:
 		return
+	default:
+		close(p.closed)
+
 	}
 	close(p.userInputChan)
 	close(p.userOutputChan)
 	close(p.srvInputChan)
 	close(p.srvOutputChan)
 	close(p.cmdRecordChan)
-	p.closed = true
 }
