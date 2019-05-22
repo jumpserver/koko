@@ -61,16 +61,25 @@ func NewReplayStorage() ReplayStorage {
 			secretKey: cf["SECRET_KEY"].(string),
 		}
 	case "s3":
+		var region string
+		var endpoint string
 		bucket := cf["BUCKET"].(string)
+		endpoint = cf["ENDPOINT"].(string)
 		if bucket == "" {
 			bucket = "jumpserver"
 		}
+		if cf["REGION"] != nil {
+			region = cf["REGION"].(string)
+		} else {
+			region = strings.Split(endpoint, ".")[1]
+		}
+
 		return &S3ReplayStorage{
 			bucket:    bucket,
-			region:    cf["REGION"].(string),
+			region:    region,
 			accessKey: cf["ACCESS_KEY"].(string),
 			secretKey: cf["SECRET_KEY"].(string),
-			endpoint:  cf["ENDPOINT"].(string),
+			endpoint:  endpoint,
 		}
 	default:
 		return defaultReplayStorage
