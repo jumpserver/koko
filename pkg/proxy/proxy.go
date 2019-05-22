@@ -33,7 +33,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 		if err != nil {
 			logger.Errorf("Get password from user err %s", err.Error())
 		}
-		logger.Info("Get password fom user input: ", line)
+		logger.Info("Get password from user input: ", line)
 		p.SystemUser.Password = line
 	}
 }
@@ -91,6 +91,7 @@ func (p *ProxyServer) getSSHConn() (srvConn *ServerSSHConnection, err error) {
 }
 
 func (p *ProxyServer) getTelnetConn() (srvConn *ServerSSHConnection, err error) {
+	// Todo: Telnet connect
 	return
 }
 
