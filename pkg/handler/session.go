@@ -219,13 +219,15 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 	}
 
 	table := tablewriter.NewWriter(h.term)
-	table.SetHeader([]string{"ID", "Username"})
+	table.SetHeader([]string{"ID", "Name"})
 	for i := 0; i < len(displaySystemUsers); i++ {
-		table.Append([]string{strconv.Itoa(i + 1), displaySystemUsers[i].Username})
+		table.Append([]string{strconv.Itoa(i + 1), displaySystemUsers[i].Name})
 	}
 	table.SetBorder(false)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
 
-	h.term.SetPrompt("Select User: ")
+	h.term.SetPrompt("ID> ")
 	defer h.term.SetPrompt("Opt> ")
 	for count := 0; count < 3; count++ {
 		table.Render()

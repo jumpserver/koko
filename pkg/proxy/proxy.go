@@ -29,7 +29,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 	if p.SystemUser.LoginMode == model.LoginModeManual ||
 		(p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "") {
 		term := utils.NewTerminal(p.UserConn, "password: ")
-		line, err := term.ReadPassword("password")
+		line, err := term.ReadPassword(fmt.Sprintf("%s's password: ", p.SystemUser.Username))
 		if err != nil {
 			logger.Errorf("Get password from user err %s", err.Error())
 		}
