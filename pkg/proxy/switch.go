@@ -133,15 +133,15 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn ServerConnection
 		select {
 		// 检测是否超过最大空闲时间
 		case <-time.After(time.Duration(s.MaxIdleTime) * time.Minute):
-			msg := i18n.T(fmt.Sprintf("\n\rConnect idle more than %d minutes, disconnect", s.MaxIdleTime))
+			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			msg = utils.WrapperWarn(msg)
-			utils.IgnoreErrWriteString(s.userTran, msg)
+			utils.IgnoreErrWriteString(s.userTran, "\n\r"+msg)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
-			msg := i18n.T("\n\rTerminated by administrator")
+			msg := i18n.T("Terminated by administrator")
 			msg = utils.WrapperWarn(msg)
-			utils.IgnoreErrWriteString(userConn, msg)
+			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 监控窗口大小变化
 		case win := <-winCh:

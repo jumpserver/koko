@@ -8,41 +8,171 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:16
-msgid "Welcome to use Jumpserver open source fortress system"
+#: pkg/auth/server.go:17
+msgid "Please enter 6 digits."
 msgstr ""
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:30
+#: pkg/auth/server.go:18
+msgid "[MFA auth]: "
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:32
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:44
+#: pkg/handler/banner.go:47
+msgid "Welcome to use Jumpserver open source fortress system"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:49
 msgid "directly login"
 msgstr ""
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:45
+#: pkg/handler/banner.go:50
 msgid "part IP, Hostname, Comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:45
+#: pkg/handler/banner.go:50
 msgid "to search login if unique"
 msgstr ""
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:46
+#: pkg/handler/banner.go:51
 msgid "/ + IP, Hostname, Comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:46
+#: pkg/handler/banner.go:51
 msgid "to search, such as: /192.168"
 msgstr ""
 
 #. i18n.T
-#: pkg/sshd/handler/banner.go:47
+#: pkg/handler/banner.go:52
 msgid "display the host you have permission"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:53
+msgid "display the node that you have permission"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:54
+msgid "refresh your assets and nodes"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:55
+msgid "print help"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:56
+msgid "exit"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:133
+msgid "ID"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:133
+msgid "hostname"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:133
+msgid "IP"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:133
+msgid "systemUsers"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:133
+msgid "comment"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:152
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:179
+msgid ""
+"\n"
+"Tips: Enter the asset ID and log directly into the asset.\n"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/pagination.go:180
+msgid ""
+"\n"
+"Page up: P/p\tPage down: Enter|N/n\tBACK: b.\n"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/session.go:264
+msgid "No Assets"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/session.go:286
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/session.go:287
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/session.go:301
+msgid "Refresh done"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:118
+msgid "Command `%s` is forbidden"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:110
+msgid "Connecting to %s@%s  %.1f"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:128
+msgid "System user <%s> and asset <%s> protocol are inconsistent."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:134
+msgid ""
+"Terminal only support protocol ssh/telnet, please use web terminal to access"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:161
+msgid "Connect with api server failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/switch.go:136
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/switch.go:142
+msgid "Terminated by administrator"
 msgstr ""

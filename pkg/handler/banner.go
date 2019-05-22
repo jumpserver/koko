@@ -50,10 +50,10 @@ func init() {
 		{id: 2, instruct: i18n.T("part IP, Hostname, Comment"), helpText: i18n.T("to search login if unique")},
 		{id: 3, instruct: i18n.T("/ + IP, Hostname, Comment"), helpText: i18n.T("to search, such as: /192.168")},
 		{id: 4, instruct: "p", helpText: i18n.T("display the host you have permission")},
-		{id: 5, instruct: "g", helpText: "display the node that you have permission"},
-		{id: 6, instruct: "r", helpText: "refresh your assets and nodes"},
-		{id: 7, instruct: "h", helpText: "print help"},
-		{id: 8, instruct: "q", helpText: "exit"},
+		{id: 5, instruct: "g", helpText: i18n.T("display the node that you have permission")},
+		{id: 6, instruct: "r", helpText: i18n.T("refresh your assets and nodes")},
+		{id: 7, instruct: "h", helpText: i18n.T("print help")},
+		{id: 8, instruct: "q", helpText: i18n.T("exit")},
 	}
 }
 

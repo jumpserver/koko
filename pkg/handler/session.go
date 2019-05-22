@@ -14,6 +14,7 @@ import (
 
 	"cocogo/pkg/cctx"
 	"cocogo/pkg/config"
+	"cocogo/pkg/i18n"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/proxy"
@@ -260,7 +261,7 @@ func (h *interactiveHandler) displayAssetsOrProxy(assets []model.Asset) {
 
 func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
-		_, _ = io.WriteString(h.term, "\r\n No Assets\r\n\r")
+		_, _ = io.WriteString(h.term, i18n.T("No Assets")+"\n\r")
 	} else {
 		sortedAssets := assets.SortBy(config.GetConf().AssetListSortBy)
 		pag := NewAssetPagination(h.term, sortedAssets)
@@ -282,12 +283,12 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 
 func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 	tree := ConstructAssetNodeTree(nodes)
-	tipHeaderMsg := "\r\nNode: [ ID.Name(Asset amount) ]"
-	tipEndMsg := "Tips: Enter g+NodeID to display the host under the node, such as g1\r\n\r"
+	tipHeaderMsg := i18n.T("Node: [ ID.Name(Asset amount) ]")
+	tipEndMsg := i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1")
 
-	_, err := io.WriteString(h.term, tipHeaderMsg)
+	_, err := io.WriteString(h.term, "\n\r"+tipHeaderMsg)
 	_, err = io.WriteString(h.term, tree.String())
-	_, err = io.WriteString(h.term, tipEndMsg)
+	_, err = io.WriteString(h.term, tipEndMsg+"\n\r")
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}
@@ -297,7 +298,7 @@ func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
 	h.loadUserAssets("2")
 	h.loadUserAssetNodes("2")
-	_, err := io.WriteString(h.sess, "Refresh done\r\n")
+	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
@@ -360,9 +361,6 @@ func (h *interactiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 }
 
 func (h *interactiveHandler) Proxy(ctx context.Context) {
-	//h.assetSelect = &model.Asset{Hostname: "centos", Port: 22, Ip: "192.168.244.185", Protocol: "ssh"}
-	//h.systemUserSelect = &model.SystemUser{Id: "5dd8b5a0-8cdb-4857-8629-faf811c525e1", Name: "web", Username: "root", Password: "redhat", Protocol: "telnet"}
-
 	userConn := &proxy.UserSSHConnection{Session: h.sess}
 	p := proxy.ProxyServer{
 		UserConn:   userConn,

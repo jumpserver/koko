@@ -130,7 +130,7 @@ func (p *AssetPagination) Start() []model.Asset {
 }
 
 func (p *AssetPagination) displayPageAssets() {
-	Labels := []string{i18n.T("ID"), i18n.T("主机名"), i18n.T("IP"), i18n.T("系统用户"), i18n.T("Comment")}
+	Labels := []string{i18n.T("ID"), i18n.T("hostname"), i18n.T("IP"), i18n.T("systemUsers"), i18n.T("comment")}
 	fields := []string{"ID", "hostname", "IP", "systemUsers", "comment"}
 	data := make([]map[string]string, len(p.currentData))
 	for i, j := range p.currentData {
@@ -176,8 +176,8 @@ func (p *AssetPagination) displayPageAssets() {
 
 func (p *AssetPagination) displayTipsInfo() {
 	tips := []string{
-		"\nTips: Enter the asset ID and log directly into the asset.\n",
-		"\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n",
+		i18n.T("\nTips: Enter the asset ID and log directly into the asset.\n"),
+		i18n.T("\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n"),
 	}
 	for _, tip := range tips {
 		_, _ = p.term.Write([]byte(tip))
