@@ -33,6 +33,11 @@ darwin:
 	GOOS=darwin GOARCH=amd64 go build -o $(BASEPATH)/$(SOFTWARENAME)-darwin-amd64 $(COCOSRCFILE)
 	tar czvf  $(BASEPATH)/../build/$(SOFTWARENAME)-darwin-amd64.tar.gz $(SOFTWARENAME)-darwin-amd64 locale/ config_example.yml
 
+.PHONY: docker
+docker:
+	@echo "build docker images"
+	docker build -t cocogo --build-arg http_proxy=$(http_proxy) --build-arg https_proxy=$(https_proxy) $(BASEPATH)/../
+
 .PHONY: clean
 clean:
 	-rm -rf $(BASEPATH)/../build
