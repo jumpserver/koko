@@ -106,11 +106,11 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 func (s *SwitchSession) postBridge() {
 	s.DateEnd = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
 	s.finished = true
-	_ = s.userTran.Close()
-	_ = s.srvTran.Close()
 	s.parser.Close()
 	s.replayRecorder.End()
 	s.cmdRecorder.End()
+	_ = s.userTran.Close()
+	_ = s.srvTran.Close()
 }
 
 func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
@@ -154,13 +154,13 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn ServerConnection
 			}
 			s.parser.srvInputChan <- p
 		// Server流入parser数据，经处理发给用户
-		case p := <-s.parser.srvOutputChan:
-			nw, err := s.userTran.Write(p)
+		case p, ok := <-s.parser.srvOutputChan:
+			if !ok {
+				return
+			}
+			nw, _ := s.userTran.Write(p)
 			if !s.parser.IsRecvState() {
 				s.replayRecorder.Record(p[:nw])
-			}
-			if err != nil {
-				return err
 			}
 		// User发来的数据流流入parser
 		case p, ok := <-s.userTran.Chan():
@@ -169,11 +169,11 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn ServerConnection
 			}
 			s.parser.userInputChan <- p
 		// User发来的数据经parser处理，发给Server
-		case p := <-s.parser.userOutputChan:
-			_, err = s.srvTran.Write(p)
-			if err != nil {
-				return err
+		case p, ok := <-s.parser.userOutputChan:
+			if !ok {
+				return
 			}
+			_, err = s.srvTran.Write(p)
 		}
 	}
 }

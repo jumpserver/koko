@@ -17,7 +17,7 @@ windows:
 	@echo "编译windows"
 	mkdir -p $(BASEPATH)/../build
 	GOOS=windows GOARCH=amd64 go build -o $(BASEPATH)/$(SOFTWARENAME)-windows-amd64 $(COCOSRCFILE)
-	tar czvf $(BASEPATH)/../build/$(SOFTWARENAME)-windows-amd64.tar.gz $(BASEPATH)/build/$(SOFTWARENAME)-windows-amd64 $(BASEPATH)/cmd/locale $(BASEPATH)/cmd/config_example.yml
+	tar czvf $(BASEPATH)/../build/$(SOFTWARENAME)-windows-amd64.tar.gz $(SOFTWARENAME)-windows-amd64 locale/ config_example.yml
 
 .PHONY: linux
 linux:
@@ -30,8 +30,8 @@ linux:
 darwin:
 	@echo "编译darwin"
 	mkdir -p $(BASEPATH)/../build
-	GOOS=darwin GOARCH=amd64 go build -o $(BASEPATH)/build/$(SOFTWARENAME)-darwin-amd64 $(COCOSRCFILE)
-	tar czvf  $(BASEPATH)/../build/$(SOFTWARENAME)-darwin-amd64.tar.gz $(SOFTWARENAME)-darwin-amd64 locale/ $(BASEPATH)/cmd/config_example.yml
+	GOOS=darwin GOARCH=amd64 go build -o $(BASEPATH)/$(SOFTWARENAME)-darwin-amd64 $(COCOSRCFILE)
+	tar czvf  $(BASEPATH)/../build/$(SOFTWARENAME)-darwin-amd64.tar.gz $(SOFTWARENAME)-darwin-amd64 locale/ config_example.yml
 
 .PHONY: clean
 clean:

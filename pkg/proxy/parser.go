@@ -82,6 +82,8 @@ func (p *Parser) initial() {
 
 func (p *Parser) Parse() {
 	defer func() {
+		close(p.userOutputChan)
+		close(p.srvOutputChan)
 		logger.Debug("Parser parse routine done")
 	}()
 	for {
@@ -256,8 +258,6 @@ func (p *Parser) Close() {
 
 	}
 	close(p.userInputChan)
-	close(p.userOutputChan)
 	close(p.srvInputChan)
-	close(p.srvOutputChan)
 	close(p.cmdRecordChan)
 }
