@@ -3,6 +3,7 @@ package proxy
 import (
 	"cocogo/pkg/utils"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -90,8 +91,25 @@ func (p *ProxyServer) getSSHConn() (srvConn *ServerSSHConnection, err error) {
 	return
 }
 
-func (p *ProxyServer) getTelnetConn() (srvConn *ServerSSHConnection, err error) {
-	// Todo: Telnet connect
+func (p *ProxyServer) getTelnetConn() (srvConn *ServerTelnetConnection, err error) {
+	conf := config.GetConf()
+	cusString := conf.TelnetRegex
+	pattern, _ := regexp.Compile(cusString)
+	srvConn = &ServerTelnetConnection{
+		name:                 p.Asset.Hostname,
+		host:                 p.Asset.Ip,
+		port:                 strconv.Itoa(p.Asset.Port),
+		user:                 p.SystemUser.Username,
+		password:             p.SystemUser.Password,
+		customString:         cusString,
+		customSuccessPattern: pattern,
+		timeout:              conf.SSHTimeout,
+	}
+	done := make(chan struct{})
+	go p.sendConnectingMsg(done, srvConn.timeout)
+	err = srvConn.Connect(0, 0, "")
+	utils.IgnoreErrWriteString(p.UserConn, "\r\n")
+	close(done)
 	return
 }
 

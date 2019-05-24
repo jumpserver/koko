@@ -407,8 +407,11 @@ func isSubstring(sArray []string, substr string) bool {
 }
 
 func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.SystemUser {
-	var result = make([]model.SystemUser, 0)
 	length := len(systemUsers)
+	if length == 0 {
+		return systemUsers
+	}
+	var result = make([]model.SystemUser, 0)
 	model.SortSystemUserByPriority(systemUsers)
 
 	highestPriority := systemUsers[length-1].Priority
