@@ -36,10 +36,10 @@ var (
 	successPattern, _   = regexp.Compile(DefaultSuccessRegs)
 )
 
-type LoginStatus int
+type AuthStatus int
 
 const (
-	AuthSuccess LoginStatus = iota
+	AuthSuccess AuthStatus = iota
 	AuthPartial
 	AuthFailed
 )
@@ -130,7 +130,7 @@ func (tc *ServerTelnetConnection) optionNegotiate(data []byte) []byte {
 	return buf.Bytes()
 }
 
-func (tc *ServerTelnetConnection) login(data []byte) LoginStatus {
+func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 	if incorrectPattern.Match(data) {
 		return AuthFailed
 	} else if usernamePattern.Match(data) {
