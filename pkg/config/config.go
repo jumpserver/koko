@@ -125,6 +125,7 @@ var Conf = &Config{
 	ReplayStorage:      map[string]interface{}{"TYPE": "server"},
 	CommandStorage:     map[string]interface{}{"TYPE": "server"},
 	UploadFailedReplay: true,
+	SftpRoot:           "/tmp",
 }
 
 func SetConf(conf *Config) {
