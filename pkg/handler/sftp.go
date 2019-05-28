@@ -54,11 +54,11 @@ func (fs *userSftpRequests) initial() {
 	fs.loadAssets()
 	fs.hosts = make(map[string]*HostNameDir)
 	fs.rootPath = config.GetConf().SftpRoot
-	for _, item := range fs.assets {
+	for i, item := range fs.assets {
 		tmpDir := &HostNameDir{
 			rootPath: fs.rootPath,
 			hostname: item.Hostname,
-			asset:    &item,
+			asset:    &fs.assets[i],
 			time:     time.Now().UTC(),
 		}
 		fs.hosts[item.Hostname] = tmpDir
