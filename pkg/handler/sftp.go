@@ -120,15 +120,17 @@ func (fs *userSftpRequests) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		}
 	}
 
-	fileInfos, err = sysUserDir.client.ReadDir(realPath)
-
 	switch r.Method {
 	case "List":
+		fileInfos, err = sysUserDir.client.ReadDir(realPath)
 		return fileInfos, err
 	case "Stat":
-		return fileInfos, err
+		fsInfo, err := sysUserDir.client.Stat(realPath)
+		return listerat([]os.FileInfo{fsInfo}), err
 	case "Readlink":
-		return fileInfos, err
+		filename, err := sysUserDir.client.ReadLink(realPath)
+		fsInfo := &FakeFile{name: filename, modtime: time.Now().UTC()}
+		return listerat([]os.FileInfo{fsInfo}), err
 	}
 	return fileInfos, err
 }
@@ -214,7 +216,6 @@ func (fs *userSftpRequests) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 func (fs *userSftpRequests) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (*sftp.Client, error) {
 	logger.Debug("Get Sftp Client")
 	info := service.GetSystemUserAssetAuthInfo(sysUser.Id, asset.Id)
-
 	return CreateSFTPConn(sysUser.Username, info.Password, info.PrivateKey, asset.Ip, strconv.Itoa(asset.Port))
 }
 
@@ -273,6 +274,28 @@ func (su *SysUserDir) ParsePath(path string) string {
 	logger.Debug("real path: ", realPath)
 	return realPath
 
+}
+
+type FakeFile struct {
+	name    string
+	modtime time.Time
+	symlink string
+}
+
+func (f *FakeFile) Name() string { return f.name }
+func (f *FakeFile) Size() int64  { return int64(0) }
+func (f *FakeFile) Mode() os.FileMode {
+	ret := os.FileMode(0644)
+	if f.symlink != "" {
+		ret = os.FileMode(0777) | os.ModeSymlink
+	}
+	return ret
+}
+func (f *FakeFile) ModTime() time.Time { return f.modtime }
+func (f *FakeFile) IsDir() bool        { return false }
+func (f *FakeFile) Sys() interface{} {
+	fakeInfo, _ := os.Stat(".")
+	return fakeInfo.Sys()
 }
 
 type listerat []os.FileInfo
