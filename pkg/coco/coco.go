@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cocogo/pkg/config"
+	"cocogo/pkg/httpd"
 	"cocogo/pkg/logger"
 	"cocogo/pkg/service"
 	"cocogo/pkg/sshd"
@@ -23,6 +24,7 @@ func (c *Coco) Start() {
 	fmt.Printf("Coco version %s, more see https://www.jumpserver.org\n", version)
 	fmt.Println("Quit the server with CONTROL-C.")
 	go sshd.StartServer()
+	go httpd.StartHTTPServer()
 }
 
 func (c *Coco) Stop() {

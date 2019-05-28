@@ -1,4 +1,4 @@
-package webssh
+package httpd
 
 import (
 	"net/http"
@@ -13,7 +13,7 @@ import (
 
 var (
 	httpServer *http.Server
-	cons       = &connections{container: make(map[string]*WebConn), mu: new(sync.RWMutex)}
+	conns      = &connections{container: make(map[string]*WebConn), mu: new(sync.RWMutex)}
 )
 
 func StartHTTPServer() {
@@ -22,13 +22,13 @@ func StartHTTPServer() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	server.OnConnect("/ssh", OnConnectHandler)
+	server.OnConnect("/ssh", TestOnConnectHandler)
 	server.OnError("/ssh", OnErrorHandler)
-	server.OnEvent("/ssh", "host", OnHostHandler)
+	server.OnEvent("/ssh", "host", TestOnHostHandler)
 	server.OnEvent("/ssh", "token", OnTokenHandler)
-	server.OnEvent("/ssh", "data", OnDataHandler)
-	server.OnEvent("/ssh", "resize", OnResizeHandler)
-	server.OnEvent("/ssh", "logout", OnLogoutHandler)
+	server.OnEvent("/ssh", "data", TestOnDataHandler)
+	server.OnEvent("/ssh", "resize", TestOnResizeHandler)
+	server.OnEvent("/ssh", "logout", TestOnLogoutHandler)
 
 	go server.Serve()
 	defer server.Close()
@@ -37,5 +37,4 @@ func StartHTTPServer() {
 	logger.Debug("start HTTP Serving ", conf.HTTPPort)
 	httpServer = &http.Server{Addr: conf.BindHost + ":" + strconv.Itoa(conf.HTTPPort), Handler: nil}
 	logger.Fatal(httpServer.ListenAndServe())
-
 }

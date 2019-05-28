@@ -1,4 +1,4 @@
-package webssh
+package httpd
 
 type HostMsg struct {
 	Uuid   string `json:"uuid"`
@@ -7,7 +7,7 @@ type HostMsg struct {
 	Size   []int  `json:"size"`
 }
 
-type ReSizeMsg struct {
+type ResizeMsg struct {
 	Height int `json:"rows"`
 	Width  int `json:"cols"`
 }

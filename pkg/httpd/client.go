@@ -1,4 +1,4 @@
-package webssh
+package httpd
 
 import (
 	"io"
@@ -19,6 +19,7 @@ type Client struct {
 	UserWrite io.WriteCloser
 	Conn      socketio.Conn
 	Closed    bool
+	pty       ssh.Pty
 }
 
 func (c *Client) Protocol() string {
@@ -50,9 +51,14 @@ func (c *Client) Write(p []byte) (n int, err error) {
 	return
 }
 
+func (c *Client) Pty() ssh.Pty {
+	return c.pty
+}
+
 func (c *Client) Close() (err error) {
-	if c.Closed {
-		return
-	}
+	//if c.Closed {
+	//	return
+	//}
+	c.Closed = true
 	return c.UserWrite.Close()
 }

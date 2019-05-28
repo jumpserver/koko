@@ -72,12 +72,9 @@ func CheckUserOTP(seed, code string) (resp *AuthResp, err error) {
 	return
 }
 
-func CheckUserCookie(sessionID, csrfToken string) (user *model.User) {
+func CheckUserCookie(sessionID, csrfToken string) (user *model.User, err error) {
 	client.SetCookie("csrftoken", csrfToken)
 	client.SetCookie("sessionid", sessionID)
-	err := client.Get(UserProfileURL, &user)
-	if err != nil {
-		logger.Error(err)
-	}
+	err = client.Get(UserProfileURL, &user)
 	return
 }

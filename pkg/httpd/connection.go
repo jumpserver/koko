@@ -1,4 +1,4 @@
-package webssh
+package httpd
 
 import (
 	"sync"
@@ -31,6 +31,11 @@ func (c *connections) AddWebConn(conID string, conn *WebConn) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.container[conID] = conn
+}
+
+func newWebConn(id string, sock socketio.Conn, addr string, user *model.User) *WebConn {
+	conn := &WebConn{Cid: id, Sock: sock, Addr: addr, User: user, mu: new(sync.RWMutex), Clients: make(map[string]*Client)}
+	return conn
 }
 
 type WebConn struct {

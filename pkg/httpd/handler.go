@@ -1,6 +1,8 @@
-package webssh
+package httpd
 
 import (
+	"cocogo/pkg/proxy"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,11 +29,9 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 				sessionid = strings.Split(line, "=")[1]
 			}
 		}
-		user := service.CheckUserCookie(sessionid, csrfToken)
-		if user.ID == "" {
-			// Todo: 构建login的url
+		_, err := service.CheckUserCookie(sessionid, csrfToken)
+		if err != nil {
 			http.Redirect(responseWriter, request, "", http.StatusFound)
-			return
 		}
 	}
 }
@@ -40,29 +40,32 @@ func OnConnectHandler(s socketio.Conn) error {
 	// 首次连接 1.获取当前用户的信息
 	logger.Debug("OnConnectHandler")
 	cookies := strings.Split(s.RemoteHeader().Get("Cookie"), ";")
-	var csrfToken string
-	var sessionid string
-	var remoteIP string
+	var csrfToken, sessionID, remoteIP string
 	for _, line := range cookies {
 		if strings.Contains(line, "csrftoken") {
 			csrfToken = strings.Split(line, "=")[1]
 		}
 		if strings.Contains(line, "sessionid") {
-			sessionid = strings.Split(line, "=")[1]
+			sessionID = strings.Split(line, "=")[1]
 		}
 	}
-	user := service.CheckUserCookie(sessionid, csrfToken)
-	logger.Debug(user)
-	remoteAddrs := s.RemoteHeader().Get("X-Forwarded-For")
-	if remoteAddrs == "" {
+	user, err := service.CheckUserCookie(sessionID, csrfToken)
+	if err != nil {
+		return errors.New("user is not authenticated")
+	}
+	remoteAddr := s.RemoteHeader().Get("X-Forwarded-For")
+	if remoteAddr == "" {
 		remoteIP = s.RemoteAddr().String()
 	} else {
-		remoteIP = strings.Split(remoteAddrs, ",")[0]
+		remoteIP = strings.Split(remoteAddr, ",")[0]
 	}
-	conn := &WebConn{Cid: s.ID(), Sock: s, Addr: remoteIP, User: user}
-	cons.AddWebConn(s.ID(), conn)
+	logger.Infof("%s connect websocket from %s\n", user.Username, remoteIP)
+	conn := newWebConn(s.ID(), s, remoteIP, user)
+	ctx := WebContext{User: user, Connection: conn}
+	s.SetContext(ctx)
+	conns.AddWebConn(s.ID(), conn)
+	logger.Info("On Connect handler end")
 	return nil
-
 }
 
 func OnErrorHandler(e error) {
@@ -73,20 +76,20 @@ func OnErrorHandler(e error) {
 func OnHostHandler(s socketio.Conn, message HostMsg) {
 	// secret 	uuid string
 	logger.Debug("OnHost trigger")
-	winSiz := ssh.Window{Height: 24, Width: 80}
+	win := ssh.Window{Height: 24, Width: 80}
 	assetID := message.Uuid
 	systemUserId := message.UserID
 	secret := message.Secret
 	width, height := message.Size[0], message.Size[1]
 	if width != 0 {
-		winSiz.Width = width
+		win.Width = width
 	}
 	if height != 0 {
-		winSiz.Height = height
+		win.Height = height
 	}
 	clientID := uuid.NewV4().String()
-	emitMs := EmitRoomMsg{clientID, secret}
-	s.Emit("room", emitMs)
+	emitMsg := EmitRoomMsg{clientID, secret}
+	s.Emit("room", emitMsg)
 	asset := service.GetAsset(assetID)
 	systemUser := service.GetSystemUser(systemUserId)
 
@@ -94,16 +97,20 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 		return
 	}
 
+	ctx := s.Context().(WebContext)
+
 	userR, userW := io.Pipe()
-
-	conn := cons.GetWebConn(s.ID())
-	clientConn := Client{Uuid: clientID, Cid: conn.Cid, user: conn.User,
-		WinChan: make(chan ssh.Window, 100), Conn: s, UserRead: userR, UserWrite: userW}
-	clientConn.WinChan <- winSiz
-	conn.AddClient(clientID, &clientConn)
-
-	// Todo: 构建proxy server 启动goroutine
-
+	conn := conns.GetWebConn(s.ID())
+	clientConn := &Client{
+		Uuid: clientID, Cid: conn.Cid, user: conn.User,
+		WinChan: make(chan ssh.Window, 100), Conn: s,
+		UserRead: userR, UserWrite: userW,
+		pty: ssh.Pty{Term: "xterm", Window: win},
+	}
+	clientConn.WinChan <- win
+	conn.AddClient(clientID, clientConn)
+	proxySrv := proxy.ProxyServer{UserConn: clientConn, User: ctx.User, Asset: &asset, SystemUser: &systemUser}
+	go proxySrv.Proxy()
 }
 
 func OnTokenHandler(s socketio.Conn, message TokenMsg) {
@@ -140,7 +147,7 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 	}
 
 	currentUser := service.GetUserProfile(tokenUser.UserId)
-	con := cons.GetWebConn(s.ID())
+	con := conns.GetWebConn(s.ID())
 	con.User = currentUser
 
 	asset := service.GetAsset(tokenUser.AssetId)
@@ -151,9 +158,12 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 	}
 
 	userR, userW := io.Pipe()
-	conn := cons.GetWebConn(s.ID())
-	clientConn := Client{Uuid: clientID, Cid: conn.Cid, user: conn.User,
-		WinChan: make(chan ssh.Window, 100), Conn: s, UserRead: userR, UserWrite: userW}
+	conn := conns.GetWebConn(s.ID())
+	clientConn := Client{
+		Uuid: clientID, Cid: conn.Cid, user: conn.User,
+		WinChan: make(chan ssh.Window, 100), Conn: s,
+		UserRead: userR, UserWrite: userW, Closed: false,
+	}
 	clientConn.WinChan <- winSiz
 	conn.AddClient(clientID, &clientConn)
 
@@ -163,21 +173,33 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 func OnDataHandler(s socketio.Conn, message DataMsg) {
 	logger.Debug("OnData trigger")
 	cid := message.Room
-	webconn := cons.GetWebConn(s.ID())
+	webconn := conns.GetWebConn(s.ID())
 	client := webconn.GetClient(cid)
+	if client == nil {
+		return
+	}
 	_, _ = client.UserWrite.Write([]byte(message.Data))
 }
 
-func OnResizeHandler(s socketio.Conn, message ReSizeMsg) {
+func OnResizeHandler(s socketio.Conn, message ResizeMsg) {
 	winSize := ssh.Window{Height: message.Height, Width: message.Width}
-	logger.Debugf("On resize event trigger: %s*%s", message.Width, message.Height)
-	con := cons.GetWebConn(s.ID())
-	con.SetWinSize(winSize)
+	logger.Debugf("On resize event trigger: %d*%d", message.Width, message.Height)
+	conn := conns.GetWebConn(s.ID())
+	conn.SetWinSize(winSize)
 }
 
 func OnLogoutHandler(s socketio.Conn, message string) {
 	logger.Debug("OnLogout trigger")
-	webConn := cons.GetWebConn(s.ID())
+	logger.Debugf("Msg: %s\n", message)
+	webConn := conns.GetWebConn(s.ID())
+	if webConn == nil {
+		logger.Error("No conn found")
+		return
+	}
 	client := webConn.GetClient(message)
+	if client == nil {
+		logger.Error("No client found")
+		return
+	}
 	_ = client.Close()
 }
