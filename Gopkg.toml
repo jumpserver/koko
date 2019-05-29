@@ -30,6 +30,16 @@
   branch = "dev"
 
 [[constraint]]
+  name = "github.com/googollee/go-engine.io"
+  source = "github.com/ibuler/go-engine.io"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/googollee/go-socket.io"
+  source = "github.com/googollee/go-socket.io"
+  version = "1.4.1"
+
+[[constraint]]
   name = "github.com/jarcoal/httpmock"
   version = "1.0.3"
 
@@ -90,7 +100,3 @@
 [[constraint]]
   name = "github.com/elastic/go-elasticsearch"
   version = "0.0.0"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/mlsquires/socketio"

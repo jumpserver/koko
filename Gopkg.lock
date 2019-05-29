@@ -18,12 +18,12 @@
   version = "v0.6.0"
 
 [[projects]]
-  digest = "1:c5c73365822fb6a7bbe288316868057ae58447ddd95ecef466b6dbe93c37670e"
+  digest = "1:918521e77b229a961b2011082ee9c026d5077cab825be142f6e9771b61d03238"
   name = "github.com/aliyun/aliyun-oss-go-sdk"
   packages = ["oss"]
   pruneopts = "UT"
-  revision = "08079eb9f6aaa13ee00b8fade6ceeffa138bf877"
-  version = "v1.9.6"
+  revision = "a1626a17f725e3ccd04153bfa560eef306c79493"
+  version = "v1.9.8"
 
 [[projects]]
   branch = "master"
@@ -34,7 +34,7 @@
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
 
 [[projects]]
-  digest = "1:495d57b9444476dbdcad8420c73a84b5b72e7e058b011b17e218e759c16f66fd"
+  digest = "1:9cc80abecc469330afaa9cc72744b258419f5be8adc78b7898ada5d299152048"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -64,6 +64,7 @@
     "private/protocol",
     "private/protocol/eventstream",
     "private/protocol/eventstream/eventstreamapi",
+    "private/protocol/json/jsonutil",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
@@ -75,8 +76,8 @@
     "service/sts",
   ]
   pruneopts = "UT"
-  revision = "0db84dcbcc56669065730700b054eb6d1438a0f7"
-  version = "v1.19.33"
+  revision = "d6c5ccab427af7408a67e0f45c6e6a3d515fdaee"
+  version = "v1.19.39"
 
 [[projects]]
   digest = "1:2af3a6e1f12e54cef95c6051cd1cb1e154629a4b82c692ac8a92f00259f570eb"
@@ -100,7 +101,8 @@
   source = "github.com/ibuler/ssh"
 
 [[projects]]
-  digest = "1:6b7e9b1e2f944a0c84f29943f705954d2d8cfbf6477c37a10d0c80acdbc2445f"
+  branch = "master"
+  digest = "1:ef78b8ca7a1b7af78d1ad1594da67b4b4c9f92f397cabe49d3fd97f18211aa32"
   name = "github.com/googollee/go-engine.io"
   packages = [
     ".",
@@ -112,8 +114,8 @@
     "transport/websocket",
   ]
   pruneopts = "UT"
-  revision = "cc5b8c07e074e97f6bc6f4c6dbc03cf06267e6e0"
-  version = "v1.4.1"
+  revision = "7786d3a289b9a76ecdf1df24cbac13102cac1423"
+  source = "github.com/ibuler/go-engine.io"
 
 [[projects]]
   digest = "1:25fa43cb2f30c0ab54aaabf05167c56c7e385635b3651015c5726ecb737a905e"
@@ -124,6 +126,7 @@
   ]
   pruneopts = "UT"
   revision = "96da97a7c8f269421388fbb0dca12aa3c0699088"
+  source = "github.com/googollee/go-socket.io"
   version = "v1.4.1"
 
 [[projects]]
@@ -185,52 +188,12 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:7c084e0e780596dd2a7e20d25803909a9a43689c153de953520dfbc0b0e51166"
-  name = "github.com/mattn/go-colorable"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "8029fb3788e5a4a9c00e415f586a6d033f5d38b3"
-  version = "v0.1.2"
-
-[[projects]]
-  digest = "1:9b90c7639a41697f3d4ad12d7d67dfacc9a7a4a6e0bbfae4fc72d0da57c28871"
-  name = "github.com/mattn/go-isatty"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "1311e847b0cb909da63b5fecfb5370aa66236465"
-  version = "v0.0.8"
-
-[[projects]]
   digest = "1:0356f3312c9bd1cbeda81505b7fd437501d8e778ab66998ef69f00d7f9b3a0d7"
   name = "github.com/mattn/go-runewidth"
   packages = ["."]
   pruneopts = "UT"
   revision = "3ee7d812e62a0804a7d0a324e0249ca2db3476d3"
   version = "v0.0.4"
-
-[[projects]]
-  branch = "master"
-  digest = "1:2b32af4d2a529083275afc192d1067d8126b578c7a9613b26600e4df9c735155"
-  name = "github.com/mgutz/ansi"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "9520e82c474b0a04dd04f8a40959027271bab992"
-
-[[projects]]
-  branch = "master"
-  digest = "1:750abb588d8be68b8ad7e65e350fe2e79a060490ee2d24d437ed1a9f593d0dac"
-  name = "github.com/mlsquires/socketio"
-  packages = [
-    ".",
-    "engineio",
-    "engineio/message",
-    "engineio/parser",
-    "engineio/polling",
-    "engineio/transport",
-    "engineio/websocket",
-  ]
-  pruneopts = "UT"
-  revision = "169a6f09e62468882b9903aad586d2e1632d2f1c"
 
 [[projects]]
   digest = "1:abcdbf03ca6ca13d3697e2186edc1f33863bbdac2b3a44dfa39015e8903f7409"
@@ -257,30 +220,6 @@
   version = "v1.10.0"
 
 [[projects]]
-  digest = "1:7a40ca559b74a39cb374acf9b2405bfbc1421c32c5d14843d97d3119714196b2"
-  name = "github.com/pschlump/MiscLib"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "a39843c365f40b726e9f30f3d3e8159a361fe1fe"
-  version = "v1.0.0"
-
-[[projects]]
-  digest = "1:74d7514f388723351b912975867519e6b368278d2c6e670aeb78d041b2215e71"
-  name = "github.com/pschlump/godebug"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "8c05f846059acd0b0ac57dc3eaa7db4c3f4dd61e"
-  version = "v0.9.1"
-
-[[projects]]
-  digest = "1:7e9ddd0dfe0afb9919d3470762b7e488a174206648a0c2412dfb1e6d63073392"
-  name = "github.com/pschlump/json"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "0d2e6a308e08fb871c1bcd9b56fb21a1be305e22"
-  version = "v1.12.0"
-
-[[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
   name = "github.com/satori/go.uuid"
   packages = ["."]
@@ -289,12 +228,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:fd61cf4ae1953d55df708acb6b91492d538f49c305b364a014049914495db426"
+  digest = "1:04457f9f6f3ffc5fea48e71d62f2ca256637dee0a04d710288e27e05c8b41976"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f"
-  version = "v1.4.1"
+  revision = "839c75faf7f98a33d445d181f3018b5c3409a45e"
+  version = "v1.4.2"
 
 [[projects]]
   branch = "master"
@@ -323,14 +262,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:00a3a12527dd7a3af0d24260fd14887ebd69aaf924303b6a4a67f35eb9b6c012"
+  digest = "1:079999f5a3a0db923759948975e14ec0cee7195b9d99c566139307d971e7fc3c"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "3a4b5fb9f71f5874b2374ae059bc0e0bcb52e145"
+  revision = "854af27f14a7156d646cb0812811bbc293b2d6a7"
 
 [[projects]]
   branch = "master"
@@ -368,11 +307,11 @@
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/elastic/go-elasticsearch",
     "github.com/gliderlabs/ssh",
+    "github.com/googollee/go-engine.io",
     "github.com/googollee/go-socket.io",
     "github.com/jarcoal/httpmock",
     "github.com/kr/pty",
     "github.com/leonelquinteros/gotext",
-    "github.com/mlsquires/socketio",
     "github.com/olekukonko/tablewriter",
     "github.com/pkg/errors",
     "github.com/pkg/sftp",

@@ -1,7 +1,6 @@
 package httpd
 
 import (
-	"cocogo/pkg/proxy"
 	"errors"
 	"fmt"
 	"io"
@@ -9,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/gliderlabs/ssh"
-	socketio "github.com/googollee/go-socket.io"
-	uuid "github.com/satori/go.uuid"
+	"github.com/googollee/go-socket.io"
+	"github.com/satori/go.uuid"
 
 	"cocogo/pkg/logger"
+	"cocogo/pkg/proxy"
 	"cocogo/pkg/service"
 )
 
@@ -65,6 +65,7 @@ func OnConnectHandler(s socketio.Conn) error {
 	s.SetContext(ctx)
 	conns.AddWebConn(s.ID(), conn)
 	logger.Info("On Connect handler end")
+	s.Emit("3")
 	return nil
 }
 
@@ -98,7 +99,6 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 	}
 
 	ctx := s.Context().(WebContext)
-
 	userR, userW := io.Pipe()
 	conn := conns.GetWebConn(s.ID())
 	clientConn := &Client{
@@ -111,6 +111,7 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 	conn.AddClient(clientID, clientConn)
 	proxySrv := proxy.ProxyServer{UserConn: clientConn, User: ctx.User, Asset: &asset, SystemUser: &systemUser}
 	go proxySrv.Proxy()
+
 }
 
 func OnTokenHandler(s socketio.Conn, message TokenMsg) {
@@ -202,4 +203,8 @@ func OnLogoutHandler(s socketio.Conn, message string) {
 		return
 	}
 	_ = client.Close()
+}
+
+func OnDisconnect(s socketio.Conn, msg string) {
+	logger.Debug("OnDisconnect trigger")
 }
