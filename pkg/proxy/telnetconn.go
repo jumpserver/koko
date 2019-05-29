@@ -100,7 +100,6 @@ func (tc *ServerTelnetConnection) optionNegotiate(data []byte) []byte {
 				buf.Write([]byte{WILL, TTYPE})
 			default:
 				buf.Write(bytes.ReplaceAll(item, []byte{DO}, []byte{WONT}))
-
 			}
 		case WILL:
 			switch item[1] {

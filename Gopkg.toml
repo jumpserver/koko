@@ -90,3 +90,7 @@
 [[constraint]]
   name = "github.com/elastic/go-elasticsearch"
   version = "0.0.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/mlsquires/socketio"
