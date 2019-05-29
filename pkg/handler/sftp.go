@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -122,12 +124,19 @@ func (fs *userSftpRequests) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 
 	switch r.Method {
 	case "List":
+		logger.Debug("List method")
 		fileInfos, err = sysUserDir.client.ReadDir(realPath)
-		return fileInfos, err
+		wraperFiles := make([]os.FileInfo, 0, len(fileInfos))
+		for i := 0; i < len(fileInfos); i++ {
+			wraperFiles = append(wraperFiles, &wrapperFileInfo{f: fileInfos[i]})
+		}
+		return listerat(wraperFiles), err
 	case "Stat":
+		logger.Debug("stat method")
 		fsInfo, err := sysUserDir.client.Stat(realPath)
-		return listerat([]os.FileInfo{fsInfo}), err
+		return listerat([]os.FileInfo{&wrapperFileInfo{f: fsInfo}}), err
 	case "Readlink":
+		logger.Debug("Readlink method")
 		filename, err := sysUserDir.client.ReadLink(realPath)
 		fsInfo := &FakeFile{name: filename, modtime: time.Now().UTC()}
 		return listerat([]os.FileInfo{fsInfo}), err
@@ -298,6 +307,26 @@ func (f *FakeFile) Sys() interface{} {
 	return fakeInfo.Sys()
 }
 
+type wrapperFileInfo struct {
+	f os.FileInfo
+}
+
+func (w *wrapperFileInfo) Name() string { return w.f.Name() }
+func (w *wrapperFileInfo) Size() int64  { return w.f.Size() }
+func (w *wrapperFileInfo) Mode() os.FileMode {
+	return w.f.Mode()
+}
+func (w *wrapperFileInfo) ModTime() time.Time { return w.f.ModTime() }
+func (w *wrapperFileInfo) IsDir() bool        { return w.f.IsDir() }
+func (w *wrapperFileInfo) Sys() interface{} {
+	if statInfo, ok := w.f.Sys().(*sftp.FileStat); ok {
+		return &syscall.Stat_t{Uid: statInfo.UID, Gid: statInfo.GID}
+	} else {
+		fakeInfo, _ := os.Stat(".")
+		return fakeInfo.Sys()
+	}
+}
+
 type listerat []os.FileInfo
 
 func (f listerat) ListAt(ls []os.FileInfo, offset int64) (int, error) {
@@ -313,23 +342,51 @@ func (f listerat) ListAt(ls []os.FileInfo, offset int64) (int, error) {
 }
 
 func NewWriterAt(f *sftp.File) io.WriterAt {
-	return &clientReadWritAt{f: f}
+	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
 }
 
 func NewReaderAt(f *sftp.File) io.ReaderAt {
-	return &clientReadWritAt{f: f}
+	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
 }
 
 type clientReadWritAt struct {
-	f *sftp.File
+	f        *sftp.File
+	mu       *sync.RWMutex
+	closed   bool
+	firstErr error
 }
 
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
-	return c.f.Write(p)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		logger.Debug("WriteAt: ", off)
+		return 0, c.firstErr
+	}
+	nw, err := c.f.Write(p)
+	if err != nil {
+		c.firstErr = err
+		c.closed = true
+		_ = c.f.Close()
+	}
+	return nw, err
 }
 
 func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
-	return c.f.Read(p)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		logger.Debug("ReadAt: ", off)
+		return 0, c.firstErr
+	}
+	nr, err := c.f.Read(p)
+	if err != nil {
+		c.firstErr = err
+		c.closed = true
+		_ = c.f.Close()
+	}
+
+	return nr, err
 }
 
 func CreateSFTPConn(user, password, privateKey, host, port string) (*sftp.Client, error) {
