@@ -1,16 +1,16 @@
-package proxy
+package srvconn
 
 import (
 	"fmt"
 	"testing"
 )
 
-var testConnection = ServerSSHConnection{
-	host:     "127.0.0.1",
-	port:     "22",
-	user:     "root",
-	password: "redhat",
-	Proxy:    &ServerSSHConnection{host: "192.168.244.185", port: "22", user: "root", password: "redhat"},
+var testConnection = SSHClientConfig{
+	Host:     "127.0.0.1",
+	Port:     "22",
+	User:     "root",
+	Password: "redhat",
+	Proxy:    &SSHClientConfig{Host: "192.168.244.185", Port: "22", User: "root", Password: "redhat"},
 }
 
 func TestSSHConnection_Config(t *testing.T) {
@@ -22,7 +22,7 @@ func TestSSHConnection_Config(t *testing.T) {
 }
 
 func TestSSHConnection_Connect(t *testing.T) {
-	err := testConnection.Connect(24, 80, "xterm")
+	_, err := testConnection.Dial()
 	if err != nil {
 		t.Errorf("Connect error %s", err)
 	}

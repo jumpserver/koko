@@ -1,4 +1,4 @@
-package proxy
+package srvconn
 
 import (
 	"bytes"
@@ -45,38 +45,25 @@ const (
 )
 
 type ServerTelnetConnection struct {
-	name                 string
-	host                 string
-	port                 string
-	user                 string
-	password             string
-	timeout              int
-	customString         string
-	customSuccessPattern *regexp.Regexp
+	Name                 string
+	Creator              string
+	Host                 string
+	Port                 string
+	User                 string
+	Password             string
+	Overtime             int
+	CustomString         string
+	CustomSuccessPattern *regexp.Regexp
 
-	conn net.Conn
-
+	conn   net.Conn
 	closed bool
 }
 
-func (tc *ServerTelnetConnection) Name() string {
-	return tc.name
-}
-
-func (tc *ServerTelnetConnection) Host() string {
-	return tc.host
-}
-
-func (tc *ServerTelnetConnection) Port() string {
-	return tc.port
-}
-
-func (tc *ServerTelnetConnection) User() string {
-	return tc.user
-}
-
 func (tc *ServerTelnetConnection) Timeout() time.Duration {
-	return time.Duration(tc.timeout) * time.Second
+	if tc.Overtime == 0 {
+		tc.Overtime = 30
+	}
+	return time.Duration(tc.Overtime) * time.Second
 }
 
 func (tc *ServerTelnetConnection) Protocol() string {
@@ -133,18 +120,18 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 	if incorrectPattern.Match(data) {
 		return AuthFailed
 	} else if usernamePattern.Match(data) {
-		_, _ = tc.conn.Write([]byte(tc.user + "\r\n"))
-		logger.Debug("usernamePattern ", tc.user)
+		_, _ = tc.conn.Write([]byte(tc.User + "\r\n"))
+		logger.Debug("usernamePattern ", tc.User)
 		return AuthPartial
 	} else if passwordPattern.Match(data) {
-		_, _ = tc.conn.Write([]byte(tc.password + "\r\n"))
-		logger.Debug("passwordPattern ", tc.password)
+		_, _ = tc.conn.Write([]byte(tc.Password + "\r\n"))
+		logger.Debug("passwordPattern ", tc.Password)
 		return AuthPartial
 	} else if successPattern.Match(data) {
 		return AuthSuccess
 	}
-	if tc.customString != "" {
-		if tc.customSuccessPattern.Match(data) {
+	if tc.CustomString != "" {
+		if tc.CustomSuccessPattern.Match(data) {
 			return AuthSuccess
 		}
 	}
@@ -152,7 +139,7 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 }
 
 func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(tc.host, tc.port), tc.Timeout())
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(tc.Host, tc.Port), tc.Timeout())
 	if err != nil {
 		return
 	}

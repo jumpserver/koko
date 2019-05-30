@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"cocogo/pkg/srvconn"
 	"cocogo/pkg/utils"
 	"fmt"
 	"regexp"
@@ -34,7 +35,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 		if err != nil {
 			logger.Errorf("Get password from user err %s", err.Error())
 		}
-		logger.Info("Get password from user input: ", line)
+		logger.Debug("Get password from user input: ", line)
 		p.SystemUser.Password = line
 	}
 }
@@ -72,50 +73,57 @@ func (p *ProxyServer) validatePermission() bool {
 	return true
 }
 
-func (p *ProxyServer) getSSHConn() (srvConn *ServerSSHConnection, err error) {
-	srvConn = &ServerSSHConnection{
-		name:       p.Asset.Hostname,
-		host:       p.Asset.Ip,
-		port:       strconv.Itoa(p.Asset.Port),
-		user:       p.SystemUser.Username,
-		password:   p.SystemUser.Password,
-		privateKey: p.SystemUser.PrivateKey,
-		timeout:    config.GetConf().SSHTimeout,
+func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err error) {
+	proxyConfig := &srvconn.SSHClientConfig{}
+	sshConfig := srvconn.SSHClientConfig{
+		Host:       p.Asset.Ip,
+		Port:       strconv.Itoa(p.Asset.Port),
+		User:       p.SystemUser.Username,
+		Password:   p.SystemUser.Password,
+		PrivateKey: p.SystemUser.PrivateKey,
+		Overtime:   config.GetConf().SSHTimeout,
+		Proxy:      proxyConfig,
+	}
+	srvConn = &srvconn.ServerSSHConnection{
+		Name:            p.Asset.Hostname,
+		Creator:         p.User.Username,
+		SSHClientConfig: sshConfig,
 	}
 	pty := p.UserConn.Pty()
-	done := make(chan struct{})
-	go p.sendConnectingMsg(done, srvConn.timeout)
 	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
-	utils.IgnoreErrWriteString(p.UserConn, "\r\n")
-	close(done)
+	fmt.Println("Error: ", err)
 	return
 }
 
-func (p *ProxyServer) getTelnetConn() (srvConn *ServerTelnetConnection, err error) {
+func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, err error) {
 	conf := config.GetConf()
 	cusString := conf.TelnetRegex
 	pattern, _ := regexp.Compile(cusString)
-	srvConn = &ServerTelnetConnection{
-		name:                 p.Asset.Hostname,
-		host:                 p.Asset.Ip,
-		port:                 strconv.Itoa(p.Asset.Port),
-		user:                 p.SystemUser.Username,
-		password:             p.SystemUser.Password,
-		customString:         cusString,
-		customSuccessPattern: pattern,
-		timeout:              conf.SSHTimeout,
+	srvConn = &srvconn.ServerTelnetConnection{
+		Name:                 p.Asset.Hostname,
+		Creator:              p.User.ID,
+		Host:                 p.Asset.Ip,
+		Port:                 strconv.Itoa(p.Asset.Port),
+		User:                 p.SystemUser.Username,
+		Password:             p.SystemUser.Password,
+		CustomString:         cusString,
+		CustomSuccessPattern: pattern,
+		Overtime:             conf.SSHTimeout,
 	}
-	done := make(chan struct{})
-	go p.sendConnectingMsg(done, srvConn.timeout)
 	err = srvConn.Connect(0, 0, "")
 	utils.IgnoreErrWriteString(p.UserConn, "\r\n")
-	close(done)
 	return
 }
 
-func (p *ProxyServer) getServerConn() (srvConn ServerConnection, err error) {
+func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
 	p.getSystemUserUsernameIfNeed()
 	p.getSystemUserAuthOrManualSet()
+	done := make(chan struct{})
+	defer func() {
+		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
+		close(done)
+	}()
+	go p.sendConnectingMsg(done, config.GetConf().SSHTimeout)
 	if p.Asset.Protocol == "telnet" {
 		return p.getTelnetConn()
 	} else {
@@ -204,7 +212,7 @@ func (p *ProxyServer) finishSession(s *SwitchSession) {
 	data := s.MapData()
 	service.FinishSession(data)
 	service.FinishReply(s.Id)
-	logger.Debugf("finish Session: %s", s.Id)
+	logger.Debugf("finish session: %s", s.Id)
 }
 
 func (p *ProxyServer) GetFilterRules() []model.SystemUserFilterRule {

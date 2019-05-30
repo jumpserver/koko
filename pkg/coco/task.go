@@ -59,7 +59,7 @@ func keepHeartbeat(interval int) {
 			tasks := service.TerminalHeartBeat(data)
 			if len(tasks) != 0 {
 				for _, task := range tasks {
-					proxy.HandlerSessionTask(task)
+					proxy.HandleSessionTask(task)
 				}
 			}
 		}

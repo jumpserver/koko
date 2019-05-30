@@ -511,7 +511,7 @@ func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.Sy
 //	Home := userhome.NewUserSessionHome(sshConn)
 //	logger.Info("session Home ID: ", Home.SessionID())
 //
-//	err = proxy.Manager.Session(i.sess.Context(), Home, memChan)
+//	err = proxy.Manager.session(i.sess.Context(), Home, memChan)
 //	if err != nil {
 //		logger.Error(err)
 //	}

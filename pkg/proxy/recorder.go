@@ -66,7 +66,7 @@ func (c *CommandRecorder) record() {
 			}
 		case p, ok := <-c.queue:
 			if !ok {
-				logger.Debug("Session command recorder close: ", c.sessionID)
+				logger.Debug("session command recorder close: ", c.sessionID)
 				return
 			}
 			cmdList = append(cmdList, p)

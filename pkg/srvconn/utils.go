@@ -1,4 +1,4 @@
-package proxy
+package srvconn
 
 import (
 	"golang.org/x/crypto/ssh"

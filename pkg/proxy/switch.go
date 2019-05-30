@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"cocogo/pkg/srvconn"
 	"context"
 	"fmt"
 	"strings"
@@ -117,13 +118,13 @@ func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
 	s.parser.SetCMDFilterRules(cmdRules)
 }
 
-func (s *SwitchSession) Bridge(userConn UserConnection, srvConn ServerConnection) (err error) {
+func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	winCh := userConn.WinCh()
 	s.srvTran = NewDirectTransport(s.Id, srvConn)
 	s.userTran = NewDirectTransport(s.Id, userConn)
 
 	defer func() {
-		logger.Info("Session bridge done: ", s.Id)
+		logger.Info("session bridge done: ", s.Id)
 	}()
 
 	go s.parser.Parse()

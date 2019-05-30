@@ -9,7 +9,7 @@ import (
 var sessionMap = make(map[string]*SwitchSession)
 var lock = new(sync.RWMutex)
 
-func HandlerSessionTask(task model.TerminalTask) {
+func HandleSessionTask(task model.TerminalTask) {
 	switch task.Name {
 	case "kill_session":
 		KillSession(task.Args)

@@ -38,7 +38,7 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 
 func OnConnectHandler(s socketio.Conn) error {
 	// 首次连接 1.获取当前用户的信息
-	logger.Debug("OnConnectHandler")
+	logger.Debug("On connect trigger")
 	cookies := strings.Split(s.RemoteHeader().Get("Cookie"), ";")
 	var csrfToken, sessionID, remoteIP string
 	for _, line := range cookies {
@@ -51,7 +51,9 @@ func OnConnectHandler(s socketio.Conn) error {
 	}
 	user, err := service.CheckUserCookie(sessionID, csrfToken)
 	if err != nil {
-		return errors.New("user is not authenticated")
+		msg := "User is not authenticated"
+		logger.Error(msg)
+		return errors.New(strings.ToLower(msg))
 	}
 	remoteAddr := s.RemoteHeader().Get("X-Forwarded-For")
 	if remoteAddr == "" {
@@ -65,7 +67,6 @@ func OnConnectHandler(s socketio.Conn) error {
 	s.SetContext(ctx)
 	conns.AddWebConn(s.ID(), conn)
 	logger.Info("On Connect handler end")
-	s.Emit("3")
 	return nil
 }
 
@@ -191,7 +192,6 @@ func OnResizeHandler(s socketio.Conn, message ResizeMsg) {
 
 func OnLogoutHandler(s socketio.Conn, message string) {
 	logger.Debug("OnLogout trigger")
-	logger.Debugf("Msg: %s\n", message)
 	webConn := conns.GetWebConn(s.ID())
 	if webConn == nil {
 		logger.Error("No conn found")
