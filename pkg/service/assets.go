@@ -16,15 +16,6 @@ func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.System
 	return
 }
 
-func GetSystemUserAuthInfo(systemUserID string) (info model.SystemUserAuthInfo) {
-	Url := fmt.Sprintf(SystemUserAuthInfoURL, systemUserID)
-	err := authClient.Get(Url, &info)
-	if err != nil {
-		logger.Error("Get system user auth info failed")
-	}
-	return
-}
-
 func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilterRule, err error) {
 	/*[
 	    {
@@ -76,7 +67,7 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 }
 
 func GetSystemUser(systemUserID string) (info model.SystemUser) {
-	Url := fmt.Sprintf(SystemUser, systemUserID)
+	Url := fmt.Sprintf(SystemUserDetailURL, systemUserID)
 	err := authClient.Get(Url, &info)
 	if err != nil {
 		logger.Errorf("Get system user %s failed", systemUserID)
@@ -85,16 +76,25 @@ func GetSystemUser(systemUserID string) (info model.SystemUser) {
 }
 
 func GetAsset(assetID string) (asset model.Asset) {
-	Url := fmt.Sprintf(Asset, assetID)
+	Url := fmt.Sprintf(AssetDetailURL, assetID)
 	err := authClient.Get(Url, &asset)
 	if err != nil {
-		logger.Errorf("Get Asset %s failed", assetID)
+		logger.Errorf("Get Asset %s failed\n", assetID)
+	}
+	return
+}
+
+func GetDomainWithGateway(gID string) (domain model.Domain) {
+	url := fmt.Sprintf(DomainDetailURL, gID)
+	err := authClient.Get(url, &domain)
+	if err != nil {
+		logger.Errorf("Get domain %s failed", gID)
 	}
 	return
 }
 
 func GetTokenAsset(token string) (tokenUser model.TokenUser) {
-	Url := fmt.Sprintf(TokenAsset, token)
+	Url := fmt.Sprintf(TokenAssetUrl, token)
 	err := authClient.Get(Url, &tokenUser)
 	if err != nil {
 		logger.Error("Get Token Asset info failed")

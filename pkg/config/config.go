@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -20,9 +21,9 @@ type Config struct {
 	PublicKeyAuth       bool                   `json:"TERMINAL_PUBLIC_KEY_AUTH" yaml:"PUBLIC_KEY_AUTH"`
 	CommandStorage      map[string]interface{} `json:"TERMINAL_COMMAND_STORAGE"`
 	ReplayStorage       map[string]interface{} `json:"TERMINAL_REPLAY_STORAGE" yaml:"REPLAY_STORAGE"`
-	SessionKeepDuration int                    `json:"TERMINAL_SESSION_KEEP_DURATION"`
+	SessionKeepDuration time.Duration          `json:"TERMINAL_SESSION_KEEP_DURATION"`
 	TelnetRegex         string                 `json:"TERMINAL_TELNET_REGEX"`
-	MaxIdleTime         int                    `json:"SECURITY_MAX_IDLE_TIME"`
+	MaxIdleTime         time.Duration          `json:"SECURITY_MAX_IDLE_TIME"`
 	SftpRoot            string                 `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
 	Name                string                 `yaml:"NAME"`
 	SecretKey           string                 `yaml:"SECRET_KEY"`
@@ -30,13 +31,13 @@ type Config struct {
 	CoreHost            string                 `yaml:"CORE_HOST"`
 	BootstrapToken      string                 `yaml:"BOOTSTRAP_TOKEN"`
 	BindHost            string                 `yaml:"BIND_HOST"`
-	SSHPort             int                    `yaml:"SSHD_PORT"`
-	HTTPPort            int                    `yaml:"HTTPD_PORT"`
-	SSHTimeout          int                    `yaml:"SSH_TIMEOUT"`
+	SSHPort             string                 `yaml:"SSHD_PORT"`
+	HTTPPort            string                 `yaml:"HTTPD_PORT"`
+	SSHTimeout          time.Duration          `yaml:"SSH_TIMEOUT"`
 	AccessKey           string                 `yaml:"ACCESS_KEY"`
 	AccessKeyFile       string                 `yaml:"ACCESS_KEY_FILE"`
 	LogLevel            string                 `yaml:"LOG_LEVEL"`
-	HeartbeatDuration   int                    `yaml:"HEARTBEAT_INTERVAL"`
+	HeartbeatDuration   time.Duration          `yaml:"HEARTBEAT_INTERVAL"`
 	RootPath            string                 `yaml:"ROOT_PATH"`
 	Comment             string                 `yaml:"COMMENT"`
 	Language            string                 `yaml:"LANG"`
@@ -110,9 +111,9 @@ var Conf = &Config{
 	CoreHost:           "http://localhost:8080",
 	BootstrapToken:     "",
 	BindHost:           "0.0.0.0",
-	SSHPort:            2222,
+	SSHPort:            "2222",
 	SSHTimeout:         15,
-	HTTPPort:           5000,
+	HTTPPort:           "5000",
 	HeartbeatDuration:  10,
 	AccessKey:          "",
 	AccessKeyFile:      "data/keys/.access_key",

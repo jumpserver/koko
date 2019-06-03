@@ -31,7 +31,7 @@ type SwitchSession struct {
 	DateActive time.Time
 	finished   bool
 
-	MaxIdleTime int
+	MaxIdleTime time.Duration
 
 	cmdRecorder    *CommandRecorder
 	replayRecorder *ReplyRecorder
@@ -50,9 +50,7 @@ func (s *SwitchSession) Initial() {
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
 	s.cmdRecorder = NewCommandRecorder(s.Id)
 	s.replayRecorder = NewReplyRecord(s.Id)
-
 	s.parser = newParser()
-
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
 
@@ -75,6 +73,7 @@ func (s *SwitchSession) recordCommand() {
 	}
 }
 
+// generateCommandResult 生成命令结果
 func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command {
 	var input string
 	var output string
@@ -104,6 +103,7 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 	}
 }
 
+// postBridge 桥接结束以后执行操作
 func (s *SwitchSession) postBridge() {
 	s.DateEnd = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
 	s.finished = true
@@ -114,26 +114,31 @@ func (s *SwitchSession) postBridge() {
 	_ = s.srvTran.Close()
 }
 
+// SetFilterRules 设置命令过滤规则
 func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
 	s.parser.SetCMDFilterRules(cmdRules)
 }
 
+// Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	winCh := userConn.WinCh()
+	// 将ReadWriter转换为Channel读写
 	s.srvTran = NewDirectTransport(s.Id, srvConn)
 	s.userTran = NewDirectTransport(s.Id, userConn)
 
 	defer func() {
-		logger.Info("session bridge done: ", s.Id)
+		logger.Info("Session bridge done: ", s.Id)
+		s.postBridge()
 	}()
 
-	go s.parser.Parse()
+	// 处理数据流
+	go s.parser.ParseStream()
+	// 记录命令
 	go s.recordCommand()
-	defer s.postBridge()
 	for {
 		select {
 		// 检测是否超过最大空闲时间
-		case <-time.After(time.Duration(s.MaxIdleTime) * time.Minute):
+		case <-time.After(s.MaxIdleTime * time.Minute):
 			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(s.userTran, "\n\r"+msg)

@@ -24,10 +24,6 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 		"login_type":  loginType,
 	}
 	err = client.Post(UserAuthURL, data, &resp)
-
-	if err != nil {
-		logger.Error(err)
-	}
 	return
 }
 

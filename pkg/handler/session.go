@@ -40,7 +40,10 @@ func (c *assetsCacheContainer) SetValue(key string, value []model.Asset) {
 	c.mapData[key] = value
 }
 
-var userAssetsCached = assetsCacheContainer{mapData: make(map[string][]model.Asset), lock: new(sync.RWMutex)}
+var userAssetsCached = assetsCacheContainer{
+	mapData: make(map[string][]model.Asset),
+	lock:    new(sync.RWMutex),
+}
 
 func SessionHandler(sess ssh.Session) {
 	pty, _, ok := sess.Pty()

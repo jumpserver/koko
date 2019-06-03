@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"net/http"
-	"strconv"
 	"sync"
 
 	"github.com/googollee/go-socket.io"
@@ -36,6 +35,6 @@ func StartHTTPServer() {
 
 	http.Handle("/socket.io/", server)
 	logger.Debug("start HTTP Serving ", conf.HTTPPort)
-	httpServer = &http.Server{Addr: conf.BindHost + ":" + strconv.Itoa(conf.HTTPPort), Handler: nil}
+	httpServer = &http.Server{Addr: conf.BindHost + ":" + conf.HTTPPort, Handler: nil}
 	logger.Fatal(httpServer.ListenAndServe())
 }

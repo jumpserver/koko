@@ -1,7 +1,7 @@
 package sshd
 
 import (
-	"strconv"
+	"net"
 
 	"github.com/gliderlabs/ssh"
 
@@ -22,9 +22,10 @@ func StartServer() {
 		logger.Fatal("Load host key error: ", err)
 	}
 
-	logger.Infof("Start ssh server at %s:%d", conf.BindHost, conf.SSHPort)
+	addr := net.JoinHostPort(conf.BindHost, conf.SSHPort)
+	logger.Infof("Start ssh server at %s", addr)
 	sshServer = &ssh.Server{
-		Addr:                       conf.BindHost + ":" + strconv.Itoa(conf.SSHPort),
+		Addr:                       addr,
 		KeyboardInteractiveHandler: auth.CheckMFA,
 		PasswordHandler:            auth.CheckUserPassword,
 		PublicKeyHandler:           auth.CheckUserPublicKey,
@@ -33,7 +34,7 @@ func StartServer() {
 		Handler:                    handler.SessionHandler,
 		SubsystemHandlers:          map[string]ssh.SubsystemHandler{},
 	}
-	// Set Auth Handler
+	// Set sftp handler
 	sshServer.SetSubsystemHandler("sftp", handler.SftpHandler)
 	logger.Fatal(sshServer.ListenAndServe())
 }
@@ -41,8 +42,7 @@ func StartServer() {
 func StopServer() {
 	err := sshServer.Close()
 	if err != nil {
-		logger.Debugf("ssh server close failed: %s", err.Error())
+		logger.Errorf("SSH server close failed: %s", err.Error())
 	}
-	logger.Debug("Close ssh Server")
-
+	logger.Debug("Close ssh server")
 }

@@ -10,7 +10,9 @@ var testConnection = SSHClientConfig{
 	Port:     "22",
 	User:     "root",
 	Password: "redhat",
-	Proxy:    &SSHClientConfig{Host: "192.168.244.185", Port: "22", User: "root", Password: "redhat"},
+	Proxy: []*SSHClientConfig{
+		{Host: "192.168.244.185", Port: "22", User: "root", Password: "redhat"},
+	},
 }
 
 func TestSSHConnection_Config(t *testing.T) {

@@ -2,11 +2,12 @@ package srvconn
 
 import (
 	"bytes"
+	"cocogo/pkg/model"
+	"errors"
 	"net"
 	"regexp"
+	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"cocogo/pkg/logger"
 )
@@ -45,13 +46,10 @@ const (
 )
 
 type ServerTelnetConnection struct {
-	Name                 string
-	Creator              string
-	Host                 string
-	Port                 string
-	User                 string
-	Password             string
-	Overtime             int
+	User                 *model.User
+	Asset                *model.Asset
+	SystemUser           *model.SystemUser
+	Overtime             time.Duration
 	CustomString         string
 	CustomSuccessPattern *regexp.Regexp
 
@@ -61,9 +59,9 @@ type ServerTelnetConnection struct {
 
 func (tc *ServerTelnetConnection) Timeout() time.Duration {
 	if tc.Overtime == 0 {
-		tc.Overtime = 30
+		tc.Overtime = 30 * time.Second
 	}
-	return time.Duration(tc.Overtime) * time.Second
+	return tc.Overtime
 }
 
 func (tc *ServerTelnetConnection) Protocol() string {
@@ -120,12 +118,12 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 	if incorrectPattern.Match(data) {
 		return AuthFailed
 	} else if usernamePattern.Match(data) {
-		_, _ = tc.conn.Write([]byte(tc.User + "\r\n"))
+		_, _ = tc.conn.Write([]byte(tc.SystemUser.Username + "\r\n"))
 		logger.Debug("usernamePattern ", tc.User)
 		return AuthPartial
 	} else if passwordPattern.Match(data) {
-		_, _ = tc.conn.Write([]byte(tc.Password + "\r\n"))
-		logger.Debug("passwordPattern ", tc.Password)
+		_, _ = tc.conn.Write([]byte(tc.SystemUser.Password + "\r\n"))
+		logger.Debug("passwordPattern ", tc.SystemUser.Password)
 		return AuthPartial
 	} else if successPattern.Match(data) {
 		return AuthSuccess
@@ -139,7 +137,9 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 }
 
 func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(tc.Host, tc.Port), tc.Timeout())
+	var ip = tc.Asset.Ip
+	var port = strconv.Itoa(tc.Asset.Port)
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, port), tc.Timeout())
 	if err != nil {
 		return
 	}

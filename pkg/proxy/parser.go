@@ -80,11 +80,11 @@ func (p *Parser) initial() {
 	p.cmdRecordChan = make(chan [2]string, 1024)
 }
 
-func (p *Parser) Parse() {
+func (p *Parser) ParseStream() {
 	defer func() {
 		close(p.userOutputChan)
 		close(p.srvOutputChan)
-		logger.Debug("Parser parse routine done")
+		logger.Debug("Parser parse stream routine done")
 	}()
 	for {
 		select {

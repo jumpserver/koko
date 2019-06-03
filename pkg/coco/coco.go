@@ -33,7 +33,7 @@ func (c *Coco) Stop() {
 }
 
 func RunForever() {
-	loadingBoot()
+	bootstrap()
 	gracefulStop := make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	app := &Coco{}
@@ -42,7 +42,7 @@ func RunForever() {
 	app.Stop()
 }
 
-func loadingBoot() {
+func bootstrap() {
 	config.Initial()
 	logger.Initial()
 	service.Initial()

@@ -91,6 +91,23 @@ type Asset struct {
 	OrgName         string       `json:"org_name"`
 }
 
+type Gateway struct {
+	ID         string `json:"id"`
+	Name       string `json:"Name"`
+	IP         string `json:"ip"`
+	Port       int    `json:"port"`
+	Protocol   string `json:"protocol"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	PrivateKey string `json:"private_key"`
+}
+
+type Domain struct {
+	ID       string    `json:"id"`
+	Gateways []Gateway `json:"gateways"`
+	Name     string    `json:"name"`
+}
+
 type Node struct {
 	Id            string  `json:"id"`
 	Key           string  `json:"key"`

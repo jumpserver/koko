@@ -16,13 +16,13 @@ import (
 func Initial() {
 	conf := config.GetConf()
 	if conf.UploadFailedReplay {
-		go uploadFailedReplay(conf.RootPath)
+		go uploadRemainReplay(conf.RootPath)
 	}
 
 	go keepHeartbeat(conf.HeartbeatDuration)
 }
 
-func uploadFailedReplay(rootPath string) {
+func uploadRemainReplay(rootPath string) {
 	replayDir := filepath.Join(rootPath, "data", "replays")
 	err := common.EnsureDirExist(replayDir)
 	if err != nil {
@@ -47,11 +47,11 @@ func uploadFailedReplay(rootPath string) {
 		}
 		return nil
 	})
-	logger.Debug("upload Replay Done")
+	logger.Debug("Upload remain replay done")
 }
 
-func keepHeartbeat(interval int) {
-	tick := time.Tick(time.Duration(interval) * time.Second)
+func keepHeartbeat(interval time.Duration) {
+	tick := time.Tick(interval * time.Second)
 	for {
 		select {
 		case <-tick:
@@ -63,6 +63,5 @@ func keepHeartbeat(interval int) {
 				}
 			}
 		}
-
 	}
 }
