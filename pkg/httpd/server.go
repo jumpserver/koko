@@ -2,9 +2,11 @@ package httpd
 
 import (
 	"net/http"
+	"path/filepath"
 	"sync"
 
-	"github.com/googollee/go-socket.io"
+	socketio "github.com/googollee/go-socket.io"
+	"github.com/gorilla/mux"
 
 	"cocogo/pkg/config"
 	"cocogo/pkg/logger"
@@ -30,11 +32,24 @@ func StartHTTPServer() {
 	server.OnEvent("/ssh", "resize", OnResizeHandler)
 	server.OnEvent("/ssh", "logout", OnLogoutHandler)
 
+	server.OnConnect("/elfinder", OnElfinderConnect)
+	server.OnDisconnect("/elfinder", OnElfinderDisconnect)
+
 	go server.Serve()
 	defer server.Close()
 
-	http.Handle("/socket.io/", server)
+	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
+	router := mux.NewRouter()
+
+	router.Handle("/socket.io/", server)
+	router.Handle("/coco/elfinder/sftp/{host}/", http.HandlerFunc(sftpHostFinder))
+	router.Handle("/coco/elfinder/sftp/", http.HandlerFunc(sftpFinder))
+	router.Handle("/coco/elfinder/sftp/connector/{host}/",
+		http.HandlerFunc(sftpHostConnectorView)).Methods("GET", "POST")
+
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+
 	logger.Debug("start HTTP Serving ", conf.HTTPPort)
-	httpServer = &http.Server{Addr: conf.BindHost + ":" + conf.HTTPPort, Handler: nil}
+	httpServer = &http.Server{Addr: conf.BindHost + ":" + conf.HTTPPort, Handler: router}
 	logger.Fatal(httpServer.ListenAndServe())
 }

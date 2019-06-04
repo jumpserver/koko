@@ -39,3 +39,7 @@ type EmitLogoutMsg struct {
 
 type EmitDisconnectMsg struct {
 }
+
+type EmitSidMsg struct {
+	Sid string `json:"sid"`
+}

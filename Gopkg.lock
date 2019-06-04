@@ -18,6 +18,14 @@
   version = "v0.6.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:1c5b0fb50034980b5417a96d987d48a0c53c20dc19a97e640a673c0b0c08e82c"
+  name = "github.com/LeeEirc/elfinder"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f4f8357e9220a95371a5bda030d7bbf97a44f1b9"
+
+[[projects]]
   digest = "1:918521e77b229a961b2011082ee9c026d5077cab825be142f6e9771b61d03238"
   name = "github.com/aliyun/aliyun-oss-go-sdk"
   packages = ["oss"]
@@ -101,6 +109,14 @@
   source = "github.com/ibuler/ssh"
 
 [[projects]]
+  digest = "1:9ca9ccfaa0481e4c277fd73f872975c63b469b8edd99f616198b6362793b9d8d"
+  name = "github.com/go-playground/form"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c78c4d65be236fc54add020b980125b40aeb6386"
+  version = "v3.1.4"
+
+[[projects]]
   branch = "master"
   digest = "1:ef78b8ca7a1b7af78d1ad1594da67b4b4c9f92f397cabe49d3fd97f18211aa32"
   name = "github.com/googollee/go-engine.io"
@@ -128,6 +144,14 @@
   revision = "96da97a7c8f269421388fbb0dca12aa3c0699088"
   source = "github.com/googollee/go-socket.io"
   version = "v1.4.1"
+
+[[projects]]
+  digest = "1:3af6be4fee7c08f81f13d36f04ffb63ad4b6b5aaba12cce96095c7c2863d4912"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ed099d42384823742bba0bf9a72b53b55c9e2e38"
+  version = "v1.7.2"
 
 [[projects]]
   digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
@@ -300,15 +324,18 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Azure/azure-storage-blob-go/azblob",
+    "github.com/LeeEirc/elfinder",
     "github.com/aliyun/aliyun-oss-go-sdk/oss",
     "github.com/aws/aws-sdk-go/aws",
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/elastic/go-elasticsearch",
     "github.com/gliderlabs/ssh",
     "github.com/googollee/go-engine.io",
     "github.com/googollee/go-socket.io",
+    "github.com/gorilla/mux",
     "github.com/jarcoal/httpmock",
     "github.com/kr/pty",
     "github.com/leonelquinteros/gotext",
