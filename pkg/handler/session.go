@@ -339,7 +339,7 @@ func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
 	key = strings.ToLower(key)
 	for _, assetValue := range searchData {
 		contents := []string{strings.ToLower(assetValue.Hostname),
-			strings.ToLower(assetValue.Ip), strings.ToLower(assetValue.Comment)}
+			strings.ToLower(assetValue.IP), strings.ToLower(assetValue.Comment)}
 		if isSubstring(contents, key) {
 			assets = append(assets, assetValue)
 		}
@@ -347,7 +347,7 @@ func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
 
 	//	assetsData, _ := Cached.Load(h.user.ID)
 	//	for _, assetValue := range assetsData.([]model.Asset) {
-	//		if isSubstring([]string{assetValue.Ip, assetValue.Hostname, assetValue.Comment}, key) {
+	//		if isSubstring([]string{assetValue.IP, assetValue.Hostname, assetValue.Comment}, key) {
 	//			assets = append(assets, assetValue)
 	//		}
 	//	}
@@ -462,7 +462,7 @@ func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.Sy
 //	sshConn := userhome.NewSSHConn(i.sess)
 //	serverAuth := transport.ServerAuth{
 //		SessionID: uuid.NewV4().String(),
-//		IP:        asset.Ip,
+//		IP:        asset.IP,
 //		port:      asset.port,
 //		Username:  systemUser.Username,
 //		password:  systemUser.password,

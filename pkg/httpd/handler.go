@@ -80,10 +80,10 @@ func OnErrorHandler(e error) {
 // OnHostHandler 当用户连接Host时触发
 func OnHostHandler(s socketio.Conn, message HostMsg) {
 	// secret 	uuid string
-	logger.Debug("OnHost trigger")
+	logger.Debug("On host event trigger")
 	win := ssh.Window{Height: 24, Width: 80}
 	assetID := message.Uuid
-	systemUserId := message.UserID
+	systemUserID := message.UserID
 	secret := message.Secret
 	width, height := message.Size[0], message.Size[1]
 	if width != 0 {
@@ -97,9 +97,9 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 	s.Emit("room", emitMsg)
 	logger.Debug("Asset id: ", assetID)
 	asset := service.GetAsset(assetID)
-	systemUser := service.GetSystemUser(systemUserId)
+	systemUser := service.GetSystemUser(systemUserID)
 
-	if asset.Id == "" || systemUser.Id == "" {
+	if asset.ID == "" || systemUser.ID == "" {
 		return
 	}
 
@@ -123,7 +123,7 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 
 // OnTokenHandler 当使用token连接时触发
 func OnTokenHandler(s socketio.Conn, message TokenMsg) {
-	logger.Debug("OnToken trigger")
+	logger.Debug("On token event trigger")
 	win := ssh.Window{Height: 24, Width: 80}
 	token := message.Token
 	secret := message.Secret
@@ -146,18 +146,18 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 		s.Emit("disconnect")
 	}
 	tokenUser := service.GetTokenAsset(token)
-	if tokenUser.UserId == "" {
+	if tokenUser.UserID == "" {
 		msg := "Token info is none, maybe token expired"
 		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
 		s.Emit("data", dataMsg)
 		s.Emit("disconnect")
 	}
 
-	currentUser := service.GetUserDetail(tokenUser.UserId)
-	asset := service.GetAsset(tokenUser.AssetId)
-	systemUser := service.GetSystemUser(tokenUser.SystemUserId)
+	currentUser := service.GetUserDetail(tokenUser.UserID)
+	asset := service.GetAsset(tokenUser.AssetID)
+	systemUser := service.GetSystemUser(tokenUser.SystemUserID)
 
-	if asset.Id == "" || systemUser.Id == "" {
+	if asset.ID == "" || systemUser.ID == "" {
 		return
 	}
 
@@ -201,7 +201,7 @@ func OnResizeHandler(s socketio.Conn, message ResizeMsg) {
 
 // OnLogoutHandler 用户登出一个会话时触发
 func OnLogoutHandler(s socketio.Conn, message string) {
-	logger.Debug("OnLogout trigger")
+	logger.Debug("On logout event trigger")
 	conn := conns.GetWebConn(s.ID())
 	if conn == nil {
 		logger.Error("No conn found")
@@ -217,7 +217,7 @@ func OnLogoutHandler(s socketio.Conn, message string) {
 
 // OnDisconnect websocket断开后触发
 func OnDisconnect(s socketio.Conn, msg string) {
-	logger.Debug("OnDisconnect trigger")
+	logger.Debug("On disconnect event trigger")
 	conn := conns.GetWebConn(s.ID())
 	conn.Close()
 }

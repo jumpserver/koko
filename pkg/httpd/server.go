@@ -1,9 +1,9 @@
 package httpd
 
 import (
+	"net"
 	"net/http"
 	"path/filepath"
-	"sync"
 
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
@@ -14,7 +14,6 @@ import (
 
 var (
 	httpServer *http.Server
-	conns      = &connections{container: make(map[string]*WebConn), mu: new(sync.RWMutex)}
 )
 
 func StartHTTPServer() {
@@ -38,18 +37,18 @@ func StartHTTPServer() {
 	go server.Serve()
 	defer server.Close()
 
-	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
 	router := mux.NewRouter()
-
-	router.Handle("/socket.io/", server)
-	router.Handle("/coco/elfinder/sftp/{host}/", http.HandlerFunc(sftpHostFinder))
-	router.Handle("/coco/elfinder/sftp/", http.HandlerFunc(sftpFinder))
-	router.Handle("/coco/elfinder/sftp/connector/{host}/",
-		http.HandlerFunc(sftpHostConnectorView)).Methods("GET", "POST")
-
+	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
-	logger.Debug("start HTTP Serving ", conf.HTTPPort)
-	httpServer = &http.Server{Addr: conf.BindHost + ":" + conf.HTTPPort, Handler: router}
+	router.Handle("/socket.io/", server)
+	router.HandleFunc("/coco/elfinder/sftp/{host}/", sftpHostFinder)
+	router.HandleFunc("/coco/elfinder/sftp/", sftpFinder)
+	router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
+		sftpHostConnectorView).Methods("GET", "POST")
+
+	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
+	logger.Debug("Start HTTP server at ", addr)
+	httpServer = &http.Server{Addr: addr, Handler: router}
 	logger.Fatal(httpServer.ListenAndServe())
 }

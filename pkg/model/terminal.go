@@ -4,7 +4,7 @@ type Terminal struct {
 	Name           string `json:"name"`
 	Comment        string `json:"comment"`
 	ServiceAccount struct {
-		Id        string `json:"id"`
+		ID        string `json:"id"`
 		Name      string `json:"name"`
 		AccessKey struct {
 			ID     string `json:"id"`
@@ -14,7 +14,7 @@ type Terminal struct {
 }
 
 type TerminalTask struct {
-	Id         string `json:"id"`
+	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Args       string `json:"args"`
 	IsFinished bool

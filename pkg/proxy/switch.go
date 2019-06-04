@@ -23,7 +23,7 @@ func NewSwitchSession(p *ProxyServer) (sw *SwitchSession) {
 }
 
 type SwitchSession struct {
-	Id string
+	ID string
 	p  *ProxyServer
 
 	DateStart  string
@@ -45,11 +45,11 @@ type SwitchSession struct {
 }
 
 func (s *SwitchSession) Initial() {
-	s.Id = uuid.NewV4().String()
+	s.ID = uuid.NewV4().String()
 	s.DateStart = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
-	s.cmdRecorder = NewCommandRecorder(s.Id)
-	s.replayRecorder = NewReplyRecord(s.Id)
+	s.cmdRecorder = NewCommandRecorder(s.ID)
+	s.replayRecorder = NewReplyRecord(s.ID)
 	s.parser = newParser()
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
@@ -92,8 +92,8 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 	}
 
 	return &model.Command{
-		SessionId:  s.Id,
-		OrgId:      s.p.Asset.OrgID,
+		SessionID:  s.ID,
+		OrgID:      s.p.Asset.OrgID,
 		Input:      input,
 		Output:     output,
 		User:       s.p.User.Username,
@@ -123,11 +123,11 @@ func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	winCh := userConn.WinCh()
 	// 将ReadWriter转换为Channel读写
-	s.srvTran = NewDirectTransport(s.Id, srvConn)
-	s.userTran = NewDirectTransport(s.Id, userConn)
+	s.srvTran = NewDirectTransport(s.ID, srvConn)
+	s.userTran = NewDirectTransport(s.ID, userConn)
 
 	defer func() {
-		logger.Info("Session bridge done: ", s.Id)
+		logger.Info("Session bridge done: ", s.ID)
 		s.postBridge()
 	}()
 
@@ -190,7 +190,7 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		dataEnd = s.DateEnd
 	}
 	return map[string]interface{}{
-		"id":          s.Id,
+		"id":          s.ID,
 		"user":        s.p.User.Name,
 		"asset":       s.p.Asset.Hostname,
 		"org_id":      s.p.Asset.OrgID,

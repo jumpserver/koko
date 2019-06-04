@@ -119,13 +119,13 @@ func (r *ReplyRecorder) Record(b []byte) {
 }
 
 func (r *ReplyRecorder) prepare() {
-	sessionId := r.sessionID
+	sessionID := r.sessionID
 	rootPath := config.GetConf().RootPath
 	today := time.Now().UTC().Format("2006-01-02")
-	gzFileName := sessionId + ".replay.gz"
+	gzFileName := sessionID + ".replay.gz"
 	replayDir := filepath.Join(rootPath, "data", "replays", today)
 
-	r.absFilePath = filepath.Join(replayDir, sessionId)
+	r.absFilePath = filepath.Join(replayDir, sessionID)
 	r.AbsGzFilePath = filepath.Join(replayDir, gzFileName)
 	r.Target = strings.Join([]string{today, gzFileName}, "/")
 	r.timeStartNano = time.Now().UnixNano()

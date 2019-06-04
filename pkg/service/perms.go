@@ -20,12 +20,12 @@ func GetUserAssets(userID, cachePolicy string) (assets model.AssetList) {
 	return
 }
 
-func GetUserNodes(userId, cachePolicy string) (nodes model.NodeList) {
+func GetUserNodes(userID, cachePolicy string) (nodes model.NodeList) {
 	if cachePolicy == "" {
 		cachePolicy = "0"
 	}
 	payload := map[string]string{"cache_policy": cachePolicy}
-	Url := fmt.Sprintf(UserNodesAssetsURL, userId)
+	Url := fmt.Sprintf(UserNodesAssetsURL, userID)
 	err := authClient.Get(Url, &nodes, payload)
 	if err != nil {
 		logger.Error("GetUserNodes err")
@@ -33,11 +33,11 @@ func GetUserNodes(userId, cachePolicy string) (nodes model.NodeList) {
 	return
 }
 
-func ValidateUserAssetPermission(userId, assetId, systemUserId, action string) bool {
+func ValidateUserAssetPermission(userID, assetID, systemUserID, action string) bool {
 	payload := map[string]string{
-		"user_id":        userId,
-		"asset_id":       assetId,
-		"system_user_id": systemUserId,
+		"user_id":        userID,
+		"asset_id":       assetID,
+		"system_user_id": systemUserID,
 		"action_name":    action,
 	}
 	Url := ValidateUserAssetPermissionURL

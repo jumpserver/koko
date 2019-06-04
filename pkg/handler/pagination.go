@@ -137,7 +137,7 @@ func (p *AssetPagination) displayPageAssets() {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		row["hostname"] = j.Hostname
-		row["IP"] = j.Ip
+		row["IP"] = j.IP
 
 		systemUser := selectHighestPrioritySystemUsers(j.SystemUsers)
 		names := make([]string, len(systemUser))

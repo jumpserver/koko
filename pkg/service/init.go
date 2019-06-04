@@ -89,7 +89,6 @@ func LoadConfigFromServer() (err error) {
 
 func KeepSyncConfigWithServer() {
 	for {
-		logger.Debug("Sync config with server")
 		err := LoadConfigFromServer()
 		if err != nil {
 			logger.Warn("Sync config with server error: ", err)

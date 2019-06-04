@@ -24,7 +24,7 @@ type ProxyServer struct {
 
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
 func (p *ProxyServer) getSystemUserAuthOrManualSet() {
-	info := service.GetSystemUserAssetAuthInfo(p.SystemUser.Id, p.Asset.Id)
+	info := service.GetSystemUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID)
 	p.SystemUser.Password = info.Password
 	p.SystemUser.PrivateKey = info.PrivateKey
 	needManualSet := false
@@ -82,7 +82,7 @@ func (p *ProxyServer) checkProtocolIsGraph() bool {
 // validatePermission 检查是否有权限连接
 func (p *ProxyServer) validatePermission() bool {
 	return service.ValidateUserAssetPermission(
-		p.User.ID, p.Asset.Id, p.SystemUser.Id, "connect",
+		p.User.ID, p.Asset.ID, p.SystemUser.ID, "connect",
 	)
 }
 
@@ -149,7 +149,7 @@ func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err err
 // sendConnectingMsg 发送连接信息
 func (p *ProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.Duration) {
 	delay := 0.0
-	msg := fmt.Sprintf(i18n.T("Connecting to %s@%s  %.1f"), p.SystemUser.Username, p.Asset.Ip, delay)
+	msg := fmt.Sprintf(i18n.T("Connecting to %s@%s  %.1f"), p.SystemUser.Username, p.Asset.IP, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for int(delay) < int(delayDuration/time.Second) {
 		select {

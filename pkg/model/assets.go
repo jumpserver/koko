@@ -17,7 +17,7 @@ func (a AssetList) SortBy(tp string) AssetList {
 	case "ip":
 		sorter := &assetSorter{
 			data:   sortedAssets,
-			sortBy: assetSortbyIP,
+			sortBy: assetSortByIP,
 		}
 		sort.Sort(sorter)
 	default:
@@ -46,9 +46,9 @@ func (s *assetSorter) Less(i, j int) bool {
 	return s.sortBy(&s.data[i], &s.data[j])
 }
 
-func assetSortbyIP(asset1, asset2 *Asset) bool {
-	iIPs := strings.Split(asset1.Ip, ".")
-	jIPs := strings.Split(asset2.Ip, ".")
+func assetSortByIP(asset1, asset2 *Asset) bool {
+	iIPs := strings.Split(asset1.IP, ".")
+	jIPs := strings.Split(asset2.IP, ".")
 	for i := 0; i < len(iIPs); i++ {
 		if i >= len(jIPs) {
 			return false
@@ -75,9 +75,9 @@ func assetSortByHostName(asset1, asset2 *Asset) bool {
 type NodeList []Node
 
 type Asset struct {
-	Id              string       `json:"id"`
+	ID              string       `json:"id"`
 	Hostname        string       `json:"hostname"`
-	Ip              string       `json:"ip"`
+	IP              string       `json:"ip"`
 	Port            int          `json:"port"`
 	SystemUsers     []SystemUser `json:"system_users_granted"`
 	IsActive        bool         `json:"is_active"`
@@ -109,14 +109,14 @@ type Domain struct {
 }
 
 type Node struct {
-	Id            string  `json:"id"`
+	ID            string  `json:"id"`
 	Key           string  `json:"key"`
 	Name          string  `json:"name"`
 	Value         string  `json:"value"`
 	Parent        string  `json:"parent"`
 	AssetsGranted []Asset `json:"assets_granted"`
 	AssetsAmount  int     `json:"assets_amount"`
-	OrgId         string  `json:"org_id"`
+	OrgID         string  `json:"org_id"`
 }
 
 type nodeSortBy func(node1, node2 *Node) bool
@@ -179,7 +179,7 @@ func SortAssetNodesByKey(assetNodes []Node) {
 const LoginModeManual = "manual"
 
 type SystemUser struct {
-	Id         string `json:"id"`
+	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Username   string `json:"username"`
 	Priority   int    `json:"priority"`
@@ -191,7 +191,7 @@ type SystemUser struct {
 }
 
 type SystemUserAuthInfo struct {
-	Id         string `json:"id"`
+	ID         string `json:"id"`
 	Name       string `json:"name"`
 	UserName   string `json:"username"`
 	Protocol   string `json:"protocol"`
