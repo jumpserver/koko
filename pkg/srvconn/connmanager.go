@@ -66,9 +66,13 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 
 func (sc *SSHClientConfig) DialProxy() (client *gossh.Client, err error) {
 	for _, p := range sc.Proxy {
+		logger.Debug("Connect proxy: .......")
 		client, err = p.Dial()
 		if err == nil {
+			logger.Debug("Connect proxy host %s:%s success", p.Host, p.Port)
 			return
+		} else {
+			logger.Errorf("Connect proxy host %s:%s error: ", p.Host, p.Port, err)
 		}
 	}
 	return
@@ -113,12 +117,12 @@ func (sc *SSHClientConfig) String() string {
 	return fmt.Sprintf("%s@%s:%s", sc.User, sc.Host, sc.Port)
 }
 
-func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *gossh.Client, err error) {
+func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (conf *SSHClientConfig) {
 	proxyConfigs := make([]*SSHClientConfig, 0)
 	// 如果有网关则从网关中连接
 	if asset.Domain != "" {
 		domain := service.GetDomainWithGateway(asset.Domain)
-		if domain.ID != "" && len(domain.Gateways) > 1 {
+		if domain.ID != "" && len(domain.Gateways) > 0 {
 			for _, gateway := range domain.Gateways {
 				proxyConfigs = append(proxyConfigs, &SSHClientConfig{
 					Host:       gateway.IP,
@@ -131,7 +135,7 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 			}
 		}
 	}
-	sshConfig := SSHClientConfig{
+	conf = &SSHClientConfig{
 		Host:       asset.IP,
 		Port:       strconv.Itoa(asset.Port),
 		User:       systemUser.Username,
@@ -140,6 +144,11 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 		Timeout:    timeout,
 		Proxy:      proxyConfigs,
 	}
+	return
+}
+
+func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *gossh.Client, err error) {
+	sshConfig := MakeConfig(asset, systemUser, timeout)
 	client, err = sshConfig.Dial()
 	return
 }

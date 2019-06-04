@@ -21,7 +21,6 @@ type ServerSSHConnection struct {
 	stdin     io.WriteCloser
 	stdout    io.Reader
 	closed    bool
-	refCount  int
 	connected bool
 }
 

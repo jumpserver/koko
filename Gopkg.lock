@@ -42,7 +42,7 @@
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
 
 [[projects]]
-  digest = "1:9cc80abecc469330afaa9cc72744b258419f5be8adc78b7898ada5d299152048"
+  digest = "1:7b072517183e1d319b9127c2c43798e1e48f2d30b88e5a7e4f261a13c6ce5bbc"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -84,8 +84,8 @@
     "service/sts",
   ]
   pruneopts = "UT"
-  revision = "d6c5ccab427af7408a67e0f45c6e6a3d515fdaee"
-  version = "v1.19.39"
+  revision = "742c1495174cefd893992396b014bd6b7c91a293"
+  version = "v1.19.42"
 
 [[projects]]
   digest = "1:2af3a6e1f12e54cef95c6051cd1cb1e154629a4b82c692ac8a92f00259f570eb"
@@ -286,14 +286,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:079999f5a3a0db923759948975e14ec0cee7195b9d99c566139307d971e7fc3c"
+  digest = "1:4bb3e552e0c6745f9cf718126fcfb615775178146e6435ea8ba01b105f07102e"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "854af27f14a7156d646cb0812811bbc293b2d6a7"
+  revision = "4c4f7f33c9ed00de01c4c741d2177abfcfe19307"
 
 [[projects]]
   branch = "master"
@@ -329,7 +329,6 @@
     "github.com/aws/aws-sdk-go/aws",
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
-    "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/elastic/go-elasticsearch",
     "github.com/gliderlabs/ssh",

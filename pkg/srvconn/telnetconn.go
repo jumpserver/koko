@@ -2,14 +2,16 @@ package srvconn
 
 import (
 	"bytes"
-	"cocogo/pkg/model"
 	"errors"
 	"net"
 	"regexp"
 	"strconv"
 	"time"
 
+	gossh "golang.org/x/crypto/ssh"
+
 	"cocogo/pkg/logger"
+	"cocogo/pkg/model"
 )
 
 const (
@@ -139,7 +141,29 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	var ip = tc.Asset.IP
 	var port = strconv.Itoa(tc.Asset.Port)
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, port), tc.Timeout())
+	var asset = tc.Asset
+	var proxyConn *gossh.Client
+
+	if asset.Domain != "" {
+		sshConfig := MakeConfig(tc.Asset, tc.SystemUser, tc.Timeout())
+		proxyConn, err = sshConfig.DialProxy()
+		logger.Errorf("Proxy conn: ", proxyConn)
+		if err != nil {
+			logger.Error("Dial proxy host error")
+			return
+		}
+	}
+
+	addr := net.JoinHostPort(ip, port)
+	var conn net.Conn
+	// 判断是否有合适的proxy连接
+	if proxyConn != nil {
+		logger.Debug("Connect host via proxy")
+		conn, err = proxyConn.Dial("tcp", addr)
+	} else {
+		logger.Debug("Direct connect host")
+		conn, err = net.DialTimeout("tcp", addr, tc.Timeout())
+	}
 	if err != nil {
 		return
 	}

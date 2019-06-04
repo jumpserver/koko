@@ -12,7 +12,7 @@ const (
 	SystemUserCmdFilterRules = "/api/assets/v1/system-user/%s/cmd-filter-rules/"   // 过滤规则url
 	SystemUserDetailURL      = "/api/assets/v1/system-user/%s/"                    // 某个系统用户的信息
 	AssetDetailURL           = "/api/assets/v1/assets/%s/"                         // 某一个资产信息
-	DomainDetailURL          = "/api/assets/v1/domain/%s/"
+	DomainDetailURL          = "/api/assets/v1/domain/%s/?gateway=1"
 
 	TerminalRegisterURL  = "/api/terminal/v2/terminal-registrations/" // 注册当前coco
 	TerminalConfigURL    = "/api/terminal/v1/terminal/config/"        // 从jumpserver获取coco的配置

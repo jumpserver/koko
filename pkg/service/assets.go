@@ -88,7 +88,7 @@ func GetDomainWithGateway(gID string) (domain model.Domain) {
 	url := fmt.Sprintf(DomainDetailURL, gID)
 	err := authClient.Get(url, &domain)
 	if err != nil {
-		logger.Errorf("Get domain %s failed", gID)
+		logger.Errorf("Get domain %s failed: %s", gID, err)
 	}
 	return
 }
