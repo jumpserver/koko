@@ -165,7 +165,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			nw, _ := s.userTran.Write(p)
-			if !s.parser.IsRecvState() {
+			if !s.parser.IsInZmodemRecvState() {
 				s.replayRecorder.Record(p[:nw])
 			}
 		// User发来的数据流流入parser

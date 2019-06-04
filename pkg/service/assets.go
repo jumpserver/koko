@@ -97,7 +97,7 @@ func GetTokenAsset(token string) (tokenUser model.TokenUser) {
 	Url := fmt.Sprintf(TokenAssetUrl, token)
 	err := authClient.Get(Url, &tokenUser)
 	if err != nil {
-		logger.Error("Get Token Asset info failed")
+		logger.Error("Get Token Asset info failed: ", err)
 	}
 	return
 }

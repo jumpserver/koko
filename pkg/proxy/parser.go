@@ -80,6 +80,7 @@ func (p *Parser) initial() {
 	p.cmdRecordChan = make(chan [2]string, 1024)
 }
 
+// ParseStream 解析数据流
 func (p *Parser) ParseStream() {
 	defer func() {
 		close(p.userOutputChan)
@@ -136,6 +137,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	return b
 }
 
+// parseCmdInput 解析命令的输入
 func (p *Parser) parseCmdInput() {
 	data := p.cmdBuf.Bytes()
 	p.command = p.cmdInputParser.Parse(data)
@@ -143,28 +145,24 @@ func (p *Parser) parseCmdInput() {
 	p.inputBuf.Reset()
 }
 
+// parseCmdOutput 解析命令输出
 func (p *Parser) parseCmdOutput() {
 	data := p.outputBuf.Bytes()
 	p.output = p.cmdOutputParser.Parse(data)
 	p.outputBuf.Reset()
 }
 
-func (p *Parser) replaceInputNewLine(b []byte) []byte {
-	//b = bytes.Replace(b, []byte{'\r', '\r', '\n'}, []byte{'\r'}, -1)
-	//b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\r'}, -1)
-	//b = bytes.Replace(b, []byte{'\n'}, []byte{'\r'}, -1)
-	return b
-}
-
+// ParseUserInput 解析用户的输入
 func (p *Parser) ParseUserInput(b []byte) []byte {
 	p.once.Do(func() {
 		p.inputInitial = true
 	})
-	nb := p.replaceInputNewLine(b)
-	nb = p.parseInputState(nb)
+	nb := p.parseInputState(b)
 	return nb
 }
 
+// parseZmodemState 解析数据，查看是不是处于zmodem状态
+// 处于zmodem状态不会再解析命令
 func (p *Parser) parseZmodemState(b []byte) {
 	if len(b) < 25 {
 		return
@@ -190,6 +188,7 @@ func (p *Parser) parseZmodemState(b []byte) {
 	}
 }
 
+// parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
 func (p *Parser) parseVimState(b []byte) {
 	if p.zmodemState == "" && !p.inVimState && bytes.Contains(b, vimEnterMark) {
 		p.inVimState = true
@@ -219,15 +218,18 @@ func (p *Parser) splitCmdStream(b []byte) {
 	}
 }
 
+// ParseServerOutput 解析服务器输出
 func (p *Parser) ParseServerOutput(b []byte) []byte {
 	p.splitCmdStream(b)
 	return b
 }
 
+// SetCMDFilterRules 设置命令过滤规则
 func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
 	p.cmdFilterRules = rules
 }
 
+// IsCommandForbidden 判断命令是不是在过滤规则中
 func (p *Parser) IsCommandForbidden() (string, bool) {
 	for _, rule := range p.cmdFilterRules {
 		allowed, cmd := rule.Match(p.command)
@@ -243,12 +245,13 @@ func (p *Parser) IsCommandForbidden() (string, bool) {
 	return "", true
 }
 
-func (p *Parser) IsRecvState() bool {
+func (p *Parser) IsInZmodemRecvState() bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.zmodemState == zmodemStateRecv
 }
 
+// Close 关闭parser
 func (p *Parser) Close() {
 	select {
 	case <-p.closed:

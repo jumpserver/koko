@@ -35,6 +35,7 @@ func (cp *CmdParser) parsePS1(s string) string {
 	return ps1Pattern.ReplaceAllString(s, "")
 }
 
+// Parse 解析命令或输出
 func (cp *CmdParser) Parse(b []byte) string {
 	cp.buf.Write(b)
 	cp.buf.WriteString("\r")

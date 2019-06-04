@@ -140,15 +140,6 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 		Timeout:    timeout,
 		Proxy:      proxyConfigs,
 	}
-	sshConfig = SSHClientConfig{
-		Host:     "127.0.0.1",
-		Port:     "22",
-		User:     "root",
-		Password: "redhat",
-		Proxy: []*SSHClientConfig{
-			{Host: "192.168.244.185", Port: "22", User: "root", Password: "redhat"},
-		},
-	}
 	client, err = sshConfig.Dial()
 	return
 }

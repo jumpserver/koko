@@ -65,10 +65,35 @@ func (w *WebConn) AddClient(clientID string, conn *Client) {
 	w.Clients[clientID] = conn
 }
 
+func (w *WebConn) GetAllClients() (clients []string) {
+	clients = make([]string, 0)
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	for k := range w.Clients {
+		clients = append(clients, k)
+	}
+	return clients
+}
+
 func (w *WebConn) SetWinSize(winSize ssh.Window) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	for _, client := range w.Clients {
 		client.WinChan <- winSize
+	}
+}
+
+func (w *WebConn) Close() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	clientsCopy := make(map[string]*Client)
+	for k, v := range w.Clients {
+		clientsCopy[k] = v
+	}
+
+	for k, client := range clientsCopy {
+		_ = client.Close()
+		delete(w.Clients, k)
 	}
 }

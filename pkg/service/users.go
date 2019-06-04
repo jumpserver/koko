@@ -27,9 +27,9 @@ func Authenticate(username, password, publicKey, remoteAddr, loginType string) (
 	return
 }
 
-func GetUserProfile(userID string) (user *model.User) {
+func GetUserDetail(userID string) (user *model.User) {
 	Url := fmt.Sprintf(UserDetailURL, userID)
-	err := authClient.Get(Url, user)
+	err := authClient.Get(Url, &user)
 	if err != nil {
 		logger.Error(err)
 	}

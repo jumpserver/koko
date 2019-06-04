@@ -22,6 +22,7 @@ func Initial() {
 	go keepHeartbeat(conf.HeartbeatDuration)
 }
 
+// uploadRemainReplay 上传遗留的录像
 func uploadRemainReplay(rootPath string) {
 	replayDir := filepath.Join(rootPath, "data", "replays")
 	err := common.EnsureDirExist(replayDir)
@@ -31,7 +32,6 @@ func uploadRemainReplay(rootPath string) {
 	}
 
 	_ = filepath.Walk(replayDir, func(path string, info os.FileInfo, err error) error {
-
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -50,6 +50,7 @@ func uploadRemainReplay(rootPath string) {
 	logger.Debug("Upload remain replay done")
 }
 
+// keepHeartbeat 保持心跳
 func keepHeartbeat(interval time.Duration) {
 	tick := time.Tick(interval * time.Second)
 	for {

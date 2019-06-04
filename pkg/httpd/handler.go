@@ -36,6 +36,7 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// OnConnectHandler 当websocket连接后触发
 func OnConnectHandler(s socketio.Conn) error {
 	// 首次连接 1.获取当前用户的信息
 	logger.Debug("On connect trigger")
@@ -70,11 +71,13 @@ func OnConnectHandler(s socketio.Conn) error {
 	return nil
 }
 
+// OnErrorHandler 当出现错误时触发
 func OnErrorHandler(e error) {
 	logger.Debug("OnError trigger")
 	logger.Debug(e)
 }
 
+// OnHostHandler 当用户连接Host时触发
 func OnHostHandler(s socketio.Conn, message HostMsg) {
 	// secret 	uuid string
 	logger.Debug("OnHost trigger")
@@ -92,6 +95,7 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 	clientID := uuid.NewV4().String()
 	emitMsg := EmitRoomMsg{clientID, secret}
 	s.Emit("room", emitMsg)
+	logger.Debug("Asset id: ", assetID)
 	asset := service.GetAsset(assetID)
 	systemUser := service.GetSystemUser(systemUserId)
 
@@ -102,37 +106,39 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 	ctx := s.Context().(WebContext)
 	userR, userW := io.Pipe()
 	conn := conns.GetWebConn(s.ID())
-	clientConn := &Client{
+	client := &Client{
 		Uuid: clientID, Cid: conn.Cid, user: conn.User,
 		WinChan: make(chan ssh.Window, 100), Conn: s,
 		UserRead: userR, UserWrite: userW,
 		pty: ssh.Pty{Term: "xterm", Window: win},
 	}
-	clientConn.WinChan <- win
-	conn.AddClient(clientID, clientConn)
-	proxySrv := proxy.ProxyServer{UserConn: clientConn, User: ctx.User, Asset: &asset, SystemUser: &systemUser}
+	client.WinChan <- win
+	conn.AddClient(clientID, client)
+	proxySrv := proxy.ProxyServer{
+		UserConn: client, User: ctx.User,
+		Asset: &asset, SystemUser: &systemUser,
+	}
 	go proxySrv.Proxy()
-
 }
 
+// OnTokenHandler 当使用token连接时触发
 func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 	logger.Debug("OnToken trigger")
-	winSiz := ssh.Window{Height: 24, Width: 80}
+	win := ssh.Window{Height: 24, Width: 80}
 	token := message.Token
 	secret := message.Secret
 	width, height := message.Size[0], message.Size[1]
 	if width != 0 {
-		winSiz.Width = width
+		win.Width = width
 	}
 	if height != 0 {
-		winSiz.Height = height
+		win.Height = height
 	}
 	clientID := uuid.NewV4().String()
 	emitMs := EmitRoomMsg{clientID, secret}
 	s.Emit("room", emitMs)
 
 	// check token
-
 	if token == "" || secret == "" {
 		msg := fmt.Sprintf("Token or secret is None: %s %s", token, secret)
 		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
@@ -140,7 +146,6 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 		s.Emit("disconnect")
 	}
 	tokenUser := service.GetTokenAsset(token)
-	logger.Debug(tokenUser)
 	if tokenUser.UserId == "" {
 		msg := "Token info is none, maybe token expired"
 		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
@@ -148,10 +153,7 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 		s.Emit("disconnect")
 	}
 
-	currentUser := service.GetUserProfile(tokenUser.UserId)
-	con := conns.GetWebConn(s.ID())
-	con.User = currentUser
-
+	currentUser := service.GetUserDetail(tokenUser.UserId)
 	asset := service.GetAsset(tokenUser.AssetId)
 	systemUser := service.GetSystemUser(tokenUser.SystemUserId)
 
@@ -161,28 +163,35 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 
 	userR, userW := io.Pipe()
 	conn := conns.GetWebConn(s.ID())
-	clientConn := Client{
+	conn.User = currentUser
+	client := Client{
 		Uuid: clientID, Cid: conn.Cid, user: conn.User,
 		WinChan: make(chan ssh.Window, 100), Conn: s,
-		UserRead: userR, UserWrite: userW, Closed: false,
+		UserRead: userR, UserWrite: userW,
+		pty: ssh.Pty{Term: "xterm", Window: win},
 	}
-	clientConn.WinChan <- winSiz
-	conn.AddClient(clientID, &clientConn)
+	client.WinChan <- win
+	conn.AddClient(clientID, &client)
 
-	// Todo: 构建proxy server 启动goroutine
+	proxySrv := proxy.ProxyServer{
+		UserConn: &client, User: currentUser,
+		Asset: &asset, SystemUser: &systemUser,
+	}
+	go proxySrv.Proxy()
 }
 
+// OnDataHandler 收发数据时触发
 func OnDataHandler(s socketio.Conn, message DataMsg) {
-	logger.Debug("OnData trigger")
 	cid := message.Room
-	webconn := conns.GetWebConn(s.ID())
-	client := webconn.GetClient(cid)
+	conn := conns.GetWebConn(s.ID())
+	client := conn.GetClient(cid)
 	if client == nil {
 		return
 	}
 	_, _ = client.UserWrite.Write([]byte(message.Data))
 }
 
+// OnResizeHandler 用户窗口改变时触发
 func OnResizeHandler(s socketio.Conn, message ResizeMsg) {
 	winSize := ssh.Window{Height: message.Height, Width: message.Width}
 	logger.Debugf("On resize event trigger: %d*%d", message.Width, message.Height)
@@ -190,14 +199,15 @@ func OnResizeHandler(s socketio.Conn, message ResizeMsg) {
 	conn.SetWinSize(winSize)
 }
 
+// OnLogoutHandler 用户登出一个会话时触发
 func OnLogoutHandler(s socketio.Conn, message string) {
 	logger.Debug("OnLogout trigger")
-	webConn := conns.GetWebConn(s.ID())
-	if webConn == nil {
+	conn := conns.GetWebConn(s.ID())
+	if conn == nil {
 		logger.Error("No conn found")
 		return
 	}
-	client := webConn.GetClient(message)
+	client := conn.GetClient(message)
 	if client == nil {
 		logger.Error("No client found")
 		return
@@ -205,6 +215,9 @@ func OnLogoutHandler(s socketio.Conn, message string) {
 	_ = client.Close()
 }
 
+// OnDisconnect websocket断开后触发
 func OnDisconnect(s socketio.Conn, msg string) {
 	logger.Debug("OnDisconnect trigger")
+	conn := conns.GetWebConn(s.ID())
+	conn.Close()
 }

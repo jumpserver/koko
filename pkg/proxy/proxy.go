@@ -24,8 +24,19 @@ type ProxyServer struct {
 
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
 func (p *ProxyServer) getSystemUserAuthOrManualSet() {
-	if p.SystemUser.LoginMode == model.LoginModeManual ||
-		(p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "") {
+	info := service.GetSystemUserAssetAuthInfo(p.SystemUser.Id, p.Asset.Id)
+	p.SystemUser.Password = info.Password
+	p.SystemUser.PrivateKey = info.PrivateKey
+	needManualSet := false
+	if p.SystemUser.LoginMode == model.LoginModeManual {
+		needManualSet = true
+		logger.Debugf("System user %s login mode is: %s", p.SystemUser.Name, model.LoginModeManual)
+	}
+	if p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "" {
+		needManualSet = true
+		logger.Debugf("System user %s neither has password nor private key", p.SystemUser.Name)
+	}
+	if needManualSet {
 		term := utils.NewTerminal(p.UserConn, "password: ")
 		line, err := term.ReadPassword(fmt.Sprintf("%s's password: ", p.SystemUser.Username))
 		if err != nil {
@@ -33,10 +44,6 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 		}
 		p.SystemUser.Password = line
 		logger.Debug("Get password from user input: ", line)
-	} else {
-		info := service.GetSystemUserAssetAuthInfo(p.SystemUser.Id, p.Asset.Id)
-		p.SystemUser.Password = info.Password
-		p.SystemUser.PrivateKey = info.PrivateKey
 	}
 }
 
@@ -180,6 +187,22 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 	return true
 }
 
+// sendConnectErrorMsg 发送连接错误消息
+func (p *ProxyServer) sendConnectErrorMsg(err error) {
+	msg := fmt.Sprintf("Connect asset %s error: %s", p.Asset.Hostname, err)
+	utils.IgnoreErrWriteString(p.UserConn, msg)
+	logger.Error(msg)
+	password := p.SystemUser.Password
+	if password != "" {
+		passwordLen := len(p.SystemUser.Password)
+		showLen := passwordLen / 2
+		hiddenLen := passwordLen - showLen
+		msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
+		logger.Errorf(msg2)
+	}
+	return
+}
+
 // Proxy 代理
 func (p *ProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
@@ -191,53 +214,19 @@ func (p *ProxyServer) Proxy() {
 		srvConn, err = p.getServerConn()
 	}
 
+	// 连接后端服务器失败
 	if err != nil {
-		msg := fmt.Sprintf("Connect asset %s error: %s\n\r", p.Asset.Hostname, err)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf(msg)
+		p.sendConnectErrorMsg(err)
 		return
 	}
-	sw := NewSwitchSession(p)
-	ok := p.createSession(sw)
-	if !ok {
-		msg := i18n.T("Connect with api server failed")
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
+	// 创建Session
+	sw, err := CreateSession(p)
+	if err != nil {
 		return
 	}
-	cmdRules := p.GetFilterRules()
-	sw.SetFilterRules(cmdRules)
-	AddSession(sw)
 	_ = sw.Bridge(p.UserConn, srvConn)
 	defer func() {
 		_ = srvConn.Close()
-		p.finishSession(sw)
 		RemoveSession(sw)
 	}()
-}
-
-func (p *ProxyServer) createSession(s *SwitchSession) bool {
-	data := s.MapData()
-	for i := 0; i < 5; i++ {
-		if service.CreateSession(data) {
-			return true
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	return false
-}
-
-func (p *ProxyServer) finishSession(s *SwitchSession) {
-	data := s.MapData()
-	service.FinishSession(data)
-	service.FinishReply(s.Id)
-	logger.Debugf("Finish session: %s", s.Id)
-}
-
-func (p *ProxyServer) GetFilterRules() []model.SystemUserFilterRule {
-	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.Id)
-	if err != nil {
-		logger.Error("Get system user filter rule error: ", err)
-	}
-	return cmdRules
 }
