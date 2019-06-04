@@ -1,13 +1,15 @@
 package httpd
 
 import (
+	"github.com/googollee/go-socket.io"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
-	socketio "github.com/googollee/go-socket.io"
 
 	"cocogo/pkg/model"
 )
+
+var conns = &connections{container: make(map[string]*WebConn), mu: new(sync.RWMutex)}
 
 type connections struct {
 	container map[string]*WebConn

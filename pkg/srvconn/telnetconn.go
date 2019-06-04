@@ -119,11 +119,11 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 		return AuthFailed
 	} else if usernamePattern.Match(data) {
 		_, _ = tc.conn.Write([]byte(tc.SystemUser.Username + "\r\n"))
-		logger.Debug("usernamePattern ", tc.User)
+		logger.Debug("Username pattern match: ", data)
 		return AuthPartial
 	} else if passwordPattern.Match(data) {
 		_, _ = tc.conn.Write([]byte(tc.SystemUser.Password + "\r\n"))
-		logger.Debug("passwordPattern ", tc.SystemUser.Password)
+		logger.Debug("Password pattern ", data)
 		return AuthPartial
 	} else if successPattern.Match(data) {
 		return AuthSuccess
@@ -137,7 +137,7 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 }
 
 func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
-	var ip = tc.Asset.Ip
+	var ip = tc.Asset.IP
 	var port = strconv.Itoa(tc.Asset.Port)
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, port), tc.Timeout())
 	if err != nil {

@@ -224,8 +224,8 @@ func (fs *userSftpRequests) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 
 func (fs *userSftpRequests) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (*sftp.Client, error) {
 	logger.Debug("Get Sftp Client")
-	info := service.GetSystemUserAssetAuthInfo(sysUser.Id, asset.Id)
-	return CreateSFTPConn(sysUser.Username, info.Password, info.PrivateKey, asset.Ip, strconv.Itoa(asset.Port))
+	info := service.GetSystemUserAssetAuthInfo(sysUser.ID, asset.ID)
+	return CreateSFTPConn(sysUser.Username, info.Password, info.PrivateKey, asset.IP, strconv.Itoa(asset.Port))
 }
 
 type HostNameDir struct {

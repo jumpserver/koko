@@ -1,8 +1,8 @@
 package model
 
 type Command struct {
-	SessionId  string `json:"session"`
-	OrgId      string `json:"org_id"`
+	SessionID  string `json:"session"`
+	OrgID      string `json:"org_id"`
 	Input      string `json:"input"`
 	Output     string `json:"output"`
 	User       string `json:"user"`

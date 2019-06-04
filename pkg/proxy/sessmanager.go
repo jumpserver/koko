@@ -17,7 +17,7 @@ func HandleSessionTask(task model.TerminalTask) {
 	switch task.Name {
 	case "kill_session":
 		KillSession(task.Args)
-		service.FinishTask(task.Id)
+		service.FinishTask(task.ID)
 	default:
 
 	}
@@ -44,14 +44,14 @@ func GetAliveSessions() []string {
 func RemoveSession(sw *SwitchSession) {
 	lock.Lock()
 	defer lock.Unlock()
-	delete(sessionMap, sw.Id)
+	delete(sessionMap, sw.ID)
 	finishSession(sw)
 }
 
 func AddSession(sw *SwitchSession) {
 	lock.Lock()
 	defer lock.Unlock()
-	sessionMap[sw.Id] = sw
+	sessionMap[sw.ID] = sw
 }
 
 func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
@@ -67,7 +67,7 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 		return
 	}
 	// 获取系统用户的过滤规则，并设置
-	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.Id)
+	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
 	if err != nil {
 		msg := i18n.T("Connect with api server failed")
 		msg = utils.WrapperWarn(msg)
@@ -93,6 +93,6 @@ func postSession(s *SwitchSession) bool {
 func finishSession(s *SwitchSession) {
 	data := s.MapData()
 	service.FinishSession(data)
-	service.FinishReply(s.Id)
-	logger.Debugf("Finish session: %s", s.Id)
+	service.FinishReply(s.ID)
+	logger.Debugf("Finish session: %s", s.ID)
 }

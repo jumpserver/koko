@@ -132,7 +132,7 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 		}
 	}
 	sshConfig := SSHClientConfig{
-		Host:       asset.Ip,
+		Host:       asset.IP,
 		Port:       strconv.Itoa(asset.Port),
 		User:       systemUser.Username,
 		Password:   systemUser.Password,
@@ -145,13 +145,13 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 }
 
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *gossh.Client, err error) {
-	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.Id, systemUser.Id)
+	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
 	clientLock.RLock()
 	client, ok := sshClients[key]
 	clientLock.RUnlock()
 
 	var u = user.Username
-	var ip = asset.Ip
+	var ip = asset.IP
 	var sysName = systemUser.Username
 
 	if ok {
@@ -175,7 +175,7 @@ func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUse
 }
 
 func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.SystemUser) (client *gossh.Client) {
-	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.Id, systemUser.Id)
+	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
 	clientLock.Lock()
 	defer clientLock.Unlock()
 	client, ok := sshClients[key]

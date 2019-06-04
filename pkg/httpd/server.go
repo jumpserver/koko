@@ -1,10 +1,9 @@
 package httpd
 
 import (
-	"net/http"
-	"sync"
-
 	"github.com/googollee/go-socket.io"
+	"net"
+	"net/http"
 
 	"cocogo/pkg/config"
 	"cocogo/pkg/logger"
@@ -12,7 +11,6 @@ import (
 
 var (
 	httpServer *http.Server
-	conns      = &connections{container: make(map[string]*WebConn), mu: new(sync.RWMutex)}
 )
 
 func StartHTTPServer() {
@@ -34,7 +32,8 @@ func StartHTTPServer() {
 	defer server.Close()
 
 	http.Handle("/socket.io/", server)
-	logger.Debug("start HTTP Serving ", conf.HTTPPort)
-	httpServer = &http.Server{Addr: conf.BindHost + ":" + conf.HTTPPort, Handler: nil}
+	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
+	logger.Debug("Start HTTP server at ", addr)
+	httpServer = &http.Server{Addr: addr, Handler: nil}
 	logger.Fatal(httpServer.ListenAndServe())
 }

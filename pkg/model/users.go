@@ -36,10 +36,10 @@ type User struct {
 }
 
 type TokenUser struct {
-	UserId         string `json:"user"`
+	UserID         string `json:"user"`
 	UserName       string `json:"username"`
-	AssetId        string `json:"asset"`
+	AssetID        string `json:"asset"`
 	Hostname       string `json:"hostname"`
-	SystemUserId   string `json:"system_user"`
+	SystemUserID   string `json:"system_user"`
 	SystemUserName string `json:"system_user_name"`
 }
