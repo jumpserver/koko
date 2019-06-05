@@ -4,37 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/googollee/go-socket.io"
-	"github.com/satori/go.uuid"
+	socketio "github.com/googollee/go-socket.io"
+	uuid "github.com/satori/go.uuid"
 
 	"cocogo/pkg/logger"
 	"cocogo/pkg/proxy"
 	"cocogo/pkg/service"
 )
-
-func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
-	return func(responseWriter http.ResponseWriter, request *http.Request) {
-		cookies := strings.Split(request.Header.Get("Cookie"), ";")
-		var csrfToken string
-		var sessionid string
-		for _, line := range cookies {
-			if strings.Contains(line, "csrftoken") {
-				csrfToken = strings.Split(line, "=")[1]
-			}
-			if strings.Contains(line, "sessionid") {
-				sessionid = strings.Split(line, "=")[1]
-			}
-		}
-		_, err := service.CheckUserCookie(sessionid, csrfToken)
-		if err != nil {
-			http.Redirect(responseWriter, request, "", http.StatusFound)
-		}
-	}
-}
 
 // OnConnectHandler 当websocket连接后触发
 func OnConnectHandler(s socketio.Conn) error {

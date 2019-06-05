@@ -18,6 +18,7 @@ var (
 	ContextKeySystemUser = &contextKey{"systemUser"}
 	ContextKeySSHSession = &contextKey{"sshSession"}
 	ContextKeyLocalAddr  = &contextKey{"localAddr"}
+	ContextKeyRemoteAddr = &contextKey{"RemoteAddr"}
 	ContextKeySSHCtx     = &contextKey{"sshCtx"}
 	ContextKeySeed       = &contextKey{"seed"}
 	ContextKeyToken      = &contextKey{"token"}
