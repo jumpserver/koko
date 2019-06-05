@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"cocogo/pkg/service"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -22,13 +23,13 @@ var (
 )
 
 type SSHClientConfig struct {
-	Host           string
-	Port           string
-	User           string
-	Password       string
-	PrivateKey     string
-	PrivateKeyPath string
-	Timeout        time.Duration
+	Host           string        `json:"host"`
+	Port           string        `json:"port"`
+	User           string        `json:"user"`
+	Password       string        `json:"password"`
+	PrivateKey     string        `json:"private_key"`
+	PrivateKeyPath string        `json:"private_key_path"`
+	Timeout        time.Duration `json:"timeout"`
 	Proxy          []*SSHClientConfig
 
 	proxyConn gossh.Conn
@@ -66,13 +67,14 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 
 func (sc *SSHClientConfig) DialProxy() (client *gossh.Client, err error) {
 	for _, p := range sc.Proxy {
-		logger.Debug("Connect proxy: .......")
+		data, _ := json.Marshal(p)
+		fmt.Println(string(data))
 		client, err = p.Dial()
 		if err == nil {
-			logger.Debug("Connect proxy host %s:%s success", p.Host, p.Port)
+			logger.Debugf("Connect proxy host %s:%s success", p.Host, p.Port)
 			return
 		} else {
-			logger.Errorf("Connect proxy host %s:%s error: ", p.Host, p.Port, err)
+			logger.Errorf("Connect proxy host %s:%s error: %s", p.Host, p.Port, err)
 		}
 	}
 	return
@@ -135,6 +137,11 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 			}
 		}
 	}
+	if systemUser.Password == "" && systemUser.PrivateKey == "" {
+		info := service.GetSystemUserAssetAuthInfo(systemUser.ID, asset.ID)
+		systemUser.Password = info.Password
+		systemUser.PrivateKey = info.PrivateKey
+	}
 	conf = &SSHClientConfig{
 		Host:       asset.IP,
 		Port:       strconv.Itoa(asset.Port),
@@ -168,7 +175,7 @@ func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUse
 		clientsRefCounter[client]++
 
 		var counter = clientsRefCounter[client]
-		logger.Infof("Reuse connection: %s->%s@%s\n ref: %d", u, sysName, ip, counter)
+		logger.Infof("Reuse connection: %s->%s@%s ref: %d", u, sysName, ip, counter)
 		clientLock.Unlock()
 		return client, nil
 	}
@@ -215,8 +222,8 @@ func RecycleClient(client *gossh.Client) {
 				delete(sshClients, key)
 			}
 		} else {
-			logger.Debug("Recycle client: ref -1")
 			clientsRefCounter[client]--
+			logger.Debugf("Recycle client: ref -1: %d", clientsRefCounter[client])
 		}
 	}
 }

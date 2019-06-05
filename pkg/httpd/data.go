@@ -23,7 +23,7 @@ type DataMsg struct {
 	Room string `json:"room"`
 }
 
-type EmitRoomMsg struct {
+type RoomMsg struct {
 	Room   string `json:"room"`
 	Secret string `json:"secret"`
 }

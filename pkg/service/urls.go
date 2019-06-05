@@ -1,7 +1,7 @@
 package service
 
 const (
-	UserAuthURL    = "/api/users/v1/auth/"                               // post 验证用户登陆
+	UserAuthURL    = "/api/authentication/v1/auth/"                      // post 验证用户登陆
 	UserProfileURL = "/api/users/v1/profile/"                            // 获取当前用户的基本信息
 	UserListUrl    = "/api/users/v1/users/"                              // 用户列表地址
 	UserDetailURL  = "/api/users/v1/users/%s/"                           // 获取用户信息

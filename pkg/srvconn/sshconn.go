@@ -1,7 +1,7 @@
 package srvconn
 
 import (
-	"github.com/pkg/errors"
+	"errors"
 	"io"
 	"time"
 

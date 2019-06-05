@@ -3,9 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -13,7 +11,6 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/pkg/sftp"
-
 	gossh "golang.org/x/crypto/ssh"
 
 	"cocogo/pkg/cctx"
@@ -21,38 +18,47 @@ import (
 	"cocogo/pkg/logger"
 	"cocogo/pkg/model"
 	"cocogo/pkg/service"
+	"cocogo/pkg/srvconn"
 )
 
 func SftpHandler(sess ssh.Session) {
 	ctx, cancel := cctx.NewContext(sess)
 	defer cancel()
 
-	userhandler := &userSftpRequests{user: ctx.User()}
-	userhandler.initial()
-	hs := sftp.Handlers{
-		FileGet:  userhandler,
-		FilePut:  userhandler,
-		FileCmd:  userhandler,
-		FileList: userhandler}
+	handler := &sftpHandler{user: ctx.User()}
+	handler.initial()
+	handlers := sftp.Handlers{
+		FileGet:  handler,
+		FilePut:  handler,
+		FileCmd:  handler,
+		FileList: handler,
+	}
 
-	req := sftp.NewRequestServer(sess, hs)
+	req := sftp.NewRequestServer(sess, handlers)
 	if err := req.Serve(); err == io.EOF {
 		_ = req.Close()
+		hosts := handler.hosts
+		for hostname, dir := range hosts {
+			for name, d := range dir.suMaps {
+				srvconn.RecycleClient(d.conn)
+				delete(dir.suMaps, name)
+			}
+			delete(hosts, hostname)
+		}
 		logger.Info("sftp client exited session.")
 	} else if err != nil {
 		logger.Error("sftp server completed with error:", err)
 	}
 }
 
-type userSftpRequests struct {
+type sftpHandler struct {
 	user     *model.User
 	assets   model.AssetList
 	rootPath string //  tmp || home || ~
 	hosts    map[string]*HostNameDir
 }
 
-func (fs *userSftpRequests) initial() {
-
+func (fs *sftpHandler) initial() {
 	fs.loadAssets()
 	fs.hosts = make(map[string]*HostNameDir)
 	fs.rootPath = config.GetConf().SftpRoot
@@ -67,11 +73,11 @@ func (fs *userSftpRequests) initial() {
 	}
 }
 
-func (fs *userSftpRequests) loadAssets() {
+func (fs *sftpHandler) loadAssets() {
 	fs.assets = service.GetUserAssets(fs.user.ID, "1")
 }
 
-func (fs *userSftpRequests) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
+func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	var fileInfos = listerat{}
 	var err error
 	logger.Debug("list path: ", r.Filepath)
@@ -116,10 +122,12 @@ func (fs *userSftpRequests) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	}
 	realPath = sysUserDir.ParsePath(r.Filepath)
 	if sysUserDir.client == nil {
-		sysUserDir.client, err = fs.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+		client, conn, err := fs.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
 		if err != nil {
 			return nil, sftp.ErrSshFxPermissionDenied
 		}
+		sysUserDir.client = client
+		sysUserDir.conn = conn
 	}
 
 	switch r.Method {
@@ -144,7 +152,7 @@ func (fs *userSftpRequests) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	return fileInfos, err
 }
 
-func (fs *userSftpRequests) Filecmd(r *sftp.Request) error {
+func (fs *sftpHandler) Filecmd(r *sftp.Request) error {
 	logger.Debug("File cmd: ", r.Filepath)
 	pathNames := strings.Split(strings.TrimPrefix(r.Filepath, "/"), "/")
 	if len(pathNames) <= 2 {
@@ -153,11 +161,12 @@ func (fs *userSftpRequests) Filecmd(r *sftp.Request) error {
 	hostDir := fs.hosts[pathNames[0]]
 	suDir := hostDir.suMaps[pathNames[1]]
 	if suDir.client == nil {
-		client, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
+		client, conn, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
 		if err != nil {
 			return sftp.ErrSshFxPermissionDenied
 		}
 		suDir.client = client
+		suDir.conn = conn
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
 	switch r.Method {
@@ -179,7 +188,7 @@ func (fs *userSftpRequests) Filecmd(r *sftp.Request) error {
 	return nil
 }
 
-func (fs *userSftpRequests) Filewrite(r *sftp.Request) (io.WriterAt, error) {
+func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
 	pathNames := strings.Split(strings.TrimPrefix(r.Filepath, "/"), "/")
 	if len(pathNames) <= 2 {
@@ -188,18 +197,19 @@ func (fs *userSftpRequests) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	hostDir := fs.hosts[pathNames[0]]
 	suDir := hostDir.suMaps[pathNames[1]]
 	if suDir.client == nil {
-		client, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
+		client, conn, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
 		if err != nil {
 			return nil, sftp.ErrSshFxPermissionDenied
 		}
 		suDir.client = client
+		suDir.conn = conn
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
 	f, err := suDir.client.Create(realPathName)
 	return NewWriterAt(f), err
 }
 
-func (fs *userSftpRequests) Fileread(r *sftp.Request) (io.ReaderAt, error) {
+func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	logger.Debug("File read: ", r.Filepath)
 	pathNames := strings.Split(strings.TrimPrefix(r.Filepath, "/"), "/")
 	if len(pathNames) <= 2 {
@@ -208,11 +218,12 @@ func (fs *userSftpRequests) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	hostDir := fs.hosts[pathNames[0]]
 	suDir := hostDir.suMaps[pathNames[1]]
 	if suDir.client == nil {
-		client, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
+		ftpClient, client, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
 		if err != nil {
 			return nil, sftp.ErrSshFxPermissionDenied
 		}
-		suDir.client = client
+		suDir.client = ftpClient
+		suDir.conn = client
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
 	f, err := suDir.client.Open(realPathName)
@@ -222,10 +233,16 @@ func (fs *userSftpRequests) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	return NewReaderAt(f), err
 }
 
-func (fs *userSftpRequests) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (*sftp.Client, error) {
-	logger.Debug("Get Sftp Client")
-	info := service.GetSystemUserAssetAuthInfo(sysUser.ID, asset.ID)
-	return CreateSFTPConn(sysUser.Username, info.Password, info.PrivateKey, asset.IP, strconv.Itoa(asset.Port))
+func (fs *sftpHandler) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (sftpClient *sftp.Client, sshClient *gossh.Client, err error) {
+	sshClient, err = srvconn.NewClient(fs.user, asset, sysUser, config.GetConf().SSHTimeout*time.Second)
+	if err != nil {
+		return
+	}
+	sftpClient, err = sftp.NewClient(sshClient)
+	if err != nil {
+		return
+	}
+	return sftpClient, sshClient, nil
 }
 
 type HostNameDir struct {
@@ -259,6 +276,7 @@ type SysUserDir struct {
 	systemUser *model.SystemUser
 	time       time.Time
 	client     *sftp.Client
+	conn       *gossh.Client
 }
 
 func (su *SysUserDir) Name() string { return su.systemUser.Name }
@@ -387,30 +405,4 @@ func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
 	}
 
 	return nr, err
-}
-
-func CreateSFTPConn(user, password, privateKey, host, port string) (*sftp.Client, error) {
-	authMethods := make([]gossh.AuthMethod, 0)
-	if password != "" {
-		authMethods = append(authMethods, gossh.Password(password))
-	}
-
-	if privateKey != "" {
-		if signer, err := gossh.ParsePrivateKey([]byte(privateKey)); err != nil {
-			err = fmt.Errorf("parse private key error: %sc", err)
-		} else {
-			authMethods = append(authMethods, gossh.PublicKeys(signer))
-		}
-	}
-	config := &gossh.ClientConfig{
-		User:            user,
-		Auth:            authMethods,
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
-		Timeout:         300 * time.Second,
-	}
-	client, err := gossh.Dial("tcp", net.JoinHostPort(host, port), config)
-	if err != nil {
-		return nil, err
-	}
-	return sftp.NewClient(client)
 }

@@ -38,7 +38,7 @@ type UrlParser interface {
 
 func NewClient(timeout time.Duration, baseHost string) *Client {
 	headers := make(map[string]string, 0)
-	client := http.DefaultClient
+	client := new(http.Client)
 	client.Timeout = timeout * time.Second
 	return &Client{
 		BaseHost: baseHost,

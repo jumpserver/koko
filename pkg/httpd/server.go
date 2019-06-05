@@ -31,8 +31,8 @@ func StartHTTPServer() {
 	server.OnEvent("/ssh", "resize", OnResizeHandler)
 	server.OnEvent("/ssh", "logout", OnLogoutHandler)
 
-	server.OnConnect("/elfinder", OnElfinderConnect)
-	server.OnDisconnect("/elfinder", OnElfinderDisconnect)
+	server.OnConnect("/elfinder", OnELFinderConnect)
+	server.OnDisconnect("/elfinder", OnELFinderDisconnect)
 
 	go server.Serve()
 	defer server.Close()
@@ -44,8 +44,7 @@ func StartHTTPServer() {
 	router.Handle("/socket.io/", server)
 	router.HandleFunc("/coco/elfinder/sftp/{host}/", sftpHostFinder)
 	router.HandleFunc("/coco/elfinder/sftp/", sftpFinder)
-	router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
-		sftpHostConnectorView).Methods("GET", "POST")
+	router.HandleFunc("/coco/elfinder/sftp/connector/{host}/", sftpHostConnectorView).Methods("GET", "POST")
 
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	logger.Debug("Start HTTP server at ", addr)

@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func OnElfinderConnect(s socketio.Conn) error {
+func OnELFinderConnect(s socketio.Conn) error {
 	u := s.URL()
 	sid := u.Query().Get("sid")
 	data := EmitSidMsg{Sid: sid}
@@ -18,7 +18,7 @@ func OnElfinderConnect(s socketio.Conn) error {
 	return nil
 }
 
-func OnElfinderDisconnect(s socketio.Conn, msg string) {
+func OnELFinderDisconnect(s socketio.Conn, msg string) {
 	u := s.URL()
 	sid := u.Query().Get("sid")
 	log.Println("disconnect: ", sid)

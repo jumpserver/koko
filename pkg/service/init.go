@@ -34,6 +34,13 @@ func Initial() {
 	go KeepSyncConfigWithServer()
 }
 
+func newClient() *common.Client {
+	cf := config.GetConf()
+	cli := common.NewClient(30, "")
+	cli.BaseHost = cf.CoreHost
+	return cli
+}
+
 func validateAccessAuth() {
 	cf := config.GetConf()
 	maxTry := 30

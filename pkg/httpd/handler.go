@@ -39,7 +39,7 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 // OnConnectHandler 当websocket连接后触发
 func OnConnectHandler(s socketio.Conn) error {
 	// 首次连接 1.获取当前用户的信息
-	logger.Debug("On connect trigger")
+	logger.Debug("Web terminal on connect event trigger")
 	cookies := strings.Split(s.RemoteHeader().Get("Cookie"), ";")
 	var csrfToken, sessionID, remoteIP string
 	for _, line := range cookies {
@@ -62,25 +62,22 @@ func OnConnectHandler(s socketio.Conn) error {
 	} else {
 		remoteIP = strings.Split(remoteAddr, ",")[0]
 	}
-	logger.Infof("%s connect websocket from %s\n", user.Username, remoteIP)
+	logger.Infof("Accepted %s connect websocket from %s", user.Username, remoteIP)
 	conn := newWebConn(s.ID(), s, remoteIP, user)
 	ctx := WebContext{User: user, Connection: conn}
 	s.SetContext(ctx)
 	conns.AddWebConn(s.ID(), conn)
-	logger.Info("On Connect handler end")
 	return nil
 }
 
 // OnErrorHandler 当出现错误时触发
 func OnErrorHandler(e error) {
-	logger.Debug("OnError trigger")
-	logger.Debug(e)
+	logger.Debug("Web terminal on error trigger: ", e)
 }
 
 // OnHostHandler 当用户连接Host时触发
 func OnHostHandler(s socketio.Conn, message HostMsg) {
-	// secret 	uuid string
-	logger.Debug("On host event trigger")
+	logger.Debug("Web terminal on host event trigger")
 	win := ssh.Window{Height: 24, Width: 80}
 	assetID := message.Uuid
 	systemUserID := message.UserID
@@ -93,15 +90,15 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 		win.Height = height
 	}
 	clientID := uuid.NewV4().String()
-	emitMsg := EmitRoomMsg{clientID, secret}
+	emitMsg := RoomMsg{clientID, secret}
 	s.Emit("room", emitMsg)
-	logger.Debug("Asset id: ", assetID)
 	asset := service.GetAsset(assetID)
 	systemUser := service.GetSystemUser(systemUserID)
 
 	if asset.ID == "" || systemUser.ID == "" {
 		return
 	}
+	logger.Debug("Web terminal want to connect host: ", asset.Hostname)
 
 	ctx := s.Context().(WebContext)
 	userR, userW := io.Pipe()
@@ -118,12 +115,15 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 		UserConn: client, User: ctx.User,
 		Asset: &asset, SystemUser: &systemUser,
 	}
-	go proxySrv.Proxy()
+	go func() {
+		proxySrv.Proxy()
+		s.Emit("logout", RoomMsg{Room: clientID})
+	}()
 }
 
 // OnTokenHandler 当使用token连接时触发
 func OnTokenHandler(s socketio.Conn, message TokenMsg) {
-	logger.Debug("On token event trigger")
+	logger.Debug("Web terminal on token event trigger")
 	win := ssh.Window{Height: 24, Width: 80}
 	token := message.Token
 	secret := message.Secret
@@ -135,7 +135,7 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 		win.Height = height
 	}
 	clientID := uuid.NewV4().String()
-	emitMs := EmitRoomMsg{clientID, secret}
+	emitMs := RoomMsg{clientID, secret}
 	s.Emit("room", emitMs)
 
 	// check token
@@ -177,7 +177,10 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 		UserConn: &client, User: currentUser,
 		Asset: &asset, SystemUser: &systemUser,
 	}
-	go proxySrv.Proxy()
+	go func() {
+		proxySrv.Proxy()
+		s.Emit("logout", RoomMsg{Room: clientID})
+	}()
 }
 
 // OnDataHandler 收发数据时触发
@@ -193,15 +196,15 @@ func OnDataHandler(s socketio.Conn, message DataMsg) {
 
 // OnResizeHandler 用户窗口改变时触发
 func OnResizeHandler(s socketio.Conn, message ResizeMsg) {
+	logger.Debugf("Web terminal on resize event trigger: %d*%d", message.Width, message.Height)
 	winSize := ssh.Window{Height: message.Height, Width: message.Width}
-	logger.Debugf("On resize event trigger: %d*%d", message.Width, message.Height)
 	conn := conns.GetWebConn(s.ID())
 	conn.SetWinSize(winSize)
 }
 
 // OnLogoutHandler 用户登出一个会话时触发
 func OnLogoutHandler(s socketio.Conn, message string) {
-	logger.Debug("On logout event trigger")
+	logger.Debug("Web terminal on logout event trigger")
 	conn := conns.GetWebConn(s.ID())
 	if conn == nil {
 		logger.Error("No conn found")
