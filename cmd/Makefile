@@ -4,6 +4,7 @@ BUILD := $(shell git rev-parse --short HEAD)
 VERSION=$(BRANCH)-$(BUILD)
 
 NAME := coco
+DIRNAME := cocogo
 BASEPATH := $(shell pwd)
 CGO_ENABLED = 0
 GOCMD=go
@@ -11,27 +12,27 @@ GOBUILD=$(GOCMD) build
 
 SOFTWARENAME=$(NAME)-$(VERSION)
 COCOSRCFILE= coco.go
+BUILDDIR:=$(BASEPATH)/../build
+ASSETS=locale static templates config_example.yml
 
-.PHONY: windows
-windows:
-	@echo "编译windows"
-	mkdir -p $(BASEPATH)/../build
-	GOOS=windows GOARCH=amd64 go build -o $(BASEPATH)/$(SOFTWARENAME)-windows-amd64 $(COCOSRCFILE)
-	tar czvf $(BASEPATH)/../build/$(SOFTWARENAME)-windows-amd64.tar.gz $(SOFTWARENAME)-windows-amd64 locale/ config_example.yml
+PLATFORMS := linux darwin
 
-.PHONY: linux
-linux:
-	@echo "编译linux"
-	mkdir -p $(BASEPATH)/../build
-	GOOS=linux GOARCH=amd64 go build -o $(BASEPATH)/$(SOFTWARENAME)-linux-amd64 $(COCOSRCFILE)
-	tar czvf $(BASEPATH)/../build/$(SOFTWARENAME)-linux-amd64.tar.gz $(SOFTWARENAME)-linux-amd64 locale/ config_example.yml
+.PHONY: release
+release: linux darwin
 
-.PHONY: darwin
-darwin:
-	@echo "编译darwin"
-	mkdir -p $(BASEPATH)/../build
-	GOOS=darwin GOARCH=amd64 go build -o $(BASEPATH)/$(SOFTWARENAME)-darwin-amd64 $(COCOSRCFILE)
-	tar czvf  $(BASEPATH)/../build/$(SOFTWARENAME)-darwin-amd64.tar.gz $(SOFTWARENAME)-darwin-amd64 locale/ config_example.yml
+
+.PHONY:Asset
+Asset:
+	@[ -d $(BUILDDIR) ] || mkdir -p $(BUILDDIR)
+	@[ -d $(DIRNAME) ] || mkdir -p $(DIRNAME)
+	cp -r $(ASSETS) $(DIRNAME)
+
+.PHONY: $(PLATFORMS)
+$(PLATFORMS): Asset
+	@echo "编译" $@
+	GOOS=$@ GOARCH=amd64 go build -o $(NAME) $(COCOSRCFILE)
+	cp -f $(NAME) $(DIRNAME)
+	tar czvf $(BUILDDIR)/$(SOFTWARENAME)-$@-amd64.tar.gz $(DIRNAME)
 
 .PHONY: docker
 docker:
@@ -40,6 +41,8 @@ docker:
 
 .PHONY: clean
 clean:
-	-rm -rf $(BASEPATH)/../build
+	-rm -rf $(NAME)
+	-rm -rf $(DIRNAME)
+	-rm -rf $(BUILDDIR)
 
 

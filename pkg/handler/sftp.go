@@ -397,7 +397,7 @@ func CreateSFTPConn(user, password, privateKey, host, port string) (*sftp.Client
 
 	if privateKey != "" {
 		if signer, err := gossh.ParsePrivateKey([]byte(privateKey)); err != nil {
-			err = fmt.Errorf("parse private key error: %sc", err)
+			err = fmt.Errorf("parse private key error: %s", err)
 		} else {
 			authMethods = append(authMethods, gossh.PublicKeys(signer))
 		}

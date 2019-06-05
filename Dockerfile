@@ -14,6 +14,8 @@ FROM alpine
 WORKDIR /opt/coco/
 COPY --from=stage-build /go/src/cocogo/cmd/coco .
 COPY --from=stage-build /go/src/cocogo/cmd/locale .
+COPY --from=stage-build /go/src/cocogo/cmd/static .
+COPY --from=stage-build /go/src/cocogo/cmd/templates .
 RUN  echo > config.yml
 EXPOSE 2222
 CMD ["./coco"]
