@@ -26,7 +26,6 @@ var (
 
 func NewUserVolume(user *model.User, addr string) *UserVolume {
 	rawID := fmt.Sprintf("'%s@%s", user.Username, addr)
-	fmt.Println(rawID)
 	uVolume := &UserVolume{
 		Uuid:     elfinder.GenerateID(rawID),
 		user:     user,
@@ -406,7 +405,9 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 
 		partFD, err := os.Open(partPath)
 		if err != nil {
-			return rest, err
+			logger.Debug(err)
+			_ = os.Remove(partPath)
+			continue
 		}
 		_, err = io.Copy(fd, partFD)
 		if err != nil {
