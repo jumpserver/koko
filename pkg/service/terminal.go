@@ -100,3 +100,11 @@ func PushSessionCommand(commands []*model.Command) (err error) {
 	}
 	return
 }
+
+func PushFTPLog(data *model.FTPLog) (err error) {
+	err = authClient.Post(FTPLogList, data, nil)
+	if err != nil {
+		logger.Error(err)
+	}
+	return
+}

@@ -10,3 +10,15 @@ type Command struct {
 	SystemUser string `json:"system_user"`
 	Timestamp  int64  `json:"timestamp"`
 }
+
+type FTPLog struct {
+	User       string `json:"user"`
+	Hostname   string `json:"asset"`
+	OrgID      string `json:"org_id"`
+	SystemUser string `json:"system_user"`
+	RemoteAddr string `json:"remote_addr"`
+	Operate    string `json:"operate"`
+	Path       string `json:"filename"`
+	DataStart  string `json:"data_start"`
+	IsSuccess  bool   `json:"is_success"`
+}

@@ -74,7 +74,7 @@ func MustLoadServerConfigOnce() {
 	data["TERMINAL_HOST_KEY"] = "Hidden"
 	msg, err := json.Marshal(data)
 	if err != nil {
-		logger.Error("Marsha server config error: %s", err)
+		logger.Errorf("Marsha server config error: %s", err)
 		return
 	}
 	logger.Debug("Load config from server: " + string(msg))
