@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"strings"
 
@@ -51,18 +50,15 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 }
 
 func OnELFinderConnect(s socketio.Conn) error {
-	u := s.URL()
-	sid := u.Query().Get("sid")
-	data := EmitSidMsg{Sid: sid}
+	data := EmitSidMsg{Sid: s.ID()}
 	s.Emit("data", data)
 	return nil
 }
 
 func OnELFinderDisconnect(s socketio.Conn, msg string) {
-	u := s.URL()
-	sid := u.Query().Get("sid")
-	log.Println("disconnect: ", sid)
-	log.Println("disconnect msg ", msg)
+	logger.Debug("disconnect: ", s.ID())
+	logger.Debug("disconnect msg ", msg)
+	removeUserVolume(s.ID())
 }
 
 func sftpHostFinder(wr http.ResponseWriter, req *http.Request) {
@@ -80,7 +76,27 @@ func sftpFinder(wr http.ResponseWriter, req *http.Request) {
 func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 	user := req.Context().Value(cctx.ContextKeyUser).(*model.User)
 	remoteIP := req.Context().Value(cctx.ContextKeyRemoteAddr).(string)
-	logger.Debugf("user: %s; remote ip: %s; create connector", user.Name, remoteIP)
-	con := elfinder.NewElFinderConnector([]elfinder.Volume{&elfinder.DefaultVolume})
+	switch req.Method {
+	case "GET":
+		if err := req.ParseForm(); err != nil {
+			http.Error(wr, err.Error(), http.StatusBadRequest)
+			return
+		}
+	case "POST":
+		err := req.ParseMultipartForm(32 << 20)
+		if err != nil {
+			http.Error(wr, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	sid := req.Form.Get("sid")
+	userV, ok := GetUserVolume(sid)
+	if !ok {
+		userV = NewUserVolume(user, remoteIP)
+		addUserVolume(sid, userV)
+	}
+	logger.Debugf("sid: %s", sid)
+	logger.Debug(userVolumes)
+	con := elfinder.NewElFinderConnector([]elfinder.Volume{userV})
 	con.ServeHTTP(wr, req)
 }
