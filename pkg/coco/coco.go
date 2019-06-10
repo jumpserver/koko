@@ -29,6 +29,7 @@ func (c *Coco) Start() {
 
 func (c *Coco) Stop() {
 	sshd.StopServer()
+	httpd.StopHTTPServer()
 	logger.Debug("Quit The Coco")
 }
 

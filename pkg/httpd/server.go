@@ -52,3 +52,7 @@ func StartHTTPServer() {
 	httpServer = &http.Server{Addr: addr, Handler: router}
 	logger.Fatal(httpServer.ListenAndServe())
 }
+
+func StopHTTPServer() {
+	_ = httpServer.Close()
+}
