@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -24,8 +25,8 @@ import (
 func SftpHandler(sess ssh.Session) {
 	ctx, cancel := cctx.NewContext(sess)
 	defer cancel()
-
-	handler := &sftpHandler{user: ctx.User()}
+	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
+	handler := &sftpHandler{user: ctx.User(), addr: host}
 	handler.initial()
 	handlers := sftp.Handlers{
 		FileGet:  handler,
@@ -37,14 +38,7 @@ func SftpHandler(sess ssh.Session) {
 	req := sftp.NewRequestServer(sess, handlers)
 	if err := req.Serve(); err == io.EOF {
 		_ = req.Close()
-		hosts := handler.hosts
-		for hostname, dir := range hosts {
-			for name, d := range dir.suMaps {
-				srvconn.RecycleClient(d.conn)
-				delete(dir.suMaps, name)
-			}
-			delete(hosts, hostname)
-		}
+		handler.Close()
 		logger.Info("sftp client exited session.")
 	} else if err != nil {
 		logger.Error("sftp server completed with error:", err)
@@ -53,6 +47,7 @@ func SftpHandler(sess ssh.Session) {
 
 type sftpHandler struct {
 	user     *model.User
+	addr     string
 	assets   model.AssetList
 	rootPath string //  tmp || home || ~
 	hosts    map[string]*HostNameDir
@@ -152,7 +147,7 @@ func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	return fileInfos, err
 }
 
-func (fs *sftpHandler) Filecmd(r *sftp.Request) error {
+func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	logger.Debug("File cmd: ", r.Filepath)
 	pathNames := strings.Split(strings.TrimPrefix(r.Filepath, "/"), "/")
 	if len(pathNames) <= 2 {
@@ -169,23 +164,42 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) error {
 		suDir.conn = conn
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
+	logData := &model.FTPLog{
+		User:       fs.user.Username,
+		Hostname:   hostDir.asset.Hostname,
+		OrgID:      hostDir.asset.OrgID,
+		SystemUser: suDir.systemUser.Name,
+		RemoteAddr: fs.addr,
+		Operate:    r.Method,
+		Path:       realPathName,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer fs.CreateFTPLog(logData)
 	switch r.Method {
 	case "Setstat":
-		return nil
+		return
 	case "Rename":
 		realNewName := suDir.ParsePath(r.Target)
-		return suDir.client.Rename(realPathName, realNewName)
+		logData.Path = fmt.Sprintf("%s=>%s", realPathName, realNewName)
+		err = suDir.client.Rename(realPathName, realNewName)
 	case "Rmdir":
-		return suDir.client.RemoveDirectory(realPathName)
+		err = suDir.client.RemoveDirectory(realPathName)
 	case "Remove":
-		return suDir.client.Remove(realPathName)
+		err = suDir.client.Remove(realPathName)
 	case "Mkdir":
-		return suDir.client.MkdirAll(realPathName)
+		err = suDir.client.MkdirAll(realPathName)
 	case "Symlink":
 		realNewName := suDir.ParsePath(r.Target)
-		return suDir.client.Symlink(realPathName, realNewName)
+		logData.Path = fmt.Sprintf("%s=>%s", realPathName, realNewName)
+		err = suDir.client.Symlink(realPathName, realNewName)
+	default:
+		return
 	}
-	return nil
+	if err == nil {
+		logData.IsSuccess = true
+	}
+	return
 }
 
 func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
@@ -205,7 +219,22 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		suDir.conn = conn
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
+	logData := &model.FTPLog{
+		User:       fs.user.Username,
+		Hostname:   hostDir.asset.Hostname,
+		OrgID:      hostDir.asset.OrgID,
+		SystemUser: suDir.systemUser.Name,
+		RemoteAddr: fs.addr,
+		Operate:    "Upload",
+		Path:       realPathName,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer fs.CreateFTPLog(logData)
 	f, err := suDir.client.Create(realPathName)
+	if err == nil {
+		logData.IsSuccess = true
+	}
 	return NewWriterAt(f), err
 }
 
@@ -226,10 +255,23 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		suDir.conn = client
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
+	logData := &model.FTPLog{
+		User:       fs.user.Username,
+		Hostname:   hostDir.asset.Hostname,
+		OrgID:      hostDir.asset.OrgID,
+		SystemUser: suDir.systemUser.Name,
+		RemoteAddr: fs.addr,
+		Operate:    "Download",
+		Path:       realPathName,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer fs.CreateFTPLog(logData)
 	f, err := suDir.client.Open(realPathName)
 	if err != nil {
 		return nil, err
 	}
+	logData.IsSuccess = true
 	return NewReaderAt(f), err
 }
 
@@ -243,6 +285,31 @@ func (fs *sftpHandler) GetSftpClient(asset *model.Asset, sysUser *model.SystemUs
 		return
 	}
 	return sftpClient, sshClient, nil
+}
+
+func (fs *sftpHandler) CreateFTPLog(data *model.FTPLog) {
+	for i := 0; i < 4; i++ {
+		err := service.PushFTPLog(data)
+		if err == nil {
+			break
+		}
+		logger.Debugf("create FTP log err: %s", err.Error())
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func (fs *sftpHandler) Close() {
+	for _, dir := range fs.hosts {
+		if dir.suMaps == nil {
+			continue
+		}
+		for _, d := range dir.suMaps {
+			if d.client != nil {
+				_ = d.client.Close()
+				srvconn.RecycleClient(d.conn)
+			}
+		}
+	}
 }
 
 type HostNameDir struct {

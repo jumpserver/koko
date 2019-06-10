@@ -28,6 +28,7 @@ func NewUserVolume(user *model.User, addr string) *UserVolume {
 	rawID := fmt.Sprintf("'%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
 		Uuid:     elfinder.GenerateID(rawID),
+		Addr:     addr,
 		user:     user,
 		Name:     defaultHomeName,
 		basePath: fmt.Sprintf("/%s", defaultHomeName),
@@ -38,6 +39,7 @@ func NewUserVolume(user *model.User, addr string) *UserVolume {
 
 type UserVolume struct {
 	Uuid     string
+	Addr     string
 	Name     string
 	basePath string
 	user     *model.User
@@ -269,7 +271,24 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 		sysUserVol.conn = conn
 
 	}
-	return sysUserVol.client.Open(realPath)
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Download",
+		Path:       realPath,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
+	reader, err = sysUserVol.client.Open(realPath)
+	if err != nil {
+		return
+	}
+	logData.IsSuccess = true
+	return
 }
 
 func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinder.FileDir, error) {
@@ -324,10 +343,24 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 		return rest, err
 	}
 	defer fd.Close()
+
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Upload",
+		Path:       realFilenamePath,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		return rest, err
 	}
+	logData.IsSuccess = true
 	return u.Info(filepath.Join(dir, filename))
 }
 
@@ -394,11 +427,24 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 
 	}
 	filenamePath := filepath.Join(realDirPath, filename)
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Upload",
+		Path:       filenamePath,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
 	fd, err := sysUserVol.client.OpenFile(filenamePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC)
 	if err != nil {
 		return rest, err
 	}
 	defer fd.Close()
+
 	for i := 0; i <= total; i++ {
 		partPath := fmt.Sprintf("%s.%d_%d.part_%d",
 			filepath.Join(u.localTmpPath, dirPath, filename), i, total, cid)
@@ -414,9 +460,9 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 			return rest, os.ErrNotExist
 		}
 		_ = partFD.Close()
-		err = os.Remove(partPath)
+		_ = os.Remove(partPath)
 	}
-
+	logData.IsSuccess = true
 	return u.Info(filepath.Join(dirPath, filename))
 }
 
@@ -476,9 +522,22 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 	}
 	realDirPath := filepath.Join(realPath, newDirname)
 	err := sysUserVol.client.MkdirAll(realDirPath)
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Mkdir",
+		Path:       realDirPath,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
 	if err != nil {
 		return rest, err
 	}
+	logData.IsSuccess = true
 	return u.Info(filepath.Join(dir, newDirname))
 }
 
@@ -527,14 +586,26 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 	}
 	realFilePath := filepath.Join(realPath, newFilename)
 	_, err := sysUserVol.client.Create(realFilePath)
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Append",
+		Path:       realFilePath,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
 	if err != nil {
 		return rest, err
 	}
-
+	logData.IsSuccess = true
 	return u.Info(filepath.Join(dir, newFilename))
 }
 
-func (u *UserVolume) Rename(oldNamePath, newname string) (elfinder.FileDir, error) {
+func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, error) {
 	var rest elfinder.FileDir
 	pathNames := strings.Split(strings.TrimPrefix(oldNamePath, "/"), "/")
 	hostVol, ok := u.hosts[pathNames[1]]
@@ -573,12 +644,25 @@ func (u *UserVolume) Rename(oldNamePath, newname string) (elfinder.FileDir, erro
 
 	}
 	dirpath := filepath.Dir(realPath)
-	newFilePath := filepath.Join(dirpath, newname)
+	newFilePath := filepath.Join(dirpath, newName)
 
 	err := sysUserVol.client.Rename(oldNamePath, newFilePath)
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Rename",
+		Path:       fmt.Sprintf("%s=>%s", oldNamePath, newFilePath),
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
 	if err != nil {
 		return rest, err
 	}
+	logData.IsSuccess = true
 	return u.Info(newFilePath)
 }
 
@@ -624,7 +708,23 @@ func (u *UserVolume) Remove(path string) error {
 		sysUserVol.conn = conn
 
 	}
-	return sysUserVol.client.Remove(realPath)
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Delete",
+		Path:       realPath,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
+	err := sysUserVol.client.Remove(realPath)
+	if err == nil {
+		logData.IsSuccess = true
+	}
+	return err
 }
 
 func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (elfinder.FileDir, error) {
@@ -672,9 +772,21 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 
 	realFilePath := filepath.Join(realPath, filename)
 	_, err := sysUserVol.client.Stat(realFilePath)
-	if err == nil {
-		realPath += suffix
+	if err != nil {
+		realFilePath += suffix
 	}
+	logData := &model.FTPLog{
+		User:       u.user.Username,
+		Hostname:   hostVol.asset.Hostname,
+		OrgID:      hostVol.asset.OrgID,
+		SystemUser: sysUserVol.systemUser.Name,
+		RemoteAddr: u.Addr,
+		Operate:    "Append",
+		Path:       realFilePath,
+		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		IsSuccess:  false,
+	}
+	defer u.CreateFTPLog(logData)
 	fd, err := sysUserVol.client.OpenFile(realPath, os.O_RDWR|os.O_CREATE)
 	if err != nil {
 		return rest, err
@@ -684,6 +796,7 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 	if err != nil {
 		return rest, err
 	}
+	logData.IsSuccess = true
 	return u.Info(realPath)
 }
 
@@ -719,6 +832,17 @@ func (u *UserVolume) Close() {
 		for _, su := range host.suMaps {
 			su.Close()
 		}
+	}
+}
+
+func (u *UserVolume) CreateFTPLog(data *model.FTPLog) {
+	for i := 0; i < 4; i++ {
+		err := service.PushFTPLog(data)
+		if err == nil {
+			break
+		}
+		logger.Debugf("create FTP log err: %s", err.Error())
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -775,7 +899,6 @@ func (su *sysUserVolume) ParsePath(path string) string {
 func (su *sysUserVolume) Close() {
 	if su.client != nil {
 		_ = su.client.Close()
-		su.client = nil
 	}
 	srvconn.RecycleClient(su.conn)
 }
