@@ -38,8 +38,8 @@ required = ["github.com/googollee/go-engine.io"]
 
 [[constraint]]
   name = "github.com/googollee/go-socket.io"
-  source = "github.com/googollee/go-socket.io"
-  version = "1.4.1"
+  source = "github.com/LeeEirc/go-socket.io"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/gorilla/mux"

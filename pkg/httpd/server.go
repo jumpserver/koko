@@ -33,6 +33,7 @@ func StartHTTPServer() {
 
 	server.OnConnect("/elfinder", OnELFinderConnect)
 	server.OnDisconnect("/elfinder", OnELFinderDisconnect)
+	server.OnDisconnect("", SocketDisconnect)
 
 	go server.Serve()
 	defer server.Close()
@@ -55,4 +56,10 @@ func StartHTTPServer() {
 
 func StopHTTPServer() {
 	_ = httpServer.Close()
+}
+
+func SocketDisconnect(s socketio.Conn, msg string) {
+	removeUserVolume(s.ID())
+	conns.DeleteWebConn(s.ID())
+	logger.Debug("clean disconnect")
 }

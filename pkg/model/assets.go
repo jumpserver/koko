@@ -179,15 +179,16 @@ func SortAssetNodesByKey(assetNodes []Node) {
 const LoginModeManual = "manual"
 
 type SystemUser struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Username   string `json:"username"`
-	Priority   int    `json:"priority"`
-	Protocol   string `json:"protocol"`
-	Comment    string `json:"comment"`
-	LoginMode  string `json:"login_mode"`
-	Password   string `json:"password"`
-	PrivateKey string `json:"private_key"`
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	Username   string   `json:"username"`
+	Priority   int      `json:"priority"`
+	Protocol   string   `json:"protocol"`
+	Comment    string   `json:"comment"`
+	LoginMode  string   `json:"login_mode"`
+	Password   string   `json:"password"`
+	PrivateKey string   `json:"private_key"`
+	Actions    []string `json:"actions"`
 }
 
 type SystemUserAuthInfo struct {

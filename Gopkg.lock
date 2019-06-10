@@ -42,7 +42,7 @@
   revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
 
 [[projects]]
-  digest = "1:7b072517183e1d319b9127c2c43798e1e48f2d30b88e5a7e4f261a13c6ce5bbc"
+  digest = "1:ad0d5fc85edfb4114a3495ceb664ffba6d96e7fd8b11d88f61e75c29095d8a7d"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -84,8 +84,8 @@
     "service/sts",
   ]
   pruneopts = "UT"
-  revision = "742c1495174cefd893992396b014bd6b7c91a293"
-  version = "v1.19.42"
+  revision = "36f1478b1b241bd8ba1e21424b85eeb1f74f2bb4"
+  version = "v1.19.46"
 
 [[projects]]
   digest = "1:2af3a6e1f12e54cef95c6051cd1cb1e154629a4b82c692ac8a92f00259f570eb"
@@ -134,16 +134,16 @@
   source = "github.com/ibuler/go-engine.io"
 
 [[projects]]
-  digest = "1:25fa43cb2f30c0ab54aaabf05167c56c7e385635b3651015c5726ecb737a905e"
+  branch = "master"
+  digest = "1:495ed4b3b7aae593eb48c863593c6623bb96a6faf8e2b9ec431f174b76b9db23"
   name = "github.com/googollee/go-socket.io"
   packages = [
     ".",
     "parser",
   ]
   pruneopts = "UT"
-  revision = "96da97a7c8f269421388fbb0dca12aa3c0699088"
-  source = "github.com/googollee/go-socket.io"
-  version = "v1.4.1"
+  revision = "e344e8b5a55ad73c9e335a40d49e7c0de2915a77"
+  source = "github.com/LeeEirc/go-socket.io"
 
 [[projects]]
   digest = "1:3af6be4fee7c08f81f13d36f04ffb63ad4b6b5aaba12cce96095c7c2863d4912"
@@ -293,7 +293,7 @@
     "unix",
   ]
   pruneopts = "UT"
-  revision = "4c4f7f33c9ed00de01c4c741d2177abfcfe19307"
+  revision = "1e42afee0f762ed3d76e6dd942e4181855fd1849"
 
 [[projects]]
   branch = "master"

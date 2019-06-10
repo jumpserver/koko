@@ -1,10 +1,10 @@
 package httpd
 
 import (
-	"github.com/googollee/go-socket.io"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
+	socketio "github.com/googollee/go-socket.io"
 
 	"cocogo/pkg/model"
 )
@@ -24,6 +24,13 @@ func (c *connections) GetWebConn(conID string) (conn *WebConn) {
 }
 
 func (c *connections) DeleteWebConn(conID string) {
+	c.mu.RLock()
+	webC, ok := c.container[conID]
+	c.mu.RUnlock()
+	if !ok {
+		return
+	}
+	webC.Close()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.container, conID)
