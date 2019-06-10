@@ -86,48 +86,48 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 		return u.RootFileDir(), nil
 	}
 	pathNames := strings.Split(strings.TrimPrefix(path, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if hostDir.hostPath == path {
-		return hostDir.info(), nil
+	if hostVol.hostPath == path {
+		return hostVol.info(), nil
 	}
 
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
 
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if path == sysUserDir.suPath {
-		return sysUserDir.info(), nil
+	if path == sysUserVol.suPath {
+		return sysUserVol.info(), nil
 	}
 
-	realPath := sysUserDir.ParsePath(path)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(path)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 
 	}
 	dirname := filepath.Dir(path)
-	fileInfos, err := sysUserDir.client.Stat(realPath)
+	fileInfos, err := sysUserVol.client.Stat(realPath)
 	if err != nil {
 		return rest, err
 	}
@@ -160,46 +160,46 @@ func (u *UserVolume) List(path string) []elfinder.FileDir {
 		return dirs
 	}
 	pathNames := strings.Split(strings.TrimPrefix(path, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return dirs
 	}
 
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
-	if hostDir.hostPath == path {
-		dirs = make([]elfinder.FileDir, 0, len(hostDir.suMaps))
-		for _, item := range hostDir.suMaps {
+	if hostVol.hostPath == path {
+		dirs = make([]elfinder.FileDir, 0, len(hostVol.suMaps))
+		for _, item := range hostVol.suMaps {
 			dirs = append(dirs, item.info())
 		}
 		return dirs
 	}
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return dirs
 	}
-	realPath := sysUserDir.ParsePath(path)
+	realPath := sysUserVol.ParsePath(path)
 
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return dirs
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 	}
-	subFiles, err := sysUserDir.client.ReadDir(realPath)
+	subFiles, err := sysUserVol.client.ReadDir(realPath)
 	if err != nil {
 		return dirs
 	}
@@ -238,38 +238,38 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 
 func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	pathNames := strings.Split(strings.TrimPrefix(path, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return nil, os.ErrNotExist
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return nil, os.ErrNotExist
 	}
-	realPath := sysUserDir.ParsePath(path)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(path)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return nil, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 
 	}
-	return sysUserDir.client.Open(realPath)
+	return sysUserVol.client.Open(realPath)
 }
 
 func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinder.FileDir, error) {
@@ -282,44 +282,44 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 		return rest, os.ErrPermission
 	}
 	pathNames := strings.Split(strings.TrimPrefix(dir, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if hostDir.hostPath == dir {
+	if hostVol.hostPath == dir {
 		return rest, os.ErrPermission
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
 
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	realPath := sysUserDir.ParsePath(dir)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(dir)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 
 	}
 	realFilenamePath := filepath.Join(realPath, filename)
 
-	fd, err := sysUserDir.client.Create(realFilenamePath)
+	fd, err := sysUserVol.client.Create(realFilenamePath)
 	if err != nil {
 		return rest, err
 	}
@@ -358,43 +358,43 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 		return rest, os.ErrPermission
 	}
 	pathNames := strings.Split(strings.TrimPrefix(dirPath, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if hostDir.hostPath == dirPath {
+	if hostVol.hostPath == dirPath {
 		return rest, os.ErrPermission
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
 
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	realDirPath := sysUserDir.ParsePath(dirPath)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realDirPath := sysUserVol.ParsePath(dirPath)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 
 	}
 	filenamePath := filepath.Join(realDirPath, filename)
-	fd, err := sysUserDir.client.OpenFile(filenamePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC)
+	fd, err := sysUserVol.client.OpenFile(filenamePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_TRUNC)
 	if err != nil {
 		return rest, err
 	}
@@ -441,41 +441,41 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 		return rest, os.ErrPermission
 	}
 	pathNames := strings.Split(strings.TrimPrefix(dir, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if hostDir.hostPath == dir {
+	if hostVol.hostPath == dir {
 		return rest, os.ErrPermission
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	realPath := sysUserDir.ParsePath(dir)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(dir)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 	}
 	realDirPath := filepath.Join(realPath, newDirname)
-	err := sysUserDir.client.MkdirAll(realDirPath)
+	err := sysUserVol.client.MkdirAll(realDirPath)
 	if err != nil {
 		return rest, err
 	}
@@ -491,42 +491,42 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 		return rest, os.ErrPermission
 	}
 	pathNames := strings.Split(strings.TrimPrefix(dir, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if hostDir.hostPath == dir {
+	if hostVol.hostPath == dir {
 		return rest, os.ErrPermission
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	realPath := sysUserDir.ParsePath(dir)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(dir)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 
 	}
 	realFilePath := filepath.Join(realPath, newFilename)
-	_, err := sysUserDir.client.Create(realFilePath)
+	_, err := sysUserVol.client.Create(realFilePath)
 	if err != nil {
 		return rest, err
 	}
@@ -537,45 +537,45 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 func (u *UserVolume) Rename(oldNamePath, newname string) (elfinder.FileDir, error) {
 	var rest elfinder.FileDir
 	pathNames := strings.Split(strings.TrimPrefix(oldNamePath, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if sysUserDir.suPath == oldNamePath {
+	if sysUserVol.suPath == oldNamePath {
 		return rest, os.ErrPermission
 	}
 
-	realPath := sysUserDir.ParsePath(oldNamePath)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(oldNamePath)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 
 	}
 	dirpath := filepath.Dir(realPath)
 	newFilePath := filepath.Join(dirpath, newname)
 
-	err := sysUserDir.client.Rename(oldNamePath, newFilePath)
+	err := sysUserVol.client.Rename(oldNamePath, newFilePath)
 	if err != nil {
 		return rest, err
 	}
@@ -590,41 +590,41 @@ func (u *UserVolume) Remove(path string) error {
 		return os.ErrPermission
 	}
 	pathNames := strings.Split(strings.TrimPrefix(path, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return os.ErrNotExist
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return os.ErrNotExist
 	}
-	if sysUserDir.suPath == path {
+	if sysUserVol.suPath == path {
 		return os.ErrPermission
 	}
-	realPath := sysUserDir.ParsePath(path)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(path)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 
 	}
-	return sysUserDir.client.Remove(realPath)
+	return sysUserVol.client.Remove(realPath)
 }
 
 func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (elfinder.FileDir, error) {
@@ -636,46 +636,46 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 		return rest, os.ErrPermission
 	}
 	pathNames := strings.Split(strings.TrimPrefix(dir, "/"), "/")
-	hostDir, ok := u.hosts[pathNames[1]]
+	hostVol, ok := u.hosts[pathNames[1]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	if hostDir.hostPath == dir {
+	if hostVol.hostPath == dir {
 		return rest, os.ErrPermission
 	}
-	if hostDir.suMaps == nil {
-		hostDir.suMaps = make(map[string]*sysUserVolume)
-		systemUsers := hostDir.asset.SystemUsers
+	if hostVol.suMaps == nil {
+		hostVol.suMaps = make(map[string]*sysUserVolume)
+		systemUsers := hostVol.asset.SystemUsers
 		for i, sysUser := range systemUsers {
-			hostDir.suMaps[sysUser.Name] = &sysUserVolume{
+			hostVol.suMaps[sysUser.Name] = &sysUserVolume{
 				VID:        u.ID(),
-				hostpath:   hostDir.hostPath,
-				suPath:     filepath.Join(hostDir.hostPath, sysUser.Name),
+				hostpath:   hostVol.hostPath,
+				suPath:     filepath.Join(hostVol.hostPath, sysUser.Name),
 				systemUser: &systemUsers[i],
 				rootPath:   u.rootPath,
 			}
 		}
 	}
-	sysUserDir, ok := hostDir.suMaps[pathNames[2]]
+	sysUserVol, ok := hostVol.suMaps[pathNames[2]]
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	realPath := sysUserDir.ParsePath(dir)
-	if sysUserDir.client == nil {
-		sftClient, conn, err := u.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
+	realPath := sysUserVol.ParsePath(dir)
+	if sysUserVol.client == nil {
+		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserDir.client = sftClient
-		sysUserDir.conn = conn
+		sysUserVol.client = sftClient
+		sysUserVol.conn = conn
 	}
 
 	realFilePath := filepath.Join(realPath, filename)
-	_, err := sysUserDir.client.Stat(realFilePath)
+	_, err := sysUserVol.client.Stat(realFilePath)
 	if err == nil {
 		realPath += suffix
 	}
-	fd, err := sysUserDir.client.OpenFile(realPath, os.O_RDWR|os.O_CREATE)
+	fd, err := sysUserVol.client.OpenFile(realPath, os.O_RDWR|os.O_CREATE)
 	if err != nil {
 		return rest, err
 	}
