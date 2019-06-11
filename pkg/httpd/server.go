@@ -43,9 +43,9 @@ func StartHTTPServer() {
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	router.Handle("/socket.io/", server)
-	router.HandleFunc("/koko/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
-	router.HandleFunc("/koko/elfinder/sftp/", AuthDecorator(sftpFinder))
-	router.HandleFunc("/koko/elfinder/sftp/connector/{host}/",
+	router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
+	router.HandleFunc("/coco/elfinder/sftp/", AuthDecorator(sftpFinder))
+	router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
 		AuthDecorator(sftpHostConnectorView)).Methods("GET", "POST")
 
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
