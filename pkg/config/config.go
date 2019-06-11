@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -81,13 +82,15 @@ func (c *Config) LoadFromJSON(body []byte) error {
 }
 
 func (c *Config) LoadFromEnv() error {
-	envMap := map[string]string{}
+	envMap := make(map[string]string)
 	env := os.Environ()
 	for _, v := range env {
 		vSlice := strings.Split(v, "=")
-		envMap[vSlice[0]] = envMap[vSlice[1]]
+		key := vSlice[0]
+		value := vSlice[1]
+		envMap[key] = value
 	}
-	envYAML, err := yaml.Marshal(envMap)
+	envYAML, err := yaml.Marshal(&envMap)
 	if err != nil {
 		log.Fatalf("Error occur: %v", err)
 	}
@@ -100,6 +103,7 @@ func (c *Config) Load(filepath string) error {
 		return err
 	}
 	err = c.LoadFromEnv()
+	fmt.Println(c.CoreHost)
 	return err
 }
 
