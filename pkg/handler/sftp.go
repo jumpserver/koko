@@ -116,6 +116,11 @@ func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		return nil, sftp.ErrSshFxNoSuchFile
 	}
 	realPath = sysUserDir.ParsePath(r.Filepath)
+
+	if !fs.validatePermission(hostDir.asset.ID, sysUserDir.systemUser.ID, model.ConnectAction) {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+
 	if sysUserDir.client == nil {
 		client, conn, err := fs.GetSftpClient(hostDir.asset, sysUserDir.systemUser)
 		if err != nil {
@@ -155,6 +160,11 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	}
 	hostDir := fs.hosts[pathNames[0]]
 	suDir := hostDir.suMaps[pathNames[1]]
+
+	if !fs.validatePermission(hostDir.asset.ID, suDir.systemUser.ID, model.ConnectAction) {
+		return sftp.ErrSshFxPermissionDenied
+	}
+
 	if suDir.client == nil {
 		client, conn, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
 		if err != nil {
@@ -210,6 +220,11 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	}
 	hostDir := fs.hosts[pathNames[0]]
 	suDir := hostDir.suMaps[pathNames[1]]
+
+	if !fs.validatePermission(hostDir.asset.ID, suDir.systemUser.ID, model.UploadAction) {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+
 	if suDir.client == nil {
 		client, conn, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
 		if err != nil {
@@ -246,6 +261,9 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	}
 	hostDir := fs.hosts[pathNames[0]]
 	suDir := hostDir.suMaps[pathNames[1]]
+	if !fs.validatePermission(hostDir.asset.ID, suDir.systemUser.ID, model.DownloadAction) {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
 	if suDir.client == nil {
 		ftpClient, client, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
 		if err != nil {
@@ -310,6 +328,12 @@ func (fs *sftpHandler) Close() {
 			}
 		}
 	}
+}
+
+func (fs *sftpHandler) validatePermission(aid, suid, operate string) bool {
+	return service.ValidateUserAssetPermission(
+		fs.user.ID, aid, suid, operate,
+	)
 }
 
 type HostNameDir struct {

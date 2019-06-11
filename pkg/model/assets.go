@@ -178,6 +178,12 @@ func SortAssetNodesByKey(assetNodes []Node) {
 
 const LoginModeManual = "manual"
 
+const (
+	ConnectAction  = "connect"
+	UploadAction   = "upload_file"
+	DownloadAction = "download_file"
+)
+
 type SystemUser struct {
 	ID         string   `json:"id"`
 	Name       string   `json:"name"`

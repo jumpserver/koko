@@ -117,6 +117,9 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	if path == sysUserVol.suPath {
 		return sysUserVol.info(), nil
 	}
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.ConnectAction) {
+		return rest, os.ErrPermission
+	}
 
 	realPath := sysUserVol.ParsePath(path)
 	if sysUserVol.client == nil {
@@ -261,6 +264,11 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	if !ok {
 		return nil, os.ErrNotExist
 	}
+
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.DownloadAction) {
+		return nil, os.ErrPermission
+	}
+
 	realPath := sysUserVol.ParsePath(path)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
@@ -337,6 +345,9 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 
 	}
 	realFilenamePath := filepath.Join(realPath, filename)
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.UploadAction) {
+		return rest, os.ErrPermission
+	}
 
 	fd, err := sysUserVol.client.Create(realFilenamePath)
 	if err != nil {
@@ -416,6 +427,16 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 	if !ok {
 		return rest, os.ErrNotExist
 	}
+
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.UploadAction) {
+		for i := 0; i <= total; i++ {
+			partPath := fmt.Sprintf("%s.%d_%d.part_%d",
+				filepath.Join(u.localTmpPath, dirPath, filename), i, total, cid)
+			_ = os.Remove(partPath)
+		}
+		return rest, os.ErrPermission
+	}
+
 	realDirPath := sysUserVol.ParsePath(dirPath)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
@@ -511,6 +532,11 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 	if !ok {
 		return rest, os.ErrNotExist
 	}
+
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.ConnectAction) {
+		return rest, os.ErrPermission
+	}
+
 	realPath := sysUserVol.ParsePath(dir)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
@@ -574,6 +600,11 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 	if !ok {
 		return rest, os.ErrNotExist
 	}
+
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.ConnectAction) {
+		return rest, os.ErrPermission
+	}
+
 	realPath := sysUserVol.ParsePath(dir)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
@@ -630,6 +661,10 @@ func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, erro
 		return rest, os.ErrNotExist
 	}
 	if sysUserVol.suPath == oldNamePath {
+		return rest, os.ErrPermission
+	}
+
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.ConnectAction) {
 		return rest, os.ErrPermission
 	}
 
@@ -698,6 +733,11 @@ func (u *UserVolume) Remove(path string) error {
 	if sysUserVol.suPath == path {
 		return os.ErrPermission
 	}
+
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.ConnectAction) {
+		return os.ErrPermission
+	}
+
 	realPath := sysUserVol.ParsePath(path)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
@@ -760,6 +800,10 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 	if !ok {
 		return rest, os.ErrNotExist
 	}
+	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.UploadAction) {
+		return rest, os.ErrPermission
+	}
+
 	realPath := sysUserVol.ParsePath(dir)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
@@ -844,6 +888,12 @@ func (u *UserVolume) CreateFTPLog(data *model.FTPLog) {
 		logger.Debugf("create FTP log err: %s", err.Error())
 		time.Sleep(500 * time.Millisecond)
 	}
+}
+
+func (u *UserVolume) validatePermission(aid, suid, operate string) bool {
+	return service.ValidateUserAssetPermission(
+		u.user.ID, aid, suid, operate,
+	)
 }
 
 type hostnameVolume struct {
