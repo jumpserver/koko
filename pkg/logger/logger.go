@@ -8,8 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"koko/pkg/common"
-	"koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/config"
 )
 
 var logger = logrus.New()
@@ -38,7 +38,7 @@ func Initial() {
 	logger.SetLevel(level)
 
 	// Output to file
-	logFilePath := path.Join(conf.RootPath, "logs", "coco.log")
+	logFilePath := path.Join(conf.RootPath, "logs", "koko.log")
 	logDirPath := path.Dir(logFilePath)
 	if common.FileExists(logDirPath) {
 		err := os.MkdirAll(logDirPath, os.ModePerm)

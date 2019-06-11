@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"koko/pkg/common"
-	"koko/pkg/config"
-	"koko/pkg/logger"
-	"koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
 )
 
 func NewCommandRecorder(sid string) (recorder *CommandRecorder) {

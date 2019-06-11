@@ -1,7 +1,7 @@
 package srvconn
 
 import (
-	"koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/service"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,8 +12,8 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"koko/pkg/logger"
-	"koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
 )
 
 var (

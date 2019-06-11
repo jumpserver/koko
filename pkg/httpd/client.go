@@ -6,7 +6,7 @@ import (
 	"github.com/gliderlabs/ssh"
 	socketio "github.com/googollee/go-socket.io"
 
-	"koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/model"
 )
 
 type Client struct {

@@ -128,7 +128,7 @@ func (c *Client) SetReqHeaders(req *http.Request) {
 	if req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set("user-Agent", "coco-client")
+	req.Header.Set("user-Agent", "koko-client")
 	c.setAuthHeader(req)
 }
 

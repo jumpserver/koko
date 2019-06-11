@@ -1,6 +1,6 @@
 package httpd
 
-import "koko/pkg/model"
+import "github.com/jumpserver/koko/pkg/model"
 
 type WebContext struct {
 	User       *model.User

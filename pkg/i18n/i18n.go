@@ -6,16 +6,16 @@ import (
 
 	"github.com/leonelquinteros/gotext"
 
-	"koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/config"
 )
 
 func init() {
 	cf := config.GetConf()
 	localePath := path.Join(cf.RootPath, "locale")
 	if strings.HasPrefix(cf.Language, "zh") {
-		gotext.Configure(localePath, "zh_CN", "coco")
+		gotext.Configure(localePath, "zh_CN", "koko")
 	} else {
-		gotext.Configure(localePath, "en_US", "coco")
+		gotext.Configure(localePath, "en_US", "koko")
 	}
 }
 

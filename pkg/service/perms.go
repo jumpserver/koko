@@ -3,8 +3,8 @@ package service
 import (
 	"fmt"
 
-	"koko/pkg/logger"
-	"koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
 )
 
 func GetUserAssets(userID, cachePolicy string) (assets model.AssetList) {

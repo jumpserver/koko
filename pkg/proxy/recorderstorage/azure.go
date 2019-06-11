@@ -8,7 +8,7 @@ import (
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 
-	"koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type AzureReplayStorage struct {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gliderlabs/ssh"
 
-	"koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/model"
 )
 
 type contextKey struct {

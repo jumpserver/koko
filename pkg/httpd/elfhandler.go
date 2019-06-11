@@ -11,10 +11,10 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
 
-	"koko/pkg/cctx"
-	"koko/pkg/logger"
-	"koko/pkg/model"
-	"koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/cctx"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
 )
 
 func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {

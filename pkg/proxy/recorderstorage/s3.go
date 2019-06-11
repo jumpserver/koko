@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
-	"koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type S3ReplayStorage struct {

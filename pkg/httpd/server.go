@@ -8,8 +8,8 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
 
-	"koko/pkg/config"
-	"koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 var (
@@ -43,9 +43,9 @@ func StartHTTPServer() {
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
 	router.Handle("/socket.io/", server)
-	router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
-	router.HandleFunc("/coco/elfinder/sftp/", AuthDecorator(sftpFinder))
-	router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
+	router.HandleFunc("/koko/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
+	router.HandleFunc("/koko/elfinder/sftp/", AuthDecorator(sftpFinder))
+	router.HandleFunc("/koko/elfinder/sftp/connector/{host}/",
 		AuthDecorator(sftpHostConnectorView)).Methods("GET", "POST")
 
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)

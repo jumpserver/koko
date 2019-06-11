@@ -1,4 +1,4 @@
-package coco
+package koko
 
 import (
 	"fmt"
@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"koko/pkg/config"
-	"koko/pkg/httpd"
-	"koko/pkg/logger"
-	"koko/pkg/service"
-	"koko/pkg/sshd"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/httpd"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/sshd"
 )
 
 const version = "1.4.0"

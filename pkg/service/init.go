@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"koko/pkg/common"
-	"koko/pkg/config"
-	"koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 var client = common.NewClient(30, "")

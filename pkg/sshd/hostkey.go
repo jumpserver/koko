@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/common"
 )
 
 type HostKey struct {

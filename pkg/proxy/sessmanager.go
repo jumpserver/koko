@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"koko/pkg/i18n"
-	"koko/pkg/logger"
-	"koko/pkg/model"
-	"koko/pkg/service"
-	"koko/pkg/utils"
+	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 var sessionMap = make(map[string]*SwitchSession)

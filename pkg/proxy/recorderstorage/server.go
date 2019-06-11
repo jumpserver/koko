@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"koko/pkg/model"
-	"koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
 )
 
 type ServerCommandStorage struct {

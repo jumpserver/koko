@@ -1,4 +1,4 @@
-package coco
+package koko
 
 import (
 	"os"
@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"koko/pkg/common"
-	"koko/pkg/config"
-	"koko/pkg/logger"
-	"koko/pkg/proxy"
-	"koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/service"
 )
 
 func Initial() {

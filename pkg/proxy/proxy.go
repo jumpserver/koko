@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"koko/pkg/config"
-	"koko/pkg/i18n"
-	"koko/pkg/logger"
-	"koko/pkg/model"
-	"koko/pkg/service"
-	"koko/pkg/srvconn"
-	"koko/pkg/utils"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 type ProxyServer struct {

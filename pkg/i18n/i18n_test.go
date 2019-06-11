@@ -8,7 +8,7 @@ import (
 
 func TestT(t *testing.T) {
 	//loc := gotext.NewLocale("./locale", "zh_CN")
-	//loc.AddDomain("coco")
+	//loc.AddDomain("koko")
 	fmt.Println(T("Welcome to use Jumpserver open source fortress system"))
 }
 

@@ -10,9 +10,9 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 	uuid "github.com/satori/go.uuid"
 
-	"koko/pkg/logger"
-	"koko/pkg/proxy"
-	"koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/service"
 )
 
 // OnConnectHandler 当websocket连接后触发

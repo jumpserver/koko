@@ -14,12 +14,12 @@ import (
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
-	"koko/pkg/cctx"
-	"koko/pkg/config"
-	"koko/pkg/logger"
-	"koko/pkg/model"
-	"koko/pkg/service"
-	"koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/cctx"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 func SftpHandler(sess ssh.Session) {

@@ -12,14 +12,14 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/xlab/treeprint"
 
-	"koko/pkg/cctx"
-	"koko/pkg/config"
-	"koko/pkg/i18n"
-	"koko/pkg/logger"
-	"koko/pkg/model"
-	"koko/pkg/proxy"
-	"koko/pkg/service"
-	"koko/pkg/utils"
+	"github.com/jumpserver/koko/pkg/cctx"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 type assetsCacheContainer struct {
