@@ -11,12 +11,12 @@ COPY . .
 RUN dep ensure -vendor-only && cd cmd && go build koko.go
 
 FROM alpine
-WORKDIR /opt/coco/
+WORKDIR /opt/koko/
 COPY --from=stage-build /go/src/gihub.com/jumpserver/koko/cmd/koko .
 COPY --from=stage-build /go/src/gihub.com/jumpserver/koko/cmd/locale .
 COPY --from=stage-build /go/src/gihub.com/jumpserver/koko/cmd/static .
 COPY --from=stage-build /go/src/gihub.com/jumpserver/koko/cmd/templates .
-RUN  echo > config.yml
+RUN echo > config.yml
 EXPOSE 2222
 EXPOSE 5000
 CMD ["./koko"]
