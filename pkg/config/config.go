@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -103,7 +102,6 @@ func (c *Config) Load(filepath string) error {
 		return err
 	}
 	err = c.LoadFromEnv()
-	fmt.Println(c.CoreHost)
 	return err
 }
 
