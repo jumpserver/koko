@@ -1,7 +1,7 @@
 package main
 
 import (
-	"cocogo/pkg/coco"
+	"koko/pkg/coco"
 )
 
 func main() {

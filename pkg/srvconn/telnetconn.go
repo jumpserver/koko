@@ -10,8 +10,8 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
+	"koko/pkg/logger"
+	"koko/pkg/model"
 )
 
 const (

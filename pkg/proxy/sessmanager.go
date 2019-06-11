@@ -1,13 +1,14 @@
 package proxy
 
 import (
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
-	"cocogo/pkg/service"
-	"cocogo/pkg/utils"
 	"sync"
 	"time"
+
+	"koko/pkg/i18n"
+	"koko/pkg/logger"
+	"koko/pkg/model"
+	"koko/pkg/service"
+	"koko/pkg/utils"
 )
 
 var sessionMap = make(map[string]*SwitchSession)

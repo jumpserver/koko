@@ -5,10 +5,10 @@ import (
 
 	"github.com/gliderlabs/ssh"
 
-	"cocogo/pkg/auth"
-	"cocogo/pkg/config"
-	"cocogo/pkg/handler"
-	"cocogo/pkg/logger"
+	"koko/pkg/auth"
+	"koko/pkg/config"
+	"koko/pkg/handler"
+	"koko/pkg/logger"
 )
 
 var sshServer *ssh.Server

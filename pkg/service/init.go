@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"cocogo/pkg/common"
-	"cocogo/pkg/config"
-	"cocogo/pkg/logger"
+	"koko/pkg/common"
+	"koko/pkg/config"
+	"koko/pkg/logger"
 )
 
 var client = common.NewClient(30, "")

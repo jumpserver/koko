@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"cocogo/pkg/config"
-	"cocogo/pkg/httpd"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/service"
-	"cocogo/pkg/sshd"
+	"koko/pkg/config"
+	"koko/pkg/httpd"
+	"koko/pkg/logger"
+	"koko/pkg/service"
+	"koko/pkg/sshd"
 )
 
 const version = "1.4.0"

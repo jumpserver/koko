@@ -3,8 +3,8 @@ package service
 import (
 	"fmt"
 
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
+	"koko/pkg/logger"
+	"koko/pkg/model"
 )
 
 func GetUserAssets(userID, cachePolicy string) (assets model.AssetList) {

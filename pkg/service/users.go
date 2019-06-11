@@ -5,8 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
+	"koko/pkg/logger"
+	"koko/pkg/model"
 )
 
 type AuthResp struct {

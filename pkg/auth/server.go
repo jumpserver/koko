@@ -6,12 +6,12 @@ import (
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
-	"cocogo/pkg/cctx"
-	"cocogo/pkg/common"
-	"cocogo/pkg/config"
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/service"
+	"koko/pkg/cctx"
+	"koko/pkg/common"
+	"koko/pkg/config"
+	"koko/pkg/i18n"
+	"koko/pkg/logger"
+	"koko/pkg/service"
 )
 
 var mfaInstruction = i18n.T("Please enter 6 digits.")

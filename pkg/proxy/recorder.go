@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"cocogo/pkg/common"
-	"cocogo/pkg/config"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
+	"koko/pkg/common"
+	"koko/pkg/config"
+	"koko/pkg/logger"
+	"koko/pkg/model"
 )
 
 func NewCommandRecorder(sid string) (recorder *CommandRecorder) {

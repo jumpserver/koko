@@ -6,7 +6,7 @@ import (
 
 	"github.com/leonelquinteros/gotext"
 
-	"cocogo/pkg/config"
+	"koko/pkg/config"
 )
 
 func init() {

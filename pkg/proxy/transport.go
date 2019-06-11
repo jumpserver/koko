@@ -3,7 +3,7 @@ package proxy
 import (
 	"io"
 
-	"cocogo/pkg/logger"
+	"koko/pkg/logger"
 )
 
 type Transport interface {

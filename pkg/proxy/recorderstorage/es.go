@@ -7,8 +7,8 @@ import (
 
 	"github.com/elastic/go-elasticsearch"
 
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
+	"koko/pkg/logger"
+	"koko/pkg/model"
 )
 
 type ESCommandStorage struct {

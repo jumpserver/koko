@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"cocogo/pkg/utils"
+	"koko/pkg/utils"
 )
 
 var ps1Pattern = regexp.MustCompile(`^\[?.*@.*\]?[\\$#]\s|mysql>\s`)

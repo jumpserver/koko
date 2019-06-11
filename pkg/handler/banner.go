@@ -8,10 +8,10 @@ import (
 
 	"github.com/gliderlabs/ssh"
 
-	"cocogo/pkg/config"
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/utils"
+	"koko/pkg/config"
+	"koko/pkg/i18n"
+	"koko/pkg/logger"
+	"koko/pkg/utils"
 )
 
 var defaultTitle string

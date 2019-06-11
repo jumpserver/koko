@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sync"
 
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
-	"cocogo/pkg/utils"
+	"koko/pkg/i18n"
+	"koko/pkg/logger"
+	"koko/pkg/model"
+	"koko/pkg/utils"
 )
 
 var (

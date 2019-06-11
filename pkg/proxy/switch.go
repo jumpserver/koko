@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"cocogo/pkg/srvconn"
 	"context"
 	"fmt"
 	"strings"
@@ -9,11 +8,12 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
-	"cocogo/pkg/config"
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
-	"cocogo/pkg/utils"
+	"koko/pkg/config"
+	"koko/pkg/i18n"
+	"koko/pkg/logger"
+	"koko/pkg/model"
+	"koko/pkg/srvconn"
+	"koko/pkg/utils"
 )
 
 func NewSwitchSession(p *ProxyServer) (sw *SwitchSession) {

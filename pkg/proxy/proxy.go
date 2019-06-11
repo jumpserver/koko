@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"cocogo/pkg/config"
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
-	"cocogo/pkg/service"
-	"cocogo/pkg/srvconn"
-	"cocogo/pkg/utils"
+	"koko/pkg/config"
+	"koko/pkg/i18n"
+	"koko/pkg/logger"
+	"koko/pkg/model"
+	"koko/pkg/service"
+	"koko/pkg/srvconn"
+	"koko/pkg/utils"
 )
 
 type ProxyServer struct {

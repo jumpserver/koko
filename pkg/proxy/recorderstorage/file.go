@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"cocogo/pkg/model"
+	"koko/pkg/model"
 )
 
 func NewFileCommandStorage(name string) (storage *FileCommandStorage, err error) {

@@ -12,14 +12,14 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/xlab/treeprint"
 
-	"cocogo/pkg/cctx"
-	"cocogo/pkg/config"
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
-	"cocogo/pkg/proxy"
-	"cocogo/pkg/service"
-	"cocogo/pkg/utils"
+	"koko/pkg/cctx"
+	"koko/pkg/config"
+	"koko/pkg/i18n"
+	"koko/pkg/logger"
+	"koko/pkg/model"
+	"koko/pkg/proxy"
+	"koko/pkg/service"
+	"koko/pkg/utils"
 )
 
 type assetsCacheContainer struct {

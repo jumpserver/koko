@@ -1,8 +1,6 @@
 package httpd
 
 import (
-	"cocogo/pkg/common"
-	"cocogo/pkg/srvconn"
 	"fmt"
 	"io"
 	"os"
@@ -14,10 +12,12 @@ import (
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
-	"cocogo/pkg/config"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/model"
-	"cocogo/pkg/service"
+	"koko/pkg/common"
+	"koko/pkg/config"
+	"koko/pkg/logger"
+	"koko/pkg/model"
+	"koko/pkg/service"
+	"koko/pkg/srvconn"
 )
 
 var (

@@ -7,7 +7,7 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
-	"cocogo/pkg/model"
+	"koko/pkg/model"
 )
 
 type ServerSSHConnection struct {

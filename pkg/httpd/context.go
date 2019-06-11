@@ -1,6 +1,6 @@
 package httpd
 
-import "cocogo/pkg/model"
+import "koko/pkg/model"
 
 type WebContext struct {
 	User       *model.User

@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"cocogo/pkg/common"
 	"fmt"
 	"os"
 	"path"
@@ -9,7 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"cocogo/pkg/config"
+	"koko/pkg/common"
+	"koko/pkg/config"
 )
 
 var logger = logrus.New()

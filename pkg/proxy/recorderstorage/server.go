@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cocogo/pkg/model"
-	"cocogo/pkg/service"
+	"koko/pkg/model"
+	"koko/pkg/service"
 )
 
 type ServerCommandStorage struct {

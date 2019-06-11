@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"cocogo/pkg/common"
-	"cocogo/pkg/config"
-	"cocogo/pkg/i18n"
-	"cocogo/pkg/model"
-	"cocogo/pkg/utils"
+	"koko/pkg/common"
+	"koko/pkg/config"
+	"koko/pkg/i18n"
+	"koko/pkg/model"
+	"koko/pkg/utils"
 )
 
 func NewAssetPagination(term *utils.Terminal, assets []model.Asset) *AssetPagination {

@@ -8,8 +8,8 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
 
-	"cocogo/pkg/config"
-	"cocogo/pkg/logger"
+	"koko/pkg/config"
+	"koko/pkg/logger"
 )
 
 var (

@@ -3,7 +3,7 @@ package recorderstorage
 import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 
-	"cocogo/pkg/logger"
+	"koko/pkg/logger"
 )
 
 type OSSReplayStorage struct {

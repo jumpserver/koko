@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"cocogo/pkg/common"
-	"cocogo/pkg/config"
-	"cocogo/pkg/logger"
-	"cocogo/pkg/proxy"
-	"cocogo/pkg/service"
+	"koko/pkg/common"
+	"koko/pkg/config"
+	"koko/pkg/logger"
+	"koko/pkg/proxy"
+	"koko/pkg/service"
 )
 
 func Initial() {

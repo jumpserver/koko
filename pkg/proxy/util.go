@@ -3,9 +3,9 @@ package proxy
 import (
 	"strings"
 
-	"cocogo/pkg/config"
-	"cocogo/pkg/model"
-	storage "cocogo/pkg/proxy/recorderstorage"
+	"koko/pkg/config"
+	"koko/pkg/model"
+	storage "koko/pkg/proxy/recorderstorage"
 )
 
 type ReplayStorage interface {
