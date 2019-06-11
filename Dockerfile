@@ -13,9 +13,9 @@ RUN dep ensure -vendor-only && cd cmd && go build koko.go
 FROM alpine
 WORKDIR /opt/koko/
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/koko .
-COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/locale .
-COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/static .
-COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/templates .
+COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/locale/ locale
+COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/static/ static
+COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/templates/ templates
 RUN echo > config.yml
 EXPOSE 2222
 EXPOSE 5000
