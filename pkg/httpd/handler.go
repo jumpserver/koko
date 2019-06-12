@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 
 	"github.com/gliderlabs/ssh"
@@ -82,8 +83,9 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 	ctx := s.Context().(WebContext)
 	userR, userW := io.Pipe()
 	conn := conns.GetWebConn(s.ID())
+	addr,_,_ := net.SplitHostPort(s.RemoteAddr().String())
 	client := &Client{
-		Uuid: clientID, Cid: conn.Cid, user: conn.User,
+		Uuid: clientID, Cid: conn.Cid, user: conn.User,addr:addr,
 		WinChan: make(chan ssh.Window, 100), Conn: s,
 		UserRead: userR, UserWrite: userW,
 		pty: ssh.Pty{Term: "xterm", Window: win},
