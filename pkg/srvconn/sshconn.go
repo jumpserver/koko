@@ -72,10 +72,11 @@ func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
 func (sc *ServerSSHConnection) TryConnectFromCache(h, w int, term string) (err error) {
 	sc.client = GetClientFromCache(sc.User, sc.Asset, sc.SystemUser)
 	if sc.client == nil {
-		return errors.New("No client in cache")
+		return errors.New("no client in cache")
 	}
 	err = sc.invokeShell(h, w, term)
 	if err != nil {
+		CloseClient(sc.client)
 		return
 	}
 	sc.connected = true

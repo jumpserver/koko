@@ -1,10 +1,10 @@
 package srvconn
 
 import (
-	"github.com/jumpserver/koko/pkg/service"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/service"
 	"net"
 	"strconv"
 	"sync"
@@ -209,21 +209,28 @@ func RecycleClient(client *gossh.Client) {
 	if counter, ok := clientsRefCounter[client]; ok {
 		if counter == 1 {
 			logger.Debug("Recycle client: close it")
-			_ = client.Close()
-			delete(clientsRefCounter, client)
-			var key string
-			for k, v := range sshClients {
-				if v == client {
-					key = k
-					break
-				}
-			}
-			if key != "" {
-				delete(sshClients, key)
-			}
+			CloseClient(client)
 		} else {
 			clientsRefCounter[client]--
 			logger.Debugf("Recycle client: ref -1: %d", clientsRefCounter[client])
 		}
 	}
+}
+
+func CloseClient(client *gossh.Client) {
+	clientLock.Lock()
+	defer clientLock.Unlock()
+
+	delete(clientsRefCounter, client)
+	var key string
+	for k, v := range sshClients {
+		if v == client {
+			key = k
+			break
+		}
+	}
+	if key != "" {
+		delete(sshClients, key)
+	}
+	_ = client.Close()
 }

@@ -189,7 +189,7 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 
 // sendConnectErrorMsg 发送连接错误消息
 func (p *ProxyServer) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("Connect asset %s error: %s", p.Asset.Hostname, err)
+	msg := fmt.Sprintf("Connect asset %s error: %s\r\n", p.Asset.Hostname, err)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	logger.Error(msg)
 	password := p.SystemUser.Password
