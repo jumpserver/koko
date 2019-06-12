@@ -161,25 +161,12 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 }
 
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *gossh.Client, err error) {
-	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
-	clientLock.RLock()
-	client, ok := sshClients[key]
-	clientLock.RUnlock()
-
-	var u = user.Username
-	var ip = asset.IP
-	var sysName = systemUser.Username
-
-	if ok {
-		clientLock.Lock()
-		clientsRefCounter[client]++
-
-		var counter = clientsRefCounter[client]
-		logger.Infof("Reuse connection: %s->%s@%s ref: %d", u, sysName, ip, counter)
-		clientLock.Unlock()
+	client = GetClientFromCache(user, asset, systemUser)
+	if client != nil {
 		return client, nil
 	}
 
+	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
 	client, err = newClient(asset, systemUser, timeout)
 	if err == nil {
 		clientLock.Lock()
@@ -198,7 +185,14 @@ func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.
 	if !ok {
 		return
 	}
+
+	var u = user.Username
+	var ip = asset.IP
+	var sysName = systemUser.Username
 	clientsRefCounter[client]++
+	var counter = clientsRefCounter[client]
+
+	logger.Infof("Reuse connection: %s->%s@%s ref: %d", u, sysName, ip, counter)
 	return
 }
 
