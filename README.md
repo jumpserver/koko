@@ -1,13 +1,17 @@
+
 #KoKo
 
 koko是golang版本的的coco；重构了coco的SSH/SFTP服务和web terminal服务。
 
+
 ##主要功能
+
 
 - SSH
 - SFTP
 - web terminal
 - web文件管理
+
 
 ##安装
 
@@ -38,6 +42,7 @@ make linux
 ```
 > 如果构建成功，会在项目下自动生成build文件夹,里面包含当前分支的linux 64位版本压缩包.
 
+
 ##使用
 
 1.拷贝压缩包文件到服务器
@@ -57,6 +62,7 @@ touch config.yml
 cd kokodir
 ./koko
 ```
+
 
 ##构建docker镜像
 
