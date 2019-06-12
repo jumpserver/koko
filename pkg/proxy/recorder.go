@@ -114,7 +114,8 @@ func (r *ReplyRecorder) Record(b []byte) {
 	if len(b) > 0 {
 		delta := float64(time.Now().UnixNano()-r.timeStartNano) / 1000 / 1000 / 1000
 		data, _ := json.Marshal(string(b))
-		_, _ = r.file.WriteString(fmt.Sprintf(`"%.3f":%s,`, delta, data))
+		_, _ = r.file.WriteString(fmt.Sprintf(`"%f":%s,`, delta, data))
+		_ = r.file.Sync()
 	}
 }
 
@@ -145,7 +146,7 @@ func (r *ReplyRecorder) prepare() {
 }
 
 func (r *ReplyRecorder) End() {
-	_, _ = r.file.WriteString(fmt.Sprintf(`"%.3f":%s}`, 0.0, `""`))
+	_, _ = r.file.WriteString(fmt.Sprintf(`"%f":%s}`, 0.0, `""`))
 	_ = r.file.Close()
 	go r.uploadReplay()
 }
