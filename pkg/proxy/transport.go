@@ -52,7 +52,7 @@ func (dt *DirectTransport) Keep() {
 		if !dt.closed {
 			dt.ch <- buf[:n]
 		} else {
-			logger.Debug("Transport ")
+			logger.Debug("Transport closed")
 			break
 		}
 	}

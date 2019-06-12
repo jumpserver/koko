@@ -1,7 +1,6 @@
 package srvconn
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/jumpserver/koko/pkg/service"
@@ -67,8 +66,6 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 
 func (sc *SSHClientConfig) DialProxy() (client *gossh.Client, err error) {
 	for _, p := range sc.Proxy {
-		data, _ := json.Marshal(p)
-		fmt.Println(string(data))
 		client, err = p.Dial()
 		if err == nil {
 			logger.Debugf("Connect proxy host %s:%s success", p.Host, p.Port)
@@ -197,15 +194,18 @@ func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.
 }
 
 func RecycleClient(client *gossh.Client) {
-	clientLock.Lock()
-	defer clientLock.Unlock()
+	clientLock.RLock()
+	counter, ok := clientsRefCounter[client]
+	clientLock.RUnlock()
 
-	if counter, ok := clientsRefCounter[client]; ok {
+	if ok {
 		if counter == 1 {
 			logger.Debug("Recycle client: close it")
 			CloseClient(client)
 		} else {
+			clientLock.Lock()
 			clientsRefCounter[client]--
+			clientLock.Unlock()
 			logger.Debugf("Recycle client: ref -1: %d", clientsRefCounter[client])
 		}
 	}
