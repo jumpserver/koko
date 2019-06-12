@@ -122,57 +122,57 @@ msgid ""
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/session.go:264
+#: pkg/handler/session.go:267
 msgid "No Assets"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/session.go:286
+#: pkg/handler/session.go:289
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/session.go:287
+#: pkg/handler/session.go:290
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/session.go:301
+#: pkg/handler/session.go:304
 msgid "Refresh done"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:118
+#: pkg/proxy/parser.go:124
 msgid "Command `%s` is forbidden"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:110
+#: pkg/proxy/proxy.go:152
 msgid "Connecting to %s@%s  %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:128
+#: pkg/proxy/proxy.go:171
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:134
+#: pkg/proxy/proxy.go:177
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:161
+#: pkg/proxy/sessmanager.go:63
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:136
+#: pkg/proxy/switch.go:142
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:142
+#: pkg/proxy/switch.go:148
 msgid "Terminated by administrator"
 msgstr ""

@@ -60,8 +60,8 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 	sw = NewSwitchSession(p)
 	// Post到Api端
 	ok := postSession(sw)
+	msg := i18n.T("Connect with api server failed")
 	if !ok {
-		msg := i18n.T("Connect with api server failed")
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Error(msg)
@@ -70,7 +70,6 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 	// 获取系统用户的过滤规则，并设置
 	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
 	if err != nil {
-		msg := i18n.T("Connect with api server failed")
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Error(msg + err.Error())

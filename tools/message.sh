@@ -17,11 +17,13 @@ init_message() {
 }
 
 make_message() {
+    cd ${PROJECT_DIR}
     go run ${BIN} -domain ${DOMAIN} -in ${INPUT} -out /tmp/
     for lang in $LANG;do
          po_file=${OUTPUT}/${lang}/LC_MESSAGES/${DOMAIN}.po
          msgmerge -U ${po_file} /tmp/${DOMAIN}.po
     done
+    cd -
 }
 
 compile_message() {

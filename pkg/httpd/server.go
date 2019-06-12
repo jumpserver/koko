@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-	socketio "github.com/googollee/go-socket.io"
+	"github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
 
 	"github.com/jumpserver/koko/pkg/config"
@@ -33,7 +33,9 @@ func StartHTTPServer() {
 
 	server.OnConnect("/elfinder", OnELFinderConnect)
 	server.OnDisconnect("/elfinder", OnELFinderDisconnect)
+	server.OnError("/elfiner", OnErrorHandler)
 	server.OnDisconnect("", SocketDisconnect)
+	server.OnError("", OnErrorHandler)
 
 	go server.Serve()
 	defer server.Close()
