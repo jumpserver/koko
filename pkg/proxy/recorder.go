@@ -145,7 +145,7 @@ func (r *ReplyRecorder) prepare() {
 }
 
 func (r *ReplyRecorder) End() {
-	_, _ = r.file.WriteString(fmt.Sprintf(`"%.3f":%s}`, 0.0, ""))
+	_, _ = r.file.WriteString(fmt.Sprintf(`"%.3f":%s}`, 0.0, `""`))
 	_ = r.file.Close()
 	go r.uploadReplay()
 }
