@@ -66,7 +66,7 @@ func (s *SwitchSession) Terminate() {
 
 func (s *SwitchSession) recordCommand() {
 	for command := range s.parser.cmdRecordChan {
-		if command[0] == "" && command[1] == "" {
+		if command[0] == ""{
 			continue
 		}
 		cmd := s.generateCommandResult(command)

@@ -38,7 +38,6 @@ func (c *CommandRecorder) initial() {
 	c.queue = make(chan *model.Command, 10)
 	c.storage = NewCommandStorage()
 	c.closed = make(chan struct{})
-	//c.storage, _ = NewFileCommandStorage("/tmp/abc.log")
 	go c.record()
 }
 

@@ -96,7 +96,6 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 		addUserVolume(sid, userV)
 	}
 	logger.Debugf("sid: %s", sid)
-	logger.Debug(userVolumes)
 	con := elfinder.NewElFinderConnector([]elfinder.Volume{userV})
 	con.ServeHTTP(wr, req)
 }

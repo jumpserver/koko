@@ -392,7 +392,6 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, chunkName string, reader io.R
 		return err
 	}
 	_, err = io.Copy(fd, reader)
-	fmt.Println(err)
 	return err
 }
 
