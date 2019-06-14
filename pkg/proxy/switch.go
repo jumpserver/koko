@@ -8,6 +8,7 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -46,7 +47,7 @@ type SwitchSession struct {
 
 func (s *SwitchSession) Initial() {
 	s.ID = uuid.NewV4().String()
-	s.DateStart = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
+	s.DateStart = common.CurrentUTCTime()
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
 	s.cmdRecorder = NewCommandRecorder(s.ID)
 	s.replayRecorder = NewReplyRecord(s.ID)
@@ -105,7 +106,7 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 
 // postBridge 桥接结束以后执行操作
 func (s *SwitchSession) postBridge() {
-	s.DateEnd = time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
+	s.DateEnd = common.CurrentUTCTime()
 	s.finished = true
 	s.parser.Close()
 	s.replayRecorder.End()

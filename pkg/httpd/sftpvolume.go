@@ -287,7 +287,7 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 		RemoteAddr: u.Addr,
 		Operate:    "Download",
 		Path:       realPath,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)
@@ -363,7 +363,7 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 		RemoteAddr: u.Addr,
 		Operate:    "Upload",
 		Path:       realFilenamePath,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)
@@ -456,7 +456,7 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 		RemoteAddr: u.Addr,
 		Operate:    "Upload",
 		Path:       filenamePath,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)
@@ -556,7 +556,7 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 		RemoteAddr: u.Addr,
 		Operate:    "Mkdir",
 		Path:       realDirPath,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)
@@ -625,7 +625,7 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 		RemoteAddr: u.Addr,
 		Operate:    "Append",
 		Path:       realFilePath,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)
@@ -690,7 +690,7 @@ func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, erro
 		RemoteAddr: u.Addr,
 		Operate:    "Rename",
 		Path:       fmt.Sprintf("%s=>%s", oldNamePath, newFilePath),
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)
@@ -756,7 +756,7 @@ func (u *UserVolume) Remove(path string) error {
 		RemoteAddr: u.Addr,
 		Operate:    "Delete",
 		Path:       realPath,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)
@@ -827,7 +827,7 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 		RemoteAddr: u.Addr,
 		Operate:    "Append",
 		Path:       realFilePath,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer u.CreateFTPLog(logData)

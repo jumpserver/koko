@@ -15,6 +15,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/cctx"
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
@@ -182,7 +183,7 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 		RemoteAddr: fs.addr,
 		Operate:    r.Method,
 		Path:       realPathName,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer fs.CreateFTPLog(logData)
@@ -242,7 +243,7 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		RemoteAddr: fs.addr,
 		Operate:    "Upload",
 		Path:       realPathName,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer fs.CreateFTPLog(logData)
@@ -281,7 +282,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		RemoteAddr: fs.addr,
 		Operate:    "Download",
 		Path:       realPathName,
-		DataStart:  time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
+		DataStart:  common.CurrentUTCTime(),
 		IsSuccess:  false,
 	}
 	defer fs.CreateFTPLog(logData)
