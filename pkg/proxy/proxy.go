@@ -66,12 +66,12 @@ func (p *ProxyServer) getSystemUserUsernameIfNeed() {
 
 // checkProtocolMatch 检查协议是否匹配
 func (p *ProxyServer) checkProtocolMatch() bool {
-	return p.SystemUser.Protocol == p.Asset.Protocol
+	return p.Asset.IsSupportProtocol(p.SystemUser.Protocol)
 }
 
 // checkProtocolIsGraph 检查协议是否是图形化的
 func (p *ProxyServer) checkProtocolIsGraph() bool {
-	switch p.Asset.Protocol {
+	switch p.SystemUser.Protocol {
 	case "ssh", "telnet":
 		return false
 	default:
