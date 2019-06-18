@@ -140,7 +140,7 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 
 func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	var ip = tc.Asset.IP
-	var port = strconv.Itoa(tc.Asset.Port)
+	var port = strconv.Itoa(tc.Asset.ProtocolPort("telnet"))
 	var asset = tc.Asset
 	var proxyConn *gossh.Client
 

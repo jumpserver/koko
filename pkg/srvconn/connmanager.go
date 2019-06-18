@@ -141,7 +141,7 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 	}
 	conf = &SSHClientConfig{
 		Host:       asset.IP,
-		Port:       strconv.Itoa(asset.Port),
+		Port:       strconv.Itoa(asset.ProtocolPort("ssh")),
 		User:       systemUser.Username,
 		Password:   systemUser.Password,
 		PrivateKey: systemUser.PrivateKey,
