@@ -332,7 +332,11 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 }
 
 func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
-	found := sf.Pattern().FindString(cmd)
+	pattern := sf.Pattern()
+	if pattern == nil{
+		return ActionUnknown, ""
+	}
+	found := pattern.FindString(cmd)
 	if found == "" {
 		return ActionUnknown, ""
 	}
