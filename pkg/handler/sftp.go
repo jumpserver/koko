@@ -473,6 +473,12 @@ func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 		logger.Debug("WriteAt: ", off)
 		return 0, c.firstErr
 	}
+	if _, err = c.f.Seek(off,0); err != nil{
+		c.firstErr = err
+		c.closed = true
+		_ = c.f.Close()
+		return
+	}
 	nw, err := c.f.Write(p)
 	if err != nil {
 		c.firstErr = err
@@ -488,6 +494,12 @@ func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
 	if c.closed {
 		logger.Debug("ReadAt: ", off)
 		return 0, c.firstErr
+	}
+	if _, err = c.f.Seek(off,0); err != nil{
+		c.firstErr = err
+		c.closed = true
+		_ = c.f.Close()
+		return
 	}
 	nr, err := c.f.Read(p)
 	if err != nil {
