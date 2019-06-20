@@ -176,7 +176,7 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
 	logData := &model.FTPLog{
-		User:       fs.user.Username,
+		User:       fmt.Sprintf("%s(%s)",fs.user.Name,fs.user.Username),
 		Hostname:   hostDir.asset.Hostname,
 		OrgID:      hostDir.asset.OrgID,
 		SystemUser: suDir.systemUser.Name,
@@ -236,7 +236,7 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
 	logData := &model.FTPLog{
-		User:       fs.user.Username,
+		User:       fmt.Sprintf("%s(%s)",fs.user.Name,fs.user.Username),
 		Hostname:   hostDir.asset.Hostname,
 		OrgID:      hostDir.asset.OrgID,
 		SystemUser: suDir.systemUser.Name,
@@ -275,7 +275,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	}
 	realPathName := suDir.ParsePath(r.Filepath)
 	logData := &model.FTPLog{
-		User:       fs.user.Username,
+		User:       fmt.Sprintf("%s(%s)",fs.user.Name,fs.user.Username),
 		Hostname:   hostDir.asset.Hostname,
 		OrgID:      hostDir.asset.OrgID,
 		SystemUser: suDir.systemUser.Name,

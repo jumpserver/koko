@@ -192,7 +192,7 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"id":          s.ID,
-		"user":        s.p.User.Username,
+		"user":        fmt.Sprintf("%s(%s)",s.p.User.Name,s.p.User.Username),
 		"asset":       s.p.Asset.Hostname,
 		"org_id":      s.p.Asset.OrgID,
 		"login_from":  s.p.UserConn.LoginFrom(),
