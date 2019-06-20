@@ -11,6 +11,7 @@ COPY . .
 RUN dep ensure -vendor-only && cd cmd && go build koko.go
 
 FROM alpine
+RUN apk add -U tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && apk del tzdata
 WORKDIR /opt/koko/
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/koko .
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/locale/ locale
