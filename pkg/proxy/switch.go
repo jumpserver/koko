@@ -66,7 +66,7 @@ func (s *SwitchSession) Terminate() {
 
 func (s *SwitchSession) recordCommand() {
 	for command := range s.parser.cmdRecordChan {
-		if command[0] == ""{
+		if command[0] == "" {
 			continue
 		}
 		cmd := s.generateCommandResult(command)
@@ -97,7 +97,7 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		OrgID:      s.p.Asset.OrgID,
 		Input:      input,
 		Output:     output,
-		User:       s.p.User.Username,
+		User:       fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
 		Server:     s.p.Asset.Hostname,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
@@ -192,7 +192,7 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"id":          s.ID,
-		"user":        fmt.Sprintf("%s(%s)",s.p.User.Name,s.p.User.Username),
+		"user":        fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
 		"asset":       s.p.Asset.Hostname,
 		"org_id":      s.p.Asset.OrgID,
 		"login_from":  s.p.UserConn.LoginFrom(),
