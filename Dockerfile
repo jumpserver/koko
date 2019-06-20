@@ -16,7 +16,12 @@ COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/koko .
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/locale/ locale
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/static/ static
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/templates/ templates
-RUN echo > config.yml
+RUN echo > config.yml \
+  && apk add -U tzdata \
+  && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+  && echo "Asia/Shanghai" > /etc/timezone \
+  && apk del tzdata
+
 EXPOSE 2222
 EXPOSE 5000
 CMD ["./koko"]
