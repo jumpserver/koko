@@ -157,7 +157,7 @@ func (p *AssetPagination) displayPageAssets() {
 		Fields: fields,
 		Labels: Labels,
 		FieldsSize: map[string][3]int{
-			"ID":          {0, 0, 0},
+			"ID":          {0, 0, 4},
 			"hostname":    {0, 8, 0},
 			"IP":          {15, 0, 0},
 			"systemUsers": {0, 12, 0},
