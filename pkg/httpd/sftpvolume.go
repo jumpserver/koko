@@ -280,7 +280,7 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 
 	}
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
@@ -356,7 +356,7 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 	defer fd.Close()
 
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
@@ -448,7 +448,7 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 	}
 	filenamePath := filepath.Join(realDirPath, filename)
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
@@ -548,7 +548,7 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 	realDirPath := filepath.Join(realPath, newDirname)
 	err := sysUserVol.client.MkdirAll(realDirPath)
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
@@ -617,7 +617,7 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 	realFilePath := filepath.Join(realPath, newFilename)
 	_, err := sysUserVol.client.Create(realFilePath)
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
@@ -682,7 +682,7 @@ func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, erro
 
 	err := sysUserVol.client.Rename(oldNamePath, newFilePath)
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
@@ -748,7 +748,7 @@ func (u *UserVolume) Remove(path string) error {
 
 	}
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
@@ -819,7 +819,7 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 		realFilePath += suffix
 	}
 	logData := &model.FTPLog{
-		User:       fmt.Sprintf("%s(%s)",u.user.Name,u.user.Username),
+		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
 		OrgID:      hostVol.asset.OrgID,
 		SystemUser: sysUserVol.systemUser.Name,
