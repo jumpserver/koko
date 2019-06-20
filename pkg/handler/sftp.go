@@ -159,8 +159,26 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	if len(pathNames) <= 2 {
 		return sftp.ErrSshFxPermissionDenied
 	}
-	hostDir := fs.hosts[pathNames[0]]
-	suDir := hostDir.suMaps[pathNames[1]]
+	hostDir, ok := fs.hosts[pathNames[0]]
+	if !ok {
+		return sftp.ErrSshFxNoSuchFile
+	}
+	if hostDir.suMaps == nil {
+		hostDir.suMaps = make(map[string]*SysUserDir)
+		systemUsers := hostDir.asset.SystemUsers
+		for i, sysUser := range systemUsers {
+			hostDir.suMaps[sysUser.Name] = &SysUserDir{
+				time:       time.Now().UTC(),
+				rootPath:   fs.rootPath,
+				systemUser: &systemUsers[i],
+				prefix:     fmt.Sprintf("/%s/%s", hostDir.asset.Hostname, sysUser.Name),
+			}
+		}
+	}
+	suDir, ok := hostDir.suMaps[pathNames[1]]
+	if !ok {
+		return sftp.ErrSshFxNoSuchFile
+	}
 
 	if !fs.validatePermission(hostDir.asset.ID, suDir.systemUser.ID, model.ConnectAction) {
 		return sftp.ErrSshFxPermissionDenied
@@ -219,8 +237,26 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	if len(pathNames) <= 2 {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
-	hostDir := fs.hosts[pathNames[0]]
-	suDir := hostDir.suMaps[pathNames[1]]
+	hostDir, ok := fs.hosts[pathNames[0]]
+	if !ok {
+		return nil, sftp.ErrSshFxNoSuchFile
+	}
+	if hostDir.suMaps == nil {
+		hostDir.suMaps = make(map[string]*SysUserDir)
+		systemUsers := hostDir.asset.SystemUsers
+		for i, sysUser := range systemUsers {
+			hostDir.suMaps[sysUser.Name] = &SysUserDir{
+				time:       time.Now().UTC(),
+				rootPath:   fs.rootPath,
+				systemUser: &systemUsers[i],
+				prefix:     fmt.Sprintf("/%s/%s", hostDir.asset.Hostname, sysUser.Name),
+			}
+		}
+	}
+	suDir, ok := hostDir.suMaps[pathNames[1]]
+	if !ok {
+		return nil, sftp.ErrSshFxNoSuchFile
+	}
 
 	if !fs.validatePermission(hostDir.asset.ID, suDir.systemUser.ID, model.UploadAction) {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -260,8 +296,26 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	if len(pathNames) <= 2 {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
-	hostDir := fs.hosts[pathNames[0]]
-	suDir := hostDir.suMaps[pathNames[1]]
+	hostDir, ok := fs.hosts[pathNames[0]]
+	if !ok {
+		return nil, sftp.ErrSshFxNoSuchFile
+	}
+	if hostDir.suMaps == nil {
+		hostDir.suMaps = make(map[string]*SysUserDir)
+		systemUsers := hostDir.asset.SystemUsers
+		for i, sysUser := range systemUsers {
+			hostDir.suMaps[sysUser.Name] = &SysUserDir{
+				time:       time.Now().UTC(),
+				rootPath:   fs.rootPath,
+				systemUser: &systemUsers[i],
+				prefix:     fmt.Sprintf("/%s/%s", hostDir.asset.Hostname, sysUser.Name),
+			}
+		}
+	}
+	suDir, ok := hostDir.suMaps[pathNames[1]]
+	if !ok {
+		return nil, sftp.ErrSshFxNoSuchFile
+	}
 	if !fs.validatePermission(hostDir.asset.ID, suDir.systemUser.ID, model.DownloadAction) {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
@@ -303,7 +357,7 @@ func (fs *sftpHandler) GetSftpClient(asset *model.Asset, sysUser *model.SystemUs
 	if err != nil {
 		return
 	}
-	return sftpClient, sshClient, nil
+	return sftpClient, sshClient, err
 }
 
 func (fs *sftpHandler) CreateFTPLog(data *model.FTPLog) {
