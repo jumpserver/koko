@@ -11,13 +11,16 @@ COPY . .
 RUN dep ensure -vendor-only && cd cmd && go build koko.go
 
 FROM alpine
-RUN apk add -U tzdata && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && apk del tzdata
 WORKDIR /opt/koko/
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/koko .
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/locale/ locale
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/static/ static
 COPY --from=stage-build /go/src/github.com/jumpserver/koko/cmd/templates/ templates
-RUN echo > config.yml
-EXPOSE 2222
-EXPOSE 5000
+RUN echo > config.yml \
+    && apk add -U tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && apk del tzdata
+
+EXPOSE 2222 5000
 CMD ["./koko"]
