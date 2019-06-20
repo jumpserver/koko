@@ -24,5 +24,4 @@ RUN echo > config.yml \
 
 EXPOSE 2222
 EXPOSE 5000
->>>>>>> 69cbd85c92cf4c58108b92e02b280fde99a1034d
 CMD ["./koko"]
