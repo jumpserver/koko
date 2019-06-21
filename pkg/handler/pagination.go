@@ -145,7 +145,14 @@ func (p *AssetPagination) displayPageAssets() {
 			names[i] = systemUser[i].Name
 		}
 		row["systemUsers"] = strings.Join(names, ",")
-		row["comment"] = j.Comment
+		comments := make([]string,0)
+		for _, item := range strings.Split(strings.TrimSpace(j.Comment), "\r\n"){
+			if strings.TrimSpace(item) == ""{
+				continue
+			}
+			comments = append(comments,strings.ReplaceAll(strings.TrimSpace(item)," ",","))
+		}
+		row["comment"] = strings.Join(comments,"|")
 		data[i] = row
 	}
 	w, _ := p.term.GetSize()
@@ -159,9 +166,9 @@ func (p *AssetPagination) displayPageAssets() {
 		FieldsSize: map[string][3]int{
 			"ID":          {0, 0, 4},
 			"hostname":    {0, 8, 0},
-			"IP":          {15, 0, 0},
+			"IP":          {0, 15, 40},
 			"systemUsers": {0, 12, 0},
-			"comment":     {0, 0, 0},
+			"comment":     {0, 0, 40},
 		},
 		Data:        data,
 		TotalSize:   w,
