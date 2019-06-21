@@ -164,13 +164,13 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 // parseZmodemState 解析数据，查看是不是处于zmodem状态
 // 处于zmodem状态不会再解析命令
 func (p *Parser) parseZmodemState(b []byte) {
-	if len(b) < 25 {
+	if len(b) < 20 {
 		return
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.zmodemState == "" {
-		if len(b) > 50 && bytes.Contains(b[:50], zmodemRecvStartMark) {
+		if len(b) > 25 && bytes.Contains(b[:50], zmodemRecvStartMark) {
 			p.zmodemState = zmodemStateRecv
 			logger.Debug("Zmodem in recv state")
 		} else if bytes.Contains(b[:24], zmodemSendStartMark) {
@@ -204,6 +204,8 @@ func (p *Parser) parseVimState(b []byte) {
 func (p *Parser) splitCmdStream(b []byte) {
 	p.parseVimState(b)
 	p.parseZmodemState(b)
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	if p.zmodemState != "" || p.inVimState || !p.inputInitial {
 		return
 	}
@@ -248,7 +250,7 @@ func (p *Parser) IsCommandForbidden() (string, bool) {
 func (p *Parser) IsInZmodemRecvState() bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
-	return p.zmodemState == zmodemStateRecv
+	return p.zmodemState != ""
 }
 
 // Close 关闭parser
