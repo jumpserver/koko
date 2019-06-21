@@ -52,6 +52,8 @@ func (dt *DirectTransport) Keep() {
 		if !dt.closed {
 			dt.ch <- buf[:n]
 		} else {
+			// 解决用户终端返回时, 数据丢失
+			_ , _ = dt.readWriter.Write(buf[:n])
 			logger.Debug("Transport closed")
 			break
 		}
