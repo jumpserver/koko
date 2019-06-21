@@ -76,21 +76,21 @@ func assetSortByHostName(asset1, asset2 *Asset) bool {
 type NodeList []Node
 
 type Asset struct {
-	ID              string         `json:"id"`
-	Hostname        string         `json:"hostname"`
-	IP              string         `json:"ip"`
-	Port            int            `json:"port"`
-	SystemUsers     []SystemUser   `json:"system_users_granted"`
-	IsActive        bool           `json:"is_active"`
-	SystemUsersJoin string         `json:"system_users_join"`
-	Os              string         `json:"os"`
-	Domain          string         `json:"domain"`
-	Platform        string         `json:"platform"`
-	Comment         string         `json:"comment"`
-	Protocol        string         `json:"protocol"`
-	Protocols       []protocolItem `json:"protocols,omitempty"`
-	OrgID           string         `json:"org_id"`
-	OrgName         string         `json:"org_name"`
+	ID              string       `json:"id"`
+	Hostname        string       `json:"hostname"`
+	IP              string       `json:"ip"`
+	Port            int          `json:"port"`
+	SystemUsers     []SystemUser `json:"system_users_granted"`
+	IsActive        bool         `json:"is_active"`
+	SystemUsersJoin string       `json:"system_users_join"`
+	Os              string       `json:"os"`
+	Domain          string       `json:"domain"`
+	Platform        string       `json:"platform"`
+	Comment         string       `json:"comment"`
+	Protocol        string       `json:"protocol"`
+	Protocols       []string     `json:"protocols,omitempty"`
+	OrgID           string       `json:"org_id"`
+	OrgName         string       `json:"org_name"`
 }
 
 func (a *Asset) ProtocolPort(protocol string) int {
@@ -99,8 +99,13 @@ func (a *Asset) ProtocolPort(protocol string) int {
 		return a.Port
 	}
 	for _, item := range a.Protocols {
-		if strings.ToLower(item.Name) == strings.ToLower(protocol) {
-			return item.Port
+		if strings.Contains(strings.ToLower(item), strings.ToLower(protocol)) {
+			proAndPort := strings.Split(item, "/")
+			if len(proAndPort) == 2 {
+				if port, err := strconv.Atoi(proAndPort[1]); err == nil {
+					return port
+				}
+			}
 		}
 	}
 	switch strings.ToLower(protocol) {
@@ -120,16 +125,11 @@ func (a *Asset) IsSupportProtocol(protocol string) bool {
 		return a.Protocol == protocol
 	}
 	for _, item := range a.Protocols {
-		if strings.ToLower(item.Name) == strings.ToLower(protocol) {
+		if strings.Contains(strings.ToLower(item), strings.ToLower(protocol)) {
 			return true
 		}
 	}
 	return false
-}
-
-type protocolItem struct {
-	Name string `json:"name"`
-	Port int    `json:"port"`
 }
 
 type Gateway struct {
@@ -333,7 +333,7 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 
 func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
 	pattern := sf.Pattern()
-	if pattern == nil{
+	if pattern == nil {
 		return ActionUnknown, ""
 	}
 	found := pattern.FindString(cmd)
