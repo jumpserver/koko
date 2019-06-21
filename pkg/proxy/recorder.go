@@ -104,7 +104,6 @@ type ReplyRecorder struct {
 }
 
 func (r *ReplyRecorder) initial() {
-	r.backOffStorage = defaultReplayStorage
 	r.prepare()
 }
 
@@ -170,6 +169,7 @@ func (r *ReplyRecorder) uploadReplay() {
 
 func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 	if r.storage == nil{
+		r.backOffStorage = defaultReplayStorage
 		r.storage = NewReplayStorage()
 	}
 	for i := 0; i <= maxRetry; i++ {
