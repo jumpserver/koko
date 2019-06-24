@@ -1,7 +1,9 @@
 package common
 
 import (
+	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -145,12 +147,15 @@ func (t *WrapperTable) convertDataToSlice() [][]string {
 			} else {
 				switch t.TruncPolicy {
 				case TruncSuffix:
-					row[m] = j[n][:columSize-3] + "..."
+					row[m] = fmt.Sprintf("%s...",
+						GetValidString(j[n],columSize-3, true))
 				case TruncPrefix:
-					row[m] = "..." + j[n][len(j[n])-columSize-3:]
+					row[m] = fmt.Sprintf("...%s",
+						GetValidString(j[n],len(j[n])-columSize-3, false))
 				case TruncMiddle:
 					midValue := (columSize - 3) / 2
-					row[m] = j[n][:midValue] + "..." + j[n][len(j[n])-midValue:]
+					row[m] = fmt.Sprintf("%s...%s",GetValidString(j[n],midValue, true),
+						GetValidString(j[n],len(j[n])-midValue, false))
 				}
 			}
 
@@ -186,4 +191,25 @@ func (t *WrapperTable) Display() string {
 	}
 	table.Render()
 	return tableString.String()
+}
+
+func GetValidString(s string, position int, positive bool) string{
+	step := 1
+	if positive {
+		step = -1
+	}
+	for position >=0 && position <= len(s) {
+		switch positive {
+		case true:
+			if utf8.ValidString(s[:position]){
+				return s[:position]
+			}
+		case false:
+			if utf8.ValidString(s[position:]){
+				return s[position:]
+			}
+		}
+		position += step
+	}
+	return ""
 }

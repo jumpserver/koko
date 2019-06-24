@@ -29,14 +29,11 @@ func TestNewTable_CalculateColumnsSize(t *testing.T) {
 	data := table.Display()
 	fmt.Println(data)
 	fmt.Println(table.fieldsSize)
-	//if table.fieldsSize["comment"] != 6 {
-	//	t.Error("comment需要为6")
-	//}
-	//
-	//table.TotalSize = 188
-	//table.CalculateColumnsSize()
-	//if table.fieldsSize["comment"] != 136 {
-	//	t.Error("comment长度需要为136")
-	//}
-	//fmt.Println(table.fieldsSize)
+}
+
+
+func TestGetCorrectString(t *testing.T) {
+	foo := "主2erert机名"
+	a:=GetValidString(foo,2,false)
+	t.Log(a == "2erert机名")
 }
