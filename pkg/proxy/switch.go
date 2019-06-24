@@ -84,7 +84,7 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		input = command[0]
 	}
 	i := strings.LastIndexByte(command[1], '\r')
-	if i < 0 {
+	if i <= 0 {
 		output = command[1]
 	} else if i > 0 && i < 1024 {
 		output = command[1][:i]
