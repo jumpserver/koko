@@ -168,7 +168,7 @@ func (p *AssetPagination) displayPageAssets() {
 			"hostname":    {0, 8, 0},
 			"IP":          {0, 15, 40},
 			"systemUsers": {0, 12, 0},
-			"comment":     {0, 0, 40},
+			"comment":     {0, 0, 0},
 		},
 		Data:        data,
 		TotalSize:   w,
