@@ -58,7 +58,7 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 		}
 	}
 	if sc.PrivateKey != "" {
-		if signer, err := gossh.ParsePrivateKey([]byte(sc.PrivateKey)); err != nil {
+		if signer, err := gossh.ParsePrivateKeyWithPassphrase([]byte(sc.PrivateKey),[]byte(sc.Password)); err != nil {
 			err = fmt.Errorf("parse private key error: %s", err)
 			return config, err
 		} else {
