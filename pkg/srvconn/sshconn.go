@@ -76,7 +76,7 @@ func (sc *ServerSSHConnection) TryConnectFromCache(h, w int, term string) (err e
 	}
 	err = sc.invokeShell(h, w, term)
 	if err != nil {
-		CloseClient(sc.client)
+		RecycleClient(sc.client)
 		return
 	}
 	sc.connected = true
