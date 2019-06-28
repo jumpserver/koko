@@ -83,6 +83,7 @@ func (p *Parser) ParseStream() {
 	defer func() {
 		close(p.userOutputChan)
 		close(p.srvOutputChan)
+		close(p.cmdRecordChan)
 		logger.Debug("Parser parse stream routine done")
 	}()
 	for {
@@ -140,7 +141,6 @@ func (p *Parser) parseCmdInput() {
 	data := p.cmdBuf.Bytes()
 	p.command = p.cmdInputParser.Parse(data)
 	p.cmdBuf.Reset()
-	//p.inputBuf.Reset()
 }
 
 // parseCmdOutput 解析命令输出
@@ -262,5 +262,4 @@ func (p *Parser) Close() {
 	}
 	close(p.userInputChan)
 	close(p.srvInputChan)
-	close(p.cmdRecordChan)
 }

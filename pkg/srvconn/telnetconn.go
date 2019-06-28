@@ -12,6 +12,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
 )
 
 const (
@@ -167,6 +168,13 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	if err != nil {
 		return
 	}
+
+	if tc.SystemUser.Password == ""{
+		info := service.GetSystemUserAssetAuthInfo(tc.SystemUser.ID, asset.ID)
+		tc.SystemUser.Password = info.Password
+		tc.SystemUser.PrivateKey = info.PrivateKey
+	}
+
 	buf := make([]byte, 1024)
 	tc.conn = conn
 	var nr int
