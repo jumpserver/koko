@@ -56,9 +56,9 @@ func (c *Client) Pty() ssh.Pty {
 }
 
 func (c *Client) Close() (err error) {
-	//if c.Closed {
-	//	return
-	//}
+	if c.Closed {
+		return
+	}
 	c.Closed = true
 	return c.UserWrite.Close()
 }

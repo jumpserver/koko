@@ -120,6 +120,8 @@ func (h *interactiveHandler) watchWinSizeChange() {
 	winChan := sessChan
 	for {
 		select {
+		case <-h.sess.Context().Done():
+			return
 		case sig, ok := <-h.winWatchChan:
 			if !ok {
 				return

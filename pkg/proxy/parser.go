@@ -34,7 +34,6 @@ func newParser() *Parser {
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
-	inputBuf  *bytes.Buffer
 	cmdBuf    *bytes.Buffer
 	outputBuf *bytes.Buffer
 
@@ -62,7 +61,6 @@ type Parser struct {
 }
 
 func (p *Parser) initial() {
-	p.inputBuf = new(bytes.Buffer)
 	p.cmdBuf = new(bytes.Buffer)
 	p.outputBuf = new(bytes.Buffer)
 
@@ -85,6 +83,7 @@ func (p *Parser) ParseStream() {
 	defer func() {
 		close(p.userOutputChan)
 		close(p.srvOutputChan)
+		close(p.cmdRecordChan)
 		logger.Debug("Parser parse stream routine done")
 	}()
 	for {
@@ -142,7 +141,6 @@ func (p *Parser) parseCmdInput() {
 	data := p.cmdBuf.Bytes()
 	p.command = p.cmdInputParser.Parse(data)
 	p.cmdBuf.Reset()
-	p.inputBuf.Reset()
 }
 
 // parseCmdOutput 解析命令输出
@@ -264,5 +262,4 @@ func (p *Parser) Close() {
 	}
 	close(p.userInputChan)
 	close(p.srvInputChan)
-	close(p.cmdRecordChan)
 }
