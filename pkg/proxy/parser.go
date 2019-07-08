@@ -152,6 +152,8 @@ func (p *Parser) parseCmdOutput() {
 
 // ParseUserInput 解析用户的输入
 func (p *Parser) ParseUserInput(b []byte) []byte {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	p.once.Do(func() {
 		p.inputInitial = true
 	})
@@ -165,8 +167,6 @@ func (p *Parser) parseZmodemState(b []byte) {
 	if len(b) < 20 {
 		return
 	}
-	p.lock.Lock()
-	defer p.lock.Unlock()
 	if p.zmodemState == "" {
 		if len(b) > 25 && bytes.Contains(b[:50], zmodemRecvStartMark) {
 			p.zmodemState = zmodemStateRecv
@@ -202,8 +202,6 @@ func (p *Parser) parseVimState(b []byte) {
 func (p *Parser) splitCmdStream(b []byte) {
 	p.parseVimState(b)
 	p.parseZmodemState(b)
-	p.lock.RLock()
-	defer p.lock.RUnlock()
 	if p.zmodemState != "" || p.inVimState || !p.inputInitial {
 		return
 	}
@@ -220,6 +218,8 @@ func (p *Parser) splitCmdStream(b []byte) {
 
 // ParseServerOutput 解析服务器输出
 func (p *Parser) ParseServerOutput(b []byte) []byte {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	p.splitCmdStream(b)
 	return b
 }
@@ -246,8 +246,8 @@ func (p *Parser) IsCommandForbidden() (string, bool) {
 }
 
 func (p *Parser) IsInZmodemRecvState() bool {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	return p.zmodemState != ""
 }
 
