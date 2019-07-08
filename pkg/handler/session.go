@@ -202,6 +202,8 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 						continue
 					}
 				}
+				assets := h.searchAsset(line)
+				h.displayAssetsOrProxy(assets)
 			default:
 				assets := h.searchAsset(line)
 				h.displayAssetsOrProxy(assets)
