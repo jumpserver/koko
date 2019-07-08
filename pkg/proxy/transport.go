@@ -14,7 +14,7 @@ type Transport interface {
 
 type DirectTransport struct {
 	name       string
-	readWriter io.ReadWriter
+	readWriter io.ReadWriteCloser
 	ch         chan []byte
 	closed     bool
 }
@@ -28,13 +28,12 @@ func (dt *DirectTransport) Write(p []byte) (n int, err error) {
 }
 
 func (dt *DirectTransport) Close() error {
-	logger.Debug("Close transport")
 	if dt.closed {
 		return nil
 	}
+	logger.Debug("Close transport")
 	dt.closed = true
-	close(dt.ch)
-	return nil
+	return dt.readWriter.Close()
 }
 
 func (dt *DirectTransport) Chan() <-chan []byte {
@@ -49,18 +48,13 @@ func (dt *DirectTransport) Keep() {
 			_ = dt.Close()
 			break
 		}
-		if !dt.closed {
-			dt.ch <- buf[:n]
-		} else {
-			logger.Debug("Transport closed")
-			break
-		}
+		dt.ch <- buf[:n]
 	}
-	return
+	close(dt.ch)
 }
 
-func NewDirectTransport(name string, readWriter io.ReadWriter) Transport {
-	ch := make(chan []byte, 1024*32)
+func NewDirectTransport(name string, readWriter io.ReadWriteCloser) Transport {
+	ch := make(chan []byte, 1024)
 	tr := DirectTransport{readWriter: readWriter, ch: ch}
 	go tr.Keep()
 	return &tr

@@ -60,9 +60,10 @@ func SessionHandler(sess ssh.Session) {
 }
 
 func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandler {
-	term := utils.NewTerminal(sess, "Opt> ")
+	wrapperSess := NewWrapperSession(sess)
+	term := utils.NewTerminal(wrapperSess, "Opt> ")
 	handler := &interactiveHandler{
-		sess:           sess,
+		sess:           wrapperSess,
 		user:           user,
 		term:           term,
 		mu:             new(sync.RWMutex),
@@ -73,7 +74,7 @@ func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandl
 }
 
 type interactiveHandler struct {
-	sess         ssh.Session
+	sess         *WrapperSession
 	user         *model.User
 	term         *utils.Terminal
 	winWatchChan chan bool
@@ -116,11 +117,11 @@ func (h *interactiveHandler) displayBanner() {
 }
 
 func (h *interactiveHandler) watchWinSizeChange() {
-	_, sessChan, _ := h.sess.Pty()
+	sessChan := h.sess.WinCh()
 	winChan := sessChan
 	for {
 		select {
-		case <-h.sess.Context().Done():
+		case <-h.sess.Sess.Context().Done():
 			return
 		case sig, ok := <-h.winWatchChan:
 			if !ok {
@@ -366,9 +367,8 @@ func (h *interactiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
 }
 
 func (h *interactiveHandler) Proxy(ctx context.Context) {
-	userConn := &proxy.UserSSHConnection{Session: h.sess}
 	p := proxy.ProxyServer{
-		UserConn:   userConn,
+		UserConn:   h.sess,
 		User:       h.user,
 		Asset:      h.assetSelect,
 		SystemUser: h.systemUserSelect,

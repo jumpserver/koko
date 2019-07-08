@@ -145,14 +145,14 @@ func (p *AssetPagination) displayPageAssets() {
 			names[i] = systemUser[i].Name
 		}
 		row["systemUsers"] = strings.Join(names, ",")
-		comments := make([]string,0)
-		for _, item := range strings.Split(strings.TrimSpace(j.Comment), "\r\n"){
-			if strings.TrimSpace(item) == ""{
+		comments := make([]string, 0)
+		for _, item := range strings.Split(strings.TrimSpace(j.Comment), "\r\n") {
+			if strings.TrimSpace(item) == "" {
 				continue
 			}
-			comments = append(comments,strings.ReplaceAll(strings.TrimSpace(item)," ",","))
+			comments = append(comments, strings.ReplaceAll(strings.TrimSpace(item), " ", ","))
 		}
-		row["comment"] = strings.Join(comments,"|")
+		row["comment"] = strings.Join(comments, "|")
 		data[i] = row
 	}
 	w, _ := p.term.GetSize()

@@ -6,8 +6,6 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/gliderlabs/ssh"
-
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -62,7 +60,7 @@ type ColorMeta struct {
 	ColorEnd       string
 }
 
-func displayBanner(sess ssh.Session, user string) {
+func displayBanner(sess io.ReadWriter, user string) {
 	title := defaultTitle
 	cf := config.GetConf()
 	if cf.HeaderTitle != "" {
