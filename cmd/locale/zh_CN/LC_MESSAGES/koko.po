@@ -105,7 +105,7 @@ msgstr "备注"
 #. i18n.T
 #: pkg/handler/pagination.go:152
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr "页码: %d, 数量: %d, 总页数: %d, 总数量: %d"
+msgstr "页码: %d, 每页行数: %d, 总页数: %d, 总数量: %d"
 
 #. i18n.T
 #: pkg/handler/pagination.go:179
