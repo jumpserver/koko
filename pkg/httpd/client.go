@@ -22,20 +22,14 @@ type Client struct {
 	pty       ssh.Pty
 }
 
-func (c *Client) Protocol() string {
-	return "ws"
-}
-
 func (c *Client) WinCh() <-chan ssh.Window {
 	return c.WinChan
 }
 
-func (c *Client) User() string {
-	return c.user.Username
-}
 func (c *Client) LoginFrom() string {
 	return "WT"
 }
+
 func (c *Client) RemoteAddr() string {
 	return c.addr
 }
