@@ -9,7 +9,6 @@ import (
 	"io"
 	"strconv"
 	"sync"
-	"time"
 	"unicode/utf8"
 )
 
@@ -796,7 +795,6 @@ func (t *Terminal) readLine() (line string, err error) {
 		for !lineOk {
 			var key rune
 			key, rest = bytesToKey(rest, t.pasteActive)
-			time.Sleep(10 * time.Millisecond)
 			if key == utf8.RuneError {
 				break
 			}
