@@ -460,7 +460,6 @@ func (su *SysUserDir) Sys() interface{} {
 
 func (su *SysUserDir) ParsePath(path string) string {
 	var realPath string
-	fmt.Println("root path", su.rootPath)
 	switch strings.ToLower(su.rootPath) {
 	case "home", "~", "":
 		realPath = strings.ReplaceAll(path, su.prefix, su.homeDirpath)
