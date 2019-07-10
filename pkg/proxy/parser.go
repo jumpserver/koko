@@ -34,9 +34,7 @@ func newParser() *Parser {
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
-	userInputChan  chan []byte
 	userOutputChan chan []byte
-	srvInputChan   chan []byte
 	srvOutputChan  chan []byte
 	cmdRecordChan  chan [2]string
 
@@ -65,41 +63,44 @@ func (p *Parser) initial() {
 	p.cmdOutputParser = NewCmdParser()
 
 	p.closed = make(chan struct{})
-	p.userInputChan = make(chan []byte, 1024)
-	p.userOutputChan = make(chan []byte, 1024)
-	p.srvInputChan = make(chan []byte, 1024)
-	p.srvOutputChan = make(chan []byte, 1024)
 	p.cmdRecordChan = make(chan [2]string, 1024)
 }
 
 // ParseStream 解析数据流
-func (p *Parser) ParseStream() {
-	defer func() {
-		close(p.userOutputChan)
-		close(p.srvOutputChan)
-		close(p.cmdRecordChan)
-		_ = p.cmdOutputParser.Close()
-		_ = p.cmdInputParser.Close()
-		logger.Debug("Parser parse stream routine done")
-	}()
-	for {
-		select {
-		case <-p.closed:
-			return
-		case b, ok := <-p.userInputChan:
-			if !ok {
+func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
+
+	p.userOutputChan = make(chan []byte, 1)
+	p.srvOutputChan = make(chan []byte, 1)
+
+	go func() {
+		defer func() {
+			close(p.cmdRecordChan)
+			close(p.userOutputChan)
+			close(p.srvOutputChan)
+			_ = p.cmdOutputParser.Close()
+			_ = p.cmdInputParser.Close()
+			logger.Debug("Parser parse stream routine done")
+		}()
+		for {
+			select {
+			case <-p.closed:
 				return
+			case b, ok := <-userInChan:
+				if !ok {
+					return
+				}
+				b = p.ParseUserInput(b)
+				p.userOutputChan <- b
+			case b, ok := <-srvInChan:
+				if !ok {
+					return
+				}
+				b = p.ParseServerOutput(b)
+				p.srvOutputChan <- b
 			}
-			b = p.ParseUserInput(b)
-			p.userOutputChan <- b
-		case b, ok := <-p.srvInputChan:
-			if !ok {
-				return
-			}
-			b = p.ParseServerOutput(b)
-			p.srvOutputChan <- b
 		}
-	}
+	}()
+	return p.userOutputChan, p.srvOutputChan
 }
 
 // Todo: parseMultipleInput 依然存在问题
@@ -170,7 +171,7 @@ func (p *Parser) parseZmodemState(b []byte) {
 		if bytes.Contains(b[:24], zmodemEndMark) {
 			logger.Debug("Zmodem end")
 			p.zmodemState = ""
-		} else if bytes.Contains(b[:24], zmodemCancelMark) {
+		} else if bytes.Contains(b, zmodemCancelMark) {
 			logger.Debug("Zmodem cancel")
 			p.zmodemState = ""
 		}
@@ -200,9 +201,7 @@ func (p *Parser) splitCmdStream(b []byte) {
 		p.cmdInputParser.WriteData(b)
 		return
 	}
-	// outputBuff 最大存储1024， 否则可能撑爆内存
-	// 如果最后一个字符不是ascii, 可以截断了某个中文字符的一部分，为了安全继续添加
-		p.cmdOutputParser.WriteData(b)
+	p.cmdOutputParser.WriteData(b)
 }
 
 // ParseServerOutput 解析服务器输出
@@ -249,6 +248,4 @@ func (p *Parser) Close() {
 		close(p.closed)
 
 	}
-	close(p.userInputChan)
-	close(p.srvInputChan)
 }

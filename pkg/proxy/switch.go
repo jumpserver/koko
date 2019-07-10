@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -37,9 +38,6 @@ type SwitchSession struct {
 	cmdRecorder    *CommandRecorder
 	replayRecorder *ReplyRecorder
 	parser         *Parser
-
-	userTran Transport
-	srvTran  Transport
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -111,8 +109,6 @@ func (s *SwitchSession) postBridge() {
 	s.parser.Close()
 	s.replayRecorder.End()
 	s.cmdRecorder.End()
-	_ = s.userTran.Close()
-	_ = s.srvTran.Close()
 }
 
 // SetFilterRules 设置命令过滤规则
@@ -123,26 +119,30 @@ func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	winCh := userConn.WinCh()
-	// 将ReadWriter转换为Channel读写
-	s.srvTran = NewDirectTransport(s.ID, srvConn)
-	s.userTran = NewDirectTransport(s.ID, userConn)
-
 	defer func() {
 		logger.Info("Session bridge done: ", s.ID)
+		_ = userConn.Close()
+		_ = srvConn.Close()
 		s.postBridge()
 	}()
 
+	userInChan := make(chan []byte, 10)
+	srvInChan := make(chan []byte, 10)
+
 	// 处理数据流
-	go s.parser.ParseStream()
+	userOutChan, srvOutChan := s.parser.ParseStream(userInChan, srvInChan)
 	// 记录命令
 	go s.recordCommand()
+	go LoopRead(userConn, userInChan)
+	go LoopRead(srvConn, srvInChan)
+
 	for {
 		select {
 		// 检测是否超过最大空闲时间
 		case <-time.After(s.MaxIdleTime * time.Minute):
 			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			msg = utils.WrapperWarn(msg)
-			utils.IgnoreErrWriteString(s.userTran, "\n\r"+msg)
+			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
@@ -151,36 +151,27 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 监控窗口大小变化
-		case win := <-winCh:
+		case win, ok := <-winCh:
+			if !ok {
+				return
+			}
 			_ = srvConn.SetWinSize(win.Height, win.Width)
 			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
-		// Server发来数据流入parser中
-		case p, ok := <-s.srvTran.Chan():
+		// 经过parse处理的server数据，发给user
+		case p, ok := <-srvOutChan:
 			if !ok {
 				return
 			}
-			s.parser.srvInputChan <- p
-		// Server流入parser数据，经处理发给用户
-		case p, ok := <-s.parser.srvOutputChan:
-			if !ok {
-				return
-			}
-			nw, _ := s.userTran.Write(p)
+			nw, _ := userConn.Write(p)
 			if !s.parser.IsInZmodemRecvState() {
 				s.replayRecorder.Record(p[:nw])
 			}
-		// User发来的数据流流入parser
-		case p, ok := <-s.userTran.Chan():
+		// 经过parse处理的user数据，发给server
+		case p, ok := <-userOutChan:
 			if !ok {
 				return
 			}
-			s.parser.userInputChan <- p
-		// User发来的数据经parser处理，发给Server
-		case p, ok := <-s.parser.userOutputChan:
-			if !ok {
-				return
-			}
-			_, err = s.srvTran.Write(p)
+			_, err = srvConn.Write(p)
 		}
 	}
 }
@@ -202,4 +193,19 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		"date_start":  s.DateStart,
 		"date_end":    dataEnd,
 	}
+}
+
+func LoopRead(read io.Reader, inChan chan<- []byte) {
+	defer logger.Debug("loop read end")
+	for {
+		buf := make([]byte, 1024)
+		nr, err := read.Read(buf)
+		if err != nil {
+			break
+		}
+		if nr > 0 {
+			inChan <- buf[:nr]
+		}
+	}
+	close(inChan)
 }
