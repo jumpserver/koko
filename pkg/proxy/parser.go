@@ -34,9 +34,6 @@ func newParser() *Parser {
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
-	cmdBuf    *bytes.Buffer
-	outputBuf *bytes.Buffer
-
 	userInputChan  chan []byte
 	userOutputChan chan []byte
 	srvInputChan   chan []byte
@@ -61,9 +58,6 @@ type Parser struct {
 }
 
 func (p *Parser) initial() {
-	p.cmdBuf = new(bytes.Buffer)
-	p.outputBuf = new(bytes.Buffer)
-
 	p.once = new(sync.Once)
 	p.lock = new(sync.RWMutex)
 
@@ -84,6 +78,8 @@ func (p *Parser) ParseStream() {
 		close(p.userOutputChan)
 		close(p.srvOutputChan)
 		close(p.cmdRecordChan)
+		_ = p.cmdOutputParser.Close()
+		_ = p.cmdInputParser.Close()
 		logger.Debug("Parser parse stream routine done")
 	}()
 	for {
@@ -96,7 +92,6 @@ func (p *Parser) ParseStream() {
 			}
 			b = p.ParseUserInput(b)
 			p.userOutputChan <- b
-
 		case b, ok := <-p.srvInputChan:
 			if !ok {
 				return
@@ -121,7 +116,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.parseCmdInput()
 		if cmd, ok := p.IsCommandForbidden(); !ok {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
-			p.outputBuf.WriteString(fbdMsg)
+			p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			return []byte{utils.CharCleanLine, '\r'}
 		}
@@ -138,16 +133,12 @@ func (p *Parser) parseInputState(b []byte) []byte {
 
 // parseCmdInput 解析命令的输入
 func (p *Parser) parseCmdInput() {
-	data := p.cmdBuf.Bytes()
-	p.command = p.cmdInputParser.Parse(data)
-	p.cmdBuf.Reset()
+	p.command = p.cmdInputParser.Parse()
 }
 
 // parseCmdOutput 解析命令输出
 func (p *Parser) parseCmdOutput() {
-	data := p.outputBuf.Bytes()
-	p.output = p.cmdOutputParser.Parse(data)
-	p.outputBuf.Reset()
+	p.output = p.cmdOutputParser.Parse()
 }
 
 // ParseUserInput 解析用户的输入
@@ -206,14 +197,12 @@ func (p *Parser) splitCmdStream(b []byte) {
 		return
 	}
 	if p.inputState {
-		p.cmdBuf.Write(b)
+		p.cmdInputParser.WriteData(b)
 		return
 	}
 	// outputBuff 最大存储1024， 否则可能撑爆内存
 	// 如果最后一个字符不是ascii, 可以截断了某个中文字符的一部分，为了安全继续添加
-	if p.outputBuf.Len() < 1024 || p.outputBuf.Bytes()[p.outputBuf.Len()-1] > 128 {
-		p.outputBuf.Write(b)
-	}
+		p.cmdOutputParser.WriteData(b)
 }
 
 // ParseServerOutput 解析服务器输出
