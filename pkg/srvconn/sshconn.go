@@ -78,9 +78,7 @@ func (sc *ServerSSHConnection) TryConnectFromCache(h, w int, term string) (err e
 	if sc.client == nil {
 		return errors.New("no client in cache")
 	}
-	if sc.SystemUser.Username == "" {
-		sc.SystemUser.Username = sc.client.Username
-	}
+
 	err = sc.invokeShell(h, w, term)
 	if err != nil {
 		RecycleClient(sc.client)
