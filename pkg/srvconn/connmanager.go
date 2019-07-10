@@ -201,7 +201,9 @@ func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.
 	if !ok {
 		return
 	}
-
+	if systemUser.Username == ""{
+		systemUser.Username = client.Username
+	}
 	var u = user.Username
 	var ip = asset.IP
 	clientsRefCounter[client]++
