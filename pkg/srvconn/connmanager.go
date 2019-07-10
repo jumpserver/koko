@@ -3,7 +3,6 @@ package srvconn
 import (
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/service"
 	"net"
 	"strconv"
 	"sync"
@@ -13,11 +12,12 @@ import (
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
 )
 
 var (
-	sshClients        = make(map[string]*gossh.Client)
-	clientsRefCounter = make(map[*gossh.Client]int)
+	sshClients        = make(map[string]*SSHClient)
+	clientsRefCounter = make(map[*SSHClient]int)
 	clientLock        = new(sync.RWMutex)
 )
 
@@ -30,6 +30,11 @@ var (
 		"aes128-cbc",
 		"3des-cbc"}
 )
+
+type SSHClient struct {
+	Client   *gossh.Client
+	Username string
+}
 
 type SSHClientConfig struct {
 	Host           string        `json:"host"`
@@ -58,7 +63,7 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 		}
 	}
 	if sc.PrivateKey != "" {
-		if signer, err := gossh.ParsePrivateKeyWithPassphrase([]byte(sc.PrivateKey),[]byte(sc.Password)); err != nil {
+		if signer, err := gossh.ParsePrivateKeyWithPassphrase([]byte(sc.PrivateKey), []byte(sc.Password)); err != nil {
 			err = fmt.Errorf("parse private key error: %s", err)
 			return config, err
 		} else {
@@ -162,13 +167,16 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 	return
 }
 
-func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *gossh.Client, err error) {
+func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *SSHClient, err error) {
 	sshConfig := MakeConfig(asset, systemUser, timeout)
-	client, err = sshConfig.Dial()
-	return
+	conn, err := sshConfig.Dial()
+	if err != nil {
+		return nil, err
+	}
+	return &SSHClient{Client: conn, Username: systemUser.Username}, err
 }
 
-func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *gossh.Client, err error) {
+func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *SSHClient, err error) {
 	client = GetClientFromCache(user, asset, systemUser)
 	if client != nil {
 		return client, nil
@@ -185,7 +193,7 @@ func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUse
 	return
 }
 
-func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.SystemUser) (client *gossh.Client) {
+func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.SystemUser) (client *SSHClient) {
 	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
 	clientLock.Lock()
 	defer clientLock.Unlock()
@@ -196,15 +204,14 @@ func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.
 
 	var u = user.Username
 	var ip = asset.IP
-	var sysName = systemUser.Username
 	clientsRefCounter[client]++
 	var counter = clientsRefCounter[client]
 
-	logger.Infof("Reuse connection: %s->%s@%s ref: %d", u, sysName, ip, counter)
+	logger.Infof("Reuse connection: %s->%s@%s ref: %d", u, client.Username, ip, counter)
 	return
 }
 
-func RecycleClient(client *gossh.Client) {
+func RecycleClient(client *SSHClient) {
 	clientLock.RLock()
 	counter, ok := clientsRefCounter[client]
 	clientLock.RUnlock()
@@ -222,7 +229,7 @@ func RecycleClient(client *gossh.Client) {
 	}
 }
 
-func CloseClient(client *gossh.Client) {
+func CloseClient(client *SSHClient) {
 	clientLock.Lock()
 	defer clientLock.Unlock()
 
@@ -237,5 +244,5 @@ func CloseClient(client *gossh.Client) {
 	if key != "" {
 		delete(sshClients, key)
 	}
-	_ = client.Close()
+	_ = client.Client.Close()
 }

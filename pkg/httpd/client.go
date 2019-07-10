@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"io"
+	"sync"
 
 	"github.com/gliderlabs/ssh"
 	socketio "github.com/googollee/go-socket.io"
@@ -20,6 +21,7 @@ type Client struct {
 	Conn      socketio.Conn
 	Closed    bool
 	pty       ssh.Pty
+	lock      *sync.RWMutex
 }
 
 func (c *Client) WinCh() <-chan ssh.Window {
@@ -39,6 +41,11 @@ func (c *Client) Read(p []byte) (n int, err error) {
 }
 
 func (c *Client) Write(p []byte) (n int, err error) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	if c.Closed {
+		return
+	}
 	data := DataMsg{Data: string(p), Room: c.Uuid}
 	n = len(p)
 	c.Conn.Emit("data", data)
@@ -50,6 +57,8 @@ func (c *Client) Pty() ssh.Pty {
 }
 
 func (c *Client) Close() (err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.Closed {
 		return
 	}

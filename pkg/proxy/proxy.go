@@ -23,7 +23,7 @@ type ProxyServer struct {
 }
 
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
-func (p *ProxyServer) getSystemUserAuthOrManualSet() {
+func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 	info := service.GetSystemUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID)
 	p.SystemUser.Password = info.Password
 	p.SystemUser.PrivateKey = info.PrivateKey
@@ -41,19 +41,24 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() {
 		line, err := term.ReadPassword(fmt.Sprintf("%s's password: ", p.SystemUser.Username))
 		if err != nil {
 			logger.Errorf("Get password from user err %s", err.Error())
+			return err
 		}
 		p.SystemUser.Password = line
 		logger.Debug("Get password from user input: ", line)
 	}
+	return nil
 }
 
 // getSystemUserUsernameIfNeed 获取系统用户用户名，或手动设置
-func (p *ProxyServer) getSystemUserUsernameIfNeed() {
+func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
 	if p.SystemUser.Username == "" {
 		var username string
 		term := utils.NewTerminal(p.UserConn, "username: ")
 		for {
-			username, _ = term.ReadLine()
+			username, err = term.ReadLine()
+			if err != nil {
+				return err
+			}
 			username = strings.TrimSpace(username)
 			if username != "" {
 				break
@@ -62,6 +67,7 @@ func (p *ProxyServer) getSystemUserUsernameIfNeed() {
 		p.SystemUser.Username = username
 		logger.Debug("Get username from user input: ", username)
 	}
+	return
 }
 
 // checkProtocolMatch 检查协议是否匹配
@@ -131,8 +137,14 @@ func (p *ProxyServer) getServerConnFromCache() (srvConn srvconn.ServerConnection
 
 // getServerConn 获取获取server连接
 func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
-	p.getSystemUserUsernameIfNeed()
-	p.getSystemUserAuthOrManualSet()
+	err = p.getSystemUserUsernameIfNeed()
+	if err != nil {
+		return
+	}
+	err = p.getSystemUserAuthOrManualSet()
+	if err != nil {
+		return
+	}
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
@@ -213,7 +225,6 @@ func (p *ProxyServer) Proxy() {
 	if err != nil || srvConn == nil {
 		srvConn, err = p.getServerConn()
 	}
-
 	// 连接后端服务器失败
 	if err != nil {
 		p.sendConnectErrorMsg(err)
@@ -224,9 +235,6 @@ func (p *ProxyServer) Proxy() {
 	if err != nil {
 		return
 	}
+	defer RemoveSession(sw)
 	_ = sw.Bridge(p.UserConn, srvConn)
-	defer func() {
-		_ = srvConn.Close()
-		RemoveSession(sw)
-	}()
 }
