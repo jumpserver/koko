@@ -10,7 +10,6 @@ import (
 
 	"github.com/LeeEirc/elfinder"
 	"github.com/pkg/sftp"
-	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -126,7 +125,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return rest, err
 		}
@@ -205,7 +204,7 @@ func (u *UserVolume) List(path string) []elfinder.FileDir {
 		if err != nil {
 			return dirs
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return dirs
 		}
@@ -284,7 +283,7 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 		if err != nil {
 			return nil, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return nil, err
 		}
@@ -355,7 +354,7 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return rest, err
 		}
@@ -462,7 +461,7 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return rest, err
 		}
@@ -567,7 +566,7 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return rest, err
 		}
@@ -640,7 +639,7 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return rest, err
 		}
@@ -708,7 +707,7 @@ func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, erro
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return rest, err
 		}
@@ -783,7 +782,7 @@ func (u *UserVolume) Remove(path string) error {
 		if err != nil {
 			return os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return err
 		}
@@ -854,7 +853,7 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 		if err != nil {
 			return rest, os.ErrPermission
 		}
-		sysUserVol.homeDirpath, err = sftClient.Getwd()
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
 		if err != nil {
 			return rest, err
 		}
@@ -905,12 +904,12 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	return resFDir
 }
 
-func (u *UserVolume) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (sftpClient *sftp.Client, sshClient *gossh.Client, err error) {
+func (u *UserVolume) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (sftpClient *sftp.Client, sshClient *srvconn.SSHClient, err error) {
 	sshClient, err = srvconn.NewClient(u.user, asset, sysUser, config.GetConf().SSHTimeout*time.Second)
 	if err != nil {
 		return
 	}
-	sftpClient, err = sftp.NewClient(sshClient)
+	sftpClient, err = sftp.NewClient(sshClient.Client)
 	if err != nil {
 		return
 	}
@@ -973,9 +972,9 @@ type sysUserVolume struct {
 	rootPath   string
 	systemUser *model.SystemUser
 
-	homeDirpath string
+	homeDirPath string
 	client      *sftp.Client
-	conn        *gossh.Client
+	conn        *srvconn.SSHClient
 }
 
 func (su *sysUserVolume) info() elfinder.FileDir {
@@ -994,7 +993,7 @@ func (su *sysUserVolume) ParsePath(path string) string {
 	var realPath string
 	switch strings.ToLower(su.rootPath) {
 	case "home", "~", "":
-		realPath = strings.ReplaceAll(path, su.suPath, su.homeDirpath)
+		realPath = strings.ReplaceAll(path, su.suPath, su.homeDirPath)
 	default:
 		realPath = strings.ReplaceAll(path, su.suPath, su.rootPath)
 	}

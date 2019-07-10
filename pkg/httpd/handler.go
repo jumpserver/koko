@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/gliderlabs/ssh"
 	socketio "github.com/googollee/go-socket.io"
@@ -83,11 +84,11 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 	ctx := s.Context().(WebContext)
 	userR, userW := io.Pipe()
 	conn := conns.GetWebConn(s.ID())
-	addr,_,_ := net.SplitHostPort(s.RemoteAddr().String())
+	addr, _, _ := net.SplitHostPort(s.RemoteAddr().String())
 	client := &Client{
-		Uuid: clientID, Cid: conn.Cid, user: conn.User,addr:addr,
+		Uuid: clientID, Cid: conn.Cid, user: conn.User, addr: addr,
 		WinChan: make(chan ssh.Window, 100), Conn: s,
-		UserRead: userR, UserWrite: userW,
+		UserRead: userR, UserWrite: userW, lock: new(sync.RWMutex),
 		pty: ssh.Pty{Term: "xterm", Window: win},
 	}
 	client.WinChan <- win
@@ -97,6 +98,7 @@ func OnHostHandler(s socketio.Conn, message HostMsg) {
 		Asset: &asset, SystemUser: &systemUser,
 	}
 	go func() {
+		defer logger.Debug("web proxy end")
 		proxySrv.Proxy()
 		s.Emit("logout", RoomMsg{Room: clientID})
 	}()
@@ -148,7 +150,7 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 	client := Client{
 		Uuid: clientID, Cid: conn.Cid, user: conn.User,
 		WinChan: make(chan ssh.Window, 100), Conn: s,
-		UserRead: userR, UserWrite: userW,
+		UserRead: userR, UserWrite: userW, lock: new(sync.RWMutex),
 		pty: ssh.Pty{Term: "xterm", Window: win},
 	}
 	client.WinChan <- win
@@ -159,6 +161,7 @@ func OnTokenHandler(s socketio.Conn, message TokenMsg) {
 		Asset: &asset, SystemUser: &systemUser,
 	}
 	go func() {
+		defer logger.Debug("web proxy end")
 		proxySrv.Proxy()
 		s.Emit("logout", RoomMsg{Room: clientID})
 	}()
