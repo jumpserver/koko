@@ -51,12 +51,15 @@ type sftpHandler struct {
 	assets   model.AssetList
 	rootPath string //  tmp || home || ~
 	hosts    map[string]*HostNameDir
+
+	permCache map[string]bool
 }
 
 func (fs *sftpHandler) initial() {
 	fs.loadAssets()
 	fs.hosts = make(map[string]*HostNameDir)
 	fs.rootPath = config.GetConf().SftpRoot
+	fs.permCache = make(map[string]bool)
 	for i, item := range fs.assets {
 		tmpDir := &HostNameDir{
 			rootPath: fs.rootPath,
@@ -401,9 +404,16 @@ func (fs *sftpHandler) Close() {
 }
 
 func (fs *sftpHandler) validatePermission(aid, suid, operate string) bool {
-	return service.ValidateUserAssetPermission(
+	permKey := fmt.Sprintf("%s_%s_%s", aid, suid, operate)
+	permission, ok := fs.permCache[permKey]
+	if ok {
+		return permission
+	}
+	permission = service.ValidateUserAssetPermission(
 		fs.user.ID, aid, suid, operate,
 	)
+	fs.permCache[permKey] = permission
+	return permission
 }
 
 type HostNameDir struct {
