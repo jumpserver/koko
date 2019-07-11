@@ -48,6 +48,8 @@ type UserVolume struct {
 	hosts    map[string]*hostnameVolume
 
 	localTmpPath string
+
+	permCache map[string]bool
 }
 
 func (u *UserVolume) initial() {
@@ -55,6 +57,7 @@ func (u *UserVolume) initial() {
 	u.loadAssets()
 	u.rootPath = conf.SftpRoot
 	u.localTmpPath = filepath.Join(conf.RootPath, "data", "tmp")
+	u.permCache = make(map[string]bool)
 	_ = common.EnsureDirExist(u.localTmpPath)
 	u.hosts = make(map[string]*hostnameVolume)
 	for i, item := range u.assets {
@@ -939,9 +942,16 @@ func (u *UserVolume) CreateFTPLog(data *model.FTPLog) {
 }
 
 func (u *UserVolume) validatePermission(aid, suid, operate string) bool {
-	return service.ValidateUserAssetPermission(
+	permKey := fmt.Sprintf("%s_%s_%s", aid, suid, operate)
+	permission, ok := u.permCache[permKey]
+	if ok {
+		return permission
+	}
+	permission = service.ValidateUserAssetPermission(
 		u.user.ID, aid, suid, operate,
 	)
+	u.permCache[permKey] = permission
+	return permission
 }
 
 type hostnameVolume struct {
