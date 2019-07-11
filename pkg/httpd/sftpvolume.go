@@ -10,7 +10,6 @@ import (
 
 	"github.com/LeeEirc/elfinder"
 	"github.com/pkg/sftp"
-	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -121,16 +120,21 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 		return rest, os.ErrPermission
 	}
 
-	realPath := sysUserVol.ParsePath(path)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return rest, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 
 	}
+
+	realPath := sysUserVol.ParsePath(path)
 	dirname := filepath.Dir(path)
 	fileInfos, err := sysUserVol.client.Stat(realPath)
 	if err != nil {
@@ -194,16 +198,21 @@ func (u *UserVolume) List(path string) []elfinder.FileDir {
 	if !ok {
 		return dirs
 	}
-	realPath := sysUserVol.ParsePath(path)
 
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return dirs
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return dirs
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 	}
+
+	realPath := sysUserVol.ParsePath(path)
 	subFiles, err := sysUserVol.client.ReadDir(realPath)
 	if err != nil {
 		return dirs
@@ -269,16 +278,21 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 		return nil, os.ErrPermission
 	}
 
-	realPath := sysUserVol.ParsePath(path)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return nil, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return nil, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 
 	}
+
+	realPath := sysUserVol.ParsePath(path)
 	logData := &model.FTPLog{
 		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
@@ -334,16 +348,22 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 	if !ok {
 		return rest, os.ErrNotExist
 	}
-	realPath := sysUserVol.ParsePath(dir)
+
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return rest, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 
 	}
+
+	realPath := sysUserVol.ParsePath(dir)
 	realFilenamePath := filepath.Join(realPath, filename)
 	if !u.validatePermission(hostVol.asset.ID, sysUserVol.systemUser.ID, model.UploadAction) {
 		return rest, os.ErrPermission
@@ -436,16 +456,21 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfin
 		return rest, os.ErrPermission
 	}
 
-	realDirPath := sysUserVol.ParsePath(dirPath)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return rest, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 
 	}
+
+	realDirPath := sysUserVol.ParsePath(dirPath)
 	filenamePath := filepath.Join(realDirPath, filename)
 	logData := &model.FTPLog{
 		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
@@ -536,15 +561,20 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 		return rest, os.ErrPermission
 	}
 
-	realPath := sysUserVol.ParsePath(dir)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return rest, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 	}
+
+	realPath := sysUserVol.ParsePath(dir)
 	realDirPath := filepath.Join(realPath, newDirname)
 	err := sysUserVol.client.MkdirAll(realDirPath)
 	logData := &model.FTPLog{
@@ -604,16 +634,21 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 		return rest, os.ErrPermission
 	}
 
-	realPath := sysUserVol.ParsePath(dir)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return rest, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 
 	}
+
+	realPath := sysUserVol.ParsePath(dir)
 	realFilePath := filepath.Join(realPath, newFilename)
 	_, err := sysUserVol.client.Create(realFilePath)
 	logData := &model.FTPLog{
@@ -667,16 +702,21 @@ func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, erro
 		return rest, os.ErrPermission
 	}
 
-	realPath := sysUserVol.ParsePath(oldNamePath)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return rest, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 
 	}
+
+	realPath := sysUserVol.ParsePath(oldNamePath)
 	dirpath := filepath.Dir(realPath)
 	newFilePath := filepath.Join(dirpath, newName)
 
@@ -737,16 +777,21 @@ func (u *UserVolume) Remove(path string) error {
 		return os.ErrPermission
 	}
 
-	realPath := sysUserVol.ParsePath(path)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 
 	}
+
+	realPath := sysUserVol.ParsePath(path)
 	logData := &model.FTPLog{
 		User:       fmt.Sprintf("%s (%s)", u.user.Name, u.user.Username),
 		Hostname:   hostVol.asset.Hostname,
@@ -803,16 +848,20 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 		return rest, os.ErrPermission
 	}
 
-	realPath := sysUserVol.ParsePath(dir)
 	if sysUserVol.client == nil {
 		sftClient, conn, err := u.GetSftpClient(hostVol.asset, sysUserVol.systemUser)
 		if err != nil {
 			return rest, os.ErrPermission
 		}
+		sysUserVol.homeDirPath, err = sftClient.Getwd()
+		if err != nil {
+			return rest, err
+		}
 		sysUserVol.client = sftClient
 		sysUserVol.conn = conn
 	}
 
+	realPath := sysUserVol.ParsePath(dir)
 	realFilePath := filepath.Join(realPath, filename)
 	_, err := sysUserVol.client.Stat(realFilePath)
 	if err != nil {
@@ -855,12 +904,12 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	return resFDir
 }
 
-func (u *UserVolume) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (sftpClient *sftp.Client, sshClient *gossh.Client, err error) {
+func (u *UserVolume) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (sftpClient *sftp.Client, sshClient *srvconn.SSHClient, err error) {
 	sshClient, err = srvconn.NewClient(u.user, asset, sysUser, config.GetConf().SSHTimeout*time.Second)
 	if err != nil {
 		return
 	}
-	sftpClient, err = sftp.NewClient(sshClient)
+	sftpClient, err = sftp.NewClient(sshClient.Client)
 	if err != nil {
 		return
 	}
@@ -923,8 +972,9 @@ type sysUserVolume struct {
 	rootPath   string
 	systemUser *model.SystemUser
 
-	client *sftp.Client
-	conn   *gossh.Client
+	homeDirPath string
+	client      *sftp.Client
+	conn        *srvconn.SSHClient
 }
 
 func (su *sysUserVolume) info() elfinder.FileDir {
@@ -940,7 +990,13 @@ func (su *sysUserVolume) info() elfinder.FileDir {
 }
 
 func (su *sysUserVolume) ParsePath(path string) string {
-	realPath := strings.ReplaceAll(path, su.suPath, su.rootPath)
+	var realPath string
+	switch strings.ToLower(su.rootPath) {
+	case "home", "~", "":
+		realPath = strings.ReplaceAll(path, su.suPath, su.homeDirPath)
+	default:
+		realPath = strings.ReplaceAll(path, su.suPath, su.rootPath)
+	}
 	logger.Debug("real path: ", realPath)
 	return realPath
 }

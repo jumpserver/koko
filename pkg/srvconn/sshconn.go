@@ -16,7 +16,7 @@ type ServerSSHConnection struct {
 	SystemUser *model.SystemUser
 	Overtime   time.Duration
 
-	client    *gossh.Client
+	client    *SSHClient
 	session   *gossh.Session
 	stdin     io.WriteCloser
 	stdout    io.Reader
@@ -28,8 +28,12 @@ func (sc *ServerSSHConnection) Protocol() string {
 	return "ssh"
 }
 
+func (sc *ServerSSHConnection) Username() string {
+	return sc.client.Username
+}
+
 func (sc *ServerSSHConnection) invokeShell(h, w int, term string) (err error) {
-	sess, err := sc.client.NewSession()
+	sess, err := sc.client.Client.NewSession()
 	if err != nil {
 		return
 	}
@@ -74,6 +78,7 @@ func (sc *ServerSSHConnection) TryConnectFromCache(h, w int, term string) (err e
 	if sc.client == nil {
 		return errors.New("no client in cache")
 	}
+
 	err = sc.invokeShell(h, w, term)
 	if err != nil {
 		RecycleClient(sc.client)

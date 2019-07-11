@@ -12,7 +12,6 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/pkg/sftp"
-	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/common"
@@ -116,7 +115,6 @@ func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	if !ok {
 		return nil, sftp.ErrSshFxNoSuchFile
 	}
-	realPath = sysUserDir.ParsePath(r.Filepath)
 
 	if !fs.validatePermission(hostDir.asset.ID, sysUserDir.systemUser.ID, model.ConnectAction) {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -127,10 +125,15 @@ func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		if err != nil {
 			return nil, sftp.ErrSshFxPermissionDenied
 		}
+		sysUserDir.homeDirPath, err = client.Getwd()
+		if err != nil {
+			return nil, err
+		}
 		sysUserDir.client = client
 		sysUserDir.conn = conn
 	}
 
+	realPath = sysUserDir.ParsePath(r.Filepath)
 	switch r.Method {
 	case "List":
 		logger.Debug("List method")
@@ -188,6 +191,10 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 		client, conn, err := fs.GetSftpClient(hostDir.asset, suDir.systemUser)
 		if err != nil {
 			return sftp.ErrSshFxPermissionDenied
+		}
+		suDir.homeDirPath, err = client.Getwd()
+		if err != nil {
+			return err
 		}
 		suDir.client = client
 		suDir.conn = conn
@@ -267,6 +274,10 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		if err != nil {
 			return nil, sftp.ErrSshFxPermissionDenied
 		}
+		suDir.homeDirPath, err = client.Getwd()
+		if err != nil {
+			return nil, err
+		}
 		suDir.client = client
 		suDir.conn = conn
 	}
@@ -324,6 +335,10 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		if err != nil {
 			return nil, sftp.ErrSshFxPermissionDenied
 		}
+		suDir.homeDirPath, err = ftpClient.Getwd()
+		if err != nil {
+			return nil, err
+		}
 		suDir.client = ftpClient
 		suDir.conn = client
 	}
@@ -348,12 +363,12 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	return NewReaderAt(f), err
 }
 
-func (fs *sftpHandler) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (sftpClient *sftp.Client, sshClient *gossh.Client, err error) {
+func (fs *sftpHandler) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (sftpClient *sftp.Client, sshClient *srvconn.SSHClient, err error) {
 	sshClient, err = srvconn.NewClient(fs.user, asset, sysUser, config.GetConf().SSHTimeout*time.Second)
 	if err != nil {
 		return
 	}
-	sftpClient, err = sftp.NewClient(sshClient)
+	sftpClient, err = sftp.NewClient(sshClient.Client)
 	if err != nil {
 		return
 	}
@@ -416,13 +431,14 @@ func (h *HostNameDir) Sys() interface{} {
 }
 
 type SysUserDir struct {
-	ID         string
-	prefix     string
-	rootPath   string
-	systemUser *model.SystemUser
-	time       time.Time
-	client     *sftp.Client
-	conn       *gossh.Client
+	ID          string
+	prefix      string
+	rootPath    string
+	systemUser  *model.SystemUser
+	time        time.Time
+	homeDirPath string
+	client      *sftp.Client
+	conn        *srvconn.SSHClient
 }
 
 func (su *SysUserDir) Name() string { return su.systemUser.Name }
@@ -443,10 +459,14 @@ func (su *SysUserDir) Sys() interface{} {
 
 func (su *SysUserDir) ParsePath(path string) string {
 	var realPath string
-	realPath = strings.ReplaceAll(path, su.prefix, su.rootPath)
+	switch strings.ToLower(su.rootPath) {
+	case "home", "~", "":
+		realPath = strings.ReplaceAll(path, su.prefix, su.homeDirPath)
+	default:
+		realPath = strings.ReplaceAll(path, su.prefix, su.rootPath)
+	}
 	logger.Debug("real path: ", realPath)
 	return realPath
-
 }
 
 type FakeFile struct {
