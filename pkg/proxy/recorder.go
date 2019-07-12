@@ -12,6 +12,7 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/service"
 )
 
 func NewCommandRecorder(sid string) (recorder *CommandRecorder) {
@@ -80,6 +81,7 @@ func (c *CommandRecorder) record() {
 		err := c.storage.BulkSave(cmdList)
 		if err == nil {
 			cmdList = cmdList[:0]
+			maxRetry = 0
 			continue
 		}
 
@@ -168,7 +170,7 @@ func (r *ReplyRecorder) uploadReplay() {
 }
 
 func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
-	if r.storage == nil{
+	if r.storage == nil {
 		r.backOffStorage = defaultReplayStorage
 		r.storage = NewReplayStorage()
 	}
@@ -177,6 +179,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		err := r.storage.Upload(r.AbsGzFilePath, r.Target)
 		if err == nil {
 			_ = os.Remove(r.AbsGzFilePath)
+			service.FinishReply(r.sessionID)
 			break
 		}
 		// 如果还是失败，使用备用storage再传一次
