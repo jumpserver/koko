@@ -1,6 +1,6 @@
 FROM golang:1.12-alpine as stage-build
 LABEL stage=stage-build
-WORKDIR /opt/koko
+WORKDIR /opt/coco
 ARG GOPROXY
 ENV GOPROXY=$GOPROXY
 ENV GO111MODULE=on
@@ -9,10 +9,10 @@ RUN cd cmd && go build koko.go
 
 FROM alpine
 WORKDIR /opt/coco/
-COPY --from=stage-build /opt/koko/cmd/koko .
-COPY --from=stage-build /opt/koko/cmd/locale/ locale
-COPY --from=stage-build /opt/koko/cmd/static/ static
-COPY --from=stage-build /opt/koko/cmd/templates/ templates
+COPY --from=stage-build /opt/coco/cmd/koko .
+COPY --from=stage-build /opt/coco/cmd/locale/ locale
+COPY --from=stage-build /opt/coco/cmd/static/ static
+COPY --from=stage-build /opt/coco/cmd/templates/ templates
 COPY cmd/config_example.yml .
 COPY entrypoint.sh .
 RUN chmod 755 ./entrypoint.sh \
