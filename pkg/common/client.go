@@ -170,7 +170,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 	if res != nil {
 		err = json.Unmarshal(body, res)
 		if err != nil {
-			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body, err)
+			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body[:12], err)
 			err = errors.New(msg)
 			return
 		}
