@@ -67,7 +67,7 @@ func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandl
 		user:            user,
 		term:            term,
 		mu:              new(sync.RWMutex),
-		finishedLoaded:  make(chan struct{}),
+		nodeDataLoaded:  make(chan struct{}),
 		assetDataLoaded: make(chan struct{}),
 	}
 	handler.Initial()
