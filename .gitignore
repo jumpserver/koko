@@ -12,7 +12,6 @@
 *.out
 data/
 log/
-go.sum
 .idea/
 vendor/
 config.yml
