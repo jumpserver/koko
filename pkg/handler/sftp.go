@@ -385,7 +385,6 @@ func (fs *sftpHandler) CreateFTPLog(data *model.FTPLog) {
 			break
 		}
 		logger.Debugf("create FTP log err: %s", err.Error())
-		time.Sleep(500 * time.Millisecond)
 	}
 }
 
