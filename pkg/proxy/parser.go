@@ -112,6 +112,13 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	}
 	p.inputPreState = p.inputState
 	if bytes.Contains(b, charEnter) {
+		// 连续输入enter key, 结算上一条可能存在的命令结果
+		if p.command != ""{
+			p.parseCmdOutput()
+			p.cmdRecordChan <- [2]string{p.command, p.output}
+			p.command = ""
+			p.output = ""
+		}
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
@@ -127,6 +134,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		if !p.inputPreState {
 			p.parseCmdOutput()
 			p.cmdRecordChan <- [2]string{p.command, p.output}
+			p.command = ""
+			p.output = ""
 		}
 	}
 	return b
