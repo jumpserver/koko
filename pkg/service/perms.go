@@ -9,26 +9,26 @@ import (
 
 func GetUserAssets(userID, cachePolicy string) (assets model.AssetList) {
 	if cachePolicy == "" {
-		cachePolicy = "0"
+		cachePolicy = "1"
 	}
 	payload := map[string]string{"cache_policy": cachePolicy}
 	Url := fmt.Sprintf(UserAssetsURL, userID)
 	err := authClient.Get(Url, &assets, payload)
 	if err != nil {
-		logger.Error("GetUserAssets---err")
+		logger.Error("Get user assets error: ", err)
 	}
 	return
 }
 
 func GetUserNodes(userID, cachePolicy string) (nodes model.NodeList) {
 	if cachePolicy == "" {
-		cachePolicy = "0"
+		cachePolicy = "1"
 	}
 	payload := map[string]string{"cache_policy": cachePolicy}
 	Url := fmt.Sprintf(UserNodesAssetsURL, userID)
 	err := authClient.Get(Url, &nodes, payload)
 	if err != nil {
-		logger.Error("GetUserNodes err")
+		logger.Error("Get user nodes error: ", err)
 	}
 	return
 }
@@ -39,6 +39,7 @@ func ValidateUserAssetPermission(userID, assetID, systemUserID, action string) b
 		"asset_id":       assetID,
 		"system_user_id": systemUserID,
 		"action_name":    action,
+		"cache_policy":   "1",
 	}
 	Url := ValidateUserAssetPermissionURL
 	var res struct {
