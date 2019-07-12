@@ -101,7 +101,7 @@ func (h *interactiveHandler) loadAssetsFromCache() {
 		go h.firstLoadAssetAndNodes()
 	} else {
 		h.assets = make([]model.Asset, 0)
-		h.firstLoadAssetAndNodes()
+		go h.firstLoadAssetAndNodes()
 	}
 }
 
@@ -159,7 +159,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 
 		if err != nil {
 			if err != io.EOF {
-				logger.Debug("user disconnected")
+				logger.Debug("User disconnected")
 			} else {
 				logger.Error("Read from user err: ", err)
 			}
