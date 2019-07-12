@@ -18,7 +18,7 @@ koko是golang版本的的coco；重构了coco的SSH/SFTP服务和web terminal服
 1.下载项目
 
 ```shell
-go get github.com/jumpserver/koko.git
+go get github.com/jumpserver/koko
 ```
 
 2.下载依赖包
