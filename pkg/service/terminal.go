@@ -102,7 +102,7 @@ func PushSessionCommand(commands []*model.Command) (err error) {
 }
 
 func PushFTPLog(data *model.FTPLog) (err error) {
-	err = authClient.Post(FTPLogList, data, nil)
+	err = authClient.Post(FTPLogListURL, data, nil)
 	if err != nil {
 		logger.Error(err)
 	}
