@@ -37,6 +37,7 @@ var sshEvents = neffos.Namespaces{
 		"resize": OnResizeHandler,
 		"host": OnHostHandler,
 		"logout": OnLogoutHandler,
+		"token": OnTokenHandler,
 	},
 }
 
@@ -74,8 +75,6 @@ func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	}
 	remoteIP = strings.Split(remoteAddr, ",")[0]
 	logger.Infof("Accepted %s connect websocket from %s", user.Username, remoteIP)
-	//conn := newWebConn(c.Conn.ID(), c, remoteIP, user)
-	//clients.AddClient(cc.ID(), cl)
 	return nil
 }
 
@@ -101,12 +100,12 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	if err != nil {
 		return
 	}
+	fmt.Println("Host msg: ", message)
 	win := ssh.Window{Height: 24, Width: 80}
 	assetID := message.Uuid
 	systemUserID := message.UserID
 	secret := message.Secret
 	width, height := message.Size[0], message.Size[1]
-	fmt.Println("1")
 	if width != 0 {
 		win.Width = width
 	}
@@ -162,67 +161,55 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 }
 
 // OnTokenHandler 当使用token连接时触发
-//func OnTokenHandler(c *neffos.NSConn, message HostMsg) {
-//	logger.Debug("Web terminal on token event trigger")
-//	win := ssh.Window{Height: 24, Width: 80}
-//	token := message.Token
-//	secret := message.Secret
-//	width, height := message.Size[0], message.Size[1]
-//	if width != 0 {
-//		win.Width = width
-//	}
-//	if height != 0 {
-//		win.Height = height
-//	}
-//	clientID := uuid.NewV4().String()
-//	emitMs := RoomMsg{clientID, secret}
-//	s.Emit("room", emitMs)
-//
-//	// check token
-//	if token == "" || secret == "" {
-//		msg := fmt.Sprintf("Token or secret is None: %s %s", token, secret)
-//		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
-//		s.Emit("data", dataMsg)
-//		s.Emit("disconnect")
-//	}
-//	tokenUser := service.GetTokenAsset(token)
-//	if tokenUser.UserID == "" {
-//		msg := "Token info is none, maybe token expired"
-//		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
-//		s.Emit("data", dataMsg)
-//		s.Emit("disconnect")
-//	}
-//
-//	currentUser := service.GetUserDetail(tokenUser.UserID)
-//	asset := service.GetAsset(tokenUser.AssetID)
-//	systemUser := service.GetSystemUser(tokenUser.SystemUserID)
-//
-//	if asset.ID == "" || systemUser.ID == "" {
-//		return
-//	}
-//
-//	userR, userW := io.Pipe()
-//	conn := clients.GetWebClient(s.ID())
-//	conn.User = currentUser
-//	client := Client{
-//		Uuid: clientID, Cid: conn.Cid, user: conn.User,
-//		WinChan: make(chan ssh.Window, 100), Conn: s,
-//		UserRead: userR, UserWrite: userW, mu: new(sync.RWMutex),
-//		pty: ssh.Pty{Term: "xterm", Window: win},
-//	}
-//	client.WinChan <- win
-//	conn.AddClient(clientID, &client)
-//
-//	proxySrv := proxy.ProxyServer{
-//		UserConn: &client, User: currentUser,
-//		Asset: &asset, SystemUser: &systemUser,
-//	}
-//	go func() {
-//		defer logger.Debug("web proxy end")
-//		proxySrv.Proxy()
-//		s.Emit("logout", RoomMsg{Room: clientID})
-//	}()
-//}
+func OnTokenHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
+	logger.Debug("Web terminal on token event trigger")
+	cc := c.Conn
+	var message TokenMsg
+	err = msg.Unmarshal(&message)
+	if err != nil {
+		return
+	}
+	token := message.Token
+	secret := message.Secret
+	clientID := uuid.NewV4().String()
+	roomMsg := RoomMsg{clientID, secret}
+	c.Emit("room", neffos.Marshal(roomMsg))
+
+	// check token
+	if token == "" || secret == "" {
+		msg := fmt.Sprintf("Token or secret is None: %s %s", token, secret)
+		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
+		c.Emit("data", neffos.Marshal(dataMsg))
+		c.Emit("disconnect", nil)
+	}
+	tokenUser := service.GetTokenAsset(token)
+	if tokenUser.UserID == "" {
+		msg := "Token info is none, maybe token expired"
+		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
+		c.Emit("data", neffos.Marshal(dataMsg))
+		c.Emit("disconnect", nil)
+	}
+
+	currentUser := service.GetUserDetail(tokenUser.UserID)
+
+	if currentUser == nil {
+		msg := "User id error"
+		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
+		c.Emit("data", neffos.Marshal(dataMsg))
+		c.Emit("disconnect", nil)
+	}
+
+	cc.Set("currentUser", currentUser)
+	hostMsg := HostMsg{
+		Uuid: tokenUser.AssetID, UserID: tokenUser.SystemUserID,
+		Size: message.Size, Secret:secret,
+	}
+	fmt.Println("Host msg: ", hostMsg)
+	hostWsMsg := neffos.Message{
+		Body:neffos.Marshal(hostMsg),
+	}
+	return OnHostHandler(c, hostWsMsg)
+}
 
 // OnDataHandler 收发数据时触发
 func OnDataHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
