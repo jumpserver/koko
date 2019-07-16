@@ -1,27 +1,57 @@
 package httpd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/model"
 	"io"
 	"net"
 	"strings"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
-	socketio "github.com/googollee/go-socket.io"
-	uuid "github.com/satori/go.uuid"
+	"github.com/kataras/neffos"
+
+	"github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/service"
 )
 
+
+
+var sshEvents = neffos.Namespaces{
+	"ssh": neffos.Events{
+		neffos.OnNamespaceConnected: OnNamespaceConnected,
+		neffos.OnNamespaceDisconnect: OnNamespaceDisconnect,
+		neffos.OnRoomJoined: func(c *neffos.NSConn, msg neffos.Message) error {
+			return nil
+		},
+		neffos.OnRoomLeft: func(c *neffos.NSConn, msg neffos.Message) error {
+			return nil
+		},
+
+		"data": OnDataHandler,
+		"resize": OnResizeHandler,
+		"host": OnHostHandler,
+		"logout": OnLogoutHandler,
+	},
+}
+
 // OnConnectHandler 当websocket连接后触发
-func OnConnectHandler(s socketio.Conn) error {
+func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	// 首次连接 1.获取当前用户的信息
-	logger.Debug("Web terminal on connect event trigger")
-	cookies := strings.Split(s.RemoteHeader().Get("Cookie"), ";")
+	cc := c.Conn
+	if cc.WasReconnected() {
+		logger.Debugf("Web terminal redirected, with tries: %d", cc.ID(), cc.ReconnectTries)
+	} else {
+		logger.Debug("Web terminal on connect event trigger")
+	}
+	request := cc.Socket().Request()
+	header := request.Header
+	cookies := strings.Split(header.Get("Cookie"), ";")
 	var csrfToken, sessionID, remoteIP string
 	for _, line := range cookies {
 		if strings.Contains(line, "csrftoken") {
@@ -37,17 +67,23 @@ func OnConnectHandler(s socketio.Conn) error {
 		logger.Error(msg)
 		return errors.New(strings.ToLower(msg))
 	}
-	remoteAddr := s.RemoteHeader().Get("X-Forwarded-For")
+	cc.Set("currentUser", user)
+	remoteAddr := header.Get("X-Forwarded-For")
 	if remoteAddr == "" {
-		remoteIP = s.RemoteAddr().String()
-	} else {
-		remoteIP = strings.Split(remoteAddr, ",")[0]
+		remoteAddr = request.RemoteAddr
 	}
+	remoteIP = strings.Split(remoteAddr, ",")[0]
 	logger.Infof("Accepted %s connect websocket from %s", user.Username, remoteIP)
-	conn := newWebConn(s.ID(), s, remoteIP, user)
-	ctx := WebContext{User: user, Connection: conn}
-	s.SetContext(ctx)
-	conns.AddWebConn(s.ID(), conn)
+	//conn := newWebConn(c.Conn.ID(), c, remoteIP, user)
+	//clients.AddClient(cc.ID(), cl)
+	return nil
+}
+
+
+// OnDisconnect websocket断开后触发
+func OnNamespaceDisconnect(c *neffos.NSConn, msg neffos.Message) (err error){
+	logger.Debug("On disconnect event trigger")
+	conns.DeleteClients(c.Conn.ID())
 	return nil
 }
 
@@ -57,154 +93,183 @@ func OnErrorHandler(e error) {
 }
 
 // OnHostHandler 当用户连接Host时触发
-func OnHostHandler(s socketio.Conn, message HostMsg) {
+func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	logger.Debug("Web terminal on host event trigger")
+	cc := c.Conn
+	var message HostMsg
+	err = msg.Unmarshal(&message)
+	if err != nil {
+		return
+	}
 	win := ssh.Window{Height: 24, Width: 80}
 	assetID := message.Uuid
 	systemUserID := message.UserID
 	secret := message.Secret
 	width, height := message.Size[0], message.Size[1]
+	fmt.Println("1")
 	if width != 0 {
 		win.Width = width
 	}
 	if height != 0 {
 		win.Height = height
 	}
-	clientID := uuid.NewV4().String()
-	emitMsg := RoomMsg{clientID, secret}
-	s.Emit("room", emitMsg)
+	roomID := uuid.NewV4().String()
+	emitMsg := RoomMsg{roomID, secret}
+	joinRoomMsg, _ := json.Marshal(emitMsg)
+	c.Emit("room", joinRoomMsg)
+	if err != nil {
+		logger.Debug("Join room error occur: ", err)
+		return
+	}
 	asset := service.GetAsset(assetID)
 	systemUser := service.GetSystemUser(systemUserID)
 
 	if asset.ID == "" || systemUser.ID == "" {
+		logger.Debug("No asset id or system user id found, exit")
 		return
 	}
 	logger.Debug("Web terminal want to connect host: ", asset.Hostname)
+	currentUser, ok := cc.Get("currentUser").(*model.User)
+	if !ok {
+		return errors.New("not found current user")
+	}
 
-	ctx := s.Context().(WebContext)
 	userR, userW := io.Pipe()
-	conn := conns.GetWebConn(s.ID())
-	addr, _, _ := net.SplitHostPort(s.RemoteAddr().String())
+	addr, _, _ := net.SplitHostPort(cc.Socket().Request().RemoteAddr)
 	client := &Client{
-		Uuid: clientID, Cid: conn.Cid, user: conn.User, addr: addr,
-		WinChan: make(chan ssh.Window, 100), Conn: s,
-		UserRead: userR, UserWrite: userW, lock: new(sync.RWMutex),
+		Uuid: roomID, user: currentUser, addr: addr,
+		WinChan: make(chan ssh.Window, 100), Conn: c,
+		UserRead: userR, UserWrite: userW, mu: new(sync.RWMutex),
 		pty: ssh.Pty{Term: "xterm", Window: win},
 	}
+	user := cc.Get("currentUser").(*model.User)
 	client.WinChan <- win
-	conn.AddClient(clientID, client)
+	clients.AddClient(roomID, client)
+	conns.AddClient(cc.ID(), roomID)
 	proxySrv := proxy.ProxyServer{
-		UserConn: client, User: ctx.User,
+		UserConn: client, User: user,
 		Asset: &asset, SystemUser: &systemUser,
 	}
 	go func() {
 		defer logger.Debug("web proxy end")
+		logger.Debug("Start proxy")
 		proxySrv.Proxy()
-		s.Emit("logout", RoomMsg{Room: clientID})
+		logoutMsg, _ := json.Marshal(RoomMsg{Room: roomID})
+		c.Emit("logout", logoutMsg)
+		clients.DeleteClient(roomID)
 	}()
+	return nil
 }
 
 // OnTokenHandler 当使用token连接时触发
-func OnTokenHandler(s socketio.Conn, message TokenMsg) {
-	logger.Debug("Web terminal on token event trigger")
-	win := ssh.Window{Height: 24, Width: 80}
-	token := message.Token
-	secret := message.Secret
-	width, height := message.Size[0], message.Size[1]
-	if width != 0 {
-		win.Width = width
-	}
-	if height != 0 {
-		win.Height = height
-	}
-	clientID := uuid.NewV4().String()
-	emitMs := RoomMsg{clientID, secret}
-	s.Emit("room", emitMs)
-
-	// check token
-	if token == "" || secret == "" {
-		msg := fmt.Sprintf("Token or secret is None: %s %s", token, secret)
-		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
-		s.Emit("data", dataMsg)
-		s.Emit("disconnect")
-	}
-	tokenUser := service.GetTokenAsset(token)
-	if tokenUser.UserID == "" {
-		msg := "Token info is none, maybe token expired"
-		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
-		s.Emit("data", dataMsg)
-		s.Emit("disconnect")
-	}
-
-	currentUser := service.GetUserDetail(tokenUser.UserID)
-	asset := service.GetAsset(tokenUser.AssetID)
-	systemUser := service.GetSystemUser(tokenUser.SystemUserID)
-
-	if asset.ID == "" || systemUser.ID == "" {
-		return
-	}
-
-	userR, userW := io.Pipe()
-	conn := conns.GetWebConn(s.ID())
-	conn.User = currentUser
-	client := Client{
-		Uuid: clientID, Cid: conn.Cid, user: conn.User,
-		WinChan: make(chan ssh.Window, 100), Conn: s,
-		UserRead: userR, UserWrite: userW, lock: new(sync.RWMutex),
-		pty: ssh.Pty{Term: "xterm", Window: win},
-	}
-	client.WinChan <- win
-	conn.AddClient(clientID, &client)
-
-	proxySrv := proxy.ProxyServer{
-		UserConn: &client, User: currentUser,
-		Asset: &asset, SystemUser: &systemUser,
-	}
-	go func() {
-		defer logger.Debug("web proxy end")
-		proxySrv.Proxy()
-		s.Emit("logout", RoomMsg{Room: clientID})
-	}()
-}
+//func OnTokenHandler(c *neffos.NSConn, message HostMsg) {
+//	logger.Debug("Web terminal on token event trigger")
+//	win := ssh.Window{Height: 24, Width: 80}
+//	token := message.Token
+//	secret := message.Secret
+//	width, height := message.Size[0], message.Size[1]
+//	if width != 0 {
+//		win.Width = width
+//	}
+//	if height != 0 {
+//		win.Height = height
+//	}
+//	clientID := uuid.NewV4().String()
+//	emitMs := RoomMsg{clientID, secret}
+//	s.Emit("room", emitMs)
+//
+//	// check token
+//	if token == "" || secret == "" {
+//		msg := fmt.Sprintf("Token or secret is None: %s %s", token, secret)
+//		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
+//		s.Emit("data", dataMsg)
+//		s.Emit("disconnect")
+//	}
+//	tokenUser := service.GetTokenAsset(token)
+//	if tokenUser.UserID == "" {
+//		msg := "Token info is none, maybe token expired"
+//		dataMsg := EmitDataMsg{Data: msg, Room: clientID}
+//		s.Emit("data", dataMsg)
+//		s.Emit("disconnect")
+//	}
+//
+//	currentUser := service.GetUserDetail(tokenUser.UserID)
+//	asset := service.GetAsset(tokenUser.AssetID)
+//	systemUser := service.GetSystemUser(tokenUser.SystemUserID)
+//
+//	if asset.ID == "" || systemUser.ID == "" {
+//		return
+//	}
+//
+//	userR, userW := io.Pipe()
+//	conn := clients.GetWebClient(s.ID())
+//	conn.User = currentUser
+//	client := Client{
+//		Uuid: clientID, Cid: conn.Cid, user: conn.User,
+//		WinChan: make(chan ssh.Window, 100), Conn: s,
+//		UserRead: userR, UserWrite: userW, mu: new(sync.RWMutex),
+//		pty: ssh.Pty{Term: "xterm", Window: win},
+//	}
+//	client.WinChan <- win
+//	conn.AddClient(clientID, &client)
+//
+//	proxySrv := proxy.ProxyServer{
+//		UserConn: &client, User: currentUser,
+//		Asset: &asset, SystemUser: &systemUser,
+//	}
+//	go func() {
+//		defer logger.Debug("web proxy end")
+//		proxySrv.Proxy()
+//		s.Emit("logout", RoomMsg{Room: clientID})
+//	}()
+//}
 
 // OnDataHandler 收发数据时触发
-func OnDataHandler(s socketio.Conn, message DataMsg) {
-	cid := message.Room
-	conn := conns.GetWebConn(s.ID())
-	client := conn.GetClient(cid)
+func OnDataHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
+	roomID := msg.Room
+	client := clients.GetClient(roomID)
 	if client == nil {
 		return
 	}
-	_, _ = client.UserWrite.Write([]byte(message.Data))
+
+	var message DataMsg
+	err = msg.Unmarshal(&message)
+	if err != nil {
+		return
+	}
+	_, err = client.UserWrite.Write([]byte(message.Data))
+	return err
 }
 
 // OnResizeHandler 用户窗口改变时触发
-func OnResizeHandler(s socketio.Conn, message ResizeMsg) {
+func OnResizeHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
+	var message ResizeMsg
+	err = msg.Unmarshal(&message)
+	if err != nil {
+		return
+	}
 	logger.Debugf("Web terminal on resize event trigger: %d*%d", message.Width, message.Height)
 	winSize := ssh.Window{Height: message.Height, Width: message.Width}
-	conn := conns.GetWebConn(s.ID())
-	conn.SetWinSize(winSize)
+	for _, room := range c.Rooms() {
+		roomID := room.Name
+		client := clients.GetClient(roomID)
+		if client != nil {
+			client.SetWinSize(winSize)
+		}
+	}
+	return nil
 }
 
 // OnLogoutHandler 用户登出一个会话时触发
-func OnLogoutHandler(s socketio.Conn, message string) {
-	logger.Debug("Web terminal on logout event trigger")
-	conn := conns.GetWebConn(s.ID())
-	if conn == nil {
-		logger.Error("No conn found")
+func OnLogoutHandler(c *neffos.NSConn, msg neffos.Message) (err error){
+	logger.Debug("Web terminal on logout event trigger: ", msg.Room)
+	var message RoomMsg
+	err = msg.Unmarshal(&message)
+	if err != nil {
 		return
 	}
-	client := conn.GetClient(message)
-	if client == nil {
-		logger.Error("No client found")
-		return
-	}
-	_ = client.Close()
+	roomID := message.Room
+	clients.DeleteClient(roomID)
+	return
 }
 
-// OnDisconnect websocket断开后触发
-func OnDisconnect(s socketio.Conn, msg string) {
-	logger.Debug("On disconnect event trigger")
-	conn := conns.GetWebConn(s.ID())
-	conn.Close()
-}

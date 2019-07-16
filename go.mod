@@ -12,11 +12,13 @@ require (
 	github.com/elastic/go-elasticsearch v0.0.0
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/go-playground/form v3.1.4+incompatible
+	github.com/gobwas/ws v1.0.2
 	github.com/googollee/go-socket.io v1.4.2-0.20190317095603-ed07a7212e28
 	github.com/gorilla/mux v1.7.2
 	github.com/gorilla/websocket v1.4.0
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
+	github.com/kataras/neffos v0.0.7
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2
 	github.com/kr/fs v0.1.0
 	github.com/kr/pty v1.1.4

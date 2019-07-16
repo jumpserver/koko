@@ -1,6 +1,8 @@
 package httpd
 
 import (
+	"github.com/kataras/neffos"
+	"github.com/kataras/neffos/gorilla"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -18,19 +20,17 @@ var (
 
 func StartHTTPServer() {
 	conf := config.GetConf()
+	sshWs := neffos.New(gorilla.DefaultUpgrader, sshEvents)
+	sshWs.IDGenerator = func(w http.ResponseWriter, r *http.Request) string {
+		return neffos.DefaultIDGenerator(w, r)
+	}
+	sshWs.OnUpgradeError = func(err error) {
+	}
+
 	server, err := socketio.NewServer(nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	server.OnConnect("/ssh", OnConnectHandler)
-	server.OnDisconnect("/ssh", OnDisconnect)
-	server.OnError("/ssh", OnErrorHandler)
-	server.OnEvent("/ssh", "host", OnHostHandler)
-	server.OnEvent("/ssh", "token", OnTokenHandler)
-	server.OnEvent("/ssh", "data", OnDataHandler)
-	server.OnEvent("/ssh", "resize", OnResizeHandler)
-	server.OnEvent("/ssh", "logout", OnLogoutHandler)
-
 	server.OnConnect("/elfinder", OnELFinderConnect)
 	server.OnDisconnect("/elfinder", OnELFinderDisconnect)
 	server.OnError("/elfiner", OnErrorHandler)
@@ -44,7 +44,7 @@ func StartHTTPServer() {
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
 
-	router.Handle("/socket.io/", server)
+	router.Handle("/socket.io/", sshWs)
 	router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
 	router.HandleFunc("/coco/elfinder/sftp/", AuthDecorator(sftpFinder))
 	router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
@@ -62,6 +62,6 @@ func StopHTTPServer() {
 
 func SocketDisconnect(s socketio.Conn, msg string) {
 	removeUserVolume(s.ID())
-	conns.DeleteWebConn(s.ID())
+	clients.DeleteClient(s.ID())
 	logger.Debug("clean disconnect")
 }
