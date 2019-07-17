@@ -18,27 +18,41 @@ var (
 	httpServer *http.Server
 )
 
+var wsEvents = neffos.Namespaces{
+	"ssh": neffos.Events{
+		neffos.OnNamespaceConnected: OnNamespaceConnected,
+		neffos.OnNamespaceDisconnect: OnNamespaceDisconnect,
+		neffos.OnRoomJoined: func(c *neffos.NSConn, msg neffos.Message) error {
+			return nil
+		},
+		neffos.OnRoomLeft: func(c *neffos.NSConn, msg neffos.Message) error {
+			return nil
+		},
+
+		"data": OnDataHandler,
+		"resize": OnResizeHandler,
+		"host": OnHostHandler,
+		"logout": OnLogoutHandler,
+		"token": OnTokenHandler,
+	},
+	"elfinder": neffos.Events{
+		neffos.OnNamespaceConnected: OnELFinderConnect,
+		neffos.OnNamespaceDisconnect: OnELFinderDisconnect,
+	},
+}
+
 func StartHTTPServer() {
 	conf := config.GetConf()
-	sshWs := neffos.New(gorilla.DefaultUpgrader, sshEvents)
+	sshWs := neffos.New(gorilla.DefaultUpgrader, wsEvents)
 	sshWs.IDGenerator = func(w http.ResponseWriter, r *http.Request) string {
 		return neffos.DefaultIDGenerator(w, r)
 	}
 	sshWs.OnUpgradeError = func(err error) {
 	}
 
-	server, err := socketio.NewServer(nil)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	server.OnConnect("/elfinder", OnELFinderConnect)
-	server.OnDisconnect("/elfinder", OnELFinderDisconnect)
-	server.OnError("/elfiner", OnErrorHandler)
-	server.OnDisconnect("", SocketDisconnect)
-	server.OnError("", OnErrorHandler)
-
-	go server.Serve()
-	defer server.Close()
+	//server.OnError("/elfiner", OnErrorHandler)
+	//server.OnDisconnect("", SocketDisconnect)
+	//server.OnError("", OnErrorHandler)
 
 	router := mux.NewRouter()
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))

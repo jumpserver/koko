@@ -22,24 +22,7 @@ import (
 
 
 
-var sshEvents = neffos.Namespaces{
-	"ssh": neffos.Events{
-		neffos.OnNamespaceConnected: OnNamespaceConnected,
-		neffos.OnNamespaceDisconnect: OnNamespaceDisconnect,
-		neffos.OnRoomJoined: func(c *neffos.NSConn, msg neffos.Message) error {
-			return nil
-		},
-		neffos.OnRoomLeft: func(c *neffos.NSConn, msg neffos.Message) error {
-			return nil
-		},
 
-		"data": OnDataHandler,
-		"resize": OnResizeHandler,
-		"host": OnHostHandler,
-		"logout": OnLogoutHandler,
-		"token": OnTokenHandler,
-	},
-}
 
 // OnConnectHandler 当websocket连接后触发
 func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
