@@ -14,7 +14,7 @@ import (
 	"github.com/jumpserver/koko/pkg/sshd"
 )
 
-const version = "1.5.1"
+const version = "1.5.2"
 
 type Coco struct {
 }
