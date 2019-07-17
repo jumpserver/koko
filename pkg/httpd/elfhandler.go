@@ -94,16 +94,11 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 	sid := req.Form.Get("sid")
 	userV, ok := GetUserVolume(sid)
 	if !ok {
-		switch hostID {
+		switch strings.TrimSpace(hostID) {
 		case "_":
-			userV = NewUserVolume(user, remoteIP)
+			userV = NewUserVolume(user, remoteIP,"")
 		default:
-			asset := service.GetAsset(hostID)
-			if asset.ID == ""{
-				http.Error(wr, "Not found this host", http.StatusBadRequest)
-				return
-			}
-			userV = NewHostVolume(user, asset, remoteIP)
+			userV = NewUserVolume(user, remoteIP, hostID)
 		}
 		addUserVolume(sid, userV)
 	}
