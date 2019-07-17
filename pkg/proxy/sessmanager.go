@@ -93,6 +93,5 @@ func postSession(s *SwitchSession) bool {
 func finishSession(s *SwitchSession) {
 	data := s.MapData()
 	service.FinishSession(data)
-	service.FinishReply(s.ID)
 	logger.Debugf("Finish session: %s", s.ID)
 }

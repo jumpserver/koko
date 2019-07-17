@@ -18,20 +18,10 @@ koko是golang版本的的coco；重构了coco的SSH/SFTP服务和web terminal服
 1.下载项目
 
 ```shell
-go get github.com/jumpserver/koko.git
+go get github.com/jumpserver/koko
 ```
 
-2.下载依赖包
-
-koko的项目使用[dep](https://github.com/golang/dep)管理依赖包, 需要预先安装dep;
-
-```shell
-dep ensure
-```
-
-> 由于网络问题,部分依赖包需要走代理. 需要自行设置http_proxy和https_proxy代理便于下载
-
-3.编译应用
+2.编译应用
 
 先进入cmd文件夹, 并构建应用.
 ```shell
@@ -41,7 +31,7 @@ cd cmd
 make linux
 ```
 > 如果构建成功，会在项目下自动生成build文件夹,里面包含当前分支的linux 64位版本压缩包.
-
+因为使用go mod进行依赖管理，可以设置GOPROXY=https://goproxy.io代理下载部分依赖包。
 
 ## 使用
 
@@ -74,4 +64,3 @@ cd cmd
 make docker
 ```
 构建成功后，生成koko镜像
-> 由于网络问题,部分依赖包需要走代理. 需要自行设置http_proxy和https_proxy代理便于下载

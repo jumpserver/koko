@@ -13,7 +13,6 @@
 update.sh
 data/
 log/
-go.sum
 .idea/
 vendor/
 config.yml

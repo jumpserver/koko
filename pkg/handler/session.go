@@ -63,11 +63,12 @@ func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandl
 	wrapperSess := NewWrapperSession(sess)
 	term := utils.NewTerminal(wrapperSess, "Opt> ")
 	handler := &interactiveHandler{
-		sess:           wrapperSess,
-		user:           user,
-		term:           term,
-		mu:             new(sync.RWMutex),
-		finishedLoaded: make(chan struct{}),
+		sess:            wrapperSess,
+		user:            user,
+		term:            term,
+		mu:              new(sync.RWMutex),
+		nodeDataLoaded:  make(chan struct{}),
+		assetDataLoaded: make(chan struct{}),
 	}
 	handler.Initial()
 	return handler
@@ -85,7 +86,8 @@ type interactiveHandler struct {
 	searchResult     model.AssetList
 	nodes            model.NodeList
 	mu               *sync.RWMutex
-	finishedLoaded   chan struct{}
+	nodeDataLoaded   chan struct{}
+	assetDataLoaded  chan struct{}
 }
 
 func (h *interactiveHandler) Initial() {
@@ -98,18 +100,24 @@ func (h *interactiveHandler) Initial() {
 func (h *interactiveHandler) loadAssetsFromCache() {
 	if assets, ok := userAssetsCached.Get(h.user.ID); ok {
 		h.assets = assets
-		go h.firstLoadAssetAndNodes()
+		close(h.assetDataLoaded)
 	} else {
 		h.assets = make([]model.Asset, 0)
-		h.firstLoadAssetAndNodes()
 	}
+	go h.firstLoadAssetAndNodes()
 }
 
 func (h *interactiveHandler) firstLoadAssetAndNodes() {
 	h.loadUserAssets("1")
 	h.loadUserAssetNodes("1")
-	close(h.finishedLoaded)
 	logger.Debug("first Load Asset And Nodes done")
+	close(h.nodeDataLoaded)
+	select {
+	case <-h.assetDataLoaded:
+		return
+	default:
+		close(h.assetDataLoaded)
+	}
 }
 
 func (h *interactiveHandler) displayBanner() {
@@ -166,6 +174,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 			break
 		}
 		line = strings.TrimSpace(line)
+		<-h.assetDataLoaded
 		switch len(line) {
 		case 0, 1:
 			switch strings.ToLower(line) {
@@ -174,7 +183,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 				h.displayAssets(h.assets)
 				h.mu.RUnlock()
 			case "g":
-				<-h.finishedLoaded
+				<-h.nodeDataLoaded
 				h.displayNodes(h.nodes)
 			case "h":
 				h.displayBanner()
@@ -197,6 +206,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
 				if num, err := strconv.Atoi(searchWord); err == nil {
 					if num >= 0 {
+						<-h.nodeDataLoaded
 						assets := h.searchNodeAssets(num)
 						h.displayAssets(assets)
 						continue
