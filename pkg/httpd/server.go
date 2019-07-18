@@ -1,14 +1,13 @@
 package httpd
 
 import (
-	"github.com/kataras/neffos"
-	"github.com/kataras/neffos/gorilla"
 	"net"
 	"net/http"
 	"path/filepath"
 
-	"github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
+	"github.com/kataras/neffos"
+	"github.com/kataras/neffos/gorilla"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -50,10 +49,6 @@ func StartHTTPServer() {
 	sshWs.OnUpgradeError = func(err error) {
 	}
 
-	//server.OnError("/elfiner", OnErrorHandler)
-	//server.OnDisconnect("", SocketDisconnect)
-	//server.OnError("", OnErrorHandler)
-
 	router := mux.NewRouter()
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
@@ -74,8 +69,4 @@ func StopHTTPServer() {
 	_ = httpServer.Close()
 }
 
-func SocketDisconnect(s socketio.Conn, msg string) {
-	removeUserVolume(s.ID())
-	clients.DeleteClient(s.ID())
-	logger.Debug("clean disconnect")
-}
+
