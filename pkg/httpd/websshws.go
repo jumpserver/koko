@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/model"
 	"io"
 	"net"
 	"strings"
@@ -13,10 +12,10 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/kataras/neffos"
-
 	"github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/service"
 )

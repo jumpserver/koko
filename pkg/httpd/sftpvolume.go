@@ -172,7 +172,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, chunkName string, reader io.R
 
 func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfinder.FileDir, error) {
 	path := filepath.Join(dirPath, filename)
-	logger.Debug("merge chunk path: ",path)
+	logger.Debug("merge chunk path: ", path)
 	var rest elfinder.FileDir
 	fd, err := u.UserSftp.Create(path)
 	if err != nil {
@@ -249,6 +249,15 @@ func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, erro
 }
 
 func (u *UserVolume) Remove(path string) error {
+	var res os.FileInfo
+	var err error
+	res, err = u.UserSftp.Stat(path)
+	if err != nil {
+		return err
+	}
+	if res.IsDir() {
+		return u.UserSftp.RemoveDirectory(path)
+	}
 	return u.UserSftp.Remove(path)
 }
 
