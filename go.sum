@@ -15,6 +15,10 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/LeeEirc/elfinder v0.0.0-20190604073433-f4f8357e9220 h1:U865EO8YNrjZIGNp7O8QEYLZFDJ8zcooD73BiAqgDg4=
 github.com/LeeEirc/elfinder v0.0.0-20190604073433-f4f8357e9220/go.mod h1:ApL/XFs34Gvqinex9Z1sZdsp3Jeu26nNuEsf1wQFx8s=
+github.com/LeeEirc/elfinder v0.0.0-20190718023636-5679c8bdb7bf h1:dZipr1cwienSKNTXsveMmyd7VFY3v/eMHNl/vueN10s=
+github.com/LeeEirc/elfinder v0.0.0-20190718023636-5679c8bdb7bf/go.mod h1:ApL/XFs34Gvqinex9Z1sZdsp3Jeu26nNuEsf1wQFx8s=
+github.com/LeeEirc/elfinder v0.0.0-20190718024942-8893ec7a969f h1:xhKgvkrt+lR8IRL+YzmeebV0dlrOiFj1i4UfwSEPVSc=
+github.com/LeeEirc/elfinder v0.0.0-20190718024942-8893ec7a969f/go.mod h1:ApL/XFs34Gvqinex9Z1sZdsp3Jeu26nNuEsf1wQFx8s=
 github.com/LeeEirc/go-socket.io v1.4.2-0.20190610105739-e344e8b5a55a h1:l5fhBUD24xuw9S4yCUd6hD7OFjYXiJiALT1aqQ4LLfA=
 github.com/LeeEirc/go-socket.io v1.4.2-0.20190610105739-e344e8b5a55a/go.mod h1:yjlQxKcAZXZjpGwQVW/y1sgyL1ou+DdCpkswURDCRrU=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8 h1:BOflvK0Zs/zGmoabyFIzTg5c3kguktWTXEwewwbuba0=
@@ -66,8 +70,6 @@ github.com/gorilla/websocket v1.4.0 h1:WDFjx/TMzVgy9VdMMQi2K2Emtwi2QcUQsztZ/zLaH
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7/go.mod h1:FecbI9+v66THATjSRHfNgh1IVFe/9kFxbXtjV0ctIMA=
 github.com/grpc-ecosystem/grpc-gateway v1.5.0/go.mod h1:RSKVYQBd5MCa4OVpNdGskqpgL2+G+NZTnrVHpWWfpdw=
-github.com/ibuler/crypto v0.0.0-20190509101200-a7099eef26a7 h1:1wAr7VKNYJw3mhTTU1Ztu5lyJKHzHmjlA9n+LV09z8E=
-github.com/ibuler/crypto v0.0.0-20190509101200-a7099eef26a7/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
 github.com/ibuler/crypto v0.0.0-20190715092645-911d13b3bf6e h1:QnLvABxtQH9BFja0P/wEjeTPABqvvwIz+to52VNn170=
 github.com/ibuler/crypto v0.0.0-20190715092645-911d13b3bf6e/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
 github.com/ibuler/go-engine.io v1.4.2-0.20190529094538-7786d3a289b9 h1:8vjRBcvQ50mYr5y9jQWbYXOew3nn3+eF2YNpaAcFrAU=

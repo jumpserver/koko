@@ -58,6 +58,11 @@ func (u *UserVolume) ID() string {
 
 func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	logger.Debug("volume Info: ", path)
+
+	if path == "/" {
+		return u.RootFileDir(), nil
+	}
+
 	var rest elfinder.FileDir
 	originFileInfo, err := u.Stat(path)
 	if err != nil {
@@ -130,6 +135,7 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 
 func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinder.FileDir, error) {
 	path := filepath.Join(dir, filename)
+	logger.Debug("Volume upload file path: ", path)
 	var rest elfinder.FileDir
 	fd, err := u.UserSftp.Create(path)
 	if err != nil {
@@ -166,6 +172,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, chunkName string, reader io.R
 
 func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfinder.FileDir, error) {
 	path := filepath.Join(dirPath, filename)
+	logger.Debug("merge chunk path: ",path)
 	var rest elfinder.FileDir
 	fd, err := u.UserSftp.Create(path)
 	if err != nil {
@@ -265,15 +272,11 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 }
 
 func (u *UserVolume) RootFileDir() elfinder.FileDir {
-	logger.Info("Root File Dir")
+	logger.Debug("Root File Dir")
 	fInfo, _ := u.UserSftp.Info()
 	var rest elfinder.FileDir
 	rest.Name = u.Homename
 	rest.Hash = hashPath(u.Uuid, "/")
-	rest.Phash = hashPath(u.Uuid, filepath.Dir(u.basePath))
-	if rest.Hash == rest.Phash {
-		rest.Phash = ""
-	}
 	rest.Size = fInfo.Size()
 	rest.Volumeid = u.Uuid
 	rest.Mime = "directory"
