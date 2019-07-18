@@ -5,6 +5,7 @@ ARG GOPROXY
 ENV GOPROXY=$GOPROXY
 ENV GO111MODULE=on
 COPY . .
+RUN go mod download
 RUN cd cmd && go build koko.go
 
 FROM alpine
