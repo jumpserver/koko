@@ -20,6 +20,7 @@ type TokenMsg struct {
 
 type DataMsg struct {
 	Data string `json:"data"`
+	Room string `json:"room"`
 }
 
 type RoomMsg struct {
@@ -27,16 +28,11 @@ type RoomMsg struct {
 	Secret string `json:"secret"`
 }
 
-type EmitDataMsg struct {
-	Room string `json:"room"`
-	Data string `json:"data"`
-}
-
-type EmitLogoutMsg struct {
+type LogoutMsg struct {
 	Room string `json:"room"`
 }
 
-type EmitDisconnectMsg struct {
+type DisconnectMsg struct {
 }
 
 type EmitSidMsg struct {
