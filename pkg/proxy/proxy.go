@@ -151,7 +151,7 @@ func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err err
 		close(done)
 	}()
 	go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
-	if p.Asset.Protocol == "telnet" {
+	if p.SystemUser.Protocol == "telnet" {
 		return p.getTelnetConn()
 	} else {
 		return p.getSSHConn(false)

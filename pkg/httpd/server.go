@@ -51,7 +51,7 @@ func StartHTTPServer() {
 
 	router := mux.NewRouter()
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
-	router.PathPrefix("/coco/static/").Handler(http.StripPrefix("/static/", fs))
+	router.PathPrefix("/coco/static/").Handler(http.StripPrefix("/coco/static/", fs))
 
 	router.Handle("/socket.io/", sshWs)
 	router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
