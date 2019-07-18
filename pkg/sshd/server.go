@@ -23,7 +23,7 @@ func StartServer() {
 	}
 
 	addr := net.JoinHostPort(conf.BindHost, conf.SSHPort)
-	logger.Infof("Start ssh server at %s", addr)
+	logger.Infof("Start SSH server at %s", addr)
 	sshServer = &ssh.Server{
 		Addr:                       addr,
 		KeyboardInteractiveHandler: auth.CheckMFA,

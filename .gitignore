@@ -17,4 +17,7 @@ log/
 vendor/
 config.yml
 host_key
-cmd/coco
+cmd/koko
+cmd/logs
+cmd/kokodir
+build

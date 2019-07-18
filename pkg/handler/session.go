@@ -167,7 +167,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 
 		if err != nil {
 			if err != io.EOF {
-				logger.Debug("user disconnected")
+				logger.Debug("User disconnected")
 			} else {
 				logger.Error("Read from user err: ", err)
 			}
@@ -323,7 +323,7 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 }
 
 func (h *interactiveHandler) loadUserAssets(cachePolicy string) {
-	assets := service.GetUserAssets(h.user.ID, cachePolicy)
+	assets := service.GetUserAssets(h.user.ID, cachePolicy, "")
 	userAssetsCached.SetValue(h.user.ID, assets)
 	h.mu.Lock()
 	h.assets = assets

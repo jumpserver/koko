@@ -4,6 +4,6 @@ import "github.com/jumpserver/koko/pkg/model"
 
 type WebContext struct {
 	User       *model.User
-	Connection *WebConn
+	Connection *Client
 	Client     *Client
 }
