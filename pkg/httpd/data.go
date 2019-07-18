@@ -20,7 +20,6 @@ type TokenMsg struct {
 
 type DataMsg struct {
 	Data string `json:"data"`
-	Room string `json:"room"`
 }
 
 type RoomMsg struct {

@@ -46,12 +46,12 @@ func FinishSession(data map[string]interface{}) {
 
 	var res map[string]interface{}
 	if sid, ok := data["id"]; ok {
-		playborad := map[string]interface{}{
+		payload := map[string]interface{}{
 			"is_finished": true,
 			"date_end":    data["date_end"],
 		}
 		Url := fmt.Sprintf(SessionDetailURL, sid)
-		err := authClient.Patch(Url, playborad, &res)
+		err := authClient.Patch(Url, payload, &res)
 		if err != nil {
 			logger.Error(err)
 		}
@@ -102,7 +102,7 @@ func PushSessionCommand(commands []*model.Command) (err error) {
 }
 
 func PushFTPLog(data *model.FTPLog) (err error) {
-	err = authClient.Post(FTPLogList, data, nil)
+	err = authClient.Post(FTPLogListURL, data, nil)
 	if err != nil {
 		logger.Error(err)
 	}

@@ -22,7 +22,7 @@ func NewCommandRecorder(sid string) (recorder *CommandRecorder) {
 }
 
 func NewReplyRecord(sid string) (recorder *ReplyRecorder) {
-	recorder = &ReplyRecorder{sessionID: sid}
+	recorder = &ReplyRecorder{SessionID: sid}
 	recorder.initial()
 	return recorder
 }
@@ -93,7 +93,7 @@ func (c *CommandRecorder) record() {
 }
 
 type ReplyRecorder struct {
-	sessionID string
+	SessionID string
 
 	absFilePath   string
 	AbsGzFilePath string
@@ -119,7 +119,7 @@ func (r *ReplyRecorder) Record(b []byte) {
 }
 
 func (r *ReplyRecorder) prepare() {
-	sessionID := r.sessionID
+	sessionID := r.SessionID
 	rootPath := config.GetConf().RootPath
 	today := time.Now().UTC().Format("2006-01-02")
 	gzFileName := sessionID + ".replay.gz"
@@ -179,7 +179,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		err := r.storage.Upload(r.AbsGzFilePath, r.Target)
 		if err == nil {
 			_ = os.Remove(r.AbsGzFilePath)
-			service.FinishReply(r.sessionID)
+			service.FinishReply(r.SessionID)
 			break
 		}
 		// 如果还是失败，使用备用storage再传一次

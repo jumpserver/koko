@@ -220,6 +220,7 @@ func SortAssetNodesByKey(assetNodes []Node) {
 const LoginModeManual = "manual"
 
 const (
+	AllAction      = "all"
 	ConnectAction  = "connect"
 	UploadAction   = "upload_file"
 	DownloadAction = "download_file"

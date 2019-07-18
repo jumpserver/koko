@@ -57,7 +57,7 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 	        "filter": "de7693ca-75d5-4639-986b-44ed390260a0"
 	    }
 	]`*/
-	Url := fmt.Sprintf(SystemUserCmdFilterRules, systemUserID)
+	Url := fmt.Sprintf(SystemUserCmdFilterRulesListURL, systemUserID)
 
 	err = authClient.Get(Url, &rules)
 	if err != nil {
@@ -94,7 +94,7 @@ func GetDomainWithGateway(gID string) (domain model.Domain) {
 }
 
 func GetTokenAsset(token string) (tokenUser model.TokenUser) {
-	Url := fmt.Sprintf(TokenAssetUrl, token)
+	Url := fmt.Sprintf(TokenAssetURL, token)
 	err := authClient.Get(Url, &tokenUser)
 	if err != nil {
 		logger.Error("Get Token Asset info failed: ", err)

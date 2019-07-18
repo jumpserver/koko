@@ -44,7 +44,7 @@ func GetProfile() (user *model.User, err error) {
 func GetUserByUsername(username string) (user *model.User, err error) {
 	var users []*model.User
 	payload := map[string]string{"username": username}
-	err = authClient.Get(UserListUrl, &users, payload)
+	err = authClient.Get(UserListURL, &users, payload)
 	if err != nil {
 		return
 	}
