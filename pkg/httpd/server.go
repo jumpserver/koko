@@ -19,7 +19,7 @@ var (
 
 var wsEvents = neffos.Namespaces{
 	"ssh": neffos.Events{
-		neffos.OnNamespaceConnected: OnNamespaceConnected,
+		neffos.OnNamespaceConnected:  OnNamespaceConnected,
 		neffos.OnNamespaceDisconnect: OnNamespaceDisconnect,
 		neffos.OnRoomJoined: func(c *neffos.NSConn, msg neffos.Message) error {
 			return nil
@@ -28,14 +28,14 @@ var wsEvents = neffos.Namespaces{
 			return nil
 		},
 
-		"data": OnDataHandler,
+		"data":   OnDataHandler,
 		"resize": OnResizeHandler,
-		"host": OnHostHandler,
+		"host":   OnHostHandler,
 		"logout": OnLogoutHandler,
-		"token": OnTokenHandler,
+		"token":  OnTokenHandler,
 	},
 	"elfinder": neffos.Events{
-		neffos.OnNamespaceConnected: OnELFinderConnect,
+		neffos.OnNamespaceConnected:  OnELFinderConnect,
 		neffos.OnNamespaceDisconnect: OnELFinderDisconnect,
 	},
 }
@@ -51,7 +51,7 @@ func StartHTTPServer() {
 
 	router := mux.NewRouter()
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	router.PathPrefix("/coco/static/").Handler(http.StripPrefix("/static/", fs))
 
 	router.Handle("/socket.io/", sshWs)
 	router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
@@ -68,5 +68,3 @@ func StartHTTPServer() {
 func StopHTTPServer() {
 	_ = httpServer.Close()
 }
-
-
