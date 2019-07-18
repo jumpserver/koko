@@ -10,10 +10,10 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
@@ -36,7 +36,7 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
 		Uuid:         elfinder.GenerateID(rawID),
-		UserSftp:     handler.NewUserSFTP(user, addr, assets...),
+		UserSftp:     srvconn.NewUserSFTP(user, addr, assets...),
 		Homename:     homename,
 		basePath:     filepath.Join("/", homename),
 		localTmpPath: filepath.Join(conf.RootPath, "data", "tmp"),
@@ -46,7 +46,7 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 
 type UserVolume struct {
 	Uuid string
-	*handler.UserSftp
+	*srvconn.UserSftp
 	localTmpPath string
 	Homename     string
 	basePath     string

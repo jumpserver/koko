@@ -15,6 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 func SftpHandler(sess ssh.Session) {
@@ -41,11 +42,11 @@ func SftpHandler(sess ssh.Session) {
 
 func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
 	assets := service.GetUserAssets(user.ID, "1", "")
-	return &sftpHandler{NewUserSFTP(user, addr, assets...)}
+	return &sftpHandler{srvconn.NewUserSFTP(user, addr, assets...)}
 }
 
 type sftpHandler struct {
-	*UserSftp
+	*srvconn.UserSftp
 }
 
 func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
@@ -65,8 +66,7 @@ func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	case "Readlink":
 		logger.Debug("Readlink method", r.Filepath)
 		filename, err := fs.ReadLink(r.Filepath)
-		fsInfo := NewFakeFile(filename, false)
-		fsInfo.symlink = filename
+		fsInfo := srvconn.NewFakeSymFile(filename)
 		return listerat([]os.FileInfo{&wrapperSFTPFileInfo{f: fsInfo}}), err
 	}
 	return nil, sftp.ErrSshFxOpUnsupported

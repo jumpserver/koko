@@ -1,4 +1,4 @@
-package handler
+package srvconn
 
 import (
 	"fmt"
@@ -16,7 +16,6 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
-	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 func NewUserSFTP(user *model.User, addr string, assets ...model.Asset) *UserSftp {
@@ -530,7 +529,7 @@ func (u *UserSftp) SendFTPLog(dataChan <-chan *model.FTPLog) {
 }
 
 func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (conn *SftpConn, err error) {
-	sshClient, err := srvconn.NewClient(u.User, asset, sysUser, config.GetConf().SSHTimeout*time.Second)
+	sshClient, err := NewClient(u.User, asset, sysUser, config.GetConf().SSHTimeout*time.Second)
 	if err != nil {
 		return
 	}
@@ -597,12 +596,12 @@ func (h *HostnameDir) GetSystemUsers() (sus []model.SystemUser) {
 type SftpConn struct {
 	HomeDirPath string
 	client      *sftp.Client
-	conn        *srvconn.SSHClient
+	conn        *SSHClient
 }
 
 func (s *SftpConn) Close() {
 	_ = s.client.Close()
-	srvconn.RecycleClient(s.conn)
+	RecycleClient(s.conn)
 }
 
 func NewFakeFile(name string, isDir bool) *FakeFileInfo {
@@ -611,6 +610,15 @@ func NewFakeFile(name string, isDir bool) *FakeFileInfo {
 		modtime: time.Now().UTC(),
 		isDir:   isDir,
 		size:    int64(0),
+	}
+}
+
+func NewFakeSymFile(name string) *FakeFileInfo{
+	return &FakeFileInfo{
+		name:    name,
+		modtime: time.Now().UTC(),
+		size:    int64(0),
+		symlink: name,
 	}
 }
 
