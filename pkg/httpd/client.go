@@ -1,14 +1,17 @@
 package httpd
 
 import (
+	"encoding/json"
 	"io"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
-	socketio "github.com/googollee/go-socket.io"
+	"github.com/kataras/neffos"
 
+	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 )
+
 
 type Client struct {
 	Uuid      string
@@ -18,10 +21,10 @@ type Client struct {
 	WinChan   chan ssh.Window
 	UserRead  io.Reader
 	UserWrite io.WriteCloser
-	Conn      socketio.Conn
+	Conn *neffos.NSConn
 	Closed    bool
 	pty       ssh.Pty
-	lock      *sync.RWMutex
+	mu        *sync.RWMutex
 }
 
 func (c *Client) WinCh() <-chan ssh.Window {
@@ -41,14 +44,23 @@ func (c *Client) Read(p []byte) (n int, err error) {
 }
 
 func (c *Client) Write(p []byte) (n int, err error) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.Closed {
 		return
 	}
-	data := DataMsg{Data: string(p), Room: c.Uuid}
+	data := DataMsg{Data: string(p)}
+	msg, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
 	n = len(p)
-	c.Conn.Emit("data", data)
+	room := c.Conn.Room(c.Uuid)
+	if room == nil {
+		logger.Error("room not found: ", c.Uuid)
+		return
+	}
+	room.Emit("data", msg)
 	return
 }
 
@@ -57,11 +69,17 @@ func (c *Client) Pty() ssh.Pty {
 }
 
 func (c *Client) Close() (err error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.Closed {
 		return
 	}
 	c.Closed = true
 	return c.UserWrite.Close()
+}
+
+func (c *Client) SetWinSize(size ssh.Window) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	c.WinChan <- size
 }

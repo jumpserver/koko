@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/LeeEirc/elfinder"
-	socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
 
 	"github.com/jumpserver/koko/pkg/cctx"
@@ -49,17 +48,7 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func OnELFinderConnect(s socketio.Conn) error {
-	data := EmitSidMsg{Sid: s.ID()}
-	s.Emit("data", data)
-	return nil
-}
 
-func OnELFinderDisconnect(s socketio.Conn, msg string) {
-	logger.Debug("disconnect: ", s.ID())
-	logger.Debug("disconnect msg ", msg)
-	removeUserVolume(s.ID())
-}
 
 func sftpHostFinder(wr http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
@@ -102,7 +91,7 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 		}
 		addUserVolume(sid, userV)
 	}
-	logger.Debugf("sid: %s", sid)
-	con := elfinder.NewElFinderConnector([]elfinder.Volume{userV})
-	con.ServeHTTP(wr, req)
+	logger.Debugf("Elfinder connector sid: %s", sid)
+	conn := elfinder.NewElFinderConnector([]elfinder.Volume{userV})
+	conn.ServeHTTP(wr, req)
 }
