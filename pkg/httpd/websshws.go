@@ -25,7 +25,7 @@ func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	// 首次连接 1.获取当前用户的信息
 	cc := c.Conn
 	if cc.WasReconnected() {
-		logger.Debugf("Web terminal redirected, with tries: %d", cc.ID(), cc.ReconnectTries)
+		logger.Debugf("Web terminal reconnected, with tries: %d", cc.ID(), cc.ReconnectTries)
 	} else {
 		logger.Debug("Web terminal on connect event trigger")
 	}
@@ -130,7 +130,7 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	}
 	go func() {
 		defer logger.Debug("Web proxy process end")
-		logger.Debug("Start proxy to host")
+		logger.Debug("Web ssh start proxy to host")
 		proxySrv.Proxy()
 		logoutMsg, _ := json.Marshal(RoomMsg{Room: roomID})
 		// 服务器主动退出
