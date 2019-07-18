@@ -74,6 +74,8 @@ func sftpFinder(wr http.ResponseWriter, req *http.Request) {
 }
 
 func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	hostID := vars["host"]
 	user := req.Context().Value(cctx.ContextKeyUser).(*model.User)
 	remoteIP := req.Context().Value(cctx.ContextKeyRemoteAddr).(string)
 	switch req.Method {
@@ -92,7 +94,12 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 	sid := req.Form.Get("sid")
 	userV, ok := GetUserVolume(sid)
 	if !ok {
-		userV = NewUserVolume(user, remoteIP)
+		switch strings.TrimSpace(hostID) {
+		case "_":
+			userV = NewUserVolume(user, remoteIP,"")
+		default:
+			userV = NewUserVolume(user, remoteIP, hostID)
+		}
 		addUserVolume(sid, userV)
 	}
 	logger.Debugf("sid: %s", sid)

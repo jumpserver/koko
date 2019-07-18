@@ -2,12 +2,19 @@ package httpd
 
 import (
 	"sync"
+
+	"github.com/LeeEirc/elfinder"
 )
 
-var userVolumes = make(map[string]*UserVolume)
+type VolumeCloser interface {
+	elfinder.Volume
+	Close()
+}
+
+var userVolumes = make(map[string]VolumeCloser)
 var volumeLock = new(sync.RWMutex)
 
-func addUserVolume(sid string, v *UserVolume) {
+func addUserVolume(sid string, v VolumeCloser) {
 	volumeLock.Lock()
 	defer volumeLock.Unlock()
 	userVolumes[sid] = v
@@ -27,7 +34,7 @@ func removeUserVolume(sid string) {
 
 }
 
-func GetUserVolume(sid string) (*UserVolume, bool) {
+func GetUserVolume(sid string) (VolumeCloser, bool) {
 	volumeLock.RLock()
 	defer volumeLock.RUnlock()
 	v, ok := userVolumes[sid]
