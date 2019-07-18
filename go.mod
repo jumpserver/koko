@@ -39,5 +39,5 @@ require (
 
 replace (
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991 => github.com/ibuler/ssh v0.1.6-0.20190509065047-1c00c8e8b607
-	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 => github.com/ibuler/crypto v0.0.0-20190509101200-a7099eef26a7
+	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 => github.com/ibuler/crypto v0.0.0-20190715092645-911d13b3bf6e
 )
