@@ -1,8 +1,9 @@
 package srvconn
 
 import (
-	"golang.org/x/crypto/ssh"
 	"io/ioutil"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func GetPubKeyFromFile(keypath string) (ssh.Signer, error) {

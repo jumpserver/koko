@@ -7,11 +7,14 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 )
 
-func GetUserAssets(userID, cachePolicy string) (assets model.AssetList) {
+func GetUserAssets(userID, cachePolicy, assetId string) (assets model.AssetList) {
 	if cachePolicy == "" {
 		cachePolicy = "1"
 	}
 	payload := map[string]string{"cache_policy": cachePolicy}
+	if assetId != "" {
+		payload["id"] = assetId
+	}
 	Url := fmt.Sprintf(UserAssetsURL, userID)
 	err := authClient.Get(Url, &assets, payload)
 	if err != nil {
