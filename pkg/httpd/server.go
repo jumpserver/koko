@@ -16,11 +16,12 @@ import (
 
 var (
 	httpServer *http.Server
+	Timeout    = time.Duration(60)
 )
 
 var wsEvents = neffos.WithTimeout{
-	ReadTimeout:  24 * time.Hour,
-	WriteTimeout: 24 * time.Hour,
+	ReadTimeout:  Timeout * time.Second,
+	WriteTimeout: Timeout * time.Second,
 	Namespaces: neffos.Namespaces{
 		"ssh": neffos.Events{
 			neffos.OnNamespaceConnected:  OnNamespaceConnected,
@@ -37,10 +38,12 @@ var wsEvents = neffos.WithTimeout{
 			"host":   OnHostHandler,
 			"logout": OnLogoutHandler,
 			"token":  OnTokenHandler,
+			"ping":   OnPingHandler,
 		},
 		"elfinder": neffos.Events{
 			neffos.OnNamespaceConnected:  OnELFinderConnect,
 			neffos.OnNamespaceDisconnect: OnELFinderDisconnect,
+			"ping":                       OnPingHandler,
 		},
 	},
 }
@@ -55,10 +58,11 @@ func StartHTTPServer() {
 	}
 	sshWs.OnConnect = func(c *neffos.Conn) error {
 		if c.WasReconnected() {
-			logger.Debugf("Connection reconnected, with tries: %d", c.ID(), c.ReconnectTries)
+			logger.Debugf("Connection %s reconnected, with tries: %d", c.ID(), c.ReconnectTries)
 		} else {
 			logger.Debug("A new ws connection arrive")
 		}
+
 		return nil
 	}
 	sshWs.OnDisconnect = func(c *neffos.Conn) {

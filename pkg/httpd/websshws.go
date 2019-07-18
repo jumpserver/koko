@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/kataras/neffos"
@@ -20,14 +21,16 @@ import (
 	"github.com/jumpserver/koko/pkg/service"
 )
 
+func OnPingHandler(c *neffos.NSConn, msg neffos.Message) error {
+	c.Emit("pong", []byte(""))
+	return nil
+}
+
 // OnConnectHandler 当websocket连接后触发
 func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	// 首次连接 1.获取当前用户的信息
 	cc := c.Conn
 	logger.Debug("Web terminal on connect event trigger")
-	if cc.WasReconnected() {
-	} else {
-	}
 	request := cc.Socket().Request()
 	header := request.Header
 	cookies := strings.Split(header.Get("Cookie"), ";")
@@ -53,6 +56,12 @@ func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	}
 	remoteIP = strings.Split(remoteAddr, ",")[0]
 	logger.Infof("Accepted %s connect websocket from %s", user.Username, remoteIP)
+	go func() {
+		for {
+			<-time.After(30 * time.Second)
+			c.Emit("ping", []byte(""))
+		}
+	}()
 	return nil
 }
 
