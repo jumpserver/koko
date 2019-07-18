@@ -18,11 +18,11 @@ import (
 
 func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 	var assets []model.Asset
-	var homename string
+	homename := "Home"
 	switch hostId {
 	case "":
 		assets = service.GetUserAssets(user.ID, "1", "")
-		homename = "Home"
+
 	default:
 		assets = service.GetUserAssets(user.ID, "1", hostId)
 		if len(assets) == 1 {
