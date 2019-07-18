@@ -24,10 +24,9 @@ import (
 func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	// 首次连接 1.获取当前用户的信息
 	cc := c.Conn
+	logger.Debug("Web terminal on connect event trigger")
 	if cc.WasReconnected() {
-		logger.Debugf("Web terminal reconnected, with tries: %d", cc.ID(), cc.ReconnectTries)
 	} else {
-		logger.Debug("Web terminal on connect event trigger")
 	}
 	request := cc.Socket().Request()
 	header := request.Header
