@@ -235,12 +235,11 @@ func OnResizeHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 // OnLogoutHandler 用户登出一个会话时触发, 用户主动退出
 func OnLogoutHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	logger.Debug("Web terminal on logout event trigger: ", msg.Room)
-	var message LogoutMsg
-	err = msg.Unmarshal(&message)
+	var clientID string
+	err = msg.Unmarshal(&clientID)
 	if err != nil {
 		return
 	}
-	clientID := message.Room
 	clients.DeleteClient(clientID)
 	return
 }
