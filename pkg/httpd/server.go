@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/kataras/neffos"
@@ -15,28 +16,35 @@ import (
 
 var (
 	httpServer *http.Server
+	Timeout    = time.Duration(60)
 )
 
-var wsEvents = neffos.Namespaces{
-	"ssh": neffos.Events{
-		neffos.OnNamespaceConnected:  OnNamespaceConnected,
-		neffos.OnNamespaceDisconnect: OnNamespaceDisconnect,
-		neffos.OnRoomJoined: func(c *neffos.NSConn, msg neffos.Message) error {
-			return nil
-		},
-		neffos.OnRoomLeft: func(c *neffos.NSConn, msg neffos.Message) error {
-			return nil
-		},
+var wsEvents = neffos.WithTimeout{
+	ReadTimeout:  Timeout * time.Second,
+	WriteTimeout: Timeout * time.Second,
+	Namespaces: neffos.Namespaces{
+		"ssh": neffos.Events{
+			neffos.OnNamespaceConnected:  OnNamespaceConnected,
+			neffos.OnNamespaceDisconnect: OnNamespaceDisconnect,
+			neffos.OnRoomJoined: func(c *neffos.NSConn, msg neffos.Message) error {
+				return nil
+			},
+			neffos.OnRoomLeft: func(c *neffos.NSConn, msg neffos.Message) error {
+				return nil
+			},
 
-		"data":   OnDataHandler,
-		"resize": OnResizeHandler,
-		"host":   OnHostHandler,
-		"logout": OnLogoutHandler,
-		"token":  OnTokenHandler,
-	},
-	"elfinder": neffos.Events{
-		neffos.OnNamespaceConnected:  OnELFinderConnect,
-		neffos.OnNamespaceDisconnect: OnELFinderDisconnect,
+			"data":   OnDataHandler,
+			"resize": OnResizeHandler,
+			"host":   OnHostHandler,
+			"logout": OnLogoutHandler,
+			"token":  OnTokenHandler,
+			"ping":   OnPingHandler,
+		},
+		"elfinder": neffos.Events{
+			neffos.OnNamespaceConnected:  OnELFinderConnect,
+			neffos.OnNamespaceDisconnect: OnELFinderDisconnect,
+			"ping":                       OnPingHandler,
+		},
 	},
 }
 
@@ -47,6 +55,22 @@ func StartHTTPServer() {
 		return neffos.DefaultIDGenerator(w, r)
 	}
 	sshWs.OnUpgradeError = func(err error) {
+		if ok := neffos.IsTryingToReconnect(err); ok {
+			logger.Debug("A client was tried to reconnect")
+			return
+		}
+		logger.Error("ERROR: ", err)
+	}
+	sshWs.OnConnect = func(c *neffos.Conn) error {
+		if c.WasReconnected() {
+			logger.Debugf("Connection %s reconnected, with tries: %d", c.ID(), c.ReconnectTries)
+		} else {
+			logger.Debug("A new ws connection arrive")
+		}
+		return nil
+	}
+	sshWs.OnDisconnect = func(c *neffos.Conn) {
+		logger.Debug("Ws connection disconnect")
 	}
 
 	router := mux.NewRouter()

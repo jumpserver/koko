@@ -172,7 +172,7 @@ func (u *UserSftp) RemoveDirectory(path string) error {
 	if conn == nil {
 		return sftp.ErrSshFxPermissionDenied
 	}
-	err := conn.client.RemoveDirectory(realPath)
+	err := u.removeDirectoryAll(conn.client, realPath)
 	filename := realPath
 	isSucess := false
 	operate := model.OperateRemoveDir
@@ -181,6 +181,31 @@ func (u *UserSftp) RemoveDirectory(path string) error {
 	}
 	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
 	return err
+}
+
+func (u *UserSftp) removeDirectoryAll(conn *sftp.Client, path string) error {
+	var err error
+	var files []os.FileInfo
+	files, err = conn.ReadDir(path)
+	if err != nil {
+		return err
+	}
+	for _, item := range files {
+		realPath := filepath.Join(path, item.Name())
+
+		if item.IsDir() {
+			err = u.removeDirectoryAll(conn, realPath)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		err = conn.Remove(realPath)
+		if err != nil {
+			return err
+		}
+	}
+	return conn.RemoveDirectory(path)
 }
 
 func (u *UserSftp) Remove(path string) error {
@@ -496,9 +521,17 @@ func (u *UserSftp) LoopPushFTPLog() {
 	dataChan := make(chan *model.FTPLog)
 	go u.SendFTPLog(dataChan)
 	defer close(dataChan)
+	var timeoutSecond time.Duration
 	for {
+		switch len(ftpLogList) {
+		case 0:
+			timeoutSecond = time.Second * 60
+		default:
+			timeoutSecond = time.Second * 1
+		}
+
 		select {
-		case <-time.After(time.Second * 5):
+		case <-time.After(timeoutSecond):
 		case logData, ok := <-u.LogChan:
 			if !ok {
 				return
@@ -613,7 +646,7 @@ func NewFakeFile(name string, isDir bool) *FakeFileInfo {
 	}
 }
 
-func NewFakeSymFile(name string) *FakeFileInfo{
+func NewFakeSymFile(name string) *FakeFileInfo {
 	return &FakeFileInfo{
 		name:    name,
 		modtime: time.Now().UTC(),

@@ -11,10 +11,16 @@
         var scheme = document.location.protocol == "https:" ? "wss" : "ws";
         var port = document.location.port ? ":" + document.location.port : "";
         var wsURL = scheme + "://" + document.location.hostname + port + "/socket.io/";
+        let interval;
         dial(wsURL, {
             "elfinder": {
                 _OnNamespaceConnected: function (nsConn, msg) {
-                    console.log("Connect websocket done")
+                    interval = setInterval(() => nsConn.emit('ping', ''), 10000);
+                },
+                _OnNamespaceDisconnect: function (ns, msg) {
+                    if (interval) {
+                        clearInterval(interval);
+                    }
                 },
                 data: function (nsConn, msg) {
                     var data = msg.unmarshal();

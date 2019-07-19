@@ -4,31 +4,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/model"
 	"io"
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/kataras/neffos"
-
 	"github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/service"
 )
+
+func OnPingHandler(c *neffos.NSConn, msg neffos.Message) error {
+	c.Emit("pong", []byte(""))
+	return nil
+}
 
 // OnConnectHandler 当websocket连接后触发
 func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	// 首次连接 1.获取当前用户的信息
 	cc := c.Conn
-	if cc.WasReconnected() {
-		logger.Debugf("Web terminal redirected, with tries: %d", cc.ID(), cc.ReconnectTries)
-	} else {
-		logger.Debug("Web terminal on connect event trigger")
-	}
+	logger.Debug("Web terminal on connect event trigger")
 	request := cc.Socket().Request()
 	header := request.Header
 	cookies := strings.Split(header.Get("Cookie"), ";")
@@ -54,6 +55,12 @@ func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	}
 	remoteIP = strings.Split(remoteAddr, ",")[0]
 	logger.Infof("Accepted %s connect websocket from %s", user.Username, remoteIP)
+	go func() {
+		for {
+			<-time.After(30 * time.Second)
+			c.Emit("ping", []byte(""))
+		}
+	}()
 	return nil
 }
 
@@ -130,7 +137,7 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	}
 	go func() {
 		defer logger.Debug("Web proxy process end")
-		logger.Debug("Start proxy to host")
+		logger.Debug("Web ssh start proxy to host")
 		proxySrv.Proxy()
 		logoutMsg, _ := json.Marshal(RoomMsg{Room: roomID})
 		// 服务器主动退出
