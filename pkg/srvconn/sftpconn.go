@@ -29,7 +29,9 @@ func NewUserSFTP(user *model.User, addr string, assets ...model.Asset) *UserSftp
 type UserSftp struct {
 	User        *model.User
 	Addr        string
+
 	RootPath    string
+	ShowHidden  bool
 	hosts       map[string]*HostnameDir // key hostname or hostname.orgName
 	sftpClients map[string]*SftpConn    //  key %s@%s suName hostName
 
@@ -37,8 +39,9 @@ type UserSftp struct {
 }
 
 func (u *UserSftp) initial(assets []model.Asset) {
-
-	u.RootPath = config.GetConf().SftpRoot
+	conf := config.GetConf()
+	u.RootPath = conf.SftpRoot
+	u.ShowHidden = conf.ShowHiddenFile
 	u.hosts = make(map[string]*HostnameDir)
 	u.sftpClients = make(map[string]*SftpConn)
 	u.LogChan = make(chan *model.FTPLog, 10)
@@ -85,8 +88,17 @@ func (u *UserSftp) ReadDir(path string) (res []os.FileInfo, err error) {
 	if conn == nil {
 		return res, sftp.ErrSshFxPermissionDenied
 	}
-	logger.Debug("intersftp read dir real path: ", realPath)
+	logger.Debug("inter sftp read dir real path: ", realPath)
 	res, err = conn.client.ReadDir(realPath)
+	if !u.ShowHidden {
+		noHiddenFiles := make([]os.FileInfo, 0, len(res))
+		for i:=0; i<len(res);i++ {
+			if !strings.HasPrefix(res[i].Name(), ".") {
+				noHiddenFiles = append(noHiddenFiles,res[i])
+			}
+		}
+		return noHiddenFiles, err
+	}
 	return res, err
 }
 
