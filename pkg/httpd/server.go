@@ -55,6 +55,11 @@ func StartHTTPServer() {
 		return neffos.DefaultIDGenerator(w, r)
 	}
 	sshWs.OnUpgradeError = func(err error) {
+		if ok := neffos.IsTryingToReconnect(err); ok {
+			logger.Debug("A client was tried to reconnect")
+			return
+		}
+		logger.Error("ERROR: ", err)
 	}
 	sshWs.OnConnect = func(c *neffos.Conn) error {
 		if c.WasReconnected() {
@@ -62,7 +67,6 @@ func StartHTTPServer() {
 		} else {
 			logger.Debug("A new ws connection arrive")
 		}
-
 		return nil
 	}
 	sshWs.OnDisconnect = func(c *neffos.Conn) {
