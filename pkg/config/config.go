@@ -25,6 +25,7 @@ type Config struct {
 	TelnetRegex         string                 `json:"TERMINAL_TELNET_REGEX"`
 	MaxIdleTime         time.Duration          `json:"SECURITY_MAX_IDLE_TIME"`
 	SftpRoot            string                 `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
+	ShowHiddenFile      bool                   `yaml:"SFTP_SHOW_HIDDEN_FILE"`
 	Name                string                 `yaml:"NAME"`
 	SecretKey           string                 `yaml:"SECRET_KEY"`
 	HostKeyFile         string                 `yaml:"HOST_KEY_FILE"`
@@ -129,6 +130,7 @@ var Conf = &Config{
 	CommandStorage:     map[string]interface{}{"TYPE": "server"},
 	UploadFailedReplay: true,
 	SftpRoot:           "/tmp",
+	ShowHiddenFile:     false,
 }
 
 func SetConf(conf *Config) {
