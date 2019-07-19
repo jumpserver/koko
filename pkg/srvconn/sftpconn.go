@@ -29,7 +29,9 @@ func NewUserSFTP(user *model.User, addr string, assets ...model.Asset) *UserSftp
 type UserSftp struct {
 	User        *model.User
 	Addr        string
+
 	RootPath    string
+	ShowHidden  bool
 	hosts       map[string]*HostnameDir // key hostname or hostname.orgName
 	sftpClients map[string]*SftpConn    //  key %s@%s suName hostName
 
@@ -37,8 +39,9 @@ type UserSftp struct {
 }
 
 func (u *UserSftp) initial(assets []model.Asset) {
-
-	u.RootPath = config.GetConf().SftpRoot
+	conf := config.GetConf()
+	u.RootPath = conf.SftpRoot
+	u.ShowHidden = conf.ShowHiddenFile
 	u.hosts = make(map[string]*HostnameDir)
 	u.sftpClients = make(map[string]*SftpConn)
 	u.LogChan = make(chan *model.FTPLog, 10)
@@ -85,8 +88,17 @@ func (u *UserSftp) ReadDir(path string) (res []os.FileInfo, err error) {
 	if conn == nil {
 		return res, sftp.ErrSshFxPermissionDenied
 	}
-	logger.Debug("intersftp read dir real path: ", realPath)
+	logger.Debug("inter sftp read dir real path: ", realPath)
 	res, err = conn.client.ReadDir(realPath)
+	if !u.ShowHidden {
+		noHiddenFiles := make([]os.FileInfo, 0, len(res))
+		for i:=0; i<len(res);i++ {
+			if !strings.HasPrefix(res[i].Name(), ".") {
+				noHiddenFiles = append(noHiddenFiles,res[i])
+			}
+		}
+		return noHiddenFiles, err
+	}
 	return res, err
 }
 
@@ -172,7 +184,7 @@ func (u *UserSftp) RemoveDirectory(path string) error {
 	if conn == nil {
 		return sftp.ErrSshFxPermissionDenied
 	}
-	err := conn.client.RemoveDirectory(realPath)
+	err := u.removeDirectoryAll(conn.client, realPath)
 	filename := realPath
 	isSucess := false
 	operate := model.OperateRemoveDir
@@ -181,6 +193,31 @@ func (u *UserSftp) RemoveDirectory(path string) error {
 	}
 	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
 	return err
+}
+
+func (u *UserSftp) removeDirectoryAll(conn *sftp.Client, path string) error {
+	var err error
+	var files []os.FileInfo
+	files, err = conn.ReadDir(path)
+	if err != nil {
+		return err
+	}
+	for _, item := range files {
+		realPath := filepath.Join(path, item.Name())
+
+		if item.IsDir() {
+			err = u.removeDirectoryAll(conn, realPath)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		err = conn.Remove(realPath)
+		if err != nil {
+			return err
+		}
+	}
+	return conn.RemoveDirectory(path)
 }
 
 func (u *UserSftp) Remove(path string) error {
@@ -496,9 +533,17 @@ func (u *UserSftp) LoopPushFTPLog() {
 	dataChan := make(chan *model.FTPLog)
 	go u.SendFTPLog(dataChan)
 	defer close(dataChan)
+	var timeoutSecond time.Duration
 	for {
+		switch len(ftpLogList) {
+		case 0:
+			timeoutSecond = time.Second * 60
+		default:
+			timeoutSecond = time.Second * 1
+		}
+
 		select {
-		case <-time.After(time.Second * 5):
+		case <-time.After(timeoutSecond):
 		case logData, ok := <-u.LogChan:
 			if !ok {
 				return
@@ -613,7 +658,7 @@ func NewFakeFile(name string, isDir bool) *FakeFileInfo {
 	}
 }
 
-func NewFakeSymFile(name string) *FakeFileInfo{
+func NewFakeSymFile(name string) *FakeFileInfo {
 	return &FakeFileInfo{
 		name:    name,
 		modtime: time.Now().UTC(),

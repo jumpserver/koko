@@ -1,7 +1,6 @@
 package httpd
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -37,13 +36,11 @@ func (c *Clients) DeleteClient(cID string) {
 }
 
 func (c *Clients) AddClient(cID string, conn *Client) {
-	fmt.Println("Add Client id: ", cID)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.container[cID] = conn
 	logger.Debug("Now clients count: ", len(c.container))
 }
-
 
 type Connections struct {
 	container map[string][]string
@@ -69,7 +66,7 @@ func (c *Connections) GetClients(cID string) (clients []string) {
 }
 
 func (c *Connections) DeleteClients(cID string) {
-	if clientIDs := c.GetClients(cID); clientIDs != nil{
+	if clientIDs := c.GetClients(cID); clientIDs != nil {
 		for _, clientID := range clientIDs {
 			clients.DeleteClient(clientID)
 		}
@@ -78,4 +75,3 @@ func (c *Connections) DeleteClients(cID string) {
 	defer c.mu.Unlock()
 	delete(c.container, cID)
 }
-

@@ -3,10 +3,6 @@
 
 koko是golang版本的的coco；重构了coco的SSH/SFTP服务和web terminal服务。
 
-## 注意
-
-Koko的 web socket库不再使用socket.io，因为go里没有稳定的，替换成了[neffos](https://github.com/kataras/neffos),
-所以luna不再和原来兼容，请下载luna的koko版本
 
 ## 主要功能
 
