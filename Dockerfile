@@ -19,6 +19,7 @@ COPY cmd/config_example.yml .
 COPY entrypoint.sh .
 RUN chmod 755 ./entrypoint.sh \
   && apk add -U tzdata \
+  && apk add curl \
   && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
   && echo "Asia/Shanghai" > /etc/timezone \
   && apk del tzdata \
