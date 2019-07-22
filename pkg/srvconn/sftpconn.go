@@ -186,12 +186,12 @@ func (u *UserSftp) RemoveDirectory(path string) error {
 	}
 	err := u.removeDirectoryAll(conn.client, realPath)
 	filename := realPath
-	isSucess := false
+	isSuccess := false
 	operate := model.OperateRemoveDir
 	if err == nil {
-		isSucess = true
+		isSuccess = true
 	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
+	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
 	return err
 }
 
@@ -247,12 +247,12 @@ func (u *UserSftp) Remove(path string) error {
 	}
 	err := conn.client.Remove(realPath)
 	filename := realPath
-	isSucess := false
+	isSuccess := false
 	operate := model.OperateDelete
 	if err == nil {
-		isSucess = true
+		isSuccess = true
 	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
+	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
 	return err
 }
 
@@ -283,12 +283,12 @@ func (u *UserSftp) MkdirAll(path string) error {
 	err := conn.client.MkdirAll(realPath)
 
 	filename := realPath
-	isSucess := false
+	isSuccess := false
 	operate := model.OperateMkdir
 	if err == nil {
-		isSucess = true
+		isSuccess = true
 	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
+	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
 	return err
 }
 
@@ -320,12 +320,12 @@ func (u *UserSftp) Rename(oldNamePath, newNamePath string) error {
 
 	err := conn1.client.Rename(oldRealPath, newRealPath)
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
-	isSucess := false
+	isSuccess := false
 	operate := model.OperateRename
 	if err == nil {
-		isSucess = true
+		isSuccess = true
 	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
+	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
 	return err
 }
 
@@ -357,12 +357,12 @@ func (u *UserSftp) Symlink(oldNamePath, newNamePath string) error {
 	err := conn1.client.Symlink(oldRealPath, newRealPath)
 
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
-	isSucess := false
+	isSuccess := false
 	operate := model.OperateSymlink
 	if err == nil {
-		isSucess = true
+		isSuccess = true
 	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
+	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
 	return err
 }
 
@@ -393,12 +393,12 @@ func (u *UserSftp) Create(path string) (*sftp.File, error) {
 	}
 	sf, err := conn.client.Create(realPath)
 	filename := realPath
-	isSucess := false
+	isSuccess := false
 	operate := model.OperateUpload
 	if err == nil {
-		isSucess = true
+		isSuccess = true
 	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
+	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
 	return sf, err
 }
 
@@ -427,12 +427,12 @@ func (u *UserSftp) Open(path string) (*sftp.File, error) {
 	}
 	sf, err := conn.client.Open(realPath)
 	filename := realPath
-	isSucess := false
+	isSuccess := false
 	operate := model.OperateDownaload
 	if err == nil {
-		isSucess = true
+		isSuccess = true
 	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSucess)
+	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
 	return sf, err
 }
 
@@ -593,6 +593,9 @@ func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) 
 
 func (u *UserSftp) Close() {
 	for _, client := range u.sftpClients {
+		if client == nil {
+			continue
+		}
 		client.Close()
 	}
 	close(u.LogChan)
@@ -645,6 +648,9 @@ type SftpConn struct {
 }
 
 func (s *SftpConn) Close() {
+	if s.client == nil {
+		return
+	}
 	_ = s.client.Close()
 	RecycleClient(s.conn)
 }
