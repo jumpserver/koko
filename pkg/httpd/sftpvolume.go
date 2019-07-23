@@ -5,24 +5,25 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/LeeEirc/elfinder"
+	"github.com/pkg/sftp"
 
-	"github.com/jumpserver/koko/pkg/common"
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
+
 )
 
 func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 	var assets []model.Asset
 	homename := "Home"
+	basePath := "/"
 	switch hostId {
 	case "":
 		assets = service.GetUserAssets(user.ID, "1", "")
-
 	default:
 		assets = service.GetUserAssets(user.ID, "1", hostId)
 		if len(assets) == 1 {
@@ -30,16 +31,17 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 			if assets[0].OrgID != "" {
 				homename = fmt.Sprintf("%s.%s", assets[0].Hostname, assets[0].OrgName)
 			}
+			basePath = filepath.Join("/", homename)
 		}
 	}
-	conf := config.GetConf()
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
-		Uuid:         elfinder.GenerateID(rawID),
-		UserSftp:     srvconn.NewUserSFTP(user, addr, assets...),
-		Homename:     homename,
-		basePath:     filepath.Join("/", homename),
-		localTmpPath: filepath.Join(conf.RootPath, "data", "tmp"),
+		Uuid:          elfinder.GenerateID(rawID),
+		UserSftp:      srvconn.NewUserSFTP(user, addr, assets...),
+		Homename:      homename,
+		basePath:      basePath,
+		chunkFilesMap: make(map[int]*sftp.File),
+		lock:          new(sync.Mutex),
 	}
 	return uVolume
 }
@@ -47,9 +49,11 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 type UserVolume struct {
 	Uuid string
 	*srvconn.UserSftp
-	localTmpPath string
 	Homename     string
 	basePath     string
+
+	chunkFilesMap map[int]*sftp.File
+	lock          *sync.Mutex
 }
 
 func (u *UserVolume) ID() string {
@@ -58,13 +62,11 @@ func (u *UserVolume) ID() string {
 
 func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	logger.Debug("volume Info: ", path)
-
+	var rest elfinder.FileDir
 	if path == "/" {
 		return u.RootFileDir(), nil
 	}
-
-	var rest elfinder.FileDir
-	originFileInfo, err := u.Stat(path)
+	originFileInfo, err := u.Stat(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
@@ -73,12 +75,13 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
 	if filename != originFileInfo.Name() {
 		rest.Read, rest.Write = 1, 1
+		logger.Debug("info filename no eque ")
 	}
 	if filename == "." {
 		filename = originFileInfo.Name()
 	}
 	rest.Name = filename
-	rest.Hash = hashPath(u.Uuid, filepath.Join(dirPath, filename))
+	rest.Hash = hashPath(u.Uuid, path)
 	rest.Phash = hashPath(u.Uuid, dirPath)
 	if rest.Hash == rest.Phash {
 		rest.Phash = ""
@@ -98,12 +101,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 func (u *UserVolume) List(path string) []elfinder.FileDir {
 	dirs := make([]elfinder.FileDir, 0)
 	logger.Debug("volume List: ", path)
-	dirInfo, err := u.Info(path)
-	if err != nil {
-		return dirs
-	}
-	dirs = append(dirs, dirInfo)
-	originFileInfolist, err := u.UserSftp.ReadDir(path)
+	originFileInfolist, err := u.UserSftp.ReadDir(filepath.Join(u.basePath, path))
 	if err != nil {
 		return dirs
 	}
@@ -118,8 +116,15 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 	dirs := make([]elfinder.FileDir, 0)
 	dirPath := path
 	for {
-		tmps := u.List(dirPath)
-		dirs = append(dirs, tmps...)
+		tmps, err := u.UserSftp.ReadDir(filepath.Join(u.basePath, dirPath))
+		if err != nil {
+			return dirs
+		}
+
+		for i := 0; i < len(tmps); i++ {
+			dirs = append(dirs, NewElfinderFileInfo(u.Uuid, dirPath, tmps[i]))
+		}
+
 		if dirPath == "/" {
 			break
 		}
@@ -129,14 +134,22 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 }
 
 func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
-	return u.UserSftp.Open(path)
+	logger.Debug("GetFile path: ", path)
+	return u.UserSftp.Open(filepath.Join(u.basePath, path))
 }
 
-func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinder.FileDir, error) {
-	path := filepath.Join(dir, filename)
+func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader) (elfinder.FileDir, error) {
+	var path string
+	switch uploadPath {
+	case "":
+		path = filepath.Join(dirPath, filename)
+	default:
+		path = filepath.Join(dirPath, uploadPath)
+
+	}
 	logger.Debug("Volume upload file path: ", path)
 	var rest elfinder.FileDir
-	fd, err := u.UserSftp.Create(path)
+	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
@@ -149,77 +162,65 @@ func (u *UserVolume) UploadFile(dir, filename string, reader io.Reader) (elfinde
 	return u.Info(path)
 }
 
-func (u *UserVolume) UploadChunk(cid int, dirPath, chunkName string, reader io.Reader) error {
-	//chunkName format "filename.[NUMBER]_[TOTAL].part"
+func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, rangeData elfinder.ChunkRange, reader io.Reader) error {
 	var err error
-	tmpDir := filepath.Join(u.localTmpPath, dirPath)
-	err = common.EnsureDirExist(tmpDir)
-	if err != nil {
-		return err
-	}
-	chunkRealPath := fmt.Sprintf("%s_%d",
-		filepath.Join(tmpDir, chunkName), cid)
+	var path string
+	u.lock.Lock()
+	fd, ok := u.chunkFilesMap[cid]
+	u.lock.Unlock()
+	if !ok {
+		switch uploadPath {
+		case "":
+			path = filepath.Join(dirPath, filename)
+		default:
+			path = filepath.Join(dirPath, uploadPath)
 
-	fd, err := os.Create(chunkRealPath)
-	defer fd.Close()
-	if err != nil {
-		return err
+		}
+		fd, err = u.UserSftp.Create(filepath.Join(u.basePath, path))
+		if err != nil {
+			return err
+		}
+		_, err = fd.Seek(rangeData.Offset, 0)
+		if err != nil {
+			return err
+		}
+		u.lock.Lock()
+		u.chunkFilesMap[cid] = fd
+		u.lock.Unlock()
 	}
 	_, err = io.Copy(fd, reader)
+	if err != nil {
+		_ = fd.Close()
+		u.lock.Lock()
+		delete(u.chunkFilesMap, cid)
+		u.lock.Unlock()
+	}
 	return err
 }
 
-func (u *UserVolume) MergeChunk(cid, total int, dirPath, filename string) (elfinder.FileDir, error) {
-	path := filepath.Join(dirPath, filename)
+func (u *UserVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename string) (elfinder.FileDir, error) {
+	var path string
+	switch uploadPath {
+	case "":
+		path = filepath.Join(dirPath, filename)
+	default:
+		path = filepath.Join(dirPath, uploadPath)
+	}
 	logger.Debug("merge chunk path: ", path)
-	var rest elfinder.FileDir
-	fd, err := u.UserSftp.Create(path)
-	if err != nil {
-		for i := 0; i <= total; i++ {
-			partPath := fmt.Sprintf("%s.%d_%d.part_%d",
-				filepath.Join(u.localTmpPath, dirPath, filename), i, total, cid)
-			_ = os.Remove(partPath)
-		}
-		return rest, err
+	u.lock.Lock()
+	if fd, ok := u.chunkFilesMap[cid]; ok {
+		_ = fd.Close()
+		delete(u.chunkFilesMap, cid)
 	}
-	defer fd.Close()
-
-	for i := 0; i <= total; i++ {
-		partPath := fmt.Sprintf("%s.%d_%d.part_%d",
-			filepath.Join(u.localTmpPath, dirPath, filename), i, total, cid)
-
-		partFD, err := os.Open(partPath)
-		if err != nil {
-			logger.Debug(err)
-			_ = os.Remove(partPath)
-			continue
-		}
-		_, err = io.Copy(fd, partFD)
-		if err != nil {
-			return rest, os.ErrNotExist
-		}
-		_ = partFD.Close()
-		_ = os.Remove(partPath)
-	}
+	u.lock.Unlock()
 	return u.Info(path)
 }
 
-func (u *UserVolume) CompleteChunk(cid, total int, dirPath, filename string) bool {
-	for i := 0; i <= total; i++ {
-		partPath := fmt.Sprintf("%s.%d_%d.part_%d",
-			filepath.Join(u.localTmpPath, dirPath, filename), i, total, cid)
-		_, err := os.Stat(partPath)
-		if err != nil {
-			return false
-		}
-	}
-	return true
-}
-
 func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
+	logger.Debug("volume Make Dir: ", newDirname)
 	path := filepath.Join(dir, newDirname)
 	var rest elfinder.FileDir
-	err := u.UserSftp.MkdirAll(path)
+	err := u.UserSftp.MkdirAll(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
@@ -227,20 +228,26 @@ func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
 }
 
 func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error) {
+	logger.Debug("volume MakeFile")
+
 	path := filepath.Join(dir, newFilename)
 	var rest elfinder.FileDir
-	fd, err := u.UserSftp.Create(path)
+	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
-	defer fd.Close()
-	return u.Info(path)
+	_ = fd.Close()
+	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
+
+	return NewElfinderFileInfo(u.Uuid, dir, res), err
 }
 
 func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, error) {
+
+	logger.Debug("volume Rename")
 	var rest elfinder.FileDir
 	newNamePath := filepath.Join(filepath.Dir(oldNamePath), newName)
-	err := u.UserSftp.Rename(oldNamePath, newNamePath)
+	err := u.UserSftp.Rename(filepath.Join(u.basePath, oldNamePath), filepath.Join(u.basePath, newNamePath))
 	if err != nil {
 		return rest, err
 	}
@@ -248,26 +255,30 @@ func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, erro
 }
 
 func (u *UserVolume) Remove(path string) error {
+
+	logger.Debug("volume remove", path)
 	var res os.FileInfo
 	var err error
-	res, err = u.UserSftp.Stat(path)
+	res, err = u.UserSftp.Stat(filepath.Join(u.basePath, path))
 	if err != nil {
 		return err
 	}
 	if res.IsDir() {
-		return u.UserSftp.RemoveDirectory(path)
+		return u.UserSftp.RemoveDirectory(filepath.Join(u.basePath, path))
 	}
-	return u.UserSftp.Remove(path)
+	return u.UserSftp.Remove(filepath.Join(u.basePath, path))
 }
 
 func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (elfinder.FileDir, error) {
+	defer reader.Close()
 	var rest elfinder.FileDir
 	path := filepath.Join(dir, filename)
-	rest, err := u.Info(path)
-	if err != nil {
+	_, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
+	if err == nil {
 		path += suffix
 	}
-	fd, err := u.UserSftp.Create(path)
+	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
+	logger.Debug("volume paste: ", path, err)
 	if err != nil {
 		return rest, err
 	}
@@ -281,7 +292,7 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 
 func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	logger.Debug("Root File Dir")
-	fInfo, _ := u.UserSftp.Info()
+	fInfo, _ := u.UserSftp.Stat(u.basePath)
 	var rest elfinder.FileDir
 	rest.Name = u.Homename
 	rest.Hash = hashPath(u.Uuid, "/")
