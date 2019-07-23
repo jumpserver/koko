@@ -65,7 +65,7 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 	if sc.PrivateKey != "" {
 		if signer, err := gossh.ParsePrivateKeyWithPassphrase([]byte(sc.PrivateKey), []byte(sc.Password)); err != nil {
 			err = fmt.Errorf("parse private key error: %s", err)
-			return config, err
+			logger.Error(err.Error())
 		} else {
 			authMethods = append(authMethods, gossh.PublicKeys(signer))
 		}
@@ -201,7 +201,7 @@ func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.
 	if !ok {
 		return
 	}
-	if systemUser.Username == ""{
+	if systemUser.Username == "" {
 		systemUser.Username = client.Username
 	}
 	var u = user.Username

@@ -175,6 +175,9 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 			}
 		default:
 			switch {
+			case line == "exit", line == "quit":
+				logger.Info("exit session")
+				return
 			case strings.Index(line, "/") == 0:
 				searchWord := strings.TrimSpace(line[1:])
 				assets := h.searchAsset(searchWord)
