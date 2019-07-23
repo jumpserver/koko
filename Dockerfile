@@ -1,6 +1,7 @@
 FROM golang:1.12-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/coco
+RUN apk update && apk add git
 ARG GOPROXY
 ENV GOPROXY=$GOPROXY
 ENV GO111MODULE=on
@@ -20,6 +21,7 @@ COPY cmd/config_example.yml .
 COPY entrypoint.sh .
 RUN chmod 755 ./entrypoint.sh \
   && apk add -U tzdata \
+  && apk add curl \
   && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
   && echo "Asia/Shanghai" > /etc/timezone \
   && apk del tzdata \
