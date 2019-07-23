@@ -76,7 +76,7 @@ func (c *Client) marshalData(data interface{}) (reader io.Reader, error error) {
 }
 
 func (c *Client) parseUrlQuery(url string, params []map[string]string) string {
-	if len(params) != 1 {
+	if len(params) < 1 {
 		return url
 	}
 	var query []string
@@ -119,7 +119,7 @@ func (c *Client) setAuthHeader(r *http.Request) {
 	}
 }
 
-func (c *Client) SetReqHeaders(req *http.Request) {
+func (c *Client) SetReqHeaders(req *http.Request, params []map[string]string) {
 	if len(c.Headers) != 0 {
 		for k, v := range c.Headers {
 			req.Header.Set(k, v)
@@ -128,8 +128,13 @@ func (c *Client) SetReqHeaders(req *http.Request) {
 	if req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set("user-Agent", "koko-client")
+	req.Header.Set("User-Agent", "koko-client")
 	c.setAuthHeader(req)
+	if len(params) >= 2 {
+		for k, v := range params[1] {
+			req.Header.Set(k, v)
+		}
+	}
 }
 
 func (c *Client) NewRequest(method, url string, body interface{}, params []map[string]string) (req *http.Request, err error) {
@@ -139,16 +144,16 @@ func (c *Client) NewRequest(method, url string, body interface{}, params []map[s
 		return
 	}
 	req, err = http.NewRequest(method, url, reader)
-	c.SetReqHeaders(req)
+	c.SetReqHeaders(req, params)
 	return req, err
 }
 
 // Do wrapper http.Client Do() for using auth and error handle
 // params:
 //   1. query string if set {"name": "ibuler"}
-func (c *Client) Do(method, url string, data, res interface{}, params ...map[string]string) (err error) {
+func (c *Client) Do(method, url string, data, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	req, err := c.NewRequest(method, url, data, params)
-	resp, err := c.http.Do(req)
+	resp, err = c.http.Do(req)
 	if err != nil {
 		return
 	}
@@ -167,7 +172,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		return
 	}
 	// Unmarshal response body to result struct
-	if res != nil {
+	if res != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		err = json.Unmarshal(body, res)
 		if err != nil {
 			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body[:12], err)
@@ -178,23 +183,23 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 	return
 }
 
-func (c *Client) Get(url string, res interface{}, params ...map[string]string) (err error) {
+func (c *Client) Get(url string, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	return c.Do("GET", url, nil, res, params...)
 }
 
-func (c *Client) Post(url string, data interface{}, res interface{}, params ...map[string]string) (err error) {
+func (c *Client) Post(url string, data interface{}, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	return c.Do("POST", url, data, res, params...)
 }
 
-func (c *Client) Delete(url string, res interface{}, params ...map[string]string) (err error) {
+func (c *Client) Delete(url string, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	return c.Do("DELETE", url, nil, res, params...)
 }
 
-func (c *Client) Put(url string, data interface{}, res interface{}, params ...map[string]string) (err error) {
+func (c *Client) Put(url string, data interface{}, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	return c.Do("PUT", url, data, res, params...)
 }
 
-func (c *Client) Patch(url string, data interface{}, res interface{}, params ...map[string]string) (err error) {
+func (c *Client) Patch(url string, data interface{}, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	return c.Do("PATCH", url, data, res, params...)
 }
 
@@ -248,7 +253,7 @@ func (c *Client) UploadFile(url string, gFile string, res interface{}, params ..
 	url = c.parseUrl(url, params)
 	req, err := http.NewRequest("POST", url, buf)
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
-	c.SetReqHeaders(req)
+	c.SetReqHeaders(req, params)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return

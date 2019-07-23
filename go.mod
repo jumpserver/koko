@@ -16,6 +16,7 @@ require (
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/go-playground/form v3.1.4+incompatible // indirect
 	github.com/gorilla/mux v1.7.2
+	github.com/gorilla/websocket v1.4.0
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/kataras/neffos v0.0.7
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect

@@ -26,7 +26,9 @@ const (
 
 	FTPLogListURL = "/api/audits/v1/ftp-log/" // 上传 ftp日志
 
-	UserAssetsURL                  = "/api/perms/v1/users/%s/assets/"                 //获取用户授权的所有资产
-	UserNodesAssetsURL             = "/api/perms/v1/users/%s/nodes-assets/"           // 获取用户授权的所有节点信息 节点分组
+	UserAssetsURL                  = "/api/perms/v1/users/%s/assets/"       //获取用户授权的所有资产
+	UserNodesAssetsURL             = "/api/perms/v1/users/%s/nodes-assets/" // 获取用户授权的所有节点信息 节点分组
+	UserNodesListURL               = "/api/perms/v1/users/%s/nodes/"
+	UserNodeAssetsListURL          = "/api/perms/v1/users/%s/nodes/%s/assets/"
 	ValidateUserAssetPermissionURL = "/api/perms/v1/asset-permissions/user/validate/" //0不使用缓存 1 使用缓存 2 刷新缓存
 )

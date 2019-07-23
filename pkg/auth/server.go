@@ -9,13 +9,12 @@ import (
 	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/service"
 )
 
-var mfaInstruction = i18n.T("Please enter 6 digits.")
-var mfaQuestion = i18n.T("[MFA auth]: ")
+var mfaInstruction = "Please enter 6 digits."
+var mfaQuestion = "[MFA auth]: "
 
 const (
 	actionAccepted        = "Accepted"
@@ -33,7 +32,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	}
 	remoteAddr := strings.Split(ctx.RemoteAddr().String(), ":")[0]
 
-	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "T")
+	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "ST")
 	if err != nil {
 		action = actionFailed
 		logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)

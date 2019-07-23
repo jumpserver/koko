@@ -9,7 +9,7 @@ import (
 
 func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.SystemUserAuthInfo) {
 	Url := fmt.Sprintf(SystemUserAssetAuthURL, systemUserID, assetID)
-	err := authClient.Get(Url, &info)
+	_, err := authClient.Get(Url, &info)
 	if err != nil {
 		logger.Error("Get system user Asset auth info failed")
 	}
@@ -59,7 +59,7 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 	]`*/
 	Url := fmt.Sprintf(SystemUserCmdFilterRulesListURL, systemUserID)
 
-	err = authClient.Get(Url, &rules)
+	_, err = authClient.Get(Url, &rules)
 	if err != nil {
 		logger.Error("Get system user auth info failed")
 	}
@@ -68,7 +68,7 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 
 func GetSystemUser(systemUserID string) (info model.SystemUser) {
 	Url := fmt.Sprintf(SystemUserDetailURL, systemUserID)
-	err := authClient.Get(Url, &info)
+	_, err := authClient.Get(Url, &info)
 	if err != nil {
 		logger.Errorf("Get system user %s failed", systemUserID)
 	}
@@ -77,7 +77,7 @@ func GetSystemUser(systemUserID string) (info model.SystemUser) {
 
 func GetAsset(assetID string) (asset model.Asset) {
 	Url := fmt.Sprintf(AssetDetailURL, assetID)
-	err := authClient.Get(Url, &asset)
+	_, err := authClient.Get(Url, &asset)
 	if err != nil {
 		logger.Errorf("Get Asset %s failed\n", assetID)
 	}
@@ -86,7 +86,7 @@ func GetAsset(assetID string) (asset model.Asset) {
 
 func GetDomainWithGateway(gID string) (domain model.Domain) {
 	url := fmt.Sprintf(DomainDetailURL, gID)
-	err := authClient.Get(url, &domain)
+	_, err := authClient.Get(url, &domain)
 	if err != nil {
 		logger.Errorf("Get domain %s failed: %s", gID, err)
 	}
@@ -95,7 +95,7 @@ func GetDomainWithGateway(gID string) (domain model.Domain) {
 
 func GetTokenAsset(token string) (tokenUser model.TokenUser) {
 	Url := fmt.Sprintf(TokenAssetURL, token)
-	err := authClient.Get(Url, &tokenUser)
+	_, err := authClient.Get(Url, &tokenUser)
 	if err != nil {
 		logger.Error("Get Token Asset info failed: ", err)
 	}

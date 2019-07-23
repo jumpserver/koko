@@ -76,7 +76,6 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	}
 	if filename == "." {
 		filename = originFileInfo.Name()
-		fmt.Println("askldkasdlala")
 	}
 	rest.Name = filename
 	rest.Hash = hashPath(u.Uuid, filepath.Join(dirPath, filename))
