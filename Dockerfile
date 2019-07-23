@@ -4,8 +4,10 @@ WORKDIR /opt/coco
 ARG GOPROXY
 ENV GOPROXY=$GOPROXY
 ENV GO111MODULE=on
-COPY . .
+COPY go.mod go.sum ./
+RUN apk update && apk add git
 RUN go mod download
+COPY . .
 RUN cd cmd && go build koko.go
 
 FROM alpine
