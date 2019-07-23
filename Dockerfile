@@ -1,7 +1,6 @@
 FROM golang:1.12-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/coco
-RUN apk update && apk add git
 ARG GOPROXY
 ENV GOPROXY=$GOPROXY
 ENV GO111MODULE=on
