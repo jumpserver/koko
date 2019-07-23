@@ -245,6 +245,7 @@ func (u *UserSftp) Remove(path string) error {
 	if conn == nil {
 		return sftp.ErrSshFxPermissionDenied
 	}
+	logger.Debug("remove file path", realPath)
 	err := conn.client.Remove(realPath)
 	filename := realPath
 	isSuccess := false
@@ -391,6 +392,7 @@ func (u *UserSftp) Create(path string) (*sftp.File, error) {
 	if conn == nil {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
+	logger.Debug("create path:", realPath)
 	sf, err := conn.client.Create(realPath)
 	filename := realPath
 	isSuccess := false
@@ -425,6 +427,7 @@ func (u *UserSftp) Open(path string) (*sftp.File, error) {
 	if conn == nil {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
+	logger.Debug("Open path:", realPath)
 	sf, err := conn.client.Open(realPath)
 	filename := realPath
 	isSuccess := false

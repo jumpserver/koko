@@ -7,17 +7,23 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/kataras/neffos"
-	"github.com/kataras/neffos/gorilla"
-
+	gorillaws "github.com/gorilla/websocket"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/kataras/neffos"
+	"github.com/kataras/neffos/gorilla"
 )
 
 var (
 	httpServer *http.Server
 	Timeout    = time.Duration(60)
 )
+
+var upgrader = gorilla.Upgrader(gorillaws.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+})
 
 var wsEvents = neffos.WithTimeout{
 	ReadTimeout:  Timeout * time.Second,
@@ -50,7 +56,7 @@ var wsEvents = neffos.WithTimeout{
 
 func StartHTTPServer() {
 	conf := config.GetConf()
-	sshWs := neffos.New(gorilla.DefaultUpgrader, wsEvents)
+	sshWs := neffos.New(upgrader, wsEvents)
 	sshWs.IDGenerator = func(w http.ResponseWriter, r *http.Request) string {
 		return neffos.DefaultIDGenerator(w, r)
 	}
