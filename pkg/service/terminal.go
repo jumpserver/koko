@@ -13,7 +13,7 @@ func RegisterTerminal(name, token, comment string) (res model.Terminal) {
 	}
 	client.Headers["Authorization"] = fmt.Sprintf("BootstrapToken %s", token)
 	data := map[string]string{"name": name, "comment": comment}
-	err := client.Post(TerminalRegisterURL, data, &res)
+	_, err := client.Post(TerminalRegisterURL, data, &res)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -25,7 +25,7 @@ func TerminalHeartBeat(sIds []string) (res []model.TerminalTask) {
 	data := map[string][]string{
 		"sessions": sIds,
 	}
-	err := authClient.Post(TerminalHeartBeatURL, data, &res)
+	_, err := authClient.Post(TerminalHeartBeatURL, data, &res)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -34,7 +34,7 @@ func TerminalHeartBeat(sIds []string) (res []model.TerminalTask) {
 
 func CreateSession(data map[string]interface{}) bool {
 	var res map[string]interface{}
-	err := authClient.Post(SessionListURL, data, &res)
+	_, err := authClient.Post(SessionListURL, data, &res)
 	if err == nil {
 		return true
 	}
@@ -51,7 +51,7 @@ func FinishSession(data map[string]interface{}) {
 			"date_end":    data["date_end"],
 		}
 		Url := fmt.Sprintf(SessionDetailURL, sid)
-		err := authClient.Patch(Url, payload, &res)
+		_, err := authClient.Patch(Url, payload, &res)
 		if err != nil {
 			logger.Error(err)
 		}
@@ -63,7 +63,7 @@ func FinishReply(sid string) bool {
 	var res map[string]interface{}
 	data := map[string]bool{"has_replay": true}
 	Url := fmt.Sprintf(SessionDetailURL, sid)
-	err := authClient.Patch(Url, data, &res)
+	_, err := authClient.Patch(Url, data, &res)
 	if err != nil {
 		logger.Error(err)
 		return false
@@ -75,7 +75,7 @@ func FinishTask(tid string) bool {
 	var res map[string]interface{}
 	data := map[string]bool{"is_finished": true}
 	Url := fmt.Sprintf(FinishTaskURL, tid)
-	err := authClient.Patch(Url, data, &res)
+	_, err := authClient.Patch(Url, data, &res)
 	if err != nil {
 		logger.Error(err)
 		return false
@@ -94,7 +94,7 @@ func PushSessionReplay(sessionID, gZipFile string) (err error) {
 }
 
 func PushSessionCommand(commands []*model.Command) (err error) {
-	err = authClient.Post(SessionCommandURL, commands, nil)
+	_, err = authClient.Post(SessionCommandURL, commands, nil)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -102,7 +102,7 @@ func PushSessionCommand(commands []*model.Command) (err error) {
 }
 
 func PushFTPLog(data *model.FTPLog) (err error) {
-	err = authClient.Post(FTPLogListURL, data, nil)
+	_, err = authClient.Post(FTPLogListURL, data, nil)
 	if err != nil {
 		logger.Error(err)
 	}

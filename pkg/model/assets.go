@@ -150,14 +150,13 @@ type Domain struct {
 }
 
 type Node struct {
-	ID            string  `json:"id"`
-	Key           string  `json:"key"`
-	Name          string  `json:"name"`
-	Value         string  `json:"value"`
-	Parent        string  `json:"parent"`
-	AssetsGranted []Asset `json:"assets_granted"`
-	AssetsAmount  int     `json:"assets_amount"`
-	OrgID         string  `json:"org_id"`
+	ID           string `json:"id"`
+	Key          string `json:"key"`
+	Name         string `json:"name"`
+	Value        string `json:"value"`
+	Parent       string `json:"parent"`
+	AssetsAmount int    `json:"assets_amount"`
+	OrgID        string `json:"org_id"`
 }
 
 type nodeSortBy func(node1, node2 *Node) bool
@@ -207,7 +206,6 @@ func keySort(node1, node2 *Node) bool {
 		} else {
 			return true
 		}
-
 	}
 	return true
 

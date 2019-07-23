@@ -66,7 +66,7 @@ func validateAccessAuth() {
 
 func MustLoadServerConfigOnce() {
 	var data map[string]interface{}
-	err := authClient.Get(TerminalConfigURL, &data)
+	_, err := authClient.Get(TerminalConfigURL, &data)
 	if err != nil {
 		logger.Error("Load config from server error: ", err)
 		return
@@ -86,7 +86,7 @@ func MustLoadServerConfigOnce() {
 
 func LoadConfigFromServer() (err error) {
 	conf := config.GetConf()
-	err = authClient.Get(TerminalConfigURL, conf)
+	_, err = authClient.Get(TerminalConfigURL, conf)
 	if err != nil {
 		return err
 	}

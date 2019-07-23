@@ -22,29 +22,6 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-type assetsCacheContainer struct {
-	mapData map[string][]model.Asset
-	lock    *sync.RWMutex
-}
-
-func (c *assetsCacheContainer) Get(key string) ([]model.Asset, bool) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	value, ok := c.mapData[key]
-	return value, ok
-}
-
-func (c *assetsCacheContainer) SetValue(key string, value []model.Asset) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.mapData[key] = value
-}
-
-var userAssetsCached = assetsCacheContainer{
-	mapData: make(map[string][]model.Asset),
-	lock:    new(sync.RWMutex),
-}
-
 func SessionHandler(sess ssh.Session) {
 	pty, _, ok := sess.Pty()
 	if ok {
@@ -98,7 +75,7 @@ func (h *interactiveHandler) Initial() {
 }
 
 func (h *interactiveHandler) loadAssetsFromCache() {
-	if assets, ok := userAssetsCached.Get(h.user.ID); ok {
+	if assets, ok := service.GetUserAssetsFromCache(h.user.ID); ok {
 		h.assets = assets
 		close(h.assetDataLoaded)
 	} else {
@@ -109,8 +86,8 @@ func (h *interactiveHandler) loadAssetsFromCache() {
 
 func (h *interactiveHandler) firstLoadAssetAndNodes() {
 	h.loadUserAssets("1")
-	h.loadUserAssetNodes("1")
-	logger.Debug("first Load Asset And Nodes done")
+	h.loadUserNodes("1")
+	logger.Debug("First load assets and nodes done")
 	close(h.nodeDataLoaded)
 	select {
 	case <-h.assetDataLoaded:
@@ -315,7 +292,7 @@ func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
 	h.loadUserAssets("2")
-	h.loadUserAssetNodes("2")
+	h.loadUserNodes("2")
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
@@ -324,14 +301,15 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 
 func (h *interactiveHandler) loadUserAssets(cachePolicy string) {
 	assets := service.GetUserAssets(h.user.ID, cachePolicy, "")
-	userAssetsCached.SetValue(h.user.ID, assets)
 	h.mu.Lock()
 	h.assets = assets
 	h.mu.Unlock()
 }
 
-func (h *interactiveHandler) loadUserAssetNodes(cachePolicy string) {
+func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
+	h.mu.Lock()
 	h.nodes = service.GetUserNodes(h.user.ID, cachePolicy)
+	h.mu.Unlock()
 }
 
 func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
@@ -359,23 +337,16 @@ func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
 			assets = append(assets, assetValue)
 		}
 	}
-
-	//	assetsData, _ := Cached.Load(h.user.ID)
-	//	for _, assetValue := range assetsData.([]model.Asset) {
-	//		if isSubstring([]string{assetValue.IP, assetValue.Hostname, assetValue.Comment}, key) {
-	//			assets = append(assets, assetValue)
-	//		}
-	//	}
-
 	return assets
 }
 
-func (h *interactiveHandler) searchNodeAssets(num int) (assets []model.Asset) {
+func (h *interactiveHandler) searchNodeAssets(num int) (assets model.AssetList) {
 	if num > len(h.nodes) || num == 0 {
 		return assets
 	}
-	return h.nodes[num-1].AssetsGranted
-
+	node := h.nodes[num-1]
+	assets = service.GetUserNodeAssets(h.user.ID, node.ID, "1")
+	return
 }
 
 func (h *interactiveHandler) Proxy(ctx context.Context) {
@@ -396,7 +367,7 @@ func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
 	tree := treeprint.New()
 	for i := 0; i < len(assetNodes); i++ {
 		r := strings.LastIndex(assetNodes[i].Key, ":")
-		if r < 0 {
+		if _, ok := treeMap[assetNodes[i].Key[:r]]; r < 0 || !ok {
 			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
 				strconv.Itoa(i+1), assetNodes[i].Name,
 				strconv.Itoa(assetNodes[i].AssetsAmount)))
@@ -409,7 +380,6 @@ func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
 				strconv.Itoa(assetNodes[i].AssetsAmount)))
 			treeMap[assetNodes[i].Key] = nodeTree
 		}
-
 	}
 	return tree
 }
