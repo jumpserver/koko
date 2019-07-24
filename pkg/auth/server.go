@@ -32,7 +32,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	}
 	remoteAddr := strings.Split(ctx.RemoteAddr().String(), ":")[0]
 
-	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "ST")
+	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "T")
 	if err != nil {
 		action = actionFailed
 		logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
