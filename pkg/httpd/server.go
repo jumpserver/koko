@@ -17,7 +17,7 @@ import (
 
 var (
 	httpServer *http.Server
-	Timeout    = time.Duration(10)
+	Timeout    = time.Duration(60)
 )
 
 var upgrader = gorilla.Upgrader(gorillaws.Upgrader{
