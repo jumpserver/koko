@@ -172,7 +172,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		return
 	}
 	// Unmarshal response body to result struct
-	if res != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	if res != nil && resp.StatusCode >= 200 && resp.StatusCode <= 300 {
 		err = json.Unmarshal(body, res)
 		if err != nil {
 			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body[:12], err)
