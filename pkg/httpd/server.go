@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -69,6 +70,10 @@ func StartHTTPServer() {
 	}
 	sshWs.OnConnect = func(c *neffos.Conn) error {
 		if c.WasReconnected() {
+			namespace := c.Socket().Request().Header.Get("X-Namespace")
+			if namespace != "" {
+				_, _ = c.Connect(context.TODO(), "ssh")
+			}
 			logger.Debugf("Connection %s reconnected, with tries: %d", c.ID(), c.ReconnectTries)
 		} else {
 			logger.Debug("A new ws connection arrive")
