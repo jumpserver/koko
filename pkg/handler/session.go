@@ -370,7 +370,14 @@ func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
 	tree := treeprint.New()
 	for i := 0; i < len(assetNodes); i++ {
 		r := strings.LastIndex(assetNodes[i].Key, ":")
-		if _, ok := treeMap[assetNodes[i].Key[:r]]; r < 0 || !ok {
+		if r < 0 {
+			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
+				strconv.Itoa(i+1), assetNodes[i].Name,
+				strconv.Itoa(assetNodes[i].AssetsAmount)))
+			treeMap[assetNodes[i].Key] = subtree
+			continue
+		}
+		if _, ok := treeMap[assetNodes[i].Key[:r]]; !ok {
 			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
 				strconv.Itoa(i+1), assetNodes[i].Name,
 				strconv.Itoa(assetNodes[i].AssetsAmount)))

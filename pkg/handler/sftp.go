@@ -105,7 +105,15 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	logger.Debug("File read: ", r.Filepath)
 	f, err := fs.Open(r.Filepath)
-	return NewReaderAt(f), err
+	if err != nil {
+		return nil, err
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return NewReaderAt(f, fi), err
 }
 
 func (fs *sftpHandler) Close() {
@@ -130,33 +138,27 @@ func NewWriterAt(f *sftp.File) io.WriterAt {
 	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
 }
 
-func NewReaderAt(f *sftp.File) io.ReaderAt {
-	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
+func NewReaderAt(f *sftp.File, fi os.FileInfo) io.ReaderAt {
+	return &clientReadWritAt{f: f, mu: new(sync.RWMutex), fi: fi}
 }
 
 type clientReadWritAt struct {
 	f        *sftp.File
 	mu       *sync.RWMutex
-	closed   bool
+	fi       os.FileInfo
 	firstErr error
 }
 
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.closed {
+	if c.firstErr != nil {
 		return 0, c.firstErr
 	}
-	if _, err = c.f.Seek(off, 0); err != nil {
-		c.firstErr = err
-		c.closed = true
-		_ = c.f.Close()
-		return
-	}
+	_, _ = c.f.Seek(off, 0)
 	nw, err := c.f.Write(p)
 	if err != nil {
 		c.firstErr = err
-		c.closed = true
 		_ = c.f.Close()
 	}
 	return nw, err
@@ -165,19 +167,16 @@ func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.closed {
+	if c.firstErr != nil {
 		return 0, c.firstErr
 	}
-	if _, err = c.f.Seek(off, 0); err != nil {
-		c.firstErr = err
-		c.closed = true
-		_ = c.f.Close()
-		return
+	if off >= c.fi.Size() {
+		return 0, io.EOF
 	}
+	_, _ = c.f.Seek(off, 0)
 	nr, err := c.f.Read(p)
 	if err != nil {
 		c.firstErr = err
-		c.closed = true
 		_ = c.f.Close()
 	}
 	return nr, err

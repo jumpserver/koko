@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"strings"
+	"net"
 
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
@@ -30,9 +30,9 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	if password != "" {
 		authMethod = "password"
 	}
-	remoteAddr := strings.Split(ctx.RemoteAddr().String(), ":")[0]
+	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 
-	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "ST")
+	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "T")
 	if err != nil {
 		action = actionFailed
 		logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
@@ -73,7 +73,7 @@ func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
 
 func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (res ssh.AuthResult) {
 	username := ctx.User()
-	remoteAddr := strings.Split(ctx.RemoteAddr().String(), ":")[0]
+	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 	res = ssh.AuthFailed
 	defer func() {
 		authMethod := "MFA"
