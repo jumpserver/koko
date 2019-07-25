@@ -2,7 +2,7 @@ package handler
 
 import (
 	"io"
-	"strings"
+	"net"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
@@ -85,7 +85,8 @@ func (w *WrapperSession) LoginFrom() string {
 }
 
 func (w *WrapperSession) RemoteAddr() string {
-	return strings.Split(w.Sess.RemoteAddr().String(), ":")[0]
+	host, _, _ := net.SplitHostPort(w.Sess.RemoteAddr().String())
+	return host
 }
 
 func (w *WrapperSession) Pty() ssh.Pty {
