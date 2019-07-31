@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 type AssetList []Asset
@@ -315,8 +317,14 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 	if sf.Type.Value == TypeCmd {
 		var regex []string
 		for _, cmd := range strings.Split(sf.Content, "\r\n") {
+			cmd = regexp.QuoteMeta(cmd)
 			cmd = strings.Replace(cmd, " ", "\\s+", 1)
-			regex = append(regex, fmt.Sprintf("\\b%s\\b", cmd))
+			regexItem := fmt.Sprintf(`\b%s\b`, cmd)
+			lastRune, _ := utf8.DecodeLastRuneInString(cmd)
+			if lastRune != utf8.RuneError && !unicode.IsLetter(lastRune) {
+				regexItem = fmt.Sprintf(`\b%s`, cmd)
+			}
+			regex = append(regex, regexItem)
 		}
 		regexs = strings.Join(regex, "|")
 	} else {
