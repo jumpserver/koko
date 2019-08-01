@@ -27,13 +27,15 @@ func NewUserSFTP(user *model.User, addr string, assets ...model.Asset) *UserSftp
 }
 
 type UserSftp struct {
-	User        *model.User
-	Addr        string
+	User *model.User
+	Addr string
 
-	RootPath    string
-	ShowHidden  bool
-	hosts       map[string]*HostnameDir // key hostname or hostname.orgName
-	sftpClients map[string]*SftpConn    //  key %s@%s suName hostName
+	RootPath        string
+	ShowHidden      bool
+	ReuseConnection bool
+	Overtime        time.Duration
+	hosts           map[string]*HostnameDir // key hostname or hostname.orgName
+	sftpClients     map[string]*SftpConn    //  key %s@%s suName hostName
 
 	LogChan chan *model.FTPLog
 }
@@ -42,6 +44,8 @@ func (u *UserSftp) initial(assets []model.Asset) {
 	conf := config.GetConf()
 	u.RootPath = conf.SftpRoot
 	u.ShowHidden = conf.ShowHiddenFile
+	u.ReuseConnection = conf.ReuseConnection
+	u.Overtime = conf.SSHTimeout * time.Second
 	u.hosts = make(map[string]*HostnameDir)
 	u.sftpClients = make(map[string]*SftpConn)
 	u.LogChan = make(chan *model.FTPLog, 10)
@@ -92,9 +96,9 @@ func (u *UserSftp) ReadDir(path string) (res []os.FileInfo, err error) {
 	res, err = conn.client.ReadDir(realPath)
 	if !u.ShowHidden {
 		noHiddenFiles := make([]os.FileInfo, 0, len(res))
-		for i:=0; i<len(res);i++ {
+		for i := 0; i < len(res); i++ {
 			if !strings.HasPrefix(res[i].Name(), ".") {
-				noHiddenFiles = append(noHiddenFiles,res[i])
+				noHiddenFiles = append(noHiddenFiles, res[i])
 			}
 		}
 		return noHiddenFiles, err
@@ -577,11 +581,11 @@ func (u *UserSftp) SendFTPLog(dataChan <-chan *model.FTPLog) {
 }
 
 func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (conn *SftpConn, err error) {
-	sshClient, err := NewClient(u.User, asset, sysUser, config.GetConf().SSHTimeout*time.Second)
+	sshClient, err := NewClient(u.User, asset, sysUser, u.Overtime, u.ReuseConnection)
 	if err != nil {
 		return
 	}
-	sftpClient, err := sftp.NewClient(sshClient.Client)
+	sftpClient, err := sftp.NewClient(sshClient.client)
 	if err != nil {
 		return
 	}

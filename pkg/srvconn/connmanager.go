@@ -16,9 +16,8 @@ import (
 )
 
 var (
-	sshClients        = make(map[string]*SSHClient)
-	clientsRefCounter = make(map[*SSHClient]int)
-	clientLock        = new(sync.RWMutex)
+	sshClients = make(map[string]*SSHClient)
+	clientLock = new(sync.RWMutex)
 )
 
 var (
@@ -32,8 +31,43 @@ var (
 )
 
 type SSHClient struct {
-	Client   *gossh.Client
-	Username string
+	client   *gossh.Client
+	username string
+
+	ref int
+	key string
+	mu  *sync.RWMutex
+}
+
+func (s *SSHClient) refCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.ref
+}
+
+func (s *SSHClient) increaseRef() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ref++
+}
+
+func (s *SSHClient) decreaseRef() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ref--
+}
+
+func (s *SSHClient) NewSession() (*gossh.Session, error) {
+	return s.client.NewSession()
+}
+
+func (s *SSHClient) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ref > 1 {
+		return nil
+	}
+	return s.client.Close()
 }
 
 type SSHClientConfig struct {
@@ -150,7 +184,7 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 			}
 		}
 	}
-	if systemUser.Password == "" && systemUser.PrivateKey == "" && systemUser.LoginMode != model.LoginModeManual{
+	if systemUser.Password == "" && systemUser.PrivateKey == "" && systemUser.LoginMode != model.LoginModeManual {
 		info := service.GetSystemUserAssetAuthInfo(systemUser.ID, asset.ID)
 		systemUser.Password = info.Password
 		systemUser.PrivateKey = info.PrivateKey
@@ -173,78 +207,67 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 	if err != nil {
 		return nil, err
 	}
-	return &SSHClient{Client: conn, Username: systemUser.Username}, err
+	return &SSHClient{client: conn, username: systemUser.Username, mu: new(sync.RWMutex)}, err
 }
 
-func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *SSHClient, err error) {
-	client = GetClientFromCache(user, asset, systemUser)
-	if client != nil {
-		return client, nil
-	}
+func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration,
+	useCache bool) (client *SSHClient, err error) {
 
 	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
+	switch {
+	case useCache:
+		client = getClientFromCache(key)
+		if client != nil {
+			if systemUser.Username == "" {
+				systemUser.Username = client.username
+			}
+			logger.Infof("Reuse connection: %s->%s@%s ref: %d",
+				user.Username, client.username, asset.IP, client.refCount())
+			return client, nil
+		}
+	}
 	client, err = newClient(asset, systemUser, timeout)
-	if err == nil {
-		clientLock.Lock()
-		sshClients[key] = client
-		clientsRefCounter[client] = 1
-		clientLock.Unlock()
+	if err == nil && useCache {
+		setClientCache(key, client)
 	}
 	return
 }
 
-func GetClientFromCache(user *model.User, asset *model.Asset, systemUser *model.SystemUser) (client *SSHClient) {
-	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
+func getClientFromCache(key string) (client *SSHClient) {
 	clientLock.Lock()
 	defer clientLock.Unlock()
 	client, ok := sshClients[key]
 	if !ok {
-		return
+		return nil
 	}
-	if systemUser.Username == "" {
-		systemUser.Username = client.Username
-	}
-	var u = user.Username
-	var ip = asset.IP
-	clientsRefCounter[client]++
-	var counter = clientsRefCounter[client]
-
-	logger.Infof("Reuse connection: %s->%s@%s ref: %d", u, client.Username, ip, counter)
+	client.increaseRef()
 	return
 }
 
-func RecycleClient(client *SSHClient) {
-	clientLock.RLock()
-	counter, ok := clientsRefCounter[client]
-	clientLock.RUnlock()
-
-	if ok {
-		if counter == 1 {
-			logger.Debug("Recycle client: close it")
-			CloseClient(client)
-		} else {
-			clientLock.Lock()
-			clientsRefCounter[client]--
-			clientLock.Unlock()
-			logger.Debugf("Recycle client: ref -1: %d", clientsRefCounter[client])
-		}
-	}
+func setClientCache(key string, client *SSHClient) {
+	clientLock.Lock()
+	sshClients[key] = client
+	client.increaseRef()
+	client.key = key
+	clientLock.Unlock()
 }
 
-func CloseClient(client *SSHClient) {
-	clientLock.Lock()
-	defer clientLock.Unlock()
-
-	delete(clientsRefCounter, client)
-	var key string
-	for k, v := range sshClients {
-		if v == client {
-			key = k
-			break
+func RecycleClient(client *SSHClient) {
+	// 0, 1: delete Cache, close client.
+	// default: client ref decrease.
+	if client == nil {
+		return
+	}
+	switch client.refCount() {
+	case 0, 1:
+		clientLock.Lock()
+		delete(sshClients, client.key)
+		clientLock.Unlock()
+		err := client.Close()
+		if err != nil {
+			logger.Info("Failed to close client err: ", err.Error())
 		}
+	default:
+		client.decreaseRef()
 	}
-	if key != "" {
-		delete(sshClients, key)
-	}
-	_ = client.Client.Close()
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/config"
@@ -93,19 +94,18 @@ func (p *ProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *ProxyServer) getSSHConn(fromCache ...bool) (srvConn *srvconn.ServerSSHConnection, err error) {
+func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err error) {
 	pty := p.UserConn.Pty()
+	conf := config.GetConf()
 	srvConn = &srvconn.ServerSSHConnection{
-		User:       p.User,
-		Asset:      p.Asset,
-		SystemUser: p.SystemUser,
-		Overtime:   time.Duration(config.GetConf().SSHTimeout) * time.Second,
+		User:            p.User,
+		Asset:           p.Asset,
+		SystemUser:      p.SystemUser,
+		Overtime:        conf.SSHTimeout * time.Second,
+		ReuseConnection: conf.ReuseConnection,
+		CloseOnce:       new(sync.Once),
 	}
-	if len(fromCache) > 0 && fromCache[0] {
-		err = srvConn.TryConnectFromCache(pty.Window.Height, pty.Window.Width, pty.Term)
-	} else {
-		err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
-	}
+	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	return
 }
 
@@ -124,14 +124,6 @@ func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, 
 	}
 	err = srvConn.Connect(0, 0, "")
 	utils.IgnoreErrWriteString(p.UserConn, "\r\n")
-	return
-}
-
-// getServerConnFromCache 从cache中获取ssh server连接
-func (p *ProxyServer) getServerConnFromCache() (srvConn srvconn.ServerConnection, err error) {
-	if p.SystemUser.Protocol == "ssh" {
-		srvConn, err = p.getSSHConn(true)
-	}
 	return
 }
 
@@ -154,7 +146,7 @@ func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err err
 	if p.SystemUser.Protocol == "telnet" {
 		return p.getTelnetConn()
 	} else {
-		return p.getSSHConn(false)
+		return p.getSSHConn()
 	}
 }
 
@@ -220,11 +212,7 @@ func (p *ProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
 		return
 	}
-	// 先从cache中获取srv连接, 如果没有获得，则连接
-	srvConn, err := p.getServerConnFromCache()
-	if err != nil || srvConn == nil {
-		srvConn, err = p.getServerConn()
-	}
+	srvConn, err := p.getServerConn()
 	// 连接后端服务器失败
 	if err != nil {
 		p.sendConnectErrorMsg(err)
