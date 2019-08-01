@@ -9,6 +9,8 @@ github.com/LeeEirc/elfinder v0.0.0-20190718023636-5679c8bdb7bf h1:dZipr1cwienSKN
 github.com/LeeEirc/elfinder v0.0.0-20190718023636-5679c8bdb7bf/go.mod h1:ApL/XFs34Gvqinex9Z1sZdsp3Jeu26nNuEsf1wQFx8s=
 github.com/LeeEirc/elfinder v0.0.1 h1:fFVy2xddwB2qQxLxJOGl+1Lj686pnRFnySsjPr7luZ0=
 github.com/LeeEirc/elfinder v0.0.1/go.mod h1:VSfmUhE4Fvv+4Dfyo7Wmi44bdyDuIQgJtyi5EDcDSxE=
+github.com/LeeEirc/elfinder v0.0.2 h1:OnsOkZ3FVVKk91JxQQGwAULo78BSwPRN0yXaYcUK6Yk=
+github.com/LeeEirc/elfinder v0.0.2/go.mod h1:VSfmUhE4Fvv+4Dfyo7Wmi44bdyDuIQgJtyi5EDcDSxE=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8 h1:BOflvK0Zs/zGmoabyFIzTg5c3kguktWTXEwewwbuba0=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=

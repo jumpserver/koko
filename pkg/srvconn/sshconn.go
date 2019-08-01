@@ -1,8 +1,8 @@
 package srvconn
 
 import (
-	"errors"
 	"io"
+	"sync"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
@@ -11,29 +11,25 @@ import (
 )
 
 type ServerSSHConnection struct {
-	User       *model.User
-	Asset      *model.Asset
-	SystemUser *model.SystemUser
-	Overtime   time.Duration
+	User            *model.User
+	Asset           *model.Asset
+	SystemUser      *model.SystemUser
+	Overtime        time.Duration
+	CloseOnce       *sync.Once
+	ReuseConnection bool
 
-	client    *SSHClient
-	session   *gossh.Session
-	stdin     io.WriteCloser
-	stdout    io.Reader
-	closed    bool
-	connected bool
+	client   *SSHClient
+	session  *gossh.Session
+	stdin    io.WriteCloser
+	stdout   io.Reader
 }
 
 func (sc *ServerSSHConnection) Protocol() string {
 	return "ssh"
 }
 
-func (sc *ServerSSHConnection) Username() string {
-	return sc.client.Username
-}
-
 func (sc *ServerSSHConnection) invokeShell(h, w int, term string) (err error) {
-	sess, err := sc.client.Client.NewSession()
+	sess, err := sc.client.NewSession()
 	if err != nil {
 		return
 	}
@@ -60,32 +56,15 @@ func (sc *ServerSSHConnection) invokeShell(h, w int, term string) (err error) {
 }
 
 func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
-	sc.client, err = NewClient(sc.User, sc.Asset, sc.SystemUser, sc.Timeout())
+	sc.client, err = NewClient(sc.User, sc.Asset, sc.SystemUser, sc.Timeout(), sc.ReuseConnection)
 	if err != nil {
 		return
 	}
-
-	err = sc.invokeShell(h, w, term)
-	if err != nil {
-		return
-	}
-	sc.connected = true
-	return nil
-}
-
-func (sc *ServerSSHConnection) TryConnectFromCache(h, w int, term string) (err error) {
-	sc.client = GetClientFromCache(sc.User, sc.Asset, sc.SystemUser)
-	if sc.client == nil {
-		return errors.New("no client in cache")
-	}
-
 	err = sc.invokeShell(h, w, term)
 	if err != nil {
 		RecycleClient(sc.client)
-		return
 	}
-	sc.connected = true
-	return nil
+	return
 }
 
 func (sc *ServerSSHConnection) SetWinSize(h, w int) error {
@@ -108,13 +87,9 @@ func (sc *ServerSSHConnection) Timeout() time.Duration {
 }
 
 func (sc *ServerSSHConnection) Close() (err error) {
-	RecycleClient(sc.client)
-	if sc.closed || !sc.connected {
-		return
-	}
-	err = sc.session.Close()
-	if err != nil {
-		return
-	}
-	return
+	sc.CloseOnce.Do(func() {
+		RecycleClient(sc.client)
+
+	})
+	return sc.session.Close()
 }
