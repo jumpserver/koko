@@ -173,6 +173,8 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 		switch {
 		case strings.Contains(uploadPath,filename):
 			path = filepath.Join(dirPath, TrimPrefix(uploadPath))
+		case uploadPath != "":
+			path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
 		default:
 			path = filepath.Join(dirPath, filename)
 
@@ -204,6 +206,8 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename st
 	switch {
 	case strings.Contains(uploadPath,filename):
 		path = filepath.Join(dirPath, TrimPrefix(uploadPath))
+	case uploadPath != "":
+		path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
 	default:
 		path = filepath.Join(dirPath, filename)
 

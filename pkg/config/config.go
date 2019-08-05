@@ -26,6 +26,7 @@ type Config struct {
 	MaxIdleTime         time.Duration          `json:"SECURITY_MAX_IDLE_TIME"`
 	SftpRoot            string                 `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
 	ShowHiddenFile      bool                   `yaml:"SFTP_SHOW_HIDDEN_FILE"`
+	ReuseConnection     bool                   `yaml:"REUSE_CONNECTION"`
 	Name                string                 `yaml:"NAME"`
 	SecretKey           string                 `yaml:"SECRET_KEY"`
 	HostKeyFile         string                 `yaml:"HOST_KEY_FILE"`
@@ -131,6 +132,7 @@ var Conf = &Config{
 	UploadFailedReplay: true,
 	SftpRoot:           "/tmp",
 	ShowHiddenFile:     false,
+	ReuseConnection:    true,
 }
 
 func SetConf(conf *Config) {
