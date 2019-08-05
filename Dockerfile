@@ -5,7 +5,7 @@ ARG GOPROXY
 ENV GOPROXY=$GOPROXY
 ENV GO111MODULE=on
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
-  && apk update
+  && apk update \
   && apk add git
 COPY go.mod go.sum ./
 RUN go mod download
