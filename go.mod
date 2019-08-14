@@ -24,6 +24,7 @@ require (
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.1
+	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/sftp v1.10.0
 	github.com/satori/go.uuid v1.2.0
