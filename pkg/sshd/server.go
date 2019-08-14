@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/pires/go-proxyproto"
 
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/config"
@@ -36,7 +37,12 @@ func StartServer() {
 	}
 	// Set sftp handler
 	sshServer.SetSubsystemHandler("sftp", handler.SftpHandler)
-	logger.Fatal(sshServer.ListenAndServe())
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	proxyListener := &proxyproto.Listener{Listener: ln}
+	logger.Fatal(sshServer.Serve(proxyListener))
 }
 
 func StopServer() {
