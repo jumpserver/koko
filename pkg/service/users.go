@@ -56,10 +56,12 @@ func GetUserByUsername(username string) (user *model.User, err error) {
 	return
 }
 
-func CheckUserOTP(seed, code string) (resp *AuthResp, err error) {
+func CheckUserOTP(seed, code, remoteAddr, loginType string) (resp *AuthResp, err error) {
 	data := map[string]string{
-		"seed":     seed,
-		"otp_code": code,
+		"seed":        seed,
+		"otp_code":    code,
+		"remote_addr": remoteAddr,
+		"login_type":  loginType,
 	}
 	_, err = client.Post(UserAuthOTPURL, data, &resp)
 	if err != nil {
