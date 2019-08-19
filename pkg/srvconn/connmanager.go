@@ -37,6 +37,8 @@ type SSHClient struct {
 	ref int
 	key string
 	mu  *sync.RWMutex
+
+	closed chan struct{}
 }
 
 func (s *SSHClient) refCount() int {
@@ -67,7 +69,33 @@ func (s *SSHClient) Close() error {
 	if s.ref > 1 {
 		return nil
 	}
+	select {
+	case <-s.closed:
+		return nil
+	default:
+		close(s.closed)
+	}
 	return s.client.Close()
+}
+
+func KeepAlive(c *gossh.Client, closed <-chan struct{}, keepInterval time.Duration) {
+	t := time.NewTicker(keepInterval * time.Second)
+	defer t.Stop()
+	logger.Debugf("SSH client %p keep alive start", c)
+	defer logger.Debugf("SSH client %p keep alive stop", c)
+	for {
+		select {
+		case <-closed:
+			return
+		case <-t.C:
+			_, _, err := c.SendRequest("keepalive@jumpserver.org", true, nil)
+			if err != nil {
+				logger.Error("SSH client %p keep alive err: ", c, err.Error())
+				return
+			}
+		}
+
+	}
 }
 
 type SSHClientConfig struct {
@@ -207,7 +235,13 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 	if err != nil {
 		return nil, err
 	}
-	return &SSHClient{client: conn, username: systemUser.Username, mu: new(sync.RWMutex)}, err
+	closed := make(chan struct{})
+	go KeepAlive(conn, closed, 60)
+	return &SSHClient{
+		client: conn,
+		username: systemUser.Username,
+		mu: new(sync.RWMutex),
+		closed: closed,}, nil
 }
 
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration,
@@ -265,11 +299,12 @@ func RecycleClient(client *SSHClient) {
 		clientLock.Unlock()
 		err := client.Close()
 		if err != nil {
-			logger.Info("Failed to close client err: ", err.Error())
-		}else {
+			logger.Error("Failed to close client err: ", err.Error())
+		} else {
 			logger.Debug("Success to close client")
 		}
 	default:
 		client.decreaseRef()
+		logger.Debugf("Reuse client %p Current ref: %d", client, client.refCount())
 	}
 }
