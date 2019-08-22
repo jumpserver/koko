@@ -95,7 +95,7 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 		logger.Error("Mfa Auth failed, may be user password or publickey auth failed")
 		return
 	}
-	resp, err := service.CheckUserOTP(seed, mfaCode)
+	resp, err := service.CheckUserOTP(seed, mfaCode, remoteAddr, "T")
 	if err != nil {
 		logger.Error("Mfa Auth failed: ", err)
 		return
