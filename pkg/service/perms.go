@@ -2,60 +2,55 @@ package service
 
 import (
 	"fmt"
-	"sync"
+	"strconv"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 )
 
-var userAssetsCached = assetsCacheContainer{
-	mapData: make(map[string]model.AssetList),
-	mapETag: make(map[string]string),
-	mu:      new(sync.RWMutex),
-}
-
-var userNodesCached = nodesCacheContainer{
-	mapData: make(map[string]model.NodeList),
-	mapETag: make(map[string]string),
-	mu:      new(sync.RWMutex),
-}
-
-func GetUserAssetsFromCache(userID string) (assets model.AssetList, ok bool) {
-	assets, ok = userAssetsCached.Get(userID)
-	return
-}
-
-func GetUserAssets(userID, cachePolicy, assetId string) (assets model.AssetList) {
-	if cachePolicy == "" {
-		cachePolicy = "1"
+func GetUserAssets(userID, search string, pageSize, offset int) (resp model.AssetsPaginationResponse) {
+	if pageSize < 0 {
+		pageSize = 0
 	}
-	headers := make(map[string]string)
-	if etag, ok := userAssetsCached.GetETag(userID); ok && cachePolicy == "1" && assetId == "" {
-		headers["If-None-Match"] = etag
+	params := map[string]string{
+		"search": search,
+		"limit":  strconv.Itoa(pageSize),
+		"offset": strconv.Itoa(offset),
 	}
-	payload := map[string]string{"cache_policy": cachePolicy}
-	if assetId != "" {
-		payload["id"] = assetId
-	}
+
 	Url := fmt.Sprintf(UserAssetsURL, userID)
-	resp, err := authClient.Get(Url, &assets, payload, headers)
-
+	var err error
+	if pageSize > 0 {
+		_, err = authClient.Get(Url, &resp, params)
+	} else {
+		var data model.AssetList
+		_, err = authClient.Get(Url, &data, params)
+		resp.Data = data
+	}
 	if err != nil {
 		logger.Error("Get user assets error: ", err)
-		return
-	}
-	if resp.StatusCode == 200 && resp.Header.Get("ETag") != "" {
-		newETag := resp.Header.Get("ETag")
-		userAssetsCached.SetValue(userID, assets)
-		userAssetsCached.SetETag(userID, newETag)
-	} else if resp.StatusCode == 304 {
-		assets, _ = userAssetsCached.Get(userID)
 	}
 	return
 }
 
-func GetUserNodesFromCache(userID string) (nodes model.NodeList, ok bool) {
-	nodes, ok = userNodesCached.Get(userID)
+func GetUserAllAssets(userID string) (assets []model.Asset) {
+	Url := fmt.Sprintf(UserAssetsURL, userID)
+	_, err := authClient.Get(Url, &assets)
+	if err != nil {
+		logger.Error("Get user all assets error: ", err)
+	}
+	return
+}
+
+func GetUserAssetByID(userID, assertID string) (assets []model.Asset) {
+	params := map[string]string{
+		"id": assertID,
+	}
+	Url := fmt.Sprintf(UserAssetsURL, userID)
+	_, err := authClient.Get(Url, &assets, params)
+	if err != nil {
+		logger.Error("Get user asset by ID error: ", err)
+	}
 	return
 }
 
@@ -63,21 +58,20 @@ func GetUserNodes(userID, cachePolicy string) (nodes model.NodeList) {
 	if cachePolicy == "" {
 		cachePolicy = "1"
 	}
-	headers := make(map[string]string)
-	if etag, ok := userNodesCached.GetETag(userID); ok && cachePolicy == "1" {
-		headers["If-None-Match"] = etag
-	}
 	payload := map[string]string{"cache_policy": cachePolicy}
 	Url := fmt.Sprintf(UserNodesListURL, userID)
-	resp, err := authClient.Get(Url, &nodes, payload, headers)
+	_, err := authClient.Get(Url, &nodes, payload)
 	if err != nil {
 		logger.Error("Get user nodes error: ", err)
 	}
-	if resp.StatusCode == 200 && resp.Header.Get("ETag") != "" {
-		userNodesCached.SetValue(userID, nodes)
-		userNodesCached.SetETag(userID, resp.Header.Get("ETag"))
-	} else if resp.StatusCode == 304 {
-		nodes, _ = userNodesCached.Get(userID)
+	return
+}
+
+func GetUserAssetSystemUsers(userID, assetID string) (sysUsers []model.SystemUser) {
+	Url := fmt.Sprintf(UserAssetSystemUsersURL, userID, assetID)
+	_, err := authClient.Get(Url, &sysUsers)
+	if err != nil {
+		logger.Error("Get user asset system users error: ", err)
 	}
 	return
 }

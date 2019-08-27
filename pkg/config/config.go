@@ -45,6 +45,7 @@ type Config struct {
 	Language            string                 `yaml:"LANG"`
 	LanguageCode        string                 `yaml:"LANGUAGE_CODE"` // Abandon
 	UploadFailedReplay  bool                   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
+	LoadPolicy          string                 `yaml:"LOAD_POLICY"`  // all, pagination
 }
 
 func (c *Config) EnsureConfigValid() {
