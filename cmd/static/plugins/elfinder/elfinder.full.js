@@ -14226,6 +14226,7 @@ $.fn.elfindercwd = function(fm, options) {
 			
 			selectAll = function() {
 				var phash = fm.cwd().hash;
+
 				selectCheckbox && selectAllCheckbox.find('input').prop('checked', true);
 				fm.lazy(function() {
 					var files;
