@@ -14226,10 +14226,11 @@ $.fn.elfindercwd = function(fm, options) {
 			
 			selectAll = function() {
 				var phash = fm.cwd().hash;
-
 				selectCheckbox && selectAllCheckbox.find('input').prop('checked', true);
 				fm.lazy(function() {
 					var files;
+					// fix select all display; remove cwd disable status
+					cwd.find('[id]:not(.'+clSelected+'):not(.elfinder-cwd-parent)').removeClass(clDisabled);
 					cwd.find('[id]:not(.'+clSelected+'):not(.elfinder-cwd-parent)').trigger(evtSelect);
 					if (fm.maxTargets && (incHashes || cwdHashes).length > fm.maxTargets) {
 						files = $.map(incHashes || cwdHashes, function(hash) { return fm.file(hash) || null; });
