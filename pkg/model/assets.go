@@ -77,29 +77,27 @@ func assetSortByHostName(asset1, asset2 *Asset) bool {
 
 type NodeList []Node
 
+type AssetsPaginationResponse struct {
+	Total       int     `json:"count"`
+	NextURL     string  `json:"next"`
+	PreviousURL string  `json:"previous"`
+	Data        []Asset `json:"results"`
+}
+
 type Asset struct {
 	ID              string       `json:"id"`
 	Hostname        string       `json:"hostname"`
 	IP              string       `json:"ip"`
-	Port            int          `json:"port"`
-	SystemUsers     []SystemUser `json:"system_users_granted"`
-	IsActive        bool         `json:"is_active"`
-	SystemUsersJoin string       `json:"system_users_join"`
 	Os              string       `json:"os"`
 	Domain          string       `json:"domain"`
 	Platform        string       `json:"platform"`
 	Comment         string       `json:"comment"`
-	Protocol        string       `json:"protocol"`
 	Protocols       []string     `json:"protocols,omitempty"`
 	OrgID           string       `json:"org_id"`
 	OrgName         string       `json:"org_name"`
 }
 
 func (a *Asset) ProtocolPort(protocol string) int {
-	// 向下兼容
-	if a.Protocols == nil {
-		return a.Port
-	}
 	for _, item := range a.Protocols {
 		if strings.Contains(strings.ToLower(item), strings.ToLower(protocol)) {
 			proAndPort := strings.Split(item, "/")
@@ -123,9 +121,6 @@ func (a *Asset) ProtocolPort(protocol string) int {
 }
 
 func (a *Asset) IsSupportProtocol(protocol string) bool {
-	if a.Protocols == nil {
-		return a.Protocol == protocol
-	}
 	for _, item := range a.Protocols {
 		if strings.Contains(strings.ToLower(item), strings.ToLower(protocol)) {
 			return true

@@ -41,7 +41,7 @@ func SftpHandler(sess ssh.Session) {
 }
 
 func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
-	assets := service.GetUserAssets(user.ID, "1", "")
+	assets := service.GetUserAllAssets(user.ID)
 	return &sftpHandler{srvconn.NewUserSFTP(user, addr, assets...)}
 }
 

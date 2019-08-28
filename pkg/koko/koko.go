@@ -1,6 +1,7 @@
 package koko
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -34,18 +35,20 @@ func (c *Coco) Stop() {
 }
 
 func RunForever() {
-	bootstrap()
+	ctx,cancelFunc := context.WithCancel(context.Background())
+	bootstrap(ctx)
 	gracefulStop := make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	app := &Coco{}
 	app.Start()
 	<-gracefulStop
+	cancelFunc()
 	app.Stop()
 }
 
-func bootstrap() {
+func bootstrap(ctx context.Context) {
 	config.Initial()
 	logger.Initial()
-	service.Initial()
+	service.Initial(ctx)
 	Initial()
 }

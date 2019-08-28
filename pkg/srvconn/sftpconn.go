@@ -80,6 +80,7 @@ func (u *UserSftp) ReadDir(path string) (res []os.FileInfo, err error) {
 		}
 		return
 	}
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return res, sftp.ErrSshFxNoSuchFile
@@ -120,6 +121,7 @@ func (u *UserSftp) Stat(path string) (res os.FileInfo, err error) {
 		res = NewFakeFile(req.host, true)
 		return
 	}
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return res, sftp.ErrSshFxNoSuchFile
@@ -148,7 +150,7 @@ func (u *UserSftp) ReadLink(path string) (res string, err error) {
 	if req.su == "" {
 		return res, sftp.ErrSshFxPermissionDenied
 	}
-
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return res, sftp.ErrSshFxNoSuchFile
@@ -175,6 +177,7 @@ func (u *UserSftp) RemoveDirectory(path string) error {
 	if req.su == "" {
 		return sftp.ErrSshFxPermissionDenied
 	}
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return sftp.ErrSshFxNoSuchFile
@@ -236,7 +239,7 @@ func (u *UserSftp) Remove(path string) error {
 	if req.su == "" {
 		return sftp.ErrSshFxPermissionDenied
 	}
-
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return sftp.ErrSshFxNoSuchFile
@@ -273,6 +276,7 @@ func (u *UserSftp) MkdirAll(path string) error {
 	if req.su == "" {
 		return sftp.ErrSshFxPermissionDenied
 	}
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return sftp.ErrSshFxNoSuchFile
@@ -309,6 +313,7 @@ func (u *UserSftp) Rename(oldNamePath, newNamePath string) error {
 	if !ok {
 		return sftp.ErrSshFxPermissionDenied
 	}
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req1.su]
 	if !ok {
 		return sftp.ErrSshFxNoSuchFile
@@ -346,6 +351,7 @@ func (u *UserSftp) Symlink(oldNamePath, newNamePath string) error {
 	if !ok {
 		return sftp.ErrSshFxPermissionDenied
 	}
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req1.su]
 	if !ok {
 		return sftp.ErrSshFxNoSuchFile
@@ -383,7 +389,7 @@ func (u *UserSftp) Create(path string) (*sftp.File, error) {
 	if req.su == "" {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
-
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return nil, sftp.ErrSshFxNoSuchFile
@@ -420,6 +426,7 @@ func (u *UserSftp) Open(path string) (*sftp.File, error) {
 	if req.su == "" {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
+	host.loadSystemUsers(u.User.ID)
 	su, ok := host.suMaps[req.su]
 	if !ok {
 		return nil, sftp.ErrSshFxNoSuchFile
@@ -506,6 +513,7 @@ func (u *UserSftp) GetSFTPAndRealPath(req requestMessage) (conn *SftpConn, realP
 
 func (u *UserSftp) HostHasUniqueSu(hostKey string) (string, bool) {
 	if host, ok := u.hosts[hostKey]; ok {
+		host.loadSystemUsers(u.User.ID)
 		return host.HasUniqueSu()
 	}
 	return "", false
@@ -616,19 +624,26 @@ type requestMessage struct {
 }
 
 func NewHostnameDir(asset *model.Asset) *HostnameDir {
-	sus := make(map[string]*model.SystemUser)
-	for i := 0; i < len(asset.SystemUsers); i++ {
-		if asset.SystemUsers[i].Protocol == "ssh" {
-			sus[asset.SystemUsers[i].Name] = &asset.SystemUsers[i]
-		}
-	}
-	h := HostnameDir{asset: asset, suMaps: sus}
+	h := HostnameDir{asset: asset}
 	return &h
 }
 
 type HostnameDir struct {
 	asset  *model.Asset
 	suMaps map[string]*model.SystemUser
+}
+
+func (h *HostnameDir) loadSystemUsers(userID string) {
+	if h.suMaps == nil {
+		sus := make(map[string]*model.SystemUser)
+		SystemUsers := service.GetUserAssetSystemUsers(userID, h.asset.ID)
+		for i := 0; i < len(SystemUsers); i++ {
+			if SystemUsers[i].Protocol == "ssh" {
+				sus[SystemUsers[i].Name] = &SystemUsers[i]
+			}
+		}
+		h.suMaps = sus
+	}
 }
 
 func (h *HostnameDir) HasUniqueSu() (string, bool) {

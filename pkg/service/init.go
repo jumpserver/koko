@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path"
@@ -15,7 +16,7 @@ import (
 var client = common.NewClient(30, "")
 var authClient = common.NewClient(30, "")
 
-func Initial() {
+func Initial(ctx context.Context) {
 	cf := config.GetConf()
 	keyPath := cf.AccessKeyFile
 	client.BaseHost = cf.CoreHost
@@ -31,7 +32,7 @@ func Initial() {
 	authClient.Auth = ak
 	validateAccessAuth()
 	MustLoadServerConfigOnce()
-	go KeepSyncConfigWithServer()
+	go KeepSyncConfigWithServer(ctx)
 }
 
 func newClient() *common.Client {
@@ -94,12 +95,18 @@ func LoadConfigFromServer() (err error) {
 	return nil
 }
 
-func KeepSyncConfigWithServer() {
+func KeepSyncConfigWithServer(ctx context.Context) {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
 	for {
-		err := LoadConfigFromServer()
-		if err != nil {
-			logger.Warn("Sync config with server error: ", err)
+		select {
+		case <-ctx.Done():
+			logger.Info("Sync config with server exit.")
+		case <-ticker.C:
+			err := LoadConfigFromServer()
+			if err != nil {
+				logger.Warn("Sync config with server error: ", err)
+			}
 		}
-		time.Sleep(60 * time.Second)
 	}
 }

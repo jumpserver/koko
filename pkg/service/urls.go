@@ -32,3 +32,9 @@ const (
 	UserNodeAssetsListURL          = "/api/perms/v1/users/%s/nodes/%s/assets/"
 	ValidateUserAssetPermissionURL = "/api/perms/v1/asset-permissions/user/validate/" //0不使用缓存 1 使用缓存 2 刷新缓存
 )
+
+// 1.5.3
+
+const (
+	UserAssetSystemUsersURL = "/api/v1/perms/users/%s/assets/%s/system-users/" // 获取用户授权资产的系统用户列表
+)
