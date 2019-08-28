@@ -14226,8 +14226,7 @@ $.fn.elfindercwd = function(fm, options) {
 			
 			selectAll = function() {
 				var phash = fm.cwd().hash;
-				// fix select all display; remove cwd disable status
-				cwd.find('[id]:not(.'+clSelected+'):not(.elfinder-cwd-parent)').removeClass(clDisabled);
+
 				selectCheckbox && selectAllCheckbox.find('input').prop('checked', true);
 				fm.lazy(function() {
 					var files;
