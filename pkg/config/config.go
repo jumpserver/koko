@@ -71,6 +71,7 @@ func (c *Config) LoadFromYAMLPath(filepath string) error {
 	body, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		log.Printf("Not found file: %s", filepath)
+		return err
 	}
 	return c.LoadFromYAML(body)
 }
@@ -100,12 +101,11 @@ func (c *Config) LoadFromEnv() error {
 }
 
 func (c *Config) Load(filepath string) error {
-	err := c.LoadFromYAMLPath(filepath)
-	if err != nil {
+	if err := c.LoadFromYAMLPath(filepath); err == nil{
 		return err
 	}
-	err = c.LoadFromEnv()
-	return err
+	log.Print("Load from env")
+	return c.LoadFromEnv()
 }
 
 var lock = new(sync.RWMutex)
