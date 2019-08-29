@@ -48,3 +48,6 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 
 # 是否复用和用户后端资产已建立的连接(用户不会复用其他用户的连接)
 # REUSE_CONNECTION: true
+
+# 资产加载策略, 可根据资产规模自行调整. 默认异步加载资产, 异步搜索分页; 如果为all, 则资产全部加载, 本地搜索分页.
+# ASSET_LOAD_POLICY:

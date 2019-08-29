@@ -63,12 +63,12 @@ type interactiveHandler struct {
 	offset    int
 	limit     int
 
-	loadDataDone chan struct{}
-	loadPolicy   string
+	loadDataDone    chan struct{}
+	assetLoadPolicy string
 }
 
 func (h *interactiveHandler) Initial() {
-	h.loadPolicy = config.GetConf().LoadPolicy
+	h.assetLoadPolicy = strings.ToLower(config.GetConf().AssetLoadPolicy)
 	h.displayBanner()
 	h.winWatchChan = make(chan bool)
 	h.loadDataDone = make(chan struct{})
@@ -77,7 +77,7 @@ func (h *interactiveHandler) Initial() {
 
 func (h *interactiveHandler) firstLoadData() {
 	h.loadUserNodes("1")
-	switch h.loadPolicy {
+	switch h.assetLoadPolicy {
 	case "all":
 		h.loadAllAssets()
 	}
@@ -184,7 +184,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 }
 
 func (h *interactiveHandler) displayAllAssets() {
-	switch h.loadPolicy {
+	switch h.assetLoadPolicy {
 	case "all":
 		<-h.loadDataDone
 		h.displayAssets(h.allAssets)
@@ -270,7 +270,7 @@ func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 }
 
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
-	switch h.loadPolicy {
+	switch h.assetLoadPolicy {
 	case "all":
 		h.loadAllAssets()
 	}
@@ -290,7 +290,7 @@ func (h *interactiveHandler) loadAllAssets() {
 }
 
 func (h *interactiveHandler) searchAsset(key string) {
-	switch h.loadPolicy {
+	switch h.assetLoadPolicy {
 	case "all":
 		<-h.loadDataDone
 		var searchData []model.Asset
@@ -321,7 +321,7 @@ func (h *interactiveHandler) searchAssetOrProxy(key string) {
 		}
 	}
 	var assets []model.Asset
-	switch h.loadPolicy {
+	switch h.assetLoadPolicy {
 	case "all":
 		<-h.loadDataDone
 		var searchData []model.Asset

@@ -45,7 +45,7 @@ type Config struct {
 	Language            string                 `yaml:"LANG"`
 	LanguageCode        string                 `yaml:"LANGUAGE_CODE"` // Abandon
 	UploadFailedReplay  bool                   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
-	LoadPolicy          string                 `yaml:"LOAD_POLICY"`  // all, pagination
+	AssetLoadPolicy     string                 `yaml:"ASSET_LOAD_POLICY"` // all
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -101,7 +101,7 @@ func (c *Config) LoadFromEnv() error {
 }
 
 func (c *Config) Load(filepath string) error {
-	if err := c.LoadFromYAMLPath(filepath); err == nil{
+	if err := c.LoadFromYAMLPath(filepath); err == nil {
 		return err
 	}
 	log.Print("Load from env")
@@ -134,6 +134,7 @@ var Conf = &Config{
 	SftpRoot:           "/tmp",
 	ShowHiddenFile:     false,
 	ReuseConnection:    true,
+	AssetLoadPolicy:    "",
 }
 
 func SetConf(conf *Config) {

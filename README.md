@@ -42,7 +42,7 @@ make linux
 tar xzf koko-[branch name]-[commit]-linux-amd64.tar.gz
 ```
 
-3.创建配置文件config.yml,配置参数请参考[coco](https://github.com/jumpserver/coco/blob/master/config_example.yml)
+3.创建配置文件config.yml,配置参数请参考[cmd](url:https://github.com/jumpserver/koko/tree/master/cmd)目录下的config_example.yml文件
 ```shell
 touch config.yml
 ```
