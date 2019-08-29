@@ -17,19 +17,22 @@ var lock = new(sync.RWMutex)
 func HandleSessionTask(task model.TerminalTask) {
 	switch task.Name {
 	case "kill_session":
-		KillSession(task.Args)
-		service.FinishTask(task.ID)
+		if ok := KillSession(task.Args); ok{
+			service.FinishTask(task.ID)
+		}
 	default:
 
 	}
 }
 
-func KillSession(sessionID string) {
+func KillSession(sessionID string) bool {
 	lock.RLock()
 	defer lock.RUnlock()
 	if sw, ok := sessionMap[sessionID]; ok {
 		sw.Terminate()
+		return true
 	}
+	return false
 }
 
 func GetAliveSessions() []string {
