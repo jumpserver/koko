@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -176,36 +177,31 @@ func (p *AssetPagination) displayPageAssets() {
 }
 
 func (p *AssetPagination) displayTipsInfo() {
-	tips := []string{
-		i18n.T("\nTips: Enter the asset ID and log directly into the asset.\n"),
-		i18n.T("\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n"),
-	}
-	for _, tip := range tips {
-		_, _ = p.term.Write([]byte(tip))
-	}
+	displayAssetPaginationTipsInfo(p.term)
 
 }
 
-func NewUserPagination(term *utils.Terminal, uid, search string, proxy bool) *UserAssetPagination {
+func NewUserPagination(term *utils.Terminal, uid, search string, policy bool) *UserAssetPagination {
 	return &UserAssetPagination{
-		UserID: uid,
-		offset: 0,
-		limit:  0,
-		search: search,
-		term:   term,
-		proxy:  proxy,
-		Data:   model.AssetsPaginationResponse{},
+		UserID:        uid,
+		offset:        0,
+		limit:         0,
+		search:        search,
+		term:          term,
+		displayPolicy: policy,
+		Data:          model.AssetsPaginationResponse{},
 	}
 }
 
 type UserAssetPagination struct {
-	UserID string
-	offset int
-	limit  int
-	search string
-	term   *utils.Terminal
-	proxy  bool
-	Data   model.AssetsPaginationResponse
+	UserID        string
+	offset        int
+	limit         int
+	search        string
+	term          *utils.Terminal
+	displayPolicy bool
+	Data          model.AssetsPaginationResponse
+	IsNeedProxy   bool
 }
 
 func (p *UserAssetPagination) Start() []model.Asset {
@@ -214,7 +210,8 @@ func (p *UserAssetPagination) Start() []model.Asset {
 	for {
 		p.retrieveData()
 
-		if p.proxy && p.Data.Total == 1 {
+		if p.displayPolicy && p.Data.Total == 1 {
+			p.IsNeedProxy = true
 			return p.Data.Data
 		}
 
@@ -251,6 +248,7 @@ func (p *UserAssetPagination) Start() []model.Asset {
 			default:
 				if indexID, err := strconv.Atoi(line); err == nil {
 					if indexID > 0 && indexID <= len(p.Data.Data) {
+						p.IsNeedProxy = true
 						return []model.Asset{p.Data.Data[indexID-1]}
 					}
 				}
@@ -259,6 +257,7 @@ func (p *UserAssetPagination) Start() []model.Asset {
 		default:
 			if indexID, err := strconv.Atoi(line); err == nil {
 				if indexID > 0 && indexID <= len(p.Data.Data) {
+					p.IsNeedProxy = true
 					return []model.Asset{p.Data.Data[indexID-1]}
 				}
 			}
@@ -348,25 +347,18 @@ func (p *UserAssetPagination) displayPageAssets() {
 }
 
 func (p *UserAssetPagination) displayTipsInfo() {
-	tips := []string{
-		i18n.T("\nTips: Enter the asset ID and log directly into the asset.\n"),
-		i18n.T("\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n"),
-	}
-	for _, tip := range tips {
-		_, _ = p.term.Write([]byte(tip))
-	}
-
+	displayAssetPaginationTipsInfo(p.term)
 }
 
 func (p *UserAssetPagination) retrieveData() {
-	p.limit = GetPageSize(p.term)
+	p.limit = getPageSize(p.term)
 	if p.limit == 0 || p.offset < 0 || p.limit >= p.Data.Total {
 		p.offset = 0
 	}
 	p.Data = service.GetUserAssets(p.UserID, p.search, p.limit, p.offset)
 }
 
-func GetPageSize(term *utils.Terminal) int {
+func getPageSize(term *utils.Terminal) int {
 	var (
 		pageSize  int
 		minHeight = 8 // 分页显示的最小高度
@@ -390,4 +382,14 @@ func GetPageSize(term *utils.Terminal) int {
 		pageSize = 1
 	}
 	return pageSize
+}
+
+func displayAssetPaginationTipsInfo(w io.Writer) {
+	tips := []string{
+		i18n.T("\nTips: Enter the asset ID and log directly into the asset.\n"),
+		i18n.T("\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n"),
+	}
+	for _, tip := range tips {
+		_, _ = w.Write([]byte(tip))
+	}
 }

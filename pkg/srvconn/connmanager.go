@@ -90,7 +90,7 @@ func KeepAlive(c *gossh.Client, closed <-chan struct{}, keepInterval time.Durati
 		case <-t.C:
 			_, _, err := c.SendRequest("keepalive@jumpserver.org", true, nil)
 			if err != nil {
-				logger.Error("SSH client %p keep alive err: ", c, err.Error())
+				logger.Errorf("SSH client %p keep alive err: ", c, err.Error())
 				return
 			}
 		}
