@@ -595,6 +595,7 @@ func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) 
 	}
 	sftpClient, err := sftp.NewClient(sshClient.client)
 	if err != nil {
+		RecycleClient(sshClient)
 		return
 	}
 

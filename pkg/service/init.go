@@ -102,6 +102,7 @@ func KeepSyncConfigWithServer(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			logger.Info("Sync config with server exit.")
+			return
 		case <-ticker.C:
 			err := LoadConfigFromServer()
 			if err != nil {

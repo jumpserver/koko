@@ -201,11 +201,11 @@ func LoopRead(read io.Reader, inChan chan<- []byte) {
 	for {
 		buf := make([]byte, 1024)
 		nr, err := read.Read(buf)
-		if err != nil {
-			break
-		}
 		if nr > 0 {
 			inChan <- buf[:nr]
+		}
+		if err != nil {
+			break
 		}
 	}
 	close(inChan)
