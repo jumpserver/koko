@@ -75,7 +75,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
 	if filename != originFileInfo.Name() {
 		rest.Read, rest.Write = 1, 1
-		logger.Debug("Info filename no eque ")
+		logger.Debug("Info filename no equal")
 	}
 	if filename == "." {
 		filename = originFileInfo.Name()

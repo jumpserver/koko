@@ -299,12 +299,12 @@ func RecycleClient(client *SSHClient) {
 		clientLock.Unlock()
 		err := client.Close()
 		if err != nil {
-			logger.Error("Failed to close client err: ", err.Error())
+			logger.Errorf("Failed to close client %p err: %s ",client.client, err.Error())
 		} else {
-			logger.Debug("Success to close client")
+			logger.Debugf("Success to close client %p",client.client)
 		}
 	default:
 		client.decreaseRef()
-		logger.Debugf("Reuse client %p Current ref: %d", client, client.refCount())
+		logger.Debugf("Reuse client %p Current ref: %d", client.client, client.refCount())
 	}
 }
