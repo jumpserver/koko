@@ -51,3 +51,9 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 
 # 资产加载策略, 可根据资产规模自行调整. 默认异步加载资产, 异步搜索分页; 如果为all, 则资产全部加载, 本地搜索分页.
 # ASSET_LOAD_POLICY:
+
+# zip压缩的最大额度 (单位: M)
+# ZIP_MAX_SIZE: 1024M
+
+# zip压缩存放的临时目录 /tmp
+# ZIP_TMP_PATH: /tmp

@@ -46,6 +46,8 @@ type Config struct {
 	LanguageCode        string                 `yaml:"LANGUAGE_CODE"` // Abandon
 	UploadFailedReplay  bool                   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
 	AssetLoadPolicy     string                 `yaml:"ASSET_LOAD_POLICY"` // all
+	ZipMaxSize          string                 `yaml:"ZIP_MAX_SIZE"`
+	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -135,6 +137,8 @@ var Conf = &Config{
 	ShowHiddenFile:     false,
 	ReuseConnection:    true,
 	AssetLoadPolicy:    "",
+	ZipMaxSize:         "1024M",
+	ZipTmpPath:         "/tmp",
 }
 
 func SetConf(conf *Config) {
