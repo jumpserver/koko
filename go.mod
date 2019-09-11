@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-pipeline-go v0.1.9 // indirect
 	github.com/Azure/azure-storage-blob-go v0.6.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/LeeEirc/elfinder v0.0.3
+	github.com/LeeEirc/elfinder v0.0.4
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
 	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 // indirect
 	github.com/aws/aws-sdk-go v1.19.46

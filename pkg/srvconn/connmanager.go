@@ -91,6 +91,7 @@ func KeepAlive(c *gossh.Client, closed <-chan struct{}, keepInterval time.Durati
 			_, _, err := c.SendRequest("keepalive@jumpserver.org", true, nil)
 			if err != nil {
 				logger.Errorf("SSH client %p keep alive err: ", c, err.Error())
+				return
 			}
 		}
 
@@ -237,6 +238,7 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 	closed := make(chan struct{})
 	go KeepAlive(conn, closed, 60)
 	return &SSHClient{
+		ref:      1,
 		client:   conn,
 		username: systemUser.Username,
 		mu:       new(sync.RWMutex),
@@ -280,7 +282,6 @@ func getClientFromCache(key string) (client *SSHClient) {
 func setClientCache(key string, client *SSHClient) {
 	clientLock.Lock()
 	sshClients[key] = client
-	client.increaseRef()
 	client.key = key
 	clientLock.Unlock()
 }
