@@ -97,7 +97,7 @@ func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration)
 		case <-closed:
 			return
 		case <-t.C:
-			ok, result, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
+			_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
 			if err != nil {
 				logger.Errorf("SSH client %p keep alive err: %s", c, err.Error())
 				_ = c.Close()
@@ -105,8 +105,6 @@ func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration)
 				logger.Debugf("Recycle Client SSH client %p ", c)
 				return
 			}
-
-			fmt.Println("keep alive ok: ", ok," "," result ", string(result))
 		}
 
 	}
