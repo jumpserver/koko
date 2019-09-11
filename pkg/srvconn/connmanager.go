@@ -78,7 +78,16 @@ func (s *SSHClient) Close() error {
 	return s.client.Close()
 }
 
-func KeepAlive(c *gossh.Client, closed <-chan struct{}, keepInterval time.Duration) {
+func (s *SSHClient) IsClosed() bool {
+	select {
+	case <-s.closed:
+		return true
+	default:
+		return false
+	}
+}
+
+func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration) {
 	t := time.NewTicker(keepInterval * time.Second)
 	defer t.Stop()
 	logger.Debugf("SSH client %p keep alive start", c)
@@ -88,11 +97,16 @@ func KeepAlive(c *gossh.Client, closed <-chan struct{}, keepInterval time.Durati
 		case <-closed:
 			return
 		case <-t.C:
-			_, _, err := c.SendRequest("keepalive@jumpserver.org", true, nil)
+			ok, result, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
 			if err != nil {
-				logger.Errorf("SSH client %p keep alive err: ", c, err.Error())
+				logger.Errorf("SSH client %p keep alive err: %s", c, err.Error())
+				_ = c.Close()
+				RecycleClient(c)
+				logger.Debugf("Recycle Client SSH client %p ", c)
 				return
 			}
+
+			fmt.Println("keep alive ok: ", ok," "," result ", string(result))
 		}
 
 	}
@@ -236,13 +250,14 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 		return nil, err
 	}
 	closed := make(chan struct{})
-	go KeepAlive(conn, closed, 60)
-	return &SSHClient{
+	client = &SSHClient{
 		ref:      1,
 		client:   conn,
 		username: systemUser.Username,
 		mu:       new(sync.RWMutex),
-		closed:   closed,}, nil
+		closed:   closed,}
+	go KeepAlive(client, closed, 60)
+	return client, nil
 }
 
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration,
@@ -257,7 +272,7 @@ func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUse
 				systemUser.Username = client.username
 			}
 			logger.Infof("Reuse connection: %s->%s@%s. SSH client %p current ref: %d",
-				user.Username, client.username, asset.IP, client.client, client.refCount())
+				user.Username, client.username, asset.IP, client, client.refCount())
 			return client, nil
 		}
 	}
@@ -292,16 +307,16 @@ func RecycleClient(client *SSHClient) {
 		return
 	}
 	client.decreaseRef()
-	logger.Debugf("SSH client %p ref -1. current ref: %d", client.client, client.refCount())
-	if client.refCount() == 0 {
+	logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.refCount())
+	if client.refCount() == 0 || client.IsClosed() {
 		clientLock.Lock()
 		delete(sshClients, client.key)
 		clientLock.Unlock()
 		err := client.Close()
 		if err != nil {
-			logger.Errorf("Failed to close SSH client %p err: %s ", client.client, err.Error())
+			logger.Errorf("Failed to close SSH client %p err: %s ", client, err.Error())
 		} else {
-			logger.Debugf("Success to close SSH client %p", client.client)
+			logger.Debugf("Success to close SSH client %p", client)
 		}
 	}
 }

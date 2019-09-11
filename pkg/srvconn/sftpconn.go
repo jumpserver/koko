@@ -489,7 +489,7 @@ func (u *UserSftp) GetSFTPAndRealPath(req requestMessage) (conn *SftpConn, realP
 		if su, ok := host.suMaps[req.su]; ok {
 			key := fmt.Sprintf("%s@%s", su.Name, req.host)
 			conn, ok := u.sftpClients[key]
-			if !ok {
+			if !ok || conn.conn.IsClosed(){
 				var err error
 				conn, err = u.GetSftpClient(host.asset, su)
 				if err != nil {
