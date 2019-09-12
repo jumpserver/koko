@@ -42,18 +42,27 @@ type SSHClient struct {
 }
 
 func (s *SSHClient) refCount() int {
+	if s.isClose() {
+		return 0
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.ref
 }
 
 func (s *SSHClient) increaseRef() {
+	if s.isClose() {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.ref++
 }
 
 func (s *SSHClient) decreaseRef() {
+	if s.isClose() {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.ref--
@@ -64,21 +73,28 @@ func (s *SSHClient) NewSession() (*gossh.Session, error) {
 }
 
 func (s *SSHClient) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.ref > 1 {
-		return nil
-	}
 	select {
 	case <-s.closed:
 		return nil
 	default:
 		close(s.closed)
 	}
+	s.mu.Lock()
+	s.ref = 0
+	s.mu.Unlock()
 	return s.client.Close()
 }
 
-func KeepAlive(c *gossh.Client, closed <-chan struct{}, keepInterval time.Duration) {
+func (s *SSHClient) isClose() bool {
+	select {
+	case <-s.closed:
+		return true
+	default:
+		return false
+	}
+}
+
+func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration) {
 	t := time.NewTicker(keepInterval * time.Second)
 	defer t.Stop()
 	logger.Debugf("SSH client %p keep alive start", c)
@@ -88,9 +104,11 @@ func KeepAlive(c *gossh.Client, closed <-chan struct{}, keepInterval time.Durati
 		case <-closed:
 			return
 		case <-t.C:
-			_, _, err := c.SendRequest("keepalive@openssh.com", true, nil)
+			_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
 			if err != nil {
 				logger.Errorf("SSH client %p keep alive err: %s", c, err.Error())
+				_ = c.Close()
+				RecycleClient(c)
 				return
 			}
 		}
@@ -236,12 +254,12 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 		return nil, err
 	}
 	closed := make(chan struct{})
-	go KeepAlive(conn, closed, 60)
-	return &SSHClient{
-		client: conn,
-		username: systemUser.Username,
-		mu: new(sync.RWMutex),
-		closed: closed,}, nil
+	client = &SSHClient{client: conn, username: systemUser.Username,
+		mu:     new(sync.RWMutex),
+		ref:    1,
+		closed: closed}
+	go KeepAlive(client, closed, 60)
+	return client, nil
 }
 
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration,
@@ -281,30 +299,27 @@ func getClientFromCache(key string) (client *SSHClient) {
 func setClientCache(key string, client *SSHClient) {
 	clientLock.Lock()
 	sshClients[key] = client
-	client.increaseRef()
 	client.key = key
 	clientLock.Unlock()
 }
 
 func RecycleClient(client *SSHClient) {
-	// 0, 1: delete Cache, close client.
+	// ref: 0 delete Cache, close client.
 	// default: client ref decrease.
 	if client == nil {
 		return
 	}
-	switch client.refCount() {
-	case 0, 1:
+	client.decreaseRef()
+	if client.refCount() == 0 {
 		clientLock.Lock()
 		delete(sshClients, client.key)
 		clientLock.Unlock()
-		err := client.Close()
-		if err != nil {
-			logger.Error("Failed to close client err: ", err.Error())
+		if err := client.Close(); err != nil {
+			logger.Errorf("Close ssh client %p err: %s", client, err.Error())
 		} else {
-			logger.Debug("Success to close client")
+			logger.Infof("Close ssh client %p", client)
 		}
-	default:
-		client.decreaseRef()
-		logger.Debugf("Reuse client %p Current ref: %d", client, client.refCount())
+	}else {
+		logger.Debugf("SSH client %p ref -1, current ref: %s", client, client.refCount())
 	}
 }
