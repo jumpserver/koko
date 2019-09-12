@@ -24,15 +24,8 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # ACCESS KEY 保存的地址, 默认注册后会保存到该文件中
 # ACCESS_KEY_FILE: data/keys/.access_key
 
-# 加密密钥
-# SECRET_KEY: null
-
 # 设置日志级别 [DEBUG, INFO, WARN, ERROR, FATAL, CRITICAL]
 # LOG_LEVEL: INFO
-
-
-# 和Jumpserver 保持心跳时间间隔 (seconds)
-# HEARTBEAT_INTERVAL: 5
 
 # SSH连接超时时间 (default 15 seconds)
 # SSH_TIMEOUT: 15
