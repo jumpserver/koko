@@ -489,11 +489,11 @@ func (u *UserSftp) GetSFTPAndRealPath(req requestMessage) (conn *SftpConn, realP
 		if su, ok := host.suMaps[req.su]; ok {
 			key := fmt.Sprintf("%s@%s", su.Name, req.host)
 			conn, ok := u.sftpClients[key]
-			if !ok || conn.conn.IsClosed(){
+			if !ok {
 				var err error
 				conn, err = u.GetSftpClient(host.asset, su)
 				if err != nil {
-					logger.Debug("Get Sftp Client err: ", err.Error())
+					logger.Info("Get Sftp Client err: ", err.Error())
 					return nil, ""
 				}
 				u.sftpClients[key] = conn
@@ -583,7 +583,7 @@ func (u *UserSftp) SendFTPLog(dataChan <-chan *model.FTPLog) {
 			if err == nil {
 				break
 			}
-			logger.Debugf("create FTP log err: %s", err.Error())
+			logger.Errorf("create FTP log err: %s", err.Error())
 		}
 	}
 }

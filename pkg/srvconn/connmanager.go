@@ -42,18 +42,27 @@ type SSHClient struct {
 }
 
 func (s *SSHClient) refCount() int {
+	if s.isClosed(){
+		return 0
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.ref
 }
 
 func (s *SSHClient) increaseRef() {
+	if s.isClosed(){
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.ref++
 }
 
 func (s *SSHClient) decreaseRef() {
+	if s.isClosed(){
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ref == 0 {
@@ -78,7 +87,7 @@ func (s *SSHClient) Close() error {
 	return s.client.Close()
 }
 
-func (s *SSHClient) IsClosed() bool {
+func (s *SSHClient) isClosed() bool {
 	select {
 	case <-s.closed:
 		return true
@@ -102,7 +111,6 @@ func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration)
 				logger.Errorf("SSH client %p keep alive err: %s", c, err.Error())
 				_ = c.Close()
 				RecycleClient(c)
-				logger.Debugf("Recycle Client SSH client %p ", c)
 				return
 			}
 		}
@@ -305,16 +313,17 @@ func RecycleClient(client *SSHClient) {
 		return
 	}
 	client.decreaseRef()
-	logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.refCount())
-	if client.refCount() == 0 || client.IsClosed() {
+	if client.refCount() == 0 {
 		clientLock.Lock()
 		delete(sshClients, client.key)
 		clientLock.Unlock()
 		err := client.Close()
 		if err != nil {
-			logger.Errorf("Failed to close SSH client %p err: %s ", client, err.Error())
+			logger.Errorf("Close SSH client %p err: %s ", client, err.Error())
 		} else {
-			logger.Debugf("Success to close SSH client %p", client)
+			logger.Infof("Success to close SSH client %p", client)
 		}
+	}else {
+		logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.refCount())
 	}
 }
