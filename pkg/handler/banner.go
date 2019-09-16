@@ -41,7 +41,7 @@ func (mi *MenuItem) Text() string {
 
 type Menu []MenuItem
 
-func init() {
+func Initial() {
 	defaultTitle = utils.WrapperTitle(i18n.T("Welcome to use Jumpserver open source fortress system"))
 	menu = Menu{
 		{id: 1, instruct: "ID", helpText: i18n.T("directly login")},
