@@ -31,8 +31,9 @@ var (
 )
 
 type SSHClient struct {
-	client   *gossh.Client
-	username string
+	client    *gossh.Client
+	proxyConn gossh.Conn
+	username  string
 
 	ref int
 	key string
@@ -42,7 +43,7 @@ type SSHClient struct {
 }
 
 func (s *SSHClient) refCount() int {
-	if s.isClosed(){
+	if s.isClosed() {
 		return 0
 	}
 	s.mu.RLock()
@@ -51,7 +52,7 @@ func (s *SSHClient) refCount() int {
 }
 
 func (s *SSHClient) increaseRef() {
-	if s.isClosed(){
+	if s.isClosed() {
 		return
 	}
 	s.mu.Lock()
@@ -60,7 +61,7 @@ func (s *SSHClient) increaseRef() {
 }
 
 func (s *SSHClient) decreaseRef() {
-	if s.isClosed(){
+	if s.isClosed() {
 		return
 	}
 	s.mu.Lock()
@@ -76,14 +77,18 @@ func (s *SSHClient) NewSession() (*gossh.Session, error) {
 }
 
 func (s *SSHClient) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	select {
 	case <-s.closed:
 		return nil
 	default:
 		close(s.closed)
 	}
+	if s.proxyConn != nil {
+		_ = s.proxyConn.Close()
+	}
+	s.mu.Lock()
+	s.ref = 0
+	s.mu.Unlock()
 	return s.client.Close()
 }
 
@@ -256,12 +261,11 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 		return nil, err
 	}
 	closed := make(chan struct{})
-	client = &SSHClient{
-		ref:      1,
-		client:   conn,
+	client = &SSHClient{client: conn, proxyConn: sshConfig.proxyConn,
 		username: systemUser.Username,
 		mu:       new(sync.RWMutex),
-		closed:   closed,}
+		ref:      1,
+		closed:   closed}
 	go KeepAlive(client, closed, 60)
 	return client, nil
 }
@@ -323,7 +327,7 @@ func RecycleClient(client *SSHClient) {
 		} else {
 			logger.Infof("Success to close SSH client %p", client)
 		}
-	}else {
+	} else {
 		logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.refCount())
 	}
 }
