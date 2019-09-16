@@ -31,8 +31,9 @@ var (
 )
 
 type SSHClient struct {
-	client   *gossh.Client
-	username string
+	client    *gossh.Client
+	proxyConn gossh.Conn
+	username  string
 
 	ref int
 	key string
@@ -78,6 +79,9 @@ func (s *SSHClient) Close() error {
 		return nil
 	default:
 		close(s.closed)
+	}
+	if s.proxyConn != nil {
+		_ = s.proxyConn.Close()
 	}
 	s.mu.Lock()
 	s.ref = 0
@@ -254,10 +258,11 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 		return nil, err
 	}
 	closed := make(chan struct{})
-	client = &SSHClient{client: conn, username: systemUser.Username,
-		mu:     new(sync.RWMutex),
-		ref:    1,
-		closed: closed}
+	client = &SSHClient{client: conn, proxyConn: sshConfig.proxyConn,
+		username: systemUser.Username,
+		mu:       new(sync.RWMutex),
+		ref:      1,
+		closed:   closed}
 	go KeepAlive(client, closed, 60)
 	return client, nil
 }
@@ -298,8 +303,15 @@ func getClientFromCache(key string) (client *SSHClient) {
 
 func setClientCache(key string, client *SSHClient) {
 	clientLock.Lock()
-	sshClients[key] = client
-	client.key = key
+	if _, ok := sshClients[key]; !ok {
+		sshClients[key] = client
+		client.key = key
+	} else {
+		newKey := fmt.Sprintf("%s_%s", key, time.Now().UTC().Format("20060102150405"))
+		sshClients[newKey] = client
+		client.key = newKey
+		logger.Debugf("SSH Client key already used, use new key")
+	}
 	clientLock.Unlock()
 }
 
@@ -319,7 +331,7 @@ func RecycleClient(client *SSHClient) {
 		} else {
 			logger.Infof("Close ssh client %p", client)
 		}
-	}else {
+	} else {
 		logger.Debugf("SSH client %p ref -1, current ref: %s", client, client.refCount())
 	}
 }
