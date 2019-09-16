@@ -51,7 +51,7 @@ func (c *Config) EnsureConfigValid() {
 	if c.LanguageCode != "" && c.Language == "" {
 		c.Language = c.LanguageCode
 	}
-	if c.Language == ""{
+	if c.Language == "" {
 		c.Language = "zh"
 	}
 	// 确保至少有一个认证
