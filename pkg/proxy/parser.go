@@ -74,6 +74,8 @@ func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvO
 
 	go func() {
 		defer func() {
+			// 会话结束，结算命令结果
+			p.sendCommandRecord()
 			close(p.cmdRecordChan)
 			close(p.userOutputChan)
 			close(p.srvOutputChan)
@@ -113,12 +115,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	p.inputPreState = p.inputState
 	if bytes.Contains(b, charEnter) {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
-		if p.command != ""{
-			p.parseCmdOutput()
-			p.cmdRecordChan <- [2]string{p.command, p.output}
-			p.command = ""
-			p.output = ""
-		}
+		p.sendCommandRecord()
+
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
@@ -132,10 +130,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.inputState = true
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
-			p.parseCmdOutput()
-			p.cmdRecordChan <- [2]string{p.command, p.output}
-			p.command = ""
-			p.output = ""
+			p.sendCommandRecord()
 		}
 	}
 	return b
@@ -256,5 +251,14 @@ func (p *Parser) Close() {
 	default:
 		close(p.closed)
 
+	}
+}
+
+func (p *Parser) sendCommandRecord() {
+	if p.command != "" {
+		p.parseCmdOutput()
+		p.cmdRecordChan <- [2]string{p.command, p.output}
+		p.command = ""
+		p.output = ""
 	}
 }
