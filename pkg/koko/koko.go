@@ -9,6 +9,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/sshd"
@@ -45,6 +46,7 @@ func RunForever() {
 
 func bootstrap() {
 	config.Initial()
+	i18n.Initial()
 	logger.Initial()
 	service.Initial()
 	Initial()
