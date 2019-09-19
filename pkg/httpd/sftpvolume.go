@@ -144,6 +144,8 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 	switch {
 	case strings.Contains(uploadPath, filename):
 		path = filepath.Join(dirPath, TrimPrefix(uploadPath))
+	case uploadPath != "":
+		path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
 	default:
 		path = filepath.Join(dirPath, filename)
 
