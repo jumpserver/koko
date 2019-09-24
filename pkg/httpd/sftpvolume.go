@@ -15,7 +15,6 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
-
 )
 
 func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
@@ -24,9 +23,9 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 	basePath := "/"
 	switch hostId {
 	case "":
-		assets = service.GetUserAssets(user.ID, "1", "")
+		assets = service.GetUserAllAssets(user.ID)
 	default:
-		assets = service.GetUserAssets(user.ID, "1", hostId)
+		assets = service.GetUserAssetByID(user.ID, hostId)
 		if len(assets) == 1 {
 			homename = assets[0].Hostname
 			if assets[0].OrgID != "" {
@@ -50,8 +49,8 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 type UserVolume struct {
 	Uuid string
 	*srvconn.UserSftp
-	Homename     string
-	basePath     string
+	Homename string
+	basePath string
 
 	chunkFilesMap map[int]*sftp.File
 	lock          *sync.Mutex
@@ -76,7 +75,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
 	if filename != originFileInfo.Name() {
 		rest.Read, rest.Write = 1, 1
-		logger.Debug("Info filename no eque ")
+		logger.Debug("Info filename no equal")
 	}
 	if filename == "." {
 		filename = originFileInfo.Name()
@@ -88,6 +87,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 		rest.Phash = ""
 	}
 	rest.Size = originFileInfo.Size()
+	rest.Ts = originFileInfo.ModTime().Unix()
 	rest.Volumeid = u.Uuid
 	if originFileInfo.IsDir() {
 		rest.Mime = "directory"
@@ -142,13 +142,15 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader) (elfinder.FileDir, error) {
 	var path string
 	switch {
-	case strings.Contains(uploadPath,filename):
+	case strings.Contains(uploadPath, filename):
 		path = filepath.Join(dirPath, TrimPrefix(uploadPath))
+	case uploadPath != "":
+		path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
 	default:
 		path = filepath.Join(dirPath, filename)
 
 	}
-	logger.Debug("Volume upload file path: ", path," ", filename, " ",uploadPath)
+	logger.Debug("Volume upload file path: ", path, " ", filename, " ", uploadPath)
 	var rest elfinder.FileDir
 	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 	if err != nil {
@@ -171,7 +173,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 	u.lock.Unlock()
 	if !ok {
 		switch {
-		case strings.Contains(uploadPath,filename):
+		case strings.Contains(uploadPath, filename):
 			path = filepath.Join(dirPath, TrimPrefix(uploadPath))
 		case uploadPath != "":
 			path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
@@ -204,7 +206,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 func (u *UserVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename string) (elfinder.FileDir, error) {
 	var path string
 	switch {
-	case strings.Contains(uploadPath,filename):
+	case strings.Contains(uploadPath, filename):
 		path = filepath.Join(dirPath, TrimPrefix(uploadPath))
 	case uploadPath != "":
 		path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
@@ -308,6 +310,7 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	rest.Dirs = 1
 	rest.Read, rest.Write = 1, 1
 	rest.Locked = 1
+	rest.Ts = fInfo.ModTime().Unix()
 	return rest
 }
 
@@ -332,6 +335,7 @@ func NewElfinderFileInfo(id, dirPath string, originFileInfo os.FileInfo) elfinde
 		rest.Mime = "file"
 		rest.Dirs = 0
 	}
+	rest.Ts = originFileInfo.ModTime().Unix()
 	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
 	return rest
 }
@@ -340,6 +344,6 @@ func hashPath(id, path string) string {
 	return elfinder.CreateHash(id, path)
 }
 
-func TrimPrefix(path string) string{
+func TrimPrefix(path string) string {
 	return strings.TrimPrefix(path, "/")
 }

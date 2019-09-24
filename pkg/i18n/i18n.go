@@ -9,7 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 )
 
-func init() {
+func Initial()() {
 	cf := config.GetConf()
 	localePath := path.Join(cf.RootPath, "locale")
 	if strings.HasPrefix(cf.Language, "zh") {

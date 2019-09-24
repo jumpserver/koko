@@ -1,6 +1,7 @@
 package koko
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,12 +10,13 @@ import (
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/sshd"
 )
 
-const version = "1.5.2"
+const version = "1.5.3"
 
 type Coco struct {
 }
@@ -30,22 +32,25 @@ func (c *Coco) Start() {
 func (c *Coco) Stop() {
 	sshd.StopServer()
 	httpd.StopHTTPServer()
-	logger.Debug("Quit The Coco")
+	logger.Info("Quit The Coco")
 }
 
 func RunForever() {
-	bootstrap()
+	ctx,cancelFunc := context.WithCancel(context.Background())
+	bootstrap(ctx)
 	gracefulStop := make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	app := &Coco{}
 	app.Start()
 	<-gracefulStop
+	cancelFunc()
 	app.Stop()
 }
 
-func bootstrap() {
+func bootstrap(ctx context.Context) {
 	config.Initial()
+	i18n.Initial()
 	logger.Initial()
-	service.Initial()
+	service.Initial(ctx)
 	Initial()
 }

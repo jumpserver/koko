@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/LeeEirc/elfinder"
 	"github.com/gorilla/mux"
 
 	"github.com/jumpserver/koko/pkg/cctx"
+	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
@@ -48,8 +51,6 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-
-
 func sftpHostFinder(wr http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	tmpl := template.Must(template.ParseFiles("./templates/elfinder/file_manager.html"))
@@ -85,13 +86,19 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 	if !ok {
 		switch strings.TrimSpace(hostID) {
 		case "_":
-			userV = NewUserVolume(user, remoteIP,"")
+			userV = NewUserVolume(user, remoteIP, "")
 		default:
 			userV = NewUserVolume(user, remoteIP, hostID)
 		}
 		addUserVolume(sid, userV)
 	}
 	logger.Debugf("Elfinder connector sid: %s", sid)
-	conn := elfinder.NewElFinderConnector([]elfinder.Volume{userV})
+	conf := config.GetConf()
+	maxSize := common.ConvertSizeToBytes(conf.ZipMaxSize)
+	options := map[string]string{
+		"ZipMaxSize": strconv.Itoa(maxSize),
+		"ZipTmpPath": conf.ZipTmpPath,
+	}
+	conn := elfinder.NewElFinderConnectorWithOption([]elfinder.Volume{userV}, options)
 	conn.ServeHTTP(wr, req)
 }

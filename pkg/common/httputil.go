@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,4 +43,30 @@ func MakeSureDirExit(filePath string) {
 	}
 	log.Info("dir path exits:", dirPath)
 
+}
+
+func ConvertSizeToBytes(size string) int {
+	defaultSize := 1024 * 1024 * 1024
+	suffixs := []string{"M", "m", "g", "G"}
+	for i := 0; i < len(suffixs); i++ {
+		if strings.HasSuffix(size, suffixs[i]) {
+			num := strings.TrimSuffix(size, suffixs[i])
+			switch strings.ToLower(suffixs[i]) {
+			case "m":
+				if sizeNum, err := strconv.Atoi(num); err == nil {
+					return sizeNum * 1024 * 1024
+				}
+			case "g":
+				if sizeNum, err := strconv.Atoi(num); err == nil {
+					return sizeNum * 1024 * 1024 * 1024
+				}
+			}
+			break
+		}
+	}
+	if sizeNum, err := strconv.Atoi(size); err == nil && sizeNum > 0 {
+		return sizeNum
+	}
+
+	return defaultSize
 }

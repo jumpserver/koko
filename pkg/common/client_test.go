@@ -28,13 +28,13 @@ var userDeleteUrl = fmt.Sprintf("%s/%d", usersUrl, user.ID)
 
 func TestClient_Do(t *testing.T) {
 	c := NewClient(10, "")
-	err := c.Do("GET", usersUrl, nil, nil)
+	_, err := c.Do("GET", usersUrl, nil, nil)
 	if err == nil {
 		t.Error("Failed Do(), want get err but not")
 	}
 	c.SetBasicAuth(username, password)
 	var res []User
-	err = c.Do("GET", usersUrl, nil, &res)
+	_, err = c.Do("GET", usersUrl, nil, &res)
 	if err != nil {
 		t.Errorf("Failed Do() error: %s", err.Error())
 	}
@@ -45,12 +45,12 @@ func TestClient_Do(t *testing.T) {
 
 func TestClient_Get(t *testing.T) {
 	c := NewClient(10, baseHost)
-	err := c.Get(usersUrl, nil)
+	_, err := c.Get(usersUrl, nil)
 	if err == nil {
 		t.Errorf("Failed Get(%s): want get err but not", usersUrl)
 	}
 	c.SetBasicAuth(username, password)
-	err = c.Get(usersUrl, nil)
+	_, err = c.Get(usersUrl, nil)
 	if err != nil {
 		t.Errorf("Failed Get(%s): %s", usersUrl, err.Error())
 	}
@@ -59,7 +59,7 @@ func TestClient_Get(t *testing.T) {
 func TestClient_Post(t *testing.T) {
 	c := NewClient(10, baseHost)
 	var userCreated User
-	err := c.Post(usersUrl, user, &userCreated)
+	_, err := c.Post(usersUrl, user, &userCreated)
 	if err != nil {
 		t.Errorf("Failed Post(): %s", err.Error())
 	}
@@ -71,7 +71,7 @@ func TestClient_Post(t *testing.T) {
 func TestClient_Put(t *testing.T) {
 	c := NewClient(10, "")
 	var userUpdated User
-	err := c.Put(usersUrl, user, &userUpdated)
+	_, err := c.Put(usersUrl, user, &userUpdated)
 	if err != nil {
 		t.Errorf("Failed Put(): %s", err.Error())
 	}
@@ -83,7 +83,7 @@ func TestClient_Put(t *testing.T) {
 func TestClient_Delete(t *testing.T) {
 	c := NewClient(10, baseHost)
 	c.SetBasicAuth(username, password)
-	err := c.Delete(userDeleteUrl, nil)
+	_, err := c.Delete(userDeleteUrl, nil)
 	if err != nil {
 		t.Errorf("Failed Delete(): %s", err.Error())
 	}
@@ -119,4 +119,20 @@ func TestMain(m *testing.M) {
 	defer httpmock.DeactivateAndReset()
 	code := m.Run()
 	os.Exit(code)
+}
+
+func TestConvertSizeToBytes(t *testing.T) {
+	data := map[string]int{
+		"100M": 100 * 1024 * 1024,
+		"10M":  10 * 1024 * 1024,
+		"1G":  1024 * 1024 * 1024,
+		"1024":1024,
+	}
+	for k, v := range data {
+		convValue := ConvertSizeToBytes(k)
+		if convValue != v {
+			t.Errorf("%s should be equale to %d bytes, but conver to %d", k, v, convValue)
+		}
+		t.Logf("%s convert to %d bytes", k, convValue)
+	}
 }

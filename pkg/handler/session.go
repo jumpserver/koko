@@ -6,7 +6,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/olekukonko/tablewriter"
@@ -40,12 +39,9 @@ func newInteractiveHandler(sess ssh.Session, user *model.User) *interactiveHandl
 	wrapperSess := NewWrapperSession(sess)
 	term := utils.NewTerminal(wrapperSess, "Opt> ")
 	handler := &interactiveHandler{
-		sess:            wrapperSess,
-		user:            user,
-		term:            term,
-		mu:              new(sync.RWMutex),
-		nodeDataLoaded:  make(chan struct{}),
-		assetDataLoaded: make(chan struct{}),
+		sess: wrapperSess,
+		user: user,
+		term: term,
 	}
 	handler.Initial()
 	return handler
@@ -59,42 +55,33 @@ type interactiveHandler struct {
 
 	assetSelect      *model.Asset
 	systemUserSelect *model.SystemUser
-	assets           model.AssetList
-	searchResult     model.AssetList
 	nodes            model.NodeList
-	mu               *sync.RWMutex
-	nodeDataLoaded   chan struct{}
-	assetDataLoaded  chan struct{}
+	searchResult     []model.Asset
+
+	allAssets []model.Asset
+	search    string
+	offset    int
+	limit     int
+
+	loadDataDone    chan struct{}
+	assetLoadPolicy string
 }
 
 func (h *interactiveHandler) Initial() {
+	h.assetLoadPolicy = strings.ToLower(config.GetConf().AssetLoadPolicy)
 	h.displayBanner()
-	h.loadAssetsFromCache()
-	h.searchResult = make([]model.Asset, 0)
 	h.winWatchChan = make(chan bool)
+	h.loadDataDone = make(chan struct{})
+	go h.firstLoadData()
 }
 
-func (h *interactiveHandler) loadAssetsFromCache() {
-	if assets, ok := service.GetUserAssetsFromCache(h.user.ID); ok {
-		h.assets = assets
-		close(h.assetDataLoaded)
-	} else {
-		h.assets = make([]model.Asset, 0)
-	}
-	go h.firstLoadAssetAndNodes()
-}
-
-func (h *interactiveHandler) firstLoadAssetAndNodes() {
-	h.loadUserAssets("1")
+func (h *interactiveHandler) firstLoadData() {
 	h.loadUserNodes("1")
-	logger.Debug("First load assets and nodes done")
-	close(h.nodeDataLoaded)
-	select {
-	case <-h.assetDataLoaded:
-		return
-	default:
-		close(h.assetDataLoaded)
+	switch h.assetLoadPolicy {
+	case "all":
+		h.loadAllAssets()
 	}
+	close(h.loadDataDone)
 }
 
 func (h *interactiveHandler) displayBanner() {
@@ -151,16 +138,14 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 			break
 		}
 		line = strings.TrimSpace(line)
-		<-h.assetDataLoaded
 		switch len(line) {
 		case 0, 1:
 			switch strings.ToLower(line) {
 			case "", "p":
-				h.mu.RLock()
-				h.displayAssets(h.assets)
-				h.mu.RUnlock()
+				// 展示所有的资产
+				h.displayAllAssets()
 			case "g":
-				<-h.nodeDataLoaded
+				<-h.loadDataDone
 				h.displayNodes(h.nodes)
 			case "h":
 				h.displayBanner()
@@ -170,8 +155,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 				logger.Info("exit session")
 				return
 			default:
-				assets := h.searchAsset(line)
-				h.displayAssetsOrProxy(assets)
+				h.searchAssetOrProxy(line)
 			}
 		default:
 			switch {
@@ -180,26 +164,39 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 				return
 			case strings.Index(line, "/") == 0:
 				searchWord := strings.TrimSpace(line[1:])
-				assets := h.searchAsset(searchWord)
-				h.displayAssets(assets)
+				h.searchAsset(searchWord)
 			case strings.Index(line, "g") == 0:
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
 				if num, err := strconv.Atoi(searchWord); err == nil {
 					if num >= 0 {
-						<-h.nodeDataLoaded
 						assets := h.searchNodeAssets(num)
 						h.displayAssets(assets)
 						continue
 					}
 				}
-				assets := h.searchAsset(line)
-				h.displayAssetsOrProxy(assets)
+				h.searchAssetOrProxy(line)
 			default:
-				assets := h.searchAsset(line)
-				h.displayAssetsOrProxy(assets)
+				h.searchAssetOrProxy(line)
 			}
 		}
 
+	}
+}
+
+func (h *interactiveHandler) displayAllAssets() {
+	switch h.assetLoadPolicy {
+	case "all":
+		<-h.loadDataDone
+		h.displayAssets(h.allAssets)
+	default:
+		pag := NewUserPagination(h.term, h.user.ID, "", false)
+		result := pag.Start()
+		if pag.IsNeedProxy && len(result) == 1 {
+			h.searchResult = h.searchResult[:0]
+			h.ProxyAsset(result[0])
+		} else {
+			h.searchResult = result
+		}
 	}
 }
 
@@ -244,19 +241,6 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 	return displaySystemUsers[0]
 }
 
-// 当资产的数量为1的时候，就进行代理转化
-func (h *interactiveHandler) displayAssetsOrProxy(assets []model.Asset) {
-	if len(assets) == 1 {
-		systemUser := h.chooseSystemUser(assets[0].SystemUsers)
-		h.assetSelect = &assets[0]
-		h.systemUserSelect = &systemUser
-		h.Proxy(context.TODO())
-	} else {
-		h.displayAssets(assets)
-	}
-
-}
-
 func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
 		_, _ = io.WriteString(h.term, i18n.T("No Assets")+"\n\r")
@@ -265,18 +249,16 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 		pag := NewAssetPagination(h.term, sortedAssets)
 		selectOneAssets := pag.Start()
 		if len(selectOneAssets) == 1 {
-			systemUser := h.chooseSystemUser(selectOneAssets[0].SystemUsers)
+			systemUsers := service.GetUserAssetSystemUsers(h.user.ID, selectOneAssets[0].ID)
+			systemUser := h.chooseSystemUser(systemUsers)
 			h.assetSelect = &selectOneAssets[0]
 			h.systemUserSelect = &systemUser
 			h.Proxy(context.TODO())
 		}
 		if pag.page.PageSize() >= pag.page.TotalCount() {
 			h.searchResult = sortedAssets
-		} else {
-			h.searchResult = h.searchResult[:0]
 		}
 	}
-
 }
 
 func (h *interactiveHandler) displayNodes(nodes []model.Node) {
@@ -294,7 +276,10 @@ func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 }
 
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
-	h.loadUserAssets("2")
+	switch h.assetLoadPolicy {
+	case "all":
+		h.loadAllAssets()
+	}
 	h.loadUserNodes("2")
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
 	if err != nil {
@@ -302,45 +287,73 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 	}
 }
 
-func (h *interactiveHandler) loadUserAssets(cachePolicy string) {
-	assets := service.GetUserAssets(h.user.ID, cachePolicy, "")
-	h.mu.Lock()
-	h.assets = assets
-	h.mu.Unlock()
-}
-
 func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
-	h.mu.Lock()
 	h.nodes = service.GetUserNodes(h.user.ID, cachePolicy)
-	h.mu.Unlock()
 }
 
-func (h *interactiveHandler) searchAsset(key string) (assets []model.Asset) {
+func (h *interactiveHandler) loadAllAssets() {
+	h.allAssets = service.GetUserAllAssets(h.user.ID)
+}
+
+func (h *interactiveHandler) searchAsset(key string) {
+	switch h.assetLoadPolicy {
+	case "all":
+		<-h.loadDataDone
+		var searchData []model.Asset
+		switch len(h.searchResult) {
+		case 0:
+			searchData = h.allAssets
+		default:
+			searchData = h.searchResult
+		}
+		assets := searchFromLocalAssets(searchData, key)
+		h.displayAssets(assets)
+	default:
+		pag := NewUserPagination(h.term, h.user.ID, key, false)
+		result := pag.Start()
+		if pag.IsNeedProxy && len(result) == 1 {
+			h.searchResult = h.searchResult[:0]
+			h.ProxyAsset(result[0])
+		} else {
+			h.searchResult = result
+		}
+	}
+}
+
+func (h *interactiveHandler) searchAssetOrProxy(key string) {
 	if indexNum, err := strconv.Atoi(key); err == nil && len(h.searchResult) > 0 {
 		if indexNum > 0 && indexNum <= len(h.searchResult) {
-			assets = []model.Asset{h.searchResult[indexNum-1]}
+			assetSelect := h.searchResult[indexNum-1]
+			h.ProxyAsset(assetSelect)
 			return
 		}
 	}
-	var searchData []model.Asset
-	switch len(h.searchResult) {
-	case 0:
-		h.mu.RLock()
-		searchData = h.assets
-		h.mu.RUnlock()
+	var assets []model.Asset
+	switch h.assetLoadPolicy {
+	case "all":
+		<-h.loadDataDone
+		var searchData []model.Asset
+		switch len(h.searchResult) {
+		case 0:
+			searchData = h.allAssets
+		default:
+			searchData = h.searchResult
+		}
+		assets = searchFromLocalAssets(searchData, key)
+		if len(assets) != 1 {
+			h.displayAssets(assets)
+			return
+		}
 	default:
-		searchData = h.searchResult
+		pag := NewUserPagination(h.term, h.user.ID, key, true)
+		assets = pag.Start()
 	}
 
-	key = strings.ToLower(key)
-	for _, assetValue := range searchData {
-		contents := []string{strings.ToLower(assetValue.Hostname),
-			strings.ToLower(assetValue.IP), strings.ToLower(assetValue.Comment)}
-		if isSubstring(contents, key) {
-			assets = append(assets, assetValue)
-		}
+	if len(assets) == 1 {
+		h.ProxyAsset(assets[0])
+	} else {
+		h.searchResult = assets
 	}
-	return assets
 }
 
 func (h *interactiveHandler) searchNodeAssets(num int) (assets model.AssetList) {
@@ -350,6 +363,14 @@ func (h *interactiveHandler) searchNodeAssets(num int) (assets model.AssetList) 
 	node := h.nodes[num-1]
 	assets = service.GetUserNodeAssets(h.user.ID, node.ID, "1")
 	return
+}
+
+func (h *interactiveHandler) ProxyAsset(assetSelect model.Asset) {
+	systemUsers := service.GetUserAssetSystemUsers(h.user.ID, assetSelect.ID)
+	systemUserSelect := h.chooseSystemUser(systemUsers)
+	h.systemUserSelect = &systemUserSelect
+	h.assetSelect = &assetSelect
+	h.Proxy(context.Background())
 }
 
 func (h *interactiveHandler) Proxy(ctx context.Context) {
@@ -422,96 +443,15 @@ func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.Sy
 	return result
 }
 
-//func (h *InteractiveHandler) JoinShareRoom(roomID string) {
-//sshConn := userhome.NewSSHConn(h.sess)
-//ctx, cancelFuc := context.WithCancel(h.sess.Context())
-//
-//_, winCh, _ := h.sess.Pty()
-//go func() {
-//	for {
-//		select {
-//		case <-ctx.Done():
-//			return
-//		case win, ok := <-winCh:
-//			if !ok {
-//				return
-//			}
-//			fmt.Println("join term change:", win)
-//		}
-//	}
-//}()
-//proxybak.Manager.JoinShareRoom(roomID, sshConn)
-//logger.Info("exit room id:", roomID)
-//cancelFuc()
-//
-//}
-
-//	/*
-//		1. 创建SSHConn，符合core.Conn接口
-//		2. 创建一个session Home
-//		3. 创建一个NodeConn，及相关的channel 可以是MemoryChannel 或者是redisChannel
-//		4. session Home 与 proxy channel 交换数据
-//	*/
-//	ptyReq, winChan, _ := i.sess.Pty()
-//	sshConn := userhome.NewSSHConn(i.sess)
-//	serverAuth := transport.ServerAuth{
-//		SessionID: uuid.NewV4().String(),
-//		IP:        asset.IP,
-//		port:      asset.port,
-//		Username:  systemUser.Username,
-//		password:  systemUser.password,
-//		PublicKey: parsePrivateKey(systemUser.privateKey)}
-//
-//	nodeConn, err := transport.NewNodeConn(i.sess.Context(), serverAuth, ptyReq, winChan)
-//	if err != nil {
-//		logger.Error(err)
-//		return err
-//	}
-//	defer func() {
-//		nodeConn.Close()
-//		data := map[string]interface{}{
-//			"id":          nodeConn.SessionID,
-//			"user":        i.user.Username,
-//			"asset":       asset.Hostname,
-//			"org_id":      asset.OrgID,
-//			"system_user": systemUser.Username,
-//			"login_from":  "ST",
-//			"remote_addr": i.sess.RemoteAddr().String(),
-//			"is_finished": true,
-//			"date_start":  nodeConn.StartTime.Format("2006-01-02 15:04:05 +0000"),
-//			"date_end":    time.Now().UTC().Format("2006-01-02 15:04:05 +0000"),
-//		}
-//		postData, _ := json.Marshal(data)
-//		appService.FinishSession(nodeConn.SessionID, postData)
-//		appService.FinishReply(nodeConn.SessionID)
-//	}()
-//	data := map[string]interface{}{
-//		"id":          nodeConn.SessionID,
-//		"user":        i.user.Username,
-//		"asset":       asset.Hostname,
-//		"org_id":      asset.OrgID,
-//		"system_user": systemUser.Username,
-//		"login_from":  "ST",
-//		"remote_addr": i.sess.RemoteAddr().String(),
-//		"is_finished": false,
-//		"date_start":  nodeConn.StartTime.Format("2006-01-02 15:04:05 +0000"),
-//		"date_end":    nil,
-//	}
-//	postData, err := json.Marshal(data)
-//
-//	if !appService.CreateSession(postData) {
-//		return err
-//	}
-//
-//	memChan := transport.NewMemoryAgent(nodeConn)
-//
-//	Home := userhome.NewUserSessionHome(sshConn)
-//	logger.Info("session Home ID: ", Home.SessionID())
-//
-//	err = proxy.Manager.session(i.sess.Context(), Home, memChan)
-//	if err != nil {
-//		logger.Error(err)
-//	}
-//	return err
-//}
-//
+func searchFromLocalAssets(assets model.AssetList, key string) []model.Asset {
+	displayAssets := make([]model.Asset, 0, len(assets))
+	key = strings.ToLower(key)
+	for _, assetValue := range assets {
+		contents := []string{strings.ToLower(assetValue.Hostname),
+			strings.ToLower(assetValue.IP), strings.ToLower(assetValue.Comment)}
+		if isSubstring(contents, key) {
+			displayAssets = append(displayAssets, assetValue)
+		}
+	}
+	return displayAssets
+}

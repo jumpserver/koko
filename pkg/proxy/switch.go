@@ -189,6 +189,7 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		"org_id":      s.p.Asset.OrgID,
 		"login_from":  s.p.UserConn.LoginFrom(),
 		"system_user": s.p.SystemUser.Username,
+		"protocol":    s.p.SystemUser.Protocol,
 		"remote_addr": s.p.UserConn.RemoteAddr(),
 		"is_finished": s.finished,
 		"date_start":  s.DateStart,
@@ -201,11 +202,11 @@ func LoopRead(read io.Reader, inChan chan<- []byte) {
 	for {
 		buf := make([]byte, 1024)
 		nr, err := read.Read(buf)
-		if err != nil {
-			break
-		}
 		if nr > 0 {
 			inChan <- buf[:nr]
+		}
+		if err != nil {
+			break
 		}
 	}
 	close(inChan)
