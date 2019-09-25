@@ -1,17 +1,17 @@
 <html>
 <body style="margin: 0">
-    <script type="text/javascript" src="/coco/static/js/jquery-2.1.1.js"></script>
-    <script type="text/javascript" src="/coco/static/js/jquery-ui-1.10.4.min.js"></script>
-    <script type="text/javascript" src="/coco/static/js/neffos.min.js"></script>
-    <script type="text/javascript" src="/coco/static/plugins/elfinder/elfinder.full.js"></script>
-    <script type="text/javascript" src="/coco/static/plugins/elfinder/i18n/elfinder.pl.js"></script>
-    <link rel="stylesheet" type="text/css" media="screen" href="/coco/static/js/jquery-ui-1.10.4.min.css">
-    <link rel="stylesheet" type="text/css" media="screen" href="/coco/static/plugins/elfinder/css/elfinder.min.css">
-    <link rel="stylesheet" type="text/css" media="screen" href="/coco/static/plugins/elfinder/css/theme-gray.css">
+    <script type="text/javascript" src="/koko/static/js/jquery-2.1.1.js"></script>
+    <script type="text/javascript" src="/koko/static/js/jquery-ui-1.10.4.min.js"></script>
+    <script type="text/javascript" src="/koko/static/js/neffos.min.js"></script>
+    <script type="text/javascript" src="/koko/static/plugins/elfinder/elfinder.full.js"></script>
+    <script type="text/javascript" src="/koko/static/plugins/elfinder/i18n/elfinder.pl.js"></script>
+    <link rel="stylesheet" type="text/css" media="screen" href="/koko/static/js/jquery-ui-1.10.4.min.css">
+    <link rel="stylesheet" type="text/css" media="screen" href="/koko/static/plugins/elfinder/css/elfinder.min.css">
+    <link rel="stylesheet" type="text/css" media="screen" href="/koko/static/plugins/elfinder/css/theme-gray.css">
     <script type="text/javascript" charset="utf-8">
         var scheme = document.location.protocol == "https:" ? "wss" : "ws";
         var port = document.location.port ? ":" + document.location.port : "";
-        var wsURL = scheme + "://" + document.location.hostname + port + "/socket.io/";
+        var wsURL = scheme + "://" + document.location.hostname + port + "/koko/ws/";
         let interval;
         dial(wsURL, {
             "elfinder": {
@@ -57,7 +57,7 @@
 	    		},
                 customData: {'sid': sid},
                 width: '100%',
-	    		url: '/coco/elfinder/sftp/connector/{{.}}/',
+	    		url: '/koko/elfinder/sftp/connector/{{.}}/',
                 resizable: false,
                 lang: 'pl',
                 requestType: 'get',
@@ -105,7 +105,7 @@
                 }
                 if (lng !== 'en') {
         		    $.ajax({
-        		    	url : '/coco/static/plugins/elfinder/i18n'+'/elfinder.'+lng+'.js',
+        		    	url : '/koko/static/plugins/elfinder/i18n'+'/elfinder.'+lng+'.js',
         		    	cache : true,
         		    	dataType : 'script'
         		    })

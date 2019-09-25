@@ -86,13 +86,25 @@ func StartHTTPServer() {
 
 	router := mux.NewRouter()
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
-	router.PathPrefix("/coco/static/").Handler(http.StripPrefix("/coco/static/", fs))
 
-	router.Handle("/socket.io/", sshWs)
-	router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
-	router.HandleFunc("/coco/elfinder/sftp/", AuthDecorator(sftpFinder))
-	router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
-		AuthDecorator(sftpHostConnectorView)).Methods("GET", "POST")
+	subRouter := router.PathPrefix("/koko/").Subrouter()
+	subRouter.PathPrefix("/static/").Handler(http.StripPrefix("/koko/static/", fs))
+	subRouter.Handle("/ws/", sshWs)
+
+	elfinderRouter := subRouter.PathPrefix("/elfinder/").Subrouter()
+	elfinderRouter.HandleFunc("/sftp/{host}/", AuthDecorator(sftpHostFinder))
+	elfinderRouter.HandleFunc("/sftp/", AuthDecorator(sftpFinder))
+	elfinderRouter.HandleFunc("/sftp/connector/{host}/",
+		AuthDecorator(sftpHostConnectorView),
+	).Methods("GET", "POST")
+
+	//router.PathPrefix("/coco/static/").Handler(http.StripPrefix("/coco/static/", fs))
+
+	//router.Handle("/socket.io/", sshWs)
+	//router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
+	//router.HandleFunc("/coco/elfinder/sftp/", AuthDecorator(sftpFinder))
+	//router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
+	//	AuthDecorator(sftpHostConnectorView)).Methods("GET", "POST")
 
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	logger.Debug("Start HTTP server at ", addr)
