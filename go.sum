@@ -5,12 +5,8 @@ github.com/Azure/azure-storage-blob-go v0.6.0 h1:SEATKb3LIHcaSIX+E6/K4kJpwfuozFE
 github.com/Azure/azure-storage-blob-go v0.6.0/go.mod h1:oGfmITT1V6x//CswqY2gtAHND+xIP64/qL7a5QJix0Y=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/LeeEirc/elfinder v0.0.0-20190718023636-5679c8bdb7bf h1:dZipr1cwienSKNTXsveMmyd7VFY3v/eMHNl/vueN10s=
-github.com/LeeEirc/elfinder v0.0.0-20190718023636-5679c8bdb7bf/go.mod h1:ApL/XFs34Gvqinex9Z1sZdsp3Jeu26nNuEsf1wQFx8s=
-github.com/LeeEirc/elfinder v0.0.1 h1:fFVy2xddwB2qQxLxJOGl+1Lj686pnRFnySsjPr7luZ0=
-github.com/LeeEirc/elfinder v0.0.1/go.mod h1:VSfmUhE4Fvv+4Dfyo7Wmi44bdyDuIQgJtyi5EDcDSxE=
-github.com/LeeEirc/elfinder v0.0.2 h1:OnsOkZ3FVVKk91JxQQGwAULo78BSwPRN0yXaYcUK6Yk=
-github.com/LeeEirc/elfinder v0.0.2/go.mod h1:VSfmUhE4Fvv+4Dfyo7Wmi44bdyDuIQgJtyi5EDcDSxE=
+github.com/LeeEirc/elfinder v0.0.8 h1:y1BSXvtRve6WwMiSYyynY+oEbH+rWMuScoZ1YU67H4E=
+github.com/LeeEirc/elfinder v0.0.8/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8 h1:BOflvK0Zs/zGmoabyFIzTg5c3kguktWTXEwewwbuba0=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=

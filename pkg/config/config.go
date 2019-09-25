@@ -24,11 +24,11 @@ type Config struct {
 	SessionKeepDuration time.Duration          `json:"TERMINAL_SESSION_KEEP_DURATION"`
 	TelnetRegex         string                 `json:"TERMINAL_TELNET_REGEX"`
 	MaxIdleTime         time.Duration          `json:"SECURITY_MAX_IDLE_TIME"`
+	HeartbeatDuration   time.Duration          `json:"TERMINAL_HEARTBEAT_INTERVAL"`
 	SftpRoot            string                 `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
 	ShowHiddenFile      bool                   `yaml:"SFTP_SHOW_HIDDEN_FILE"`
 	ReuseConnection     bool                   `yaml:"REUSE_CONNECTION"`
 	Name                string                 `yaml:"NAME"`
-	SecretKey           string                 `yaml:"SECRET_KEY"`
 	HostKeyFile         string                 `yaml:"HOST_KEY_FILE"`
 	CoreHost            string                 `yaml:"CORE_HOST"`
 	BootstrapToken      string                 `yaml:"BOOTSTRAP_TOKEN"`
@@ -39,19 +39,23 @@ type Config struct {
 	AccessKey           string                 `yaml:"ACCESS_KEY"`
 	AccessKeyFile       string                 `yaml:"ACCESS_KEY_FILE"`
 	LogLevel            string                 `yaml:"LOG_LEVEL"`
-	HeartbeatDuration   time.Duration          `yaml:"HEARTBEAT_INTERVAL"`
 	RootPath            string                 `yaml:"ROOT_PATH"`
 	Comment             string                 `yaml:"COMMENT"`
 	Language            string                 `yaml:"LANG"`
 	LanguageCode        string                 `yaml:"LANGUAGE_CODE"` // Abandon
 	UploadFailedReplay  bool                   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
 	AssetLoadPolicy     string                 `yaml:"ASSET_LOAD_POLICY"` // all
+	ZipMaxSize          string                 `yaml:"ZIP_MAX_SIZE"`
+	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
 }
 
 func (c *Config) EnsureConfigValid() {
 	// 兼容原来config
 	if c.LanguageCode != "" && c.Language == "" {
 		c.Language = c.LanguageCode
+	}
+	if c.Language == "" {
+		c.Language = "zh"
 	}
 	// 确保至少有一个认证
 	if !c.PublicKeyAuth && !c.PasswordAuth {
@@ -127,7 +131,6 @@ var Conf = &Config{
 	HostKey:            "",
 	RootPath:           rootPath,
 	Comment:            "Coco",
-	Language:           "zh",
 	ReplayStorage:      map[string]interface{}{"TYPE": "server"},
 	CommandStorage:     map[string]interface{}{"TYPE": "server"},
 	UploadFailedReplay: true,
@@ -135,6 +138,8 @@ var Conf = &Config{
 	ShowHiddenFile:     false,
 	ReuseConnection:    true,
 	AssetLoadPolicy:    "",
+	ZipMaxSize:         "1024M",
+	ZipTmpPath:         "/tmp",
 }
 
 func SetConf(conf *Config) {

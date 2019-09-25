@@ -75,7 +75,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
 	if filename != originFileInfo.Name() {
 		rest.Read, rest.Write = 1, 1
-		logger.Debug("Info filename no eque ")
+		logger.Debug("Info filename no equal")
 	}
 	if filename == "." {
 		filename = originFileInfo.Name()
@@ -87,6 +87,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 		rest.Phash = ""
 	}
 	rest.Size = originFileInfo.Size()
+	rest.Ts = originFileInfo.ModTime().Unix()
 	rest.Volumeid = u.Uuid
 	if originFileInfo.IsDir() {
 		rest.Mime = "directory"
@@ -143,6 +144,8 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 	switch {
 	case strings.Contains(uploadPath, filename):
 		path = filepath.Join(dirPath, TrimPrefix(uploadPath))
+	case uploadPath != "":
+		path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
 	default:
 		path = filepath.Join(dirPath, filename)
 
@@ -307,6 +310,7 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	rest.Dirs = 1
 	rest.Read, rest.Write = 1, 1
 	rest.Locked = 1
+	rest.Ts = fInfo.ModTime().Unix()
 	return rest
 }
 
@@ -331,6 +335,7 @@ func NewElfinderFileInfo(id, dirPath string, originFileInfo os.FileInfo) elfinde
 		rest.Mime = "file"
 		rest.Dirs = 0
 	}
+	rest.Ts = originFileInfo.ModTime().Unix()
 	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
 	return rest
 }

@@ -189,9 +189,15 @@ func (h *interactiveHandler) displayAllAssets() {
 		<-h.loadDataDone
 		h.displayAssets(h.allAssets)
 	default:
-		h.searchAsset("")
+		pag := NewUserPagination(h.term, h.user.ID, "", false)
+		result := pag.Start()
+		if pag.IsNeedProxy && len(result) == 1 {
+			h.searchResult = h.searchResult[:0]
+			h.ProxyAsset(result[0])
+		} else {
+			h.searchResult = result
+		}
 	}
-
 }
 
 func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
@@ -304,7 +310,13 @@ func (h *interactiveHandler) searchAsset(key string) {
 		h.displayAssets(assets)
 	default:
 		pag := NewUserPagination(h.term, h.user.ID, key, false)
-		h.searchResult = pag.Start()
+		result := pag.Start()
+		if pag.IsNeedProxy && len(result) == 1 {
+			h.searchResult = h.searchResult[:0]
+			h.ProxyAsset(result[0])
+		} else {
+			h.searchResult = result
+		}
 	}
 }
 
@@ -312,11 +324,7 @@ func (h *interactiveHandler) searchAssetOrProxy(key string) {
 	if indexNum, err := strconv.Atoi(key); err == nil && len(h.searchResult) > 0 {
 		if indexNum > 0 && indexNum <= len(h.searchResult) {
 			assetSelect := h.searchResult[indexNum-1]
-			systemUsers := service.GetUserAssetSystemUsers(h.user.ID, assetSelect.ID)
-			systemUserSelect := h.chooseSystemUser(systemUsers)
-			h.systemUserSelect = &systemUserSelect
-			h.assetSelect = &assetSelect
-			h.Proxy(context.Background())
+			h.ProxyAsset(assetSelect)
 			return
 		}
 	}
@@ -342,14 +350,10 @@ func (h *interactiveHandler) searchAssetOrProxy(key string) {
 	}
 
 	if len(assets) == 1 {
-		systemUsers := service.GetUserAssetSystemUsers(h.user.ID, assets[0].ID)
-		systemUserSelect := h.chooseSystemUser(systemUsers)
-		h.systemUserSelect = &systemUserSelect
-		h.assetSelect = &assets[0]
-		h.Proxy(context.Background())
-		return
+		h.ProxyAsset(assets[0])
+	} else {
+		h.searchResult = assets
 	}
-	h.searchResult = assets
 }
 
 func (h *interactiveHandler) searchNodeAssets(num int) (assets model.AssetList) {
@@ -359,6 +363,14 @@ func (h *interactiveHandler) searchNodeAssets(num int) (assets model.AssetList) 
 	node := h.nodes[num-1]
 	assets = service.GetUserNodeAssets(h.user.ID, node.ID, "1")
 	return
+}
+
+func (h *interactiveHandler) ProxyAsset(assetSelect model.Asset) {
+	systemUsers := service.GetUserAssetSystemUsers(h.user.ID, assetSelect.ID)
+	systemUserSelect := h.chooseSystemUser(systemUsers)
+	h.systemUserSelect = &systemUserSelect
+	h.assetSelect = &assetSelect
+	h.Proxy(context.Background())
 }
 
 func (h *interactiveHandler) Proxy(ctx context.Context) {
