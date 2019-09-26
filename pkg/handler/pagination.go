@@ -202,6 +202,7 @@ type UserAssetPagination struct {
 	displayPolicy bool
 	Data          model.AssetsPaginationResponse
 	IsNeedProxy   bool
+	currentData   []model.Asset
 }
 
 func (p *UserAssetPagination) Start() []model.Asset {
@@ -212,13 +213,13 @@ func (p *UserAssetPagination) Start() []model.Asset {
 
 		if p.displayPolicy && p.Data.Total == 1 {
 			p.IsNeedProxy = true
-			return p.Data.Data
+			return p.currentData
 		}
 
 		// 无上下页，则退出循环
 		if p.Data.NextURL == "" && p.Data.PreviousURL == "" {
 			p.displayPageAssets()
-			return p.Data.Data
+			return p.currentData
 		}
 
 	inLoop:
@@ -226,7 +227,7 @@ func (p *UserAssetPagination) Start() []model.Asset {
 		p.displayTipsInfo()
 		line, err := p.term.ReadLine()
 		if err != nil {
-			return p.Data.Data
+			return p.currentData
 		}
 
 		line = strings.TrimSpace(line)
@@ -247,18 +248,18 @@ func (p *UserAssetPagination) Start() []model.Asset {
 				return []model.Asset{}
 			default:
 				if indexID, err := strconv.Atoi(line); err == nil {
-					if indexID > 0 && indexID <= len(p.Data.Data) {
+					if indexID > 0 && indexID <= len(p.currentData) {
 						p.IsNeedProxy = true
-						return []model.Asset{p.Data.Data[indexID-1]}
+						return []model.Asset{p.currentData[indexID-1]}
 					}
 				}
 				goto inLoop
 			}
 		default:
 			if indexID, err := strconv.Atoi(line); err == nil {
-				if indexID > 0 && indexID <= len(p.Data.Data) {
+				if indexID > 0 && indexID <= len(p.currentData) {
 					p.IsNeedProxy = true
-					return []model.Asset{p.Data.Data[indexID-1]}
+					return []model.Asset{p.currentData[indexID-1]}
 				}
 			}
 			goto inLoop
@@ -275,8 +276,9 @@ func (p *UserAssetPagination) displayPageAssets() {
 
 	Labels := []string{i18n.T("ID"), i18n.T("hostname"), i18n.T("IP"), i18n.T("comment")}
 	fields := []string{"ID", "hostname", "IP", "comment"}
-	data := make([]map[string]string, len(p.Data.Data))
-	for i, j := range p.Data.Data {
+	p.currentData = model.AssetList(p.Data.Data).SortBy(config.GetConf().AssetListSortBy)
+	data := make([]map[string]string, len(p.currentData))
+	for i, j := range p.currentData {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		row["hostname"] = j.Hostname
@@ -298,10 +300,10 @@ func (p *UserAssetPagination) displayPageAssets() {
 	var currentPage int
 	var totalCount int
 	var currentOffset int
-	currentOffset = p.offset + len(p.Data.Data)
+	currentOffset = p.offset + len(p.currentData)
 	switch p.limit {
 	case 0:
-		pageSize = len(p.Data.Data)
+		pageSize = len(p.currentData)
 		totalCount = pageSize
 		totalPage = 1
 		currentPage = 1
