@@ -213,7 +213,7 @@ func (p *UserAssetPagination) Start() []model.Asset {
 
 		if p.displayPolicy && p.Data.Total == 1 {
 			p.IsNeedProxy = true
-			return p.currentData
+			return p.Data.Data
 		}
 
 		// 无上下页，则退出循环
