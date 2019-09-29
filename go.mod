@@ -27,6 +27,7 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/sftp v1.10.0
 	github.com/satori/go.uuid v1.2.0
+	github.com/sevlyar/go-daemon v0.1.5 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
