@@ -14,7 +14,7 @@ SOFTWARENAME=$(NAME)-$(VERSION)
 KOKOSRCFILE= koko.go
 BUILDDIR:=$(BASEPATH)/../build
 ASSETS=locale static templates config_example.yml
-
+GOFLAGS="-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`' -X 'main.Githash=`git rev-parse HEAD`' -X 'main.Goversion=`go version`'"
 PLATFORMS := linux darwin
 
 .PHONY: release
@@ -30,7 +30,7 @@ Asset:
 .PHONY: $(PLATFORMS)
 $(PLATFORMS): Asset
 	@echo "编译" $@
-	GOOS=$@ GOARCH=amd64 go build -o $(NAME) $(KOKOSRCFILE)
+	GOOS=$@ GOARCH=amd64 go build -ldflags $(GOFLAGS) -x -o $(NAME) $(KOKOSRCFILE)
 	cp -f $(NAME) $(DIRNAME)
 	tar czvf $(BUILDDIR)/$(SOFTWARENAME)-$@-amd64.tar.gz $(DIRNAME)
 

@@ -16,14 +16,14 @@ import (
 	"github.com/jumpserver/koko/pkg/sshd"
 )
 
-const version = "1.5.3"
+const Version = "1.5.3"
 
 type Coco struct {
 }
 
 func (c *Coco) Start() {
 	fmt.Println(time.Now().Format("2006-01-02 15:04:05"))
-	fmt.Printf("Coco version %s, more see https://www.jumpserver.org\n", version)
+	fmt.Printf("Koko Version %s, more see https://www.jumpserver.org\n", Version)
 	fmt.Println("Quit the server with CONTROL-C.")
 	go sshd.StartServer()
 	go httpd.StartHTTPServer()
