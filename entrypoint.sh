@@ -7,5 +7,5 @@ do
     sleep 2
 done
 
-cd /opt/coco
+cd /opt/koko
 ./koko
