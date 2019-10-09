@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -95,7 +96,36 @@ func (c *Config) LoadFromEnv() error {
 		vSlice := strings.Split(v, "=")
 		key := vSlice[0]
 		value := vSlice[1]
-		envMap[key] = value
+		// 环境变量的值，非字符串类型的解析，需要另作处理
+		switch key {
+		case "SFTP_SHOW_HIDDEN_FILE", "REUSE_CONNECTION", "UPLOAD_FAILED_REPLAY_ON_START":
+			switch strings.ToLower(value) {
+			case "true", "on":
+				switch key {
+				case "SFTP_SHOW_HIDDEN_FILE":
+					c.ShowHiddenFile = true
+				case "REUSE_CONNECTION":
+					c.ReuseConnection = true
+				case "UPLOAD_FAILED_REPLAY_ON_START":
+					c.UploadFailedReplay = true
+				}
+			case "false", "off":
+				switch key {
+				case "SFTP_SHOW_HIDDEN_FILE":
+					c.ShowHiddenFile = false
+				case "REUSE_CONNECTION":
+					c.ReuseConnection = false
+				case "UPLOAD_FAILED_REPLAY_ON_START":
+					c.UploadFailedReplay = false
+				}
+			}
+		case "SSH_TIMEOUT":
+			if num, err := strconv.Atoi(value); err == nil {
+				c.SSHTimeout = time.Duration(num)
+			}
+		default:
+			envMap[key] = value
+		}
 	}
 	envYAML, err := yaml.Marshal(&envMap)
 	if err != nil {
