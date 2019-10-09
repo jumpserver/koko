@@ -801,6 +801,8 @@ func (t *Terminal) readLine() (line string, err error) {
 			if !t.pasteActive {
 				if key == keyCtrlD {
 					if len(t.line) == 0 {
+						// as key has already handled, we need update remainder data,
+						t.remainder = rest
 						return "", io.EOF
 					}
 				}
