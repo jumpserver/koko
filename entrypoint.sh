@@ -3,7 +3,7 @@
 
 while [ "$(curl -I -m 10 -o /dev/null -s -w %{http_code} $CORE_HOST)" != "302" ]
 do
-    echo "wait for jms_core ready"
+    echo "wait for jms_core $CORE_HOST ready"
     sleep 2
 done
 
