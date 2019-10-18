@@ -8,6 +8,7 @@ import (
 
 type UserConnection interface {
 	io.ReadWriteCloser
+	ID() string
 	WinCh() <-chan ssh.Window
 	LoginFrom() string
 	RemoteAddr() string

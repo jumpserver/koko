@@ -76,3 +76,7 @@ func (c *Client) SetWinSize(size ssh.Window) {
 	default:
 	}
 }
+
+func (c *Client) ID() string {
+	return c.Uuid
+}

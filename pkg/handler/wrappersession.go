@@ -6,11 +6,12 @@ import (
 	"sync"
 
 	"github.com/gliderlabs/ssh"
-
 	"github.com/jumpserver/koko/pkg/logger"
+	uuid "github.com/satori/go.uuid"
 )
 
 type WrapperSession struct {
+	Uuid      string
 	Sess      ssh.Session
 	inWriter  io.WriteCloser
 	outReader io.ReadCloser
@@ -18,12 +19,12 @@ type WrapperSession struct {
 }
 
 func (w *WrapperSession) initial() {
+	w.Uuid = uuid.NewV4().String()
 	w.initReadPip()
 	go w.readLoop()
 }
 
 func (w *WrapperSession) readLoop() {
-	defer logger.Debug("session loop break")
 	buf := make([]byte, 1024*8)
 	for {
 		nr, err := w.Sess.Read(buf)
@@ -38,7 +39,7 @@ func (w *WrapperSession) readLoop() {
 		}
 	}
 	_ = w.inWriter.Close()
-
+	logger.Infof("Request %s read loop break", w.Uuid)
 }
 
 func (w *WrapperSession) Read(p []byte) (int, error) {
@@ -92,6 +93,10 @@ func (w *WrapperSession) RemoteAddr() string {
 func (w *WrapperSession) Pty() ssh.Pty {
 	pty, _, _ := w.Sess.Pty()
 	return pty
+}
+
+func (w *WrapperSession) ID() string {
+	return w.Uuid
 }
 
 func NewWrapperSession(sess ssh.Session) *WrapperSession {

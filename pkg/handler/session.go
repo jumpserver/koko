@@ -27,7 +27,7 @@ func SessionHandler(sess ssh.Session) {
 		ctx, cancel := cctx.NewContext(sess)
 		defer cancel()
 		handler := newInteractiveHandler(sess, ctx.User())
-		logger.Debugf("User Request pty: %s %s", sess.User(), pty.Term)
+		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
 		handler.Dispatch(ctx)
 	} else {
 		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
@@ -125,16 +125,11 @@ func (h *interactiveHandler) resumeWatchWinSize() {
 
 func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 	go h.watchWinSizeChange()
-
+	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
 	for {
 		line, err := h.term.ReadLine()
-
 		if err != nil {
-			if err != io.EOF {
-				logger.Debug("User disconnected")
-			} else {
-				logger.Error("Read from user err: ", err)
-			}
+			logger.Debugf("User %s close connect", h.user.Name)
 			break
 		}
 		line = strings.TrimSpace(line)
@@ -152,7 +147,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 			case "r":
 				h.refreshAssetsAndNodesData()
 			case "q":
-				logger.Info("exit session")
+				logger.Debugf("user %s enter to exit", h.user.Name)
 				return
 			default:
 				h.searchAssetOrProxy(line)
@@ -160,7 +155,7 @@ func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
 		default:
 			switch {
 			case line == "exit", line == "quit":
-				logger.Info("exit session")
+				logger.Debugf("user %s enter to exit", h.user.Name)
 				return
 			case strings.Index(line, "/") == 0:
 				searchWord := strings.TrimSpace(line[1:])

@@ -26,14 +26,21 @@ var (
 	charEnter = []byte("\r")
 )
 
-func newParser() *Parser {
-	parser := &Parser{}
+const (
+	CommandInputParserName  = "Command Input parser"
+	CommandOutputParserName = "Command output parser"
+)
+
+func newParser(sid string) *Parser {
+	parser := &Parser{id: sid}
 	parser.initial()
 	return parser
 }
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
+	id string
+
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
 	cmdRecordChan  chan [2]string
@@ -59,8 +66,8 @@ func (p *Parser) initial() {
 	p.once = new(sync.Once)
 	p.lock = new(sync.RWMutex)
 
-	p.cmdInputParser = NewCmdParser()
-	p.cmdOutputParser = NewCmdParser()
+	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
+	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan [2]string, 1024)
@@ -81,7 +88,7 @@ func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvO
 			close(p.srvOutputChan)
 			_ = p.cmdOutputParser.Close()
 			_ = p.cmdInputParser.Close()
-			logger.Debug("Parser parse stream routine done")
+			logger.Infof("Session %s parser routine done", p.id)
 		}()
 		for {
 			select {
