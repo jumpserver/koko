@@ -49,7 +49,7 @@ func (s *SwitchSession) Initial() {
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
 	s.cmdRecorder = NewCommandRecorder(s.ID)
 	s.replayRecorder = NewReplyRecord(s.ID)
-	s.parser = newParser()
+	s.parser = newParser(s.ID)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
 
@@ -63,6 +63,7 @@ func (s *SwitchSession) Terminate() {
 }
 
 func (s *SwitchSession) recordCommand() {
+	logger.Infof("Session %s record command start", s.ID)
 	for command := range s.parser.cmdRecordChan {
 		if command[0] == "" {
 			continue
@@ -70,6 +71,7 @@ func (s *SwitchSession) recordCommand() {
 		cmd := s.generateCommandResult(command)
 		s.cmdRecorder.Record(cmd)
 	}
+	logger.Infof("Session %s record command stop", s.ID)
 }
 
 // generateCommandResult 生成命令结果
@@ -120,7 +122,6 @@ func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	winCh := userConn.WinCh()
 	defer func() {
-		logger.Info("Session bridge done: ", s.ID)
 		_ = userConn.Close()
 		_ = srvConn.Close()
 		s.postBridge()
