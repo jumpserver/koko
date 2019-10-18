@@ -136,8 +136,8 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 		Asset: &asset, SystemUser: &systemUser,
 	}
 	go func() {
-		defer logger.Infof("Request ID %s: Web ssh end proxy process", client.Uuid)
-		logger.Infof("Request ID %s: Web ssh start proxy to host", client.Uuid)
+		defer logger.Infof("Request %s: Web ssh end proxy process", client.Uuid)
+		logger.Infof("Request %s: Web ssh start proxy to host", client.Uuid)
 		proxySrv.Proxy()
 		logoutMsg, _ := json.Marshal(RoomMsg{Room: roomID})
 		// 服务器主动退出
