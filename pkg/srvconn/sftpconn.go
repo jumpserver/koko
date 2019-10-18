@@ -554,7 +554,7 @@ func (u *UserSftp) LoopPushFTPLog() {
 		case 0:
 			timeoutSecond = time.Second * 60
 		default:
-			timeoutSecond = time.Second * 1
+			timeoutSecond = time.Second * 10
 		}
 
 		select {

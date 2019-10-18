@@ -12,13 +12,16 @@ import (
 
 var ps1Pattern = regexp.MustCompile(`^\[?.*@.*\]?[\\$#]\s|mysql>\s`)
 
-func NewCmdParser() *CmdParser {
-	parser := &CmdParser{}
+func NewCmdParser(sid, name string) *CmdParser {
+	parser := &CmdParser{id: sid, name:name}
 	parser.initial()
 	return parser
 }
 
 type CmdParser struct {
+	id   string
+	name string
+
 	term          *utils.Terminal
 	reader        io.ReadCloser
 	writer        io.WriteCloser
@@ -62,8 +65,8 @@ func (cp *CmdParser) initial() {
 	cp.term = utils.NewTerminal(cp, "")
 	cp.term.SetEcho(false)
 	go func() {
-		logger.Debug("command Parser start")
-		defer logger.Debug("command Parser close")
+		logger.Infof("Session %s: %s start", cp.id, cp.name)
+		defer logger.Infof("Session %s: %s parser close", cp.id, cp.name)
 	inloop:
 		for {
 			line, err := cp.term.ReadLine()

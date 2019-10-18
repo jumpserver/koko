@@ -51,5 +51,5 @@ func StopServer() {
 	if err != nil {
 		logger.Errorf("SSH server close failed: %s", err.Error())
 	}
-	logger.Debug("Close ssh server")
+	logger.Info("Close ssh server")
 }

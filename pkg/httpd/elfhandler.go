@@ -92,7 +92,7 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 		}
 		addUserVolume(sid, userV)
 	}
-	logger.Debugf("Elfinder connector sid: %s", sid)
+	logger.Debugf("Elfinder connector sid: %s connected", sid)
 	conf := config.GetConf()
 	maxSize := common.ConvertSizeToBytes(conf.ZipMaxSize)
 	options := map[string]string{
