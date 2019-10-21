@@ -583,7 +583,7 @@ func (u *UserSftp) SendFTPLog(dataChan <-chan *model.FTPLog) {
 			if err == nil {
 				break
 			}
-			logger.Errorf("create FTP log err: %s", err.Error())
+			logger.Errorf("Create FTP log err: %s", err.Error())
 		}
 	}
 }
@@ -595,14 +595,19 @@ func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) 
 	}
 	sftpClient, err := sftp.NewClient(sshClient.client)
 	if err != nil {
+		logger.Errorf("SSH client %p start sftp client session err %s", sshClient, err)
 		RecycleClient(sshClient)
-		return
+		return nil, err
 	}
 
 	HomeDirPath, err := sftpClient.Getwd()
 	if err != nil {
-		return
+		logger.Errorf("SSH client %p get home dir err %s", sshClient, err)
+		_ = sftpClient.Close()
+		RecycleClient(sshClient)
+		return nil, err
 	}
+	logger.Infof("SSH client %p start sftp client session success", sshClient)
 	conn = &SftpConn{client: sftpClient, conn: sshClient, HomeDirPath: HomeDirPath}
 	return conn, err
 }

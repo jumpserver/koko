@@ -39,7 +39,7 @@ func (w *WrapperSession) readLoop() {
 		}
 	}
 	_ = w.inWriter.Close()
-	logger.Infof("Request %s read loop break", w.Uuid)
+	logger.Infof("Request %s: Read loop break", w.Uuid)
 }
 
 func (w *WrapperSession) Read(p []byte) (int, error) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/pkg/sftp"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -29,15 +30,17 @@ func SftpHandler(sess ssh.Session) {
 		FileCmd:  userSftp,
 		FileList: userSftp,
 	}
-
+	reqID := uuid.NewV4().String()
+	logger.Infof("SFTP request %s: Handler start", reqID)
 	req := sftp.NewRequestServer(sess, handlers)
 	if err := req.Serve(); err == io.EOF {
-		_ = req.Close()
-		userSftp.Close()
-		logger.Info("sftp client exited session.")
+		logger.Debug("SFTP request %s: Exited session.", reqID)
 	} else if err != nil {
-		logger.Error("sftp server completed with error:", err)
+		logger.Errorf("SFTP request %s: Server completed with error %s", reqID, err)
 	}
+	_ = req.Close()
+	userSftp.Close()
+	logger.Infof("SFTP request %s: Handler exit.", reqID)
 }
 
 func NewSFTPHandler(user *model.User, addr string) *sftpHandler {

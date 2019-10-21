@@ -7,6 +7,7 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 )
 
@@ -18,10 +19,10 @@ type ServerSSHConnection struct {
 	CloseOnce       *sync.Once
 	ReuseConnection bool
 
-	client   *SSHClient
-	session  *gossh.Session
-	stdin    io.WriteCloser
-	stdout   io.Reader
+	client  *SSHClient
+	session *gossh.Session
+	stdin   io.WriteCloser
+	stdout  io.Reader
 }
 
 func (sc *ServerSSHConnection) Protocol() string {
@@ -58,12 +59,16 @@ func (sc *ServerSSHConnection) invokeShell(h, w int, term string) (err error) {
 func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
 	sc.client, err = NewClient(sc.User, sc.Asset, sc.SystemUser, sc.Timeout(), sc.ReuseConnection)
 	if err != nil {
+		logger.Errorf("New SSH client err: %s", err)
 		return
 	}
 	err = sc.invokeShell(h, w, term)
 	if err != nil {
+		logger.Errorf("SSH client %p start ssh shell session err %s", sc.client, err)
 		RecycleClient(sc.client)
+		return
 	}
+	logger.Infof("SSH client %p start ssh shell session success", sc.client)
 	return
 }
 

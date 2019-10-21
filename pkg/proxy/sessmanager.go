@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -17,7 +18,7 @@ var lock = new(sync.RWMutex)
 func HandleSessionTask(task model.TerminalTask) {
 	switch task.Name {
 	case "kill_session":
-		if ok := KillSession(task.Args); ok{
+		if ok := KillSession(task.Args); ok {
 			service.FinishTask(task.ID)
 		}
 	default:
@@ -68,7 +69,7 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Error(msg)
-		return
+		return sw, errors.New("connect api server failed")
 	}
 	// 获取系统用户的过滤规则，并设置
 	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
@@ -76,6 +77,7 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Error(msg + err.Error())
+		return sw, errors.New("connect api server failed")
 	}
 	sw.SetFilterRules(cmdRules)
 	AddSession(sw)
@@ -96,5 +98,5 @@ func postSession(s *SwitchSession) bool {
 func finishSession(s *SwitchSession) {
 	data := s.MapData()
 	service.FinishSession(data)
-	logger.Debugf("Finish session: %s", s.ID)
+	logger.Debugf("Session %s has finished", s.ID)
 }

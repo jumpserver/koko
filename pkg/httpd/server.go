@@ -107,7 +107,7 @@ func StartHTTPServer() {
 	//	AuthDecorator(sftpHostConnectorView)).Methods("GET", "POST")
 
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
-	logger.Debug("Start HTTP server at ", addr)
+	logger.Info("Start HTTP server at ", addr)
 	httpServer = &http.Server{Addr: addr, Handler: router}
 	logger.Fatal(httpServer.ListenAndServe())
 }
