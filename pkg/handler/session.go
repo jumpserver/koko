@@ -91,6 +91,7 @@ func (h *interactiveHandler) displayBanner() {
 func (h *interactiveHandler) watchWinSizeChange() {
 	sessChan := h.sess.WinCh()
 	winChan := sessChan
+	defer logger.Infof("Request %s: Windows change watch close", h.sess.Uuid)
 	for {
 		select {
 		case <-h.sess.Sess.Context().Done():

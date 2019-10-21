@@ -11,7 +11,7 @@ func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.System
 	Url := fmt.Sprintf(SystemUserAssetAuthURL, systemUserID, assetID)
 	_, err := authClient.Get(Url, &info)
 	if err != nil {
-		logger.Error("Get system user Asset auth info failed")
+		logger.Error("Get system user %s asset %s auth info failed", systemUserID, assetID)
 	}
 	return
 }
@@ -61,7 +61,7 @@ func GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilt
 
 	_, err = authClient.Get(Url, &rules)
 	if err != nil {
-		logger.Error("Get system user auth info failed")
+		logger.Errorf("Get system user %s filter rule failed", systemUserID)
 	}
 	return
 }

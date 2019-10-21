@@ -28,16 +28,13 @@ type SwitchSession struct {
 	ID string
 	p  *ProxyServer
 
-	DateStart  string
-	DateEnd    string
-	DateActive time.Time
-	finished   bool
+	DateStart string
+	DateEnd   string
+	finished  bool
 
 	MaxIdleTime time.Duration
 
-	cmdRecorder    *CommandRecorder
-	replayRecorder *ReplyRecorder
-	parser         *Parser
+	cmdRules []model.SystemUserFilterRule
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -47,9 +44,7 @@ func (s *SwitchSession) Initial() {
 	s.ID = uuid.NewV4().String()
 	s.DateStart = common.CurrentUTCTime()
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
-	s.cmdRecorder = NewCommandRecorder(s.ID)
-	s.replayRecorder = NewReplyRecord(s.ID)
-	s.parser = newParser(s.ID)
+	s.cmdRules = make([]model.SystemUserFilterRule, 0)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
 
@@ -62,16 +57,18 @@ func (s *SwitchSession) Terminate() {
 	s.cancel()
 }
 
-func (s *SwitchSession) recordCommand() {
-	logger.Infof("Session %s record command start", s.ID)
-	for command := range s.parser.cmdRecordChan {
+func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+	// 命令记录
+	cmdRecorder := NewCommandRecorder(s.ID)
+	for command := range cmdRecordChan {
 		if command[0] == "" {
 			continue
 		}
 		cmd := s.generateCommandResult(command)
-		s.cmdRecorder.Record(cmd)
+		cmdRecorder.Record(cmd)
 	}
-	logger.Infof("Session %s record command stop", s.ID)
+	// 关闭命令记录
+	cmdRecorder.End()
 }
 
 // generateCommandResult 生成命令结果
@@ -108,35 +105,53 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 func (s *SwitchSession) postBridge() {
 	s.DateEnd = common.CurrentUTCTime()
 	s.finished = true
-	s.parser.Close()
-	s.replayRecorder.End()
-	s.cmdRecorder.End()
 }
 
 // SetFilterRules 设置命令过滤规则
 func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
-	s.parser.SetCMDFilterRules(cmdRules)
+	if len(cmdRules) > 0 {
+		s.cmdRules = cmdRules
+	}
 }
 
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
-	winCh := userConn.WinCh()
+	var (
+		parser         *Parser
+		replayRecorder *ReplyRecorder
+
+		userInChan chan []byte
+		srvInChan  chan []byte
+	)
+
+	parser = newParser(s.ID)
+	replayRecorder = NewReplyRecord(s.ID)
+
+	userInChan = make(chan []byte, 10)
+	srvInChan = make(chan []byte, 10)
+
+	// 设置parser的命令过滤规则
+	parser.SetCMDFilterRules(s.cmdRules)
+
+	// 处理数据流
+	userOutChan, srvOutChan := parser.ParseStream(userInChan, srvInChan)
+
 	defer func() {
 		_ = userConn.Close()
 		_ = srvConn.Close()
+		// 关闭parser
+		parser.Close()
+		// 关闭录像
+		replayRecorder.End()
 		s.postBridge()
 	}()
 
-	userInChan := make(chan []byte, 10)
-	srvInChan := make(chan []byte, 10)
-
-	// 处理数据流
-	userOutChan, srvOutChan := s.parser.ParseStream(userInChan, srvInChan)
 	// 记录命令
-	go s.recordCommand()
+	go s.recordCommand(parser.cmdRecordChan)
 	go LoopRead(userConn, userInChan)
 	go LoopRead(srvConn, srvInChan)
 
+	winCh := userConn.WinCh()
 	for {
 		select {
 		// 检测是否超过最大空闲时间
@@ -165,8 +180,8 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			nw, _ := userConn.Write(p)
-			if !s.parser.IsInZmodemRecvState() {
-				s.replayRecorder.Record(p[:nw])
+			if !parser.IsInZmodemRecvState() {
+				replayRecorder.Record(p[:nw])
 			}
 		// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:

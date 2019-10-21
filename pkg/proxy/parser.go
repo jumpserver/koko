@@ -28,7 +28,7 @@ var (
 
 const (
 	CommandInputParserName  = "Command Input parser"
-	CommandOutputParserName = "Command output parser"
+	CommandOutputParserName = "Command Output parser"
 )
 
 func newParser(sid string) *Parser {
@@ -78,7 +78,7 @@ func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvO
 
 	p.userOutputChan = make(chan []byte, 1)
 	p.srvOutputChan = make(chan []byte, 1)
-
+	logger.Infof("Session %s: Parser start", p.id)
 	go func() {
 		defer func() {
 			// 会话结束，结算命令结果
@@ -88,7 +88,7 @@ func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvO
 			close(p.srvOutputChan)
 			_ = p.cmdOutputParser.Close()
 			_ = p.cmdInputParser.Close()
-			logger.Infof("Session %s parser routine done", p.id)
+			logger.Infof("Session %s: Parser routine done", p.id)
 		}()
 		for {
 			select {

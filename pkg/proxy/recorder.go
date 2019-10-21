@@ -56,8 +56,10 @@ func (c *CommandRecorder) End() {
 }
 
 func (c *CommandRecorder) record() {
-	cmdList := make([]*model.Command, 0)
+	cmdList := make([]*model.Command, 0, 10)
 	maxRetry := 0
+	logger.Infof("Session %s: Command recorder start", c.sessionID)
+	defer logger.Infof("Session %s: Command recorder close", c.sessionID)
 	for {
 		select {
 		case <-c.closed:
@@ -66,7 +68,6 @@ func (c *CommandRecorder) record() {
 			}
 		case p, ok := <-c.queue:
 			if !ok {
-				logger.Debug("session command recorder close: ", c.sessionID)
 				return
 			}
 			cmdList = append(cmdList, p)
@@ -136,7 +137,7 @@ func (r *ReplyRecorder) prepare() {
 		return
 	}
 
-	logger.Debug("Replay file path: ", r.absFilePath)
+	logger.Infof("Session %s: Replay file path: %s",r.SessionID, r.absFilePath)
 	r.file, err = os.Create(r.absFilePath)
 	if err != nil {
 		logger.Errorf("Create file %s error: %s\n", r.absFilePath, err)
@@ -151,6 +152,8 @@ func (r *ReplyRecorder) End() {
 }
 
 func (r *ReplyRecorder) uploadReplay() {
+	logger.Infof("Session %s: Replay recorder is uploading", r.SessionID)
+	defer logger.Infof("Session %s: Replay recorder has uploaded", r.SessionID)
 	if !common.FileExists(r.absFilePath) {
 		logger.Debug("Replay file not found, passed: ", r.absFilePath)
 		return
