@@ -215,7 +215,7 @@ func (p *ProxyServer) Proxy() {
 	// 创建Session
 	sw, err := CreateSession(p)
 	if err != nil {
-		logger.Error("Create session failed.")
+		logger.Errorf("Request %s: Create session failed: %s",p.UserConn.ID(), err.Error())
 		return
 	}
 	defer RemoveSession(sw)

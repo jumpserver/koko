@@ -13,7 +13,7 @@ func OnELFinderConnect(c *neffos.NSConn, msg neffos.Message) error {
 	return nil
 }
 
-func OnELFinderDisconnect(c *neffos.NSConn, msg neffos.Message) (error) {
+func OnELFinderDisconnect(c *neffos.NSConn, msg neffos.Message) error {
 	logger.Infof("Request %s: web folder ws disconnect", c.Conn.ID())
 	removeUserVolume(c.Conn.ID())
 	return nil

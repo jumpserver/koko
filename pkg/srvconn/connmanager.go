@@ -104,8 +104,8 @@ func (s *SSHClient) isClosed() bool {
 func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration) {
 	t := time.NewTicker(keepInterval * time.Second)
 	defer t.Stop()
-	logger.Debugf("SSH client %p keep alive start", c)
-	defer logger.Debugf("SSH client %p keep alive stop", c)
+	logger.Infof("SSH client %p keep alive start", c)
+	defer logger.Infof("SSH client %p keep alive stop", c)
 	for {
 		select {
 		case <-closed:
