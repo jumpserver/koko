@@ -4,7 +4,7 @@ WORKDIR /opt/koko
 ARG GOPROXY
 ENV GOPROXY=$GOPROXY
 ENV GO111MODULE=on
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
   && apk update \
   && apk add git
 COPY go.mod go.sum ./
@@ -21,7 +21,7 @@ COPY --from=stage-build /opt/koko/cmd/templates/ templates
 COPY cmd/config_example.yml .
 COPY entrypoint.sh .
 RUN chmod 755 ./entrypoint.sh \
-  && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
+  && sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
   && apk update \
   && apk add -U tzdata \
   && apk add curl \
