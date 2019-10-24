@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -273,11 +274,11 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration,
 	useCache bool) (client *SSHClient, err error) {
 
-	key := fmt.Sprintf("%s_%s_%s", user.ID, asset.ID, systemUser.ID)
+	key := MakeReuseSSHClientKey(user, asset, systemUser)
 	switch {
 	case useCache:
-		client = getClientFromCache(key)
-		if client != nil {
+		client, reused := GetClientFromCache(key)
+		if reused {
 			if systemUser.Username == "" {
 				systemUser.Username = client.username
 			}
@@ -293,14 +294,24 @@ func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUse
 	return
 }
 
-func getClientFromCache(key string) (client *SSHClient) {
+func searchAssetClientFromCache(prefixkey string) (client *SSHClient, ok bool) {
 	clientLock.Lock()
 	defer clientLock.Unlock()
-	client, ok := sshClients[key]
-	if !ok {
-		return nil
+	for key, cacheClient := range sshClients {
+		if strings.HasPrefix(key, prefixkey) {
+			return cacheClient, true
+		}
 	}
-	client.increaseRef()
+	return
+}
+
+func GetClientFromCache(key string) (client *SSHClient, ok bool) {
+	clientLock.Lock()
+	defer clientLock.Unlock()
+	client, ok = sshClients[key]
+	if ok {
+		client.increaseRef()
+	}
 	return
 }
 
@@ -330,4 +341,8 @@ func RecycleClient(client *SSHClient) {
 	} else {
 		logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.refCount())
 	}
+}
+
+func MakeReuseSSHClientKey(user *model.User, asset *model.Asset, systemUser *model.SystemUser) string {
+	return fmt.Sprintf("%s_%s_%s_%s", user.ID, asset.ID, systemUser.ID, systemUser.Username)
 }

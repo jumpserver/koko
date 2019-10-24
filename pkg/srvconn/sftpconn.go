@@ -589,6 +589,8 @@ func (u *UserSftp) SendFTPLog(dataChan <-chan *model.FTPLog) {
 }
 
 func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (conn *SftpConn, err error) {
+
+	key := MakeReuseSSHClientKey(u.User, asset, sysUser)
 	sshClient, err := NewClient(u.User, asset, sysUser, u.Overtime, u.ReuseConnection)
 	if err != nil {
 		return

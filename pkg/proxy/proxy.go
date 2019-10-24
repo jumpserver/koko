@@ -21,6 +21,8 @@ type ProxyServer struct {
 	User       *model.User
 	Asset      *model.Asset
 	SystemUser *model.SystemUser
+
+	cacheSrvcon *srvconn.SSHClient
 }
 
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
@@ -105,6 +107,7 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 		ReuseConnection: conf.ReuseConnection,
 		CloseOnce:       new(sync.Once),
 	}
+	srvConn.SetSSHClient(p.cacheSrvcon)
 	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	return
 }
@@ -129,12 +132,18 @@ func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, 
 
 // getServerConn 获取获取server连接
 func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
-	done := make(chan struct{})
-	defer func() {
+	if p.cacheSrvcon == nil {
+		done := make(chan struct{})
+		defer func() {
+			utils.IgnoreErrWriteString(p.UserConn, "\r\n")
+			close(done)
+		}()
+		go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
+	} else {
+		utils.IgnoreErrWriteString(p.UserConn, "You reuse conn from cache.")
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
-		close(done)
-	}()
-	go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
+	}
+
 	if p.SystemUser.Protocol == "telnet" {
 		return p.getTelnetConn()
 	} else {
@@ -193,6 +202,15 @@ func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 		logger.Errorf("Get asset %s systemuser username err: %s", p.Asset.Hostname, err)
 		return err
 	}
+	if config.GetConf().ReuseConnection {
+		key := srvconn.MakeReuseSSHClientKey(p.User, p.Asset, p.SystemUser)
+		cacheSrvconn, ok := srvconn.GetClientFromCache(key)
+		if ok {
+			p.cacheSrvcon = cacheSrvconn
+			return nil
+		}
+	}
+
 	if err := p.getSystemUserAuthOrManualSet(); err != nil {
 		logger.Errorf("Get asset %s systemuser password/PrivateKey err: %s", p.Asset.Hostname, err)
 		return err
