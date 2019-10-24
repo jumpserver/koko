@@ -129,14 +129,6 @@ func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, 
 
 // getServerConn 获取获取server连接
 func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
-	err = p.getSystemUserUsernameIfNeed()
-	if err != nil {
-		return
-	}
-	err = p.getSystemUserAuthOrManualSet()
-	if err != nil {
-		return
-	}
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
@@ -188,7 +180,24 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		return
 	}
+	if err := p.checkRequiredSystemUserInfo(); err != nil {
+		msg := fmt.Sprintf("You get asset %s systemuser info err: %s", p.Asset.Hostname, err)
+		utils.IgnoreErrWriteString(p.UserConn, msg)
+		return
+	}
 	return true
+}
+
+func (p *ProxyServer) checkRequiredSystemUserInfo() error {
+	if err := p.getSystemUserUsernameIfNeed(); err != nil {
+		logger.Errorf("Get asset %s systemuser username err: %s", p.Asset.Hostname, err)
+		return err
+	}
+	if err := p.getSystemUserAuthOrManualSet(); err != nil {
+		logger.Errorf("Get asset %s systemuser password/PrivateKey err: %s", p.Asset.Hostname, err)
+		return err
+	}
+	return nil
 }
 
 // sendConnectErrorMsg 发送连接错误消息
@@ -215,7 +224,7 @@ func (p *ProxyServer) Proxy() {
 	// 创建Session
 	sw, err := CreateSession(p)
 	if err != nil {
-		logger.Errorf("Request %s: Create session failed: %s",p.UserConn.ID(), err.Error())
+		logger.Errorf("Request %s: Create session failed: %s", p.UserConn.ID(), err.Error())
 		return
 	}
 	defer RemoveSession(sw)
