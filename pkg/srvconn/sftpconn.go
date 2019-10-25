@@ -589,10 +589,42 @@ func (u *UserSftp) SendFTPLog(dataChan <-chan *model.FTPLog) {
 }
 
 func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (conn *SftpConn, err error) {
-	sshClient, err := NewClient(u.User, asset, sysUser, u.Overtime, u.ReuseConnection)
-	if err != nil {
-		return
+	var (
+		sshClient *SSHClient
+		ok        bool
+	)
+
+	if u.ReuseConnection {
+		key := MakeReuseSSHClientKey(u.User, asset, sysUser)
+		switch sysUser.Username {
+		case "":
+			sshClient, ok = searchSSHClientFromCache(key)
+			if ok {
+				sysUser.Username = sshClient.username
+			}
+		default:
+			sshClient, ok = GetClientFromCache(key)
+		}
+
+		if !ok {
+			sshClient, err = NewClient(u.User, asset, sysUser, u.Overtime, u.ReuseConnection)
+			if err != nil {
+				logger.Errorf("Get new SSH client err: %s", err)
+				return
+			}
+		} else {
+			logger.Infof("Reuse connection for SFTP: %s->%s@%s. SSH client %p current ref: %d",
+				u.User.Username, sshClient.username, asset.IP, sshClient, sshClient.RefCount())
+		}
+
+	} else {
+		sshClient, err = NewClient(u.User, asset, sysUser, u.Overtime, u.ReuseConnection)
+		if err != nil {
+			logger.Errorf("Get new SSH client err: %s", err)
+			return
+		}
 	}
+
 	sftpClient, err := sftp.NewClient(sshClient.client)
 	if err != nil {
 		logger.Errorf("SSH client %p start sftp client session err %s", sshClient, err)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
@@ -132,7 +131,8 @@ func (p *AssetPagination) Start() []model.Asset {
 }
 
 func (p *AssetPagination) displayPageAssets() {
-	Labels := []string{i18n.T("ID"), i18n.T("hostname"), i18n.T("IP"), i18n.T("comment")}
+	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Hostname"),
+		getI18nFromMap("IP"), getI18nFromMap("Comment")}
 	fields := []string{"ID", "hostname", "IP", "comment"}
 	data := make([]map[string]string, len(p.currentData))
 	for i, j := range p.currentData {
@@ -152,7 +152,7 @@ func (p *AssetPagination) displayPageAssets() {
 		data[i] = row
 	}
 	w, _ := p.term.GetSize()
-	caption := fmt.Sprintf(i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
+	caption := fmt.Sprintf(getI18nFromMap("AssetTableCaption"),
 		p.page.CurrentPage(), p.page.PageSize(), p.page.TotalPage(), p.page.TotalCount(),
 	)
 	caption = utils.WrapperString(caption, utils.Green)
@@ -269,12 +269,12 @@ func (p *UserAssetPagination) Start() []model.Asset {
 
 func (p *UserAssetPagination) displayPageAssets() {
 	if len(p.Data.Data) == 0 {
-		_, _ = p.term.Write([]byte(i18n.T("No Assets")))
-		_, _ = p.term.Write([]byte("\n\r"))
+		_, _ = p.term.Write([]byte(getI18nFromMap("NoAssets")+"\n\r"))
 		return
 	}
 
-	Labels := []string{i18n.T("ID"), i18n.T("hostname"), i18n.T("IP"), i18n.T("comment")}
+	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Hostname"),
+		getI18nFromMap("IP"), getI18nFromMap("Comment")}
 	fields := []string{"ID", "hostname", "IP", "comment"}
 	p.currentData = model.AssetList(p.Data.Data).SortBy(config.GetConf().AssetListSortBy)
 	data := make([]map[string]string, len(p.currentData))
@@ -324,9 +324,9 @@ func (p *UserAssetPagination) displayPageAssets() {
 			currentPage = (currentOffset / pageSize) + 1
 		}
 	}
-	caption := fmt.Sprintf(i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
-		currentPage, pageSize, totalPage, totalCount,
-	)
+	caption := fmt.Sprintf(getI18nFromMap("AssetTableCaption"),
+		currentPage, pageSize, totalPage, totalCount)
+
 	caption = utils.WrapperString(caption, utils.Green)
 	table := common.WrapperTable{
 		Fields: fields,
@@ -387,11 +387,6 @@ func getPageSize(term *utils.Terminal) int {
 }
 
 func displayAssetPaginationTipsInfo(w io.Writer) {
-	tips := []string{
-		i18n.T("\nTips: Enter the asset ID and log directly into the asset.\n"),
-		i18n.T("\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n"),
-	}
-	for _, tip := range tips {
-		_, _ = w.Write([]byte(tip))
-	}
+	utils.IgnoreErrWriteString(w, getI18nFromMap("LoginTip"))
+	utils.IgnoreErrWriteString(w, getI18nFromMap("PageActionTip"))
 }

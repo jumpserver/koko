@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sync"
 	"text/template"
 
 	"github.com/jumpserver/koko/pkg/config"
@@ -78,4 +79,30 @@ func displayBanner(sess io.ReadWriter, user string) {
 	for _, v := range menu {
 		utils.IgnoreErrWriteString(sess, v.Text())
 	}
+}
+
+var i18nMap map[string]string
+var i18nOnce sync.Once
+
+func getI18nFromMap(name string) string {
+	i18nOnce.Do(func() {
+		i18nMap = map[string]string{
+			"ID":                i18n.T("ID"),
+			"Hostname":          i18n.T("hostname"),
+			"IP":                i18n.T("IP"),
+			"Comment":           i18n.T("comment"),
+			"AssetTableCaption": i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
+			"NoAssets":          i18n.T("No Assets"),
+			"LoginTip":          i18n.T("\nTips: Enter the asset ID and directly login the asset.\n"),
+			"PageActionTip":     i18n.T("\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n"),
+			"NodeHeaderTip":     i18n.T("Node: [ ID.Name(Asset amount) ]"),
+			"NodeEndTip":        i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1"),
+			"RefreshDone":       i18n.T("Refresh done"),
+			"SelectUserTip":     i18n.T("Tips: Enter system user ID and directly login the asset [ %s(%s) ]"),
+			"BackTip":           i18n.T("Back: B/b"),
+			"Name":              i18n.T("Name"),
+			"Username":          i18n.T("Username"),
+		}
+	})
+	return i18nMap[name]
 }
