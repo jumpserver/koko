@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/olekukonko/tablewriter"
 	"github.com/xlab/treeprint"
 
 	"github.com/jumpserver/koko/pkg/cctx"
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
@@ -195,45 +195,71 @@ func (h *interactiveHandler) displayAllAssets() {
 	}
 }
 
-func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) model.SystemUser {
+func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
+	systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
+
 	length := len(systemUsers)
 	switch length {
 	case 0:
-		return model.SystemUser{}
+		return model.SystemUser{}, false
 	case 1:
-		return systemUsers[0]
+		return systemUsers[0], true
 	default:
 	}
 	displaySystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	if len(displaySystemUsers) == 1 {
-		return displaySystemUsers[0]
+		return displaySystemUsers[0], true
 	}
 
-	table := tablewriter.NewWriter(h.term)
-	table.SetHeader([]string{"ID", "Name"})
-	for i := 0; i < len(displaySystemUsers); i++ {
-		table.Append([]string{strconv.Itoa(i + 1), displaySystemUsers[i].Name})
+	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"), getI18nFromMap("Username")}
+	fields := []string{"ID", "Name", "Username"}
+
+	data := make([]map[string]string, len(displaySystemUsers))
+	for i, j := range displaySystemUsers {
+		row := make(map[string]string)
+		row["ID"] = strconv.Itoa(i + 1)
+		row["Name"] = j.Name
+		row["Username"] = j.Username
+		data[i] = row
 	}
-	table.SetBorder(false)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	w, _ := h.term.GetSize()
+	table := common.WrapperTable{
+		Fields: fields,
+		Labels: Labels,
+		FieldsSize: map[string][3]int{
+			"ID":       {0, 0, 5},
+			"Name":     {0, 8, 0},
+			"Username": {0, 10, 0},
+		},
+		Data:        data,
+		TotalSize:   w,
+		TruncPolicy: common.TruncMiddle,
+	}
+	table.Initial()
 
 	h.term.SetPrompt("ID> ")
 	defer h.term.SetPrompt("Opt> ")
-	for count := 0; count < 3; count++ {
-		table.Render()
+	selectUserTip := fmt.Sprintf(getI18nFromMap("SelectUserTip"), asset.Hostname, asset.IP)
+	for {
+		utils.IgnoreErrWriteString(h.term, table.Display())
+		utils.IgnoreErrWriteString(h.term, selectUserTip)
+		utils.IgnoreErrWriteString(h.term, getI18nFromMap("BackTip"))
+		utils.IgnoreErrWriteString(h.term, "\r\n")
 		line, err := h.term.ReadLine()
 		if err != nil {
-			break
+			return
 		}
 		line = strings.TrimSpace(line)
+		switch strings.ToLower(line) {
+		case "q", "b", "quit", "exit", "back":
+			return
+		}
 		if num, err := strconv.Atoi(line); err == nil {
 			if num > 0 && num <= len(displaySystemUsers) {
-				return displaySystemUsers[num-1]
+				return displaySystemUsers[num-1], true
 			}
 		}
 	}
-	return displaySystemUsers[0]
 }
 
 func (h *interactiveHandler) displayAssets(assets model.AssetList) {
@@ -245,7 +271,10 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 		selectOneAssets := pag.Start()
 		if len(selectOneAssets) == 1 {
 			systemUsers := service.GetUserAssetSystemUsers(h.user.ID, selectOneAssets[0].ID)
-			systemUser := h.chooseSystemUser(systemUsers)
+			systemUser, ok := h.chooseSystemUser(selectOneAssets[0], systemUsers)
+			if !ok {
+				return
+			}
 			h.assetSelect = &selectOneAssets[0]
 			h.systemUserSelect = &systemUser
 			h.Proxy(context.TODO())
@@ -359,7 +388,10 @@ func (h *interactiveHandler) searchNodeAssets(num int) (assets model.AssetList) 
 
 func (h *interactiveHandler) ProxyAsset(assetSelect model.Asset) {
 	systemUsers := service.GetUserAssetSystemUsers(h.user.ID, assetSelect.ID)
-	systemUserSelect := h.chooseSystemUser(systemUsers)
+	systemUserSelect, ok := h.chooseSystemUser(assetSelect, systemUsers)
+	if !ok {
+		return
+	}
 	h.systemUserSelect = &systemUserSelect
 	h.assetSelect = &assetSelect
 	h.Proxy(context.Background())

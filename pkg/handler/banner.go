@@ -98,6 +98,10 @@ func getI18nFromMap(name string) string {
 			"NodeHeaderTip":     i18n.T("Node: [ ID.Name(Asset amount) ]"),
 			"NodeEndTip":        i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1"),
 			"RefreshDone":       i18n.T("Refresh done"),
+			"SelectUserTip":     i18n.T("Tips: Enter system user ID and directly login the asset [ %s(%s) ]"),
+			"BackTip":           i18n.T("Back: B/b"),
+			"Name":              i18n.T("Name"),
+			"Username":          i18n.T("Username"),
 		}
 	})
 	return i18nMap[name]

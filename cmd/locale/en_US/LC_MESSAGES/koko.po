@@ -127,6 +127,26 @@ msgid "Refresh done"
 msgstr ""
 
 #. i18n.T
+#: pkg/handler/banner.go:101
+msgid "Tips: Enter system user ID and directly login the asset [ %s(%s) ]"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:102
+msgid "Back: B/b"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:103
+msgid "Name"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:104
+msgid "Username"
+msgstr ""
+
+#. i18n.T
 #: pkg/proxy/parser.go:131
 msgid "Command `%s` is forbidden"
 msgstr ""
