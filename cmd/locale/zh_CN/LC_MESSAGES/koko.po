@@ -8,116 +8,107 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. i18n.T
-#: pkg/auth/server.go:17
-msgid "Please enter 6 digits."
-msgstr "请输入六位数字"
-
-#. i18n.T
-#: pkg/auth/server.go:18
-msgid "[MFA auth]: "
-msgstr "[MFA认证]"
-
-#. i18n.T
-#: pkg/handler/banner.go:32
+#: pkg/handler/banner.go:31
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
 
 #. i18n.T
-#: pkg/handler/banner.go:47
+#: pkg/handler/banner.go:46
 msgid "Welcome to use Jumpserver open source fortress system"
 msgstr "欢迎使用Jumpserver开源堡垒机系统"
 
 #. i18n.T
-#: pkg/handler/banner.go:49
+#: pkg/handler/banner.go:48
 msgid "directly login"
 msgstr "直接登陆"
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 msgid "part IP, Hostname, Comment"
 msgstr "部分IP、主机名、备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 msgid "to search login if unique"
 msgstr "进行搜索登录(如果唯一)"
 
 #. i18n.T
-#: pkg/handler/banner.go:51
+#: pkg/handler/banner.go:50
 msgid "/ + IP, Hostname, Comment"
 msgstr "/ + IP, 主机名 or 备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:51
+#: pkg/handler/banner.go:50
 msgid "to search, such as: /192.168"
 msgstr "搜索， 如: /192.168"
 
 #. i18n.T
-#: pkg/handler/banner.go:52
+#: pkg/handler/banner.go:51
 msgid "display the host you have permission"
 msgstr "显示您有权限的主机"
 
 #. i18n.T
-#: pkg/handler/banner.go:53
+#: pkg/handler/banner.go:52
 msgid "display the node that you have permission"
 msgstr "显示您有权限的节点"
 
 #. i18n.T
-#: pkg/handler/banner.go:54
+#: pkg/handler/banner.go:53
 msgid "refresh your assets and nodes"
 msgstr "刷新最新的机器和节点信息"
 
 #. i18n.T
-#: pkg/handler/banner.go:55
+#: pkg/handler/banner.go:54
 msgid "print help"
 msgstr "显示帮助"
 
 #. i18n.T
-#: pkg/handler/banner.go:56
+#: pkg/handler/banner.go:55
 msgid "exit"
 msgstr "退出"
 
 #. i18n.T
-#: pkg/handler/pagination.go:133
+#: pkg/handler/banner.go:90
 msgid "ID"
 msgstr "ID"
 
 #. i18n.T
-#: pkg/handler/pagination.go:133
+#: pkg/handler/banner.go:91
 msgid "hostname"
 msgstr "主机名"
 
 #. i18n.T
-#: pkg/handler/pagination.go:133
+#: pkg/handler/banner.go:92
 msgid "IP"
 msgstr "IP"
 
 #. i18n.T
-#: pkg/handler/pagination.go:133
-msgid "systemUsers"
-msgstr "登录用户"
-
-#. i18n.T
-#: pkg/handler/pagination.go:133
+#: pkg/handler/banner.go:93
 msgid "comment"
 msgstr "备注"
 
 #. i18n.T
-#: pkg/handler/pagination.go:152
+#: pkg/handler/banner.go:94
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr "页码: %d, 每页行数: %d, 总页数: %d, 总数量: %d"
 
 #. i18n.T
-#: pkg/handler/pagination.go:179
+#: pkg/handler/banner.go:95
+msgid "No Assets"
+msgstr "没有资产"
+
+#. i18n.T
+#: pkg/handler/banner.go:96
+#, fuzzy
 msgid ""
 "\n"
-"Tips: Enter the asset ID and log directly into the asset.\n"
+"Tips: Enter the asset ID and directly login the asset.\n"
 msgstr ""
 "\n"
 "提示: 输入资产ID，直接登录资产.\n"
 
 #. i18n.T
-#: pkg/handler/pagination.go:180
+#: pkg/handler/banner.go:97
 msgid ""
 "\n"
 "Page up: P/p\tPage down: Enter|N/n\tBACK: b.\n"
@@ -126,57 +117,57 @@ msgstr ""
 "上一页: P/p  下一页: Enter|N/n  返回: B/b\n"
 
 #. i18n.T
-#: pkg/handler/session.go:267
-msgid "No Assets"
-msgstr "没有资产"
-
-#. i18n.T
-#: pkg/handler/session.go:289
+#: pkg/handler/banner.go:98
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点: [ ID.名称(资产数量) ]"
 
 #. i18n.T
-#: pkg/handler/session.go:290
+#: pkg/handler/banner.go:99
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "提示: 输入 g+节点ID 显示节点下主机. 如: g1"
 
 #. i18n.T
-#: pkg/handler/session.go:304
+#: pkg/handler/banner.go:100
 msgid "Refresh done"
 msgstr "刷新完成"
 
 #. i18n.T
-#: pkg/proxy/parser.go:124
+#: pkg/proxy/parser.go:131
 msgid "Command `%s` is forbidden"
 msgstr "命令 `%s` 是被禁止的 ..."
 
 #. i18n.T
-#: pkg/proxy/proxy.go:152
+#: pkg/proxy/proxy.go:143
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
+
+#. i18n.T
+#: pkg/proxy/proxy.go:161
 msgid "Connecting to %s@%s  %.1f"
 msgstr "开始连接到 %s@%s  %.1f"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:171
+#: pkg/proxy/proxy.go:180
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:177
+#: pkg/proxy/proxy.go:186
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr "终端仅支持ssh/telnet协议，请使用web终端登录"
 
 #. i18n.T
-#: pkg/proxy/sessmanager.go:63
+#: pkg/proxy/sessmanager.go:67
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. i18n.T
-#: pkg/proxy/switch.go:142
+#: pkg/proxy/switch.go:159
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
 
 #. i18n.T
-#: pkg/proxy/switch.go:148
+#: pkg/proxy/switch.go:166
 msgid "Terminated by administrator"
 msgstr "管理员中断连接"

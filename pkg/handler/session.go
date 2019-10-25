@@ -13,7 +13,6 @@ import (
 
 	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -239,7 +238,7 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) mo
 
 func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 	if len(assets) == 0 {
-		_, _ = io.WriteString(h.term, i18n.T("No Assets")+"\n\r")
+		_, _ = io.WriteString(h.term, getI18nFromMap("NoAssets")+"\n\r")
 	} else {
 		sortedAssets := assets.SortBy(config.GetConf().AssetListSortBy)
 		pag := NewAssetPagination(h.term, sortedAssets)
@@ -259,12 +258,9 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 
 func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 	tree := ConstructAssetNodeTree(nodes)
-	tipHeaderMsg := i18n.T("Node: [ ID.Name(Asset amount) ]")
-	tipEndMsg := i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1")
-
-	_, err := io.WriteString(h.term, "\n\r"+tipHeaderMsg)
+	_, err := io.WriteString(h.term, "\n\r"+getI18nFromMap("NodeHeaderTip"))
 	_, err = io.WriteString(h.term, tree.String())
-	_, err = io.WriteString(h.term, tipEndMsg+"\n\r")
+	_, err = io.WriteString(h.term, getI18nFromMap("NodeEndTip")+"\n\r")
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}
@@ -277,7 +273,7 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 		h.loadAllAssets()
 	}
 	h.loadUserNodes("2")
-	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
+	_, err := io.WriteString(h.term, getI18nFromMap("RefreshDone")+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
