@@ -140,7 +140,11 @@ func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err err
 		}()
 		go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
 	} else {
-		utils.IgnoreErrWriteString(p.UserConn, utils.WrapperString("You reuse SSH Conn from cache.\r\n", utils.Green))
+		reuseMsg := fmt.Sprintf("You reuse SSH client (%s@%s) [current reuse count: %d]",
+			p.SystemUser.Username, p.Asset.Hostname, p.cacheSSHClient.RefCount())
+
+		utils.IgnoreErrWriteString(p.UserConn, utils.WrapperString("Please notice:\r\n", utils.Green))
+		utils.IgnoreErrWriteString(p.UserConn, utils.WrapperString(reuseMsg+"\r\n", utils.Green))
 		logger.Infof("Request %s: Reuse connection for SSH. SSH client %p current ref: %d", p.UserConn.ID(),
 			p.cacheSSHClient, p.cacheSSHClient.RefCount())
 	}

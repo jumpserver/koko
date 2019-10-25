@@ -11,7 +11,7 @@ func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.System
 	Url := fmt.Sprintf(SystemUserAssetAuthURL, systemUserID, assetID)
 	_, err := authClient.Get(Url, &info)
 	if err != nil {
-		logger.Error("Get system user %s asset %s auth info failed", systemUserID, assetID)
+		logger.Errorf("Get system user %s asset %s auth info failed", systemUserID, assetID)
 	}
 	return
 }
