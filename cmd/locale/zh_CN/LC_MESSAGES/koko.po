@@ -8,97 +8,97 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. i18n.T
-#: pkg/handler/banner.go:30
+#: pkg/handler/banner.go:31
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
 
 #. i18n.T
-#: pkg/handler/banner.go:45
+#: pkg/handler/banner.go:46
 msgid "Welcome to use Jumpserver open source fortress system"
 msgstr "欢迎使用Jumpserver开源堡垒机系统"
 
 #. i18n.T
-#: pkg/handler/banner.go:47
+#: pkg/handler/banner.go:48
 msgid "directly login"
 msgstr "直接登陆"
 
 #. i18n.T
-#: pkg/handler/banner.go:48
+#: pkg/handler/banner.go:49
 msgid "part IP, Hostname, Comment"
 msgstr "部分IP、主机名、备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:48
+#: pkg/handler/banner.go:49
 msgid "to search login if unique"
 msgstr "进行搜索登录(如果唯一)"
 
 #. i18n.T
-#: pkg/handler/banner.go:49
+#: pkg/handler/banner.go:50
 msgid "/ + IP, Hostname, Comment"
 msgstr "/ + IP, 主机名 or 备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:49
+#: pkg/handler/banner.go:50
 msgid "to search, such as: /192.168"
 msgstr "搜索， 如: /192.168"
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:51
 msgid "display the host you have permission"
 msgstr "显示您有权限的主机"
 
 #. i18n.T
-#: pkg/handler/banner.go:51
+#: pkg/handler/banner.go:52
 msgid "display the node that you have permission"
 msgstr "显示您有权限的节点"
 
 #. i18n.T
-#: pkg/handler/banner.go:52
+#: pkg/handler/banner.go:53
 msgid "refresh your assets and nodes"
 msgstr "刷新最新的机器和节点信息"
 
 #. i18n.T
-#: pkg/handler/banner.go:53
+#: pkg/handler/banner.go:54
 msgid "print help"
 msgstr "显示帮助"
 
 #. i18n.T
-#: pkg/handler/banner.go:54
+#: pkg/handler/banner.go:55
 msgid "exit"
 msgstr "退出"
 
 #. i18n.T
-#: pkg/handler/i18n.go:15
+#: pkg/handler/banner.go:90
 msgid "ID"
 msgstr "ID"
 
 #. i18n.T
-#: pkg/handler/i18n.go:16
+#: pkg/handler/banner.go:91
 msgid "hostname"
 msgstr "主机名"
 
 #. i18n.T
-#: pkg/handler/i18n.go:17
+#: pkg/handler/banner.go:92
 msgid "IP"
 msgstr "IP"
 
 #. i18n.T
-#: pkg/handler/i18n.go:18
+#: pkg/handler/banner.go:93
 msgid "comment"
 msgstr "备注"
 
 #. i18n.T
-#: pkg/handler/i18n.go:19
+#: pkg/handler/banner.go:94
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr "页码: %d, 每页行数: %d, 总页数: %d, 总数量: %d"
 
 #. i18n.T
-#: pkg/handler/i18n.go:20
+#: pkg/handler/banner.go:95
 msgid "No Assets"
 msgstr "没有资产"
 
 #. i18n.T
-#: pkg/handler/i18n.go:21
+#: pkg/handler/banner.go:96
 #, fuzzy
 msgid ""
 "\n"
@@ -108,7 +108,7 @@ msgstr ""
 "提示: 输入资产ID，直接登录资产.\n"
 
 #. i18n.T
-#: pkg/handler/i18n.go:22
+#: pkg/handler/banner.go:97
 msgid ""
 "\n"
 "Page up: P/p\tPage down: Enter|N/n\tBACK: b.\n"
@@ -117,17 +117,17 @@ msgstr ""
 "上一页: P/p  下一页: Enter|N/n  返回: B/b\n"
 
 #. i18n.T
-#: pkg/handler/i18n.go:23
+#: pkg/handler/banner.go:98
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点: [ ID.名称(资产数量) ]"
 
 #. i18n.T
-#: pkg/handler/i18n.go:24
+#: pkg/handler/banner.go:99
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "提示: 输入 g+节点ID 显示节点下主机. 如: g1"
 
 #. i18n.T
-#: pkg/handler/i18n.go:25
+#: pkg/handler/banner.go:100
 msgid "Refresh done"
 msgstr "刷新完成"
 
