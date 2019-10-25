@@ -43,7 +43,7 @@ type SSHClient struct {
 	closed chan struct{}
 }
 
-func (s *SSHClient) refCount() int {
+func (s *SSHClient) RefCount() int {
 	if s.isClosed() {
 		return 0
 	}
@@ -274,31 +274,20 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration,
 	useCache bool) (client *SSHClient, err error) {
 
-	key := MakeReuseSSHClientKey(user, asset, systemUser)
-	switch {
-	case useCache:
-		client, reused := GetClientFromCache(key)
-		if reused {
-			if systemUser.Username == "" {
-				systemUser.Username = client.username
-			}
-			logger.Infof("Reuse connection: %s->%s@%s. SSH client %p current ref: %d",
-				user.Username, client.username, asset.IP, client, client.refCount())
-			return client, nil
-		}
-	}
 	client, err = newClient(asset, systemUser, timeout)
 	if err == nil && useCache {
+		key := MakeReuseSSHClientKey(user, asset, systemUser)
 		setClientCache(key, client)
 	}
 	return
 }
 
-func searchAssetClientFromCache(prefixkey string) (client *SSHClient, ok bool) {
+func searchSSHClientFromCache(prefixKey string) (client *SSHClient, ok bool) {
 	clientLock.Lock()
 	defer clientLock.Unlock()
 	for key, cacheClient := range sshClients {
-		if strings.HasPrefix(key, prefixkey) {
+		if strings.HasPrefix(key, prefixKey) {
+			cacheClient.increaseRef()
 			return cacheClient, true
 		}
 	}
@@ -328,7 +317,7 @@ func RecycleClient(client *SSHClient) {
 		return
 	}
 	client.decreaseRef()
-	if client.refCount() == 0 {
+	if client.RefCount() == 0 {
 		clientLock.Lock()
 		delete(sshClients, client.key)
 		clientLock.Unlock()
@@ -339,7 +328,7 @@ func RecycleClient(client *SSHClient) {
 			logger.Infof("Success to close SSH client %p", client)
 		}
 	} else {
-		logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.refCount())
+		logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.RefCount())
 	}
 }
 

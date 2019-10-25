@@ -22,7 +22,7 @@ type ProxyServer struct {
 	Asset      *model.Asset
 	SystemUser *model.SystemUser
 
-	cacheSrvcon *srvconn.SSHClient
+	cacheSSHClient *srvconn.SSHClient
 }
 
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
@@ -107,7 +107,7 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 		ReuseConnection: conf.ReuseConnection,
 		CloseOnce:       new(sync.Once),
 	}
-	srvConn.SetSSHClient(p.cacheSrvcon)
+	srvConn.SetSSHClient(p.cacheSSHClient)
 	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	return
 }
@@ -132,7 +132,7 @@ func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, 
 
 // getServerConn 获取获取server连接
 func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
-	if p.cacheSrvcon == nil {
+	if p.cacheSSHClient == nil {
 		done := make(chan struct{})
 		defer func() {
 			utils.IgnoreErrWriteString(p.UserConn, "\r\n")
@@ -140,8 +140,9 @@ func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err err
 		}()
 		go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
 	} else {
-		utils.IgnoreErrWriteString(p.UserConn, "You reuse conn from cache.")
-		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
+		utils.IgnoreErrWriteString(p.UserConn, utils.WrapperString("You reuse SSH Conn from cache.\r\n", utils.Green))
+		logger.Infof("Request %s: Reuse connection for SSH. SSH client %p current ref: %d", p.UserConn.ID(),
+			p.cacheSSHClient, p.cacheSSHClient.RefCount())
 	}
 
 	if p.SystemUser.Protocol == "telnet" {
@@ -204,9 +205,11 @@ func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 	}
 	if config.GetConf().ReuseConnection {
 		key := srvconn.MakeReuseSSHClientKey(p.User, p.Asset, p.SystemUser)
-		cacheSrvconn, ok := srvconn.GetClientFromCache(key)
+		cacheSSHClient, ok := srvconn.GetClientFromCache(key)
 		if ok {
-			p.cacheSrvcon = cacheSrvconn
+			p.cacheSSHClient = cacheSSHClient
+			logger.Infof("Reuse connection for SFTP: %s->%s@%s. SSH client %p current ref: %d",
+				p.User.Username, p.SystemUser.Username, p.Asset.IP, cacheSSHClient, cacheSSHClient.RefCount())
 			return nil
 		}
 	}
