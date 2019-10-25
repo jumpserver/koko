@@ -25,6 +25,12 @@ type ServerSSHConnection struct {
 	stdout  io.Reader
 }
 
+func (sc *ServerSSHConnection) SetSSHClient(client *SSHClient) {
+	if client != nil {
+		sc.client = client
+	}
+}
+
 func (sc *ServerSSHConnection) Protocol() string {
 	return "ssh"
 }
@@ -57,10 +63,12 @@ func (sc *ServerSSHConnection) invokeShell(h, w int, term string) (err error) {
 }
 
 func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
-	sc.client, err = NewClient(sc.User, sc.Asset, sc.SystemUser, sc.Timeout(), sc.ReuseConnection)
-	if err != nil {
-		logger.Errorf("New SSH client err: %s", err)
-		return
+	if sc.client == nil {
+		sc.client, err = NewClient(sc.User, sc.Asset, sc.SystemUser, sc.Timeout(), sc.ReuseConnection)
+		if err != nil {
+			logger.Errorf("New SSH client err: %s", err)
+			return
+		}
 	}
 	err = sc.invokeShell(h, w, term)
 	if err != nil {
