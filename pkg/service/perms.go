@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -13,7 +14,7 @@ func GetUserAssets(userID, search string, pageSize, offset int) (resp model.Asse
 		pageSize = 0
 	}
 	params := map[string]string{
-		"search": search,
+		"search": url.QueryEscape(search),
 		"limit":  strconv.Itoa(pageSize),
 		"offset": strconv.Itoa(offset),
 	}
