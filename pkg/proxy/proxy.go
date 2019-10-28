@@ -221,6 +221,8 @@ func (p *ProxyServer) Proxy() {
 	// 创建Session
 	sw, err := CreateSession(p)
 	if err != nil {
+		// 创建srv成功，但session创建失败，关闭srvConn
+		_ = srvConn.Close()
 		return
 	}
 	defer RemoveSession(sw)

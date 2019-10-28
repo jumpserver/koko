@@ -32,12 +32,12 @@ func SftpHandler(sess ssh.Session) {
 
 	req := sftp.NewRequestServer(sess, handlers)
 	if err := req.Serve(); err == io.EOF {
-		_ = req.Close()
-		userSftp.Close()
 		logger.Info("sftp client exited session.")
 	} else if err != nil {
 		logger.Error("sftp server completed with error:", err)
 	}
+	_ = req.Close()
+	userSftp.Close()
 }
 
 func NewSFTPHandler(user *model.User, addr string) *sftpHandler {

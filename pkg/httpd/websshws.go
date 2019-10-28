@@ -121,7 +121,20 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	}
 
 	userR, userW := io.Pipe()
-	addr, _, _ := net.SplitHostPort(cc.Socket().Request().RemoteAddr)
+	var addr string
+	request := cc.Socket().Request()
+	header := request.Header
+	remoteAddr := header.Get("X-Forwarded-For")
+	if remoteAddr == "" {
+		if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
+			addr = host
+		} else {
+			addr = request.RemoteAddr
+		}
+	} else {
+		addr = strings.Split(remoteAddr, ",")[0]
+	}
+
 	client := &Client{
 		Uuid: roomID, addr: addr,
 		WinChan: make(chan ssh.Window, 100), Conn: c,
