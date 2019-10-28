@@ -20,7 +20,6 @@ require (
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/kataras/neffos v0.0.7
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/kr/fs v0.1.0 // indirect
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.1
@@ -29,9 +28,8 @@ require (
 	github.com/pkg/sftp v1.10.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
-	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
+	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
@@ -41,5 +39,6 @@ require (
 
 replace (
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991 => github.com/ibuler/ssh v0.1.6-0.20191022095544-d805cc9f27a8
-	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 => github.com/ibuler/crypto v0.0.0-20190715092645-911d13b3bf6e
+	github.com/pkg/sftp v1.10.0 => github.com/LeeEirc/sftp v1.10.2
+	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586 => github.com/ibuler/crypto v0.0.0-20190715092645-911d13b3bf6e
 )
