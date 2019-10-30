@@ -5,7 +5,10 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"net/http/pprof"
 
 	"github.com/gorilla/mux"
 	gorillaws "github.com/gorilla/websocket"
@@ -105,7 +108,9 @@ func StartHTTPServer() {
 	//router.HandleFunc("/coco/elfinder/sftp/", AuthDecorator(sftpFinder))
 	//router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
 	//	AuthDecorator(sftpHostConnectorView)).Methods("GET", "POST")
-
+	if strings.ToUpper(conf.LogLevel) == "DEBUG" {
+		router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+	}
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	logger.Info("Start HTTP server at ", addr)
 	httpServer = &http.Server{Addr: addr, Handler: router}
