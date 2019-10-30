@@ -58,6 +58,10 @@ func OnNamespaceConnected(c *neffos.NSConn, msg neffos.Message) error {
 	go func() {
 		for {
 			<-time.After(30 * time.Second)
+			if c.Conn.IsClosed() {
+				logger.Infof("User %s from %s websocket connect closed", user.Username, remoteIP)
+				return
+			}
 			c.Emit("ping", []byte(""))
 		}
 	}()
