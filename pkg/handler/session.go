@@ -116,10 +116,20 @@ func (h *interactiveHandler) watchWinSizeChange() {
 }
 
 func (h *interactiveHandler) pauseWatchWinSize() {
+	select {
+	case <-h.sess.Sess.Context().Done():
+		return
+	default:
+	}
 	h.winWatchChan <- false
 }
 
 func (h *interactiveHandler) resumeWatchWinSize() {
+	select {
+	case <-h.sess.Sess.Context().Done():
+		return
+	default:
+	}
 	h.winWatchChan <- true
 }
 
