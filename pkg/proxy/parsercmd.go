@@ -67,16 +67,16 @@ func (cp *CmdParser) initial() {
 	go func() {
 		logger.Infof("Session %s: %s start", cp.id, cp.name)
 		defer logger.Infof("Session %s: %s parser close", cp.id, cp.name)
-	inloop:
+	loop:
 		for {
 			line, err := cp.term.ReadLine()
 			if err != nil {
 				select {
 				case <-cp.closed:
-					goto outloop
+					break loop
 				default:
 				}
-				goto inloop
+				goto loop
 			}
 			cp.lock.Lock()
 			cp.currentLength += len(line)
@@ -85,7 +85,6 @@ func (cp *CmdParser) initial() {
 			}
 			cp.lock.Unlock()
 		}
-	outloop:
 	}()
 }
 

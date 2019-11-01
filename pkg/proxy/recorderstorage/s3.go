@@ -19,7 +19,7 @@ type S3ReplayStorage struct {
 	Endpoint  string
 }
 
-func (s *S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
+func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 
 	file, err := os.Open(gZipFilePath)
 	if err != nil {
