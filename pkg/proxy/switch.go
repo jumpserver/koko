@@ -117,8 +117,8 @@ func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	var (
-		parser         *Parser
-		replayRecorder *ReplyRecorder
+		parser         Parser
+		replayRecorder ReplyRecorder
 
 		userInChan chan []byte
 		srvInChan  chan []byte

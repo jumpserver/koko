@@ -35,10 +35,9 @@ func Initial(ctx context.Context) {
 	go KeepSyncConfigWithServer(ctx)
 }
 
-func newClient() *common.Client {
+func newClient() common.Client {
 	cf := config.GetConf()
-	cli := common.NewClient(30, "")
-	cli.BaseHost = cf.CoreHost
+	cli := common.NewClient(30, cf.CoreHost)
 	return cli
 }
 

@@ -28,7 +28,7 @@ type Client struct {
 	BaseHost   string
 	basicAuth  []string
 	cookie     map[string]string
-	http       *http.Client
+	http       http.Client
 	UrlParsers []UrlParser
 }
 
@@ -36,11 +36,12 @@ type UrlParser interface {
 	parse(url string, params ...map[string]string) string
 }
 
-func NewClient(timeout time.Duration, baseHost string) *Client {
+func NewClient(timeout time.Duration, baseHost string) Client {
 	headers := make(map[string]string, 0)
-	client := new(http.Client)
-	client.Timeout = timeout * time.Second
-	return &Client{
+	client := http.Client{
+		Timeout: timeout * time.Second,
+	}
+	return Client{
 		BaseHost: baseHost,
 		Timeout:  timeout * time.Second,
 		Headers:  headers,

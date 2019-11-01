@@ -12,8 +12,8 @@ import (
 
 var ps1Pattern = regexp.MustCompile(`^\[?.*@.*\]?[\\$#]\s|mysql>\s`)
 
-func NewCmdParser(sid, name string) *CmdParser {
-	parser := &CmdParser{id: sid, name:name}
+func NewCmdParser(sid, name string) CmdParser {
+	parser := CmdParser{id: sid, name:name}
 	parser.initial()
 	return parser
 }
