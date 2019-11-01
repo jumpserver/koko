@@ -18,7 +18,7 @@ type AzureReplayStorage struct {
 	EndpointSuffix string
 }
 
-func (a *AzureReplayStorage) Upload(gZipFilePath, target string) (err error) {
+func (a AzureReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	file, err := os.Open(gZipFilePath)
 	if err != nil {
 		return

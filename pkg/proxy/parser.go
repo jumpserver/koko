@@ -31,8 +31,8 @@ const (
 	CommandOutputParserName = "Command Output parser"
 )
 
-func newParser(sid string) *Parser {
-	parser := &Parser{id: sid}
+func newParser(sid string) Parser {
+	parser := Parser{id: sid}
 	parser.initial()
 	return parser
 }
@@ -55,8 +55,8 @@ type Parser struct {
 
 	command         string
 	output          string
-	cmdInputParser  *CmdParser
-	cmdOutputParser *CmdParser
+	cmdInputParser  CmdParser
+	cmdOutputParser CmdParser
 
 	cmdFilterRules []model.SystemUserFilterRule
 	closed         chan struct{}

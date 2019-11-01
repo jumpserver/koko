@@ -148,14 +148,14 @@ func (t *WrapperTable) convertDataToSlice() [][]string {
 				switch t.TruncPolicy {
 				case TruncSuffix:
 					row[m] = fmt.Sprintf("%s...",
-						GetValidString(j[n],columSize-3, true))
+						GetValidString(j[n], columSize-3, true))
 				case TruncPrefix:
 					row[m] = fmt.Sprintf("...%s",
-						GetValidString(j[n],len(j[n])-columSize-3, false))
+						GetValidString(j[n], len(j[n])-columSize-3, false))
 				case TruncMiddle:
 					midValue := (columSize - 3) / 2
-					row[m] = fmt.Sprintf("%s...%s",GetValidString(j[n],midValue, true),
-						GetValidString(j[n],len(j[n])-midValue, false))
+					row[m] = fmt.Sprintf("%s...%s", GetValidString(j[n], midValue, true),
+						GetValidString(j[n], len(j[n])-midValue, false))
 				}
 			}
 
@@ -168,8 +168,8 @@ func (t *WrapperTable) convertDataToSlice() [][]string {
 func (t *WrapperTable) Display() string {
 	t.CalculateColumnsSize()
 
-	tableString := &strings.Builder{}
-	table := tablewriter.NewWriter(tableString)
+	tableString := strings.Builder{}
+	table := tablewriter.NewWriter(&tableString)
 	table.SetBorder(false)
 	table.SetHeader(t.Labels)
 	colors := make([]tablewriter.Colors, len(t.Fields))
@@ -193,19 +193,19 @@ func (t *WrapperTable) Display() string {
 	return tableString.String()
 }
 
-func GetValidString(s string, position int, positive bool) string{
+func GetValidString(s string, position int, positive bool) string {
 	step := 1
 	if positive {
 		step = -1
 	}
-	for position >=0 && position <= len(s) {
+	for position >= 0 && position <= len(s) {
 		switch positive {
 		case true:
-			if utf8.ValidString(s[:position]){
+			if utf8.ValidString(s[:position]) {
 				return s[:position]
 			}
 		case false:
-			if utf8.ValidString(s[position:]){
+			if utf8.ValidString(s[position:]) {
 				return s[position:]
 			}
 		}

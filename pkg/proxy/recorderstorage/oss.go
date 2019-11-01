@@ -13,7 +13,7 @@ type OSSReplayStorage struct {
 	SecretKey string
 }
 
-func (o *OSSReplayStorage) Upload(gZipFilePath, target string) (err error) {
+func (o OSSReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	client, err := oss.New(o.Endpoint, o.AccessKey, o.SecretKey)
 	if err != nil {
 		return

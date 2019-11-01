@@ -21,8 +21,8 @@ func NewCommandRecorder(sid string) (recorder *CommandRecorder) {
 	return recorder
 }
 
-func NewReplyRecord(sid string) (recorder *ReplyRecorder) {
-	recorder = &ReplyRecorder{SessionID: sid}
+func NewReplyRecord(sid string) (recorder ReplyRecorder) {
+	recorder = ReplyRecorder{SessionID: sid}
 	recorder.initial()
 	return recorder
 }

@@ -172,18 +172,14 @@ var Conf = &Config{
 	ZipTmpPath:         "/tmp",
 }
 
-func SetConf(conf *Config) {
+func SetConf(conf Config) {
 	lock.Lock()
 	defer lock.Unlock()
-	Conf = conf
+	Conf = &conf
 }
 
-func GetConf() *Config {
+func GetConf() Config {
 	lock.RLock()
 	defer lock.RUnlock()
-	var conf Config
-	if confBytes, err := json.Marshal(Conf); err == nil {
-		_ = json.Unmarshal(confBytes, &conf)
-	}
-	return &conf
+	return *Conf
 }

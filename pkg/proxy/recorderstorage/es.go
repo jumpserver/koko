@@ -17,7 +17,7 @@ type ESCommandStorage struct {
 	DocType string
 }
 
-func (es *ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
+func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 	var buf bytes.Buffer
 	esClinet, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: es.Hosts,
