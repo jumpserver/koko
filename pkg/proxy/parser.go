@@ -31,8 +31,8 @@ const (
 	CommandOutputParserName = "Command Output parser"
 )
 
-func newParser(sid string) *Parser {
-	parser := &Parser{id: sid}
+func newParser(sid string) Parser {
+	parser := Parser{id: sid}
 	parser.initial()
 	return parser
 }
@@ -55,8 +55,8 @@ type Parser struct {
 
 	command         string
 	output          string
-	cmdInputParser  *CmdParser
-	cmdOutputParser *CmdParser
+	cmdInputParser  CmdParser
+	cmdOutputParser CmdParser
 
 	cmdFilterRules []model.SystemUserFilterRule
 	closed         chan struct{}
@@ -131,6 +131,9 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
 			p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
+			p.cmdRecordChan <- [2]string{p.command, fbdMsg}
+			p.command = ""
+			p.output = ""
 			return []byte{utils.CharCleanLine, '\r'}
 		}
 	} else {

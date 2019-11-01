@@ -16,8 +16,8 @@ type CommandStorage interface {
 	BulkSave(commands []*model.Command) error
 }
 
-var defaultCommandStorage = &storage.ServerCommandStorage{}
-var defaultReplayStorage = &storage.ServerReplayStorage{StorageType: "server"}
+var defaultCommandStorage = storage.ServerCommandStorage{}
+var defaultReplayStorage = storage.ServerReplayStorage{StorageType: "server"}
 
 func NewReplayStorage() ReplayStorage {
 	cf := config.GetConf().ReplayStorage
@@ -31,14 +31,14 @@ func NewReplayStorage() ReplayStorage {
 		if endpointSuffix == "" {
 			endpointSuffix = "core.chinacloudapi.cn"
 		}
-		return &storage.AzureReplayStorage{
+		return storage.AzureReplayStorage{
 			AccountName:    cf["ACCOUNT_NAME"].(string),
 			AccountKey:     cf["ACCOUNT_KEY"].(string),
 			ContainerName:  cf["CONTAINER_NAME"].(string),
 			EndpointSuffix: endpointSuffix,
 		}
 	case "oss":
-		return &storage.OSSReplayStorage{
+		return storage.OSSReplayStorage{
 			Endpoint:  cf["ENDPOINT"].(string),
 			Bucket:    cf["BUCKET"].(string),
 			AccessKey: cf["ACCESS_KEY"].(string),
@@ -58,7 +58,7 @@ func NewReplayStorage() ReplayStorage {
 			region = strings.Split(endpoint, ".")[1]
 		}
 
-		return &storage.S3ReplayStorage{
+		return storage.S3ReplayStorage{
 			Bucket:    bucket,
 			Region:    region,
 			AccessKey: cf["ACCESS_KEY"].(string),
@@ -90,7 +90,7 @@ func NewCommandStorage() CommandStorage {
 		if docType == "" {
 			docType = "command_store"
 		}
-		return &storage.ESCommandStorage{Hosts: hosts, Index: index, DocType: docType}
+		return storage.ESCommandStorage{Hosts: hosts, Index: index, DocType: docType}
 	default:
 		return defaultCommandStorage
 	}

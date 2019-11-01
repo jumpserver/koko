@@ -13,8 +13,8 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func NewAssetPagination(term *utils.Terminal, assets []model.Asset) *AssetPagination {
-	assetPage := &AssetPagination{term: term, assets: assets}
+func NewAssetPagination(term *utils.Terminal, assets []model.Asset) AssetPagination {
+	assetPage := AssetPagination{term: term, assets: assets}
 	assetPage.Initial()
 	return assetPage
 }
@@ -181,8 +181,8 @@ func (p *AssetPagination) displayTipsInfo() {
 
 }
 
-func NewUserPagination(term *utils.Terminal, uid, search string, policy bool) *UserAssetPagination {
-	return &UserAssetPagination{
+func NewUserPagination(term *utils.Terminal, uid, search string, policy bool) UserAssetPagination {
+	return UserAssetPagination{
 		UserID:        uid,
 		offset:        0,
 		limit:         0,
@@ -269,7 +269,7 @@ func (p *UserAssetPagination) Start() []model.Asset {
 
 func (p *UserAssetPagination) displayPageAssets() {
 	if len(p.Data.Data) == 0 {
-		_, _ = p.term.Write([]byte(getI18nFromMap("NoAssets")+"\n\r"))
+		_, _ = p.term.Write([]byte(getI18nFromMap("NoAssets") + "\n\r"))
 		return
 	}
 

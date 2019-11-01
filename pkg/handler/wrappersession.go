@@ -43,6 +43,7 @@ func (w *WrapperSession) readLoop() {
 	}
 	w.mux.RLock()
 	_ = w.inWriter.Close()
+	_ = w.outReader.Close()
 	w.mux.RUnlock()
 	close(w.closed)
 	logger.Infof("Request %s: Read loop break", w.Uuid)

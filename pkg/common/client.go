@@ -28,7 +28,7 @@ type Client struct {
 	BaseHost   string
 	basicAuth  []string
 	cookie     map[string]string
-	http       *http.Client
+	http       http.Client
 	UrlParsers []UrlParser
 }
 
@@ -36,11 +36,12 @@ type UrlParser interface {
 	parse(url string, params ...map[string]string) string
 }
 
-func NewClient(timeout time.Duration, baseHost string) *Client {
+func NewClient(timeout time.Duration, baseHost string) Client {
 	headers := make(map[string]string, 0)
-	client := new(http.Client)
-	client.Timeout = timeout * time.Second
-	return &Client{
+	client := http.Client{
+		Timeout: timeout * time.Second,
+	}
+	return Client{
 		BaseHost: baseHost,
 		Timeout:  timeout * time.Second,
 		Headers:  headers,
@@ -144,6 +145,9 @@ func (c *Client) NewRequest(method, url string, body interface{}, params []map[s
 		return
 	}
 	req, err = http.NewRequest(method, url, reader)
+	if err != nil {
+		return req, err
+	}
 	c.SetReqHeaders(req, params)
 	return req, err
 }
@@ -219,7 +223,7 @@ func (c *Client) PostForm(url string, data interface{}, res interface{}) (err er
 			default:
 				attr, err := json.Marshal(val.Field(i).Interface())
 				if err != nil {
-					return nil
+					return err
 				}
 				v = string(attr)
 			}
@@ -229,6 +233,9 @@ func (c *Client) PostForm(url string, data interface{}, res interface{}) (err er
 
 	reader := strings.NewReader(values.Encode())
 	req, err := http.NewRequest("POST", url, reader)
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return nil
 }
@@ -238,6 +245,7 @@ func (c *Client) UploadFile(url string, gFile string, res interface{}, params ..
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	buf := new(bytes.Buffer)
 	bodyWriter := multipart.NewWriter(buf)
 	gName := filepath.Base(gFile)
@@ -245,18 +253,23 @@ func (c *Client) UploadFile(url string, gFile string, res interface{}, params ..
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(part, f)
+	if _, err = io.Copy(part, f); err != nil {
+		return err
+	}
 	err = bodyWriter.Close()
 	if err != nil {
 		return err
 	}
 	url = c.parseUrl(url, params)
 	req, err := http.NewRequest("POST", url, buf)
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
 	c.SetReqHeaders(req, params)
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return
+		return err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
