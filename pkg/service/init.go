@@ -87,7 +87,7 @@ func MustLoadServerConfigOnce() {
 
 func LoadConfigFromServer() (err error) {
 	conf := config.GetConf()
-	_, err = authClient.Get(TerminalConfigURL, conf)
+	_, err = authClient.Get(TerminalConfigURL, &conf)
 	if err != nil {
 		return err
 	}
