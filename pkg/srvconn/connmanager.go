@@ -196,12 +196,14 @@ func (sc *SSHClientConfig) Dial() (client *gossh.Client, err error) {
 		}
 		proxySock, err := proxyClient.Dial("tcp", net.JoinHostPort(sc.Host, sc.Port))
 		if err != nil {
-			err = errors.New("connect proxy host error 2: " + err.Error())
-			logger.Error("Connect proxy host error 2: ", err.Error())
+			err = errors.New(fmt.Sprintf("tcp connect host %s:%s error 2: %s", sc.Host, sc.Port, err.Error()))
+			logger.Errorf("Tcp connect host %s:%s error 2: %s", sc.Host, sc.Port, err.Error())
 			return client, err
 		}
 		proxyConn, chans, reqs, err := gossh.NewClientConn(proxySock, net.JoinHostPort(sc.Host, sc.Port), cfg)
 		if err != nil {
+			err = errors.New(fmt.Sprintf("ssh connect host %s:%s error 3: %s", sc.Host, sc.Port, err.Error()))
+			logger.Errorf("SSH Connect host %s:%s error 3: %s", sc.Host, sc.Port, err.Error())
 			return client, err
 		}
 		sc.proxyConn = proxyConn
