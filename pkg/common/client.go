@@ -238,6 +238,7 @@ func (c *Client) UploadFile(url string, gFile string, res interface{}, params ..
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	buf := new(bytes.Buffer)
 	bodyWriter := multipart.NewWriter(buf)
 	gName := filepath.Base(gFile)
