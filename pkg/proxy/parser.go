@@ -55,8 +55,8 @@ type Parser struct {
 
 	command         string
 	output          string
-	cmdInputParser  CmdParser
-	cmdOutputParser CmdParser
+	cmdInputParser  *CmdParser
+	cmdOutputParser *CmdParser
 
 	cmdFilterRules []model.SystemUserFilterRule
 	closed         chan struct{}
