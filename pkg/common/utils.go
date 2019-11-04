@@ -28,10 +28,12 @@ func GzipCompressFile(srcPath, dstPath string) error {
 	if err != nil {
 		return err
 	}
+	defer sf.Close()
 	df, err := os.Create(dstPath)
 	if err != nil {
 		return err
 	}
+	defer df.Close()
 	writer := gzip.NewWriter(df)
 	writer.Name = dstPath
 	writer.ModTime = time.Now().UTC()

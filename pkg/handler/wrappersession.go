@@ -15,10 +15,13 @@ type WrapperSession struct {
 	inWriter  io.WriteCloser
 	outReader io.ReadCloser
 	mux       *sync.RWMutex
+
+	closed chan struct{}
 }
 
 func (w *WrapperSession) initial() {
 	w.initReadPip()
+	w.closed = make(chan struct{})
 	go w.readLoop()
 }
 
@@ -37,11 +40,20 @@ func (w *WrapperSession) readLoop() {
 			break
 		}
 	}
+	w.mux.RLock()
 	_ = w.inWriter.Close()
+	_ = w.outReader.Close()
+	w.mux.RUnlock()
+	close(w.closed)
 
 }
 
 func (w *WrapperSession) Read(p []byte) (int, error) {
+	select {
+	case <-w.closed:
+		return 0, io.EOF
+	default:
+	}
 	w.mux.RLock()
 	defer w.mux.RUnlock()
 	return w.outReader.Read(p)
