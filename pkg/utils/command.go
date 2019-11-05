@@ -57,41 +57,32 @@ func ParseTerminalData(p []byte) (lines []string) {
 				}
 				pos++
 			case keyHome:
-				// clear screen ===> 不需要做任何事情
-				fmt.Println("keyHome==>")
 				if pos == 0 {
 					continue
 				}
 				pos = 0
 			case keyEnd:
-				fmt.Println("keyEnd==>")
 				if pos == len(line) {
 					continue
 				}
 				pos = len(line)
 			case keyUp:
-				fmt.Println("keyUp==>")
 				line = []rune{}
 				pos = 0
 			case keyDown:
-				fmt.Println("keyDown==>")
 				line = []rune{}
 				pos = 0
 			case keyEnter:
-				fmt.Println("keyEnter==>")
 				lines = append(lines, string(line))
 				line = line[:0]
 				pos = 0
 				lineOk = true
 			case keyDeleteWord:
-				fmt.Println("keyDeleteWord==>")
 				// Delete zero or more spaces and then one or more characters.
 				line, pos = EraseNPreviousChars(CountToLeftWord(pos, line), pos, line)
 			case keyDeleteLine:
-				fmt.Println("keyDeleteLine==>")
 				line = line[:pos]
 			case keyCtrlD:
-				fmt.Println("keyCtrlD==>")
 				// Erase the character under the current position.
 				// The EOF case when the line is empty is handled in
 				// readLine().
@@ -100,16 +91,13 @@ func ParseTerminalData(p []byte) (lines []string) {
 					line, pos = EraseNPreviousChars(1, pos, line)
 				}
 			case keyCtrlU:
-				fmt.Println("keyCtrlU==>")
 				line = line[:0]
 			case keyClearScreen:
-				fmt.Println("keyClearScreen==>")
 			default:
 				if !isPrintable(key) {
 					fmt.Println("could not printable: ", []byte(string(key)), " ", key)
 					continue
 				}
-				fmt.Println("no key==>" ,string(key))
 				line, pos = AddKeyToLine(key, pos, line)
 			}
 
@@ -129,10 +117,8 @@ func ParseTerminalData(p []byte) (lines []string) {
 		n, err := c.Read(readBuf)
 		if err != nil {
 			if len(line) > 0 {
-				fmt.Println("read line ", line)
 				lines = append(lines, string(line))
 			} else if len(rest) > 0 {
-				fmt.Println("read rest ")
 				lines = append(lines, string(rest))
 			}
 

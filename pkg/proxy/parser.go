@@ -55,8 +55,7 @@ type Parser struct {
 
 	command string
 	output  string
-	//cmdInputParser  *CmdParser
-	cmdInputParser  *CommandInputParser
+	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
 	cmdFilterRules []model.SystemUserFilterRule
@@ -67,7 +66,7 @@ func (p *Parser) initial() {
 	p.once = new(sync.Once)
 	p.lock = new(sync.RWMutex)
 
-	p.cmdInputParser = NewCommandInputParser(p.id, CommandInputParserName)
+	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 
 	p.closed = make(chan struct{})
@@ -120,12 +119,10 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	if p.inVimState || p.zmodemState != "" {
 		return b
 	}
-	p.cmdInputParser.WriteUserData(b)
 	p.inputPreState = p.inputState
 	if bytes.Contains(b, charEnter) {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
 		p.sendCommandRecord()
-		fmt.Println("parseInputState cmd: ====> ", p.cmdInputParser.ParseUserInput())
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
