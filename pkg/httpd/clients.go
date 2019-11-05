@@ -66,10 +66,8 @@ func (c *Connections) GetClients(cID string) (clients []string) {
 }
 
 func (c *Connections) DeleteClients(cID string) {
-	if clientIDs := c.GetClients(cID); clientIDs != nil {
-		for _, clientID := range clientIDs {
-			clients.DeleteClient(clientID)
-		}
+	for _, clientID := range c.GetClients(cID) {
+		clients.DeleteClient(clientID)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()

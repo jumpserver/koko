@@ -148,7 +148,7 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	if asset.Domain != "" {
 		sshConfig := MakeConfig(tc.Asset, tc.SystemUser, tc.Timeout())
 		proxyConn, err = sshConfig.DialProxy()
-		logger.Errorf("Proxy conn: ", proxyConn)
+		logger.Errorf("Proxy conn: %p", proxyConn)
 		if err != nil {
 			logger.Error("Dial proxy host error")
 			return

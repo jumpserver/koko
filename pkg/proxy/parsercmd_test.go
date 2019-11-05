@@ -1,18 +1,22 @@
 package proxy
 
 import (
-	"fmt"
+	"strings"
 	"testing"
+
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 func TestCmdParser_Parse(t *testing.T) {
-	p := NewCmdParser()
 	var b = []byte("ifconfig \x08\x1b[K\x08\x1b[K\x08\x1b[K\x08\x1b[K\x08\x1b[K\x08\x1b[Konfig")
-	data := p.Parse(b)
-	if data != "ifconfig" {
-		t.Error("data should be ifconfig but not")
+	data := utils.ParseTerminalData(b)
+
+	if strings.Join(data, "") != "ifconfig" {
+		t.Error("data should be ifconfig but not", data)
 	}
+
 	b = []byte("ifconfig\xe4\xbd\xa0")
-	data = p.Parse(b)
-	fmt.Println("line: ", data)
+	data = utils.ParseTerminalData(b)
+	t.Log("line: ", strings.Join(data, ""))
+
 }

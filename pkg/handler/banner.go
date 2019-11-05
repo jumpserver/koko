@@ -36,7 +36,7 @@ func (mi *MenuItem) Text() string {
 	if err != nil {
 		logger.Error(err)
 	}
-	mi.showText = string(buf.Bytes())
+	mi.showText = buf.String()
 	return mi.showText
 }
 
