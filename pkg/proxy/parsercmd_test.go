@@ -1,18 +1,26 @@
 package proxy
 
 import (
-	"fmt"
 	"testing"
+	"time"
 )
 
 func TestCmdParser_Parse(t *testing.T) {
-	p := NewCmdParser()
+	p := NewCmdParser("0000", "test")
+	defer p.Close()
 	var b = []byte("ifconfig \x08\x1b[K\x08\x1b[K\x08\x1b[K\x08\x1b[K\x08\x1b[K\x08\x1b[Konfig")
-	data := p.Parse(b)
+	p.WriteData(b)
+	time.Sleep(time.Second)
+	data := p.Parse()
+
+
 	if data != "ifconfig" {
-		t.Error("data should be ifconfig but not")
+		t.Error("data should be ifconfig but not", data)
 	}
+
 	b = []byte("ifconfig\xe4\xbd\xa0")
-	data = p.Parse(b)
-	fmt.Println("line: ", data)
+	p.WriteData(b)
+	data = p.Parse()
+	t.Log("line: ", data)
+
 }

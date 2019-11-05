@@ -58,9 +58,6 @@ type interactiveHandler struct {
 	searchResult     []model.Asset
 
 	allAssets []model.Asset
-	search    string
-	offset    int
-	limit     int
 
 	loadDataDone    chan struct{}
 	assetLoadPolicy string
@@ -297,9 +294,9 @@ func (h *interactiveHandler) displayAssets(assets model.AssetList) {
 
 func (h *interactiveHandler) displayNodes(nodes []model.Node) {
 	tree := ConstructAssetNodeTree(nodes)
-	_, err := io.WriteString(h.term, "\n\r"+getI18nFromMap("NodeHeaderTip"))
-	_, err = io.WriteString(h.term, tree.String())
-	_, err = io.WriteString(h.term, getI18nFromMap("NodeEndTip")+"\n\r")
+	_, _ = io.WriteString(h.term, "\n\r"+getI18nFromMap("NodeHeaderTip"))
+	_, _ = io.WriteString(h.term, tree.String())
+	_, err := io.WriteString(h.term, getI18nFromMap("NodeEndTip")+"\n\r")
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}
