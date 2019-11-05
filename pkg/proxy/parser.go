@@ -53,8 +53,8 @@ type Parser struct {
 	once          *sync.Once
 	lock          *sync.RWMutex
 
-	command string
-	output  string
+	command         string
+	output          string
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
