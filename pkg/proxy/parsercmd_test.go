@@ -13,7 +13,6 @@ func TestCmdParser_Parse(t *testing.T) {
 	time.Sleep(time.Second)
 	data := p.Parse()
 
-
 	if data != "ifconfig" {
 		t.Error("data should be ifconfig but not", data)
 	}
