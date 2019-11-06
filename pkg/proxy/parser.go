@@ -123,7 +123,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	if bytes.Contains(b, charEnter) {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
 		p.sendCommandRecord()
-
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()

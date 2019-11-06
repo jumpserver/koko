@@ -27,7 +27,7 @@ const (
 	SAG   = 3
 	ECHO  = 1
 
-	loginRegs          = "(?i)login:?\\s*$|username:?\\s*$|name:?\\s*$|用户名:?\\s*$|账\\s*号:?\\s*$"
+	loginRegs          = "(?i)login:?\\s*$|username:?\\s*$|name:?\\s*$|用户名:?\\s*$|账\\s*号:?\\s*$|user:?\\s*$"
 	passwordRegs       = "(?i)Password:?\\s*$|ssword:?\\s*$|passwd:?\\s*$|密\\s*码:?\\s*$"
 	FailedRegs         = "(?i)incorrect|failed|失败|错误"
 	DefaultSuccessRegs = "(?i)Last\\s*login|success|成功|#|>|\\$"
@@ -122,11 +122,11 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 		return AuthFailed
 	} else if usernamePattern.Match(data) {
 		_, _ = tc.conn.Write([]byte(tc.SystemUser.Username + "\r\n"))
-		logger.Debug("Username pattern match: ", data)
+		logger.Debugf("Username pattern match: %s", data)
 		return AuthPartial
 	} else if passwordPattern.Match(data) {
 		_, _ = tc.conn.Write([]byte(tc.SystemUser.Password + "\r\n"))
-		logger.Debug("Password pattern ", data)
+		logger.Debugf("Password pattern: %s", data)
 		return AuthPartial
 	} else if successPattern.Match(data) {
 		return AuthSuccess
@@ -148,7 +148,7 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	if asset.Domain != "" {
 		sshConfig := MakeConfig(tc.Asset, tc.SystemUser, tc.Timeout())
 		proxyConn, err = sshConfig.DialProxy()
-		logger.Errorf("Proxy conn: ", proxyConn)
+		logger.Errorf("Proxy conn: %p", proxyConn)
 		if err != nil {
 			logger.Error("Dial proxy host error")
 			return
@@ -169,7 +169,7 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 		return
 	}
 
-	if tc.SystemUser.Password == ""{
+	if tc.SystemUser.Password == "" {
 		info := service.GetSystemUserAssetAuthInfo(tc.SystemUser.ID, asset.ID)
 		tc.SystemUser.Password = info.Password
 		tc.SystemUser.PrivateKey = info.PrivateKey
@@ -193,7 +193,7 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 			case AuthSuccess:
 				return nil
 			case AuthFailed:
-				return errors.New("Failed login")
+				return errors.New("failed login")
 			default:
 				continue
 			}

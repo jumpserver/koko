@@ -37,7 +37,7 @@ type UrlParser interface {
 }
 
 func NewClient(timeout time.Duration, baseHost string) Client {
-	headers := make(map[string]string, 0)
+	headers := make(map[string]string)
 	client := http.Client{
 		Timeout: timeout * time.Second,
 	}
@@ -46,7 +46,7 @@ func NewClient(timeout time.Duration, baseHost string) Client {
 		Timeout:  timeout * time.Second,
 		Headers:  headers,
 		http:     client,
-		cookie:   make(map[string]string, 0),
+		cookie:   make(map[string]string),
 	}
 }
 

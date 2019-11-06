@@ -26,7 +26,6 @@ type WrapperTable struct {
 	paddingSize int
 	bolderSize  int
 	fieldsSize  map[string]int // 计算后的最终宽度
-	cleanedData []map[string]string
 	Caption     string
 }
 

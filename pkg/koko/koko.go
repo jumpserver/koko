@@ -38,7 +38,7 @@ func (c *Coco) Stop() {
 func RunForever() {
 	ctx,cancelFunc := context.WithCancel(context.Background())
 	bootstrap(ctx)
-	gracefulStop := make(chan os.Signal)
+	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	app := &Coco{}
 	app.Start()

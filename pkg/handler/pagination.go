@@ -299,8 +299,7 @@ func (p *UserAssetPagination) displayPageAssets() {
 	var totalPage int
 	var currentPage int
 	var totalCount int
-	var currentOffset int
-	currentOffset = p.offset + len(p.currentData)
+	currentOffset := p.offset + len(p.currentData)
 	switch p.limit {
 	case 0:
 		pageSize = len(p.currentData)

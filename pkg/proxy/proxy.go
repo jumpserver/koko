@@ -237,7 +237,6 @@ func (p *ProxyServer) sendConnectErrorMsg(err error) {
 		msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
 		logger.Errorf(msg2)
 	}
-	return
 }
 
 // Proxy 代理

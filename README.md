@@ -1,7 +1,7 @@
 
 # KoKo
 
-koko是golang版本的的coco；重构了coco的SSH/SFTP服务和web terminal服务。
+Koko 是 Go 版本的 coco；重构了 coco 的 SSH/SFTP 服务和 Web Terminal 服务
 
 
 ## 主要功能

@@ -30,17 +30,17 @@ msgstr "部分IP、主机名、备注"
 #. i18n.T
 #: pkg/handler/banner.go:49
 msgid "to search login if unique"
-msgstr "进行搜索登录(如果唯一)"
+msgstr "搜索登录(如果唯一)"
 
 #. i18n.T
 #: pkg/handler/banner.go:50
 msgid "/ + IP, Hostname, Comment"
-msgstr "/ + IP， 主机名 or 备注"
+msgstr "/ + IP，主机名 or 备注"
 
 #. i18n.T
 #: pkg/handler/banner.go:50
 msgid "to search, such as: /192.168"
-msgstr "搜索， 如：/192.168"
+msgstr "搜索，如：/192.168"
 
 #. i18n.T
 #: pkg/handler/banner.go:51
