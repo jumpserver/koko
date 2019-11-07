@@ -38,3 +38,9 @@ const (
 const (
 	UserAssetSystemUsersURL = "/api/v1/perms/users/%s/assets/%s/system-users/" // 获取用户授权资产的系统用户列表
 )
+
+// 1.5.5
+const (
+	UserTokenAuthURL = "/api/v1/authentication/tokens/" // 用户登录验证
+	UserConfirmAuthURL = "/api/v1/authentication/order/auth/"
+)

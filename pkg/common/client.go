@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/http/cookiejar"
 	neturl "net/url"
 	"os"
 	"path/filepath"
@@ -38,8 +39,10 @@ type UrlParser interface {
 
 func NewClient(timeout time.Duration, baseHost string) Client {
 	headers := make(map[string]string)
+	jar, _ := cookiejar.New(nil)
 	client := http.Client{
 		Timeout: timeout * time.Second,
+		Jar:     jar,
 	}
 	return Client{
 		BaseHost: baseHost,
@@ -103,11 +106,10 @@ func (c *Client) parseUrl(url string, params []map[string]string) string {
 
 func (c *Client) setAuthHeader(r *http.Request) {
 	if len(c.cookie) != 0 {
-		cookie := make([]string, 0)
 		for k, v := range c.cookie {
-			cookie = append(cookie, fmt.Sprintf("%s=%s", k, v))
+			c := http.Cookie{Name: k, Value: v,}
+			r.AddCookie(&c)
 		}
-		r.Header.Add("Cookie", strings.Join(cookie, ";"))
 	}
 	if len(c.basicAuth) == 2 {
 		r.SetBasicAuth(c.basicAuth[0], c.basicAuth[1])
@@ -162,10 +164,9 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		return
 	}
 	defer resp.Body.Close()
-
 	body, err := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode >= 400 {
-		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, string(body))
+	if resp.StatusCode >= 500 {
+		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, body)
 		err = errors.New(msg)
 		return
 	}
@@ -176,7 +177,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		return
 	}
 	// Unmarshal response body to result struct
-	if res != nil && resp.StatusCode >= 200 && resp.StatusCode <= 300 {
+	if res != nil && strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
 		err = json.Unmarshal(body, res)
 		if err != nil {
 			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body[:12], err)

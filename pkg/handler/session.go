@@ -10,7 +10,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
 
-	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -21,13 +20,16 @@ import (
 )
 
 func SessionHandler(sess ssh.Session) {
+	user, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
+	if !ok && user == nil {
+		logger.Errorf("SSH User %s not found, exit.", sess.User())
+		return
+	}
 	pty, _, ok := sess.Pty()
 	if ok {
-		ctx, cancel := cctx.NewContext(sess)
-		defer cancel()
-		handler := newInteractiveHandler(sess, ctx.User())
+		handler := newInteractiveHandler(sess, user)
 		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
-		handler.Dispatch(ctx)
+		handler.Dispatch(sess.Context())
 	} else {
 		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
 		return
@@ -66,7 +68,7 @@ type interactiveHandler struct {
 func (h *interactiveHandler) Initial() {
 	h.assetLoadPolicy = strings.ToLower(config.GetConf().AssetLoadPolicy)
 	h.displayBanner()
-	h.winWatchChan = make(chan bool)
+	h.winWatchChan = make(chan bool, 1)
 	h.loadDataDone = make(chan struct{})
 	go h.firstLoadData()
 }
@@ -130,7 +132,7 @@ func (h *interactiveHandler) resumeWatchWinSize() {
 	h.winWatchChan <- true
 }
 
-func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
+func (h *interactiveHandler) Dispatch(ctx context.Context) {
 	go h.watchWinSizeChange()
 	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
 	for {

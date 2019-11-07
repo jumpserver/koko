@@ -11,7 +11,6 @@ import (
 	"github.com/LeeEirc/elfinder"
 	"github.com/gorilla/mux"
 
-	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -45,8 +44,8 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 		} else {
 			remoteIP = strings.Split(request.RemoteAddr, ":")[0]
 		}
-		ctx := context.WithValue(request.Context(), cctx.ContextKeyUser, user)
-		ctx = context.WithValue(ctx, cctx.ContextKeyRemoteAddr, remoteIP)
+		ctx := context.WithValue(request.Context(), model.ContextKeyUser, user)
+		ctx = context.WithValue(ctx, model.ContextKeyRemoteAddr, remoteIP)
 		handler(responseWriter, request.WithContext(ctx))
 	}
 }
@@ -66,8 +65,8 @@ func sftpFinder(wr http.ResponseWriter, req *http.Request) {
 func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	hostID := vars["host"]
-	user := req.Context().Value(cctx.ContextKeyUser).(*model.User)
-	remoteIP := req.Context().Value(cctx.ContextKeyRemoteAddr).(string)
+	user := req.Context().Value(model.ContextKeyUser).(*model.User)
+	remoteIP := req.Context().Value(model.ContextKeyRemoteAddr).(string)
 	switch req.Method {
 	case "GET":
 		if err := req.ParseForm(); err != nil {

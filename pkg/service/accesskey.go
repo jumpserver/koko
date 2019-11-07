@@ -70,10 +70,10 @@ func (ak *AccessKey) SaveToFile() error {
 		}
 	}
 	f, err := os.Create(ak.Path)
-	defer f.Close()
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	_, err = f.WriteString(fmt.Sprintf("%s:%s", ak.ID, ak.Secret))
 	if err != nil {
 		logger.Error(err)
