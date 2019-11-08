@@ -30,15 +30,13 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	if password != "" {
 		authMethod = "password"
 	}
+	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 	userClient, ok := ctx.Value(model.ContextKeyClient).(*service.SessionClient)
 	if !ok {
-		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 		sessionClient := service.NewSessionClient(service.Username(username),
 			service.Password(password), service.PublicKey(publicKey),
 			service.RemoteAddr(remoteAddr), service.LoginType("T"))
-
 		userClient = &sessionClient
-
 	}
 	user, authStatus := userClient.Authenticate(ctx)
 	switch authStatus {
