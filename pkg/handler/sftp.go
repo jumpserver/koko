@@ -20,7 +20,7 @@ import (
 
 func SftpHandler(sess ssh.Session) {
 	currentUser, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
-	if !ok {
+	if !ok || currentUser.ID == "" {
 		logger.Errorf("SFTP User not found, exit.")
 		return
 	}
