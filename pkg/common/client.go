@@ -165,7 +165,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode >= 500 {
+	if resp.StatusCode >= 400 {
 		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, body)
 		err = errors.New(msg)
 		return
@@ -177,12 +177,15 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		return
 	}
 	// Unmarshal response body to result struct
-	if res != nil && strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
-		err = json.Unmarshal(body, res)
-		if err != nil {
-			msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body[:12], err)
-			err = errors.New(msg)
-			return
+	if res != nil {
+		switch {
+		case strings.Contains(resp.Header.Get("Content-Type"), "application/json"):
+			err = json.Unmarshal(body, res)
+			if err != nil {
+				msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body[:12], err)
+				err = errors.New(msg)
+				return
+			}
 		}
 	}
 	return

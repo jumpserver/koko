@@ -70,24 +70,15 @@ func (u *SessionClient) Authenticate(ctx context.Context) (user model.User, auth
 		logger.Errorf("User %s Authenticate err: %s", u.option.Username, err)
 		return
 	}
-	fmt.Printf("%v\n", resp)
 	if resp.Err != "" {
 		switch resp.Err {
-		case ErrLoginConfirmRequired:
+		case ErrLoginConfirmWait:
 			if !u.checkConfirm(ctx) {
 				logger.Errorf("User %s login confirm required err", u.option.Username)
 				return
 			}
-
 			logger.Infof("User %s login confirm required success", u.option.Username)
-			authStatus = AuthSuccess
-		case ErrLoginConfirmWait:
-			if !u.checkConfirm(ctx) {
-				logger.Errorf("User %s login confirm Wait check err", u.option.Username)
-				return
-			}
-			logger.Infof("User %s login confirm wait check success", u.option.Username)
-			authStatus = AuthSuccess
+			return u.Authenticate(ctx)
 		case ErrMFARequired:
 			for _, item := range resp.Data.Choices {
 				u.authOptions[item] = AuthOptions{
@@ -97,6 +88,8 @@ func (u *SessionClient) Authenticate(ctx context.Context) (user model.User, auth
 			}
 			logger.Infof("User %s login need MFA", u.option.Username)
 			authStatus = AuthMFARequired
+		default:
+			logger.Errorf("User %s login err: %s", u.option.Username, resp.Err)
 		}
 		return
 	}
@@ -138,36 +131,39 @@ func (u *SessionClient) CheckUserOTP(ctx context.Context, code string) (user mod
 
 func (u *SessionClient) checkConfirm(ctx context.Context) (ok bool) {
 	var err error
-	for {
-		select {
-		case <-ctx.Done():
-			logger.Errorf("User %s cancel confirm request", u.option.Username)
-			return ok
-		case <-time.After(5 * time.Second):
-			var resp authResponse
-			_, err = u.client.Get(UserConfirmAuthURL, &resp)
-			if err != nil {
-				logger.Errorf("User %s check confirm err: %s", u.option.Username, err)
-				return
+	select {
+	case <-ctx.Done():
+		_, err = u.client.Delete(UserConfirmAuthURL, nil)
+		if err != nil {
+			logger.Errorf("User %s cancel confirmation err: %s", u.option.Username, err)
+			return
+		}
+		logger.Infof("User %s cancel confirm request", u.option.Username)
+	case <-time.After(5 * time.Second):
+		var resp authResponse
+		_, err = u.client.Get(UserConfirmAuthURL, &resp)
+		if err != nil {
+			logger.Errorf("User %s check confirm err: %s", u.option.Username, err)
+			return
+		}
+		if resp.Err != "" {
+			switch resp.Err {
+			case ErrLoginConfirmWait:
+				logger.Infof("User %s still wait confirm", u.option.Username)
+				return u.checkConfirm(ctx)
+			case ErrLoginConfirmRejected:
+				logger.Infof("User %s confirmation was rejected by admin", u.option.Username)
+			default:
+				logger.Infof("User %s confirmation was rejected by err: %s", u.option.Username, resp.Err)
 			}
-			if resp.Err != "" {
-				switch resp.Err {
-				case ErrLoginConfirmWait:
-					logger.Infof("User %s still wait confirm", u.option.Username)
-					continue
-				case ErrLoginConfirmRejected:
-				default:
-				}
-				logger.Infof("User %s confirm rejected %s", u.option.Username, resp.Err)
-				return
-			}
-			if resp.Msg == "ok" {
-				logger.Infof("User %s confirm accepted", u.option.Username)
-				return true
-			}
-
+			return
+		}
+		if resp.Msg == "ok" {
+			logger.Infof("User %s confirmation was accepted", u.option.Username)
+			return true
 		}
 	}
+	return
 }
 
 func GetUserDetail(userID string) (user *model.User) {

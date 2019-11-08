@@ -21,7 +21,7 @@ import (
 
 func SessionHandler(sess ssh.Session) {
 	user, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
-	if !ok && user == nil {
+	if !ok || user.ID == "" {
 		logger.Errorf("SSH User %s not found, exit.", sess.User())
 		return
 	}
