@@ -61,6 +61,11 @@ func (w *WrapperSession) Read(p []byte) (int, error) {
 }
 
 func (w *WrapperSession) Close() error {
+	select {
+	case <-w.closed:
+		return nil
+	default:
+	}
 	err := w.inWriter.Close()
 	w.initReadPip()
 	return err
