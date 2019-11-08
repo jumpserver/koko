@@ -12,18 +12,20 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 )
 
-type AuthResponse struct {
+type authResponse struct {
 	Err  string       `json:"error,omitempty"`
 	Msg  string       `json:"msg,omitempty"`
-	Data ResponseData `json:"data,omitempty"`
+	Data dataResponse `json:"data,omitempty"`
 
 	Username    string `json:"username,omitempty"`
 	Token       string `json:"token,omitempty"`
 	Keyword     string `json:"keyword,omitempty"`
 	DateExpired string `json:"date_expired,omitempty"`
+
+	User model.User `json:"user,omitempty"`
 }
 
-type ResponseData struct {
+type dataResponse struct {
 	Choices []string `json:"choices,omitempty"`
 	Url     string   `json:"url,omitempty"`
 }
@@ -62,7 +64,7 @@ func (u *SessionClient) Authenticate(ctx context.Context) (user model.User, auth
 		"remote_addr": u.option.RemoteAddr,
 		"login_type":  u.option.LoginType,
 	}
-	var resp AuthResponse
+	var resp authResponse
 	_, err := u.client.Post(UserTokenAuthURL, data, &resp)
 	if err != nil {
 		logger.Errorf("User %s Authenticate err: %s", u.option.Username, err)
@@ -99,7 +101,7 @@ func (u *SessionClient) Authenticate(ctx context.Context) (user model.User, auth
 		return
 	}
 	if resp.Token != "" {
-		return user, AuthSuccess
+		return resp.User, AuthSuccess
 	}
 	return
 }
@@ -111,63 +113,61 @@ func (u *SessionClient) CheckUserOTP(ctx context.Context, code string) (user mod
 		"code": code,
 	}
 	for name, authData := range u.authOptions {
-		var resp AuthResponse
+		var resp authResponse
 		switch name {
 		case "opt":
 			data["type"] = name
 		}
 		_, err = u.client.Post(authData.Url, data, &resp)
 		if err != nil {
-			return
+			logger.Errorf("User %s use %s check MFA err: %s", u.option.Username, name, err)
+			continue
 		}
 		if resp.Err != "" {
-			return
+			logger.Errorf("User %s use %s check MFA err: %s", u.option.Username, name, resp.Err)
+			continue
 		}
 		if resp.Msg == "ok" {
+			logger.Infof("User %s check MFA success, check if need admin confirm", u.option.Username)
 			return u.Authenticate(ctx)
 		}
 	}
+	logger.Errorf("User %s failed to check MFA", u.option.Username)
 	return
 }
 
-func (u *SessionClient) checkConfirm(ctx context.Context) bool {
-	doneChan := make(chan bool, 1)
-	go func() {
-		var err error
-		for {
-			select {
-			case <-ctx.Done():
-				doneChan <- false
-			case <-time.After(5 * time.Second):
-				var resp AuthResponse
-				_, err = u.client.Get(UserConfirmAuthURL, &resp)
-				if err != nil {
-					logger.Errorf("User %s check confirm err: %s", u.option.Username, err)
-					doneChan <- false
-					return
-				}
-				if resp.Err != "" {
-					switch resp.Err {
-					case ErrLoginConfirmWait:
-						logger.Infof("User %s wait confirm", u.option.Username)
-						continue
-					case ErrLoginConfirmRejected:
-					default:
-					}
-					logger.Infof("User %s confirm rejected %s", u.option.Username, resp.Err)
-					doneChan <- false
-					return
-				}
-				if resp.Msg == "ok" {
-					logger.Infof("User %s confirm accepted", u.option.Username)
-					doneChan <- true
-					return
-				}
-
+func (u *SessionClient) checkConfirm(ctx context.Context) (ok bool) {
+	var err error
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Errorf("User %s cancel confirm request", u.option.Username)
+			return ok
+		case <-time.After(5 * time.Second):
+			var resp authResponse
+			_, err = u.client.Get(UserConfirmAuthURL, &resp)
+			if err != nil {
+				logger.Errorf("User %s check confirm err: %s", u.option.Username, err)
+				return
 			}
+			if resp.Err != "" {
+				switch resp.Err {
+				case ErrLoginConfirmWait:
+					logger.Infof("User %s still wait confirm", u.option.Username)
+					continue
+				case ErrLoginConfirmRejected:
+				default:
+				}
+				logger.Infof("User %s confirm rejected %s", u.option.Username, resp.Err)
+				return
+			}
+			if resp.Msg == "ok" {
+				logger.Infof("User %s confirm accepted", u.option.Username)
+				return true
+			}
+
 		}
-	}()
-	return <-doneChan
+	}
 }
 
 func GetUserDetail(userID string) (user *model.User) {
