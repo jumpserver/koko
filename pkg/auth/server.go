@@ -106,6 +106,10 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 	}
 	answers, err := challenger(username, instruction, []string{question}, []bool{true})
 	if err != nil || len(answers) != 1 {
+		if confirmAction {
+			client.CancelConfirm()
+		}
+		logger.Errorf("User %s happened err: %s", username, err)
 		return
 	}
 	if confirmAction {
