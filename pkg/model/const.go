@@ -6,4 +6,6 @@ const (
 	ContextKeyUser contextKey = iota + 1
 	ContextKeyRemoteAddr
 	ContextKeyClient
+	ContextKeyConfirmRequired
+	ContextKeyConfirmFailed
 )

@@ -6,6 +6,7 @@ const (
 	AuthSuccess AuthStatus = iota + 1
 	AuthFailed
 	AuthMFARequired
+	AuthConfirmRequired
 )
 
 type SessionOption func(*SessionOptions)
