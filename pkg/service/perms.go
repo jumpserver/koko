@@ -27,6 +27,7 @@ func GetUserAssets(userID, search string, pageSize, offset int) (resp model.Asse
 		var data model.AssetList
 		_, err = authClient.Get(Url, &data, params)
 		resp.Data = data
+		resp.Total = len(data)
 	}
 	if err != nil {
 		logger.Error("Get user assets error: ", err)
@@ -87,6 +88,31 @@ func GetUserNodeAssets(userID, nodeID, cachePolicy string) (assets model.AssetLi
 	if err != nil {
 		logger.Error("Get user node assets error: ", err)
 		return
+	}
+	return
+}
+
+func GetUserNodePaginationAssets(userID, nodeID, search string, pageSize, offset int) (resp model.AssetsPaginationResponse) {
+	if pageSize < 0 {
+		pageSize = 0
+	}
+	params := map[string]string{
+		"search": url.QueryEscape(search),
+		"limit":  strconv.Itoa(pageSize),
+		"offset": strconv.Itoa(offset),
+	}
+	Url := fmt.Sprintf(UserNodeAssetsListURL, userID, nodeID)
+	var err error
+	if pageSize > 0 {
+		_, err = authClient.Get(Url, &resp, params)
+	} else {
+		var data model.AssetList
+		_, err = authClient.Get(Url, &data, params)
+		resp.Data = data
+		resp.Total = len(data)
+	}
+	if err != nil {
+		logger.Error("Get user node assets error: ", err)
 	}
 	return
 }

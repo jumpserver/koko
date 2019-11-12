@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
@@ -29,7 +30,8 @@ func SessionHandler(sess ssh.Session) {
 	if ok {
 		handler := newInteractiveHandler(sess, user)
 		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
-		handler.Dispatch(sess.Context())
+		//handler.Dispatch(sess.Context())
+		handler.NewDispatch()
 	} else {
 		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
 		return
@@ -63,6 +65,14 @@ type interactiveHandler struct {
 
 	loadDataDone    chan struct{}
 	assetLoadPolicy string
+
+	currentSortedData []model.Asset
+	currentData       []model.Asset
+
+	remotePaginator *remotePaginator
+	localPaginator  *common.Pagination
+
+	once *sync.Once
 }
 
 func (h *interactiveHandler) Initial() {
@@ -70,6 +80,7 @@ func (h *interactiveHandler) Initial() {
 	h.displayBanner()
 	h.winWatchChan = make(chan bool, 1)
 	h.loadDataDone = make(chan struct{})
+	h.once = new(sync.Once)
 	go h.firstLoadData()
 }
 
