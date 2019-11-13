@@ -35,6 +35,21 @@ func GetUserAssets(userID, search string, pageSize, offset int) (resp model.Asse
 	return
 }
 
+func ForceRefreshUserPemAssets(userID string) error {
+	params := map[string]string{
+		"limit":  "1",
+		"offset": "0",
+		"cache":  "2",
+	}
+	Url := fmt.Sprintf(UserAssetsURL, userID)
+	var resp model.AssetsPaginationResponse
+	_, err := authClient.Get(Url, resp, params)
+	if err != nil {
+		logger.Errorf("Refresh user assets error: %s", err)
+	}
+	return err
+}
+
 func GetUserAllAssets(userID string) (assets []model.Asset) {
 	Url := fmt.Sprintf(UserAssetsURL, userID)
 	_, err := authClient.Get(Url, &assets)
@@ -92,12 +107,11 @@ func GetUserNodeAssets(userID, nodeID, cachePolicy string) (assets model.AssetLi
 	return
 }
 
-func GetUserNodePaginationAssets(userID, nodeID, search string, pageSize, offset int) (resp model.AssetsPaginationResponse) {
+func GetUserNodePaginationAssets(userID, nodeID string, pageSize, offset int) (resp model.AssetsPaginationResponse) {
 	if pageSize < 0 {
 		pageSize = 0
 	}
 	params := map[string]string{
-		"search": url.QueryEscape(search),
 		"limit":  strconv.Itoa(pageSize),
 		"offset": strconv.Itoa(offset),
 	}
