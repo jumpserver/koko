@@ -13,7 +13,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (h *interactiveHandler) NewDispatch() {
+func (h *interactiveHandler) Dispatch() {
 	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
 	for {
 		line, err := h.term.ReadLine()
@@ -233,6 +233,7 @@ func (h *interactiveHandler) searchOrProxy(key string) bool {
 func (h *interactiveHandler) searchAssetAndDisplay(key string) {
 	h.currentData = h.searchAssets(key)
 }
+
 func (h *interactiveHandler) searchAssetsAgain(key string) {
 	if h.assetPaginator == nil {
 		h.assetPaginator = h.getAssetPaginator()

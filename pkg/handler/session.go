@@ -30,7 +30,7 @@ func SessionHandler(sess ssh.Session) {
 		handler := newInteractiveHandler(sess, user)
 		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
 		go handler.watchWinSizeChange()
-		handler.NewDispatch()
+		handler.Dispatch()
 	} else {
 		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
 		return
