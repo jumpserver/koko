@@ -174,9 +174,9 @@ func (h *interactiveHandler) displayPageAssets() {
 
 	_, _ = h.term.Write([]byte(utils.CharClear))
 	_, _ = h.term.Write([]byte(table.Display()))
-	utils.IgnoreErrWriteString(h.term, actionTip)
+	utils.IgnoreErrWriteString(h.term, utils.WrapperString(actionTip, utils.Green))
 	utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(h.term, utils.WrapperTitle(searchHeader))
+	utils.IgnoreErrWriteString(h.term, utils.WrapperString(searchHeader, utils.Green))
 	utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 }
 
