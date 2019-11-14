@@ -18,11 +18,6 @@ msgid "Welcome to use Jumpserver open source fortress system"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:48
-msgid "directly login"
-msgstr ""
-
-#. i18n.T
 #: pkg/handler/banner.go:49
 msgid "part IP, Hostname, Comment"
 msgstr ""
@@ -99,16 +94,12 @@ msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:96
-msgid ""
-"\n"
-"Tips: Enter the asset ID and directly login the asset.\n"
+msgid "Enter ID number directly login the asset."
 msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:97
-msgid ""
-"\n"
-"Page up: P/p\tPage down: Enter|N/n\tBACK: b.\n"
+msgid "Page up: b\tPage down: Enter|n"
 msgstr ""
 
 #. i18n.T
@@ -147,7 +138,17 @@ msgid "Username"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:131
+#: pkg/handler/banner.go:105
+msgid "all"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:106
+msgid "Search: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:130
 msgid "Command `%s` is forbidden"
 msgstr ""
 
@@ -178,11 +179,11 @@ msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:159
+#: pkg/proxy/switch.go:168
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:166
+#: pkg/proxy/switch.go:175
 msgid "Terminated by administrator"
 msgstr ""

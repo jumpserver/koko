@@ -83,15 +83,16 @@ func (c *Client) parseUrlQuery(url string, params []map[string]string) string {
 	if len(params) < 1 {
 		return url
 	}
-	var query []string
-	for k, v := range params[0] {
-		query = append(query, fmt.Sprintf("%s=%s", k, v))
+	query := neturl.Values{}
+	for _, item := range params {
+		for k, v := range item {
+			query.Add(k, v)
+		}
 	}
-	param := strings.Join(query, "&")
 	if strings.Contains(url, "?") {
-		url += "&" + param
+		url += "&" + query.Encode()
 	} else {
-		url += "?" + param
+		url += "?" + query.Encode()
 	}
 	return url
 }
@@ -159,6 +160,9 @@ func (c *Client) NewRequest(method, url string, body interface{}, params []map[s
 //   1. query string if set {"name": "ibuler"}
 func (c *Client) Do(method, url string, data, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	req, err := c.NewRequest(method, url, data, params)
+	if err != nil {
+		return
+	}
 	resp, err = c.http.Do(req)
 	if err != nil {
 		return

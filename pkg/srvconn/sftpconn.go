@@ -548,17 +548,12 @@ func (u *UserSftp) LoopPushFTPLog() {
 	dataChan := make(chan *model.FTPLog)
 	go u.SendFTPLog(dataChan)
 	defer close(dataChan)
-	var timeoutSecond time.Duration
-	for {
-		switch len(ftpLogList) {
-		case 0:
-			timeoutSecond = time.Second * 60
-		default:
-			timeoutSecond = time.Second * 10
-		}
 
+	tick := time.NewTicker(time.Second * 10)
+	defer tick.Stop()
+	for {
 		select {
-		case <-time.After(timeoutSecond):
+		case <-tick.C:
 		case logData, ok := <-u.LogChan:
 			if !ok {
 				return
