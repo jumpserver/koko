@@ -9,23 +9,28 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 )
 
-func GetUserAssets(userID, search string, pageSize, offset int) (resp model.AssetsPaginationResponse) {
+func GetUserAssets(userID string, pageSize, offset int, searches ...string) (resp model.AssetsPaginationResponse) {
 	if pageSize < 0 {
 		pageSize = 0
 	}
+	paramsArray := make([]map[string]string, 0, len(searches)+2)
+	for i := 0; i < len(searches); i++ {
+		paramsArray = append(paramsArray, map[string]string{
+			"search": url.QueryEscape(searches[i]),
+		})
+	}
 	params := map[string]string{
-		"search": url.QueryEscape(search),
 		"limit":  strconv.Itoa(pageSize),
 		"offset": strconv.Itoa(offset),
 	}
-
+	paramsArray = append(paramsArray, params)
 	Url := fmt.Sprintf(UserAssetsURL, userID)
 	var err error
 	if pageSize > 0 {
-		_, err = authClient.Get(Url, &resp, params)
+		_, err = authClient.Get(Url, &resp, paramsArray...)
 	} else {
 		var data model.AssetList
-		_, err = authClient.Get(Url, &data, params)
+		_, err = authClient.Get(Url, &data, paramsArray...)
 		resp.Data = data
 		resp.Total = len(data)
 	}
@@ -107,21 +112,29 @@ func GetUserNodeAssets(userID, nodeID, cachePolicy string) (assets model.AssetLi
 	return
 }
 
-func GetUserNodePaginationAssets(userID, nodeID string, pageSize, offset int) (resp model.AssetsPaginationResponse) {
+func GetUserNodePaginationAssets(userID, nodeID string, pageSize, offset int, searches ...string) (resp model.AssetsPaginationResponse) {
 	if pageSize < 0 {
 		pageSize = 0
 	}
+	paramsArray := make([]map[string]string, 0, len(searches)+2)
+	for i := 0; i < len(searches); i++ {
+		paramsArray = append(paramsArray, map[string]string{
+			"search": url.QueryEscape(searches[i]),
+		})
+	}
+
 	params := map[string]string{
 		"limit":  strconv.Itoa(pageSize),
 		"offset": strconv.Itoa(offset),
 	}
+	paramsArray = append(paramsArray, params)
 	Url := fmt.Sprintf(UserNodeAssetsListURL, userID, nodeID)
 	var err error
 	if pageSize > 0 {
-		_, err = authClient.Get(Url, &resp, params)
+		_, err = authClient.Get(Url, &resp, paramsArray...)
 	} else {
 		var data model.AssetList
-		_, err = authClient.Get(Url, &data, params)
+		_, err = authClient.Get(Url, &data, paramsArray...)
 		resp.Data = data
 		resp.Total = len(data)
 	}

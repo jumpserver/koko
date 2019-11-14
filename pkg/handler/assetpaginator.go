@@ -21,6 +21,9 @@ type AssetPaginator interface {
 	Paginator
 	RetrievePageData(pageIndex int) model.AssetList
 	SearchAsset(key string) model.AssetList
+	SearchAgain(key string) model.AssetList
+	Name() string
+	SearchKeys() []string
 }
 
 func NewRemoteAssetPaginator(user model.User, pageSize int) AssetPaginator {
@@ -29,21 +32,20 @@ func NewRemoteAssetPaginator(user model.User, pageSize int) AssetPaginator {
 		pageSize:      pageSize,
 		currentOffset: 0,
 		currentPage:   1,
-		search:        [1]string{},
+		search:        make([]string, 0, 4),
 		lock:          new(sync.RWMutex),
 	}
 	return &p
 }
 
 func NewLocalAssetPaginator(data model.AssetList, pageSize int) AssetPaginator {
-
 	p := localAssetsPaginator{
 		allData:       data,
 		currentData:   data,
 		pageSize:      pageSize,
 		currentOffset: 0,
 		currentPage:   1,
-		search:        [1]string{},
+		search:        make([]string, 0, 4),
 		lock:          new(sync.RWMutex),
 	}
 	return &p
@@ -67,7 +69,7 @@ type remoteAssetsPaginator struct {
 
 	lock          *sync.RWMutex
 	currentOffset int
-	search        [1]string
+	search        []string
 
 	currentData model.AssetList
 	totalPage   int
@@ -134,25 +136,37 @@ func (r *remoteAssetsPaginator) SetPageSize(size int) {
 func (r *remoteAssetsPaginator) RetrievePageData(pageIndex int) model.AssetList {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	return r.retrievePageDta(pageIndex, r.search[0])
-}
-
-func (r *remoteAssetsPaginator) RetrieveCurrentData() model.AssetList {
-	r.lock.RLock()
-	defer r.lock.RUnlock()
-	return r.currentData
+	return r.retrievePageDta(pageIndex)
 }
 
 func (r *remoteAssetsPaginator) SearchAsset(key string) model.AssetList {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.search[0] = key
+	r.search = r.search[:0]
+	r.search = append(r.search, key)
 	r.currentPage = 1
 	r.currentOffset = 0
-	return r.retrievePageDta(1, r.search[0])
+	return r.retrievePageDta(1)
 }
 
-func (r *remoteAssetsPaginator) retrievePageDta(pageIndex int, search string) model.AssetList {
+func (r *remoteAssetsPaginator) SearchAgain(key string) model.AssetList {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.search = append(r.search, key)
+	r.currentPage = 1
+	r.currentOffset = 0
+	return r.retrievePageDta(1)
+}
+
+func (r *remoteAssetsPaginator) Name() string {
+	return "remote"
+}
+
+func (r *remoteAssetsPaginator) SearchKeys() []string {
+	return r.search
+}
+
+func (r *remoteAssetsPaginator) retrievePageDta(pageIndex int) model.AssetList {
 	offsetPage := pageIndex - r.currentPage
 	totalOffset := offsetPage * r.pageSize
 
@@ -161,7 +175,7 @@ func (r *remoteAssetsPaginator) retrievePageDta(pageIndex int, search string) mo
 	if r.pageSize == 0 || r.currentOffset < 0 || r.pageSize >= r.totalCount {
 		r.currentOffset = 0
 	}
-	res := service.GetUserAssets(r.user.ID, search, r.pageSize, r.currentOffset)
+	res := service.GetUserAssets(r.user.ID, r.pageSize, r.currentOffset, r.search...)
 
 	// update page info data,
 	r.totalCount = res.Total
@@ -210,10 +224,18 @@ type localAssetsPaginator struct {
 
 	currentOffset int
 
-	search [1]string
+	search []string
 	lock   *sync.RWMutex
 
 	currentResult model.AssetList
+}
+
+func (l *localAssetsPaginator) Name() string {
+	return "local"
+}
+
+func (l *localAssetsPaginator) SearchKeys() []string {
+	return l.search
 }
 
 func (l *localAssetsPaginator) HasPrev() bool {
@@ -274,11 +296,19 @@ func (l *localAssetsPaginator) RetrievePageData(pageIndex int) model.AssetList {
 func (l *localAssetsPaginator) SearchAsset(key string) model.AssetList {
 	l.lock.Lock()
 	defer l.lock.Unlock()
-	if key != "" {
-		l.currentData = searchFromLocalAssets(l.allData, key)
-	} else {
-		l.currentData = l.allData
-	}
+	l.search = l.search[:0]
+	l.search = append(l.search, key)
+	l.currentData = searchFromLocalAssets(l.allData, key)
+	l.currentPage = 1
+	l.currentOffset = 0
+	return l.retrievePageData(1)
+}
+
+func (l *localAssetsPaginator) SearchAgain(key string) model.AssetList {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+	l.currentData = searchFromLocalAssets(l.currentData, key)
+	l.search = append(l.search, key)
 	l.currentPage = 1
 	l.currentOffset = 0
 	return l.retrievePageData(1)
@@ -289,10 +319,13 @@ func (l *localAssetsPaginator) retrievePageData(pageIndex int) model.AssetList {
 	totalOffset := offsetPage * l.pageSize
 	l.currentOffset += totalOffset
 
-	if l.currentOffset <= 0 {
+	switch {
+	case l.currentOffset <= 0:
 		l.currentOffset = 0
-	} else if l.currentOffset >= len(l.currentData) {
+	case l.currentOffset >= len(l.currentData):
 		l.currentOffset = len(l.currentData)
+	case l.pageSize >= len(l.currentData):
+		l.currentOffset = 0
 	}
 
 	end := l.currentOffset + l.pageSize
@@ -331,6 +364,7 @@ type nodeAssetsPaginator struct {
 	pageSize    int
 	totalPage   int
 	totalCount  int
+	search      []string
 
 	lock *sync.RWMutex
 
@@ -339,6 +373,14 @@ type nodeAssetsPaginator struct {
 	preUrl        string
 	nextUrl       string
 	currentOffset int
+}
+
+func (n *nodeAssetsPaginator) Name() string {
+	return n.node.Name
+}
+
+func (n *nodeAssetsPaginator) SearchKeys() []string {
+	return n.search
 }
 
 func (n *nodeAssetsPaginator) HasPrev() bool {
@@ -403,9 +445,20 @@ func (n *nodeAssetsPaginator) RetrievePageData(pageIndex int) model.AssetList {
 func (n *nodeAssetsPaginator) SearchAsset(key string) model.AssetList {
 	n.lock.Lock()
 	defer n.lock.Unlock()
+	n.search = n.search[:0]
+	n.search = append(n.search, key)
 	n.currentPage = 1
 	n.currentOffset = 0
 	return n.RetrievePageData(1)
+}
+
+func (n *nodeAssetsPaginator) SearchAgain(key string) model.AssetList {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	n.search = append(n.search, key)
+	n.currentPage = 1
+	n.currentOffset = 0
+	return n.retrievePageData(1)
 }
 
 func (n *nodeAssetsPaginator) retrievePageData(pageIndex int) model.AssetList {
@@ -417,7 +470,9 @@ func (n *nodeAssetsPaginator) retrievePageData(pageIndex int) model.AssetList {
 	if n.pageSize == 0 || n.currentOffset < 0 || n.pageSize >= n.totalCount {
 		n.currentOffset = 0
 	}
-	res := service.GetUserNodePaginationAssets(n.user.ID, n.node.ID, n.pageSize, n.currentOffset)
+	res := service.GetUserNodePaginationAssets(n.user.ID, n.node.ID,
+		n.pageSize, n.currentOffset, n.search...)
+
 	n.totalCount = res.Total
 	n.nextUrl = res.NextURL
 	n.preUrl = res.PreviousURL

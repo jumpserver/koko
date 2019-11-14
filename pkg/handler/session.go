@@ -58,7 +58,6 @@ type interactiveHandler struct {
 	assetSelect      *model.Asset
 	systemUserSelect *model.SystemUser
 	nodes            model.NodeList
-	searchResult     []model.Asset
 
 	allAssets []model.Asset
 
@@ -310,4 +309,30 @@ func searchFromLocalAssets(assets model.AssetList, key string) []model.Asset {
 		}
 	}
 	return displayAssets
+}
+
+func getPageSize(term *utils.Terminal) int {
+	var (
+		pageSize  int
+		minHeight = 8 // 分页显示的最小高度
+
+	)
+	_, height := term.GetSize()
+	conf := config.GetConf()
+	switch conf.AssetListPageSize {
+	case "auto":
+		pageSize = height - minHeight
+	case "all":
+		return 0
+	default:
+		if value, err := strconv.Atoi(conf.AssetListPageSize); err == nil {
+			pageSize = value
+		} else {
+			pageSize = height - minHeight
+		}
+	}
+	if pageSize <= 0 {
+		pageSize = 1
+	}
+	return pageSize
 }
