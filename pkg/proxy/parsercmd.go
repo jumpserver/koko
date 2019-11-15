@@ -33,14 +33,29 @@ type CmdParser struct {
 }
 
 func (cp *CmdParser) WriteData(p []byte) (int, error) {
+	select {
+	case <-cp.closed:
+		return 0, io.EOF
+	default:
+	}
 	return cp.writer.Write(p)
 }
 
 func (cp *CmdParser) Write(p []byte) (int, error) {
+	select {
+	case <-cp.closed:
+		return 0, io.EOF
+	default:
+	}
 	return len(p), nil
 }
 
 func (cp *CmdParser) Read(p []byte) (int, error) {
+	select {
+	case <-cp.closed:
+		return 0, io.EOF
+	default:
+	}
 	return cp.reader.Read(p)
 }
 
@@ -51,6 +66,7 @@ func (cp *CmdParser) Close() error {
 	default:
 		close(cp.closed)
 	}
+	_ = cp.reader.Close()
 	return cp.writer.Close()
 }
 
@@ -94,7 +110,11 @@ func (cp *CmdParser) parsePS1(s string) string {
 
 // Parse 解析命令或输出
 func (cp *CmdParser) Parse() string {
-	cp.writer.Write([]byte("\r"))
+	select {
+	case <-cp.closed:
+	default:
+		cp.writer.Write([]byte("\r"))
+	}
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
 	output := strings.TrimSpace(strings.Join(cp.currentLines, "\r\n"))
