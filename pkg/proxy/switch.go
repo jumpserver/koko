@@ -152,10 +152,19 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	go LoopRead(srvConn, srvInChan)
 
 	winCh := userConn.WinCh()
+	maxIdleTime := s.MaxIdleTime * time.Minute
+	lastActiveTime := time.Now()
+	tick := time.NewTicker(30 * time.Second)
+	defer tick.Stop()
 	for {
 		select {
 		// 检测是否超过最大空闲时间
-		case <-time.After(s.MaxIdleTime * time.Minute):
+		case <-tick.C:
+			now := time.Now()
+			outTime := lastActiveTime.Add(maxIdleTime)
+			if !now.After(outTime) {
+				continue
+			}
 			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			logger.Debugf("Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
 			msg = utils.WrapperWarn(msg)
@@ -190,6 +199,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			}
 			_, err = srvConn.Write(p)
 		}
+		lastActiveTime = time.Now()
 	}
 }
 

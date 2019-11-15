@@ -60,6 +60,8 @@ func (c *CommandRecorder) record() {
 	maxRetry := 0
 	logger.Infof("Session %s: Command recorder start", c.sessionID)
 	defer logger.Infof("Session %s: Command recorder close", c.sessionID)
+	tick := time.NewTicker(time.Second * 10)
+	defer tick.Stop()
 	for {
 		select {
 		case <-c.closed:
@@ -74,7 +76,7 @@ func (c *CommandRecorder) record() {
 			if len(cmdList) < 5 {
 				continue
 			}
-		case <-time.After(time.Second * 5):
+		case <-tick.C:
 			if len(cmdList) == 0 {
 				continue
 			}

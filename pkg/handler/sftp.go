@@ -34,7 +34,7 @@ func SftpHandler(sess ssh.Session) {
 	logger.Infof("SFTP request %s: Handler start", reqID)
 	req := sftp.NewRequestServer(sess, handlers)
 	if err := req.Serve(); err == io.EOF {
-		logger.Debug("SFTP request %s: Exited session.", reqID)
+		logger.Debugf("SFTP request %s: Exited session.", reqID)
 	} else if err != nil {
 		logger.Errorf("SFTP request %s: Server completed with error %s", reqID, err)
 	}
@@ -82,7 +82,7 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	case "Setstat":
 		return
 	case "Rename":
-		logger.Debug("%s=>%s", r.Filepath, r.Target)
+		logger.Debugf("%s=>%s", r.Filepath, r.Target)
 		return fs.Rename(r.Filepath, r.Target)
 	case "Rmdir":
 		err = fs.RemoveDirectory(r.Filepath)
@@ -91,7 +91,7 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	case "Mkdir":
 		err = fs.MkdirAll(r.Filepath)
 	case "Symlink":
-		logger.Debug("%s=>%s", r.Filepath, r.Target)
+		logger.Debugf("%s=>%s", r.Filepath, r.Target)
 		err = fs.Symlink(r.Filepath, r.Target)
 	default:
 		return
