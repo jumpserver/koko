@@ -6,9 +6,10 @@ import (
 	"unicode/utf8"
 )
 
-func ParseTerminalData(p []byte) (lines []string) {
+func ParseTerminalData(p []byte) (lines []string, ok bool) {
 	c := bytes.NewReader(p)
 	pasteActive := false
+	ok = true
 	var line []rune
 	var pos int
 	var remainder []byte
@@ -69,9 +70,11 @@ func ParseTerminalData(p []byte) (lines []string) {
 			case keyUp:
 				line = []rune{}
 				pos = 0
+				ok = false
 			case keyDown:
 				line = []rune{}
 				pos = 0
+				ok = false
 			case keyEnter:
 				lines = append(lines, string(line))
 				line = line[:0]
@@ -96,6 +99,7 @@ func ParseTerminalData(p []byte) (lines []string) {
 			default:
 				if !isPrintable(key) {
 					fmt.Println("could not printable: ", []byte(string(key)), " ", key)
+					ok = false
 					continue
 				}
 				line, pos = AddKeyToLine(key, pos, line)
