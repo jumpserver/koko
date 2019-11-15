@@ -18,111 +18,113 @@ msgid "Welcome to use Jumpserver open source fortress system"
 msgstr "欢迎使用Jumpserver开源堡垒机系统"
 
 #. i18n.T
-#: pkg/handler/banner.go:49
+#: pkg/handler/banner.go:48
 msgid "part IP, Hostname, Comment"
 msgstr "部分IP、主机名、备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:49
+#: pkg/handler/banner.go:48
 #, fuzzy
 msgid "to search login if unique"
 msgstr "搜索登录(如果唯一)"
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 msgid "/ + IP, Hostname, Comment"
 msgstr "/ + IP，主机名 or 备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 #, fuzzy
 msgid "to search, such as: /192.168"
 msgstr "搜索，如：/192.168"
 
 #. i18n.T
-#: pkg/handler/banner.go:51
+#: pkg/handler/banner.go:50
 msgid "display the host you have permission"
 msgstr "显示您有权限的主机"
 
 #. i18n.T
-#: pkg/handler/banner.go:52
+#: pkg/handler/banner.go:51
 msgid "display the node that you have permission"
 msgstr "显示您有权限的节点"
 
 #. i18n.T
-#: pkg/handler/banner.go:53
+#: pkg/handler/banner.go:52
 msgid "refresh your assets and nodes"
 msgstr "刷新最新的机器和节点信息"
 
 #. i18n.T
-#: pkg/handler/banner.go:54
+#: pkg/handler/banner.go:53
 msgid "print help"
 msgstr "显示帮助"
 
 #. i18n.T
-#: pkg/handler/banner.go:55
+#: pkg/handler/banner.go:54
 msgid "exit"
 msgstr "退出"
 
 #. i18n.T
-#: pkg/handler/banner.go:90
+#: pkg/handler/banner.go:89
 msgid "ID"
 msgstr "ID"
 
 #. i18n.T
-#: pkg/handler/banner.go:91
+#: pkg/handler/banner.go:90
 msgid "hostname"
 msgstr "主机名"
 
 #. i18n.T
-#: pkg/handler/banner.go:92
+#: pkg/handler/banner.go:91
 msgid "IP"
 msgstr "IP"
 
 #. i18n.T
-#: pkg/handler/banner.go:93
+#: pkg/handler/banner.go:92
 msgid "comment"
 msgstr "备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:94
+#: pkg/handler/banner.go:93
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
 
 #. i18n.T
-#: pkg/handler/banner.go:95
+#: pkg/handler/banner.go:94
 msgid "No Assets"
 msgstr "没有资产"
 
 #. i18n.T
+#: pkg/handler/banner.go:95
+#, fuzzy
+msgid ""
+"Enter ID number directly login the asset, multiple search use // + field, "
+"such as: //16"
+msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
+
+#. i18n.T
 #: pkg/handler/banner.go:96
 #, fuzzy
-msgid "Enter ID number directly login the asset."
-msgstr "提示：输入资产ID，登录资产"
+msgid "Page up: b\tPage down: n"
+msgstr "上一页：b 下一页：n"
 
 #. i18n.T
 #: pkg/handler/banner.go:97
-#, fuzzy
-msgid "Page up: b\tPage down: Enter|n"
-msgstr "上一页：b  下一页：n"
-
-#. i18n.T
-#: pkg/handler/banner.go:98
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
 
 #. i18n.T
-#: pkg/handler/banner.go:99
+#: pkg/handler/banner.go:98
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
 
 #. i18n.T
-#: pkg/handler/banner.go:100
+#: pkg/handler/banner.go:99
 msgid "Refresh done"
 msgstr "刷新完成"
 
 #. i18n.T
-#: pkg/handler/banner.go:101
+#: pkg/handler/banner.go:100
 #, fuzzy
 msgid "Tips: Enter system user ID and directly login the asset [ %s(%s) ]"
 msgstr ""
@@ -130,28 +132,28 @@ msgstr ""
 "提示：输入系统用户ID，登录资产[ %s(%s) ]\n"
 
 #. i18n.T
-#: pkg/handler/banner.go:102
+#: pkg/handler/banner.go:101
 msgid "Back: B/b"
 msgstr "返回：B/b"
 
 #. i18n.T
-#: pkg/handler/banner.go:103
+#: pkg/handler/banner.go:102
 msgid "Name"
 msgstr "名称"
 
 #. i18n.T
-#: pkg/handler/banner.go:104
+#: pkg/handler/banner.go:103
 #, fuzzy
 msgid "Username"
 msgstr "用户名"
 
 #. i18n.T
-#: pkg/handler/banner.go:105
+#: pkg/handler/banner.go:104
 msgid "all"
 msgstr "所有"
 
 #. i18n.T
-#: pkg/handler/banner.go:106
+#: pkg/handler/banner.go:105
 #, fuzzy
 msgid "Search: %s"
 msgstr "搜索: %s"
