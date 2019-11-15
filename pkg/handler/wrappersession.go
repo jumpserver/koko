@@ -66,6 +66,9 @@ func (w *WrapperSession) Close() error {
 		return nil
 	default:
 	}
+	w.mux.Lock()
+	defer w.mux.Unlock()
+	_ = w.outReader.Close()
 	err := w.inWriter.Close()
 	w.initReadPip()
 	return err
@@ -76,8 +79,6 @@ func (w *WrapperSession) Write(p []byte) (int, error) {
 }
 
 func (w *WrapperSession) initReadPip() {
-	w.mux.Lock()
-	defer w.mux.Unlock()
 	w.outReader, w.inWriter = io.Pipe()
 }
 
