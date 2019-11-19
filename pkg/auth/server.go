@@ -18,7 +18,7 @@ var mfaInstruction = "Please enter 6 digits."
 var mfaQuestion = "[MFA auth]: "
 
 var confirmInstruction = "Please wait for your admin to confirm."
-var confirmQuestion = "[YES or NO]: "
+var confirmQuestion = "Do you want to continue [Y/n]? : "
 
 const (
 	actionAccepted        = "Accepted"
@@ -122,8 +122,10 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 				ctx.SetValue(model.ContextKeyUser, &user)
 				return
 			}
-		default:
+		case "no", "n":
 			client.CancelConfirm()
+		default:
+			return
 		}
 		failed := true
 		ctx.SetValue(model.ContextKeyConfirmFailed, &failed)
