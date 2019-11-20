@@ -38,7 +38,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 		logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
 		return
 	}
-	if resp != nil {
+	if resp != nil && resp.User != nil {
 		switch resp.User.OTPLevel {
 		case 0:
 			res = ssh.AuthSuccessful
