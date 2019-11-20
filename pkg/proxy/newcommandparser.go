@@ -8,8 +8,8 @@ import (
 )
 
 type commandInput struct {
-	readFromUserInput   bytes.Buffer
-	readFromServerInput bytes.Buffer
+	readFromUserInput   *bytes.Buffer
+	readFromServerInput *bytes.Buffer
 
 	isUserSideValid   bool
 	isServerSideValid bool
@@ -24,16 +24,18 @@ func (c *commandInput) readFromServer(p []byte) {
 }
 
 func (c *commandInput) Parse() string {
-	lines, ok := utils.ParseTerminalData(c.readFromUserInput.Bytes())
+	lines, ok := utils.ParseTerminalData([]byte(c.readFromUserInput.String()))
 
 	if ok {
 		fmt.Println("readFromUserInput lines: ", lines)
 		c.readFromUserInput.Reset()
 		c.readFromServerInput.Reset()
-		return strings.Join(lines, "\r\n")
+		result := strings.Join(lines, "\r\n")
+		fmt.Println("readFromUserInput result: ", result, len(result))
+		return result
 	}
 
-	lines, _ = utils.ParseTerminalData(c.readFromServerInput.Bytes())
+	lines, _ = utils.ParseTerminalData([]byte(c.readFromServerInput.String()))
 	fmt.Println("readFromServerInput lines: ", lines)
 	c.readFromUserInput.Reset()
 	c.readFromServerInput.Reset()
@@ -41,9 +43,7 @@ func (c *commandInput) Parse() string {
 }
 
 type commandOut struct {
-	readFromServerOut bytes.Buffer
-	isUserSideValid   bool
-	isServerSideValid bool
+	readFromServerOut *bytes.Buffer
 }
 
 func (c *commandOut) readFromServer(p []byte) {
@@ -51,8 +51,11 @@ func (c *commandOut) readFromServer(p []byte) {
 }
 
 func (c *commandOut) Parse() string {
-	lines, _ := utils.ParseTerminalData(c.readFromServerOut.Bytes())
+	lines, _ := utils.ParseTerminalData([]byte(c.readFromServerOut.String()))
 	c.readFromServerOut.Reset()
-	fmt.Println("commandOut: ", lines)
-	return strings.Join(lines, "\r\n")
+	result := strings.Join(lines, "\r\n")
+	fmt.Println("commandOut: ", result)
+	return result
 }
+
+

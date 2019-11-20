@@ -71,15 +71,13 @@ func (p *Parser) initial() {
 	//p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
 	//p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.cmdInputParser = &commandInput{
-		readFromUserInput:   bytes.Buffer{},
-		readFromServerInput: bytes.Buffer{},
+		readFromUserInput:   &bytes.Buffer{},
+		readFromServerInput: &bytes.Buffer{},
 		isUserSideValid:     false,
 		isServerSideValid:   false,
 	}
 	p.cmdOutputParser = &commandOut{
-		readFromServerOut: bytes.Buffer{},
-		isUserSideValid:   false,
-		isServerSideValid: false,
+		readFromServerOut: &bytes.Buffer{},
 	}
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan [2]string, 1024)
