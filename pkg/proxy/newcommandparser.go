@@ -24,18 +24,22 @@ func (c *commandInput) readFromServer(p []byte) {
 }
 
 func (c *commandInput) Parse() string {
-	lines, ok := utils.ParseTerminalData([]byte(c.readFromUserInput.String()))
+	//p := utils.NewTerminalParser()
 
-	if ok {
-		fmt.Println("readFromUserInput lines: ", lines)
-		c.readFromUserInput.Reset()
-		c.readFromServerInput.Reset()
-		result := strings.Join(lines, "\r\n")
-		fmt.Println("readFromUserInput result: ", result, len(result))
-		return result
-	}
-
-	lines, _ = utils.ParseTerminalData([]byte(c.readFromServerInput.String()))
+	//lines, ok := utils.ParseTerminalData([]byte(c.readFromUserInput.String()))
+	//lines, ok := p.ParseLines(c.readFromUserInput.Bytes())
+	//if ok {
+	//	fmt.Println("readFromUserInput lines: ", lines)
+	//	c.readFromUserInput.Reset()
+	//	c.readFromServerInput.Reset()
+	//	result := strings.Join(lines, "\r\n")
+	//	fmt.Println("readFromUserInput result: ", result, len(result))
+	//	return result
+	//}
+	p := utils.NewTerminalParser()
+	pb := c.readFromServerInput.Bytes()
+	fmt.Println(len(pb))
+	lines, _ := p.ParseLines(pb)
 	fmt.Println("readFromServerInput lines: ", lines)
 	c.readFromUserInput.Reset()
 	c.readFromServerInput.Reset()
@@ -51,11 +55,10 @@ func (c *commandOut) readFromServer(p []byte) {
 }
 
 func (c *commandOut) Parse() string {
-	lines, _ := utils.ParseTerminalData([]byte(c.readFromServerOut.String()))
+	p := utils.NewTerminalParser()
+	lines, _ := p.ParseLines(c.readFromServerOut.Bytes())
 	c.readFromServerOut.Reset()
 	result := strings.Join(lines, "\r\n")
 	fmt.Println("commandOut: ", result)
 	return result
 }
-
-

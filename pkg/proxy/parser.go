@@ -131,7 +131,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	}
 	p.inputPreState = p.inputState
 
-	p.cmdInputParser.readFromUser(b)
+	//p.cmdInputParser.readFromUser(b)
 
 	if bytes.Contains(b, charEnter) {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
