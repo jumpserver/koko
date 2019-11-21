@@ -122,14 +122,15 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 
 		userInChan chan []byte
 		srvInChan  chan []byte
+		done       chan struct{}
 	)
 
 	parser = newParser(s.ID)
 	replayRecorder = NewReplyRecord(s.ID)
 
-	userInChan = make(chan []byte, 10)
-	srvInChan = make(chan []byte, 10)
-
+	userInChan = make(chan []byte, 1)
+	srvInChan = make(chan []byte, 1)
+	done = make(chan struct{})
 	// 设置parser的命令过滤规则
 	parser.SetCMDFilterRules(s.cmdRules)
 
@@ -137,6 +138,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	userOutChan, srvOutChan := parser.ParseStream(userInChan, srvInChan)
 
 	defer func() {
+		close(done)
 		_ = userConn.Close()
 		_ = srvConn.Close()
 		// 关闭parser
@@ -148,9 +150,8 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 
 	// 记录命令
 	go s.recordCommand(parser.cmdRecordChan)
-	go LoopRead(userConn, userInChan)
-	go LoopRead(srvConn, srvInChan)
-
+	go s.LoopReadFromSrv(done, srvConn, srvInChan)
+	go s.LoopReadFromUser(done, userConn, userInChan)
 	winCh := userConn.WinCh()
 	maxIdleTime := s.MaxIdleTime * time.Minute
 	lastActiveTime := time.Now()
@@ -223,13 +224,27 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 	}
 }
 
-func LoopRead(read io.Reader, inChan chan<- []byte) {
-	defer logger.Debug("loop read end")
+func (s *SwitchSession) LoopReadFromUser(done chan struct{}, userConn UserConnection, inChan chan<- []byte) {
+	defer logger.Infof("Session %s: read from user done", s.ID)
+	s.LoopRead(done, userConn, inChan)
+}
+
+func (s *SwitchSession) LoopReadFromSrv(done chan struct{}, srvConn srvconn.ServerConnection, inChan chan<- []byte) {
+	defer logger.Infof("Session %s: read from srv done", s.ID)
+	s.LoopRead(done, srvConn, inChan)
+}
+
+func (s *SwitchSession) LoopRead(done chan struct{}, read io.Reader, inChan chan<- []byte) {
+loop:
 	for {
 		buf := make([]byte, 1024)
 		nr, err := read.Read(buf)
 		if nr > 0 {
-			inChan <- buf[:nr]
+			select {
+			case <-done:
+				break loop
+			case inChan <- buf[:nr]:
+			}
 		}
 		if err != nil {
 			break

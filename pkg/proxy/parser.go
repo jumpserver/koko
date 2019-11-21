@@ -99,13 +99,23 @@ func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvO
 					return
 				}
 				b = p.ParseUserInput(b)
-				p.userOutputChan <- b
+				select {
+				case <-p.closed:
+					return
+				case p.userOutputChan <- b:
+				}
+
 			case b, ok := <-srvInChan:
 				if !ok {
 					return
 				}
 				b = p.ParseServerOutput(b)
-				p.srvOutputChan <- b
+				select {
+				case <-p.closed:
+					return
+				case p.srvOutputChan <- b:
+				}
+
 			}
 		}
 	}()
