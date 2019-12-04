@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/sftp"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
@@ -20,10 +19,13 @@ import (
 )
 
 func SftpHandler(sess ssh.Session) {
-	ctx, cancel := cctx.NewContext(sess)
-	defer cancel()
+	currentUser, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
+	if !ok || currentUser.ID == "" {
+		logger.Errorf("SFTP User not found, exit.")
+		return
+	}
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	userSftp := NewSFTPHandler(ctx.User(), host)
+	userSftp := NewSFTPHandler(currentUser, host)
 	handlers := sftp.Handlers{
 		FileGet:  userSftp,
 		FilePut:  userSftp,
