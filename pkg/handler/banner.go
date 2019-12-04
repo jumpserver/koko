@@ -45,14 +45,13 @@ type Menu []MenuItem
 func Initial() {
 	defaultTitle = utils.WrapperTitle(i18n.T("Welcome to use Jumpserver open source fortress system"))
 	menu = Menu{
-		{id: 1, instruct: "ID", helpText: i18n.T("directly login")},
-		{id: 2, instruct: i18n.T("part IP, Hostname, Comment"), helpText: i18n.T("to search login if unique")},
-		{id: 3, instruct: i18n.T("/ + IP, Hostname, Comment"), helpText: i18n.T("to search, such as: /192.168")},
-		{id: 4, instruct: "p", helpText: i18n.T("display the host you have permission")},
-		{id: 5, instruct: "g", helpText: i18n.T("display the node that you have permission")},
-		{id: 6, instruct: "r", helpText: i18n.T("refresh your assets and nodes")},
-		{id: 7, instruct: "h", helpText: i18n.T("print help")},
-		{id: 8, instruct: "q", helpText: i18n.T("exit")},
+		{id: 1, instruct: i18n.T("part IP, Hostname, Comment"), helpText: i18n.T("to search login if unique")},
+		{id: 2, instruct: i18n.T("/ + IP, Hostname, Comment"), helpText: i18n.T("to search, such as: /192.168")},
+		{id: 3, instruct: "p", helpText: i18n.T("display the host you have permission")},
+		{id: 4, instruct: "g", helpText: i18n.T("display the node that you have permission")},
+		{id: 5, instruct: "r", helpText: i18n.T("refresh your assets and nodes")},
+		{id: 6, instruct: "h", helpText: i18n.T("print help")},
+		{id: 7, instruct: "q", helpText: i18n.T("exit")},
 	}
 }
 
@@ -93,8 +92,8 @@ func getI18nFromMap(name string) string {
 			"Comment":           i18n.T("comment"),
 			"AssetTableCaption": i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
 			"NoAssets":          i18n.T("No Assets"),
-			"LoginTip":          i18n.T("\nTips: Enter the asset ID and directly login the asset.\n"),
-			"PageActionTip":     i18n.T("\nPage up: P/p	Page down: Enter|N/n	BACK: b.\n"),
+			"LoginTip":          i18n.T("Enter ID number directly login the asset, multiple search use // + field, such as: //16"),
+			"PageActionTip":     i18n.T("Page up: b	Page down: n"),
 			"NodeHeaderTip":     i18n.T("Node: [ ID.Name(Asset amount) ]"),
 			"NodeEndTip":        i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1"),
 			"RefreshDone":       i18n.T("Refresh done"),
@@ -102,6 +101,8 @@ func getI18nFromMap(name string) string {
 			"BackTip":           i18n.T("Back: B/b"),
 			"Name":              i18n.T("Name"),
 			"Username":          i18n.T("Username"),
+			"All":               i18n.T("all"),
+			"SearchTip":         i18n.T("Search: %s"),
 		}
 	})
 	return i18nMap[name]

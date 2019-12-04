@@ -9,29 +9,50 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 )
 
-func GetUserAssets(userID, search string, pageSize, offset int) (resp model.AssetsPaginationResponse) {
+func GetUserAssets(userID string, pageSize, offset int, searches ...string) (resp model.AssetsPaginationResponse) {
 	if pageSize < 0 {
 		pageSize = 0
 	}
+	paramsArray := make([]map[string]string, 0, len(searches)+2)
+	for i := 0; i < len(searches); i++ {
+		paramsArray = append(paramsArray, map[string]string{
+			"search": url.QueryEscape(searches[i]),
+		})
+	}
 	params := map[string]string{
-		"search": url.QueryEscape(search),
 		"limit":  strconv.Itoa(pageSize),
 		"offset": strconv.Itoa(offset),
 	}
-
+	paramsArray = append(paramsArray, params)
 	Url := fmt.Sprintf(UserAssetsURL, userID)
 	var err error
 	if pageSize > 0 {
-		_, err = authClient.Get(Url, &resp, params)
+		_, err = authClient.Get(Url, &resp, paramsArray...)
 	} else {
 		var data model.AssetList
-		_, err = authClient.Get(Url, &data, params)
+		_, err = authClient.Get(Url, &data, paramsArray...)
 		resp.Data = data
+		resp.Total = len(data)
 	}
 	if err != nil {
 		logger.Error("Get user assets error: ", err)
 	}
 	return
+}
+
+func ForceRefreshUserPemAssets(userID string) error {
+	params := map[string]string{
+		"limit":  "1",
+		"offset": "0",
+		"cache":  "2",
+	}
+	Url := fmt.Sprintf(UserAssetsURL, userID)
+	var resp model.AssetsPaginationResponse
+	_, err := authClient.Get(Url, resp, params)
+	if err != nil {
+		logger.Errorf("Refresh user assets error: %s", err)
+	}
+	return err
 }
 
 func GetUserAllAssets(userID string) (assets []model.Asset) {
@@ -87,6 +108,38 @@ func GetUserNodeAssets(userID, nodeID, cachePolicy string) (assets model.AssetLi
 	if err != nil {
 		logger.Error("Get user node assets error: ", err)
 		return
+	}
+	return
+}
+
+func GetUserNodePaginationAssets(userID, nodeID string, pageSize, offset int, searches ...string) (resp model.AssetsPaginationResponse) {
+	if pageSize < 0 {
+		pageSize = 0
+	}
+	paramsArray := make([]map[string]string, 0, len(searches)+2)
+	for i := 0; i < len(searches); i++ {
+		paramsArray = append(paramsArray, map[string]string{
+			"search": url.QueryEscape(searches[i]),
+		})
+	}
+
+	params := map[string]string{
+		"limit":  strconv.Itoa(pageSize),
+		"offset": strconv.Itoa(offset),
+	}
+	paramsArray = append(paramsArray, params)
+	Url := fmt.Sprintf(UserNodeAssetsListURL, userID, nodeID)
+	var err error
+	if pageSize > 0 {
+		_, err = authClient.Get(Url, &resp, paramsArray...)
+	} else {
+		var data model.AssetList
+		_, err = authClient.Get(Url, &data, paramsArray...)
+		resp.Data = data
+		resp.Total = len(data)
+	}
+	if err != nil {
+		logger.Error("Get user node assets error: ", err)
 	}
 	return
 }

@@ -13,15 +13,12 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-var client = common.NewClient(30, "")
 var authClient = common.NewClient(30, "")
 
 func Initial(ctx context.Context) {
 	cf := config.GetConf()
 	keyPath := cf.AccessKeyFile
-	client.BaseHost = cf.CoreHost
 	authClient.BaseHost = cf.CoreHost
-	client.SetHeader("X-JMS-ORG", "ROOT")
 	authClient.SetHeader("X-JMS-ORG", "ROOT")
 
 	if !path.IsAbs(cf.AccessKeyFile) {

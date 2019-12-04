@@ -19,135 +19,138 @@ msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:48
-msgid "directly login"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:49
 msgid "part IP, Hostname, Comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:49
+#: pkg/handler/banner.go:48
 msgid "to search login if unique"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 msgid "/ + IP, Hostname, Comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 msgid "to search, such as: /192.168"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:51
+#: pkg/handler/banner.go:50
 msgid "display the host you have permission"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:52
+#: pkg/handler/banner.go:51
 msgid "display the node that you have permission"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:53
+#: pkg/handler/banner.go:52
 msgid "refresh your assets and nodes"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:54
+#: pkg/handler/banner.go:53
 msgid "print help"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:55
+#: pkg/handler/banner.go:54
 msgid "exit"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:90
+#: pkg/handler/banner.go:89
 msgid "ID"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:91
+#: pkg/handler/banner.go:90
 msgid "hostname"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:92
+#: pkg/handler/banner.go:91
 msgid "IP"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:93
+#: pkg/handler/banner.go:92
 msgid "comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:94
+#: pkg/handler/banner.go:93
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:95
+#: pkg/handler/banner.go:94
 msgid "No Assets"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:96
+#: pkg/handler/banner.go:95
 msgid ""
-"\n"
-"Tips: Enter the asset ID and directly login the asset.\n"
+"Enter ID number directly login the asset, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:96
+msgid "Page up: b\tPage down: n"
 msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:97
-msgid ""
-"\n"
-"Page up: P/p\tPage down: Enter|N/n\tBACK: b.\n"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:98
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:99
+#: pkg/handler/banner.go:98
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:100
+#: pkg/handler/banner.go:99
 msgid "Refresh done"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:101
+#: pkg/handler/banner.go:100
 msgid "Tips: Enter system user ID and directly login the asset [ %s(%s) ]"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:102
+#: pkg/handler/banner.go:101
 msgid "Back: B/b"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:103
+#: pkg/handler/banner.go:102
 msgid "Name"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:104
+#: pkg/handler/banner.go:103
 msgid "Username"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:131
+#: pkg/handler/banner.go:104
+msgid "all"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:105
+msgid "Search: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:130
 msgid "Command `%s` is forbidden"
 msgstr ""
 
@@ -178,11 +181,11 @@ msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:159
+#: pkg/proxy/switch.go:168
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:166
+#: pkg/proxy/switch.go:175
 msgid "Terminated by administrator"
 msgstr ""
