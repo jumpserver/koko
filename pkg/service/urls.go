@@ -43,4 +43,6 @@ const (
 const (
 	UserTokenAuthURL = "/api/v1/authentication/tokens/" // 用户登录验证
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
+
+	NodeTreeWithAssetURL = "/api/v1/perms/users/%s/nodes/children-with-assets/tree/" // 资产树
 )

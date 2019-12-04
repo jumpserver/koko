@@ -106,3 +106,11 @@ func PushFTPLog(data *model.FTPLog) (err error) {
 	}
 	return
 }
+
+func PushFTPLogs(data []*model.FTPLog) (err error) {
+	_, err = authClient.Post(FTPLogListURL, data, nil)
+	if err != nil {
+		logger.Error(err)
+	}
+	return
+}

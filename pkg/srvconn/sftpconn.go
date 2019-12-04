@@ -713,7 +713,7 @@ func (s *SftpConn) Close() {
 func NewFakeFile(name string, isDir bool) *FakeFileInfo {
 	return &FakeFileInfo{
 		name:    name,
-		modtime: time.Now().UTC(),
+		modTime: time.Now().UTC(),
 		isDir:   isDir,
 		size:    int64(0),
 	}
@@ -722,7 +722,7 @@ func NewFakeFile(name string, isDir bool) *FakeFileInfo {
 func NewFakeSymFile(name string) *FakeFileInfo {
 	return &FakeFileInfo{
 		name:    name,
-		modtime: time.Now().UTC(),
+		modTime: time.Now().UTC(),
 		size:    int64(0),
 		symlink: name,
 	}
@@ -732,7 +732,7 @@ type FakeFileInfo struct {
 	name    string
 	isDir   bool
 	size    int64
-	modtime time.Time
+	modTime time.Time
 	symlink string
 }
 
@@ -748,7 +748,7 @@ func (f *FakeFileInfo) Mode() os.FileMode {
 	}
 	return ret
 }
-func (f *FakeFileInfo) ModTime() time.Time { return f.modtime }
+func (f *FakeFileInfo) ModTime() time.Time { return f.modTime }
 func (f *FakeFileInfo) IsDir() bool        { return f.isDir }
 func (f *FakeFileInfo) Sys() interface{} {
 	return &syscall.Stat_t{Uid: 0, Gid: 0}

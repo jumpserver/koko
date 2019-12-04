@@ -14,7 +14,6 @@ import (
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -25,7 +24,7 @@ func SftpHandler(sess ssh.Session) {
 		return
 	}
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	userSftp := NewSFTPHandler(currentUser, host)
+	userSftp := NewSFTPNewHandler(currentUser, host)
 	handlers := sftp.Handlers{
 		FileGet:  userSftp,
 		FilePut:  userSftp,
@@ -45,13 +44,12 @@ func SftpHandler(sess ssh.Session) {
 	logger.Infof("SFTP request %s: Handler exit.", reqID)
 }
 
-func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
-	assets := service.GetUserAllAssets(user.ID)
-	return &sftpHandler{srvconn.NewUserSFTP(user, addr, assets...)}
+func NewSFTPNewHandler(user *model.User, addr string) *sftpHandler {
+	return &sftpHandler{srvconn.NewUserNewSftp(user, addr)}
 }
 
 type sftpHandler struct {
-	*srvconn.UserSftp
+	*srvconn.UserNewSftp
 }
 
 func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
@@ -122,7 +120,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 }
 
 func (fs *sftpHandler) Close() {
-	fs.UserSftp.Close()
+	fs.UserNewSftp.Close()
 }
 
 type listerat []os.FileInfo

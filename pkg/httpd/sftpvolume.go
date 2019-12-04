@@ -18,26 +18,27 @@ import (
 )
 
 func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
-	var assets []model.Asset
+	var userSftp *srvconn.UserNewSftp
 	homename := "Home"
 	basePath := "/"
 	switch hostId {
 	case "":
-		assets = service.GetUserAllAssets(user.ID)
+		userSftp = srvconn.NewUserNewSftp(user, addr)
 	default:
-		assets = service.GetUserAssetByID(user.ID, hostId)
+		assets := service.GetUserAssetByID(user.ID, hostId)
 		if len(assets) == 1 {
 			homename = assets[0].Hostname
 			if assets[0].OrgID != "" {
 				homename = fmt.Sprintf("%s.%s", assets[0].Hostname, assets[0].OrgName)
 			}
 			basePath = filepath.Join("/", homename)
+			userSftp = srvconn.NewUserNewSftpWithAsset(user, addr, assets[0])
 		}
 	}
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),
-		UserSftp:      srvconn.NewUserSFTP(user, addr, assets...),
+		UserSftp:      userSftp,
 		Homename:      homename,
 		basePath:      basePath,
 		chunkFilesMap: make(map[int]*sftp.File),
@@ -47,8 +48,8 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 }
 
 type UserVolume struct {
-	Uuid string
-	*srvconn.UserSftp
+	Uuid     string
+	UserSftp *srvconn.UserNewSftp
 	Homename string
 	basePath string
 
@@ -66,7 +67,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	if path == "/" {
 		return u.RootFileDir(), nil
 	}
-	originFileInfo, err := u.Stat(filepath.Join(u.basePath, path))
+	originFileInfo, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
