@@ -45,7 +45,7 @@ func SftpHandler(sess ssh.Session) {
 }
 
 func NewSFTPNewHandler(user *model.User, addr string) *sftpHandler {
-	return &sftpHandler{srvconn.NewUserNewSftp(user, addr)}
+	return &sftpHandler{srvconn.NewUserSftpConn(user, addr)}
 }
 
 type sftpHandler struct {

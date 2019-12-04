@@ -265,7 +265,7 @@ func (u *UserSftpConn) initial() {
 		case "node":
 			node, err := model.ConvertMetaToNode(body)
 			if err != nil {
-				logger.Errorf("convert node err: %s", err)
+				logger.Errorf("convert to node err: %s", err)
 				continue
 			}
 			nodeDir := NewNodeDir(node)
@@ -285,7 +285,7 @@ func (u *UserSftpConn) initial() {
 		case "asset":
 			asset, err := model.ConvertMetaToAsset(body)
 			if err != nil {
-				logger.Errorf("convert asset err: %s", err)
+				logger.Errorf("convert to asset err: %s", err)
 				continue
 			}
 			if !asset.IsSupportProtocol("ssh") {
@@ -309,8 +309,9 @@ func (u *UserSftpConn) initial() {
 
 }
 
-func (u *UserSftpConn) LoopPushFTPLog() {
+func (u *UserSftpConn) loopPushFTPLog() {
 	ftpLogList := make([]*model.FTPLog, 0, 1024)
+	maxRetry := 0
 	var err error
 	tick := time.NewTicker(time.Second * 20)
 	defer tick.Stop()
@@ -320,37 +321,35 @@ func (u *UserSftpConn) LoopPushFTPLog() {
 			if len(ftpLogList) == 0 {
 				return
 			}
-			data := ftpLogList[len(ftpLogList)-1]
-			err = service.PushFTPLog(data)
-			if err != nil {
-				logger.Errorf("Create FTP log err: %s", err.Error())
-			}
-			ftpLogList = ftpLogList[:len(ftpLogList)-1]
 		case <-tick.C:
 			if len(ftpLogList) == 0 {
 				continue
-			}
-			data := ftpLogList[len(ftpLogList)-1]
-			err = service.PushFTPLog(data)
-			if err == nil {
-				ftpLogList = ftpLogList[:len(ftpLogList)-1]
-			} else {
-				logger.Errorf("Create FTP log err: %s", err.Error())
 			}
 		case logData, ok := <-u.logChan:
 			if !ok {
 				return
 			}
-			err = service.PushFTPLog(logData)
-			if err != nil {
-				logger.Errorf("Create FTP log err: %s", err.Error())
-				ftpLogList = append(ftpLogList, logData)
-			}
+			ftpLogList = append(ftpLogList, logData)
 		}
+
+		data := ftpLogList[len(ftpLogList)-1]
+		err = service.PushFTPLog(data)
+		if err == nil {
+			ftpLogList = ftpLogList[:len(ftpLogList)-1]
+			maxRetry = 0
+			continue
+		} else {
+			logger.Errorf("Create FTP log err: %s", err.Error())
+		}
+
+		if maxRetry > 5 {
+			ftpLogList = ftpLogList[1:]
+		}
+		maxRetry++
 	}
 }
 
-func NewUserNewSftp(user *model.User, addr string) *UserSftpConn {
+func NewUserSftpConn(user *model.User, addr string) *UserSftpConn {
 	u := UserSftpConn{
 		User:     user,
 		Addr:     addr,
@@ -360,11 +359,11 @@ func NewUserNewSftp(user *model.User, addr string) *UserSftpConn {
 		closed:   make(chan struct{}),
 	}
 	u.initial()
-	go u.LoopPushFTPLog()
+	go u.loopPushFTPLog()
 	return &u
 }
 
-func NewUserNewSftpWithAsset(user *model.User, addr string, assets ...model.Asset) *UserSftpConn {
+func NewUserSftpConnWithAssets(user *model.User, addr string, assets ...model.Asset) *UserSftpConn {
 	u := UserSftpConn{
 		User:     user,
 		Addr:     addr,
@@ -390,6 +389,6 @@ func NewUserNewSftpWithAsset(user *model.User, addr string, assets ...model.Asse
 			u.Dirs[assetDir.folderName] = &assetDir
 		}
 	}
-	go u.LoopPushFTPLog()
+	go u.loopPushFTPLog()
 	return &u
 }

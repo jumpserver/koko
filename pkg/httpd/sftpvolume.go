@@ -23,7 +23,7 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 	basePath := "/"
 	switch hostId {
 	case "":
-		userSftp = srvconn.NewUserNewSftp(user, addr)
+		userSftp = srvconn.NewUserSftpConn(user, addr)
 	default:
 		assets := service.GetUserAssetByID(user.ID, hostId)
 		if len(assets) == 1 {
@@ -33,7 +33,7 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 			}
 			basePath = filepath.Join("/", homename)
 		}
-		userSftp = srvconn.NewUserNewSftpWithAsset(user, addr, assets...)
+		userSftp = srvconn.NewUserSftpConnWithAssets(user, addr, assets...)
 	}
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
