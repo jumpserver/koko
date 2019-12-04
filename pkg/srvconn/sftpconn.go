@@ -1,763 +1,395 @@
 package srvconn
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/pkg/sftp"
 
-	"github.com/jumpserver/koko/pkg/common"
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
 )
 
-func NewUserSFTP(user *model.User, addr string, assets ...model.Asset) *UserSftp {
-	u := UserSftp{
-		User: user, Addr: addr,
-	}
-	u.initial(assets)
-	return &u
-}
-
-type UserSftp struct {
+type UserSftpConn struct {
 	User *model.User
 	Addr string
+	Dirs map[string]os.FileInfo
 
-	RootPath        string
-	ShowHidden      bool
-	ReuseConnection bool
-	Overtime        time.Duration
-	hosts           map[string]*HostnameDir // key hostname or hostname.orgName
-	sftpClients     map[string]*SftpConn    //  key %s@%s suName hostName
+	modeTime time.Time
+	logChan  chan *model.FTPLog
 
-	LogChan chan *model.FTPLog
+	closed chan struct{}
 }
 
-func (u *UserSftp) initial(assets []model.Asset) {
-	conf := config.GetConf()
-	u.RootPath = conf.SftpRoot
-	u.ShowHidden = conf.ShowHiddenFile
-	u.ReuseConnection = conf.ReuseConnection
-	u.Overtime = conf.SSHTimeout * time.Second
-	u.hosts = make(map[string]*HostnameDir)
-	u.sftpClients = make(map[string]*SftpConn)
-	u.LogChan = make(chan *model.FTPLog, 10)
-	for i := 0; i < len(assets); i++ {
-		if !assets[i].IsSupportProtocol("ssh") {
+func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
+	fi, restPath := u.ParsePath(path)
+	if rootDir, ok := fi.(*UserSftpConn); ok {
+		return rootDir.List()
+	}
+
+	if nodeDir, ok := fi.(*NodeDir); ok {
+		return nodeDir.List()
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.ReadDir(restPath)
+	}
+
+	return nil, sftp.ErrSSHFxNoSuchFile
+}
+
+func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
+	fi, restPath := u.ParsePath(path)
+	if rootDir, ok := fi.(*UserSftpConn); ok {
+		return rootDir, nil
+	}
+
+	if nodeDir, ok := fi.(*NodeDir); ok {
+		return nodeDir, nil
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.Stat(restPath)
+	}
+
+	return nil, sftp.ErrSSHFxNoSuchFile
+}
+
+func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
+		return "", sftp.ErrSshFxOpUnsupported
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return "", sftp.ErrSshFxOpUnsupported
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.ReadLink(restPath)
+	}
+
+	return "", sftp.ErrSshFxOpUnsupported
+}
+
+func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
+	oldFi, oldRestPath := u.ParsePath(oldNamePath)
+	newFi, newRestPath := u.ParsePath(newNamePath)
+	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
+		if newAssetDir, newOk := newFi.(*AssetDir); newOk {
+			if oldAssetDir == newAssetDir {
+				return oldAssetDir.Rename(oldRestPath, newRestPath)
+			}
+		}
+
+	}
+	return sftp.ErrSshFxOpUnsupported
+}
+
+func (u *UserSftpConn) RemoveDirectory(path string) (err error) {
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
+		return sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.RemoveDirectory(restPath)
+	}
+	return sftp.ErrSshFxPermissionDenied
+}
+
+func (u *UserSftpConn) Remove(path string) (err error) {
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
+		return sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.Remove(restPath)
+	}
+	return sftp.ErrSshFxPermissionDenied
+}
+
+func (u *UserSftpConn) MkdirAll(path string) (err error) {
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
+		return sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.MkdirAll(restPath)
+	}
+	return sftp.ErrSshFxPermissionDenied
+}
+
+func (u *UserSftpConn) Symlink(oldNamePath, newNamePath string) (err error) {
+	oldFi, oldRestPath := u.ParsePath(oldNamePath)
+	newFi, newRestPath := u.ParsePath(newNamePath)
+	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
+		if newAssetDir, newOk := newFi.(*AssetDir); newOk {
+			if oldAssetDir == newAssetDir {
+				return oldAssetDir.Symlink(oldRestPath, newRestPath)
+			}
+		}
+	}
+	return sftp.ErrSshFxPermissionDenied
+}
+
+func (u *UserSftpConn) Create(path string) (*sftp.File, error) {
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.Create(restPath)
+	}
+
+	return nil, sftp.ErrSshFxPermissionDenied
+}
+
+func (u *UserSftpConn) Open(path string) (*sftp.File, error) {
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.Open(restPath)
+	}
+
+	return nil, sftp.ErrSshFxPermissionDenied
+}
+
+func (u *UserSftpConn) Close() {
+	for _, dir := range u.Dirs {
+		if nodeDir, ok := dir.(*NodeDir); ok {
+			nodeDir.close()
 			continue
 		}
-		key := assets[i].Hostname
-		if assets[i].OrgID != "" {
-			key = fmt.Sprintf("%s.%s", assets[i].Hostname, assets[i].OrgName)
-		}
-		u.hosts[key] = NewHostnameDir(&assets[i])
-	}
-
-	go u.LoopPushFTPLog()
-}
-
-func (u *UserSftp) ReadDir(path string) (res []os.FileInfo, err error) {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return u.RootDirInfo()
-	}
-
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return res, sftp.ErrSshFxNoSuchFile
-	}
-
-	if req.su == "" {
-		for _, su := range host.GetSystemUsers() {
-			res = append(res, NewFakeFile(su.Name, true))
-		}
-		return
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return res, sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.ConnectAction) {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-	logger.Debug("inter sftp read dir real path: ", realPath)
-	res, err = conn.client.ReadDir(realPath)
-	if !u.ShowHidden {
-		noHiddenFiles := make([]os.FileInfo, 0, len(res))
-		for i := 0; i < len(res); i++ {
-			if !strings.HasPrefix(res[i].Name(), ".") {
-				noHiddenFiles = append(noHiddenFiles, res[i])
-			}
-		}
-		return noHiddenFiles, err
-	}
-	return res, err
-}
-
-func (u *UserSftp) Stat(path string) (res os.FileInfo, err error) {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return u.Info()
-	}
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return res, sftp.ErrSshFxNoSuchFile
-	}
-
-	if req.su == "" {
-		res = NewFakeFile(req.host, true)
-		return
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return res, sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.ConnectAction) {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-	return conn.client.Stat(realPath)
-}
-
-func (u *UserSftp) ReadLink(path string) (res string, err error) {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-
-	if req.su == "" {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return res, sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.ConnectAction) {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
-	return conn.client.ReadLink(realPath)
-}
-
-func (u *UserSftp) RemoveDirectory(path string) error {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	if req.su == "" {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return sftp.ErrSshFxNoSuchFile
-	}
-
-	if !u.validatePermission(su, model.UploadAction) {
-		return sftp.ErrSshFxPermissionDenied
-	}
-
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	err := u.removeDirectoryAll(conn.client, realPath)
-	filename := realPath
-	isSuccess := false
-	operate := model.OperateRemoveDir
-	if err == nil {
-		isSuccess = true
-	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
-	return err
-}
-
-func (u *UserSftp) removeDirectoryAll(conn *sftp.Client, path string) error {
-	var err error
-	var files []os.FileInfo
-	files, err = conn.ReadDir(path)
-	if err != nil {
-		return err
-	}
-	for _, item := range files {
-		realPath := filepath.Join(path, item.Name())
-
-		if item.IsDir() {
-			err = u.removeDirectoryAll(conn, realPath)
-			if err != nil {
-				return err
-			}
+		if assetDir, ok := dir.(*AssetDir); ok {
+			assetDir.close()
 			continue
 		}
-		err = conn.Remove(realPath)
-		if err != nil {
-			return err
-		}
 	}
-	return conn.RemoveDirectory(path)
+	close(u.closed)
 }
 
-func (u *UserSftp) Remove(path string) error {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	if req.su == "" {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.UploadAction) {
-		return sftp.ErrSshFxPermissionDenied
-	}
-
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	logger.Debug("remove file path", realPath)
-	err := conn.client.Remove(realPath)
-	filename := realPath
-	isSuccess := false
-	operate := model.OperateDelete
-	if err == nil {
-		isSuccess = true
-	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
-	return err
+func (u *UserSftpConn) Name() string {
+	return "/"
 }
 
-func (u *UserSftp) MkdirAll(path string) error {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	if req.su == "" {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.UploadAction) {
-		return sftp.ErrSshFxPermissionDenied
-	}
+func (u *UserSftpConn) Size() int64 { return 0 }
 
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	err := conn.client.MkdirAll(realPath)
-
-	filename := realPath
-	isSuccess := false
-	operate := model.OperateMkdir
-	if err == nil {
-		isSuccess = true
-	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
-	return err
+func (u *UserSftpConn) Mode() os.FileMode {
+	return os.ModePerm | os.ModeDir
 }
 
-func (u *UserSftp) Rename(oldNamePath, newNamePath string) error {
-	req1 := u.ParsePath(oldNamePath)
-	req2 := u.ParsePath(newNamePath)
-	if req1.host == "" || req2.host == "" || req1.su == "" || req2.su == "" {
-		return sftp.ErrSshFxPermissionDenied
-	} else if req1.host != req2.host || req1.su != req2.su {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req1.host]
-	if !ok {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req1.su]
-	if !ok {
-		return sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.UploadAction) {
-		return sftp.ErrSshFxPermissionDenied
-	}
+func (u *UserSftpConn) ModTime() time.Time { return u.modeTime }
 
-	conn1, oldRealPath := u.GetSFTPAndRealPath(req1)
-	conn2, newRealPath := u.GetSFTPAndRealPath(req2)
-	if conn1 != conn2 {
-		return sftp.ErrSshFxOpUnsupported
-	}
+func (u *UserSftpConn) IsDir() bool { return true }
 
-	err := conn1.client.Rename(oldRealPath, newRealPath)
-	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
-	isSuccess := false
-	operate := model.OperateRename
-	if err == nil {
-		isSuccess = true
-	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
-	return err
-}
-
-func (u *UserSftp) Symlink(oldNamePath, newNamePath string) error {
-	req1 := u.ParsePath(oldNamePath)
-	req2 := u.ParsePath(newNamePath)
-	if req1.host == "" || req2.host == "" || req1.su == "" || req2.su == "" {
-		return sftp.ErrSshFxPermissionDenied
-	} else if req1.host != req2.host || req1.su != req2.su {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req1.host]
-	if !ok {
-		return sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req1.su]
-	if !ok {
-		return sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.UploadAction) {
-		return sftp.ErrSshFxPermissionDenied
-	}
-
-	conn1, oldRealPath := u.GetSFTPAndRealPath(req1)
-	conn2, newRealPath := u.GetSFTPAndRealPath(req2)
-	if conn1 != conn2 {
-		return sftp.ErrSshFxOpUnsupported
-	}
-	err := conn1.client.Symlink(oldRealPath, newRealPath)
-
-	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
-	isSuccess := false
-	operate := model.OperateSymlink
-	if err == nil {
-		isSuccess = true
-	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
-	return err
-}
-
-func (u *UserSftp) Create(path string) (*sftp.File, error) {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	if req.su == "" {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return nil, sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.UploadAction) {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	logger.Debug("create path:", realPath)
-	sf, err := conn.client.Create(realPath)
-	filename := realPath
-	isSuccess := false
-	operate := model.OperateUpload
-	if err == nil {
-		isSuccess = true
-	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
-	return sf, err
-}
-
-func (u *UserSftp) Open(path string) (*sftp.File, error) {
-	req := u.ParsePath(path)
-	if req.host == "" {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	host, ok := u.hosts[req.host]
-	if !ok {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	if req.su == "" {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	host.loadSystemUsers(u.User.ID)
-	su, ok := host.suMaps[req.su]
-	if !ok {
-		return nil, sftp.ErrSshFxNoSuchFile
-	}
-	if !u.validatePermission(su, model.DownloadAction) {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	conn, realPath := u.GetSFTPAndRealPath(req)
-	if conn == nil {
-		return nil, sftp.ErrSshFxPermissionDenied
-	}
-	logger.Debug("Open path:", realPath)
-	sf, err := conn.client.Open(realPath)
-	filename := realPath
-	isSuccess := false
-	operate := model.OperateDownaload
-	if err == nil {
-		isSuccess = true
-	}
-	u.CreateFTPLog(host.asset, su, operate, filename, isSuccess)
-	return sf, err
-}
-
-func (u *UserSftp) Info() (os.FileInfo, error) {
-	return NewFakeFile("/", true), nil
-}
-
-func (u *UserSftp) RootDirInfo() ([]os.FileInfo, error) {
-	hostDirs := make([]os.FileInfo, 0, len(u.hosts))
-	for key := range u.hosts {
-		hostDirs = append(hostDirs, NewFakeFile(key, true))
-	}
-	sort.Sort(FileInfoList(hostDirs))
-	return hostDirs, nil
-}
-
-func (u *UserSftp) ParsePath(path string) (req requestMessage) {
-	data := strings.Split(strings.TrimPrefix(path, "/"), "/")
-	if len(data) == 0 {
-		return
-	}
-	host, pathArray := data[0], data[1:]
-	req.host = host
-	if suName, unique := u.HostHasUniqueSu(host); unique {
-		req.suUnique = true
-		req.su = suName
-	} else {
-		if len(pathArray) == 0 {
-			req.su = ""
-		} else {
-			req.su, pathArray = pathArray[0], pathArray[1:]
-		}
-	}
-	req.dpath = strings.Join(pathArray, "/")
-	return
-}
-
-func (u *UserSftp) GetSFTPAndRealPath(req requestMessage) (conn *SftpConn, realPath string) {
-	if host, ok := u.hosts[req.host]; ok {
-		if su, ok := host.suMaps[req.su]; ok {
-			key := fmt.Sprintf("%s@%s", su.Name, req.host)
-			conn, ok := u.sftpClients[key]
-			if !ok {
-				var err error
-				conn, err = u.GetSftpClient(host.asset, su)
-				if err != nil {
-					logger.Info("Get Sftp Client err: ", err.Error())
-					return nil, ""
-				}
-				u.sftpClients[key] = conn
-			}
-
-			switch strings.ToLower(u.RootPath) {
-			case "home", "~", "":
-				realPath = filepath.Join(conn.HomeDirPath, strings.TrimPrefix(req.dpath, "/"))
-			default:
-				realPath = filepath.Join(u.RootPath, strings.TrimPrefix(req.dpath, "/"))
-			}
-			return conn, realPath
-		}
-	}
-	return
-}
-
-func (u *UserSftp) HostHasUniqueSu(hostKey string) (string, bool) {
-	if host, ok := u.hosts[hostKey]; ok {
-		host.loadSystemUsers(u.User.ID)
-		return host.HasUniqueSu()
-	}
-	return "", false
-}
-
-func (u *UserSftp) validatePermission(su *model.SystemUser, action string) bool {
-	for _, pemAction := range su.Actions {
-		if pemAction == action || pemAction == model.AllAction {
-			return true
-		}
-	}
-	return false
-}
-
-func (u *UserSftp) CreateFTPLog(asset *model.Asset, su *model.SystemUser, operate, filename string, isSuccess bool) {
-	data := model.FTPLog{
-		User:       fmt.Sprintf("%s (%s)", u.User.Name, u.User.Username),
-		Hostname:   asset.Hostname,
-		OrgID:      asset.OrgID,
-		SystemUser: su.Name,
-		RemoteAddr: u.Addr,
-		Operate:    operate,
-		Path:       filename,
-		DataStart:  common.CurrentUTCTime(),
-		IsSuccess:  isSuccess,
-	}
-	u.LogChan <- &data
-}
-
-func (u *UserSftp) LoopPushFTPLog() {
-	ftpLogList := make([]*model.FTPLog, 0, 1024)
-	dataChan := make(chan *model.FTPLog)
-	go u.SendFTPLog(dataChan)
-	defer close(dataChan)
-
-	tick := time.NewTicker(time.Second * 10)
-	defer tick.Stop()
-	for {
-		select {
-		case <-tick.C:
-		case logData, ok := <-u.LogChan:
-			if !ok {
-				return
-			}
-			ftpLogList = append(ftpLogList, logData)
-		}
-
-		if len(ftpLogList) > 0 {
-			select {
-			case dataChan <- ftpLogList[len(ftpLogList)-1]:
-				ftpLogList = ftpLogList[:len(ftpLogList)-1]
-			default:
-			}
-		}
-	}
-}
-
-func (u *UserSftp) SendFTPLog(dataChan <-chan *model.FTPLog) {
-	for data := range dataChan {
-		for i := 0; i < 4; i++ {
-			err := service.PushFTPLog(data)
-			if err == nil {
-				break
-			}
-			logger.Errorf("Create FTP log err: %s", err.Error())
-		}
-	}
-}
-
-func (u *UserSftp) GetSftpClient(asset *model.Asset, sysUser *model.SystemUser) (conn *SftpConn, err error) {
-	var (
-		sshClient *SSHClient
-		ok        bool
-	)
-
-	if u.ReuseConnection {
-		key := MakeReuseSSHClientKey(u.User, asset, sysUser)
-		switch sysUser.Username {
-		case "":
-			sshClient, ok = searchSSHClientFromCache(key)
-			if ok {
-				sysUser.Username = sshClient.username
-			}
-		default:
-			sshClient, ok = GetClientFromCache(key)
-		}
-
-		if !ok {
-			sshClient, err = NewClient(u.User, asset, sysUser, u.Overtime, u.ReuseConnection)
-			if err != nil {
-				logger.Errorf("Get new SSH client err: %s", err)
-				return
-			}
-		} else {
-			logger.Infof("Reuse connection for SFTP: %s->%s@%s. SSH client %p current ref: %d",
-				u.User.Username, sshClient.username, asset.IP, sshClient, sshClient.RefCount())
-		}
-
-	} else {
-		sshClient, err = NewClient(u.User, asset, sysUser, u.Overtime, u.ReuseConnection)
-		if err != nil {
-			logger.Errorf("Get new SSH client err: %s", err)
-			return
-		}
-	}
-
-	sftpClient, err := sftp.NewClient(sshClient.client)
-	if err != nil {
-		logger.Errorf("SSH client %p start sftp client session err %s", sshClient, err)
-		RecycleClient(sshClient)
-		return nil, err
-	}
-
-	HomeDirPath, err := sftpClient.Getwd()
-	if err != nil {
-		logger.Errorf("SSH client %p get home dir err %s", sshClient, err)
-		_ = sftpClient.Close()
-		RecycleClient(sshClient)
-		return nil, err
-	}
-	logger.Infof("SSH client %p start sftp client session success", sshClient)
-	conn = &SftpConn{client: sftpClient, conn: sshClient, HomeDirPath: HomeDirPath}
-	return conn, err
-}
-
-func (u *UserSftp) Close() {
-	for _, client := range u.sftpClients {
-		if client == nil {
-			continue
-		}
-		client.Close()
-	}
-	close(u.LogChan)
-}
-
-type requestMessage struct {
-	host     string
-	su       string
-	dpath    string
-	suUnique bool
-}
-
-func NewHostnameDir(asset *model.Asset) *HostnameDir {
-	h := HostnameDir{asset: asset}
-	return &h
-}
-
-type HostnameDir struct {
-	asset  *model.Asset
-	suMaps map[string]*model.SystemUser
-}
-
-func (h *HostnameDir) loadSystemUsers(userID string) {
-	if h.suMaps == nil {
-		sus := make(map[string]*model.SystemUser)
-		SystemUsers := service.GetUserAssetSystemUsers(userID, h.asset.ID)
-		for i := 0; i < len(SystemUsers); i++ {
-			if SystemUsers[i].Protocol == "ssh" {
-				sus[SystemUsers[i].Name] = &SystemUsers[i]
-			}
-		}
-		h.suMaps = sus
-	}
-}
-
-func (h *HostnameDir) HasUniqueSu() (string, bool) {
-	sus := h.GetSystemUsers()
-	if len(sus) == 1 {
-		return sus[0].Name, true
-	}
-	return "", false
-}
-
-func (h *HostnameDir) GetSystemUsers() (sus []model.SystemUser) {
-	sus = make([] model.SystemUser, 0, len(h.suMaps))
-	for _, item := range h.suMaps {
-		sus = append(sus, *item)
-	}
-	model.SortSystemUserByPriority(sus)
-	return sus
-}
-
-type SftpConn struct {
-	HomeDirPath string
-	client      *sftp.Client
-	conn        *SSHClient
-}
-
-func (s *SftpConn) Close() {
-	if s.client == nil {
-		return
-	}
-	_ = s.client.Close()
-	RecycleClient(s.conn)
-}
-
-func NewFakeFile(name string, isDir bool) *FakeFileInfo {
-	return &FakeFileInfo{
-		name:    name,
-		modTime: time.Now().UTC(),
-		isDir:   isDir,
-		size:    int64(0),
-	}
-}
-
-func NewFakeSymFile(name string) *FakeFileInfo {
-	return &FakeFileInfo{
-		name:    name,
-		modTime: time.Now().UTC(),
-		size:    int64(0),
-		symlink: name,
-	}
-}
-
-type FakeFileInfo struct {
-	name    string
-	isDir   bool
-	size    int64
-	modTime time.Time
-	symlink string
-}
-
-func (f *FakeFileInfo) Name() string { return f.name }
-func (f *FakeFileInfo) Size() int64  { return f.size }
-func (f *FakeFileInfo) Mode() os.FileMode {
-	ret := os.FileMode(0644)
-	if f.isDir {
-		ret = os.FileMode(0755) | os.ModeDir
-	}
-	if f.symlink != "" {
-		ret = os.FileMode(0777) | os.ModeSymlink
-	}
-	return ret
-}
-func (f *FakeFileInfo) ModTime() time.Time { return f.modTime }
-func (f *FakeFileInfo) IsDir() bool        { return f.isDir }
-func (f *FakeFileInfo) Sys() interface{} {
+func (u *UserSftpConn) Sys() interface{} {
 	return &syscall.Stat_t{Uid: 0, Gid: 0}
 }
 
-type FileInfoList []os.FileInfo
-
-func (fl FileInfoList) Len() int {
-	return len(fl)
+func (u *UserSftpConn) List() (res []os.FileInfo, err error) {
+	for _, item := range u.Dirs {
+		res = append(res, item)
+	}
+	return
 }
-func (fl FileInfoList) Swap(i, j int)      { fl[i], fl[j] = fl[j], fl[i] }
-func (fl FileInfoList) Less(i, j int) bool { return fl[i].Name() < fl[j].Name() }
+
+func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) {
+	path = strings.TrimPrefix(path, "/")
+	data := strings.Split(path, "/")
+	if len(data) == 1 && data[0] == "" {
+		fi = u
+		return
+	}
+	dirs := u.Dirs
+	var ok bool
+	for i := 0; i < len(data); i++ {
+		fi, ok = dirs[data[i]]
+		if !ok {
+			restPath = strings.Join(data[i+1:], "/")
+			break
+		}
+		if nodeDir, ok := fi.(*NodeDir); ok {
+			nodeDir.loadNodeAsset(u)
+			dirs = nodeDir.subDirs
+			continue
+		}
+		if assetDir, ok := fi.(*AssetDir); ok {
+			assetDir.loadSystemUsers()
+			restPath = strings.Join(data[i+1:], "/")
+			break
+		}
+	}
+	return
+}
+
+func (u *UserSftpConn) initial() {
+	nodeTrees := service.GetUserNodeTreeWithAsset(u.User.ID, "", "")
+	if u.Dirs == nil {
+		u.Dirs = map[string]os.FileInfo{}
+	}
+	for _, item := range nodeTrees {
+		typeName, ok := item.Meta["type"].(string)
+		if !ok {
+			continue
+		}
+		body, err := json.Marshal(item.Meta[typeName])
+		if err != nil {
+			logger.Errorf("Json Marshal err: %s", err)
+			continue
+		}
+		switch typeName {
+		case "node":
+			node, err := model.ConvertMetaToNode(body)
+			if err != nil {
+				logger.Errorf("convert node err: %s", err)
+				continue
+			}
+			nodeDir := NewNodeDir(node)
+			folderName := nodeDir.folderName
+			for {
+				_, ok := u.Dirs[folderName]
+				if !ok {
+					break
+				}
+				folderName = fmt.Sprintf("%s_", folderName)
+			}
+			if folderName != nodeDir.folderName {
+				nodeDir.folderName = folderName
+			}
+
+			u.Dirs[folderName] = &nodeDir
+		case "asset":
+			asset, err := model.ConvertMetaToAsset(body)
+			if err != nil {
+				logger.Errorf("convert asset err: %s", err)
+				continue
+			}
+			if !asset.IsSupportProtocol("ssh") {
+				continue
+			}
+			assetDir := NewAssetDir(u.User, asset, u.Addr, u.logChan)
+			folderName := assetDir.folderName
+			for {
+				_, ok := u.Dirs[folderName]
+				if !ok {
+					break
+				}
+				folderName = fmt.Sprintf("%s_", folderName)
+			}
+			if folderName != assetDir.folderName {
+				assetDir.folderName = folderName
+			}
+			u.Dirs[folderName] = &assetDir
+		}
+	}
+
+}
+
+func (u *UserSftpConn) LoopPushFTPLog() {
+	ftpLogList := make([]*model.FTPLog, 0, 1024)
+	var err error
+	tick := time.NewTicker(time.Second * 20)
+	defer tick.Stop()
+	for {
+		select {
+		case <-u.closed:
+			if len(ftpLogList) == 0 {
+				return
+			}
+			data := ftpLogList[len(ftpLogList)-1]
+			err = service.PushFTPLog(data)
+			if err != nil {
+				logger.Errorf("Create FTP log err: %s", err.Error())
+			}
+			ftpLogList = ftpLogList[:len(ftpLogList)-1]
+		case <-tick.C:
+			if len(ftpLogList) == 0 {
+				continue
+			}
+			data := ftpLogList[len(ftpLogList)-1]
+			err = service.PushFTPLog(data)
+			if err == nil {
+				ftpLogList = ftpLogList[:len(ftpLogList)-1]
+			} else {
+				logger.Errorf("Create FTP log err: %s", err.Error())
+			}
+		case logData, ok := <-u.logChan:
+			if !ok {
+				return
+			}
+			err = service.PushFTPLog(logData)
+			if err != nil {
+				logger.Errorf("Create FTP log err: %s", err.Error())
+				ftpLogList = append(ftpLogList, logData)
+			}
+		}
+	}
+}
+
+func NewUserNewSftp(user *model.User, addr string) *UserSftpConn {
+	u := UserSftpConn{
+		User:     user,
+		Addr:     addr,
+		Dirs:     map[string]os.FileInfo{},
+		modeTime: time.Now().UTC(),
+		logChan:  make(chan *model.FTPLog, 1024),
+		closed:   make(chan struct{}),
+	}
+	u.initial()
+	go u.LoopPushFTPLog()
+	return &u
+}
+
+func NewUserNewSftpWithAsset(user *model.User, addr string, assets ...model.Asset) *UserSftpConn {
+	u := UserSftpConn{
+		User:     user,
+		Addr:     addr,
+		Dirs:     map[string]os.FileInfo{},
+		modeTime: time.Now().UTC(),
+		logChan:  make(chan *model.FTPLog, 1024),
+		closed:   make(chan struct{}),
+	}
+	for _, asset := range assets {
+		if asset.IsSupportProtocol("ssh") {
+			assetDir := NewAssetDir(u.User, asset, u.Addr, u.logChan)
+			folderName := assetDir.folderName
+			for {
+				_, ok := u.Dirs[folderName]
+				if !ok {
+					break
+				}
+				folderName = fmt.Sprintf("%s_", folderName)
+			}
+			if folderName != assetDir.folderName {
+				assetDir.folderName = folderName
+			}
+			u.Dirs[assetDir.folderName] = &assetDir
+		}
+	}
+	go u.LoopPushFTPLog()
+	return &u
+}

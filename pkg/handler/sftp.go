@@ -49,7 +49,7 @@ func NewSFTPNewHandler(user *model.User, addr string) *sftpHandler {
 }
 
 type sftpHandler struct {
-	*srvconn.UserNewSftp
+	*srvconn.UserSftpConn
 }
 
 func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
@@ -120,7 +120,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 }
 
 func (fs *sftpHandler) Close() {
-	fs.UserNewSftp.Close()
+	fs.UserSftpConn.Close()
 }
 
 type listerat []os.FileInfo

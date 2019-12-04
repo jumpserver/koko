@@ -52,7 +52,7 @@ func (nd *NodeDir) List() (res []os.FileInfo, err error) {
 	return
 }
 
-func (nd *NodeDir) loadNodeAsset(uSftp *UserNewSftp) {
+func (nd *NodeDir) loadNodeAsset(uSftp *UserSftpConn) {
 	nd.once.Do(func() {
 		nodeTrees := service.GetUserNodeTreeWithAsset(uSftp.User.ID, nd.node.ID, "1")
 		dirs := map[string]os.FileInfo{}
@@ -90,6 +90,9 @@ func (nd *NodeDir) loadNodeAsset(uSftp *UserNewSftp) {
 				asset, err := model.ConvertMetaToAsset(body)
 				if err != nil {
 					logger.Errorf("convert asset err: %s", err)
+					continue
+				}
+				if !asset.IsSupportProtocol("ssh") {
 					continue
 				}
 				assetDir := NewAssetDir(uSftp.User, asset, uSftp.Addr, uSftp.logChan)
@@ -694,3 +697,69 @@ func (ad *AssetDir) CreateFTPLog(su *model.SystemUser, operate, filename string,
 	}
 	ad.logChan <- &data
 }
+
+type SftpConn struct {
+	HomeDirPath string
+	client      *sftp.Client
+	conn        *SSHClient
+}
+
+func (s *SftpConn) Close() {
+	if s.client == nil {
+		return
+	}
+	_ = s.client.Close()
+	RecycleClient(s.conn)
+}
+
+func NewFakeFile(name string, isDir bool) *FakeFileInfo {
+	return &FakeFileInfo{
+		name:    name,
+		modTime: time.Now().UTC(),
+		isDir:   isDir,
+		size:    int64(0),
+	}
+}
+
+func NewFakeSymFile(name string) *FakeFileInfo {
+	return &FakeFileInfo{
+		name:    name,
+		modTime: time.Now().UTC(),
+		size:    int64(0),
+		symlink: name,
+	}
+}
+
+type FakeFileInfo struct {
+	name    string
+	isDir   bool
+	size    int64
+	modTime time.Time
+	symlink string
+}
+
+func (f *FakeFileInfo) Name() string { return f.name }
+func (f *FakeFileInfo) Size() int64  { return f.size }
+func (f *FakeFileInfo) Mode() os.FileMode {
+	ret := os.FileMode(0644)
+	if f.isDir {
+		ret = os.FileMode(0755) | os.ModeDir
+	}
+	if f.symlink != "" {
+		ret = os.FileMode(0777) | os.ModeSymlink
+	}
+	return ret
+}
+func (f *FakeFileInfo) ModTime() time.Time { return f.modTime }
+func (f *FakeFileInfo) IsDir() bool        { return f.isDir }
+func (f *FakeFileInfo) Sys() interface{} {
+	return &syscall.Stat_t{Uid: 0, Gid: 0}
+}
+
+type FileInfoList []os.FileInfo
+
+func (fl FileInfoList) Len() int {
+	return len(fl)
+}
+func (fl FileInfoList) Swap(i, j int)      { fl[i], fl[j] = fl[j], fl[i] }
+func (fl FileInfoList) Less(i, j int) bool { return fl[i].Name() < fl[j].Name() }

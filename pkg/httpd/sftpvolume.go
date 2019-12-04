@@ -18,7 +18,7 @@ import (
 )
 
 func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
-	var userSftp *srvconn.UserNewSftp
+	var userSftp *srvconn.UserSftpConn
 	homename := "Home"
 	basePath := "/"
 	switch hostId {
@@ -32,8 +32,8 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 				homename = fmt.Sprintf("%s.%s", assets[0].Hostname, assets[0].OrgName)
 			}
 			basePath = filepath.Join("/", homename)
-			userSftp = srvconn.NewUserNewSftpWithAsset(user, addr, assets[0])
 		}
+		userSftp = srvconn.NewUserNewSftpWithAsset(user, addr, assets...)
 	}
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
@@ -49,7 +49,7 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 
 type UserVolume struct {
 	Uuid     string
-	UserSftp *srvconn.UserNewSftp
+	UserSftp *srvconn.UserSftpConn
 	Homename string
 	basePath string
 
