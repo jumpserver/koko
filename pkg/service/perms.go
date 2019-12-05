@@ -165,3 +165,20 @@ func ValidateUserAssetPermission(userID, assetID, systemUserID, action string) b
 
 	return res.Msg
 }
+
+func GetUserNodeTreeWithAsset(userID, nodeID, cachePolicy string) (nodeTrees model.NodeTreeList) {
+	if cachePolicy == "" {
+		cachePolicy = "1"
+	}
+
+	payload := map[string]string{"cache_policy": cachePolicy}
+	if nodeID != "" {
+		payload["id"] = nodeID
+	}
+	Url := fmt.Sprintf(NodeTreeWithAssetURL, userID)
+	_, err := authClient.Get(Url, &nodeTrees, payload)
+	if err != nil {
+		logger.Error("Get user node tree error: ", err)
+	}
+	return
+}
