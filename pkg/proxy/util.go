@@ -27,42 +27,90 @@ func NewReplayStorage() ReplayStorage {
 	}
 	switch tp {
 	case "azure":
-		endpointSuffix := cf["ENDPOINT_SUFFIX"].(string)
+		var accountName string
+		var accountKey string
+		var containerName string
+		var endpointSuffix string
+		if value, ok := cf["ENDPOINT_SUFFIX"].(string); ok {
+			endpointSuffix = value
+		}
+		if value, ok := cf["ACCOUNT_NAME"].(string); ok {
+			accountName = value
+		}
+		if value, ok := cf["ACCOUNT_KEY"].(string); ok {
+			accountKey = value
+		}
+		if value, ok := cf["CONTAINER_NAME"].(string); ok {
+			containerName = value
+		}
 		if endpointSuffix == "" {
 			endpointSuffix = "core.chinacloudapi.cn"
 		}
 		return storage.AzureReplayStorage{
-			AccountName:    cf["ACCOUNT_NAME"].(string),
-			AccountKey:     cf["ACCOUNT_KEY"].(string),
-			ContainerName:  cf["CONTAINER_NAME"].(string),
+			AccountName:    accountName,
+			AccountKey:     accountKey,
+			ContainerName:  containerName,
 			EndpointSuffix: endpointSuffix,
 		}
 	case "oss":
+		var endpoint string
+		var bucket string
+		var accessKey string
+		var secretKey string
+
+		if value, ok := cf["ENDPOINT"].(string); ok {
+			endpoint = value
+		}
+		if value, ok := cf["BUCKET"].(string); ok {
+			bucket = value
+		}
+		if value, ok := cf["ACCESS_KEY"].(string); ok {
+			accessKey = value
+		}
+		if value, ok := cf["SECRET_KEY"].(string); ok {
+			secretKey = value
+		}
 		return storage.OSSReplayStorage{
-			Endpoint:  cf["ENDPOINT"].(string),
-			Bucket:    cf["BUCKET"].(string),
-			AccessKey: cf["ACCESS_KEY"].(string),
-			SecretKey: cf["SECRET_KEY"].(string),
+			Endpoint:  endpoint,
+			Bucket:    bucket,
+			AccessKey: accessKey,
+			SecretKey: secretKey,
 		}
 	case "s3":
 		var region string
 		var endpoint string
-		bucket := cf["BUCKET"].(string)
-		endpoint = cf["ENDPOINT"].(string)
+		var bucket string
+		var accessKey string
+		var secretKey string
+		if value, ok := cf["BUCKET"].(string); ok {
+			bucket = value
+		}
+		if value, ok := cf["ENDPOINT"].(string); ok {
+			endpoint = value
+		}
+		if value, ok := cf["REGION"].(string); ok {
+			region = value
+		}
+		if value, ok := cf["ACCESS_KEY"].(string); ok {
+			accessKey = value
+		}
+		if value, ok := cf["SECRET_KEY"].(string); ok {
+			secretKey = value
+		}
+		if region == "" && endpoint != "" {
+			endpointArray := strings.Split(endpoint, ".")
+			if len(endpointArray) >= 2 {
+				region = endpointArray[1]
+			}
+		}
 		if bucket == "" {
 			bucket = "jumpserver"
 		}
-		if cf["REGION"] != nil {
-			region = cf["REGION"].(string)
-		} else {
-			region = strings.Split(endpoint, ".")[1]
-		}
-
 		return storage.S3ReplayStorage{
 			Bucket:    bucket,
 			Region:    region,
-			AccessKey: cf["ACCESS_KEY"].(string),
-			SecretKey: cf["SECRET_KEY"].(string),
+			AccessKey: accessKey,
+			SecretKey: secretKey,
 			Endpoint:  endpoint,
 		}
 	default:
