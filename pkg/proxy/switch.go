@@ -210,17 +210,20 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		dataEnd = s.DateEnd
 	}
 	return map[string]interface{}{
-		"id":          s.ID,
-		"user":        fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
-		"asset":       s.p.Asset.Hostname,
-		"org_id":      s.p.Asset.OrgID,
-		"login_from":  s.p.UserConn.LoginFrom(),
-		"system_user": s.p.SystemUser.Username,
-		"protocol":    s.p.SystemUser.Protocol,
-		"remote_addr": s.p.UserConn.RemoteAddr(),
-		"is_finished": s.finished,
-		"date_start":  s.DateStart,
-		"date_end":    dataEnd,
+		"id":             s.ID,
+		"user":           fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
+		"asset":          s.p.Asset.Hostname,
+		"org_id":         s.p.Asset.OrgID,
+		"login_from":     s.p.UserConn.LoginFrom(),
+		"system_user":    s.p.SystemUser.Username,
+		"protocol":       s.p.SystemUser.Protocol,
+		"remote_addr":    s.p.UserConn.RemoteAddr(),
+		"is_finished":    s.finished,
+		"date_start":     s.DateStart,
+		"date_end":       dataEnd,
+		"user_id":        s.p.User.ID,
+		"asset_id":       s.p.Asset.ID,
+		"system_user_id": s.p.SystemUser.ID,
 	}
 }
 
