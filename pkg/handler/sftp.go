@@ -24,7 +24,7 @@ func SftpHandler(sess ssh.Session) {
 		return
 	}
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	userSftp := NewSFTPNewHandler(currentUser, host)
+	userSftp := NewSFTPHandler(currentUser, host)
 	handlers := sftp.Handlers{
 		FileGet:  userSftp,
 		FilePut:  userSftp,
@@ -44,7 +44,7 @@ func SftpHandler(sess ssh.Session) {
 	logger.Infof("SFTP request %s: Handler exit.", reqID)
 }
 
-func NewSFTPNewHandler(user *model.User, addr string) *sftpHandler {
+func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
 	return &sftpHandler{srvconn.NewUserSftpConn(user, addr)}
 }
 
