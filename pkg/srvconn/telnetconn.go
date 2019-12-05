@@ -132,7 +132,7 @@ func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
 		return AuthSuccess
 	}
 	if tc.CustomString != "" {
-		if tc.CustomSuccessPattern.Match(data) {
+		if tc.CustomSuccessPattern != nil && tc.CustomSuccessPattern.Match(data) {
 			return AuthSuccess
 		}
 	}

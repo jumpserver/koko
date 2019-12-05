@@ -116,7 +116,10 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, err error) {
 	conf := config.GetConf()
 	cusString := conf.TelnetRegex
-	pattern, _ := regexp.Compile(cusString)
+	pattern, err := regexp.Compile(cusString)
+	if err != nil {
+		logger.Errorf("telnet custom regex %s compile err: %s", cusString, err)
+	}
 	srvConn = &srvconn.ServerTelnetConnection{
 		User:                 p.User,
 		Asset:                p.Asset,
