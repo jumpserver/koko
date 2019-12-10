@@ -68,6 +68,10 @@ type interactiveHandler struct {
 	currentData       []model.Asset
 
 	assetPaginator AssetPaginator
+
+	dbPaginator   DatabasePaginator
+	currentDBData []model.Database
+	dbSelect      model.Database
 }
 
 func (h *interactiveHandler) Initial() {
@@ -207,6 +211,7 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
 	h.assetPaginator = nil
+	h.dbPaginator = nil
 }
 
 func (h *interactiveHandler) loadUserNodes(cachePolicy string) {

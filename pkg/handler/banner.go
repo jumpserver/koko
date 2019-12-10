@@ -103,6 +103,7 @@ func getI18nFromMap(name string) string {
 			"Username":          i18n.T("Username"),
 			"All":               i18n.T("all"),
 			"SearchTip":         i18n.T("Search: %s"),
+			"DBType":            i18n.T("DBType"),
 		}
 	})
 	return i18nMap[name]
