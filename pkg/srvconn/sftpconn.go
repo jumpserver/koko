@@ -252,6 +252,9 @@ func (u *UserSftpConn) initial() {
 		u.Dirs = map[string]os.FileInfo{}
 	}
 	for _, item := range nodeTrees {
+		if item.Pid != "" {
+			continue
+		}
 		typeName, ok := item.Meta["type"].(string)
 		if !ok {
 			continue

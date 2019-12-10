@@ -2,15 +2,15 @@ package model
 
 import "encoding/json"
 
-
 type NodeTreeList []NodeTreeAsset
 
-
 type NodeTreeAsset struct {
-	ID    string                 `json:"id"`
-	Name  string                 `json:"name"`
-	Title string                 `json:"title"`
-	Meta  map[string]interface{} `json:"meta"`
+	ID       string                 `json:"id"`
+	Name     string                 `json:"name"`
+	Title    string                 `json:"title"`
+	Pid      string                 `json:"pId"`
+	IsParent bool                   `json:"isParent"`
+	Meta     map[string]interface{} `json:"meta"`
 }
 
 func ConvertMetaToNode(body []byte) (node Node, err error) {
