@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -13,10 +12,10 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
+
 type DBSwitchSession struct {
 	ID string
 	p  *DBProxyServer
@@ -27,8 +26,6 @@ type DBSwitchSession struct {
 
 	MaxIdleTime time.Duration
 
-	cmdRules []model.SystemUserFilterRule
-
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -37,7 +34,6 @@ func (s *DBSwitchSession) Initial() {
 	s.ID = uuid.NewV4().String()
 	s.DateStart = common.CurrentUTCTime()
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
-	s.cmdRules = make([]model.SystemUserFilterRule, 0)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
 
@@ -50,99 +46,31 @@ func (s *DBSwitchSession) Terminate() {
 	s.cancel()
 }
 
-func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [2]string) {
-	// 命令记录
-	cmdRecorder := NewCommandRecorder(s.ID)
-	for command := range cmdRecordChan {
-		if command[0] == "" {
-			continue
-		}
-		cmd := s.generateCommandResult(command)
-		cmdRecorder.Record(cmd)
-	}
-	// 关闭命令记录
-	cmdRecorder.End()
-}
-
-// generateCommandResult 生成命令结果
-func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Command {
-	var input string
-	var output string
-	if len(command[0]) > 128 {
-		input = command[0][:128]
-	} else {
-		input = command[0]
-	}
-	i := strings.LastIndexByte(command[1], '\r')
-	if i <= 0 {
-		output = command[1]
-	} else if i > 0 && i < 1024 {
-		output = command[1][:i]
-	} else {
-		output = command[1][:1024]
-	}
-
-	return &model.Command{
-		SessionID:  s.ID,
-		OrgID:      "",
-		Input:      input,
-		Output:     output,
-		User:       fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
-		Server:     s.p.Database.Host,
-		SystemUser: s.p.Database.Username,
-		Timestamp:  time.Now().Unix(),
-	}
-}
-
 // postBridge 桥接结束以后执行操作
 func (s *DBSwitchSession) postBridge() {
 	s.DateEnd = common.CurrentUTCTime()
 	s.finished = true
 }
 
-// SetFilterRules 设置命令过滤规则
-func (s *DBSwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
-	if len(cmdRules) > 0 {
-		s.cmdRules = cmdRules
-	}
-}
-
 // Bridge 桥接两个链接
 func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	var (
-		parser         Parser
-		replayRecorder ReplyRecorder
-
 		userInChan chan []byte
 		srvInChan  chan []byte
 		done       chan struct{}
 	)
 
-	parser = newParser(s.ID)
-	replayRecorder = NewReplyRecord(s.ID)
-
 	userInChan = make(chan []byte, 1)
 	srvInChan = make(chan []byte, 1)
 	done = make(chan struct{})
-	// 设置parser的命令过滤规则
-	parser.SetCMDFilterRules(s.cmdRules)
-
-	// 处理数据流
-	userOutChan, srvOutChan := parser.ParseStream(userInChan, srvInChan)
 
 	defer func() {
 		close(done)
 		_ = userConn.Close()
 		_ = srvConn.Close()
-		// 关闭parser
-		parser.Close()
-		// 关闭录像
-		replayRecorder.End()
 		s.postBridge()
 	}()
 
-	// 记录命令
-	go s.recordCommand(parser.cmdRecordChan)
 	go s.LoopReadFromSrv(done, srvConn, srvInChan)
 	go s.LoopReadFromUser(done, userConn, userInChan)
 	winCh := userConn.WinCh()
@@ -178,16 +106,13 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			_ = srvConn.SetWinSize(win.Height, win.Width)
 			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
 		// 经过parse处理的server数据，发给user
-		case p, ok := <-srvOutChan:
+		case p, ok := <-srvInChan:
 			if !ok {
 				return
 			}
-			nw, _ := userConn.Write(p)
-			if !parser.IsInZmodemRecvState() {
-				replayRecorder.Record(p[:nw])
-			}
+			_, _ = userConn.Write(p)
 		// 经过parse处理的user数据，发给server
-		case p, ok := <-userOutChan:
+		case p, ok := <-userInChan:
 			if !ok {
 				return
 			}
@@ -203,14 +128,14 @@ func (s *DBSwitchSession) MapData() map[string]interface{} {
 		dataEnd = s.DateEnd
 	}
 	return map[string]interface{}{
-		"id":             s.ID,
-		"user":           fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
-		"login_from":     s.p.UserConn.LoginFrom(),
-		"remote_addr":    s.p.UserConn.RemoteAddr(),
-		"is_finished":    s.finished,
-		"date_start":     s.DateStart,
-		"date_end":       dataEnd,
-		"user_id":        s.p.User.ID,
+		"id":          s.ID,
+		"user":        fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
+		"login_from":  s.p.UserConn.LoginFrom(),
+		"remote_addr": s.p.UserConn.RemoteAddr(),
+		"is_finished": s.finished,
+		"date_start":  s.DateStart,
+		"date_end":    dataEnd,
+		"user_id":     s.p.User.ID,
 	}
 }
 

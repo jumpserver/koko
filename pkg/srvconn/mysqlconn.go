@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
+	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/creack/pty"
@@ -39,13 +42,13 @@ type ServerMysqlConnection struct {
 
 func (dbconn *ServerMysqlConnection) Connect() (err error) {
 	cmd := exec.Command("mysql", dbconn.options.CommandArgs()...)
-	//if nobody, err := user.Lookup("nobody"); err == nil{
-	//	logger.Debugf("db use username: %s\n", nobody.Username)
-	//	cmd.SysProcAttr = &syscall.SysProcAttr{}
-	//	uid, _ := strconv.Atoi(nobody.Uid)
-	//	gid, _ := strconv.Atoi(nobody.Gid)
-	//	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
-	//}
+	if nobody, err := user.Lookup("nobody"); err == nil{
+		logger.Debugf("db use username: %s\n", nobody.Username)
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+		uid, _ := strconv.Atoi(nobody.Uid)
+		gid, _ := strconv.Atoi(nobody.Gid)
+		cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+	}
 	fd, err := pty.Start(cmd)
 	if err != nil {
 		return

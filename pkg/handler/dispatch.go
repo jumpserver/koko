@@ -2,16 +2,18 @@ package handler
 
 import (
 	"fmt"
-	uuid "github.com/satori/go.uuid"
 	"io"
 	"math/rand"
 	"strconv"
 	"strings"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -439,7 +441,14 @@ func (h *interactiveHandler) moveDBNextPage() {
 
 func (h *interactiveHandler) ProxyDB(dbSelect model.Database) {
 	fmt.Println("ProxyDB: ", dbSelect)
+	p := proxy.DBProxyServer{
+		UserConn: h.sess,
+		User:     h.user,
+		Database: &dbSelect,
+	}
+	p.Proxy()
 
+	fmt.Println("end db proxy")
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

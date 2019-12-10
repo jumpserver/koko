@@ -2,8 +2,6 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/jumpserver/koko/pkg/common"
-	uuid "github.com/satori/go.uuid"
 	"strconv"
 	"strings"
 	"time"
@@ -44,7 +42,7 @@ func (p *DBProxyServer) getAuthOrManualSet() error {
 	return nil
 }
 
-func (p *DBProxyServer) getSystemUserUsernameIfNeed() (err error) {
+func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 	if p.Database.Username == "" {
 		var username string
 		term := utils.NewTerminal(p.UserConn, "username: ")
@@ -87,6 +85,7 @@ func (p *DBProxyServer) getMysqlConn() (srvConn *srvconn.ServerMysqlConnection, 
 		srvconn.SqlPassword(p.Database.Password),
 		srvconn.SqlDBName(p.Database.DBName),
 	)
+	err = srvConn.Connect()
 	return
 }
 
@@ -137,7 +136,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *DBProxyServer) checkRequiredSystemUserInfo() error {
-	if err := p.getSystemUserUsernameIfNeed(); err != nil {
+	if err := p.getUsernameIfNeed(); err != nil {
 		logger.Errorf("Get asset %s systemuser username err: %s", p.Database.Username, err)
 		return err
 	}
@@ -163,13 +162,9 @@ func (p *DBProxyServer) Proxy() {
 	}
 	// 创建Session
 	sw := DBSwitchSession{
-		ID:          uuid.NewV4().String(),
-		DateStart:   common.CurrentUTCTime(),
-		finished:    false,
-		MaxIdleTime: 1 * time.Hour,
-		ctx:         nil,
-		cancel:      nil,
+		p: p,
 	}
+	sw.Initial()
 	srvConn, err := p.getServerConn()
 	// 连接后端服务器失败
 	if err != nil {
