@@ -331,6 +331,7 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 			return
 		}
 		folderName = pathData[0]
+		pathData = pathData[1:]
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
@@ -340,7 +341,7 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 		return res, sftp.ErrSshFxPermissionDenied
 	}
 
-	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData[1:], "/"))
+	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
@@ -365,6 +366,7 @@ func (ad *AssetDir) ReadLink(path string) (res string, err error) {
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
 		folderName = pathData[0]
+		pathData = pathData[1:]
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
@@ -374,7 +376,7 @@ func (ad *AssetDir) ReadLink(path string) (res string, err error) {
 		return res, sftp.ErrSshFxPermissionDenied
 	}
 
-	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData[1:], "/"))
+	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil {
 		return "", sftp.ErrSshFxConnectionLost
 	}
@@ -490,8 +492,8 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
 		folderName = pathData[0]
+		pathData = pathData[1:]
 	}
-
 	su, ok := ad.suMaps[folderName]
 	if !ok {
 		return nil, sftp.ErrSshFxNoSuchFile
@@ -499,7 +501,7 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 	if !ad.validatePermission(su, model.ConnectAction) {
 		return res, sftp.ErrSshFxPermissionDenied
 	}
-	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData[1:], "/"))
+	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
