@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/LeeEirc/elfinder"
 	"github.com/pkg/sftp"
@@ -301,17 +302,24 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 
 func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	logger.Debug("Root File Dir")
-	fInfo, _ := u.UserSftp.Stat(u.basePath)
+	var (
+		size int64
+	)
+	tz := time.Now().UnixNano()
+	if fInfo, err := u.UserSftp.Stat(u.basePath); err == nil {
+		size = fInfo.Size()
+		tz = fInfo.ModTime().Unix()
+	}
 	var rest elfinder.FileDir
 	rest.Name = u.Homename
 	rest.Hash = hashPath(u.Uuid, "/")
-	rest.Size = fInfo.Size()
+	rest.Size = size
 	rest.Volumeid = u.Uuid
 	rest.Mime = "directory"
 	rest.Dirs = 1
 	rest.Read, rest.Write = 1, 1
 	rest.Locked = 1
-	rest.Ts = fInfo.ModTime().Unix()
+	rest.Ts = tz
 	return rest
 }
 
