@@ -51,51 +51,57 @@ msgstr "显示您有权限的节点"
 
 #. i18n.T
 #: pkg/handler/banner.go:52
+#, fuzzy
+msgid "display the databases that you have permission"
+msgstr "显示您有权限的数据库"
+
+#. i18n.T
+#: pkg/handler/banner.go:53
 msgid "refresh your assets and nodes"
 msgstr "刷新最新的机器和节点信息"
 
 #. i18n.T
-#: pkg/handler/banner.go:53
+#: pkg/handler/banner.go:54
 msgid "print help"
 msgstr "显示帮助"
 
 #. i18n.T
-#: pkg/handler/banner.go:54
+#: pkg/handler/banner.go:55
 msgid "exit"
 msgstr "退出"
 
 #. i18n.T
-#: pkg/handler/banner.go:89
+#: pkg/handler/banner.go:90
 msgid "ID"
 msgstr "ID"
 
 #. i18n.T
-#: pkg/handler/banner.go:90
+#: pkg/handler/banner.go:91
 msgid "hostname"
 msgstr "主机名"
 
 #. i18n.T
-#: pkg/handler/banner.go:91
+#: pkg/handler/banner.go:92
 msgid "IP"
 msgstr "IP"
 
 #. i18n.T
-#: pkg/handler/banner.go:92
+#: pkg/handler/banner.go:93
 msgid "comment"
 msgstr "备注"
 
 #. i18n.T
-#: pkg/handler/banner.go:93
+#: pkg/handler/banner.go:94
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
 
 #. i18n.T
-#: pkg/handler/banner.go:94
+#: pkg/handler/banner.go:95
 msgid "No Assets"
 msgstr "没有资产"
 
 #. i18n.T
-#: pkg/handler/banner.go:95
+#: pkg/handler/banner.go:96
 #, fuzzy
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
@@ -103,28 +109,28 @@ msgid ""
 msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
 
 #. i18n.T
-#: pkg/handler/banner.go:96
+#: pkg/handler/banner.go:97
 #, fuzzy
 msgid "Page up: b\tPage down: n"
 msgstr "上一页：b 下一页：n"
 
 #. i18n.T
-#: pkg/handler/banner.go:97
+#: pkg/handler/banner.go:98
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
 
 #. i18n.T
-#: pkg/handler/banner.go:98
+#: pkg/handler/banner.go:99
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
 
 #. i18n.T
-#: pkg/handler/banner.go:99
+#: pkg/handler/banner.go:100
 msgid "Refresh done"
 msgstr "刷新完成"
 
 #. i18n.T
-#: pkg/handler/banner.go:100
+#: pkg/handler/banner.go:101
 #, fuzzy
 msgid "Tips: Enter system user ID and directly login the asset [ %s(%s) ]"
 msgstr ""
@@ -132,54 +138,95 @@ msgstr ""
 "提示：输入系统用户ID，登录资产[ %s(%s) ]\n"
 
 #. i18n.T
-#: pkg/handler/banner.go:101
+#: pkg/handler/banner.go:102
 msgid "Back: B/b"
 msgstr "返回：B/b"
 
 #. i18n.T
-#: pkg/handler/banner.go:102
+#: pkg/handler/banner.go:103
 msgid "Name"
 msgstr "名称"
 
 #. i18n.T
-#: pkg/handler/banner.go:103
+#: pkg/handler/banner.go:104
 #, fuzzy
 msgid "Username"
 msgstr "用户名"
 
 #. i18n.T
-#: pkg/handler/banner.go:104
+#: pkg/handler/banner.go:105
 msgid "all"
 msgstr "所有"
 
 #. i18n.T
-#: pkg/handler/banner.go:105
+#: pkg/handler/banner.go:106
 #, fuzzy
 msgid "Search: %s"
 msgstr "搜索: %s"
 
 #. i18n.T
-#: pkg/proxy/parser.go:130
+#: pkg/handler/banner.go:107
+msgid "DBType"
+msgstr "数据库类型"
+
+#. i18n.T
+#: pkg/handler/banner.go:108
+msgid "No Databases"
+msgstr "无数据库"
+
+#. i18n.T
+#: pkg/handler/banner.go:109
+#, fuzzy
+msgid ""
+"Enter ID number directly login the database, multiple search use // + field, "
+"such as: //16"
+msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段，如：//192"
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:107
+#, fuzzy
+msgid "Database connecting to %s@%s  %.1f"
+msgstr "连接数据库 %s@%s  %.1f"
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:126
+msgid "Database %s protocol client not installed."
+msgstr "%s 协议的数据库客户端未安装"
+
+#. i18n.T
+#: pkg/proxy/dbswitch.go:90
+#, fuzzy
+msgid "Database connect idle more than %d minutes, disconnect"
+msgstr "数据库连接空闲时间超过%d分钟，断开连接"
+
+#. i18n.T
+#: pkg/proxy/dbswitch.go:97
+#, fuzzy
+msgid "Database connection terminated by administrator"
+msgstr "管理员中断数据库连接"
+
+#. i18n.T
+#: pkg/proxy/parser.go:140
 msgid "Command `%s` is forbidden"
 msgstr "命令 `%s` 是被禁止的 ..."
 
 #. i18n.T
-#: pkg/proxy/proxy.go:143
+#: pkg/proxy/proxy.go:146
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:161
+#: pkg/proxy/proxy.go:164
 msgid "Connecting to %s@%s  %.1f"
 msgstr "开始连接到 %s@%s  %.1f"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:180
+#: pkg/proxy/proxy.go:183
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:186
+#: pkg/proxy/proxy.go:189
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr "终端仅支持ssh/telnet协议，请使用web终端登录"
@@ -190,11 +237,11 @@ msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. i18n.T
-#: pkg/proxy/switch.go:168
+#: pkg/proxy/switch.go:169
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
 
 #. i18n.T
-#: pkg/proxy/switch.go:175
+#: pkg/proxy/switch.go:176
 msgid "Terminated by administrator"
 msgstr "管理员中断连接"

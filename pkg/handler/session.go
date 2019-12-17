@@ -243,6 +243,7 @@ func (h *interactiveHandler) Proxy(ctx context.Context) {
 	h.pauseWatchWinSize()
 	p.Proxy()
 	h.resumeWatchWinSize()
+	logger.Infof("Request %s: asset %s proxy end", h.sess.Uuid, h.assetSelect.Hostname)
 }
 
 func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {

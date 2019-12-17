@@ -49,128 +49,170 @@ msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:52
-msgid "refresh your assets and nodes"
+msgid "display the databases that you have permission"
 msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:53
-msgid "print help"
+msgid "refresh your assets and nodes"
 msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:54
+msgid "print help"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:55
 msgid "exit"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:89
+#: pkg/handler/banner.go:90
 msgid "ID"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:90
+#: pkg/handler/banner.go:91
 msgid "hostname"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:91
+#: pkg/handler/banner.go:92
 msgid "IP"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:92
+#: pkg/handler/banner.go:93
 msgid "comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:93
+#: pkg/handler/banner.go:94
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:94
+#: pkg/handler/banner.go:95
 msgid "No Assets"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:95
+#: pkg/handler/banner.go:96
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
 "such as: //16"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:96
+#: pkg/handler/banner.go:97
 msgid "Page up: b\tPage down: n"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:97
+#: pkg/handler/banner.go:98
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:98
+#: pkg/handler/banner.go:99
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:99
+#: pkg/handler/banner.go:100
 msgid "Refresh done"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:100
+#: pkg/handler/banner.go:101
 msgid "Tips: Enter system user ID and directly login the asset [ %s(%s) ]"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:101
+#: pkg/handler/banner.go:102
 msgid "Back: B/b"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:102
+#: pkg/handler/banner.go:103
 msgid "Name"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:103
+#: pkg/handler/banner.go:104
 msgid "Username"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:104
+#: pkg/handler/banner.go:105
 msgid "all"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:105
+#: pkg/handler/banner.go:106
 msgid "Search: %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:130
+#: pkg/handler/banner.go:107
+msgid "DBType"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:108
+msgid "No Databases"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:109
+msgid ""
+"Enter ID number directly login the database, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:107
+msgid "Database connecting to %s@%s  %.1f"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:126
+msgid "Database %s protocol client not installed."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbswitch.go:90
+msgid "Database connect idle more than %d minutes, disconnect"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbswitch.go:97
+msgid "Database connection terminated by administrator"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:140
 msgid "Command `%s` is forbidden"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:143
+#: pkg/proxy/proxy.go:146
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:161
+#: pkg/proxy/proxy.go:164
 msgid "Connecting to %s@%s  %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:180
+#: pkg/proxy/proxy.go:183
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:186
+#: pkg/proxy/proxy.go:189
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
@@ -181,11 +223,11 @@ msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:168
+#: pkg/proxy/switch.go:169
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:175
+#: pkg/proxy/switch.go:176
 msgid "Terminated by administrator"
 msgstr ""

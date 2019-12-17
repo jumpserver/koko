@@ -42,25 +42,30 @@ type ServerMysqlConnection struct {
 
 func (dbconn *ServerMysqlConnection) Connect() (err error) {
 	cmd := exec.Command("mysql", dbconn.options.CommandArgs()...)
-	if nobody, err := user.Lookup("nobody"); err == nil{
-		logger.Debugf("db use username: %s\n", nobody.Username)
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
-		uid, _ := strconv.Atoi(nobody.Uid)
-		gid, _ := strconv.Atoi(nobody.Gid)
-		cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+	nobody, err := user.Lookup("nobody")
+	if err != nil {
+		logger.Errorf("lookup nobody user err: %s", err)
+		return errors.New("nobody user does not exist")
 	}
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	uid, _ := strconv.Atoi(nobody.Uid)
+	gid, _ := strconv.Atoi(nobody.Gid)
+	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
 	fd, err := pty.Start(cmd)
 	if err != nil {
-		return
+		logger.Errorf("pty start err: %s", err)
+		return fmt.Errorf("start local pty err: %s", err)
 	}
 	prompt := [20]byte{}
 	nr, err := fd.Read(prompt[:])
 	if err != nil {
-		return
+		logger.Errorf("read mysql pty local fd err: %s", err)
+		return fmt.Errorf("mysql conn err: %s", err)
 	}
-	fmt.Printf("%s\n", cmd.Args)
 	if !bytes.Equal(prompt[:nr], []byte(mysqlPrompt)) {
 		_ = fd.Close()
+		logger.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
 		return errors.New("failed login mysql")
 	}
 	// 输入密码, 登录mysql
@@ -69,19 +74,29 @@ func (dbconn *ServerMysqlConnection) Connect() (err error) {
 		return
 	}
 	dbconn.ptyFD = fd
-	logger.Debug("connect database success")
+	logger.Infof("Connect mysql database %s success ", dbconn.options.Host)
 	return
 }
 
 func (dbconn *ServerMysqlConnection) Read(p []byte) (int, error) {
+	if dbconn.ptyFD == nil {
+		return 0, fmt.Errorf("not connect init")
+	}
+
 	return dbconn.ptyFD.Read(p)
 }
 
 func (dbconn *ServerMysqlConnection) Write(p []byte) (int, error) {
+	if dbconn.ptyFD == nil {
+		return 0, fmt.Errorf("not connect init")
+	}
 	return dbconn.ptyFD.Write(p)
 }
 
 func (dbconn *ServerMysqlConnection) SetWinSize(w, h int) error {
+	if dbconn.ptyFD == nil {
+		return fmt.Errorf("not connect init")
+	}
 	win := pty.Winsize{
 		Rows: uint16(h),
 		Cols: uint16(w),
@@ -91,6 +106,9 @@ func (dbconn *ServerMysqlConnection) SetWinSize(w, h int) error {
 
 func (dbconn *ServerMysqlConnection) Close() (err error) {
 	dbconn.onceClose.Do(func() {
+		if dbconn.ptyFD == nil {
+			return
+		}
 		err = dbconn.ptyFD.Close()
 	})
 	return err

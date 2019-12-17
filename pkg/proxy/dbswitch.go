@@ -87,14 +87,14 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			if !now.After(outTime) {
 				continue
 			}
-			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
+			msg := fmt.Sprintf(i18n.T("Database connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			logger.Debugf("Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
-			msg := i18n.T("Terminated by administrator")
+			msg := i18n.T("Database connection terminated by administrator")
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
@@ -157,6 +157,7 @@ loop:
 		if nr > 0 {
 			select {
 			case <-done:
+				logger.Debug("reader loop break done.")
 				break loop
 			case inChan <- buf[:nr]:
 			}

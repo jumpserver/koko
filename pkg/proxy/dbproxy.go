@@ -62,9 +62,15 @@ func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 	return
 }
 
-// checkProtocolMatch 检查协议是否匹配
-func (p *DBProxyServer) checkProtocolMatch() bool {
-	return p.Database.DBType == "mysql"
+// checkProtocolClientInstalled 检查协议是否匹配
+func (p *DBProxyServer) checkProtocolClientInstalled() bool {
+	switch strings.ToLower(p.Database.DBType) {
+	case "mysql":
+		return utils.IsInstalledMysqlClient()
+
+	}
+
+	return false
 }
 
 // validatePermission 检查是否有权限连接
@@ -98,7 +104,7 @@ func (p *DBProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err e
 // sendConnectingMsg 发送连接信息
 func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.Duration) {
 	delay := 0.0
-	msg := fmt.Sprintf(i18n.T("Connecting to %s@%s  %.1f"), p.Database.Username, p.Database.Host, delay)
+	msg := fmt.Sprintf(i18n.T("Database connecting to %s@%s  %.1f"), p.Database.Username, p.Database.Host, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for int(delay) < int(delayDuration/time.Second) {
 		select {
@@ -116,33 +122,33 @@ func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time
 
 // preCheckRequisite 检查是否满足条件
 func (p *DBProxyServer) preCheckRequisite() (ok bool) {
-	if !p.checkProtocolMatch() {
-		msg := utils.WrapperWarn(i18n.T("Database %s protocol %s are inconsistent."))
-		msg = fmt.Sprintf(msg, p.Database.Username, p.Database.Host)
+	if !p.checkProtocolClientInstalled() {
+		msg := utils.WrapperWarn(i18n.T("Database %s protocol client not installed."))
+		msg = fmt.Sprintf(msg, p.Database.DBType)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		return
 	}
 	if !p.validatePermission() {
-		msg := fmt.Sprintf("You don't have permission login %s@%s", p.Database.Username, p.Database.Host)
+		msg := fmt.Sprintf("You don't have permission login %s", p.Database.Name)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		return
 	}
-	if err := p.checkRequiredSystemUserInfo(); err != nil {
-		msg := fmt.Sprintf("You get asset %s systemuser info err: %s", p.Database.Host, err)
+	if err := p.checkRequiredAuth(); err != nil {
+		msg := fmt.Sprintf("You get database %s auth info err: %s", p.Database.Name, err)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		return
 	}
 	return true
 }
 
-func (p *DBProxyServer) checkRequiredSystemUserInfo() error {
+func (p *DBProxyServer) checkRequiredAuth() error {
 	if err := p.getUsernameIfNeed(); err != nil {
-		logger.Errorf("Get asset %s systemuser username err: %s", p.Database.Username, err)
+		logger.Errorf("Get database %s auth username err: %s", p.Database.Name, err)
 		return err
 	}
 
 	if err := p.getAuthOrManualSet(); err != nil {
-		logger.Errorf("Get asset %s systemuser password/PrivateKey err: %s", p.Database.Host, err)
+		logger.Errorf("Get database %s auth password err: %s", p.Database.Name, err)
 		return err
 	}
 	return nil

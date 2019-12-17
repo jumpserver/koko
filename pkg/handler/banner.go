@@ -49,9 +49,10 @@ func Initial() {
 		{id: 2, instruct: i18n.T("/ + IP, Hostname, Comment"), helpText: i18n.T("to search, such as: /192.168")},
 		{id: 3, instruct: "p", helpText: i18n.T("display the host you have permission")},
 		{id: 4, instruct: "g", helpText: i18n.T("display the node that you have permission")},
-		{id: 5, instruct: "r", helpText: i18n.T("refresh your assets and nodes")},
-		{id: 6, instruct: "h", helpText: i18n.T("print help")},
-		{id: 7, instruct: "q", helpText: i18n.T("exit")},
+		{id: 5, instruct: "d", helpText: i18n.T("display the databases that you have permission")},
+		{id: 6, instruct: "r", helpText: i18n.T("refresh your assets and nodes")},
+		{id: 7, instruct: "h", helpText: i18n.T("print help")},
+		{id: 8, instruct: "q", helpText: i18n.T("exit")},
 	}
 }
 
@@ -104,6 +105,8 @@ func getI18nFromMap(name string) string {
 			"All":               i18n.T("all"),
 			"SearchTip":         i18n.T("Search: %s"),
 			"DBType":            i18n.T("DBType"),
+			"NoDatabases":       i18n.T("No Databases"),
+			"DBLoginTip":       i18n.T("Enter ID number directly login the database, multiple search use // + field, such as: //16"),
 		}
 	})
 	return i18nMap[name]

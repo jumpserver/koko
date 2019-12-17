@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -126,6 +127,7 @@ func (h *interactiveHandler) Dispatch() {
 
 func (h *interactiveHandler) resetPaginator() {
 	h.dbPaginator = nil
+	h.currentDBData = nil
 	h.assetPaginator = h.getAssetPaginator()
 	h.currentData = h.assetPaginator.RetrievePageData(1)
 }
@@ -276,10 +278,16 @@ func (h *interactiveHandler) searchOrProxy(key string) bool {
 }
 
 func (h *interactiveHandler) searchAssetAndDisplay(key string) {
+	h.currentDBData = nil
+	h.dbPaginator = nil
 	h.currentData = h.searchAssets(key)
 }
 
 func (h *interactiveHandler) searchAssetsAgain(key string) {
+	if h.dbPaginator != nil {
+		h.currentDBData = h.dbPaginator.SearchAgain(key)
+		return
+	}
 	if h.assetPaginator == nil {
 		h.assetPaginator = h.getAssetPaginator()
 		h.currentData = h.assetPaginator.SearchAsset(key)
@@ -326,33 +334,19 @@ func (h *interactiveHandler) getNodeAssetPaginator(node model.Node) AssetPaginat
 }
 
 func (h *interactiveHandler) getDatabasePaginator() DatabasePaginator {
-	dbs := make([]model.Database, 0, 30)
-	id := uuid.NewV4().String()
-	for i := 0; i < cap(dbs); i++ {
-		dbs = append(dbs, model.Database{
-			ID:        id,
-			Name:      RandStringBytes(5),
-			LoginMode: "auto",
-			DBType:    "mysql",
-			Host:      "127.0.0.1",
-			Port:      "3306",
-			Username:  "root",
-			Password:  "Root@123456",
-			DBName:    "",
-			Comment:   RandStringBytes(4),
-		})
+	if dbs == nil {
+		dbs = getDatabases()
 	}
-
 	return NewLocalDatabasePaginator(dbs, getPageSize(h.term))
 }
 
 func (h *interactiveHandler) displayPageDatabase() {
 	if len(h.currentDBData) == 0 {
-		_, _ = h.term.Write([]byte(getI18nFromMap("NoAssets") + "\n\r"))
+		_, _ = h.term.Write([]byte(getI18nFromMap("NoDatabases") + "\n\r"))
 		h.dbPaginator = nil
 		return
 	}
-	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Hostname"),
+	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"),
 		getI18nFromMap("IP"), getI18nFromMap("DBType"), getI18nFromMap("Comment")}
 	fields := []string{"ID", "name", "IP", "DBType", "comment"}
 	data := make([]map[string]string, len(h.currentDBData))
@@ -411,7 +405,7 @@ func (h *interactiveHandler) displayPageDatabase() {
 		header = fmt.Sprintf("%s %s", h.dbPaginator.Name(), strings.Join(keys, " "))
 	}
 	searchHeader := fmt.Sprintf(getI18nFromMap("SearchTip"), header)
-	actionTip := fmt.Sprintf("%s %s", getI18nFromMap("LoginTip"), getI18nFromMap("PageActionTip"))
+	actionTip := fmt.Sprintf("%s %s", getI18nFromMap("DBLoginTip"), getI18nFromMap("PageActionTip"))
 
 	_, _ = h.term.Write([]byte(utils.CharClear))
 	_, _ = h.term.Write([]byte(table.Display()))
@@ -440,21 +434,20 @@ func (h *interactiveHandler) moveDBNextPage() {
 }
 
 func (h *interactiveHandler) ProxyDB(dbSelect model.Database) {
-	fmt.Println("ProxyDB: ", dbSelect)
 	p := proxy.DBProxyServer{
 		UserConn: h.sess,
 		User:     h.user,
 		Database: &dbSelect,
 	}
 	p.Proxy()
-
-	fmt.Println("end db proxy")
+	logger.Infof("Request %s: database %s proxy end", h.sess.Uuid, dbSelect.Name)
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const numberBytes = "1234567890"
 
 func RandStringBytes(n int) string {
+	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, n)
 	for i := range b {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
@@ -468,4 +461,26 @@ func RandNumBytes(n int) string {
 		b[i] = numberBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
+}
+
+var dbs []model.Database
+
+func getDatabases() []model.Database {
+	dbs := make([]model.Database, 0, 30)
+	id := uuid.NewV4().String()
+	for i := 0; i < cap(dbs); i++ {
+		dbs = append(dbs, model.Database{
+			ID:        id,
+			Name:      RandStringBytes(5),
+			LoginMode: "auto",
+			DBType:    "mysql",
+			Host:      "127.0.0.1",
+			Port:      "3306",
+			Username:  "root",
+			Password:  "Root@123456",
+			DBName:    "",
+			Comment:   RandStringBytes(4),
+		})
+	}
+	return dbs
 }
