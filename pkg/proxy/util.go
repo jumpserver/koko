@@ -65,6 +65,13 @@ func NewReplayStorage() ReplayStorage {
 			SecretKey: cf["SECRET_KEY"].(string),
 			Endpoint:  endpoint,
 		}
+	case "obs":
+		return storage.OBSReplayStorage{
+			Endpoint:  cf["ENDPOINT"].(string),
+			Bucket:    cf["BUCKET"].(string),
+			AccessKey: cf["ACCESS_KEY"].(string),
+			SecretKey: cf["SECRET_KEY"].(string),
+		}
 	default:
 		return defaultReplayStorage
 	}
