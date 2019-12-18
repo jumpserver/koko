@@ -1,8 +1,6 @@
 package recorderstorage
 
 import (
-	"os"
-
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy/recorderstorage/obs"
 )
@@ -15,13 +13,6 @@ type OBSReplayStorage struct {
 }
 
 func (o OBSReplayStorage) Upload(gZipFilePath, target string) (err error) {
-	file, err := os.Open(gZipFilePath)
-	if err != nil {
-		logger.Debug("Failed to open file", err)
-		return err
-	}
-	defer file.Close()
-
 	obsClient, err := obs.New(o.AccessKey, o.SecretKey, o.Endpoint)
 	if err != nil {
 		logger.Debug(err.Error())
