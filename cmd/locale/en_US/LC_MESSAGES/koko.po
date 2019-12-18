@@ -172,22 +172,27 @@ msgid ""
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:107
-msgid "Database connecting to %s@%s  %.1f"
+#: pkg/proxy/dbproxy.go:112
+msgid "Database connecting to %s %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:126
+#: pkg/proxy/dbproxy.go:131
+msgid "System user <%s> and database <%s> protocol are inconsistent."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:137
 msgid "Database %s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbswitch.go:90
+#: pkg/proxy/dbswitch.go:148
 msgid "Database connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbswitch.go:97
+#: pkg/proxy/dbswitch.go:155
 msgid "Database connection terminated by administrator"
 msgstr ""
 
@@ -218,16 +223,21 @@ msgid ""
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/sessmanager.go:67
+#: pkg/proxy/sessmanager.go:75
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:169
+#: pkg/proxy/sessmanager.go:117
+msgid "Create database session failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/switch.go:173
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:176
+#: pkg/proxy/switch.go:180
 msgid "Terminated by administrator"
 msgstr ""

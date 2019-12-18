@@ -57,6 +57,10 @@ func (s *SwitchSession) Terminate() {
 	s.cancel()
 }
 
+func (s *SwitchSession) SessionID() string {
+	return s.ID
+}
+
 func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 	// 命令记录
 	cmdRecorder := NewCommandRecorder(s.ID)

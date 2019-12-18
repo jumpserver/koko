@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -12,6 +13,7 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -46,6 +48,52 @@ func (s *DBSwitchSession) Terminate() {
 	s.cancel()
 }
 
+func (s *DBSwitchSession) SessionID() string {
+	return s.ID
+}
+
+func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+	// 命令记录
+	cmdRecorder := NewCommandRecorder(s.ID)
+	for command := range cmdRecordChan {
+		if command[0] == "" {
+			continue
+		}
+		cmd := s.generateCommandResult(command)
+		cmdRecorder.Record(cmd)
+	}
+	// 关闭命令记录
+	cmdRecorder.End()
+}
+func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Command {
+	var input string
+	var output string
+	if len(command[0]) > 128 {
+		input = command[0][:128]
+	} else {
+		input = command[0]
+	}
+	i := strings.LastIndexByte(command[1], '\r')
+	if i <= 0 {
+		output = command[1]
+	} else if i > 0 && i < 1024 {
+		output = command[1][:i]
+	} else {
+		output = command[1][:1024]
+	}
+
+	return &model.Command{
+		SessionID:  s.ID,
+		OrgID:      s.p.Database.OrgID,
+		Input:      input,
+		Output:     output,
+		User:       fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
+		Server:     s.p.Database.Name,
+		SystemUser: s.p.SystemUser.Username,
+		Timestamp:  time.Now().Unix(),
+	}
+}
+
 // postBridge 桥接结束以后执行操作
 func (s *DBSwitchSession) postBridge() {
 	s.DateEnd = common.CurrentUTCTime()
@@ -55,22 +103,32 @@ func (s *DBSwitchSession) postBridge() {
 // Bridge 桥接两个链接
 func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	var (
+		parser         DBParser
+		replayRecorder ReplyRecorder
+
 		userInChan chan []byte
 		srvInChan  chan []byte
 		done       chan struct{}
 	)
+	parser = newDBParser(s.ID)
+	replayRecorder = NewReplyRecord(s.ID)
 
 	userInChan = make(chan []byte, 1)
 	srvInChan = make(chan []byte, 1)
 	done = make(chan struct{})
-
+	userOutChan, srvOutChan := parser.ParseStream(userInChan, srvInChan)
 	defer func() {
 		close(done)
 		_ = userConn.Close()
 		_ = srvConn.Close()
+		// 关闭parser
+		parser.Close()
+		// 关闭录像
+		replayRecorder.End()
 		s.postBridge()
 	}()
 
+	go s.recordCommand(parser.cmdRecordChan)
 	go s.LoopReadFromSrv(done, srvConn, srvInChan)
 	go s.LoopReadFromUser(done, userConn, userInChan)
 	winCh := userConn.WinCh()
@@ -88,7 +146,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 				continue
 			}
 			msg := fmt.Sprintf(i18n.T("Database connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
-			logger.Debugf("Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
+			logger.Infof("DB Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
@@ -106,13 +164,14 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			_ = srvConn.SetWinSize(win.Height, win.Width)
 			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
 		// 经过parse处理的server数据，发给user
-		case p, ok := <-srvInChan:
+		case p, ok := <-srvOutChan:
 			if !ok {
 				return
 			}
-			_, _ = userConn.Write(p)
+			nw, _ := userConn.Write(p)
+			replayRecorder.Record(p[:nw])
 		// 经过parse处理的user数据，发给server
-		case p, ok := <-userInChan:
+		case p, ok := <-userOutChan:
 			if !ok {
 				return
 			}
@@ -128,24 +187,30 @@ func (s *DBSwitchSession) MapData() map[string]interface{} {
 		dataEnd = s.DateEnd
 	}
 	return map[string]interface{}{
-		"id":          s.ID,
-		"user":        fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
-		"login_from":  s.p.UserConn.LoginFrom(),
-		"remote_addr": s.p.UserConn.RemoteAddr(),
-		"is_finished": s.finished,
-		"date_start":  s.DateStart,
-		"date_end":    dataEnd,
-		"user_id":     s.p.User.ID,
+		"id":             s.ID,
+		"user":           fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
+		"asset":          s.p.Database.Name,
+		"org_id":         s.p.Database.OrgID,
+		"login_from":     s.p.UserConn.LoginFrom(),
+		"system_user":    s.p.SystemUser.Username,
+		"protocol":       s.p.SystemUser.Protocol,
+		"remote_addr":    s.p.UserConn.RemoteAddr(),
+		"is_finished":    s.finished,
+		"date_start":     s.DateStart,
+		"date_end":       dataEnd,
+		"user_id":        s.p.User.ID,
+		"asset_id":       s.p.Database.ID,
+		"system_user_id": s.p.SystemUser.ID,
 	}
 }
 
 func (s *DBSwitchSession) LoopReadFromUser(done chan struct{}, userConn UserConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session %s: read from user done", s.ID)
+	defer logger.Infof("DB Session %s: read from user done", s.ID)
 	s.LoopRead(done, userConn, inChan)
 }
 
 func (s *DBSwitchSession) LoopReadFromSrv(done chan struct{}, srvConn srvconn.ServerConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session %s: read from srv done", s.ID)
+	defer logger.Infof("DB Session %s: read from srv done", s.ID)
 	s.LoopRead(done, srvConn, inChan)
 }
 
@@ -157,7 +222,7 @@ loop:
 		if nr > 0 {
 			select {
 			case <-done:
-				logger.Debug("reader loop break done.")
+				logger.Debug("DB session reader loop break done.")
 				break loop
 			case inChan <- buf[:nr]:
 			}

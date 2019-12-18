@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -38,42 +39,47 @@ type ServerMysqlConnection struct {
 	options   *SqlOptions
 	ptyFD     *os.File
 	onceClose *sync.Once
+	cmd       *exec.Cmd
 }
 
 func (dbconn *ServerMysqlConnection) Connect() (err error) {
-	cmd := exec.Command("mysql", dbconn.options.CommandArgs()...)
+	dbconn.cmd = exec.Command("mysql", dbconn.options.CommandArgs()...)
 	nobody, err := user.Lookup("nobody")
 	if err != nil {
 		logger.Errorf("lookup nobody user err: %s", err)
 		return errors.New("nobody user does not exist")
 	}
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	dbconn.cmd.SysProcAttr = &syscall.SysProcAttr{}
 	uid, _ := strconv.Atoi(nobody.Uid)
 	gid, _ := strconv.Atoi(nobody.Gid)
-	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
-	fd, err := pty.Start(cmd)
+	dbconn.cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+	dbconn.ptyFD, err = pty.Start(dbconn.cmd)
 	if err != nil {
 		logger.Errorf("pty start err: %s", err)
 		return fmt.Errorf("start local pty err: %s", err)
 	}
-	prompt := [20]byte{}
-	nr, err := fd.Read(prompt[:])
+	prompt := [len(mysqlPrompt)]byte{}
+	nr, err := dbconn.ptyFD.Read(prompt[:])
 	if err != nil {
+		_ = dbconn.ptyFD.Close()
+		_ = dbconn.cmd.Process.Kill()
 		logger.Errorf("read mysql pty local fd err: %s", err)
 		return fmt.Errorf("mysql conn err: %s", err)
 	}
 	if !bytes.Equal(prompt[:nr], []byte(mysqlPrompt)) {
-		_ = fd.Close()
+		_ = dbconn.cmd.Process.Kill()
+		_ = dbconn.ptyFD.Close()
 		logger.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
 		return errors.New("failed login mysql")
 	}
 	// 输入密码, 登录mysql
-	_, err = fd.Write([]byte(dbconn.options.Password + "\r\n"))
+	_, err = dbconn.ptyFD.Write([]byte(dbconn.options.Password + "\r\n"))
 	if err != nil {
-		return
+		_ = dbconn.ptyFD.Close()
+		_ = dbconn.cmd.Process.Kill()
+		logger.Errorf("mysql local pty write err: %s", err)
+		return fmt.Errorf("mysql conn err: %s", err)
 	}
-	dbconn.ptyFD = fd
 	logger.Infof("Connect mysql database %s success ", dbconn.options.Host)
 	return
 }
@@ -82,7 +88,6 @@ func (dbconn *ServerMysqlConnection) Read(p []byte) (int, error) {
 	if dbconn.ptyFD == nil {
 		return 0, fmt.Errorf("not connect init")
 	}
-
 	return dbconn.ptyFD.Read(p)
 }
 
@@ -109,9 +114,10 @@ func (dbconn *ServerMysqlConnection) Close() (err error) {
 		if dbconn.ptyFD == nil {
 			return
 		}
-		err = dbconn.ptyFD.Close()
+		_ = dbconn.ptyFD.Close()
+		err = dbconn.cmd.Process.Kill()
 	})
-	return err
+	return
 }
 
 func (dbconn *ServerMysqlConnection) Timeout() time.Duration {

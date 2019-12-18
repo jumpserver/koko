@@ -3,18 +3,15 @@ package handler
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"strconv"
 	"strings"
-	"time"
-
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -334,9 +331,7 @@ func (h *interactiveHandler) getNodeAssetPaginator(node model.Node) AssetPaginat
 }
 
 func (h *interactiveHandler) getDatabasePaginator() DatabasePaginator {
-	if dbs == nil {
-		dbs = getDatabases()
-	}
+	dbs := service.GetUserDatabases(h.user.ID)
 	return NewLocalDatabasePaginator(dbs, getPageSize(h.term))
 }
 
@@ -434,53 +429,84 @@ func (h *interactiveHandler) moveDBNextPage() {
 }
 
 func (h *interactiveHandler) ProxyDB(dbSelect model.Database) {
+	systemUsers := service.GetUserDatabaseSystemUsers(h.user.ID, dbSelect.ID)
+	systemUserSelect, ok := h.chooseDBSystemUser(dbSelect, systemUsers)
+	if !ok {
+		return
+	}
 	p := proxy.DBProxyServer{
-		UserConn: h.sess,
-		User:     h.user,
-		Database: &dbSelect,
+		UserConn:   h.sess,
+		User:       h.user,
+		Database:   &dbSelect,
+		SystemUser: &systemUserSelect,
 	}
 	p.Proxy()
 	logger.Infof("Request %s: database %s proxy end", h.sess.Uuid, dbSelect.Name)
 }
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-const numberBytes = "1234567890"
+func (h *interactiveHandler) chooseDBSystemUser(dbAsset model.Database,
+	systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
 
-func RandStringBytes(n int) string {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	length := len(systemUsers)
+	switch length {
+	case 0:
+		return model.SystemUser{}, false
+	case 1:
+		return systemUsers[0], true
+	default:
 	}
-	return string(b)
-}
-
-func RandNumBytes(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = numberBytes[rand.Intn(len(letterBytes))]
+	displaySystemUsers := selectHighestPrioritySystemUsers(systemUsers)
+	if len(displaySystemUsers) == 1 {
+		return displaySystemUsers[0], true
 	}
-	return string(b)
-}
 
-var dbs []model.Database
+	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"), getI18nFromMap("Username")}
+	fields := []string{"ID", "Name", "Username"}
 
-func getDatabases() []model.Database {
-	dbs := make([]model.Database, 0, 30)
-	id := uuid.NewV4().String()
-	for i := 0; i < cap(dbs); i++ {
-		dbs = append(dbs, model.Database{
-			ID:        id,
-			Name:      RandStringBytes(5),
-			LoginMode: "auto",
-			DBType:    "mysql",
-			Host:      "127.0.0.1",
-			Port:      "3306",
-			Username:  "root",
-			Password:  "Root@123456",
-			DBName:    "",
-			Comment:   RandStringBytes(4),
-		})
+	data := make([]map[string]string, len(displaySystemUsers))
+	for i, j := range displaySystemUsers {
+		row := make(map[string]string)
+		row["ID"] = strconv.Itoa(i + 1)
+		row["Name"] = j.Name
+		row["Username"] = j.Username
+		data[i] = row
 	}
-	return dbs
+	w, _ := h.term.GetSize()
+	table := common.WrapperTable{
+		Fields: fields,
+		Labels: Labels,
+		FieldsSize: map[string][3]int{
+			"ID":       {0, 0, 5},
+			"Name":     {0, 8, 0},
+			"Username": {0, 10, 0},
+		},
+		Data:        data,
+		TotalSize:   w,
+		TruncPolicy: common.TruncMiddle,
+	}
+	table.Initial()
+
+	h.term.SetPrompt("ID> ")
+	defer h.term.SetPrompt("Opt> ")
+	selectUserTip := fmt.Sprintf(getI18nFromMap("SelectUserTip"), dbAsset.Name, dbAsset.Host)
+	for {
+		utils.IgnoreErrWriteString(h.term, table.Display())
+		utils.IgnoreErrWriteString(h.term, selectUserTip)
+		utils.IgnoreErrWriteString(h.term, getI18nFromMap("BackTip"))
+		utils.IgnoreErrWriteString(h.term, "\r\n")
+		line, err := h.term.ReadLine()
+		if err != nil {
+			return
+		}
+		line = strings.TrimSpace(line)
+		switch strings.ToLower(line) {
+		case "q", "b", "quit", "exit", "back":
+			return
+		}
+		if num, err := strconv.Atoi(line); err == nil {
+			if num > 0 && num <= len(displaySystemUsers) {
+				return displaySystemUsers[num-1], true
+			}
+		}
+	}
 }

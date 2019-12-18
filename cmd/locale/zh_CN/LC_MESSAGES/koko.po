@@ -183,24 +183,30 @@ msgid ""
 msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段，如：//192"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:107
+#: pkg/proxy/dbproxy.go:112
 #, fuzzy
-msgid "Database connecting to %s@%s  %.1f"
-msgstr "连接数据库 %s@%s  %.1f"
+msgid "Database connecting to %s %.1f"
+msgstr "连接数据库 %s  %.1f"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:126
+#: pkg/proxy/dbproxy.go:131
+#, fuzzy
+msgid "System user <%s> and database <%s> protocol are inconsistent."
+msgstr "系统用户<%s>和资产<%s>协议不一致"
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:137
 msgid "Database %s protocol client not installed."
 msgstr "%s 协议的数据库客户端未安装"
 
 #. i18n.T
-#: pkg/proxy/dbswitch.go:90
+#: pkg/proxy/dbswitch.go:148
 #, fuzzy
 msgid "Database connect idle more than %d minutes, disconnect"
-msgstr "数据库连接空闲时间超过%d分钟，断开连接"
+msgstr "数据库连接空闲时间超过 %d 分钟，断开连接"
 
 #. i18n.T
-#: pkg/proxy/dbswitch.go:97
+#: pkg/proxy/dbswitch.go:155
 #, fuzzy
 msgid "Database connection terminated by administrator"
 msgstr "管理员中断数据库连接"
@@ -232,16 +238,21 @@ msgid ""
 msgstr "终端仅支持ssh/telnet协议，请使用web终端登录"
 
 #. i18n.T
-#: pkg/proxy/sessmanager.go:67
+#: pkg/proxy/sessmanager.go:75
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. i18n.T
-#: pkg/proxy/switch.go:169
+#: pkg/proxy/sessmanager.go:117
+msgid "Create database session failed"
+msgstr "创建数据库会话失败"
+
+#. i18n.T
+#: pkg/proxy/switch.go:173
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
 
 #. i18n.T
-#: pkg/proxy/switch.go:176
+#: pkg/proxy/switch.go:180
 msgid "Terminated by administrator"
 msgstr "管理员中断连接"
