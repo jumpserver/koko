@@ -90,7 +90,6 @@ type Asset struct {
 	IP              string       `json:"ip"`
 	Os              string       `json:"os"`
 	Domain          string       `json:"domain"`
-	Platform        string       `json:"platform"`
 	Comment         string       `json:"comment"`
 	Protocols       []string     `json:"protocols,omitempty"`
 	OrgID           string       `json:"org_id"`

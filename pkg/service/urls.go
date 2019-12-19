@@ -1,11 +1,9 @@
 package service
 
 const (
-	UserAuthURL    = "/api/v1/authentication/auth/"                      // post 验证用户登陆
 	UserProfileURL = "/api/v1/users/profile/"                            // 获取当前用户的基本信息
 	UserListURL    = "/api/v1/users/users/"                              // 用户列表地址
 	UserDetailURL  = "/api/v1/users/users/%s/"                           // 获取用户信息
-	UserAuthOTPURL = "/api/v1/authentication/otp/auth/"                  // 验证OTP
 	TokenAssetURL  = "/api/v1/authentication/connection-token/?token=%s" // Token name
 
 	SystemUserAssetAuthURL          = "/api/v1/assets/system-users/%s/assets/%s/auth-info/" // 该系统用户对某资产的授权
@@ -41,8 +39,14 @@ const (
 
 // 1.5.5
 const (
-	UserTokenAuthURL = "/api/v1/authentication/tokens/" // 用户登录验证
+	UserTokenAuthURL   = "/api/v1/authentication/tokens/" // 用户登录验证
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
 
 	NodeTreeWithAssetURL = "/api/v1/perms/users/%s/nodes/children-with-assets/tree/" // 资产树
+
+	DatabaseAPPURL = "/api/v1/perms/users/%s/database-apps/" //数据库app
+
+	UserDatabaseSystemUsersURL = "/api/v1/perms/users/%s/database-apps/%s/system-users/"
+
+	SystemUserAuthURL = "/api/v1/assets/system-users/%s/auth-info/"
 )

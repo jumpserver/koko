@@ -68,6 +68,9 @@ type interactiveHandler struct {
 	currentData       []model.Asset
 
 	assetPaginator AssetPaginator
+
+	dbPaginator   DatabasePaginator
+	currentDBData []model.Database
 }
 
 func (h *interactiveHandler) Initial() {
@@ -207,6 +210,7 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
 	h.assetPaginator = nil
+	h.dbPaginator = nil
 }
 
 func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
@@ -238,6 +242,7 @@ func (h *interactiveHandler) Proxy(ctx context.Context) {
 	h.pauseWatchWinSize()
 	p.Proxy()
 	h.resumeWatchWinSize()
+	logger.Infof("Request %s: asset %s proxy end", h.sess.Uuid, h.assetSelect.Hostname)
 }
 
 func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {

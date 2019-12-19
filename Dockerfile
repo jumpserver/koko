@@ -25,6 +25,7 @@ RUN chmod 755 ./entrypoint.sh \
   && apk update \
   && apk add -U tzdata \
   && apk add curl \
+  && apk add mysql-client \
   && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
   && echo "Asia/Shanghai" > /etc/timezone \
   && apk del tzdata \
