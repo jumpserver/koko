@@ -171,11 +171,17 @@ msgstr "数据库类型"
 
 #. i18n.T
 #: pkg/handler/banner.go:108
+#, fuzzy
+msgid "DB Name"
+msgstr "数据库名称"
+
+#. i18n.T
+#: pkg/handler/banner.go:109
 msgid "No Databases"
 msgstr "无数据库"
 
 #. i18n.T
-#: pkg/handler/banner.go:109
+#: pkg/handler/banner.go:110
 #, fuzzy
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "

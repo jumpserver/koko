@@ -177,7 +177,7 @@ func searchFromLocalDBs(dbs []model.Database, key string) []model.Database {
 	displayDBs := make([]model.Database, 0, len(dbs))
 	key = strings.ToLower(key)
 	for _, db := range dbs {
-		contents := []string{strings.ToLower(db.Name),
+		contents := []string{strings.ToLower(db.Name),strings.ToLower(db.DBName),
 			strings.ToLower(db.Host), strings.ToLower(db.Comment)}
 		if isSubstring(contents, key) {
 			displayDBs = append(displayDBs, db)

@@ -105,8 +105,9 @@ func getI18nFromMap(name string) string {
 			"All":               i18n.T("all"),
 			"SearchTip":         i18n.T("Search: %s"),
 			"DBType":            i18n.T("DBType"),
+			"DBName":            i18n.T("DB Name"),
 			"NoDatabases":       i18n.T("No Databases"),
-			"DBLoginTip":       i18n.T("Enter ID number directly login the database, multiple search use // + field, such as: //16"),
+			"DBLoginTip":        i18n.T("Enter ID number directly login the database, multiple search use // + field, such as: //16"),
 		}
 	})
 	return i18nMap[name]

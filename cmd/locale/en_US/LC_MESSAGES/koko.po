@@ -161,11 +161,16 @@ msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:108
-msgid "No Databases"
+msgid "DB Name"
 msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:109
+msgid "No Databases"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:110
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
 "such as: //16"

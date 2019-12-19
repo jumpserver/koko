@@ -71,7 +71,6 @@ type interactiveHandler struct {
 
 	dbPaginator   DatabasePaginator
 	currentDBData []model.Database
-	dbSelect      model.Database
 }
 
 func (h *interactiveHandler) Initial() {

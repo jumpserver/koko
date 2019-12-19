@@ -342,8 +342,9 @@ func (h *interactiveHandler) displayPageDatabase() {
 		return
 	}
 	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"),
-		getI18nFromMap("IP"), getI18nFromMap("DBType"), getI18nFromMap("Comment")}
-	fields := []string{"ID", "name", "IP", "DBType", "comment"}
+		getI18nFromMap("IP"), getI18nFromMap("DBType"),
+		getI18nFromMap("DBName"),getI18nFromMap("Comment")}
+	fields := []string{"ID", "name", "IP", "DBType","DBName", "comment"}
 	data := make([]map[string]string, len(h.currentDBData))
 	for i, j := range h.currentDBData {
 		row := make(map[string]string)
@@ -351,6 +352,7 @@ func (h *interactiveHandler) displayPageDatabase() {
 		row["name"] = j.Name
 		row["IP"] = j.Host
 		row["DBType"] = j.DBType
+		row["DBName"] = j.DBName
 
 		comments := make([]string, 0)
 		for _, item := range strings.Split(strings.TrimSpace(j.Comment), "\r\n") {
@@ -381,6 +383,7 @@ func (h *interactiveHandler) displayPageDatabase() {
 			"name":    {0, 8, 0},
 			"IP":      {0, 15, 40},
 			"DBType":  {0, 8, 0},
+			"DBName":  {0, 8, 0},
 			"comment": {0, 0, 0},
 		},
 		Data:        data,
