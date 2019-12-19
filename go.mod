@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go v1.19.46
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/creack/pty v1.1.9
-	github.com/elastic/go-elasticsearch v0.0.0
+	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/gorilla/mux v1.7.2
