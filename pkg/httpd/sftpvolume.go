@@ -29,9 +29,6 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 		assets := service.GetUserAssetByID(user.ID, hostId)
 		if len(assets) == 1 {
 			homename = assets[0].Hostname
-			if assets[0].OrgID != "" {
-				homename = fmt.Sprintf("%s.%s", assets[0].Hostname, assets[0].OrgName)
-			}
 			basePath = filepath.Join("/", homename)
 		}
 		userSftp = srvconn.NewUserSftpConnWithAssets(user, addr, assets...)
