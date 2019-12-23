@@ -16,7 +16,7 @@ func GetUserAssets(userID string, pageSize, offset int, searches ...string) (res
 	paramsArray := make([]map[string]string, 0, len(searches)+2)
 	for i := 0; i < len(searches); i++ {
 		paramsArray = append(paramsArray, map[string]string{
-			"search": url.QueryEscape(searches[i]),
+			"search": searches[i],
 		})
 	}
 	params := map[string]string{
