@@ -49,4 +49,6 @@ const (
 	UserDatabaseSystemUsersURL = "/api/v1/perms/users/%s/database-apps/%s/system-users/"
 
 	SystemUserAuthURL = "/api/v1/assets/system-users/%s/auth-info/"
+
+	UserAssetsTree = "/api/v1/perms/users/%s/assets/tree/"
 )

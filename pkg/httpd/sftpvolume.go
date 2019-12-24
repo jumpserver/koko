@@ -322,6 +322,21 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 
 func (u *UserVolume) Close() {
 	u.UserSftp.Close()
+	logger.Infof("User %s's volume close", u.UserSftp.User.Name)
+}
+
+func (u *UserVolume) Search(path, key string, mimes ...string) (res []elfinder.FileDir, err error) {
+	originFileInfolist, err := u.UserSftp.Search(key)
+	if err != nil {
+		return nil, err
+	}
+	res = make([]elfinder.FileDir, 0, len(originFileInfolist))
+	searchPath := fmt.Sprintf("/%s", srvconn.SearchFolderName)
+	for i := 0; i < len(originFileInfolist); i++ {
+		res = append(res, NewElfinderFileInfo(u.Uuid, searchPath, originFileInfolist[i]))
+
+	}
+	return
 }
 
 func NewElfinderFileInfo(id, dirPath string, originFileInfo os.FileInfo) elfinder.FileDir {
