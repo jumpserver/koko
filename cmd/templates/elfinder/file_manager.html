@@ -51,7 +51,10 @@
                         ['copy', 'cut', 'paste'],
                         ['rm'],
                         ['rename'],
-                        ['view']
+                        ['view'],
+                        {{if eq . "_"}}
+                        ['search']
+                        {{end}}
                     ],
                     cwd : {oldSchool: true}
 	    		},

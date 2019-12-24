@@ -24,6 +24,8 @@ type UserSftpConn struct {
 	logChan  chan *model.FTPLog
 
 	closed chan struct{}
+
+	searchDir *SearchResultDir
 }
 
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
@@ -189,6 +191,9 @@ func (u *UserSftpConn) Close() {
 			continue
 		}
 	}
+	if u.searchDir != nil{
+		u.searchDir.close()
+	}
 	close(u.closed)
 }
 
@@ -224,8 +229,15 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 		fi = u
 		return
 	}
-	dirs := u.Dirs
+	var dirs map[string]os.FileInfo
 	var ok bool
+
+	if data[0] == SearchFolderName {
+		dirs = u.searchDir.subDirs
+		data = data[1:]
+	} else {
+		dirs = u.Dirs
+	}
 	for i := 0; i < len(data); i++ {
 		fi, ok = dirs[data[i]]
 		if !ok {
@@ -251,6 +263,11 @@ func (u *UserSftpConn) initial() {
 	if u.Dirs == nil {
 		u.Dirs = map[string]os.FileInfo{}
 	}
+	u.searchDir = &SearchResultDir{
+		folderName: SearchFolderName,
+		modeTime:   time.Now().UTC(),
+		subDirs:    map[string]os.FileInfo{}}
+
 	for _, item := range nodeTrees {
 		if item.Pid != "" {
 			continue
@@ -350,6 +367,56 @@ func (u *UserSftpConn) loopPushFTPLog() {
 		}
 		maxRetry++
 	}
+}
+
+func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
+	if u.searchDir == nil{
+		logger.Errorf("not found search folder")
+		return nil, fmt.Errorf("not found")
+	}
+	assetsTree, err := service.SearchPermAsset(u.User.ID, key)
+	if err != nil {
+		logger.Errorf("search asset err: %s", err)
+		return nil, err
+	}
+	subDirs := map[string]os.FileInfo{}
+	for _, item := range assetsTree {
+		typeName, ok := item.Meta["type"].(string)
+		if !ok {
+			continue
+		}
+		body, err := json.Marshal(item.Meta[typeName])
+		if err != nil {
+			logger.Errorf("Search Json Marshal err: %s", err)
+			continue
+		}
+		switch typeName {
+		case "asset":
+			asset, err := model.ConvertMetaToAsset(body)
+			if err != nil {
+				logger.Errorf("convert to asset err: %s", err)
+				continue
+			}
+			if !asset.IsSupportProtocol("ssh") {
+				continue
+			}
+			assetDir := NewAssetDir(u.User, asset, u.Addr, u.logChan)
+			folderName := assetDir.folderName
+			for {
+				_, ok := subDirs[folderName]
+				if !ok {
+					break
+				}
+				folderName = fmt.Sprintf("%s_", folderName)
+			}
+			if folderName != assetDir.folderName {
+				assetDir.folderName = folderName
+			}
+			subDirs[assetDir.folderName] = &assetDir
+		}
+	}
+	u.searchDir.SetSubDirs(subDirs)
+	return u.searchDir.List()
 }
 
 func NewUserSftpConn(user *model.User, addr string) *UserSftpConn {
