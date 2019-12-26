@@ -443,8 +443,10 @@ func (h *interactiveHandler) ProxyDB(dbSelect model.Database) {
 		Database:   &dbSelect,
 		SystemUser: &systemUserSelect,
 	}
+	h.pauseWatchWinSize()
 	p.Proxy()
 	logger.Infof("Request %s: database %s proxy end", h.sess.Uuid, dbSelect.Name)
+	h.resumeWatchWinSize()
 }
 
 func (h *interactiveHandler) chooseDBSystemUser(dbAsset model.Database,
