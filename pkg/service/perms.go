@@ -184,7 +184,7 @@ func GetUserNodeTreeWithAsset(userID, nodeID, cachePolicy string) (nodeTrees mod
 }
 
 func SearchPermAsset(uid, key string) (res model.NodeTreeList, err error) {
-	Url := fmt.Sprintf(UserAssetsTree, uid)
+	Url := fmt.Sprintf(UserAssetsTreeURL, uid)
 	payload := map[string]string{"search": key}
 	_, err = authClient.Get(Url, &res, payload)
 	if err != nil {

@@ -20,6 +20,10 @@ import (
 	"github.com/jumpserver/koko/pkg/service"
 )
 
+type proxyServer interface {
+	Proxy()
+}
+
 func OnPingHandler(c *neffos.NSConn, msg neffos.Message) error {
 	c.Emit("pong", []byte(""))
 	return nil
@@ -106,18 +110,32 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	emitMsg := RoomMsg{roomID, secret}
 	roomMsg, _ := json.Marshal(emitMsg)
 	c.Emit("room", roomMsg)
+	var databaseAsset model.Database
+	var asset model.Asset
 
-	asset := service.GetAsset(assetID)
 	systemUser := service.GetSystemUser(systemUserID)
+	if message.HostType == "database" {
+		databaseAsset = service.GetDatabase(assetID)
+		if databaseAsset.ID == "" || systemUser.ID == "" {
+			msg := "No database id or system user id found, exit"
+			logger.Info(msg)
+			dataMsg := DataMsg{Room: roomID, Data: msg}
+			c.Emit("data", neffos.Marshal(dataMsg))
+			return
+		}
 
-	if asset.ID == "" || systemUser.ID == "" {
-		msg := "No asset id or system user id found, exit"
-		logger.Debug(msg)
-		dataMsg := DataMsg{Room: roomID, Data: msg}
-		c.Emit("data", neffos.Marshal(dataMsg))
-		return
+		logger.Infof("Web terminal want to connect database: %s", databaseAsset.Name)
+	} else {
+		asset = service.GetAsset(assetID)
+		if asset.ID == "" || systemUser.ID == "" {
+			msg := "No asset id or system user id found, exit"
+			logger.Debug(msg)
+			dataMsg := DataMsg{Room: roomID, Data: msg}
+			c.Emit("data", neffos.Marshal(dataMsg))
+			return
+		}
+		logger.Infof("Web terminal want to connect host: %s", asset.Hostname)
 	}
-	logger.Debug("Web terminal want to connect host: ", asset.Hostname)
 	currentUser, ok := cc.Get("currentUser").(*model.User)
 	if !ok {
 		err = errors.New("not found current user")
@@ -149,9 +167,20 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	client.WinChan <- win
 	clients.AddClient(roomID, client)
 	conns.AddClient(cc.ID(), roomID)
-	proxySrv := proxy.ProxyServer{
-		UserConn: client, User: currentUser,
-		Asset: &asset, SystemUser: &systemUser,
+	var proxySrv proxyServer
+	if message.HostType == "database" {
+		proxySrv = &proxy.DBProxyServer{
+			UserConn:   client,
+			User:       currentUser,
+			Database:   &databaseAsset,
+			SystemUser: &systemUser,
+		}
+
+	} else {
+		proxySrv = &proxy.ProxyServer{
+			UserConn: client, User: currentUser,
+			Asset: &asset, SystemUser: &systemUser,
+		}
 	}
 	go func() {
 		defer logger.Infof("Request %s: Web ssh end proxy process", client.Uuid)

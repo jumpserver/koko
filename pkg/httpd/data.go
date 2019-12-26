@@ -1,10 +1,11 @@
 package httpd
 
 type HostMsg struct {
-	Uuid   string `json:"uuid"`
-	UserID string `json:"userid"`
-	Secret string `json:"secret"`
-	Size   []int  `json:"size"`
+	Uuid     string `json:"uuid"`
+	UserID   string `json:"userid"`
+	Secret   string `json:"secret"`
+	Size     []int  `json:"size"`
+	HostType string `json:"type"`
 }
 
 type ResizeMsg struct {
