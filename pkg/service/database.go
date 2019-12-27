@@ -33,3 +33,13 @@ func GetSystemUserDatabaseAuthInfo(systemUserID string) (info model.SystemUserAu
 	}
 	return
 }
+
+
+func GetDatabase(dbID string) (res model.Database) {
+	Url := fmt.Sprintf(DatabaseDetailURL, dbID)
+	_, err := authClient.Get(Url, &res)
+	if err != nil {
+		logger.Errorf("Get User databases err: %s", err)
+	}
+	return
+}

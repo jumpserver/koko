@@ -50,5 +50,7 @@ const (
 
 	SystemUserAuthURL = "/api/v1/assets/system-users/%s/auth-info/"
 
-	UserAssetsTree = "/api/v1/perms/users/%s/assets/tree/"
+	UserAssetsTreeURL = "/api/v1/perms/users/%s/assets/tree/"
+
+	DatabaseDetailURL = "/api/v1/applications/database-apps/%s/"
 )
