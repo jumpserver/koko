@@ -52,5 +52,5 @@ const (
 
 	UserAssetsTreeURL = "/api/v1/perms/users/%s/assets/tree/"
 
-	databaseDetailURL = "/api/v1/applications/database-apps/%s/"
+	DatabaseDetailURL = "/api/v1/applications/database-apps/%s/"
 )
