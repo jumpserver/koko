@@ -55,6 +55,7 @@ func (s *SwitchSession) Terminate() {
 	default:
 	}
 	s.cancel()
+	logger.Infof("Session %s: receive terminate from admin", s.ID)
 }
 
 func (s *SwitchSession) SessionID() string {
@@ -179,6 +180,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		case <-s.ctx.Done():
 			msg := i18n.T("Terminated by administrator")
 			msg = utils.WrapperWarn(msg)
+			logger.Infof("Session %s: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 监控窗口大小变化
