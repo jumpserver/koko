@@ -46,6 +46,7 @@ func (s *DBSwitchSession) Terminate() {
 	default:
 	}
 	s.cancel()
+	logger.Infof("DBSession %s: receive terminate from admin", s.ID)
 }
 
 func (s *DBSwitchSession) SessionID() string {
@@ -154,6 +155,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 		case <-s.ctx.Done():
 			msg := i18n.T("Database connection terminated by administrator")
 			msg = utils.WrapperWarn(msg)
+			logger.Infof("DBSession %s: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 监控窗口大小变化
