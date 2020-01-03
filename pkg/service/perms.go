@@ -16,7 +16,7 @@ func GetUserAssets(userID string, pageSize, offset int, searches ...string) (res
 	paramsArray := make([]map[string]string, 0, len(searches)+2)
 	for i := 0; i < len(searches); i++ {
 		paramsArray = append(paramsArray, map[string]string{
-			"search": url.QueryEscape(searches[i]),
+			"search": searches[i],
 		})
 	}
 	params := map[string]string{
@@ -164,4 +164,31 @@ func ValidateUserAssetPermission(userID, assetID, systemUserID, action string) b
 	}
 
 	return res.Msg
+}
+
+func GetUserNodeTreeWithAsset(userID, nodeID, cachePolicy string) (nodeTrees model.NodeTreeList) {
+	if cachePolicy == "" {
+		cachePolicy = "1"
+	}
+
+	payload := map[string]string{"cache_policy": cachePolicy}
+	if nodeID != "" {
+		payload["id"] = nodeID
+	}
+	Url := fmt.Sprintf(NodeTreeWithAssetURL, userID)
+	_, err := authClient.Get(Url, &nodeTrees, payload)
+	if err != nil {
+		logger.Error("Get user node tree error: ", err)
+	}
+	return
+}
+
+func SearchPermAsset(uid, key string) (res model.NodeTreeList, err error) {
+	Url := fmt.Sprintf(UserAssetsTreeURL, uid)
+	payload := map[string]string{"search": key}
+	_, err = authClient.Get(Url, &res, payload)
+	if err != nil {
+		logger.Error("Get user node tree error: ", err)
+	}
+	return
 }

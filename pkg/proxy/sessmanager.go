@@ -12,8 +12,13 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-var sessionMap = make(map[string]*SwitchSession)
+var sessionMap = make(map[string]Session)
 var lock = new(sync.RWMutex)
+
+type Session interface {
+	SessionID() string
+	Terminate()
+}
 
 func HandleSessionTask(task model.TerminalTask) {
 	switch task.Name {
@@ -50,20 +55,23 @@ func RemoveSession(sw *SwitchSession) {
 	lock.Lock()
 	defer lock.Unlock()
 	delete(sessionMap, sw.ID)
-	finishSession(sw)
+	data := sw.MapData()
+	finishSession(data)
+	logger.Infof("Session %s has finished", sw.ID)
 }
 
-func AddSession(sw *SwitchSession) {
+func AddSession(sw Session) {
 	lock.Lock()
 	defer lock.Unlock()
-	sessionMap[sw.ID] = sw
+	sessionMap[sw.SessionID()] = sw
 }
 
 func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 	// 创建Session
 	sw = NewSwitchSession(p)
 	// Post到Api端
-	ok := postSession(sw)
+	data := sw.MapData()
+	ok := postSession(data)
 	msg := i18n.T("Connect with api server failed")
 	if !ok {
 		msg = utils.WrapperWarn(msg)
@@ -84,8 +92,7 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 	return
 }
 
-func postSession(s *SwitchSession) bool {
-	data := s.MapData()
+func postSession(data map[string]interface{}) bool {
 	for i := 0; i < 5; i++ {
 		if service.CreateSession(data) {
 			return true
@@ -95,8 +102,33 @@ func postSession(s *SwitchSession) bool {
 	return false
 }
 
-func finishSession(s *SwitchSession) {
-	data := s.MapData()
+func finishSession(data map[string]interface{}) {
 	service.FinishSession(data)
-	logger.Debugf("Session %s has finished", s.ID)
+}
+
+func CreateDBSession(p *DBProxyServer) (sw *DBSwitchSession, err error) {
+	// 创建Session
+	sw = &DBSwitchSession{
+		p: p,
+	}
+	sw.Initial()
+	data := sw.MapData()
+	ok := postSession(data)
+	msg := i18n.T("Create database session failed")
+	if !ok {
+		msg = utils.WrapperWarn(msg)
+		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Error(msg)
+		return sw, errors.New("create database session failed")
+	}
+	AddSession(sw)
+	return
+}
+
+func RemoveDBSession(sw *DBSwitchSession) {
+	lock.Lock()
+	defer lock.Unlock()
+	delete(sessionMap, sw.ID)
+	finishSession(sw.MapData())
+	logger.Infof("DB Session %s has finished", sw.ID)
 }

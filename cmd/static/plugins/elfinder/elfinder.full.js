@@ -19695,49 +19695,49 @@ $.fn.elfindersearchbutton = function(cmd) {
 				});
 			})
 			.one('open', function() {
-				opts = (fm.api < 2.1)? null : $('<div class="ui-front ui-widget ui-widget-content elfinder-button-menu elfinder-button-search-menu ui-corner-all"/>')
-					.append(
-						$('<div class="buttonset"/>')
-							.append(
-								$('<input id="'+id('SearchFromCwd')+'" name="serchfrom" type="radio" checked="checked"/><label for="'+id('SearchFromCwd')+'">'+fm.i18n('btnCwd')+'</label>'),
-								$('<input id="'+id('SearchFromVol')+'" name="serchfrom" type="radio"/><label for="'+id('SearchFromVol')+'">'+fm.i18n('btnVolume')+'</label>'),
-								$('<input id="'+id('SearchFromAll')+'" name="serchfrom" type="radio"/><label for="'+id('SearchFromAll')+'">'+fm.i18n('btnAll')+'</label>')
-							),
-						$('<div class="buttonset elfinder-search-type"/>')
-							.append(
-								$('<input id="'+id('SearchName')+'" name="serchcol" type="radio" checked="checked" value="SearchName"/><label for="'+id('SearchName')+'">'+fm.i18n('btnFileName')+'</label>')
-							)
-					)
-					.hide()
-					.appendTo(fm.getUI());
-				if (opts) {
-					if (sTypes) {
-						typeSet = opts.find('.elfinder-search-type');
-						$.each(cmd.options.searchTypes, function(i, v) {
-							typeSet.append($('<input id="'+id(i)+'" name="serchcol" type="radio" value="'+fm.escape(i)+'"/><label for="'+id(i)+'">'+fm.i18n(v.name)+'</label>'));
-						});
-					}
-					opts.find('div.buttonset').buttonset();
-					$('#'+id('SearchFromAll')).next('label').attr('title', fm.i18n('searchTarget', fm.i18n('btnAll')));
-					if (sTypes) {
-						$.each(sTypes, function(i, v) {
-							if (v.title) {
-								$('#'+id(i)).next('label').attr('title', fm.i18n(v.title));
-							}
-						});
-					}
-					opts.on('mousedown', 'div.buttonset', function(e){
-							e.stopPropagation();
-							opts.data('infocus', true);
-						})
-						.on('click', 'input', function(e) {
-							e.stopPropagation();
-							$.trim(input.val())? search() : input.trigger('focus');
-						})
-						.on('close', function() {
-							input.trigger('blur');
-						});
-				}
+				// opts = (fm.api < 2.1)? null : $('<div class="ui-front ui-widget ui-widget-content elfinder-button-menu elfinder-button-search-menu ui-corner-all"/>')
+				// 	.append(
+				// 		$('<div class="buttonset"/>')
+				// 			.append(
+				// 				$('<input id="'+id('SearchFromCwd')+'" name="serchfrom" type="radio" checked="checked"/><label for="'+id('SearchFromCwd')+'">'+fm.i18n('btnCwd')+'</label>'),
+				// 				$('<input id="'+id('SearchFromVol')+'" name="serchfrom" type="radio"/><label for="'+id('SearchFromVol')+'">'+fm.i18n('btnVolume')+'</label>'),
+				// 				$('<input id="'+id('SearchFromAll')+'" name="serchfrom" type="radio"/><label for="'+id('SearchFromAll')+'">'+fm.i18n('btnAll')+'</label>')
+				// 			),
+				// 		$('<div class="buttonset elfinder-search-type"/>')
+				// 			.append(
+				// 				$('<input id="'+id('SearchName')+'" name="serchcol" type="radio" checked="checked" value="SearchName"/><label for="'+id('SearchName')+'">'+fm.i18n('btnFileName')+'</label>')
+				// 			)
+				// 	)
+				// 	.hide()
+				// 	.appendTo(fm.getUI());
+				// if (opts) {
+				// 	if (sTypes) {
+				// 		typeSet = opts.find('.elfinder-search-type');
+				// 		$.each(cmd.options.searchTypes, function(i, v) {
+				// 			typeSet.append($('<input id="'+id(i)+'" name="serchcol" type="radio" value="'+fm.escape(i)+'"/><label for="'+id(i)+'">'+fm.i18n(v.name)+'</label>'));
+				// 		});
+				// 	}
+				// 	opts.find('div.buttonset').buttonset();
+				// 	$('#'+id('SearchFromAll')).next('label').attr('title', fm.i18n('searchTarget', fm.i18n('btnAll')));
+				// 	if (sTypes) {
+				// 		$.each(sTypes, function(i, v) {
+				// 			if (v.title) {
+				// 				$('#'+id(i)).next('label').attr('title', fm.i18n(v.title));
+				// 			}
+				// 		});
+				// 	}
+				// 	opts.on('mousedown', 'div.buttonset', function(e){
+				// 			e.stopPropagation();
+				// 			opts.data('infocus', true);
+				// 		})
+				// 		.on('click', 'input', function(e) {
+				// 			e.stopPropagation();
+				// 			$.trim(input.val())? search() : input.trigger('focus');
+				// 		})
+				// 		.on('close', function() {
+				// 			input.trigger('blur');
+				// 		});
+				// }
 			})
 			.bind('searchend', function() {
 				input.val('');
