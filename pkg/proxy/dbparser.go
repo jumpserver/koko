@@ -65,8 +65,6 @@ func (p *DBParser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, sr
 			close(p.cmdRecordChan)
 			close(p.userOutputChan)
 			close(p.srvOutputChan)
-			_ = p.cmdOutputParser.Close()
-			_ = p.cmdInputParser.Close()
 			logger.Infof("DB Session %s: Parser routine done", p.id)
 		}()
 		for {
@@ -169,6 +167,9 @@ func (p *DBParser) Close() {
 	default:
 		close(p.closed)
 	}
+	_ = p.cmdOutputParser.Close()
+	_ = p.cmdInputParser.Close()
+	logger.Infof("DB Session %s: Parser close", p.id)
 }
 
 func (p *DBParser) sendCommandRecord() {
