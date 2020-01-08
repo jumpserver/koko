@@ -7,8 +7,6 @@ package utils
 import (
 	"bytes"
 	"unicode/utf8"
-
-	"github.com/jumpserver/koko/pkg/logger"
 )
 
 
@@ -291,7 +289,6 @@ func (t *terminalParser) parseLines(p []byte) (lines []string) {
 			return
 		} else if err == nil && n == 0 {
 			if len(t.remainder) == len(t.inBuf) {
-				logger.Errorf("～～ 发生卡顿问题 ～～")
 				t.remainder = t.remainder[1:]
 				continue
 			}
