@@ -66,7 +66,8 @@ func (w *WrapperSession) Close() error {
 		return nil
 	default:
 	}
-	err := w.inWriter.Close()
+	_ = w.inWriter.Close()
+	err := w.outReader.Close()
 	w.initReadPip()
 	return err
 }

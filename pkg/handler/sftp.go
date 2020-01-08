@@ -12,18 +12,19 @@ import (
 	"github.com/pkg/sftp"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 func SftpHandler(sess ssh.Session) {
-	ctx, cancel := cctx.NewContext(sess)
-	defer cancel()
+	currentUser, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
+	if !ok || currentUser.ID == "" {
+		logger.Errorf("SFTP User not found, exit.")
+		return
+	}
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	userSftp := NewSFTPHandler(ctx.User(), host)
+	userSftp := NewSFTPHandler(currentUser, host)
 	handlers := sftp.Handlers{
 		FileGet:  userSftp,
 		FilePut:  userSftp,
@@ -44,12 +45,11 @@ func SftpHandler(sess ssh.Session) {
 }
 
 func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
-	assets := service.GetUserAllAssets(user.ID)
-	return &sftpHandler{srvconn.NewUserSFTP(user, addr, assets...)}
+	return &sftpHandler{srvconn.NewUserSftpConn(user, addr)}
 }
 
 type sftpHandler struct {
-	*srvconn.UserSftp
+	*srvconn.UserSftpConn
 }
 
 func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
@@ -120,7 +120,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 }
 
 func (fs *sftpHandler) Close() {
-	fs.UserSftp.Close()
+	fs.UserSftpConn.Close()
 }
 
 type listerat []os.FileInfo

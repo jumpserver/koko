@@ -18,12 +18,6 @@ package model
 	'date_expired': '2089-03-21 18:18:24 +0800'}
 */
 
-type AuthResponse struct {
-	Token string `json:"token"`
-	Seed  string `json:"seed"`
-	User  *User  `json:"user"`
-}
-
 type User struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`

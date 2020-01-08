@@ -2,19 +2,23 @@ package auth
 
 import (
 	"net"
+	"strings"
 
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
 )
 
 var mfaInstruction = "Please enter 6 digits."
 var mfaQuestion = "[MFA auth]: "
+
+var confirmInstruction = "Please wait for your admin to confirm."
+var confirmQuestion = "Do you want to continue [Y/n]? : "
 
 const (
 	actionAccepted        = "Accepted"
@@ -31,28 +35,33 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 		authMethod = "password"
 	}
 	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
-
-	resp, err := service.Authenticate(username, password, publicKey, remoteAddr, "T")
-	if err != nil {
-		action = actionFailed
-		logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
-		return
+	userClient, ok := ctx.Value(model.ContextKeyClient).(*service.SessionClient)
+	if !ok {
+		sessionClient := service.NewSessionClient(service.Username(username),
+			service.RemoteAddr(remoteAddr), service.LoginType("T"))
+		userClient = &sessionClient
+		ctx.SetValue(model.ContextKeyClient, userClient)
 	}
-	if resp != nil && resp.User != nil {
-		switch resp.User.OTPLevel {
-		case 0:
-			res = ssh.AuthSuccessful
-		case 1, 2:
-			action = actionPartialAccepted
-			res = ssh.AuthPartiallySuccessful
-		default:
-		}
-		ctx.SetValue(cctx.ContextKeyUser, resp.User)
-		ctx.SetValue(cctx.ContextKeySeed, resp.Seed)
-		ctx.SetValue(cctx.ContextKeyToken, resp.Token)
+	userClient.SetOption(service.Password(password), service.PublicKey(publicKey))
+	user, authStatus := userClient.Authenticate(ctx)
+	switch authStatus {
+	case service.AuthMFARequired:
+		action = actionPartialAccepted
+		res = ssh.AuthPartiallySuccessful
+	case service.AuthSuccess:
+		res = ssh.AuthSuccessful
+		ctx.SetValue(model.ContextKeyUser, &user)
+	case service.AuthConfirmRequired:
+		required := true
+		ctx.SetValue(model.ContextKeyConfirmRequired, &required)
+		action = actionPartialAccepted
+		res = ssh.AuthPartiallySuccessful
+	default:
+		action = actionFailed
 	}
 	logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
-	return res
+	return
+
 }
 
 func CheckUserPassword(ctx ssh.Context, password string) ssh.AuthResult {
@@ -72,37 +81,70 @@ func CheckUserPublicKey(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
 }
 
 func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (res ssh.AuthResult) {
+	if value, ok := ctx.Value(model.ContextKeyConfirmFailed).(*bool); ok && *value {
+		return ssh.AuthFailed
+	}
+
 	username := ctx.User()
 	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 	res = ssh.AuthFailed
-	defer func() {
-		authMethod := "MFA"
-		if res == ssh.AuthSuccessful {
-			action := actionAccepted
-			logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
-		} else {
-			action := actionFailed
-			logger.Errorf("%s %s for %s from %s", action, authMethod, username, remoteAddr)
-		}
-	}()
-	answers, err := challenger(username, mfaInstruction, []string{mfaQuestion}, []bool{true})
+
+	var confirmAction bool
+	instruction := mfaInstruction
+	question := mfaQuestion
+
+	client, ok := ctx.Value(model.ContextKeyClient).(*service.SessionClient)
+	if !ok {
+		logger.Errorf("User %s Mfa Auth failed: not found session client.", username, )
+		return
+	}
+	value, ok := ctx.Value(model.ContextKeyConfirmRequired).(*bool)
+	if ok && *value {
+		confirmAction = true
+		instruction = confirmInstruction
+		question = confirmQuestion
+	}
+	answers, err := challenger(username, instruction, []string{question}, []bool{true})
 	if err != nil || len(answers) != 1 {
+		if confirmAction {
+			client.CancelConfirm()
+		}
+		logger.Errorf("User %s happened err: %s", username, err)
+		return
+	}
+	if confirmAction {
+		switch strings.TrimSpace(strings.ToLower(answers[0])) {
+		case "yes", "y", "":
+			user, authStatus := client.CheckConfirm(ctx)
+			switch authStatus {
+			case service.AuthSuccess:
+				res = ssh.AuthSuccessful
+				ctx.SetValue(model.ContextKeyUser, &user)
+				return
+			}
+		case "no", "n":
+			client.CancelConfirm()
+		default:
+			return
+		}
+		failed := true
+		ctx.SetValue(model.ContextKeyConfirmFailed, &failed)
 		return
 	}
 	mfaCode := answers[0]
-	seed, ok := ctx.Value(cctx.ContextKeySeed).(string)
-	if !ok {
-		logger.Error("Mfa Auth failed, may be user password or publickey auth failed")
-		return
-	}
-	resp, err := service.CheckUserOTP(seed, mfaCode, remoteAddr, "T")
-	if err != nil {
-		logger.Error("Mfa Auth failed: ", err)
-		return
-	}
-	if resp.Token != "" {
+	user, authStatus := client.CheckUserOTP(ctx, mfaCode)
+	switch authStatus {
+	case service.AuthSuccess:
 		res = ssh.AuthSuccessful
-		return
+		ctx.SetValue(model.ContextKeyUser, &user)
+		logger.Infof("%s MFA for %s from %s", actionAccepted, username, remoteAddr)
+	case service.AuthConfirmRequired:
+		res = ssh.AuthPartiallySuccessful
+		required := true
+		ctx.SetValue(model.ContextKeyConfirmRequired, &required)
+		logger.Infof("%s MFA for %s from %s", actionPartialAccepted, username, remoteAddr)
+	default:
+		logger.Errorf("%s MFA for %s from %s", actionFailed, username, remoteAddr)
 	}
 	return
 }

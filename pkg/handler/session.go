@@ -10,7 +10,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
 
-	"github.com/jumpserver/koko/pkg/cctx"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -21,13 +20,17 @@ import (
 )
 
 func SessionHandler(sess ssh.Session) {
+	user, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
+	if !ok || user.ID == "" {
+		logger.Errorf("SSH User %s not found, exit.", sess.User())
+		return
+	}
 	pty, _, ok := sess.Pty()
 	if ok {
-		ctx, cancel := cctx.NewContext(sess)
-		defer cancel()
-		handler := newInteractiveHandler(sess, ctx.User())
+		handler := newInteractiveHandler(sess, user)
 		logger.Infof("Request %s: User %s request pty %s", handler.sess.ID(), sess.User(), pty.Term)
-		handler.Dispatch(ctx)
+		go handler.watchWinSizeChange()
+		handler.Dispatch()
 	} else {
 		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
 		return
@@ -55,19 +58,26 @@ type interactiveHandler struct {
 	assetSelect      *model.Asset
 	systemUserSelect *model.SystemUser
 	nodes            model.NodeList
-	searchResult     []model.Asset
 
 	allAssets []model.Asset
 
-	loadDataDone    chan struct{}
+	firstLoadDone   chan struct{}
 	assetLoadPolicy string
+
+	currentSortedData []model.Asset
+	currentData       []model.Asset
+
+	assetPaginator AssetPaginator
+
+	dbPaginator   DatabasePaginator
+	currentDBData []model.Database
 }
 
 func (h *interactiveHandler) Initial() {
 	h.assetLoadPolicy = strings.ToLower(config.GetConf().AssetLoadPolicy)
 	h.displayBanner()
-	h.winWatchChan = make(chan bool)
-	h.loadDataDone = make(chan struct{})
+	h.winWatchChan = make(chan bool, 5)
+	h.firstLoadDone = make(chan struct{})
 	go h.firstLoadData()
 }
 
@@ -77,7 +87,7 @@ func (h *interactiveHandler) firstLoadData() {
 	case "all":
 		h.loadAllAssets()
 	}
-	close(h.loadDataDone)
+	close(h.firstLoadDone)
 }
 
 func (h *interactiveHandler) displayBanner() {
@@ -113,93 +123,11 @@ func (h *interactiveHandler) watchWinSizeChange() {
 }
 
 func (h *interactiveHandler) pauseWatchWinSize() {
-	select {
-	case <-h.sess.Sess.Context().Done():
-		return
-	default:
-	}
 	h.winWatchChan <- false
 }
 
 func (h *interactiveHandler) resumeWatchWinSize() {
-	select {
-	case <-h.sess.Sess.Context().Done():
-		return
-	default:
-	}
 	h.winWatchChan <- true
-}
-
-func (h *interactiveHandler) Dispatch(ctx cctx.Context) {
-	go h.watchWinSizeChange()
-	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
-	for {
-		line, err := h.term.ReadLine()
-		if err != nil {
-			logger.Debugf("User %s close connect", h.user.Name)
-			break
-		}
-		line = strings.TrimSpace(line)
-		switch len(line) {
-		case 0, 1:
-			switch strings.ToLower(line) {
-			case "", "p":
-				// 展示所有的资产
-				h.displayAllAssets()
-			case "g":
-				<-h.loadDataDone
-				h.displayNodes(h.nodes)
-			case "h":
-				h.displayBanner()
-			case "r":
-				h.refreshAssetsAndNodesData()
-			case "q":
-				logger.Debugf("user %s enter to exit", h.user.Name)
-				return
-			default:
-				h.searchAssetOrProxy(line)
-			}
-		default:
-			switch {
-			case line == "exit", line == "quit":
-				logger.Debugf("user %s enter to exit", h.user.Name)
-				return
-			case strings.Index(line, "/") == 0:
-				searchWord := strings.TrimSpace(line[1:])
-				h.searchAsset(searchWord)
-			case strings.Index(line, "g") == 0:
-				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
-				if num, err := strconv.Atoi(searchWord); err == nil {
-					if num >= 0 {
-						assets := h.searchNodeAssets(num)
-						h.displayAssets(assets)
-						continue
-					}
-				}
-				h.searchAssetOrProxy(line)
-			default:
-				h.searchAssetOrProxy(line)
-			}
-		}
-
-	}
-}
-
-func (h *interactiveHandler) displayAllAssets() {
-	switch h.assetLoadPolicy {
-	case "all":
-		<-h.loadDataDone
-		h.displayAssets(h.allAssets)
-	default:
-		pag := NewUserPagination(h.term, h.user.ID, "", false)
-		result := pag.Start()
-		if pag.IsNeedProxy && len(result) == 1 {
-			h.searchResult = h.searchResult[:0]
-			h.ProxyAsset(result[0])
-		} else {
-			h.searchResult = result
-		}
-	}
 }
 
 func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
@@ -269,50 +197,20 @@ func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
 	}
 }
 
-func (h *interactiveHandler) displayAssets(assets model.AssetList) {
-	if len(assets) == 0 {
-		_, _ = io.WriteString(h.term, getI18nFromMap("NoAssets")+"\n\r")
-	} else {
-		sortedAssets := assets.SortBy(config.GetConf().AssetListSortBy)
-		pag := NewAssetPagination(h.term, sortedAssets)
-		selectOneAssets := pag.Start()
-		if len(selectOneAssets) == 1 {
-			systemUsers := service.GetUserAssetSystemUsers(h.user.ID, selectOneAssets[0].ID)
-			systemUser, ok := h.chooseSystemUser(selectOneAssets[0], systemUsers)
-			if !ok {
-				return
-			}
-			h.assetSelect = &selectOneAssets[0]
-			h.systemUserSelect = &systemUser
-			h.Proxy(context.TODO())
-		}
-		if pag.page.PageSize() >= pag.page.TotalCount() {
-			h.searchResult = sortedAssets
-		}
-	}
-}
-
-func (h *interactiveHandler) displayNodes(nodes []model.Node) {
-	tree := ConstructAssetNodeTree(nodes)
-	_, _ = io.WriteString(h.term, "\n\r"+getI18nFromMap("NodeHeaderTip"))
-	_, _ = io.WriteString(h.term, tree.String())
-	_, err := io.WriteString(h.term, getI18nFromMap("NodeEndTip")+"\n\r")
-	if err != nil {
-		logger.Info("displayAssetNodes err:", err)
-	}
-
-}
-
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
 	switch h.assetLoadPolicy {
 	case "all":
 		h.loadAllAssets()
+	default:
+		_ = service.ForceRefreshUserPemAssets(h.user.ID)
 	}
 	h.loadUserNodes("2")
 	_, err := io.WriteString(h.term, getI18nFromMap("RefreshDone")+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
+	h.assetPaginator = nil
+	h.dbPaginator = nil
 }
 
 func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
@@ -321,76 +219,6 @@ func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
 
 func (h *interactiveHandler) loadAllAssets() {
 	h.allAssets = service.GetUserAllAssets(h.user.ID)
-}
-
-func (h *interactiveHandler) searchAsset(key string) {
-	switch h.assetLoadPolicy {
-	case "all":
-		<-h.loadDataDone
-		var searchData []model.Asset
-		switch len(h.searchResult) {
-		case 0:
-			searchData = h.allAssets
-		default:
-			searchData = h.searchResult
-		}
-		assets := searchFromLocalAssets(searchData, key)
-		h.displayAssets(assets)
-	default:
-		pag := NewUserPagination(h.term, h.user.ID, key, false)
-		result := pag.Start()
-		if pag.IsNeedProxy && len(result) == 1 {
-			h.searchResult = h.searchResult[:0]
-			h.ProxyAsset(result[0])
-		} else {
-			h.searchResult = result
-		}
-	}
-}
-
-func (h *interactiveHandler) searchAssetOrProxy(key string) {
-	if indexNum, err := strconv.Atoi(key); err == nil && len(h.searchResult) > 0 {
-		if indexNum > 0 && indexNum <= len(h.searchResult) {
-			assetSelect := h.searchResult[indexNum-1]
-			h.ProxyAsset(assetSelect)
-			return
-		}
-	}
-	var assets []model.Asset
-	switch h.assetLoadPolicy {
-	case "all":
-		<-h.loadDataDone
-		var searchData []model.Asset
-		switch len(h.searchResult) {
-		case 0:
-			searchData = h.allAssets
-		default:
-			searchData = h.searchResult
-		}
-		assets = searchFromLocalAssets(searchData, key)
-		if len(assets) != 1 {
-			h.displayAssets(assets)
-			return
-		}
-	default:
-		pag := NewUserPagination(h.term, h.user.ID, key, true)
-		assets = pag.Start()
-	}
-
-	if len(assets) == 1 {
-		h.ProxyAsset(assets[0])
-	} else {
-		h.searchResult = assets
-	}
-}
-
-func (h *interactiveHandler) searchNodeAssets(num int) (assets model.AssetList) {
-	if num > len(h.nodes) || num == 0 {
-		return assets
-	}
-	node := h.nodes[num-1]
-	assets = service.GetUserNodeAssets(h.user.ID, node.ID, "1")
-	return
 }
 
 func (h *interactiveHandler) ProxyAsset(assetSelect model.Asset) {
@@ -414,6 +242,7 @@ func (h *interactiveHandler) Proxy(ctx context.Context) {
 	h.pauseWatchWinSize()
 	p.Proxy()
 	h.resumeWatchWinSize()
+	logger.Infof("Request %s: asset %s proxy end", h.sess.Uuid, h.assetSelect.Hostname)
 }
 
 func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
@@ -485,4 +314,30 @@ func searchFromLocalAssets(assets model.AssetList, key string) []model.Asset {
 		}
 	}
 	return displayAssets
+}
+
+func getPageSize(term *utils.Terminal) int {
+	var (
+		pageSize  int
+		minHeight = 8 // 分页显示的最小高度
+
+	)
+	_, height := term.GetSize()
+	conf := config.GetConf()
+	switch conf.AssetListPageSize {
+	case "auto":
+		pageSize = height - minHeight
+	case "all":
+		return 0
+	default:
+		if value, err := strconv.Atoi(conf.AssetListPageSize); err == nil {
+			pageSize = value
+		} else {
+			pageSize = height - minHeight
+		}
+	}
+	if pageSize <= 0 {
+		pageSize = 1
+	}
+	return pageSize
 }

@@ -19,37 +19,37 @@ msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:48
-msgid "directly login"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:49
 msgid "part IP, Hostname, Comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:49
+#: pkg/handler/banner.go:48
 msgid "to search login if unique"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 msgid "/ + IP, Hostname, Comment"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:50
+#: pkg/handler/banner.go:49
 msgid "to search, such as: /192.168"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:51
+#: pkg/handler/banner.go:50
 msgid "display the host you have permission"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/banner.go:52
+#: pkg/handler/banner.go:51
 msgid "display the node that you have permission"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:52
+msgid "display the databases that you have permission"
 msgstr ""
 
 #. i18n.T
@@ -100,15 +100,13 @@ msgstr ""
 #. i18n.T
 #: pkg/handler/banner.go:96
 msgid ""
-"\n"
-"Tips: Enter the asset ID and directly login the asset.\n"
+"Enter ID number directly login the asset, multiple search use // + field, "
+"such as: //16"
 msgstr ""
 
 #. i18n.T
 #: pkg/handler/banner.go:97
-msgid ""
-"\n"
-"Page up: P/p\tPage down: Enter|N/n\tBACK: b.\n"
+msgid "Page up: b\tPage down: n"
 msgstr ""
 
 #. i18n.T
@@ -147,42 +145,104 @@ msgid "Username"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:131
+#: pkg/handler/banner.go:105
+msgid "all"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:106
+msgid "Search: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:107
+msgid "DBType"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:108
+msgid "DB Name"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:109
+msgid "No Databases"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/banner.go:110
+msgid ""
+"Enter ID number directly login the database, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:112
+msgid "Database connecting to %s %.1f"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:131
+msgid "System user <%s> and database <%s> protocol are inconsistent."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbproxy.go:137
+msgid "Database %s protocol client not installed."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbswitch.go:148
+msgid "Database connect idle more than %d minutes, disconnect"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/dbswitch.go:155
+msgid "Database connection terminated by administrator"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:140
 msgid "Command `%s` is forbidden"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:143
+#: pkg/proxy/proxy.go:146
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:161
+#: pkg/proxy/proxy.go:164
 msgid "Connecting to %s@%s  %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:180
+#: pkg/proxy/proxy.go:183
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:186
+#: pkg/proxy/proxy.go:189
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/sessmanager.go:67
+#: pkg/proxy/sessmanager.go:75
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:159
+#: pkg/proxy/sessmanager.go:117
+msgid "Create database session failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/switch.go:173
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:166
+#: pkg/proxy/switch.go:180
 msgid "Terminated by administrator"
 msgstr ""

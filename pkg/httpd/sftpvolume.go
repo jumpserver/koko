@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/LeeEirc/elfinder"
 	"github.com/pkg/sftp"
@@ -18,26 +19,28 @@ import (
 )
 
 func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
-	var assets []model.Asset
+	var userSftp *srvconn.UserSftpConn
 	homename := "Home"
 	basePath := "/"
 	switch hostId {
 	case "":
-		assets = service.GetUserAllAssets(user.ID)
+		userSftp = srvconn.NewUserSftpConn(user, addr)
 	default:
-		assets = service.GetUserAssetByID(user.ID, hostId)
+		assets := service.GetUserAssetByID(user.ID, hostId)
 		if len(assets) == 1 {
-			homename = assets[0].Hostname
-			if assets[0].OrgID != "" {
-				homename = fmt.Sprintf("%s.%s", assets[0].Hostname, assets[0].OrgName)
+			folderName := assets[0].Hostname
+			if strings.Contains(folderName, "/") {
+				folderName = strings.ReplaceAll(folderName, "/", "_")
 			}
+			homename = folderName
 			basePath = filepath.Join("/", homename)
 		}
+		userSftp = srvconn.NewUserSftpConnWithAssets(user, addr, assets...)
 	}
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),
-		UserSftp:      srvconn.NewUserSFTP(user, addr, assets...),
+		UserSftp:      userSftp,
 		Homename:      homename,
 		basePath:      basePath,
 		chunkFilesMap: make(map[int]*sftp.File),
@@ -47,8 +50,8 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 }
 
 type UserVolume struct {
-	Uuid string
-	*srvconn.UserSftp
+	Uuid     string
+	UserSftp *srvconn.UserSftpConn
 	Homename string
 	basePath string
 
@@ -66,7 +69,7 @@ func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
 	if path == "/" {
 		return u.RootFileDir(), nil
 	}
-	originFileInfo, err := u.Stat(filepath.Join(u.basePath, path))
+	originFileInfo, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
@@ -300,22 +303,44 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 
 func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	logger.Debug("Root File Dir")
-	fInfo, _ := u.UserSftp.Stat(u.basePath)
+	var (
+		size int64
+	)
+	tz := time.Now().UnixNano()
+	if fInfo, err := u.UserSftp.Stat(u.basePath); err == nil {
+		size = fInfo.Size()
+		tz = fInfo.ModTime().Unix()
+	}
 	var rest elfinder.FileDir
 	rest.Name = u.Homename
 	rest.Hash = hashPath(u.Uuid, "/")
-	rest.Size = fInfo.Size()
+	rest.Size = size
 	rest.Volumeid = u.Uuid
 	rest.Mime = "directory"
 	rest.Dirs = 1
 	rest.Read, rest.Write = 1, 1
 	rest.Locked = 1
-	rest.Ts = fInfo.ModTime().Unix()
+	rest.Ts = tz
 	return rest
 }
 
 func (u *UserVolume) Close() {
 	u.UserSftp.Close()
+	logger.Infof("User %s's volume close", u.UserSftp.User.Name)
+}
+
+func (u *UserVolume) Search(path, key string, mimes ...string) (res []elfinder.FileDir, err error) {
+	originFileInfolist, err := u.UserSftp.Search(key)
+	if err != nil {
+		return nil, err
+	}
+	res = make([]elfinder.FileDir, 0, len(originFileInfolist))
+	searchPath := fmt.Sprintf("/%s", srvconn.SearchFolderName)
+	for i := 0; i < len(originFileInfolist); i++ {
+		res = append(res, NewElfinderFileInfo(u.Uuid, searchPath, originFileInfolist[i]))
+
+	}
+	return
 }
 
 func NewElfinderFileInfo(id, dirPath string, originFileInfo os.FileInfo) elfinder.FileDir {

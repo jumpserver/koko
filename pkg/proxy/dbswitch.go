@@ -18,15 +18,9 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func NewSwitchSession(p *ProxyServer) (sw *SwitchSession) {
-	sw = &SwitchSession{p: p}
-	sw.Initial()
-	return sw
-}
-
-type SwitchSession struct {
+type DBSwitchSession struct {
 	ID string
-	p  *ProxyServer
+	p  *DBProxyServer
 
 	DateStart string
 	DateEnd   string
@@ -34,35 +28,32 @@ type SwitchSession struct {
 
 	MaxIdleTime time.Duration
 
-	cmdRules []model.SystemUserFilterRule
-
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func (s *SwitchSession) Initial() {
+func (s *DBSwitchSession) Initial() {
 	s.ID = uuid.NewV4().String()
 	s.DateStart = common.CurrentUTCTime()
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
-	s.cmdRules = make([]model.SystemUserFilterRule, 0)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
 
-func (s *SwitchSession) Terminate() {
+func (s *DBSwitchSession) Terminate() {
 	select {
 	case <-s.ctx.Done():
 		return
 	default:
 	}
 	s.cancel()
-	logger.Infof("Session %s: receive terminate from admin", s.ID)
+	logger.Infof("DBSession %s: receive terminate from admin", s.ID)
 }
 
-func (s *SwitchSession) SessionID() string {
+func (s *DBSwitchSession) SessionID() string {
 	return s.ID
 }
 
-func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 	// 命令记录
 	cmdRecorder := NewCommandRecorder(s.ID)
 	for command := range cmdRecordChan {
@@ -75,9 +66,7 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 	// 关闭命令记录
 	cmdRecorder.End()
 }
-
-// generateCommandResult 生成命令结果
-func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command {
+func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Command {
 	var input string
 	var output string
 	if len(command[0]) > 128 {
@@ -96,52 +85,39 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 
 	return &model.Command{
 		SessionID:  s.ID,
-		OrgID:      s.p.Asset.OrgID,
+		OrgID:      s.p.Database.OrgID,
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
-		Server:     s.p.Asset.Hostname,
+		Server:     s.p.Database.Name,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
 	}
 }
 
 // postBridge 桥接结束以后执行操作
-func (s *SwitchSession) postBridge() {
+func (s *DBSwitchSession) postBridge() {
 	s.DateEnd = common.CurrentUTCTime()
 	s.finished = true
 }
 
-// SetFilterRules 设置命令过滤规则
-func (s *SwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
-	if len(cmdRules) > 0 {
-		s.cmdRules = cmdRules
-	}
-}
-
 // Bridge 桥接两个链接
-func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
+func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	var (
-		parser         Parser
+		parser         DBParser
 		replayRecorder ReplyRecorder
 
 		userInChan chan []byte
 		srvInChan  chan []byte
 		done       chan struct{}
 	)
-
-	parser = newParser(s.ID)
+	parser = newDBParser(s.ID)
 	replayRecorder = NewReplyRecord(s.ID)
 
 	userInChan = make(chan []byte, 1)
 	srvInChan = make(chan []byte, 1)
 	done = make(chan struct{})
-	// 设置parser的命令过滤规则
-	parser.SetCMDFilterRules(s.cmdRules)
-
-	// 处理数据流
 	userOutChan, srvOutChan := parser.ParseStream(userInChan, srvInChan)
-
 	defer func() {
 		close(done)
 		_ = userConn.Close()
@@ -153,7 +129,6 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		s.postBridge()
 	}()
 
-	// 记录命令
 	go s.recordCommand(parser.cmdRecordChan)
 	go s.LoopReadFromSrv(done, srvConn, srvInChan)
 	go s.LoopReadFromUser(done, userConn, userInChan)
@@ -171,16 +146,16 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			if !now.After(outTime) {
 				continue
 			}
-			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
-			logger.Debugf("Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
+			msg := fmt.Sprintf(i18n.T("Database connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
+			logger.Infof("DB Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
-			msg := i18n.T("Terminated by administrator")
+			msg := i18n.T("Database connection terminated by administrator")
 			msg = utils.WrapperWarn(msg)
-			logger.Infof("Session %s: %s", s.ID, msg)
+			logger.Infof("DBSession %s: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			return
 		// 监控窗口大小变化
@@ -196,9 +171,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			nw, _ := userConn.Write(p)
-			if !parser.IsInZmodemRecvState() {
-				replayRecorder.Record(p[:nw])
-			}
+			replayRecorder.Record(p[:nw])
 		// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
@@ -210,7 +183,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	}
 }
 
-func (s *SwitchSession) MapData() map[string]interface{} {
+func (s *DBSwitchSession) MapData() map[string]interface{} {
 	var dataEnd interface{}
 	if s.DateEnd != "" {
 		dataEnd = s.DateEnd
@@ -218,8 +191,8 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 	return map[string]interface{}{
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s (%s)", s.p.User.Name, s.p.User.Username),
-		"asset":          s.p.Asset.Hostname,
-		"org_id":         s.p.Asset.OrgID,
+		"asset":          s.p.Database.Name,
+		"org_id":         s.p.Database.OrgID,
 		"login_from":     s.p.UserConn.LoginFrom(),
 		"system_user":    s.p.SystemUser.Username,
 		"protocol":       s.p.SystemUser.Protocol,
@@ -228,22 +201,22 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		"date_start":     s.DateStart,
 		"date_end":       dataEnd,
 		"user_id":        s.p.User.ID,
-		"asset_id":       s.p.Asset.ID,
+		"asset_id":       s.p.Database.ID,
 		"system_user_id": s.p.SystemUser.ID,
 	}
 }
 
-func (s *SwitchSession) LoopReadFromUser(done chan struct{}, userConn UserConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session %s: read from user done", s.ID)
+func (s *DBSwitchSession) LoopReadFromUser(done chan struct{}, userConn UserConnection, inChan chan<- []byte) {
+	defer logger.Infof("DB Session %s: read from user done", s.ID)
 	s.LoopRead(done, userConn, inChan)
 }
 
-func (s *SwitchSession) LoopReadFromSrv(done chan struct{}, srvConn srvconn.ServerConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session %s: read from srv done", s.ID)
+func (s *DBSwitchSession) LoopReadFromSrv(done chan struct{}, srvConn srvconn.ServerConnection, inChan chan<- []byte) {
+	defer logger.Infof("DB Session %s: read from srv done", s.ID)
 	s.LoopRead(done, srvConn, inChan)
 }
 
-func (s *SwitchSession) LoopRead(done chan struct{}, read io.Reader, inChan chan<- []byte) {
+func (s *DBSwitchSession) LoopRead(done chan struct{}, read io.Reader, inChan chan<- []byte) {
 loop:
 	for {
 		buf := make([]byte, 1024)
@@ -251,6 +224,7 @@ loop:
 		if nr > 0 {
 			select {
 			case <-done:
+				logger.Debug("DB session reader loop break done.")
 				break loop
 			case inChan <- buf[:nr]:
 			}

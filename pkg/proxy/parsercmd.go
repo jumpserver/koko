@@ -82,17 +82,21 @@ func (cp *CmdParser) initial() {
 	cp.term.SetEcho(false)
 	go func() {
 		logger.Infof("Session %s: %s start", cp.id, cp.name)
-		defer logger.Infof("Session %s: %s parser close", cp.id, cp.name)
+		defer logger.Infof("Session %s: %s close", cp.id, cp.name)
 	loop:
 		for {
 			line, err := cp.term.ReadLine()
 			if err != nil {
+
 				select {
 				case <-cp.closed:
+					logger.Debugf("Session %s %s term err: %s break loop", cp.id, cp.name, err)
 					break loop
 				default:
 				}
+				logger.Debugf("Session %s %s term err: %s,loop continue", cp.id, cp.name, err)
 				goto loop
+
 			}
 			cp.lock.Lock()
 			cp.currentLength += len(line)
