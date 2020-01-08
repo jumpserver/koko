@@ -6,12 +6,12 @@ package utils
 
 import (
 	"bytes"
-	"io"
-	"strconv"
 	"unicode/utf8"
+
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
-type TerminalParser struct {
+type terminalParser struct {
 
 	// line is the current line being entered.
 	line []rune
@@ -41,62 +41,12 @@ type TerminalParser struct {
 	historyPending string
 }
 
-// NewTerminal runs a VT100 terminal on the given ReadWriter. If the ReadWriter is
-// a local terminal, that terminal must first have been put into raw mode.
-// prompt is a string that is written at the start of each input line (i.e.
-// "> ").
-func NewTerminalParser(prompt string) *TerminalParser {
-	return &TerminalParser{
-		historyIndex: -1,
-	}
-}
-
-func (t *TerminalParser) move(up, down, left, right int) {
-	m := []rune{}
-
-	// 1 unit up can be expressed as ^[[A or ^[A
-	// 5 units up can be expressed as ^[[5A
-
-	if up == 1 {
-		m = append(m, keyEscape, '[', 'A')
-	} else if up > 1 {
-		m = append(m, keyEscape, '[')
-		m = append(m, []rune(strconv.Itoa(up))...)
-		m = append(m, 'A')
-	}
-
-	if down == 1 {
-		m = append(m, keyEscape, '[', 'B')
-	} else if down > 1 {
-		m = append(m, keyEscape, '[')
-		m = append(m, []rune(strconv.Itoa(down))...)
-		m = append(m, 'B')
-	}
-
-	if right == 1 {
-		m = append(m, keyEscape, '[', 'C')
-	} else if right > 1 {
-		m = append(m, keyEscape, '[')
-		m = append(m, []rune(strconv.Itoa(right))...)
-		m = append(m, 'C')
-	}
-
-	if left == 1 {
-		m = append(m, keyEscape, '[', 'D')
-	} else if left > 1 {
-		m = append(m, keyEscape, '[')
-		m = append(m, []rune(strconv.Itoa(left))...)
-		m = append(m, 'D')
-	}
-
-}
-
-func (t *TerminalParser) setLine(newLine []rune, newPos int) {
+func (t *terminalParser) setLine(newLine []rune, newPos int) {
 	t.line = newLine
 	t.pos = newPos
 }
 
-func (t *TerminalParser) eraseNPreviousChars(n int) {
+func (t *terminalParser) eraseNPreviousChars(n int) {
 	if n == 0 {
 		return
 	}
@@ -112,7 +62,7 @@ func (t *TerminalParser) eraseNPreviousChars(n int) {
 
 // countToLeftWord returns then number of characters from the cursor to the
 // start of the previous word.
-func (t *TerminalParser) countToLeftWord() int {
+func (t *terminalParser) countToLeftWord() int {
 	if t.pos == 0 {
 		return 0
 	}
@@ -137,7 +87,7 @@ func (t *TerminalParser) countToLeftWord() int {
 
 // countToRightWord returns then number of characters from the cursor to the
 // start of the next word.
-func (t *TerminalParser) countToRightWord() int {
+func (t *terminalParser) countToRightWord() int {
 	pos := t.pos
 	for pos < len(t.line) {
 		if t.line[pos] == ' ' {
@@ -156,7 +106,7 @@ func (t *TerminalParser) countToRightWord() int {
 
 // handleKey processes the given key and, optionally, returns a line of text
 // that the user has entered.
-func (t *TerminalParser) handleKey(key rune) (line string, ok bool) {
+func (t *terminalParser) handleKey(key rune) (line string, ok bool) {
 	if t.pasteActive && key != keyEnter {
 		t.addKeyToLine(key)
 		return
@@ -259,7 +209,7 @@ func (t *TerminalParser) handleKey(key rune) (line string, ok bool) {
 
 // addKeyToLine inserts the given key at the current position in the current
 // line.
-func (t *TerminalParser) addKeyToLine(key rune) {
+func (t *terminalParser) addKeyToLine(key rune) {
 	if len(t.line) == cap(t.line) {
 		newLine := make([]rune, len(t.line), 2*(1+len(t.line)))
 		copy(newLine, t.line)
@@ -271,7 +221,9 @@ func (t *TerminalParser) addKeyToLine(key rune) {
 	t.pos++
 }
 
-func (t *TerminalParser) ParseLines(p []byte) (lines []string, err error) {
+func (t *terminalParser) parseLines(p []byte) (lines []string) {
+	var err error
+
 	lines = make([]string, 0, 3)
 	lineIsPasted := t.pasteActive
 	reader := bytes.NewBuffer(p)
@@ -290,7 +242,7 @@ func (t *TerminalParser) ParseLines(p []byte) (lines []string, err error) {
 					if len(t.line) == 0 {
 						// as key has already handled, we need update remainder data,
 						t.remainder = rest
-						return "", io.EOF
+						return lines
 					}
 				}
 				if key == keyPasteStart {
@@ -319,7 +271,7 @@ func (t *TerminalParser) ParseLines(p []byte) (lines []string, err error) {
 			if lineIsPasted {
 				err = ErrPasteIndicator
 			}
-			return
+			lines = append(lines, line)
 		}
 
 		// t.remainder is a slice at the beginning of t.inBuf
@@ -328,10 +280,29 @@ func (t *TerminalParser) ParseLines(p []byte) (lines []string, err error) {
 		var n int
 
 		n, err = reader.Read(readBuf)
-		if err != nil {
+		if err != nil && n == 0 {
+			if len(t.line) > 0 {
+				lines = append(lines, string(t.line))
+			}
+			if len(t.remainder) > 0{
+				continue
+			}
 			return
+		} else if err == nil && n == 0 {
+			if len(t.remainder) == len(t.inBuf) {
+				logger.Errorf("～～ 发生卡顿问题 ～～")
+				t.remainder = t.remainder[1:]
+				continue
+			}
 		}
 
 		t.remainder = t.inBuf[:n+len(t.remainder)]
 	}
+}
+
+func ParseTerminalData(p []byte) (lines []string) {
+	t := terminalParser{
+		historyIndex: -1,
+	}
+	return t.parseLines(p)
 }
