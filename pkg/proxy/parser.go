@@ -55,10 +55,8 @@ type Parser struct {
 
 	command string
 	output  string
-	//cmdInputParser  *CmdParser
-	//cmdOutputParser *CmdParser
-	cmdInputParser  *commandInput
-	cmdOutputParser *commandOut
+	cmdInputParser  *CmdParser
+	cmdOutputParser *CmdParser
 
 	cmdFilterRules []model.SystemUserFilterRule
 	closed         chan struct{}
@@ -68,17 +66,8 @@ func (p *Parser) initial() {
 	p.once = new(sync.Once)
 	p.lock = new(sync.RWMutex)
 
-	//p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
-	//p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
-	p.cmdInputParser = &commandInput{
-		readFromUserInput:   &bytes.Buffer{},
-		readFromServerInput: &bytes.Buffer{},
-		isUserSideValid:     false,
-		isServerSideValid:   false,
-	}
-	p.cmdOutputParser = &commandOut{
-		readFromServerOut: &bytes.Buffer{},
-	}
+	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
+	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan [2]string, 1024)
 }
@@ -139,7 +128,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	}
 	p.inputPreState = p.inputState
 
-	//p.cmdInputParser.readFromUser(b)
 
 	if bytes.Contains(b, charEnter) {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
@@ -149,8 +137,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.parseCmdInput()
 		if cmd, ok := p.IsCommandForbidden(); !ok {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
-			//p.cmdOutputParser.WriteData([]byte(fbdMsg))
-			//p.cmdOutputParser.readFromServer([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			p.cmdRecordChan <- [2]string{p.command, fbdMsg}
 			p.command = ""
@@ -233,12 +219,10 @@ func (p *Parser) splitCmdStream(b []byte) {
 		return
 	}
 	if p.inputState {
-		//p.cmdInputParser.WriteData(b)
-		p.cmdInputParser.readFromServer(b)
+		p.cmdInputParser.WriteData(b)
 		return
 	}
-	//p.cmdOutputParser.WriteData(b)
-	p.cmdOutputParser.readFromServer(b)
+	p.cmdOutputParser.WriteData(b)
 }
 
 // ParseServerOutput 解析服务器输出
