@@ -55,6 +55,7 @@ type Parser struct {
 
 	command string
 	output  string
+
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
@@ -128,7 +129,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	}
 	p.inputPreState = p.inputState
 
-
 	if bytes.Contains(b, charEnter) {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
 		p.sendCommandRecord()
@@ -137,6 +137,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.parseCmdInput()
 		if cmd, ok := p.IsCommandForbidden(); !ok {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
+			_, _ = p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			p.cmdRecordChan <- [2]string{p.command, fbdMsg}
 			p.command = ""
