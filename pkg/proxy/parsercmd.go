@@ -38,7 +38,7 @@ func (cp *CmdParser) WriteData(p []byte) (int, error) {
 }
 
 func (cp *CmdParser) Close() error {
-	logger.Infof("session ID: %s, parser name: %s", cp.id, cp.name)
+	logger.Infof("session ID: %s, parser name: %s Close", cp.id, cp.name)
 	return nil
 }
 

@@ -9,7 +9,6 @@ import (
 	"unicode/utf8"
 )
 
-
 type terminalParser struct {
 
 	// line is the current line being entered.
@@ -280,10 +279,11 @@ func (t *terminalParser) parseLines(p []byte) (lines []string) {
 
 		n, err = reader.Read(readBuf)
 		if err != nil && n == 0 {
-			if len(t.line) > 0 {
+			if len(t.line) > 0 && len(t.remainder) == 0 {
 				lines = append(lines, string(t.line))
 			}
-			if len(t.remainder) > 0{
+			if len(t.remainder) > 0 {
+				t.remainder = t.remainder[1:]
 				continue
 			}
 			return
