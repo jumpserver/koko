@@ -113,6 +113,8 @@ func NewReplayStorage() ReplayStorage {
 			SecretKey: secretKey,
 			Endpoint:  endpoint,
 		}
+	case "null":
+		return storage.NewNullStorage()
 	default:
 		return defaultReplayStorage
 	}
