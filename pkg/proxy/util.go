@@ -141,6 +141,8 @@ func NewCommandStorage() CommandStorage {
 			docType = "command_store"
 		}
 		return storage.ESCommandStorage{Hosts: hosts, Index: index, DocType: docType}
+	case "null":
+		return storage.NewNullStorage()
 	default:
 		return defaultCommandStorage
 	}
