@@ -1,194 +1,306 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package utils
 
 import (
 	"bytes"
-	"fmt"
 	"unicode/utf8"
 )
 
-func ParseTerminalData(p []byte) (lines []string) {
-	c := bytes.NewReader(p)
-	pasteActive := false
-	var line []rune
-	var pos int
-	var remainder []byte
-	var inBuf [256]byte
-	for {
-		rest := remainder
-		lineOk := false
-		for !lineOk {
-			var key rune
-			key, rest = bytesToKey(rest, pasteActive)
-			if key == utf8.RuneError {
-				break
-			}
-			if !pasteActive {
-				if key == keyPasteStart {
-					pasteActive = true
-					if len(line) == 0 {
-					}
-					continue
-				}
-			} else if key == keyPasteEnd {
-				pasteActive = false
-				continue
-			}
+type terminalParser struct {
 
-			switch key {
-			case keyBackspace:
-				if pos == 0 {
-					continue
-				}
-				line, pos = EraseNPreviousChars(1, pos, line)
-			case keyAltLeft:
-				// move left by a word.
-				pos -= CountToLeftWord(pos, line)
-			case keyAltRight:
-				// move right by a word.
-				pos += CountToRightWord(pos, line)
-			case keyLeft:
-				if pos == 0 {
-					continue
-				}
-				pos--
-			case keyRight:
-				if pos == len(line) {
-					continue
-				}
-				pos++
-			case keyHome:
-				if pos == 0 {
-					continue
-				}
-				pos = 0
-			case keyEnd:
-				if pos == len(line) {
-					continue
-				}
-				pos = len(line)
-			case keyUp:
-				line = []rune{}
-				pos = 0
-			case keyDown:
-				line = []rune{}
-				pos = 0
-			case keyEnter:
-				lines = append(lines, string(line))
-				line = line[:0]
-				pos = 0
-				lineOk = true
-			case keyDeleteWord:
-				// Delete zero or more spaces and then one or more characters.
-				line, pos = EraseNPreviousChars(CountToLeftWord(pos, line), pos, line)
-			case keyDeleteLine:
-				line = line[:pos]
-			case keyCtrlD:
-				// Erase the character under the current position.
-				// The EOF case when the line is empty is handled in
-				// readLine().
-				if pos < len(line) {
-					pos++
-					line, pos = EraseNPreviousChars(1, pos, line)
-				}
-			case keyCtrlU:
-				line = line[:0]
-			case keyClearScreen:
-			default:
-				if !isPrintable(key) {
-					fmt.Println("could not printable: ", []byte(string(key)), " ", key)
-					continue
-				}
-				line, pos = AddKeyToLine(key, pos, line)
-			}
+	// line is the current line being entered.
+	line []rune
+	// pos is the logical position of the cursor in line
+	pos int
+	// pasteActive is true iff there is a bracketed paste operation in
+	// progress.
+	pasteActive bool
 
-		}
-		if len(rest) > 0 {
-			n := copy(inBuf[:], rest)
-			remainder = inBuf[:n]
-		} else {
-			remainder = nil
-		}
+	// maxLine is the greatest value of cursorY so far.
+	maxLine int
 
-		// remainder is a slice at the beginning of t.inBuf
-		// containing a partial key sequence
-		readBuf := inBuf[len(remainder):]
+	// remainder contains the remainder of any partial key sequences after
+	// a read. It aliases into inBuf.
+	remainder []byte
+	inBuf     [256]byte
 
-		var n int
-		n, err := c.Read(readBuf)
-		if err != nil {
-			if len(line) > 0 {
-				lines = append(lines, string(line))
-			} else if len(rest) > 0 {
-				lines = append(lines, string(rest))
-			}
-
-			return
-		}
-		remainder = inBuf[:n+len(remainder)]
-	}
+	// history contains previously entered commands so that they can be
+	// accessed with the up and down keys.
+	history stRingBuffer
+	// historyIndex stores the currently accessed history entry, where zero
+	// means the immediately previous entry.
+	historyIndex int
+	// When navigating up and down the history it's possible to return to
+	// the incomplete, initial line. That value is stored in
+	// historyPending.
+	historyPending string
 }
 
-func EraseNPreviousChars(n, cPos int, line []rune) ([]rune, int) {
+func (t *terminalParser) setLine(newLine []rune, newPos int) {
+	t.line = newLine
+	t.pos = newPos
+}
+
+func (t *terminalParser) eraseNPreviousChars(n int) {
 	if n == 0 {
-		return line, cPos
+		return
 	}
-	if cPos < n {
-		n = cPos
+
+	if t.pos < n {
+		n = t.pos
 	}
-	cPos -= n
-	copy(line[cPos:], line[n+cPos:])
-	return line[:len(line)-n], cPos
+	t.pos -= n
+
+	copy(t.line[t.pos:], t.line[n+t.pos:])
+	t.line = t.line[:len(t.line)-n]
 }
 
-func CountToLeftWord(currentPos int, line []rune) int {
-	if currentPos == 0 {
+// countToLeftWord returns then number of characters from the cursor to the
+// start of the previous word.
+func (t *terminalParser) countToLeftWord() int {
+	if t.pos == 0 {
 		return 0
 	}
 
-	pos := currentPos - 1
+	pos := t.pos - 1
 	for pos > 0 {
-		if line[pos] != ' ' {
+		if t.line[pos] != ' ' {
 			break
 		}
 		pos--
 	}
 	for pos > 0 {
-		if line[pos] == ' ' {
+		if t.line[pos] == ' ' {
 			pos++
 			break
 		}
 		pos--
 	}
 
-	return currentPos - pos
+	return t.pos - pos
 }
 
-func CountToRightWord(currentPos int, line []rune) int {
-	pos := currentPos
-	for pos < len(line) {
-		if line[pos] == ' ' {
+// countToRightWord returns then number of characters from the cursor to the
+// start of the next word.
+func (t *terminalParser) countToRightWord() int {
+	pos := t.pos
+	for pos < len(t.line) {
+		if t.line[pos] == ' ' {
 			break
 		}
 		pos++
 	}
-	for pos < len(line) {
-		if line[pos] != ' ' {
+	for pos < len(t.line) {
+		if t.line[pos] != ' ' {
 			break
 		}
 		pos++
 	}
-	return pos - currentPos
+	return pos - t.pos
 }
 
-func AddKeyToLine(key rune, pos int, line []rune) ([]rune, int) {
-	if len(line) == cap(line) {
-		newLine := make([]rune, len(line), 2*(1+len(line)))
-		copy(newLine, line)
-		line = newLine
+// handleKey processes the given key and, optionally, returns a line of text
+// that the user has entered.
+func (t *terminalParser) handleKey(key rune) (line string, ok bool) {
+	if t.pasteActive && key != keyEnter {
+		t.addKeyToLine(key)
+		return
 	}
-	line = line[:len(line)+1]
-	copy(line[pos+1:], line[pos:])
-	line[pos] = key
-	pos++
-	return line, pos
+
+	switch key {
+	case keyBackspace:
+		if t.pos == 0 {
+			return
+		}
+		t.eraseNPreviousChars(1)
+	case keyAltLeft:
+		// move left by a word.
+		t.pos -= t.countToLeftWord()
+	case keyAltRight:
+		// move right by a word.
+		t.pos += t.countToRightWord()
+	case keyLeft:
+		if t.pos == 0 {
+			return
+		}
+		t.pos--
+	case keyRight:
+		if t.pos == len(t.line) {
+			return
+		}
+		t.pos++
+	case keyHome:
+		if t.pos == 0 {
+			return
+		}
+		t.pos = 0
+	case keyEnd:
+		if t.pos == len(t.line) {
+			return
+		}
+		t.pos = len(t.line)
+	case keyUp:
+		entry, ok := t.history.NthPreviousEntry(t.historyIndex + 1)
+		if !ok {
+			return "", false
+		}
+		if t.historyIndex == -1 {
+			t.historyPending = string(t.line)
+		}
+		t.historyIndex++
+		runes := []rune(entry)
+		t.setLine(runes, len(runes))
+	case keyDown:
+		switch t.historyIndex {
+		case -1:
+			return
+		case 0:
+			runes := []rune(t.historyPending)
+			t.setLine(runes, len(runes))
+			t.historyIndex--
+		default:
+			entry, ok := t.history.NthPreviousEntry(t.historyIndex - 1)
+			if ok {
+				t.historyIndex--
+				runes := []rune(entry)
+				t.setLine(runes, len(runes))
+			}
+		}
+	case keyEnter:
+		line = string(t.line)
+		ok = true
+		t.line = t.line[:0]
+		t.pos = 0
+		t.maxLine = 0
+	case keyDeleteWord:
+		// Delete zero or more spaces and then one or more characters.
+		t.eraseNPreviousChars(t.countToLeftWord())
+	case keyDeleteLine:
+		t.line = t.line[:t.pos]
+	case keyCtrlD:
+		// Erase the character under the current position.
+		// The EOF case when the line is empty is handled in
+		// readLine().
+		if t.pos < len(t.line) {
+			t.pos++
+			t.eraseNPreviousChars(1)
+		}
+	case keyCtrlU:
+		t.eraseNPreviousChars(t.pos)
+	case keyClearScreen:
+		// Erases the screen and moves the cursor to the home position.
+		t.setLine(t.line, t.pos)
+	default:
+		if !isPrintable(key) {
+			return
+		}
+		if len(t.line) == maxLineLength {
+			return
+		}
+		t.addKeyToLine(key)
+	}
+	return
+}
+
+// addKeyToLine inserts the given key at the current position in the current
+// line.
+func (t *terminalParser) addKeyToLine(key rune) {
+	if len(t.line) == cap(t.line) {
+		newLine := make([]rune, len(t.line), 2*(1+len(t.line)))
+		copy(newLine, t.line)
+		t.line = newLine
+	}
+	t.line = t.line[:len(t.line)+1]
+	copy(t.line[t.pos+1:], t.line[t.pos:])
+	t.line[t.pos] = key
+	t.pos++
+}
+
+func (t *terminalParser) parseLines(p []byte) (lines []string) {
+	var err error
+
+	lines = make([]string, 0, 3)
+	lineIsPasted := t.pasteActive
+	reader := bytes.NewBuffer(p)
+	for {
+		rest := t.remainder
+		line := ""
+		lineOk := false
+		for !lineOk {
+			var key rune
+			key, rest = bytesToKey(rest, t.pasteActive)
+			if key == utf8.RuneError {
+				break
+			}
+			if !t.pasteActive {
+				if key == keyCtrlD {
+					if len(t.line) == 0 {
+						// as key has already handled, we need update remainder data,
+						t.remainder = rest
+						return lines
+					}
+				}
+				if key == keyPasteStart {
+					t.pasteActive = true
+					if len(t.line) == 0 {
+						lineIsPasted = true
+					}
+					continue
+				}
+			} else if key == keyPasteEnd {
+				t.pasteActive = false
+				continue
+			}
+			if !t.pasteActive {
+				lineIsPasted = false
+			}
+			line, lineOk = t.handleKey(key)
+		}
+		if len(rest) > 0 {
+			n := copy(t.inBuf[:], rest)
+			t.remainder = t.inBuf[:n]
+		} else {
+			t.remainder = nil
+		}
+		if lineOk {
+			if lineIsPasted {
+				err = ErrPasteIndicator
+			}
+			lines = append(lines, line)
+		}
+
+		// t.remainder is a slice at the beginning of t.inBuf
+		// containing a partial key sequence
+		readBuf := t.inBuf[len(t.remainder):]
+		var n int
+
+		n, err = reader.Read(readBuf)
+		if err != nil && n == 0 {
+			if len(t.line) > 0 && len(t.remainder) == 0 {
+				lines = append(lines, string(t.line))
+			}
+			if len(t.remainder) > 0 {
+				t.remainder = t.remainder[1:]
+				continue
+			}
+			return
+		} else if err == nil && n == 0 {
+			if len(t.remainder) == len(t.inBuf) {
+				t.remainder = t.remainder[1:]
+				continue
+			}
+		}
+
+		t.remainder = t.inBuf[:n+len(t.remainder)]
+	}
+}
+
+func ParseTerminalData(p []byte) (lines []string) {
+	t := terminalParser{
+		historyIndex: -1,
+	}
+	return t.parseLines(p)
 }
