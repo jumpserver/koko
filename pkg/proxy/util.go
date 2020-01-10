@@ -76,7 +76,7 @@ func NewReplayStorage() ReplayStorage {
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 		}
-	case "s3":
+	case "s3", "swift":
 		var region string
 		var endpoint string
 		var bucket string
