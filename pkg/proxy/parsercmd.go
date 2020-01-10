@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	"io"
+	"bytes"
 	"regexp"
 	"strings"
 	"sync"
@@ -21,91 +21,29 @@ func NewCmdParser(sid, name string) *CmdParser {
 type CmdParser struct {
 	id   string
 	name string
+	buf  bytes.Buffer
 
-	term          *utils.Terminal
-	reader        io.ReadCloser
-	writer        io.WriteCloser
-	currentLines  []string
 	lock          *sync.Mutex
 	maxLength     int
 	currentLength int
-	closed        chan struct{}
 }
 
 func (cp *CmdParser) WriteData(p []byte) (int, error) {
-	select {
-	case <-cp.closed:
-		return 0, io.EOF
-	default:
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	if cp.buf.Len() >= 1024 {
+		return 0, nil
 	}
-	return cp.writer.Write(p)
-}
-
-func (cp *CmdParser) Write(p []byte) (int, error) {
-	select {
-	case <-cp.closed:
-		return 0, io.EOF
-	default:
-	}
-	return len(p), nil
-}
-
-func (cp *CmdParser) Read(p []byte) (int, error) {
-	select {
-	case <-cp.closed:
-		return 0, io.EOF
-	default:
-	}
-	return cp.reader.Read(p)
+	return cp.buf.Write(p)
 }
 
 func (cp *CmdParser) Close() error {
-	select {
-	case <-cp.closed:
-		return nil
-	default:
-		close(cp.closed)
-	}
-	_ = cp.reader.Close()
-	return cp.writer.Close()
+	logger.Infof("session ID: %s, parser name: %s Close", cp.id, cp.name)
+	return nil
 }
 
 func (cp *CmdParser) initial() {
-	cp.reader, cp.writer = io.Pipe()
-	cp.currentLines = make([]string, 0)
 	cp.lock = new(sync.Mutex)
-	cp.maxLength = 1024
-	cp.currentLength = 0
-	cp.closed = make(chan struct{})
-
-	cp.term = utils.NewTerminal(cp, "")
-	cp.term.SetEcho(false)
-	go func() {
-		logger.Infof("Session %s: %s start", cp.id, cp.name)
-		defer logger.Infof("Session %s: %s close", cp.id, cp.name)
-	loop:
-		for {
-			line, err := cp.term.ReadLine()
-			if err != nil {
-
-				select {
-				case <-cp.closed:
-					logger.Debugf("Session %s %s term err: %s break loop", cp.id, cp.name, err)
-					break loop
-				default:
-				}
-				logger.Debugf("Session %s %s term err: %s,loop continue", cp.id, cp.name, err)
-				goto loop
-
-			}
-			cp.lock.Lock()
-			cp.currentLength += len(line)
-			if cp.currentLength < cp.maxLength {
-				cp.currentLines = append(cp.currentLines, line)
-			}
-			cp.lock.Unlock()
-		}
-	}()
 }
 
 func (cp *CmdParser) parsePS1(s string) string {
@@ -114,16 +52,11 @@ func (cp *CmdParser) parsePS1(s string) string {
 
 // Parse 解析命令或输出
 func (cp *CmdParser) Parse() string {
-	select {
-	case <-cp.closed:
-	default:
-		cp.writer.Write([]byte("\r"))
-	}
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	output := strings.TrimSpace(strings.Join(cp.currentLines, "\r\n"))
+	lines := utils.ParseTerminalData(cp.buf.Bytes())
+	output := strings.TrimSpace(strings.Join(lines, "\r\n"))
 	output = cp.parsePS1(output)
-	cp.currentLines = make([]string, 0)
-	cp.currentLength = 0
+	cp.buf.Reset()
 	return output
 }

@@ -76,7 +76,7 @@ func NewReplayStorage() ReplayStorage {
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 		}
-	case "s3":
+	case "s3", "swift":
 		var region string
 		var endpoint string
 		var bucket string
@@ -113,6 +113,8 @@ func NewReplayStorage() ReplayStorage {
 			SecretKey: secretKey,
 			Endpoint:  endpoint,
 		}
+	case "null":
+		return storage.NewNullStorage()
 	default:
 		return defaultReplayStorage
 	}
@@ -139,6 +141,8 @@ func NewCommandStorage() CommandStorage {
 			docType = "command_store"
 		}
 		return storage.ESCommandStorage{Hosts: hosts, Index: index, DocType: docType}
+	case "null":
+		return storage.NewNullStorage()
 	default:
 		return defaultCommandStorage
 	}
