@@ -139,7 +139,7 @@ func (r *ReplyRecorder) prepare() {
 		return
 	}
 
-	logger.Infof("Session %s: Replay file path: %s",r.SessionID, r.absFilePath)
+	logger.Infof("Session %s: Replay file path: %s", r.SessionID, r.absFilePath)
 	r.file, err = os.Create(r.absFilePath)
 	if err != nil {
 		logger.Errorf("Create file %s error: %s\n", r.absFilePath, err)
@@ -176,8 +176,12 @@ func (r *ReplyRecorder) uploadReplay() {
 
 func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 	if r.storage == nil {
-		r.backOffStorage = defaultReplayStorage
+		r.backOffStorage = defaultStorage
 		r.storage = NewReplayStorage()
+	}
+	if r.storage.TypeName() == "null" {
+		_ = r.storage.Upload(r.AbsGzFilePath, r.Target)
+		return
 	}
 	for i := 0; i <= maxRetry; i++ {
 		logger.Debug("Upload replay file: ", r.AbsGzFilePath)

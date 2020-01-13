@@ -8,16 +8,21 @@ import (
 	storage "github.com/jumpserver/koko/pkg/proxy/recorderstorage"
 )
 
+type StorageType interface {
+	TypeName() string
+}
+
 type ReplayStorage interface {
 	Upload(gZipFile, target string) error
+	StorageType
 }
 
 type CommandStorage interface {
 	BulkSave(commands []*model.Command) error
+	StorageType
 }
 
-var defaultCommandStorage = storage.ServerCommandStorage{}
-var defaultReplayStorage = storage.ServerReplayStorage{StorageType: "server"}
+var defaultStorage = storage.ServerStorage{StorageType: "server"}
 
 func NewReplayStorage() ReplayStorage {
 	cf := config.GetConf().ReplayStorage
@@ -116,7 +121,7 @@ func NewReplayStorage() ReplayStorage {
 	case "null":
 		return storage.NewNullStorage()
 	default:
-		return defaultReplayStorage
+		return defaultStorage
 	}
 }
 
@@ -144,6 +149,6 @@ func NewCommandStorage() CommandStorage {
 	case "null":
 		return storage.NewNullStorage()
 	default:
-		return defaultCommandStorage
+		return defaultStorage
 	}
 }

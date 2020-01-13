@@ -8,18 +8,19 @@ import (
 	"github.com/jumpserver/koko/pkg/service"
 )
 
-type ServerCommandStorage struct {
-}
-
-func (s ServerCommandStorage) BulkSave(commands []*model.Command) (err error) {
-	return service.PushSessionCommand(commands)
-}
-
-type ServerReplayStorage struct {
+type ServerStorage struct {
 	StorageType string
 }
 
-func (s ServerReplayStorage) Upload(gZipFilePath, target string) (err error) {
+func (s ServerStorage) BulkSave(commands []*model.Command) (err error) {
+	return service.PushSessionCommand(commands)
+}
+
+func (s ServerStorage) Upload(gZipFilePath, target string) (err error) {
 	sessionID := strings.Split(filepath.Base(gZipFilePath), ".")[0]
 	return service.PushSessionReplay(sessionID, gZipFilePath)
+}
+
+func (s ServerStorage) TypeName() string {
+	return s.StorageType
 }
