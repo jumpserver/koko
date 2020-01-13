@@ -56,10 +56,12 @@ func (dbconn *ServerMysqlConnection) Connect() (err error) {
 	ptyFD, err := pty.Start(cmd)
 	go func() {
 		err = cmd.Wait()
-		if err != nil{
+		if err != nil {
 			logger.Errorf("mysql command exit err: %s", err)
 		}
-		_ = ptyFD.Close()
+		if ptyFD != nil {
+			_ = ptyFD.Close()
+		}
 		logger.Info("mysql connect closed.")
 		var wstatus syscall.WaitStatus
 		_, err = syscall.Wait4(-1, &wstatus, 0, nil)
