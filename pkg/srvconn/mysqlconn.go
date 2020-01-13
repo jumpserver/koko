@@ -86,7 +86,7 @@ func (dbconn *ServerMysqlConnection) Connect() (err error) {
 		if err != nil{
 			logger.Errorf("mysql command exit err: %s", err)
 		}
-		logger.Infof("mysql connect closed.")
+		logger.Info("mysql connect closed.")
 		_ = dbconn.ptyFD.Close()
 
 	}()
