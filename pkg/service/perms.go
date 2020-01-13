@@ -48,7 +48,7 @@ func ForceRefreshUserPemAssets(userID string) error {
 	}
 	Url := fmt.Sprintf(UserAssetsURL, userID)
 	var resp model.AssetsPaginationResponse
-	_, err := authClient.Get(Url, resp, params)
+	_, err := authClient.Get(Url, &resp, params)
 	if err != nil {
 		logger.Errorf("Refresh user assets error: %s", err)
 	}
