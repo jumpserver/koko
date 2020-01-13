@@ -81,6 +81,15 @@ func (dbconn *ServerMysqlConnection) Connect() (err error) {
 		return fmt.Errorf("mysql conn err: %s", err)
 	}
 	logger.Infof("Connect mysql database %s success ", dbconn.options.Host)
+	go func() {
+		err = dbconn.cmd.Wait()
+		if err != nil{
+			logger.Errorf("mysql command exit err: %s", err)
+		}
+		logger.Info("mysql connect closed.")
+		_ = dbconn.ptyFD.Close()
+
+	}()
 	return
 }
 
@@ -115,7 +124,7 @@ func (dbconn *ServerMysqlConnection) Close() (err error) {
 			return
 		}
 		_ = dbconn.ptyFD.Close()
-		err = dbconn.cmd.Process.Kill()
+		err = dbconn.cmd.Process.Signal(os.Kill)
 	})
 	return
 }
