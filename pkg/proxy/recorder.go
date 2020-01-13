@@ -181,6 +181,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 	}
 	if r.storage.TypeName() == "null" {
 		_ = r.storage.Upload(r.AbsGzFilePath, r.Target)
+		_ = os.Remove(r.AbsGzFilePath)
 		return
 	}
 	for i := 0; i <= maxRetry; i++ {
