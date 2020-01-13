@@ -25,3 +25,7 @@ func (o OSSReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	}
 	return bucket.PutObjectFromFile(target, gZipFilePath)
 }
+
+func (o OSSReplayStorage) TypeName() string {
+	return "oss"
+}

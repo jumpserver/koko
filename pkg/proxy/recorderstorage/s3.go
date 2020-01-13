@@ -49,3 +49,8 @@ func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 
 	return
 }
+
+
+func (s S3ReplayStorage) TypeName() string {
+	return "s3"
+}

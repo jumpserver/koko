@@ -22,3 +22,7 @@ func (f NullStorage) Upload(gZipFile, target string) (err error) {
 	logger.Infof("Null Storage discard %s.", gZipFile)
 	return
 }
+
+func (f NullStorage) TypeName() string {
+	return "null"
+}
