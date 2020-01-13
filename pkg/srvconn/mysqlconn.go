@@ -43,53 +43,56 @@ type ServerMysqlConnection struct {
 }
 
 func (dbconn *ServerMysqlConnection) Connect() (err error) {
-	dbconn.cmd = exec.Command("mysql", dbconn.options.CommandArgs()...)
+	cmd := exec.Command("mysql", dbconn.options.CommandArgs()...)
 	nobody, err := user.Lookup("nobody")
 	if err != nil {
 		logger.Errorf("lookup nobody user err: %s", err)
 		return errors.New("nobody user does not exist")
 	}
-	dbconn.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	uid, _ := strconv.Atoi(nobody.Uid)
 	gid, _ := strconv.Atoi(nobody.Gid)
-	dbconn.cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
-	dbconn.ptyFD, err = pty.Start(dbconn.cmd)
+	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+	ptyFD, err := pty.Start(cmd)
+	go func() {
+		err = cmd.Wait()
+		if err != nil{
+			logger.Errorf("mysql command exit err: %s", err)
+		}
+		_ = ptyFD.Close()
+		logger.Info("mysql connect closed.")
+		var wstatus syscall.WaitStatus
+		_, err = syscall.Wait4(-1, &wstatus, 0, nil)
+	}()
 	if err != nil {
 		logger.Errorf("pty start err: %s", err)
 		return fmt.Errorf("start local pty err: %s", err)
 	}
 	prompt := [len(mysqlPrompt)]byte{}
-	nr, err := dbconn.ptyFD.Read(prompt[:])
+	nr, err := ptyFD.Read(prompt[:])
 	if err != nil {
-		_ = dbconn.ptyFD.Close()
-		_ = dbconn.cmd.Process.Kill()
+		_ = ptyFD.Close()
+		_ = cmd.Process.Kill()
 		logger.Errorf("read mysql pty local fd err: %s", err)
 		return fmt.Errorf("mysql conn err: %s", err)
 	}
 	if !bytes.Equal(prompt[:nr], []byte(mysqlPrompt)) {
-		_ = dbconn.cmd.Process.Kill()
-		_ = dbconn.ptyFD.Close()
+		_ = cmd.Process.Kill()
+		_ = ptyFD.Close()
 		logger.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
 		return errors.New("failed login mysql")
 	}
 	// 输入密码, 登录mysql
-	_, err = dbconn.ptyFD.Write([]byte(dbconn.options.Password + "\r\n"))
+	_, err = ptyFD.Write([]byte(dbconn.options.Password + "\r\n"))
 	if err != nil {
-		_ = dbconn.ptyFD.Close()
-		_ = dbconn.cmd.Process.Kill()
+		_ = ptyFD.Close()
+		_ = cmd.Process.Kill()
 		logger.Errorf("mysql local pty write err: %s", err)
 		return fmt.Errorf("mysql conn err: %s", err)
 	}
 	logger.Infof("Connect mysql database %s success ", dbconn.options.Host)
-	go func() {
-		err = dbconn.cmd.Wait()
-		if err != nil{
-			logger.Errorf("mysql command exit err: %s", err)
-		}
-		logger.Info("mysql connect closed.")
-		_ = dbconn.ptyFD.Close()
-
-	}()
+	dbconn.cmd = cmd
+	dbconn.ptyFD = ptyFD
 	return
 }
 
