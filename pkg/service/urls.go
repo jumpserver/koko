@@ -53,4 +53,6 @@ const (
 	UserAssetsTreeURL = "/api/v1/perms/users/%s/assets/tree/"
 
 	DatabaseDetailURL = "/api/v1/applications/database-apps/%s/"
+
+	ValidateUserDatabasePermissionURL = "/api/v1/perms/database-app-permissions/user/validate/"
 )

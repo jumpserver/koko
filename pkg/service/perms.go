@@ -166,6 +166,26 @@ func ValidateUserAssetPermission(userID, assetID, systemUserID, action string) b
 	return res.Msg
 }
 
+func ValidateUserDatabasePermission(userID, databaseID, systemUserID string) bool {
+	payload := map[string]string{
+		"user_id":         userID,
+		"database_app_id": databaseID,
+		"system_user_id":  systemUserID,
+	}
+	Url := ValidateUserDatabasePermissionURL
+	var res struct {
+		Msg bool `json:"msg"`
+	}
+	_, err := authClient.Get(Url, &res, payload)
+
+	if err != nil {
+		logger.Error(err)
+		return false
+	}
+
+	return res.Msg
+}
+
 func GetUserNodeTreeWithAsset(userID, nodeID, cachePolicy string) (nodeTrees model.NodeTreeList) {
 	if cachePolicy == "" {
 		cachePolicy = "1"
