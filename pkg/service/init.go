@@ -66,6 +66,7 @@ func MustLoadServerConfigOnce() {
 	_, err := authClient.Get(TerminalConfigURL, &data)
 	if err != nil {
 		logger.Error("Load config from server error: ", err)
+		os.Exit(1)
 		return
 	}
 	data["TERMINAL_HOST_KEY"] = "Hidden"
