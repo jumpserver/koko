@@ -121,6 +121,14 @@ func CreateDBSession(p *DBProxyServer) (sw *DBSwitchSession, err error) {
 		logger.Error(msg)
 		return sw, errors.New("create database session failed")
 	}
+	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
+	if err != nil {
+		msg = utils.WrapperWarn(msg)
+		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Error(msg + err.Error())
+		return sw, errors.New("connect api server failed")
+	}
+	sw.SetFilterRules(cmdRules)
 	AddSession(sw)
 	return
 }
