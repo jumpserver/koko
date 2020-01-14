@@ -79,7 +79,7 @@ func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *DBProxyServer) validatePermission() bool {
-	return true
+	return service.ValidateUserDatabasePermission(p.User.ID, p.Database.ID, p.SystemUser.ID)
 }
 
 // getSSHConn 获取ssh连接
