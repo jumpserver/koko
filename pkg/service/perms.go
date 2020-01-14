@@ -171,7 +171,6 @@ func ValidateUserDatabasePermission(userID, databaseID, systemUserID string) boo
 		"user_id":         userID,
 		"database_app_id": databaseID,
 		"system_user_id":  systemUserID,
-		"cache_policy":    "1",
 	}
 	Url := ValidateUserDatabasePermissionURL
 	var res struct {
