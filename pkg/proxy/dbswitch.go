@@ -28,6 +28,8 @@ type DBSwitchSession struct {
 
 	MaxIdleTime time.Duration
 
+	cmdRules []model.SystemUserFilterRule
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -36,6 +38,7 @@ func (s *DBSwitchSession) Initial() {
 	s.ID = uuid.NewV4().String()
 	s.DateStart = common.CurrentUTCTime()
 	s.MaxIdleTime = config.GetConf().MaxIdleTime
+	s.cmdRules = make([]model.SystemUserFilterRule, 0)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 }
 
@@ -95,6 +98,12 @@ func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Comman
 	}
 }
 
+func (s *DBSwitchSession) SetFilterRules(cmdRules []model.SystemUserFilterRule) {
+	if len(cmdRules) > 0 {
+		s.cmdRules = cmdRules
+	}
+}
+
 // postBridge 桥接结束以后执行操作
 func (s *DBSwitchSession) postBridge() {
 	s.DateEnd = common.CurrentUTCTime()
@@ -117,6 +126,9 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 	userInChan = make(chan []byte, 1)
 	srvInChan = make(chan []byte, 1)
 	done = make(chan struct{})
+	// 设置parser的命令过滤规则
+	parser.SetCMDFilterRules(s.cmdRules)
+
 	userOutChan, srvOutChan := parser.ParseStream(userInChan, srvInChan)
 	defer func() {
 		close(done)
