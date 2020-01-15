@@ -44,3 +44,7 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 	}
 	return
 }
+
+func (f ESCommandStorage) TypeName() string {
+	return "es"
+}

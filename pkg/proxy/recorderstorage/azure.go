@@ -42,3 +42,7 @@ func (a AzureReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	}
 	return
 }
+
+func (o AzureReplayStorage) TypeName() string {
+	return "azure"
+}
