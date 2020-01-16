@@ -112,7 +112,7 @@ func (dbconn *ServerMysqlConnection) Write(p []byte) (int, error) {
 	return dbconn.ptyFD.Write(p)
 }
 
-func (dbconn *ServerMysqlConnection) SetWinSize(w, h int) error {
+func (dbconn *ServerMysqlConnection) SetWinSize(h, w int) error {
 	if dbconn.ptyFD == nil {
 		return fmt.Errorf("not connect init")
 	}
@@ -120,6 +120,7 @@ func (dbconn *ServerMysqlConnection) SetWinSize(w, h int) error {
 		Rows: uint16(h),
 		Cols: uint16(w),
 	}
+	logger.Infof("db conn windows size change %d*%d", h, w)
 	return pty.Setsize(dbconn.ptyFD, &win)
 }
 
