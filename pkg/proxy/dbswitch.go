@@ -176,7 +176,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 				return
 			}
 			_ = srvConn.SetWinSize(win.Height, win.Width)
-			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
+			logger.Debugf("DB Window server change: %d*%d", win.Height, win.Width)
 		// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
