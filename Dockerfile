@@ -25,7 +25,7 @@ COPY --from=stage-build /opt/koko/cmd/templates/ templates
 COPY --from=stage-build /opt/koko/cmd/config_example.yml .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 
-RUN chmod 755 entrypoint.sh && apt-get update -y && apt-get install -y curl \
+RUN chmod 755 entrypoint.sh && apt-get update -y && apt-get install -y procps && apt-get install -y curl \
     && apt-get autoclean && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 2222 5000
