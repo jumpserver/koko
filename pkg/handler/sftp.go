@@ -45,11 +45,12 @@ func SftpHandler(sess ssh.Session) {
 }
 
 func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
-	return &sftpHandler{srvconn.NewUserSftpConn(user, addr)}
+	return &sftpHandler{UserSftpConn: srvconn.NewUserSftpConn(user, addr), openedFiles: make([]*sftp.File, 0, 10)}
 }
 
 type sftpHandler struct {
 	*srvconn.UserSftpConn
+	openedFiles []*sftp.File
 }
 
 func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
@@ -116,10 +117,14 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		_ = f.Close()
 		return nil, err
 	}
+	fs.openedFiles = append(fs.openedFiles, f)
 	return NewReaderAt(f, fi), err
 }
 
 func (fs *sftpHandler) Close() {
+	for i := range fs.openedFiles {
+		_ = fs.openedFiles[i].Close()
+	}
 	fs.UserSftpConn.Close()
 }
 
@@ -177,12 +182,7 @@ func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
 		return 0, io.EOF
 	}
 	_, _ = c.f.Seek(off, 0)
-	nr, err := c.f.Read(p)
-	if err != nil {
-		c.firstErr = err
-		_ = c.f.Close()
-	}
-	return nr, err
+	return c.f.Read(p)
 }
 
 type wrapperSFTPFileInfo struct {
