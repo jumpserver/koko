@@ -41,6 +41,8 @@ func NewSessionClient(setters ...SessionOption) SessionClient {
 		setter(option)
 	}
 	conn := newClient()
+	conn.SetHeader("X-Forwarded-For", option.RemoteAddr)
+	conn.SetHeader("X-JMS-LOGIN-TYPE", option.LoginType)
 	return SessionClient{
 		option:      option,
 		client:      &conn,
@@ -105,7 +107,9 @@ func (u *SessionClient) CheckUserOTP(ctx context.Context, code string) (user mod
 	var err error
 	authStatus = AuthFailed
 	data := map[string]string{
-		"code": code,
+		"code":        code,
+		"remote_addr": u.option.RemoteAddr,
+		"login_type":  u.option.LoginType,
 	}
 	for name, authData := range u.authOptions {
 		var resp authResponse
