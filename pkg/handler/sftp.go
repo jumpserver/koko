@@ -45,7 +45,7 @@ func SftpHandler(sess ssh.Session) {
 }
 
 func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
-	return &sftpHandler{srvconn.NewUserSftpConn(user, addr)}
+	return &sftpHandler{UserSftpConn: srvconn.NewUserSftpConn(user, addr)}
 }
 
 type sftpHandler struct {
@@ -102,6 +102,13 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
 	f, err := fs.Create(r.Filepath)
+	go func() {
+		<-r.Context().Done()
+		if err := f.Close(); err != nil {
+			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
+		}
+		logger.Infof("Sftp file write %s done", r.Filepath)
+	}()
 	return NewWriterAt(f), err
 }
 
@@ -116,6 +123,14 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		_ = f.Close()
 		return nil, err
 	}
+	go func() {
+		<-r.Context().Done()
+		if err := f.Close(); err != nil {
+			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
+		}
+		logger.Infof("Sftp File read %s done", r.Filepath)
+
+	}()
 	return NewReaderAt(f, fi), err
 }
 
@@ -146,43 +161,26 @@ func NewReaderAt(f *sftp.File, fi os.FileInfo) io.ReaderAt {
 }
 
 type clientReadWritAt struct {
-	f        *sftp.File
-	mu       *sync.RWMutex
-	fi       os.FileInfo
-	firstErr error
+	f  *sftp.File
+	mu *sync.RWMutex
+	fi os.FileInfo
 }
 
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.firstErr != nil {
-		return 0, c.firstErr
-	}
 	_, _ = c.f.Seek(off, 0)
-	nw, err := c.f.Write(p)
-	if err != nil {
-		c.firstErr = err
-		_ = c.f.Close()
-	}
-	return nw, err
+	return c.f.Write(p)
 }
 
 func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.firstErr != nil {
-		return 0, c.firstErr
-	}
 	if off >= c.fi.Size() {
 		return 0, io.EOF
 	}
 	_, _ = c.f.Seek(off, 0)
-	nr, err := c.f.Read(p)
-	if err != nil {
-		c.firstErr = err
-		_ = c.f.Close()
-	}
-	return nr, err
+	return c.f.Read(p)
 }
 
 type wrapperSFTPFileInfo struct {
