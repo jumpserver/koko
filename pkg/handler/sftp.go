@@ -103,6 +103,7 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
 	f, err := fs.Create(r.Filepath)
+	fs.openedFiles = append(fs.openedFiles, f)
 	return NewWriterAt(f), err
 }
 
