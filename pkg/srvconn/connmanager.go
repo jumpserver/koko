@@ -155,6 +155,7 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 	authMethods := make([]gossh.AuthMethod, 0)
 	if sc.Password != "" {
 		authMethods = append(authMethods, gossh.Password(sc.Password))
+		authMethods = append(authMethods, gossh.KeyboardInteractive(sc.keyboardInteractivePassword(sc.Password)))
 	}
 	if sc.PrivateKeyPath != "" {
 		if pubkey, err := GetPubKeyFromFile(sc.PrivateKeyPath); err != nil {
@@ -181,6 +182,16 @@ func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
 		HostKeyAlgorithms: supportedHostKeyAlgos,
 	}
 	return config, nil
+}
+
+func (sc *SSHClientConfig) keyboardInteractivePassword(password string) gossh.KeyboardInteractiveChallenge {
+	return func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+		if len(questions) == 0 {
+			return []string{}, nil
+		}
+		logger.Infof("Host %s use keyboard-Interactive auth method login", sc.Host)
+		return []string{password}, nil
+	}
 }
 
 func (sc *SSHClientConfig) DialProxy() (client *gossh.Client, err error) {
