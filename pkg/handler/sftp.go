@@ -102,6 +102,9 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
 	f, err := fs.Create(r.Filepath)
+	if err != nil {
+		return nil, err
+	}
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {
