@@ -210,7 +210,6 @@ func NewAssetDir(user *model.User, asset model.Asset, addr string, logChan chan<
 		suMaps:      nil,
 		logChan:     logChan,
 		Overtime:    conf.SSHTimeout * time.Second,
-		RootPath:    conf.SftpRoot,
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,
 		sftpClients: map[string]*SftpConn{},
@@ -232,7 +231,6 @@ type AssetDir struct {
 
 	once sync.Once
 
-	RootPath   string
 	reuse      bool
 	ShowHidden bool
 	Overtime   time.Duration
@@ -637,11 +635,14 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.SystemUser, path string) (conn 
 		ad.sftpClients[su.ID] = conn
 	}
 
-	switch strings.ToLower(ad.RootPath) {
+	switch strings.ToLower(su.SftpRoot) {
 	case "home", "~", "":
 		realPath = filepath.Join(conn.HomeDirPath, strings.TrimPrefix(path, "/"))
 	default:
-		realPath = filepath.Join(ad.RootPath, strings.TrimPrefix(path, "/"))
+		if strings.Index(su.SftpRoot, "/") != 0 {
+			su.SftpRoot = fmt.Sprintf("/%s", su.SftpRoot)
+		}
+		realPath = filepath.Join(su.SftpRoot, strings.TrimPrefix(path, "/"))
 	}
 	return
 }

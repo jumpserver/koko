@@ -8,10 +8,25 @@ import (
 )
 
 func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.SystemUserAuthInfo) {
+	return getUserAssetAuthInfo(systemUserID, assetID, "", "")
+}
+
+func GetUserAssetAuthInfo(systemUserID, assetID, username, userID string) (info model.SystemUserAuthInfo) {
+	return getUserAssetAuthInfo(systemUserID, assetID, userID, username)
+}
+
+func getUserAssetAuthInfo(systemUserID, assetID, userID, username string) (info model.SystemUserAuthInfo) {
 	Url := fmt.Sprintf(SystemUserAssetAuthURL, systemUserID, assetID)
-	_, err := authClient.Get(Url, &info)
+	params := make(map[string]string)
+	if username != "" {
+		params["username"] = username
+	}
+	if userID != "" {
+		params["user_id"] = userID
+	}
+	_, err := authClient.Get(Url, &info, params)
 	if err != nil {
-		logger.Errorf("Get system user %s asset %s auth info failed", systemUserID, assetID)
+		logger.Errorf("Get system user %s asset %s auth info failed：%s", systemUserID, assetID, err)
 	}
 	return
 }

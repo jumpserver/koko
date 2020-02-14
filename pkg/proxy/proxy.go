@@ -27,7 +27,13 @@ type ProxyServer struct {
 
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
 func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
-	info := service.GetSystemUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID)
+	var info model.SystemUserAuthInfo
+	if p.SystemUser.UsernameSameWithUser {
+		info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
+		p.SystemUser.Username = p.User.Username
+	} else {
+		info = service.GetSystemUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID)
+	}
 	p.SystemUser.Password = info.Password
 	p.SystemUser.PrivateKey = info.PrivateKey
 	needManualSet := false
@@ -54,7 +60,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 
 // getSystemUserUsernameIfNeed 获取系统用户用户名，或手动设置
 func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
-	if p.SystemUser.Username == "" {
+	if !p.SystemUser.UsernameSameWithUser && p.SystemUser.Username == "" {
 		var username string
 		term := utils.NewTerminal(p.UserConn, "username: ")
 		for {
