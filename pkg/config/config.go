@@ -143,7 +143,7 @@ func (c *Config) Load(filepath string) error {
 }
 
 var lock = new(sync.RWMutex)
-var name, _ = os.Hostname()
+var name = getDefaultName()
 var rootPath, _ = os.Getwd()
 var Conf = &Config{
 	Name:               name,
@@ -182,4 +182,13 @@ func GetConf() Config {
 	lock.RLock()
 	defer lock.RUnlock()
 	return *Conf
+}
+
+func getDefaultName() string {
+	hostname, _ := os.Hostname()
+	hostRune := []rune(hostname)
+	if len(hostRune) > 32 {
+		hostRune = hostRune[:32]
+	}
+	return string(hostRune)
 }
