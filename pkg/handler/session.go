@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
@@ -74,7 +75,11 @@ type interactiveHandler struct {
 }
 
 func (h *interactiveHandler) Initial() {
-	h.assetLoadPolicy = strings.ToLower(config.GetConf().AssetLoadPolicy)
+	conf := config.GetConf()
+	if conf.ClientAliveInterval > 0 {
+		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
+	}
+	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.displayBanner()
 	h.winWatchChan = make(chan bool, 5)
 	h.firstLoadDone = make(chan struct{})
@@ -118,6 +123,25 @@ func (h *interactiveHandler) watchWinSizeChange() {
 			}
 			logger.Debugf("Term window size change: %d*%d", win.Height, win.Width)
 			_ = h.term.SetSize(win.Width, win.Height)
+		}
+	}
+}
+
+func (h *interactiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
+	t := time.NewTicker(keepAliveTime)
+	defer t.Stop()
+	for {
+		select {
+		case <-h.sess.Sess.Context().Done():
+			return
+		case <-t.C:
+			_, err := h.sess.Sess.SendRequest("keepalive@openssh.com", true, nil)
+			if err != nil {
+				logger.Errorf("Request %s: Send user %s keepalive packet failed: %s",
+					h.sess.Uuid, h.user.Name, err)
+				return
+			}
+			logger.Debugf("Request %s: Send user %s keepalive packet success", h.sess.Uuid, h.user.Name)
 		}
 	}
 }
