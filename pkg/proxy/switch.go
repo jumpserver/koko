@@ -62,7 +62,7 @@ func (s *SwitchSession) SessionID() string {
 	return s.ID
 }
 
-func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+func (s *SwitchSession) recordCommand(cmdRecordChan chan [3]string) {
 	// 命令记录
 	cmdRecorder := NewCommandRecorder(s.ID)
 	for command := range cmdRecordChan {
@@ -77,9 +77,10 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 }
 
 // generateCommandResult 生成命令结果
-func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command {
+func (s *SwitchSession) generateCommandResult(command [3]string) *model.Command {
 	var input string
 	var output string
+	var isHighRisk bool
 	if len(command[0]) > 128 {
 		input = command[0][:128]
 	} else {
@@ -94,6 +95,12 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		output = command[1][:1024]
 	}
 
+	switch command[2] {
+	case model.HighRiskFlag:
+		isHighRisk = true
+	default:
+		isHighRisk = false
+	}
 	return &model.Command{
 		SessionID:  s.ID,
 		OrgID:      s.p.Asset.OrgID,
@@ -103,6 +110,7 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		Server:     s.p.Asset.Hostname,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
+		IsHighRisk: isHighRisk,
 	}
 }
 

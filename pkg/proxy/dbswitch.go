@@ -56,7 +56,7 @@ func (s *DBSwitchSession) SessionID() string {
 	return s.ID
 }
 
-func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [3]string) {
 	// 命令记录
 	cmdRecorder := NewCommandRecorder(s.ID)
 	for command := range cmdRecordChan {
@@ -69,9 +69,10 @@ func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 	// 关闭命令记录
 	cmdRecorder.End()
 }
-func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Command {
+func (s *DBSwitchSession) generateCommandResult(command [3]string) *model.Command {
 	var input string
 	var output string
+	var isHighRisk bool
 	if len(command[0]) > 128 {
 		input = command[0][:128]
 	} else {
@@ -85,7 +86,12 @@ func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Comman
 	} else {
 		output = command[1][:1024]
 	}
-
+	switch command[2] {
+	case model.HighRiskFlag:
+		isHighRisk = true
+	default:
+		isHighRisk = false
+	}
 	return &model.Command{
 		SessionID:  s.ID,
 		OrgID:      s.p.Database.OrgID,
@@ -95,6 +101,7 @@ func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Comman
 		Server:     s.p.Database.Name,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
+		IsHighRisk: isHighRisk,
 	}
 }
 
