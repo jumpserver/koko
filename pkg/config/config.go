@@ -47,6 +47,7 @@ type Config struct {
 	AssetLoadPolicy     string                 `yaml:"ASSET_LOAD_POLICY"` // all
 	ZipMaxSize          string                 `yaml:"ZIP_MAX_SIZE"`
 	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
+	ClientAliveInterval uint64                 `yaml:"CLIENT_ALIVE_INTERVAL"`
 }
 
 func (c *Config) EnsureConfigValid() {
