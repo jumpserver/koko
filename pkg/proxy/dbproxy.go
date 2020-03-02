@@ -65,7 +65,7 @@ func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 }
 
 func (p *DBProxyServer) checkProtocolMatch() bool {
-	return strings.ToLower(p.Database.DBType) == strings.ToLower(p.SystemUser.Protocol)
+	return strings.EqualFold(p.Database.DBType, p.SystemUser.Protocol)
 }
 
 func (p *DBProxyServer) checkProtocolClientInstalled() bool {
