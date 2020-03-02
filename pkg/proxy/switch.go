@@ -32,6 +32,8 @@ type SwitchSession struct {
 	DateEnd   string
 	finished  bool
 
+	isConnected bool
+
 	MaxIdleTime time.Duration
 
 	cmdRules []model.SystemUserFilterRule
@@ -137,7 +139,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		srvInChan  chan []byte
 		done       chan struct{}
 	)
-
+	s.isConnected = true
 	parser = newParser(s.ID)
 	replayRecorder = NewReplyRecord(s.ID)
 
@@ -238,6 +240,7 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		"user_id":        s.p.User.ID,
 		"asset_id":       s.p.Asset.ID,
 		"system_user_id": s.p.SystemUser.ID,
+		"is_success":     s.isConnected,
 	}
 }
 
