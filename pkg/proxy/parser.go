@@ -219,10 +219,10 @@ func (p *Parser) splitCmdStream(b []byte) {
 		return
 	}
 	if p.inputState {
-		p.cmdInputParser.WriteData(b)
+		_, _ = p.cmdInputParser.WriteData(b)
 		return
 	}
-	p.cmdOutputParser.WriteData(b)
+	_, _ = p.cmdOutputParser.WriteData(b)
 }
 
 // ParseServerOutput 解析服务器输出
