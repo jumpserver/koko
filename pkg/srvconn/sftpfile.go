@@ -677,6 +677,19 @@ func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err err
 		sshClient *SSHClient
 		ok        bool
 	)
+	var needNewClient = true
+	if su.Password == "" && su.PrivateKey == "" && su.LoginMode != model.LoginModeManual {
+		var info model.SystemUserAuthInfo
+		if su.UsernameSameWithUser {
+			info = service.GetUserAssetAuthInfo(su.ID, ad.asset.ID, ad.user.ID, ad.user.Username)
+			su.Username = ad.user.Username
+		} else {
+			info = service.GetSystemUserAssetAuthInfo(su.ID, ad.asset.ID, )
+		}
+		su.Password = info.Password
+		su.PrivateKey = info.PrivateKey
+	}
+
 	if ad.reuse {
 		key := MakeReuseSSHClientKey(ad.user, ad.asset, su)
 		switch su.Username {
@@ -689,18 +702,14 @@ func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err err
 			sshClient, ok = GetClientFromCache(key)
 		}
 
-		if !ok {
-			sshClient, err = NewClient(ad.user, ad.asset, su, ad.Overtime, ad.reuse)
-			if err != nil {
-				logger.Errorf("Get new SSH client err: %s", err)
-				return
-			}
-		} else {
+		if ok {
+			needNewClient = false
 			logger.Infof("Reuse connection for SFTP: %s->%s@%s. SSH client %p current ref: %d",
 				ad.user.Username, sshClient.username, ad.asset.IP, sshClient, sshClient.RefCount())
 		}
+	}
 
-	} else {
+	if needNewClient {
 		sshClient, err = NewClient(ad.user, ad.asset, su, ad.Overtime, ad.reuse)
 		if err != nil {
 			logger.Errorf("Get new SSH client err: %s", err)

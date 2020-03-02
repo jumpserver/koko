@@ -266,11 +266,7 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 			}
 		}
 	}
-	if systemUser.Password == "" && systemUser.PrivateKey == "" && systemUser.LoginMode != model.LoginModeManual {
-		info := service.GetSystemUserAssetAuthInfo(systemUser.ID, asset.ID)
-		systemUser.Password = info.Password
-		systemUser.PrivateKey = info.PrivateKey
-	}
+
 	conf = &SSHClientConfig{
 		Host:       asset.IP,
 		Port:       strconv.Itoa(asset.ProtocolPort("ssh")),
