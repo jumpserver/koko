@@ -112,7 +112,7 @@ func (s *SwitchSession) generateCommandResult(command [3]string) *model.Command 
 		Server:     s.p.Asset.Hostname,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
-		Risk:       riskLevel,
+		RiskLevel:  riskLevel,
 	}
 }
 

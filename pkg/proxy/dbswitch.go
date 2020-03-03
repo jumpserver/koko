@@ -103,7 +103,7 @@ func (s *DBSwitchSession) generateCommandResult(command [3]string) *model.Comman
 		Server:     s.p.Database.Name,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
-		Risk:       riskLevel,
+		RiskLevel:  riskLevel,
 	}
 }
 
