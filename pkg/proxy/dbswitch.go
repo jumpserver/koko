@@ -90,7 +90,7 @@ func (s *DBSwitchSession) generateCommandResult(command [3]string) *model.Comman
 	}
 	switch command[2] {
 	case model.HighRiskFlag:
-		riskLevel = 1
+		riskLevel = 5
 	default:
 		riskLevel = 0
 	}
