@@ -9,7 +9,7 @@ type Command struct {
 	Server     string `json:"asset"`
 	SystemUser string `json:"system_user"`
 	Timestamp  int64  `json:"timestamp"`
-	IsHighRisk bool   `json:"is_high_risk"`
+	Danger     bool   `json:"danger"`
 }
 
 type FTPLog struct {
