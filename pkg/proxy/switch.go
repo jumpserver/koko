@@ -82,7 +82,7 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan [3]string) {
 func (s *SwitchSession) generateCommandResult(command [3]string) *model.Command {
 	var input string
 	var output string
-	var danger bool
+	var riskLevel int64
 	if len(command[0]) > 128 {
 		input = command[0][:128]
 	} else {
@@ -99,9 +99,9 @@ func (s *SwitchSession) generateCommandResult(command [3]string) *model.Command 
 
 	switch command[2] {
 	case model.HighRiskFlag:
-		danger = true
+		riskLevel = 1
 	default:
-		danger = false
+		riskLevel = 0
 	}
 	return &model.Command{
 		SessionID:  s.ID,
@@ -112,7 +112,7 @@ func (s *SwitchSession) generateCommandResult(command [3]string) *model.Command 
 		Server:     s.p.Asset.Hostname,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
-		Danger:     danger,
+		Risk:       riskLevel,
 	}
 }
 

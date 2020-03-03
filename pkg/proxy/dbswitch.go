@@ -74,7 +74,7 @@ func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [3]string) {
 func (s *DBSwitchSession) generateCommandResult(command [3]string) *model.Command {
 	var input string
 	var output string
-	var isHighRisk bool
+	var riskLevel int64
 	if len(command[0]) > 128 {
 		input = command[0][:128]
 	} else {
@@ -90,9 +90,9 @@ func (s *DBSwitchSession) generateCommandResult(command [3]string) *model.Comman
 	}
 	switch command[2] {
 	case model.HighRiskFlag:
-		isHighRisk = true
+		riskLevel = 1
 	default:
-		isHighRisk = false
+		riskLevel = 0
 	}
 	return &model.Command{
 		SessionID:  s.ID,
@@ -103,7 +103,7 @@ func (s *DBSwitchSession) generateCommandResult(command [3]string) *model.Comman
 		Server:     s.p.Database.Name,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
-		Danger:     isHighRisk,
+		Risk:       riskLevel,
 	}
 }
 
