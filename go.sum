@@ -5,8 +5,8 @@ github.com/Azure/azure-storage-blob-go v0.6.0 h1:SEATKb3LIHcaSIX+E6/K4kJpwfuozFE
 github.com/Azure/azure-storage-blob-go v0.6.0/go.mod h1:oGfmITT1V6x//CswqY2gtAHND+xIP64/qL7a5QJix0Y=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/LeeEirc/elfinder v0.0.11 h1:LP+53Q0V2WhxTqR720X7B8rkkX2YDq47dSIGLR1xA9s=
-github.com/LeeEirc/elfinder v0.0.11/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
+github.com/LeeEirc/elfinder v0.0.12 h1:6MRzyHyu9ttb2vxqSHJV6YhVWbwU6Etwamn1r2dTKHE=
+github.com/LeeEirc/elfinder v0.0.12/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/LeeEirc/sftp v1.10.2 h1:SGpj84RbStlwH+ThXYUsxtxtbzAzpUY8z5gQN4p12OI=
 github.com/LeeEirc/sftp v1.10.2/go.mod h1:lYOWFsE0bwd1+KfKJaKeuokY15vzFx25BLbzYYoAxZI=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8 h1:BOflvK0Zs/zGmoabyFIzTg5c3kguktWTXEwewwbuba0=

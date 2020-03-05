@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,6 +23,8 @@ import (
 const (
 	SearchFolderName = "_Search"
 )
+
+var errNoSystemUser = errors.New("please select one of the systemUsers")
 
 type SearchResultDir struct {
 	subDirs    map[string]os.FileInfo
@@ -286,7 +289,7 @@ func (ad *AssetDir) Create(path string) (*sftp.File, error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, sftp.ErrSshFxNoSuchFile
+		return nil, errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.UploadAction) {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -319,7 +322,7 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return sftp.ErrSshFxNoSuchFile
+		return errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.UploadAction) {
 		return sftp.ErrSshFxPermissionDenied
@@ -352,7 +355,7 @@ func (ad *AssetDir) Open(path string) (*sftp.File, error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, sftp.ErrSshFxNoSuchFile
+		return nil, errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.DownloadAction) {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -387,7 +390,7 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, sftp.ErrSshFxNoSuchFile
+		return nil, errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.ConnectAction) {
 		return res, sftp.ErrSshFxPermissionDenied
@@ -422,7 +425,7 @@ func (ad *AssetDir) ReadLink(path string) (res string, err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return "", sftp.ErrSshFxNoSuchFile
+		return "", errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.ConnectAction) {
 		return res, sftp.ErrSshFxPermissionDenied
@@ -448,7 +451,7 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return sftp.ErrSshFxNoSuchFile
+		return errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.UploadAction) {
 		return sftp.ErrSshFxPermissionDenied
@@ -483,7 +486,7 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return sftp.ErrSshFxNoSuchFile
+		return errNoSystemUser
 	}
 	conn1, oldRealPath := ad.GetSFTPAndRealPath(su, strings.Join(oldPathData, "/"))
 	conn2, newRealPath := ad.GetSFTPAndRealPath(su, strings.Join(newPathData, "/"))
@@ -515,7 +518,7 @@ func (ad *AssetDir) Remove(path string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return sftp.ErrSshFxNoSuchFile
+		return errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.UploadAction) {
 		return sftp.ErrSshFxPermissionDenied
@@ -548,7 +551,7 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, sftp.ErrSshFxNoSuchFile
+		return nil, errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.ConnectAction) {
 		return res, sftp.ErrSshFxPermissionDenied
@@ -568,7 +571,7 @@ func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
 		if oldPathData[0] != newPathData[0] {
-			return sftp.ErrSshFxNoSuchFile
+			return errNoSystemUser
 		}
 		folderName = oldPathData[0]
 		oldPathData = oldPathData[1:]
@@ -576,7 +579,7 @@ func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return sftp.ErrSshFxNoSuchFile
+		return errNoSystemUser
 	}
 	if !ad.validatePermission(su, model.UploadAction) {
 		return sftp.ErrSshFxPermissionDenied
