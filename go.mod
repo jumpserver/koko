@@ -16,10 +16,10 @@ require (
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/gorilla/mux v1.7.2
-	github.com/gorilla/websocket v1.4.0
+	github.com/gorilla/websocket v1.4.1
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/kataras/neffos v0.0.7
+	github.com/kataras/neffos v0.0.14
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mattn/go-runewidth v0.0.4 // indirect
