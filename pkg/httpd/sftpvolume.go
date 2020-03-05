@@ -110,6 +110,20 @@ func (u *UserVolume) List(path string) []elfinder.FileDir {
 		return dirs
 	}
 	for i := 0; i < len(originFileInfolist); i++ {
+		if originFileInfolist[i].Mode()&os.ModeSymlink != 0 {
+			linkInfo := NewElfinderFileInfo(u.Uuid, path, originFileInfolist[i])
+			_, err := u.UserSftp.ReadDir(filepath.Join(u.basePath, path, originFileInfolist[i].Name()))
+			if err != nil {
+				logger.Errorf("link file %s is not dir err: %s", originFileInfolist[i].Name(), err)
+			} else {
+				logger.Infof("link file %s is dir", originFileInfolist[i].Name())
+				linkInfo.Mime = "directory"
+				linkInfo.Dirs = 1
+			}
+			dirs = append(dirs, linkInfo)
+			continue
+		}
+
 		dirs = append(dirs, NewElfinderFileInfo(u.Uuid, path, originFileInfolist[i]))
 	}
 	return dirs
