@@ -253,13 +253,7 @@ func (p *ProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
 		return
 	}
-	srvConn, err := p.getServerConn()
-	// 连接后端服务器失败
-	if err != nil {
-		p.sendConnectErrorMsg(err)
-		return
-	}
-	defer srvConn.Close()
+
 	// 创建Session
 	sw, err := CreateSession(p)
 	if err != nil {
@@ -267,6 +261,12 @@ func (p *ProxyServer) Proxy() {
 		return
 	}
 	defer RemoveSession(sw)
+	srvConn, err := p.getServerConn()
+	// 连接后端服务器失败
+	if err != nil {
+		p.sendConnectErrorMsg(err)
+		return
+	}
 
 	logger.Infof("Session %s bridge start", sw.ID)
 	_ = sw.Bridge(p.UserConn, srvConn)

@@ -180,14 +180,6 @@ func (p *DBProxyServer) Proxy() {
 		logger.Error("Check requisite failed")
 		return
 	}
-	srvConn, err := p.getServerConn()
-	// 连接后端服务器失败
-	if err != nil {
-		logger.Errorf("Create database server conn failed: %s", err)
-		p.sendConnectErrorMsg(err)
-		return
-	}
-	defer srvConn.Close()
 	// 创建Session
 	sw, err := CreateDBSession(p)
 	if err != nil {
@@ -195,6 +187,13 @@ func (p *DBProxyServer) Proxy() {
 		return
 	}
 	defer RemoveDBSession(sw)
+	srvConn, err := p.getServerConn()
+	// 连接后端服务器失败
+	if err != nil {
+		logger.Errorf("Create database server conn failed: %s", err)
+		p.sendConnectErrorMsg(err)
+		return
+	}
 
 	if err = sw.Bridge(p.UserConn, srvConn); err != nil {
 		logger.Errorf("DB Session %s bridge end: %s", sw.ID, err)
