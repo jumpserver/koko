@@ -54,7 +54,7 @@ type sshClient struct {
 
 	closed chan struct{}
 
-	config   *SSHClientConfig
+	config *SSHClientConfig
 }
 
 func (s *sshClient) RefCount() int {
@@ -132,7 +132,7 @@ func (s *sshClient) close() error {
 	if s.proxyConn != nil {
 		_ = s.proxyConn.Close()
 	}
-	logger.Infof("Success to close SSH client %p", s)
+	logger.Infof("Success to close SSH client(%s)", s.config)
 	return s.client.Close()
 }
 
@@ -285,9 +285,9 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 	proxyConfigs := make([]*SSHClientConfig, 0)
 	// 如果有网关则从网关中连接
 	if asset.Domain != "" {
-		domain := service.GetDomainWithGateway(asset.Domain)
-		if domain.ID != "" && len(domain.Gateways) > 0 {
-			for _, gateway := range domain.Gateways {
+		gateways := service.GetAssetGateways(asset.ID)
+		if len(gateways) > 0 {
+			for _, gateway := range gateways {
 				proxyConfigs = append(proxyConfigs, &SSHClientConfig{
 					Host:       gateway.IP,
 					Port:       strconv.Itoa(gateway.Port),

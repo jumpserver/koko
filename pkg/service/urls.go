@@ -56,3 +56,8 @@ const (
 
 	ValidateUserDatabasePermissionURL = "/api/v1/perms/database-app-permissions/user/validate/"
 )
+
+// 1.5.7
+const (
+	AssetGatewaysURL = "/api/v1/assets/assets/%s/gateways/"
+)

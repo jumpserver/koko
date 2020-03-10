@@ -94,7 +94,7 @@ func GetAsset(assetID string) (asset model.Asset) {
 	Url := fmt.Sprintf(AssetDetailURL, assetID)
 	_, err := authClient.Get(Url, &asset)
 	if err != nil {
-		logger.Errorf("Get Asset %s failed\n", assetID)
+		logger.Errorf("Get Asset %s failed: %s", assetID, err)
 	}
 	return
 }
@@ -113,6 +113,15 @@ func GetTokenAsset(token string) (tokenUser model.TokenUser) {
 	_, err := authClient.Get(Url, &tokenUser)
 	if err != nil {
 		logger.Error("Get Token Asset info failed: ", err)
+	}
+	return
+}
+
+func GetAssetGateways(assetID string) (gateways []model.Gateway) {
+	Url := fmt.Sprintf(AssetGatewaysURL, assetID)
+	_, err := authClient.Get(Url, &gateways)
+	if err != nil {
+		logger.Errorf("Get Asset %s gateways failed: %s", assetID, err)
 	}
 	return
 }
