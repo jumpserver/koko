@@ -3,12 +3,13 @@ package srvconn
 import (
 	"errors"
 	"fmt"
+
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -16,10 +17,7 @@ import (
 	"github.com/jumpserver/koko/pkg/service"
 )
 
-var (
-	sshClients = make(map[string]*SSHClient)
-	clientLock = new(sync.RWMutex)
-)
+var sshManager = &SSHManager{data: make(map[string]*UserSSHClient)}
 
 var (
 	supportedCiphers = []string{
@@ -45,7 +43,7 @@ var (
 	}
 )
 
-type SSHClient struct {
+type sshClient struct {
 	client    *gossh.Client
 	proxyConn gossh.Conn
 	username  string
@@ -55,9 +53,11 @@ type SSHClient struct {
 	mu  *sync.RWMutex
 
 	closed chan struct{}
+
+	config   *SSHClientConfig
 }
 
-func (s *SSHClient) RefCount() int {
+func (s *sshClient) RefCount() int {
 	if s.isClosed() {
 		return 0
 	}
@@ -66,48 +66,77 @@ func (s *SSHClient) RefCount() int {
 	return s.ref
 }
 
-func (s *SSHClient) increaseRef() {
-	if s.isClosed() {
-		return
-	}
+func (s *sshClient) NewSession() (*gossh.Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	sess, err := s.client.NewSession()
+	if err != nil {
+		return nil, err
+	}
 	s.ref++
+	return sess, nil
 }
 
-func (s *SSHClient) decreaseRef() {
+func (s *sshClient) NewSFTPClient() (*sftp.Client, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, err := s.client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	if err := sess.RequestSubsystem("sftp"); err != nil {
+		_ = sess.Close()
+		return nil, err
+	}
+	pw, err := sess.StdinPipe()
+	if err != nil {
+		_ = sess.Close()
+		return nil, err
+	}
+	pr, err := sess.StdoutPipe()
+	if err != nil {
+		_ = sess.Close()
+		return nil, err
+	}
+	client, err := sftp.NewClientPipe(pr, pw)
+	if err != nil {
+		_ = sess.Close()
+		return nil, err
+	}
+	s.ref++
+	return client, err
+}
+
+func (s *sshClient) Close() error {
 	if s.isClosed() {
-		return
+		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.ref == 0 {
-		return
-	}
 	s.ref--
+	if s.ref <= 0 {
+		deleteClientFromCache(s.key, s)
+		return s.close()
+	}
+	return nil
 }
 
-func (s *SSHClient) NewSession() (*gossh.Session, error) {
-	return s.client.NewSession()
-}
-
-func (s *SSHClient) Close() error {
+func (s *sshClient) close() error {
 	select {
 	case <-s.closed:
 		return nil
 	default:
 		close(s.closed)
 	}
+	s.ref = 0
 	if s.proxyConn != nil {
 		_ = s.proxyConn.Close()
 	}
-	s.mu.Lock()
-	s.ref = 0
-	s.mu.Unlock()
+	logger.Infof("Success to close SSH client %p", s)
 	return s.client.Close()
 }
 
-func (s *SSHClient) isClosed() bool {
+func (s *sshClient) isClosed() bool {
 	select {
 	case <-s.closed:
 		return true
@@ -116,11 +145,15 @@ func (s *SSHClient) isClosed() bool {
 	}
 }
 
-func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration) {
+func (s *sshClient) String() string {
+	return s.config.String()
+}
+
+func KeepAlive(c *sshClient, closed <-chan struct{}, keepInterval time.Duration) {
 	t := time.NewTicker(keepInterval * time.Second)
 	defer t.Stop()
-	logger.Infof("SSH client %p keep alive start", c)
-	defer logger.Infof("SSH client %p keep alive stop", c)
+	logger.Infof("SSH client %s keep alive start", c)
+	defer logger.Infof("SSH client %s keep alive stop", c)
 	for {
 		select {
 		case <-closed:
@@ -128,9 +161,9 @@ func KeepAlive(c *SSHClient, closed <-chan struct{}, keepInterval time.Duration)
 		case <-t.C:
 			_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
 			if err != nil {
-				logger.Errorf("SSH client %p keep alive err: %s", c, err.Error())
-				_ = c.Close()
-				RecycleClient(c)
+				logger.Errorf("SSH client %s keep alive err: %s", c, err.Error())
+				deleteClientFromCache(c.key, c)
+				_ = c.close()
 				return
 			}
 		}
@@ -222,13 +255,13 @@ func (sc *SSHClientConfig) Dial() (client *gossh.Client, err error) {
 		}
 		proxySock, err := proxyClient.Dial("tcp", net.JoinHostPort(sc.Host, sc.Port))
 		if err != nil {
-			err = errors.New(fmt.Sprintf("tcp connect host %s:%s error 2: %s", sc.Host, sc.Port, err.Error()))
+			err = fmt.Errorf("tcp connect host %s:%s error 2: %s", sc.Host, sc.Port, err.Error())
 			logger.Errorf("Tcp connect host %s:%s error 2: %s", sc.Host, sc.Port, err.Error())
 			return client, err
 		}
 		proxyConn, chans, reqs, err := gossh.NewClientConn(proxySock, net.JoinHostPort(sc.Host, sc.Port), cfg)
 		if err != nil {
-			err = errors.New(fmt.Sprintf("ssh connect host %s:%s error 3: %s", sc.Host, sc.Port, err.Error()))
+			err = fmt.Errorf("ssh connect host %s:%s error 3: %s", sc.Host, sc.Port, err.Error())
 			logger.Errorf("SSH Connect host %s:%s error 3: %s", sc.Host, sc.Port, err.Error())
 			return client, err
 		}
@@ -279,24 +312,24 @@ func MakeConfig(asset *model.Asset, systemUser *model.SystemUser, timeout time.D
 	return
 }
 
-func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *SSHClient, err error) {
+func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration) (client *sshClient, err error) {
 	sshConfig := MakeConfig(asset, systemUser, timeout)
 	conn, err := sshConfig.Dial()
 	if err != nil {
 		return nil, err
 	}
 	closed := make(chan struct{})
-	client = &SSHClient{client: conn, proxyConn: sshConfig.proxyConn,
+	client = &sshClient{client: conn, proxyConn: sshConfig.proxyConn,
 		username: systemUser.Username,
 		mu:       new(sync.RWMutex),
-		ref:      1,
+		config:   sshConfig,
 		closed:   closed}
 	go KeepAlive(client, closed, 60)
 	return client, nil
 }
 
 func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUser, timeout time.Duration,
-	useCache bool) (client *SSHClient, err error) {
+	useCache bool) (client *sshClient, err error) {
 
 	client, err = newClient(asset, systemUser, timeout)
 	if err == nil && useCache {
@@ -306,54 +339,21 @@ func NewClient(user *model.User, asset *model.Asset, systemUser *model.SystemUse
 	return
 }
 
-func searchSSHClientFromCache(prefixKey string) (client *SSHClient, ok bool) {
-	clientLock.Lock()
-	defer clientLock.Unlock()
-	for key, cacheClient := range sshClients {
-		if strings.HasPrefix(key, prefixKey) {
-			cacheClient.increaseRef()
-			return cacheClient, true
-		}
-	}
-	return
+func searchSSHClientFromCache(prefixKey string) (client *sshClient, ok bool) {
+	return sshManager.searchSSHClientFromCache(prefixKey)
 }
 
-func GetClientFromCache(key string) (client *SSHClient, ok bool) {
-	clientLock.Lock()
-	defer clientLock.Unlock()
-	client, ok = sshClients[key]
-	if ok {
-		client.increaseRef()
-	}
-	return
+func GetClientFromCache(key string) (client *sshClient, ok bool) {
+	return sshManager.getClientFromCache(key)
 }
 
-func setClientCache(key string, client *SSHClient) {
-	clientLock.Lock()
-	sshClients[key] = client
+func setClientCache(key string, client *sshClient) {
 	client.key = key
-	clientLock.Unlock()
+	sshManager.AddClientCache(key, client)
 }
 
-func RecycleClient(client *SSHClient) {
-	// decrease client ref; if ref==0, delete Cache, close client.
-	if client == nil {
-		return
-	}
-	client.decreaseRef()
-	if client.RefCount() == 0 {
-		clientLock.Lock()
-		delete(sshClients, client.key)
-		clientLock.Unlock()
-		err := client.Close()
-		if err != nil {
-			logger.Errorf("Close SSH client %p err: %s ", client, err.Error())
-		} else {
-			logger.Infof("Success to close SSH client %p", client)
-		}
-	} else {
-		logger.Debugf("SSH client %p ref -1. current ref: %d", client, client.RefCount())
-	}
+func deleteClientFromCache(key string, c *sshClient) {
+	sshManager.deleteClientFromCache(key, c)
 }
 
 func MakeReuseSSHClientKey(user *model.User, asset *model.Asset, systemUser *model.SystemUser) string {

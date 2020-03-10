@@ -237,6 +237,8 @@ type AssetDir struct {
 	reuse      bool
 	ShowHidden bool
 	Overtime   time.Duration
+
+	mu sync.Mutex
 }
 
 func (ad *AssetDir) Name() string {
@@ -626,6 +628,8 @@ func (ad *AssetDir) removeDirectoryAll(conn *sftp.Client, path string) error {
 }
 
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.SystemUser, path string) (conn *SftpConn, realPath string) {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
 	var ok bool
 	conn, ok = ad.sftpClients[su.ID]
 	if !ok {
@@ -676,11 +680,6 @@ func (ad *AssetDir) validatePermission(su *model.SystemUser, action string) bool
 }
 
 func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err error) {
-	var (
-		sshClient *SSHClient
-		ok        bool
-	)
-	var needNewClient = true
 	if su.Password == "" && su.PrivateKey == "" && su.LoginMode != model.LoginModeManual {
 		var info model.SystemUserAuthInfo
 		if su.UsernameSameWithUser {
@@ -694,48 +693,90 @@ func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err err
 	}
 
 	if ad.reuse {
-		key := MakeReuseSSHClientKey(ad.user, ad.asset, su)
-		switch su.Username {
-		case "":
-			sshClient, ok = searchSSHClientFromCache(key)
-			if ok {
-				su.Username = sshClient.username
-			}
-		default:
-			sshClient, ok = GetClientFromCache(key)
+		if conn, ok := ad.getCacheSftpConn(su); ok {
+			return conn, nil
 		}
+	}
 
+	return ad.getNewSftpConn(su)
+}
+
+func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
+	var (
+		sshClient *sshClient
+		ok        bool
+	)
+	key := MakeReuseSSHClientKey(ad.user, ad.asset, su)
+	switch su.Username {
+	case "":
+		sshClient, ok = searchSSHClientFromCache(key)
 		if ok {
-			needNewClient = false
-			logger.Infof("Reuse connection for SFTP: %s->%s@%s. SSH client %p current ref: %d",
-				ad.user.Username, sshClient.username, ad.asset.IP, sshClient, sshClient.RefCount())
+			su.Username = sshClient.username
 		}
+	default:
+		sshClient, ok = GetClientFromCache(key)
 	}
 
-	if needNewClient {
-		sshClient, err = NewClient(ad.user, ad.asset, su, ad.Overtime, ad.reuse)
+	if ok {
+		logger.Infof("User %s get reuse ssh client(%s@%s)",
+			ad.user.Name, su.Name, ad.asset.Hostname)
+		sftpClient, err := sshClient.NewSFTPClient()
 		if err != nil {
-			logger.Errorf("Get new SSH client err: %s", err)
-			return
+			logger.Errorf("User %s reuse ssh client(%s@%s) start sftp conn err: %s",
+				ad.user.Name, su.Name, ad.asset.Hostname, err)
 		}
-	}
+		go func() {
+			_ = sftpClient.Wait()
+			logger.Infof("Reuse client(%s@%s) sftp conn closed", su.Name, ad.asset.Hostname)
+			_ = sshClient.Close()
+			logger.Infof("Reuse SSH client(%s@%s) recycled current ref: %d",
+				su.Name, ad.asset.Hostname, sshClient.RefCount())
+		}()
+		HomeDirPath, err := sftpClient.Getwd()
+		if err != nil {
+			logger.Errorf("Reuse client(%s@%s) get home dir err: %s",
+				su.Name, ad.asset.Hostname, err)
+			_ = sftpClient.Close()
+			return nil, false
+		}
+		conn := &SftpConn{client: sftpClient, HomeDirPath: HomeDirPath}
+		logger.Infof("Reuse connection for SFTP: %s->%s@%s. SSH client %p current ref: %d",
+			ad.user.Username, sshClient.username, ad.asset.IP, sshClient, sshClient.RefCount())
+		return conn, true
 
-	sftpClient, err := sftp.NewClient(sshClient.client)
+	}
+	logger.Infof("User %s do not found reuse ssh client(%s@%s)",
+		ad.user.Name, su.Name, ad.asset.Hostname)
+	return nil, false
+}
+
+func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err error) {
+	sshClient, err := NewClient(ad.user, ad.asset, su, ad.Overtime, ad.reuse)
 	if err != nil {
-		logger.Errorf("SSH client %p start sftp client session err %s", sshClient, err)
-		RecycleClient(sshClient)
+		logger.Errorf("Get new SSH client err: %s", err)
 		return nil, err
 	}
+	sftpClient, err := sshClient.NewSFTPClient()
+	if err != nil {
+		logger.Errorf("SSH client %p start sftp client session err %s", sshClient, err)
+		return nil, err
+	}
+
+	go func() {
+		_ = sftpClient.Wait()
+		logger.Infof("SFTP client session closed")
+		_ = sshClient.Close()
+		logger.Infof("SFTP SSH client recycled current ref: %d", sshClient.RefCount())
+	}()
 
 	HomeDirPath, err := sftpClient.Getwd()
 	if err != nil {
 		logger.Errorf("SSH client %p get home dir err %s", sshClient, err)
 		_ = sftpClient.Close()
-		RecycleClient(sshClient)
 		return nil, err
 	}
 	logger.Infof("SSH client %p start sftp client session success", sshClient)
-	conn = &SftpConn{client: sftpClient, conn: sshClient, HomeDirPath: HomeDirPath}
+	conn = &SftpConn{client: sftpClient, HomeDirPath: HomeDirPath}
 	return conn, err
 }
 
@@ -745,6 +786,8 @@ func (ad *AssetDir) parsePath(path string) []string {
 }
 
 func (ad *AssetDir) close() {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
 	for _, conn := range ad.sftpClients {
 		if conn != nil {
 			conn.Close()
@@ -770,7 +813,6 @@ func (ad *AssetDir) CreateFTPLog(su *model.SystemUser, operate, filename string,
 type SftpConn struct {
 	HomeDirPath string
 	client      *sftp.Client
-	conn        *SSHClient
 }
 
 func (s *SftpConn) Close() {
@@ -778,7 +820,6 @@ func (s *SftpConn) Close() {
 		return
 	}
 	_ = s.client.Close()
-	RecycleClient(s.conn)
 }
 
 func NewFakeFile(name string, isDir bool) *FakeFileInfo {
