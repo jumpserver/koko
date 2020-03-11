@@ -6,15 +6,25 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-func OnELFinderConnect(c *neffos.NSConn, msg neffos.Message) error {
-	logger.Infof("Request %s: web folder ws connect", c.Conn.ID())
-	data := EmitSidMsg{Sid: c.Conn.ID()}
-	c.Emit("data", neffos.Marshal(data))
+func OnELFinderConnect(ns *neffos.NSConn, msg neffos.Message) error {
+	logger.Debugf("Web folder ws %s connect", ns.Conn.ID())
+	userConn, err := NewUserWebsocketConnWithSession(ns)
+	if err != nil {
+		logger.Errorf("Web folder ws %s connect err: %s", ns.Conn.ID(), err)
+		ns.Emit("data", neffos.Marshal(err.Error()))
+		ns.Emit("disconnect", []byte(""))
+		return err
+	}
+	data := EmitSidMsg{Sid: ns.Conn.ID()}
+	ns.Emit("data", neffos.Marshal(data))
+	logger.Infof("Accepted user %s connect elfinder ws", userConn.User.Username)
+	websocketManager.AddUserCon(ns.Conn.ID(), userConn)
+	go userConn.loopHandler()
 	return nil
 }
 
 func OnELFinderDisconnect(c *neffos.NSConn, msg neffos.Message) error {
-	logger.Infof("Request %s: web folder ws disconnect", c.Conn.ID())
+	logger.Infof("Web folder ws %s disconnect", c.Conn.ID())
 	removeUserVolume(c.Conn.ID())
 	return nil
 }

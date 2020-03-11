@@ -17,12 +17,14 @@ func (u *UserSSHClient) AddClient(client *sshClient) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.clients[client] = 0
+	logger.Infof("Store new client(%s) remain %d", client, len(u.clients))
 }
 
 func (u *UserSSHClient) DeleteClient(client *sshClient) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	delete(u.clients, client)
+	logger.Infof("Remove client(%s) remain %d", client, len(u.clients))
 }
 
 func (u *UserSSHClient) GetClient() *sshClient {
@@ -83,7 +85,7 @@ func (s *SSHManager) AddClientCache(key string, client *sshClient) {
 		}
 		userClient.AddClient(client)
 		s.data[key] = userClient
-		logger.Infof("Add new reuse client(%s) Cache.", client)
+		logger.Infof("Add new user cache current count: %d", len(s.data))
 	}
 }
 
@@ -94,7 +96,7 @@ func (s *SSHManager) deleteClientFromCache(key string, client *sshClient) {
 		userClient.DeleteClient(client)
 		if userClient.count() == 0 {
 			delete(s.data, key)
-			logger.Infof("Delete reuse client(%s) Cache.", client)
+			logger.Infof("Delete user cache current count: %d", len(s.data))
 		}
 	}
 }

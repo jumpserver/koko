@@ -81,8 +81,14 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 		}
 	}
 	sid := req.Form.Get("sid")
+	if _, ok := websocketManager.GetUserCon(sid); !ok {
+		logger.Errorf("Eflinder ws %s already disconnected", sid)
+		http.Error(wr, "ws already disconnected", http.StatusBadRequest)
+		return
+	}
 	userV, ok := GetUserVolume(sid)
 	if !ok {
+		logger.Infof("Elfinder sid %s is initial", sid)
 		switch strings.TrimSpace(hostID) {
 		case "_":
 			userV = NewUserVolume(user, remoteIP, "")
@@ -90,8 +96,9 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 			userV = NewUserVolume(user, remoteIP, hostID)
 		}
 		addUserVolume(sid, userV)
+	} else {
+		logger.Infof("Elfinder sid: %s connected again.", sid)
 	}
-	logger.Debugf("Elfinder connector sid: %s connected", sid)
 	conf := config.GetConf()
 	maxSize := common.ConvertSizeToBytes(conf.ZipMaxSize)
 	options := map[string]string{
