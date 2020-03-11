@@ -105,7 +105,7 @@ func (u *UserWebsocketConn) GetClient(id string) (client *Client, ok bool) {
 }
 
 func (u *UserWebsocketConn) loopHandler() {
-	logger.Infof("User %s start websocket %s events loop.",
+	logger.Infof("User %s start ws %s events handler loop.",
 		u.User.Username, u.ns.Conn.ID())
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
@@ -137,7 +137,7 @@ func (u *UserWebsocketConn) loopHandler() {
 			data = []byte("")
 			// send ping event
 		case <-u.closed:
-			logger.Infof("User %s stop websocket %s events loop",
+			logger.Infof("User %s stop ws %s events handler loop",
 				u.User.Username, u.ns.Conn.ID())
 			return
 		}
