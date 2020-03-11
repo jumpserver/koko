@@ -274,7 +274,7 @@ func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 		logger.Errorf("Get asset %s systemuser username err: %s", p.Asset.Hostname, err)
 		return err
 	}
-	if config.GetConf().ReuseConnection {
+	if p.checkRequireReuseClient() {
 		if cacheSSHConnection, ok := p.getCacheSSHConn(); ok {
 			p.cacheSSHConnection = cacheSSHConnection
 			return nil
@@ -285,6 +285,13 @@ func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 		return err
 	}
 	return nil
+}
+
+func (p *ProxyServer) checkRequireReuseClient() bool {
+	if config.GetConf().ReuseConnection && p.SystemUser.Protocol == "ssh" {
+		return true
+	}
+	return false
 }
 
 // sendConnectErrorMsg 发送连接错误消息
