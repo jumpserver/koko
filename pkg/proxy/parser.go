@@ -43,7 +43,7 @@ type Parser struct {
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
-	cmdRecordChan  chan [2]string
+	cmdRecordChan  chan [3]string // [3]string{command, out, flag}
 
 	inputInitial  bool
 	inputPreState bool
@@ -69,7 +69,7 @@ func (p *Parser) initial() {
 	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
-	p.cmdRecordChan = make(chan [2]string, 1024)
+	p.cmdRecordChan = make(chan [3]string, 1024)
 }
 
 // ParseStream 解析数据流
@@ -138,7 +138,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
 			_, _ = p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
-			p.cmdRecordChan <- [2]string{p.command, fbdMsg}
+			p.cmdRecordChan <- [3]string{p.command, fbdMsg, model.HighRiskFlag}
 			p.command = ""
 			p.output = ""
 			return []byte{utils.CharCleanLine, '\r'}
@@ -219,10 +219,10 @@ func (p *Parser) splitCmdStream(b []byte) {
 		return
 	}
 	if p.inputState {
-		p.cmdInputParser.WriteData(b)
+		_, _ = p.cmdInputParser.WriteData(b)
 		return
 	}
-	p.cmdOutputParser.WriteData(b)
+	_, _ = p.cmdOutputParser.WriteData(b)
 }
 
 // ParseServerOutput 解析服务器输出
@@ -277,7 +277,7 @@ func (p *Parser) Close() {
 func (p *Parser) sendCommandRecord() {
 	if p.command != "" {
 		p.parseCmdOutput()
-		p.cmdRecordChan <- [2]string{p.command, p.output}
+		p.cmdRecordChan <- [3]string{p.command, p.output, model.LessRiskFlag}
 		p.command = ""
 		p.output = ""
 	}

@@ -24,6 +24,7 @@ var (
 	fset        *token.FileSet
 	domainFiles map[string]*os.File
 	currentFile string
+	msgids      = map[string]int{}
 )
 
 func main() {
@@ -83,10 +84,14 @@ msgstr ""
 }
 
 func write(dom, msgid string) {
+	if _, ok := msgids[msgid]; ok {
+		return
+	}
 	f := getDomainFile(dom)
 	f.Write([]byte("\nmsgid " + msgid))
 	f.Write([]byte("\nmsgstr \"\""))
 	f.Write([]byte("\n"))
+	msgids[msgid] = 0
 }
 
 func writePlural(dom, msgid, msgidPlural string) {

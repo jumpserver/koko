@@ -26,7 +26,6 @@ type Config struct {
 	TelnetRegex         string                 `json:"TERMINAL_TELNET_REGEX"`
 	MaxIdleTime         time.Duration          `json:"SECURITY_MAX_IDLE_TIME"`
 	HeartbeatDuration   time.Duration          `json:"TERMINAL_HEARTBEAT_INTERVAL"`
-	SftpRoot            string                 `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
 	ShowHiddenFile      bool                   `yaml:"SFTP_SHOW_HIDDEN_FILE"`
 	ReuseConnection     bool                   `yaml:"REUSE_CONNECTION"`
 	Name                string                 `yaml:"NAME"`
@@ -147,30 +146,30 @@ var lock = new(sync.RWMutex)
 var name = getDefaultName()
 var rootPath, _ = os.Getwd()
 var Conf = &Config{
-	Name:               name,
-	CoreHost:           "http://localhost:8080",
-	BootstrapToken:     "",
-	BindHost:           "0.0.0.0",
-	SSHPort:            "2222",
-	SSHTimeout:         15,
-	HTTPPort:           "5000",
-	HeartbeatDuration:  10,
-	AccessKey:          "",
-	AccessKeyFile:      "data/keys/.access_key",
-	LogLevel:           "DEBUG",
-	HostKeyFile:        "data/keys/host_key",
-	HostKey:            "",
-	RootPath:           rootPath,
-	Comment:            "Coco",
-	ReplayStorage:      map[string]interface{}{"TYPE": "server"},
-	CommandStorage:     map[string]interface{}{"TYPE": "server"},
-	UploadFailedReplay: true,
-	SftpRoot:           "/tmp",
-	ShowHiddenFile:     false,
-	ReuseConnection:    true,
-	AssetLoadPolicy:    "",
-	ZipMaxSize:         "1024M",
-	ZipTmpPath:         "/tmp",
+	Name:                name,
+	CoreHost:            "http://localhost:8080",
+	BootstrapToken:      "",
+	BindHost:            "0.0.0.0",
+	SSHPort:             "2222",
+	SSHTimeout:          15,
+	HTTPPort:            "5000",
+	HeartbeatDuration:   10,
+	AccessKey:           "",
+	AccessKeyFile:       "data/keys/.access_key",
+	LogLevel:            "DEBUG",
+	HostKeyFile:         "data/keys/host_key",
+	HostKey:             "",
+	RootPath:            rootPath,
+	Comment:             "Coco",
+	ReplayStorage:       map[string]interface{}{"TYPE": "server"},
+	CommandStorage:      map[string]interface{}{"TYPE": "server"},
+	UploadFailedReplay:  true,
+	ShowHiddenFile:      false,
+	ReuseConnection:     true,
+	AssetLoadPolicy:     "",
+	ZipMaxSize:          "1024M",
+	ZipTmpPath:          "/tmp",
+	ClientAliveInterval: 30,
 }
 
 func SetConf(conf Config) {
