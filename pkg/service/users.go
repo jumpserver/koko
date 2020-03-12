@@ -137,13 +137,15 @@ func (u *SessionClient) CheckUserOTP(ctx context.Context, code string) (user mod
 
 func (u *SessionClient) CheckConfirm(ctx context.Context) (user model.User, authStatus AuthStatus) {
 	var err error
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Errorf("User %s exit and cancel confirmation", u.option.Username)
 			u.CancelConfirm()
 			return
-		case <-time.After(5 * time.Second):
+		case <-t.C:
 			var resp authResponse
 			_, err = u.client.Get(UserConfirmAuthURL, &resp)
 			if err != nil {
