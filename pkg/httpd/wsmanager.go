@@ -80,7 +80,8 @@ type UserWebsocketConn struct {
 	pongEventChan       chan struct{} // 1024
 	closed              chan struct{} // 1024
 
-	mu sync.Mutex
+	win ssh.Window
+	mu  sync.Mutex
 }
 
 func (u *UserWebsocketConn) AddClient(id string, client *Client) {
@@ -178,9 +179,13 @@ func (u *UserWebsocketConn) ReceiveDataEvent(data DataMsg) error {
 func (u *UserWebsocketConn) ReceiveResizeEvent(size ssh.Window) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	if u.win.Width == size.Width && u.win.Height == size.Height {
+		return
+	}
 	for _, client := range u.clients {
 		client.SetWinSize(size)
 	}
+	u.win = size
 }
 
 func (u *UserWebsocketConn) ReceiveLogoutEvent(clientID string) {

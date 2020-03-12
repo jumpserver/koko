@@ -288,8 +288,11 @@ func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 }
 
 func (p *ProxyServer) checkRequireReuseClient() bool {
-	if config.GetConf().ReuseConnection && p.SystemUser.Protocol == "ssh" {
-		return true
+	if config.GetConf().ReuseConnection {
+		if strings.EqualFold(p.Asset.Platform, "linux") &&
+			strings.EqualFold(p.SystemUser.Protocol, "ssh") {
+			return true
+		}
 	}
 	return false
 }

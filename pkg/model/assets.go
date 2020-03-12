@@ -94,6 +94,7 @@ type Asset struct {
 	Protocols []string `json:"protocols,omitempty"`
 	OrgID     string   `json:"org_id"`
 	OrgName   string   `json:"org_name"`
+	Platform  string   `json:"platform,omitempty"`
 }
 
 func (a *Asset) ProtocolPort(protocol string) int {
