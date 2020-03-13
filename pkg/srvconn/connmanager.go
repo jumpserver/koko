@@ -3,7 +3,6 @@ package srvconn
 import (
 	"errors"
 	"fmt"
-
 	"net"
 	"strconv"
 	"sync"
@@ -12,6 +11,7 @@ import (
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
@@ -150,6 +150,11 @@ func (s *sshClient) String() string {
 }
 
 func KeepAlive(c *sshClient, closed <-chan struct{}, keepInterval time.Duration) {
+	retryCount := config.GetConf().RetryAliveCountMax
+	if retryCount < 0 {
+		retryCount = 3
+	}
+	var errCount = 0
 	t := time.NewTicker(keepInterval * time.Second)
 	defer t.Stop()
 	logger.Infof("SSH client %s keep alive start", c)
@@ -161,11 +166,17 @@ func KeepAlive(c *sshClient, closed <-chan struct{}, keepInterval time.Duration)
 		case <-t.C:
 			_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
 			if err != nil {
-				logger.Errorf("SSH client %s keep alive err: %s", c, err.Error())
-				deleteClientFromCache(c.key, c)
-				_ = c.close()
-				return
+				logger.Errorf("SSH client %s keep alive err: %s, retry count: %d", c, err.Error(), errCount)
+				if errCount >= retryCount {
+					logger.Errorf("SSH client %s keep alive err count exceed max count: %d and close it", c, retryCount)
+					deleteClientFromCache(c.key, c)
+					_ = c.close()
+					return
+				}
+				errCount++
+				continue
 			}
+			errCount = 0
 		}
 
 	}
