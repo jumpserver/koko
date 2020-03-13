@@ -48,6 +48,7 @@ type Config struct {
 	ZipMaxSize          string                 `yaml:"ZIP_MAX_SIZE"`
 	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
 	ClientAliveInterval uint64                 `yaml:"CLIENT_ALIVE_INTERVAL"`
+	RetryAliveCountMax  int                    `yaml:"RETRY_ALIVE_COUNT_MAX"`
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -170,6 +171,7 @@ var Conf = &Config{
 	ZipMaxSize:          "1024M",
 	ZipTmpPath:          "/tmp",
 	ClientAliveInterval: 30,
+	RetryAliveCountMax:  3,
 }
 
 func SetConf(conf Config) {
