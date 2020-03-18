@@ -16,6 +16,8 @@ COPY . .
 RUN cd cmd && go build -ldflags "-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`' -X 'main.Githash=`git rev-parse HEAD`' -X 'main.Goversion=`go version`'" -x -o koko koko.go
 
 FROM debian:stretch-slim
+RUN sed -i  's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list \
+    && sed -i  's/security.debian.org/mirrors.163.com/g' /etc/apt/sources.list
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends gnupg dirmngr openssh-client procps curl \
     && rm -rf /var/lib/apt/lists/*
