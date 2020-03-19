@@ -26,6 +26,8 @@ type DBSwitchSession struct {
 	DateEnd   string
 	finished  bool
 
+	isConnected bool
+
 	MaxIdleTime time.Duration
 
 	cmdRules []model.SystemUserFilterRule
@@ -56,7 +58,7 @@ func (s *DBSwitchSession) SessionID() string {
 	return s.ID
 }
 
-func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [3]string) {
 	// 命令记录
 	cmdRecorder := NewCommandRecorder(s.ID)
 	for command := range cmdRecordChan {
@@ -69,9 +71,10 @@ func (s *DBSwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 	// 关闭命令记录
 	cmdRecorder.End()
 }
-func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Command {
+func (s *DBSwitchSession) generateCommandResult(command [3]string) *model.Command {
 	var input string
 	var output string
+	var riskLevel int64
 	if len(command[0]) > 128 {
 		input = command[0][:128]
 	} else {
@@ -85,7 +88,12 @@ func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Comman
 	} else {
 		output = command[1][:1024]
 	}
-
+	switch command[2] {
+	case model.HighRiskFlag:
+		riskLevel = 5
+	default:
+		riskLevel = 0
+	}
 	return &model.Command{
 		SessionID:  s.ID,
 		OrgID:      s.p.Database.OrgID,
@@ -95,6 +103,7 @@ func (s *DBSwitchSession) generateCommandResult(command [2]string) *model.Comman
 		Server:     s.p.Database.Name,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
+		RiskLevel:  riskLevel,
 	}
 }
 
@@ -120,6 +129,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 		srvInChan  chan []byte
 		done       chan struct{}
 	)
+	s.isConnected = true
 	parser = newDBParser(s.ID)
 	replayRecorder = NewReplyRecord(s.ID)
 
@@ -215,6 +225,7 @@ func (s *DBSwitchSession) MapData() map[string]interface{} {
 		"user_id":        s.p.User.ID,
 		"asset_id":       s.p.Database.ID,
 		"system_user_id": s.p.SystemUser.ID,
+		"is_success":     s.isConnected,
 	}
 }
 

@@ -1,7 +1,6 @@
 package httpd
 
 import (
-	"encoding/json"
 	"io"
 	"sync"
 
@@ -16,7 +15,7 @@ type Client struct {
 	WinChan   chan ssh.Window
 	UserRead  io.Reader
 	UserWrite io.WriteCloser
-	Conn      *neffos.NSConn
+	Conn      *UserWebsocketConn
 	Closed    bool
 	pty       ssh.Pty
 	mu        *sync.RWMutex
@@ -45,12 +44,8 @@ func (c *Client) Write(p []byte) (n int, err error) {
 		return
 	}
 	data := DataMsg{Data: string(p), Room: c.Uuid}
-	msg, err := json.Marshal(data)
-	if err != nil {
-		return
-	}
 	n = len(p)
-	c.Conn.Emit("data", msg)
+	c.Conn.SendDataEvent(neffos.Marshal(data))
 	return
 }
 

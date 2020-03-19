@@ -9,3 +9,8 @@ const (
 	ContextKeyConfirmRequired
 	ContextKeyConfirmFailed
 )
+
+const (
+	HighRiskFlag = "1"
+	LessRiskFlag = "0"
+)

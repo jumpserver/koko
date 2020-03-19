@@ -139,7 +139,7 @@ func (h *interactiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
 			if err != nil {
 				logger.Errorf("Request %s: Send user %s keepalive packet failed: %s",
 					h.sess.Uuid, h.user.Name, err)
-				return
+				continue
 			}
 			logger.Debugf("Request %s: Send user %s keepalive packet success", h.sess.Uuid, h.user.Name)
 		}

@@ -65,7 +65,7 @@ func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 }
 
 func (p *DBProxyServer) checkProtocolMatch() bool {
-	return strings.ToLower(p.Database.DBType) == strings.ToLower(p.SystemUser.Protocol)
+	return strings.EqualFold(p.Database.DBType, p.SystemUser.Protocol)
 }
 
 func (p *DBProxyServer) checkProtocolClientInstalled() bool {
@@ -194,6 +194,7 @@ func (p *DBProxyServer) Proxy() {
 		p.sendConnectErrorMsg(err)
 		return
 	}
+
 	if err = sw.Bridge(p.UserConn, srvConn); err != nil {
 		logger.Errorf("DB Session %s bridge end: %s", sw.ID, err)
 	}

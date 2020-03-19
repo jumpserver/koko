@@ -51,5 +51,8 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # zip压缩存放的临时目录 /tmp
 # ZIP_TMP_PATH: /tmp
 
-# 向 SSH Client 连接发送心跳的时间间隔 (单位: 秒)，默认为0，不发送
-# CLIENT_ALIVE_INTERVAL: 0
+# 向 SSH Client 连接发送心跳的时间间隔 (单位: 秒)，默认为30, 0则表示不发送
+# CLIENT_ALIVE_INTERVAL: 30
+
+# 向资产发送心跳包的重试次数，默认为3
+# RETRY_ALIVE_COUNT_MAX: 3

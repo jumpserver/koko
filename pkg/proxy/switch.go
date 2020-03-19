@@ -32,6 +32,8 @@ type SwitchSession struct {
 	DateEnd   string
 	finished  bool
 
+	isConnected bool
+
 	MaxIdleTime time.Duration
 
 	cmdRules []model.SystemUserFilterRule
@@ -62,7 +64,7 @@ func (s *SwitchSession) SessionID() string {
 	return s.ID
 }
 
-func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+func (s *SwitchSession) recordCommand(cmdRecordChan chan [3]string) {
 	// 命令记录
 	cmdRecorder := NewCommandRecorder(s.ID)
 	for command := range cmdRecordChan {
@@ -77,9 +79,10 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 }
 
 // generateCommandResult 生成命令结果
-func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command {
+func (s *SwitchSession) generateCommandResult(command [3]string) *model.Command {
 	var input string
 	var output string
+	var riskLevel int64
 	if len(command[0]) > 128 {
 		input = command[0][:128]
 	} else {
@@ -94,6 +97,12 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		output = command[1][:1024]
 	}
 
+	switch command[2] {
+	case model.HighRiskFlag:
+		riskLevel = 5
+	default:
+		riskLevel = 0
+	}
 	return &model.Command{
 		SessionID:  s.ID,
 		OrgID:      s.p.Asset.OrgID,
@@ -103,6 +112,7 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		Server:     s.p.Asset.Hostname,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
+		RiskLevel:  riskLevel,
 	}
 }
 
@@ -129,7 +139,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		srvInChan  chan []byte
 		done       chan struct{}
 	)
-
+	s.isConnected = true
 	parser = newParser(s.ID)
 	replayRecorder = NewReplyRecord(s.ID)
 
@@ -230,6 +240,7 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		"user_id":        s.p.User.ID,
 		"asset_id":       s.p.Asset.ID,
 		"system_user_id": s.p.SystemUser.ID,
+		"is_success":     s.isConnected,
 	}
 }
 

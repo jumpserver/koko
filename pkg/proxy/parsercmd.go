@@ -14,18 +14,15 @@ var ps1Pattern = regexp.MustCompile(`^\[?.*@.*\]?[\\$#]\s|mysql>\s`)
 
 func NewCmdParser(sid, name string) *CmdParser {
 	parser := CmdParser{id: sid, name: name}
-	parser.initial()
 	return &parser
 }
 
 type CmdParser struct {
 	id   string
 	name string
-	buf  bytes.Buffer
 
-	lock          *sync.Mutex
-	maxLength     int
-	currentLength int
+	buf  bytes.Buffer
+	lock sync.Mutex
 }
 
 func (cp *CmdParser) WriteData(p []byte) (int, error) {
@@ -40,10 +37,6 @@ func (cp *CmdParser) WriteData(p []byte) (int, error) {
 func (cp *CmdParser) Close() error {
 	logger.Infof("session ID: %s, parser name: %s Close", cp.id, cp.name)
 	return nil
-}
-
-func (cp *CmdParser) initial() {
-	cp.lock = new(sync.Mutex)
 }
 
 func (cp *CmdParser) parsePS1(s string) string {
