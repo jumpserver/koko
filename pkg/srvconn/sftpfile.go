@@ -724,6 +724,7 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 		if err != nil {
 			logger.Errorf("User %s reuse ssh client(%s@%s) start sftp conn err: %s",
 				ad.user.Name, su.Name, ad.asset.Hostname, err)
+			return nil, false
 		}
 		go func() {
 			_ = sftpClient.Wait()
