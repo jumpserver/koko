@@ -49,6 +49,12 @@ type Config struct {
 	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
 	ClientAliveInterval uint64                 `yaml:"CLIENT_ALIVE_INTERVAL"`
 	RetryAliveCountMax  int                    `yaml:"RETRY_ALIVE_COUNT_MAX"`
+
+	ShareRoomType string   `yaml:"SHARE_ROOM_TYPE"`
+	RedisHost     string   `yaml:"SHARE_ROOM_REDIS_HOST"`
+	RedisPort     string   `yaml:"SHARE_ROOM_REDIS_PORT"`
+	RedisPassword string   `yaml:"SHARE_ROOM_REDIS_PASSWORD"`
+	RedisClusters []string `yaml:"SHARE_ROOM_REDIS_CLUSTERS"`
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -124,6 +130,9 @@ func (c *Config) LoadFromEnv() error {
 			if num, err := strconv.Atoi(value); err == nil {
 				c.SSHTimeout = time.Duration(num)
 			}
+		case "SHARE_ROOM_REDIS_CLUSTERS":
+			clusters := strings.Split(value, ",")
+			c.RedisClusters = clusters
 		default:
 			envMap[key] = value
 		}
@@ -172,6 +181,10 @@ var Conf = &Config{
 	ZipTmpPath:          "/tmp",
 	ClientAliveInterval: 30,
 	RetryAliveCountMax:  3,
+	ShareRoomType:       "local",
+	RedisHost:           "127.0.0.1",
+	RedisPort:           "6379",
+	RedisPassword:       "",
 }
 
 func SetConf(conf Config) {

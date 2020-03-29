@@ -8,6 +8,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -106,6 +107,9 @@ func (h *interactiveHandler) Dispatch() {
 				if ok := h.searchOrProxy(line); ok {
 					continue
 				}
+			case strings.Index(line, "join") == 0:
+				roomID := strings.TrimSpace(strings.TrimPrefix(line, "join"))
+				JoinRoom(h, roomID)
 			default:
 				if ok := h.searchOrProxy(line); ok {
 					continue
@@ -343,8 +347,8 @@ func (h *interactiveHandler) displayPageDatabase() {
 	}
 	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"),
 		getI18nFromMap("IP"), getI18nFromMap("DBType"),
-		getI18nFromMap("DBName"),getI18nFromMap("Comment")}
-	fields := []string{"ID", "name", "IP", "DBType","DBName", "comment"}
+		getI18nFromMap("DBName"), getI18nFromMap("Comment")}
+	fields := []string{"ID", "name", "IP", "DBType", "DBName", "comment"}
 	data := make([]map[string]string, len(h.currentDBData))
 	for i, j := range h.currentDBData {
 		row := make(map[string]string)
@@ -514,4 +518,53 @@ func (h *interactiveHandler) chooseDBSystemUser(dbAsset model.Database,
 			}
 		}
 	}
+}
+
+func JoinRoom(h *interactiveHandler, roomid string) {
+	ex := exchange.GetExchange()
+	roomChan := make(chan model.RoomMessage)
+	sub, err := ex.JoinRoom(roomChan, roomid)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+
+	go func() {
+		for {
+			msg, ok := <-roomChan
+			if !ok {
+				logger.Infof("%s exit room %s by closed", h.user.Name, roomid)
+				break
+			}
+			switch msg.Event {
+			case model.DataEvent:
+				_, _ = h.sess.Write(msg.Body)
+				continue
+			case model.LogoutEvent, model.MaxIdleEvent:
+
+			case model.AdminTerminateEvent, model.ExitEvent:
+			case model.WindowsEvent, model.PingEvent:
+				continue
+
+			}
+			logger.Infof("%s exit Room %s by %s", h.user.Name, roomid, msg.Event)
+			break
+		}
+		_ = h.sess.Close()
+	}()
+	buf := make([]byte, 1024)
+	for {
+		nr, err := h.sess.Read(buf)
+		if err != nil {
+			logger.Errorf("%s exit room %s by %s", h.user.Name, roomid, err)
+			break
+		}
+
+		msg := model.RoomMessage{
+			Event: model.DataEvent,
+			Body:  buf[:nr],
+		}
+		sub.Publish(msg)
+	}
+	ex.LeaveRoom(sub, roomid)
 }

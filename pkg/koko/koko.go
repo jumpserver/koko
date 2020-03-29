@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -30,13 +31,14 @@ func (c *Coco) Start() {
 }
 
 func (c *Coco) Stop() {
+	exchange.StopExchange()
 	sshd.StopServer()
 	httpd.StopHTTPServer()
 	logger.Info("Quit The KoKo")
 }
 
 func RunForever() {
-	ctx,cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	bootstrap(ctx)
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -52,5 +54,6 @@ func bootstrap(ctx context.Context) {
 	i18n.Initial()
 	logger.Initial()
 	service.Initial(ctx)
+	exchange.Initial(ctx)
 	Initial()
 }
