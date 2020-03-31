@@ -65,6 +65,8 @@ func NewUserWebsocketConnWithSession(ns *neffos.NSConn) (*UserWebsocketConn, err
 		disconnectEventChan: make(chan struct{}, 1024),
 		pongEventChan:       make(chan struct{}, 1024),
 		closed:              make(chan struct{}),
+
+		shareDataEventChan: make(chan []byte, 1024),
 	}, nil
 }
 
@@ -79,6 +81,8 @@ type UserWebsocketConn struct {
 	disconnectEventChan chan struct{} // 1024
 	pongEventChan       chan struct{} // 1024
 	closed              chan struct{} // 1024
+
+	shareDataEventChan chan []byte // 1024 cap
 
 	win ssh.Window
 	mu  sync.Mutex
@@ -125,6 +129,9 @@ func (u *UserWebsocketConn) loopHandler() {
 		case roomMsg := <-u.roomEventChan:
 			event = "room"
 			data = roomMsg
+		case shareData := <-u.shareDataEventChan:
+			event = "shareRoomData"
+			data = shareData
 
 		case <-u.pongEventChan:
 			event = "pong"
@@ -156,6 +163,10 @@ func (u *UserWebsocketConn) SendLogoutEvent(data []byte) {
 
 func (u *UserWebsocketConn) SendRoomEvent(data []byte) {
 	u.roomEventChan <- data
+}
+
+func (u *UserWebsocketConn) SendShareRoomDataEvent(data []byte) {
+	u.shareDataEventChan <- data
 }
 
 func (u *UserWebsocketConn) SendPongEvent() {
@@ -210,6 +221,16 @@ func (u *UserWebsocketConn) Close() {
 	for _, client := range u.clients {
 		_ = client.Close()
 	}
+}
+
+func (u *UserWebsocketConn) CheckShareRoomWritePem(shareRoomID string) bool {
+	// todo: check current user has pem to write
+	return false
+}
+
+func (u *UserWebsocketConn) CheckShareRoomReadPem(shareRoomID string) bool {
+	// todo: check current user has pem to join room and read
+	return true
 }
 
 type WebsocketManager struct {

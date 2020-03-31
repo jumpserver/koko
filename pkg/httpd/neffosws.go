@@ -39,6 +39,8 @@ var wsEvents = neffos.WithTimeout{
 			"logout": OnLogoutHandler,
 			"token":  OnTokenHandler,
 			"ping":   OnPingHandler,
+
+			"shareRoom": OnShareRoom,
 		},
 		"elfinder": neffos.Events{
 			neffos.OnNamespaceConnected:  OnELFinderConnect,

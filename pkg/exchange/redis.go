@@ -90,7 +90,7 @@ func NewRedisExchange(cfg Config) (*redisExchange, error) {
 	exc := &redisExchange{
 		pool:         pool,
 		connFunc:     connFunc,
-		createdRooms: make(map[string]struct{}),
+		createdRooms: make(map[string]*redisRoom),
 		joinedRooms:  make(map[string]map[*redisRoom]struct{}),
 	}
 	return exc, nil
