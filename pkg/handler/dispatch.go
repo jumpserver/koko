@@ -520,12 +520,27 @@ func (h *interactiveHandler) chooseDBSystemUser(dbAsset model.Database,
 	}
 }
 
+func (h *interactiveHandler) CheckShareRoomWritePerm(shareRoomID string) bool {
+	// todo: check current user has pem to write
+	return false
+}
+
+func (h *interactiveHandler) CheckShareRoomReadPerm(shareRoomID string) bool {
+	// todo: check current user has pem to join room and read
+	return true
+}
+
 func JoinRoom(h *interactiveHandler, roomid string) {
 	ex := exchange.GetExchange()
 	roomChan := make(chan model.RoomMessage)
-	sub, err := ex.JoinRoom(roomChan, roomid)
+	room, err := ex.JoinRoom(roomChan, roomid)
 	if err != nil {
 		logger.Error(err)
+		return
+	}
+	defer ex.LeaveRoom(room, roomid)
+	if !h.CheckShareRoomReadPerm(roomid) {
+		_ = h.sess.Close()
 		return
 	}
 
@@ -533,7 +548,7 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 		for {
 			msg, ok := <-roomChan
 			if !ok {
-				logger.Infof("%s exit room %s by closed", h.user.Name, roomid)
+				logger.Infof("%s exit room %s by roomChan closed", h.user.Name, roomid)
 				break
 			}
 			switch msg.Event {
@@ -547,7 +562,7 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 				continue
 
 			}
-			logger.Infof("%s exit Room %s by %s", h.user.Name, roomid, msg.Event)
+			logger.Infof("User %s exit room  %s and stop to receive msg by %s", h.user.Name, roomid, msg.Event)
 			break
 		}
 		_ = h.sess.Close()
@@ -556,15 +571,18 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 	for {
 		nr, err := h.sess.Read(buf)
 		if err != nil {
-			logger.Errorf("%s exit room %s by %s", h.user.Name, roomid, err)
+			logger.Errorf("User %s exit room %s by %s", h.user.Name, roomid, err)
 			break
+		}
+		if !h.CheckShareRoomWritePerm(roomid) {
+			logger.Debugf("User %s has no perm to write and ignore data", h.user.Name)
+			continue
 		}
 
 		msg := model.RoomMessage{
 			Event: model.DataEvent,
 			Body:  buf[:nr],
 		}
-		sub.Publish(msg)
+		room.Publish(msg)
 	}
-	ex.LeaveRoom(sub, roomid)
 }

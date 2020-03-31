@@ -223,12 +223,12 @@ func (u *UserWebsocketConn) Close() {
 	}
 }
 
-func (u *UserWebsocketConn) CheckShareRoomWritePem(shareRoomID string) bool {
+func (u *UserWebsocketConn) CheckShareRoomWritePerm(shareRoomID string) bool {
 	// todo: check current user has pem to write
 	return false
 }
 
-func (u *UserWebsocketConn) CheckShareRoomReadPem(shareRoomID string) bool {
+func (u *UserWebsocketConn) CheckShareRoomReadPerm(shareRoomID string) bool {
 	// todo: check current user has pem to join room and read
 	return true
 }

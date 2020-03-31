@@ -371,7 +371,7 @@ func JoinRoom(c *Client, roomID string) {
 	}
 	defer ex.LeaveRoom(room, roomID)
 
-	if !c.Conn.CheckShareRoomReadPem(roomID) {
+	if !c.Conn.CheckShareRoomReadPerm(roomID) {
 		logger.Errorf("Ws has no pem to join room")
 		c.Conn.SendLogoutEvent(logoutData)
 		return
@@ -418,7 +418,7 @@ func JoinRoom(c *Client, roomID string) {
 			break
 		}
 		// checkout user write pem
-		if !c.Conn.CheckShareRoomWritePem(roomID) {
+		if !c.Conn.CheckShareRoomWritePerm(roomID) {
 			continue
 		}
 		msg := model.RoomMessage{
