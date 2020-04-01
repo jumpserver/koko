@@ -21,6 +21,7 @@ func Initial(ctx context.Context) {
 			Addr:     net.JoinHostPort(conf.RedisHost, conf.RedisPort),
 			Password: conf.RedisPassword,
 			Clusters: conf.RedisClusters,
+			DBIndex:  conf.RedisDBIndex,
 		})
 
 	default:

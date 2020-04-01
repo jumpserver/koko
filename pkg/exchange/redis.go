@@ -32,6 +32,8 @@ type Config struct {
 	// MaxActive defines the size connection pool.
 	// Defaults to 10.
 	MaxActive int
+
+	DBIndex uint64
 }
 
 func NewRedisExchange(cfg Config) (*redisExchange, error) {
@@ -59,6 +61,10 @@ func NewRedisExchange(cfg Config) (*redisExchange, error) {
 
 	if cfg.DialTimeout > 0 {
 		dialOptions = append(dialOptions, radix.DialTimeout(cfg.DialTimeout))
+	}
+
+	if cfg.DBIndex != 0 {
+		dialOptions = append(dialOptions, radix.DialSelectDB(int(cfg.DBIndex)))
 	}
 
 	var connFunc radix.ConnFunc

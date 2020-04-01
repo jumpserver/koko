@@ -51,10 +51,11 @@ type Config struct {
 	RetryAliveCountMax  int                    `yaml:"RETRY_ALIVE_COUNT_MAX"`
 
 	ShareRoomType string   `yaml:"SHARE_ROOM_TYPE"`
-	RedisHost     string   `yaml:"SHARE_ROOM_REDIS_HOST"`
-	RedisPort     string   `yaml:"SHARE_ROOM_REDIS_PORT"`
-	RedisPassword string   `yaml:"SHARE_ROOM_REDIS_PASSWORD"`
-	RedisClusters []string `yaml:"SHARE_ROOM_REDIS_CLUSTERS"`
+	RedisHost     string   `yaml:"REDIS_HOST"`
+	RedisPort     string   `yaml:"REDIS_PORT"`
+	RedisPassword string   `yaml:"REDIS_PASSWORD"`
+	RedisDBIndex  uint64   `yaml:"REDIS_DB_ROOM"`
+	RedisClusters []string `yaml:"REDIS_CLUSTERS"`
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -130,7 +131,7 @@ func (c *Config) LoadFromEnv() error {
 			if num, err := strconv.Atoi(value); err == nil {
 				c.SSHTimeout = time.Duration(num)
 			}
-		case "SHARE_ROOM_REDIS_CLUSTERS":
+		case "REDIS_CLUSTERS":
 			clusters := strings.Split(value, ",")
 			c.RedisClusters = clusters
 		default:
