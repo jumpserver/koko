@@ -32,6 +32,8 @@ func NewUserWebsocketConnWithTokenUser(ns *neffos.NSConn, tokenUser model.TokenU
 		disconnectEventChan: make(chan struct{}, 1024),
 		pongEventChan:       make(chan struct{}, 1024),
 		closed:              make(chan struct{}),
+
+		shareDataEventChan: make(chan []byte, 1024),
 	}, nil
 }
 
