@@ -545,10 +545,12 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 	}
 
 	go func() {
+		var exitMsg string
 		for {
 			msg, ok := <-roomChan
 			if !ok {
-				logger.Infof("%s exit room %s by roomChan closed", h.user.Name, roomid)
+				logger.Infof("User %s exit room %s by roomChan closed", h.user.Name, roomid)
+				exitMsg = fmt.Sprintf("Room %s closed", roomid)
 				break
 			}
 			switch msg.Event {
@@ -556,8 +558,11 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 				_, _ = h.sess.Write(msg.Body)
 				continue
 			case model.LogoutEvent, model.MaxIdleEvent:
-
-			case model.AdminTerminateEvent, model.ExitEvent:
+				exitMsg = fmt.Sprintf("Room %s logout or max idle happened!", roomid)
+			case model.AdminTerminateEvent:
+				exitMsg = fmt.Sprintf("Admin terminate room %s", roomid)
+			case model.ExitEvent:
+				exitMsg = fmt.Sprintf("Room %s exit", roomid)
 			case model.WindowsEvent, model.PingEvent:
 				continue
 
@@ -565,6 +570,7 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 			logger.Infof("User %s exit room  %s and stop to receive msg by %s", h.user.Name, roomid, msg.Event)
 			break
 		}
+		_, _ = io.WriteString(h.sess, exitMsg)
 		_ = h.sess.Close()
 	}()
 	buf := make([]byte, 1024)

@@ -239,11 +239,11 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			_, err = srvConn.Write(p)
+			sub.Publish(model.RoomMessage{
+				Event: model.PingEvent,
+			})
 		}
 		lastActiveTime = time.Now()
-		sub.Publish(model.RoomMessage{
-			Event: model.PingEvent,
-		})
 	}
 }
 
