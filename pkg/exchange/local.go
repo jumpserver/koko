@@ -28,10 +28,11 @@ func (exc *LocalExchange) JoinRoom(receiveChan chan<- model.RoomMessage, roomId 
 	if createdRoom, ok := exc.createdRooms[roomId]; ok {
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		r := &localRoom{
-			roomID:    roomId,
-			writeChan: createdRoom.readChan,
-			readChan:  receiveChan,
-			ctx:       ctx,
+			roomID:     roomId,
+			writeChan:  createdRoom.readChan,
+			readChan:   receiveChan,
+			ctx:        ctx,
+			cancelFunc: cancelFunc,
 		}
 		if joinRoomsMap, ok := exc.joinedRooms[roomId]; ok {
 			joinRoomsMap[r] = cancelFunc
@@ -65,11 +66,14 @@ func (exc *LocalExchange) LeaveRoom(exRoom Room, roomId string) {
 func (exc *LocalExchange) CreateRoom(receiveChan chan<- model.RoomMessage, roomId string) Room {
 	exc.mu.Lock()
 	defer exc.mu.Unlock()
+	ctx, contextFunc := context.WithCancel(context.Background())
 	readChan := make(chan model.RoomMessage)
 	r := &localRoom{
-		roomID:    roomId,
-		writeChan: readChan,
-		readChan:  receiveChan,
+		roomID:     roomId,
+		writeChan:  readChan,
+		readChan:   receiveChan,
+		ctx:        ctx,
+		cancelFunc: contextFunc,
 	}
 	exc.createdRooms[roomId] = r
 	go func() {
@@ -106,6 +110,7 @@ func (exc *LocalExchange) DestroyRoom(exRoom Room) {
 	exc.mu.Lock()
 	defer exc.mu.Unlock()
 	delete(exc.createdRooms, sub.roomID)
+	sub.cancelFunc()
 	close(sub.readChan)
 }
 
@@ -125,10 +130,11 @@ func (exc *LocalExchange) Close() {
 }
 
 type localRoom struct {
-	roomID    string
-	writeChan chan<- model.RoomMessage
-	readChan  chan<- model.RoomMessage
-	ctx       context.Context
+	roomID     string
+	writeChan  chan<- model.RoomMessage
+	readChan   chan<- model.RoomMessage
+	ctx        context.Context
+	cancelFunc context.CancelFunc
 }
 
 func (r *localRoom) Publish(msg model.RoomMessage) {
