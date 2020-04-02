@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -10,14 +11,14 @@ import (
 func NewLocalExchange() (*LocalExchange, error) {
 	return &LocalExchange{
 		createdRooms: make(map[string]*localRoom),
-		joinedRooms:  make(map[string]map[*localRoom]chan<- model.RoomMessage),
+		joinedRooms:  make(map[string]map[*localRoom]context.CancelFunc),
 	}, nil
 
 }
 
 type LocalExchange struct {
 	createdRooms map[string]*localRoom
-	joinedRooms  map[string]map[*localRoom]chan<- model.RoomMessage
+	joinedRooms  map[string]map[*localRoom]context.CancelFunc
 	mu           sync.Mutex
 }
 
@@ -25,16 +26,18 @@ func (exc *LocalExchange) JoinRoom(receiveChan chan<- model.RoomMessage, roomId 
 	exc.mu.Lock()
 	defer exc.mu.Unlock()
 	if createdRoom, ok := exc.createdRooms[roomId]; ok {
+		ctx, cancelFunc := context.WithCancel(context.Background())
 		r := &localRoom{
 			roomID:    roomId,
 			writeChan: createdRoom.readChan,
 			readChan:  receiveChan,
+			ctx:       ctx,
 		}
 		if joinRoomsMap, ok := exc.joinedRooms[roomId]; ok {
-			joinRoomsMap[r] = receiveChan
+			joinRoomsMap[r] = cancelFunc
 		} else {
-			exc.joinedRooms[roomId] = map[*localRoom]chan<- model.RoomMessage{
-				r: receiveChan,
+			exc.joinedRooms[roomId] = map[*localRoom]context.CancelFunc{
+				r: cancelFunc,
 			}
 		}
 		return r, nil
@@ -51,7 +54,10 @@ func (exc *LocalExchange) LeaveRoom(exRoom Room, roomId string) {
 	exc.mu.Lock()
 	defer exc.mu.Unlock()
 	if joinRoomsMap, ok := exc.joinedRooms[roomId]; ok {
-		delete(joinRoomsMap, sub)
+		if contextFunc, ok2 := joinRoomsMap[sub]; ok2 {
+			delete(joinRoomsMap, sub)
+			contextFunc()
+		}
 	}
 	close(sub.readChan)
 }
@@ -73,14 +79,16 @@ func (exc *LocalExchange) CreateRoom(receiveChan chan<- model.RoomMessage, roomI
 				return
 			}
 			exc.mu.Lock()
-			joinedRooms := make([]chan<- model.RoomMessage, 0, len(exc.joinedRooms[roomId]))
-			for _, roomChan := range exc.joinedRooms[roomId] {
-				joinedRooms = append(joinedRooms, roomChan)
+			joinedRooms := make([]*localRoom, 0, len(exc.joinedRooms[roomId]))
+			for joinRoom := range exc.joinedRooms[roomId] {
+				joinedRooms = append(joinedRooms, joinRoom)
 			}
 			exc.mu.Unlock()
 			for i := range joinedRooms {
 				select {
-				case joinedRooms[i] <- roomMgs:
+				case <-joinedRooms[i].ctx.Done():
+					continue
+				case joinedRooms[i].readChan <- roomMgs:
 				default:
 
 				}
@@ -120,6 +128,7 @@ type localRoom struct {
 	roomID    string
 	writeChan chan<- model.RoomMessage
 	readChan  chan<- model.RoomMessage
+	ctx       context.Context
 }
 
 func (r *localRoom) Publish(msg model.RoomMessage) {

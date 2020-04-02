@@ -39,7 +39,6 @@ func (c *Coco) Stop() {
 
 func RunForever(confPath string) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	fmt.Printf("Config file Path: %s\n", confPath)
 	config.Initial(confPath)
 	bootstrap(ctx)
 	gracefulStop := make(chan os.Signal, 1)
