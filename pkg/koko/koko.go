@@ -31,14 +31,16 @@ func (c *Coco) Start() {
 }
 
 func (c *Coco) Stop() {
-	exchange.StopExchange()
 	sshd.StopServer()
 	httpd.StopHTTPServer()
+	exchange.StopExchange()
 	logger.Info("Quit The KoKo")
 }
 
-func RunForever() {
+func RunForever(confPath string) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
+	fmt.Printf("Config file Path: %s\n", confPath)
+	config.Initial(confPath)
 	bootstrap(ctx)
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -50,7 +52,6 @@ func RunForever() {
 }
 
 func bootstrap(ctx context.Context) {
-	config.Initial()
 	i18n.Initial()
 	logger.Initial()
 	service.Initial(ctx)
