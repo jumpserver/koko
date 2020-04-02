@@ -132,5 +132,8 @@ type localRoom struct {
 }
 
 func (r *localRoom) Publish(msg model.RoomMessage) {
-	r.writeChan <- msg
+	select {
+	case <-r.ctx.Done():
+	case r.writeChan <- msg:
+	}
 }
