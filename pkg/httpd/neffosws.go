@@ -1,7 +1,6 @@
 package httpd
 
 import (
-	"context"
 	"net/http"
 	"time"
 
@@ -60,10 +59,6 @@ func neffosOnUpgradeError(err error) {
 
 func neffosOnConnect(c *neffos.Conn) error {
 	if c.WasReconnected() {
-		namespace := c.Socket().Request().Header.Get("X-Namespace")
-		if namespace != "" {
-			_, _ = c.Connect(context.TODO(), "ssh")
-		}
 		logger.Debugf("ws %s reconnected, with tries: %d", c.ID(), c.ReconnectTries)
 	} else {
 		logger.Debugf("A new ws %s arrive", c.ID())
