@@ -526,8 +526,7 @@ func (h *interactiveHandler) CheckShareRoomWritePerm(shareRoomID string) bool {
 }
 
 func (h *interactiveHandler) CheckShareRoomReadPerm(shareRoomID string) bool {
-	// todo: check current user has pem to join room and read
-	return true
+	return service.JoinRoomValidate(h.user.ID, shareRoomID)
 }
 
 func JoinRoom(h *interactiveHandler, roomid string) {

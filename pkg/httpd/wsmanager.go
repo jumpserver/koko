@@ -231,8 +231,7 @@ func (u *UserWebsocketConn) CheckShareRoomWritePerm(shareRoomID string) bool {
 }
 
 func (u *UserWebsocketConn) CheckShareRoomReadPerm(shareRoomID string) bool {
-	// todo: check current user has pem to join room and read
-	return true
+	return service.JoinRoomValidate(u.User.ID, shareRoomID)
 }
 
 type WebsocketManager struct {
