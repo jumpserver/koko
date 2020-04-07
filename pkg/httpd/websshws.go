@@ -49,6 +49,7 @@ func OnNamespaceConnected(ns *neffos.NSConn, msg neffos.Message) error {
 	if err != nil {
 		ns.Emit("data", neffos.Marshal(err.Error()))
 		ns.Emit("disconnect", []byte(""))
+		ns.Conn.Close()
 		return err
 	}
 	logger.Infof("Accepted user %s connect ssh ws", userConn.User.Username)

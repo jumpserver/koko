@@ -13,6 +13,7 @@ func OnELFinderConnect(ns *neffos.NSConn, msg neffos.Message) error {
 		logger.Errorf("Web folder ws %s connect err: %s", ns.Conn.ID(), err)
 		ns.Emit("data", neffos.Marshal(err.Error()))
 		ns.Emit("disconnect", []byte(""))
+		ns.Conn.Close()
 		return err
 	}
 	data := EmitSidMsg{Sid: ns.Conn.ID()}

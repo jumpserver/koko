@@ -535,11 +535,14 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 	roomChan := make(chan model.RoomMessage)
 	room, err := ex.JoinRoom(roomChan, roomid)
 	if err != nil {
-		logger.Error(err)
+		msg := fmt.Sprintf("Join room %s err: %s", roomid, err)
+		utils.IgnoreErrWriteString(h.sess, msg)
+		logger.Error(msg)
 		return
 	}
 	defer ex.LeaveRoom(room, roomid)
 	if !h.CheckShareRoomReadPerm(roomid) {
+		utils.IgnoreErrWriteString(h.sess, fmt.Sprintf("Has no permission to join room %s\n", roomid))
 		_ = h.sess.Close()
 		return
 	}
@@ -574,6 +577,11 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 		_ = h.sess.Close()
 	}()
 	buf := make([]byte, 1024)
+	msg := model.RoomMessage{
+		Event: model.DataEvent,
+		Body:  []byte{12},
+	}
+	room.Publish(msg)
 	for {
 		nr, err := h.sess.Read(buf)
 		if err != nil {
