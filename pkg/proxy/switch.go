@@ -178,7 +178,6 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	ex := exchange.GetExchange()
 	roomChan := make(chan model.RoomMessage)
 	sub := ex.CreateRoom(roomChan, s.ID)
-	fmt.Println("create roomId: ", s.ID)
 	defer ex.DestroyRoom(sub)
 	go s.loopReadFromRoom(done, roomChan, userInChan)
 	defer sub.Publish(model.RoomMessage{Event: model.ExitEvent})
