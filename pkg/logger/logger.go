@@ -38,7 +38,7 @@ func Initial() {
 	logger.SetLevel(level)
 
 	// Output to file
-	logFilePath := path.Join(conf.RootPath, "logs", "koko.log")
+	logFilePath := path.Join(conf.RootPath, "data", "logs", "koko.log")
 	logDirPath := path.Dir(logFilePath)
 	if common.FileExists(logDirPath) {
 		err := os.MkdirAll(logDirPath, os.ModePerm)

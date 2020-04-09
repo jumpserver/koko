@@ -56,3 +56,13 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 
 # 向资产发送心跳包的重试次数，默认为3
 # RETRY_ALIVE_COUNT_MAX: 3
+
+# 会话共享使用的类型 [local, redis], 默认local
+# SHARE_ROOM_TYPE: local
+
+# Redis配置
+# REDIS_HOST: 127.0.0.1
+# REDIS_PORT: 6379
+# REDIS_PASSWORD:
+# REDIS_CLUSTERS:
+# REDIS_DB_ROOM:

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -106,6 +107,9 @@ func (h *interactiveHandler) Dispatch() {
 				if ok := h.searchOrProxy(line); ok {
 					continue
 				}
+			case strings.Index(line, "join") == 0:
+				roomID := strings.TrimSpace(strings.TrimPrefix(line, "join"))
+				JoinRoom(h, roomID)
 			default:
 				if ok := h.searchOrProxy(line); ok {
 					continue
@@ -343,8 +347,8 @@ func (h *interactiveHandler) displayPageDatabase() {
 	}
 	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"),
 		getI18nFromMap("IP"), getI18nFromMap("DBType"),
-		getI18nFromMap("DBName"),getI18nFromMap("Comment")}
-	fields := []string{"ID", "name", "IP", "DBType","DBName", "comment"}
+		getI18nFromMap("DBName"), getI18nFromMap("Comment")}
+	fields := []string{"ID", "name", "IP", "DBType", "DBName", "comment"}
 	data := make([]map[string]string, len(h.currentDBData))
 	for i, j := range h.currentDBData {
 		row := make(map[string]string)
@@ -513,5 +517,85 @@ func (h *interactiveHandler) chooseDBSystemUser(dbAsset model.Database,
 				return displaySystemUsers[num-1], true
 			}
 		}
+	}
+}
+
+func (h *interactiveHandler) CheckShareRoomWritePerm(shareRoomID string) bool {
+	// todo: check current user has pem to write
+	return false
+}
+
+func (h *interactiveHandler) CheckShareRoomReadPerm(shareRoomID string) bool {
+	return service.JoinRoomValidate(h.user.ID, shareRoomID)
+}
+
+func JoinRoom(h *interactiveHandler, roomid string) {
+	ex := exchange.GetExchange()
+	roomChan := make(chan model.RoomMessage)
+	room, err := ex.JoinRoom(roomChan, roomid)
+	if err != nil {
+		msg := fmt.Sprintf("Join room %s err: %s", roomid, err)
+		utils.IgnoreErrWriteString(h.sess, msg)
+		logger.Error(msg)
+		return
+	}
+	defer ex.LeaveRoom(room, roomid)
+	if !h.CheckShareRoomReadPerm(roomid) {
+		utils.IgnoreErrWriteString(h.sess, fmt.Sprintf("Has no permission to join room %s\n", roomid))
+		_ = h.sess.Close()
+		return
+	}
+
+	go func() {
+		var exitMsg string
+		for {
+			msg, ok := <-roomChan
+			if !ok {
+				logger.Infof("User %s exit room %s by roomChan closed", h.user.Name, roomid)
+				exitMsg = fmt.Sprintf("Room %s closed", roomid)
+				break
+			}
+			switch msg.Event {
+			case model.DataEvent:
+				_, _ = h.sess.Write(msg.Body)
+				continue
+			case model.LogoutEvent, model.MaxIdleEvent:
+				exitMsg = fmt.Sprintf("Room %s logout or max idle happened!", roomid)
+			case model.AdminTerminateEvent:
+				exitMsg = fmt.Sprintf("Admin terminate room %s", roomid)
+			case model.ExitEvent:
+				exitMsg = fmt.Sprintf("Room %s exit", roomid)
+			case model.WindowsEvent, model.PingEvent:
+				continue
+
+			}
+			logger.Infof("User %s exit room  %s and stop to receive msg by %s", h.user.Name, roomid, msg.Event)
+			break
+		}
+		_, _ = io.WriteString(h.sess, exitMsg)
+		_ = h.sess.Close()
+	}()
+	buf := make([]byte, 1024)
+	msg := model.RoomMessage{
+		Event: model.DataEvent,
+		Body:  []byte{12},
+	}
+	room.Publish(msg)
+	for {
+		nr, err := h.sess.Read(buf)
+		if err != nil {
+			logger.Errorf("User %s exit room %s by %s", h.user.Name, roomid, err)
+			break
+		}
+		if !h.CheckShareRoomWritePerm(roomid) {
+			logger.Debugf("User %s has no perm to write and ignore data", h.user.Name)
+			continue
+		}
+
+		msg := model.RoomMessage{
+			Event: model.DataEvent,
+			Body:  buf[:nr],
+		}
+		room.Publish(msg)
 	}
 }
