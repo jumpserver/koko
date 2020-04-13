@@ -363,17 +363,20 @@ func JoinRoom(c *Client, roomID string) {
 	room, err := ex.JoinRoom(roomChan, roomID)
 	// checkout user reading pem
 	logoutMsg := LogoutMsg{Room: c.Uuid}
-	logoutData, _ := json.Marshal(logoutMsg)
 
 	if err != nil {
 		logger.Errorf("Ws Join Room err: %s", err)
+		logoutMsg.Data = fmt.Sprintf("Join Room err: %s", err)
+		logoutData, _ := json.Marshal(logoutMsg)
 		c.Conn.SendLogoutEvent(logoutData)
 		return
 	}
 	defer ex.LeaveRoom(room, roomID)
 
 	if !c.Conn.CheckShareRoomReadPerm(roomID) {
-		logger.Errorf("Ws has no pem to join room")
+		logger.Error("Ws has no pem to join room")
+		logoutMsg.Data = fmt.Sprintf("You have no perm to join room %s", roomID)
+		logoutData, _ := json.Marshal(logoutMsg)
 		c.Conn.SendLogoutEvent(logoutData)
 		return
 	}
@@ -401,17 +404,14 @@ func JoinRoom(c *Client, roomID string) {
 			break
 
 		}
+		logoutMsg.Data = fmt.Sprintf("Room %s exit.", roomID)
+		logoutData, _ := json.Marshal(logoutMsg)
 		c.Conn.SendLogoutEvent(logoutData)
 		_ = c.Close()
 
 	}()
 
 	buf := make([]byte, 1024)
-	msg := model.RoomMessage{
-		Event: model.DataEvent,
-		Body:  []byte{12},
-	}
-	room.Publish(msg)
 	for {
 		nr, err := c.Read(buf)
 		if err != nil {

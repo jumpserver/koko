@@ -31,6 +31,7 @@ type RoomMsg struct {
 
 type LogoutMsg struct {
 	Room string `json:"room"`
+	Data string `json:"data"`
 }
 
 type EmitSidMsg struct {

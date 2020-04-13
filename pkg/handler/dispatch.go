@@ -529,20 +529,19 @@ func (h *interactiveHandler) CheckShareRoomReadPerm(shareRoomID string) bool {
 	return service.JoinRoomValidate(h.user.ID, shareRoomID)
 }
 
-func JoinRoom(h *interactiveHandler, roomid string) {
+func JoinRoom(h *interactiveHandler, roomId string) {
 	ex := exchange.GetExchange()
 	roomChan := make(chan model.RoomMessage)
-	room, err := ex.JoinRoom(roomChan, roomid)
+	room, err := ex.JoinRoom(roomChan, roomId)
 	if err != nil {
-		msg := fmt.Sprintf("Join room %s err: %s", roomid, err)
+		msg := fmt.Sprintf("Join room %s err: %s", roomId, err)
 		utils.IgnoreErrWriteString(h.sess, msg)
 		logger.Error(msg)
 		return
 	}
-	defer ex.LeaveRoom(room, roomid)
-	if !h.CheckShareRoomReadPerm(roomid) {
-		utils.IgnoreErrWriteString(h.sess, fmt.Sprintf("Has no permission to join room %s\n", roomid))
-		_ = h.sess.Close()
+	defer ex.LeaveRoom(room, roomId)
+	if !h.CheckShareRoomReadPerm(roomId) {
+		utils.IgnoreErrWriteString(h.sess, fmt.Sprintf("Has no permission to join room %s\n", roomId))
 		return
 	}
 
@@ -551,8 +550,8 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 		for {
 			msg, ok := <-roomChan
 			if !ok {
-				logger.Infof("User %s exit room %s by roomChan closed", h.user.Name, roomid)
-				exitMsg = fmt.Sprintf("Room %s closed", roomid)
+				logger.Infof("User %s exit room %s by roomChan closed", h.user.Name, roomId)
+				exitMsg = fmt.Sprintf("Room %s closed", roomId)
 				break
 			}
 			switch msg.Event {
@@ -560,34 +559,29 @@ func JoinRoom(h *interactiveHandler, roomid string) {
 				_, _ = h.sess.Write(msg.Body)
 				continue
 			case model.LogoutEvent, model.MaxIdleEvent:
-				exitMsg = fmt.Sprintf("Room %s logout or max idle happened!", roomid)
+				exitMsg = fmt.Sprintf("Room %s logout or max idle happened!", roomId)
 			case model.AdminTerminateEvent:
-				exitMsg = fmt.Sprintf("Admin terminate room %s", roomid)
+				exitMsg = fmt.Sprintf("Admin terminate room %s", roomId)
 			case model.ExitEvent:
-				exitMsg = fmt.Sprintf("Room %s exit", roomid)
+				exitMsg = fmt.Sprintf("Room %s exit", roomId)
 			case model.WindowsEvent, model.PingEvent:
 				continue
 
 			}
-			logger.Infof("User %s exit room  %s and stop to receive msg by %s", h.user.Name, roomid, msg.Event)
+			logger.Infof("User %s exit room  %s and stop to receive msg by %s", h.user.Name, roomId, msg.Event)
 			break
 		}
 		_, _ = io.WriteString(h.sess, exitMsg)
 		_ = h.sess.Close()
 	}()
 	buf := make([]byte, 1024)
-	msg := model.RoomMessage{
-		Event: model.DataEvent,
-		Body:  []byte{12},
-	}
-	room.Publish(msg)
 	for {
 		nr, err := h.sess.Read(buf)
 		if err != nil {
-			logger.Errorf("User %s exit room %s by %s", h.user.Name, roomid, err)
+			logger.Errorf("User %s exit room %s by %s", h.user.Name, roomId, err)
 			break
 		}
-		if !h.CheckShareRoomWritePerm(roomid) {
+		if !h.CheckShareRoomWritePerm(roomId) {
 			logger.Debugf("User %s has no perm to write and ignore data", h.user.Name)
 			continue
 		}
