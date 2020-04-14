@@ -191,7 +191,12 @@ func (exc *redisExchange) LeaveRoom(exRoom Room, roomId string) {
 	if parties, ok := exc.joinedRooms[roomId]; ok {
 		delete(parties, sub)
 	}
-	_ = sub.pubSub.Close()
+	if err := sub.pubSub.Unsubscribe(sub.redisMsgCh, sub.readChannel); err != nil {
+		logger.Errorf("Redis leave room unsubscribe err: %s", err)
+	}
+	if err := sub.pubSub.Close(); err != nil {
+		logger.Errorf("Redis leave room pubSub close err: %s", err)
+	}
 	close(sub.redisMsgCh)
 	close(sub.messageChan)
 }
@@ -205,7 +210,12 @@ func (exc *redisExchange) DestroyRoom(exRoom Room) {
 	exc.mu.Lock()
 	defer exc.mu.Unlock()
 	delete(exc.createdRooms, sub.roomId)
-	_ = sub.pubSub.Close()
+	if err := sub.pubSub.Unsubscribe(sub.redisMsgCh, sub.readChannel); err != nil {
+		logger.Errorf("Redis destroy room unsubscribe err: %s", err)
+	}
+	if err := sub.pubSub.Close(); err != nil {
+		logger.Errorf("Redis destroy room pubSub close err: %s", err)
+	}
 	close(sub.redisMsgCh)
 	close(sub.messageChan)
 
@@ -270,5 +280,8 @@ type redisRoom struct {
 }
 
 func (s *redisRoom) Publish(msg model.RoomMessage) {
-	_ = s.exc.publishCommand(s.writeChannel, msg.Marshal())
+	err := s.exc.publishCommand(s.writeChannel, msg.Marshal())
+	if err != nil {
+		logger.Errorf("Redis publish message err: %s", err)
+	}
 }
