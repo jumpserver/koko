@@ -181,6 +181,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			logger.Infof("DB Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
+			sub.Publish(model.RoomMessage{Event: model.MaxIdleEvent})
 			return
 		// 手动结束
 		case <-s.ctx.Done():
@@ -188,6 +189,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			msg = utils.WrapperWarn(msg)
 			logger.Infof("DBSession %s: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
+			sub.Publish(model.RoomMessage{Event: model.AdminTerminateEvent})
 			return
 		// 监控窗口大小变化
 		case win, ok := <-winCh:
@@ -196,6 +198,12 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			}
 			_ = srvConn.SetWinSize(win.Height, win.Width)
 			logger.Debugf("DB Window server change: %d*%d", win.Height, win.Width)
+			p, _ := json.Marshal(win)
+			msg := model.RoomMessage{
+				Event: model.WindowsEvent,
+				Body:  p,
+			}
+			sub.Publish(msg)
 		// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
@@ -203,12 +211,20 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			}
 			nw, _ := userConn.Write(p)
 			replayRecorder.Record(p[:nw])
+			msg := model.RoomMessage{
+				Event: model.DataEvent,
+				Body:  p[:nw],
+			}
+			sub.Publish(msg)
 		// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
 				return
 			}
 			_, err = srvConn.Write(p)
+			sub.Publish(model.RoomMessage{
+				Event: model.PingEvent,
+			})
 		}
 		lastActiveTime = time.Now()
 	}
