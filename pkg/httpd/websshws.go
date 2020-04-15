@@ -300,7 +300,7 @@ func OnLogoutHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	return errors.New(errMsg)
 }
 
-func roomHandler(wr http.ResponseWriter, req *http.Request) {
+func RoomHandler(wr http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	tmpl := template.Must(template.ParseFiles("./templates/ssh/index.html"))
 	roomID := vars["roomID"]

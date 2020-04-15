@@ -117,3 +117,11 @@ func ValidateRemainReplayFile(path string) error {
 	}
 	return err
 }
+
+
+func (a *Application) uploadRemainReplay() {
+	 uploadRemainReplay(a.Conf.RootPath)
+}
+func (a *Application) keepHeartbeat() {
+	keepHeartbeat()
+}

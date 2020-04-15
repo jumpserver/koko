@@ -27,3 +27,12 @@ const (
 	AdminTerminateEvent = "Terminate" //退出
 
 )
+
+type WebsocketMessage struct {
+	wid         string // 这个websocket的id
+	tid         string // 前端terminal的id
+	cid         string // 对应conn的id
+	event       string // 事件类型
+	contentType string // 返回的数据类型
+	Msg        []byte
+}

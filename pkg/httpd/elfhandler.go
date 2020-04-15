@@ -50,19 +50,19 @@ func AuthDecorator(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func sftpHostFinder(wr http.ResponseWriter, req *http.Request) {
+func SftpHostFinder(wr http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	tmpl := template.Must(template.ParseFiles("./templates/elfinder/file_manager.html"))
 	hostID := vars["host"]
 	_ = tmpl.Execute(wr, hostID)
 }
 
-func sftpFinder(wr http.ResponseWriter, req *http.Request) {
+func SftpFinder(wr http.ResponseWriter, req *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./templates/elfinder/file_manager.html"))
 	_ = tmpl.Execute(wr, "_")
 }
 
-func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
+func SftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	hostID := vars["host"]
 	user := req.Context().Value(model.ContextKeyUser).(*model.User)
