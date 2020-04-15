@@ -366,7 +366,7 @@ func JoinRoom(c *Client, roomID string) {
 
 	if err != nil {
 		logger.Errorf("Ws Join Room err: %s", err)
-		logoutMsg.Data = fmt.Sprintf("Join Room err: %s", err)
+		logoutMsg.Data = fmt.Sprintf("Join Session err: %s", err)
 		logoutData, _ := json.Marshal(logoutMsg)
 		c.Conn.SendLogoutEvent(logoutData)
 		return
@@ -388,25 +388,25 @@ func JoinRoom(c *Client, roomID string) {
 				break
 			}
 			switch msg.Event {
-			case model.DataEvent:
+			case model.DataEvent, model.MaxIdleEvent, model.AdminTerminateEvent:
 				data := DataMsg{Data: string(msg.Body), Room: c.Uuid}
 				dataMsg, _ := json.Marshal(data)
 				c.Conn.SendShareRoomDataEvent(dataMsg)
 				continue
-			case model.LogoutEvent, model.MaxIdleEvent:
-
-			case model.AdminTerminateEvent, model.ExitEvent:
+			case model.LogoutEvent, model.ExitEvent:
+				logoutMsg.Data = fmt.Sprintf("Session %s exit.", roomID)
+				logoutData, _ := json.Marshal(logoutMsg)
+				c.Conn.SendLogoutEvent(logoutData)
 			case model.WindowsEvent, model.PingEvent:
 				continue
+			default:
+				logger.Errorf("User %s in room %s receive unknown event %s", c.Conn.User.Name, roomID, msg.Event)
 
 			}
 			logger.Infof("User %s stop receive msg from room %s by %s", c.Conn.User.Name, roomID, msg.Event)
 			break
 
 		}
-		logoutMsg.Data = fmt.Sprintf("Room %s exit.", roomID)
-		logoutData, _ := json.Marshal(logoutMsg)
-		c.Conn.SendLogoutEvent(logoutData)
 		_ = c.Close()
 
 	}()

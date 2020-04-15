@@ -194,7 +194,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			logger.Debugf("Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
-			sub.Publish(model.RoomMessage{Event: model.MaxIdleEvent})
+			sub.Publish(model.RoomMessage{Event: model.MaxIdleEvent, Body: []byte("\n\r" + msg)})
 			return
 		// 手动结束
 		case <-s.ctx.Done():
@@ -202,7 +202,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			msg = utils.WrapperWarn(msg)
 			logger.Infof("Session %s: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
-			sub.Publish(model.RoomMessage{Event: model.AdminTerminateEvent})
+			sub.Publish(model.RoomMessage{Event: model.AdminTerminateEvent, Body: []byte("\n\r" + msg)})
 			return
 		// 监控窗口大小变化
 		case win, ok := <-winCh:

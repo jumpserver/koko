@@ -555,18 +555,15 @@ func JoinRoom(h *interactiveHandler, roomId string) {
 				break
 			}
 			switch msg.Event {
-			case model.DataEvent:
+			case model.DataEvent, model.MaxIdleEvent, model.AdminTerminateEvent:
 				_, _ = h.sess.Write(msg.Body)
 				continue
-			case model.LogoutEvent, model.MaxIdleEvent:
-				exitMsg = fmt.Sprintf("Room %s logout or max idle happened!", roomId)
-			case model.AdminTerminateEvent:
-				exitMsg = fmt.Sprintf("Admin terminate room %s", roomId)
-			case model.ExitEvent:
-				exitMsg = fmt.Sprintf("Room %s exit", roomId)
+			case model.LogoutEvent, model.ExitEvent:
+				exitMsg = fmt.Sprintf("Session %s exit", roomId)
 			case model.WindowsEvent, model.PingEvent:
 				continue
-
+			default:
+				logger.Errorf("User %s in room %s receive unknown event %s", h.user.Name, roomId, msg.Event)
 			}
 			logger.Infof("User %s exit room  %s and stop to receive msg by %s", h.user.Name, roomId, msg.Event)
 			break
