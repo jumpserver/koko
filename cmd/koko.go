@@ -29,7 +29,7 @@ func startAsDaemon() {
 		return
 	}
 	defer ctx.Release()
-	koko.RunForever()
+	koko.RunForever(configPath)
 }
 
 var (
@@ -42,11 +42,14 @@ var (
 	daemonFlag    = false
 	runSignalFlag = "start"
 	infoFlag      = false
+
+	configPath = ""
 )
 
 func init() {
 	flag.BoolVar(&daemonFlag, "d", false, "start as Daemon")
 	flag.StringVar(&runSignalFlag, "s", "start", "start | stop")
+	flag.StringVar(&configPath, "f", "config.yml", "config.yml path")
 	flag.BoolVar(&infoFlag, "V", false, "version info")
 }
 
@@ -80,6 +83,6 @@ func main() {
 	case daemonFlag:
 		startAsDaemon()
 	default:
-		koko.RunForever()
+		koko.RunForever(configPath)
 	}
 }

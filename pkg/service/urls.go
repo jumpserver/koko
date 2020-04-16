@@ -61,3 +61,7 @@ const (
 const (
 	AssetGatewaysURL = "/api/v1/assets/assets/%s/gateways/"
 )
+
+const (
+	JoinRoomValidateURL = "/api/v1/terminal/sessions/join/validate/"
+)

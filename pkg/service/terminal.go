@@ -106,3 +106,24 @@ func PushFTPLog(data *model.FTPLog) (err error) {
 	}
 	return
 }
+
+func JoinRoomValidate(userID, sessionID string) bool {
+	data := map[string]string{
+		"session_id": sessionID,
+		"user_id":    userID,
+	}
+	var result struct {
+		Ok  bool   `json:"ok"`
+		Msg string `json:"msg"`
+	}
+	_, err := authClient.Post(JoinRoomValidateURL, data, &result)
+	if err != nil {
+		logger.Errorf("Validate join room err: %s", err)
+		return false
+	}
+	if !result.Ok && result.Msg != "" {
+		logger.Errorf("Validate result err msg: %s", result.Msg)
+	}
+
+	return result.Ok
+}

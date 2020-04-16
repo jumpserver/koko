@@ -1,17 +1,22 @@
 package httpd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/gorilla/mux"
 	"github.com/kataras/neffos"
 	"github.com/satori/go.uuid"
 
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -44,6 +49,7 @@ func OnNamespaceConnected(ns *neffos.NSConn, msg neffos.Message) error {
 	if err != nil {
 		ns.Emit("data", neffos.Marshal(err.Error()))
 		ns.Emit("disconnect", []byte(""))
+		ns.Conn.Close()
 		return err
 	}
 	logger.Infof("Accepted user %s connect ssh ws", userConn.User.Username)
@@ -292,4 +298,134 @@ func OnLogoutHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	errMsg := fmt.Sprintf("Logout event: ws %s could not found or already closed", c.Conn.ID())
 	logger.Error(errMsg)
 	return errors.New(errMsg)
+}
+
+func roomHandler(wr http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	tmpl := template.Must(template.ParseFiles("./templates/ssh/index.html"))
+	roomID := vars["roomID"]
+	_ = tmpl.Execute(wr, roomID)
+}
+
+func OnShareRoom(ns *neffos.NSConn, msg neffos.Message) (err error) {
+	websocketID := ns.Conn.ID()
+	logger.Debugf("Ws %s fire ShareRoom", websocketID)
+	userConn, ok := websocketManager.GetUserCon(websocketID)
+	if !ok {
+		errMsg := fmt.Sprintf("Websocket %s should fire connected first.", websocketID)
+		logger.Errorf(errMsg)
+		return errors.New(errMsg)
+	}
+
+	cc := ns.Conn
+	var shareRoomMsg struct {
+		ShareRoomID string `json:"shareRoomID"`
+		Secret      string `json:"secret"`
+	}
+	err = msg.Unmarshal(&shareRoomMsg)
+	if err != nil {
+		logger.Errorf("ShareRoom Event: ws %s unmarshal msg err: %s", websocketID, err)
+		return err
+	}
+	userR, userW := io.Pipe()
+	var addr string
+	request := cc.Socket().Request()
+	header := request.Header
+	remoteAddr := header.Get("X-Forwarded-For")
+	if remoteAddr == "" {
+		if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
+			addr = host
+		} else {
+			addr = request.RemoteAddr
+		}
+	} else {
+		addr = strings.Split(remoteAddr, ",")[0]
+	}
+	uid := uuid.NewV4().String()
+	emitMsg := RoomMsg{uid, shareRoomMsg.Secret}
+	userConn.SendRoomEvent(neffos.Marshal(emitMsg))
+	win := ssh.Window{Height: 24, Width: 80}
+	client := &Client{
+		Uuid: uid, addr: addr,
+		WinChan: make(chan ssh.Window, 100), Conn: userConn,
+		UserRead: userR, UserWrite: userW, mu: new(sync.RWMutex),
+		pty: ssh.Pty{Term: "xterm", Window: win},
+	}
+	client.WinChan <- win
+	userConn.AddClient(client.Uuid, client)
+	go JoinRoom(client, shareRoomMsg.ShareRoomID)
+	return nil
+}
+
+func JoinRoom(c *Client, roomID string) {
+	ex := exchange.GetExchange()
+	roomChan := make(chan model.RoomMessage)
+	room, err := ex.JoinRoom(roomChan, roomID)
+	// checkout user reading pem
+	logoutMsg := LogoutMsg{Room: c.Uuid}
+
+	if err != nil {
+		logger.Errorf("Ws Join Room err: %s", err)
+		logoutMsg.Data = fmt.Sprintf("Join Session err: %s", err)
+		logoutData, _ := json.Marshal(logoutMsg)
+		c.Conn.SendLogoutEvent(logoutData)
+		return
+	}
+	defer ex.LeaveRoom(room, roomID)
+
+	if !c.Conn.CheckShareRoomReadPerm(roomID) {
+		logger.Error("Ws has no pem to join room")
+		logoutMsg.Data = fmt.Sprintf("You have no perm to join room %s", roomID)
+		logoutData, _ := json.Marshal(logoutMsg)
+		c.Conn.SendLogoutEvent(logoutData)
+		return
+	}
+	go func() {
+		for {
+			msg, ok := <-roomChan
+			if !ok {
+				logger.Infof("User %s exit room %s by roomChan closed", c.Conn.User.Name, roomID)
+				break
+			}
+			switch msg.Event {
+			case model.DataEvent, model.MaxIdleEvent, model.AdminTerminateEvent:
+				data := DataMsg{Data: string(msg.Body), Room: c.Uuid}
+				dataMsg, _ := json.Marshal(data)
+				c.Conn.SendShareRoomDataEvent(dataMsg)
+				continue
+			case model.LogoutEvent, model.ExitEvent:
+				logoutMsg.Data = fmt.Sprintf("Session %s exit.", roomID)
+				logoutData, _ := json.Marshal(logoutMsg)
+				c.Conn.SendLogoutEvent(logoutData)
+			case model.WindowsEvent, model.PingEvent:
+				continue
+			default:
+				logger.Errorf("User %s in room %s receive unknown event %s", c.Conn.User.Name, roomID, msg.Event)
+
+			}
+			logger.Infof("User %s stop receive msg from room %s by %s", c.Conn.User.Name, roomID, msg.Event)
+			break
+
+		}
+		_ = c.Close()
+
+	}()
+
+	buf := make([]byte, 1024)
+	for {
+		nr, err := c.Read(buf)
+		if err != nil {
+			logger.Errorf("User %s exit share room %s by %s", c.Conn.User.Name, roomID, err)
+			break
+		}
+		// checkout user write pem
+		if !c.Conn.CheckShareRoomWritePerm(roomID) {
+			continue
+		}
+		msg := model.RoomMessage{
+			Event: model.DataEvent,
+			Body:  buf[:nr],
+		}
+		room.Publish(msg)
+	}
 }

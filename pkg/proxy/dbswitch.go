@@ -2,15 +2,18 @@ package proxy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
+	"github.com/gliderlabs/ssh"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
@@ -159,6 +162,12 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 	lastActiveTime := time.Now()
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
+	ex := exchange.GetExchange()
+	roomChan := make(chan model.RoomMessage)
+	sub := ex.CreateRoom(roomChan, s.ID)
+	defer ex.DestroyRoom(sub)
+	go s.loopReadFromRoom(done, roomChan, userInChan)
+	defer sub.Publish(model.RoomMessage{Event: model.ExitEvent})
 	for {
 		select {
 		// 检测是否超过最大空闲时间
@@ -172,6 +181,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			logger.Infof("DB Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
+			sub.Publish(model.RoomMessage{Event: model.MaxIdleEvent})
 			return
 		// 手动结束
 		case <-s.ctx.Done():
@@ -179,6 +189,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			msg = utils.WrapperWarn(msg)
 			logger.Infof("DBSession %s: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
+			sub.Publish(model.RoomMessage{Event: model.AdminTerminateEvent})
 			return
 		// 监控窗口大小变化
 		case win, ok := <-winCh:
@@ -187,6 +198,12 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			}
 			_ = srvConn.SetWinSize(win.Height, win.Width)
 			logger.Debugf("DB Window server change: %d*%d", win.Height, win.Width)
+			p, _ := json.Marshal(win)
+			msg := model.RoomMessage{
+				Event: model.WindowsEvent,
+				Body:  p,
+			}
+			sub.Publish(msg)
 		// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
@@ -194,12 +211,20 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			}
 			nw, _ := userConn.Write(p)
 			replayRecorder.Record(p[:nw])
+			msg := model.RoomMessage{
+				Event: model.DataEvent,
+				Body:  p[:nw],
+			}
+			sub.Publish(msg)
 		// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
 				return
 			}
 			_, err = srvConn.Write(p)
+			sub.Publish(model.RoomMessage{
+				Event: model.PingEvent,
+			})
 		}
 		lastActiveTime = time.Now()
 	}
@@ -257,4 +282,36 @@ loop:
 		}
 	}
 	close(inChan)
+}
+
+func (s *DBSwitchSession) loopReadFromRoom(done chan struct{}, roomMsgChan <-chan model.RoomMessage, inChan chan<- []byte) {
+	for {
+		select {
+		case <-done:
+			logger.Infof("Stop loop read from room by done")
+			return
+		case roomMsg, ok := <-roomMsgChan:
+			if !ok {
+				logger.Infof("Stop loop read from room by close room channel")
+				return
+			}
+			switch roomMsg.Event {
+			case model.DataEvent:
+				select {
+				case inChan <- roomMsg.Body:
+				case <-done:
+					logger.Infof("Stop loop read from room by done")
+					return
+				}
+			case model.LogoutEvent, model.MaxIdleEvent, model.AdminTerminateEvent, model.ExitEvent:
+				logger.Infof("Stop loop read from room by event %s", roomMsg.Event)
+				return
+			case model.WindowsEvent:
+				var win ssh.Window
+				_ = json.Unmarshal(roomMsg.Body, &win)
+				logger.Infof("Room windows change event height*width %d*%d", win.Height, win.Width)
+			}
+
+		}
+	}
 }

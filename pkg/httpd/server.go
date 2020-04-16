@@ -36,6 +36,7 @@ func StartHTTPServer() {
 	subRouter := router.PathPrefix("/koko/").Subrouter()
 	subRouter.PathPrefix("/static/").Handler(http.StripPrefix("/koko/static/", fs))
 	subRouter.Handle("/ws/", sshWs)
+	subRouter.Handle("/room/{roomID}/", AuthDecorator(roomHandler))
 
 	elfinderRouter := subRouter.PathPrefix("/elfinder/").Subrouter()
 	elfinderRouter.HandleFunc("/sftp/{host}/", AuthDecorator(sftpHostFinder))
@@ -51,7 +52,10 @@ func StartHTTPServer() {
 	}
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	logger.Info("Start HTTP server at ", addr)
-	httpServer = &http.Server{Addr: addr, Handler: router}
+	httpServer = &http.Server{Addr: addr, Handler: router,
+		WriteTimeout: 60 * time.Second,
+		ReadTimeout:  60 * time.Second,
+		IdleTimeout:  time.Second * 70,}
 	logger.Fatal(httpServer.ListenAndServe())
 }
 
