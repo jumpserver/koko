@@ -11,7 +11,7 @@ func GetSystemUserAssetAuthInfo(systemUserID, assetID string) (info model.System
 	return getUserAssetAuthInfo(systemUserID, assetID, "", "")
 }
 
-func GetUserAssetAuthInfo(systemUserID, assetID, username, userID string) (info model.SystemUserAuthInfo) {
+func GetUserAssetAuthInfo(systemUserID, assetID, userID, username string) (info model.SystemUserAuthInfo) {
 	return getUserAssetAuthInfo(systemUserID, assetID, userID, username)
 }
 
