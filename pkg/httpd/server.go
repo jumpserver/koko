@@ -52,10 +52,7 @@ func StartHTTPServer() {
 	}
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	logger.Info("Start HTTP server at ", addr)
-	httpServer = &http.Server{Addr: addr, Handler: router,
-		WriteTimeout: 60 * time.Second,
-		ReadTimeout:  60 * time.Second,
-		IdleTimeout:  time.Second * 70,}
+	httpServer = &http.Server{Addr: addr, Handler: router,}
 	logger.Fatal(httpServer.ListenAndServe())
 }
 
