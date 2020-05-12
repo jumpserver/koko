@@ -29,21 +29,23 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 	needManualSet := false
 	if p.SystemUser.LoginMode == model.LoginModeManual {
 		needManualSet = true
-		logger.Debugf("System user %s login mode is: %s", p.SystemUser.Name, model.LoginModeManual)
+		logger.Debugf("Conn[%s] system user %s login mode is: %s",
+			p.UserConn.ID(), p.SystemUser.Name, model.LoginModeManual)
 	}
 	if p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "" {
 		needManualSet = true
-		logger.Debugf("System user %s neither has password nor private key", p.SystemUser.Name)
+		logger.Debugf("Conn[%s] system user %s neither has password nor private key",
+			p.UserConn.ID(), p.SystemUser.Name)
 	}
 	if needManualSet {
 		term := utils.NewTerminal(p.UserConn, "password: ")
 		line, err := term.ReadPassword(fmt.Sprintf("%s's password: ", p.SystemUser.Username))
 		if err != nil {
-			logger.Errorf("Get password from user err %s", err.Error())
+			logger.Errorf("Conn[%s] get password from user err: %s", p.UserConn.ID(), err.Error())
 			return err
 		}
 		p.SystemUser.Password = line
-		logger.Debug("Get password from user input: ", line)
+		logger.Debugf("Conn[%s] get password from user input: %s", p.UserConn.ID(), line)
 	}
 	return nil
 }
@@ -51,6 +53,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 // getSystemUserUsernameIfNeed 获取系统用户用户名，或手动设置
 func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
 	if p.SystemUser.Username == "" {
+		logger.Infof("Conn[%s] need manuel input systemuser username", p.UserConn.ID())
 		var username string
 		term := utils.NewTerminal(p.UserConn, "username: ")
 		for {
@@ -64,18 +67,17 @@ func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
 			}
 		}
 		p.SystemUser.Username = username
-		logger.Debug("Get username from user input: ", username)
+		logger.Infof("Conn[%s] get username from user input: %s", p.UserConn.ID(), username)
 	}
 	return
 }
 
 func (p *ProxyServer) getSystemUserBasicInfo() {
-	if p.SystemUser.UsernameSameWithUser {
-		p.SystemUser.Username = p.User.Username
-		logger.Infof("SystemUser username same with user: %s", p.User.Username)
-	}
+	logger.Infof("Conn[%s] start to get systemUser auth info from core server", p.UserConn.ID())
 	var info model.SystemUserAuthInfo
 	if p.SystemUser.UsernameSameWithUser {
+		p.SystemUser.Username = p.User.Username
+		logger.Infof("Conn[%s] SystemUser username same with user: %s", p.User.Username)
 		info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
 	} else {
 		info = service.GetSystemUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID)
@@ -112,14 +114,14 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 	newClient, err := srvconn.NewClient(p.User, p.Asset, p.SystemUser,
 		conf.SSHTimeout*time.Second, conf.ReuseConnection)
 	if err != nil {
-		logger.Errorf("User %s create ssh client (%s@%s) err: %s",
-			p.User.Name, p.SystemUser.Name, p.Asset.Hostname, err)
+		logger.Errorf("Conn[%s] create ssh client (%s@%s) err: %s",
+			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
 		return nil, err
 	}
 	sess, err := newClient.NewSession()
 	if err != nil {
-		logger.Errorf("User %s ssh client (%s@%s) create session closed err: %s",
-			p.User.Name, p.SystemUser.Name, p.Asset.Hostname, err)
+		logger.Errorf("Conn[%s] ssh client (%s@%s) create session closed err: %s",
+			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
 		return nil, err
 	}
 	pty := p.UserConn.Pty()
@@ -127,15 +129,16 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	go func() {
 		_ = sess.Wait()
-		logger.Infof("User %s ssh client(%s@%s) session closed.",
-			p.User.Name, p.SystemUser.Name, p.Asset.Hostname)
+		logger.Infof("Conn[%s] ssh client(%s@%s) session closed.",
+			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 		_ = newClient.Close()
-		logger.Infof("User %s ssh client(%s@%s) recycled and current ref: %d",
-			p.User.Name, p.SystemUser.Name, p.Asset.Hostname, newClient.RefCount())
+		logger.Infof("Conn[%s] ssh ssh client(%s@%s) recycled and current ref: %d",
+			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, newClient.RefCount())
 	}()
 	if err != nil {
-		logger.Errorf("User %s ssh client(%s@%s) start shell err: %s",
-			p.User.Name, p.SystemUser.Name, p.Asset.Hostname, err)
+		_ = sess.Close()
+		logger.Errorf("Conn[%s] ssh client(%s@%s) start shell err: %s",
+			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err)
 		return nil, err
 	}
 	logger.Infof("User %s ssh client(%s@%s) start shell success.",
@@ -146,12 +149,12 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, ok bool) {
 	key := srvconn.MakeReuseSSHClientKey(p.User, p.Asset, p.SystemUser)
 	if cacheSSHClient, ok := srvconn.GetClientFromCache(key); ok {
-		logger.Infof("User %s get cache ssh client(%s@%s)",
-			p.User.Name, p.SystemUser.Name, p.Asset.Hostname)
+		logger.Infof("Conn[%s] get cache ssh client(%s@%s)",
+			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 		sess, err1 := cacheSSHClient.NewSession()
 		if err1 != nil {
-			logger.Errorf("User %s cache ssh client(%s@%s) create session err: %s",
-				p.User.Name, p.SystemUser.Name, p.Asset.Hostname, err1)
+			logger.Errorf("Conn[%s] cache ssh client(%s@%s) create session err: %s",
+				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err1)
 			return nil, false
 		}
 		pty := p.UserConn.Pty()
@@ -159,27 +162,28 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, o
 		err2 := srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 		go func() {
 			_ = sess.Wait()
-			logger.Infof("User %s reuse ssh client(%s@%s) created session closed.",
-				p.User.Name, p.SystemUser.Name, p.Asset.Hostname)
+			logger.Infof("Conn[%s] reused ssh client(%s@%s) session closed.",
+				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 			_ = cacheSSHClient.Close()
-			logger.Infof("User %s reuse ssh client(%s@%s) recycled and current ref: %d",
-				p.User.Name, p.SystemUser.Name, p.Asset.Hostname, cacheSSHClient.RefCount())
+			logger.Infof("Conn[%s] reused ssh client(%s@%s) recycled and current ref: %d",
+				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, cacheSSHClient.RefCount())
 		}()
 		if err2 != nil {
-			logger.Errorf("User %s reuse ssh client(%s@%s) start shell err: %s",
-				p.User.Name, p.SystemUser.Name, p.Asset.Hostname, err2)
+			_ = sess.Close()
+			logger.Errorf("Conn[%s] reuse ssh client(%s@%s) start shell err: %s",
+				p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname, err2)
 			return nil, false
 		}
-		logger.Infof("User %s reuse ssh client(%s@%s) start shell success",
-			p.User.Name, p.SystemUser.Name, p.Asset.Hostname)
+		logger.Infof("Conn[%s] reuse ssh client(%s@%s) start shell success",
+			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 
 		reuseMsg := fmt.Sprintf(i18n.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
 			p.SystemUser.Username, p.Asset.Hostname, cacheSSHClient.RefCount())
 		utils.IgnoreErrWriteString(p.UserConn, reuseMsg+"\r\n")
 		return srvConn, true
 	}
-	logger.Errorf("User %s did not found cache ssh client(%s@%s)",
-		p.User.Name, p.SystemUser.Name, p.Asset.Hostname)
+	logger.Errorf("Conn[%s] did not found cache ssh client(%s@%s)",
+		p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 	return nil, false
 }
 
@@ -189,7 +193,8 @@ func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, 
 	cusString := conf.TelnetRegex
 	pattern, err := regexp.Compile(cusString)
 	if err != nil {
-		logger.Errorf("telnet custom regex %s compile err: %s", cusString, err)
+		logger.Errorf("Conn[%s] telnet custom regex %s compile err: %s",
+			p.UserConn.ID(), cusString, err)
 	}
 	srvConn = &srvconn.ServerTelnetConnection{
 		User:                 p.User,
@@ -247,22 +252,29 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 		msg := utils.WrapperWarn(i18n.T("System user <%s> and asset <%s> protocol are inconsistent."))
 		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Asset.Hostname)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
 		return
 	}
+	logger.Infof("Conn[%s] System user and asset protocol matched", p.UserConn.ID())
 	if p.checkProtocolIsGraph() {
 		msg := i18n.T("Terminal only support protocol ssh/telnet, please use web terminal to access")
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] checking requisite failed: %s", p.UserConn.ID(), msg)
 		return
 	}
+	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
 	if !p.validatePermission() {
 		msg := fmt.Sprintf("You don't have permission login %s@%s", p.SystemUser.Username, p.Asset.Hostname)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] checking permission failed.", p.UserConn.ID())
 		return
 	}
+	logger.Infof("Conn[%s] has permission to access hostname %s", p.UserConn.ID(), p.Asset.Hostname)
 	if err := p.checkRequiredSystemUserInfo(); err != nil {
 		msg := fmt.Sprintf("You get asset %s systemuser info err: %s", p.Asset.Hostname, err)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] get system user info failed: %s", p.UserConn.ID(), err)
 		return
 	}
 	return true
@@ -270,20 +282,26 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 
 func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 	p.getSystemUserBasicInfo()
+	logger.Infof("Conn[%s] get systemUser auth info from core server success", p.UserConn.ID())
 	if err := p.getSystemUserUsernameIfNeed(); err != nil {
-		logger.Errorf("Get asset %s systemuser username err: %s", p.Asset.Hostname, err)
+		logger.Errorf("Conn[%s] get asset %s systemUser's username err: %s",
+			p.UserConn.ID(), p.Asset.Hostname, err)
 		return err
 	}
+	logger.Infof("Conn[%s] get systemUser's username %s success", p.UserConn.ID(), p.SystemUser.Username)
 	if p.checkRequireReuseClient() {
 		if cacheSSHConnection, ok := p.getCacheSSHConn(); ok {
 			p.cacheSSHConnection = cacheSSHConnection
+			logger.Infof("Conn[%s] will use cache SSH conn", p.UserConn.ID())
 			return nil
 		}
 	}
 	if err := p.getSystemUserAuthOrManualSet(); err != nil {
-		logger.Errorf("Get asset %s systemuser password/PrivateKey err: %s", p.Asset.Hostname, err)
+		logger.Errorf("Conn[%s] Get asset %s systemuser password/PrivateKey err: %s",
+			p.UserConn.ID(), p.Asset.Hostname, err)
 		return err
 	}
+	logger.Infof("Conn[%s] get systemUser password/PrivateKey success", p.UserConn.ID())
 	return nil
 }
 
@@ -317,22 +335,26 @@ func (p *ProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
 		return
 	}
-
+	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
 	// 创建Session
 	sw, err := CreateSession(p)
 	if err != nil {
-		logger.Errorf("Request %s: Create session failed: %s", p.UserConn.ID(), err.Error())
+		if p.cacheSSHConnection != nil {
+			_ = p.cacheSSHConnection.Close()
+		}
+		logger.Errorf("Conn[%s] create session failed: %s", p.UserConn.ID(), err)
 		return
 	}
+	logger.Infof("Conn[%s] create session %s success", p.UserConn.ID(), sw.ID)
 	defer RemoveSession(sw)
 	srvConn, err := p.getServerConn()
 	// 连接后端服务器失败
 	if err != nil {
+		logger.Errorf("Conn[%s] getting srv conn failed: %s", p.UserConn.ID(), err)
 		p.sendConnectErrorMsg(err)
 		return
 	}
-
-	logger.Infof("Session %s bridge start", sw.ID)
+	logger.Infof("Conn[%s] getting srv conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
-	logger.Infof("Session %s bridge end", sw.ID)
+	logger.Infof("Conn[%s] end session %s bridge", p.UserConn.ID(), sw.ID)
 }

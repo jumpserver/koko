@@ -76,17 +76,20 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 	if !ok {
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg)
+		logger.Errorf("Conn[%s] submit session %s to core server err: %s", p.UserConn.ID(), msg)
 		return sw, errors.New("connect api server failed")
 	}
+	logger.Infof("Conn[%s] submit session %s to core server success", p.UserConn.ID(), sw.ID)
 	// 获取系统用户的过滤规则，并设置
 	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
 	if err != nil {
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg + err.Error())
+		logger.Errorf("Conn[%s] get filter rules from core server err: %s",
+			p.UserConn.ID(), err)
 		return sw, errors.New("connect api server failed")
 	}
+	logger.Infof("Conn[%s] get filter rules from core server success", p.UserConn.ID())
 	sw.SetFilterRules(cmdRules)
 	AddSession(sw)
 	return
@@ -112,6 +115,7 @@ func CreateDBSession(p *DBProxyServer) (sw *DBSwitchSession, err error) {
 		p: p,
 	}
 	sw.Initial()
+	logger.Infof("Conn[%s] create DB session %s", p.UserConn.ID(), sw.ID)
 	data := sw.MapData()
 	ok := postSession(data)
 	msg := i18n.T("Create database session failed")
@@ -121,6 +125,7 @@ func CreateDBSession(p *DBProxyServer) (sw *DBSwitchSession, err error) {
 		logger.Error(msg)
 		return sw, errors.New("create database session failed")
 	}
+	logger.Infof("Conn[%s] submit DB session %s to server success", p.UserConn.ID(), sw.ID)
 	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
 	if err != nil {
 		msg = utils.WrapperWarn(msg)
@@ -128,6 +133,7 @@ func CreateDBSession(p *DBProxyServer) (sw *DBSwitchSession, err error) {
 		logger.Error(msg + err.Error())
 		return sw, errors.New("connect api server failed")
 	}
+	logger.Infof("Conn[%s] get filter rules success", p.UserConn.ID())
 	sw.SetFilterRules(cmdRules)
 	AddSession(sw)
 	return

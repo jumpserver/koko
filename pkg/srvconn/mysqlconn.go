@@ -106,7 +106,7 @@ func (dbconn *ServerMysqlConnection) Write(p []byte) (int, error) {
 	return dbconn.ptyFD.Write(p)
 }
 
-func (dbconn *ServerMysqlConnection) SetWinSize(h, w int) error {
+func (dbconn *ServerMysqlConnection) SetWinSize(w, h int) error {
 	if dbconn.ptyFD == nil {
 		return fmt.Errorf("not connect init")
 	}

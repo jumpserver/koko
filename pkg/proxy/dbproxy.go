@@ -25,27 +25,30 @@ func (p *DBProxyServer) getAuthOrManualSet() error {
 	needManualSet := false
 	if p.SystemUser.LoginMode == model.LoginModeManual {
 		needManualSet = true
-		logger.Debugf("Database %s login mode is: %s", p.Database.Name, model.LoginModeManual)
+		logger.Debugf("Conn[%s] Database %s login mode is: %s",
+			p.UserConn.ID(), p.Database.Name, model.LoginModeManual)
 	}
 	if p.SystemUser.Password == "" {
 		needManualSet = true
-		logger.Debugf("Database  %s neither has password", p.Database.Name)
+		logger.Debugf("Conn[%s] Database %s neither has password",
+			p.UserConn.ID(), p.Database.Name)
 	}
 	if needManualSet {
 		term := utils.NewTerminal(p.UserConn, "password: ")
 		line, err := term.ReadPassword(fmt.Sprintf("%s's password: ", p.SystemUser.Username))
 		if err != nil {
-			logger.Errorf("Get password from user err %s", err.Error())
+			logger.Errorf("Conn[%s] get password from user err: %s", p.UserConn.ID(), err.Error())
 			return err
 		}
 		p.SystemUser.Password = line
-		logger.Debug("Get password from user input: ", line)
+		logger.Debugf("Conn[%s] get password from user input: %s", p.UserConn.ID(), line)
 	}
 	return nil
 }
 
 func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 	if p.SystemUser.Username == "" {
+		logger.Infof("Conn[%s] need manuel input systemuser username", p.UserConn.ID())
 		var username string
 		term := utils.NewTerminal(p.UserConn, "username: ")
 		for {
@@ -59,7 +62,7 @@ func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 			}
 		}
 		p.SystemUser.Username = username
-		logger.Debug("Get username from user input: ", username)
+		logger.Infof("Conn[%s] get username from user input: %s", p.UserConn.ID(), username)
 	}
 	return
 }
@@ -131,22 +134,28 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 		msg := utils.WrapperWarn(i18n.T("System user <%s> and database <%s> protocol are inconsistent."))
 		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Database.DBType)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
 		return
 	}
+	logger.Infof("Conn[%s] System user and asset protocol matched", p.UserConn.ID())
 	if !p.checkProtocolClientInstalled() {
 		msg := utils.WrapperWarn(i18n.T("Database %s protocol client not installed."))
 		msg = fmt.Sprintf(msg, p.Database.DBType)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] checking permission failed.", p.UserConn.ID())
 		return
 	}
+	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
 	if !p.validatePermission() {
 		msg := fmt.Sprintf("You don't have permission login %s", p.Database.Name)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		return
 	}
+	logger.Infof("Conn[%s] has permission to access database %s", p.UserConn.ID(), p.Database.Name)
 	if err := p.checkRequiredAuth(); err != nil {
 		msg := fmt.Sprintf("You get database %s auth info err: %s", p.Database.Name, err)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] get system user info failed: %s", p.UserConn.ID(), err)
 		return
 	}
 	return true
@@ -155,15 +164,20 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 func (p *DBProxyServer) checkRequiredAuth() error {
 	info := service.GetSystemUserDatabaseAuthInfo(p.SystemUser.ID)
 	p.SystemUser.Password = info.Password
+	logger.Infof("Conn[%s] get database %s auth info from core server success",
+		p.UserConn.ID(), p.Database.Name)
 	if err := p.getUsernameIfNeed(); err != nil {
-		logger.Errorf("Get database %s auth username err: %s", p.Database.Name, err)
+		logger.Errorf("Conn[%s] get database %s auth username err: %s",
+			p.UserConn.ID(), p.Database.Name, err)
 		return err
 	}
 
 	if err := p.getAuthOrManualSet(); err != nil {
-		logger.Errorf("Get database %s auth password err: %s", p.Database.Name, err)
+		logger.Errorf("Conn[%s] get database %s auth password err: %s",
+			p.UserConn.ID(), p.Database.Name, err)
 		return err
 	}
+	logger.Infof("Conn[%s] get systemUser auth success", p.UserConn.ID())
 	return nil
 }
 
@@ -177,26 +191,27 @@ func (p *DBProxyServer) sendConnectErrorMsg(err error) {
 // Proxy 代理
 func (p *DBProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
-		logger.Error("Check requisite failed")
+		logger.Errorf("Conn[%s] Check requisite failed", p.UserConn.ID())
 		return
 	}
+	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
 	// 创建Session
 	sw, err := CreateDBSession(p)
 	if err != nil {
-		logger.Error("Create database Session failed")
+		logger.Errorf("Conn[%s] create session failed: %s", p.UserConn.ID(), err)
 		return
 	}
+	logger.Infof("Conn[%s] create database session %s success", p.UserConn.ID(), sw.ID)
 	defer RemoveDBSession(sw)
 	srvConn, err := p.getServerConn()
 	// 连接后端服务器失败
 	if err != nil {
-		logger.Errorf("Create database server conn failed: %s", err)
+		logger.Errorf("Conn[%s] create database conn failed: %s", p.UserConn.ID(), err)
 		p.sendConnectErrorMsg(err)
 		return
 	}
-
-	if err = sw.Bridge(p.UserConn, srvConn); err != nil {
-		logger.Errorf("DB Session %s bridge end: %s", sw.ID, err)
-	}
+	logger.Infof("Conn[%s] get database conn success", p.UserConn.ID())
+	_ = sw.Bridge(p.UserConn, srvConn)
+	logger.Infof("Conn[%s] end database session %s bridge", p.UserConn.ID(), sw.ID)
 
 }

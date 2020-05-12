@@ -214,7 +214,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 			if r.storage == r.backOffStorage {
 				break
 			}
-			logger.Errorf("Using back off storage retry upload")
+			logger.Errorf("Session[%s] using back off storage retry upload", r.SessionID)
 			r.storage = r.backOffStorage
 			r.UploadGzipFile(3)
 			break
