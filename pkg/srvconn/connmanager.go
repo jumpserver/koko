@@ -112,10 +112,13 @@ func (s *sshClient) Close() error {
 		return nil
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.ref--
+	var needClosed bool
 	if s.ref <= 0 {
-		deleteClientFromCache(s.key, s)
+		needClosed = true
+	}
+	s.mu.Unlock()
+	if needClosed {
 		return s.close()
 	}
 	return nil
@@ -127,6 +130,9 @@ func (s *sshClient) close() error {
 		return nil
 	default:
 		close(s.closed)
+	}
+	if s.key != "" {
+		deleteClientFromCache(s.key, s)
 	}
 	s.ref = 0
 	if s.proxyConn != nil {
@@ -169,7 +175,6 @@ func KeepAlive(c *sshClient, closed <-chan struct{}, keepInterval time.Duration)
 				logger.Errorf("SSH client %s keep alive err: %s, retry count: %d", c, err.Error(), errCount)
 				if errCount >= retryCount {
 					logger.Errorf("SSH client %s keep alive err count exceed max count: %d and close it", c, retryCount)
-					deleteClientFromCache(c.key, c)
 					_ = c.close()
 					return
 				}
