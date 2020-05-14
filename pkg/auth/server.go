@@ -43,7 +43,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 		ctx.SetValue(model.ContextKeyClient, userClient)
 	}
 	userClient.SetOption(service.Password(password), service.PublicKey(publicKey))
-	logger.Infof("SSH conn[%s] authenticating user %s", ctx.SessionID(), username)
+	logger.Infof("SSH conn[%s] authenticating user %s %s", ctx.SessionID(), username, authMethod)
 	user, authStatus := userClient.Authenticate(ctx)
 	switch authStatus {
 	case service.AuthMFARequired:

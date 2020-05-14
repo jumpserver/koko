@@ -185,7 +185,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			sub.Publish(model.RoomMessage{Event: model.MaxIdleEvent})
-			logger.Debugf("DB Session[%s] published AdminTerminateEvent", s.ID)
+			logger.Debugf("DB Session[%s] published MaxIdleEvent", s.ID)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
@@ -202,14 +202,13 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 				return
 			}
 			_ = srvConn.SetWinSize(win.Width, win.Height)
-			logger.Debugf("DB Session[%s] Window server change: %d*%d", win.Height, win.Width)
+			logger.Infof("DB Session[%s] Window server change: %d*%d", win.Height, win.Width)
 			p, _ := json.Marshal(win)
 			msg := model.RoomMessage{
 				Event: model.WindowsEvent,
 				Body:  p,
 			}
 			sub.Publish(msg)
-			logger.Debugf("DB Session[%s] published WindowsEvent", s.ID)
 		// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
@@ -222,7 +221,6 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 				Body:  p[:nw],
 			}
 			sub.Publish(msg)
-			logger.Debugf("DB Session[%s] published DataEvent", s.ID)
 		// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
@@ -232,7 +230,6 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			sub.Publish(model.RoomMessage{
 				Event: model.PingEvent,
 			})
-			logger.Debugf("DB Session[%s] published PingEvent", s.ID)
 		}
 		lastActiveTime = time.Now()
 	}

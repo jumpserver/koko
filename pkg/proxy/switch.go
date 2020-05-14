@@ -223,7 +223,6 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				Body:  p,
 			}
 			sub.Publish(msg)
-			logger.Debugf("Session[%s] published WindowsEvent", s.ID)
 		// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
@@ -238,7 +237,6 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				Body:  p[:nw],
 			}
 			sub.Publish(msg)
-			logger.Debugf("Session[%s] published DataEvent", s.ID)
 		// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
@@ -248,7 +246,6 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			sub.Publish(model.RoomMessage{
 				Event: model.PingEvent,
 			})
-			logger.Debugf("Session[%s] published PingEvent", s.ID)
 		}
 		lastActiveTime = time.Now()
 	}
