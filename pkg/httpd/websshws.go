@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gliderlabs/ssh"
-	"github.com/gorilla/mux"
-	"github.com/kataras/neffos"
-	"github.com/satori/go.uuid"
 	"html/template"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/gliderlabs/ssh"
+	"github.com/gorilla/mux"
+	"github.com/kataras/neffos"
+	"github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -81,7 +82,6 @@ func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 		return errors.New(errMsg)
 	}
 
-	//cc := ns.Conn
 	var message HostMsg
 	err = msg.Unmarshal(&message)
 	if err != nil {
