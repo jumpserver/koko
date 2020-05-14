@@ -194,6 +194,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			logger.Infof("DB Session[%s] %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
 			sub.Publish(model.RoomMessage{Event: model.AdminTerminateEvent})
+			logger.Debugf("Session[%s] published AdminTerminateEvent", s.ID)
 			return
 		// 监控窗口大小变化
 		case win, ok := <-winCh:
