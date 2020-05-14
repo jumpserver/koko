@@ -48,7 +48,7 @@ func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
 	return sc.session.Shell()
 }
 
-func (sc *ServerSSHConnection) SetWinSize(h, w int) error {
+func (sc *ServerSSHConnection) SetWinSize(w, h int) error {
 	return sc.session.WindowChange(h, w)
 }
 

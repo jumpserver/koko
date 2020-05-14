@@ -43,6 +43,7 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 		ctx.SetValue(model.ContextKeyClient, userClient)
 	}
 	userClient.SetOption(service.Password(password), service.PublicKey(publicKey))
+	logger.Infof("SSH conn[%s] authenticating user %s %s", ctx.SessionID(), username, authMethod)
 	user, authStatus := userClient.Authenticate(ctx)
 	switch authStatus {
 	case service.AuthMFARequired:
@@ -59,7 +60,8 @@ func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 	default:
 		action = actionFailed
 	}
-	logger.Infof("%s %s for %s from %s", action, authMethod, username, remoteAddr)
+	logger.Infof("SSH conn[%s] %s %s for %s from %s", ctx.SessionID(),
+		action, authMethod, username, remoteAddr)
 	return
 
 }
@@ -95,7 +97,8 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 
 	client, ok := ctx.Value(model.ContextKeyClient).(*service.SessionClient)
 	if !ok {
-		logger.Errorf("User %s Mfa Auth failed: not found session client.", username, )
+		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found session client.",
+			ctx.SessionID(), username)
 		return
 	}
 	value, ok := ctx.Value(model.ContextKeyConfirmRequired).(*bool)
@@ -109,42 +112,50 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 		if confirmAction {
 			client.CancelConfirm()
 		}
-		logger.Errorf("User %s happened err: %s", username, err)
+		logger.Errorf("SSH conn[%s] user %s happened err: %s", ctx.SessionID(), username, err)
 		return
 	}
 	if confirmAction {
 		switch strings.TrimSpace(strings.ToLower(answers[0])) {
 		case "yes", "y", "":
+			logger.Infof("SSH conn[%s] checking user %s login confirm", ctx.SessionID(), username)
 			user, authStatus := client.CheckConfirm(ctx)
 			switch authStatus {
 			case service.AuthSuccess:
 				res = ssh.AuthSuccessful
 				ctx.SetValue(model.ContextKeyUser, &user)
+				logger.Infof("SSH conn[%s] checking user %s login confirm success", ctx.SessionID(), username)
 				return
 			}
 		case "no", "n":
+			logger.Infof("SSH conn[%s] user %s cancel login", ctx.SessionID(), username)
 			client.CancelConfirm()
 		default:
 			return
 		}
 		failed := true
 		ctx.SetValue(model.ContextKeyConfirmFailed, &failed)
+		logger.Infof("SSH conn[%s] checking user %s login confirm failed", ctx.SessionID(), username)
 		return
 	}
 	mfaCode := answers[0]
+	logger.Infof("SSH conn[%s] checking user %s mfa code", ctx.SessionID(), username)
 	user, authStatus := client.CheckUserOTP(ctx, mfaCode)
 	switch authStatus {
 	case service.AuthSuccess:
 		res = ssh.AuthSuccessful
 		ctx.SetValue(model.ContextKeyUser, &user)
-		logger.Infof("%s MFA for %s from %s", actionAccepted, username, remoteAddr)
+		logger.Infof("SSH conn[%s] %s MFA for %s from %s", ctx.SessionID(),
+			actionAccepted, username, remoteAddr)
 	case service.AuthConfirmRequired:
 		res = ssh.AuthPartiallySuccessful
 		required := true
 		ctx.SetValue(model.ContextKeyConfirmRequired, &required)
-		logger.Infof("%s MFA for %s from %s", actionPartialAccepted, username, remoteAddr)
+		logger.Infof("SSH conn[%s] %s MFA for %s from %s", ctx.SessionID(),
+			actionPartialAccepted, username, remoteAddr)
 	default:
-		logger.Errorf("%s MFA for %s from %s", actionFailed, username, remoteAddr)
+		logger.Errorf("SSH conn[%s] %s MFA for %s from %s", ctx.SessionID(),
+			actionFailed, username, remoteAddr)
 	}
 	return
 }

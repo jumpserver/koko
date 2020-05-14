@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"io"
-	"sync"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/kataras/neffos"
@@ -10,15 +9,11 @@ import (
 
 type Client struct {
 	Uuid      string
-	Cid       string
-	addr      string
 	WinChan   chan ssh.Window
 	UserRead  io.Reader
 	UserWrite io.WriteCloser
 	Conn      *UserWebsocketConn
-	Closed    bool
 	pty       ssh.Pty
-	mu        *sync.RWMutex
 }
 
 func (c *Client) WinCh() <-chan ssh.Window {
@@ -30,7 +25,7 @@ func (c *Client) LoginFrom() string {
 }
 
 func (c *Client) RemoteAddr() string {
-	return c.addr
+	return c.Conn.Addr
 }
 
 func (c *Client) Read(p []byte) (n int, err error) {
@@ -38,15 +33,12 @@ func (c *Client) Read(p []byte) (n int, err error) {
 }
 
 func (c *Client) Write(p []byte) (n int, err error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if c.Closed {
-		return
+	if _, ok := c.Conn.GetClient(c.Uuid); ok {
+		data := DataMsg{Data: string(p), Room: c.Uuid}
+		c.Conn.SendDataEvent(neffos.Marshal(data))
+		return len(p), nil
 	}
-	data := DataMsg{Data: string(p), Room: c.Uuid}
-	n = len(p)
-	c.Conn.SendDataEvent(neffos.Marshal(data))
-	return
+	return 0, io.EOF
 }
 
 func (c *Client) Pty() ssh.Pty {
@@ -54,18 +46,10 @@ func (c *Client) Pty() ssh.Pty {
 }
 
 func (c *Client) Close() (err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.Closed {
-		return
-	}
-	c.Closed = true
 	return c.UserWrite.Close()
 }
 
 func (c *Client) SetWinSize(size ssh.Window) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
 	select {
 	case c.WinChan <- size:
 	default:
