@@ -3,6 +3,7 @@ package srvconn
 import (
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -16,7 +17,7 @@ type UserSSHClient struct {
 func (u *UserSSHClient) AddClient(client *sshClient) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	u.clients[client] = 0
+	u.clients[client] = time.Now().UnixNano()
 	logger.Infof("Store new client(%s) remain %d", client, len(u.clients))
 }
 
@@ -30,19 +31,15 @@ func (u *UserSSHClient) DeleteClient(client *sshClient) {
 func (u *UserSSHClient) GetClient() *sshClient {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	var client *sshClient
-	var ref int
 	if len(u.clients) == 0 {
 		return nil
 	}
-	for item := range u.clients {
-		if ref == 0 {
-			ref = item.RefCount()
-			client = item
-			continue
-		}
-		if item.RefCount() < ref {
-			ref = item.RefCount()
+
+	var client *sshClient
+	var latest int64
+	for item, timestamp := range u.clients {
+		if timestamp > latest {
+			latest = timestamp
 			client = item
 		}
 	}
