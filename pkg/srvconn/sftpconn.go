@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/sftp"
 
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
@@ -262,9 +263,12 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 }
 
 func (u *UserSftpConn) initial() {
-	nodeTrees := service.GetUserNodeTreeWithAsset(u.User.ID, "", "")
-	if u.Dirs == nil {
-		u.Dirs = map[string]os.FileInfo{}
+	var nodeTrees model.NodeTreeList
+	conf := config.GetConf()
+	if conf.SftpLocateAssetByName {
+		nodeTrees, _ = service.SearchPermAsset(u.User.ID, "")
+	} else {
+		nodeTrees = service.GetUserNodeTreeWithAsset(u.User.ID, "", "")
 	}
 	u.searchDir = &SearchResultDir{
 		folderName: SearchFolderName,

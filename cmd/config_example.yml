@@ -66,3 +66,9 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # REDIS_PASSWORD:
 # REDIS_CLUSTERS:
 # REDIS_DB_ROOM:
+
+# SFTP目标服务器定位模式。true 表示直接使用资产名定位目标服务器。 （默认）表示资产树定位目标服务器。
+# SFTP_LOCATE_ASSET_BY_NAME: true
+
+# PERM_TIMEOUT 默认KOKO连接JUMPSERVER超时时间。默认30秒。
+# PERM_TIMEOUT: 30

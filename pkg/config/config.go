@@ -50,12 +50,14 @@ type Config struct {
 	ClientAliveInterval uint64                 `yaml:"CLIENT_ALIVE_INTERVAL"`
 	RetryAliveCountMax  int                    `yaml:"RETRY_ALIVE_COUNT_MAX"`
 
-	ShareRoomType string   `yaml:"SHARE_ROOM_TYPE"`
-	RedisHost     string   `yaml:"REDIS_HOST"`
-	RedisPort     string   `yaml:"REDIS_PORT"`
-	RedisPassword string   `yaml:"REDIS_PASSWORD"`
-	RedisDBIndex  uint64   `yaml:"REDIS_DB_ROOM"`
-	RedisClusters []string `yaml:"REDIS_CLUSTERS"`
+	ShareRoomType         string        `yaml:"SHARE_ROOM_TYPE"`
+	RedisHost             string        `yaml:"REDIS_HOST"`
+	RedisPort             string        `yaml:"REDIS_PORT"`
+	RedisPassword         string        `yaml:"REDIS_PASSWORD"`
+	RedisDBIndex          uint64        `yaml:"REDIS_DB_ROOM"`
+	RedisClusters         []string      `yaml:"REDIS_CLUSTERS"`
+	SftpLocateAssetByName bool          `yaml:"SFTP_LOCATE_ASSET_BY_NAME"`
+	PermTimeout           time.Duration `yaml:"PERM_TIMEOUT"`
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -106,7 +108,7 @@ func (c *Config) LoadFromEnv() error {
 		value := vSlice[1]
 		// 环境变量的值，非字符串类型的解析，需要另作处理
 		switch key {
-		case "SFTP_SHOW_HIDDEN_FILE", "REUSE_CONNECTION", "UPLOAD_FAILED_REPLAY_ON_START":
+		case "SFTP_SHOW_HIDDEN_FILE", "REUSE_CONNECTION", "UPLOAD_FAILED_REPLAY_ON_START", "SFTP_LOCATE_ASSET_BY_NAME":
 			switch strings.ToLower(value) {
 			case "true", "on":
 				switch key {
@@ -116,6 +118,8 @@ func (c *Config) LoadFromEnv() error {
 					c.ReuseConnection = true
 				case "UPLOAD_FAILED_REPLAY_ON_START":
 					c.UploadFailedReplay = true
+				case "SFTP_LOCATE_ASSET_BY_NAME":
+					c.SftpLocateAssetByName = true
 				}
 			case "false", "off":
 				switch key {
@@ -125,6 +129,8 @@ func (c *Config) LoadFromEnv() error {
 					c.ReuseConnection = false
 				case "UPLOAD_FAILED_REPLAY_ON_START":
 					c.UploadFailedReplay = false
+				case "SFTP_LOCATE_ASSET_BY_NAME":
+					c.SftpLocateAssetByName = false
 				}
 			}
 		case "SSH_TIMEOUT":
@@ -134,6 +140,10 @@ func (c *Config) LoadFromEnv() error {
 		case "REDIS_CLUSTERS":
 			clusters := strings.Split(value, ",")
 			c.RedisClusters = clusters
+		case "PERM_TIMEOUT":
+			if num, err := strconv.Atoi(value); err == nil {
+				c.PermTimeout = time.Duration(num)
+			}
 		default:
 			envMap[key] = value
 		}
@@ -157,35 +167,37 @@ var lock = new(sync.RWMutex)
 var name = getDefaultName()
 var rootPath, _ = os.Getwd()
 var Conf = &Config{
-	Name:                name,
-	CoreHost:            "http://localhost:8080",
-	BootstrapToken:      "",
-	BindHost:            "0.0.0.0",
-	SSHPort:             "2222",
-	SSHTimeout:          15,
-	HTTPPort:            "5000",
-	HeartbeatDuration:   10,
-	AccessKey:           "",
-	AccessKeyFile:       "data/keys/.access_key",
-	LogLevel:            "DEBUG",
-	HostKeyFile:         "data/keys/host_key",
-	HostKey:             "",
-	RootPath:            rootPath,
-	Comment:             "Coco",
-	ReplayStorage:       map[string]interface{}{"TYPE": "server"},
-	CommandStorage:      map[string]interface{}{"TYPE": "server"},
-	UploadFailedReplay:  true,
-	ShowHiddenFile:      false,
-	ReuseConnection:     true,
-	AssetLoadPolicy:     "",
-	ZipMaxSize:          "1024M",
-	ZipTmpPath:          "/tmp",
-	ClientAliveInterval: 30,
-	RetryAliveCountMax:  3,
-	ShareRoomType:       "local",
-	RedisHost:           "127.0.0.1",
-	RedisPort:           "6379",
-	RedisPassword:       "",
+	Name:                  name,
+	CoreHost:              "http://localhost:8080",
+	BootstrapToken:        "",
+	BindHost:              "0.0.0.0",
+	SSHPort:               "2222",
+	SSHTimeout:            15,
+	HTTPPort:              "5000",
+	HeartbeatDuration:     10,
+	AccessKey:             "",
+	AccessKeyFile:         "data/keys/.access_key",
+	LogLevel:              "DEBUG",
+	HostKeyFile:           "data/keys/host_key",
+	HostKey:               "",
+	RootPath:              rootPath,
+	Comment:               "Coco",
+	ReplayStorage:         map[string]interface{}{"TYPE": "server"},
+	CommandStorage:        map[string]interface{}{"TYPE": "server"},
+	UploadFailedReplay:    true,
+	ShowHiddenFile:        false,
+	ReuseConnection:       true,
+	AssetLoadPolicy:       "",
+	ZipMaxSize:            "1024M",
+	ZipTmpPath:            "/tmp",
+	ClientAliveInterval:   30,
+	RetryAliveCountMax:    3,
+	ShareRoomType:         "local",
+	RedisHost:             "127.0.0.1",
+	RedisPort:             "6379",
+	RedisPassword:         "",
+	SftpLocateAssetByName: false,
+	PermTimeout:           30,
 }
 
 func SetConf(conf Config) {
