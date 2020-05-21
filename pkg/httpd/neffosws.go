@@ -71,6 +71,6 @@ func neffosOnDisconnect(c *neffos.Conn) {
 	if conn, ok := websocketManager.GetUserCon(c.ID()); ok {
 		conn.Close()
 		websocketManager.DeleteUserCon(c.ID())
-		logger.Infof("User %s ws %s disconnect.", conn.User.Username, c.ID())
+		logger.Infof("User %s ws %s disconnect.", conn.User.Name, c.ID())
 	}
 }

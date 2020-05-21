@@ -7,5 +7,5 @@ import (
 type ServerConnection interface {
 	io.ReadWriteCloser
 	Protocol() string
-	SetWinSize(w, h int) error
+	SetWinSize(width, height int) error
 }

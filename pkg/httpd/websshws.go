@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"net"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/gorilla/mux"
@@ -74,8 +72,8 @@ func OnNamespaceDisconnect(c *neffos.NSConn, msg neffos.Message) (err error) {
 }
 
 // OnHostHandler 当用户连接Host时触发
-func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
-	websocketID := c.Conn.ID()
+func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
+	websocketID := ns.Conn.ID()
 	logger.Debugf("Ws %s fire host event", websocketID)
 	userConn, ok := websocketManager.GetUserCon(websocketID)
 	if !ok {
@@ -84,7 +82,6 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 		return errors.New(errMsg)
 	}
 
-	cc := c.Conn
 	var message HostMsg
 	err = msg.Unmarshal(&message)
 	if err != nil {
@@ -107,6 +104,7 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 	}
 	roomID := uuid.NewV4().String()
 	emitMsg := RoomMsg{roomID, secret}
+
 	userConn.SendRoomEvent(neffos.Marshal(emitMsg))
 	var databaseAsset model.Database
 	var asset model.Asset
@@ -135,60 +133,38 @@ func OnHostHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 		}
 		connectName = asset.Hostname
 	}
-	logger.Infof("Ws %s start to connect %s", websocketID, connectName)
-	currentUser, ok := cc.Get("currentUser").(*model.User)
-	if !ok {
-		err = errors.New("not found current user")
-		dataMsg := DataMsg{Room: roomID, Data: err.Error()}
-		logger.Errorf("Host Event: ws %s no found user.", websocketID)
-		userConn.SendDataEvent(neffos.Marshal(dataMsg))
-		return err
-	}
 	userR, userW := io.Pipe()
-	var addr string
-	request := cc.Socket().Request()
-	header := request.Header
-	remoteAddr := header.Get("X-Forwarded-For")
-	if remoteAddr == "" {
-		if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
-			addr = host
-		} else {
-			addr = request.RemoteAddr
-		}
-	} else {
-		addr = strings.Split(remoteAddr, ",")[0]
-	}
-
 	client := &Client{
-		Uuid: roomID, addr: addr,
+		Uuid:    roomID,
 		WinChan: make(chan ssh.Window, 100), Conn: userConn,
-		UserRead: userR, UserWrite: userW, mu: new(sync.RWMutex),
+		UserRead: userR, UserWrite: userW,
 		pty: ssh.Pty{Term: "xterm", Window: win},
 	}
 	client.WinChan <- win
+	logger.Infof("Conn[%s] start to connect %s", roomID, connectName)
 	var proxySrv proxyServer
 	switch strings.ToLower(message.HostType) {
 	case "database":
 		proxySrv = &proxy.DBProxyServer{
 			UserConn:   client,
-			User:       currentUser,
+			User:       userConn.User,
 			Database:   &databaseAsset,
 			SystemUser: &systemUser,
 		}
 	default:
 		proxySrv = &proxy.ProxyServer{
-			UserConn: client, User: currentUser,
+			UserConn: client, User: userConn.User,
 			Asset: &asset, SystemUser: &systemUser,
 		}
 	}
 	go func() {
-		logger.Infof("Ws %s add client %s to proxy", websocketID, client.Uuid)
+		logger.Infof("Ws %s add Conn[%s] to proxy", websocketID, client.Uuid)
 		userConn.AddClient(client.Uuid, client)
 		proxySrv.Proxy()
 		logoutMsg := LogoutMsg{Room: roomID}
 		userConn.SendLogoutEvent(neffos.Marshal(logoutMsg))
 		userConn.DeleteClient(client.Uuid)
-		logger.Infof("Ws %s remove client %s to proxy", websocketID, client.Uuid)
+		logger.Infof("Ws %s remove Conn[%s]", websocketID, client.Uuid)
 	}()
 	return nil
 }
@@ -271,7 +247,7 @@ func OnResizeHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 		logger.Errorf("Resize Event: ws %s unmarshal msg err %s", c.Conn.ID(), err)
 		return
 	}
-	logger.Debugf("Resize Event: ws %s resize windows to %d*%d", c.Conn.ID(), message.Width, message.Height)
+	logger.Infof("Resize Event: ws %s resize windows to %d*%d", c.Conn.ID(), message.Width, message.Height)
 	winSize := ssh.Window{Height: message.Height, Width: message.Width}
 	if conn, ok := websocketManager.GetUserCon(c.Conn.ID()); ok {
 		conn.ReceiveResizeEvent(winSize)
@@ -290,7 +266,7 @@ func OnLogoutHandler(c *neffos.NSConn, msg neffos.Message) (err error) {
 		logger.Errorf("Logout event: ws %s unmarshal msg err: %s", c.Conn.ID(), err)
 		return
 	}
-	logger.Debugf("Logout event: ws %s logout clientID %s", c.Conn.ID(), clientID)
+	logger.Infof("Logout event: ws %s logout Conn[%s]", c.Conn.ID(), clientID)
 	if conn, ok := websocketManager.GetUserCon(c.Conn.ID()); ok {
 		conn.ReceiveLogoutEvent(clientID)
 		return nil
@@ -312,12 +288,11 @@ func OnShareRoom(ns *neffos.NSConn, msg neffos.Message) (err error) {
 	logger.Debugf("Ws %s fire ShareRoom", websocketID)
 	userConn, ok := websocketManager.GetUserCon(websocketID)
 	if !ok {
-		errMsg := fmt.Sprintf("Websocket %s should fire connected first.", websocketID)
+		errMsg := fmt.Sprintf("Ws %s should fire connected first.", websocketID)
 		logger.Errorf(errMsg)
 		return errors.New(errMsg)
 	}
 
-	cc := ns.Conn
 	var shareRoomMsg struct {
 		ShareRoomID string `json:"shareRoomID"`
 		Secret      string `json:"secret"`
@@ -328,27 +303,14 @@ func OnShareRoom(ns *neffos.NSConn, msg neffos.Message) (err error) {
 		return err
 	}
 	userR, userW := io.Pipe()
-	var addr string
-	request := cc.Socket().Request()
-	header := request.Header
-	remoteAddr := header.Get("X-Forwarded-For")
-	if remoteAddr == "" {
-		if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
-			addr = host
-		} else {
-			addr = request.RemoteAddr
-		}
-	} else {
-		addr = strings.Split(remoteAddr, ",")[0]
-	}
 	uid := uuid.NewV4().String()
 	emitMsg := RoomMsg{uid, shareRoomMsg.Secret}
 	userConn.SendRoomEvent(neffos.Marshal(emitMsg))
 	win := ssh.Window{Height: 24, Width: 80}
 	client := &Client{
-		Uuid: uid, addr: addr,
+		Uuid:    uid,
 		WinChan: make(chan ssh.Window, 100), Conn: userConn,
-		UserRead: userR, UserWrite: userW, mu: new(sync.RWMutex),
+		UserRead: userR, UserWrite: userW,
 		pty: ssh.Pty{Term: "xterm", Window: win},
 	}
 	client.WinChan <- win
@@ -365,7 +327,7 @@ func JoinRoom(c *Client, roomID string) {
 	logoutMsg := LogoutMsg{Room: c.Uuid}
 
 	if err != nil {
-		logger.Errorf("Ws Join Room err: %s", err)
+		logger.Errorf("Conn[%s] Join Room err: %s", c.ID(), err)
 		logoutMsg.Data = fmt.Sprintf("Join Session err: %s", err)
 		logoutData, _ := json.Marshal(logoutMsg)
 		c.Conn.SendLogoutEvent(logoutData)
@@ -374,7 +336,7 @@ func JoinRoom(c *Client, roomID string) {
 	defer ex.LeaveRoom(room, roomID)
 
 	if !c.Conn.CheckShareRoomReadPerm(roomID) {
-		logger.Error("Ws has no pem to join room")
+		logger.Errorf("Conn[%s] has no pem to join room", c.ID())
 		logoutMsg.Data = fmt.Sprintf("You have no perm to join room %s", roomID)
 		logoutData, _ := json.Marshal(logoutMsg)
 		c.Conn.SendLogoutEvent(logoutData)
@@ -384,7 +346,6 @@ func JoinRoom(c *Client, roomID string) {
 		for {
 			msg, ok := <-roomChan
 			if !ok {
-				logger.Infof("User %s exit room %s by roomChan closed", c.Conn.User.Name, roomID)
 				break
 			}
 			switch msg.Event {
@@ -400,22 +361,23 @@ func JoinRoom(c *Client, roomID string) {
 			case model.WindowsEvent, model.PingEvent:
 				continue
 			default:
-				logger.Errorf("User %s in room %s receive unknown event %s", c.Conn.User.Name, roomID, msg.Event)
+				logger.Errorf("Conn[%s] receive unknown room event %s", c.Conn.User.Name, roomID, msg.Event)
 
 			}
-			logger.Infof("User %s stop receive msg from room %s by %s", c.Conn.User.Name, roomID, msg.Event)
+			logger.Infof("Conn[%s] stop receive msg from room %s by %s", c.ID(), roomID, msg.Event)
 			break
 
 		}
 		_ = c.Close()
-
+		c.Conn.DeleteClient(c.Uuid)
+		logger.Infof("Conn[%s] User %s exit room %s", c.ID(), c.Conn.User.Name, roomID)
 	}()
 
 	buf := make([]byte, 1024)
 	for {
 		nr, err := c.Read(buf)
 		if err != nil {
-			logger.Errorf("User %s exit share room %s by %s", c.Conn.User.Name, roomID, err)
+			logger.Errorf("Conn[%s] User %s exit share room %s by %s", c.Conn.User.Name, roomID, err)
 			break
 		}
 		// checkout user write pem
@@ -427,5 +389,6 @@ func JoinRoom(c *Client, roomID string) {
 			Body:  buf[:nr],
 		}
 		room.Publish(msg)
+		logger.Infof("User %s published DataEvent to room %s", c.Conn.User.Name, roomID)
 	}
 }
