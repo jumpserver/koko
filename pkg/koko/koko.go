@@ -43,15 +43,23 @@ func RunForever(confPath string) {
 	bootstrap(ctx)
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	app := &Coco{}
-	app.Start()
-	<-gracefulStop
-	cancelFunc()
-	app.Stop()
+	conf := config.GetConf()
+	app := Application{Conf: &conf}
+	go func() {
+		<-gracefulStop
+		cancelFunc()
+		app.Close()
+	}()
+	app.Run()
+	//app := &Coco{}
+	//app.Start()
+
+	//app.Stop()
 }
 
 func bootstrap(ctx context.Context) {
-	i18n.Initial()
+	cf := config.GetConf()
+	i18n.Initial(cf.RootPath)
 	logger.Initial()
 	service.Initial(ctx)
 	exchange.Initial(ctx)

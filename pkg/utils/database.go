@@ -10,6 +10,7 @@ func IsInstalledMysqlClient() bool {
 		cmd := exec.Command(mysqlPath, "-V")
 		if err = cmd.Start(); err == nil {
 			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
 			return true
 		}
 	}

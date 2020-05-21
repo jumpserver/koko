@@ -8,6 +8,7 @@ const (
 	ContextKeyClient
 	ContextKeyConfirmRequired
 	ContextKeyConfirmFailed
+	ContextKeyCurrentLang
 )
 
 const (

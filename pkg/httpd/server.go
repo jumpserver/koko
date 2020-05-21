@@ -26,9 +26,9 @@ func StartHTTPServer() {
 	sshWs.IDGenerator = func(w http.ResponseWriter, r *http.Request) string {
 		return neffos.DefaultIDGenerator(w, r)
 	}
-	sshWs.OnUpgradeError = neffosOnUpgradeError
-	sshWs.OnConnect = neffosOnConnect
-	sshWs.OnDisconnect = neffosOnDisconnect
+	sshWs.OnUpgradeError = NeffosOnUpgradeError
+	sshWs.OnConnect = NeffosOnConnect
+	sshWs.OnDisconnect = NeffosOnDisconnect
 
 	router := mux.NewRouter()
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
@@ -36,16 +36,16 @@ func StartHTTPServer() {
 	subRouter := router.PathPrefix("/koko/").Subrouter()
 	subRouter.PathPrefix("/static/").Handler(http.StripPrefix("/koko/static/", fs))
 	subRouter.Handle("/ws/", sshWs)
-	subRouter.Handle("/room/{roomID}/", AuthDecorator(roomHandler))
+	subRouter.Handle("/room/{roomID}/", AuthDecorator(RoomHandler))
 
 	elfinderRouter := subRouter.PathPrefix("/elfinder/").Subrouter()
-	elfinderRouter.HandleFunc("/sftp/{host}/", AuthDecorator(sftpHostFinder))
-	elfinderRouter.HandleFunc("/sftp/", AuthDecorator(sftpFinder))
+	elfinderRouter.HandleFunc("/sftp/{host}/", AuthDecorator(SftpHostFinder))
+	elfinderRouter.HandleFunc("/sftp/", AuthDecorator(SftpFinder))
 	elfinderRouter.HandleFunc("/sftp/connector/{host}/",
-		AuthDecorator(sftpHostConnectorView),
+		AuthDecorator(SftpHostConnectorView),
 	).Methods("GET", "POST")
 
-	router.HandleFunc("/status/", statusHandler)
+	router.HandleFunc("/status/", StatusHandler)
 
 	if strings.ToUpper(conf.LogLevel) == "DEBUG" {
 		router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
@@ -60,7 +60,7 @@ func StopHTTPServer() {
 	_ = httpServer.Close()
 }
 
-func statusHandler(wr http.ResponseWriter, req *http.Request) {
+func StatusHandler(wr http.ResponseWriter, req *http.Request) {
 	status := make(map[string]interface{})
 	data := websocketManager.GetWebsocketData()
 	status["websocket"] = data

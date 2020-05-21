@@ -13,6 +13,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -72,6 +73,8 @@ type interactiveHandler struct {
 
 	dbPaginator   DatabasePaginator
 	currentDBData []model.Database
+
+	i18NT i18n.Language
 }
 
 func (h *interactiveHandler) Initial() {

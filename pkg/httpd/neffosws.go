@@ -49,7 +49,7 @@ var wsEvents = neffos.WithTimeout{
 	},
 }
 
-func neffosOnUpgradeError(err error) {
+func NeffosOnUpgradeError(err error) {
 	if ok := neffos.IsTryingToReconnect(err); ok {
 		logger.Debugf("A client was tried to reconnect err: %s", err)
 		return
@@ -57,7 +57,7 @@ func neffosOnUpgradeError(err error) {
 	logger.Errorf("Upgrade Error: %s", err)
 }
 
-func neffosOnConnect(c *neffos.Conn) error {
+func NeffosOnConnect(c *neffos.Conn) error {
 	if c.WasReconnected() {
 		logger.Debugf("ws %s reconnected, with tries: %d", c.ID(), c.ReconnectTries)
 	} else {
@@ -66,7 +66,7 @@ func neffosOnConnect(c *neffos.Conn) error {
 	return nil
 }
 
-func neffosOnDisconnect(c *neffos.Conn) {
+func NeffosOnDisconnect(c *neffos.Conn) {
 	logger.Debugf("Ws %s connection disconnect", c.ID())
 	if conn, ok := websocketManager.GetUserCon(c.ID()); ok {
 		conn.Close()

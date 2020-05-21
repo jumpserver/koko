@@ -1,15 +1,13 @@
 package sshd
 
 import (
-	"net"
-
 	"github.com/gliderlabs/ssh"
-	"github.com/pires/go-proxyproto"
-
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/pires/go-proxyproto"
+	"net"
 )
 
 var sshServer *ssh.Server
