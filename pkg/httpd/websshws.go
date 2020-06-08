@@ -45,9 +45,6 @@ func OnNamespaceConnected(ns *neffos.NSConn, msg neffos.Message) error {
 
 	userConn, err := NewUserWebsocketConnWithSession(ns)
 	if err != nil {
-		//ns.Emit("data", neffos.Marshal(err.Error()))
-		//ns.Emit("disconnect", []byte(""))
-		//ns.Conn.Close()
 		logger.Errorf("Ws %s check session failed, may use token", ns.Conn.ID())
 		return nil
 	}
