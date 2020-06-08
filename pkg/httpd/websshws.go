@@ -201,13 +201,14 @@ func OnTokenHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 	}
 	userConn, err := NewUserWebsocketConnWithTokenUser(ns, tokenUser)
 	if err != nil {
-		msg := "User id error"
+		msg := "check token error"
 		dataMsg := DataMsg{Data: msg, Room: roomID}
 		ns.Emit("data", neffos.Marshal(dataMsg))
 		ns.Emit("disconnect", neffos.Marshal([]byte("")))
 		logger.Error("Token Event: ", msg)
 		return errors.New("user id error")
 	}
+	logger.Infof("Ws %s accepted user %s connect by token", ns.Conn.ID(), userConn.User.Username)
 	websocketManager.AddUserCon(ns.Conn.ID(), userConn)
 	go userConn.loopHandler()
 	hostMsg := HostMsg{
