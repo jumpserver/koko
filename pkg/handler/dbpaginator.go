@@ -16,16 +16,16 @@ type DatabasePaginator interface {
 	SearchKeys() []string
 }
 
-func NewLocalDatabasePaginator(data [] model.Database, pageSize int) DatabasePaginator {
+func NewLocalDatabasePaginator(data []model.Database, pageSize int) DatabasePaginator {
 	p := localDatabasePaginator{
 		allData:       data,
 		currentData:   data,
-		pageSize:      pageSize,
 		currentOffset: 0,
 		currentPage:   1,
 		search:        make([]string, 0, 4),
 		lock:          new(sync.RWMutex),
 	}
+	p.SetPageSize(pageSize)
 	return &p
 }
 
@@ -177,7 +177,7 @@ func searchFromLocalDBs(dbs []model.Database, key string) []model.Database {
 	displayDBs := make([]model.Database, 0, len(dbs))
 	key = strings.ToLower(key)
 	for _, db := range dbs {
-		contents := []string{strings.ToLower(db.Name),strings.ToLower(db.DBName),
+		contents := []string{strings.ToLower(db.Name), strings.ToLower(db.DBName),
 			strings.ToLower(db.Host), strings.ToLower(db.Comment)}
 		if isSubstring(contents, key) {
 			displayDBs = append(displayDBs, db)
