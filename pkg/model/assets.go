@@ -295,14 +295,10 @@ const (
 )
 
 type SystemUserFilterRule struct {
-	Priority int `json:"priority"`
-	Type     struct {
-		Value string `json:"value"`
-	} `json:"type"`
-	Content string `json:"content"`
-	Action  struct {
-		Value RuleAction `json:"value"`
-	} `json:"action"`
+	Priority int        `json:"priority"`
+	Type     string     `json:"type"`
+	Content  string     `json:"content"`
+	Action   RuleAction `json:"action"`
 
 	pattern  *regexp.Regexp
 	compiled bool
@@ -313,7 +309,7 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 		return sf.pattern
 	}
 	var regexs string
-	if sf.Type.Value == TypeCmd {
+	if sf.Type == TypeCmd {
 		var regex []string
 		for _, cmd := range strings.Split(sf.Content, "\r\n") {
 			cmd = regexp.QuoteMeta(cmd)
@@ -346,5 +342,5 @@ func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
 	if found == "" {
 		return ActionUnknown, ""
 	}
-	return sf.Action.Value, found
+	return sf.Action, found
 }
