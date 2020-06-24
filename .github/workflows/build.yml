@@ -1,9 +1,7 @@
-name: Release Go Binaries
-
 on: 
   release: [created]
 
-
+name: Release Go Binaries
 env:
   CMD_PATH: ./cmd/
 
