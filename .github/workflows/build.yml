@@ -1,5 +1,6 @@
 on: 
-  release: [created]
+  release:
+    types: [created]
 
 name: Release Go Binaries
 env:
