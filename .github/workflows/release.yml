@@ -9,7 +9,11 @@ name: Create Release
 jobs:
   build:
     name: Create Release
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.13.x, 1.14.x]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -27,3 +31,15 @@ jobs:
             - Second Change
           draft: false
           prerelease: false
+  release-linux-amd64:
+    name: release linux/amd64
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: compile and release
+      uses: ngs/go-release.action@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GOARCH: amd64
+        GOOS: linux
+        CMD_PATH: "cmd/koko.go"
