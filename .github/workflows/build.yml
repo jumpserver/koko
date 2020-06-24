@@ -1,10 +1,11 @@
 on: 
   release:
-    types: [created]
+    types: [published]
 
 name: Release Go Binaries
 env:
   CMD_PATH: ./cmd/
+  SUPER_SECRET: ${{ secrets.PERSONAL_GITHUB_ACTION_SECRET }}
 
 
 jobs:
@@ -13,14 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
-        goarch: ["386", amd64]
-        exclude:  
-          # windows/386 and darwin/386 seems useless 
-          - goarch: "386"
-            goos: windows 
-          - goarch: "386"
-            goos: darwin 
+        goos: [linux, darwin]
+        goarch: [amd64]
+
     steps:
     - uses: actions/checkout@v2
     - name: Set APP_VERSION env
@@ -31,7 +27,7 @@ jobs:
       uses: managedkaos/print-env@v1.0
     - uses: wangyoucao577/go-release-action@master
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        super_secret: ${{ secrets.PERSONAL_GITHUB_ACTION_SECRET }}
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
         project_path: "${{ env.CMD_PATH }}"
