@@ -1,8 +1,7 @@
 name: Release Go Binaries
 
-on: 
-  release:
-    types: [created]
+on: release
+
 
 env:
   CMD_PATH: ./cmd/koko
