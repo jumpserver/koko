@@ -5,7 +5,7 @@ on:
 
 
 env:
-  CMD_PATH: ./cmd/koko
+  CMD_PATH: ./cmd/
 
 
 jobs:
