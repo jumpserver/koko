@@ -22,14 +22,12 @@ jobs:
             goos: darwin 
     steps:
     - uses: actions/checkout@v2
-
     - name: Set APP_VERSION env
       run: echo ::set-env name=APP_VERSION::$(echo ${GITHUB_REF} | rev | cut -d'/' -f 1 | rev )
     - name: Set BUILD_TIME env
       run: echo ::set-env name=BUILD_TIME::$(date)
     - name: Environment Printer
       uses: managedkaos/print-env@v1.0
-
     - uses: wangyoucao577/go-release-action@master
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
