@@ -17,7 +17,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          SUPER_SECRET: ${{ secrets.PERSONAL_GITHUB_ACTION_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_ACTION_SECRET }}
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
