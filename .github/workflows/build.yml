@@ -1,6 +1,7 @@
 name: Release Go Binaries
 
-on: release
+on: 
+  release: [created]
 
 
 env:
