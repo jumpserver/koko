@@ -1,4 +1,7 @@
-on: release
+on: 
+  release:
+    types:
+      - created
 name: Build Release
 jobs:
   release-linux-amd64:
