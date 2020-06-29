@@ -5,11 +5,11 @@ on:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 name: Create Release And Upload assets
-env:
-  CMD_PATH: ./cmd/
+
 jobs:
-  build:
+  create-realese:
     name: Create Release
+    id: create_release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -29,26 +29,19 @@ jobs:
           draft: false
           prerelease: false
 
-  releases-matrix:
-    name: Release Matrix
+  build-and-release:
+    name: Build and Release Matrix
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, darwin]
-        goarch: [amd64]
+        os: [linux, darwin]
+        arch: [amd64]
     steps:
     - uses: actions/checkout@v2
-    - name: Set APP_VERSION env
-      run: echo ::set-env name=APP_VERSION::$(echo ${GITHUB_REF} | rev | cut -d'/' -f 1 | rev )
-    - name: Set BUILD_TIME env
-      run: echo ::set-env name=BUILD_TIME::$(date)
-    - name: Environment Printer
-      uses: managedkaos/print-env@v1.0
-    - uses: wangyoucao577/go-release-action@master
+    - name: Build it and upload
+      uses: ibuler/action-build-upload@master
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: ${{ matrix.goos }}
-        goarch: ${{ matrix.goarch }}
-        project_path: "${{ env.CMD_PATH }}"
-        build_flags: -v
-        ldflags: -X "main.appVersion=${{ env.APP_VERSION }}" -X "main.buildTime=${{ env.BUILD_TIME }}" -X main.gitCommit=${{ github.sha }} -X main.gitRef=${{ github.ref }}
+        os: ${{ matrix.os }}
+        arch: ${{ marix.arch }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
