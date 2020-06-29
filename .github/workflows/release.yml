@@ -9,7 +9,6 @@ name: Create Release And Upload assets
 jobs:
   create-realese:
     name: Create Release
-    id: create_release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
