@@ -57,3 +57,5 @@ cd kokodir
 make docker
 ```
 构建成功后，生成koko镜像
+
+as
