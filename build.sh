@@ -3,8 +3,8 @@
 mkdir -p /data/gopath
 export GOPATH=/data/gopath
 
-yum -y install epel-release
-yum -y install git go gcc
+#yum -y install epel-release
+#yum -y install git go gcc
 
 
 # 输出所有内容到目录releases中
@@ -19,6 +19,7 @@ go_version=$(go version)
 #    echo "Exist code: ${exit_code}"
 #    exit ${exit_code}
 #fi
+cd cmd
 touch koko
 
 mkdir -p ../release && rm -rf ../release/*
