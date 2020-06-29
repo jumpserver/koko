@@ -7,6 +7,17 @@ on:
 name: Create Release And Upload assets
 
 jobs:
+  job1:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      output1: ${{ steps.step1.outputs.test }}
+      output2: ${{ steps.step2.outputs.test }}
+    steps:
+      - id: step1
+        run: echo "::set-output name=test::hello"
+      - id: step2
+        run: echo "::set-output name=test::world"
   create-realese:
     name: Create Release
     runs-on: ubuntu-latest
@@ -31,7 +42,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
 
   one:
-    needs: create-realese
+    needs: [create-realese, job1]
     runs-on: ubuntu-16.04
     steps:
       - name: Dump GitHub context
