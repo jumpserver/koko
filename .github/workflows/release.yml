@@ -29,6 +29,7 @@ jobs:
           prerelease: false
 
   one:
+    needs: create-realese
     runs-on: ubuntu-16.04
     steps:
       - name: Dump GitHub context
@@ -57,6 +58,7 @@ jobs:
         run: echo "$MATRIX_CONTEXT"
 
   build-and-release:
+    needs: create-realese
     name: Build and Release Matrix
     runs-on: ubuntu-latest
     strategy:
