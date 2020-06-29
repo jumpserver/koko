@@ -44,4 +44,4 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         os: ${{ matrix.os }}
         arch: ${{ marix.arch }}
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ jobs.create-realese.steps.create_release.outputs.upload_url }}
