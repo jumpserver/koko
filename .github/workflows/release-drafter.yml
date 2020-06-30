@@ -22,10 +22,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           config-name: release-config.yml
-          tag: ${{ github.ref }}
-          name: Release ${{ github.ref }}
-          publish: true
-          prerelease: false
 
   build-and-release:
     needs: create-realese
