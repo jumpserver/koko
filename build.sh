@@ -1,7 +1,7 @@
 #!/bin/bash -eux
 
-mkdir -p /data/gopath
-export GOPATH=/data/gopath
+#mkdir -p /data/gopath
+#export GOPATH=/data/gopath
 
 #yum -y install epel-release
 #yum -y install git go gcc
