@@ -43,6 +43,7 @@ tar xzf koko-[branch name]-[commit]-linux-amd64.tar.gz
 ```shell
 touch config.yml
 ```
+gaga
 
 4.运行koko
 ```shell
@@ -50,6 +51,7 @@ cd kokodir
 ./koko
 ```
 
+优化
 
 ## 构建docker镜像
 
@@ -59,4 +61,7 @@ make docker
 构建成功后，生成koko镜像
 
 asbasdfdffffff1sdfsddf
+
 how erver
+bugfix
+
