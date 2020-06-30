@@ -35,6 +35,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build it and upload
         uses: ibuler/action-build-upload@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           os: ${{ matrix.os }}
