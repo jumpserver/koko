@@ -21,7 +21,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          config-name: release-drafter.yml
+          config-name: release-config.yml
           tag: ${{ github.ref }}
           name: Release ${{ github.ref }}
           publish: true
@@ -44,35 +44,3 @@ jobs:
           os: ${{ matrix.os }}
           arch: ${{ matrix.arch }}
           upload_url: ${{ needs.create-realese.outputs.upload_url }}
-
-name-template: 'Release v$RESOLVED_VERSION 🌈'
-tag-template: 'v$RESOLVED_VERSION'
-categories:
-  - title: '🚀 Features'
-    labels:
-      - 'feature'
-      - 'enhancement'
-      - 'feat'
-  - title: '🐛 Bug Fixes'
-    labels:
-      - 'fix'
-      - 'bugfix'
-      - 'bug'
-  - title: '🧰 Maintenance'
-    label: 'chore'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
-version-resolver:
-  major:
-    labels:
-      - 'major'
-  minor:
-    labels:
-      - 'minor'
-  patch:
-    labels:
-      - 'patch'
-  default: patch
-template: |
-  ## What’s Changed
-
-  $CHANGES
