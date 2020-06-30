@@ -7,11 +7,11 @@ categories:
       - 'enhancement'
       - 'feat'
   - title: '🚀 性能优化 Optimization'
-      labels:
-        - 'perf'
-        - 'opt'
-        - 'refactor'
-        - 'Optimization'
+    labels:
+      - 'perf'
+      - 'opt'
+      - 'refactor'
+      - 'Optimization'
   - title: '🐛 Bug修复 Bug Fixes'
     labels:
       - 'fix'
