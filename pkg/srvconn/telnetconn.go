@@ -91,6 +91,8 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 		return err
 	}
 	tc.conn = client
+	tc.transformReader = client
+	tc.transformWriter = client
 	if tc.Charset != model.UTF8 {
 		if readDecode := model.LookupCharsetDecode(tc.Charset); readDecode != nil {
 			tc.transformReader = transform.NewReader(client, readDecode)
@@ -109,17 +111,11 @@ func (tc *ServerTelnetConnection) SetWinSize(w, h int) error {
 }
 
 func (tc *ServerTelnetConnection) Read(p []byte) (n int, err error) {
-	if tc.transformReader != nil {
-		return tc.transformReader.Read(p)
-	}
-	return tc.conn.Read(p)
+	return tc.transformReader.Read(p)
 }
 
 func (tc *ServerTelnetConnection) Write(p []byte) (n int, err error) {
-	if tc.transformWriter != nil {
-		return tc.transformWriter.Write(p)
-	}
-	return tc.conn.Write(p)
+	return tc.transformWriter.Write(p)
 }
 
 func (tc *ServerTelnetConnection) Close() (err error) {
