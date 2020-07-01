@@ -5,18 +5,40 @@ import (
 	"io"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/text/transform"
+
+	"github.com/jumpserver/koko/pkg/model"
 )
 
-func NewServerSSHConnection(sess *gossh.Session) *ServerSSHConnection {
+type ConnectionOption func(*connectionOptions)
+
+type connectionOptions struct {
+	charset string
+}
+
+func OptionCharset(charset string) ConnectionOption {
+	return func(opt *connectionOptions) {
+		opt.charset = charset
+	}
+}
+func NewServerSSHConnection(sess *gossh.Session, opts ...ConnectionOption) *ServerSSHConnection {
+	options := &connectionOptions{
+		charset: model.UTF8,
+	}
+	for _, setter := range opts {
+		setter(options)
+	}
 	return &ServerSSHConnection{
 		session: sess,
+		options: options,
 	}
 }
 
 type ServerSSHConnection struct {
 	session *gossh.Session
-	stdin   io.WriteCloser
+	stdin   io.Writer
 	stdout  io.Reader
+	options *connectionOptions
 }
 
 func (sc *ServerSSHConnection) Protocol() string {
@@ -44,6 +66,14 @@ func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
 	sc.stdout, err = sc.session.StdoutPipe()
 	if err != nil {
 		return
+	}
+	if sc.options.charset != model.UTF8 {
+		if readDecode := model.LookupCharsetDecode(sc.options.charset); readDecode != nil {
+			sc.stdout = transform.NewReader(sc.stdout, readDecode)
+		}
+		if writerEncode := model.LookupCharsetEncode(sc.options.charset); writerEncode != nil {
+			sc.stdin = transform.NewWriter(sc.stdin, writerEncode)
+		}
 	}
 	return sc.session.Shell()
 }
