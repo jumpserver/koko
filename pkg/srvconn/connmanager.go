@@ -174,8 +174,7 @@ func KeepAlive(c *sshClient, closed <-chan struct{}, keepInterval time.Duration)
 			if err != nil {
 				logger.Errorf("SSH client %s keep alive err: %s, retry count: %d", c, err.Error(), errCount)
 				if errCount >= retryCount {
-					logger.Errorf("SSH client %s keep alive err count exceed max count: %d and close it", c, retryCount)
-					_ = c.close()
+					logger.Errorf("SSH client %s keep alive err count exceed max count: %d and stop it", c, retryCount)
 					return
 				}
 				errCount++
