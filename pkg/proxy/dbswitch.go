@@ -14,7 +14,6 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -133,7 +132,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 		done       chan struct{}
 	)
 	s.isConnected = true
-	parser = newDBParser(s.ID)
+	parser = newDBParser(s.ID, s.p.Lang)
 	logger.Infof("Conn[%s] create parser success", userConn.ID())
 	replayRecorder = NewReplyRecord(s.ID)
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
@@ -180,7 +179,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			if !now.After(outTime) {
 				continue
 			}
-			msg := fmt.Sprintf(i18n.T("Database connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
+			msg := fmt.Sprintf(s.p.Lang.T("Database connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			logger.Infof("DB Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
@@ -189,7 +188,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 			return
 		// 手动结束
 		case <-s.ctx.Done():
-			msg := i18n.T("Database connection terminated by administrator")
+			msg := s.p.Lang.T("Database connection terminated by administrator")
 			msg = utils.WrapperWarn(msg)
 			logger.Infof("DB Session[%s] %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)

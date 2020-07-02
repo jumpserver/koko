@@ -31,8 +31,8 @@ const (
 	CommandOutputParserName = "Command Output parser"
 )
 
-func newParser(sid string) Parser {
-	parser := Parser{id: sid}
+func newParser(sid string, lang i18n.Language) Parser {
+	parser := Parser{id: sid, lang: lang}
 	parser.initial()
 	return parser
 }
@@ -40,6 +40,7 @@ func newParser(sid string) Parser {
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
 	id string
+	lang i18n.Language
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
@@ -135,7 +136,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
 		if cmd, ok := p.IsCommandForbidden(); !ok {
-			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
+			fbdMsg := utils.WrapperWarn(fmt.Sprintf(p.lang.T("Command `%s` is forbidden"), cmd))
 			_, _ = p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			p.cmdRecordChan <- [3]string{p.command, fbdMsg, model.HighRiskFlag}

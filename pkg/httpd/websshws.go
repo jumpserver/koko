@@ -148,11 +148,13 @@ func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 			User:       userConn.User,
 			Database:   &databaseAsset,
 			SystemUser: &systemUser,
+			Lang:       GetRequestLang(ns.Conn),
 		}
 	default:
 		proxySrv = &proxy.ProxyServer{
 			UserConn: client, User: userConn.User,
 			Asset: &asset, SystemUser: &systemUser,
+			Lang: GetRequestLang(ns.Conn),
 		}
 	}
 	go func() {

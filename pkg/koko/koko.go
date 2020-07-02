@@ -51,7 +51,7 @@ func RunForever(confPath string) {
 }
 
 func bootstrap(ctx context.Context) {
-	i18n.Initial()
+	i18n.Initial(config.GetConf().RootPath)
 	logger.Initial()
 	service.Initial(ctx)
 	exchange.Initial(ctx)

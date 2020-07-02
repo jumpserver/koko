@@ -248,9 +248,25 @@ func parseGet(call *ast.CallExpr) {
 	if call.Args != nil && len(call.Args) > 0 {
 		if lit, ok := call.Args[0].(*ast.BasicLit); ok {
 			if lit.Kind == token.STRING {
+				selectExpr := call.Fun.(*ast.SelectorExpr).X
+				exprStr := call.Fun.(*ast.SelectorExpr).Sel.String()
+				exprPath := fmt.Sprintf("%s:%d", fset.Position(call.Lparen).Filename, fset.Position(call.Lparen).Line)
+				var ok bool
+				for !ok {
+					switch v := selectExpr.(type) {
+					case *ast.SelectorExpr:
+						selectExpr = v.X
+						exprStr = fmt.Sprintf("%s.%s", v.Sel.Name, exprStr)
+					case *ast.Ident:
+						exprStr = fmt.Sprintf("%s.%s", v.Name, exprStr)
+						ok = true
+					default:
+						log.Panicf("do not found selectExpr type: %v", v)
+					}
+				}
 				writeComments(currentDomain,
-					fmt.Sprintf("%s:%d", fset.Position(call.Lparen).Filename, fset.Position(call.Lparen).Line),
-					fmt.Sprintf("%s.%s", call.Fun.(*ast.SelectorExpr).X.(*ast.Ident).Name, call.Fun.(*ast.SelectorExpr).Sel.String()),
+					exprPath,
+					exprStr,
 				)
 				write(currentDomain, lit.Value)
 			}

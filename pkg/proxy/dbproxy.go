@@ -19,6 +19,7 @@ type DBProxyServer struct {
 	User       *model.User
 	Database   *model.Database
 	SystemUser *model.SystemUser
+	Lang       i18n.Language
 }
 
 func (p *DBProxyServer) getAuthOrManualSet() error {
@@ -112,7 +113,7 @@ func (p *DBProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err e
 // sendConnectingMsg 发送连接信息
 func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.Duration) {
 	delay := 0.0
-	msg := fmt.Sprintf(i18n.T("Database connecting to %s %.1f"), p.Database, delay)
+	msg := fmt.Sprintf(p.Lang.T("Database connecting to %s %.1f"), p.Database, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for int(delay) < int(delayDuration/time.Second) {
 		select {
@@ -131,7 +132,7 @@ func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time
 // preCheckRequisite 检查是否满足条件
 func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 	if !p.checkProtocolMatch() {
-		msg := utils.WrapperWarn(i18n.T("System user <%s> and database <%s> protocol are inconsistent."))
+		msg := utils.WrapperWarn(p.Lang.T("System user <%s> and database <%s> protocol are inconsistent."))
 		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Database.DBType)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
@@ -139,7 +140,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 	}
 	logger.Infof("Conn[%s] System user and asset protocol matched", p.UserConn.ID())
 	if !p.checkProtocolClientInstalled() {
-		msg := utils.WrapperWarn(i18n.T("Database %s protocol client not installed."))
+		msg := utils.WrapperWarn(p.Lang.T("Database %s protocol client not installed."))
 		msg = fmt.Sprintf(msg, p.Database.DBType)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking permission failed.", p.UserConn.ID())

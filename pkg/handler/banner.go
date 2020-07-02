@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"sync"
 	"text/template"
 
 	"github.com/jumpserver/koko/pkg/config"
@@ -13,14 +12,13 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-var defaultTitle string
-var menu Menu
 
 type MenuItem struct {
 	id       int
 	instruct string
 	helpText string
 	showText string
+	lang i18n.Language
 }
 
 func (mi *MenuItem) Text() string {
@@ -28,7 +26,7 @@ func (mi *MenuItem) Text() string {
 		return mi.showText
 	}
 	cm := ColorMeta{GreenBoldColor: "\033[1;32m", ColorEnd: "\033[0m"}
-	line := fmt.Sprintf(i18n.T("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"), mi.id, mi.instruct, mi.helpText, "\r\n")
+	line := fmt.Sprintf(mi.lang.T("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"), mi.id, mi.instruct, mi.helpText, "\r\n")
 	tmpl := template.Must(template.New("item").Parse(line))
 
 	var buf bytes.Buffer
@@ -42,27 +40,25 @@ func (mi *MenuItem) Text() string {
 
 type Menu []MenuItem
 
-func Initial() {
-	defaultTitle = utils.WrapperTitle(i18n.T("Welcome to use Jumpserver open source fortress system"))
-	menu = Menu{
-		{id: 1, instruct: i18n.T("part IP, Hostname, Comment"), helpText: i18n.T("to search login if unique")},
-		{id: 2, instruct: i18n.T("/ + IP, Hostname, Comment"), helpText: i18n.T("to search, such as: /192.168")},
-		{id: 3, instruct: "p", helpText: i18n.T("display the host you have permission")},
-		{id: 4, instruct: "g", helpText: i18n.T("display the node that you have permission")},
-		{id: 5, instruct: "d", helpText: i18n.T("display the databases that you have permission")},
-		{id: 6, instruct: "r", helpText: i18n.T("refresh your assets and nodes")},
-		{id: 7, instruct: "h", helpText: i18n.T("print help")},
-		{id: 8, instruct: "q", helpText: i18n.T("exit")},
-	}
-}
 
 type ColorMeta struct {
 	GreenBoldColor string
 	ColorEnd       string
 }
 
-func displayBanner(sess io.ReadWriter, user string) {
-	title := defaultTitle
+func displayBannerWithLang(sess io.ReadWriter, user string, lang i18n.Language) {
+	title := utils.WrapperTitle(lang.T("Welcome to use JumpServer open source fortress system"))
+	menu := Menu{
+		{id: 1, instruct: lang.T("part IP, Hostname, Comment"), helpText: lang.T("to search login if unique"), lang: lang},
+		{id: 2, instruct: lang.T("/ + IP, Hostname, Comment"), helpText: lang.T("to search, such as: /192.168"), lang: lang},
+		{id: 3, instruct: "p", helpText: lang.T("display the host you have permission"), lang: lang},
+		{id: 4, instruct: "g", helpText: lang.T("display the node that you have permission"), lang: lang},
+		{id: 5, instruct: "d", helpText: lang.T("display the databases that you have permission"), lang: lang},
+		{id: 6, instruct: "r", helpText: lang.T("refresh your assets and nodes"), lang: lang},
+		{id: 7, instruct: "s", helpText: lang.T("Chinese-english switch"), lang: lang},
+		{id: 8, instruct: "h", helpText: lang.T("print help"), lang: lang},
+		{id: 9, instruct: "q", helpText: lang.T("exit"), lang: lang},
+	}
 	cf := config.GetConf()
 	if cf.HeaderTitle != "" {
 		title = cf.HeaderTitle
@@ -79,36 +75,4 @@ func displayBanner(sess io.ReadWriter, user string) {
 	for _, v := range menu {
 		utils.IgnoreErrWriteString(sess, v.Text())
 	}
-}
-
-var i18nMap map[string]string
-var i18nOnce sync.Once
-
-func getI18nFromMap(name string) string {
-	i18nOnce.Do(func() {
-		i18nMap = map[string]string{
-			"ID":                i18n.T("ID"),
-			"Hostname":          i18n.T("hostname"),
-			"IP":                i18n.T("IP"),
-			"Comment":           i18n.T("comment"),
-			"AssetTableCaption": i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
-			"NoAssets":          i18n.T("No Assets"),
-			"LoginTip":          i18n.T("Enter ID number directly login the asset, multiple search use // + field, such as: //16"),
-			"PageActionTip":     i18n.T("Page up: b	Page down: n"),
-			"NodeHeaderTip":     i18n.T("Node: [ ID.Name(Asset amount) ]"),
-			"NodeEndTip":        i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1"),
-			"RefreshDone":       i18n.T("Refresh done"),
-			"SelectUserTip":     i18n.T("Tips: Enter system user ID and directly login the asset [ %s(%s) ]"),
-			"BackTip":           i18n.T("Back: B/b"),
-			"Name":              i18n.T("Name"),
-			"Username":          i18n.T("Username"),
-			"All":               i18n.T("all"),
-			"SearchTip":         i18n.T("Search: %s"),
-			"DBType":            i18n.T("DBType"),
-			"DBName":            i18n.T("DB Name"),
-			"NoDatabases":       i18n.T("No Databases"),
-			"DBLoginTip":        i18n.T("Enter ID number directly login the database, multiple search use // + field, such as: //16"),
-		}
-	})
-	return i18nMap[name]
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -143,7 +142,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		done       chan struct{}
 	)
 	s.isConnected = true
-	parser = newParser(s.ID)
+	parser = newParser(s.ID, s.p.Lang)
 	logger.Infof("Conn[%s] create parser success", userConn.ID())
 	replayRecorder = NewReplyRecord(s.ID)
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
@@ -193,7 +192,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			if !now.After(outTime) {
 				continue
 			}
-			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
+			msg := fmt.Sprintf(s.p.Lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			logger.Infof("Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
@@ -202,7 +201,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			return
 		// 手动结束
 		case <-s.ctx.Done():
-			msg := i18n.T("Terminated by administrator")
+			msg := s.p.Lang.T("Terminated by administrator")
 			msg = utils.WrapperWarn(msg)
 			logger.Infof("Session[%s]: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)

@@ -7,242 +7,266 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: xgotext\n"
 
-#. i18n.T
-#: pkg/handler/banner.go:31
+#. mi.lang.T
+#: pkg/handler/banner.go:29
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:46
-msgid "Welcome to use Jumpserver open source fortress system"
+#. lang.T
+#: pkg/handler/banner.go:50
+msgid "Welcome to use JumpServer open source fortress system"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:48
+#. lang.T
+#: pkg/handler/banner.go:52
 msgid "part IP, Hostname, Comment"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:48
+#. lang.T
+#: pkg/handler/banner.go:52
 msgid "to search login if unique"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:49
+#. lang.T
+#: pkg/handler/banner.go:53
 msgid "/ + IP, Hostname, Comment"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:49
+#. lang.T
+#: pkg/handler/banner.go:53
 msgid "to search, such as: /192.168"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:50
+#. lang.T
+#: pkg/handler/banner.go:54
 msgid "display the host you have permission"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:51
+#. lang.T
+#: pkg/handler/banner.go:55
 msgid "display the node that you have permission"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:52
+#. lang.T
+#: pkg/handler/banner.go:56
 msgid "display the databases that you have permission"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:53
+#. lang.T
+#: pkg/handler/banner.go:57
 msgid "refresh your assets and nodes"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:54
+#. lang.T
+#: pkg/handler/banner.go:58
+msgid "Chinese-english switch"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/banner.go:59
 msgid "print help"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:55
+#. lang.T
+#: pkg/handler/banner.go:60
 msgid "exit"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:90
-msgid "ID"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:91
-msgid "hostname"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:92
-msgid "IP"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:93
-msgid "comment"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:94
-msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:95
+#. h.lang.T
+#: pkg/handler/dispatch.go:149
 msgid "No Assets"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:96
+#. h.lang.T
+#: pkg/handler/dispatch.go:154
+msgid "ID"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:154
+msgid "hostname"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:155
+msgid "IP"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:155
+msgid "comment"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:181
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:201
+msgid "all"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:211
+msgid "Search: %s"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:212
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
 "such as: //16"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:97
+#. h.lang.T
+#: pkg/handler/dispatch.go:213
 msgid "Page up: b\tPage down: n"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:98
+#. h.lang.T
+#: pkg/handler/dispatch.go:317
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:99
+#. h.lang.T
+#: pkg/handler/dispatch.go:318
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:100
-msgid "Refresh done"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:101
-msgid "Tips: Enter system user ID and directly login the asset [ %s(%s) ]"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:102
-msgid "Back: B/b"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:103
-msgid "Name"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:104
-msgid "Username"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:105
-msgid "all"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:106
-msgid "Search: %s"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:107
-msgid "DBType"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:108
-msgid "DB Name"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:109
+#. h.lang.T
+#: pkg/handler/dispatch.go:360
 msgid "No Databases"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:110
+#. h.lang.T
+#. h.lang.T
+#: pkg/handler/dispatch.go:364
+msgid "Name"
+msgstr ""
+
+#. h.lang.T
+#. h.lang.T
+#: pkg/handler/dispatch.go:365
+msgid "DBType"
+msgstr ""
+
+#. h.lang.T
+#: pkg/handler/dispatch.go:366
+msgid "DB Name"
+msgstr ""
+
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#: pkg/handler/dispatch.go:366 pkg/handler/dispatch.go:393
+#: pkg/handler/dispatch.go:415 pkg/handler/dispatch.go:425
+#: pkg/handler/dispatch.go:426
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
 "such as: //16"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/dbproxy.go:112
-msgid "Database connecting to %s %.1f"
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#: pkg/handler/dispatch.go:427 pkg/handler/dispatch.go:490
+msgid "Username"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/dbproxy.go:131
-msgid "System user <%s> and database <%s> protocol are inconsistent."
+#. h.lang.T
+#: pkg/handler/dispatch.go:519
+msgid "Tips: Enter system user ID and directly login the asset [ %s(%s) ]"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/dbproxy.go:137
-msgid "Database %s protocol client not installed."
+#. h.lang.T
+#: pkg/handler/dispatch.go:520
+msgid "Back: B/b"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/dbswitch.go:148
-msgid "Database connect idle more than %d minutes, disconnect"
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#. h.lang.T
+#: pkg/handler/session.go:184 pkg/handler/session.go:212
+#: pkg/handler/session.go:214 pkg/handler/session.go:245
+msgid "Refresh done"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/dbswitch.go:155
-msgid "Database connection terminated by administrator"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/parser.go:140
+#. lan.T
+#. p.lang.T
+#: pkg/i18n/i18n_test.go:16 pkg/proxy/dbparser.go:119
 msgid "Command `%s` is forbidden"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/proxy.go:146
+#. p.Lang.T
+#: pkg/proxy/dbproxy.go:116
+msgid "Database connecting to %s %.1f"
+msgstr ""
+
+#. p.Lang.T
+#: pkg/proxy/dbproxy.go:135
+msgid "System user <%s> and database <%s> protocol are inconsistent."
+msgstr ""
+
+#. p.Lang.T
+#: pkg/proxy/dbproxy.go:143
+msgid "Database %s protocol client not installed."
+msgstr ""
+
+#. s.p.Lang.T
+#: pkg/proxy/dbswitch.go:182
+msgid "Database connect idle more than %d minutes, disconnect"
+msgstr ""
+
+#. s.p.Lang.T
+#: pkg/proxy/dbswitch.go:191
+msgid "Database connection terminated by administrator"
+msgstr ""
+
+#. p.lang.T
+#. p.Lang.T
+#: pkg/proxy/parser.go:139 pkg/proxy/proxy.go:183
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/proxy.go:164
+#. p.Lang.T
+#: pkg/proxy/proxy.go:237
 msgid "Connecting to %s@%s  %.1f"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/proxy.go:183
+#. p.Lang.T
+#: pkg/proxy/proxy.go:256
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/proxy.go:189
+#. p.Lang.T
+#: pkg/proxy/proxy.go:264
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/sessmanager.go:75
+#. p.Lang.T
+#: pkg/proxy/sessmanager.go:74
 msgid "Connect with api server failed"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/sessmanager.go:117
+#. p.Lang.T
+#: pkg/proxy/sessmanager.go:120
 msgid "Create database session failed"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/switch.go:173
+#. s.p.Lang.T
+#: pkg/proxy/switch.go:195
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
-#. i18n.T
-#: pkg/proxy/switch.go:180
+#. s.p.Lang.T
+#: pkg/proxy/switch.go:204
 msgid "Terminated by administrator"
 msgstr ""

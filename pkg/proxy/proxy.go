@@ -20,6 +20,7 @@ type ProxyServer struct {
 	User       *model.User
 	Asset      *model.Asset
 	SystemUser *model.SystemUser
+	Lang       i18n.Language
 
 	cacheSSHConnection *srvconn.ServerSSHConnection
 }
@@ -179,7 +180,7 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, o
 		logger.Infof("Conn[%s] reuse ssh client(%s@%s) start shell success",
 			p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 
-		reuseMsg := fmt.Sprintf(i18n.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
+		reuseMsg := fmt.Sprintf(p.Lang.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
 			p.SystemUser.Username, p.Asset.Hostname, cacheSSHClient.RefCount())
 		utils.IgnoreErrWriteString(p.UserConn, reuseMsg+"\r\n")
 		return srvConn, true
@@ -233,7 +234,7 @@ func (p *ProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err err
 // sendConnectingMsg 发送连接信息
 func (p *ProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.Duration) {
 	delay := 0.0
-	msg := fmt.Sprintf(i18n.T("Connecting to %s@%s  %.1f"), p.SystemUser.Username, p.Asset.IP, delay)
+	msg := fmt.Sprintf(p.Lang.T("Connecting to %s@%s  %.1f"), p.SystemUser.Username, p.Asset.IP, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for int(delay) < int(delayDuration/time.Second) {
 		select {
@@ -252,7 +253,7 @@ func (p *ProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.D
 // preCheckRequisite 检查是否满足条件
 func (p *ProxyServer) preCheckRequisite() (ok bool) {
 	if !p.checkProtocolMatch() {
-		msg := utils.WrapperWarn(i18n.T("System user <%s> and asset <%s> protocol are inconsistent."))
+		msg := utils.WrapperWarn(p.Lang.T("System user <%s> and asset <%s> protocol are inconsistent."))
 		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Asset.Hostname)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
@@ -260,7 +261,7 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 	}
 	logger.Infof("Conn[%s] System user and asset protocol matched", p.UserConn.ID())
 	if p.checkProtocolIsGraph() {
-		msg := i18n.T("Terminal only support protocol ssh/telnet, please use web terminal to access")
+		msg := p.Lang.T("Terminal only support protocol ssh/telnet, please use web terminal to access")
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking requisite failed: %s", p.UserConn.ID(), msg)

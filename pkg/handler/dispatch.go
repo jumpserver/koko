@@ -9,6 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -70,6 +71,16 @@ func (h *interactiveHandler) Dispatch() {
 				h.displayNodeTree()
 				continue
 			case "h":
+				h.displayBanner()
+				continue
+			case "s":
+				currentLangCode := h.lang.Code()
+				switch currentLangCode {
+				case i18n.EN:
+					h.lang = i18n.NewLanguage(i18n.ZH)
+				case i18n.ZH:
+					h.lang = i18n.NewLanguage(i18n.EN)
+				}
 				h.displayBanner()
 				continue
 			case "r":
@@ -135,13 +146,13 @@ func (h *interactiveHandler) resetPaginator() {
 
 func (h *interactiveHandler) displayPageAssets() {
 	if len(h.currentData) == 0 {
-		_, _ = h.term.Write([]byte(getI18nFromMap("NoAssets") + "\n\r"))
+		_, _ = h.term.Write([]byte(h.lang.T("No Assets") + "\n\r"))
 		h.assetPaginator = nil
 		h.currentSortedData = nil
 		return
 	}
-	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Hostname"),
-		getI18nFromMap("IP"), getI18nFromMap("Comment")}
+	Labels := []string{h.lang.T("ID"), h.lang.T("hostname"),
+		h.lang.T("IP"), h.lang.T("comment")}
 	fields := []string{"ID", "hostname", "IP", "comment"}
 	h.currentSortedData = model.AssetList(h.currentData).SortBy(config.GetConf().AssetListSortBy)
 	data := make([]map[string]string, len(h.currentSortedData))
@@ -167,8 +178,8 @@ func (h *interactiveHandler) displayPageAssets() {
 	pageSize := h.assetPaginator.PageSize()
 	totalPage := h.assetPaginator.TotalPage()
 	totalCount := h.assetPaginator.TotalCount()
-
-	caption := fmt.Sprintf(getI18nFromMap("AssetTableCaption"),
+	tableCaption := h.lang.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d")
+	caption := fmt.Sprintf(tableCaption,
 		currentPage, pageSize, totalPage, totalCount)
 
 	caption = utils.WrapperString(caption, utils.Green)
@@ -187,7 +198,7 @@ func (h *interactiveHandler) displayPageAssets() {
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
-	header := getI18nFromMap("All")
+	header := h.lang.T("all")
 	keys := h.assetPaginator.SearchKeys()
 	switch h.assetPaginator.Name() {
 	case "local", "remote":
@@ -197,8 +208,10 @@ func (h *interactiveHandler) displayPageAssets() {
 	default:
 		header = fmt.Sprintf("%s %s", h.assetPaginator.Name(), strings.Join(keys, " "))
 	}
-	searchHeader := fmt.Sprintf(getI18nFromMap("SearchTip"), header)
-	actionTip := fmt.Sprintf("%s %s", getI18nFromMap("LoginTip"), getI18nFromMap("PageActionTip"))
+	searchHeader := fmt.Sprintf(h.lang.T("Search: %s"), header)
+	loginTip := h.lang.T("Enter ID number directly login the asset, multiple search use // + field, such as: //16")
+	pageActionTip := h.lang.T("Page up: b\tPage down: n")
+	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
 
 	_, _ = h.term.Write([]byte(utils.CharClear))
 	_, _ = h.term.Write([]byte(table.Display()))
@@ -300,9 +313,12 @@ func (h *interactiveHandler) searchAssetsAgain(key string) {
 func (h *interactiveHandler) displayNodeTree() {
 	<-h.firstLoadDone
 	tree := ConstructAssetNodeTree(h.nodes)
-	_, _ = io.WriteString(h.term, "\n\r"+getI18nFromMap("NodeHeaderTip"))
+
+	nodeHeaderTip := h.lang.T("Node: [ ID.Name(Asset amount) ]")
+	nodeEndTip := h.lang.T("Tips: Enter g+NodeID to display the host under the node, such as g1")
+	_, _ = io.WriteString(h.term, "\n\r"+nodeHeaderTip)
 	_, _ = io.WriteString(h.term, tree.String())
-	_, err := io.WriteString(h.term, getI18nFromMap("NodeEndTip")+"\n\r")
+	_, err := io.WriteString(h.term, nodeEndTip+"\n\r")
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}
@@ -341,13 +357,13 @@ func (h *interactiveHandler) getDatabasePaginator() DatabasePaginator {
 
 func (h *interactiveHandler) displayPageDatabase() {
 	if len(h.currentDBData) == 0 {
-		_, _ = h.term.Write([]byte(getI18nFromMap("NoDatabases") + "\n\r"))
+		_, _ = h.term.Write([]byte(h.lang.T("No Databases") + "\n\r"))
 		h.dbPaginator = nil
 		return
 	}
-	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"),
-		getI18nFromMap("IP"), getI18nFromMap("DBType"),
-		getI18nFromMap("DBName"), getI18nFromMap("Comment")}
+	Labels := []string{h.lang.T("ID"), h.lang.T("Name"),
+		h.lang.T("IP"), h.lang.T("DBType"),
+		h.lang.T("DB Name"), h.lang.T("comment")}
 	fields := []string{"ID", "name", "IP", "DBType", "DBName", "comment"}
 	data := make([]map[string]string, len(h.currentDBData))
 	for i, j := range h.currentDBData {
@@ -374,8 +390,8 @@ func (h *interactiveHandler) displayPageDatabase() {
 	pageSize := h.dbPaginator.PageSize()
 	totalPage := h.dbPaginator.TotalPage()
 	totalCount := h.dbPaginator.TotalCount()
-
-	caption := fmt.Sprintf(getI18nFromMap("AssetTableCaption"),
+	tableCaption := h.lang.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d")
+	caption := fmt.Sprintf(tableCaption,
 		currentPage, pageSize, totalPage, totalCount)
 
 	caption = utils.WrapperString(caption, utils.Green)
@@ -396,7 +412,7 @@ func (h *interactiveHandler) displayPageDatabase() {
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
-	header := getI18nFromMap("All")
+	header := h.lang.T("all")
 	keys := h.dbPaginator.SearchKeys()
 	switch h.dbPaginator.Name() {
 	case "local", "remote":
@@ -406,8 +422,10 @@ func (h *interactiveHandler) displayPageDatabase() {
 	default:
 		header = fmt.Sprintf("%s %s", h.dbPaginator.Name(), strings.Join(keys, " "))
 	}
-	searchHeader := fmt.Sprintf(getI18nFromMap("SearchTip"), header)
-	actionTip := fmt.Sprintf("%s %s", getI18nFromMap("DBLoginTip"), getI18nFromMap("PageActionTip"))
+	searchHeader := fmt.Sprintf(h.lang.T("Search: %s"), header)
+	dbLoginTip := h.lang.T("Enter ID number directly login the database, multiple search use // + field, such as: //16")
+	pageActionTip := h.lang.T("Page up: b\tPage down: n")
+	actionTip := fmt.Sprintf("%s %s", dbLoginTip, pageActionTip)
 
 	_, _ = h.term.Write([]byte(utils.CharClear))
 	_, _ = h.term.Write([]byte(table.Display()))
@@ -469,7 +487,7 @@ func (h *interactiveHandler) chooseDBSystemUser(dbAsset model.Database,
 		return displaySystemUsers[0], true
 	}
 
-	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"), getI18nFromMap("Username")}
+	Labels := []string{h.lang.T("ID"), h.lang.T("Name"), h.lang.T("Username")}
 	fields := []string{"ID", "Name", "Username"}
 
 	data := make([]map[string]string, len(displaySystemUsers))
@@ -497,11 +515,14 @@ func (h *interactiveHandler) chooseDBSystemUser(dbAsset model.Database,
 
 	h.term.SetPrompt("ID> ")
 	defer h.term.SetPrompt("Opt> ")
-	selectUserTip := fmt.Sprintf(getI18nFromMap("SelectUserTip"), dbAsset.Name, dbAsset.Host)
+
+	selectTip := h.lang.T("Tips: Enter system user ID and directly login the asset [ %s(%s) ]")
+	backTip := h.lang.T("Back: B/b")
+	selectUserTip := fmt.Sprintf(selectTip, dbAsset.Name, dbAsset.Host)
 	for {
 		utils.IgnoreErrWriteString(h.term, table.Display())
 		utils.IgnoreErrWriteString(h.term, selectUserTip)
-		utils.IgnoreErrWriteString(h.term, getI18nFromMap("BackTip"))
+		utils.IgnoreErrWriteString(h.term, backTip)
 		utils.IgnoreErrWriteString(h.term, "\r\n")
 		line, err := h.term.ReadLine()
 		if err != nil {

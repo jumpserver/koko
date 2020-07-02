@@ -13,6 +13,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -72,12 +73,22 @@ type interactiveHandler struct {
 
 	dbPaginator   DatabasePaginator
 	currentDBData []model.Database
+
+	lang i18n.Language
 }
 
 func (h *interactiveHandler) Initial() {
 	conf := config.GetConf()
 	if conf.ClientAliveInterval > 0 {
 		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
+	}
+	switch conf.Language {
+	case "zh":
+		h.lang = i18n.NewLanguage(i18n.ZH)
+	case "en":
+		h.lang = i18n.NewLanguage(i18n.EN)
+	default:
+		h.lang = i18n.NewLanguage(i18n.LanguageCode(conf.Language))
 	}
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.displayBanner()
@@ -96,7 +107,7 @@ func (h *interactiveHandler) firstLoadData() {
 }
 
 func (h *interactiveHandler) displayBanner() {
-	displayBanner(h.sess, h.user.Name)
+	displayBannerWithLang(h.sess, h.user.Name, h.lang)
 }
 
 func (h *interactiveHandler) watchWinSizeChange() {
@@ -170,7 +181,7 @@ func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
 		return displaySystemUsers[0], true
 	}
 
-	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"), getI18nFromMap("Username")}
+	Labels := []string{h.lang.T("ID"), h.lang.T("Name"), h.lang.T("Username")}
 	fields := []string{"ID", "Name", "Username"}
 
 	data := make([]map[string]string, len(displaySystemUsers))
@@ -198,11 +209,13 @@ func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
 
 	h.term.SetPrompt("ID> ")
 	defer h.term.SetPrompt("Opt> ")
-	selectUserTip := fmt.Sprintf(getI18nFromMap("SelectUserTip"), asset.Hostname, asset.IP)
+	selectTipI18nMsg := h.lang.T("Tips: Enter system user ID and directly login the asset [ %s(%s) ]")
+	selectUserTip := fmt.Sprintf(selectTipI18nMsg, asset.Hostname, asset.IP)
+	backTipI18nMsg := h.lang.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(h.term, table.Display())
 		utils.IgnoreErrWriteString(h.term, selectUserTip)
-		utils.IgnoreErrWriteString(h.term, getI18nFromMap("BackTip"))
+		utils.IgnoreErrWriteString(h.term, backTipI18nMsg)
 		utils.IgnoreErrWriteString(h.term, "\r\n")
 		line, err := h.term.ReadLine()
 		if err != nil {
@@ -229,7 +242,8 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 		_ = service.ForceRefreshUserPemAssets(h.user.ID)
 	}
 	h.loadUserNodes("2")
-	_, err := io.WriteString(h.term, getI18nFromMap("RefreshDone")+"\n\r")
+	refreshDoneI18nMsg := h.lang.T("Refresh done")
+	_, err := io.WriteString(h.term, refreshDoneI18nMsg+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
@@ -262,6 +276,7 @@ func (h *interactiveHandler) Proxy(ctx context.Context) {
 		User:       h.user,
 		Asset:      h.assetSelect,
 		SystemUser: h.systemUserSelect,
+		Lang:       h.lang,
 	}
 	h.pauseWatchWinSize()
 	p.Proxy()

@@ -15,7 +15,6 @@ import (
 var sshServer *ssh.Server
 
 func StartServer() {
-	handler.Initial()
 	conf := config.GetConf()
 	hostKey := HostKey{Value: conf.HostKey, Path: conf.HostKeyFile}
 	logger.Debug("Loading host key")

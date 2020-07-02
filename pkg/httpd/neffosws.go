@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	gorillaws "github.com/gorilla/websocket"
@@ -9,6 +10,7 @@ import (
 	"github.com/kataras/neffos"
 	"github.com/kataras/neffos/gorilla"
 
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -73,4 +75,16 @@ func neffosOnDisconnect(c *neffos.Conn) {
 		websocketManager.DeleteUserCon(c.ID())
 		logger.Infof("User %s ws %s disconnect.", conn.User.Name, c.ID())
 	}
+}
+
+func GetRequestLang(c *neffos.Conn) i18n.Language {
+	defaultLang := i18n.NewLanguage(i18n.ZH)
+	langCookie, err := c.Socket().Request().Cookie("django_language")
+	if err != nil {
+		return defaultLang
+	}
+	if !strings.HasPrefix(langCookie.Value, "zh") {
+		return i18n.NewLanguage(i18n.EN)
+	}
+	return defaultLang
 }

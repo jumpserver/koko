@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
@@ -72,7 +71,7 @@ func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
 	// Post到Api端
 	data := sw.MapData()
 	ok := postSession(data)
-	msg := i18n.T("Connect with api server failed")
+	msg := p.Lang.T("Connect with api server failed")
 	if !ok {
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
@@ -118,7 +117,7 @@ func CreateDBSession(p *DBProxyServer) (sw *DBSwitchSession, err error) {
 	logger.Infof("Conn[%s] create DB session %s", p.UserConn.ID(), sw.ID)
 	data := sw.MapData()
 	ok := postSession(data)
-	msg := i18n.T("Create database session failed")
+	msg := p.Lang.T("Create database session failed")
 	if !ok {
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
