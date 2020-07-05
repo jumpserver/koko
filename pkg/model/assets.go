@@ -342,7 +342,12 @@ func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
 	if pattern == nil {
 		return ActionUnknown, ""
 	}
-	found := pattern.FindString(cmd)
+	var found string
+	if sf.Type.Value == TypeCmd {
+		found = pattern.FindString(strings.Split(cmd, " ")[0])
+	} else {
+		found = pattern.FindString(cmd)
+	}
 	if found == "" {
 		return ActionUnknown, ""
 	}
