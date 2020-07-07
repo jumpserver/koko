@@ -39,3 +39,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-realese.outputs.upload_url }}
+          os: ${{ matrix.os }}
+          arch: ${{ matrix.arch }}
