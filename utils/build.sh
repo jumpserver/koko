@@ -4,6 +4,8 @@
 utils_dir=$(pwd)
 project_dir=$(dirname "$utils_dir")
 release_dir=${project_dir}/release
+OS=${INPUT_OS-''}
+ARCH=${INPUT_ARCH-''}
 
 function install_git() {
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
@@ -30,7 +32,7 @@ fi
 
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
-cd cmd && go build -ldflags "-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`' -X 'main.Githash=`git rev-parse HEAD`' -X 'main.Goversion=`go version`'" -o koko koko.go || exit 4
+cd cmd && CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`' -X 'main.Githash=`git rev-parse HEAD`' -X 'main.Goversion=`go version`'" -o koko koko.go || exit 4
 
 # 打包
 rm -rf "${release_dir:?}/*"
