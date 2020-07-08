@@ -4,9 +4,11 @@ on:
       - opened
       - edited
 
+name: Auto add PR label
+
 jobs:
   add_pr_labels:
-    name: Add pull request labels if need
+    name: Auto add pull request labels if need
     runs-on: ubuntu-latest
     steps:
       - name: Add labels
@@ -14,6 +16,7 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_ISSUE_URL: ${{ github.event.pull_request.issue_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -x
           echo ${PR_TITLE}
