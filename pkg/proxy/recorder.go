@@ -119,8 +119,10 @@ func (r *ReplyRecorder) Record(b []byte) {
 	if len(b) > 0 {
 		delta := float64(time.Now().UnixNano()-r.timeStartNano) / 1000 / 1000 / 1000
 		data, _ := json.Marshal(string(b))
-		_, _ = r.file.WriteString(fmt.Sprintf(`"%f":%s,`, delta, data))
-		_ = r.file.Sync()
+		_, err := r.file.WriteString(fmt.Sprintf(`"%f":%s,`, delta, data))
+		if err != nil {
+			logger.Errorf("Session %s write replay to file failed: %s", r.SessionID, err)
+		}
 	}
 }
 

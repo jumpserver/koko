@@ -72,7 +72,7 @@ func uploadRemainReplay(rootPath string) {
 		}
 		relayRecord := &proxy.ReplyRecorder{SessionID: sid}
 		relayRecord.AbsGzFilePath = absGzPath
-		relayRecord.Target, _ = filepath.Rel(path, rootPath)
+		relayRecord.Target, _ = filepath.Rel(replayDir, absGzPath)
 		relayRecord.UploadGzipFile(3)
 	}
 	logger.Debug("Upload remain replay done")
