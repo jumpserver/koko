@@ -10,10 +10,9 @@ ENV CGO_ENABLED=0
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
   && apk update \
   && apk add git
-COPY go.mod go.sum ./
-RUN go mod download
 COPY . .
-RUN cd cmd && go build -ldflags "-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`' -X 'main.Githash=`git rev-parse HEAD`' -X 'main.Goversion=`go version`'" -x -o koko koko.go
+#RUN cd cmd && go build -ldflags "-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`' -X 'main.Githash=`git rev-parse HEAD`' -X 'main.Goversion=`go version`'" -x -o koko koko.go
+RUN cd utils && bash -ix build.sh
 
 FROM debian:stretch-slim
 RUN sed -i  's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list \
@@ -43,13 +42,9 @@ RUN apt-get update && apt-get install -y gdb ca-certificates mysql-community-cli
 
 ENV TZ Asia/Shanghai
 WORKDIR /opt/koko/
+COPY --from=stage-build /opt/koko/release/koko /opt/koko
 COPY --from=stage-build /usr/local/go/src/runtime/sys_linux_amd64.s /usr/local/go/src/runtime/sys_linux_amd64.s
 COPY --from=stage-build /opt/koko/tools/coredump.sh .
-COPY --from=stage-build /opt/koko/cmd/koko .
-COPY --from=stage-build /opt/koko/cmd/locale/ locale
-COPY --from=stage-build /opt/koko/cmd/static/ static
-COPY --from=stage-build /opt/koko/cmd/templates/ templates
-COPY --from=stage-build /opt/koko/cmd/config_example.yml .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 
 RUN chmod 755 entrypoint.sh
