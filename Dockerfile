@@ -11,7 +11,7 @@ ENV GOARCH=amd64
 ENV CGO_ENABLED=0
 
 COPY . .
-RUN cd utils && sh -ix build.sh
+RUN cd utils && sh -ixeu build.sh
 
 FROM debian:stretch-slim
 RUN sed -i  's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list \
