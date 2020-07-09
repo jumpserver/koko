@@ -7,11 +7,11 @@ release_dir=${project_dir}/release
 OS=${INPUT_OS-'linux'}
 ARCH=${INPUT_ARCH-'amd64'}
 
-if [[ -n "${GOOS}" ]];then
+if [[ -n "${GOOS-''}" ]];then
   OS="${GOOS}"
 fi
 
-if [[ -n "${GOARCH}" ]];then
+if [[ -n "${GOARCH-''}" ]];then
   ARCH="${GOARCH}"
 fi
 
