@@ -4,8 +4,17 @@
 utils_dir=$(pwd)
 project_dir=$(dirname "$utils_dir")
 release_dir=${project_dir}/release
-OS=${INPUT_OS-''}
-ARCH=${INPUT_ARCH-''}
+OS=${INPUT_OS-'linux'}
+ARCH=${INPUT_ARCH-'amd64'}
+
+if [[ -n "${GOOS}" ]];then
+  OS="${GOOS}"
+fi
+
+if [[ -n "${GOARCH}" ]];then
+  ARCH="${GOARCH}"
+fi
+
 
 function install_git() {
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
@@ -25,7 +34,7 @@ fi
 command -v git || install_git
 
 # 修改版本号文件
-if [[ -n ${VERSION} ]]; then
+if [[ -n "${VERSION}" ]]; then
   sedi "s@Version = .*@Version = \"${VERSION}\"@g" "${project_dir}/pkg/koko/koko.go" || exit 2
 fi
 
