@@ -192,6 +192,9 @@ func GetUserDetail(userID string) (user *model.User) {
 
 func GetProfile() (user *model.User, err error) {
 	_, err = authClient.Get(UserProfileURL, &user)
+	if err != nil {
+		logger.Error(err)
+	}
 	return user, err
 }
 

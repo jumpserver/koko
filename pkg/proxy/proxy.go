@@ -125,7 +125,8 @@ func (p *ProxyServer) getSSHConn() (srvConn *srvconn.ServerSSHConnection, err er
 		return nil, err
 	}
 	pty := p.UserConn.Pty()
-	srvConn = srvconn.NewServerSSHConnection(sess)
+	srvConn = srvconn.NewServerSSHConnection(sess,
+		srvconn.OptionCharset(p.getAssetCharset()))
 	err = srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 	go func() {
 		_ = sess.Wait()
@@ -158,7 +159,8 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, o
 			return nil, false
 		}
 		pty := p.UserConn.Pty()
-		srvConn := srvconn.NewServerSSHConnection(sess)
+		srvConn := srvconn.NewServerSSHConnection(sess,
+			srvconn.OptionCharset(p.getAssetCharset()))
 		err2 := srvConn.Connect(pty.Window.Height, pty.Window.Width, pty.Term)
 		go func() {
 			_ = sess.Wait()
@@ -203,6 +205,7 @@ func (p *ProxyServer) getTelnetConn() (srvConn *srvconn.ServerTelnetConnection, 
 		CustomString:         cusString,
 		CustomSuccessPattern: pattern,
 		Overtime:             time.Duration(conf.SSHTimeout) * time.Second,
+		Charset:              p.getAssetCharset(),
 	}
 	err = srvConn.Connect(0, 0, "")
 	utils.IgnoreErrWriteString(p.UserConn, "\r\n")
@@ -328,6 +331,14 @@ func (p *ProxyServer) sendConnectErrorMsg(err error) {
 		msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
 		logger.Errorf(msg2)
 	}
+}
+
+func (p *ProxyServer) getAssetCharset() string {
+	platform := service.GetAssetPlatform(p.Asset.ID)
+	charset := strings.ToLower(platform.Charset)
+	logger.Infof("Conn[%s] asset %s charset use: %s",
+		p.UserConn.ID(), p.Asset.Hostname, charset)
+	return charset
 }
 
 // Proxy 代理

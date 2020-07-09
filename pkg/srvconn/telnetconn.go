@@ -1,12 +1,14 @@
 package srvconn
 
 import (
+	"io"
 	"net"
 	"regexp"
 	"strconv"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/text/transform"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
@@ -20,10 +22,14 @@ type ServerTelnetConnection struct {
 	Overtime             time.Duration
 	CustomString         string
 	CustomSuccessPattern *regexp.Regexp
+	Charset              string
 
 	conn      *telnetlib.Client
 	proxyConn *gossh.Client
 	closed    bool
+
+	transformReader io.Reader
+	transformWriter io.Writer
 }
 
 func (tc *ServerTelnetConnection) Timeout() time.Duration {
@@ -56,7 +62,7 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	var conn net.Conn
 	// 判断是否有合适的proxy连接
 	if proxyConn != nil {
-		logger.Debugf("Connect host %s via proxy", tc.Asset.Hostname)
+		logger.Infof("Connect host %s via proxy", tc.Asset.Hostname)
 		conn, err = proxyConn.Dial("tcp", addr)
 	} else {
 		logger.Debugf("Direct connect host %s", tc.Asset.Hostname)
@@ -85,6 +91,16 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 		return err
 	}
 	tc.conn = client
+	tc.transformReader = client
+	tc.transformWriter = client
+	if tc.Charset != model.UTF8 {
+		if readDecode := model.LookupCharsetDecode(tc.Charset); readDecode != nil {
+			tc.transformReader = transform.NewReader(client, readDecode)
+		}
+		if writerEncode := model.LookupCharsetEncode(tc.Charset); writerEncode != nil {
+			tc.transformWriter = transform.NewWriter(client, writerEncode)
+		}
+	}
 	tc.proxyConn = proxyConn
 	logger.Infof("Telnet host %s success", asset.Hostname)
 	return nil
@@ -95,11 +111,11 @@ func (tc *ServerTelnetConnection) SetWinSize(w, h int) error {
 }
 
 func (tc *ServerTelnetConnection) Read(p []byte) (n int, err error) {
-	return tc.conn.Read(p)
+	return tc.transformReader.Read(p)
 }
 
 func (tc *ServerTelnetConnection) Write(p []byte) (n int, err error) {
-	return tc.conn.Write(p)
+	return tc.transformWriter.Write(p)
 }
 
 func (tc *ServerTelnetConnection) Close() (err error) {

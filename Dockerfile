@@ -3,6 +3,7 @@ LABEL stage=stage-build
 WORKDIR /opt/koko
 ARG GOPROXY
 ENV GOPROXY=$GOPROXY
+ENV VERSION=$VERSION
 ENV GO111MODULE=on
 ENV GOOS=linux
 ENV GOARCH=amd64
@@ -12,7 +13,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
   && apk add git
 COPY . .
 #RUN cd cmd && go build -ldflags "-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`' -X 'main.Githash=`git rev-parse HEAD`' -X 'main.Goversion=`go version`'" -x -o koko koko.go
-RUN cd utils && bash -ix build.sh
+RUN cd utils && sh -ix build.sh
 
 FROM debian:stretch-slim
 RUN sed -i  's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list \
