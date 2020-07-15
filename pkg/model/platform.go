@@ -7,25 +7,24 @@ import (
 
 const (
 	UTF8 = "utf8"
-	GBK = "gbk"
+	GBK  = "gbk"
 )
 
 type Platform struct {
-	Id string
-	Name string
-	BaseOs string
-	Charset string
-	MetaData map[string]interface{}
+	Name     string                 `json:"name"`
+	BaseOs   string                 `json:"base"`
+	Charset  string                 `json:"charset"`
+	MetaData map[string]interface{} `json:"meta"`
 }
 
-func LookupCharsetDecode(charset string) transform.Transformer{
+func LookupCharsetDecode(charset string) transform.Transformer {
 	switch charset {
 	case GBK:
 		return simplifiedchinese.GBK.NewDecoder()
 	}
 	return nil
 }
-func LookupCharsetEncode(charset string) transform.Transformer{
+func LookupCharsetEncode(charset string) transform.Transformer {
 	switch charset {
 	case GBK:
 		return simplifiedchinese.GBK.NewEncoder()
