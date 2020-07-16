@@ -311,7 +311,9 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 	var regexs string
 	if sf.Type == TypeCmd {
 		var regex []string
-		for _, cmd := range strings.Split(sf.Content, "\r\n") {
+		content := strings.ReplaceAll(sf.Content, "\r\n", "\n")
+		content = strings.ReplaceAll(content, "\r", "\n")
+		for _, cmd := range strings.Split(content, "\n") {
 			cmd = regexp.QuoteMeta(cmd)
 			cmd = strings.Replace(cmd, " ", "\\s+", 1)
 			regexItem := fmt.Sprintf(`\b%s\b`, cmd)
