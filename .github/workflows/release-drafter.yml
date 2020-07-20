@@ -26,7 +26,7 @@ jobs:
         id: create_release
         uses: release-drafter/release-drafter@v5
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
         with:
           config-name: release-config.yml
           version: ${{ steps.get_version.outputs.TAG }}
@@ -45,7 +45,7 @@ jobs:
       - name: Build it and upload
         uses: jumpserver/action-build-upload-assets@master
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
         with:
           os: ${{ matrix.os }}
           arch: ${{ matrix.arch }}
