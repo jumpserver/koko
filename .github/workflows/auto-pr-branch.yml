@@ -11,6 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create pull request
-        uses: jumpserver/action-auto-pr-branch
+        uses: jumpserver/action-auto-pr-branch@master
         env:
           GITHUB_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
