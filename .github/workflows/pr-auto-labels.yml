@@ -15,4 +15,4 @@ jobs:
         if: ${{ !contains(github.event.pull_request.labels, '无需处理') }}
         uses: jumpserver/action-auto-label-pr@master
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
