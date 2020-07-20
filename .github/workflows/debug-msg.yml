@@ -1,5 +1,7 @@
 on: push
 
+name: Debug context
+
 jobs:
   one:
     runs-on: ubuntu-16.04
