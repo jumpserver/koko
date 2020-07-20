@@ -1,7 +1,5 @@
 on: [push, pull_request, release, issues]
 
-name: Debug work flow context msg
-
 jobs:
   one:
     runs-on: ubuntu-16.04
