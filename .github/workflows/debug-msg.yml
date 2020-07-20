@@ -1,6 +1,6 @@
 on: [push, pull_request, release, issues]
 
-name: Debug context
+name: Debug work flow context msg
 
 jobs:
   one:
