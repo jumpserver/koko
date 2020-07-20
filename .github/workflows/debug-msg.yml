@@ -1,4 +1,4 @@
-on: push
+on: [push, pull_request, release, issues]
 
 name: Debug context
 
