@@ -7,6 +7,6 @@ jobs:
     name: Run generic handler
     runs-on: ubuntu-latest
     steps:
-      - uses: jumpserver/action-generic-handler@master
+      - uses: jumpserver/action-generic-handler@dev
         env:
           GITHUB_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
