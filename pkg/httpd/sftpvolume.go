@@ -321,9 +321,12 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 		size int64
 	)
 	tz := time.Now().UnixNano()
+	readPem := byte(1)
+	writePem := byte(0)
 	if fInfo, err := u.UserSftp.Stat(u.basePath); err == nil {
 		size = fInfo.Size()
 		tz = fInfo.ModTime().Unix()
+		readPem, writePem = elfinder.ReadWritePem(fInfo.Mode())
 	}
 	var rest elfinder.FileDir
 	rest.Name = u.Homename
@@ -332,7 +335,7 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 	rest.Volumeid = u.Uuid
 	rest.Mime = "directory"
 	rest.Dirs = 1
-	rest.Read, rest.Write = 1, 1
+	rest.Read, rest.Write = readPem, writePem
 	rest.Locked = 1
 	rest.Ts = tz
 	return rest

@@ -207,7 +207,7 @@ func (u *UserSftpConn) Name() string {
 func (u *UserSftpConn) Size() int64 { return 0 }
 
 func (u *UserSftpConn) Mode() os.FileMode {
-	return os.ModePerm | os.ModeDir
+	return os.FileMode(0444) | os.ModeDir
 }
 
 func (u *UserSftpConn) ModTime() time.Time { return u.modeTime }

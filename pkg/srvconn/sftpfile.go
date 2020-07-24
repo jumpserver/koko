@@ -39,7 +39,7 @@ func (sd *SearchResultDir) Name() string {
 func (sd *SearchResultDir) Size() int64 { return 0 }
 
 func (sd *SearchResultDir) Mode() os.FileMode {
-	return os.ModePerm | os.ModeDir
+	return os.FileMode(0444) | os.ModeDir
 }
 
 func (sd *SearchResultDir) ModTime() time.Time { return sd.modeTime }
@@ -92,7 +92,7 @@ func (nd *NodeDir) Name() string {
 func (nd *NodeDir) Size() int64 { return 0 }
 
 func (nd *NodeDir) Mode() os.FileMode {
-	return os.ModePerm | os.ModeDir
+	return os.FileMode(0444) | os.ModeDir
 }
 func (nd *NodeDir) ModTime() time.Time { return nd.modeTime }
 
@@ -248,7 +248,10 @@ func (ad *AssetDir) Name() string {
 func (ad *AssetDir) Size() int64 { return 0 }
 
 func (ad *AssetDir) Mode() os.FileMode {
-	return os.ModePerm | os.ModeDir
+	if len(ad.suMaps) > 1 {
+		return os.FileMode(0444) | os.ModeDir
+	}
+	return os.FileMode(0644) | os.ModeDir
 }
 
 func (ad *AssetDir) ModTime() time.Time { return ad.modeTime }
