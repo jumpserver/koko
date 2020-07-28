@@ -32,7 +32,7 @@ if [[ -n "${VERSION-}" ]]; then
   kokoVersion="${VERSION}"
 fi
 
-goldflags="-w -X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.Goversion=$goVersion' -X 'github.com/jumpserver/koko/pkg/koko.Version=$kokoVersion'"
+goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.Goversion=$goVersion' -X 'github.com/jumpserver/koko/pkg/koko.Version=$kokoVersion'"
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
 cd cmd && CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$goldflags" -o koko koko.go || exit 4
