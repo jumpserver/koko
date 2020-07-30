@@ -12,7 +12,6 @@ import (
 )
 
 var (
-
 	zmodemRecvStartMark = []byte("rz waiting to receive.**\x18B0100")
 	zmodemSendStartMark = []byte("**\x18B00000000000000")
 	zmodemCancelMark    = []byte("\x18\x18\x18\x18\x18")
@@ -35,7 +34,6 @@ var (
 		[]byte("\x1b[?1047l"),
 		[]byte("\x1b[?47l"),
 	}
-
 )
 
 const (
@@ -217,7 +215,7 @@ func (p *Parser) parseVimState(b []byte) {
 		p.inVimState = true
 		logger.Debug("In vim state: true")
 	}
-	if p.zmodemState == "" && p.inVimState && IsEditModeExitMode(b) {
+	if p.zmodemState == "" && p.inVimState && IsEditExitMode(b) {
 		p.inVimState = false
 		logger.Debug("In vim state: false")
 	}
@@ -296,14 +294,14 @@ func (p *Parser) sendCommandRecord() {
 }
 
 func IsEditEnterMode(p []byte) bool {
-	return matchModeMark(p, enterMarks)
+	return matchMark(p, enterMarks)
 }
 
-func IsEditModeExitMode(p []byte) bool {
-	return matchModeMark(p, exitMarks)
+func IsEditExitMode(p []byte) bool {
+	return matchMark(p, exitMarks)
 }
 
-func matchModeMark(p []byte, marks [][]byte) bool {
+func matchMark(p []byte, marks [][]byte) bool {
 	for _, item := range marks {
 		if bytes.Contains(p, item) {
 			return true
