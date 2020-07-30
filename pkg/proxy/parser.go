@@ -21,14 +21,14 @@ var (
 
 	charEnter = []byte("\r")
 
-	enterMarks = [][]byte{
+	editEnterMarks = [][]byte{
 		[]byte("\x1b[?1049h"),
 		[]byte("\x1b[?1048h"),
 		[]byte("\x1b[?1047h"),
 		[]byte("\x1b[?47h"),
 	}
 
-	exitMarks = [][]byte{
+	editExitMarks = [][]byte{
 		[]byte("\x1b[?1049l"),
 		[]byte("\x1b[?1048l"),
 		[]byte("\x1b[?1047l"),
@@ -294,11 +294,11 @@ func (p *Parser) sendCommandRecord() {
 }
 
 func IsEditEnterMode(p []byte) bool {
-	return matchMark(p, enterMarks)
+	return matchMark(p, editEnterMarks)
 }
 
 func IsEditExitMode(p []byte) bool {
-	return matchMark(p, exitMarks)
+	return matchMark(p, editExitMarks)
 }
 
 func matchMark(p []byte, marks [][]byte) bool {
