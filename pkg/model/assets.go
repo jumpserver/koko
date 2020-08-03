@@ -236,6 +236,7 @@ type SystemUser struct {
 	OrgId                string   `json:"org_id"`
 	OrgName              string   `json:"org_name"`
 	UsernameSameWithUser bool     `json:"username_same_with_user"`
+	Token                string   `json:"token"`
 }
 
 type SystemUserAuthInfo struct {
@@ -246,6 +247,7 @@ type SystemUserAuthInfo struct {
 	LoginMode  string `json:"login_mode"`
 	Password   string `json:"password"`
 	PrivateKey string `json:"private_key"`
+	Token      string `json:"token"`
 }
 
 type systemUserSortBy func(user1, user2 *SystemUser) bool

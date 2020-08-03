@@ -36,13 +36,14 @@ goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
 cd cmd && CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$goldflags" -o koko koko.go || exit 4
+CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -o kubectl kubectl.go  || exit 4
 
 # 打包
 rm -rf "${release_dir:?}/*"
 to_dir="${release_dir}/koko"
 mkdir -p "${to_dir}"
 
-for i in koko static templates locale config_example.yml;do
+for i in koko kubectl static templates locale config_example.yml;do
   cp -r $i "${to_dir}"
 done
 

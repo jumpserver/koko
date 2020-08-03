@@ -16,6 +16,8 @@ const (
 	DBOutputParserName = "DB Output parser"
 )
 
+var _ ParseEngine = (*DBParser)(nil)
+
 func newDBParser(id string) DBParser {
 	dbParser := DBParser{
 		id: id,
@@ -214,4 +216,12 @@ func (p *DBParser) sendCommandRecord() {
 		p.command = ""
 		p.output = ""
 	}
+}
+
+func (p *DBParser) NeedRecord() bool {
+	return true
+}
+
+func (p *DBParser) CommandRecordChan() chan [3]string {
+	return p.cmdRecordChan
 }

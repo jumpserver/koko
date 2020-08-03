@@ -6,6 +6,10 @@ do
     echo "wait for jms_core $CORE_HOST ready"
     sleep 2
 done
+echo "export TERM=xterm" >> /root/.bashrc
+echo "source /usr/share/bash-completion/bash_completion" >> /root/.bashrc
+echo 'source <(kubectl completion bash)' >> /root/.bashrc
+echo 'complete -F __start_kubectl k' >> /root/.bashrc
 
 cd /opt/koko
 ./koko

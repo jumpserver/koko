@@ -16,3 +16,10 @@ type Database struct {
 func (db Database) String() string {
 	return fmt.Sprintf("%s://%s:%d/%s", db.DBType, db.Host, db.Port, db.DBName)
 }
+
+type DatabasesPaginationResponse struct {
+	Total       int        `json:"count"`
+	NextURL     string     `json:"next"`
+	PreviousURL string     `json:"previous"`
+	Data        []Database `json:"results"`
+}
