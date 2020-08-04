@@ -34,8 +34,8 @@ mount -t tmpfs -o size=10M tmpfs /nonexistent
 cd /nonexistent
 export HOME=/nonexistent
 export TMPDIR=/nonexistent
-export LANG=C.UTF-8
-exec su -s /bin/bash --command="mysql --default-character-set=utf8 --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
+export LANG=en_US.UTF-8
+exec su -s /bin/bash --command="mysql --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
 `
 
 var mysqlOnce sync.Once
@@ -250,7 +250,6 @@ type SqlOptions struct {
 
 func (opts *SqlOptions) CommandArgs() []string {
 	return []string{
-		"--default-character-set=utf8",
 		fmt.Sprintf("--user=%s", opts.Username),
 		fmt.Sprintf("--host=%s", opts.Host),
 		fmt.Sprintf("--port=%d", opts.Port),

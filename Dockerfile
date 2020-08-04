@@ -14,13 +14,14 @@ COPY . .
 RUN cd utils && sh -ixeu build.sh
 
 FROM debian:stretch-slim
-ENV LANG=C.UTF-8
 RUN sed -i  's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list \
     && sed -i  's/security.debian.org/mirrors.163.com/g' /etc/apt/sources.list
 RUN apt-get update -y \
+    && apt-get install -y locales \
+    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
     && apt-get install -y --no-install-recommends gnupg dirmngr openssh-client procps curl \
     && rm -rf /var/lib/apt/lists/*
-
+ENV LANG en_US.utf8
 RUN set -ex; \
 # gpg: key 5072E1F5: public key "MySQL Release Engineering <mysql-build@oss.oracle.com>" imported
 	key='A4A9406876FCBD3C456770C88C718D3B5072E1F5'; \
