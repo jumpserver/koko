@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 )
+var CipherKey = "JumpServer Cipher Key for KoKo !"
 
 type Config struct {
 	AssetListPageSize   string                 `json:"TERMINAL_ASSET_LIST_PAGE_SIZE"`

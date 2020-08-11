@@ -11,8 +11,10 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
-	"github.com/jumpserver/koko/pkg/aes"
+
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 var (
@@ -139,7 +141,7 @@ type k8sOptions struct {
 }
 
 func (o *k8sOptions) Env() []string {
-	token, err := aes.Encrypt(o.Token)
+	token, err := utils.Encrypt(o.Token, config.CipherKey)
 	if err != nil {
 		logger.Errorf("Encrypt k8s token err: %s", err)
 		token = o.Token

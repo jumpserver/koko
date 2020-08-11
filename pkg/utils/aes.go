@@ -1,4 +1,4 @@
-package aes
+package utils
 
 import (
 	"crypto/aes"
@@ -9,9 +9,7 @@ import (
 	"io"
 )
 
-var cipherKey = "JumpServer Cipher Key for KoKo !"
-
-func Encrypt(src string) (dst string, err error) {
+func Encrypt(src, cipherKey string) (dst string, err error) {
 	var encryptResult []byte
 	encryptResult, err = aseGcmEncrypt([]byte(src), cipherKey)
 	if err != nil {
@@ -21,7 +19,7 @@ func Encrypt(src string) (dst string, err error) {
 	return
 }
 
-func Decrypt(src string) (dst string, err error) {
+func Decrypt(src string, cipherKey string) (dst string, err error) {
 	var (
 		encryptResult []byte
 		decryptResult []byte

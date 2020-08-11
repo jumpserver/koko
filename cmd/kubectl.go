@@ -6,7 +6,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/jumpserver/koko/pkg/aes"
+	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 const (
@@ -18,7 +19,7 @@ func main() {
 	encryptToken := os.Getenv(envName)
 	var token string
 	if encryptToken != "" {
-		token, _ = aes.Decrypt(encryptToken)
+		token, _ = utils.Decrypt(encryptToken, config.CipherKey)
 	}
 
 	args := os.Args[1:]

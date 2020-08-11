@@ -1,19 +1,19 @@
-package aes
+package utils
 
 import (
 	"testing"
 )
 
 func TestDecrypt(t *testing.T) {
-	//var aesKey = "JumpServer Cipher Key for KoKo !" // create aes secret on build time
+	var cipherKey = "JumpServer Cipher Key for KoKo !"
 	text := "JumpServer Token Value"
 	t.Log("Encrypt Text: ", text)
-	dst, err := Encrypt(text)
+	dst, err := Encrypt(text, cipherKey)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("Encrypt '%s' to '%s'", text, dst)
-	decryptResult, err := Decrypt(dst)
+	decryptResult, err := Decrypt(dst, cipherKey)
 	if err != nil {
 		t.Fatal(err)
 	}
