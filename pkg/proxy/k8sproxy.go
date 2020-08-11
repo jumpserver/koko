@@ -184,7 +184,7 @@ func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output st
 		Output:     output,
 		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
 		Server:     p.Cluster.OrgID,
-		SystemUser: p.SystemUser.Name,
+		SystemUser: fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
 	}
@@ -214,7 +214,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"asset":          p.Cluster.Cluster,
 		"org_id":         p.Cluster.OrgID,
 		"login_from":     p.UserConn.LoginFrom(),
-		"system_user":    p.SystemUser.Name,
+		"system_user":    fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		"protocol":       p.SystemUser.Protocol,
 		"remote_addr":    p.UserConn.RemoteAddr(),
 		"is_finished":    s.finished,
