@@ -61,32 +61,32 @@ msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:101 pkg/handler/app_database.go:103
+#: pkg/handler/app_database.go:102 pkg/handler/app_database.go:104
 msgid "No Databases"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:114 pkg/handler/app_database.go:115
+#: pkg/handler/app_database.go:115 pkg/handler/app_database.go:116
 msgid "Name"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:116 pkg/handler/app_database.go:117
+#: pkg/handler/app_database.go:117 pkg/handler/app_database.go:118
 msgid "DBType"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/app_database.go:118
+#: pkg/handler/app_database.go:119
 msgid "DB Name"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:119 pkg/handler/app_database.go:145
-#: pkg/handler/app_database.go:166
+#: pkg/handler/app_database.go:120 pkg/handler/app_database.go:146
+#: pkg/handler/app_database.go:167
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
 "such as: //16"
@@ -95,7 +95,7 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:167 pkg/handler/app_k8s.go:101
+#: pkg/handler/app_database.go:168 pkg/handler/app_k8s.go:101
 #: pkg/handler/app_k8s.go:103
 msgid "No kubernetes"
 msgstr ""
@@ -274,8 +274,12 @@ msgid "connecting Kubernetes %s %.1f"
 msgstr ""
 
 #. i18n.T
+#: pkg/proxy/k8sproxy.go:87
+msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
+msgstr ""
+
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:87 pkg/proxy/k8sproxy.go:95
+#: pkg/proxy/k8sproxy.go:95
 msgid "%s protocol client not installed."
 msgstr ""
 

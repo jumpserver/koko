@@ -84,7 +84,7 @@ func (p *K8sProxyServer) sendConnectingMsg(done chan struct{}) {
 // preCheckRequisite 检查是否满足条件
 func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 	if !p.checkProtocolMatch() {
-		msg := utils.WrapperWarn(i18n.T("System user <%s> and database <%s> protocol are inconsistent."))
+		msg := utils.WrapperWarn(i18n.T("System user <%s> and kubernetes <%s> protocol are inconsistent."))
 		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Cluster.Type)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)

@@ -66,24 +66,24 @@ msgstr "上一页：b 下一页：n"
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:101 pkg/handler/app_database.go:103
+#: pkg/handler/app_database.go:102 pkg/handler/app_database.go:104
 msgid "No Databases"
 msgstr "无数据库"
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:114 pkg/handler/app_database.go:115
+#: pkg/handler/app_database.go:115 pkg/handler/app_database.go:116
 msgid "Name"
 msgstr "名称"
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:116 pkg/handler/app_database.go:117
+#: pkg/handler/app_database.go:117 pkg/handler/app_database.go:118
 msgid "DBType"
 msgstr "数据库类型"
 
 #. i18n.T
-#: pkg/handler/app_database.go:118
+#: pkg/handler/app_database.go:119
 #, fuzzy
 msgid "DB Name"
 msgstr "数据库名称"
@@ -91,8 +91,8 @@ msgstr "数据库名称"
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:119 pkg/handler/app_database.go:145
-#: pkg/handler/app_database.go:166
+#: pkg/handler/app_database.go:120 pkg/handler/app_database.go:146
+#: pkg/handler/app_database.go:167
 #, fuzzy
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
@@ -102,7 +102,7 @@ msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段�
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:167 pkg/handler/app_k8s.go:101
+#: pkg/handler/app_database.go:168 pkg/handler/app_k8s.go:101
 #: pkg/handler/app_k8s.go:103
 msgid "No kubernetes"
 msgstr "没有kubernetes"
@@ -296,8 +296,13 @@ msgid "connecting Kubernetes %s %.1f"
 msgstr "开始连接Kubernetes %s  %.1f"
 
 #. i18n.T
+#: pkg/proxy/k8sproxy.go:87
+#, fuzzy
+msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
+msgstr "系统用户<%s>和kubernetes<%s>协议不一致"
+
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:87 pkg/proxy/k8sproxy.go:95
+#: pkg/proxy/k8sproxy.go:95
 #, fuzzy
 msgid "%s protocol client not installed."
 msgstr "%s 协议的数据库客户端未安装"
