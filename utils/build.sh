@@ -14,6 +14,9 @@ if [[ -n "${GOARCH-}" ]];then
   ARCH="${GOARCH}"
 fi
 
+if [[ $(uname) == 'Darwin' ]];then
+  alias md5sum="md5"
+fi
 
 function install_git() {
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
@@ -27,16 +30,20 @@ kokoVersion='unknown'
 goVersion="$(go version)"
 gitHash="$(git rev-parse HEAD)"
 buildStamp="$(date -u '+%Y-%m-%d %I:%M:%S%p')"
+set +x
+cipherKey="$(head -20 /dev/urandom | md5sum)"
 # 修改版本号文件
 if [[ -n "${VERSION-}" ]]; then
   kokoVersion="${VERSION}"
 fi
 
-goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.Goversion=$goVersion' -X 'github.com/jumpserver/koko/pkg/koko.Version=$kokoVersion'"
+goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.Goversion=$goVersion' -X 'github.com/jumpserver/koko/pkg/koko.Version=$kokoVersion' -X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
+kubectlflags="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
 cd cmd && CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$goldflags" -o koko koko.go || exit 4
-CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -o kubectl kubectl.go  || exit 4
+CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$kubectlflags" -o kubectl kubectl.go  || exit 4
+set -x
 
 # 打包
 rm -rf "${release_dir:?}/*"
