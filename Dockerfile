@@ -2,6 +2,7 @@ FROM golang:1.12-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 ARG GOPROXY=https://goproxy.io
+ARG KUBECTLDOWNLOADURL=https://download.jumpserver.org/public/kubectl.tar.gz
 ARG VERSION
 ENV GOPROXY=$GOPROXY
 ENV VERSION=$VERSION
@@ -11,8 +12,8 @@ ENV GOARCH=amd64
 ENV CGO_ENABLED=0
 
 COPY . .
-ADD "https://download.jumpserver.org/public/kubectl.tar.gz" .
-RUN tar -xzf kubectl.tar.gz && chmod +x kubectl && mv kubectl rawkubectl
+RUN wget "$KUBECTLDOWNLOADURL" -O kubectl.tar.gz && tar -xzf kubectl.tar.gz \
+    && chmod +x kubectl && mv kubectl rawkubectl
 RUN cd utils && sh -ixeu build.sh
 
 FROM debian:stretch-slim
@@ -24,24 +25,11 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends gnupg dirmngr openssh-client procps curl \
     && rm -rf /var/lib/apt/lists/*
 ENV LANG en_US.utf8
-RUN set -ex; \
-# gpg: key 5072E1F5: public key "MySQL Release Engineering <mysql-build@oss.oracle.com>" imported
-	key='A4A9406876FCBD3C456770C88C718D3B5072E1F5'; \
-	export GNUPGHOME="$(mktemp -d)"; \
-	( gpg --batch --keyserver p80.pool.sks-keyservers.net  --recv-keys "$key" \
-      || gpg --batch --keyserver hkps.pool.sks-keyservers.net --recv-keys "$key" \
-      || gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key" \
-      || gpg --batch --keyserver pgp.mit.edu --recv-keys "$key" \
-      || gpg --batch --keyserver keyserver.pgp.com --recv-keys "$key" ); \
-	gpg --batch --export "$key" > /etc/apt/trusted.gpg.d/mysql.gpg; \
-	gpgconf --kill all; \
-	rm -rf "$GNUPGHOME"; \
-	apt-key list > /dev/null
 
 ENV MYSQL_MAJOR 8.0
 RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/mysql/apt/debian stretch mysql-${MYSQL_MAJOR}" > /etc/apt/sources.list.d/mysql.list
-RUN apt-get update && apt-get install -y --no-install-recommends gdb ca-certificates mysql-community-client \
-    && apt-get install -y --no-install-recommends jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git \
+RUN apt-get update && apt-get install -y --allow-unauthenticated --no-install-recommends mysql-community-client \
+    && apt-get install -y --no-install-recommends gdb ca-certificates jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ Asia/Shanghai
