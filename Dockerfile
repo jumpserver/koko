@@ -38,9 +38,9 @@ COPY --from=stage-build /opt/koko/release/koko /opt/koko
 COPY --from=stage-build /opt/koko/release/koko/kubectl /usr/local/bin/kubectl
 COPY --from=stage-build /opt/koko/rawkubectl /usr/local/bin/rawkubectl
 COPY --from=stage-build /usr/local/go/src/runtime/sys_linux_amd64.s /usr/local/go/src/runtime/sys_linux_amd64.s
-COPY --from=stage-build /opt/koko/tools/coredump.sh .
+COPY --from=stage-build /opt/koko/utils/coredump.sh .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
-COPY --from=stage-build /opt/koko/init-kubectl.sh .
+COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
 
 RUN chmod 755 entrypoint.sh && chmod 755 init-kubectl.sh
 

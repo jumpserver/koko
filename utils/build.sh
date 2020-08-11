@@ -50,6 +50,8 @@ rm -rf "${release_dir:?}/*"
 to_dir="${release_dir}/koko"
 mkdir -p "${to_dir}"
 
+cp -r "${utils_dir}/init-kubectl.sh" "${to_dir}"
+
 for i in koko kubectl static templates locale config_example.yml;do
   cp -r $i "${to_dir}"
 done
