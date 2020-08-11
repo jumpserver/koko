@@ -9,7 +9,8 @@ mkdir -p /nonexistent
 mount -t tmpfs -o size=10M tmpfs /nonexistent
 cd /nonexistent
 cp /root/.bashrc ./
-echo 'PS1="k8s > "' >> .bashrc
+echo 'PS1="k8s> "' >> .bashrc
+echo "export TERM=xterm" >> .bashrc
 mkdir -p .kube
 
 export HOME=/nonexistent

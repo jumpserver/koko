@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -95,19 +96,22 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 		msg := utils.WrapperWarn(i18n.T("%s protocol client not installed."))
 		msg = fmt.Sprintf(msg, p.Cluster.Type)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] %s", p.UserConn.ID(), msg)
 		return
 	}
 	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
 	if !p.validatePermission() {
-		msg := fmt.Sprintf("You don't have permission login %s", p.Cluster.Cluster)
+		msg := utils.WrapperWarn(i18n.T("You don't have permission login %s"))
+		msg = fmt.Sprintf(msg, p.Cluster.Cluster)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Errorf("Conn[%s] get k8s %s permission failed", p.UserConn.ID(), p.Cluster.Cluster)
 		return
 	}
 	logger.Infof("Conn[%s] has permission to access k8s %s", p.UserConn.ID(), p.Cluster.Cluster)
 	if err := p.checkRequiredAuth(); err != nil {
-		msg := fmt.Sprintf("You get k8s %s auth info err: %s", p.Cluster.Cluster, err)
+		msg := utils.WrapperWarn(i18n.T("You get auth token failed"))
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] get system user info failed: %s", p.UserConn.ID(), err)
+		logger.Errorf("Conn[%s] get k8s %s auth info failed: %s", p.UserConn.ID(), p.Cluster.Cluster, err)
 		return
 	}
 	return true
@@ -115,6 +119,9 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 
 func (p *K8sProxyServer) checkRequiredAuth() error {
 	info := service.GetUserK8sAuthToken(p.SystemUser.ID)
+	if info.Token == "" {
+		return errors.New("no auth token")
+	}
 	p.SystemUser.Token = info.Token
 	logger.Infof("Conn[%s] get k8s %s auth info from JMS core success",
 		p.UserConn.ID(), p.Cluster.Cluster)

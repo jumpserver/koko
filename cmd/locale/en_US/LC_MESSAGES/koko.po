@@ -269,29 +269,39 @@ msgid "Database connection terminated by administrator"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:68
+#: pkg/proxy/k8sproxy.go:69
 msgid "connecting Kubernetes %s %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:87
+#: pkg/proxy/k8sproxy.go:88
 msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:95
+#: pkg/proxy/k8sproxy.go:96
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:150
+#: pkg/proxy/k8sproxy.go:104
+msgid "You don't have permission login %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:112
+msgid "You get auth token failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:157
 msgid "Create k8s session failed"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:188 pkg/proxy/parser.go:150 pkg/proxy/proxy.go:184
+#: pkg/proxy/k8sproxy.go:195 pkg/proxy/parser.go:150 pkg/proxy/proxy.go:184
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 

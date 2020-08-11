@@ -258,7 +258,7 @@ msgstr "命令 `%s` 是被禁止的 ..."
 #: pkg/proxy/dbproxy.go:117
 #, fuzzy
 msgid "Database connecting to %s %.1f"
-msgstr "连接数据库 %s  %.1f"
+msgstr "连接数据库 %s %.1f"
 
 #. i18n.T
 #: pkg/proxy/dbproxy.go:136
@@ -290,25 +290,35 @@ msgid "Database connection terminated by administrator"
 msgstr "管理员中断数据库连接"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:68
+#: pkg/proxy/k8sproxy.go:69
 #, fuzzy
 msgid "connecting Kubernetes %s %.1f"
 msgstr "开始连接Kubernetes %s  %.1f"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:87
+#: pkg/proxy/k8sproxy.go:88
 #, fuzzy
 msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和kubernetes<%s>协议不一致"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:95
+#: pkg/proxy/k8sproxy.go:96
 #, fuzzy
 msgid "%s protocol client not installed."
 msgstr "%s 协议的数据库客户端未安装"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:150
+#: pkg/proxy/k8sproxy.go:104
+msgid "You don't have permission login %s"
+msgstr "你无权限登陆%s"
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:112
+msgid "You get auth token failed"
+msgstr "你获取认证令牌失败"
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:157
 #, fuzzy
 msgid "Create k8s session failed"
 msgstr "创建Kubernetes会话失败"
@@ -316,7 +326,7 @@ msgstr "创建Kubernetes会话失败"
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:188 pkg/proxy/parser.go:150 pkg/proxy/proxy.go:184
+#: pkg/proxy/k8sproxy.go:195 pkg/proxy/parser.go:150 pkg/proxy/proxy.go:184
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
