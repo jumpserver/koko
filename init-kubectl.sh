@@ -8,9 +8,12 @@ fi
 mkdir -p /nonexistent
 mount -t tmpfs -o size=10M tmpfs /nonexistent
 cd /nonexistent
-cp /root/.bashrc ./
+touch .bashrc
 echo 'PS1="k8s> "' >> .bashrc
 echo "export TERM=xterm" >> .bashrc
+echo "source /usr/share/bash-completion/bash_completion" >> .bashrc
+echo 'source <(kubectl completion bash)' >> .bashrc
+echo 'complete -F __start_kubectl k' >> .bashrc
 mkdir -p .kube
 
 export HOME=/nonexistent

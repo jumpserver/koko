@@ -166,7 +166,7 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 	nameLabel := i18n.T("Name")
 	usernameLabel := i18n.T("Username")
 
-	Labels := []string{idLabel, nameLabel, usernameLabel}
+	labels := []string{idLabel, nameLabel, usernameLabel}
 	fields := []string{"ID", "Name", "Username"}
 
 	data := make([]map[string]string, len(displaySystemUsers))
@@ -180,7 +180,7 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 	w, _ := h.term.GetSize()
 	table := common.WrapperTable{
 		Fields: fields,
-		Labels: Labels,
+		Labels: labels,
 		FieldsSize: map[string][3]int{
 			"ID":       {0, 0, 5},
 			"Name":     {0, 8, 0},
