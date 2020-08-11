@@ -106,6 +106,7 @@ func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 	userConn.SendRoomEvent(neffos.Marshal(emitMsg))
 	var databaseAsset model.Database
 	var asset model.Asset
+	var k8sCluster model.K8sCluster
 
 	systemUser := service.GetSystemUser(systemUserID)
 	var connectName string
@@ -120,6 +121,16 @@ func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 			return errors.New("no found database or systemUser")
 		}
 		connectName = databaseAsset.Name
+	case "k8s":
+		k8sCluster = service.GetK8sCluster(assetID)
+		if k8sCluster.ID == "" || systemUser.ID == "" {
+			msg := "No k8s id or system user id found, exit"
+			logger.Error(msg)
+			dataMsg := DataMsg{Room: roomID, Data: msg}
+			userConn.SendDataEvent(neffos.Marshal(dataMsg))
+			return errors.New("no found k8s or systemUser")
+		}
+		connectName = k8sCluster.Name
 	default:
 		asset = service.GetAsset(assetID)
 		if asset.ID == "" || systemUser.ID == "" {
@@ -147,6 +158,13 @@ func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 			UserConn:   client,
 			User:       userConn.User,
 			Database:   &databaseAsset,
+			SystemUser: &systemUser,
+		}
+	case "k8s":
+		proxySrv = &proxy.K8sProxyServer{
+			UserConn:   client,
+			User:       userConn.User,
+			Cluster:    nil,
 			SystemUser: &systemUser,
 		}
 	default:

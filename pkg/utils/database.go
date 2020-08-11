@@ -1,22 +1,37 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"os/exec"
-	"os/user"
 )
 
 func IsInstalledMysqlClient() bool {
-	if mysqlPath, err := exec.LookPath("mysql"); err == nil {
-		cmd := exec.Command(mysqlPath, "-V")
-		if err = cmd.Run(); err == nil {
-			return true
-		}
+	checkLine := "mysql -V"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	if bytes.HasPrefix(out, []byte("mysql")) {
+		return true
 	}
 	return false
 }
 
-func IsUserExist(username string) bool {
-	if _, err := user.Lookup(username); err == nil {
+func IsInstalledKubectlClient() bool {
+	checkLine := "kubectl version --client -o json"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	var result map[string]interface{}
+	err = json.Unmarshal(out, &result)
+	if err != nil {
+		return false
+	}
+	if _, ok := result["clientVersion"]; ok {
 		return true
 	}
 	return false

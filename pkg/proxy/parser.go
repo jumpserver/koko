@@ -41,6 +41,8 @@ const (
 	CommandOutputParserName = "Command Output parser"
 )
 
+var _ ParseEngine = (*Parser)(nil)
+
 func newParser(sid string) Parser {
 	parser := Parser{id: sid}
 	parser.initial()
@@ -291,6 +293,14 @@ func (p *Parser) sendCommandRecord() {
 		p.command = ""
 		p.output = ""
 	}
+}
+
+func (p *Parser) NeedRecord() bool {
+	return !p.IsInZmodemRecvState()
+}
+
+func (p *Parser) CommandRecordChan() chan [3]string {
+	return p.cmdRecordChan
 }
 
 func IsEditEnterMode(p []byte) bool {
