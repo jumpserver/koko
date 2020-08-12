@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"bytes"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -76,7 +78,7 @@ func (p *DBProxyServer) checkProtocolMatch() bool {
 func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 	switch strings.ToLower(p.Database.DBType) {
 	case "mysql":
-		return utils.IsInstalledMysqlClient()
+		return IsInstalledMysqlClient()
 	}
 
 	return false
@@ -271,4 +273,19 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}
+}
+
+func IsInstalledMysqlClient() bool {
+	checkLine := "mysql -V"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		logger.Errorf("check mysql client installed failed: %s", err, out)
+		return false
+	}
+	if bytes.HasPrefix(out, []byte("mysql")) {
+		return true
+	}
+	logger.Errorf("check mysql client installed failed: %s", out)
+	return false
 }
