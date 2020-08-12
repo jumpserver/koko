@@ -1,8 +1,10 @@
 package proxy
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -30,7 +32,7 @@ func (p *K8sProxyServer) checkProtocolMatch() bool {
 func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
 	switch strings.ToLower(p.Cluster.Type) {
 	case "k8s":
-		return utils.IsInstalledKubectlClient()
+		return IsInstalledKubectlClient()
 	}
 	return false
 }
@@ -225,4 +227,25 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}
+}
+
+func IsInstalledKubectlClient() bool {
+	checkLine := "kubectl version --client -o json"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		logger.Errorf("Check kubectl client failed %s", err, out)
+		return false
+	}
+	var result map[string]interface{}
+	err = json.Unmarshal(out, &result)
+	if err != nil {
+		logger.Errorf("Check kubectl client failed %s %s", err, out)
+		return false
+	}
+	if _, ok := result["clientVersion"]; ok {
+		return true
+	}
+	logger.Errorf("Check kubectl client failed: %s", out)
+	return false
 }
