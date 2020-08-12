@@ -28,7 +28,7 @@ goVersion="$(go version)"
 gitHash="$(git rev-parse HEAD)"
 buildStamp="$(date -u '+%Y-%m-%d %I:%M:%S%p')"
 set +x
-cipherKey="$(head -c 100 /dev/random | base64 | head -c 32)"
+cipherKey="$(head -c 100 /dev/urandom | base64 | head -c 32)"
 # 修改版本号文件
 if [[ -n "${VERSION-}" ]]; then
   kokoVersion="${VERSION}"
