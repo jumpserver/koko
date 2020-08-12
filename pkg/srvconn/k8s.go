@@ -154,7 +154,7 @@ func (o *k8sOptions) Env() []string {
 		fmt.Sprintf("KUBECTL_USER=%s", o.Username),
 		fmt.Sprintf("KUBECTL_CLUSTER=%s", o.ClusterServer),
 		fmt.Sprintf("KUBECTL_INSECURE_SKIP_TLS_VERIFY=%s", skipTls),
-		fmt.Sprintf("KUBECTL_TOKEN=%s", token),
+		fmt.Sprintf("K8S_ENCRYPTED_TOKEN=%s", token),
 	}
 }
 func connectK8s(con *K8sCon) (cmd *exec.Cmd, ptyFD *os.File, err error) {

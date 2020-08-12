@@ -25,7 +25,7 @@ echo `rawkubectl config use-context kubernetes` > /dev/null 2>&1
 
 if [ ${KUBECTL_INSECURE_SKIP_TLS_VERIFY} == "true" ];then
     {
-        clusters=`kubectl config get-clusters | tail -n +2`
+        clusters=`rawkubectl config get-clusters | tail -n +2`
         for s in ${clusters[@]}; do
             {
                 echo `rawkubectl config set-cluster ${s} --insecure-skip-tls-verify=true` > /dev/null 2>&1

@@ -14,9 +14,6 @@ if [[ -n "${GOARCH-}" ]];then
   ARCH="${GOARCH}"
 fi
 
-if [[ $(uname) == 'Darwin' ]];then
-  alias md5sum="md5"
-fi
 
 function install_git() {
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
@@ -31,7 +28,7 @@ goVersion="$(go version)"
 gitHash="$(git rev-parse HEAD)"
 buildStamp="$(date -u '+%Y-%m-%d %I:%M:%S%p')"
 set +x
-cipherKey="$(head -20 /dev/urandom | md5sum)"
+cipherKey="$(head -c 100 /dev/urandom | base64 | head -c 32)"
 # 修改版本号文件
 if [[ -n "${VERSION-}" ]]; then
   kokoVersion="${VERSION}"
