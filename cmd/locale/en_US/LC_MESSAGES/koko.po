@@ -8,72 +8,32 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. i18n.T
-#: pkg/handler/app_asset.go:110
+#: pkg/handler/app_database.go:102
 msgid "Search: %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/app_asset.go:113
-msgid "No Assets"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:116
-msgid "%s node has no assets"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:130
-msgid "ID"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:131
-msgid "Hostname"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:132
-msgid "IP"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:133
-msgid "Comment"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:155
-msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:174
-msgid ""
-"Enter ID number directly login the asset, multiple search use // + field, "
-"such as: //16"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/app_asset.go:175
-msgid "Page up: b\tPage down: n"
-msgstr ""
-
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_database.go:102 pkg/handler/app_database.go:104
+#: pkg/handler/app_database.go:104
 msgid "No Databases"
 msgstr ""
 
 #. i18n.T
+#: pkg/handler/app_database.go:115
+msgid "ID"
+msgstr ""
+
 #. i18n.T
-#: pkg/handler/app_database.go:115 pkg/handler/app_database.go:116
+#: pkg/handler/app_database.go:116
 msgid "Name"
 msgstr ""
 
 #. i18n.T
+#: pkg/handler/app_database.go:117
+msgid "IP"
+msgstr ""
+
 #. i18n.T
-#: pkg/handler/app_database.go:117 pkg/handler/app_database.go:118
+#: pkg/handler/app_database.go:118
 msgid "DBType"
 msgstr ""
 
@@ -83,9 +43,16 @@ msgid "DB Name"
 msgstr ""
 
 #. i18n.T
+#: pkg/handler/app_database.go:120
+msgid "Comment"
+msgstr ""
+
 #. i18n.T
+#: pkg/handler/app_database.go:146
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr ""
+
 #. i18n.T
-#: pkg/handler/app_database.go:120 pkg/handler/app_database.go:146
 #: pkg/handler/app_database.go:167
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
@@ -93,10 +60,13 @@ msgid ""
 msgstr ""
 
 #. i18n.T
+#: pkg/handler/app_database.go:168
+msgid "Page up: b\tPage down: n"
+msgstr ""
+
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:168 pkg/handler/app_k8s.go:101
-#: pkg/handler/app_k8s.go:103
+#: pkg/handler/app_k8s.go:101 pkg/handler/app_k8s.go:103
 msgid "No kubernetes"
 msgstr ""
 
@@ -120,7 +90,36 @@ msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_k8s.go:161 pkg/handler/banner.go:30
+#. i18n.T
+#: pkg/handler/app_k8s.go:161 pkg/handler/asset.go:110 pkg/handler/asset.go:113
+msgid "No Assets"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/asset.go:116
+msgid "%s node has no assets"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:130 pkg/handler/asset.go:131
+msgid "Hostname"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:132 pkg/handler/asset.go:133 pkg/handler/asset.go:155
+#: pkg/handler/asset.go:174
+msgid ""
+"Enter ID number directly login the asset, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:175 pkg/handler/banner.go:30
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
@@ -239,7 +238,7 @@ msgstr ""
 
 #. i18n.T
 #: pkg/proxy/dbproxy.go:117
-msgid "Database connecting to %s %.1f"
+msgid "Connecting to Database %s %.1f"
 msgstr ""
 
 #. i18n.T
@@ -270,7 +269,7 @@ msgstr ""
 
 #. i18n.T
 #: pkg/proxy/k8sproxy.go:69
-msgid "connecting Kubernetes %s %.1f"
+msgid "Connecting to Kubernetes %s %.1f"
 msgstr ""
 
 #. i18n.T

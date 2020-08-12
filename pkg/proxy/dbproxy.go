@@ -114,7 +114,7 @@ func (p *DBProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err e
 // sendConnectingMsg 发送连接信息
 func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.Duration) {
 	delay := 0.0
-	msg := fmt.Sprintf(i18n.T("Database connecting to %s %.1f"), p.Database, delay)
+	msg := fmt.Sprintf(i18n.T("Connecting to Database %s %.1f"), p.Database, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for int(delay) < int(delayDuration/time.Second) {
 		select {

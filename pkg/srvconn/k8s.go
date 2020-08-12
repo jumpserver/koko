@@ -58,6 +58,7 @@ func NewK8sCon(ops ...K8sOption) *K8sCon {
 		ClusterServer: "https://127.0.0.1:8443",
 		Token:         "",
 		IsSkipTls:     true,
+		ExtraEnv:      map[string]string{},
 	}
 	for _, setter := range ops {
 		setter(args)
@@ -155,6 +156,7 @@ func (o *k8sOptions) Env() []string {
 		fmt.Sprintf("KUBECTL_CLUSTER=%s", o.ClusterServer),
 		fmt.Sprintf("KUBECTL_INSECURE_SKIP_TLS_VERIFY=%s", skipTls),
 		fmt.Sprintf("K8S_ENCRYPTED_TOKEN=%s", token),
+		fmt.Sprintf("WELCOME_BANNER=%s", config.KubectlBanner),
 	}
 }
 func connectK8s(con *K8sCon) (cmd *exec.Cmd, ptyFD *os.File, err error) {
