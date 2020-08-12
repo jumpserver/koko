@@ -31,7 +31,7 @@ goVersion="$(go version)"
 gitHash="$(git rev-parse HEAD)"
 buildStamp="$(date -u '+%Y-%m-%d %I:%M:%S%p')"
 set +x
-cipherKey="$(head -20 /dev/urandom | md5sum)"
+cipherKey="$(head -20 /dev/urandom | md5sum |awk '{print $1}')"
 # 修改版本号文件
 if [[ -n "${VERSION-}" ]]; then
   kokoVersion="${VERSION}"

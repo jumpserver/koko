@@ -12,7 +12,7 @@ import (
 
 const (
 	commandName = "rawkubectl"
-	envName     = "KUBECTL_TOKEN"
+	envName     = "K8S_ENCRYPT_TOKEN"
 )
 
 func main() {
