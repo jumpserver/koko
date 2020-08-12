@@ -10,4 +10,4 @@ func Initial(confPath string) {
 	Conf.EnsureConfigValid()
 }
 
-var KubectlBanner = "Weclome to JumpServer kubectl, try kubectl --help."
+var KubectlBanner = "Welcome to JumpServer kubectl, try kubectl --help."
