@@ -164,7 +164,7 @@ func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 		proxySrv = &proxy.K8sProxyServer{
 			UserConn:   client,
 			User:       userConn.User,
-			Cluster:    nil,
+			Cluster:    &k8sCluster,
 			SystemUser: &systemUser,
 		}
 	default:
