@@ -183,7 +183,7 @@ func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output st
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
-		Server:     p.Cluster.OrgID,
+		Server:     fmt.Sprintf("%s (%s)", p.Cluster.Name, p.Cluster.Cluster),
 		SystemUser: fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
