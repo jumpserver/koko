@@ -41,8 +41,7 @@ type Config struct {
 	LogLevel            string                 `yaml:"LOG_LEVEL"`
 	RootPath            string                 `yaml:"ROOT_PATH"`
 	Comment             string                 `yaml:"COMMENT"`
-	Language            string                 `yaml:"LANG"`
-	LanguageCode        string                 `yaml:"LANGUAGE_CODE"` // Abandon
+	LanguageCode        string                 `yaml:"LANGUAGE_CODE"`
 	UploadFailedReplay  bool                   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
 	AssetLoadPolicy     string                 `yaml:"ASSET_LOAD_POLICY"` // all
 	ZipMaxSize          string                 `yaml:"ZIP_MAX_SIZE"`
@@ -59,12 +58,8 @@ type Config struct {
 }
 
 func (c *Config) EnsureConfigValid() {
-	// 兼容原来config
-	if c.LanguageCode != "" && c.Language == "" {
-		c.Language = c.LanguageCode
-	}
-	if c.Language == "" {
-		c.Language = "zh"
+	if c.LanguageCode == "" {
+		c.LanguageCode = "zh"
 	}
 	// 确保至少有一个认证
 	if !c.PublicKeyAuth && !c.PasswordAuth {
