@@ -240,12 +240,12 @@ func IsInstalledKubectlClient() bool {
 	var result map[string]interface{}
 	err = json.Unmarshal(out, &result)
 	if err != nil {
-		logger.Errorf("Check kubectl output failed %s %s", err, out)
+		logger.Errorf("Check kubectl client failed %s %s", err, out)
 		return false
 	}
 	if _, ok := result["clientVersion"]; ok {
 		return true
 	}
-	logger.Errorf("Check kubectl output failed: %s", out)
+	logger.Errorf("Check kubectl client failed: %s", out)
 	return false
 }
