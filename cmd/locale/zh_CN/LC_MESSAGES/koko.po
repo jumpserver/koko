@@ -8,77 +8,33 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. i18n.T
-#: pkg/handler/app_asset.go:110
+#: pkg/handler/app_database.go:102
 #, fuzzy
 msgid "Search: %s"
 msgstr "搜索: %s"
 
 #. i18n.T
-#: pkg/handler/app_asset.go:113
-msgid "No Assets"
-msgstr "没有资产"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:116
-msgid "%s node has no assets"
-msgstr "%s节点没有资产"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:130
-msgid "ID"
-msgstr "ID"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:131
-#, fuzzy
-msgid "Hostname"
-msgstr "主机名"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:132
-msgid "IP"
-msgstr "IP"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:133
-#, fuzzy
-msgid "Comment"
-msgstr "备注"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:155
-msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:174
-#, fuzzy
-msgid ""
-"Enter ID number directly login the asset, multiple search use // + field, "
-"such as: //16"
-msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
-
-#. i18n.T
-#: pkg/handler/app_asset.go:175
-#, fuzzy
-msgid "Page up: b\tPage down: n"
-msgstr "上一页：b 下一页：n"
-
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_database.go:102 pkg/handler/app_database.go:104
+#: pkg/handler/app_database.go:104
 msgid "No Databases"
 msgstr "无数据库"
 
 #. i18n.T
+#: pkg/handler/app_database.go:115
+msgid "ID"
+msgstr "ID"
+
 #. i18n.T
-#: pkg/handler/app_database.go:115 pkg/handler/app_database.go:116
+#: pkg/handler/app_database.go:116
 msgid "Name"
 msgstr "名称"
 
 #. i18n.T
+#: pkg/handler/app_database.go:117
+msgid "IP"
+msgstr "IP"
+
 #. i18n.T
-#: pkg/handler/app_database.go:117 pkg/handler/app_database.go:118
+#: pkg/handler/app_database.go:118
 msgid "DBType"
 msgstr "数据库类型"
 
@@ -89,9 +45,17 @@ msgid "DB Name"
 msgstr "数据库名称"
 
 #. i18n.T
+#: pkg/handler/app_database.go:120
+#, fuzzy
+msgid "Comment"
+msgstr "备注"
+
 #. i18n.T
+#: pkg/handler/app_database.go:146
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
+
 #. i18n.T
-#: pkg/handler/app_database.go:120 pkg/handler/app_database.go:146
 #: pkg/handler/app_database.go:167
 #, fuzzy
 msgid ""
@@ -100,10 +64,14 @@ msgid ""
 msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段，如：//192"
 
 #. i18n.T
+#: pkg/handler/app_database.go:168
+#, fuzzy
+msgid "Page up: b\tPage down: n"
+msgstr "上一页：b 下一页：n"
+
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_database.go:168 pkg/handler/app_k8s.go:101
-#: pkg/handler/app_k8s.go:103
+#: pkg/handler/app_k8s.go:101 pkg/handler/app_k8s.go:103
 msgid "No kubernetes"
 msgstr "没有kubernetes"
 
@@ -128,7 +96,38 @@ msgstr "提示：输入Kubernetes的ID直接登录，二级搜索使用 // + 字
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_k8s.go:161 pkg/handler/banner.go:30
+#. i18n.T
+#: pkg/handler/app_k8s.go:161 pkg/handler/asset.go:110 pkg/handler/asset.go:113
+msgid "No Assets"
+msgstr "没有资产"
+
+#. i18n.T
+#: pkg/handler/asset.go:116
+msgid "%s node has no assets"
+msgstr "%s节点没有资产"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:130 pkg/handler/asset.go:131
+#, fuzzy
+msgid "Hostname"
+msgstr "主机名"
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:132 pkg/handler/asset.go:133 pkg/handler/asset.go:155
+#: pkg/handler/asset.go:174
+#, fuzzy
+msgid ""
+"Enter ID number directly login the asset, multiple search use // + field, "
+"such as: //16"
+msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/asset.go:175 pkg/handler/banner.go:30
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
 
@@ -257,8 +256,8 @@ msgstr "命令 `%s` 是被禁止的 ..."
 #. i18n.T
 #: pkg/proxy/dbproxy.go:117
 #, fuzzy
-msgid "Database connecting to %s %.1f"
-msgstr "连接数据库 %s %.1f"
+msgid "Connecting to Database %s %.1f"
+msgstr "开始连接数据库%s %.1f"
 
 #. i18n.T
 #: pkg/proxy/dbproxy.go:136
@@ -292,7 +291,7 @@ msgstr "管理员中断数据库连接"
 #. i18n.T
 #: pkg/proxy/k8sproxy.go:69
 #, fuzzy
-msgid "connecting Kubernetes %s %.1f"
+msgid "Connecting to Kubernetes %s %.1f"
 msgstr "开始连接Kubernetes %s  %.1f"
 
 #. i18n.T

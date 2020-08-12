@@ -66,7 +66,7 @@ func (p *K8sProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err 
 // sendConnectingMsg 发送连接信息
 func (p *K8sProxyServer) sendConnectingMsg(done chan struct{}) {
 	delay := 0.1
-	msg := fmt.Sprintf(i18n.T("connecting Kubernetes %s %.1f"), p.Cluster.Cluster, delay)
+	msg := fmt.Sprintf(i18n.T("Connecting to Kubernetes %s %.1f"), p.Cluster.Cluster, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for {
 		select {

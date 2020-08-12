@@ -3,6 +3,7 @@ LABEL stage=stage-build
 WORKDIR /opt/koko
 ARG GOPROXY=https://goproxy.io
 ARG KUBECTLDOWNLOADURL=https://download.jumpserver.org/public/kubectl.tar.gz
+ARG ALIASESURL=http://download.jumpserver.org/public/kubectl_aliases.tar.gz
 ARG VERSION
 ENV GOPROXY=$GOPROXY
 ENV VERSION=$VERSION
@@ -14,6 +15,7 @@ ENV CGO_ENABLED=0
 COPY . .
 RUN wget "$KUBECTLDOWNLOADURL" -O kubectl.tar.gz && tar -xzf kubectl.tar.gz \
     && chmod +x kubectl && mv kubectl rawkubectl
+RUN wget "$ALIASESURL" -O kubectl_aliases.tar.gz && tar -xzvf kubectl_aliases.tar.gz
 RUN cd utils && sh -ixeu build.sh
 
 FROM debian:stretch-slim
@@ -41,6 +43,7 @@ COPY --from=stage-build /usr/local/go/src/runtime/sys_linux_amd64.s /usr/local/g
 COPY --from=stage-build /opt/koko/utils/coredump.sh .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
+COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
 
 RUN chmod 755 entrypoint.sh && chmod 755 init-kubectl.sh
 
