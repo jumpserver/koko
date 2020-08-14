@@ -23,7 +23,7 @@ func (a AzureReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	if err != nil {
 		return
 	}
-
+	defer file.Close()
 	credential, err := azblob.NewSharedKeyCredential(a.AccountName, a.AccountKey)
 	if err != nil {
 		logger.Error("Invalid credentials with error: " + err.Error())
@@ -34,15 +34,19 @@ func (a AzureReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	containerURL := azblob.NewContainerURL(*URL, p)
 	blobURL := containerURL.NewBlockBlobURL(target)
 
-	_, err = azblob.UploadFileToBlockBlob(context.TODO(), file, blobURL, azblob.UploadToBlockBlobOptions{
+	commonResp, err := azblob.UploadFileToBlockBlob(context.TODO(), file, blobURL, azblob.UploadToBlockBlobOptions{
 		BlockSize:   4 * 1024 * 1024,
 		Parallelism: 16})
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Errorf("Azure upload file %s failed: %s", gZipFilePath, err)
+		return err
+	}
+	if httpResp := commonResp.Response(); httpResp != nil {
+		defer httpResp.Body.Close()
 	}
 	return
 }
 
-func (o AzureReplayStorage) TypeName() string {
+func (a AzureReplayStorage) TypeName() string {
 	return "azure"
 }
