@@ -9,3 +9,5 @@ func Initial(confPath string) {
 	log.Printf("Config file Path: %s\n", confPath)
 	Conf.EnsureConfigValid()
 }
+
+var KubectlBanner = "Welcome to JumpServer kubectl, try kubectl --help."

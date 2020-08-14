@@ -12,10 +12,6 @@ import (
 )
 
 var (
-	// Todo: Vim过滤依然存在问题
-	vimEnterMark = []byte("\x1b[?25l\x1b[37;1H\x1b[1m")
-	vimExitMark  = []byte("\x1b[37;1H\x1b[K\x1b")
-
 	zmodemRecvStartMark = []byte("rz waiting to receive.**\x18B0100")
 	zmodemSendStartMark = []byte("**\x18B00000000000000")
 	zmodemCancelMark    = []byte("\x18\x18\x18\x18\x18")
@@ -24,12 +20,28 @@ var (
 	zmodemStateRecv     = "recv"
 
 	charEnter = []byte("\r")
+
+	enterMarks = [][]byte{
+		[]byte("\x1b[?1049h"),
+		[]byte("\x1b[?1048h"),
+		[]byte("\x1b[?1047h"),
+		[]byte("\x1b[?47h"),
+	}
+
+	exitMarks = [][]byte{
+		[]byte("\x1b[?1049l"),
+		[]byte("\x1b[?1048l"),
+		[]byte("\x1b[?1047l"),
+		[]byte("\x1b[?47l"),
+	}
 )
 
 const (
 	CommandInputParserName  = "Command Input parser"
 	CommandOutputParserName = "Command Output parser"
 )
+
+var _ ParseEngine = (*Parser)(nil)
 
 func newParser(sid string) Parser {
 	parser := Parser{id: sid}
@@ -201,11 +213,11 @@ func (p *Parser) parseZmodemState(b []byte) {
 
 // parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
 func (p *Parser) parseVimState(b []byte) {
-	if p.zmodemState == "" && !p.inVimState && bytes.Contains(b, vimEnterMark) {
+	if p.zmodemState == "" && !p.inVimState && IsEditEnterMode(b) {
 		p.inVimState = true
 		logger.Debug("In vim state: true")
 	}
-	if p.zmodemState == "" && p.inVimState && bytes.Contains(b, vimExitMark) {
+	if p.zmodemState == "" && p.inVimState && IsEditExitMode(b) {
 		p.inVimState = false
 		logger.Debug("In vim state: false")
 	}
@@ -281,4 +293,29 @@ func (p *Parser) sendCommandRecord() {
 		p.command = ""
 		p.output = ""
 	}
+}
+
+func (p *Parser) NeedRecord() bool {
+	return !p.IsInZmodemRecvState()
+}
+
+func (p *Parser) CommandRecordChan() chan [3]string {
+	return p.cmdRecordChan
+}
+
+func IsEditEnterMode(p []byte) bool {
+	return matchMark(p, enterMarks)
+}
+
+func IsEditExitMode(p []byte) bool {
+	return matchMark(p, exitMarks)
+}
+
+func matchMark(p []byte, marks [][]byte) bool {
+	for _, item := range marks {
+		if bytes.Contains(p, item) {
+			return true
+		}
+	}
+	return false
 }

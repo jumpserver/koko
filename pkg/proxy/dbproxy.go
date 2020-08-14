@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"bytes"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -13,6 +15,8 @@ import (
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
+
+var _ proxyEngine = (*DBProxyServer)(nil)
 
 type DBProxyServer struct {
 	UserConn   UserConnection
@@ -74,7 +78,7 @@ func (p *DBProxyServer) checkProtocolMatch() bool {
 func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 	switch strings.ToLower(p.Database.DBType) {
 	case "mysql":
-		return utils.IsInstalledMysqlClient()
+		return IsInstalledMysqlClient()
 	}
 
 	return false
@@ -112,7 +116,7 @@ func (p *DBProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err e
 // sendConnectingMsg 发送连接信息
 func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time.Duration) {
 	delay := 0.0
-	msg := fmt.Sprintf(i18n.T("Database connecting to %s %.1f"), p.Database, delay)
+	msg := fmt.Sprintf(i18n.T("Connecting to Database %s %.1f"), p.Database, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for int(delay) < int(delayDuration/time.Second) {
 		select {
@@ -196,13 +200,16 @@ func (p *DBProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
 	// 创建Session
-	sw, err := CreateDBSession(p)
-	if err != nil {
-		logger.Errorf("Conn[%s] create session failed: %s", p.UserConn.ID(), err)
+	sw, ok := CreateCommonSwitch(p)
+	if !ok {
+		msg := i18n.T("Create database session failed")
+		msg = utils.WrapperWarn(msg)
+		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Error(msg)
 		return
 	}
 	logger.Infof("Conn[%s] create database session %s success", p.UserConn.ID(), sw.ID)
-	defer RemoveDBSession(sw)
+	defer RemoveCommonSwitch(sw)
 	srvConn, err := p.getServerConn()
 	// 连接后端服务器失败
 	if err != nil {
@@ -214,4 +221,71 @@ func (p *DBProxyServer) Proxy() {
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end database session %s bridge", p.UserConn.ID(), sw.ID)
 
+}
+
+func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
+	riskLevel int64) *model.Command {
+	return &model.Command{
+		SessionID:  s.ID,
+		OrgID:      p.Database.OrgID,
+		Input:      input,
+		Output:     output,
+		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
+		Server:     p.Database.Name,
+		SystemUser: p.SystemUser.Username,
+		Timestamp:  time.Now().Unix(),
+		RiskLevel:  riskLevel,
+	}
+}
+
+func (p *DBProxyServer) NewParser(s *commonSwitch) ParseEngine {
+	dbParser := newDBParser(s.ID)
+	msg := i18n.T("Create database session failed")
+	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
+		dbParser.SetCMDFilterRules(cmdRules)
+	} else {
+		msg = utils.WrapperWarn(msg)
+		utils.IgnoreErrWriteString(p.UserConn, msg)
+		logger.Error(msg + err.Error())
+	}
+	return &dbParser
+}
+
+func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
+	var dataEnd interface{}
+	if s.DateEnd != "" {
+		dataEnd = s.DateEnd
+	}
+	return map[string]interface{}{
+		"id":             s.ID,
+		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
+		"asset":          p.Database.Name,
+		"org_id":         p.Database.OrgID,
+		"login_from":     p.UserConn.LoginFrom(),
+		"system_user":    p.SystemUser.Username,
+		"protocol":       p.SystemUser.Protocol,
+		"remote_addr":    p.UserConn.RemoteAddr(),
+		"is_finished":    s.finished,
+		"date_start":     s.DateStart,
+		"date_end":       dataEnd,
+		"user_id":        p.User.ID,
+		"asset_id":       p.Database.ID,
+		"system_user_id": p.SystemUser.ID,
+		"is_success":     s.isConnected,
+	}
+}
+
+func IsInstalledMysqlClient() bool {
+	checkLine := "mysql -V"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		logger.Errorf("Check mysql client installed failed: %s", err, out)
+		return false
+	}
+	if bytes.HasPrefix(out, []byte("mysql")) {
+		return true
+	}
+	logger.Errorf("Check mysql client installed failed: %s", out)
+	return false
 }
