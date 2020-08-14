@@ -23,8 +23,8 @@ func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 
 	file, err := os.Open(gZipFilePath)
 	if err != nil {
-		logger.Debug("Failed to open file", err)
-		return
+		logger.Errorf("Open %s file failed: %s", gZipFilePath, err)
+		return err
 	}
 	defer file.Close()
 	s3Config := &aws.Config{
@@ -34,7 +34,12 @@ func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 		S3ForcePathStyle: aws.Bool(true),
 	}
 
-	sess := session.Must(session.NewSession(s3Config))
+	sess, err := session.NewSession(s3Config)
+	if err != nil {
+		logger.Errorf("S3 new session failed: %s", err)
+		return err
+	}
+
 	uploader := s3manager.NewUploader(sess, func(u *s3manager.Uploader) {
 		u.PartSize = 64 * 1024 * 1024 // 64MB per part
 	})
@@ -44,12 +49,12 @@ func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 		Body:   file,
 	})
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Errorf("S3 upload file %s failed: %s", gZipFilePath, err)
+		return err
 	}
 
 	return
 }
-
 
 func (s S3ReplayStorage) TypeName() string {
 	return "s3"

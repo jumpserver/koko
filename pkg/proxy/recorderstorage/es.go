@@ -19,17 +19,18 @@ type ESCommandStorage struct {
 
 func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 	var buf bytes.Buffer
-	esClinet, err := elasticsearch.NewClient(elasticsearch.Config{
+	esClient, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: es.Hosts,
 	})
 	if err != nil {
-		logger.Error(err.Error())
-		return
+		logger.Errorf("ES new client err: %s", err)
+		return err
 	}
 	for _, item := range commands {
 		meta := []byte(fmt.Sprintf(`{ "index" : { } }%s`, "\n"))
 		data, err := json.Marshal(item)
 		if err != nil {
+			logger.Errorf("ES marshal data to json err: %s", err)
 			return err
 		}
 		data = append(data, "\n"...)
@@ -37,14 +38,17 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 		buf.Write(data)
 	}
 
-	_, err = esClinet.Bulk(bytes.NewReader(buf.Bytes()),
-		esClinet.Bulk.WithIndex(es.Index), esClinet.Bulk.WithDocumentType(es.DocType))
+	response, err := esClient.Bulk(bytes.NewReader(buf.Bytes()),
+		esClient.Bulk.WithIndex(es.Index), esClient.Bulk.WithDocumentType(es.DocType))
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Errorf("ES client bulk save err: %s", err)
+		return err
 	}
+	defer response.Body.Close()
+	logger.Debugf("ES client bulk save %d commands", len(commands))
 	return
 }
 
-func (f ESCommandStorage) TypeName() string {
+func (es ESCommandStorage) TypeName() string {
 	return "es"
 }
