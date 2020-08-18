@@ -17,8 +17,24 @@ import (
 
 func (h *interactiveHandler) Dispatch() {
 	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
+        linechan := make(chan string)
+        errchan := make(chan error)
 	for {
-		line, err := h.term.ReadLine()
+		var line string
+		var err error
+		go h.readLine(linechan, errchan)
+		
+		select {
+		case line = <-linechan:
+		    fmt.Println(line)
+		case err = <-errchan:
+		    fmt.Println(err)
+		    return
+		case <-time.After(config.GetConf().ClientConTimeOut * time.Second):
+		    fmt.Println("Timeout and exit")
+		    return
+		}
+		
 		if err != nil {
 			logger.Debugf("User %s close connect", h.user.Name)
 			break
