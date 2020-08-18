@@ -15,6 +15,18 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
+func (h *interactiveHandler) readLine(linechan chan string, errchan chan error) {
+    for {
+        line, err := h.term.ReadLine()
+        if err != nil {
+            errchan <- err
+            return
+        }
+        linechan <- line
+        return
+    }
+}
+
 func (h *interactiveHandler) Dispatch() {
 	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
         linechan := make(chan string)
