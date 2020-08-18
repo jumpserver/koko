@@ -29,16 +29,9 @@ const (
 	UserNodesListURL               = "/api/v1/perms/users/%s/nodes/"
 	UserNodeAssetsListURL          = "/api/v1/perms/users/%s/nodes/%s/assets/"
 	ValidateUserAssetPermissionURL = "/api/v1/perms/asset-permissions/user/validate/" //0不使用缓存 1 使用缓存 2 刷新缓存
-)
 
-// 1.5.3
-
-const (
 	UserAssetSystemUsersURL = "/api/v1/perms/users/%s/assets/%s/system-users/" // 获取用户授权资产的系统用户列表
-)
 
-// 1.5.5
-const (
 	UserTokenAuthURL   = "/api/v1/authentication/tokens/" // 用户登录验证
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
 
@@ -55,4 +48,27 @@ const (
 	DatabaseDetailURL = "/api/v1/applications/database-apps/%s/"
 
 	ValidateUserDatabasePermissionURL = "/api/v1/perms/database-app-permissions/user/validate/"
+)
+
+// 1.5.7
+const (
+	AssetGatewaysURL = "/api/v1/assets/assets/%s/gateways/"
+)
+
+const (
+	JoinRoomValidateURL = "/api/v1/terminal/sessions/join/validate/"
+)
+
+const (
+	AssetPlatFormURL = "/api/v1/assets/assets/%s/platform/"
+)
+
+const (
+	ValidateUserK8sPermissionURL = "/api/v1/perms/k8s-app-permissions/user/validate/"
+
+	K8sPemClustersURL = "/api/v1/perms/users/%s/k8s-apps/" //数据库app
+
+	K8sSystemUsersURL = "/api/v1/perms/users/%s/k8s-apps/%s/system-users/"
+
+	K8sClusterDetailURL = "/api/v1/applications/k8s-apps/%s/"
 )

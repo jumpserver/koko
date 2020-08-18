@@ -2,15 +2,18 @@ package proxy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
+	"github.com/gliderlabs/ssh"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
@@ -31,6 +34,8 @@ type SwitchSession struct {
 	DateStart string
 	DateEnd   string
 	finished  bool
+
+	isConnected bool
 
 	MaxIdleTime time.Duration
 
@@ -55,14 +60,14 @@ func (s *SwitchSession) Terminate() {
 	default:
 	}
 	s.cancel()
-	logger.Infof("Session %s: receive terminate from admin", s.ID)
+	logger.Infof("Session[%s] receive terminate task from admin", s.ID)
 }
 
 func (s *SwitchSession) SessionID() string {
 	return s.ID
 }
 
-func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
+func (s *SwitchSession) recordCommand(cmdRecordChan chan [3]string) {
 	// 命令记录
 	cmdRecorder := NewCommandRecorder(s.ID)
 	for command := range cmdRecordChan {
@@ -77,9 +82,10 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan [2]string) {
 }
 
 // generateCommandResult 生成命令结果
-func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command {
+func (s *SwitchSession) generateCommandResult(command [3]string) *model.Command {
 	var input string
 	var output string
+	var riskLevel int64
 	if len(command[0]) > 128 {
 		input = command[0][:128]
 	} else {
@@ -94,6 +100,12 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		output = command[1][:1024]
 	}
 
+	switch command[2] {
+	case model.HighRiskFlag:
+		riskLevel = 5
+	default:
+		riskLevel = 0
+	}
 	return &model.Command{
 		SessionID:  s.ID,
 		OrgID:      s.p.Asset.OrgID,
@@ -103,6 +115,7 @@ func (s *SwitchSession) generateCommandResult(command [2]string) *model.Command 
 		Server:     s.p.Asset.Hostname,
 		SystemUser: s.p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
+		RiskLevel:  riskLevel,
 	}
 }
 
@@ -129,10 +142,11 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		srvInChan  chan []byte
 		done       chan struct{}
 	)
-
+	s.isConnected = true
 	parser = newParser(s.ID)
+	logger.Infof("Conn[%s] create parser success", userConn.ID())
 	replayRecorder = NewReplyRecord(s.ID)
-
+	logger.Infof("Conn[%s] create replay success", userConn.ID())
 	userInChan = make(chan []byte, 1)
 	srvInChan = make(chan []byte, 1)
 	done = make(chan struct{})
@@ -162,6 +176,14 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	lastActiveTime := time.Now()
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
+	ex := exchange.GetExchange()
+	roomChan := make(chan model.RoomMessage)
+	sub := ex.CreateRoom(roomChan, s.ID)
+	logger.Infof("Conn[%s] create exchange room success", userConn.ID())
+	defer ex.DestroyRoom(sub)
+	go s.loopReadFromRoom(done, roomChan, userInChan)
+	defer sub.Publish(model.RoomMessage{Event: model.ExitEvent})
+	logger.Infof("Conn[%s] start session %s bridge loop", userConn.ID(), s.ID)
 	for {
 		select {
 		// 检测是否超过最大空闲时间
@@ -172,24 +194,35 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				continue
 			}
 			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
-			logger.Debugf("Session idle more than %d minutes, disconnect: %s", s.MaxIdleTime, s.ID)
+			logger.Infof("Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
 			msg = utils.WrapperWarn(msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
+			sub.Publish(model.RoomMessage{Event: model.MaxIdleEvent, Body: []byte("\n\r" + msg)})
+			logger.Debugf("Session[%s] published MaxIdleEvent", s.ID)
 			return
 		// 手动结束
 		case <-s.ctx.Done():
 			msg := i18n.T("Terminated by administrator")
 			msg = utils.WrapperWarn(msg)
-			logger.Infof("Session %s: %s", s.ID, msg)
+			logger.Infof("Session[%s]: %s", s.ID, msg)
 			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
+			sub.Publish(model.RoomMessage{Event: model.AdminTerminateEvent, Body: []byte("\n\r" + msg)})
+			logger.Debugf("Session[%s] published AdminTerminateEvent", s.ID)
 			return
 		// 监控窗口大小变化
 		case win, ok := <-winCh:
 			if !ok {
 				return
 			}
-			_ = srvConn.SetWinSize(win.Height, win.Width)
-			logger.Debugf("Window server change: %d*%d", win.Height, win.Width)
+			_ = srvConn.SetWinSize(win.Width, win.Height)
+			logger.Infof("Session[%s] Window server change: %d*%d",
+				s.ID, win.Width, win.Height)
+			p, _ := json.Marshal(win)
+			msg := model.RoomMessage{
+				Event: model.WindowsEvent,
+				Body:  p,
+			}
+			sub.Publish(msg)
 		// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
@@ -199,12 +232,20 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			if !parser.IsInZmodemRecvState() {
 				replayRecorder.Record(p[:nw])
 			}
+			msg := model.RoomMessage{
+				Event: model.DataEvent,
+				Body:  p[:nw],
+			}
+			sub.Publish(msg)
 		// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
 				return
 			}
 			_, err = srvConn.Write(p)
+			sub.Publish(model.RoomMessage{
+				Event: model.PingEvent,
+			})
 		}
 		lastActiveTime = time.Now()
 	}
@@ -230,16 +271,17 @@ func (s *SwitchSession) MapData() map[string]interface{} {
 		"user_id":        s.p.User.ID,
 		"asset_id":       s.p.Asset.ID,
 		"system_user_id": s.p.SystemUser.ID,
+		"is_success":     s.isConnected,
 	}
 }
 
 func (s *SwitchSession) LoopReadFromUser(done chan struct{}, userConn UserConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session %s: read from user done", s.ID)
+	defer logger.Infof("Session[%s] read from user done", s.ID)
 	s.LoopRead(done, userConn, inChan)
 }
 
 func (s *SwitchSession) LoopReadFromSrv(done chan struct{}, srvConn srvconn.ServerConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session %s: read from srv done", s.ID)
+	defer logger.Infof("Session[%s] read from srv done", s.ID)
 	s.LoopRead(done, srvConn, inChan)
 }
 
@@ -260,4 +302,39 @@ loop:
 		}
 	}
 	close(inChan)
+}
+
+func (s *SwitchSession) loopReadFromRoom(done chan struct{}, roomMsgChan <-chan model.RoomMessage, inChan chan<- []byte) {
+	defer logger.Infof("Session[%s] stop receive event from room", s.ID)
+	for {
+		select {
+		case <-done:
+			logger.Infof("Session[%s] stop loop read from room by done", s.ID)
+			return
+		case roomMsg, ok := <-roomMsgChan:
+			if !ok {
+				logger.Infof("Session[%s] stop loop read from room by close room channel", s.ID)
+				return
+			}
+			switch roomMsg.Event {
+			case model.DataEvent:
+				select {
+				case inChan <- roomMsg.Body:
+				case <-done:
+					logger.Infof("Session[%s] stop loop read from room by done",
+						s.ID)
+					return
+				}
+			case model.LogoutEvent, model.MaxIdleEvent, model.AdminTerminateEvent, model.ExitEvent:
+				logger.Infof("Session[%s] stop loop read from room by event %s", s.ID, roomMsg.Event)
+				return
+			case model.WindowsEvent:
+				var win ssh.Window
+				_ = json.Unmarshal(roomMsg.Body, &win)
+				logger.Infof("Session[%s] room windows change event height*width %d*%d",
+					s.ID, win.Height, win.Width)
+			}
+
+		}
+	}
 }

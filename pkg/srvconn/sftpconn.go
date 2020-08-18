@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -14,6 +15,8 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
 )
+
+var errNoSelectAsset = errors.New("please select one of the assets")
 
 type UserSftpConn struct {
 	User *model.User
@@ -41,7 +44,7 @@ func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 		return assetDir.ReadDir(restPath)
 	}
 
-	return nil, sftp.ErrSSHFxNoSuchFile
+	return nil, errNoSelectAsset
 }
 
 func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
@@ -57,7 +60,7 @@ func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
 		return assetDir.Stat(restPath)
 	}
 
-	return nil, sftp.ErrSSHFxNoSuchFile
+	return nil, errNoSelectAsset
 }
 
 func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
@@ -67,13 +70,13 @@ func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return "", sftp.ErrSshFxOpUnsupported
+		return "", errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.ReadLink(restPath)
 	}
 
-	return "", sftp.ErrSshFxOpUnsupported
+	return "", errNoSelectAsset
 }
 
 func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
@@ -97,12 +100,12 @@ func (u *UserSftpConn) RemoveDirectory(path string) (err error) {
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return sftp.ErrSshFxPermissionDenied
+		return errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.RemoveDirectory(restPath)
 	}
-	return sftp.ErrSshFxPermissionDenied
+	return errNoSelectAsset
 }
 
 func (u *UserSftpConn) Remove(path string) (err error) {
@@ -112,12 +115,12 @@ func (u *UserSftpConn) Remove(path string) (err error) {
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return sftp.ErrSshFxPermissionDenied
+		return errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.Remove(restPath)
 	}
-	return sftp.ErrSshFxPermissionDenied
+	return errNoSelectAsset
 }
 
 func (u *UserSftpConn) MkdirAll(path string) (err error) {
@@ -127,12 +130,12 @@ func (u *UserSftpConn) MkdirAll(path string) (err error) {
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return sftp.ErrSshFxPermissionDenied
+		return errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.MkdirAll(restPath)
 	}
-	return sftp.ErrSshFxPermissionDenied
+	return errNoSelectAsset
 }
 
 func (u *UserSftpConn) Symlink(oldNamePath, newNamePath string) (err error) {
@@ -155,13 +158,13 @@ func (u *UserSftpConn) Create(path string) (*sftp.File, error) {
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return nil, sftp.ErrSshFxPermissionDenied
+		return nil, errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.Create(restPath)
 	}
 
-	return nil, sftp.ErrSshFxPermissionDenied
+	return nil, errNoSelectAsset
 }
 
 func (u *UserSftpConn) Open(path string) (*sftp.File, error) {
@@ -171,13 +174,13 @@ func (u *UserSftpConn) Open(path string) (*sftp.File, error) {
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return nil, sftp.ErrSshFxPermissionDenied
+		return nil, errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.Open(restPath)
 	}
 
-	return nil, sftp.ErrSshFxPermissionDenied
+	return nil, errNoSelectAsset
 }
 
 func (u *UserSftpConn) Close() {
@@ -191,7 +194,7 @@ func (u *UserSftpConn) Close() {
 			continue
 		}
 	}
-	if u.searchDir != nil{
+	if u.searchDir != nil {
 		u.searchDir.close()
 	}
 	close(u.closed)
@@ -204,7 +207,7 @@ func (u *UserSftpConn) Name() string {
 func (u *UserSftpConn) Size() int64 { return 0 }
 
 func (u *UserSftpConn) Mode() os.FileMode {
-	return os.ModePerm | os.ModeDir
+	return os.FileMode(0444) | os.ModeDir
 }
 
 func (u *UserSftpConn) ModTime() time.Time { return u.modeTime }
@@ -370,7 +373,7 @@ func (u *UserSftpConn) loopPushFTPLog() {
 }
 
 func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
-	if u.searchDir == nil{
+	if u.searchDir == nil {
 		logger.Errorf("not found search folder")
 		return nil, fmt.Errorf("not found")
 	}

@@ -1,20 +1,20 @@
 package handler
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -55,26 +55,21 @@ type interactiveHandler struct {
 	term         *utils.Terminal
 	winWatchChan chan bool
 
-	assetSelect      *model.Asset
-	systemUserSelect *model.SystemUser
-	nodes            model.NodeList
+	nodes model.NodeList
 
 	allAssets []model.Asset
 
-	firstLoadDone   chan struct{}
 	assetLoadPolicy string
 
-	currentSortedData []model.Asset
-	currentData       []model.Asset
-
-	assetPaginator AssetPaginator
-
-	dbPaginator   DatabasePaginator
-	currentDBData []model.Database
+	firstLoadDone chan struct{}
 }
 
 func (h *interactiveHandler) Initial() {
-	h.assetLoadPolicy = strings.ToLower(config.GetConf().AssetLoadPolicy)
+	conf := config.GetConf()
+	if conf.ClientAliveInterval > 0 {
+		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
+	}
+	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.displayBanner()
 	h.winWatchChan = make(chan bool, 5)
 	h.firstLoadDone = make(chan struct{})
@@ -91,6 +86,7 @@ func (h *interactiveHandler) firstLoadData() {
 }
 
 func (h *interactiveHandler) displayBanner() {
+	h.term.SetPrompt("Opt> ")
 	displayBanner(h.sess, h.user.Name)
 }
 
@@ -122,6 +118,25 @@ func (h *interactiveHandler) watchWinSizeChange() {
 	}
 }
 
+func (h *interactiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
+	t := time.NewTicker(keepAliveTime)
+	defer t.Stop()
+	for {
+		select {
+		case <-h.sess.Sess.Context().Done():
+			return
+		case <-t.C:
+			_, err := h.sess.Sess.SendRequest("keepalive@openssh.com", true, nil)
+			if err != nil {
+				logger.Errorf("Request %s: Send user %s keepalive packet failed: %s",
+					h.sess.Uuid, h.user.Name, err)
+				continue
+			}
+			logger.Debugf("Request %s: Send user %s keepalive packet success", h.sess.Uuid, h.user.Name)
+		}
+	}
+}
+
 func (h *interactiveHandler) pauseWatchWinSize() {
 	h.winWatchChan <- false
 }
@@ -130,12 +145,13 @@ func (h *interactiveHandler) resumeWatchWinSize() {
 	h.winWatchChan <- true
 }
 
-func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
-	systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
+func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
 
 	length := len(systemUsers)
 	switch length {
 	case 0:
+		warningInfo := i18n.T("No system user found.")
+		_, _ = io.WriteString(h.term, warningInfo+"\n\r")
 		return model.SystemUser{}, false
 	case 1:
 		return systemUsers[0], true
@@ -146,7 +162,11 @@ func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
 		return displaySystemUsers[0], true
 	}
 
-	Labels := []string{getI18nFromMap("ID"), getI18nFromMap("Name"), getI18nFromMap("Username")}
+	idLabel := i18n.T("ID")
+	nameLabel := i18n.T("Name")
+	usernameLabel := i18n.T("Username")
+
+	labels := []string{idLabel, nameLabel, usernameLabel}
 	fields := []string{"ID", "Name", "Username"}
 
 	data := make([]map[string]string, len(displaySystemUsers))
@@ -160,7 +180,7 @@ func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
 	w, _ := h.term.GetSize()
 	table := common.WrapperTable{
 		Fields: fields,
-		Labels: Labels,
+		Labels: labels,
 		FieldsSize: map[string][3]int{
 			"ID":       {0, 0, 5},
 			"Name":     {0, 8, 0},
@@ -173,13 +193,14 @@ func (h *interactiveHandler) chooseSystemUser(asset model.Asset,
 	table.Initial()
 
 	h.term.SetPrompt("ID> ")
-	defer h.term.SetPrompt("Opt> ")
-	selectUserTip := fmt.Sprintf(getI18nFromMap("SelectUserTip"), asset.Hostname, asset.IP)
+	selectTip := i18n.T("Tips: Enter system user ID and directly login")
+	backTip := i18n.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(h.term, table.Display())
-		utils.IgnoreErrWriteString(h.term, selectUserTip)
-		utils.IgnoreErrWriteString(h.term, getI18nFromMap("BackTip"))
-		utils.IgnoreErrWriteString(h.term, "\r\n")
+		utils.IgnoreErrWriteString(h.term, selectTip)
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+		utils.IgnoreErrWriteString(h.term, backTip)
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 		line, err := h.term.ReadLine()
 		if err != nil {
 			return
@@ -205,12 +226,10 @@ func (h *interactiveHandler) refreshAssetsAndNodesData() {
 		_ = service.ForceRefreshUserPemAssets(h.user.ID)
 	}
 	h.loadUserNodes("2")
-	_, err := io.WriteString(h.term, getI18nFromMap("RefreshDone")+"\n\r")
+	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets  Nodes err:", err)
 	}
-	h.assetPaginator = nil
-	h.dbPaginator = nil
 }
 
 func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
@@ -219,30 +238,6 @@ func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
 
 func (h *interactiveHandler) loadAllAssets() {
 	h.allAssets = service.GetUserAllAssets(h.user.ID)
-}
-
-func (h *interactiveHandler) ProxyAsset(assetSelect model.Asset) {
-	systemUsers := service.GetUserAssetSystemUsers(h.user.ID, assetSelect.ID)
-	systemUserSelect, ok := h.chooseSystemUser(assetSelect, systemUsers)
-	if !ok {
-		return
-	}
-	h.systemUserSelect = &systemUserSelect
-	h.assetSelect = &assetSelect
-	h.Proxy(context.Background())
-}
-
-func (h *interactiveHandler) Proxy(ctx context.Context) {
-	p := proxy.ProxyServer{
-		UserConn:   h.sess,
-		User:       h.user,
-		Asset:      h.assetSelect,
-		SystemUser: h.systemUserSelect,
-	}
-	h.pauseWatchWinSize()
-	p.Proxy()
-	h.resumeWatchWinSize()
-	logger.Infof("Request %s: asset %s proxy end", h.sess.Uuid, h.assetSelect.Hostname)
 }
 
 func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
@@ -303,19 +298,6 @@ func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.Sy
 	return result
 }
 
-func searchFromLocalAssets(assets model.AssetList, key string) []model.Asset {
-	displayAssets := make([]model.Asset, 0, len(assets))
-	key = strings.ToLower(key)
-	for _, assetValue := range assets {
-		contents := []string{strings.ToLower(assetValue.Hostname),
-			strings.ToLower(assetValue.IP), strings.ToLower(assetValue.Comment)}
-		if isSubstring(contents, key) {
-			displayAssets = append(displayAssets, assetValue)
-		}
-	}
-	return displayAssets
-}
-
 func getPageSize(term *utils.Terminal) int {
 	var (
 		pageSize  int
@@ -328,7 +310,7 @@ func getPageSize(term *utils.Terminal) int {
 	case "auto":
 		pageSize = height - minHeight
 	case "all":
-		return 0
+		return PAGESIZEALL
 	default:
 		if value, err := strconv.Atoi(conf.AssetListPageSize); err == nil {
 			pageSize = value

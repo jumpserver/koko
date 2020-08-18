@@ -1,51 +1,18 @@
 package srvconn
 
 import (
-	"bytes"
-	"errors"
+	"io"
 	"net"
 	"regexp"
 	"strconv"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/text/transform"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
-)
-
-const (
-	IAC  = 255
-	DONT = 254
-	DO   = 253
-	WONT = 252
-	WILL = 251
-	SB   = 250
-
-	TTYPE = 24
-	SAG   = 3
-	ECHO  = 1
-
-	loginRegs          = "(?i)login:?\\s*$|username:?\\s*$|name:?\\s*$|用户名:?\\s*$|账\\s*号:?\\s*$|user:?\\s*$"
-	passwordRegs       = "(?i)Password:?\\s*$|ssword:?\\s*$|passwd:?\\s*$|密\\s*码:?\\s*$"
-	FailedRegs         = "(?i)incorrect|failed|失败|错误"
-	DefaultSuccessRegs = "(?i)Last\\s*login|success|成功|#|>|\\$"
-)
-
-var (
-	incorrectPattern, _ = regexp.Compile(FailedRegs)
-	usernamePattern, _  = regexp.Compile(loginRegs)
-	passwordPattern, _  = regexp.Compile(passwordRegs)
-	successPattern, _   = regexp.Compile(DefaultSuccessRegs)
-)
-
-type AuthStatus int
-
-const (
-	AuthSuccess AuthStatus = iota
-	AuthPartial
-	AuthFailed
+	"github.com/jumpserver/koko/pkg/srvconn/telnetlib"
 )
 
 type ServerTelnetConnection struct {
@@ -55,9 +22,14 @@ type ServerTelnetConnection struct {
 	Overtime             time.Duration
 	CustomString         string
 	CustomSuccessPattern *regexp.Regexp
+	Charset              string
 
-	conn   net.Conn
-	closed bool
+	conn      *telnetlib.Client
+	proxyConn *gossh.Client
+	closed    bool
+
+	transformReader io.Reader
+	transformWriter io.Writer
 }
 
 func (tc *ServerTelnetConnection) Timeout() time.Duration {
@@ -71,74 +43,6 @@ func (tc *ServerTelnetConnection) Protocol() string {
 	return "telnet"
 }
 
-func (tc *ServerTelnetConnection) optionNegotiate(data []byte) []byte {
-	var buf bytes.Buffer
-	optionData := bytes.Split(data, []byte{IAC})
-	for _, item := range optionData {
-		if len(item) == 0 {
-			continue
-		}
-		buf.Write([]byte{IAC})
-		switch item[0] {
-		case DO:
-			switch item[1] {
-			case ECHO:
-				buf.Write([]byte{WONT, ECHO})
-			case TTYPE:
-				buf.Write([]byte{WILL, TTYPE})
-			default:
-				buf.Write(bytes.ReplaceAll(item, []byte{DO}, []byte{WONT}))
-			}
-		case WILL:
-			switch item[1] {
-			case ECHO:
-				buf.Write([]byte{DO, ECHO})
-			case SAG:
-				buf.Write([]byte{DO, ECHO})
-			default:
-				buf.Write(bytes.ReplaceAll(item, []byte{WILL}, []byte{DONT}))
-			}
-		case DONT:
-			buf.Write(bytes.ReplaceAll(item, []byte{DONT}, []byte{WONT}))
-		case WONT:
-			buf.Write(bytes.ReplaceAll(item, []byte{WONT}, []byte{DONT}))
-		case SB:
-			switch item[1] {
-			case TTYPE:
-				if item[2] == 1 {
-					buf.Write([]byte{SB, TTYPE, 0})
-					buf.Write([]byte("XTERM-256COLOR"))
-				}
-			}
-		default:
-			buf.Write(item)
-		}
-	}
-	return buf.Bytes()
-}
-
-func (tc *ServerTelnetConnection) login(data []byte) AuthStatus {
-	if incorrectPattern.Match(data) {
-		return AuthFailed
-	} else if usernamePattern.Match(data) {
-		_, _ = tc.conn.Write([]byte(tc.SystemUser.Username + "\r\n"))
-		logger.Debugf("Username pattern match: %s", data)
-		return AuthPartial
-	} else if passwordPattern.Match(data) {
-		_, _ = tc.conn.Write([]byte(tc.SystemUser.Password + "\r\n"))
-		logger.Debugf("Password pattern: %s", data)
-		return AuthPartial
-	} else if successPattern.Match(data) {
-		return AuthSuccess
-	}
-	if tc.CustomString != "" {
-		if tc.CustomSuccessPattern != nil && tc.CustomSuccessPattern.Match(data) {
-			return AuthSuccess
-		}
-	}
-	return AuthPartial
-}
-
 func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	var ip = tc.Asset.IP
 	var port = strconv.Itoa(tc.Asset.ProtocolPort("telnet"))
@@ -148,9 +52,8 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	if asset.Domain != "" {
 		sshConfig := MakeConfig(tc.Asset, tc.SystemUser, tc.Timeout())
 		proxyConn, err = sshConfig.DialProxy()
-		logger.Errorf("Proxy conn: %p", proxyConn)
 		if err != nil {
-			logger.Error("Dial proxy host error")
+			logger.Errorf("Dial proxy host error: %s", err)
 			return
 		}
 	}
@@ -159,64 +62,69 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	var conn net.Conn
 	// 判断是否有合适的proxy连接
 	if proxyConn != nil {
-		logger.Debug("Connect host via proxy")
+		logger.Infof("Connect host %s via proxy", tc.Asset.Hostname)
 		conn, err = proxyConn.Dial("tcp", addr)
 	} else {
-		logger.Debug("Direct connect host")
+		logger.Debugf("Direct connect host %s", tc.Asset.Hostname)
 		conn, err = net.DialTimeout("tcp", addr, tc.Timeout())
 	}
 	if err != nil {
+		logger.Errorf("Telnet host %s err: %s", asset.Hostname, err)
+		if proxyConn != nil {
+			_ = proxyConn.Close()
+		}
 		return
 	}
 
-	if tc.SystemUser.Password == "" {
-		info := service.GetSystemUserAssetAuthInfo(tc.SystemUser.ID, asset.ID)
-		tc.SystemUser.Password = info.Password
-		tc.SystemUser.PrivateKey = info.PrivateKey
+	client, err := telnetlib.NewClientConn(conn, &telnetlib.ClientConfig{
+		User:     tc.SystemUser.Username,
+		Password: tc.SystemUser.Password,
+		Timeout:  tc.Timeout(),
+		TTYOptions: &telnetlib.TerminalOptions{
+			Wide:  w,
+			High:  h,
+			Xterm: term,
+		},
+		CustomString: tc.CustomString,
+	})
+	if err != nil {
+		return err
 	}
-
-	buf := make([]byte, 1024)
-	tc.conn = conn
-	var nr int
-	for {
-		nr, err = conn.Read(buf)
-		if err != nil {
-			return
+	tc.conn = client
+	tc.transformReader = client
+	tc.transformWriter = client
+	if tc.Charset != model.UTF8 {
+		if readDecode := model.LookupCharsetDecode(tc.Charset); readDecode != nil {
+			tc.transformReader = transform.NewReader(client, readDecode)
 		}
-		if bytes.IndexByte(buf[:nr], IAC) == 0 {
-			replayData := tc.optionNegotiate(buf[:nr])
-			_, _ = conn.Write(replayData)
-			continue
-		} else {
-			result := tc.login(buf[:nr])
-			switch result {
-			case AuthSuccess:
-				return nil
-			case AuthFailed:
-				return errors.New("failed login")
-			default:
-				continue
-			}
+		if writerEncode := model.LookupCharsetEncode(tc.Charset); writerEncode != nil {
+			tc.transformWriter = transform.NewWriter(client, writerEncode)
 		}
-
 	}
-}
-
-func (tc *ServerTelnetConnection) SetWinSize(w, h int) error {
+	tc.proxyConn = proxyConn
+	logger.Infof("Telnet host %s success", asset.Hostname)
 	return nil
 }
 
+func (tc *ServerTelnetConnection) SetWinSize(w, h int) error {
+	return tc.conn.WindowChange(w, h)
+}
+
 func (tc *ServerTelnetConnection) Read(p []byte) (n int, err error) {
-	return tc.conn.Read(p)
+	return tc.transformReader.Read(p)
 }
 
 func (tc *ServerTelnetConnection) Write(p []byte) (n int, err error) {
-	return tc.conn.Write(p)
+	return tc.transformWriter.Write(p)
 }
 
 func (tc *ServerTelnetConnection) Close() (err error) {
 	if tc.closed {
 		return
+	}
+	if tc.proxyConn != nil {
+		_ = tc.proxyConn.Close()
+		logger.Infof("Asset %s close gateway connection first", tc.Asset.Hostname)
 	}
 	err = tc.conn.Close()
 	tc.closed = true

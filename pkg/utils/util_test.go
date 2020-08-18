@@ -19,3 +19,15 @@ func TestWrapperString(t *testing.T) {
 	s4 := WrapperWarn(s)
 	fmt.Println(s4)
 }
+
+func TestIsInstalledKubectlClient(t *testing.T) {
+	if ok := IsInstalledKubectlClient(); !ok {
+		t.Fatal(ok)
+	}
+}
+
+func TestIsInstalledMysqlClient(t *testing.T) {
+	if ok := IsInstalledMysqlClient(); !ok {
+		t.Fatal(ok)
+	}
+}

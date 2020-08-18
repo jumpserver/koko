@@ -20,3 +20,4 @@ cmd/koko
 cmd/logs
 cmd/kokodir
 build
+release

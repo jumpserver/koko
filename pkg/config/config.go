@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 )
+var CipherKey = "JumpServer Cipher Key for KoKo !"
 
 type Config struct {
 	AssetListPageSize   string                 `json:"TERMINAL_ASSET_LIST_PAGE_SIZE"`
@@ -26,7 +27,6 @@ type Config struct {
 	TelnetRegex         string                 `json:"TERMINAL_TELNET_REGEX"`
 	MaxIdleTime         time.Duration          `json:"SECURITY_MAX_IDLE_TIME"`
 	HeartbeatDuration   time.Duration          `json:"TERMINAL_HEARTBEAT_INTERVAL"`
-	SftpRoot            string                 `json:"TERMINAL_SFTP_ROOT" yaml:"SFTP_ROOT"`
 	ShowHiddenFile      bool                   `yaml:"SFTP_SHOW_HIDDEN_FILE"`
 	ReuseConnection     bool                   `yaml:"REUSE_CONNECTION"`
 	Name                string                 `yaml:"NAME"`
@@ -42,22 +42,28 @@ type Config struct {
 	LogLevel            string                 `yaml:"LOG_LEVEL"`
 	RootPath            string                 `yaml:"ROOT_PATH"`
 	Comment             string                 `yaml:"COMMENT"`
-	Language            string                 `yaml:"LANG"`
-	LanguageCode        string                 `yaml:"LANGUAGE_CODE"` // Abandon
+	LanguageCode        string                 `yaml:"LANGUAGE_CODE"`
 	UploadFailedReplay  bool                   `yaml:"UPLOAD_FAILED_REPLAY_ON_START"`
 	AssetLoadPolicy     string                 `yaml:"ASSET_LOAD_POLICY"` // all
 	ZipMaxSize          string                 `yaml:"ZIP_MAX_SIZE"`
 	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
-        SSHConnTimeout      time.Duration          `yaml:"SSH_CONN_TIMEOUT"`
+
+	ClientAliveInterval uint64                 `yaml:"CLIENT_ALIVE_INTERVAL"`
+	RetryAliveCountMax  int                    `yaml:"RETRY_ALIVE_COUNT_MAX"`
+
+	ShareRoomType string   `yaml:"SHARE_ROOM_TYPE"`
+	RedisHost     string   `yaml:"REDIS_HOST"`
+	RedisPort     string   `yaml:"REDIS_PORT"`
+	RedisPassword string   `yaml:"REDIS_PASSWORD"`
+	RedisDBIndex  uint64   `yaml:"REDIS_DB_ROOM"`
+	RedisClusters []string `yaml:"REDIS_CLUSTERS"`
+  
+  SSHConnTimeout      time.Duration          `yaml:"SSH_CONN_TIMEOUT"`
 }
 
 func (c *Config) EnsureConfigValid() {
-	// 兼容原来config
-	if c.LanguageCode != "" && c.Language == "" {
-		c.Language = c.LanguageCode
-	}
-	if c.Language == "" {
-		c.Language = "zh"
+	if c.LanguageCode == "" {
+		c.LanguageCode = "zh"
 	}
 	// 确保至少有一个认证
 	if !c.PublicKeyAuth && !c.PasswordAuth {
@@ -124,6 +130,9 @@ func (c *Config) LoadFromEnv() error {
 			if num, err := strconv.Atoi(value); err == nil {
 				c.SSHTimeout = time.Duration(num)
 			}
+		case "REDIS_CLUSTERS":
+			clusters := strings.Split(value, ",")
+			c.RedisClusters = clusters
 		default:
 			envMap[key] = value
 		}
@@ -144,34 +153,39 @@ func (c *Config) Load(filepath string) error {
 }
 
 var lock = new(sync.RWMutex)
-var name, _ = os.Hostname()
+var name = getDefaultName()
 var rootPath, _ = os.Getwd()
 var Conf = &Config{
-	Name:               name,
-	CoreHost:           "http://localhost:8080",
-	BootstrapToken:     "",
-	BindHost:           "0.0.0.0",
-	SSHPort:            "2222",
-	SSHTimeout:         15,
-	HTTPPort:           "5000",
-	HeartbeatDuration:  10,
-	AccessKey:          "",
-	AccessKeyFile:      "data/keys/.access_key",
-	LogLevel:           "DEBUG",
-	HostKeyFile:        "data/keys/host_key",
-	HostKey:            "",
-	RootPath:           rootPath,
-	Comment:            "Coco",
-	ReplayStorage:      map[string]interface{}{"TYPE": "server"},
-	CommandStorage:     map[string]interface{}{"TYPE": "server"},
-	UploadFailedReplay: true,
-	SftpRoot:           "/tmp",
-	ShowHiddenFile:     false,
-	ReuseConnection:    true,
-	AssetLoadPolicy:    "",
-	ZipMaxSize:         "1024M",
-	ZipTmpPath:         "/tmp",
-	SSHConnTimeout:     3600,
+	Name:                name,
+	CoreHost:            "http://localhost:8080",
+	BootstrapToken:      "",
+	BindHost:            "0.0.0.0",
+	SSHPort:             "2222",
+	SSHTimeout:          15,
+	HTTPPort:            "5000",
+	HeartbeatDuration:   10,
+	AccessKey:           "",
+	AccessKeyFile:       "data/keys/.access_key",
+	LogLevel:            "DEBUG",
+	HostKeyFile:         "data/keys/host_key",
+	HostKey:             "",
+	RootPath:            rootPath,
+	Comment:             "Coco",
+	ReplayStorage:       map[string]interface{}{"TYPE": "server"},
+	CommandStorage:      map[string]interface{}{"TYPE": "server"},
+	UploadFailedReplay:  true,
+	ShowHiddenFile:      false,
+	ReuseConnection:     true,
+	AssetLoadPolicy:     "",
+	ZipMaxSize:          "1024M",
+	ZipTmpPath:          "/tmp",
+	ClientAliveInterval: 30,
+	RetryAliveCountMax:  3,
+	ShareRoomType:       "local",
+	RedisHost:           "127.0.0.1",
+	RedisPort:           "6379",
+	RedisPassword:       "",
+  SSHConnTimeout:      3600,
 }
 
 func SetConf(conf Config) {
@@ -184,4 +198,13 @@ func GetConf() Config {
 	lock.RLock()
 	defer lock.RUnlock()
 	return *Conf
+}
+
+func getDefaultName() string {
+	hostname, _ := os.Hostname()
+	hostRune := []rune(hostname)
+	if len(hostRune) > 32 {
+		hostRune = hostRune[:32]
+	}
+	return string(hostRune)
 }

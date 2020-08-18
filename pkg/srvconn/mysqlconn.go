@@ -2,11 +2,13 @@ package srvconn
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"syscall"
@@ -19,7 +21,24 @@ import (
 
 const (
 	mysqlPrompt = "Enter password: "
+
+	mysqlShellFilename = "mysql"
 )
+
+var mysqlShellPath = ""
+
+const mysqlTemplate = `#!/bin/bash
+set -e
+mkdir -p /nonexistent
+mount -t tmpfs -o size=10M tmpfs /nonexistent
+cd /nonexistent
+export HOME=/nonexistent
+export TMPDIR=/nonexistent
+export LANG=en_US.UTF-8
+exec su -s /bin/bash --command="mysql --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
+`
+
+var mysqlOnce sync.Once
 
 func NewMysqlServer(ops ...SqlOption) *ServerMysqlConnection {
 	args := &SqlOptions{
@@ -43,17 +62,7 @@ type ServerMysqlConnection struct {
 }
 
 func (dbconn *ServerMysqlConnection) Connect() (err error) {
-	cmd := exec.Command("mysql", dbconn.options.CommandArgs()...)
-	nobody, err := user.Lookup("nobody")
-	if err != nil {
-		logger.Errorf("lookup nobody user err: %s", err)
-		return errors.New("nobody user does not exist")
-	}
-	cmd.SysProcAttr = &syscall.SysProcAttr{}
-	uid, _ := strconv.Atoi(nobody.Uid)
-	gid, _ := strconv.Atoi(nobody.Gid)
-	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
-	ptyFD, err := pty.Start(cmd)
+	cmd, ptyFD, err := connectMysql(dbconn)
 	go func() {
 		err = cmd.Wait()
 		if err != nil {
@@ -69,20 +78,6 @@ func (dbconn *ServerMysqlConnection) Connect() (err error) {
 	if err != nil {
 		logger.Errorf("pty start err: %s", err)
 		return fmt.Errorf("start local pty err: %s", err)
-	}
-	prompt := [len(mysqlPrompt)]byte{}
-	nr, err := ptyFD.Read(prompt[:])
-	if err != nil {
-		_ = ptyFD.Close()
-		_ = cmd.Process.Kill()
-		logger.Errorf("read mysql pty local fd err: %s", err)
-		return fmt.Errorf("mysql conn err: %s", err)
-	}
-	if !bytes.Equal(prompt[:nr], []byte(mysqlPrompt)) {
-		_ = cmd.Process.Kill()
-		_ = ptyFD.Close()
-		logger.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
-		return errors.New("failed login mysql")
 	}
 	// 输入密码, 登录mysql
 	_, err = ptyFD.Write([]byte(dbconn.options.Password + "\r\n"))
@@ -112,7 +107,7 @@ func (dbconn *ServerMysqlConnection) Write(p []byte) (int, error) {
 	return dbconn.ptyFD.Write(p)
 }
 
-func (dbconn *ServerMysqlConnection) SetWinSize(h, w int) error {
+func (dbconn *ServerMysqlConnection) SetWinSize(w, h int) error {
 	if dbconn.ptyFD == nil {
 		return fmt.Errorf("not connect init")
 	}
@@ -143,6 +138,108 @@ func (dbconn *ServerMysqlConnection) Protocol() string {
 	return "mysql"
 }
 
+func connectMysql(dbconn *ServerMysqlConnection) (cmd *exec.Cmd, ptyFD *os.File, err error) {
+	mysqlOnce.Do(func() {
+		// linux初始化mysql命令文件
+		switch runtime.GOOS {
+		case "linux":
+			initMySQLFile()
+		}
+	})
+	if mysqlShellPath != "" {
+		cmd, ptyFD, err = connectMySQLWithNamespace(dbconn.options.Envs())
+		if err == nil {
+			return
+		}
+	}
+	return connectMySQLWithNormal(dbconn.options.CommandArgs())
+}
+
+func connectMySQLWithNamespace(envs []string) (cmd *exec.Cmd, ptyFD *os.File, err error) {
+	args := []string{
+		"--fork",
+		"--pid",
+		"--mount-proc",
+		mysqlShellPath,
+	}
+	cmd = exec.Command("unshare", args...)
+	cmd.Env = envs
+	ptyFD, err = pty.Start(cmd)
+	if err == nil {
+		var nr int
+		prompt := [len(mysqlPrompt)]byte{}
+		nr, err = ptyFD.Read(prompt[:])
+		if err != nil {
+			_ = ptyFD.Close()
+			_ = cmd.Process.Kill()
+			logger.Errorf("read mysql pty local fd err: %s", err)
+			return
+
+		}
+		if !bytes.Equal(prompt[:nr], []byte(mysqlPrompt)) {
+			_ = cmd.Process.Kill()
+			_ = ptyFD.Close()
+			logger.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
+			err = fmt.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
+			return
+		}
+	}
+	return
+}
+
+func connectMySQLWithNormal(args []string) (cmd *exec.Cmd, ptyFD *os.File, err error) {
+	cmd = exec.Command("mysql", args...)
+	nobody, err := user.Lookup("nobody")
+	if err != nil {
+		logger.Errorf("lookup nobody user err: %s", err)
+		return
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	uid, _ := strconv.Atoi(nobody.Uid)
+	gid, _ := strconv.Atoi(nobody.Gid)
+	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}
+	ptyFD, err = pty.Start(cmd)
+	if err == nil {
+		var nr int
+		prompt := [len(mysqlPrompt)]byte{}
+		nr, err = ptyFD.Read(prompt[:])
+		if err != nil {
+			_ = ptyFD.Close()
+			_ = cmd.Process.Kill()
+			logger.Errorf("read mysql pty local fd err: %s", err)
+			return
+
+		}
+		if !bytes.Equal(prompt[:nr], []byte(mysqlPrompt)) {
+			_ = cmd.Process.Kill()
+			_ = ptyFD.Close()
+			logger.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
+			err = fmt.Errorf("mysql login prompt characters did not match: %s", prompt[:nr])
+			return
+		}
+	}
+	return
+}
+
+func initMySQLFile() {
+	if dir, err := os.Getwd(); err == nil {
+		TmpMysqlShellPath := filepath.Join(dir, mysqlShellFilename)
+		if _, err := os.Stat(TmpMysqlShellPath); err == nil {
+			mysqlShellPath = TmpMysqlShellPath
+			logger.Infof("Already init MySQL bash file: %s", TmpMysqlShellPath)
+			return
+		}
+		err = ioutil.WriteFile(TmpMysqlShellPath, []byte(mysqlTemplate), os.FileMode(0755))
+		if err != nil {
+			logger.Errorf("Init MySQL bash file failed: %s", err)
+			return
+		}
+		mysqlShellPath = TmpMysqlShellPath
+	}
+	logger.Infof("Init MySQL bash file: %s", mysqlShellPath)
+
+}
+
 type SqlOptions struct {
 	Username string
 	Password string
@@ -158,6 +255,15 @@ func (opts *SqlOptions) CommandArgs() []string {
 		fmt.Sprintf("--port=%d", opts.Port),
 		"--password",
 		opts.DBName,
+	}
+}
+
+func (opts *SqlOptions) Envs() []string {
+	return []string{
+		fmt.Sprintf("USERNAME=%s", opts.Username),
+		fmt.Sprintf("HOSTNAME=%s", opts.Host),
+		fmt.Sprintf("PORT=%d", opts.Port),
+		fmt.Sprintf("DATABASE=%s", opts.DBName),
 	}
 }
 

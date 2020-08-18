@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-pipeline-go v0.1.9 // indirect
 	github.com/Azure/azure-storage-blob-go v0.6.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/LeeEirc/elfinder v0.0.11
+	github.com/LeeEirc/elfinder v0.0.12
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
 	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 // indirect
 	github.com/aws/aws-sdk-go v1.19.46
@@ -16,13 +16,14 @@ require (
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/gorilla/mux v1.7.2
-	github.com/gorilla/websocket v1.4.0
+	github.com/gorilla/websocket v1.4.1
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/kataras/neffos v0.0.7
+	github.com/kataras/neffos v0.0.14
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mattn/go-runewidth v0.0.4 // indirect
+	github.com/mediocregopher/radix/v3 v3.4.2
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
 	github.com/pkg/errors v0.8.1

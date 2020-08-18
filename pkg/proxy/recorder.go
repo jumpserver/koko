@@ -113,11 +113,16 @@ func (r *ReplyRecorder) initial() {
 }
 
 func (r *ReplyRecorder) Record(b []byte) {
+	if r.isNullStorage() {
+		return
+	}
 	if len(b) > 0 {
 		delta := float64(time.Now().UnixNano()-r.timeStartNano) / 1000 / 1000 / 1000
 		data, _ := json.Marshal(string(b))
-		_, _ = r.file.WriteString(fmt.Sprintf(`"%f":%s,`, delta, data))
-		_ = r.file.Sync()
+		_, err := r.file.WriteString(fmt.Sprintf(`"%f":%s,`, delta, data))
+		if err != nil {
+			logger.Errorf("Session %s write replay to file failed: %s", r.SessionID, err)
+		}
 	}
 }
 
@@ -132,6 +137,13 @@ func (r *ReplyRecorder) prepare() {
 	r.AbsGzFilePath = filepath.Join(replayDir, gzFileName)
 	r.Target = strings.Join([]string{today, gzFileName}, "/")
 	r.timeStartNano = time.Now().UnixNano()
+	r.backOffStorage = defaultStorage
+	r.storage = NewReplayStorage()
+
+	logger.Infof("Session %s storage type is %s", r.SessionID, r.storage.TypeName())
+	if r.isNullStorage() {
+		return
+	}
 
 	err := common.EnsureDirExist(replayDir)
 	if err != nil {
@@ -148,9 +160,16 @@ func (r *ReplyRecorder) prepare() {
 }
 
 func (r *ReplyRecorder) End() {
+	if r.isNullStorage() {
+		return
+	}
 	_, _ = r.file.WriteString(fmt.Sprintf(`"%f":%s}`, 0.0, `""`))
 	_ = r.file.Close()
 	go r.uploadReplay()
+}
+
+func (r *ReplyRecorder) isNullStorage() bool {
+	return r.storage.TypeName() == "null"
 }
 
 func (r *ReplyRecorder) uploadReplay() {
@@ -197,7 +216,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 			if r.storage == r.backOffStorage {
 				break
 			}
-			logger.Errorf("Using back off storage retry upload")
+			logger.Errorf("Session[%s] using back off storage retry upload", r.SessionID)
 			r.storage = r.backOffStorage
 			r.UploadGzipFile(3)
 			break

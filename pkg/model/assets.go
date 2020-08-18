@@ -85,15 +85,16 @@ type AssetsPaginationResponse struct {
 }
 
 type Asset struct {
-	ID              string       `json:"id"`
-	Hostname        string       `json:"hostname"`
-	IP              string       `json:"ip"`
-	Os              string       `json:"os"`
-	Domain          string       `json:"domain"`
-	Comment         string       `json:"comment"`
-	Protocols       []string     `json:"protocols,omitempty"`
-	OrgID           string       `json:"org_id"`
-	OrgName         string       `json:"org_name"`
+	ID        string   `json:"id"`
+	Hostname  string   `json:"hostname"`
+	IP        string   `json:"ip"`
+	Os        string   `json:"os"`
+	Domain    string   `json:"domain"`
+	Comment   string   `json:"comment"`
+	Protocols []string `json:"protocols,omitempty"`
+	OrgID     string   `json:"org_id"`
+	OrgName   string   `json:"org_name"`
+	Platform  string   `json:"platform,omitempty"`
 }
 
 func (a *Asset) ProtocolPort(protocol string) int {
@@ -221,16 +222,21 @@ const (
 )
 
 type SystemUser struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Username   string   `json:"username"`
-	Priority   int      `json:"priority"`
-	Protocol   string   `json:"protocol"`
-	Comment    string   `json:"comment"`
-	LoginMode  string   `json:"login_mode"`
-	Password   string   `json:"password"`
-	PrivateKey string   `json:"private_key"`
-	Actions    []string `json:"actions"`
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	Username             string   `json:"username"`
+	Priority             int      `json:"priority"`
+	Protocol             string   `json:"protocol"`
+	Comment              string   `json:"comment"`
+	LoginMode            string   `json:"login_mode"`
+	Password             string   `json:"password"`
+	PrivateKey           string   `json:"private_key"`
+	Actions              []string `json:"actions"`
+	SftpRoot             string   `json:"sftp_root"`
+	OrgId                string   `json:"org_id"`
+	OrgName              string   `json:"org_name"`
+	UsernameSameWithUser bool     `json:"username_same_with_user"`
+	Token                string   `json:"token"`
 }
 
 type SystemUserAuthInfo struct {
@@ -241,6 +247,7 @@ type SystemUserAuthInfo struct {
 	LoginMode  string `json:"login_mode"`
 	Password   string `json:"password"`
 	PrivateKey string `json:"private_key"`
+	Token      string `json:"token"`
 }
 
 type systemUserSortBy func(user1, user2 *SystemUser) bool
@@ -290,14 +297,10 @@ const (
 )
 
 type SystemUserFilterRule struct {
-	Priority int `json:"priority"`
-	Type     struct {
-		Value string `json:"value"`
-	} `json:"type"`
-	Content string `json:"content"`
-	Action  struct {
-		Value RuleAction `json:"value"`
-	} `json:"action"`
+	Priority int        `json:"priority"`
+	Type     string     `json:"type"`
+	Content  string     `json:"content"`
+	Action   RuleAction `json:"action"`
 
 	pattern  *regexp.Regexp
 	compiled bool
@@ -308,9 +311,11 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 		return sf.pattern
 	}
 	var regexs string
-	if sf.Type.Value == TypeCmd {
+	if sf.Type == TypeCmd {
 		var regex []string
-		for _, cmd := range strings.Split(sf.Content, "\r\n") {
+		content := strings.ReplaceAll(sf.Content, "\r\n", "\n")
+		content = strings.ReplaceAll(content, "\r", "\n")
+		for _, cmd := range strings.Split(content, "\n") {
 			cmd = regexp.QuoteMeta(cmd)
 			cmd = strings.Replace(cmd, " ", "\\s+", 1)
 			regexItem := fmt.Sprintf(`\b%s\b`, cmd)
@@ -341,5 +346,5 @@ func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
 	if found == "" {
 		return ActionUnknown, ""
 	}
-	return sf.Action.Value, found
+	return sf.Action, found
 }

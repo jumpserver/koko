@@ -1,15 +1,12 @@
 package proxy
 
 import (
-	"errors"
 	"sync"
 	"time"
 
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
-	"github.com/jumpserver/koko/pkg/utils"
 )
 
 var sessionMap = make(map[string]Session)
@@ -51,14 +48,6 @@ func GetAliveSessions() []string {
 	return sids
 }
 
-func RemoveSession(sw *SwitchSession) {
-	lock.Lock()
-	defer lock.Unlock()
-	delete(sessionMap, sw.ID)
-	data := sw.MapData()
-	finishSession(data)
-	logger.Infof("Session %s has finished", sw.ID)
-}
 
 func AddSession(sw Session) {
 	lock.Lock()
@@ -66,31 +55,6 @@ func AddSession(sw Session) {
 	sessionMap[sw.SessionID()] = sw
 }
 
-func CreateSession(p *ProxyServer) (sw *SwitchSession, err error) {
-	// 创建Session
-	sw = NewSwitchSession(p)
-	// Post到Api端
-	data := sw.MapData()
-	ok := postSession(data)
-	msg := i18n.T("Connect with api server failed")
-	if !ok {
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg)
-		return sw, errors.New("connect api server failed")
-	}
-	// 获取系统用户的过滤规则，并设置
-	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
-	if err != nil {
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg + err.Error())
-		return sw, errors.New("connect api server failed")
-	}
-	sw.SetFilterRules(cmdRules)
-	AddSession(sw)
-	return
-}
 
 func postSession(data map[string]interface{}) bool {
 	for i := 0; i < 5; i++ {
@@ -106,37 +70,19 @@ func finishSession(data map[string]interface{}) {
 	service.FinishSession(data)
 }
 
-func CreateDBSession(p *DBProxyServer) (sw *DBSwitchSession, err error) {
-	// 创建Session
-	sw = &DBSwitchSession{
-		p: p,
+func CreateCommonSwitch(p proxyEngine) (s *commonSwitch, ok bool) {
+	s = NewCommonSwitch(p)
+	ok = postSession(s.MapData())
+	if ok {
+		AddSession(s)
 	}
-	sw.Initial()
-	data := sw.MapData()
-	ok := postSession(data)
-	msg := i18n.T("Create database session failed")
-	if !ok {
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg)
-		return sw, errors.New("create database session failed")
-	}
-	cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID)
-	if err != nil {
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Error(msg + err.Error())
-		return sw, errors.New("connect api server failed")
-	}
-	sw.SetFilterRules(cmdRules)
-	AddSession(sw)
-	return
+	return s, ok
 }
 
-func RemoveDBSession(sw *DBSwitchSession) {
+func RemoveCommonSwitch(s *commonSwitch) {
 	lock.Lock()
 	defer lock.Unlock()
-	delete(sessionMap, sw.ID)
-	finishSession(sw.MapData())
-	logger.Infof("DB Session %s has finished", sw.ID)
+	delete(sessionMap, s.ID)
+	finishSession(s.MapData())
+	logger.Infof("Session %s has finished", s.ID)
 }

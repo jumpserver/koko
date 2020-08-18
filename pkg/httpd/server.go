@@ -1,21 +1,18 @@
 package httpd
 
 import (
-	"context"
+	"encoding/json"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"net/http/pprof"
-
 	"github.com/gorilla/mux"
-	gorillaws "github.com/gorilla/websocket"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/kataras/neffos"
-	"github.com/kataras/neffos/gorilla"
 )
 
 var (
@@ -23,69 +20,15 @@ var (
 	Timeout    = time.Duration(60)
 )
 
-var upgrader = gorilla.Upgrader(gorillaws.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-})
-
-var wsEvents = neffos.WithTimeout{
-	ReadTimeout:  Timeout * time.Second,
-	WriteTimeout: Timeout * time.Second,
-	Namespaces: neffos.Namespaces{
-		"ssh": neffos.Events{
-			neffos.OnNamespaceConnected:  OnNamespaceConnected,
-			neffos.OnNamespaceDisconnect: OnNamespaceDisconnect,
-			neffos.OnRoomJoined: func(c *neffos.NSConn, msg neffos.Message) error {
-				return nil
-			},
-			neffos.OnRoomLeft: func(c *neffos.NSConn, msg neffos.Message) error {
-				return nil
-			},
-
-			"data":   OnDataHandler,
-			"resize": OnResizeHandler,
-			"host":   OnHostHandler,
-			"logout": OnLogoutHandler,
-			"token":  OnTokenHandler,
-			"ping":   OnPingHandler,
-		},
-		"elfinder": neffos.Events{
-			neffos.OnNamespaceConnected:  OnELFinderConnect,
-			neffos.OnNamespaceDisconnect: OnELFinderDisconnect,
-			"ping":                       OnPingHandler,
-		},
-	},
-}
-
 func StartHTTPServer() {
 	conf := config.GetConf()
 	sshWs := neffos.New(upgrader, wsEvents)
 	sshWs.IDGenerator = func(w http.ResponseWriter, r *http.Request) string {
 		return neffos.DefaultIDGenerator(w, r)
 	}
-	sshWs.OnUpgradeError = func(err error) {
-		if ok := neffos.IsTryingToReconnect(err); ok {
-			logger.Debug("A client was tried to reconnect")
-			return
-		}
-		logger.Error("ERROR: ", err)
-	}
-	sshWs.OnConnect = func(c *neffos.Conn) error {
-		if c.WasReconnected() {
-			namespace := c.Socket().Request().Header.Get("X-Namespace")
-			if namespace != "" {
-				_, _ = c.Connect(context.TODO(), "ssh")
-			}
-			logger.Debugf("Connection %s reconnected, with tries: %d", c.ID(), c.ReconnectTries)
-		} else {
-			logger.Debug("A new ws connection arrive")
-		}
-		return nil
-	}
-	sshWs.OnDisconnect = func(c *neffos.Conn) {
-		logger.Debug("Ws connection disconnect")
-	}
+	sshWs.OnUpgradeError = neffosOnUpgradeError
+	sshWs.OnConnect = neffosOnConnect
+	sshWs.OnDisconnect = neffosOnDisconnect
 
 	router := mux.NewRouter()
 	fs := http.FileServer(http.Dir(filepath.Join(conf.RootPath, "static")))
@@ -93,6 +36,7 @@ func StartHTTPServer() {
 	subRouter := router.PathPrefix("/koko/").Subrouter()
 	subRouter.PathPrefix("/static/").Handler(http.StripPrefix("/koko/static/", fs))
 	subRouter.Handle("/ws/", sshWs)
+	subRouter.Handle("/room/{roomID}/", AuthDecorator(roomHandler))
 
 	elfinderRouter := subRouter.PathPrefix("/elfinder/").Subrouter()
 	elfinderRouter.HandleFunc("/sftp/{host}/", AuthDecorator(sftpHostFinder))
@@ -101,22 +45,26 @@ func StartHTTPServer() {
 		AuthDecorator(sftpHostConnectorView),
 	).Methods("GET", "POST")
 
-	//router.PathPrefix("/coco/static/").Handler(http.StripPrefix("/coco/static/", fs))
+	router.HandleFunc("/status/", statusHandler)
 
-	//router.Handle("/socket.io/", sshWs)
-	//router.HandleFunc("/coco/elfinder/sftp/{host}/", AuthDecorator(sftpHostFinder))
-	//router.HandleFunc("/coco/elfinder/sftp/", AuthDecorator(sftpFinder))
-	//router.HandleFunc("/coco/elfinder/sftp/connector/{host}/",
-	//	AuthDecorator(sftpHostConnectorView)).Methods("GET", "POST")
 	if strings.ToUpper(conf.LogLevel) == "DEBUG" {
 		router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 	}
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	logger.Info("Start HTTP server at ", addr)
-	httpServer = &http.Server{Addr: addr, Handler: router}
+	httpServer = &http.Server{Addr: addr, Handler: router,}
 	logger.Fatal(httpServer.ListenAndServe())
 }
 
 func StopHTTPServer() {
 	_ = httpServer.Close()
+}
+
+func statusHandler(wr http.ResponseWriter, req *http.Request) {
+	status := make(map[string]interface{})
+	data := websocketManager.GetWebsocketData()
+	status["websocket"] = data
+	wr.Header().Set("Content-Type", "application/json")
+	jsonData, _ := json.Marshal(status)
+	_, _ = wr.Write(jsonData)
 }
