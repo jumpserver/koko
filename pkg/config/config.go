@@ -48,7 +48,7 @@ type Config struct {
 	AssetLoadPolicy     string                 `yaml:"ASSET_LOAD_POLICY"` // all
 	ZipMaxSize          string                 `yaml:"ZIP_MAX_SIZE"`
 	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
-        SSHConnTimeout      int64                  `yaml:"SSH_CONN_TIMEOUT"`
+        SSHConnTimeout      time.Duration          `yaml:"SSH_CONN_TIMEOUT"`
 }
 
 func (c *Config) EnsureConfigValid() {
