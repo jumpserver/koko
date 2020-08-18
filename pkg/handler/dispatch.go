@@ -23,15 +23,15 @@ func (h *interactiveHandler) Dispatch() {
 		var line string
 		var err error
 		go h.readLine(linechan, errchan)
-		
+
 		select {
 		case line = <-linechan:
-		    fmt.Println(line)
+		    logger.Infof("User %s input line is %s", h.user.Name, line)
 		case err = <-errchan:
-		    fmt.Println(err)
+		    logger.Errorf("Error %s occurs when user input", err.Error())
 		    return
 		case <-time.After(config.GetConf().ClientConTimeOut * time.Second):
-		    fmt.Println("Timeout and exit")
+		    logger.Infof("User %s exit koko when long time no input", h.user.Name)
 		    return
 		}
 		
