@@ -94,7 +94,7 @@ func (h *interactiveHandler) Dispatch() {
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
 				if num, err := strconv.Atoi(searchWord); err == nil {
 					<-h.firstLoadDone
-					if num >= 0 && num <= len(h.nodes) {
+					if num > 0 && num <= len(h.nodes) {
 						currentApp = h.getNodeAssetApp(h.nodes[num-1])
 						currentApp.Search("")
 						continue
