@@ -234,7 +234,7 @@ func IsInstalledKubectlClient() bool {
 	cmd := exec.Command("bash", "-c", checkLine)
 	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {
-		logger.Errorf("Check kubectl client failed %s", err, out)
+		logger.Errorf("Check kubectl client failed %s", err)
 		return false
 	}
 	var result map[string]interface{}

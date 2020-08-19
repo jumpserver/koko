@@ -202,7 +202,7 @@ func (s *DBSwitchSession) Bridge(userConn UserConnection, srvConn srvconn.Server
 				return
 			}
 			_ = srvConn.SetWinSize(win.Width, win.Height)
-			logger.Infof("DB Session[%s] Window server change: %d*%d", win.Height, win.Width)
+			logger.Infof("DB Session[%s] Window server change: %d*%d", s.ID, win.Height, win.Width)
 			p, _ := json.Marshal(win)
 			msg := model.RoomMessage{
 				Event: model.WindowsEvent,

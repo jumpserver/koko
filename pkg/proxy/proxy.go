@@ -79,7 +79,7 @@ func (p *ProxyServer) getSystemUserBasicInfo() {
 	var info model.SystemUserAuthInfo
 	if p.SystemUser.UsernameSameWithUser {
 		p.SystemUser.Username = p.User.Username
-		logger.Infof("Conn[%s] SystemUser username same with user: %s", p.User.Username)
+		logger.Infof("Conn[%s] SystemUser username same with user: %s", p.UserConn.ID(), p.User.Username)
 		info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
 	} else {
 		info = service.GetSystemUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID)
@@ -358,7 +358,7 @@ func (p *ProxyServer) Proxy() {
 		}
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] submit session %s to core server err: %s", p.UserConn.ID(), msg)
+		logger.Errorf("Conn[%s] submit session %s to core server err: %s", p.UserConn.ID(), sw.ID, msg)
 		return
 	}
 	logger.Infof("Conn[%s] create session %s success", p.UserConn.ID(), sw.ID)
