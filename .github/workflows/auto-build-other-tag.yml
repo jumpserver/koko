@@ -2,7 +2,7 @@ on:
   push:
     tags:
       - '*'
-      - !v*
+      - '!v*'
 
 name: Auto build other tags except v.x
 
