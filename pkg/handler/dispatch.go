@@ -188,7 +188,7 @@ func (h *interactiveHandler) getK8sApp() Application {
 		engine:     eng,
 		searchKeys: make([]string, 0),
 	}
-	h.term.SetPrompt("[k8s]> ")
+	h.term.SetPrompt("[K8S]> ")
 	return &app
 }
 
