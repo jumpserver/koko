@@ -1,7 +1,6 @@
 on:
   push:
     tags:
-      - *
 
 name: Auto build other tags except v.x
 
