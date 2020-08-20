@@ -1,13 +1,13 @@
 on:
   push:
     tags:
+      - '*'
+      - !v*
 
 name: Auto build other tags except v.x
 
 jobs:
   build-other-tags-and-upload:
-    name: Build other tags except v.x
-    if: !startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,10 +23,3 @@ jobs:
           echo ">>>>>>>>" && ls ./release
           TAG=$(basename ${GITHUB_REF})
           echo "::set-output name=TAG::$TAG"
-      - name: Upload release tarball to oss
-        uses: go-choppy/ossutil-github-action@master
-        with:
-          ossArgs: "cp -r -u ./release oss://jms-pkg/release/${{ steps.get_tag.outputs.TAG }}"
-          accessKey: ${{ secrets.OSS_AK }}
-          accessSecret: ${{ secrets.OSS_SK }}
-          endpoint: oss-cn-beijing.aliyuncs.com
