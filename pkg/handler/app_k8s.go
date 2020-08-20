@@ -170,7 +170,7 @@ func (k *K8sApplication) DisplayCurrentResult() {
 
 func (k *K8sApplication) ProxyK8s(dbSelect model.K8sCluster) {
 	systemUsers := service.GetUserK8sSystemUsers(k.h.user.ID, dbSelect.ID)
-	defer k.h.term.SetPrompt("[k8s]> ")
+	defer k.h.term.SetPrompt("[K8S]> ")
 	systemUserSelect, ok := k.h.chooseSystemUser(systemUsers)
 	if !ok {
 		return
