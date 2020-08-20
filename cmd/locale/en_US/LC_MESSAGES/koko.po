@@ -237,28 +237,28 @@ msgid "Command `%s` is forbidden"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:117
+#: pkg/proxy/dbproxy.go:119
 msgid "Connecting to Database %s %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:136
+#: pkg/proxy/dbproxy.go:138
 msgid "System user <%s> and database <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:144
+#: pkg/proxy/dbproxy.go:146
 msgid "Database %s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:203
+#: pkg/proxy/dbproxy.go:205
 msgid "Create database session failed"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/dbproxy.go:241 pkg/proxy/dbswitch.go:183
+#: pkg/proxy/dbproxy.go:243 pkg/proxy/dbswitch.go:183
 msgid "Database connect idle more than %d minutes, disconnect"
 msgstr ""
 
@@ -268,39 +268,39 @@ msgid "Database connection terminated by administrator"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:69
+#: pkg/proxy/k8sproxy.go:71
 msgid "Connecting to Kubernetes %s %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:88
+#: pkg/proxy/k8sproxy.go:90
 msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:96
+#: pkg/proxy/k8sproxy.go:98
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:104
+#: pkg/proxy/k8sproxy.go:106
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:112
+#: pkg/proxy/k8sproxy.go:114
 msgid "You get auth token failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:157
+#: pkg/proxy/k8sproxy.go:159
 msgid "Create k8s session failed"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:195 pkg/proxy/parser.go:150 pkg/proxy/proxy.go:184
+#: pkg/proxy/k8sproxy.go:197 pkg/proxy/parser.go:150 pkg/proxy/proxy.go:184
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 

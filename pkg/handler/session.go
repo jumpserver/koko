@@ -197,9 +197,9 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 	backTip := i18n.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(h.term, table.Display())
-		utils.IgnoreErrWriteString(h.term, selectTip)
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(selectTip, utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
-		utils.IgnoreErrWriteString(h.term, backTip)
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(backTip, utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 		line, err := h.term.ReadLine()
 		if err != nil {

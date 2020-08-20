@@ -94,7 +94,7 @@ func (h *interactiveHandler) Dispatch() {
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
 				if num, err := strconv.Atoi(searchWord); err == nil {
 					<-h.firstLoadDone
-					if num >= 0 && num <= len(h.nodes) {
+					if num > 0 && num <= len(h.nodes) {
 						currentApp = h.getNodeAssetApp(h.nodes[num-1])
 						currentApp.Search("")
 						continue
@@ -188,7 +188,7 @@ func (h *interactiveHandler) getK8sApp() Application {
 		engine:     eng,
 		searchKeys: make([]string, 0),
 	}
-	h.term.SetPrompt("[k8s]> ")
+	h.term.SetPrompt("[K8S]> ")
 	return &app
 }
 

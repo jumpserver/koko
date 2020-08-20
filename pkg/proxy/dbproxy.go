@@ -280,7 +280,7 @@ func IsInstalledMysqlClient() bool {
 	cmd := exec.Command("bash", "-c", checkLine)
 	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {
-		logger.Errorf("Check mysql client installed failed: %s", err, out)
+		logger.Errorf("Check mysql client installed failed: %s", err)
 		return false
 	}
 	if bytes.HasPrefix(out, []byte("mysql")) {
