@@ -1,5 +1,11 @@
 #!/bin/bash
 set -e
+function init_nobody_user(){
+    echo `getent passwd | grep 'nobody' | grep '/nonexistent'  || usermod -d /nonexistent nobody` > /dev/null 2>&1
+    echo `getent group | grep 'nogroup' || groupadd nogroup` > /dev/null 2>&1
+}
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+init_nobody_user
 
 if [ "${WELCOME_BANNER}" ]; then
     echo ${WELCOME_BANNER}
@@ -41,6 +47,7 @@ if [ ${KUBECTL_INSECURE_SKIP_TLS_VERIFY} == "true" ];then
 fi
 
 chown -R nobody:nogroup .kube
+chown -R nobody:nogroup .bashrc
 
 export TMPDIR=/nonexistent
 

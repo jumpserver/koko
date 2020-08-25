@@ -302,7 +302,7 @@ msgstr "系统用户<%s>和kubernetes<%s>协议不一致"
 #: pkg/proxy/k8sproxy.go:98
 #, fuzzy
 msgid "%s protocol client not installed."
-msgstr "%s 协议的数据库客户端未安装"
+msgstr "%s 协议的客户端未安装"
 
 #. i18n.T
 #: pkg/proxy/k8sproxy.go:106
