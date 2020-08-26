@@ -213,7 +213,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 	return map[string]interface{}{
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
-		"asset":          p.Cluster.Cluster,
+		"asset":          p.Cluster.Name,
 		"org_id":         p.Cluster.OrgID,
 		"login_from":     p.UserConn.LoginFrom(),
 		"system_user":    fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
