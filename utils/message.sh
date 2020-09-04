@@ -5,9 +5,9 @@ PROJECT_DIR=$(dirname ${BASE_DIR})
 
 LANG="zh_CN en_US"
 DOMAIN=koko
-BIN=${PROJECT_DIR}/cmd/geni18n.go
+BIN=${PROJECT_DIR}/cmd/i18ntool/geni18n.go
 INPUT=pkg
-OUTPUT=${PROJECT_DIR}/cmd/locale/
+OUTPUT=${PROJECT_DIR}/locale/
 
 init_message() {
     for lang in $LANG;do
