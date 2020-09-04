@@ -1,5 +1,5 @@
 package httpd
-
+/*
 import (
 	"net/http"
 	"time"
@@ -74,3 +74,4 @@ func neffosOnDisconnect(c *neffos.Conn) {
 		logger.Infof("User %s ws %s disconnect.", conn.User.Name, c.ID())
 	}
 }
+*/

@@ -1,11 +1,6 @@
 package httpd
 
-import (
-	"github.com/kataras/neffos"
-
-	"github.com/jumpserver/koko/pkg/logger"
-)
-
+/*
 func OnELFinderConnect(ns *neffos.NSConn, msg neffos.Message) error {
 	logger.Debugf("Web folder ws %s connect", ns.Conn.ID())
 	userConn, err := NewUserWebsocketConnWithSession(ns)
@@ -29,3 +24,5 @@ func OnELFinderDisconnect(c *neffos.NSConn, msg neffos.Message) error {
 	removeUserVolume(c.Conn.ID())
 	return nil
 }
+
+*/

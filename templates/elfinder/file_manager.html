@@ -1,50 +1,66 @@
 <html>
 <head>
-    <title>Jumpserver File Manager</title>
+    <title>JumpServer File Manager</title>
     <link rel="shortcut icon" href="/koko/static/img/favicon.ico" type="image/x-icon">
 </head>
 <body style="margin: 0">
     <script type="text/javascript" src="/koko/static/js/jquery-3.3.1.js"></script>
     <script type="text/javascript" src="/koko/static/js/jquery-ui-1.12.1.js"></script>
-    <script type="text/javascript" src="/koko/static/js/neffos.min.js"></script>
     <script type="text/javascript" src="/koko/static/plugins/elfinder/elfinder.full.js"></script>
     <script type="text/javascript" src="/koko/static/plugins/elfinder/i18n/elfinder.pl.js"></script>
     <link rel="stylesheet" type="text/css" media="screen" href="/koko/static/js/jquery-ui-1.12.1.min.css">
     <link rel="stylesheet" type="text/css" media="screen" href="/koko/static/plugins/elfinder/css/elfinder.full.css">
     <link rel="stylesheet" type="text/css" media="screen" href="/koko/static/plugins/elfinder/css/theme-gray.css">
+    <script type="text/javascript" src="/koko/static/js/koko.js"></script>
     <script type="text/javascript" charset="utf-8">
+        var urlParams = new URLSearchParams(window.location.search);
         var scheme = document.location.protocol == "https:" ? "wss" : "ws";
         var port = document.location.port ? ":" + document.location.port : "";
-        var wsURL = scheme + "://" + document.location.hostname + port + "/koko/ws/";
+        var connectType = urlParams.get('type') ? urlParams.get('type') : 'elfinder';
+        var targetId = urlParams.get('target_id') ? urlParams.get('target_id') : '_';
+        var baseWsUrl = scheme + "://" + document.location.hostname + port + "/koko/ws/?"
+        var requireParams = new URLSearchParams();
+        requireParams.append('type', connectType);
+        requireParams.append('target_id', targetId);
+        var wsURL = baseWsUrl + requireParams.toString();
+        let ws = new WebSocket(wsURL, ["JMS-KOKO"]);
         let interval;
-        dial(wsURL, {
-            "elfinder": {
-                _OnNamespaceConnected: function (nsConn, msg) {
-                    interval = setInterval(() => nsConn.emit('ping', ''), 10000);
-                },
-                _OnNamespaceDisconnect: function (ns, msg) {
-                    if (interval) {
-                        clearInterval(interval);
-                    }
-                },
-                data: function (nsConn, msg) {
-                    var data = msg.unmarshal();
-                    var sid = data.sid;
-                    initElfinder(sid);
-                }
+        let wsId = '';
+        ws.onopen =function (e) {
+            if (interval != null){
+                clearInterval(interval)
             }
-        }).then(conn => {
-            conn.connect("elfinder");
-        });
+            interval = setInterval(function () {
+                if (ws.readyState === WebSocket.CLOSING ||
+                    ws.readyState === WebSocket.CLOSED) {
+                    clearInterval(interval)
+                    return
+                }
+                ws.send(message(wsId,'PING', ""));
+            }, 25 * 1000);
+        }
+        ws.onerror = function (e) {
+            alert("Connection closed")
+        }
 
-        // var socket = io.connect('/elfinder');
-        // socket.on('connect', function () {
-        //     console.log("Connect websocket done")
-        // });
-        // socket.on('data', function (msg) {
-        //     var sid = msg.sid;
-        //     initElfinder(sid);
-        // });
+        ws.onclose = function(e) {
+            alert("Connection closed")
+        }
+        ws.onmessage = function(e) {
+            let msg = JSON.parse(e.data)
+            switch (msg.type) {
+                case 'CONNECT':
+                    wsId = msg.id
+                    initElfinder(msg.id)
+                    break
+                case "CLOSE":
+                    break
+                case "PING":
+                    break
+                default:
+                    console.log(msg)
+            }
+        }
         function initElfinder(sid) {
             var elf;
             var opts = {
@@ -63,8 +79,9 @@
                     cwd : {oldSchool: true}
 	    		},
                 customData: {'sid': sid},
+                customHeaders: {"JMS-KoKo-Request-ID": sid},
                 width: '100%',
-	    		url: '/koko/elfinder/sftp/connector/{{.}}/',
+	    		url: '/koko/elfinder/connector/{{.}}/',
                 resizable: false,
                 lang: 'pl',
                 requestType: 'get',

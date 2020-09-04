@@ -38,8 +38,8 @@ goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.
 kubectlflags="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
-cd cmd && CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$goldflags" -o koko koko.go || exit 4
-CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$kubectlflags" -o kubectl kubectl.go  || exit 4
+CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$goldflags" -o koko ${project_dir}/cmd/koko/ || exit 4
+CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$kubectlflags" -o kubectl ${project_dir}/cmd/kubectl/  || exit 4
 set -x
 
 # 打包

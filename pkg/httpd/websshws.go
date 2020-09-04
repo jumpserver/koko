@@ -1,5 +1,5 @@
 package httpd
-
+/*
 import (
 	"encoding/json"
 	"errors"
@@ -155,21 +155,21 @@ func OnHostHandler(ns *neffos.NSConn, msg neffos.Message) (err error) {
 	switch strings.ToLower(message.HostType) {
 	case "database":
 		proxySrv = &proxy.DBProxyServer{
-			UserConn:   client,
+			ttyCon:   client,
 			User:       userConn.User,
 			Database:   &databaseAsset,
 			SystemUser: &systemUser,
 		}
 	case "k8s":
 		proxySrv = &proxy.K8sProxyServer{
-			UserConn:   client,
+			ttyCon:   client,
 			User:       userConn.User,
 			Cluster:    &k8sCluster,
 			SystemUser: &systemUser,
 		}
 	default:
 		proxySrv = &proxy.ProxyServer{
-			UserConn: client, User: userConn.User,
+			ttyCon: client, User: userConn.User,
 			Asset: &asset, SystemUser: &systemUser,
 		}
 	}
@@ -409,3 +409,4 @@ func JoinRoom(c *Client, roomID string) {
 		logger.Infof("User %s published DataEvent to room %s", c.Conn.User.Name, roomID)
 	}
 }
+*/

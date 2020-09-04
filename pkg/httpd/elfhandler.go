@@ -1,5 +1,5 @@
 package httpd
-
+/*
 import (
 	"context"
 	"fmt"
@@ -108,3 +108,4 @@ func sftpHostConnectorView(wr http.ResponseWriter, req *http.Request) {
 	conn := elfinder.NewElFinderConnectorWithOption([]elfinder.Volume{userV}, options)
 	conn.ServeHTTP(wr, req)
 }
+*/

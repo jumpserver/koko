@@ -1,5 +1,5 @@
 package httpd
-
+/*
 import (
 	"errors"
 	"fmt"
@@ -280,3 +280,4 @@ func GetWebsocketAddr(ns *neffos.NSConn) string {
 	}
 	return addr
 }
+*/

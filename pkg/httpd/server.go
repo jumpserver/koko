@@ -1,20 +1,6 @@
 package httpd
 
-import (
-	"encoding/json"
-	"net"
-	"net/http"
-	"net/http/pprof"
-	"path/filepath"
-	"strings"
-	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/kataras/neffos"
-)
-
+/*
 var (
 	httpServer *http.Server
 	Timeout    = time.Duration(60)
@@ -68,3 +54,4 @@ func statusHandler(wr http.ResponseWriter, req *http.Request) {
 	jsonData, _ := json.Marshal(status)
 	_, _ = wr.Write(jsonData)
 }
+*/
