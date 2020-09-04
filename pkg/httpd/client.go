@@ -4,15 +4,13 @@ import (
 	"io"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/kataras/neffos"
 )
 
 type Client struct {
-	Uuid      string
 	WinChan   chan ssh.Window
 	UserRead  io.Reader
 	UserWrite io.WriteCloser
-	Conn      *UserWebsocketConn
+	Conn      *ttyCon
 	pty       ssh.Pty
 }
 
@@ -25,7 +23,7 @@ func (c *Client) LoginFrom() string {
 }
 
 func (c *Client) RemoteAddr() string {
-	return c.Conn.Addr
+	return c.Conn.ctx.ClientIP()
 }
 
 func (c *Client) Read(p []byte) (n int, err error) {
@@ -33,12 +31,13 @@ func (c *Client) Read(p []byte) (n int, err error) {
 }
 
 func (c *Client) Write(p []byte) (n int, err error) {
-	if _, ok := c.Conn.GetClient(c.Uuid); ok {
-		data := DataMsg{Data: string(p), Room: c.Uuid}
-		c.Conn.SendDataEvent(neffos.Marshal(data))
-		return len(p), nil
+	msg := Message{
+		Id:   c.Conn.Uuid,
+		Type: TERMINALDATA,
+		Data: string(p),
 	}
-	return 0, io.EOF
+	c.Conn.SendMessage(&msg)
+	return len(p), nil
 }
 
 func (c *Client) Pty() ssh.Pty {
@@ -57,5 +56,9 @@ func (c *Client) SetWinSize(size ssh.Window) {
 }
 
 func (c *Client) ID() string {
-	return c.Uuid
+	return c.Conn.Uuid
+}
+
+func (c *Client) WriteData(p []byte) {
+	_, _ = c.UserWrite.Write(p)
 }
