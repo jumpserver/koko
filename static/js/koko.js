@@ -68,8 +68,7 @@ function initTerminal(elementId) {
                 break
             case "CLOSE":
                 term.writeln("Connection closed");
-                let e = new Event("CLOSE", {})
-                window.dispatchEvent(e)
+                dispatchEvent(new Event("CLOSE", {}))
                 break
             case "PING":
                 break
@@ -123,10 +122,12 @@ function initTerminal(elementId) {
     }
     ws.onerror = (e) => {
         term.writeln("Connection error");
+        dispatchEvent(new Event("CLOSE", {}))
         handleError(e)
     }
     ws.onclose = (e) => {
         term.writeln("Connection closed");
+        dispatchEvent(new Event("CLOSE", {}))
         handleError(e)
     }
     ws.onmessage = (e) => {
@@ -159,4 +160,8 @@ function createTerminalById(elementId) {
     term.open(document.getElementById(elementId));
     term.focus();
     return term
+}
+
+function dispatchEvent(e) {
+    window.dispatchEvent(e)
 }
