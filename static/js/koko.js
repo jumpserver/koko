@@ -126,6 +126,10 @@ function initTerminal(elementId) {
 }
 
 function createTerminalById(elementId) {
+    let fontSize = 14
+    if (!fontSize || fontSize < 5 || fontSize > 50) {
+        fontSize = 13;
+    }
     document.getElementById(elementId).style.height = window.innerHeight + 'px';
     fit.apply(Terminal)
     const ua = navigator.userAgent.toLowerCase();
