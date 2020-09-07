@@ -213,12 +213,12 @@ func (tc *ttyCon) handleTerminalMessage(msg *Message) {
 func (tc *ttyCon) checkTargetType() bool {
 	var ok bool
 	switch tc.targetType {
-	case DbTargetType, K8sTargetType, AssetTargetType, TokenTargetType:
+	case DBTargetType, K8sTargetType, AssetTargetType, TokenTargetType:
 		appType := tc.getAppType()
 		systemUserId := tc.getAppSystemUserId()
 		appId := tc.getAppId()
 		if systemUserId == "" {
-			logger.Errorf("Ws[%s] miss required query param (userid).", tc.Uuid)
+			logger.Errorf("Ws[%s] miss required query param (system_user_id).", tc.Uuid)
 			return false
 		}
 		systemUser := service.GetSystemUser(systemUserId)
@@ -271,7 +271,7 @@ func (tc *ttyCon) getApp(appType, appId string) bool {
 func (tc *ttyCon) getAppType() string {
 	var appType string
 	switch tc.targetType {
-	case DbTargetType:
+	case DBTargetType:
 		appType = DBAppType
 	case K8sTargetType:
 		appType = K8sAppType
@@ -305,7 +305,7 @@ func (tc *ttyCon) getAppId() string {
 func (tc *ttyCon) getAppSystemUserId() string {
 	var systemUserId string
 	switch tc.targetType {
-	case DbTargetType, K8sTargetType, AssetTargetType:
+	case DBTargetType, K8sTargetType, AssetTargetType:
 		systemUserId, _ = tc.ctx.GetQuery("system_user_id")
 	case TokenTargetType:
 		if tokenUserMsg, existed := tc.ctx.Get(ginCtxTokenUserKey); existed {
@@ -321,7 +321,7 @@ func (tc *ttyCon) proxy(wg *sync.WaitGroup) {
 	defer wg.Done()
 	var proxySrv proxyServer
 	switch tc.targetType {
-	case DbTargetType, K8sTargetType, AssetTargetType, TokenTargetType:
+	case DBTargetType, K8sTargetType, AssetTargetType, TokenTargetType:
 		switch tc.getAppType() {
 		case DBAppType:
 			proxySrv = &proxy.DBProxyServer{

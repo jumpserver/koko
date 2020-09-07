@@ -31,7 +31,7 @@ const (
 
 const (
 	AssetTargetType = "asset"
-	DbTargetType    = "database_app"
+	DBTargetType    = "database_app"
 	K8sTargetType   = "k8s_app"
 
 	TokenTargetType = "token"

@@ -60,6 +60,7 @@ func (s *server) Start() {
 	s.eng = eng
 	s.srv = srv
 	go s.broadCaster.Start()
+	logger.Info("Start HTTP server at ", addr)
 	log.Print(s.srv.ListenAndServe())
 }
 
@@ -121,7 +122,6 @@ func (s *server) isAliveSession(ctx *gin.Context) bool {
 	if sid := ctx.GetHeader(requestIdHeaderKey); sid != "" {
 		if ttyCon := s.broadCaster.GetAliveCon(sid); ttyCon != nil {
 			ctx.Set(ginCtxUserKey, ttyCon.user)
-			ctx.Set(ginCtxElfinderIdKey, sid)
 			return true
 		}
 	}
@@ -130,6 +130,7 @@ func (s *server) isAliveSession(ctx *gin.Context) bool {
 
 const requestIdHeaderKey = "JMS-KoKo-Request-ID"
 
+// 不需要校验 cookie和session
 func (s *server) sftpHostConnectorView(ctx *gin.Context) {
 	userValue, ok := ctx.Get(ginCtxUserKey)
 	if !ok {
@@ -148,9 +149,8 @@ func (s *server) sftpHostConnectorView(ctx *gin.Context) {
 		logger.Errorf("Ws(%s) already closed request url %s from ip %s", reqId, ctx.Request.URL, ctx.ClientIP())
 		http.Error(ctx.Writer, "ws already disconnected", http.StatusBadRequest)
 		return
-	} else {
-		logger.Infof("Ws(%s) user %s open elfinder connected again.", reqId, user.Name)
 	}
+	logger.Infof("Ws(%s) user %s open elfinder connected again.", reqId, user.Name)
 	conf := config.GetConf()
 	maxSize := common.ConvertSizeToBytes(conf.ZipMaxSize)
 	options := map[string]string{
@@ -165,7 +165,7 @@ func (s *server) processWebsocket(ctx *gin.Context) {
 	connectType, _ := ctx.GetQuery("type")
 	targetId, _ := ctx.GetQuery("target_id")
 	if connectType == "" || targetId == "" {
-		logger.Errorf("Ws miss required params (type and target_id).")
+		logger.Error("Ws miss required params (type and target_id).")
 		badRequestMsg := "miss required params (type and target_id)."
 		if ctx.IsWebsocket() {
 			ctx.Header("Sec-Websocket-Version", "13")
@@ -236,6 +236,7 @@ func registerHandlers(s *server) *gin.Engine {
 		})
 		connectorAuthGroup := elfindlerGroup.Group("/connector")
 		connectorAuthGroup.Use(s.middleAuth())
+		// 不需要校验 cookie和session
 		connectorAuthGroup.Any("/:host/", s.sftpHostConnectorView)
 	}
 	return eng
