@@ -63,11 +63,13 @@ function initTerminal(elementId) {
                 let cols = term.cols;
                 let rows = term.rows;
                 ws.send(message(terminalId, 'TERMINAL_INIT',
-                        JSON.stringify({cols, rows})));
+                    JSON.stringify({cols, rows})));
                 initialed = true;
                 break
             case "CLOSE":
                 term.writeln("Connection closed");
+                let e = new Event("CLOSE", {})
+                window.dispatchEvent(e)
                 break
             case "PING":
                 break
