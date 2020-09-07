@@ -134,13 +134,12 @@ function createTerminalById(elementId) {
         lineHeight = 1.2;
     }
     let term = new Terminal({
-        convertEol: true, //启用时，光标将设置为下一行的开头
-        disableStdin: false, //是否应禁用输入。
-        cursorBlink: true, //光标闪烁
+        fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
+        lineHeight: lineHeight,
+        fontSize: fontSize,
+        rightClickSelectsWord: true,
         theme: {
-            foreground: "#7e9192", //字体
-            background: "#002833", //背景色
-            lineHeight: lineHeight,
+            background: '#1f1b1b'
         }
     });
     term.open(document.getElementById(elementId));
