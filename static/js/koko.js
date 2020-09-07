@@ -81,6 +81,14 @@ function initTerminal(elementId) {
         }
     }
 
+    window.SendTerminalData = function(data){
+        if (ws.readyState === WebSocket.CLOSING ||
+            ws.readyState === WebSocket.CLOSED) {
+            return
+        }
+        ws.send(message(terminalId, 'TERMINAL_DATA', data));
+    }
+
     window.addEventListener('resize', resizeTerminal);
 
     term.on('data', data => {
