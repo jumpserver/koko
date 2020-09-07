@@ -9,15 +9,15 @@ import (
 )
 
 type Socket struct {
-	underlyingConn *gorilla.Conn
-	request        *http.Request
-	mu             sync.Mutex
+	underConn *gorilla.Conn
+	request   *http.Request
+	mu        sync.Mutex
 }
 
-func NewSocket(underWs *gorilla.Conn, request *http.Request) *Socket {
+func NewSocket(underConn *gorilla.Conn, request *http.Request) *Socket {
 	return &Socket{
-		underlyingConn: underWs,
-		request:        request,
+		underConn: underConn,
+		request:   request,
 	}
 }
 
@@ -30,10 +30,10 @@ func (s *Socket) Request() *http.Request {
 func (s *Socket) ReadData(timeout time.Duration) ([]byte, int, error) {
 	for {
 		if timeout > 0 {
-			s.underlyingConn.SetReadDeadline(time.Now().Add(timeout))
+			s.underConn.SetReadDeadline(time.Now().Add(timeout))
 		}
 
-		opCode, data, err := s.underlyingConn.ReadMessage()
+		opCode, data, err := s.underConn.ReadMessage()
 		if err != nil {
 			return nil, 0, err
 		}
@@ -58,11 +58,11 @@ func (s *Socket) WriteText(body []byte, timeout time.Duration) error {
 
 func (s *Socket) write(body []byte, opCode int, timeout time.Duration) error {
 	if timeout > 0 {
-		s.underlyingConn.SetWriteDeadline(time.Now().Add(timeout))
+		s.underConn.SetWriteDeadline(time.Now().Add(timeout))
 	}
 
 	s.mu.Lock()
-	err := s.underlyingConn.WriteMessage(opCode, body)
+	err := s.underConn.WriteMessage(opCode, body)
 	s.mu.Unlock()
 	return err
 }
