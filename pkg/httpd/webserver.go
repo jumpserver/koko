@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"net/url"
 	"strconv"
 	"strings"
@@ -97,6 +98,19 @@ func (s *server) middleHtmlAuth() gin.HandlerFunc {
 		loginUrl := fmt.Sprintf("/core/users/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
 		ctx.Redirect(http.StatusFound, loginUrl)
 		ctx.Abort()
+	}
+}
+
+func (s *server) middleDebugAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		host, _, _ := net.SplitHostPort(c.Request.Host)
+		switch host {
+		case "127.0.0.1", "localhost":
+			return
+		default:
+			_ = c.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid host %s", c.Request.Host))
+			return
+		}
 	}
 }
 
@@ -210,12 +224,35 @@ func (s *server) processWebsocket(ctx *gin.Context) {
 	conn.Run()
 }
 
+func (s *server) statusHandler(ctx *gin.Context) {
+	status := make(map[string]interface{})
+	status["timestamp"] = time.Now().UTC()
+	ctx.JSON(http.StatusOK, status)
+}
+
 func registerHandlers(s *server) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	eng := gin.New()
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
 	eng.LoadHTMLGlob("./templates/**/*")
+	eng.GET("/status/", s.statusHandler)
+	debugGroup := eng.Group("/debug/pprof")
+	debugGroup.Use(s.middleDebugAuth())
+	{
+		debugGroup.GET("/", gin.WrapF(pprof.Index))
+		debugGroup.GET("/cmdline", gin.WrapF(pprof.Cmdline))
+		debugGroup.GET("/profile", gin.WrapF(pprof.Profile))
+		debugGroup.POST("/symbol", gin.WrapF(pprof.Symbol))
+		debugGroup.GET("/symbol", gin.WrapF(pprof.Symbol))
+		debugGroup.GET("/trace", gin.WrapF(pprof.Trace))
+		debugGroup.GET("/allocs", gin.WrapF(pprof.Handler("allocs").ServeHTTP))
+		debugGroup.GET("/block", gin.WrapF(pprof.Handler("block").ServeHTTP))
+		debugGroup.GET("/goroutine", gin.WrapF(pprof.Handler("goroutine").ServeHTTP))
+		debugGroup.GET("/heap", gin.WrapF(pprof.Handler("heap").ServeHTTP))
+		debugGroup.GET("/mutex", gin.WrapF(pprof.Handler("mutex").ServeHTTP))
+		debugGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
+	}
 	kokoGroup := eng.Group("/koko")
 	kokoGroup.Static("/static/", "./static")
 	terminalGroup := kokoGroup.Group("/terminal")
@@ -223,6 +260,7 @@ func registerHandlers(s *server) *gin.Engine {
 	terminalGroup.GET("/", func(ctx *gin.Context) {
 		ctx.HTML(http.StatusOK, "terminal.html", nil)
 	})
+
 	wsGroup := kokoGroup.Group("/ws")
 	wsGroup.Use(s.middleAuth())
 	wsGroup.GET("/", s.processWebsocket)
@@ -241,12 +279,12 @@ func registerHandlers(s *server) *gin.Engine {
 	return eng
 }
 
-var s = NewServer()
+var webServer = NewServer()
 
 func StartHTTPServer() {
-	s.Start()
+	webServer.Start()
 }
 
 func StopHTTPServer() {
-	s.Stop()
+	webServer.Stop()
 }
