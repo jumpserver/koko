@@ -10,6 +10,23 @@
     <script type="text/javascript" src="/koko/static/plugins/xterm/xterm.js"></script>
     <script type="text/javascript" src="/koko/static/plugins/xterm/addons/fit/fit.js"></script>
     <script type="text/javascript" src="/koko/static/js/koko.js"></script>
+    <style type="text/css">
+        html {
+            overflow: -moz-hidden-unscrollable;
+            height: 100%;
+        }
+
+        body::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            -ms-overflow-style: none;
+            height: 100%;
+            width: calc(100vw + 18px);
+            overflow: auto;
+        }
+    </style>
 </head>
 <body>
 <div id="terminal"></div>
