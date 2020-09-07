@@ -16,12 +16,10 @@
         var urlParams = new URLSearchParams(window.location.search);
         var scheme = document.location.protocol == "https:" ? "wss" : "ws";
         var port = document.location.port ? ":" + document.location.port : "";
-        var connectType = urlParams.get('type') ? urlParams.get('type') : 'elfinder';
-        var targetId = urlParams.get('target_id') ? urlParams.get('target_id') : '_';
         var baseWsUrl = scheme + "://" + document.location.hostname + port + "/koko/ws/?"
         var requireParams = new URLSearchParams();
-        requireParams.append('type', connectType);
-        requireParams.append('target_id', targetId);
+        requireParams.append('type', "elfinder");
+        requireParams.append('target_id', {{.}});
         var wsURL = baseWsUrl + requireParams.toString();
         let ws = new WebSocket(wsURL, ["JMS-KOKO"]);
         let interval;

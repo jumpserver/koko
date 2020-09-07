@@ -74,7 +74,23 @@ func (s *server) Stop() {
 
 func (s *server) middleAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if s.isAliveSession(ctx) || s.checkTokenValid(ctx) || s.checkSessionValid(ctx) {
+		if s.checkTokenValid(ctx) || s.checkSessionValid(ctx) {
+			ctx.Next()
+			return
+		}
+		loginUrl := fmt.Sprintf("/core/users/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
+		ctx.Redirect(http.StatusFound, loginUrl)
+		ctx.Abort()
+	}
+}
+
+func (s *server) middleHtmlAuth() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if _, ok := ctx.GetQuery("token"); ok {
+			ctx.Next()
+			return
+		}
+		if s.checkSessionValid(ctx) {
 			ctx.Next()
 			return
 		}
@@ -118,26 +134,10 @@ func (s *server) checkSessionValid(ctx *gin.Context) bool {
 	return true
 }
 
-func (s *server) isAliveSession(ctx *gin.Context) bool {
-	if sid := ctx.GetHeader(requestIdHeaderKey); sid != "" {
-		if ttyCon := s.broadCaster.GetAliveCon(sid); ttyCon != nil {
-			ctx.Set(ginCtxUserKey, ttyCon.user)
-			return true
-		}
-	}
-	return false
-}
-
 const requestIdHeaderKey = "JMS-KoKo-Request-ID"
 
 // 不需要校验 cookie和session
 func (s *server) sftpHostConnectorView(ctx *gin.Context) {
-	userValue, ok := ctx.Get(ginCtxUserKey)
-	if !ok {
-		http.Error(ctx.Writer, "no user found", http.StatusBadRequest)
-		return
-	}
-	user := userValue.(*model.User)
 	reqId := ctx.GetHeader(requestIdHeaderKey)
 	if reqId == "" {
 		logger.Errorf("Invalid elfinder request url %s from ip %s", ctx.Request.URL, ctx.ClientIP())
@@ -146,11 +146,12 @@ func (s *server) sftpHostConnectorView(ctx *gin.Context) {
 	}
 	userV, ok := GetUserVolume(reqId)
 	if !ok {
-		logger.Errorf("Ws(%s) already closed request url %s from ip %s", reqId, ctx.Request.URL, ctx.ClientIP())
+		logger.Errorf("Ws(%s) already closed request url %s from ip %s",
+			reqId, ctx.Request.URL, ctx.ClientIP())
 		http.Error(ctx.Writer, "ws already disconnected", http.StatusBadRequest)
 		return
 	}
-	logger.Infof("Ws(%s) user %s open elfinder connected again.", reqId, user.Name)
+	logger.Infof("Elfinder %s connected again.", reqId)
 	conf := config.GetConf()
 	maxSize := common.ConvertSizeToBytes(conf.ZipMaxSize)
 	options := map[string]string{
@@ -217,16 +218,17 @@ func registerHandlers(s *server) *gin.Engine {
 	eng.LoadHTMLGlob("./templates/**/*")
 	kokoGroup := eng.Group("/koko")
 	kokoGroup.Static("/static/", "./static")
-	{
-		kokoGroup.GET("terminal/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "terminal.html", nil)
-		})
-		wsAuthGroup := kokoGroup.Group("/ws")
-		wsAuthGroup.Use(s.middleAuth())
-		wsAuthGroup.GET("/", s.processWebsocket)
-	}
+	terminalGroup := kokoGroup.Group("/terminal")
+	terminalGroup.Use(s.middleHtmlAuth())
+	terminalGroup.GET("/", func(ctx *gin.Context) {
+		ctx.HTML(http.StatusOK, "terminal.html", nil)
+	})
+	wsGroup := kokoGroup.Group("/ws")
+	wsGroup.Use(s.middleAuth())
+	wsGroup.GET("/", s.processWebsocket)
 
 	elfindlerGroup := kokoGroup.Group("/elfinder")
+	elfindlerGroup.Use(s.middleAuth())
 	{
 		elfindlerGroup.GET("/sftp/", func(ctx *gin.Context) {
 			ctx.HTML(http.StatusOK, "file_manager.html", "_")
@@ -234,10 +236,7 @@ func registerHandlers(s *server) *gin.Engine {
 		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
 			ctx.HTML(http.StatusOK, "file_manager.html", ctx.Param("host"))
 		})
-		connectorAuthGroup := elfindlerGroup.Group("/connector")
-		connectorAuthGroup.Use(s.middleAuth())
-		// 不需要校验 cookie和session
-		connectorAuthGroup.Any("/:host/", s.sftpHostConnectorView)
+		elfindlerGroup.Any("/connector/:host/", s.sftpHostConnectorView)
 	}
 	return eng
 }
