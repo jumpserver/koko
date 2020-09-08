@@ -79,7 +79,7 @@ func (s *server) middleAuth() gin.HandlerFunc {
 			ctx.Next()
 			return
 		}
-		loginUrl := fmt.Sprintf("/core/users/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
+		loginUrl := fmt.Sprintf("/core/auth/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
 		ctx.Redirect(http.StatusFound, loginUrl)
 		ctx.Abort()
 	}
@@ -95,7 +95,7 @@ func (s *server) middleHtmlAuth() gin.HandlerFunc {
 			ctx.Next()
 			return
 		}
-		loginUrl := fmt.Sprintf("/core/users/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
+		loginUrl := fmt.Sprintf("/core/auth/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
 		ctx.Redirect(http.StatusFound, loginUrl)
 		ctx.Abort()
 	}
