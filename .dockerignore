@@ -1,4 +1,5 @@
 vendor
-build
+build/*
 logs/*
 data/*
+release/*

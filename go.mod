@@ -14,12 +14,11 @@ require (
 	github.com/creack/pty v1.1.9
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
+	github.com/gin-gonic/gin v1.6.3
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
-	github.com/gorilla/mux v1.7.2
 	github.com/gorilla/websocket v1.4.1
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/kataras/neffos v0.0.14
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mattn/go-runewidth v0.0.4 // indirect
@@ -33,11 +32,11 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
-	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2
+	golang.org/x/text v0.3.2
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.2.8
 )
 
 replace (
