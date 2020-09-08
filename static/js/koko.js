@@ -27,6 +27,7 @@ function initTerminal(elementId) {
     let initialed;
     let ws;
     let terminalId = "";
+    let termSelection = "";
     let wsURL = baseWsUrl + urlParams.toString();
     ws = new WebSocket(wsURL, ["JMS-KOKO"]);
     term = createTerminalById(elementId)
@@ -80,7 +81,7 @@ function initTerminal(elementId) {
         }
     }
 
-    window.SendTerminalData = function(data){
+    window.SendTerminalData = function (data) {
         if (ws.readyState === WebSocket.CLOSING ||
             ws.readyState === WebSocket.CLOSED) {
             return
@@ -90,12 +91,35 @@ function initTerminal(elementId) {
 
     window.addEventListener('resize', resizeTerminal);
 
+    let quickPaste = getQuickPaste();
+
+    $("#" + elementId).contextmenu(function ($event) {
+        if ($event.ctrlKey || quickPaste !== '1') {
+            return;
+        }
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then((text) => {
+                ws.send(message(terminalId, 'TERMINAL_DATA', text))
+            })
+            $event.preventDefault();
+        } else if (termSelection !== "") {
+            ws.send(message(terminalId, 'TERMINAL_DATA', termSelection))
+            $event.preventDefault();
+        }
+    });
+
     term.on('data', data => {
         if (initialed === null || ws === null) {
             return
         }
         lastSendTime = new Date();
         ws.send(message(terminalId, 'TERMINAL_DATA', data));
+    });
+
+    term.on('selection', function () {
+        document.execCommand('copy');
+        // this ==> term object
+        termSelection = this.getSelection().trim();
     });
 
     ws.onopen = () => {
@@ -137,12 +161,9 @@ function initTerminal(elementId) {
 }
 
 function createTerminalById(elementId) {
-    let fontSize = 14
-    if (!fontSize || fontSize < 5 || fontSize > 50) {
-        fontSize = 13;
-    }
+    let fontSize = getFontSize();
     document.getElementById(elementId).style.height = window.innerHeight + 'px';
-    fit.apply(Terminal)
+    fit.apply(Terminal);
     const ua = navigator.userAgent.toLowerCase();
     let lineHeight = 1;
     if (ua.indexOf('windows') !== -1) {
@@ -159,9 +180,39 @@ function createTerminalById(elementId) {
     });
     term.open(document.getElementById(elementId));
     term.focus();
+    term.attachCustomKeyEventHandler(function (e) {
+        if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
+            return false;
+        }
+        return !(e.ctrlKey && e.key === 'v');
+    });
     return term
 }
 
 function dispatchEvent(e) {
     window.dispatchEvent(e)
+}
+
+function getFontSize() {
+    let fontSize = 14
+    // localStorage.getItem default null
+    let localSettings = localStorage.getItem('LunaSetting')
+    if (localSettings !== null) {
+        let settings = JSON.parse(localSettings)
+        fontSize = settings['fontSize']
+    }
+    if (!fontSize || fontSize < 5 || fontSize > 50) {
+        fontSize = 13;
+    }
+    return fontSize
+}
+
+function getQuickPaste() {
+    let quickPaste = "1"
+    let localSettings = localStorage.getItem('LunaSetting')
+    if (localSettings !== null) {
+        let settings = JSON.parse(localSettings)
+        quickPaste = settings['quickPaste']
+    }
+    return quickPaste
 }
