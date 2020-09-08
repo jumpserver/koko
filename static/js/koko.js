@@ -80,7 +80,7 @@ function initTerminal(elementId) {
         }
     }
 
-    window.SendTerminalData = function(data){
+    window.SendTerminalData = function (data) {
         if (ws.readyState === WebSocket.CLOSING ||
             ws.readyState === WebSocket.CLOSED) {
             return
@@ -137,12 +137,9 @@ function initTerminal(elementId) {
 }
 
 function createTerminalById(elementId) {
-    let fontSize = 14
-    if (!fontSize || fontSize < 5 || fontSize > 50) {
-        fontSize = 13;
-    }
+    let fontSize = getFontSize();
     document.getElementById(elementId).style.height = window.innerHeight + 'px';
-    fit.apply(Terminal)
+    fit.apply(Terminal);
     const ua = navigator.userAgent.toLowerCase();
     let lineHeight = 1;
     if (ua.indexOf('windows') !== -1) {
@@ -164,4 +161,17 @@ function createTerminalById(elementId) {
 
 function dispatchEvent(e) {
     window.dispatchEvent(e)
+}
+
+function getFontSize() {
+    let fontSize = 14
+    // localStorage.getItem default null
+    let defaultSize = localStorage.getItem('fontSize')
+    if (defaultSize !== null) {
+        fontSize = parseInt(defaultSize)
+    }
+    if (!fontSize || fontSize < 5 || fontSize > 50) {
+        fontSize = 13;
+    }
+    return fontSize
 }
