@@ -18,7 +18,7 @@ Koko 是 Go 版本的 coco；重构了 coco 的 SSH/SFTP 服务和 Web Terminal 
 1.下载项目
 
 ```shell
-go get github.com/jumpserver/koko
+git clone https://github.com/jumpserver/koko.git
 ```
 
 2.编译应用
@@ -39,7 +39,7 @@ make linux
 tar xzf koko-[branch name]-[commit]-linux-amd64.tar.gz
 ```
 
-3.创建配置文件config.yml,配置参数请参考[cmd](https://github.com/jumpserver/koko/tree/master/cmd)目录下的config_example.yml文件
+3.创建配置文件config.yml，配置参数请参考[config_example.yml](https://github.com/jumpserver/koko/blob/master/config_example.yml)文件
 ```shell
 touch config.yml
 ```
