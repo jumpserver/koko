@@ -92,8 +92,8 @@ function initTerminal(elementId) {
     window.addEventListener('resize', resizeTerminal);
 
     let quickPaste = getQuickPaste();
-
-    $("#" + elementId).contextmenu(function ($event) {
+    let terminalContext =document.getElementById(elementId);
+    terminalContext.addEventListener('contextmenu',function ($event) {
         if ($event.ctrlKey || quickPaste !== '1') {
             return;
         }
@@ -106,7 +106,7 @@ function initTerminal(elementId) {
             ws.send(message(terminalId, 'TERMINAL_DATA', termSelection))
             $event.preventDefault();
         }
-    });
+    })
 
     term.on('data', data => {
         if (initialed === null || ws === null) {
