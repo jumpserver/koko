@@ -69,7 +69,7 @@ function initTerminal(elementId) {
                 break
             case "CLOSE":
                 term.writeln("Connection closed");
-                dispatchEvent(new Event("CLOSE", {}))
+                fireEvent(new Event("CLOSE", {}))
                 break
             case "PING":
                 break
@@ -146,12 +146,12 @@ function initTerminal(elementId) {
     }
     ws.onerror = (e) => {
         term.writeln("Connection error");
-        dispatchEvent(new Event("CLOSE", {}))
+        fireEvent(new Event("CLOSE", {}))
         handleError(e)
     }
     ws.onclose = (e) => {
         term.writeln("Connection closed");
-        dispatchEvent(new Event("CLOSE", {}))
+        fireEvent(new Event("CLOSE", {}))
         handleError(e)
     }
     ws.onmessage = (e) => {
@@ -189,7 +189,7 @@ function createTerminalById(elementId) {
     return term
 }
 
-function dispatchEvent(e) {
+function fireEvent(e) {
     window.dispatchEvent(e)
 }
 
