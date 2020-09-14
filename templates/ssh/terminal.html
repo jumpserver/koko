@@ -11,21 +11,20 @@
     <script type="text/javascript" src="/koko/static/plugins/xterm/addons/fit/fit.js"></script>
     <script type="text/javascript" src="/koko/static/js/koko.js"></script>
     <style type="text/css">
-        html {
-            overflow: -moz-hidden-unscrollable;
-            height: 100%;
+        body ::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3);
+            background-color: #272323;
+            border-radius: 6px;
         }
 
-        body::-webkit-scrollbar {
-            display: none;
+        body ::-webkit-scrollbar {
+            width: 8px;
+            height:8px;
         }
 
-        body {
-            -ms-overflow-style: none;
-            height: 100%;
-            width: calc(100vw + 18px);
-            overflow: auto;
-            background-color: #1f1b1b;
+        body ::-webkit-scrollbar-thumb {
+            background-color: #494141;
+            border-radius: 6px;
         }
     </style>
 </head>
