@@ -148,23 +148,30 @@ func (s *server) checkSessionValid(ctx *gin.Context) bool {
 	return true
 }
 
-const requestIdHeaderKey = "JMS-KoKo-Request-ID"
-
 func (s *server) sftpHostConnectorView(ctx *gin.Context) {
-	reqId := ctx.GetHeader(requestIdHeaderKey)
-	if reqId == "" {
+	var sid string
+	switch ctx.Request.Method {
+	case http.MethodGet:
+		sid = ctx.Query("sid")
+	case http.MethodPost:
+		sid = ctx.PostForm("sid")
+	default:
+		ctx.AbortWithStatus(http.StatusMethodNotAllowed)
+		return
+	}
+	if sid == "" {
 		logger.Errorf("Invalid elfinder request url %s from ip %s", ctx.Request.URL, ctx.ClientIP())
 		http.Error(ctx.Writer, "invalid elfinder request", http.StatusBadRequest)
 		return
 	}
-	userV, ok := GetUserVolume(reqId)
+	userV, ok := GetUserVolume(sid)
 	if !ok {
 		logger.Errorf("Ws(%s) already closed request url %s from ip %s",
-			reqId, ctx.Request.URL, ctx.ClientIP())
+			sid, ctx.Request.URL, ctx.ClientIP())
 		http.Error(ctx.Writer, "ws already disconnected", http.StatusBadRequest)
 		return
 	}
-	logger.Infof("Elfinder %s connected again.", reqId)
+	logger.Infof("Elfinder %s connected again.", sid)
 	conf := config.GetConf()
 	maxSize := common.ConvertSizeToBytes(conf.ZipMaxSize)
 	options := map[string]string{

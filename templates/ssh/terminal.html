@@ -4,35 +4,41 @@
     <title>JumpServer Terminal</title>
     <link rel="shortcut icon" href="/koko/static/img/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="/koko/static/plugins/xterm/xterm.css"/>
-    <link rel="stylesheet" type="text/css" media="screen" href="/koko/static/js/jquery-ui-1.12.1.min.css">
-    <script type="text/javascript" src="/koko/static/js/jquery-3.3.1.js"></script>
-    <script type="text/javascript" src="/koko/static/js/jquery-ui-1.12.1.js"></script>
     <script type="text/javascript" src="/koko/static/plugins/xterm/xterm.js"></script>
     <script type="text/javascript" src="/koko/static/plugins/xterm/addons/fit/fit.js"></script>
     <script type="text/javascript" src="/koko/static/js/koko.js"></script>
     <style type="text/css">
-        html {
-            overflow: -moz-hidden-unscrollable;
-            height: 100%;
-        }
-
-        body::-webkit-scrollbar {
-            display: none;
-        }
-
         body {
-            -ms-overflow-style: none;
-            height: 100%;
-            width: calc(100vw + 18px);
-            overflow: auto;
+            margin: 0;
+            padding: 8px 4px 8px 8px;
             background-color: #1f1b1b;
+        }
+        body ::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3);
+            background-color: #272323;
+            border-radius: 6px;
+        }
+
+        body ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        body ::-webkit-scrollbar-thumb {
+            background-color: #494141;
+            border-radius: 6px;
+        }
+
+        #terminal .xterm-viewport {
+            background-color: #1f1b1b;
+            overflow: auto;
         }
     </style>
 </head>
 <body>
-<div id="terminal"></div>
-<script type="text/javascript" charset="utf-8">
-    initTerminal('terminal')
-</script>
+    <div id="terminal"></div>
+    <script type="text/javascript" charset="utf-8">
+        initTerminal('terminal')
+    </script>
 </body>
 </html>

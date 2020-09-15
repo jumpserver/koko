@@ -38,7 +38,8 @@ function initTerminal(elementId) {
             clearTimeout(resizeTimer);
         }
         resizeTimer = setTimeout(function () {
-            document.getElementById('terminal').style.height = window.innerHeight + 'px';
+            const termRef = document.getElementById('terminal')
+            termRef.style.height = (window.innerHeight - 16) + 'px';
             term.fit();
             term.focus();
             let cols = term.cols;
@@ -69,7 +70,7 @@ function initTerminal(elementId) {
                 break
             case "CLOSE":
                 term.writeln("Connection closed");
-                dispatchEvent(new Event("CLOSE", {}))
+                fireEvent(new Event("CLOSE", {}))
                 break
             case "PING":
                 break
@@ -92,8 +93,8 @@ function initTerminal(elementId) {
     window.addEventListener('resize', resizeTerminal);
 
     let quickPaste = getQuickPaste();
-
-    $("#" + elementId).contextmenu(function ($event) {
+    let terminalContext = document.getElementById(elementId);
+    terminalContext.addEventListener('contextmenu',function ($event) {
         if ($event.ctrlKey || quickPaste !== '1') {
             return;
         }
@@ -106,7 +107,7 @@ function initTerminal(elementId) {
             ws.send(message(terminalId, 'TERMINAL_DATA', termSelection))
             $event.preventDefault();
         }
-    });
+    })
 
     term.on('data', data => {
         if (initialed === null || ws === null) {
@@ -146,12 +147,12 @@ function initTerminal(elementId) {
     }
     ws.onerror = (e) => {
         term.writeln("Connection error");
-        dispatchEvent(new Event("CLOSE", {}))
+        fireEvent(new Event("CLOSE", {}))
         handleError(e)
     }
     ws.onclose = (e) => {
         term.writeln("Connection closed");
-        dispatchEvent(new Event("CLOSE", {}))
+        fireEvent(new Event("CLOSE", {}))
         handleError(e)
     }
     ws.onmessage = (e) => {
@@ -162,7 +163,8 @@ function initTerminal(elementId) {
 
 function createTerminalById(elementId) {
     let fontSize = getFontSize();
-    document.getElementById(elementId).style.height = window.innerHeight + 'px';
+    const termRef = document.getElementById('terminal')
+    termRef.style.height = (window.innerHeight - 16) + 'px';
     fit.apply(Terminal);
     const ua = navigator.userAgent.toLowerCase();
     let lineHeight = 1;
@@ -189,7 +191,7 @@ function createTerminalById(elementId) {
     return term
 }
 
-function dispatchEvent(e) {
+function fireEvent(e) {
     window.dispatchEvent(e)
 }
 
