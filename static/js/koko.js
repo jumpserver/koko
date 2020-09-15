@@ -38,7 +38,8 @@ function initTerminal(elementId) {
             clearTimeout(resizeTimer);
         }
         resizeTimer = setTimeout(function () {
-            document.getElementById('terminal').style.height = window.innerHeight + 'px';
+            const termRef = document.getElementById('terminal')
+            termRef.style.height = (window.innerHeight - 16) + 'px';
             term.fit();
             term.focus();
             let cols = term.cols;
@@ -92,7 +93,7 @@ function initTerminal(elementId) {
     window.addEventListener('resize', resizeTerminal);
 
     let quickPaste = getQuickPaste();
-    let terminalContext =document.getElementById(elementId);
+    let terminalContext = document.getElementById(elementId);
     terminalContext.addEventListener('contextmenu',function ($event) {
         if ($event.ctrlKey || quickPaste !== '1') {
             return;
@@ -162,7 +163,8 @@ function initTerminal(elementId) {
 
 function createTerminalById(elementId) {
     let fontSize = getFontSize();
-    document.getElementById(elementId).style.height = window.innerHeight + 'px';
+    const termRef = document.getElementById('terminal')
+    termRef.style.height = (window.innerHeight - 16) + 'px';
     fit.apply(Terminal);
     const ua = navigator.userAgent.toLowerCase();
     let lineHeight = 1;
