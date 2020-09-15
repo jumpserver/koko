@@ -140,7 +140,7 @@ msgstr "欢迎使用JumpServer开源堡垒机系统"
 #. i18n.T
 #: pkg/handler/banner.go:47
 msgid "part IP, Hostname, Comment"
-msgstr "部分IP、主机名、备注"
+msgstr "部分IP，主机名，备注"
 
 #. i18n.T
 #: pkg/handler/banner.go:47
@@ -151,7 +151,7 @@ msgstr "搜索登录(如果唯一)"
 #. i18n.T
 #: pkg/handler/banner.go:48
 msgid "/ + IP, Hostname, Comment"
-msgstr "/ + IP，主机名 or 备注"
+msgstr "/ + IP，主机名，备注"
 
 #. i18n.T
 #: pkg/handler/banner.go:48
