@@ -57,6 +57,7 @@ func (c *CommandRecorder) End() {
 
 func (c *CommandRecorder) record() {
 	cmdList := make([]*model.Command, 0, 10)
+	notificationList := make([]*model.Command, 0, 10)
 	maxRetry := 0
 	logger.Infof("Session %s: Command recorder start", c.sessionID)
 	defer logger.Infof("Session %s: Command recorder close", c.sessionID)
@@ -72,6 +73,9 @@ func (c *CommandRecorder) record() {
 			if !ok {
 				return
 			}
+			if p.RiskLevel == model.DangerLevel {
+				notificationList = append(notificationList, p)
+			}
 			cmdList = append(cmdList, p)
 			if len(cmdList) < 5 {
 				continue
@@ -79,6 +83,11 @@ func (c *CommandRecorder) record() {
 		case <-tick.C:
 			if len(cmdList) == 0 {
 				continue
+			}
+		}
+		if len(notificationList) > 0 {
+			if err := service.NotifyCommand(notificationList); err == nil {
+				notificationList = notificationList[:0]
 			}
 		}
 		err := c.storage.BulkSave(cmdList)
