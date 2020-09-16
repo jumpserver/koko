@@ -58,3 +58,7 @@ const (
 
 	DomainDetailWithGateways = "/api/v1/assets/domains/%s/?gateway=1"
 )
+
+const (
+	NotificationCommandURL = "/api/v1/terminal/commands/insecure-command/"
+)

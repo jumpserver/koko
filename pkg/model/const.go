@@ -21,3 +21,8 @@ const (
 	ProtocolK8S    = "k8s"
 	ProtocolMysql  = "mysql"
 )
+
+const (
+	DangerLevel = 5
+	NormalLevel = 0
+)

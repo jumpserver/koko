@@ -100,9 +100,9 @@ func (s *commonSwitch) generateCommandResult(command [3]string) *model.Command {
 
 	switch command[2] {
 	case model.HighRiskFlag:
-		riskLevel = 5
+		riskLevel = model.DangerLevel
 	default:
-		riskLevel = 0
+		riskLevel = model.NormalLevel
 	}
 	return s.p.GenerateRecordCommand(s, input, output, riskLevel)
 }
