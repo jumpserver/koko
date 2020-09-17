@@ -31,7 +31,7 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # SSH_TIMEOUT: 15
 
 # 语言 [en,zh]
-# LANG: zh
+# LANGUAGE_CODE: zh
 
 # SFTP的根目录, 可选 /tmp, Home其他自定义目录
 # SFTP_ROOT: /tmp
