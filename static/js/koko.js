@@ -210,7 +210,7 @@ function getFontSize() {
 }
 
 function getQuickPaste() {
-    let quickPaste = "1"
+    let quickPaste = "0"
     let localSettings = localStorage.getItem('LunaSetting')
     if (localSettings !== null) {
         let settings = JSON.parse(localSettings)
