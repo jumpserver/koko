@@ -68,7 +68,6 @@ func NewRedisExchange(cfg Config) (*redisExchange, error) {
 	}
 
 	var connFunc radix.ConnFunc
-
 	if len(cfg.Clusters) > 0 {
 		cluster, err := radix.NewCluster(cfg.Clusters)
 		if err != nil {
@@ -147,6 +146,11 @@ func (exc *redisExchange) JoinRoom(receiveChan chan<- model.RoomMessage, roomId 
 	if !exc.checkRoomExist(roomId) {
 		return nil, fmt.Errorf("no redisRoom")
 	}
+	conn, err := exc.connFunc("", "")
+	if err != nil {
+		logger.Errorf("Create redis conn for room %s err: %s", roomId, err)
+		return nil, err
+	}
 	redisMsgCh := make(chan radix.PubSubMessage)
 	go func() {
 		for redisMsg := range redisMsgCh {
@@ -158,7 +162,7 @@ func (exc *redisExchange) JoinRoom(receiveChan chan<- model.RoomMessage, roomId 
 		logger.Infof("Joined Room %s stop receive message", roomId)
 	}()
 
-	pubSub := radix.PersistentPubSub("", "", exc.connFunc)
+	pubSub := radix.PubSub(conn)
 	writeChannel := fmt.Sprintf("%s.write", roomId)
 	readChannel := fmt.Sprintf("%s.read", roomId)
 	s := &redisRoom{
@@ -224,6 +228,14 @@ func (exc *redisExchange) DestroyRoom(exRoom Room) {
 func (exc *redisExchange) CreateRoom(receiveChan chan<- model.RoomMessage, roomId string) Room {
 	exc.mu.Lock()
 	defer exc.mu.Unlock()
+	conn, err := exc.connFunc("", "")
+	if err != nil {
+		logger.Errorf("Create redis conn for room %s err: %s", roomId, err)
+		return &fakeRoom{
+			roomId: roomId,
+			err:    err,
+		}
+	}
 	redisMsgCh := make(chan radix.PubSubMessage)
 	go func() {
 		for redisMsg := range redisMsgCh {
@@ -233,8 +245,7 @@ func (exc *redisExchange) CreateRoom(receiveChan chan<- model.RoomMessage, roomI
 		}
 		logger.Infof("Redis room %s stop receive message", roomId)
 	}()
-
-	pubSub := radix.PersistentPubSub("", "", exc.connFunc)
+	pubSub := radix.PubSub(conn)
 	writeChannel := fmt.Sprintf("%s.read", roomId)
 	readChannel := fmt.Sprintf("%s.write", roomId)
 	r := &redisRoom{
@@ -284,4 +295,13 @@ func (s *redisRoom) Publish(msg model.RoomMessage) {
 	if err != nil {
 		logger.Errorf("Redis publish message err: %s", err)
 	}
+}
+
+type fakeRoom struct {
+	roomId string
+	err    error
+}
+
+func (f *fakeRoom) Publish(msg model.RoomMessage) {
+	logger.Errorf("Fake room %s discard message as err %s", f.roomId, f.err)
 }
