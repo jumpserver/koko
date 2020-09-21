@@ -411,7 +411,7 @@ func JoinRoom(c *Client, roomID string) {
 	for {
 		nr, err := c.Read(buf)
 		if err != nil {
-			logger.Errorf("Conn[%s] User %s exit share room %s by %s", user.Name, roomID, err)
+			logger.Errorf("Conn[%s] User %s exit share room %s by %s", c.ID(), user.Name, roomID, err)
 			break
 		}
 		// checkout user write pem
