@@ -87,7 +87,7 @@ func (s *server) middleAuth() gin.HandlerFunc {
 
 func (s *server) middleHtmlAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if _, ok := ctx.GetQuery("token"); ok {
+		if targetType, ok := ctx.GetQuery("type"); ok && targetType == TokenTargetType {
 			ctx.Next()
 			return
 		}
@@ -115,7 +115,8 @@ func (s *server) middleDebugAuth() gin.HandlerFunc {
 }
 
 func (s *server) checkTokenValid(ctx *gin.Context) bool {
-	if token, ok := ctx.GetQuery("token"); ok {
+	if targetType, ok := ctx.GetQuery("type"); ok && targetType == TokenTargetType {
+		token, _ := ctx.GetQuery("target_id")
 		if tokenUser := service.GetTokenAsset(token); tokenUser.UserID != "" {
 			if currentUser := service.GetUserDetail(tokenUser.UserID); currentUser != nil {
 				ctx.Set(ginCtxUserKey, currentUser)
