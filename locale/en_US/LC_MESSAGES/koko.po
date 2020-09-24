@@ -321,11 +321,36 @@ msgid ""
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:355
+#: pkg/proxy/proxy.go:325
+msgid "Connect asset %s error: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:357
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:404
+#: pkg/proxy/proxy.go:406
 msgid "Create session failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:439
+msgid "Authentication failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:442
+msgid "Connection refused"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:445
+msgid "i/o timeout"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/proxy.go:448
+msgid "No route to host"
 msgstr ""
