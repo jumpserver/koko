@@ -279,7 +279,12 @@ func registerHandlers(s *server) *gin.Engine {
 			ctx.HTML(http.StatusOK, "file_manager.html", "_")
 		})
 		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "file_manager.html", ctx.Param("host"))
+			hostId := ctx.Param("host")
+			if _, err := uuid.FromString(hostId); err != nil {
+				ctx.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+			ctx.HTML(http.StatusOK, "file_manager.html", hostId)
 		})
 		elfindlerGroup.Any("/connector/:host/", s.sftpHostConnectorView)
 	}
