@@ -193,7 +193,7 @@ func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output st
 }
 
 func (p *K8sProxyServer) NewParser(s *commonSwitch) ParseEngine {
-	shellParser := newParser(s.ID)
+	shellParser := newParser(s.ID, p.SystemUser.Protocol)
 	msg := i18n.T("Create k8s session failed")
 	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
 		shellParser.SetCMDFilterRules(cmdRules)

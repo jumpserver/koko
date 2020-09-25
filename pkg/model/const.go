@@ -14,3 +14,10 @@ const (
 	HighRiskFlag = "1"
 	LessRiskFlag = "0"
 )
+
+const (
+	ProtocolSSH    = "ssh"
+	ProtocolTelnet = "telnet"
+	ProtocolK8S    = "k8s"
+	ProtocolMysql  = "mysql"
+)

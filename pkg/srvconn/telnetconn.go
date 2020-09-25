@@ -103,6 +103,7 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	}
 	tc.proxyConn = proxyConn
 	logger.Infof("Telnet host %s success", asset.Hostname)
+	_, _ = client.Write([]byte{'\r'})
 	return nil
 }
 
