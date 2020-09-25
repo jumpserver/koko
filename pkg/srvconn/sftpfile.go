@@ -111,7 +111,7 @@ func (nd *NodeDir) List() (res []os.FileInfo, err error) {
 
 func (nd *NodeDir) loadNodeAsset(uSftp *UserSftpConn) {
 	nd.once.Do(func() {
-		nodeTrees := service.GetUserNodeTreeWithAsset(uSftp.User.ID, nd.node.ID, "1")
+		nodeTrees := service.GetUserNodeTreeWithAsset(uSftp.User.ID, nd.node.Key, "1")
 		dirs := map[string]os.FileInfo{}
 		for _, item := range nodeTrees {
 			typeName, ok := item.Meta["type"].(string)
@@ -689,7 +689,7 @@ func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err err
 			info = service.GetUserAssetAuthInfo(su.ID, ad.asset.ID, ad.user.ID, ad.user.Username)
 			su.Username = ad.user.Username
 		} else {
-			info = service.GetSystemUserAssetAuthInfo(su.ID, ad.asset.ID, )
+			info = service.GetSystemUserAssetAuthInfo(su.ID, ad.asset.ID)
 		}
 		su.Password = info.Password
 		su.PrivateKey = info.PrivateKey

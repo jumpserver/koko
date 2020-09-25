@@ -186,14 +186,14 @@ func ValidateUserDatabasePermission(userID, databaseID, systemUserID string) boo
 	return res.Msg
 }
 
-func GetUserNodeTreeWithAsset(userID, nodeID, cachePolicy string) (nodeTrees model.NodeTreeList) {
+func GetUserNodeTreeWithAsset(userID, nodeKey, cachePolicy string) (nodeTrees model.NodeTreeList) {
 	if cachePolicy == "" {
 		cachePolicy = "1"
 	}
 
 	payload := map[string]string{"cache_policy": cachePolicy}
-	if nodeID != "" {
-		payload["id"] = nodeID
+	if nodeKey != "" {
+		payload["key"] = nodeKey
 	}
 	Url := fmt.Sprintf(NodeTreeWithAssetURL, userID)
 	_, err := authClient.Get(Url, &nodeTrees, payload)
