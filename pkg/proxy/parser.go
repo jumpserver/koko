@@ -8,6 +8,7 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/srvconn/telnetlib"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -43,15 +44,16 @@ const (
 
 var _ ParseEngine = (*Parser)(nil)
 
-func newParser(sid string) Parser {
-	parser := Parser{id: sid}
+func newParser(sid, protocolType string) Parser {
+	parser := Parser{id: sid, protocolType: protocolType}
 	parser.initial()
 	return parser
 }
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 type Parser struct {
-	id string
+	id           string
+	protocolType string
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
@@ -148,12 +150,11 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.parseCmdInput()
 		if cmd, ok := p.IsCommandForbidden(); !ok {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
-			_, _ = p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 			p.cmdRecordChan <- [3]string{p.command, fbdMsg, model.HighRiskFlag}
 			p.command = ""
 			p.output = ""
-			return []byte{utils.CharCleanLine, '\r'}
+			return breakInputPacket(p.protocolType)
 		}
 	} else {
 		p.inputState = true
@@ -318,4 +319,14 @@ func matchMark(p []byte, marks [][]byte) bool {
 		}
 	}
 	return false
+}
+
+func breakInputPacket(protocolType string) []byte {
+	switch protocolType {
+	case model.ProtocolTelnet:
+		return []byte{telnetlib.IAC, telnetlib.BRK, '\r'}
+	case model.ProtocolSSH:
+		return []byte{utils.CharCleanLine, '\r'}
+	}
+	return []byte{utils.CharCleanLine, '\r'}
 }

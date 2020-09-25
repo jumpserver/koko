@@ -402,7 +402,7 @@ func (p *ProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 }
 
 func (p *ProxyServer) NewParser(s *commonSwitch) ParseEngine {
-	shellParser := newParser(s.ID)
+	shellParser := newParser(s.ID, p.SystemUser.Protocol)
 	msg := i18n.T("Create session failed")
 	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
 		logger.Infof("Conn[%s] get command filter rules success", p.UserConn.ID())
