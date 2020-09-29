@@ -47,7 +47,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 			return err
 		}
 		p.SystemUser.Password = line
-		logger.Debugf("Conn[%s] get password from user input: %s", p.UserConn.ID(), line)
+		logger.Debugf("Conn[%s] get password from user input", p.UserConn.ID())
 	}
 	return nil
 }
@@ -333,7 +333,7 @@ func (p *ProxyServer) sendConnectErrorMsg(err error) {
 		showLen := passwordLen / 2
 		hiddenLen := passwordLen - showLen
 		msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
-		logger.Errorf(msg2)
+		logger.Debug(msg2)
 	}
 }
 
