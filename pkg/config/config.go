@@ -163,7 +163,7 @@ var Conf = &Config{
 	HeartbeatDuration:   10,
 	AccessKey:           "",
 	AccessKeyFile:       "data/keys/.access_key",
-	LogLevel:            "DEBUG",
+	LogLevel:            "INFO",
 	HostKeyFile:         "data/keys/host_key",
 	HostKey:             "",
 	RootPath:            rootPath,

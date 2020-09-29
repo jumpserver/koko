@@ -47,7 +47,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 			return err
 		}
 		p.SystemUser.Password = line
-		logger.Debugf("Conn[%s] get password from user input: %s", p.UserConn.ID(), line)
+		logger.Debugf("Conn[%s] get password from user input", p.UserConn.ID())
 	}
 	return nil
 }
