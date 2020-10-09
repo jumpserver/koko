@@ -59,7 +59,7 @@ func (k *AssetApplication) MovePrePage() {
 	if k.engine.HasPrev() {
 		offset := k.engine.CurrentOffSet()
 		newPageSize := getPageSize(k.h.term)
-		start := offset - newPageSize
+		start := offset - newPageSize*2
 		if start <= 0 {
 			start = 0
 		}
