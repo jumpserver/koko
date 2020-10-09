@@ -87,12 +87,12 @@ func (k *DatabaseApplication) SearchOrProxy(key string) {
 
 	newPageSize := getPageSize(k.h.term)
 	currentResult := k.engine.Retrieve(newPageSize, 0, key)
+	k.currentResult = currentResult
+	k.searchKeys = []string{key}
 	if len(currentResult) == 1 {
 		k.ProxyDB(currentResult[0])
 		return
 	}
-	k.currentResult = currentResult
-	k.searchKeys = []string{key}
 	k.DisplayCurrentResult()
 }
 
