@@ -87,7 +87,7 @@ func (s *server) middleAuth() gin.HandlerFunc {
 
 func (s *server) middleHtmlAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if _, ok := ctx.GetQuery("token"); ok {
+		if targetType, ok := ctx.GetQuery("type"); ok && targetType == TokenTargetType {
 			ctx.Next()
 			return
 		}
@@ -115,7 +115,8 @@ func (s *server) middleDebugAuth() gin.HandlerFunc {
 }
 
 func (s *server) checkTokenValid(ctx *gin.Context) bool {
-	if token, ok := ctx.GetQuery("token"); ok {
+	if targetType, ok := ctx.GetQuery("type"); ok && targetType == TokenTargetType {
+		token, _ := ctx.GetQuery("target_id")
 		if tokenUser := service.GetTokenAsset(token); tokenUser.UserID != "" {
 			if currentUser := service.GetUserDetail(tokenUser.UserID); currentUser != nil {
 				ctx.Set(ginCtxUserKey, currentUser)
@@ -278,7 +279,12 @@ func registerHandlers(s *server) *gin.Engine {
 			ctx.HTML(http.StatusOK, "file_manager.html", "_")
 		})
 		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "file_manager.html", ctx.Param("host"))
+			hostId := ctx.Param("host")
+			if _, err := uuid.FromString(hostId); err != nil {
+				ctx.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+			ctx.HTML(http.StatusOK, "file_manager.html", hostId)
 		})
 		elfindlerGroup.Any("/connector/:host/", s.sftpHostConnectorView)
 	}

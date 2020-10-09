@@ -47,7 +47,7 @@ func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 			return err
 		}
 		p.SystemUser.Password = line
-		logger.Debugf("Conn[%s] get password from user input: %s", p.UserConn.ID(), line)
+		logger.Debugf("Conn[%s] get password from user input", p.UserConn.ID())
 	}
 	return nil
 }
@@ -322,8 +322,10 @@ func (p *ProxyServer) checkRequireReuseClient() bool {
 
 // sendConnectErrorMsg 发送连接错误消息
 func (p *ProxyServer) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("Connect asset %s error: %s\r\n", p.Asset.Hostname, err)
+	msg := fmt.Sprintf(i18n.T("Connect asset %s error: %s"), p.Asset.Hostname,
+		ConvertErrorToReadableMsg(err))
 	utils.IgnoreErrWriteString(p.UserConn, msg)
+	utils.IgnoreErrWriteString(p.UserConn, utils.CharNewLine)
 	logger.Error(msg)
 	password := p.SystemUser.Password
 	if password != "" {
@@ -331,7 +333,7 @@ func (p *ProxyServer) sendConnectErrorMsg(err error) {
 		showLen := passwordLen / 2
 		hiddenLen := passwordLen - showLen
 		msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
-		logger.Errorf(msg2)
+		logger.Debug(msg2)
 	}
 }
 
@@ -400,7 +402,7 @@ func (p *ProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 }
 
 func (p *ProxyServer) NewParser(s *commonSwitch) ParseEngine {
-	shellParser := newParser(s.ID)
+	shellParser := newParser(s.ID, p.SystemUser.Protocol)
 	msg := i18n.T("Create session failed")
 	if cmdRules, err := service.GetSystemUserFilterRules(p.SystemUser.ID); err == nil {
 		logger.Infof("Conn[%s] get command filter rules success", p.UserConn.ID())
@@ -427,3 +429,32 @@ func (p *ProxyServer) GenerateRecordCommand(s *commonSwitch, input, output strin
 		RiskLevel:  riskLevel,
 	}
 }
+
+func ConvertErrorToReadableMsg(e error) string {
+	if e == nil {
+		return ""
+	}
+	errMsg := e.Error()
+	if strings.Contains(errMsg, UnAuth) || strings.Contains(errMsg, LoginFailed) {
+		return i18n.T("Authentication failed")
+	}
+	if strings.Contains(errMsg, ConnectRefusedErr) {
+		return i18n.T("Connection refused")
+	}
+	if strings.Contains(errMsg, IoTimeoutErr) {
+		return i18n.T("i/o timeout")
+	}
+	if strings.Contains(errMsg, NoRouteErr) {
+		return i18n.T("No route to host")
+	}
+	return errMsg
+}
+
+const (
+	UnAuth            = "unable to authenticate"
+	ConnectRefusedErr = "connection refused" // 无监听端口或者端口被防火墙阻断
+	IoTimeoutErr      = "i/o timeout"
+	NoRouteErr        = "No route to host" //
+
+	LoginFailed = "failed login" // telnet 连接失败
+)
