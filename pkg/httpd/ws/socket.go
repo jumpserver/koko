@@ -75,6 +75,10 @@ func (s *Socket) WritePong(body []byte, timeout time.Duration) error {
 	return s.write(body, gorilla.PongMessage, timeout)
 }
 
+func (s *Socket) WriteClose(timeout time.Duration) error {
+	return s.write(nil, gorilla.CloseMessage, timeout)
+}
+
 func (s *Socket) Close() error {
-	return s.write(nil, gorilla.CloseMessage, -1)
+	return s.underConn.Close()
 }
