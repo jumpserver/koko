@@ -169,6 +169,11 @@ func (tc *ttyCon) writeMessageLoop(ctx context.Context) {
 			if tickNow.Before(active.Add(time.Second * 30)) {
 				continue
 			}
+			if tickNow.After(active.Add(maxWriteTimeOut)) {
+				logger.Infof("Ws[%s] inactive more than 5 minutes and close conn", tc.Uuid)
+				_ = tc.conn.Close()
+				continue
+			}
 			msg = &Message{
 				Id:   tc.Uuid,
 				Type: PING,
