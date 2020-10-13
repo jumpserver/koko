@@ -180,6 +180,10 @@ func (tc *ttyCon) writeMessageLoop(ctx context.Context) {
 		err := tc.conn.WriteText(p, maxWriteTimeOut)
 		if err != nil {
 			logger.Errorf("Ws[%s] send %s message err: %s", tc.Uuid, msg.Type, err)
+			if time.Now().After(active.Add(maxReadTimeout)) {
+				logger.Infof("Ws[%s] write err more than 5 minutes and close conn ", tc.Uuid)
+				_ = tc.conn.Close()
+			}
 			continue
 		}
 		active = time.Now()
