@@ -189,6 +189,7 @@ func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output st
 		SystemUser: fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
+		Created:    time.Now(),
 	}
 }
 

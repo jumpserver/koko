@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 type Command struct {
 	SessionID  string `json:"session"`
 	OrgID      string `json:"org_id"`
@@ -10,6 +12,8 @@ type Command struct {
 	SystemUser string `json:"system_user"`
 	Timestamp  int64  `json:"timestamp"`
 	RiskLevel  int64  `json:"risk_level"`
+
+	Created time.Time `json:"@timestamp"`
 }
 
 type FTPLog struct {

@@ -427,6 +427,7 @@ func (p *ProxyServer) GenerateRecordCommand(s *commonSwitch, input, output strin
 		SystemUser: p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
+		Created:    time.Now(),
 	}
 }
 
