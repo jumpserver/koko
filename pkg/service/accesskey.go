@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -17,6 +18,7 @@ var (
 	AccessKeyNotFound     = errors.New("access key not found")
 	AccessKeyFileNotFound = errors.New("access key file not found")
 	AccessKeyInvalid      = errors.New("access key not valid")
+	AccessKeyUnauthorized = errors.New("access key unauthorized")
 )
 
 type AccessKey struct {
@@ -69,6 +71,14 @@ func (ak *AccessKey) SaveToFile() error {
 			return err
 		}
 	}
+	if _, err := os.Stat(ak.Path); err == nil {
+		bakFilePath := fmt.Sprintf("%s_%s", ak.Path,
+			time.Now().Format("2006-01-02_15-04-05"))
+		if err2 := os.Rename(ak.Path, bakFilePath); err2 != nil {
+			logger.Errorf("Rename %s to %s err: %s",
+				ak.Path, bakFilePath, err)
+		}
+	}
 	f, err := os.Create(ak.Path)
 	if err != nil {
 		return err
@@ -108,6 +118,10 @@ func (ak *AccessKey) Load() (err error) {
 	if err == nil {
 		return
 	}
+	return ak.RegisterKey()
+}
+
+func (ak *AccessKey) RegisterKey() (err error) {
 	err = ak.Register(10)
 	if err != nil {
 		msg := "register access key failed"
