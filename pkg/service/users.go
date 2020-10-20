@@ -3,9 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -191,26 +190,15 @@ func GetUserDetail(userID string) (user *model.User) {
 }
 
 func GetProfile() (user *model.User, err error) {
-	_, err = authClient.Get(UserProfileURL, &user)
+	var res *http.Response
+	res, err = authClient.Get(UserProfileURL, &user)
 	if err != nil {
 		logger.Error(err)
 	}
+	if res != nil && res.StatusCode == http.StatusUnauthorized {
+		return user, AccessKeyUnauthorized
+	}
 	return user, err
-}
-
-func GetUserByUsername(username string) (user *model.User, err error) {
-	var users []*model.User
-	payload := map[string]string{"username": username}
-	_, err = authClient.Get(UserListURL, &users, payload)
-	if err != nil {
-		return
-	}
-	if len(users) != 1 {
-		err = errors.New(fmt.Sprintf("Not found user by username: %s", username))
-	} else {
-		user = users[0]
-	}
-	return
 }
 
 func CheckUserCookie(sessionID, csrfToken string) (user *model.User, err error) {
