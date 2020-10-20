@@ -243,7 +243,8 @@ func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output str
 		SystemUser: p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
-		Created:    time.Now(),
+
+		DateCreated: time.Now(),
 	}
 }
 

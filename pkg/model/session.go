@@ -13,7 +13,7 @@ type Command struct {
 	Timestamp  int64  `json:"timestamp"`
 	RiskLevel  int64  `json:"risk_level"`
 
-	Created time.Time `json:"@timestamp"`
+	DateCreated time.Time `json:"@timestamp"`
 }
 
 type FTPLog struct {
