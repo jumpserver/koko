@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 )
+
 var CipherKey = "JumpServer Cipher Key for KoKo !"
 
 type Config struct {
@@ -196,11 +197,17 @@ func GetConf() Config {
 	return *Conf
 }
 
+const prefixName = "[KoKo]"
+
 func getDefaultName() string {
 	hostname, _ := os.Hostname()
-	hostRune := []rune(hostname)
-	if len(hostRune) > 32 {
-		hostRune = hostRune[:32]
+	hostRune := []rune(prefixName + hostname)
+	if len(hostRune) <= 32 {
+		return string(hostRune)
 	}
-	return string(hostRune)
+	name := make([]rune, 32)
+	copy(name[:16], hostRune[:16])
+	start := len(hostRune) - 16
+	copy(name[16:], hostRune[start:])
+	return string(name)
 }
