@@ -73,24 +73,8 @@ func (s *server) Stop() {
 	}
 }
 
-func (s *server) middleAuth() gin.HandlerFunc {
+func (s *server) middleSessionAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if s.checkTokenValid(ctx) || s.checkSessionValid(ctx) {
-			ctx.Next()
-			return
-		}
-		loginUrl := fmt.Sprintf("/core/auth/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
-		ctx.Redirect(http.StatusFound, loginUrl)
-		ctx.Abort()
-	}
-}
-
-func (s *server) middleHtmlAuth() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if targetType, ok := ctx.GetQuery("type"); ok && targetType == TokenTargetType {
-			ctx.Next()
-			return
-		}
 		if s.checkSessionValid(ctx) {
 			ctx.Next()
 			return
@@ -114,33 +98,23 @@ func (s *server) middleDebugAuth() gin.HandlerFunc {
 	}
 }
 
-func (s *server) checkTokenValid(ctx *gin.Context) bool {
-	if targetType, ok := ctx.GetQuery("type"); ok && targetType == TokenTargetType {
-		token, _ := ctx.GetQuery("target_id")
-		if tokenUser := service.GetTokenAsset(token); tokenUser.UserID != "" {
-			if currentUser := service.GetUserDetail(tokenUser.UserID); currentUser != nil {
-				ctx.Set(ginCtxUserKey, currentUser)
-				ctx.Set(ginCtxTokenUserKey, &tokenUser)
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (s *server) checkSessionValid(ctx *gin.Context) bool {
-	cookies := strings.Split(ctx.GetHeader("Cookie"), ";")
-	var csrfToken string
-	var sessionid string
-	for _, line := range cookies {
-		if strings.Contains(line, "csrftoken") {
-			csrfToken = strings.Split(line, "=")[1]
-		}
-		if strings.Contains(line, "sessionid") {
-			sessionid = strings.Split(line, "=")[1]
-		}
+	var (
+		csrfToken string
+		sessionid string
+		err       error
+		user      *model.User
+	)
+
+	if csrfToken, err = ctx.Cookie("csrftoken"); err != nil {
+		logger.Errorf("Get cookie csrftoken err: %s", err)
+		return false
 	}
-	user, err := service.CheckUserCookie(sessionid, csrfToken)
+	if sessionid, err = ctx.Cookie("sessionid"); err != nil {
+		logger.Errorf("Get cookie sessionid err: %s", err)
+		return false
+	}
+	user, err = service.CheckUserCookie(sessionid, csrfToken)
 	if err != nil {
 		logger.Errorf("Check user session err: %s", err)
 		return false
@@ -162,14 +136,17 @@ func (s *server) sftpHostConnectorView(ctx *gin.Context) {
 	}
 	if sid == "" {
 		logger.Errorf("Invalid elfinder request url %s from ip %s", ctx.Request.URL, ctx.ClientIP())
-		http.Error(ctx.Writer, "invalid elfinder request", http.StatusBadRequest)
+		ctx.String(http.StatusBadRequest, "invalid elfinder request")
 		return
 	}
-	userV, ok := GetUserVolume(sid)
-	if !ok {
+	var userV *UserVolume
+	if wsCon := s.broadCaster.GetElfinderCon(sid); wsCon != nil {
+		userV = wsCon.GetVolume()
+	}
+	if userV == nil {
 		logger.Errorf("Ws(%s) already closed request url %s from ip %s",
 			sid, ctx.Request.URL, ctx.ClientIP())
-		http.Error(ctx.Writer, "ws already disconnected", http.StatusBadRequest)
+		ctx.String(http.StatusBadRequest, "ws already disconnected")
 		return
 	}
 	logger.Infof("Elfinder %s connected again.", sid)
@@ -183,26 +160,109 @@ func (s *server) sftpHostConnectorView(ctx *gin.Context) {
 	conn.ServeHTTP(ctx.Writer, ctx.Request)
 }
 
-func (s *server) processWebsocket(ctx *gin.Context) {
-	connectType, _ := ctx.GetQuery("type")
-	targetId, _ := ctx.GetQuery("target_id")
-	if connectType == "" || targetId == "" {
-		logger.Error("Ws miss required params (type and target_id).")
-		badRequestMsg := "miss required params (type and target_id)."
-		if ctx.IsWebsocket() {
-			ctx.Header("Sec-Websocket-Version", "13")
-		}
-		ctx.String(http.StatusBadRequest, badRequestMsg)
+func (s *server) processTerminalWebsocket(ctx *gin.Context) {
+	var (
+		userValue   interface{}
+		currentUser *model.User
+		targetType  string
+		targetId    string
+		ok          bool
+
+		systemUserId string // optional
+	)
+
+	userValue, ok = ctx.Get(ginCtxUserKey)
+	if !ok {
+		logger.Errorf("Ws has no valid user from ip %s", ctx.ClientIP())
+		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	underWsCon, err := upGrader.Upgrade(ctx.Writer, ctx.Request, ctx.Writer.Header())
+	currentUser = userValue.(*model.User)
+
+	targetType, ok = ctx.GetQuery("type")
+	if !ok || targetType == "" {
+		logger.Error("Ws miss required params (type).")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	targetId, ok = ctx.GetQuery("target_id")
+	if !ok || targetId == "" {
+		logger.Error("Ws miss required params (target_id).")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	systemUserId, _ = ctx.GetQuery("system_user_id")
+	s.runTTY(ctx, currentUser, targetType, targetId, systemUserId)
+}
+
+func (s *server) processTokenWebsocket(ctx *gin.Context) {
+	tokenId, _ := ctx.GetQuery("target_id")
+	tokenUser := service.GetTokenAsset(tokenId)
+	if tokenUser.UserID == "" {
+		logger.Errorf("Token is invalid: %s", tokenId)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	currentUser := service.GetUserDetail(tokenUser.UserID)
+	if currentUser == nil {
+		logger.Errorf("Token userID is invalid: %s", tokenUser.UserID)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	targetType := TargetTypeAsset
+	targetId := strings.ToLower(tokenUser.AssetID)
+	systemUserId := tokenUser.SystemUserID
+	s.runTTY(ctx, currentUser, targetType, targetId, systemUserId)
+}
+
+func (s *server) processElfinderWebsocket(ctx *gin.Context) {
+	var (
+		userValue   interface{}
+		currentUser *model.User
+		targetId    string
+		ok          bool
+	)
+	if userValue, ok = ctx.Get(ginCtxUserKey); !ok {
+		logger.Errorf("Ws has no valid user from ip %s", ctx.ClientIP())
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	currentUser = userValue.(*model.User)
+	if targetId, ok = ctx.GetQuery("target_id"); !ok {
+		logger.Error("Ws miss required params (target_id).")
+		ctx.AbortWithStatus(http.StatusEarlyHints)
+		return
+	}
+	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
 		ctx.String(http.StatusBadRequest, "Websocket upgrade err %s", err)
 		return
 	}
-	wsSocket := ws.NewSocket(underWsCon, ctx.Request)
 	defer wsSocket.Close()
+	conn := elfinderCon{
+		Uuid:           uuid.NewV4().String(),
+		ctx:            ctx.Copy(),
+		webSrv:         s,
+		conn:           wsSocket,
+		user:           currentUser,
+		targetId:       targetId,
+		messageChannel: make(chan *Message, 10),
+		done:           make(chan struct{}),
+	}
+	s.broadCaster.EnterElfinderCon(&conn)
+	defer s.broadCaster.LeaveElfinderCon(&conn)
+	conn.Run()
+}
+
+func (s *server) Upgrade(ctx *gin.Context) (*ws.Socket, error) {
+	underWsCon, err := upGrader.Upgrade(ctx.Writer, ctx.Request, ctx.Writer.Header())
+	if err != nil {
+		return nil, err
+	}
+	wsSocket := ws.NewSocket(underWsCon, ctx.Request)
 	//设置 websocket 协议层面对应的ping和pong 处理方法
 	underWsCon.SetPingHandler(func(appData string) error {
 		return wsSocket.WritePong([]byte(appData), maxWriteTimeOut)
@@ -210,24 +270,31 @@ func (s *server) processWebsocket(ctx *gin.Context) {
 	underWsCon.SetPongHandler(func(appData string) error {
 		return wsSocket.WritePing([]byte(appData), maxWriteTimeOut)
 	})
-	userValue, ok := ctx.Get(ginCtxUserKey)
-	if !ok {
-		logger.Errorf("Ws has no valid user from ip %s", ctx.ClientIP())
+	return wsSocket, nil
+}
+
+func (s *server) runTTY(ctx *gin.Context, currentUser *model.User,
+	targetType, targetId, SystemUserID string) {
+	wsSocket, err := s.Upgrade(ctx)
+	if err != nil {
+		logger.Errorf("Websocket upgrade err: %s", err)
+		ctx.String(http.StatusBadRequest, "Websocket upgrade err %s", err)
 		return
 	}
-	user := userValue.(*model.User)
+	defer wsSocket.Close()
 	conn := ttyCon{
 		Uuid:           uuid.NewV4().String(),
 		ctx:            ctx.Copy(),
 		webSrv:         s,
 		conn:           wsSocket,
-		user:           user,
-		targetType:     strings.ToLower(connectType),
-		targetId:       strings.ToLower(targetId),
+		user:           currentUser,
+		targetType:     targetType,
+		targetId:       targetId,
+		systemUserId:   SystemUserID,
 		messageChannel: make(chan *Message, 10),
 	}
-	s.broadCaster.ConEntering(&conn)
-	defer s.broadCaster.ConLeaving(&conn)
+	s.broadCaster.EnterTerminalCon(&conn)
+	defer s.broadCaster.LeaveTerminalCon(&conn)
 	conn.Run()
 }
 
@@ -243,8 +310,67 @@ func registerHandlers(s *server) *gin.Engine {
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
 	eng.LoadHTMLGlob("./templates/**/*")
-	eng.GET("/status/", s.statusHandler)
-	debugGroup := eng.Group("/debug/pprof")
+	rootGroup := eng.Group("")
+	s.healthHandlers(rootGroup)
+	s.debugHandlers(rootGroup)
+
+	kokoGroup := rootGroup.Group("/koko")
+	kokoGroup.Static("/static/", "./static")
+	{
+		s.terminalHandlers(kokoGroup)
+		s.tokenHandlers(kokoGroup)
+		s.elfinderHandlers(kokoGroup)
+	}
+	return eng
+}
+
+func (s *server) terminalHandlers(router *gin.RouterGroup) {
+	terminalGroup := router.Group("/terminal")
+	terminalGroup.Use(s.middleSessionAuth())
+	{
+		terminalGroup.GET("/", func(ctx *gin.Context) {
+			ctx.HTML(http.StatusOK, "terminal.html", nil)
+		})
+		terminalGroup.GET("/ws/", s.processTerminalWebsocket)
+	}
+}
+
+func (s *server) tokenHandlers(router *gin.RouterGroup) {
+	tokenGroup := router.Group("/token")
+	{
+		tokenGroup.GET("/", func(ctx *gin.Context) {
+			ctx.HTML(http.StatusOK, "terminal.html", nil)
+		})
+		tokenGroup.GET("/ws/", s.processTokenWebsocket)
+	}
+}
+
+func (s *server) elfinderHandlers(router *gin.RouterGroup) {
+	elfindlerGroup := router.Group("/elfinder")
+	elfindlerGroup.Use(s.middleSessionAuth())
+	{
+		elfindlerGroup.GET("/sftp/", func(ctx *gin.Context) {
+			ctx.HTML(http.StatusOK, "file_manager.html", "_")
+		})
+		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
+			hostId := ctx.Param("host")
+			if _, err := uuid.FromString(hostId); err != nil {
+				ctx.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+			ctx.HTML(http.StatusOK, "file_manager.html", hostId)
+		})
+		elfindlerGroup.Any("/connector/:host/", s.sftpHostConnectorView)
+		elfindlerGroup.GET("/ws/", s.processElfinderWebsocket)
+	}
+}
+
+func (s *server) healthHandlers(router *gin.RouterGroup) {
+	router.GET("/status/", s.statusHandler)
+}
+
+func (s *server) debugHandlers(router *gin.RouterGroup) {
+	debugGroup := router.Group("/debug/pprof")
 	debugGroup.Use(s.middleDebugAuth())
 	{
 		debugGroup.GET("/", gin.WrapF(pprof.Index))
@@ -260,35 +386,6 @@ func registerHandlers(s *server) *gin.Engine {
 		debugGroup.GET("/mutex", gin.WrapF(pprof.Handler("mutex").ServeHTTP))
 		debugGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
 	}
-	kokoGroup := eng.Group("/koko")
-	kokoGroup.Static("/static/", "./static")
-	terminalGroup := kokoGroup.Group("/terminal")
-	terminalGroup.Use(s.middleHtmlAuth())
-	terminalGroup.GET("/", func(ctx *gin.Context) {
-		ctx.HTML(http.StatusOK, "terminal.html", nil)
-	})
-
-	wsGroup := kokoGroup.Group("/ws")
-	wsGroup.Use(s.middleAuth())
-	wsGroup.GET("/", s.processWebsocket)
-
-	elfindlerGroup := kokoGroup.Group("/elfinder")
-	elfindlerGroup.Use(s.middleAuth())
-	{
-		elfindlerGroup.GET("/sftp/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "file_manager.html", "_")
-		})
-		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
-			hostId := ctx.Param("host")
-			if _, err := uuid.FromString(hostId); err != nil {
-				ctx.AbortWithStatus(http.StatusBadRequest)
-				return
-			}
-			ctx.HTML(http.StatusOK, "file_manager.html", hostId)
-		})
-		elfindlerGroup.Any("/connector/:host/", s.sftpHostConnectorView)
-	}
-	return eng
 }
 
 var webServer = NewServer()

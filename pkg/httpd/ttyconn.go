@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -29,8 +28,9 @@ type ttyCon struct {
 
 	wg sync.WaitGroup
 
-	targetType string
-	targetId   string
+	targetType   string
+	targetId     string
+	systemUserId string
 
 	systemUser *model.SystemUser
 	assetApp   *model.Asset
@@ -72,10 +72,6 @@ func (tc *ttyCon) cleanUp() {
 		_ = tc.backendClient.Close()
 	}
 	tc.wg.Wait()
-	if tc.targetType == ElfinderTargetType {
-		removeUserVolume(tc.Uuid)
-	}
-
 }
 
 func (tc *ttyCon) sendConnectMessage() {
@@ -218,53 +214,40 @@ func (tc *ttyCon) handleTerminalMessage(msg *Message) {
 func (tc *ttyCon) checkTargetType() bool {
 	var ok bool
 	switch tc.targetType {
-	case DBTargetType, K8sTargetType, AssetTargetType, TokenTargetType:
-		appType := tc.getAppType()
-		systemUserId := tc.getAppSystemUserId()
-		appId := tc.getAppId()
-		if systemUserId == "" {
-			logger.Errorf("Ws[%s] miss required query param (system_user_id).", tc.Uuid)
+	case TargetTypeDB, TargetTypeK8s, TargetTypeAsset:
+		if tc.systemUserId == "" || tc.targetId == "" {
+			logger.Errorf("Ws[%s] miss required query params.", tc.Uuid)
 			return false
 		}
-		systemUser := service.GetSystemUser(systemUserId)
+		systemUser := service.GetSystemUser(tc.systemUserId)
 		if systemUser.ID == "" {
 			return false
 		}
 		tc.systemUser = &systemUser
-		ok = tc.getApp(appType, appId)
-	case RoomTargetType:
-		ok = true
-	case ElfinderTargetType:
-		var userV VolumeCloser
-		switch strings.TrimSpace(tc.targetId) {
-		case "_":
-			userV = NewUserVolume(tc.user, tc.ctx.ClientIP(), "")
-		default:
-			userV = NewUserVolume(tc.user, tc.ctx.ClientIP(), strings.TrimSpace(tc.targetId))
-		}
-		addUserVolume(tc.Uuid, userV)
+		ok = tc.getApp()
+	case TargetTypeRoom:
 		ok = true
 	}
 	logger.Infof("Ws[%s] check connect type %s: %t", tc.Uuid, tc.targetType, ok)
 	return ok
 }
 
-func (tc *ttyCon) getApp(appType, appId string) bool {
-	switch appType {
-	case DBAppType:
-		databaseAsset := service.GetDatabase(appId)
+func (tc *ttyCon) getApp() bool {
+	switch tc.getAppType() {
+	case AppTypeDB:
+		databaseAsset := service.GetDatabase(tc.targetId)
 		if databaseAsset.ID != "" {
 			tc.dbApp = &databaseAsset
 			return true
 		}
-	case K8sAppType:
-		k8sCluster := service.GetK8sCluster(appId)
+	case AppTypeK8s:
+		k8sCluster := service.GetK8sCluster(tc.targetId)
 		if k8sCluster.ID != "" {
 			tc.k8sApp = &k8sCluster
 			return true
 		}
-	case AssetAppType:
-		asset := service.GetAsset(appId)
+	case AppTypeAsset:
+		asset := service.GetAsset(tc.targetId)
 		if asset.ID != "" {
 			tc.assetApp = &asset
 			return true
@@ -273,76 +256,40 @@ func (tc *ttyCon) getApp(appType, appId string) bool {
 	return false
 }
 
-func (tc *ttyCon) getAppType() string {
-	var appType string
+func (tc *ttyCon) getAppType() int {
+	appType := AppUnknown
 	switch tc.targetType {
-	case DBTargetType:
-		appType = DBAppType
-	case K8sTargetType:
-		appType = K8sAppType
-	case AssetTargetType:
-		appType = AssetAppType
-	case TokenTargetType:
-		if tokenUserMsg, existed := tc.ctx.Get(ginCtxTokenUserKey); existed {
-			if tokenUser, ok := tokenUserMsg.(*model.TokenUser); ok {
-				if tokenUser.AssetID != "" {
-					appType = AssetAppType
-				}
-			}
-		}
+	case TargetTypeDB:
+		appType = AppTypeDB
+	case TargetTypeK8s:
+		appType = AppTypeK8s
+	case TargetTypeAsset:
+		appType = AppTypeAsset
 	}
 	return appType
-}
-
-func (tc *ttyCon) getAppId() string {
-	appId := tc.targetId
-	switch tc.targetType {
-	case TokenTargetType:
-		if tokenUserMsg, existed := tc.ctx.Get(ginCtxTokenUserKey); existed {
-			if tokenUser, ok := tokenUserMsg.(*model.TokenUser); ok {
-				appId = tokenUser.AssetID
-			}
-		}
-	}
-	return appId
-}
-
-func (tc *ttyCon) getAppSystemUserId() string {
-	var systemUserId string
-	switch tc.targetType {
-	case DBTargetType, K8sTargetType, AssetTargetType:
-		systemUserId, _ = tc.ctx.GetQuery("system_user_id")
-	case TokenTargetType:
-		if tokenUserMsg, existed := tc.ctx.Get(ginCtxTokenUserKey); existed {
-			if tokenUser, ok := tokenUserMsg.(*model.TokenUser); ok {
-				systemUserId = tokenUser.SystemUserID
-			}
-		}
-	}
-	return systemUserId
 }
 
 func (tc *ttyCon) proxy(wg *sync.WaitGroup) {
 	defer wg.Done()
 	var proxySrv proxyServer
 	switch tc.targetType {
-	case DBTargetType, K8sTargetType, AssetTargetType, TokenTargetType:
+	case TargetTypeDB, TargetTypeK8s, TargetTypeAsset:
 		switch tc.getAppType() {
-		case DBAppType:
+		case AppTypeDB:
 			proxySrv = &proxy.DBProxyServer{
 				UserConn:   tc.backendClient,
 				User:       tc.user,
 				Database:   tc.dbApp,
 				SystemUser: tc.systemUser,
 			}
-		case K8sAppType:
+		case AppTypeK8s:
 			proxySrv = &proxy.K8sProxyServer{
 				UserConn:   tc.backendClient,
 				User:       tc.user,
 				Cluster:    tc.k8sApp,
 				SystemUser: tc.systemUser,
 			}
-		case AssetAppType:
+		case AppTypeAsset:
 			proxySrv = &proxy.ProxyServer{
 				UserConn:   tc.backendClient,
 				User:       tc.user,
@@ -350,7 +297,7 @@ func (tc *ttyCon) proxy(wg *sync.WaitGroup) {
 				SystemUser: tc.systemUser,
 			}
 		}
-	case RoomTargetType:
+	case TargetTypeRoom:
 		JoinRoom(tc.backendClient, tc.targetId)
 	default:
 		return
@@ -373,6 +320,7 @@ func CheckShareRoomWritePerm(uid, roomId string) bool {
 	// todo: check current user has pem to write
 	return false
 }
+
 func JoinRoom(c *Client, roomID string) {
 	ex := exchange.GetExchange()
 	roomChan := make(chan model.RoomMessage)

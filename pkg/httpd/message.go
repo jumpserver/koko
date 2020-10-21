@@ -24,20 +24,15 @@ type WindowSize struct {
 }
 
 const (
-	ginCtxUserKey       = "CtxUserKey"
-	ginCtxTokenUserKey  = "CtxTokenUserKey"
-	ginCtxElfinderIdKey = "CtxElfinderIdKey"
+	ginCtxUserKey = "CtxUserKey"
 )
 
 const (
-	AssetTargetType = "asset"
-	DBTargetType    = "database_app"
-	K8sTargetType   = "k8s_app"
+	TargetTypeAsset = "asset"
+	TargetTypeDB    = "database_app"
+	TargetTypeK8s   = "k8s_app"
 
-	TokenTargetType = "token"
-	RoomTargetType     = "shareroom"
-	ElfinderTargetType = "elfinder"
-
+	TargetTypeRoom = "shareroom"
 )
 
 const (
@@ -46,7 +41,8 @@ const (
 )
 
 const (
-	AssetAppType = "asset"
-	K8sAppType   = "k8s_app"
-	DBAppType    = "database_app"
+	AppTypeAsset = iota + 1
+	AppTypeK8s
+	AppTypeDB
+	AppUnknown
 )

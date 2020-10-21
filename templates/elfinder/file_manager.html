@@ -16,7 +16,7 @@
         var urlParams = new URLSearchParams(window.location.search);
         var scheme = document.location.protocol == "https:" ? "wss" : "ws";
         var port = document.location.port ? ":" + document.location.port : "";
-        var baseWsUrl = scheme + "://" + document.location.hostname + port + "/koko/ws/?"
+        var baseWsUrl = scheme + "://" + document.location.hostname + port + "/koko/elfinder/ws/?"
         var requireParams = new URLSearchParams();
         requireParams.append('type', "elfinder");
         requireParams.append('target_id', {{.}});

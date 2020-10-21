@@ -7,54 +7,81 @@ const MaxMessageLen = 1024
 func NewBroadcaster() *broadcaster {
 	return &broadcaster{
 		ttyCons:            make(map[string]*ttyCon),
-		enteringChannel:    make(chan *ttyCon),
-		leavingChannel:     make(chan *ttyCon),
-		messageChannel:     make(chan *Message, MaxMessageLen),
-		checkChannel:       make(chan string),
-		checkResultChannel: make(chan *ttyCon),
+		ttyEnteringChannel: make(chan *ttyCon),
+		ttyLeavingChannel:  make(chan *ttyCon),
+
+		elfinderCons:           make(map[string]*elfinderCon),
+		elfinderEnterChannel:   make(chan *elfinderCon),
+		elfinderLeavingChannel: make(chan *elfinderCon),
+
+		messageChannel:        make(chan *Message, MaxMessageLen),
+		checkElfinderChannel:  make(chan string),
+		elfinderResultChannel: make(chan *elfinderCon),
 	}
 }
 
 type broadcaster struct {
-	ttyCons map[string]*ttyCon
+	ttyCons            map[string]*ttyCon
+	ttyEnteringChannel chan *ttyCon
+	ttyLeavingChannel  chan *ttyCon
 
-	enteringChannel chan *ttyCon
-	leavingChannel  chan *ttyCon
-	messageChannel  chan *Message
+	elfinderCons           map[string]*elfinderCon
+	elfinderEnterChannel   chan *elfinderCon
+	elfinderLeavingChannel chan *elfinderCon
 
-	checkChannel       chan string
-	checkResultChannel chan *ttyCon
+	messageChannel chan *Message
+
+	checkElfinderChannel  chan string
+	elfinderResultChannel chan *elfinderCon
 }
 
 func (b *broadcaster) Start() {
 	for {
 		select {
-		case ttyCon := <-b.enteringChannel:
-			b.ttyCons[ttyCon.Uuid] = ttyCon
-			logger.Infof("Ws[%s] enter", ttyCon.Uuid)
-		case ttyCon := <-b.leavingChannel:
-			delete(b.ttyCons, ttyCon.Uuid)
-			logger.Infof("Ws[%s] leave", ttyCon.Uuid)
-		case sid := <-b.checkChannel:
-			b.checkResultChannel <- b.ttyCons[sid]
+		case con := <-b.ttyEnteringChannel:
+			b.ttyCons[con.Uuid] = con
+			logger.Infof("Ws[%s] tty enter", con.Uuid)
+
+		case con := <-b.ttyLeavingChannel:
+			delete(b.ttyCons, con.Uuid)
+			logger.Infof("Ws[%s] tty leave", con.Uuid)
+
+		case con := <-b.elfinderEnterChannel:
+			b.elfinderCons[con.Uuid] = con
+			logger.Infof("Ws[%s] elfinder enter", con.Uuid)
+
+		case con := <-b.elfinderLeavingChannel:
+			delete(b.elfinderCons, con.Uuid)
+			logger.Infof("Ws[%s] elfinder leave", con.Uuid)
+
+		case sid := <-b.checkElfinderChannel:
+			b.elfinderResultChannel <- b.elfinderCons[sid]
 		case <-b.messageChannel:
 		}
 	}
 }
 
-func (b *broadcaster) ConEntering(c *ttyCon) {
-	b.enteringChannel <- c
+func (b *broadcaster) EnterTerminalCon(c *ttyCon) {
+	b.ttyEnteringChannel <- c
 }
 
-func (b *broadcaster) ConLeaving(c *ttyCon) {
-	b.leavingChannel <- c
+func (b *broadcaster) LeaveTerminalCon(c *ttyCon) {
+	b.ttyLeavingChannel <- c
+}
+
+func (b *broadcaster) EnterElfinderCon(c *elfinderCon) {
+	b.elfinderEnterChannel <- c
+}
+
+func (b *broadcaster) LeaveElfinderCon(c *elfinderCon) {
+	b.elfinderLeavingChannel <- c
 }
 
 func (b *broadcaster) Broadcast(msg *Message) {
 	b.messageChannel <- msg
 }
 
-func (b *broadcaster) GetAliveCon(sid string) *ttyCon {
-	b.checkChannel <- sid
-	return <-b.checkResultChannel
+func (b *broadcaster) GetElfinderCon(sid string) *elfinderCon {
+	b.checkElfinderChannel <- sid
+	return <-b.elfinderResultChannel
 }
