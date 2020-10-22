@@ -140,8 +140,12 @@ func (s *server) sftpHostConnectorView(ctx *gin.Context) {
 		return
 	}
 	var userV *UserVolume
-	if wsCon := s.broadCaster.GetElfinderCon(sid); wsCon != nil {
-		userV = wsCon.GetVolume()
+	if wsCon := s.broadCaster.GetUserWebsocket(sid); wsCon != nil {
+		handler := wsCon.GetHandler()
+		switch handler.Name() {
+		case WebFolderName:
+			userV = handler.(*webFolder).GetVolume()
+		}
 	}
 	if userV == nil {
 		logger.Errorf("Ws(%s) already closed request url %s from ip %s",
@@ -242,19 +246,25 @@ func (s *server) processElfinderWebsocket(ctx *gin.Context) {
 		return
 	}
 	defer wsSocket.Close()
-	conn := elfinderCon{
+
+	userConn := UserWebsocket{
 		Uuid:           uuid.NewV4().String(),
-		ctx:            ctx.Copy(),
 		webSrv:         s,
 		conn:           wsSocket,
-		user:           currentUser,
-		targetId:       targetId,
+		ctx:            ctx.Copy(),
 		messageChannel: make(chan *Message, 10),
-		done:           make(chan struct{}),
+		user:           currentUser,
 	}
-	s.broadCaster.EnterElfinderCon(&conn)
-	defer s.broadCaster.LeaveElfinderCon(&conn)
-	conn.Run()
+
+	userConn.handler = &webFolder{
+		ws:       &userConn,
+		targetId: targetId,
+		done:     make(chan struct{}),
+	}
+
+	s.broadCaster.EnterUserWebsocket(&userConn)
+	defer s.broadCaster.LeaveUserWebsocket(&userConn)
+	userConn.Run()
 }
 
 func (s *server) Upgrade(ctx *gin.Context) (*ws.Socket, error) {
@@ -282,20 +292,24 @@ func (s *server) runTTY(ctx *gin.Context, currentUser *model.User,
 		return
 	}
 	defer wsSocket.Close()
-	conn := ttyCon{
+
+	userConn := UserWebsocket{
 		Uuid:           uuid.NewV4().String(),
-		ctx:            ctx.Copy(),
 		webSrv:         s,
 		conn:           wsSocket,
-		user:           currentUser,
-		targetType:     targetType,
-		targetId:       targetId,
-		systemUserId:   SystemUserID,
+		ctx:            ctx.Copy(),
 		messageChannel: make(chan *Message, 10),
+		user:           currentUser,
 	}
-	s.broadCaster.EnterTerminalCon(&conn)
-	defer s.broadCaster.LeaveTerminalCon(&conn)
-	conn.Run()
+	userConn.handler = &tty{
+		ws:           &userConn,
+		targetType:   targetType,
+		targetId:     targetId,
+		systemUserId: SystemUserID,
+	}
+	s.broadCaster.EnterUserWebsocket(&userConn)
+	defer s.broadCaster.LeaveUserWebsocket(&userConn)
+	userConn.Run()
 }
 
 func (s *server) statusHandler(ctx *gin.Context) {

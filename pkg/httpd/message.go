@@ -46,3 +46,8 @@ const (
 	AppTypeDB
 	AppUnknown
 )
+
+const (
+	TTYName       = "terminal"
+	WebFolderName = "web_folder"
+)
