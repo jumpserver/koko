@@ -18,7 +18,7 @@ function initTerminal(elementId) {
     let urlParams = new URLSearchParams(window.location.search);
     let scheme = document.location.protocol == "https:" ? "wss" : "ws";
     let port = document.location.port ? ":" + document.location.port : "";
-    let baseWsUrl = scheme + "://" + document.location.hostname + port + "/koko/ws/?"
+    let baseWsUrl = scheme + "://" + document.location.hostname + port;
     let pingInterval;
     let resizeTimer;
     let term;
@@ -28,7 +28,13 @@ function initTerminal(elementId) {
     let ws;
     let terminalId = "";
     let termSelection = "";
-    let wsURL = baseWsUrl + urlParams.toString();
+    let wsURL = baseWsUrl + '/koko/ws/terminal/?' + urlParams.toString();
+    switch (urlParams.get("type")) {
+        case 'token':
+            wsURL = baseWsUrl + "/koko/ws/token/?" + urlParams.toString();
+            break
+        default:
+    }
     ws = new WebSocket(wsURL, ["JMS-KOKO"]);
     term = createTerminalById(elementId)
 
@@ -94,7 +100,7 @@ function initTerminal(elementId) {
 
     let quickPaste = getQuickPaste();
     let terminalContext = document.getElementById(elementId);
-    terminalContext.addEventListener('contextmenu',function ($event) {
+    terminalContext.addEventListener('contextmenu', function ($event) {
         if ($event.ctrlKey || quickPaste !== '1') {
             return;
         }

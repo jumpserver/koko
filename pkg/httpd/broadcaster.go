@@ -6,47 +6,49 @@ const MaxMessageLen = 1024
 
 func NewBroadcaster() *broadcaster {
 	return &broadcaster{
-		ttyCons:            make(map[string]*ttyCon),
-		enteringChannel:    make(chan *ttyCon),
-		leavingChannel:     make(chan *ttyCon),
-		messageChannel:     make(chan *Message, MaxMessageLen),
-		checkChannel:       make(chan string),
-		checkResultChannel: make(chan *ttyCon),
+		userConns:      make(map[string]*UserWebsocket),
+		enterChannel:   make(chan *UserWebsocket),
+		leavingChannel: make(chan *UserWebsocket),
+		messageChannel: make(chan *Message, MaxMessageLen),
+		checkChannel:   make(chan string),
+		resultChannel:  make(chan *UserWebsocket),
 	}
 }
 
 type broadcaster struct {
-	ttyCons map[string]*ttyCon
+	userConns      map[string]*UserWebsocket
+	enterChannel   chan *UserWebsocket
+	leavingChannel chan *UserWebsocket
 
-	enteringChannel chan *ttyCon
-	leavingChannel  chan *ttyCon
-	messageChannel  chan *Message
+	messageChannel chan *Message
 
-	checkChannel       chan string
-	checkResultChannel chan *ttyCon
+	checkChannel  chan string
+	resultChannel chan *UserWebsocket
 }
 
 func (b *broadcaster) Start() {
 	for {
 		select {
-		case ttyCon := <-b.enteringChannel:
-			b.ttyCons[ttyCon.Uuid] = ttyCon
-			logger.Infof("Ws[%s] enter", ttyCon.Uuid)
-		case ttyCon := <-b.leavingChannel:
-			delete(b.ttyCons, ttyCon.Uuid)
-			logger.Infof("Ws[%s] leave", ttyCon.Uuid)
+		case conn := <-b.enterChannel:
+			b.userConns[conn.Uuid] = conn
+			logger.Infof("Ws[%s] enter", conn.Uuid)
+
+		case conn := <-b.leavingChannel:
+			delete(b.userConns, conn.Uuid)
+			logger.Infof("Ws[%s] leave", conn.Uuid)
+
 		case sid := <-b.checkChannel:
-			b.checkResultChannel <- b.ttyCons[sid]
+			b.resultChannel <- b.userConns[sid]
 		case <-b.messageChannel:
 		}
 	}
 }
 
-func (b *broadcaster) ConEntering(c *ttyCon) {
-	b.enteringChannel <- c
+func (b *broadcaster) EnterUserWebsocket(c *UserWebsocket) {
+	b.enterChannel <- c
 }
 
-func (b *broadcaster) ConLeaving(c *ttyCon) {
+func (b *broadcaster) LeaveUserWebsocket(c *UserWebsocket) {
 	b.leavingChannel <- c
 }
 
@@ -54,7 +56,7 @@ func (b *broadcaster) Broadcast(msg *Message) {
 	b.messageChannel <- msg
 }
 
-func (b *broadcaster) GetAliveCon(sid string) *ttyCon {
+func (b *broadcaster) GetUserWebsocket(sid string) *UserWebsocket {
 	b.checkChannel <- sid
-	return <-b.checkResultChannel
+	return <-b.resultChannel
 }
