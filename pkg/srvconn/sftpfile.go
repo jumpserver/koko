@@ -279,6 +279,10 @@ func (ad *AssetDir) loadSystemUsers() {
 			}
 		}
 		ad.suMaps = sus
+		// Todo: Refactor code in the future. Currently just patch gateway bug
+		if detailAsset := service.GetAsset(ad.asset.ID); detailAsset.ID == ad.asset.ID {
+			ad.asset = &detailAsset
+		}
 	})
 }
 
