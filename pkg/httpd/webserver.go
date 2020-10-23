@@ -236,7 +236,7 @@ func (s *server) processElfinderWebsocket(ctx *gin.Context) {
 	currentUser = userValue.(*model.User)
 	if targetId, ok = ctx.GetQuery("target_id"); !ok {
 		logger.Error("Ws miss required params (target_id).")
-		ctx.AbortWithStatus(http.StatusEarlyHints)
+		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	wsSocket, err := s.Upgrade(ctx)
