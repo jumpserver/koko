@@ -331,11 +331,24 @@ func registerHandlers(s *server) *gin.Engine {
 	kokoGroup := rootGroup.Group("/koko")
 	kokoGroup.Static("/static/", "./static")
 	{
+		s.websocketHandlers(kokoGroup)
 		s.terminalHandlers(kokoGroup)
 		s.tokenHandlers(kokoGroup)
 		s.elfinderHandlers(kokoGroup)
 	}
 	return eng
+}
+
+func (s *server) websocketHandlers(router *gin.RouterGroup) {
+	wsGroup := router.Group("/ws/")
+
+	wsGroup.Group("/terminal").Use(
+		s.middleSessionAuth()).GET("/", s.processTerminalWebsocket)
+
+	wsGroup.Group("/elfinder").Use(
+		s.middleSessionAuth()).GET("/", s.processElfinderWebsocket)
+
+	wsGroup.Group("/token").GET("/", s.processTokenWebsocket)
 }
 
 func (s *server) terminalHandlers(router *gin.RouterGroup) {
@@ -345,7 +358,6 @@ func (s *server) terminalHandlers(router *gin.RouterGroup) {
 		terminalGroup.GET("/", func(ctx *gin.Context) {
 			ctx.HTML(http.StatusOK, "terminal.html", nil)
 		})
-		terminalGroup.GET("/ws/", s.processTerminalWebsocket)
 	}
 }
 
@@ -355,7 +367,6 @@ func (s *server) tokenHandlers(router *gin.RouterGroup) {
 		tokenGroup.GET("/", func(ctx *gin.Context) {
 			ctx.HTML(http.StatusOK, "terminal.html", nil)
 		})
-		tokenGroup.GET("/ws/", s.processTokenWebsocket)
 	}
 }
 
@@ -375,7 +386,6 @@ func (s *server) elfinderHandlers(router *gin.RouterGroup) {
 			ctx.HTML(http.StatusOK, "file_manager.html", hostId)
 		})
 		elfindlerGroup.Any("/connector/:host/", s.sftpHostConnectorView)
-		elfindlerGroup.GET("/ws/", s.processElfinderWebsocket)
 	}
 }
 

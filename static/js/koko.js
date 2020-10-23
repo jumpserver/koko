@@ -28,10 +28,10 @@ function initTerminal(elementId) {
     let ws;
     let terminalId = "";
     let termSelection = "";
-    let wsURL = baseWsUrl + '/koko/terminal/ws/?' + urlParams.toString();
+    let wsURL = baseWsUrl + '/koko/ws/terminal/?' + urlParams.toString();
     switch (urlParams.get("type")) {
         case 'token':
-            wsURL = baseWsUrl + "/koko/token/ws/?" + urlParams.toString();
+            wsURL = baseWsUrl + "/koko/ws/token/?" + urlParams.toString();
             break
         default:
     }
