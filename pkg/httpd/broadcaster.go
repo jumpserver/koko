@@ -6,39 +6,39 @@ const MaxMessageLen = 1024
 
 func NewBroadcaster() *broadcaster {
 	return &broadcaster{
-		userCons:       make(map[string]*UserWebsocket),
+		userConns:      make(map[string]*UserWebsocket),
 		enterChannel:   make(chan *UserWebsocket),
 		leavingChannel: make(chan *UserWebsocket),
 		messageChannel: make(chan *Message, MaxMessageLen),
 		checkChannel:   make(chan string),
-		ResultChannel:  make(chan *UserWebsocket),
+		resultChannel:  make(chan *UserWebsocket),
 	}
 }
 
 type broadcaster struct {
-	userCons       map[string]*UserWebsocket
+	userConns      map[string]*UserWebsocket
 	enterChannel   chan *UserWebsocket
 	leavingChannel chan *UserWebsocket
 
 	messageChannel chan *Message
 
 	checkChannel  chan string
-	ResultChannel chan *UserWebsocket
+	resultChannel chan *UserWebsocket
 }
 
 func (b *broadcaster) Start() {
 	for {
 		select {
-		case con := <-b.enterChannel:
-			b.userCons[con.Uuid] = con
-			logger.Infof("Ws[%s] enter", con.Uuid)
+		case conn := <-b.enterChannel:
+			b.userConns[conn.Uuid] = conn
+			logger.Infof("Ws[%s] enter", conn.Uuid)
 
-		case con := <-b.leavingChannel:
-			delete(b.userCons, con.Uuid)
-			logger.Infof("Ws[%s] leave", con.Uuid)
+		case conn := <-b.leavingChannel:
+			delete(b.userConns, conn.Uuid)
+			logger.Infof("Ws[%s] leave", conn.Uuid)
 
 		case sid := <-b.checkChannel:
-			b.ResultChannel <- b.userCons[sid]
+			b.resultChannel <- b.userConns[sid]
 		case <-b.messageChannel:
 		}
 	}
@@ -58,5 +58,5 @@ func (b *broadcaster) Broadcast(msg *Message) {
 
 func (b *broadcaster) GetUserWebsocket(sid string) *UserWebsocket {
 	b.checkChannel <- sid
-	return <-b.ResultChannel
+	return <-b.resultChannel
 }
