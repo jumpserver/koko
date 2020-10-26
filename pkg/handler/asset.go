@@ -101,6 +101,7 @@ func (k *AssetApplication) SearchOrProxy(key string) {
 		k.proxyAsset(currentResult[0])
 		return
 	}
+	k.currentResult = model.AssetList(currentResult).SortBy(config.GetConf().AssetListSortBy)
 	k.DisplayCurrentResult()
 }
 
