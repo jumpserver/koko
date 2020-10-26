@@ -41,10 +41,6 @@ type ServerSSHConnection struct {
 	options *connectionOptions
 }
 
-func (sc *ServerSSHConnection) Protocol() string {
-	return "ssh"
-}
-
 func (sc *ServerSSHConnection) Connect(h, w int, term string) (err error) {
 	if sc.session == nil {
 		return errors.New("ssh session is nil")
@@ -92,4 +88,9 @@ func (sc *ServerSSHConnection) Write(p []byte) (n int, err error) {
 
 func (sc *ServerSSHConnection) Close() (err error) {
 	return sc.session.Close()
+}
+
+func (sc *ServerSSHConnection) KeepAlive() error {
+	_, err := sc.session.SendRequest("keepalive@openssh.com", true, nil)
+	return err
 }

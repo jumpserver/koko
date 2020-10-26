@@ -43,6 +43,10 @@ func (tc *ServerTelnetConnection) Protocol() string {
 	return "telnet"
 }
 
+func (tc *ServerTelnetConnection) KeepAlive() error {
+	return nil
+}
+
 func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	var ip = tc.Asset.IP
 	var port = strconv.Itoa(tc.Asset.ProtocolPort("telnet"))

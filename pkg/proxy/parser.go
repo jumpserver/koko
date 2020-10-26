@@ -87,7 +87,7 @@ func (p *Parser) initial() {
 }
 
 // ParseStream 解析数据流
-func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
+func (p *Parser) ParseStream(userInChan chan *model.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
 
 	p.userOutputChan = make(chan []byte, 1)
 	p.srvOutputChan = make(chan []byte, 1)
@@ -105,9 +105,17 @@ func (p *Parser) ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvO
 			select {
 			case <-p.closed:
 				return
-			case b, ok := <-userInChan:
+			case msg, ok := <-userInChan:
 				if !ok {
 					return
+				}
+				var b []byte
+				switch msg.Event {
+				case model.DataEvent:
+					b = msg.Body
+				}
+				if len(b) == 0 {
+					continue
 				}
 				b = p.ParseUserInput(b)
 				select {

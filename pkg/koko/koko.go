@@ -33,7 +33,6 @@ func (c *Coco) Start() {
 func (c *Coco) Stop() {
 	sshd.StopServer()
 	httpd.StopHTTPServer()
-	exchange.StopExchange()
 	logger.Info("Quit The KoKo")
 }
 

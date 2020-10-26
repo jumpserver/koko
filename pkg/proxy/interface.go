@@ -13,7 +13,7 @@ type proxyEngine interface {
 }
 
 type ParseEngine interface {
-	ParseStream(userInChan, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte)
+	ParseStream(userInChan chan *model.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte)
 
 	Close()
 

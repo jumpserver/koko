@@ -23,8 +23,8 @@ type tty struct {
 	targetId     string
 	systemUserId string
 
-	initialed bool
-	wg sync.WaitGroup
+	initialed  bool
+	wg         sync.WaitGroup
 	systemUser *model.SystemUser
 	assetApp   *model.Asset
 	k8sApp     *model.K8sCluster
@@ -32,7 +32,6 @@ type tty struct {
 
 	backendClient *Client
 }
-
 
 func (h *tty) Name() string {
 	return TTYName
@@ -60,12 +59,11 @@ func (h *tty) CheckValidation() bool {
 		h.systemUser = &systemUser
 		ok = h.getApp()
 	case TargetTypeRoom:
-		ok = true
+		ok = CheckShareRoomReadPerm(h.ws.user.ID, h.targetId)
 	}
 	logger.Infof("Ws[%s] check connect type %s: %t", h.ws.Uuid, h.targetType, ok)
 	return ok
 }
-
 
 func (h *tty) HandleMessage(msg *Message) {
 	switch msg.Type {
@@ -228,60 +226,26 @@ func CheckShareRoomWritePerm(uid, roomId string) bool {
 }
 
 func JoinRoom(c *Client, roomID string) {
-	ex := exchange.GetExchange()
-	roomChan := make(chan model.RoomMessage)
-	room, err := ex.JoinRoom(roomChan, roomID)
-	if err != nil {
-		logger.Errorf("Conn[%s] join room %s err: %s", c.ID(), roomID, err)
-		return
-	}
-	defer ex.LeaveRoom(room, roomID)
-	user := c.Conn.CurrentUser()
-	if !CheckShareRoomReadPerm(user.ID, roomID) {
-		logger.Errorf("Conn[%s] has no pem to join room %s", c.ID(), roomID)
-		return
-	}
-	go func() {
+	/*
+		1. ask join room id (session id)
+		2. room receive msg send to client
+		3. client emit msg to room
+	*/
+	if room := exchange.GetRoom(roomID); room != nil {
+		conn := exchange.WrapperUserCon(c)
+		room.Subscribe(conn)
+		defer room.UnSubscribe(conn)
 		for {
-			msg, ok := <-roomChan
-			if !ok {
+			buf := make([]byte, 1024)
+			nr, err := c.Read(buf)
+			if nr > 0 && CheckShareRoomWritePerm(c.Conn.user.ID, roomID) {
+				room.Receive(&model.RoomMessage{
+					Event: model.DataEvent, Body: buf[:nr]})
+			}
+			if err != nil {
 				break
 			}
-			switch msg.Event {
-			case model.DataEvent, model.MaxIdleEvent, model.AdminTerminateEvent:
-				_, _ = c.Write(msg.Body)
-				continue
-			case model.WindowsEvent, model.PingEvent:
-				continue
-			case model.LogoutEvent, model.ExitEvent:
-			default:
-				logger.Errorf("Conn[%s] receive unknown room event %s", user.Name, roomID, msg.Event)
-
-			}
-			logger.Infof("Conn[%s] stop receive msg from room %s by %s", c.ID(), roomID, msg.Event)
-			break
-
 		}
-		_ = c.Close()
-		logger.Infof("Conn[%s] User %s exit room %s", c.ID(), user.Name, roomID)
-	}()
-
-	buf := make([]byte, 1024)
-	for {
-		nr, err := c.Read(buf)
-		if err != nil {
-			logger.Errorf("Conn[%s] User %s exit share room %s by %s", user.Name, roomID, err)
-			break
-		}
-		// checkout user write pem
-		if !CheckShareRoomWritePerm(c.Conn.user.ID, roomID) {
-			continue
-		}
-		msg := model.RoomMessage{
-			Event: model.DataEvent,
-			Body:  buf[:nr],
-		}
-		room.Publish(msg)
-		logger.Infof("User %s published DataEvent to room %s", user.Name, roomID)
+		logger.Infof("Conn[%s] user read end", c.ID())
 	}
 }
