@@ -95,7 +95,7 @@ func (k *AssetApplication) SearchOrProxy(key string) {
 
 	newPageSize := getPageSize(k.h.term)
 	currentResult := k.engine.Retrieve(newPageSize, 0, key)
-	k.currentResult = currentResult
+	k.currentResult = model.AssetList(currentResult).SortBy(config.GetConf().AssetListSortBy)
 	k.searchKeys = []string{key}
 	if len(currentResult) == 1 {
 		k.proxyAsset(currentResult[0])
