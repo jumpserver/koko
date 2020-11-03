@@ -115,8 +115,8 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 		Id:                     uuid.NewV4().String(),
 		pool:                   pool,
 		connFunc:               connFunc,
-		localManager:           newLocalManager(),
-		remoteManager:          newLocalManager(),
+		localRoomCache:         newLocalCache(),
+		remoteRoomCache:        newLocalCache(),
 		pubSub:                 pubSub,
 		subscribeEventsMsgCh:   redisMsgCh,
 		reqChan:                make(chan *subscribeRequest),
@@ -130,11 +130,11 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 }
 
 type redisRoomManager struct {
-	Id            string
-	pool          *radix.Pool
-	connFunc      radix.ConnFunc
-	localManager  *localRoomManager
-	remoteManager *localRoomManager
+	Id              string
+	pool            *radix.Pool
+	connFunc        radix.ConnFunc
+	localRoomCache  *localCache
+	remoteRoomCache *localCache
 
 	subscribeEventsMsgCh chan radix.PubSubMessage
 	pubSub               radix.PubSubConn
@@ -151,17 +151,17 @@ type redisRoomManager struct {
 }
 
 func (m *redisRoomManager) Add(s *Room) {
-	m.localManager.Add(s)
+	m.localRoomCache.Add(s)
 	m.storeRoomId(s.Id)
 }
 
 func (m *redisRoomManager) Delete(s *Room) {
-	m.localManager.Delete(s)
+	m.localRoomCache.Delete(s)
 	m.removeRoomId(s.Id)
 }
 
 func (m *redisRoomManager) Get(sid string) *Room {
-	if r := m.localManager.Get(sid); r != nil {
+	if r := m.localRoomCache.Get(sid); r != nil {
 		return r
 	}
 	if ok := m.checkRoomExist(sid); ok {
@@ -228,7 +228,7 @@ func (m *redisRoomManager) run() {
 			switch req.Event {
 			case model.JoinEvent:
 				//	校验本地 是否已经存在
-				if room := m.remoteManager.Get(req.RoomId); room != nil {
+				if room := m.remoteRoomCache.Get(req.RoomId); room != nil {
 					logger.Debugf("Redis cache already create room %s", req.RoomId)
 					responseChan <- &subscribeResponse{
 						Req:  req,
@@ -272,12 +272,12 @@ func (m *redisRoomManager) run() {
 			delete(redisUserCons, redisUserCon.roomId)
 
 		case room := <-m.removeProxyRoomChan:
-			cacheRoom := m.remoteManager.Get(room.Id)
+			cacheRoom := m.remoteRoomCache.Get(room.Id)
 			if cacheRoom == nil {
 				continue
 			}
 			logger.Infof("Redis cache delete remote room %s", room.Id)
-			m.remoteManager.Delete(room)
+			m.remoteRoomCache.Delete(room)
 			req := m.createRoomEventRequest(room.Id, model.LeaveEvent)
 			if err := m.publishRequest(&req); err != nil {
 				logger.Errorf("Redis cache send leave event for room %s err: %s", room.Id, err)
@@ -329,7 +329,7 @@ func (m *redisRoomManager) run() {
 					}
 					userInputChan := make(chan *model.RoomMessage)
 					room := CreateRoom(req.RoomId, userInputChan)
-					m.remoteManager.Add(room)
+					m.remoteRoomCache.Add(room)
 					s := &redisChannel{
 						roomId:       req.RoomId,
 						writeChannel: writeChannel,
@@ -379,7 +379,7 @@ func (m *redisRoomManager) run() {
 					}
 
 					// 如果是当前节点 KoKo 创建的session
-					if r := m.localManager.Get(req.RoomId); r != nil {
+					if r := m.localRoomCache.Get(req.RoomId); r != nil {
 						redisCon, err := m.connFunc("", "")
 						if err != nil {
 							logger.Errorf("Redis cache create redis conn for request %s err %s", req.ReqId, err)
@@ -424,9 +424,9 @@ func (m *redisRoomManager) run() {
 					}
 
 				case model.ExitEvent:
-					if room := m.remoteManager.Get(req.RoomId); room != nil {
+					if room := m.remoteRoomCache.Get(req.RoomId); room != nil {
 						logger.Infof("Event channel receive room %s exit", req.RoomId)
-						m.remoteManager.Delete(room)
+						m.remoteRoomCache.Delete(room)
 					}
 				default:
 					logger.Infof("Event channel receive unhandled event %s: %v", req.Event, req)
