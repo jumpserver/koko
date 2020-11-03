@@ -1,7 +1,7 @@
 package exchange
 
-func newLocalCache() *localCache {
-	l := &localCache{
+func newLocalManager() *localRoomManager {
+	l := &localRoomManager{
 		caches:     make(map[string]*Room),
 		storeChan:  make(chan *Room),
 		leaveChan:  make(chan *Room),
@@ -13,7 +13,7 @@ func newLocalCache() *localCache {
 
 }
 
-type localCache struct {
+type localRoomManager struct {
 	caches map[string]*Room
 
 	storeChan chan *Room
@@ -25,7 +25,7 @@ type localCache struct {
 	resultChan chan *Room
 }
 
-func (l *localCache) run() {
+func (l *localRoomManager) run() {
 	for {
 		select {
 		case s := <-l.storeChan:
@@ -40,15 +40,15 @@ func (l *localCache) run() {
 	}
 }
 
-func (l localCache) Add(s *Room) {
+func (l localRoomManager) Add(s *Room) {
 	l.storeChan <- s
 }
 
-func (l localCache) Delete(s *Room) {
+func (l localRoomManager) Delete(s *Room) {
 	l.leaveChan <- s
 }
 
-func (l localCache) Get(sid string) *Room {
+func (l localRoomManager) Get(sid string) *Room {
 	l.checkChan <- sid
 	return <-l.resultChan
 }

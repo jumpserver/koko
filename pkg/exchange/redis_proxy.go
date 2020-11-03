@@ -14,7 +14,7 @@ func proxyRoom(room *Room, ch *redisChannel, userInputCh chan *model.RoomMessage
 	tick := time.NewTicker(time.Second * 30)
 	defer tick.Stop()
 	defer func() {
-		ch.exc.removeProxyRoomChan <- room
+		ch.manager.removeProxyRoomChan <- room
 		err := ch.Close() // 关闭连接
 		if err != nil {
 			logger.Errorf("Redis channel close err: %s", err)

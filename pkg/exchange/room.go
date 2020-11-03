@@ -13,15 +13,15 @@ import (
 	"github.com/jumpserver/koko/pkg/model"
 )
 
-type roomCache interface {
+type roomManager interface {
 	Add(s *Room)
 	Delete(s *Room)
 	Get(sid string) *Room
 }
 
 var (
-	_ roomCache = (*localCache)(nil)
-	_ roomCache = (*redisCache)(nil)
+	_ roomManager = (*localRoomManager)(nil)
+	_ roomManager = (*redisRoomManager)(nil)
 )
 
 func CreateRoom(id string, inChan chan *model.RoomMessage) *Room {

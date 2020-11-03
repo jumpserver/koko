@@ -45,7 +45,7 @@ type Config struct {
 	DBIndex uint64
 }
 
-func newRedisCache(cfg Config) (*redisCache, error) {
+func newRedisManager(cfg Config) (*redisRoomManager, error) {
 	if cfg.Network == "" {
 		cfg.Network = "tcp"
 	}
@@ -111,12 +111,12 @@ func newRedisCache(cfg Config) (*redisCache, error) {
 		return nil, err
 	}
 
-	exc := &redisCache{
+	m := &redisRoomManager{
 		Id:                     uuid.NewV4().String(),
 		pool:                   pool,
 		connFunc:               connFunc,
-		localCache:             newLocalCache(),
-		remoteCache:            newLocalCache(),
+		localManager:           newLocalManager(),
+		remoteManager:          newLocalManager(),
 		pubSub:                 pubSub,
 		subscribeEventsMsgCh:   redisMsgCh,
 		reqChan:                make(chan *subscribeRequest),
@@ -125,16 +125,16 @@ func newRedisCache(cfg Config) (*redisCache, error) {
 		responseChan:           make(chan chan *subscribeResponse),
 		removeRedisUserConChan: make(chan *redisChannel),
 	}
-	go exc.run()
-	return exc, nil
+	go m.run()
+	return m, nil
 }
 
-type redisCache struct {
-	Id          string
-	pool        *radix.Pool
-	connFunc    radix.ConnFunc
-	localCache  *localCache
-	remoteCache *localCache
+type redisRoomManager struct {
+	Id            string
+	pool          *radix.Pool
+	connFunc      radix.ConnFunc
+	localManager  *localRoomManager
+	remoteManager *localRoomManager
 
 	subscribeEventsMsgCh chan radix.PubSubMessage
 	pubSub               radix.PubSubConn
@@ -150,29 +150,29 @@ type redisCache struct {
 	removeProxyRoomChan chan *Room
 }
 
-func (c *redisCache) Add(s *Room) {
-	c.localCache.Add(s)
-	c.storeRoomId(s.Id)
+func (m *redisRoomManager) Add(s *Room) {
+	m.localManager.Add(s)
+	m.storeRoomId(s.Id)
 }
 
-func (c *redisCache) Delete(s *Room) {
-	c.localCache.Delete(s)
-	c.removeRoomId(s.Id)
+func (m *redisRoomManager) Delete(s *Room) {
+	m.localManager.Delete(s)
+	m.removeRoomId(s.Id)
 }
 
-func (c *redisCache) Get(sid string) *Room {
-	if r := c.localCache.Get(sid); r != nil {
+func (m *redisRoomManager) Get(sid string) *Room {
+	if r := m.localManager.Get(sid); r != nil {
 		return r
 	}
-	if ok := c.checkRoomExist(sid); ok {
-		return c.getRemoteSessionRoom(sid)
+	if ok := m.checkRoomExist(sid); ok {
+		return m.getRemoteSessionRoom(sid)
 	}
 	return nil
 }
 
-func (c *redisCache) checkRoomExist(roomId string) bool {
+func (m *redisRoomManager) checkRoomExist(roomId string) bool {
 	var countInt int
-	err := c.pool.Do(radix.Cmd(&countInt, "SISMEMBER", globalRoomsKey, roomId))
+	err := m.pool.Do(radix.Cmd(&countInt, "SISMEMBER", globalRoomsKey, roomId))
 	if err != nil {
 		logger.Errorf("Redis cache check room err: %s", roomId, err)
 		return false
@@ -181,8 +181,8 @@ func (c *redisCache) checkRoomExist(roomId string) bool {
 }
 
 // 全局 加入room
-func (c *redisCache) storeRoomId(roomId string) {
-	err := c.pool.Do(radix.Cmd(nil, "SADD", globalRoomsKey, roomId))
+func (m *redisRoomManager) storeRoomId(roomId string) {
+	err := m.pool.Do(radix.Cmd(nil, "SADD", globalRoomsKey, roomId))
 	if err != nil {
 		logger.Errorf("Redis Cache store room %s err: %s", roomId, err)
 		return
@@ -191,16 +191,16 @@ func (c *redisCache) storeRoomId(roomId string) {
 }
 
 // 全局 删除room
-func (c *redisCache) removeRoomId(roomId string) {
-	err := c.pool.Do(radix.Cmd(nil, "SREM", globalRoomsKey, roomId))
+func (m *redisRoomManager) removeRoomId(roomId string) {
+	err := m.pool.Do(radix.Cmd(nil, "SREM", globalRoomsKey, roomId))
 	if err != nil {
 		logger.Errorf("Redis cache remove room %s err: %s", roomId, err)
 	} else {
 		logger.Debugf("Redis cache remove room %s success", roomId)
 	}
 	// 发布退出事件
-	req := c.createRoomEventRequest(roomId, model.ExitEvent)
-	_, err = c.sendRequest(&req)
+	req := m.createRoomEventRequest(roomId, model.ExitEvent)
+	_, err = m.sendRequest(&req)
 	if err != nil {
 		logger.Errorf("Redis cache publish room %s exit event err: %s", roomId, err)
 	} else {
@@ -208,12 +208,12 @@ func (c *redisCache) removeRoomId(roomId string) {
 	}
 }
 
-func (c *redisCache) publishCommand(channel string, p []byte) error {
+func (m *redisRoomManager) publishCommand(channel string, p []byte) error {
 	cmd := radix.FlatCmd(nil, "PUBLISH", channel, p)
-	return c.pool.Do(cmd)
+	return m.pool.Do(cmd)
 }
 
-func (c *redisCache) run() {
+func (m *redisRoomManager) run() {
 
 	requestsMap := make(map[string]chan *subscribeResponse)
 
@@ -222,13 +222,13 @@ func (c *redisCache) run() {
 
 	for {
 		select {
-		case req := <-c.reqChan:
+		case req := <-m.reqChan:
 			responseChan := make(chan *subscribeResponse, 1)
-			c.responseChan <- responseChan
+			m.responseChan <- responseChan
 			switch req.Event {
 			case model.JoinEvent:
 				//	校验本地 是否已经存在
-				if room := c.remoteCache.Get(req.RoomId); room != nil {
+				if room := m.remoteManager.Get(req.RoomId); room != nil {
 					logger.Debugf("Redis cache already create room %s", req.RoomId)
 					responseChan <- &subscribeResponse{
 						Req:  req,
@@ -238,7 +238,7 @@ func (c *redisCache) run() {
 					continue
 				}
 				// 本地不存在则发送请求信号
-				if err := c.publishRequest(req); err != nil {
+				if err := m.publishRequest(req); err != nil {
 					logger.Debugf("Redis cache send request join room %s err: %s", req.RoomId, err)
 					responseChan <- &subscribeResponse{
 						Req:  req,
@@ -249,7 +249,7 @@ func (c *redisCache) run() {
 				}
 				requestsMap[req.ReqId] = responseChan //不阻塞 等待返回结果
 			case model.ExitEvent:
-				if err := c.publishRequest(req); err != nil {
+				if err := m.publishRequest(req); err != nil {
 					responseChan <- &subscribeResponse{
 						Req: req,
 						err: err,
@@ -264,28 +264,28 @@ func (c *redisCache) run() {
 			}
 			logger.Debugf("Redis cache send event %s for room %s", req.Event, req.RoomId)
 
-		case req := <-c.reqCancelChan:
+		case req := <-m.reqCancelChan:
 			delete(requestsMap, req.ReqId)
 			logger.Debugf("Redis cache cancel request %s", req.ReqId)
 
-		case redisUserCon := <-c.removeRedisUserConChan:
+		case redisUserCon := <-m.removeRedisUserConChan:
 			delete(redisUserCons, redisUserCon.roomId)
 
-		case room := <-c.removeProxyRoomChan:
-			cacheRoom := c.remoteCache.Get(room.Id)
+		case room := <-m.removeProxyRoomChan:
+			cacheRoom := m.remoteManager.Get(room.Id)
 			if cacheRoom == nil {
 				continue
 			}
 			logger.Infof("Redis cache delete remote room %s", room.Id)
-			c.remoteCache.Delete(room)
-			req := c.createRoomEventRequest(room.Id, model.LeaveEvent)
-			if err := c.publishRequest(&req); err != nil {
+			m.remoteManager.Delete(room)
+			req := m.createRoomEventRequest(room.Id, model.LeaveEvent)
+			if err := m.publishRequest(&req); err != nil {
 				logger.Errorf("Redis cache send leave event for room %s err: %s", room.Id, err)
 			} else {
 				logger.Debugf("Redis cache send leave event for room %s success", room.Id)
 			}
 
-		case redisMsg := <-c.subscribeEventsMsgCh:
+		case redisMsg := <-m.subscribeEventsMsgCh:
 			var req subscribeRequest
 			if err := json.Unmarshal(redisMsg.Message, &req); err != nil {
 				logger.Errorf("Redis cache unmarshal request msg err: %s", err)
@@ -308,7 +308,7 @@ func (c *redisCache) run() {
 					var res subscribeResponse
 					res.Req = &req
 
-					redisCon, err := c.connFunc("", "")
+					redisCon, err := m.connFunc("", "")
 					if err != nil {
 						logger.Errorf("Redis cache request %s create redis conn err: %s", req.ReqId, err)
 						res.err = err
@@ -329,14 +329,14 @@ func (c *redisCache) run() {
 					}
 					userInputChan := make(chan *model.RoomMessage)
 					room := CreateRoom(req.RoomId, userInputChan)
-					c.remoteCache.Add(room)
+					m.remoteManager.Add(room)
 					s := &redisChannel{
 						roomId:       req.RoomId,
 						writeChannel: writeChannel,
 						readChannel:  readChannel,
 						pubSub:       pubSub,
 						subMsgCh:     redisMsgCh,
-						exc:          c,
+						manager:      m,
 						done:         make(chan struct{}),
 						count:        make(chan int),
 					}
@@ -362,13 +362,13 @@ func (c *redisCache) run() {
 						continue
 					}
 					// 创建result channel的req
-					successReq := c.createRoomResultRequest(req.ReqId,
+					successReq := m.createRoomResultRequest(req.ReqId,
 						req.RoomId, model.JoinSuccessEvent)
 
 					// 本地是否已经创建过 redisUserCons
 					if srv, ok := redisUserCons[req.RoomId]; ok {
 						logger.Infof("Redis cache already create redis con for room %s", req.RoomId)
-						if err := c.publishRequest(&successReq); err != nil {
+						if err := m.publishRequest(&successReq); err != nil {
 							logger.Errorf("Redis cache reply request %s join event err %s", req.ReqId, err)
 						} else {
 							logger.Infof("Redis cache reply request %s join event", req.ReqId)
@@ -379,8 +379,8 @@ func (c *redisCache) run() {
 					}
 
 					// 如果是当前节点 KoKo 创建的session
-					if r := c.localCache.Get(req.RoomId); r != nil {
-						redisCon, err := c.connFunc("", "")
+					if r := m.localManager.Get(req.RoomId); r != nil {
+						redisCon, err := m.connFunc("", "")
 						if err != nil {
 							logger.Errorf("Redis cache create redis conn for request %s err %s", req.ReqId, err)
 							continue
@@ -401,14 +401,14 @@ func (c *redisCache) run() {
 							readChannel:  readChannel,
 							pubSub:       pubSub,
 							subMsgCh:     subMsgCh,
-							exc:          c,
+							manager:      m,
 							done:         make(chan struct{}),
 							count:        make(chan int),
 						}
 
 						redisUserCons[req.RoomId] = s
 						go proxyUserCon(r, s)
-						if err := c.publishRequest(&successReq); err != nil {
+						if err := m.publishRequest(&successReq); err != nil {
 							logger.Errorf("Redis cache reply request %s join event err %s", req.ReqId, err)
 						} else {
 							logger.Infof("Redis cache reply request %s join event", req.ReqId)
@@ -424,9 +424,9 @@ func (c *redisCache) run() {
 					}
 
 				case model.ExitEvent:
-					if room := c.remoteCache.Get(req.RoomId); room != nil {
+					if room := m.remoteManager.Get(req.RoomId); room != nil {
 						logger.Infof("Event channel receive room %s exit", req.RoomId)
-						c.remoteCache.Delete(room)
+						m.remoteManager.Delete(room)
 					}
 				default:
 					logger.Infof("Event channel receive unhandled event %s: %v", req.Event, req)
@@ -437,11 +437,11 @@ func (c *redisCache) run() {
 	}
 }
 
-func (c *redisCache) getRemoteSessionRoom(roomId string) *Room {
+func (m *redisRoomManager) getRemoteSessionRoom(roomId string) *Room {
 	logger.Infof("Waiting subscribe remote room %s result", roomId)
 
-	req := c.createRoomEventRequest(roomId, model.JoinEvent)
-	res, err := c.sendJoinRequest(&req)
+	req := m.createRoomEventRequest(roomId, model.JoinEvent)
+	res, err := m.sendJoinRequest(&req)
 	if err != nil {
 		logger.Errorf("get remote session room err: %s", err)
 		return nil
@@ -449,23 +449,23 @@ func (c *redisCache) getRemoteSessionRoom(roomId string) *Room {
 	return res.room
 }
 
-func (c *redisCache) uniqueReqId(sid string) string {
-	return fmt.Sprintf("%d:%s:%s", time.Now().Unix(), c.Id, sid)
+func (m *redisRoomManager) uniqueReqId(sid string) string {
+	return fmt.Sprintf("%d:%s:%s", time.Now().Unix(), m.Id, sid)
 }
 
-func (c *redisCache) sendJoinRequest(req *subscribeRequest) (*subscribeResponse, error) {
-	return c.sendRequest(req)
+func (m *redisRoomManager) sendJoinRequest(req *subscribeRequest) (*subscribeResponse, error) {
+	return m.sendRequest(req)
 }
 
-func (c *redisCache) sendRequest(req *subscribeRequest) (*subscribeResponse, error) {
+func (m *redisRoomManager) sendRequest(req *subscribeRequest) (*subscribeResponse, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
-	c.reqChan <- req
-	resultChan := <-c.responseChan
+	m.reqChan <- req
+	resultChan := <-m.responseChan
 	select {
 	case <-ctx.Done():
 		select {
-		case c.reqCancelChan <- req:
+		case m.reqCancelChan <- req:
 
 		case res := <-resultChan:
 			return res, res.err
@@ -476,21 +476,21 @@ func (c *redisCache) sendRequest(req *subscribeRequest) (*subscribeResponse, err
 	return nil, fmt.Errorf("Redis cache send request event %s time out ", req.Event)
 }
 
-func (c *redisCache) publishRequest(req *subscribeRequest) error {
+func (m *redisRoomManager) publishRequest(req *subscribeRequest) error {
 	body, _ := json.Marshal(req)
-	return c.publishCommand(req.Channel, body)
+	return m.publishCommand(req.Channel, body)
 }
 
-func (c *redisCache) createRoomEventRequest(roomId, event string) subscribeRequest {
+func (m *redisRoomManager) createRoomEventRequest(roomId, event string) subscribeRequest {
 	return subscribeRequest{
-		ReqId:   c.uniqueReqId(roomId),
+		ReqId:   m.uniqueReqId(roomId),
 		RoomId:  roomId,
 		Event:   event,
 		Channel: eventsChannel,
 	}
 }
 
-func (c *redisCache) createRoomResultRequest(reqId, roomId, event string) subscribeRequest {
+func (m *redisRoomManager) createRoomResultRequest(reqId, roomId, event string) subscribeRequest {
 	return subscribeRequest{
 		ReqId:   reqId,
 		RoomId:  roomId,

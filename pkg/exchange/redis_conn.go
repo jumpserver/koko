@@ -20,7 +20,7 @@ type redisChannel struct {
 
 	pubSub radix.PubSubConn
 
-	exc *redisCache
+	manager *redisRoomManager
 
 	subMsgCh chan radix.PubSubMessage
 
@@ -43,7 +43,7 @@ func (s *redisChannel) Write(p []byte) (int, error) {
 }
 
 func (s *redisChannel) sendMessage(msg *model.RoomMessage) error {
-	err := s.exc.publishCommand(s.writeChannel, msg.Marshal())
+	err := s.manager.publishCommand(s.writeChannel, msg.Marshal())
 	if err != nil {
 		logger.Errorf("Redis send message to room %s err: %s", s.roomId, err)
 	}
