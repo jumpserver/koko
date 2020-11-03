@@ -7,11 +7,11 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/mediocregopher/radix/v3"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/mediocregopher/radix/v3"
 )
 
 const (

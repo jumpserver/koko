@@ -4,9 +4,10 @@ import (
 	"io"
 	"sync"
 
+	"github.com/mediocregopher/radix/v3"
+
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/mediocregopher/radix/v3"
 )
 
 var _ io.WriteCloser = (*redisChannel)(nil)
