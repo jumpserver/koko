@@ -99,15 +99,6 @@ func GetAsset(assetID string) (asset model.Asset) {
 	return
 }
 
-func GetDomainWithGateway(gID string) (domain model.Domain) {
-	url := fmt.Sprintf(DomainDetailURL, gID)
-	_, err := authClient.Get(url, &domain)
-	if err != nil {
-		logger.Errorf("Get domain %s failed: %s", gID, err)
-	}
-	return
-}
-
 func GetTokenAsset(token string) (tokenUser model.TokenUser) {
 	Url := fmt.Sprintf(TokenAssetURL, token)
 	_, err := authClient.Get(Url, &tokenUser)

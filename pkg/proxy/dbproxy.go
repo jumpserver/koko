@@ -21,7 +21,7 @@ var _ proxyEngine = (*DBProxyServer)(nil)
 type DBProxyServer struct {
 	UserConn   UserConnection
 	User       *model.User
-	Database   *model.Database
+	Database   *model.DatabaseApplication
 	SystemUser *model.SystemUser
 }
 
@@ -72,11 +72,11 @@ func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 }
 
 func (p *DBProxyServer) checkProtocolMatch() bool {
-	return strings.EqualFold(p.Database.DBType, p.SystemUser.Protocol)
+	return strings.EqualFold(p.Database.TypeName, p.SystemUser.Protocol)
 }
 
 func (p *DBProxyServer) checkProtocolClientInstalled() bool {
-	switch strings.ToLower(p.Database.DBType) {
+	switch strings.ToLower(p.Database.TypeName) {
 	case "mysql":
 		return IsInstalledMysqlClient()
 	}
@@ -86,17 +86,17 @@ func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *DBProxyServer) validatePermission() bool {
-	return service.ValidateUserDatabasePermission(p.User.ID, p.Database.ID, p.SystemUser.ID)
+	return service.ValidateUserApplicationPermission(p.User.ID, p.Database.Id, p.SystemUser.ID)
 }
 
 // getSSHConn 获取ssh连接
 func (p *DBProxyServer) getMysqlConn() (srvConn *srvconn.ServerMysqlConnection, err error) {
 	srvConn = srvconn.NewMysqlServer(
-		srvconn.SqlHost(p.Database.Host),
-		srvconn.SqlPort(p.Database.Port),
+		srvconn.SqlHost(p.Database.Attrs.Host),
+		srvconn.SqlPort(p.Database.Attrs.Port),
 		srvconn.SqlUsername(p.SystemUser.Username),
 		srvconn.SqlPassword(p.SystemUser.Password),
-		srvconn.SqlDBName(p.Database.DBName),
+		srvconn.SqlDBName(p.Database.Attrs.Database),
 	)
 	err = srvConn.Connect()
 	return
@@ -136,7 +136,7 @@ func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time
 func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 	if !p.checkProtocolMatch() {
 		msg := utils.WrapperWarn(i18n.T("System user <%s> and database <%s> protocol are inconsistent."))
-		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Database.DBType)
+		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Database.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
 		return
@@ -144,7 +144,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 	logger.Infof("Conn[%s] System user and asset protocol matched", p.UserConn.ID())
 	if !p.checkProtocolClientInstalled() {
 		msg := utils.WrapperWarn(i18n.T("Database %s protocol client not installed."))
-		msg = fmt.Sprintf(msg, p.Database.DBType)
+		msg = fmt.Sprintf(msg, p.Database.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking permission failed.", p.UserConn.ID())
 		return
@@ -166,7 +166,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *DBProxyServer) checkRequiredAuth() error {
-	info := service.GetSystemUserDatabaseAuthInfo(p.SystemUser.ID)
+	info := service.GetApplicationSystemUserAuthInfo(p.SystemUser.ID)
 	p.SystemUser.Password = info.Password
 	logger.Infof("Conn[%s] get database %s auth info from core server success",
 		p.UserConn.ID(), p.Database.Name)
@@ -187,7 +187,7 @@ func (p *DBProxyServer) checkRequiredAuth() error {
 
 // sendConnectErrorMsg 发送连接错误消息
 func (p *DBProxyServer) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("Connect database %s error: %s\r\n", p.Database.Host, err)
+	msg := fmt.Sprintf("Connect database %s error: %s\r\n", p.Database.Attrs.Host, err)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	logger.Error(msg)
 	password := p.SystemUser.Password
@@ -235,7 +235,7 @@ func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output str
 	riskLevel int64) *model.Command {
 	return &model.Command{
 		SessionID:  s.ID,
-		OrgID:      p.Database.OrgID,
+		OrgID:      p.Database.OrgId,
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
@@ -270,7 +270,7 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
 		"asset":          p.Database.Name,
-		"org_id":         p.Database.OrgID,
+		"org_id":         p.Database.OrgId,
 		"login_from":     p.UserConn.LoginFrom(),
 		"system_user":    p.SystemUser.Username,
 		"protocol":       p.SystemUser.Protocol,
@@ -279,7 +279,7 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"date_start":     s.DateStart,
 		"date_end":       dataEnd,
 		"user_id":        p.User.ID,
-		"asset_id":       p.Database.ID,
+		"asset_id":       p.Database.Id,
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}

@@ -27,8 +27,8 @@ type tty struct {
 	wg         sync.WaitGroup
 	systemUser *model.SystemUser
 	assetApp   *model.Asset
-	k8sApp     *model.K8sCluster
-	dbApp      *model.Database
+	k8sApp     *model.K8sApplication
+	dbApp      *model.DatabaseApplication
 
 	backendClient *Client
 }
@@ -139,14 +139,14 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 func (h *tty) getApp() bool {
 	switch h.getAppType() {
 	case AppTypeDB:
-		databaseAsset := service.GetDatabase(h.targetId)
-		if databaseAsset.ID != "" {
+		databaseAsset := service.GetMySQLApplication(h.targetId)
+		if databaseAsset.Id != "" {
 			h.dbApp = &databaseAsset
 			return true
 		}
 	case AppTypeK8s:
-		k8sCluster := service.GetK8sCluster(h.targetId)
-		if k8sCluster.ID != "" {
+		k8sCluster := service.GetK8sApplication(h.targetId)
+		if k8sCluster.Id != "" {
 			h.k8sApp = &k8sCluster
 			return true
 		}

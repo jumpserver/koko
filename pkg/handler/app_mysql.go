@@ -13,44 +13,45 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteK8s(reqParam model.PaginationParam) []map[string]interface{} {
-	res := service.GetUserPermsK8s(u.user.ID, reqParam)
+func (u *UserSelectHandler) retrieveRemoteMySQL(reqParam model.PaginationParam) []map[string]interface{} {
+	res := service.GetUserPermsMySQL(u.user.ID, reqParam)
 	return u.updateRemotePageData(reqParam, res)
 }
 
-func (u *UserSelectHandler) searchLocalK8s(searches ...string) []map[string]interface{} {
+func (u *UserSelectHandler) searchLocalMySQL(searches ...string) []map[string]interface{} {
 	/*
-		{
-		            "id": "0a318338-65ca-4e33-80ec-daf11d6d6c9a",
-		            "name": "kube",
-		            "domain": null,
-		            "category": "cloud",
-		            "type": "k8s",
-		            "attrs": {
-		                "cluster": "https://127.0.0.1:8443"
-		            },
-		            "comment": "https://127.0.0.1:8443",
-		            "org_id": "",
-		            "category_display": "Cloud",
-		            "type_display": "Kubernetes",
-		            "org_name": "DEFAULT"
-		        }
+	   	  {
+	                  "id": "2b8f37ad-1580-4275-962a-7ea0f53c40b3",
+	                  "name": "www",
+	                  "domain": null,
+	                  "category": "db",
+	                  "type": "mysql",
+	                  "attrs": {
+	                      "host": "www",
+	                      "port": 32342,
+	                      "database": null
+	                  },
+	                  "comment": "",
+	                  "org_id": "",
+	                  "category_display": "数据库",
+	                  "type_display": "MySQL",
+	                  "org_name": "DEFAULT"
+	              }
 	*/
-	//searchFields := []string{"name", "cluster", "comment"}
-
 	fields := map[string]struct{}{
-		"name":    {},
-		"cluster": {},
-		"comment": {},
+		"name":     {},
+		"host":     {},
+		"database": {},
+		"comment":  {},
 	}
 	return u.searchLocalFromFields(fields, searches...)
 }
 
-func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
+func (u *UserSelectHandler) displayMySQLResult(searchHeader string) {
 	currentDBS := u.currentResult
 	term := u.h.term
 	if len(currentDBS) == 0 {
-		_, _ = term.Write([]byte(i18n.T("No kubernetes") + "\n\r"))
+		_, _ = term.Write([]byte(i18n.T("No Databases") + "\n\r"))
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		return
@@ -63,21 +64,26 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 
 	idLabel := i18n.T("ID")
 	nameLabel := i18n.T("Name")
-	clusterLabel := i18n.T("Cluster")
+	ipLabel := i18n.T("IP")
+	dbTypeLabel := i18n.T("DBType")
+	dbNameLabel := i18n.T("DB Name")
 	commentLabel := i18n.T("Comment")
 
-	Labels := []string{idLabel, nameLabel, clusterLabel, commentLabel}
-	fields := []string{"ID", "Name", "Cluster", "Comment"}
+	Labels := []string{idLabel, nameLabel, ipLabel,
+		dbTypeLabel, dbNameLabel, commentLabel}
+	fields := []string{"ID", "Name", "IP", "DBType", "DBName", "Comment"}
 	data := make([]map[string]string, len(currentDBS))
 	for i, j := range currentDBS {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		filedMap := map[string]string{
-			"name":    "Name",
-			"cluster": "Cluster",
-			"comment": "Comment",
-		}
-		row = convertMapItemToRow(j, filedMap, row)
+		fieldsMap := map[string]string{
+			"name":     "Name",
+			"host":     "IP",
+			"type":     "DBType",
+			"database": "DBName",
+			"comment":  "Comment"}
+		row = convertMapItemToRow(j, fieldsMap, row)
+		// 特殊处理 comment
 		row["Comment"] = joinMultiLineString(row["Comment"])
 		data[i] = row
 	}
@@ -93,7 +99,9 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 		FieldsSize: map[string][3]int{
 			"ID":      {0, 0, 5},
 			"Name":    {0, 8, 0},
-			"Cluster": {0, 20, 0},
+			"IP":      {0, 15, 40},
+			"DBType":  {0, 8, 0},
+			"DBName":  {0, 8, 0},
 			"Comment": {0, 0, 0},
 		},
 		Data:        data,
@@ -102,10 +110,10 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
-
-	loginTip := i18n.T("Enter ID number directly login the kubernetes, multiple search use // + field, such as: //16")
+	loginTip := i18n.T("Enter ID number directly login the database, multiple search use // + field, such as: //16")
 	pageActionTip := i18n.T("Page up: b	Page down: n")
 	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
+
 	_, _ = term.Write([]byte(utils.CharClear))
 	_, _ = term.Write([]byte(table.Display()))
 	utils.IgnoreErrWriteString(term, utils.WrapperString(actionTip, utils.Green))
@@ -114,22 +122,22 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
 }
 
-func (u *UserSelectHandler) proxyK8s(k8sApp model.K8sApplication) {
-	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, k8sApp.Id)
+func (u *UserSelectHandler) proxyMySQL(dbApp model.DatabaseApplication) {
+	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, dbApp.Id)
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {
 		return
 	}
-
-	p := proxy.K8sProxyServer{
+	p := proxy.DBProxyServer{
 		UserConn:   u.h.sess,
 		User:       u.h.user,
-		Cluster:    &k8sApp,
+		Database:   &dbApp,
 		SystemUser: &selectedSystemUser,
 	}
 	u.h.pauseWatchWinSize()
 	p.Proxy()
 	u.h.resumeWatchWinSize()
-	logger.Infof("Request %s: k8s %s proxy end", u.h.sess.Uuid, k8sApp.Name)
+	logger.Infof("Request %s: database %s proxy end", u.h.sess.Uuid, dbApp.Name)
+
 }

@@ -14,7 +14,7 @@ import (
 
 func (h *interactiveHandler) Dispatch() {
 	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
-	var currentApp Application
+	var initialed bool
 	for {
 		line, err := h.term.ReadLine()
 		if err != nil {
@@ -22,41 +22,42 @@ func (h *interactiveHandler) Dispatch() {
 			break
 		}
 		line = strings.TrimSpace(line)
+		if len(line) == 0 {
+			// 当 只是回车 空字符单独处理
+			if initialed {
+				h.selectHandler.MoveNextPage()
+			} else {
+				h.selectHandler.SetSelectType(TypeAsset)
+				h.selectHandler.Search("")
+			}
+			initialed = true
+			continue
+		}
+		initialed = true
 		switch len(line) {
-		case 0, 1:
+		case 1:
 			switch strings.ToLower(line) {
 			case "p":
-				currentApp = h.getAssetApp()
-				currentApp.Search("")
+				h.selectHandler.SetSelectType(TypeAsset)
+				h.selectHandler.Search("")
 				continue
 			case "b":
-				if currentApp != nil {
-					currentApp.MovePrePage()
-					continue
-				}
+				h.selectHandler.MovePrePage()
+				continue
 			case "d":
-				currentApp = h.getDatabaseApp()
-				currentApp.Search("")
+				h.selectHandler.SetSelectType(TypeMySQL)
+				h.selectHandler.Search("")
 				continue
 			case "n":
-				if currentApp != nil {
-					currentApp.MoveNextPage()
-					continue
-				}
-			case "":
-				if currentApp != nil {
-					currentApp.MoveNextPage()
-				} else {
-					currentApp = h.getAssetApp()
-					currentApp.Search("")
-				}
+				h.selectHandler.MoveNextPage()
 				continue
 			case "g":
+				h.wg.Wait() // 等待node加载完成
 				h.displayNodeTree(h.nodes)
 				continue
 			case "h":
 				h.displayBanner()
-				currentApp = nil
+				initialed = false
 				continue
 			case "r":
 				h.refreshAssetsAndNodesData()
@@ -65,8 +66,8 @@ func (h *interactiveHandler) Dispatch() {
 				logger.Infof("user %s enter %s to exit", h.user.Name, line)
 				return
 			case "k":
-				currentApp = h.getK8sApp()
-				currentApp.Search("")
+				h.selectHandler.SetSelectType(TypeK8s)
+				h.selectHandler.Search("")
 				continue
 			}
 		default:
@@ -77,24 +78,20 @@ func (h *interactiveHandler) Dispatch() {
 			case strings.Index(line, "/") == 0:
 				if strings.Index(line[1:], "/") == 0 {
 					line = strings.TrimSpace(line[2:])
-					if currentApp != nil {
-						currentApp.SearchAgain(line)
-						continue
-					}
+					h.selectHandler.SearchAgain(line)
+					continue
 				}
 				line = strings.TrimSpace(line[1:])
-				if currentApp == nil {
-					currentApp = h.getAssetApp()
-				}
-				currentApp.Search(line)
+				h.selectHandler.Search(line)
 				continue
 			case strings.Index(line, "g") == 0:
 				searchWord := strings.TrimSpace(strings.TrimPrefix(line, "g"))
 				if num, err := strconv.Atoi(searchWord); err == nil {
-					<-h.firstLoadDone
+					h.wg.Wait() // 等待node加载完成
 					if num > 0 && num <= len(h.nodes) {
-						currentApp = h.getNodeAssetApp(h.nodes[num-1])
-						currentApp.Search("")
+						selectedNode := h.nodes[num-1]
+						h.selectHandler.SetNode(selectedNode)
+						h.selectHandler.Search("")
 						continue
 					}
 				}
@@ -104,11 +101,7 @@ func (h *interactiveHandler) Dispatch() {
 				continue
 			}
 		}
-
-		if currentApp == nil {
-			currentApp = h.getAssetApp()
-		}
-		currentApp.SearchOrProxy(line)
+		h.selectHandler.SearchOrProxy(line)
 	}
 }
 
@@ -120,74 +113,6 @@ func (h *interactiveHandler) displayNodeTree(nodes model.NodeList) {
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}
-}
-
-func (h *interactiveHandler) getAssetApp() Application {
-	var eng AssetEngine
-	switch h.assetLoadPolicy {
-	case "all":
-		<-h.firstLoadDone
-		eng = &localAssetEngine{
-			data:     h.allAssets,
-			pageInfo: &pageInfo{},
-		}
-	default:
-		eng = &remoteAssetEngine{
-			user:     h.user,
-			pageInfo: &pageInfo{},
-		}
-	}
-	app := AssetApplication{
-		h:          h,
-		engine:     eng,
-		searchKeys: make([]string, 0),
-	}
-	h.term.SetPrompt("[Host]> ")
-	return &app
-}
-
-func (h *interactiveHandler) getNodeAssetApp(node model.Node) Application {
-	eng := &remoteNodeAssetEngine{
-		user:     h.user,
-		node:     node,
-		pageInfo: &pageInfo{},
-	}
-	app := AssetApplication{
-		h:          h,
-		engine:     eng,
-		searchKeys: make([]string, 0),
-	}
-	h.term.SetPrompt("[Host]> ")
-	return &app
-}
-
-func (h *interactiveHandler) getDatabaseApp() Application {
-	allDBs := service.GetUserDatabases(h.user.ID)
-	eng := &localDatabaseEngine{
-		data:     allDBs,
-		pageInfo: &pageInfo{},
-	}
-	app := DatabaseApplication{
-		h:          h,
-		engine:     eng,
-		searchKeys: make([]string, 0),
-	}
-	h.term.SetPrompt("[DB]> ")
-	return &app
-}
-
-func (h *interactiveHandler) getK8sApp() Application {
-	eng := &remoteK8sEngine{
-		user:     h.user,
-		pageInfo: &pageInfo{},
-	}
-	app := K8sApplication{
-		h:          h,
-		engine:     eng,
-		searchKeys: make([]string, 0),
-	}
-	h.term.SetPrompt("[K8S]> ")
-	return &app
 }
 
 func (h *interactiveHandler) CheckShareRoomWritePerm(shareRoomID string) bool {
