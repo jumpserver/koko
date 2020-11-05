@@ -21,16 +21,16 @@ var _ proxyEngine = (*K8sProxyServer)(nil)
 type K8sProxyServer struct {
 	UserConn   UserConnection
 	User       *model.User
-	Cluster    *model.K8sCluster
+	Cluster    *model.K8sApplication
 	SystemUser *model.SystemUser
 }
 
 func (p *K8sProxyServer) checkProtocolMatch() bool {
-	return strings.EqualFold(p.Cluster.Type, p.SystemUser.Protocol)
+	return strings.EqualFold(p.Cluster.TypeName, p.SystemUser.Protocol)
 }
 
 func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
-	switch strings.ToLower(p.Cluster.Type) {
+	switch strings.ToLower(p.Cluster.TypeName) {
 	case "k8s":
 		return IsInstalledKubectlClient()
 	}
@@ -39,14 +39,14 @@ func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *K8sProxyServer) validatePermission() bool {
-	return service.ValidateUserK8sPermission(p.User.ID, p.Cluster.ID, p.SystemUser.ID)
+	return service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.Id, p.SystemUser.ID)
 }
 
 // getSSHConn 获取ssh连接
 func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
 	srvConn = srvconn.NewK8sCon(
 		srvconn.K8sToken(p.SystemUser.Token),
-		srvconn.K8sClusterServer(p.Cluster.Cluster),
+		srvconn.K8sClusterServer(p.Cluster.Attrs.Cluster),
 		srvconn.K8sUsername(p.SystemUser.Username),
 		srvconn.K8sSkipTls(true),
 	)
@@ -68,7 +68,7 @@ func (p *K8sProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err 
 // sendConnectingMsg 发送连接信息
 func (p *K8sProxyServer) sendConnectingMsg(done chan struct{}) {
 	delay := 0.1
-	msg := fmt.Sprintf(i18n.T("Connecting to Kubernetes %s %.1f"), p.Cluster.Cluster, delay)
+	msg := fmt.Sprintf(i18n.T("Connecting to Kubernetes %s %.1f"), p.Cluster.Attrs.Cluster, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for {
 		select {
@@ -88,7 +88,7 @@ func (p *K8sProxyServer) sendConnectingMsg(done chan struct{}) {
 func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 	if !p.checkProtocolMatch() {
 		msg := utils.WrapperWarn(i18n.T("System user <%s> and kubernetes <%s> protocol are inconsistent."))
-		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Cluster.Type)
+		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Cluster.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
 		return
@@ -96,7 +96,7 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 	logger.Infof("Conn[%s] System user and k8s protocol matched", p.UserConn.ID())
 	if !p.checkProtocolClientInstalled() {
 		msg := utils.WrapperWarn(i18n.T("%s protocol client not installed."))
-		msg = fmt.Sprintf(msg, p.Cluster.Type)
+		msg = fmt.Sprintf(msg, p.Cluster.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] %s", p.UserConn.ID(), msg)
 		return
@@ -104,35 +104,35 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
 	if !p.validatePermission() {
 		msg := utils.WrapperWarn(i18n.T("You don't have permission login %s"))
-		msg = fmt.Sprintf(msg, p.Cluster.Cluster)
+		msg = fmt.Sprintf(msg, p.Cluster.Attrs.Cluster)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] get k8s %s permission failed", p.UserConn.ID(), p.Cluster.Cluster)
+		logger.Errorf("Conn[%s] get k8s %s permission failed", p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 		return
 	}
-	logger.Infof("Conn[%s] has permission to access k8s %s", p.UserConn.ID(), p.Cluster.Cluster)
+	logger.Infof("Conn[%s] has permission to access k8s %s", p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 	if err := p.checkRequiredAuth(); err != nil {
 		msg := utils.WrapperWarn(i18n.T("You get auth token failed"))
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] get k8s %s auth info failed: %s", p.UserConn.ID(), p.Cluster.Cluster, err)
+		logger.Errorf("Conn[%s] get k8s %s auth info failed: %s", p.UserConn.ID(), p.Cluster.Attrs.Cluster, err)
 		return
 	}
 	return true
 }
 
 func (p *K8sProxyServer) checkRequiredAuth() error {
-	info := service.GetUserK8sAuthToken(p.SystemUser.ID)
+	info := service.GetApplicationSystemUserAuthInfo(p.SystemUser.ID)
 	if info.Token == "" {
 		return errors.New("no auth token")
 	}
 	p.SystemUser.Token = info.Token
 	logger.Infof("Conn[%s] get k8s %s auth info from JMS core success",
-		p.UserConn.ID(), p.Cluster.Cluster)
+		p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 	return nil
 }
 
 // sendConnectErrorMsg 发送连接错误消息
 func (p *K8sProxyServer) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("Connect K8s %s error: %s\r\n", p.Cluster.Cluster, err)
+	msg := fmt.Sprintf("Connect K8s %s error: %s\r\n", p.Cluster.Attrs.Cluster, err)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	logger.Error(msg)
 	token := p.SystemUser.Token
@@ -181,11 +181,11 @@ func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output st
 	riskLevel int64) *model.Command {
 	return &model.Command{
 		SessionID:  s.ID,
-		OrgID:      p.Cluster.OrgID,
+		OrgID:      p.Cluster.OrgId,
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
-		Server:     fmt.Sprintf("%s (%s)", p.Cluster.Name, p.Cluster.Cluster),
+		Server:     fmt.Sprintf("%s (%s)", p.Cluster.Name, p.Cluster.Attrs.Cluster),
 		SystemUser: fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
@@ -216,7 +216,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
 		"asset":          p.Cluster.Name,
-		"org_id":         p.Cluster.OrgID,
+		"org_id":         p.Cluster.OrgId,
 		"login_from":     p.UserConn.LoginFrom(),
 		"system_user":    fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		"protocol":       p.SystemUser.Protocol,
@@ -225,7 +225,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"date_start":     s.DateStart,
 		"date_end":       dataEnd,
 		"user_id":        p.User.ID,
-		"asset_id":       p.Cluster.ID,
+		"asset_id":       p.Cluster.Id,
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}

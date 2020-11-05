@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -55,13 +56,13 @@ type interactiveHandler struct {
 	term         *utils.Terminal
 	winWatchChan chan bool
 
-	nodes model.NodeList
+	selectHandler *UserSelectHandler
 
-	allAssets []model.Asset
+	nodes model.NodeList
 
 	assetLoadPolicy string
 
-	firstLoadDone chan struct{}
+	wg sync.WaitGroup
 }
 
 func (h *interactiveHandler) Initial() {
@@ -72,17 +73,26 @@ func (h *interactiveHandler) Initial() {
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.displayBanner()
 	h.winWatchChan = make(chan bool, 5)
-	h.firstLoadDone = make(chan struct{})
-	go h.firstLoadData()
+	h.selectHandler = &UserSelectHandler{
+		user:     h.user,
+		h:        h,
+		pageInfo: &pageInfo{},
+	}
+	switch h.assetLoadPolicy {
+	case "all":
+		allAssets := service.GetAllUserPermsAssets(h.user.ID)
+		h.selectHandler.SetAllLocalData(allAssets)
+	}
+	h.firstLoadData()
+
 }
 
 func (h *interactiveHandler) firstLoadData() {
-	h.loadUserNodes("1")
-	switch h.assetLoadPolicy {
-	case "all":
-		h.loadAllAssets()
-	}
-	close(h.firstLoadDone)
+	h.wg.Add(1)
+	go func() {
+		defer h.wg.Done()
+		h.loadUserNodes()
+	}()
 }
 
 func (h *interactiveHandler) displayBanner() {
@@ -221,23 +231,29 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
 	switch h.assetLoadPolicy {
 	case "all":
-		h.loadAllAssets()
+		h.wg.Add(1)
+		go func() {
+			defer h.wg.Done()
+			allAssets := service.GetAllUserPermsAssets(h.user.ID)
+			h.selectHandler.SetAllLocalData(allAssets)
+		}()
 	default:
-		_ = service.ForceRefreshUserPemAssets(h.user.ID)
+		// 异步获取资产已经是最新的了,不需要刷新
 	}
-	h.loadUserNodes("2")
+	h.wg.Add(1)
+	go func() {
+		defer h.wg.Done()
+		h.loadUserNodes()
+	}()
+	h.wg.Wait()
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
 	if err != nil {
-		logger.Error("refresh Assets  Nodes err:", err)
+		logger.Error("refresh Assets Nodes err:", err)
 	}
 }
 
-func (h *interactiveHandler) loadUserNodes(cachePolicy string) {
-	h.nodes = service.GetUserNodes(h.user.ID, cachePolicy)
-}
-
-func (h *interactiveHandler) loadAllAssets() {
-	h.allAssets = service.GetUserAllAssets(h.user.ID)
+func (h *interactiveHandler) loadUserNodes() {
+	h.nodes = service.GetUserNodes(h.user.ID)
 }
 
 func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
@@ -268,15 +284,6 @@ func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
 		}
 	}
 	return tree
-}
-
-func isSubstring(sArray []string, substr string) bool {
-	for _, s := range sArray {
-		if strings.Contains(s, substr) {
-			return true
-		}
-	}
-	return false
 }
 
 func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.SystemUser {
