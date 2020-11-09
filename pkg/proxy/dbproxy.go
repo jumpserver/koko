@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"os/exec"
 	"strings"
 	"time"
@@ -23,6 +24,8 @@ type DBProxyServer struct {
 	User       *model.User
 	Database   *model.DatabaseApplication
 	SystemUser *model.SystemUser
+
+	dGateway *domainGateway
 }
 
 func (p *DBProxyServer) getAuthOrManualSet() error {
@@ -91,9 +94,29 @@ func (p *DBProxyServer) validatePermission() bool {
 
 // getSSHConn 获取ssh连接
 func (p *DBProxyServer) getMysqlConn() (srvConn *srvconn.ServerMysqlConnection, err error) {
+	host := p.Database.Attrs.Host
+	port := p.Database.Attrs.Port
+	if p.Database.Domain != "" {
+		domain := service.GetDomainGateways(p.Database.Domain)
+		dGateway := domainGateway{
+			domain:  &domain,
+			dstIP:   p.Database.Attrs.Host,
+			dstPort: p.Database.Attrs.Port,
+		}
+		localAddr, err := dGateway.Start()
+		if err != nil {
+			logger.Errorf("DB %s use domain err: %s", p.Database.Name, err)
+			return nil, err
+		}
+		if tcpAddr, ok := localAddr.(*net.TCPAddr); ok {
+			host = "127.0.0.1"
+			port = tcpAddr.Port
+		}
+		p.dGateway = &dGateway
+	}
 	srvConn = srvconn.NewMysqlServer(
-		srvconn.SqlHost(p.Database.Attrs.Host),
-		srvconn.SqlPort(p.Database.Attrs.Port),
+		srvconn.SqlHost(host),
+		srvconn.SqlPort(port),
 		srvconn.SqlUsername(p.SystemUser.Username),
 		srvconn.SqlPassword(p.SystemUser.Password),
 		srvconn.SqlDBName(p.Database.Attrs.Database),
@@ -228,6 +251,9 @@ func (p *DBProxyServer) Proxy() {
 	logger.Infof("Conn[%s] get database conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end database session %s bridge", p.UserConn.ID(), sw.ID)
+	if p.dGateway != nil {
+		p.dGateway.Stop()
+	}
 
 }
 

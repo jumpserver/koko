@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +26,8 @@ type K8sProxyServer struct {
 	User       *model.User
 	Cluster    *model.K8sApplication
 	SystemUser *model.SystemUser
+
+	dGateway *domainGateway
 }
 
 func (p *K8sProxyServer) checkProtocolMatch() bool {
@@ -44,9 +49,52 @@ func (p *K8sProxyServer) validatePermission() bool {
 
 // getSSHConn 获取ssh连接
 func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
+	clusterServer := p.Cluster.Attrs.Cluster
+	if p.Cluster.Domain != "" {
+		if domain := service.GetDomainGateways(p.Cluster.Domain); domain.ID != "" {
+			clusterUrl, err := url.Parse(p.Cluster.Attrs.Cluster)
+			if err != nil {
+				logger.Errorf("K8s proxy parse %s url err: %s", p.Cluster.Attrs.Cluster, err)
+				return nil, err
+			}
+			// URL host 是包含port的结果
+			hostAndPort := strings.Split(clusterUrl.Host, ":")
+			var (
+				dstHost string
+				dstPort int
+			)
+			dstHost = hostAndPort[0]
+			switch len(hostAndPort) {
+			case 2:
+				dstPort, err = strconv.Atoi(hostAndPort[1])
+				if err != nil {
+					logger.Errorf("K8s proxy convert dst port %s err: %s", hostAndPort[1], err)
+					return nil, err
+				}
+			default:
+				switch clusterUrl.Scheme {
+				case "https":
+					dstPort = 443
+				default:
+					dstPort = 80
+				}
+			}
+			dGateway := domainGateway{
+				domain:  &domain,
+				dstIP:   dstHost,
+				dstPort: dstPort,
+			}
+			if localAddr, err := dGateway.Start(); err == nil {
+				tcpAddr := localAddr.(*net.TCPAddr)
+				clusterServer = ReplaceURLHostAndPort(clusterUrl, "127.0.0.1", tcpAddr.Port)
+				p.dGateway = &dGateway
+			}
+		}
+	}
+
 	srvConn = srvconn.NewK8sCon(
 		srvconn.K8sToken(p.SystemUser.Token),
-		srvconn.K8sClusterServer(p.Cluster.Attrs.Cluster),
+		srvconn.K8sClusterServer(clusterServer),
 		srvconn.K8sUsername(p.SystemUser.Username),
 		srvconn.K8sSkipTls(true),
 	)
@@ -174,6 +222,9 @@ func (p *K8sProxyServer) Proxy() {
 	logger.Infof("Conn[%s] get k8s conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end k8s session %s bridge", p.UserConn.ID(), sw.ID)
+	if p.dGateway != nil{
+		p.dGateway.Stop()
+	}
 
 }
 
@@ -250,4 +301,30 @@ func IsInstalledKubectlClient() bool {
 	}
 	logger.Errorf("Check kubectl client failed: %s", out)
 	return false
+}
+
+func ReplaceURLHostAndPort(originUrl *url.URL, ip string, port int) string {
+	newHost := net.JoinHostPort(ip, strconv.Itoa(port))
+	switch originUrl.Scheme {
+	case "https":
+		if port == 443 {
+			newHost = ip
+		}
+	default:
+		if port == 80 {
+			newHost = ip
+		}
+	}
+	newUrl := url.URL{
+		Scheme:     originUrl.Scheme,
+		Opaque:     originUrl.Opaque,
+		User:       originUrl.User,
+		Host:       newHost,
+		Path:       originUrl.Path,
+		RawPath:    originUrl.RawQuery,
+		ForceQuery: originUrl.ForceQuery,
+		RawQuery:   originUrl.RawQuery,
+		Fragment:   originUrl.Fragment,
+	}
+	return newUrl.String()
 }
