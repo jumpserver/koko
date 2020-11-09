@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
@@ -44,9 +43,10 @@ var (
 )
 
 type sshClient struct {
-	client    *gossh.Client
-	proxyConn gossh.Conn
-	username  string
+	client      *gossh.Client
+	proxyConn   gossh.Conn
+	proxyClient *gossh.Client
+	username    string
 
 	ref int
 	key string
@@ -138,6 +138,9 @@ func (s *sshClient) close() error {
 	if s.proxyConn != nil {
 		_ = s.proxyConn.Close()
 	}
+	if s.proxyClient != nil {
+		_ = s.proxyClient.Close()
+	}
 	logger.Infof("Success to close SSH client(%s)", s.config)
 	return s.client.Close()
 }
@@ -155,37 +158,6 @@ func (s *sshClient) String() string {
 	return s.config.String()
 }
 
-func KeepAlive(c *sshClient, closed <-chan struct{}, keepInterval time.Duration) {
-	retryCount := config.GetConf().RetryAliveCountMax
-	if retryCount < 0 {
-		retryCount = 3
-	}
-	var errCount = 0
-	t := time.NewTicker(keepInterval * time.Second)
-	defer t.Stop()
-	logger.Infof("SSH client %s keep alive start", c)
-	defer logger.Infof("SSH client %s keep alive stop", c)
-	for {
-		select {
-		case <-closed:
-			return
-		case <-t.C:
-			_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
-			if err != nil {
-				logger.Errorf("SSH client %s keep alive err: %s, retry count: %d", c, err.Error(), errCount)
-				if errCount >= retryCount {
-					logger.Errorf("SSH client %s keep alive err count exceed max count: %d and stop it", c, retryCount)
-					return
-				}
-				errCount++
-				continue
-			}
-			errCount = 0
-		}
-
-	}
-}
-
 type SSHClientConfig struct {
 	Host           string        `json:"host"`
 	Port           string        `json:"port"`
@@ -197,6 +169,8 @@ type SSHClientConfig struct {
 	Proxy          []*SSHClientConfig
 
 	proxyConn gossh.Conn
+
+	proxyClient *gossh.Client
 }
 
 func (sc *SSHClientConfig) Config() (config *gossh.ClientConfig, err error) {
@@ -281,6 +255,7 @@ func (sc *SSHClientConfig) Dial() (client *gossh.Client, err error) {
 			return client, err
 		}
 		sc.proxyConn = proxyConn
+		sc.proxyClient = proxyClient
 		client = gossh.NewClient(proxyConn, chans, reqs)
 	} else {
 		logger.Debugf("Dial host %s:%s", sc.Host, sc.Port)
@@ -335,11 +310,11 @@ func newClient(asset *model.Asset, systemUser *model.SystemUser, timeout time.Du
 	}
 	closed := make(chan struct{})
 	client = &sshClient{client: conn, proxyConn: sshConfig.proxyConn,
-		username: systemUser.Username,
-		mu:       new(sync.RWMutex),
-		config:   sshConfig,
-		closed:   closed}
-	go KeepAlive(client, closed, 60)
+		proxyClient: sshConfig.proxyClient,
+		username:    systemUser.Username,
+		mu:          new(sync.RWMutex),
+		config:      sshConfig,
+		closed:      closed}
 	return client, nil
 }
 

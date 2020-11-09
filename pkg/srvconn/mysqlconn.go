@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/creack/pty"
 
@@ -130,12 +129,8 @@ func (dbconn *ServerMysqlConnection) Close() (err error) {
 	return
 }
 
-func (dbconn *ServerMysqlConnection) Timeout() time.Duration {
-	return time.Duration(10) * time.Second
-}
-
-func (dbconn *ServerMysqlConnection) Protocol() string {
-	return "mysql"
+func (dbconn *ServerMysqlConnection) KeepAlive() error {
+	return nil
 }
 
 func connectMysql(dbconn *ServerMysqlConnection) (cmd *exec.Cmd, ptyFD *os.File, err error) {

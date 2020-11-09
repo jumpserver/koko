@@ -21,9 +21,11 @@ const (
 	DataEvent    = "Data"
 	WindowsEvent = "Windows"
 
-	MaxIdleEvent        = "MaxIdle"   // 退出
-	ExitEvent           = "Exit"      // 退出
-	LogoutEvent         = "Logout"    // 退出
-	AdminTerminateEvent = "Terminate" //退出
+	JoinEvent        = "Join"
+	LeaveEvent       = "Leave"
+
+	ExitEvent        = "Exit"
+
+	JoinSuccessEvent = "JoinSuccess"
 
 )
