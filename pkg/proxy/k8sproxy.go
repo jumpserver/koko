@@ -84,11 +84,14 @@ func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
 				dstIP:   dstHost,
 				dstPort: dstPort,
 			}
-			if localAddr, err := dGateway.Start(); err == nil {
-				tcpAddr := localAddr.(*net.TCPAddr)
-				clusterServer = ReplaceURLHostAndPort(clusterUrl, "127.0.0.1", tcpAddr.Port)
-				p.dGateway = &dGateway
+			localAddr, err := dGateway.Start()
+			if err != nil {
+				logger.Errorf("K8s proxy use domain %s err: %s", domain.Name, err)
+				return nil, err
 			}
+			tcpAddr := localAddr.(*net.TCPAddr)
+			clusterServer = ReplaceURLHostAndPort(clusterUrl, "127.0.0.1", tcpAddr.Port)
+			p.dGateway = &dGateway
 		}
 	}
 
@@ -222,7 +225,7 @@ func (p *K8sProxyServer) Proxy() {
 	logger.Infof("Conn[%s] get k8s conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end k8s session %s bridge", p.UserConn.ID(), sw.ID)
-	if p.dGateway != nil{
+	if p.dGateway != nil {
 		p.dGateway.Stop()
 	}
 
