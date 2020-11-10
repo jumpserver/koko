@@ -116,3 +116,12 @@ func GetAssetGateways(assetID string) (gateways []model.Gateway) {
 	}
 	return
 }
+
+func GetDomainGateways(domainId string) (domain model.Domain) {
+	Url := fmt.Sprintf(DomainDetailWithGateways, domainId)
+	_, err := authClient.Get(Url, &domain)
+	if err != nil {
+		logger.Errorf("Get domain %s gateways failed: %s", domainId, err)
+	}
+	return
+}

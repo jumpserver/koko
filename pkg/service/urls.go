@@ -55,4 +55,6 @@ const (
 	ApplicationDetailURL = "/api/v1/applications/applications/%s/"
 
 	SystemUserCmdFilterRulesListURL = "/api/v1/assets/system-users/%s/cmd-filter-rules/" // 过滤规则url
+
+	DomainDetailWithGateways = "/api/v1/assets/domains/%s/?gateway=1"
 )

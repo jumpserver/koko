@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,10 +46,18 @@ func (p *K8sProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
+func (p *K8sProxyServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
+	clusterServer := p.Cluster.Attrs.Cluster
+	if localTunnelAddr != nil {
+		originUrl, err := url.Parse(clusterServer)
+		if err != nil {
+			return nil, err
+		}
+		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localTunnelAddr.Port)
+	}
 	srvConn = srvconn.NewK8sCon(
 		srvconn.K8sToken(p.SystemUser.Token),
-		srvconn.K8sClusterServer(p.Cluster.Attrs.Cluster),
+		srvconn.K8sClusterServer(clusterServer),
 		srvconn.K8sUsername(p.SystemUser.Username),
 		srvconn.K8sSkipTls(true),
 	)
@@ -55,14 +66,14 @@ func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
 }
 
 // getServerConn 获取获取server连接
-func (p *K8sProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
+func (p *K8sProxyServer) getServerConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 		close(done)
 	}()
 	go p.sendConnectingMsg(done)
-	return p.getK8sConConn()
+	return p.getK8sConConn(localTunnelAddr)
 }
 
 // sendConnectingMsg 发送连接信息
@@ -145,6 +156,46 @@ func (p *K8sProxyServer) sendConnectErrorMsg(err error) {
 	}
 }
 
+func (p *K8sProxyServer) createDomainGateway(domainId string) (*domainGateway, error) {
+	domain := service.GetDomainGateways(domainId)
+	if domain.ID == "" {
+		return nil, errors.New("invalid domain")
+	}
+	clusterUrl, err := url.Parse(p.Cluster.Attrs.Cluster)
+	if err != nil {
+		logger.Errorf("K8s proxy parse %s url err: %s", p.Cluster.Attrs.Cluster, err)
+		return nil, err
+	}
+	// URL host 是包含port的结果
+	hostAndPort := strings.Split(clusterUrl.Host, ":")
+	var (
+		dstHost string
+		dstPort int
+	)
+	dstHost = hostAndPort[0]
+	switch len(hostAndPort) {
+	case 2:
+		dstPort, err = strconv.Atoi(hostAndPort[1])
+		if err != nil {
+			logger.Errorf("K8s proxy convert dst port %s err: %s", hostAndPort[1], err)
+			return nil, err
+		}
+	default:
+		switch clusterUrl.Scheme {
+		case "https":
+			dstPort = 443
+		default:
+			dstPort = 80
+		}
+	}
+	dGateway := domainGateway{
+		domain:  &domain,
+		dstIP:   dstHost,
+		dstPort: dstPort,
+	}
+	return &dGateway, nil
+}
+
 // Proxy 代理
 func (p *K8sProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
@@ -164,7 +215,25 @@ func (p *K8sProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] create k8s session %s success", p.UserConn.ID(), sw.ID)
 	defer RemoveCommonSwitch(sw)
-	srvConn, err := p.getServerConn()
+	var localTunnelAddr *net.TCPAddr
+	if p.Cluster.Domain != "" {
+		dGateway, err := p.createDomainGateway(p.Cluster.Domain)
+		if err != nil {
+			msg := i18n.T("Create k8s domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		localTunnelAddr, err = dGateway.Start()
+		if err != nil {
+			msg := i18n.T("Start k8s domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		defer dGateway.Stop()
+	}
+	srvConn, err := p.getServerConn(localTunnelAddr)
 	// 连接后端服务器失败
 	if err != nil {
 		logger.Errorf("Conn[%s] create k8s conn failed: %s", p.UserConn.ID(), err)
@@ -174,7 +243,6 @@ func (p *K8sProxyServer) Proxy() {
 	logger.Infof("Conn[%s] get k8s conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end k8s session %s bridge", p.UserConn.ID(), sw.ID)
-
 }
 
 func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
@@ -250,4 +318,30 @@ func IsInstalledKubectlClient() bool {
 	}
 	logger.Errorf("Check kubectl client failed: %s", out)
 	return false
+}
+
+func ReplaceURLHostAndPort(originUrl *url.URL, ip string, port int) string {
+	newHost := net.JoinHostPort(ip, strconv.Itoa(port))
+	switch originUrl.Scheme {
+	case "https":
+		if port == 443 {
+			newHost = ip
+		}
+	default:
+		if port == 80 {
+			newHost = ip
+		}
+	}
+	newUrl := url.URL{
+		Scheme:     originUrl.Scheme,
+		Opaque:     originUrl.Opaque,
+		User:       originUrl.User,
+		Host:       newHost,
+		Path:       originUrl.Path,
+		RawPath:    originUrl.RawQuery,
+		ForceQuery: originUrl.ForceQuery,
+		RawQuery:   originUrl.RawQuery,
+		Fragment:   originUrl.Fragment,
+	}
+	return newUrl.String()
 }
