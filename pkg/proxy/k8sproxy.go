@@ -214,7 +214,12 @@ func (p *K8sProxyServer) Proxy() {
 		return
 	}
 	logger.Infof("Conn[%s] create k8s session %s success", p.UserConn.ID(), sw.ID)
-	defer RemoveCommonSwitch(sw)
+	defer func() {
+		RemoveCommonSwitch(sw)
+		if p.dGateway != nil {
+			p.dGateway.Stop()
+		}
+	}()
 	srvConn, err := p.getServerConn()
 	// 连接后端服务器失败
 	if err != nil {
@@ -225,10 +230,6 @@ func (p *K8sProxyServer) Proxy() {
 	logger.Infof("Conn[%s] get k8s conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end k8s session %s bridge", p.UserConn.ID(), sw.ID)
-	if p.dGateway != nil {
-		p.dGateway.Stop()
-	}
-
 }
 
 func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
