@@ -69,7 +69,7 @@ func (d *domainGateway) handlerConn(srcCon net.Conn) {
 	logger.Infof("Gateway %s connect %s(%p) done", d.selectedGateway.Name, dstAddr, dstCon)
 }
 
-func (d *domainGateway) Start() (addr net.Addr, err error) {
+func (d *domainGateway) Start() (addr *net.TCPAddr, err error) {
 	if !d.getAvailableGateway() {
 		return nil, errors.New("no available domain")
 	}
@@ -80,7 +80,8 @@ func (d *domainGateway) Start() (addr net.Addr, err error) {
 	}
 	go d.run()
 	logger.Infof("Domain %s start listen on %s", d.domain.Name, d.ln.Addr())
-	return d.ln.Addr(), nil
+
+	return d.ln.Addr().(*net.TCPAddr), nil
 }
 
 func (d *domainGateway) getAvailableGateway() bool {

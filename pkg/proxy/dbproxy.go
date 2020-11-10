@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -24,8 +25,6 @@ type DBProxyServer struct {
 	User       *model.User
 	Database   *model.DatabaseApplication
 	SystemUser *model.SystemUser
-
-	dGateway *domainGateway
 }
 
 func (p *DBProxyServer) getAuthOrManualSet() error {
@@ -93,26 +92,12 @@ func (p *DBProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *DBProxyServer) getMysqlConn() (srvConn *srvconn.ServerMysqlConnection, err error) {
+func (p *DBProxyServer) getMysqlConn(localTCPAddr *net.TCPAddr) (srvConn *srvconn.ServerMysqlConnection, err error) {
 	host := p.Database.Attrs.Host
 	port := p.Database.Attrs.Port
-	if p.Database.Domain != "" {
-		domain := service.GetDomainGateways(p.Database.Domain)
-		dGateway := domainGateway{
-			domain:  &domain,
-			dstIP:   p.Database.Attrs.Host,
-			dstPort: p.Database.Attrs.Port,
-		}
-		localAddr, err := dGateway.Start()
-		if err != nil {
-			logger.Errorf("DB %s use domain err: %s", p.Database.Name, err)
-			return nil, err
-		}
-		if tcpAddr, ok := localAddr.(*net.TCPAddr); ok {
-			host = "127.0.0.1"
-			port = tcpAddr.Port
-		}
-		p.dGateway = &dGateway
+	if localTCPAddr != nil {
+		host = "127.0.0.1"
+		port = localTCPAddr.Port
 	}
 	srvConn = srvconn.NewMysqlServer(
 		srvconn.SqlHost(host),
@@ -126,14 +111,14 @@ func (p *DBProxyServer) getMysqlConn() (srvConn *srvconn.ServerMysqlConnection, 
 }
 
 // getServerConn 获取获取server连接
-func (p *DBProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
+func (p *DBProxyServer) getServerConn(localTCPAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 		close(done)
 	}()
 	go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
-	return p.getMysqlConn()
+	return p.getMysqlConn(localTCPAddr)
 }
 
 // sendConnectingMsg 发送连接信息
@@ -223,6 +208,19 @@ func (p *DBProxyServer) sendConnectErrorMsg(err error) {
 	}
 }
 
+func (p *DBProxyServer) createDomainGateway(domainId string) (*domainGateway, error) {
+	domain := service.GetDomainGateways(domainId)
+	if domain.ID == "" {
+		return nil, errors.New("invalid domain")
+	}
+	dGateway := domainGateway{
+		domain:  &domain,
+		dstIP:   p.Database.Attrs.Host,
+		dstPort: p.Database.Attrs.Port,
+	}
+	return &dGateway, nil
+}
+
 // Proxy 代理
 func (p *DBProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
@@ -240,13 +238,26 @@ func (p *DBProxyServer) Proxy() {
 		return
 	}
 	logger.Infof("Conn[%s] create database session %s success", p.UserConn.ID(), sw.ID)
-	defer func() {
-		RemoveCommonSwitch(sw)
-		if p.dGateway != nil {
-			p.dGateway.Stop()
+	defer RemoveCommonSwitch(sw)
+	var localTCPAddr *net.TCPAddr
+	if p.Database.Domain != "" {
+		dGateway, err := p.createDomainGateway(p.Database.Domain)
+		if err != nil {
+			msg := i18n.T("Create DB domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
 		}
-	}()
-	srvConn, err := p.getServerConn()
+		localTCPAddr, err = dGateway.Start()
+		if err != nil {
+			msg := i18n.T("Start DB domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		defer dGateway.Stop()
+	}
+	srvConn, err := p.getServerConn(localTCPAddr)
 	// 连接后端服务器失败
 	if err != nil {
 		logger.Errorf("Conn[%s] create database conn failed: %s", p.UserConn.ID(), err)

@@ -26,8 +26,6 @@ type K8sProxyServer struct {
 	User       *model.User
 	Cluster    *model.K8sApplication
 	SystemUser *model.SystemUser
-
-	dGateway *domainGateway
 }
 
 func (p *K8sProxyServer) checkProtocolMatch() bool {
@@ -48,53 +46,15 @@ func (p *K8sProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
+func (p *K8sProxyServer) getK8sConConn(localAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
 	clusterServer := p.Cluster.Attrs.Cluster
-	if p.Cluster.Domain != "" {
-		if domain := service.GetDomainGateways(p.Cluster.Domain); domain.ID != "" {
-			clusterUrl, err := url.Parse(p.Cluster.Attrs.Cluster)
-			if err != nil {
-				logger.Errorf("K8s proxy parse %s url err: %s", p.Cluster.Attrs.Cluster, err)
-				return nil, err
-			}
-			// URL host 是包含port的结果
-			hostAndPort := strings.Split(clusterUrl.Host, ":")
-			var (
-				dstHost string
-				dstPort int
-			)
-			dstHost = hostAndPort[0]
-			switch len(hostAndPort) {
-			case 2:
-				dstPort, err = strconv.Atoi(hostAndPort[1])
-				if err != nil {
-					logger.Errorf("K8s proxy convert dst port %s err: %s", hostAndPort[1], err)
-					return nil, err
-				}
-			default:
-				switch clusterUrl.Scheme {
-				case "https":
-					dstPort = 443
-				default:
-					dstPort = 80
-				}
-			}
-			dGateway := domainGateway{
-				domain:  &domain,
-				dstIP:   dstHost,
-				dstPort: dstPort,
-			}
-			localAddr, err := dGateway.Start()
-			if err != nil {
-				logger.Errorf("K8s proxy use domain %s err: %s", domain.Name, err)
-				return nil, err
-			}
-			tcpAddr := localAddr.(*net.TCPAddr)
-			clusterServer = ReplaceURLHostAndPort(clusterUrl, "127.0.0.1", tcpAddr.Port)
-			p.dGateway = &dGateway
+	if localAddr != nil {
+		originUrl, err := url.Parse(clusterServer)
+		if err != nil {
+			return nil, err
 		}
+		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localAddr.Port)
 	}
-
 	srvConn = srvconn.NewK8sCon(
 		srvconn.K8sToken(p.SystemUser.Token),
 		srvconn.K8sClusterServer(clusterServer),
@@ -106,14 +66,14 @@ func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
 }
 
 // getServerConn 获取获取server连接
-func (p *K8sProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
+func (p *K8sProxyServer) getServerConn(localAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 		close(done)
 	}()
 	go p.sendConnectingMsg(done)
-	return p.getK8sConConn()
+	return p.getK8sConConn(localAddr)
 }
 
 // sendConnectingMsg 发送连接信息
@@ -196,6 +156,46 @@ func (p *K8sProxyServer) sendConnectErrorMsg(err error) {
 	}
 }
 
+func (p *K8sProxyServer) createDomainGateway(domainId string) (*domainGateway, error) {
+	domain := service.GetDomainGateways(domainId)
+	if domain.ID == "" {
+		return nil, errors.New("invalid domain")
+	}
+	clusterUrl, err := url.Parse(p.Cluster.Attrs.Cluster)
+	if err != nil {
+		logger.Errorf("K8s proxy parse %s url err: %s", p.Cluster.Attrs.Cluster, err)
+		return nil, err
+	}
+	// URL host 是包含port的结果
+	hostAndPort := strings.Split(clusterUrl.Host, ":")
+	var (
+		dstHost string
+		dstPort int
+	)
+	dstHost = hostAndPort[0]
+	switch len(hostAndPort) {
+	case 2:
+		dstPort, err = strconv.Atoi(hostAndPort[1])
+		if err != nil {
+			logger.Errorf("K8s proxy convert dst port %s err: %s", hostAndPort[1], err)
+			return nil, err
+		}
+	default:
+		switch clusterUrl.Scheme {
+		case "https":
+			dstPort = 443
+		default:
+			dstPort = 80
+		}
+	}
+	dGateway := domainGateway{
+		domain:  &domain,
+		dstIP:   dstHost,
+		dstPort: dstPort,
+	}
+	return &dGateway, nil
+}
+
 // Proxy 代理
 func (p *K8sProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
@@ -214,13 +214,26 @@ func (p *K8sProxyServer) Proxy() {
 		return
 	}
 	logger.Infof("Conn[%s] create k8s session %s success", p.UserConn.ID(), sw.ID)
-	defer func() {
-		RemoveCommonSwitch(sw)
-		if p.dGateway != nil {
-			p.dGateway.Stop()
+	defer RemoveCommonSwitch(sw)
+	var localTCPAddr *net.TCPAddr
+	if p.Cluster.Domain != "" {
+		dGateway, err := p.createDomainGateway(p.Cluster.Domain)
+		if err != nil {
+			msg := i18n.T("Create k8s domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
 		}
-	}()
-	srvConn, err := p.getServerConn()
+		localTCPAddr, err = dGateway.Start()
+		if err != nil {
+			msg := i18n.T("Start k8s domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		defer dGateway.Stop()
+	}
+	srvConn, err := p.getServerConn(localTCPAddr)
 	// 连接后端服务器失败
 	if err != nil {
 		logger.Errorf("Conn[%s] create k8s conn failed: %s", p.UserConn.ID(), err)
