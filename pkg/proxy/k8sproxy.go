@@ -46,14 +46,14 @@ func (p *K8sProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *K8sProxyServer) getK8sConConn(localAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
+func (p *K8sProxyServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
 	clusterServer := p.Cluster.Attrs.Cluster
-	if localAddr != nil {
+	if localTunnelAddr != nil {
 		originUrl, err := url.Parse(clusterServer)
 		if err != nil {
 			return nil, err
 		}
-		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localAddr.Port)
+		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localTunnelAddr.Port)
 	}
 	srvConn = srvconn.NewK8sCon(
 		srvconn.K8sToken(p.SystemUser.Token),
@@ -66,14 +66,14 @@ func (p *K8sProxyServer) getK8sConConn(localAddr *net.TCPAddr) (srvConn *srvconn
 }
 
 // getServerConn 获取获取server连接
-func (p *K8sProxyServer) getServerConn(localAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
+func (p *K8sProxyServer) getServerConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 		close(done)
 	}()
 	go p.sendConnectingMsg(done)
-	return p.getK8sConConn(localAddr)
+	return p.getK8sConConn(localTunnelAddr)
 }
 
 // sendConnectingMsg 发送连接信息
@@ -215,7 +215,7 @@ func (p *K8sProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] create k8s session %s success", p.UserConn.ID(), sw.ID)
 	defer RemoveCommonSwitch(sw)
-	var localTCPAddr *net.TCPAddr
+	var localTunnelAddr *net.TCPAddr
 	if p.Cluster.Domain != "" {
 		dGateway, err := p.createDomainGateway(p.Cluster.Domain)
 		if err != nil {
@@ -224,7 +224,7 @@ func (p *K8sProxyServer) Proxy() {
 			utils.IgnoreErrWriteString(p.UserConn, msg)
 			return
 		}
-		localTCPAddr, err = dGateway.Start()
+		localTunnelAddr, err = dGateway.Start()
 		if err != nil {
 			msg := i18n.T("Start k8s domain gateway failed %s")
 			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
@@ -233,7 +233,7 @@ func (p *K8sProxyServer) Proxy() {
 		}
 		defer dGateway.Stop()
 	}
-	srvConn, err := p.getServerConn(localTCPAddr)
+	srvConn, err := p.getServerConn(localTunnelAddr)
 	// 连接后端服务器失败
 	if err != nil {
 		logger.Errorf("Conn[%s] create k8s conn failed: %s", p.UserConn.ID(), err)

@@ -92,12 +92,12 @@ func (p *DBProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *DBProxyServer) getMysqlConn(localTCPAddr *net.TCPAddr) (srvConn *srvconn.ServerMysqlConnection, err error) {
+func (p *DBProxyServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.ServerMysqlConnection, err error) {
 	host := p.Database.Attrs.Host
 	port := p.Database.Attrs.Port
-	if localTCPAddr != nil {
+	if localTunnelAddr != nil {
 		host = "127.0.0.1"
-		port = localTCPAddr.Port
+		port = localTunnelAddr.Port
 	}
 	srvConn = srvconn.NewMysqlServer(
 		srvconn.SqlHost(host),
@@ -111,14 +111,14 @@ func (p *DBProxyServer) getMysqlConn(localTCPAddr *net.TCPAddr) (srvConn *srvcon
 }
 
 // getServerConn 获取获取server连接
-func (p *DBProxyServer) getServerConn(localTCPAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
+func (p *DBProxyServer) getServerConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 		close(done)
 	}()
 	go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
-	return p.getMysqlConn(localTCPAddr)
+	return p.getMysqlConn(localTunnelAddr)
 }
 
 // sendConnectingMsg 发送连接信息
@@ -239,7 +239,7 @@ func (p *DBProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] create database session %s success", p.UserConn.ID(), sw.ID)
 	defer RemoveCommonSwitch(sw)
-	var localTCPAddr *net.TCPAddr
+	var localTunnelAddr *net.TCPAddr
 	if p.Database.Domain != "" {
 		dGateway, err := p.createDomainGateway(p.Database.Domain)
 		if err != nil {
@@ -248,7 +248,7 @@ func (p *DBProxyServer) Proxy() {
 			utils.IgnoreErrWriteString(p.UserConn, msg)
 			return
 		}
-		localTCPAddr, err = dGateway.Start()
+		localTunnelAddr, err = dGateway.Start()
 		if err != nil {
 			msg := i18n.T("Start DB domain gateway failed %s")
 			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
@@ -257,7 +257,7 @@ func (p *DBProxyServer) Proxy() {
 		}
 		defer dGateway.Stop()
 	}
-	srvConn, err := p.getServerConn(localTCPAddr)
+	srvConn, err := p.getServerConn(localTunnelAddr)
 	// 连接后端服务器失败
 	if err != nil {
 		logger.Errorf("Conn[%s] create database conn failed: %s", p.UserConn.ID(), err)
