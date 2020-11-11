@@ -8,86 +8,38 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. i18n.T
-#: pkg/handler/app_database.go:102
-#, fuzzy
-msgid "Search: %s"
-msgstr "搜索：%s"
+#: pkg/handler/app_k8s.go:53
+msgid "No kubernetes"
+msgstr "没有kubernetes"
 
 #. i18n.T
-#: pkg/handler/app_database.go:104
-msgid "No Databases"
-msgstr "无数据库"
-
-#. i18n.T
-#: pkg/handler/app_database.go:115
+#: pkg/handler/app_k8s.go:64
 msgid "ID"
 msgstr "ID"
 
 #. i18n.T
-#: pkg/handler/app_database.go:116
+#: pkg/handler/app_k8s.go:65
 msgid "Name"
 msgstr "名称"
 
 #. i18n.T
-#: pkg/handler/app_database.go:117
-msgid "IP"
-msgstr "IP"
+#: pkg/handler/app_k8s.go:66
+msgid "Cluster"
+msgstr "集群"
 
 #. i18n.T
-#: pkg/handler/app_database.go:118
-msgid "DBType"
-msgstr "数据库类型"
-
-#. i18n.T
-#: pkg/handler/app_database.go:119
-#, fuzzy
-msgid "DB Name"
-msgstr "数据库名称"
-
-#. i18n.T
-#: pkg/handler/app_database.go:120
+#: pkg/handler/app_k8s.go:67
 #, fuzzy
 msgid "Comment"
 msgstr "备注"
 
 #. i18n.T
-#: pkg/handler/app_database.go:146
+#: pkg/handler/app_k8s.go:86
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
 
 #. i18n.T
-#: pkg/handler/app_database.go:167
-#, fuzzy
-msgid ""
-"Enter ID number directly login the database, multiple search use // + field, "
-"such as: //16"
-msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段，如：//192"
-
-#. i18n.T
-#: pkg/handler/app_database.go:168
-#, fuzzy
-msgid "Page up: b\tPage down: n"
-msgstr "上一页：b 下一页：n"
-
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_k8s.go:101 pkg/handler/app_k8s.go:103
-msgid "No kubernetes"
-msgstr "没有kubernetes"
-
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_k8s.go:114 pkg/handler/app_k8s.go:115
-#: pkg/handler/app_k8s.go:116
-msgid "Cluster"
-msgstr "集群"
-
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_k8s.go:117 pkg/handler/app_k8s.go:140
-#: pkg/handler/app_k8s.go:160
+#: pkg/handler/app_k8s.go:106
 #, fuzzy
 msgid ""
 "Enter ID number directly login the kubernetes, multiple search use // + "
@@ -95,20 +47,55 @@ msgid ""
 msgstr "提示：输入Kubernetes的ID直接登录，二级搜索使用 // + 字段，如：//192"
 
 #. i18n.T
+#: pkg/handler/app_k8s.go:107
+#, fuzzy
+msgid "Page up: b\tPage down: n"
+msgstr "上一页：b 下一页：n"
+
+#. i18n.T
+#: pkg/handler/app_mysql.go:54
+msgid "No Databases"
+msgstr "无数据库"
+
 #. i18n.T
 #. i18n.T
-#: pkg/handler/app_k8s.go:161 pkg/handler/asset.go:110 pkg/handler/asset.go:113
+#. i18n.T
+#: pkg/handler/app_mysql.go:65 pkg/handler/app_mysql.go:66
+#: pkg/handler/app_mysql.go:67
+msgid "IP"
+msgstr "IP"
+
+#. i18n.T
+#: pkg/handler/app_mysql.go:68
+msgid "DBType"
+msgstr "数据库类型"
+
+#. i18n.T
+#: pkg/handler/app_mysql.go:69
+#, fuzzy
+msgid "DB Name"
+msgstr "数据库名称"
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/app_mysql.go:70 pkg/handler/app_mysql.go:92
+#: pkg/handler/app_mysql.go:113
+#, fuzzy
+msgid ""
+"Enter ID number directly login the database, multiple search use // + field, "
+"such as: //16"
+msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段，如：//192"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/app_mysql.go:114 pkg/handler/asset.go:56
 msgid "No Assets"
 msgstr "没有资产"
 
 #. i18n.T
-#: pkg/handler/asset.go:116
-msgid "%s node has no assets"
-msgstr "%s节点没有资产"
-
 #. i18n.T
-#. i18n.T
-#: pkg/handler/asset.go:130 pkg/handler/asset.go:131
+#: pkg/handler/asset.go:83 pkg/handler/asset.go:84
 #, fuzzy
 msgid "Hostname"
 msgstr "主机名"
@@ -117,8 +104,8 @@ msgstr "主机名"
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/asset.go:132 pkg/handler/asset.go:133 pkg/handler/asset.go:155
-#: pkg/handler/asset.go:174
+#: pkg/handler/asset.go:85 pkg/handler/asset.go:86 pkg/handler/asset.go:104
+#: pkg/handler/asset.go:123
 #, fuzzy
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
@@ -127,7 +114,12 @@ msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，�
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/asset.go:175 pkg/handler/banner.go:30
+#: pkg/handler/asset.go:124 pkg/handler/asset_node.go:20
+msgid "%s node has no assets"
+msgstr "%s节点没有资产"
+
+#. i18n.T
+#: pkg/handler/banner.go:30
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
 
@@ -197,133 +189,148 @@ msgid "exit"
 msgstr "退出"
 
 #. i18n.T
-#: pkg/handler/dispatch.go:119
+#: pkg/handler/dispatch.go:110
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
 
 #. i18n.T
-#: pkg/handler/dispatch.go:121
+#: pkg/handler/dispatch.go:112
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
 
 #. i18n.T
-#: pkg/handler/session.go:153
+#: pkg/handler/interactive.go:163
 msgid "No system user found."
 msgstr "没有系统用户"
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/session.go:165 pkg/handler/session.go:166
-#: pkg/handler/session.go:167
+#: pkg/handler/interactive.go:175 pkg/handler/interactive.go:176
+#: pkg/handler/interactive.go:177
 #, fuzzy
 msgid "Username"
 msgstr "用户名"
 
 #. i18n.T
-#: pkg/handler/session.go:196
+#: pkg/handler/interactive.go:206
 #, fuzzy
 msgid "Tips: Enter system user ID and directly login"
 msgstr "提示：输入系统用户ID直接登录"
 
 #. i18n.T
-#: pkg/handler/session.go:197
+#: pkg/handler/interactive.go:207
 msgid "Back: B/b"
 msgstr "返回：B/b"
 
 #. i18n.T
-#: pkg/handler/session.go:229
+#: pkg/handler/interactive.go:249
 msgid "Refresh done"
 msgstr "刷新完成"
 
 #. i18n.T
-#: pkg/proxy/commonswitch.go:179
+#: pkg/handler/select_handler.go:143
+#, fuzzy
+msgid "Search: %s"
+msgstr "搜索：%s"
+
+#. i18n.T
+#: pkg/proxy/commonswitch.go:221
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
 
 #. i18n.T
-#: pkg/proxy/commonswitch.go:188
+#: pkg/proxy/commonswitch.go:229
 msgid "Terminated by administrator"
 msgstr "管理员中断连接"
 
 #. i18n.T
-#: pkg/proxy/dbparser.go:119
+#: pkg/proxy/dbparser.go:124
 msgid "Command `%s` is forbidden"
 msgstr "命令 `%s` 是被禁止的 ..."
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:119
+#: pkg/proxy/dbproxy.go:127
 #, fuzzy
 msgid "Connecting to Database %s %.1f"
 msgstr "开始连接数据库%s %.1f"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:138
+#: pkg/proxy/dbproxy.go:146
 #, fuzzy
 msgid "System user <%s> and database <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:146
+#: pkg/proxy/dbproxy.go:154
 msgid "Database %s protocol client not installed."
 msgstr "%s 协议的数据库客户端未安装"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:205
+#: pkg/proxy/dbproxy.go:234
 msgid "Create database session failed"
 msgstr "创建数据库会话失败"
 
 #. i18n.T
-#. i18n.T
-#: pkg/proxy/dbproxy.go:243 pkg/proxy/dbswitch.go:183
-#, fuzzy
-msgid "Database connect idle more than %d minutes, disconnect"
-msgstr "数据库连接空闲时间超过 %d 分钟，断开连接"
+#: pkg/proxy/dbproxy.go:246
+msgid "Create DB domain gateway failed %s"
+msgstr "创建数据库网关失败%s"
 
 #. i18n.T
-#: pkg/proxy/dbswitch.go:192
-#, fuzzy
-msgid "Database connection terminated by administrator"
-msgstr "管理员中断数据库连接"
+#: pkg/proxy/dbproxy.go:253
+msgid "Start DB domain gateway failed %s"
+msgstr "启动数据库网关失败%s"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:71
+#. i18n.T
+#: pkg/proxy/dbproxy.go:291 pkg/proxy/k8sproxy.go:82
 #, fuzzy
 msgid "Connecting to Kubernetes %s %.1f"
 msgstr "开始连接Kubernetes %s  %.1f"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:90
+#: pkg/proxy/k8sproxy.go:101
 #, fuzzy
 msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和kubernetes<%s>协议不一致"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:98
+#: pkg/proxy/k8sproxy.go:109
 #, fuzzy
 msgid "%s protocol client not installed."
 msgstr "%s 协议的客户端未安装"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:106
+#: pkg/proxy/k8sproxy.go:117
 msgid "You don't have permission login %s"
 msgstr "你无权限登陆%s"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:114
+#: pkg/proxy/k8sproxy.go:125
 msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:159
+#: pkg/proxy/k8sproxy.go:210
 #, fuzzy
 msgid "Create k8s session failed"
 msgstr "创建Kubernetes会话失败"
 
 #. i18n.T
+#: pkg/proxy/k8sproxy.go:222
+#, fuzzy
+msgid "Create k8s domain gateway failed %s"
+msgstr "创建Kubernetes网关失败%s"
+
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:229
+msgid "Start k8s domain gateway failed %s"
+msgstr "启动kubernetes网关失败%s"
+
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:197 pkg/proxy/parser.go:150 pkg/proxy/proxy.go:184
+#. i18n.T
+#: pkg/proxy/k8sproxy.go:267 pkg/proxy/parser.go:160 pkg/proxy/proxy.go:184
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
@@ -360,22 +367,30 @@ msgid "Create session failed"
 msgstr "创建会话失败"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:439
+#: pkg/proxy/proxy.go:441
 #, fuzzy
 msgid "Authentication failed"
 msgstr "认证失败（用户名或密码错误）"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:442
+#: pkg/proxy/proxy.go:444
 msgid "Connection refused"
 msgstr "网络不通（连接拒绝）"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:445
+#: pkg/proxy/proxy.go:447
 msgid "i/o timeout"
 msgstr "网络不通（连接超时）"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:448
+#: pkg/proxy/proxy.go:450
 msgid "No route to host"
 msgstr "网络不通（路由不通）"
+
+#, fuzzy
+#~ msgid "Database connect idle more than %d minutes, disconnect"
+#~ msgstr "数据库连接空闲时间超过 %d 分钟，断开连接"
+
+#, fuzzy
+#~ msgid "Database connection terminated by administrator"
+#~ msgstr "管理员中断数据库连接"
