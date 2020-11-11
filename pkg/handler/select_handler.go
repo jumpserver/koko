@@ -241,8 +241,12 @@ func (u *UserSelectHandler) retrieveLocal(searches ...string) []map[string]inter
 		return u.searchLocalMySQL(searches...)
 	case TypeK8s:
 		return u.searchLocalK8s(searches...)
+	case TypeAsset:
+		return u.searchLocalAsset(searches...)
 	default:
 		// TypeAsset
+		u.SetSelectType(TypeAsset)
+		logger.Info("Retrieve default local data type: Asset")
 		return u.searchLocalAsset(searches...)
 	}
 }
@@ -275,7 +279,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	default:
 		// TypeAsset
 		u.SetSelectType(TypeAsset)
-		logger.Info("Retrieve default data type: Asset")
+		logger.Info("Retrieve default remote data type: Asset")
 		return u.retrieveRemoteAsset(reqParam)
 	}
 }
