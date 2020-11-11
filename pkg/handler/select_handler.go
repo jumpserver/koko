@@ -273,8 +273,10 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	case TypeAsset:
 		return u.retrieveRemoteAsset(reqParam)
 	default:
-		logger.Error("Retrieve unknown type data")
-		return nil
+		// TypeAsset
+		u.SetSelectType(TypeAsset)
+		logger.Info("Retrieve default data type: Asset")
+		return u.retrieveRemoteAsset(reqParam)
 	}
 }
 
