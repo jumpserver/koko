@@ -77,13 +77,6 @@ func assetSortByHostName(asset1, asset2 *Asset) bool {
 
 type NodeList []Node
 
-type AssetsPaginationResponse struct {
-	Total       int     `json:"count"`
-	NextURL     string  `json:"next"`
-	PreviousURL string  `json:"previous"`
-	Data        []Asset `json:"results"`
-}
-
 type Asset struct {
 	ID        string   `json:"id"`
 	Hostname  string   `json:"hostname"`

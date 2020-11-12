@@ -375,48 +375,31 @@ func (u *UserSftpConn) loopPushFTPLog() {
 func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 	if u.searchDir == nil {
 		logger.Errorf("not found search folder")
-		return nil, fmt.Errorf("not found")
+		return nil, errors.New("not found")
 	}
-	assetsTree, err := service.SearchPermAsset(u.User.ID, key)
+	assets, err := service.SearchPermAsset(u.User.ID, key)
 	if err != nil {
 		logger.Errorf("search asset err: %s", err)
 		return nil, err
 	}
 	subDirs := map[string]os.FileInfo{}
-	for _, item := range assetsTree {
-		typeName, ok := item.Meta["type"].(string)
-		if !ok {
+	for i := range assets {
+		if !assets[i].IsSupportProtocol("ssh") {
 			continue
 		}
-		body, err := json.Marshal(item.Meta[typeName])
-		if err != nil {
-			logger.Errorf("Search Json Marshal err: %s", err)
-			continue
+		assetDir := NewAssetDir(u.User, assets[i], u.Addr, u.logChan)
+		folderName := assetDir.folderName
+		for {
+			_, ok := subDirs[folderName]
+			if !ok {
+				break
+			}
+			folderName = fmt.Sprintf("%s_", folderName)
 		}
-		switch typeName {
-		case "asset":
-			asset, err := model.ConvertMetaToAsset(body)
-			if err != nil {
-				logger.Errorf("convert to asset err: %s", err)
-				continue
-			}
-			if !asset.IsSupportProtocol("ssh") {
-				continue
-			}
-			assetDir := NewAssetDir(u.User, asset, u.Addr, u.logChan)
-			folderName := assetDir.folderName
-			for {
-				_, ok := subDirs[folderName]
-				if !ok {
-					break
-				}
-				folderName = fmt.Sprintf("%s_", folderName)
-			}
-			if folderName != assetDir.folderName {
-				assetDir.folderName = folderName
-			}
-			subDirs[assetDir.folderName] = &assetDir
+		if folderName != assetDir.folderName {
+			assetDir.folderName = folderName
 		}
+		subDirs[assetDir.folderName] = &assetDir
 	}
 	u.searchDir.SetSubDirs(subDirs)
 	return u.searchDir.List()

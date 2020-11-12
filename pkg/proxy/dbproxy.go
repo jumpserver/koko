@@ -2,7 +2,9 @@ package proxy
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"net"
 	"os/exec"
 	"strings"
 	"time"
@@ -21,7 +23,7 @@ var _ proxyEngine = (*DBProxyServer)(nil)
 type DBProxyServer struct {
 	UserConn   UserConnection
 	User       *model.User
-	Database   *model.Database
+	Database   *model.DatabaseApplication
 	SystemUser *model.SystemUser
 }
 
@@ -72,11 +74,11 @@ func (p *DBProxyServer) getUsernameIfNeed() (err error) {
 }
 
 func (p *DBProxyServer) checkProtocolMatch() bool {
-	return strings.EqualFold(p.Database.DBType, p.SystemUser.Protocol)
+	return strings.EqualFold(p.Database.TypeName, p.SystemUser.Protocol)
 }
 
 func (p *DBProxyServer) checkProtocolClientInstalled() bool {
-	switch strings.ToLower(p.Database.DBType) {
+	switch strings.ToLower(p.Database.TypeName) {
 	case "mysql":
 		return IsInstalledMysqlClient()
 	}
@@ -86,31 +88,37 @@ func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *DBProxyServer) validatePermission() bool {
-	return service.ValidateUserDatabasePermission(p.User.ID, p.Database.ID, p.SystemUser.ID)
+	return service.ValidateUserApplicationPermission(p.User.ID, p.Database.Id, p.SystemUser.ID)
 }
 
 // getSSHConn 获取ssh连接
-func (p *DBProxyServer) getMysqlConn() (srvConn *srvconn.ServerMysqlConnection, err error) {
+func (p *DBProxyServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.ServerMysqlConnection, err error) {
+	host := p.Database.Attrs.Host
+	port := p.Database.Attrs.Port
+	if localTunnelAddr != nil {
+		host = "127.0.0.1"
+		port = localTunnelAddr.Port
+	}
 	srvConn = srvconn.NewMysqlServer(
-		srvconn.SqlHost(p.Database.Host),
-		srvconn.SqlPort(p.Database.Port),
+		srvconn.SqlHost(host),
+		srvconn.SqlPort(port),
 		srvconn.SqlUsername(p.SystemUser.Username),
 		srvconn.SqlPassword(p.SystemUser.Password),
-		srvconn.SqlDBName(p.Database.DBName),
+		srvconn.SqlDBName(p.Database.Attrs.Database),
 	)
 	err = srvConn.Connect()
 	return
 }
 
 // getServerConn 获取获取server连接
-func (p *DBProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
+func (p *DBProxyServer) getServerConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 		close(done)
 	}()
 	go p.sendConnectingMsg(done, config.GetConf().SSHTimeout*time.Second)
-	return p.getMysqlConn()
+	return p.getMysqlConn(localTunnelAddr)
 }
 
 // sendConnectingMsg 发送连接信息
@@ -136,7 +144,7 @@ func (p *DBProxyServer) sendConnectingMsg(done chan struct{}, delayDuration time
 func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 	if !p.checkProtocolMatch() {
 		msg := utils.WrapperWarn(i18n.T("System user <%s> and database <%s> protocol are inconsistent."))
-		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Database.DBType)
+		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Database.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
 		return
@@ -144,7 +152,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 	logger.Infof("Conn[%s] System user and asset protocol matched", p.UserConn.ID())
 	if !p.checkProtocolClientInstalled() {
 		msg := utils.WrapperWarn(i18n.T("Database %s protocol client not installed."))
-		msg = fmt.Sprintf(msg, p.Database.DBType)
+		msg = fmt.Sprintf(msg, p.Database.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking permission failed.", p.UserConn.ID())
 		return
@@ -166,7 +174,7 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *DBProxyServer) checkRequiredAuth() error {
-	info := service.GetSystemUserDatabaseAuthInfo(p.SystemUser.ID)
+	info := service.GetApplicationSystemUserAuthInfo(p.SystemUser.ID)
 	p.SystemUser.Password = info.Password
 	logger.Infof("Conn[%s] get database %s auth info from core server success",
 		p.UserConn.ID(), p.Database.Name)
@@ -187,7 +195,7 @@ func (p *DBProxyServer) checkRequiredAuth() error {
 
 // sendConnectErrorMsg 发送连接错误消息
 func (p *DBProxyServer) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("Connect database %s error: %s\r\n", p.Database.Host, err)
+	msg := fmt.Sprintf("Connect database %s error: %s\r\n", p.Database.Attrs.Host, err)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	logger.Error(msg)
 	password := p.SystemUser.Password
@@ -198,6 +206,19 @@ func (p *DBProxyServer) sendConnectErrorMsg(err error) {
 		msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
 		logger.Debug(msg2)
 	}
+}
+
+func (p *DBProxyServer) createDomainGateway(domainId string) (*domainGateway, error) {
+	domain := service.GetDomainGateways(domainId)
+	if domain.ID == "" {
+		return nil, errors.New("invalid domain")
+	}
+	dGateway := domainGateway{
+		domain:  &domain,
+		dstIP:   p.Database.Attrs.Host,
+		dstPort: p.Database.Attrs.Port,
+	}
+	return &dGateway, nil
 }
 
 // Proxy 代理
@@ -218,7 +239,25 @@ func (p *DBProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] create database session %s success", p.UserConn.ID(), sw.ID)
 	defer RemoveCommonSwitch(sw)
-	srvConn, err := p.getServerConn()
+	var localTunnelAddr *net.TCPAddr
+	if p.Database.Domain != "" {
+		dGateway, err := p.createDomainGateway(p.Database.Domain)
+		if err != nil {
+			msg := i18n.T("Create DB domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		localTunnelAddr, err = dGateway.Start()
+		if err != nil {
+			msg := i18n.T("Start DB domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		defer dGateway.Stop()
+	}
+	srvConn, err := p.getServerConn(localTunnelAddr)
 	// 连接后端服务器失败
 	if err != nil {
 		logger.Errorf("Conn[%s] create database conn failed: %s", p.UserConn.ID(), err)
@@ -228,14 +267,13 @@ func (p *DBProxyServer) Proxy() {
 	logger.Infof("Conn[%s] get database conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end database session %s bridge", p.UserConn.ID(), sw.ID)
-
 }
 
 func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
 	riskLevel int64) *model.Command {
 	return &model.Command{
 		SessionID:  s.ID,
-		OrgID:      p.Database.OrgID,
+		OrgID:      p.Database.OrgId,
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
@@ -243,6 +281,8 @@ func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output str
 		SystemUser: p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
+
+		DateCreated: time.Now(),
 	}
 }
 
@@ -268,7 +308,7 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
 		"asset":          p.Database.Name,
-		"org_id":         p.Database.OrgID,
+		"org_id":         p.Database.OrgId,
 		"login_from":     p.UserConn.LoginFrom(),
 		"system_user":    p.SystemUser.Username,
 		"protocol":       p.SystemUser.Protocol,
@@ -277,7 +317,7 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"date_start":     s.DateStart,
 		"date_end":       dataEnd,
 		"user_id":        p.User.ID,
-		"asset_id":       p.Database.ID,
+		"asset_id":       p.Database.Id,
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}

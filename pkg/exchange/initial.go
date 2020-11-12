@@ -9,15 +9,17 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-var ex Exchanger
+var manager roomManager
 
 func Initial(ctx context.Context) {
 	conf := config.GetConf()
-	var err error
+	var (
+		err error
+	)
 
 	switch strings.ToLower(conf.ShareRoomType) {
 	case "redis":
-		ex, err = NewRedisExchange(Config{
+		manager, err = newRedisManager(Config{
 			Addr:     net.JoinHostPort(conf.RedisHost, conf.RedisPort),
 			Password: conf.RedisPassword,
 			Clusters: conf.RedisClusters,
@@ -25,7 +27,7 @@ func Initial(ctx context.Context) {
 		})
 
 	default:
-		ex, err = NewLocalExchange()
+		manager = newLocalManager()
 	}
 	logger.Infof("Exchange share room type: %s", conf.ShareRoomType)
 	if err != nil {
@@ -33,10 +35,14 @@ func Initial(ctx context.Context) {
 	}
 }
 
-func GetExchange() Exchanger {
-	return ex
+func Register(r *Room) {
+	manager.Add(r)
 }
 
-func StopExchange() {
-	ex.Close()
+func UnRegister(r *Room) {
+	manager.Delete(r)
+}
+
+func GetRoom(roomId string) *Room {
+	return manager.Get(roomId)
 }

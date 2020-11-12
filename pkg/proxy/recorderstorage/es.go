@@ -3,6 +3,7 @@ package recorderstorage
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/elastic/go-elasticsearch/v6"
@@ -45,10 +46,67 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 		return err
 	}
 	defer response.Body.Close()
-	logger.Debugf("ES client bulk save %d commands", len(commands))
+	var (
+		blk        *bulkResponse
+		raw        map[string]interface{}
+		numErrors  int64
+		numIndexed int64
+	)
+	if response.IsError() {
+		if err = json.NewDecoder(response.Body).Decode(&raw); err != nil {
+			logger.Errorf("ES failure to parse response body: %s", err)
+		} else {
+			logger.Errorf("ES failure to bulk save: [%d] %s: %s",
+				response.StatusCode, raw["error"].(map[string]interface{})["type"],
+				raw["error"].(map[string]interface{})["reason"],
+			)
+		}
+		return errors.New("es failure to bulk save")
+	}
+
+	if err = json.NewDecoder(response.Body).Decode(&blk); err != nil {
+		logger.Errorf("ES failure to parse response body: %s", err)
+	} else {
+		for _, d := range blk.Items {
+			if d.Index.Status > 201 {
+				numErrors++
+				logger.Errorf("ES failure to save: [%d]: %s: %s: %s: %s",
+					d.Index.Status,
+					d.Index.Error.Type,
+					d.Index.Error.Reason,
+					d.Index.Error.Cause.Type,
+					d.Index.Error.Cause.Reason,
+				)
+			} else {
+				numIndexed++
+			}
+		}
+	}
+	logger.Infof("ES client try bulk save %d commands: success %d failure %d",
+		len(commands), numIndexed, numErrors)
 	return
 }
 
 func (es ESCommandStorage) TypeName() string {
 	return "es"
+}
+
+// https://www.elastic.co/guide/en/elasticsearch/reference/master/docs-bulk.html#bulk-api-response-body
+type bulkResponse struct {
+	Errors bool `json:"errors"`
+	Items  []struct {
+		Index struct {
+			ID     string `json:"_id"`
+			Result string `json:"result"`
+			Status int    `json:"status"`
+			Error  struct {
+				Type   string `json:"type"`
+				Reason string `json:"reason"`
+				Cause  struct {
+					Type   string `json:"type"`
+					Reason string `json:"reason"`
+				} `json:"caused_by"`
+			} `json:"error"`
+		} `json:"index"`
+	} `json:"items"`
 }

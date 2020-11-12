@@ -10,7 +10,7 @@ type Client struct {
 	WinChan   chan ssh.Window
 	UserRead  io.Reader
 	UserWrite io.WriteCloser
-	Conn      *ttyCon
+	Conn      *UserWebsocket
 	pty       ssh.Pty
 }
 
@@ -23,7 +23,7 @@ func (c *Client) LoginFrom() string {
 }
 
 func (c *Client) RemoteAddr() string {
-	return c.Conn.ctx.ClientIP()
+	return c.Conn.ClientIP()
 }
 
 func (c *Client) Read(p []byte) (n int, err error) {

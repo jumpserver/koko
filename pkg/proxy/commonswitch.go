@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
-	"github.com/gliderlabs/ssh"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/common"
@@ -24,12 +22,13 @@ import (
 func NewCommonSwitch(p proxyEngine) *commonSwitch {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := commonSwitch{
-		ID:          uuid.NewV4().String(),
-		DateStart:   common.CurrentUTCTime(),
-		MaxIdleTime: config.GetConf().MaxIdleTime,
-		ctx:         ctx,
-		cancel:      cancel,
-		p:           p,
+		ID:            uuid.NewV4().String(),
+		DateStart:     common.CurrentUTCTime(),
+		MaxIdleTime:   config.GetConf().MaxIdleTime,
+		keepAliveTime: time.Second * 60,
+		ctx:           ctx,
+		cancel:        cancel,
+		p:             p,
 	}
 	return &c
 }
@@ -43,6 +42,8 @@ type commonSwitch struct {
 	isConnected bool
 
 	MaxIdleTime time.Duration
+
+	keepAliveTime time.Duration
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -99,9 +100,9 @@ func (s *commonSwitch) generateCommandResult(command [3]string) *model.Command {
 
 	switch command[2] {
 	case model.HighRiskFlag:
-		riskLevel = 5
+		riskLevel = model.DangerLevel
 	default:
-		riskLevel = 0
+		riskLevel = model.NormalLevel
 	}
 	return s.p.GenerateRecordCommand(s, input, output, riskLevel)
 }
@@ -111,6 +112,7 @@ func (s *commonSwitch) postBridge() {
 	s.DateEnd = common.CurrentUTCTime()
 	s.finished = true
 }
+
 func (s *commonSwitch) MapData() map[string]interface{} {
 	return s.p.MapData(s)
 }
@@ -118,25 +120,18 @@ func (s *commonSwitch) MapData() map[string]interface{} {
 // Bridge 桥接两个链接
 func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 	var (
-		//ParseEngine         Parser
 		replayRecorder ReplyRecorder
-
-		userInChan chan []byte
-		srvInChan  chan []byte
-		done       chan struct{}
 	)
 	s.isConnected = true
-	//ParseEngine = newParser(s.ID)
 	parser := s.p.NewParser(s)
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
 	replayRecorder = NewReplyRecord(s.ID)
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
-	userInChan = make(chan []byte, 1)
-	srvInChan = make(chan []byte, 1)
-	done = make(chan struct{})
-
+	srvInChan := make(chan []byte, 1)
+	done := make(chan struct{})
+	userInputMessageChan := make(chan *model.RoomMessage, 1)
 	// 处理数据流
-	userOutChan, srvOutChan := parser.ParseStream(userInChan, srvInChan)
+	userOutChan, srvOutChan := parser.ParseStream(userInputMessageChan, srvInChan)
 
 	defer func() {
 		close(done)
@@ -152,26 +147,73 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 	// 记录命令
 	cmdChan := parser.CommandRecordChan()
 	go s.recordCommand(cmdChan)
-	go s.LoopReadFromSrv(done, srvConn, srvInChan)
-	go s.LoopReadFromUser(done, userConn, userInChan)
+
 	winCh := userConn.WinCh()
 	maxIdleTime := s.MaxIdleTime * time.Minute
 	lastActiveTime := time.Now()
 	tick := time.NewTicker(30 * time.Second)
 	defer tick.Stop()
-	ex := exchange.GetExchange()
-	roomChan := make(chan model.RoomMessage)
-	sub := ex.CreateRoom(roomChan, s.ID)
-	logger.Infof("Conn[%s] create exchange room success", userConn.ID())
-	defer ex.DestroyRoom(sub)
-	go s.loopReadFromRoom(done, roomChan, userInChan)
-	defer sub.Publish(model.RoomMessage{Event: model.ExitEvent})
-	logger.Infof("Conn[%s] start session %s bridge loop", userConn.ID(), s.ID)
+
+	room := exchange.CreateRoom(s.ID, userInputMessageChan)
+	exchange.Register(room)
+	defer exchange.UnRegister(room)
+	conn := exchange.WrapperUserCon(userConn)
+	room.Subscribe(conn)
+	defer room.UnSubscribe(conn)
+	exitSignal := make(chan struct{}, 2)
+	go func() {
+		var (
+			exitFlag bool
+			err      error
+			nr       int
+		)
+		for {
+			buf := make([]byte, 1024)
+			nr, err = srvConn.Read(buf)
+			if nr > 0 {
+				select {
+				case srvInChan <- buf[:nr]:
+				case <-done:
+					exitFlag = true
+					logger.Infof("Session[%s] done", s.ID)
+				}
+				if exitFlag {
+					break
+				}
+			}
+			if err != nil {
+				logger.Errorf("Session[%s] srv read err: %s", s.ID, err)
+				break
+			}
+		}
+		logger.Infof("Session[%s] srv read end", s.ID)
+		exitSignal <- struct{}{}
+		close(srvInChan)
+	}()
+
+	go func() {
+		for {
+			buf := make([]byte, 1024)
+			nr, err := userConn.Read(buf)
+			if nr > 0 {
+				room.Receive(&model.RoomMessage{
+					Event: model.DataEvent, Body: buf[:nr]})
+			}
+			if err != nil {
+				logger.Errorf("Session[%s] user read err: %s", s.ID, err)
+				break
+			}
+		}
+		logger.Infof("Session[%s] user read end", s.ID)
+		exitSignal <- struct{}{}
+	}()
+
+	keepAliveTick := time.NewTicker(s.keepAliveTime)
+	defer keepAliveTick.Stop()
 	for {
 		select {
 		// 检测是否超过最大空闲时间
-		case <-tick.C:
-			now := time.Now()
+		case now := <-tick.C:
 			outTime := lastActiveTime.Add(maxIdleTime)
 			if !now.After(outTime) {
 				continue
@@ -179,20 +221,18 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 			logger.Infof("Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
 			msg = utils.WrapperWarn(msg)
-			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
-			sub.Publish(model.RoomMessage{Event: model.MaxIdleEvent, Body: []byte("\n\r" + msg)})
-			logger.Debugf("Session[%s] published MaxIdleEvent", s.ID)
+			replayRecorder.Record([]byte(msg))
+			room.Broadcast(&model.RoomMessage{Event: model.DataEvent, Body: []byte("\n\r" + msg)})
 			return
-		// 手动结束
+			// 手动结束
 		case <-s.ctx.Done():
 			msg := i18n.T("Terminated by administrator")
 			msg = utils.WrapperWarn(msg)
+			replayRecorder.Record([]byte(msg))
 			logger.Infof("Session[%s]: %s", s.ID, msg)
-			utils.IgnoreErrWriteString(userConn, "\n\r"+msg)
-			sub.Publish(model.RoomMessage{Event: model.AdminTerminateEvent, Body: []byte("\n\r" + msg)})
-			logger.Debugf("Session[%s] published AdminTerminateEvent", s.ID)
+			room.Broadcast(&model.RoomMessage{Event: model.DataEvent, Body: []byte("\n\r" + msg)})
 			return
-		// 监控窗口大小变化
+			// 监控窗口大小变化
 		case win, ok := <-winCh:
 			if !ok {
 				return
@@ -205,95 +245,40 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 				Event: model.WindowsEvent,
 				Body:  p,
 			}
-			sub.Publish(msg)
-		// 经过parse处理的server数据，发给user
+			room.Broadcast(&msg)
+			// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
 				return
 			}
-			nw, _ := userConn.Write(p)
 			if parser.NeedRecord() {
-				replayRecorder.Record(p[:nw])
+				replayRecorder.Record(p)
 			}
 			msg := model.RoomMessage{
 				Event: model.DataEvent,
-				Body:  p[:nw],
+				Body:  p,
 			}
-			sub.Publish(msg)
-		// 经过parse处理的user数据，发给server
+			room.Broadcast(&msg)
+			// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
 				return
 			}
-			_, err = srvConn.Write(p)
-			sub.Publish(model.RoomMessage{
-				Event: model.PingEvent,
-			})
+			if _, err := srvConn.Write(p); err != nil {
+				logger.Errorf("Session[%s] srvConn write err: %s", s.ID, err)
+			}
+
+		case now := <-keepAliveTick.C:
+			if now.After(lastActiveTime.Add(s.keepAliveTime)) {
+				if err := srvConn.KeepAlive(); err != nil {
+					logger.Errorf("Session[%s] srvCon keep alive err: %s", s.ID, err)
+				}
+			}
+			continue
+		case <-exitSignal:
+			logger.Debugf("Session[%s] end by exit signal", s.ID)
+			return
 		}
 		lastActiveTime = time.Now()
-	}
-}
-
-func (s *commonSwitch) LoopReadFromUser(done chan struct{}, userConn UserConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session[%s] read from user done", s.ID)
-	s.LoopRead(done, userConn, inChan)
-}
-
-func (s *commonSwitch) LoopReadFromSrv(done chan struct{}, srvConn srvconn.ServerConnection, inChan chan<- []byte) {
-	defer logger.Infof("Session[%s] read from srv done", s.ID)
-	s.LoopRead(done, srvConn, inChan)
-}
-
-func (s *commonSwitch) LoopRead(done chan struct{}, read io.Reader, inChan chan<- []byte) {
-loop:
-	for {
-		buf := make([]byte, 1024)
-		nr, err := read.Read(buf)
-		if nr > 0 {
-			select {
-			case <-done:
-				break loop
-			case inChan <- buf[:nr]:
-			}
-		}
-		if err != nil {
-			break
-		}
-	}
-	close(inChan)
-}
-
-func (s *commonSwitch) loopReadFromRoom(done chan struct{}, roomMsgChan <-chan model.RoomMessage, inChan chan<- []byte) {
-	defer logger.Infof("Session[%s] stop receive event from room", s.ID)
-	for {
-		select {
-		case <-done:
-			logger.Infof("Session[%s] stop loop read from room by done", s.ID)
-			return
-		case roomMsg, ok := <-roomMsgChan:
-			if !ok {
-				logger.Infof("Session[%s] stop loop read from room by close room channel", s.ID)
-				return
-			}
-			switch roomMsg.Event {
-			case model.DataEvent:
-				select {
-				case inChan <- roomMsg.Body:
-				case <-done:
-					logger.Infof("Session[%s] stop loop read from room by done",
-						s.ID)
-					return
-				}
-			case model.LogoutEvent, model.MaxIdleEvent, model.AdminTerminateEvent, model.ExitEvent:
-				logger.Infof("Session[%s] stop loop read from room by event %s", s.ID, roomMsg.Event)
-				return
-			case model.WindowsEvent:
-				var win ssh.Window
-				_ = json.Unmarshal(roomMsg.Body, &win)
-				logger.Infof("Session[%s] room windows change event height*width %d*%d",
-					s.ID, win.Height, win.Width)
-			}
-
-		}
 	}
 }

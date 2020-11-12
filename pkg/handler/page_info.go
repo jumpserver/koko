@@ -1,33 +1,6 @@
 package handler
 
-import "strings"
-
 const PAGESIZEALL = 0
-
-type Application interface {
-	Name() string
-
-	MoveNextPage()
-
-	MovePrePage()
-
-	Search(key string)
-
-	SearchAgain(key string)
-
-	SearchOrProxy(key string)
-
-}
-
-type baseEngine interface {
-	HasPrev() bool
-	HasNext() bool
-	TotalCount() int
-	TotalPage() int
-	PageSize() int
-	CurrentPage() int
-	CurrentOffSet() int
-}
 
 type pageInfo struct {
 	pageSize   int
@@ -45,6 +18,7 @@ func (p *pageInfo) updatePageInfo(pageSiz, totalCount, offset int) {
 	p.currentOffset = offset
 	p.update()
 }
+
 func (p *pageInfo) update() {
 	// 根据 pageSize和total值 更新  totalPage currentPage
 	if p.pageSize <= 0 {
@@ -85,16 +59,4 @@ func (p *pageInfo) CurrentPage() int {
 
 func (p *pageInfo) CurrentOffSet() int {
 	return p.currentOffset
-}
-
-func IsEqualStringSlice(a []string, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		if !strings.EqualFold(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
 }

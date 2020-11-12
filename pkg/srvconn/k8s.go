@@ -118,8 +118,8 @@ func (c *K8sCon) SetWinSize(w, h int) error {
 	return pty.Setsize(c.ptyFD, &win)
 }
 
-func (c *K8sCon) Protocol() string {
-	return "k8s"
+func (c *K8sCon) KeepAlive() error {
+	return nil
 }
 
 func (c *K8sCon) Close() (err error) {

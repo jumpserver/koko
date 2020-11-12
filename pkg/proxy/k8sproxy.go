@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,16 +24,16 @@ var _ proxyEngine = (*K8sProxyServer)(nil)
 type K8sProxyServer struct {
 	UserConn   UserConnection
 	User       *model.User
-	Cluster    *model.K8sCluster
+	Cluster    *model.K8sApplication
 	SystemUser *model.SystemUser
 }
 
 func (p *K8sProxyServer) checkProtocolMatch() bool {
-	return strings.EqualFold(p.Cluster.Type, p.SystemUser.Protocol)
+	return strings.EqualFold(p.Cluster.TypeName, p.SystemUser.Protocol)
 }
 
 func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
-	switch strings.ToLower(p.Cluster.Type) {
+	switch strings.ToLower(p.Cluster.TypeName) {
 	case "k8s":
 		return IsInstalledKubectlClient()
 	}
@@ -39,14 +42,22 @@ func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *K8sProxyServer) validatePermission() bool {
-	return service.ValidateUserK8sPermission(p.User.ID, p.Cluster.ID, p.SystemUser.ID)
+	return service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.Id, p.SystemUser.ID)
 }
 
 // getSSHConn 获取ssh连接
-func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
+func (p *K8sProxyServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
+	clusterServer := p.Cluster.Attrs.Cluster
+	if localTunnelAddr != nil {
+		originUrl, err := url.Parse(clusterServer)
+		if err != nil {
+			return nil, err
+		}
+		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localTunnelAddr.Port)
+	}
 	srvConn = srvconn.NewK8sCon(
 		srvconn.K8sToken(p.SystemUser.Token),
-		srvconn.K8sClusterServer(p.Cluster.Cluster),
+		srvconn.K8sClusterServer(clusterServer),
 		srvconn.K8sUsername(p.SystemUser.Username),
 		srvconn.K8sSkipTls(true),
 	)
@@ -55,20 +66,20 @@ func (p *K8sProxyServer) getK8sConConn() (srvConn *srvconn.K8sCon, err error) {
 }
 
 // getServerConn 获取获取server连接
-func (p *K8sProxyServer) getServerConn() (srvConn srvconn.ServerConnection, err error) {
+func (p *K8sProxyServer) getServerConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	done := make(chan struct{})
 	defer func() {
 		utils.IgnoreErrWriteString(p.UserConn, "\r\n")
 		close(done)
 	}()
 	go p.sendConnectingMsg(done)
-	return p.getK8sConConn()
+	return p.getK8sConConn(localTunnelAddr)
 }
 
 // sendConnectingMsg 发送连接信息
 func (p *K8sProxyServer) sendConnectingMsg(done chan struct{}) {
 	delay := 0.1
-	msg := fmt.Sprintf(i18n.T("Connecting to Kubernetes %s %.1f"), p.Cluster.Cluster, delay)
+	msg := fmt.Sprintf(i18n.T("Connecting to Kubernetes %s %.1f"), p.Cluster.Attrs.Cluster, delay)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	for {
 		select {
@@ -88,7 +99,7 @@ func (p *K8sProxyServer) sendConnectingMsg(done chan struct{}) {
 func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 	if !p.checkProtocolMatch() {
 		msg := utils.WrapperWarn(i18n.T("System user <%s> and kubernetes <%s> protocol are inconsistent."))
-		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Cluster.Type)
+		msg = fmt.Sprintf(msg, p.SystemUser.Username, p.Cluster.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] checking protocol matched failed: %s", p.UserConn.ID(), msg)
 		return
@@ -96,7 +107,7 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 	logger.Infof("Conn[%s] System user and k8s protocol matched", p.UserConn.ID())
 	if !p.checkProtocolClientInstalled() {
 		msg := utils.WrapperWarn(i18n.T("%s protocol client not installed."))
-		msg = fmt.Sprintf(msg, p.Cluster.Type)
+		msg = fmt.Sprintf(msg, p.Cluster.TypeName)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
 		logger.Errorf("Conn[%s] %s", p.UserConn.ID(), msg)
 		return
@@ -104,35 +115,35 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 	logger.Infof("Conn[%s] System user protocol %s supported", p.UserConn.ID(), p.SystemUser.Protocol)
 	if !p.validatePermission() {
 		msg := utils.WrapperWarn(i18n.T("You don't have permission login %s"))
-		msg = fmt.Sprintf(msg, p.Cluster.Cluster)
+		msg = fmt.Sprintf(msg, p.Cluster.Attrs.Cluster)
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] get k8s %s permission failed", p.UserConn.ID(), p.Cluster.Cluster)
+		logger.Errorf("Conn[%s] get k8s %s permission failed", p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 		return
 	}
-	logger.Infof("Conn[%s] has permission to access k8s %s", p.UserConn.ID(), p.Cluster.Cluster)
+	logger.Infof("Conn[%s] has permission to access k8s %s", p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 	if err := p.checkRequiredAuth(); err != nil {
 		msg := utils.WrapperWarn(i18n.T("You get auth token failed"))
 		utils.IgnoreErrWriteString(p.UserConn, msg)
-		logger.Errorf("Conn[%s] get k8s %s auth info failed: %s", p.UserConn.ID(), p.Cluster.Cluster, err)
+		logger.Errorf("Conn[%s] get k8s %s auth info failed: %s", p.UserConn.ID(), p.Cluster.Attrs.Cluster, err)
 		return
 	}
 	return true
 }
 
 func (p *K8sProxyServer) checkRequiredAuth() error {
-	info := service.GetUserK8sAuthToken(p.SystemUser.ID)
+	info := service.GetApplicationSystemUserAuthInfo(p.SystemUser.ID)
 	if info.Token == "" {
 		return errors.New("no auth token")
 	}
 	p.SystemUser.Token = info.Token
 	logger.Infof("Conn[%s] get k8s %s auth info from JMS core success",
-		p.UserConn.ID(), p.Cluster.Cluster)
+		p.UserConn.ID(), p.Cluster.Attrs.Cluster)
 	return nil
 }
 
 // sendConnectErrorMsg 发送连接错误消息
 func (p *K8sProxyServer) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("Connect K8s %s error: %s\r\n", p.Cluster.Cluster, err)
+	msg := fmt.Sprintf("Connect K8s %s error: %s\r\n", p.Cluster.Attrs.Cluster, err)
 	utils.IgnoreErrWriteString(p.UserConn, msg)
 	logger.Error(msg)
 	token := p.SystemUser.Token
@@ -143,6 +154,46 @@ func (p *K8sProxyServer) sendConnectErrorMsg(err error) {
 		msg2 := fmt.Sprintf("Try token: %s", token[:showLen]+strings.Repeat("*", hiddenLen))
 		logger.Errorf(msg2)
 	}
+}
+
+func (p *K8sProxyServer) createDomainGateway(domainId string) (*domainGateway, error) {
+	domain := service.GetDomainGateways(domainId)
+	if domain.ID == "" {
+		return nil, errors.New("invalid domain")
+	}
+	clusterUrl, err := url.Parse(p.Cluster.Attrs.Cluster)
+	if err != nil {
+		logger.Errorf("K8s proxy parse %s url err: %s", p.Cluster.Attrs.Cluster, err)
+		return nil, err
+	}
+	// URL host 是包含port的结果
+	hostAndPort := strings.Split(clusterUrl.Host, ":")
+	var (
+		dstHost string
+		dstPort int
+	)
+	dstHost = hostAndPort[0]
+	switch len(hostAndPort) {
+	case 2:
+		dstPort, err = strconv.Atoi(hostAndPort[1])
+		if err != nil {
+			logger.Errorf("K8s proxy convert dst port %s err: %s", hostAndPort[1], err)
+			return nil, err
+		}
+	default:
+		switch clusterUrl.Scheme {
+		case "https":
+			dstPort = 443
+		default:
+			dstPort = 80
+		}
+	}
+	dGateway := domainGateway{
+		domain:  &domain,
+		dstIP:   dstHost,
+		dstPort: dstPort,
+	}
+	return &dGateway, nil
 }
 
 // Proxy 代理
@@ -164,7 +215,25 @@ func (p *K8sProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] create k8s session %s success", p.UserConn.ID(), sw.ID)
 	defer RemoveCommonSwitch(sw)
-	srvConn, err := p.getServerConn()
+	var localTunnelAddr *net.TCPAddr
+	if p.Cluster.Domain != "" {
+		dGateway, err := p.createDomainGateway(p.Cluster.Domain)
+		if err != nil {
+			msg := i18n.T("Create k8s domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		localTunnelAddr, err = dGateway.Start()
+		if err != nil {
+			msg := i18n.T("Start k8s domain gateway failed %s")
+			msg = utils.WrapperWarn(fmt.Sprintf(msg, err))
+			utils.IgnoreErrWriteString(p.UserConn, msg)
+			return
+		}
+		defer dGateway.Stop()
+	}
+	srvConn, err := p.getServerConn(localTunnelAddr)
 	// 连接后端服务器失败
 	if err != nil {
 		logger.Errorf("Conn[%s] create k8s conn failed: %s", p.UserConn.ID(), err)
@@ -174,21 +243,22 @@ func (p *K8sProxyServer) Proxy() {
 	logger.Infof("Conn[%s] get k8s conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end k8s session %s bridge", p.UserConn.ID(), sw.ID)
-
 }
 
 func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output string,
 	riskLevel int64) *model.Command {
 	return &model.Command{
 		SessionID:  s.ID,
-		OrgID:      p.Cluster.OrgID,
+		OrgID:      p.Cluster.OrgId,
 		Input:      input,
 		Output:     output,
 		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
-		Server:     fmt.Sprintf("%s (%s)", p.Cluster.Name, p.Cluster.Cluster),
+		Server:     fmt.Sprintf("%s (%s)", p.Cluster.Name, p.Cluster.Attrs.Cluster),
 		SystemUser: fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
+
+		DateCreated: time.Now(),
 	}
 }
 
@@ -214,7 +284,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"id":             s.ID,
 		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
 		"asset":          p.Cluster.Name,
-		"org_id":         p.Cluster.OrgID,
+		"org_id":         p.Cluster.OrgId,
 		"login_from":     p.UserConn.LoginFrom(),
 		"system_user":    fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
 		"protocol":       p.SystemUser.Protocol,
@@ -223,7 +293,7 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"date_start":     s.DateStart,
 		"date_end":       dataEnd,
 		"user_id":        p.User.ID,
-		"asset_id":       p.Cluster.ID,
+		"asset_id":       p.Cluster.Id,
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}
@@ -248,4 +318,30 @@ func IsInstalledKubectlClient() bool {
 	}
 	logger.Errorf("Check kubectl client failed: %s", out)
 	return false
+}
+
+func ReplaceURLHostAndPort(originUrl *url.URL, ip string, port int) string {
+	newHost := net.JoinHostPort(ip, strconv.Itoa(port))
+	switch originUrl.Scheme {
+	case "https":
+		if port == 443 {
+			newHost = ip
+		}
+	default:
+		if port == 80 {
+			newHost = ip
+		}
+	}
+	newUrl := url.URL{
+		Scheme:     originUrl.Scheme,
+		Opaque:     originUrl.Opaque,
+		User:       originUrl.User,
+		Host:       newHost,
+		Path:       originUrl.Path,
+		RawPath:    originUrl.RawQuery,
+		ForceQuery: originUrl.ForceQuery,
+		RawQuery:   originUrl.RawQuery,
+		Fragment:   originUrl.Fragment,
+	}
+	return newUrl.String()
 }
