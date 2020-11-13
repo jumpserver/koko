@@ -93,7 +93,11 @@ func (u *UserSelectHandler) MovePrePage() () {
 	if u.HasPrev() {
 		offset := u.CurrentOffSet()
 		newPageSize := getPageSize(u.h.term)
-		u.currentResult = u.Retrieve(newPageSize, offset, u.searchKeys...)
+		start := offset - newPageSize*2
+		if start <= 0 {
+			start = 0
+		}
+		u.currentResult = u.Retrieve(newPageSize, start, u.searchKeys...)
 	}
 	u.DisplayCurrentResult()
 }
