@@ -55,11 +55,11 @@ func GetUserApplicationSystemUsers(userId, appId string) (res []model.SystemUser
 	return
 }
 
-func ValidateUserApplicationPermission(userId, appId, systemUserId string) bool{
+func ValidateUserApplicationPermission(userId, appId, systemUserId string) bool {
 	payload := map[string]string{
-		"user_id":         userId,
+		"user_id":        userId,
 		"application_id": appId,
-		"system_user_id":  systemUserId,
+		"system_user_id": systemUserId,
 	}
 	Url := ValidateApplicationPermissionURL
 	var res struct {
@@ -75,7 +75,7 @@ func ValidateUserApplicationPermission(userId, appId, systemUserId string) bool{
 	return res.Msg
 }
 
-func GetApplicationSystemUserAuthInfo(systemUserId string) (info model.SystemUserAuthInfo){
+func GetApplicationSystemUserAuthInfo(systemUserId string) (info model.SystemUserAuthInfo) {
 	Url := fmt.Sprintf(SystemUserAuthURL, systemUserId)
 	_, err := authClient.Get(Url, &info)
 	if err != nil {
