@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
-	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
@@ -32,7 +32,7 @@ func getPaginationResult(reqUrl string, param model.PaginationParam) (resp model
 	paramsArray := make([]map[string]string, 0, len(param.Searches)+2)
 	for i := 0; i < len(param.Searches); i++ {
 		paramsArray = append(paramsArray, map[string]string{
-			"search": url.QueryEscape(param.Searches[i]),
+			"search": strings.TrimSpace(param.Searches[i]),
 		})
 	}
 
