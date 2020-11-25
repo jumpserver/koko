@@ -372,6 +372,11 @@ func (p *ProxyServer) Proxy() {
 		p.sendConnectErrorMsg(err)
 		return
 	}
+	title := fmt.Sprintf("%s://%s@%s",
+		p.SystemUser.Protocol,
+		p.SystemUser.Username,
+		p.Asset.IP)
+	utils.IgnoreErrWriteWindowTitle(p.UserConn, title)
 	logger.Infof("Conn[%s] getting srv conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end session %s bridge", p.UserConn.ID(), sw.ID)
