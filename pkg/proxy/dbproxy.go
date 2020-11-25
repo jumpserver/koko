@@ -264,6 +264,11 @@ func (p *DBProxyServer) Proxy() {
 		p.sendConnectErrorMsg(err)
 		return
 	}
+	title := fmt.Sprintf("%s://%s@%s",
+		p.SystemUser.Protocol,
+		p.SystemUser.Username,
+		p.Database.Attrs.Host)
+	utils.IgnoreErrWriteWindowTitle(p.UserConn, title)
 	logger.Infof("Conn[%s] get database conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end database session %s bridge", p.UserConn.ID(), sw.ID)
