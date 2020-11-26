@@ -15,7 +15,7 @@ function handleError(reason) {
 }
 
 function initTerminal(elementId) {
-    let urlParams = new URLSearchParams(window.location.search);
+    let urlParams = new URLSearchParams(window.location.search.slice(1));
     let scheme = document.location.protocol == "https:" ? "wss" : "ws";
     let port = document.location.port ? ":" + document.location.port : "";
     let baseWsUrl = scheme + "://" + document.location.hostname + port;
