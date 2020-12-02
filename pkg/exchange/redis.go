@@ -174,7 +174,7 @@ func (m *redisRoomManager) checkRoomExist(roomId string) bool {
 	var countInt int
 	err := m.pool.Do(radix.Cmd(&countInt, "SISMEMBER", globalRoomsKey, roomId))
 	if err != nil {
-		logger.Errorf("Redis cache check room err: %s", roomId, err)
+		logger.Errorf("Redis cache check room %s err: %s", roomId, err)
 		return false
 	}
 	return countInt == 1
