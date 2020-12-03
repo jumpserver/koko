@@ -1,6 +1,6 @@
 module github.com/jumpserver/koko
 
-go 1.12
+go 1.15
 
 require (
 	github.com/Azure/azure-pipeline-go v0.1.9 // indirect
@@ -8,12 +8,10 @@ require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/LeeEirc/elfinder v0.0.12
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
-	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 // indirect
 	github.com/aws/aws-sdk-go v1.19.46
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/creack/pty v1.1.9
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
-	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/gin-gonic/gin v1.6.3
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/gorilla/websocket v1.4.1
@@ -31,7 +29,7 @@ require (
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/sirupsen/logrus v1.4.2
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
 	golang.org/x/text v0.3.2
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
@@ -40,7 +38,7 @@ require (
 )
 
 replace (
-	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991 => github.com/ibuler/ssh v0.1.6-0.20191022095544-d805cc9f27a8
+	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991 => github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534
 	github.com/pkg/sftp v1.10.0 => github.com/LeeEirc/sftp v1.10.2
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586 => github.com/ibuler/crypto v0.0.0-20190715092645-911d13b3bf6e
+	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899 => github.com/LeeEirc/crypto v0.0.0-20201111063343-abd7a31f9aa8
 )
