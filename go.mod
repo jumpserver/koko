@@ -23,13 +23,14 @@ require (
 	github.com/mediocregopher/radix/v3 v3.4.2
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
-	github.com/pkg/errors v0.8.1
-	github.com/pkg/sftp v1.10.0
+	github.com/pkg/errors v0.9.1
+	github.com/pkg/sftp v1.12.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/sirupsen/logrus v1.4.2
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
-	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
+	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c
+	golang.org/x/sys v0.0.0-20201202213521-69691e467435 // indirect
 	golang.org/x/text v0.3.2
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
@@ -39,6 +40,5 @@ require (
 
 replace (
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991 => github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534
-	github.com/pkg/sftp v1.10.0 => github.com/LeeEirc/sftp v1.10.2
-	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899 => github.com/LeeEirc/crypto v0.0.0-20201111063343-abd7a31f9aa8
+	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c => github.com/LeeEirc/crypto v0.0.0-20201111063343-abd7a31f9aa8
 )
