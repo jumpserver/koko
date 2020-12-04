@@ -1,4 +1,4 @@
-FROM golang:1.12-alpine as stage-build
+FROM golang:1.15-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 ARG GOPROXY=https://goproxy.io
