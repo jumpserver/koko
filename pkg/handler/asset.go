@@ -16,7 +16,6 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-
 func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []map[string]interface{} {
 	res := service.GetUserPermsAssets(u.user.ID, reqParam)
 	return u.updateRemotePageData(reqParam, res)
@@ -110,7 +109,7 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 		Labels: Labels,
 		FieldsSize: map[string][3]int{
 			"ID":       {0, 0, 5},
-			"Hostname": {0, 8, 0},
+			"Hostname": {0, 40, 0},
 			"IP":       {0, 15, 40},
 			"Comment":  {0, 0, 0},
 		},
