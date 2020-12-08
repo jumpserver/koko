@@ -10,7 +10,7 @@ import (
 func RegisterTerminal(name, token, comment string) (res model.Terminal) {
 	client := newClient()
 	client.Headers["Authorization"] = fmt.Sprintf("BootstrapToken %s", token)
-	data := map[string]string{"name": name, "comment": comment}
+	data := map[string]string{"name": name, "comment": comment, "type": model.ComponentName}
 	_, err := client.Post(TerminalRegisterURL, data, &res)
 	if err != nil {
 		logger.Error(err)
