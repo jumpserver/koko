@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/LeeEirc/tclientlib"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/text/transform"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/srvconn/telnetlib"
 )
 
 type ServerTelnetConnection struct {
@@ -24,7 +24,7 @@ type ServerTelnetConnection struct {
 	CustomSuccessPattern *regexp.Regexp
 	Charset              string
 
-	conn      *telnetlib.Client
+	conn      *tclientlib.Client
 	proxyConn *gossh.Client
 	closed    bool
 
@@ -79,17 +79,26 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 		}
 		return
 	}
+	tclientlib.SetMode(tclientlib.DebugMode)
+	loginSuccessReg := tclientlib.DefaultLoginSuccessPattern
+	if tc.CustomString != "" {
+		tc.CustomSuccessPattern, err = regexp.Compile(tc.CustomString)
+		if err == nil {
+			loginSuccessReg = tc.CustomSuccessPattern
+			logger.Infof("Telnet conn use custom pattern %s", tc.CustomString)
+		}
+	}
 
-	client, err := telnetlib.NewClientConn(conn, &telnetlib.ClientConfig{
-		User:     tc.SystemUser.Username,
+	client, err := tclientlib.NewClientConn(conn, &tclientlib.Config{
+		Username: tc.SystemUser.Username,
 		Password: tc.SystemUser.Password,
 		Timeout:  tc.Timeout(),
-		TTYOptions: &telnetlib.TerminalOptions{
-			Wide:  w,
-			High:  h,
-			Xterm: term,
+		TTYOptions: &tclientlib.TerminalOptions{
+			Wide:     w,
+			High:     h,
+			TermType: term,
 		},
-		CustomString: tc.CustomString,
+		LoginSuccessRegex: loginSuccessReg,
 	})
 	if err != nil {
 		return err
@@ -107,7 +116,6 @@ func (tc *ServerTelnetConnection) Connect(h, w int, term string) (err error) {
 	}
 	tc.proxyConn = proxyConn
 	logger.Infof("Telnet host %s success", asset.Hostname)
-	_, _ = client.Write([]byte{'\r'})
 	return nil
 }
 

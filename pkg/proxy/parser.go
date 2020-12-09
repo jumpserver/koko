@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/LeeEirc/tclientlib"
+
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/srvconn/telnetlib"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -332,7 +333,7 @@ func matchMark(p []byte, marks [][]byte) bool {
 func breakInputPacket(protocolType string) []byte {
 	switch protocolType {
 	case model.ProtocolTelnet:
-		return []byte{telnetlib.IAC, telnetlib.BRK, '\r'}
+		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
 	case model.ProtocolSSH:
 		return []byte{utils.CharCleanLine, '\r'}
 	}

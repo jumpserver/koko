@@ -7,6 +7,7 @@ require (
 	github.com/Azure/azure-storage-blob-go v0.6.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/LeeEirc/elfinder v0.0.12
+	github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
 	github.com/aws/aws-sdk-go v1.19.46
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
