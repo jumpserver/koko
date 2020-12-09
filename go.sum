@@ -11,6 +11,8 @@ github.com/LeeEirc/elfinder v0.0.12 h1:6MRzyHyu9ttb2vxqSHJV6YhVWbwU6Etwamn1r2dTK
 github.com/LeeEirc/elfinder v0.0.12/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534 h1:x4gr2rn068pHL5NvdPMNQUGv8hmSJ22FgNftawlidEk=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534/go.mod h1:Y4MILF5d5xIGmsN5GLJryvyyLRq1kYkbA1V10UWCszs=
+github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04 h1:j2XxH6wbtZUHMc10CUIqWNPw4Z8COMfzWNlMnsvZmUM=
+github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8 h1:BOflvK0Zs/zGmoabyFIzTg5c3kguktWTXEwewwbuba0=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
