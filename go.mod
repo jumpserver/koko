@@ -10,7 +10,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
 	github.com/aws/aws-sdk-go v1.19.46
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
-	github.com/creack/pty v1.1.9
+	github.com/creack/pty v1.1.11
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/gin-gonic/gin v1.6.3
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
@@ -30,7 +30,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
 	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c
-	golang.org/x/sys v0.0.0-20201202213521-69691e467435 // indirect
+	golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d // indirect
 	golang.org/x/text v0.3.2
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
