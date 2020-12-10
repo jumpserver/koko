@@ -23,9 +23,9 @@ func TestSSHConnection_Config(t *testing.T) {
 	fmt.Println(config.User)
 }
 
-func TestSSHConnection_Connect(t *testing.T) {
-	_, err := testConnection.Dial()
-	if err != nil {
-		t.Errorf("Connect error %s", err)
-	}
-}
+//func TestSSHConnection_Connect(t *testing.T) {
+//	_, err := testConnection.Dial()
+//	if err != nil {
+//		t.Errorf("Connect error %s", err)
+//	}
+//}

@@ -81,7 +81,7 @@ func (h *tty) HandleMessage(msg *Message) {
 		err := json.Unmarshal([]byte(msg.Data), &size)
 		if err != nil {
 			logger.Errorf("Ws[%s] terminal initial message data unmarshal err: %s",
-				h.ws.Uuid, msg.Type, msg.Data)
+				h.ws.Uuid, err)
 			return
 		}
 		h.initialed = true

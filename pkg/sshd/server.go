@@ -34,10 +34,10 @@ func StartServer() {
 		NextAuthMethodsHandler:     auth.MFAAuthMethods,
 		HostSigners:                []ssh.Signer{signer},
 		Handler:                    handler.SessionHandler,
-		SubsystemHandlers:          map[string]ssh.SubsystemHandler{},
+		SubsystemHandlers: map[string]ssh.SubsystemHandler{
+			"sftp": handler.SftpHandler,
+		},
 	}
-	// Set sftp handler
-	sshServer.SetSubsystemHandler("sftp", handler.SftpHandler)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		logger.Fatal(err)

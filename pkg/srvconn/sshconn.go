@@ -91,6 +91,6 @@ func (sc *ServerSSHConnection) Close() (err error) {
 }
 
 func (sc *ServerSSHConnection) KeepAlive() error {
-	_, err := sc.session.SendRequest("keepalive@openssh.com", true, nil)
+	_, err := sc.session.SendRequest("keepalive@openssh.com", false, nil)
 	return err
 }

@@ -240,6 +240,10 @@ func (p *K8sProxyServer) Proxy() {
 		p.sendConnectErrorMsg(err)
 		return
 	}
+	title := fmt.Sprintf("%s+%s",
+		p.SystemUser.Protocol,
+		p.Cluster.Attrs.Cluster)
+	utils.IgnoreErrWriteWindowTitle(p.UserConn, title)
 	logger.Infof("Conn[%s] get k8s conn success", p.UserConn.ID())
 	_ = sw.Bridge(p.UserConn, srvConn)
 	logger.Infof("Conn[%s] end k8s session %s bridge", p.UserConn.ID(), sw.ID)

@@ -113,7 +113,7 @@ func KeepSyncConfigWithServer(ctx context.Context) {
 		case <-ticker.C:
 			err := LoadConfigFromServer()
 			if err != nil {
-				logger.Warn("Sync config with server error: ", err)
+				logger.Errorf("Sync config with server error: %s", err)
 			}
 		}
 	}
