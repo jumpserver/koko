@@ -143,11 +143,14 @@ func (c *Config) LoadFromEnv() error {
 }
 
 func (c *Config) Load(filepath string) error {
-	if err := c.LoadFromYAMLPath(filepath); err == nil {
-		return err
+	var err error
+	log.Print("Config Load from env first")
+	_ = c.LoadFromEnv()
+	if _, err = os.Stat(filepath); err == nil {
+		log.Printf("Config reload from file: %s", filepath)
+		return c.LoadFromYAMLPath(filepath)
 	}
-	log.Print("Load from env")
-	return c.LoadFromEnv()
+	return nil
 }
 
 var lock = new(sync.RWMutex)
