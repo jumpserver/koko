@@ -20,6 +20,7 @@ func Initial() {
 	}
 
 	go keepHeartbeat()
+	go keepReportState()
 }
 
 // uploadRemainReplay 上传遗留的录像
@@ -81,7 +82,7 @@ func uploadRemainReplay(rootPath string) {
 // keepHeartbeat 保持心跳
 func keepHeartbeat() {
 	for {
-		time.Sleep(config.GetConf().HeartbeatDuration * time.Second)
+		time.Sleep(30 * time.Second)
 		data := proxy.GetAliveSessions()
 		tasks := service.TerminalHeartBeat(data)
 		if len(tasks) != 0 {
@@ -89,6 +90,14 @@ func keepHeartbeat() {
 				proxy.HandleSessionTask(task)
 			}
 		}
+	}
+}
+
+func keepReportState() {
+	for {
+		time.Sleep(30 * time.Second)
+		service.ReportStat(service.SessionActiveCount(
+			proxy.GetAliveSessionCount()))
 	}
 }
 

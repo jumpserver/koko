@@ -112,7 +112,7 @@ func (d *domainGateway) getAvailableGateway() bool {
 			}
 			addr := net.JoinHostPort(gateway.IP, strconv.Itoa(gateway.Port))
 			sshClient, err := gossh.Dial("tcp", addr, &sshConfig)
-			logger.Debugf("Domain %s try dial gateway %s", gateway.Name)
+			logger.Debugf("Domain %s try dial gateway %s", d.domain.Name, gateway.Name)
 			if err != nil {
 				logger.Errorf("Dial gateway %s err: %s ", gateway.Name, err)
 				continue

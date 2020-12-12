@@ -48,13 +48,17 @@ func GetAliveSessions() []string {
 	return sids
 }
 
+func GetAliveSessionCount() int {
+	lock.RLock()
+	defer lock.RUnlock()
+	return len(sessionMap)
+}
 
 func AddSession(sw Session) {
 	lock.Lock()
 	defer lock.Unlock()
 	sessionMap[sw.SessionID()] = sw
 }
-
 
 func postSession(data map[string]interface{}) bool {
 	for i := 0; i < 5; i++ {

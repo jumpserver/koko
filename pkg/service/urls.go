@@ -62,3 +62,7 @@ const (
 const (
 	NotificationCommandURL = "/api/v1/terminal/commands/insecure-command/"
 )
+
+const (
+	StatURL = "/api/v1/terminal/components/state/"
+)
