@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,6 +32,7 @@ type Client struct {
 	cookie     map[string]string
 	http       http.Client
 	UrlParsers []UrlParser
+	mux        sync.Mutex
 }
 
 type UrlParser interface {
@@ -54,7 +56,35 @@ func NewClient(timeout time.Duration, baseHost string) Client {
 }
 
 func (c *Client) SetCookie(k, v string) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	c.cookie[k] = v
+}
+
+func (c *Client) saveResponseCookies(respCookies []*http.Cookie) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	requestCookies := make([]*http.Cookie, 0, len(c.cookie))
+	for i := range respCookies {
+		requestCookies = append(requestCookies, &http.Cookie{
+			Name:  respCookies[i].Name,
+			Value: respCookies[i].Value,
+		})
+		c.cookie[respCookies[i].Name] = respCookies[i].Value
+	}
+}
+
+func (c *Client) getRequestCookies() []*http.Cookie {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	requestCookies := make([]*http.Cookie, 0, len(c.cookie))
+	for k, v := range c.cookie {
+		requestCookies = append(requestCookies, &http.Cookie{
+			Name:  k,
+			Value: v,
+		})
+	}
+	return requestCookies
 }
 
 func (c *Client) SetBasicAuth(username, password string) {
@@ -106,11 +136,9 @@ func (c *Client) parseUrl(url string, params []map[string]string) string {
 }
 
 func (c *Client) setAuthHeader(r *http.Request) {
-	if len(c.cookie) != 0 {
-		for k, v := range c.cookie {
-			c := http.Cookie{Name: k, Value: v,}
-			r.AddCookie(&c)
-		}
+	requestHttpCookies := c.getRequestCookies()
+	for i := range requestHttpCookies {
+		r.AddCookie(requestHttpCookies[i])
 	}
 	if len(c.basicAuth) == 2 {
 		r.SetBasicAuth(c.basicAuth[0], c.basicAuth[1])
@@ -174,7 +202,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		err = errors.New(msg)
 		return
 	}
-
+	c.saveResponseCookies(resp.Cookies())
 	// If is buffer return the raw response body
 	if buf, ok := res.(*bytes.Buffer); ok {
 		buf.Write(body)
