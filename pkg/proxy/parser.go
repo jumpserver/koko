@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/LeeEirc/tclientlib"
@@ -170,6 +171,9 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
 			p.sendCommandRecord()
+			if ps1 := p.cmdOutputParser.GetPs1(); ps1 != "" {
+				p.cmdInputParser.SetPs1(ps1)
+			}
 		}
 	}
 	return b
@@ -177,12 +181,17 @@ func (p *Parser) parseInputState(b []byte) []byte {
 
 // parseCmdInput 解析命令的输入
 func (p *Parser) parseCmdInput() {
-	p.command = p.cmdInputParser.Parse()
+	commands := p.cmdInputParser.Parse()
+	if len(commands) <= 0 {
+		p.command = ""
+	} else {
+		p.command = commands[len(commands)-1]
+	}
 }
 
 // parseCmdOutput 解析命令输出
 func (p *Parser) parseCmdOutput() {
-	p.output = p.cmdOutputParser.Parse()
+	p.output = strings.Join(p.cmdOutputParser.Parse(), "\r\n")
 }
 
 // ParseUserInput 解析用户的输入

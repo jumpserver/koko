@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/i18n"
@@ -141,12 +142,17 @@ func (p *DBParser) parseInputState(b []byte) []byte {
 
 // parseCmdInput 解析命令的输入
 func (p *DBParser) parseCmdInput() {
-	p.command = p.cmdInputParser.Parse()
+	commands := p.cmdInputParser.Parse()
+	if len(commands) <= 0 {
+		p.command = ""
+	} else {
+		p.command = commands[len(commands)-1]
+	}
 }
 
 // parseCmdOutput 解析命令输出
 func (p *DBParser) parseCmdOutput() {
-	p.output = p.cmdOutputParser.Parse()
+	p.output = strings.Join(p.cmdOutputParser.Parse(), "\r\n")
 }
 
 // ParseUserInput 解析用户的输入
