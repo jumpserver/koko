@@ -8,6 +8,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/LeeEirc/elfinder v0.0.12
 	github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04
+	github.com/LeeEirc/terminalparser v0.0.0-20210105090630-135adbff588a
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
 	github.com/aws/aws-sdk-go v1.19.46
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
@@ -20,7 +21,6 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/leonelquinteros/gotext v1.4.0
-	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mediocregopher/radix/v3 v3.4.2
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994

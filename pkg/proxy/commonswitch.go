@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -196,8 +197,20 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 			buf := make([]byte, 1024)
 			nr, err := userConn.Read(buf)
 			if nr > 0 {
-				room.Receive(&model.RoomMessage{
-					Event: model.DataEvent, Body: buf[:nr]})
+				index := bytes.IndexFunc(buf[:nr], func(r rune) bool {
+					return r == '\r' || r == '\n'
+				})
+				if index <= 0 {
+					room.Receive(&model.RoomMessage{
+						Event: model.DataEvent, Body: buf[:nr]})
+				} else {
+					room.Receive(&model.RoomMessage{
+						Event: model.DataEvent, Body: buf[:index]})
+					time.Sleep(time.Millisecond * 100)
+					room.Receive(&model.RoomMessage{
+						Event: model.DataEvent, Body: buf[index:nr]})
+				}
+
 			}
 			if err != nil {
 				logger.Errorf("Session[%s] user read err: %s", s.ID, err)

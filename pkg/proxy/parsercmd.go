@@ -2,15 +2,13 @@ package proxy
 
 import (
 	"bytes"
-	"regexp"
 	"strings"
 	"sync"
 
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/utils"
-)
+	"github.com/LeeEirc/terminalparser"
 
-var ps1Pattern = regexp.MustCompile(`^\[?.*@.*\]?[\\$#]\s|mysql>\s`)
+	"github.com/jumpserver/koko/pkg/logger"
+)
 
 func NewCmdParser(sid, name string) *CmdParser {
 	parser := CmdParser{id: sid, name: name}
@@ -23,6 +21,8 @@ type CmdParser struct {
 
 	buf  bytes.Buffer
 	lock sync.Mutex
+
+	ps1 string
 }
 
 func (cp *CmdParser) WriteData(p []byte) (int, error) {
@@ -39,17 +39,53 @@ func (cp *CmdParser) Close() error {
 	return nil
 }
 
-func (cp *CmdParser) parsePS1(s string) string {
-	return ps1Pattern.ReplaceAllString(s, "")
+func (cp *CmdParser) removePs1(s string) string {
+	// 通过去除Ps1 获取完整的命令
+	return strings.TrimPrefix(s, cp.ps1)
 }
 
 // Parse 解析命令或输出
-func (cp *CmdParser) Parse() string {
+func (cp *CmdParser) Parse() []string {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	lines := utils.ParseTerminalData(cp.buf.Bytes())
-	output := strings.TrimSpace(strings.Join(lines, "\r\n"))
-	output = cp.parsePS1(output)
+	lines := make([]string, 0, 100)
+	for _, line := range cp.parse(cp.buf.Bytes()) {
+		line = cp.removePs1(line)
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
 	cp.buf.Reset()
-	return output
+	return lines
+}
+
+func (cp *CmdParser) GetPs1() string {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	lines := cp.parse(cp.buf.Bytes())
+	if len(lines) == 0 {
+		return ""
+	}
+	cp.ps1 = lines[len(lines)-1]
+	// output的最后行大概率可能是 ps1
+	return cp.ps1
+}
+
+func (cp *CmdParser) SetPs1(s string) {
+	cp.lock.Lock()
+	defer cp.lock.Unlock()
+	cp.ps1 = s
+}
+
+func (cp *CmdParser) parse(p []byte) []string {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("[%s] %s panic: %s\n", cp.id, cp.name, r)
+		}
+	}()
+	s := terminalparser.Screen{
+		Rows:   make([]*terminalparser.Row, 0, 1024),
+		Cursor: &terminalparser.Cursor{},
+	}
+	return s.Parse(p)
 }
