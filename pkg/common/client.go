@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
-	"net/http/cookiejar"
 	neturl "net/url"
 	"os"
 	"path/filepath"
@@ -39,7 +38,9 @@ type UrlParser interface {
 
 func NewClient(timeout time.Duration, baseHost string) Client {
 	headers := make(map[string]string)
-	jar, _ := cookiejar.New(nil)
+	jar := &customCookieJar{
+		data: map[string]string{},
+	}
 	client := http.Client{
 		Timeout: timeout * time.Second,
 		Jar:     jar,
@@ -108,7 +109,7 @@ func (c *Client) parseUrl(url string, params []map[string]string) string {
 func (c *Client) setAuthHeader(r *http.Request) {
 	if len(c.cookie) != 0 {
 		for k, v := range c.cookie {
-			c := http.Cookie{Name: k, Value: v,}
+			c := http.Cookie{Name: k, Value: v}
 			r.AddCookie(&c)
 		}
 	}
