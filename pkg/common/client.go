@@ -276,7 +276,14 @@ func (c *Client) UploadFile(url string, gFile string, res interface{}, params ..
 	}
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
 	c.SetReqHeaders(req, params)
-	resp, err := c.http.Do(req)
+	/*
+		上传文件时，取消 timeout
+		A Timeout of zero means no timeout.
+	*/
+	client := http.Client{
+		Jar: c.http.Jar,
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
