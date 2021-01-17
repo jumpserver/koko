@@ -7,12 +7,14 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/LeeEirc/crypto v0.0.0-20201111063343-abd7a31f9aa8 h1:6vfX8CBWA+sTcc7W+4AmeMkOdlAl8fWDvU3GjudXWA4=
 github.com/LeeEirc/crypto v0.0.0-20201111063343-abd7a31f9aa8/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
-github.com/LeeEirc/elfinder v0.0.12 h1:6MRzyHyu9ttb2vxqSHJV6YhVWbwU6Etwamn1r2dTKHE=
-github.com/LeeEirc/elfinder v0.0.12/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
+github.com/LeeEirc/elfinder v0.0.13 h1:6ObazKVwqRL2MocEvrZz3W10lwSQXvRtQA01GZ7xYcY=
+github.com/LeeEirc/elfinder v0.0.13/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534 h1:x4gr2rn068pHL5NvdPMNQUGv8hmSJ22FgNftawlidEk=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534/go.mod h1:Y4MILF5d5xIGmsN5GLJryvyyLRq1kYkbA1V10UWCszs=
 github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04 h1:j2XxH6wbtZUHMc10CUIqWNPw4Z8COMfzWNlMnsvZmUM=
 github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
+github.com/LeeEirc/terminalparser v0.0.0-20210105090630-135adbff588a h1:bCk3bTkRdgN3Kdx0eco+cNZchIS7gIqMge2qbdMIAKU=
+github.com/LeeEirc/terminalparser v0.0.0-20210105090630-135adbff588a/go.mod h1:tiLv6VBLH4Z3KdBSe2qIKRwQDGCVQ9/F5fOKpQGvyoA=
 github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d h1:G0m3OIz70MZUWq3EgK3CesDbo8upS2Vm9/P3FtgI+Jk=
 github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/aliyun/aliyun-oss-go-sdk v1.9.8 h1:BOflvK0Zs/zGmoabyFIzTg5c3kguktWTXEwewwbuba0=
@@ -70,8 +72,8 @@ github.com/leonelquinteros/gotext v1.4.0 h1:2NHPCto5IoMXbrT0bldPrxj0qM5asOCwtb1a
 github.com/leonelquinteros/gotext v1.4.0/go.mod h1:yZGXREmoGTtBvZHNcc+Yfug49G/2spuF/i/Qlsvz1Us=
 github.com/mattn/go-isatty v0.0.12 h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
-github.com/mattn/go-runewidth v0.0.4 h1:2BvfKmzob6Bmd4YsL0zygOqfdFnK7GR4QL06Do4/p7Y=
-github.com/mattn/go-runewidth v0.0.4/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
+github.com/mattn/go-runewidth v0.0.9 h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=
+github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
 github.com/mediocregopher/radix/v3 v3.4.2 h1:galbPBjIwmyREgwGCfQEN4X8lxbJnKBYurgz+VfcStA=
 github.com/mediocregopher/radix/v3 v3.4.2/go.mod h1:8FL3F6UQRXHXIBSPUs5h0RybMF8i4n7wVopoX3x7Bv8=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 h1:ZqeYNhU3OHLH3mGKHDcjJRFFRrJa6eAM5H+CtDdOsPc=
