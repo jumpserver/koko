@@ -3,6 +3,8 @@ package auth
 import (
 	"net"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
@@ -25,6 +27,13 @@ const (
 	actionFailed          = "Failed"
 	actionPartialAccepted = "Partial accepted"
 )
+
+type mfacache struct {
+	data model.User
+	expire time.Time
+}
+
+var mfaAuthCache sync.Map
 
 func checkAuth(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult) {
 	username := ctx.User()
@@ -91,6 +100,19 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 	res = ssh.AuthFailed
 
+	expireTime := time.Hour * config.GetConf().MfaAuthCacheExpire
+	logger.Infof("MfaAuthCacheExpire: %v Hours",expireTime)
+	auth,_ := mfaAuthCache.Load(username)
+	if v,ok := auth.(mfacache);ok{
+		logger.Infof("Get Cache: %v",v)
+		if time.Since(v.expire) < expireTime {
+			logger.Info("Cache it !!")
+			res = ssh.AuthSuccessful
+			ctx.SetValue(model.ContextKeyUser, &v.data)
+			return
+		}
+	}
+
 	var confirmAction bool
 	instruction := mfaInstruction
 	question := mfaQuestion
@@ -147,6 +169,12 @@ func CheckMFA(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (r
 		ctx.SetValue(model.ContextKeyUser, &user)
 		logger.Infof("SSH conn[%s] %s MFA for %s from %s", ctx.SessionID(),
 			actionAccepted, username, remoteAddr)
+		mfaAuthCache.Store(username,mfacache{
+			data:   user,
+			expire: time.Now(),
+		})
+		get,_ := mfaAuthCache.Load(username)
+		logger.Infof("Cache to mfaAuthCache: %v",get)
 	case service.AuthConfirmRequired:
 		res = ssh.AuthPartiallySuccessful
 		required := true

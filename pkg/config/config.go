@@ -50,6 +50,7 @@ type Config struct {
 	ZipTmpPath          string                 `yaml:"ZIP_TMP_PATH"`
 	ClientAliveInterval uint64                 `yaml:"CLIENT_ALIVE_INTERVAL"`
 	RetryAliveCountMax  int                    `yaml:"RETRY_ALIVE_COUNT_MAX"`
+	MfaAuthCacheExpire  time.Duration          `yaml:"MFA_AUTH_CACHE_EXPIRE"`
 
 	ShareRoomType string   `yaml:"SHARE_ROOM_TYPE"`
 	RedisHost     string   `yaml:"REDIS_HOST"`
@@ -131,6 +132,10 @@ func (c *Config) LoadFromEnv() error {
 		case "REDIS_CLUSTERS":
 			clusters := strings.Split(value, ",")
 			c.RedisClusters = clusters
+		case "MFA_AUTH_CACHE_EXPIRE":
+			if num, err := strconv.Atoi(value);err == nil{
+				c.MfaAuthCacheExpire = time.Duration(num)
+			}
 		default:
 			envMap[key] = value
 		}
@@ -186,6 +191,7 @@ var Conf = &Config{
 	RedisHost:           "127.0.0.1",
 	RedisPort:           "6379",
 	RedisPassword:       "",
+	MfaAuthCacheExpire: 1,
 }
 
 func SetConf(conf Config) {
