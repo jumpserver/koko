@@ -281,7 +281,7 @@ func (p *DBProxyServer) GenerateRecordCommand(s *commonSwitch, input, output str
 		OrgID:      p.Database.OrgId,
 		Input:      input,
 		Output:     output,
-		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
+		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
 		Server:     p.Database.Name,
 		SystemUser: p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),
@@ -311,7 +311,7 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"id":             s.ID,
-		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
+		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
 		"asset":          p.Database.Name,
 		"org_id":         p.Database.OrgId,
 		"login_from":     p.UserConn.LoginFrom(),
