@@ -389,7 +389,7 @@ func (p *ProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"id":             s.ID,
-		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
+		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
 		"asset":          p.Asset.Hostname,
 		"org_id":         p.Asset.OrgID,
 		"login_from":     p.UserConn.LoginFrom(),
@@ -427,7 +427,7 @@ func (p *ProxyServer) GenerateRecordCommand(s *commonSwitch, input, output strin
 		OrgID:      p.Asset.OrgID,
 		Input:      input,
 		Output:     output,
-		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
+		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
 		Server:     p.Asset.Hostname,
 		SystemUser: p.SystemUser.Username,
 		Timestamp:  time.Now().Unix(),

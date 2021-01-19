@@ -256,9 +256,9 @@ func (p *K8sProxyServer) GenerateRecordCommand(s *commonSwitch, input, output st
 		OrgID:      p.Cluster.OrgId,
 		Input:      input,
 		Output:     output,
-		User:       fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
-		Server:     fmt.Sprintf("%s (%s)", p.Cluster.Name, p.Cluster.Attrs.Cluster),
-		SystemUser: fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
+		User:       fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
+		Server:     fmt.Sprintf("%s(%s)", p.Cluster.Name, p.Cluster.Attrs.Cluster),
+		SystemUser: fmt.Sprintf("%s(%s)", p.SystemUser.Name, p.SystemUser.Username),
 		Timestamp:  time.Now().Unix(),
 		RiskLevel:  riskLevel,
 
@@ -286,11 +286,11 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"id":             s.ID,
-		"user":           fmt.Sprintf("%s (%s)", p.User.Name, p.User.Username),
+		"user":           fmt.Sprintf("%s(%s)", p.User.Name, p.User.Username),
 		"asset":          p.Cluster.Name,
 		"org_id":         p.Cluster.OrgId,
 		"login_from":     p.UserConn.LoginFrom(),
-		"system_user":    fmt.Sprintf("%s (%s)", p.SystemUser.Name, p.SystemUser.Username),
+		"system_user":    fmt.Sprintf("%s(%s)", p.SystemUser.Name, p.SystemUser.Username),
 		"protocol":       p.SystemUser.Protocol,
 		"remote_addr":    p.UserConn.RemoteAddr(),
 		"is_finished":    s.finished,

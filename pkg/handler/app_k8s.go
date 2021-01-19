@@ -50,7 +50,9 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	currentDBS := u.currentResult
 	term := u.h.term
 	if len(currentDBS) == 0 {
-		_, _ = term.Write([]byte(i18n.T("No kubernetes") + "\n\r"))
+		noK8s := i18n.T("No kubernetes")
+		utils.IgnoreErrWriteString(term, utils.WrapperString(noK8s, utils.Red))
+		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		return
