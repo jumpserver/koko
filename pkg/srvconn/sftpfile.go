@@ -805,7 +805,7 @@ func (ad *AssetDir) close() {
 
 func (ad *AssetDir) CreateFTPLog(su *model.SystemUser, operate, filename string, isSuccess bool) {
 	data := model.FTPLog{
-		User:       fmt.Sprintf("%s (%s)", ad.user.Name, ad.user.Username),
+		User:       fmt.Sprintf("%s(%s)", ad.user.Name, ad.user.Username),
 		Hostname:   ad.asset.Hostname,
 		OrgID:      ad.asset.OrgID,
 		SystemUser: su.Name,
