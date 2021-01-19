@@ -77,17 +77,15 @@ func (h *interactiveHandler) Dispatch() {
 				logger.Infof("user %s enter %s to exit", h.user.Name, line)
 				return
 			case strings.Index(line, "/") == 0:
-				if strings.Index(line[1:], "/") == 0 {
-					line = strings.TrimSpace(line[2:])
-					if currentApp != nil {
-						currentApp.SearchAgain(line)
-						continue
-					}
-				}
-				line = strings.TrimSpace(line[1:])
 				if currentApp == nil {
 					currentApp = h.getAssetApp()
 				}
+				if strings.Index(line[1:], "/") == 0 {
+					line = strings.TrimSpace(line[2:])
+					currentApp.SearchAgain(line)
+					continue
+				}
+				line = strings.TrimSpace(line[1:])
 				currentApp.Search(line)
 				continue
 			case strings.Index(line, "g") == 0:
