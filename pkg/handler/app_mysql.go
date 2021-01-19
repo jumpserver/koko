@@ -51,7 +51,9 @@ func (u *UserSelectHandler) displayMySQLResult(searchHeader string) {
 	currentDBS := u.currentResult
 	term := u.h.term
 	if len(currentDBS) == 0 {
-		_, _ = term.Write([]byte(i18n.T("No Databases") + "\n\r"))
+		noDatabases := i18n.T("No Databases")
+		utils.IgnoreErrWriteString(term, utils.WrapperString(noDatabases, utils.Red))
+		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		return
