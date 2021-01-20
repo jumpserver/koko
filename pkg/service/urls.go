@@ -3,7 +3,7 @@ package service
 // KoKo与Core交互的API
 const (
 	UserProfileURL       = "/api/v1/users/profile/"                   // 获取当前用户的基本信息
-	TerminalRegisterURL  = "/api/v2/terminal/terminal-registrations/" // 注册
+	TerminalRegisterURL  = "/api/v1/terminal/terminal-registrations/" // 注册
 	TerminalConfigURL    = "/api/v1/terminal/terminals/config/"       // 获取配置
 	TerminalHeartBeatURL = "/api/v1/terminal/terminals/status/"
 )
