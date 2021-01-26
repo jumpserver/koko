@@ -73,6 +73,7 @@ function initTerminal(elementId) {
                 ws.send(message(terminalId, 'TERMINAL_INIT',
                     JSON.stringify({cols, rows})));
                 initialed = true;
+                resizeTerminal();
                 break
             case "CLOSE":
                 term.writeln("Connection closed");
