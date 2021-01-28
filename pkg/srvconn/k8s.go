@@ -7,12 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
-	"syscall"
-
-	"github.com/creack/pty"
 
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/localcommand"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -52,7 +49,7 @@ func isValidK8sUserToken(o *k8sOptions) bool {
 	return false
 }
 
-func NewK8sCon(ops ...K8sOption) *K8sCon {
+func NewK8sCon(ops ...k8sOption) *K8sCon {
 	args := &k8sOptions{
 		Username:      os.Getenv("USER"),
 		ClusterServer: "https://127.0.0.1:8443",
@@ -67,70 +64,27 @@ func NewK8sCon(ops ...K8sOption) *K8sCon {
 }
 
 type K8sCon struct {
-	options   *k8sOptions
-	ptyFD     *os.File
-	onceClose sync.Once
-	cmd       *exec.Cmd
+	options *k8sOptions
+	*localcommand.LocalCommand
 }
 
-func (c *K8sCon) Connect() (err error) {
-	if !isValidK8sUserToken(c.options) {
+func (k *K8sCon) Connect(win Windows) (err error) {
+	if !isValidK8sUserToken(k.options) {
 		return InValidToken
 	}
-	cmd, ptyFD, err := connectK8s(c)
-	go func() {
-		err = cmd.Wait()
-		if err != nil {
-			logger.Errorf("K8sCon command exit err: %s", err)
-		}
-		if ptyFD != nil {
-			_ = ptyFD.Close()
-		}
-		logger.Info("K8sCon connect closed.")
-		var wstatus syscall.WaitStatus
-		_, err = syscall.Wait4(-1, &wstatus, 0, nil)
-	}()
+	lcmd, err := startK8SLocalCommand(k)
 	if err != nil {
-		logger.Errorf("K8sCon pty start err: %s", err)
-		return fmt.Errorf("K8sCon start local pty err: %s", err)
+		logger.Errorf("K8sCon start local pty err: %s", err)
+		return fmt.Errorf("K8sCon start local pty err: %w", err)
 	}
-
-	logger.Infof("Connect K8s cluster server %s success ", c.options.ClusterServer)
-	c.cmd = cmd
-	c.ptyFD = ptyFD
+	_ = lcmd.SetWinSize(win.Width, win.Height)
+	k.LocalCommand = lcmd
+	logger.Infof("Connect K8s cluster server %s success", k.options.ClusterServer)
 	return
 }
 
-func (c *K8sCon) Read(p []byte) (int, error) {
-	return c.ptyFD.Read(p)
-}
-
-func (c *K8sCon) Write(p []byte) (int, error) {
-	return c.ptyFD.Write(p)
-}
-
-func (c *K8sCon) SetWinSize(w, h int) error {
-	win := pty.Winsize{
-		Rows: uint16(h),
-		Cols: uint16(w),
-	}
-	logger.Infof("K8sCon conn windows size change %d*%d", h, w)
-	return pty.Setsize(c.ptyFD, &win)
-}
-
-func (c *K8sCon) KeepAlive() error {
+func (k *K8sCon) KeepAlive() error {
 	return nil
-}
-
-func (c *K8sCon) Close() (err error) {
-	c.onceClose.Do(func() {
-		if c.ptyFD == nil {
-			return
-		}
-		_ = c.ptyFD.Close()
-		err = c.cmd.Process.Signal(os.Kill)
-	})
-	return
 }
 
 type k8sOptions struct {
@@ -159,52 +113,46 @@ func (o *k8sOptions) Env() []string {
 		fmt.Sprintf("WELCOME_BANNER=%s", config.KubectlBanner),
 	}
 }
-func connectK8s(con *K8sCon) (cmd *exec.Cmd, ptyFD *os.File, err error) {
-	return connectK8sWithNamespace(con.options.Env())
-}
 
-func connectK8sWithNamespace(envs []string) (cmd *exec.Cmd, ptyFD *os.File, err error) {
+func startK8SLocalCommand(con *K8sCon) (*localcommand.LocalCommand, error) {
 	pwd, _ := os.Getwd()
 	shPath := filepath.Join(pwd, k8sInitFilename)
-	args := []string{
+	argv := []string{
 		"--fork",
 		"--pid",
 		"--mount-proc",
 		shPath,
 	}
-	cmd = exec.Command("unshare", args...)
-	cmd.Env = envs
-	ptyFD, err = pty.Start(cmd)
-	return
+	return localcommand.New("unshare", argv, localcommand.WithEnv(con.options.Env()))
 }
 
-type K8sOption func(*k8sOptions)
+type k8sOption func(*k8sOptions)
 
-func K8sUsername(username string) K8sOption {
+func K8sUsername(username string) k8sOption {
 	return func(args *k8sOptions) {
 		args.Username = username
 	}
 }
 
-func K8sToken(token string) K8sOption {
+func K8sToken(token string) k8sOption {
 	return func(args *k8sOptions) {
 		args.Token = token
 	}
 }
 
-func K8sClusterServer(clusterServer string) K8sOption {
+func K8sClusterServer(clusterServer string) k8sOption {
 	return func(args *k8sOptions) {
 		args.ClusterServer = clusterServer
 	}
 }
 
-func K8sExtraEnvs(envs map[string]string) K8sOption {
+func K8sExtraEnvs(envs map[string]string) k8sOption {
 	return func(args *k8sOptions) {
 		args.ExtraEnv = envs
 	}
 }
 
-func K8sSkipTls(isSkipTls bool) K8sOption {
+func K8sSkipTls(isSkipTls bool) k8sOption {
 	return func(args *k8sOptions) {
 		args.IsSkipTls = isSkipTls
 	}
