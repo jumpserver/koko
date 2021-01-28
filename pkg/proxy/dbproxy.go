@@ -92,21 +92,25 @@ func (p *DBProxyServer) validatePermission() bool {
 }
 
 // getSSHConn 获取ssh连接
-func (p *DBProxyServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.ServerMysqlConnection, err error) {
+func (p *DBProxyServer) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
 	host := p.Database.Attrs.Host
 	port := p.Database.Attrs.Port
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
-	srvConn = srvconn.NewMysqlServer(
+	srvConn = srvconn.NewMySQLConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(p.SystemUser.Username),
 		srvconn.SqlPassword(p.SystemUser.Password),
 		srvconn.SqlDBName(p.Database.Attrs.Database),
 	)
-	err = srvConn.Connect()
+	win := srvconn.Windows{
+		Width:  p.UserConn.Pty().Window.Width,
+		Height: p.UserConn.Pty().Window.Height,
+	}
+	err = srvConn.Connect(win)
 	return
 }
 
