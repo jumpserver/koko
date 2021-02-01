@@ -106,7 +106,7 @@ func (h *interactiveHandler) Dispatch() {
 }
 
 func (h *interactiveHandler) displayNodeTree(nodes model.NodeList) {
-	tree := ConstructAssetNodeTree(nodes)
+	tree := ConstructNodeTree(nodes)
 	_, _ = io.WriteString(h.term, "\n\r"+i18n.T("Node: [ ID.Name(Asset amount) ]"))
 	_, _ = io.WriteString(h.term, tree.String())
 	_, err := io.WriteString(h.term, i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1")+"\n\r")
