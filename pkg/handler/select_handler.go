@@ -132,6 +132,22 @@ func (u *UserSelectHandler) SearchOrProxy(key string) () {
 		u.Proxy(currentResult[0])
 		return
 	}
+
+	// 资产类型, 返回结果 ip 或者 hostname 与 key 完全一样则直接登录
+	switch u.currentType {
+	case TypeAsset:
+		if strings.TrimSpace(key) != "" {
+			for i := range currentResult {
+				ip := currentResult[i]["ip"].(string)
+				hostname := currentResult[i]["hostname"].(string)
+				switch key {
+				case ip, hostname:
+					u.Proxy(currentResult[i])
+					return
+				}
+			}
+		}
+	}
 	u.DisplayCurrentResult()
 }
 
