@@ -61,7 +61,11 @@ func (p *K8sProxyServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *s
 		srvconn.K8sUsername(p.SystemUser.Username),
 		srvconn.K8sSkipTls(true),
 	)
-	err = srvConn.Connect()
+	win := srvconn.Windows{
+		Width:  p.UserConn.Pty().Window.Width,
+		Height: p.UserConn.Pty().Window.Height,
+	}
+	err = srvConn.Connect(win)
 	return
 }
 
