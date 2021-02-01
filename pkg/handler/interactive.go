@@ -256,8 +256,8 @@ func (h *interactiveHandler) loadUserNodes() {
 	h.nodes = service.GetUserNodes(h.user.ID)
 }
 
-func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
-	model.SortAssetNodesByKey(assetNodes)
+func ConstructNodeTree(assetNodes []model.Node) treeprint.Tree {
+	model.SortNodesByKeyAndName(assetNodes)
 	var treeMap = map[string]treeprint.Tree{}
 	tree := treeprint.New()
 	for i := 0; i < len(assetNodes); i++ {
