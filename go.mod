@@ -24,7 +24,6 @@ require (
 	github.com/mediocregopher/radix/v3 v3.4.2
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
-	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.12.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sevlyar/go-daemon v0.1.5

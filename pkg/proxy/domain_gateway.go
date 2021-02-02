@@ -1,13 +1,13 @@
 package proxy
 
 import (
+	"errors"
 	"io"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/config"
