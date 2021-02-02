@@ -269,7 +269,7 @@ func (ad *AssetDir) loadSystemUsers() {
 		for i := 0; i < len(SystemUsers); i++ {
 			if SystemUsers[i].Protocol == "ssh" {
 				ok := true
-				folderName := SystemUsers[i].Name
+				folderName := strings.ReplaceAll(SystemUsers[i].Name, "/", "_")
 				for ok {
 					if _, ok = sus[folderName]; ok {
 						folderName = fmt.Sprintf("%s_", folderName)
