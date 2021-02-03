@@ -7,8 +7,8 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/LeeEirc/crypto v0.0.0-20201111063343-abd7a31f9aa8 h1:6vfX8CBWA+sTcc7W+4AmeMkOdlAl8fWDvU3GjudXWA4=
 github.com/LeeEirc/crypto v0.0.0-20201111063343-abd7a31f9aa8/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
-github.com/LeeEirc/elfinder v0.0.13 h1:6ObazKVwqRL2MocEvrZz3W10lwSQXvRtQA01GZ7xYcY=
-github.com/LeeEirc/elfinder v0.0.13/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
+github.com/LeeEirc/elfinder v0.0.14 h1:6ObxwIoC5zmrnKArUU5Mz++/T3lzgl1Ja0pS1Smd3j4=
+github.com/LeeEirc/elfinder v0.0.14/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534 h1:x4gr2rn068pHL5NvdPMNQUGv8hmSJ22FgNftawlidEk=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534/go.mod h1:Y4MILF5d5xIGmsN5GLJryvyyLRq1kYkbA1V10UWCszs=
 github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04 h1:j2XxH6wbtZUHMc10CUIqWNPw4Z8COMfzWNlMnsvZmUM=
