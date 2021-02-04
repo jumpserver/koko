@@ -186,7 +186,7 @@ func (p *ProxyServer) getCacheSSHConn() (srvConn *srvconn.ServerSSHConnection, o
 		utils.IgnoreErrWriteString(p.UserConn, reuseMsg+"\r\n")
 		return srvConn, true
 	}
-	logger.Errorf("Conn[%s] did not found cache ssh client(%s@%s)",
+	logger.Debugf("Conn[%s] did not found cache ssh client(%s@%s)",
 		p.UserConn.ID(), p.SystemUser.Name, p.Asset.Hostname)
 	return nil, false
 }
