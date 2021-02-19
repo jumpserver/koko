@@ -376,7 +376,7 @@ func (ad *AssetDir) Open(path string) (*sftp.File, error) {
 	sf, err := con.client.Open(realPath)
 	filename := realPath
 	isSuccess := false
-	operate := model.OperateDownaload
+	operate := model.OperateDownload
 	if err == nil {
 		isSuccess = true
 	}
