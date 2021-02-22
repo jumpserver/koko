@@ -30,7 +30,8 @@ var (
 	supportedKexAlgos = []string{
 		"diffie-hellman-group1-sha1",
 		"diffie-hellman-group14-sha1", "ecdh-sha2-nistp256", "ecdh-sha2-nistp521",
-		"ecdh-sha2-nistp384", "curve25519-sha256@libssh.org"}
+		"ecdh-sha2-nistp384", "curve25519-sha256@libssh.org",
+		"diffie-hellman-group-exchange-sha1", "diffie-hellman-group-exchange-sha256"}
 
 	supportedHostKeyAlgos = []string{
 		"ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com", "ecdsa-sha2-nistp256-cert-v01@openssh.com",
@@ -38,7 +39,7 @@ var (
 		"ssh-ed25519-cert-v01@openssh.com",
 		"ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
 		"ssh-rsa", "ssh-dss",
-		"ssh-ed25519",
+		"ssh-ed25519", "sk-ssh-ed25519@openssh.com",
 	}
 )
 
