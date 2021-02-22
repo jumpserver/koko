@@ -341,16 +341,14 @@ func containKeysInMapItemFields(item map[string]interface{},
 
 	for key, value := range item {
 		if _, ok := searchFields[key]; ok {
-			switch value.(type) {
+			switch result := value.(type) {
 			case string:
-				result := value.(string)
 				for i := range matchedKeys {
 					if strings.Contains(result, matchedKeys[i]) {
 						return true
 					}
 				}
 			case map[string]interface{}:
-				result := value.(map[string]interface{})
 				if containKeysInMapItemFields(result, searchFields, matchedKeys...) {
 					return true
 				}
@@ -363,17 +361,17 @@ func containKeysInMapItemFields(item map[string]interface{},
 func convertMapItemToRow(item map[string]interface{}, fields map[string]string, row map[string]string) map[string]string {
 	for key, value := range item {
 		if rowKey, ok := fields[key]; ok {
-			switch value.(type) {
+			switch ret := value.(type) {
 			case string:
-				row[rowKey] = value.(string)
+				row[rowKey] = ret
 			case int:
-				row[rowKey] = strconv.Itoa(value.(int))
+				row[rowKey] = strconv.Itoa(ret)
 			}
 			continue
 		}
-		switch value.(type) {
+		switch ret := value.(type) {
 		case map[string]interface{}:
-			row = convertMapItemToRow(value.(map[string]interface{}), fields, row)
+			row = convertMapItemToRow(ret, fields, row)
 		}
 	}
 	return row
