@@ -137,14 +137,9 @@ func (u *UserSelectHandler) SearchOrProxy(key string) () {
 	switch u.currentType {
 	case TypeAsset:
 		if strings.TrimSpace(key) != "" {
-			for i := range currentResult {
-				ip := currentResult[i]["ip"].(string)
-				hostname := currentResult[i]["hostname"].(string)
-				switch key {
-				case ip, hostname:
-					u.Proxy(currentResult[i])
-					return
-				}
+			if ret, ok := getUniqueAssetFromKey(key, currentResult); ok {
+				u.Proxy(ret)
+				return
 			}
 		}
 	}
@@ -390,4 +385,20 @@ func joinMultiLineString(lines string) string {
 		lineSlice = append(lineSlice, strings.ReplaceAll(cleanLine, " ", ","))
 	}
 	return strings.Join(lineSlice, "|")
+}
+
+func getUniqueAssetFromKey(key string, currentResult []map[string]interface{}) (data map[string]interface{}, ok bool) {
+	result := make([]int, 0, len(currentResult))
+	for i := range currentResult {
+		ip := currentResult[i]["ip"].(string)
+		hostname := currentResult[i]["hostname"].(string)
+		switch key {
+		case ip, hostname:
+			result = append(result, i)
+		}
+	}
+	if len(result) == 1 {
+		return currentResult[result[0]], true
+	}
+	return nil, false
 }
