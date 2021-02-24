@@ -45,3 +45,5 @@ const (
 	AppTypeMySQL = "mysql"
 	AppTypeK8s   = "k8s"
 )
+
+const AppType = "Application"

@@ -345,9 +345,22 @@ func (p *ProxyServer) getAssetCharset() string {
 	return charset
 }
 
+func (p *ProxyServer) checkLoginConfirm() bool {
+	srv := service.NewLoginConfirm(service.ConfirmWithUser(p.User),
+		service.ConfirmWithSystemUser(p.SystemUser),
+		service.ConfirmWithTargetID(p.Asset.ID))
+	return validateLoginConfirm(&srv, p.UserConn)
+}
+
 // Proxy 代理
 func (p *ProxyServer) Proxy() {
 	if !p.preCheckRequisite() {
+		return
+	}
+	if !p.checkLoginConfirm() {
+		if p.cacheSSHConnection != nil {
+			_ = p.cacheSSHConnection.Close()
+		}
 		return
 	}
 	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())

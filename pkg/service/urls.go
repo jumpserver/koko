@@ -66,3 +66,7 @@ const (
 const (
 	StatURL = "/api/v1/terminal/components/state/"
 )
+
+const (
+	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"
+)

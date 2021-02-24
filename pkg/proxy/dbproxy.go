@@ -232,6 +232,7 @@ func (p *DBProxyServer) Proxy() {
 		return
 	}
 	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
+
 	// 创建Session
 	sw, ok := CreateCommonSwitch(p)
 	if !ok {
