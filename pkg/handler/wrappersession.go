@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"io"
 	"net"
 	"sync"
@@ -86,8 +87,8 @@ func (w *WrapperSession) Protocol() string {
 	return "ssh"
 }
 
-func (w *WrapperSession) User() string {
-	return w.Sess.User()
+func (w *WrapperSession) Context() context.Context {
+	return w.Sess.Context()
 }
 
 func (w *WrapperSession) WinCh() (winch <-chan ssh.Window) {

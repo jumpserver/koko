@@ -34,7 +34,6 @@ func getApplicationDetail(appId string, res interface{}) {
 	if err != nil {
 		logger.Errorf("Get Application err: %s", err)
 	}
-	return
 }
 func GetMySQLApplication(appId string) (res model.DatabaseApplication) {
 	getApplicationDetail(appId, &res)

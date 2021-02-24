@@ -7,3 +7,15 @@ const (
 	ErrMFARequired          = "mfa_required"
 	ErrPasswordFailed       = "password_failed"
 )
+
+const (
+	TicketStatusOpen   = "open"
+	TicketStatusClosed = "closed"
+)
+
+const (
+	TicketActionOpen    = "open"
+	TicketActionClose   = "close"
+	TicketActionApprove = "approve"
+	TicketActionReject  = "reject"
+)
