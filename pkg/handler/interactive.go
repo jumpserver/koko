@@ -294,10 +294,9 @@ func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.Sy
 	var result = make([]model.SystemUser, 0)
 	model.SortSystemUserByPriority(systemUsers)
 
-	highestPriority := systemUsers[length-1].Priority
-
-	result = append(result, systemUsers[length-1])
-	for i := length - 2; i >= 0; i-- {
+	highestPriority := systemUsers[0].Priority
+	result = append(result, systemUsers[0])
+	for i := 1; i < length; i++ {
 		if highestPriority == systemUsers[i].Priority {
 			result = append(result, systemUsers[i])
 		}
