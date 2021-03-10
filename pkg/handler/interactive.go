@@ -229,21 +229,17 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 }
 
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
-	switch h.assetLoadPolicy {
-	case "all":
-		h.wg.Add(1)
-		go func() {
-			defer h.wg.Done()
-			allAssets := service.GetAllUserPermsAssets(h.user.ID)
-			h.selectHandler.SetAllLocalData(allAssets)
-		}()
-	default:
-		// 异步获取资产已经是最新的了,不需要刷新
-	}
-	h.wg.Add(1)
+	h.wg.Add(2)
 	go func() {
 		defer h.wg.Done()
-		h.loadUserNodes()
+		allAssets := service.RefreshUserAllPermsAssets(h.user.ID)
+		if h.assetLoadPolicy == "all" {
+			h.selectHandler.SetAllLocalData(allAssets)
+		}
+	}()
+	go func() {
+		defer h.wg.Done()
+		h.nodes = service.RefreshUserNodes(h.user.ID)
 	}()
 	h.wg.Wait()
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")

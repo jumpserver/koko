@@ -11,4 +11,5 @@ type PaginationParam struct {
 	PageSize int
 	Offset   int
 	Searches []string
+	Refresh  bool
 }
