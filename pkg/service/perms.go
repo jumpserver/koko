@@ -14,7 +14,7 @@ func GetUserAssetByID(userID, assertID string) (assets []model.Asset) {
 	Url := fmt.Sprintf(UserPermsAssetsURL, userID)
 	_, err := authClient.Get(Url, &assets, params)
 	if err != nil {
-		logger.Error("Get user asset by ID error: ", err)
+		logger.Errorf("Get user asset by ID error: %s", err)
 	}
 	return
 }
@@ -23,7 +23,19 @@ func GetUserNodes(userId string) (nodes model.NodeList) {
 	Url := fmt.Sprintf(UserPermsNodesListURL, userId)
 	_, err := authClient.Get(Url, &nodes)
 	if err != nil {
-		logger.Error("Get user nodes error: ", err)
+		logger.Errorf("Get user nodes error: %s", err)
+	}
+	return
+}
+
+func RefreshUserNodes(userId string) (nodes model.NodeList) {
+	params := map[string]string{
+		"rebuild_tree": "1",
+	}
+	Url := fmt.Sprintf(UserPermsNodesListURL, userId)
+	_, err := authClient.Get(Url, &nodes, params)
+	if err != nil {
+		logger.Errorf("Refresh user nodes error: %s", err)
 	}
 	return
 }
@@ -32,7 +44,7 @@ func GetUserAssetSystemUsers(userID, assetID string) (sysUsers []model.SystemUse
 	Url := fmt.Sprintf(UserPermsAssetSystemUsersURL, userID, assetID)
 	_, err := authClient.Get(Url, &sysUsers)
 	if err != nil {
-		logger.Error("Get user asset system users error: ", err)
+		logger.Errorf("Get user asset system users error: %s", err)
 	}
 	return
 }
@@ -71,7 +83,7 @@ func GetUserNodeTreeWithAsset(userID, nodeKey, cachePolicy string) (nodeTrees mo
 	Url := fmt.Sprintf(UserPermsNodeTreeWithAssetURL, userID)
 	_, err := authClient.Get(Url, &nodeTrees, payload)
 	if err != nil {
-		logger.Error("Get user node tree error: ", err)
+		logger.Errorf("Get user node tree error: %s", err)
 	}
 	return
 }
