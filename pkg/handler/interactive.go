@@ -229,21 +229,17 @@ func (h *interactiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 }
 
 func (h *interactiveHandler) refreshAssetsAndNodesData() {
-	switch h.assetLoadPolicy {
-	case "all":
-		h.wg.Add(1)
-		go func() {
-			defer h.wg.Done()
-			allAssets := service.GetAllUserPermsAssets(h.user.ID)
-			h.selectHandler.SetAllLocalData(allAssets)
-		}()
-	default:
-		// 异步获取资产已经是最新的了,不需要刷新
-	}
-	h.wg.Add(1)
+	h.wg.Add(2)
 	go func() {
 		defer h.wg.Done()
-		h.loadUserNodes()
+		allAssets := service.RefreshUserAllPermsAssets(h.user.ID)
+		if h.assetLoadPolicy == "all" {
+			h.selectHandler.SetAllLocalData(allAssets)
+		}
+	}()
+	go func() {
+		defer h.wg.Done()
+		h.nodes = service.RefreshUserNodes(h.user.ID)
 	}()
 	h.wg.Wait()
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
@@ -256,8 +252,8 @@ func (h *interactiveHandler) loadUserNodes() {
 	h.nodes = service.GetUserNodes(h.user.ID)
 }
 
-func ConstructAssetNodeTree(assetNodes []model.Node) treeprint.Tree {
-	model.SortAssetNodesByKey(assetNodes)
+func ConstructNodeTree(assetNodes []model.Node) treeprint.Tree {
+	model.SortNodesByKeyAndName(assetNodes)
 	var treeMap = map[string]treeprint.Tree{}
 	tree := treeprint.New()
 	for i := 0; i < len(assetNodes); i++ {
@@ -294,10 +290,9 @@ func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.Sy
 	var result = make([]model.SystemUser, 0)
 	model.SortSystemUserByPriority(systemUsers)
 
-	highestPriority := systemUsers[length-1].Priority
-
-	result = append(result, systemUsers[length-1])
-	for i := length - 2; i >= 0; i-- {
+	highestPriority := systemUsers[0].Priority
+	result = append(result, systemUsers[0])
+	for i := 1; i < length; i++ {
 		if highestPriority == systemUsers[i].Priority {
 			result = append(result, systemUsers[i])
 		}

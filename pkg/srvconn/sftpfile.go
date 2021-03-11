@@ -269,7 +269,7 @@ func (ad *AssetDir) loadSystemUsers() {
 		for i := 0; i < len(SystemUsers); i++ {
 			if SystemUsers[i].Protocol == "ssh" {
 				ok := true
-				folderName := SystemUsers[i].Name
+				folderName := strings.ReplaceAll(SystemUsers[i].Name, "/", "_")
 				for ok {
 					if _, ok = sus[folderName]; ok {
 						folderName = fmt.Sprintf("%s_", folderName)
@@ -376,7 +376,7 @@ func (ad *AssetDir) Open(path string) (*sftp.File, error) {
 	sf, err := con.client.Open(realPath)
 	filename := realPath
 	isSuccess := false
-	operate := model.OperateDownaload
+	operate := model.OperateDownload
 	if err == nil {
 		isSuccess = true
 	}

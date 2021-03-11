@@ -95,7 +95,7 @@ func (ak *AccessKey) Register(times int) error {
 	cf := config.GetConf()
 	name := cf.Name
 	token := cf.BootstrapToken
-	comment := "Coco"
+	comment := "KoKo"
 
 	res := RegisterTerminal(name, token, comment)
 	if res.Name != name {

@@ -121,11 +121,6 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	if err != nil {
 		return nil, err
 	}
-	fi, err := f.Stat()
-	if err != nil {
-		_ = f.Close()
-		return nil, err
-	}
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {
@@ -134,7 +129,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		logger.Infof("Sftp File read %s done", r.Filepath)
 
 	}()
-	return NewReaderAt(f, fi), err
+	return f, err
 }
 
 func (fs *sftpHandler) Close() {
@@ -159,14 +154,9 @@ func NewWriterAt(f *sftp.File) io.WriterAt {
 	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
 }
 
-func NewReaderAt(f *sftp.File, fi os.FileInfo) io.ReaderAt {
-	return &clientReadWritAt{f: f, mu: new(sync.RWMutex), fi: fi}
-}
-
 type clientReadWritAt struct {
 	f  *sftp.File
 	mu *sync.RWMutex
-	fi os.FileInfo
 }
 
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
@@ -174,16 +164,6 @@ func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	defer c.mu.Unlock()
 	_, _ = c.f.Seek(off, 0)
 	return c.f.Write(p)
-}
-
-func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if off >= c.fi.Size() {
-		return 0, io.EOF
-	}
-	_, _ = c.f.Seek(off, 0)
-	return c.f.Read(p)
 }
 
 type wrapperSFTPFileInfo struct {

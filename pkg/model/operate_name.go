@@ -2,7 +2,7 @@ package model
 
 const (
 	OperateRemoveDir = "Rmdir"
-	OperateDownaload = "Download"
+	OperateDownload  = "Download"
 	OperateUpload    = "Upload"
 	OperateRename    = "Rename"
 	OperateMkdir     = "Mkdir"

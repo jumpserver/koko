@@ -61,7 +61,11 @@ func (p *K8sProxyServer) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *s
 		srvconn.K8sUsername(p.SystemUser.Username),
 		srvconn.K8sSkipTls(true),
 	)
-	err = srvConn.Connect()
+	win := srvconn.Windows{
+		Width:  p.UserConn.Pty().Window.Width,
+		Height: p.UserConn.Pty().Window.Height,
+	}
+	err = srvConn.Connect(win)
 	return
 }
 
@@ -204,6 +208,7 @@ func (p *K8sProxyServer) Proxy() {
 	}
 	logger.Infof("Conn[%s] checking pre requisite success", p.UserConn.ID())
 	// 创建Session
+
 	sw, ok := CreateCommonSwitch(p)
 	logger.Info("Create Common Switch", ok)
 	if !ok {

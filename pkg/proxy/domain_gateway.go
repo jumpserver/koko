@@ -1,13 +1,13 @@
 package proxy
 
 import (
+	"errors"
 	"io"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/config"
@@ -63,9 +63,7 @@ func (d *domainGateway) handlerConn(srcCon net.Conn) {
 		logger.Debugf("Gateway %s dst %s(%p) stop read", d.selectedGateway.Name,
 			dstAddr, dstCon)
 	}()
-	select {
-	case <-done:
-	}
+	<-done
 	logger.Infof("Gateway %s connect %s(%p) done", d.selectedGateway.Name, dstAddr, dstCon)
 }
 

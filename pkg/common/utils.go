@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"time"
+	"unsafe"
 )
 
 func FileExists(name string) bool {
@@ -64,4 +65,9 @@ func Abs(x int) int {
 
 func CurrentUTCTime() string {
 	return time.Now().UTC().Format("2006-01-02 15:04:05 +0000")
+}
+
+// BytesToString converts byte slice to string without a memory allocation.
+func BytesToString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }

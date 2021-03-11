@@ -132,6 +132,17 @@ func (u *UserSelectHandler) SearchOrProxy(key string) () {
 		u.Proxy(currentResult[0])
 		return
 	}
+
+	// 资产类型, 返回结果 ip 或者 hostname 与 key 完全一样则直接登录
+	switch u.currentType {
+	case TypeAsset:
+		if strings.TrimSpace(key) != "" {
+			if ret, ok := getUniqueAssetFromKey(key, currentResult); ok {
+				u.Proxy(ret)
+				return
+			}
+		}
+	}
 	u.DisplayCurrentResult()
 }
 
@@ -325,16 +336,14 @@ func containKeysInMapItemFields(item map[string]interface{},
 
 	for key, value := range item {
 		if _, ok := searchFields[key]; ok {
-			switch value.(type) {
+			switch result := value.(type) {
 			case string:
-				result := value.(string)
 				for i := range matchedKeys {
 					if strings.Contains(result, matchedKeys[i]) {
 						return true
 					}
 				}
 			case map[string]interface{}:
-				result := value.(map[string]interface{})
 				if containKeysInMapItemFields(result, searchFields, matchedKeys...) {
 					return true
 				}
@@ -347,17 +356,17 @@ func containKeysInMapItemFields(item map[string]interface{},
 func convertMapItemToRow(item map[string]interface{}, fields map[string]string, row map[string]string) map[string]string {
 	for key, value := range item {
 		if rowKey, ok := fields[key]; ok {
-			switch value.(type) {
+			switch ret := value.(type) {
 			case string:
-				row[rowKey] = value.(string)
+				row[rowKey] = ret
 			case int:
-				row[rowKey] = strconv.Itoa(value.(int))
+				row[rowKey] = strconv.Itoa(ret)
 			}
 			continue
 		}
-		switch value.(type) {
+		switch ret := value.(type) {
 		case map[string]interface{}:
-			row = convertMapItemToRow(value.(map[string]interface{}), fields, row)
+			row = convertMapItemToRow(ret, fields, row)
 		}
 	}
 	return row
@@ -376,4 +385,20 @@ func joinMultiLineString(lines string) string {
 		lineSlice = append(lineSlice, strings.ReplaceAll(cleanLine, " ", ","))
 	}
 	return strings.Join(lineSlice, "|")
+}
+
+func getUniqueAssetFromKey(key string, currentResult []map[string]interface{}) (data map[string]interface{}, ok bool) {
+	result := make([]int, 0, len(currentResult))
+	for i := range currentResult {
+		ip := currentResult[i]["ip"].(string)
+		hostname := currentResult[i]["hostname"].(string)
+		switch key {
+		case ip, hostname:
+			result = append(result, i)
+		}
+	}
+	if len(result) == 1 {
+		return currentResult[result[0]], true
+	}
+	return nil, false
 }

@@ -25,6 +25,13 @@ func GetAllUserPermsAssets(userId string) (assets []map[string]interface{}) {
 	return res.Data
 }
 
+func RefreshUserAllPermsAssets(userId string) (assets []map[string]interface{}) {
+	var params model.PaginationParam
+	params.Refresh = true
+	res := GetUserPermsAssets(userId, params)
+	return res.Data
+}
+
 func getPaginationResult(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse) {
 	if param.PageSize < 0 {
 		param.PageSize = 0
@@ -39,6 +46,9 @@ func getPaginationResult(reqUrl string, param model.PaginationParam) (resp model
 	params := map[string]string{
 		"limit":  strconv.Itoa(param.PageSize),
 		"offset": strconv.Itoa(param.Offset),
+	}
+	if param.Refresh {
+		params["rebuild_tree"] = "1"
 	}
 	paramsArray = append(paramsArray, params)
 	var err error

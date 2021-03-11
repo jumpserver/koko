@@ -9,3 +9,8 @@ type ServerConnection interface {
 	SetWinSize(width, height int) error
 	KeepAlive() error
 }
+
+type Windows struct {
+	Width  int
+	Height int
+}

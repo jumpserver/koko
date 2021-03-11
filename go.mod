@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-pipeline-go v0.1.9 // indirect
 	github.com/Azure/azure-storage-blob-go v0.6.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/LeeEirc/elfinder v0.0.13
+	github.com/LeeEirc/elfinder v0.0.14
 	github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04
 	github.com/LeeEirc/terminalparser v0.0.0-20210105090630-135adbff588a
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
@@ -24,7 +24,6 @@ require (
 	github.com/mediocregopher/radix/v3 v3.4.2
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
-	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.12.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sevlyar/go-daemon v0.1.5
