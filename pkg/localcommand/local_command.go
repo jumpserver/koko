@@ -81,8 +81,8 @@ func (lcmd *LocalCommand) Close() error {
 
 func (lcmd *LocalCommand) SetWinSize(width int, height int) error {
 	win := pty.Winsize{
-		Rows: uint16(width),
-		Cols: uint16(height),
+		Rows: uint16(height),
+		Cols: uint16(width),
 	}
 	return pty.Setsize(lcmd.ptyFd, &win)
 }
