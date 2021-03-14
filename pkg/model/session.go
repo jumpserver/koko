@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type Command struct {
 	SessionID  string `json:"session"`
@@ -17,13 +19,15 @@ type Command struct {
 }
 
 type FTPLog struct {
-	User       string `json:"user"`
-	Hostname   string `json:"asset"`
-	OrgID      string `json:"org_id"`
-	SystemUser string `json:"system_user"`
-	RemoteAddr string `json:"remote_addr"`
-	Operate    string `json:"operate"`
-	Path       string `json:"filename"`
-	DataStart  string `json:"data_start"`
-	IsSuccess  bool   `json:"is_success"`
+	User          string `json:"user"`
+	Hostname      string `json:"asset"`
+	OrgID         string `json:"org_id"`
+	SystemUser    string `json:"system_user"`
+	RemoteAddr    string `json:"remote_addr"`
+	Operate       string `json:"operate"`
+	Path          string `json:"filename"`
+	DataStart     string `json:"data_start"`
+	IsSuccess     bool   `json:"is_success"`
+	Id            string `json:"id"`
+	HasFileRecord bool   `json:"has_file_record"`
 }

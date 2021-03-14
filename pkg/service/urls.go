@@ -23,7 +23,9 @@ const (
 	SessionCommandURL   = "/api/v1/terminal/commands/"           //上传批量命令
 	FinishTaskURL       = "/api/v1/terminal/tasks/%s/"
 	JoinRoomValidateURL = "/api/v1/terminal/sessions/join/validate/"
-	FTPLogListURL       = "/api/v1/audits/ftp-logs/" // 上传 ftp日志
+	FTPLogListURL       = "/api/v1/audits/ftp-logs/"         // 上传 ftp日志
+	FTPLogFileURL       = "/api/v1/audits/ftp-logs/%s/file/" // 上传 ftp日志
+	FTPLogUpdateURL     = "/api/v1/audits/ftp-logs/%s/"      // 上传 ftp日志
 )
 
 // 授权相关API

@@ -22,9 +22,10 @@ type CommandStorage interface {
 	StorageType
 }
 
-var defaultStorage = storage.ServerStorage{StorageType: "server"}
+var defaultReplayStorage = storage.ServerStorage{StorageType: "server", FileType: "replay"}
+var defaultFileStorage = storage.ServerStorage{StorageType: "server", FileType: "file"}
 
-func NewReplayStorage() ReplayStorage {
+func NewReplayStorage(fileType string) ReplayStorage {
 	cf := config.GetConf().ReplayStorage
 	tp, ok := cf["TYPE"]
 	if !ok {
@@ -118,10 +119,41 @@ func NewReplayStorage() ReplayStorage {
 			SecretKey: secretKey,
 			Endpoint:  endpoint,
 		}
+	case "obs":
+		var endpoint string
+		var bucket string
+		var accessKey string
+		var secretKey string
+
+		if value, ok := cf["ENDPOINT"].(string); ok {
+			endpoint = value
+		}
+		if value, ok := cf["BUCKET"].(string); ok {
+			bucket = value
+		}
+		if value, ok := cf["ACCESS_KEY"].(string); ok {
+			accessKey = value
+		}
+		if value, ok := cf["SECRET_KEY"].(string); ok {
+			secretKey = value
+		}
+		return storage.OBSReplayStorage{
+			Endpoint:  endpoint,
+			Bucket:    bucket,
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+		}
 	case "null":
 		return storage.NewNullStorage()
 	default:
-		return defaultStorage
+		switch fileType {
+		case "replay":
+			return defaultReplayStorage
+		case "file":
+			return defaultFileStorage
+		default:
+			return storage.NewNullStorage()
+		}
 	}
 }
 
@@ -149,6 +181,6 @@ func NewCommandStorage() CommandStorage {
 	case "null":
 		return storage.NewNullStorage()
 	default:
-		return defaultStorage
+		return defaultReplayStorage
 	}
 }

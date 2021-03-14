@@ -146,8 +146,8 @@ func (r *ReplyRecorder) prepare() {
 	r.AbsGzFilePath = filepath.Join(replayDir, gzFileName)
 	r.Target = strings.Join([]string{today, gzFileName}, "/")
 	r.timeStartNano = time.Now().UnixNano()
-	r.backOffStorage = defaultStorage
-	r.storage = NewReplayStorage()
+	r.backOffStorage = defaultReplayStorage
+	r.storage = NewReplayStorage("replay")
 
 	logger.Infof("Session %s storage type is %s", r.SessionID, r.storage.TypeName())
 	if r.isNullStorage() {
@@ -204,8 +204,8 @@ func (r *ReplyRecorder) uploadReplay() {
 
 func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 	if r.storage == nil {
-		r.backOffStorage = defaultStorage
-		r.storage = NewReplayStorage()
+		r.backOffStorage = defaultReplayStorage
+		r.storage = NewReplayStorage("replay")
 	}
 	if r.storage.TypeName() == "null" {
 		_ = r.storage.Upload(r.AbsGzFilePath, r.Target)
