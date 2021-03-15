@@ -12,7 +12,7 @@ func checkIfNeedAssetLoginConfirm(userID, assetID, systemUserID,
 		"user_id":         userID,
 		"asset_id":        assetID,
 		"system_user_id":  systemUserID,
-		"system_username": sysUsername,
+		"system_user_username": sysUsername,
 	}
 
 	_, err = authClient.Post(AssetLoginConfirmURL, data, &res)
