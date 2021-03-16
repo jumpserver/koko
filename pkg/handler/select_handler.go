@@ -90,10 +90,18 @@ func (u *UserSelectHandler) MoveNextPage() {
 }
 
 func (u *UserSelectHandler) MovePrePage() () {
+	var start int
+
 	if u.HasPrev() {
 		offset := u.CurrentOffSet()
 		newPageSize := getPageSize(u.h.term)
-		start := offset - newPageSize*2
+
+		if !u.HasNext() {
+			start = offset - (offset % newPageSize) - newPageSize
+		} else {
+			start = offset - newPageSize*2
+		}
+
 		if start <= 0 {
 			start = 0
 		}
