@@ -69,7 +69,7 @@ func (u *UserSelectHandler) SetSelectType(s selectType) {
 
 func (u *UserSelectHandler) AutoCompletion() {
 	assets := u.Retrieve(0, 0, "")
-	suggests := make([]string, 0)
+	suggests := make([]string, 0, len(assets))
 
 	for _, v := range assets {
 		switch u.currentType {
