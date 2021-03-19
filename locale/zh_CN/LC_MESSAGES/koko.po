@@ -224,7 +224,7 @@ msgid "Back: B/b"
 msgstr "返回：B/b"
 
 #. i18n.T
-#: pkg/handler/interactive.go:249
+#: pkg/handler/interactive.go:245
 msgid "Refresh done"
 msgstr "刷新完成"
 
@@ -235,6 +235,11 @@ msgid "Search: %s"
 msgstr "搜索：%s"
 
 #. i18n.T
+#: pkg/handler/select_handler.go:184
+msgid "The asset is inactive"
+msgstr "该资产已禁用"
+
+#. i18n.T
 #: pkg/proxy/commonswitch.go:234
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
@@ -243,56 +248,6 @@ msgstr "空闲时间超过%d分钟，断开连接"
 #: pkg/proxy/commonswitch.go:242
 msgid "Terminated by administrator"
 msgstr "管理员终断连接"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:19
-msgid "validate Login confirm err: Core Api failed"
-msgstr "校验登录复核失败：Core API异常"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:47
-#, fuzzy
-msgid "Need ticket confirm to login, already send email to the reviewers"
-msgstr "需要工单登录复核，已发邮件通知审核人"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:48
-#, fuzzy
-msgid "Ticket Reviewers: %s"
-msgstr "工单审核人：%s "
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:49
-#, fuzzy
-msgid "Could copy website URL to notify reviewers: %s"
-msgstr "可复制审核地址，通知审核人：%s"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:50
-#, fuzzy
-msgid "Please waiting for the reviewers to confirm, enter q to exit. "
-msgstr "等待审核人复核确认，按 q 回车取消登录。"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:77
-msgid "Unknown status"
-msgstr "未知状态"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:81
-msgid "%s approved"
-msgstr "%s 审核通过"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:86
-msgid "%s rejected"
-msgstr "%s 审核拒绝"
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:90
-#, fuzzy
-msgid "Cancel confirm"
-msgstr "取消登录复核"
 
 #. i18n.T
 #: pkg/proxy/dbparser.go:125
@@ -317,23 +272,23 @@ msgid "Database %s protocol client not installed."
 msgstr "%s 协议的数据库客户端未安装"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:251
+#: pkg/proxy/dbproxy.go:239
 msgid "Create database session failed"
 msgstr "创建数据库会话失败"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:263
+#: pkg/proxy/dbproxy.go:251
 msgid "Create DB domain gateway failed %s"
 msgstr "创建数据库网关失败%s"
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:270
+#: pkg/proxy/dbproxy.go:258
 msgid "Start DB domain gateway failed %s"
 msgstr "启动数据库网关失败%s"
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/dbproxy.go:313 pkg/proxy/k8sproxy.go:86
+#: pkg/proxy/dbproxy.go:301 pkg/proxy/k8sproxy.go:86
 #, fuzzy
 msgid "Connecting to Kubernetes %s %.1f"
 msgstr "开始连接Kubernetes %s  %.1f"
@@ -361,26 +316,76 @@ msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:226
+#: pkg/proxy/k8sproxy.go:215
 #, fuzzy
 msgid "Create k8s session failed"
 msgstr "创建Kubernetes会话失败"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:238
+#: pkg/proxy/k8sproxy.go:227
 #, fuzzy
 msgid "Create k8s domain gateway failed %s"
 msgstr "创建Kubernetes网关失败%s"
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:245
+#: pkg/proxy/k8sproxy.go:234
 msgid "Start k8s domain gateway failed %s"
 msgstr "启动kubernetes网关失败%s"
 
 #. i18n.T
 #. i18n.T
+#: pkg/proxy/k8sproxy.go:276 pkg/proxy/login_confirm.go:21
+msgid "validate Login confirm err: Core Api failed"
+msgstr "校验登录复核失败：Core API异常"
+
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:287 pkg/proxy/parser.go:162 pkg/proxy/proxy.go:184
+#: pkg/proxy/login_confirm.go:51
+#, fuzzy
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr "需要工单登录复核，已发邮件通知审核人"
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:52
+#, fuzzy
+msgid "Ticket Reviewers: %s"
+msgstr "工单审核人：%s "
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:53
+#, fuzzy
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "可复制审核地址，通知审核人：%s"
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:54
+#, fuzzy
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr "等待审核人复核确认，按 q 回车取消登录。"
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:81
+msgid "Unknown status"
+msgstr "未知状态"
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:85
+msgid "%s approved"
+msgstr "%s 审核通过"
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:90
+msgid "%s rejected"
+msgstr "%s 审核拒绝"
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:94
+#, fuzzy
+msgid "Cancel confirm"
+msgstr "取消登录复核"
+
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/parser.go:162 pkg/proxy/proxy.go:184
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
@@ -406,34 +411,34 @@ msgid "Connect asset %s error: %s"
 msgstr "连接资产 %s 发生错误：%s"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:371
+#: pkg/proxy/proxy.go:370
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:425
+#: pkg/proxy/proxy.go:424
 #, fuzzy
 msgid "Create session failed"
 msgstr "创建会话失败"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:460
+#: pkg/proxy/proxy.go:459
 #, fuzzy
 msgid "Authentication failed"
 msgstr "认证失败（用户名或密码错误）"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:463
+#: pkg/proxy/proxy.go:462
 msgid "Connection refused"
 msgstr "网络不通（连接拒绝）"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:466
+#: pkg/proxy/proxy.go:465
 msgid "i/o timeout"
 msgstr "网络不通（连接超时）"
 
 #. i18n.T
-#: pkg/proxy/proxy.go:469
+#: pkg/proxy/proxy.go:468
 msgid "No route to host"
 msgstr "网络不通（路由不通）"
 
