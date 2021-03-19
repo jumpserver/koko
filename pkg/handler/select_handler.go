@@ -179,6 +179,12 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 			logger.Errorf("Select asset %s not found", targetId)
 			return
 		}
+		if !asset.Active() {
+			logger.Debugf("Select asset %s is inactive", targetId)
+			msg := i18n.T("The asset is inactive")
+			_, _ = u.h.term.Write([]byte(msg))
+			return
+		}
 		u.proxyAsset(asset)
 	case TypeK8s:
 		app := service.GetK8sApplication(targetId)
