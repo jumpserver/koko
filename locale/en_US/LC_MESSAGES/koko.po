@@ -210,13 +210,18 @@ msgid "Back: B/b"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/interactive.go:249
+#: pkg/handler/interactive.go:245
 msgid "Refresh done"
 msgstr ""
 
 #. i18n.T
 #: pkg/handler/select_handler.go:158
 msgid "Search: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/select_handler.go:184
+msgid "The asset is inactive"
 msgstr ""
 
 #. i18n.T
@@ -227,51 +232,6 @@ msgstr ""
 #. i18n.T
 #: pkg/proxy/commonswitch.go:242
 msgid "Terminated by administrator"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:19
-msgid "validate Login confirm err: Core Api failed"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:47
-msgid "Need ticket confirm to login, already send email to the reviewers"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:48
-msgid "Ticket Reviewers: %s"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:49
-msgid "Could copy website URL to notify reviewers: %s"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:50
-msgid "Please waiting for the reviewers to confirm, enter q to exit. "
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:77
-msgid "Unknown status"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:81
-msgid "%s approved"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:86
-msgid "%s rejected"
-msgstr ""
-
-#. i18n.T
-#: pkg/proxy/connection_confirm.go:90
-msgid "Cancel confirm"
 msgstr ""
 
 #. i18n.T
@@ -295,23 +255,23 @@ msgid "Database %s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:251
+#: pkg/proxy/dbproxy.go:239
 msgid "Create database session failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:263
+#: pkg/proxy/dbproxy.go:251
 msgid "Create DB domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:270
+#: pkg/proxy/dbproxy.go:258
 msgid "Start DB domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/dbproxy.go:313 pkg/proxy/k8sproxy.go:86
+#: pkg/proxy/dbproxy.go:301 pkg/proxy/k8sproxy.go:86
 msgid "Connecting to Kubernetes %s %.1f"
 msgstr ""
 
@@ -336,24 +296,69 @@ msgid "You get auth token failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:226
+#: pkg/proxy/k8sproxy.go:215
 msgid "Create k8s session failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:238
+#: pkg/proxy/k8sproxy.go:227
 msgid "Create k8s domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:245
+#: pkg/proxy/k8sproxy.go:234
 msgid "Start k8s domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
+#: pkg/proxy/k8sproxy.go:276 pkg/proxy/login_confirm.go:21
+msgid "validate Login confirm err: Core Api failed"
+msgstr ""
+
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:287 pkg/proxy/parser.go:162 pkg/proxy/proxy.go:184
+#: pkg/proxy/login_confirm.go:51
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:52
+msgid "Ticket Reviewers: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:53
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:54
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:81
+msgid "Unknown status"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:85
+msgid "%s approved"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:90
+msgid "%s rejected"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/login_confirm.go:94
+msgid "Cancel confirm"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/parser.go:162 pkg/proxy/proxy.go:184
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
@@ -379,31 +384,31 @@ msgid "Connect asset %s error: %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:371
+#: pkg/proxy/proxy.go:370
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:425
+#: pkg/proxy/proxy.go:424
 msgid "Create session failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:460
+#: pkg/proxy/proxy.go:459
 msgid "Authentication failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:463
+#: pkg/proxy/proxy.go:462
 msgid "Connection refused"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:466
+#: pkg/proxy/proxy.go:465
 msgid "i/o timeout"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:469
+#: pkg/proxy/proxy.go:468
 msgid "No route to host"
 msgstr ""

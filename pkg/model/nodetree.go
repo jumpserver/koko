@@ -11,6 +11,8 @@ type NodeTreeAsset struct {
 	Pid      string                 `json:"pId"`
 	IsParent bool                   `json:"isParent"`
 	Meta     map[string]interface{} `json:"meta"`
+
+	ChkDisabled bool `json:"chkDisabled"` // 判断资产是否禁用
 }
 
 func ConvertMetaToNode(body []byte) (node Node, err error) {

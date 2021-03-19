@@ -114,6 +114,10 @@ func (nd *NodeDir) loadNodeAsset(uSftp *UserSftpConn) {
 		nodeTrees := service.GetUserNodeTreeWithAsset(uSftp.User.ID, nd.node.Key, "1")
 		dirs := map[string]os.FileInfo{}
 		for _, item := range nodeTrees {
+			if item.ChkDisabled {
+				// 资产被禁用，不显示
+				continue
+			}
 			typeName, ok := item.Meta["type"].(string)
 			if !ok {
 				continue
