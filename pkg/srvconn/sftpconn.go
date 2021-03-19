@@ -275,6 +275,11 @@ func (u *UserSftpConn) initial() {
 		if item.Pid != "" {
 			continue
 		}
+		if item.ChkDisabled {
+			// 资产被禁用，不显示
+			continue
+		}
+
 		typeName, ok := item.Meta["type"].(string)
 		if !ok {
 			continue

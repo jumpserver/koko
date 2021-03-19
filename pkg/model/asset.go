@@ -82,6 +82,7 @@ type Asset struct {
 	OrgID     string   `json:"org_id"`
 	OrgName   string   `json:"org_name"`
 	Platform  string   `json:"platform,omitempty"`
+	IsActive  bool     `json:"is_active"` // 判断资产是否禁用
 }
 
 func (a *Asset) ProtocolPort(protocol string) int {
@@ -114,6 +115,10 @@ func (a *Asset) IsSupportProtocol(protocol string) bool {
 		}
 	}
 	return false
+}
+
+func (a *Asset) Active() bool {
+	return a.IsActive
 }
 
 type Gateway struct {
