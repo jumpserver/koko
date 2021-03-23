@@ -45,21 +45,15 @@ func (c *Client) Write(p []byte) (n int, err error) {
 	buf := make([]byte, len(c.remainBuf)+n)
 	copy(buf, c.remainBuf)
 	copy(buf[len(c.remainBuf):], p)
-	c.remainBuf = buf
-	for i := len(buf); i > 0; i-- {
-		if utf8.Valid(buf[:i]) {
-			c.remainBuf = buf[i:]
-			break
-		}
+	// 发送完整的utf8字符
+	if validBuf, remainBuf, ok := filterLongestValidBytes(buf); ok {
+		c.sendDataMessage(validBuf)
+		c.remainBuf = remainBuf
+		return n, nil
 	}
-	validUTF8Index := len(buf) - len(c.remainBuf)
-	// 确保是一个完整的utf8字符发送给前端
-	msg := Message{
-		Id:   c.Conn.Uuid,
-		Type: TERMINALDATA,
-		Data: common.BytesToString(buf[:validUTF8Index]),
-	}
-	c.Conn.SendMessage(&msg)
+	// 首字符中包含非utf8的字符编码,将不处理
+	c.sendDataMessage(buf)
+	c.remainBuf = nil
 	return len(p), nil
 }
 
@@ -97,4 +91,22 @@ func (c *Client) WriteData(p []byte) {
 
 func (c *Client) Context() context.Context {
 	return c.Conn.ctx.Request.Context()
+}
+
+func (c *Client) sendDataMessage(p []byte) {
+	msg := Message{
+		Id:   c.Conn.Uuid,
+		Type: TERMINALDATA,
+		Data: common.BytesToString(p),
+	}
+	c.Conn.SendMessage(&msg)
+}
+
+func filterLongestValidBytes(buf []byte) (validBytes, invalidBytes []byte, ok bool) {
+	for i := len(buf); i > 0; i-- {
+		if utf8.Valid(buf[:i]) {
+			return buf[:i], buf[i:], true
+		}
+	}
+	return
 }
