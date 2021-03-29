@@ -131,21 +131,41 @@ func NewCommandStorage() CommandStorage {
 	if !ok {
 		tp = "server"
 	}
+	/*
+		{
+		'DOC_TYPE': 'command',
+		  'HOSTS': ['http://172.16.10.122:9200'],
+		  'INDEX': 'jumpserver',
+		  'OTHER': {'IGNORE_VERIFY_CERTS': True},
+		  'TYPE': 'es'
+		}
+	*/
 	switch tp {
 	case "es", "elasticsearch":
 		var hosts = make([]string, len(cf["HOSTS"].([]interface{})))
 		for i, item := range cf["HOSTS"].([]interface{}) {
 			hosts[i] = item.(string)
 		}
+		var skipVerify bool
 		index := cf["INDEX"].(string)
 		docType := cf["DOC_TYPE"].(string)
+		if otherMap, ok := cf["OTHER"].(map[string]interface{}); ok {
+			if insecureSkipVerify, ok := otherMap["IGNORE_VERIFY_CERTS"]; ok {
+				skipVerify = insecureSkipVerify.(bool)
+			}
+		}
 		if index == "" {
 			index = "jumpserver"
 		}
 		if docType == "" {
-			docType = "command_store"
+			docType = "command"
 		}
-		return storage.ESCommandStorage{Hosts: hosts, Index: index, DocType: docType}
+		return storage.ESCommandStorage{
+			Hosts:              hosts,
+			Index:              index,
+			DocType:            docType,
+			InsecureSkipVerify: skipVerify,
+		}
 	case "null":
 		return storage.NewNullStorage()
 	default:

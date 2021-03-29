@@ -2,9 +2,11 @@ package recorderstorage
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/elastic/go-elasticsearch/v6"
 
@@ -16,12 +18,18 @@ type ESCommandStorage struct {
 	Hosts   []string
 	Index   string
 	DocType string
+
+	InsecureSkipVerify bool
 }
 
 func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 	var buf bytes.Buffer
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	tlsClientConfig := &tls.Config{InsecureSkipVerify: es.InsecureSkipVerify}
+	transport.TLSClientConfig = tlsClientConfig
 	esClient, err := elasticsearch.NewClient(elasticsearch.Config{
 		Addresses: es.Hosts,
+		Transport: transport,
 	})
 	if err != nil {
 		logger.Errorf("ES new client err: %s", err)
