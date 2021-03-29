@@ -20,7 +20,6 @@ func Initial() {
 	}
 
 	go keepHeartbeat()
-	go keepReportState()
 }
 
 // uploadRemainReplay 上传遗留的录像
@@ -93,13 +92,6 @@ func keepHeartbeat() {
 	}
 }
 
-func keepReportState() {
-	for {
-		time.Sleep(30 * time.Second)
-		service.ReportStat(service.SessionActiveCount(
-			proxy.GetAliveSessionCount()))
-	}
-}
 
 func ValidateRemainReplayFile(path string) error {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, os.ModePerm)
