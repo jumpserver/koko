@@ -20,7 +20,7 @@ func RegisterTerminal(name, token, comment string) (res model.Terminal) {
 }
 
 type HeartbeatData struct {
-	SessionOnlineIds []string `json:"session_online_ids"`
+	SessionOnlineIds []string `json:"sessions"`
 	SessionOnline int `json:"session_online"`
 	CpuUsed float64 `json:"cpu_load"`
 	MemoryUsed float64 `json:"memory_used"`
