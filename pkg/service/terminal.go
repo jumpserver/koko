@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/jumpserver/koko/pkg/utils"
 
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
@@ -10,7 +11,7 @@ import (
 func RegisterTerminal(name, token, comment string) (res model.Terminal) {
 	client := newClient()
 	client.Headers["Authorization"] = fmt.Sprintf("BootstrapToken %s", token)
-	data := map[string]string{"name": name, "comment": comment, "type": model.ComponentName}
+	data := map[string]string{"name": name, "comment": comment, "type": "koko"}
 	_, err := client.Post(TerminalRegisterURL, data, &res)
 	if err != nil {
 		logger.Error(err)
@@ -18,10 +19,21 @@ func RegisterTerminal(name, token, comment string) (res model.Terminal) {
 	return
 }
 
-func TerminalHeartBeat(sIds []string) (res []model.TerminalTask) {
+type HeartbeatData struct {
+	SessionOnlineIds []string `json:"sessions"`
+	SessionOnline int `json:"session_online"`
+	CpuUsed float64 `json:"cpu_load"`
+	MemoryUsed float64 `json:"memory_used"`
+	DiskUsed float64 `json:"disk_used"`
+}
 
-	data := map[string][]string{
-		"sessions": sIds,
+func TerminalHeartBeat(sIds []string) (res []model.TerminalTask) {
+	data := HeartbeatData{
+		SessionOnlineIds: sIds,
+		CpuUsed:          utils.CpuLoad1Usage(),
+		MemoryUsed:       utils.MemoryUsagePercent(),
+		DiskUsed:         utils.DiskUsagePercent(),
+		SessionOnline:    len(sIds),
 	}
 	_, err := authClient.Post(TerminalHeartBeatURL, data, &res)
 	if err != nil {

@@ -200,7 +200,7 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 				index := bytes.IndexFunc(buf[:nr], func(r rune) bool {
 					return r == '\r' || r == '\n'
 				})
-				if index <= 0 {
+				if index <= 0 || !parser.NeedRecord() {
 					room.Receive(&model.RoomMessage{
 						Event: model.DataEvent, Body: buf[:nr]})
 				} else {

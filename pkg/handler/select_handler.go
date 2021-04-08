@@ -9,6 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 type dataSource string
@@ -63,6 +64,43 @@ func (u *UserSelectHandler) SetSelectType(s selectType) {
 		u.h.term.SetPrompt("[DB]> ")
 	}
 	u.currentType = s
+	u.AutoCompletion()
+}
+
+func (u *UserSelectHandler) AutoCompletion() {
+	assets := u.Retrieve(0, 0, "")
+	suggests := make([]string, 0, len(assets))
+
+	for _, v := range assets {
+		switch u.currentType {
+		case TypeAsset, TypeNodeAsset:
+			suggests = append(suggests, v["hostname"].(string))
+		default:
+			suggests = append(suggests, v["name"].(string))
+		}
+	}
+
+	u.h.term.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+		if key == 9 {
+			if len(line) >= 1 {
+				sugs := utils.FilterPrefix(suggests, line)
+				if len(sugs) >= 1 {
+					commonPrefix := utils.LongestCommonPrefix(sugs)
+					switch u.currentType {
+					case TypeAsset, TypeNodeAsset:
+						fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[Host]> ", line, strings.Join(sugs, "\t"))
+					case TypeK8s:
+						fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[K8S]> ", line, strings.Join(sugs, "\t"))
+					case TypeMySQL:
+						fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[DB]> ", line, strings.Join(sugs, "\t"))
+					}
+					return commonPrefix, len(commonPrefix), true
+				}
+			}
+		}
+
+		return newLine, newPos, false
+	}
 }
 
 func (u *UserSelectHandler) SetNode(node model.Node) {
