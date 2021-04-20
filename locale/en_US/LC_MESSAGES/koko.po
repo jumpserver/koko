@@ -215,12 +215,12 @@ msgid "Refresh done"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/select_handler.go:158
+#: pkg/handler/select_handler.go:196
 msgid "Search: %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/select_handler.go:184
+#: pkg/handler/select_handler.go:222
 msgid "The asset is inactive"
 msgstr ""
 
@@ -357,8 +357,27 @@ msgid "Cancel confirm"
 msgstr ""
 
 #. i18n.T
+#: pkg/proxy/parser.go:172
+msgid "the reviewers will confirm. continue or not [Y/n]"
+msgstr ""
+
 #. i18n.T
-#: pkg/proxy/parser.go:162 pkg/proxy/proxy.go:184
+#. i18n.T
+#: pkg/proxy/parser.go:242 pkg/proxy/parser.go:367
+msgid ""
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:375
+msgid ""
+"Need ticket confirm to execute command, already send email to the reviewers"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/parser.go:376 pkg/proxy/parser.go:377 pkg/proxy/proxy.go:184
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
