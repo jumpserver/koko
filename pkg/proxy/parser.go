@@ -152,12 +152,9 @@ func (p *Parser) ParseStream(userInChan chan *model.RoomMessage, srvInChan <-cha
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
-	p.lock.Lock()
-	if p.inVimState || p.zmodemState != "" {
+	if !p.IsNeedParse() {
 		return b
 	}
-	p.inputPreState = p.inputState
-	p.lock.Unlock()
 
 	if p.confirmStatus.InRunning() {
 		if p.confirmStatus.IsNeedCancel(b) {
@@ -236,6 +233,17 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 	}
 	return b
+}
+
+
+func (p *Parser) IsNeedParse() bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.inVimState || p.zmodemState != "" {
+		return false
+	}
+	p.inputPreState = p.inputState
+	return true
 }
 
 func (p *Parser) forbiddenCommand(cmd string) {
