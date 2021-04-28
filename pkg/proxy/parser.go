@@ -160,7 +160,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		if p.confirmStatus.IsNeedCancel(b) {
 			logger.Infof("Session %s: user cancel confirm status", p.id)
 			p.srvOutputChan <- []byte("\r\n")
-			return breakInputPacket(p.protocolType)
+			return nil
 		}
 		logger.Infof("Session %s: command confirm status %s, drop input", p.id,
 			p.confirmStatus.Status)
@@ -175,11 +175,19 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			go func() {
 				p.confirmStatus.SetAction(model.ActionUnknown)
 				p.waitCommandConfirm()
+				processor := p.confirmStatus.GetProcessor()
 				switch p.confirmStatus.GetAction() {
 				case model.ActionAllow:
+					formatMsg := i18n.T("%s approved")
+					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Green)
 					p.srvOutputChan <- []byte("\r\n")
+					p.srvOutputChan <- []byte(statusMsg)
 					p.userOutputChan <- []byte(p.confirmStatus.data)
 				case model.ActionDeny:
+					formatMsg := i18n.T("%s rejected")
+					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Red)
+					p.srvOutputChan <- []byte("\r\n")
+					p.srvOutputChan <- []byte(statusMsg)
 					p.forbiddenCommand(p.confirmStatus.Cmd)
 				default:
 					// 默认是取消 不执行
@@ -351,7 +359,7 @@ func (p *Parser) IsMatchCommandRule(command string) (model.SystemUserFilterRule,
 		allowed, cmd := rule.Match(command)
 		switch allowed {
 		case model.ActionAllow:
-			return model.SystemUserFilterRule{}, cmd, true
+			return rule, cmd, true
 		case model.ActionConfirm, model.ActionDeny:
 			return rule, cmd, true
 		default:

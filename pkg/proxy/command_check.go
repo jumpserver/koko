@@ -52,6 +52,12 @@ func (c *commandConfirmStatus) SetProcessor(processor string) {
 	c.Processor = processor
 }
 
+func (c *commandConfirmStatus) GetProcessor() string {
+	c.Lock()
+	defer c.Unlock()
+	return c.Processor
+}
+
 func (c *commandConfirmStatus) SetRule(rule model.SystemUserFilterRule) {
 	c.Lock()
 	defer c.Unlock()
