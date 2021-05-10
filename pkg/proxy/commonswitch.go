@@ -228,15 +228,23 @@ func (s *commonSwitch) Bridge(userConn UserConnection, srvConn srvconn.ServerCon
 		// 检测是否超过最大空闲时间
 		case now := <-tick.C:
 			outTime := lastActiveTime.Add(maxIdleTime)
-			if !now.After(outTime) {
-				continue
+			if now.After(outTime) {
+				msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
+				logger.Infof("Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
+				msg = utils.WrapperWarn(msg)
+				replayRecorder.Record([]byte(msg))
+				room.Broadcast(&model.RoomMessage{Event: model.DataEvent, Body: []byte("\n\r" + msg)})
+				return
 			}
-			msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
-			logger.Infof("Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
-			msg = utils.WrapperWarn(msg)
-			replayRecorder.Record([]byte(msg))
-			room.Broadcast(&model.RoomMessage{Event: model.DataEvent, Body: []byte("\n\r" + msg)})
-			return
+			if s.p.CheckPermissionExpired(now) {
+				msg := i18n.T("Permission has expired, disconnect")
+				logger.Infof("Session[%s] permission has expired, disconnect", s.ID)
+				msg = utils.WrapperWarn(msg)
+				replayRecorder.Record([]byte(msg))
+				room.Broadcast(&model.RoomMessage{Event: model.DataEvent, Body: []byte("\n\r" + msg)})
+				return
+			}
+			continue
 			// 手动结束
 		case <-s.ctx.Done():
 			msg := i18n.T("Terminated by administrator")

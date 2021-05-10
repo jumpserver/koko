@@ -26,6 +26,8 @@ type K8sProxyServer struct {
 	User       *model.User
 	Cluster    *model.K8sApplication
 	SystemUser *model.SystemUser
+
+	permissionExpireTime int64
 }
 
 func (p *K8sProxyServer) checkProtocolMatch() bool {
@@ -42,7 +44,9 @@ func (p *K8sProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *K8sProxyServer) validatePermission() bool {
-	return service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.Id, p.SystemUser.ID)
+	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Cluster.Id, p.SystemUser.ID)
+	p.permissionExpireTime = expireUTCDate
+	return ok
 }
 
 // getSSHConn 获取ssh连接
@@ -306,6 +310,10 @@ func (p *K8sProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}
+}
+
+func (p *K8sProxyServer) CheckPermissionExpired(now time.Time) bool {
+	return p.permissionExpireTime < now.Unix()
 }
 
 func IsInstalledKubectlClient() bool {

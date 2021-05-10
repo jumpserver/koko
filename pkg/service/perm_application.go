@@ -54,7 +54,7 @@ func GetUserApplicationSystemUsers(userId, appId string) (res []model.SystemUser
 	return
 }
 
-func ValidateUserApplicationPermission(userId, appId, systemUserId string) bool {
+func ValidateUserApplicationPermission(userId, appId, systemUserId string) (int64, bool) {
 	payload := map[string]string{
 		"user_id":        userId,
 		"application_id": appId,
@@ -62,16 +62,17 @@ func ValidateUserApplicationPermission(userId, appId, systemUserId string) bool 
 	}
 	Url := ValidateApplicationPermissionURL
 	var res struct {
-		Msg bool `json:"msg"`
+		HasPermission bool  `json:"has_permission"`
+		ExpireTime    int64 `json:"expire_at"`
 	}
 	_, err := authClient.Get(Url, &res, payload)
 
 	if err != nil {
 		logger.Error(err)
-		return false
+		return 0, false
 	}
 
-	return res.Msg
+	return res.ExpireTime, res.HasPermission
 }
 
 func GetApplicationSystemUserAuthInfo(systemUserId string) (info model.SystemUserAuthInfo) {
