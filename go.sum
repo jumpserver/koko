@@ -11,8 +11,8 @@ github.com/LeeEirc/elfinder v0.0.14 h1:6ObxwIoC5zmrnKArUU5Mz++/T3lzgl1Ja0pS1Smd3
 github.com/LeeEirc/elfinder v0.0.14/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534 h1:x4gr2rn068pHL5NvdPMNQUGv8hmSJ22FgNftawlidEk=
 github.com/LeeEirc/ssh v0.1.2-0.20201111074515-e8272f1a6534/go.mod h1:Y4MILF5d5xIGmsN5GLJryvyyLRq1kYkbA1V10UWCszs=
-github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04 h1:j2XxH6wbtZUHMc10CUIqWNPw4Z8COMfzWNlMnsvZmUM=
-github.com/LeeEirc/tclientlib v0.0.0-20201208031857-c210dd977a04/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
+github.com/LeeEirc/tclientlib v0.0.0-20210426030239-9601a77132d6 h1:KOeQYEX6xaTzyeB6nm4/GLYIhBcjww65teTD5zLW51o=
+github.com/LeeEirc/tclientlib v0.0.0-20210426030239-9601a77132d6/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
 github.com/LeeEirc/terminalparser v0.0.0-20210105090630-135adbff588a h1:bCk3bTkRdgN3Kdx0eco+cNZchIS7gIqMge2qbdMIAKU=
 github.com/LeeEirc/terminalparser v0.0.0-20210105090630-135adbff588a/go.mod h1:tiLv6VBLH4Z3KdBSe2qIKRwQDGCVQ9/F5fOKpQGvyoA=
 github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d h1:G0m3OIz70MZUWq3EgK3CesDbo8upS2Vm9/P3FtgI+Jk=
