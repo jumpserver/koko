@@ -99,3 +99,34 @@ func FilterPrefix(strs []string, s string) (r []string) {
 
 	return r
 }
+
+func LongestStr(strs []string) string {
+	longestStr := ""
+	for _, str := range strs {
+		if len(str) >= len(longestStr) {
+			longestStr = str
+		}
+	}
+
+	return longestStr
+}
+
+func Pretty(strs []string, width int) (s string) {
+	longestStr := LongestStr(strs)
+	length := len(longestStr) + 4
+	lineCount := width / length
+
+	for index, str := range strs {
+		if index == 0 {
+			s += fmt.Sprintf(fmt.Sprintf("%%-%ds", length), str)
+		} else {
+			if index%lineCount == 0 {
+				s += fmt.Sprintf(fmt.Sprintf("\n%%-%ds", length), str)
+			} else {
+				s += fmt.Sprintf(fmt.Sprintf("%%-%ds", length), str)
+			}
+		}
+	}
+
+	return s
+}
