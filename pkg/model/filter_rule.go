@@ -88,8 +88,25 @@ func (f FilterRules) Len() int {
 	return len(f)
 }
 
-// core 优先级的值越大，优先级越高，因此按此排序，第一个是优先级最高的
+/*
+	core 优先级的值越小，优先级越高，因此按此排序，第一个是优先级最高的
+	优先级相同则 Action Deny 的优先级更高
+*/
 
 func (f FilterRules) Less(i, j int) bool {
-	return f[i].Priority < f[j].Priority
+	switch {
+	case f[i].Priority == f[j].Priority:
+		return actionPriorityMap[f[i].Action] < actionPriorityMap[f[j].Action]
+	default:
+		return f[i].Priority < f[j].Priority
+	}
 }
+
+var (
+	actionPriorityMap = map[RuleAction]int{
+		ActionDeny:    0,
+		ActionConfirm: 1,
+		ActionAllow:   2,
+		ActionUnknown: 3,
+	}
+)
