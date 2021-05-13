@@ -24,6 +24,8 @@ type ProxyServer struct {
 	SystemUser *model.SystemUser
 
 	cacheSSHConnection *srvconn.ServerSSHConnection
+
+	permissionExpireTime int64
 }
 
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
@@ -105,9 +107,14 @@ func (p *ProxyServer) checkProtocolIsGraph() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *ProxyServer) validatePermission() bool {
-	return service.ValidateUserAssetPermission(
+	expireUTCDate, ok := service.ValidateUserAssetPermission(
 		p.User.ID, p.Asset.ID, p.SystemUser.ID, "connect",
 	)
+	p.permissionExpireTime = expireUTCDate
+	logger.Infof("User(%s)-asset(%s)-systemUser(%s) permission expire at %d",
+		p.User.Name, p.Asset.Hostname, p.SystemUser.Name,
+		expireUTCDate)
+	return ok
 }
 
 // getSSHConn 获取ssh连接
@@ -448,6 +455,10 @@ func (p *ProxyServer) GenerateRecordCommand(s *commonSwitch, input, output strin
 
 		DateCreated: time.Now(),
 	}
+}
+
+func (p *ProxyServer) CheckPermissionExpired(now time.Time) bool {
+	return p.permissionExpireTime < now.Unix()
 }
 
 func ConvertErrorToReadableMsg(e error) string {

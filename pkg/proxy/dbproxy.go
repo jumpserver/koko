@@ -25,6 +25,8 @@ type DBProxyServer struct {
 	User       *model.User
 	Database   *model.DatabaseApplication
 	SystemUser *model.SystemUser
+
+	permissionExpireTime int64
 }
 
 func (p *DBProxyServer) getAuthOrManualSet() error {
@@ -88,7 +90,9 @@ func (p *DBProxyServer) checkProtocolClientInstalled() bool {
 
 // validatePermission 检查是否有权限连接
 func (p *DBProxyServer) validatePermission() bool {
-	return service.ValidateUserApplicationPermission(p.User.ID, p.Database.Id, p.SystemUser.ID)
+	expireUTCDate, ok := service.ValidateUserApplicationPermission(p.User.ID, p.Database.Id, p.SystemUser.ID)
+	p.permissionExpireTime = expireUTCDate
+	return ok
 }
 
 // getSSHConn 获取ssh连接
@@ -331,6 +335,10 @@ func (p *DBProxyServer) MapData(s *commonSwitch) map[string]interface{} {
 		"system_user_id": p.SystemUser.ID,
 		"is_success":     s.isConnected,
 	}
+}
+
+func (p *DBProxyServer) CheckPermissionExpired(now time.Time) bool {
+	return p.permissionExpireTime < now.Unix()
 }
 
 func IsInstalledMysqlClient() bool {

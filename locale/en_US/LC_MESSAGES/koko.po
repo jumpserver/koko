@@ -215,22 +215,27 @@ msgid "Refresh done"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/select_handler.go:158
+#: pkg/handler/select_handler.go:196
 msgid "Search: %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/select_handler.go:184
+#: pkg/handler/select_handler.go:222
 msgid "The asset is inactive"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/commonswitch.go:234
+#: pkg/proxy/commonswitch.go:232
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/commonswitch.go:242
+#: pkg/proxy/commonswitch.go:240
+msgid "Permission has expired, disconnect"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/commonswitch.go:250
 msgid "Terminated by administrator"
 msgstr ""
 
@@ -240,79 +245,79 @@ msgid "Command `%s` is forbidden"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:131
+#: pkg/proxy/dbproxy.go:135
 msgid "Connecting to Database %s %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:150
+#: pkg/proxy/dbproxy.go:154
 msgid "System user <%s> and database <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:158
+#: pkg/proxy/dbproxy.go:162
 msgid "Database %s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:239
+#: pkg/proxy/dbproxy.go:243
 msgid "Create database session failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:251
+#: pkg/proxy/dbproxy.go:255
 msgid "Create DB domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/dbproxy.go:258
+#: pkg/proxy/dbproxy.go:262
 msgid "Start DB domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/dbproxy.go:301 pkg/proxy/k8sproxy.go:86
+#: pkg/proxy/dbproxy.go:305 pkg/proxy/k8sproxy.go:90
 msgid "Connecting to Kubernetes %s %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:105
+#: pkg/proxy/k8sproxy.go:109
 msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:113
+#: pkg/proxy/k8sproxy.go:117
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:121
+#: pkg/proxy/k8sproxy.go:125
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:129
+#: pkg/proxy/k8sproxy.go:133
 msgid "You get auth token failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:215
+#: pkg/proxy/k8sproxy.go:219
 msgid "Create k8s session failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:227
+#: pkg/proxy/k8sproxy.go:231
 msgid "Create k8s domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:234
+#: pkg/proxy/k8sproxy.go:238
 msgid "Start k8s domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/k8sproxy.go:276 pkg/proxy/login_confirm.go:21
+#: pkg/proxy/k8sproxy.go:280 pkg/proxy/login_confirm.go:21
 msgid "validate Login confirm err: Core Api failed"
 msgstr ""
 
@@ -357,58 +362,80 @@ msgid "Cancel confirm"
 msgstr ""
 
 #. i18n.T
+#: pkg/proxy/parser.go:169
+msgid "the reviewers will confirm. continue or not [Y/n]"
+msgstr ""
+
 #. i18n.T
-#: pkg/proxy/parser.go:162 pkg/proxy/proxy.go:184
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/parser.go:181 pkg/proxy/parser.go:187 pkg/proxy/parser.go:258
+#: pkg/proxy/parser.go:383
+msgid ""
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:391
+msgid ""
+"Need ticket confirm to execute command, already send email to the reviewers"
+msgstr ""
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/proxy/parser.go:392 pkg/proxy/parser.go:393 pkg/proxy/proxy.go:188
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:238
+#: pkg/proxy/proxy.go:242
 msgid "Connecting to %s@%s  %.1f"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:257
+#: pkg/proxy/proxy.go:261
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:265
+#: pkg/proxy/proxy.go:269
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:325
+#: pkg/proxy/proxy.go:329
 msgid "Connect asset %s error: %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:370
+#: pkg/proxy/proxy.go:374
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:424
+#: pkg/proxy/proxy.go:428
 msgid "Create session failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:459
+#: pkg/proxy/proxy.go:467
 msgid "Authentication failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:462
+#: pkg/proxy/proxy.go:470
 msgid "Connection refused"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:465
+#: pkg/proxy/proxy.go:473
 msgid "i/o timeout"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/proxy.go:468
+#: pkg/proxy/proxy.go:476
 msgid "No route to host"
 msgstr ""

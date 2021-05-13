@@ -49,26 +49,26 @@ func GetUserAssetSystemUsers(userID, assetID string) (sysUsers []model.SystemUse
 	return
 }
 
-func ValidateUserAssetPermission(userID, assetID, systemUserID, action string) bool {
+func ValidateUserAssetPermission(userID, assetID, systemUserID, action string) (int64, bool) {
 	payload := map[string]string{
 		"user_id":        userID,
 		"asset_id":       assetID,
 		"system_user_id": systemUserID,
 		"action_name":    action,
-		"cache_policy":   "1",
 	}
 	Url := ValidateUserAssetPermissionURL
 	var res struct {
-		Msg bool `json:"msg"`
+		HasPermission bool  `json:"has_permission"`
+		ExpireTime    int64 `json:"expire_at"`
 	}
 	_, err := authClient.Get(Url, &res, payload)
 
 	if err != nil {
 		logger.Error(err)
-		return false
+		return 0, false
 	}
 
-	return res.Msg
+	return res.ExpireTime, res.HasPermission
 }
 
 func GetUserNodeTreeWithAsset(userID, nodeKey, cachePolicy string) (nodeTrees model.NodeTreeList) {

@@ -1,7 +1,10 @@
 package proxy
 
 import (
+	"time"
+
 	"github.com/jumpserver/koko/pkg/model"
+
 )
 
 type proxyEngine interface {
@@ -10,6 +13,8 @@ type proxyEngine interface {
 	NewParser(s *commonSwitch) ParseEngine
 
 	MapData(s *commonSwitch) map[string]interface{}
+
+	CheckPermissionExpired(time.Time) bool
 }
 
 type ParseEngine interface {
