@@ -172,7 +172,8 @@ func (r *ReplyRecorder) End() {
 	if r.isNullStorage() {
 		return
 	}
-	_, _ = r.file.WriteString(fmt.Sprintf(`"%f":%s}`, 0.0, `""`))
+	delta := float64(time.Now().UnixNano()-r.timeStartNano) / 1000 / 1000 / 1000
+	_, _ = r.file.WriteString(fmt.Sprintf(`"%f":"","%f":""}`, delta, 0.0))
 	_ = r.file.Close()
 	go r.uploadReplay()
 }
