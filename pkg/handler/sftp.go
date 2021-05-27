@@ -2,50 +2,21 @@ package handler
 
 import (
 	"io"
-	"net"
 	"os"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/gliderlabs/ssh"
 	"github.com/pkg/sftp"
-	uuid "github.com/satori/go.uuid"
 
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-func SftpHandler(sess ssh.Session) {
-	currentUser, ok := sess.Context().Value(model.ContextKeyUser).(*model.User)
-	if !ok || currentUser.ID == "" {
-		logger.Errorf("SFTP User not found, exit.")
-		return
-	}
-	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	userSftp := NewSFTPHandler(currentUser, host)
-	handlers := sftp.Handlers{
-		FileGet:  userSftp,
-		FilePut:  userSftp,
-		FileCmd:  userSftp,
-		FileList: userSftp,
-	}
-	reqID := uuid.NewV4().String()
-	logger.Infof("SFTP request %s: Handler start", reqID)
-	req := sftp.NewRequestServer(sess, handlers)
-	if err := req.Serve(); err == io.EOF {
-		logger.Debugf("SFTP request %s: Exited session.", reqID)
-	} else if err != nil {
-		logger.Errorf("SFTP request %s: Server completed with error %s", reqID, err)
-	}
-	_ = req.Close()
-	userSftp.Close()
-	logger.Infof("SFTP request %s: Handler exit.", reqID)
-}
-
-func NewSFTPHandler(user *model.User, addr string) *sftpHandler {
-	return &sftpHandler{UserSftpConn: srvconn.NewUserSftpConn(user, addr)}
+func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string) *sftpHandler {
+	return &sftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, user, addr)}
 }
 
 type sftpHandler struct {

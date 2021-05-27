@@ -11,8 +11,8 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 )
 
 type domainGateway struct {
@@ -67,23 +67,28 @@ func (d *domainGateway) handlerConn(srcCon net.Conn) {
 	logger.Infof("Gateway %s connect %s(%p) done", d.selectedGateway.Name, dstAddr, dstCon)
 }
 
-func (d *domainGateway) Start() (addr *net.TCPAddr, err error) {
+var ErrNoAvailable = errors.New("no available domain")
+
+func (d *domainGateway) Start() (err error) {
 	if !d.getAvailableGateway() {
-		return nil, errors.New("no available domain")
+		return ErrNoAvailable
 	}
 	d.ln, err = net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		_ = d.sshClient.Close()
-		return nil, err
+		return err
 	}
 	go d.run()
 	logger.Infof("Domain %s start listen on %s", d.domain.Name, d.ln.Addr())
 
-	return d.ln.Addr().(*net.TCPAddr), nil
+	return nil
+}
+func (d *domainGateway) GetListenAddr() *net.TCPAddr {
+	return d.ln.Addr().(*net.TCPAddr)
 }
 
 func (d *domainGateway) getAvailableGateway() bool {
-	configTimeout := config.GetConf().SSHTimeout
+	configTimeout := time.Duration(config.GetConf().SSHTimeout)
 	for i := range d.domain.Gateways {
 		gateway := d.domain.Gateways[i]
 		if gateway.Protocol == "ssh" {

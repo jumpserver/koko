@@ -7,9 +7,8 @@ import (
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -31,7 +30,7 @@ const (
 
 type UserSelectHandler struct {
 	user *model.User
-	h    *interactiveHandler
+	h    *InteractiveHandler
 
 	loadingPolicy dataSource
 	currentType   selectType
@@ -124,7 +123,7 @@ func (u *UserSelectHandler) SetLoadPolicy(policy dataSource) {
 func (u *UserSelectHandler) MoveNextPage() {
 	if u.HasNext() {
 		offset := u.CurrentOffSet()
-		newPageSize := getPageSize(u.h.term)
+		newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 		u.currentResult = u.Retrieve(newPageSize, offset, u.searchKeys...)
 	}
 	u.DisplayCurrentResult()
@@ -133,7 +132,7 @@ func (u *UserSelectHandler) MoveNextPage() {
 func (u *UserSelectHandler) MovePrePage() {
 	if u.HasPrev() {
 		offset := u.CurrentOffSet()
-		newPageSize := getPageSize(u.h.term)
+		newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 		start := offset - newPageSize*2
 		if start <= 0 {
 			start = 0
@@ -144,7 +143,7 @@ func (u *UserSelectHandler) MovePrePage() {
 }
 
 func (u *UserSelectHandler) Search(key string) {
-	newPageSize := getPageSize(u.h.term)
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 	u.currentResult = u.Retrieve(newPageSize, 0, key)
 	u.searchKeys = []string{key}
 	u.DisplayCurrentResult()
@@ -152,7 +151,7 @@ func (u *UserSelectHandler) Search(key string) {
 
 func (u *UserSelectHandler) SearchAgain(key string) {
 	u.searchKeys = append(u.searchKeys, key)
-	newPageSize := getPageSize(u.h.term)
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 	u.currentResult = u.Retrieve(newPageSize, 0, u.searchKeys...)
 	u.DisplayCurrentResult()
 }
@@ -165,7 +164,7 @@ func (u *UserSelectHandler) SearchOrProxy(key string) {
 		}
 	}
 
-	newPageSize := getPageSize(u.h.term)
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
 	currentResult := u.Retrieve(newPageSize, 0, key)
 	u.currentResult = currentResult
 	u.searchKeys = []string{key}
@@ -215,12 +214,12 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 	targetId := target["id"].(string)
 	switch u.currentType {
 	case TypeAsset, TypeNodeAsset:
-		asset := service.GetAsset(targetId)
-		if asset.ID == "" {
+		asset, err := u.h.jmsService.GetAssetById(targetId)
+		if err != nil || asset.ID == "" {
 			logger.Errorf("Select asset %s not found", targetId)
 			return
 		}
-		if !asset.Active() {
+		if !asset.IsActive {
 			logger.Debugf("Select asset %s is inactive", targetId)
 			msg := i18n.T("The asset is inactive")
 			_, _ = u.h.term.Write([]byte(msg))
@@ -228,15 +227,15 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 		}
 		u.proxyAsset(asset)
 	case TypeK8s:
-		app := service.GetK8sApplication(targetId)
-		if app.Id == "" {
+		app, err := u.h.jmsService.GetK8sApplicationById(targetId)
+		if err != nil || app.ID == "" {
 			logger.Errorf("Select k8s %s not found", targetId)
 			return
 		}
 		u.proxyK8s(app)
 	case TypeMySQL:
-		app := service.GetMySQLApplication(targetId)
-		if app.Id == "" {
+		app, err := u.h.jmsService.GetMySQLApplicationById(targetId)
+		if err != nil || app.ID == "" {
 			logger.Errorf("Select MySQL %s not found", targetId)
 			return
 		}

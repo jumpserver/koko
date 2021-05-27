@@ -7,17 +7,18 @@ import (
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/common"
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []map[string]interface{} {
-	res := service.GetUserPermsAssets(u.user.ID, reqParam)
+	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
+	if err != nil {
+		logger.Errorf("Ger user perm assets failed: %s", err.Error())
+	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
@@ -63,7 +64,8 @@ func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 }
 
 func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
-	switch config.GetConf().AssetListSortBy {
+	assetListSortBy := u.h.terminalConf.AssetListSortBy
+	switch assetListSortBy {
 	case "ip":
 		sortedAsset := IPAssetList(u.currentResult)
 		sort.Sort(sortedAsset)
@@ -132,21 +134,27 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 }
 
 func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
-	systemUsers := service.GetUserAssetSystemUsers(u.user.ID, asset.ID)
+	systemUsers, err := u.h.jmsService.GetSystemUsersByUserIdAndAssetId(u.user.ID, asset.ID)
+	if err != nil {
+		return
+	}
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {
 		return
 	}
-	p := &proxy.ProxyServer{
-		UserConn:   u.h.sess,
-		User:       u.h.user,
-		Asset:      &asset,
-		SystemUser: &selectedSystemUser,
+	srv, err := proxy.NewServer(u.h.sess,
+		u.h.jmsService,
+		proxy.ConnectProtocolType(selectedSystemUser.Protocol),
+		proxy.ConnectUser(u.h.user),
+		proxy.ConnectAsset(&asset),
+		proxy.ConnectSystemUser(&selectedSystemUser),
+	)
+	if err != nil {
+		logger.Error(err)
+		return
 	}
-	u.h.pauseWatchWinSize()
-	p.Proxy()
-	u.h.resumeWatchWinSize()
+	srv.Proxy()
 	logger.Infof("Request %s: asset %s proxy end", u.h.sess.Uuid, asset.Hostname)
 
 }

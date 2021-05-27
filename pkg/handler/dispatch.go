@@ -7,12 +7,11 @@ import (
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 )
 
-func (h *interactiveHandler) Dispatch() {
+func (h *InteractiveHandler) Dispatch() {
 	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
 	var initialed bool
 	for {
@@ -105,7 +104,7 @@ func (h *interactiveHandler) Dispatch() {
 	}
 }
 
-func (h *interactiveHandler) displayNodeTree(nodes model.NodeList) {
+func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList) {
 	tree := ConstructNodeTree(nodes)
 	_, _ = io.WriteString(h.term, "\n\r"+i18n.T("Node: [ ID.Name(Asset amount) ]"))
 	_, _ = io.WriteString(h.term, tree.String())
@@ -115,16 +114,22 @@ func (h *interactiveHandler) displayNodeTree(nodes model.NodeList) {
 	}
 }
 
-func (h *interactiveHandler) CheckShareRoomWritePerm(shareRoomID string) bool {
+func (h *InteractiveHandler) CheckShareRoomWritePerm(shareRoomID string) bool {
 	// todo: check current user has pem to write
 	return false
 }
 
-func (h *interactiveHandler) CheckShareRoomReadPerm(shareRoomID string) bool {
-	return service.JoinRoomValidate(h.user.ID, shareRoomID)
+func (h *InteractiveHandler) CheckShareRoomReadPerm(shareRoomID string) bool {
+	ret, err := h.jmsService.ValidateJoinSessionPermission(h.user.ID, shareRoomID)
+	if err != nil {
+		logger.Error(err)
+		return false
+	}
+	return ret.Ok
+
 }
 
-func JoinRoom(h *interactiveHandler, roomId string) {
+func JoinRoom(h *InteractiveHandler, roomId string) {
 	if room := exchange.GetRoom(roomId); room != nil {
 		conn := exchange.WrapperUserCon(h.sess)
 		room.Subscribe(conn)
@@ -133,8 +138,8 @@ func JoinRoom(h *interactiveHandler, roomId string) {
 			buf := make([]byte, 1024)
 			nr, err := h.sess.Read(buf)
 			if nr > 0 && h.CheckShareRoomWritePerm(roomId) {
-				room.Receive(&model.RoomMessage{
-					Event: model.DataEvent, Body: buf[:nr]})
+				room.Receive(&exchange.RoomMessage{
+					Event: exchange.DataEvent, Body: buf[:nr]})
 			}
 			if err != nil {
 				break

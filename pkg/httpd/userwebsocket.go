@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/jumpserver/koko/pkg/httpd/ws"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 )
 
 type Handler interface {
@@ -21,7 +21,7 @@ type Handler interface {
 
 type UserWebsocket struct {
 	Uuid           string
-	webSrv         *server
+	webSrv         *Server
 	conn           *ws.Socket
 	ctx            *gin.Context
 	messageChannel chan *Message

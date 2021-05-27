@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
 const (

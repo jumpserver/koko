@@ -11,10 +11,11 @@ import (
 
 	"github.com/LeeEirc/tclientlib"
 
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -50,21 +51,23 @@ const (
 
 var _ ParseEngine = (*Parser)(nil)
 
-func newParser(sid, protocolType string) Parser {
-	parser := Parser{id: sid, protocolType: protocolType}
-	parser.initial()
-	return parser
-}
+//func newParser(sid, protocolType string) *Parser {
+//	parser := Parser{id: sid, protocolType: protocolType}
+//	parser.initial()
+//	return &parser
+//}
 
 // Parse 解析用户输入输出, 拦截过滤用户输入输出
 
 type Parser struct {
 	id           string
 	protocolType string
+	jmsService *service.JMService
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
-	cmdRecordChan  chan [3]string // [3]string{command, out, flag}
+	//cmdRecordChan  chan [3]string // [3]string{command, out, flag}
+	cmdRecordChan chan *ExecutedCommand
 
 	inputInitial  bool
 	inputPreState bool
@@ -76,6 +79,7 @@ type Parser struct {
 
 	command         string
 	output          string
+	cmdCreateDate   time.Time
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
@@ -83,6 +87,8 @@ type Parser struct {
 	closed         chan struct{}
 
 	confirmStatus commandConfirmStatus
+
+
 }
 
 func (p *Parser) initial() {
@@ -92,11 +98,12 @@ func (p *Parser) initial() {
 	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
-	p.cmdRecordChan = make(chan [3]string, 1024)
+	//p.cmdRecordChan = make(chan [3]string, 1024)
+	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 }
 
 // ParseStream 解析数据流
-func (p *Parser) ParseStream(userInChan chan *model.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
+func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
 
 	p.userOutputChan = make(chan []byte, 1)
 	p.srvOutputChan = make(chan []byte, 1)
@@ -120,7 +127,7 @@ func (p *Parser) ParseStream(userInChan chan *model.RoomMessage, srvInChan <-cha
 				}
 				var b []byte
 				switch msg.Event {
-				case model.DataEvent:
+				case exchange.DataEvent:
 					b = msg.Body
 				}
 				if len(b) == 0 {
@@ -243,7 +250,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	return b
 }
 
-
 func (p *Parser) IsNeedParse() bool {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -257,7 +263,11 @@ func (p *Parser) IsNeedParse() bool {
 func (p *Parser) forbiddenCommand(cmd string) {
 	fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
 	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
-	p.cmdRecordChan <- [3]string{p.command, fbdMsg, model.HighRiskFlag}
+	p.cmdRecordChan <- &ExecutedCommand{
+		Command:     p.command,
+		Output:      fbdMsg,
+		CreatedDate: p.cmdCreateDate,
+		RiskLevel:   model.HighRiskFlag}
 	p.command = ""
 	p.output = ""
 	p.userOutputChan <- breakInputPacket(p.protocolType)
@@ -271,6 +281,7 @@ func (p *Parser) parseCmdInput() {
 	} else {
 		p.command = commands[len(commands)-1]
 	}
+	p.cmdCreateDate = time.Now()
 }
 
 // parseCmdOutput 解析命令输出
@@ -370,7 +381,7 @@ func (p *Parser) IsMatchCommandRule(command string) (model.SystemUserFilterRule,
 
 func (p *Parser) waitCommandConfirm() {
 	cmd := p.confirmStatus.Cmd
-	resp, err := service.SubmitCommandConfirm(p.id, p.confirmStatus.Rule.ID, p.confirmStatus.Cmd)
+	resp, err := p.jmsService.SubmitCommandConfirm(p.id, p.confirmStatus.Rule.ID, p.confirmStatus.Cmd)
 	if err != nil {
 		logger.Errorf("Session %s: submit command confirm api err: %s", p.id, err)
 		p.confirmStatus.SetAction(model.ActionDeny)
@@ -418,21 +429,21 @@ func (p *Parser) waitCommandConfirm() {
 	for {
 		select {
 		case <-p.closed:
-			if err = service.CancelConfirmByRequestInfo(cancelReq); err != nil {
+			if err = p.jmsService.CancelConfirmByRequestInfo(cancelReq); err != nil {
 				logger.Errorf("Session %s: Cancel command confirm err: %s", p.id, err)
 			}
 			logger.Infof("Session %s: Closed", p.id)
 			return
 		case <-ctx.Done():
 			// 取消
-			if err = service.CancelConfirmByRequestInfo(cancelReq); err != nil {
+			if err = p.jmsService.CancelConfirmByRequestInfo(cancelReq); err != nil {
 				logger.Errorf("Session %s: Cancel command confirm err: %s", p.id, err)
 			}
 			logger.Infof("Session %s: Cancel confirm command", p.id)
 			return
 		case <-checkTimer.C:
 		}
-		statusResp, err := service.CheckConfirmStatusByRequestInfo(checkReq)
+		statusResp, err := p.jmsService.CheckConfirmStatusByRequestInfo(checkReq)
 		if err != nil {
 			logger.Errorf("Session %s: check command confirm status err: %s", p.id, err)
 			continue
@@ -449,8 +460,7 @@ func (p *Parser) waitCommandConfirm() {
 		case await:
 			continue
 		default:
-			logger.Errorf("Receive unknown command confirm status %s",
-				statusResp.Status)
+			logger.Errorf("Receive unknown command confirm status %s", statusResp.Status)
 		}
 	}
 }
@@ -484,7 +494,11 @@ func (p *Parser) Close() {
 func (p *Parser) sendCommandRecord() {
 	if p.command != "" {
 		p.parseCmdOutput()
-		p.cmdRecordChan <- [3]string{p.command, p.output, model.LessRiskFlag}
+		p.cmdRecordChan <- &ExecutedCommand{
+			Command:     p.command,
+			Output:      p.output,
+			CreatedDate: p.cmdCreateDate,
+			RiskLevel:   model.LessRiskFlag}
 		p.command = ""
 		p.output = ""
 	}
@@ -494,8 +508,15 @@ func (p *Parser) NeedRecord() bool {
 	return !p.IsInZmodemRecvState()
 }
 
-func (p *Parser) CommandRecordChan() chan [3]string {
+func (p *Parser) CommandRecordChan() chan *ExecutedCommand {
 	return p.cmdRecordChan
+}
+
+type ExecutedCommand struct {
+	Command     string
+	Output      string
+	CreatedDate time.Time
+	RiskLevel   string
 }
 
 func IsEditEnterMode(p []byte) bool {

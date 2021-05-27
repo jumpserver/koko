@@ -24,10 +24,6 @@ type WindowSize struct {
 }
 
 const (
-	ginCtxUserKey = "CtxUserKey"
-)
-
-const (
 	TargetTypeAsset = "asset"
 	TargetTypeDB    = "database_app"
 	TargetTypeK8s   = "k8s_app"

@@ -6,30 +6,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/service"
 )
 
-func Initial() {
-	conf := config.GetConf()
-	if conf.UploadFailedReplay {
-		go uploadRemainReplay(conf.RootPath)
-	}
-
-	go keepHeartbeat()
-}
-
 // uploadRemainReplay 上传遗留的录像
-func uploadRemainReplay(rootPath string) {
-	replayDir := filepath.Join(rootPath, "data", "replays")
-	err := common.EnsureDirExist(replayDir)
+func uploadRemainReplay(jmsService *service.JMService) {
+	replayDir := config.GetConf().ReplayFolderPath
+	conf, err := jmsService.GetTerminalConfig()
 	if err != nil {
-		logger.Debugf("upload failed replay err: %s", err.Error())
+		logger.Error(err)
 		return
 	}
+	replayStorage := proxy.NewReplayStorage(jmsService, &conf)
 	allRemainFiles := make(map[string]string)
 	_ = filepath.Walk(replayDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -47,9 +39,10 @@ func uploadRemainReplay(rootPath string) {
 			}
 		}
 		if sid != "" {
-			data := map[string]interface{}{"id": sid, "date_end": info.ModTime().UTC().Format(
-				"2006-01-02 15:04:05 +0000")}
-			service.FinishSession(data)
+			if err2 := jmsService.SessionFinished(sid, common.NewUTCTime(info.ModTime())); err2 != nil {
+				logger.Error(err2)
+				return nil
+			}
 			allRemainFiles[sid] = path
 		}
 
@@ -65,33 +58,57 @@ func uploadRemainReplay(rootPath string) {
 				continue
 			}
 			absGzPath = path + ".replay.gz"
-			if err := common.GzipCompressFile(path, absGzPath); err != nil {
+			if err := common.CompressToGzipFile(path, absGzPath); err != nil {
+				logger.Error(err)
 				continue
 			}
 			_ = os.Remove(path)
 		}
-		relayRecord := &proxy.ReplyRecorder{SessionID: sid}
-		relayRecord.AbsGzFilePath = absGzPath
-		relayRecord.Target, _ = filepath.Rel(replayDir, absGzPath)
-		relayRecord.UploadGzipFile(3)
+		Target, _ := filepath.Rel(replayDir, absGzPath)
+		if err2 := replayStorage.Upload(absGzPath, Target); err2 != nil {
+			logger.Errorf("Upload remain replay file %s failed: %s", absGzPath, err2)
+			continue
+		}
+		if err := jmsService.FinishReply(sid); err != nil {
+			logger.Errorf("Notify session %s upload failed: %s", sid, err)
+			continue
+		}
+		_ = os.Remove(absGzPath)
+		logger.Infof("Upload remain replay file %s success", absGzPath)
 	}
-	logger.Debug("Upload remain replay done")
+	logger.Info("Upload remain replay done")
 }
 
 // keepHeartbeat 保持心跳
-func keepHeartbeat() {
+func keepHeartbeat(jmsService *service.JMService) {
 	for {
 		time.Sleep(30 * time.Second)
 		data := proxy.GetAliveSessions()
-		tasks := service.TerminalHeartBeat(data)
+		tasks, err := jmsService.TerminalHeartBeat(data)
+		if err != nil {
+			logger.Error(err)
+			continue
+		}
 		if len(tasks) != 0 {
 			for _, task := range tasks {
-				proxy.HandleSessionTask(task)
+				switch task.Name {
+				case TaskKillSession:
+					if ok := proxy.KillSession(task.Args); ok {
+						if err = jmsService.FinishTask(task.ID); err != nil {
+							logger.Error(err)
+						}
+					}
+				default:
+
+				}
 			}
 		}
 	}
 }
 
+const (
+	TaskKillSession = "kill_session"
+)
 
 func ValidateRemainReplayFile(path string) error {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, os.ModePerm)
