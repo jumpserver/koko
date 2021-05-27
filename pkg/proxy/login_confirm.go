@@ -6,14 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 // 校验用户登录资产是否需要复核
-func validateLoginConfirm(srv *service.LoginConfirmService, userCon UserConnection) bool {
+func validateLoginConfirm(srv *auth.LoginConfirmService, userCon UserConnection) bool {
 	ok, err := srv.CheckIsNeedLoginConfirm()
 	if err != nil {
 		logger.Errorf("Conn[%s] validate login confirm api err: %s",
@@ -80,16 +80,16 @@ func validateLoginConfirm(srv *service.LoginConfirmService, userCon UserConnecti
 	var success bool
 	statusMsg := i18n.T("Unknown status")
 	switch status {
-	case service.StatusApprove:
+	case auth.StatusApprove:
 		// 审核通过
 		formatMsg := i18n.T("%s approved")
 		statusMsg = utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Green)
 		success = true
-	case service.StatusReject:
+	case auth.StatusReject:
 		// 审核未通过
 		formatMsg := i18n.T("%s rejected")
 		statusMsg = utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Red)
-	case service.StatusCancel:
+	case auth.StatusCancel:
 		// 审核取消
 		statusMsg = utils.WrapperString(i18n.T("Cancel confirm"), utils.Red)
 	}

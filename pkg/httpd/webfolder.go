@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"strings"
 )
 
@@ -14,6 +15,8 @@ type webFolder struct {
 	targetId string
 
 	volume *UserVolume
+
+	jmsService *service.JMService
 }
 
 func (h *webFolder) Name() string {
@@ -23,15 +26,14 @@ func (h *webFolder) Name() string {
 func (h *webFolder) CheckValidation() bool {
 	switch strings.TrimSpace(h.targetId) {
 	case "_":
-		h.volume = NewUserVolume(h.ws.CurrentUser(), h.ws.ClientIP(), "")
+		h.volume = NewUserVolume(h.jmsService, h.ws.CurrentUser(), h.ws.ClientIP(), "")
 	default:
-		h.volume = NewUserVolume(h.ws.CurrentUser(), h.ws.ClientIP(), strings.TrimSpace(h.targetId))
+		h.volume = NewUserVolume(h.jmsService, h.ws.CurrentUser(), h.ws.ClientIP(), strings.TrimSpace(h.targetId))
 	}
 	return true
 }
 
 func (h *webFolder) HandleMessage(*Message) {
-	return
 }
 
 func (h *webFolder) CleanUp() {

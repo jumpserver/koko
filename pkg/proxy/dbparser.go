@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -19,20 +21,12 @@ const (
 
 var _ ParseEngine = (*DBParser)(nil)
 
-func newDBParser(id string) DBParser {
-	dbParser := DBParser{
-		id: id,
-	}
-	dbParser.initial()
-	return dbParser
-}
-
 type DBParser struct {
 	id string
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
-	cmdRecordChan  chan [3]string
+	cmdRecordChan chan *ExecutedCommand
 
 	inputInitial  bool
 	inputPreState bool
@@ -42,6 +36,7 @@ type DBParser struct {
 
 	command         string
 	output          string
+	cmdCreateDate   time.Time
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
@@ -57,11 +52,11 @@ func (p *DBParser) initial() {
 	p.cmdOutputParser = NewCmdParser(p.id, DBOutputParserName)
 
 	p.closed = make(chan struct{})
-	p.cmdRecordChan = make(chan [3]string, 1024)
+	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 }
 
 // ParseStream 解析数据流
-func (p *DBParser) ParseStream(userInChan chan *model.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
+func (p *DBParser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
 
 	p.userOutputChan = make(chan []byte, 1)
 	p.srvOutputChan = make(chan []byte, 1)
@@ -85,7 +80,7 @@ func (p *DBParser) ParseStream(userInChan chan *model.RoomMessage, srvInChan <-c
 				}
 				var b []byte
 				switch msg.Event {
-				case model.DataEvent:
+				case exchange.DataEvent:
 					b = msg.Body
 				}
 				b = p.ParseUserInput(b)
@@ -125,7 +120,11 @@ func (p *DBParser) parseInputState(b []byte) []byte {
 			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
 			_, _ = p.cmdOutputParser.WriteData([]byte(fbdMsg))
 			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
-			p.cmdRecordChan <- [3]string{p.command, fbdMsg, model.HighRiskFlag}
+			p.cmdRecordChan <- &ExecutedCommand{
+				Command:     p.command,
+				Output:      fbdMsg,
+				CreatedDate: p.cmdCreateDate,
+				RiskLevel:   model.HighRiskFlag}
 			p.command = ""
 			p.output = ""
 			return []byte{utils.CharCleanLine, '\r'}
@@ -186,11 +185,6 @@ func (p *DBParser) ParseServerOutput(b []byte) []byte {
 	return b
 }
 
-// SetCMDFilterRules 设置命令过滤规则
-func (p *DBParser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
-	p.cmdFilterRules = rules
-}
-
 // IsCommandForbidden 判断命令是不是在过滤规则中
 func (p *DBParser) IsCommandForbidden() (string, bool) {
 	for _, rule := range p.cmdFilterRules {
@@ -223,7 +217,11 @@ func (p *DBParser) Close() {
 func (p *DBParser) sendCommandRecord() {
 	if p.command != "" {
 		p.parseCmdOutput()
-		p.cmdRecordChan <- [3]string{p.command, p.output, model.LessRiskFlag}
+		p.cmdRecordChan <- &ExecutedCommand{
+			Command:     p.command,
+			Output:      p.output,
+			CreatedDate: p.cmdCreateDate,
+			RiskLevel:   model.LessRiskFlag}
 		p.command = ""
 		p.output = ""
 	}
@@ -233,6 +231,6 @@ func (p *DBParser) NeedRecord() bool {
 	return true
 }
 
-func (p *DBParser) CommandRecordChan() chan [3]string {
+func (p *DBParser) CommandRecordChan() chan *ExecutedCommand{
 	return p.cmdRecordChan
 }

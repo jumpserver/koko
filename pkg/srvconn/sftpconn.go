@@ -11,9 +11,9 @@ import (
 
 	"github.com/pkg/sftp"
 
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 )
 
 var errNoSelectAsset = errors.New("please select one of the assets")
@@ -26,9 +26,10 @@ type UserSftpConn struct {
 	modeTime time.Time
 	logChan  chan *model.FTPLog
 
-	closed chan struct{}
-
+	closed    chan struct{}
 	searchDir *SearchResultDir
+
+	jmsService *service.JMService
 }
 
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
@@ -262,7 +263,11 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 }
 
 func (u *UserSftpConn) initial() {
-	nodeTrees := service.GetUserNodeTreeWithAsset(u.User.ID, "", "")
+	nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, "")
+	if err != nil {
+		logger.Errorf("User sftp initial err: %s", err)
+		return
+	}
 	if u.Dirs == nil {
 		u.Dirs = map[string]os.FileInfo{}
 	}
@@ -296,7 +301,7 @@ func (u *UserSftpConn) initial() {
 				logger.Errorf("convert to node err: %s", err)
 				continue
 			}
-			nodeDir := NewNodeDir(node)
+			nodeDir := NewNodeDir(u.jmsService, node)
 			folderName := nodeDir.folderName
 			for {
 				_, ok := u.Dirs[folderName]
@@ -319,7 +324,7 @@ func (u *UserSftpConn) initial() {
 			if !asset.IsSupportProtocol("ssh") {
 				continue
 			}
-			assetDir := NewAssetDir(u.User, asset, u.Addr, u.logChan)
+			assetDir := NewAssetDir(u.jmsService, u.User, asset, u.Addr, u.logChan)
 			folderName := assetDir.folderName
 			for {
 				_, ok := u.Dirs[folderName]
@@ -361,7 +366,7 @@ func (u *UserSftpConn) loopPushFTPLog() {
 		}
 
 		data := ftpLogList[len(ftpLogList)-1]
-		err = service.PushFTPLog(data)
+		err = u.jmsService.CreateFileOperationLog(*data)
 		if err == nil {
 			ftpLogList = ftpLogList[:len(ftpLogList)-1]
 			maxRetry = 0
@@ -379,10 +384,10 @@ func (u *UserSftpConn) loopPushFTPLog() {
 
 func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 	if u.searchDir == nil {
-		logger.Errorf("not found search folder")
+		logger.Error("not found search folder")
 		return nil, errors.New("not found")
 	}
-	assets, err := service.SearchPermAsset(u.User.ID, key)
+	assets, err := u.jmsService.SearchPermAsset(u.User.ID, key)
 	if err != nil {
 		logger.Errorf("search asset err: %s", err)
 		return nil, err
@@ -392,7 +397,7 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 		if !assets[i].IsSupportProtocol("ssh") {
 			continue
 		}
-		assetDir := NewAssetDir(u.User, assets[i], u.Addr, u.logChan)
+		assetDir := NewAssetDir(u.jmsService, u.User, assets[i], u.Addr, u.logChan)
 		folderName := assetDir.folderName
 		for {
 			_, ok := subDirs[folderName]
@@ -410,32 +415,34 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 	return u.searchDir.List()
 }
 
-func NewUserSftpConn(user *model.User, addr string) *UserSftpConn {
+func NewUserSftpConn(jmsService *service.JMService, user *model.User, addr string) *UserSftpConn {
 	u := UserSftpConn{
-		User:     user,
-		Addr:     addr,
-		Dirs:     map[string]os.FileInfo{},
-		modeTime: time.Now().UTC(),
-		logChan:  make(chan *model.FTPLog, 1024),
-		closed:   make(chan struct{}),
+		User:       user,
+		Addr:       addr,
+		Dirs:       map[string]os.FileInfo{},
+		modeTime:   time.Now().UTC(),
+		logChan:    make(chan *model.FTPLog, 1024),
+		closed:     make(chan struct{}),
+		jmsService: jmsService,
 	}
 	u.initial()
 	go u.loopPushFTPLog()
 	return &u
 }
 
-func NewUserSftpConnWithAssets(user *model.User, addr string, assets ...model.Asset) *UserSftpConn {
+func NewUserSftpConnWithAssets(jmsService *service.JMService, user *model.User, addr string, assets ...model.Asset) *UserSftpConn {
 	u := UserSftpConn{
-		User:     user,
-		Addr:     addr,
-		Dirs:     map[string]os.FileInfo{},
-		modeTime: time.Now().UTC(),
-		logChan:  make(chan *model.FTPLog, 1024),
-		closed:   make(chan struct{}),
+		User:       user,
+		Addr:       addr,
+		Dirs:       map[string]os.FileInfo{},
+		modeTime:   time.Now().UTC(),
+		logChan:    make(chan *model.FTPLog, 1024),
+		closed:     make(chan struct{}),
+		jmsService: jmsService,
 	}
 	for _, asset := range assets {
 		if asset.IsSupportProtocol("ssh") {
-			assetDir := NewAssetDir(u.User, asset, u.Addr, u.logChan)
+			assetDir := NewAssetDir(jmsService, u.User, asset, u.Addr, u.logChan)
 			folderName := assetDir.folderName
 			for {
 				_, ok := u.Dirs[folderName]

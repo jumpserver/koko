@@ -1,28 +1,15 @@
 package proxy
 
 import (
-	"time"
-
-	"github.com/jumpserver/koko/pkg/model"
-
+	"github.com/jumpserver/koko/pkg/exchange"
 )
 
-type proxyEngine interface {
-	GenerateRecordCommand(s *commonSwitch, input, output string, riskLevel int64) *model.Command
-
-	NewParser(s *commonSwitch) ParseEngine
-
-	MapData(s *commonSwitch) map[string]interface{}
-
-	CheckPermissionExpired(time.Time) bool
-}
-
 type ParseEngine interface {
-	ParseStream(userInChan chan *model.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte)
+	ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte)
 
 	Close()
 
 	NeedRecord() bool
 
-	CommandRecordChan() chan [3]string // [3]string{command, out, flag}
+	CommandRecordChan() chan *ExecutedCommand
 }

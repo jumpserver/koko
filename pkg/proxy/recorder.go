@@ -6,26 +6,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	storage "github.com/jumpserver/koko/pkg/proxy/recorderstorage"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 )
-
-func NewCommandRecorder(sid string) (recorder *CommandRecorder) {
-	recorder = &CommandRecorder{sessionID: sid}
-	recorder.initial()
-	return recorder
-}
-
-func NewReplyRecord(sid string) (recorder ReplyRecorder) {
-	recorder = ReplyRecorder{SessionID: sid}
-	recorder.initial()
-	return recorder
-}
 
 type CommandRecorder struct {
 	sessionID string
@@ -33,13 +24,8 @@ type CommandRecorder struct {
 
 	queue  chan *model.Command
 	closed chan struct{}
-}
 
-func (c *CommandRecorder) initial() {
-	c.queue = make(chan *model.Command, 10)
-	c.storage = NewCommandStorage()
-	c.closed = make(chan struct{})
-	go c.record()
+	jmsService *service.JMService
 }
 
 func (c *CommandRecorder) Record(command *model.Command) {
@@ -86,7 +72,7 @@ func (c *CommandRecorder) record() {
 			}
 		}
 		if len(notificationList) > 0 {
-			if err := service.NotifyCommand(notificationList); err == nil {
+			if err := c.jmsService.NotifyCommand(notificationList); err == nil {
 				notificationList = notificationList[:0]
 			}
 		}
@@ -113,8 +99,10 @@ type ReplyRecorder struct {
 	file          *os.File
 	timeStartNano int64
 
-	storage        ReplayStorage
-	backOffStorage ReplayStorage
+	storage ReplayStorage
+
+	once       sync.Once
+	jmsService *service.JMService
 }
 
 func (r *ReplyRecorder) initial() {
@@ -126,6 +114,10 @@ func (r *ReplyRecorder) Record(b []byte) {
 		return
 	}
 	if len(b) > 0 {
+
+		r.once.Do(func() {
+			_, _ = r.file.Write([]byte("{"))
+		})
 		delta := float64(time.Now().UnixNano()-r.timeStartNano) / 1000 / 1000 / 1000
 		data, _ := json.Marshal(string(b))
 		_, err := r.file.WriteString(fmt.Sprintf(`"%f":%s,`, delta, data))
@@ -146,8 +138,6 @@ func (r *ReplyRecorder) prepare() {
 	r.AbsGzFilePath = filepath.Join(replayDir, gzFileName)
 	r.Target = strings.Join([]string{today, gzFileName}, "/")
 	r.timeStartNano = time.Now().UnixNano()
-	r.backOffStorage = defaultStorage
-	r.storage = NewReplayStorage()
 
 	logger.Infof("Session %s storage type is %s", r.SessionID, r.storage.TypeName())
 	if r.isNullStorage() {
@@ -165,7 +155,6 @@ func (r *ReplyRecorder) prepare() {
 	if err != nil {
 		logger.Errorf("Create file %s error: %s\n", r.absFilePath, err)
 	}
-	_, _ = r.file.Write([]byte("{"))
 }
 
 func (r *ReplyRecorder) End() {
@@ -204,10 +193,6 @@ func (r *ReplyRecorder) uploadReplay() {
 }
 
 func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
-	if r.storage == nil {
-		r.backOffStorage = defaultStorage
-		r.storage = NewReplayStorage()
-	}
 	if r.storage.TypeName() == "null" {
 		_ = r.storage.Upload(r.AbsGzFilePath, r.Target)
 		_ = os.Remove(r.AbsGzFilePath)
@@ -218,16 +203,18 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		err := r.storage.Upload(r.AbsGzFilePath, r.Target)
 		if err == nil {
 			_ = os.Remove(r.AbsGzFilePath)
-			service.FinishReply(r.SessionID)
+			if err = r.jmsService.FinishReply(r.SessionID); err != nil {
+				logger.Errorf("Session[%s] finish replay err: %s", r.SessionID, err)
+			}
 			break
 		}
-		// 如果还是失败，使用备用storage再传一次
+		// 如果还是失败，上传 server 再传一次
 		if i == maxRetry {
-			if r.storage == r.backOffStorage {
+			if r.storage.TypeName() == "server" {
 				break
 			}
-			logger.Errorf("Session[%s] using back off storage retry upload", r.SessionID)
-			r.storage = r.backOffStorage
+			logger.Errorf("Session[%s] using server storage retry upload", r.SessionID)
+			r.storage = storage.ServerStorage{StorageType: "server", JmsService: r.jmsService}
 			r.UploadGzipFile(3)
 			break
 		}

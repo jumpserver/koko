@@ -11,7 +11,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 )
 
 const (
@@ -42,7 +41,7 @@ type Config struct {
 	// Defaults to 10.
 	MaxActive int
 
-	DBIndex uint64
+	DBIndex int
 }
 
 func newRedisManager(cfg Config) (*redisRoomManager, error) {
@@ -199,7 +198,7 @@ func (m *redisRoomManager) removeRoomId(roomId string) {
 		logger.Debugf("Redis cache remove room %s success", roomId)
 	}
 	// 发布退出事件
-	req := m.createRoomEventRequest(roomId, model.ExitEvent)
+	req := m.createRoomEventRequest(roomId, ExitEvent)
 	_, err = m.sendRequest(&req)
 	if err != nil {
 		logger.Errorf("Redis cache publish room %s exit event err: %s", roomId, err)
@@ -226,7 +225,7 @@ func (m *redisRoomManager) run() {
 			responseChan := make(chan *subscribeResponse, 1)
 			m.responseChan <- responseChan
 			switch req.Event {
-			case model.JoinEvent:
+			case JoinEvent:
 				//	校验本地 是否已经存在
 				if room := m.remoteRoomCache.Get(req.RoomId); room != nil {
 					logger.Debugf("Redis cache already create room %s", req.RoomId)
@@ -248,7 +247,7 @@ func (m *redisRoomManager) run() {
 					continue
 				}
 				requestsMap[req.ReqId] = responseChan //不阻塞 等待返回结果
-			case model.ExitEvent:
+			case ExitEvent:
 				if err := m.publishRequest(req); err != nil {
 					responseChan <- &subscribeResponse{
 						Req: req,
@@ -278,7 +277,7 @@ func (m *redisRoomManager) run() {
 			}
 			logger.Infof("Redis cache delete remote room %s", room.Id)
 			m.remoteRoomCache.Delete(room)
-			req := m.createRoomEventRequest(room.Id, model.LeaveEvent)
+			req := m.createRoomEventRequest(room.Id, LeaveEvent)
 			if err := m.publishRequest(&req); err != nil {
 				logger.Errorf("Redis cache send leave event for room %s err: %s", room.Id, err)
 			} else {
@@ -295,7 +294,7 @@ func (m *redisRoomManager) run() {
 			switch redisMsg.Channel {
 			case resultsChannel:
 				switch req.Event {
-				case model.JoinSuccessEvent:
+				case JoinSuccessEvent:
 					responseChan, ok := requestsMap[req.ReqId]
 					if !ok {
 						logger.Debugf("Redis cache ignore not self result request %s", req.ReqId)
@@ -327,7 +326,7 @@ func (m *redisRoomManager) run() {
 						responseChan <- &res
 						continue
 					}
-					userInputChan := make(chan *model.RoomMessage)
+					userInputChan := make(chan *RoomMessage)
 					room := CreateRoom(req.RoomId, userInputChan)
 					m.remoteRoomCache.Add(room)
 					s := &redisChannel{
@@ -350,7 +349,7 @@ func (m *redisRoomManager) run() {
 
 			case eventsChannel:
 				switch req.Event {
-				case model.JoinEvent:
+				case JoinEvent:
 					/*
 						1. 检查是否是自己创建的req: 是则忽略
 						2. 检查是否已经创建过redisUserCon: 是则发送JoinSuccessEvent
@@ -363,7 +362,7 @@ func (m *redisRoomManager) run() {
 					}
 					// 创建result channel的req
 					successReq := m.createRoomResultRequest(req.ReqId,
-						req.RoomId, model.JoinSuccessEvent)
+						req.RoomId, JoinSuccessEvent)
 
 					// 本地是否已经创建过 redisUserCons
 					if srv, ok := redisUserCons[req.RoomId]; ok {
@@ -417,13 +416,13 @@ func (m *redisRoomManager) run() {
 					}
 					logger.Infof("The current KoKo node has no session room %s", req.RoomId)
 					// 非本节点 koko 创建的session
-				case model.LeaveEvent:
+				case LeaveEvent:
 					if srv, ok := redisUserCons[req.RoomId]; ok {
 						srv.addSubscribeCount(-1)
 						logger.Infof("Event channel receive room %s leave event", req.RoomId)
 					}
 
-				case model.ExitEvent:
+				case ExitEvent:
 					if room := m.remoteRoomCache.Get(req.RoomId); room != nil {
 						logger.Infof("Event channel receive room %s exit", req.RoomId)
 						m.remoteRoomCache.Delete(room)
@@ -440,7 +439,7 @@ func (m *redisRoomManager) run() {
 func (m *redisRoomManager) getRemoteSessionRoom(roomId string) *Room {
 	logger.Infof("Waiting subscribe remote room %s result", roomId)
 
-	req := m.createRoomEventRequest(roomId, model.JoinEvent)
+	req := m.createRoomEventRequest(roomId, JoinEvent)
 	res, err := m.sendJoinRequest(&req)
 	if err != nil {
 		logger.Errorf("get remote session room err: %s", err)

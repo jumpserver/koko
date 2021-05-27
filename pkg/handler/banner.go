@@ -6,8 +6,8 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -61,11 +61,10 @@ type ColorMeta struct {
 	ColorEnd       string
 }
 
-func displayBanner(sess io.ReadWriter, user string) {
+func displayBanner(sess io.ReadWriter, user string, termConf *model.TerminalConfig) {
 	title := defaultTitle
-	cf := config.GetConf()
-	if cf.HeaderTitle != "" {
-		title = cf.HeaderTitle
+	if termConf.HeaderTitle != "" {
+		title = termConf.HeaderTitle
 	}
 
 	prefix := utils.CharClear + utils.CharTab + utils.CharTab
