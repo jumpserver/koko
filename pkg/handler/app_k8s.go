@@ -6,15 +6,18 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 func (u *UserSelectHandler) retrieveRemoteK8s(reqParam model.PaginationParam) []map[string]interface{} {
-	res := service.GetUserPermsK8s(u.user.ID, reqParam)
+	res, err := u.h.jmsService.GetUserPermsK8s(u.user.ID, reqParam)
+	if err != nil {
+		logger.Errorf("Ger user perm k8s failed: %s", err.Error())
+	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
@@ -117,21 +120,26 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 }
 
 func (u *UserSelectHandler) proxyK8s(k8sApp model.K8sApplication) {
-	systemUsers := service.GetUserApplicationSystemUsers(u.user.ID, k8sApp.Id)
+	systemUsers, err := u.h.jmsService.GetUserApplicationSystemUsers(u.user.ID, k8sApp.ID)
+	if err != nil {
+		return
+	}
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
 	if !ok {
+		logger.Infof("User %s don't select systemUser", u.user.Name)
 		return
 	}
 
-	p := proxy.K8sProxyServer{
-		UserConn:   u.h.sess,
-		User:       u.h.user,
-		Cluster:    &k8sApp,
-		SystemUser: &selectedSystemUser,
+	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService,
+		proxy.ConnectProtocolType(srvconn.ProtocolK8s),
+		proxy.ConnectK8sApp(&k8sApp),
+		proxy.ConnectSystemUser(&selectedSystemUser),
+		proxy.ConnectUser(u.user),
+	)
+	if err != nil {
+		logger.Error(err)
 	}
-	u.h.pauseWatchWinSize()
-	p.Proxy()
-	u.h.resumeWatchWinSize()
+	srv.Proxy()
 	logger.Infof("Request %s: k8s %s proxy end", u.h.sess.Uuid, k8sApp.Name)
 }

@@ -12,21 +12,24 @@ import (
 	"github.com/LeeEirc/elfinder"
 	"github.com/pkg/sftp"
 
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
+func NewUserVolume(jmsService *service.JMService, user *model.User, addr, hostId string) *UserVolume {
 	var userSftp *srvconn.UserSftpConn
 	homename := "Home"
 	basePath := "/"
 	switch hostId {
 	case "":
-		userSftp = srvconn.NewUserSftpConn(user, addr)
+		userSftp = srvconn.NewUserSftpConn(jmsService, user, addr)
 	default:
-		assets := service.GetUserAssetByID(user.ID, hostId)
+		assets, err := jmsService.GetUserAssetByID(user.ID, hostId)
+		if err != nil {
+			logger.Errorf("Get user asset failed: %s", err)
+		}
 		if len(assets) == 1 {
 			folderName := assets[0].Hostname
 			if strings.Contains(folderName, "/") {
@@ -35,7 +38,7 @@ func NewUserVolume(user *model.User, addr, hostId string) *UserVolume {
 			homename = folderName
 			basePath = filepath.Join("/", homename)
 		}
-		userSftp = srvconn.NewUserSftpConnWithAssets(user, addr, assets...)
+		userSftp = srvconn.NewUserSftpConnWithAssets(jmsService, user, addr, assets...)
 	}
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{

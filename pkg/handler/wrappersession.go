@@ -7,8 +7,9 @@ import (
 	"sync"
 
 	"github.com/gliderlabs/ssh"
+
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
-	uuid "github.com/satori/go.uuid"
 )
 
 type WrapperSession struct {
@@ -19,10 +20,13 @@ type WrapperSession struct {
 	mux       *sync.RWMutex
 
 	closed chan struct{}
+
+	winch      chan ssh.Window
+	currentWin ssh.Window
 }
 
 func (w *WrapperSession) initial() {
-	w.Uuid = uuid.NewV4().String()
+	w.Uuid = common.UUID()
 	w.closed = make(chan struct{})
 	w.initReadPip()
 	go w.readLoop()
@@ -92,11 +96,15 @@ func (w *WrapperSession) Context() context.Context {
 }
 
 func (w *WrapperSession) WinCh() (winch <-chan ssh.Window) {
-	_, winch, ok := w.Sess.Pty()
-	if ok {
-		return
+	return w.winch
+}
+
+func (w *WrapperSession) SetWin(win ssh.Window) {
+	select {
+	case w.winch <- win:
+	default:
 	}
-	return nil
+	w.currentWin = win
 }
 
 func (w *WrapperSession) LoginFrom() string {
@@ -110,7 +118,14 @@ func (w *WrapperSession) RemoteAddr() string {
 
 func (w *WrapperSession) Pty() ssh.Pty {
 	pty, _, _ := w.Sess.Pty()
-	return pty
+	termWin := w.currentWin
+	if w.currentWin.Width == 0 || w.currentWin.Height == 0 {
+		termWin = pty.Window
+	}
+	return ssh.Pty{
+		Term:   pty.Term,
+		Window: termWin,
+	}
 }
 
 func (w *WrapperSession) ID() string {
@@ -119,8 +134,9 @@ func (w *WrapperSession) ID() string {
 
 func NewWrapperSession(sess ssh.Session) *WrapperSession {
 	w := &WrapperSession{
-		Sess: sess,
-		mux:  new(sync.RWMutex),
+		Sess:  sess,
+		mux:   new(sync.RWMutex),
+		winch: make(chan ssh.Window),
 	}
 	w.initial()
 	return w

@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"context"
 	"net"
 	"strings"
 
@@ -9,9 +8,9 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-var manager roomManager
+var manager RoomManager
 
-func Initial(ctx context.Context) {
+func Initial() {
 	conf := config.GetConf()
 	var (
 		err error

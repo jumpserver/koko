@@ -2,15 +2,18 @@ package handler
 
 import (
 	"fmt"
+	"github.com/jumpserver/koko/pkg/logger"
 
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/model"
-	"github.com/jumpserver/koko/pkg/service"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationParam) []map[string]interface{} {
-	res := service.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
+	res, err := u.h.jmsService.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
+	if err != nil {
+		logger.Errorf("Get user %s node assets failed %s", u.user.Name, err)
+	}
 	return u.updateRemotePageData(reqParam, res)
 }
 

@@ -3,12 +3,11 @@ package logger
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 )
 
@@ -25,7 +24,7 @@ func Initial() {
 		LogFormat:       "%time% [%lvl%] %msg%",
 		TimestampFormat: "2006-01-02 15:04:05",
 	}
-	conf := config.GetConf()
+	conf := config.GlobalConfig
 	level, ok := logLevels[strings.ToUpper(conf.LogLevel)]
 	if !ok {
 		level = logrus.InfoLevel
@@ -38,16 +37,7 @@ func Initial() {
 	logger.SetLevel(level)
 
 	// Output to file
-	logFilePath := path.Join(conf.RootPath, "data", "logs", "koko.log")
-	logDirPath := path.Dir(logFilePath)
-	if common.FileExists(logDirPath) {
-		err := os.MkdirAll(logDirPath, os.ModePerm)
-		if err != nil {
-			fmt.Printf("Create log dir %s error: %s\n", logDirPath, err)
-			return
-		}
-	}
-
+	logFilePath := filepath.Join(conf.LogDirPath, "koko.log")
 	rotateFileHook, err := NewRotateFileHook(RotateFileConfig{
 		Filename:   logFilePath,
 		MaxSize:    50,

@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"errors"
 	"io"
 )
 
@@ -14,3 +15,15 @@ type Windows struct {
 	Width  int
 	Height int
 }
+
+const (
+	ProtocolSSH    = "ssh"
+	ProtocolTELNET = "telnet"
+	ProtocolK8s    = "k8s"
+	ProtocolMySQL  = "mysql"
+)
+
+
+var (
+	ErrUnSupportedProtocol = errors.New("unsupported protocol")
+)

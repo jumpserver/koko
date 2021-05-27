@@ -7,28 +7,26 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 )
 
-type roomManager interface {
+type RoomManager interface {
 	Add(s *Room)
 	Delete(s *Room)
 	Get(sid string) *Room
 }
 
 var (
-	_ roomManager = (*localRoomManager)(nil)
-	_ roomManager = (*redisRoomManager)(nil)
+	_ RoomManager = (*localRoomManager)(nil)
+	_ RoomManager = (*redisRoomManager)(nil)
 )
 
-func CreateRoom(id string, inChan chan *model.RoomMessage) *Room {
+func CreateRoom(id string, inChan chan *RoomMessage) *Room {
 	s := &Room{
 		Id:             id,
 		userInputChan:  inChan,
-		broadcastChan:  make(chan *model.RoomMessage),
+		broadcastChan:  make(chan *RoomMessage),
 		subscriber:     make(chan *Conn),
 		unSubscriber:   make(chan *Conn),
 		exitSignal:     make(chan struct{}),
@@ -41,9 +39,9 @@ func CreateRoom(id string, inChan chan *model.RoomMessage) *Room {
 type Room struct {
 	Id string
 
-	userInputChan chan *model.RoomMessage
+	userInputChan chan *RoomMessage
 
-	broadcastChan chan *model.RoomMessage
+	broadcastChan chan *RoomMessage
 
 	subscriber chan *Conn
 
@@ -80,9 +78,9 @@ func (r *Room) run() {
 		case con := <-r.subscriber:
 			connMaps[con.Id] = con
 			r.recentMessages.Do(func(value interface{}) {
-				if msg, ok := value.(*model.RoomMessage); ok {
+				if msg, ok := value.(*RoomMessage); ok {
 					switch msg.Event {
-					case model.DataEvent:
+					case DataEvent:
 						_, _ = con.Write(msg.Body)
 					}
 				}
@@ -97,7 +95,7 @@ func (r *Room) run() {
 				userConns = append(userConns, connMaps[k])
 			}
 			switch msg.Event {
-			case model.DataEvent:
+			case DataEvent:
 				r.recentMessages.Value = msg
 				r.recentMessages = r.recentMessages.Next()
 			}
@@ -120,21 +118,21 @@ func (r *Room) UnSubscribe(conn *Conn) {
 	r.unSubscriber <- conn
 }
 
-func (r *Room) Broadcast(msg *model.RoomMessage) {
+func (r *Room) Broadcast(msg *RoomMessage) {
 	select {
 	case <-r.done:
 	case r.broadcastChan <- msg:
 	}
 }
 
-func (r *Room) Receive(msg *model.RoomMessage) {
+func (r *Room) Receive(msg *RoomMessage) {
 	select {
 	case <-r.done:
 	case r.userInputChan <- msg:
 	}
 }
 
-func (r *Room) broadcastMessage(conns userConnections, msg *model.RoomMessage) {
+func (r *Room) broadcastMessage(conns userConnections, msg *RoomMessage) {
 	// 减少启动goroutine的数量
 	if len(conns) == 0 {
 		return
@@ -178,7 +176,7 @@ func (r *Room) closeOnce() {
 
 func WrapperUserCon(stream io.WriteCloser) *Conn {
 	return &Conn{
-		Id:          uuid.NewV4().String(),
+		Id:          common.UUID(),
 		WriteCloser: stream,
 		created:     time.Now(),
 	}
@@ -190,11 +188,11 @@ type Conn struct {
 	created time.Time
 }
 
-func (c *Conn) handlerMessage(msg *model.RoomMessage) {
+func (c *Conn) handlerMessage(msg *RoomMessage) {
 	switch msg.Event {
-	case model.DataEvent:
+	case DataEvent:
 		_, _ = c.Write(msg.Body)
-	case model.PingEvent:
+	case PingEvent:
 		_, _ = c.Write(nil)
 	}
 }

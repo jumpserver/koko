@@ -7,7 +7,6 @@ import (
 	"github.com/mediocregopher/radix/v3"
 
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
 )
 
 var _ io.WriteCloser = (*redisChannel)(nil)
@@ -35,15 +34,15 @@ type redisChannel struct {
 }
 
 func (s *redisChannel) Write(p []byte) (int, error) {
-	dataMsg := model.RoomMessage{
-		Event: model.DataEvent,
+	dataMsg := RoomMessage{
+		Event: DataEvent,
 		Body:  p,
 	}
 	err := s.sendMessage(&dataMsg)
 	return len(p), err
 }
 
-func (s *redisChannel) sendMessage(msg *model.RoomMessage) error {
+func (s *redisChannel) sendMessage(msg *RoomMessage) error {
 	err := s.manager.publishCommand(s.writeChannel, msg.Marshal())
 	if err != nil {
 		logger.Errorf("Redis send message to room %s err: %s", s.roomId, err)

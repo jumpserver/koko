@@ -11,7 +11,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v6"
 
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
 type ESCommandStorage struct {
