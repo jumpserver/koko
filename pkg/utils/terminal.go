@@ -112,6 +112,7 @@ func NewTerminal(c io.ReadWriter, prompt string) *Terminal {
 }
 
 const (
+	keyCtrlC     = 3
 	keyCtrlD     = 4
 	keyCtrlU     = 21
 	keyEnter     = '\r'
@@ -516,6 +517,15 @@ func (t *Terminal) handleKey(key rune) (line string, ok bool) {
 				t.setLine(runes, len(runes))
 			}
 		}
+	case keyCtrlC:
+		t.moveCursorToPos(len(t.line))
+		t.queue([]rune("\r\n"))
+		t.line = []rune{}
+		ok = true
+		t.pos = 0
+		t.cursorX = 0
+		t.cursorY = 0
+		t.maxLine = 0
 	case keyEnter:
 		t.moveCursorToPos(len(t.line))
 		t.queue([]rune("\r\n"))
