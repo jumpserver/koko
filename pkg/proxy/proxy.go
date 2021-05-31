@@ -31,11 +31,6 @@ type ProxyServer struct {
 // getSystemUserAuthOrManualSet 获取系统用户的认证信息或手动设置
 func (p *ProxyServer) getSystemUserAuthOrManualSet() error {
 	needManualSet := false
-	if p.SystemUser.LoginMode == model.LoginModeManual {
-		needManualSet = true
-		logger.Debugf("Conn[%s] system user %s login mode is: %s",
-			p.UserConn.ID(), p.SystemUser.Name, model.LoginModeManual)
-	}
 	if p.SystemUser.Password == "" && p.SystemUser.PrivateKey == "" {
 		needManualSet = true
 		logger.Debugf("Conn[%s] system user %s neither has password nor private key",
@@ -79,13 +74,8 @@ func (p *ProxyServer) getSystemUserUsernameIfNeed() (err error) {
 func (p *ProxyServer) getSystemUserBasicInfo() {
 	logger.Infof("Conn[%s] start to get systemUser auth info from core server", p.UserConn.ID())
 	var info model.SystemUserAuthInfo
-	if p.SystemUser.UsernameSameWithUser {
-		p.SystemUser.Username = p.User.Username
-		logger.Infof("Conn[%s] SystemUser username same with user: %s", p.UserConn.ID(), p.User.Username)
-		info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
-	} else {
-		info = service.GetSystemUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID)
-	}
+	info = service.GetUserAssetAuthInfo(p.SystemUser.ID, p.Asset.ID, p.User.ID, p.User.Username)
+	p.SystemUser.Username = info.UserName
 	p.SystemUser.Password = info.Password
 	p.SystemUser.PrivateKey = info.PrivateKey
 }
@@ -294,13 +284,12 @@ func (p *ProxyServer) preCheckRequisite() (ok bool) {
 
 func (p *ProxyServer) checkRequiredSystemUserInfo() error {
 	p.getSystemUserBasicInfo()
-	logger.Infof("Conn[%s] get systemUser auth info from core server success", p.UserConn.ID())
+	logger.Infof("Conn[%s] get systemUser's username %s success", p.UserConn.ID(), p.SystemUser.Username)
 	if err := p.getSystemUserUsernameIfNeed(); err != nil {
 		logger.Errorf("Conn[%s] get asset %s systemUser's username err: %s",
 			p.UserConn.ID(), p.Asset.Hostname, err)
 		return err
 	}
-	logger.Infof("Conn[%s] get systemUser's username %s success", p.UserConn.ID(), p.SystemUser.Username)
 	if p.checkRequireReuseClient() {
 		if cacheSSHConnection, ok := p.getCacheSSHConn(); ok {
 			p.cacheSSHConnection = cacheSSHConnection

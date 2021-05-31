@@ -139,7 +139,8 @@ func (p *K8sProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *K8sProxyServer) checkRequiredAuth() error {
-	info := service.GetApplicationSystemUserAuthInfo(p.SystemUser.ID)
+	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Cluster.Id, p.User.ID, p.User.Username)
+
 	if info.Token == "" {
 		return errors.New("no auth token")
 	}
