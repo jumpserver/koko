@@ -31,11 +31,6 @@ type DBProxyServer struct {
 
 func (p *DBProxyServer) getAuthOrManualSet() error {
 	needManualSet := false
-	if p.SystemUser.LoginMode == model.LoginModeManual {
-		needManualSet = true
-		logger.Debugf("Conn[%s] Database %s login mode is: %s",
-			p.UserConn.ID(), p.Database.Name, model.LoginModeManual)
-	}
 	if p.SystemUser.Password == "" {
 		needManualSet = true
 		logger.Debugf("Conn[%s] Database %s neither has password",
@@ -182,7 +177,8 @@ func (p *DBProxyServer) preCheckRequisite() (ok bool) {
 }
 
 func (p *DBProxyServer) checkRequiredAuth() error {
-	info := service.GetApplicationSystemUserAuthInfo(p.SystemUser.ID)
+	info := service.GetUserApplicationAuthInfo(p.SystemUser.ID, p.Database.Id, p.User.ID, p.User.Username)
+	p.SystemUser.Username = info.UserName
 	p.SystemUser.Password = info.Password
 	logger.Infof("Conn[%s] get database %s auth info from core server success",
 		p.UserConn.ID(), p.Database.Name)
