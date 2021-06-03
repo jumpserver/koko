@@ -17,6 +17,7 @@ func Initial() {
 	conf := config.GetConf()
 	if conf.UploadFailedReplay {
 		go uploadRemainReplay(conf.RootPath)
+		go uploadRemainFtpLogFile(conf.RootPath)
 	}
 
 	go keepHeartbeat()
@@ -78,6 +79,37 @@ func uploadRemainReplay(rootPath string) {
 	logger.Debug("Upload remain replay done")
 }
 
+// uploadRemainReplay 上传遗留的文件记录
+func uploadRemainFtpLogFile(rootPath string) {
+	fileStoreDir := filepath.Join(rootPath, "data", "files")
+	err := common.EnsureDirExist(fileStoreDir)
+	if err != nil {
+		logger.Debugf("upload failed replay err: %s", err.Error())
+		return
+	}
+	allRemainFiles := make(map[string]string)
+	_ = filepath.Walk(fileStoreDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		var sid string
+		filename := info.Name()
+		if len(filename) == 36 {
+			sid = filename
+		}
+		if sid != "" {
+			allRemainFiles[sid] = path
+		}
+		return nil
+	})
+
+	for sid, path := range allRemainFiles {
+		target, _ := filepath.Rel(fileStoreDir, path)
+		proxy.UploadFtpLogFile(path, target, sid)
+	}
+	logger.Debug("Upload remain replay done")
+}
+
 // keepHeartbeat 保持心跳
 func keepHeartbeat() {
 	for {
@@ -91,7 +123,6 @@ func keepHeartbeat() {
 		}
 	}
 }
-
 
 func ValidateRemainReplayFile(path string) error {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, os.ModePerm)

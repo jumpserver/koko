@@ -21,10 +21,10 @@ func RegisterTerminal(name, token, comment string) (res model.Terminal) {
 
 type HeartbeatData struct {
 	SessionOnlineIds []string `json:"sessions"`
-	SessionOnline int `json:"session_online"`
-	CpuUsed float64 `json:"cpu_load"`
-	MemoryUsed float64 `json:"memory_used"`
-	DiskUsed float64 `json:"disk_used"`
+	SessionOnline    int      `json:"session_online"`
+	CpuUsed          float64  `json:"cpu_load"`
+	MemoryUsed       float64  `json:"memory_used"`
+	DiskUsed         float64  `json:"disk_used"`
 }
 
 func TerminalHeartBeat(sIds []string) (res []model.TerminalTask) {
@@ -117,6 +117,40 @@ func PushFTPLog(data *model.FTPLog) (err error) {
 		logger.Error(err)
 	}
 	return
+}
+
+func PushFTPLogFile(ftpLogId, gZipFile string) (err error) {
+	var res map[string]interface{}
+	Url := fmt.Sprintf(FTPLogFileURL, ftpLogId)
+	err = authClient.UploadFile(Url, gZipFile, &res)
+	if err != nil {
+		logger.Error(err)
+	}
+	return
+}
+
+func FinishFTPLogFileUpload(sid string) bool {
+	var res map[string]interface{}
+	data := map[string]bool{"has_file_record": true}
+	Url := fmt.Sprintf(FTPLogUpdateURL, sid)
+	_, err := authClient.Patch(Url, data, &res)
+	if err != nil {
+		logger.Error(err)
+		return false
+	}
+	return true
+}
+
+func FTPLogFailed(sid string) bool {
+	var res map[string]interface{}
+	data := map[string]bool{"is_success": false}
+	Url := fmt.Sprintf(FTPLogUpdateURL, sid)
+	_, err := authClient.Patch(Url, data, &res)
+	if err != nil {
+		logger.Error(err)
+		return false
+	}
+	return true
 }
 
 func JoinRoomValidate(userID, sessionID string) bool {

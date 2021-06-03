@@ -3,6 +3,7 @@ package koko
 import (
 	"context"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"os"
 	"os/signal"
 	"syscall"
@@ -54,5 +55,6 @@ func bootstrap(ctx context.Context) {
 	logger.Initial()
 	service.Initial(ctx)
 	exchange.Initial(ctx)
+	proxy.Initial()
 	Initial()
 }
