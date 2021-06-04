@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 	"unsafe"
 )
