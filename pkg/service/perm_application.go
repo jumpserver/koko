@@ -83,3 +83,19 @@ func GetApplicationSystemUserAuthInfo(systemUserId string) (info model.SystemUse
 	}
 	return
 }
+
+func GetUserApplicationAuthInfo(systemUserID, appID, userID, username string) (info model.SystemUserAuthInfo) {
+	Url := fmt.Sprintf(SystemUserAppAuthURL, systemUserID, appID)
+	params := make(map[string]string)
+	if username != "" {
+		params["username"] = username
+	}
+	if userID != "" {
+		params["user_id"] = userID
+	}
+	_, err := authClient.Get(Url, &info, params)
+	if err != nil {
+		logger.Errorf("Get system user %s app %s auth info failed：%s", systemUserID, appID, err)
+	}
+	return
+}

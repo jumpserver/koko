@@ -17,6 +17,7 @@ require (
 	github.com/gin-gonic/gin v1.6.3
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/gorilla/websocket v1.4.1
+	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.1+incompatible
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect

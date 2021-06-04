@@ -42,6 +42,7 @@ const (
 // 系统用户密码相关API
 const (
 	SystemUserAuthURL      = "/api/v1/assets/system-users/%s/auth-info/"
+	SystemUserAppAuthURL = "/api/v1/assets/system-users/%s/applications/%s/auth-info/" // 该系统用户对某资产的授权
 	SystemUserAssetAuthURL = "/api/v1/assets/system-users/%s/assets/%s/auth-info/" // 该系统用户对某资产的授权
 )
 

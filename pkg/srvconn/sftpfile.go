@@ -691,14 +691,10 @@ func (ad *AssetDir) validatePermission(su *model.SystemUser, action string) bool
 }
 
 func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err error) {
-	if su.Password == "" && su.PrivateKey == "" && su.LoginMode != model.LoginModeManual {
+	if su.Password == "" && su.PrivateKey == "" {
 		var info model.SystemUserAuthInfo
-		if su.UsernameSameWithUser {
-			info = service.GetUserAssetAuthInfo(su.ID, ad.asset.ID, ad.user.ID, ad.user.Username)
-			su.Username = ad.user.Username
-		} else {
-			info = service.GetSystemUserAssetAuthInfo(su.ID, ad.asset.ID)
-		}
+		info = service.GetUserAssetAuthInfo(su.ID, ad.asset.ID, ad.user.ID, ad.user.Username)
+		su.Username = info.UserName
 		su.Password = info.Password
 		su.PrivateKey = info.PrivateKey
 	}
