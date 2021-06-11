@@ -208,7 +208,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		return nil
 	}
 
-	if bytes.Contains(b, charEnter) {
+	if bytes.LastIndex(b, charEnter) == 0 {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
 		p.sendCommandRecord()
 		p.inputState = false

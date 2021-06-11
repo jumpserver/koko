@@ -115,7 +115,7 @@ func (p *DBParser) ParseStream(userInChan chan *model.RoomMessage, srvInChan <-c
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *DBParser) parseInputState(b []byte) []byte {
 	p.inputPreState = p.inputState
-	if bytes.Contains(b, charEnter) {
+	if bytes.LastIndex(b, charEnter) == 0 {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
 		p.sendCommandRecord()
 		p.inputState = false
