@@ -1,6 +1,6 @@
 <html>
 <head>
-    <title>JumpServer File Manager</title>
+    <title></title>
     <link rel="shortcut icon" href="/koko/static/img/favicon.ico" type="image/x-icon">
 </head>
 <body style="margin: 0">
@@ -107,6 +107,16 @@
                     $(window).trigger('resize');
 	    		});
 	    	};
+	    	var getCookieByName = function (name) {
+                var cookies = document.cookie.split("; ")
+                for ( var i = 0; i < cookies.length; i++) {
+                    var arr = cookies[i].split("=");
+                    if (arr[0] === name){
+                        return arr[1];
+                    }
+                }
+                return "";
+            }
 	    	var load = function () {
                 var loct = window.location.search;
 		        var full_lng, locm, lng;
@@ -142,6 +152,12 @@
 	           }
             };
 	    	load();
+            var kokoLang = getCookieByName("django_language");
+            if ( kokoLang.startsWith("en")) {
+                document.title = "File Manager"
+            }else {
+                document.title = "文件管理"
+            }
             var resizeTimer;
             $(window).resize(function () {
                 resizeTimer && clearTimeout(resizeTimer);
