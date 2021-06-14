@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func GeneratePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
@@ -45,4 +47,18 @@ func WriteKeyToFile(keyBytes []byte, saveFileTo string) error {
 		return err
 	}
 	return nil
+}
+
+func GetPubKeyFromFile(keypath string) (ssh.Signer, error) {
+	buf, err := ioutil.ReadFile(keypath)
+	if err != nil {
+		return nil, err
+	}
+
+	pubkey, err := ssh.ParsePrivateKey(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return pubkey, nil
 }
