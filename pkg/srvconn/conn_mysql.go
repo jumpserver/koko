@@ -74,18 +74,6 @@ type MySQLConn struct {
 	*localcommand.LocalCommand
 }
 
-//func (conn *MySQLConn) Connect(win Windows) (err error) {
-//	lcmd, err := startMySQLCommand(conn)
-//	if err != nil {
-//		logger.Errorf("Start mysql command err: %s", err)
-//		return err
-//	}
-//	_ = lcmd.SetWinSize(win.Width, win.Height)
-//	conn.LocalCommand = lcmd
-//	logger.Infof("Connect mysql database %s success ", conn.options.Host)
-//	return
-//}
-
 func (conn *MySQLConn) KeepAlive() error {
 	return nil
 }

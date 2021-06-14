@@ -86,21 +86,6 @@ type K8sCon struct {
 	*localcommand.LocalCommand
 }
 
-//
-//func (k *K8sCon) Connect(win Windows) (err error) {
-//	if !isValidK8sUserToken(k.options) {
-//		return InValidToken
-//	}
-//	lcmd, err := startK8SLocalCommand(k.options)
-//	if err != nil {
-//		logger.Errorf("K8sCon start local pty err: %s", err)
-//		return fmt.Errorf("K8sCon start local pty err: %w", err)
-//	}
-//	_ = lcmd.SetWinSize(win.Width, win.Height)
-//	k.LocalCommand = lcmd
-//	logger.Infof("Connect K8s cluster server %s success", k.options.ClusterServer)
-//	return
-//}
 
 func (k *K8sCon) KeepAlive() error {
 	return nil

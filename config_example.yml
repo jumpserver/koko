@@ -17,13 +17,6 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # 监听的HTTP/WS端口号，默认5000
 # HTTPD_PORT: 5000
 
-# 项目使用的ACCESS KEY, 默认会注册,并保存到 ACCESS_KEY_STORE中,
-# 如果有需求, 可以写到配置文件中, 格式 access_key_id:access_key_secret
-# ACCESS_KEY: null
-
-# ACCESS KEY 保存的地址, 默认注册后会保存到该文件中
-# ACCESS_KEY_FILE: data/keys/.access_key
-
 # 设置日志级别 [DEBUG, INFO, WARN, ERROR, FATAL, CRITICAL]
 # LOG_LEVEL: INFO
 
@@ -32,9 +25,6 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 
 # 语言 [en,zh]
 # LANGUAGE_CODE: zh
-
-# SFTP的根目录, 可选 /tmp, Home其他自定义目录
-# SFTP_ROOT: /tmp
 
 # SFTP是否显示隐藏文件
 # SFTP_SHOW_HIDDEN_FILE: false
@@ -66,3 +56,9 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # REDIS_PASSWORD:
 # REDIS_CLUSTERS:
 # REDIS_DB_ROOM:
+
+# 是否开启本地转发 (目前仅对 vscode remote ssh 有效果)
+# ENABLE_LOCAL_PORT_FORWARD: false
+
+# 是否开启 针对 vscode 的 remote-ssh 远程开发支持 (前置条件: 必须开启 ENABLE_LOCAL_PORT_FORWARD )
+# ENABLE_VSCODE_SUPPORT: false
