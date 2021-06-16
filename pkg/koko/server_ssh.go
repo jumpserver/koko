@@ -210,7 +210,7 @@ func (s *server) SessionHandler(sess ssh.Session) {
 			logger.Error(msg)
 			return
 		}
-		s.proxyVscode(sess, user, selectedAssets[0], selectSysUsers[0])
+		s.proxyVscode(sess, user, selectedAssets[0], matched[0])
 	}
 
 }
