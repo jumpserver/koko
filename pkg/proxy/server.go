@@ -807,7 +807,7 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 func (s *Server) checkLoginConfirm() bool {
 	opts := make([]auth.ConfirmOption, 0, 4)
 	opts = append(opts, auth.ConfirmWithUser(s.connOpts.user))
-	opts = append(opts, auth.ConfirmWithSystemUser(s.connOpts.systemUser))
+	opts = append(opts, auth.ConfirmWithSystemUser(s.systemUserAuthInfo))
 	var (
 		targetType string
 		targetId   string

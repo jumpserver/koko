@@ -11,7 +11,7 @@ import (
 
 type connectionConfirmOption struct {
 	user       *model.User
-	systemUser *model.SystemUser
+	systemUser *model.SystemUserAuthInfo
 
 	targetType string
 	targetID   string
@@ -138,7 +138,7 @@ func ConfirmWithUser(user *model.User) ConfirmOption {
 	}
 }
 
-func ConfirmWithSystemUser(sysUser *model.SystemUser) ConfirmOption {
+func ConfirmWithSystemUser(sysUser *model.SystemUserAuthInfo) ConfirmOption {
 	return func(option *connectionConfirmOption) {
 		option.systemUser = sysUser
 	}
