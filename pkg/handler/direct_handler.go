@@ -131,6 +131,11 @@ func (d *DirectHandler) LoginAsset() {
 					return
 				}
 			}
+			switch num {
+			case "q", "quit", "exit":
+				logger.Infof("User %s enter %s to exit ", d.opts.User, num)
+				return
+			}
 		}
 	}
 }
