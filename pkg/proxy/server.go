@@ -861,7 +861,11 @@ func (s *Server) Proxy() {
 	}
 	AddCommonSwitch(&sw)
 	defer RemoveCommonSwitch(&sw)
-
+	defer func() {
+		if err := s.DisConnectedCallback(); err != nil {
+			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
+		}
+	}()
 	var proxyAddr *net.TCPAddr
 	if s.domainGateways != nil {
 		switch s.connOpts.ProtocolType {
@@ -905,9 +909,6 @@ func (s *Server) Proxy() {
 	utils.IgnoreErrWriteWindowTitle(s.UserConn, s.connOpts.TerminalTitle())
 	if err = sw.Bridge(s.UserConn, srvCon); err != nil {
 		logger.Error(err)
-	}
-	if err = s.DisConnectedCallback(); err != nil {
-		logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
 	}
 }
 
