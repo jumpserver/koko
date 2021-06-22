@@ -4,16 +4,10 @@ utils_dir=$(pwd)
 project_dir=$(dirname "$utils_dir")
 release_dir=${project_dir}/release
 OS=${INPUT_OS-'linux'}
-ARCH=${INPUT_ARCH-'amd64'}
 
 if [[ -n "${GOOS-}" ]];then
   OS="${GOOS}"
 fi
-
-if [[ -n "${GOARCH-}" ]];then
-  ARCH="${GOARCH}"
-fi
-
 
 function install_git() {
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
@@ -38,8 +32,8 @@ goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.
 kubectlflags="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
-CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$goldflags" -o koko ${project_dir}/cmd/koko/ || exit 4
-CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$kubectlflags" -o kubectl ${project_dir}/cmd/kubectl/  || exit 4
+CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$goldflags" -o koko ${project_dir}/cmd/koko/ || exit 4
+CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$kubectlflags" -o kubectl ${project_dir}/cmd/kubectl/  || exit 4
 set -x
 
 # 打包
@@ -52,4 +46,3 @@ cp -r "${utils_dir}/init-kubectl.sh" "${to_dir}"
 for i in koko kubectl static templates locale config_example.yml;do
   cp -r $i "${to_dir}"
 done
-
