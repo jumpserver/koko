@@ -671,20 +671,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			}
 		}
 	}
-	if s.domainGateways != nil {
-		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(s.domainGateways.Gateways))
-		for i := range s.domainGateways.Gateways {
-			gateway := s.domainGateways.Gateways[i]
-			proxyArg := srvconn.SSHClientOptions{
-				Host:       gateway.IP,
-				Port:       strconv.Itoa(gateway.Port),
-				Username:   gateway.Username,
-				Password:   gateway.Password,
-				PrivateKey: gateway.PrivateKey,
-				Timeout:    timeout,
-			}
-			proxyArgs = append(proxyArgs, proxyArg)
-		}
+	// 获取网关配置
+	proxyArgs := s.getGatewayProxyOptions()
+	if proxyArgs != nil {
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientProxyClient(proxyArgs...))
 	}
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
@@ -743,7 +732,20 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 		Height: pty.Window.Height,
 	}))
 	telnetOpts = append(telnetOpts, srvconn.TelnetCharset(s.platform.Charset))
-	if s.domainGateways != nil {
+	// 获取网关配置
+	proxyArgs := s.getGatewayProxyOptions()
+	if proxyArgs != nil {
+		telnetOpts = append(telnetOpts, srvconn.TelnetProxyOptions(proxyArgs))
+	}
+	return srvconn.NewTelnetConnection(telnetOpts...)
+}
+
+func (s *Server) getGatewayProxyOptions() []srvconn.SSHClientOptions {
+	/*
+		兼容 云平台同步资产，配置网域，但网关配置为空的情况。
+	*/
+	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
+		timeout := config.GlobalConfig.SSHTimeout
 		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(s.domainGateways.Gateways))
 		for i := range s.domainGateways.Gateways {
 			gateway := s.domainGateways.Gateways[i]
@@ -757,9 +759,9 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 			}
 			proxyArgs = append(proxyArgs, proxyArg)
 		}
-		telnetOpts = append(telnetOpts, srvconn.TelnetProxyOptions(proxyArgs))
+		return proxyArgs
 	}
-	return srvconn.NewTelnetConnection(telnetOpts...)
+	return nil
 }
 
 func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection, error) {
@@ -867,7 +869,7 @@ func (s *Server) Proxy() {
 		}
 	}()
 	var proxyAddr *net.TCPAddr
-	if s.domainGateways != nil {
+	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		switch s.connOpts.ProtocolType {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
