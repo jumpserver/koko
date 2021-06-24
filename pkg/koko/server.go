@@ -54,6 +54,8 @@ func (s *server) addVSCodeReq(vsReq *vscodeReq) {
 }
 
 func (s *server) deleteVSCodeReq(vsReq *vscodeReq) {
+	s.Lock()
+	defer s.Unlock()
 	delete(s.vscodeClients, vsReq.reqId)
 }
 
