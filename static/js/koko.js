@@ -16,7 +16,7 @@ function handleError(reason) {
 
 function initTerminal(elementId) {
     let urlParams = new URLSearchParams(window.location.search.slice(1));
-    let scheme = document.location.protocol == "https:" ? "wss" : "ws";
+    let scheme = document.location.protocol === "https:" ? "wss" : "ws";
     let port = document.location.port ? ":" + document.location.port : "";
     let baseWsUrl = scheme + "://" + document.location.hostname + port;
     let pingInterval;
@@ -37,6 +37,7 @@ function initTerminal(elementId) {
     }
     ws = new WebSocket(wsURL, ["JMS-KOKO"]);
     term = createTerminalById(elementId)
+    window.term = term;
 
     function resizeTerminal() {
         // 延迟调整窗口大小
@@ -166,6 +167,25 @@ function initTerminal(elementId) {
         lastReceiveTime = new Date();
         dispatch(term, e.data);
     }
+    // https://github.com/FGasper/xterm.js/blob/zmodem/demo/app.js
+
+    let zsentry = new Zmodem.Sentry( {
+        to_terminal: function(octets) {},  //i.e. send to the terminal
+        on_detect: function(detection) {
+            let zsession = detection.confirm();
+            let promise;
+            if (zsession.type === "receive") {
+                promise = downloadFile(zsession);
+            } else {
+                promise = uploadFile(zsession);
+            }
+            promise.catch( console.error.bind(console) ).then( () => {
+                //
+            });
+        },
+        on_retract: function() {},
+        sender: function(octets) { socket.send(new Uint8Array(octets)) },
+    });
 }
 
 function createTerminalById(elementId) {
@@ -195,6 +215,7 @@ function createTerminalById(elementId) {
         }
         return !(e.ctrlKey && e.key === 'v');
     });
+
     return term
 }
 
