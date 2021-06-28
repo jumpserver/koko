@@ -147,6 +147,7 @@ func (p *DBParser) parseCmdInput() {
 	} else {
 		p.command = commands[len(commands)-1]
 	}
+	p.cmdCreateDate = time.Now()
 }
 
 // parseCmdOutput 解析命令输出
