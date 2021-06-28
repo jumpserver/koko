@@ -74,6 +74,8 @@ func (c *CommandRecorder) record() {
 		if len(notificationList) > 0 {
 			if err := c.jmsService.NotifyCommand(notificationList); err == nil {
 				notificationList = notificationList[:0]
+			} else {
+				logger.Errorf("Session %s: command notify err: %s", c.sessionID, err)
 			}
 		}
 		err := c.storage.BulkSave(cmdList)
@@ -81,6 +83,9 @@ func (c *CommandRecorder) record() {
 			cmdList = cmdList[:0]
 			maxRetry = 0
 			continue
+		}
+		if err != nil {
+			logger.Errorf("Session %s: command bulk save err: %s", c.sessionID, err)
 		}
 
 		if maxRetry > 5 {
