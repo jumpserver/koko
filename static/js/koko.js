@@ -167,25 +167,55 @@ function initTerminal(elementId) {
         lastReceiveTime = new Date();
         dispatch(term, e.data);
     }
-    // https://github.com/FGasper/xterm.js/blob/zmodem/demo/app.js
-
-    let zsentry = new Zmodem.Sentry( {
-        to_terminal: function(octets) {},  //i.e. send to the terminal
-        on_detect: function(detection) {
-            let zsession = detection.confirm();
-            let promise;
-            if (zsession.type === "receive") {
-                promise = downloadFile(zsession);
-            } else {
-                promise = uploadFile(zsession);
-            }
-            promise.catch( console.error.bind(console) ).then( () => {
-                //
-            });
-        },
-        on_retract: function() {},
-        sender: function(octets) { socket.send(new Uint8Array(octets)) },
+    // https://github.com/leffss/gowebssh/blob/master/example/html/webssh.js
+    // Todo: 这里还需要改一下，koko 后端
+    // https://github.com/leffss/gowebssh/blob/master/webssh.go
+    zmodem.append(Terminal);
+    term.zmodemAttach(ws, {
+        noTerminalWriteOutsideSession: true,
+    })
+    term.on("zmodemRetract", () => {
+        console.log('zmodemRetract')
     });
+
+    term.on("zmodemDetect", (detection) => {
+        console.log('zmodemDetect')
+    });
+}
+
+
+function downloadFile(zsession) {
+    zsession.on("offer", function(xfer) {
+        function on_form_submit() {
+            if (xfer.get_details().size > 2048 * 1024 * 1024) {
+                xfer.skip();
+                toastr.warning(`${xfer.get_details().name} 超过 2048 MB, 无法下载`);
+                return
+            }
+            let FILE_BUFFER = [];
+            xfer.on("input", (payload) => {
+                updateProgress(xfer, "download");
+                FILE_BUFFER.push( new Uint8Array(payload) );
+            });
+
+            xfer.accept().then(
+                () => {
+                    saveFile(xfer, FILE_BUFFER);
+                    term.write("\r\n");
+                    socket.send(JSON.stringify({ type: "ignore", data: utf8_to_b64(xfer.get_details().name + "(" + xfer.get_details().size + ") was download success") }));
+                },
+                console.error.bind(console)
+            );
+        }
+        on_form_submit();
+    });
+    let promise = new Promise( (res) => {
+        zsession.on("session_end", () => {
+            res();
+        });
+    });
+    zsession.start();
+    return promise;
 }
 
 function createTerminalById(elementId) {

@@ -40,8 +40,5 @@
             terminalConstructor.prototype.zmodemBrowser = Zmodem.Browser;
         }
         exports.apply = apply;
-
-
-
     },{}]},{},[1])(1)
 });
