@@ -54,6 +54,7 @@ func (u *UserSelectHandler) SetSelectType(s selectType) {
 		switch u.h.assetLoadPolicy {
 		case "all":
 			u.SetLoadPolicy(loadingFromLocal)
+			u.AutoCompletion()
 		}
 		u.h.term.SetPrompt("[Host]> ")
 	case TypeNodeAsset:
@@ -64,7 +65,6 @@ func (u *UserSelectHandler) SetSelectType(s selectType) {
 		u.h.term.SetPrompt("[DB]> ")
 	}
 	u.currentType = s
-	u.AutoCompletion()
 }
 
 func (u *UserSelectHandler) AutoCompletion() {
