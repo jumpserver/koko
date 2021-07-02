@@ -754,6 +754,7 @@ func (s *Server) getGatewayProxyOptions() []srvconn.SSHClientOptions {
 				Port:       strconv.Itoa(gateway.Port),
 				Username:   gateway.Username,
 				Password:   gateway.Password,
+				Passphrase: gateway.Password, // 兼容 带密码的private_key,
 				PrivateKey: gateway.PrivateKey,
 				Timeout:    timeout,
 			}
