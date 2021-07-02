@@ -47,7 +47,7 @@ function initTerminal(elementId) {
     window.term = term;
     var zsentry;
     // patch send_block_files 能够显示上传进度
-    Zmodem.Browser.send_block_files= function (session, files, options) {
+    Zmodem.Browser.send_block_files = function (session, files, options) {
         return send_block_files(session, files, options);
     };
     zsentry = new Zmodem.Sentry({
@@ -71,7 +71,7 @@ function initTerminal(elementId) {
             } else {
                 promise = _handle_receive_session(zsession);
             }
-            promise.catch( console.error.bind(console) ).then(() => {
+            promise.catch(console.error.bind(console)).then(() => {
                 console.log("zmodem Detect promise finished")
             })
 
@@ -103,7 +103,6 @@ function initTerminal(elementId) {
         if (data === undefined) {
             return
         }
-        console.log("dispatch  ", data)
         let msg = JSON.parse(data)
         switch (msg.type) {
             case 'CONNECT':
@@ -271,6 +270,14 @@ function getQuickPaste() {
 
 function _handle_receive_session(zsession) {
     zsession.on("offer", function (xfer) {
+        if (!_validate_transfer_file_size(xfer)) {
+            let detail = xfer.get_details()
+            let msg = alert_message(detail.name, detail.size, 'download')
+            alert(msg)
+            xfer.skip();
+            return
+        }
+
         function on_form_submit() {
             var FILE_BUFFER = [];
             xfer.on("input", (payload) => {
@@ -301,14 +308,52 @@ function _handle_receive_session(zsession) {
     return promise;
 }
 
+function alert_message(name, size, action = 'upload') {
+    let lang = getCookieByName("django_language");
+    let msg_array = [name, "大小", bytesHuman(size), "超过最大传输大小", bytesHuman(MAX_TRANSFER_SIZE)];
+    let action_name = action;
+    if (lang.startsWith("en")) {
+        msg_array = [name, "size", bytesHuman(size), "exceed max transfer size", bytesHuman(MAX_TRANSFER_SIZE)];
+    } else {
+        switch (action) {
+            case "upload":
+                action_name = "上传"
+                break
+            default:
+                action_name = "下载"
+        }
+    }
+    msg_array.unshift(action_name)
+    return msg_array.join(" ")
+}
+
+function getCookieByName(name) {
+    var cookies = document.cookie.split("; ")
+    for (var i = 0; i < cookies.length; i++) {
+        var arr = cookies[i].split("=");
+        if (arr[0] === name) {
+            return arr[1];
+        }
+    }
+    return "";
+}
+
 function _handle_send_session(zsession) {
     let promise = new Promise((res) => {
         let file_el = document.getElementById("zm_files");
         file_el.onchange = function (e) {
             let files_obj = file_el.files;
+            for (let i = 0; i < files_obj.length; i++) {
+                if (files_obj[i].size > MAX_TRANSFER_SIZE) {
+
+                    alert(alert_message(files_obj[i].name, files_obj[i].size))
+                    res()
+                    return
+                }
+            }
             Zmodem.Browser.send_block_files(zsession, files_obj,
-                    {
-                     on_offer_response(obj, xfer) {
+                {
+                    on_offer_response(obj, xfer) {
                         if (xfer) {
                             console.log("on_offer_response ", xfer)
                             _update_progress(xfer);
@@ -327,12 +372,36 @@ function _handle_send_session(zsession) {
             ).then(() => {
                 res();
                 window.term.write("\r\n")
+            }).catch(err => {
+                console.log(err)
             });
         };
         file_el.click();
+        let old_onfocus_func = window.onfocus;
+        window.onfocus = function (ev) {
+            if (file_el.files.length === 0 && !zsession.aborted()) {
+                zsession.abort();
+                console.log("zmoden session abort")
+                window.onfocus = old_onfocus_func;
+                console.log(old_onfocus_func);
+                return
+            }
+            if (typeof old_onfocus_func === 'function') {
+                old_onfocus_func(ev);
+            }
+            console.log(old_onfocus_func)
+        }
     });
 
     return promise;
+}
+
+let MAX_TRANSFER_SIZE = 1024 * 1024 * 500 // 默认最大上传下载500M
+// let MAX_TRANSFER_SIZE = 1024 * 1024 * 5 // 测试 上传下载最大size 5M
+
+function _validate_transfer_file_size(xfer) {
+    let detail = xfer.get_details();
+    return detail.size < MAX_TRANSFER_SIZE
 }
 
 
@@ -382,7 +451,7 @@ function send_block_files(session, files, options) {
     //the remaining files/bytes components.
     var batch = [];
     var total_size = 0;
-    for (var f=files.length - 1; f>=0; f--) {
+    for (var f = files.length - 1; f >= 0; f--) {
         var fobj = files[f];
         total_size += fobj.size;
         batch[f] = {
@@ -396,6 +465,7 @@ function send_block_files(session, files, options) {
     }
 
     var file_idx = 0;
+
     function promise_callback() {
         var cur_b = batch[file_idx];
 
@@ -405,7 +475,7 @@ function send_block_files(session, files, options) {
 
         file_idx++;
 
-        return session.send_offer(cur_b).then( function after_send_offer(xfer) {
+        return session.send_offer(cur_b).then(function after_send_offer(xfer) {
             if (options.on_offer_response) {
                 options.on_offer_response(cur_b.obj, xfer);
             }
@@ -414,7 +484,7 @@ function send_block_files(session, files, options) {
                 return promise_callback();   //skipped
             }
 
-            return new Promise( function(res) {
+            return new Promise(function (res) {
                 var block = 1024 * 1024;
                 var fileSize = cur_b.size;
                 var fileLoaded = 0;
@@ -423,6 +493,7 @@ function send_block_files(session, files, options) {
                     console.error('file read error', e);
                     throw ('File read error: ' + e);
                 };
+
                 function readBlob() {
                     var blob;
                     if (cur_b.obj.slice) {
@@ -436,6 +507,7 @@ function send_block_files(session, files, options) {
                     }
                     reader.readAsArrayBuffer(blob);
                 }
+
                 var piece;
                 reader.onload = function reader_onload(e) {
                     fileLoaded += e.total;
@@ -454,7 +526,7 @@ function send_block_files(session, files, options) {
                         if (e.target.result) {
                             piece = new Uint8Array(e.target.result);
                             _check_aborted(session);
-                            xfer.end(piece).then(function() {
+                            xfer.end(piece).then(function () {
                                 if (options.on_progress && piece.length) {
                                     options.on_progress(cur_b.obj, xfer, piece);
                                 }
@@ -467,8 +539,8 @@ function send_block_files(session, files, options) {
                     }
                 };
                 readBlob();
-            } );
-        } );
+            });
+        });
     }
 
     return promise_callback();
