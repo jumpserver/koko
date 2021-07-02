@@ -257,7 +257,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		}
 	}
 
-	if domainGateways != nil {
+	if domainGateways != nil && len(domainGateways.Gateways) > 0 {
 		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(domainGateways.Gateways))
 		for i := range domainGateways.Gateways {
 			gateway := domainGateways.Gateways[i]
@@ -266,6 +266,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 				Port:       strconv.Itoa(gateway.Port),
 				Username:   gateway.Username,
 				Password:   gateway.Password,
+				Passphrase: gateway.Password, // 兼容 带密码的private_key,
 				PrivateKey: gateway.PrivateKey,
 				Timeout:    timeout,
 			}
