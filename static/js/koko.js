@@ -14,9 +14,16 @@ function handleError(reason) {
     console.log(reason);
 }
 
+function decodeToStr(octets) {
+    if (typeof TextEncoder == "function") {
+        return new TextDecoder("utf-8").decode(new Uint8Array(octets))
+    }
+    return decodeURIComponent(escape(String.fromCharCode.apply(null, octets)));
+}
+
 function initTerminal(elementId) {
     let urlParams = new URLSearchParams(window.location.search.slice(1));
-    let scheme = document.location.protocol == "https:" ? "wss" : "ws";
+    let scheme = document.location.protocol === "https:" ? "wss" : "ws";
     let port = document.location.port ? ":" + document.location.port : "";
     let baseWsUrl = scheme + "://" + document.location.hostname + port;
     let pingInterval;
@@ -37,6 +44,39 @@ function initTerminal(elementId) {
     }
     ws = new WebSocket(wsURL, ["JMS-KOKO"]);
     term = createTerminalById(elementId)
+    window.term = term;
+    var zsentry;
+    // patch send_block_files 能够显示上传进度
+    Zmodem.Browser.send_block_files= function (session, files, options) {
+        return send_block_files(session, files, options);
+    };
+    zsentry = new Zmodem.Sentry({
+        to_terminal: function (octets) {
+            if (!zsentry.get_confirmed_session()) {
+                term.write(decodeToStr(octets));
+            }
+        },
+        sender: function (octets) {
+            return ws.send(new Uint8Array(octets));
+        },
+        on_retract: function () {
+            console.log('zmodem Retract')
+        },
+        on_detect: function (detection) {
+            var promise;
+            var zsession = detection.confirm();
+            term.write("\r\n")
+            if (zsession.type === "send") {
+                promise = _handle_send_session(zsession);
+            } else {
+                promise = _handle_receive_session(zsession);
+            }
+            promise.catch( console.error.bind(console) ).then(() => {
+                console.log("zmodem Detect promise finished")
+            })
+
+        }
+    });
 
     function resizeTerminal() {
         // 延迟调整窗口大小
@@ -63,6 +103,7 @@ function initTerminal(elementId) {
         if (data === undefined) {
             return
         }
+        console.log("dispatch  ", data)
         let msg = JSON.parse(data)
         switch (msg.type) {
             case 'CONNECT':
@@ -76,13 +117,10 @@ function initTerminal(elementId) {
                 resizeTerminal();
                 break
             case "CLOSE":
-                term.writeln("Connection closed");
+                term.writeln("Receive Connection closed");
                 fireEvent(new Event("CLOSE", {}))
                 break
             case "PING":
-                break
-            case 'TERMINAL_DATA':
-                term.write(msg.data);
                 break
             default:
                 console.log(data)
@@ -129,7 +167,7 @@ function initTerminal(elementId) {
         // this ==> term object
         termSelection = this.getSelection().trim();
     });
-
+    ws.binaryType = "arraybuffer";
     ws.onopen = () => {
         if (pingInterval !== null) {
             clearInterval(pingInterval);
@@ -164,7 +202,11 @@ function initTerminal(elementId) {
     }
     ws.onmessage = (e) => {
         lastReceiveTime = new Date();
-        dispatch(term, e.data);
+        if (typeof e.data === 'object') {
+            zsentry.consume(e.data);
+        } else {
+            dispatch(term, e.data);
+        }
     }
 }
 
@@ -195,6 +237,7 @@ function createTerminalById(elementId) {
         }
         return !(e.ctrlKey && e.key === 'v');
     });
+
     return term
 }
 
@@ -224,4 +267,209 @@ function getQuickPaste() {
         quickPaste = settings['quickPaste']
     }
     return quickPaste
+}
+
+function _handle_receive_session(zsession) {
+    zsession.on("offer", function (xfer) {
+        function on_form_submit() {
+            var FILE_BUFFER = [];
+            xfer.on("input", (payload) => {
+                _update_progress(xfer, 'download');
+                FILE_BUFFER.push(new Uint8Array(payload));
+            });
+            xfer.accept().then(
+                () => {
+                    _save_to_disk(xfer, FILE_BUFFER);
+                },
+                console.error.bind(console)
+            );
+        }
+
+        on_form_submit();
+    });
+
+    var promise = new Promise((res) => {
+        zsession.on("session_end", () => {
+            window.term.write('\r\n')
+            res();
+            console.log("finished ")
+        });
+    });
+
+    zsession.start();
+
+    return promise;
+}
+
+function _handle_send_session(zsession) {
+    let promise = new Promise((res) => {
+        let file_el = document.getElementById("zm_files");
+        file_el.onchange = function (e) {
+            let files_obj = file_el.files;
+            Zmodem.Browser.send_block_files(zsession, files_obj,
+                    {
+                     on_offer_response(obj, xfer) {
+                        if (xfer) {
+                            console.log("on_offer_response ", xfer)
+                            _update_progress(xfer);
+                        }
+                    },
+                    on_progress(obj, xfer, piece) {
+                        _update_progress(xfer);
+                    },
+                    on_file_complete(obj) {
+                        console.log("COMPLETE", obj);
+                    },
+                }
+            ).then(
+                zsession.close.bind(zsession),
+                console.error.bind(console)
+            ).then(() => {
+                res();
+                window.term.write("\r\n")
+            });
+        };
+        file_el.click();
+    });
+
+    return promise;
+}
+
+
+function _save_to_disk(xfer, buffer) {
+    return Zmodem.Browser.save_to_disk(buffer, xfer.get_details().name);
+}
+
+function _update_progress(xfer, action = 'upload') {
+    let detail = xfer.get_details();
+    let name = detail.name;
+    let total = detail.size;
+    let offset = xfer.get_offset();
+    var percent;
+    if (total === 0 || total === offset) {
+        percent = 100
+    } else {
+        percent = Math.round(offset / total * 100);
+    }
+    let msg = action + ' ' + name + ": " + bytesHuman(total) + " " + percent + "%"
+    window.term.write("\r" + msg);
+}
+
+function bytesHuman(bytes, precision) {
+    if (!/^([-+])?|(\.\d+)(\d+(\.\d+)?|(\d+\.)|Infinity)$/.test(bytes)) {
+        return '-'
+    }
+    if (bytes === 0) return '0';
+    if (typeof precision === 'undefined') precision = 1;
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
+    const num = Math.floor(Math.log(bytes) / Math.log(1024));
+    const value = (bytes / Math.pow(1024, Math.floor(num))).toFixed(precision);
+    return `${value} ${units[num]}`
+}
+
+
+function _check_aborted(session) {
+    if (session.aborted()) {
+        throw new Zmodem.Error("aborted");
+    }
+}
+
+// copy from https://github.com/leffss/gowebssh/blob/master/example/html/zmodem/zmodem.devel.js#L922
+function send_block_files(session, files, options) {
+    if (!options) options = {};
+
+    //Populate the batch in reverse order to simplify sending
+    //the remaining files/bytes components.
+    var batch = [];
+    var total_size = 0;
+    for (var f=files.length - 1; f>=0; f--) {
+        var fobj = files[f];
+        total_size += fobj.size;
+        batch[f] = {
+            obj: fobj,
+            name: fobj.name,
+            size: fobj.size,
+            mtime: new Date(fobj.lastModified),
+            files_remaining: files.length - f,
+            bytes_remaining: total_size,
+        };
+    }
+
+    var file_idx = 0;
+    function promise_callback() {
+        var cur_b = batch[file_idx];
+
+        if (!cur_b) {
+            return Promise.resolve(); //batch done!
+        }
+
+        file_idx++;
+
+        return session.send_offer(cur_b).then( function after_send_offer(xfer) {
+            if (options.on_offer_response) {
+                options.on_offer_response(cur_b.obj, xfer);
+            }
+
+            if (xfer === undefined) {
+                return promise_callback();   //skipped
+            }
+
+            return new Promise( function(res) {
+                var block = 1024 * 1024;
+                var fileSize = cur_b.size;
+                var fileLoaded = 0;
+                var reader = new FileReader();
+                reader.onerror = function reader_onerror(e) {
+                    console.error('file read error', e);
+                    throw ('File read error: ' + e);
+                };
+                function readBlob() {
+                    var blob;
+                    if (cur_b.obj.slice) {
+                        blob = cur_b.obj.slice(fileLoaded, fileLoaded + block + 1);
+                    } else if (cur_b.obj.mozSlice) {
+                        blob = cur_b.obj.mozSlice(fileLoaded, fileLoaded + block + 1);
+                    } else if (cur_b.obj.webkitSlice) {
+                        blob = cur_b.obj.webkitSlice(fileLoaded, fileLoaded + block + 1);
+                    } else {
+                        blob = cur_b.obj;
+                    }
+                    reader.readAsArrayBuffer(blob);
+                }
+                var piece;
+                reader.onload = function reader_onload(e) {
+                    fileLoaded += e.total;
+                    if (fileLoaded < fileSize) {
+                        if (e.target.result) {
+                            piece = new Uint8Array(e.target.result);
+                            _check_aborted(session);
+                            xfer.send(piece);
+                            if (options.on_progress) {
+                                options.on_progress(cur_b.obj, xfer, piece);
+                            }
+                        }
+                        readBlob();
+                    } else {
+                        //
+                        if (e.target.result) {
+                            piece = new Uint8Array(e.target.result);
+                            _check_aborted(session);
+                            xfer.end(piece).then(function() {
+                                if (options.on_progress && piece.length) {
+                                    options.on_progress(cur_b.obj, xfer, piece);
+                                }
+                                if (options.on_file_complete) {
+                                    options.on_file_complete(cur_b.obj, xfer);
+                                }
+                                res(promise_callback());
+                            })
+                        }
+                    }
+                };
+                readBlob();
+            } );
+        } );
+    }
+
+    return promise_callback();
 }

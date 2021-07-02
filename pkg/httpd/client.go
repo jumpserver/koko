@@ -4,11 +4,8 @@ import (
 	"context"
 	"io"
 	"sync"
-	"unicode/utf8"
 
 	"github.com/gliderlabs/ssh"
-
-	"github.com/jumpserver/koko/pkg/common"
 )
 
 type Client struct {
@@ -18,7 +15,6 @@ type Client struct {
 	Conn      *UserWebsocket
 	pty       ssh.Pty
 
-	remainBuf []byte
 	sync.Mutex
 }
 
@@ -41,19 +37,12 @@ func (c *Client) Read(p []byte) (n int, err error) {
 }
 
 func (c *Client) Write(p []byte) (n int, err error) {
-	n = len(p)
-	buf := make([]byte, len(c.remainBuf)+n)
-	copy(buf, c.remainBuf)
-	copy(buf[len(c.remainBuf):], p)
-	// 发送完整的utf8字符
-	if validBuf, remainBuf, ok := filterLongestValidBytes(buf); ok {
-		c.sendDataMessage(validBuf)
-		c.remainBuf = remainBuf
-		return n, nil
+	msg := Message{
+		Id:   c.Conn.Uuid,
+		Type: TERMINALBINARY,
+		Raw:  p,
 	}
-	// 首字符中包含非utf8的字符编码,将不处理
-	c.sendDataMessage(buf)
-	c.remainBuf = nil
+	c.Conn.SendMessage(&msg)
 	return len(p), nil
 }
 
@@ -91,22 +80,4 @@ func (c *Client) WriteData(p []byte) {
 
 func (c *Client) Context() context.Context {
 	return c.Conn.ctx.Request.Context()
-}
-
-func (c *Client) sendDataMessage(p []byte) {
-	msg := Message{
-		Id:   c.Conn.Uuid,
-		Type: TERMINALDATA,
-		Data: common.BytesToString(p),
-	}
-	c.Conn.SendMessage(&msg)
-}
-
-func filterLongestValidBytes(buf []byte) (validBytes, invalidBytes []byte, ok bool) {
-	for i := len(buf); i > 0; i-- {
-		if utf8.Valid(buf[:i]) {
-			return buf[:i], buf[i:], true
-		}
-	}
-	return
 }

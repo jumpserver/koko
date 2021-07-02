@@ -10,7 +10,8 @@
     <link rel="stylesheet" href="/koko/static/plugins/xterm/xterm.css"/>
     <script type="text/javascript" src="/koko/static/plugins/xterm/xterm.js"></script>
     <script type="text/javascript" src="/koko/static/plugins/xterm/addons/fit/fit.js"></script>
-    <script type="text/javascript" src="/koko/static/js/koko.js?_=v2.7.0"></script>
+    <script type="text/javascript" src="/koko/static/plugins/zmodem/zmodem.min.js"></script>
+    <script type="text/javascript" src="/koko/static/js/koko.js?_=v2.7.2"></script>
     <style type="text/css">
         body {
             margin: 0;
@@ -41,6 +42,7 @@
 </head>
 <body>
     <div id="terminal"></div>
+    <input id="zm_files" type="file" hidden/>
     <script type="text/javascript" charset="utf-8">
         initTerminal('terminal')
     </script>
