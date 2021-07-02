@@ -46,6 +46,10 @@ function initTerminal(elementId) {
     term = createTerminalById(elementId)
     window.term = term;
     var zsentry;
+    // patch send_block_files 能够显示上传进度
+    Zmodem.Browser.send_block_files= function (session, files, options) {
+        return send_block_files(session, files, options);
+    };
     zsentry = new Zmodem.Sentry({
         to_terminal: function (octets) {
             if (!zsentry.get_confirmed_session()) {
@@ -298,11 +302,11 @@ function _handle_receive_session(zsession) {
 }
 
 function _handle_send_session(zsession) {
-    var promise = new Promise((res) => {
-        var file_el = document.getElementById("zm_files");
+    let promise = new Promise((res) => {
+        let file_el = document.getElementById("zm_files");
         file_el.onchange = function (e) {
             let files_obj = file_el.files;
-            Zmodem.Browser.send_files(zsession, files_obj,
+            Zmodem.Browser.send_block_files(zsession, files_obj,
                     {
                      on_offer_response(obj, xfer) {
                         if (xfer) {
@@ -361,4 +365,111 @@ function bytesHuman(bytes, precision) {
     const num = Math.floor(Math.log(bytes) / Math.log(1024));
     const value = (bytes / Math.pow(1024, Math.floor(num))).toFixed(precision);
     return `${value} ${units[num]}`
+}
+
+
+function _check_aborted(session) {
+    if (session.aborted()) {
+        throw new Zmodem.Error("aborted");
+    }
+}
+
+// copy from https://github.com/leffss/gowebssh/blob/master/example/html/zmodem/zmodem.devel.js#L922
+function send_block_files(session, files, options) {
+    if (!options) options = {};
+
+    //Populate the batch in reverse order to simplify sending
+    //the remaining files/bytes components.
+    var batch = [];
+    var total_size = 0;
+    for (var f=files.length - 1; f>=0; f--) {
+        var fobj = files[f];
+        total_size += fobj.size;
+        batch[f] = {
+            obj: fobj,
+            name: fobj.name,
+            size: fobj.size,
+            mtime: new Date(fobj.lastModified),
+            files_remaining: files.length - f,
+            bytes_remaining: total_size,
+        };
+    }
+
+    var file_idx = 0;
+    function promise_callback() {
+        var cur_b = batch[file_idx];
+
+        if (!cur_b) {
+            return Promise.resolve(); //batch done!
+        }
+
+        file_idx++;
+
+        return session.send_offer(cur_b).then( function after_send_offer(xfer) {
+            if (options.on_offer_response) {
+                options.on_offer_response(cur_b.obj, xfer);
+            }
+
+            if (xfer === undefined) {
+                return promise_callback();   //skipped
+            }
+
+            return new Promise( function(res) {
+                var block = 1024 * 1024;
+                var fileSize = cur_b.size;
+                var fileLoaded = 0;
+                var reader = new FileReader();
+                reader.onerror = function reader_onerror(e) {
+                    console.error('file read error', e);
+                    throw ('File read error: ' + e);
+                };
+                function readBlob() {
+                    var blob;
+                    if (cur_b.obj.slice) {
+                        blob = cur_b.obj.slice(fileLoaded, fileLoaded + block + 1);
+                    } else if (cur_b.obj.mozSlice) {
+                        blob = cur_b.obj.mozSlice(fileLoaded, fileLoaded + block + 1);
+                    } else if (cur_b.obj.webkitSlice) {
+                        blob = cur_b.obj.webkitSlice(fileLoaded, fileLoaded + block + 1);
+                    } else {
+                        blob = cur_b.obj;
+                    }
+                    reader.readAsArrayBuffer(blob);
+                }
+                var piece;
+                reader.onload = function reader_onload(e) {
+                    fileLoaded += e.total;
+                    if (fileLoaded < fileSize) {
+                        if (e.target.result) {
+                            piece = new Uint8Array(e.target.result);
+                            _check_aborted(session);
+                            xfer.send(piece);
+                            if (options.on_progress) {
+                                options.on_progress(cur_b.obj, xfer, piece);
+                            }
+                        }
+                        readBlob();
+                    } else {
+                        //
+                        if (e.target.result) {
+                            piece = new Uint8Array(e.target.result);
+                            _check_aborted(session);
+                            xfer.end(piece).then(function() {
+                                if (options.on_progress && piece.length) {
+                                    options.on_progress(cur_b.obj, xfer, piece);
+                                }
+                                if (options.on_file_complete) {
+                                    options.on_file_complete(cur_b.obj, xfer);
+                                }
+                                res(promise_callback());
+                            })
+                        }
+                    }
+                };
+                readBlob();
+            } );
+        } );
+    }
+
+    return promise_callback();
 }
