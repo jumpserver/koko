@@ -309,14 +309,12 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 	s.addVSCodeReq(vsReq)
 	defer s.deleteVSCodeReq(vsReq)
 	go func() {
-		defer goSess.Close()
-		defer sess.Close()
 		_, _ = io.Copy(stdin, sess)
+		logger.Infof("User %s vscode request %s stdin end", user, sshClient)
 	}()
 	go func() {
-		defer goSess.Close()
-		defer sess.Close()
 		_, _ = io.Copy(sess, stdOut)
+		logger.Infof("User %s vscode request %s stdOut end", user, sshClient)
 	}()
 	<-sess.Context().Done()
 	sshClient.ReleaseSession(goSess)
