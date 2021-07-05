@@ -64,15 +64,37 @@ function initTerminal(elementId) {
         },
         on_detect: function (detection) {
             var promise;
+            let file_input_el;
             var zsession = detection.confirm();
             term.write("\r\n")
             if (zsession.type === "send") {
-                promise = _handle_send_session(zsession);
+                // 动态创建 input 标签，否则选择相同的文件，不会触发 onchang 事件
+                file_input_el = document.createElement("input");
+                file_input_el.type = "file";
+                file_input_el.style.display = "none";//隐藏
+                document.body.appendChild(file_input_el);
+                document.body.onfocus = function () {
+                    document.body.onfocus = null;
+                    setTimeout(function () {
+                        // 如果未选择任何文件，则代表取消上传。主动取消
+                        if (file_input_el.files.length === 0) {
+                            console.log("Cancel file clicked")
+                            if (!zsession.aborted()) {
+                                zsession.abort()
+                            }
+                        }
+                    }, 1000);
+                }
+                promise = _handle_send_session(file_input_el, zsession);
             } else {
                 promise = _handle_receive_session(zsession);
             }
             promise.catch(console.error.bind(console)).then(() => {
                 console.log("zmodem Detect promise finished")
+            }).finally(() => {
+                if (file_input_el != null) {
+                    document.body.removeChild(file_input_el);
+                }
             })
 
         }
@@ -338,10 +360,10 @@ function getCookieByName(name) {
     return "";
 }
 
-function _handle_send_session(zsession) {
+function _handle_send_session(file_el, zsession) {
     let promise = new Promise((res) => {
-        let file_el = document.getElementById("zm_files");
         file_el.onchange = function (e) {
+            console.log("file input on change", file_el.files)
             let files_obj = file_el.files;
             for (let i = 0; i < files_obj.length; i++) {
                 if (files_obj[i].size > MAX_TRANSFER_SIZE) {
@@ -377,20 +399,6 @@ function _handle_send_session(zsession) {
             });
         };
         file_el.click();
-        let old_onfocus_func = window.onfocus;
-        window.onfocus = function (ev) {
-            if (file_el.files.length === 0 && !zsession.aborted()) {
-                zsession.abort();
-                console.log("zmoden session abort")
-                window.onfocus = old_onfocus_func;
-                console.log(old_onfocus_func);
-                return
-            }
-            if (typeof old_onfocus_func === 'function') {
-                old_onfocus_func(ev);
-            }
-            console.log(old_onfocus_func)
-        }
     });
 
     return promise;
