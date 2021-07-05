@@ -2,8 +2,10 @@ package srvconn
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -11,6 +13,9 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/jumpserver/koko/pkg/localcommand"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -56,7 +61,9 @@ func NewMySQLConnection(ops ...SqlOption) (*MySQLConn, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
-
+	if err := checkMySQLAccount(args); err != nil {
+		return nil, err
+	}
 	lCmd, err := startMySQLCommand(args)
 	if err != nil {
 		return nil, err
@@ -86,7 +93,7 @@ func (conn *MySQLConn) Close() error {
 func startMySQLCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	initOnceLinuxMySQLShellFile()
 	if mysqlShellPath != "" {
-		if lcmd, err = startMySQLNameSpaceCommand(opt ); err == nil {
+		if lcmd, err = startMySQLNameSpaceCommand(opt); err == nil {
 			if lcmd, err = tryManualLoginMySQLServer(opt, lcmd); err == nil {
 				return lcmd, nil
 			}
@@ -205,6 +212,17 @@ func (opt *sqlOption) Envs() []string {
 	}
 }
 
+func (opt *sqlOption) DataSourceName() string {
+	// "user:password@tcp(127.0.0.1:3306)/hello"
+	addr := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
+	return fmt.Sprintf("%s:%s@tcp(%s)/%s",
+		opt.Username,
+		opt.Password,
+		addr,
+		opt.DBName,
+	)
+}
+
 type SqlOption func(*sqlOption)
 
 func SqlUsername(username string) SqlOption {
@@ -241,4 +259,30 @@ func SqlPtyWin(win Windows) SqlOption {
 	return func(args *sqlOption) {
 		args.win = win
 	}
+}
+
+const (
+	mySQLMaxConnCount = 1
+	mySQLMaxIdleTime  = time.Second * 15
+)
+
+func checkMySQLAccount(args *sqlOption) error {
+	return checkDatabaseAccountValidate("mysql", args.DataSourceName())
+}
+
+func checkDatabaseAccountValidate(driveName, datasourceName string) error {
+	db, err := sql.Open(driveName, datasourceName)
+	if err != nil {
+		return err
+	}
+	db.SetMaxOpenConns(mySQLMaxConnCount)
+	db.SetMaxIdleConns(mySQLMaxConnCount)
+	db.SetConnMaxLifetime(mySQLMaxIdleTime)
+	db.SetConnMaxIdleTime(mySQLMaxIdleTime)
+	defer db.Close()
+	err = db.Ping()
+	if err != nil {
+		return err
+	}
+	return nil
 }
