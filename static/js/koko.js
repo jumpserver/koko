@@ -369,7 +369,7 @@ function _handle_send_session(file_el, zsession) {
                 if (files_obj[i].size > MAX_TRANSFER_SIZE) {
 
                     alert(alert_message(files_obj[i].name, files_obj[i].size))
-                    res()
+                    zsession.abort();
                     return
                 }
             }
