@@ -19,7 +19,7 @@ func (u *UserSSHClient) AddClient(client *SSHClient) {
 
 func (u *UserSSHClient) GetClient() *SSHClient {
 	var selectClient *SSHClient
-	var refCount int
+	var refCount int32
 	// 取引用最少的 SSHClient
 	for clientItem := range u.data {
 		if refCount <= clientItem.RefCount() {
@@ -33,7 +33,7 @@ func (u *UserSSHClient) GetClient() *SSHClient {
 func (u *UserSSHClient) recycleClients() {
 	needRemovedClients := make([]*SSHClient, 0, len(u.data))
 	for client := range u.data {
-		if client.RefCount() == 0 {
+		if client.RefCount() <= 0 {
 			needRemovedClients = append(needRemovedClients, client)
 			_ = client.Close()
 		}
