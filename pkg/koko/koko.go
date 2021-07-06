@@ -3,14 +3,13 @@ package koko
 import (
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/exchange"
-
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
@@ -88,11 +87,10 @@ func NewServer(jmsService *service.JMService) *server {
 		logger.Fatal(err)
 	}
 	app := server{
-		terminalConf: &terminalConf,
-		jmsService:   jmsService,
-
+		jmsService:    jmsService,
 		vscodeClients: make(map[string]*vscodeReq),
 	}
+	app.UpdateTerminalConfig(terminalConf)
 	go app.run()
 	return &app
 }
