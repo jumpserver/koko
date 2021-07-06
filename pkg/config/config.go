@@ -64,21 +64,12 @@ func GetConf() Config {
 var GlobalConfig *Config
 
 func Setup(configPath string) {
-	viper.SetConfigFile(configPath)
-	viper.AutomaticEnv()
-	loadEnvToViper()
-	log.Println("Load config from env")
-	if err := viper.ReadInConfig(); err == nil {
-		log.Printf("Load config from %s success\n", configPath)
-	}
 	var conf = getDefaultConfig()
-	if err := viper.Unmarshal(&conf); err != nil {
-		log.Fatal(err)
-	}
+	loadConfigFromEnv(&conf)
+	loadConfigFromFile(configPath, &conf)
 	conf.EnsureConfigValid()
 	GlobalConfig = &conf
 	log.Printf("%+v\n", GlobalConfig)
-
 }
 
 func getDefaultConfig() Config {
@@ -141,6 +132,10 @@ func EnsureDirExist(path string) error {
 	return nil
 }
 
+func have(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
 func haveDir(file string) bool {
 	fi, err := os.Stat(file)
 	return err == nil && fi.IsDir()
@@ -153,12 +148,34 @@ func getPwdDirPath() string {
 	return ""
 }
 
-func loadEnvToViper() {
+func loadConfigFromEnv(conf *Config) {
+	viper.AutomaticEnv() // 全局配置，用于其他 pkg 包可以用 viper 获取环境变量的值
+	envViper := viper.New()
 	for _, item := range os.Environ() {
 		envItem := strings.SplitN(item, "=", 2)
 		if len(envItem) == 2 {
-			viper.Set(envItem[0], envItem[1])
+			envViper.Set(envItem[0], viper.Get(envItem[0]))
 		}
+	}
+	if err := envViper.Unmarshal(conf); err == nil {
+		log.Println("Load config from env")
+	}
+}
+
+func loadConfigFromFile(path string, conf *Config) {
+	var err error
+	if have(path) {
+		fileViper := viper.New()
+		fileViper.SetConfigFile(path)
+		if err = fileViper.ReadInConfig(); err == nil {
+			if err = fileViper.Unmarshal(conf); err == nil {
+				log.Printf("Load config from %s success\n", path)
+				return
+			}
+		}
+	}
+	if err != nil {
+		log.Fatalf("Load config from %s failed: %s\n", path, err)
 	}
 }
 
