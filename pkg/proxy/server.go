@@ -845,7 +845,7 @@ func (s *Server) Proxy() {
 		logger.Errorf("Conn[%s]: check login confirm failed", s.UserConn.ID())
 		return
 	}
-	ctx, cancel := context.WithCancel(s.UserConn.Context())
+	ctx, cancel := context.WithCancel(context.Background())
 	sw := SwitchSession{
 		ID:            s.ID,
 		MaxIdleTime:   s.terminalConf.MaxIdleTime,
