@@ -156,7 +156,12 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 
 func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	logger.Debug("GetFile path: ", path)
-	return u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
+	sftpFile, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
+	if err != nil {
+		return nil, err
+	}
+	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
+	return &fileReader{sftpFile}, nil
 }
 
 func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader) (elfinder.FileDir, error) {
@@ -391,4 +396,20 @@ func hashPath(id, path string) string {
 
 func TrimPrefix(path string) string {
 	return strings.TrimPrefix(path, "/")
+}
+
+var (
+	_ io.ReadCloser = (*fileReader)(nil)
+)
+
+type fileReader struct {
+	read io.ReadCloser
+}
+
+func (f *fileReader) Read(p []byte) (nr int, err error) {
+	return f.read.Read(p)
+}
+
+func (f *fileReader) Close() error {
+	return f.read.Close()
 }

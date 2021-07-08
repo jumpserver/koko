@@ -37,11 +37,6 @@ func (s *Socket) ReadData(timeout time.Duration) ([]byte, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-
-		if opCode != gorilla.BinaryMessage && opCode != gorilla.TextMessage {
-			continue
-		}
-
 		return data, opCode, err
 	}
 }

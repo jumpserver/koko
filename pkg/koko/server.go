@@ -1,16 +1,19 @@
 package koko
 
 import (
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
-	"sync"
-	"time"
+
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 )
 
 type server struct {
-	terminalConf *model.TerminalConfig
+	terminalConf atomic.Value
 	jmsService   *service.JMService
 	sync.Mutex
 
@@ -30,15 +33,11 @@ func (s *server) run() {
 }
 
 func (s *server) UpdateTerminalConfig(conf model.TerminalConfig) {
-	s.Lock()
-	defer s.Unlock()
-	s.terminalConf = &conf
+	s.terminalConf.Store(conf)
 }
 
 func (s *server) GetTerminalConfig() model.TerminalConfig {
-	s.Lock()
-	defer s.Unlock()
-	return *s.terminalConf
+	return s.terminalConf.Load().(model.TerminalConfig)
 }
 
 func (s *server) getVSCodeReq(reqId string) *vscodeReq {
@@ -54,6 +53,8 @@ func (s *server) addVSCodeReq(vsReq *vscodeReq) {
 }
 
 func (s *server) deleteVSCodeReq(vsReq *vscodeReq) {
+	s.Lock()
+	defer s.Unlock()
 	delete(s.vscodeClients, vsReq.reqId)
 }
 

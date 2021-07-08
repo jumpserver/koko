@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
@@ -206,6 +207,8 @@ type SSHClient struct {
 	sync.Mutex
 
 	traceSessionMap map[*gossh.Session]time.Time
+
+	refCount int32
 }
 
 func (s *SSHClient) String() string {
@@ -216,32 +219,33 @@ func (s *SSHClient) String() string {
 func (s *SSHClient) Close() error {
 	if s.ProxyClient != nil {
 		_ = s.ProxyClient.Close()
+		logger.Infof("SSHClient(%s) proxy (%s) close", s, s.ProxyClient)
 	}
 	err := s.Client.Close()
 	logger.Infof("SSHClient(%s) close", s)
 	return err
 }
 
-func (s *SSHClient) RefCount() int {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-	return len(s.traceSessionMap)
+func (s *SSHClient) RefCount() int32 {
+	return atomic.LoadInt32(&s.refCount)
 }
 
 func (s *SSHClient) AcquireSession() (*gossh.Session, error) {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
+	atomic.AddInt32(&s.refCount, 1)
 	sess, err := s.Client.NewSession()
 	if err != nil {
+		atomic.AddInt32(&s.refCount, -1)
 		return nil, err
 	}
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
 	s.traceSessionMap[sess] = time.Now()
 	logger.Infof("SSHClient(%s) session add one ", s)
 	return sess, nil
 }
 
 func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
+	atomic.AddInt32(&s.refCount, -1)
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 	delete(s.traceSessionMap, sess)

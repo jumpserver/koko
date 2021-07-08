@@ -123,6 +123,8 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 	switch msg.Type {
 	case TERMINALDATA:
 		h.backendClient.WriteData([]byte(msg.Data))
+	case TERMINALBINARY:
+		h.backendClient.WriteData(msg.Raw)
 	case TERMINALRESIZE:
 		var size WindowSize
 		err := json.Unmarshal([]byte(msg.Data), &size)

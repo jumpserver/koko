@@ -6,6 +6,7 @@ type Message struct {
 	Id   string `json:"id"`
 	Type string `json:"type"`
 	Data string `json:"data"`
+	Raw  []byte `json:"-"`
 }
 
 const (
@@ -16,6 +17,7 @@ const (
 	TERMINALINIT   = "TERMINAL_INIT"
 	TERMINALDATA   = "TERMINAL_DATA"
 	TERMINALRESIZE = "TERMINAL_RESIZE"
+	TERMINALBINARY = "TERMINAL_BINARY"
 )
 
 type WindowSize struct {

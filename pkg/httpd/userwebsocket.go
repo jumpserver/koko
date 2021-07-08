@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	gorilla "github.com/gorilla/websocket"
 
 	"github.com/jumpserver/koko/pkg/httpd/ws"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -86,11 +87,20 @@ func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) {
 		case msg = <-userCon.messageChannel:
 
 		}
-		p, _ := json.Marshal(msg)
-		err := userCon.conn.WriteText(p, maxWriteTimeOut)
-		if err != nil {
-			logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
-			continue
+		switch msg.Type {
+		case TERMINALBINARY:
+			err := userCon.conn.WriteBinary(msg.Raw, maxWriteTimeOut)
+			if err != nil {
+				logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
+				continue
+			}
+		default:
+			p, _ := json.Marshal(msg)
+			err := userCon.conn.WriteText(p, maxWriteTimeOut)
+			if err != nil {
+				logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
+				continue
+			}
 		}
 		active = time.Now()
 	}
@@ -110,12 +120,26 @@ func (userCon *UserWebsocket) sendConnectMessage() {
 
 func (userCon *UserWebsocket) readMessageLoop() error {
 	for {
-		p, _, err := userCon.conn.ReadData(maxReadTimeout)
+		p, opCode, err := userCon.conn.ReadData(maxReadTimeout)
 		if err != nil {
 			logger.Errorf("Ws[%s] read data err: %s", userCon.Uuid, err)
 			return err
 		}
 		var msg Message
+		switch opCode {
+		case gorilla.BinaryMessage:
+			msg.Raw = p
+			msg.Type = TERMINALBINARY
+			userCon.handler.HandleMessage(&msg)
+			continue
+		case gorilla.CloseMessage:
+			logger.Errorf("Ws[%s] receive close opcode %d", userCon.Uuid, opCode)
+			return nil
+		case gorilla.TextMessage:
+		default:
+			logger.Errorf("Ws[%s] receive unsupported ws msg type %d", userCon.Uuid, opCode)
+			continue
+		}
 		err = json.Unmarshal(p, &msg)
 		if err != nil {
 			logger.Errorf("Ws[%s] message data unmarshal err: %s", userCon.Uuid, p)

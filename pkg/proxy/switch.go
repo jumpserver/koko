@@ -261,6 +261,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				}
 			}
 			continue
+		case <-userConn.Context().Done():
+			logger.Infof("Session[%s]: user conn context done", s.ID)
+			return nil
 		case <-exitSignal:
 			logger.Debugf("Session[%s] end by exit signal", s.ID)
 			return
