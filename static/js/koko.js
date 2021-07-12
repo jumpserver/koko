@@ -21,6 +21,8 @@ function decodeToStr(octets) {
     return decodeURIComponent(escape(String.fromCharCode.apply(null, octets)));
 }
 
+let DISABLE_RZ_SZ = false; // 监控页面将忽略上传下载 rz、sz
+
 function initTerminal(elementId) {
     let urlParams = new URLSearchParams(window.location.search.slice(1));
     let scheme = document.location.protocol === "https:" ? "wss" : "ws";
@@ -39,6 +41,9 @@ function initTerminal(elementId) {
     switch (urlParams.get("type")) {
         case 'token':
             wsURL = baseWsUrl + "/koko/ws/token/?" + urlParams.toString();
+            break
+        case 'shareroom':
+            DISABLE_RZ_SZ = true
             break
         default:
     }
@@ -304,10 +309,18 @@ function _handle_receive_session(zsession) {
             var FILE_BUFFER = [];
             xfer.on("input", (payload) => {
                 _update_progress(xfer, 'download');
+                if (DISABLE_RZ_SZ) {
+                    console.log("监控状态，忽略rz sz 下载文件")
+                    return
+                }
                 FILE_BUFFER.push(new Uint8Array(payload));
             });
             xfer.accept().then(
                 () => {
+                    if (DISABLE_RZ_SZ) {
+                        console.log("监控状态，忽略rz sz 下载文件")
+                        return
+                    }
                     _save_to_disk(xfer, FILE_BUFFER);
                 },
                 console.error.bind(console)
@@ -398,6 +411,11 @@ function _handle_send_session(file_el, zsession) {
                 console.log(err)
             });
         };
+        if (DISABLE_RZ_SZ) {
+            zsession.abort();
+            console.log("监控状态，忽略rz sz 上传文件")
+            return
+        }
         file_el.click();
     });
 
