@@ -177,25 +177,35 @@ msgid "exit"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:142
+#: pkg/handler/direct_handler.go:110
+msgid "Core API failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:114
+msgid "not found matched asset %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:200
 msgid "No system user found."
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/direct_handler.go:154 pkg/handler/direct_handler.go:155
-#: pkg/handler/direct_handler.go:156
+#: pkg/handler/direct_handler.go:212 pkg/handler/direct_handler.go:213
+#: pkg/handler/direct_handler.go:214
 msgid "Username"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:185
+#: pkg/handler/direct_handler.go:243
 msgid "Tips: Enter system user ID and directly login"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:186
+#: pkg/handler/direct_handler.go:244
 msgid "Back: B/b"
 msgstr ""
 
@@ -204,23 +214,21 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/direct_handler.go:216 pkg/handler/direct_handler.go:217
-#: pkg/handler/direct_handler.go:218 pkg/handler/direct_handler.go:219
-#: pkg/handler/direct_handler.go:248
+#: pkg/handler/direct_handler.go:274 pkg/handler/direct_handler.go:275
+#: pkg/handler/direct_handler.go:276 pkg/handler/direct_handler.go:277
+#: pkg/handler/direct_handler.go:306
 msgid "select one asset to login"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:261
+#: pkg/handler/direct_handler.go:319
 msgid "not found matched username %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:292
-msgid "Core API failed"
-msgstr ""
-
 #. i18n.T
+#. i18n.T
+#: pkg/handler/direct_handler.go:352 pkg/handler/direct_handler.go:360
 #: pkg/handler/dispatch.go:109
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
@@ -255,16 +263,22 @@ msgid "The asset is inactive"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/application_ssh.go:186
+#: pkg/koko/server_ssh.go:193
 msgid "Must be unique asset for %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/application_ssh.go:205
+#: pkg/koko/server_ssh.go:205
 msgid "Must be unique system user for %s"
 msgstr ""
 
 #. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/koko/server_ssh.go:328 pkg/koko/server_ssh.go:335
+#: pkg/koko/server_ssh.go:346 pkg/koko/server_ssh.go:353
 #: pkg/proxy/dbparser.go:120
 msgid "Command `%s` is forbidden"
 msgstr ""
@@ -401,18 +415,18 @@ msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:842
+#: pkg/proxy/server.go:858
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:858
+#: pkg/proxy/server.go:878
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:866 pkg/proxy/switch.go:197
+#: pkg/proxy/server.go:886 pkg/proxy/switch.go:197
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 

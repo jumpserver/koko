@@ -17,50 +17,103 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-type DirectOpt func(*DirectOpts)
+/*
+直接连接资产使用的登录名，支持使用以下四种格式：
 
-type DirectOpts struct {
-	AssetIP        string
-	SystemUsername string
-	User           *model.User
-	terminalConf   *model.TerminalConfig
+1. JMS_username@systemUser_username@asset_ip
+2. JMS_username#systemUser_username#asset_ip
+3. JMS_username@systemUser_uuid@asset_uuid
+4. JMS_username#systemUser_uuid#asset_uuid
+
+JMS_username: 			JumpServer 平台上的用户名
+systemUser_username：	对应系统用户的用户名
+asset_ip: 				对应资产的ip
+systemUser_uuid:		对应系统用户的UUID
+asset_uuid:				对应资产的UUID
+
+
+FormatNORMAL: 使用 systemUser_username 和 asset_ip 的登录方式，即1和2的方式
+
+FormatUUID:  使用 systemUser_uuid 和 asset_uuid 的登录方式，即3和4的方式
+
+*/
+
+type FormatType int
+
+const (
+	FormatNORMAL FormatType = iota
+	FormatUUID
+)
+
+type DirectOpt func(*directOpt)
+
+type directOpt struct {
+	targetAsset      string
+	targetSystemUser string
+	User             *model.User
+	terminalConf     *model.TerminalConfig
+
+	formatType FormatType
 }
 
-func DirectAssetIP(ip string) DirectOpt {
-	return func(opts *DirectOpts) {
-		opts.AssetIP = ip
+func DirectTargetAsset(targetAsset string) DirectOpt {
+	return func(opts *directOpt) {
+		opts.targetAsset = targetAsset
 	}
 }
 
-func DirectSystemUsername(username string) DirectOpt {
-	return func(opts *DirectOpts) {
-		opts.SystemUsername = username
+func DirectTargetSystemUser(targetSystemUser string) DirectOpt {
+	return func(opts *directOpt) {
+		opts.targetSystemUser = targetSystemUser
 	}
 }
 
 func DirectUser(User *model.User) DirectOpt {
-	return func(opts *DirectOpts) {
+	return func(opts *directOpt) {
 		opts.User = User
 	}
 }
 
 func DirectTerminalConf(conf *model.TerminalConfig) DirectOpt {
-	return func(opts *DirectOpts) {
+	return func(opts *directOpt) {
 		opts.terminalConf = conf
 	}
 }
 
+func DirectFormatType(format FormatType) DirectOpt {
+	return func(opts *directOpt) {
+		opts.formatType = format
+	}
+}
+
+func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
+	switch opts.formatType {
+	case FormatUUID:
+		asset, err := jmsService.GetAssetById(opts.targetAsset)
+		if err != nil {
+			return nil, err
+		}
+		return []model.Asset{asset}, nil
+	default:
+		return jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAsset)
+	}
+}
+
 func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetters ...DirectOpt) (*DirectHandler, error) {
-	opts := &DirectOpts{}
+	opts := &directOpt{}
 	for i := range optSetters {
 		optSetters[i](opts)
 	}
-	selectedAssets, err := jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.AssetIP)
+	selectedAssets, err := selectAssetsByDirectOpt(jmsService, opts)
 	if err != nil {
+		logger.Errorf("Get direct asset failed: %s", err)
+		utils.IgnoreErrWriteString(sess, i18n.T("Core API failed"))
 		return nil, err
 	}
 	if len(selectedAssets) <= 0 {
-		return nil, fmt.Errorf("no found perm asset ip: %s", opts.AssetIP)
+		msg := fmt.Sprintf(i18n.T("not found matched asset %s"), opts.targetAsset)
+		utils.IgnoreErrWriteString(sess, msg+"\r\n")
+		return nil, fmt.Errorf("no found matched asset: %s", opts.targetAsset)
 	}
 	wrapperSess := NewWrapperSession(sess)
 	term := utils.NewTerminal(wrapperSess, "Opt> ")
@@ -80,7 +133,7 @@ type DirectHandler struct {
 	term        *utils.Terminal
 	sess        ssh.Session
 	wrapperSess *WrapperSession
-	opts        *DirectOpts
+	opts        *directOpt
 	jmsService  *service.JMService
 
 	IsPtyStatus bool
@@ -256,14 +309,14 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	_, _ = term.Write([]byte(table.Display()))
 	utils.IgnoreErrWriteString(term, utils.WrapperString(loginTip, utils.Green))
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(term, utils.WrapperString(d.opts.AssetIP, utils.Green))
+	utils.IgnoreErrWriteString(term, utils.WrapperString(d.opts.targetAsset, utils.Green))
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
 }
 
 func (d *DirectHandler) Proxy(asset model.Asset) {
 	matched := d.getMatchedSystemUsers(asset)
 	if len(matched) == 0 {
-		msg := fmt.Sprintf(i18n.T("not found matched username %s"), d.opts.SystemUsername)
+		msg := fmt.Sprintf(i18n.T("not found matched username %s"), d.opts.targetSystemUser)
 		utils.IgnoreErrWriteString(d.term, msg+"\r\n")
 		logger.Errorf("Get systemUser failed: %s", msg)
 		return
@@ -291,17 +344,34 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 }
 
 func (d *DirectHandler) getMatchedSystemUsers(asset model.Asset) []model.SystemUser {
-	systemUsers, err := d.jmsService.GetSystemUsersByUserIdAndAssetId(d.opts.User.ID, asset.ID)
-	if err != nil {
-		logger.Errorf("Get systemUser failed: %s", err)
-		utils.IgnoreErrWriteString(d.term, i18n.T("Core API failed"))
-		return nil
-	}
-	matched := make([]model.SystemUser, 0, len(systemUsers))
-	for i := range systemUsers {
-		if systemUsers[i].Username == d.opts.SystemUsername {
-			matched = append(matched, systemUsers[i])
+	switch d.opts.formatType {
+	case FormatUUID:
+		systemUser, err := d.jmsService.GetSystemUserById(d.opts.targetSystemUser)
+		if err != nil {
+			logger.Errorf("Get systemUser failed: %s", err)
+			utils.IgnoreErrWriteString(d.term, i18n.T("Core API failed"))
+			return nil
 		}
+		return []model.SystemUser{systemUser}
+	default:
+		systemUsers, err := d.jmsService.GetSystemUsersByUserIdAndAssetId(d.opts.User.ID, asset.ID)
+		if err != nil {
+			logger.Errorf("Get systemUser failed: %s", err)
+			utils.IgnoreErrWriteString(d.term, i18n.T("Core API failed"))
+			return nil
+		}
+		matched := make([]model.SystemUser, 0, len(systemUsers))
+		for i := range systemUsers {
+			compareUsername := systemUsers[i].Username
+
+			if systemUsers[i].UsernameSameWithUser {
+				// 此为动态系统用户，系统用户名和登录用户名相同
+				compareUsername = d.opts.User.Username
+			}
+			if compareUsername == d.opts.targetSystemUser {
+				matched = append(matched, systemUsers[i])
+			}
+		}
+		return matched
 	}
-	return matched
 }
