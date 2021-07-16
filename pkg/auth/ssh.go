@@ -7,6 +7,7 @@ import (
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/sshd"
@@ -16,12 +17,7 @@ type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res sshd.Aut
 
 func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 	return func(ctx ssh.Context, password, publicKey string) (res sshd.AuthStatus) {
-		username := ctx.User()
-		if IsDirectUserFormat(username) {
-			directReq := ParseDirectUserFormat(username)
-			username = directReq.Username
-			ctx.SetValue(ContextKeyDirectLoginFormat, &directReq)
-		}
+		username := GetUsernameFromSSHCtx(ctx)
 		authMethod := "publickey"
 		action := actionAccepted
 		res = sshd.AuthFailed
@@ -75,12 +71,7 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	if value, ok := ctx.Value(ContextKeyConfirmFailed).(*bool); ok && *value {
 		return sshd.AuthFailed
 	}
-	username := ctx.User()
-	if IsDirectUserFormat(username) {
-		directReq := ParseDirectUserFormat(username)
-		username = directReq.Username
-		ctx.SetValue(ContextKeyDirectLoginFormat, &directReq)
-	}
+	username := GetUsernameFromSSHCtx(ctx)
 	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 	res = sshd.AuthFailed
 
@@ -162,22 +153,56 @@ const (
 	ContextKeyDirectLoginFormat = "CONTEXT_DIRECT_LOGIN_FORMAT"
 )
 
-func IsDirectUserFormat(s string) bool {
-	authInfos := strings.Split(s, "@")
-	return len(authInfos) == 3
-}
-
-func ParseDirectUserFormat(s string) DirectLoginAssetReq {
-	authInfos := strings.Split(s, "@")
-	return DirectLoginAssetReq{
-		Username:    authInfos[0],
-		SysUsername: authInfos[1],
-		AssetIP:     authInfos[2],
-	}
-}
-
 type DirectLoginAssetReq struct {
 	Username    string
-	SysUsername string
-	AssetIP     string
+	SysUserInfo string
+	AssetInfo   string
+}
+
+func (d *DirectLoginAssetReq) IsUUIDString() bool {
+	for _, item := range []string{d.SysUserInfo, d.AssetInfo} {
+		if !common.ValidUUIDString(item) {
+			return false
+		}
+	}
+	return true
+}
+
+const (
+	SeparatorATSign   = "@"
+	SeparatorHashMark = "#"
+)
+
+func parseUserFormatBySeparator(s, Separator string) (DirectLoginAssetReq, bool) {
+	authInfos := strings.Split(s, Separator)
+	if len(authInfos) != 3 {
+		return DirectLoginAssetReq{}, false
+	}
+	req := DirectLoginAssetReq{
+		Username:    authInfos[0],
+		SysUserInfo: authInfos[1],
+		AssetInfo:   authInfos[2],
+	}
+	return req, true
+}
+
+func ParseDirectUserFormat(s string) (DirectLoginAssetReq, bool) {
+	for _, separator := range []string{SeparatorATSign, SeparatorHashMark} {
+		if req, ok := parseUserFormatBySeparator(s, separator); ok {
+			return req, true
+		}
+	}
+	return DirectLoginAssetReq{}, false
+}
+
+func GetUsernameFromSSHCtx(ctx ssh.Context) string {
+	if directReq, ok := ctx.Value(ContextKeyDirectLoginFormat).(*DirectLoginAssetReq); ok {
+		return directReq.Username
+	}
+	username := ctx.User()
+	if req, ok := ParseDirectUserFormat(username); ok {
+		username = req.Username
+		ctx.SetValue(ContextKeyDirectLoginFormat, &req)
+	}
+	return username
 }
