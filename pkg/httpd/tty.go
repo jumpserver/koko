@@ -148,7 +148,7 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 func (h *tty) getApp() bool {
 	switch h.getAppType() {
 	case AppTypeDB:
-		databaseAsset, err := h.jmsService.GetMySQLApplicationById(h.targetId)
+		databaseAsset, err := h.jmsService.GetMySQLOrMariadbApplicationById(h.targetId)
 		if err != nil {
 			logger.Errorf("Get MySQL App failed; %s", err)
 			return false
