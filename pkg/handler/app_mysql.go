@@ -13,8 +13,8 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteMySQL(reqParam model.PaginationParam) []map[string]interface{} {
-	res, err := u.h.jmsService.GetUserPermsMySQL(u.user.ID, reqParam)
+func (u *UserSelectHandler) retrieveRemoteMySQLAndMariadb(reqParam model.PaginationParam) []map[string]interface{} {
+	res, err := u.h.jmsService.GetUserPermsMySQLAndMariadb(u.user.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Ger user perm MySQL failed: %s", err)
 	}

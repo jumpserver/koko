@@ -234,7 +234,7 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 		}
 		u.proxyK8s(app)
 	case TypeMySQL:
-		app, err := u.h.jmsService.GetMySQLApplicationById(targetId)
+		app, err := u.h.jmsService.GetMySQLOrMariadbApplicationById(targetId)
 		if err != nil || app.ID == "" {
 			logger.Errorf("Select MySQL %s not found", targetId)
 			return
@@ -330,7 +330,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	}
 	switch u.currentType {
 	case TypeMySQL:
-		return u.retrieveRemoteMySQL(reqParam)
+		return u.retrieveRemoteMySQLAndMariadb(reqParam)
 	case TypeK8s:
 		return u.retrieveRemoteK8s(reqParam)
 	case TypeNodeAsset:

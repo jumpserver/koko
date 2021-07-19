@@ -37,13 +37,15 @@ const (
 	UserPermsApplicationSystemUsersURL = "/api/v1/perms/users/%s/applications/%s/system-users/"
 	ValidateUserAssetPermissionURL     = "/api/v1/perms/asset-permissions/user/validate/"
 	ValidateApplicationPermissionURL   = "/api/v1/perms/application-permissions/user/validate/"
+
+	UserPermsMySQLMariadbURL = "/api/v1/perms/users/%s/applications/?type=mysql&type=mariadb"
 )
 
 // 系统用户密码相关API
 const (
 	SystemUserAuthURL      = "/api/v1/assets/system-users/%s/auth-info/"
-	SystemUserAppAuthURL = "/api/v1/assets/system-users/%s/applications/%s/auth-info/" // 该系统用户对某资产的授权
-	SystemUserAssetAuthURL = "/api/v1/assets/system-users/%s/assets/%s/auth-info/" // 该系统用户对某资产的授权
+	SystemUserAppAuthURL   = "/api/v1/assets/system-users/%s/applications/%s/auth-info/" // 该系统用户对某应用的授权
+	SystemUserAssetAuthURL = "/api/v1/assets/system-users/%s/assets/%s/auth-info/"       // 该系统用户对某资产的授权
 )
 
 // 各资源详情相关API
@@ -51,7 +53,6 @@ const (
 	UserDetailURL        = "/api/v1/users/users/%s/"
 	AssetDetailURL       = "/api/v1/assets/assets/%s/"
 	AssetPlatFormURL     = "/api/v1/assets/assets/%s/platform/"
-	AssetGatewaysURL     = "/api/v1/assets/assets/%s/gateways/"
 	SystemUserDetailURL  = "/api/v1/assets/system-users/%s/"
 	ApplicationDetailURL = "/api/v1/applications/applications/%s/"
 
@@ -62,10 +63,6 @@ const (
 
 const (
 	NotificationCommandURL = "/api/v1/terminal/commands/insecure-command/"
-)
-
-const (
-	StatURL = "/api/v1/terminal/components/state/"
 )
 
 const (

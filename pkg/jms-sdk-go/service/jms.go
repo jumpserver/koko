@@ -48,7 +48,6 @@ type JMService struct {
 	authClient *httplib.Client
 
 	sync.Mutex
-	remoteConfig *model.TerminalConfig
 }
 
 func (s *JMService) GetUserById(userID string) (user *model.User, err error) {

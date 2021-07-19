@@ -21,8 +21,9 @@ const (
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
 	ProtocolMySQL  = "mysql"
-)
 
+	ProtocolMariadb = "mariadb"
+)
 
 var (
 	ErrUnSupportedProtocol = errors.New("unsupported protocol")
