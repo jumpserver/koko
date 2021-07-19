@@ -3,6 +3,7 @@ package httpd
 import (
 	"encoding/json"
 	"io"
+	"strings"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
@@ -12,6 +13,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 var _ Handler = (*tty)(nil)
@@ -49,7 +51,9 @@ func (h *tty) CleanUp() {
 func (h *tty) CheckValidation() bool {
 	var ok bool
 	switch h.targetType {
-	case TargetTypeDB, TargetTypeK8s, TargetTypeAsset:
+	case TargetTypeRoom:
+		ok = h.CheckShareRoomReadPerm(h.ws.user.ID, h.targetId)
+	default:
 		if h.systemUserId == "" || h.targetId == "" {
 			logger.Errorf("Ws[%s] miss required query params.", h.ws.Uuid)
 			return false
@@ -64,9 +68,8 @@ func (h *tty) CheckValidation() bool {
 			return false
 		}
 		h.systemUser = &systemUser
-		ok = h.getApp()
-	case TargetTypeRoom:
-		ok = h.CheckShareRoomReadPerm(h.ws.user.ID, h.targetId)
+
+		ok = h.getTargetApp(systemUser.Protocol)
 	}
 	logger.Infof("Ws[%s] check connect type %s: %t", h.ws.Uuid, h.targetType, ok)
 	return ok
@@ -145,9 +148,9 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 	}
 }
 
-func (h *tty) getApp() bool {
-	switch h.getAppType() {
-	case AppTypeDB:
+func (h *tty) getTargetApp(protocol string) bool {
+	switch strings.ToLower(protocol) {
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		databaseAsset, err := h.jmsService.GetMySQLOrMariadbApplicationById(h.targetId)
 		if err != nil {
 			logger.Errorf("Get MySQL App failed; %s", err)
@@ -157,7 +160,7 @@ func (h *tty) getApp() bool {
 			h.dbApp = &databaseAsset
 			return true
 		}
-	case AppTypeK8s:
+	case srvconn.ProtocolK8s:
 		k8sCluster, err := h.jmsService.GetK8sApplicationById(h.targetId)
 		if err != nil {
 			logger.Errorf("Get K8s App failed; %s", err)
@@ -167,7 +170,7 @@ func (h *tty) getApp() bool {
 			h.k8sApp = &k8sCluster
 			return true
 		}
-	case AppTypeAsset:
+	default:
 		asset, err := h.jmsService.GetAssetById(h.targetId)
 		if err != nil {
 			logger.Errorf("Get asset failed; %s", err)
@@ -181,68 +184,30 @@ func (h *tty) getApp() bool {
 	return false
 }
 
-func (h *tty) getAppType() int {
-	appType := AppUnknown
-	switch h.targetType {
-	case TargetTypeDB:
-		appType = AppTypeDB
-	case TargetTypeK8s:
-		appType = AppTypeK8s
-	case TargetTypeAsset:
-		appType = AppTypeAsset
-	}
-	return appType
-}
-
 func (h *tty) proxy(wg *sync.WaitGroup) {
 	defer wg.Done()
 	switch h.targetType {
-	case TargetTypeDB, TargetTypeK8s, TargetTypeAsset:
-		switch h.getAppType() {
-		case AppTypeDB:
-
-			srv, err := proxy.NewServer(h.backendClient, h.jmsService,
-				proxy.ConnectProtocolType(h.systemUser.Protocol),
-				proxy.ConnectSystemUser(h.systemUser),
-				proxy.ConnectDBApp(h.dbApp),
-				proxy.ConnectUser(h.ws.user),
-			)
-			if err != nil {
-				logger.Errorf("Create proxy server failed: %s", err)
-				return
-			}
-			srv.Proxy()
-
-		case AppTypeK8s:
-			srv, err := proxy.NewServer(h.backendClient, h.jmsService,
-				proxy.ConnectProtocolType(h.systemUser.Protocol),
-				proxy.ConnectSystemUser(h.systemUser),
-				proxy.ConnectK8sApp(h.k8sApp),
-				proxy.ConnectUser(h.ws.user),
-			)
-			if err != nil {
-				logger.Errorf("Create proxy server failed: %s", err)
-				return
-			}
-			srv.Proxy()
-
-		case AppTypeAsset:
-			srv, err := proxy.NewServer(h.backendClient, h.jmsService,
-				proxy.ConnectProtocolType(h.systemUser.Protocol),
-				proxy.ConnectSystemUser(h.systemUser),
-				proxy.ConnectAsset(h.assetApp),
-				proxy.ConnectUser(h.ws.user),
-			)
-			if err != nil {
-				logger.Errorf("Create proxy server failed: %s", err)
-				return
-			}
-			srv.Proxy()
-		}
 	case TargetTypeRoom:
 		h.JoinRoom(h.backendClient, h.targetId)
 	default:
-		return
+		proxyOpts := make([]proxy.ConnectionOption, 0, 4)
+		proxyOpts = append(proxyOpts, proxy.ConnectProtocolType(h.systemUser.Protocol))
+		proxyOpts = append(proxyOpts, proxy.ConnectSystemUser(h.systemUser))
+		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
+		switch h.systemUser.Protocol {
+		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+			proxyOpts = append(proxyOpts, proxy.ConnectDBApp(h.dbApp))
+		case srvconn.ProtocolK8s:
+			proxyOpts = append(proxyOpts, proxy.ConnectK8sApp(h.k8sApp))
+		default:
+			proxyOpts = append(proxyOpts, proxy.ConnectAsset(h.assetApp))
+		}
+		srv, err := proxy.NewServer(h.backendClient, h.jmsService, proxyOpts...)
+		if err != nil {
+			logger.Errorf("Create proxy server failed: %s", err)
+			return
+		}
+		srv.Proxy()
 	}
 	h.sendCloseMessage()
 }

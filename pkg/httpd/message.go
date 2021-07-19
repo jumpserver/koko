@@ -27,8 +27,6 @@ type WindowSize struct {
 
 const (
 	TargetTypeAsset = "asset"
-	TargetTypeDB    = "database_app"
-	TargetTypeK8s   = "k8s_app"
 
 	TargetTypeRoom = "shareroom"
 )
@@ -36,13 +34,6 @@ const (
 const (
 	maxReadTimeout  = 5 * time.Minute
 	maxWriteTimeOut = 5 * time.Minute
-)
-
-const (
-	AppTypeAsset = iota + 1
-	AppTypeK8s
-	AppTypeDB
-	AppUnknown
 )
 
 const (
