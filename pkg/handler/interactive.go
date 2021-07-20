@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -219,12 +220,12 @@ func (h *InteractiveHandler) refreshAssetsAndNodesData() {
 			return
 		}
 		h.nodes = nodes
-		config, err := h.jmsService.GetTerminalConfig()
+		tConfig, err := h.jmsService.GetTerminalConfig()
 		if err != nil {
 			logger.Errorf("Refresh user terminal config error: %s", err)
 			return
 		}
-		h.terminalConf = &config
+		h.terminalConf = &tConfig
 	}()
 	h.wg.Wait()
 	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
@@ -240,36 +241,6 @@ func (h *InteractiveHandler) loadUserNodes() {
 		return
 	}
 	h.nodes = nodes
-}
-
-func ConstructNodeTree(assetNodes []model.Node) treeprint.Tree {
-	model.SortNodesByKeyAndName(assetNodes)
-	var treeMap = map[string]treeprint.Tree{}
-	tree := treeprint.New()
-	for i := 0; i < len(assetNodes); i++ {
-		r := strings.LastIndex(assetNodes[i].Key, ":")
-		if r < 0 {
-			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
-				strconv.Itoa(i+1), assetNodes[i].Name,
-				strconv.Itoa(assetNodes[i].AssetsAmount)))
-			treeMap[assetNodes[i].Key] = subtree
-			continue
-		}
-		if _, ok := treeMap[assetNodes[i].Key[:r]]; !ok {
-			subtree := tree.AddBranch(fmt.Sprintf("%s.%s(%s)",
-				strconv.Itoa(i+1), assetNodes[i].Name,
-				strconv.Itoa(assetNodes[i].AssetsAmount)))
-			treeMap[assetNodes[i].Key] = subtree
-			continue
-		}
-		if subtree, ok := treeMap[assetNodes[i].Key[:r]]; ok {
-			nodeTree := subtree.AddBranch(fmt.Sprintf("%s.%s(%s)",
-				strconv.Itoa(i+1), assetNodes[i].Name,
-				strconv.Itoa(assetNodes[i].AssetsAmount)))
-			treeMap[assetNodes[i].Key] = nodeTree
-		}
-	}
-	return tree
 }
 
 func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.SystemUser {
@@ -315,4 +286,78 @@ func getPageSize(term *utils.Terminal, termConf *model.TerminalConfig) int {
 		pageSize = 1
 	}
 	return pageSize
+}
+
+func ConstructNodeTree(assetNodes []model.Node) treeprint.Tree {
+	model.SortNodesByKey(assetNodes)
+	keyIndexMap := make(map[string]int)
+	for index := range assetNodes {
+		keyIndexMap[assetNodes[index].Key] = index
+	}
+	rootTree := treeprint.New()
+	constructDisplayTree(rootTree, convertToDisplayTrees(assetNodes), keyIndexMap)
+	return rootTree
+}
+
+func constructDisplayTree(tree treeprint.Tree, rootNodes []*displayTree, keyMap map[string]int) {
+	for i := 0; i < len(rootNodes); i++ {
+		subTree := tree.AddBranch(fmt.Sprintf("%d.%s(%s)",
+			keyMap[rootNodes[i].Key]+1, rootNodes[i].node.Name,
+			strconv.Itoa(rootNodes[i].node.AssetsAmount)))
+		if len(rootNodes[i].subTrees) > 0 {
+			sort.Sort(nodeTrees(rootNodes[i].subTrees))
+			constructDisplayTree(subTree, rootNodes[i].subTrees, keyMap)
+		}
+	}
+}
+
+func convertToDisplayTrees(assetNodes []model.Node) []*displayTree {
+	var rootNodeTrees []*displayTree
+	nodeTreeMap := make(map[string]*displayTree)
+	for i := 0; i < len(assetNodes); i++ {
+		currentTree := displayTree{
+			Key:  assetNodes[i].Key,
+			node: assetNodes[i],
+		}
+		r := strings.LastIndex(assetNodes[i].Key, ":")
+		if r < 0 {
+			rootNodeTrees = append(rootNodeTrees, &currentTree)
+			nodeTreeMap[assetNodes[i].Key] = &currentTree
+			continue
+		}
+		nodeTreeMap[assetNodes[i].Key] = &currentTree
+		parentKey := assetNodes[i].Key[:r]
+
+		parentTree, ok := nodeTreeMap[parentKey]
+		if !ok {
+			rootNodeTrees = append(rootNodeTrees, &currentTree)
+			continue
+		}
+		parentTree.AddSubNode(&currentTree)
+	}
+	return rootNodeTrees
+}
+
+type displayTree struct {
+	Key      string
+	node     model.Node
+	subTrees []*displayTree
+}
+
+func (t *displayTree) AddSubNode(sub *displayTree) {
+	t.subTrees = append(t.subTrees, sub)
+}
+
+type nodeTrees []*displayTree
+
+func (l nodeTrees) Len() int {
+	return len(l)
+}
+
+func (l nodeTrees) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+
+func (l nodeTrees) Less(i, j int) bool {
+	return l[i].node.Name < l[j].node.Name
 }
