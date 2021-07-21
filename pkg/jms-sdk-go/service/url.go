@@ -38,7 +38,7 @@ const (
 	ValidateUserAssetPermissionURL     = "/api/v1/perms/asset-permissions/user/validate/"
 	ValidateApplicationPermissionURL   = "/api/v1/perms/application-permissions/user/validate/"
 
-	UserPermsMySQLMariadbURL = "/api/v1/perms/users/%s/applications/?type=mysql&type=mariadb"
+	UserPermsMySQLMariadbURL = "/api/v1/perms/users/%s/applications/?type_in=mysql,mariadb"
 )
 
 // 系统用户密码相关API
