@@ -367,7 +367,7 @@ func (s *Server) GetFilterParser() ParseEngine {
 		}
 		shellParser.initial()
 		return &shellParser
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		dbParser := DBParser{
 			id:             s.ID,
 			cmdFilterRules: s.filterRules,
@@ -592,7 +592,8 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			dstIP:   dstHost,
 			dstPort: dstPort,
 		}
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL,
+		srvconn.ProtocolMariadb:
 		dGateway = &domainGateway{
 			domain:  domain,
 			dstIP:   s.connOpts.dbApp.Attrs.Host,
