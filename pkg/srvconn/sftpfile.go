@@ -817,7 +817,7 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 			}
 		}
 	}
-	if ad.domain != nil {
+	if ad.domain != nil && len(ad.domain.Gateways) > 0 {
 		proxyArgs := make([]SSHClientOptions, 0, len(ad.domain.Gateways))
 		for i := range ad.domain.Gateways {
 			gateway := ad.domain.Gateways[i]
@@ -826,6 +826,7 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 				Port:       strconv.Itoa(gateway.Port),
 				Username:   gateway.Username,
 				Password:   gateway.Password,
+				Passphrase: gateway.Password,// 兼容 带密码的private_key,
 				PrivateKey: gateway.PrivateKey,
 				Timeout:    timeout,
 			}
