@@ -168,7 +168,7 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 		},
 	}
 	destAddr := net.JoinHostPort(cfg.Host, cfg.Port)
-	if cfg.proxySSHClientOptions != nil {
+	if len(cfg.proxySSHClientOptions) > 0 {
 		proxyClient, err := getAvailableProxyClient(cfg.proxySSHClientOptions...)
 		if err != nil {
 			logger.Errorf("Get gateway client err: %s", err)
