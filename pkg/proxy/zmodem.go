@@ -507,11 +507,13 @@ func (z *ZmodemParser) Parse(p []byte) {
 			z.setStatus(ZParserStatusNone)
 			z.currentSession = nil
 			if z.fileEventCallback != nil && z.currentZFileInfo != nil {
+				info := z.currentZFileInfo
 				transferStatus := false
 				if zSession.transferStatus != TransferStatusAbort {
 					transferStatus = true
 				}
-				z.fileEventCallback(z.currentZFileInfo, transferStatus)
+				z.fileEventCallback(info, transferStatus)
+				z.currentZFileInfo = nil
 			}
 		}
 		return
@@ -614,8 +616,10 @@ func (z *ZmodemParser) ParseHexHeader(p []byte) *ZmodemHeader {
 }
 
 func (z *ZmodemParser) Cleanup() {
-	if z.fileEventCallback != nil && z.currentZFileInfo != nil {
-		z.fileEventCallback(z.currentZFileInfo, false)
+	if z.IsStartSession() {
+		if z.fileEventCallback != nil && z.currentZFileInfo != nil {
+			z.fileEventCallback(z.currentZFileInfo, false)
+		}
 	}
 }
 
