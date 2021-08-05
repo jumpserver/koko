@@ -153,6 +153,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			if p.zmodemParser.IsZFilePacket() && !p.enableUpload {
 				logger.Infof("Send zmodem user skip and srv abort to disable upload")
 				p.abortedFileTransfer = true
+				// 不记录中断的文件
+				p.zmodemParser.setAbortMark()
 				p.srvOutputChan <- skipSequence
 				return AbortSession
 			}
@@ -166,6 +168,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				logger.Info("Zmodem abort upload file finished")
 				msg := i18n.T("have no permission to upload file")
 				p.abortedFileTransfer = false
+				p.srvOutputChan <- CancelSequence
 				p.srvOutputChan <- []byte("\r\n")
 				p.srvOutputChan <- []byte(msg)
 				p.srvOutputChan <- []byte("\r\n")
@@ -176,7 +179,9 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				logger.Infof("Send zmodem srv skip and user abort to disable download")
 				p.abortedFileTransfer = true
 				p.userOutputChan <- AbortSession
-				return skipSequence
+				// 不记录中断的文件
+				p.zmodemParser.setAbortMark()
+				return charEnter
 			}
 		default:
 		}
