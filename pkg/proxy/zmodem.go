@@ -511,7 +511,7 @@ func (z *ZmodemParser) Parse(p []byte) {
 				if zSession.transferStatus != TransferStatusAbort {
 					transferStatus = true
 				}
-				z.fileEventCallback(zSession.zFileInfo, transferStatus)
+				z.fileEventCallback(z.currentZFileInfo, transferStatus)
 			}
 		}
 		return
