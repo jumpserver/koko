@@ -380,9 +380,9 @@ func (s *ZSession) consumeSubPacket() {
 		}
 	}
 	s.subPacketBuf.Reset()
-	s.subPacketBuf.Write(buf[offset+1:])
 	s.onSubPacket(s.parsedSubPacket)
 	s.parsedSubPacket = nil
+	s.consume(buf[offset+1:])
 }
 
 func (s *ZSession) onSubPacket(p []byte) {
@@ -448,6 +448,7 @@ func (s *ZSession) onHeader(hd *ZmodemHeader) {
 		s.transferStatus = TransferStatusStart
 	case ZEOF:
 		s.transferStatus = TransferStatusFinished
+		s.zFileInfo = nil
 	case ZFIN:
 		s.haveEnd = true
 		if s.endCallback != nil {
@@ -505,9 +506,9 @@ func (z *ZmodemParser) Parse(p []byte) {
 		if zSession.IsEnd() {
 			z.setStatus(ZParserStatusNone)
 			z.currentSession = nil
-			if z.fileEventCallback != nil && zSession.zFileInfo != nil {
+			if z.fileEventCallback != nil && z.currentZFileInfo != nil {
 				transferStatus := false
-				if zSession.transferStatus == TransferStatusFinished {
+				if zSession.transferStatus != TransferStatusAbort {
 					transferStatus = true
 				}
 				z.fileEventCallback(zSession.zFileInfo, transferStatus)
@@ -572,7 +573,15 @@ func (z *ZmodemParser) SessionType() string {
 
 func (z *ZmodemParser) OnHeader(hd *ZmodemHeader) {
 	z.currentHeader = hd
+	switch hd.Type {
+	case ZEOF, ZFILE, ZFIN:
+		if z.fileEventCallback != nil && z.currentZFileInfo != nil {
+			z.fileEventCallback(z.currentZFileInfo, true)
+		}
+		z.currentZFileInfo = nil
+	}
 }
+
 func (z *ZmodemParser) zFileFrameCallback(info *ZFileInfo) {
 	z.currentZFileInfo = info
 	logger.Infof("Zmodem parser got filename: %s siz: %d", info.filename, info.size)
@@ -602,6 +611,12 @@ func (z *ZmodemParser) ParseHexHeader(p []byte) *ZmodemHeader {
 	hexBytes = hexBytes[2:]
 	octets := ConvertHexToOctets(hexBytes)
 	return ParseNonZDLEBinary16(octets)
+}
+
+func (z *ZmodemParser) Cleanup() {
+	if z.fileEventCallback != nil && z.currentZFileInfo != nil {
+		z.fileEventCallback(z.currentZFileInfo, false)
+	}
 }
 
 func ParseNonZDLEBinary16(p []byte) *ZmodemHeader {
