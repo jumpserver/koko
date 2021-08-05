@@ -494,7 +494,8 @@ type ZmodemParser struct {
 
 	currentHeader *ZmodemHeader
 
-	abortMark bool // 不记录中断的文件
+	abortMark       bool // 不记录中断的文件
+	hasDataTransfer bool
 }
 
 // rz sz 解析的入口
@@ -517,6 +518,7 @@ func (z *ZmodemParser) Parse(p []byte) {
 					z.fileEventCallback(info, transferStatus)
 				}
 				z.currentZFileInfo = nil
+				z.hasDataTransfer = false
 			}
 			logger.Infof("Zmodem session %s end", z.Status())
 			z.setStatus(ZParserStatusNone)
@@ -592,13 +594,24 @@ func (z *ZmodemParser) OnHeader(hd *ZmodemHeader) {
 			z.fileEventCallback(z.currentZFileInfo, true)
 		}
 		z.currentZFileInfo = nil
+		z.hasDataTransfer = false
+	case ZDATA:
+		z.hasDataTransfer = true
 	case ZFIN:
 		if !z.abortMark {
 			if z.fileEventCallback != nil && z.currentZFileInfo != nil {
-				z.fileEventCallback(z.currentZFileInfo, true)
+				status := true
+				if !z.hasDataTransfer && z.currentZFileInfo.size > 0 {
+					/*
+					 如果没有文件传输，且文件大小大于0， 则代表下载失败
+					*/
+					status = false
+				}
+				z.fileEventCallback(z.currentZFileInfo, status)
 			}
 		}
 		z.currentZFileInfo = nil
+		z.hasDataTransfer = false
 	}
 }
 
