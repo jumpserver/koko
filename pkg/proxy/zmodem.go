@@ -119,9 +119,9 @@ var (
 	Binary32HeaderPrefix = []byte{ZPAD, ZDLE, ZBIN32}
 
 	AbortSession = []byte{CAN, CAN, CAN, CAN, CAN}
-	//
-	//CancelSequence = []byte{CAN, CAN, CAN, CAN, CAN, CAN, CAN, CAN,
-	//	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0}
+
+	CancelSequence = []byte{CAN, CAN, CAN, CAN, CAN, CAN, CAN, CAN, CAN, CAN,
+		0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08}
 )
 
 /*
@@ -493,6 +493,8 @@ type ZmodemParser struct {
 	currentZFileInfo *ZFileInfo
 
 	currentHeader *ZmodemHeader
+
+	abortMark bool // 不记录中断的文件
 }
 
 // rz sz 解析的入口
@@ -504,7 +506,6 @@ func (z *ZmodemParser) Parse(p []byte) {
 		zSession := z.currentSession
 		zSession.consume(p)
 		if zSession.IsEnd() {
-			z.setStatus(ZParserStatusNone)
 			z.currentSession = nil
 			if z.fileEventCallback != nil && z.currentZFileInfo != nil {
 				info := z.currentZFileInfo
@@ -512,9 +513,13 @@ func (z *ZmodemParser) Parse(p []byte) {
 				if zSession.transferStatus != TransferStatusAbort {
 					transferStatus = true
 				}
-				z.fileEventCallback(info, transferStatus)
+				if !z.abortMark {
+					z.fileEventCallback(info, transferStatus)
+				}
 				z.currentZFileInfo = nil
 			}
+			logger.Infof("Zmodem session %s end", z.Status())
+			z.setStatus(ZParserStatusNone)
 		}
 		return
 	}
@@ -551,6 +556,7 @@ func (z *ZmodemParser) Parse(p []byte) {
 		z.setStatus(ZParserStatusReceive)
 	default:
 		z.currentSession = nil
+		z.abortMark = false
 		z.setStatus(ZParserStatusNone)
 	}
 }
@@ -573,12 +579,24 @@ func (z *ZmodemParser) SessionType() string {
 	return ""
 }
 
+func (z *ZmodemParser) setAbortMark() {
+	// 不记录中断的文件
+	z.abortMark = true
+}
+
 func (z *ZmodemParser) OnHeader(hd *ZmodemHeader) {
 	z.currentHeader = hd
 	switch hd.Type {
-	case ZEOF, ZFILE, ZFIN:
+	case ZEOF, ZFILE:
 		if z.fileEventCallback != nil && z.currentZFileInfo != nil {
 			z.fileEventCallback(z.currentZFileInfo, true)
+		}
+		z.currentZFileInfo = nil
+	case ZFIN:
+		if !z.abortMark {
+			if z.fileEventCallback != nil && z.currentZFileInfo != nil {
+				z.fileEventCallback(z.currentZFileInfo, true)
+			}
 		}
 		z.currentZFileInfo = nil
 	}
