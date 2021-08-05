@@ -101,6 +101,7 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 			close(p.cmdRecordChan)
 			close(p.userOutputChan)
 			close(p.srvOutputChan)
+			p.zmodemParser.Cleanup()
 			logger.Infof("Session %s: Parser routine done", p.id)
 		}()
 		for {
