@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/auth"
@@ -358,6 +359,20 @@ type Server struct {
 	ConnectedSuccessCallback func() error
 	ConnectedFailedCallback  func(err error) error
 	DisConnectedCallback     func() error
+
+	keyboardMode int32
+}
+
+func (s *Server) IsKeyboardMode() bool {
+	return atomic.LoadInt32(&s.keyboardMode) == 1
+}
+
+func (s *Server) setKeyBoardMode() {
+	atomic.StoreInt32(&s.keyboardMode, 1)
+}
+
+func (s *Server) resetKeyboardMode() {
+	atomic.StoreInt32(&s.keyboardMode, 0)
 }
 
 func (s *Server) CheckPermissionExpired(now time.Time) bool {
@@ -727,6 +742,35 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			}
 		}
 	}
+	var passwordTryCount int
+	password := s.systemUserAuthInfo.Password
+	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+		s.setKeyBoardMode()
+		termReader := utils.NewTerminal(s.UserConn, "")
+		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+		ans := make([]string, len(questions))
+		for i := range questions {
+			q := questions[i]
+			termReader.SetPrompt(questions[i])
+			switch strings.ToLower(q) {
+			case "password":
+				passwordTryCount++
+				if passwordTryCount <= 1 && password != "" {
+					ans[i] = password
+					continue
+				}
+			default:
+			}
+			line, err2 := termReader.ReadLine()
+			if err2 != nil {
+				logger.Errorf("Conn[%s] keyboard auth read err: %s", s.UserConn.ID(), err2)
+			}
+			ans[i] = line
+		}
+		s.resetKeyboardMode()
+		return ans, nil
+	})
+	sshAuthOpts = append(sshAuthOpts, kb)
 	// 获取网关配置
 	proxyArgs := s.getGatewayProxyOptions()
 	if proxyArgs != nil {
@@ -849,17 +893,27 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
 	msg := fmt.Sprintf("%s %.1f", s.connOpts.ConnectMsg(), delay)
 	utils.IgnoreErrWriteString(s.UserConn, msg)
+	var activeFlag bool
 	for {
 		select {
 		case <-done:
 			return
 		default:
+			if s.IsKeyboardMode() {
+				activeFlag = true
+				break
+			}
+			if activeFlag {
+				utils.IgnoreErrWriteString(s.UserConn, utils.CharClear)
+				utils.IgnoreErrWriteString(s.UserConn, msg)
+			}
 			delayS := fmt.Sprintf("%.1f", delay)
 			data := strings.Repeat("\x08", len(delayS)) + delayS
 			utils.IgnoreErrWriteString(s.UserConn, data)
-			time.Sleep(100 * time.Millisecond)
-			delay += 0.1
+			activeFlag = false
 		}
+		time.Sleep(100 * time.Millisecond)
+		delay += 0.1
 	}
 }
 
