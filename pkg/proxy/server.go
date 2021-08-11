@@ -752,6 +752,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		for i := range questions {
 			q := questions[i]
 			termReader.SetPrompt(questions[i])
+			logger.Debugf("Conn[%s] keyboard auth question [ %s ]", s.UserConn.ID(), q)
 			if strings.Contains(strings.ToLower(q), "password") {
 				passwordTryCount++
 				if passwordTryCount <= 1 && password != "" {
@@ -782,7 +783,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	srvconn.AddClientCache(key, sshClient)
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
-		logger.Errorf("SSH client(%s) start sftp client session err %s", sshClient, err)
+		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
 		return nil, err
 	}
 	pty := s.UserConn.Pty()
@@ -903,12 +904,14 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 			}
 			if activeFlag {
 				utils.IgnoreErrWriteString(s.UserConn, utils.CharClear)
+				msg = fmt.Sprintf("%s %.1f", s.connOpts.ConnectMsg(), delay)
 				utils.IgnoreErrWriteString(s.UserConn, msg)
+				activeFlag = false
+				break
 			}
 			delayS := fmt.Sprintf("%.1f", delay)
 			data := strings.Repeat("\x08", len(delayS)) + delayS
 			utils.IgnoreErrWriteString(s.UserConn, data)
-			activeFlag = false
 		}
 		time.Sleep(100 * time.Millisecond)
 		delay += 0.1
