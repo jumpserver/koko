@@ -752,14 +752,12 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		for i := range questions {
 			q := questions[i]
 			termReader.SetPrompt(questions[i])
-			switch strings.ToLower(q) {
-			case "password":
+			if strings.Contains(strings.ToLower(q), "password") {
 				passwordTryCount++
 				if passwordTryCount <= 1 && password != "" {
 					ans[i] = password
 					continue
 				}
-			default:
 			}
 			line, err2 := termReader.ReadLine()
 			if err2 != nil {
