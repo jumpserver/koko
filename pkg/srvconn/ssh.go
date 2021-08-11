@@ -35,12 +35,18 @@ func (cfg *SSHClientOptions) AuthMethods() []gossh.AuthMethod {
 	if cfg.Password != "" {
 		authMethods = append(authMethods, gossh.Password(cfg.Password))
 	}
-	if cfg.keyboardAuth == nil {
+	if cfg.keyboardAuth != nil{
+		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
+	}
+	if cfg.keyboardAuth == nil && cfg.Password != ""{
 		cfg.keyboardAuth = func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+			if len(questions) == 0 {
+				return []string{}, nil
+			}
 			return []string{cfg.Password}, nil
 		}
+		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
 	}
-	authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
 
 	if cfg.PrivateKey != "" {
 		var (
