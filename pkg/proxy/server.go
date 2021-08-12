@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/auth"
@@ -84,7 +85,7 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 			opts.ProtocolType,
 			opts.systemUser.Username,
 			opts.asset.IP)
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		title = fmt.Sprintf("%s://%s@%s",
 			opts.ProtocolType,
 			opts.systemUser.Username,
@@ -103,7 +104,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
 		msg = fmt.Sprintf(i18n.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.dbApp)
 	case srvconn.ProtocolK8s:
 		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.k8sApp.Attrs.Cluster)
@@ -154,6 +155,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		domainGateways  *model.Domain
 		expireInfo      *model.ExpireInfo
 		platform        *model.Platform
+		perms           *model.Permission
 	)
 
 	switch connOpts.ProtocolType {
@@ -190,6 +192,12 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		if err2 != nil {
 			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 		}
+		// 获取权限校验
+		permission, err3 := jmsService.GetPermission(connOpts.user.ID, connOpts.asset.ID, connOpts.systemUser.ID)
+		if err3 != nil {
+			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err3)
+		}
+		perms = &permission
 		platform = &assetPlatform
 		apiSession = &model.Session{
 			ID:           common.UUID(),
@@ -244,7 +252,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			AssetID:      connOpts.k8sApp.ID,
 			OrgID:        connOpts.k8sApp.OrgID,
 		}
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		if !IsInstalledMysqlClient() {
 			msg := i18n.T("Database %s protocol client not installed.")
 			msg = fmt.Sprintf(msg, connOpts.dbApp.TypeName)
@@ -312,6 +320,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		domainGateways: domainGateways,
 		expireInfo:     expireInfo,
 		platform:       platform,
+		permActions:    perms,
 		CreateSessionCallback: func() error {
 			apiSession.DateStart = modelCommon.NewNowUTCTime()
 			return jmsService.CreateSession(*apiSession)
@@ -342,6 +351,7 @@ type Server struct {
 	domainGateways *model.Domain
 	expireInfo     *model.ExpireInfo
 	platform       *model.Platform
+	permActions    *model.Permission
 
 	cacheSSHConnection *srvconn.SSHConnection
 
@@ -349,25 +359,85 @@ type Server struct {
 	ConnectedSuccessCallback func() error
 	ConnectedFailedCallback  func(err error) error
 	DisConnectedCallback     func() error
+
+	keyboardMode int32
+}
+
+func (s *Server) IsKeyboardMode() bool {
+	return atomic.LoadInt32(&s.keyboardMode) == 1
+}
+
+func (s *Server) setKeyBoardMode() {
+	atomic.StoreInt32(&s.keyboardMode, 1)
+}
+
+func (s *Server) resetKeyboardMode() {
+	atomic.StoreInt32(&s.keyboardMode, 0)
 }
 
 func (s *Server) CheckPermissionExpired(now time.Time) bool {
 	return s.expireInfo.ExpireAt < now.Unix()
 }
 
+func (s *Server) ZmodemFileTransferEvent(zinfo *ZFileInfo, status bool) {
+	switch s.connOpts.ProtocolType {
+	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
+		operate := model.OperateDownload
+		switch zinfo.transferType {
+		case TypeUpload:
+			operate = model.OperateUpload
+		case TypeDownload:
+			operate = model.OperateDownload
+		}
+		item := model.FTPLog{
+			OrgID:      s.connOpts.asset.OrgID,
+			User:       s.connOpts.user.String(),
+			Hostname:   s.connOpts.asset.Hostname,
+			SystemUser: s.connOpts.systemUser.String(),
+			RemoteAddr: s.UserConn.RemoteAddr(),
+			Operate:    operate,
+			Path:       zinfo.filename,
+			DataStart:  modelCommon.NewUTCTime(zinfo.parserTime),
+			IsSuccess:  status,
+		}
+		if err := s.jmsService.CreateFileOperationLog(item); err != nil {
+			logger.Errorf("Create zmodem ftp log err: %s", err)
+		}
+	}
+}
+
 func (s *Server) GetFilterParser() ParseEngine {
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolSSH,
 		srvconn.ProtocolTELNET, srvconn.ProtocolK8s:
+		var (
+			enableUpload   bool
+			enableDownload bool
+		)
+		if s.permActions != nil {
+			if s.permActions.EnableDownload() {
+				enableDownload = true
+			}
+			if s.permActions.EnableUpload() {
+				enableUpload = true
+			}
+		}
+		var zParser ZmodemParser
+		zParser.setStatus(ZParserStatusNone)
+		zParser.fileEventCallback = s.ZmodemFileTransferEvent
 		shellParser := Parser{
 			id:             s.ID,
 			protocolType:   s.connOpts.ProtocolType,
 			jmsService:     s.jmsService,
 			cmdFilterRules: s.filterRules,
+			permAction:     s.permActions,
+			enableDownload: enableDownload,
+			enableUpload:   enableUpload,
+			zmodemParser:   &zParser,
 		}
 		shellParser.initial()
 		return &shellParser
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		dbParser := DBParser{
 			id:             s.ID,
 			cmdFilterRules: s.filterRules,
@@ -417,7 +487,7 @@ func (s *Server) GenerateCommandItem(input, output string,
 			DateCreated: createdDate.UTC(),
 		}
 
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		return &model.Command{
 			SessionID:   s.ID,
 			OrgID:       s.connOpts.dbApp.OrgID,
@@ -492,7 +562,7 @@ func (s *Server) checkRequiredAuth() error {
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return errors.New("no auth token")
 		}
-	case srvconn.ProtocolMySQL, srvconn.ProtocolTELNET:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -592,7 +662,8 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			dstIP:   dstHost,
 			dstPort: dstPort,
 		}
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL,
+		srvconn.ProtocolMariadb:
 		dGateway = &domainGateway{
 			domain:  domain,
 			dstIP:   s.connOpts.dbApp.Attrs.Host,
@@ -671,6 +742,34 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			}
 		}
 	}
+	var passwordTryCount int
+	password := s.systemUserAuthInfo.Password
+	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+		s.setKeyBoardMode()
+		termReader := utils.NewTerminal(s.UserConn, "")
+		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+		ans := make([]string, len(questions))
+		for i := range questions {
+			q := questions[i]
+			termReader.SetPrompt(questions[i])
+			logger.Debugf("Conn[%s] keyboard auth question [ %s ]", s.UserConn.ID(), q)
+			if strings.Contains(strings.ToLower(q), "password") {
+				passwordTryCount++
+				if passwordTryCount <= 1 && password != "" {
+					ans[i] = password
+					continue
+				}
+			}
+			line, err2 := termReader.ReadLine()
+			if err2 != nil {
+				logger.Errorf("Conn[%s] keyboard auth read err: %s", s.UserConn.ID(), err2)
+			}
+			ans[i] = line
+		}
+		s.resetKeyboardMode()
+		return ans, nil
+	})
+	sshAuthOpts = append(sshAuthOpts, kb)
 	// 获取网关配置
 	proxyArgs := s.getGatewayProxyOptions()
 	if proxyArgs != nil {
@@ -684,7 +783,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	srvconn.AddClientCache(key, sshClient)
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
-		logger.Errorf("SSH client(%s) start sftp client session err %s", sshClient, err)
+		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
 		return nil, err
 	}
 	pty := s.UserConn.Pty()
@@ -782,7 +881,7 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getTelnetConn()
 	case srvconn.ProtocolK8s:
 		return s.getK8sConConn(proxyAddr)
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		return s.getMysqlConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
@@ -793,17 +892,29 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
 	msg := fmt.Sprintf("%s %.1f", s.connOpts.ConnectMsg(), delay)
 	utils.IgnoreErrWriteString(s.UserConn, msg)
+	var activeFlag bool
 	for {
 		select {
 		case <-done:
 			return
 		default:
+			if s.IsKeyboardMode() {
+				activeFlag = true
+				break
+			}
+			if activeFlag {
+				utils.IgnoreErrWriteString(s.UserConn, utils.CharClear)
+				msg = fmt.Sprintf("%s %.1f", s.connOpts.ConnectMsg(), delay)
+				utils.IgnoreErrWriteString(s.UserConn, msg)
+				activeFlag = false
+				break
+			}
 			delayS := fmt.Sprintf("%.1f", delay)
 			data := strings.Repeat("\x08", len(delayS)) + delayS
 			utils.IgnoreErrWriteString(s.UserConn, data)
-			time.Sleep(100 * time.Millisecond)
-			delay += 0.1
 		}
+		time.Sleep(100 * time.Millisecond)
+		delay += 0.1
 	}
 }
 
@@ -816,7 +927,7 @@ func (s *Server) checkLoginConfirm() bool {
 		targetId   string
 	)
 	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		targetType = model.AppType
 		targetId = s.connOpts.dbApp.ID
 	case srvconn.ProtocolK8s:
@@ -872,7 +983,7 @@ func (s *Server) Proxy() {
 	var proxyAddr *net.TCPAddr
 	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		switch s.connOpts.ProtocolType {
-		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s:
+		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s, srvconn.ProtocolMariadb:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
 				msg := i18n.T("Start domain gateway failed %s")

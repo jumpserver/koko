@@ -21,9 +21,22 @@ const (
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
 	ProtocolMySQL  = "mysql"
-)
 
+	ProtocolMariadb = "mariadb"
+)
 
 var (
 	ErrUnSupportedProtocol = errors.New("unsupported protocol")
 )
+
+var supportedMap = map[string]bool{
+	ProtocolSSH:     true,
+	ProtocolTELNET:  true,
+	ProtocolK8s:     true,
+	ProtocolMySQL:   true,
+	ProtocolMariadb: true,
+}
+
+func IsSupportedProtocol(p string) bool {
+	return supportedMap[p]
+}

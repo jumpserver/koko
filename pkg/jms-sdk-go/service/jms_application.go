@@ -10,6 +10,11 @@ func (s *JMService) GetMySQLApplicationById(appId string) (app model.DatabaseApp
 	return
 }
 
+func (s *JMService) GetMySQLOrMariadbApplicationById(appId string) (app model.DatabaseApplication, err error) {
+	err = s.getApplicationById(appId, &app)
+	return
+}
+
 func (s *JMService) GetK8sApplicationById(appId string) (app model.K8sApplication, err error) {
 	err = s.getApplicationById(appId, &app)
 	return

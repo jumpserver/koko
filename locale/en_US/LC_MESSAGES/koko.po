@@ -177,25 +177,35 @@ msgid "exit"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:142
+#: pkg/handler/direct_handler.go:110
+msgid "Core API failed"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:114
+msgid "not found matched asset %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:200
 msgid "No system user found."
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/direct_handler.go:154 pkg/handler/direct_handler.go:155
-#: pkg/handler/direct_handler.go:156
+#: pkg/handler/direct_handler.go:212 pkg/handler/direct_handler.go:213
+#: pkg/handler/direct_handler.go:214
 msgid "Username"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:185
+#: pkg/handler/direct_handler.go:243
 msgid "Tips: Enter system user ID and directly login"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:186
+#: pkg/handler/direct_handler.go:244
 msgid "Back: B/b"
 msgstr ""
 
@@ -204,23 +214,21 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/direct_handler.go:216 pkg/handler/direct_handler.go:217
-#: pkg/handler/direct_handler.go:218 pkg/handler/direct_handler.go:219
-#: pkg/handler/direct_handler.go:248
+#: pkg/handler/direct_handler.go:274 pkg/handler/direct_handler.go:275
+#: pkg/handler/direct_handler.go:276 pkg/handler/direct_handler.go:277
+#: pkg/handler/direct_handler.go:306
 msgid "select one asset to login"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:261
+#: pkg/handler/direct_handler.go:319
 msgid "not found matched username %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/direct_handler.go:292
-msgid "Core API failed"
-msgstr ""
-
 #. i18n.T
+#. i18n.T
+#: pkg/handler/direct_handler.go:352 pkg/handler/direct_handler.go:360
 #: pkg/handler/dispatch.go:109
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
@@ -237,10 +245,10 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/interactive.go:133 pkg/handler/interactive.go:145
-#: pkg/handler/interactive.go:146 pkg/handler/interactive.go:147
-#: pkg/handler/interactive.go:176 pkg/handler/interactive.go:177
-#: pkg/handler/interactive.go:230
+#: pkg/handler/interactive.go:134 pkg/handler/interactive.go:146
+#: pkg/handler/interactive.go:147 pkg/handler/interactive.go:148
+#: pkg/handler/interactive.go:177 pkg/handler/interactive.go:178
+#: pkg/handler/interactive.go:231
 msgid "Refresh done"
 msgstr ""
 
@@ -255,16 +263,22 @@ msgid "The asset is inactive"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/application_ssh.go:186
+#: pkg/koko/server_ssh.go:193
 msgid "Must be unique asset for %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/application_ssh.go:205
+#: pkg/koko/server_ssh.go:205
 msgid "Must be unique system user for %s"
 msgstr ""
 
 #. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/koko/server_ssh.go:328 pkg/koko/server_ssh.go:335
+#: pkg/koko/server_ssh.go:346 pkg/koko/server_ssh.go:353
 #: pkg/proxy/dbparser.go:120
 msgid "Command `%s` is forbidden"
 msgstr ""
@@ -315,7 +329,12 @@ msgid "Cancel confirm"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:176
+#: pkg/proxy/parser.go:166
+msgid "have no permission to upload file"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:198
 msgid "the reviewers will confirm. continue or not [Y/n]"
 msgstr ""
 
@@ -323,14 +342,19 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/parser.go:188 pkg/proxy/parser.go:194 pkg/proxy/parser.go:264
-#: pkg/proxy/parser.go:394
+#: pkg/proxy/parser.go:210 pkg/proxy/parser.go:216 pkg/proxy/parser.go:286
+#: pkg/proxy/parser.go:351
+msgid "have no permission to download file"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/parser.go:418
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:402
+#: pkg/proxy/parser.go:426
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -338,7 +362,7 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/parser.go:403 pkg/proxy/parser.go:404 pkg/proxy/server.go:105
+#: pkg/proxy/parser.go:427 pkg/proxy/parser.go:428 pkg/proxy/server.go:105
 msgid "Connecting to %s@%s"
 msgstr ""
 
@@ -353,66 +377,66 @@ msgid "Connecting to Kubernetes %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:162
+#: pkg/proxy/server.go:163
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:209
+#: pkg/proxy/server.go:216
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:249
+#: pkg/proxy/server.go:256
 msgid "Database %s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:288
+#: pkg/proxy/server.go:295
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:296
+#: pkg/proxy/server.go:303
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:491
+#: pkg/proxy/server.go:546
 msgid "You get auth token failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:497
+#: pkg/proxy/server.go:552
 msgid "Get auth username failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:502
+#: pkg/proxy/server.go:557
 msgid "Get auth password failed"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:508 pkg/proxy/server.go:523 pkg/proxy/server.go:571
+#: pkg/proxy/server.go:563 pkg/proxy/server.go:578 pkg/proxy/server.go:626
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:842
+#: pkg/proxy/server.go:914
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:858
+#: pkg/proxy/server.go:934
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:866 pkg/proxy/switch.go:197
+#: pkg/proxy/server.go:942 pkg/proxy/switch.go:197
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 

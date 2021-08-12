@@ -2,12 +2,13 @@ package koko
 
 import (
 	"fmt"
-	"github.com/gliderlabs/ssh"
-	"github.com/pkg/sftp"
-	gossh "golang.org/x/crypto/ssh"
 	"io"
 	"net"
 	"strconv"
+
+	"github.com/gliderlabs/ssh"
+	"github.com/pkg/sftp"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
@@ -154,12 +155,15 @@ func (s *server) SessionHandler(sess ssh.Session) {
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
-			directSrv, err := handler.NewDirectHandler(sess, s.jmsService,
-				handler.DirectAssetIP(directRequest.AssetIP),
-				handler.DirectUser(user),
-				handler.DirectTerminalConf(&termConf),
-				handler.DirectSystemUsername(directRequest.SysUsername),
-			)
+			opts := make([]handler.DirectOpt, 0, 5)
+			opts = append(opts, handler.DirectTargetAsset(directRequest.AssetInfo))
+			opts = append(opts, handler.DirectUser(user))
+			opts = append(opts, handler.DirectTerminalConf(&termConf))
+			opts = append(opts, handler.DirectTargetSystemUser(directRequest.SysUserInfo))
+			if directRequest.IsUUIDString() {
+				opts = append(opts, handler.DirectFormatType(handler.FormatUUID))
+			}
+			directSrv, err := handler.NewDirectHandler(sess, s.jmsService, opts...)
 			if err != nil {
 				logger.Errorf("User %s direct request err: %s", user.Name, err)
 				return
@@ -179,38 +183,31 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		return
 	}
 	if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
-		selectedAssets, err := s.jmsService.GetUserPermAssetsByIP(user.ID, directRequest.AssetIP)
+		selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
 		if err != nil {
 			logger.Error(err)
 			utils.IgnoreErrWriteString(sess, err.Error())
 			return
 		}
 		if len(selectedAssets) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetIP)
+			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetInfo)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
 		}
-		selectSysUsers, err := s.jmsService.GetSystemUsersByUserIdAndAssetId(user.ID, selectedAssets[0].ID)
+		selectSysUsers, err := s.getMatchedSystemUsers(user, directRequest, selectedAssets[0])
 		if err != nil {
 			logger.Error(err)
 			utils.IgnoreErrWriteString(sess, err.Error())
 			return
 		}
-
-		matched := make([]model.SystemUser, 0, len(selectSysUsers))
-		for i := range selectSysUsers {
-			if selectSysUsers[i].Username == directRequest.SysUsername {
-				matched = append(matched, selectSysUsers[i])
-			}
-		}
-		if len(matched) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), directRequest.SysUsername)
+		if len(selectSysUsers) != 1 {
+			msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), directRequest.SysUserInfo)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
 		}
-		s.proxyVscode(sess, user, selectedAssets[0], matched[0])
+		s.proxyVscode(sess, user, selectedAssets[0], selectSysUsers[0])
 	}
 
 }
@@ -321,4 +318,51 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 	sshClient.ReleaseSession(goSess)
 
 	logger.Infof("User %s end vscode request %s", user, sshClient)
+}
+
+func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
+	if req.IsUUIDString() {
+		asset, err := s.jmsService.GetAssetById(req.AssetInfo)
+		if err != nil {
+			logger.Errorf("Get asset failed: %s", err)
+			return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
+		}
+		return []model.Asset{asset}, nil
+	}
+	assets, err := s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetInfo)
+	if err != nil {
+		logger.Errorf("Get asset failed: %s", err)
+		return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
+	}
+	return assets, nil
+}
+
+func (s *server) getMatchedSystemUsers(user *model.User, req *auth.DirectLoginAssetReq,
+	asset model.Asset) ([]model.SystemUser, error) {
+	if req.IsUUIDString() {
+		systemUser, err := s.jmsService.GetSystemUserById(req.SysUserInfo)
+		if err != nil {
+			logger.Errorf("Get systemUser failed: %s", err)
+			return nil, fmt.Errorf("match systemuser failed: %s", i18n.T("Core API failed"))
+		}
+		return []model.SystemUser{systemUser}, nil
+	}
+	systemUsers, err := s.jmsService.GetSystemUsersByUserIdAndAssetId(user.ID, asset.ID)
+	if err != nil {
+		logger.Errorf("Get systemUser failed: %s", err)
+		return nil, fmt.Errorf("match systemuser failed: %s", i18n.T("Core API failed"))
+	}
+	matched := make([]model.SystemUser, 0, len(systemUsers))
+	for i := range systemUsers {
+		compareUsername := systemUsers[i].Username
+
+		if systemUsers[i].UsernameSameWithUser {
+			// 此为动态系统用户，系统用户名和登录用户名相同
+			compareUsername = user.Username
+		}
+		if compareUsername == req.SysUserInfo {
+			matched = append(matched, systemUsers[i])
+		}
+	}
+	return matched, nil
 }

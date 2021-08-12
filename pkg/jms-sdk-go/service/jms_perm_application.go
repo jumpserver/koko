@@ -10,7 +10,7 @@ import (
 
 func (s *JMService) GetAllUserPermMySQLs(userId string) ([]map[string]interface{}, error) {
 	var param model.PaginationParam
-	res, err := s.GetUserPermsMySQL(userId, param)
+	res, err := s.GetUserPermsMySQLAndMariadb(userId, param)
 	if err != nil {
 		return nil, err
 	}
@@ -28,6 +28,11 @@ func (s *JMService) GetAllUserPermK8s(userId string) ([]map[string]interface{}, 
 
 func (s *JMService) GetUserPermsMySQL(userId string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
 	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeMySQL)
+	return s.getPaginationResult(reqUrl, param)
+}
+
+func (s *JMService) GetUserPermsMySQLAndMariadb(userId string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
+	reqUrl := fmt.Sprintf(UserPermsMySQLMariadbURL, userId)
 	return s.getPaginationResult(reqUrl, param)
 }
 

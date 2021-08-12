@@ -20,13 +20,6 @@ import (
 )
 
 var (
-	zmodemRecvStartMark = []byte("rz waiting to receive.**\x18B0100")
-	zmodemSendStartMark = []byte("**\x18B00000000000000")
-	zmodemCancelMark    = []byte("\x18\x18\x18\x18\x18")
-	zmodemEndMark       = []byte("**\x18B0800000000022d")
-	zmodemStateSend     = "send"
-	zmodemStateRecv     = "recv"
-
 	charEnter = []byte("\r")
 
 	enterMarks = [][]byte{
@@ -51,31 +44,22 @@ const (
 
 var _ ParseEngine = (*Parser)(nil)
 
-//func newParser(sid, protocolType string) *Parser {
-//	parser := Parser{id: sid, protocolType: protocolType}
-//	parser.initial()
-//	return &parser
-//}
-
-// Parse 解析用户输入输出, 拦截过滤用户输入输出
-
 type Parser struct {
 	id           string
 	protocolType string
-	jmsService *service.JMService
+	jmsService   *service.JMService
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
-	//cmdRecordChan  chan [3]string // [3]string{command, out, flag}
-	cmdRecordChan chan *ExecutedCommand
+	cmdRecordChan  chan *ExecutedCommand
 
 	inputInitial  bool
 	inputPreState bool
 	inputState    bool
-	zmodemState   string
-	inVimState    bool
-	once          *sync.Once
-	lock          *sync.RWMutex
+
+	inVimState bool
+	once       *sync.Once
+	lock       *sync.RWMutex
 
 	command         string
 	output          string
@@ -88,7 +72,11 @@ type Parser struct {
 
 	confirmStatus commandConfirmStatus
 
-
+	zmodemParser        *ZmodemParser
+	permAction          *model.Permission
+	enableDownload      bool
+	enableUpload        bool
+	abortedFileTransfer bool
 }
 
 func (p *Parser) initial() {
@@ -98,13 +86,11 @@ func (p *Parser) initial() {
 	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
-	//p.cmdRecordChan = make(chan [3]string, 1024)
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 }
 
 // ParseStream 解析数据流
 func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
-
 	p.userOutputChan = make(chan []byte, 1)
 	p.srvOutputChan = make(chan []byte, 1)
 	logger.Infof("Session %s: Parser start", p.id)
@@ -115,6 +101,7 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 			close(p.cmdRecordChan)
 			close(p.userOutputChan)
 			close(p.srvOutputChan)
+			p.zmodemParser.Cleanup()
 			logger.Infof("Session %s: Parser routine done", p.id)
 		}()
 		for {
@@ -159,6 +146,47 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
+	if p.zmodemParser.IsStartSession() {
+		switch p.zmodemParser.Status() {
+		case ZParserStatusReceive:
+			p.zmodemParser.Parse(b)
+			if p.zmodemParser.IsZFilePacket() && !p.enableUpload {
+				logger.Infof("Send zmodem user skip and srv abort to disable upload")
+				p.abortedFileTransfer = true
+				// 不记录中断的文件
+				p.zmodemParser.setAbortMark()
+				p.srvOutputChan <- skipSequence
+				return AbortSession
+			}
+
+			if !p.zmodemParser.IsStartSession() && p.abortedFileTransfer {
+				/*
+					使用 zskip 中断文件上传之后，user 会发送 zfin 表示结束.
+					此时，因为 srv 端已经中断，则不应接受 zmodem 字符，可以发nil
+				*/
+
+				logger.Info("Zmodem abort upload file finished")
+				msg := i18n.T("have no permission to upload file")
+				p.abortedFileTransfer = false
+				p.srvOutputChan <- CancelSequence
+				p.srvOutputChan <- []byte("\r\n")
+				p.srvOutputChan <- []byte(msg)
+				p.srvOutputChan <- []byte("\r\n")
+				return charEnter
+			}
+		case ZParserStatusSend:
+			if p.zmodemParser.IsZFilePacket() && !p.enableDownload {
+				logger.Infof("Send zmodem srv skip and user abort to disable download")
+				p.abortedFileTransfer = true
+				p.userOutputChan <- AbortSession
+				// 不记录中断的文件
+				p.zmodemParser.setAbortMark()
+				return charEnter
+			}
+		default:
+		}
+		return b
+	}
 	if !p.IsNeedParse() {
 		return b
 	}
@@ -253,7 +281,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 func (p *Parser) IsNeedParse() bool {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.inVimState || p.zmodemState != "" {
+	if p.inVimState {
 		return false
 	}
 	p.inputPreState = p.inputState
@@ -301,60 +329,62 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 // parseZmodemState 解析数据，查看是不是处于zmodem状态
 // 处于zmodem状态不会再解析命令
 func (p *Parser) parseZmodemState(b []byte) {
-	if len(b) < 20 {
-		return
-	}
-	if p.zmodemState == "" {
-		if len(b) > 25 && bytes.Contains(b[:50], zmodemRecvStartMark) {
-			p.zmodemState = zmodemStateRecv
-			logger.Debug("Zmodem in recv state")
-		} else if bytes.Contains(b[:24], zmodemSendStartMark) {
-			p.zmodemState = zmodemStateSend
-			logger.Debug("Zmodem in send state")
-		}
-	} else {
-		if bytes.Contains(b[:24], zmodemEndMark) {
-			logger.Debug("Zmodem end")
-			p.zmodemState = ""
-		} else if bytes.Contains(b, zmodemCancelMark) {
-			logger.Debug("Zmodem cancel")
-			p.zmodemState = ""
-		}
-	}
+	p.zmodemParser.Parse(b)
 }
 
 // parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
 func (p *Parser) parseVimState(b []byte) {
-	if p.zmodemState == "" && !p.inVimState && IsEditEnterMode(b) {
+	if !p.inVimState && IsEditEnterMode(b) {
 		p.inVimState = true
 		logger.Debug("In vim state: true")
 	}
-	if p.zmodemState == "" && p.inVimState && IsEditExitMode(b) {
+	if p.inVimState && IsEditExitMode(b) {
 		p.inVimState = false
 		logger.Debug("In vim state: false")
 	}
 }
 
 // splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
-func (p *Parser) splitCmdStream(b []byte) {
-	p.parseVimState(b)
-	p.parseZmodemState(b)
-	if p.zmodemState != "" || p.inVimState || !p.inputInitial {
-		return
+func (p *Parser) splitCmdStream(b []byte) []byte {
+	if p.zmodemParser.IsStartSession() {
+		if p.zmodemParser.Status() == ZParserStatusSend {
+			p.zmodemParser.Parse(b)
+		}
+		if !p.zmodemParser.IsStartSession() && p.abortedFileTransfer {
+			logger.Info("Zmodem abort download file finished")
+			p.abortedFileTransfer = false
+			p.srvOutputChan <- b
+			msg := i18n.T("have no permission to download file")
+			p.srvOutputChan <- []byte("\r\n")
+			p.srvOutputChan <- []byte(msg)
+			p.srvOutputChan <- []byte("\r\n")
+			p.userOutputChan <- charEnter
+			return nil
+		}
+		return b
+	} else {
+		p.parseVimState(b)
+		if p.inVimState || !p.inputInitial {
+			return b
+		}
+		p.parseZmodemState(b)
+	}
+	if p.zmodemParser.IsStartSession() {
+		logger.Infof("Zmodem start session %s", p.zmodemParser.Status())
+		return b
 	}
 	if p.inputState {
 		_, _ = p.cmdInputParser.WriteData(b)
-		return
 	}
 	_, _ = p.cmdOutputParser.WriteData(b)
+	return b
 }
 
 // ParseServerOutput 解析服务器输出
 func (p *Parser) ParseServerOutput(b []byte) []byte {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	p.splitCmdStream(b)
-	return b
+	return p.splitCmdStream(b)
 }
 
 // SetCMDFilterRules 设置命令过滤规则
@@ -472,9 +502,7 @@ const (
 )
 
 func (p *Parser) IsInZmodemRecvState() bool {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	return p.zmodemState != ""
+	return p.zmodemParser.IsStartSession()
 }
 
 // Close 关闭parser

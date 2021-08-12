@@ -48,25 +48,10 @@ func (a *AssetNodeSorter) Less(i, j int) bool {
 /*
 key的排列顺序：
 1 1:3 1:3:0 1:4 1:5 1:8
-相同父节，按照 Name 排序
 */
-func keyAndNameSort(node1, node2 *Node) bool {
+func keySort(node1, node2 *Node) bool {
 	node1Keys := strings.Split(node1.Key, ":")
 	node2Keys := strings.Split(node2.Key, ":")
-	if len(node1Keys) == len(node2Keys) {
-		switch len(node1Keys) {
-		case 1:
-			node1num, _ := strconv.Atoi(node1Keys[0])
-			node2num, _ := strconv.Atoi(node2Keys[0])
-			return node1num < node2num
-		default:
-			prefix := strings.Join(node2Keys[:len(node2Keys)-1], ":")
-			if strings.HasPrefix(node1.Key, prefix) {
-				return node1.Name < node2.Name
-			}
-		}
-	}
-
 	for i := 0; i < len(node1Keys); i++ {
 		if i >= len(node2Keys) {
 			return false
@@ -74,18 +59,19 @@ func keyAndNameSort(node1, node2 *Node) bool {
 		if node1Keys[i] == node2Keys[i] {
 			continue
 		}
-		node1num, _ := strconv.Atoi(node1Keys[i])
-		node2num, _ := strconv.Atoi(node2Keys[i])
-		switch {
-		case node1num > node2num:
-			return false
-		default:
+		node1num, err := strconv.Atoi(node1Keys[i])
+		if err != nil {
 			return true
 		}
+		node2num, err := strconv.Atoi(node2Keys[i])
+		if err != nil {
+			return false
+		}
+		return node1num < node2num
 	}
 	return true
 }
 
-func SortNodesByKeyAndName(nodes []Node) {
-	nodeSortBy(keyAndNameSort).Sort(nodes)
+func SortNodesByKey(nodes []Node) {
+	nodeSortBy(keySort).Sort(nodes)
 }
