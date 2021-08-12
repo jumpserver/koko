@@ -13,7 +13,7 @@ require (
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/creack/pty v1.1.11
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
-	github.com/gin-gonic/gin v1.6.3
+	github.com/gin-gonic/gin v1.7.0
 	github.com/gliderlabs/ssh v0.2.3-0.20190711180243-866d0ddf7991
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/websocket v1.4.2
