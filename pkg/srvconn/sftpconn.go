@@ -289,7 +289,7 @@ func (u *UserSftpConn) initial() {
 		if !ok {
 			continue
 		}
-		body, err := json.Marshal(item.Meta[typeName])
+		body, err := json.Marshal(item.Meta["data"])
 		if err != nil {
 			logger.Errorf("Json Marshal err: %s", err)
 			continue

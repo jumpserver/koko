@@ -129,7 +129,7 @@ func (nd *NodeDir) loadNodeAsset(uSftp *UserSftpConn) {
 			if !ok {
 				continue
 			}
-			body, err := json.Marshal(item.Meta[typeName])
+			body, err := json.Marshal(item.Meta["data"])
 			if err != nil {
 				continue
 			}
