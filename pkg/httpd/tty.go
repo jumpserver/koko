@@ -9,6 +9,7 @@ import (
 	"github.com/gliderlabs/ssh"
 
 	"github.com/jumpserver/koko/pkg/exchange"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -35,6 +36,8 @@ type tty struct {
 	backendClient *Client
 
 	jmsService *service.JMService
+
+	shareInfo *ShareInfo
 }
 
 func (h *tty) Name() string {
@@ -51,8 +54,10 @@ func (h *tty) CleanUp() {
 func (h *tty) CheckValidation() bool {
 	var ok bool
 	switch h.targetType {
-	case TargetTypeRoom:
+	case TargetTypeMonitor:
 		ok = h.CheckShareRoomReadPerm(h.ws.user.ID, h.targetId)
+	case TargetTypeShare:
+		ok = h.CheckEnableShare()
 	default:
 		if h.systemUserId == "" || h.targetId == "" {
 			logger.Errorf("Ws[%s] miss required query params.", h.ws.Uuid)
@@ -87,17 +92,28 @@ func (h *tty) HandleMessage(msg *Message) {
 			return
 		}
 
-		var size WindowSize
-		err := json.Unmarshal([]byte(msg.Data), &size)
+		var connectInfo TerminalConnectData
+		err := json.Unmarshal([]byte(msg.Data), &connectInfo)
 		if err != nil {
 			logger.Errorf("Ws[%s] terminal initial message data unmarshal err: %s",
 				h.ws.Uuid, err)
 			return
 		}
+		if h.targetType == TargetTypeShare {
+			code := connectInfo.Code
+			info, err2 := h.ValidateShareParams(h.targetId, code)
+			if err2 != nil {
+				logger.Errorf("Ws[%s] terminal initial validate share err: %s",
+					h.ws.Uuid, err2)
+
+				return
+			}
+			h.shareInfo = &info
+		}
 		h.initialed = true
 		win := ssh.Window{
-			Width:  size.Cols,
-			Height: size.Rows,
+			Width:  connectInfo.Cols,
+			Height: connectInfo.Rows,
 		}
 		userR, userW := io.Pipe()
 		h.backendClient = &Client{
@@ -122,6 +138,15 @@ func (h *tty) sendCloseMessage() {
 	h.ws.SendMessage(&closedMsg)
 }
 
+func (h *tty) sendSessionMessage(data string) {
+	msg := Message{
+		Id:   h.ws.Uuid,
+		Type: TERMINALSESSION,
+		Data: data,
+	}
+	h.ws.SendMessage(&msg)
+}
+
 func (h *tty) handleTerminalMessage(msg *Message) {
 	switch msg.Type {
 	case TERMINALDATA:
@@ -140,12 +165,66 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 			Width:  size.Cols,
 			Height: size.Rows,
 		})
+	case TERMINALSHARE:
+		var shareData ShareRequestParams
+
+		err := json.Unmarshal([]byte(msg.Data), &shareData)
+		if err != nil {
+			logger.Errorf("Ws[%s] message(%s) data unmarshal err: %s", h.ws.Uuid,
+				msg.Type, msg.Data)
+			return
+		}
+		logger.Debugf("Ws[%s] receive share request %s", h.ws.Uuid, msg.Data)
+		go h.createShareSession(shareData)
+		return
+
 	case CLOSE:
 		_ = h.backendClient.Close()
 	default:
 		logger.Infof("Ws[%s] handle unknown message(%s) data %s", h.ws.Uuid,
 			msg.Type, msg.Data)
 	}
+}
+
+func (h *tty) createShareSession(shareData ShareRequestParams) {
+	// 创建 共享连接
+	res, err := h.handleShareRequest(shareData)
+	if err != nil {
+		logger.Errorf("Ws[%s] handle share request err: %s", h.ws.Uuid, err)
+	}
+	data, _ := json.Marshal(res)
+	h.ws.SendMessage(&Message{
+		Id:   h.ws.Uuid,
+		Type: TERMINALSHARE,
+		Data: string(data),
+	})
+}
+
+func (h *tty) handleShareRequest(data ShareRequestParams) (res ShareResponse, err error) {
+	shareResp, err := h.jmsService.CreateShareRoom(data.SessionID, data.ExpireTime)
+	if err != nil {
+		logger.Error(err)
+		return res, err
+	}
+	res.ShareId = shareResp.ID
+	res.Code = shareResp.Code
+	return
+}
+
+func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err error) {
+	data := service.SharePostData{
+		ShareId:    shareId,
+		Code:       code,
+		UserId:     h.ws.user.ID,
+		RemoteAddr: h.ws.ClientIP(),
+	}
+
+	recordRes, err := h.jmsService.JoinShareRoom(data)
+	if err != nil {
+		logger.Errorf("Conn[%s] Validate Share err: %s", h.ws.Uuid, err)
+		return
+	}
+	return ShareInfo{recordRes}, nil
 }
 
 func (h *tty) getTargetApp(protocol string) bool {
@@ -187,8 +266,11 @@ func (h *tty) getTargetApp(protocol string) bool {
 func (h *tty) proxy(wg *sync.WaitGroup) {
 	defer wg.Done()
 	switch h.targetType {
-	case TargetTypeRoom:
-		h.JoinRoom(h.backendClient, h.targetId)
+	case TargetTypeMonitor:
+		h.Monitor(h.backendClient, h.targetId)
+	case TargetTypeShare:
+		roomID := h.shareInfo.Record.SessionId
+		h.JoinRoom(h.backendClient, roomID)
 	default:
 		proxyOpts := make([]proxy.ConnectionOption, 0, 4)
 		proxyOpts = append(proxyOpts, proxy.ConnectProtocolType(h.systemUser.Protocol))
@@ -207,9 +289,14 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 			logger.Errorf("Create proxy server failed: %s", err)
 			return
 		}
+		srv.OnSessionInfo = func(info proxy.SessionInfo) {
+			data, _ := json.Marshal(info)
+			h.sendSessionMessage(string(data))
+		}
 		srv.Proxy()
 	}
 	h.sendCloseMessage()
+	logger.Info("Ws tty proxy end")
 }
 
 func (h *tty) CheckShareRoomReadPerm(uerId, roomId string) bool {
@@ -224,32 +311,76 @@ func (h *tty) CheckShareRoomReadPerm(uerId, roomId string) bool {
 	return true
 }
 
-func (h *tty) CheckShareRoomWritePerm(uid, roomId string) bool {
-	// todo: check current user has pem to write
-	return false
+func (h *tty) CheckEnableShare() bool {
+	termConf, err := h.jmsService.GetTerminalConfig()
+	if err != nil {
+		logger.Error(err)
+	}
+	return termConf.EnableSessionShare
 }
 
+/*
+	1. ask join room id (session id)
+	2. room receive msg send to client
+	3. client emit msg to room
+*/
+
 func (h *tty) JoinRoom(c *Client, roomID string) {
-	/*
-		1. ask join room id (session id)
-		2. room receive msg send to client
-		3. client emit msg to room
-	*/
+
+	user := h.ws.user
+	meta := exchange.MetaMessage{
+		UserId:     user.ID,
+		User:       user.String(),
+		Created:    common.NewNowUTCTime().String(),
+		RemoteAddr: c.RemoteAddr(),
+	}
+	if room := exchange.GetRoom(roomID); room != nil {
+		conn := exchange.WrapperUserCon(c)
+		room.Subscribe(conn)
+		defer room.UnSubscribe(conn)
+		room.Broadcast(&exchange.RoomMessage{
+			Event: exchange.ShareJoin,
+			Body:  nil,
+			Meta:  meta,
+		})
+		for {
+			buf := make([]byte, 1024)
+			nr, err := c.Read(buf)
+			if nr > 0 {
+				room.Receive(&exchange.RoomMessage{
+					Event: exchange.DataEvent, Body: buf[:nr],
+					Meta: meta})
+			}
+			if err != nil {
+				logger.Error(err)
+				break
+			}
+		}
+		room.Broadcast(&exchange.RoomMessage{
+			Event: exchange.ShareLeave,
+			Body:  nil,
+			Meta:  meta,
+		})
+		logger.Infof("Conn[%s] user read end", c.ID())
+		if err := h.jmsService.FinishShareRoom(h.shareInfo.Record.ID); err != nil {
+			logger.Infof("Conn[%s] finish share room err: %s", c.ID(), err)
+		}
+	}
+}
+
+func (h *tty) Monitor(c *Client, roomID string) {
 	if room := exchange.GetRoom(roomID); room != nil {
 		conn := exchange.WrapperUserCon(c)
 		room.Subscribe(conn)
 		defer room.UnSubscribe(conn)
 		for {
 			buf := make([]byte, 1024)
-			nr, err := c.Read(buf)
-			if nr > 0 && h.CheckShareRoomWritePerm(c.Conn.user.ID, roomID) {
-				room.Receive(&exchange.RoomMessage{
-					Event: exchange.DataEvent, Body: buf[:nr]})
-			}
+			_, err := c.Read(buf)
 			if err != nil {
 				logger.Error(err)
 				break
 			}
+			logger.Debugf("Conn[%s] user monitor", c.ID())
 		}
 		logger.Infof("Conn[%s] user read end", c.ID())
 	}

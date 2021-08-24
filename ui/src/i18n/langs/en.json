@@ -1,0 +1,14 @@
+{
+  "Terminal": {
+    "UploadSuccess": "Upload success",
+    "MustSelectOneFile": "Must select one file",
+    "DownloadSuccess": "Download success",
+    "Download": "Download",
+    "Upload": "Upload",
+    "Cancel": "Cancel",
+    "UploadTitle": "file upload",
+    "UploadTips": "Drag file here or click to upload",
+    "Share": "Share",
+    "CopyShareURLSuccess": "Copy Share URL Success"
+  }
+}

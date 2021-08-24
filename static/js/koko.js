@@ -56,6 +56,7 @@ function initTerminal(elementId) {
     window.term = term;
     window.addEventListener('jmsFocus', evt => {
         term.focus()
+        term.scrollToBottom()
     })
     var zsentry;
     // patch send_block_files 能够显示上传进度

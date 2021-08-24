@@ -1,0 +1,14 @@
+{
+  "Terminal": {
+    "UploadSuccess": "上传成功",
+    "MustSelectOneFile": "必须选择一个文件",
+    "DownloadSuccess": "下载成功",
+    "Download": "下载",
+    "Upload": "上传",
+    "Cancel": "取消",
+    "UploadTitle": "上传文件",
+    "UploadTips": "将文件拖到此处，或点击上传",
+    "Share": "分享",
+    "CopyShareURLSuccess": "复制共享地址成功"
+  }
+}

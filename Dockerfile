@@ -1,3 +1,14 @@
+FROM node:10 as ui-build
+ARG NPM_REGISTRY="https://registry.npm.taobao.org"
+ENV NPM_REGISTY=$NPM_REGISTRY
+
+WORKDIR /opt/koko
+RUN npm config set registry ${NPM_REGISTRY}
+RUN yarn config set registry ${NPM_REGISTRY}
+
+COPY ui  ui/
+RUN ls . && cd ui/ && npm install -i && yarn build && ls -al .
+
 FROM golang:1.15-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
@@ -40,6 +51,7 @@ COPY --from=stage-build /opt/koko/utils/coredump.sh .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
+COPY --from=ui-build /opt/koko/ui/dist ui/dist
 
 RUN chmod 755 entrypoint.sh && chmod 755 init-kubectl.sh
 
