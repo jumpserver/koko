@@ -77,6 +77,7 @@ type Parser struct {
 	enableDownload      bool
 	enableUpload        bool
 	abortedFileTransfer bool
+	currentActiveUser   CurrentActiveUser
 }
 
 func (p *Parser) initial() {
@@ -117,6 +118,7 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				case exchange.DataEvent:
 					b = msg.Body
 				}
+				p.UpdateActiveUser(msg)
 				if len(b) == 0 {
 					continue
 				}
@@ -295,7 +297,8 @@ func (p *Parser) forbiddenCommand(cmd string) {
 		Command:     p.command,
 		Output:      fbdMsg,
 		CreatedDate: p.cmdCreateDate,
-		RiskLevel:   model.HighRiskFlag}
+		RiskLevel:   model.HighRiskFlag,
+		User:        p.currentActiveUser}
 	p.command = ""
 	p.output = ""
 	p.userOutputChan <- breakInputPacket(p.protocolType)
@@ -526,7 +529,9 @@ func (p *Parser) sendCommandRecord() {
 			Command:     p.command,
 			Output:      p.output,
 			CreatedDate: p.cmdCreateDate,
-			RiskLevel:   model.LessRiskFlag}
+			RiskLevel:   model.LessRiskFlag,
+			User:        p.currentActiveUser,
+		}
 		p.command = ""
 		p.output = ""
 	}
@@ -540,11 +545,23 @@ func (p *Parser) CommandRecordChan() chan *ExecutedCommand {
 	return p.cmdRecordChan
 }
 
+func (p *Parser) UpdateActiveUser(msg *exchange.RoomMessage) {
+	p.currentActiveUser.UserId = msg.Meta.UserId
+	p.currentActiveUser.User = msg.Meta.User
+}
+
 type ExecutedCommand struct {
 	Command     string
 	Output      string
 	CreatedDate time.Time
-	RiskLevel   string
+	RiskLevel string
+	User      CurrentActiveUser
+}
+
+type CurrentActiveUser struct {
+	UserId     string
+	User       string
+	RemoteAddr string
 }
 
 func IsEditEnterMode(p []byte) bool {

@@ -70,3 +70,10 @@ func (s *redisChannel) addSubscribeCount(i int) {
 	case s.count <- i:
 	}
 }
+
+func (s *redisChannel) HandleRoomEvent(event string, msg *RoomMessage) {
+	err := s.sendMessage(msg)
+	if err != nil {
+		logger.Errorf("Redis send event room %s err: %s", s.roomId, err)
+	}
+}

@@ -33,7 +33,15 @@ func TestJMService_GetProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("%+v", user)
+}
 
+func TestJMService_GetTerminalConfig(t *testing.T) {
+	jms := setup()
+	conf, err := jms.GetTerminalConfig()
+	if err != nil{
+		t.Fatal(err)
+	}
+	t.Logf("%+v", conf)
 }
 
 func TestJMService_GetSystemUserById(t *testing.T) {

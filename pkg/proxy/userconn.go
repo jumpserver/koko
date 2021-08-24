@@ -5,6 +5,8 @@ import (
 	"io"
 
 	"github.com/gliderlabs/ssh"
+
+	"github.com/jumpserver/koko/pkg/exchange"
 )
 
 type UserConnection interface {
@@ -15,4 +17,10 @@ type UserConnection interface {
 	RemoteAddr() string
 	Pty() ssh.Pty
 	Context() context.Context
+	HandleRoomEvent(event string, msg *exchange.RoomMessage)
+}
+
+type SessionInfo struct {
+	ID          string `json:"id"`
+	EnableShare bool   `json:"enable_share"`
 }

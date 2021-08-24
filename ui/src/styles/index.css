@@ -1,0 +1,51 @@
+html {
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #1f1b1b;
+  overflow: auto;
+  height: 100%;
+  width: 100%;
+}
+body ::-webkit-scrollbar-track {
+  -webkit-box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.3);
+  background-color: #272323;
+}
+
+
+body ::-webkit-scrollbar-thumb {
+  background-color: #494141;
+  border-radius: 6px;
+}
+
+#app{
+  height: 100%;
+  width: 100%;
+}
+
+.el-container {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.el-main {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.el-aside {
+  height: 100%;
+}
+
+.menu-list li {
+  cursor: pointer;
+}

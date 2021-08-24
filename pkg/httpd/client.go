@@ -2,10 +2,15 @@ package httpd
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
+
+	"github.com/jumpserver/koko/pkg/exchange"
+
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type Client struct {
@@ -80,4 +85,36 @@ func (c *Client) WriteData(p []byte) {
 
 func (c *Client) Context() context.Context {
 	return c.Conn.ctx.Request.Context()
+}
+
+func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
+	var (
+		msgType string
+		msgData string
+	)
+	switch event {
+	case exchange.ShareJoin:
+		msgType = TERMINALSHAREJOIN
+		data, _ := json.Marshal(roomMsg.Meta)
+		msgData = string(data)
+	case exchange.ShareLeave:
+		msgType = TERMINALSHARELEAVE
+		data, _ := json.Marshal(roomMsg.Meta)
+		msgData = string(data)
+	case exchange.ShareUsers:
+		msgType = TERMINALSHAREUSERS
+		msgData = string(roomMsg.Body)
+	case exchange.WindowsEvent:
+		msgType = TERMINALRESIZE
+		msgData = string(roomMsg.Body)
+	default:
+		logger.Infof("unsupported room msg %+v", roomMsg)
+		return
+	}
+	var msg = Message{
+		Id:   c.Conn.Uuid,
+		Type: msgType,
+		Data: msgData,
+	}
+	c.Conn.SendMessage(&msg)
 }
