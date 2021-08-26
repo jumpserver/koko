@@ -40,7 +40,7 @@ mount -t tmpfs -o size=10M tmpfs /nonexistent
 cd /nonexistent
 export HOME=/nonexistent
 export TMPDIR=/nonexistent
-export LANG=en_US.UTF-8
+export LANG=C.UTF-8
 exec su -s /bin/bash --command="mysql --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
 `
 
@@ -209,6 +209,7 @@ func (opt *sqlOption) Envs() []string {
 		fmt.Sprintf("HOSTNAME=%s", opt.Host),
 		fmt.Sprintf("PORT=%d", opt.Port),
 		fmt.Sprintf("DATABASE=%s", opt.DBName),
+		fmt.Sprintf("LANG=C.UTF-8"),
 	}
 }
 
