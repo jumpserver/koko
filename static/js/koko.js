@@ -24,6 +24,10 @@ function decodeToStr(octets) {
 let DISABLE_RZ_SZ = false; // 监控页面将忽略上传下载 rz、sz
 
 function initTerminal(elementId) {
+    if (window.innerHeight === 0) {
+        setTimeout(() => initTerminal(elementId), 500)
+        return
+    }
     let urlParams = new URLSearchParams(window.location.search.slice(1));
     let scheme = document.location.protocol === "https:" ? "wss" : "ws";
     let port = document.location.port ? ":" + document.location.port : "";
