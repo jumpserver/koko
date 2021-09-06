@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/elastic/go-elasticsearch/v6"
+	"github.com/elastic/go-elasticsearch/v7"
 
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type ESCommandStorage struct {
@@ -48,7 +48,7 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 	}
 
 	response, err := esClient.Bulk(bytes.NewReader(buf.Bytes()),
-		esClient.Bulk.WithIndex(es.Index), esClient.Bulk.WithDocumentType(es.DocType))
+		esClient.Bulk.WithIndex(es.Index))
 	if err != nil {
 		logger.Errorf("ES client bulk save err: %s", err)
 		return err
