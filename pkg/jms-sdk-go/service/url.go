@@ -86,3 +86,7 @@ const (
 	ShareSessionJoinURL   = "/api/v1/terminal/session-join-records/"
 	ShareSessionFinishURL = "/api/v1/terminal/session-join-records/%s/finished/"
 )
+
+const (
+	AuthMFASelectURL = "/api/v1/authentication/mfa/select/"
+)

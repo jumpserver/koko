@@ -60,6 +60,14 @@ func (u *UserClient) SendOTPRequest(optReq *OTPRequest) (resp AuthResponse, err 
 	return
 }
 
+func (u *UserClient) SelectMFAChoice(mfaType string) (err error) {
+	data := map[string]string{
+		"type": mfaType,
+	}
+	_, err = u.client.Post(AuthMFASelectURL, data, nil)
+	return
+}
+
 type OTPRequest struct {
 	ReqURL  string
 	ReqBody map[string]interface{}
