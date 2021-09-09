@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"container/ring"
+	"encoding/json"
 	"io"
 	"sort"
 	"sync"
@@ -61,6 +62,7 @@ func (r *Room) run() {
 	defer ticker.Stop()
 	defer r.closeOnce()
 	connMaps := make(map[string]*Conn)
+	currentOnlineUsers := make(map[string]MetaMessage)
 	for {
 		select {
 		case <-ticker.C:
@@ -85,6 +87,11 @@ func (r *Room) run() {
 					}
 				}
 			})
+			body, _ := json.Marshal(currentOnlineUsers)
+			con.handlerMessage(&RoomMessage{
+				Event: ShareUsers,
+				Body:  body,
+			})
 			logger.Debugf("Room %s current connections count: %d", r.Id, len(connMaps))
 		case con := <-r.unSubscriber:
 			delete(connMaps, con.Id)
@@ -98,6 +105,12 @@ func (r *Room) run() {
 			case DataEvent:
 				r.recentMessages.Value = msg
 				r.recentMessages = r.recentMessages.Next()
+			case ShareJoin:
+				key := msg.Meta.User + msg.Meta.Created
+				currentOnlineUsers[key] = msg.Meta
+			case ShareLeave:
+				key := msg.Meta.User + msg.Meta.Created
+				delete(currentOnlineUsers, key)
 			}
 			r.broadcastMessage(userConns, msg)
 
@@ -174,17 +187,22 @@ func (r *Room) closeOnce() {
 	})
 }
 
-func WrapperUserCon(stream io.WriteCloser) *Conn {
+func WrapperUserCon(stream Stream) *Conn {
 	return &Conn{
-		Id:          common.UUID(),
-		WriteCloser: stream,
-		created:     time.Now(),
+		Id:      common.UUID(),
+		Stream:  stream,
+		created: time.Now(),
 	}
+}
+
+type Stream interface {
+	io.WriteCloser
+	HandleRoomEvent(event string, msg *RoomMessage)
 }
 
 type Conn struct {
 	Id string
-	io.WriteCloser
+	Stream
 	created time.Time
 }
 
@@ -194,6 +212,8 @@ func (c *Conn) handlerMessage(msg *RoomMessage) {
 		_, _ = c.Write(msg.Body)
 	case PingEvent:
 		_, _ = c.Write(nil)
+	default:
+		c.HandleRoomEvent(msg.Event, msg)
 	}
 }
 

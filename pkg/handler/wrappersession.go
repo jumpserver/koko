@@ -9,6 +9,7 @@ import (
 	"github.com/gliderlabs/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -87,10 +88,6 @@ func (w *WrapperSession) initReadPip() {
 	w.outReader, w.inWriter = io.Pipe()
 }
 
-func (w *WrapperSession) Protocol() string {
-	return "ssh"
-}
-
 func (w *WrapperSession) Context() context.Context {
 	return w.Sess.Context()
 }
@@ -140,4 +137,8 @@ func NewWrapperSession(sess ssh.Session) *WrapperSession {
 	}
 	w.initial()
 	return w
+}
+
+func (w *WrapperSession) HandleRoomEvent(event string, msg *exchange.RoomMessage) {
+
 }

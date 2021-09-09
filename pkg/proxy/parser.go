@@ -77,6 +77,9 @@ type Parser struct {
 	enableDownload      bool
 	enableUpload        bool
 	abortedFileTransfer bool
+	currentActiveUser   CurrentActiveUser
+
+	eventsFuncMap map[string]func()
 }
 
 func (p *Parser) initial() {
@@ -87,6 +90,12 @@ func (p *Parser) initial() {
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
+	p.eventsFuncMap = make(map[string]func())
+	p.zmodemParser.fireStatusEvent = func(event string) {
+		if callback, ok := p.eventsFuncMap[event]; ok {
+			callback()
+		}
+	}
 }
 
 // ParseStream 解析数据流
@@ -117,6 +126,7 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				case exchange.DataEvent:
 					b = msg.Body
 				}
+				p.UpdateActiveUser(msg)
 				if len(b) == 0 {
 					continue
 				}
@@ -295,7 +305,8 @@ func (p *Parser) forbiddenCommand(cmd string) {
 		Command:     p.command,
 		Output:      fbdMsg,
 		CreatedDate: p.cmdCreateDate,
-		RiskLevel:   model.HighRiskFlag}
+		RiskLevel:   model.HighRiskFlag,
+		User:        p.currentActiveUser}
 	p.command = ""
 	p.output = ""
 	p.userOutputChan <- breakInputPacket(p.protocolType)
@@ -526,7 +537,9 @@ func (p *Parser) sendCommandRecord() {
 			Command:     p.command,
 			Output:      p.output,
 			CreatedDate: p.cmdCreateDate,
-			RiskLevel:   model.LessRiskFlag}
+			RiskLevel:   model.LessRiskFlag,
+			User:        p.currentActiveUser,
+		}
 		p.command = ""
 		p.output = ""
 	}
@@ -540,11 +553,27 @@ func (p *Parser) CommandRecordChan() chan *ExecutedCommand {
 	return p.cmdRecordChan
 }
 
+func (p *Parser) UpdateActiveUser(msg *exchange.RoomMessage) {
+	p.currentActiveUser.UserId = msg.Meta.UserId
+	p.currentActiveUser.User = msg.Meta.User
+}
+
+func (p *Parser) RegisterEventCallback(event string, f func()) {
+	p.eventsFuncMap[event] = f
+}
+
 type ExecutedCommand struct {
 	Command     string
 	Output      string
 	CreatedDate time.Time
 	RiskLevel   string
+	User        CurrentActiveUser
+}
+
+type CurrentActiveUser struct {
+	UserId     string
+	User       string
+	RemoteAddr string
 }
 
 func IsEditEnterMode(p []byte) bool {
@@ -573,3 +602,8 @@ func breakInputPacket(protocolType string) []byte {
 	}
 	return []byte{utils.CharCleanLine, '\r'}
 }
+
+const (
+	zmodemStartEvent = "ZMODEM_START"
+	zmodemEndEvent   = "ZMODEM_END"
+)

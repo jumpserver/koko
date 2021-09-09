@@ -26,7 +26,7 @@ type DBParser struct {
 
 	userOutputChan chan []byte
 	srvOutputChan  chan []byte
-	cmdRecordChan chan *ExecutedCommand
+	cmdRecordChan  chan *ExecutedCommand
 
 	inputInitial  bool
 	inputPreState bool
@@ -42,6 +42,8 @@ type DBParser struct {
 
 	cmdFilterRules []model.SystemUserFilterRule
 	closed         chan struct{}
+
+	currentMeta CurrentActiveUser
 }
 
 func (p *DBParser) initial() {
@@ -83,6 +85,7 @@ func (p *DBParser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan 
 				case exchange.DataEvent:
 					b = msg.Body
 				}
+				p.UpdateMeta(msg)
 				b = p.ParseUserInput(b)
 				select {
 				case <-p.closed:
@@ -232,6 +235,15 @@ func (p *DBParser) NeedRecord() bool {
 	return true
 }
 
-func (p *DBParser) CommandRecordChan() chan *ExecutedCommand{
+func (p *DBParser) CommandRecordChan() chan *ExecutedCommand {
 	return p.cmdRecordChan
+}
+
+func (p *DBParser) UpdateMeta(msg *exchange.RoomMessage) {
+	p.currentMeta.UserId = msg.Meta.UserId
+	p.currentMeta.User = msg.Meta.User
+}
+
+func (p *DBParser) RegisterEventCallback(event string, f func()) {
+
 }

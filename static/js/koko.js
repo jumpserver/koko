@@ -24,6 +24,10 @@ function decodeToStr(octets) {
 let DISABLE_RZ_SZ = false; // 监控页面将忽略上传下载 rz、sz
 
 function initTerminal(elementId) {
+    if (window.innerHeight === 0) {
+        setTimeout(() => initTerminal(elementId), 500)
+        return
+    }
     let urlParams = new URLSearchParams(window.location.search.slice(1));
     let scheme = document.location.protocol === "https:" ? "wss" : "ws";
     let port = document.location.port ? ":" + document.location.port : "";
@@ -52,6 +56,7 @@ function initTerminal(elementId) {
     window.term = term;
     window.addEventListener('jmsFocus', evt => {
         term.focus()
+        term.scrollToBottom()
     })
     var zsentry;
     // patch send_block_files 能够显示上传进度

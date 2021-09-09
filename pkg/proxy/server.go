@@ -361,6 +361,8 @@ type Server struct {
 	DisConnectedCallback     func() error
 
 	keyboardMode int32
+
+	OnSessionInfo func(info SessionInfo)
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -470,14 +472,14 @@ func (s *Server) GetCommandRecorder() *CommandRecorder {
 	return &cmdR
 }
 
-func (s *Server) GenerateCommandItem(input, output string,
-	riskLevel int64, createdDate time.Time) *model.Command {
+func (s *Server) GenerateCommandItem(user, input, output string,
+	riskLevel int64, createdDate time.Time,) *model.Command {
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
 		return &model.Command{
 			SessionID:   s.ID,
 			OrgID:       s.connOpts.asset.OrgID,
-			User:        s.connOpts.user.String(),
+			User:        user,
 			Server:      s.connOpts.asset.Hostname,
 			SystemUser:  s.connOpts.systemUser.String(),
 			Input:       input,
@@ -491,7 +493,7 @@ func (s *Server) GenerateCommandItem(input, output string,
 		return &model.Command{
 			SessionID:   s.ID,
 			OrgID:       s.connOpts.dbApp.OrgID,
-			User:        s.connOpts.user.String(),
+			User:        user,
 			Server:      s.connOpts.dbApp.Name,
 			SystemUser:  s.connOpts.systemUser.String(),
 			Input:       input,
@@ -505,7 +507,7 @@ func (s *Server) GenerateCommandItem(input, output string,
 		return &model.Command{
 			SessionID: s.ID,
 			OrgID:     s.connOpts.k8sApp.OrgID,
-			User:      s.connOpts.user.String(),
+			User:      user,
 			Server: fmt.Sprintf("%s(%s)", s.connOpts.k8sApp.Name,
 				s.connOpts.k8sApp.Attrs.Cluster),
 			SystemUser:  s.connOpts.systemUser.String(),
@@ -1019,6 +1021,9 @@ func (s *Server) Proxy() {
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
 	if err2 := s.ConnectedSuccessCallback(); err2 != nil {
 		logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
+	}
+	if s.OnSessionInfo != nil {
+		go s.OnSessionInfo(SessionInfo{ID: s.ID, EnableShare: s.terminalConf.EnableSessionShare})
 	}
 	utils.IgnoreErrWriteWindowTitle(s.UserConn, s.connOpts.TerminalTitle())
 	if err = sw.Bridge(s.UserConn, srvCon); err != nil {

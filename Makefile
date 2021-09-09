@@ -13,6 +13,10 @@ COMMIT:= $(shell git rev-parse HEAD)
 GOVERSION:= $(shell go version)
 CipherKey := $(shell head -c 100 /dev/urandom | base64 | head -c 32)
 
+UIDIR=ui
+NPMINSTALL=npm i
+NPMBUILD=npm run-script build
+
 KOKOLDFLAGS+=-X 'main.Buildstamp=$(BuildTime)'
 KOKOLDFLAGS+=-X 'main.Githash=$(COMMIT)'
 KOKOLDFLAGS+=-X 'main.Goversion=$(GOVERSION)'
@@ -31,12 +35,14 @@ PLATFORM_LIST = \
 
 all-arch: $(PLATFORM_LIST)
 
-darwin-amd64:
+darwin-amd64:koko-ui
 	GOARCH=amd64 GOOS=darwin $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$@ $(KOKOSRCFILE)
 	GOARCH=amd64 GOOS=darwin $(KUBECTLBUILD) -o $(BUILDDIR)/kubectl-$@ $(KUBECTLFILE)
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
 	cp $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(NAME)
 	cp $(BUILDDIR)/kubectl-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/kubectl
 	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
@@ -44,16 +50,19 @@ darwin-amd64:
 	cp -r $(BASEPATH)/templates/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
 	cp -r $(BASEPATH)/config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$@/config_example.yml
 	cp -r $(BASEPATH)/utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$@/init-kubectl.sh
+	cp -r $(UIDIR)/dist/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
 
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$@.tar.gz $(NAME)-$(VERSION)-$@
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$@ $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/kubectl-$@
 
-linux-amd64:
+linux-amd64:koko-ui
 	GOARCH=amd64 GOOS=linux $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$@ $(KOKOSRCFILE)
 	GOARCH=amd64 GOOS=linux $(KUBECTLBUILD) -o $(BUILDDIR)/kubectl-$@ $(KUBECTLFILE)
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
 	cp $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(NAME)
 	cp $(BUILDDIR)/kubectl-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/kubectl
 	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
@@ -61,16 +70,18 @@ linux-amd64:
 	cp -r $(BASEPATH)/templates/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
 	cp -r $(BASEPATH)/config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$@/config_example.yml
 	cp -r $(BASEPATH)/utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$@/init-kubectl.sh
+	cp -r $(UIDIR)/dist/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
 
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$@.tar.gz $(NAME)-$(VERSION)-$@
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$@ $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/kubectl-$@
 
-linux-arm64:
+linux-arm64:koko-ui
 	GOARCH=arm64 GOOS=linux $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$@ $(KOKOSRCFILE)
 	GOARCH=arm64 GOOS=linux $(KUBECTLBUILD) -o $(BUILDDIR)/kubectl-$@ $(KUBECTLFILE)
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
 	cp $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(NAME)
 	cp $(BUILDDIR)/kubectl-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/kubectl
 	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
@@ -78,9 +89,13 @@ linux-arm64:
 	cp -r $(BASEPATH)/templates/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
 	cp -r $(BASEPATH)/config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$@/config_example.yml
 	cp -r $(BASEPATH)/utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$@/init-kubectl.sh
-
+	cp -r $(UIDIR)/dist/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$@.tar.gz $(NAME)-$(VERSION)-$@
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$@ $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/kubectl-$@
+
+koko-ui:
+	@echo "build ui"
+	@cd $(UIDIR) && $(NPMINSTALL) && $(NPMBUILD)
 
 .PHONY: docker
 docker:

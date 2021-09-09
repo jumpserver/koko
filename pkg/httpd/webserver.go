@@ -102,63 +102,43 @@ func (s *Server) SftpHostConnectorView(ctx *gin.Context) {
 }
 
 func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
-	var (
-		userValue   interface{}
-		currentUser *model.User
-		targetType  string
-		targetId    string
-		ok          bool
-
-		systemUserId string // optional
-	)
-
-	userValue, ok = ctx.Get(auth.ContextKeyUser)
+	var targetParams struct {
+		TargetType string `form:"type"`
+		TargetId   string `form:"target_id"`
+	}
+	if err := ctx.ShouldBind(&targetParams); err != nil {
+		logger.Errorf("Ws miss required params( type|target_id ) err: %s", err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	userValue, ok := ctx.Get(auth.ContextKeyUser)
 	if !ok {
 		logger.Errorf("Ws has no valid user from ip %s", ctx.ClientIP())
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	currentUser = userValue.(*model.User)
-
-	targetType, ok = ctx.GetQuery("type")
-	if !ok || targetType == "" {
-		logger.Error("Ws miss required params (type).")
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	targetId, ok = ctx.GetQuery("target_id")
-	if !ok || targetId == "" {
-		logger.Error("Ws miss required params (target_id).")
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	systemUserId, _ = ctx.GetQuery("system_user_id")
-	s.runTTY(ctx, currentUser, targetType, targetId, systemUserId)
+	currentUser := userValue.(*model.User)
+	systemUserId, _ := ctx.GetQuery("system_user_id")
+	s.runTTY(ctx, currentUser, targetParams.TargetType, targetParams.TargetId, systemUserId)
 }
 
 func (s *Server) ProcessTokenWebsocket(ctx *gin.Context) {
-	tokenId, _ := ctx.GetQuery("target_id")
-	tokenUser, err := s.JmsService.GetTokenAsset(tokenId)
-	if err != nil {
-		logger.Errorf("Token is invalid: %s", tokenId)
+	var targetParams struct {
+		TargetId string `form:"target_id"`
+	}
+	if err := ctx.ShouldBind(&targetParams); err != nil {
+		logger.Errorf("Ws miss required params(target_id ) err: %s", err)
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
-
 	}
-	if tokenUser.UserID == "" {
-		logger.Errorf("Token is invalid: %s", tokenId)
+	tokenUser, err := s.JmsService.GetTokenAsset(targetParams.TargetId)
+	if err != nil || tokenUser.UserID == "" {
+		logger.Errorf("Token is invalid: %s", targetParams.TargetId)
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	currentUser, err := s.JmsService.GetUserById(tokenUser.UserID)
-	if err != nil {
-		logger.Errorf("Token userID is invalid: %s", tokenUser.UserID)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	if currentUser == nil {
+	if err != nil || currentUser == nil {
 		logger.Errorf("Token userID is invalid: %s", tokenUser.UserID)
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return

@@ -496,6 +496,8 @@ type ZmodemParser struct {
 
 	abortMark       bool // 不记录中断的文件
 	hasDataTransfer bool
+
+	fireStatusEvent func(event string)
 }
 
 // rz sz 解析的入口
@@ -541,21 +543,33 @@ func (z *ZmodemParser) Parse(p []byte) {
 			Type: TypeDownload,
 			endCallback: func() {
 				z.setStatus(ZParserStatusNone)
+				if z.fireStatusEvent != nil {
+					z.fireStatusEvent(zmodemEndEvent)
+				}
 			},
 			ZFileHeaderCallback: z.zFileFrameCallback,
 			zOnHeader:           z.OnHeader,
 		}
-		z.status.Store(ZParserStatusSend)
+		z.setStatus(ZParserStatusSend)
+		if z.fireStatusEvent != nil {
+			z.fireStatusEvent(zmodemStartEvent)
+		}
 	case ZRINIT:
 		z.currentSession = &ZSession{
 			Type: TypeUpload,
 			endCallback: func() {
 				z.setStatus(ZParserStatusNone)
+				if z.fireStatusEvent != nil {
+					z.fireStatusEvent(zmodemEndEvent)
+				}
 			},
 			ZFileHeaderCallback: z.zFileFrameCallback,
 			zOnHeader:           z.OnHeader,
 		}
 		z.setStatus(ZParserStatusReceive)
+		if z.fireStatusEvent != nil {
+			z.fireStatusEvent(zmodemStartEvent)
+		}
 	default:
 		z.currentSession = nil
 		z.abortMark = false

@@ -6,13 +6,11 @@ import (
 	"net/http/pprof"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
-
 )
 
 func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
@@ -23,12 +21,14 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
-	eng.LoadHTMLGlob("./templates/**/*")
 	rootGroup := eng.Group("")
 	kokoGroup := rootGroup.Group("/koko")
 	kokoGroup.Static("/static/", "./static")
+	kokoGroup.Static("/assets", "./ui/dist/assets")
+	kokoGroup.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
-
+	eng.LoadHTMLFiles("./ui/dist/index.html",
+		"./templates/elfinder/file_manager.html")
 	wsGroup := kokoGroup.Group("/ws/")
 	{
 		wsGroup.Group("/terminal").Use(
@@ -44,18 +44,31 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	terminalGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		terminalGroup.GET("/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "terminal.html", nil)
+			ctx.HTML(http.StatusOK, "index.html", nil)
+		})
+	}
+	shareGroup := kokoGroup.Group("/share")
+	shareGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	{
+		shareGroup.GET("/:id/", func(ctx *gin.Context) {
+			ctx.HTML(http.StatusOK, "index.html", nil)
+		})
+	}
+
+	monitorGroup := kokoGroup.Group("/monitor")
+	monitorGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	{
+		monitorGroup.GET("/:id/", func(ctx *gin.Context) {
+			ctx.HTML(http.StatusOK, "index.html", nil)
 		})
 	}
 
 	tokenGroup := kokoGroup.Group("/token")
 	{
-
 		tokenGroup.GET("/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "terminal.html", nil)
+			ctx.HTML(http.StatusOK, "index.html", nil)
 		})
 	}
-
 	elfindlerGroup := kokoGroup.Group("/elfinder")
 	elfindlerGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{

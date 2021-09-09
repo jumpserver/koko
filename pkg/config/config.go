@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -179,17 +180,35 @@ func loadConfigFromFile(path string, conf *Config) {
 	}
 }
 
-const prefixName = "[KoKo]"
+const (
+	prefixName = "[KoKo]-"
+
+	hostEnvKey = "SERVER_HOSTNAME"
+
+	defaultNameMaxLen = 128
+)
+
+/*
+SERVER_HOSTNAME: 环境变量名，可用于自定义默认注册名称的前缀
+default name rule:
+[Koko]-{SERVER_HOSTNAME}-{HOSTNAME}
+ or
+[Koko]-{HOSTNAME}
+*/
 
 func getDefaultName() string {
 	hostname, _ := os.Hostname()
+	if serverHostname, ok := os.LookupEnv(hostEnvKey); ok {
+		hostname = fmt.Sprintf("%s-%s", serverHostname, hostname)
+	}
 	hostRune := []rune(prefixName + hostname)
-	if len(hostRune) <= 32 {
+	if len(hostRune) <= defaultNameMaxLen {
 		return string(hostRune)
 	}
-	name := make([]rune, 32)
-	copy(name[:16], hostRune[:16])
-	start := len(hostRune) - 16
-	copy(name[16:], hostRune[start:])
+	name := make([]rune, defaultNameMaxLen)
+	index := defaultNameMaxLen / 2
+	copy(name[:16], hostRune[:index])
+	start := len(hostRune) - index
+	copy(name[index:], hostRune[start:])
 	return string(name)
 }

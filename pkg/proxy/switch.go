@@ -10,6 +10,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -44,7 +45,6 @@ func (s *SwitchSession) SessionID() string {
 
 func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 	// 命令记录
-	//cmdRecorder := NewCommandRecorder(s.ID)
 	cmdRecorder := s.p.GetCommandRecorder()
 	for item := range cmdRecordChan {
 		if item.Command == "" {
@@ -59,9 +59,13 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 
 // generateCommandResult 生成命令结果
 func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Command {
-	var input string
-	var output string
-	var riskLevel int64
+	var (
+		input     string
+		output    string
+		riskLevel int64
+		user      string
+	)
+	user = item.User.User
 	if len(item.Command) > 128 {
 		input = item.Command[:128]
 	} else {
@@ -82,7 +86,7 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 	default:
 		riskLevel = model.NormalLevel
 	}
-	return s.p.GenerateCommandItem(input, output, riskLevel, item.CreatedDate)
+	return s.p.GenerateCommandItem(user, input, output, riskLevel, item.CreatedDate)
 }
 
 // Bridge 桥接两个链接
@@ -103,11 +107,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		close(done)
 		_ = userConn.Close()
 		_ = srvConn.Close()
-		// 关闭parser
 		parser.Close()
 		// 关闭录像
 		replayRecorder.End()
-		//s.postBridge()
 	}()
 
 	// 记录命令
@@ -156,7 +158,31 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		exitSignal <- struct{}{}
 		close(srvInChan)
 	}()
+	user := s.p.connOpts.user
+	meta := exchange.MetaMessage{
+		UserId:     user.ID,
+		User:       user.String(),
+		Created:    common.NewNowUTCTime().String(),
+		RemoteAddr: userConn.RemoteAddr(),
+	}
+	room.Broadcast(&exchange.RoomMessage{
+		Event: exchange.ShareJoin,
+		Body:  nil,
+		Meta:  meta,
+	})
+	parser.RegisterEventCallback(zmodemStartEvent, func() {
+		room.Broadcast(&exchange.RoomMessage{
+			Event: exchange.ActionEvent,
+			Body:  []byte(zmodemStartEvent),
+		})
+	})
 
+	parser.RegisterEventCallback(zmodemEndEvent, func() {
+		room.Broadcast(&exchange.RoomMessage{
+			Event: exchange.ActionEvent,
+			Body:  []byte(zmodemEndEvent),
+		})
+	})
 	go func() {
 		for {
 			buf := make([]byte, 1024)
@@ -167,15 +193,17 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				})
 				if index <= 0 || !parser.NeedRecord() {
 					room.Receive(&exchange.RoomMessage{
-						Event: exchange.DataEvent, Body: buf[:nr]})
+						Event: exchange.DataEvent, Body: buf[:nr],
+						Meta: meta})
 				} else {
 					room.Receive(&exchange.RoomMessage{
-						Event: exchange.DataEvent, Body: buf[:index]})
+						Event: exchange.DataEvent, Body: buf[:index],
+						Meta: meta})
 					time.Sleep(time.Millisecond * 100)
 					room.Receive(&exchange.RoomMessage{
-						Event: exchange.DataEvent, Body: buf[index:nr]})
+						Event: exchange.DataEvent, Body: buf[index:nr],
+						Meta: meta})
 				}
-
 			}
 			if err != nil {
 				logger.Errorf("Session[%s] user read err: %s", s.ID, err)

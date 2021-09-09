@@ -7,6 +7,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
+//
 func proxyRoom(room *Room, ch *redisChannel, userInputCh chan *RoomMessage) {
 	maxIdleTime := time.Minute * 30
 	tick := time.NewTicker(time.Second * 30)
@@ -56,6 +57,7 @@ func proxyRoom(room *Room, ch *redisChannel, userInputCh chan *RoomMessage) {
 	}
 }
 
+// 接受其他 koko 的数据 给 Room
 func proxyUserCon(room *Room, ch *redisChannel) {
 	tick := time.NewTicker(time.Minute)
 	defer tick.Stop()
