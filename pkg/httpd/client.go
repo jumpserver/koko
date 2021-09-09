@@ -107,6 +107,9 @@ func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
 	case exchange.WindowsEvent:
 		msgType = TERMINALRESIZE
 		msgData = string(roomMsg.Body)
+	case exchange.ActionEvent:
+		msgType = TERMINALACTION
+		msgData = string(roomMsg.Body)
 	default:
 		logger.Infof("unsupported room msg %+v", roomMsg)
 		return

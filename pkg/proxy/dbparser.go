@@ -243,3 +243,7 @@ func (p *DBParser) UpdateMeta(msg *exchange.RoomMessage) {
 	p.currentMeta.UserId = msg.Meta.UserId
 	p.currentMeta.User = msg.Meta.User
 }
+
+func (p *DBParser) RegisterEventCallback(event string, f func()) {
+
+}

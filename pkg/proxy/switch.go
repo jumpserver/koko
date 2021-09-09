@@ -60,10 +60,10 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 // generateCommandResult 生成命令结果
 func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Command {
 	var (
-		input string
-		output string
+		input     string
+		output    string
 		riskLevel int64
-		user string
+		user      string
 	)
 	user = item.User.User
 	if len(item.Command) > 128 {
@@ -168,7 +168,20 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	room.Broadcast(&exchange.RoomMessage{
 		Event: exchange.ShareJoin,
 		Body:  nil,
-		Meta: meta,
+		Meta:  meta,
+	})
+	parser.RegisterEventCallback(zmodemStartEvent, func() {
+		room.Broadcast(&exchange.RoomMessage{
+			Event: exchange.ActionEvent,
+			Body:  []byte(zmodemStartEvent),
+		})
+	})
+
+	parser.RegisterEventCallback(zmodemEndEvent, func() {
+		room.Broadcast(&exchange.RoomMessage{
+			Event: exchange.ActionEvent,
+			Body:  []byte(zmodemEndEvent),
+		})
 	})
 	go func() {
 		for {

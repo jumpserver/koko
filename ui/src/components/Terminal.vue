@@ -32,11 +32,19 @@ import ZmodemBrowser from "nora-zmodemjs/src/zmodem_browser";
 import {bytesHuman, decodeToStr, fireEvent} from '@/utils/common'
 
 const MaxTimeout = 30 * 1000
+
+const zmodemStart = 'ZMODEM_START'
+const zmodemEnd = 'ZMODEM_END'
+
 export default {
   name: "Terminal",
   props: {
     connectURL: String,
     shareCode: String,
+    enableZmodem: {
+      type: Boolean,
+      default: false,
+    }
   },
   data() {
     return {
@@ -52,6 +60,9 @@ export default {
       zmodeSession: null,
       fileList: [],
       code: this.shareCode,
+      enableRzSz: this.enableZmodem,
+      zmodemStatus: false,
+      termSelectionText: '',
     }
   },
   mounted: function () {
@@ -85,6 +96,30 @@ export default {
       termRef.addEventListener('mouseenter', () => {
         term.focus();
         term.scrollToBottom()
+      })
+      term.onSelectionChange(() => {
+        document.execCommand('copy');
+        this.$log.debug("select change")
+        this.termSelectionText = term.getSelection().trim();
+      });
+
+      termRef.addEventListener('contextmenu',($event)=> {
+        if ($event.ctrlKey || this.config.quickPaste !== '1') {
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then((text) => {
+            if (this.wsIsActivated()){
+            this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', text))
+            }
+          })
+          $event.preventDefault();
+        } else if (this.termSelectionText !== "") {
+          if (this.wsIsActivated()){
+            this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', this.termSelectionText))
+          }
+          $event.preventDefault();
+        }
       })
       return term
     },
@@ -137,6 +172,10 @@ export default {
           this.$log.debug("websocket closed")
           return
         }
+        if ((!this.enableZmodem) && this.zmodemStatus) {
+          this.$log.debug("未开启zmodem 且当前在zmodem状态，不允许输入")
+          return;
+        }
         this.lastSendTime = new Date();
         this.$log.debug("term on data event")
         this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', data));
@@ -160,10 +199,23 @@ export default {
     onWebsocketMessage(e) {
       this.lastReceiveTime = new Date();
       if (typeof e.data === 'object') {
-        this.zsentry.consume(e.data);
+        if (this.enableRzSz) {
+          this.zsentry.consume(e.data);
+        } else {
+          this.writeBufferToTerminal(e.data);
+        }
       } else {
+        this.$log.debug(typeof e.data)
         this.dispatch(e.data);
       }
+    },
+
+    writeBufferToTerminal(data) {
+      if ((!this.enableZmodem) && this.zmodemStatus) {
+        this.$log.debug("未开启zmodem 且当前在zmodem状态，不允许显示")
+        return;
+      }
+      this.term.write(decodeToStr(data));
     },
 
     onWebsocketOpen() {
@@ -211,7 +263,7 @@ export default {
           this.terminalId = msg.id;
           this.fitAddon.fit();
           const data = {
-            cols:this.term.cols,
+            cols: this.term.cols,
             rows: this.term.rows,
             code: this.code
           }
@@ -225,6 +277,20 @@ export default {
           break
         case "PING":
           break
+        case 'TERMINAL_ACTION': {
+          const action = msg.data;
+          switch (action) {
+            case zmodemStart:
+              this.zmodemStatus = true
+              break
+            case zmodemEnd:
+              this.zmodemStatus = false
+              break
+            default:
+              this.zmodemStatus = false
+          }
+          break
+        }
         default:
           console.log(data)
       }
@@ -387,7 +453,7 @@ export default {
       this.$log.debug("删除dialog的文件")
     },
     createShareInfo(sid, val) {
-      this.sendWsMessage('TERMINAL_SHARE', {session_id:sid, expired:val,})
+      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val,})
     },
 
     sendWsMessage(type, data) {
