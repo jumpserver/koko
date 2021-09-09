@@ -1,7 +1,7 @@
 <template>
   <el-container :style="backgroundColor">
     <el-main>
-      <Terminal ref='term' v-bind:connectURL="wsURL" v-on:ws-data="onWsData"></Terminal>
+      <Terminal ref='term' v-bind:enable-zmodem='true' v-bind:connectURL="wsURL" v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <el-aside width="60px" center>
       <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">

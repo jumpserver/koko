@@ -12,4 +12,6 @@ type ParseEngine interface {
 	NeedRecord() bool
 
 	CommandRecordChan() chan *ExecutedCommand
+
+	RegisterEventCallback(event string, f func())
 }

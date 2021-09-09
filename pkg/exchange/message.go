@@ -36,4 +36,6 @@ const (
 	ShareJoin   = "Share_JOIN"
 	ShareLeave  = "Share_LEAVE"
 	ShareUsers  = "Share_USERS"
+
+	ActionEvent = "Action"
 )
