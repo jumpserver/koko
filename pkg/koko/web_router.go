@@ -21,14 +21,14 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
-	eng.LoadHTMLGlob("./templates/**/*")
 	rootGroup := eng.Group("")
 	kokoGroup := rootGroup.Group("/koko")
 	kokoGroup.Static("/static/", "./static")
 	kokoGroup.Static("/assets", "./ui/dist/assets")
 	kokoGroup.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
-
+	eng.LoadHTMLFiles("./ui/dist/index.html",
+		"./templates/elfinder/file_manager.html")
 	wsGroup := kokoGroup.Group("/ws/")
 	{
 		wsGroup.Group("/terminal").Use(
@@ -39,7 +39,7 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 
 		wsGroup.Group("/token").GET("/", webSrv.ProcessTokenWebsocket)
 	}
-	eng.LoadHTMLFiles("./ui/dist/index.html")
+
 	terminalGroup := kokoGroup.Group("/terminal")
 	terminalGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
