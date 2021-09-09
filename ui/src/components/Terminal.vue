@@ -292,7 +292,7 @@ export default {
           break
         }
         default:
-          console.log(data)
+          this.$log.debug("default: ", data)
       }
       this.$emit('ws-data', msg.type, msg)
     },

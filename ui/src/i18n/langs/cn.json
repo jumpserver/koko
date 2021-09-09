@@ -9,6 +9,13 @@
     "UploadTitle": "上传文件",
     "UploadTips": "将文件拖到此处，或点击上传",
     "Share": "分享",
-    "CopyShareURLSuccess": "复制共享地址成功"
+    "CopyShareURLSuccess": "复制共享地址成功",
+    "ThemeConfig": "主题设置",
+    "OnlineUsers": "在线人员",
+    "User": "用户",
+    "VerifyCode": "验证码"
+  },
+  "Message": {
+    "InputVerifyCode": "请输入验证码"
   }
 }

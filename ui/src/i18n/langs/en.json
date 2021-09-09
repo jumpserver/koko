@@ -9,6 +9,13 @@
     "UploadTitle": "file upload",
     "UploadTips": "Drag file here or click to upload",
     "Share": "Share",
-    "CopyShareURLSuccess": "Copy Share URL Success"
+    "CopyShareURLSuccess": "Copy Share URL Success",
+    "ThemeConfig": "Theme Setting",
+    "OnlineUsers": "Online Users",
+    "User": "User",
+    "VerifyCode": "Verify Code"
+  },
+  "Message": {
+    "InputVerifyCode": "Input Verify Code"
   }
 }
