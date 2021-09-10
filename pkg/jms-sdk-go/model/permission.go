@@ -51,4 +51,5 @@ const (
 type ValidateResult struct {
 	Ok  bool   `json:"ok"`
 	Msg string `json:"msg"`
+	Err string `json:"error"`
 }

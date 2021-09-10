@@ -18,5 +18,5 @@ type ShareRecord struct {
 	OrgId     string `json:"org_id"`
 	OrgName   string `json:"org_name"`
 	Joiner    string `json:"joiner"`
-
+	Err       interface{} `json:"error"`
 }
