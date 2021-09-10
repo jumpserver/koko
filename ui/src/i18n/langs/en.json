@@ -13,7 +13,18 @@
     "ThemeConfig": "Theme Setting",
     "OnlineUsers": "Online Users",
     "User": "User",
-    "VerifyCode": "Verify Code"
+    "VerifyCode": "Verify Code",
+    "LinkAddr": "Link",
+    "ExpiredTime": "Expired",
+    "SelectAction": "Select",
+    "CreateSuccess": "Success",
+    "CreateLink": "Create Share Link",
+    "CopyLink": "Copy Link Address",
+    "NoLink": "No Link",
+    "ConfirmBtn": "Confirm",
+    "Theme": "Theme",
+    "SelectTheme": "Select Theme",
+    "ThemeColors": "Theme Colors"
   },
   "Message": {
     "InputVerifyCode": "Input Verify Code"

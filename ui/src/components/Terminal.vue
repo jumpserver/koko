@@ -475,6 +475,5 @@ div {
 
 #term {
   height: 100%;
-  overflow: auto;
 }
 </style>

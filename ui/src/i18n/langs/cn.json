@@ -13,7 +13,18 @@
     "ThemeConfig": "主题设置",
     "OnlineUsers": "在线人员",
     "User": "用户",
-    "VerifyCode": "验证码"
+    "VerifyCode": "验证码",
+    "LinkAddr": "链接地址",
+    "ExpiredTime": "有效期",
+    "SelectAction": "请选择",
+    "CreateSuccess": "创建成功",
+    "CreateLink": "创建分享链接",
+    "CopyLink": "复制链接及密码",
+    "NoLink": "无地址",
+    "ConfirmBtn": "确定",
+    "Theme": "主题",
+    "SelectTheme": "请选择主题",
+    "ThemeColors": "主题颜色"
   },
   "Message": {
     "InputVerifyCode": "请输入验证码"
