@@ -154,7 +154,9 @@ export default {
       }
       const shareURL = this.generateShareURL();
       this.$log.debug("share URL: " + shareURL)
-      const text = `地址： ${shareURL}\n验证码: ${this.shareCode}`
+      const linkTitle = this.$t('Terminal.LinkAddr');
+      const codeTitle = this.$t('Terminal.VerifyCode')
+      const text = `${linkTitle}： ${shareURL}\n${codeTitle}: ${this.shareCode}`
       CopyTextToClipboard(text)
       this.$message(this.$t("Terminal.CopyShareURLSuccess"))
     },
