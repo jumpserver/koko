@@ -524,6 +524,9 @@ func (z *ZmodemParser) Parse(p []byte) {
 			}
 			logger.Infof("Zmodem session %s end", z.Status())
 			z.setStatus(ZParserStatusNone)
+			if z.fireStatusEvent != nil {
+				z.fireStatusEvent(zmodemEndEvent)
+			}
 		}
 		return
 	}
