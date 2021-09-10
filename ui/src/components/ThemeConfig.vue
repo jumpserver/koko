@@ -2,12 +2,12 @@
   <div class="dialog-modal" v-show="visible" @click.self="() => $emit('update:visible', false)">
     <div class="config-container">
       <el-tabs v-model="activeName">
-        <el-tab-pane label="主题" name="first">
-          <el-select v-model="theme" placeholder="请选择主题" style="width: 100%">
+        <el-tab-pane :label="this.$t('Terminal.Theme')" name="first">
+          <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')" style="width: 100%">
             <el-option v-for="item in themes" :key="item" :label="item" :value="item"></el-option>
           </el-select>
           <div v-if="theme">
-            <p class="title">基础颜色</p>
+            <p class="title">{{ this.$t('Terminal.ThemeColors') }}</p>
             <el-row type="flex" class="theme-colors">
               <el-col :span="8">
                 <div class="show-color" :style="{backgroundColor: colors.background}"></div>

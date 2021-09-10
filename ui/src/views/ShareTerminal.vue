@@ -7,15 +7,15 @@
       <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">
         <el-menu-item @click="dialogVisible=!dialogVisible" index="0">
           <i class="el-icon-setting"></i>
-          <span slot="title">主题设置</span>
+          <span slot="title">{{ this.$t('Terminal.ThemeConfig') }}</span>
         </el-menu-item>
         <el-submenu index="2" v-if="displayOnlineUser">
           <template slot="title">
             <i class="el-icon-s-custom"></i>
-            <span slot="title">在线人员 </span>
+            <span slot="title">{{ this.$t('Terminal.OnlineUsers') }} </span>
           </template>
           <el-menu-item-group>
-            <span slot="title">人员 {{ onlineKeys.length }} </span>
+            <span slot="title">{{ this.$t('Terminal.User') }} {{ onlineKeys.length }} </span>
             <el-menu-item v-for="(item ,key) of onlineUsersMap" :key="key">{{ item.user }}</el-menu-item>
           </el-menu-item-group>
         </el-submenu>
@@ -30,12 +30,12 @@
         :show-close="false"
         width="30%">
       <el-form ref="form" label-width="80px" @submit.native.prevent>
-        <el-form-item label="验证码">
+        <el-form-item :label="this.$t('Terminal.VerifyCode')">
           <el-input v-model="code"></el-input>
         </el-form-item>
       </el-form>
       <div slot="footer">
-        <el-button type="primary" @click="submitCode">确定</el-button>
+        <el-button type="primary" @click="submitCode">{{this.$t('Terminal.ConfirmBtn')}}</el-button>
       </div>
     </el-dialog>
   </el-container>
@@ -122,7 +122,7 @@ export default {
     },
     submitCode() {
       if (this.code === '') {
-        this.$message("请输入验证码")
+        this.$message(this.$t("Message.InputVerifyCode"))
         return
       }
       this.$log.debug("code:", this.code)

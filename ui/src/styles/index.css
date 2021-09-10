@@ -40,12 +40,21 @@ body ::-webkit-scrollbar-thumb {
   width: 100%;
   height: 100%;
   padding: 0;
+  overflow: hidden;
 }
 
 .el-aside {
   height: 100%;
+  overflow: hidden;
 }
 
 .menu-list li {
   cursor: pointer;
+}
+
+/*
+强制去掉 xterm 右侧的 滚动条
+*/
+.xterm .xterm-viewport {
+  overflow-y: hidden!important;
 }
