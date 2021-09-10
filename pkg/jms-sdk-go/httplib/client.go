@@ -163,10 +163,8 @@ func (c *Client) Do(method, reqUrl string, data, res interface{}, params ...map[
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode >= 400 {
-		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, body)
-		err = errors.New(msg)
-		return
+	if err != nil {
+		return resp, err
 	}
 
 	// If is buffer return the raw response body
@@ -185,6 +183,11 @@ func (c *Client) Do(method, reqUrl string, data, res interface{}, params ...map[
 				return
 			}
 		}
+	}
+	if resp.StatusCode >= 400 {
+		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, body)
+		err = errors.New(msg)
+		return
 	}
 	return
 }
@@ -240,10 +243,8 @@ func (c *Client) UploadFile(reqUrl string, gFile string, res interface{}, params
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode >= 400 {
-		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, string(body))
-		err = errors.New(msg)
-		return
+	if err != nil {
+		return err
 	}
 
 	// If is buffer return the raw response body
@@ -262,6 +263,11 @@ func (c *Client) UploadFile(reqUrl string, gFile string, res interface{}, params
 				return
 			}
 		}
+	}
+	if resp.StatusCode >= 400 {
+		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, string(body))
+		err = errors.New(msg)
+		return
 	}
 	return
 }

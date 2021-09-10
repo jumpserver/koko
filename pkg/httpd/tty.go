@@ -105,7 +105,7 @@ func (h *tty) HandleMessage(msg *Message) {
 			if err2 != nil {
 				logger.Errorf("Ws[%s] terminal initial validate share err: %s",
 					h.ws.Uuid, err2)
-
+			h.sendCloseMessage()
 				return
 			}
 			h.shareInfo = &info
@@ -222,6 +222,12 @@ func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err err
 	recordRes, err := h.jmsService.JoinShareRoom(data)
 	if err != nil {
 		logger.Errorf("Conn[%s] Validate Share err: %s", h.ws.Uuid, err)
+		errMsg ,_ := json.Marshal(recordRes.Err)
+		h.ws.SendMessage(&Message{
+			Id:   h.ws.Uuid,
+			Type: TERMINALERROR,
+			Data: string(errMsg),
+		})
 		return
 	}
 	return ShareInfo{recordRes}, nil

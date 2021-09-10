@@ -30,6 +30,7 @@ import {Terminal} from 'xterm';
 import {FitAddon} from 'xterm-addon-fit';
 import ZmodemBrowser from "nora-zmodemjs/src/zmodem_browser";
 import {bytesHuman, decodeToStr, fireEvent} from '@/utils/common'
+import xtermTheme from "xterm-theme";
 
 const MaxTimeout = 30 * 1000
 
@@ -68,8 +69,18 @@ export default {
   mounted: function () {
     this.connect()
     this.registerJMSEvent()
+    this.updateTheme()
   },
   methods: {
+    updateTheme() {
+      const ThemeName = window.localStorage.getItem("themeName") || null
+      if (ThemeName) {
+        const theme = xtermTheme[ThemeName]
+        this.term.setOption("theme", theme);
+        this.$log.debug("theme: ", ThemeName)
+        this.$emit("background-color", theme.background)
+      }
+    },
     createTerminal() {
       let lineHeight = this.config.lineHeight;
       let fontSize = this.config.fontSize;
@@ -289,6 +300,11 @@ export default {
             default:
               this.zmodemStatus = false
           }
+          break
+        }
+        case 'TERMINAL_ERROR':{
+          const errMsg = msg.data;
+          this.$message(errMsg);
           break
         }
         default:

@@ -1,7 +1,11 @@
 <template>
   <el-container :style="backgroundColor">
     <el-main>
-      <Terminal ref='term' v-bind:enable-zmodem='true' v-bind:connectURL="wsURL" v-on:ws-data="onWsData"></Terminal>
+      <Terminal ref='term'
+                v-bind:enable-zmodem='true'
+                v-bind:connectURL="wsURL"
+                v-on:background-color="onThemeBackground"
+                v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <el-aside width="60px" center>
       <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">
@@ -111,7 +115,7 @@ export default {
       }
     },
     shareTitle() {
-      return this.shareId ? this.$t('Terminal.Share') :  this.$t('Terminal.CreateLink')
+      return this.shareId ? this.$t('Terminal.Share') : this.$t('Terminal.CreateLink')
     },
     shareURL() {
       return this.shareId ? this.generateShareURL() : this.$t('Terminal.NoLink')
@@ -160,7 +164,9 @@ export default {
       CopyTextToClipboard(text)
       this.$message(this.$t("Terminal.CopyShareURLSuccess"))
     },
-
+    onThemeBackground(val) {
+      this.themeBackground = val
+    },
     onWsData(msgType, msg) {
       switch (msgType) {
         case "TERMINAL_SESSION": {
@@ -200,9 +206,9 @@ export default {
     handleChangeTheme(val) {
       if (this.$refs.term.term) {
         this.$refs.term.term.setOption("theme", val);
+        this.themeBackground = val.background;
       }
       this.$log.debug(val);
-      this.themeBackground = val.background;
     },
     handleShareURlCreated() {
       this.loading = true
