@@ -1,25 +1,29 @@
 <template>
   <el-container :style="backgroundColor">
     <el-main>
-      <Terminal ref='term' v-bind:enable-zmodem='true' v-bind:connectURL="wsURL" v-on:ws-data="onWsData"></Terminal>
+      <Terminal ref='term'
+                v-bind:enable-zmodem='true'
+                v-bind:connectURL="wsURL"
+                v-on:background-color="onThemeBackground"
+                v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <el-aside width="60px" center>
       <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">
         <el-menu-item @click="dialogVisible=!dialogVisible" index="0">
           <i class="el-icon-setting"></i>
-          <span slot="title">主题设置</span>
+          <span slot="title">{{ this.$t('Terminal.ThemeConfig') }}</span>
         </el-menu-item>
         <el-menu-item @click="shareDialogVisible=!shareDialogVisible" v-if="enableShare" index="1">
           <i class="el-icon-share"></i>
-          <span slot="title">分享</span>
+          <span slot="title">{{ this.$t('Terminal.Share') }}</span>
         </el-menu-item>
         <el-submenu index="2" v-if="displayOnlineUser">
           <template slot="title">
             <i class="el-icon-s-custom"></i>
-            <span slot="title">在线人员</span>
+            <span slot="title">{{ this.$t('Terminal.OnlineUsers') }}</span>
           </template>
           <el-menu-item-group>
-            <span slot="title">人员 {{ onlineKeys.length }}</span>
+            <span slot="title">{{ this.$t('Terminal.User') }} {{ onlineKeys.length }}</span>
             <el-menu-item v-for="(item ,key) of onlineUsersMap" :key="key">{{ item.user }}</el-menu-item>
           </el-menu-item-group>
         </el-submenu>
@@ -37,8 +41,8 @@
         @close="shareDialogClosed"
         center>
       <el-form v-if="!shareId" v-loading="loading">
-        <el-form-item label="有效期">
-          <el-select v-model="expiredTime" placeholder="请选择">
+        <el-form-item :label="this.$t('Terminal.ExpiredTime')">
+          <el-select v-model="expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
             <el-option
                 v-for="item in expiredOptions"
                 :key="item.value"
@@ -48,21 +52,22 @@
           </el-select>
         </el-form-item>
       </el-form>
-      <el-result v-if="shareId" icon="success" title="创建成功">
+      <el-result v-if="shareId" icon="success" :title="this.$t('Terminal.CreateSuccess')">
         <template slot="extra">
         </template>
       </el-result>
       <el-form v-if="shareId">
-        <el-form-item label="地址">
+        <el-form-item :label="this.$t('Terminal.LinkAddr')">
           <el-input readonly :value="shareURL"/>
         </el-form-item>
-        <el-form-item label="验证码">
+        <el-form-item :label="this.$t('Terminal.VerifyCode')">
           <el-input readonly :value="shareCode"/>
         </el-form-item>
       </el-form>
       <span slot="footer" class="dialog-footer">
-    <el-button type="primary" v-if="!shareId" @click="handleShareURlCreated">创建共享连接</el-button>
-    <el-button type="primary" v-if="shareId" @click="copyShareURL">复制地址及密码</el-button>
+    <el-button type="primary" v-if="!shareId"
+               @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
+    <el-button type="primary" v-if="shareId" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }} </el-button>
   </span>
     </el-dialog>
   </el-container>
@@ -96,8 +101,8 @@ export default {
       loading: false,
       shareCode: null,
       shareInfo: null,
-      onlineUsersMap:{},
-      onlineKeys:[],
+      onlineUsersMap: {},
+      onlineKeys: [],
     }
   },
   computed: {
@@ -110,10 +115,10 @@ export default {
       }
     },
     shareTitle() {
-      return this.shareId ? '分享' : '创建共享链接'
+      return this.shareId ? this.$t('Terminal.Share') : this.$t('Terminal.CreateLink')
     },
     shareURL() {
-      return this.shareId ? this.generateShareURL() : '无地址'
+      return this.shareId ? this.generateShareURL() : this.$t('Terminal.NoLink')
     },
     displayOnlineUser() {
       return this.onlineKeys.length > 1;
@@ -153,11 +158,15 @@ export default {
       }
       const shareURL = this.generateShareURL();
       this.$log.debug("share URL: " + shareURL)
-      const text = `地址： ${shareURL}\n验证码: ${this.shareCode}`
+      const linkTitle = this.$t('Terminal.LinkAddr');
+      const codeTitle = this.$t('Terminal.VerifyCode')
+      const text = `${linkTitle}： ${shareURL}\n${codeTitle}: ${this.shareCode}`
       CopyTextToClipboard(text)
       this.$message(this.$t("Terminal.CopyShareURLSuccess"))
     },
-
+    onThemeBackground(val) {
+      this.themeBackground = val
+    },
     onWsData(msgType, msg) {
       switch (msgType) {
         case "TERMINAL_SESSION": {
@@ -197,9 +206,9 @@ export default {
     handleChangeTheme(val) {
       if (this.$refs.term.term) {
         this.$refs.term.term.setOption("theme", val);
+        this.themeBackground = val.background;
       }
       this.$log.debug(val);
-      this.themeBackground = val.background;
     },
     handleShareURlCreated() {
       this.loading = true
@@ -215,7 +224,7 @@ export default {
       this.shareId = null;
       this.shareCode = null;
     },
-    updateOnlineCount(){
+    updateOnlineCount() {
       const keys = Object.keys(this.onlineUsersMap);
       this.$log.debug(keys);
       this.onlineKeys = keys;

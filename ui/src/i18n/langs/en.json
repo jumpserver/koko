@@ -9,6 +9,24 @@
     "UploadTitle": "file upload",
     "UploadTips": "Drag file here or click to upload",
     "Share": "Share",
-    "CopyShareURLSuccess": "Copy Share URL Success"
+    "CopyShareURLSuccess": "Copy Share URL Success",
+    "ThemeConfig": "Theme Setting",
+    "OnlineUsers": "Online Users",
+    "User": "User",
+    "VerifyCode": "Verify Code",
+    "LinkAddr": "Link",
+    "ExpiredTime": "Expired",
+    "SelectAction": "Select",
+    "CreateSuccess": "Success",
+    "CreateLink": "Create Share Link",
+    "CopyLink": "Copy Link Address",
+    "NoLink": "No Link",
+    "ConfirmBtn": "Confirm",
+    "Theme": "Theme",
+    "SelectTheme": "Select Theme",
+    "ThemeColors": "Theme Colors"
+  },
+  "Message": {
+    "InputVerifyCode": "Input Verify Code"
   }
 }

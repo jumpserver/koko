@@ -73,7 +73,7 @@ func (t FrameType) String() string {
 	case ZCAN:
 		return "ZCAN"
 	case ZFREECNT:
-		return ""
+		return "ZFREECNT"
 	case ZCOMMAND:
 		return "ZCOMMAND"
 	case ZSTDERR:
@@ -524,6 +524,9 @@ func (z *ZmodemParser) Parse(p []byte) {
 			}
 			logger.Infof("Zmodem session %s end", z.Status())
 			z.setStatus(ZParserStatusNone)
+			if z.fireStatusEvent != nil {
+				z.fireStatusEvent(zmodemEndEvent)
+			}
 		}
 		return
 	}

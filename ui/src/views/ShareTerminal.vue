@@ -1,27 +1,29 @@
 <template>
   <el-container :style="backgroundColor">
     <el-main>
-    <Terminal v-if="!codeDialog" ref='term' v-bind:connectURL="wsURL" v-bind:shareCode="shareCode" v-on:ws-data="onWsData"></Terminal>
+      <Terminal v-if="!codeDialog" ref='term' v-bind:connectURL="wsURL" v-bind:shareCode="shareCode"
+                v-on:background-color="onThemeBackground"
+                v-on:ws-data="onWsData"></Terminal>
     </el-main>
-       <el-aside width="60px" center>
+    <el-aside width="60px" center>
       <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">
         <el-menu-item @click="dialogVisible=!dialogVisible" index="0">
           <i class="el-icon-setting"></i>
-          <span slot="title">主题设置</span>
+          <span slot="title">{{ this.$t('Terminal.ThemeConfig') }}</span>
         </el-menu-item>
         <el-submenu index="2" v-if="displayOnlineUser">
           <template slot="title">
             <i class="el-icon-s-custom"></i>
-            <span slot="title">在线人员 </span>
+            <span slot="title">{{ this.$t('Terminal.OnlineUsers') }} </span>
           </template>
           <el-menu-item-group>
-            <span slot="title">人员 {{ onlineKeys.length }} </span>
+            <span slot="title">{{ this.$t('Terminal.User') }} {{ onlineKeys.length }} </span>
             <el-menu-item v-for="(item ,key) of onlineUsersMap" :key="key">{{ item.user }}</el-menu-item>
           </el-menu-item-group>
         </el-submenu>
       </el-menu>
     </el-aside>
-      <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
+    <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
     <el-dialog
         title="提示"
         :visible.sync="codeDialog"
@@ -30,12 +32,12 @@
         :show-close="false"
         width="30%">
       <el-form ref="form" label-width="80px" @submit.native.prevent>
-        <el-form-item label="验证码">
+        <el-form-item :label="this.$t('Terminal.VerifyCode')">
           <el-input v-model="code"></el-input>
         </el-form-item>
       </el-form>
       <div slot="footer">
-        <el-button type="primary" @click="submitCode">确定</el-button>
+        <el-button type="primary" @click="submitCode">{{ this.$t('Terminal.ConfirmBtn') }}</el-button>
       </div>
     </el-dialog>
   </el-container>
@@ -58,8 +60,8 @@ export default {
       themeBackground: "#1f1b1b",
       code: '',
       codeDialog: true,
-      onlineUsersMap:{},
-      onlineKeys:[],
+      onlineUsersMap: {},
+      onlineKeys: [],
     }
   },
   computed: {
@@ -86,11 +88,14 @@ export default {
       requireParams.append('target_id', params.id);
       return BASE_WS_URL + "/koko/ws/terminal/?" + requireParams.toString()
     },
+    onThemeBackground(val) {
+      this.themeBackground = val
+    },
     onWsData(msgType, msg) {
       switch (msgType) {
         case "TERMINAL_SHARE_JOIN": {
           const data = JSON.parse(msg.data);
-          const key = data.user_id+ data.created;
+          const key = data.user_id + data.created;
           this.onlineUsersMap[key] = data;
           this.$log.debug(this.onlineUsersMap);
           this.updateOnlineCount();
@@ -103,14 +108,14 @@ export default {
           this.updateOnlineCount();
           break
         }
-        case 'TERMINAL_SHARE_USERS':{
+        case 'TERMINAL_SHARE_USERS': {
           const data = JSON.parse(msg.data);
           this.onlineUsersMap = data;
           this.updateOnlineCount();
           this.$log.debug(data);
           break
         }
-        case 'TERMINAL_RESIZE':{
+        case 'TERMINAL_RESIZE': {
           const data = JSON.parse(msg.data);
           this.resize(data);
           break
@@ -122,29 +127,29 @@ export default {
     },
     submitCode() {
       if (this.code === '') {
-        this.$message("请输入验证码")
+        this.$message(this.$t("Message.InputVerifyCode"))
         return
       }
       this.$log.debug("code:", this.code)
       this.codeDialog = false
     },
     resize({Width, Height}) {
-      if (this.$refs.term){
+      if (this.$refs.term && this.$refs.term.term) {
         this.$log.debug(Width, Height)
         this.$refs.term.term.resize(Width, Height)
       }
     },
     handleChangeTheme(val) {
-      if (this.$refs.term.term) {
+      if (this.$refs.term && this.$refs.term.term) {
         this.$refs.term.term.setOption("theme", val);
+        this.themeBackground = val.background;
       }
       this.$log.debug(val);
-      this.themeBackground = val.background;
     },
-    updateOnlineCount(){
-          const keys = Object.keys(this.onlineUsersMap);
-          this.$log.debug(keys);
-          this.onlineKeys = keys;
+    updateOnlineCount() {
+      const keys = Object.keys(this.onlineUsersMap);
+      this.$log.debug(keys);
+      this.onlineKeys = keys;
     }
   },
 
