@@ -43,7 +43,7 @@ type DBParser struct {
 	cmdFilterRules []model.SystemUserFilterRule
 	closed         chan struct{}
 
-	currentMeta CurrentActiveUser
+	currentUser CurrentActiveUser
 }
 
 func (p *DBParser) initial() {
@@ -127,7 +127,9 @@ func (p *DBParser) parseInputState(b []byte) []byte {
 				Command:     p.command,
 				Output:      fbdMsg,
 				CreatedDate: p.cmdCreateDate,
-				RiskLevel:   model.HighRiskFlag}
+				RiskLevel:   model.HighRiskFlag,
+				User:        p.currentUser,
+			}
 			p.command = ""
 			p.output = ""
 			return []byte{utils.CharCleanLine, '\r'}
@@ -225,7 +227,9 @@ func (p *DBParser) sendCommandRecord() {
 			Command:     p.command,
 			Output:      p.output,
 			CreatedDate: p.cmdCreateDate,
-			RiskLevel:   model.LessRiskFlag}
+			RiskLevel:   model.LessRiskFlag,
+			User:        p.currentUser,
+		}
 		p.command = ""
 		p.output = ""
 	}
@@ -240,8 +244,8 @@ func (p *DBParser) CommandRecordChan() chan *ExecutedCommand {
 }
 
 func (p *DBParser) UpdateMeta(msg *exchange.RoomMessage) {
-	p.currentMeta.UserId = msg.Meta.UserId
-	p.currentMeta.User = msg.Meta.User
+	p.currentUser.UserId = msg.Meta.UserId
+	p.currentUser.User = msg.Meta.User
 }
 
 func (p *DBParser) RegisterEventCallback(event string, f func()) {
