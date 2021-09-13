@@ -73,7 +73,7 @@ func (t FrameType) String() string {
 	case ZCAN:
 		return "ZCAN"
 	case ZFREECNT:
-		return ""
+		return "ZFREECNT"
 	case ZCOMMAND:
 		return "ZCOMMAND"
 	case ZSTDERR:
