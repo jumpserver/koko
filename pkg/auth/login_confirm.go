@@ -117,8 +117,8 @@ func (c *LoginConfirmService) cancelConfirm() {
 }
 
 const (
-	approve = "approve"
-	reject  = "reject"
+	approve = "approved"
+	reject  = "rejected"
 	await   = "await"
 )
 
