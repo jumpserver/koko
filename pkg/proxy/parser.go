@@ -220,6 +220,13 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			go func() {
 				p.confirmStatus.SetAction(model.ActionUnknown)
 				p.waitCommandConfirm()
+				defer p.confirmStatus.wg.Done()
+				// 避免因为关闭chan造成的panic
+				select {
+				case <-p.closed:
+					return
+				default:
+				}
 				processor := p.confirmStatus.GetProcessor()
 				switch p.confirmStatus.GetAction() {
 				case model.ActionAllow:
@@ -241,7 +248,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				}
 				// 审核结束, 重置状态
 				p.confirmStatus.SetStatus(StatusNone)
-				p.confirmStatus.wg.Done()
 			}()
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)

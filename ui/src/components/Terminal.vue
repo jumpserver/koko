@@ -36,7 +36,8 @@ const MaxTimeout = 30 * 1000
 
 const zmodemStart = 'ZMODEM_START'
 const zmodemEnd = 'ZMODEM_END'
-
+const MAX_TRANSFER_SIZE = 1024 * 1024 * 500 // 默认最大上传下载500M
+// let MAX_TRANSFER_SIZE = 1024 * 1024 * 5 // 测试 上传下载最大size 5M
 export default {
   name: "Terminal",
   props: {
@@ -477,6 +478,10 @@ export default {
         this.ws.send(this.message(this.terminalId, type,
             JSON.stringify(data)))
       }
+    },
+    validate_transfer_file_size(xfer) {
+      const detail = xfer.get_details();
+      return detail.size < MAX_TRANSFER_SIZE
     }
   }
 }
