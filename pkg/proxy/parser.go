@@ -513,8 +513,8 @@ func (p *Parser) waitCommandConfirm() {
 }
 
 const (
-	approve = "approve"
-	reject  = "reject"
+	approve = "approved"
+	reject  = "rejected"
 	await   = "await"
 )
 
