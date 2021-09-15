@@ -180,7 +180,7 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 			index = "jumpserver"
 		}
 		if docType == "" {
-			docType = "command"
+			docType = "_doc"
 		}
 		return storage.ESCommandStorage{
 			Hosts:              hosts,

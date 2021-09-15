@@ -2,6 +2,7 @@
   "Terminal": {
     "UploadSuccess": "Upload success",
     "MustSelectOneFile": "Must select one file",
+    "MustOneFile": "Only support to select one file",
     "DownloadSuccess": "Download success",
     "Download": "Download",
     "Upload": "Upload",
@@ -24,7 +25,8 @@
     "ConfirmBtn": "Confirm",
     "Theme": "Theme",
     "SelectTheme": "Select Theme",
-    "ThemeColors": "Theme Colors"
+    "ThemeColors": "Theme Colors",
+    "ExceedTransferSize": "exceed max transfer size"
   },
   "Message": {
     "InputVerifyCode": "Input Verify Code"
