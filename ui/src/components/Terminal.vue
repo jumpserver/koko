@@ -37,7 +37,7 @@ const MaxTimeout = 30 * 1000
 const zmodemStart = 'ZMODEM_START'
 const zmodemEnd = 'ZMODEM_END'
 const MAX_TRANSFER_SIZE = 1024 * 1024 * 500 // 默认最大上传下载500M
-// let MAX_TRANSFER_SIZE = 1024 * 1024 * 5 // 测试 上传下载最大size 5M
+// const MAX_TRANSFER_SIZE = 1024 * 1024  // 测试 上传下载最大size 1M
 export default {
   name: "Terminal",
   props: {
@@ -115,19 +115,19 @@ export default {
         this.termSelectionText = term.getSelection().trim();
       });
 
-      termRef.addEventListener('contextmenu',($event)=> {
+      termRef.addEventListener('contextmenu', ($event) => {
         if ($event.ctrlKey || this.config.quickPaste !== '1') {
           return;
         }
         if (navigator.clipboard && navigator.clipboard.readText) {
           navigator.clipboard.readText().then((text) => {
-            if (this.wsIsActivated()){
-            this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', text))
+            if (this.wsIsActivated()) {
+              this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', text))
             }
           })
           $event.preventDefault();
         } else if (this.termSelectionText !== "") {
-          if (this.wsIsActivated()){
+          if (this.wsIsActivated()) {
             this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', this.termSelectionText))
           }
           $event.preventDefault();
@@ -303,7 +303,7 @@ export default {
           }
           break
         }
-        case 'TERMINAL_ERROR':{
+        case 'TERMINAL_ERROR': {
           const errMsg = msg.data;
           this.$message(errMsg);
           break
@@ -433,6 +433,18 @@ export default {
         this.$message(this.$t("Terminal.MustSelectOneFile"))
         return;
       }
+      if (this.fileList.length !== 1) {
+        this.$message(this.$t("Terminal.MustOneFile"))
+        return;
+      }
+      const selectFile = this.fileList[0]
+      if (selectFile.size >= MAX_TRANSFER_SIZE) {
+        this.$log.debug(selectFile)
+        const msg = this.$t("Terminal.ExceedTransferSize")+": "+ bytesHuman(MAX_TRANSFER_SIZE)
+        this.$message(msg)
+        return;
+      }
+
       this.zmodeDialogVisible = false;
       if (!this.zmodeSession) {
         return

@@ -2,6 +2,7 @@
   "Terminal": {
     "UploadSuccess": "上传成功",
     "MustSelectOneFile": "必须选择一个文件",
+    "MustOneFile": "只能选择一个文件",
     "DownloadSuccess": "下载成功",
     "Download": "下载",
     "Upload": "上传",
@@ -24,7 +25,8 @@
     "ConfirmBtn": "确定",
     "Theme": "主题",
     "SelectTheme": "请选择主题",
-    "ThemeColors": "主题颜色"
+    "ThemeColors": "主题颜色",
+    "ExceedTransferSize": "超过最大传输大小"
   },
   "Message": {
     "InputVerifyCode": "请输入验证码"
