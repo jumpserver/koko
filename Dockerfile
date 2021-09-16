@@ -38,6 +38,7 @@ RUN sed -i  's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list \
     && echo "deb [arch=amd64,i386,ppc64el,arm64] http://mirrors.nju.edu.cn/mariadb/repo/10.6/debian stretch main" >> /etc/apt/sources.list \
     && echo "deb-src http://mirrors.nju.edu.cn/mariadb/repo/10.6/debian stretch main" >> /etc/apt/sources.list \
     && apt-key adv --fetch-keys 'https://mariadb.org/mariadb_release_signing_key.asc' \
+    && apt-get update -y \
     && apt-get install -y --allow-unauthenticated --no-install-recommends mariadb-client \
     && apt-get install -y --no-install-recommends gdb ca-certificates jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git \
     && rm -rf /var/lib/apt/lists/*
