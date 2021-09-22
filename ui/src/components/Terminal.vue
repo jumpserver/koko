@@ -206,6 +206,7 @@ export default {
       ws.onerror = this.onWebsocketErr;
       ws.onclose = this.onWebsocketClose;
       ws.onmessage = this.onWebsocketMessage;
+      window.SendTerminalData = this.sendDataFromWindow;
     },
 
     onWebsocketMessage(e) {
@@ -263,6 +264,17 @@ export default {
       this.term.writeln("Connection websocket closed");
       fireEvent(new Event("CLOSE", {}))
       this.handleError(e)
+    },
+
+    sendDataFromWindow(data){
+      if (!this.wsIsActivated()){
+        this.$log.debug("ws disconnected")
+        return
+      }
+      if (this.enableZmodem && (!this.zmodemStatus)){
+        this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', data));
+        this.$log.debug('send data from window')
+      }
     },
 
     dispatch(data) {
