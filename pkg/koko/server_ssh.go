@@ -176,6 +176,7 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		logger.Infof("User %s request pty %s", sess.User(), pty.Term)
 		go interactiveSrv.WatchWinSizeChange(winChan)
 		interactiveSrv.Dispatch()
+		utils.IgnoreErrWriteWindowTitle(sess, termConf.HeaderTitle)
 		return
 	}
 	if !config.GetConf().EnableVscodeSupport {
