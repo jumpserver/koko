@@ -114,7 +114,12 @@ export default {
         this.$log.debug("select change")
         this.termSelectionText = term.getSelection().trim();
       });
-
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
+          return false;
+        }
+        return !(e.ctrlKey && e.key === 'v');
+      });
       termRef.addEventListener('contextmenu', ($event) => {
         if ($event.ctrlKey || this.config.quickPaste !== '1') {
           return;
