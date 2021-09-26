@@ -498,6 +498,7 @@ export default {
       this.$refs.upload.clearFiles();
       this.$log.debug("删除dialog的文件")
     },
+
     createShareInfo(sid, val) {
       this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val,})
     },
@@ -524,6 +525,7 @@ div {
 }
 
 #term {
-  height: 100%;
+  height: calc(100% - 10px);
+  padding: 10px 10px 10px 10px;
 }
 </style>
