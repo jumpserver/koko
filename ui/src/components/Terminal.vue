@@ -505,13 +505,9 @@ export default {
 
     sendWsMessage(type, data) {
       if (this.wsIsActivated()) {
-        this.ws.send(this.message(this.terminalId, type,
-            JSON.stringify(data)))
+        const msg = this.message(this.terminalId, type, JSON.stringify(data))
+        this.ws.send(msg)
       }
-    },
-    validate_transfer_file_size(xfer) {
-      const detail = xfer.get_details();
-      return detail.size < MAX_TRANSFER_SIZE
     }
   }
 }
@@ -526,6 +522,6 @@ div {
 
 #term {
   height: calc(100% - 10px);
-  padding: 10px 10px 10px 10px;
+  padding: 10px 0 10px 10px;
 }
 </style>
