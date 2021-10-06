@@ -41,6 +41,7 @@ cd /nonexistent
 export HOME=/nonexistent
 export TMPDIR=/nonexistent
 export LANG=en_US.UTF-8
+export TERM=xterm
 exec su -s /bin/bash --command="mysql --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
 `
 
