@@ -204,7 +204,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		return
 	}
 	for i := 0; i <= maxRetry; i++ {
-		logger.Debug("Upload replay file: ", r.AbsGzFilePath)
+		logger.Infof("Upload replay file: %s, type: %s", r.AbsGzFilePath, r.storage.TypeName())
 		err := r.storage.Upload(r.AbsGzFilePath, r.Target)
 		if err == nil {
 			_ = os.Remove(r.AbsGzFilePath)
