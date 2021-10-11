@@ -65,6 +65,7 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			_ = os.Remove(path)
 		}
 		Target, _ := filepath.Rel(replayDir, absGzPath)
+		logger.Infof("Upload replay file: %s, type: %s", absGzPath, replayStorage.TypeName())
 		if err2 := replayStorage.Upload(absGzPath, Target); err2 != nil {
 			logger.Errorf("Upload remain replay file %s failed: %s", absGzPath, err2)
 			continue
