@@ -90,3 +90,7 @@ const (
 const (
 	AuthMFASelectURL = "/api/v1/authentication/mfa/select/"
 )
+
+const (
+	PublicSettingURL = "/api/v1/settings/public/"
+)

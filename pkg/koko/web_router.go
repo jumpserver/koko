@@ -72,7 +72,8 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	elfindlerGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		elfindlerGroup.GET("/sftp/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "file_manager.html", "_")
+			metaData := webSrv.GenerateViewMeta("_")
+			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
 		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
 			hostId := ctx.Param("host")
@@ -80,7 +81,8 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 				ctx.AbortWithStatus(http.StatusBadRequest)
 				return
 			}
-			ctx.HTML(http.StatusOK, "file_manager.html", hostId)
+			metaData := webSrv.GenerateViewMeta(hostId)
+			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
 		elfindlerGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}

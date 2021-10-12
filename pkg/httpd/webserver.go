@@ -247,3 +247,13 @@ func (s *Server) HealthStatusHandler(ctx *gin.Context) {
 	status["timestamp"] = time.Now().UTC()
 	ctx.JSON(http.StatusOK, status)
 }
+
+func (s *Server) GenerateViewMeta(targetId string) (meta ViewPageMata) {
+	meta.ID = targetId
+	setting, err := s.JmsService.GetPublicSetting()
+	if err != nil {
+		logger.Errorf("Get core api public setting err: %s", err)
+	}
+	meta.IconURL = setting.LogoURLS.Favicon
+	return
+}
