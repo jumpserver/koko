@@ -1,7 +1,7 @@
 <html>
 <head>
     <title></title>
-    <link rel="shortcut icon" href="/koko/static/img/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ .IconURL }}" type="image/x-icon">
 </head>
 <body style="margin: 0">
     <script type="text/javascript" src="/koko/static/js/jquery-3.3.1.js"></script>
@@ -18,8 +18,9 @@
         var port = document.location.port ? ":" + document.location.port : "";
         var baseWsUrl = scheme + "://" + document.location.hostname + port + "/koko/ws/elfinder/?"
         var requireParams = new URLSearchParams();
+        var targetId = {{ .ID }};
         requireParams.append('type', "elfinder");
-        requireParams.append('target_id', {{.}});
+        requireParams.append('target_id', targetId );
         var wsURL = baseWsUrl + requireParams.toString();
         let ws = new WebSocket(wsURL, ["JMS-KOKO"]);
         let interval;
@@ -59,27 +60,29 @@
                     console.log(msg)
             }
         }
+        var toolbar =  [
+            ['back', 'forward'],
+            ['mkdir', 'mkfile'],
+            ['copy', 'cut', 'paste'],
+            ['rm'],
+            ['rename'],
+            ['view'],
+        ];
+        if (targetId === '_') {
+            toolbar.push(['search'])
+        }
+        var url = '/koko/elfinder/connector/'+ targetId + '/';
         function initElfinder(sid) {
             var elf;
             var opts = {
 	    		uiOptions : {
-	    			toolbar: [
-                        ['back', 'forward'],
-                        ['mkdir', 'mkfile'],
-                        ['copy', 'cut', 'paste'],
-                        ['rm'],
-                        ['rename'],
-                        ['view'],
-                        {{if eq . "_"}}
-                        ['search']
-                        {{end}}
-                    ],
+	    			toolbar: toolbar,
                     cwd : {oldSchool: true}
 	    		},
                 customData: {'sid': sid},
                 customHeaders: {"JMS-KoKo-Request-ID": sid},
                 width: '100%',
-	    		url: '/koko/elfinder/connector/{{.}}/',
+	    		url: url,
                 resizable: false,
                 lang: 'pl',
                 requestType: 'get',
@@ -133,7 +136,7 @@
           	        lng = 'pt_BR';
                 }
           	    else if (lng === 'zh') {
-          	        lng = (full_lng.substr(0,5) == 'zh-tw')? 'zh_TW' : 'zh_CN';
+          	        lng = (full_lng.substr(0,5) === 'zh-tw')? 'zh_TW' : 'zh_CN';
                 }
                 if (lng !== 'en') {
         		    $.ajax({
