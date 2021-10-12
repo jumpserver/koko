@@ -27,8 +27,7 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	kokoGroup.Static("/assets", "./ui/dist/assets")
 	kokoGroup.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
-	eng.LoadHTMLFiles("./ui/dist/index.html",
-		"./templates/elfinder/file_manager.html")
+	eng.LoadHTMLFiles("./templates/elfinder/file_manager.html")
 	wsGroup := kokoGroup.Group("/ws/")
 	{
 		wsGroup.Group("/terminal").Use(
@@ -44,14 +43,14 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	terminalGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		terminalGroup.GET("/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 	shareGroup := kokoGroup.Group("/share")
 	shareGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		shareGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 
@@ -59,14 +58,14 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	monitorGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		monitorGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 
 	tokenGroup := kokoGroup.Group("/token")
 	{
 		tokenGroup.GET("/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 	elfindlerGroup := kokoGroup.Group("/elfinder")
