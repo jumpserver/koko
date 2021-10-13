@@ -94,7 +94,8 @@ func keepHeartbeat(jmsService *service.JMService) {
 			for _, task := range tasks {
 				switch task.Name {
 				case TaskKillSession:
-					if ok := proxy.KillSession(task.Args); ok {
+					if sw, ok := proxy.GetSessionById(task.Args); ok {
+						sw.Terminate(task.Kwargs.TerminatedBy)
 						if err = jmsService.FinishTask(task.ID); err != nil {
 							logger.Error(err)
 						}
