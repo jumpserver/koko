@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 const LoginModeManual = "manual"
@@ -35,6 +36,10 @@ type SystemUser struct {
 
 func (s *SystemUser) String() string {
 	return fmt.Sprintf("%s(%s)", s.Name, s.Username)
+}
+
+func (s *SystemUser) IsProtocol(p string) bool {
+	return strings.EqualFold(s.Protocol, p)
 }
 
 type SystemUserAuthInfo struct {
