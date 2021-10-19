@@ -107,7 +107,6 @@ export default {
       })
       termRef.addEventListener('mouseenter', () => {
         term.focus();
-        term.scrollToBottom()
       })
       term.onSelectionChange(() => {
         document.execCommand('copy');
@@ -145,7 +144,6 @@ export default {
         this.$log.debug("jmsFocus ", evt);
         if (this.term) {
           this.term.focus()
-          this.term.scrollToBottom()
         }
       })
     },
