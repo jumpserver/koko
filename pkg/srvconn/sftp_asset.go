@@ -80,7 +80,7 @@ func (ad *AssetDir) loadSystemUsers() {
 			return ok
 		}
 		for i := 0; i < len(SystemUsers); i++ {
-			if SystemUsers[i].IsProtocol(ProtocolSSH) {
+			if SystemUsers[i].IsProtocol(ProtocolSSH) && !SystemUsers[i].SuEnabled {
 				folderName := cleanFolderName(SystemUsers[i].Name)
 				folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 				sus[folderName] = &SystemUsers[i]
