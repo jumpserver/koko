@@ -151,10 +151,11 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	var (
 		apiSession *model.Session
 
-		sysUserAuthInfo *model.SystemUserAuthInfo
-		domainGateways  *model.Domain
-		platform        *model.Platform
-		perms           *model.Permission
+		sysUserAuthInfo   *model.SystemUserAuthInfo
+		suSysUserAuthInfo *model.SystemUserAuthInfo
+		domainGateways    *model.Domain
+		platform          *model.Platform
+		perms             *model.Permission
 
 		checkConnectPermFunc func() (model.ExpireInfo, error)
 	)
@@ -174,7 +175,16 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 		}
 		sysUserAuthInfo = &authInfo
-
+		if connOpts.systemUser.SuEnabled {
+			suSystemUserId := connOpts.systemUser.SuFrom
+			assetId := connOpts.asset.ID
+			suAuthInfo, err := jmsService.GetSystemUserAuthById(suSystemUserId, assetId,
+				"", "")
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+			}
+			suSysUserAuthInfo = &suAuthInfo
+		}
 		if connOpts.asset.Domain != "" {
 			domain, err := jmsService.GetDomainGateways(connOpts.asset.Domain)
 			if err != nil {
@@ -314,6 +324,8 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		connOpts:           connOpts,
 		systemUserAuthInfo: sysUserAuthInfo,
 
+		suFromSystemUserAuthInfo: suSysUserAuthInfo,
+
 		filterRules:    filterRules,
 		terminalConf:   &terminalConf,
 		domainGateways: domainGateways,
@@ -344,6 +356,8 @@ type Server struct {
 	connOpts *ConnectionOptions
 
 	systemUserAuthInfo *model.SystemUserAuthInfo
+
+	suFromSystemUserAuthInfo *model.SystemUserAuthInfo
 
 	filterRules    []model.SystemUserFilterRule
 	terminalConf   *model.TerminalConfig
@@ -610,7 +624,8 @@ func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
 		platformMatched := s.connOpts.asset.Platform == linuxPlatform
 		protocolMatched := s.connOpts.systemUser.Protocol == model.ProtocolSSH
-		return platformMatched && protocolMatched
+		notSuSystemUser := !s.connOpts.systemUser.SuEnabled
+		return platformMatched && protocolMatched && notSuSystemUser
 	}
 	return false
 }
@@ -722,29 +737,33 @@ func (s *Server) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 }
 
 func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
-	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, s.systemUserAuthInfo.ID,
-		s.systemUserAuthInfo.Username)
+	loginSystemUser := s.systemUserAuthInfo
+	if s.suFromSystemUserAuthInfo != nil {
+		loginSystemUser = s.suFromSystemUserAuthInfo
+	}
+	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, loginSystemUser.ID,
+		loginSystemUser.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(s.systemUserAuthInfo.Username))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(loginSystemUser.Username))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(s.connOpts.asset.IP))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(s.connOpts.asset.ProtocolPort(s.systemUserAuthInfo.Protocol)))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(s.systemUserAuthInfo.Password))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(s.connOpts.asset.ProtocolPort(loginSystemUser.Protocol)))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginSystemUser.Password))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
-	if s.systemUserAuthInfo.PrivateKey != "" {
+	if loginSystemUser.PrivateKey != "" {
 		// 先使用 password 解析 PrivateKey
-		if signer, err1 := gossh.ParsePrivateKeyWithPassphrase([]byte(s.systemUserAuthInfo.PrivateKey),
-			[]byte(s.systemUserAuthInfo.Password)); err1 == nil {
+		if signer, err1 := gossh.ParsePrivateKeyWithPassphrase([]byte(loginSystemUser.PrivateKey),
+			[]byte(loginSystemUser.Password)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		} else {
 			// 如果之前使用password解析失败，则去掉 password, 尝试直接解析 PrivateKey 防止错误的passphrase
-			if signer, err1 = gossh.ParsePrivateKey([]byte(s.systemUserAuthInfo.PrivateKey)); err1 == nil {
+			if signer, err1 = gossh.ParsePrivateKey([]byte(loginSystemUser.PrivateKey)); err1 == nil {
 				sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 			}
 		}
 	}
 	var passwordTryCount int
-	password := s.systemUserAuthInfo.Password
+	password := loginSystemUser.Password
 	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
 		termReader := utils.NewTerminal(s.UserConn, "")
@@ -788,16 +807,42 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		return nil, err
 	}
 	pty := s.UserConn.Pty()
-	sshConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(s.platform.Charset),
-		srvconn.SSHPtyWin(srvconn.Windows{
-			Width:  pty.Window.Width,
-			Height: pty.Window.Height,
-		}), srvconn.SSHTerm(pty.Term))
+	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)
+	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(s.platform.Charset))
+	sshConnectOpts = append(sshConnectOpts, srvconn.SSHTerm(pty.Term))
+	sshConnectOpts = append(sshConnectOpts, srvconn.SSHPtyWin(srvconn.Windows{
+		Width:  pty.Window.Width,
+		Height: pty.Window.Height,
+	}))
+
+	if s.suFromSystemUserAuthInfo != nil {
+		/*
+			suSystemUserAuthInfo 是 switch user
+			systemUserAuthInfo 是最终 su 的登录用户
+		*/
+		suUsername := s.systemUserAuthInfo.Username
+		suPassword := s.systemUserAuthInfo.Password
+		suCommand := fmt.Sprintf(srvconn.LinuxSuCommand, suUsername)
+		sshConnectOpts = append(sshConnectOpts, srvconn.SSHLoginToSudo(true))
+		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoCommand(suCommand))
+		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoUsername(suUsername))
+		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoPassword(suPassword))
+	}
+	sshConn, err := srvconn.NewSSHConnection(sess, sshConnectOpts...)
 	if err != nil {
 		_ = sess.Close()
 		sshClient.ReleaseSession(sess)
 		return nil, err
 	}
+	if s.suFromSystemUserAuthInfo != nil {
+		msg := fmt.Sprintf(i18n.T("Switched to %s"), s.systemUserAuthInfo)
+		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+		utils.IgnoreErrWriteString(s.UserConn, msg)
+		_, _ = sshConn.Write([]byte("\r"))
+		logger.Infof("Conn[%s]: su login from %s to %s", s.UserConn.ID(),
+			loginSystemUser, s.systemUserAuthInfo)
+	}
+
 	go func() {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)

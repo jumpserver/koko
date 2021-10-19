@@ -377,66 +377,71 @@ msgid "Connecting to Kubernetes %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:164
+#: pkg/proxy/server.go:166
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:217
+#: pkg/proxy/server.go:225
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:257
+#: pkg/proxy/server.go:263
 msgid "Database %s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:296
+#: pkg/proxy/server.go:300
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:304
+#: pkg/proxy/server.go:313
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:563
+#: pkg/proxy/server.go:576
 msgid "You get auth token failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:569
+#: pkg/proxy/server.go:582
 msgid "Get auth username failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:574
+#: pkg/proxy/server.go:587
 msgid "Get auth password failed"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:580 pkg/proxy/server.go:595 pkg/proxy/server.go:643
+#: pkg/proxy/server.go:593 pkg/proxy/server.go:608 pkg/proxy/server.go:657
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:971
+#: pkg/proxy/server.go:838
+msgid "Switched to %s"
+msgstr ""
+
+#. i18n.T
+#: pkg/proxy/server.go:1015
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:991
+#: pkg/proxy/server.go:1035
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:999 pkg/proxy/switch.go:237
+#: pkg/proxy/server.go:1043 pkg/proxy/switch.go:237
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
