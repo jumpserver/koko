@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/pkg/sftp"
@@ -176,6 +177,7 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		logger.Infof("User %s request pty %s", sess.User(), pty.Term)
 		go interactiveSrv.WatchWinSizeChange(winChan)
 		interactiveSrv.Dispatch()
+		utils.IgnoreErrWriteWindowTitle(sess, termConf.HeaderTitle)
 		return
 	}
 	if !config.GetConf().EnableVscodeSupport {
@@ -223,6 +225,12 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		user.ID, user.Username)
 	if err != nil {
 		logger.Errorf("Get system user auth failed: %s", err)
+		return
+	}
+	permInfo, err := s.jmsService.ValidateAssetConnectPermission(user.ID,
+		asset.ID, systemUser.ID)
+	if err != nil {
+		logger.Errorf("Get asset Permission info err: %s", err)
 		return
 	}
 	var domainGateways *model.Domain
@@ -283,6 +291,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		return
 	}
 	defer goSess.Close()
+	defer sshClient.ReleaseSession(goSess)
 	stdOut, err := goSess.StdoutPipe()
 	if err != nil {
 		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
@@ -314,10 +323,22 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		_, _ = io.Copy(sess, stdOut)
 		logger.Infof("User %s vscode request %s stdOut end", user, sshClient)
 	}()
-	<-sess.Context().Done()
-	sshClient.ReleaseSession(goSess)
-
-	logger.Infof("User %s end vscode request %s", user, sshClient)
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-sess.Context().Done():
+			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done", ctxId, user, sshClient)
+			return
+		case now := <-ticker.C:
+			if permInfo.IsExpired(now) {
+				logger.Infof("SSH conn[%s] User %s end vscode request %s as permission has expired",
+					ctxId, user, sshClient)
+				return
+			}
+			logger.Debugf("SSH conn[%s] user %s vscode request still alive", ctxId, user)
+		}
+	}
 }
 
 func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {

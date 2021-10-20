@@ -6,12 +6,9 @@ import (
 
 var sessManager = newSessionManager()
 
-func KillSession(sessionID string) bool {
-	if sw, ok := sessManager.Get(sessionID); ok {
-		sw.Terminate()
-		return true
-	}
-	return false
+func GetSessionById(id string)(s *SwitchSession, ok bool){
+	s, ok = sessManager.Get(id)
+	return
 }
 
 func GetAliveSessions() []string {

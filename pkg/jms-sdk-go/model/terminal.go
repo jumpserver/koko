@@ -27,12 +27,17 @@ type Terminal struct {
 }
 
 type TerminalTask struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Args       string `json:"args"`
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	Args       string     `json:"args"`
+	Kwargs     TaskKwargs `json:"kwargs"`
 	IsFinished bool
 }
 
 const (
 	TaskKillSession = "kill_session"
 )
+
+type TaskKwargs struct {
+	TerminatedBy string `json:"terminated_by"`
+}

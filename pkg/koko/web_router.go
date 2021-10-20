@@ -27,8 +27,7 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	kokoGroup.Static("/assets", "./ui/dist/assets")
 	kokoGroup.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
-	eng.LoadHTMLFiles("./ui/dist/index.html",
-		"./templates/elfinder/file_manager.html")
+	eng.LoadHTMLFiles("./templates/elfinder/file_manager.html")
 	wsGroup := kokoGroup.Group("/ws/")
 	{
 		wsGroup.Group("/terminal").Use(
@@ -44,14 +43,14 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	terminalGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		terminalGroup.GET("/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 	shareGroup := kokoGroup.Group("/share")
 	shareGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		shareGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 
@@ -59,21 +58,22 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	monitorGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		monitorGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 
 	tokenGroup := kokoGroup.Group("/token")
 	{
 		tokenGroup.GET("/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "index.html", nil)
+			ctx.File("./ui/dist/index.html")
 		})
 	}
 	elfindlerGroup := kokoGroup.Group("/elfinder")
 	elfindlerGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		elfindlerGroup.GET("/sftp/", func(ctx *gin.Context) {
-			ctx.HTML(http.StatusOK, "file_manager.html", "_")
+			metaData := webSrv.GenerateViewMeta("_")
+			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
 		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
 			hostId := ctx.Param("host")
@@ -81,7 +81,8 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 				ctx.AbortWithStatus(http.StatusBadRequest)
 				return
 			}
-			ctx.HTML(http.StatusOK, "file_manager.html", hostId)
+			metaData := webSrv.GenerateViewMeta(hostId)
+			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
 		elfindlerGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}

@@ -263,12 +263,12 @@ msgid "The asset is inactive"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/server_ssh.go:193
+#: pkg/koko/server_ssh.go:195
 msgid "Must be unique asset for %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/server_ssh.go:205
+#: pkg/koko/server_ssh.go:207
 msgid "Must be unique system user for %s"
 msgstr ""
 
@@ -277,9 +277,9 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/koko/server_ssh.go:328 pkg/koko/server_ssh.go:335
-#: pkg/koko/server_ssh.go:346 pkg/koko/server_ssh.go:353
-#: pkg/proxy/dbparser.go:120
+#: pkg/koko/server_ssh.go:349 pkg/koko/server_ssh.go:356
+#: pkg/koko/server_ssh.go:367 pkg/koko/server_ssh.go:374
+#: pkg/proxy/dbparser.go:123
 msgid "Command `%s` is forbidden"
 msgstr ""
 
@@ -329,12 +329,12 @@ msgid "Cancel confirm"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:166
+#: pkg/proxy/parser.go:179
 msgid "have no permission to upload file"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:198
+#: pkg/proxy/parser.go:214
 msgid "the reviewers will confirm. continue or not [Y/n]"
 msgstr ""
 
@@ -342,19 +342,19 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/parser.go:210 pkg/proxy/parser.go:216 pkg/proxy/parser.go:286
-#: pkg/proxy/parser.go:351
+#: pkg/proxy/parser.go:233 pkg/proxy/parser.go:239 pkg/proxy/parser.go:308
+#: pkg/proxy/parser.go:374
 msgid "have no permission to download file"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:418
+#: pkg/proxy/parser.go:441
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/parser.go:426
+#: pkg/proxy/parser.go:449
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -362,92 +362,92 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/parser.go:427 pkg/proxy/parser.go:428 pkg/proxy/server.go:105
+#: pkg/proxy/parser.go:450 pkg/proxy/parser.go:451 pkg/proxy/server.go:106
 msgid "Connecting to %s@%s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:107
+#: pkg/proxy/server.go:108
 msgid "Connecting to Database %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:109
+#: pkg/proxy/server.go:110
 msgid "Connecting to Kubernetes %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:163
+#: pkg/proxy/server.go:164
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:216
+#: pkg/proxy/server.go:217
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:256
+#: pkg/proxy/server.go:257
 msgid "Database %s protocol client not installed."
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:295
+#: pkg/proxy/server.go:296
 msgid ""
 "Terminal only support protocol ssh/telnet, please use web terminal to access"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:303
+#: pkg/proxy/server.go:304
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:546
+#: pkg/proxy/server.go:563
 msgid "You get auth token failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:552
+#: pkg/proxy/server.go:569
 msgid "Get auth username failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:557
+#: pkg/proxy/server.go:574
 msgid "Get auth password failed"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:563 pkg/proxy/server.go:578 pkg/proxy/server.go:626
+#: pkg/proxy/server.go:580 pkg/proxy/server.go:595 pkg/proxy/server.go:643
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:914
+#: pkg/proxy/server.go:971
 msgid "Connect with api server failed"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/server.go:934
+#: pkg/proxy/server.go:991
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:942 pkg/proxy/switch.go:197
+#: pkg/proxy/server.go:999 pkg/proxy/switch.go:237
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:205
+#: pkg/proxy/switch.go:245
 msgid "Permission has expired, disconnect"
 msgstr ""
 
 #. i18n.T
-#: pkg/proxy/switch.go:215
-msgid "Terminated by administrator"
+#: pkg/proxy/switch.go:256
+msgid "Terminated by admin %s"
 msgstr ""
 
 #. i18n.T

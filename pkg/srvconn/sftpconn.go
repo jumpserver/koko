@@ -1,7 +1,6 @@
 package srvconn
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -249,7 +248,7 @@ func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) 
 			break
 		}
 		if nodeDir, ok := fi.(*NodeDir); ok {
-			nodeDir.loadNodeAsset(u)
+			nodeDir.loadSubNodeTree()
 			dirs = nodeDir.subDirs
 			continue
 		}
@@ -268,78 +267,80 @@ func (u *UserSftpConn) initial() {
 		logger.Errorf("User sftp initial err: %s", err)
 		return
 	}
-	if u.Dirs == nil {
-		u.Dirs = map[string]os.FileInfo{}
-	}
 	u.searchDir = &SearchResultDir{
 		folderName: SearchFolderName,
 		modeTime:   time.Now().UTC(),
 		subDirs:    map[string]os.FileInfo{}}
+	dirs := u.generateSubFoldersFromNodeTree(nodeTrees, true)
+	u.Dirs = dirs
+}
 
+func (u *UserSftpConn) LoadNodeSubFoldersByKey(nodeKey string) SubFoldersLoadFunc {
+	return func() map[string]os.FileInfo {
+		nodeTrees, err := u.jmsService.GetNodeTreeByUserAndNodeKey(u.User.ID, nodeKey)
+		if err != nil {
+			logger.Error(err)
+			return nil
+		}
+		return u.generateSubFoldersFromNodeTree(nodeTrees, false)
+	}
+}
+
+func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeList, isRoot bool) map[string]os.FileInfo {
+	dirs := map[string]os.FileInfo{}
+	matchFunc := func(s string) bool {
+		_, ok := dirs[s]
+		return ok
+	}
 	for _, item := range nodeTrees {
-		if item.Pid != "" {
+		if isRoot && item.Pid != "" {
+			// 根路径下目录 pid 是空字符
 			continue
 		}
 		if item.ChkDisabled {
 			// 资产被禁用，不显示
 			continue
 		}
-
-		typeName, ok := item.Meta["type"].(string)
-		if !ok {
-			continue
-		}
-		body, err := json.Marshal(item.Meta["data"])
-		if err != nil {
-			logger.Errorf("Json Marshal err: %s", err)
-			continue
-		}
-		switch typeName {
-		case "node":
-			node, err := model.ConvertMetaToNode(body)
-			if err != nil {
-				logger.Errorf("convert to node err: %s", err)
+		switch item.Meta.Type {
+		case model.TreeTypeNode:
+			node := item.Meta.Data
+			folderName := cleanFolderName(node.Value)
+			folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
+			loadFunc := u.LoadNodeSubFoldersByKey(node.Key)
+			nodeDir := NewNodeDir(WithFolderID(node.ID),
+				WithFolderName(folderName), WithSubFoldersLoadFunc(loadFunc))
+			dirs[folderName] = &nodeDir
+		case model.TreeTypeAsset:
+			asset := item.Meta.Data
+			if !asset.IsSupportProtocol(ProtocolSSH) {
 				continue
 			}
-			nodeDir := NewNodeDir(u.jmsService, node)
-			folderName := nodeDir.folderName
-			for {
-				_, ok := u.Dirs[folderName]
-				if !ok {
-					break
-				}
-				folderName = fmt.Sprintf("%s_", folderName)
-			}
-			if folderName != nodeDir.folderName {
-				nodeDir.folderName = folderName
-			}
-
-			u.Dirs[folderName] = &nodeDir
-		case "asset":
-			asset, err := model.ConvertMetaToAsset(body)
-			if err != nil {
-				logger.Errorf("convert to asset err: %s", err)
-				continue
-			}
-			if !asset.IsSupportProtocol("ssh") {
-				continue
-			}
-			assetDir := NewAssetDir(u.jmsService, u.User, asset, u.Addr, u.logChan)
-			folderName := assetDir.folderName
-			for {
-				_, ok := u.Dirs[folderName]
-				if !ok {
-					break
-				}
-				folderName = fmt.Sprintf("%s_", folderName)
-			}
-			if folderName != assetDir.folderName {
-				assetDir.folderName = folderName
-			}
-			u.Dirs[folderName] = &assetDir
+			folderName := cleanFolderName(asset.Hostname)
+			folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
+			assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(asset.ID),
+				WithFolderName(folderName), WitRemoteAddr(u.Addr))
+			dirs[folderName] = &assetDir
 		}
 	}
+	return dirs
+}
 
+func (u *UserSftpConn) generateSubFoldersFromAssets(assets ...model.Asset) map[string]os.FileInfo {
+	dirs := make(map[string]os.FileInfo)
+	matchFunc := func(s string) bool {
+		_, ok := dirs[s]
+		return ok
+	}
+	for _, asset := range assets {
+		if asset.IsSupportProtocol(ProtocolSSH) {
+			folderName := cleanFolderName(asset.Hostname)
+			folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
+			assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(asset.ID),
+				WithFolderName(folderName), WitRemoteAddr(u.Addr))
+			dirs[folderName] = &assetDir
+		}
+	}
+	return dirs
 }
 
 func (u *UserSftpConn) loopPushFTPLog() {
@@ -392,26 +393,8 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 		logger.Errorf("search asset err: %s", err)
 		return nil, err
 	}
-	subDirs := map[string]os.FileInfo{}
-	for i := range assets {
-		if !assets[i].IsSupportProtocol("ssh") {
-			continue
-		}
-		assetDir := NewAssetDir(u.jmsService, u.User, assets[i], u.Addr, u.logChan)
-		folderName := assetDir.folderName
-		for {
-			_, ok := subDirs[folderName]
-			if !ok {
-				break
-			}
-			folderName = fmt.Sprintf("%s_", folderName)
-		}
-		if folderName != assetDir.folderName {
-			assetDir.folderName = folderName
-		}
-		subDirs[assetDir.folderName] = &assetDir
-	}
-	u.searchDir.SetSubDirs(subDirs)
+	dirs := u.generateSubFoldersFromAssets(assets...)
+	u.searchDir.SetSubDirs(dirs)
 	return u.searchDir.List()
 }
 
@@ -440,23 +423,24 @@ func NewUserSftpConnWithAssets(jmsService *service.JMService, user *model.User, 
 		closed:     make(chan struct{}),
 		jmsService: jmsService,
 	}
-	for _, asset := range assets {
-		if asset.IsSupportProtocol("ssh") {
-			assetDir := NewAssetDir(jmsService, u.User, asset, u.Addr, u.logChan)
-			folderName := assetDir.folderName
-			for {
-				_, ok := u.Dirs[folderName]
-				if !ok {
-					break
-				}
-				folderName = fmt.Sprintf("%s_", folderName)
-			}
-			if folderName != assetDir.folderName {
-				assetDir.folderName = folderName
-			}
-			u.Dirs[assetDir.folderName] = &assetDir
-		}
-	}
+	dirs := u.generateSubFoldersFromAssets(assets...)
+	u.Dirs = dirs
 	go u.loopPushFTPLog()
 	return &u
+}
+
+func cleanFolderName(folderName string) string {
+	return strings.ReplaceAll(folderName, SFTPPathSeparator, "_")
+}
+
+const (
+	SFTPPathSeparator = "/"
+	paddingCharacter  = "_"
+)
+
+func findAvailableKeyByPaddingSuffix(match func(s string) bool, key string, suffix string) string {
+	for match(key) {
+		key = fmt.Sprintf("%s%s", key, suffix)
+	}
+	return key
 }

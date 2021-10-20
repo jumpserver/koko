@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/exchange"
@@ -27,16 +28,27 @@ type SwitchSession struct {
 	cancel context.CancelFunc
 
 	p *Server
+
+	terminateAdmin atomic.Value // 终断会话的管理员名称
 }
 
-func (s *SwitchSession) Terminate() {
+func (s *SwitchSession) Terminate(username string) {
 	select {
 	case <-s.ctx.Done():
 		return
 	default:
+		s.setTerminateAdmin(username)
 	}
 	s.cancel()
-	logger.Infof("Session[%s] receive terminate task from admin", s.ID)
+	logger.Infof("Session[%s] receive terminate task from admin %s", s.ID, username)
+}
+
+func (s *SwitchSession) setTerminateAdmin(username string) {
+	s.terminateAdmin.Store(username)
+}
+
+func (s *SwitchSession) loadTerminateAdmin() string {
+	return s.terminateAdmin.Load().(string)
 }
 
 func (s *SwitchSession) SessionID() string {
@@ -240,7 +252,8 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			continue
 			// 手动结束
 		case <-s.ctx.Done():
-			msg := i18n.T("Terminated by administrator")
+			adminUser := s.loadTerminateAdmin()
+			msg := fmt.Sprintf(i18n.T("Terminated by admin %s"), adminUser)
 			msg = utils.WrapperWarn(msg)
 			replayRecorder.Record([]byte(msg))
 			logger.Infof("Session[%s]: %s", s.ID, msg)

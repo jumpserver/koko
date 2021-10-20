@@ -38,7 +38,7 @@ func TestJMService_GetProfile(t *testing.T) {
 func TestJMService_GetTerminalConfig(t *testing.T) {
 	jms := setup()
 	conf, err := jms.GetTerminalConfig()
-	if err != nil{
+	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("%+v", conf)
@@ -122,4 +122,13 @@ func TestJMService_SubmitCommandConfirm(t *testing.T) {
 	command := "ls"
 	res, err := jms.SubmitCommandConfirm(sid, ruleId, command)
 	t.Log(res, err)
+}
+
+func TestJMService_GetPublicSetting(t *testing.T) {
+	jms := setup()
+	setting, err := jms.GetPublicSetting()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v\n", setting)
 }

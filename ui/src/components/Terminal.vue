@@ -107,14 +107,18 @@ export default {
       })
       termRef.addEventListener('mouseenter', () => {
         term.focus();
-        term.scrollToBottom()
       })
       term.onSelectionChange(() => {
         document.execCommand('copy');
         this.$log.debug("select change")
         this.termSelectionText = term.getSelection().trim();
       });
-
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
+          return false;
+        }
+        return !(e.ctrlKey && e.key === 'v');
+      });
       termRef.addEventListener('contextmenu', ($event) => {
         if ($event.ctrlKey || this.config.quickPaste !== '1') {
           return;
@@ -140,7 +144,6 @@ export default {
         this.$log.debug("jmsFocus ", evt);
         if (this.term) {
           this.term.focus()
-          this.term.scrollToBottom()
         }
       })
     },
@@ -206,6 +209,7 @@ export default {
       ws.onerror = this.onWebsocketErr;
       ws.onclose = this.onWebsocketClose;
       ws.onmessage = this.onWebsocketMessage;
+      window.SendTerminalData = this.sendDataFromWindow;
     },
 
     onWebsocketMessage(e) {
@@ -263,6 +267,17 @@ export default {
       this.term.writeln("Connection websocket closed");
       fireEvent(new Event("CLOSE", {}))
       this.handleError(e)
+    },
+
+    sendDataFromWindow(data){
+      if (!this.wsIsActivated()){
+        this.$log.debug("ws disconnected")
+        return
+      }
+      if (this.enableZmodem && (!this.zmodemStatus)){
+        this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', data));
+        this.$log.debug('send data from window')
+      }
     },
 
     dispatch(data) {
@@ -481,19 +496,16 @@ export default {
       this.$refs.upload.clearFiles();
       this.$log.debug("删除dialog的文件")
     },
+
     createShareInfo(sid, val) {
       this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val,})
     },
 
     sendWsMessage(type, data) {
       if (this.wsIsActivated()) {
-        this.ws.send(this.message(this.terminalId, type,
-            JSON.stringify(data)))
+        const msg = this.message(this.terminalId, type, JSON.stringify(data))
+        this.ws.send(msg)
       }
-    },
-    validate_transfer_file_size(xfer) {
-      const detail = xfer.get_details();
-      return detail.size < MAX_TRANSFER_SIZE
     }
   }
 }
@@ -507,6 +519,7 @@ div {
 }
 
 #term {
-  height: 100%;
+  height: calc(100% - 10px);
+  padding: 10px 0 10px 10px;
 }
 </style>
