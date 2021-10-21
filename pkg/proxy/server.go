@@ -153,9 +153,10 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 		sysUserAuthInfo *model.SystemUserAuthInfo
 		domainGateways  *model.Domain
-		expireInfo      *model.ExpireInfo
 		platform        *model.Platform
 		perms           *model.Permission
+
+		checkConnectPermFunc func() (model.ExpireInfo, error)
 	)
 
 	switch connOpts.ProtocolType {
@@ -181,13 +182,10 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			}
 			domainGateways = &domain
 		}
-
-		permInfo, err := jmsService.ValidateAssetConnectPermission(connOpts.user.ID,
-			connOpts.asset.ID, connOpts.systemUser.ID)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		checkConnectPermFunc = func() (model.ExpireInfo, error) {
+			return jmsService.ValidateAssetConnectPermission(connOpts.user.ID,
+				connOpts.asset.ID, connOpts.systemUser.ID)
 		}
-		expireInfo = &permInfo
 		assetPlatform, err2 := jmsService.GetAssetPlatform(connOpts.asset.ID)
 		if err2 != nil {
 			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
@@ -233,12 +231,10 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			}
 			domainGateways = &domain
 		}
-		permInfo, err := jmsService.ValidateRemoteAppPermission(connOpts.user.ID,
-			connOpts.k8sApp.ID, connOpts.systemUser.ID)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		checkConnectPermFunc = func() (model.ExpireInfo, error) {
+			return jmsService.ValidateApplicationPermission(connOpts.user.ID,
+				connOpts.k8sApp.ID, connOpts.systemUser.ID)
 		}
-		expireInfo = &permInfo
 		apiSession = &model.Session{
 			ID:           common.UUID(),
 			User:         connOpts.user.String(),
@@ -273,12 +269,10 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			}
 			domainGateways = &domain
 		}
-
-		expirePermInfo, err := jmsService.ValidateApplicationPermission(connOpts.user.ID, connOpts.dbApp.ID, connOpts.systemUser.ID)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		checkConnectPermFunc = func() (model.ExpireInfo, error) {
+			return jmsService.ValidateApplicationPermission(connOpts.user.ID,
+				connOpts.dbApp.ID, connOpts.systemUser.ID)
 		}
-		expireInfo = &expirePermInfo
 		apiSession = &model.Session{
 			ID:           common.UUID(),
 			User:         connOpts.user.String(),
@@ -300,6 +294,11 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		return nil, fmt.Errorf("%w: `%s`", srvconn.ErrUnSupportedProtocol, connOpts.ProtocolType)
 	}
 
+	expireInfo, err := checkConnectPermFunc()
+	if err != nil {
+		logger.Error(err)
+	}
+
 	if !expireInfo.HasPermission {
 		msg := i18n.T("You don't have permission login %s")
 		msg = utils.WrapperWarn(fmt.Sprintf(msg, connOpts.TerminalTitle()))
@@ -318,7 +317,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		filterRules:    filterRules,
 		terminalConf:   &terminalConf,
 		domainGateways: domainGateways,
-		expireInfo:     expireInfo,
+		expireInfo:     &expireInfo,
 		platform:       platform,
 		permActions:    perms,
 		CreateSessionCallback: func() error {
@@ -473,7 +472,7 @@ func (s *Server) GetCommandRecorder() *CommandRecorder {
 }
 
 func (s *Server) GenerateCommandItem(user, input, output string,
-	riskLevel int64, createdDate time.Time,) *model.Command {
+	riskLevel int64, createdDate time.Time) *model.Command {
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
 		return &model.Command{
