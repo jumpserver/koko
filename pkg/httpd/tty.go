@@ -300,6 +300,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		srv, err := proxy.NewServer(h.backendClient, h.jmsService, proxyOpts...)
 		if err != nil {
 			logger.Errorf("Create proxy server failed: %s", err)
+			h.sendCloseMessage()
 			return
 		}
 		srv.OnSessionInfo = func(info proxy.SessionInfo) {
