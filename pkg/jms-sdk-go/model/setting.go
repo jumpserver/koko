@@ -8,6 +8,7 @@ type PublicSetting struct {
 		Image   string `json:"login_image"`
 		Favicon string `json:"favicon"`
 	} `json:"LOGO_URLS"`
+	EnableWatermark bool `json:"SECURITY_WATERMARK_ENABLED"`
 }
 
 /*

@@ -174,7 +174,7 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 		return
 	}
 	defer wsSocket.Close()
-
+	setting := s.getPublicSetting()
 	userConn := UserWebsocket{
 		Uuid:           common.UUID(),
 		webSrv:         s,
@@ -182,6 +182,7 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 		ctx:            ctx.Copy(),
 		messageChannel: make(chan *Message, 10),
 		user:           currentUser,
+		setting:        &setting,
 	}
 
 	userConn.handler = &webFolder{
@@ -221,7 +222,7 @@ func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
 		return
 	}
 	defer wsSocket.Close()
-
+	setting := s.getPublicSetting()
 	userConn := UserWebsocket{
 		Uuid:           common.UUID(),
 		webSrv:         s,
@@ -229,6 +230,7 @@ func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
 		ctx:            ctx.Copy(),
 		messageChannel: make(chan *Message, 10),
 		user:           currentUser,
+		setting:        &setting,
 	}
 	userConn.handler = &tty{
 		ws:           &userConn,
@@ -256,4 +258,12 @@ func (s *Server) GenerateViewMeta(targetId string) (meta ViewPageMata) {
 	}
 	meta.IconURL = setting.LogoURLS.Favicon
 	return
+}
+
+func (s *Server) getPublicSetting() model.PublicSetting {
+	setting, err := s.JmsService.GetPublicSetting()
+	if err != nil {
+		logger.Errorf("Get Public setting err: %s", err)
+	}
+	return setting
 }
