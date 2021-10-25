@@ -46,7 +46,7 @@
 <script>
 import Terminal from '@/components/Terminal'
 import ThemeConfig from "@/components/ThemeConfig";
-import {BASE_WS_URL} from "@/utils/common";
+import {BASE_WS_URL, canvasWaterMark} from "@/utils/common";
 
 export default {
   components: {
@@ -118,6 +118,18 @@ export default {
         case 'TERMINAL_RESIZE': {
           const data = JSON.parse(msg.data);
           this.resize(data);
+          break
+        }
+        case 'CONNECT': {
+          const setting  = this.$refs.term.setting;
+          if (setting.SECURITY_WATERMARK_ENABLED) {
+            const user = this.$refs.term.currentUser;
+            const username = `${user.name}(${user.username})`
+            canvasWaterMark({
+              container: document.body,
+              content: username
+            })
+          }
           break
         }
         default:

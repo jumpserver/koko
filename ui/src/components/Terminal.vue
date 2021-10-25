@@ -65,6 +65,8 @@ export default {
       enableRzSz: this.enableZmodem,
       zmodemStatus: false,
       termSelectionText: '',
+      currentUser:null,
+      setting: null,
     }
   },
   mounted: function () {
@@ -294,6 +296,10 @@ export default {
             rows: this.term.rows,
             code: this.code
           }
+          const info = JSON.parse(msg.data);
+          this.currentUser = info.user;
+          this.setting = info.setting;
+          this.$log.debug(this.currentUser);
           this.ws.send(this.message(this.terminalId, 'TERMINAL_INIT',
               JSON.stringify(data)));
           break
