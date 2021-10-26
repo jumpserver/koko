@@ -318,6 +318,7 @@ export default {
               break
             case zmodemEnd:
               this.zmodemStatus = false
+              this.term.write("\r\n")
               break
             default:
               this.zmodemStatus = false
