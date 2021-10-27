@@ -28,6 +28,7 @@ type UserWebsocket struct {
 	messageChannel chan *Message
 
 	user    *model.User
+	setting *model.PublicSetting
 	handler Handler
 }
 
@@ -111,9 +112,17 @@ func (userCon *UserWebsocket) SendMessage(msg *Message) {
 }
 
 func (userCon *UserWebsocket) sendConnectMessage() {
+	var connectInfo struct {
+		User    *model.User          `json:"user"`
+		Setting *model.PublicSetting `json:"setting"`
+	}
+	connectInfo.User = userCon.user
+	connectInfo.Setting = userCon.setting
+	info, _ := json.Marshal(connectInfo)
 	msg := Message{
 		Id:   userCon.Uuid,
 		Type: CONNECT,
+		Data: string(info),
 	}
 	userCon.SendMessage(&msg)
 }

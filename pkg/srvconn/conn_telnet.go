@@ -82,6 +82,23 @@ func NewTelnetConnection(opts ...TelnetOption) (*TelnetConnection, error) {
 }
 
 func newTelnetClient(conn net.Conn, cfg *TelnetConfig) (*tclientlib.Client, error) {
+	// 修复未登录成功，但是telnet连接不断的问题。
+	// todo：检测超时，直接断开连接，后续通过更新 telnet 包解决
+	done := make(chan struct{})
+	go func() {
+		t := time.NewTicker(cfg.Timeout)
+		defer t.Stop()
+		select {
+		case <-t.C:
+			select {
+			case <-done:
+			default:
+				_ = conn.Close()
+			}
+		case <-done:
+			return
+		}
+	}()
 	client, err := tclientlib.NewClientConn(conn, &tclientlib.Config{
 		Username: cfg.Username,
 		Password: cfg.Password,
@@ -93,6 +110,7 @@ func newTelnetClient(conn net.Conn, cfg *TelnetConfig) (*tclientlib.Client, erro
 		},
 		LoginSuccessRegex: cfg.CustomSuccessPattern,
 	})
+	close(done)
 	if err != nil {
 		return nil, err
 	}
