@@ -63,6 +63,7 @@ func (r *Room) run() {
 	defer r.closeOnce()
 	connMaps := make(map[string]*Conn)
 	currentOnlineUsers := make(map[string]MetaMessage)
+	var ZMODEMStatus bool
 	for {
 		select {
 		case <-ticker.C:
@@ -79,6 +80,12 @@ func (r *Room) run() {
 			}
 		case con := <-r.subscriber:
 			connMaps[con.Id] = con
+			if ZMODEMStatus {
+				con.handlerMessage(&RoomMessage{
+					Event: ActionEvent,
+					Body:  []byte("ZMODEM_START"),
+				})
+			}
 			r.recentMessages.Do(func(value interface{}) {
 				if msg, ok := value.(*RoomMessage); ok {
 					switch msg.Event {
@@ -111,6 +118,15 @@ func (r *Room) run() {
 			case ShareLeave:
 				key := msg.Meta.User + msg.Meta.Created
 				delete(currentOnlineUsers, key)
+			case ActionEvent:
+				switch string(msg.Body) {
+				case "ZMODEM_START":
+					ZMODEMStatus = true
+				case "ZMODEM_END":
+					ZMODEMStatus = false
+				default:
+					ZMODEMStatus = false
+				}
 			}
 			r.broadcastMessage(userConns, msg)
 

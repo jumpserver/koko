@@ -65,7 +65,7 @@ export default {
       enableRzSz: this.enableZmodem,
       zmodemStatus: false,
       termSelectionText: '',
-      currentUser:null,
+      currentUser: null,
       setting: null,
     }
   },
@@ -271,12 +271,12 @@ export default {
       this.handleError(e)
     },
 
-    sendDataFromWindow(data){
-      if (!this.wsIsActivated()){
+    sendDataFromWindow(data) {
+      if (!this.wsIsActivated()) {
         this.$log.debug("ws disconnected")
         return
       }
-      if (this.enableZmodem && (!this.zmodemStatus)){
+      if (this.enableZmodem && (!this.zmodemStatus)) {
         this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', data));
         this.$log.debug('send data from window')
       }
@@ -315,10 +315,17 @@ export default {
           switch (action) {
             case zmodemStart:
               this.zmodemStatus = true
+              if (!this.enableZmodem) {
+                // 等待用户 rz sz 文件传输
+                this.$message(this.$t("Terminal.WaitFileTransfer"));
+              }
               break
             case zmodemEnd:
+              if (!this.enableZmodem && this.zmodemStatus) {
+                this.$message(this.$t("Terminal.EndFileTransfer"));
+                this.term.write("\r\n")
+              }
               this.zmodemStatus = false
-              this.term.write("\r\n")
               break
             default:
               this.zmodemStatus = false
@@ -462,7 +469,7 @@ export default {
       const selectFile = this.fileList[0]
       if (selectFile.size >= MAX_TRANSFER_SIZE) {
         this.$log.debug(selectFile)
-        const msg = this.$t("Terminal.ExceedTransferSize")+": "+ bytesHuman(MAX_TRANSFER_SIZE)
+        const msg = this.$t("Terminal.ExceedTransferSize") + ": " + bytesHuman(MAX_TRANSFER_SIZE)
         this.$message(msg)
         return;
       }

@@ -536,10 +536,11 @@ func (z *ZmodemParser) Parse(p []byte) {
 		return
 	}
 	remain := p[index:]
-	hd := z.ParseHexHeader(remain)
+	nr, hd := ParseHexHeader(remain)
 	if hd == nil {
 		return
 	}
+	remain = remain[nr+1:]
 	switch hd.Type {
 	case ZRQINIT:
 		z.currentSession = &ZSession{
@@ -557,6 +558,7 @@ func (z *ZmodemParser) Parse(p []byte) {
 		if z.fireStatusEvent != nil {
 			z.fireStatusEvent(zmodemStartEvent)
 		}
+		z.currentSession.consume(remain)
 	case ZRINIT:
 		z.currentSession = &ZSession{
 			Type: TypeUpload,
@@ -573,6 +575,7 @@ func (z *ZmodemParser) Parse(p []byte) {
 		if z.fireStatusEvent != nil {
 			z.fireStatusEvent(zmodemStartEvent)
 		}
+		z.currentSession.consume(remain)
 	default:
 		z.currentSession = nil
 		z.abortMark = false
@@ -645,30 +648,30 @@ func (z *ZmodemParser) GetCurrentZFileInfo() *ZFileInfo {
 	return z.currentZFileInfo
 }
 
-func (z *ZmodemParser) ParseHexHeader(p []byte) *ZmodemHeader {
-	endPos := bytes.IndexByte(p, 0x8a)
-	if endPos == -1 {
-		endPos = bytes.IndexByte(p, 0x0a)
-	}
-	if endPos == -1 {
-		return nil
-	}
-	hexBytes := p[:endPos+1]
-	hexBytes = bytes.TrimSpace(hexBytes)
-	if len(hexBytes) != 18 {
-		return nil
-	}
-	hexBytes = hexBytes[2:]
-	octets := ConvertHexToOctets(hexBytes)
-	return ParseNonZDLEBinary16(octets)
-}
-
 func (z *ZmodemParser) Cleanup() {
 	if z.IsStartSession() {
 		if z.fileEventCallback != nil && z.currentZFileInfo != nil {
 			z.fileEventCallback(z.currentZFileInfo, false)
 		}
 	}
+}
+
+func ParseHexHeader(p []byte) (int, *ZmodemHeader) {
+	endPos := bytes.IndexByte(p, 0x8a)
+	if endPos == -1 {
+		endPos = bytes.IndexByte(p, 0x0a)
+	}
+	if endPos == -1 {
+		return 0, nil
+	}
+	hexBytes := p[:endPos+1]
+	hexBytes = bytes.TrimSpace(hexBytes)
+	if len(hexBytes) != 18 {
+		return 0, nil
+	}
+	hexBytes = hexBytes[2:]
+	octets := ConvertHexToOctets(hexBytes)
+	return endPos, ParseNonZDLEBinary16(octets)
 }
 
 func ParseNonZDLEBinary16(p []byte) *ZmodemHeader {
