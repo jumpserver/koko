@@ -412,6 +412,7 @@ export default {
         xfer.accept().then(() => {
           this.saveToDisk(xfer, buffer);
           this.$message(this.$t("Terminal.DownloadSuccess") + " " + detail.name)
+          this.term.write("\r\n")
         }, console.error.bind(console));
       });
       zsession.on('session_end', () => {
