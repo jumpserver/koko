@@ -144,7 +144,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
 			err = fmt.Errorf("%w: %s", ErrMissClient, err)
 		default:
-			errMsg = i18n.T("Terminal do not support protocol %s, please use web terminal to access")
+			errMsg = i18n.T("Terminal does not support protocol %s, please use web terminal to access")
 			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
 			err = fmt.Errorf("%w: %s", ErrUnMatchProtocol, err)
 		}
