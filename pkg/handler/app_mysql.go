@@ -2,14 +2,12 @@ package handler
 
 import (
 	"fmt"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"strconv"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -125,30 +123,4 @@ func (u *UserSelectHandler) displayMySQLResult(searchHeader string) {
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
 	utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-}
-
-func (u *UserSelectHandler) proxyMySQL(dbApp model.DatabaseApplication) {
-
-	systemUsers, err := u.h.jmsService.GetUserApplicationSystemUsers(u.user.ID, dbApp.ID)
-	if err != nil {
-		return
-	}
-	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
-	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
-	if !ok {
-		logger.Infof("User %s don't select systemUser", u.user.Name)
-		return
-	}
-	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService,
-		proxy.ConnectProtocolType(srvconn.ProtocolMySQL),
-		proxy.ConnectDBApp(&dbApp),
-		proxy.ConnectSystemUser(&selectedSystemUser),
-		proxy.ConnectUser(u.user),
-	)
-	if err != nil {
-		logger.Error(err)
-	}
-	srv.Proxy()
-	logger.Infof("Request %s: database %s proxy end", u.h.sess.Uuid, dbApp.Name)
-
 }

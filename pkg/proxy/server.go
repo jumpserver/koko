@@ -35,9 +35,9 @@ type ConnectionOptions struct {
 	user       *model.User
 	systemUser *model.SystemUser
 
-	asset  *model.Asset
-	dbApp  *model.DatabaseApplication
-	k8sApp *model.K8sApplication
+	asset *model.Asset
+
+	app *model.Application
 }
 
 func ConnectUser(user *model.User) ConnectionOption {
@@ -64,15 +64,9 @@ func ConnectAsset(asset *model.Asset) ConnectionOption {
 	}
 }
 
-func ConnectDBApp(dbApp *model.DatabaseApplication) ConnectionOption {
+func ConnectApp(app *model.Application) ConnectionOption {
 	return func(opts *ConnectionOptions) {
-		opts.dbApp = dbApp
-	}
-}
-
-func ConnectK8sApp(k8sApp *model.K8sApplication) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.k8sApp = k8sApp
+		opts.app = app
 	}
 }
 
@@ -89,11 +83,11 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 		title = fmt.Sprintf("%s://%s@%s",
 			opts.ProtocolType,
 			opts.systemUser.Username,
-			opts.dbApp.Attrs.Host)
+			opts.app.Attrs.Host)
 	case srvconn.ProtocolK8s:
 		title = fmt.Sprintf("%s+%s",
 			opts.ProtocolType,
-			opts.k8sApp.Attrs.Cluster)
+			opts.app.Attrs.Cluster)
 	}
 	return title
 }
@@ -105,9 +99,9 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 		srvconn.ProtocolSSH:
 		msg = fmt.Sprintf(i18n.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.dbApp)
+		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.app)
 	case srvconn.ProtocolK8s:
-		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.k8sApp.Attrs.Cluster)
+		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
 	}
 	return msg
 }
@@ -121,7 +115,8 @@ var (
 )
 
 /*
-	简单校验：
+	简单校验:
+		协议是否支持
 		资产协议是否匹配
 
 	API 相关
@@ -136,6 +131,25 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	connOpts := &ConnectionOptions{}
 	for _, setter := range opts {
 		setter(connOpts)
+	}
+
+	if err := srvconn.IsSupportedProtocol(connOpts.ProtocolType); err != nil {
+		logger.Errorf("Conn[%s] checking protocol %s failed: %s", conn.ID(),
+			connOpts.ProtocolType, err)
+		var errMsg string
+		switch {
+		case errors.Is(err, srvconn.ErrMySQLClient),
+			errors.Is(err, srvconn.ErrKubectlClient):
+			errMsg = i18n.T("%s protocol client not installed.")
+			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
+			err = fmt.Errorf("%w: %s", ErrMissClient, err)
+		default:
+			errMsg = i18n.T("Terminal do not support protocol %s, please use web terminal to access")
+			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
+			err = fmt.Errorf("%w: %s", ErrUnMatchProtocol, err)
+		}
+		utils.IgnoreErrWriteString(conn, utils.WrapperWarn(errMsg))
+		return nil, err
 	}
 
 	terminalConf, err := jmsService.GetTerminalConfig()
@@ -161,7 +175,39 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	)
 
 	switch connOpts.ProtocolType {
-	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolK8s:
+		authInfo, err := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
+			connOpts.user.ID, connOpts.user.Username)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		}
+		sysUserAuthInfo = &authInfo
+		if connOpts.app.Domain != "" {
+			domain, err := jmsService.GetDomainGateways(connOpts.app.Domain)
+			if err != nil {
+				return nil, err
+			}
+			domainGateways = &domain
+		}
+		checkConnectPermFunc = func() (model.ExpireInfo, error) {
+			return jmsService.ValidateApplicationPermission(connOpts.user.ID,
+				connOpts.app.ID, connOpts.systemUser.ID)
+		}
+		apiSession = &model.Session{
+			ID:           common.UUID(),
+			User:         connOpts.user.String(),
+			SystemUser:   connOpts.systemUser.String(),
+			LoginFrom:    conn.LoginFrom(),
+			RemoteAddr:   conn.RemoteAddr(),
+			Protocol:     connOpts.systemUser.Protocol,
+			UserID:       connOpts.user.ID,
+			SystemUserID: connOpts.systemUser.ID,
+			Asset:        connOpts.app.Name,
+			AssetID:      connOpts.app.ID,
+			OrgID:        connOpts.app.OrgID,
+		}
+	default:
 		if !connOpts.asset.IsSupportProtocol(connOpts.systemUser.Protocol) {
 			msg := i18n.T("System user <%s> and asset <%s> protocol are inconsistent.")
 			msg = fmt.Sprintf(msg, connOpts.systemUser.Username, connOpts.asset.Hostname)
@@ -220,88 +266,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			AssetID:      connOpts.asset.ID,
 			OrgID:        connOpts.asset.OrgID,
 		}
-	case srvconn.ProtocolK8s:
-		if !IsInstalledKubectlClient() {
-			msg := i18n.T("%s protocol client not installed.")
-			msg = fmt.Sprintf(msg, connOpts.k8sApp.TypeName)
-			utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
-			logger.Errorf("Conn[%s] %s", conn.ID(), msg)
-			return nil, fmt.Errorf("%w: %s", ErrMissClient, connOpts.ProtocolType)
-		}
-		authInfo, err := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.k8sApp.ID,
-			connOpts.user.ID, connOpts.user.Username)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
-		}
-		sysUserAuthInfo = &authInfo
-		if connOpts.k8sApp.Domain != "" {
-			domain, err := jmsService.GetDomainGateways(connOpts.k8sApp.Domain)
-			if err != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
-			}
-			domainGateways = &domain
-		}
-		checkConnectPermFunc = func() (model.ExpireInfo, error) {
-			return jmsService.ValidateApplicationPermission(connOpts.user.ID,
-				connOpts.k8sApp.ID, connOpts.systemUser.ID)
-		}
-		apiSession = &model.Session{
-			ID:           common.UUID(),
-			User:         connOpts.user.String(),
-			SystemUser:   connOpts.systemUser.String(),
-			LoginFrom:    conn.LoginFrom(),
-			RemoteAddr:   conn.RemoteAddr(),
-			Protocol:     connOpts.systemUser.Protocol,
-			SystemUserID: connOpts.systemUser.ID,
-			UserID:       connOpts.user.ID,
-			Asset:        connOpts.k8sApp.Name,
-			AssetID:      connOpts.k8sApp.ID,
-			OrgID:        connOpts.k8sApp.OrgID,
-		}
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-		if !IsInstalledMysqlClient() {
-			msg := i18n.T("Database %s protocol client not installed.")
-			msg = fmt.Sprintf(msg, connOpts.dbApp.TypeName)
-			utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
-			logger.Errorf("Conn[%s] %s", conn.ID(), msg)
-			return nil, fmt.Errorf("%w: %s", ErrMissClient, connOpts.ProtocolType)
-		}
-		authInfo, err := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.dbApp.ID,
-			connOpts.user.ID, connOpts.user.Username)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
-		}
-		sysUserAuthInfo = &authInfo
-		if connOpts.dbApp.Domain != "" {
-			domain, err := jmsService.GetDomainGateways(connOpts.dbApp.Domain)
-			if err != nil {
-				return nil, err
-			}
-			domainGateways = &domain
-		}
-		checkConnectPermFunc = func() (model.ExpireInfo, error) {
-			return jmsService.ValidateApplicationPermission(connOpts.user.ID,
-				connOpts.dbApp.ID, connOpts.systemUser.ID)
-		}
-		apiSession = &model.Session{
-			ID:           common.UUID(),
-			User:         connOpts.user.String(),
-			SystemUser:   connOpts.systemUser.String(),
-			LoginFrom:    conn.LoginFrom(),
-			RemoteAddr:   conn.RemoteAddr(),
-			Protocol:     connOpts.systemUser.Protocol,
-			UserID:       connOpts.user.ID,
-			SystemUserID: connOpts.systemUser.ID,
-			Asset:        connOpts.dbApp.Name,
-			AssetID:      connOpts.dbApp.ID,
-			OrgID:        connOpts.dbApp.OrgID,
-		}
-	default:
-		msg := i18n.T("Terminal only support protocol ssh/telnet, please use web terminal to access")
-		msg = utils.WrapperWarn(msg)
-		utils.IgnoreErrWriteString(conn, msg)
-		logger.Errorf("Conn[%s] checking requisite failed: %s", conn.ID(), msg)
-		return nil, fmt.Errorf("%w: `%s`", srvconn.ErrUnSupportedProtocol, connOpts.ProtocolType)
 	}
 
 	expireInfo, err := checkConnectPermFunc()
@@ -487,51 +451,36 @@ func (s *Server) GetCommandRecorder() *CommandRecorder {
 
 func (s *Server) GenerateCommandItem(user, input, output string,
 	riskLevel int64, createdDate time.Time) *model.Command {
+	var (
+		server string
+		orgID  string
+	)
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
-		return &model.Command{
-			SessionID:   s.ID,
-			OrgID:       s.connOpts.asset.OrgID,
-			User:        user,
-			Server:      s.connOpts.asset.Hostname,
-			SystemUser:  s.connOpts.systemUser.String(),
-			Input:       input,
-			Output:      output,
-			Timestamp:   createdDate.Unix(),
-			RiskLevel:   riskLevel,
-			DateCreated: createdDate.UTC(),
-		}
+		server = s.connOpts.asset.Hostname
+		orgID = s.connOpts.asset.OrgID
 
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-		return &model.Command{
-			SessionID:   s.ID,
-			OrgID:       s.connOpts.dbApp.OrgID,
-			User:        user,
-			Server:      s.connOpts.dbApp.Name,
-			SystemUser:  s.connOpts.systemUser.String(),
-			Input:       input,
-			Output:      output,
-			Timestamp:   createdDate.Unix(),
-			RiskLevel:   riskLevel,
-			DateCreated: createdDate.UTC(),
-		}
+		server = s.connOpts.app.Name
+		orgID = s.connOpts.app.OrgID
 
 	case srvconn.ProtocolK8s:
-		return &model.Command{
-			SessionID: s.ID,
-			OrgID:     s.connOpts.k8sApp.OrgID,
-			User:      user,
-			Server: fmt.Sprintf("%s(%s)", s.connOpts.k8sApp.Name,
-				s.connOpts.k8sApp.Attrs.Cluster),
-			SystemUser:  s.connOpts.systemUser.String(),
-			Input:       input,
-			Output:      output,
-			Timestamp:   createdDate.Unix(),
-			RiskLevel:   riskLevel,
-			DateCreated: createdDate.UTC(),
-		}
+		server = fmt.Sprintf("%s(%s)", s.connOpts.app.Name,
+			s.connOpts.app.Attrs.Cluster)
+		orgID = s.connOpts.app.OrgID
 	}
-	return nil
+	return &model.Command{
+		SessionID:   s.ID,
+		OrgID:       orgID,
+		Server:      server,
+		User:        user,
+		SystemUser:  s.connOpts.systemUser.String(),
+		Input:       input,
+		Output:      output,
+		Timestamp:   createdDate.Unix(),
+		RiskLevel:   riskLevel,
+		DateCreated: createdDate.UTC(),
+	}
 }
 
 func (s *Server) getUsernameIfNeed() (err error) {
@@ -669,7 +618,7 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 	var dGateway *domainGateway
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolK8s:
-		dstHost, dstPort, err := ParseUrlHostAndPort(s.connOpts.k8sApp.Attrs.Cluster)
+		dstHost, dstPort, err := ParseUrlHostAndPort(s.connOpts.app.Attrs.Cluster)
 		if err != nil {
 			return nil, err
 		}
@@ -682,8 +631,8 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 		srvconn.ProtocolMariadb:
 		dGateway = &domainGateway{
 			domain:  domain,
-			dstIP:   s.connOpts.dbApp.Attrs.Host,
-			dstPort: s.connOpts.dbApp.Attrs.Port,
+			dstIP:   s.connOpts.app.Attrs.Host,
+			dstPort: s.connOpts.app.Attrs.Port,
 		}
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol,
@@ -694,7 +643,7 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 
 // getSSHConn 获取ssh连接
 func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
-	clusterServer := s.connOpts.k8sApp.Attrs.Cluster
+	clusterServer := s.connOpts.app.Attrs.Cluster
 	if localTunnelAddr != nil {
 		originUrl, err := url.Parse(clusterServer)
 		if err != nil {
@@ -715,9 +664,9 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K
 	return
 }
 
-func (s *Server) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
-	host := s.connOpts.dbApp.Attrs.Host
-	port := s.connOpts.dbApp.Attrs.Port
+func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
+	host := s.connOpts.app.Attrs.Host
+	port := s.connOpts.app.Attrs.Port
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
@@ -727,7 +676,7 @@ func (s *Server) getMysqlConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
 		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
-		srvconn.SqlDBName(s.connOpts.dbApp.Attrs.Database),
+		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -764,7 +713,8 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	}
 	var passwordTryCount int
 	password := loginSystemUser.Password
-	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
+		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
 		termReader := utils.NewTerminal(s.UserConn, "")
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
@@ -928,7 +878,7 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 	case srvconn.ProtocolK8s:
 		return s.getK8sConConn(proxyAddr)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-		return s.getMysqlConn(proxyAddr)
+		return s.getMySQLConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}
@@ -973,12 +923,10 @@ func (s *Server) checkLoginConfirm() bool {
 		targetId   string
 	)
 	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolK8s:
 		targetType = model.AppType
-		targetId = s.connOpts.dbApp.ID
-	case srvconn.ProtocolK8s:
-		targetType = model.AppType
-		targetId = s.connOpts.k8sApp.ID
+		targetId = s.connOpts.app.ID
 	default:
 		targetId = s.connOpts.asset.ID
 	}

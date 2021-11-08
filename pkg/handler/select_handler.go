@@ -226,20 +226,13 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 			return
 		}
 		u.proxyAsset(asset)
-	case TypeK8s:
-		app, err := u.h.jmsService.GetK8sApplicationById(targetId)
-		if err != nil || app.ID == "" {
-			logger.Errorf("Select k8s %s not found", targetId)
+	case TypeK8s, TypeMySQL:
+		app, err := u.h.jmsService.GetApplicationById(targetId)
+		if err != nil {
+			logger.Errorf("Select application %s err: %s", targetId, err)
 			return
 		}
-		u.proxyK8s(app)
-	case TypeMySQL:
-		app, err := u.h.jmsService.GetMySQLOrMariadbApplicationById(targetId)
-		if err != nil || app.ID == "" {
-			logger.Errorf("Select MySQL %s not found", targetId)
-			return
-		}
-		u.proxyMySQL(app)
+		u.proxyApp(app)
 	default:
 		logger.Errorf("Select unknown type for target id %s", targetId)
 	}

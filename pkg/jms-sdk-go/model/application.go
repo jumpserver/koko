@@ -12,7 +12,14 @@ type dbAttrs struct {
 	Database string `json:"database"`
 }
 
-type BaseApplication struct {
+const (
+	AppTypeMySQL = "mysql"
+	AppTypeK8s   = "k8s"
+)
+
+const AppType = "Application"
+
+type Application struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Category string `json:"category"`
@@ -21,29 +28,33 @@ type BaseApplication struct {
 	Comment  string `json:"comment"`
 	OrgID    string `json:"org_id"`
 	OrgName  string `json:"org_name"`
+
+	Attrs Attrs `json:"attrs"`
 }
 
-type K8sApplication struct {
-	BaseApplication
-	Attrs k8sAttrs `json:"attrs"`
+type Attrs struct {
+	k8sAttrs
+
+	dbAttrs
 }
 
-type DatabaseApplication struct {
-	BaseApplication
-	Attrs dbAttrs `json:"attrs"`
-}
+func (app Application) String() string {
 
-func (db DatabaseApplication) String() string {
-	return fmt.Sprintf("%s://%s:%d/%s",
-		db.TypeName,
-		db.Attrs.Host,
-		db.Attrs.Port,
-		db.Attrs.Database)
+	switch app.Category {
+	case categoryDB:
+		return fmt.Sprintf("%s://%s:%d/%s",
+			app.TypeName,
+			app.Attrs.Host,
+			app.Attrs.Port,
+			app.Attrs.Database)
+	default:
+		return fmt.Sprintf("%s://%s",
+			app.TypeName,
+			app.Name)
+	}
 }
 
 const (
-	AppTypeMySQL = "mysql"
-	AppTypeK8s   = "k8s"
+	categoryDB    = "db"
+	categoryCloud = "cloud"
 )
-
-const AppType = "Application"
