@@ -1,16 +1,12 @@
 package proxy
 
 import (
-	"bytes"
-	"encoding/json"
 	"net"
 	"net/url"
-	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/logger"
 )
 
 const (
@@ -45,42 +41,6 @@ func ConvertErrorToReadableMsg(e error) string {
 		return i18n.T("network is unreachable")
 	}
 	return errMsg
-}
-
-func IsInstalledKubectlClient() bool {
-	checkLine := "kubectl version --client -o json"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		logger.Errorf("Check kubectl client failed %s", err)
-		return false
-	}
-	var result map[string]interface{}
-	err = json.Unmarshal(out, &result)
-	if err != nil {
-		logger.Errorf("Check kubectl client failed %s %s", err, out)
-		return false
-	}
-	if _, ok := result["clientVersion"]; ok {
-		return true
-	}
-	logger.Errorf("Check kubectl client failed: %s", out)
-	return false
-}
-
-func IsInstalledMysqlClient() bool {
-	checkLine := "mysql -V"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		logger.Errorf("Check mysql client installed failed: %s", err)
-		return false
-	}
-	if bytes.HasPrefix(out, []byte("mysql")) {
-		return true
-	}
-	logger.Errorf("Check mysql client installed failed: %s", out)
-	return false
 }
 
 func ReplaceURLHostAndPort(originUrl *url.URL, ip string, port int) string {

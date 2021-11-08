@@ -8,8 +8,6 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -117,29 +115,4 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
 	utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-}
-
-func (u *UserSelectHandler) proxyK8s(k8sApp model.K8sApplication) {
-	systemUsers, err := u.h.jmsService.GetUserApplicationSystemUsers(u.user.ID, k8sApp.ID)
-	if err != nil {
-		return
-	}
-	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
-	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
-	if !ok {
-		logger.Infof("User %s don't select systemUser", u.user.Name)
-		return
-	}
-
-	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService,
-		proxy.ConnectProtocolType(srvconn.ProtocolK8s),
-		proxy.ConnectK8sApp(&k8sApp),
-		proxy.ConnectSystemUser(&selectedSystemUser),
-		proxy.ConnectUser(u.user),
-	)
-	if err != nil {
-		logger.Error(err)
-	}
-	srv.Proxy()
-	logger.Infof("Request %s: k8s %s proxy end", u.h.sess.Uuid, k8sApp.Name)
 }
