@@ -460,13 +460,9 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		server = s.connOpts.asset.Hostname
 		orgID = s.connOpts.asset.OrgID
 
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolK8s:
 		server = s.connOpts.app.Name
-		orgID = s.connOpts.app.OrgID
-
-	case srvconn.ProtocolK8s:
-		server = fmt.Sprintf("%s(%s)", s.connOpts.app.Name,
-			s.connOpts.app.Attrs.Cluster)
 		orgID = s.connOpts.app.OrgID
 	}
 	return &model.Command{
