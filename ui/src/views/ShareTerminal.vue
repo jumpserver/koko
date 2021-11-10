@@ -120,14 +120,16 @@ export default {
           this.resize(data);
           break
         }
-        case 'CONNECT': {
+        case 'TERMINAL_SESSION': {
+          const sessionDetail = JSON.parse(msg.data);
+          const user = this.$refs.term.currentUser;
+          const username = `${user.name}(${user.username})`
+          const waterMarkContent = `${username}\n${sessionDetail.asset}`
           const setting  = this.$refs.term.setting;
           if (setting.SECURITY_WATERMARK_ENABLED) {
-            const user = this.$refs.term.currentUser;
-            const username = `${user.name}(${user.username})`
             canvasWaterMark({
               container: document.body,
-              content: username
+              content: waterMarkContent
             })
           }
           break

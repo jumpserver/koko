@@ -109,6 +109,15 @@ func (h *tty) HandleMessage(msg *Message) {
 				return
 			}
 			h.shareInfo = &info
+			sessionInfo, err3 := h.jmsService.GetSessionById(info.Record.SessionId)
+			if err3 != nil {
+				logger.Errorf("Ws[%s] terminal get session %s err: %s",
+					h.ws.Uuid, info.Record.SessionId, err3)
+				h.sendCloseMessage()
+				return
+			}
+			data, _ := json.Marshal(sessionInfo)
+			h.sendSessionMessage(string(data))
 		}
 		h.initialed = true
 		win := ssh.Window{
@@ -293,7 +302,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 			h.sendCloseMessage()
 			return
 		}
-		srv.OnSessionInfo = func(info proxy.SessionInfo) {
+		srv.OnSessionInfo = func(info *model.Session) {
 			data, _ := json.Marshal(info)
 			h.sendSessionMessage(string(data))
 		}

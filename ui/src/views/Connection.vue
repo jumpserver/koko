@@ -170,9 +170,12 @@ export default {
     onWsData(msgType, msg) {
       switch (msgType) {
         case "TERMINAL_SESSION": {
-          const data = JSON.parse(msg.data);
-          this.sessionId = data.id;
-          this.enableShare = data.enable_share;
+          const sessionDetail = JSON.parse(msg.data);
+          this.sessionId = sessionDetail.id;
+          const setting = this.$refs.term.setting;
+          if (setting.SECURITY_SESSION_SHARE) {
+            this.enableShare = true;
+          }
           break
         }
         case "TERMINAL_SHARE": {
