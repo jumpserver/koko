@@ -52,3 +52,9 @@ func (s *JMService) sessionPatch(sid string, data interface{}) error {
 	_, err := s.authClient.Patch(Url, data, nil)
 	return err
 }
+
+func (s *JMService) GetSessionById(sid string) (data model.Session, err error) {
+	reqURL := fmt.Sprintf(SessionDetailURL, sid)
+	_, err = s.authClient.Get(reqURL, &data)
+	return
+}

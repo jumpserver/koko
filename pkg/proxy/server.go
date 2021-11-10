@@ -296,6 +296,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		expireInfo:     &expireInfo,
 		platform:       platform,
 		permActions:    perms,
+		sessionInfo:    apiSession,
 		CreateSessionCallback: func() error {
 			apiSession.DateStart = modelCommon.NewNowUTCTime()
 			return jmsService.CreateSession(*apiSession)
@@ -330,6 +331,8 @@ type Server struct {
 	platform       *model.Platform
 	permActions    *model.Permission
 
+	sessionInfo *model.Session
+
 	cacheSSHConnection *srvconn.SSHConnection
 
 	CreateSessionCallback    func() error
@@ -339,7 +342,7 @@ type Server struct {
 
 	keyboardMode int32
 
-	OnSessionInfo func(info SessionInfo)
+	OnSessionInfo func(info *model.Session)
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -1011,7 +1014,7 @@ func (s *Server) Proxy() {
 		logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
 	}
 	if s.OnSessionInfo != nil {
-		go s.OnSessionInfo(SessionInfo{ID: s.ID, EnableShare: s.terminalConf.EnableSessionShare})
+		go s.OnSessionInfo(s.sessionInfo)
 	}
 	utils.IgnoreErrWriteWindowTitle(s.UserConn, s.connOpts.TerminalTitle())
 	if err = sw.Bridge(s.UserConn, srvCon); err != nil {
