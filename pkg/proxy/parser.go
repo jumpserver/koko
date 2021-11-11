@@ -604,7 +604,7 @@ func breakInputPacket(protocolType string) []byte {
 	case model.ProtocolTelnet:
 		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
 	case model.ProtocolSSH:
-		return []byte{utils.CharCleanLine, CharCleanRightLine, '\r'}
+		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 	}
 	return []byte{utils.CharCleanLine, CharCTRLC, '\r'}
 }
@@ -612,11 +612,13 @@ func breakInputPacket(protocolType string) []byte {
 /*
 	Ctrl + U --> 清除光标左边字符 '\x15'
 	Ctrl + K --> 清除光标右边字符 '\x0B'
+	Ctrl + E --> 移动光标到行末尾 '\x05'
 */
 
 const (
 	CharCleanRightLine = '\x0B'
 	CharCTRLC          = '\x03'
+	CharCTRLE          = '\x05'
 )
 
 const (
