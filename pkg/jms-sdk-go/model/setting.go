@@ -9,6 +9,7 @@ type PublicSetting struct {
 		Favicon string `json:"favicon"`
 	} `json:"LOGO_URLS"`
 	EnableWatermark bool `json:"SECURITY_WATERMARK_ENABLED"`
+	EnableSessionShare bool `json:"SECURITY_SESSION_SHARE"`
 }
 
 /*

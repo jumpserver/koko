@@ -12,6 +12,7 @@ BuildTime:= $(shell date -u '+%Y-%m-%d %I:%M:%S%p')
 COMMIT:= $(shell git rev-parse HEAD)
 GOVERSION:= $(shell go version)
 CipherKey := $(shell head -c 100 /dev/urandom | base64 | head -c 32)
+TARGETARCH ?= amd64
 
 UIDIR=ui
 NPMINSTALL=npm i
@@ -100,7 +101,7 @@ koko-ui:
 .PHONY: docker
 docker:
 	@echo "build docker images"
-	docker build -t jumpserver/koko .
+	docker build --build-arg VERSION=$(VERSION) --build-arg TARGETARCH=$(TARGETARCH) -t jumpserver/koko .
 
 .PHONY: clean
 clean:

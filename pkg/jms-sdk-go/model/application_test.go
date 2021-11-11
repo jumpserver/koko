@@ -25,8 +25,8 @@ func TestSortAssetNodesByKey(t *testing.T) {
 			"org_name": "DEFAULT"
 		}
 `
-	var app DatabaseApplication
+	var app Application
 	err := json.Unmarshal([]byte(jsonString), &app)
 	t.Log(err)
-	t.Logf("%v", app)
+	t.Logf("%+v", app)
 }

@@ -19,8 +19,3 @@ type UserConnection interface {
 	Context() context.Context
 	HandleRoomEvent(event string, msg *exchange.RoomMessage)
 }
-
-type SessionInfo struct {
-	ID          string `json:"id"`
-	EnableShare bool   `json:"enable_share"`
-}

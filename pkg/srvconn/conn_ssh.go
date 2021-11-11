@@ -50,16 +50,22 @@ func NewSSHConnection(sess *gossh.Session, opts ...SSHOption) (*SSHConnection, e
 			stdin = transform.NewWriter(stdin, writerEncode)
 		}
 	}
-	err = sess.Shell()
-	if err != nil {
-		return nil, err
-	}
-	return &SSHConnection{
+	conn := &SSHConnection{
 		session: sess,
 		stdin:   stdin,
 		stdout:  stdout,
 		options: options,
-	}, nil
+	}
+	if !options.isLoginToSu {
+		err = sess.Shell()
+	} else {
+		err = LoginToSu(conn)
+	}
+	if err != nil {
+		_ = sess.Close()
+		return nil, err
+	}
+	return conn, nil
 }
 
 type SSHConnection struct {
@@ -96,6 +102,11 @@ type SSHOptions struct {
 	charset string
 	win     Windows
 	term    string
+
+	isLoginToSu  bool
+	sudoCommand  string
+	sudoUsername string
+	sudoPassword string
 }
 
 func SSHCharset(charset string) SSHOption {
@@ -113,5 +124,29 @@ func SSHPtyWin(win Windows) SSHOption {
 func SSHTerm(termType string) SSHOption {
 	return func(opt *SSHOptions) {
 		opt.term = termType
+	}
+}
+
+func SSHLoginToSudo(ok bool) SSHOption {
+	return func(opt *SSHOptions) {
+		opt.isLoginToSu = ok
+	}
+}
+
+func SSHSudoCommand(cmd string) SSHOption {
+	return func(opt *SSHOptions) {
+		opt.sudoCommand = cmd
+	}
+}
+
+func SSHSudoUsername(username string) SSHOption {
+	return func(opt *SSHOptions) {
+		opt.sudoUsername = username
+	}
+}
+
+func SSHSudoPassword(password string) SSHOption {
+	return func(opt *SSHOptions) {
+		opt.sudoPassword = password
 	}
 }

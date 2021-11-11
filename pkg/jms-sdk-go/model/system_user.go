@@ -32,6 +32,8 @@ type SystemUser struct {
 	OrgName              string   `json:"org_name"`
 	UsernameSameWithUser bool     `json:"username_same_with_user"`
 	Token                string   `json:"-"`
+	SuEnabled            bool     `json:"su_enabled"`
+	SuFrom               string   `json:"su_from"`
 }
 
 func (s *SystemUser) String() string {

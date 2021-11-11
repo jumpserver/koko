@@ -30,8 +30,8 @@ type tty struct {
 	wg         sync.WaitGroup
 	systemUser *model.SystemUser
 	assetApp   *model.Asset
-	k8sApp     *model.K8sApplication
-	dbApp      *model.DatabaseApplication
+
+	app *model.Application
 
 	backendClient *Client
 
@@ -109,6 +109,15 @@ func (h *tty) HandleMessage(msg *Message) {
 				return
 			}
 			h.shareInfo = &info
+			sessionInfo, err3 := h.jmsService.GetSessionById(info.Record.SessionId)
+			if err3 != nil {
+				logger.Errorf("Ws[%s] terminal get session %s err: %s",
+					h.ws.Uuid, info.Record.SessionId, err3)
+				h.sendCloseMessage()
+				return
+			}
+			data, _ := json.Marshal(sessionInfo)
+			h.sendSessionMessage(string(data))
 		}
 		h.initialed = true
 		win := ssh.Window{
@@ -242,24 +251,15 @@ func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err err
 
 func (h *tty) getTargetApp(protocol string) bool {
 	switch strings.ToLower(protocol) {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-		databaseAsset, err := h.jmsService.GetMySQLOrMariadbApplicationById(h.targetId)
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolK8s:
+		appAsset, err := h.jmsService.GetApplicationById(h.targetId)
 		if err != nil {
-			logger.Errorf("Get MySQL App failed; %s", err)
+			logger.Errorf("Get %s application failed; %s", protocol, err)
 			return false
 		}
-		if databaseAsset.ID != "" {
-			h.dbApp = &databaseAsset
-			return true
-		}
-	case srvconn.ProtocolK8s:
-		k8sCluster, err := h.jmsService.GetK8sApplicationById(h.targetId)
-		if err != nil {
-			logger.Errorf("Get K8s App failed; %s", err)
-			return false
-		}
-		if k8sCluster.ID != "" {
-			h.k8sApp = &k8sCluster
+		if appAsset.ID != "" {
+			h.app = &appAsset
 			return true
 		}
 	default:
@@ -290,10 +290,9 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		proxyOpts = append(proxyOpts, proxy.ConnectSystemUser(h.systemUser))
 		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
 		switch h.systemUser.Protocol {
-		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-			proxyOpts = append(proxyOpts, proxy.ConnectDBApp(h.dbApp))
-		case srvconn.ProtocolK8s:
-			proxyOpts = append(proxyOpts, proxy.ConnectK8sApp(h.k8sApp))
+		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+			srvconn.ProtocolK8s:
+			proxyOpts = append(proxyOpts, proxy.ConnectApp(h.app))
 		default:
 			proxyOpts = append(proxyOpts, proxy.ConnectAsset(h.assetApp))
 		}
@@ -303,7 +302,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 			h.sendCloseMessage()
 			return
 		}
-		srv.OnSessionInfo = func(info proxy.SessionInfo) {
+		srv.OnSessionInfo = func(info *model.Session) {
 			data, _ := json.Marshal(info)
 			h.sendSessionMessage(string(data))
 		}
