@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"io"
 	"os"
-	"path/filepath"
 	"time"
 	"unsafe"
 )
@@ -31,19 +30,23 @@ func GzipCompressFile(srcPath, dstPath string) error {
 		return err
 	}
 	defer sf.Close()
+	sfInfo, err := sf.Stat()
+	if err != nil {
+		return err
+	}
 	df, err := os.Create(dstPath)
 	if err != nil {
 		return err
 	}
 	defer df.Close()
 	writer := gzip.NewWriter(df)
-	writer.Name = filepath.Base(srcPath)
+	writer.Name = sfInfo.Name()
 	writer.ModTime = time.Now().UTC()
 	_, err = io.Copy(writer, sf)
 	if err != nil {
 		return err
 	}
-	if err := writer.Close(); err != nil {
+	if err = writer.Close(); err != nil {
 		return err
 	}
 	return nil
