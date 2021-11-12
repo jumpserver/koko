@@ -306,6 +306,7 @@ export default {
         }
         case "CLOSE":
           this.term.writeln("Receive Connection closed");
+          this.ws.close();
           fireEvent(new Event("CLOSE", {}))
           break
         case "PING":

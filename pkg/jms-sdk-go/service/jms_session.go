@@ -7,9 +7,16 @@ import (
 )
 
 func (s *JMService) Upload(sessionID, gZipFile string) error {
+	version := model.ParseReplayVersion(gZipFile, model.Version3)
+	return s.UploadReplay(sessionID, gZipFile, version)
+}
+
+func (s *JMService) UploadReplay(sid, gZipFile string, version model.ReplayVersion) error {
 	var res map[string]interface{}
-	Url := fmt.Sprintf(SessionReplayURL, sessionID)
-	return s.authClient.UploadFile(Url, gZipFile, &res)
+	Url := fmt.Sprintf(SessionReplayURL, sid)
+	fields := make(map[string]string)
+	fields["version"] = string(version)
+	return s.authClient.PostFileWithFields(Url, gZipFile, fields, &res)
 }
 
 func (s *JMService) FinishReply(sid string) error {
