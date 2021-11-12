@@ -9,7 +9,7 @@ RUN yarn config set registry ${NPM_REGISTRY}
 COPY ui  ui/
 RUN ls . && cd ui/ && npm install -i && yarn build && ls -al .
 
-FROM golang:1.15-alpine as stage-build
+FROM golang:1.17-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 ARG GOPROXY=https://goproxy.io

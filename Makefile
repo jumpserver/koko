@@ -31,6 +31,7 @@ KUBECTLBUILD=CGO_ENABLED=0 go build -trimpath -ldflags $(KUBECTLFLAGS)
 
 PLATFORM_LIST = \
 	darwin-amd64 \
+	darwin-arm64 \
 	linux-amd64 \
 	linux-arm64
 
@@ -39,6 +40,26 @@ all-arch: $(PLATFORM_LIST)
 darwin-amd64:koko-ui
 	GOARCH=amd64 GOOS=darwin $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$@ $(KOKOSRCFILE)
 	GOARCH=amd64 GOOS=darwin $(KUBECTLBUILD) -o $(BUILDDIR)/kubectl-$@ $(KUBECTLFILE)
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
+	cp $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(NAME)
+	cp $(BUILDDIR)/kubectl-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/kubectl
+	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
+	cp -r $(BASEPATH)/static/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
+	cp -r $(BASEPATH)/templates/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
+	cp -r $(BASEPATH)/config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$@/config_example.yml
+	cp -r $(BASEPATH)/utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$@/init-kubectl.sh
+	cp -r $(UIDIR)/dist/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
+	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$@.tar.gz $(NAME)-$(VERSION)-$@
+	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$@ $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/kubectl-$@
+
+darwin-arm64:koko-ui
+	GOARCH=arm64 GOOS=darwin $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$@ $(KOKOSRCFILE)
+	GOARCH=arm64 GOOS=darwin $(KUBECTLBUILD) -o $(BUILDDIR)/kubectl-$@ $(KUBECTLFILE)
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
