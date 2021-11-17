@@ -225,7 +225,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			suSystemUserId := connOpts.systemUser.SuFrom
 			assetId := connOpts.asset.ID
 			suAuthInfo, err := jmsService.GetSystemUserAuthById(suSystemUserId, assetId,
-				"", "")
+				connOpts.user.ID, connOpts.user.Username)
 			if err != nil {
 				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 			}
