@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 )
 
 type ServerConnection interface {
@@ -26,7 +27,8 @@ const (
 	ProtocolK8s    = "k8s"
 	ProtocolMySQL  = "mysql"
 
-	ProtocolMariadb = "mariadb"
+	ProtocolMariadb   = "mariadb"
+	ProtocolSQLServer = "sqlserver"
 )
 
 var (
@@ -35,16 +37,19 @@ var (
 	ErrKubectlClient = errors.New("not found Kubectl client")
 
 	ErrMySQLClient = errors.New("not found MySQL client")
+
+	ErrSQLServerClient = errors.New("not found SQLServer client")
 )
 
 type supportedChecker func() error
 
 var supportedMap = map[string]supportedChecker{
-	ProtocolSSH:     builtinSupported,
-	ProtocolTELNET:  builtinSupported,
-	ProtocolK8s:     kubectlSupported,
-	ProtocolMySQL:   mySQLSupported,
-	ProtocolMariadb: mySQLSupported,
+	ProtocolSSH:       builtinSupported,
+	ProtocolTELNET:    builtinSupported,
+	ProtocolK8s:       kubectlSupported,
+	ProtocolMySQL:     mySQLSupported,
+	ProtocolMariadb:   mySQLSupported,
+	ProtocolSQLServer: sqlServerSupported,
 }
 
 func IsSupportedProtocol(p string) error {
@@ -87,4 +92,17 @@ func mySQLSupported() error {
 		return nil
 	}
 	return ErrMySQLClient
+}
+
+func sqlServerSupported() error {
+	checkLine := "tsql -C"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrSQLServerClient, err)
+	}
+	if strings.Contains(string(out), "freetds") {
+		return nil
+	}
+	return ErrSQLServerClient
 }

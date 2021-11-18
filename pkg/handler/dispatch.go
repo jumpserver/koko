@@ -44,7 +44,7 @@ func (h *InteractiveHandler) Dispatch() {
 				h.selectHandler.MovePrePage()
 				continue
 			case "d":
-				h.selectHandler.SetSelectType(TypeMySQL)
+				h.selectHandler.SetSelectType(TypeDatabase)
 				h.selectHandler.Search("")
 				continue
 			case "n":
