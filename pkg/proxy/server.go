@@ -79,7 +79,7 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 			opts.ProtocolType,
 			opts.systemUser.Username,
 			opts.asset.IP)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
 		title = fmt.Sprintf("%s://%s@%s",
 			opts.ProtocolType,
 			opts.systemUser.Username,
@@ -98,7 +98,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
 		msg = fmt.Sprintf(i18n.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
 		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.app)
 	case srvconn.ProtocolK8s:
 		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
@@ -176,7 +176,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 	switch connOpts.ProtocolType {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-		srvconn.ProtocolK8s:
+		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		authInfo, err := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
 			connOpts.user.ID, connOpts.user.Username)
 		if err != nil {
@@ -419,7 +419,7 @@ func (s *Server) GetFilterParser() ParseEngine {
 		}
 		shellParser.initial()
 		return &shellParser
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
 		dbParser := DBParser{
 			id:             s.ID,
 			cmdFilterRules: s.filterRules,
@@ -464,7 +464,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		orgID = s.connOpts.asset.OrgID
 
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-		srvconn.ProtocolK8s:
+		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		server = s.connOpts.app.Name
 		orgID = s.connOpts.app.OrgID
 	}
@@ -525,7 +525,7 @@ func (s *Server) checkRequiredAuth() error {
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return errors.New("no auth token")
 		}
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET, srvconn.ProtocolSQLServer:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -626,8 +626,7 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			dstIP:   dstHost,
 			dstPort: dstPort,
 		}
-	case srvconn.ProtocolMySQL,
-		srvconn.ProtocolMariadb:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
 		dGateway = &domainGateway{
 			domain:  domain,
 			dstIP:   s.connOpts.app.Attrs.Host,
@@ -671,6 +670,27 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 		port = localTunnelAddr.Port
 	}
 	srvConn, err = srvconn.NewMySQLConnection(
+		srvconn.SqlHost(host),
+		srvconn.SqlPort(port),
+		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
+		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
+		srvconn.SqlPtyWin(srvconn.Windows{
+			Width:  s.UserConn.Pty().Window.Width,
+			Height: s.UserConn.Pty().Window.Height,
+		}),
+	)
+	return
+}
+
+func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.SQLServerConn, err error) {
+	host := s.connOpts.app.Attrs.Host
+	port := s.connOpts.app.Attrs.Port
+	if localTunnelAddr != nil {
+		host = "127.0.0.1"
+		port = localTunnelAddr.Port
+	}
+	srvConn, err = srvconn.NewSQLServerConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
@@ -878,6 +898,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getK8sConConn(proxyAddr)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		return s.getMySQLConn(proxyAddr)
+	case srvconn.ProtocolSQLServer:
+		return s.getSQLServerConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}
@@ -923,7 +945,7 @@ func (s *Server) checkLoginConfirm() bool {
 	)
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-		srvconn.ProtocolK8s:
+		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		targetType = model.AppType
 		targetId = s.connOpts.app.ID
 	default:
@@ -976,7 +998,7 @@ func (s *Server) Proxy() {
 	var proxyAddr *net.TCPAddr
 	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		switch s.connOpts.ProtocolType {
-		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s, srvconn.ProtocolMariadb:
+		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
 				msg := i18n.T("Start domain gateway failed %s")
