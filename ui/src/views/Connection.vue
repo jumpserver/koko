@@ -137,6 +137,11 @@ export default {
           connectURL = BASE_WS_URL + "/koko/ws/token/?" + requireParams.toString()
           break
         }
+        case "TokenParams": {
+          const urlParams = new URLSearchParams(window.location.search.slice(1));
+          connectURL = `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`;
+          break
+        }
         default: {
           const urlParams = new URLSearchParams(window.location.search.slice(1));
           connectURL = `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`;
