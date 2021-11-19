@@ -10,6 +10,11 @@ export const allRoleRoutes = [
     component: () => import('../views/Connection')
   },
   {
+    path: '/token/',
+    name: 'TokenParams',
+    component: () => import('../views/Connection')
+  },
+  {
     path: '/token/:id/',
     name: 'Token',
     component: () => import('../views/Connection')
