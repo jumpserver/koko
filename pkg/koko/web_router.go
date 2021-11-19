@@ -64,6 +64,10 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 
 	tokenGroup := kokoGroup.Group("/token")
 	{
+		tokenGroup.GET("/", func(ctx *gin.Context) {
+			ctx.File("./ui/dist/index.html")
+		})
+
 		tokenGroup.GET("/:id/", func(ctx *gin.Context) {
 			ctx.File("./ui/dist/index.html")
 		})
