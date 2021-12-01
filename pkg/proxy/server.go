@@ -374,7 +374,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *ZFileInfo, status bool) {
 		item := model.FTPLog{
 			OrgID:      s.connOpts.asset.OrgID,
 			User:       s.connOpts.user.String(),
-			Hostname:   s.connOpts.asset.Hostname,
+			Hostname:   s.connOpts.asset.String(),
 			SystemUser: s.systemUserAuthInfo.String(),
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
@@ -460,7 +460,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 	)
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
-		server = s.connOpts.asset.Hostname
+		server = s.connOpts.asset.String()
 		orgID = s.connOpts.asset.OrgID
 
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,

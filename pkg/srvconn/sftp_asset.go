@@ -673,7 +673,7 @@ func (ad *AssetDir) close() {
 func (ad *AssetDir) CreateFTPLog(su *model.SystemUser, operate, filename string, isSuccess bool) {
 	data := model.FTPLog{
 		User:       ad.user.String(),
-		Hostname:   ad.detailAsset.Hostname,
+		Hostname:   ad.detailAsset.String(),
 		OrgID:      ad.detailAsset.OrgID,
 		SystemUser: su.Name,
 		RemoteAddr: ad.addr,
