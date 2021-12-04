@@ -14,7 +14,7 @@ import (
 func (u *UserSelectHandler) retrieveRemoteK8s(reqParam model.PaginationParam) []map[string]interface{} {
 	res, err := u.h.jmsService.GetUserPermsK8s(u.user.ID, reqParam)
 	if err != nil {
-		logger.Errorf("Ger user perm k8s failed: %s", err.Error())
+		logger.Errorf("Get user perm k8s failed: %s", err.Error())
 	}
 	return u.updateRemotePageData(reqParam, res)
 }

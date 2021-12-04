@@ -14,7 +14,7 @@ import (
 func (u *UserSelectHandler) retrieveRemoteDatabase(reqParam model.PaginationParam) []map[string]interface{} {
 	res, err := u.h.jmsService.GetUserPermsDatabase(u.user.ID, reqParam)
 	if err != nil {
-		logger.Errorf("Ger user perm MySQL failed: %s", err)
+		logger.Errorf("Get user perm MySQL failed: %s", err)
 	}
 	return u.updateRemotePageData(reqParam, res)
 }
