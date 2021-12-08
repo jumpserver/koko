@@ -11,7 +11,7 @@ import (
 )
 
 func LoginToSu(sc *SSHConnection) error {
-	successPattern := fmt.Sprintf("%s@", sc.options.sudoUsername)
+	successPattern := createSuccessParttern(sc.options.sudoUsername)
 	steps := make([]stepItem, 0, 2)
 	steps = append(steps,
 		stepItem{
@@ -51,8 +51,8 @@ const (
 var ErrorTimeout = errors.New("time out")
 
 type stepItem struct {
-	Input          string
-	ExpectPattern  string
+	Input           string
+	ExpectPattern   string
 	IsCommand       bool
 	FinishedPattern string
 }
@@ -82,7 +82,7 @@ func (s *stepItem) Execute(sc *SSHConnection) (bool, error) {
 				return
 			}
 			recStr.Write(buf[:nr])
-			result := recStr.String()
+			result := strings.TrimSpace(recStr.String())
 			if matchReg != nil && matchReg.MatchString(result) {
 				resultChan <- &ExecuteResult{}
 				return
@@ -107,3 +107,15 @@ type ExecuteResult struct {
 	Finished bool
 	Err      error
 }
+
+func createSuccessParttern(username string) string {
+	pattern := fmt.Sprintf("%s@", username)
+	pattern = fmt.Sprintf("(?i)%s|%s|%s", pattern,
+		normalUserMark, superUserMark)
+	return pattern
+}
+
+const (
+	normalUserMark = "\\s*\\$"
+	superUserMark  = "\\s*#"
+)
