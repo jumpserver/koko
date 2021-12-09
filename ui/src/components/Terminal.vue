@@ -300,12 +300,14 @@ export default {
           this.currentUser = info.user;
           this.setting = info.setting;
           this.$log.debug(this.currentUser);
+          this.updateIcon();
           this.ws.send(this.message(this.terminalId, 'TERMINAL_INIT',
               JSON.stringify(data)));
           break
         }
         case "CLOSE":
           this.term.writeln("Receive Connection closed");
+          this.ws.close();
           fireEvent(new Event("CLOSE", {}))
           break
         case "PING":
@@ -361,6 +363,20 @@ export default {
 
     handleError(e) {
       console.log(e)
+    },
+
+    updateIcon() {
+      const faviconURL = this.setting['LOGO_URLS']?.favicon
+      let link = document.querySelector("link[rel*='icon']")
+      if (!link) {
+        link = document.createElement('link')
+        link.type = 'image/x-icon'
+        link.rel = 'shortcut icon'
+        document.getElementsByTagName('head')[0].appendChild(link)
+      }
+      if (faviconURL) {
+        link.href = faviconURL
+      }
     },
 
     loadLunaConfig() {

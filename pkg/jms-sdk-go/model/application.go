@@ -39,7 +39,6 @@ type Attrs struct {
 }
 
 func (app Application) String() string {
-
 	switch app.Category {
 	case categoryDB:
 		return fmt.Sprintf("%s://%s:%d/%s",
@@ -47,11 +46,11 @@ func (app Application) String() string {
 			app.Attrs.Host,
 			app.Attrs.Port,
 			app.Attrs.Database)
-	default:
-		return fmt.Sprintf("%s://%s",
-			app.TypeName,
-			app.Name)
+	case categoryCloud:
 	}
+	return fmt.Sprintf("%s://%s",
+		app.TypeName,
+		app.Name)
 }
 
 const (

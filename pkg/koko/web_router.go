@@ -67,6 +67,10 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		tokenGroup.GET("/", func(ctx *gin.Context) {
 			ctx.File("./ui/dist/index.html")
 		})
+
+		tokenGroup.GET("/:id/", func(ctx *gin.Context) {
+			ctx.File("./ui/dist/index.html")
+		})
 	}
 	elfindlerGroup := kokoGroup.Group("/elfinder")
 	elfindlerGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))

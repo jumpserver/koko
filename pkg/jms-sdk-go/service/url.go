@@ -38,7 +38,7 @@ const (
 	ValidateUserAssetPermissionURL     = "/api/v1/perms/asset-permissions/user/validate/"
 	ValidateApplicationPermissionURL   = "/api/v1/perms/application-permissions/user/validate/"
 
-	UserPermsMySQLMariadbURL = "/api/v1/perms/users/%s/applications/?type__in=mysql,mariadb"
+	UserPermsDatabaseURL = "/api/v1/perms/users/%s/applications/?type__in=mysql,mariadb,sqlserver"
 )
 
 // 系统用户密码相关API
@@ -57,6 +57,8 @@ const (
 	ApplicationDetailURL = "/api/v1/applications/applications/%s/"
 
 	SystemUserCmdFilterRulesListURL = "/api/v1/assets/system-users/%s/cmd-filter-rules/" // 过滤规则url
+
+	CommandFilterRulesListURL = "/api/v1/assets/cmd-filter-rules/"
 
 	DomainDetailWithGateways = "/api/v1/assets/domains/%s/?gateway=1"
 )

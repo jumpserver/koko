@@ -106,7 +106,6 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 
 	parser := s.p.GetFilterParser()
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
-	//replayRecorder = NewReplyRecord(s.ID)
 	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
 	srvInChan := make(chan []byte, 1)

@@ -25,7 +25,7 @@ const (
 	TypeAsset selectType = iota + 1
 	TypeNodeAsset
 	TypeK8s
-	TypeMySQL
+	TypeDatabase
 )
 
 type UserSelectHandler struct {
@@ -61,7 +61,7 @@ func (u *UserSelectHandler) SetSelectType(s selectType) {
 		u.h.term.SetPrompt("[Host]> ")
 	case TypeK8s:
 		u.h.term.SetPrompt("[K8S]> ")
-	case TypeMySQL:
+	case TypeDatabase:
 		u.h.term.SetPrompt("[DB]> ")
 	}
 	u.currentType = s
@@ -93,7 +93,7 @@ func (u *UserSelectHandler) AutoCompletion() {
 						fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[Host]> ", line, utils.Pretty(sugs, termWidth))
 					case TypeK8s:
 						fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[K8S]> ", line, utils.Pretty(sugs, termWidth))
-					case TypeMySQL:
+					case TypeDatabase:
 						fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[DB]> ", line, utils.Pretty(sugs, termWidth))
 					}
 					return commonPrefix, len(commonPrefix), true
@@ -197,8 +197,8 @@ func (u *UserSelectHandler) HasNext() bool {
 func (u *UserSelectHandler) DisplayCurrentResult() {
 	searchHeader := fmt.Sprintf(i18n.T("Search: %s"), strings.Join(u.searchKeys, " "))
 	switch u.currentType {
-	case TypeMySQL:
-		u.displayMySQLResult(searchHeader)
+	case TypeDatabase:
+		u.displayDatabaseResult(searchHeader)
 	case TypeK8s:
 		u.displayK8sResult(searchHeader)
 	case TypeNodeAsset:
@@ -226,7 +226,7 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 			return
 		}
 		u.proxyAsset(asset)
-	case TypeK8s, TypeMySQL:
+	case TypeK8s, TypeDatabase:
 		app, err := u.h.jmsService.GetApplicationById(targetId)
 		if err != nil {
 			logger.Errorf("Select application %s err: %s", targetId, err)
@@ -291,8 +291,8 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 
 func (u *UserSelectHandler) retrieveLocal(searches ...string) []map[string]interface{} {
 	switch u.currentType {
-	case TypeMySQL:
-		return u.searchLocalMySQL(searches...)
+	case TypeDatabase:
+		return u.searchLocalDatabase(searches...)
 	case TypeK8s:
 		return u.searchLocalK8s(searches...)
 	case TypeAsset:
@@ -322,8 +322,8 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		Searches: searches,
 	}
 	switch u.currentType {
-	case TypeMySQL:
-		return u.retrieveRemoteMySQLAndMariadb(reqParam)
+	case TypeDatabase:
+		return u.retrieveRemoteDatabase(reqParam)
 	case TypeK8s:
 		return u.retrieveRemoteK8s(reqParam)
 	case TypeNodeAsset:

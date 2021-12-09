@@ -8,6 +8,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -22,47 +23,42 @@ func uploadRemainReplay(jmsService *service.JMService) {
 		return
 	}
 	replayStorage := proxy.NewReplayStorage(jmsService, &conf)
-	allRemainFiles := make(map[string]string)
+	allRemainFiles := make(map[string]RemainReplay)
 	_ = filepath.Walk(replayDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
-		var sid string
-		filename := info.Name()
-		if len(filename) == 36 {
-			sid = filename
-		}
-		if strings.HasSuffix(filename, ".replay.gz") {
-			sidName := strings.Split(filename, ".")[0]
-			if len(sidName) == 36 {
-				sid = sidName
-			}
-		}
-		if sid != "" {
-			if err2 := jmsService.SessionFinished(sid, common.NewUTCTime(info.ModTime())); err2 != nil {
+		if replayInfo, ok := parseReplayFilename(info.Name()); ok {
+			finishedTime := common.NewUTCTime(info.ModTime())
+			if err2 := jmsService.SessionFinished(replayInfo.Id, finishedTime); err2 != nil {
 				logger.Error(err2)
 				return nil
 			}
-			allRemainFiles[sid] = path
+			allRemainFiles[path] = replayInfo
 		}
-
 		return nil
 	})
 
-	for sid, path := range allRemainFiles {
-		var absGzPath string
-		if strings.HasSuffix(path, ".replay.gz") {
-			absGzPath = path
-		} else if strings.HasSuffix(path, sid) {
-			if err := ValidateRemainReplayFile(path); err != nil {
-				continue
+	for absPath, remainReplay := range allRemainFiles {
+		absGzPath := absPath
+		if !remainReplay.IsGzip {
+			switch remainReplay.Version {
+			case model.Version2:
+				if err := ValidateRemainReplayFile(absPath); err != nil {
+					continue
+				}
+				absGzPath = absPath + model.SuffixReplayGz
+			case model.Version3:
+				absGzPath = absPath + model.SuffixGz
+			default:
+				absGzPath = absPath + model.SuffixGz
 			}
-			absGzPath = path + ".replay.gz"
-			if err := common.CompressToGzipFile(path, absGzPath); err != nil {
+
+			if err = common.CompressToGzipFile(absPath, absGzPath); err != nil {
 				logger.Error(err)
 				continue
 			}
-			_ = os.Remove(path)
+			_ = os.Remove(absPath)
 		}
 		Target, _ := filepath.Rel(replayDir, absGzPath)
 		logger.Infof("Upload replay file: %s, type: %s", absGzPath, replayStorage.TypeName())
@@ -70,8 +66,8 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			logger.Errorf("Upload remain replay file %s failed: %s", absGzPath, err2)
 			continue
 		}
-		if err := jmsService.FinishReply(sid); err != nil {
-			logger.Errorf("Notify session %s upload failed: %s", sid, err)
+		if err := jmsService.FinishReply(remainReplay.Id); err != nil {
+			logger.Errorf("Notify session %s upload failed: %s", remainReplay.Id, err)
 			continue
 		}
 		_ = os.Remove(absGzPath)
@@ -136,4 +132,47 @@ func ValidateRemainReplayFile(path string) error {
 		_, err = f.Write([]byte(`}`))
 	}
 	return err
+}
+
+type RemainReplay struct {
+	Id      string // session id
+	IsGzip  bool
+	Version model.ReplayVersion
+}
+
+func parseReplayFilename(filename string) (replay RemainReplay, ok bool) {
+	// 未压缩的旧录像文件名格式是一个 UUID
+	if len(filename) == 36 {
+		replay.Id = filename
+		replay.Version = model.Version2
+		ok = true
+		return
+	}
+	if replay.Id, replay.Version, ok = isReplayFile(filename); ok {
+		replay.IsGzip = isGzipFile(filename)
+	}
+	return
+}
+
+func isGzipFile(filename string) bool {
+	return strings.HasSuffix(filename, model.SuffixGz)
+}
+
+func isReplayFile(filename string) (id string, version model.ReplayVersion, ok bool) {
+	suffixesMap := map[string]model.ReplayVersion{
+		model.SuffixCast:     model.Version3,
+		model.SuffixCastGz:   model.Version3,
+		model.SuffixReplayGz: model.Version2}
+	for suffix := range suffixesMap {
+		if strings.HasSuffix(filename, suffix) {
+			sidName := strings.Split(filename, ".")[0]
+			if len(sidName) == 36 {
+				id = sidName
+				version = suffixesMap[suffix]
+				ok = true
+				return
+			}
+		}
+	}
+	return
 }

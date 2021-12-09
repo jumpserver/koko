@@ -11,15 +11,15 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteMySQLAndMariadb(reqParam model.PaginationParam) []map[string]interface{} {
-	res, err := u.h.jmsService.GetUserPermsMySQLAndMariadb(u.user.ID, reqParam)
+func (u *UserSelectHandler) retrieveRemoteDatabase(reqParam model.PaginationParam) []map[string]interface{} {
+	res, err := u.h.jmsService.GetUserPermsDatabase(u.user.ID, reqParam)
 	if err != nil {
-		logger.Errorf("Ger user perm MySQL failed: %s", err)
+		logger.Errorf("Get user perm MySQL failed: %s", err)
 	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
-func (u *UserSelectHandler) searchLocalMySQL(searches ...string) []map[string]interface{} {
+func (u *UserSelectHandler) searchLocalDatabase(searches ...string) []map[string]interface{} {
 	/*
 	   	  {
 	                  "id": "2b8f37ad-1580-4275-962a-7ea0f53c40b3",
@@ -48,7 +48,7 @@ func (u *UserSelectHandler) searchLocalMySQL(searches ...string) []map[string]in
 	return u.searchLocalFromFields(fields, searches...)
 }
 
-func (u *UserSelectHandler) displayMySQLResult(searchHeader string) {
+func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 	currentDBS := u.currentResult
 	term := u.h.term
 	if len(currentDBS) == 0 {
