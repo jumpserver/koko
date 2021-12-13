@@ -106,7 +106,7 @@ func tryManualLoginSQLServerServer(opt *sqlOption, lcmd *localcommand.LocalComma
 func (opt *sqlOption) SQLServerCommandArgs() []string {
 	return []string{
 		"-U", opt.Username,
-		"-S", opt.Host,
+		"-H", opt.Host,
 		"-p", strconv.Itoa(opt.Port),
 		"-J", "UTF-8",
 		"-D", opt.DBName,
