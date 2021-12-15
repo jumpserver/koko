@@ -9,7 +9,7 @@ type RuleAction int
 
 const (
 	ActionDeny    RuleAction = 0
-	ActionAllow   RuleAction = 1
+	ActionAllow   RuleAction = 9
 	ActionConfirm RuleAction = 2
 	ActionUnknown RuleAction = 3
 
