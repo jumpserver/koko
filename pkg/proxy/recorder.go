@@ -118,7 +118,7 @@ func NewReplayRecord(sid string, jmsService *service.JMService,
 	if recorder.isNullStorage() {
 		return recorder, nil
 	}
-	today := info.TimeStamp.Format(dateTimeFormat)
+	today := info.TimeStamp.UTC().Format(dateTimeFormat)
 	replayRootDir := config.GetConf().ReplayFolderPath
 	sessionReplayDirPath := filepath.Join(replayRootDir, today)
 	err := common.EnsureDirExist(sessionReplayDirPath)
@@ -141,6 +141,7 @@ func NewReplayRecord(sid string, jmsService *service.JMService,
 		recorder.err = err
 		return recorder, err
 	}
+	logger.Infof("Create replay file %s", recorder.absFilePath)
 	recorder.file = fd
 
 	options := make([]asciinema.Option, 0, 3)
