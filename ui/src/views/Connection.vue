@@ -10,7 +10,7 @@
     <el-aside width="60px" center>
       <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">
         <el-menu-item @click="dialogVisible=!dialogVisible" index="0">
-          <i class="el-icon-setting"></i>
+          <i class="el-icon-orange"></i>
           <span slot="title">{{ this.$t('Terminal.ThemeConfig') }}</span>
         </el-menu-item>
         <el-menu-item @click="shareDialogVisible=!shareDialogVisible" v-if="enableShare" index="1">

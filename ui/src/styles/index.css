@@ -51,10 +51,3 @@ body ::-webkit-scrollbar-thumb {
 .menu-list li {
   cursor: pointer;
 }
-
-/*
-强制去掉 xterm 右侧的 滚动条
-*/
-.xterm .xterm-viewport {
-  overflow-y: hidden!important;
-}
