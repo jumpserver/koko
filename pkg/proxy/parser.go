@@ -273,7 +273,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			case model.ActionConfirm:
 				p.confirmStatus.SetStatus(StatusQuery)
 				p.confirmStatus.SetRule(rule)
-				p.confirmStatus.SetCmd(cmd)
+				p.confirmStatus.SetCmd(p.command)
 				p.confirmStatus.SetData(string(b))
 				p.confirmStatus.ResetCtx()
 				p.srvOutputChan <- []byte("\r\n" + waitMsg)
