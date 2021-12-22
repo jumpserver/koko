@@ -605,6 +605,8 @@ func breakInputPacket(protocolType string) []byte {
 		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
 	case model.ProtocolSSH:
 		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
+	case model.ProtocolK8S:
+		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 	}
 	return []byte{utils.CharCleanLine, CharCTRLC, '\r'}
 }

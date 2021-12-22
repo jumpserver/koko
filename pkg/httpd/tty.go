@@ -3,6 +3,7 @@ package httpd
 import (
 	"encoding/json"
 	"io"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -38,6 +39,8 @@ type tty struct {
 	jmsService *service.JMService
 
 	shareInfo *ShareInfo
+
+	extraParams url.Values
 }
 
 func (h *tty) Name() string {
@@ -277,6 +280,21 @@ func (h *tty) getTargetApp(protocol string) bool {
 	return false
 }
 
+func (h *tty) getk8sContainerInfo() *proxy.ContainerInfo {
+	pod := h.extraParams.Get("pod")
+	namespace := h.extraParams.Get("namespace")
+	container := h.extraParams.Get("container")
+	if pod == "" || namespace == "" || container == "" {
+		return nil
+	}
+	info := proxy.ContainerInfo{
+		PodName:   pod,
+		Namespace: namespace,
+		Container: container,
+	}
+	return &info
+}
+
 func (h *tty) proxy(wg *sync.WaitGroup) {
 	defer wg.Done()
 	switch h.targetType {
@@ -292,9 +310,13 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
 		switch h.systemUser.Protocol {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-			srvconn.ProtocolK8s, srvconn.ProtocolSQLServer,
-			srvconn.ProtocolRedis:
+			srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
 			proxyOpts = append(proxyOpts, proxy.ConnectApp(h.app))
+		case srvconn.ProtocolK8s:
+			proxyOpts = append(proxyOpts, proxy.ConnectApp(h.app))
+			if info := h.getk8sContainerInfo(); info != nil {
+				proxyOpts = append(proxyOpts, proxy.ConnectContainer(info))
+			}
 		default:
 			proxyOpts = append(proxyOpts, proxy.ConnectAsset(h.assetApp))
 		}
