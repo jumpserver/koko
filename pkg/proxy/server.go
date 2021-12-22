@@ -38,6 +38,33 @@ type ConnectionOptions struct {
 	asset *model.Asset
 
 	app *model.Application
+
+	k8sContainer *ContainerInfo
+}
+
+type ContainerInfo struct {
+	Namespace string
+	PodName   string
+	Container string
+}
+
+func (c *ContainerInfo) String() string {
+	return fmt.Sprintf("%s_%s_%s", c.Namespace, c.PodName, c.Container)
+}
+
+func (c *ContainerInfo) K8sName(name string) string {
+	k8sName := fmt.Sprintf("%s(%s)", name, c.String())
+	if len([]rune(k8sName)) <= 128 {
+		return k8sName
+	}
+	containerName := []rune(c.String())
+	nameRune := []rune(name)
+	remainLen := 128 - len(nameRune) - 2 - 3
+	indexLen := remainLen / 2
+	startIndex := len(containerName) - indexLen
+	startPart := string(containerName[:indexLen])
+	endPart := string(containerName[startIndex:])
+	return fmt.Sprintf("%s(%s...%s)", name, startPart, endPart)
 }
 
 func ConnectUser(user *model.User) ConnectionOption {
@@ -67,6 +94,12 @@ func ConnectAsset(asset *model.Asset) ConnectionOption {
 func ConnectApp(app *model.Application) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.app = app
+	}
+}
+
+func ConnectContainer(info *ContainerInfo) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.k8sContainer = info
 	}
 }
 
@@ -103,6 +136,10 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.app)
 	case srvconn.ProtocolK8s:
 		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
+		if opts.k8sContainer != nil {
+			msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s container %s"),
+				opts.app.Name, opts.k8sContainer.Container)
+		}
 	}
 	return msg
 }
@@ -208,6 +245,10 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			return jmsService.ValidateApplicationPermission(connOpts.user.ID,
 				connOpts.app.ID, connOpts.systemUser.ID)
 		}
+		assetName := connOpts.app.Name
+		if connOpts.k8sContainer != nil {
+			assetName = connOpts.k8sContainer.K8sName(assetName)
+		}
 		apiSession = &model.Session{
 			ID:           common.UUID(),
 			User:         connOpts.user.String(),
@@ -217,7 +258,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			Protocol:     connOpts.systemUser.Protocol,
 			UserID:       connOpts.user.ID,
 			SystemUserID: connOpts.systemUser.ID,
-			Asset:        connOpts.app.Name,
+			Asset:        assetName,
 			AssetID:      connOpts.app.ID,
 			OrgID:        connOpts.app.OrgID,
 		}
@@ -673,7 +714,7 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 }
 
 // getSSHConn 获取ssh连接
-func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K8sCon, err error) {
+func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	clusterServer := s.connOpts.app.Attrs.Cluster
 	if localTunnelAddr != nil {
 		originUrl, err := url.Parse(clusterServer)
@@ -681,6 +722,9 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K
 			return nil, err
 		}
 		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localTunnelAddr.Port)
+	}
+	if s.connOpts.k8sContainer != nil {
+		return s.getContainerConn(clusterServer)
 	}
 	srvConn, err = srvconn.NewK8sConnection(
 		srvconn.K8sToken(s.systemUserAuthInfo.Token),
@@ -692,6 +736,26 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.K
 			Height: s.UserConn.Pty().Window.Height,
 		}),
 	)
+	return
+}
+
+func (s *Server) getContainerConn(clusterServer string) (
+	srvConn *srvconn.ContainerConnection, err error) {
+	info := s.connOpts.k8sContainer
+	token := s.systemUserAuthInfo.Token
+	win := srvconn.Windows{
+		Width:  s.UserConn.Pty().Window.Width,
+		Height: s.UserConn.Pty().Window.Height,
+	}
+	opts := make([]srvconn.ContainerOption, 0, 5)
+	opts = append(opts, srvconn.ContainerHost(clusterServer))
+	opts = append(opts, srvconn.ContainerToken(token))
+	opts = append(opts, srvconn.ContainerName(info.Container))
+	opts = append(opts, srvconn.ContainerPodName(info.PodName))
+	opts = append(opts, srvconn.ContainerNamespace(info.Namespace))
+	opts = append(opts, srvconn.ContainerSkipTls(true))
+	opts = append(opts, srvconn.ContainerPtyWin(win))
+	srvConn, err = srvconn.NewContainerConnection(opts...)
 	return
 }
 

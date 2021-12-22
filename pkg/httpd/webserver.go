@@ -11,6 +11,7 @@ import (
 	"github.com/LeeEirc/elfinder"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -238,6 +239,7 @@ func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
 		targetId:     targetId,
 		systemUserId: SystemUserID,
 		jmsService:   s.JmsService,
+		extraParams:  ctx.Request.Form,
 	}
 	s.broadCaster.EnterUserWebsocket(&userConn)
 	defer s.broadCaster.LeaveUserWebsocket(&userConn)

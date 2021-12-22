@@ -86,7 +86,6 @@ type K8sCon struct {
 	*localcommand.LocalCommand
 }
 
-
 func (k *K8sCon) KeepAlive() error {
 	return nil
 }
