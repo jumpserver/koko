@@ -119,20 +119,27 @@ func (p *DBParser) parseInputState(b []byte) []byte {
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
-		if cmd, ok := p.IsCommandForbidden(); !ok {
-			fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
-			_, _ = p.cmdOutputParser.WriteData([]byte(fbdMsg))
-			p.srvOutputChan <- []byte("\r\n" + fbdMsg)
-			p.cmdRecordChan <- &ExecutedCommand{
-				Command:     p.command,
-				Output:      fbdMsg,
-				CreatedDate: p.cmdCreateDate,
-				RiskLevel:   model.HighRiskFlag,
-				User:        p.currentUser,
+		if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
+			switch rule.Action {
+			case model.ActionDeny:
+				p.forbiddenCommand(cmd)
+				return nil
+			case model.ActionConfirm:
+				fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
+				fbdMsg2 := utils.WrapperWarn(i18n.T("Command review is not currently supported"))
+				p.srvOutputChan <- []byte("\r\n" + fbdMsg)
+				p.srvOutputChan <- []byte("\r\n" + fbdMsg2)
+				p.cmdRecordChan <- &ExecutedCommand{
+					Command:     p.command,
+					Output:      fbdMsg,
+					CreatedDate: p.cmdCreateDate,
+					RiskLevel:   model.HighRiskFlag,
+					User:        p.currentUser,
+				}
+				p.command = ""
+				p.output = ""
+				return []byte{utils.CharCleanLine, '\r'}
 			}
-			p.command = ""
-			p.output = ""
-			return []byte{utils.CharCleanLine, '\r'}
 		}
 	} else {
 		p.inputState = true
@@ -191,20 +198,34 @@ func (p *DBParser) ParseServerOutput(b []byte) []byte {
 	return b
 }
 
-// IsCommandForbidden 判断命令是不是在过滤规则中
-func (p *DBParser) IsCommandForbidden() (string, bool) {
+// IsMatchCommandRule 判断命令是不是在过滤规则中
+func (p *DBParser) IsMatchCommandRule(command string) (model.SystemUserFilterRule, string, bool) {
 	for _, rule := range p.cmdFilterRules {
-		allowed, cmd := rule.Match(p.command)
+		allowed, cmd := rule.Match(command)
 		switch allowed {
 		case model.ActionAllow:
-			return "", true
-		case model.ActionDeny:
-			return cmd, false
+			return rule, cmd, true
+		case model.ActionConfirm, model.ActionDeny:
+			return rule, cmd, true
 		default:
-
 		}
 	}
-	return "", true
+	return model.SystemUserFilterRule{}, "", false
+}
+
+func (p *DBParser) forbiddenCommand(cmd string) {
+	fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
+	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
+	p.cmdRecordChan <- &ExecutedCommand{
+		Command:     p.command,
+		Output:      fbdMsg,
+		CreatedDate: p.cmdCreateDate,
+		RiskLevel:   model.HighRiskFlag,
+		User:        p.currentUser}
+	p.command = ""
+	p.output = ""
+	p.userOutputChan <- []byte{utils.CharCleanLine, '\r'}
+	return
 }
 
 // Close 关闭parser

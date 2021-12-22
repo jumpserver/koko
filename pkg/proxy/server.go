@@ -157,7 +157,20 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 	}
-	filterRules, err := jmsService.GetSystemUserFilterRules(connOpts.systemUser.ID)
+	userId := connOpts.user.ID
+	sysId := connOpts.systemUser.ID
+	var (
+		assetId string
+		appId   string
+	)
+	if connOpts.asset != nil {
+		assetId = connOpts.asset.ID
+	}
+	if connOpts.app != nil {
+		appId = connOpts.app.ID
+	}
+
+	filterRules, err := jmsService.GetCommandFilterRules(userId, sysId, assetId, appId)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 	}
@@ -432,13 +445,19 @@ func (s *Server) GetFilterParser() ParseEngine {
 }
 
 func (s *Server) GetReplayRecorder() *ReplyRecorder {
-	r := ReplyRecorder{
-		SessionID:  s.ID,
-		storage:    NewReplayStorage(s.jmsService, s.terminalConf),
-		jmsService: s.jmsService,
+	pty := s.UserConn.Pty()
+	info := &ReplyInfo{
+		Width:     pty.Window.Width,
+		Height:    pty.Window.Height,
+		TimeStamp: time.Now(),
 	}
-	r.initial()
-	return &r
+	recorder, err := NewReplayRecord(s.ID, s.jmsService,
+		NewReplayStorage(s.jmsService, s.terminalConf),
+		info)
+	if err != nil {
+		logger.Error(err)
+	}
+	return recorder
 }
 
 func (s *Server) GetCommandRecorder() *CommandRecorder {
