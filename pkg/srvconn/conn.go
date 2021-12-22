@@ -25,10 +25,12 @@ const (
 	ProtocolSSH    = "ssh"
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
-	ProtocolMySQL  = "mysql"
 
+	ProtocolMySQL     = "mysql"
 	ProtocolMariadb   = "mariadb"
 	ProtocolSQLServer = "sqlserver"
+	ProtocolRedis     = "redis"
+	ProtocolRedisAcl  = "redis_acl"
 )
 
 var (
@@ -37,6 +39,8 @@ var (
 	ErrKubectlClient = errors.New("not found Kubectl client")
 
 	ErrMySQLClient = errors.New("not found MySQL client")
+
+	ErrRedisClient = errors.New("not found Redis client")
 
 	ErrSQLServerClient = errors.New("not found SQLServer client")
 )
@@ -49,6 +53,8 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolK8s:       kubectlSupported,
 	ProtocolMySQL:     mySQLSupported,
 	ProtocolMariadb:   mySQLSupported,
+	ProtocolRedis:     redisSupported,
+	ProtocolRedisAcl:  redisSupported,
 	ProtocolSQLServer: sqlServerSupported,
 }
 
@@ -89,6 +95,19 @@ func mySQLSupported() error {
 		return fmt.Errorf("%w: %s", ErrMySQLClient, err)
 	}
 	if bytes.HasPrefix(out, []byte("mysql")) {
+		return nil
+	}
+	return ErrMySQLClient
+}
+
+func redisSupported() error {
+	checkLine := "redis-cli -v"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrRedisClient, err)
+	}
+	if bytes.HasPrefix(out, []byte("redis-cli")) {
 		return nil
 	}
 	return ErrMySQLClient
