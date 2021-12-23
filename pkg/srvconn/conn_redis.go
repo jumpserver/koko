@@ -3,12 +3,13 @@ package srvconn
 import (
 	"bytes"
 	"fmt"
-	"github.com/go-redis/redis"
-	"github.com/jumpserver/koko/pkg/localcommand"
-	"github.com/jumpserver/koko/pkg/logger"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/go-redis/redis"
+	"github.com/jumpserver/koko/pkg/localcommand"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 const (
