@@ -30,7 +30,6 @@ const (
 	ProtocolMariadb   = "mariadb"
 	ProtocolSQLServer = "sqlserver"
 	ProtocolRedis     = "redis"
-	ProtocolRedisAcl  = "redis_acl"
 )
 
 var (
@@ -54,7 +53,6 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolMySQL:     mySQLSupported,
 	ProtocolMariadb:   mySQLSupported,
 	ProtocolRedis:     redisSupported,
-	ProtocolRedisAcl:  redisSupported,
 	ProtocolSQLServer: sqlServerSupported,
 }
 

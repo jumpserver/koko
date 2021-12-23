@@ -80,7 +80,7 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 			opts.systemUser.Username,
 			opts.asset.IP)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl:
+		srvconn.ProtocolRedis:
 		title = fmt.Sprintf("%s://%s@%s",
 			opts.ProtocolType,
 			opts.systemUser.Username,
@@ -99,7 +99,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
 		msg = fmt.Sprintf(i18n.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
 		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.app)
 	case srvconn.ProtocolK8s:
 		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
@@ -189,7 +189,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	)
 
 	switch connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl,
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
 		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		authInfo, err := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
 			connOpts.user.ID, connOpts.user.Username)
@@ -433,7 +433,7 @@ func (s *Server) GetFilterParser() ParseEngine {
 		}
 		shellParser.initial()
 		return &shellParser
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
 		dbParser := DBParser{
 			id:             s.ID,
 			cmdFilterRules: s.filterRules,
@@ -483,7 +483,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		server = s.connOpts.asset.String()
 		orgID = s.connOpts.asset.OrgID
 
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl,
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
 		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		server = s.connOpts.app.Name
 		orgID = s.connOpts.app.OrgID
@@ -552,7 +552,7 @@ func (s *Server) checkRequiredAuth() error {
 			return errors.New("no auth token")
 		}
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET,
-		srvconn.ProtocolSQLServer, srvconn.ProtocolRedisAcl:
+		srvconn.ProtocolSQLServer:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -659,7 +659,7 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			dstIP:   dstHost,
 			dstPort: dstPort,
 		}
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
 		dGateway = &domainGateway{
 			domain:  domain,
 			dstIP:   s.connOpts.app.Attrs.Host,
@@ -952,7 +952,7 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getK8sConConn(proxyAddr)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		return s.getMySQLConn(proxyAddr)
-	case srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl:
+	case srvconn.ProtocolRedis:
 		return s.getRedisConn(proxyAddr)
 	case srvconn.ProtocolSQLServer:
 		return s.getSQLServerConn(proxyAddr)
@@ -1000,7 +1000,7 @@ func (s *Server) checkLoginConfirm() bool {
 		targetId   string
 	)
 	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl,
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
 		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		targetType = model.AppType
 		targetId = s.connOpts.app.ID
@@ -1054,7 +1054,7 @@ func (s *Server) Proxy() {
 	var proxyAddr *net.TCPAddr
 	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		switch s.connOpts.ProtocolType {
-		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s, srvconn.ProtocolRedis, srvconn.ProtocolRedisAcl,
+		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s, srvconn.ProtocolRedis,
 			srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
