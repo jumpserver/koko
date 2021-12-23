@@ -113,6 +113,7 @@ func checkRedisAccount(args *sqlOption) error {
 		DB:       db,
 	})
 	_, err = rdb.Ping().Result()
+	defer rdb.Close()
 	if err != nil {
 		return err
 	}
