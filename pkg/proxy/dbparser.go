@@ -138,7 +138,7 @@ func (p *DBParser) parseInputState(b []byte) []byte {
 				}
 				p.command = ""
 				p.output = ""
-				return []byte{utils.CharCleanLine, '\r'}
+				return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 			}
 		}
 	} else {
@@ -224,7 +224,7 @@ func (p *DBParser) forbiddenCommand(cmd string) {
 		User:        p.currentUser}
 	p.command = ""
 	p.output = ""
-	p.userOutputChan <- []byte{utils.CharCleanLine, '\r'}
+	p.userOutputChan <- []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 	return
 }
 
