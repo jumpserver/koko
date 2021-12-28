@@ -19,7 +19,7 @@ require (
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.1+incompatible
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/leonelquinteros/gotext v1.4.0
-	github.com/mediocregopher/radix/v3 v3.4.2
+	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
 	github.com/pkg/sftp v1.12.0
@@ -72,7 +72,7 @@ require (
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	golang.org/x/sys v0.0.0-20211111213525-f221eed1c01e // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
