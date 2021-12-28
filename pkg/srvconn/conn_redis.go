@@ -71,12 +71,11 @@ func (conn *RedisConn) Close() error {
 
 func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	cmd := opt.RedisCommandArgs()
-	lcmd, err = localcommand.New("redis-cli", cmd)
+	lcmd, err = localcommand.New("redis-cli", cmd, localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
 	if err != nil {
 		return nil, err
 	}
 	if opt.Password != "" {
-		_ = lcmd.SetWinSize(opt.win.Height, opt.win.Width)
 		lcmd, err = matchLoginPrefix(redisPrompt, lcmd)
 		if err != nil {
 			return lcmd, err
@@ -116,7 +115,6 @@ func checkRedisAccount(args *sqlOption) error {
 		return err
 	}
 	defer conn.Close()
-	err = conn.Do(radix.Cmd(nil, "ping"))
 	return nil
 }
 

@@ -108,7 +108,7 @@ func redisSupported() error {
 	if bytes.HasPrefix(out, []byte("redis-cli")) {
 		return nil
 	}
-	return ErrMySQLClient
+	return ErrRedisClient
 }
 
 func sqlServerSupported() error {
