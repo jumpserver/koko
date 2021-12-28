@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis"
 	"github.com/jumpserver/koko/pkg/localcommand"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/mediocregopher/radix/v3"
 )
 
 const (
@@ -76,6 +76,7 @@ func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err err
 		return nil, err
 	}
 	if opt.Password != "" {
+		_ = lcmd.SetWinSize(opt.win.Height, opt.win.Width)
 		lcmd, err = matchLoginPrefix(redisPrompt, lcmd)
 		if err != nil {
 			return lcmd, err
@@ -103,20 +104,19 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 }
 
 func checkRedisAccount(args *sqlOption) error {
-	db, err := strconv.Atoi(args.DBName)
-	if err != nil {
+	var dialOptions []radix.DialOpt
+	addr := fmt.Sprintf("%s:%s", args.Host, strconv.Itoa(args.Port))
+	if args.Username != "" {
+		dialOptions = append(dialOptions, radix.DialAuthUser(args.Username, args.Password))
+	} else {
+		dialOptions = append(dialOptions, radix.DialAuthPass(args.Password))
+	}
+	conn, err := radix.Dial("tcp", addr, dialOptions...)
+	if err != nil || conn == nil {
 		return err
 	}
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", args.Host, strconv.Itoa(args.Port)),
-		Password: args.Password,
-		DB:       db,
-	})
-	_, err = rdb.Ping().Result()
-	defer rdb.Close()
-	if err != nil {
-		return err
-	}
+	defer conn.Close()
+	err = conn.Do(radix.Cmd(nil, "ping"))
 	return nil
 }
 
@@ -126,9 +126,6 @@ func matchLoginPrefix(prefix string, lcmd *localcommand.LocalCommand) (*localcom
 		err error
 	)
 	prompt := make([]byte, len(prefix))
-	_, _ = lcmd.Read(prompt[:])
-	mustOutputStr := "*******************************"
-	_, _ = lcmd.Write([]byte(mustOutputStr))
 	nr, err = lcmd.Read(prompt[:])
 	if err != nil {
 		_ = lcmd.Close()

@@ -46,7 +46,6 @@ COPY --from=stage-build /opt/koko/utils/coredump.sh .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
-COPY --from=stage-build /opt/koko/redis-cli /usr/local/bin
 COPY --from=ui-build /opt/koko/ui/dist ui/dist
 
 RUN chmod 755 entrypoint.sh && chmod 755 init-kubectl.sh

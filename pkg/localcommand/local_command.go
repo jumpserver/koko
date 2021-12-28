@@ -19,6 +19,8 @@ type LocalCommand struct {
 	cmd       *exec.Cmd
 	ptyFd     *os.File
 	ptyClosed chan struct{}
+
+	ptyWin *pty.Winsize
 }
 
 func New(command string, argv []string, options ...Option) (*LocalCommand, error) {
@@ -40,7 +42,7 @@ func New(command string, argv []string, options ...Option) (*LocalCommand, error
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 		cmd.SysProcAttr.Credential = lcmd.cmdCredential
 	}
-	ptyFd, err := pty.Start(cmd)
+	ptyFd, err := pty.StartWithSize(cmd, lcmd.ptyWin)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
