@@ -252,7 +252,8 @@ func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err err
 func (h *tty) getTargetApp(protocol string) bool {
 	switch strings.ToLower(protocol) {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
+		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolRedis:
 		appAsset, err := h.jmsService.GetApplicationById(h.targetId)
 		if err != nil {
 			logger.Errorf("Get %s application failed; %s", protocol, err)
@@ -291,7 +292,8 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
 		switch h.systemUser.Protocol {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-			srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
+			srvconn.ProtocolK8s, srvconn.ProtocolSQLServer,
+			srvconn.ProtocolRedis:
 			proxyOpts = append(proxyOpts, proxy.ConnectApp(h.app))
 		default:
 			proxyOpts = append(proxyOpts, proxy.ConnectAsset(h.assetApp))

@@ -231,7 +231,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 			}
 			break
 		}
-		logger.Errorf("Upload replay file err: %s",err)
+		logger.Errorf("Upload replay file err: %s", err)
 		// 如果还是失败，上传 server 再传一次
 		if i == maxRetry {
 			if r.storage.TypeName() == "server" {
