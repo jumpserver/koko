@@ -96,3 +96,7 @@ const (
 const (
 	PublicSettingURL = "/api/v1/settings/public/"
 )
+
+const (
+	TicketSessionURL = "/api/v1/tickets/ticket-session-relation/"
+)
