@@ -398,6 +398,8 @@ type Server struct {
 	keyboardMode int32
 
 	OnSessionInfo func(info *model.Session)
+
+	loginTicketId string
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -571,7 +573,7 @@ func (s *Server) getAuthPasswordIfNeed() (err error) {
 		if s.systemUserAuthInfo.Username != "" {
 			line, err = term.ReadPassword(fmt.Sprintf("%s's password: ", s.systemUserAuthInfo.Username))
 		} else {
-			line, err = term.ReadPassword(fmt.Sprint("password: "))
+			line, err = term.ReadPassword("password: ")
 		}
 
 		if err != nil {
@@ -1073,8 +1075,10 @@ func (s *Server) checkLoginConfirm() bool {
 	}
 	opts = append(opts, auth.ConfirmWithTargetType(targetType))
 	opts = append(opts, auth.ConfirmWithTargetID(targetId))
-	srv := auth.NewLoginConfirm(s.jmsService, opts...)
-	return validateLoginConfirm(&srv, s.UserConn)
+	confirmSrv := auth.NewLoginConfirm(s.jmsService, opts...)
+	ok := validateLoginConfirm(&confirmSrv, s.UserConn)
+	s.loginTicketId = confirmSrv.GetTicketId()
+	return ok
 }
 
 func (s *Server) Proxy() {
@@ -1107,6 +1111,14 @@ func (s *Server) Proxy() {
 		logger.Errorf("Conn[%s] submit session %s to core server err: %s",
 			s.UserConn.ID(), s.ID, msg)
 		return
+	}
+	if s.loginTicketId != "" {
+		msg := fmt.Sprintf("Conn[%s] create session %s ticket %s relation",
+			s.UserConn.ID(), s.ID, s.loginTicketId)
+		logger.Debug(msg)
+		if err := s.jmsService.CreateSessionTicketRelation(s.sessionInfo.ID, s.loginTicketId); err != nil {
+			logger.Errorf("%s err: %s", msg, err)
+		}
 	}
 	AddCommonSwitch(&sw)
 	defer RemoveCommonSwitch(&sw)

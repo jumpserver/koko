@@ -225,7 +225,6 @@ func (p *DBParser) forbiddenCommand(cmd string) {
 	p.command = ""
 	p.output = ""
 	p.userOutputChan <- []byte{CharCTRLE, utils.CharCleanLine, '\r'}
-	return
 }
 
 // Close 关闭parser

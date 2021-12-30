@@ -36,6 +36,7 @@ type LoginConfirmService struct {
 	ticketDetailUrl string
 
 	processor string // 此审批的处理人
+	ticketId  string // 此工单 Id
 }
 
 func (c *LoginConfirmService) CheckIsNeedLoginConfirm() (bool, error) {
@@ -52,6 +53,7 @@ func (c *LoginConfirmService) CheckIsNeedLoginConfirm() (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		c.ticketId = res.TicketId
 		c.reviewers = res.Reviewers
 		c.checkReqInfo = res.CheckConfirmStatus
 		c.cancelReqInfo = res.CloseConfirm
@@ -76,6 +78,10 @@ func (c *LoginConfirmService) GetTicketUrl() string {
 
 func (c *LoginConfirmService) GetProcessor() string {
 	return c.processor
+}
+
+func (c *LoginConfirmService) GetTicketId() string {
+	return c.ticketId
 }
 
 func (c *LoginConfirmService) waitConfirmFinish(ctx context.Context) Status {
