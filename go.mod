@@ -12,7 +12,7 @@ require (
 	github.com/creack/pty v1.1.11
 	github.com/denisenkom/go-mssqldb v0.11.0
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
-	github.com/gin-gonic/gin v1.7.4
+	github.com/gin-gonic/gin v1.7.7
 	github.com/gliderlabs/ssh v0.3.3
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/websocket v1.4.2
@@ -29,7 +29,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.7.1
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
-	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa
+	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 	golang.org/x/text v0.3.7
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/twindagger/httpsig.v1 v1.2.0
@@ -81,7 +81,7 @@ require (
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
-	golang.org/x/sys v0.0.0-20211111213525-f221eed1c01e // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
@@ -103,5 +103,5 @@ require (
 
 replace (
 	github.com/gliderlabs/ssh v0.3.3 => github.com/LeeEirc/ssh v0.1.2-0.20211112094038-5ebcf34caaf1
-	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa => github.com/LeeEirc/crypto v0.0.0-20211112090926-652515632c44
+	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3 => github.com/LeeEirc/crypto v0.0.0-20211224091614-e3d02217ccc3
 )
