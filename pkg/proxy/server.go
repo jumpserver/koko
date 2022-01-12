@@ -928,7 +928,15 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		*/
 		suUsername := s.systemUserAuthInfo.Username
 		suPassword := s.systemUserAuthInfo.Password
-		suCommand := fmt.Sprintf(srvconn.LinuxSuCommand, suUsername)
+		var suCommand string
+		switch s.connOpts.systemUser.SuType {
+		case srvconn.SU:
+			suCommand = fmt.Sprintf(srvconn.LinuxSuCommand, suUsername)
+		case srvconn.ENABLE:
+			suCommand = srvconn.SwitchSuCommand
+		case srvconn.OTHER:
+			suCommand = strings.Replace(s.connOpts.systemUser.SuExtra, "{username}", suUsername, -1)
+		}
 		sshConnectOpts = append(sshConnectOpts, srvconn.SSHLoginToSudo(true))
 		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoCommand(suCommand))
 		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoUsername(suUsername))

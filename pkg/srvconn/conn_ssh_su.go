@@ -43,12 +43,19 @@ func executeStep(step *stepItem, sc *SSHConnection) (bool, error) {
 }
 
 const (
+	SU     = "su"
+	ENABLE = "enable"
+	OTHER  = "other"
+)
+
+const (
 	LinuxSuCommand = "su - %s; exit"
+
+	SwitchSuCommand = "enable"
 
 	/*
 	 \b: word boundary 即: 匹配某个单词边界
 	 */
-
 	passwordMatchPattern = "(?i)\\bpassword\\b|密码"
 )
 
