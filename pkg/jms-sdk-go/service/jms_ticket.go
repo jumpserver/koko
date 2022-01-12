@@ -81,4 +81,5 @@ type CheckAssetConfirmResponse struct {
 	CloseConfirm       RequestInfo `json:"close_confirm"`
 	TicketDetailUrl    string      `json:"ticket_detail_url"`
 	Reviewers          []string    `json:"reviewers"`
+	TicketId           string      `json:"ticket_id"`
 }

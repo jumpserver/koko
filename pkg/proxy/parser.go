@@ -273,7 +273,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			case model.ActionConfirm:
 				p.confirmStatus.SetStatus(StatusQuery)
 				p.confirmStatus.SetRule(rule)
-				p.confirmStatus.SetCmd(cmd)
+				p.confirmStatus.SetCmd(p.command)
 				p.confirmStatus.SetData(string(b))
 				p.confirmStatus.ResetCtx()
 				p.srvOutputChan <- []byte("\r\n" + waitMsg)
@@ -604,6 +604,8 @@ func breakInputPacket(protocolType string) []byte {
 	case model.ProtocolTelnet:
 		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
 	case model.ProtocolSSH:
+		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
+	case model.ProtocolK8S:
 		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 	}
 	return []byte{utils.CharCleanLine, CharCTRLC, '\r'}

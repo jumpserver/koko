@@ -392,59 +392,65 @@ msgstr "需要工单命令执行复核，已发邮件通知审核人"
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/parser.go:450 pkg/proxy/parser.go:451 pkg/proxy/server.go:100
+#: pkg/proxy/parser.go:450 pkg/proxy/parser.go:451 pkg/proxy/server.go:133
 #, fuzzy
 msgid "Connecting to %s@%s"
 msgstr "开始连接到 %s@%s"
 
 #. i18n.T
-#: pkg/proxy/server.go:102
+#: pkg/proxy/server.go:135
 #, fuzzy
 msgid "Connecting to Database %s"
 msgstr "开始连接数据库 %s"
 
 #. i18n.T
-#: pkg/proxy/server.go:104
+#: pkg/proxy/server.go:137
 #, fuzzy
 msgid "Connecting to Kubernetes %s"
 msgstr "开始连接Kubernetes %s"
 
 #. i18n.T
-#: pkg/proxy/server.go:143
+#: pkg/proxy/server.go:139
+#, fuzzy
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "开始连接Kubernetes %s 容器 %s"
+
+#. i18n.T
+#: pkg/proxy/server.go:180
 #, fuzzy
 msgid "%s protocol client not installed."
 msgstr "%s 协议的客户端未安装"
 
 #. i18n.T
-#: pkg/proxy/server.go:147
+#: pkg/proxy/server.go:184
 #, fuzzy
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr "该终端不支持 %s 协议，请使用web终端登录"
 
 #. i18n.T
-#: pkg/proxy/server.go:225
+#: pkg/proxy/server.go:266
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. i18n.T
-#: pkg/proxy/server.go:290
+#: pkg/proxy/server.go:331
 msgid "You don't have permission login %s"
 msgstr "你无权限登陆%s"
 
 #. i18n.T
-#: pkg/proxy/server.go:543
+#: pkg/proxy/server.go:584
 msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 #. i18n.T
-#: pkg/proxy/server.go:549
+#: pkg/proxy/server.go:590
 #, fuzzy
 msgid "Get auth username failed"
 msgstr "你获取认证令牌失败"
 
 #. i18n.T
-#: pkg/proxy/server.go:554
+#: pkg/proxy/server.go:595
 #, fuzzy
 msgid "Get auth password failed"
 msgstr "你获取认证令牌失败"
@@ -452,29 +458,29 @@ msgstr "你获取认证令牌失败"
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:560 pkg/proxy/server.go:575 pkg/proxy/server.go:624
+#: pkg/proxy/server.go:601 pkg/proxy/server.go:616 pkg/proxy/server.go:665
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 #. i18n.T
-#: pkg/proxy/server.go:826
+#: pkg/proxy/server.go:890
 msgid "Switched to %s"
 msgstr "已切换至%s"
 
 #. i18n.T
-#: pkg/proxy/server.go:1003
+#: pkg/proxy/server.go:1067
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. i18n.T
-#: pkg/proxy/server.go:1023
+#: pkg/proxy/server.go:1087
 #, fuzzy
 msgid "Start domain gateway failed %s"
 msgstr "启动数据库网关失败%s"
 
 #. i18n.T
 #. i18n.T
-#: pkg/proxy/server.go:1031 pkg/proxy/switch.go:236
+#: pkg/proxy/server.go:1095 pkg/proxy/switch.go:236
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
 

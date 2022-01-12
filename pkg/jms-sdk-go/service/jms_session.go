@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
@@ -63,5 +64,14 @@ func (s *JMService) sessionPatch(sid string, data interface{}) error {
 func (s *JMService) GetSessionById(sid string) (data model.Session, err error) {
 	reqURL := fmt.Sprintf(SessionDetailURL, sid)
 	_, err = s.authClient.Get(reqURL, &data)
+	return
+}
+
+func (s *JMService) CreateSessionTicketRelation(sid, ticketId string) (err error) {
+	data := map[string]string{
+		"session": sid,
+		"ticket":  ticketId,
+	}
+	_, err = s.authClient.Post(TicketSessionURL, data, nil)
 	return
 }
