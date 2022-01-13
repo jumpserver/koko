@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
 	"unicode/utf8"
 )
@@ -608,16 +609,23 @@ func (t *Terminal) addKeyToLine(key rune) {
 	t.moveCursorToPos(t.pos)
 }
 
-func (t *Terminal) writeLine(line []rune) {
-	for len(line) != 0 {
-		remainingOnLine := t.termWidth - t.cursorX
-		todo := len(line)
-		if todo > remainingOnLine {
-			todo = remainingOnLine
+func (t *Terminal) writeLine(lines []rune) {
+	multiLines := strings.SplitAfter(string(lines), "\n")
+	for i, strline := range multiLines {
+		line := []rune(strline)
+		for len(line) != 0 {
+			remainingOnLine := t.termWidth - t.cursorX
+			todo := len(line)
+			if todo > remainingOnLine {
+				todo = remainingOnLine
+			}
+			t.queue(line[:todo])
+			t.advanceCursor(visualLength(line[:todo]))
+			line = line[todo:]
 		}
-		t.queue(line[:todo])
-		t.advanceCursor(visualLength(line[:todo]))
-		line = line[todo:]
+		if i != len(multiLines)-1 {
+			t.cursorX = 0
+		}
 	}
 }
 
