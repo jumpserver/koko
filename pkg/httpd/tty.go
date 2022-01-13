@@ -308,6 +308,9 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		proxyOpts = append(proxyOpts, proxy.ConnectProtocolType(h.systemUser.Protocol))
 		proxyOpts = append(proxyOpts, proxy.ConnectSystemUser(h.systemUser))
 		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
+		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
+			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))
+		}
 		switch h.systemUser.Protocol {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 			srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/exchange"
-	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -227,13 +226,14 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	keepAliveTime := time.Duration(s.keepAliveTime) * time.Second
 	keepAliveTick := time.NewTicker(keepAliveTime)
 	defer keepAliveTick.Stop()
+	lang := s.p.connOpts.getLang()
 	for {
 		select {
 		// 检测是否超过最大空闲时间
 		case now := <-tick.C:
 			outTime := lastActiveTime.Add(maxIdleTime)
 			if now.After(outTime) {
-				msg := fmt.Sprintf(i18n.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
+				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 				logger.Infof("Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
 				msg = utils.WrapperWarn(msg)
 				replayRecorder.Record([]byte(msg))
@@ -241,7 +241,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			if s.p.CheckPermissionExpired(now) {
-				msg := i18n.T("Permission has expired, disconnect")
+				msg := lang.T("Permission has expired, disconnect")
 				logger.Infof("Session[%s] permission has expired, disconnect", s.ID)
 				msg = utils.WrapperWarn(msg)
 				replayRecorder.Record([]byte(msg))
@@ -252,7 +252,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			// 手动结束
 		case <-s.ctx.Done():
 			adminUser := s.loadTerminateAdmin()
-			msg := fmt.Sprintf(i18n.T("Terminated by admin %s"), adminUser)
+			msg := fmt.Sprintf(lang.T("Terminated by admin %s"), adminUser)
 			msg = utils.WrapperWarn(msg)
 			replayRecorder.Record([]byte(msg))
 			logger.Infof("Session[%s]: %s", s.ID, msg)

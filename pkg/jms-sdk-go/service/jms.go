@@ -41,11 +41,12 @@ func NewAuthJMService(opts ...Option) (*JMService, error) {
 		httpClient.SetAuthSign(opt.sign)
 	}
 	httpClient.SetHeader(orgHeaderKey, orgHeaderValue)
-	return &JMService{authClient: httpClient}, nil
+	return &JMService{authClient: httpClient, opt: &opt}, nil
 }
 
 type JMService struct {
 	authClient *httplib.Client
+	opt        *option
 
 	sync.Mutex
 }
@@ -75,4 +76,20 @@ func (s *JMService) GetTerminalConfig() (conf model.TerminalConfig, err error) {
 
 func (s *JMService) CloneClient() httplib.Client {
 	return s.authClient.Clone()
+}
+
+func (s *JMService) Copy() *JMService {
+	client := s.authClient.Clone()
+	if s.opt.sign != nil {
+		client.SetAuthSign(s.opt.sign)
+	}
+	client.SetHeader(orgHeaderKey, orgHeaderValue)
+	return &JMService{
+		authClient: &client,
+		opt:        s.opt,
+	}
+}
+
+func (s *JMService) SetCookie(name, value string) {
+	s.authClient.SetCookie(name, value)
 }

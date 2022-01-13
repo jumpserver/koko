@@ -19,8 +19,9 @@ func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationPar
 
 func (u *UserSelectHandler) displayNodeAssetResult(searchHeader string) {
 	term := u.h.term
+	lang := i18n.NewLang(u.h.i18nLang)
 	if len(u.currentResult) == 0 {
-		noNodeAssets := fmt.Sprintf(i18n.T("%s node has no assets"), u.selectedNode.Name)
+		noNodeAssets := fmt.Sprintf(lang.T("%s node has no assets"), u.selectedNode.Name)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(noNodeAssets, utils.Red))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))

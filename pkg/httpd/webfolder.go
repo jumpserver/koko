@@ -24,11 +24,15 @@ func (h *webFolder) Name() string {
 }
 
 func (h *webFolder) CheckValidation() bool {
+	jmsServiceCopy := h.jmsService.Copy()
+	if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
+		jmsServiceCopy.SetCookie("django_language", langCode)
+	}
 	switch strings.TrimSpace(h.targetId) {
 	case "_":
-		h.volume = NewUserVolume(h.jmsService, h.ws.CurrentUser(), h.ws.ClientIP(), "")
+		h.volume = NewUserVolume(jmsServiceCopy, h.ws.CurrentUser(), h.ws.ClientIP(), "")
 	default:
-		h.volume = NewUserVolume(h.jmsService, h.ws.CurrentUser(), h.ws.ClientIP(), strings.TrimSpace(h.targetId))
+		h.volume = NewUserVolume(jmsServiceCopy, h.ws.CurrentUser(), h.ws.ClientIP(), strings.TrimSpace(h.targetId))
 	}
 	return true
 }
