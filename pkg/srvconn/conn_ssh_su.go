@@ -53,7 +53,7 @@ const (
 
 	SwitchSuCommand = "enable"
 
-	passwordMatchPattern = "(?i)password|密码"
+	passwordMatchPattern = "(?i)password|Password|密码"
 )
 
 var ErrorTimeout = errors.New("time out")
