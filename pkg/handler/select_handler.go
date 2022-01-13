@@ -195,7 +195,8 @@ func (u *UserSelectHandler) HasNext() bool {
 }
 
 func (u *UserSelectHandler) DisplayCurrentResult() {
-	searchHeader := fmt.Sprintf(i18n.T("Search: %s"), strings.Join(u.searchKeys, " "))
+	lang := i18n.NewLang(u.h.i18nLang)
+	searchHeader := fmt.Sprintf(lang.T("Search: %s"), strings.Join(u.searchKeys, " "))
 	switch u.currentType {
 	case TypeDatabase:
 		u.displayDatabaseResult(searchHeader)
@@ -212,6 +213,7 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 
 func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 	targetId := target["id"].(string)
+	lang := i18n.NewLang(u.h.i18nLang)
 	switch u.currentType {
 	case TypeAsset, TypeNodeAsset:
 		asset, err := u.h.jmsService.GetAssetById(targetId)
@@ -221,7 +223,7 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 		}
 		if !asset.IsActive {
 			logger.Debugf("Select asset %s is inactive", targetId)
-			msg := i18n.T("The asset is inactive")
+			msg := lang.T("The asset is inactive")
 			_, _ = u.h.term.Write([]byte(msg))
 			return
 		}

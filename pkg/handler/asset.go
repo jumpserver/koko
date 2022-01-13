@@ -51,9 +51,9 @@ func (u *UserSelectHandler) searchLocalAsset(searches ...string) []map[string]in
 
 func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 	term := u.h.term
-
+	lang := i18n.NewLang(u.h.i18nLang)
 	if len(u.currentResult) == 0 {
-		noAssets := i18n.T("No Assets")
+		noAssets := lang.T("No Assets")
 		utils.IgnoreErrWriteString(term, utils.WrapperString(noAssets, utils.Red))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
@@ -64,6 +64,7 @@ func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 }
 
 func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
+	lang := i18n.NewLang(u.h.i18nLang)
 	assetListSortBy := u.h.terminalConf.AssetListSortBy
 	switch assetListSortBy {
 	case "ip":
@@ -81,10 +82,10 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 	totalPage := u.TotalPage()
 	totalCount := u.TotalCount()
 
-	idLabel := i18n.T("ID")
-	hostLabel := i18n.T("Hostname")
-	ipLabel := i18n.T("IP")
-	commentLabel := i18n.T("Comment")
+	idLabel := lang.T("ID")
+	hostLabel := lang.T("Hostname")
+	ipLabel := lang.T("IP")
+	commentLabel := lang.T("Comment")
 
 	Labels := []string{idLabel, hostLabel, ipLabel, commentLabel}
 	fields := []string{"ID", "Hostname", "IP", "Comment"}
@@ -102,7 +103,7 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 		data[i] = row
 	}
 	w, _ := term.GetSize()
-	caption := fmt.Sprintf(i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
+	caption := fmt.Sprintf(lang.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
 		currentPage, pageSize, totalPage, totalCount)
 
 	caption = utils.WrapperString(caption, utils.Green)
@@ -121,8 +122,8 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
-	loginTip := i18n.T("Enter ID number directly login the asset, multiple search use // + field, such as: //16")
-	pageActionTip := i18n.T("Page up: b	Page down: n")
+	loginTip := lang.T("Enter ID number directly login the asset, multiple search use // + field, such as: //16")
+	pageActionTip := lang.T("Page up: b	Page down: n")
 	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
 
 	_, _ = term.Write([]byte(utils.CharClear))
@@ -140,12 +141,15 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 	}
 	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
 	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
+
 	if !ok {
 		return
 	}
+	i18nLang := u.h.i18nLang
 	srv, err := proxy.NewServer(u.h.sess,
 		u.h.jmsService,
 		proxy.ConnectProtocolType(selectedSystemUser.Protocol),
+		proxy.ConnectI18nLang(i18nLang),
 		proxy.ConnectUser(u.h.user),
 		proxy.ConnectAsset(&asset),
 		proxy.ConnectSystemUser(&selectedSystemUser),

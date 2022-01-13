@@ -31,6 +31,7 @@ type ConnectionOption func(options *ConnectionOptions)
 
 type ConnectionOptions struct {
 	ProtocolType string
+	i18nLang     string
 
 	user       *model.User
 	systemUser *model.SystemUser
@@ -103,6 +104,12 @@ func ConnectContainer(info *ContainerInfo) ConnectionOption {
 	}
 }
 
+func ConnectI18nLang(lang string) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.i18nLang = lang
+	}
+}
+
 func (opts *ConnectionOptions) TerminalTitle() string {
 	title := ""
 	switch opts.ProtocolType {
@@ -127,21 +134,26 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 }
 
 func (opts *ConnectionOptions) ConnectMsg() string {
+	lang := opts.getLang()
 	msg := ""
 	switch opts.ProtocolType {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
-		msg = fmt.Sprintf(i18n.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
+		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
-		msg = fmt.Sprintf(i18n.T("Connecting to Database %s"), opts.app)
+		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), opts.app)
 	case srvconn.ProtocolK8s:
-		msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
+		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
 		if opts.k8sContainer != nil {
-			msg = fmt.Sprintf(i18n.T("Connecting to Kubernetes %s container %s"),
+			msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s container %s"),
 				opts.app.Name, opts.k8sContainer.Container)
 		}
 	}
 	return msg
+}
+
+func (opts *ConnectionOptions) getLang() i18n.LanguageCode {
+	return i18n.NewLang(opts.i18nLang)
 }
 
 var (
@@ -170,6 +182,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	for _, setter := range opts {
 		setter(connOpts)
 	}
+	lang := connOpts.getLang()
 
 	if err := srvconn.IsSupportedProtocol(connOpts.ProtocolType); err != nil {
 		logger.Errorf("Conn[%s] checking protocol %s failed: %s", conn.ID(),
@@ -178,11 +191,11 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		switch {
 		case errors.Is(err, srvconn.ErrMySQLClient), errors.Is(err, srvconn.ErrRedisClient),
 			errors.Is(err, srvconn.ErrKubectlClient), errors.Is(err, srvconn.ErrSQLServerClient):
-			errMsg = i18n.T("%s protocol client not installed.")
+			errMsg = lang.T("%s protocol client not installed.")
 			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
 			err = fmt.Errorf("%w: %s", ErrMissClient, err)
 		default:
-			errMsg = i18n.T("Terminal does not support protocol %s, please use web terminal to access")
+			errMsg = lang.T("Terminal does not support protocol %s, please use web terminal to access")
 			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
 			err = fmt.Errorf("%w: %s", ErrUnMatchProtocol, err)
 		}
@@ -264,7 +277,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		}
 	default:
 		if !connOpts.asset.IsSupportProtocol(connOpts.systemUser.Protocol) {
-			msg := i18n.T("System user <%s> and asset <%s> protocol are inconsistent.")
+			msg := lang.T("System user <%s> and asset <%s> protocol are inconsistent.")
 			msg = fmt.Sprintf(msg, connOpts.systemUser.Username, connOpts.asset.Hostname)
 			utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
 			return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol, msg)
@@ -329,7 +342,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	}
 
 	if !expireInfo.HasPermission {
-		msg := i18n.T("You don't have permission login %s")
+		msg := lang.T("You don't have permission login %s")
 		msg = utils.WrapperWarn(fmt.Sprintf(msg, connOpts.TerminalTitle()))
 		utils.IgnoreErrWriteString(conn, msg)
 		return nil, ErrPermission
@@ -473,6 +486,7 @@ func (s *Server) GetFilterParser() ParseEngine {
 			enableDownload: enableDownload,
 			enableUpload:   enableUpload,
 			zmodemParser:   &zParser,
+			i18nLang:       s.connOpts.i18nLang,
 		}
 		shellParser.initial()
 		return &shellParser
@@ -480,6 +494,7 @@ func (s *Server) GetFilterParser() ParseEngine {
 		dbParser := DBParser{
 			id:             s.ID,
 			cmdFilterRules: s.filterRules,
+			i18nLang:       s.connOpts.i18nLang,
 		}
 		dbParser.initial()
 		return &dbParser
@@ -587,34 +602,35 @@ func (s *Server) getAuthPasswordIfNeed() (err error) {
 }
 
 func (s *Server) checkRequiredAuth() error {
+	lang := s.connOpts.getLang()
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolK8s:
 		if s.systemUserAuthInfo.Token == "" {
-			msg := utils.WrapperWarn(i18n.T("You get auth token failed"))
+			msg := utils.WrapperWarn(lang.T("You get auth token failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return errors.New("no auth token")
 		}
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET,
 		srvconn.ProtocolSQLServer:
 		if err := s.getUsernameIfNeed(); err != nil {
-			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
+			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return fmt.Errorf("get auth username failed: %s", err)
 		}
 		if err := s.getAuthPasswordIfNeed(); err != nil {
-			msg := utils.WrapperWarn(i18n.T("Get auth password failed"))
+			msg := utils.WrapperWarn(lang.T("Get auth password failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return fmt.Errorf("get auth password failed: %s", err)
 		}
 	case srvconn.ProtocolRedis:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
-			msg := utils.WrapperWarn(i18n.T("Get auth password failed"))
+			msg := utils.WrapperWarn(lang.T("Get auth password failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return fmt.Errorf("get auth password failed: %s", err)
 		}
 	case srvconn.ProtocolSSH:
 		if err := s.getUsernameIfNeed(); err != nil {
-			msg := utils.WrapperWarn(i18n.T("Get auth username failed"))
+			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return err
 		}
@@ -629,7 +645,7 @@ func (s *Server) checkRequiredAuth() error {
 
 		if s.systemUserAuthInfo.PrivateKey == "" {
 			if err := s.getAuthPasswordIfNeed(); err != nil {
-				msg := utils.WrapperWarn(i18n.T("Get auth password failed"))
+				msg := utils.WrapperWarn(lang.T("Get auth password failed"))
 				utils.IgnoreErrWriteString(s.UserConn, msg)
 				return err
 			}
@@ -655,6 +671,7 @@ func (s *Server) checkReuseSSHClient() bool {
 }
 
 func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
+	lang := s.connOpts.getLang()
 	keyId := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
 		s.connOpts.systemUser.ID, s.systemUserAuthInfo.Username)
 	sshClient, ok := srvconn.GetClientFromCache(keyId)
@@ -678,7 +695,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		sshClient.ReleaseSession(sess)
 		return nil, false
 	}
-	reuseMsg := fmt.Sprintf(i18n.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
+	reuseMsg := fmt.Sprintf(lang.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
 		s.connOpts.systemUser.Name, s.connOpts.asset.IP, sshClient.RefCount())
 	utils.IgnoreErrWriteString(s.UserConn, reuseMsg+"\r\n")
 	go func() {
@@ -924,7 +941,8 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		return nil, err
 	}
 	if s.suFromSystemUserAuthInfo != nil {
-		msg := fmt.Sprintf(i18n.T("Switched to %s"), s.systemUserAuthInfo)
+		lang := s.connOpts.getLang()
+		msg := fmt.Sprintf(lang.T("Switched to %s"), s.systemUserAuthInfo)
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
 		utils.IgnoreErrWriteString(s.UserConn, msg)
 		_, _ = sshConn.Write([]byte("\r"))
@@ -1076,7 +1094,7 @@ func (s *Server) checkLoginConfirm() bool {
 	opts = append(opts, auth.ConfirmWithTargetType(targetType))
 	opts = append(opts, auth.ConfirmWithTargetID(targetId))
 	confirmSrv := auth.NewLoginConfirm(s.jmsService, opts...)
-	ok := validateLoginConfirm(&confirmSrv, s.UserConn)
+	ok := s.validateLoginConfirm(&confirmSrv, s.UserConn)
 	s.loginTicketId = confirmSrv.GetTicketId()
 	return ok
 }
@@ -1095,6 +1113,7 @@ func (s *Server) Proxy() {
 		logger.Errorf("Conn[%s]: check login confirm failed", s.UserConn.ID())
 		return
 	}
+	lang := s.connOpts.getLang()
 	ctx, cancel := context.WithCancel(context.Background())
 	sw := SwitchSession{
 		ID:            s.ID,
@@ -1105,7 +1124,7 @@ func (s *Server) Proxy() {
 		p:             s,
 	}
 	if err := s.CreateSessionCallback(); err != nil {
-		msg := i18n.T("Connect with api server failed")
+		msg := lang.T("Connect with api server failed")
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(s.UserConn, msg)
 		logger.Errorf("Conn[%s] submit session %s to core server err: %s",
@@ -1134,7 +1153,7 @@ func (s *Server) Proxy() {
 			srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
-				msg := i18n.T("Start domain gateway failed %s")
+				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
 				logger.Error(msg)
@@ -1142,7 +1161,7 @@ func (s *Server) Proxy() {
 			}
 			err = dGateway.Start()
 			if err != nil {
-				msg := i18n.T("Start domain gateway failed %s")
+				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
 				logger.Error(msg)
@@ -1179,7 +1198,7 @@ func (s *Server) Proxy() {
 
 func (s *Server) sendConnectErrorMsg(err error) {
 	msg := fmt.Sprintf("%s error: %s", s.connOpts.ConnectMsg(),
-		ConvertErrorToReadableMsg(err))
+		s.ConvertErrorToReadableMsg(err))
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
 	logger.Error(msg)

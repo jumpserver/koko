@@ -10,7 +10,6 @@ import (
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
-	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -70,7 +69,6 @@ func RunForever(confPath string) {
 func bootstrap() {
 	i18n.Initial()
 	logger.Initial()
-	handler.Initial()
 	exchange.Initial()
 }
 

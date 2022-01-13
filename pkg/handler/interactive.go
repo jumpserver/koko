@@ -51,6 +51,8 @@ type InteractiveHandler struct {
 	jmsService *service.JMService
 
 	terminalConf *model.TerminalConfig
+
+	i18nLang string
 }
 
 func (h *InteractiveHandler) Initial() {
@@ -59,7 +61,8 @@ func (h *InteractiveHandler) Initial() {
 		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
 	}
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
-	h.displayBanner()
+	h.i18nLang = conf.LanguageCode
+	h.displayHelp()
 	h.selectHandler = &UserSelectHandler{
 		user:     h.user,
 		h:        h,
@@ -85,9 +88,9 @@ func (h *InteractiveHandler) firstLoadData() {
 	}()
 }
 
-func (h *InteractiveHandler) displayBanner() {
+func (h *InteractiveHandler) displayHelp() {
 	h.term.SetPrompt("Opt> ")
-	displayBanner(h.sess, h.user.Name, h.terminalConf)
+	h.displayBanner(h.sess, h.user.Name, h.terminalConf)
 }
 
 func (h *InteractiveHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
