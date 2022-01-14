@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"text/template"
@@ -16,24 +15,6 @@ type MenuItem struct {
 	id       int
 	instruct string
 	helpText string
-	showText string
-}
-
-func (mi *MenuItem) Text() string {
-	if mi.showText != "" {
-		return mi.showText
-	}
-	cm := ColorMeta{GreenBoldColor: "\033[1;32m", ColorEnd: "\033[0m"}
-	line := fmt.Sprintf(i18n.T("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"), mi.id, mi.instruct, mi.helpText, "\r\n")
-	tmpl := template.Must(template.New("item").Parse(line))
-
-	var buf bytes.Buffer
-	err := tmpl.Execute(&buf, cm)
-	if err != nil {
-		logger.Error(err)
-	}
-	mi.showText = buf.String()
-	return mi.showText
 }
 
 type Menu []MenuItem
@@ -72,7 +53,13 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 		logger.Errorf("Send to client error, %s", err)
 		return
 	}
+	cm := ColorMeta{GreenBoldColor: "\033[1;32m", ColorEnd: "\033[0m"}
 	for _, v := range menu {
-		utils.IgnoreErrWriteString(sess, v.Text())
+		line := fmt.Sprintf(lang.T("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"),
+			v.id, v.instruct, v.helpText, "\r\n")
+		tmpl := template.Must(template.New("item").Parse(line))
+		if err := tmpl.Execute(sess, cm); err != nil {
+			logger.Error(err)
+		}
 	}
 }
