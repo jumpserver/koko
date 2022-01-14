@@ -7,173 +7,178 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: xgotext\n"
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:54
+#. lang.T
+#: pkg/handler/app_k8s.go:55
 msgid "No kubernetes"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:67
+#. lang.T
+#: pkg/handler/app_k8s.go:68
 msgid "ID"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:68
+#. lang.T
+#: pkg/handler/app_k8s.go:69
 msgid "Name"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:69
+#. lang.T
+#: pkg/handler/app_k8s.go:70
 msgid "Cluster"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:70
+#. lang.T
+#: pkg/handler/app_k8s.go:71
 msgid "Comment"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:89
+#. lang.T
+#: pkg/handler/app_k8s.go:90
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:109
+#. lang.T
+#: pkg/handler/app_k8s.go:110
 msgid ""
 "Enter ID number directly login the kubernetes, multiple search use // + "
 "field, such as: //16"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_k8s.go:110
+#. lang.T
+#: pkg/handler/app_k8s.go:111
 msgid "Page up: b\tPage down: n"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_mysql.go:55
+#. lang.T
+#: pkg/handler/app_mysql.go:56
 msgid "No Databases"
 msgstr ""
 
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_mysql.go:68 pkg/handler/app_mysql.go:69
-#: pkg/handler/app_mysql.go:70
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/app_mysql.go:69 pkg/handler/app_mysql.go:70
+#: pkg/handler/app_mysql.go:71
 msgid "IP"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_mysql.go:71
+#. lang.T
+#: pkg/handler/app_mysql.go:72
 msgid "DBType"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/app_mysql.go:72
+#. lang.T
+#: pkg/handler/app_mysql.go:73
 msgid "DB Name"
 msgstr ""
 
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_mysql.go:73 pkg/handler/app_mysql.go:95
-#: pkg/handler/app_mysql.go:116
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/app_mysql.go:74 pkg/handler/app_mysql.go:96
+#: pkg/handler/app_mysql.go:117
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
 "such as: //16"
 msgstr ""
 
-#. i18n.T
-#. i18n.T
-#: pkg/handler/app_mysql.go:117 pkg/handler/asset.go:56
+#. lang.T
+#. lang.T
+#: pkg/handler/app_mysql.go:118 pkg/handler/asset.go:56
 msgid "No Assets"
 msgstr ""
 
-#. i18n.T
-#. i18n.T
-#: pkg/handler/asset.go:84 pkg/handler/asset.go:85
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:85 pkg/handler/asset.go:86
 msgid "Hostname"
 msgstr ""
 
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#: pkg/handler/asset.go:86 pkg/handler/asset.go:87 pkg/handler/asset.go:105
-#: pkg/handler/asset.go:124
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:87 pkg/handler/asset.go:88 pkg/handler/asset.go:106
+#: pkg/handler/asset.go:125
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
 "such as: //16"
 msgstr ""
 
-#. i18n.T
-#. i18n.T
-#: pkg/handler/asset.go:125 pkg/handler/asset_node.go:23
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:126 pkg/handler/asset_node.go:24
 msgid "%s node has no assets"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:30
-msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr ""
-
-#. i18n.T
-#: pkg/handler/banner.go:45
+#. lang.T
+#: pkg/handler/banner.go:29
 msgid "Welcome to use JumpServer open source fortress system"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:47
+#. lang.T
+#: pkg/handler/banner.go:31
 msgid "part IP, Hostname, Comment"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:47
+#. lang.T
+#: pkg/handler/banner.go:31
 msgid "to search login if unique"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:48
+#. lang.T
+#: pkg/handler/banner.go:32
 msgid "/ + IP, Hostname, Comment"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:48
+#. lang.T
+#: pkg/handler/banner.go:32
 msgid "to search, such as: /192.168"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:49
+#. lang.T
+#: pkg/handler/banner.go:33
 msgid "display the host you have permission"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:50
+#. lang.T
+#: pkg/handler/banner.go:34
 msgid "display the node that you have permission"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:51
+#. lang.T
+#: pkg/handler/banner.go:35
 msgid "display the databases that you have permission"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:52
+#. lang.T
+#: pkg/handler/banner.go:36
 msgid "display the kubernetes that you have permission"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:53
+#. lang.T
+#: pkg/handler/banner.go:37
 msgid "refresh your assets and nodes"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:54
+#. lang.T
+#: pkg/handler/banner.go:38
+msgid "Chinese-english switch"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/banner.go:39
 msgid "print help"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/banner.go:55
+#. lang.T
+#: pkg/handler/banner.go:40
 msgid "exit"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/banner.go:58
+msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
 #. i18n.T
@@ -227,14 +232,14 @@ msgstr ""
 
 #. i18n.T
 #. i18n.T
-#. i18n.T
+#. lang.T
 #: pkg/handler/direct_handler.go:352 pkg/handler/direct_handler.go:360
-#: pkg/handler/dispatch.go:109
+#: pkg/handler/dispatch.go:125
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/dispatch.go:111
+#. lang.T
+#: pkg/handler/dispatch.go:127
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
@@ -245,20 +250,20 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/interactive.go:134 pkg/handler/interactive.go:146
-#: pkg/handler/interactive.go:147 pkg/handler/interactive.go:148
-#: pkg/handler/interactive.go:177 pkg/handler/interactive.go:178
-#: pkg/handler/interactive.go:231
+#: pkg/handler/interactive.go:137 pkg/handler/interactive.go:149
+#: pkg/handler/interactive.go:150 pkg/handler/interactive.go:151
+#: pkg/handler/interactive.go:180 pkg/handler/interactive.go:181
+#: pkg/handler/interactive.go:234
 msgid "Refresh done"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/select_handler.go:198
+#. lang.T
+#: pkg/handler/select_handler.go:199
 msgid "Search: %s"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/select_handler.go:224
+#. lang.T
+#: pkg/handler/select_handler.go:226
 msgid "The asset is inactive"
 msgstr ""
 
