@@ -111,12 +111,15 @@ func (h *InteractiveHandler) Dispatch() {
 
 func (h *InteractiveHandler) ChangeLang() {
 	lang := i18n.NewLang(h.i18nLang)
+	i18nLang := h.i18nLang
 	switch lang {
 	case i18n.EN:
-		h.i18nLang = i18n.ZH.String()
+		i18nLang = i18n.ZH.String()
 	case i18n.ZH:
-		h.i18nLang = i18n.EN.String()
+		i18nLang = i18n.EN.String()
 	}
+	userLangGlobalStore.Store(h.user.ID, i18nLang)
+	h.i18nLang = i18nLang
 }
 
 func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList) {

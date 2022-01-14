@@ -35,6 +35,11 @@ func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *servi
 	return handler
 }
 
+var (
+	// 全局永久缓存 ssh 登录用户切换的语言
+	userLangGlobalStore = sync.Map{}
+)
+
 type InteractiveHandler struct {
 	sess *WrapperSession
 	user *model.User
@@ -62,6 +67,9 @@ func (h *InteractiveHandler) Initial() {
 	}
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.i18nLang = conf.LanguageCode
+	if langCode, ok := userLangGlobalStore.Load(h.user.ID); ok {
+		h.i18nLang = langCode.(string)
+	}
 	h.displayHelp()
 	h.selectHandler = &UserSelectHandler{
 		user:     h.user,
