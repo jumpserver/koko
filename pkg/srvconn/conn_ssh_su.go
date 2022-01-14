@@ -12,20 +12,41 @@ import (
 
 func LoginToSu(sc *SSHConnection) error {
 	successPattern := createSuccessParttern(sc.options.sudoUsername)
-	steps := make([]stepItem, 0, 2)
-	steps = append(steps,
-		stepItem{
-			Input:           sc.options.sudoCommand,
-			ExpectPattern:   passwordMatchPattern,
-			FinishedPattern: successPattern,
-			IsCommand:       true,
-		},
-		stepItem{
-			Input:           sc.options.sudoPassword,
-			ExpectPattern:   successPattern,
-			FinishedPattern: successPattern,
-		},
-	)
+	steps := make([]stepItem, 0, 5)
+	if sc.options.sudoCommand == ENABLE {
+		steps = append(steps,
+			stepItem{
+				Input:           HelpCommand,
+				ExpectPattern:   normalUserMark,
+				FinishedPattern: successPattern,
+				IsCommand:       true,
+			},
+			stepItem{
+				Input:           sc.options.sudoCommand,
+				ExpectPattern:   passwordMatchPattern,
+				FinishedPattern: successPattern,
+			},
+			stepItem{
+				Input:           sc.options.sudoPassword,
+				ExpectPattern:   successPattern,
+				FinishedPattern: successPattern,
+			},
+		)
+	} else {
+		steps = append(steps,
+			stepItem{
+				Input:           sc.options.sudoCommand,
+				ExpectPattern:   passwordMatchPattern,
+				FinishedPattern: successPattern,
+				IsCommand:       true,
+			},
+			stepItem{
+				Input:           sc.options.sudoPassword,
+				ExpectPattern:   successPattern,
+				FinishedPattern: successPattern,
+			},
+		)
+	}
 	for i := 0; i < len(steps); i++ {
 		finished, err := executeStep(&steps[i], sc)
 		if err != nil {
@@ -52,6 +73,8 @@ const (
 	LinuxSuCommand = "su - %s; exit"
 
 	SwitchSuCommand = "enable"
+
+	HelpCommand = "?"
 
 	passwordMatchPattern = "(?i)password|Password|密码"
 )
@@ -124,6 +147,6 @@ func createSuccessParttern(username string) string {
 }
 
 const (
-	normalUserMark = "\\s*\\$"
+	normalUserMark = "\\s*\\$|\\s*>"
 	superUserMark  = "\\s*#"
 )
