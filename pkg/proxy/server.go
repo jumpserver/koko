@@ -929,13 +929,11 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		suUsername := s.systemUserAuthInfo.Username
 		suPassword := s.systemUserAuthInfo.Password
 		var suCommand string
-		switch s.connOpts.systemUser.SuType {
-		case srvconn.SU:
-			suCommand = fmt.Sprintf(srvconn.LinuxSuCommand, suUsername)
-		case srvconn.ENABLE:
-			suCommand = srvconn.SwitchSuCommand
+		switch strings.ToLower(s.platform.BaseOs) {
 		case srvconn.OTHER:
-			suCommand = strings.Replace(s.connOpts.systemUser.SuExtra, "{username}", suUsername, -1)
+			suCommand = srvconn.SwitchSuCommand
+		default:
+			suCommand = fmt.Sprintf(srvconn.LinuxSuCommand, suUsername)
 		}
 		sshConnectOpts = append(sshConnectOpts, srvconn.SSHLoginToSudo(true))
 		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoCommand(suCommand))

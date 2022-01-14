@@ -34,8 +34,6 @@ type SystemUser struct {
 	Token                string   `json:"-"`
 	SuEnabled            bool     `json:"su_enabled"`
 	SuFrom               string   `json:"su_from"`
-	SuType               string   `json:"su_type"`
-	SuExtra              string   `json:"su_extra"`
 }
 
 func (s *SystemUser) String() string {
