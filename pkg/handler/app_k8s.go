@@ -50,8 +50,9 @@ func (u *UserSelectHandler) searchLocalK8s(searches ...string) []map[string]inte
 func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	currentDBS := u.currentResult
 	term := u.h.term
+	lang := i18n.NewLang(u.h.i18nLang)
 	if len(currentDBS) == 0 {
-		noK8s := i18n.T("No kubernetes")
+		noK8s := lang.T("No kubernetes")
 		utils.IgnoreErrWriteString(term, utils.WrapperString(noK8s, utils.Red))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
@@ -64,10 +65,10 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	totalPage := u.TotalPage()
 	totalCount := u.TotalCount()
 
-	idLabel := i18n.T("ID")
-	nameLabel := i18n.T("Name")
-	clusterLabel := i18n.T("Cluster")
-	commentLabel := i18n.T("Comment")
+	idLabel := lang.T("ID")
+	nameLabel := lang.T("Name")
+	clusterLabel := lang.T("Cluster")
+	commentLabel := lang.T("Comment")
 
 	Labels := []string{idLabel, nameLabel, clusterLabel, commentLabel}
 	fields := []string{"ID", "Name", "Cluster", "Comment"}
@@ -86,7 +87,7 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	}
 	w, _ := term.GetSize()
 
-	caption := fmt.Sprintf(i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
+	caption := fmt.Sprintf(lang.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
 		currentPage, pageSize, totalPage, totalCount)
 
 	caption = utils.WrapperString(caption, utils.Green)
@@ -106,8 +107,8 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	}
 	table.Initial()
 
-	loginTip := i18n.T("Enter ID number directly login the kubernetes, multiple search use // + field, such as: //16")
-	pageActionTip := i18n.T("Page up: b	Page down: n")
+	loginTip := lang.T("Enter ID number directly login the kubernetes, multiple search use // + field, such as: //16")
+	pageActionTip := lang.T("Page up: b	Page down: n")
 	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
 	_, _ = term.Write([]byte(utils.CharClear))
 	_, _ = term.Write([]byte(table.Display()))

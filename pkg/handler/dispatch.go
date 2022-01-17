@@ -55,7 +55,12 @@ func (h *InteractiveHandler) Dispatch() {
 				h.displayNodeTree(h.nodes)
 				continue
 			case "h":
-				h.displayBanner()
+				h.displayHelp()
+				initialed = false
+				continue
+			case "s":
+				h.ChangeLang()
+				h.displayHelp()
 				initialed = false
 				continue
 			case "r":
@@ -104,11 +109,25 @@ func (h *InteractiveHandler) Dispatch() {
 	}
 }
 
+func (h *InteractiveHandler) ChangeLang() {
+	lang := i18n.NewLang(h.i18nLang)
+	i18nLang := h.i18nLang
+	switch lang {
+	case i18n.EN:
+		i18nLang = i18n.ZH.String()
+	case i18n.ZH:
+		i18nLang = i18n.EN.String()
+	}
+	userLangGlobalStore.Store(h.user.ID, i18nLang)
+	h.i18nLang = i18nLang
+}
+
 func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList) {
+	lang := i18n.NewLang(h.i18nLang)
 	tree := ConstructNodeTree(nodes)
-	_, _ = io.WriteString(h.term, "\n\r"+i18n.T("Node: [ ID.Name(Asset amount) ]"))
+	_, _ = io.WriteString(h.term, "\n\r"+lang.T("Node: [ ID.Name(Asset amount) ]"))
 	_, _ = io.WriteString(h.term, tree.String())
-	_, err := io.WriteString(h.term, i18n.T("Tips: Enter g+NodeID to display the host under the node, such as g1")+"\n\r")
+	_, err := io.WriteString(h.term, lang.T("Tips: Enter g+NodeID to display the host under the node, such as g1")+"\n\r")
 	if err != nil {
 		logger.Info("displayAssetNodes err:", err)
 	}

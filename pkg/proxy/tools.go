@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/jumpserver/koko/pkg/i18n"
 )
 
 const (
@@ -20,25 +18,26 @@ const (
 	networkUnreachable = "network is unreachable"
 )
 
-func ConvertErrorToReadableMsg(e error) string {
+func (s *Server) ConvertErrorToReadableMsg(e error) string {
 	if e == nil {
 		return ""
 	}
 	errMsg := e.Error()
+	lang := s.connOpts.getLang()
 	if strings.Contains(errMsg, UnAuth) || strings.Contains(errMsg, LoginFailed) {
-		return i18n.T("Authentication failed")
+		return lang.T("Authentication failed")
 	}
 	if strings.Contains(errMsg, ConnectRefusedErr) {
-		return i18n.T("Connection refused")
+		return lang.T("Connection refused")
 	}
 	if strings.Contains(errMsg, IoTimeoutErr) {
-		return i18n.T("i/o timeout")
+		return lang.T("i/o timeout")
 	}
 	if strings.Contains(errMsg, NoRouteErr) {
-		return i18n.T("No route to host")
+		return lang.T("No route to host")
 	}
 	if strings.Contains(errMsg, networkUnreachable) {
-		return i18n.T("network is unreachable")
+		return lang.T("network is unreachable")
 	}
 	return errMsg
 }

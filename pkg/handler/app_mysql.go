@@ -51,8 +51,9 @@ func (u *UserSelectHandler) searchLocalDatabase(searches ...string) []map[string
 func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 	currentDBS := u.currentResult
 	term := u.h.term
+	lang := i18n.NewLang(u.h.i18nLang)
 	if len(currentDBS) == 0 {
-		noDatabases := i18n.T("No Databases")
+		noDatabases := lang.T("No Databases")
 		utils.IgnoreErrWriteString(term, utils.WrapperString(noDatabases, utils.Red))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
@@ -65,12 +66,12 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 	totalPage := u.TotalPage()
 	totalCount := u.TotalCount()
 
-	idLabel := i18n.T("ID")
-	nameLabel := i18n.T("Name")
-	ipLabel := i18n.T("IP")
-	dbTypeLabel := i18n.T("DBType")
-	dbNameLabel := i18n.T("DB Name")
-	commentLabel := i18n.T("Comment")
+	idLabel := lang.T("ID")
+	nameLabel := lang.T("Name")
+	ipLabel := lang.T("IP")
+	dbTypeLabel := lang.T("DBType")
+	dbNameLabel := lang.T("DB Name")
+	commentLabel := lang.T("Comment")
 
 	Labels := []string{idLabel, nameLabel, ipLabel,
 		dbTypeLabel, dbNameLabel, commentLabel}
@@ -92,7 +93,7 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 	}
 	w, _ := term.GetSize()
 
-	caption := fmt.Sprintf(i18n.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
+	caption := fmt.Sprintf(lang.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
 		currentPage, pageSize, totalPage, totalCount)
 
 	caption = utils.WrapperString(caption, utils.Green)
@@ -113,8 +114,8 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
-	loginTip := i18n.T("Enter ID number directly login the database, multiple search use // + field, such as: //16")
-	pageActionTip := i18n.T("Page up: b	Page down: n")
+	loginTip := lang.T("Enter ID number directly login the database, multiple search use // + field, such as: //16")
+	pageActionTip := lang.T("Page up: b	Page down: n")
 	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
 
 	_, _ = term.Write([]byte(utils.CharClear))

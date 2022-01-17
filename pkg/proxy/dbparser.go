@@ -44,6 +44,8 @@ type DBParser struct {
 	closed         chan struct{}
 
 	currentUser CurrentActiveUser
+
+	i18nLang string
 }
 
 func (p *DBParser) initial() {
@@ -112,6 +114,7 @@ func (p *DBParser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan 
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *DBParser) parseInputState(b []byte) []byte {
+	lang := i18n.NewLang(p.i18nLang)
 	p.inputPreState = p.inputState
 	if bytes.LastIndex(b, charEnter) == 0 {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
@@ -125,8 +128,8 @@ func (p *DBParser) parseInputState(b []byte) []byte {
 				p.forbiddenCommand(cmd)
 				return nil
 			case model.ActionConfirm:
-				fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
-				fbdMsg2 := utils.WrapperWarn(i18n.T("Command review is not currently supported"))
+				fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
+				fbdMsg2 := utils.WrapperWarn(lang.T("Command review is not currently supported"))
 				p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 				p.srvOutputChan <- []byte("\r\n" + fbdMsg2)
 				p.cmdRecordChan <- &ExecutedCommand{
@@ -214,7 +217,8 @@ func (p *DBParser) IsMatchCommandRule(command string) (model.SystemUserFilterRul
 }
 
 func (p *DBParser) forbiddenCommand(cmd string) {
-	fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
+	lang := i18n.NewLang(p.i18nLang)
+	fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
 	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 	p.cmdRecordChan <- &ExecutedCommand{
 		Command:     p.command,

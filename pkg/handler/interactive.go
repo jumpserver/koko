@@ -35,6 +35,11 @@ func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *servi
 	return handler
 }
 
+var (
+	// 全局永久缓存 ssh 登录用户切换的语言
+	userLangGlobalStore = sync.Map{}
+)
+
 type InteractiveHandler struct {
 	sess *WrapperSession
 	user *model.User
@@ -51,6 +56,8 @@ type InteractiveHandler struct {
 	jmsService *service.JMService
 
 	terminalConf *model.TerminalConfig
+
+	i18nLang string
 }
 
 func (h *InteractiveHandler) Initial() {
@@ -59,7 +66,11 @@ func (h *InteractiveHandler) Initial() {
 		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
 	}
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
-	h.displayBanner()
+	h.i18nLang = conf.LanguageCode
+	if langCode, ok := userLangGlobalStore.Load(h.user.ID); ok {
+		h.i18nLang = langCode.(string)
+	}
+	h.displayHelp()
 	h.selectHandler = &UserSelectHandler{
 		user:     h.user,
 		h:        h,
@@ -85,9 +96,9 @@ func (h *InteractiveHandler) firstLoadData() {
 	}()
 }
 
-func (h *InteractiveHandler) displayBanner() {
+func (h *InteractiveHandler) displayHelp() {
 	h.term.SetPrompt("Opt> ")
-	displayBanner(h.sess, h.user.Name, h.terminalConf)
+	h.displayBanner(h.sess, h.user.Name, h.terminalConf)
 }
 
 func (h *InteractiveHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {

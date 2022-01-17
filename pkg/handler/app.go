@@ -18,8 +18,10 @@ func (u *UserSelectHandler) proxyApp(app model.Application) {
 		logger.Infof("User %s don't select systemUser", u.user.Name)
 		return
 	}
+	i18nLang := u.h.i18nLang
 	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService,
 		proxy.ConnectProtocolType(selectedSystemUser.Protocol),
+		proxy.ConnectI18nLang(i18nLang),
 		proxy.ConnectApp(&app),
 		proxy.ConnectSystemUser(&selectedSystemUser),
 		proxy.ConnectUser(u.user),

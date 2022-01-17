@@ -80,6 +80,8 @@ type Parser struct {
 	currentActiveUser   CurrentActiveUser
 
 	eventsFuncMap map[string]func()
+
+	i18nLang string
 }
 
 func (p *Parser) initial() {
@@ -156,6 +158,7 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
+	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		switch p.zmodemParser.Status() {
 		case ZParserStatusReceive:
@@ -176,7 +179,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				*/
 
 				logger.Info("Zmodem abort upload file finished")
-				msg := i18n.T("have no permission to upload file")
+				msg := lang.T("have no permission to upload file")
 				p.abortedFileTransfer = false
 				p.srvOutputChan <- CancelSequence
 				p.srvOutputChan <- []byte("\r\n")
@@ -211,7 +214,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			p.confirmStatus.Status)
 		return nil
 	}
-	waitMsg := i18n.T("the reviewers will confirm. continue or not [Y/n]")
+	waitMsg := lang.T("the reviewers will confirm. continue or not [Y/n]")
 	if p.confirmStatus.InQuery() {
 		switch strings.ToLower(string(b)) {
 		case "y":
@@ -230,13 +233,13 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				processor := p.confirmStatus.GetProcessor()
 				switch p.confirmStatus.GetAction() {
 				case model.ActionAllow:
-					formatMsg := i18n.T("%s approved")
+					formatMsg := lang.T("%s approved")
 					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Green)
 					p.srvOutputChan <- []byte("\r\n")
 					p.srvOutputChan <- []byte(statusMsg)
 					p.userOutputChan <- []byte(p.confirmStatus.data)
 				case model.ActionDeny:
-					formatMsg := i18n.T("%s rejected")
+					formatMsg := lang.T("%s rejected")
 					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Red)
 					p.srvOutputChan <- []byte("\r\n")
 					p.srvOutputChan <- []byte(statusMsg)
@@ -305,7 +308,8 @@ func (p *Parser) IsNeedParse() bool {
 }
 
 func (p *Parser) forbiddenCommand(cmd string) {
-	fbdMsg := utils.WrapperWarn(fmt.Sprintf(i18n.T("Command `%s` is forbidden"), cmd))
+	lang := i18n.NewLang(p.i18nLang)
+	fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
 	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
 	p.cmdRecordChan <- &ExecutedCommand{
 		Command:     p.command,
@@ -363,6 +367,7 @@ func (p *Parser) parseVimState(b []byte) {
 
 // splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
 func (p *Parser) splitCmdStream(b []byte) []byte {
+	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		if p.zmodemParser.Status() == ZParserStatusSend {
 			p.zmodemParser.Parse(b)
@@ -371,7 +376,7 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 			logger.Info("Zmodem abort download file finished")
 			p.abortedFileTransfer = false
 			p.srvOutputChan <- b
-			msg := i18n.T("have no permission to download file")
+			msg := lang.T("have no permission to download file")
 			p.srvOutputChan <- []byte("\r\n")
 			p.srvOutputChan <- []byte(msg)
 			p.srvOutputChan <- []byte("\r\n")
@@ -434,11 +439,12 @@ func (p *Parser) waitCommandConfirm() {
 		p.confirmStatus.SetAction(model.ActionDeny)
 		return
 	}
+	lang := i18n.NewLang(p.i18nLang)
 	checkReq := resp.CheckConfirmStatus
 	cancelReq := resp.CloseConfirm
 	detailURL := resp.TicketDetailUrl
 	reviewers := resp.Reviewers
-	msg := i18n.T("Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C.")
+	msg := lang.T("Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C.")
 	waitMsg := fmt.Sprintf(msg, cmd)
 	checkTimer := time.NewTicker(10 * time.Second)
 	defer checkTimer.Stop()
@@ -446,9 +452,9 @@ func (p *Parser) waitCommandConfirm() {
 	defer cancelFunc()
 	go func() {
 		delay := 0
-		titleMsg := i18n.T("Need ticket confirm to execute command, already send email to the reviewers")
-		reviewersMsg := fmt.Sprintf(i18n.T("Ticket Reviewers: %s"), strings.Join(reviewers, ", "))
-		detailURLMsg := fmt.Sprintf(i18n.T("Could copy website URL to notify reviewers: %s"), detailURL)
+		titleMsg := lang.T("Need ticket confirm to execute command, already send email to the reviewers")
+		reviewersMsg := fmt.Sprintf(lang.T("Ticket Reviewers: %s"), strings.Join(reviewers, ", "))
+		detailURLMsg := fmt.Sprintf(lang.T("Could copy website URL to notify reviewers: %s"), detailURL)
 		var tipString strings.Builder
 		tipString.WriteString(utils.CharNewLine)
 		tipString.WriteString(titleMsg)
