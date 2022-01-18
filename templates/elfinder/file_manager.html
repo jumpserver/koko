@@ -120,6 +120,12 @@
                 }
                 return "";
             }
+            var kokoLang = getCookieByName("django_language");
+            if ( kokoLang.startsWith("en")) {
+                document.title = "File Manager"
+            }else {
+                document.title = "文件管理"
+            }
 	    	var load = function () {
                 var loct = window.location.search;
 		        var full_lng, locm, lng;
@@ -138,6 +144,11 @@
           	    else if (lng === 'zh') {
           	        lng = (full_lng.substr(0,5) === 'zh-tw')? 'zh_TW' : 'zh_CN';
                 }
+                if ( kokoLang.startsWith("en")) {
+                    lng = "en"
+                }else if ( kokoLang.startsWith("zh")) {
+                    lng = 'zh_CN'
+                }
                 if (lng !== 'en') {
         		    $.ajax({
         		    	url : '/koko/static/plugins/elfinder/i18n'+'/elfinder.'+lng+'.js',
@@ -155,12 +166,6 @@
 	           }
             };
 	    	load();
-            var kokoLang = getCookieByName("django_language");
-            if ( kokoLang.startsWith("en")) {
-                document.title = "File Manager"
-            }else {
-                document.title = "文件管理"
-            }
             var resizeTimer;
             $(window).resize(function () {
                 resizeTimer && clearTimeout(resizeTimer);
