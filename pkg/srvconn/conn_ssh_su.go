@@ -45,7 +45,11 @@ func executeStep(step *stepItem, sc *SSHConnection) (bool, error) {
 const (
 	LinuxSuCommand = "su - %s; exit"
 
-	passwordMatchPattern = "(?i)password|密码"
+	/*
+	 \b: word boundary 即: 匹配某个单词边界
+	 */
+
+	passwordMatchPattern = "(?i)\\bpassword\\b|密码"
 )
 
 var ErrorTimeout = errors.New("time out")
@@ -83,12 +87,12 @@ func (s *stepItem) Execute(sc *SSHConnection) (bool, error) {
 			}
 			recStr.Write(buf[:nr])
 			result := strings.TrimSpace(recStr.String())
-			if matchReg != nil && matchReg.MatchString(result) {
-				resultChan <- &ExecuteResult{}
-				return
-			}
 			if successReg != nil && successReg.MatchString(result) {
 				resultChan <- &ExecuteResult{Finished: true}
+				return
+			}
+			if matchReg != nil && matchReg.MatchString(result) {
+				resultChan <- &ExecuteResult{}
 				return
 			}
 		}
