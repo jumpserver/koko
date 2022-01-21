@@ -83,7 +83,7 @@ func (r *Room) run() {
 			if ZMODEMStatus {
 				con.handlerMessage(&RoomMessage{
 					Event: ActionEvent,
-					Body:  []byte("ZMODEM_START"),
+					Body:  []byte(ZmodemStartEvent),
 				})
 			}
 			r.recentMessages.Do(func(value interface{}) {
@@ -120,9 +120,9 @@ func (r *Room) run() {
 				delete(currentOnlineUsers, key)
 			case ActionEvent:
 				switch string(msg.Body) {
-				case "ZMODEM_START":
+				case ZmodemStartEvent:
 					ZMODEMStatus = true
-				case "ZMODEM_END":
+				case ZmodemEndEvent:
 					ZMODEMStatus = false
 				default:
 					ZMODEMStatus = false
