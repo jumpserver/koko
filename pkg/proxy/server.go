@@ -544,6 +544,9 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
 		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		server = s.connOpts.app.Name
+		if s.connOpts.k8sContainer != nil {
+			server = s.connOpts.k8sContainer.K8sName(server)
+		}
 		orgID = s.connOpts.app.OrgID
 	}
 	return &model.Command{

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/utils"
@@ -20,15 +22,20 @@ func main() {
 		token, _ = utils.Decrypt(encryptToken, config.CipherKey)
 	}
 
-	args := make([]string, 0, len(os.Args))
-	originArgs := os.Args[1:]
-	for i := range originArgs {
-		args = append(args, originArgs[i])
+	args := os.Args[1:]
+	var s strings.Builder
+	for i := range args {
+		s.WriteString(args[i])
+		s.WriteString(" ")
 	}
+	commandPrefix := commandName
 	if token != "" {
-		args = append(args, []string{"--token", token}...)
+		token = strings.ReplaceAll(token, "'", "")
+		commandPrefix = fmt.Sprintf(`%s --token='%s'`, commandName, token)
 	}
-	c := exec.Command(commandName, args...)
+
+	commandString := fmt.Sprintf("%s %s", commandPrefix, s.String())
+	c := exec.Command("bash", "-c", commandString)
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	_ = c.Run()
 }
