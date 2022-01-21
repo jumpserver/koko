@@ -15,6 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
+	"github.com/jumpserver/koko/pkg/zmodem"
 )
 
 type SwitchSession struct {
@@ -180,19 +181,20 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		Body:  nil,
 		Meta:  meta,
 	})
-	parser.RegisterEventCallback(zmodemStartEvent, func() {
-		room.Broadcast(&exchange.RoomMessage{
-			Event: exchange.ActionEvent,
-			Body:  []byte(zmodemStartEvent),
-		})
-	})
-
-	parser.RegisterEventCallback(zmodemEndEvent, func() {
-		room.Broadcast(&exchange.RoomMessage{
-			Event: exchange.ActionEvent,
-			Body:  []byte(zmodemEndEvent),
-		})
-	})
+	if parser.zmodemParser != nil {
+		parser.zmodemParser.FireStatusEvent = func(event zmodem.StatusEvent) {
+			msg := exchange.RoomMessage{Event: exchange.ActionEvent}
+			switch event {
+			case zmodem.StartEvent:
+				msg.Body = []byte(exchange.ZmodemStartEvent)
+			case zmodem.EndEvent:
+				msg.Body = []byte(exchange.ZmodemEndEvent)
+			default:
+				msg.Body = []byte(event)
+			}
+			room.Broadcast(&msg)
+		}
+	}
 	go func() {
 		for {
 			buf := make([]byte, 1024)

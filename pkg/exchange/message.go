@@ -33,9 +33,14 @@ const (
 
 	JoinSuccessEvent = "JoinSuccess"
 
-	ShareJoin   = "Share_JOIN"
-	ShareLeave  = "Share_LEAVE"
-	ShareUsers  = "Share_USERS"
+	ShareJoin  = "Share_JOIN"
+	ShareLeave = "Share_LEAVE"
+	ShareUsers = "Share_USERS"
 
 	ActionEvent = "Action"
+)
+
+const (
+	ZmodemStartEvent = "ZMODEM_START"
+	ZmodemEndEvent   = "ZMODEM_END"
 )
