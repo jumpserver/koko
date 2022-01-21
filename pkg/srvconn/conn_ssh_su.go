@@ -17,7 +17,7 @@ func LoginToSu(sc *SSHConnection) error {
 		steps = append(steps,
 			stepItem{
 				Input:           HelpCommand,
-				ExpectPattern:   normalUserMark,
+				ExpectPattern:   switchUserMark,
 				FinishedPattern: successPattern,
 				IsCommand:       true,
 			},
@@ -76,7 +76,7 @@ const (
 
 	/*
 	 \b: word boundary 即: 匹配某个单词边界
-	 */
+	*/
 	passwordMatchPattern = "(?i)\\bpassword\\b|密码"
 
 	HelpCommand = "?"
@@ -150,6 +150,7 @@ func createSuccessParttern(username string) string {
 }
 
 const (
-	normalUserMark = "\\s*\\$|\\s*>"
+	switchUserMark = "\\s*>"
+	normalUserMark = "\\s*\\$"
 	superUserMark  = "\\s*#"
 )
