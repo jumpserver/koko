@@ -1,6 +1,7 @@
 package koko
 
 import (
+	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -18,7 +19,10 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	eng := gin.New()
-
+	trustedProxies := []string{"0.0.0.0/0", "::/0"}
+	if err := eng.SetTrustedProxies(trustedProxies); err != nil {
+		log.Fatal(err)
+	}
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
 	rootGroup := eng.Group("")
