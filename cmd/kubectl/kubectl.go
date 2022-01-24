@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/config"
@@ -16,6 +17,16 @@ const (
 )
 
 func main() {
+	gracefulStop := make(chan os.Signal, 1)
+	// Ctrl + C 中断操作特殊处理，防止命令无法终止
+	signal.Notify(gracefulStop, os.Interrupt)
+	go func() {
+		<-gracefulStop
+		// 增加换行符
+		fmt.Println("")
+		os.Exit(1)
+	}()
+
 	encryptToken := os.Getenv(envName)
 	var token string
 	if encryptToken != "" {
