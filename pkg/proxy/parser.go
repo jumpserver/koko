@@ -128,7 +128,6 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				switch msg.Event {
 				case exchange.DataEvent:
 					b = preprocessingInput(msg.Body)
-					logger.Error(b)
 				}
 				p.UpdateActiveUser(msg)
 				if len(b) == 0 {
