@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/config"
 	"sort"
 	"strings"
 	"sync"
@@ -126,7 +127,8 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				var b []byte
 				switch msg.Event {
 				case exchange.DataEvent:
-					b = msg.Body
+					b = preprocessingInput(msg.Body)
+					logger.Error(b)
 				}
 				p.UpdateActiveUser(msg)
 				if len(b) == 0 {
@@ -617,6 +619,15 @@ func breakInputPacket(protocolType string) []byte {
 	return []byte{utils.CharCleanLine, CharCTRLC, '\r'}
 }
 
+func preprocessingInput(p []byte) []byte {
+	if config.GetConf().BackspaceAsCtrlH {
+		if bytes.IndexByte(p, byte(AsciiDel)) != -1 {
+			p = bytes.Replace(p, []byte{AsciiDel}, []byte{AsciiBackspace}, -1)
+		}
+	}
+	return p
+}
+
 /*
 	Ctrl + U --> 清除光标左边字符 '\x15'
 	Ctrl + K --> 清除光标右边字符 '\x0B'
@@ -627,6 +638,11 @@ const (
 	CharCleanRightLine = '\x0B'
 	CharCTRLC          = '\x03'
 	CharCTRLE          = '\x05'
+)
+
+const (
+	AsciiDel       = 127
+	AsciiBackspace = 8
 )
 
 const (

@@ -33,6 +33,7 @@ type Config struct {
 	RetryAliveCountMax  int    `mapstructure:"RETRY_ALIVE_COUNT_MAX"`
 	ShowHiddenFile      bool   `mapstructure:"SFTP_SHOW_HIDDEN_FILE"`
 	ReuseConnection     bool   `mapstructure:"REUSE_CONNECTION"`
+	BackspaceAsCtrlH    bool   `mapstructure:"BackspaceAsCtrlH"`
 
 	ShareRoomType string   `mapstructure:"SHARE_ROOM_TYPE"`
 	RedisHost     string   `mapstructure:"REDIS_HOST"`
@@ -108,6 +109,7 @@ func getDefaultConfig() Config {
 		UploadFailedReplay:  true,
 		ShowHiddenFile:      false,
 		ReuseConnection:     true,
+		BackspaceAsCtrlH:    false,
 		AssetLoadPolicy:     "",
 		ZipMaxSize:          "1024M",
 		ZipTmpPath:          "/tmp",
