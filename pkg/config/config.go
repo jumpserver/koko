@@ -59,6 +59,9 @@ func (c *Config) EnsureConfigValid() {
 }
 
 func GetConf() Config {
+	if GlobalConfig == nil {
+		return getDefaultConfig()
+	}
 	return *GlobalConfig
 }
 
@@ -207,7 +210,7 @@ func getDefaultName() string {
 	}
 	name := make([]rune, defaultNameMaxLen)
 	index := defaultNameMaxLen / 2
-	copy(name[:16], hostRune[:index])
+	copy(name[:index], hostRune[:index])
 	start := len(hostRune) - index
 	copy(name[index:], hostRune[start:])
 	return string(name)

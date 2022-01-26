@@ -11,7 +11,7 @@ import (
 )
 
 func LoginToSu(sc *SSHConnection) error {
-	successPattern := createSuccessParttern(sc.options.sudoUsername)
+	successPattern := createSuccessPattern(sc.options.sudoUsername)
 	steps := make([]stepItem, 0, 2)
 	steps = append(steps,
 		stepItem{
@@ -47,7 +47,7 @@ const (
 
 	/*
 	 \b: word boundary 即: 匹配某个单词边界
-	 */
+	*/
 
 	passwordMatchPattern = "(?i)\\bpassword\\b|密码"
 )
@@ -112,7 +112,7 @@ type ExecuteResult struct {
 	Err      error
 }
 
-func createSuccessParttern(username string) string {
+func createSuccessPattern(username string) string {
 	pattern := fmt.Sprintf("%s@", username)
 	pattern = fmt.Sprintf("(?i)%s|%s|%s", pattern,
 		normalUserMark, superUserMark)
