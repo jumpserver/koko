@@ -10,7 +10,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-var CipherKey = "JumpServer Cipher Key for KoKo !"
+var (
+	CipherKey = "JumpServer Cipher Key for KoKo !"
+
+	KubectlBanner = "Welcome to JumpServer kubectl, try kubectl --help."
+)
 
 type Config struct {
 	Name           string `mapstructure:"NAME"`
