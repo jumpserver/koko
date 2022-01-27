@@ -663,7 +663,7 @@ func (s *Server) checkReuseSSHClient() bool {
 func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	lang := s.connOpts.getLang()
 	keyId := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
-		s.connOpts.systemUser.ID, s.systemUserAuthInfo.Username)
+		s.connOpts.systemUser.ID, s.connOpts.asset.IP, s.systemUserAuthInfo.Username)
 	sshClient, ok := srvconn.GetClientFromCache(keyId)
 	if !ok {
 		return nil, ok
@@ -837,7 +837,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		loginSystemUser = s.suFromSystemUserAuthInfo
 	}
 	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, loginSystemUser.ID,
-		loginSystemUser.Username)
+		s.connOpts.asset.IP, loginSystemUser.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(loginSystemUser.Username))
