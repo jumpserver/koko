@@ -50,6 +50,7 @@ type SSHHandler interface {
 	SFTPHandler(ssh.Session)
 	LocalPortForwardingPermission(ctx ssh.Context, destinationHost string, destinationPort uint32) bool
 	DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewChannel, destAddr string)
+	SSOBanner(string) string
 }
 
 type AuthStatus ssh.AuthResult
@@ -66,6 +67,13 @@ func NewSSHServer(handler SSHHandler) *Server {
 			return handler.LocalPortForwardingPermission(ctx, destinationHost, destinationPort)
 		},
 		Addr: handler.GetSSHAddr(),
+		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
+			config := &gossh.ServerConfig{}
+			config.BannerCallback = func(conn gossh.ConnMetadata) string {
+				return handler.SSOBanner(conn.User())
+			}
+			return config
+		},
 		KeyboardInteractiveHandler: func(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) ssh.AuthResult {
 			return ssh.AuthResult(handler.KeyboardInteractiveAuth(ctx, challenger))
 		},

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -386,4 +387,17 @@ func (s *server) getMatchedSystemUsers(user *model.User, req *auth.DirectLoginAs
 		}
 	}
 	return matched, nil
+}
+
+func (s *server) SSOBanner(username string) string {
+	banner, err := s.jmsService.GetSSHBanner(username)
+	if err != nil || banner.SsoUrl == "" {
+		return ""
+	}
+	msg := i18n.T("- Visit the link below to obtain the temporary password")
+	msg = fmt.Sprintf("%s\r\n", msg)
+	ssoType := fmt.Sprintf("-- %s:\r\n", banner.SsoType)
+	ssoType = strings.ToTitle(ssoType)
+	ssoUrl := fmt.Sprintf("-- %s\r\n", banner.SsoUrl)
+	return fmt.Sprintf("%s%s%s", msg, ssoType, ssoUrl)
 }

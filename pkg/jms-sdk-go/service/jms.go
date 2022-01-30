@@ -93,3 +93,14 @@ func (s *JMService) Copy() *JMService {
 func (s *JMService) SetCookie(name, value string) {
 	s.authClient.SetCookie(name, value)
 }
+
+type BannerInfo struct {
+	SsoType string `json:"sso_type"`
+	SsoUrl  string `json:"sso_url"`
+}
+
+func (s *JMService) GetSSHBanner(username string) (banner *BannerInfo, err error) {
+	sshBannerURL := fmt.Sprintf("%s?username=%s", SSHBannerURL, username)
+	_, err = s.authClient.Get(sshBannerURL, &banner)
+	return
+}

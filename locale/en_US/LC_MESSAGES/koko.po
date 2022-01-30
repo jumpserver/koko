@@ -234,12 +234,12 @@ msgstr ""
 #. i18n.T
 #. lang.T
 #: pkg/handler/direct_handler.go:352 pkg/handler/direct_handler.go:360
-#: pkg/handler/dispatch.go:125
+#: pkg/handler/dispatch.go:128
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/dispatch.go:127
+#: pkg/handler/dispatch.go:130
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
@@ -250,10 +250,10 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/interactive.go:137 pkg/handler/interactive.go:149
-#: pkg/handler/interactive.go:150 pkg/handler/interactive.go:151
-#: pkg/handler/interactive.go:180 pkg/handler/interactive.go:181
-#: pkg/handler/interactive.go:234
+#: pkg/handler/interactive.go:145 pkg/handler/interactive.go:157
+#: pkg/handler/interactive.go:158 pkg/handler/interactive.go:159
+#: pkg/handler/interactive.go:188 pkg/handler/interactive.go:189
+#: pkg/handler/interactive.go:242
 msgid "Refresh done"
 msgstr ""
 
@@ -268,12 +268,12 @@ msgid "The asset is inactive"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/server_ssh.go:195
+#: pkg/koko/server_ssh.go:196
 msgid "Must be unique asset for %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/koko/server_ssh.go:207
+#: pkg/koko/server_ssh.go:208
 msgid "Must be unique system user for %s"
 msgstr ""
 
@@ -281,9 +281,14 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
+#. i18n.T
+#: pkg/koko/server_ssh.go:350 pkg/koko/server_ssh.go:357
+#: pkg/koko/server_ssh.go:368 pkg/koko/server_ssh.go:375
+#: pkg/koko/server_ssh.go:397
+msgid "- Visit the link below to obtain the temporary password"
+msgstr ""
+
 #. lang.T
-#: pkg/koko/server_ssh.go:349 pkg/koko/server_ssh.go:356
-#: pkg/koko/server_ssh.go:367 pkg/koko/server_ssh.go:374
 #: pkg/proxy/dbparser.go:131
 msgid "Command `%s` is forbidden"
 msgstr ""
@@ -414,17 +419,17 @@ msgid "You don't have permission login %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:609
+#: pkg/proxy/server.go:612
 msgid "You get auth token failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:616
+#: pkg/proxy/server.go:619
 msgid "Get auth username failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:621
+#: pkg/proxy/server.go:624
 msgid "Get auth password failed"
 msgstr ""
 
@@ -432,29 +437,29 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:627 pkg/proxy/server.go:633 pkg/proxy/server.go:648
-#: pkg/proxy/server.go:698
+#: pkg/proxy/server.go:630 pkg/proxy/server.go:636 pkg/proxy/server.go:651
+#: pkg/proxy/server.go:701
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:945
+#: pkg/proxy/server.go:948
 msgid "Switched to %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1127
+#: pkg/proxy/server.go:1130
 msgid "Connect with api server failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1156
+#: pkg/proxy/server.go:1159
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1164 pkg/proxy/switch.go:236
+#: pkg/proxy/server.go:1167 pkg/proxy/switch.go:236
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 

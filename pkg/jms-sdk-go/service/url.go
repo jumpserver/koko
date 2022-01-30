@@ -13,6 +13,7 @@ const (
 	TokenAssetURL      = "/api/v1/authentication/connection-token/?token=%s" // Token name
 	UserTokenAuthURL   = "/api/v1/authentication/tokens/"                    // 用户登录验证
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
+	SSHBannerURL       = "/api/v1/authentication/sso-banners/" // 获取 ssh 登录是的提示
 )
 
 // Session相关API
