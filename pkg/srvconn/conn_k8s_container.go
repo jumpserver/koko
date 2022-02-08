@@ -203,6 +203,8 @@ func FindAvailableShell(opt *ContainerOptions) (shell string, err error) {
 	for i := range shells {
 		if err = HasShellInContainer(opt, shells[i]); err == nil {
 			return shells[i], nil
+		} else {
+			logger.Debug(err)
 		}
 	}
 	return "", ErrNotFoundShell
@@ -217,7 +219,8 @@ func HasShellInContainer(opt *ContainerOptions, shell string) error {
 	if err != nil {
 		return err
 	}
-	command := []string{"which", shell}
+	testScript := fmt.Sprintf(scriptTmpl, shell)
+	command := []string{"sh", "-c", testScript}
 	validateChecker := func(result string) error {
 		if !strings.HasSuffix(result, shell) {
 			return fmt.Errorf("%w: %s %s", ErrNotFoundCommand, result, shell)
@@ -321,3 +324,6 @@ func execContainerShell(k8sClient *kubernetes.Clientset, k8sCfg *rest.Config, c 
 	err = exec.Stream(streamOption)
 	return err
 }
+
+var scriptTmpl = `#!/bin/sh
+command -v %s`
