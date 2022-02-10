@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -16,7 +15,9 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
+	"github.com/jumpserver/koko/pkg/zmodem"
 )
 
 var (
@@ -42,8 +43,6 @@ const (
 	CommandOutputParserName = "Command Output parser"
 )
 
-var _ ParseEngine = (*Parser)(nil)
-
 type Parser struct {
 	id           string
 	protocolType string
@@ -58,8 +57,8 @@ type Parser struct {
 	inputState    bool
 
 	inVimState bool
-	once       *sync.Once
-	lock       *sync.RWMutex
+	once       sync.Once
+	lock       sync.RWMutex
 
 	command         string
 	output          string
@@ -72,32 +71,23 @@ type Parser struct {
 
 	confirmStatus commandConfirmStatus
 
-	zmodemParser        *ZmodemParser
-	permAction          *model.Permission
+	zmodemParser        *zmodem.ZmodemParser
 	enableDownload      bool
 	enableUpload        bool
 	abortedFileTransfer bool
 	currentActiveUser   CurrentActiveUser
 
-	eventsFuncMap map[string]func()
-
 	i18nLang string
+
+	platform *model.Platform
 }
 
 func (p *Parser) initial() {
-	p.once = new(sync.Once)
-	p.lock = new(sync.RWMutex)
 
 	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
-	p.eventsFuncMap = make(map[string]func())
-	p.zmodemParser.fireStatusEvent = func(event string) {
-		if callback, ok := p.eventsFuncMap[event]; ok {
-			callback()
-		}
-	}
 }
 
 // ParseStream 解析数据流
@@ -161,15 +151,15 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		switch p.zmodemParser.Status() {
-		case ZParserStatusReceive:
+		case zmodem.ZParserStatusReceive:
 			p.zmodemParser.Parse(b)
 			if p.zmodemParser.IsZFilePacket() && !p.enableUpload {
 				logger.Infof("Send zmodem user skip and srv abort to disable upload")
 				p.abortedFileTransfer = true
 				// 不记录中断的文件
-				p.zmodemParser.setAbortMark()
-				p.srvOutputChan <- skipSequence
-				return AbortSession
+				p.zmodemParser.SetAbortMark()
+				p.srvOutputChan <- zmodem.SkipSequence
+				return zmodem.AbortSession
 			}
 
 			if !p.zmodemParser.IsStartSession() && p.abortedFileTransfer {
@@ -181,19 +171,19 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				logger.Info("Zmodem abort upload file finished")
 				msg := lang.T("have no permission to upload file")
 				p.abortedFileTransfer = false
-				p.srvOutputChan <- CancelSequence
+				p.srvOutputChan <- zmodem.CancelSequence
 				p.srvOutputChan <- []byte("\r\n")
 				p.srvOutputChan <- []byte(msg)
 				p.srvOutputChan <- []byte("\r\n")
 				return charEnter
 			}
-		case ZParserStatusSend:
+		case zmodem.ZParserStatusSend:
 			if p.zmodemParser.IsZFilePacket() && !p.enableDownload {
 				logger.Infof("Send zmodem srv skip and user abort to disable download")
 				p.abortedFileTransfer = true
-				p.userOutputChan <- AbortSession
+				p.userOutputChan <- zmodem.AbortSession
 				// 不记录中断的文件
-				p.zmodemParser.setAbortMark()
+				p.zmodemParser.SetAbortMark()
 				return charEnter
 			}
 		default:
@@ -247,7 +237,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				default:
 					// 默认是取消 不执行
 					p.srvOutputChan <- []byte("\r\n")
-					p.userOutputChan <- breakInputPacket(p.protocolType)
+					p.userOutputChan <- p.breakInputPacket()
 				}
 				// 审核结束, 重置状态
 				p.confirmStatus.SetStatus(StatusNone)
@@ -255,7 +245,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
-			return breakInputPacket(p.protocolType)
+			return p.breakInputPacket()
 		default:
 			p.srvOutputChan <- []byte("\r\n" + waitMsg)
 		}
@@ -274,12 +264,22 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.forbiddenCommand(cmd)
 				return nil
 			case model.ActionConfirm:
-				p.confirmStatus.SetStatus(StatusQuery)
-				p.confirmStatus.SetRule(rule)
-				p.confirmStatus.SetCmd(p.command)
-				p.confirmStatus.SetData(string(b))
-				p.confirmStatus.ResetCtx()
-				p.srvOutputChan <- []byte("\r\n" + waitMsg)
+				switch p.protocolType {
+				case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+					srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
+					// 数据库相关 暂时不支持 复核 直接拒绝
+					fbdMsg2 := utils.WrapperWarn(lang.T("Command review is not currently supported"))
+					p.srvOutputChan <- []byte("\r\n" + fbdMsg2)
+					p.forbiddenCommand(cmd)
+					return nil
+				default:
+					p.confirmStatus.SetStatus(StatusQuery)
+					p.confirmStatus.SetRule(rule)
+					p.confirmStatus.SetCmd(p.command)
+					p.confirmStatus.SetData(string(b))
+					p.confirmStatus.ResetCtx()
+					p.srvOutputChan <- []byte("\r\n" + waitMsg)
+				}
 				return nil
 			default:
 			}
@@ -319,7 +319,7 @@ func (p *Parser) forbiddenCommand(cmd string) {
 		User:        p.currentActiveUser}
 	p.command = ""
 	p.output = ""
-	p.userOutputChan <- breakInputPacket(p.protocolType)
+	p.userOutputChan <- p.breakInputPacket()
 }
 
 // parseCmdInput 解析命令的输入
@@ -369,7 +369,7 @@ func (p *Parser) parseVimState(b []byte) {
 func (p *Parser) splitCmdStream(b []byte) []byte {
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
-		if p.zmodemParser.Status() == ZParserStatusSend {
+		if p.zmodemParser.Status() == zmodem.ZParserStatusSend {
 			p.zmodemParser.Parse(b)
 		}
 		if !p.zmodemParser.IsStartSession() && p.abortedFileTransfer {
@@ -407,13 +407,6 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.splitCmdStream(b)
-}
-
-// SetCMDFilterRules 设置命令过滤规则
-func (p *Parser) SetCMDFilterRules(rules []model.SystemUserFilterRule) {
-	// 优先级排序
-	sort.Sort(model.FilterRules(rules))
-	p.cmdFilterRules = rules
 }
 
 // IsMatchCommandRule 判断命令是不是在过滤规则中
@@ -570,10 +563,6 @@ func (p *Parser) UpdateActiveUser(msg *exchange.RoomMessage) {
 	p.currentActiveUser.User = msg.Meta.User
 }
 
-func (p *Parser) RegisterEventCallback(event string, f func()) {
-	p.eventsFuncMap[event] = f
-}
-
 type ExecutedCommand struct {
 	Command     string
 	Output      string
@@ -605,16 +594,49 @@ func matchMark(p []byte, marks [][]byte) bool {
 	return false
 }
 
-func breakInputPacket(protocolType string) []byte {
-	switch protocolType {
+/*
+
+ h3c 的 ssh 拦截
+
+ 华为 telnet ssh
+
+*/
+
+const (
+	h3c    = "h3c"
+	huawei = "huawei"
+)
+
+func isH3C(p *model.Platform) bool {
+	return isPlatform(p, h3c)
+}
+
+func isHuaWei(p *model.Platform) bool {
+	return isPlatform(p, huawei)
+}
+
+func isPlatform(p *model.Platform, platform string) bool {
+	name := strings.ToLower(p.Name)
+	os := strings.ToLower(p.BaseOs)
+	ok := strings.Contains(name, platform) || strings.Contains(os, platform)
+	return ok
+}
+
+func (p *Parser) breakInputPacket() []byte {
+	switch p.protocolType {
 	case model.ProtocolTelnet:
+		if isHuaWei(p.platform) {
+			return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
+		}
 		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
 	case model.ProtocolSSH:
+		if isH3C(p.platform) {
+			return []byte{CharCTRLE, CharCTRLX, '\r'}
+		}
 		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
-	case model.ProtocolK8S:
-		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
+	default:
 	}
-	return []byte{utils.CharCleanLine, CharCTRLC, '\r'}
+	return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 }
 
 /*
@@ -627,9 +649,5 @@ const (
 	CharCleanRightLine = '\x0B'
 	CharCTRLC          = '\x03'
 	CharCTRLE          = '\x05'
-)
-
-const (
-	zmodemStartEvent = "ZMODEM_START"
-	zmodemEndEvent   = "ZMODEM_END"
+	CharCTRLX          = '\x18'
 )

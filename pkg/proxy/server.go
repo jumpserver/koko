@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/auth"
+	"github.com/jumpserver/koko/pkg/zmodem"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
@@ -431,14 +432,14 @@ func (s *Server) CheckPermissionExpired(now time.Time) bool {
 	return s.expireInfo.ExpireAt < now.Unix()
 }
 
-func (s *Server) ZmodemFileTransferEvent(zinfo *ZFileInfo, status bool) {
+func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
 		operate := model.OperateDownload
-		switch zinfo.transferType {
-		case TypeUpload:
+		switch zinfo.Type() {
+		case zmodem.TypeUpload:
 			operate = model.OperateUpload
-		case TypeDownload:
+		case zmodem.TypeDownload:
 			operate = model.OperateDownload
 		}
 		item := model.FTPLog{
@@ -448,8 +449,8 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *ZFileInfo, status bool) {
 			SystemUser: s.systemUserAuthInfo.String(),
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
-			Path:       zinfo.filename,
-			DataStart:  modelCommon.NewUTCTime(zinfo.parserTime),
+			Path:       zinfo.Filename(),
+			DataStart:  modelCommon.NewUTCTime(zinfo.Time()),
 			IsSuccess:  status,
 		}
 		if err := s.jmsService.CreateFileOperationLog(item); err != nil {
@@ -458,48 +459,34 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *ZFileInfo, status bool) {
 	}
 }
 
-func (s *Server) GetFilterParser() ParseEngine {
-	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolSSH,
-		srvconn.ProtocolTELNET, srvconn.ProtocolK8s:
-		var (
-			enableUpload   bool
-			enableDownload bool
-		)
-		if s.permActions != nil {
-			if s.permActions.EnableDownload() {
-				enableDownload = true
-			}
-			if s.permActions.EnableUpload() {
-				enableUpload = true
-			}
+func (s *Server) GetFilterParser() *Parser {
+	var (
+		enableUpload   bool
+		enableDownload bool
+	)
+	if s.permActions != nil {
+		if s.permActions.EnableDownload() {
+			enableDownload = true
 		}
-		var zParser ZmodemParser
-		zParser.setStatus(ZParserStatusNone)
-		zParser.fileEventCallback = s.ZmodemFileTransferEvent
-		shellParser := Parser{
-			id:             s.ID,
-			protocolType:   s.connOpts.ProtocolType,
-			jmsService:     s.jmsService,
-			cmdFilterRules: s.filterRules,
-			permAction:     s.permActions,
-			enableDownload: enableDownload,
-			enableUpload:   enableUpload,
-			zmodemParser:   &zParser,
-			i18nLang:       s.connOpts.i18nLang,
+		if s.permActions.EnableUpload() {
+			enableUpload = true
 		}
-		shellParser.initial()
-		return &shellParser
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
-		dbParser := DBParser{
-			id:             s.ID,
-			cmdFilterRules: s.filterRules,
-			i18nLang:       s.connOpts.i18nLang,
-		}
-		dbParser.initial()
-		return &dbParser
 	}
-	return nil
+	zParser := zmodem.New()
+	zParser.FileEventCallback = s.ZmodemFileTransferEvent
+	parser := Parser{
+		id:             s.ID,
+		protocolType:   s.connOpts.ProtocolType,
+		jmsService:     s.jmsService,
+		cmdFilterRules: s.filterRules,
+		enableDownload: enableDownload,
+		enableUpload:   enableUpload,
+		zmodemParser:   zParser,
+		i18nLang:       s.connOpts.i18nLang,
+		platform:       s.platform,
+	}
+	parser.initial()
+	return &parser
 }
 
 func (s *Server) GetReplayRecorder() *ReplyRecorder {
@@ -544,6 +531,9 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
 		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
 		server = s.connOpts.app.Name
+		if s.connOpts.k8sContainer != nil {
+			server = s.connOpts.k8sContainer.K8sName(server)
+		}
 		orgID = s.connOpts.app.OrgID
 	}
 	return &model.Command{
@@ -673,7 +663,7 @@ func (s *Server) checkReuseSSHClient() bool {
 func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	lang := s.connOpts.getLang()
 	keyId := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
-		s.connOpts.systemUser.ID, s.systemUserAuthInfo.Username)
+		s.connOpts.systemUser.ID, s.connOpts.asset.IP, s.systemUserAuthInfo.Username)
 	sshClient, ok := srvconn.GetClientFromCache(keyId)
 	if !ok {
 		return nil, ok
@@ -847,7 +837,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		loginSystemUser = s.suFromSystemUserAuthInfo
 	}
 	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, loginSystemUser.ID,
-		loginSystemUser.Username)
+		s.connOpts.asset.IP, loginSystemUser.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(loginSystemUser.Username))
