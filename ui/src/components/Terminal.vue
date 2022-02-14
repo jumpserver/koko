@@ -38,6 +38,10 @@ const zmodemStart = 'ZMODEM_START'
 const zmodemEnd = 'ZMODEM_END'
 const MAX_TRANSFER_SIZE = 1024 * 1024 * 500 // 默认最大上传下载500M
 // const MAX_TRANSFER_SIZE = 1024 * 1024  // 测试 上传下载最大size 1M
+
+const AsciiDel = 127
+const AsciiBackspace = 8
+
 export default {
   name: "Terminal",
   props: {
@@ -195,6 +199,7 @@ export default {
         }
         this.lastSendTime = new Date();
         this.$log.debug("term on data event")
+        data = this.preprocessInput(data)
         this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', data));
       });
 
@@ -382,24 +387,28 @@ export default {
     loadLunaConfig() {
       let config = {};
       let fontSize = 14;
-      let quickPaste = "0"
+      let quickPaste = "0";
+      let backspaceAsCrtlH = "0";
       // localStorage.getItem default null
       let localSettings = localStorage.getItem('LunaSetting')
       if (localSettings !== null) {
         let settings = JSON.parse(localSettings)
         fontSize = settings['fontSize']
         quickPaste = settings['quickPaste']
+        backspaceAsCrtlH = settings['backspaceAsCrtlH']
       }
       if (!fontSize || fontSize < 5 || fontSize > 50) {
         fontSize = 13;
       }
       config['fontSize'] = fontSize;
       config['quickPaste'] = quickPaste;
+      config['backspaceAsCrtlH'] = backspaceAsCrtlH;
       return config
     },
 
     loadConfig() {
       const config = this.loadLunaConfig();
+      console.log(config)
       const ua = navigator.userAgent.toLowerCase();
       let lineHeight = 1;
       if (ua.indexOf('windows') !== -1) {
@@ -537,6 +546,15 @@ export default {
         const msg = this.message(this.terminalId, type, JSON.stringify(data))
         this.ws.send(msg)
       }
+    },
+
+    preprocessInput(data) {
+      if (this.config.backspaceAsCrtlH === "1") {
+        if (data.charCodeAt(0) === AsciiDel) {
+          data = String.fromCharCode(AsciiBackspace)
+        }
+      }
+      return data
     }
   }
 }
