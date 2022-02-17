@@ -2,6 +2,7 @@ package model
 
 import (
 	"regexp"
+	"regexp/syntax"
 	"sort"
 )
 
@@ -18,13 +19,14 @@ const (
 )
 
 type SystemUserFilterRule struct {
-	ID        string     `json:"id"`
-	Priority  int        `json:"priority"`
-	Type      string     `json:"type"`
-	Content   string     `json:"content"`
-	Action    RuleAction `json:"action"`
-	OrgId     string     `json:"org_id"`
-	RePattern string     `json:"pattern"` // 已经处理过的正则字符
+	ID         string     `json:"id"`
+	Priority   int        `json:"priority"`
+	Type       string     `json:"type"`
+	Content    string     `json:"content"`
+	Action     RuleAction `json:"action"`
+	OrgId      string     `json:"org_id"`
+	RePattern  string     `json:"pattern"` // 已经处理过的正则字符
+	IgnoreCase bool       `json:"ignore_case"`
 
 	pattern  *regexp.Regexp
 	compiled bool
@@ -34,8 +36,15 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 	if sf.compiled {
 		return sf.pattern
 	}
-
-	pattern, err := regexp.Compile(sf.RePattern)
+	syntaxFlag := syntax.Perl
+	if sf.IgnoreCase {
+		syntaxFlag = syntax.Perl | syntax.FoldCase
+	}
+	syntaxReg, err := syntax.Parse(sf.RePattern, syntaxFlag)
+	if err != nil {
+		return nil
+	}
+	pattern, err := regexp.Compile(syntaxReg.String())
 	if err == nil {
 		sf.pattern = pattern
 		sf.compiled = true
