@@ -121,7 +121,7 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 			opts.systemUser.Username,
 			opts.asset.IP)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis:
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		title = fmt.Sprintf("%s://%s@%s",
 			opts.ProtocolType,
 			opts.systemUser.Username,
@@ -141,7 +141,8 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
 		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), opts.app)
 	case srvconn.ProtocolK8s:
 		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
@@ -190,8 +191,9 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			connOpts.ProtocolType, err)
 		var errMsg string
 		switch {
-		case errors.Is(err, srvconn.ErrMySQLClient), errors.Is(err, srvconn.ErrRedisClient),
-			errors.Is(err, srvconn.ErrKubectlClient), errors.Is(err, srvconn.ErrSQLServerClient):
+		case errors.Is(err, srvconn.ErrMySQLClient), errors.Is(err, srvconn.ErrSQLServerClient),
+			errors.Is(err, srvconn.ErrRedisClient), errors.Is(err, srvconn.ErrMongoDBClient),
+			errors.Is(err, srvconn.ErrKubectlClient):
 			errMsg = lang.T("%s protocol client not installed.")
 			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
 			err = fmt.Errorf("%w: %s", ErrMissClient, err)
@@ -240,8 +242,8 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	)
 
 	switch connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
-		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
 		authInfo, err := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
 			connOpts.user.ID, connOpts.user.Username)
 		if err != nil {
@@ -528,8 +530,8 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		server = s.connOpts.asset.String()
 		orgID = s.connOpts.asset.OrgID
 
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
-		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
 		server = s.connOpts.app.Name
 		if s.connOpts.k8sContainer != nil {
 			server = s.connOpts.k8sContainer.K8sName(server)
@@ -601,7 +603,7 @@ func (s *Server) checkRequiredAuth() error {
 			return errors.New("no auth token")
 		}
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET,
-		srvconn.ProtocolSQLServer:
+		srvconn.ProtocolSQLServer, srvconn.ProtocolMongoDB:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -709,7 +711,8 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			dstIP:   dstHost,
 			dstPort: dstPort,
 		}
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		dGateway = &domainGateway{
 			domain:  domain,
 			dstIP:   s.connOpts.app.Attrs.Host,
@@ -797,6 +800,27 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		port = localTunnelAddr.Port
 	}
 	srvConn, err = srvconn.NewRedisConnection(
+		srvconn.SqlHost(host),
+		srvconn.SqlPort(port),
+		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
+		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
+		srvconn.SqlPtyWin(srvconn.Windows{
+			Width:  s.UserConn.Pty().Window.Width,
+			Height: s.UserConn.Pty().Window.Height,
+		}),
+	)
+	return
+}
+
+func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MongoDBConn, err error) {
+	host := s.connOpts.app.Attrs.Host
+	port := s.connOpts.app.Attrs.Port
+	if localTunnelAddr != nil {
+		host = "127.0.0.1"
+		port = localTunnelAddr.Port
+	}
+	srvConn, err = srvconn.NewMongoDBConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
@@ -1026,10 +1050,12 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getK8sConConn(proxyAddr)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
 		return s.getMySQLConn(proxyAddr)
-	case srvconn.ProtocolRedis:
-		return s.getRedisConn(proxyAddr)
 	case srvconn.ProtocolSQLServer:
 		return s.getSQLServerConn(proxyAddr)
+	case srvconn.ProtocolRedis:
+		return s.getRedisConn(proxyAddr)
+	case srvconn.ProtocolMongoDB:
+		return s.getMongoDBConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}
@@ -1074,8 +1100,8 @@ func (s *Server) checkLoginConfirm() bool {
 		targetId   string
 	)
 	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolRedis,
-		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer:
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
 		targetType = model.AppType
 		targetId = s.connOpts.app.ID
 	default:
@@ -1139,8 +1165,8 @@ func (s *Server) Proxy() {
 	var proxyAddr *net.TCPAddr
 	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		switch s.connOpts.ProtocolType {
-		case srvconn.ProtocolMySQL, srvconn.ProtocolK8s, srvconn.ProtocolRedis,
-			srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer:
+		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
+			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
 				msg := lang.T("Start domain gateway failed %s")
