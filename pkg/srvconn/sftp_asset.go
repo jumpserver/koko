@@ -678,11 +678,11 @@ func (ad *AssetDir) CreateFTPLog(su *model.SystemUser, operate, filename string,
 		User:       ad.user.String(),
 		Hostname:   ad.detailAsset.String(),
 		OrgID:      ad.detailAsset.OrgID,
-		SystemUser: su.Name,
+		SystemUser: su.String(),
 		RemoteAddr: ad.addr,
 		Operate:    operate,
 		Path:       filename,
-		DataStart:  common.NewNowUTCTime(),
+		DateStart:  common.NewNowUTCTime(),
 		IsSuccess:  isSuccess,
 	}
 	ad.logChan <- &data
