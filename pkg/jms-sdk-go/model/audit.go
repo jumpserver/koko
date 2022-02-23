@@ -12,7 +12,7 @@ type FTPLog struct {
 	RemoteAddr string         `json:"remote_addr"`
 	Operate    string         `json:"operate"`
 	Path       string         `json:"filename"`
-	DataStart  common.UTCTime `json:"data_start"`
+	DateStart  common.UTCTime `json:"date_start"`
 	IsSuccess  bool           `json:"is_success"`
 }
 
