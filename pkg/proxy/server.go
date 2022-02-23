@@ -450,7 +450,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
 			Path:       zinfo.Filename(),
-			DataStart:  modelCommon.NewUTCTime(zinfo.Time()),
+			DateStart:  modelCommon.NewUTCTime(zinfo.Time()),
 			IsSuccess:  status,
 		}
 		if err := s.jmsService.CreateFileOperationLog(item); err != nil {
