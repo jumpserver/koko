@@ -23,29 +23,19 @@ type CommandStorage interface {
 }
 
 func NewReplayStorage(jmsService *service.JMService, conf *model.TerminalConfig) ReplayStorage {
-	cf := conf.ReplayStorage
-	tp, ok := cf["TYPE"]
-	if !ok {
-		tp = "server"
-	}
-	switch tp {
+	cfg := conf.ReplayStorage
+	switch cfg.TypeName {
 	case "azure":
-		var accountName string
-		var accountKey string
-		var containerName string
-		var endpointSuffix string
-		if value, ok := cf["ENDPOINT_SUFFIX"].(string); ok {
-			endpointSuffix = value
-		}
-		if value, ok := cf["ACCOUNT_NAME"].(string); ok {
-			accountName = value
-		}
-		if value, ok := cf["ACCOUNT_KEY"].(string); ok {
-			accountKey = value
-		}
-		if value, ok := cf["CONTAINER_NAME"].(string); ok {
-			containerName = value
-		}
+		var (
+			accountName    string
+			accountKey     string
+			containerName  string
+			endpointSuffix string
+		)
+		endpointSuffix = cfg.EndpointSuffix
+		accountName = cfg.AccountName
+		accountKey = cfg.AccountKey
+		containerName = cfg.ContainerName
 		if endpointSuffix == "" {
 			endpointSuffix = "core.chinacloudapi.cn"
 		}
@@ -56,50 +46,39 @@ func NewReplayStorage(jmsService *service.JMService, conf *model.TerminalConfig)
 			EndpointSuffix: endpointSuffix,
 		}
 	case "oss":
-		var endpoint string
-		var bucket string
-		var accessKey string
-		var secretKey string
+		var (
+			endpoint  string
+			bucket    string
+			accessKey string
+			secretKey string
+		)
 
-		if value, ok := cf["ENDPOINT"].(string); ok {
-			endpoint = value
-		}
-		if value, ok := cf["BUCKET"].(string); ok {
-			bucket = value
-		}
-		if value, ok := cf["ACCESS_KEY"].(string); ok {
-			accessKey = value
-		}
-		if value, ok := cf["SECRET_KEY"].(string); ok {
-			secretKey = value
-		}
+		endpoint = cfg.Endpoint
+		bucket = cfg.Bucket
+		accessKey = cfg.AccessKey
+		secretKey = cfg.SecretKey
+
 		return storage.OSSReplayStorage{
 			Endpoint:  endpoint,
 			Bucket:    bucket,
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 		}
-	case "s3", "swift":
-		var region string
-		var endpoint string
-		var bucket string
-		var accessKey string
-		var secretKey string
-		if value, ok := cf["BUCKET"].(string); ok {
-			bucket = value
-		}
-		if value, ok := cf["ENDPOINT"].(string); ok {
-			endpoint = value
-		}
-		if value, ok := cf["REGION"].(string); ok {
-			region = value
-		}
-		if value, ok := cf["ACCESS_KEY"].(string); ok {
-			accessKey = value
-		}
-		if value, ok := cf["SECRET_KEY"].(string); ok {
-			secretKey = value
-		}
+	case "s3", "swift", "cos":
+		var (
+			region    string
+			endpoint  string
+			bucket    string
+			accessKey string
+			secretKey string
+		)
+
+		bucket = cfg.Bucket
+		endpoint = cfg.Endpoint
+		region = cfg.Region
+		accessKey = cfg.AccessKey
+		secretKey = cfg.SecretKey
+
 		if region == "" && endpoint != "" {
 			endpointArray := strings.Split(endpoint, ".")
 			if len(endpointArray) >= 2 {
@@ -117,23 +96,18 @@ func NewReplayStorage(jmsService *service.JMService, conf *model.TerminalConfig)
 			Endpoint:  endpoint,
 		}
 	case "obs":
-		var endpoint string
-		var bucket string
-		var accessKey string
-		var secretKey string
+		var (
+			endpoint  string
+			bucket    string
+			accessKey string
+			secretKey string
+		)
 
-		if value, ok := cf["ENDPOINT"].(string); ok {
-			endpoint = value
-		}
-		if value, ok := cf["BUCKET"].(string); ok {
-			bucket = value
-		}
-		if value, ok := cf["ACCESS_KEY"].(string); ok {
-			accessKey = value
-		}
-		if value, ok := cf["SECRET_KEY"].(string); ok {
-			secretKey = value
-		}
+		endpoint = cfg.Endpoint
+		bucket = cfg.Bucket
+		accessKey = cfg.AccessKey
+		secretKey = cfg.SecretKey
+
 		return storage.OBSReplayStorage{
 			Endpoint:  endpoint,
 			Bucket:    bucket,
