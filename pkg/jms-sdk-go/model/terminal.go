@@ -6,7 +6,7 @@ type TerminalConfig struct {
 	HeaderTitle         string                 `json:"TERMINAL_HEADER_TITLE"`
 	PasswordAuth        bool                   `json:"TERMINAL_PASSWORD_AUTH"`
 	PublicKeyAuth       bool                   `json:"TERMINAL_PUBLIC_KEY_AUTH"`
-	ReplayStorage       map[string]interface{} `json:"TERMINAL_REPLAY_STORAGE"`
+	ReplayStorage       ReplayConfig           `json:"TERMINAL_REPLAY_STORAGE"`
 	CommandStorage      map[string]interface{} `json:"TERMINAL_COMMAND_STORAGE"`
 	SessionKeepDuration int                    `json:"TERMINAL_SESSION_KEEP_DURATION"`
 	TelnetRegex         string                 `json:"TERMINAL_TELNET_REGEX"`
@@ -40,4 +40,30 @@ const (
 
 type TaskKwargs struct {
 	TerminatedBy string `json:"terminated_by"`
+}
+
+type ReplayConfig struct {
+	TypeName string `json:"TYPE"`
+
+	/*
+		obs oss
+	*/
+	Endpoint  string `json:"ENDPOINT,omitempty"`
+	Bucket    string `json:"BUCKET,omitempty"`
+	AccessKey string `json:"ACCESS_KEY,omitempty"`
+	SecretKey string `json:"SECRET_KEY,omitempty"`
+
+	/*
+		s3、 swift cos
+	*/
+
+	Region string `json:"REGION,omitempty"`
+
+	/*
+		azure 专属
+	*/
+	AccountName    string `json:"ACCOUNT_NAME,omitempty"`
+	AccountKey     string `json:"ACCOUNT_KEY,omitempty"`
+	EndpointSuffix string `json:"ENDPOINT_SUFFIX,omitempty"`
+	ContainerName  string `json:"CONTAINER_NAME,omitempty"`
 }
