@@ -30,8 +30,8 @@ type LoginConfirmService struct {
 
 	option *connectionConfirmOption
 
-	checkReqInfo    service.RequestInfo
-	cancelReqInfo   service.RequestInfo
+	checkReqInfo    model.ReqInfo
+	cancelReqInfo   model.ReqInfo
 	reviewers       []string
 	ticketDetailUrl string
 
@@ -55,8 +55,8 @@ func (c *LoginConfirmService) CheckIsNeedLoginConfirm() (bool, error) {
 		}
 		c.ticketId = res.TicketId
 		c.reviewers = res.Reviewers
-		c.checkReqInfo = res.CheckConfirmStatus
-		c.cancelReqInfo = res.CloseConfirm
+		c.checkReqInfo = res.CheckReq
+		c.cancelReqInfo = res.CloseReq
 		c.ticketDetailUrl = res.TicketDetailUrl
 		return res.NeedConfirm, nil
 	}
@@ -99,15 +99,15 @@ func (c *LoginConfirmService) waitConfirmFinish(ctx context.Context) Status {
 				logger.Errorf("Check confirm status err: %s", err.Error())
 				continue
 			}
-			switch statusRes.Status {
-			case approve:
+			switch statusRes.State {
+			case model.TicketOpen:
+				continue
+			case model.TicketApproved:
 				c.processor = statusRes.Processor
 				return StatusApprove
-			case reject:
+			case model.TicketRejected, model.TicketClosed:
 				c.processor = statusRes.Processor
 				return StatusReject
-			case await:
-				continue
 			default:
 				logger.Errorf("Receive unknown login confirm status %s",
 					statusRes.Status)
@@ -121,12 +121,6 @@ func (c *LoginConfirmService) cancelConfirm() {
 		logger.Errorf("Cancel confirm request err: %s", err.Error())
 	}
 }
-
-const (
-	approve = "approved"
-	reject  = "rejected"
-	await   = "await"
-)
 
 type Status int
 
