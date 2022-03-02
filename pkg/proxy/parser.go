@@ -433,8 +433,8 @@ func (p *Parser) waitCommandConfirm() {
 		return
 	}
 	lang := i18n.NewLang(p.i18nLang)
-	checkReq := resp.CheckConfirmStatus
-	cancelReq := resp.CloseConfirm
+	checkReq := resp.CheckReq
+	cancelReq := resp.CloseReq
 	detailURL := resp.TicketDetailUrl
 	reviewers := resp.Reviewers
 	msg := lang.T("Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C.")
@@ -494,28 +494,22 @@ func (p *Parser) waitCommandConfirm() {
 			logger.Errorf("Session %s: check command confirm status err: %s", p.id, err)
 			continue
 		}
-		switch statusResp.Status {
-		case approve:
+		switch statusResp.State {
+		case model.TicketOpen:
+			continue
+		case model.TicketApproved:
 			p.confirmStatus.SetAction(model.ActionAllow)
 			p.confirmStatus.SetProcessor(statusResp.Processor)
 			return
-		case reject:
+		case model.TicketRejected, model.TicketClosed:
 			p.confirmStatus.SetProcessor(statusResp.Processor)
 			p.confirmStatus.SetAction(model.ActionDeny)
 			return
-		case await:
-			continue
 		default:
 			logger.Errorf("Receive unknown command confirm status %s", statusResp.Status)
 		}
 	}
 }
-
-const (
-	approve = "approved"
-	reject  = "rejected"
-	await   = "await"
-)
 
 func (p *Parser) IsInZmodemRecvState() bool {
 	return p.zmodemParser.IsStartSession()

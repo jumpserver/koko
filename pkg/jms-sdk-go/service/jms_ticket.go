@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) SubmitCommandConfirm(sid string, ruleId string, cmd string) (res ConfirmResponse, err error) {
+func (s *JMService) SubmitCommandConfirm(sid string, ruleId string, cmd string) (res model.CommandTicketInfo, err error) {
 	data := map[string]string{
 		"session_id":         sid,
 		"cmd_filter_rule_id": ruleId,
@@ -17,7 +19,7 @@ func (s *JMService) SubmitCommandConfirm(sid string, ruleId string, cmd string) 
 }
 
 func (s *JMService) CheckIfNeedAssetLoginConfirm(userId, assetId, systemUserId,
-	sysUsername string) (res CheckAssetConfirmResponse, err error) {
+	sysUsername string) (res model.AssetLoginTicketInfo, err error) {
 	data := map[string]string{
 		"user_id":              userId,
 		"asset_id":             assetId,
@@ -34,18 +36,18 @@ func (s *JMService) CheckIfNeedAppConnectionConfirm(userID, assetID, systemUserI
 	return false, nil
 }
 
-func (s *JMService) CancelConfirmByRequestInfo(req RequestInfo) (err error) {
+func (s *JMService) CancelConfirmByRequestInfo(req model.ReqInfo) (err error) {
 	res := make(map[string]interface{})
 	err = s.sendRequestByRequestInfo(req, &res)
 	return
 }
 
-func (s *JMService) CheckConfirmStatusByRequestInfo(req RequestInfo) (res ConfirmStatusResponse, err error) {
+func (s *JMService) CheckConfirmStatusByRequestInfo(req model.ReqInfo) (res model.TicketState, err error) {
 	err = s.sendRequestByRequestInfo(req, &res)
 	return
 }
 
-func (s *JMService) sendRequestByRequestInfo(req RequestInfo, res interface{}) (err error) {
+func (s *JMService) sendRequestByRequestInfo(req model.ReqInfo, res interface{}) (err error) {
 	switch strings.ToUpper(req.Method) {
 	case http.MethodGet:
 		_, err = s.authClient.Get(req.URL, res)
@@ -55,31 +57,4 @@ func (s *JMService) sendRequestByRequestInfo(req RequestInfo, res interface{}) (
 		err = fmt.Errorf("unsupport method %s", req.Method)
 	}
 	return
-}
-
-type ConfirmResponse struct {
-	CheckConfirmStatus RequestInfo `json:"check_confirm_status"`
-	CloseConfirm       RequestInfo `json:"close_confirm"`
-	TicketDetailUrl    string      `json:"ticket_detail_url"`
-	Reviewers          []string    `json:"reviewers"`
-}
-
-type RequestInfo struct {
-	Method string `json:"method"`
-	URL    string `json:"url"`
-}
-
-type ConfirmStatusResponse struct {
-	Status    string `json:"status"`
-	Action    string `json:"action"`
-	Processor string `json:"processor"`
-}
-
-type CheckAssetConfirmResponse struct {
-	NeedConfirm        bool        `json:"need_confirm"`
-	CheckConfirmStatus RequestInfo `json:"check_confirm_status"`
-	CloseConfirm       RequestInfo `json:"close_confirm"`
-	TicketDetailUrl    string      `json:"ticket_detail_url"`
-	Reviewers          []string    `json:"reviewers"`
-	TicketId           string      `json:"ticket_id"`
 }
