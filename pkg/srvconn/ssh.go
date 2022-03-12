@@ -32,21 +32,6 @@ type SSHClientOptions struct {
 
 func (cfg *SSHClientOptions) AuthMethods() []gossh.AuthMethod {
 	authMethods := make([]gossh.AuthMethod, 0, 3)
-	if cfg.Password != "" {
-		authMethods = append(authMethods, gossh.Password(cfg.Password))
-	}
-	if cfg.keyboardAuth != nil{
-		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
-	}
-	if cfg.keyboardAuth == nil && cfg.Password != ""{
-		cfg.keyboardAuth = func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
-			if len(questions) == 0 {
-				return []string{}, nil
-			}
-			return []string{cfg.Password}, nil
-		}
-		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
-	}
 
 	if cfg.PrivateKey != "" {
 		var (
@@ -70,6 +55,21 @@ func (cfg *SSHClientOptions) AuthMethods() []gossh.AuthMethod {
 	}
 	if cfg.PrivateAuth != nil {
 		authMethods = append(authMethods, gossh.PublicKeys(cfg.PrivateAuth))
+	}
+	if cfg.Password != "" {
+		authMethods = append(authMethods, gossh.Password(cfg.Password))
+	}
+	if cfg.keyboardAuth != nil {
+		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
+	}
+	if cfg.keyboardAuth == nil && cfg.Password != "" {
+		cfg.keyboardAuth = func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+			if len(questions) == 0 {
+				return []string{}, nil
+			}
+			return []string{cfg.Password}, nil
+		}
+		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
 	}
 
 	return authMethods
