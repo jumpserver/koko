@@ -21,10 +21,19 @@ ENV TARGETARCH=$TARGETARCH
 ENV GO111MODULE=on
 ENV GOOS=linux
 
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+    && apk update \
+    && apk add git
+
+RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
+    && tar -xzf kubectl.tar.gz \
+    && chmod +x kubectl \
+    && mv kubectl rawkubectl \
+    && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
+    && tar -xzvf kubectl_aliases.tar.gz
+
 COPY . .
-RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz && tar -xzf kubectl.tar.gz \
-    && chmod +x kubectl && mv kubectl rawkubectl
-RUN wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz && tar -xzvf kubectl_aliases.tar.gz
+
 RUN cd utils && sh -ixeu build.sh
 
 FROM debian:bullseye-slim
