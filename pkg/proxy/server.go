@@ -42,6 +42,12 @@ type ConnectionOptions struct {
 	app *model.Application
 
 	k8sContainer *ContainerInfo
+
+	params *ConnectionParams
+}
+
+type ConnectionParams struct {
+	DisableMySQLAutoHash bool
 }
 
 type ContainerInfo struct {
@@ -102,6 +108,11 @@ func ConnectApp(app *model.Application) ConnectionOption {
 func ConnectContainer(info *ContainerInfo) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.k8sContainer = info
+	}
+}
+func ConnectParams(params *ConnectionParams) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.params = params
 	}
 }
 
@@ -778,17 +789,20 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
-	srvConn, err = srvconn.NewMySQLConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
-		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
-		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
-	)
+	mysqlOpts := make([]srvconn.SqlOption, 0, 7)
+	mysqlOpts = append(mysqlOpts, srvconn.SqlHost(host))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlPort(port))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.systemUserAuthInfo.Username))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.systemUserAuthInfo.Password))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(s.connOpts.app.Attrs.Database))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlPtyWin(srvconn.Windows{
+		Width:  s.UserConn.Pty().Window.Width,
+		Height: s.UserConn.Pty().Window.Height,
+	}))
+	if s.connOpts.params != nil && s.connOpts.params.DisableMySQLAutoHash {
+		mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
+	}
+	srvConn, err = srvconn.NewMySQLConnection(mysqlOpts...)
 	return
 }
 

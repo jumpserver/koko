@@ -30,7 +30,7 @@ type tty struct {
 	initialed  bool
 	wg         sync.WaitGroup
 	systemUser *model.SystemUser
-	assetApp   *model.Asset
+	asset      *model.Asset
 
 	app *model.Application
 
@@ -273,7 +273,7 @@ func (h *tty) getTargetApp(protocol string) bool {
 			return false
 		}
 		if asset.ID != "" {
-			h.assetApp = &asset
+			h.asset = &asset
 			return true
 		}
 	}
@@ -295,6 +295,17 @@ func (h *tty) getk8sContainerInfo() *proxy.ContainerInfo {
 	return &info
 }
 
+func (h *tty) getConnectionParams() *proxy.ConnectionParams {
+	disableauthhash := h.extraParams.Get("disableauthhash")
+	if disableauthhash == "" {
+		return nil
+	}
+	params := proxy.ConnectionParams{
+		DisableMySQLAutoHash: true,
+	}
+	return &params
+}
+
 func (h *tty) proxy(wg *sync.WaitGroup) {
 	defer wg.Done()
 	switch h.targetType {
@@ -311,6 +322,9 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))
 		}
+		if params := h.getConnectionParams(); params != nil {
+			proxyOpts = append(proxyOpts, proxy.ConnectParams(params))
+		}
 		switch h.systemUser.Protocol {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 			srvconn.ProtocolSQLServer,
@@ -322,7 +336,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 				proxyOpts = append(proxyOpts, proxy.ConnectContainer(info))
 			}
 		default:
-			proxyOpts = append(proxyOpts, proxy.ConnectAsset(h.assetApp))
+			proxyOpts = append(proxyOpts, proxy.ConnectAsset(h.asset))
 		}
 		srv, err := proxy.NewServer(h.backendClient, h.jmsService, proxyOpts...)
 		if err != nil {
