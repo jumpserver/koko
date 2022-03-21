@@ -42,7 +42,7 @@ export HOME=/nonexistent
 export TMPDIR=/nonexistent
 export LANG=en_US.UTF-8
 export TERM=xterm
-exec su -s /bin/bash --command="mysql --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
+exec su -s /bin/bash --command="mysql ${EXTRAARGS} --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
 `
 
 var mysqlOnce sync.Once
@@ -191,26 +191,37 @@ type sqlOption struct {
 	Host     string
 	Port     int
 
-	win Windows
+	win                    Windows
+	disableMySQLAutoRehash bool
 }
 
 func (opt *sqlOption) CommandArgs() []string {
-	return []string{
-		fmt.Sprintf("--user=%s", opt.Username),
-		fmt.Sprintf("--host=%s", opt.Host),
-		fmt.Sprintf("--port=%d", opt.Port),
-		"--password",
-		opt.DBName,
+	args := make([]string, 0, 6)
+	authRehashFlag := "--auto-rehash"
+	if opt.disableMySQLAutoRehash {
+		authRehashFlag = "--no-auto-rehash"
 	}
+	args = append(args, authRehashFlag)
+	args = append(args, fmt.Sprintf("--user=%s", opt.Username))
+	args = append(args, fmt.Sprintf("--host=%s", opt.Host))
+	args = append(args, fmt.Sprintf("--port=%d", opt.Port))
+	args = append(args, "--password")
+	args = append(args, opt.DBName)
+	return args
 }
 
 func (opt *sqlOption) Envs() []string {
-	return []string{
-		fmt.Sprintf("USERNAME=%s", opt.Username),
-		fmt.Sprintf("HOSTNAME=%s", opt.Host),
-		fmt.Sprintf("PORT=%d", opt.Port),
-		fmt.Sprintf("DATABASE=%s", opt.DBName),
+	extraArgs := "--auto-rehash"
+	if opt.disableMySQLAutoRehash {
+		extraArgs = "--no-auto-rehash"
 	}
+	envs := make([]string, 0, 6)
+	envs = append(envs, fmt.Sprintf("USERNAME=%s", opt.Username))
+	envs = append(envs, fmt.Sprintf("HOSTNAME=%s", opt.Host))
+	envs = append(envs, fmt.Sprintf("PORT=%d", opt.Port))
+	envs = append(envs, fmt.Sprintf("DATABASE=%s", opt.DBName))
+	envs = append(envs, fmt.Sprintf("EXTRAARGS=%s", extraArgs))
+	return envs
 }
 
 func (opt *sqlOption) DataSourceName() string {
@@ -259,6 +270,12 @@ func SqlPort(port int) SqlOption {
 func SqlPtyWin(win Windows) SqlOption {
 	return func(args *sqlOption) {
 		args.win = win
+	}
+}
+
+func MySQLDisableAutoReHash() SqlOption {
+	return func(args *sqlOption) {
+		args.disableMySQLAutoRehash = true
 	}
 }
 
