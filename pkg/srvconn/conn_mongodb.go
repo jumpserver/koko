@@ -100,7 +100,8 @@ func (opt *sqlOption) MongoDBCommandArgs() []string {
 }
 
 func checkMongoDBAccount(args *sqlOption) error {
-	addr := fmt.Sprintf("mongodb://%s:%s", args.Host, strconv.Itoa(args.Port))
+	addr := fmt.Sprintf("mongodb://%s:%s@%s:%s", args.Username, args.Password, args.Host, strconv.Itoa(args.Port))
+
 	clientOptions := options.Client().ApplyURI(addr)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
