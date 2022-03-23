@@ -30,7 +30,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
 	go.mongodb.org/mongo-driver v1.8.3
-	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa
+	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
 	golang.org/x/text v0.3.7
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/twindagger/httpsig.v1 v1.2.0
@@ -111,6 +111,6 @@ require (
 )
 
 replace (
-	github.com/gliderlabs/ssh v0.3.3 => github.com/LeeEirc/ssh v0.1.2-0.20211112094038-5ebcf34caaf1
-	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa => github.com/LeeEirc/crypto v0.0.0-20211112090926-652515632c44
+	github.com/gliderlabs/ssh v0.3.3 => github.com/LeeEirc/ssh v0.1.2-0.20220323091501-23b956e1e5a8
+	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064 => github.com/LeeEirc/crypto v0.0.0-20220323080723-e1953f456d73
 )
