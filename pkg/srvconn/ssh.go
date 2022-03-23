@@ -163,15 +163,11 @@ func getAvailableProxyClient(cfgs ...SSHClientOptions) (*SSHClient, error) {
 
 func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 	gosshCfg := gossh.ClientConfig{
-		User:              cfg.Username,
-		Auth:              cfg.AuthMethods(),
-		Timeout:           time.Duration(cfg.Timeout) * time.Second,
-		HostKeyCallback:   gossh.InsecureIgnoreHostKey(),
-		HostKeyAlgorithms: supportedHostKeyAlgos,
-		Config: gossh.Config{
-			KeyExchanges: supportedKexAlgos,
-			Ciphers:      supportedCiphers,
-		},
+		User:            cfg.Username,
+		Auth:            cfg.AuthMethods(),
+		Timeout:         time.Duration(cfg.Timeout) * time.Second,
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+		Config:          createSSHConfig(),
 	}
 	destAddr := net.JoinHostPort(cfg.Host, cfg.Port)
 	if len(cfg.proxySSHClientOptions) > 0 {
@@ -258,27 +254,21 @@ func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
 	logger.Infof("SSHClient(%s) release one session remain %d", s, len(s.traceSessionMap))
 }
 
+func createSSHConfig() gossh.Config {
+	var cfg gossh.Config
+	cfg.SetDefaults()
+	cfg.Ciphers = append(cfg.Ciphers, notRecommendCiphers...)
+	cfg.KeyExchanges = append(cfg.KeyExchanges, notRecommandKeyExchanges...)
+	return cfg
+}
+
 var (
-	supportedCiphers = []string{
-		"aes128-ctr", "aes192-ctr", "aes256-ctr",
-		"aes128-gcm@openssh.com",
-		"chacha20-poly1305@openssh.com",
+	notRecommendCiphers = []string{
 		"arcfour256", "arcfour128", "arcfour",
-		"aes128-cbc",
-		"3des-cbc"}
+		"aes128-cbc", "3des-cbc",
+	}
 
-	supportedKexAlgos = []string{
+	notRecommandKeyExchanges = []string{
 		"diffie-hellman-group1-sha1",
-		"diffie-hellman-group14-sha1", "ecdh-sha2-nistp256", "ecdh-sha2-nistp521",
-		"ecdh-sha2-nistp384", "curve25519-sha256@libssh.org",
-		"diffie-hellman-group-exchange-sha1", "diffie-hellman-group-exchange-sha256"}
-
-	supportedHostKeyAlgos = []string{
-		"ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com", "ecdsa-sha2-nistp256-cert-v01@openssh.com",
-		"ecdsa-sha2-nistp384-cert-v01@openssh.com", "ecdsa-sha2-nistp521-cert-v01@openssh.com",
-		"ssh-ed25519-cert-v01@openssh.com",
-		"ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521",
-		"ssh-rsa", "ssh-dss",
-		"ssh-ed25519", "sk-ssh-ed25519@openssh.com",
 	}
 )
