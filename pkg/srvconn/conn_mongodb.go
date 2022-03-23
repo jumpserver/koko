@@ -75,7 +75,7 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 		return nil, err
 	}
 	// 清除掉连接信息
-	prefix := fmt.Sprintf("mongosh mongodb://%s:%s/%s?directConnection=ture", opt.Host, strconv.Itoa(opt.Port), opt.DBName)
+	prefix := fmt.Sprintf("mongosh mongodb://%s:%s/%s?directConnection=true", opt.Host, strconv.Itoa(opt.Port), opt.DBName)
 	prompt := make([]byte, len(prefix)+7)
 	_, _ = lcmd.Read(prompt[:])
 	if opt.Password != "" {
