@@ -1,14 +1,11 @@
 package srvconn
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/jumpserver/koko/pkg/localcommand"
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/mediocregopher/radix/v3"
 )
 
@@ -76,11 +73,11 @@ func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err err
 		return nil, err
 	}
 	if opt.Password != "" {
-		lcmd, err = matchLoginPrefix(redisPrompt, lcmd)
+		lcmd, err = MatchLoginPrefix(redisPrompt, "Redis", lcmd)
 		if err != nil {
 			return lcmd, err
 		}
-		lcmd, err = doLogin(opt, lcmd)
+		lcmd, err = DoLogin(opt, lcmd, "Redis")
 		if err != nil {
 			return lcmd, err
 		}
@@ -116,40 +113,4 @@ func checkRedisAccount(args *sqlOption) error {
 	}
 	defer conn.Close()
 	return nil
-}
-
-func matchLoginPrefix(prefix string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
-	var (
-		nr  int
-		err error
-	)
-	prompt := make([]byte, len(prefix))
-	nr, err = lcmd.Read(prompt[:])
-	if err != nil {
-		_ = lcmd.Close()
-		logger.Errorf("redis local pty fd read err: %s", err)
-		return lcmd, err
-	}
-	if !bytes.Equal(prompt[:nr], []byte(prefix)) {
-		_ = lcmd.Close()
-		logger.Errorf("redis login prompt characters did not match: %s", prompt[:nr])
-		err = fmt.Errorf("redis login prompt characters did not match: %s", prompt[:nr])
-		return lcmd, err
-	}
-	return lcmd, nil
-}
-
-func doLogin(opt *sqlOption, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
-	//输入密码, 登录 redis
-	_, err := lcmd.Write([]byte(opt.Password + "\r\n"))
-	if err != nil {
-		_ = lcmd.Close()
-		logger.Errorf("Redis local pty write err: %s", err)
-		return lcmd, fmt.Errorf("redis conn err: %s", err)
-	}
-	// 清除掉输入密码后，界面上显示的星号
-	time.Sleep(time.Millisecond * 100)
-	clearPassword := make([]byte, len(opt.Password)+2)
-	_, _ = lcmd.Read(clearPassword)
-	return lcmd, nil
 }

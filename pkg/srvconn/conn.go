@@ -8,6 +8,10 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/jumpserver/koko/pkg/localcommand"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type ServerConnection interface {
@@ -30,6 +34,7 @@ const (
 	ProtocolMariadb   = "mariadb"
 	ProtocolSQLServer = "sqlserver"
 	ProtocolRedis     = "redis"
+	ProtocolMongoDB   = "mongodb"
 )
 
 var (
@@ -37,11 +42,11 @@ var (
 
 	ErrKubectlClient = errors.New("not found Kubectl client")
 
-	ErrMySQLClient = errors.New("not found MySQL client")
-
-	ErrRedisClient = errors.New("not found Redis client")
-
+	ErrMySQLClient     = errors.New("not found MySQL client")
 	ErrSQLServerClient = errors.New("not found SQLServer client")
+
+	ErrRedisClient   = errors.New("not found Redis client")
+	ErrMongoDBClient = errors.New("not found MongoDB client")
 )
 
 type supportedChecker func() error
@@ -52,8 +57,9 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolK8s:       kubectlSupported,
 	ProtocolMySQL:     mySQLSupported,
 	ProtocolMariadb:   mySQLSupported,
-	ProtocolRedis:     redisSupported,
 	ProtocolSQLServer: sqlServerSupported,
+	ProtocolRedis:     redisSupported,
+	ProtocolMongoDB:   mongoDBSupported,
 }
 
 func IsSupportedProtocol(p string) error {
@@ -111,6 +117,19 @@ func redisSupported() error {
 	return ErrRedisClient
 }
 
+func mongoDBSupported() error {
+	checkLine := "mongosh --version"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrRedisClient, err)
+	}
+	if !bytes.HasSuffix(out, []byte("command not found")) {
+		return nil
+	}
+	return ErrRedisClient
+}
+
 func sqlServerSupported() error {
 	checkLine := "tsql -C"
 	cmd := exec.Command("bash", "-c", checkLine)
@@ -122,4 +141,41 @@ func sqlServerSupported() error {
 		return nil
 	}
 	return ErrSQLServerClient
+}
+
+func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
+	var (
+		nr  int
+		err error
+	)
+	prompt := make([]byte, len(prefix))
+	nr, err = lcmd.Read(prompt[:])
+	if err != nil {
+		_ = lcmd.Close()
+		logger.Errorf("%s local pty fd read err: %s", dbType, err)
+		return lcmd, err
+	}
+	if !bytes.Equal(prompt[:nr], []byte(prefix)) {
+		_ = lcmd.Close()
+		logger.Errorf("%s login prompt characters did not match: %s", dbType, prompt[:nr])
+		err = fmt.Errorf("%s login prompt characters did not match: %s", dbType, prompt[:nr])
+		return lcmd, err
+	}
+	return lcmd, nil
+}
+
+func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*localcommand.LocalCommand, error) {
+	//输入密码, 登录数据库
+	time.Sleep(time.Millisecond * 100)
+	_, err := lcmd.Write([]byte(opt.Password + "\r\n"))
+	if err != nil {
+		_ = lcmd.Close()
+		logger.Errorf("%s local pty write err: %s", dbType, err)
+		return lcmd, fmt.Errorf("%s conn err: %s", dbType, err)
+	}
+	//清除掉输入密码后，界面上显示的星号
+	time.Sleep(time.Millisecond * 100)
+	clearPassword := make([]byte, len(opt.Password)+2)
+	_, _ = lcmd.Read(clearPassword)
+	return lcmd, nil
 }
