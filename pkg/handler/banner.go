@@ -35,7 +35,7 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 		{id: 5, instruct: "d", helpText: lang.T("display the databases that you have permission")},
 		{id: 6, instruct: "k", helpText: lang.T("display the kubernetes that you have permission")},
 		{id: 7, instruct: "r", helpText: lang.T("refresh your assets and nodes")},
-		{id: 8, instruct: "s", helpText: lang.T("Chinese-english switch")},
+		{id: 8, instruct: "s", helpText: lang.T("Chinese-English-Japanese switch")},
 		{id: 9, instruct: "h", helpText: lang.T("print help")},
 		{id: 10, instruct: "q", helpText: lang.T("exit")},
 	}

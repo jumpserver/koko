@@ -7,7 +7,7 @@ import date from './date'
 
 Vue.use(VueI18n)
 const i18n = new VueI18n({
-  locale: localStorage.lang || 'cn',
+  locale: (localStorage.lang || 'zh-hans') === 'zh-hans' ? 'cn' : localStorage.lang,
   fallbackLocale: 'en',
   silentFallbackWarn: true,
   silentTranslationWarn: true,

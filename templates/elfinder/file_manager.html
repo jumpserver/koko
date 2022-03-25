@@ -123,7 +123,9 @@
             var kokoLang = getCookieByName("django_language");
             if ( kokoLang.startsWith("en")) {
                 document.title = "File Manager"
-            }else {
+            }else if (kokoLang.startsWith("ja")) {
+                document.title = "ファイル管理"
+            } else {
                 document.title = "文件管理"
             }
 	    	var load = function () {

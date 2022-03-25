@@ -163,7 +163,7 @@ msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:38
-msgid "Chinese-english switch"
+msgid "Chinese-English-Japanese switch"
 msgstr ""
 
 #. lang.T
@@ -234,12 +234,12 @@ msgstr ""
 #. i18n.T
 #. lang.T
 #: pkg/handler/direct_handler.go:352 pkg/handler/direct_handler.go:360
-#: pkg/handler/dispatch.go:125
+#: pkg/handler/dispatch.go:128
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/dispatch.go:127
+#: pkg/handler/dispatch.go:130
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
@@ -250,10 +250,10 @@ msgstr ""
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#: pkg/handler/interactive.go:137 pkg/handler/interactive.go:149
-#: pkg/handler/interactive.go:150 pkg/handler/interactive.go:151
-#: pkg/handler/interactive.go:180 pkg/handler/interactive.go:181
-#: pkg/handler/interactive.go:234
+#: pkg/handler/interactive.go:145 pkg/handler/interactive.go:157
+#: pkg/handler/interactive.go:158 pkg/handler/interactive.go:159
+#: pkg/handler/interactive.go:188 pkg/handler/interactive.go:189
+#: pkg/handler/interactive.go:242
 msgid "Refresh done"
 msgstr ""
 
@@ -284,18 +284,7 @@ msgstr ""
 #. lang.T
 #: pkg/koko/server_ssh.go:349 pkg/koko/server_ssh.go:356
 #: pkg/koko/server_ssh.go:367 pkg/koko/server_ssh.go:374
-#: pkg/proxy/dbparser.go:131
-msgid "Command `%s` is forbidden"
-msgstr ""
-
-#. lang.T
-#: pkg/proxy/dbparser.go:132
-msgid "Command review is not currently supported"
-msgstr ""
-
-#. lang.T
-#. lang.T
-#: pkg/proxy/dbparser.go:221 pkg/proxy/login_confirm.go:21
+#: pkg/proxy/login_confirm.go:21
 msgid "validate Login confirm err: Core Api failed"
 msgstr ""
 
@@ -340,32 +329,40 @@ msgid "Cancel confirm"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:182
+#: pkg/proxy/parser.go:172
 msgid "have no permission to upload file"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:217
+#: pkg/proxy/parser.go:207
 msgid "the reviewers will confirm. continue or not [Y/n]"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
+#: pkg/proxy/parser.go:226 pkg/proxy/parser.go:232 pkg/proxy/parser.go:271
+msgid "Command review is not currently supported"
+msgstr ""
+
 #. lang.T
-#: pkg/proxy/parser.go:236 pkg/proxy/parser.go:242 pkg/proxy/parser.go:312
+#: pkg/proxy/parser.go:312
+msgid "Command `%s` is forbidden"
+msgstr ""
+
+#. lang.T
 #: pkg/proxy/parser.go:379
 msgid "have no permission to download file"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:447
+#: pkg/proxy/parser.go:440
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:455
+#: pkg/proxy/parser.go:448
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -373,58 +370,58 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:456 pkg/proxy/parser.go:457 pkg/proxy/server.go:142
+#: pkg/proxy/parser.go:449 pkg/proxy/parser.go:450 pkg/proxy/server.go:143
 msgid "Connecting to %s@%s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:144
+#: pkg/proxy/server.go:146
 msgid "Connecting to Database %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:146
+#: pkg/proxy/server.go:148
 msgid "Connecting to Kubernetes %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:148
+#: pkg/proxy/server.go:150
 msgid "Connecting to Kubernetes %s container %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:194
+#: pkg/proxy/server.go:197
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:198
+#: pkg/proxy/server.go:201
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:280
+#: pkg/proxy/server.go:283
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:345
+#: pkg/proxy/server.go:348
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:609
+#: pkg/proxy/server.go:601
 msgid "You get auth token failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:616
+#: pkg/proxy/server.go:608
 msgid "Get auth username failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:621
+#: pkg/proxy/server.go:613
 msgid "Get auth password failed"
 msgstr ""
 
@@ -432,39 +429,39 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:627 pkg/proxy/server.go:633 pkg/proxy/server.go:648
-#: pkg/proxy/server.go:698
+#: pkg/proxy/server.go:619 pkg/proxy/server.go:625 pkg/proxy/server.go:640
+#: pkg/proxy/server.go:690
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:945
+#: pkg/proxy/server.go:959
 msgid "Switched to %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1127
+#: pkg/proxy/server.go:1143
 msgid "Connect with api server failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1156
+#: pkg/proxy/server.go:1172
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1164 pkg/proxy/switch.go:236
+#: pkg/proxy/server.go:1180 pkg/proxy/switch.go:238
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/switch.go:244
+#: pkg/proxy/switch.go:246
 msgid "Permission has expired, disconnect"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/switch.go:255
+#: pkg/proxy/switch.go:257
 msgid "Terminated by admin %s"
 msgstr ""
 
