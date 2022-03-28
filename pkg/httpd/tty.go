@@ -296,8 +296,8 @@ func (h *tty) getk8sContainerInfo() *proxy.ContainerInfo {
 }
 
 func (h *tty) getConnectionParams() *proxy.ConnectionParams {
-	disableauthhash := h.extraParams.Get("disableauthhash")
-	if disableauthhash == "" {
+	disableAutoHash := h.extraParams.Get("disableautohash")
+	if disableAutoHash == "" {
 		return nil
 	}
 	params := proxy.ConnectionParams{
