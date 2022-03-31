@@ -36,6 +36,8 @@ FormatNORMAL: 使用 systemUser_username 和 asset_ip 的登录方式，即1和2
 
 FormatUUID:  使用 systemUser_uuid 和 asset_uuid 的登录方式，即3和4的方式
 
+FormatToken:  使用 JMS-{token} 的方式登陆方式
+
 */
 
 type FormatType int
@@ -43,6 +45,7 @@ type FormatType int
 const (
 	FormatNORMAL FormatType = iota
 	FormatUUID
+	FormatToken
 )
 
 type DirectOpt func(*directOpt)
@@ -54,6 +57,12 @@ type directOpt struct {
 	terminalConf     *model.TerminalConfig
 
 	formatType FormatType
+
+	tokenInfo *model.ConnectTokenInfo
+}
+
+func (d directOpt) IsTokenConnection() bool {
+	return d.formatType == FormatToken
 }
 
 func DirectTargetAsset(targetAsset string) DirectOpt {
@@ -86,6 +95,12 @@ func DirectFormatType(format FormatType) DirectOpt {
 	}
 }
 
+func DirectConnectToken(tokenInfo *model.ConnectTokenInfo) DirectOpt {
+	return func(opts *directOpt) {
+		opts.tokenInfo = tokenInfo
+	}
+}
+
 func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
 	switch opts.formatType {
 	case FormatUUID:
@@ -104,17 +119,24 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetter
 	for i := range optSetters {
 		optSetters[i](opts)
 	}
-	selectedAssets, err := selectAssetsByDirectOpt(jmsService, opts)
-	if err != nil {
-		logger.Errorf("Get direct asset failed: %s", err)
-		utils.IgnoreErrWriteString(sess, i18n.T("Core API failed"))
-		return nil, err
+	var (
+		selectedAssets []model.Asset
+		err            error
+	)
+	if !opts.IsTokenConnection() {
+		selectedAssets, err = selectAssetsByDirectOpt(jmsService, opts)
+		if err != nil {
+			logger.Errorf("Get direct asset failed: %s", err)
+			utils.IgnoreErrWriteString(sess, i18n.T("Core API failed"))
+			return nil, err
+		}
+		if len(selectedAssets) <= 0 {
+			msg := fmt.Sprintf(i18n.T("not found matched asset %s"), opts.targetAsset)
+			utils.IgnoreErrWriteString(sess, msg+"\r\n")
+			return nil, fmt.Errorf("no found matched asset: %s", opts.targetAsset)
+		}
 	}
-	if len(selectedAssets) <= 0 {
-		msg := fmt.Sprintf(i18n.T("not found matched asset %s"), opts.targetAsset)
-		utils.IgnoreErrWriteString(sess, msg+"\r\n")
-		return nil, fmt.Errorf("no found matched asset: %s", opts.targetAsset)
-	}
+
 	wrapperSess := NewWrapperSession(sess)
 	term := utils.NewTerminal(wrapperSess, "Opt> ")
 	d := &DirectHandler{
@@ -146,6 +168,10 @@ type DirectHandler struct {
 func (d *DirectHandler) Dispatch() {
 	_, winChan, _ := d.sess.Pty()
 	go d.WatchWinSizeChange(winChan)
+	if d.opts.IsTokenConnection() {
+		d.LoginConnectToken()
+		return
+	}
 	d.LoginAsset()
 }
 

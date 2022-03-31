@@ -18,7 +18,7 @@ const (
 	TypeCmd   = "command"
 )
 
-type SystemUserFilterRule struct {
+type FilterRule struct {
 	ID         string     `json:"id"`
 	Priority   int        `json:"priority"`
 	Type       string     `json:"type"`
@@ -32,7 +32,7 @@ type SystemUserFilterRule struct {
 	compiled bool
 }
 
-func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
+func (sf *FilterRule) Pattern() *regexp.Regexp {
 	if sf.compiled {
 		return sf.pattern
 	}
@@ -52,7 +52,7 @@ func (sf *SystemUserFilterRule) Pattern() *regexp.Regexp {
 	return pattern
 }
 
-func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
+func (sf *FilterRule) Match(cmd string) (RuleAction, string) {
 	pattern := sf.Pattern()
 	if pattern == nil {
 		return ActionUnknown, ""
@@ -66,7 +66,7 @@ func (sf *SystemUserFilterRule) Match(cmd string) (RuleAction, string) {
 
 var _ sort.Interface = FilterRules{}
 
-type FilterRules []SystemUserFilterRule
+type FilterRules []FilterRule
 
 func (f FilterRules) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
