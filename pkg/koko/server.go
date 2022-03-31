@@ -62,4 +62,6 @@ type vscodeReq struct {
 	reqId  string
 	user   *model.User
 	client *srvconn.SSHClient
+
+	expireInfo *model.ExpireInfo
 }

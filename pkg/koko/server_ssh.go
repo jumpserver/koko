@@ -164,6 +164,10 @@ func (s *server) SessionHandler(sess ssh.Session) {
 			if directRequest.IsUUIDString() {
 				opts = append(opts, handler.DirectFormatType(handler.FormatUUID))
 			}
+			if directRequest.IsToken() {
+				opts = append(opts, handler.DirectFormatType(handler.FormatToken))
+				opts = append(opts, handler.DirectConnectToken(directRequest.Info))
+			}
 			directSrv, err := handler.NewDirectHandler(sess, s.jmsService, opts...)
 			if err != nil {
 				logger.Errorf("User %s direct request err: %s", user.Name, err)
@@ -184,7 +188,23 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
 		return
 	}
+
 	if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
+		if directRequest.IsToken() {
+			// connection token 的方式使用 vscode 连接
+			tokenInfo := directRequest.Info
+			matchedType := tokenInfo.TypeName == model.ConnectAsset
+			matchedProtocol := tokenInfo.SystemUserAuthInfo.Protocol == model.ProtocolSSH
+			assetSupportedSSH := tokenInfo.Asset.IsSupportProtocol(model.ProtocolSSH)
+			if !matchedType || !matchedProtocol || !assetSupportedSSH {
+				msg := "not ssh asset connection token"
+				utils.IgnoreErrWriteString(sess, msg)
+				logger.Errorf("vscode failed: %s", msg)
+				return
+			}
+			s.proxyVscodeByTokenInfo(sess, tokenInfo)
+			return
+		}
 		selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
 		if err != nil {
 			logger.Error(err)
@@ -219,18 +239,21 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
+		utils.IgnoreErrWriteString(sess, "not found ctx id")
 		return
 	}
 	systemUserAuthInfo, err := s.jmsService.GetSystemUserAuthById(systemUser.ID, asset.ID,
 		user.ID, user.Username)
 	if err != nil {
 		logger.Errorf("Get system user auth failed: %s", err)
+		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
 	permInfo, err := s.jmsService.ValidateAssetConnectPermission(user.ID,
 		asset.ID, systemUser.ID)
 	if err != nil {
 		logger.Errorf("Get asset Permission info err: %s", err)
+		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
 	var domainGateways *model.Domain
@@ -238,10 +261,120 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		domainInfo, err := s.jmsService.GetDomainGateways(asset.Domain)
 		if err != nil {
 			logger.Errorf("Get system user auth failed: %s", err)
+			utils.IgnoreErrWriteString(sess, err.Error())
 			return
 		}
 		domainGateways = &domainInfo
 	}
+	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, domainGateways)
+	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
+	if err != nil {
+		logger.Errorf("Get SSH Client failed: %s", err)
+		utils.IgnoreErrWriteString(sess, err.Error())
+		return
+	}
+	defer sshClient.Close()
+	vsReq := &vscodeReq{
+		reqId:      ctxId,
+		user:       user,
+		client:     sshClient,
+		expireInfo: &permInfo,
+	}
+	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
+		utils.IgnoreErrWriteString(sess, err.Error())
+	}
+}
+
+func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.ConnectTokenInfo) {
+	ctxId, ok := sess.Context().Value(ctxID).(string)
+	if !ok {
+		logger.Error("Not found ctxID")
+		utils.IgnoreErrWriteString(sess, "not found ctx id")
+		return
+	}
+	asset := tokeInfo.Asset
+	systemUserAuthInfo := tokeInfo.SystemUserAuthInfo
+	domain := tokeInfo.Domain
+	sshAuthOpts := buildSSHClientOptions(asset, systemUserAuthInfo, domain)
+	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
+	if err != nil {
+		logger.Errorf("Get SSH Client failed: %s", err)
+		utils.IgnoreErrWriteString(sess, err.Error())
+		return
+	}
+	defer sshClient.Close()
+	perm := model.Permission{Actions: tokeInfo.Actions}
+	permInfo := model.ExpireInfo{
+		HasPermission: perm.EnableConnect(),
+		ExpireAt:      tokeInfo.ExpiredAt,
+	}
+	vsReq := &vscodeReq{
+		reqId:      ctxId,
+		user:       tokeInfo.User,
+		client:     sshClient,
+		expireInfo: &permInfo,
+	}
+	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
+		utils.IgnoreErrWriteString(sess, err.Error())
+	}
+}
+
+func (s *server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient) error {
+	goSess, err := sshClient.AcquireSession()
+	if err != nil {
+		logger.Errorf("Get SSH session failed: %s", err)
+		return err
+	}
+	defer goSess.Close()
+	defer sshClient.ReleaseSession(goSess)
+	stdOut, err := goSess.StdoutPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
+		return err
+	}
+	stdin, err := goSess.StdinPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session StdinPipe failed: %s", err)
+		return err
+	}
+	err = goSess.Shell()
+	if err != nil {
+		logger.Errorf("Get SSH session shell failed: %s", err)
+		return err
+	}
+	logger.Infof("User %s start vscode request to %s", vsReq.user, sshClient)
+
+	s.addVSCodeReq(vsReq)
+	defer s.deleteVSCodeReq(vsReq)
+	go func() {
+		_, _ = io.Copy(stdin, sess)
+		logger.Infof("User %s vscode request %s stdin end", vsReq.user, sshClient)
+	}()
+	go func() {
+		_, _ = io.Copy(sess, stdOut)
+		logger.Infof("User %s vscode request %s stdOut end", vsReq.user, sshClient)
+	}()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-sess.Context().Done():
+			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done",
+				vsReq.reqId, vsReq.user, sshClient)
+			return nil
+		case now := <-ticker.C:
+			if vsReq.expireInfo.IsExpired(now) {
+				logger.Infof("SSH conn[%s] User %s end vscode request %s as permission has expired",
+					vsReq.reqId, vsReq.user, sshClient)
+				return nil
+			}
+			logger.Debugf("SSH conn[%s] user %s vscode request still alive", vsReq.reqId, vsReq.user)
+		}
+	}
+}
+
+func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.SystemUserAuthInfo,
+	domainGateways *model.Domain) []srvconn.SSHClientOption {
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 7)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(systemUserAuthInfo.Username))
@@ -279,66 +412,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		}
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientProxyClient(proxyArgs...))
 	}
-	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
-	if err != nil {
-		logger.Errorf("Get SSH Client failed: %s", err)
-		return
-	}
-	defer sshClient.Close()
-	goSess, err := sshClient.AcquireSession()
-	if err != nil {
-		logger.Errorf("Get SSH session failed: %s", err)
-		return
-	}
-	defer goSess.Close()
-	defer sshClient.ReleaseSession(goSess)
-	stdOut, err := goSess.StdoutPipe()
-	if err != nil {
-		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
-		return
-	}
-	stdin, err := goSess.StdinPipe()
-	if err != nil {
-		logger.Errorf("Get SSH session StdinPipe failed: %s", err)
-		return
-	}
-	err = goSess.Shell()
-	if err != nil {
-		logger.Errorf("Get SSH session shell failed: %s", err)
-		return
-	}
-	logger.Infof("User %s start vscode request to %s", user, sshClient)
-	vsReq := &vscodeReq{
-		reqId:  ctxId,
-		user:   user,
-		client: sshClient,
-	}
-	s.addVSCodeReq(vsReq)
-	defer s.deleteVSCodeReq(vsReq)
-	go func() {
-		_, _ = io.Copy(stdin, sess)
-		logger.Infof("User %s vscode request %s stdin end", user, sshClient)
-	}()
-	go func() {
-		_, _ = io.Copy(sess, stdOut)
-		logger.Infof("User %s vscode request %s stdOut end", user, sshClient)
-	}()
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-sess.Context().Done():
-			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done", ctxId, user, sshClient)
-			return
-		case now := <-ticker.C:
-			if permInfo.IsExpired(now) {
-				logger.Infof("SSH conn[%s] User %s end vscode request %s as permission has expired",
-					ctxId, user, sshClient)
-				return
-			}
-			logger.Debugf("SSH conn[%s] user %s vscode request still alive", ctxId, user)
-		}
-	}
+	return sshAuthOpts
 }
 
 func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {

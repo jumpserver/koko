@@ -66,7 +66,7 @@ type Parser struct {
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
-	cmdFilterRules []model.SystemUserFilterRule
+	cmdFilterRules []model.FilterRule
 	closed         chan struct{}
 
 	confirmStatus commandConfirmStatus
@@ -410,7 +410,7 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 }
 
 // IsMatchCommandRule 判断命令是不是在过滤规则中
-func (p *Parser) IsMatchCommandRule(command string) (model.SystemUserFilterRule, string, bool) {
+func (p *Parser) IsMatchCommandRule(command string) (model.FilterRule, string, bool) {
 	for _, rule := range p.cmdFilterRules {
 		allowed, cmd := rule.Match(command)
 		switch allowed {
@@ -421,7 +421,7 @@ func (p *Parser) IsMatchCommandRule(command string) (model.SystemUserFilterRule,
 		default:
 		}
 	}
-	return model.SystemUserFilterRule{}, "", false
+	return model.FilterRule{}, "", false
 }
 
 func (p *Parser) waitCommandConfirm() {

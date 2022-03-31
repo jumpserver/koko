@@ -8,6 +8,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/sshd"
@@ -17,14 +18,23 @@ type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res sshd.Aut
 
 func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 	return func(ctx ssh.Context, password, publicKey string) (res sshd.AuthStatus) {
-		username := GetUsernameFromSSHCtx(ctx)
+		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
+		username := ctx.User()
+		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
+			if req.IsToken() && req.Authenticate(password) {
+				ctx.SetValue(ContextKeyUser, req.Info.User)
+				logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
+					actionAccepted, ctx.User(), remoteAddr)
+				return sshd.AuthSuccessful
+			}
+			username = req.User()
+		}
 		authMethod := "publickey"
 		action := actionAccepted
 		res = sshd.AuthFailed
 		if password != "" {
 			authMethod = "password"
 		}
-		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 		userAuthClient, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 		if !ok {
 			newClient := jmsService.CloneClient()
@@ -111,6 +121,7 @@ type DirectLoginAssetReq struct {
 	Username    string
 	SysUserInfo string
 	AssetInfo   string
+	Info        *model.ConnectTokenInfo
 }
 
 func (d *DirectLoginAssetReq) IsUUIDString() bool {
@@ -122,9 +133,30 @@ func (d *DirectLoginAssetReq) IsUUIDString() bool {
 	return true
 }
 
+func (d *DirectLoginAssetReq) Authenticate(password string) bool {
+	return d.Info.Secret == password
+}
+
+func (d *DirectLoginAssetReq) IsToken() bool {
+	return d.Info != nil
+}
+
+func (d *DirectLoginAssetReq) User() string {
+	if d.Info.User != nil {
+		return d.Info.User.Username
+	}
+	return d.Username
+}
+
 const (
 	SeparatorATSign   = "@"
 	SeparatorHashMark = "#"
+
+	/*
+		格式为: JMS-{token}
+
+	*/
+	tokenPrefix = "JMS-"
 )
 
 func parseUserFormatBySeparator(s, Separator string) (DirectLoginAssetReq, bool) {
@@ -159,4 +191,39 @@ func GetUsernameFromSSHCtx(ctx ssh.Context) string {
 		ctx.SetValue(ContextKeyDirectLoginFormat, &req)
 	}
 	return username
+}
+
+func parseDirectLoginReq(jmsService *service.JMService, ctx ssh.Context) (*DirectLoginAssetReq, bool) {
+	if req, ok := ctx.Value(ContextKeyDirectLoginFormat).(*DirectLoginAssetReq); ok {
+		return req, true
+	}
+	if req, ok := parseJMSTokenLoginReq(jmsService, ctx); ok {
+		ctx.SetValue(ContextKeyDirectLoginFormat, req)
+		return req, true
+	}
+	if req, ok := parseUsernameFormatReq(ctx); ok {
+		ctx.SetValue(ContextKeyDirectLoginFormat, req)
+		return req, true
+	}
+	return nil, false
+}
+
+func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*DirectLoginAssetReq, bool) {
+	if strings.HasPrefix(ctx.User(), tokenPrefix) {
+		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
+		if resp, err := jmsService.GetConnectTokenAuth(token); err == nil {
+			req := DirectLoginAssetReq{Info: &resp.Info}
+			return &req, true
+		} else {
+			logger.Errorf("Check user token %s failed: %s", ctx.User(), err)
+		}
+	}
+	return nil, false
+}
+
+func parseUsernameFormatReq(ctx ssh.Context) (*DirectLoginAssetReq, bool) {
+	if req, ok := ParseDirectUserFormat(ctx.User()); ok {
+		return &req, true
+	}
+	return nil, false
 }
