@@ -138,16 +138,16 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		if sysUserAuthInfo == nil {
 			authInfo, err2 := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
 				connOpts.user.ID, connOpts.user.Username)
-			if err2 == nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+			if err2 != nil {
+				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 			}
 			sysUserAuthInfo = &authInfo
 		}
 
 		if domainGateways == nil && connOpts.app.Domain != "" {
-			domain, err := jmsService.GetDomainGateways(connOpts.app.Domain)
-			if err != nil {
-				return nil, err
+			domain, err2 := jmsService.GetDomainGateways(connOpts.app.Domain)
+			if err2 != nil {
+				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 			}
 			domainGateways = &domain
 		}
@@ -183,7 +183,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			authInfo, err2 := jmsService.GetSystemUserAuthById(connOpts.systemUser.ID, connOpts.asset.ID,
 				connOpts.user.ID, connOpts.user.Username)
 			if err2 != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 			}
 			sysUserAuthInfo = &authInfo
 		}
@@ -193,14 +193,14 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			suAuthInfo, err2 := jmsService.GetSystemUserAuthById(suSystemUserId, assetId,
 				connOpts.user.ID, connOpts.user.Username)
 			if err2 != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 			}
 			suSysUserAuthInfo = &suAuthInfo
 		}
 		if domainGateways == nil && connOpts.asset.Domain != "" {
 			domain, err2 := jmsService.GetDomainGateways(connOpts.asset.Domain)
 			if err2 != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 			}
 			domainGateways = &domain
 		}
