@@ -2,13 +2,15 @@ package srvconn
 
 import (
 	"context"
-	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"strconv"
 
-	"github.com/jumpserver/koko/pkg/localcommand"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/jumpserver/koko/pkg/localcommand"
 )
 
 const (
@@ -74,10 +76,6 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 	if err != nil {
 		return nil, err
 	}
-	// 清除掉连接信息
-	prefix := fmt.Sprintf("mongosh mongodb://%s:%s/%s?directConnection=true", opt.Host, strconv.Itoa(opt.Port), opt.DBName)
-	prompt := make([]byte, len(prefix)+7)
-	_, _ = lcmd.Read(prompt[:])
 	if opt.Password != "" {
 		lcmd, err = MatchLoginPrefix(mongodbPrompt, "MongoDB", lcmd)
 		if err != nil {
@@ -92,26 +90,79 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 }
 
 func (opt *sqlOption) MongoDBCommandArgs() []string {
-	attr := fmt.Sprintf("mongodb://%s:%s/%s", opt.Host, strconv.Itoa(opt.Port), opt.DBName)
+	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
+	uri := BuildMongoDBURI(
+		MongoHost(host),
+		MongoDBName(opt.DBName),
+	)
 	params := []string{
-		attr, "--username", opt.Username,
+		uri, "--username", opt.Username,
 	}
 	return params
 }
 
 func checkMongoDBAccount(args *sqlOption) error {
-	addr := fmt.Sprintf("mongodb://%s:%s@%s:%s", args.Username, args.Password, args.Host, strconv.Itoa(args.Port))
-
-	clientOptions := options.Client().ApplyURI(addr)
+	host := net.JoinHostPort(args.Host, strconv.Itoa(args.Port))
+	uri := BuildMongoDBURI(
+		MongoHost(host),
+		MongoAuth(args.Username, args.Password),
+		MongoDBName(args.DBName),
+	)
+	clientOptions := options.Client().ApplyURI(uri)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
 		return err
 	}
-	defer client.Disconnect(context.TODO())
-
+	defer func() {
+		_ = client.Disconnect(context.TODO())
+	}()
 	err = client.Ping(context.TODO(), nil)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+type MongoOpt func(*url.URL)
+
+func BuildMongoDBURI(opts ...MongoOpt) string {
+	var mongoURI url.URL
+	mongoURI.Scheme = "mongodb"
+	for _, setter := range opts {
+		setter(&mongoURI)
+	}
+	return mongoURI.String()
+}
+
+func MongoHost(host string) MongoOpt {
+	return func(u *url.URL) {
+		u.Host = host
+	}
+}
+
+func MongoAuth(user, password string) MongoOpt {
+	return func(u *url.URL) {
+		if user == "" || password == "" {
+			return
+		}
+		u.User = url.UserPassword(user, password)
+	}
+}
+
+func MongoDBName(dbName string) MongoOpt {
+	return func(u *url.URL) {
+		u.Path = dbName
+	}
+}
+
+func MongoParams(params ...map[string]string) MongoOpt {
+	return func(u *url.URL) {
+		values := url.Values{}
+		for i := range params {
+			for k, v := range params[i] {
+				values.Set(k, v)
+			}
+		}
+		u.RawQuery = values.Encode()
+	}
 }

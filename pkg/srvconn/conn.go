@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -149,18 +150,36 @@ func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalComm
 		err error
 	)
 	prompt := make([]byte, len(prefix))
-	nr, err = lcmd.Read(prompt[:])
-	if err != nil {
-		_ = lcmd.Close()
-		logger.Errorf("%s local pty fd read err: %s", dbType, err)
-		return lcmd, err
+	var buf strings.Builder
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = lcmd.Close()
+			logger.Errorf("%s login prompt characters matched timeout and closed", dbType)
+			return
+		case <-done:
+			return
+		}
+	}()
+
+	for {
+		nr, err = lcmd.Read(prompt[:])
+		if err != nil {
+			_ = lcmd.Close()
+			logger.Errorf("%s login prompt characters did not match: %s", dbType, buf.String())
+			err = fmt.Errorf("%s login prompt characters did not match: %s", dbType, buf.String())
+			return lcmd, err
+		}
+		buf.Write(bytes.TrimSpace(prompt[:nr]))
+		if strings.Contains(buf.String(), prefix) {
+			logger.Debugf("%s login prompt characters matched %s", dbType, buf.String())
+			break
+		}
 	}
-	if !bytes.Equal(prompt[:nr], []byte(prefix)) {
-		_ = lcmd.Close()
-		logger.Errorf("%s login prompt characters did not match: %s", dbType, prompt[:nr])
-		err = fmt.Errorf("%s login prompt characters did not match: %s", dbType, prompt[:nr])
-		return lcmd, err
-	}
+	close(done)
 	return lcmd, nil
 }
 
