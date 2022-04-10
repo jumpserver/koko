@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"fmt"
+	"github.com/jumpserver/koko/pkg/logger"
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -164,6 +166,21 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 		}
 	case "null":
 		return storage.NewNullStorage()
+	case "influxdb":
+		var influxdbConf storage.InfluxdbClientConf
+		if influxdbConfInterface, ok := cf["INFLUXDB"]; !ok {
+			errMsg := fmt.Sprint("Get influxdb conf failed.")
+			logger.Error(errMsg)
+		} else {
+			influxdbConf = influxdbConfInterface.(storage.InfluxdbClientConf)
+		}
+		if err := influxdbConf.Validate(); err == nil {
+			return storage.InfluxdbCommandStorage{
+				InfluxdbClientConf: influxdbConf,
+				Client: storage.NewInfluxdbClient(influxdbConf.ServerURL, influxdbConf.AuthToken),
+			}
+		}
+		fallthrough
 	default:
 		return storage.ServerStorage{StorageType: "server", JmsService: jmsService}
 	}
