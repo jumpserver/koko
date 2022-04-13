@@ -1,0 +1,36 @@
+{
+  "Terminal": {
+    "UploadSuccess": "アップロード成功",
+    "MustSelectOneFile": "ファイルを選択する必要があります",
+    "MustOneFile": "ファイルを1つだけ選択できます",
+    "DownloadSuccess": "ダウンロードに成功しました",
+    "Download": "ダウンロード",
+    "Upload": "アップロード",
+    "Cancel": "キャンセル",
+    "UploadTitle": "ファイルのアップロード",
+    "UploadTips": "ファイルをここにドラッグするか、アップロードをクリックします",
+    "Share": "シェア",
+    "CopyShareURLSuccess": "レプリケーション共有住所成功",
+    "ThemeConfig": "テーマ",
+    "OnlineUsers": "オンラインスタッフ",
+    "User": "ユーザー",
+    "VerifyCode": "認証コード",
+    "LinkAddr": "リンク先",
+    "ExpiredTime": "有効期限",
+    "SelectAction": "選択してください",
+    "CreateSuccess": "作成に成功しました",
+    "CreateLink": "シェアリンクの作成",
+    "CopyLink": "リンクと認証コードのコピー",
+    "NoLink": "住所なし",
+    "ConfirmBtn": "確定",
+    "Theme": "テーマ",
+    "SelectTheme": "テーマを選択してください",
+    "ThemeColors": "テーマカラー",
+    "ExceedTransferSize": "最大転送サイズを超えています",
+    "WaitFileTransfer": "ファイル転送終了待ち",
+    "EndFileTransfer": "ファイル転送終了"
+  },
+  "Message": {
+    "InputVerifyCode": "認証コードを入力してください"
+  }
+}

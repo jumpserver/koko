@@ -16,7 +16,7 @@ const (
 type commandConfirmStatus struct {
 	Status string
 	data   string
-	Rule   model.SystemUserFilterRule
+	Rule   model.FilterRule
 	Cmd    string
 	sync.Mutex
 	wg sync.WaitGroup
@@ -58,7 +58,7 @@ func (c *commandConfirmStatus) GetProcessor() string {
 	return c.Processor
 }
 
-func (c *commandConfirmStatus) SetRule(rule model.SystemUserFilterRule) {
+func (c *commandConfirmStatus) SetRule(rule model.FilterRule) {
 	c.Lock()
 	defer c.Unlock()
 	c.Rule = rule

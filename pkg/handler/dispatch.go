@@ -116,6 +116,8 @@ func (h *InteractiveHandler) ChangeLang() {
 	case i18n.EN:
 		i18nLang = i18n.ZH.String()
 	case i18n.ZH:
+		i18nLang = i18n.JA.String()
+	case i18n.JA:
 		i18nLang = i18n.EN.String()
 	}
 	userLangGlobalStore.Store(h.user.ID, i18nLang)

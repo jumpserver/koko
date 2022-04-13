@@ -6,13 +6,13 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) GetSystemUserFilterRules(systemUserID string) (rules []model.SystemUserFilterRule, err error) {
+func (s *JMService) GetSystemUserFilterRules(systemUserID string) (rules []model.FilterRule, err error) {
 	Url := fmt.Sprintf(SystemUserCmdFilterRulesListURL, systemUserID)
 	_, err = s.authClient.Get(Url, &rules)
 	return
 }
 
-func (s *JMService) GetCommandFilterRules(userId, sysId, assetId, appId string) (rules []model.SystemUserFilterRule, err error) {
+func (s *JMService) GetCommandFilterRules(userId, sysId, assetId, appId string) (rules []model.FilterRule, err error) {
 	param := make(map[string]string)
 	if userId != "" {
 		param["user_id"] = userId

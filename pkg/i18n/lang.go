@@ -7,6 +7,7 @@ import (
 const (
 	ZH LanguageCode = "zh_CN"
 	EN LanguageCode = "en_US"
+	JA LanguageCode = "ja_JP"
 )
 
 var (
