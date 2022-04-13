@@ -22,7 +22,7 @@ Vue.use(contextmenu);
 const domain = document.domain.split('.').slice(-2).join('.');
 let isDomain = /^(\w+)\.([A-Za-z]+)$/.test(domain);
 if (isDomain) {
-    document.domain = domain;
+  document.domain = domain;
 }
 
 new Vue({
