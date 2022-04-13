@@ -408,7 +408,6 @@ export default {
 
     loadConfig() {
       const config = this.loadLunaConfig();
-      console.log(config)
       const ua = navigator.userAgent.toLowerCase();
       let lineHeight = 1;
       if (ua.indexOf('windows') !== -1) {
