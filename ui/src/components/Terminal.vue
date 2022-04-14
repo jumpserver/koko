@@ -71,6 +71,8 @@ export default {
       termSelectionText: '',
       currentUser: null,
       setting: null,
+      lunaId: null,
+      origin: null,
     }
   },
   mounted: function () {
@@ -146,12 +148,36 @@ export default {
       return term
     },
     registerJMSEvent() {
-      window.addEventListener('jmsFocus', evt => {
-        this.$log.debug("jmsFocus ", evt);
-        if (this.term) {
-          this.term.focus()
-        }
-      })
+      window.addEventListener("message", this.handleEventFromLuna, false);
+    },
+
+    handleEventFromLuna(evt) {
+      const msg = evt.data;
+      switch (msg.name) {
+        case 'PING':
+          if (this.lunaId != null) {
+            return
+          }
+          this.lunaId = msg.id;
+          this.origin = evt.origin;
+          this.sendEventToLuna('PONG', '');
+          break
+        case 'CMD':
+          this.sendDataFromWindow(msg.data)
+          break
+        case 'FOCUS':
+          if (this.term) {
+            this.term.focus()
+          }
+          break
+      }
+      console.log('KoKo got post message: ', msg)
+    },
+
+    sendEventToLuna(name, data){
+      if (this.lunaId != null) {
+       window.parent.postMessage({name: name, id: this.lunaId, data:data}, this.origin)
+      }
     },
 
     connect() {
@@ -313,7 +339,7 @@ export default {
         case "CLOSE":
           this.term.writeln("Receive Connection closed");
           this.ws.close();
-          fireEvent(new Event("CLOSE", {}))
+          this.sendEventToLuna('CLOSE', '')
           break
         case "PING":
           break
