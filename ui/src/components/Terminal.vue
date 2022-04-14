@@ -71,6 +71,9 @@ export default {
       termSelectionText: '',
       currentUser: null,
       setting: null,
+      parentWindow: null,
+      lunaId: null,
+      origin: null,
     }
   },
   mounted: function () {
@@ -146,12 +149,39 @@ export default {
       return term
     },
     registerJMSEvent() {
-      window.addEventListener('jmsFocus', evt => {
-        this.$log.debug("jmsFocus ", evt);
-        if (this.term) {
-          this.term.focus()
-        }
-      })
+      window.addEventListener("message", this.handleEventFromLuna, false);
+    },
+
+    handleEventFromLuna(evt) {
+      const msg = evt.data;
+      switch (msg.name) {
+        case 'PING':
+          if (this.lunaId != null) {
+            return
+          }
+          this.lunaId = msg.id;
+          this.parentWindow = evt.source;
+          this.origin = evt.origin;
+          this.sendEventToLuna('PONG', '');
+          break
+        case 'CMD':
+          if (this.ws) {
+            this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', msg.data))
+          }
+          break
+        case 'FOCUS':
+          if (this.term) {
+            this.term.focus()
+          }
+          break
+      }
+      console.log('Got post msg ', msg)
+    },
+
+    sendEventToLuna(name, data){
+      if (this.parentWindow) {
+       this.parentWindow.postMessage({name: name, id: this.lunaId, data:data}, this.origin)
+      }
     },
 
     connect() {
@@ -313,7 +343,7 @@ export default {
         case "CLOSE":
           this.term.writeln("Receive Connection closed");
           this.ws.close();
-          fireEvent(new Event("CLOSE", {}))
+          this.sendEventToLuna('CLOSE', '')
           break
         case "PING":
           break

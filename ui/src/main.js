@@ -18,13 +18,6 @@ Vue.use(VueLogger, loggerOptions)
 Vue.use(ElementUI)
 Vue.use(contextmenu);
 
-// 同源策略，方便与父组件事件通信
-const domain = document.domain.split('.').slice(-2).join('.');
-let isDomain = /^(\w+)\.([A-Za-z]+)$/.test(domain);
-if (isDomain) {
-  document.domain = domain;
-}
-
 new Vue({
   router,
   i18n,
