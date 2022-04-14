@@ -71,7 +71,6 @@ export default {
       termSelectionText: '',
       currentUser: null,
       setting: null,
-      parentWindow: null,
       lunaId: null,
       origin: null,
     }
@@ -160,14 +159,11 @@ export default {
             return
           }
           this.lunaId = msg.id;
-          this.parentWindow = evt.source;
           this.origin = evt.origin;
           this.sendEventToLuna('PONG', '');
           break
         case 'CMD':
-          if (this.ws) {
-            this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', msg.data))
-          }
+          this.sendDataFromWindow(msg.data)
           break
         case 'FOCUS':
           if (this.term) {
@@ -175,12 +171,12 @@ export default {
           }
           break
       }
-      console.log('Got post msg ', msg)
+      console.log('KoKo got post message: ', msg)
     },
 
     sendEventToLuna(name, data){
-      if (this.parentWindow) {
-       this.parentWindow.postMessage({name: name, id: this.lunaId, data:data}, this.origin)
+      if (this.lunaId != null) {
+       window.parent.postMessage({name: name, id: this.lunaId, data:data}, this.origin)
       }
     },
 
