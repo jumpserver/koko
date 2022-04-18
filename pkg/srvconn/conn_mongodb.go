@@ -103,10 +103,16 @@ func (opt *sqlOption) MongoDBCommandArgs() []string {
 
 func checkMongoDBAccount(args *sqlOption) error {
 	host := net.JoinHostPort(args.Host, strconv.Itoa(args.Port))
+	// todo: authSource 暂且只使用 admin， 待后续可配置后，修改这个认证的值
+	// https://www.mongodb.com/docs/manual/reference/connection-string/#mongodb-urioption-urioption.authSource
+	params := map[string]string{
+		"authSource": "admin",
+	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoAuth(args.Username, args.Password),
 		MongoDBName(args.DBName),
+		MongoParams(params),
 	)
 	clientOptions := options.Client().ApplyURI(uri)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
