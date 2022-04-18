@@ -76,8 +76,8 @@ export default {
     }
   },
   mounted: function () {
-    this.connect()
     this.registerJMSEvent()
+    this.connect()
     this.updateTheme()
   },
   methods: {
