@@ -91,9 +91,13 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 
 func (opt *sqlOption) MongoDBCommandArgs() []string {
 	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
+	authSource := map[string]string{
+		"authSource": "admin",
+	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoDBName(opt.DBName),
+		MongoParams(authSource),
 	)
 	params := []string{
 		uri, "--username", opt.Username,

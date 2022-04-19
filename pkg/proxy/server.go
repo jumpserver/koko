@@ -785,8 +785,8 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			}
 		}
 	}
-	var passwordTryCount int
 	password := loginSystemUser.Password
+	privateKey := loginSystemUser.PrivateKey
 	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
 		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
@@ -798,8 +798,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			termReader.SetPrompt(questions[i])
 			logger.Debugf("Conn[%s] keyboard auth question [ %s ]", s.UserConn.ID(), q)
 			if strings.Contains(strings.ToLower(q), "password") {
-				passwordTryCount++
-				if passwordTryCount <= 1 && password != "" {
+				if privateKey != "" || password != "" {
 					ans[i] = password
 					continue
 				}
