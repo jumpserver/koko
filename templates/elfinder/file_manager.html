@@ -25,6 +25,28 @@
         let ws = new WebSocket(wsURL, ["JMS-KOKO"]);
         let interval;
         let wsId = '';
+
+        var lunaId, origin;
+        function handleEventFromLuna(evt) {
+            let msg = evt.data;
+            switch (msg.name) {
+                case 'PING':
+                    if (lunaId != null) {
+                        return
+                    }
+                    lunaId = msg.id;
+                    origin = evt.origin;
+                    sendEventToLuna("PONG", "");
+                    break
+            }
+            console.log('KoKo elfinder got post message: ', msg);
+        }
+        function sendEventToLuna(name, data){
+            if (lunaId != null) {
+                window.parent.postMessage({name: name, id: this.lunaId, data:data}, origin);
+            }
+        }
+        window.addEventListener("message", handleEventFromLuna, false)
         ws.onopen =function (e) {
             if (interval != null){
                 clearInterval(interval)
@@ -39,10 +61,12 @@
             }, 25 * 1000);
         }
         ws.onerror = function (e) {
+            sendEventToLuna("CLOSE", "");
             alert("Connection closed")
         }
 
         ws.onclose = function(e) {
+            sendEventToLuna("CLOSE", "");
             alert("Connection closed")
         }
         ws.onmessage = function(e) {
