@@ -258,7 +258,7 @@ func createSSHConfig() gossh.Config {
 	var cfg gossh.Config
 	cfg.SetDefaults()
 	cfg.Ciphers = append(cfg.Ciphers, notRecommendCiphers...)
-	cfg.KeyExchanges = append(cfg.KeyExchanges, notRecommandKeyExchanges...)
+	cfg.KeyExchanges = append(cfg.KeyExchanges, notRecommendKeyExchanges...)
 	return cfg
 }
 
@@ -268,7 +268,8 @@ var (
 		"aes128-cbc", "3des-cbc",
 	}
 
-	notRecommandKeyExchanges = []string{
-		"diffie-hellman-group1-sha1",
+	notRecommendKeyExchanges = []string{
+		"diffie-hellman-group1-sha1", "diffie-hellman-group-exchange-sha1",
+		"diffie-hellman-group-exchange-sha256",
 	}
 )
