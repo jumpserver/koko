@@ -12,18 +12,16 @@ RUN ls . && cd ui/ && npm install -i && yarn build && ls -al .
 FROM golang:1.17-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
-ARG GOPROXY=https://goproxy.io
-ARG VERSION=Unknown
-ARG TARGETARCH
-ENV GOPROXY=$GOPROXY
-ENV VERSION=$VERSION
-ENV TARGETARCH=$TARGETARCH
-ENV GO111MODULE=on
-ENV GOOS=linux
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
     && apk update \
     && apk add git
+
+ARG GOPROXY=https://goproxy.io
+ARG TARGETARCH
+ENV TARGETARCH=$TARGETARCH
+ENV GO111MODULE=on
+ENV GOOS=linux
 
 RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
     && tar -xzf kubectl.tar.gz \
@@ -32,8 +30,11 @@ RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xzvf kubectl_aliases.tar.gz
 
+COPY go.mod go.sum ./
+RUN go mod download -x
 COPY . .
-
+ARG VERSION=Unknown
+ENV VERSION=$VERSION
 RUN cd utils && sh -ixeu build.sh
 
 FROM debian:bullseye-slim
