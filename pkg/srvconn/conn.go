@@ -36,6 +36,7 @@ const (
 	ProtocolSQLServer = "sqlserver"
 	ProtocolRedis     = "redis"
 	ProtocolMongoDB   = "mongodb"
+	ProtocolPostgreSQL   = "postgresql"
 )
 
 var (
@@ -48,6 +49,7 @@ var (
 
 	ErrRedisClient   = errors.New("not found Redis client")
 	ErrMongoDBClient = errors.New("not found MongoDB client")
+	ErrPostgreSQLClient = errors.New("not found PostgreSQL client")
 )
 
 type supportedChecker func() error
@@ -61,6 +63,7 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolSQLServer: sqlServerSupported,
 	ProtocolRedis:     redisSupported,
 	ProtocolMongoDB:   mongoDBSupported,
+	ProtocolPostgreSQL:   postgreSQLSupported,
 }
 
 func IsSupportedProtocol(p string) error {
@@ -142,6 +145,19 @@ func sqlServerSupported() error {
 		return nil
 	}
 	return ErrSQLServerClient
+}
+
+func postgreSQLSupported() error {
+	checkLine := "psql -V"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrSQLServerClient, err)
+	}
+	if bytes.HasPrefix(out, []byte("psql")) {
+		return nil
+	}
+	return ErrPostgreSQLClient
 }
 
 func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
