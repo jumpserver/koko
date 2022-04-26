@@ -1,0 +1,514 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: tr_TR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 3.0.1\n"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:55
+msgid "No kubernetes"
+msgstr "Kubernetes yok"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:68
+msgid "ID"
+msgstr "Kimlik"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:69
+msgid "Name"
+msgstr "Ad"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:70
+msgid "Cluster"
+msgstr "Küme"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:71
+msgid "Comment"
+msgstr "Yorum"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:90
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "Sayfa: %d, Sayı: %d, Toplam Sayfa: %d, Toplam Sayım: %d"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:110
+msgid ""
+"Enter ID number directly login the kubernetes, multiple search use // + "
+"field, such as: //16"
+msgstr ""
+"Kimlik numarasını girin doğrudan kubernetes'e giriş yapın, çoklu arama "
+"kullanımı // + alanı, örneğin: //16"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:111
+msgid "Page up: b\tPage down: n"
+msgstr "Sayfa yukarı: b Sayfa aşağı: n"
+
+#. lang.T
+#: pkg/handler/app_mysql.go:56
+msgid "No Databases"
+msgstr "Veritabanı yok"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/app_mysql.go:69 pkg/handler/app_mysql.go:70
+#: pkg/handler/app_mysql.go:71
+msgid "IP"
+msgstr "IP"
+
+#. lang.T
+#: pkg/handler/app_mysql.go:72
+msgid "DBType"
+msgstr "DBType"
+
+#. lang.T
+#: pkg/handler/app_mysql.go:73
+msgid "DB Name"
+msgstr "DB adı"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/app_mysql.go:74 pkg/handler/app_mysql.go:96
+#: pkg/handler/app_mysql.go:117
+msgid ""
+"Enter ID number directly login the database, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+"Kimlik numarasını girin doğrudan veritabanına giriş yapın, çoklu arama "
+"kullanımı // + alanı, örneğin: //16"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/app_mysql.go:118 pkg/handler/asset.go:56
+msgid "No Assets"
+msgstr "Varlık yok"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:85 pkg/handler/asset.go:86
+msgid "Hostname"
+msgstr "Ana Bilgisayar"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:87 pkg/handler/asset.go:88 pkg/handler/asset.go:106
+#: pkg/handler/asset.go:125
+msgid ""
+"Enter ID number directly login the asset, multiple search use // + field, "
+"such as: //16"
+msgstr ""
+"Kimlik numarasını girin, doğrudan varlığa giriş yapın, çoklu arama "
+"kullanımı // + alanı, örneğin: //16"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:126 pkg/handler/asset_node.go:24
+msgid "%s node has no assets"
+msgstr "%s düğümünde varlık yok"
+
+#. lang.T
+#: pkg/handler/banner.go:29
+msgid "Welcome to use JumpServer open source fortress system"
+msgstr "JumpServer açık kaynak kale sistemini kullanmaya hoş geldiniz"
+
+#. lang.T
+#: pkg/handler/banner.go:31
+msgid "part IP, Hostname, Comment"
+msgstr "IP Bölümü, Anabilgisayar adı, Yorum"
+
+#. lang.T
+#: pkg/handler/banner.go:31
+msgid "to search login if unique"
+msgstr "benzersiz ise giriş aramak için"
+
+#. lang.T
+#: pkg/handler/banner.go:32
+msgid "/ + IP, Hostname, Comment"
+msgstr "/ + IP, Ana Bilgisayar Adı, Yorum"
+
+#. lang.T
+#: pkg/handler/banner.go:32
+msgid "to search, such as: /192.168"
+msgstr "Arama , örn:/192.168"
+
+#. lang.T
+#: pkg/handler/banner.go:33
+msgid "display the host you have permission"
+msgstr "İzniniz var sunucuyu görüntüleyin"
+
+#. lang.T
+#: pkg/handler/banner.go:34
+msgid "display the node that you have permission"
+msgstr "İzniniz var sunucuyu görüntüleyinİzniniz var sunucuyu görüntüleyin"
+
+#. lang.T
+#: pkg/handler/banner.go:35
+msgid "display the databases that you have permission"
+msgstr "İzniniz olduğunuz veritabanlarını görüntüleyin"
+
+#. lang.T
+#: pkg/handler/banner.go:36
+msgid "display the kubernetes that you have permission"
+msgstr "İzniniz olan Kubernetes'i görüntüleyin"
+
+#. lang.T
+#: pkg/handler/banner.go:37
+msgid "refresh your assets and nodes"
+msgstr "Varlıklarınızı ve düğümlerinizi yenileyin"
+
+#. lang.T
+#: pkg/handler/banner.go:38
+msgid "Chinese-English-Japanese switch"
+msgstr "Çince-İngilizce-Japon-Türkçe anahtarı"
+
+#. lang.T
+#: pkg/handler/banner.go:39
+msgid "print help"
+msgstr "Yazdır Yardım"
+
+#. lang.T
+#: pkg/handler/banner.go:40
+msgid "exit"
+msgstr "çıkış"
+
+#. lang.T
+#: pkg/handler/banner.go:58
+msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr "\t%d) Başla  {{.GreenBoldColor}}%s{{.ColorEnd}} - %s.%s"
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:110
+msgid "Core API failed"
+msgstr "Çekirdek API hatalı"
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:114
+msgid "not found matched asset %s"
+msgstr " %s ile eşleşen varlık bulunamadı"
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:200
+msgid "No system user found."
+msgstr "Sistem kullanıcısı bulunamadı."
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/direct_handler.go:212 pkg/handler/direct_handler.go:213
+#: pkg/handler/direct_handler.go:214
+msgid "Username"
+msgstr "Kullanıcı adı"
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:243
+msgid "Tips: Enter system user ID and directly login"
+msgstr "İpuçları: Sistem kullanıcı kimliğini girin ve doğrudan oturum açın"
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:244
+msgid "Back: B/b"
+msgstr "Geri: B/b"
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/direct_handler.go:274 pkg/handler/direct_handler.go:275
+#: pkg/handler/direct_handler.go:276 pkg/handler/direct_handler.go:277
+#: pkg/handler/direct_handler.go:306
+msgid "select one asset to login"
+msgstr "Giriş yapmak için bir varlık seçin"
+
+#. i18n.T
+#: pkg/handler/direct_handler.go:319
+msgid "not found matched username %s"
+msgstr "eşleşen kullanıcı adı %s"
+
+#. i18n.T
+#. i18n.T
+#. lang.T
+#: pkg/handler/direct_handler.go:352 pkg/handler/direct_handler.go:360
+#: pkg/handler/dispatch.go:128
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr "Düğüm: [ ID.Name(Asset amount) ]"
+
+#. lang.T
+#: pkg/handler/dispatch.go:130
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr ""
+"İpuçları: Ana bilgisayarı G1 gibi düğümün altına görüntülemek için G + "
+"NODEID'ye girin."
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#: pkg/handler/interactive.go:145 pkg/handler/interactive.go:157
+#: pkg/handler/interactive.go:158 pkg/handler/interactive.go:159
+#: pkg/handler/interactive.go:188 pkg/handler/interactive.go:189
+#: pkg/handler/interactive.go:242
+msgid "Refresh done"
+msgstr "Yenileme"
+
+#. lang.T
+#: pkg/handler/select_handler.go:199
+msgid "Search: %s"
+msgstr "Arama: %s"
+
+#. lang.T
+#: pkg/handler/select_handler.go:226
+msgid "The asset is inactive"
+msgstr "Varlık etkin değil"
+
+#. i18n.T
+#: pkg/koko/server_ssh.go:195
+msgid "Must be unique asset for %s"
+msgstr "%s için benzersiz varlık olmalı"
+
+#. i18n.T
+#: pkg/koko/server_ssh.go:207
+msgid "Must be unique system user for %s"
+msgstr "%s için benzersiz sistem kullanıcısı olmalı"
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. lang.T
+#: pkg/koko/server_ssh.go:349 pkg/koko/server_ssh.go:356
+#: pkg/koko/server_ssh.go:367 pkg/koko/server_ssh.go:374
+#: pkg/proxy/login_confirm.go:21
+msgid "validate Login confirm err: Core Api failed"
+msgstr "Oturum aç onayını doğrula HATA: Çekirdek API başarısız oldu"
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:51
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr ""
+"Giriş için bilet onayına ihtiyacım var, zaten gözden geçirenlere e -posta "
+"gönderin"
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:52
+msgid "Ticket Reviewers: %s"
+msgstr "Bilet değerlendirmeleri:%s"
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:53
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr ""
+"Gözden geçirenleri bilgilendirmek için web sitesi URL'sini kopyalayabilir: %s"
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:54
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr ""
+"Lütfen gözden geçirenlerin onaylamasını bekliyoruz, çıkmak için q girin."
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:81
+msgid "Unknown status"
+msgstr "Bilinmeyen Durum"
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:85
+msgid "%s approved"
+msgstr "%s onaylandı"
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:90
+msgid "%s rejected"
+msgstr "%s reddedildi"
+
+#. lang.T
+#: pkg/proxy/login_confirm.go:94
+msgid "Cancel confirm"
+msgstr "Onaylama İptal Et"
+
+#. lang.T
+#: pkg/proxy/parser.go:172
+msgid "have no permission to upload file"
+msgstr "Dosya yükleme izniniz yok"
+
+#. lang.T
+#: pkg/proxy/parser.go:207
+msgid "the reviewers will confirm. continue or not [Y/n]"
+msgstr "Hakemler onaylayacaktır. Devam et ya da değil [Y / N]"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/parser.go:226 pkg/proxy/parser.go:232 pkg/proxy/parser.go:271
+msgid "Command review is not currently supported"
+msgstr "Komuta incelemesi şu anda desteklenmiyor"
+
+#. lang.T
+#: pkg/proxy/parser.go:312
+msgid "Command `%s` is forbidden"
+msgstr "`%s` komutu yasak"
+
+#. lang.T
+#: pkg/proxy/parser.go:379
+msgid "have no permission to download file"
+msgstr "Dosya indirmek için izniniz yok"
+
+#. lang.T
+#: pkg/proxy/parser.go:440
+msgid ""
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
+msgstr ""
+"Lütfen gözden geçirin  `%s` komutunu onaylamasını bekliyoruz, Ctrl+C ile "
+"iptal edin."
+
+#. lang.T
+#: pkg/proxy/parser.go:448
+msgid ""
+"Need ticket confirm to execute command, already send email to the reviewers"
+msgstr ""
+"Komut yürütmesi için bilet onayına ihtiyacım var, zaten gözden geçirenlere e "
+"-posta gönderin"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/parser.go:449 pkg/proxy/parser.go:450 pkg/proxy/server.go:143
+msgid "Connecting to %s@%s"
+msgstr "Bağlanıyor %s@%s"
+
+#. lang.T
+#: pkg/proxy/server.go:146
+msgid "Connecting to Database %s"
+msgstr "Veritabanına bağlanma %s"
+
+#. lang.T
+#: pkg/proxy/server.go:148
+msgid "Connecting to Kubernetes %s"
+msgstr "Kubernetes %s'ye bağlanma"
+
+#. lang.T
+#: pkg/proxy/server.go:150
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "Kubbernetes % s Konteyner %s'ye bağlanma"
+
+#. lang.T
+#: pkg/proxy/server.go:197
+msgid "%s protocol client not installed."
+msgstr "%s protokol istemcisi yüklü değil."
+
+#. lang.T
+#: pkg/proxy/server.go:201
+msgid ""
+"Terminal does not support protocol %s, please use web terminal to access"
+msgstr ""
+"Terminal %s protokolünü desteklemez, lütfen erişmek için web terminalini "
+"kullanın"
+
+#. lang.T
+#: pkg/proxy/server.go:283
+msgid "System user <%s> and asset <%s> protocol are inconsistent."
+msgstr "Sistem Kullanıcısı <%s> ve varlık <%s> protokolü tutarsızdır."
+
+#. lang.T
+#: pkg/proxy/server.go:348
+msgid "You don't have permission login %s"
+msgstr "İzin girişiniz yok %s"
+
+#. lang.T
+#: pkg/proxy/server.go:601
+msgid "You get auth token failed"
+msgstr "Auth Token başarısız olur"
+
+#. lang.T
+#: pkg/proxy/server.go:608
+msgid "Get auth username failed"
+msgstr "Auth kullanıcı adı başarısız oldu"
+
+#. lang.T
+#: pkg/proxy/server.go:613
+msgid "Get auth password failed"
+msgstr "Auth parolası  başarısız"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:619 pkg/proxy/server.go:625 pkg/proxy/server.go:640
+#: pkg/proxy/server.go:690
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr "SSH bağlantılarını yeniden kullanın (%s@%s) [bağlantı sayısı:%d]"
+
+#. lang.T
+#: pkg/proxy/server.go:959
+msgid "Switched to %s"
+msgstr "%s'ye geçti"
+
+#. lang.T
+#: pkg/proxy/server.go:1143
+msgid "Connect with api server failed"
+msgstr "API sunucusuyla bağlanın Başarısız"
+
+#. lang.T
+#: pkg/proxy/server.go:1172
+msgid "Start domain gateway failed %s"
+msgstr "Etki alanı ağ geçidi başlatılamadı %s"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:1180 pkg/proxy/switch.go:238
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr "Boşta kalma süresi %d dakikadan fazla ise bağlantıyı kesin"
+
+#. lang.T
+#: pkg/proxy/switch.go:246
+msgid "Permission has expired, disconnect"
+msgstr "İzin süresi doldu, bağlantı kesildi"
+
+#. lang.T
+#: pkg/proxy/switch.go:257
+msgid "Terminated by admin %s"
+msgstr "%s yönetici  tarafından sonlandırıldı"
+
+#. lang.T
+#: pkg/proxy/tools.go:28
+msgid "Authentication failed"
+msgstr "Kimlik doğrulama başarısız oldu"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
+msgid "Connection refused"
+msgstr "Bağlantı reddedildi"
+
+#. lang.T
+#: pkg/proxy/tools.go:34
+msgid "i/o timeout"
+msgstr "i/o  Zaman aşımı"
+
+#. lang.T
+#: pkg/proxy/tools.go:37
+msgid "No route to host"
+msgstr "Host için yol yok"
+
+#. lang.T
+#: pkg/proxy/tools.go:40
+msgid "network is unreachable"
+msgstr "Ağa erişilemiyor"
