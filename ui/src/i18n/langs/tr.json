@@ -1,0 +1,36 @@
+{
+  "Terminal": {
+    "UploadSuccess": "Yükleme başarılı",
+    "MustSelectOneFile": "Bir dosya seçilmelidir",
+    "MustOneFile": "Yalnızca bir dosya seçmeyi destekler",
+    "DownloadSuccess": "İndirme başarısı",
+    "Download": "İndir",
+    "Upload": "Yükle",
+    "Cancel": "İptal",
+    "UploadTitle": "dosya yükleme",
+    "UploadTips": "Dosyayı buraya sürükleyin veya yüklemek için tıklayın",
+    "Share":"Paylaş",
+    "CopyShareURLSuccess": "Paylaşma URL'sini Kopyalama Başarılı",
+    "ThemeConfig": "Tema Ayarları",
+    "ÇevrimiçiKullanıcılar": "Çevrimiçi Kullanıcılar",
+    "User": "Kullanıcı",
+    "VerifyCode": "Kodu Doğrula",
+    "LinkAddr": "Bağlantı",
+    "ExpiredTime": "Süresi Doldu",
+    "SelectAction": "Seç",
+    "CreateSuccess": "Başarı",
+    "CreateLink": "Paylaşım Bağlantısı Oluştur",
+    "CopyLink": "Bağlantı Adresini ve Kodunu Kopyala",
+    "NoLink": "Bağlantı Yok",
+    "ConfirmBtn": "Onayla",
+    "Theme": "Tema",
+    "SelectTheme": "Tema Seç",
+    "ThemeColors": "Tema Renkleri",
+    "ExceedTransferSize": "maksimum aktarım boyutunu aş",
+    "WaitFileTransfer": "Dosya aktarımının bitmesini bekleyin",
+    "EndFileTransfer": "Dosya aktarımı sonu"
+  },
+  "Message": {
+    "InputVerifyCode": "Giriş Doğrulama Kodu"
+  }
+}
