@@ -7,29 +7,17 @@
                 v-on:background-color="onThemeBackground"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
-    <el-aside width="60px" center>
-      <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">
-        <el-menu-item @click="dialogVisible=!dialogVisible" index="0">
-          <i class="el-icon-orange"></i>
-          <span slot="title">{{ this.$t('Terminal.ThemeConfig') }}</span>
-        </el-menu-item>
-        <el-menu-item @click="shareDialogVisible=!shareDialogVisible" v-if="enableShare" index="1">
-          <i class="el-icon-share"></i>
-          <span slot="title">{{ this.$t('Terminal.Share') }}</span>
-        </el-menu-item>
-        <el-submenu index="2" v-if="displayOnlineUser">
-          <template slot="title">
-            <i class="el-icon-s-custom"></i>
-            <span slot="title">{{ this.$t('Terminal.OnlineUsers') }}</span>
-          </template>
-          <el-menu-item-group>
-            <span slot="title">{{ this.$t('Terminal.User') }} {{ onlineKeys.length }}</span>
-            <el-menu-item v-for="(item ,key) of onlineUsersMap" :key="key">{{ item.user }}</el-menu-item>
-          </el-menu-item-group>
-        </el-submenu>
+    <RightPanel>
+      <Settings
+        :enableShare="enableShare"
+        :onlineUsersMap="onlineUsersMap"
+        :dialogVisible.sync="dialogVisible"
+        :shareDialogVisible.sync="shareDialogVisible"
+      />
+    </RightPanel>
 
-      </el-menu>
-    </el-aside>
+    <Demo />
+
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
 
     <el-dialog
@@ -39,6 +27,7 @@
         :close-on-press-escape="false"
         :close-on-click-modal="false"
         @close="shareDialogClosed"
+        :modal="false"
         center>
       <el-form v-if="!shareId" v-loading="loading">
         <el-form-item :label="this.$t('Terminal.ExpiredTime')">
@@ -77,11 +66,15 @@
 import Terminal from '@/components/Terminal';
 import ThemeConfig from "@/components/ThemeConfig";
 import {BASE_URL, BASE_WS_URL, CopyTextToClipboard} from "@/utils/common";
+import RightPanel from '@/components/RightPanel';
+import Settings from '@/components/Settings';
 
 export default {
   components: {
     Terminal,
     ThemeConfig,
+    RightPanel,
+    Settings,
   },
   name: "Connection",
   data() {
@@ -120,9 +113,6 @@ export default {
     shareURL() {
       return this.shareId ? this.generateShareURL() : this.$t('Terminal.NoLink')
     },
-    displayOnlineUser() {
-      return this.onlineKeys.length > 1;
-    }
   },
   methods: {
     getConnectURL() {
@@ -244,5 +234,8 @@ export default {
 <style scoped>
 .el-menu-item.is-active {
   color: #ffffff;
+}
+.settings {
+  padding: 24px 20px;
 }
 </style>
