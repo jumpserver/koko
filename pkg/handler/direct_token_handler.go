@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -11,10 +10,6 @@ import (
 func (d *DirectHandler) LoginConnectToken() {
 	tokenInfo := d.opts.tokenInfo
 	user := tokenInfo.User
-	lang := config.GetConf().LanguageCode
-	if langCode, ok := userLangGlobalStore.Load(user.ID); ok {
-		lang = langCode.(string)
-	}
 	systemUserAuthInfo := tokenInfo.SystemUserAuthInfo
 	domain := tokenInfo.Domain
 	filterRules := tokenInfo.CmdFilterRules
@@ -35,7 +30,7 @@ func (d *DirectHandler) LoginConnectToken() {
 	proxyOpts = append(proxyOpts, proxy.ConnectSystemUser(&systemUserDetail))
 	proxyOpts = append(proxyOpts, proxy.ConnectAsset(tokenInfo.Asset))
 	proxyOpts = append(proxyOpts, proxy.ConnectApp(tokenInfo.Application))
-	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(lang))
+	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(d.i18nLang))
 
 	proxyOpts = append(proxyOpts, proxy.ConnectDomain(domain))
 	proxyOpts = append(proxyOpts, proxy.ConnectPermission(&permission))
