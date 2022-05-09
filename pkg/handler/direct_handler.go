@@ -9,6 +9,7 @@ import (
 	"github.com/gliderlabs/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -119,6 +120,11 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetter
 	for i := range optSetters {
 		optSetters[i](opts)
 	}
+	i18nLang := config.GetConf().LanguageCode
+	if langCode, ok := userLangGlobalStore.Load(opts.User.ID); ok {
+		i18nLang = langCode.(string)
+	}
+	lang := i18n.NewLang(i18nLang)
 	var (
 		selectedAssets []model.Asset
 		err            error
@@ -127,11 +133,11 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetter
 		selectedAssets, err = selectAssetsByDirectOpt(jmsService, opts)
 		if err != nil {
 			logger.Errorf("Get direct asset failed: %s", err)
-			utils.IgnoreErrWriteString(sess, i18n.T("Core API failed"))
+			utils.IgnoreErrWriteString(sess, lang.T("Core API failed"))
 			return nil, err
 		}
 		if len(selectedAssets) <= 0 {
-			msg := fmt.Sprintf(i18n.T("not found matched asset %s"), opts.targetAsset)
+			msg := fmt.Sprintf(lang.T("not found matched asset %s"), opts.targetAsset)
 			utils.IgnoreErrWriteString(sess, msg+"\r\n")
 			return nil, fmt.Errorf("no found matched asset: %s", opts.targetAsset)
 		}
@@ -146,6 +152,7 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetter
 		jmsService:  jmsService,
 		assets:      selectedAssets,
 		term:        term,
+		i18nLang:    i18nLang,
 	}
 	return d, err
 
@@ -163,6 +170,8 @@ type DirectHandler struct {
 	assets []model.Asset
 
 	selectedSystemUser *model.SystemUser
+
+	i18nLang string
 }
 
 func (d *DirectHandler) Dispatch() {
@@ -220,10 +229,11 @@ func (d *DirectHandler) LoginAsset() {
 }
 
 func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model.SystemUser, bool) {
+	lang := i18n.NewLang(d.i18nLang)
 	length := len(systemUsers)
 	switch length {
 	case 0:
-		warningInfo := i18n.T("No system user found.")
+		warningInfo := lang.T("No system user found.")
 		_, _ = io.WriteString(d.sess, warningInfo+"\n\r")
 		return model.SystemUser{}, false
 	case 1:
@@ -235,9 +245,9 @@ func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model
 		return displaySystemUsers[0], true
 	}
 
-	idLabel := i18n.T("ID")
-	nameLabel := i18n.T("Name")
-	usernameLabel := i18n.T("Username")
+	idLabel := lang.T("ID")
+	nameLabel := lang.T("Name")
+	usernameLabel := lang.T("Username")
 
 	labels := []string{idLabel, nameLabel, usernameLabel}
 	fields := []string{"ID", "Name", "Username"}
@@ -266,8 +276,8 @@ func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model
 	table.Initial()
 
 	d.term.SetPrompt("ID> ")
-	selectTip := i18n.T("Tips: Enter system user ID and directly login")
-	backTip := i18n.T("Back: B/b")
+	selectTip := lang.T("Tips: Enter system user ID and directly login")
+	backTip := lang.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(d.term, table.Display())
 		utils.IgnoreErrWriteString(d.term, utils.WrapperString(selectTip, utils.Green))
@@ -296,11 +306,11 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	model.AssetList(assets).SortBy(assetListSortBy)
 
 	term := d.term
-
-	idLabel := i18n.T("ID")
-	hostLabel := i18n.T("Hostname")
-	ipLabel := i18n.T("IP")
-	commentLabel := i18n.T("Comment")
+	lang := i18n.NewLang(d.i18nLang)
+	idLabel := lang.T("ID")
+	hostLabel := lang.T("Hostname")
+	ipLabel := lang.T("IP")
+	commentLabel := lang.T("Comment")
 
 	Labels := []string{idLabel, hostLabel, ipLabel, commentLabel}
 	fields := []string{"ID", "Hostname", "IP", "Comment"}
@@ -329,7 +339,7 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
-	loginTip := i18n.T("select one asset to login")
+	loginTip := lang.T("select one asset to login")
 
 	_, _ = term.Write([]byte(utils.CharClear))
 	_, _ = term.Write([]byte(table.Display()))
@@ -341,8 +351,9 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 
 func (d *DirectHandler) Proxy(asset model.Asset) {
 	matched := d.getMatchedSystemUsers(asset)
+	lang := i18n.NewLang(d.i18nLang)
 	if len(matched) == 0 {
-		msg := fmt.Sprintf(i18n.T("not found matched username %s"), d.opts.targetSystemUser)
+		msg := fmt.Sprintf(lang.T("not found matched username %s"), d.opts.targetSystemUser)
 		utils.IgnoreErrWriteString(d.term, msg+"\r\n")
 		logger.Errorf("Get systemUser failed: %s", msg)
 		return
@@ -370,12 +381,13 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 }
 
 func (d *DirectHandler) getMatchedSystemUsers(asset model.Asset) []model.SystemUser {
+	lang := i18n.NewLang(d.i18nLang)
 	switch d.opts.formatType {
 	case FormatUUID:
 		systemUser, err := d.jmsService.GetSystemUserById(d.opts.targetSystemUser)
 		if err != nil {
 			logger.Errorf("Get systemUser failed: %s", err)
-			utils.IgnoreErrWriteString(d.term, i18n.T("Core API failed"))
+			utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
 			return nil
 		}
 		return []model.SystemUser{systemUser}
@@ -383,7 +395,7 @@ func (d *DirectHandler) getMatchedSystemUsers(asset model.Asset) []model.SystemU
 		systemUsers, err := d.jmsService.GetSystemUsersByUserIdAndAssetId(d.opts.User.ID, asset.ID)
 		if err != nil {
 			logger.Errorf("Get systemUser failed: %s", err)
-			utils.IgnoreErrWriteString(d.term, i18n.T("Core API failed"))
+			utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
 			return nil
 		}
 		matched := make([]model.SystemUser, 0, len(systemUsers))

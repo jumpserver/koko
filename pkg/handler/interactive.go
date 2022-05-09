@@ -138,11 +138,11 @@ func (h *InteractiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
 }
 
 func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
-
+	lang := i18n.NewLang(h.i18nLang)
 	length := len(systemUsers)
 	switch length {
 	case 0:
-		warningInfo := i18n.T("No system user found.")
+		warningInfo := lang.T("No system user found.")
 		_, _ = io.WriteString(h.term, warningInfo+"\n\r")
 		return model.SystemUser{}, false
 	case 1:
@@ -154,9 +154,9 @@ func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 		return displaySystemUsers[0], true
 	}
 
-	idLabel := i18n.T("ID")
-	nameLabel := i18n.T("Name")
-	usernameLabel := i18n.T("Username")
+	idLabel := lang.T("ID")
+	nameLabel := lang.T("Name")
+	usernameLabel := lang.T("Username")
 
 	labels := []string{idLabel, nameLabel, usernameLabel}
 	fields := []string{"ID", "Name", "Username"}
@@ -185,8 +185,8 @@ func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 	table.Initial()
 
 	h.term.SetPrompt("ID> ")
-	selectTip := i18n.T("Tips: Enter system user ID and directly login")
-	backTip := i18n.T("Back: B/b")
+	selectTip := lang.T("Tips: Enter system user ID and directly login")
+	backTip := lang.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(h.term, table.Display())
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(selectTip, utils.Green))
@@ -239,7 +239,8 @@ func (h *InteractiveHandler) refreshAssetsAndNodesData() {
 		h.terminalConf = &tConfig
 	}()
 	h.wg.Wait()
-	_, err := io.WriteString(h.term, i18n.T("Refresh done")+"\n\r")
+	lang := i18n.NewLang(h.i18nLang)
+	_, err := io.WriteString(h.term, lang.T("Refresh done")+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets Nodes err:", err)
 	}
