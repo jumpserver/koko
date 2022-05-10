@@ -16,8 +16,6 @@
       />
     </RightPanel>
 
-    <Demo />
-
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
 
     <el-dialog
