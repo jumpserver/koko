@@ -19,6 +19,7 @@ require (
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.1+incompatible
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/leonelquinteros/gotext v1.4.0
+	github.com/lib/pq v1.10.5
 	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994

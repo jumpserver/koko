@@ -28,6 +28,7 @@ func (u *UserSelectHandler) proxyApp(app model.Application) {
 	)
 	if err != nil {
 		logger.Error(err)
+		return
 	}
 	srv.Proxy()
 	logger.Infof("Request %s: application %s proxy end", u.h.sess.Uuid, app.Name)
