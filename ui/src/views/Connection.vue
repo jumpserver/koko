@@ -51,6 +51,17 @@
             </el-option>
           </el-select>
         </el-form-item>
+        <el-form-item :label="this.$t('Terminal.ShareUser')">
+            <el-select v-model="users" multiple filterable remote reserve-keyword :placeholder="this.$t('Terminal.GetShareUser')"
+                :remote-method="getSessionUser" :loading="userLoading">
+                <el-option
+                  v-for="item in userOptions"
+                  :key="item.id"
+                  :label="item.name + '(' + item.username + ')'"
+                  :value="item.id">
+                </el-option>
+              </el-select>
+        </el-form-item>
       </el-form>
       <el-result v-if="shareId" icon="success" :title="this.$t('Terminal.CreateSuccess')">
         <template slot="extra">
@@ -93,16 +104,21 @@ export default {
       shareDialogVisible: false,
       expiredTime: 10,
       expiredOptions: [
+        {label: "1m", value: 1},
+        {label: "5m", value: 5},
         {label: "10m", value: 10},
         {label: "20m", value: 20},
         {label: "60m", value: 60},
       ],
       shareId: null,
       loading: false,
+      userLoading: false,
       shareCode: null,
       shareInfo: null,
       onlineUsersMap: {},
       onlineKeys: [],
+      userOptions: [],
+      users: []
     }
   },
   computed: {
@@ -205,6 +221,12 @@ export default {
           this.updateOnlineCount();
           break
         }
+        case 'TERMINAL_GET_SHARE_USER': {
+          this.userLoading = false;
+          const data = JSON.parse(msg.data);
+          this.userOptions = data;
+          break
+        }
         default:
           break
       }
@@ -236,6 +258,14 @@ export default {
       const keys = Object.keys(this.onlineUsersMap);
       this.$log.debug(keys);
       this.onlineKeys = keys;
+    },
+    getSessionUser(query) {
+      if (query !== '' && this.$refs.term) {
+        this.userLoading = true;
+        this.$refs.term.getUserInfo(query);
+      } else {
+        this.userOptions = []
+      }
     }
   },
 }

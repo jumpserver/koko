@@ -566,6 +566,10 @@ export default {
       this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val,})
     },
 
+    getUserInfo(val) {
+      this.sendWsMessage('TERMINAL_GET_SHARE_USER', {query: val})
+    },
+
     sendWsMessage(type, data) {
       if (this.wsIsActivated()) {
         const msg = this.message(this.terminalId, type, JSON.stringify(data))

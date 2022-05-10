@@ -1,5 +1,7 @@
 {
   "Terminal": {
+    "ShareUser": "共有ユーザー",
+    "GetShareUser": "ユーザー名の入力",
     "UploadSuccess": "アップロード成功",
     "MustSelectOneFile": "ファイルを選択する必要があります",
     "MustOneFile": "ファイルを1つだけ選択できます",

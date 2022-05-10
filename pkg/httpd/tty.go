@@ -189,6 +189,17 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 		logger.Debugf("Ws[%s] receive share request %s", h.ws.Uuid, msg.Data)
 		go h.createShareSession(shareData)
 		return
+	case TERMINALGETSHAREUSERS:
+		var query GetUserParams
+		err := json.Unmarshal([]byte(msg.Data), &query)
+		if err != nil {
+			logger.Errorf("Ws[%s] message(%s) data unmarshal err: %s", h.ws.Uuid,
+				msg.Type, msg.Data)
+			return
+		}
+		logger.Debugf("Ws[%s] receive share request %s", h.ws.Uuid, msg.Data)
+		go h.getShareUserInfo(query)
+		return
 
 	case CLOSE:
 		_ = h.backendClient.Close()
@@ -208,6 +219,20 @@ func (h *tty) createShareSession(shareData ShareRequestParams) {
 	h.ws.SendMessage(&Message{
 		Id:   h.ws.Uuid,
 		Type: TERMINALSHARE,
+		Data: string(data),
+	})
+}
+
+func (h *tty) getShareUserInfo(query GetUserParams) {
+	shareUserResp, err := h.jmsService.GetShareUserInfo(query.Query)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	data, _ := json.Marshal(shareUserResp)
+	h.ws.SendMessage(&Message{
+		Id:   h.ws.Uuid,
+		Type: TERMINALGETSHAREUSERS,
 		Data: string(data),
 	})
 }

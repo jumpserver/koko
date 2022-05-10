@@ -32,6 +32,12 @@ type User struct {
 	OTPLevel int    `json:"otp_level"`
 }
 
+type MiniUser struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+}
+
 func (u *User) String() string {
 	return fmt.Sprintf("%s(%s)", u.Name, u.Username)
 }

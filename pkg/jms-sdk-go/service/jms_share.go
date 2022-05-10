@@ -16,6 +16,14 @@ func (s *JMService) CreateShareRoom(sessionId string, expired int) (res model.Sh
 	return
 }
 
+func (s *JMService) GetShareUserInfo(query string) (res []*model.MiniUser, err error) {
+	params := make(map[string]string)
+	params["action"] = "suggestion"
+	params["search"] = query
+	_, err = s.authClient.Get(UserListURL, &res, params)
+	return
+}
+
 func (s *JMService) JoinShareRoom(data SharePostData) (res model.ShareRecord, err error) {
 	_, err = s.authClient.Post(ShareSessionJoinURL, data, &res)
 	return

@@ -53,6 +53,7 @@ const (
 
 // 各资源详情相关API
 const (
+	UserListURL    = "/api/v1/users/users/"
 	UserDetailURL        = "/api/v1/users/users/%s/"
 	AssetDetailURL       = "/api/v1/assets/assets/%s/"
 	AssetPlatFormURL     = "/api/v1/assets/assets/%s/platform/"
