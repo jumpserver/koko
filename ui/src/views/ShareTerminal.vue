@@ -5,24 +5,14 @@
                 v-on:background-color="onThemeBackground"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
-    <el-aside width="60px" center>
-      <el-menu :collapse="true" :background-color="themeBackground" text-color="#ffffff">
-        <el-menu-item @click="dialogVisible=!dialogVisible" index="0">
-          <i class="el-icon-setting"></i>
-          <span slot="title">{{ this.$t('Terminal.ThemeConfig') }}</span>
-        </el-menu-item>
-        <el-submenu index="2" v-if="displayOnlineUser">
-          <template slot="title">
-            <i class="el-icon-s-custom"></i>
-            <span slot="title">{{ this.$t('Terminal.OnlineUsers') }} </span>
-          </template>
-          <el-menu-item-group>
-            <span slot="title">{{ this.$t('Terminal.User') }} {{ onlineKeys.length }} </span>
-            <el-menu-item v-for="(item ,key) of onlineUsersMap" :key="key">{{ item.user }}</el-menu-item>
-          </el-menu-item-group>
-        </el-submenu>
-      </el-menu>
-    </el-aside>
+    
+    <RightPanel>
+      <Settings
+        :onlineUsersMap="onlineUsersMap"
+        :dialogVisible.sync="dialogVisible"
+      />
+    </RightPanel>
+
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
     <el-dialog
         title="提示"
@@ -47,11 +37,15 @@
 import Terminal from '@/components/Terminal'
 import ThemeConfig from "@/components/ThemeConfig";
 import {BASE_WS_URL, canvasWaterMark} from "@/utils/common";
+import RightPanel from '@/components/RightPanel';
+import Settings from '@/components/Settings';
 
 export default {
   components: {
     Terminal,
     ThemeConfig,
+    RightPanel,
+    Settings,
   },
   name: "ShareTerminal",
   data() {
