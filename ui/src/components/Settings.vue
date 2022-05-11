@@ -114,7 +114,7 @@ export default {
 }
 
 .content {
-  padding: 4px 6px;
+  padding: 4px 6px 4px 20px;
 }
 
 .content-item {
