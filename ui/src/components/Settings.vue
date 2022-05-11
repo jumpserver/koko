@@ -1,15 +1,15 @@
 <template>
   <div class="setting">
     <h3 class="title">{{ this.$t('Terminal.SystemSettings') }}</h3>
-    <ui>
+    <ul style="padding: 0">
       <li
         v-for="(i, index) in displaySettings"
         class="item"
         :key="index"
         @click.stop="i.click && i.click()"
       >
-        <span>{{ i.title }} {{ i.content && onlineUserNumbers > 1 ? onlineUserNumbers : null }}</span>
-        <i :class="i.icon" />
+        <i :class="'icon ' + i.icon" />
+        <span class="text">{{ i.title }} {{ i.content && onlineUserNumbers > 1 ? onlineUserNumbers : null }}</span>
         <div v-if="i.content" class="content">
           <div
             v-for="(item, key) of i.content"
@@ -20,7 +20,7 @@
           </div>
         </div>
       </li>
-    </ui>
+    </ul>
   </div>
 </template>
 
@@ -29,19 +29,19 @@ export default {
   name: 'Settings',
   props: {
     onlineUsersMap: {
-      type: Object, 
+      type: Object,
       default: () => {}
     },
     enableShare: {
-      type: Boolean, 
+      type: Boolean,
       default: () => false
     },
     shareDialogVisible: {
-      type: Boolean, 
+      type: Boolean,
       default: () => false
     },
     dialogVisible: {
-      type: Boolean, 
+      type: Boolean,
       default: () => false
     }
   },
@@ -75,7 +75,7 @@ export default {
       return Object.keys(this.onlineUsersMap).length
     },
     hiddenOnlineUser() {
-      return this.onlineUserNumbers > 1 ? true : false
+      return this.onlineUserNumbers > 1
     },
     displaySettings() {
       return this.settings.filter(i => i.hidden && i.hidden())
@@ -88,25 +88,35 @@ export default {
 .setting {
   padding: 24px 24px;
 }
+
 .title {
-  text-align: center;
+  text-align: left;
+  padding-left: 12px;
 }
+
 .item {
   color: rgba(0,0,0,0.65);
   font-size: 14px;
-  padding: 6px;
+  padding: 12px;
   list-style-type: none;
   cursor: pointer;
   border-radius: 2px;
+  line-height: 14px;
 }
+
 .item:hover {
   color: white;
   background: rgba(0, 0, 0, .3);;
-  
 }
+
+.item .text {
+  padding-left: 5px;
+}
+
 .content {
   padding: 4px 6px;
 }
+
 .content-item {
   white-space: nowrap;
   text-overflow: ellipsis;
