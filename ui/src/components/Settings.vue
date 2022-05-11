@@ -1,6 +1,6 @@
 <template>
   <div class="setting">
-    <h3 class="title">{{ this.$t('Terminal.SystemSettings') }}</h3>
+    <h3 class="title">{{ this.$t('Terminal.Settings') }}</h3>
     <ul style="padding: 0">
       <li
         v-for="(i, index) in displaySettings"
