@@ -8,7 +8,8 @@
     
     <RightPanel>
       <Settings
-        :onlineUsersMap="onlineUsersMap"
+        v-bind:onlineUsersMap="onlineUsersMap"
+        v-bind:onlineUserNumber="onlineKeys.length"
         :dialogVisible.sync="dialogVisible"
       />
     </RightPanel>

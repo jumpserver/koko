@@ -9,8 +9,9 @@
     </el-main>
     <RightPanel>
       <Settings
-        :enableShare="enableShare"
-        :onlineUsersMap="onlineUsersMap"
+        v-bind:enableShare="enableShare"
+        v-bind:onlineUsersMap="onlineUsersMap"
+        v-bind:onlineUserNumber="onlineKeys.length"
         :dialogVisible.sync="dialogVisible"
         :shareDialogVisible.sync="shareDialogVisible"
       />
