@@ -6,11 +6,7 @@
   >
     <div class="rightPanel-background" />
     <div class="rightPanel">
-      <div
-        ref="dragDiv"
-        class="handle-button"
-        :style="{'background-color':theme}"
-      >
+      <div ref="dragDiv" class="handle-button">
         <i :class="show?'el-icon-close':'el-icon-setting'" />
       </div>
       <div class="rightPanel-items">
@@ -38,7 +34,7 @@ export default {
   },
   computed: {
     theme() {
-      return '#1f1b1b'
+      return 'rgba(245, 247, 250, 0.2)'
     }
   },
   watch: {
@@ -166,27 +162,27 @@ export default {
   top: 20%;
   left: -48px;
   width: 48px;
-  height: 48px;
-  line-height: 48px;
+  height: 45px;
+  line-height: 45px;
   box-sizing: border-box;
   text-align: center;
   font-size: 24px;
-  border-radius: 6px 0 0 6px !important;
+  border-radius: 20px 0 0 20px;
   z-index: 0;
   pointer-events: auto;
   cursor: move;
   color: #fff;
   opacity: .8;
+  background-color: rgba(245, 247, 250, 0.2)
 }
 
 .handle-button:hover {
-  border-left: 1px solid #fff;
-  border-top: 1px solid #fff;
-  border-bottom: 1px solid #fff;
+  cursor: pointer;
+  background-color: rgba(245, 247, 250, 0.3)
 }
 
 .handle-button i {
   font-size: 20px;
-  line-height: 40px;
+  line-height: 45px;
 }
 </style>
