@@ -1,15 +1,15 @@
 <template>
   <div
-    ref="rightPanel"
-    :class="{show:show}"
-    class="rightPanel-container"
+    ref="container"
+    :class="{show: show}"
+    class="container"
   >
-    <div class="rightPanel-background" />
-    <div class="rightPanel">
+    <div class="background" />
+    <div class="right-panel">
       <div ref="dragDiv" class="handle-button">
-        <i :class="show?'el-icon-close':'el-icon-setting'" />
+        <i :class="show ? 'el-icon-close':'el-icon-setting'" />
       </div>
-      <div class="rightPanel-items">
+      <div class="right-panel-items">
         <slot />
       </div>
     </div>
@@ -23,18 +23,13 @@ export default {
   name: 'RightPanel',
   props: {
     clickNotClose: {
-      default: false,
-      type: Boolean
+      type: Boolean,
+      default: false
     }
   },
   data() {
     return {
       show: false
-    }
-  },
-  computed: {
-    theme() {
-      return 'rgba(245, 247, 250, 0.2)'
     }
   },
   watch: {
@@ -54,71 +49,71 @@ export default {
     this.insertToBody()
   },
   beforeDestroy() {
-    const elx = this.$refs.rightPanel
-    elx.remove()
+    const element = this.$refs.container
+    element.remove()
   },
   methods: {
     init() {
       this.$nextTick(() => {
-      let dragDiv = this.$refs.dragDiv;
-      let clientOffset = {};
-      dragDiv.addEventListener("mousedown", (event) => {
-        let offsetX = dragDiv.getBoundingClientRect().left;
-        let offsetY = dragDiv.getBoundingClientRect().top;
-        let innerX = event.clientX - offsetX;
-        let innerY = event.clientY - offsetY;
+        const dragDiv = this.$refs.dragDiv;
+        const clientOffset = {};
+        dragDiv.addEventListener("mousedown", (event) => {
+          const offsetX = dragDiv.getBoundingClientRect().left;
+          const offsetY = dragDiv.getBoundingClientRect().top;
+          const innerX = event.clientX - offsetX;
+          const innerY = event.clientY - offsetY;
 
-        clientOffset.clientX = event.clientX;
-        clientOffset.clientY = event.clientY;
-        document.onmousemove = function(event) {
-          dragDiv.style.left = event.clientX - innerX + "px";
-          dragDiv.style.top = event.clientY - innerY + "px";
-          let dragDivTop = window.innerHeight - dragDiv.getBoundingClientRect().height;
-          let dragDivLeft = window.innerWidth - dragDiv.getBoundingClientRect().width;
-          dragDiv.style.left = dragDivLeft + "px";
-           dragDiv.style.left =  "-48px";
-          if (dragDiv.getBoundingClientRect().top <= 0) {
-            dragDiv.style.top = "0px";
+          clientOffset.clientX = event.clientX;
+          clientOffset.clientY = event.clientY;
+          document.onmousemove = function(event) {
+            dragDiv.style.left = event.clientX - innerX + "px";
+            dragDiv.style.top = event.clientY - innerY + "px";
+            const dragDivTop = window.innerHeight - dragDiv.getBoundingClientRect().height;
+            const dragDivLeft = window.innerWidth - dragDiv.getBoundingClientRect().width;
+            dragDiv.style.left = dragDivLeft + "px";
+            dragDiv.style.left =  "-48px";
+            if (dragDiv.getBoundingClientRect().top <= 0) {
+              dragDiv.style.top = "0px";
+            }
+            if (dragDiv.getBoundingClientRect().top >= dragDivTop) {
+              dragDiv.style.top = dragDivTop + "px";
+            }
+          };
+          document.onmouseup = function() {
+            document.onmousemove = null;
+            document.onmouseup = null;
+          };
+        }, false);
+        dragDiv.addEventListener('mouseup', (event) => {
+          const clientX = event.clientX;
+          const clientY = event.clientY;
+          if (clientX === clientOffset.clientX && clientY === clientOffset.clientY) {
+            this.show = !this.show
           }
-          if (dragDiv.getBoundingClientRect().top >= dragDivTop) {
-            dragDiv.style.top = dragDivTop + "px";
-          }
-        };
-        document.onmouseup = function() {
-          document.onmousemove = null;
-          document.onmouseup = null;
-        };
-      }, false);
-      dragDiv.addEventListener('mouseup', (event) => {
-        let clientX = event.clientX;
-        let clientY = event.clientY;
-        if (clientX === clientOffset.clientX && clientY === clientOffset.clientY) {
-          this.show = !this.show
-        }
+        })
       })
-    })
     },
     addEventClick() {
       window.addEventListener('click', this.closeSidebar)
     },
     closeSidebar(evt) {
-      const parent = evt.target.closest('.rightPanel')
+      const parent = evt.target.closest('.right-panel')
       if (!parent) {
         this.show = false
         window.removeEventListener('click', this.closeSidebar)
       }
     },
     insertToBody() {
-      const elx = this.$refs.rightPanel
+      const element = this.$refs.container
       const body = document.querySelector('body')
-      body.insertBefore(elx, body.firstChild)
+      body.insertBefore(element, body.firstChild)
     }
   }
 }
 </script>
 
 <style scoped>
-.rightPanel-background {
+.background {
   position: fixed;
   top: 0;
   left: 0;
@@ -128,7 +123,7 @@ export default {
   z-index: -1;
 }
 
-.rightPanel {
+.right-panel {
   width: 100%;
   max-width: 260px;
   height: 100vh;
@@ -146,14 +141,14 @@ export default {
   transition: all .3s cubic-bezier(.7, .3, .1, 1);
 }
 
-.show .rightPanel-background {
+.show .background {
   z-index: 1000;
   opacity: 1;
   width: 100%;
   height: 100%;
 }
 
-.show .rightPanel {
+.show .right-panel {
   transform: translate(0);
 }
 
@@ -170,7 +165,6 @@ export default {
   border-radius: 20px 0 0 20px;
   z-index: 0;
   pointer-events: auto;
-  cursor: move;
   color: #fff;
   opacity: .8;
   background-color: rgba(245, 247, 250, 0.2)
