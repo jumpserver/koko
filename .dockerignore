@@ -3,3 +3,4 @@ build/*
 logs/*
 data/*
 release/*
+ui/node_modules/

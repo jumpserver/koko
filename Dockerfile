@@ -12,18 +12,16 @@ RUN ls . && cd ui/ && npm install -i && yarn build && ls -al .
 FROM golang:1.17-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
-ARG GOPROXY=https://goproxy.io
-ARG VERSION=Unknown
-ARG TARGETARCH
-ENV GOPROXY=$GOPROXY
-ENV VERSION=$VERSION
-ENV TARGETARCH=$TARGETARCH
-ENV GO111MODULE=on
-ENV GOOS=linux
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
     && apk update \
     && apk add git
+
+ARG GOPROXY=https://goproxy.io
+ARG TARGETARCH
+ENV TARGETARCH=$TARGETARCH
+ENV GO111MODULE=on
+ENV GOOS=linux
 
 RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
     && tar -xzf kubectl.tar.gz \
@@ -32,8 +30,11 @@ RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xzvf kubectl_aliases.tar.gz
 
+COPY go.mod go.sum ./
+RUN go mod download -x
 COPY . .
-
+ARG VERSION=Unknown
+ENV VERSION=$VERSION
 RUN cd utils && sh -ixeu build.sh
 
 FROM debian:bullseye-slim
@@ -43,7 +44,7 @@ RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list \
     && apt update \
     && apt-get install -y locales \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
-    && apt-get install -y --no-install-recommends openssh-client procps curl gdb ca-certificates jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git freetds-bin mariadb-client redis-tools gnupg\
+    && apt-get install -y --no-install-recommends openssh-client procps curl gdb ca-certificates jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git freetds-bin mariadb-client redis-tools postgresql-client gnupg\
     && wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
     && echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/5.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list \
     && apt update \

@@ -1,6 +1,9 @@
 <template>
   <div class="dialog-modal" v-show="visible" @click.self="() => $emit('update:visible', false)">
     <div class="config-container">
+      <span class="btn-close" @click="() => $emit('update:visible', false)">
+        <i class="el-icon-close" />
+      </span>
       <el-tabs v-model="activeName">
         <el-tab-pane :label="this.$t('Terminal.Theme')" name="first">
           <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')" style="width: 100%">
@@ -173,10 +176,9 @@ export default {
 
 .config-container .btn-close {
   position: absolute;
-  top: 5px;
+  top: 16px;
   right: 10px;
-  width: 10px;
-  height: 10px;
+  z-index: 11;
   cursor: pointer;
 }
 
