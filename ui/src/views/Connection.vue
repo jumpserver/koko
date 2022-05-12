@@ -9,8 +9,9 @@
     </el-main>
     <RightPanel>
       <Settings
-        :enableShare="enableShare"
-        :onlineUsersMap="onlineUsersMap"
+        v-bind:enableShare="enableShare"
+        v-bind:onlineUsersMap="onlineUsersMap"
+        v-bind:onlineUserNumber="onlineKeys.length"
         :dialogVisible.sync="dialogVisible"
         :shareDialogVisible.sync="shareDialogVisible"
       />
@@ -181,7 +182,7 @@ export default {
         case "TERMINAL_SHARE_JOIN": {
           const data = JSON.parse(msg.data);
           const key = data.user_id + data.created;
-          this.onlineUsersMap[key] = data;
+          this.$set(this.onlineUsersMap, key, data);
           this.$log.debug(this.onlineUsersMap);
           this.updateOnlineCount();
           break
@@ -189,7 +190,7 @@ export default {
         case 'TERMINAL_SHARE_LEAVE': {
           const data = JSON.parse(msg.data);
           const key = data.user_id + data.created;
-          delete this.onlineUsersMap[key];
+          this.$delete(this.onlineUsersMap, key);
           this.updateOnlineCount();
           break
         }

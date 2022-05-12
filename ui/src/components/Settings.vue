@@ -3,18 +3,18 @@
     <h3 class="title">{{ this.$t('Terminal.Settings') }}</h3>
     <ul style="padding: 0">
       <li
-        v-for="(i, index) in displaySettings"
-        class="item"
-        :key="index"
-        @click.stop="i.click && i.click()"
+          v-for="(i, index) in displaySettings"
+          class="item"
+          :key="index"
+          @click.stop="i.click && i.click()"
       >
-        <i :class="'icon ' + i.icon" />
-        <span class="text">{{ i.title }} {{ i.content && onlineUserNumbers > 1 ? onlineUserNumbers : null }}</span>
+        <i :class="'icon ' + i.icon"/>
+        <span class="text">{{ i.title }}</span>
         <div v-if="i.content" class="content">
           <div
-            v-for="(item, key) of i.content"
-            :key="key"
-            class="content-item"
+              v-for="(item, key) of i.content"
+              :key="key"
+              class="content-item"
           >
             {{ item.user }}
           </div>
@@ -32,6 +32,10 @@ export default {
       type: Object,
       default: () => {}
     },
+    onlineUserNumber: {
+      type: Number,
+      default: () => 0
+    },
     enableShare: {
       type: Boolean,
       default: () => false
@@ -45,40 +49,33 @@ export default {
       default: () => false
     }
   },
-  data() {
-    const vm = this
-    return {
-      settings: [
-        {
-          title: this.$t('Terminal.ThemeConfig'),
-          icon: 'el-icon-orange',
-          hidden: () => true,
-          click: () => (this.$emit('update:dialogVisible', !this.dialogVisible)),
-        },
-        {
-          title: this.$t('Terminal.Share'),
-          icon: 'el-icon-share',
-          hidden: () => vm.enableShare,
-          click: () => (this.$emit('update:shareDialogVisible', !this.shareDialogVisible)),
-        },
-        {
-          title: this.$t('Terminal.User'),
-          icon: 'el-icon-s-custom',
-          hidden: () => vm.hiddenOnlineUser,
-          content: vm.onlineUsersMap,
-        }
-      ]
-    }
-  },
+
   computed: {
-    onlineUserNumbers() {
-      return Object.keys(this.onlineUsersMap).length
-    },
-    hiddenOnlineUser() {
-      return this.onlineUserNumbers > 1
-    },
     displaySettings() {
-      return this.settings.filter(i => i.hidden && i.hidden())
+      const themeConfig = {
+        title: this.$t('Terminal.ThemeConfig'),
+        icon: 'el-icon-orange',
+        click: () => (this.$emit('update:dialogVisible', !this.dialogVisible)),
+      }
+      const shareConfig = {
+        title: this.$t('Terminal.Share'),
+        icon: 'el-icon-share',
+        click: () => (this.$emit('update:shareDialogVisible', !this.shareDialogVisible)),
+      }
+      const onlineUsers = {
+        title: `${this.$t('Terminal.User') } ${this.onlineUserNumber}`,
+        icon: 'el-icon-s-custom',
+        click: null,
+        content: this.onlineUsersMap,
+      }
+      let settings = [themeConfig,]
+      if (this.enableShare) {
+        settings.push(shareConfig)
+      }
+      if (this.onlineUserNumber >= 2) {
+        settings.push(onlineUsers)
+      }
+      return settings
     }
   }
 }
@@ -95,7 +92,7 @@ export default {
 }
 
 .item {
-  color: rgba(0,0,0,0.65);
+  color: rgba(0, 0, 0, 0.65);
   font-size: 14px;
   padding: 12px;
   list-style-type: none;
@@ -114,7 +111,7 @@ export default {
 }
 
 .content {
-  padding: 4px 6px;
+  padding: 4px 6px 4px 20px;
 }
 
 .content-item {
