@@ -5,13 +5,11 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) CreateShareRoom(sessionId string, expired int) (res model.SharingSession, err error) {
-	var postData struct {
-		Session     string `json:"session"`
-		ExpiredTime int    `json:"expired_time"`
-	}
-	postData.Session = sessionId
-	postData.ExpiredTime = expired
+func (s *JMService) CreateShareRoom(sessionId string, expired int, meta interface{}) (res model.SharingSession, err error) {
+	postData := make(map[string]interface{})
+	postData["session"] = sessionId
+	postData["expired_time"] = expired
+	postData["meta"] = meta
 	_, err = s.authClient.Post(ShareCreateURL, postData, &res)
 	return
 }

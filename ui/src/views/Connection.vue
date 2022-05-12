@@ -61,6 +61,7 @@
                   :value="item.id">
                 </el-option>
               </el-select>
+              <div style="color: #aaa">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
         </el-form-item>
       </el-form>
       <el-result v-if="shareId" icon="success" :title="this.$t('Terminal.CreateSuccess')">
@@ -243,7 +244,10 @@ export default {
     handleShareURlCreated() {
       this.loading = true
       if (this.$refs.term) {
-        this.$refs.term.createShareInfo(this.sessionId, this.expiredTime);
+        const meta = {
+          'users': this.userOptions.map(item => {return item.id})
+        }
+        this.$refs.term.createShareInfo(this.sessionId, this.expiredTime, meta);
       }
       this.$log.debug("分享请求数据： ", this.expiredTime, this.sessionId)
 

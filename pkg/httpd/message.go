@@ -47,17 +47,18 @@ type TerminalConnectData struct {
 	Code string `json:"code"`
 }
 
+type ShareRequestMeta struct {
+	Users    []string   `json:"users"`
+}
+
 type ShareRequestParams struct {
-	SessionID  string `json:"session_id"`
-	ExpireTime int    `json:"expired"`
+	SessionID  string     `json:"session_id"`
+	ExpireTime int        `json:"expired"`
+	Meta ShareRequestMeta `json:"meta"`
 }
 
 type GetUserParams struct {
 	Query string `json:"query"`
-}
-
-type shareUserResp struct {
-	Users []*model.MiniUser
 }
 
 type ShareResponse struct {
