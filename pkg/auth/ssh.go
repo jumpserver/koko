@@ -142,7 +142,7 @@ func (d *DirectLoginAssetReq) IsToken() bool {
 }
 
 func (d *DirectLoginAssetReq) User() string {
-	if d.Info.User != nil {
+	if d.IsToken() && d.Info.User != nil {
 		return d.Info.User.Username
 	}
 	return d.Username

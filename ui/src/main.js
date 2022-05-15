@@ -17,6 +17,7 @@ Vue.use(VueRouter)
 Vue.use(VueLogger, loggerOptions)
 Vue.use(ElementUI)
 Vue.use(contextmenu);
+
 new Vue({
   router,
   i18n,

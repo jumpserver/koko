@@ -1,5 +1,4 @@
 #!/bin/sh
-# 该build基于 golang:1.12-alpine
 utils_dir=$(pwd)
 project_dir=$(dirname "$utils_dir")
 release_dir=${project_dir}/release

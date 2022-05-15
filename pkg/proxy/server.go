@@ -62,7 +62,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		switch {
 		case errors.Is(err, srvconn.ErrMySQLClient), errors.Is(err, srvconn.ErrSQLServerClient),
 			errors.Is(err, srvconn.ErrRedisClient), errors.Is(err, srvconn.ErrMongoDBClient),
-			errors.Is(err, srvconn.ErrKubectlClient):
+			errors.Is(err, srvconn.ErrPostgreSQLClient), errors.Is(err, srvconn.ErrKubectlClient):
 			errMsg = lang.T("%s protocol client not installed.")
 			errMsg = fmt.Sprintf(errMsg, connOpts.ProtocolType)
 			err = fmt.Errorf("%w: %s", ErrMissClient, err)
@@ -134,7 +134,8 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 	switch connOpts.ProtocolType {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL,
+		srvconn.ProtocolK8s:
 		if sysUserAuthInfo == nil {
 			authInfo, err2 := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
 				connOpts.user.ID, connOpts.user.Username)
@@ -432,7 +433,8 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		orgID = s.connOpts.asset.OrgID
 
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL,
+		srvconn.ProtocolK8s:
 		server = s.connOpts.app.Name
 		if s.connOpts.k8sContainer != nil {
 			server = s.connOpts.k8sContainer.K8sName(server)
@@ -504,7 +506,7 @@ func (s *Server) checkRequiredAuth() error {
 			return errors.New("no auth token")
 		}
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET,
-		srvconn.ProtocolSQLServer, srvconn.ProtocolMongoDB:
+		srvconn.ProtocolSQLServer, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -613,7 +615,7 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			dstPort: dstPort,
 		}
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL:
 		dGateway = &domainGateway{
 			domain:  domain,
 			dstIP:   s.connOpts.app.Attrs.Host,
@@ -759,6 +761,27 @@ func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvcon
 	return
 }
 
+func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.PostgreSQLConn, err error) {
+	host := s.connOpts.app.Attrs.Host
+	port := s.connOpts.app.Attrs.Port
+	if localTunnelAddr != nil {
+		host = "127.0.0.1"
+		port = localTunnelAddr.Port
+	}
+	srvConn, err = srvconn.NewPostgreSQLConnection(
+		srvconn.SqlHost(host),
+		srvconn.SqlPort(port),
+		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
+		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
+		srvconn.SqlPtyWin(srvconn.Windows{
+			Width:  s.UserConn.Pty().Window.Width,
+			Height: s.UserConn.Pty().Window.Height,
+		}),
+	)
+	return
+}
+
 func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	loginSystemUser := s.systemUserAuthInfo
 	if s.suFromSystemUserAuthInfo != nil {
@@ -785,8 +808,8 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			}
 		}
 	}
-	var passwordTryCount int
 	password := loginSystemUser.Password
+	privateKey := loginSystemUser.PrivateKey
 	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
 		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
@@ -798,8 +821,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			termReader.SetPrompt(questions[i])
 			logger.Debugf("Conn[%s] keyboard auth question [ %s ]", s.UserConn.ID(), q)
 			if strings.Contains(strings.ToLower(q), "password") {
-				passwordTryCount++
-				if passwordTryCount <= 1 && password != "" {
+				if privateKey != "" || password != "" {
 					ans[i] = password
 					continue
 				}
@@ -960,6 +982,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getRedisConn(proxyAddr)
 	case srvconn.ProtocolMongoDB:
 		return s.getMongoDBConn(proxyAddr)
+	case srvconn.ProtocolPostgreSQL:
+		return s.getPostgreSQLConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}
@@ -1005,7 +1029,8 @@ func (s *Server) checkLoginConfirm() bool {
 	)
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL,
+		srvconn.ProtocolK8s:
 		targetType = model.AppType
 		targetId = s.connOpts.app.ID
 	default:
