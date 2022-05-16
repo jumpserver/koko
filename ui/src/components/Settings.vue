@@ -10,7 +10,7 @@
         <el-button
           type="text"
           class="item-button"
-          :disabled="!i.hidden()"
+          :disabled="!i.disabled()"
           :class="'icon ' + i.icon"
           @click.stop="i.click && i.click()"
         >
@@ -51,6 +51,8 @@ export default {
 .title {
   text-align: left;
   padding-left: 12px;
+  font-size: 18px;
+  color: #000;
 }
 
 .item {
@@ -62,14 +64,13 @@ export default {
   line-height: 14px;
 }
 
-.item:hover {
-  color: white;
-  background: rgba(0, 0, 0, .3);;
-}
-
 .item-button {
   width: 100%;
   text-align: left;
+}
+
+.item-button:hover {
+  background: rgba(0, 0, 0, .3);
 }
 
 .content {
@@ -80,7 +81,13 @@ export default {
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  padding: 2px 0;
+  padding: 4px 0;
   color: black;
+}
+
+.content-item:hover {
+  color: white;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, .3);
 }
 </style>
