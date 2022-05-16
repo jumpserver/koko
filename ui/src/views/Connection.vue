@@ -111,19 +111,19 @@ export default {
         {
           title: this.$t('Terminal.ThemeConfig'),
           icon: 'el-icon-orange',
-          hidden: () => true,
+          disabled: () => true,
           click: () => (this.dialogVisible = !this.dialogVisible),
         },
         {
           title: this.$t('Terminal.Share'),
           icon: 'el-icon-share',
-          hidden: () => this.enableShare,
+          disabled: () => this.enableShare,
           click: () => (this.shareDialogVisible = !this.shareDialogVisible),
         },
         {
           title: this.$t('Terminal.User'),
           icon: 'el-icon-s-custom',
-          hidden: () => Object.keys(this.onlineUsersMap).length > 1,
+          disabled: () => Object.keys(this.onlineUsersMap).length > 1,
           content: this.onlineUsersMap,
         }
       ]
