@@ -991,10 +991,11 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 
 func (s *Server) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
+	maxDelay := 5 * 60.0 // 最多执行五分钟
 	msg := fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	var activeFlag bool
-	for {
+	for delay < maxDelay {
 		select {
 		case <-done:
 			return
