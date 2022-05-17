@@ -233,12 +233,9 @@ export default {
     handleShareURlCreated() {
       this.loading = true
       if (this.$refs.term) {
-        const meta = {
-          'users': this.users
-        }
-        this.$refs.term.createShareInfo(this.sessionId, this.expiredTime, meta);
+        this.$refs.term.createShareInfo(this.sessionId, this.expiredTime, this.users);
       }
-      this.$log.debug("分享请求数据： ", this.expiredTime, this.sessionId)
+      this.$log.debug("分享请求数据： ", this.expiredTime, this.sessionId, this.users)
 
     },
     shareDialogClosed() {

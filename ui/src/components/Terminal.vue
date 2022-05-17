@@ -562,8 +562,8 @@ export default {
       this.$log.debug("删除dialog的文件")
     },
 
-    createShareInfo(sid, val, meta) {
-      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val, meta: meta})
+    createShareInfo(sid, val, users) {
+      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val, users: users})
     },
 
     getUserInfo(val) {
