@@ -8,13 +8,7 @@
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <RightPanel>
-      <Settings
-        v-bind:enableShare="enableShare"
-        v-bind:onlineUsersMap="onlineUsersMap"
-        v-bind:onlineUserNumber="onlineKeys.length"
-        :dialogVisible.sync="dialogVisible"
-        :shareDialogVisible.sync="shareDialogVisible"
-      />
+      <Settings :settings="settings" />
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -112,6 +106,29 @@ export default {
     shareURL() {
       return this.shareId ? this.generateShareURL() : this.$t('Terminal.NoLink')
     },
+    settings() {
+      const settings = [
+        {
+          title: this.$t('Terminal.ThemeConfig'),
+          icon: 'el-icon-orange',
+          disabled: () => true,
+          click: () => (this.dialogVisible = !this.dialogVisible),
+        },
+        {
+          title: this.$t('Terminal.Share'),
+          icon: 'el-icon-share',
+          disabled: () => this.enableShare,
+          click: () => (this.shareDialogVisible = !this.shareDialogVisible),
+        },
+        {
+          title: this.$t('Terminal.User'),
+          icon: 'el-icon-s-custom',
+          disabled: () => Object.keys(this.onlineUsersMap).length > 1,
+          content: this.onlineUsersMap,
+        }
+      ]
+      return settings
+    }
   },
   methods: {
     getConnectURL() {

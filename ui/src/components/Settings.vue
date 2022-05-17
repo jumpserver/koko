@@ -3,18 +3,25 @@
     <h3 class="title">{{ this.$t('Terminal.Settings') }}</h3>
     <ul style="padding: 0">
       <li
-          v-for="(i, index) in displaySettings"
-          class="item"
-          :key="index"
-          @click.stop="i.click && i.click()"
+        v-for="(i, index) in settings"
+        class="item"
+        :key="index"
       >
-        <i :class="'icon ' + i.icon"/>
-        <span class="text">{{ i.title }}</span>
+        <el-button
+          type="text"
+          class="item-button"
+          :disabled="!i.disabled()"
+          :class="'icon ' + i.icon"
+          @click.stop="i.click && i.click()"
+        >
+          {{ i.title }}
+          {{ i.content && Object.keys(i.content).length > 0 ? Object.keys(i.content).length : null }}
+        </el-button>
         <div v-if="i.content" class="content">
           <div
-              v-for="(item, key) of i.content"
-              :key="key"
-              class="content-item"
+            v-for="(item, key) of i.content"
+            :key="key"
+            class="content-item"
           >
             {{ item.user }}
           </div>
@@ -28,54 +35,9 @@
 export default {
   name: 'Settings',
   props: {
-    onlineUsersMap: {
-      type: Object,
-      default: () => {}
-    },
-    onlineUserNumber: {
-      type: Number,
-      default: () => 0
-    },
-    enableShare: {
-      type: Boolean,
-      default: () => false
-    },
-    shareDialogVisible: {
-      type: Boolean,
-      default: () => false
-    },
-    dialogVisible: {
-      type: Boolean,
-      default: () => false
-    }
-  },
-
-  computed: {
-    displaySettings() {
-      const themeConfig = {
-        title: this.$t('Terminal.ThemeConfig'),
-        icon: 'el-icon-orange',
-        click: () => (this.$emit('update:dialogVisible', !this.dialogVisible)),
-      }
-      const shareConfig = {
-        title: this.$t('Terminal.Share'),
-        icon: 'el-icon-share',
-        click: () => (this.$emit('update:shareDialogVisible', !this.shareDialogVisible)),
-      }
-      const onlineUsers = {
-        title: `${this.$t('Terminal.User') } ${this.onlineUserNumber}`,
-        icon: 'el-icon-s-custom',
-        click: null,
-        content: this.onlineUsersMap,
-      }
-      let settings = [themeConfig,]
-      if (this.enableShare) {
-        settings.push(shareConfig)
-      }
-      if (this.onlineUserNumber >= 2) {
-        settings.push(onlineUsers)
-      }
-      return settings
+    settings: {
+      type: Array,
+      default: () => []
     }
   }
 }
@@ -89,25 +51,26 @@ export default {
 .title {
   text-align: left;
   padding-left: 12px;
+  font-size: 18px;
+  color: #000;
 }
 
 .item {
   color: rgba(0, 0, 0, 0.65);
   font-size: 14px;
-  padding: 12px;
   list-style-type: none;
   cursor: pointer;
   border-radius: 2px;
   line-height: 14px;
 }
 
-.item:hover {
-  color: white;
-  background: rgba(0, 0, 0, .3);;
+.item-button {
+  width: 100%;
+  text-align: left;
 }
 
-.item .text {
-  padding-left: 5px;
+.item-button:hover {
+  background: rgba(0, 0, 0, .3);
 }
 
 .content {
@@ -118,7 +81,13 @@ export default {
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  padding: 2px 0;
+  padding: 4px 0;
   color: black;
+}
+
+.content-item:hover {
+  color: white;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, .3);
 }
 </style>
