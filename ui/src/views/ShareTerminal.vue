@@ -5,9 +5,9 @@
                 v-on:background-color="onThemeBackground"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
-    
+
     <RightPanel>
-      <Settings :settings="settings" />
+      <Settings :settings="settings" :title="$t('Terminal.Settings')" />
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -18,7 +18,7 @@
         :close-on-click-modal="false"
         :show-close="false"
         width="30%">
-      <el-form ref="form" label-width="80px" @submit.native.prevent>
+      <el-form ref="form" @submit.native.prevent>
         <el-form-item :label="this.$t('Terminal.VerifyCode')">
           <el-input v-model="code"></el-input>
         </el-form-item>
@@ -82,7 +82,11 @@ export default {
           title: this.$t('Terminal.User'),
           icon: 'el-icon-s-custom',
           disabled: () => Object.keys(this.onlineUsersMap).length > 1,
-          content: this.onlineUsersMap,
+          content: Object.values(this.onlineUsersMap).map(item => {
+            item.name = item.user
+            return item
+          }),
+          itemClick: () => {}
         }
       ]
       return settings
