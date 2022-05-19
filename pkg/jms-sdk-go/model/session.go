@@ -20,6 +20,7 @@ type Session struct {
 	UserID       string         `json:"user_id"`
 	AssetID      string         `json:"asset_id"`
 	SystemUserID string         `json:"system_user_id"`
+	Watermark    string         `json:"watermark"`
 }
 
 type ReplayVersion string
