@@ -8,7 +8,7 @@
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <RightPanel>
-      <Settings :settings="settings" />
+      <Settings :settings="settings" :title="$t('Terminal.Settings')" />
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -22,35 +22,38 @@
         @close="shareDialogClosed"
         :modal="false"
         center>
-      <el-form v-if="!shareId" v-loading="loading">
-        <el-form-item :label="this.$t('Terminal.ExpiredTime')">
-          <el-select v-model="expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
-            <el-option
-                v-for="item in expiredOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value">
-            </el-option>
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <el-result v-if="shareId" icon="success" :title="this.$t('Terminal.CreateSuccess')">
-        <template slot="extra">
-        </template>
-      </el-result>
-      <el-form v-if="shareId">
-        <el-form-item :label="this.$t('Terminal.LinkAddr')">
-          <el-input readonly :value="shareURL"/>
-        </el-form-item>
-        <el-form-item :label="this.$t('Terminal.VerifyCode')">
-          <el-input readonly :value="shareCode"/>
-        </el-form-item>
-      </el-form>
-      <span slot="footer" class="dialog-footer">
-    <el-button type="primary" v-if="!shareId"
-               @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
-    <el-button type="primary" v-if="shareId" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }} </el-button>
-  </span>
+      <div v-if="!shareId">
+        <el-form v-loading="loading">
+          <el-form-item :label="this.$t('Terminal.ExpiredTime')">
+            <el-select v-model="expiredTime" :placeholder="this.$t('Terminal.SelectAction')" style="width: 100%">
+              <el-option
+                  v-for="item in expiredOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value">
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <div>
+          <el-button type="primary" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
+        </div>
+      </div>
+      <div v-else>
+        <el-result icon="success" :title="this.$t('Terminal.CreateSuccess')">
+        </el-result>
+        <el-form>
+          <el-form-item :label="this.$t('Terminal.LinkAddr')">
+            <el-input readonly :value="shareURL"/>
+          </el-form-item>
+          <el-form-item :label="this.$t('Terminal.VerifyCode')">
+            <el-input readonly :value="shareCode"/>
+          </el-form-item>
+        </el-form>
+        <div>
+          <el-button type="primary" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }} </el-button>
+        </div>
+      </div>
     </el-dialog>
   </el-container>
 </template>
@@ -111,20 +114,24 @@ export default {
         {
           title: this.$t('Terminal.ThemeConfig'),
           icon: 'el-icon-orange',
-          disabled: () => true,
+          disabled: () => false,
           click: () => (this.dialogVisible = !this.dialogVisible),
         },
         {
           title: this.$t('Terminal.Share'),
           icon: 'el-icon-share',
-          disabled: () => this.enableShare,
+          disabled: () => !this.enableShare,
           click: () => (this.shareDialogVisible = !this.shareDialogVisible),
         },
         {
           title: this.$t('Terminal.User'),
           icon: 'el-icon-s-custom',
-          disabled: () => Object.keys(this.onlineUsersMap).length > 1,
-          content: this.onlineUsersMap,
+          disabled: () => Object.keys(this.onlineUsersMap).length < 1,
+          content: Object.values(this.onlineUsersMap).map(item => {
+            item.name = item.user
+            return item
+          }),
+          itemClick: () => {}
         }
       ]
       return settings
@@ -155,11 +162,9 @@ export default {
       }
       return connectURL
     },
-
     generateShareURL() {
       return `${BASE_URL}/koko/share/${this.shareId}/`
     },
-
     copyShareURL() {
       if (!this.enableShare) {
         return
@@ -253,5 +258,9 @@ export default {
 }
 .settings {
   padding: 24px 20px;
+}
+
+.el-result {
+  padding: 0
 }
 </style>
