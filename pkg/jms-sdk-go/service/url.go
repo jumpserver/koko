@@ -13,11 +13,12 @@ const (
 	TokenAssetURL      = "/api/v1/authentication/connection-token/?token=%s" // Token name
 	UserTokenAuthURL   = "/api/v1/authentication/tokens/"                    // 用户登录验证
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
-	AuthMFASelectURL = "/api/v1/authentication/mfa/select/" // 选择 MFA
+	AuthMFASelectURL   = "/api/v1/authentication/mfa/select/" // 选择 MFA
 
 	TokenAuthInfoURL = "/api/v1/authentication/connection-token/secret-info/detail/"
 	TokenRenewalURL  = "/api/v1/authentication/connection-token/renewal/"
 )
+
 // Session相关API
 const (
 	SessionListURL      = "/api/v1/terminal/sessions/"           //上传创建的资产会话session id
@@ -41,7 +42,7 @@ const (
 	ValidateUserAssetPermissionURL     = "/api/v1/perms/asset-permissions/user/validate/"
 	ValidateApplicationPermissionURL   = "/api/v1/perms/application-permissions/user/validate/"
 
-	UserPermsDatabaseURL = "/api/v1/perms/users/%s/applications/?type__in=mysql,mariadb,sqlserver,postgresql,redis,mongodb"
+	UserPermsDatabaseURL = "/api/v1/perms/users/%s/applications/?category=db&type__in=mysql,mariadb,sqlserver,postgresql,redis,mongodb"
 )
 
 // 系统用户密码相关API
