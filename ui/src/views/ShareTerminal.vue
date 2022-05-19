@@ -7,11 +7,7 @@
     </el-main>
     
     <RightPanel>
-      <Settings
-        v-bind:onlineUsersMap="onlineUsersMap"
-        v-bind:onlineUserNumber="onlineKeys.length"
-        :dialogVisible.sync="dialogVisible"
-      />
+      <Settings :settings="settings" />
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -73,6 +69,23 @@ export default {
     },
     displayOnlineUser() {
       return this.onlineKeys.length > 1;
+    },
+    settings() {
+      const settings = [
+        {
+          title: this.$t('Terminal.ThemeConfig'),
+          icon: 'el-icon-orange',
+          disabled: () => true,
+          click: () => (this.dialogVisible = !this.dialogVisible),
+        },
+        {
+          title: this.$t('Terminal.User'),
+          icon: 'el-icon-s-custom',
+          disabled: () => Object.keys(this.onlineUsersMap).length > 1,
+          content: this.onlineUsersMap,
+        }
+      ]
+      return settings
     }
   },
   methods: {
