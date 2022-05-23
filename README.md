@@ -59,6 +59,32 @@ cd koko-[branch name]-[commit]-linux-amd64
 ```
 
 
+## 开发环境
+
+1. 运行 server 后端
+
+```shell
+
+$ cp config_example.yml config.yml  # 1. 准备配置文件
+$ vim config.yml  # 2. 修改配置文件, 编辑其中的地址 和 bootstrap key
+CORE_HOST: http://127.0.0.1:8080
+BOOTSTRAP_TOKEN: PleaseChangeMe<改成和core一样的>
+
+$ go run cmd/koko/koko.go # 3. 运行, 运行需要 go 如果没有，golang.org 下载安装
+```
+
+
+2. 运行 ui 前端
+
+```shell
+$ cd ui 
+$ yarn install
+$ npm run serve
+```
+
+3. 测试
+在 luna 访问 linux 资产，复制 iframe 地址，端口修改为 9530 即可，也可以修改 nginx 将 /koko 映射到这里
+
 ## 构建docker镜像
 
 ```shell
