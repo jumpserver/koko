@@ -1,12 +1,13 @@
 <template>
-  <div class="dialog-modal" v-show="visible" @click.self="() => $emit('update:visible', false)">
-    <div class="config-container">
-      <span class="btn-close" @click="() => $emit('update:visible', false)">
-        <i class="el-icon-close" />
-      </span>
-      <el-tabs v-model="activeName">
-        <el-tab-pane :label="this.$t('Terminal.Theme')" name="first">
-          <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')" style="width: 100%">
+  <div>
+    <el-dialog
+      :title="this.$t('Terminal.Theme')"
+      :visible.sync="iVisible"
+      width="50%"
+      :close-on-press-escape="false">
+
+      <div class="content">
+        <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')" style="width: 100%">
             <el-option v-for="item in themes" :key="item" :label="item" :value="item"></el-option>
           </el-select>
           <div v-if="theme">
@@ -95,9 +96,9 @@
               </el-col>
             </el-row>
           </div>
-        </el-tab-pane>
-      </el-tabs>
-    </div>
+      </div>
+
+    </el-dialog>
   </div>
 </template>
 
@@ -111,9 +112,8 @@ export default {
   },
   data() {
     return {
-      activeName: "first",
       themes: themes,
-      theme: window.localStorage.getItem("themeName") || null,
+      theme: window.localStorage.getItem("themeName") || 'Afterglow',
     };
   },
   computed: {
@@ -123,6 +123,14 @@ export default {
       } else {
         return null;
       }
+    },
+    iVisible: {
+      set(val) {
+        this.$emit('update:visible', val)
+      },
+      get() {
+        return this.visible
+      }
     }
   },
   watch: {
@@ -131,57 +139,13 @@ export default {
       this.$emit("setTheme", xtermTheme[val]);
     }
   },
+  mounted() {
+    this.$emit("setTheme", xtermTheme[this.theme]);
+  }
 };
 </script>
 
 <style  scoped>
-.dialog-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2000;
-  text-align: center;
-  background-color: rgba(0, 0, 0, 0.1);
-  color: #000;
-
-
-}
-
-.dialog-modal::after {
-  content: "";
-  display: inline-block;
-  height: 100%;
-  width: 0;
-  vertical-align: middle;
-}
-
-.config-container {
-  position: relative;
-  display: inline-block;
-  min-width: 640px;
-  min-height: 380px;
-  padding: 10px 10px 20px;
-  vertical-align: middle;
-  background-color: #fff;
-  border-radius: 4px;
-  border: 1px solid #ebeef5;
-  font-size: 18px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  text-align: left;
-  overflow: hidden;
-  backface-visibility: hidden;
-}
-
-.config-container .btn-close {
-  position: absolute;
-  top: 16px;
-  right: 10px;
-  z-index: 11;
-  cursor: pointer;
-}
-
 .title {
   font-size: 14px;
 }
@@ -200,10 +164,6 @@ export default {
 .theme-colors  .bgimg-btn {
   width: 600px;
   height: 300px;
-}
-img {
-  width: 100%;
-  height: 100%;
 }
 
 </style>

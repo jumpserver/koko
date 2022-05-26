@@ -20,8 +20,7 @@
         :close-on-press-escape="false"
         :close-on-click-modal="false"
         @close="shareDialogClosed"
-        :modal="false"
-        center>
+        :modal="false">
       <div v-if="!shareId">
         <el-form v-loading="loading">
           <el-form-item :label="this.$t('Terminal.ExpiredTime')">
