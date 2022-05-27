@@ -73,12 +73,16 @@ export default {
       setting: null,
       lunaId: null,
       origin: null,
+      clipboardCopy: true,
+      clipboardPaste: true,
+      clipboardCopyPaste: true,
     }
   },
   mounted: function () {
     this.registerJMSEvent()
     this.connect()
     this.updateTheme()
+    this.controlBrowserEvents()
   },
   methods: {
     updateTheme() {
@@ -116,16 +120,14 @@ export default {
       termRef.addEventListener('mouseenter', () => {
         term.focus();
       })
-      term.onSelectionChange(() => {
-        document.execCommand('copy');
-        this.$log.debug("select change")
-        this.termSelectionText = term.getSelection().trim();
-      });
       term.attachCustomKeyEventHandler((e) => {
-        if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
-          return false;
+        if (e.ctrlKey || e.shiftKey || e.metaKey) {
+          if (e.code === 'KeyC' || e.code === 'KeyV') {
+            return false;
+          }
+        } else {
+          return true;
         }
-        return !(e.ctrlKey && e.key === 'v');
       });
       termRef.addEventListener('contextmenu', ($event) => {
         if ($event.ctrlKey || this.config.quickPaste !== '1') {
@@ -215,6 +217,7 @@ export default {
       });
 
       this.term.onData(data => {
+        if (!this.clipboardPaste || !this.clipboardCopyPaste) return
         if (!this.wsIsActivated()) {
           this.$log.debug("websocket closed")
           return
@@ -584,6 +587,17 @@ export default {
         }
       }
       return data
+    },
+
+    controlBrowserEvents() {
+      document.body.oncontextmenu = () =>  false;
+      document.body.oncopy = e => {
+        if (!this.clipboardCopy || !this.clipboardCopyPaste) {
+          e.clipboardData.setData('Text', '');
+          return false;
+        }
+        return true;
+      }
     }
   }
 }
@@ -597,6 +611,7 @@ div {
 }
 
 #term {
+  user-select: none;
   height: calc(100% - 10px);
   padding: 10px 0 10px 10px;
 }
