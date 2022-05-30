@@ -22,23 +22,9 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends gnupg dirmngr openssh-client procps curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN set -ex; \
-# gpg: key 5072E1F5: public key "MySQL Release Engineering <mysql-build@oss.oracle.com>" imported
-	key='A4A9406876FCBD3C456770C88C718D3B5072E1F5'; \
-	export GNUPGHOME="$(mktemp -d)"; \
-	( gpg --batch --keyserver p80.pool.sks-keyservers.net  --recv-keys "$key" \
-      || gpg --batch --keyserver hkps.pool.sks-keyservers.net --recv-keys "$key" \
-      || gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key" \
-      || gpg --batch --keyserver pgp.mit.edu --recv-keys "$key" \
-      || gpg --batch --keyserver keyserver.pgp.com --recv-keys "$key" ); \
-	gpg --batch --export "$key" > /etc/apt/trusted.gpg.d/mysql.gpg; \
-	gpgconf --kill all; \
-	rm -rf "$GNUPGHOME"; \
-	apt-key list > /dev/null
-
 ENV MYSQL_MAJOR 8.0
 RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/mysql/apt/debian stretch mysql-${MYSQL_MAJOR}" > /etc/apt/sources.list.d/mysql.list
-RUN apt-get update && apt-get install -y gdb ca-certificates mysql-community-client && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --allow-unauthenticated gdb ca-certificates mysql-community-client && rm -rf /var/lib/apt/lists/*
 
 ENV TZ Asia/Shanghai
 WORKDIR /opt/koko/
