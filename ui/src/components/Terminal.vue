@@ -598,6 +598,29 @@ export default {
         }
         return true;
       }
+    },
+
+    updatePermission(actions) {
+      this.updateEnableCopy(actions);
+      this.updateEnablePaste(actions);
+    },
+
+    updateEnableCopy(actions) {
+      const ret = actions.filter(action => {
+        return action === "all" || action === "clipboard_copy_paste" || action === "clipboard_copy";
+      })
+      if (ret.length <= 0 ) {
+        this.clipboardCopy = false
+      }
+    },
+
+    updateEnablePaste(actions) {
+      const ret = actions.filter(action => {
+        return action === "all"  || action === "clipboard_copy_paste" || action === "clipboard_paste";
+      })
+      if (ret.length <= 0 ) {
+        this.clipboardPaste = false
+      }
     }
   }
 }
