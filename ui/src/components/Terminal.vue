@@ -73,12 +73,16 @@ export default {
       setting: null,
       lunaId: null,
       origin: null,
+      clipboardCopy: true,
+      clipboardPaste: true,
+      clipboardPasteStatus: true,
     }
   },
   mounted: function () {
     this.registerJMSEvent()
     this.connect()
     this.updateTheme()
+    this.controlBrowserEvents()
   },
   methods: {
     updateTheme() {
@@ -116,16 +120,16 @@ export default {
       termRef.addEventListener('mouseenter', () => {
         term.focus();
       })
-      term.onSelectionChange(() => {
-        document.execCommand('copy');
-        this.$log.debug("select change")
-        this.termSelectionText = term.getSelection().trim();
-      });
       term.attachCustomKeyEventHandler((e) => {
-        if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
-          return false;
+        if (e.ctrlKey || e.shiftKey || e.metaKey) {
+          if (e.code === 'KeyV' && !this.clipboardPasteStatus) {
+            this.clipboardPaste = false;
+            return false;
+          }
+        } else {
+          this.clipboardPaste = true;
+          return true;
         }
-        return !(e.ctrlKey && e.key === 'v');
       });
       termRef.addEventListener('contextmenu', ($event) => {
         if ($event.ctrlKey || this.config.quickPaste !== '1') {
@@ -215,6 +219,7 @@ export default {
       });
 
       this.term.onData(data => {
+        if (!this.clipboardPaste) return
         if (!this.wsIsActivated()) {
           this.$log.debug("websocket closed")
           return
@@ -584,6 +589,40 @@ export default {
         }
       }
       return data
+    },
+
+    controlBrowserEvents() {
+      document.body.oncontextmenu = () => false;
+      document.body.oncopy = e => {
+        if (!this.clipboardCopy) {
+          e.clipboardData.setData('Text', '');
+          return false;
+        }
+        return true;
+      };
+    },
+
+    updatePermission(actions) {
+      this.updateEnableCopy(actions);
+      this.updateEnablePaste(actions);
+    },
+
+    updateEnableCopy(actions) {
+      const ret = actions.filter(action => {
+        return action === "all" || action === "clipboard_copy_paste" || action === "clipboard_copy";
+      })
+      if (ret.length <= 0 ) {
+        this.clipboardCopy = false
+      }
+    },
+
+    updateEnablePaste(actions) {
+      const ret = actions.filter(action => {
+        return action === "all"  || action === "clipboard_copy_paste" || action === "clipboard_paste";
+      })
+      if (ret.length <= 0 ) {
+        this.clipboardPasteStatus = false
+      }
     }
   }
 }
@@ -597,6 +636,7 @@ div {
 }
 
 #term {
+  user-select: none;
   height: calc(100% - 10px);
   padding: 10px 0 10px 10px;
 }
