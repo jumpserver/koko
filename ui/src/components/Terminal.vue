@@ -75,7 +75,7 @@ export default {
       origin: null,
       clipboardCopy: true,
       clipboardPaste: true,
-      clipboardCopyPaste: true,
+      clipboardPasteStatus: true,
     }
   },
   mounted: function () {
@@ -122,10 +122,12 @@ export default {
       })
       term.attachCustomKeyEventHandler((e) => {
         if (e.ctrlKey || e.shiftKey || e.metaKey) {
-          if (e.code === 'KeyC' || e.code === 'KeyV') {
+          if (e.code === 'KeyV' && !this.clipboardPasteStatus) {
+            this.clipboardPaste = false;
             return false;
           }
         } else {
+          this.clipboardPaste = true;
           return true;
         }
       });
@@ -217,7 +219,7 @@ export default {
       });
 
       this.term.onData(data => {
-        if (!this.clipboardPaste || !this.clipboardCopyPaste) return
+        if (!this.clipboardPaste) return
         if (!this.wsIsActivated()) {
           this.$log.debug("websocket closed")
           return
@@ -590,14 +592,14 @@ export default {
     },
 
     controlBrowserEvents() {
-      document.body.oncontextmenu = () =>  false;
+      document.body.oncontextmenu = () => false;
       document.body.oncopy = e => {
-        if (!this.clipboardCopy || !this.clipboardCopyPaste) {
+        if (!this.clipboardCopy) {
           e.clipboardData.setData('Text', '');
           return false;
         }
         return true;
-      }
+      };
     },
 
     updatePermission(actions) {
@@ -619,7 +621,7 @@ export default {
         return action === "all"  || action === "clipboard_copy_paste" || action === "clipboard_paste";
       })
       if (ret.length <= 0 ) {
-        this.clipboardPaste = false
+        this.clipboardPasteStatus = false
       }
     }
   }
