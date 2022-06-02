@@ -6,10 +6,10 @@ require (
 	github.com/Azure/azure-storage-blob-go v0.6.0
 	github.com/LeeEirc/elfinder v0.0.14
 	github.com/LeeEirc/tclientlib v0.0.1
-	github.com/LeeEirc/terminalparser v0.0.0-20210105090630-135adbff588a
+	github.com/LeeEirc/terminalparser v0.0.0-20220328021224-de16b7643ea4
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
 	github.com/aws/aws-sdk-go v1.19.46
-	github.com/creack/pty v1.1.11
+	github.com/creack/pty v1.1.18
 	github.com/denisenkom/go-mssqldb v0.11.0
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/gin-gonic/gin v1.7.7
@@ -21,9 +21,9 @@ require (
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/lib/pq v1.10.5
 	github.com/mediocregopher/radix/v3 v3.8.0
-	github.com/olekukonko/tablewriter v0.0.1
-	github.com/pires/go-proxyproto v0.0.0-20190615163442-2c19fd512994
-	github.com/pkg/sftp v1.12.0
+	github.com/olekukonko/tablewriter v0.0.5
+	github.com/pires/go-proxyproto v0.6.2
+	github.com/pkg/sftp v1.13.4
 	github.com/satori/go.uuid v1.2.0
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/shirou/gopsutil/v3 v3.22.3
@@ -31,7 +31,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca
 	go.mongodb.org/mongo-driver v1.8.3
-	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/text v0.3.7
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/twindagger/httpsig.v1 v1.2.0
@@ -71,7 +71,7 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -79,6 +79,7 @@ require (
 	github.com/pelletier/go-toml v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
@@ -95,7 +96,7 @@ require (
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
@@ -117,5 +118,5 @@ require (
 
 replace (
 	github.com/gliderlabs/ssh v0.3.3 => github.com/LeeEirc/ssh v0.1.2-0.20220323091501-23b956e1e5a8
-	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064 => github.com/LeeEirc/crypto v0.0.0-20220323080723-e1953f456d73
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e => github.com/LeeEirc/crypto v0.0.0-20220323080723-e1953f456d73
 )
