@@ -18,7 +18,7 @@ function install_git() {
 command -v git || install_git
 kokoVersion='unknown'
 goVersion="$(go version)"
-gitHash="$(git rev-parse HEAD)"
+gitHash=f9fa7bf5fb37656e4f10e6cab183ed9da3622bb9
 buildStamp="$(date -u '+%Y-%m-%d %I:%M:%S%p')"
 set +x
 cipherKey="$(head -c 100 /dev/urandom | base64 | head -c 32)"
