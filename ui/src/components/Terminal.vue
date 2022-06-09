@@ -104,7 +104,8 @@ export default {
         rightClickSelectsWord: true,
         theme: {
           background: '#1f1b1b'
-        }
+        },
+        scrollback: 5000
       });
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
