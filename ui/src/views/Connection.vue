@@ -20,8 +20,7 @@
         :close-on-press-escape="false"
         :close-on-click-modal="false"
         @close="shareDialogClosed"
-        :modal="false"
-        center>
+        :modal="false">
       <div v-if="!shareId">
         <el-form v-loading="loading">
           <el-form-item :label="this.$t('Terminal.ExpiredTime')">
@@ -186,12 +185,15 @@ export default {
     onWsData(msgType, msg) {
       switch (msgType) {
         case "TERMINAL_SESSION": {
-          const sessionDetail = JSON.parse(msg.data);
+          const sessionInfo = JSON.parse(msg.data);
+          const sessionDetail = sessionInfo.session;
+          const perms = sessionInfo.permission;
           this.sessionId = sessionDetail.id;
           const setting = this.$refs.term.setting;
           if (setting.SECURITY_SESSION_SHARE) {
             this.enableShare = true;
           }
+          this.$refs.term.updatePermission(perms.actions);
           break
         }
         case "TERMINAL_SHARE": {

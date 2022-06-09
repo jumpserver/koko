@@ -12,7 +12,7 @@
           class="item-button"
           :disabled="i.disabled()"
           :class="'icon ' + i.icon"
-          @click.stop="i.click && i.click()"
+          @click.stop="i.click && itemClick(i)"
         >
           {{ i.title }}
           {{ i.content && Object.keys(i.content).length > 0 ? Object.keys(i.content).length : null }}
@@ -45,6 +45,12 @@ export default {
     settings: {
       type: Array,
       default: () => []
+    }
+  },
+  methods: {
+    itemClick(item) {
+      this.$parent.show = false
+      item.click()
     }
   }
 }
