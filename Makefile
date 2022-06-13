@@ -18,16 +18,18 @@ UIDIR=ui
 NPMINSTALL=npm i
 NPMBUILD=npm run-script build
 
+LDFLAGS=-w -s
+
 KOKOLDFLAGS+=-X 'main.Buildstamp=$(BuildTime)'
 KOKOLDFLAGS+=-X 'main.Githash=$(COMMIT)'
 KOKOLDFLAGS+=-X 'main.Goversion=$(GOVERSION)'
 KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/koko.Version=$(VERSION)'
 KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 
-KUBECTLFLAGS="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'"
+KUBECTLFLAGS=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 
-KOKOBUILD=CGO_ENABLED=0 go build -trimpath -ldflags "$(KOKOLDFLAGS)"
-KUBECTLBUILD=CGO_ENABLED=0 go build -trimpath -ldflags $(KUBECTLFLAGS)
+KOKOBUILD=CGO_ENABLED=0 go build -trimpath -ldflags "$(KOKOLDFLAGS) ${LDFLAGS}"
+KUBECTLBUILD=CGO_ENABLED=0 go build -trimpath -ldflags "$(KUBECTLFLAGS) ${LDFLAGS}"
 
 PLATFORM_LIST = \
 	darwin-amd64 \
@@ -104,6 +106,7 @@ linux-arm64:koko-ui
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
 	cp $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(NAME)
 	cp $(BUILDDIR)/kubectl-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/kubectl
 	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
@@ -112,6 +115,27 @@ linux-arm64:koko-ui
 	cp -r $(BASEPATH)/config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$@/config_example.yml
 	cp -r $(BASEPATH)/utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$@/init-kubectl.sh
 	cp -r $(UIDIR)/dist/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
+	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$@.tar.gz $(NAME)-$(VERSION)-$@
+	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$@ $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/kubectl-$@
+
+linux-loong64:koko-ui
+	GOARCH=loong64 GOOS=linux $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$@ $(KOKOSRCFILE)
+	GOARCH=loong64 GOOS=linux $(KUBECTLBUILD) -o $(BUILDDIR)/kubectl-$@ $(KUBECTLFILE)
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
+	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
+	cp $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(NAME)
+	cp $(BUILDDIR)/kubectl-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/kubectl
+	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
+	cp -r $(BASEPATH)/static/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
+	cp -r $(BASEPATH)/templates/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
+	cp -r $(BASEPATH)/config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$@/config_example.yml
+	cp -r $(BASEPATH)/utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$@/init-kubectl.sh
+	cp -r $(UIDIR)/dist/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(UIDIR)/dist/
+
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$@.tar.gz $(NAME)-$(VERSION)-$@
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$@ $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/kubectl-$@
 
