@@ -122,8 +122,8 @@ export default {
         term.focus();
       })
       term.attachCustomKeyEventHandler((e) => {
-        if (e.ctrlKey || e.shiftKey || e.metaKey) {
-          if (e.code === 'KeyV' && !this.clipboardPasteStatus) {
+        if (e.ctrlKey || e.shiftKey || e.metaKey || e.keyCode === 17) {
+          if ((e.code === 'KeyV' || e.keyCode === 86) && !this.clipboardPasteStatus) {
             this.clipboardPaste = false;
             return false;
           }
