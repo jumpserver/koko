@@ -135,7 +135,6 @@ export default {
         case 'TERMINAL_SESSION': {
           const sessionInfo = JSON.parse(msg.data);
           const sessionDetail = sessionInfo.session;
-          const perms = sessionInfo.permission;
           const user = this.$refs.term.currentUser;
           const username = `${user.name}(${user.username})`
           const waterMarkContent = `${username}\n${sessionDetail.asset}`
@@ -146,7 +145,6 @@ export default {
               content: waterMarkContent
             })
           }
-          this.$refs.term.updatePermission(perms.actions);
           break
         }
         default:
