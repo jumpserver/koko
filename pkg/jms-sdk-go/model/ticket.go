@@ -17,7 +17,7 @@ type TicketState struct {
 }
 
 const (
-	TicketOpen     = "open"
+	TicketOpen     = "pending"
 	TicketApproved = "approved"
 	TicketRejected = "rejected"
 	TicketClosed   = "closed"
