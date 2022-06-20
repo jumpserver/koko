@@ -116,7 +116,12 @@ export default {
       })
       termRef.addEventListener('mouseenter', () => {
         term.focus();
-      })
+      });
+      term.onSelectionChange(() => {
+        document.execCommand('copy');
+        this.$log.debug("select change")
+        this.termSelectionText = term.getSelection().trim();
+      });
       term.attachCustomKeyEventHandler((e) => {
         if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
           return false;
@@ -593,7 +598,6 @@ div {
 }
 
 #term {
-  user-select: none;
   height: calc(100% - 10px);
   padding: 10px 0 10px 10px;
 }
