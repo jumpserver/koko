@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"gopkg.in/twindagger/httpsig.v1"
+	"github.com/LeeEirc/httpsig"
 )
 
 var (
