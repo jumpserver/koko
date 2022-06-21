@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -60,6 +62,8 @@ type directOpt struct {
 	formatType FormatType
 
 	tokenInfo *model.ConnectTokenInfo
+
+	sftpMode bool
 }
 
 func (d directOpt) IsTokenConnection() bool {
@@ -102,6 +106,12 @@ func DirectConnectToken(tokenInfo *model.ConnectTokenInfo) DirectOpt {
 	}
 }
 
+func DirectConnectSftpMode(sftpMode bool) DirectOpt {
+	return func(opts *directOpt) {
+		opts.sftpMode = sftpMode
+	}
+}
+
 func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
 	switch opts.formatType {
 	case FormatUUID:
@@ -128,33 +138,45 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetter
 	var (
 		selectedAssets []model.Asset
 		err            error
+		wrapperSess    *WrapperSession
+		term           *utils.Terminal
+		errMsg         string
 	)
+
+	defer func() {
+		if err != nil && !opts.sftpMode {
+			utils.IgnoreErrWriteString(sess, errMsg)
+		}
+	}()
 	if !opts.IsTokenConnection() {
 		selectedAssets, err = selectAssetsByDirectOpt(jmsService, opts)
 		if err != nil {
 			logger.Errorf("Get direct asset failed: %s", err)
-			utils.IgnoreErrWriteString(sess, lang.T("Core API failed"))
+			errMsg = lang.T("Core API failed")
 			return nil, err
 		}
 		if len(selectedAssets) <= 0 {
 			msg := fmt.Sprintf(lang.T("not found matched asset %s"), opts.targetAsset)
-			utils.IgnoreErrWriteString(sess, msg+"\r\n")
-			return nil, fmt.Errorf("no found matched asset: %s", opts.targetAsset)
+			errMsg = msg + "\r\n"
+			err = fmt.Errorf("no found matched asset: %s", opts.targetAsset)
+			return nil, err
 		}
 	}
-
-	wrapperSess := NewWrapperSession(sess)
-	term := utils.NewTerminal(wrapperSess, "Opt> ")
-	d := &DirectHandler{
-		sess:        sess,
-		wrapperSess: wrapperSess,
-		opts:        opts,
-		jmsService:  jmsService,
-		assets:      selectedAssets,
-		term:        term,
-		i18nLang:    i18nLang,
+	if !opts.sftpMode {
+		wrapperSess = NewWrapperSession(sess)
+		term = utils.NewTerminal(wrapperSess, "Opt> ")
 	}
-	return d, err
+	d := &DirectHandler{
+		opts:       opts,
+		sess:       sess,
+		jmsService: jmsService,
+		assets:     selectedAssets,
+		i18nLang:   i18nLang,
+
+		wrapperSess: wrapperSess,
+		term:        term,
+	}
+	return d, nil
 
 }
 
@@ -165,13 +187,30 @@ type DirectHandler struct {
 	opts        *directOpt
 	jmsService  *service.JMService
 
-	IsPtyStatus bool
-
 	assets []model.Asset
 
 	selectedSystemUser *model.SystemUser
 
 	i18nLang string
+}
+
+func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
+	addr, _, _ := net.SplitHostPort(d.sess.RemoteAddr().String())
+	var (
+		assets      []model.Asset
+		systemUsers []model.SystemUser
+	)
+	if !d.opts.IsTokenConnection() {
+		assets = d.assets
+		if len(d.assets) == 1 {
+			systemUsers = d.getMatchedSystemUsers(d.assets[0])
+		}
+	} else {
+		assets = []model.Asset{*d.opts.tokenInfo.Asset}
+		systemUsers = d.getMatchedSystemUsers(*d.opts.tokenInfo.Asset)
+	}
+	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(d.jmsService,
+		d.opts.User, addr, assets, systemUsers)}
 }
 
 func (d *DirectHandler) Dispatch() {

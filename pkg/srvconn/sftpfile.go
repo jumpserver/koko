@@ -70,8 +70,8 @@ func (sd *SearchResultDir) close() {
 	}
 }
 
-func NewNodeDir(builders ...FolderBuilderFunc) NodeDir {
-	var dirConf folderConfiguration
+func NewNodeDir(builders ...FolderBuilderOption) NodeDir {
+	var dirConf folderOptions
 	for i := range builders {
 		builders[i](&dirConf)
 	}
@@ -85,55 +85,79 @@ func NewNodeDir(builders ...FolderBuilderFunc) NodeDir {
 	}
 }
 
-type FolderBuilderFunc func(info *folderConfiguration)
+type FolderBuilderOption func(info *folderOptions)
 
 type SubFoldersLoadFunc func() map[string]os.FileInfo
 
-type folderConfiguration struct {
+type folderOptions struct {
 	ID          string
 	Name        string
 	RemoteAddr  string
 	loadSubFunc SubFoldersLoadFunc
+
+	asset       *model.Asset
+	systemUsers []model.SystemUser
+	domain      *model.Domain
 }
 
-func WithFolderName(name string) FolderBuilderFunc {
-	return func(info *folderConfiguration) {
+func WithFolderName(name string) FolderBuilderOption {
+	return func(info *folderOptions) {
 		info.Name = name
 	}
 }
 
-func WithFolderID(id string) FolderBuilderFunc {
-	return func(info *folderConfiguration) {
+func WithFolderID(id string) FolderBuilderOption {
+	return func(info *folderOptions) {
 		info.ID = id
 	}
 }
 
-func WitRemoteAddr(addr string) FolderBuilderFunc {
-	return func(info *folderConfiguration) {
+func WitRemoteAddr(addr string) FolderBuilderOption {
+	return func(info *folderOptions) {
 		info.RemoteAddr = addr
 	}
 }
 
-func WithSubFoldersLoadFunc(loadFunc SubFoldersLoadFunc) FolderBuilderFunc {
-	return func(info *folderConfiguration) {
+func WithSubFoldersLoadFunc(loadFunc SubFoldersLoadFunc) FolderBuilderOption {
+	return func(info *folderOptions) {
 		info.loadSubFunc = loadFunc
 	}
 }
 
+func WithAsset(asset model.Asset) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.asset = &asset
+	}
+}
+
+func WithSystemUsers(systemUsers []model.SystemUser) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.systemUsers = systemUsers
+	}
+}
+
+func WithDomain(domain model.Domain) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.domain = &domain
+	}
+}
+
 func NewAssetDir(jmsService *service.JMService, user *model.User, logChan chan<- *model.FTPLog,
-	builders ...FolderBuilderFunc) AssetDir {
-	var dirConf folderConfiguration
-	for i := range builders {
-		builders[i](&dirConf)
+	opts ...FolderBuilderOption) AssetDir {
+	var dirOpts folderOptions
+	for _, setter := range opts {
+		setter(&dirOpts)
 	}
 	conf := config.GetConf()
 	return AssetDir{
-		ID:          dirConf.ID,
-		folderName:  dirConf.Name,
-		addr:        dirConf.RemoteAddr,
+		ID:          dirOpts.ID,
+		folderName:  dirOpts.Name,
+		addr:        dirOpts.RemoteAddr,
 		user:        user,
+		detailAsset: dirOpts.asset,
+		domain:      dirOpts.domain,
 		modeTime:    time.Now().UTC(),
-		suMaps:      nil,
+		suMaps:      generateSubSystemUsersFolderMap(dirOpts.systemUsers),
 		logChan:     logChan,
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,

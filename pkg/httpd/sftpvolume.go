@@ -19,14 +19,14 @@ import (
 )
 
 func NewUserVolume(jmsService *service.JMService, user *model.User, addr, hostId string) *UserVolume {
-	var userSftp *srvconn.UserSftpConn
-	homename := "Home"
+	homeName := "Home"
 	basePath := "/"
-	switch hostId {
-	case "":
-		userSftp = srvconn.NewUserSftpConn(jmsService, user, addr)
-	default:
-		assets, err := jmsService.GetUserAssetByID(user.ID, hostId)
+	var (
+		assets []model.Asset
+		err    error
+	)
+	if hostId != "" {
+		assets, err = jmsService.GetUserAssetByID(user.ID, hostId)
 		if err != nil {
 			logger.Errorf("Get user asset failed: %s", err)
 		}
@@ -35,16 +35,16 @@ func NewUserVolume(jmsService *service.JMService, user *model.User, addr, hostId
 			if strings.Contains(folderName, "/") {
 				folderName = strings.ReplaceAll(folderName, "/", "_")
 			}
-			homename = folderName
-			basePath = filepath.Join("/", homename)
+			homeName = folderName
+			basePath = filepath.Join("/", homeName)
 		}
-		userSftp = srvconn.NewUserSftpConnWithAssets(jmsService, user, addr, assets...)
 	}
+	userSftp := srvconn.NewUserSftpConn(jmsService, user, addr, assets, nil)
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),
 		UserSftp:      userSftp,
-		Homename:      homename,
+		Homename:      homeName,
 		basePath:      basePath,
 		chunkFilesMap: make(map[int]*sftp.File),
 		lock:          new(sync.Mutex),
