@@ -167,12 +167,12 @@ export default {
   pointer-events: auto;
   color: #fff;
   opacity: .8;
-  background-color: rgba(245, 247, 250, 0.3)
+  background-color: rgba(99, 89, 89, .7);
 }
 
 .handle-button:hover {
   cursor: pointer;
-  background-color: rgba(245, 247, 250, 0.4)
+  background-color: rgba(99, 89, 89, .9);
 }
 
 .handle-button i {
