@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	commandName = "rawkubectl"
+	commandName = "rawhelm"
 )
 
 func main() {
@@ -19,11 +19,12 @@ func main() {
 		s.WriteString(args[i])
 		s.WriteString(" ")
 	}
+
 	commandPrefix := commandName
 	token, _ := utils.GetDecryptedToken()
 	if token != "" {
 		token = strings.ReplaceAll(token, "'", "")
-		commandPrefix = fmt.Sprintf(`%s --token='%s'`, commandName, token)
+		commandPrefix = fmt.Sprintf(`%s --kube-token='%s'`, commandName, token)
 	}
 
 	commandString := fmt.Sprintf("%s %s", commandPrefix, s.String())

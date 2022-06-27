@@ -28,11 +28,12 @@ if [[ -n "${VERSION-}" ]]; then
 fi
 
 goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.Goversion=$goVersion' -X 'github.com/jumpserver/koko/pkg/koko.Version=$kokoVersion' -X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
-kubectlflags="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
+k8scmdflags="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
 CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$goldflags" -o koko ${project_dir}/cmd/koko/ || exit 4
-CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$kubectlflags" -o kubectl ${project_dir}/cmd/kubectl/  || exit 4
+CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$k8scmdflags" -o kubectl ${project_dir}/cmd/kubectl/  || exit 4
+CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$k8scmdflags" -o helm ${project_dir}/cmd/helm/  || exit 4
 set -x
 
 # 打包
@@ -42,6 +43,6 @@ mkdir -p "${to_dir}"
 
 cp -r "${utils_dir}/init-kubectl.sh" "${to_dir}"
 
-for i in koko kubectl static templates locale config_example.yml;do
+for i in koko kubectl helm static templates locale config_example.yml;do
   cp -r $i "${to_dir}"
 done
