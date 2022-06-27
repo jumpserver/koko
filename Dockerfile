@@ -27,6 +27,10 @@ RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.
     && tar -xzf kubectl.tar.gz \
     && chmod +x kubectl \
     && mv kubectl rawkubectl \
+    && wget https://get.helm.sh/helm-v3.9.0-linux-${TARGETARCH}.tar.gz -O helm.tar.gz \
+    && tar -xzf helm.tar.gz \
+    && chmod +x linux-${TARGETARCH}/helm \
+    && mv linux-${TARGETARCH}/helm rawhelm \
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xzvf kubectl_aliases.tar.gz
 
@@ -55,7 +59,9 @@ ENV TZ Asia/Shanghai
 WORKDIR /opt/koko/
 COPY --from=stage-build /opt/koko/release/koko /opt/koko
 COPY --from=stage-build /opt/koko/release/koko/kubectl /usr/local/bin/kubectl
+COPY --from=stage-build /opt/koko/release/koko/helm /usr/local/bin/helm
 COPY --from=stage-build /opt/koko/rawkubectl /usr/local/bin/rawkubectl
+COPY --from=stage-build /opt/koko/rawhelm /usr/local/bin/rawhelm
 COPY --from=stage-build /opt/koko/utils/coredump.sh .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
