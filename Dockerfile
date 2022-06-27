@@ -24,15 +24,15 @@ ENV GO111MODULE=on
 ENV GOOS=linux
 
 RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
-    && tar -xzf kubectl.tar.gz \
+    && tar -xf kubectl.tar.gz \
     && chmod +x kubectl \
     && mv kubectl rawkubectl \
-    && wget https://get.helm.sh/helm-v3.9.0-linux-${TARGETARCH}.tar.gz -O helm.tar.gz \
-    && tar -xzf helm.tar.gz \
+    && wget https://download.jumpserver.org/public/helm-v3.9.0-linux-${TARGETARCH}.tar.gz -O helm.tar.gz \
+    && tar -xf helm.tar.gz \
     && chmod +x linux-${TARGETARCH}/helm \
     && mv linux-${TARGETARCH}/helm rawhelm \
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
-    && tar -xzvf kubectl_aliases.tar.gz
+    && tar -xf kubectl_aliases.tar.gz
 
 COPY go.mod go.sum ./
 RUN go mod download -x
