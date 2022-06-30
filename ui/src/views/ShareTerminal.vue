@@ -5,13 +5,9 @@
                 v-on:background-color="onThemeBackground"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
-    
+
     <RightPanel>
-      <Settings
-        v-bind:onlineUsersMap="onlineUsersMap"
-        v-bind:onlineUserNumber="onlineKeys.length"
-        :dialogVisible.sync="dialogVisible"
-      />
+      <Settings :settings="settings" :title="$t('Terminal.Settings')" />
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -22,7 +18,7 @@
         :close-on-click-modal="false"
         :show-close="false"
         width="30%">
-      <el-form ref="form" label-width="80px" @submit.native.prevent>
+      <el-form ref="form" @submit.native.prevent>
         <el-form-item :label="this.$t('Terminal.VerifyCode')">
           <el-input v-model="code"></el-input>
         </el-form-item>
@@ -73,6 +69,27 @@ export default {
     },
     displayOnlineUser() {
       return this.onlineKeys.length > 1;
+    },
+    settings() {
+      const settings = [
+        {
+          title: this.$t('Terminal.ThemeConfig'),
+          icon: 'el-icon-orange',
+          disabled: () => true,
+          click: () => (this.dialogVisible = !this.dialogVisible),
+        },
+        {
+          title: this.$t('Terminal.User'),
+          icon: 'el-icon-s-custom',
+          disabled: () => Object.keys(this.onlineUsersMap).length > 1,
+          content: Object.values(this.onlineUsersMap).map(item => {
+            item.name = item.user
+            return item
+          }),
+          itemClick: () => {}
+        }
+      ]
+      return settings
     }
   },
   methods: {
@@ -116,7 +133,8 @@ export default {
           break
         }
         case 'TERMINAL_SESSION': {
-          const sessionDetail = JSON.parse(msg.data);
+          const sessionInfo = JSON.parse(msg.data);
+          const sessionDetail = sessionInfo.session;
           const user = this.$refs.term.currentUser;
           const username = `${user.name}(${user.username})`
           const waterMarkContent = `${username}\n${sessionDetail.asset}`

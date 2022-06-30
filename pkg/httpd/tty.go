@@ -112,12 +112,32 @@ func (h *tty) HandleMessage(msg *Message) {
 				return
 			}
 			h.shareInfo = &info
-			sessionInfo, err3 := h.jmsService.GetSessionById(info.Record.SessionId)
+			sessionDetail, err3 := h.jmsService.GetSessionById(info.Record.SessionId)
 			if err3 != nil {
 				logger.Errorf("Ws[%s] terminal get session %s err: %s",
 					h.ws.Uuid, info.Record.SessionId, err3)
 				h.sendCloseMessage()
 				return
+			}
+			// 获取权限校验
+			var expireInfo model.ExpireInfo
+			switch sessionDetail.Protocol {
+			case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
+				expireInfo, err3 = h.jmsService.ValidateAssetConnectPermission(sessionDetail.UserID, sessionDetail.AssetID,
+					sessionDetail.SystemUserID)
+			default:
+				expireInfo, err3 = h.jmsService.ValidateApplicationPermission(sessionDetail.UserID, sessionDetail.AssetID,
+					sessionDetail.SystemUserID)
+			}
+			if err3 != nil {
+				logger.Errorf("获取会话的权限失败：%s", err3)
+				h.sendCloseMessage()
+				return
+			}
+			perms := model.Permission{Actions: expireInfo.Actions}
+			sessionInfo := proxy.SessionInfo{
+				Session: &sessionDetail,
+				Perms:   &perms,
 			}
 			data, _ := json.Marshal(sessionInfo)
 			h.sendSessionMessage(string(data))
@@ -370,7 +390,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 			h.sendCloseMessage()
 			return
 		}
-		srv.OnSessionInfo = func(info *model.Session) {
+		srv.OnSessionInfo = func(info *proxy.SessionInfo) {
 			data, _ := json.Marshal(info)
 			h.sendSessionMessage(string(data))
 		}

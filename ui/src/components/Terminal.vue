@@ -100,7 +100,8 @@ export default {
         rightClickSelectsWord: true,
         theme: {
           background: '#1f1b1b'
-        }
+        },
+        scrollback: 5000
       });
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
@@ -115,7 +116,7 @@ export default {
       })
       termRef.addEventListener('mouseenter', () => {
         term.focus();
-      })
+      });
       term.onSelectionChange(() => {
         document.execCommand('copy');
         this.$log.debug("select change")
@@ -174,9 +175,9 @@ export default {
       console.log('KoKo got post message: ', msg)
     },
 
-    sendEventToLuna(name, data){
+    sendEventToLuna(name, data) {
       if (this.lunaId != null) {
-       window.parent.postMessage({name: name, id: this.lunaId, data:data}, this.origin)
+        window.parent.postMessage({name: name, id: this.lunaId, data: data}, this.origin)
       }
     },
 
@@ -321,7 +322,11 @@ export default {
       switch (msg.type) {
         case 'CONNECT': {
           this.terminalId = msg.id;
-          this.fitAddon.fit();
+          try {
+            this.fitAddon.fit();
+          }catch (e){
+           console.log(e)
+          }
           const data = {
             cols: this.term.cols,
             rows: this.term.rows,
