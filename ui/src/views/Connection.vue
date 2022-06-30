@@ -50,6 +50,7 @@
           <div>
             <el-button type="primary" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
           </div>
+      </div>
       <div v-else>
           <el-result icon="success" :title="this.$t('Terminal.CreateSuccess')">
           </el-result>
