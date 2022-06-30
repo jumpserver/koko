@@ -54,7 +54,7 @@ type ShareRequestMeta struct {
 type ShareRequestParams struct {
 	SessionID  string     `json:"session_id"`
 	ExpireTime int        `json:"expired"`
-	Meta ShareRequestMeta `json:"meta"`
+	Users      []string   `json:"users"`
 }
 
 type GetUserParams struct {

@@ -258,7 +258,7 @@ func (h *tty) getShareUserInfo(query GetUserParams) {
 }
 
 func (h *tty) handleShareRequest(data ShareRequestParams) (res ShareResponse, err error) {
-	shareResp, err := h.jmsService.CreateShareRoom(data.SessionID, data.ExpireTime, data.Meta)
+	shareResp, err := h.jmsService.CreateShareRoom(data.SessionID, data.ExpireTime, data.Users)
 	if err != nil {
 		logger.Error(err)
 		return res, err
