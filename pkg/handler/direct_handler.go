@@ -10,7 +10,6 @@ import (
 	"github.com/gliderlabs/ssh"
 
 	"github.com/jumpserver/koko/pkg/common"
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -130,10 +129,7 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetter
 	for i := range optSetters {
 		optSetters[i](opts)
 	}
-	i18nLang := config.GetConf().LanguageCode
-	if langCode, ok := userLangGlobalStore.Load(opts.User.ID); ok {
-		i18nLang = langCode.(string)
-	}
+	i18nLang := getUserDefaultLangCode(opts.User)
 	lang := i18n.NewLang(i18nLang)
 	var (
 		selectedAssets []model.Asset
@@ -245,13 +241,17 @@ func (d *DirectHandler) LoginAsset() {
 	case 1:
 		d.Proxy(d.assets[0])
 	default:
+		checkChan := make(chan bool)
+		go d.checkMaxIdleTime(checkChan)
 		for {
 			d.displayAssets(d.assets)
+			checkChan <- true
 			num, err := d.term.ReadLine()
 			if err != nil {
 				logger.Error(err)
 				return
 			}
+			checkChan <- false
 			if indexNum, err2 := strconv.Atoi(num); err2 == nil && len(d.assets) > 0 {
 				if indexNum > 0 && indexNum <= len(d.assets) {
 					d.Proxy(d.assets[indexNum-1])
@@ -265,6 +265,12 @@ func (d *DirectHandler) LoginAsset() {
 			}
 		}
 	}
+}
+
+func (d *DirectHandler) checkMaxIdleTime(checkChan chan bool) {
+	maxIdleMinutes := d.opts.terminalConf.MaxIdleTime
+	checkMaxIdleTime(maxIdleMinutes, d.i18nLang, d.opts.User,
+		d.sess, checkChan)
 }
 
 func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model.SystemUser, bool) {

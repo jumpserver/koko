@@ -21,7 +21,8 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService, termConfig model.TerminalConfig) *InteractiveHandler {
+func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService,
+	termConfig model.TerminalConfig) *InteractiveHandler {
 	wrapperSess := NewWrapperSession(sess)
 	term := utils.NewTerminal(wrapperSess, "Opt> ")
 	handler := &InteractiveHandler{
@@ -39,6 +40,42 @@ var (
 	// 全局永久缓存 ssh 登录用户切换的语言
 	userLangGlobalStore = sync.Map{}
 )
+
+func getUserDefaultLangCode(user *model.User) string {
+	if langCode, ok := userLangGlobalStore.Load(user.ID); ok {
+		return langCode.(string)
+	}
+	return config.GetConf().LanguageCode
+}
+
+func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, sess ssh.Session, checkChan <-chan bool) {
+	maxIdleTime := time.Duration(maxIdleMinutes) * time.Minute
+	tick := time.NewTicker(maxIdleTime)
+	defer tick.Stop()
+	checkStatus := true
+	for {
+		select {
+		case <-tick.C:
+			if checkStatus {
+				lang := i18n.NewLang(langCode)
+				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), maxIdleMinutes)
+				_, _ = io.WriteString(sess, "\r\n"+msg+"\r\n")
+				_ = sess.Close()
+				logger.Infof("User %s input idle more than %d minutes", user.Name, maxIdleMinutes)
+			}
+		case <-sess.Context().Done():
+			logger.Infof("Stop checking user %s input idle time", user.Name)
+			return
+		case checkStatus = <-checkChan:
+			if !checkStatus {
+				logger.Debugf("Stop checking user %s idle time if more than %d minutes", user.Name, maxIdleMinutes)
+				continue
+			}
+			tick.Reset(maxIdleTime)
+			logger.Debugf("Start checking user %s idle time if more than %d minutes", user.Name, maxIdleMinutes)
+		}
+	}
+}
 
 type InteractiveHandler struct {
 	sess *WrapperSession
@@ -66,10 +103,7 @@ func (h *InteractiveHandler) Initial() {
 		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
 	}
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
-	h.i18nLang = conf.LanguageCode
-	if langCode, ok := userLangGlobalStore.Load(h.user.ID); ok {
-		h.i18nLang = langCode.(string)
-	}
+	h.i18nLang = getUserDefaultLangCode(h.user)
 	h.displayHelp()
 	h.selectHandler = &UserSelectHandler{
 		user:     h.user,
