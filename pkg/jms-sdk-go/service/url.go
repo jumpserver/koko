@@ -42,7 +42,7 @@ const (
 	ValidateUserAssetPermissionURL     = "/api/v1/perms/asset-permissions/user/validate/"
 	ValidateApplicationPermissionURL   = "/api/v1/perms/application-permissions/user/validate/"
 
-	UserPermsDatabaseURL = "/api/v1/perms/users/%s/applications/?category=db&type__in=mysql,mariadb,sqlserver,postgresql,redis,mongodb"
+	UserPermsDatabaseURL = "/api/v1/perms/users/%s/applications/?category=db&type__in=%s"
 )
 
 // 系统用户密码相关API
@@ -54,7 +54,7 @@ const (
 
 // 各资源详情相关API
 const (
-	UserListURL    = "/api/v1/users/users/"
+	UserListURL          = "/api/v1/users/users/"
 	UserDetailURL        = "/api/v1/users/users/%s/"
 	AssetDetailURL       = "/api/v1/assets/assets/%s/"
 	AssetPlatFormURL     = "/api/v1/assets/assets/%s/platform/"
