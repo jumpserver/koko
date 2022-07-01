@@ -14,12 +14,16 @@ import (
 func (h *InteractiveHandler) Dispatch() {
 	defer logger.Infof("Request %s: User %s stop interactive", h.sess.ID(), h.user.Name)
 	var initialed bool
+	checkChan := make(chan bool)
+	go h.checkMaxIdleTime(checkChan)
 	for {
+		checkChan <- true
 		line, err := h.term.ReadLine()
 		if err != nil {
-			logger.Debugf("User %s close connect", h.user.Name)
+			logger.Debugf("User %s close connect %s", h.user.Name, err)
 			break
 		}
+		checkChan <- false
 		line = strings.TrimSpace(line)
 		if len(line) == 0 {
 			// 当 只是回车 空字符单独处理
@@ -107,6 +111,11 @@ func (h *InteractiveHandler) Dispatch() {
 		}
 		h.selectHandler.SearchOrProxy(line)
 	}
+}
+
+func (h *InteractiveHandler) checkMaxIdleTime(checkChan <-chan bool) {
+	maxIdleMinutes := h.terminalConf.MaxIdleTime
+	checkMaxIdleTime(maxIdleMinutes, h.i18nLang, h.user, h.sess.Sess, checkChan)
 }
 
 func (h *InteractiveHandler) ChangeLang() {
