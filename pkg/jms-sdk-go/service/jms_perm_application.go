@@ -8,15 +8,6 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) GetAllUserPermMySQLs(userId string) ([]map[string]interface{}, error) {
-	var param model.PaginationParam
-	res, err := s.GetUserPermsDatabase(userId, param)
-	if err != nil {
-		return nil, err
-	}
-	return res.Data, err
-}
-
 func (s *JMService) GetAllUserPermK8s(userId string) ([]map[string]interface{}, error) {
 	var param model.PaginationParam
 	res, err := s.GetUserPermsK8s(userId, param)
@@ -31,8 +22,9 @@ func (s *JMService) GetUserPermsMySQL(userId string, param model.PaginationParam
 	return s.getPaginationResult(reqUrl, param)
 }
 
-func (s *JMService) GetUserPermsDatabase(userId string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
-	reqUrl := fmt.Sprintf(UserPermsDatabaseURL, userId)
+func (s *JMService) GetUserPermsDatabase(userId string, param model.PaginationParam,
+	dbTypes ...string) (resp model.PaginationResponse, err error) {
+	reqUrl := fmt.Sprintf(UserPermsDatabaseURL, userId, strings.Join(dbTypes, ","))
 	return s.getPaginationResult(reqUrl, param)
 }
 

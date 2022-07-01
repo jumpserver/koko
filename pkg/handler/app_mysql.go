@@ -12,7 +12,7 @@ import (
 )
 
 func (u *UserSelectHandler) retrieveRemoteDatabase(reqParam model.PaginationParam) []map[string]interface{} {
-	res, err := u.h.jmsService.GetUserPermsDatabase(u.user.ID, reqParam)
+	res, err := u.h.jmsService.GetUserPermsDatabase(u.user.ID, reqParam, model.SupportedDBTypes...)
 	if err != nil {
 		logger.Errorf("Get user perm Database failed: %s", err)
 	}
