@@ -10,8 +10,8 @@ const (
 
 // 用户登陆认证使用的API
 const (
-	TokenAssetURL      = "/api/v1/authentication/connection-token/?token=%s" // Token name
-	UserTokenAuthURL   = "/api/v1/authentication/tokens/"                    // 用户登录验证
+	TokenAssetURL      = "/api/v1/authentication/connection-token/%s/" // Token name
+	UserTokenAuthURL   = "/api/v1/authentication/tokens/"              // 用户登录验证
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
 	AuthMFASelectURL   = "/api/v1/authentication/mfa/select/" // 选择 MFA
 

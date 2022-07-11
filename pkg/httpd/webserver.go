@@ -144,8 +144,16 @@ func (s *Server) ProcessTokenWebsocket(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+	var targetId string
+	switch tokenUser.Type {
+	case model.ConnectApplication:
+		targetId = strings.ToLower(tokenUser.ApplicationID)
+	case model.ConnectAsset:
+		targetId = tokenUser.AssetID
+	default:
+		targetId = tokenUser.AssetID
+	}
 	targetType := TargetTypeAsset
-	targetId := strings.ToLower(tokenUser.AssetID)
 	systemUserId := tokenUser.SystemUserID
 	s.runTTY(ctx, currentUser, targetType, targetId, systemUserId)
 }
