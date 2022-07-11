@@ -49,4 +49,7 @@ type TokenUser struct {
 	Hostname       string `json:"hostname"`
 	SystemUserID   string `json:"system_user"`
 	SystemUserName string `json:"system_user_name"`
+
+	Type          ConnectType `json:"type"`
+	ApplicationID string      `json:"application"`
 }
