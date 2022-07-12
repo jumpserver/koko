@@ -1,5 +1,5 @@
 FROM node:10 as ui-build
-ARG NPM_REGISTRY="https://registry.npm.taobao.org"
+ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
 
 WORKDIR /opt/koko
