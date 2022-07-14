@@ -1,5 +1,8 @@
 {
   "Terminal": {
+    "ShareUser": "分享给",
+    "ShareUserHelpText": "未选择用户，即允许所有人加入",
+    "GetShareUser": "输入用户名",
     "UploadSuccess": "上传成功",
     "MustSelectOneFile": "必须选择一个文件",
     "MustOneFile": "只能选择一个文件",

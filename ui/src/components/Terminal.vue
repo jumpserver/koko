@@ -116,7 +116,12 @@ export default {
       })
       termRef.addEventListener('mouseenter', () => {
         term.focus();
-      })
+      });
+      term.onSelectionChange(() => {
+        document.execCommand('copy');
+        this.$log.debug("select change")
+        this.termSelectionText = term.getSelection().trim();
+      });
       term.attachCustomKeyEventHandler((e) => {
         if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
           return false;
@@ -562,8 +567,12 @@ export default {
       this.$log.debug("删除dialog的文件")
     },
 
-    createShareInfo(sid, val) {
-      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val,})
+    createShareInfo(sid, val, users) {
+      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val, users: users})
+    },
+
+    getUserInfo(val) {
+      this.sendWsMessage('TERMINAL_GET_SHARE_USER', {query: val})
     },
 
     sendWsMessage(type, data) {
@@ -593,7 +602,6 @@ div {
 }
 
 #term {
-  user-select: none;
   height: calc(100% - 10px);
   padding: 10px 0 10px 10px;
 }
