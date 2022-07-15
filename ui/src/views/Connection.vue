@@ -8,13 +8,7 @@
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <RightPanel>
-      <Settings
-        v-bind:enableShare="enableShare"
-        v-bind:onlineUsersMap="onlineUsersMap"
-        v-bind:onlineUserNumber="onlineKeys.length"
-        :dialogVisible.sync="dialogVisible"
-        :shareDialogVisible.sync="shareDialogVisible"
-      />
+      <Settings :settings="settings" :title="$t('Terminal.Settings')" />
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -28,35 +22,50 @@
         @close="shareDialogClosed"
         :modal="false"
         center>
-      <el-form v-if="!shareId" v-loading="loading">
-        <el-form-item :label="this.$t('Terminal.ExpiredTime')">
-          <el-select v-model="expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
-            <el-option
-                v-for="item in expiredOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value">
-            </el-option>
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <el-result v-if="shareId" icon="success" :title="this.$t('Terminal.CreateSuccess')">
-        <template slot="extra">
-        </template>
-      </el-result>
-      <el-form v-if="shareId">
-        <el-form-item :label="this.$t('Terminal.LinkAddr')">
-          <el-input readonly :value="shareURL"/>
-        </el-form-item>
-        <el-form-item :label="this.$t('Terminal.VerifyCode')">
-          <el-input readonly :value="shareCode"/>
-        </el-form-item>
-      </el-form>
-      <span slot="footer" class="dialog-footer">
-    <el-button type="primary" v-if="!shareId"
-               @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
-    <el-button type="primary" v-if="shareId" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }} </el-button>
-  </span>
+      <div v-if="!shareId">
+          <el-form v-loading="loading">
+            <el-form-item :label="this.$t('Terminal.ExpiredTime')">
+              <el-select v-model="expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
+                <el-option
+                    v-for="item in expiredOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value">
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item :label="this.$t('Terminal.ShareUser')">
+                <el-select v-model="users" multiple filterable remote reserve-keyword :placeholder="this.$t('Terminal.GetShareUser')"
+                    :remote-method="getSessionUser" :loading="userLoading">
+                    <el-option
+                      v-for="item in userOptions"
+                      :key="item.id"
+                      :label="item.name + '(' + item.username + ')'"
+                      :value="item.id">
+                    </el-option>
+                  </el-select>
+                  <div style="color: #aaa">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
+            </el-form-item>
+          </el-form>
+          <div>
+            <el-button type="primary" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
+          </div>
+      </div>
+      <div v-else>
+          <el-result icon="success" :title="this.$t('Terminal.CreateSuccess')">
+          </el-result>
+          <el-form>
+            <el-form-item :label="this.$t('Terminal.LinkAddr')">
+              <el-input readonly :value="shareURL"/>
+            </el-form-item>
+            <el-form-item :label="this.$t('Terminal.VerifyCode')">
+              <el-input readonly :value="shareCode"/>
+            </el-form-item>
+          </el-form>
+          <div>
+            <el-button type="primary" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }} </el-button>
+          </div>
+      </div>
     </el-dialog>
   </el-container>
 </template>
@@ -85,16 +94,21 @@ export default {
       shareDialogVisible: false,
       expiredTime: 10,
       expiredOptions: [
+        {label: "1m", value: 1},
+        {label: "5m", value: 5},
         {label: "10m", value: 10},
         {label: "20m", value: 20},
         {label: "60m", value: 60},
       ],
       shareId: null,
       loading: false,
+      userLoading: false,
       shareCode: null,
       shareInfo: null,
       onlineUsersMap: {},
       onlineKeys: [],
+      userOptions: [],
+      users: []
     }
   },
   computed: {
@@ -112,6 +126,33 @@ export default {
     shareURL() {
       return this.shareId ? this.generateShareURL() : this.$t('Terminal.NoLink')
     },
+    settings() {
+      const settings = [
+        {
+          title: this.$t('Terminal.ThemeConfig'),
+          icon: 'el-icon-orange',
+          disabled: () => false,
+          click: () => (this.dialogVisible = !this.dialogVisible),
+        },
+        {
+          title: this.$t('Terminal.Share'),
+          icon: 'el-icon-share',
+          disabled: () => !this.enableShare,
+          click: () => (this.shareDialogVisible = !this.shareDialogVisible),
+        },
+        {
+          title: this.$t('Terminal.User'),
+          icon: 'el-icon-s-custom',
+          disabled: () => Object.keys(this.onlineUsersMap).length < 1,
+          content: Object.values(this.onlineUsersMap).map(item => {
+            item.name = item.user
+            return item
+          }),
+          itemClick: () => {}
+        }
+      ]
+      return settings
+    }
   },
   methods: {
     getConnectURL() {
@@ -138,11 +179,9 @@ export default {
       }
       return connectURL
     },
-
     generateShareURL() {
       return `${BASE_URL}/koko/share/${this.shareId}/`
     },
-
     copyShareURL() {
       if (!this.enableShare) {
         return
@@ -164,7 +203,8 @@ export default {
     onWsData(msgType, msg) {
       switch (msgType) {
         case "TERMINAL_SESSION": {
-          const sessionDetail = JSON.parse(msg.data);
+          const sessionInfo = JSON.parse(msg.data);
+          const sessionDetail = sessionInfo.session;
           this.sessionId = sessionDetail.id;
           const setting = this.$refs.term.setting;
           if (setting.SECURITY_SESSION_SHARE) {
@@ -194,6 +234,12 @@ export default {
           this.updateOnlineCount();
           break
         }
+        case 'TERMINAL_GET_SHARE_USER': {
+          this.userLoading = false;
+          const data = JSON.parse(msg.data);
+          this.userOptions = data;
+          break
+        }
         default:
           break
       }
@@ -210,9 +256,9 @@ export default {
     handleShareURlCreated() {
       this.loading = true
       if (this.$refs.term) {
-        this.$refs.term.createShareInfo(this.sessionId, this.expiredTime);
+        this.$refs.term.createShareInfo(this.sessionId, this.expiredTime, this.users);
       }
-      this.$log.debug("分享请求数据： ", this.expiredTime, this.sessionId)
+      this.$log.debug("分享请求数据： ", this.expiredTime, this.sessionId, this.users)
 
     },
     shareDialogClosed() {
@@ -225,6 +271,14 @@ export default {
       const keys = Object.keys(this.onlineUsersMap);
       this.$log.debug(keys);
       this.onlineKeys = keys;
+    },
+    getSessionUser(query) {
+      if (query !== '' && this.$refs.term) {
+        this.userLoading = true;
+        this.$refs.term.getUserInfo(query);
+      } else {
+        this.userOptions = []
+      }
     }
   },
 }
@@ -236,5 +290,9 @@ export default {
 }
 .settings {
   padding: 24px 20px;
+}
+
+.el-result {
+  padding: 0
 }
 </style>

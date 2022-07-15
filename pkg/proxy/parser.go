@@ -15,7 +15,6 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -264,22 +263,12 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.forbiddenCommand(cmd)
 				return nil
 			case model.ActionConfirm:
-				switch p.protocolType {
-				case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-					srvconn.ProtocolSQLServer, srvconn.ProtocolRedis:
-					// 数据库相关 暂时不支持 复核 直接拒绝
-					fbdMsg2 := utils.WrapperWarn(lang.T("Command review is not currently supported"))
-					p.srvOutputChan <- []byte("\r\n" + fbdMsg2)
-					p.forbiddenCommand(cmd)
-					return nil
-				default:
-					p.confirmStatus.SetStatus(StatusQuery)
-					p.confirmStatus.SetRule(rule)
-					p.confirmStatus.SetCmd(p.command)
-					p.confirmStatus.SetData(string(b))
-					p.confirmStatus.ResetCtx()
-					p.srvOutputChan <- []byte("\r\n" + waitMsg)
-				}
+				p.confirmStatus.SetStatus(StatusQuery)
+				p.confirmStatus.SetRule(rule)
+				p.confirmStatus.SetCmd(p.command)
+				p.confirmStatus.SetData(string(b))
+				p.confirmStatus.ResetCtx()
+				p.srvOutputChan <- []byte("\r\n" + waitMsg)
 				return nil
 			default:
 			}

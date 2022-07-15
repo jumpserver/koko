@@ -27,10 +27,11 @@ const (
 
 	TERMINALSESSION = "TERMINAL_SESSION"
 
-	TERMINALSHARE      = "TERMINAL_SHARE"
-	TERMINALSHAREJOIN  = "TERMINAL_SHARE_JOIN"
-	TERMINALSHARELEAVE = "TERMINAL_SHARE_LEAVE"
-	TERMINALSHAREUSERS = "TERMINAL_SHARE_USERS"
+	TERMINALSHARE         = "TERMINAL_SHARE"
+	TERMINALSHAREJOIN     = "TERMINAL_SHARE_JOIN"
+	TERMINALSHARELEAVE    = "TERMINAL_SHARE_LEAVE"
+	TERMINALSHAREUSERS    = "TERMINAL_SHARE_USERS"
+	TERMINALGETSHAREUSERS = "TERMINAL_GET_SHARE_USER"
 
 	TERMINALERROR = "TERMINAL_ERROR"
 )
@@ -46,9 +47,18 @@ type TerminalConnectData struct {
 	Code string `json:"code"`
 }
 
+type ShareRequestMeta struct {
+	Users    []string   `json:"users"`
+}
+
 type ShareRequestParams struct {
-	SessionID  string `json:"session_id"`
-	ExpireTime int    `json:"expired"`
+	SessionID  string     `json:"session_id"`
+	ExpireTime int        `json:"expired"`
+	Users      []string   `json:"users"`
+}
+
+type GetUserParams struct {
+	Query string `json:"query"`
 }
 
 type ShareResponse struct {

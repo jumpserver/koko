@@ -69,41 +69,78 @@ func (ad *AssetDir) Sys() interface{} {
 
 func (ad *AssetDir) loadSystemUsers() {
 	ad.once.Do(func() {
-		sus := make(map[string]*model.SystemUser)
-		SystemUsers, err := ad.jmsService.GetSystemUsersByUserIdAndAssetId(ad.user.ID, ad.ID)
-		if err != nil {
-			logger.Errorf("Get asset %s systemUsers err: %s", ad.ID, err)
-			return
+		if ad.suMaps == nil {
+			ad.loadSubSystemUserDirs()
 		}
-		matchFunc := func(s string) bool {
-			_, ok := sus[s]
-			return ok
-		}
-		for i := 0; i < len(SystemUsers); i++ {
-			if SystemUsers[i].IsProtocol(ProtocolSSH) && !SystemUsers[i].SuEnabled {
-				folderName := cleanFolderName(SystemUsers[i].Name)
-				folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
-				sus[folderName] = &SystemUsers[i]
-			}
-		}
-		ad.suMaps = sus
+		//  不同方式创建的系统用户目录，可能没权限action，所以需要校验加载一次
+		ad.loadActionsPermission()
 		if ad.detailAsset == nil {
-			detailAsset, err := ad.jmsService.GetAssetById(ad.ID)
-			if err != nil {
-				logger.Errorf("Get asset err: %s", err)
-				return
-			}
-			ad.detailAsset = &detailAsset
+			ad.loadAssetDetail()
 		}
-		if ad.detailAsset.Domain != "" {
-			domainGateways, err := ad.jmsService.GetDomainGateways(ad.detailAsset.Domain)
-			if err != nil {
-				logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Hostname, err)
-				return
-			}
-			ad.domain = &domainGateways
+		if ad.domain == nil {
+			ad.loadAssetDomain()
 		}
 	})
+}
+
+func (ad *AssetDir) loadActionsPermission() {
+	for i := range ad.suMaps {
+		if ad.suMaps[i].Actions != nil {
+			continue
+		}
+		perms, err := ad.jmsService.GetPermission(ad.user.ID, ad.ID, ad.suMaps[i].ID)
+		if err != nil {
+			logger.Error(err)
+			continue
+		}
+		ad.suMaps[i].Actions = perms.Actions
+	}
+}
+
+func (ad *AssetDir) loadSubSystemUserDirs() {
+	systemUsers, err := ad.jmsService.GetSystemUsersByUserIdAndAssetId(ad.user.ID, ad.ID)
+	if err != nil {
+		logger.Errorf("Get asset %s systemUsers err: %s", ad.ID, err)
+		return
+	}
+	ad.suMaps = generateSubSystemUsersFolderMap(systemUsers)
+}
+
+func generateSubSystemUsersFolderMap(systemUsers []model.SystemUser) map[string]*model.SystemUser {
+	if len(systemUsers) == 0 {
+		return nil
+	}
+	sus := make(map[string]*model.SystemUser)
+	matchFunc := func(s string) bool {
+		_, ok := sus[s]
+		return ok
+	}
+	for i := 0; i < len(systemUsers); i++ {
+		folderName := cleanFolderName(systemUsers[i].Name)
+		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
+		sus[folderName] = &systemUsers[i]
+	}
+	return sus
+}
+
+func (ad *AssetDir) loadAssetDetail() {
+	detailAsset, err := ad.jmsService.GetAssetById(ad.ID)
+	if err != nil {
+		logger.Errorf("Get asset err: %s", err)
+		return
+	}
+	ad.detailAsset = &detailAsset
+}
+
+func (ad *AssetDir) loadAssetDomain() {
+	if ad.detailAsset != nil && ad.detailAsset.Domain != "" {
+		domainGateways, err := ad.jmsService.GetDomainGateways(ad.detailAsset.Domain)
+		if err != nil {
+			logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Hostname, err)
+			return
+		}
+		ad.domain = &domainGateways
+	}
 }
 
 func (ad *AssetDir) Create(path string) (*sftp.File, error) {
@@ -221,9 +258,6 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	if !ok {
 		return nil, errNoSystemUser
 	}
-	if !ad.validatePermission(su, model.ConnectAction) {
-		return res, sftp.ErrSshFxPermissionDenied
-	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil {
@@ -255,9 +289,6 @@ func (ad *AssetDir) ReadLink(path string) (res string, err error) {
 	su, ok := ad.suMaps[folderName]
 	if !ok {
 		return "", errNoSystemUser
-	}
-	if !ad.validatePermission(su, model.ConnectAction) {
-		return res, sftp.ErrSshFxPermissionDenied
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
@@ -381,9 +412,6 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 	su, ok := ad.suMaps[folderName]
 	if !ok {
 		return nil, errNoSystemUser
-	}
-	if !ad.validatePermission(su, model.ConnectAction) {
-		return res, sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil {

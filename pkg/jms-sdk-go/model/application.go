@@ -1,6 +1,8 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type k8sAttrs struct {
 	Cluster string `json:"cluster"`
@@ -15,6 +17,17 @@ type dbAttrs struct {
 const (
 	AppTypeMySQL = "mysql"
 	AppTypeK8s   = "k8s"
+
+	AppTypeMariaDB   = "mariadb"
+	AppTypeSQLServer = "sqlserver"
+	AppTypePostgres  = "postgresql"
+	AppTypeRedis     = "redis"
+	AppTypeMongoDB   = "mongodb"
+)
+
+var (
+	SupportedDBTypes = []string{AppTypeMySQL, AppTypeMariaDB, AppTypeSQLServer,
+		AppTypePostgres, AppTypeRedis, AppTypeMongoDB}
 )
 
 const AppType = "Application"
@@ -57,8 +70,6 @@ const (
 	categoryDB    = "db"
 	categoryCloud = "cloud"
 )
-
-
 
 type ConnectType string
 

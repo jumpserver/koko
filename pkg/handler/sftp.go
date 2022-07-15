@@ -15,15 +15,15 @@ import (
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string) *sftpHandler {
-	return &sftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, user, addr)}
+func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string) *SftpHandler {
+	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, user, addr, nil, nil)}
 }
 
-type sftpHandler struct {
+type SftpHandler struct {
 	*srvconn.UserSftpConn
 }
 
-func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
+func (fs *SftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	switch r.Method {
 	case "List":
 		logger.Debug("List method: ", r.Filepath)
@@ -46,7 +46,7 @@ func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	return nil, sftp.ErrSshFxOpUnsupported
 }
 
-func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
+func (fs *SftpHandler) Filecmd(r *sftp.Request) (err error) {
 	logger.Debug("File cmd: ", r.Filepath)
 
 	switch r.Method {
@@ -70,7 +70,7 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	return
 }
 
-func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
+func (fs *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
 	f, err := fs.Create(r.Filepath)
 	if err != nil {
@@ -86,7 +86,7 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	return NewWriterAt(f), err
 }
 
-func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
+func (fs *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	logger.Debug("File read: ", r.Filepath)
 	f, err := fs.Open(r.Filepath)
 	if err != nil {
@@ -103,7 +103,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	return f, err
 }
 
-func (fs *sftpHandler) Close() {
+func (fs *SftpHandler) Close() {
 	fs.UserSftpConn.Close()
 }
 

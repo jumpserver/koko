@@ -315,9 +315,14 @@ type Server struct {
 
 	keyboardMode int32
 
-	OnSessionInfo func(info *model.Session)
+	OnSessionInfo func(info *SessionInfo)
 
 	loginTicketId string
+}
+
+type SessionInfo struct {
+	Session *model.Session    `json:"session"`
+	Perms   *model.Permission `json:"permission"`
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -991,10 +996,11 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 
 func (s *Server) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
+	maxDelay := 5 * 60.0 // 最多执行五分钟
 	msg := fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	var activeFlag bool
-	for {
+	for delay < maxDelay {
 		select {
 		case <-done:
 			return
@@ -1133,7 +1139,11 @@ func (s *Server) Proxy() {
 		logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
 	}
 	if s.OnSessionInfo != nil {
-		go s.OnSessionInfo(s.sessionInfo)
+		info := SessionInfo{
+			Session: s.sessionInfo,
+			Perms:   s.permActions,
+		}
+		go s.OnSessionInfo(&info)
 	}
 	utils.IgnoreErrWriteWindowTitle(s.UserConn, s.connOpts.TerminalTitle())
 	if err = sw.Bridge(s.UserConn, srvCon); err != nil {

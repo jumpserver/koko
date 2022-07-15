@@ -80,13 +80,27 @@ func (s *server) SFTPHandler(sess ssh.Session) {
 		logger.Errorf("SFTP User not found, exit.")
 		return
 	}
-	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	userSftp := handler.NewSFTPHandler(s.jmsService, currentUser, host)
+	addr, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
+	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
+	var sftpHandler *handler.SftpHandler
+	if directRequest, ok2 := directReq.(*auth.DirectLoginAssetReq); ok2 {
+		opts := buildDirectRequestOptions(currentUser, directRequest)
+		opts = append(opts, handler.DirectConnectSftpMode(true))
+		directSrv, err := handler.NewDirectHandler(sess, s.jmsService, opts...)
+		if err != nil {
+			logger.Errorf("User %s direct sftp request err: %s", currentUser.Name, err)
+			return
+		}
+		sftpHandler = directSrv.NewSFTPHandler()
+	}
+	if sftpHandler == nil {
+		sftpHandler = handler.NewSFTPHandler(s.jmsService, currentUser, addr)
+	}
 	handlers := sftp.Handlers{
-		FileGet:  userSftp,
-		FilePut:  userSftp,
-		FileCmd:  userSftp,
-		FileList: userSftp,
+		FileGet:  sftpHandler,
+		FilePut:  sftpHandler,
+		FileCmd:  sftpHandler,
+		FileList: sftpHandler,
 	}
 	reqID := common.UUID()
 	logger.Infof("SFTP request %s: Handler start", reqID)
@@ -97,7 +111,7 @@ func (s *server) SFTPHandler(sess ssh.Session) {
 		logger.Errorf("SFTP request %s: Server completed with error %s", reqID, err)
 	}
 	_ = req.Close()
-	userSftp.Close()
+	sftpHandler.Close()
 	logger.Infof("SFTP request %s: Handler exit.", reqID)
 }
 
@@ -156,18 +170,7 @@ func (s *server) SessionHandler(sess ssh.Session) {
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
-			opts := make([]handler.DirectOpt, 0, 5)
-			opts = append(opts, handler.DirectTargetAsset(directRequest.AssetInfo))
-			opts = append(opts, handler.DirectUser(user))
-			opts = append(opts, handler.DirectTerminalConf(&termConf))
-			opts = append(opts, handler.DirectTargetSystemUser(directRequest.SysUserInfo))
-			if directRequest.IsUUIDString() {
-				opts = append(opts, handler.DirectFormatType(handler.FormatUUID))
-			}
-			if directRequest.IsToken() {
-				opts = append(opts, handler.DirectFormatType(handler.FormatToken))
-				opts = append(opts, handler.DirectConnectToken(directRequest.Info))
-			}
+			opts := buildDirectRequestOptions(user, directRequest)
 			directSrv, err := handler.NewDirectHandler(sess, s.jmsService, opts...)
 			if err != nil {
 				logger.Errorf("User %s direct request err: %s", user.Name, err)
@@ -460,4 +463,19 @@ func (s *server) getMatchedSystemUsers(user *model.User, req *auth.DirectLoginAs
 		}
 	}
 	return matched, nil
+}
+
+func buildDirectRequestOptions(userInfo *model.User, directRequest *auth.DirectLoginAssetReq) []handler.DirectOpt {
+	opts := make([]handler.DirectOpt, 0, 7)
+	opts = append(opts, handler.DirectTargetAsset(directRequest.AssetInfo))
+	opts = append(opts, handler.DirectUser(userInfo))
+	opts = append(opts, handler.DirectTargetSystemUser(directRequest.SysUserInfo))
+	if directRequest.IsUUIDString() {
+		opts = append(opts, handler.DirectFormatType(handler.FormatUUID))
+	}
+	if directRequest.IsToken() {
+		opts = append(opts, handler.DirectFormatType(handler.FormatToken))
+		opts = append(opts, handler.DirectConnectToken(directRequest.Info))
+	}
+	return opts
 }

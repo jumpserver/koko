@@ -100,7 +100,8 @@ export default {
         rightClickSelectsWord: true,
         theme: {
           background: '#1f1b1b'
-        }
+        },
+        scrollback: 5000
       });
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
@@ -115,7 +116,7 @@ export default {
       })
       termRef.addEventListener('mouseenter', () => {
         term.focus();
-      })
+      });
       term.onSelectionChange(() => {
         document.execCommand('copy');
         this.$log.debug("select change")
@@ -566,8 +567,12 @@ export default {
       this.$log.debug("删除dialog的文件")
     },
 
-    createShareInfo(sid, val) {
-      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val,})
+    createShareInfo(sid, val, users) {
+      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val, users: users})
+    },
+
+    getUserInfo(val) {
+      this.sendWsMessage('TERMINAL_GET_SHARE_USER', {query: val})
     },
 
     sendWsMessage(type, data) {
