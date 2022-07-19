@@ -83,9 +83,12 @@ func (s *server) SFTPHandler(sess ssh.Session) {
 	addr, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	var sftpHandler *handler.SftpHandler
+	termConf := s.GetTerminalConfig()
 	if directRequest, ok2 := directReq.(*auth.DirectLoginAssetReq); ok2 {
 		opts := buildDirectRequestOptions(currentUser, directRequest)
 		opts = append(opts, handler.DirectConnectSftpMode(true))
+
+		opts = append(opts, handler.DirectTerminalConf(&termConf))
 		directSrv, err := handler.NewDirectHandler(sess, s.jmsService, opts...)
 		if err != nil {
 			logger.Errorf("User %s direct sftp request err: %s", currentUser.Name, err)
@@ -171,6 +174,7 @@ func (s *server) SessionHandler(sess ssh.Session) {
 	if pty, winChan, isPty := sess.Pty(); isPty {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 			opts := buildDirectRequestOptions(user, directRequest)
+			opts = append(opts, handler.DirectTerminalConf(&termConf))
 			directSrv, err := handler.NewDirectHandler(sess, s.jmsService, opts...)
 			if err != nil {
 				logger.Errorf("User %s direct request err: %s", user.Name, err)
