@@ -307,6 +307,7 @@
 			'confirmNonUTF8'  : '无法检测到此文件的字符编码.需要暂时转换此文件为UTF-8编码以进行编辑.<br/>请选择此文件的字符编码.', // from v2.1.19 added 28.11.2016
 			'confirmNotSave'  : '文件已被编辑.<br/>如果不保存直接关闭,将丢失编辑内容.', // from v2.1 added 15.7.2015
 			'confirmTrash'    : '确定要将该项移动到回收站么?', //from v2.1.24 added 29.4.2017
+			'confirmMove'     : '确定要将该项移动到 "$1"?', //from v2.1.50 added 27.7.2019
 			'apllyAll'        : '全部应用',
 			'name'            : '名称',
 			'size'            : '大小',
