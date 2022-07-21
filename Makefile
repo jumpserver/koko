@@ -117,6 +117,7 @@ linux-arm64:koko-ui
 
 	cp $(BUILDDIR)/$(NAME)-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/$(NAME)
 	cp $(BUILDDIR)/kubectl-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/kubectl
+	cp $(BUILDDIR)/helm-$@ $(BUILDDIR)/$(NAME)-$(VERSION)-$@/helm
 	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/locale/
 	cp -r $(BASEPATH)/static/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/static/
 	cp -r $(BASEPATH)/templates/* $(BUILDDIR)/$(NAME)-$(VERSION)-$@/templates/
