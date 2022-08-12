@@ -215,6 +215,10 @@ loop:
 		ctx.SetValue(ContextKeyUser, &user)
 		logger.Infof("SSH conn[%s] checking user %s login confirm success", ctx.SessionID(), username)
 		ok = true
+	default:
+		failed := true
+		ctx.SetValue(ContextKeyAuthFailed, &failed)
+		logger.Infof("SSH conn[%s] checking user %s login confirm failed", ctx.SessionID(), username)
 	}
 	return
 }
