@@ -13,7 +13,7 @@ FROM golang:1.17-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+RUN sed -i 's/dl-cdn.alpinelinux.org/repo.huaweicloud.com/g' /etc/apk/repositories \
     && apk update \
     && apk add git
 
@@ -43,10 +43,9 @@ RUN cd utils && sh -ixeu build.sh
 
 FROM debian:bullseye-slim
 ENV LANG en_US.utf8
-RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list \
-    && sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list \
+RUN sed -i 's@http://.*.debian.org@http://repo.huaweicloud.com@g' /etc/apt/sources.list \
     && apt update \
-    && apt-get install -y locales \
+    && apt-get install -y --no-install-recommends locales \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
     && apt-get install -y --no-install-recommends openssh-client procps curl gdb ca-certificates jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git freetds-bin mariadb-client redis-tools postgresql-client gnupg\
     && wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
