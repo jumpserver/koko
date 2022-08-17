@@ -1101,7 +1101,8 @@ func (s *Server) Proxy() {
 	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		switch s.connOpts.ProtocolType {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s:
+			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s,
+			srvconn.ProtocolPostgreSQL:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
 				msg := lang.T("Start domain gateway failed %s")
