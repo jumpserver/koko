@@ -13,7 +13,7 @@ FROM golang:1.17-alpine as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/repo.huaweicloud.com/g' /etc/apk/repositories \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     && apk update \
     && apk add git
 
@@ -43,7 +43,7 @@ RUN cd utils && sh -ixeu build.sh
 
 FROM debian:bullseye-slim
 ENV LANG en_US.utf8
-RUN sed -i 's@http://.*.debian.org@http://repo.huaweicloud.com@g' /etc/apt/sources.list \
+RUN sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \
     && apt update \
     && apt-get install -y --no-install-recommends locales \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
