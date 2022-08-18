@@ -39,6 +39,7 @@ func DecodeHexFrameHeader(p []byte) (h ZmodemHeader, offset int, ok bool) {
 
 	hexBytes := p[:endPos]
 	hexBytes = bytes.TrimSpace(hexBytes)
+	hexBytes = bytes.TrimSuffix(hexBytes, []byte{0x8d})
 	if len(hexBytes) != 18 {
 		return
 	}
