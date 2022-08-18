@@ -12,6 +12,8 @@ type dbAttrs struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	Database string `json:"database"`
+	UseSSL   bool   `json:"use_ssl"`
+	CaCert   string `json:"ca_cert"`
 }
 
 const (
@@ -42,7 +44,7 @@ type Application struct {
 	OrgID    string `json:"org_id"`
 	OrgName  string `json:"org_name"`
 
-	Attrs Attrs `json:"attrs"`
+	Attrs    Attrs  `json:"attrs"`
 }
 
 type Attrs struct {

@@ -737,6 +737,8 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
 		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
+		srvconn.SqlUseSSL(s.connOpts.app.Attrs.UseSSL),
+		srvconn.SqlCaCert(s.connOpts.app.Attrs.CaCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
