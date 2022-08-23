@@ -2,11 +2,9 @@ package srvconn
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -45,6 +43,7 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 		setter(args)
 	}
 	if err := checkMongoDBAccount(args); err != nil {
+		ClearTempFile(args.CaCert)
 		return nil, err
 	}
 	lCmd, err = startMongoDBCommand(args)
@@ -71,6 +70,7 @@ func (conn *MongoDBConn) KeepAlive() error {
 
 func (conn *MongoDBConn) Close() error {
 	_, _ = conn.Write([]byte("\r\nexit\r\n"))
+	ClearTempFile(conn.options.CaCert)
 	return conn.LocalCommand.Close()
 }
 
@@ -93,42 +93,15 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 	return lcmd, nil
 }
 
-
-func storeCAFileToLocal(args *sqlOption) (caFilepath string, err error)  {
-	baseDir := "./.ca_temp"
-	_, err = os.Stat(baseDir)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(baseDir, os.ModePerm)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	filename := fmt.Sprintf("%s-%d-mongodb.pem", args.Host, args.Port)
-	caFilepath = filepath.Join(baseDir, filename)
-	_, err = os.Stat(caFilepath)
-	if os.IsNotExist(err) {
-		file, err := os.OpenFile(caFilepath, os.O_WRONLY | os.O_CREATE, 0600)
-		if err != nil {
-			return "", err
-		}
-		defer file.Close()
-		_, _ = file.WriteString(args.CaCert)
-		return caFilepath, nil
-	}
-	return caFilepath, err
-}
-
 func (opt *sqlOption) MongoDBCommandArgs() []string {
 	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
 	params := map[string]string{
 		"authSource": "admin",
 	}
-	if opt.UseSSL == true {
-		caFilepath, _ := storeCAFileToLocal(opt)
+	if opt.UseSSL {
 		params["tls"] = "true"
 		params["tlsInsecure"] = "true"
-		params["tlsCAFile"] = caFilepath
+		params["tlsCAFile"] = opt.CaCert
 	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),
@@ -148,14 +121,10 @@ func checkMongoDBAccount(args *sqlOption) error {
 	params := map[string]string{
 		"authSource": "admin",
 	}
-	if args.UseSSL == true {
-		caFilepath, err := storeCAFileToLocal(args)
-		if err != nil {
-			return err
-		}
+	if args.UseSSL{
 		params["tls"] = "true"
 		params["tlsInsecure"] = "true"
-		params["tlsCAFile"] = caFilepath
+		params["tlsCAFile"] = args.CaCert
 	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),

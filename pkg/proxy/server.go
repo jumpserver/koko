@@ -734,6 +734,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	srvConn, err = srvconn.NewMongoDBConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
+		srvconn.SqlId(s.connOpts.app.ID),
 		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
 		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),

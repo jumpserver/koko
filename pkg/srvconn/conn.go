@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -213,4 +214,14 @@ func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*l
 	clearPassword := make([]byte, len(opt.Password)+2)
 	_, _ = lcmd.Read(clearPassword)
 	return lcmd, nil
+}
+
+func ClearTempFile(filepath ...string) {
+	for _, file := range filepath {
+		_, err := os.Stat(file)
+		if err == nil {
+			logger.Debugf("Clean up file: %s", file)
+			err = os.Remove(file)
+		}
+	}
 }
