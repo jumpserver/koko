@@ -305,7 +305,7 @@ func storeCAFileToLocal(caCert string, args *sqlOption) (caFilepath string, err 
 		}
 	}
 
-	filename := fmt.Sprintf("%s-mongodb.pem", args.Id)
+	filename := fmt.Sprintf("%s-db.pem", args.Id)
 	caFilepath = filepath.Join(baseDir, filename)
 	_, err = os.Stat(caFilepath)
 	if os.IsNotExist(err) {
