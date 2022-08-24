@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -32,6 +33,8 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 		Host:     "127.0.0.1",
 		Port:     27017,
 		DBName:   "test",
+		UseSSL:   false,
+		CaCert:   "",
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -40,6 +43,16 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
+
+	if args.UseSSL {
+		CaCertPath, err := StoreCAFileToLocal(args.CaCert)
+		if err != nil {
+			return nil, err
+		}
+		args.CaCertPath = CaCertPath
+		defer ClearTempFileDelay(time.Minute, CaCertPath)
+	}
+
 	if err := checkMongoDBAccount(args); err != nil {
 		return nil, err
 	}
@@ -91,18 +104,23 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 
 func (opt *sqlOption) MongoDBCommandArgs() []string {
 	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
-	authSource := map[string]string{
+	params := map[string]string{
 		"authSource": "admin",
+	}
+	if opt.UseSSL {
+		params["tls"] = "true"
+		params["tlsInsecure"] = "true"
+		params["tlsCAFile"] = opt.CaCertPath
 	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoDBName(opt.DBName),
-		MongoParams(authSource),
+		MongoParams(params),
 	)
-	params := []string{
+	uriParams := []string{
 		uri, "--username", opt.Username,
 	}
-	return params
+	return uriParams
 }
 
 func checkMongoDBAccount(args *sqlOption) error {
@@ -111,6 +129,11 @@ func checkMongoDBAccount(args *sqlOption) error {
 	// https://www.mongodb.com/docs/manual/reference/connection-string/#mongodb-urioption-urioption.authSource
 	params := map[string]string{
 		"authSource": "admin",
+	}
+	if args.UseSSL{
+		params["tls"] = "true"
+		params["tlsInsecure"] = "true"
+		params["tlsCAFile"] = args.CaCertPath
 	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),
