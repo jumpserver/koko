@@ -45,7 +45,10 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 	}
 
 	if args.UseSSL {
-		CaCertPath, _ := StoreCAFileToLocal(args.CaCert)
+		CaCertPath, err := StoreCAFileToLocal(args.CaCert)
+		if err != nil {
+			return nil, err
+		}
 		args.CaCertPath = CaCertPath
 		defer ClearTempFileDelay(time.Minute, CaCertPath)
 	}
