@@ -732,12 +732,6 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		port = localTunnelAddr.Port
 	}
 
-	var caPath = ""
-	if s.connOpts.app.Attrs.UseSSL {
-		caPath, _ = srvconn.StoreCAFileToLocal(s.connOpts.app.Attrs.CaCert)
-		defer srvconn.ClearTempFileDelay(60, caPath)
-	}
-
 	srvConn, err = srvconn.NewMongoDBConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
@@ -745,7 +739,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlUseSSL(s.connOpts.app.Attrs.UseSSL),
-		srvconn.SqlCaCert(caPath),
+		srvconn.SqlCaCert(s.connOpts.app.Attrs.CaCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,

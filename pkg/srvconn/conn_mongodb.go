@@ -42,6 +42,13 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
+
+	if args.UseSSL {
+		caPath, _ := StoreCAFileToLocal(args.CaCert)
+		args.CaCert = caPath
+		defer ClearTempFileDelay(60, caPath)
+	}
+
 	if err := checkMongoDBAccount(args); err != nil {
 		return nil, err
 	}
