@@ -43,7 +43,6 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 		setter(args)
 	}
 	if err := checkMongoDBAccount(args); err != nil {
-		ClearTempFile(args.CaCert)
 		return nil, err
 	}
 	lCmd, err = startMongoDBCommand(args)
@@ -70,7 +69,6 @@ func (conn *MongoDBConn) KeepAlive() error {
 
 func (conn *MongoDBConn) Close() error {
 	_, _ = conn.Write([]byte("\r\nexit\r\n"))
-	ClearTempFile(conn.options.CaCert)
 	return conn.LocalCommand.Close()
 }
 

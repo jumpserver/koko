@@ -185,7 +185,6 @@ func initOnceLinuxMySQLShellFile() {
 }
 
 type sqlOption struct {
-	Id       string
 	Username string
 	Password string
 	DBName   string
@@ -240,12 +239,6 @@ func (opt *sqlOption) DataSourceName() string {
 
 type SqlOption func(*sqlOption)
 
-func SqlId(id string) SqlOption {
-	return func(args *sqlOption) {
-		args.Id = id
-	}
-}
-
 func SqlUsername(username string) SqlOption {
 	return func(args *sqlOption) {
 		args.Username = username
@@ -284,8 +277,7 @@ func SqlUseSSL(useSSL bool) SqlOption {
 
 func SqlCaCert(caCert string) SqlOption {
 	return func(args *sqlOption) {
-		caFilepath, _ := storeCAFileToLocal(caCert, args)
-		args.CaCert = caFilepath
+		args.CaCert = caCert
 	}
 }
 
@@ -293,31 +285,6 @@ func SqlPtyWin(win Windows) SqlOption {
 	return func(args *sqlOption) {
 		args.win = win
 	}
-}
-
-func storeCAFileToLocal(caCert string, args *sqlOption) (caFilepath string, err error)  {
-	baseDir := "./.ca_temp"
-	_, err = os.Stat(baseDir)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(baseDir, os.ModePerm)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	filename := fmt.Sprintf("%s-db.pem", args.Id)
-	caFilepath = filepath.Join(baseDir, filename)
-	_, err = os.Stat(caFilepath)
-	if os.IsNotExist(err) {
-		file, err := os.OpenFile(caFilepath, os.O_WRONLY | os.O_CREATE, 0600)
-		if err != nil {
-			return "", err
-		}
-		defer file.Close()
-		_, _ = file.WriteString(caCert)
-		return caFilepath, nil
-	}
-	return caFilepath, err
 }
 
 func MySQLDisableAutoReHash() SqlOption {
