@@ -185,13 +185,14 @@ func initOnceLinuxMySQLShellFile() {
 }
 
 type sqlOption struct {
-	Username string
-	Password string
-	DBName   string
-	Host     string
-	Port     int
-	UseSSL   bool
-	CaCert   string
+	Username   string
+	Password   string
+	DBName     string
+	Host       string
+	Port       int
+	UseSSL     bool
+	CaCert     string
+	CaCertPath string
 
 	win                    Windows
 	disableMySQLAutoRehash bool

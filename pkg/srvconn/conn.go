@@ -241,10 +241,8 @@ func StoreCAFileToLocal(caCert string) (caFilepath string, err error)  {
 }
 
 func ClearTempFileDelay(second time.Duration, filepath ...string) {
-	timerChannel :=time.After(time.Second * second)
-
 	go func() {
-		<- timerChannel
+		time.Sleep(second * time.Second)
 		for _, file := range filepath {
 			_, err := os.Stat(file)
 			if err == nil {

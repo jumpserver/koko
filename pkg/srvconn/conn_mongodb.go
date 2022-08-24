@@ -44,9 +44,9 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 	}
 
 	if args.UseSSL {
-		caPath, _ := StoreCAFileToLocal(args.CaCert)
-		args.CaCert = caPath
-		defer ClearTempFileDelay(60, caPath)
+		CaCertPath, _ := StoreCAFileToLocal(args.CaCert)
+		args.CaCertPath = CaCertPath
+		defer ClearTempFileDelay(60, CaCertPath)
 	}
 
 	if err := checkMongoDBAccount(args); err != nil {
@@ -106,7 +106,7 @@ func (opt *sqlOption) MongoDBCommandArgs() []string {
 	if opt.UseSSL {
 		params["tls"] = "true"
 		params["tlsInsecure"] = "true"
-		params["tlsCAFile"] = opt.CaCert
+		params["tlsCAFile"] = opt.CaCertPath
 	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),
@@ -129,7 +129,7 @@ func checkMongoDBAccount(args *sqlOption) error {
 	if args.UseSSL{
 		params["tls"] = "true"
 		params["tlsInsecure"] = "true"
-		params["tlsCAFile"] = args.CaCert
+		params["tlsCAFile"] = args.CaCertPath
 	}
 	uri := BuildMongoDBURI(
 		MongoHost(host),
