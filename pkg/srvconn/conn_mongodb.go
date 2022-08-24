@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -46,7 +47,7 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 	if args.UseSSL {
 		CaCertPath, _ := StoreCAFileToLocal(args.CaCert)
 		args.CaCertPath = CaCertPath
-		defer ClearTempFileDelay(60, CaCertPath)
+		defer ClearTempFileDelay(time.Minute, CaCertPath)
 	}
 
 	if err := checkMongoDBAccount(args); err != nil {
