@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/localcommand"
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -213,4 +216,39 @@ func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*l
 	clearPassword := make([]byte, len(opt.Password)+2)
 	_, _ = lcmd.Read(clearPassword)
 	return lcmd, nil
+}
+
+func StoreCAFileToLocal(caCert string) (caFilepath string, err error)  {
+	baseDir := "./.ca_temp"
+	_, err = os.Stat(baseDir)
+	if os.IsNotExist(err) {
+		err = os.Mkdir(baseDir, os.ModePerm)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	filename := fmt.Sprintf("%s-db.pem", common.UUID())
+	caFilepath = filepath.Join(baseDir, filename)
+	file, err := os.OpenFile(caFilepath, os.O_WRONLY | os.O_CREATE, 0600)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	_, _ = file.WriteString(caCert)
+
+	return caFilepath, err
+}
+
+func ClearTempFileDelay(sleepTime time.Duration, filepath ...string) {
+	go func() {
+		time.Sleep(sleepTime)
+		for _, file := range filepath {
+			_, err := os.Stat(file)
+			if err == nil {
+				logger.Debugf("Clean up file: %s", file)
+				err = os.Remove(file)
+			}
+		}
+	}()
 }

@@ -185,11 +185,14 @@ func initOnceLinuxMySQLShellFile() {
 }
 
 type sqlOption struct {
-	Username string
-	Password string
-	DBName   string
-	Host     string
-	Port     int
+	Username   string
+	Password   string
+	DBName     string
+	Host       string
+	Port       int
+	UseSSL     bool
+	CaCert     string
+	CaCertPath string
 
 	win                    Windows
 	disableMySQLAutoRehash bool
@@ -264,6 +267,18 @@ func SqlHost(host string) SqlOption {
 func SqlPort(port int) SqlOption {
 	return func(args *sqlOption) {
 		args.Port = port
+	}
+}
+
+func SqlUseSSL(useSSL bool) SqlOption {
+	return func(args *sqlOption) {
+		args.UseSSL = useSSL
+	}
+}
+
+func SqlCaCert(caCert string) SqlOption {
+	return func(args *sqlOption) {
+		args.CaCert = caCert
 	}
 }
 
