@@ -1,9 +1,12 @@
 package srvconn
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/localcommand"
 	"github.com/mediocregopher/radix/v3"
@@ -36,6 +39,16 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
+
+	if args.UseSSL {
+		CaCertPath, err := StoreCAFileToLocal(args.CaCert)
+		if err != nil {
+			return nil, err
+		}
+		args.CaCertPath = CaCertPath
+		defer ClearTempFileDelay(time.Minute, CaCertPath)
+	}
+
 	if err := checkRedisAccount(args); err != nil {
 		return nil, err
 	}
@@ -90,6 +103,11 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 		"-h", opt.Host, "-p", strconv.Itoa(opt.Port),
 		"-n", opt.DBName,
 	}
+	if opt.UseSSL {
+		params = append(params, "--tls")
+		params = append(params, "--insecure")
+		params = append(params, "--cacert", opt.CaCertPath)
+	}
 	if opt.Username != "" {
 		params = append(params, "--user", opt.Username)
 	}
@@ -107,6 +125,17 @@ func checkRedisAccount(args *sqlOption) error {
 	} else {
 		dialOptions = append(dialOptions, radix.DialAuthPass(args.Password))
 	}
+
+	if args.UseSSL{
+		rootCAs := x509.NewCertPool()
+		rootCAs.AppendCertsFromPEM([]byte(args.CaCert))
+		tlsConfig := tls.Config{
+			InsecureSkipVerify:true,
+			RootCAs: rootCAs,
+		}
+		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsConfig))
+	}
+
 	conn, err := radix.Dial("tcp", addr, dialOptions...)
 	if err != nil || conn == nil {
 		return err
