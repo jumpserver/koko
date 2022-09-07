@@ -195,8 +195,8 @@ type sqlOption struct {
 	CaCertPath        string
 	ClientCert        string
 	ClientCertPath    string
-	KeyFile           string
-	KeyFilePath       string
+	ClientKey         string
+	ClientKeyPath     string
 	AllowInvalidCert  bool
 
 	win                    Windows
@@ -287,9 +287,9 @@ func SqlCaCert(caCert string) SqlOption {
 	}
 }
 
-func SqlKeyFile(keyFile string) SqlOption {
+func SqlClientKey(clientKey string) SqlOption {
 	return func(args *sqlOption) {
-		args.KeyFile = keyFile
+		args.ClientKey = clientKey
 	}
 }
 

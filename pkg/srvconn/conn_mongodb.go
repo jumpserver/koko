@@ -35,7 +35,7 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 		DBName:           "test",
 		UseSSL:           false,
 		CaCert:           "",
-		KeyFile:          "",
+		ClientKey:        "",
 		AllowInvalidCert: false,
 		win: Windows{
 			Width:  80,
@@ -51,13 +51,13 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 		if err != nil {
 			return nil, err
 		}
-		keyPath, err := StoreCAFileToLocal(args.KeyFile)
+		clientKeyPath, err := StoreCAFileToLocal(args.ClientKey)
 		if err != nil {
 			return nil, err
 		}
 		args.CaCertPath = caCertPath
-		args.KeyFilePath = keyPath
-		defer ClearTempFileDelay(time.Minute, caCertPath, keyPath)
+		args.ClientKeyPath = clientKeyPath
+		defer ClearTempFileDelay(time.Minute, caCertPath, clientKeyPath)
 	}
 
 	if err := checkMongoDBAccount(args); err != nil {
@@ -115,8 +115,8 @@ func addMongoParamsWithSSL(args *sqlOption, params map[string]string) {
 		if args.CaCertPath != "" {
 			params["tlsCAFile"] = args.CaCertPath
 		}
-		if args.KeyFilePath != "" {
-			params["tlsCertificateKeyFile"] = args.KeyFilePath
+		if args.ClientKeyPath != "" {
+			params["tlsCertificateKeyFile"] = args.ClientKeyPath
 		}
 		if args.AllowInvalidCert {
 			params["tlsInsecure"] = "true"

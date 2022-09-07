@@ -719,7 +719,7 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		srvconn.SqlUseSSL(s.connOpts.app.Attrs.UseSSL),
 		srvconn.SqlCaCert(s.connOpts.app.Attrs.CaCert),
 		srvconn.SqlClientCert(s.connOpts.app.Attrs.ClientCert),
-		srvconn.SqlKeyFile(s.connOpts.app.Attrs.KeyFile),
+		srvconn.SqlClientKey(s.connOpts.app.Attrs.ClientKey),
 		srvconn.SqlAllowInvalidCert(s.connOpts.app.Attrs.AllowInvalidCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
@@ -745,7 +745,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlUseSSL(s.connOpts.app.Attrs.UseSSL),
 		srvconn.SqlCaCert(s.connOpts.app.Attrs.CaCert),
-		srvconn.SqlKeyFile(s.connOpts.app.Attrs.KeyFile),
+		srvconn.SqlClientKey(s.connOpts.app.Attrs.ClientKey),
 		srvconn.SqlAllowInvalidCert(s.connOpts.app.Attrs.AllowInvalidCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,

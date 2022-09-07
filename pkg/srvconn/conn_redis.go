@@ -34,7 +34,7 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 		UseSSL:           false,
 		CaCert:           "",
 		ClientCert:       "",
-		KeyFile:          "",
+		ClientKey:        "",
 		AllowInvalidCert: false,
 		win: Windows{
 			Width:  80,
@@ -50,7 +50,7 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 		if err != nil {
 			return nil, err
 		}
-		keyFilePath, err := StoreCAFileToLocal(args.KeyFile)
+		clientKeyPath, err := StoreCAFileToLocal(args.ClientKey)
 		if err != nil {
 			return nil, err
 		}
@@ -59,9 +59,9 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 			return nil, err
 		}
 		args.CaCertPath = caCertPath
-		args.KeyFilePath = keyFilePath
+		args.ClientKeyPath = clientKeyPath
 		args.ClientCertPath = clientCertPath
-		defer ClearTempFileDelay(time.Minute, caCertPath, keyFilePath, clientCertPath)
+		defer ClearTempFileDelay(time.Minute, caCertPath, clientKeyPath, clientCertPath)
 	}
 
 	if err := checkRedisAccount(args); err != nil {
@@ -123,9 +123,9 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 		if opt.CaCertPath != "" {
 			params = append(params, "--cacert", opt.CaCertPath)
 		}
-		if opt.ClientCertPath != "" && opt.KeyFilePath != "" {
+		if opt.ClientCertPath != "" && opt.ClientKeyPath != "" {
 			params = append(params, "--cert", opt.ClientCertPath)
-			params = append(params, "--key", opt.KeyFilePath)
+			params = append(params, "--key", opt.ClientKeyPath)
 		}
 		if opt.AllowInvalidCert {
 			params = append(params, "--insecure")
@@ -157,10 +157,10 @@ func checkRedisAccount(args *sqlOption) error {
 			tlsConfig.RootCAs = rootCAs
 			tlsConfig.InsecureSkipVerify = true
 		}
-		if args.KeyFile != "" && args.ClientCert != "" {
+		if args.ClientKey != "" && args.ClientCert != "" {
 			var err error
 			tlsConfig.Certificates = make([]tls.Certificate, 1)
-			tlsConfig.Certificates[0], err = tls.X509KeyPair([]byte(args.ClientCert), []byte(args.KeyFile))
+			tlsConfig.Certificates[0], err = tls.X509KeyPair([]byte(args.ClientCert), []byte(args.ClientKey))
 			if err != nil {
 				return err
 			}
