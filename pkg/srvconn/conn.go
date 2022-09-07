@@ -219,6 +219,10 @@ func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*l
 }
 
 func StoreCAFileToLocal(caCert string) (caFilepath string, err error)  {
+	if caCert == "" {
+		return "", nil
+	}
+
 	baseDir := "./.ca_temp"
 	_, err = os.Stat(baseDir)
 	if os.IsNotExist(err) {
@@ -228,7 +232,7 @@ func StoreCAFileToLocal(caCert string) (caFilepath string, err error)  {
 		}
 	}
 
-	filename := fmt.Sprintf("%s-db.pem", common.UUID())
+	filename := fmt.Sprintf("%s.pem", common.UUID())
 	caFilepath = filepath.Join(baseDir, filename)
 	file, err := os.OpenFile(caFilepath, os.O_WRONLY | os.O_CREATE, 0600)
 	if err != nil {
