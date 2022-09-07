@@ -26,11 +26,16 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 		err  error
 	)
 	args := &sqlOption{
-		Username: os.Getenv("USER"),
-		Password: os.Getenv("PASSWORD"),
-		Host:     "127.0.0.1",
-		Port:     6379,
-		DBName:   "0",
+		Username:         os.Getenv("USER"),
+		Password:         os.Getenv("PASSWORD"),
+		Host:             "127.0.0.1",
+		Port:             6379,
+		DBName:           "0",
+		UseSSL:           false,
+		CaCert:           "",
+		ClientCert:       "",
+		CertKey:          "",
+		AllowInvalidCert: false,
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -41,12 +46,22 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 	}
 
 	if args.UseSSL {
-		CaCertPath, err := StoreCAFileToLocal(args.CaCert)
+		caCertPath, err := StoreCAFileToLocal(args.CaCert)
 		if err != nil {
 			return nil, err
 		}
-		args.CaCertPath = CaCertPath
-		defer ClearTempFileDelay(time.Minute, CaCertPath)
+		certKeyPath, err := StoreCAFileToLocal(args.CertKey)
+		if err != nil {
+			return nil, err
+		}
+		clientCertPath, err := StoreCAFileToLocal(args.ClientCert)
+		if err != nil {
+			return nil, err
+		}
+		args.CaCertPath = caCertPath
+		args.CertKeyPath = certKeyPath
+		args.ClientCertPath = clientCertPath
+		defer ClearTempFileDelay(time.Minute, caCertPath, certKeyPath, clientCertPath)
 	}
 
 	if err := checkRedisAccount(args); err != nil {
@@ -105,8 +120,16 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 	}
 	if opt.UseSSL {
 		params = append(params, "--tls")
-		params = append(params, "--insecure")
-		params = append(params, "--cacert", opt.CaCertPath)
+		if opt.CaCertPath != "" {
+			params = append(params, "--cacert", opt.CaCertPath)
+		}
+		if opt.ClientCertPath != "" && opt.CertKeyPath != "" {
+			params = append(params, "--cert", opt.ClientCertPath)
+			params = append(params, "--key", opt.CertKeyPath)
+		}
+		if opt.AllowInvalidCert {
+			params = append(params, "--insecure")
+		}
 	}
 	if opt.Username != "" {
 		params = append(params, "--user", opt.Username)
@@ -127,11 +150,20 @@ func checkRedisAccount(args *sqlOption) error {
 	}
 
 	if args.UseSSL{
-		rootCAs := x509.NewCertPool()
-		rootCAs.AppendCertsFromPEM([]byte(args.CaCert))
-		tlsConfig := tls.Config{
-			InsecureSkipVerify:true,
-			RootCAs: rootCAs,
+		tlsConfig := tls.Config{}
+		if args.CaCert != "" {
+			rootCAs := x509.NewCertPool()
+			rootCAs.AppendCertsFromPEM([]byte(args.CaCert))
+			tlsConfig.RootCAs = rootCAs
+			tlsConfig.InsecureSkipVerify = true
+		}
+		if args.CertKey != "" && args.ClientCert != "" {
+			var err error
+			tlsConfig.Certificates = make([]tls.Certificate, 1)
+			tlsConfig.Certificates[0], err = tls.X509KeyPair([]byte(args.ClientCert), []byte(args.CertKey))
+			if err != nil {
+				return err
+			}
 		}
 		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsConfig))
 	}

@@ -28,13 +28,15 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 		err  error
 	)
 	args := &sqlOption{
-		Username: os.Getenv("USER"),
-		Password: os.Getenv("PASSWORD"),
-		Host:     "127.0.0.1",
-		Port:     27017,
-		DBName:   "test",
-		UseSSL:   false,
-		CaCert:   "",
+		Username:         os.Getenv("USER"),
+		Password:         os.Getenv("PASSWORD"),
+		Host:             "127.0.0.1",
+		Port:             27017,
+		DBName:           "test",
+		UseSSL:           false,
+		CaCert:           "",
+		CertKey:          "",
+		AllowInvalidCert: false,
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -45,12 +47,17 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 	}
 
 	if args.UseSSL {
-		CaCertPath, err := StoreCAFileToLocal(args.CaCert)
+		caCertPath, err := StoreCAFileToLocal(args.CaCert)
 		if err != nil {
 			return nil, err
 		}
-		args.CaCertPath = CaCertPath
-		defer ClearTempFileDelay(time.Minute, CaCertPath)
+		certKeyPath, err := StoreCAFileToLocal(args.CertKey)
+		if err != nil {
+			return nil, err
+		}
+		args.CaCertPath = caCertPath
+		args.CertKeyPath = certKeyPath
+		defer ClearTempFileDelay(time.Minute, caCertPath, certKeyPath)
 	}
 
 	if err := checkMongoDBAccount(args); err != nil {
@@ -102,16 +109,27 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 	return lcmd, nil
 }
 
+func addMongoParamsWithSSL(args *sqlOption, params map[string]string) {
+	if args.UseSSL {
+		params["tls"] = "true"
+		if args.CaCertPath != "" {
+			params["tlsCAFile"] = args.CaCertPath
+		}
+		if args.CertKeyPath != "" {
+			params["tlsCertificateKeyFile"] = args.CertKeyPath
+		}
+		if args.AllowInvalidCert {
+			params["tlsInsecure"] = "true"
+		}
+	}
+}
+
 func (opt *sqlOption) MongoDBCommandArgs() []string {
 	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
 	params := map[string]string{
 		"authSource": "admin",
 	}
-	if opt.UseSSL {
-		params["tls"] = "true"
-		params["tlsInsecure"] = "true"
-		params["tlsCAFile"] = opt.CaCertPath
-	}
+	addMongoParamsWithSSL(opt, params)
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoDBName(opt.DBName),
@@ -130,11 +148,7 @@ func checkMongoDBAccount(args *sqlOption) error {
 	params := map[string]string{
 		"authSource": "admin",
 	}
-	if args.UseSSL{
-		params["tls"] = "true"
-		params["tlsInsecure"] = "true"
-		params["tlsCAFile"] = args.CaCertPath
-	}
+	addMongoParamsWithSSL(args, params)
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoAuth(args.Username, args.Password),
