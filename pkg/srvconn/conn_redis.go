@@ -1,9 +1,12 @@
 package srvconn
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/localcommand"
 	"github.com/mediocregopher/radix/v3"
@@ -23,11 +26,16 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 		err  error
 	)
 	args := &sqlOption{
-		Username: os.Getenv("USER"),
-		Password: os.Getenv("PASSWORD"),
-		Host:     "127.0.0.1",
-		Port:     6379,
-		DBName:   "0",
+		Username:         os.Getenv("USER"),
+		Password:         os.Getenv("PASSWORD"),
+		Host:             "127.0.0.1",
+		Port:             6379,
+		DBName:           "0",
+		UseSSL:           false,
+		CaCert:           "",
+		ClientCert:       "",
+		CertKey:          "",
+		AllowInvalidCert: false,
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -36,6 +44,26 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
+
+	if args.UseSSL {
+		caCertPath, err := StoreCAFileToLocal(args.CaCert)
+		if err != nil {
+			return nil, err
+		}
+		certKeyPath, err := StoreCAFileToLocal(args.CertKey)
+		if err != nil {
+			return nil, err
+		}
+		clientCertPath, err := StoreCAFileToLocal(args.ClientCert)
+		if err != nil {
+			return nil, err
+		}
+		args.CaCertPath = caCertPath
+		args.CertKeyPath = certKeyPath
+		args.ClientCertPath = clientCertPath
+		defer ClearTempFileDelay(time.Minute, caCertPath, certKeyPath, clientCertPath)
+	}
+
 	if err := checkRedisAccount(args); err != nil {
 		return nil, err
 	}
@@ -90,6 +118,19 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 		"-h", opt.Host, "-p", strconv.Itoa(opt.Port),
 		"-n", opt.DBName,
 	}
+	if opt.UseSSL {
+		params = append(params, "--tls")
+		if opt.CaCertPath != "" {
+			params = append(params, "--cacert", opt.CaCertPath)
+		}
+		if opt.ClientCertPath != "" && opt.CertKeyPath != "" {
+			params = append(params, "--cert", opt.ClientCertPath)
+			params = append(params, "--key", opt.CertKeyPath)
+		}
+		if opt.AllowInvalidCert {
+			params = append(params, "--insecure")
+		}
+	}
 	if opt.Username != "" {
 		params = append(params, "--user", opt.Username)
 	}
@@ -107,6 +148,26 @@ func checkRedisAccount(args *sqlOption) error {
 	} else {
 		dialOptions = append(dialOptions, radix.DialAuthPass(args.Password))
 	}
+
+	if args.UseSSL{
+		tlsConfig := tls.Config{}
+		if args.CaCert != "" {
+			rootCAs := x509.NewCertPool()
+			rootCAs.AppendCertsFromPEM([]byte(args.CaCert))
+			tlsConfig.RootCAs = rootCAs
+			tlsConfig.InsecureSkipVerify = true
+		}
+		if args.CertKey != "" && args.ClientCert != "" {
+			var err error
+			tlsConfig.Certificates = make([]tls.Certificate, 1)
+			tlsConfig.Certificates[0], err = tls.X509KeyPair([]byte(args.ClientCert), []byte(args.CertKey))
+			if err != nil {
+				return err
+			}
+		}
+		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsConfig))
+	}
+
 	conn, err := radix.Dial("tcp", addr, dialOptions...)
 	if err != nil || conn == nil {
 		return err

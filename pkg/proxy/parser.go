@@ -317,7 +317,12 @@ func (p *Parser) parseCmdInput() {
 	if len(commands) <= 0 {
 		p.command = ""
 	} else {
-		p.command = commands[len(commands)-1]
+		switch p.protocolType {
+		case model.AppTypeRedis:
+			p.command = commands[len(commands)-1]
+		default:
+			p.command = strings.Join(commands, "\r\n")
+		}
 	}
 	p.cmdCreateDate = time.Now()
 }
