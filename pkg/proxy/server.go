@@ -720,7 +720,6 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		srvconn.SqlCaCert(s.connOpts.app.Attrs.CaCert),
 		srvconn.SqlClientCert(s.connOpts.app.Attrs.ClientCert),
 		srvconn.SqlCertKey(s.connOpts.app.Attrs.CertKey),
-		srvconn.SqlAllowInvalidCert(s.connOpts.app.Attrs.AllowInvalidCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
