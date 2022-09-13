@@ -35,7 +35,6 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 		CaCert:           "",
 		ClientCert:       "",
 		CertKey:          "",
-		AllowInvalidCert: false,
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -126,9 +125,6 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 		if opt.ClientCertPath != "" && opt.CertKeyPath != "" {
 			params = append(params, "--cert", opt.ClientCertPath)
 			params = append(params, "--key", opt.CertKeyPath)
-		}
-		if opt.AllowInvalidCert {
-			params = append(params, "--insecure")
 		}
 	}
 	if opt.Username != "" {
