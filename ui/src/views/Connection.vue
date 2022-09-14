@@ -73,7 +73,7 @@
 <script>
 import Terminal from '@/components/Terminal';
 import ThemeConfig from "@/components/ThemeConfig";
-import {BASE_URL, BASE_WS_URL, CopyTextToClipboard} from "@/utils/common";
+import {BASE_URL, BASE_WS_URL, CopyTextToClipboard, defaultTheme} from "@/utils/common";
 import RightPanel from '@/components/RightPanel';
 import Settings from '@/components/Settings';
 
@@ -247,9 +247,10 @@ export default {
     },
 
     handleChangeTheme(val) {
+      const themeColors = val || defaultTheme;
       if (this.$refs.term.term) {
-        this.$refs.term.term.setOption("theme", val);
-        this.themeBackground = val.background;
+        this.$refs.term.term.setOption("theme", themeColors);
+        this.themeBackground = themeColors.background;
       }
       this.$log.debug(val);
     },
