@@ -141,3 +141,28 @@ export function removeClass(ele, cls) {
     ele.className = ele.className.replace(reg, ' ')
   }
 }
+
+/**
+ * Default theme
+ */
+export const defaultTheme = {
+  background: '#1f1b1b',
+  black: '#151515',
+  blue: '#6c99bb',
+  brightBlack: '#505050',
+  brightBlue: '#6c99bb',
+  brightCyan: '#7dd6cf',
+  brightGreen: '#7e8e50',
+  brightMagenta: '#9f4e85',
+  brightRed: '#ac4142',
+  brightWhite: '#f5f5f5',
+  brightYellow: '#e5b567',
+  cursor: '#d0d0d0',
+  cyan: '#7dd6cf',
+  foreground: '#d0d0d0',
+  green: '#7e8e50',
+  magenta: '#9f4e85',
+  red: '#ac4142',
+  white: '#d0d0d0',
+  yellow: '#e5b567'
+}
