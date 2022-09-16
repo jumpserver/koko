@@ -24,6 +24,7 @@ echo 'complete -F __start_kubectl k' >> .bashrc
 mkdir -p .kube
 
 export HOME=/nonexistent
+export LANG=en_US.UTF-8
 
 echo `rawkubectl config set-credentials JumpServer-user` > /dev/null 2>&1
 echo `rawkubectl config set-cluster kubernetes --server=${KUBECTL_CLUSTER}` > /dev/null 2>&1
