@@ -5,6 +5,7 @@
                 v-bind:enable-zmodem='true'
                 v-bind:connectURL="wsURL"
                 v-on:background-color="onThemeBackground"
+                v-on:event="onEvent"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <RightPanel>
@@ -279,6 +280,17 @@ export default {
         this.$refs.term.getUserInfo(query);
       } else {
         this.userOptions = []
+      }
+    },
+    onEvent(event, data) {
+      switch (event) {
+        case 'reconnect':
+          Object.keys(this.onlineUsersMap).filter(key => {
+            this.$delete(this.onlineUsersMap, key);
+          })
+          this.updateOnlineCount();
+          this.$log.debug("reconnect: ",data);
+          break
       }
     }
   },

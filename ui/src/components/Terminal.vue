@@ -258,7 +258,10 @@ export default {
       this.connectWs();
 
       window.SendTerminalData = this.sendDataFromWindow;
-      window.Reconnect = this.connectWs;
+      window.Reconnect = () => {
+        this.$emit("event", "reconnect", this.terminalId)
+        this.connectWs()
+      };
     },
 
     onWebsocketMessage(e) {
@@ -340,8 +343,8 @@ export default {
           this.terminalId = msg.id;
           try {
             this.fitAddon.fit();
-          }catch (e){
-           console.log(e)
+          } catch (e) {
+            console.log(e)
           }
           const data = {
             cols: this.term.cols,
