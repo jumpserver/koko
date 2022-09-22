@@ -35,6 +35,9 @@ var (
 		[]byte("\x1b[?1047l"),
 		[]byte("\x1b[?47l"),
 	}
+
+	sep_newline = []byte(" \r")
+	sep_enter   = []byte(" \r\n")
 )
 
 const (
@@ -300,6 +303,7 @@ func (p *Parser) forbiddenCommand(cmd string) {
 	lang := i18n.NewLang(p.i18nLang)
 	fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
 	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
+	p.srvOutputChan <- []byte("\r\n") // 输入命令过长且换行的情况下会导致高危命令提示不全
 	p.cmdRecordChan <- &ExecutedCommand{
 		Command:     p.command,
 		Output:      fbdMsg,
@@ -390,7 +394,35 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		return b
 	}
 	if p.inputState {
-		_, _ = p.cmdInputParser.WriteData(b)
+		b_len := len(b)
+		b_copy := make([]byte, b_len)
+		copy(b_copy, b)
+		currentIndex := 0
+
+		for {
+			i0 := bytes.Index(b_copy[currentIndex:], sep_newline)
+			i1 := bytes.Index(b_copy[currentIndex:], sep_enter)
+			if i0 == -1 {
+				break
+			}
+
+			if i0 != i1 {
+				// 匹配字节：' \r'
+				// 命令超过一行的情况下，服务器端返回的命令会被截断并截断处插入' \r'
+				b_copy = append(b_copy[:currentIndex+i0], b_copy[currentIndex+i0+len(sep_newline):]...)
+				currentIndex = currentIndex + i0
+			} else {
+				// 匹配字节： ' \r\n'
+				// 批量粘贴命令的情况下会出现回车换行符
+				currentIndex = currentIndex + i1 + len(sep_enter)
+			}
+
+			if currentIndex >= b_len {
+				break
+			}
+		}
+
+		_, _ = p.cmdInputParser.WriteData(b_copy)
 	}
 	_, _ = p.cmdOutputParser.WriteData(b)
 	return b
