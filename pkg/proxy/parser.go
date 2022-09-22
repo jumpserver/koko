@@ -408,7 +408,7 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 
 			if i0 != i1 {
 				// 匹配字节' \r'，而不是' \r\n'.
-				// 命令超过一行的情况下，服务器端返回的命令会被截断并在截断处插入' \r',
+				// 命令超过一行的情况下，服务器端返回的命令会在行尾处被截断并在截断处插入' \r',
 				// 因此要去掉' \r'保持命令的完整性.
 				b_copy = append(b_copy[:currentIndex+i0], b_copy[currentIndex+i0+len(sep_newline):]...)
 				currentIndex = currentIndex + i0
