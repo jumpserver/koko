@@ -116,6 +116,9 @@ func generateSubSystemUsersFolderMap(systemUsers []model.SystemUser) map[string]
 		return ok
 	}
 	for i := 0; i < len(systemUsers); i++ {
+		if systemUsers[i].Protocol != model.ProtocolSSH {
+			continue
+		}
 		folderName := cleanFolderName(systemUsers[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 		sus[folderName] = &systemUsers[i]
