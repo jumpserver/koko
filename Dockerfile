@@ -15,6 +15,7 @@ WORKDIR /opt/koko
 
 ARG TARGETARCH
 ARG GOPROXY=https://goproxy.io
+ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 ENV GOOS=linux
 
