@@ -55,6 +55,7 @@ ARG DEPENDENCIES="                    \
         iputils-ping                  \
         jq                            \
         less                          \
+        locales                       \
         mariadb-client                \
         net-tools                     \
         openssh-client                \
