@@ -1,4 +1,4 @@
-FROM node:10 as ui-build
+FROM node:14.16 as ui-build
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
 
