@@ -13,9 +13,8 @@ FROM golang:1.18-bullseye as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 
-ARG GOPROXY=https://goproxy.io
 ARG TARGETARCH
-ENV TARGETARCH=$TARGETARCH
+ARG GOPROXY=https://goproxy.io
 ENV GO111MODULE=on
 ENV GOOS=linux
 
