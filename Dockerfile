@@ -35,7 +35,7 @@ RUN set -ex \
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
-ARG VERSION=Unknown
+ARG VERSION
 ENV VERSION=$VERSION
 RUN cd utils && sh -ixeu build.sh
 
@@ -71,7 +71,6 @@ RUN sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/source
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
-    && apt-get install -y --no-install-recommends openssh-client procps curl gdb ca-certificates jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git freetds-bin mariadb-client redis-tools postgresql-client gnupg\
     && wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
     && echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/5.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list \
     && apt-get update \
@@ -81,7 +80,6 @@ RUN sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/source
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
 
-ENV TZ Asia/Shanghai
 WORKDIR /opt/koko/
 COPY --from=stage-build /opt/koko/release/koko /opt/koko
 COPY --from=stage-build /opt/koko/release/koko/kubectl /usr/local/bin/kubectl
