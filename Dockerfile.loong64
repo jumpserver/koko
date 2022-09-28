@@ -9,7 +9,7 @@ RUN yarn config set registry ${NPM_REGISTRY}
 COPY ui  ui/
 RUN ls . && cd ui/ && yarn install && yarn build && ls -al .
 
-FROM golang:1.18-bullseye as stage-build
+FROM golang:1.18-loongnix as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 
@@ -39,46 +39,34 @@ ARG VERSION
 ENV VERSION=$VERSION
 RUN cd utils && sh -ixeu build.sh
 
-FROM debian:bullseye-slim
+FROM loongnix:20-slim
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
         ca-certificates               \
         curl                          \
-        dnsutils                      \
-        freetds-bin                   \
-        gdb                           \
-        git                           \
-        gnupg                         \
-        iproute2                      \
-        iputils-ping                  \
-        jq                            \
-        less                          \
+        locales                       \
         mariadb-client                \
-        net-tools                     \
         openssh-client                \
         postgresql-client             \
-        procps                        \
-        redis-tools                   \
-        sysstat                       \
-        telnet                        \
-        unzip                         \
-        vim                           \
         wget"
 
-RUN sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \
+RUN set -ex \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
-    && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
-    && wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
-    && echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/5.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends mongodb-mongosh \
+    && apt-get install -y --no-install-recommends $DEPENDENCIES \
     && echo "no" | dpkg-reconfigure dash \
     && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
+
+RUN set -ex \
+    && cd /opt \
+    && wget https://download.jumpserver.org/redis/6.0.16/redis-cli-linux-${TARGETARCH}.tar.gz \
+    && tar -xf redis-cli-linux-${TARGETARCH}.tar.gz -C /usr/local/bin \
+    && chmod 755 /usr/local/bin/redis-cli \
+    && rm -rf /opt/*.tar.gz
 
 WORKDIR /opt/koko/
 COPY --from=stage-build /opt/koko/release/koko /opt/koko
