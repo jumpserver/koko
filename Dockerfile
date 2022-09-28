@@ -35,7 +35,7 @@ RUN set -ex \
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
-ARG VERSION=Unknown
+ARG VERSION
 ENV VERSION=$VERSION
 RUN cd utils && sh -ixeu build.sh
 

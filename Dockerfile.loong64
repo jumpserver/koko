@@ -12,8 +12,10 @@ RUN ls . && cd ui/ && yarn install && yarn build && ls -al .
 FROM golang:1.18-loongnix as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
-ARG GOPROXY=https://goproxy.io
+
 ARG TARGETARCH
+ARG GOPROXY=https://goproxy.io
+ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 ENV GOOS=linux
 
@@ -33,7 +35,7 @@ RUN set -ex \
 COPY go.mod go.sum ./
 RUN go mod download -x
 COPY . .
-ARG VERSION=Unknown
+ARG VERSION
 ENV VERSION=$VERSION
 RUN cd utils && sh -ixeu build.sh
 
