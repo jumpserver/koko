@@ -7,7 +7,7 @@ RUN npm config set registry ${NPM_REGISTRY}
 RUN yarn config set registry ${NPM_REGISTRY}
 
 COPY ui  ui/
-RUN ls . && cd ui/ && npm install -i && yarn build && ls -al .
+RUN ls . && cd ui/ && yarn install && yarn build && ls -al .
 
 FROM golang:1.18-bullseye as stage-build
 LABEL stage=stage-build
