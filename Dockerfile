@@ -19,7 +19,9 @@ ENV TARGETARCH=$TARGETARCH
 ENV GO111MODULE=on
 ENV GOOS=linux
 
-RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
+RUN set -ex \
+    && echo "no" | dpkg-reconfigure dash \
+    && wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
     && tar -xf kubectl.tar.gz \
     && chmod +x kubectl \
     && mv kubectl rawkubectl \
