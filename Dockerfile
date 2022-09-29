@@ -8,7 +8,7 @@ RUN set -ex \
     && yarn config set registry ${NPM_REGISTRY} \
     && yarn config set cache-folder /root/.cache/yarn/koko
 
-COPY ui  ui/
+COPY ui ui/
 RUN --mount=type=cache,target=/root/.cache/yarn \
     ls . && cd ui/ && yarn install && yarn build && ls -al .
 
@@ -84,7 +84,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && apt-get update \
     && apt-get install -y --no-install-recommends mongodb-mongosh \
     && echo "no" | dpkg-reconfigure dash \
-    && echo "zh_CN.UTF-8" | dpkg-reconfigure locales
+    && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/koko/
 COPY --from=stage-build /opt/koko/release/koko /opt/koko
