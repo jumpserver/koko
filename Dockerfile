@@ -3,11 +3,14 @@ ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
 
 WORKDIR /opt/koko
-RUN npm config set registry ${NPM_REGISTRY}
-RUN yarn config set registry ${NPM_REGISTRY}
+RUN set -ex \
+    && npm config set registry ${NPM_REGISTRY} \
+    && yarn config set registry ${NPM_REGISTRY} \
+    && yarn config set cache-folder /root/.cache/yarn/koko
 
-COPY ui  ui/
-RUN ls . && cd ui/ && yarn install && yarn build && ls -al .
+COPY ui ui/
+RUN --mount=type=cache,target=/root/.cache/yarn \
+    ls . && cd ui/ && yarn install && yarn build && ls -al .
 
 FROM golang:1.18-bullseye as stage-build
 LABEL stage=stage-build
@@ -32,12 +35,14 @@ RUN set -ex \
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xf kubectl_aliases.tar.gz
 
-COPY go.mod go.sum ./
-RUN go mod download -x
 COPY . .
 ARG VERSION
 ENV VERSION=$VERSION
-RUN cd utils && sh -ixeu build.sh
+
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/go/pkg/mod \
+    go mod download -x \
+    && cd utils && sh -ixeu build.sh
 
 FROM debian:bullseye-slim
 ARG TARGETARCH
@@ -68,7 +73,9 @@ ARG DEPENDENCIES="                    \
         vim                           \
         wget"
 
-RUN sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
+    sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \
+    && rm -f /etc/apt/apt.conf.d/docker-clean \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
@@ -78,7 +85,6 @@ RUN sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/source
     && apt-get install -y --no-install-recommends mongodb-mongosh \
     && echo "no" | dpkg-reconfigure dash \
     && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
-    && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/koko/
