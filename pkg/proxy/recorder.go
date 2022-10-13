@@ -78,6 +78,10 @@ func (c *CommandRecorder) record() {
 			}
 		}
 		err := c.storage.BulkSave(cmdList)
+		if err != nil && c.storage.TypeName() != "server" {
+			logger.Warnf("Session %s: Switch default command storage save.", c.sessionID)
+			err = c.jmsService.PushSessionCommand(cmdList)
+		}
 		if err == nil {
 			cmdList = cmdList[:0]
 			maxRetry = 0
