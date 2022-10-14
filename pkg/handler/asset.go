@@ -44,6 +44,7 @@ func (u *UserSelectHandler) searchLocalAsset(searches ...string) []map[string]in
 		"name":     {},
 		"hostname": {},
 		"ip":       {},
+		"platform": {},
 		"comment":  {},
 	}
 	return u.searchLocalFromFields(fields, searches...)
@@ -85,10 +86,11 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 	idLabel := lang.T("ID")
 	hostLabel := lang.T("Hostname")
 	ipLabel := lang.T("IP")
+	platformLabel := lang.T("Platform")
 	commentLabel := lang.T("Comment")
 
-	Labels := []string{idLabel, hostLabel, ipLabel, commentLabel}
-	fields := []string{"ID", "Hostname", "IP", "Comment"}
+	Labels := []string{idLabel, hostLabel, ipLabel, platformLabel, commentLabel}
+	fields := []string{"ID", "Hostname", "IP", "Platform", "Comment"}
 	data := make([]map[string]string, len(u.currentResult))
 	for i, j := range u.currentResult {
 		row := make(map[string]string)
@@ -96,6 +98,7 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 		fieldMap := map[string]string{
 			"hostname": "Hostname",
 			"ip":       "IP",
+			"platform": "Platform",
 			"comment":  "Comment",
 		}
 		row = convertMapItemToRow(j, fieldMap, row)
@@ -114,6 +117,7 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 			"ID":       {0, 0, 5},
 			"Hostname": {0, 40, 0},
 			"IP":       {0, 15, 40},
+			"Platform": {0, 10, 0},
 			"Comment":  {0, 0, 0},
 		},
 		Data:        data,
