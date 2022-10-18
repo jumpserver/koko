@@ -71,7 +71,8 @@ ARG DEPENDENCIES="                    \
         telnet                        \
         unzip                         \
         vim                           \
-        wget"
+        wget                          \
+        clickhouse-client"
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \

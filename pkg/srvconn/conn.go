@@ -34,12 +34,13 @@ const (
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
 
-	ProtocolMySQL     = "mysql"
-	ProtocolMariadb   = "mariadb"
-	ProtocolSQLServer = "sqlserver"
-	ProtocolRedis     = "redis"
-	ProtocolMongoDB   = "mongodb"
+	ProtocolMySQL        = "mysql"
+	ProtocolMariadb      = "mariadb"
+	ProtocolSQLServer    = "sqlserver"
+	ProtocolRedis        = "redis"
+	ProtocolMongoDB      = "mongodb"
 	ProtocolPostgreSQL   = "postgresql"
+	ProtocolClickHouse   = "clickhouse"
 )
 
 var (
@@ -47,26 +48,28 @@ var (
 
 	ErrKubectlClient = errors.New("not found Kubectl client")
 
-	ErrMySQLClient     = errors.New("not found MySQL client")
-	ErrSQLServerClient = errors.New("not found SQLServer client")
-
 	ErrRedisClient   = errors.New("not found Redis client")
 	ErrMongoDBClient = errors.New("not found MongoDB client")
+
+	ErrMySQLClient     = errors.New("not found MySQL client")
+	ErrSQLServerClient = errors.New("not found SQLServer client")
 	ErrPostgreSQLClient = errors.New("not found PostgreSQL client")
+	ErrClickHouseClient = errors.New("not found ClickHouse client")
 )
 
 type supportedChecker func() error
 
 var supportedMap = map[string]supportedChecker{
-	ProtocolSSH:       builtinSupported,
-	ProtocolTELNET:    builtinSupported,
-	ProtocolK8s:       kubectlSupported,
-	ProtocolMySQL:     mySQLSupported,
-	ProtocolMariadb:   mySQLSupported,
-	ProtocolSQLServer: sqlServerSupported,
-	ProtocolRedis:     redisSupported,
-	ProtocolMongoDB:   mongoDBSupported,
+	ProtocolSSH:          builtinSupported,
+	ProtocolTELNET:       builtinSupported,
+	ProtocolK8s:          kubectlSupported,
+	ProtocolMySQL:        mySQLSupported,
+	ProtocolMariadb:      mySQLSupported,
+	ProtocolSQLServer:    sqlServerSupported,
+	ProtocolRedis:        redisSupported,
+	ProtocolMongoDB:      mongoDBSupported,
 	ProtocolPostgreSQL:   postgreSQLSupported,
+	ProtocolClickHouse:   clickhouseSupported,
 }
 
 func IsSupportedProtocol(p string) error {
@@ -155,13 +158,27 @@ func postgreSQLSupported() error {
 	cmd := exec.Command("bash", "-c", checkLine)
 	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrSQLServerClient, err)
+		return fmt.Errorf("%w: %s", ErrPostgreSQLClient, err)
 	}
 	if bytes.HasPrefix(out, []byte("psql")) {
 		return nil
 	}
 	return ErrPostgreSQLClient
 }
+
+func clickhouseSupported() error {
+	checkLine := "clickhouse-client -V"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrClickHouseClient, err)
+	}
+	if bytes.HasPrefix(out, []byte("ClickHouse")) {
+		return nil
+	}
+	return ErrClickHouseClient
+}
+
 
 func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
 	var (
