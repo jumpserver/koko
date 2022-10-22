@@ -16,8 +16,8 @@ CipherKey := $(shell head -c 100 /dev/urandom | base64 | head -c 32)
 TARGETARCH ?= amd64
 
 UIDIR=ui
-NPMINSTALL=npm i
-NPMBUILD=npm run-script build
+NPMINSTALL=yarn install
+NPMBUILD=yarn build
 
 LDFLAGS=-w -s
 
