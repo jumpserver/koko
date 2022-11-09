@@ -33,7 +33,10 @@ RUN set -ex \
     && chmod +x linux-${TARGETARCH}/helm \
     && mv linux-${TARGETARCH}/helm rawhelm \
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
-    && tar -xf kubectl_aliases.tar.gz
+    && tar -xf kubectl_aliases.tar.gz \
+    && wget https://download.jumpserver.org/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz \
+    && tar xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
+    && chmod +x clickhouse-client
 
 COPY . .
 ARG VERSION
@@ -71,8 +74,7 @@ ARG DEPENDENCIES="                    \
         telnet                        \
         unzip                         \
         vim                           \
-        wget                          \
-        clickhouse-client"
+        wget"
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \
@@ -94,6 +96,7 @@ COPY --from=stage-build /opt/koko/release/koko/kubectl /usr/local/bin/kubectl
 COPY --from=stage-build /opt/koko/release/koko/helm /usr/local/bin/helm
 COPY --from=stage-build /opt/koko/rawkubectl /usr/local/bin/rawkubectl
 COPY --from=stage-build /opt/koko/rawhelm /usr/local/bin/rawhelm
+COPY --from=stage-build /opt/koko/clickhouse-client /usr/local/bin/clickhouse-client
 COPY --from=stage-build /opt/koko/utils/coredump.sh .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
