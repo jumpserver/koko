@@ -88,6 +88,14 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
     && rm -rf /var/lib/apt/lists/*
 
+ARG CLICKHOUSE_VERSION=22.20.2.11
+ENV CLICKHOUSE_FILE="${CLICKHOUSE_VERSION}/clickhouse-client-linux-${TARGETARCH:-amd64}.tar.gz"
+
+RUN wget https://download.jumpserver.org/files/clickhouse/${CLICKHOUSE_FILE} \
+    && tar xf clickhouse-client-linux-${TARGETARCH:-amd64}.tar.gz
+    && chmod +x clickhouse-client
+    && mv clickhouse-client /usr/local/bin
+
 WORKDIR /opt/koko/
 COPY --from=stage-build /opt/koko/release/koko /opt/koko
 COPY --from=stage-build /opt/koko/release/koko/kubectl /usr/local/bin/kubectl
