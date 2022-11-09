@@ -34,8 +34,8 @@ RUN set -ex \
     && mv linux-${TARGETARCH}/helm rawhelm \
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xf kubectl_aliases.tar.gz \
-    && wget https://download.jumpserver.org/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}tar.gz \
-    && tar xf clickhouse-client-linux-${TARGETARCH}tar.gz \
+    && wget https://download.jumpserver.org/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz \
+    && tar xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
     && chmod +x clickhouse-client
 
 COPY . .
