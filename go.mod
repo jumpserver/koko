@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/Azure/azure-storage-blob-go v0.6.0
+	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/LeeEirc/elfinder v0.0.14
 	github.com/LeeEirc/httpsig v1.2.1
 	github.com/LeeEirc/tclientlib v0.0.1
@@ -43,6 +44,7 @@ require (
 	github.com/Azure/azure-pipeline-go v0.1.9 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
+	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect

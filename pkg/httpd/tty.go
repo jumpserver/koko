@@ -302,7 +302,7 @@ func (h *tty) getTargetApp(protocol string) bool {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
-		srvconn.ProtocolPostgreSQL:
+		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse:
 		appAsset, err := h.jmsService.GetApplicationById(h.targetId)
 		if err != nil {
 			logger.Errorf("Get %s application failed; %s", protocol, err)
@@ -374,6 +374,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		switch h.systemUser.Protocol {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 			srvconn.ProtocolSQLServer, srvconn.ProtocolPostgreSQL,
+			srvconn.ProtocolClickHouse,
 			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 			proxyOpts = append(proxyOpts, proxy.ConnectApp(h.app))
 		case srvconn.ProtocolK8s:

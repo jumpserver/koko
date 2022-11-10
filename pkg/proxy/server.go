@@ -134,7 +134,8 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 	switch connOpts.ProtocolType {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL,
+		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
 		srvconn.ProtocolK8s:
 		if sysUserAuthInfo == nil {
 			authInfo, err2 := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
@@ -438,7 +439,8 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		orgID = s.connOpts.asset.OrgID
 
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL,
+		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
 		srvconn.ProtocolK8s:
 		server = s.connOpts.app.Name
 		if s.connOpts.k8sContainer != nil {
@@ -511,7 +513,8 @@ func (s *Server) checkRequiredAuth() error {
 			return errors.New("no auth token")
 		}
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET,
-		srvconn.ProtocolSQLServer, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL:
+		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolMongoDB:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -620,7 +623,8 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			dstPort: dstPort,
 		}
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL:
+		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		dGateway = &domainGateway{
 			domain:  domain,
 			dstIP:   s.connOpts.app.Attrs.Host,
@@ -783,6 +787,27 @@ func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 		port = localTunnelAddr.Port
 	}
 	srvConn, err = srvconn.NewPostgreSQLConnection(
+		srvconn.SqlHost(host),
+		srvconn.SqlPort(port),
+		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
+		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
+		srvconn.SqlPtyWin(srvconn.Windows{
+			Width:  s.UserConn.Pty().Window.Width,
+			Height: s.UserConn.Pty().Window.Height,
+		}),
+	)
+	return
+}
+
+func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.ClickHouseConn, err error) {
+	host := s.connOpts.app.Attrs.Host
+	port := s.connOpts.app.Attrs.Port
+	if localTunnelAddr != nil {
+		host = "127.0.0.1"
+		port = localTunnelAddr.Port
+	}
+	srvConn, err = srvconn.NewClickHouseConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
@@ -998,6 +1023,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getMongoDBConn(proxyAddr)
 	case srvconn.ProtocolPostgreSQL:
 		return s.getPostgreSQLConn(proxyAddr)
+	case srvconn.ProtocolClickHouse:
+		return s.getClickHouseConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}
@@ -1044,7 +1071,8 @@ func (s *Server) checkLoginConfirm() bool {
 	)
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolPostgreSQL,
+		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
 		srvconn.ProtocolK8s:
 		targetType = model.AppType
 		targetId = s.connOpts.app.ID
@@ -1110,8 +1138,9 @@ func (s *Server) Proxy() {
 	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		switch s.connOpts.ProtocolType {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB, srvconn.ProtocolK8s,
-			srvconn.ProtocolPostgreSQL:
+			srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
+			srvconn.ProtocolK8s:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
 				msg := lang.T("Start domain gateway failed %s")
