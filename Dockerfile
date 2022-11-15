@@ -22,19 +22,21 @@ ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 ENV GOOS=linux
 
+ARG DOWNLOAD_URL=https://download.jumpserver.org
+
 RUN set -ex \
     && echo "no" | dpkg-reconfigure dash \
-    && wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
+    && wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
     && tar -xf kubectl.tar.gz \
     && chmod +x kubectl \
     && mv kubectl rawkubectl \
-    && wget https://download.jumpserver.org/public/helm-v3.9.0-linux-${TARGETARCH}.tar.gz -O helm.tar.gz \
+    && wget ${DOWNLOAD_URL}/public/helm-v3.9.0-linux-${TARGETARCH}.tar.gz -O helm.tar.gz \
     && tar -xf helm.tar.gz \
     && chmod +x linux-${TARGETARCH}/helm \
     && mv linux-${TARGETARCH}/helm rawhelm \
-    && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
+    && wget ${DOWNLOAD_URL}/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xf kubectl_aliases.tar.gz \
-    && wget https://download.jumpserver.org/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz \
+    && wget ${DOWNLOAD_URL}/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz \
     && tar xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
     && chmod +x clickhouse-client
 
