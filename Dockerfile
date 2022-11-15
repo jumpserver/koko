@@ -1,29 +1,30 @@
-FROM node:10 as ui-build
+FROM node:14.16 as ui-build
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
 
 WORKDIR /opt/koko
-RUN npm config set registry ${NPM_REGISTRY}
-RUN yarn config set registry ${NPM_REGISTRY}
+RUN set -ex \
+    && npm config set registry ${NPM_REGISTRY} \
+    && yarn config set registry ${NPM_REGISTRY} \
+    && yarn config set cache-folder /root/.cache/yarn/koko
 
-COPY ui  ui/
-RUN ls . && cd ui/ && npm install -i && yarn build && ls -al .
+COPY ui ui/
+RUN --mount=type=cache,target=/root/.cache/yarn \
+    ls . && cd ui/ && yarn install && yarn build && ls -al .
 
-FROM golang:1.17-alpine as stage-build
+FROM golang:1.18-bullseye as stage-build
 LABEL stage=stage-build
 WORKDIR /opt/koko
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
-    && apk update \
-    && apk add git
-
-ARG GOPROXY=https://goproxy.io
 ARG TARGETARCH
-ENV TARGETARCH=$TARGETARCH
+ARG GOPROXY=https://goproxy.io
+ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 ENV GOOS=linux
 
-RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
+RUN set -ex \
+    && echo "no" | dpkg-reconfigure dash \
+    && wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
     && tar -xf kubectl.tar.gz \
     && chmod +x kubectl \
     && mv kubectl rawkubectl \
@@ -32,35 +33,70 @@ RUN wget https://download.jumpserver.org/public/kubectl-linux-${TARGETARCH}.tar.
     && chmod +x linux-${TARGETARCH}/helm \
     && mv linux-${TARGETARCH}/helm rawhelm \
     && wget http://download.jumpserver.org/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
-    && tar -xf kubectl_aliases.tar.gz
+    && tar -xf kubectl_aliases.tar.gz \
+    && wget https://download.jumpserver.org/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz \
+    && tar xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
+    && chmod +x clickhouse-client
 
-COPY go.mod go.sum ./
-RUN go mod download -x
 COPY . .
-ARG VERSION=Unknown
+ARG VERSION
 ENV VERSION=$VERSION
-RUN cd utils && sh -ixeu build.sh
+
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/go/pkg/mod \
+    go mod download -x \
+    && cd utils && sh -ixeu build.sh
 
 FROM debian:bullseye-slim
-ENV LANG en_US.utf8
-RUN sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \
-    && apt update \
-    && apt-get install -y --no-install-recommends locales \
-    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
-    && apt-get install -y --no-install-recommends openssh-client procps curl gdb ca-certificates jq iproute2 less bash-completion unzip sysstat acl net-tools iputils-ping telnet dnsutils wget vim git freetds-bin mariadb-client redis-tools postgresql-client gnupg\
+ARG TARGETARCH
+
+ARG DEPENDENCIES="                    \
+        bash-completion               \
+        ca-certificates               \
+        curl                          \
+        dnsutils                      \
+        freetds-bin                   \
+        gdb                           \
+        git                           \
+        gnupg                         \
+        iproute2                      \
+        iputils-ping                  \
+        jq                            \
+        less                          \
+        locales                       \
+        mariadb-client                \
+        net-tools                     \
+        openssh-client                \
+        postgresql-client             \
+        procps                        \
+        redis-tools                   \
+        sysstat                       \
+        telnet                        \
+        unzip                         \
+        vim                           \
+        wget"
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
+    sed -i 's@http://.*.debian.org@http://mirrors.ustc.edu.cn@g' /etc/apt/sources.list \
+    && rm -f /etc/apt/apt.conf.d/docker-clean \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
     && wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
     && echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/5.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list \
-    && apt update \
+    && apt-get update \
     && apt-get install -y --no-install-recommends mongodb-mongosh \
+    && echo "no" | dpkg-reconfigure dash \
+    && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
     && rm -rf /var/lib/apt/lists/*
 
-ENV TZ Asia/Shanghai
 WORKDIR /opt/koko/
 COPY --from=stage-build /opt/koko/release/koko /opt/koko
 COPY --from=stage-build /opt/koko/release/koko/kubectl /usr/local/bin/kubectl
 COPY --from=stage-build /opt/koko/release/koko/helm /usr/local/bin/helm
 COPY --from=stage-build /opt/koko/rawkubectl /usr/local/bin/rawkubectl
 COPY --from=stage-build /opt/koko/rawhelm /usr/local/bin/rawhelm
+COPY --from=stage-build /opt/koko/clickhouse-client /usr/local/bin/clickhouse-client
 COPY --from=stage-build /opt/koko/utils/coredump.sh .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
@@ -68,6 +104,8 @@ COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl
 COPY --from=ui-build /opt/koko/ui/dist ui/dist
 
 RUN chmod 755 entrypoint.sh && chmod 755 init-kubectl.sh
+
+ENV LANG=zh_CN.UTF-8
 
 EXPOSE 2222 5000
 CMD ["./entrypoint.sh"]
