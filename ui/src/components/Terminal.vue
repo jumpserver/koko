@@ -181,9 +181,26 @@ export default {
       }
     },
 
+    connectWs() {
+      if (this.wsIsActivated()) {
+        this.term.writeln("try to reconnect to server");
+        this.ws.onerror = ()=>{};
+        this.ws.onclose = ()=>{};
+        this.ws.onmessage = ()=>{};
+        this.ws.close();
+      }
+      const ws = new WebSocket(this.wsURL, ["JMS-KOKO"]);
+      this.ws = ws;
+      ws.binaryType = "arraybuffer";
+      ws.onopen = this.onWebsocketOpen;
+      ws.onerror = this.onWebsocketErr;
+      ws.onclose = this.onWebsocketClose;
+      ws.onmessage = this.onWebsocketMessage;
+    },
+
     connect() {
       this.$log.debug(this.wsURL)
-      const ws = new WebSocket(this.wsURL, ["JMS-KOKO"]);
+
       this.config = this.loadConfig();
       this.term = this.createTerminal();
       this.$log.debug(ZmodemBrowser);
@@ -237,13 +254,14 @@ export default {
         this.$log.debug("send term resize ")
         this.ws.send(this.message(this.terminalId, 'TERMINAL_RESIZE', JSON.stringify({cols, rows})))
       })
-      this.ws = ws;
-      ws.binaryType = "arraybuffer";
-      ws.onopen = this.onWebsocketOpen;
-      ws.onerror = this.onWebsocketErr;
-      ws.onclose = this.onWebsocketClose;
-      ws.onmessage = this.onWebsocketMessage;
+
+      this.connectWs();
+
       window.SendTerminalData = this.sendDataFromWindow;
+      window.Reconnect = () => {
+        this.$emit("event", "reconnect", this.terminalId)
+        this.connectWs()
+      };
     },
 
     onWebsocketMessage(e) {
@@ -269,6 +287,7 @@ export default {
     },
 
     onWebsocketOpen() {
+      this.sendEventToLuna('CONNECTED', '')
       if (this.pingInterval !== null) {
         clearInterval(this.pingInterval);
       }
@@ -324,8 +343,8 @@ export default {
           this.terminalId = msg.id;
           try {
             this.fitAddon.fit();
-          }catch (e){
-           console.log(e)
+          } catch (e) {
+            console.log(e)
           }
           const data = {
             cols: this.term.cols,

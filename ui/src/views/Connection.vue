@@ -5,6 +5,7 @@
                 v-bind:enable-zmodem='true'
                 v-bind:connectURL="wsURL"
                 v-on:background-color="onThemeBackground"
+                v-on:event="onEvent"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <RightPanel>
@@ -73,7 +74,7 @@
 <script>
 import Terminal from '@/components/Terminal';
 import ThemeConfig from "@/components/ThemeConfig";
-import {BASE_URL, BASE_WS_URL, CopyTextToClipboard} from "@/utils/common";
+import {BASE_URL, BASE_WS_URL, CopyTextToClipboard, defaultTheme} from "@/utils/common";
 import RightPanel from '@/components/RightPanel';
 import Settings from '@/components/Settings';
 
@@ -247,9 +248,10 @@ export default {
     },
 
     handleChangeTheme(val) {
+      const themeColors = val || defaultTheme;
       if (this.$refs.term.term) {
-        this.$refs.term.term.setOption("theme", val);
-        this.themeBackground = val.background;
+        this.$refs.term.term.setOption("theme", themeColors);
+        this.themeBackground = themeColors.background;
       }
       this.$log.debug(val);
     },
@@ -278,6 +280,17 @@ export default {
         this.$refs.term.getUserInfo(query);
       } else {
         this.userOptions = []
+      }
+    },
+    onEvent(event, data) {
+      switch (event) {
+        case 'reconnect':
+          Object.keys(this.onlineUsersMap).filter(key => {
+            this.$delete(this.onlineUsersMap, key);
+          })
+          this.updateOnlineCount();
+          this.$log.debug("reconnect: ",data);
+          break
       }
     }
   },

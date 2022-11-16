@@ -10,8 +10,8 @@
         <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')" style="width: 100%">
             <el-option v-for="item in themes" :key="item" :label="item" :value="item"></el-option>
           </el-select>
-          <div v-if="theme">
-            <p class="title">{{ this.$t('Terminal.ThemeColors') }}</p>
+          <div v-if="Object.keys(colors).length > 0">
+            <p class="title">Theme Colors</p>
             <el-row type="flex" class="theme-colors">
               <el-col :span="8">
                 <div class="show-color" :style="{backgroundColor: colors.background}"></div>
@@ -104,6 +104,7 @@
 
 <script>
 import xtermTheme from "xterm-theme";
+import {defaultTheme} from "@/utils/common";
 const themes = Object.keys(xtermTheme);
 export default {
   name: "ThemeConfig",
@@ -112,16 +113,16 @@ export default {
   },
   data() {
     return {
-      themes: themes,
-      theme: window.localStorage.getItem("themeName") || 'Afterglow',
+      themes: ['Default', ...themes],
+      theme: window.localStorage.getItem("themeName") || 'Default',
     };
   },
   computed: {
     colors() {
-      if (this.theme) {
+      if (this.theme && themes.includes(this.theme)) {
         return xtermTheme[this.theme];
       } else {
-        return null;
+        return defaultTheme;
       }
     },
     iVisible: {
@@ -135,8 +136,9 @@ export default {
   },
   watch: {
     theme(val) {
-      window.localStorage.setItem("themeName", val);
-      this.$emit("setTheme", xtermTheme[val]);
+      const theme = val && val !== 'Default' ? val : '';
+      window.localStorage.setItem("themeName", theme);
+      this.$emit("setTheme", xtermTheme[theme]);
     }
   },
   mounted() {

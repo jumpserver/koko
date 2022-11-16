@@ -185,11 +185,19 @@ func initOnceLinuxMySQLShellFile() {
 }
 
 type sqlOption struct {
-	Username string
-	Password string
-	DBName   string
-	Host     string
-	Port     int
+	Username         string
+	Password         string
+	DBName           string
+	Host             string
+	Port             int
+	UseSSL           bool
+	CaCert           string
+	CaCertPath       string
+	ClientCert       string
+	ClientCertPath   string
+	CertKey          string
+	CertKeyPath      string
+	AllowInvalidCert bool
 
 	win                    Windows
 	disableMySQLAutoRehash bool
@@ -202,6 +210,7 @@ func (opt *sqlOption) CommandArgs() []string {
 		authRehashFlag = "--no-auto-rehash"
 	}
 	args = append(args, authRehashFlag)
+	args = append(args, "--default-character-set=utf8")
 	args = append(args, fmt.Sprintf("--user=%s", opt.Username))
 	args = append(args, fmt.Sprintf("--host=%s", opt.Host))
 	args = append(args, fmt.Sprintf("--port=%d", opt.Port))
@@ -215,6 +224,7 @@ func (opt *sqlOption) Envs() []string {
 	if opt.disableMySQLAutoRehash {
 		extraArgs = "--no-auto-rehash"
 	}
+	extraArgs += " --default-character-set=utf8"
 	envs := make([]string, 0, 6)
 	envs = append(envs, fmt.Sprintf("USERNAME=%s", opt.Username))
 	envs = append(envs, fmt.Sprintf("HOSTNAME=%s", opt.Host))
@@ -264,6 +274,36 @@ func SqlHost(host string) SqlOption {
 func SqlPort(port int) SqlOption {
 	return func(args *sqlOption) {
 		args.Port = port
+	}
+}
+
+func SqlUseSSL(useSSL bool) SqlOption {
+	return func(args *sqlOption) {
+		args.UseSSL = useSSL
+	}
+}
+
+func SqlCaCert(caCert string) SqlOption {
+	return func(args *sqlOption) {
+		args.CaCert = caCert
+	}
+}
+
+func SqlCertKey(certKey string) SqlOption {
+	return func(args *sqlOption) {
+		args.CertKey = certKey
+	}
+}
+
+func SqlClientCert(clientCert string) SqlOption {
+	return func(args *sqlOption) {
+		args.ClientCert = clientCert
+	}
+}
+
+func SqlAllowInvalidCert(allowInvalidCert bool) SqlOption {
+	return func(args *sqlOption) {
+		args.AllowInvalidCert = allowInvalidCert
 	}
 }
 

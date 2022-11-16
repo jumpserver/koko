@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -27,11 +28,15 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 		err  error
 	)
 	args := &sqlOption{
-		Username: os.Getenv("USER"),
-		Password: os.Getenv("PASSWORD"),
-		Host:     "127.0.0.1",
-		Port:     27017,
-		DBName:   "test",
+		Username:         os.Getenv("USER"),
+		Password:         os.Getenv("PASSWORD"),
+		Host:             "127.0.0.1",
+		Port:             27017,
+		DBName:           "test",
+		UseSSL:           false,
+		CaCert:           "",
+		CertKey:          "",
+		AllowInvalidCert: false,
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -40,6 +45,21 @@ func NewMongoDBConnection(ops ...SqlOption) (*MongoDBConn, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
+
+	if args.UseSSL {
+		caCertPath, err := StoreCAFileToLocal(args.CaCert)
+		if err != nil {
+			return nil, err
+		}
+		certKeyPath, err := StoreCAFileToLocal(args.CertKey)
+		if err != nil {
+			return nil, err
+		}
+		args.CaCertPath = caCertPath
+		args.CertKeyPath = certKeyPath
+		defer ClearTempFileDelay(time.Minute, caCertPath, certKeyPath)
+	}
+
 	if err := checkMongoDBAccount(args); err != nil {
 		return nil, err
 	}
@@ -89,20 +109,36 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 	return lcmd, nil
 }
 
+func addMongoParamsWithSSL(args *sqlOption, params map[string]string) {
+	if args.UseSSL {
+		params["tls"] = "true"
+		if args.CaCertPath != "" {
+			params["tlsCAFile"] = args.CaCertPath
+		}
+		if args.CertKeyPath != "" {
+			params["tlsCertificateKeyFile"] = args.CertKeyPath
+		}
+		if args.AllowInvalidCert {
+			params["tlsInsecure"] = "true"
+		}
+	}
+}
+
 func (opt *sqlOption) MongoDBCommandArgs() []string {
 	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
-	authSource := map[string]string{
+	params := map[string]string{
 		"authSource": "admin",
 	}
+	addMongoParamsWithSSL(opt, params)
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoDBName(opt.DBName),
-		MongoParams(authSource),
+		MongoParams(params),
 	)
-	params := []string{
+	uriParams := []string{
 		uri, "--username", opt.Username,
 	}
-	return params
+	return uriParams
 }
 
 func checkMongoDBAccount(args *sqlOption) error {
@@ -112,6 +148,7 @@ func checkMongoDBAccount(args *sqlOption) error {
 	params := map[string]string{
 		"authSource": "admin",
 	}
+	addMongoParamsWithSSL(args, params)
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoAuth(args.Username, args.Password),

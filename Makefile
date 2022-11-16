@@ -16,8 +16,8 @@ CipherKey := $(shell head -c 100 /dev/urandom | base64 | head -c 32)
 TARGETARCH ?= amd64
 
 UIDIR=ui
-NPMINSTALL=npm i
-NPMBUILD=npm run-script build
+NPMINSTALL=yarn install
+NPMBUILD=yarn build
 
 LDFLAGS=-w -s
 
@@ -157,7 +157,7 @@ koko-ui:
 .PHONY: docker
 docker:
 	@echo "build docker images"
-	docker build --build-arg VERSION=$(VERSION) --build-arg TARGETARCH=$(TARGETARCH) -t jumpserver/koko .
+	docker buildx build --build-arg VERSION=$(VERSION) -t jumpserver/koko .
 
 .PHONY: clean
 clean:
