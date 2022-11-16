@@ -23,16 +23,17 @@ const (
 	AppTypeMySQL = "mysql"
 	AppTypeK8s   = "k8s"
 
-	AppTypeMariaDB   = "mariadb"
-	AppTypeSQLServer = "sqlserver"
-	AppTypePostgres  = "postgresql"
-	AppTypeRedis     = "redis"
-	AppTypeMongoDB   = "mongodb"
+	AppTypeMariaDB     = "mariadb"
+	AppTypeSQLServer   = "sqlserver"
+	AppTypePostgres    = "postgresql"
+	AppTypeClickhouse  = "clickhouse"
+	AppTypeRedis       = "redis"
+	AppTypeMongoDB     = "mongodb"
 )
 
 var (
 	SupportedDBTypes = []string{AppTypeMySQL, AppTypeMariaDB, AppTypeSQLServer,
-		AppTypePostgres, AppTypeRedis, AppTypeMongoDB}
+		AppTypePostgres, AppTypeRedis, AppTypeMongoDB, AppTypeClickhouse}
 )
 
 const AppType = "Application"
