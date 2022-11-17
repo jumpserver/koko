@@ -147,6 +147,7 @@ func checkMongoDBAccount(args *sqlOption) error {
 	// https://www.mongodb.com/docs/manual/reference/connection-string/#mongodb-urioption-urioption.authSource
 	params := map[string]string{
 		"authSource": "admin",
+		"connect":    "direct",
 	}
 	addMongoParamsWithSSL(args, params)
 	uri := BuildMongoDBURI(
