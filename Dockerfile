@@ -2,26 +2,24 @@ FROM node:14.16 as ui-build
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
 
-WORKDIR /opt/koko
 RUN set -ex \
     && npm config set registry ${NPM_REGISTRY} \
-    && yarn config set registry ${NPM_REGISTRY} \
-    && yarn config set cache-folder /root/.cache/yarn/koko
+    && yarn config set registry ${NPM_REGISTRY}
 
-COPY ui ui/
-RUN --mount=type=cache,target=/root/.cache/yarn \
-    ls . && cd ui/ && yarn install && yarn build && ls -al .
+WORKDIR /opt/koko/ui
+ADD ui/package.json ui/package-lock.json .
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
+    yarn install
+
+ADD ui .
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
+    yarn build
 
 FROM golang:1.18-bullseye as stage-build
 LABEL stage=stage-build
-WORKDIR /opt/koko
-
 ARG TARGETARCH
-ARG GOPROXY=https://goproxy.io
-ENV CGO_ENABLED=0
-ENV GO111MODULE=on
-ENV GOOS=linux
 
+WORKDIR /opt/koko
 ARG DOWNLOAD_URL=https://download.jumpserver.org
 
 RUN set -ex \
@@ -40,9 +38,19 @@ RUN set -ex \
     && tar xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
     && chmod +x clickhouse-client
 
+ADD go.mod go.sum .
+
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/go/pkg/mod \
+    go mod download -x
+
 COPY . .
 ARG VERSION
 ENV VERSION=$VERSION
+
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/go/pkg/mod \
+    cd utils && sh -ixeu build.sh
 
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
