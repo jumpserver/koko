@@ -7,7 +7,7 @@ RUN set -ex \
     && yarn config set registry ${NPM_REGISTRY}
 
 WORKDIR /opt/koko/ui
-ADD ui/package.json ui/package-lock.json .
+ADD ui/package.json .
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn install
 
@@ -39,6 +39,11 @@ RUN set -ex \
     && chmod +x clickhouse-client
 
 ADD go.mod go.sum .
+
+ARG GOPROXY=https://goproxy.io
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
+ENV GOOS=linux
 
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
