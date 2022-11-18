@@ -53,34 +53,39 @@ msgid "Page up: b\tPage down: n"
 msgstr "上一页：b 下一页：n"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:56
+#: pkg/handler/app_mysql.go:57
 msgid "No Databases"
 msgstr "无数据库"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:69 pkg/handler/app_mysql.go:70
-#: pkg/handler/app_mysql.go:71
+#: pkg/handler/app_mysql.go:70 pkg/handler/app_mysql.go:71
+#: pkg/handler/app_mysql.go:72
 msgid "IP"
 msgstr "IP"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:72
+#: pkg/handler/app_mysql.go:73
 msgid "DBType"
 msgstr "数据库类型"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:73
+#: pkg/handler/app_mysql.go:74
 #, fuzzy
 msgid "DB Name"
 msgstr "数据库名称"
 
 #. lang.T
+#: pkg/handler/app_mysql.go:75
+msgid "Organization"
+msgstr "组织"
+
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:74 pkg/handler/app_mysql.go:96
-#: pkg/handler/app_mysql.go:117
+#. lang.T
+#: pkg/handler/app_mysql.go:76 pkg/handler/app_mysql.go:99
+#: pkg/handler/app_mysql.go:121
 #, fuzzy
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
@@ -89,27 +94,29 @@ msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段�
 
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:118 pkg/handler/asset.go:57
+#: pkg/handler/app_mysql.go:122 pkg/handler/asset.go:58
 msgid "No Assets"
 msgstr "没有资产"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:86 pkg/handler/asset.go:87
+#: pkg/handler/asset.go:87 pkg/handler/asset.go:88
 #, fuzzy
 msgid "Hostname"
 msgstr "主机名"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:88 pkg/handler/asset.go:89
+#: pkg/handler/asset.go:89 pkg/handler/asset.go:90
 msgid "Platform"
 msgstr "平台"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:90 pkg/handler/asset.go:109 pkg/handler/asset.go:129
+#. lang.T
+#: pkg/handler/asset.go:91 pkg/handler/asset.go:92 pkg/handler/asset.go:112
+#: pkg/handler/asset.go:133
 #, fuzzy
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
@@ -118,7 +125,7 @@ msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，�
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:130 pkg/handler/asset_node.go:24
+#: pkg/handler/asset.go:134 pkg/handler/asset_node.go:24
 msgid "%s node has no assets"
 msgstr "%s节点没有资产"
 
@@ -411,28 +418,28 @@ msgid ""
 msgstr "该终端不支持 %s 协议，请使用web终端登录"
 
 #. lang.T
-#: pkg/proxy/server.go:178
+#: pkg/proxy/server.go:179
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. lang.T
-#: pkg/proxy/server.go:250
+#: pkg/proxy/server.go:251
 msgid "You don't have permission login %s"
 msgstr "你无权限登陆%s"
 
 #. lang.T
-#: pkg/proxy/server.go:509
+#: pkg/proxy/server.go:511
 msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
-#: pkg/proxy/server.go:516
+#: pkg/proxy/server.go:519
 #, fuzzy
 msgid "Get auth username failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
-#: pkg/proxy/server.go:521
+#: pkg/proxy/server.go:524
 #, fuzzy
 msgid "Get auth password failed"
 msgstr "你获取认证令牌失败"
@@ -441,48 +448,48 @@ msgstr "你获取认证令牌失败"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:527 pkg/proxy/server.go:533 pkg/proxy/server.go:548
-#: pkg/proxy/server.go:598
+#: pkg/proxy/server.go:530 pkg/proxy/server.go:536 pkg/proxy/server.go:551
+#: pkg/proxy/server.go:601
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:899
+#: pkg/proxy/server.go:924
 msgid "Switched to %s"
 msgstr "已切换至%s"
 
 #. lang.T
-#: pkg/proxy/server.go:1087
+#: pkg/proxy/server.go:1115
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. lang.T
-#: pkg/proxy/server.go:1117
+#: pkg/proxy/server.go:1146
 #, fuzzy
 msgid "Start domain gateway failed %s"
 msgstr "启动数据库网关失败%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1125 pkg/proxy/server_options.go:170
+#: pkg/proxy/server.go:1154 pkg/proxy/server_options.go:170
 #, fuzzy
 msgid "Connecting to %s@%s"
 msgstr "开始连接到 %s@%s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:173
+#: pkg/proxy/server_options.go:174
 #, fuzzy
 msgid "Connecting to Database %s"
 msgstr "开始连接数据库 %s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:175
+#: pkg/proxy/server_options.go:176
 #, fuzzy
 msgid "Connecting to Kubernetes %s"
 msgstr "开始连接Kubernetes %s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:177
+#: pkg/proxy/server_options.go:178
 #, fuzzy
 msgid "Connecting to Kubernetes %s container %s"
 msgstr "开始连接Kubernetes %s 容器 %s"
