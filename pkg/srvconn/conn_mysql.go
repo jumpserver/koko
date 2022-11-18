@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -203,6 +204,9 @@ type sqlOption struct {
 	disableMySQLAutoRehash bool
 }
 
+// --default-character-set 环境变量值
+const kokoMySQLDefaultCharset = "KOKO_MYSQL_DEFAULT_CHARSET"
+
 func (opt *sqlOption) CommandArgs() []string {
 	args := make([]string, 0, 6)
 	authRehashFlag := "--auto-rehash"
@@ -210,7 +214,10 @@ func (opt *sqlOption) CommandArgs() []string {
 		authRehashFlag = "--no-auto-rehash"
 	}
 	args = append(args, authRehashFlag)
-	args = append(args, "--default-character-set=utf8")
+	if charset := os.Getenv(kokoMySQLDefaultCharset); charset != "" {
+		charset = strings.TrimSpace(charset)
+		args = append(args, fmt.Sprintf("--default-character-set=%s", charset))
+	}
 	args = append(args, fmt.Sprintf("--user=%s", opt.Username))
 	args = append(args, fmt.Sprintf("--host=%s", opt.Host))
 	args = append(args, fmt.Sprintf("--port=%d", opt.Port))
@@ -220,17 +227,21 @@ func (opt *sqlOption) CommandArgs() []string {
 }
 
 func (opt *sqlOption) Envs() []string {
-	extraArgs := "--auto-rehash"
+	extraArgs := make([]string, 0, 2)
 	if opt.disableMySQLAutoRehash {
-		extraArgs = "--no-auto-rehash"
+		extraArgs = append(extraArgs, "--no-auto-rehash")
 	}
-	extraArgs += " --default-character-set=utf8"
+	if charset := os.Getenv(kokoMySQLDefaultCharset); charset != "" {
+		charset = strings.TrimSpace(charset)
+		extraArgs = append(extraArgs, fmt.Sprintf("--default-character-set=%s", charset))
+	}
+
 	envs := make([]string, 0, 6)
 	envs = append(envs, fmt.Sprintf("USERNAME=%s", opt.Username))
 	envs = append(envs, fmt.Sprintf("HOSTNAME=%s", opt.Host))
 	envs = append(envs, fmt.Sprintf("PORT=%d", opt.Port))
 	envs = append(envs, fmt.Sprintf("DATABASE=%s", opt.DBName))
-	envs = append(envs, fmt.Sprintf("EXTRAARGS=%s", extraArgs))
+	envs = append(envs, fmt.Sprintf("EXTRAARGS=%s", strings.Join(extraArgs, " ")))
 	return envs
 }
 
