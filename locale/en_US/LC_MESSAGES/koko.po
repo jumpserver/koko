@@ -50,33 +50,38 @@ msgid "Page up: b\tPage down: n"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/app_mysql.go:56
+#: pkg/handler/app_mysql.go:57
 msgid "No Databases"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:69 pkg/handler/app_mysql.go:70
-#: pkg/handler/app_mysql.go:71
+#: pkg/handler/app_mysql.go:70 pkg/handler/app_mysql.go:71
+#: pkg/handler/app_mysql.go:72
 msgid "IP"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/app_mysql.go:72
+#: pkg/handler/app_mysql.go:73
 msgid "DBType"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/app_mysql.go:73
+#: pkg/handler/app_mysql.go:74
 msgid "DB Name"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/app_mysql.go:75
+msgid "Organization"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:74 pkg/handler/app_mysql.go:96
-#: pkg/handler/app_mysql.go:117
+#: pkg/handler/app_mysql.go:76 pkg/handler/app_mysql.go:99
+#: pkg/handler/app_mysql.go:121
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
 "such as: //16"
@@ -84,26 +89,28 @@ msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:118 pkg/handler/asset.go:57
+#: pkg/handler/app_mysql.go:122 pkg/handler/asset.go:58
 msgid "No Assets"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:86 pkg/handler/asset.go:87
+#: pkg/handler/asset.go:87 pkg/handler/asset.go:88
 msgid "Hostname"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:88 pkg/handler/asset.go:89
+#: pkg/handler/asset.go:89 pkg/handler/asset.go:90
 msgid "Platform"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:90 pkg/handler/asset.go:109 pkg/handler/asset.go:129
+#. lang.T
+#: pkg/handler/asset.go:91 pkg/handler/asset.go:92 pkg/handler/asset.go:112
+#: pkg/handler/asset.go:133
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
 "such as: //16"
@@ -111,7 +118,7 @@ msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:130 pkg/handler/asset_node.go:24
+#: pkg/handler/asset.go:134 pkg/handler/asset_node.go:24
 msgid "%s node has no assets"
 msgstr ""
 
@@ -385,27 +392,27 @@ msgid ""
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:178
+#: pkg/proxy/server.go:179
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:250
+#: pkg/proxy/server.go:251
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:509
+#: pkg/proxy/server.go:511
 msgid "You get auth token failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:516
+#: pkg/proxy/server.go:519
 msgid "Get auth username failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:521
+#: pkg/proxy/server.go:524
 msgid "Get auth password failed"
 msgstr ""
 
@@ -413,44 +420,44 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:527 pkg/proxy/server.go:533 pkg/proxy/server.go:548
-#: pkg/proxy/server.go:598
+#: pkg/proxy/server.go:530 pkg/proxy/server.go:536 pkg/proxy/server.go:551
+#: pkg/proxy/server.go:601
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:899
+#: pkg/proxy/server.go:924
 msgid "Switched to %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1087
+#: pkg/proxy/server.go:1115
 msgid "Connect with api server failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1117
+#: pkg/proxy/server.go:1146
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1125 pkg/proxy/server_options.go:170
+#: pkg/proxy/server.go:1154 pkg/proxy/server_options.go:170
 msgid "Connecting to %s@%s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:173
+#: pkg/proxy/server_options.go:174
 msgid "Connecting to Database %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:175
+#: pkg/proxy/server_options.go:176
 msgid "Connecting to Kubernetes %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:177
+#: pkg/proxy/server_options.go:178
 msgid "Connecting to Kubernetes %s container %s"
 msgstr ""
 

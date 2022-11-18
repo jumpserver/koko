@@ -45,6 +45,7 @@ func (u *UserSelectHandler) searchLocalAsset(searches ...string) []map[string]in
 		"hostname": {},
 		"ip":       {},
 		"platform": {},
+		"org_name": {},
 		"comment":  {},
 	}
 	return u.searchLocalFromFields(fields, searches...)
@@ -87,10 +88,11 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 	hostLabel := lang.T("Hostname")
 	ipLabel := lang.T("IP")
 	platformLabel := lang.T("Platform")
+	orgLabel := lang.T("Organization")
 	commentLabel := lang.T("Comment")
 
-	Labels := []string{idLabel, hostLabel, ipLabel, platformLabel, commentLabel}
-	fields := []string{"ID", "Hostname", "IP", "Platform", "Comment"}
+	Labels := []string{idLabel, hostLabel, ipLabel, platformLabel, orgLabel, commentLabel}
+	fields := []string{"ID", "Hostname", "IP", "Platform", "Organization", "Comment"}
 	data := make([]map[string]string, len(u.currentResult))
 	for i, j := range u.currentResult {
 		row := make(map[string]string)
@@ -99,6 +101,7 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 			"hostname": "Hostname",
 			"ip":       "IP",
 			"platform": "Platform",
+			"org_name": "Organization",
 			"comment":  "Comment",
 		}
 		row = convertMapItemToRow(j, fieldMap, row)
@@ -114,11 +117,12 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 		Fields: fields,
 		Labels: Labels,
 		FieldsSize: map[string][3]int{
-			"ID":       {0, 0, 5},
-			"Hostname": {0, 40, 0},
-			"IP":       {0, 15, 40},
-			"Platform": {0, 10, 0},
-			"Comment":  {0, 0, 0},
+			"ID":           {0, 0, 5},
+			"Hostname":     {0, 40, 0},
+			"IP":           {0, 8, 40},
+			"Platform":     {0, 8, 0},
+			"Organization": {0, 8, 0},
+			"Comment":      {0, 0, 0},
 		},
 		Data:        data,
 		TotalSize:   w,
