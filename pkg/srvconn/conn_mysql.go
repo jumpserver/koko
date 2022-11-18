@@ -41,7 +41,7 @@ mount -t tmpfs -o size=10M tmpfs /nonexistent
 cd /nonexistent
 export HOME=/nonexistent
 export TMPDIR=/nonexistent
-export LANG=en_US.UTF-8
+export LANG=zh_CN.UTF-8
 export TERM=xterm
 exec su -s /bin/bash --command="mysql ${EXTRAARGS} --user=${USERNAME} --host=${HOSTNAME} --port=${PORT} --password ${DATABASE}" nobody
 `
