@@ -52,33 +52,38 @@ msgid "Page up: b\tPage down: n"
 msgstr "前のページ：b 次のページ：n"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:56
+#: pkg/handler/app_mysql.go:57
 msgid "No Databases"
 msgstr "データベースなし"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:69 pkg/handler/app_mysql.go:70
-#: pkg/handler/app_mysql.go:71
+#: pkg/handler/app_mysql.go:70 pkg/handler/app_mysql.go:71
+#: pkg/handler/app_mysql.go:72
 msgid "IP"
 msgstr "IP"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:72
+#: pkg/handler/app_mysql.go:73
 msgid "DBType"
 msgstr "データベースのタイプ"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:73
+#: pkg/handler/app_mysql.go:74
 msgid "DB Name"
 msgstr "データベース名"
 
 #. lang.T
+#: pkg/handler/app_mysql.go:75
+msgid "Organization"
+msgstr "おるがないず"
+
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:74 pkg/handler/app_mysql.go:96
-#: pkg/handler/app_mysql.go:117
+#. lang.T
+#: pkg/handler/app_mysql.go:76 pkg/handler/app_mysql.go:99
+#: pkg/handler/app_mysql.go:121
 msgid ""
 "Enter ID number directly login the database, multiple search use // + field, "
 "such as: //16"
@@ -88,26 +93,28 @@ msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:118 pkg/handler/asset.go:57
+#: pkg/handler/app_mysql.go:122 pkg/handler/asset.go:58
 msgid "No Assets"
 msgstr "資産なし"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:86 pkg/handler/asset.go:87
+#: pkg/handler/asset.go:87 pkg/handler/asset.go:88
 msgid "Hostname"
 msgstr "ホスト名"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:88 pkg/handler/asset.go:89
+#: pkg/handler/asset.go:89 pkg/handler/asset.go:90
 msgid "Platform"
 msgstr "プラットホーム"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:90 pkg/handler/asset.go:109 pkg/handler/asset.go:129
+#. lang.T
+#: pkg/handler/asset.go:91 pkg/handler/asset.go:92 pkg/handler/asset.go:112
+#: pkg/handler/asset.go:133
 msgid ""
 "Enter ID number directly login the asset, multiple search use // + field, "
 "such as: //16"
@@ -117,7 +124,7 @@ msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:130 pkg/handler/asset_node.go:24
+#: pkg/handler/asset.go:134 pkg/handler/asset_node.go:24
 msgid "%s node has no assets"
 msgstr "%sノードに資産がありません"
 
@@ -397,27 +404,27 @@ msgstr ""
 "してください"
 
 #. lang.T
-#: pkg/proxy/server.go:178
+#: pkg/proxy/server.go:179
 msgid "System user <%s> and asset <%s> protocol are inconsistent."
 msgstr "システムユーザ <%s> と資産 <%s> のプロトコルが一致しない"
 
 #. lang.T
-#: pkg/proxy/server.go:250
+#: pkg/proxy/server.go:251
 msgid "You don't have permission login %s"
 msgstr "ログイン権限がありません %s"
 
 #. lang.T
-#: pkg/proxy/server.go:509
+#: pkg/proxy/server.go:511
 msgid "You get auth token failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:516
+#: pkg/proxy/server.go:519
 msgid "Get auth username failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:521
+#: pkg/proxy/server.go:524
 msgid "Get auth password failed"
 msgstr "認証トークンの取得に失敗しました"
 
@@ -425,44 +432,44 @@ msgstr "認証トークンの取得に失敗しました"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:527 pkg/proxy/server.go:533 pkg/proxy/server.go:548
-#: pkg/proxy/server.go:598
+#: pkg/proxy/server.go:530 pkg/proxy/server.go:536 pkg/proxy/server.go:551
+#: pkg/proxy/server.go:601
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "SSH接続の再利用 (%s@%s) [接続数: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:899
+#: pkg/proxy/server.go:924
 msgid "Switched to %s"
 msgstr "%s に切り替え"
 
 #. lang.T
-#: pkg/proxy/server.go:1087
+#: pkg/proxy/server.go:1115
 msgid "Connect with api server failed"
 msgstr "APIサーバーとの接続に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:1117
+#: pkg/proxy/server.go:1146
 msgid "Start domain gateway failed %s"
 msgstr "ドメインゲートウェイの開始に失敗した %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1125 pkg/proxy/server_options.go:170
+#: pkg/proxy/server.go:1154 pkg/proxy/server_options.go:170
 msgid "Connecting to %s@%s"
 msgstr "接続開始 %s@%s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:173
+#: pkg/proxy/server_options.go:174
 msgid "Connecting to Database %s"
 msgstr "データベース接続の開始 %s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:175
+#: pkg/proxy/server_options.go:176
 msgid "Connecting to Kubernetes %s"
 msgstr "Kubernetes %s への接続"
 
 #. lang.T
-#: pkg/proxy/server_options.go:177
+#: pkg/proxy/server_options.go:178
 msgid "Connecting to Kubernetes %s container %s"
 msgstr "Kubernetes %s コンテナー %s への接続"
 
