@@ -55,12 +55,19 @@ ENV VERSION=$VERSION
 
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
-    cd utils && sh -ixeu build.sh
-
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=cache,target=/go/pkg/mod \
     go mod download -x \
-    && cd utils && sh -ixeu build.sh
+    && set +x \
+    && export cipherKey="$(head -c 100 /dev/urandom | base64 | head -c 32)"  \
+    && export KEYFLAG="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'" \
+    && export GOFlAGS="-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`'" \
+    && export GOFlAGS="$GOFlAGS -X 'main.Githash=`git rev-parse HEAD`'" \
+    && export GOFlAGS="${GOFlAGS} -X 'main.Goversion=`go version`'" \
+    && export GOFlAGS="$GOFlAGS -X 'main.Version=$VERSION'" \
+    && go build -ldflags "$GOFlAGS $KEYFLAG" -o koko ./cmd/koko \
+    && go build -ldflags "$KEYFLAG" -o kubectl ./cmd/kubectl \
+    && go build -ldflags "$KEYFLAG" -o helm ./cmd/helm \
+    && set -x && ls -al .
+
 
 FROM debian:bullseye-slim
 ARG TARGETARCH
@@ -108,17 +115,23 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/koko/
-COPY --from=stage-build /opt/koko/release/koko /opt/koko
-COPY --from=stage-build /opt/koko/release/koko/kubectl /usr/local/bin/kubectl
-COPY --from=stage-build /opt/koko/release/koko/helm /usr/local/bin/helm
+COPY --from=stage-build /opt/koko/clickhouse-client /usr/local/bin/clickhouse-client
+COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
 COPY --from=stage-build /opt/koko/rawkubectl /usr/local/bin/rawkubectl
 COPY --from=stage-build /opt/koko/rawhelm /usr/local/bin/rawhelm
-COPY --from=stage-build /opt/koko/clickhouse-client /usr/local/bin/clickhouse-client
-COPY --from=stage-build /opt/koko/utils/coredump.sh .
+
+COPY --from=stage-build /opt/koko/static static
+COPY --from=stage-build /opt/koko/templates templates
+COPY --from=stage-build /opt/koko/locale locale
+COPY --from=stage-build /opt/koko/config_example.yml .
 COPY --from=stage-build /opt/koko/entrypoint.sh .
 COPY --from=stage-build /opt/koko/utils/init-kubectl.sh .
-COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
+
+# cache optimization
 COPY --from=ui-build /opt/koko/ui/dist ui/dist
+COPY --from=stage-build /opt/koko/koko .
+COPY --from=stage-build /opt/koko/kubectl .
+COPY --from=stage-build /opt/koko/helm .
 
 RUN chmod 755 entrypoint.sh && chmod 755 init-kubectl.sh
 
