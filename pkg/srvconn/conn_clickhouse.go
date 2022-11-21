@@ -93,7 +93,7 @@ func startClickHouseCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, er
 func (opt *sqlOption) ClickHouseCommandArgs() []string {
 	params := []string{
 		"-h", opt.Host, "--port", strconv.Itoa(opt.Port),
-		"-u", opt.Username, "-d", opt.DBName,
+		"-u", opt.Username, "-d", opt.DBName, "--highlight", "off",
 	}
 	if opt.Password != "" {
 		params = append(params, "--ask-password")
