@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"net"
+	"path/filepath"
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/config"
@@ -23,6 +24,13 @@ func Initial() {
 			Password: conf.RedisPassword,
 			Clusters: conf.RedisClusters,
 			DBIndex:  conf.RedisDBIndex,
+
+			SentinelPassword: conf.RedisSentinelPassword,
+			SentinelsHost:    conf.RedisSentinelHosts,
+			UseSSL:           conf.RedisUseSSL,
+			SSLCa:            filepath.Join(conf.CertsFolderPath, conf.RedisSSLCa),
+			SSLCert:          filepath.Join(conf.CertsFolderPath, conf.RedisSSLCert),
+			SSLKey:           filepath.Join(conf.CertsFolderPath, conf.RedisSSLKey),
 		})
 
 	default:
