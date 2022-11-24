@@ -43,6 +43,7 @@ func (u *UserSelectHandler) searchLocalDatabase(searches ...string) []map[string
 		"name":     {},
 		"host":     {},
 		"database": {},
+		"org_name": {},
 		"comment":  {},
 	}
 	return u.searchLocalFromFields(fields, searches...)
@@ -71,11 +72,12 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 	ipLabel := lang.T("IP")
 	dbTypeLabel := lang.T("DBType")
 	dbNameLabel := lang.T("DB Name")
+	orgLabel := lang.T("Organization")
 	commentLabel := lang.T("Comment")
 
 	Labels := []string{idLabel, nameLabel, ipLabel,
-		dbTypeLabel, dbNameLabel, commentLabel}
-	fields := []string{"ID", "Name", "IP", "DBType", "DBName", "Comment"}
+		dbTypeLabel, dbNameLabel, orgLabel, commentLabel}
+	fields := []string{"ID", "Name", "IP", "DBType", "DBName", "Organization", "Comment"}
 	data := make([]map[string]string, len(currentDBS))
 	for i, j := range currentDBS {
 		row := make(map[string]string)
@@ -85,6 +87,7 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 			"host":     "IP",
 			"type":     "DBType",
 			"database": "DBName",
+			"org_name": "Organization",
 			"comment":  "Comment"}
 		row = convertMapItemToRow(j, fieldsMap, row)
 		// 特殊处理 comment
@@ -101,12 +104,13 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 		Fields: fields,
 		Labels: Labels,
 		FieldsSize: map[string][3]int{
-			"ID":      {0, 0, 5},
-			"Name":    {0, 8, 0},
-			"IP":      {0, 15, 40},
-			"DBType":  {0, 8, 0},
-			"DBName":  {0, 8, 0},
-			"Comment": {0, 0, 0},
+			"ID":           {0, 0, 5},
+			"Name":         {0, 8, 0},
+			"IP":           {0, 15, 40},
+			"DBType":       {0, 8, 0},
+			"DBName":       {0, 8, 0},
+			"Organization": {0, 8, 0},
+			"Comment":      {0, 0, 0},
 		},
 		Data:        data,
 		TotalSize:   w,

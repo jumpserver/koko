@@ -45,6 +45,13 @@ type Config struct {
 	RedisDBIndex  int      `mapstructure:"REDIS_DB_ROOM"`
 	RedisClusters []string `mapstructure:"REDIS_CLUSTERS"`
 
+	RedisSentinelPassword string `mapstructure:"REDIS_SENTINEL_PASSWORD"`
+	RedisSentinelHosts    string `mapstructure:"REDIS_SENTINEL_HOSTS"`
+	RedisUseSSL           bool   `mapstructure:"REDIS_USE_SSL"`
+	RedisSSLCa            string `mapstructure:"REDIS_SSL_CA"`
+	RedisSSLCert          string `mapstructure:"REDIS_SSL_CERT"`
+	RedisSSLKey           string `mapstructure:"REDIS_SSL_KEY"`
+
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
 
@@ -54,6 +61,7 @@ type Config struct {
 	KeyFolderPath     string
 	AccessKeyFilePath string
 	ReplayFolderPath  string
+	CertsFolderPath   string
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -87,9 +95,11 @@ func getDefaultConfig() Config {
 	replayFolderPath := filepath.Join(dataFolderPath, "replays")
 	LogDirPath := filepath.Join(dataFolderPath, "logs")
 	keyFolderPath := filepath.Join(dataFolderPath, "keys")
+	CertsFolderPath := filepath.Join(dataFolderPath, "certs")
 	accessKeyFilePath := filepath.Join(keyFolderPath, ".access_key")
 
-	folders := []string{dataFolderPath, replayFolderPath, keyFolderPath, LogDirPath}
+	folders := []string{dataFolderPath, replayFolderPath,
+		keyFolderPath, LogDirPath, CertsFolderPath}
 	for i := range folders {
 		if err := EnsureDirExist(folders[i]); err != nil {
 			log.Fatalf("Create folder failed: %s", err)
@@ -110,6 +120,7 @@ func getDefaultConfig() Config {
 		LogDirPath:        LogDirPath,
 		KeyFolderPath:     keyFolderPath,
 		ReplayFolderPath:  replayFolderPath,
+		CertsFolderPath:   CertsFolderPath,
 
 		Comment:             "KOKO",
 		UploadFailedReplay:  true,
