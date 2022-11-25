@@ -48,9 +48,6 @@ type Config struct {
 	RedisSentinelPassword string `mapstructure:"REDIS_SENTINEL_PASSWORD"`
 	RedisSentinelHosts    string `mapstructure:"REDIS_SENTINEL_HOSTS"`
 	RedisUseSSL           bool   `mapstructure:"REDIS_USE_SSL"`
-	RedisSSLCa            string `mapstructure:"REDIS_SSL_CA"`
-	RedisSSLCert          string `mapstructure:"REDIS_SSL_CERT"`
-	RedisSSLKey           string `mapstructure:"REDIS_SSL_KEY"`
 
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
