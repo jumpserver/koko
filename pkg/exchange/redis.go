@@ -106,6 +106,7 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 			logger.Debugf("Load redis SSL ca: %s", cfg.SSLCa)
 			certPool.AppendCertsFromPEM(buf)
 			tlsCfg.RootCAs = certPool
+			tlsCfg.InsecureSkipVerify = true
 		}
 		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsCfg))
 	}
