@@ -93,6 +93,7 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 			if err != nil {
 				return nil, err
 			}
+			logger.Debugf("Load redis SSL cert: %s, key: %s", cfg.SSLCert, cfg.SSLKey)
 			tlsCfg.Certificates = []tls.Certificate{cert}
 			tlsCfg.InsecureSkipVerify = true
 		}
@@ -102,8 +103,10 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 			if err != nil {
 				return nil, err
 			}
+			logger.Debugf("Load redis SSL ca: %s", cfg.SSLCa)
 			certPool.AppendCertsFromPEM(buf)
 			tlsCfg.RootCAs = certPool
+			tlsCfg.InsecureSkipVerify = true
 		}
 		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsCfg))
 	}
