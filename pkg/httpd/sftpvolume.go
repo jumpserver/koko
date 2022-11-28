@@ -31,7 +31,7 @@ func NewUserVolume(jmsService *service.JMService, user *model.User, addr, hostId
 			logger.Errorf("Get user asset failed: %s", err)
 		}
 		if len(assets) == 1 {
-			folderName := assets[0].Hostname
+			folderName := assets[0].Name
 			if strings.Contains(folderName, "/") {
 				folderName = strings.ReplaceAll(folderName, "/", "_")
 			}

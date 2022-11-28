@@ -45,8 +45,8 @@ func (s *assetSorter) Less(i, j int) bool {
 }
 
 func assetSortByIP(asset1, asset2 *Asset) bool {
-	iIPs := strings.Split(asset1.IP, ".")
-	jIPs := strings.Split(asset2.IP, ".")
+	iIPs := strings.Split(asset1.Address, ".")
+	jIPs := strings.Split(asset2.Address, ".")
 	for i := 0; i < len(iIPs); i++ {
 		if i >= len(jIPs) {
 			return false
@@ -67,5 +67,5 @@ func assetSortByIP(asset1, asset2 *Asset) bool {
 }
 
 func assetSortByHostName(asset1, asset2 *Asset) bool {
-	return asset1.Hostname < asset2.Hostname
+	return asset1.Name < asset2.Name
 }

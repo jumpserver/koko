@@ -385,7 +385,7 @@ func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.SystemU
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 7)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(systemUserAuthInfo.Username))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.IP))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(systemUserAuthInfo.Protocol)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(systemUserAuthInfo.Password))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))

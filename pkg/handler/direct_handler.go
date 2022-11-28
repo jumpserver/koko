@@ -363,8 +363,8 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	for i := range assets {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		row["Hostname"] = assets[i].Hostname
-		row["IP"] = assets[i].IP
+		row["Hostname"] = assets[i].Name
+		row["IP"] = assets[i].Address
 		row["Comment"] = joinMultiLineString(assets[i].Comment)
 		data[i] = row
 	}
@@ -421,7 +421,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		return
 	}
 	srv.Proxy()
-	logger.Infof("Request %s: asset %s proxy end", d.wrapperSess.Uuid, asset.Hostname)
+	logger.Infof("Request %s: asset %s proxy end", d.wrapperSess.Uuid, asset.Name)
 
 }
 

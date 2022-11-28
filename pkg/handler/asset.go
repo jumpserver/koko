@@ -167,7 +167,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		return
 	}
 	srv.Proxy()
-	logger.Infof("Request %s: asset %s proxy end", u.h.sess.Uuid, asset.Hostname)
+	logger.Infof("Request %s: asset %s proxy end", u.h.sess.Uuid, asset.Name)
 
 }
 

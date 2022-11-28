@@ -27,6 +27,8 @@ type tty struct {
 	targetId     string
 	systemUserId string
 
+	ConnectToken *service.ConnectToken
+
 	initialed  bool
 	wg         sync.WaitGroup
 	systemUser *model.SystemUser
@@ -62,22 +64,7 @@ func (h *tty) CheckValidation() bool {
 	case TargetTypeShare:
 		ok = h.CheckEnableShare()
 	default:
-		if h.systemUserId == "" || h.targetId == "" {
-			logger.Errorf("Ws[%s] miss required query params.", h.ws.Uuid)
-			return false
-		}
-		systemUser, err := h.jmsService.GetSystemUserById(h.systemUserId)
-		if err != nil {
-			logger.Errorf("Ws[%s] get system user err: %s", h.ws.Uuid, err)
-			return false
-		}
-		if systemUser.ID == "" {
-			logger.Errorf("Ws[%s] get invalid system user", h.ws.Uuid)
-			return false
-		}
-		h.systemUser = &systemUser
-
-		ok = h.getTargetApp(systemUser.Protocol)
+		ok = true
 	}
 	logger.Infof("Ws[%s] check connect type %s: %t", h.ws.Uuid, h.targetType, ok)
 	return ok
@@ -313,15 +300,9 @@ func (h *tty) getTargetApp(protocol string) bool {
 			return true
 		}
 	default:
-		asset, err := h.jmsService.GetAssetById(h.targetId)
-		if err != nil {
-			logger.Errorf("Get asset failed; %s", err)
-			return false
-		}
-		if asset.ID != "" {
-			h.asset = &asset
-			return true
-		}
+		h.asset = &h.ConnectToken.Asset
+		return true
+
 	}
 	return false
 }
@@ -361,9 +342,9 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		roomID := h.shareInfo.Record.SessionId
 		h.JoinRoom(h.backendClient, roomID)
 	default:
+		connectToken := h.ConnectToken
 		proxyOpts := make([]proxy.ConnectionOption, 0, 4)
-		proxyOpts = append(proxyOpts, proxy.ConnectProtocolType(h.systemUser.Protocol))
-		proxyOpts = append(proxyOpts, proxy.ConnectSystemUser(h.systemUser))
+		proxyOpts = append(proxyOpts, proxy.ConnectProtocolType(h.ConnectToken.Protocol))
 		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
 		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))
@@ -371,19 +352,18 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		if params := h.getConnectionParams(); params != nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectParams(params))
 		}
-		switch h.systemUser.Protocol {
-		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-			srvconn.ProtocolSQLServer, srvconn.ProtocolPostgreSQL,
-			srvconn.ProtocolClickHouse,
-			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
-			proxyOpts = append(proxyOpts, proxy.ConnectApp(h.app))
+		proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
+		perm := h.ConnectToken.Permission()
+		proxyOpts = append(proxyOpts, proxy.ConnectPermission(&perm))
+		proxyOpts = append(proxyOpts, proxy.ConnectGateway(h.ConnectToken.Gateway))
+		proxyOpts = append(proxyOpts, proxy.ConnectDomain(&h.ConnectToken.Domain))
+		proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
+		proxyOpts = append(proxyOpts, proxy.ConnectAccount(&h.ConnectToken.Account))
+		switch h.ConnectToken.Protocol {
 		case srvconn.ProtocolK8s:
-			proxyOpts = append(proxyOpts, proxy.ConnectApp(h.app))
 			if info := h.getk8sContainerInfo(); info != nil {
 				proxyOpts = append(proxyOpts, proxy.ConnectContainer(info))
 			}
-		default:
-			proxyOpts = append(proxyOpts, proxy.ConnectAsset(h.asset))
 		}
 		srv, err := proxy.NewServer(h.backendClient, h.jmsService, proxyOpts...)
 		if err != nil {

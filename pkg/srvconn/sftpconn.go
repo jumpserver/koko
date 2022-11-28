@@ -334,7 +334,7 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset, system
 		if !assets[i].IsSupportProtocol(ProtocolSSH) {
 			continue
 		}
-		folderName := cleanFolderName(assets[i].Hostname)
+		folderName := cleanFolderName(assets[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 		assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(assets[i].ID),
 			WithFolderName(folderName), WitRemoteAddr(u.Addr),

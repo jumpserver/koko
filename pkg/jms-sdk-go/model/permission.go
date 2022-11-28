@@ -40,11 +40,11 @@ func (p *Permission) haveAction(action string) bool {
 const (
 	ActionALL            = "all"
 	ActionConnect        = "connect"
-	ActionUpload         = "upload_file"
-	ActionDownload       = "download_file"
+	ActionUpload         = "upload"
+	ActionDownload       = "download"
 	ActionUploadDownLoad = "updownload"
-	ActionCopy           = "clipboard_copy"
-	ActionPaste          = "clipboard_paste"
+	ActionCopy           = "copy"
+	ActionPaste          = "paste"
 	ActionCopyPaste      = "clipboard_copy_paste"
 )
 

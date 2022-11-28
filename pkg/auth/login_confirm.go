@@ -12,6 +12,7 @@ import (
 type connectionConfirmOption struct {
 	user       *model.User
 	systemUser *model.SystemUserAuthInfo
+	account    *model.Account
 
 	targetType string
 	targetID   string
@@ -40,26 +41,26 @@ type LoginConfirmService struct {
 }
 
 func (c *LoginConfirmService) CheckIsNeedLoginConfirm() (bool, error) {
-	userID := c.option.user.ID
-	systemUserID := c.option.systemUser.ID
-	systemUsername := c.option.systemUser.Username
-	targetID := c.option.targetID
-	switch c.option.targetType {
-	case model.AppType:
-		return c.jmsService.CheckIfNeedAppConnectionConfirm(userID, targetID, systemUserID)
-	default:
-		res, err := c.jmsService.CheckIfNeedAssetLoginConfirm(userID, targetID,
-			systemUserID, systemUsername)
-		if err != nil {
-			return false, err
-		}
-		c.ticketId = res.TicketId
-		c.reviewers = res.Reviewers
-		c.checkReqInfo = res.CheckReq
-		c.cancelReqInfo = res.CloseReq
-		c.ticketDetailUrl = res.TicketDetailUrl
-		return res.NeedConfirm, nil
+	if c.option.systemUser == nil {
+		return false, nil
 	}
+	/*
+		1. 连接登录是否需要审批
+	*/
+	userID := c.option.user.ID
+	// todo：API 未实现
+	res, err := c.jmsService.CheckIfNeedAssetLoginConfirm(userID, "targetID",
+		"systemUserID", "systemUsername")
+	if err != nil {
+		return false, err
+	}
+	c.ticketId = res.TicketId
+	c.reviewers = res.Reviewers
+	c.checkReqInfo = res.CheckReq
+	c.cancelReqInfo = res.CloseReq
+	c.ticketDetailUrl = res.TicketDetailUrl
+	return res.NeedConfirm, nil
+
 }
 
 func (c *LoginConfirmService) WaitLoginConfirm(ctx context.Context) Status {
@@ -141,6 +142,12 @@ func ConfirmWithUser(user *model.User) ConfirmOption {
 func ConfirmWithSystemUser(sysUser *model.SystemUserAuthInfo) ConfirmOption {
 	return func(option *connectionConfirmOption) {
 		option.systemUser = sysUser
+	}
+}
+
+func ConfirmWithAccount(sysUser *model.Account) ConfirmOption {
+	return func(option *connectionConfirmOption) {
+		option.account = sysUser
 	}
 }
 

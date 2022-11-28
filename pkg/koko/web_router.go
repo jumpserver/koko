@@ -43,7 +43,7 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		wsGroup.Group("/token").GET("/", webSrv.ProcessTokenWebsocket)
 	}
 
-	terminalGroup := kokoGroup.Group("/terminal")
+	terminalGroup := kokoGroup.Group("/connect")
 	terminalGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		terminalGroup.GET("/", func(ctx *gin.Context) {

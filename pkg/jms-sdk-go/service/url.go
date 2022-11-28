@@ -101,3 +101,7 @@ const (
 const (
 	TicketSessionURL = "/api/v1/tickets/ticket-session-relation/"
 )
+
+const (
+	ConnectTokenInfoURL = "/api/v1/authentication/connection-token/secret/"
+)

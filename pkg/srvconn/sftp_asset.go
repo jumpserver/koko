@@ -139,7 +139,7 @@ func (ad *AssetDir) loadAssetDomain() {
 	if ad.detailAsset != nil && ad.detailAsset.Domain != "" {
 		domainGateways, err := ad.jmsService.GetDomainGateways(ad.detailAsset.Domain)
 		if err != nil {
-			logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Hostname, err)
+			logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Name, err)
 			return
 		}
 		ad.domain = &domainGateways
@@ -566,7 +566,7 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 		sshClient *SSHClient
 		ok        bool
 	)
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.IP, su.Username)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.Address, su.Username)
 	switch su.Username {
 	case "":
 		sshClient, ok = searchSSHClientFromCache(key)
@@ -616,12 +616,12 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 	if ad.detailAsset == nil {
 		return nil, errNoSelectAsset
 	}
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.IP, su.Username)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.Address, su.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(su.Username))
-	sshAuthOpts = append(sshAuthOpts, SSHClientHost(ad.detailAsset.IP))
+	sshAuthOpts = append(sshAuthOpts, SSHClientHost(ad.detailAsset.Address))
 	sshAuthOpts = append(sshAuthOpts, SSHClientPort(ad.detailAsset.ProtocolPort(su.Protocol)))
 	sshAuthOpts = append(sshAuthOpts, SSHClientPassword(su.Password))
 	sshAuthOpts = append(sshAuthOpts, SSHClientTimeout(timeout))
@@ -642,7 +642,7 @@ func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err er
 		for i := range ad.domain.Gateways {
 			gateway := ad.domain.Gateways[i]
 			proxyArg := SSHClientOptions{
-				Host:       gateway.IP,
+				Host:       gateway.Address,
 				Port:       strconv.Itoa(gateway.Port),
 				Username:   gateway.Username,
 				Password:   gateway.Password,

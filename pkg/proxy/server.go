@@ -82,51 +82,33 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 		apiSession *model.Session
 
-		sysUserAuthInfo   *model.SystemUserAuthInfo
-		suSysUserAuthInfo *model.SystemUserAuthInfo
-		domainGateways    *model.Domain
-		platform          *model.Platform
-		perms             *model.Permission
-
-		expireInfo *model.ExpireInfo
-
-		checkConnectPermFunc func() (model.ExpireInfo, error)
+		account *model.Account
+		//suSysUserAuthInfo *model.SystemUserAuthInfo
+		domainGateways *model.Domain
+		platform       *model.Platform
+		perms          *model.Permission
 	)
 
 	// todo: 后续优化这里，统一授权资源获取。目前这里兼容处理 connection token 方式的连接
-	sysUserAuthInfo = connOpts.predefinedSystemUserAuthInfo
+	account = connOpts.predefinedAccount
 	domainGateways = connOpts.predefinedDomain
 	filterRules = connOpts.predefinedCmdFilterRules
 	perms = connOpts.predefinedPermission
 
-	if perms != nil && connOpts.predefinedExpiredAt > 0 {
-		expireInfo = &model.ExpireInfo{
-			ExpireAt:      connOpts.predefinedExpiredAt,
-			HasPermission: perms.EnableConnect()}
-	}
+	expireInfo := &model.ExpireInfo{
+		ExpireAt:      connOpts.predefinedExpiredAt,
+		HasPermission: perms.EnableConnect()}
 
 	terminalConf, err = jmsService.GetTerminalConfig()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 	}
-	userId := connOpts.user.ID
-	sysId := connOpts.systemUser.ID
-	var (
-		assetId string
-		appId   string
-	)
-	if connOpts.asset != nil {
-		assetId = connOpts.asset.ID
-	}
-	if connOpts.app != nil {
-		appId = connOpts.app.ID
-	}
 
 	if filterRules == nil {
-		filterRules, err = jmsService.GetCommandFilterRules(userId, sysId, assetId, appId)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
-		}
+		//filterRules, err = jmsService.GetCommandFilterRules(userId, sysId, assetId, appId)
+		//if err != nil {
+		//	return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		//}
 	}
 
 	// 过滤规则排序
@@ -137,13 +119,8 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
 		srvconn.ProtocolK8s:
-		if sysUserAuthInfo == nil {
-			authInfo, err2 := jmsService.GetUserApplicationAuthInfo(connOpts.systemUser.ID, connOpts.app.ID,
-				connOpts.user.ID, connOpts.user.Username)
-			if err2 != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
-			}
-			sysUserAuthInfo = &authInfo
+		if account == nil {
+			return nil, errors.New("no auth info")
 		}
 
 		if domainGateways == nil && connOpts.app.Domain != "" {
@@ -153,62 +130,40 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			}
 			domainGateways = &domain
 		}
-		checkConnectPermFunc = func() (model.ExpireInfo, error) {
-			return jmsService.ValidateApplicationPermission(connOpts.user.ID,
-				connOpts.app.ID, connOpts.systemUser.ID)
-		}
+
 		assetName := connOpts.app.Name
 		if connOpts.k8sContainer != nil {
 			assetName = connOpts.k8sContainer.K8sName(assetName)
 		}
 		apiSession = &model.Session{
-			ID:           common.UUID(),
-			User:         connOpts.user.String(),
-			SystemUser:   sysUserAuthInfo.String(),
-			LoginFrom:    conn.LoginFrom(),
-			RemoteAddr:   conn.RemoteAddr(),
-			Protocol:     connOpts.systemUser.Protocol,
-			UserID:       connOpts.user.ID,
-			SystemUserID: connOpts.systemUser.ID,
-			Asset:        assetName,
-			AssetID:      connOpts.app.ID,
-			OrgID:        connOpts.app.OrgID,
+			ID:         common.UUID(),
+			User:       connOpts.user.String(),
+			SystemUser: account.String(),
+			LoginFrom:  conn.LoginFrom(),
+			RemoteAddr: conn.RemoteAddr(),
+			Protocol:   connOpts.ProtocolType,
+			UserID:     connOpts.user.ID,
+			Asset:      assetName,
+			AssetID:    connOpts.app.ID,
+			OrgID:      connOpts.app.OrgID,
 		}
 	default:
-		if !connOpts.asset.IsSupportProtocol(connOpts.systemUser.Protocol) {
-			msg := lang.T("System user <%s> and asset <%s> protocol are inconsistent.")
-			msg = fmt.Sprintf(msg, connOpts.systemUser.Username, connOpts.asset.Hostname)
+		if !connOpts.asset.IsSupportProtocol(connOpts.ProtocolType) {
+			msg := lang.T("Account <%s> and asset <%s> protocol are inconsistent.")
+			msg = fmt.Sprintf(msg, connOpts.predefinedAccount.Username, connOpts.asset.Address)
 			utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
 			return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol, msg)
 		}
-		if sysUserAuthInfo == nil {
-			authInfo, err2 := jmsService.GetSystemUserAuthById(connOpts.systemUser.ID, connOpts.asset.ID,
-				connOpts.user.ID, connOpts.user.Username)
-			if err2 != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
-			}
-			sysUserAuthInfo = &authInfo
+		if account == nil {
+			return nil, errors.New("no auth info")
 		}
 
-		if connOpts.systemUser.SuEnabled {
-			suSystemUserId := connOpts.systemUser.SuFrom
-			suAuthInfo, err2 := jmsService.GetSystemUserAuthById(suSystemUserId, assetId,
-				connOpts.user.ID, connOpts.user.Username)
-			if err2 != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
-			}
-			suSysUserAuthInfo = &suAuthInfo
-		}
 		if domainGateways == nil && connOpts.asset.Domain != "" {
 			domain, err2 := jmsService.GetDomainGateways(connOpts.asset.Domain)
 			if err2 != nil {
 				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 			}
 			domainGateways = &domain
-		}
-		checkConnectPermFunc = func() (model.ExpireInfo, error) {
-			return jmsService.ValidateAssetConnectPermission(connOpts.user.ID,
-				connOpts.asset.ID, connOpts.systemUser.ID)
 		}
 
 		assetPlatform, err2 := jmsService.GetAssetPlatform(connOpts.asset.ID)
@@ -225,29 +180,20 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		}
 		platform = &assetPlatform
 		apiSession = &model.Session{
-			ID:           common.UUID(),
-			User:         connOpts.user.String(),
-			SystemUser:   sysUserAuthInfo.String(),
-			LoginFrom:    conn.LoginFrom(),
-			RemoteAddr:   conn.RemoteAddr(),
-			Protocol:     connOpts.systemUser.Protocol,
-			UserID:       connOpts.user.ID,
-			SystemUserID: connOpts.systemUser.ID,
-			Asset:        connOpts.asset.String(),
-			AssetID:      connOpts.asset.ID,
-			OrgID:        connOpts.asset.OrgID,
+			ID:         common.UUID(),
+			User:       connOpts.user.String(),
+			Account:    account.String(),
+			LoginFrom:  conn.LoginFrom(),
+			RemoteAddr: conn.RemoteAddr(),
+			Protocol:   connOpts.ProtocolType,
+			UserID:     connOpts.user.ID,
+			Asset:      connOpts.asset.String(),
+			AssetID:    connOpts.asset.ID,
+			OrgID:      connOpts.asset.OrgID,
 		}
 	}
 
-	if expireInfo == nil {
-		expirePerm, err2 := checkConnectPermFunc()
-		if err2 != nil {
-			logger.Error(err2)
-		}
-		expireInfo = &expirePerm
-	}
-
-	if !expireInfo.HasPermission {
+	if !perms.EnableConnect() {
 		msg := lang.T("You don't have permission login %s")
 		msg = utils.WrapperWarn(fmt.Sprintf(msg, connOpts.TerminalTitle()))
 		utils.IgnoreErrWriteString(conn, msg)
@@ -259,10 +205,10 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		UserConn:   conn,
 		jmsService: jmsService,
 
-		connOpts:           connOpts,
-		systemUserAuthInfo: sysUserAuthInfo,
+		connOpts: connOpts,
+		account:  account,
 
-		suFromSystemUserAuthInfo: suSysUserAuthInfo,
+		suFromSystemUserAuthInfo: nil,
 
 		filterRules:    filterRules,
 		terminalConf:   &terminalConf,
@@ -294,9 +240,9 @@ type Server struct {
 
 	connOpts *ConnectionOptions
 
-	systemUserAuthInfo *model.SystemUserAuthInfo
+	account *model.Account
 
-	suFromSystemUserAuthInfo *model.SystemUserAuthInfo
+	suFromSystemUserAuthInfo *model.Account
 
 	filterRules    []model.FilterRule
 	terminalConf   *model.TerminalConfig
@@ -356,7 +302,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			OrgID:      s.connOpts.asset.OrgID,
 			User:       s.connOpts.user.String(),
 			Hostname:   s.connOpts.asset.String(),
-			SystemUser: s.systemUserAuthInfo.String(),
+			SystemUser: s.account.String(),
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
 			Path:       zinfo.Filename(),
@@ -453,7 +399,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		OrgID:       orgID,
 		Server:      server,
 		User:        user,
-		SystemUser:  s.systemUserAuthInfo.String(),
+		SystemUser:  s.account.String(),
 		Input:       input,
 		Output:      output,
 		Timestamp:   createdDate.Unix(),
@@ -463,7 +409,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 }
 
 func (s *Server) getUsernameIfNeed() (err error) {
-	if s.systemUserAuthInfo.Username == "" {
+	if s.account.Username == "" {
 		logger.Infof("Conn[%s] need manuel input system user username", s.UserConn.ID())
 		var username string
 		term := utils.NewTerminal(s.UserConn, "username: ")
@@ -477,7 +423,7 @@ func (s *Server) getUsernameIfNeed() (err error) {
 				break
 			}
 		}
-		s.systemUserAuthInfo.Username = username
+		s.account.Username = username
 		logger.Infof("Conn[%s] get username from user input: %s", s.UserConn.ID(), username)
 	}
 	return
@@ -485,10 +431,10 @@ func (s *Server) getUsernameIfNeed() (err error) {
 
 func (s *Server) getAuthPasswordIfNeed() (err error) {
 	var line string
-	if s.systemUserAuthInfo.Password == "" {
+	if s.account.Secret == "" {
 		term := utils.NewTerminal(s.UserConn, "password: ")
-		if s.systemUserAuthInfo.Username != "" {
-			line, err = term.ReadPassword(fmt.Sprintf("%s's password: ", s.systemUserAuthInfo.Username))
+		if s.account.Username != "" {
+			line, err = term.ReadPassword(fmt.Sprintf("%s's password: ", s.account.Username))
 		} else {
 			line, err = term.ReadPassword("password: ")
 		}
@@ -497,7 +443,7 @@ func (s *Server) getAuthPasswordIfNeed() (err error) {
 			logger.Errorf("Conn[%s] get password from user err: %s", s.UserConn.ID(), err.Error())
 			return err
 		}
-		s.systemUserAuthInfo.Password = line
+		s.account.Secret = line
 		logger.Infof("Conn[%s] get password from user input", s.UserConn.ID())
 	}
 	return nil
@@ -507,7 +453,7 @@ func (s *Server) checkRequiredAuth() error {
 	lang := s.connOpts.getLang()
 	switch s.connOpts.ProtocolType {
 	case srvconn.ProtocolK8s:
-		if s.systemUserAuthInfo.Token == "" {
+		if s.account.Secret == "" {
 			msg := utils.WrapperWarn(lang.T("You get auth token failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return errors.New("no auth token")
@@ -543,10 +489,10 @@ func (s *Server) checkRequiredAuth() error {
 				return nil
 			}
 			logger.Debugf("Conn[%s] did not found cache ssh client(%s@%s)",
-				s.UserConn.ID(), s.connOpts.systemUser.Name, s.connOpts.asset.Hostname)
+				s.UserConn.ID(), s.connOpts.systemUser.Name, s.connOpts.asset.Name)
 		}
 
-		if s.systemUserAuthInfo.PrivateKey == "" {
+		if s.account.Secret == "" {
 			if err := s.getAuthPasswordIfNeed(); err != nil {
 				msg := utils.WrapperWarn(lang.T("Get auth password failed"))
 				utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -566,8 +512,8 @@ const (
 func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
 		platformMatched := s.connOpts.asset.Platform == linuxPlatform
-		protocolMatched := s.connOpts.systemUser.Protocol == model.ProtocolSSH
-		notSuSystemUser := !s.connOpts.systemUser.SuEnabled
+		protocolMatched := s.connOpts.ProtocolType == model.ProtocolSSH
+		notSuSystemUser := s.suFromSystemUserAuthInfo == nil
 		return platformMatched && protocolMatched && notSuSystemUser
 	}
 	return false
@@ -576,7 +522,7 @@ func (s *Server) checkReuseSSHClient() bool {
 func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	lang := s.connOpts.getLang()
 	keyId := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
-		s.connOpts.systemUser.ID, s.connOpts.asset.IP, s.systemUserAuthInfo.Username)
+		s.connOpts.predefinedAccount.String(), s.connOpts.asset.Address, s.account.Username)
 	sshClient, ok := srvconn.GetClientFromCache(keyId)
 	if !ok {
 		return nil, ok
@@ -587,7 +533,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		return nil, false
 	}
 	pty := s.UserConn.Pty()
-	cacheConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(s.platform.Charset),
+	cacheConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(s.platform.Charset.Value),
 		srvconn.SSHPtyWin(srvconn.Windows{
 			Width:  pty.Window.Width,
 			Height: pty.Window.Height,
@@ -599,7 +545,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		return nil, false
 	}
 	reuseMsg := fmt.Sprintf(lang.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
-		s.connOpts.systemUser.Name, s.connOpts.asset.IP, sshClient.RefCount())
+		s.connOpts.systemUser.Name, s.connOpts.asset.Address, sshClient.RefCount())
 	utils.IgnoreErrWriteString(s.UserConn, reuseMsg+"\r\n")
 	go func() {
 		_ = sess.Wait()
@@ -651,9 +597,9 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.Se
 		return s.getContainerConn(clusterServer)
 	}
 	srvConn, err = srvconn.NewK8sConnection(
-		srvconn.K8sToken(s.systemUserAuthInfo.Token),
+		srvconn.K8sToken(s.account.Secret),
 		srvconn.K8sClusterServer(clusterServer),
-		srvconn.K8sUsername(s.systemUserAuthInfo.Username),
+		srvconn.K8sUsername(s.account.Username),
 		srvconn.K8sSkipTls(true),
 		srvconn.K8sPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
@@ -666,7 +612,7 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.Se
 func (s *Server) getContainerConn(clusterServer string) (
 	srvConn *srvconn.ContainerConnection, err error) {
 	info := s.connOpts.k8sContainer
-	token := s.systemUserAuthInfo.Token
+	token := s.account.Secret
 	win := srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
@@ -693,8 +639,8 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 	mysqlOpts := make([]srvconn.SqlOption, 0, 7)
 	mysqlOpts = append(mysqlOpts, srvconn.SqlHost(host))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPort(port))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.systemUserAuthInfo.Username))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.systemUserAuthInfo.Password))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.account.Username))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.account.Secret))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(s.connOpts.app.Attrs.Database))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
@@ -717,8 +663,8 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 	srvConn, err = srvconn.NewRedisConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
-		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlUsername(s.account.Username),
+		srvconn.SqlPassword(s.account.Secret),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlUseSSL(s.connOpts.app.Attrs.UseSSL),
 		srvconn.SqlCaCert(s.connOpts.app.Attrs.CaCert),
@@ -743,8 +689,8 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	srvConn, err = srvconn.NewMongoDBConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
-		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlUsername(s.account.Username),
+		srvconn.SqlPassword(s.account.Secret),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlUseSSL(s.connOpts.app.Attrs.UseSSL),
 		srvconn.SqlCaCert(s.connOpts.app.Attrs.CaCert),
@@ -768,8 +714,8 @@ func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvcon
 	srvConn, err = srvconn.NewSQLServerConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
-		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlUsername(s.account.Username),
+		srvconn.SqlPassword(s.account.Secret),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
@@ -789,8 +735,8 @@ func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 	srvConn, err = srvconn.NewPostgreSQLConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
-		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlUsername(s.account.Username),
+		srvconn.SqlPassword(s.account.Secret),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
@@ -810,8 +756,8 @@ func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 	srvConn, err = srvconn.NewClickHouseConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.systemUserAuthInfo.Username),
-		srvconn.SqlPassword(s.systemUserAuthInfo.Password),
+		srvconn.SqlUsername(s.account.Username),
+		srvconn.SqlPassword(s.account.Secret),
 		srvconn.SqlDBName(s.connOpts.app.Attrs.Database),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
@@ -822,33 +768,33 @@ func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 }
 
 func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
-	loginSystemUser := s.systemUserAuthInfo
+	loginSystemUser := s.account
 	if s.suFromSystemUserAuthInfo != nil {
 		loginSystemUser = s.suFromSystemUserAuthInfo
 	}
-	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, loginSystemUser.ID,
-		s.connOpts.asset.IP, loginSystemUser.Username)
+	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, loginSystemUser.String(),
+		s.connOpts.asset.Address, loginSystemUser.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(loginSystemUser.Username))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(s.connOpts.asset.IP))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(s.connOpts.asset.ProtocolPort(loginSystemUser.Protocol)))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginSystemUser.Password))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(s.connOpts.asset.Address))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(s.connOpts.asset.ProtocolPort(s.connOpts.ProtocolType)))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginSystemUser.Secret))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
-	if loginSystemUser.PrivateKey != "" {
+	if loginSystemUser.Secret != "" {
 		// 先使用 password 解析 PrivateKey
-		if signer, err1 := gossh.ParsePrivateKeyWithPassphrase([]byte(loginSystemUser.PrivateKey),
-			[]byte(loginSystemUser.Password)); err1 == nil {
+		if signer, err1 := gossh.ParsePrivateKeyWithPassphrase([]byte(loginSystemUser.Secret),
+			[]byte(loginSystemUser.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		} else {
 			// 如果之前使用password解析失败，则去掉 password, 尝试直接解析 PrivateKey 防止错误的passphrase
-			if signer, err1 = gossh.ParsePrivateKey([]byte(loginSystemUser.PrivateKey)); err1 == nil {
+			if signer, err1 = gossh.ParsePrivateKey([]byte(loginSystemUser.Secret)); err1 == nil {
 				sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 			}
 		}
 	}
-	password := loginSystemUser.Password
-	privateKey := loginSystemUser.PrivateKey
+	password := loginSystemUser.Secret
+	privateKey := loginSystemUser.Secret
 	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
 		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
@@ -893,7 +839,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	}
 	pty := s.UserConn.Pty()
 	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)
-	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(s.platform.Charset))
+	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(s.platform.Charset.Value))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHTerm(pty.Term))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHPtyWin(srvconn.Windows{
 		Width:  pty.Window.Width,
@@ -905,8 +851,8 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			suSystemUserAuthInfo 是 switch user
 			systemUserAuthInfo 是最终 su 的登录用户
 		*/
-		suUsername := s.systemUserAuthInfo.Username
-		suPassword := s.systemUserAuthInfo.Password
+		suUsername := s.account.Username
+		suPassword := s.account.Secret
 		suCommand := fmt.Sprintf(srvconn.LinuxSuCommand, suUsername)
 		sshConnectOpts = append(sshConnectOpts, srvconn.SSHLoginToSudo(true))
 		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoCommand(suCommand))
@@ -921,12 +867,12 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	}
 	if s.suFromSystemUserAuthInfo != nil {
 		lang := s.connOpts.getLang()
-		msg := fmt.Sprintf(lang.T("Switched to %s"), s.systemUserAuthInfo)
+		msg := fmt.Sprintf(lang.T("Switched to %s"), s.account)
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
 		utils.IgnoreErrWriteString(s.UserConn, msg)
 		_, _ = sshConn.Write([]byte("\r"))
 		logger.Infof("Conn[%s]: su login from %s to %s", s.UserConn.ID(),
-			loginSystemUser, s.systemUserAuthInfo)
+			loginSystemUser, s.account)
 	}
 
 	go func() {
@@ -953,16 +899,16 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 		telnetOpts = append(telnetOpts, srvconn.TelnetCustomSuccessPattern(successPattern))
 	}
 
-	telnetOpts = append(telnetOpts, srvconn.TelnetHost(s.connOpts.asset.IP))
-	telnetOpts = append(telnetOpts, srvconn.TelnetPort(s.connOpts.asset.ProtocolPort(s.systemUserAuthInfo.Protocol)))
-	telnetOpts = append(telnetOpts, srvconn.TelnetUsername(s.systemUserAuthInfo.Username))
-	telnetOpts = append(telnetOpts, srvconn.TelnetUPassword(s.systemUserAuthInfo.Password))
+	telnetOpts = append(telnetOpts, srvconn.TelnetHost(s.connOpts.asset.Address))
+	telnetOpts = append(telnetOpts, srvconn.TelnetPort(s.connOpts.asset.ProtocolPort(s.connOpts.ProtocolType)))
+	telnetOpts = append(telnetOpts, srvconn.TelnetUsername(s.account.Username))
+	telnetOpts = append(telnetOpts, srvconn.TelnetUPassword(s.account.Secret))
 	telnetOpts = append(telnetOpts, srvconn.TelnetUTimeout(timeout))
 	telnetOpts = append(telnetOpts, srvconn.TelnetPtyWin(srvconn.Windows{
 		Width:  pty.Window.Width,
 		Height: pty.Window.Height,
 	}))
-	telnetOpts = append(telnetOpts, srvconn.TelnetCharset(s.platform.Charset))
+	telnetOpts = append(telnetOpts, srvconn.TelnetCharset(s.platform.Charset.Value))
 	// 获取网关配置
 	proxyArgs := s.getGatewayProxyOptions()
 	if proxyArgs != nil {
@@ -1064,7 +1010,7 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 func (s *Server) checkLoginConfirm() bool {
 	opts := make([]auth.ConfirmOption, 0, 4)
 	opts = append(opts, auth.ConfirmWithUser(s.connOpts.user))
-	opts = append(opts, auth.ConfirmWithSystemUser(s.systemUserAuthInfo))
+	opts = append(opts, auth.ConfirmWithAccount(s.account))
 	var (
 		targetType string
 		targetId   string
@@ -1196,26 +1142,20 @@ func (s *Server) sendConnectErrorMsg(err error) {
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
 	logger.Error(msg)
-	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolK8s:
-		token := s.systemUserAuthInfo.Token
-		if token != "" {
-			tokenLen := len(token)
-			showLen := tokenLen / 2
-			hiddenLen := tokenLen - showLen
-			msg2 := fmt.Sprintf("Try token: %s", token[:showLen]+strings.Repeat("*", hiddenLen))
-			logger.Error(msg2)
+	password := s.account.Secret
+	if password != "" {
+		passwordLen := len(s.account.Secret)
+		showLen := passwordLen / 2
+		hiddenLen := passwordLen - showLen
+		var msg2 string
+		if s.connOpts.ProtocolType == srvconn.ProtocolK8s {
+			msg2 = fmt.Sprintf("Try token: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
+		} else {
+			msg2 = fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
 		}
-	default:
-		password := s.systemUserAuthInfo.Password
-		if password != "" {
-			passwordLen := len(s.systemUserAuthInfo.Password)
-			showLen := passwordLen / 2
-			hiddenLen := passwordLen - showLen
-			msg2 := fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
-			logger.Error(msg2)
-		}
+		logger.Error(msg2)
 	}
+
 }
 
 func ParseUrlHostAndPort(clusterAddr string) (host string, port int, err error) {

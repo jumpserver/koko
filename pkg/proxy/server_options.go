@@ -69,6 +69,12 @@ func ConnectPermission(perm *model.Permission) ConnectionOption {
 	}
 }
 
+func ConnectGateway(gateway []model.Gateway) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.predefinedGateway = gateway
+	}
+}
+
 func ConnectFilterRules(rules model.FilterRules) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.predefinedCmdFilterRules = rules
@@ -84,6 +90,12 @@ func ConnectExpired(expired int64) ConnectionOption {
 func ConnectSystemAuthInfo(info *model.SystemUserAuthInfo) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.predefinedSystemUserAuthInfo = info
+	}
+}
+
+func ConnectAccount(info *model.Account) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.predefinedAccount = info
 	}
 }
 
@@ -104,9 +116,11 @@ type ConnectionOptions struct {
 
 	predefinedExpiredAt          int64
 	predefinedPermission         *model.Permission
+	predefinedGateway            []model.Gateway
 	predefinedDomain             *model.Domain
 	predefinedCmdFilterRules     model.FilterRules
 	predefinedSystemUserAuthInfo *model.SystemUserAuthInfo
+	predefinedAccount            *model.Account
 }
 
 type ConnectionParams struct {
@@ -145,8 +159,8 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 		srvconn.ProtocolSSH:
 		title = fmt.Sprintf("%s://%s@%s",
 			opts.ProtocolType,
-			opts.systemUser.Username,
-			opts.asset.IP)
+			opts.predefinedAccount.Username,
+			opts.asset.Address)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		title = fmt.Sprintf("%s://%s@%s",
@@ -167,7 +181,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	switch opts.ProtocolType {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
-		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), opts.systemUser.Name, opts.asset.IP)
+		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), opts.predefinedAccount.Name, opts.asset.Address)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
