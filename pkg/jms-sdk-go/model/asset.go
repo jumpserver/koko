@@ -5,16 +5,31 @@ import (
 	"strings"
 )
 
-type BaseAsset struct {
+type Specific struct {
+	// database
+	DBName string `json:"db_name"`
+
+	// todo: db ssl 相关
+	UseSSL           bool
+	CaCert           string
+	ClientCert       string
+	CertKey          string
+	AllowInvalidCert bool
+
+	// web
+	Autofill         string `json:"autofill"`
+	UsernameSelector string `json:"username_selector"`
+	PasswordSelector string `json:"password_selector"`
+	SubmitSelector   string `json:"submit_selector"`
+}
+
+type Asset struct {
 	ID        string     `json:"id"`
 	Address   string     `json:"address"`
 	Name      string     `json:"name"`
 	OrgID     string     `json:"org_id"`
 	Protocols []Protocol `json:"protocols"`
-}
-
-type Asset struct {
-	BaseAsset
+	Specific  Specific   `json:"specific"`
 
 	Domain   string `json:"domain"` // 是否需要走网域
 	Comment  string `json:"comment"`

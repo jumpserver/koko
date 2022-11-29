@@ -16,44 +16,21 @@ func ConnectUser(user *model.User) ConnectionOption {
 	}
 }
 
-func ConnectProtocolType(protocol string) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.ProtocolType = protocol
-	}
-}
-
-func ConnectSystemUser(systemUser *model.SystemUser) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.systemUser = systemUser
-	}
-}
-
 func ConnectAsset(asset *model.Asset) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.asset = asset
 	}
 }
 
-func ConnectApp(app *model.Application) ConnectionOption {
+func ConnectAccount(info *model.Account) ConnectionOption {
 	return func(opts *ConnectionOptions) {
-		opts.app = app
+		opts.predefinedAccount = info
 	}
 }
 
-func ConnectContainer(info *ContainerInfo) ConnectionOption {
+func ConnectProtocol(protocol string) ConnectionOption {
 	return func(opts *ConnectionOptions) {
-		opts.k8sContainer = info
-	}
-}
-func ConnectParams(params *ConnectionParams) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.params = params
-	}
-}
-
-func ConnectI18nLang(lang string) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.i18nLang = lang
+		opts.Protocol = protocol
 	}
 }
 
@@ -66,6 +43,12 @@ func ConnectDomain(domain *model.Domain) ConnectionOption {
 func ConnectPermission(perm *model.Permission) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.predefinedPermission = perm
+	}
+}
+
+func ConnectActions(actions model.Actions) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.predefinedActions = actions
 	}
 }
 
@@ -87,40 +70,42 @@ func ConnectExpired(expired int64) ConnectionOption {
 	}
 }
 
-func ConnectSystemAuthInfo(info *model.SystemUserAuthInfo) ConnectionOption {
+func ConnectContainer(info *ContainerInfo) ConnectionOption {
 	return func(opts *ConnectionOptions) {
-		opts.predefinedSystemUserAuthInfo = info
+		opts.k8sContainer = info
 	}
 }
 
-func ConnectAccount(info *model.Account) ConnectionOption {
+func ConnectParams(params *ConnectionParams) ConnectionOption {
 	return func(opts *ConnectionOptions) {
-		opts.predefinedAccount = info
+		opts.params = params
+	}
+}
+
+func ConnectI18nLang(lang string) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.i18nLang = lang
 	}
 }
 
 type ConnectionOptions struct {
-	ProtocolType string
-	i18nLang     string
+	Protocol string
+	i18nLang string
 
-	user       *model.User
-	systemUser *model.SystemUser
-
+	user  *model.User
 	asset *model.Asset
-
-	app *model.Application
 
 	k8sContainer *ContainerInfo
 
 	params *ConnectionParams
 
-	predefinedExpiredAt          int64
-	predefinedPermission         *model.Permission
-	predefinedGateway            []model.Gateway
-	predefinedDomain             *model.Domain
-	predefinedCmdFilterRules     model.FilterRules
-	predefinedSystemUserAuthInfo *model.SystemUserAuthInfo
-	predefinedAccount            *model.Account
+	predefinedExpiredAt      int64
+	predefinedPermission     *model.Permission
+	predefinedGateway        []model.Gateway
+	predefinedDomain         *model.Domain
+	predefinedCmdFilterRules model.FilterRules
+	predefinedAccount        *model.Account
+	predefinedActions        model.Actions
 }
 
 type ConnectionParams struct {
@@ -154,23 +139,16 @@ func (c *ContainerInfo) K8sName(name string) string {
 
 func (opts *ConnectionOptions) TerminalTitle() string {
 	title := ""
-	switch opts.ProtocolType {
-	case srvconn.ProtocolTELNET,
-		srvconn.ProtocolSSH:
-		title = fmt.Sprintf("%s://%s@%s",
-			opts.ProtocolType,
-			opts.predefinedAccount.Username,
-			opts.asset.Address)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
-		title = fmt.Sprintf("%s://%s@%s",
-			opts.ProtocolType,
-			opts.systemUser.Username,
-			opts.app.Attrs.Host)
+	switch opts.Protocol {
 	case srvconn.ProtocolK8s:
 		title = fmt.Sprintf("%s+%s",
-			opts.ProtocolType,
-			opts.app.Attrs.Cluster)
+			opts.Protocol,
+			opts.asset.Address)
+	default:
+		title = fmt.Sprintf("%s://%s@%s",
+			opts.Protocol,
+			opts.predefinedAccount.Username,
+			opts.asset.Address)
 	}
 	return title
 }
@@ -178,19 +156,19 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 func (opts *ConnectionOptions) ConnectMsg() string {
 	lang := opts.getLang()
 	msg := ""
-	switch opts.ProtocolType {
+	switch opts.Protocol {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
 		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), opts.predefinedAccount.Name, opts.asset.Address)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
-		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), opts.app)
+		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), opts.asset)
 	case srvconn.ProtocolK8s:
-		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), opts.app.Attrs.Cluster)
+		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), opts.asset.Address)
 		if opts.k8sContainer != nil {
 			msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s container %s"),
-				opts.app.Name, opts.k8sContainer.Container)
+				opts.asset.Name, opts.k8sContainer.Container)
 		}
 	}
 	return msg

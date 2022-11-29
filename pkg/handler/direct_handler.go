@@ -411,10 +411,10 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 	d.selectedSystemUser = &selectSys
 	srv, err := proxy.NewServer(d.wrapperSess,
 		d.jmsService,
-		proxy.ConnectProtocolType(d.selectedSystemUser.Protocol),
+		proxy.ConnectProtocol(d.selectedSystemUser.Protocol),
 		proxy.ConnectUser(d.opts.User),
 		proxy.ConnectAsset(&asset),
-		proxy.ConnectSystemUser(d.selectedSystemUser),
+		//proxy.ConnectSystemUser(d.selectedSystemUser),
 	)
 	if err != nil {
 		logger.Error(err)

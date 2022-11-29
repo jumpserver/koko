@@ -38,14 +38,12 @@ func (p *Permission) haveAction(action string) bool {
 }
 
 const (
-	ActionALL            = "all"
-	ActionConnect        = "connect"
-	ActionUpload         = "upload"
-	ActionDownload       = "download"
-	ActionUploadDownLoad = "updownload"
-	ActionCopy           = "copy"
-	ActionPaste          = "paste"
-	ActionCopyPaste      = "clipboard_copy_paste"
+	ActionALL      = "all"
+	ActionConnect  = "connect"
+	ActionUpload   = "upload"
+	ActionDownload = "download"
+	ActionCopy     = "copy"
+	ActionPaste    = "paste"
 )
 
 type ValidateResult struct {

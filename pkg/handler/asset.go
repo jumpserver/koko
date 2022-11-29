@@ -156,11 +156,11 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 	i18nLang := u.h.i18nLang
 	srv, err := proxy.NewServer(u.h.sess,
 		u.h.jmsService,
-		proxy.ConnectProtocolType(selectedSystemUser.Protocol),
+		proxy.ConnectProtocol(selectedSystemUser.Protocol),
 		proxy.ConnectI18nLang(i18nLang),
 		proxy.ConnectUser(u.h.user),
 		proxy.ConnectAsset(&asset),
-		proxy.ConnectSystemUser(&selectedSystemUser),
+		//proxy.ConnectSystemUser(&selectedSystemUser),
 	)
 	if err != nil {
 		logger.Error(err)

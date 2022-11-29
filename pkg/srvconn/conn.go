@@ -34,42 +34,50 @@ const (
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
 
-	ProtocolMySQL        = "mysql"
-	ProtocolMariadb      = "mariadb"
-	ProtocolSQLServer    = "sqlserver"
-	ProtocolRedis        = "redis"
-	ProtocolMongoDB      = "mongodb"
-	ProtocolPostgreSQL   = "postgresql"
-	ProtocolClickHouse   = "clickhouse"
+	ProtocolMySQL      = "mysql"
+	ProtocolMariadb    = "mariadb"
+	ProtocolSQLServer  = "sqlserver"
+	ProtocolRedis      = "redis"
+	ProtocolMongoDB    = "mongodb"
+	ProtocolPostgreSQL = "postgresql"
+	ProtocolClickHouse = "clickhouse"
 )
+
+type ErrNoClient struct {
+	Name string
+}
+
+func (e ErrNoClient) Error() string {
+	return fmt.Sprintf("not found %s client", e.Name)
+}
 
 var (
 	ErrUnSupportedProtocol = errors.New("unsupported protocol")
 
-	ErrKubectlClient = errors.New("not found Kubectl client")
+	ErrKubectlClient = ErrNoClient{"Kubectl"}
 
-	ErrRedisClient   = errors.New("not found Redis client")
-	ErrMongoDBClient = errors.New("not found MongoDB client")
+	ErrRedisClient   = ErrNoClient{"Redis"}
+	ErrMongoDBClient = ErrNoClient{"MongoDB"}
 
-	ErrMySQLClient     = errors.New("not found MySQL client")
-	ErrSQLServerClient = errors.New("not found SQLServer client")
-	ErrPostgreSQLClient = errors.New("not found PostgreSQL client")
-	ErrClickHouseClient = errors.New("not found ClickHouse client")
+	ErrMySQLClient      = ErrNoClient{"MySQL"}
+	ErrSQLServerClient  = ErrNoClient{"SQLServer"}
+	ErrPostgreSQLClient = ErrNoClient{"PostgreSQL"}
+	ErrClickHouseClient = ErrNoClient{"ClickHouse"}
 )
 
 type supportedChecker func() error
 
 var supportedMap = map[string]supportedChecker{
-	ProtocolSSH:          builtinSupported,
-	ProtocolTELNET:       builtinSupported,
-	ProtocolK8s:          kubectlSupported,
-	ProtocolMySQL:        mySQLSupported,
-	ProtocolMariadb:      mySQLSupported,
-	ProtocolSQLServer:    sqlServerSupported,
-	ProtocolRedis:        redisSupported,
-	ProtocolMongoDB:      mongoDBSupported,
-	ProtocolPostgreSQL:   postgreSQLSupported,
-	ProtocolClickHouse:   clickhouseSupported,
+	ProtocolSSH:        builtinSupported,
+	ProtocolTELNET:     builtinSupported,
+	ProtocolK8s:        kubectlSupported,
+	ProtocolMySQL:      mySQLSupported,
+	ProtocolMariadb:    mySQLSupported,
+	ProtocolSQLServer:  sqlServerSupported,
+	ProtocolRedis:      redisSupported,
+	ProtocolMongoDB:    mongoDBSupported,
+	ProtocolPostgreSQL: postgreSQLSupported,
+	ProtocolClickHouse: clickhouseSupported,
 }
 
 func IsSupportedProtocol(p string) error {
@@ -179,7 +187,6 @@ func clickhouseSupported() error {
 	return ErrClickHouseClient
 }
 
-
 func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
 	var (
 		nr  int
@@ -235,7 +242,7 @@ func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*l
 	return lcmd, nil
 }
 
-func StoreCAFileToLocal(caCert string) (caFilepath string, err error)  {
+func StoreCAFileToLocal(caCert string) (caFilepath string, err error) {
 	if caCert == "" {
 		return "", nil
 	}
@@ -251,7 +258,7 @@ func StoreCAFileToLocal(caCert string) (caFilepath string, err error)  {
 
 	filename := fmt.Sprintf("%s.pem", common.UUID())
 	caFilepath = filepath.Join(baseDir, filename)
-	file, err := os.OpenFile(caFilepath, os.O_WRONLY | os.O_CREATE, 0600)
+	file, err := os.OpenFile(caFilepath, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return "", err
 	}

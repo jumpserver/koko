@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"context"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"log"
 	"net/http"
 	"strconv"
@@ -237,11 +236,6 @@ func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token st
 	 1. 校验 protocol 是否支持
 
 	*/
-	if err = srvconn.IsSupportedProtocol(res.Protocol); err != nil {
-		logger.Errorf("Protocol %s is not supported: %s", res.Protocol, err)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
@@ -289,12 +283,11 @@ func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
 		setting:        &setting,
 	}
 	userConn.handler = &tty{
-		ws:           &userConn,
-		targetType:   targetType,
-		targetId:     targetId,
-		systemUserId: SystemUserID,
-		jmsService:   s.JmsService,
-		extraParams:  ctx.Request.Form,
+		ws:          &userConn,
+		targetType:  targetType,
+		targetId:    targetId,
+		jmsService:  s.JmsService,
+		extraParams: ctx.Request.Form,
 	}
 	s.broadCaster.EnterUserWebsocket(&userConn)
 	defer s.broadCaster.LeaveUserWebsocket(&userConn)

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/gliderlabs/ssh"
@@ -23,18 +22,13 @@ var _ Handler = (*tty)(nil)
 type tty struct {
 	ws *UserWebsocket
 
-	targetType   string
-	targetId     string
-	systemUserId string
+	targetType string
+	targetId   string
 
 	ConnectToken *service.ConnectToken
 
-	initialed  bool
-	wg         sync.WaitGroup
-	systemUser *model.SystemUser
-	asset      *model.Asset
-
-	app *model.Application
+	initialed bool
+	wg        sync.WaitGroup
 
 	backendClient *Client
 
@@ -284,29 +278,6 @@ func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err err
 	return ShareInfo{recordRes}, nil
 }
 
-func (h *tty) getTargetApp(protocol string) bool {
-	switch strings.ToLower(protocol) {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-		srvconn.ProtocolK8s, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
-		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse:
-		appAsset, err := h.jmsService.GetApplicationById(h.targetId)
-		if err != nil {
-			logger.Errorf("Get %s application failed; %s", protocol, err)
-			return false
-		}
-		if appAsset.ID != "" {
-			h.app = &appAsset
-			return true
-		}
-	default:
-		h.asset = &h.ConnectToken.Asset
-		return true
-
-	}
-	return false
-}
-
 func (h *tty) getk8sContainerInfo() *proxy.ContainerInfo {
 	pod := h.extraParams.Get("pod")
 	namespace := h.extraParams.Get("namespace")
@@ -344,7 +315,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 	default:
 		connectToken := h.ConnectToken
 		proxyOpts := make([]proxy.ConnectionOption, 0, 4)
-		proxyOpts = append(proxyOpts, proxy.ConnectProtocolType(h.ConnectToken.Protocol))
+		proxyOpts = append(proxyOpts, proxy.ConnectProtocol(connectToken.Protocol))
 		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
 		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))
@@ -353,10 +324,9 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 			proxyOpts = append(proxyOpts, proxy.ConnectParams(params))
 		}
 		proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
-		perm := h.ConnectToken.Permission()
-		proxyOpts = append(proxyOpts, proxy.ConnectPermission(&perm))
-		proxyOpts = append(proxyOpts, proxy.ConnectGateway(h.ConnectToken.Gateway))
-		proxyOpts = append(proxyOpts, proxy.ConnectDomain(&h.ConnectToken.Domain))
+		proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
+		proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
+		proxyOpts = append(proxyOpts, proxy.ConnectDomain(&connectToken.Domain))
 		proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
 		proxyOpts = append(proxyOpts, proxy.ConnectAccount(&h.ConnectToken.Account))
 		switch h.ConnectToken.Protocol {
