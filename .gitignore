@@ -20,10 +20,9 @@ cmd/koko
 cmd/logs
 cmd/kokodir
 build
+build/
 release
 !config_example.yml
-*.yml
-
 
 .DS_Store
 package-lock.json
