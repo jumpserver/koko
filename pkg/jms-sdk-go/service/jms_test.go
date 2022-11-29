@@ -105,16 +105,6 @@ func TestJMService_GetPermission(t *testing.T) {
 	t.Logf("%+v,%+v", perms, err)
 }
 
-func TestJMService_ValidateRemoteApp(t *testing.T) {
-	jms := setup()
-	remoteId := "9f2313df-bd54-4428-9708-b9e54eba735a"
-	sysId := "d9341b5a-426c-4d3a-8a10-2c23a7e06997"
-	userId := "68f1648b-5c6c-4f47-97a1-c47c192458e3"
-	info, err := jms.ValidateRemoteAppPermission(userId, remoteId, sysId)
-	t.Logf("%+v,%+v", info, err)
-
-}
-
 func TestJMService_SubmitCommandConfirm(t *testing.T) {
 	jms := setup()
 	sid := "8e7df6b6-795c-4904-bd17-f3bf2855ae9f"

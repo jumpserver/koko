@@ -10,12 +10,10 @@ import (
 )
 
 type connectionConfirmOption struct {
-	user       *model.User
-	systemUser *model.SystemUserAuthInfo
-	account    *model.Account
+	user    *model.User
+	account *model.Account
 
-	targetType string
-	targetID   string
+	assetId string
 }
 
 func NewLoginConfirm(jmsService *service.JMService, opts ...ConfirmOption) LoginConfirmService {
@@ -41,16 +39,13 @@ type LoginConfirmService struct {
 }
 
 func (c *LoginConfirmService) CheckIsNeedLoginConfirm() (bool, error) {
-	if c.option.systemUser == nil {
-		return false, nil
-	}
 	/*
 		1. 连接登录是否需要审批
 	*/
 	userID := c.option.user.ID
-	// todo：API 未实现
-	res, err := c.jmsService.CheckIfNeedAssetLoginConfirm(userID, "targetID",
-		"systemUserID", "systemUsername")
+	assetId := c.option.assetId
+	username := c.option.account.Username
+	res, err := c.jmsService.CheckIfNeedAssetLoginConfirm(userID, assetId, username)
 	if err != nil {
 		return false, err
 	}
@@ -139,26 +134,14 @@ func ConfirmWithUser(user *model.User) ConfirmOption {
 	}
 }
 
-func ConfirmWithSystemUser(sysUser *model.SystemUserAuthInfo) ConfirmOption {
+func ConfirmWithAccount(account *model.Account) ConfirmOption {
 	return func(option *connectionConfirmOption) {
-		option.systemUser = sysUser
+		option.account = account
 	}
 }
 
-func ConfirmWithAccount(sysUser *model.Account) ConfirmOption {
+func ConfirmWithAssetId(Id string) ConfirmOption {
 	return func(option *connectionConfirmOption) {
-		option.account = sysUser
-	}
-}
-
-func ConfirmWithTargetType(targetType string) ConfirmOption {
-	return func(option *connectionConfirmOption) {
-		option.targetType = targetType
-	}
-}
-
-func ConfirmWithTargetID(targetID string) ConfirmOption {
-	return func(option *connectionConfirmOption) {
-		option.targetID = targetID
+		option.assetId = Id
 	}
 }

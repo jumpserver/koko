@@ -1011,22 +1011,8 @@ func (s *Server) checkLoginConfirm() bool {
 	opts := make([]auth.ConfirmOption, 0, 4)
 	opts = append(opts, auth.ConfirmWithUser(s.connOpts.user))
 	opts = append(opts, auth.ConfirmWithAccount(s.account))
-	var (
-		targetType string
-		targetId   string
-	)
-	switch s.connOpts.ProtocolType {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
-		srvconn.ProtocolK8s:
-		targetType = model.AppType
-		targetId = s.connOpts.app.ID
-	default:
-		targetId = s.connOpts.asset.ID
-	}
-	opts = append(opts, auth.ConfirmWithTargetType(targetType))
-	opts = append(opts, auth.ConfirmWithTargetID(targetId))
+	targetId := s.connOpts.asset.ID
+	opts = append(opts, auth.ConfirmWithAssetId(targetId))
 	confirmSrv := auth.NewLoginConfirm(s.jmsService, opts...)
 	ok := s.validateLoginConfirm(&confirmSrv, s.UserConn)
 	s.loginTicketId = confirmSrv.GetTicketId()

@@ -8,7 +8,8 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) SubmitCommandConfirm(sid string, ruleId string, cmd string) (res model.CommandTicketInfo, err error) {
+func (s *JMService) SubmitCommandConfirm(sid string, ruleId string,
+	cmd string) (res model.CommandTicketInfo, err error) {
 	data := map[string]string{
 		"session_id":         sid,
 		"cmd_filter_rule_id": ruleId,
@@ -18,22 +19,16 @@ func (s *JMService) SubmitCommandConfirm(sid string, ruleId string, cmd string) 
 	return
 }
 
-func (s *JMService) CheckIfNeedAssetLoginConfirm(userId, assetId, systemUserId,
-	sysUsername string) (res model.AssetLoginTicketInfo, err error) {
+func (s *JMService) CheckIfNeedAssetLoginConfirm(userId, assetId,
+	accountUsername string) (res model.AssetLoginTicketInfo, err error) {
 	data := map[string]string{
-		"user_id":              userId,
-		"asset_id":             assetId,
-		"system_user_id":       systemUserId,
-		"system_user_username": sysUsername,
+		"user_id":          userId,
+		"asset_id":         assetId,
+		"account_username": accountUsername,
 	}
 
 	_, err = s.authClient.Post(AssetLoginConfirmURL, data, &res)
 	return
-}
-
-func (s *JMService) CheckIfNeedAppConnectionConfirm(userID, assetID, systemUserID string) (bool, error) {
-
-	return false, nil
 }
 
 func (s *JMService) CancelConfirmByRequestInfo(req model.ReqInfo) (err error) {

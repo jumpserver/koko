@@ -14,10 +14,6 @@ func (s *JMService) GetPermission(userId, assetId, systemUserId string) (perms m
 	return
 }
 
-func (s *JMService) ValidateRemoteAppPermission(userId, remoteAppId, systemUserId string) (info model.ExpireInfo, err error) {
-	return s.ValidateApplicationPermission(userId, remoteAppId, systemUserId)
-}
-
 func (s *JMService) ValidateApplicationPermission(userId, appId, systemUserId string) (info model.ExpireInfo, err error) {
 	params := map[string]string{
 		"user_id":        userId,

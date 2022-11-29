@@ -30,9 +30,9 @@ func (s *JMService) RenewalToken(token string) (resp TokenRenewalResponse, err e
 	return
 }
 
-func (s *JMService) GetConnectTokenInfo(token string) (resp ConnectToken, err error) {
+func (s *JMService) GetConnectTokenInfo(tokenId string) (resp ConnectToken, err error) {
 	data := map[string]string{
-		"token": token,
+		"id": tokenId,
 	}
 	_, err = s.authClient.Post(ConnectTokenInfoURL, data, &resp)
 	return
