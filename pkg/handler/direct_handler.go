@@ -114,7 +114,7 @@ func DirectConnectSftpMode(sftpMode bool) DirectOpt {
 func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
 	switch opts.formatType {
 	case FormatUUID:
-		asset, err := jmsService.GetAssetById(opts.targetAsset)
+		asset, err := jmsService.GetAssetDetailById(opts.targetAsset)
 		if err != nil {
 			return nil, err
 		}

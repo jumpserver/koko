@@ -18,6 +18,12 @@ func (s *JMService) GetSystemUsersByUserIdAndAssetId(userId, assetId string) (sy
 	return
 }
 
+func (s *JMService) GetAccountsByUserIdAndAssetId(userId, assetId string) (accounts []model.PermAccount, err error) {
+	Url := fmt.Sprintf(UserPermsAssetAccountsURL, userId, assetId)
+	_, err = s.authClient.Get(Url, &accounts)
+	return
+}
+
 func (s *JMService) GetAllUserPermsAssets(userId string) ([]map[string]interface{}, error) {
 	var params model.PaginationParam
 	res, err := s.GetUserPermsAssets(userId, params)

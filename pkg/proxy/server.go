@@ -59,6 +59,12 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		utils.IgnoreErrWriteString(conn, utils.WrapperWarn(errMsg))
 		return nil, err
 	}
+	if !connOpts.asset.IsSupportProtocol(connOpts.Protocol) {
+		msg := lang.T("Account <%s> and asset <%s> protocol are inconsistent.")
+		msg = fmt.Sprintf(msg, connOpts.predefinedAccount.Username, connOpts.asset.Address)
+		utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
+		return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol, msg)
+	}
 
 	var (
 		err          error
@@ -73,18 +79,19 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		//suSysUserAuthInfo *model.SystemUserAuthInfo
 		domainGateways *model.Domain
 		platform       *model.Platform
-		perms          model.Actions
+		actions        model.Actions
 	)
 
 	// todo: 后续优化这里，统一授权资源获取。目前这里兼容处理 connection token 方式的连接
 	account = connOpts.predefinedAccount
 	domainGateways = connOpts.predefinedDomain
 	filterRules = connOpts.predefinedCmdFilterRules
-	perms = connOpts.predefinedActions
+	actions = connOpts.predefinedActions
+	platform = connOpts.predefinedPlatform
 
 	expireInfo := &model.ExpireInfo{
 		ExpireAt:      connOpts.predefinedExpiredAt,
-		HasPermission: perms.EnableConnect()}
+		HasPermission: actions.EnableConnect()}
 
 	terminalConf, err = jmsService.GetTerminalConfig()
 	if err != nil {
@@ -95,47 +102,24 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		// todo: 过滤规则处理
 		fmt.Println("filter rules 未处理")
 	}
-
+	if account == nil {
+		return nil, errors.New("no auth info")
+	}
 	// 过滤规则排序
 	sort.Sort(filterRules)
 	assetName := connOpts.asset.String()
-	switch connOpts.Protocol {
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
-		srvconn.ProtocolK8s:
-		if account == nil {
-			return nil, errors.New("no auth info")
-		}
+	if connOpts.k8sContainer != nil {
+		assetName = connOpts.k8sContainer.K8sName(connOpts.asset.Name)
+	}
 
-		if connOpts.k8sContainer != nil {
-			assetName = connOpts.k8sContainer.K8sName(connOpts.asset.Name)
-		}
-	default:
-		if !connOpts.asset.IsSupportProtocol(connOpts.Protocol) {
-			msg := lang.T("Account <%s> and asset <%s> protocol are inconsistent.")
-			msg = fmt.Sprintf(msg, connOpts.predefinedAccount.Username, connOpts.asset.Address)
-			utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
-			return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol, msg)
-		}
-		if account == nil {
-			return nil, errors.New("no auth info")
-		}
-
-		if domainGateways == nil && connOpts.asset.Domain != "" {
-			domain, err2 := jmsService.GetDomainGateways(connOpts.asset.Domain)
-			if err2 != nil {
-				return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
-			}
-			domainGateways = &domain
-		}
-
-		assetPlatform, err2 := jmsService.GetAssetPlatform(connOpts.asset.ID)
+	if domainGateways == nil && connOpts.asset.Domain != "" {
+		domain, err2 := jmsService.GetDomainGateways(connOpts.asset.Domain)
 		if err2 != nil {
 			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
 		}
-		platform = &assetPlatform
+		domainGateways = &domain
 	}
+
 	apiSession = &model.Session{
 		ID:         common.UUID(),
 		User:       connOpts.user.String(),
@@ -148,7 +132,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		AssetID:    connOpts.asset.ID,
 		OrgID:      connOpts.asset.OrgID,
 	}
-	if !perms.EnableConnect() {
+	if !actions.EnableConnect() {
 		msg := lang.T("You don't have permission login %s")
 		msg = utils.WrapperWarn(fmt.Sprintf(msg, connOpts.TerminalTitle()))
 		utils.IgnoreErrWriteString(conn, msg)
@@ -170,7 +154,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		domainGateways: domainGateways,
 		expireInfo:     expireInfo,
 		platform:       platform,
-		permActions:    perms,
+		permActions:    actions,
 		sessionInfo:    apiSession,
 		CreateSessionCallback: func() error {
 			apiSession.DateStart = modelCommon.NewNowUTCTime()
@@ -455,7 +439,7 @@ const (
 
 func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
-		platformMatched := s.connOpts.asset.Platform == linuxPlatform
+		platformMatched := s.connOpts.asset.Platform.Name == linuxPlatform
 		protocolMatched := s.connOpts.Protocol == model.ProtocolSSH
 		notSuSystemUser := s.suFromSystemUserAuthInfo == nil
 		return platformMatched && protocolMatched && notSuSystemUser

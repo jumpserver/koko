@@ -216,7 +216,7 @@ func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
 	lang := i18n.NewLang(u.h.i18nLang)
 	switch u.currentType {
 	case TypeAsset, TypeNodeAsset:
-		asset, err := u.h.jmsService.GetAssetById(targetId)
+		asset, err := u.h.jmsService.GetAssetDetailById(targetId)
 		if err != nil || asset.ID == "" {
 			logger.Errorf("Select asset %s not found", targetId)
 			return

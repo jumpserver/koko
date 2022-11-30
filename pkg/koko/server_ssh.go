@@ -424,7 +424,7 @@ func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.SystemU
 
 func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
 	if req.IsUUIDString() {
-		asset, err := s.jmsService.GetAssetById(req.AssetInfo)
+		asset, err := s.jmsService.GetAssetDetailById(req.AssetInfo)
 		if err != nil {
 			logger.Errorf("Get asset failed: %s", err)
 			return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))

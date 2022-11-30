@@ -310,21 +310,27 @@ func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeLi
 				WithFolderName(folderName), WithSubFoldersLoadFunc(loadFunc))
 			dirs[folderName] = &nodeDir
 		case model.TreeTypeAsset:
-			asset := item.Meta.Data
-			if !asset.IsSupportProtocol(ProtocolSSH) {
+			assetMeta := item.Meta.Data
+			// todo: 每次循环都需要获取资产的数据
+			assetDetail, err := u.jmsService.GetAssetDetailById(assetMeta.ID)
+			if err != nil {
+				logger.Errorf("Sftp get asset failed: %s", err)
 				continue
 			}
-			folderName := cleanFolderName(asset.Hostname)
+			if !assetDetail.IsSupportProtocol(ProtocolSSH) {
+				continue
+			}
+			folderName := cleanFolderName(assetDetail.Name)
 			folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
-			assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(asset.ID),
-				WithFolderName(folderName), WitRemoteAddr(u.Addr))
+			assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(assetDetail.ID),
+				WithFolderName(folderName), WitRemoteAddr(u.Addr), WithAsset(assetDetail))
 			dirs[folderName] = &assetDir
 		}
 	}
 	return dirs
 }
 
-func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset, systemUsers []model.SystemUser) map[string]os.FileInfo {
+func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset) map[string]os.FileInfo {
 	dirs := make(map[string]os.FileInfo)
 	matchFunc := func(s string) bool {
 		_, ok := dirs[s]
@@ -334,11 +340,16 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset, system
 		if !assets[i].IsSupportProtocol(ProtocolSSH) {
 			continue
 		}
+		accounts, err := u.jmsService.GetAccountsByUserIdAndAssetId(u.User.ID, assets[i].ID)
+		if err != nil {
+			logger.Errorf("Get Accounts err: %s", err)
+			continue
+		}
 		folderName := cleanFolderName(assets[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 		assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(assets[i].ID),
 			WithFolderName(folderName), WitRemoteAddr(u.Addr),
-			WithAsset(assets[i]), WithSystemUsers(systemUsers))
+			WithAsset(assets[i]), WithPermAccounts(accounts))
 		dirs[folderName] = &assetDir
 	}
 	return dirs
@@ -394,7 +405,7 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 		logger.Errorf("search asset err: %s", err)
 		return nil, err
 	}
-	dirs := u.generateSubFoldersFromAssets(assets, nil)
+	dirs := u.generateSubFoldersFromAssets(assets)
 	u.searchDir.SetSubDirs(dirs)
 	return u.searchDir.List()
 }
@@ -410,8 +421,8 @@ func NewUserSftpConn(jmsService *service.JMService, user *model.User, addr strin
 		closed:     make(chan struct{}),
 		jmsService: jmsService,
 	}
-	if assets != nil {
-		u.Dirs = u.generateSubFoldersFromAssets(assets, systemUsers)
+	if len(assets) > 0 {
+		u.Dirs = u.generateSubFoldersFromAssets(assets)
 	} else {
 		u.Dirs = u.generateSubFoldersFromRootTree()
 	}

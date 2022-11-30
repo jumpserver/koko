@@ -24,18 +24,25 @@ type Specific struct {
 }
 
 type Asset struct {
-	ID        string     `json:"id"`
-	Address   string     `json:"address"`
-	Name      string     `json:"name"`
-	OrgID     string     `json:"org_id"`
-	Protocols []Protocol `json:"protocols"`
-	Specific  Specific   `json:"specific"`
+	ID        string       `json:"id"`
+	Address   string       `json:"address"`
+	Name      string       `json:"name"`
+	OrgID     string       `json:"org_id"`
+	Protocols []Protocol   `json:"protocols"`
+	Specific  Specific     `json:"specific"`
+	Platform  BasePlatform `json:"platform"`
 
 	Domain   string `json:"domain"` // 是否需要走网域
 	Comment  string `json:"comment"`
 	OrgName  string `json:"org_name"`
-	Platform string `json:"platform"`
 	IsActive bool   `json:"is_active"` // 判断资产是否禁用
+
+	Accounts Actions `json:"accounts,omitempty"` // 只有 detail api才会有这个字段
+}
+
+type BasePlatform struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 func (a *Asset) String() string {

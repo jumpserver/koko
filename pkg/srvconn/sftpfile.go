@@ -98,6 +98,8 @@ type folderOptions struct {
 	asset       *model.Asset
 	systemUsers []model.SystemUser
 	domain      *model.Domain
+
+	permAccounts []model.PermAccount
 }
 
 func WithFolderName(name string) FolderBuilderOption {
@@ -136,6 +138,12 @@ func WithSystemUsers(systemUsers []model.SystemUser) FolderBuilderOption {
 	}
 }
 
+func WithPermAccounts(accounts []model.PermAccount) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.permAccounts = accounts
+	}
+}
+
 func WithDomain(domain model.Domain) FolderBuilderOption {
 	return func(info *folderOptions) {
 		info.domain = &domain
@@ -157,7 +165,7 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, logChan chan<-
 		detailAsset: dirOpts.asset,
 		domain:      dirOpts.domain,
 		modeTime:    time.Now().UTC(),
-		suMaps:      generateSubSystemUsersFolderMap(dirOpts.systemUsers),
+		suMaps:      generateSubAccountsFolderMap(dirOpts.permAccounts),
 		logChan:     logChan,
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,

@@ -22,9 +22,9 @@ func ConnectAsset(asset *model.Asset) ConnectionOption {
 	}
 }
 
-func ConnectAccount(info *model.Account) ConnectionOption {
+func ConnectAccount(account *model.Account) ConnectionOption {
 	return func(opts *ConnectionOptions) {
-		opts.predefinedAccount = info
+		opts.predefinedAccount = account
 	}
 }
 
@@ -49,6 +49,12 @@ func ConnectPermission(perm *model.Permission) ConnectionOption {
 func ConnectActions(actions model.Actions) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.predefinedActions = actions
+	}
+}
+
+func ConnectPlatform(platform *model.Platform) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.predefinedPlatform = platform
 	}
 }
 
@@ -105,6 +111,7 @@ type ConnectionOptions struct {
 	predefinedDomain         *model.Domain
 	predefinedCmdFilterRules model.FilterRules
 	predefinedAccount        *model.Account
+	predefinedPlatform       *model.Platform
 	predefinedActions        model.Actions
 }
 
@@ -163,7 +170,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
-		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), opts.asset)
+		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), opts.asset.String())
 	case srvconn.ProtocolK8s:
 		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), opts.asset.Address)
 		if opts.k8sContainer != nil {

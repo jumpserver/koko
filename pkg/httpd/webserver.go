@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/LeeEirc/elfinder"
@@ -142,18 +141,9 @@ func (s *Server) ProcessTokenWebsocket(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	var targetId string
-	switch tokenUser.Type {
-	case model.ConnectApplication:
-		targetId = strings.ToLower(tokenUser.ApplicationID)
-	case model.ConnectAsset:
-		targetId = tokenUser.AssetID
-	default:
-		targetId = tokenUser.AssetID
-	}
+	targetId := tokenUser.AssetID
 	targetType := TargetTypeAsset
-	systemUserId := tokenUser.SystemUserID
-	s.runTTY(ctx, currentUser, targetType, targetId, systemUserId)
+	s.runTTY(ctx, currentUser, targetType, targetId)
 }
 
 func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
@@ -264,7 +254,7 @@ func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token st
 }
 
 func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
-	targetType, targetId, SystemUserID string) {
+	targetType, targetId string) {
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)

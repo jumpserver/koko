@@ -10,7 +10,6 @@ import (
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -58,7 +57,7 @@ func (h *tty) CheckValidation() bool {
 	case TargetTypeShare:
 		ok = h.CheckEnableShare()
 	default:
-		ok = true
+		ok = h.ConnectToken.Asset.IsSupportProtocol(h.ConnectToken.Protocol)
 	}
 	logger.Infof("Ws[%s] check connect type %s: %t", h.ws.Uuid, h.targetType, ok)
 	return ok
@@ -100,25 +99,8 @@ func (h *tty) HandleMessage(msg *Message) {
 				h.sendCloseMessage()
 				return
 			}
-			// 获取权限校验
-			var expireInfo model.ExpireInfo
-			switch sessionDetail.Protocol {
-			case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
-				expireInfo, err3 = h.jmsService.ValidateAssetConnectPermission(sessionDetail.UserID, sessionDetail.AssetID,
-					sessionDetail.SystemUserID)
-			default:
-				expireInfo, err3 = h.jmsService.ValidateApplicationPermission(sessionDetail.UserID, sessionDetail.AssetID,
-					sessionDetail.SystemUserID)
-			}
-			if err3 != nil {
-				logger.Errorf("获取会话的权限失败：%s", err3)
-				h.sendCloseMessage()
-				return
-			}
-			perms := model.Permission{Actions: expireInfo.Actions}
 			sessionInfo := proxy.SessionInfo{
 				Session: &sessionDetail,
-				Perms:   &perms,
 			}
 			data, _ := json.Marshal(sessionInfo)
 			h.sendSessionMessage(string(data))
@@ -314,22 +296,25 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		h.JoinRoom(h.backendClient, roomID)
 	default:
 		connectToken := h.ConnectToken
-		proxyOpts := make([]proxy.ConnectionOption, 0, 4)
+		user := h.ws.user
+		proxyOpts := make([]proxy.ConnectionOption, 0, 10)
 		proxyOpts = append(proxyOpts, proxy.ConnectProtocol(connectToken.Protocol))
-		proxyOpts = append(proxyOpts, proxy.ConnectUser(h.ws.user))
+		proxyOpts = append(proxyOpts, proxy.ConnectUser(user))
+		proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
+		proxyOpts = append(proxyOpts, proxy.ConnectAccount(&connectToken.Account))
+		proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
+		proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
+		proxyOpts = append(proxyOpts, proxy.ConnectDomain(&connectToken.Domain))
+		proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
+		proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
+
 		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))
 		}
 		if params := h.getConnectionParams(); params != nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectParams(params))
 		}
-		proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
-		proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
-		proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
-		proxyOpts = append(proxyOpts, proxy.ConnectDomain(&connectToken.Domain))
-		proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
-		proxyOpts = append(proxyOpts, proxy.ConnectAccount(&h.ConnectToken.Account))
-		switch h.ConnectToken.Protocol {
+		switch connectToken.Protocol {
 		case srvconn.ProtocolK8s:
 			if info := h.getk8sContainerInfo(); info != nil {
 				proxyOpts = append(proxyOpts, proxy.ConnectContainer(info))

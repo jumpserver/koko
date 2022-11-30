@@ -39,7 +39,14 @@ func NewUserVolume(jmsService *service.JMService, user *model.User, addr, hostId
 			basePath = filepath.Join("/", homeName)
 		}
 	}
-	userSftp := srvconn.NewUserSftpConn(jmsService, user, addr, assets, nil)
+	supportSSHAssets := make([]model.Asset, 0, len(assets))
+	for i := range assets {
+		asset := assets[i]
+		if asset.IsSupportProtocol(model.ProtocolSSH) {
+			supportSSHAssets = append(supportSSHAssets, asset)
+		}
+	}
+	userSftp := srvconn.NewUserSftpConn(jmsService, user, addr, supportSSHAssets, nil)
 	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),

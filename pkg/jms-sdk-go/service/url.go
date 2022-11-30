@@ -104,4 +104,7 @@ const (
 
 const (
 	ConnectTokenInfoURL = "/api/v1/authentication/connection-token/secret/"
+
+	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/accounts/"
+	AccountDetailURL          = "/api/v1/assets/account-secrets/%s/"
 )

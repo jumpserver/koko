@@ -73,7 +73,7 @@ func TestJMService_GetAssetById(t *testing.T) {
 		"bd87e0b9-9a94-48df-9fa1-4aab4c9f49a5", // 无网域
 	}
 	for i := range assetIds {
-		asset, err := jms.GetAssetById(assetIds[i])
+		asset, err := jms.GetAssetDetailById(assetIds[i])
 		if err != nil {
 			t.Fatal(err)
 		}

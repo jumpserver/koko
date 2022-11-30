@@ -19,10 +19,6 @@ type Session struct {
 	OrgID      string         `json:"org_id"`
 	UserID     string         `json:"user_id"`
 	AssetID    string         `json:"asset_id"`
-
-	// 废弃的字段
-	SystemUser   string `json:"system_user"`
-	SystemUserID string `json:"system_user_id"`
 }
 
 type ReplayVersion string
