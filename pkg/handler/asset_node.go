@@ -9,7 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationParam) []map[string]interface{} {
+func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationParam) []model.Asset {
 	res, err := u.h.jmsService.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user %s node assets failed %s", u.user.Name, err)

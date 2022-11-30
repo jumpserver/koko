@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
@@ -11,34 +12,15 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteDatabase(reqParam model.PaginationParam) []map[string]interface{} {
-	res, err := u.h.jmsService.GetUserPermsDatabase(u.user.ID, reqParam, model.SupportedDBTypes...)
+func (u *UserSelectHandler) retrieveRemoteDatabase(reqParam model.PaginationParam) []model.Asset {
+	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user perm Database failed: %s", err)
 	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
-func (u *UserSelectHandler) searchLocalDatabase(searches ...string) []map[string]interface{} {
-	/*
-	   	  {
-	                  "id": "2b8f37ad-1580-4275-962a-7ea0f53c40b3",
-	                  "name": "www",
-	                  "domain": null,
-	                  "category": "db",
-	                  "type": "mysql",
-	                  "attrs": {
-	                      "host": "www",
-	                      "port": 32342,
-	                      "database": null
-	                  },
-	                  "comment": "",
-	                  "org_id": "",
-	                  "category_display": "数据库",
-	                  "type_display": "MySQL",
-	                  "org_name": "DEFAULT"
-	              }
-	*/
+func (u *UserSelectHandler) searchLocalDatabase(searches ...string) []model.Asset {
 	fields := map[string]struct{}{
 		"name":     {},
 		"host":     {},
@@ -89,7 +71,17 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 			"database": "DBName",
 			"org_name": "Organization",
 			"comment":  "Comment"}
-		row = convertMapItemToRow(j, fieldsMap, row)
+
+		rowData := map[string]interface{}{
+			"id":       j.ID,
+			"name":     j.Name,
+			"host":     j.Address,
+			"type":     strings.Join(j.SupportProtocols(), "|"),
+			"database": j.Specific.DBName,
+			"org_name": j.OrgName,
+			"comment":  j.Comment,
+		}
+		row = convertMapItemToRow(rowData, fieldsMap, row)
 		// 特殊处理 comment
 		row["Comment"] = joinMultiLineString(row["Comment"])
 		data[i] = row

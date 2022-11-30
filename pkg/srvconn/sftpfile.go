@@ -132,21 +132,15 @@ func WithAsset(asset model.Asset) FolderBuilderOption {
 	}
 }
 
-func WithSystemUsers(systemUsers []model.SystemUser) FolderBuilderOption {
-	return func(info *folderOptions) {
-		info.systemUsers = systemUsers
-	}
-}
-
 func WithPermAccounts(accounts []model.PermAccount) FolderBuilderOption {
 	return func(info *folderOptions) {
 		info.permAccounts = accounts
 	}
 }
 
-func WithDomain(domain model.Domain) FolderBuilderOption {
+func WithDomain(domain *model.Domain) FolderBuilderOption {
 	return func(info *folderOptions) {
-		info.domain = &domain
+		info.domain = domain
 	}
 }
 

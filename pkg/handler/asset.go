@@ -14,7 +14,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []map[string]interface{} {
+func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []model.Asset {
 	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user perm assets failed: %s", err.Error())
@@ -22,29 +22,13 @@ func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) 
 	return u.updateRemotePageData(reqParam, res)
 }
 
-func (u *UserSelectHandler) searchLocalAsset(searches ...string) []map[string]interface{} {
-	/*
-	   {
-	       "id": "1ccad81f-76a6-4ee2-a3ac-e652ef3afecb",
-	       "hostname": "127.0.0.1",
-	       "ip": "192.168.1.97",
-	       "protocols": [
-	           "rdp/3389"
-	       ],
-	       "os": null,
-	       "domain": null,
-	       "platform": "Windows",
-	       "comment": "",
-	       "org_id": "",
-	       "is_active": true,
-	       "org_name": "DEFAULT"
-	   },
-	*/
+func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.Asset {
+
 	fields := map[string]struct{}{
-		"name":     {},
-		"hostname": {},
-		"ip":       {},
-		"platform": {},
+		"name":    {},
+		"address": {},
+		"ip":      {},
+		//"platform": {},
 		"org_name": {},
 		"comment":  {},
 	}
@@ -67,17 +51,6 @@ func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 
 func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 	lang := i18n.NewLang(u.h.i18nLang)
-	assetListSortBy := u.h.terminalConf.AssetListSortBy
-	switch assetListSortBy {
-	case "ip":
-		sortedAsset := IPAssetList(u.currentResult)
-		sort.Sort(sortedAsset)
-		u.currentResult = sortedAsset
-	default:
-		sortedAsset := HostnameAssetList(u.currentResult)
-		sort.Sort(sortedAsset)
-		u.currentResult = sortedAsset
-	}
 	term := u.h.term
 	currentPage := u.CurrentPage()
 	pageSize := u.PageSize()
@@ -98,13 +71,22 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		fieldMap := map[string]string{
-			"hostname": "Hostname",
-			"ip":       "IP",
+			"name":     "Hostname",
+			"address":  "IP",
 			"platform": "Platform",
 			"org_name": "Organization",
 			"comment":  "Comment",
 		}
-		row = convertMapItemToRow(j, fieldMap, row)
+		rowData := map[string]interface{}{
+			"id":       j.ID,
+			"name":     j.Name,
+			"address":  j.Address,
+			"platform": j.Platform.Name,
+			"org_name": j.OrgName,
+			"comment":  j.Comment,
+		}
+
+		row = convertMapItemToRow(rowData, fieldMap, row)
 		row["Comment"] = joinMultiLineString(row["Comment"])
 		data[i] = row
 	}

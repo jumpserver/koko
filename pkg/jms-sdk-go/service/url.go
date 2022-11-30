@@ -32,17 +32,13 @@ const (
 
 // 授权相关API
 const (
-	UserPermsAssetsURL                 = "/api/v1/perms/users/%s/assets/"
 	UserPermsNodesListURL              = "/api/v1/perms/users/%s/nodes/"
 	UserPermsNodeAssetsListURL         = "/api/v1/perms/users/%s/nodes/%s/assets/"
 	UserPermsNodeTreeWithAssetURL      = "/api/v1/perms/users/%s/nodes/children-with-assets/tree/" // 资产树
-	UserPermsApplicationsURL           = "/api/v1/perms/users/%s/applications/?type=%s"
 	UserPermsAssetSystemUsersURL       = "/api/v1/perms/users/%s/assets/%s/system-users/"
 	UserPermsApplicationSystemUsersURL = "/api/v1/perms/users/%s/applications/%s/system-users/"
 	ValidateUserAssetPermissionURL     = "/api/v1/perms/asset-permissions/user/validate/"
 	ValidateApplicationPermissionURL   = "/api/v1/perms/application-permissions/user/validate/"
-
-	UserPermsDatabaseURL = "/api/v1/perms/users/%s/applications/?category=db&type__in=%s"
 )
 
 // 系统用户密码相关API
@@ -107,4 +103,5 @@ const (
 
 	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/accounts/"
 	AccountDetailURL          = "/api/v1/assets/account-secrets/%s/"
+	UserPermsAssetsURL        = "/api/v1/perms/users/%s/assets/"
 )

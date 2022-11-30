@@ -11,15 +11,15 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteK8s(reqParam model.PaginationParam) []map[string]interface{} {
-	res, err := u.h.jmsService.GetUserPermsK8s(u.user.ID, reqParam)
+func (u *UserSelectHandler) retrieveRemoteK8s(reqParam model.PaginationParam) []model.Asset {
+	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user perm k8s failed: %s", err.Error())
 	}
 	return u.updateRemotePageData(reqParam, res)
 }
 
-func (u *UserSelectHandler) searchLocalK8s(searches ...string) []map[string]interface{} {
+func (u *UserSelectHandler) searchLocalK8s(searches ...string) []model.Asset {
 	/*
 		{
 		            "id": "0a318338-65ca-4e33-80ec-daf11d6d6c9a",
@@ -81,7 +81,13 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 			"cluster": "Cluster",
 			"comment": "Comment",
 		}
-		row = convertMapItemToRow(j, filedMap, row)
+		rowData := map[string]interface{}{
+			"id":      j.ID,
+			"name":    j.Name,
+			"cluster": j.Address,
+			"comment": j.Comment,
+		}
+		row = convertMapItemToRow(rowData, filedMap, row)
 		row["Comment"] = joinMultiLineString(row["Comment"])
 		data[i] = row
 	}

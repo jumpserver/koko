@@ -24,7 +24,7 @@ func (s *JMService) GetAccountsByUserIdAndAssetId(userId, assetId string) (accou
 	return
 }
 
-func (s *JMService) GetAllUserPermsAssets(userId string) ([]map[string]interface{}, error) {
+func (s *JMService) GetAllUserPermsAssets(userId string) ([]model.Asset, error) {
 	var params model.PaginationParam
 	res, err := s.GetUserPermsAssets(userId, params)
 	if err != nil {
@@ -38,7 +38,7 @@ func (s *JMService) GetUserPermsAssets(userID string, params model.PaginationPar
 	return s.getPaginationResult(Url, params)
 }
 
-func (s *JMService) RefreshUserAllPermsAssets(userId string) ([]map[string]interface{}, error) {
+func (s *JMService) RefreshUserAllPermsAssets(userId string) ([]model.Asset, error) {
 	var params model.PaginationParam
 	params.Refresh = true
 	res, err := s.GetUserPermsAssets(userId, params)

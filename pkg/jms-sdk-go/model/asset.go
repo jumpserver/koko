@@ -9,12 +9,11 @@ type Specific struct {
 	// database
 	DBName string `json:"db_name"`
 
-	// todo: db ssl 相关
-	UseSSL           bool
-	CaCert           string
-	ClientCert       string
-	CertKey          string
-	AllowInvalidCert bool
+	UseSSL           bool   `json:"use_ssl"`
+	CaCert           string `json:"ca_cert"`
+	ClientCert       string `json:"client_cert"`
+	CertKey          string `json:"cert_key"`
+	AllowInvalidCert bool   `json:"allow_invalid_cert"`
 
 	// web
 	Autofill         string `json:"autofill"`
@@ -57,6 +56,14 @@ func (a *Asset) ProtocolPort(protocol string) int {
 		}
 	}
 	return 0
+}
+
+func (a *Asset) SupportProtocols() []string {
+	protocols := make([]string, 0, len(a.Protocols))
+	for _, item := range a.Protocols {
+		protocols = append(protocols, item.Name)
+	}
+	return protocols
 }
 
 func (a *Asset) IsSupportProtocol(protocol string) bool {
