@@ -114,7 +114,7 @@ func (opt *sqlOption) SQLServerCommandArgs() []string {
 }
 
 func (opt *sqlOption) SQLServerSourceName() string {
-	return fmt.Sprintf("server=%s;port=%s;database=%s;user id=%s;password=%s",
+	return fmt.Sprintf("server=%s;port=%s;database=%s;user id=%s;password=%s;encrypt=disable",
 		opt.Host,
 		strconv.Itoa(opt.Port),
 		opt.DBName,
