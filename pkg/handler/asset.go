@@ -1,10 +1,8 @@
 package handler
 
 import (
-	"fmt"
 	"strconv"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -22,12 +20,11 @@ func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) 
 }
 
 func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.Asset {
-
 	fields := map[string]struct{}{
-		"name":    {},
-		"address": {},
-		"ip":      {},
-		//"platform": {},
+		"name":     {},
+		"address":  {},
+		"ip":       {},
+		"platform": {},
 		"org_name": {},
 		"comment":  {},
 	}
@@ -35,27 +32,17 @@ func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.Asset {
 }
 
 func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
-	term := u.h.term
 	lang := i18n.NewLang(u.h.i18nLang)
 	if len(u.currentResult) == 0 {
 		noAssets := lang.T("No Assets")
-		utils.IgnoreErrWriteString(term, utils.WrapperString(noAssets, utils.Red))
-		utils.IgnoreErrWriteString(term, utils.CharNewLine)
-		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
-		utils.IgnoreErrWriteString(term, utils.CharNewLine)
+		u.displayNoResultMsg(searchHeader, noAssets)
 		return
 	}
-	u.displaySortedAssets(searchHeader)
+	u.displayAssets(searchHeader)
 }
 
-func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
+func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	lang := i18n.NewLang(u.h.i18nLang)
-	term := u.h.term
-	currentPage := u.CurrentPage()
-	pageSize := u.PageSize()
-	totalPage := u.TotalPage()
-	totalCount := u.TotalCount()
-
 	idLabel := lang.T("ID")
 	hostLabel := lang.T("Hostname")
 	ipLabel := lang.T("IP")
@@ -65,49 +52,32 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 
 	Labels := []string{idLabel, hostLabel, ipLabel, platformLabel, orgLabel, commentLabel}
 	fields := []string{"ID", "Hostname", "IP", "Platform", "Organization", "Comment"}
-	data := make([]map[string]string, len(u.currentResult))
-	for i, j := range u.currentResult {
+	fieldsSize := map[string][3]int{
+		"ID":           {0, 0, 5},
+		"Hostname":     {0, 40, 0},
+		"IP":           {0, 8, 40},
+		"Platform":     {0, 8, 0},
+		"Organization": {0, 8, 0},
+		"Comment":      {0, 0, 0},
+	}
+	generateRowFunc := func(i int, item *model.Asset) map[string]string {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		row["Hostname"] = j.Name
-		row["IP"] = j.Address
-		row["Platform"] = j.Platform.Name
-		row["Organization"] = j.OrgName
-		row["Comment"] = joinMultiLineString(j.Comment)
-		data[i] = row
+		row["Hostname"] = item.Name
+		row["IP"] = item.Address
+		row["Platform"] = item.Platform.Name
+		row["Organization"] = item.OrgName
+		row["Comment"] = joinMultiLineString(item.Comment)
+		return row
 	}
-	w, _ := term.GetSize()
-	caption := fmt.Sprintf(lang.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
-		currentPage, pageSize, totalPage, totalCount)
-
-	caption = utils.WrapperString(caption, utils.Green)
-	table := common.WrapperTable{
-		Fields: fields,
-		Labels: Labels,
-		FieldsSize: map[string][3]int{
-			"ID":           {0, 0, 5},
-			"Hostname":     {0, 40, 0},
-			"IP":           {0, 8, 40},
-			"Platform":     {0, 8, 0},
-			"Organization": {0, 8, 0},
-			"Comment":      {0, 0, 0},
-		},
-		Data:        data,
-		TotalSize:   w,
-		Caption:     caption,
-		TruncPolicy: common.TruncMiddle,
+	assetDisplay := lang.T("the asset")
+	data := make([]map[string]string, len(u.currentResult))
+	for i := range u.currentResult {
+		data[i] = generateRowFunc(i, &u.currentResult[i])
 	}
-	table.Initial()
-	loginTip := lang.T("Enter ID number directly login the asset, multiple search use // + field, such as: //16")
-	pageActionTip := lang.T("Page up: b	Page down: n")
-	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
+	u.displayResult(searchHeader, assetDisplay,
+		Labels, fields, fieldsSize, generateRowFunc)
 
-	_, _ = term.Write([]byte(utils.CharClear))
-	_, _ = term.Write([]byte(table.Display()))
-	utils.IgnoreErrWriteString(term, utils.WrapperString(actionTip, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
 }
 
 func (u *UserSelectHandler) proxyAsset(asset model.Asset) {

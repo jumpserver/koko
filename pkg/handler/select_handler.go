@@ -282,10 +282,12 @@ func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, se
 	for i := range u.allLocalData {
 		assetData := u.allLocalData[i]
 		data := map[string]interface{}{
-			"id":      u.allLocalData[i].ID,
-			"name":    u.allLocalData[i].Name,
-			"address": assetData.Address,
-			"db_name": assetData.Specific.DBName,
+			"name":     u.allLocalData[i].Name,
+			"address":  assetData.Address,
+			"db_name":  assetData.Specific.DBName,
+			"org_name": assetData.OrgName,
+			"platform": assetData.Platform.Name,
+			"comment":  assetData.Comment,
 		}
 		if containKeysInMapItemFields(data, fields, searches...) {
 			items = append(items, u.allLocalData[i])
@@ -308,14 +310,15 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		Offset:   offset,
 		Searches: searches,
 		Order:    order,
+		IsActive: true,
 	}
 	switch u.currentType {
 	case TypeDatabase:
 		reqParam.Category = "database"
-		return u.retrieveRemoteDatabase(reqParam)
+		return u.retrieveRemoteAsset(reqParam)
 	case TypeK8s:
 		reqParam.Type = "k8s"
-		return u.retrieveRemoteK8s(reqParam)
+		return u.retrieveRemoteAsset(reqParam)
 	case TypeNodeAsset:
 		reqParam.Category = "host"
 		return u.retrieveRemoteNodeAsset(reqParam)

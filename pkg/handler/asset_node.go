@@ -28,5 +28,5 @@ func (u *UserSelectHandler) displayNodeAssetResult(searchHeader string) {
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		return
 	}
-	u.displaySortedAssets(searchHeader)
+	u.displayAssets(searchHeader)
 }

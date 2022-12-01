@@ -145,7 +145,7 @@ func mongoDBSupported() error {
 	if !bytes.HasSuffix(out, []byte("command not found")) {
 		return nil
 	}
-	return ErrRedisClient
+	return ErrMongoDBClient
 }
 
 func sqlServerSupported() error {
