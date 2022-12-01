@@ -2,13 +2,12 @@ package handler
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/utils"
@@ -125,108 +124,56 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 }
 
 func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
-	systemUsers, err := u.h.jmsService.GetSystemUsersByUserIdAndAssetId(u.user.ID, asset.ID)
+	accounts, err := u.h.jmsService.GetAccountsByUserIdAndAssetId(u.user.ID, asset.ID)
 	if err != nil {
+		logger.Errorf("Get asset accounts err: %s", err)
 		return
 	}
-	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
-	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
-
+	protocol, ok := u.h.chooseAssetProtocol(asset.SupportProtocols())
+	if !ok {
+		logger.Info("not select protocol")
+		return
+	}
+	selectedAccount, ok := u.h.chooseAccount(accounts)
 	if !ok {
 		return
 	}
 	i18nLang := u.h.i18nLang
-	srv, err := proxy.NewServer(u.h.sess,
-		u.h.jmsService,
-		proxy.ConnectProtocol(selectedSystemUser.Protocol),
-		proxy.ConnectI18nLang(i18nLang),
-		proxy.ConnectUser(u.h.user),
-		proxy.ConnectAsset(&asset),
-		//proxy.ConnectSystemUser(&selectedSystemUser),
-	)
+	req := service.SuperConnectTokenReq{
+		UserId:        u.user.ID,
+		AssetId:       asset.ID,
+		AccountName:   selectedAccount.Username,
+		Protocol:      protocol,
+		ConnectMethod: "ssh",
+	}
+	res, err := u.h.jmsService.CreateSuperConnectToken(&req)
 	if err != nil {
-		logger.Error(err)
+		logger.Errorf("Create super connect token err: %s", err)
+		utils.IgnoreErrWriteString(u.h.term, "create connect token err")
+		return
+	}
+	connectToken, err := u.h.jmsService.GetConnectTokenInfo(res.ID)
+	if err != nil {
+		logger.Errorf("connect token err: %s", err)
+		utils.IgnoreErrWriteString(u.h.term, "get connect token err")
+		return
+	}
+	user := u.h.user
+	proxyOpts := make([]proxy.ConnectionOption, 0, 10)
+	proxyOpts = append(proxyOpts, proxy.ConnectProtocol(protocol))
+	proxyOpts = append(proxyOpts, proxy.ConnectUser(user))
+	proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
+	proxyOpts = append(proxyOpts, proxy.ConnectAccount(&connectToken.Account))
+	proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
+	proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
+	proxyOpts = append(proxyOpts, proxy.ConnectDomain(&connectToken.Domain))
+	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
+	proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
+	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
+	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService, proxyOpts...)
+	if err != nil {
+		logger.Errorf("create proxy server err: %s", err)
 		return
 	}
 	srv.Proxy()
-	logger.Infof("Request %s: asset %s proxy end", u.h.sess.Uuid, asset.Name)
-
-}
-
-var (
-	_ sort.Interface = (HostnameAssetList)(nil)
-	_ sort.Interface = (IPAssetList)(nil)
-)
-
-type HostnameAssetList []map[string]interface{}
-
-func (l HostnameAssetList) Len() int {
-	return len(l)
-}
-
-func (l HostnameAssetList) Less(i, j int) bool {
-	iHostnameValue := l[i]["hostname"]
-	jHostnameValue := l[j]["hostname"]
-	iHostname, ok := iHostnameValue.(string)
-	if !ok {
-		return false
-	}
-	jHostname, ok := jHostnameValue.(string)
-	if !ok {
-		return false
-	}
-	return CompareString(iHostname, jHostname)
-}
-
-func (l HostnameAssetList) Swap(i, j int) {
-	l[j], l[i] = l[i], l[j]
-}
-
-type IPAssetList []map[string]interface{}
-
-func (l IPAssetList) Len() int {
-	return len(l)
-}
-
-func (l IPAssetList) Less(i, j int) bool {
-	iIPValue := l[i]["ip"]
-	jIPValue := l[j]["ip"]
-	iIP, ok := iIPValue.(string)
-	if !ok {
-		return false
-	}
-	jIP, ok := jIPValue.(string)
-	if !ok {
-		return false
-	}
-	return CompareIP(iIP, jIP)
-}
-
-func (l IPAssetList) Swap(i, j int) {
-	l[j], l[i] = l[i], l[j]
-}
-
-func CompareIP(ipA, ipB string) bool {
-	iIPs := strings.Split(ipA, ".")
-	jIPs := strings.Split(ipB, ".")
-	for i := 0; i < len(iIPs); i++ {
-		if i >= len(jIPs) {
-			return false
-		}
-		if len(iIPs[i]) == len(jIPs[i]) {
-			if iIPs[i] == jIPs[i] {
-				continue
-			} else {
-				return iIPs[i] < jIPs[i]
-			}
-		} else {
-			return len(iIPs[i]) < len(jIPs[i])
-		}
-
-	}
-	return true
-}
-
-func CompareString(a, b string) bool {
-	return a < b
 }

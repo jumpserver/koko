@@ -35,7 +35,7 @@ func (s *JMService) GetAllUserPermsAssets(userId string) ([]model.Asset, error) 
 
 func (s *JMService) GetUserPermsAssets(userID string, params model.PaginationParam) (resp model.PaginationResponse, err error) {
 	Url := fmt.Sprintf(UserPermsAssetsURL, userID)
-	return s.getPaginationResult(Url, params)
+	return s.getPaginationAssets(Url, params)
 }
 
 func (s *JMService) RefreshUserAllPermsAssets(userId string) ([]model.Asset, error) {

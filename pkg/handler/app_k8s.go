@@ -20,25 +20,6 @@ func (u *UserSelectHandler) retrieveRemoteK8s(reqParam model.PaginationParam) []
 }
 
 func (u *UserSelectHandler) searchLocalK8s(searches ...string) []model.Asset {
-	/*
-		{
-		            "id": "0a318338-65ca-4e33-80ec-daf11d6d6c9a",
-		            "name": "kube",
-		            "domain": null,
-		            "category": "cloud",
-		            "type": "k8s",
-		            "attrs": {
-		                "cluster": "https://127.0.0.1:8443"
-		            },
-		            "comment": "https://127.0.0.1:8443",
-		            "org_id": "",
-		            "category_display": "Cloud",
-		            "type_display": "Kubernetes",
-		            "org_name": "DEFAULT"
-		        }
-	*/
-	//searchFields := []string{"name", "cluster", "comment"}
-
 	fields := map[string]struct{}{
 		"name":    {},
 		"cluster": {},

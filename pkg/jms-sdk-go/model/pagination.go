@@ -16,4 +16,5 @@ type PaginationParam struct {
 	Order    string
 	Category string
 	Type     string
+	IsActive bool
 }

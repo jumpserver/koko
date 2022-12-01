@@ -7,7 +7,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
+func (s *JMService) getPaginationAssets(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
 	if param.PageSize < 0 {
 		param.PageSize = 0
 	}
@@ -33,6 +33,10 @@ func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationPar
 	}
 	if param.Category != "" {
 		params["category"] = param.Category
+	}
+
+	if param.IsActive {
+		params["is_active"] = "true"
 	}
 
 	paramsArray = append(paramsArray, params)

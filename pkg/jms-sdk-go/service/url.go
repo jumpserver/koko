@@ -74,10 +74,6 @@ const (
 	RemoteAPPURL = "/api/v1/applications/remote-apps/%s/connection-info/"
 )
 
-const (
-	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"
-)
-
 // 命令复核
 
 const (
@@ -99,9 +95,12 @@ const (
 )
 
 const (
-	ConnectTokenInfoURL = "/api/v1/authentication/connection-token/secret/"
+	ConnectTokenInfoURL      = "/api/v1/authentication/connection-token/secret/"
+	SuperConnectTokenInfoURL = "/api/v1/authentication/super-connection-token/"
 
 	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/accounts/"
 	AccountDetailURL          = "/api/v1/assets/account-secrets/%s/"
 	UserPermsAssetsURL        = "/api/v1/perms/users/%s/assets/"
+
+	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"
 )

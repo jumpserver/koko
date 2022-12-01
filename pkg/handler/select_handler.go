@@ -207,32 +207,7 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 }
 
 func (u *UserSelectHandler) Proxy(target model.Asset) {
-	targetId := target.ID
-	lang := i18n.NewLang(u.h.i18nLang)
-	switch u.currentType {
-	case TypeAsset, TypeNodeAsset:
-		asset, err := u.h.jmsService.GetAssetDetailById(targetId)
-		if err != nil || asset.ID == "" {
-			logger.Errorf("Select asset %s not found", targetId)
-			return
-		}
-		if !asset.IsActive {
-			logger.Debugf("Select asset %s is inactive", targetId)
-			msg := lang.T("The asset is inactive")
-			_, _ = u.h.term.Write([]byte(msg))
-			return
-		}
-		u.proxyAsset(asset)
-	case TypeK8s, TypeDatabase:
-		app, err := u.h.jmsService.GetApplicationById(targetId)
-		if err != nil {
-			logger.Errorf("Select application %s err: %s", targetId, err)
-			return
-		}
-		u.proxyApp(app)
-	default:
-		logger.Errorf("Select unknown type for target id %s", targetId)
-	}
+	u.proxyAsset(target)
 }
 
 func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.Asset {
