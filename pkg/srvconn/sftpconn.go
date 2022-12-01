@@ -411,7 +411,7 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 }
 
 func NewUserSftpConn(jmsService *service.JMService, user *model.User, addr string,
-	assets []model.Asset, systemUsers []model.SystemUser) *UserSftpConn {
+	assets []model.Asset, systemUsers []model.PermAccount) *UserSftpConn {
 	u := UserSftpConn{
 		User:       user,
 		Addr:       addr,

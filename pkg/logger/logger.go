@@ -93,3 +93,7 @@ func Panic(args ...interface{}) {
 func Fatal(args ...interface{}) {
 	logrus.Fatal(args...)
 }
+
+func Fatalf(format string, args ...interface{}) {
+	logrus.Fatalf(format, args...)
+}

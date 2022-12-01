@@ -64,26 +64,12 @@ func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 	for i, j := range currentDBS {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		fieldsMap := map[string]string{
-			"name":     "Name",
-			"host":     "IP",
-			"type":     "DBType",
-			"database": "DBName",
-			"org_name": "Organization",
-			"comment":  "Comment"}
-
-		rowData := map[string]interface{}{
-			"id":       j.ID,
-			"name":     j.Name,
-			"host":     j.Address,
-			"type":     strings.Join(j.SupportProtocols(), "|"),
-			"database": j.Specific.DBName,
-			"org_name": j.OrgName,
-			"comment":  j.Comment,
-		}
-		row = convertMapItemToRow(rowData, fieldsMap, row)
-		// 特殊处理 comment
-		row["Comment"] = joinMultiLineString(row["Comment"])
+		row["Name"] = j.Name
+		row["IP"] = j.Address
+		row["DBType"] = strings.Join(j.SupportProtocols(), "|")
+		row["DBName"] = j.Specific.DBName
+		row["Organization"] = j.OrgName
+		row["Comment"] = joinMultiLineString(j.Comment)
 		data[i] = row
 	}
 	w, _ := term.GetSize()

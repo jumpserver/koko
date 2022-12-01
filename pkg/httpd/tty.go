@@ -10,6 +10,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -24,7 +25,7 @@ type tty struct {
 	targetType string
 	targetId   string
 
-	ConnectToken *service.ConnectToken
+	ConnectToken *model.ConnectToken
 
 	initialed bool
 	wg        sync.WaitGroup
@@ -306,7 +307,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
 		proxyOpts = append(proxyOpts, proxy.ConnectDomain(&connectToken.Domain))
 		proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
-		proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
+		proxyOpts = append(proxyOpts, proxy.ConnectGateway([]model.Gateway{connectToken.Gateway}))
 
 		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))

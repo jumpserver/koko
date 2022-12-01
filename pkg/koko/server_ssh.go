@@ -35,7 +35,7 @@ func (s *server) GetSSHSigner() ssh.Signer {
 	conf := s.GetTerminalConfig()
 	singer, err := sshd.ParsePrivateKeyFromString(conf.HostKey)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Fatalf("Parse Terminal private key failed: %s\n", err)
 	}
 	return singer
 }
@@ -200,10 +200,9 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		if directRequest.IsToken() {
 			// connection token 的方式使用 vscode 连接
 			tokenInfo := directRequest.Info
-			matchedType := tokenInfo.TypeName == model.ConnectAsset
-			matchedProtocol := tokenInfo.SystemUserAuthInfo.Protocol == model.ProtocolSSH
+			matchedProtocol := tokenInfo.Protocol == model.ProtocolSSH
 			assetSupportedSSH := tokenInfo.Asset.IsSupportProtocol(model.ProtocolSSH)
-			if !matchedType || !matchedProtocol || !assetSupportedSSH {
+			if !matchedProtocol || !assetSupportedSSH {
 				msg := "not ssh asset connection token"
 				utils.IgnoreErrWriteString(sess, msg)
 				logger.Errorf("vscode failed: %s", msg)
@@ -224,14 +223,14 @@ func (s *server) SessionHandler(sess ssh.Session) {
 			logger.Error(msg)
 			return
 		}
-		selectSysUsers, err := s.getMatchedSystemUsers(user, directRequest, selectedAssets[0])
+		selectSysUsers, err := s.getMatchedAccounts(user, directRequest, selectedAssets[0])
 		if err != nil {
 			logger.Error(err)
 			utils.IgnoreErrWriteString(sess, err.Error())
 			return
 		}
 		if len(selectSysUsers) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), directRequest.SysUserInfo)
+			msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), directRequest.AccountInfo)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
@@ -242,27 +241,20 @@ func (s *server) SessionHandler(sess ssh.Session) {
 }
 
 func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Asset,
-	systemUser model.SystemUser) {
+	systemUser model.PermAccount) {
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
 		utils.IgnoreErrWriteString(sess, "not found ctx id")
 		return
 	}
-	systemUserAuthInfo, err := s.jmsService.GetSystemUserAuthById(systemUser.ID, asset.ID,
-		user.ID, user.Username)
+	accountSecretDetail, err := s.jmsService.GetAccountSecretById(systemUser.ID)
 	if err != nil {
 		logger.Errorf("Get system user auth failed: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
-	permInfo, err := s.jmsService.ValidateAssetConnectPermission(user.ID,
-		asset.ID, systemUser.ID)
-	if err != nil {
-		logger.Errorf("Get asset Permission info err: %s", err)
-		utils.IgnoreErrWriteString(sess, err.Error())
-		return
-	}
+
 	var domainGateways *model.Domain
 	if asset.Domain != "" {
 		domainInfo, err := s.jmsService.GetDomainGateways(asset.Domain)
@@ -273,7 +265,13 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		}
 		domainGateways = &domainInfo
 	}
-	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, domainGateways)
+	account := model.Account{
+		Name:       accountSecretDetail.Name,
+		Username:   accountSecretDetail.Username,
+		Secret:     accountSecretDetail.Secret,
+		SecretType: accountSecretDetail.SecretType.Value,
+	}
+	sshAuthOpts := buildSSHClientOptions(&asset, &account, domainGateways)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get SSH Client failed: %s", err)
@@ -282,17 +280,17 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 	}
 	defer sshClient.Close()
 	vsReq := &vscodeReq{
-		reqId:      ctxId,
-		user:       user,
-		client:     sshClient,
-		expireInfo: &permInfo,
+		reqId:  ctxId,
+		user:   user,
+		client: sshClient,
+		//expireInfo: &permInfo,
 	}
 	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
 	}
 }
 
-func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.ConnectTokenInfo) {
+func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) {
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
@@ -300,9 +298,9 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 		return
 	}
 	asset := tokeInfo.Asset
-	systemUserAuthInfo := tokeInfo.SystemUserAuthInfo
+	systemUserAuthInfo := tokeInfo.Account
 	domain := tokeInfo.Domain
-	sshAuthOpts := buildSSHClientOptions(asset, systemUserAuthInfo, domain)
+	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, &domain)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get SSH Client failed: %s", err)
@@ -310,14 +308,15 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 		return
 	}
 	defer sshClient.Close()
-	perm := model.Permission{Actions: tokeInfo.Actions}
+
+	perm := tokeInfo.Actions.Permission()
 	permInfo := model.ExpireInfo{
 		HasPermission: perm.EnableConnect(),
-		ExpireAt:      tokeInfo.ExpiredAt,
+		ExpireAt:      tokeInfo.ExpireAt,
 	}
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
-		user:       tokeInfo.User,
+		user:       &tokeInfo.User,
 		client:     sshClient,
 		expireInfo: &permInfo,
 	}
@@ -380,26 +379,22 @@ func (s *server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	}
 }
 
-func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.SystemUserAuthInfo,
+func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.Account,
 	domainGateways *model.Domain) []srvconn.SSHClientOption {
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 7)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(systemUserAuthInfo.Username))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(systemUserAuthInfo.Protocol)))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(systemUserAuthInfo.Password))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(model.ProtocolSSH)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
-	if systemUserAuthInfo.PrivateKey != "" {
-		// 先使用 password 解析 PrivateKey
-		if signer, err1 := gossh.ParsePrivateKeyWithPassphrase([]byte(systemUserAuthInfo.PrivateKey),
-			[]byte(systemUserAuthInfo.Password)); err1 == nil {
+
+	switch systemUserAuthInfo.SecretType {
+	case "ssh_key":
+		if signer, err1 := gossh.ParsePrivateKey([]byte(systemUserAuthInfo.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
-		} else {
-			// 如果之前使用password解析失败，则去掉 password, 尝试直接解析 PrivateKey 防止错误的passphrase
-			if signer, err1 = gossh.ParsePrivateKey([]byte(systemUserAuthInfo.PrivateKey)); err1 == nil {
-				sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
-			}
 		}
+	default:
+		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(systemUserAuthInfo.Secret))
 	}
 
 	if domainGateways != nil && len(domainGateways.Gateways) > 0 {
@@ -439,31 +434,26 @@ func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 	return assets, nil
 }
 
-func (s *server) getMatchedSystemUsers(user *model.User, req *auth.DirectLoginAssetReq,
-	asset model.Asset) ([]model.SystemUser, error) {
-	if req.IsUUIDString() {
-		systemUser, err := s.jmsService.GetSystemUserById(req.SysUserInfo)
-		if err != nil {
-			logger.Errorf("Get systemUser failed: %s", err)
-			return nil, fmt.Errorf("match systemuser failed: %s", i18n.T("Core API failed"))
-		}
-		return []model.SystemUser{systemUser}, nil
-	}
-	systemUsers, err := s.jmsService.GetSystemUsersByUserIdAndAssetId(user.ID, asset.ID)
+func (s *server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAssetReq,
+	asset model.Asset) ([]model.PermAccount, error) {
+	accounts, err := s.jmsService.GetAccountsByUserIdAndAssetId(user.ID, asset.ID)
 	if err != nil {
-		logger.Errorf("Get systemUser failed: %s", err)
-		return nil, fmt.Errorf("match systemuser failed: %s", i18n.T("Core API failed"))
+		logger.Errorf("Get account failed: %s", err)
+		return nil, err
 	}
-	matched := make([]model.SystemUser, 0, len(systemUsers))
-	for i := range systemUsers {
-		compareUsername := systemUsers[i].Username
-
-		if systemUsers[i].UsernameSameWithUser {
-			// 此为动态系统用户，系统用户名和登录用户名相同
-			compareUsername = user.Username
+	matchFunc := func(account *model.PermAccount, name string) bool {
+		return account.Username == name
+	}
+	if req.IsUUIDString() {
+		matchFunc = func(account *model.PermAccount, name string) bool {
+			return account.ID == name
 		}
-		if compareUsername == req.SysUserInfo {
-			matched = append(matched, systemUsers[i])
+	}
+	matched := make([]model.PermAccount, 0, len(accounts))
+	for i := range accounts {
+		account := accounts[i]
+		if matchFunc(&account, req.AccountInfo) {
+			matched = append(matched, account)
 		}
 	}
 	return matched, nil
@@ -473,7 +463,7 @@ func buildDirectRequestOptions(userInfo *model.User, directRequest *auth.DirectL
 	opts := make([]handler.DirectOpt, 0, 7)
 	opts = append(opts, handler.DirectTargetAsset(directRequest.AssetInfo))
 	opts = append(opts, handler.DirectUser(userInfo))
-	opts = append(opts, handler.DirectTargetSystemUser(directRequest.SysUserInfo))
+	opts = append(opts, handler.DirectTargetSystemUser(directRequest.AccountInfo))
 	if directRequest.IsUUIDString() {
 		opts = append(opts, handler.DirectFormatType(handler.FormatUUID))
 	}

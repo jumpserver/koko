@@ -44,17 +44,6 @@ func TestJMService_GetTerminalConfig(t *testing.T) {
 	t.Logf("%+v", conf)
 }
 
-func TestJMService_GetSystemUserById(t *testing.T) {
-	jms := setup()
-	systemId := "33511e29-3058-49c5-85da-56a296494714"
-	sysUser, err := jms.GetSystemUserById(systemId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("%+v", sysUser)
-
-}
-
 func TestJMService_GetAssetById(t *testing.T) {
 	jms := setup()
 	assetIds := []string{

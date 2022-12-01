@@ -69,24 +69,11 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 	for i, j := range u.currentResult {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		fieldMap := map[string]string{
-			"name":     "Hostname",
-			"address":  "IP",
-			"platform": "Platform",
-			"org_name": "Organization",
-			"comment":  "Comment",
-		}
-		rowData := map[string]interface{}{
-			"id":       j.ID,
-			"name":     j.Name,
-			"address":  j.Address,
-			"platform": j.Platform.Name,
-			"org_name": j.OrgName,
-			"comment":  j.Comment,
-		}
-
-		row = convertMapItemToRow(rowData, fieldMap, row)
-		row["Comment"] = joinMultiLineString(row["Comment"])
+		row["Hostname"] = j.Name
+		row["IP"] = j.Address
+		row["Platform"] = j.Platform.Name
+		row["Organization"] = j.OrgName
+		row["Comment"] = joinMultiLineString(j.Comment)
 		data[i] = row
 	}
 	w, _ := term.GetSize()
@@ -168,7 +155,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 	proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
 	proxyOpts = append(proxyOpts, proxy.ConnectDomain(&connectToken.Domain))
 	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
-	proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
+	proxyOpts = append(proxyOpts, proxy.ConnectGateway([]model.Gateway{connectToken.Gateway}))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
 	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService, proxyOpts...)
 	if err != nil {

@@ -119,13 +119,14 @@ const (
 
 type DirectLoginAssetReq struct {
 	Username    string
-	SysUserInfo string
+	Protocol    string
+	AccountInfo string
 	AssetInfo   string
-	Info        *model.ConnectTokenInfo
+	Info        *model.ConnectToken
 }
 
 func (d *DirectLoginAssetReq) IsUUIDString() bool {
-	for _, item := range []string{d.SysUserInfo, d.AssetInfo} {
+	for _, item := range []string{d.AccountInfo, d.AssetInfo} {
 		if !common.ValidUUIDString(item) {
 			return false
 		}
@@ -134,7 +135,7 @@ func (d *DirectLoginAssetReq) IsUUIDString() bool {
 }
 
 func (d *DirectLoginAssetReq) Authenticate(password string) bool {
-	return d.Info.Secret == password
+	return d.Info.Value == password
 }
 
 func (d *DirectLoginAssetReq) IsToken() bool {
@@ -142,7 +143,7 @@ func (d *DirectLoginAssetReq) IsToken() bool {
 }
 
 func (d *DirectLoginAssetReq) User() string {
-	if d.IsToken() && d.Info.User != nil {
+	if d.IsToken() && d.Info.User.ID != "" {
 		return d.Info.User.Username
 	}
 	return d.Username
@@ -159,15 +160,32 @@ const (
 	tokenPrefix = "JMS-"
 )
 
+const (
+	sshProtocolLen  = 3
+	withProtocolLen = 4
+)
+
 func parseUserFormatBySeparator(s, Separator string) (DirectLoginAssetReq, bool) {
 	authInfos := strings.Split(s, Separator)
-	if len(authInfos) != 3 {
+	var req DirectLoginAssetReq
+	switch len(authInfos) {
+	case sshProtocolLen:
+		req = DirectLoginAssetReq{
+			Username:    authInfos[0],
+			Protocol:    "ssh",
+			AccountInfo: authInfos[1],
+			AssetInfo:   authInfos[2],
+		}
+	case withProtocolLen:
+		req = DirectLoginAssetReq{
+			Username:    authInfos[0],
+			Protocol:    authInfos[1],
+			AccountInfo: authInfos[2],
+			AssetInfo:   authInfos[3],
+		}
+	default:
 		return DirectLoginAssetReq{}, false
-	}
-	req := DirectLoginAssetReq{
-		Username:    authInfos[0],
-		SysUserInfo: authInfos[1],
-		AssetInfo:   authInfos[2],
+
 	}
 	return req, true
 }
@@ -211,8 +229,8 @@ func parseDirectLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Direc
 func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*DirectLoginAssetReq, bool) {
 	if strings.HasPrefix(ctx.User(), tokenPrefix) {
 		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
-		if resp, err := jmsService.GetConnectTokenAuth(token); err == nil {
-			req := DirectLoginAssetReq{Info: &resp.Info}
+		if resp, err := jmsService.GetConnectTokenInfo(token); err == nil {
+			req := DirectLoginAssetReq{Info: &resp}
 			return &req, true
 		} else {
 			logger.Errorf("Check user token %s failed: %s", ctx.User(), err)

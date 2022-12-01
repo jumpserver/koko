@@ -385,25 +385,6 @@ func containKeysInMapItemFields(item map[string]interface{},
 	return false
 }
 
-func convertMapItemToRow(item map[string]interface{}, fields map[string]string, row map[string]string) map[string]string {
-	for key, value := range item {
-		if rowKey, ok := fields[key]; ok {
-			switch ret := value.(type) {
-			case string:
-				row[rowKey] = ret
-			case int:
-				row[rowKey] = strconv.Itoa(ret)
-			}
-			continue
-		}
-		switch ret := value.(type) {
-		case map[string]interface{}:
-			row = convertMapItemToRow(ret, fields, row)
-		}
-	}
-	return row
-}
-
 func joinMultiLineString(lines string) string {
 	lines = strings.ReplaceAll(lines, "\r", "\n")
 	lines = strings.ReplaceAll(lines, "\n\n", "\n")

@@ -95,9 +95,8 @@ type folderOptions struct {
 	RemoteAddr  string
 	loadSubFunc SubFoldersLoadFunc
 
-	asset       *model.Asset
-	systemUsers []model.SystemUser
-	domain      *model.Domain
+	asset  *model.Asset
+	domain *model.Domain
 
 	permAccounts []model.PermAccount
 }

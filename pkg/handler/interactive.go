@@ -363,24 +363,6 @@ func (h *InteractiveHandler) loadUserNodes() {
 	h.nodes = nodes
 }
 
-func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.SystemUser {
-	length := len(systemUsers)
-	if length == 0 {
-		return systemUsers
-	}
-	var result = make([]model.SystemUser, 0)
-	model.SortSystemUserByPriority(systemUsers)
-
-	highestPriority := systemUsers[0].Priority
-	result = append(result, systemUsers[0])
-	for i := 1; i < length; i++ {
-		if highestPriority == systemUsers[i].Priority {
-			result = append(result, systemUsers[i])
-		}
-	}
-	return result
-}
-
 func getPageSize(term *utils.Terminal, termConf *model.TerminalConfig) int {
 	var (
 		pageSize  int

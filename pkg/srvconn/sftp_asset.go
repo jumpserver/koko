@@ -527,7 +527,7 @@ func (ad *AssetDir) getSubFolderNames() []string {
 func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err error) {
 	if su.Secret == "" {
 		var info model.AccountDetail
-		info, err = ad.jmsService.GetAccountDetailById(su.ID)
+		info, err = ad.jmsService.GetAccountSecretById(su.ID)
 		if err != nil {
 			return nil, err
 		}

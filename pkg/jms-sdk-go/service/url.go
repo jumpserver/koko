@@ -15,8 +15,6 @@ const (
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
 	AuthMFASelectURL   = "/api/v1/authentication/mfa/select/" // 选择 MFA
 
-	TokenAuthInfoURL = "/api/v1/authentication/connection-token/secret-info/detail/"
-	TokenRenewalURL  = "/api/v1/authentication/connection-token/renewal/"
 )
 
 // Session相关API
@@ -32,30 +30,19 @@ const (
 
 // 授权相关API
 const (
-	UserPermsNodesListURL              = "/api/v1/perms/users/%s/nodes/"
-	UserPermsNodeAssetsListURL         = "/api/v1/perms/users/%s/nodes/%s/assets/"
-	UserPermsNodeTreeWithAssetURL      = "/api/v1/perms/users/%s/nodes/children-with-assets/tree/" // 资产树
-	UserPermsAssetSystemUsersURL       = "/api/v1/perms/users/%s/assets/%s/system-users/"
-	UserPermsApplicationSystemUsersURL = "/api/v1/perms/users/%s/applications/%s/system-users/"
-	ValidateUserAssetPermissionURL     = "/api/v1/perms/asset-permissions/user/validate/"
-	ValidateApplicationPermissionURL   = "/api/v1/perms/application-permissions/user/validate/"
-)
-
-// 系统用户密码相关API
-const (
-	SystemUserAuthURL      = "/api/v1/assets/system-users/%s/auth-info/"
-	SystemUserAppAuthURL   = "/api/v1/assets/system-users/%s/applications/%s/auth-info/" // 该系统用户对某应用的授权
-	SystemUserAssetAuthURL = "/api/v1/assets/system-users/%s/assets/%s/auth-info/"       // 该系统用户对某资产的授权
+	UserPermsNodesListURL            = "/api/v1/perms/users/%s/nodes/"
+	UserPermsNodeAssetsListURL       = "/api/v1/perms/users/%s/nodes/%s/assets/"
+	UserPermsNodeTreeWithAssetURL    = "/api/v1/perms/users/%s/nodes/children-with-assets/tree/" // 资产树
+	ValidateUserAssetPermissionURL   = "/api/v1/perms/asset-permissions/user/validate/"
+	ValidateApplicationPermissionURL = "/api/v1/perms/application-permissions/user/validate/"
 )
 
 // 各资源详情相关API
 const (
-	UserListURL          = "/api/v1/users/users/"
-	UserDetailURL        = "/api/v1/users/users/%s/"
-	AssetDetailURL       = "/api/v1/assets/assets/%s/"
-	AssetPlatFormURL     = "/api/v1/assets/assets/%s/platform/"
-	SystemUserDetailURL  = "/api/v1/assets/system-users/%s/"
-	ApplicationDetailURL = "/api/v1/applications/applications/%s/"
+	UserListURL      = "/api/v1/users/users/"
+	UserDetailURL    = "/api/v1/users/users/%s/"
+	AssetDetailURL   = "/api/v1/assets/assets/%s/"
+	AssetPlatFormURL = "/api/v1/assets/assets/%s/platform/"
 
 	SystemUserCmdFilterRulesListURL = "/api/v1/assets/system-users/%s/cmd-filter-rules/" // 过滤规则url
 
@@ -70,8 +57,6 @@ const (
 
 const (
 	PermissionURL = "/api/v1/perms/asset-permissions/user/actions/"
-
-	RemoteAPPURL = "/api/v1/applications/remote-apps/%s/connection-info/"
 )
 
 // 命令复核
@@ -99,7 +84,7 @@ const (
 	SuperConnectTokenInfoURL = "/api/v1/authentication/super-connection-token/"
 
 	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/accounts/"
-	AccountDetailURL          = "/api/v1/assets/account-secrets/%s/"
+	AccountSecretURL          = "/api/v1/assets/account-secrets/%s/"
 	UserPermsAssetsURL        = "/api/v1/perms/users/%s/assets/"
 
 	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"

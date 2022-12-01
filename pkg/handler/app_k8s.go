@@ -57,19 +57,9 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	for i, j := range currentDBS {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		filedMap := map[string]string{
-			"name":    "Name",
-			"cluster": "Cluster",
-			"comment": "Comment",
-		}
-		rowData := map[string]interface{}{
-			"id":      j.ID,
-			"name":    j.Name,
-			"cluster": j.Address,
-			"comment": j.Comment,
-		}
-		row = convertMapItemToRow(rowData, filedMap, row)
-		row["Comment"] = joinMultiLineString(row["Comment"])
+		row["Name"] = j.Name
+		row["Cluster"] = j.Address
+		row["Comment"] = joinMultiLineString(j.Comment)
 		data[i] = row
 	}
 	w, _ := term.GetSize()
