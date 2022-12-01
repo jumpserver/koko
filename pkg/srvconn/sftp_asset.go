@@ -551,7 +551,7 @@ func (ad *AssetDir) getCacheSftpConn(su *model.PermAccount) (*SftpConn, bool) {
 		sshClient *SSHClient
 		ok        bool
 	)
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.Address, su.Username)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.String(), ad.detailAsset.Address, su.Username)
 	switch su.Username {
 	case "":
 		sshClient, ok = searchSSHClientFromCache(key)
@@ -601,7 +601,7 @@ func (ad *AssetDir) getNewSftpConn(su *model.PermAccount) (conn *SftpConn, err e
 	if ad.detailAsset == nil {
 		return nil, errNoSelectAsset
 	}
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.Address, su.Username)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.String(), ad.detailAsset.Address, su.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)

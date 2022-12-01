@@ -2,11 +2,24 @@ package model
 
 import "fmt"
 
-type Account struct {
+type BaseAccount struct {
 	Name       string `json:"name"`
 	Username   string `json:"username"`
 	Secret     string `json:"secret"`
 	SecretType string `json:"secret_type"`
+}
+
+func (a *BaseAccount) String() string {
+	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
+}
+
+type Account struct {
+	BaseAccount
+	SuFrom *BaseAccount `json:"su_from"`
+}
+
+func (a *Account) GetBaseAccount() *BaseAccount {
+	return &a.BaseAccount
 }
 
 type AccountDetail struct {
@@ -18,10 +31,6 @@ type AccountDetail struct {
 	HasSecret  bool       `json:"has_secret"`
 	IsActive   bool       `json:"is_active"`
 	Privileged bool       `json:"privileged"`
-}
-
-func (a *Account) String() string {
-	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
 }
 
 type PermAccount struct {

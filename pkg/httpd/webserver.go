@@ -222,10 +222,6 @@ func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token st
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	/*
-	 1. 校验 protocol 是否支持
-
-	*/
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
