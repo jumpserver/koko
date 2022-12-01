@@ -103,7 +103,7 @@ func (s *Server) SftpHostConnectorView(ctx *gin.Context) {
 
 func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 	var tokenParams struct {
-		Token string `form:"connectToken"`
+		Token string `form:"token"`
 	}
 	if err := ctx.ShouldBind(&tokenParams); err != nil {
 		logger.Errorf("Ws miss required params( token ) err: %s", err)

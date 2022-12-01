@@ -265,11 +265,11 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		}
 		domainGateways = &domainInfo
 	}
-	account := model.Account{
+	account := model.Account{BaseAccount: model.BaseAccount{
 		Name:       accountSecretDetail.Name,
 		Username:   accountSecretDetail.Username,
 		Secret:     accountSecretDetail.Secret,
-		SecretType: accountSecretDetail.SecretType.Value,
+		SecretType: accountSecretDetail.SecretType.Value},
 	}
 	sshAuthOpts := buildSSHClientOptions(&asset, &account, domainGateways)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
