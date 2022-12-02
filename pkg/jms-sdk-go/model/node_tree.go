@@ -19,8 +19,6 @@ type TreeMeta struct {
 }
 
 type NodeTreeMeta struct {
-	ID string `json:"id"`
-
 	NodeMeta
 	AssetMeta
 }
@@ -31,8 +29,8 @@ type NodeMeta struct {
 }
 
 type AssetMeta struct {
-	Name    string `json:"name"`
-	OrgName string `json:"org_name"`
+	OrgName     string `json:"org_name"`
+	SupportSFTP bool   `json:"sftp"`
 }
 
 const (

@@ -114,12 +114,15 @@ func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*mode
 }
 
 func (ad *AssetDir) loadAssetDetail() {
-	detailAsset, err := ad.jmsService.GetAssetDetailById(ad.ID)
+	detailAssets, err := ad.jmsService.GetUserAssetByID(ad.user.ID, ad.ID)
 	if err != nil {
 		logger.Errorf("Get asset err: %s", err)
 		return
 	}
-	ad.detailAsset = &detailAsset
+	if len(detailAssets) != 1 {
+		logger.Errorf("Get asset %s more than one detail err: %s", ad.ID, err)
+	}
+	ad.detailAsset = &detailAssets[0]
 }
 
 func (ad *AssetDir) loadAssetDomain() {

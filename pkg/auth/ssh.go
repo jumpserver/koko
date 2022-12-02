@@ -22,7 +22,7 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		username := ctx.User()
 		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
 			if req.IsToken() && req.Authenticate(password) {
-				ctx.SetValue(ContextKeyUser, req.Info.User)
+				ctx.SetValue(ContextKeyUser, req.ConnectToken.User)
 				logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
 					actionAccepted, ctx.User(), remoteAddr)
 				return sshd.AuthSuccessful
@@ -118,11 +118,11 @@ const (
 )
 
 type DirectLoginAssetReq struct {
-	Username    string
-	Protocol    string
-	AccountInfo string
-	AssetInfo   string
-	Info        *model.ConnectToken
+	Username     string
+	Protocol     string
+	AccountInfo  string
+	AssetInfo    string
+	ConnectToken *model.ConnectToken
 }
 
 func (d *DirectLoginAssetReq) IsUUIDString() bool {
@@ -135,16 +135,16 @@ func (d *DirectLoginAssetReq) IsUUIDString() bool {
 }
 
 func (d *DirectLoginAssetReq) Authenticate(password string) bool {
-	return d.Info.Value == password
+	return d.ConnectToken.Value == password
 }
 
 func (d *DirectLoginAssetReq) IsToken() bool {
-	return d.Info != nil
+	return d.ConnectToken != nil
 }
 
 func (d *DirectLoginAssetReq) User() string {
-	if d.IsToken() && d.Info.User.ID != "" {
-		return d.Info.User.Username
+	if d.IsToken() && d.ConnectToken.User.ID != "" {
+		return d.ConnectToken.User.Username
 	}
 	return d.Username
 }
@@ -230,7 +230,7 @@ func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Dir
 	if strings.HasPrefix(ctx.User(), tokenPrefix) {
 		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
 		if resp, err := jmsService.GetConnectTokenInfo(token); err == nil {
-			req := DirectLoginAssetReq{Info: &resp}
+			req := DirectLoginAssetReq{ConnectToken: &resp}
 			return &req, true
 		} else {
 			logger.Errorf("Check user token %s failed: %s", ctx.User(), err)

@@ -164,6 +164,16 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+	var params struct {
+		TokenId string `form:"token"`
+		AssetId string `form:"asset"`
+	}
+	if err := ctx.ShouldBind(&params); err != nil {
+		logger.Errorf("Ws miss required params (token or asset) err: %s", err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
@@ -185,6 +195,8 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 	userConn.handler = &webFolder{
 		ws:         &userConn,
 		targetId:   targetId,
+		assetId:    params.AssetId,
+		tokenId:    params.TokenId,
 		done:       make(chan struct{}),
 		jmsService: s.JmsService,
 	}

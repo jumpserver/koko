@@ -39,6 +39,11 @@ type Asset struct {
 	Accounts Actions `json:"accounts,omitempty"` // 只有 detail api才会有这个字段
 }
 
+type BaseDomain struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type BasePlatform struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`

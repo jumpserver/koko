@@ -6,12 +6,6 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) GetAssetDetailById(assetId string) (asset model.Asset, err error) {
-	url := fmt.Sprintf(AssetDetailURL, assetId)
-	_, err = s.authClient.Get(url, &asset)
-	return
-}
-
 func (s *JMService) GetAssetPlatform(assetId string) (platform model.Platform, err error) {
 	url := fmt.Sprintf(AssetPlatFormURL, assetId)
 	_, err = s.authClient.Get(url, &platform)

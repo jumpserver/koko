@@ -18,6 +18,7 @@ import (
 var errNoSelectAsset = errors.New("please select one of the assets")
 
 type UserSftpConn struct {
+	opts *userSftpOption
 	User *model.User
 	Addr string
 	Dirs map[string]os.FileInfo
@@ -306,27 +307,52 @@ func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeLi
 			folderName := cleanFolderName(node.Value)
 			folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 			loadFunc := u.LoadNodeSubFoldersByKey(node.Key)
-			nodeDir := NewNodeDir(WithFolderID(node.ID),
+			nodeDir := NewNodeDir(WithFolderID(item.ID),
 				WithFolderName(folderName), WithSubFoldersLoadFunc(loadFunc))
 			dirs[folderName] = &nodeDir
 		case model.TreeTypeAsset:
 			assetMeta := item.Meta.Data
-			// todo: 每次循环都需要获取资产的数据
-			assetDetail, err := u.jmsService.GetAssetDetailById(assetMeta.ID)
-			if err != nil {
-				logger.Errorf("Sftp get asset failed: %s", err)
+			if !assetMeta.SupportSFTP {
+				logger.Debugf("Asset %s not support sftp protocol ignore", item.Name)
 				continue
 			}
-			if !assetDetail.IsSupportProtocol(ProtocolSSH) {
-				continue
-			}
-			folderName := cleanFolderName(assetDetail.Name)
+			folderName := cleanFolderName(item.Name)
 			folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
-			assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(assetDetail.ID),
-				WithFolderName(folderName), WitRemoteAddr(u.Addr), WithAsset(assetDetail))
+			opts := make([]FolderBuilderOption, 0, 4)
+			opts = append(opts, WithFolderID(item.ID))
+			opts = append(opts, WithFolderName(folderName))
+			opts = append(opts, WitRemoteAddr(u.Addr))
+			assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, opts...)
 			dirs[folderName] = &assetDir
 		}
 	}
+	return dirs
+}
+
+func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) map[string]os.FileInfo {
+	dirs := make(map[string]os.FileInfo)
+	asset := token.Asset
+	if !asset.IsSupportProtocol(ProtocolSSH) {
+		return dirs
+	}
+	folderName := cleanFolderName(asset.Name)
+	opts := make([]FolderBuilderOption, 0, 5)
+	opts = append(opts, WithFolderID(asset.ID))
+	opts = append(opts, WithFolderName(folderName))
+	opts = append(opts, WitRemoteAddr(u.Addr))
+	opts = append(opts, WithAsset(asset))
+	account := token.Account
+	actions := token.Actions
+	permAccount := model.PermAccount{
+		Name:       account.Name,
+		Username:   account.Username,
+		SecretType: account.SecretType,
+		Secret:     account.Secret,
+		Actions:    actions,
+	}
+	opts = append(opts, WithPermAccounts([]model.PermAccount{permAccount}))
+	assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, opts...)
+	dirs[folderName] = &assetDir
 	return dirs
 }
 
@@ -340,16 +366,14 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset) map[st
 		if !assets[i].IsSupportProtocol(ProtocolSSH) {
 			continue
 		}
-		accounts, err := u.jmsService.GetAccountsByUserIdAndAssetId(u.User.ID, assets[i].ID)
-		if err != nil {
-			logger.Errorf("Get Accounts err: %s", err)
-			continue
-		}
 		folderName := cleanFolderName(assets[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
-		assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, WithFolderID(assets[i].ID),
-			WithFolderName(folderName), WitRemoteAddr(u.Addr),
-			WithAsset(assets[i]), WithPermAccounts(accounts))
+		opts := make([]FolderBuilderOption, 0, 5)
+		opts = append(opts, WithFolderID(assets[i].ID))
+		opts = append(opts, WithFolderName(folderName))
+		opts = append(opts, WitRemoteAddr(u.Addr))
+		opts = append(opts, WithAsset(assets[i]))
+		assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, opts...)
 		dirs[folderName] = &assetDir
 	}
 	return dirs
@@ -410,20 +434,61 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 	return u.searchDir.List()
 }
 
-func NewUserSftpConn(jmsService *service.JMService, user *model.User, addr string,
-	assets []model.Asset, systemUsers []model.PermAccount) *UserSftpConn {
+type userSftpOption struct {
+	user       *model.User
+	RemoteAddr string
+	assets     []model.Asset
+	accounts   []model.PermAccount
+	token      *model.ConnectToken
+}
+
+type UserSftpOption func(*userSftpOption)
+
+func WithUser(user *model.User) UserSftpOption {
+	return func(o *userSftpOption) {
+		o.user = user
+	}
+}
+
+func WithRemoteAddr(addr string) UserSftpOption {
+	return func(o *userSftpOption) {
+		o.RemoteAddr = addr
+	}
+}
+
+func WithAssets(assets []model.Asset) UserSftpOption {
+	return func(o *userSftpOption) {
+		o.assets = assets
+	}
+}
+
+func WithConnectToken(token *model.ConnectToken) UserSftpOption {
+	return func(o *userSftpOption) {
+		o.token = token
+	}
+}
+
+func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *UserSftpConn {
+	var sftpOpts userSftpOption
+	for _, setter := range opts {
+		setter(&sftpOpts)
+	}
 	u := UserSftpConn{
-		User:       user,
-		Addr:       addr,
+		User:       sftpOpts.user,
+		Addr:       sftpOpts.RemoteAddr,
 		Dirs:       map[string]os.FileInfo{},
 		modeTime:   time.Now().UTC(),
 		logChan:    make(chan *model.FTPLog, 1024),
 		closed:     make(chan struct{}),
 		jmsService: jmsService,
 	}
-	if len(assets) > 0 {
-		u.Dirs = u.generateSubFoldersFromAssets(assets)
-	} else {
+
+	switch {
+	case sftpOpts.token != nil:
+		u.Dirs = u.generateSubFoldersFromToken(sftpOpts.token)
+	case len(sftpOpts.assets) > 0:
+		u.Dirs = u.generateSubFoldersFromAssets(sftpOpts.assets)
+	default:
 		u.Dirs = u.generateSubFoldersFromRootTree()
 	}
 	go u.loopPushFTPLog()

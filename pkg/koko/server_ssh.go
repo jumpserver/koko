@@ -201,7 +201,7 @@ func (s *server) SessionHandler(sess ssh.Session) {
 	if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 		if directRequest.IsToken() {
 			// connection token 的方式使用 vscode 连接
-			tokenInfo := directRequest.Info
+			tokenInfo := directRequest.ConnectToken
 			matchedProtocol := tokenInfo.Protocol == model.ProtocolSSH
 			assetSupportedSSH := tokenInfo.Asset.IsSupportProtocol(model.ProtocolSSH)
 			if !matchedProtocol || !assetSupportedSSH {
@@ -399,12 +399,12 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 
 func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
 	if req.IsUUIDString() {
-		asset, err := s.jmsService.GetAssetDetailById(req.AssetInfo)
+		asset, err := s.jmsService.GetUserAssetByID(user.ID, req.AssetInfo)
 		if err != nil {
 			logger.Errorf("Get asset failed: %s", err)
 			return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
 		}
-		return []model.Asset{asset}, nil
+		return asset, nil
 	}
 	assets, err := s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetInfo)
 	if err != nil {
@@ -452,13 +452,13 @@ func buildDirectRequestOptions(userInfo *model.User, directRequest *auth.DirectL
 	opts := make([]handler.DirectOpt, 0, 7)
 	opts = append(opts, handler.DirectTargetAsset(directRequest.AssetInfo))
 	opts = append(opts, handler.DirectUser(userInfo))
-	opts = append(opts, handler.DirectTargetSystemUser(directRequest.AccountInfo))
+	opts = append(opts, handler.DirectTargetAccount(directRequest.AccountInfo))
 	if directRequest.IsUUIDString() {
 		opts = append(opts, handler.DirectFormatType(handler.FormatUUID))
 	}
 	if directRequest.IsToken() {
 		opts = append(opts, handler.DirectFormatType(handler.FormatToken))
-		opts = append(opts, handler.DirectConnectToken(directRequest.Info))
+		opts = append(opts, handler.DirectConnectToken(directRequest.ConnectToken))
 	}
 	return opts
 }

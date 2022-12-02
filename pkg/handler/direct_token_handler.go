@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 )
@@ -20,7 +19,7 @@ func (d *DirectHandler) LoginConnectToken() {
 	proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
 	proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
 	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
-	proxyOpts = append(proxyOpts, proxy.ConnectGateway([]model.Gateway{connectToken.Gateway}))
+	proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
 	srv, err := proxy.NewServer(d.wrapperSess, d.jmsService, proxyOpts...)
 	if err != nil {

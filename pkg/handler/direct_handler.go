@@ -75,7 +75,7 @@ func DirectTargetAsset(targetAsset string) DirectOpt {
 	}
 }
 
-func DirectTargetSystemUser(targetSystemUser string) DirectOpt {
+func DirectTargetAccount(targetSystemUser string) DirectOpt {
 	return func(opts *directOpt) {
 		opts.targetAccount = targetSystemUser
 	}
@@ -114,11 +114,11 @@ func DirectConnectSftpMode(sftpMode bool) DirectOpt {
 func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
 	switch opts.formatType {
 	case FormatUUID:
-		asset, err := jmsService.GetAssetDetailById(opts.targetAsset)
+		assets, err := jmsService.GetUserAssetByID(opts.User.ID, opts.targetAsset)
 		if err != nil {
 			return nil, err
 		}
-		return []model.Asset{asset}, nil
+		return assets, nil
 	default:
 		return jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAsset)
 	}
@@ -190,30 +190,15 @@ type DirectHandler struct {
 
 func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 	addr, _, _ := net.SplitHostPort(d.sess.RemoteAddr().String())
-	var (
-		assets      []model.Asset
-		systemUsers []model.PermAccount
-	)
+	opts := make([]srvconn.UserSftpOption, 0, 5)
+	opts = append(opts, srvconn.WithUser(d.opts.User))
+	opts = append(opts, srvconn.WithRemoteAddr(addr))
 	if !d.opts.IsTokenConnection() {
-		assets = d.assets
-		if len(d.assets) == 1 {
-			//systemUsers = d.getMatchedSystemUsers(d.assets[0])
-		}
+		opts = append(opts, srvconn.WithAssets(d.assets))
 	} else {
-		account := d.opts.tokenInfo.Account
-		actions := d.opts.tokenInfo.Actions
-		assets = []model.Asset{d.opts.tokenInfo.Asset}
-		systemUsers = []model.PermAccount{
-			{
-				Name:       account.Name,
-				Username:   account.Username,
-				SecretType: account.SecretType,
-				Actions:    actions,
-				Secret:     account.Secret,
-			}}
+		opts = append(opts, srvconn.WithConnectToken(d.opts.tokenInfo))
 	}
-	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(d.jmsService,
-		d.opts.User, addr, assets, systemUsers)}
+	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(d.jmsService, opts...)}
 }
 
 func (d *DirectHandler) Dispatch() {
@@ -449,7 +434,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 	proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
 	proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
 	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
-	proxyOpts = append(proxyOpts, proxy.ConnectGateway([]model.Gateway{connectToken.Gateway}))
+	proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
 	srv, err := proxy.NewServer(d.wrapperSess, d.jmsService, proxyOpts...)
 	if err != nil {

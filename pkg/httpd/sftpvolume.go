@@ -18,36 +18,68 @@ import (
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-func NewUserVolume(jmsService *service.JMService, user *model.User, addr, hostId string) *UserVolume {
+type volumeOption struct {
+	addr         string
+	user         *model.User
+	asset        *model.Asset
+	connectToken *model.ConnectToken
+}
+type VolumeOption func(*volumeOption)
+
+func WithUser(user *model.User) VolumeOption {
+	return func(opts *volumeOption) {
+		opts.user = user
+	}
+}
+
+func WithAddr(addr string) VolumeOption {
+	return func(opts *volumeOption) {
+		opts.addr = addr
+	}
+}
+
+func WithAsset(asset *model.Asset) VolumeOption {
+	return func(opts *volumeOption) {
+		opts.asset = asset
+	}
+}
+
+func WithConnectToken(connectToken *model.ConnectToken) VolumeOption {
+	return func(opts *volumeOption) {
+		opts.connectToken = connectToken
+	}
+}
+
+func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVolume {
+	var volOpts volumeOption
+	for _, opt := range opts {
+		opt(&volOpts)
+	}
 	homeName := "Home"
 	basePath := "/"
-	var (
-		assets []model.Asset
-		err    error
-	)
-	if hostId != "" {
-		assets, err = jmsService.GetUserAssetByID(user.ID, hostId)
-		if err != nil {
-			logger.Errorf("Get user asset failed: %s", err)
-		}
-		if len(assets) == 1 {
-			folderName := assets[0].Name
-			if strings.Contains(folderName, "/") {
-				folderName = strings.ReplaceAll(folderName, "/", "_")
-			}
-			homeName = folderName
-			basePath = filepath.Join("/", homeName)
-		}
+	asset := volOpts.asset
+	if volOpts.connectToken != nil {
+		asset = &volOpts.connectToken.Asset
 	}
-	supportSSHAssets := make([]model.Asset, 0, len(assets))
-	for i := range assets {
-		asset := assets[i]
-		if asset.IsSupportProtocol(model.ProtocolSSH) {
-			supportSSHAssets = append(supportSSHAssets, asset)
+	if asset != nil {
+		folderName := asset.Name
+		if strings.Contains(folderName, "/") {
+			folderName = strings.ReplaceAll(folderName, "/", "_")
 		}
+		homeName = folderName
+		basePath = filepath.Join("/", homeName)
 	}
-	userSftp := srvconn.NewUserSftpConn(jmsService, user, addr, supportSSHAssets, nil)
-	rawID := fmt.Sprintf("%s@%s", user.Username, addr)
+	sftpOpts := make([]srvconn.UserSftpOption, 0, 5)
+	if volOpts.connectToken != nil {
+		sftpOpts = append(sftpOpts, srvconn.WithConnectToken(volOpts.connectToken))
+	}
+	if volOpts.asset != nil {
+		sftpOpts = append(sftpOpts, srvconn.WithAssets([]model.Asset{*volOpts.asset}))
+	}
+	sftpOpts = append(sftpOpts, srvconn.WithUser(volOpts.user))
+	sftpOpts = append(sftpOpts, srvconn.WithRemoteAddr(volOpts.addr))
+	userSftp := srvconn.NewUserSftpConn(jmsService, sftpOpts...)
+	rawID := fmt.Sprintf("%s@%s", volOpts.user.Username, volOpts.addr)
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),
 		UserSftp:      userSftp,

@@ -16,7 +16,10 @@ import (
 )
 
 func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string) *SftpHandler {
-	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, user, addr, nil, nil)}
+	opts := make([]srvconn.UserSftpOption, 0, 5)
+	opts = append(opts, srvconn.WithUser(user))
+	opts = append(opts, srvconn.WithRemoteAddr(addr))
+	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...)}
 }
 
 type SftpHandler struct {

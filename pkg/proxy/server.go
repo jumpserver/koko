@@ -75,8 +75,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 		account *model.Account
 
-		// todo: su 用户如何
-		//suSysUserAuthInfo *model.SystemUserAuthInfo
 		domainGateways *model.Domain
 		platform       *model.Platform
 		actions        model.Actions

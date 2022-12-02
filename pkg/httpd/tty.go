@@ -307,7 +307,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
 		proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
 		proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
-		proxyOpts = append(proxyOpts, proxy.ConnectGateway([]model.Gateway{connectToken.Gateway}))
+		proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
 
 		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))
