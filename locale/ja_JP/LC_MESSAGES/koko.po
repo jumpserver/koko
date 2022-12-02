@@ -8,80 +8,80 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. lang.T
-#: pkg/handler/app_database.go:37
+#: pkg/handler/app_database.go:26
 msgid "No Databases"
 msgstr "データベースなし"
 
 #. lang.T
-#: pkg/handler/app_database.go:45
+#: pkg/handler/app_database.go:31
 msgid "ID"
 msgstr "ID"
 
 #. lang.T
-#: pkg/handler/app_database.go:46
+#: pkg/handler/app_database.go:32
 msgid "Name"
 msgstr "名前"
 
 #. lang.T
-#: pkg/handler/app_database.go:47
+#: pkg/handler/app_database.go:33
 msgid "IP"
 msgstr "IP"
 
 #. lang.T
-#: pkg/handler/app_database.go:48
+#: pkg/handler/app_database.go:34
 msgid "DBType"
 msgstr "データベースのタイプ"
 
 #. lang.T
-#: pkg/handler/app_database.go:49
+#: pkg/handler/app_database.go:35
 msgid "DB Name"
 msgstr "データベース名"
 
 #. lang.T
-#: pkg/handler/app_database.go:50
+#: pkg/handler/app_database.go:36
 msgid "Organization"
 msgstr "おるがないず"
 
 #. lang.T
-#: pkg/handler/app_database.go:51
+#: pkg/handler/app_database.go:37
 msgid "Comment"
 msgstr "コメント"
 
 #. lang.T
-#: pkg/handler/app_database.go:76
+#: pkg/handler/app_database.go:62
 #, fuzzy
 msgid "the database"
 msgstr "データベースなし"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:36
+#: pkg/handler/app_k8s.go:27
 msgid "No kubernetes"
 msgstr "いいえ kubernetes"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/app_k8s.go:44 pkg/handler/app_k8s.go:45
-#: pkg/handler/app_k8s.go:46
+#: pkg/handler/app_k8s.go:32 pkg/handler/app_k8s.go:33
+#: pkg/handler/app_k8s.go:34
 msgid "Cluster"
 msgstr "クラスター"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/app_k8s.go:47 pkg/handler/app_k8s.go:48
-#: pkg/handler/app_k8s.go:67
+#: pkg/handler/app_k8s.go:35 pkg/handler/app_k8s.go:36
+#: pkg/handler/app_k8s.go:55
 #, fuzzy
 msgid "the kubernetes"
 msgstr "いいえ kubernetes"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:91
+#: pkg/handler/app_k8s.go:79
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr "ページ番号：%d，ページあたりの行数：%d，合計ページ数：%d，合計数量：%d"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:105
+#: pkg/handler/app_k8s.go:93
 #, fuzzy
 msgid ""
 "Enter ID number directly login %s, multiple search use // + field, such "
@@ -91,36 +91,41 @@ msgstr ""
 "ように：//192"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:107
+#: pkg/handler/app_k8s.go:95
 msgid "Page up: b\tPage down: n"
 msgstr "前のページ：b 次のページ：n"
 
 #. lang.T
-#: pkg/handler/asset.go:39
+#: pkg/handler/asset.go:38
 msgid "No Assets"
 msgstr "資産なし"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:51 pkg/handler/asset.go:52
+#: pkg/handler/asset.go:47 pkg/handler/asset.go:48
 msgid "Hostname"
 msgstr "ホスト名"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:53 pkg/handler/asset.go:54
+#: pkg/handler/asset.go:49 pkg/handler/asset.go:50
+msgid "Protocols"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:51
 msgid "Platform"
 msgstr "プラットホーム"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:55 pkg/handler/asset.go:56 pkg/handler/asset.go:78
+#: pkg/handler/asset.go:52 pkg/handler/asset.go:53 pkg/handler/asset.go:77
 msgid "the asset"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset_node.go:24
+#: pkg/handler/asset_node.go:22
 msgid "%s node has no assets"
 msgstr "%sノードに資産がありません"
 
@@ -205,25 +210,25 @@ msgid "not found matched asset %s"
 msgstr "一致したアセット %s が見つかりません"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:288
+#: pkg/handler/direct_handler.go:273
 msgid "No Account found."
-msgstr ""
+msgstr "アカウントが見つかりません"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:297 pkg/handler/direct_handler.go:298
-#: pkg/handler/direct_handler.go:299
+#: pkg/handler/direct_handler.go:282 pkg/handler/direct_handler.go:283
+#: pkg/handler/direct_handler.go:284
 msgid "Username"
 msgstr "ユーザー名"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:328
+#: pkg/handler/direct_handler.go:313
 msgid "Tips: Enter account ID"
-msgstr ""
+msgstr "ヒント: アカウント ID を入力してください"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:329
+#: pkg/handler/direct_handler.go:314
 msgid "Back: B/b"
 msgstr "戻る: B/b"
 
@@ -232,20 +237,20 @@ msgstr "戻る: B/b"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:364 pkg/handler/direct_handler.go:365
-#: pkg/handler/direct_handler.go:366 pkg/handler/direct_handler.go:367
-#: pkg/handler/direct_handler.go:396
+#: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
+#: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
+#: pkg/handler/direct_handler.go:381
 msgid "select one asset to login"
 msgstr "ログインするアセットを1つ選択"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:410
+#: pkg/handler/direct_handler.go:395
 msgid "not found matched username %s"
 msgstr "一致したユーザー名 %s が見つかりません"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:468 pkg/handler/dispatch.go:139
+#: pkg/handler/direct_handler.go:453 pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "ノード: [ID.Name(アセット量)]"
 
@@ -277,18 +282,18 @@ msgstr "ヒント：システムユーザーIDを入力して直接ログイン�
 #. lang.T
 #: pkg/handler/interactive.go:220 pkg/handler/interactive.go:254
 msgid "No protocol found."
-msgstr ""
+msgstr "プロトコルが見つかりません"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/interactive.go:263 pkg/handler/interactive.go:264
 msgid "Protocol"
-msgstr ""
+msgstr "プロトコル"
 
 #. lang.T
 #: pkg/handler/interactive.go:291
 msgid "Tips: Enter protocol ID"
-msgstr ""
+msgstr "ヒント: プロトコル ID を入力してください"
 
 #. lang.T
 #. lang.T
@@ -302,19 +307,31 @@ msgid "Search: %s"
 msgstr "検索: %s"
 
 #. i18n.T
-#: pkg/koko/server_ssh.go:221
+#: pkg/koko/server_ssh.go:223
 msgid "Must be unique asset for %s"
 msgstr "%s の一意のアセットでなければなりません"
 
 #. i18n.T
-#: pkg/koko/server_ssh.go:233
-msgid "Must be unique system user for %s"
-msgstr "唯一のシステムユーザーでなければなりません %s"
+#: pkg/koko/server_ssh.go:236
+#, fuzzy
+msgid "Must be unique account for %s"
+msgstr "%s の一意のアセットでなければなりません"
+
+#. i18n.T
+#: pkg/koko/server_ssh.go:243
+#, fuzzy
+msgid "Must be auto login account for %s"
+msgstr "%s の一意のアセットでなければなりません"
 
 #. i18n.T
 #. i18n.T
+#. i18n.T
+#: pkg/koko/server_ssh.go:405 pkg/koko/server_ssh.go:412
+#: pkg/koko/server_ssh.go:421
+msgid "No found ssh protocol supported"
+msgstr "サポートされている ssh プロトコルが見つかりません"
+
 #. lang.T
-#: pkg/koko/server_ssh.go:425 pkg/koko/server_ssh.go:432
 #: pkg/proxy/login_confirm.go:21
 msgid "validate Login confirm err: Core Api failed"
 msgstr "検証ログオン再確認失敗：Core API異常"
@@ -419,22 +436,22 @@ msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "システムユーザ <%s> と資産 <%s> のプロトコルが一致しない"
 
 #. lang.T
-#: pkg/proxy/server.go:136
+#: pkg/proxy/server.go:132
 msgid "You don't have permission login %s"
 msgstr "ログイン権限がありません %s"
 
 #. lang.T
-#: pkg/proxy/server.go:385
+#: pkg/proxy/server.go:381
 msgid "You get auth token failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:393
+#: pkg/proxy/server.go:389
 msgid "Get auth username failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:398
+#: pkg/proxy/server.go:394
 msgid "Get auth password failed"
 msgstr "認証トークンの取得に失敗しました"
 
@@ -442,29 +459,29 @@ msgstr "認証トークンの取得に失敗しました"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:404 pkg/proxy/server.go:410 pkg/proxy/server.go:425
-#: pkg/proxy/server.go:475
+#: pkg/proxy/server.go:400 pkg/proxy/server.go:406 pkg/proxy/server.go:421
+#: pkg/proxy/server.go:471
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "SSH接続の再利用 (%s@%s) [接続数: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:798
+#: pkg/proxy/server.go:790
 msgid "Switched to %s"
 msgstr "%s に切り替え"
 
 #. lang.T
-#: pkg/proxy/server.go:975
+#: pkg/proxy/server.go:967
 msgid "Connect with api server failed"
 msgstr "APIサーバーとの接続に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:1006
+#: pkg/proxy/server.go:998
 msgid "Start domain gateway failed %s"
 msgstr "ドメインゲートウェイの開始に失敗した %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1014 pkg/proxy/server_options.go:169
+#: pkg/proxy/server.go:1006 pkg/proxy/server_options.go:169
 msgid "Connecting to %s@%s"
 msgstr "接続開始 %s@%s"
 
@@ -518,6 +535,9 @@ msgstr "ネットワーク不通(ルーティング不通)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "ネットワーク不通（ネットワーク不可）"
+
+#~ msgid "Must be unique system user for %s"
+#~ msgstr "唯一のシステムユーザーでなければなりません %s"
 
 #~ msgid ""
 #~ "Enter ID number directly login the database, multiple search use // + "
