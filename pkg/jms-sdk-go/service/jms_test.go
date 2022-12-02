@@ -74,15 +74,6 @@ func TestJMService_GetDomainGateways(t *testing.T) {
 	}
 }
 
-func TestJMService_GetPermission(t *testing.T) {
-	jms := setup()
-	assetId := "bd87e0b9-9a94-48df-9fa1-4aab4c9f49a5"
-	sysId := "33511e29-3058-49c5-85da-56a296494714"
-	userId := "68f1648b-5c6c-4f47-97a1-c47c192458e3"
-	perms, err := jms.GetPermission(userId, assetId, sysId)
-	t.Logf("%+v,%+v", perms, err)
-}
-
 func TestJMService_SubmitCommandConfirm(t *testing.T) {
 	jms := setup()
 	sid := "8e7df6b6-795c-4904-bd17-f3bf2855ae9f"

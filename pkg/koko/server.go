@@ -63,5 +63,6 @@ type vscodeReq struct {
 	user   *model.User
 	client *srvconn.SSHClient
 
-	expireInfo *model.ExpireInfo
+	expireInfo model.ExpireInfo
+	Actions    model.Actions
 }

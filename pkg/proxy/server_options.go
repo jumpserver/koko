@@ -70,7 +70,7 @@ func ConnectFilterRules(rules model.FilterRules) ConnectionOption {
 	}
 }
 
-func ConnectExpired(expired int64) ConnectionOption {
+func ConnectExpired(expired model.ExpireInfo) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.predefinedExpiredAt = expired
 	}
@@ -105,7 +105,7 @@ type ConnectionOptions struct {
 
 	params *ConnectionParams
 
-	predefinedExpiredAt      int64
+	predefinedExpiredAt      model.ExpireInfo
 	predefinedPermission     *model.Permission
 	predefinedGateway        []model.Gateway
 	predefinedDomain         *model.Domain

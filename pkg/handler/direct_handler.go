@@ -447,7 +447,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 	proxyOpts = append(proxyOpts, proxy.ConnectAccount(&connectToken.Account))
 	proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
 	proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
-	proxyOpts = append(proxyOpts, proxy.ConnectDomain(&connectToken.Domain))
+	proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
 	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
 	proxyOpts = append(proxyOpts, proxy.ConnectGateway([]model.Gateway{connectToken.Gateway}))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))

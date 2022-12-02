@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -17,6 +18,7 @@ import (
 	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/sshd"
@@ -223,71 +225,53 @@ func (s *server) SessionHandler(sess ssh.Session) {
 			logger.Error(msg)
 			return
 		}
-		selectSysUsers, err := s.getMatchedAccounts(user, directRequest, selectedAssets[0])
+
+		selectAccounts, err := s.getMatchedAccounts(user, directRequest, selectedAssets[0])
 		if err != nil {
 			logger.Error(err)
 			utils.IgnoreErrWriteString(sess, err.Error())
 			return
 		}
-		if len(selectSysUsers) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), directRequest.AccountInfo)
+		if len(selectAccounts) != 1 {
+			msg := fmt.Sprintf(i18n.T("Must be unique account for %s"), directRequest.AccountInfo)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
 		}
-		s.proxyVscode(sess, user, selectedAssets[0], selectSysUsers[0])
+		selectAccount := selectAccounts[0]
+		if strings.HasPrefix(selectAccount.Username, "@INPUT") {
+			msg := fmt.Sprintf(i18n.T("Must be auto login account for %s"), directRequest.AccountInfo)
+			utils.IgnoreErrWriteString(sess, msg)
+			logger.Error(msg)
+			return
+		}
+		s.proxyVscode(sess, user, selectedAssets[0], selectAccount)
 	}
 
 }
 
 func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Asset,
-	systemUser model.PermAccount) {
-	ctxId, ok := sess.Context().Value(ctxID).(string)
-	if !ok {
-		logger.Error("Not found ctxID")
-		utils.IgnoreErrWriteString(sess, "not found ctx id")
-		return
-	}
-	accountSecretDetail, err := s.jmsService.GetAccountSecretById(systemUser.ID)
+	permAccount model.PermAccount) {
+	connectInfo, err := s.jmsService.CreateSuperConnectToken(&service.SuperConnectTokenReq{
+		UserId:        user.ID,
+		AssetId:       asset.ID,
+		AccountName:   permAccount.Username,
+		Protocol:      model.ProtocolSSH,
+		ConnectMethod: model.ProtocolSSH,
+	})
 	if err != nil {
-		logger.Errorf("Get system user auth failed: %s", err)
+		logger.Errorf("Create super connect token err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
 
-	var domainGateways *model.Domain
-	if asset.Domain != "" {
-		domainInfo, err := s.jmsService.GetDomainGateways(asset.Domain)
-		if err != nil {
-			logger.Errorf("Get system user auth failed: %s", err)
-			utils.IgnoreErrWriteString(sess, err.Error())
-			return
-		}
-		domainGateways = &domainInfo
-	}
-	account := model.Account{BaseAccount: model.BaseAccount{
-		Name:       accountSecretDetail.Name,
-		Username:   accountSecretDetail.Username,
-		Secret:     accountSecretDetail.Secret,
-		SecretType: accountSecretDetail.SecretType.Value},
-	}
-	sshAuthOpts := buildSSHClientOptions(&asset, &account, domainGateways)
-	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
+	connectToken, err := s.jmsService.GetConnectTokenInfo(connectInfo.ID)
 	if err != nil {
-		logger.Errorf("Get SSH Client failed: %s", err)
+		logger.Errorf("Get super connect token err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
-	defer sshClient.Close()
-	vsReq := &vscodeReq{
-		reqId:  ctxId,
-		user:   user,
-		client: sshClient,
-		//expireInfo: &permInfo,
-	}
-	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
-		utils.IgnoreErrWriteString(sess, err.Error())
-	}
+	s.proxyVscodeByTokenInfo(sess, &connectToken)
 }
 
 func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) {
@@ -300,7 +284,7 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 	asset := tokeInfo.Asset
 	systemUserAuthInfo := tokeInfo.Account
 	domain := tokeInfo.Domain
-	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, &domain)
+	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, domain)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get SSH Client failed: %s", err)
@@ -309,16 +293,11 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 	}
 	defer sshClient.Close()
 
-	perm := tokeInfo.Actions.Permission()
-	permInfo := model.ExpireInfo{
-		HasPermission: perm.EnableConnect(),
-		ExpireAt:      tokeInfo.ExpireAt,
-	}
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
 		user:       &tokeInfo.User,
 		client:     sshClient,
-		expireInfo: &permInfo,
+		expireInfo: tokeInfo.ExpireAt,
 	}
 	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
@@ -379,22 +358,23 @@ func (s *server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	}
 }
 
-func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.Account,
+func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 	domainGateways *model.Domain) []srvconn.SSHClientOption {
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 7)
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(systemUserAuthInfo.Username))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(account.Username))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(model.ProtocolSSH)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
-
-	switch systemUserAuthInfo.SecretType {
+	switch account.SecretType {
 	case "ssh_key":
-		if signer, err1 := gossh.ParsePrivateKey([]byte(systemUserAuthInfo.Secret)); err1 == nil {
+		if signer, err1 := gossh.ParsePrivateKey([]byte(account.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
+		} else {
+			logger.Errorf("Parse account %s private key failed: %s", account.Username, err1)
 		}
 	default:
-		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(systemUserAuthInfo.Secret))
+		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(account.Secret))
 	}
 
 	if domainGateways != nil && len(domainGateways.Gateways) > 0 {
@@ -431,7 +411,16 @@ func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 		logger.Errorf("Get asset failed: %s", err)
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
 	}
-	return assets, nil
+	sshAssets := make([]model.Asset, 0, len(assets))
+	for i := range assets {
+		if assets[i].IsSupportProtocol(model.ProtocolSSH) {
+			sshAssets = append(sshAssets, assets[i])
+		}
+	}
+	if len(sshAssets) == 0 {
+		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found ssh protocol supported"))
+	}
+	return sshAssets, nil
 }
 
 func (s *server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAssetReq,

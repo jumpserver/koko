@@ -89,9 +89,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	actions = connOpts.predefinedActions
 	platform = connOpts.predefinedPlatform
 
-	expireInfo := &model.ExpireInfo{
-		ExpireAt:      connOpts.predefinedExpiredAt,
-		HasPermission: actions.EnableConnect()}
+	expireInfo := connOpts.predefinedExpiredAt
 
 	terminalConf, err = jmsService.GetTerminalConfig()
 	if err != nil {
@@ -186,7 +184,7 @@ type Server struct {
 	filterRules    []model.FilterRule
 	terminalConf   *model.TerminalConfig
 	domainGateways *model.Domain
-	expireInfo     *model.ExpireInfo
+	expireInfo     model.ExpireInfo
 	platform       *model.Platform
 	permActions    model.Actions
 
@@ -224,7 +222,7 @@ func (s *Server) resetKeyboardMode() {
 }
 
 func (s *Server) CheckPermissionExpired(now time.Time) bool {
-	return s.expireInfo.ExpireAt < now.Unix()
+	return s.expireInfo.IsExpired(now)
 }
 
 func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
