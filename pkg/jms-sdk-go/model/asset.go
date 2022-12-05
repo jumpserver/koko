@@ -82,21 +82,37 @@ func (a *Asset) IsSupportProtocol(protocol string) bool {
 }
 
 type Gateway struct {
-	ID         string `json:"id"`
-	Name       string `json:"Name"`
-	IP         string `json:"ip"`
-	Address    string `json:"address"`
-	Port       int    `json:"port"`
-	Protocol   string `json:"protocol"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	PrivateKey string `json:"private_key"`
+	ID        string    `json:"id"`
+	Name      string    `json:"Name"`
+	Address   string    `json:"address"`
+	Protocols Protocols `json:"protocols"`
+	Account   Account   `json:"account"`
+}
+
+type Protocols []Protocol
+
+func (p Protocols) GetProtocolPort(protocol string) int {
+	for i := range p {
+		if strings.ToLower(p[i].Name) == strings.ToLower(protocol) {
+			return p[i].Port
+		}
+	}
+	return 0
+}
+func (p Protocols) IsSupportProtocol(protocol string) bool {
+	for _, item := range p {
+		protocolName := strings.ToLower(item.Name)
+		if protocolName == strings.ToLower(protocol) {
+			return true
+		}
+	}
+	return false
 }
 
 type Domain struct {
 	ID       string    `json:"id"`
-	Gateways []Gateway `json:"gateways"`
 	Name     string    `json:"name"`
+	Gateways []Gateway `json:"gateways"`
 }
 
 const (

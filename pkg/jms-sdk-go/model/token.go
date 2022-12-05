@@ -9,7 +9,7 @@ type ConnectToken struct {
 	Asset    Asset      `json:"asset"`
 	Protocol string     `json:"protocol"`
 	Domain   *Domain    `json:"domain"`
-	Gateway  Gateway    `json:"gateway"`
+	Gateway  *Gateway   `json:"gateway"`
 	ExpireAt ExpireInfo `json:"expire_at"`
 	OrgId    string     `json:"org_id"`
 	OrgName  string     `json:"org_name"`

@@ -52,7 +52,7 @@ func ConnectPlatform(platform *model.Platform) ConnectionOption {
 	}
 }
 
-func ConnectGateway(gateway model.Gateway) ConnectionOption {
+func ConnectGateway(gateway *model.Gateway) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.predefinedGateway = gateway
 	}
@@ -100,7 +100,7 @@ type ConnectionOptions struct {
 	params *ConnectionParams
 
 	predefinedExpiredAt   model.ExpireInfo
-	predefinedGateway     model.Gateway
+	predefinedGateway     *model.Gateway
 	predefinedDomain      *model.Domain
 	predefinedCmdACLRules model.CommandACLs
 	predefinedAccount     *model.Account

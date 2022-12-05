@@ -75,14 +75,13 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 		account *model.Account
 
-		domainGateways *model.Domain
-		platform       *model.Platform
-		actions        model.Actions
+		platform *model.Platform
+		actions  model.Actions
 	)
 
 	// todo: 后续优化这里，统一授权资源获取。目前这里兼容处理 connection token 方式的连接
 	account = connOpts.predefinedAccount
-	domainGateways = connOpts.predefinedDomain
+
 	filterRules = connOpts.predefinedCmdACLRules
 	actions = connOpts.predefinedActions
 	platform = connOpts.predefinedPlatform
@@ -102,14 +101,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	assetName := connOpts.asset.String()
 	if connOpts.k8sContainer != nil {
 		assetName = connOpts.k8sContainer.K8sName(connOpts.asset.Name)
-	}
-
-	if domainGateways == nil && connOpts.asset.Domain != "" {
-		domain, err2 := jmsService.GetDomainGateways(connOpts.asset.Domain)
-		if err2 != nil {
-			return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err2)
-		}
-		domainGateways = &domain
 	}
 
 	apiSession = &model.Session{
@@ -141,13 +132,13 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 		suFromAccount: account.SuFrom,
 
-		filterRules:    filterRules,
-		terminalConf:   &terminalConf,
-		domainGateways: domainGateways,
-		expireInfo:     expireInfo,
-		platform:       platform,
-		permActions:    actions,
-		sessionInfo:    apiSession,
+		filterRules:  filterRules,
+		terminalConf: &terminalConf,
+		expireInfo:   expireInfo,
+		platform:     platform,
+		permActions:  actions,
+		gateway:      connOpts.predefinedGateway,
+		sessionInfo:  apiSession,
 		CreateSessionCallback: func() error {
 			apiSession.DateStart = modelCommon.NewNowUTCTime()
 			return jmsService.CreateSession(*apiSession)
@@ -178,6 +169,7 @@ type Server struct {
 	filterRules    model.CommandACLs
 	terminalConf   *model.TerminalConfig
 	domainGateways *model.Domain
+	gateway        *model.Gateway
 	expireInfo     model.ExpireInfo
 	platform       *model.Platform
 	permActions    model.Actions
@@ -484,21 +476,19 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			return nil, err
 		}
 		dGateway = &domainGateway{
-			domain:  domain,
-			dstIP:   dstHost,
-			dstPort: dstPort,
-		}
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
-		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
-		dGateway = &domainGateway{
-			domain:  domain,
-			dstIP:   s.connOpts.asset.Address,
-			dstPort: s.connOpts.asset.ProtocolPort(s.connOpts.Protocol),
+			domain:          domain,
+			dstIP:           dstHost,
+			dstPort:         dstPort,
+			selectedGateway: s.gateway,
 		}
 	default:
-		return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol,
-			s.connOpts.Protocol)
+		port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+		dGateway = &domainGateway{
+			domain:          domain,
+			dstIP:           s.connOpts.asset.Address,
+			dstPort:         port,
+			selectedGateway: s.gateway,
+		}
 	}
 	return dGateway, nil
 }
@@ -834,22 +824,43 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 }
 
 func (s *Server) getGatewayProxyOptions() []srvconn.SSHClientOptions {
-	/*
-		兼容 云平台同步资产，配置网域，但网关配置为空的情况。
-	*/
+	// 仅有一个网关的情况
+	if s.gateway != nil {
+		timeout := config.GlobalConfig.SSHTimeout
+		port := s.gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
+		proxyArg := srvconn.SSHClientOptions{
+			Host:     s.gateway.Address,
+			Port:     strconv.Itoa(port),
+			Username: s.gateway.Account.Username,
+			Timeout:  timeout,
+		}
+		switch s.gateway.Account.SecretType {
+		case "ssh_key":
+			proxyArg.PrivateKey = s.gateway.Account.Secret
+		default:
+			proxyArg.Password = s.gateway.Account.Secret
+		}
+		return []srvconn.SSHClientOptions{proxyArg}
+	}
+	// 多个网关的情况
 	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
 		timeout := config.GlobalConfig.SSHTimeout
 		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(s.domainGateways.Gateways))
 		for i := range s.domainGateways.Gateways {
 			gateway := s.domainGateways.Gateways[i]
+			loginAccount := gateway.Account
+			port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
 			proxyArg := srvconn.SSHClientOptions{
-				Host:       gateway.IP,
-				Port:       strconv.Itoa(gateway.Port),
-				Username:   gateway.Username,
-				Password:   gateway.Password,
-				Passphrase: gateway.Password, // 兼容 带密码的private_key,
-				PrivateKey: gateway.PrivateKey,
-				Timeout:    timeout,
+				Host:     gateway.Address,
+				Port:     strconv.Itoa(port),
+				Username: loginAccount.Username,
+				Timeout:  timeout,
+			}
+			switch gateway.Account.SecretType {
+			case "ssh_key":
+				proxyArg.PrivateKey = loginAccount.Secret
+			default:
+				proxyArg.Password = loginAccount.Secret
 			}
 			proxyArgs = append(proxyArgs, proxyArg)
 		}
@@ -983,12 +994,11 @@ func (s *Server) Proxy() {
 		}
 	}()
 	var proxyAddr *net.TCPAddr
-	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
+	if (s.domainGateways != nil && len(s.domainGateways.Gateways) != 0) || s.gateway != nil {
 		switch s.connOpts.Protocol {
-		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-			srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
-			srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
-			srvconn.ProtocolK8s:
+		case srvconn.ProtocolSSH, srvconn.ProtocolTELNET:
+			// ssh 和 telnet 协议不需要本地启动代理
+		default:
 			dGateway, err := s.createAvailableGateWay(s.domainGateways)
 			if err != nil {
 				msg := lang.T("Start domain gateway failed %s")
@@ -1007,7 +1017,6 @@ func (s *Server) Proxy() {
 			}
 			defer dGateway.Stop()
 			proxyAddr = dGateway.GetListenAddr()
-		default:
 		}
 	}
 	srvCon, err := s.getServerConn(proxyAddr)

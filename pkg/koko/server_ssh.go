@@ -283,8 +283,12 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 	}
 	asset := tokeInfo.Asset
 	systemUserAuthInfo := tokeInfo.Account
-	domain := tokeInfo.Domain
-	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, domain)
+	var gateways []model.Gateway
+	// todo：domain 再优化
+	if tokeInfo.Gateway != nil {
+		gateways = []model.Gateway{*tokeInfo.Gateway}
+	}
+	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, gateways)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get SSH Client failed: %s", err)
@@ -359,7 +363,7 @@ func (s *server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 }
 
 func buildSSHClientOptions(asset *model.Asset, account *model.Account,
-	domainGateways *model.Domain) []srvconn.SSHClientOption {
+	gateways []model.Gateway) []srvconn.SSHClientOption {
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 7)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(account.Username))
@@ -377,18 +381,23 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(account.Secret))
 	}
 
-	if domainGateways != nil && len(domainGateways.Gateways) > 0 {
-		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(domainGateways.Gateways))
-		for i := range domainGateways.Gateways {
-			gateway := domainGateways.Gateways[i]
+	if len(gateways) > 0 {
+		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(gateways))
+		for i := range gateways {
+			gateway := gateways[i]
+			loginAccount := gateway.Account
+			port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
 			proxyArg := srvconn.SSHClientOptions{
-				Host:       gateway.IP,
-				Port:       strconv.Itoa(gateway.Port),
-				Username:   gateway.Username,
-				Password:   gateway.Password,
-				Passphrase: gateway.Password, // 兼容 带密码的private_key,
-				PrivateKey: gateway.PrivateKey,
-				Timeout:    timeout,
+				Host:     gateway.Address,
+				Port:     strconv.Itoa(port),
+				Username: loginAccount.Username,
+				Timeout:  timeout,
+			}
+			switch gateway.Account.SecretType {
+			case "ssh_key":
+				proxyArg.PrivateKey = loginAccount.Secret
+			default:
+				proxyArg.Password = loginAccount.Secret
 			}
 			proxyArgs = append(proxyArgs, proxyArg)
 		}

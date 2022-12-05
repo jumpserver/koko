@@ -628,14 +628,19 @@ func (ad *AssetDir) getNewSftpConn(su *model.PermAccount) (conn *SftpConn, err e
 		proxyArgs := make([]SSHClientOptions, 0, len(ad.domain.Gateways))
 		for i := range ad.domain.Gateways {
 			gateway := ad.domain.Gateways[i]
+			loginAccount := gateway.Account
+			port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
 			proxyArg := SSHClientOptions{
-				Host:       gateway.Address,
-				Port:       strconv.Itoa(gateway.Port),
-				Username:   gateway.Username,
-				Password:   gateway.Password,
-				Passphrase: gateway.Password, // 兼容 带密码的private_key,
-				PrivateKey: gateway.PrivateKey,
-				Timeout:    timeout,
+				Host:     gateway.Address,
+				Port:     strconv.Itoa(port),
+				Username: loginAccount.Username,
+				Timeout:  timeout,
+			}
+			switch gateway.Account.SecretType {
+			case "ssh_key":
+				proxyArg.PrivateKey = loginAccount.Secret
+			default:
+				proxyArg.Password = loginAccount.Secret
 			}
 			proxyArgs = append(proxyArgs, proxyArg)
 		}

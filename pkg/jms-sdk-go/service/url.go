@@ -42,10 +42,6 @@ const (
 	AssetDetailURL   = "/api/v1/assets/assets/%s/"
 	AssetPlatFormURL = "/api/v1/assets/assets/%s/platform/"
 
-	SystemUserCmdFilterRulesListURL = "/api/v1/assets/system-users/%s/cmd-filter-rules/" // 过滤规则url
-
-	CommandFilterRulesListURL = "/api/v1/assets/cmd-filter-rules/"
-
 	DomainDetailWithGateways = "/api/v1/assets/domains/%s/?gateway=1"
 )
 
