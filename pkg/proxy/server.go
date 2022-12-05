@@ -68,7 +68,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 
 	var (
 		err          error
-		filterRules  model.FilterRules
+		filterRules  model.CommandACLs
 		terminalConf model.TerminalConfig
 
 		apiSession *model.Session
@@ -83,7 +83,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	// todo: 后续优化这里，统一授权资源获取。目前这里兼容处理 connection token 方式的连接
 	account = connOpts.predefinedAccount
 	domainGateways = connOpts.predefinedDomain
-	filterRules = connOpts.predefinedCmdFilterRules
+	filterRules = connOpts.predefinedCmdACLRules
 	actions = connOpts.predefinedActions
 	platform = connOpts.predefinedPlatform
 
@@ -94,10 +94,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 	}
 
-	if filterRules == nil {
-		// todo: 过滤规则处理
-		fmt.Println("filter rules 未处理")
-	}
 	if account == nil {
 		return nil, errors.New("no auth info")
 	}
@@ -179,7 +175,7 @@ type Server struct {
 
 	suFromAccount *model.BaseAccount
 
-	filterRules    []model.FilterRule
+	filterRules    model.CommandACLs
 	terminalConf   *model.TerminalConfig
 	domainGateways *model.Domain
 	expireInfo     model.ExpireInfo
@@ -269,7 +265,7 @@ func (s *Server) GetFilterParser() *Parser {
 		id:             s.ID,
 		protocolType:   s.connOpts.Protocol,
 		jmsService:     s.jmsService,
-		cmdFilterRules: s.filterRules,
+		cmdFilterACLs:  s.filterRules,
 		enableDownload: enableDownload,
 		enableUpload:   enableUpload,
 		zmodemParser:   zParser,
@@ -323,7 +319,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		OrgID:       s.connOpts.asset.OrgID,
 		Server:      server,
 		User:        user,
-		SystemUser:  s.account.String(),
+		Account:     s.account.String(),
 		Input:       input,
 		Output:      output,
 		Timestamp:   createdDate.Unix(),

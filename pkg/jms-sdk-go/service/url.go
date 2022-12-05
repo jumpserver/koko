@@ -30,11 +30,9 @@ const (
 
 // 授权相关API
 const (
-	UserPermsNodesListURL            = "/api/v1/perms/users/%s/nodes/"
-	UserPermsNodeAssetsListURL       = "/api/v1/perms/users/%s/nodes/%s/assets/"
-	UserPermsNodeTreeWithAssetURL    = "/api/v1/perms/users/%s/nodes/children-with-assets/tree/" // 资产树
-	ValidateUserAssetPermissionURL   = "/api/v1/perms/asset-permissions/user/validate/"
-	ValidateApplicationPermissionURL = "/api/v1/perms/application-permissions/user/validate/"
+	UserPermsNodesListURL         = "/api/v1/perms/users/%s/nodes/"
+	UserPermsNodeAssetsListURL    = "/api/v1/perms/users/%s/nodes/%s/assets/"
+	UserPermsNodeTreeWithAssetURL = "/api/v1/perms/users/%s/nodes/children-with-assets/tree/" // 资产树
 )
 
 // 各资源详情相关API
@@ -53,10 +51,6 @@ const (
 
 const (
 	NotificationCommandURL = "/api/v1/terminal/commands/insecure-command/"
-)
-
-const (
-	PermissionURL = "/api/v1/perms/asset-permissions/user/actions/"
 )
 
 // 命令复核

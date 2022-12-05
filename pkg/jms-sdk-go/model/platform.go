@@ -24,7 +24,7 @@ type PlatformProtocols []PlatformProtocol
 func (p PlatformProtocols) GetSftpPath(protocol string) string {
 	for i := range p {
 		if strings.ToLower(p[i].Name) == strings.ToLower(protocol) {
-			return p[i].SftpHome
+			return p[i].Setting.SftpHome
 		}
 	}
 	return "/tmp"
@@ -32,7 +32,7 @@ func (p PlatformProtocols) GetSftpPath(protocol string) string {
 
 type PlatformProtocol struct {
 	Protocol
-	ProtocolSetting
+	Setting ProtocolSetting `json:"setting"`
 }
 
 type ProtocolSetting struct {

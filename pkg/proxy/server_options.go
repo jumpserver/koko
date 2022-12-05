@@ -40,12 +40,6 @@ func ConnectDomain(domain *model.Domain) ConnectionOption {
 	}
 }
 
-func ConnectPermission(perm *model.Permission) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedPermission = perm
-	}
-}
-
 func ConnectActions(actions model.Actions) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.predefinedActions = actions
@@ -64,9 +58,9 @@ func ConnectGateway(gateway model.Gateway) ConnectionOption {
 	}
 }
 
-func ConnectFilterRules(rules model.FilterRules) ConnectionOption {
+func ConnectCmdACLRules(rules model.CommandACLs) ConnectionOption {
 	return func(opts *ConnectionOptions) {
-		opts.predefinedCmdFilterRules = rules
+		opts.predefinedCmdACLRules = rules
 	}
 }
 
@@ -105,14 +99,13 @@ type ConnectionOptions struct {
 
 	params *ConnectionParams
 
-	predefinedExpiredAt      model.ExpireInfo
-	predefinedPermission     *model.Permission
-	predefinedGateway        model.Gateway
-	predefinedDomain         *model.Domain
-	predefinedCmdFilterRules model.FilterRules
-	predefinedAccount        *model.Account
-	predefinedPlatform       *model.Platform
-	predefinedActions        model.Actions
+	predefinedExpiredAt   model.ExpireInfo
+	predefinedGateway     model.Gateway
+	predefinedDomain      *model.Domain
+	predefinedCmdACLRules model.CommandACLs
+	predefinedAccount     *model.Account
+	predefinedPlatform    *model.Platform
+	predefinedActions     model.Actions
 }
 
 type ConnectionParams struct {

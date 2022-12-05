@@ -20,6 +20,7 @@ func (d *DirectHandler) LoginConnectToken() {
 	proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
 	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
 	proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
+	proxyOpts = append(proxyOpts, proxy.ConnectCmdACLRules(connectToken.CommandFilterACLs))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
 	srv, err := proxy.NewServer(d.wrapperSess, d.jmsService, proxyOpts...)
 	if err != nil {

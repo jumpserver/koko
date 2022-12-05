@@ -15,6 +15,8 @@ type ConnectToken struct {
 	OrgName  string     `json:"org_name"`
 	Platform Platform   `json:"platform"`
 
+	CommandFilterACLs []CommandACL `json:"command_filter_acls"`
+
 	Code   string `json:"code"`
 	Detail string `json:"detail"`
 }
