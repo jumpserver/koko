@@ -95,6 +95,7 @@ func (d *domainGateway) getAvailableGateway() bool {
 			return false
 		}
 		d.sshClient = sshClient
+		return true
 	}
 
 	for i := range d.domain.Gateways {
