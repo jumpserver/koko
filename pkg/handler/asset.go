@@ -103,7 +103,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 	req := service.SuperConnectTokenReq{
 		UserId:        u.user.ID,
 		AssetId:       asset.ID,
-		AccountName:   selectedAccount.Username,
+		Account:       selectedAccount.Name,
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
 	}

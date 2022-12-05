@@ -28,7 +28,7 @@ func (s *JMService) CreateSuperConnectToken(params *SuperConnectTokenReq) (resp 
 type SuperConnectTokenReq struct {
 	UserId        string `json:"user"`
 	AssetId       string `json:"asset"`
-	AccountName   string `json:"account_name"`
+	Account       string `json:"account"`
 	Protocol      string `json:"protocol"`
 	ConnectMethod string `json:"connect_method"`
 	InputUsername string `json:"input_username"`

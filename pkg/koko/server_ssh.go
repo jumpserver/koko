@@ -255,7 +255,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 	connectInfo, err := s.jmsService.CreateSuperConnectToken(&service.SuperConnectTokenReq{
 		UserId:        user.ID,
 		AssetId:       asset.ID,
-		AccountName:   permAccount.Username,
+		Account:       permAccount.Name,
 		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
 	})

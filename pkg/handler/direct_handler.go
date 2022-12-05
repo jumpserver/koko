@@ -397,7 +397,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		logger.Errorf("Get systemUser failed: %s", msg)
 		return
 	}
-	selectSys, ok := d.chooseAccount(matched)
+	selectAccount, ok := d.chooseAccount(matched)
 	if !ok {
 		logger.Info("Do not select system user")
 		return
@@ -406,7 +406,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 	req := service.SuperConnectTokenReq{
 		UserId:        d.opts.User.ID,
 		AssetId:       asset.ID,
-		AccountName:   selectSys.Username,
+		Account:       selectAccount.Name,
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
 	}
