@@ -21,6 +21,11 @@
         var targetId = {{ .ID }};
         requireParams.append('type', "elfinder");
         requireParams.append('target_id', targetId );
+        for (var key of urlParams.keys()) {
+            if (key !== "type" && key !== "target_id") {
+                requireParams.append(key, urlParams.get(key));
+            }
+        }
         var wsURL = baseWsUrl + requireParams.toString();
         let ws = new WebSocket(wsURL, ["JMS-KOKO"]);
         let interval;
@@ -79,6 +84,9 @@
                 case "CLOSE":
                     break
                 case "PING":
+                    break
+                case "TERMINAL_ERROR":
+                    alert(msg.err)
                     break
                 default:
                     console.log(msg)

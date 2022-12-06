@@ -8,124 +8,127 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:55
-msgid "No kubernetes"
-msgstr "没有kubernetes"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:68
-msgid "ID"
-msgstr "ID"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:69
-msgid "Name"
-msgstr "名称"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:70
-msgid "Cluster"
-msgstr "集群"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:71
-#, fuzzy
-msgid "Comment"
-msgstr "备注"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:90
-msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:110
-#, fuzzy
-msgid ""
-"Enter ID number directly login the kubernetes, multiple search use // + "
-"field, such as: //16"
-msgstr "提示：输入Kubernetes的ID直接登录，二级搜索使用 // + 字段，如：//192"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:111
-#, fuzzy
-msgid "Page up: b\tPage down: n"
-msgstr "上一页：b 下一页：n"
-
-#. lang.T
-#: pkg/handler/app_mysql.go:57
+#: pkg/handler/app_database.go:26
 msgid "No Databases"
 msgstr "无数据库"
 
 #. lang.T
+#: pkg/handler/app_database.go:31
+msgid "ID"
+msgstr "ID"
+
 #. lang.T
+#: pkg/handler/app_database.go:32
+msgid "Name"
+msgstr "名称"
+
 #. lang.T
-#: pkg/handler/app_mysql.go:70 pkg/handler/app_mysql.go:71
-#: pkg/handler/app_mysql.go:72
+#: pkg/handler/app_database.go:33
 msgid "IP"
 msgstr "IP"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:73
+#: pkg/handler/app_database.go:34
 msgid "DBType"
 msgstr "数据库类型"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:74
+#: pkg/handler/app_database.go:35
 #, fuzzy
 msgid "DB Name"
 msgstr "数据库名称"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:75
+#: pkg/handler/app_database.go:36
 msgid "Organization"
 msgstr "组织"
 
 #. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/app_mysql.go:76 pkg/handler/app_mysql.go:99
-#: pkg/handler/app_mysql.go:121
+#: pkg/handler/app_database.go:37
 #, fuzzy
-msgid ""
-"Enter ID number directly login the database, multiple search use // + field, "
-"such as: //16"
-msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段，如：//192"
+msgid "Comment"
+msgstr "备注"
+
+#. lang.T
+#: pkg/handler/app_database.go:62
+#, fuzzy
+msgid "the database"
+msgstr "无数据库"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:27
+msgid "No kubernetes"
+msgstr "没有kubernetes"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/app_mysql.go:122 pkg/handler/asset.go:58
+#. lang.T
+#: pkg/handler/app_k8s.go:32 pkg/handler/app_k8s.go:33
+#: pkg/handler/app_k8s.go:34
+msgid "Cluster"
+msgstr "集群"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/app_k8s.go:35 pkg/handler/app_k8s.go:36
+#: pkg/handler/app_k8s.go:55
+#, fuzzy
+msgid "the kubernetes"
+msgstr "kubernetes"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:79
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:93
+#, fuzzy
+msgid ""
+"Enter ID number directly login %s, multiple search use // + field, such "
+"as: //16"
+msgstr "提示：输入资产ID直接登录 %s，二级搜索使用 // + 字段，如：//192"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:95
+#, fuzzy
+msgid "Page up: b\tPage down: n"
+msgstr "上一页：b 下一页：n"
+
+#. lang.T
+#: pkg/handler/asset.go:38
 msgid "No Assets"
 msgstr "没有资产"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:87 pkg/handler/asset.go:88
+#: pkg/handler/asset.go:47 pkg/handler/asset.go:48
 #, fuzzy
 msgid "Hostname"
 msgstr "主机名"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:89 pkg/handler/asset.go:90
+#: pkg/handler/asset.go:49 pkg/handler/asset.go:50
+#, fuzzy
+msgid "Protocols"
+msgstr "协议"
+
+#. lang.T
+#: pkg/handler/asset.go:51
 msgid "Platform"
 msgstr "平台"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#. lang.T
-#: pkg/handler/asset.go:91 pkg/handler/asset.go:92 pkg/handler/asset.go:112
-#: pkg/handler/asset.go:133
-#, fuzzy
-msgid ""
-"Enter ID number directly login the asset, multiple search use // + field, "
-"such as: //16"
-msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
+#: pkg/handler/asset.go:52 pkg/handler/asset.go:53 pkg/handler/asset.go:77
+msgid "the asset"
+msgstr "资产"
 
 #. lang.T
-#. lang.T
-#: pkg/handler/asset.go:134 pkg/handler/asset_node.go:24
+#: pkg/handler/asset_node.go:22
 msgid "%s node has no assets"
 msgstr "%s节点没有资产"
 
@@ -217,27 +220,26 @@ msgid "not found matched asset %s"
 msgstr "未发现匹配的资产 %s"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:281
-msgid "No system user found."
-msgstr "没有系统用户"
+#: pkg/handler/direct_handler.go:273
+msgid "No Account found."
+msgstr "未发现账号"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:293 pkg/handler/direct_handler.go:294
-#: pkg/handler/direct_handler.go:295
+#: pkg/handler/direct_handler.go:282 pkg/handler/direct_handler.go:283
+#: pkg/handler/direct_handler.go:284
 #, fuzzy
 msgid "Username"
 msgstr "用户名"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:324
-#, fuzzy
-msgid "Tips: Enter system user ID and directly login"
-msgstr "提示：输入系统用户ID直接登录"
+#: pkg/handler/direct_handler.go:313
+msgid "Tips: Enter account ID"
+msgstr "提示：输入账号ID"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:325
+#: pkg/handler/direct_handler.go:314
 msgid "Back: B/b"
 msgstr "返回：B/b"
 
@@ -246,22 +248,20 @@ msgstr "返回：B/b"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:355 pkg/handler/direct_handler.go:356
-#: pkg/handler/direct_handler.go:357 pkg/handler/direct_handler.go:358
-#: pkg/handler/direct_handler.go:387
+#: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
+#: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
+#: pkg/handler/direct_handler.go:381
 msgid "select one asset to login"
 msgstr "选择其中一个资产登录"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:401
+#: pkg/handler/direct_handler.go:395
 msgid "not found matched username %s"
 msgstr "未发现匹配的用户名 %s"
 
 #. lang.T
 #. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:435 pkg/handler/direct_handler.go:443
-#: pkg/handler/dispatch.go:139
+#: pkg/handler/direct_handler.go:453 pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
 
@@ -276,47 +276,75 @@ msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
 
 #. lang.T
+#: pkg/handler/interactive.go:179
+msgid "No system user found."
+msgstr "没有系统用户"
+
 #. lang.T
 #. lang.T
 #. lang.T
 #. lang.T
+#: pkg/handler/interactive.go:188 pkg/handler/interactive.go:189
+#: pkg/handler/interactive.go:190 pkg/handler/interactive.go:219
+#, fuzzy
+msgid "Tips: Enter system user ID and directly login"
+msgstr "提示：输入系统用户ID直接登录"
+
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:179 pkg/handler/interactive.go:191
-#: pkg/handler/interactive.go:192 pkg/handler/interactive.go:193
-#: pkg/handler/interactive.go:222 pkg/handler/interactive.go:223
-#: pkg/handler/interactive.go:277
+#: pkg/handler/interactive.go:220 pkg/handler/interactive.go:254
+msgid "No protocol found."
+msgstr "无协议"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:263 pkg/handler/interactive.go:264
+msgid "Protocol"
+msgstr "协议"
+
+#. lang.T
+#: pkg/handler/interactive.go:291
+msgid "Tips: Enter protocol ID"
+msgstr "提示：输入协议ID"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:292 pkg/handler/interactive.go:351
 msgid "Refresh done"
 msgstr "刷新完成"
 
 #. lang.T
-#: pkg/handler/select_handler.go:199
+#: pkg/handler/select_handler.go:194
 #, fuzzy
 msgid "Search: %s"
 msgstr "搜索：%s"
 
-#. lang.T
-#: pkg/handler/select_handler.go:226
-msgid "The asset is inactive"
-msgstr "该资产已禁用"
-
 #. i18n.T
-#: pkg/koko/server_ssh.go:222
+#: pkg/koko/server_ssh.go:223
 msgid "Must be unique asset for %s"
 msgstr "必须是唯一的资产 %s"
 
 #. i18n.T
-#: pkg/koko/server_ssh.go:234
-msgid "Must be unique system user for %s"
-msgstr "必须是唯一的系统用户 %s"
+#: pkg/koko/server_ssh.go:236
+#, fuzzy
+msgid "Must be unique account for %s"
+msgstr "必须是唯一的资产 %s"
+
+#. i18n.T
+#: pkg/koko/server_ssh.go:243
+#, fuzzy
+msgid "Must be auto login account for %s"
+msgstr "必须是自动登录账号 %s"
 
 #. i18n.T
 #. i18n.T
 #. i18n.T
-#. i18n.T
+#: pkg/koko/server_ssh.go:405 pkg/koko/server_ssh.go:412
+#: pkg/koko/server_ssh.go:421
+msgid "No found ssh protocol supported"
+msgstr ""
+
 #. lang.T
-#: pkg/koko/server_ssh.go:430 pkg/koko/server_ssh.go:437
-#: pkg/koko/server_ssh.go:448 pkg/koko/server_ssh.go:455
 #: pkg/proxy/login_confirm.go:21
 msgid "validate Login confirm err: Core Api failed"
 msgstr "校验登录复核失败：Core API异常"
@@ -405,41 +433,42 @@ msgstr "需要工单命令执行复核，已发邮件通知审核人"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:443 pkg/proxy/parser.go:444 pkg/proxy/server.go:66
+#: pkg/proxy/parser.go:443 pkg/proxy/parser.go:444 pkg/proxy/server.go:51
 #, fuzzy
 msgid "%s protocol client not installed."
 msgstr "%s 协议的客户端未安装"
 
 #. lang.T
-#: pkg/proxy/server.go:70
+#: pkg/proxy/server.go:55
 #, fuzzy
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr "该终端不支持 %s 协议，请使用web终端登录"
 
 #. lang.T
-#: pkg/proxy/server.go:179
-msgid "System user <%s> and asset <%s> protocol are inconsistent."
+#: pkg/proxy/server.go:63
+#, fuzzy
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. lang.T
-#: pkg/proxy/server.go:251
+#: pkg/proxy/server.go:132
 msgid "You don't have permission login %s"
 msgstr "你无权限登陆%s"
 
 #. lang.T
-#: pkg/proxy/server.go:511
+#: pkg/proxy/server.go:381
 msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
-#: pkg/proxy/server.go:519
+#: pkg/proxy/server.go:389
 #, fuzzy
 msgid "Get auth username failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
-#: pkg/proxy/server.go:524
+#: pkg/proxy/server.go:394
 #, fuzzy
 msgid "Get auth password failed"
 msgstr "你获取认证令牌失败"
@@ -448,48 +477,48 @@ msgstr "你获取认证令牌失败"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:530 pkg/proxy/server.go:536 pkg/proxy/server.go:551
-#: pkg/proxy/server.go:601
+#: pkg/proxy/server.go:400 pkg/proxy/server.go:406 pkg/proxy/server.go:421
+#: pkg/proxy/server.go:471
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:924
+#: pkg/proxy/server.go:790
 msgid "Switched to %s"
 msgstr "已切换至%s"
 
 #. lang.T
-#: pkg/proxy/server.go:1115
+#: pkg/proxy/server.go:967
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. lang.T
-#: pkg/proxy/server.go:1146
+#: pkg/proxy/server.go:998
 #, fuzzy
 msgid "Start domain gateway failed %s"
 msgstr "启动数据库网关失败%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1154 pkg/proxy/server_options.go:170
+#: pkg/proxy/server.go:1006 pkg/proxy/server_options.go:169
 #, fuzzy
 msgid "Connecting to %s@%s"
 msgstr "开始连接到 %s@%s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:174
+#: pkg/proxy/server_options.go:173
 #, fuzzy
 msgid "Connecting to Database %s"
 msgstr "开始连接数据库 %s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:176
+#: pkg/proxy/server_options.go:175
 #, fuzzy
 msgid "Connecting to Kubernetes %s"
 msgstr "开始连接Kubernetes %s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:178
+#: pkg/proxy/server_options.go:177
 #, fuzzy
 msgid "Connecting to Kubernetes %s container %s"
 msgstr "开始连接Kubernetes %s 容器 %s"
@@ -531,6 +560,24 @@ msgstr "网络不通（路由不通）"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "网络不通（网络不可达）"
+
+#~ msgid "Must be unique system user for %s"
+#~ msgstr "必须是唯一的系统用户 %s"
+
+#, fuzzy
+#~ msgid ""
+#~ "Enter ID number directly login the database, multiple search use // + "
+#~ "field, such as: //16"
+#~ msgstr "提示：输入数据库ID直接登录，二级搜索使用 // + 字段，如：//192"
+
+#, fuzzy
+#~ msgid ""
+#~ "Enter ID number directly login the kubernetes, multiple search use // + "
+#~ "field, such as: //16"
+#~ msgstr "提示：输入Kubernetes的ID直接登录，二级搜索使用 // + 字段，如：//192"
+
+#~ msgid "The asset is inactive"
+#~ msgstr "该资产已禁用"
 
 #~ msgid "Command review is not currently supported"
 #~ msgstr "此命令复核暂不支持"

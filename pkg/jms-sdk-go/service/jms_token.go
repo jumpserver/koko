@@ -1,8 +1,6 @@
 package service
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -14,39 +12,25 @@ func (s *JMService) GetTokenAsset(token string) (tokenUser model.TokenUser, err 
 	return
 }
 
-func (s *JMService) GetConnectTokenAuth(token string) (resp TokenAuthInfoResponse, err error) {
+func (s *JMService) GetConnectTokenInfo(tokenId string) (resp model.ConnectToken, err error) {
 	data := map[string]string{
-		"token": token,
+		"id": tokenId,
 	}
-	_, err = s.authClient.Post(TokenAuthInfoURL, data, &resp)
+	_, err = s.authClient.Post(ConnectTokenInfoURL, data, &resp)
 	return
 }
 
-func (s *JMService) RenewalToken(token string) (resp TokenRenewalResponse, err error) {
-	data := map[string]string{
-		"token": token,
-	}
-	_, err = s.authClient.Patch(TokenRenewalURL, data, &resp)
+func (s *JMService) CreateSuperConnectToken(params *SuperConnectTokenReq) (resp model.ConnectTokenInfo, err error) {
+	_, err = s.authClient.Post(SuperConnectTokenInfoURL, params, &resp)
 	return
 }
 
-type TokenRenewalResponse struct {
-	Ok  bool   `json:"ok"`
-	Msg string `json:"msg"`
-}
-
-type TokenAuthInfoResponse struct {
-	Info model.ConnectTokenInfo
-	Err  []string
-}
-
-/*
-	接口返回可能是一个['Token not found']
-*/
-
-func (t *TokenAuthInfoResponse) UnmarshalJSON(p []byte) error {
-	if index := bytes.IndexByte(p, '['); index == 0 {
-		return json.Unmarshal(p, &t.Err)
-	}
-	return json.Unmarshal(p, &t.Info)
+type SuperConnectTokenReq struct {
+	UserId        string `json:"user"`
+	AssetId       string `json:"asset"`
+	Account       string `json:"account"`
+	Protocol      string `json:"protocol"`
+	ConnectMethod string `json:"connect_method"`
+	InputUsername string `json:"input_username"`
+	InputSecret   string `json:"input_secret"`
 }

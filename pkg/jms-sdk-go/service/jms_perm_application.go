@@ -1,39 +1,13 @@
 package service
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) GetAllUserPermK8s(userId string) ([]map[string]interface{}, error) {
-	var param model.PaginationParam
-	res, err := s.GetUserPermsK8s(userId, param)
-	if err != nil {
-		return nil, err
-	}
-	return res.Data, err
-}
-
-func (s *JMService) GetUserPermsMySQL(userId string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
-	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeMySQL)
-	return s.getPaginationResult(reqUrl, param)
-}
-
-func (s *JMService) GetUserPermsDatabase(userId string, param model.PaginationParam,
-	dbTypes ...string) (resp model.PaginationResponse, err error) {
-	reqUrl := fmt.Sprintf(UserPermsDatabaseURL, userId, strings.Join(dbTypes, ","))
-	return s.getPaginationResult(reqUrl, param)
-}
-
-func (s *JMService) GetUserPermsK8s(userId string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
-	reqUrl := fmt.Sprintf(UserPermsApplicationsURL, userId, model.AppTypeK8s)
-	return s.getPaginationResult(reqUrl, param)
-}
-
-func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
+func (s *JMService) getPaginationAssets(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
 	if param.PageSize < 0 {
 		param.PageSize = 0
 	}
@@ -51,11 +25,25 @@ func (s *JMService) getPaginationResult(reqUrl string, param model.PaginationPar
 	if param.Refresh {
 		params["rebuild_tree"] = "1"
 	}
+	if param.Order != "" {
+		params["order"] = param.Order
+	}
+	if param.Type != "" {
+		params["type"] = param.Type
+	}
+	if param.Category != "" {
+		params["category"] = param.Category
+	}
+
+	if param.IsActive {
+		params["is_active"] = "true"
+	}
+
 	paramsArray = append(paramsArray, params)
 	if param.PageSize > 0 {
 		_, err = s.authClient.Get(reqUrl, &resp, paramsArray...)
 	} else {
-		var data []map[string]interface{}
+		var data []model.Asset
 		_, err = s.authClient.Get(reqUrl, &data, paramsArray...)
 		resp.Data = data
 		resp.Total = len(data)

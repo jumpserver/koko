@@ -29,8 +29,9 @@ type AssetDir struct {
 	user        *model.User
 	detailAsset *model.Asset
 	domain      *model.Domain
+	platform    model.Platform
 
-	suMaps map[string]*model.SystemUser
+	suMaps map[string]*model.PermAccount
 
 	logChan chan<- *model.FTPLog
 
@@ -70,10 +71,8 @@ func (ad *AssetDir) Sys() interface{} {
 func (ad *AssetDir) loadSystemUsers() {
 	ad.once.Do(func() {
 		if ad.suMaps == nil {
-			ad.loadSubSystemUserDirs()
+			ad.loadSubAccountDirs()
 		}
-		//  不同方式创建的系统用户目录，可能没权限action，所以需要校验加载一次
-		ad.loadActionsPermission()
 		if ad.detailAsset == nil {
 			ad.loadAssetDetail()
 		}
@@ -83,63 +82,54 @@ func (ad *AssetDir) loadSystemUsers() {
 	})
 }
 
-func (ad *AssetDir) loadActionsPermission() {
-	for i := range ad.suMaps {
-		if ad.suMaps[i].Actions != nil {
-			continue
-		}
-		perms, err := ad.jmsService.GetPermission(ad.user.ID, ad.ID, ad.suMaps[i].ID)
-		if err != nil {
-			logger.Error(err)
-			continue
-		}
-		ad.suMaps[i].Actions = perms.Actions
-	}
-}
-
-func (ad *AssetDir) loadSubSystemUserDirs() {
-	systemUsers, err := ad.jmsService.GetSystemUsersByUserIdAndAssetId(ad.user.ID, ad.ID)
+func (ad *AssetDir) loadSubAccountDirs() {
+	permAccounts, err := ad.jmsService.GetAccountsByUserIdAndAssetId(ad.user.ID, ad.ID)
 	if err != nil {
-		logger.Errorf("Get asset %s systemUsers err: %s", ad.ID, err)
+		logger.Errorf("Get asset %s perm accounts err: %s", ad.ID, err)
 		return
 	}
-	ad.suMaps = generateSubSystemUsersFolderMap(systemUsers)
+	ad.suMaps = generateSubAccountsFolderMap(permAccounts)
 }
 
-func generateSubSystemUsersFolderMap(systemUsers []model.SystemUser) map[string]*model.SystemUser {
-	if len(systemUsers) == 0 {
+func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*model.PermAccount {
+	if len(accounts) == 0 {
 		return nil
 	}
-	sus := make(map[string]*model.SystemUser)
+	sus := make(map[string]*model.PermAccount)
 	matchFunc := func(s string) bool {
 		_, ok := sus[s]
 		return ok
 	}
-	for i := 0; i < len(systemUsers); i++ {
-		if systemUsers[i].Protocol != model.ProtocolSSH {
+	for i := 0; i < len(accounts); i++ {
+		// todo: @USER 和 @INPUT 的情况特殊处理
+		if accounts[i].Username == "@INPUT" {
+			fmt.Printf("暂时禁用 @INPUT %+v\n", accounts[i])
 			continue
 		}
-		folderName := cleanFolderName(systemUsers[i].Name)
+		folderName := cleanFolderName(accounts[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
-		sus[folderName] = &systemUsers[i]
+		sus[folderName] = &accounts[i]
 	}
 	return sus
 }
 
 func (ad *AssetDir) loadAssetDetail() {
-	detailAsset, err := ad.jmsService.GetAssetById(ad.ID)
+	detailAssets, err := ad.jmsService.GetUserAssetByID(ad.user.ID, ad.ID)
 	if err != nil {
 		logger.Errorf("Get asset err: %s", err)
 		return
 	}
-	ad.detailAsset = &detailAsset
+	if len(detailAssets) != 1 {
+		logger.Errorf("Get asset %s more than one detail err: %s", ad.ID, err)
+	}
+	ad.detailAsset = &detailAssets[0]
 }
 
 func (ad *AssetDir) loadAssetDomain() {
 	if ad.detailAsset != nil && ad.detailAsset.Domain != "" {
 		domainGateways, err := ad.jmsService.GetDomainGateways(ad.detailAsset.Domain)
 		if err != nil {
-			logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Hostname, err)
+			logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Name, err)
 			return
 		}
 		ad.domain = &domainGateways
@@ -160,7 +150,7 @@ func (ad *AssetDir) Create(path string) (*sftp.File, error) {
 	if !ok {
 		return nil, errNoSystemUser
 	}
-	if !ad.validatePermission(su, model.UploadAction) {
+	if !su.Actions.EnableUpload() {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
 
@@ -193,7 +183,7 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	if !ok {
 		return errNoSystemUser
 	}
-	if !ad.validatePermission(su, model.UploadAction) {
+	if !su.Actions.EnableUpload() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 
@@ -226,7 +216,7 @@ func (ad *AssetDir) Open(path string) (*sftp.File, error) {
 	if !ok {
 		return nil, errNoSystemUser
 	}
-	if !ad.validatePermission(su, model.DownloadAction) {
+	if !su.Actions.EnableDownload() {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
@@ -316,7 +306,7 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 	if !ok {
 		return errNoSystemUser
 	}
-	if !ad.validatePermission(su, model.UploadAction) {
+	if !su.Actions.EnableUpload() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
@@ -383,7 +373,7 @@ func (ad *AssetDir) Remove(path string) (err error) {
 	if !ok {
 		return errNoSystemUser
 	}
-	if !ad.validatePermission(su, model.UploadAction) {
+	if !su.Actions.EnableUpload() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
@@ -441,7 +431,7 @@ func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
 	if !ok {
 		return errNoSystemUser
 	}
-	if !ad.validatePermission(su, model.UploadAction) {
+	if !su.Actions.EnableUpload() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 	conn1, oldRealPath := ad.GetSFTPAndRealPath(su, strings.Join(oldPathData, "/"))
@@ -485,7 +475,7 @@ func (ad *AssetDir) removeDirectoryAll(conn *sftp.Client, path string) error {
 	return conn.RemoveDirectory(path)
 }
 
-func (ad *AssetDir) GetSFTPAndRealPath(su *model.SystemUser, path string) (conn *SftpConn, realPath string) {
+func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
 	var ok bool
@@ -499,15 +489,24 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.SystemUser, path string) (conn 
 		}
 		ad.sftpClients[su.ID] = conn
 	}
+	if ad.platform.Name == "" {
+		platform, err := ad.jmsService.GetAssetPlatform(ad.ID)
+		if err != nil {
+			logger.Errorf("Get asset platform err: %s", err.Error())
+		}
+		ad.platform = platform
+	}
 
-	switch strings.ToLower(su.SftpRoot) {
+	sftpRoot := ad.platform.Protocols.GetSftpPath(model.ProtocolSSH)
+
+	switch strings.ToLower(sftpRoot) {
 	case "home", "~", "":
 		realPath = filepath.Join(conn.HomeDirPath, strings.TrimPrefix(path, "/"))
 	default:
-		if strings.Index(su.SftpRoot, "/") != 0 {
-			su.SftpRoot = fmt.Sprintf("/%s", su.SftpRoot)
+		if strings.Index(sftpRoot, "/") != 0 {
+			sftpRoot = fmt.Sprintf("/%s", sftpRoot)
 		}
-		realPath = filepath.Join(su.SftpRoot, strings.TrimPrefix(path, "/"))
+		realPath = filepath.Join(sftpRoot, strings.TrimPrefix(path, "/"))
 	}
 	return
 }
@@ -528,25 +527,14 @@ func (ad *AssetDir) getSubFolderNames() []string {
 	return sus
 }
 
-func (ad *AssetDir) validatePermission(su *model.SystemUser, action string) bool {
-	for _, pemAction := range su.Actions {
-		if pemAction == action || pemAction == model.AllAction {
-			return true
-		}
-	}
-	return false
-}
-
-func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err error) {
-	if su.Password == "" && su.PrivateKey == "" {
-		var info model.SystemUserAuthInfo
-		info, err = ad.jmsService.GetSystemUserAuthById(su.ID, ad.ID, ad.user.ID, ad.user.Username)
+func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err error) {
+	if su.Secret == "" {
+		var info model.AccountDetail
+		info, err = ad.jmsService.GetAccountSecretById(su.ID)
 		if err != nil {
 			return nil, err
 		}
-		su.Username = info.Username
-		su.Password = info.Password
-		su.PrivateKey = info.PrivateKey
+		su.Secret = info.Secret
 	}
 
 	if ad.reuse {
@@ -558,7 +546,7 @@ func (ad *AssetDir) GetSftpClient(su *model.SystemUser) (conn *SftpConn, err err
 	return ad.getNewSftpConn(su)
 }
 
-func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
+func (ad *AssetDir) getCacheSftpConn(su *model.PermAccount) (*SftpConn, bool) {
 	if ad.detailAsset == nil {
 		return nil, false
 	}
@@ -566,7 +554,7 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 		sshClient *SSHClient
 		ok        bool
 	)
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.IP, su.Username)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.String(), ad.detailAsset.Address, su.Username)
 	switch su.Username {
 	case "":
 		sshClient, ok = searchSSHClientFromCache(key)
@@ -612,43 +600,47 @@ func (ad *AssetDir) getCacheSftpConn(su *model.SystemUser) (*SftpConn, bool) {
 	return nil, false
 }
 
-func (ad *AssetDir) getNewSftpConn(su *model.SystemUser) (conn *SftpConn, err error) {
+func (ad *AssetDir) getNewSftpConn(su *model.PermAccount) (conn *SftpConn, err error) {
 	if ad.detailAsset == nil {
 		return nil, errNoSelectAsset
 	}
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.ID, ad.detailAsset.IP, su.Username)
+	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.String(), ad.detailAsset.Address, su.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(su.Username))
-	sshAuthOpts = append(sshAuthOpts, SSHClientHost(ad.detailAsset.IP))
-	sshAuthOpts = append(sshAuthOpts, SSHClientPort(ad.detailAsset.ProtocolPort(su.Protocol)))
-	sshAuthOpts = append(sshAuthOpts, SSHClientPassword(su.Password))
+	sshAuthOpts = append(sshAuthOpts, SSHClientHost(ad.detailAsset.Address))
+	sshAuthOpts = append(sshAuthOpts, SSHClientPort(ad.detailAsset.ProtocolPort(model.ProtocolSSH)))
+
 	sshAuthOpts = append(sshAuthOpts, SSHClientTimeout(timeout))
-	if su.PrivateKey != "" {
-		// 先使用 password 解析 PrivateKey
-		if signer, err1 := gossh.ParsePrivateKeyWithPassphrase([]byte(su.PrivateKey),
-			[]byte(su.Password)); err1 == nil {
+	switch su.SecretType {
+	case "ssh_key":
+		if signer, err1 := gossh.ParsePrivateKey([]byte(su.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, SSHClientPrivateAuth(signer))
 		} else {
-			// 如果之前使用password解析失败，则去掉 password, 尝试直接解析 PrivateKey 防止错误的passphrase
-			if signer, err1 = gossh.ParsePrivateKey([]byte(su.PrivateKey)); err1 == nil {
-				sshAuthOpts = append(sshAuthOpts, SSHClientPrivateAuth(signer))
-			}
+			logger.Errorf("ssh private key parse failed: %s", err1)
 		}
+	default:
+		sshAuthOpts = append(sshAuthOpts, SSHClientPassword(su.Secret))
 	}
+
 	if ad.domain != nil && len(ad.domain.Gateways) > 0 {
 		proxyArgs := make([]SSHClientOptions, 0, len(ad.domain.Gateways))
 		for i := range ad.domain.Gateways {
 			gateway := ad.domain.Gateways[i]
+			loginAccount := gateway.Account
+			port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
 			proxyArg := SSHClientOptions{
-				Host:       gateway.IP,
-				Port:       strconv.Itoa(gateway.Port),
-				Username:   gateway.Username,
-				Password:   gateway.Password,
-				Passphrase: gateway.Password, // 兼容 带密码的private_key,
-				PrivateKey: gateway.PrivateKey,
-				Timeout:    timeout,
+				Host:     gateway.Address,
+				Port:     strconv.Itoa(port),
+				Username: loginAccount.Username,
+				Timeout:  timeout,
+			}
+			switch gateway.Account.SecretType {
+			case "ssh_key":
+				proxyArg.PrivateKey = loginAccount.Secret
+			default:
+				proxyArg.Password = loginAccount.Secret
 			}
 			proxyArgs = append(proxyArgs, proxyArg)
 		}
@@ -704,7 +696,7 @@ func (ad *AssetDir) close() {
 	}
 }
 
-func (ad *AssetDir) CreateFTPLog(su *model.SystemUser, operate, filename string, isSuccess bool) {
+func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) {
 	data := model.FTPLog{
 		User:       ad.user.String(),
 		Hostname:   ad.detailAsset.String(),

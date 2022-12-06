@@ -12,13 +12,13 @@ func (s *JMService) SearchPermAsset(userId, key string) (res model.AssetList, er
 	return
 }
 
-func (s *JMService) GetSystemUsersByUserIdAndAssetId(userId, assetId string) (sysUsers []model.SystemUser, err error) {
-	Url := fmt.Sprintf(UserPermsAssetSystemUsersURL, userId, assetId)
-	_, err = s.authClient.Get(Url, &sysUsers)
+func (s *JMService) GetAccountsByUserIdAndAssetId(userId, assetId string) (accounts []model.PermAccount, err error) {
+	Url := fmt.Sprintf(UserPermsAssetAccountsURL, userId, assetId)
+	_, err = s.authClient.Get(Url, &accounts)
 	return
 }
 
-func (s *JMService) GetAllUserPermsAssets(userId string) ([]map[string]interface{}, error) {
+func (s *JMService) GetAllUserPermsAssets(userId string) ([]model.Asset, error) {
 	var params model.PaginationParam
 	res, err := s.GetUserPermsAssets(userId, params)
 	if err != nil {
@@ -29,10 +29,10 @@ func (s *JMService) GetAllUserPermsAssets(userId string) ([]map[string]interface
 
 func (s *JMService) GetUserPermsAssets(userID string, params model.PaginationParam) (resp model.PaginationResponse, err error) {
 	Url := fmt.Sprintf(UserPermsAssetsURL, userID)
-	return s.getPaginationResult(Url, params)
+	return s.getPaginationAssets(Url, params)
 }
 
-func (s *JMService) RefreshUserAllPermsAssets(userId string) ([]map[string]interface{}, error) {
+func (s *JMService) RefreshUserAllPermsAssets(userId string) ([]model.Asset, error) {
 	var params model.PaginationParam
 	params.Refresh = true
 	res, err := s.GetUserPermsAssets(userId, params)

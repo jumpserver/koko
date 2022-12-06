@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -162,7 +161,7 @@ func (c *Client) Do(method, reqUrl string, data, res interface{}, params ...map[
 		return
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp, err
 	}
@@ -178,7 +177,8 @@ func (c *Client) Do(method, reqUrl string, data, res interface{}, params ...map[
 		case strings.Contains(resp.Header.Get("Content-Type"), "application/json"):
 			err = json.Unmarshal(body, res)
 			if err != nil {
-				msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s", req.Method, req.URL, body[:12], err)
+				msg := fmt.Sprintf("%s %s failed, unmarshal '%s' response failed: %s",
+					req.Method, req.URL, body, err)
 				err = errors.New(msg)
 				return
 			}

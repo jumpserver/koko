@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/LeeEirc/elfinder"
@@ -103,12 +102,11 @@ func (s *Server) SftpHostConnectorView(ctx *gin.Context) {
 }
 
 func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
-	var targetParams struct {
-		TargetType string `form:"type"`
-		TargetId   string `form:"target_id"`
+	var tokenParams struct {
+		Token string `form:"token"`
 	}
-	if err := ctx.ShouldBind(&targetParams); err != nil {
-		logger.Errorf("Ws miss required params( type|target_id ) err: %s", err)
+	if err := ctx.ShouldBind(&tokenParams); err != nil {
+		logger.Errorf("Ws miss required params( token ) err: %s", err)
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -119,8 +117,7 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 		return
 	}
 	currentUser := userValue.(*model.User)
-	systemUserId, _ := ctx.GetQuery("system_user_id")
-	s.runTTY(ctx, currentUser, targetParams.TargetType, targetParams.TargetId, systemUserId)
+	s.runTokenTTY(ctx, currentUser, tokenParams.Token)
 }
 
 func (s *Server) ProcessTokenWebsocket(ctx *gin.Context) {
@@ -144,18 +141,9 @@ func (s *Server) ProcessTokenWebsocket(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	var targetId string
-	switch tokenUser.Type {
-	case model.ConnectApplication:
-		targetId = strings.ToLower(tokenUser.ApplicationID)
-	case model.ConnectAsset:
-		targetId = tokenUser.AssetID
-	default:
-		targetId = tokenUser.AssetID
-	}
+	targetId := tokenUser.AssetID
 	targetType := TargetTypeAsset
-	systemUserId := tokenUser.SystemUserID
-	s.runTTY(ctx, currentUser, targetType, targetId, systemUserId)
+	s.runTTY(ctx, currentUser, targetType, targetId)
 }
 
 func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
@@ -176,6 +164,16 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+	var params struct {
+		TokenId string `form:"token"`
+		AssetId string `form:"asset"`
+	}
+	if err := ctx.ShouldBind(&params); err != nil {
+		logger.Errorf("Ws miss required params (token or asset) err: %s", err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
@@ -197,6 +195,8 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 	userConn.handler = &webFolder{
 		ws:         &userConn,
 		targetId:   targetId,
+		assetId:    params.AssetId,
+		tokenId:    params.TokenId,
 		done:       make(chan struct{}),
 		jmsService: s.JmsService,
 	}
@@ -222,8 +222,47 @@ func (s *Server) Upgrade(ctx *gin.Context) (*ws.Socket, error) {
 	return wsSocket, nil
 }
 
+func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token string) {
+	res, err := s.JmsService.GetConnectTokenInfo(token)
+	if err != nil {
+		logger.Errorf("Get connect token info err: %s", err)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	if res.Code != "" {
+		logger.Errorf("Token is invalid: %s", res.Detail)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	wsSocket, err := s.Upgrade(ctx)
+	if err != nil {
+		logger.Errorf("Websocket upgrade err: %s", err)
+		ctx.String(http.StatusBadRequest, "Websocket upgrade err %s", err)
+		return
+	}
+	setting := s.getPublicSetting()
+	userConn := UserWebsocket{
+		Uuid:           common.UUID(),
+		webSrv:         s,
+		conn:           wsSocket,
+		ctx:            ctx.Copy(),
+		messageChannel: make(chan *Message, 10),
+		user:           currentUser,
+		setting:        &setting,
+	}
+	userConn.handler = &tty{
+		ws:           &userConn,
+		ConnectToken: &res,
+		jmsService:   s.JmsService,
+		extraParams:  ctx.Request.Form,
+	}
+	s.broadCaster.EnterUserWebsocket(&userConn)
+	defer s.broadCaster.LeaveUserWebsocket(&userConn)
+	userConn.Run()
+}
+
 func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
-	targetType, targetId, SystemUserID string) {
+	targetType, targetId string) {
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
@@ -242,12 +281,11 @@ func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
 		setting:        &setting,
 	}
 	userConn.handler = &tty{
-		ws:           &userConn,
-		targetType:   targetType,
-		targetId:     targetId,
-		systemUserId: SystemUserID,
-		jmsService:   s.JmsService,
-		extraParams:  ctx.Request.Form,
+		ws:          &userConn,
+		targetType:  targetType,
+		targetId:    targetId,
+		jmsService:  s.JmsService,
+		extraParams: ctx.Request.Form,
 	}
 	s.broadCaster.EnterUserWebsocket(&userConn)
 	defer s.broadCaster.LeaveUserWebsocket(&userConn)

@@ -17,14 +17,14 @@ type FTPLog struct {
 }
 
 const (
-	OperateDownload = "Download"
-	OperateUpload   = "Upload"
+	OperateDownload = "download"
+	OperateUpload   = "upload"
 )
 
 const (
-	OperateRemoveDir = "Rmdir"
-	OperateRename    = "Rename"
-	OperateMkdir     = "Mkdir"
-	OperateDelete    = "Delete"
-	OperateSymlink   = "Symlink"
+	OperateRemoveDir = "rmdir"
+	OperateRename    = "rename"
+	OperateMkdir     = "mkdir"
+	OperateDelete    = "delete"
+	OperateSymlink   = "symlink"
 )

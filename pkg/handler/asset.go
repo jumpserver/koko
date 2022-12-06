@@ -1,20 +1,18 @@
 package handler
 
 import (
-	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []map[string]interface{} {
+func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []model.Asset {
 	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user perm assets failed: %s", err.Error())
@@ -22,27 +20,10 @@ func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) 
 	return u.updateRemotePageData(reqParam, res)
 }
 
-func (u *UserSelectHandler) searchLocalAsset(searches ...string) []map[string]interface{} {
-	/*
-	   {
-	       "id": "1ccad81f-76a6-4ee2-a3ac-e652ef3afecb",
-	       "hostname": "127.0.0.1",
-	       "ip": "192.168.1.97",
-	       "protocols": [
-	           "rdp/3389"
-	       ],
-	       "os": null,
-	       "domain": null,
-	       "platform": "Windows",
-	       "comment": "",
-	       "org_id": "",
-	       "is_active": true,
-	       "org_name": "DEFAULT"
-	   },
-	*/
+func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.Asset {
 	fields := map[string]struct{}{
 		"name":     {},
-		"hostname": {},
+		"address":  {},
 		"ip":       {},
 		"platform": {},
 		"org_name": {},
@@ -52,199 +33,109 @@ func (u *UserSelectHandler) searchLocalAsset(searches ...string) []map[string]in
 }
 
 func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
-	term := u.h.term
 	lang := i18n.NewLang(u.h.i18nLang)
 	if len(u.currentResult) == 0 {
 		noAssets := lang.T("No Assets")
-		utils.IgnoreErrWriteString(term, utils.WrapperString(noAssets, utils.Red))
-		utils.IgnoreErrWriteString(term, utils.CharNewLine)
-		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
-		utils.IgnoreErrWriteString(term, utils.CharNewLine)
+		u.displayNoResultMsg(searchHeader, noAssets)
 		return
 	}
-	u.displaySortedAssets(searchHeader)
+	u.displayAssets(searchHeader)
 }
 
-func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
+func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	lang := i18n.NewLang(u.h.i18nLang)
-	assetListSortBy := u.h.terminalConf.AssetListSortBy
-	switch assetListSortBy {
-	case "ip":
-		sortedAsset := IPAssetList(u.currentResult)
-		sort.Sort(sortedAsset)
-		u.currentResult = sortedAsset
-	default:
-		sortedAsset := HostnameAssetList(u.currentResult)
-		sort.Sort(sortedAsset)
-		u.currentResult = sortedAsset
-	}
-	term := u.h.term
-	currentPage := u.CurrentPage()
-	pageSize := u.PageSize()
-	totalPage := u.TotalPage()
-	totalCount := u.TotalCount()
-
 	idLabel := lang.T("ID")
 	hostLabel := lang.T("Hostname")
 	ipLabel := lang.T("IP")
+	protocolsLabel := lang.T("Protocols")
 	platformLabel := lang.T("Platform")
 	orgLabel := lang.T("Organization")
 	commentLabel := lang.T("Comment")
 
-	Labels := []string{idLabel, hostLabel, ipLabel, platformLabel, orgLabel, commentLabel}
-	fields := []string{"ID", "Hostname", "IP", "Platform", "Organization", "Comment"}
-	data := make([]map[string]string, len(u.currentResult))
-	for i, j := range u.currentResult {
+	Labels := []string{idLabel, hostLabel, ipLabel, protocolsLabel, platformLabel, orgLabel, commentLabel}
+	fields := []string{"ID", "Hostname", "IP", "Protocols", "Platform", "Organization", "Comment"}
+	fieldsSize := map[string][3]int{
+		"ID":           {0, 0, 5},
+		"Hostname":     {0, 40, 0},
+		"IP":           {0, 8, 40},
+		"Protocols":    {0, 8, 0},
+		"Platform":     {0, 8, 0},
+		"Organization": {0, 8, 0},
+		"Comment":      {0, 0, 0},
+	}
+	generateRowFunc := func(i int, item *model.Asset) map[string]string {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		fieldMap := map[string]string{
-			"hostname": "Hostname",
-			"ip":       "IP",
-			"platform": "Platform",
-			"org_name": "Organization",
-			"comment":  "Comment",
-		}
-		row = convertMapItemToRow(j, fieldMap, row)
-		row["Comment"] = joinMultiLineString(row["Comment"])
-		data[i] = row
+		row["Hostname"] = item.Name
+		row["IP"] = item.Address
+		row["Protocols"] = strings.Join(item.SupportProtocols(), "|")
+		row["Platform"] = item.Platform.Name
+		row["Organization"] = item.OrgName
+		row["Comment"] = joinMultiLineString(item.Comment)
+		return row
 	}
-	w, _ := term.GetSize()
-	caption := fmt.Sprintf(lang.T("Page: %d, Count: %d, Total Page: %d, Total Count: %d"),
-		currentPage, pageSize, totalPage, totalCount)
-
-	caption = utils.WrapperString(caption, utils.Green)
-	table := common.WrapperTable{
-		Fields: fields,
-		Labels: Labels,
-		FieldsSize: map[string][3]int{
-			"ID":           {0, 0, 5},
-			"Hostname":     {0, 40, 0},
-			"IP":           {0, 8, 40},
-			"Platform":     {0, 8, 0},
-			"Organization": {0, 8, 0},
-			"Comment":      {0, 0, 0},
-		},
-		Data:        data,
-		TotalSize:   w,
-		Caption:     caption,
-		TruncPolicy: common.TruncMiddle,
+	assetDisplay := lang.T("the asset")
+	data := make([]map[string]string, len(u.currentResult))
+	for i := range u.currentResult {
+		data[i] = generateRowFunc(i, &u.currentResult[i])
 	}
-	table.Initial()
-	loginTip := lang.T("Enter ID number directly login the asset, multiple search use // + field, such as: //16")
-	pageActionTip := lang.T("Page up: b	Page down: n")
-	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
+	u.displayResult(searchHeader, assetDisplay,
+		Labels, fields, fieldsSize, generateRowFunc)
 
-	_, _ = term.Write([]byte(utils.CharClear))
-	_, _ = term.Write([]byte(table.Display()))
-	utils.IgnoreErrWriteString(term, utils.WrapperString(actionTip, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
 }
 
 func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
-	systemUsers, err := u.h.jmsService.GetSystemUsersByUserIdAndAssetId(u.user.ID, asset.ID)
+	accounts, err := u.h.jmsService.GetAccountsByUserIdAndAssetId(u.user.ID, asset.ID)
 	if err != nil {
+		logger.Errorf("Get asset accounts err: %s", err)
 		return
 	}
-	highestSystemUsers := selectHighestPrioritySystemUsers(systemUsers)
-	selectedSystemUser, ok := u.h.chooseSystemUser(highestSystemUsers)
-
+	protocol, ok := u.h.chooseAssetProtocol(asset.SupportProtocols())
+	if !ok {
+		logger.Info("not select protocol")
+		return
+	}
+	selectedAccount, ok := u.h.chooseAccount(accounts)
 	if !ok {
 		return
 	}
 	i18nLang := u.h.i18nLang
-	srv, err := proxy.NewServer(u.h.sess,
-		u.h.jmsService,
-		proxy.ConnectProtocolType(selectedSystemUser.Protocol),
-		proxy.ConnectI18nLang(i18nLang),
-		proxy.ConnectUser(u.h.user),
-		proxy.ConnectAsset(&asset),
-		proxy.ConnectSystemUser(&selectedSystemUser),
-	)
+	req := service.SuperConnectTokenReq{
+		UserId:        u.user.ID,
+		AssetId:       asset.ID,
+		Account:       selectedAccount.Name,
+		Protocol:      protocol,
+		ConnectMethod: "ssh",
+	}
+	res, err := u.h.jmsService.CreateSuperConnectToken(&req)
 	if err != nil {
-		logger.Error(err)
+		logger.Errorf("Create super connect token err: %s", err)
+		utils.IgnoreErrWriteString(u.h.term, "create connect token err")
+		return
+	}
+	connectToken, err := u.h.jmsService.GetConnectTokenInfo(res.ID)
+	if err != nil {
+		logger.Errorf("connect token err: %s", err)
+		utils.IgnoreErrWriteString(u.h.term, "get connect token err")
+		return
+	}
+	user := u.h.user
+	proxyOpts := make([]proxy.ConnectionOption, 0, 10)
+	proxyOpts = append(proxyOpts, proxy.ConnectProtocol(protocol))
+	proxyOpts = append(proxyOpts, proxy.ConnectUser(user))
+	proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
+	proxyOpts = append(proxyOpts, proxy.ConnectAccount(&connectToken.Account))
+	proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
+	proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
+	proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
+	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
+	proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
+	proxyOpts = append(proxyOpts, proxy.ConnectCmdACLRules(connectToken.CommandFilterACLs))
+	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
+	srv, err := proxy.NewServer(u.h.sess, u.h.jmsService, proxyOpts...)
+	if err != nil {
+		logger.Errorf("create proxy server err: %s", err)
 		return
 	}
 	srv.Proxy()
-	logger.Infof("Request %s: asset %s proxy end", u.h.sess.Uuid, asset.Hostname)
-
-}
-
-var (
-	_ sort.Interface = (HostnameAssetList)(nil)
-	_ sort.Interface = (IPAssetList)(nil)
-)
-
-type HostnameAssetList []map[string]interface{}
-
-func (l HostnameAssetList) Len() int {
-	return len(l)
-}
-
-func (l HostnameAssetList) Less(i, j int) bool {
-	iHostnameValue := l[i]["hostname"]
-	jHostnameValue := l[j]["hostname"]
-	iHostname, ok := iHostnameValue.(string)
-	if !ok {
-		return false
-	}
-	jHostname, ok := jHostnameValue.(string)
-	if !ok {
-		return false
-	}
-	return CompareString(iHostname, jHostname)
-}
-
-func (l HostnameAssetList) Swap(i, j int) {
-	l[j], l[i] = l[i], l[j]
-}
-
-type IPAssetList []map[string]interface{}
-
-func (l IPAssetList) Len() int {
-	return len(l)
-}
-
-func (l IPAssetList) Less(i, j int) bool {
-	iIPValue := l[i]["ip"]
-	jIPValue := l[j]["ip"]
-	iIP, ok := iIPValue.(string)
-	if !ok {
-		return false
-	}
-	jIP, ok := jIPValue.(string)
-	if !ok {
-		return false
-	}
-	return CompareIP(iIP, jIP)
-}
-
-func (l IPAssetList) Swap(i, j int) {
-	l[j], l[i] = l[i], l[j]
-}
-
-func CompareIP(ipA, ipB string) bool {
-	iIPs := strings.Split(ipA, ".")
-	jIPs := strings.Split(ipB, ".")
-	for i := 0; i < len(iIPs); i++ {
-		if i >= len(jIPs) {
-			return false
-		}
-		if len(iIPs[i]) == len(jIPs[i]) {
-			if iIPs[i] == jIPs[i] {
-				continue
-			} else {
-				return iIPs[i] < jIPs[i]
-			}
-		} else {
-			return len(iIPs[i]) < len(jIPs[i])
-		}
-
-	}
-	return true
-}
-
-func CompareString(a, b string) bool {
-	return a < b
 }

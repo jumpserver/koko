@@ -39,10 +39,10 @@ type UserSelectHandler struct {
 	hasPre  bool
 	hasNext bool
 
-	allLocalData []map[string]interface{}
+	allLocalData []model.Asset
 
 	selectedNode  model.Node
-	currentResult []map[string]interface{}
+	currentResult []model.Asset
 
 	*pageInfo
 }
@@ -72,12 +72,7 @@ func (u *UserSelectHandler) AutoCompletion() {
 	suggests := make([]string, 0, len(assets))
 
 	for _, v := range assets {
-		switch u.currentType {
-		case TypeAsset, TypeNodeAsset:
-			suggests = append(suggests, v["hostname"].(string))
-		default:
-			suggests = append(suggests, v["name"].(string))
-		}
+		suggests = append(suggests, v.Name)
 	}
 
 	sort.Strings(suggests)
@@ -110,9 +105,9 @@ func (u *UserSelectHandler) SetNode(node model.Node) {
 	u.selectedNode = node
 }
 
-func (u *UserSelectHandler) SetAllLocalData(data []map[string]interface{}) {
+func (u *UserSelectHandler) SetAllLocalData(data []model.Asset) {
 	// 使用副本
-	u.allLocalData = make([]map[string]interface{}, len(data))
+	u.allLocalData = make([]model.Asset, len(data))
 	copy(u.allLocalData, data)
 }
 
@@ -211,36 +206,11 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 	}
 }
 
-func (u *UserSelectHandler) Proxy(target map[string]interface{}) {
-	targetId := target["id"].(string)
-	lang := i18n.NewLang(u.h.i18nLang)
-	switch u.currentType {
-	case TypeAsset, TypeNodeAsset:
-		asset, err := u.h.jmsService.GetAssetById(targetId)
-		if err != nil || asset.ID == "" {
-			logger.Errorf("Select asset %s not found", targetId)
-			return
-		}
-		if !asset.IsActive {
-			logger.Debugf("Select asset %s is inactive", targetId)
-			msg := lang.T("The asset is inactive")
-			_, _ = u.h.term.Write([]byte(msg))
-			return
-		}
-		u.proxyAsset(asset)
-	case TypeK8s, TypeDatabase:
-		app, err := u.h.jmsService.GetApplicationById(targetId)
-		if err != nil {
-			logger.Errorf("Select application %s err: %s", targetId, err)
-			return
-		}
-		u.proxyApp(app)
-	default:
-		logger.Errorf("Select unknown type for target id %s", targetId)
-	}
+func (u *UserSelectHandler) Proxy(target model.Asset) {
+	u.proxyAsset(target)
 }
 
-func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []map[string]interface{} {
+func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.Asset {
 	switch u.loadingPolicy {
 	case loadingFromLocal:
 		return u.retrieveFromLocal(pageSize, offset, searches...)
@@ -249,7 +219,7 @@ func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) [
 	}
 }
 
-func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...string) []map[string]interface{} {
+func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...string) []model.Asset {
 	if pageSize <= 0 {
 		pageSize = PAGESIZEALL
 	}
@@ -259,7 +229,7 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 
 	searchResult := u.retrieveLocal(searches...)
 	var (
-		totalData       []map[string]interface{}
+		totalData       []model.Asset
 		total           int
 		currentOffset   int
 		currentPageSize int
@@ -291,7 +261,7 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 	return currentData
 }
 
-func (u *UserSelectHandler) retrieveLocal(searches ...string) []map[string]interface{} {
+func (u *UserSelectHandler) retrieveLocal(searches ...string) []model.Asset {
 	switch u.currentType {
 	case TypeDatabase:
 		return u.searchLocalDatabase(searches...)
@@ -307,32 +277,56 @@ func (u *UserSelectHandler) retrieveLocal(searches ...string) []map[string]inter
 	}
 }
 
-func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, searches ...string) []map[string]interface{} {
-	items := make([]map[string]interface{}, 0, len(u.allLocalData))
+func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, searches ...string) []model.Asset {
+	items := make([]model.Asset, 0, len(u.allLocalData))
 	for i := range u.allLocalData {
-		if containKeysInMapItemFields(u.allLocalData[i], fields, searches...) {
+		assetData := u.allLocalData[i]
+		data := map[string]interface{}{
+			"name":     u.allLocalData[i].Name,
+			"address":  assetData.Address,
+			"db_name":  assetData.Specific.DBName,
+			"org_name": assetData.OrgName,
+			"platform": assetData.Platform.Name,
+			"comment":  assetData.Comment,
+		}
+		if containKeysInMapItemFields(data, fields, searches...) {
 			items = append(items, u.allLocalData[i])
 		}
 	}
 	return items
 }
 
-func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ...string) []map[string]interface{} {
+func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ...string) []model.Asset {
+
+	order := "name"
+	switch u.h.terminalConf.AssetListSortBy {
+	case "ip":
+		order = "address"
+	default:
+		order = "name"
+	}
 	reqParam := model.PaginationParam{
 		PageSize: pageSize,
 		Offset:   offset,
 		Searches: searches,
+		Order:    order,
+		IsActive: true,
 	}
 	switch u.currentType {
 	case TypeDatabase:
-		return u.retrieveRemoteDatabase(reqParam)
+		reqParam.Category = "database"
+		return u.retrieveRemoteAsset(reqParam)
 	case TypeK8s:
-		return u.retrieveRemoteK8s(reqParam)
+		reqParam.Type = "k8s"
+		return u.retrieveRemoteAsset(reqParam)
 	case TypeNodeAsset:
+		reqParam.Category = "host"
 		return u.retrieveRemoteNodeAsset(reqParam)
 	case TypeAsset:
+		reqParam.Category = "host"
 		return u.retrieveRemoteAsset(reqParam)
 	default:
+		reqParam.Category = "host"
 		// TypeAsset
 		u.SetSelectType(TypeAsset)
 		logger.Info("Retrieve default remote data type: Asset")
@@ -341,7 +335,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 }
 
 func (u *UserSelectHandler) updateRemotePageData(reqParam model.PaginationParam,
-	res model.PaginationResponse) []map[string]interface{} {
+	res model.PaginationResponse) []model.Asset {
 	u.hasNext = false
 	u.hasPre = false
 
@@ -394,25 +388,6 @@ func containKeysInMapItemFields(item map[string]interface{},
 	return false
 }
 
-func convertMapItemToRow(item map[string]interface{}, fields map[string]string, row map[string]string) map[string]string {
-	for key, value := range item {
-		if rowKey, ok := fields[key]; ok {
-			switch ret := value.(type) {
-			case string:
-				row[rowKey] = ret
-			case int:
-				row[rowKey] = strconv.Itoa(ret)
-			}
-			continue
-		}
-		switch ret := value.(type) {
-		case map[string]interface{}:
-			row = convertMapItemToRow(ret, fields, row)
-		}
-	}
-	return row
-}
-
 func joinMultiLineString(lines string) string {
 	lines = strings.ReplaceAll(lines, "\r", "\n")
 	lines = strings.ReplaceAll(lines, "\n\n", "\n")
@@ -428,11 +403,12 @@ func joinMultiLineString(lines string) string {
 	return strings.Join(lineSlice, "|")
 }
 
-func getUniqueAssetFromKey(key string, currentResult []map[string]interface{}) (data map[string]interface{}, ok bool) {
+func getUniqueAssetFromKey(key string, currentResult []model.Asset) (data model.Asset, ok bool) {
 	result := make([]int, 0, len(currentResult))
 	for i := range currentResult {
-		ip := currentResult[i]["ip"].(string)
-		hostname := currentResult[i]["hostname"].(string)
+		asset := currentResult[i]
+		ip := asset.Address
+		hostname := asset.Name
 		switch key {
 		case ip, hostname:
 			result = append(result, i)
@@ -441,5 +417,5 @@ func getUniqueAssetFromKey(key string, currentResult []map[string]interface{}) (
 	if len(result) == 1 {
 		return currentResult[result[0]], true
 	}
-	return nil, false
+	return model.Asset{}, false
 }

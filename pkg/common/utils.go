@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"io"
 	"os"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -74,4 +75,29 @@ func CurrentUTCTime() string {
 // BytesToString converts byte slice to string without a memory allocation.
 func BytesToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+func CompareString(a, b string) bool {
+	return a < b
+}
+
+func CompareIP(ipA, ipB string) bool {
+	iIPs := strings.Split(ipA, ".")
+	jIPs := strings.Split(ipB, ".")
+	for i := 0; i < len(iIPs); i++ {
+		if i >= len(jIPs) {
+			return false
+		}
+		if len(iIPs[i]) == len(jIPs[i]) {
+			if iIPs[i] == jIPs[i] {
+				continue
+			} else {
+				return iIPs[i] < jIPs[i]
+			}
+		} else {
+			return len(iIPs[i]) < len(jIPs[i])
+		}
+
+	}
+	return true
 }
