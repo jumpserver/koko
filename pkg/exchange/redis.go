@@ -2,9 +2,13 @@ package exchange
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/mediocregopher/radix/v3"
@@ -42,6 +46,13 @@ type Config struct {
 	MaxActive int
 
 	DBIndex int
+
+	SentinelsHost    string
+	SentinelPassword string
+	SSLCa            string
+	SSLCert          string
+	SSLKey           string
+	UseSSL           bool
 }
 
 func newRedisManager(cfg Config) (*redisRoomManager, error) {
@@ -53,7 +64,7 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 		cfg.Addr = "127.0.0.1:6379"
 	}
 
-	if cfg.DialTimeout < 0 {
+	if cfg.DialTimeout <= 0 {
 		cfg.DialTimeout = 30 * time.Second
 	}
 
@@ -75,6 +86,31 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 		dialOptions = append(dialOptions, radix.DialSelectDB(int(cfg.DBIndex)))
 	}
 
+	if cfg.UseSSL {
+		tlsCfg := tls.Config{}
+		if cfg.SSLCert != "" && cfg.SSLKey != "" {
+			cert, err := tls.LoadX509KeyPair(cfg.SSLCert, cfg.SSLKey)
+			if err != nil {
+				return nil, err
+			}
+			logger.Debugf("Load redis SSL cert: %s, key: %s", cfg.SSLCert, cfg.SSLKey)
+			tlsCfg.Certificates = []tls.Certificate{cert}
+			tlsCfg.InsecureSkipVerify = true
+		}
+		if cfg.SSLCa != "" {
+			certPool := x509.NewCertPool()
+			buf, err := os.ReadFile(cfg.SSLCa)
+			if err != nil {
+				return nil, err
+			}
+			logger.Debugf("Load redis SSL ca: %s", cfg.SSLCa)
+			certPool.AppendCertsFromPEM(buf)
+			tlsCfg.RootCAs = certPool
+			tlsCfg.InsecureSkipVerify = true
+		}
+		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsCfg))
+	}
+
 	var connFunc radix.ConnFunc
 	if len(cfg.Clusters) > 0 {
 		cluster, err := radix.NewCluster(cfg.Clusters)
@@ -89,6 +125,44 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 			node := topo[rand.Intn(len(topo))]
 			return radix.Dial(cfg.Network, node.Addr, dialOptions...)
 		}
+	} else if cfg.SentinelsHost != "" {
+		sentinels := strings.SplitN(cfg.SentinelsHost, "/", 2)
+		if len(sentinels) != 2 {
+			return nil, fmt.Errorf("invalid sentinel host: %s", cfg.SentinelsHost)
+		}
+		sentinelServiceName := sentinels[0]
+		sentinelHosts := strings.Split(sentinels[1], ",")
+		sentinelOpts := make([]radix.DialOpt, 0, len(dialOptions)+1)
+		sentinelOpts = append(sentinelOpts, dialOptions...)
+		if cfg.SentinelPassword != "" {
+			sentinelOpts = append(sentinelOpts, radix.DialAuthPass(cfg.SentinelPassword))
+		}
+		sentinelConnFunc := func(network, addr string) (radix.Conn, error) {
+			conn, err := radix.Dial(network, addr, sentinelOpts...)
+			if err != nil {
+				logger.Errorf("Redis sentinelConnFunc dial err: %s", err)
+				return nil, err
+			}
+			return conn, nil
+		}
+		serverConnFunc := func(network, addr string) (radix.Conn, error) {
+			logger.Debugf("sentinel pool server addr: %s", addr)
+			return radix.Dial(network, addr, dialOptions...)
+		}
+		poolFunc := func(network, addr string) (radix.Client, error) {
+			return radix.NewPool(network, addr, 4, radix.PoolConnFunc(serverConnFunc))
+		}
+		sentinelClient, err := radix.NewSentinel(sentinelServiceName, sentinelHosts,
+			radix.SentinelConnFunc(sentinelConnFunc), radix.SentinelPoolFunc(poolFunc))
+		if err != nil {
+			logger.Errorf("Redis sentinel client err: %s", err)
+			return nil, err
+		}
+		connFunc = func(network, addr string) (radix.Conn, error) {
+			// 选择一个master
+			masterAddr, _ := sentinelClient.Addrs()
+			return radix.Dial(cfg.Network, masterAddr, dialOptions...)
+		}
 	} else {
 		connFunc = func(network, addr string) (radix.Conn, error) {
 			return radix.Dial(cfg.Network, cfg.Addr, dialOptions...)
@@ -98,6 +172,7 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 	pubSub, err := radix.PersistentPubSubWithOpts("", "",
 		radix.PersistentPubSubConnFunc(connFunc))
 	if err != nil {
+		logger.Errorf("Redis pubSub err: %s", err)
 		return nil, err
 	}
 	redisMsgCh := make(chan radix.PubSubMessage)
