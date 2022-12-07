@@ -1,7 +1,6 @@
 package koko
 
 import (
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -19,14 +18,9 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	eng := gin.New()
-	trustedProxies := []string{"0.0.0.0/0", "::/0"}
-	if err := eng.SetTrustedProxies(trustedProxies); err != nil {
-		log.Fatal(err)
-	}
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
-	rootGroup := eng.Group("")
-	kokoGroup := rootGroup.Group("/koko")
+	kokoGroup := eng.Group("/koko")
 	kokoGroup.Static("/static/", "./static")
 	kokoGroup.Static("/assets", "./ui/dist/assets")
 	kokoGroup.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
@@ -95,7 +89,7 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		elfindlerGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}
 
-	debugGroup := rootGroup.Group("/debug/pprof")
+	debugGroup := eng.Group("/debug/pprof")
 	debugGroup.Use(auth.HTTPMiddleDebugAuth())
 	{
 		debugGroup.GET("/", gin.WrapF(pprof.Index))

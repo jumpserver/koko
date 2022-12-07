@@ -39,7 +39,6 @@ const (
 const (
 	UserListURL      = "/api/v1/users/users/"
 	UserDetailURL    = "/api/v1/users/users/%s/"
-	AssetDetailURL   = "/api/v1/assets/assets/%s/"
 	AssetPlatFormURL = "/api/v1/assets/assets/%s/platform/"
 
 	DomainDetailWithGateways = "/api/v1/assets/domains/%s/?gateway=1"
@@ -52,7 +51,7 @@ const (
 // 命令复核
 
 const (
-	CommandConfirmURL = "/api/v1/assets/cmd-filters/command-confirm/"
+	AclCommandReviewURL = "/api/v1/acls/command-filter-acls/command-review/"
 )
 
 const (

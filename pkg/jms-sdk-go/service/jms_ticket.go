@@ -8,14 +8,14 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) SubmitCommandConfirm(sid string, ruleId string,
+func (s *JMService) SubmitCommandReview(sid string, aclId string,
 	cmd string) (res model.CommandTicketInfo, err error) {
 	data := map[string]string{
-		"session_id":         sid,
-		"cmd_filter_rule_id": ruleId,
-		"run_command":        cmd,
+		"session_id":        sid,
+		"cmd_filter_acl_id": aclId,
+		"run_command":       cmd,
 	}
-	_, err = s.authClient.Post(CommandConfirmURL, data, &res)
+	_, err = s.authClient.Post(AclCommandReviewURL, data, &res)
 	return
 }
 

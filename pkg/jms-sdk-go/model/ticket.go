@@ -30,8 +30,8 @@ type AssetLoginTicketInfo struct {
 }
 
 type TicketInfo struct {
-	CheckReq        ReqInfo  `json:"check_confirm_status"`
-	CloseReq        ReqInfo  `json:"close_confirm"`
+	CheckReq        ReqInfo  `json:"check_review_status"`
+	CloseReq        ReqInfo  `json:"close_review"`
 	TicketDetailUrl string   `json:"ticket_detail_url"`
 	Reviewers       []string `json:"reviewers"`
 }

@@ -428,7 +428,7 @@ type CommandRule struct {
 func (p *Parser) waitCommandConfirm() {
 	cmd := p.confirmStatus.Cmd
 	rule := p.confirmStatus.Rule
-	resp, err := p.jmsService.SubmitCommandConfirm(p.id, rule.Item.ID, p.confirmStatus.Cmd)
+	resp, err := p.jmsService.SubmitCommandReview(p.id, rule.Acl.ID, p.confirmStatus.Cmd)
 	if err != nil {
 		logger.Errorf("Session %s: submit command confirm api err: %s", p.id, err)
 		p.confirmStatus.SetAction(model.ActionReject)

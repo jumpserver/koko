@@ -106,7 +106,7 @@ func (c *LoginConfirmService) waitConfirmFinish(ctx context.Context) Status {
 				return StatusReject
 			default:
 				logger.Errorf("Receive unknown login confirm status %s",
-					statusRes.Status)
+					statusRes.State)
 			}
 		}
 	}
