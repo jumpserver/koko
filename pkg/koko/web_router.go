@@ -6,6 +6,7 @@ import (
 	"net/http/pprof"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -21,11 +22,11 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
 	kokoGroup := eng.Group("/koko")
+	eng.LoadHTMLFiles("./templates/elfinder/file_manager.html")
 	kokoGroup.Static("/static/", "./static")
 	kokoGroup.Static("/assets", "./ui/dist/assets")
 	kokoGroup.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
-	eng.LoadHTMLFiles("./templates/elfinder/file_manager.html")
 	wsGroup := kokoGroup.Group("/ws/")
 	{
 		wsGroup.Group("/terminal").Use(
