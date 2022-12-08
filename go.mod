@@ -27,7 +27,6 @@ require (
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/pkg/sftp v1.13.4
 	github.com/satori/go.uuid v1.2.0
-	github.com/sevlyar/go-daemon v0.1.5
 	github.com/shirou/gopsutil/v3 v3.22.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.12.0
@@ -66,7 +65,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
