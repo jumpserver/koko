@@ -16,7 +16,7 @@ func (s *JMService) GetConnectTokenInfo(tokenId string) (resp model.ConnectToken
 	data := map[string]string{
 		"id": tokenId,
 	}
-	_, err = s.authClient.Post(ConnectTokenInfoURL, data, &resp)
+	_, err = s.authClient.Post(SuperConnectTokenSecretURL, data, &resp)
 	return
 }
 

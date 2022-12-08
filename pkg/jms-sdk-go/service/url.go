@@ -51,10 +51,6 @@ const (
 // 命令复核
 
 const (
-	AclCommandReviewURL = "/api/v1/acls/command-filter-acls/command-review/"
-)
-
-const (
 	ShareCreateURL        = "/api/v1/terminal/session-sharings/"
 	ShareSessionJoinURL   = "/api/v1/terminal/session-join-records/"
 	ShareSessionFinishURL = "/api/v1/terminal/session-join-records/%s/finished/"
@@ -69,12 +65,13 @@ const (
 )
 
 const (
-	ConnectTokenInfoURL      = "/api/v1/authentication/connection-token/secret/"
-	SuperConnectTokenInfoURL = "/api/v1/authentication/super-connection-token/"
+	SuperConnectTokenSecretURL = "/api/v1/authentication/super-connection-token/secret/"
+	SuperConnectTokenInfoURL   = "/api/v1/authentication/super-connection-token/"
 
 	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/accounts/"
 	AccountSecretURL          = "/api/v1/assets/account-secrets/%s/"
 	UserPermsAssetsURL        = "/api/v1/perms/users/%s/assets/"
 
 	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"
+	AclCommandReviewURL  = "/api/v1/acls/command-filter-acls/command-review/"
 )
