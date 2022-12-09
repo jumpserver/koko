@@ -22,6 +22,7 @@ jobs:
         tags: jumpserver/koko:test
         build-args: |
           GOPROXY=direct
+          APT_MIRROR=http://deb.debian.org
         file: Dockerfile
         cache-from: type=gha
         cache-to: type=gha,mode=max
