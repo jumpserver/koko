@@ -20,6 +20,8 @@ jobs:
         context: .
         push: false
         tags: jumpserver/koko:test
+        build-args: |
+          GOPROXY=direct
         file: Dockerfile
         cache-from: type=gha
         cache-to: type=gha,mode=max
