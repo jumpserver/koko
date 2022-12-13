@@ -69,6 +69,8 @@ RUN --mount=type=cache,target=/root/.cache \
     && set -x && ls -al .
 
 RUN mkdir /opt/koko/bin \
+    && mv /opt/koko/kubectl /opt/koko/bin \
+    && mv /opt/koko/helm /opt/koko/bin \
     && mv /opt/koko/clickhouse-client /opt/koko/bin \
     && mv /opt/koko/rawkubectl /opt/koko/bin \
     && mv /opt/koko/rawhelm /opt/koko/bin
@@ -135,8 +137,6 @@ COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
 COPY --from=stage-build /opt/koko/release .
 COPY --from=stage-build /opt/koko/koko .
-COPY --from=stage-build /opt/koko/kubectl .
-COPY --from=stage-build /opt/koko/helm .
 COPY --from=ui-build /opt/koko/ui/dist ui/dist
 
 ENV LANG=zh_CN.UTF-8
