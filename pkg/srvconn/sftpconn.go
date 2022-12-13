@@ -346,7 +346,7 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	permAccount := model.PermAccount{
 		Name:       account.Name,
 		Username:   account.Username,
-		SecretType: account.SecretType,
+		SecretType: account.SecretType.Value,
 		Secret:     account.Secret,
 		Actions:    actions,
 	}

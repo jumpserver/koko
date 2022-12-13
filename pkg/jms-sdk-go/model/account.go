@@ -3,14 +3,18 @@ package model
 import "fmt"
 
 type BaseAccount struct {
-	Name       string `json:"name"`
-	Username   string `json:"username"`
-	Secret     string `json:"secret"`
-	SecretType string `json:"secret_type"`
+	Name       string     `json:"name"`
+	Username   string     `json:"username"`
+	Secret     string     `json:"secret"`
+	SecretType LabelValue `json:"secret_type"`
 }
 
 func (a *BaseAccount) String() string {
 	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
+}
+
+func (a *BaseAccount) IsSSHKey() bool {
+	return a.SecretType.Value == "ssh_key"
 }
 
 type Account struct {
@@ -42,6 +46,10 @@ type PermAccount struct {
 	Actions    Actions `json:"actions"`
 
 	Secret string
+}
+
+func (a *PermAccount) IsSSHKey() bool {
+	return a.SecretType == "ssh_key"
 }
 
 func (a *PermAccount) String() string {
