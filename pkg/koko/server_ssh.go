@@ -370,14 +370,13 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(model.ProtocolSSH)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
-	switch account.SecretType {
-	case "ssh_key":
+	if account.IsSSHKey() {
 		if signer, err1 := gossh.ParsePrivateKey([]byte(account.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		} else {
 			logger.Errorf("Parse account %s private key failed: %s", account.Username, err1)
 		}
-	default:
+	} else {
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(account.Secret))
 	}
 
@@ -393,10 +392,9 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 				Username: loginAccount.Username,
 				Timeout:  timeout,
 			}
-			switch gateway.Account.SecretType {
-			case "ssh_key":
+			if loginAccount.IsSSHKey() {
 				proxyArg.PrivateKey = loginAccount.Secret
-			default:
+			} else {
 				proxyArg.Password = loginAccount.Secret
 			}
 			proxyArgs = append(proxyArgs, proxyArg)

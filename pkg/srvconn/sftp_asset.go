@@ -35,7 +35,7 @@ type AssetDir struct {
 
 	logChan chan<- *model.FTPLog
 
-	sftpClients map[string]*SftpConn // systemUser_id
+	sftpClients map[string]*SftpConn // Account stringer
 
 	once sync.Once
 
@@ -479,7 +479,7 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
 	var ok bool
-	conn, ok = ad.sftpClients[su.ID]
+	conn, ok = ad.sftpClients[su.String()]
 	if !ok {
 		var err error
 		conn, err = ad.GetSftpClient(su)
@@ -487,7 +487,7 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 			logger.Errorf("Get Sftp Client err: %s", err.Error())
 			return nil, ""
 		}
-		ad.sftpClients[su.ID] = conn
+		ad.sftpClients[su.String()] = conn
 	}
 	if ad.platform.Name == "" {
 		platform, err := ad.jmsService.GetAssetPlatform(ad.ID)
@@ -613,14 +613,13 @@ func (ad *AssetDir) getNewSftpConn(su *model.PermAccount) (conn *SftpConn, err e
 	sshAuthOpts = append(sshAuthOpts, SSHClientPort(ad.detailAsset.ProtocolPort(model.ProtocolSSH)))
 
 	sshAuthOpts = append(sshAuthOpts, SSHClientTimeout(timeout))
-	switch su.SecretType {
-	case "ssh_key":
+	if su.IsSSHKey() {
 		if signer, err1 := gossh.ParsePrivateKey([]byte(su.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, SSHClientPrivateAuth(signer))
 		} else {
 			logger.Errorf("ssh private key parse failed: %s", err1)
 		}
-	default:
+	} else {
 		sshAuthOpts = append(sshAuthOpts, SSHClientPassword(su.Secret))
 	}
 
@@ -636,10 +635,9 @@ func (ad *AssetDir) getNewSftpConn(su *model.PermAccount) (conn *SftpConn, err e
 				Username: loginAccount.Username,
 				Timeout:  timeout,
 			}
-			switch gateway.Account.SecretType {
-			case "ssh_key":
+			if loginAccount.IsSSHKey() {
 				proxyArg.PrivateKey = loginAccount.Secret
-			default:
+			} else {
 				proxyArg.Password = loginAccount.Secret
 			}
 			proxyArgs = append(proxyArgs, proxyArg)

@@ -690,14 +690,12 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(s.connOpts.asset.Address))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
-	switch loginAccount.SecretType {
-	case "ssh_key":
+	if loginAccount.IsSSHKey() {
 		if signer, err1 := gossh.ParsePrivateKey([]byte(loginAccount.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		}
-	default:
+	} else {
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
-
 	}
 
 	password := loginAccount.Secret
@@ -828,16 +826,16 @@ func (s *Server) getGatewayProxyOptions() []srvconn.SSHClientOptions {
 	if s.gateway != nil {
 		timeout := config.GlobalConfig.SSHTimeout
 		port := s.gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
+		loginAccount := s.gateway.Account
 		proxyArg := srvconn.SSHClientOptions{
 			Host:     s.gateway.Address,
 			Port:     strconv.Itoa(port),
 			Username: s.gateway.Account.Username,
 			Timeout:  timeout,
 		}
-		switch s.gateway.Account.SecretType {
-		case "ssh_key":
+		if loginAccount.IsSSHKey() {
 			proxyArg.PrivateKey = s.gateway.Account.Secret
-		default:
+		} else {
 			proxyArg.Password = s.gateway.Account.Secret
 		}
 		return []srvconn.SSHClientOptions{proxyArg}
@@ -856,10 +854,9 @@ func (s *Server) getGatewayProxyOptions() []srvconn.SSHClientOptions {
 				Username: loginAccount.Username,
 				Timeout:  timeout,
 			}
-			switch gateway.Account.SecretType {
-			case "ssh_key":
+			if loginAccount.IsSSHKey() {
 				proxyArg.PrivateKey = loginAccount.Secret
-			default:
+			} else {
 				proxyArg.Password = loginAccount.Secret
 			}
 			proxyArgs = append(proxyArgs, proxyArg)
