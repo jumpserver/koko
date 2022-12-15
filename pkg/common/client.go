@@ -158,7 +158,7 @@ func (c *Client) NewRequest(method, url string, body interface{}, params []map[s
 
 // Do wrapper http.Client Do() for using auth and error handle
 // params:
-//   1. query string if set {"name": "ibuler"}
+//  1. query string if set {"name": "ibuler"}
 func (c *Client) Do(method, url string, data, res interface{}, params ...map[string]string) (resp *http.Response, err error) {
 	req, err := c.NewRequest(method, url, data, params)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *Client) Do(method, url string, data, res interface{}, params ...map[str
 		return
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
 		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, body)
 		err = errors.New(msg)

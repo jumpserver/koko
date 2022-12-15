@@ -23,7 +23,7 @@ type PlatformProtocols []PlatformProtocol
 
 func (p PlatformProtocols) GetSftpPath(protocol string) string {
 	for i := range p {
-		if strings.ToLower(p[i].Name) == strings.ToLower(protocol) {
+		if strings.EqualFold(p[i].Name, protocol) {
 			return p[i].Setting.SftpHome
 		}
 	}

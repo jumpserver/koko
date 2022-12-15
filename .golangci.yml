@@ -1,0 +1,15 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  skip-dirs:
+    - cmd/demo
+    - cmd/i18ntool
+
+  skip-files:
+    - pkg/utils/terminal.go
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+

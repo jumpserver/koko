@@ -28,17 +28,17 @@ func (s *Socket) Request() *http.Request {
 
 // ReadData reads binary or text messages from the remote connection.
 func (s *Socket) ReadData(timeout time.Duration) ([]byte, int, error) {
-	for {
-		if timeout > 0 {
-			s.underConn.SetReadDeadline(time.Now().Add(timeout))
-		}
-
-		opCode, data, err := s.underConn.ReadMessage()
-		if err != nil {
+	if timeout > 0 {
+		if err := s.underConn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 			return nil, 0, err
 		}
-		return data, opCode, err
 	}
+
+	opCode, data, err := s.underConn.ReadMessage()
+	if err != nil {
+		return nil, 0, err
+	}
+	return data, opCode, err
 }
 
 // WriteBinary sends a binary message to the remote connection.
@@ -53,7 +53,9 @@ func (s *Socket) WriteText(body []byte, timeout time.Duration) error {
 
 func (s *Socket) write(body []byte, opCode int, timeout time.Duration) error {
 	if timeout > 0 {
-		s.underConn.SetWriteDeadline(time.Now().Add(timeout))
+		if err := s.underConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+			return err
+		}
 	}
 
 	s.mu.Lock()

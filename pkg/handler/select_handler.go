@@ -298,7 +298,7 @@ func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, se
 
 func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ...string) []model.Asset {
 
-	order := "name"
+	var order string
 	switch u.h.terminalConf.AssetListSortBy {
 	case "ip":
 		order = "address"

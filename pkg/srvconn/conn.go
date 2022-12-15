@@ -275,7 +275,9 @@ func ClearTempFileDelay(sleepTime time.Duration, filepath ...string) {
 			_, err := os.Stat(file)
 			if err == nil {
 				logger.Debugf("Clean up file: %s", file)
-				err = os.Remove(file)
+				if err = os.Remove(file); err != nil {
+					logger.Errorf("Clean up file err: %s", err)
+				}
 			}
 		}
 	}()
