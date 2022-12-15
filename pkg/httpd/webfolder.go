@@ -53,7 +53,10 @@ func (h *webFolder) CheckValidation() bool {
 				Type: TERMINALERROR,
 				Err:  "Core API err",
 			})
-			h.ws.conn.WriteText(data, maxWriteTimeOut)
+			// todo: 优化错误提示
+			if err := h.ws.conn.WriteText(data, maxWriteTimeOut); err != nil {
+				logger.Errorf("Write message error: %s", err)
+			}
 			return false
 		}
 		if len(assets) != 1 {
@@ -70,9 +73,10 @@ func (h *webFolder) CheckValidation() bool {
 				Type: TERMINALERROR,
 				Err:  "Core API err",
 			})
-			h.ws.conn.WriteText(data, maxWriteTimeOut)
+			_ = h.ws.conn.WriteText(data, maxWriteTimeOut)
 			return false
 		}
+		h.connectToken = &connectToken
 		volOpts = append(volOpts, WithConnectToken(&connectToken))
 	}
 	h.volume = NewUserVolume(jmsServiceCopy, volOpts...)

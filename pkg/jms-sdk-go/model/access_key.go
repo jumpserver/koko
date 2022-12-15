@@ -3,7 +3,6 @@ package model
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -37,10 +36,10 @@ func (ak *AccessKey) LoadFromFile(keyPath string) error {
 	if keyPath == "" {
 		return AccessKeyNotFound
 	}
-	if _, err := os.Stat(keyPath);err != nil{
+	if _, err := os.Stat(keyPath); err != nil {
 		return AccessKeyFileNotFound
 	}
-	buf, err := ioutil.ReadFile(keyPath)
+	buf, err := os.ReadFile(keyPath)
 	if err != nil {
 		msg := fmt.Sprintf("read file failed: %s", err)
 		return fmt.Errorf("%w: %s", AccessKeyInvalid, msg)
