@@ -93,7 +93,7 @@ type Protocols []Protocol
 
 func (p Protocols) GetProtocolPort(protocol string) int {
 	for i := range p {
-		if strings.ToLower(p[i].Name) == strings.ToLower(protocol) {
+		if strings.EqualFold(p[i].Name, protocol) {
 			return p[i].Port
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/user"
@@ -173,7 +172,7 @@ func initOnceLinuxMySQLShellFile() {
 					logger.Infof("Already init MySQL bash file: %s", TmpMysqlShellPath)
 					return
 				}
-				err = ioutil.WriteFile(TmpMysqlShellPath, []byte(mysqlTemplate), os.FileMode(0755))
+				err = os.WriteFile(TmpMysqlShellPath, []byte(mysqlTemplate), os.FileMode(0755))
 				if err != nil {
 					logger.Errorf("Init MySQL bash file failed: %s", err)
 					return

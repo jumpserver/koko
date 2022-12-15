@@ -18,7 +18,6 @@ import (
 var errNoSelectAsset = errors.New("please select one of the assets")
 
 type UserSftpConn struct {
-	opts *userSftpOption
 	User *model.User
 	Addr string
 	Dirs map[string]os.FileInfo
@@ -438,7 +437,6 @@ type userSftpOption struct {
 	user       *model.User
 	RemoteAddr string
 	assets     []model.Asset
-	accounts   []model.PermAccount
 	token      *model.ConnectToken
 }
 
