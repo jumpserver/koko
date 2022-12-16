@@ -109,6 +109,7 @@ func (u *UserAuthClient) CheckMFAAuth(ctx ssh.Context, challenger gossh.Keyboard
 	username := u.Opts.Username
 	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 	opts := u.mfaTypes
+	count := 0
 	var selectedMFAType string
 	switch len(opts) {
 	case 1:
@@ -118,11 +119,16 @@ func (u *UserAuthClient) CheckMFAAuth(ctx ssh.Context, challenger gossh.Keyboard
 		question := CreateSelectOptionsQuestion(opts)
 	loop:
 		for {
+			if count > 3 {
+				logger.Errorf("user %s select MFA type failed", username)
+				return
+			}
 			answers, err := challenger(username, mfaSelectInstruction, []string{question}, []bool{true})
 			if err != nil {
 				logger.Errorf("user %s happened err: %s", username, err)
 				return
 			}
+			count++
 			if len(answers) == 1 {
 				num, err2 := strconv.Atoi(answers[0])
 				if err2 != nil {

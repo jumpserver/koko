@@ -38,10 +38,10 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		wsGroup.Group("/token").GET("/", webSrv.ProcessTokenWebsocket)
 	}
 
-	terminalGroup := kokoGroup.Group("/connect")
-	terminalGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	connectGroup := kokoGroup.Group("/connect")
+	connectGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
-		terminalGroup.GET("/", func(ctx *gin.Context) {
+		connectGroup.GET("/", func(ctx *gin.Context) {
 			ctx.File("./ui/dist/index.html")
 		})
 	}
