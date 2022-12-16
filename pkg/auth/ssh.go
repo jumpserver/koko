@@ -7,7 +7,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -125,15 +124,6 @@ type DirectLoginAssetReq struct {
 	ConnectToken *model.ConnectToken
 }
 
-func (d *DirectLoginAssetReq) IsUUIDString() bool {
-	for _, item := range []string{d.AccountInfo, d.AssetInfo} {
-		if !common.ValidUUIDString(item) {
-			return false
-		}
-	}
-	return true
-}
-
 func (d *DirectLoginAssetReq) Authenticate(password string) bool {
 	return d.ConnectToken.Value == password
 }
@@ -172,7 +162,7 @@ func parseUserFormatBySeparator(s, Separator string) (DirectLoginAssetReq, bool)
 	case sshProtocolLen:
 		req = DirectLoginAssetReq{
 			Username:    authInfos[0],
-			Protocol:    "ssh",
+			Protocol:    model.ProtocolSSH,
 			AccountInfo: authInfos[1],
 			AssetInfo:   authInfos[2],
 		}

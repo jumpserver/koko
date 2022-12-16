@@ -193,10 +193,6 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		utils.IgnoreErrWriteWindowTitle(sess, termConf.HeaderTitle)
 		return
 	}
-	if !config.GetConf().EnableVscodeSupport {
-		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
-		return
-	}
 
 	if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 		if directRequest.IsToken() {
@@ -210,7 +206,7 @@ func (s *server) SessionHandler(sess ssh.Session) {
 				logger.Errorf("vscode failed: %s", msg)
 				return
 			}
-			s.proxyVscodeByTokenInfo(sess, tokenInfo)
+			s.proxyTokenInfo(sess, tokenInfo)
 			return
 		}
 		selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
@@ -245,18 +241,19 @@ func (s *server) SessionHandler(sess ssh.Session) {
 			logger.Error(msg)
 			return
 		}
-		s.proxyVscode(sess, user, selectedAssets[0], selectAccount)
+		s.proxyDirectRequest(sess, user, selectedAssets[0], selectAccount, directRequest.Protocol)
 	}
 
 }
 
-func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Asset,
-	permAccount model.PermAccount) {
+func (s *server) proxyDirectRequest(sess ssh.Session, user *model.User, asset model.Asset,
+	permAccount model.PermAccount, protocol string) {
+	// todo: 禁用 非 ssh 的协议
 	connectInfo, err := s.jmsService.CreateSuperConnectToken(&service.SuperConnectTokenReq{
 		UserId:        user.ID,
 		AssetId:       asset.ID,
 		Account:       permAccount.Name,
-		Protocol:      model.ProtocolSSH,
+		Protocol:      protocol,
 		ConnectMethod: model.ProtocolSSH,
 	})
 	if err != nil {
@@ -271,10 +268,10 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
-	s.proxyVscodeByTokenInfo(sess, &connectToken)
+	s.proxyTokenInfo(sess, &connectToken)
 }
 
-func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) {
+func (s *server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) {
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
@@ -282,13 +279,14 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 		return
 	}
 	asset := tokeInfo.Asset
-	systemUserAuthInfo := tokeInfo.Account
+	account := tokeInfo.Account
 	var gateways []model.Gateway
 	// todo：domain 再优化
 	if tokeInfo.Gateway != nil {
 		gateways = []model.Gateway{*tokeInfo.Gateway}
 	}
-	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, gateways)
+
+	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get SSH Client failed: %s", err)
@@ -296,6 +294,15 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 		return
 	}
 	defer sshClient.Close()
+	if len(sess.Command()) != 0 {
+		s.proxyAssetCommand(sess, sshClient)
+		return
+	}
+
+	if !config.GetConf().EnableVscodeSupport {
+		utils.IgnoreErrWriteString(sess, "No support vscode like requested.\n")
+		return
+	}
 
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
@@ -305,6 +312,24 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 	}
 	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
+	}
+}
+
+func (s *server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClient) {
+	goSess, err := sshClient.AcquireSession()
+	if err != nil {
+		logger.Errorf("Get SSH session failed: %s", err)
+		return
+	}
+	defer goSess.Close()
+	defer sshClient.ReleaseSession(goSess)
+	goSess.Stdin = sess
+	goSess.Stdout = sess
+	goSess.Stderr = sess
+	// todo: 禁用 scp 命令，增加会话记录
+	err = goSess.Run(sess.RawCommand())
+	if err != nil {
+		logger.Errorf("Run command failed: %s", err)
 	}
 }
 
@@ -405,14 +430,6 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 }
 
 func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
-	if req.IsUUIDString() {
-		asset, err := s.jmsService.GetUserAssetByID(user.ID, req.AssetInfo)
-		if err != nil {
-			logger.Errorf("Get asset failed: %s", err)
-			return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
-		}
-		return asset, nil
-	}
 	assets, err := s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetInfo)
 	if err != nil {
 		logger.Errorf("Get asset failed: %s", err)
@@ -420,7 +437,7 @@ func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 	}
 	sshAssets := make([]model.Asset, 0, len(assets))
 	for i := range assets {
-		if assets[i].IsSupportProtocol(model.ProtocolSSH) {
+		if assets[i].IsSupportProtocol(req.Protocol) {
 			sshAssets = append(sshAssets, assets[i])
 		}
 	}
@@ -440,11 +457,6 @@ func (s *server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAsset
 	matchFunc := func(account *model.PermAccount, name string) bool {
 		return account.Username == name
 	}
-	if req.IsUUIDString() {
-		matchFunc = func(account *model.PermAccount, name string) bool {
-			return account.ID == name
-		}
-	}
 	matched := make([]model.PermAccount, 0, len(accounts))
 	for i := range accounts {
 		account := accounts[i]
@@ -460,9 +472,7 @@ func buildDirectRequestOptions(userInfo *model.User, directRequest *auth.DirectL
 	opts = append(opts, handler.DirectTargetAsset(directRequest.AssetInfo))
 	opts = append(opts, handler.DirectUser(userInfo))
 	opts = append(opts, handler.DirectTargetAccount(directRequest.AccountInfo))
-	if directRequest.IsUUIDString() {
-		opts = append(opts, handler.DirectFormatType(handler.FormatUUID))
-	}
+	opts = append(opts, handler.DirectConnectProtocol(directRequest.Protocol))
 	if directRequest.IsToken() {
 		opts = append(opts, handler.DirectFormatType(handler.FormatToken))
 		opts = append(opts, handler.DirectConnectToken(directRequest.ConnectToken))

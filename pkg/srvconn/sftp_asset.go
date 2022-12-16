@@ -530,10 +530,11 @@ func (ad *AssetDir) getSubFolderNames() []string {
 func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err error) {
 	if su.Secret == "" {
 		var info model.AccountDetail
-		info, err = ad.jmsService.GetAccountSecretById(su.ID)
-		if err != nil {
-			return nil, err
-		}
+		// todo: 获取账号密码 api 缺失
+		//info, err = ad.jmsService.GetAccountSecretById(su.ID)
+		//if err != nil {
+		//	return nil, err
+		//}
 		su.Secret = info.Secret
 	}
 

@@ -24,19 +24,12 @@ import (
 
 1. JMS_username[@mysql|ssh|redis]@account_username@asset_ip
 2. JMS_username[#mysql|ssh|redis]#account_username#asset_ip
-3. JMS_username[@mysql|ssh|redis]@account_uuid@asset_uuid
-4. JMS_username[#mysql|ssh|redis]#account_uuid#asset_uuid
 
 JMS_username: 			JumpServer 平台上的用户名
 account_username：	    对应账号的用户名
 asset_ip: 				对应资产的ip
-account_uuid:		    对应账号的UUID
-asset_uuid:				对应资产的UUID
 
-
-FormatNORMAL: 使用 systemUser_username 和 asset_ip 的登录方式，即1和2的方式
-
-FormatUUID:  使用 systemUser_uuid 和 asset_uuid 的登录方式，即3和4的方式
+FormatNORMAL: 使用 account_username 和 asset_ip 的登录方式，即1和2的方式
 
 FormatToken:  使用 JMS-{token} 的方式登陆方式
 
@@ -46,7 +39,6 @@ type FormatType int
 
 const (
 	FormatNORMAL FormatType = iota
-	FormatUUID
 	FormatToken
 )
 
@@ -61,6 +53,7 @@ type directOpt struct {
 	formatType FormatType
 
 	tokenInfo *model.ConnectToken
+	protocol  string
 
 	sftpMode bool
 }
@@ -105,6 +98,12 @@ func DirectConnectToken(tokenInfo *model.ConnectToken) DirectOpt {
 	}
 }
 
+func DirectConnectProtocol(protocol string) DirectOpt {
+	return func(opts *directOpt) {
+		opts.protocol = protocol
+	}
+}
+
 func DirectConnectSftpMode(sftpMode bool) DirectOpt {
 	return func(opts *directOpt) {
 		opts.sftpMode = sftpMode
@@ -112,22 +111,23 @@ func DirectConnectSftpMode(sftpMode bool) DirectOpt {
 }
 
 func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
-	switch opts.formatType {
-	case FormatUUID:
-		assets, err := jmsService.GetUserAssetByID(opts.User.ID, opts.targetAsset)
-		if err != nil {
-			return nil, err
-		}
-		return assets, nil
-	default:
-		return jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAsset)
+	assets, err := jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAsset)
+	if err != nil {
+		return nil, err
 	}
+	matchedAsset := make([]model.Asset, 0, len(assets))
+	for i := range assets {
+		if assets[i].IsSupportProtocol(opts.protocol) {
+			matchedAsset = append(matchedAsset, assets[i])
+		}
+	}
+	return matchedAsset, nil
 }
 
-func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetters ...DirectOpt) (*DirectHandler, error) {
+func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters ...DirectOpt) (*DirectHandler, error) {
 	opts := &directOpt{}
-	for i := range optSetters {
-		optSetters[i](opts)
+	for i := range setters {
+		setters[i](opts)
 	}
 	i18nLang := getUserDefaultLangCode(opts.User)
 	lang := i18n.NewLang(i18nLang)
@@ -277,7 +277,7 @@ func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.P
 		return permAccounts[0], true
 	default:
 	}
-	displaySystemUsers := permAccounts
+	displayAccounts := permAccounts
 
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
@@ -286,8 +286,8 @@ func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.P
 	labels := []string{idLabel, nameLabel, usernameLabel}
 	fields := []string{"ID", "Name", "Username"}
 
-	data := make([]map[string]string, len(displaySystemUsers))
-	for i, j := range displaySystemUsers {
+	data := make([]map[string]string, len(displayAccounts))
+	for i, j := range displayAccounts {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		row["Name"] = j.Name
@@ -330,8 +330,8 @@ func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.P
 			return model.PermAccount{}, false
 		}
 		if num, err2 := strconv.Atoi(line); err2 == nil {
-			if num > 0 && num <= len(displaySystemUsers) {
-				return displaySystemUsers[num-1], true
+			if num > 0 && num <= len(displayAccounts) {
+				return displayAccounts[num-1], true
 			}
 		} else {
 			logger.Errorf("select account not right number %s", line)
@@ -402,7 +402,11 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		logger.Info("Do not select system user")
 		return
 	}
-	protocol := d.opts.tokenInfo.Protocol
+	protocol := d.opts.protocol
+	if d.opts.tokenInfo != nil {
+		protocol = d.opts.tokenInfo.Protocol
+	}
+
 	req := service.SuperConnectTokenReq{
 		UserId:        d.opts.User.ID,
 		AssetId:       asset.ID,
@@ -456,11 +460,6 @@ func (d *DirectHandler) getMatchedAccounts(asset model.Asset) []model.PermAccoun
 	}
 	matchFunc := func(account *model.PermAccount, name string) bool {
 		return account.Username == name
-	}
-	if d.opts.formatType == FormatUUID {
-		matchFunc = func(account *model.PermAccount, name string) bool {
-			return account.ID == name
-		}
 	}
 	matched := make([]model.PermAccount, 0, len(accounts))
 	for i := range accounts {
