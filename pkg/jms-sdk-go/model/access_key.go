@@ -37,7 +37,7 @@ func (ak *AccessKey) LoadFromFile(keyPath string) error {
 	if keyPath == "" {
 		return AccessKeyNotFound
 	}
-	if _, err := os.Stat(keyPath);err != nil{
+	if _, err := os.Stat(keyPath); err != nil {
 		return AccessKeyFileNotFound
 	}
 	buf, err := ioutil.ReadFile(keyPath)
@@ -56,7 +56,7 @@ func (ak *AccessKey) SaveToFile(path string) error {
 			return err2
 		}
 	}
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
