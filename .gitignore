@@ -16,7 +16,6 @@ log/
 vendor/
 config.yml
 host_key
-cmd/koko
 cmd/logs
 cmd/kokodir
 build
