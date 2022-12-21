@@ -89,7 +89,7 @@ func keepHeartbeat(jmsService *service.JMService) {
 		if len(tasks) != 0 {
 			for _, task := range tasks {
 				switch task.Name {
-				case TaskKillSession:
+				case model.TaskKillSession:
 					if sw, ok := proxy.GetSessionById(task.Args); ok {
 						sw.Terminate(task.Kwargs.TerminatedBy)
 						if err = jmsService.FinishTask(task.ID); err != nil {
@@ -103,10 +103,6 @@ func keepHeartbeat(jmsService *service.JMService) {
 		}
 	}
 }
-
-const (
-	TaskKillSession = "kill_session"
-)
 
 func ValidateRemainReplayFile(path string) error {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, os.ModePerm)

@@ -51,10 +51,6 @@ func (s *SwitchSession) loadTerminateAdmin() string {
 	return s.terminateAdmin.Load().(string)
 }
 
-func (s *SwitchSession) SessionID() string {
-	return s.ID
-}
-
 func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 	// 命令记录
 	cmdRecorder := s.p.GetCommandRecorder()
