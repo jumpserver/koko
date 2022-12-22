@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gliderlabs/ssh"
+	"golang.org/x/term"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
@@ -45,15 +46,14 @@ const (
 type DirectOpt func(*directOpt)
 
 type directOpt struct {
-	targetAsset   string
+	formatType    FormatType
+	protocol      string
+	targetAssetIP string
 	targetAccount string
 	User          *model.User
 	terminalConf  *model.TerminalConfig
 
-	formatType FormatType
-
 	tokenInfo *model.ConnectToken
-	protocol  string
 
 	sftpMode bool
 }
@@ -62,15 +62,15 @@ func (d directOpt) IsTokenConnection() bool {
 	return d.formatType == FormatToken
 }
 
-func DirectTargetAsset(targetAsset string) DirectOpt {
+func DirectTargetAsset(assetIP string) DirectOpt {
 	return func(opts *directOpt) {
-		opts.targetAsset = targetAsset
+		opts.targetAssetIP = assetIP
 	}
 }
 
-func DirectTargetAccount(targetSystemUser string) DirectOpt {
+func DirectTargetAccount(username string) DirectOpt {
 	return func(opts *directOpt) {
-		opts.targetAccount = targetSystemUser
+		opts.targetAccount = username
 	}
 }
 
@@ -111,7 +111,7 @@ func DirectConnectSftpMode(sftpMode bool) DirectOpt {
 }
 
 func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
-	assets, err := jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAsset)
+	assets, err := jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAssetIP)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters .
 		selectedAssets []model.Asset
 		err            error
 		wrapperSess    *WrapperSession
-		term           *utils.Terminal
+		termVt         *term.Terminal
 		errMsg         string
 	)
 
@@ -152,15 +152,15 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters .
 			return nil, err
 		}
 		if len(selectedAssets) <= 0 {
-			msg := fmt.Sprintf(lang.T("not found matched asset %s"), opts.targetAsset)
+			msg := fmt.Sprintf(lang.T("not found matched asset %s"), opts.targetAssetIP)
 			errMsg = msg + "\r\n"
-			err = fmt.Errorf("no found matched asset: %s", opts.targetAsset)
+			err = fmt.Errorf("no found matched asset: %s", opts.targetAssetIP)
 			return nil, err
 		}
 	}
 	if !opts.sftpMode {
 		wrapperSess = NewWrapperSession(sess)
-		term = utils.NewTerminal(wrapperSess, "Opt> ")
+		termVt = term.NewTerminal(wrapperSess, "Opt> ")
 	}
 	d := &DirectHandler{
 		opts:       opts,
@@ -170,14 +170,14 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters .
 		i18nLang:   i18nLang,
 
 		wrapperSess: wrapperSess,
-		term:        term,
+		term:        termVt,
 	}
 	return d, nil
 
 }
 
 type DirectHandler struct {
-	term        *utils.Terminal
+	term        *term.Terminal
 	sess        ssh.Session
 	wrapperSess *WrapperSession
 	opts        *directOpt
@@ -209,6 +209,11 @@ func (d *DirectHandler) Dispatch() {
 		return
 	}
 	d.LoginAsset()
+}
+
+func (d *DirectHandler) GetPtyWinSize() (width, height int) {
+	pty := d.wrapperSess.Pty()
+	return pty.Window.Width, pty.Window.Height
 }
 
 func (d *DirectHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
@@ -294,7 +299,7 @@ func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.P
 		row["Username"] = j.Username
 		data[i] = row
 	}
-	w, _ := d.term.GetSize()
+	w, _ := d.GetPtyWinSize()
 	table := common.WrapperTable{
 		Fields: fields,
 		Labels: labels,
@@ -344,7 +349,7 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	assetListSortBy := d.opts.terminalConf.AssetListSortBy
 	model.AssetList(assets).SortBy(assetListSortBy)
 
-	term := d.term
+	vt := d.term
 	lang := i18n.NewLang(d.i18nLang)
 	idLabel := lang.T("ID")
 	hostLabel := lang.T("Hostname")
@@ -362,7 +367,7 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 		row["Comment"] = joinMultiLineString(assets[i].Comment)
 		data[i] = row
 	}
-	w, _ := d.term.GetSize()
+	w, _ := d.GetPtyWinSize()
 
 	table := common.WrapperTable{
 		Fields: fields,
@@ -380,12 +385,12 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	table.Initial()
 	loginTip := lang.T("select one asset to login")
 
-	_, _ = term.Write([]byte(utils.CharClear))
-	_, _ = term.Write([]byte(table.Display()))
-	utils.IgnoreErrWriteString(term, utils.WrapperString(loginTip, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(term, utils.WrapperString(d.opts.targetAsset, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
+	_, _ = vt.Write([]byte(utils.CharClear))
+	_, _ = vt.Write([]byte(table.Display()))
+	utils.IgnoreErrWriteString(vt, utils.WrapperString(loginTip, utils.Green))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, utils.WrapperString(d.opts.targetAssetIP, utils.Green))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 }
 
 func (d *DirectHandler) Proxy(asset model.Asset) {
@@ -394,7 +399,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 	if len(matched) == 0 {
 		msg := fmt.Sprintf(lang.T("not found matched username %s"), d.opts.targetAccount)
 		utils.IgnoreErrWriteString(d.term, msg+"\r\n")
-		logger.Errorf("Get systemUser failed: %s", msg)
+		logger.Errorf("Get account failed: %s", msg)
 		return
 	}
 	selectAccount, ok := d.chooseAccount(matched)

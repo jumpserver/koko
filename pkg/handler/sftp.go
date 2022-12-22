@@ -26,11 +26,11 @@ type SftpHandler struct {
 	*srvconn.UserSftpConn
 }
 
-func (fs *SftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
+func (s *SftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 	switch r.Method {
 	case "List":
 		logger.Debug("List method: ", r.Filepath)
-		res, err := fs.ReadDir(r.Filepath)
+		res, err := s.ReadDir(r.Filepath)
 		fileInfos := make(listerat, 0, len(res))
 		for i := 0; i < len(res); i++ {
 			fileInfos = append(fileInfos, &wrapperSFTPFileInfo{f: res[i]})
@@ -38,18 +38,18 @@ func (fs *SftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		return fileInfos, err
 	case "Stat":
 		logger.Debug("stat method: ", r.Filepath)
-		fsInfo, err := fs.Stat(r.Filepath)
+		fsInfo, err := s.Stat(r.Filepath)
 		return listerat([]os.FileInfo{fsInfo}), err
 	case "Readlink":
 		logger.Debug("Readlink method", r.Filepath)
-		filename, err := fs.ReadLink(r.Filepath)
+		filename, err := s.ReadLink(r.Filepath)
 		fsInfo := srvconn.NewFakeSymFile(filename)
 		return listerat([]os.FileInfo{&wrapperSFTPFileInfo{f: fsInfo}}), err
 	}
 	return nil, sftp.ErrSshFxOpUnsupported
 }
 
-func (fs *SftpHandler) Filecmd(r *sftp.Request) (err error) {
+func (s *SftpHandler) Filecmd(r *sftp.Request) (err error) {
 	logger.Debug("File cmd: ", r.Filepath)
 
 	switch r.Method {
@@ -57,25 +57,25 @@ func (fs *SftpHandler) Filecmd(r *sftp.Request) (err error) {
 		return
 	case "Rename":
 		logger.Debugf("%s=>%s", r.Filepath, r.Target)
-		return fs.Rename(r.Filepath, r.Target)
+		return s.Rename(r.Filepath, r.Target)
 	case "Rmdir":
-		err = fs.RemoveDirectory(r.Filepath)
+		err = s.RemoveDirectory(r.Filepath)
 	case "Remove":
-		err = fs.Remove(r.Filepath)
+		err = s.Remove(r.Filepath)
 	case "Mkdir":
-		err = fs.MkdirAll(r.Filepath)
+		err = s.MkdirAll(r.Filepath)
 	case "Symlink":
 		logger.Debugf("%s=>%s", r.Filepath, r.Target)
-		err = fs.Symlink(r.Filepath, r.Target)
+		err = s.Symlink(r.Filepath, r.Target)
 	default:
 		return
 	}
 	return
 }
 
-func (fs *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
+func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
-	f, err := fs.Create(r.Filepath)
+	f, err := s.Create(r.Filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -89,9 +89,9 @@ func (fs *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	return NewWriterAt(f), err
 }
 
-func (fs *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
+func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	logger.Debug("File read: ", r.Filepath)
-	f, err := fs.Open(r.Filepath)
+	f, err := s.Open(r.Filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +106,8 @@ func (fs *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	return f, err
 }
 
-func (fs *SftpHandler) Close() {
-	fs.UserSftpConn.Close()
+func (s *SftpHandler) Close() {
+	s.UserSftpConn.Close()
 }
 
 type listerat []os.FileInfo

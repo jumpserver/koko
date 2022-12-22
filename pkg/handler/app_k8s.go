@@ -64,14 +64,14 @@ func (u *UserSelectHandler) displayResult(searchHeader, assetDisplay string,
 	generateRowFunc createRowFunc) {
 	lang := i18n.NewLang(u.h.i18nLang)
 	currentDBS := u.currentResult
-	term := u.h.term
+	vt := u.h.term
 	data := make([]map[string]string, len(currentDBS))
 	for i := range currentDBS {
 		item := currentDBS[i]
 		data[i] = generateRowFunc(i, &item)
 	}
 
-	w, _ := term.GetSize()
+	w, _ := u.h.GetPtySize()
 	currentPage := u.CurrentPage()
 	pageSize := u.PageSize()
 	totalPage := u.TotalPage()
@@ -94,18 +94,18 @@ func (u *UserSelectHandler) displayResult(searchHeader, assetDisplay string,
 	loginTip = fmt.Sprintf(loginTip, assetDisplay)
 	pageActionTip := lang.T("Page up: b	Page down: n")
 	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
-	_, _ = term.Write([]byte(utils.CharClear))
-	_, _ = term.Write([]byte(table.Display()))
-	utils.IgnoreErrWriteString(term, utils.WrapperString(actionTip, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
+	_, _ = vt.Write([]byte(utils.CharClear))
+	_, _ = vt.Write([]byte(table.Display()))
+	utils.IgnoreErrWriteString(vt, utils.WrapperString(actionTip, utils.Green))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, utils.WrapperString(searchHeader, utils.Green))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 }
 
 func (u *UserSelectHandler) displayNoResultMsg(searchHeader, tips string) {
-	term := u.h.term
-	utils.IgnoreErrWriteString(term, utils.WrapperString(tips, utils.Red))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
+	vt := u.h.term
+	utils.IgnoreErrWriteString(vt, utils.WrapperString(tips, utils.Red))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, utils.WrapperString(searchHeader, utils.Green))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 }

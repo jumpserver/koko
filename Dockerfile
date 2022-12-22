@@ -51,6 +51,9 @@ RUN --mount=type=cache,target=/root/.cache \
     go mod download -x
 
 COPY . .
+
+COPY --from=ui-build /opt/koko/ui/dist ui/dist
+
 ARG VERSION
 ENV VERSION=$VERSION
 
@@ -76,8 +79,6 @@ RUN mkdir /opt/koko/bin \
     && mv /opt/koko/rawhelm /opt/koko/bin
 
 RUN mkdir /opt/koko/release \
-    && mv /opt/koko/static /opt/koko/release \
-    && mv /opt/koko/templates /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
     && mv /opt/koko/config_example.yml /opt/koko/release \
     && mv /opt/koko/entrypoint.sh /opt/koko/release \
@@ -137,7 +138,6 @@ COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
 COPY --from=stage-build /opt/koko/release .
 COPY --from=stage-build /opt/koko/koko .
-COPY --from=ui-build /opt/koko/ui/dist ui/dist
 
 ENV LANG=zh_CN.UTF-8
 

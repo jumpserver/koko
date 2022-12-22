@@ -53,7 +53,7 @@ func (s *JMService) GetUserAssetByID(userId, assetId string) (assets []model.Ass
 
 func (s *JMService) GetUserPermAssetsByIP(userId, assetIP string) (assets []model.Asset, err error) {
 	params := map[string]string{
-		"ip": assetIP,
+		"address": assetIP,
 	}
 	reqUrl := fmt.Sprintf(UserPermsAssetsURL, userId)
 	_, err = s.authClient.Get(reqUrl, &assets, params)

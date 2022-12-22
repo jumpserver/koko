@@ -3,6 +3,7 @@ package httpd
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -34,10 +35,19 @@ var upGrader = websocket.Upgrader{
 }
 
 func NewServer(jmsService *service.JMService) *Server {
-	return &Server{
+	srv := &Server{
 		broadCaster: NewBroadcaster(),
 		JmsService:  jmsService,
 	}
+
+	eng := createRouter(jmsService, srv)
+	conf := config.GetConf()
+	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
+	srv.Srv = &http.Server{
+		Addr:    addr,
+		Handler: eng,
+	}
+	return srv
 }
 
 type Server struct {

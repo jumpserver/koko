@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/term"
+
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/utils"
@@ -29,12 +31,12 @@ func (s *Server) validateLoginConfirm(srv *auth.LoginConfirmService, userCon Use
 	}
 
 	ctx, cancelFunc := context.WithCancel(userCon.Context())
-	term := utils.NewTerminal(userCon, "")
+	vt := term.NewTerminal(userCon, "")
 	defer userCon.Close()
 	go func() {
 		defer cancelFunc()
 		for {
-			line, err := term.ReadLine()
+			line, err := vt.ReadLine()
 			if err != nil {
 				logger.Errorf("Wait confirm user readLine exit: %s", err.Error())
 				return

@@ -10,13 +10,12 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/sshd"
 )
 
-type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res sshd.AuthStatus)
+type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 
 func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
-	return func(ctx ssh.Context, password, publicKey string) (res sshd.AuthStatus) {
+	return func(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult) {
 		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 		username := ctx.User()
 		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
@@ -24,13 +23,13 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 				ctx.SetValue(ContextKeyUser, req.ConnectToken.User)
 				logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
 					actionAccepted, ctx.User(), remoteAddr)
-				return sshd.AuthSuccessful
+				return ssh.AuthSuccessful
 			}
 			username = req.User()
 		}
 		authMethod := "publickey"
 		action := actionAccepted
-		res = sshd.AuthFailed
+		res = ssh.AuthFailed
 		if password != "" {
 			authMethod = "password"
 		}
@@ -57,14 +56,14 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		switch authStatus {
 		case authMFARequired:
 			action = actionPartialAccepted
-			res = sshd.AuthPartiallySuccessful
+			res = ssh.AuthPartiallySuccessful
 			ctx.SetValue(ContextKeyAuthStatus, authMFARequired)
 		case authSuccess:
-			res = sshd.AuthSuccessful
+			res = ssh.AuthSuccessful
 			ctx.SetValue(ContextKeyUser, &user)
 		case authConfirmRequired:
 			action = actionPartialAccepted
-			res = sshd.AuthPartiallySuccessful
+			res = ssh.AuthPartiallySuccessful
 			ctx.SetValue(ContextKeyAuthStatus, authConfirmRequired)
 		default:
 			action = actionFailed
@@ -75,12 +74,12 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 	}
 }
 
-func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (res sshd.AuthStatus) {
+func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (res ssh.AuthResult) {
 	if value, ok := ctx.Value(ContextKeyAuthFailed).(*bool); ok && *value {
-		return sshd.AuthFailed
+		return ssh.AuthFailed
 	}
 	username := GetUsernameFromSSHCtx(ctx)
-	res = sshd.AuthFailed
+	res = ssh.AuthFailed
 	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 	if !ok {
 		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found session client.",
@@ -100,7 +99,7 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 		checkAuth = client.CheckMFAAuth
 	}
 	if checkAuth != nil && checkAuth(ctx, challenger) {
-		res = sshd.AuthSuccessful
+		res = ssh.AuthSuccessful
 	}
 	return
 }
@@ -117,11 +116,11 @@ const (
 )
 
 type DirectLoginAssetReq struct {
-	Username     string
-	Protocol     string
-	AccountInfo  string
-	AssetInfo    string
-	ConnectToken *model.ConnectToken
+	Username        string
+	Protocol        string
+	AccountUsername string
+	AssetIP         string
+	ConnectToken    *model.ConnectToken
 }
 
 func (d *DirectLoginAssetReq) Authenticate(password string) bool {
@@ -161,17 +160,17 @@ func parseUserFormatBySeparator(s, Separator string) (DirectLoginAssetReq, bool)
 	switch len(authInfos) {
 	case sshProtocolLen:
 		req = DirectLoginAssetReq{
-			Username:    authInfos[0],
-			Protocol:    model.ProtocolSSH,
-			AccountInfo: authInfos[1],
-			AssetInfo:   authInfos[2],
+			Username:        authInfos[0],
+			Protocol:        model.ProtocolSSH,
+			AccountUsername: authInfos[1],
+			AssetIP:         authInfos[2],
 		}
 	case withProtocolLen:
 		req = DirectLoginAssetReq{
-			Username:    authInfos[0],
-			Protocol:    authInfos[1],
-			AccountInfo: authInfos[2],
-			AssetInfo:   authInfos[3],
+			Username:        authInfos[0],
+			Protocol:        authInfos[1],
+			AccountUsername: authInfos[2],
+			AssetIP:         authInfos[3],
 		}
 	default:
 		return DirectLoginAssetReq{}, false

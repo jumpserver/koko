@@ -14,6 +14,7 @@ import (
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/term"
 
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
@@ -79,7 +80,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		actions  model.Actions
 	)
 
-	// todo: 后续优化这里，统一授权资源获取。目前这里兼容处理 connection token 方式的连接
+	// todo: 这里处理 connection token 方式的连接
 	account = connOpts.predefinedAccount
 
 	filterRules = connOpts.predefinedCmdACLRules
@@ -107,13 +108,14 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		ID:         common.UUID(),
 		User:       connOpts.user.String(),
 		Account:    account.String(),
-		LoginFrom:  conn.LoginFrom(),
+		LoginFrom:  model.LabelFiled(conn.LoginFrom()),
 		RemoteAddr: conn.RemoteAddr(),
 		Protocol:   connOpts.Protocol,
 		UserID:     connOpts.user.ID,
 		Asset:      assetName,
 		AssetID:    connOpts.asset.ID,
 		OrgID:      connOpts.asset.OrgID,
+		Type:       model.NORMALType,
 	}
 	if !actions.EnableConnect() {
 		msg := lang.T("You don't have permission login %s")
@@ -141,7 +143,8 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		sessionInfo:  apiSession,
 		CreateSessionCallback: func() error {
 			apiSession.DateStart = modelCommon.NewNowUTCTime()
-			return jmsService.CreateSession(*apiSession)
+			_, err2 := jmsService.CreateSession(*apiSession)
+			return err2
 		},
 		ConnectedSuccessCallback: func() error {
 			return jmsService.SessionSuccess(apiSession.ID)
@@ -324,9 +327,9 @@ func (s *Server) getUsernameIfNeed() (err error) {
 	if s.account.Username == "" {
 		logger.Infof("Conn[%s] need manuel input system user username", s.UserConn.ID())
 		var username string
-		term := utils.NewTerminal(s.UserConn, "username: ")
+		vt := term.NewTerminal(s.UserConn, "username: ")
 		for {
-			username, err = term.ReadLine()
+			username, err = vt.ReadLine()
 			if err != nil {
 				return err
 			}
@@ -344,11 +347,11 @@ func (s *Server) getUsernameIfNeed() (err error) {
 func (s *Server) getAuthPasswordIfNeed() (err error) {
 	var line string
 	if s.account.Secret == "" {
-		term := utils.NewTerminal(s.UserConn, "password: ")
+		vt := term.NewTerminal(s.UserConn, "password: ")
 		if s.account.Username != "" {
-			line, err = term.ReadPassword(fmt.Sprintf("%s's password: ", s.account.Username))
+			line, err = vt.ReadPassword(fmt.Sprintf("%s's password: ", s.account.Username))
 		} else {
-			line, err = term.ReadPassword("password: ")
+			line, err = vt.ReadPassword("password: ")
 		}
 
 		if err != nil {
@@ -523,9 +526,10 @@ func (s *Server) getContainerConn(clusterServer string) (
 	srvConn *srvconn.ContainerConnection, err error) {
 	info := s.connOpts.k8sContainer
 	token := s.account.Secret
+	pty := s.UserConn.Pty()
 	win := srvconn.Windows{
-		Width:  s.UserConn.Pty().Window.Width,
-		Height: s.UserConn.Pty().Window.Height,
+		Width:  pty.Window.Width,
+		Height: pty.Window.Height,
 	}
 	opts := make([]srvconn.ContainerOption, 0, 5)
 	opts = append(opts, srvconn.ContainerHost(clusterServer))
@@ -702,12 +706,12 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
 		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
-		termReader := utils.NewTerminal(s.UserConn, "")
+		vt := term.NewTerminal(s.UserConn, "")
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
 		ans := make([]string, len(questions))
 		for i := range questions {
 			q := questions[i]
-			termReader.SetPrompt(questions[i])
+			vt.SetPrompt(questions[i])
 			logger.Debugf("Conn[%s] keyboard auth question [ %s ]", s.UserConn.ID(), q)
 			if strings.Contains(strings.ToLower(q), "password") {
 				if password != "" {
@@ -715,7 +719,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 					continue
 				}
 			}
-			line, err2 := termReader.ReadLine()
+			line, err2 := vt.ReadLine()
 			if err2 != nil {
 				logger.Errorf("Conn[%s] keyboard auth read err: %s", s.UserConn.ID(), err2)
 			}
