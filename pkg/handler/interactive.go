@@ -11,6 +11,7 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
+	"golang.org/x/term"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -24,11 +25,11 @@ import (
 func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService,
 	termConfig model.TerminalConfig) *InteractiveHandler {
 	wrapperSess := NewWrapperSession(sess)
-	term := utils.NewTerminal(wrapperSess, "Opt> ")
+	vt := term.NewTerminal(wrapperSess, "Opt> ")
 	handler := &InteractiveHandler{
 		sess:         wrapperSess,
 		user:         user,
-		term:         term,
+		term:         vt,
 		jmsService:   jmsService,
 		terminalConf: &termConfig,
 	}
@@ -80,7 +81,7 @@ func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, ses
 type InteractiveHandler struct {
 	sess *WrapperSession
 	user *model.User
-	term *utils.Terminal
+	term *term.Terminal
 
 	selectHandler *UserSelectHandler
 
@@ -120,6 +121,12 @@ func (h *InteractiveHandler) Initial() {
 	}
 	h.firstLoadData()
 
+}
+
+func (h *InteractiveHandler) GetPtySize() (int, int) {
+	// todo: 优化直接存储
+	pty := h.sess.Pty()
+	return pty.Window.Width, pty.Window.Height
 }
 
 func (h *InteractiveHandler) firstLoadData() {
@@ -200,7 +207,7 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 		row["Username"] = j.Username
 		data[i] = row
 	}
-	w, _ := h.term.GetSize()
+	w, _ := h.GetPtySize()
 	table := common.WrapperTable{
 		Fields: fields,
 		Labels: labels,
@@ -273,7 +280,7 @@ func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bo
 		row["Protocol"] = displaySystemUsers[i]
 		data[i] = row
 	}
-	w, _ := h.term.GetSize()
+	w, _ := h.GetPtySize()
 	table := common.WrapperTable{
 		Fields: fields,
 		Labels: labels,
@@ -363,13 +370,13 @@ func (h *InteractiveHandler) loadUserNodes() {
 	h.nodes = nodes
 }
 
-func getPageSize(term *utils.Terminal, termConf *model.TerminalConfig) int {
+func getPageSize(h *InteractiveHandler, termConf *model.TerminalConfig) int {
 	var (
 		pageSize  int
 		minHeight = 8 // 分页显示的最小高度
 
 	)
-	_, height := term.GetSize()
+	_, height := h.GetPtySize()
 
 	AssetListPageSize := termConf.AssetListPageSize
 	switch AssetListPageSize {
