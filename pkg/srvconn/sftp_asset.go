@@ -102,9 +102,11 @@ func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*mode
 	}
 	for i := 0; i < len(accounts); i++ {
 		// todo: @USER 和 @INPUT 的情况特殊处理
-		if accounts[i].Username == "@INPUT" {
-			fmt.Printf("暂时禁用 @INPUT %+v\n", accounts[i])
+		switch accounts[i].Username {
+		case "@INPUT", "@USER":
+			logger.Debugf("Skip @INPUT or @USER account %s", accounts[i].Name)
 			continue
+		default:
 		}
 		folderName := cleanFolderName(accounts[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
