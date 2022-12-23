@@ -45,18 +45,18 @@ func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	lang := i18n.NewLang(u.h.i18nLang)
 	idLabel := lang.T("ID")
-	hostLabel := lang.T("Hostname")
+	nameLabel := lang.T("Name")
 	ipLabel := lang.T("IP")
 	protocolsLabel := lang.T("Protocols")
 	platformLabel := lang.T("Platform")
 	orgLabel := lang.T("Organization")
 	commentLabel := lang.T("Comment")
 
-	Labels := []string{idLabel, hostLabel, ipLabel, protocolsLabel, platformLabel, orgLabel, commentLabel}
-	fields := []string{"ID", "Hostname", "IP", "Protocols", "Platform", "Organization", "Comment"}
+	Labels := []string{idLabel, nameLabel, ipLabel, protocolsLabel, platformLabel, orgLabel, commentLabel}
+	fields := []string{"ID", "Name", "IP", "Protocols", "Platform", "Organization", "Comment"}
 	fieldsSize := map[string][3]int{
 		"ID":           {0, 0, 5},
-		"Hostname":     {0, 40, 0},
+		"Name":         {0, 8, 0},
 		"IP":           {0, 8, 40},
 		"Protocols":    {0, 8, 0},
 		"Platform":     {0, 8, 0},
@@ -66,7 +66,7 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	generateRowFunc := func(i int, item *model.Asset) map[string]string {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		row["Hostname"] = item.Name
+		row["Name"] = item.Name
 		row["IP"] = item.Address
 		row["Protocols"] = strings.Join(item.SupportProtocols(), "|")
 		row["Platform"] = item.Platform.Name

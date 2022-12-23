@@ -320,7 +320,6 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		reqParam.Type = "k8s"
 		return u.retrieveRemoteAsset(reqParam)
 	case TypeNodeAsset:
-		reqParam.Category = "host"
 		return u.retrieveRemoteNodeAsset(reqParam)
 	case TypeAsset:
 		reqParam.Category = "host"
