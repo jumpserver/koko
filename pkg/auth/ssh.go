@@ -218,8 +218,9 @@ func parseDirectLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Direc
 func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*DirectLoginAssetReq, bool) {
 	if strings.HasPrefix(ctx.User(), tokenPrefix) {
 		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
-		if resp, err := jmsService.GetConnectTokenInfo(token); err == nil {
-			req := DirectLoginAssetReq{ConnectToken: &resp}
+		if connectToken, err := jmsService.GetConnectTokenInfo(token); err == nil {
+			req := DirectLoginAssetReq{ConnectToken: &connectToken,
+				Protocol: connectToken.Protocol}
 			return &req, true
 		} else {
 			logger.Errorf("Check user token %s failed: %s", ctx.User(), err)

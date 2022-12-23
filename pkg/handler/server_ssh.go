@@ -225,31 +225,25 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			logger.Error(msg)
 			return
 		default:
-			s.proxyDirectRequest(sess, user, selectedAssets[0], selectAccount, directRequest.Protocol)
+			s.proxyDirectRequest(sess, user, selectedAssets[0], selectAccount)
 		}
 	}
 
 }
 
 func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset model.Asset,
-	permAccount model.PermAccount, protocol string) {
-	// todo: 禁用 非 ssh 的协议
-	connectInfo, err := s.jmsService.CreateSuperConnectToken(&service.SuperConnectTokenReq{
+	permAccount model.PermAccount) {
+	//  仅支持 ssh 的协议资产
+	req := &service.SuperConnectTokenReq{
 		UserId:        user.ID,
 		AssetId:       asset.ID,
 		Account:       permAccount.Name,
-		Protocol:      protocol,
+		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
-	})
+	}
+	connectToken, err := s.jmsService.CreateConnectTokenAndGetAuthInfo(req)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
-		utils.IgnoreErrWriteString(sess, err.Error())
-		return
-	}
-
-	connectToken, err := s.jmsService.GetConnectTokenInfo(connectInfo.ID)
-	if err != nil {
-		logger.Errorf("Get super connect token err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
@@ -544,26 +538,14 @@ func (s *Server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAsset
 		logger.Errorf("Get account failed: %s", err)
 		return nil, err
 	}
-	matchFunc := func(account *model.PermAccount, name string) bool {
-		return account.Username == name
-	}
-	matched := make([]model.PermAccount, 0, len(accounts))
-	for i := range accounts {
-		account := accounts[i]
-		if strings.HasPrefix(account.Username, "@") {
-			continue
-		}
-		if matchFunc(&account, req.AccountUsername) {
-			matched = append(matched, account)
-		}
-	}
+	matched := GetMatchedAccounts(accounts, req.AccountUsername)
 	return matched, nil
 }
 
-func buildDirectRequestOptions(userInfo *model.User, directRequest *auth.DirectLoginAssetReq) []DirectOpt {
+func buildDirectRequestOptions(user *model.User, directRequest *auth.DirectLoginAssetReq) []DirectOpt {
 	opts := make([]DirectOpt, 0, 7)
 	opts = append(opts, DirectTargetAsset(directRequest.AssetIP))
-	opts = append(opts, DirectUser(userInfo))
+	opts = append(opts, DirectUser(user))
 	opts = append(opts, DirectTargetAccount(directRequest.AccountUsername))
 	opts = append(opts, DirectConnectProtocol(directRequest.Protocol))
 	if directRequest.IsToken() {
