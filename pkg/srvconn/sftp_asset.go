@@ -531,22 +531,37 @@ func (ad *AssetDir) getSubFolderNames() []string {
 
 func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err error) {
 	if su.Secret == "" {
-		var info model.AccountDetail
-		// todo: 获取账号密码 api 缺失
-		//info, err = ad.jmsService.GetAccountSecretById(su.ID)
-		//if err != nil {
-		//	return nil, err
-		//}
-		su.Secret = info.Secret
+		account, err2 := ad.getConnectTokenAccount(su)
+		if err != nil {
+			return nil, fmt.Errorf("get connect token account err: %s", err2)
+		}
+		su.Secret = account.Secret
 	}
-
 	if ad.reuse {
 		if sftpConn, ok := ad.getCacheSftpConn(su); ok {
 			return sftpConn, nil
 		}
 	}
-
 	return ad.getNewSftpConn(su)
+}
+
+func (ad *AssetDir) getConnectTokenAccount(su *model.PermAccount) (model.Account, error) {
+	req := service.SuperConnectTokenReq{
+		UserId:        ad.user.ID,
+		AssetId:       ad.ID,
+		Account:       su.Name,
+		Protocol:      model.ProtocolSSH,
+		ConnectMethod: model.ProtocolSSH,
+	}
+	connectInfo, err := ad.jmsService.CreateSuperConnectToken(&req)
+	if err != nil {
+		return model.Account{}, err
+	}
+	tokenInfo, err := ad.jmsService.GetConnectTokenInfo(connectInfo.ID)
+	if err != nil {
+		return model.Account{}, err
+	}
+	return tokenInfo.Account, nil
 }
 
 func (ad *AssetDir) getCacheSftpConn(su *model.PermAccount) (*SftpConn, bool) {
