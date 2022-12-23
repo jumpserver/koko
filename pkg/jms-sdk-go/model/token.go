@@ -21,15 +21,6 @@ type ConnectToken struct {
 	Detail string `json:"detail"`
 }
 
-func (c *ConnectToken) Permission() Permission {
-	var permission Permission
-	permission.Actions = make([]string, 0, len(c.Actions))
-	for i := range c.Actions {
-		permission.Actions = append(permission.Actions, c.Actions[i].Value)
-	}
-	return permission
-}
-
 type ConnectTokenInfo struct {
 	ID          string `json:"id"`
 	Value       string `json:"value"`

@@ -42,82 +42,62 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		setter(connOpts)
 	}
 	lang := connOpts.getLang()
-
-	if err := srvconn.IsSupportedProtocol(connOpts.Protocol); err != nil {
+	protocol := connOpts.authInfo.Protocol
+	asset := connOpts.authInfo.Asset
+	account := connOpts.authInfo.Account
+	user := connOpts.authInfo.User
+	if err := srvconn.IsSupportedProtocol(protocol); err != nil {
 		logger.Errorf("Conn[%s] checking protocol %s failed: %s", conn.ID(),
-			connOpts.Protocol, err)
+			protocol, err)
 		var errMsg string
 		switch {
 		case errors.As(err, &srvconn.ErrNoClient{}):
 			errMsg = lang.T("%s protocol client not installed.")
-			errMsg = fmt.Sprintf(errMsg, connOpts.Protocol)
+			errMsg = fmt.Sprintf(errMsg, protocol)
 			err = fmt.Errorf("%w: %s", ErrMissClient, err)
 		default:
 			errMsg = lang.T("Terminal does not support protocol %s, please use web terminal to access")
-			errMsg = fmt.Sprintf(errMsg, connOpts.Protocol)
+			errMsg = fmt.Sprintf(errMsg, protocol)
 			err = fmt.Errorf("%w: %s", ErrUnMatchProtocol, err)
 		}
 		utils.IgnoreErrWriteString(conn, utils.WrapperWarn(errMsg))
 		return nil, err
 	}
-	if !connOpts.asset.IsSupportProtocol(connOpts.Protocol) {
+	if !asset.IsSupportProtocol(protocol) {
 		msg := lang.T("Account <%s> and asset <%s> protocol are inconsistent.")
-		msg = fmt.Sprintf(msg, connOpts.predefinedAccount.Username, connOpts.asset.Address)
+		msg = fmt.Sprintf(msg, account.Username, asset.Address)
 		utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
 		return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol, msg)
 	}
 
 	var (
-		err          error
-		filterRules  model.CommandACLs
-		terminalConf model.TerminalConfig
-
 		apiSession *model.Session
-
-		account *model.Account
-
-		platform *model.Platform
-		actions  model.Actions
 	)
 
-	// todo: 这里处理 connection token 方式的连接
-	account = connOpts.predefinedAccount
-
-	filterRules = connOpts.predefinedCmdACLRules
-	actions = connOpts.predefinedActions
-	platform = connOpts.predefinedPlatform
-
-	expireInfo := connOpts.predefinedExpiredAt
-
-	terminalConf, err = jmsService.GetTerminalConfig()
+	terminalConf, err := jmsService.GetTerminalConfig()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
 	}
-
-	if account == nil {
-		return nil, errors.New("no auth info")
-	}
-	// 过滤规则排序
-	sort.Sort(filterRules)
-	assetName := connOpts.asset.String()
+	assetName := asset.String()
 	if connOpts.k8sContainer != nil {
-		assetName = connOpts.k8sContainer.K8sName(connOpts.asset.Name)
+		assetName = connOpts.k8sContainer.K8sName(asset.Name)
 	}
 
 	apiSession = &model.Session{
 		ID:         common.UUID(),
-		User:       connOpts.user.String(),
+		User:       user.String(),
 		Account:    account.String(),
 		LoginFrom:  model.LabelFiled(conn.LoginFrom()),
 		RemoteAddr: conn.RemoteAddr(),
-		Protocol:   connOpts.Protocol,
-		UserID:     connOpts.user.ID,
+		Protocol:   protocol,
+		UserID:     user.ID,
 		Asset:      assetName,
-		AssetID:    connOpts.asset.ID,
-		OrgID:      connOpts.asset.OrgID,
+		AssetID:    asset.ID,
+		OrgID:      connOpts.authInfo.OrgId,
 		Type:       model.NORMALType,
 	}
-	if !actions.EnableConnect() {
+
+	if !connOpts.authInfo.Actions.EnableConnect() {
 		msg := lang.T("You don't have permission login %s")
 		msg = utils.WrapperWarn(fmt.Sprintf(msg, connOpts.TerminalTitle()))
 		utils.IgnoreErrWriteString(conn, msg)
@@ -125,22 +105,15 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	}
 
 	return &Server{
-		ID:         apiSession.ID,
-		UserConn:   conn,
-		jmsService: jmsService,
-
-		connOpts: connOpts,
-		account:  account,
-
+		ID:            apiSession.ID,
+		UserConn:      conn,
+		jmsService:    jmsService,
+		connOpts:      connOpts,
+		account:       &account,
 		suFromAccount: account.SuFrom,
-
-		filterRules:  filterRules,
-		terminalConf: &terminalConf,
-		expireInfo:   expireInfo,
-		platform:     platform,
-		permActions:  actions,
-		gateway:      connOpts.predefinedGateway,
-		sessionInfo:  apiSession,
+		terminalConf:  &terminalConf,
+		gateway:       connOpts.authInfo.Gateway,
+		sessionInfo:   apiSession,
 		CreateSessionCallback: func() error {
 			apiSession.DateStart = modelCommon.NewNowUTCTime()
 			_, err2 := jmsService.CreateSession(*apiSession)
@@ -169,13 +142,9 @@ type Server struct {
 
 	suFromAccount *model.BaseAccount
 
-	filterRules    model.CommandACLs
 	terminalConf   *model.TerminalConfig
 	domainGateways *model.Domain
 	gateway        *model.Gateway
-	expireInfo     model.ExpireInfo
-	platform       *model.Platform
-	permActions    model.Actions
 
 	sessionInfo *model.Session
 
@@ -211,11 +180,14 @@ func (s *Server) resetKeyboardMode() {
 }
 
 func (s *Server) CheckPermissionExpired(now time.Time) bool {
-	return s.expireInfo.IsExpired(now)
+	return s.connOpts.authInfo.ExpireAt.IsExpired(now)
 }
 
 func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
-	switch s.connOpts.Protocol {
+	protocol := s.connOpts.authInfo.Protocol
+	asset := s.connOpts.authInfo.Asset
+	user := s.connOpts.authInfo.User
+	switch protocol {
 	case srvconn.ProtocolTELNET, srvconn.ProtocolSSH:
 		operate := model.OperateDownload
 		switch zinfo.Type() {
@@ -225,9 +197,9 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			operate = model.OperateDownload
 		}
 		item := model.FTPLog{
-			OrgID:      s.connOpts.asset.OrgID,
-			User:       s.connOpts.user.String(),
-			Hostname:   s.connOpts.asset.String(),
+			OrgID:      asset.OrgID,
+			User:       user.String(),
+			Hostname:   asset.String(),
 			SystemUser: s.account.String(),
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
@@ -246,26 +218,30 @@ func (s *Server) GetFilterParser() *Parser {
 		enableUpload   bool
 		enableDownload bool
 	)
-	if s.permActions != nil {
-		if s.permActions.EnableDownload() {
-			enableDownload = true
-		}
-		if s.permActions.EnableUpload() {
-			enableUpload = true
-		}
+	actions := s.connOpts.authInfo.Actions
+	if actions.EnableDownload() {
+		enableDownload = true
+	}
+	if actions.EnableUpload() {
+		enableUpload = true
 	}
 	zParser := zmodem.New()
 	zParser.FileEventCallback = s.ZmodemFileTransferEvent
+	protocol := s.connOpts.authInfo.Protocol
+	filterRules := s.connOpts.authInfo.CommandFilterACLs
+	platform := s.connOpts.authInfo.Platform
+	// 过滤规则排序
+	sort.Sort(model.CommandACLs(filterRules))
 	parser := Parser{
 		id:             s.ID,
-		protocolType:   s.connOpts.Protocol,
+		protocolType:   protocol,
 		jmsService:     s.jmsService,
-		cmdFilterACLs:  s.filterRules,
+		cmdFilterACLs:  filterRules,
 		enableDownload: enableDownload,
 		enableUpload:   enableUpload,
 		zmodemParser:   zParser,
 		i18nLang:       s.connOpts.i18nLang,
-		platform:       s.platform,
+		platform:       &platform,
 	}
 	parser.initial()
 	return &parser
@@ -301,17 +277,19 @@ func (s *Server) GetCommandRecorder() *CommandRecorder {
 
 func (s *Server) GenerateCommandItem(user, input, output string,
 	riskLevel int64, createdDate time.Time) *model.Command {
-	server := s.connOpts.asset.String()
-	switch s.connOpts.Protocol {
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	server := asset.String()
+	switch protocol {
 	case srvconn.ProtocolK8s:
-		server = s.connOpts.asset.Name
+		server = asset.Name
 		if s.connOpts.k8sContainer != nil {
 			server = s.connOpts.k8sContainer.K8sName(server)
 		}
 	}
 	return &model.Command{
 		SessionID:   s.ID,
-		OrgID:       s.connOpts.asset.OrgID,
+		OrgID:       asset.OrgID,
 		Server:      server,
 		User:        user,
 		Account:     s.account.String(),
@@ -366,7 +344,10 @@ func (s *Server) getAuthPasswordIfNeed() (err error) {
 
 func (s *Server) checkRequiredAuth() error {
 	lang := s.connOpts.getLang()
-	switch s.connOpts.Protocol {
+	protocol := s.connOpts.authInfo.Protocol
+	asset := s.connOpts.authInfo.Asset
+	loginAccount := s.account
+	switch protocol {
 	case srvconn.ProtocolK8s:
 		if s.account.Secret == "" {
 			msg := utils.WrapperWarn(lang.T("You get auth token failed"))
@@ -404,7 +385,7 @@ func (s *Server) checkRequiredAuth() error {
 				return nil
 			}
 			logger.Debugf("Conn[%s] did not found cache ssh client(%s@%s)",
-				s.UserConn.ID(), s.connOpts.predefinedAccount.Name, s.connOpts.asset.Name)
+				s.UserConn.ID(), loginAccount.Name, asset.Name)
 		}
 
 		if s.account.Secret == "" {
@@ -426,8 +407,10 @@ const (
 
 func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
-		platformMatched := s.connOpts.asset.Platform.Name == linuxPlatform
-		protocolMatched := s.connOpts.Protocol == model.ProtocolSSH
+		asset := s.connOpts.authInfo.Asset
+		protocol := s.connOpts.authInfo.Protocol
+		platformMatched := asset.Platform.Name == linuxPlatform
+		protocolMatched := protocol == model.ProtocolSSH
 		notSuSystemUser := s.suFromAccount == nil
 		return platformMatched && protocolMatched && notSuSystemUser
 	}
@@ -436,8 +419,12 @@ func (s *Server) checkReuseSSHClient() bool {
 
 func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	lang := s.connOpts.getLang()
-	keyId := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID,
-		s.connOpts.predefinedAccount.String(), s.connOpts.asset.Address, s.account.Username)
+	asset := s.connOpts.authInfo.Asset
+	user := s.connOpts.authInfo.User
+	loginAccount := s.account
+
+	keyId := srvconn.MakeReuseSSHClientKey(user.ID, asset.ID,
+		loginAccount.String(), asset.Address, s.account.Username)
 	sshClient, ok := srvconn.GetClientFromCache(keyId)
 	if !ok {
 		return nil, ok
@@ -448,7 +435,8 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		return nil, false
 	}
 	pty := s.UserConn.Pty()
-	cacheConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(s.platform.Charset.Value),
+	platform := s.connOpts.authInfo.Platform
+	cacheConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(platform.Charset.Value),
 		srvconn.SSHPtyWin(srvconn.Windows{
 			Width:  pty.Window.Width,
 			Height: pty.Window.Height,
@@ -460,7 +448,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		return nil, false
 	}
 	reuseMsg := fmt.Sprintf(lang.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
-		s.connOpts.predefinedAccount.Name, s.connOpts.asset.Address, sshClient.RefCount())
+		loginAccount.Name, asset.Address, sshClient.RefCount())
 	utils.IgnoreErrWriteString(s.UserConn, reuseMsg+"\r\n")
 	go func() {
 		_ = sess.Wait()
@@ -471,10 +459,13 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 }
 
 func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, error) {
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+
 	var dGateway *domainGateway
-	switch s.connOpts.Protocol {
+	switch protocol {
 	case srvconn.ProtocolK8s:
-		dstHost, dstPort, err := ParseUrlHostAndPort(s.connOpts.asset.Address)
+		dstHost, dstPort, err := ParseUrlHostAndPort(asset.Address)
 		if err != nil {
 			return nil, err
 		}
@@ -485,10 +476,10 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 			selectedGateway: s.gateway,
 		}
 	default:
-		port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+		port := asset.ProtocolPort(protocol)
 		dGateway = &domainGateway{
 			domain:          domain,
-			dstIP:           s.connOpts.asset.Address,
+			dstIP:           asset.Address,
 			dstPort:         port,
 			selectedGateway: s.gateway,
 		}
@@ -498,7 +489,8 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 
 // getSSHConn 获取ssh连接
 func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
-	clusterServer := s.connOpts.asset.Address
+	asset := s.connOpts.authInfo.Asset
+	clusterServer := asset.Address
 	if localTunnelAddr != nil {
 		originUrl, err := url.Parse(clusterServer)
 		if err != nil {
@@ -544,8 +536,10 @@ func (s *Server) getContainerConn(clusterServer string) (
 }
 
 func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
-	host := s.connOpts.asset.Address
-	port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	host := asset.Address
+	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
@@ -555,7 +549,7 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPort(port))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.account.Username))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.account.Secret))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(s.connOpts.asset.Specific.DBName))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(asset.Specific.DBName))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
@@ -568,8 +562,10 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 }
 
 func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.RedisConn, err error) {
-	host := s.connOpts.asset.Address
-	port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	host := asset.Address
+	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
@@ -579,11 +575,11 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(s.connOpts.asset.Specific.DBName),
-		srvconn.SqlUseSSL(s.connOpts.asset.Specific.UseSSL),
-		srvconn.SqlCaCert(s.connOpts.asset.Specific.CaCert),
-		srvconn.SqlClientCert(s.connOpts.asset.Specific.ClientCert),
-		srvconn.SqlCertKey(s.connOpts.asset.Specific.CertKey),
+		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlUseSSL(asset.Specific.UseSSL),
+		srvconn.SqlCaCert(asset.Specific.CaCert),
+		srvconn.SqlClientCert(asset.Specific.ClientCert),
+		srvconn.SqlCertKey(asset.Specific.CertKey),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -593,8 +589,10 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 }
 
 func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MongoDBConn, err error) {
-	host := s.connOpts.asset.Address
-	port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	host := asset.Address
+	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
@@ -605,11 +603,11 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(s.connOpts.asset.Specific.DBName),
-		srvconn.SqlUseSSL(s.connOpts.asset.Specific.UseSSL),
-		srvconn.SqlCaCert(s.connOpts.asset.Specific.CaCert),
-		srvconn.SqlCertKey(s.connOpts.asset.Specific.CertKey),
-		srvconn.SqlAllowInvalidCert(s.connOpts.asset.Specific.AllowInvalidCert),
+		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlUseSSL(asset.Specific.UseSSL),
+		srvconn.SqlCaCert(asset.Specific.CaCert),
+		srvconn.SqlCertKey(asset.Specific.CertKey),
+		srvconn.SqlAllowInvalidCert(asset.Specific.AllowInvalidCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -619,8 +617,10 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 }
 
 func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.SQLServerConn, err error) {
-	host := s.connOpts.asset.Address
-	port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	host := asset.Address
+	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
@@ -630,7 +630,7 @@ func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvcon
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(s.connOpts.asset.Specific.DBName),
+		srvconn.SqlDBName(asset.Specific.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -640,8 +640,10 @@ func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvcon
 }
 
 func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.PostgreSQLConn, err error) {
-	host := s.connOpts.asset.Address
-	port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	host := asset.Address
+	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
@@ -651,7 +653,7 @@ func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(s.connOpts.asset.Specific.DBName),
+		srvconn.SqlDBName(asset.Specific.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -661,8 +663,10 @@ func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 }
 
 func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.ClickHouseConn, err error) {
-	host := s.connOpts.asset.Address
-	port := s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	host := asset.Address
+	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
@@ -672,7 +676,7 @@ func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(s.connOpts.asset.Specific.DBName),
+		srvconn.SqlDBName(asset.Specific.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -686,13 +690,16 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if s.suFromAccount != nil {
 		loginAccount = s.suFromAccount
 	}
-	key := srvconn.MakeReuseSSHClientKey(s.connOpts.user.ID, s.connOpts.asset.ID, loginAccount.String(),
-		s.connOpts.asset.Address, loginAccount.Username)
+	asset := s.connOpts.authInfo.Asset
+	protocol := s.connOpts.authInfo.Protocol
+	user := s.connOpts.authInfo.User
+	key := srvconn.MakeReuseSSHClientKey(user.ID, asset.ID, loginAccount.String(),
+		asset.Address, loginAccount.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(loginAccount.Username))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(s.connOpts.asset.Address))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(protocol)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
 	if loginAccount.IsSSHKey() {
 		if signer, err1 := gossh.ParsePrivateKey([]byte(loginAccount.Secret)); err1 == nil {
@@ -745,9 +752,10 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
 		return nil, err
 	}
+	platform := s.connOpts.authInfo.Platform
 	pty := s.UserConn.Pty()
 	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)
-	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(s.platform.Charset.Value))
+	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(platform.Charset.Value))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHTerm(pty.Term))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHPtyWin(srvconn.Windows{
 		Width:  pty.Window.Width,
@@ -807,8 +815,11 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 		telnetOpts = append(telnetOpts, srvconn.TelnetCustomSuccessPattern(successPattern))
 	}
 
-	telnetOpts = append(telnetOpts, srvconn.TelnetHost(s.connOpts.asset.Address))
-	telnetOpts = append(telnetOpts, srvconn.TelnetPort(s.connOpts.asset.ProtocolPort(s.connOpts.Protocol)))
+	protocol := s.connOpts.authInfo.Protocol
+	asset := s.connOpts.authInfo.Asset
+	platform := s.connOpts.authInfo.Platform
+	telnetOpts = append(telnetOpts, srvconn.TelnetHost(asset.Address))
+	telnetOpts = append(telnetOpts, srvconn.TelnetPort(asset.ProtocolPort(protocol)))
 	telnetOpts = append(telnetOpts, srvconn.TelnetUsername(s.account.Username))
 	telnetOpts = append(telnetOpts, srvconn.TelnetUPassword(s.account.Secret))
 	telnetOpts = append(telnetOpts, srvconn.TelnetUTimeout(timeout))
@@ -816,7 +827,7 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 		Width:  pty.Window.Width,
 		Height: pty.Window.Height,
 	}))
-	telnetOpts = append(telnetOpts, srvconn.TelnetCharset(s.platform.Charset.Value))
+	telnetOpts = append(telnetOpts, srvconn.TelnetCharset(platform.Charset.Value))
 	// 获取网关配置
 	proxyArgs := s.getGatewayProxyOptions()
 	if proxyArgs != nil {
@@ -880,7 +891,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		close(done)
 	}()
 	go s.sendConnectingMsg(done)
-	switch s.connOpts.Protocol {
+	protocol := s.connOpts.authInfo.Protocol
+	switch protocol {
 	case srvconn.ProtocolSSH:
 		return s.getSSHConn()
 	case srvconn.ProtocolTELNET:
@@ -936,11 +948,12 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 }
 
 func (s *Server) checkLoginConfirm() bool {
+	assetId := s.connOpts.authInfo.Asset.ID
+	user := s.connOpts.authInfo.User
 	opts := make([]auth.ConfirmOption, 0, 4)
-	opts = append(opts, auth.ConfirmWithUser(s.connOpts.user))
+	opts = append(opts, auth.ConfirmWithUser(&user))
 	opts = append(opts, auth.ConfirmWithAccount(s.account))
-	targetId := s.connOpts.asset.ID
-	opts = append(opts, auth.ConfirmWithAssetId(targetId))
+	opts = append(opts, auth.ConfirmWithAssetId(assetId))
 	confirmSrv := auth.NewLoginConfirm(s.jmsService, opts...)
 	ok := s.validateLoginConfirm(&confirmSrv, s.UserConn)
 	s.loginTicketId = confirmSrv.GetTicketId()
@@ -996,7 +1009,8 @@ func (s *Server) Proxy() {
 	}()
 	var proxyAddr *net.TCPAddr
 	if (s.domainGateways != nil && len(s.domainGateways.Gateways) != 0) || s.gateway != nil {
-		switch s.connOpts.Protocol {
+		protocol := s.connOpts.authInfo.Protocol
+		switch protocol {
 		case srvconn.ProtocolSSH, srvconn.ProtocolTELNET:
 			// ssh 和 telnet 协议不需要本地启动代理
 		default:
@@ -1036,7 +1050,8 @@ func (s *Server) Proxy() {
 		logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
 	}
 	if s.OnSessionInfo != nil {
-		perm := s.permActions.Permission()
+		actions := s.connOpts.authInfo.Actions
+		perm := actions.Permission()
 		info := SessionInfo{
 			Session: s.sessionInfo,
 			Perms:   &perm,
@@ -1055,13 +1070,14 @@ func (s *Server) sendConnectErrorMsg(err error) {
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
 	logger.Error(msg)
+	protocol := s.connOpts.authInfo.Protocol
 	password := s.account.Secret
 	if password != "" {
 		passwordLen := len(s.account.Secret)
 		showLen := passwordLen / 2
 		hiddenLen := passwordLen - showLen
 		var msg2 string
-		if s.connOpts.Protocol == srvconn.ProtocolK8s {
+		if protocol == srvconn.ProtocolK8s {
 			msg2 = fmt.Sprintf("Try token: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
 		} else {
 			msg2 = fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
