@@ -376,7 +376,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 			}
 			_, _ = sess.Write(buf[:n])
 			maxSize -= n
-			if maxSize > 0 {
+			if maxSize >= 0 {
 				_, _ = outResult.Write(buf[:n])
 			}
 		}
@@ -388,7 +388,8 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}()
 	err = goSess.Run(rawStr)
 	if err != nil {
-		logger.Errorf("Run command failed: %s", err)
+		logger.Errorf("User %s Run command %s failed: %s",
+			tokeInfo.User.String(), rawStr, err)
 	}
 }
 
