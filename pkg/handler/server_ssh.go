@@ -218,13 +218,15 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 		selectAccount := selectAccounts[0]
-		if strings.HasPrefix(selectAccount.Username, "@INPUT") {
+		switch selectAccount.Username {
+		case "@INPUT", "@USER":
 			msg := fmt.Sprintf(i18n.T("Must be auto login account for %s"), directRequest.AccountUsername)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
+		default:
+			s.proxyDirectRequest(sess, user, selectedAssets[0], selectAccount, directRequest.Protocol)
 		}
-		s.proxyDirectRequest(sess, user, selectedAssets[0], selectAccount, directRequest.Protocol)
 	}
 
 }
