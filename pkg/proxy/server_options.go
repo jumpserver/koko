@@ -10,66 +10,6 @@ import (
 
 type ConnectionOption func(options *ConnectionOptions)
 
-func ConnectUser(user *model.User) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.user = user
-	}
-}
-
-func ConnectAsset(asset *model.Asset) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.asset = asset
-	}
-}
-
-func ConnectAccount(account *model.Account) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedAccount = account
-	}
-}
-
-func ConnectProtocol(protocol string) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.Protocol = protocol
-	}
-}
-
-func ConnectDomain(domain *model.Domain) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedDomain = domain
-	}
-}
-
-func ConnectActions(actions model.Actions) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedActions = actions
-	}
-}
-
-func ConnectPlatform(platform *model.Platform) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedPlatform = platform
-	}
-}
-
-func ConnectGateway(gateway *model.Gateway) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedGateway = gateway
-	}
-}
-
-func ConnectCmdACLRules(rules model.CommandACLs) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedCmdACLRules = rules
-	}
-}
-
-func ConnectExpired(expired model.ExpireInfo) ConnectionOption {
-	return func(opts *ConnectionOptions) {
-		opts.predefinedExpiredAt = expired
-	}
-}
-
 func ConnectContainer(info *ContainerInfo) ConnectionOption {
 	return func(opts *ConnectionOptions) {
 		opts.k8sContainer = info
@@ -88,24 +28,20 @@ func ConnectI18nLang(lang string) ConnectionOption {
 	}
 }
 
-type ConnectionOptions struct {
-	Protocol string
-	i18nLang string
+func ConnectTokenAuthInfo(authInfo *model.ConnectToken) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.authInfo = authInfo
+	}
+}
 
-	user  *model.User
-	asset *model.Asset
+type ConnectionOptions struct {
+	authInfo *model.ConnectToken
+
+	i18nLang string
 
 	k8sContainer *ContainerInfo
 
 	params *ConnectionParams
-
-	predefinedExpiredAt   model.ExpireInfo
-	predefinedGateway     *model.Gateway
-	predefinedDomain      *model.Domain
-	predefinedCmdACLRules model.CommandACLs
-	predefinedAccount     *model.Account
-	predefinedPlatform    *model.Platform
-	predefinedActions     model.Actions
 }
 
 type ConnectionParams struct {
@@ -138,37 +74,44 @@ func (c *ContainerInfo) K8sName(name string) string {
 }
 
 func (opts *ConnectionOptions) TerminalTitle() string {
+	protocol := opts.authInfo.Protocol
+	asset := opts.authInfo.Asset
+	account := opts.authInfo.Account
+
 	title := ""
-	switch opts.Protocol {
+	switch protocol {
 	case srvconn.ProtocolK8s:
 		title = fmt.Sprintf("%s+%s",
-			opts.Protocol,
-			opts.asset.Address)
+			protocol,
+			asset.Address)
 	default:
 		title = fmt.Sprintf("%s://%s@%s",
-			opts.Protocol,
-			opts.predefinedAccount.Username,
-			opts.asset.Address)
+			protocol,
+			account.Username,
+			asset.Address)
 	}
 	return title
 }
 
 func (opts *ConnectionOptions) ConnectMsg() string {
+	protocol := opts.authInfo.Protocol
+	asset := opts.authInfo.Asset
+	account := opts.authInfo.Account
 	lang := opts.getLang()
 	msg := ""
-	switch opts.Protocol {
+	switch protocol {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
-		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), opts.predefinedAccount.Name, opts.asset.Address)
+		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), account.Name, asset.Address)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
-		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), opts.asset.String())
+		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), asset.String())
 	case srvconn.ProtocolK8s:
-		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), opts.asset.Address)
+		msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s"), asset.Address)
 		if opts.k8sContainer != nil {
 			msg = fmt.Sprintf(lang.T("Connecting to Kubernetes %s container %s"),
-				opts.asset.Name, opts.k8sContainer.Container)
+				asset.Name, opts.k8sContainer.Container)
 		}
 	}
 	return msg

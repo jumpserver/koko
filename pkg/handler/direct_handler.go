@@ -21,7 +21,7 @@ import (
 )
 
 /*
-直接连接资产使用的登录名，支持使用以下四种格式：
+直接连接资产使用的登录名，支持使用以下格式：
 
 1. JMS_username[@mysql|ssh|redis]@account_username@asset_ip
 2. JMS_username[#mysql|ssh|redis]#account_username#asset_ip
@@ -432,19 +432,9 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		utils.IgnoreErrWriteString(d.term, "get connect token err")
 		return
 	}
-	user := d.opts.User
 	i18nLang := d.i18nLang
 	proxyOpts := make([]proxy.ConnectionOption, 0, 10)
-	proxyOpts = append(proxyOpts, proxy.ConnectProtocol(protocol))
-	proxyOpts = append(proxyOpts, proxy.ConnectUser(user))
-	proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
-	proxyOpts = append(proxyOpts, proxy.ConnectAccount(&connectToken.Account))
-	proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
-	proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
-	proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
-	proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
-	proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
-	proxyOpts = append(proxyOpts, proxy.ConnectCmdACLRules(connectToken.CommandFilterACLs))
+	proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(&connectToken))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
 	srv, err := proxy.NewServer(d.wrapperSess, d.jmsService, proxyOpts...)
 	if err != nil {

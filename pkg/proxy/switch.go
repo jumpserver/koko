@@ -165,7 +165,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		exitSignal <- struct{}{}
 		close(srvInChan)
 	}()
-	user := s.p.connOpts.user
+	user := s.p.connOpts.authInfo.User
 	meta := exchange.MetaMessage{
 		UserId:     user.ID,
 		User:       user.String(),

@@ -297,19 +297,8 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		h.JoinRoom(h.backendClient, roomID)
 	default:
 		connectToken := h.ConnectToken
-		user := h.ws.user
 		proxyOpts := make([]proxy.ConnectionOption, 0, 10)
-		proxyOpts = append(proxyOpts, proxy.ConnectProtocol(connectToken.Protocol))
-		proxyOpts = append(proxyOpts, proxy.ConnectUser(user))
-		proxyOpts = append(proxyOpts, proxy.ConnectAsset(&connectToken.Asset))
-		proxyOpts = append(proxyOpts, proxy.ConnectAccount(&connectToken.Account))
-		proxyOpts = append(proxyOpts, proxy.ConnectActions(connectToken.Actions))
-		proxyOpts = append(proxyOpts, proxy.ConnectExpired(connectToken.ExpireAt))
-		proxyOpts = append(proxyOpts, proxy.ConnectDomain(connectToken.Domain))
-		proxyOpts = append(proxyOpts, proxy.ConnectPlatform(&connectToken.Platform))
-		proxyOpts = append(proxyOpts, proxy.ConnectGateway(connectToken.Gateway))
-		proxyOpts = append(proxyOpts, proxy.ConnectCmdACLRules(connectToken.CommandFilterACLs))
-
+		proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(connectToken))
 		if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
 			proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(langCode))
 		}
