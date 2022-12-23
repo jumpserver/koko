@@ -15,7 +15,6 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -205,7 +204,7 @@ func (d *DirectHandler) Dispatch() {
 	_, winChan, _ := d.sess.Pty()
 	go d.WatchWinSizeChange(winChan)
 	if d.opts.IsTokenConnection() {
-		d.LoginConnectToken()
+		d.LoginConnectToken(d.opts.tokenInfo)
 		return
 	}
 	d.LoginAsset()
@@ -394,8 +393,14 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 }
 
 func (d *DirectHandler) Proxy(asset model.Asset) {
-	matched := d.getMatchedAccounts(asset)
 	lang := i18n.NewLang(d.i18nLang)
+	accounts, err := d.jmsService.GetAccountsByUserIdAndAssetId(d.opts.User.ID, asset.ID)
+	if err != nil {
+		logger.Errorf("Get account failed: %s", err)
+		utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
+		return
+	}
+	matched := GetMatchedAccounts(accounts, d.opts.targetAccount)
 	if len(matched) == 0 {
 		msg := fmt.Sprintf(lang.T("not found matched username %s"), d.opts.targetAccount)
 		utils.IgnoreErrWriteString(d.term, msg+"\r\n")
@@ -408,10 +413,6 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		return
 	}
 	protocol := d.opts.protocol
-	if d.opts.tokenInfo != nil {
-		protocol = d.opts.tokenInfo.Protocol
-	}
-
 	req := service.SuperConnectTokenReq{
 		UserId:        d.opts.User.ID,
 		AssetId:       asset.ID,
@@ -419,47 +420,20 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
 	}
-
-	res, err := d.jmsService.CreateSuperConnectToken(&req)
+	connectToken, err := d.jmsService.CreateConnectTokenAndGetAuthInfo(&req)
 	if err != nil {
-		logger.Errorf("Create super connect token err: %s", err)
-		utils.IgnoreErrWriteString(d.term, "create connect token err")
+		logger.Errorf("Create connect token and auth info failed: %s", err)
+		utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
 		return
 	}
-	connectToken, err := d.jmsService.GetConnectTokenInfo(res.ID)
-	if err != nil {
-		logger.Errorf("connect token err: %s", err)
-		utils.IgnoreErrWriteString(d.term, "get connect token err")
-		return
-	}
-	i18nLang := d.i18nLang
-	proxyOpts := make([]proxy.ConnectionOption, 0, 10)
-	proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(&connectToken))
-	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
-	srv, err := proxy.NewServer(d.wrapperSess, d.jmsService, proxyOpts...)
-	if err != nil {
-		logger.Errorf("create proxy server err: %s", err)
-		return
-	}
-	srv.Proxy()
-	logger.Infof("Request %s: asset %s proxy end", d.wrapperSess.Uuid, asset.Name)
+	d.LoginConnectToken(&connectToken)
 }
 
-func (d *DirectHandler) getMatchedAccounts(asset model.Asset) []model.PermAccount {
-	lang := i18n.NewLang(d.i18nLang)
-	accounts, err := d.jmsService.GetAccountsByUserIdAndAssetId(d.opts.User.ID, asset.ID)
-	if err != nil {
-		logger.Errorf("Get account failed: %s", err)
-		utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
-		return nil
-	}
-	matchFunc := func(account *model.PermAccount, name string) bool {
-		return account.Username == name
-	}
+func GetMatchedAccounts(accounts []model.PermAccount, username string) []model.PermAccount {
 	matched := make([]model.PermAccount, 0, len(accounts))
 	for i := range accounts {
 		account := accounts[i]
-		if matchFunc(&account, d.opts.targetAccount) {
+		if account.Username == username {
 			matched = append(matched, account)
 		}
 	}
