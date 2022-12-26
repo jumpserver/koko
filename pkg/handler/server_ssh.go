@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -20,6 +21,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -60,18 +62,18 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 	var sftpHandler *SftpHandler
 	termConf := s.GetTerminalConfig()
 	if directRequest, ok2 := directReq.(*auth.DirectLoginAssetReq); ok2 {
-		opts := buildDirectRequestOptions(currentUser, directRequest)
-		opts = append(opts, DirectConnectSftpMode(true))
-
-		opts = append(opts, DirectTerminalConf(&termConf))
-		directSrv, err := NewDirectHandler(sess, s.jmsService, opts...)
+		selectedAssets, err := s.getMatchedAssetsByDirectReq(currentUser, directRequest)
 		if err != nil {
-			logger.Errorf("User %s direct sftp request err: %s", currentUser.Name, err)
+			logger.Errorf("Get matched assets failed: %s", err)
 			return
 		}
+		opts := buildDirectRequestOptions(currentUser, directRequest)
+		opts = append(opts, DirectConnectSftpMode(true))
+		opts = append(opts, DirectAssets(selectedAssets))
+		opts = append(opts, DirectTerminalConf(&termConf))
+		directSrv := NewDirectHandler(sess, s.jmsService, opts...)
 		sftpHandler = directSrv.NewSFTPHandler()
-	}
-	if sftpHandler == nil {
+	} else {
 		sftpHandler = NewSFTPHandler(s.jmsService, currentUser, addr)
 	}
 	handlers := sftp.Handlers{
@@ -150,13 +152,16 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
-			opts := buildDirectRequestOptions(user, directRequest)
-			opts = append(opts, DirectTerminalConf(&termConf))
-			directSrv, err := NewDirectHandler(sess, s.jmsService, opts...)
+			selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
 			if err != nil {
-				logger.Errorf("User %s direct request err: %s", user.Name, err)
+				utils.IgnoreErrWriteString(sess, err.Error())
+				logger.Errorf("Get matched assets failed: %s", err)
 				return
 			}
+			opts := buildDirectRequestOptions(user, directRequest)
+			opts = append(opts, DirectTerminalConf(&termConf))
+			opts = append(opts, DirectAssets(selectedAssets))
+			directSrv := NewDirectHandler(sess, s.jmsService, opts...)
 			directSrv.Dispatch()
 			return
 		}
@@ -171,7 +176,6 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 
 	if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 		if directRequest.IsToken() {
-			// connection token 的方式使用 vscode 连接
 			tokenInfo := directRequest.ConnectToken
 			matchedProtocol := tokenInfo.Protocol == model.ProtocolSSH
 			assetSupportedSSH := tokenInfo.Asset.IsSupportProtocol(model.ProtocolSSH)
@@ -302,30 +306,40 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		utils.IgnoreErrWriteString(sess, "Not support scp command")
 		return
 	}
-	// todo 命令过滤规则，命令复核规则
-	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	session := model.Session{
-		User:       tokeInfo.User.String(),
-		Asset:      tokeInfo.Asset.String(),
-		Account:    tokeInfo.Account.String(),
-		Protocol:   tokeInfo.Protocol,
-		RemoteAddr: host,
-		DateStart:  modelCommon.NewNowUTCTime(),
-		OrgID:      tokeInfo.OrgId,
-		UserID:     tokeInfo.User.ID,
-		AssetID:    tokeInfo.Asset.ID,
-		Type:       model.COMMANDType,
+	// todo: 暂且不支持 acl 工单
+	acls := tokeInfo.CommandFilterACLs
+	for i := range acls {
+		acl := acls[i]
+		_, action, _ := acl.Match(rawStr)
+		switch action {
+		case model.ActionReview:
+			msg := "SSH Command not support ACL review ticket"
+			utils.IgnoreErrWriteString(sess, msg)
+			logger.Errorf("SSH Command not support ACL review ticket `%s`", rawStr)
+			return
+		case model.ActionReject:
+			logger.Errorf("ACL reject execute %s ", rawStr)
+			return
+		default:
+		}
 	}
+
+	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
+	session := tokeInfo.CreateSession(host, model.LoginFromSSH, model.COMMANDType)
 	retSession, err := s.jmsService.CreateSession(session)
 	if err != nil {
 		logger.Errorf("Create command session err: %s", err)
 		return
 	}
+	ctx, cancel := context.WithCancel(sess.Context())
+	defer cancel()
+	proxy.AddCommandSession(retSession.ID, cancel)
 
 	defer func() {
 		if err2 := s.jmsService.SessionFinished(retSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err)
 		}
+		proxy.RemoveCommandSession(retSession.ID)
 	}()
 
 	goSess, err := sshClient.AcquireSession()
@@ -335,6 +349,11 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 	defer goSess.Close()
 	defer sshClient.ReleaseSession(goSess)
+	go func() {
+		<-ctx.Done()
+		_ = goSess.Close()
+	}()
+
 	goSess.Stdin = sess
 	out, err := goSess.StdoutPipe()
 	if err != nil {
@@ -377,9 +396,10 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 			}
 		}
 		cmd.Output = outResult.String()
-		// todo: 上传到对应存储设置
-		if err := s.jmsService.PushSessionCommand([]*model.Command{&cmd}); err != nil {
-			logger.Errorf("Create command err: %s", err)
+		termCfg := s.GetTerminalConfig()
+		cmdStorage := proxy.NewCommandStorage(s.jmsService, &termCfg)
+		if err2 := cmdStorage.BulkSave([]*model.Command{&cmd}); err2 != nil {
+			logger.Errorf("Create command err: %s", err2)
 		}
 	}()
 	err = goSess.Run(rawStr)
@@ -392,30 +412,21 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient,
 	tokeInfo *model.ConnectToken) error {
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	session := model.Session{
-		User:       tokeInfo.User.String(),
-		Asset:      tokeInfo.Asset.String(),
-		Account:    tokeInfo.Account.String(),
-		Protocol:   tokeInfo.Protocol,
-		RemoteAddr: host,
-		DateStart:  modelCommon.NewNowUTCTime(),
-		LoginFrom:  model.LoginFromSSH,
-		OrgID:      tokeInfo.OrgId,
-		UserID:     tokeInfo.User.ID,
-		AssetID:    tokeInfo.Asset.ID,
-		Type:       model.TUNNELType,
-	}
+	session := tokeInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
 	retSession, err := s.jmsService.CreateSession(session)
 	if err != nil {
 		logger.Errorf("Create tunnel session err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return err
 	}
-
+	ctx, cancel := context.WithCancel(sess.Context())
+	defer cancel()
+	proxy.AddCommandSession(retSession.ID, cancel)
 	defer func() {
 		if err2 := s.jmsService.SessionFinished(retSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err)
 		}
+		proxy.RemoveCommandSession(retSession.ID)
 	}()
 
 	goSess, err := sshClient.AcquireSession()
@@ -423,6 +434,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 		logger.Errorf("Get SSH session failed: %s", err)
 		return err
 	}
+
 	defer goSess.Close()
 	defer sshClient.ReleaseSession(goSess)
 	stdOut, err := goSess.StdoutPipe()
@@ -456,7 +468,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	defer ticker.Stop()
 	for {
 		select {
-		case <-sess.Context().Done():
+		case <-ctx.Done():
 			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done",
 				vsReq.reqId, vsReq.user, sshClient)
 			return nil
@@ -516,19 +528,19 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
 	assets, err := s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetIP)
 	if err != nil {
-		logger.Errorf("Get asset failed: %s", err)
+		logger.Errorf("Get user %s perm asset failed: %s", user.String(), err)
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
 	}
-	sshAssets := make([]model.Asset, 0, len(assets))
+	matched := make([]model.Asset, 0, len(assets))
 	for i := range assets {
 		if assets[i].IsSupportProtocol(req.Protocol) {
-			sshAssets = append(sshAssets, assets[i])
+			matched = append(matched, assets[i])
 		}
 	}
-	if len(sshAssets) == 0 {
+	if len(matched) == 0 {
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found ssh protocol supported"))
 	}
-	return sshAssets, nil
+	return matched, nil
 }
 
 func (s *Server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAssetReq,
@@ -544,7 +556,6 @@ func (s *Server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAsset
 
 func buildDirectRequestOptions(user *model.User, directRequest *auth.DirectLoginAssetReq) []DirectOpt {
 	opts := make([]DirectOpt, 0, 7)
-	opts = append(opts, DirectTargetAsset(directRequest.AssetIP))
 	opts = append(opts, DirectUser(user))
 	opts = append(opts, DirectTargetAccount(directRequest.AccountUsername))
 	opts = append(opts, DirectConnectProtocol(directRequest.Protocol))
