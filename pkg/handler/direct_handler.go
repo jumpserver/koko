@@ -47,7 +47,6 @@ type DirectOpt func(*directOpt)
 type directOpt struct {
 	formatType    FormatType
 	protocol      string
-	targetAssetIP string
 	targetAccount string
 	User          *model.User
 	terminalConf  *model.TerminalConfig
@@ -55,15 +54,17 @@ type directOpt struct {
 	tokenInfo *model.ConnectToken
 
 	sftpMode bool
+
+	assets []model.Asset
 }
 
 func (d directOpt) IsTokenConnection() bool {
 	return d.formatType == FormatToken
 }
 
-func DirectTargetAsset(assetIP string) DirectOpt {
+func DirectAssets(assets []model.Asset) DirectOpt {
 	return func(opts *directOpt) {
-		opts.targetAssetIP = assetIP
+		opts.assets = assets
 	}
 }
 
@@ -109,54 +110,17 @@ func DirectConnectSftpMode(sftpMode bool) DirectOpt {
 	}
 }
 
-func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
-	assets, err := jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAssetIP)
-	if err != nil {
-		return nil, err
-	}
-	matchedAsset := make([]model.Asset, 0, len(assets))
-	for i := range assets {
-		if assets[i].IsSupportProtocol(opts.protocol) {
-			matchedAsset = append(matchedAsset, assets[i])
-		}
-	}
-	return matchedAsset, nil
-}
-
-func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters ...DirectOpt) (*DirectHandler, error) {
+func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters ...DirectOpt) *DirectHandler {
 	opts := &directOpt{}
 	for i := range setters {
 		setters[i](opts)
 	}
 	i18nLang := getUserDefaultLangCode(opts.User)
-	lang := i18n.NewLang(i18nLang)
 	var (
-		selectedAssets []model.Asset
-		err            error
-		wrapperSess    *WrapperSession
-		termVt         *term.Terminal
-		errMsg         string
+		wrapperSess *WrapperSession
+		termVt      *term.Terminal
 	)
 
-	defer func() {
-		if err != nil && !opts.sftpMode {
-			utils.IgnoreErrWriteString(sess, errMsg)
-		}
-	}()
-	if !opts.IsTokenConnection() {
-		selectedAssets, err = selectAssetsByDirectOpt(jmsService, opts)
-		if err != nil {
-			logger.Errorf("Get direct asset failed: %s", err)
-			errMsg = lang.T("Core API failed")
-			return nil, err
-		}
-		if len(selectedAssets) <= 0 {
-			msg := fmt.Sprintf(lang.T("not found matched asset %s"), opts.targetAssetIP)
-			errMsg = msg + "\r\n"
-			err = fmt.Errorf("no found matched asset: %s", opts.targetAssetIP)
-			return nil, err
-		}
-	}
 	if !opts.sftpMode {
 		wrapperSess = NewWrapperSession(sess)
 		termVt = term.NewTerminal(wrapperSess, "Opt> ")
@@ -165,13 +129,12 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters .
 		opts:       opts,
 		sess:       sess,
 		jmsService: jmsService,
-		assets:     selectedAssets,
 		i18nLang:   i18nLang,
 
 		wrapperSess: wrapperSess,
 		term:        termVt,
 	}
-	return d, nil
+	return d
 
 }
 
@@ -182,8 +145,6 @@ type DirectHandler struct {
 	opts        *directOpt
 	jmsService  *service.JMService
 
-	assets []model.Asset
-
 	i18nLang string
 }
 
@@ -193,7 +154,7 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 	opts = append(opts, srvconn.WithUser(d.opts.User))
 	opts = append(opts, srvconn.WithRemoteAddr(addr))
 	if !d.opts.IsTokenConnection() {
-		opts = append(opts, srvconn.WithAssets(d.assets))
+		opts = append(opts, srvconn.WithAssets(d.opts.assets))
 	} else {
 		opts = append(opts, srvconn.WithConnectToken(d.opts.tokenInfo))
 	}
@@ -233,14 +194,14 @@ func (d *DirectHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
 }
 
 func (d *DirectHandler) LoginAsset() {
-	switch len(d.assets) {
+	switch len(d.opts.assets) {
 	case 1:
-		d.Proxy(d.assets[0])
+		d.Proxy(d.opts.assets[0])
 	default:
 		checkChan := make(chan bool)
 		go d.checkMaxIdleTime(checkChan)
 		for {
-			d.displayAssets(d.assets)
+			d.displayAssets(d.opts.assets)
 			checkChan <- true
 			num, err := d.term.ReadLine()
 			if err != nil {
@@ -248,9 +209,9 @@ func (d *DirectHandler) LoginAsset() {
 				return
 			}
 			checkChan <- false
-			if indexNum, err2 := strconv.Atoi(num); err2 == nil && len(d.assets) > 0 {
-				if indexNum > 0 && indexNum <= len(d.assets) {
-					d.Proxy(d.assets[indexNum-1])
+			if indexNum, err2 := strconv.Atoi(num); err2 == nil && len(d.opts.assets) > 0 {
+				if indexNum > 0 && indexNum <= len(d.opts.assets) {
+					d.Proxy(d.opts.assets[indexNum-1])
 					return
 				}
 			}
@@ -388,8 +349,6 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	_, _ = vt.Write([]byte(table.Display()))
 	utils.IgnoreErrWriteString(vt, utils.WrapperString(loginTip, utils.Green))
 	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
-	utils.IgnoreErrWriteString(vt, utils.WrapperString(d.opts.targetAssetIP, utils.Green))
-	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 }
 
 func (d *DirectHandler) Proxy(asset model.Asset) {
@@ -409,7 +368,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 	}
 	selectAccount, ok := d.chooseAccount(matched)
 	if !ok {
-		logger.Info("Do not select system user")
+		logger.Info("Do not select account")
 		return
 	}
 	protocol := d.opts.protocol

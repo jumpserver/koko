@@ -1,5 +1,7 @@
 package model
 
+import "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
+
 type ConnectToken struct {
 	Id       string     `json:"id"`
 	User     User       `json:"user"`
@@ -19,6 +21,24 @@ type ConnectToken struct {
 
 	Code   string `json:"code"`
 	Detail string `json:"detail"`
+}
+
+func (c *ConnectToken) CreateSession(addr string,
+	loginFrom, SessionType LabelFiled) Session {
+	return Session{
+		User:      c.User.String(),
+		Asset:     c.Asset.String(),
+		Account:   c.Account.String(),
+		Protocol:  c.Protocol,
+		OrgID:     c.OrgId,
+		UserID:    c.User.ID,
+		AssetID:   c.Asset.ID,
+		DateStart: common.NewNowUTCTime(),
+
+		RemoteAddr: addr,
+		LoginFrom:  loginFrom,
+		Type:       SessionType,
+	}
 }
 
 type ConnectTokenInfo struct {

@@ -88,13 +88,23 @@ func keepHeartbeat(jmsService *service.JMService) {
 		}
 		if len(tasks) != 0 {
 			for _, task := range tasks {
+				var terminalFlag bool
 				switch task.Name {
 				case model.TaskKillSession:
 					if sw, ok := proxy.GetSessionById(task.Args); ok {
 						sw.Terminate(task.Kwargs.TerminatedBy)
-						if err = jmsService.FinishTask(task.ID); err != nil {
-							logger.Error(err)
-						}
+						terminalFlag = true
+					}
+					if cmdCancel, ok := proxy.GetCommandSession(task.Args); ok {
+						cmdCancel()
+						terminalFlag = true
+
+					}
+					if !terminalFlag {
+						continue
+					}
+					if err = jmsService.FinishTask(task.ID); err != nil {
+						logger.Error(err)
 					}
 				default:
 
