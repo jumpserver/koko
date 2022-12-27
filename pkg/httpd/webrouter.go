@@ -74,7 +74,7 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 	shareGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		shareGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.FileFromFS("ui/dist/index.html", http.FS(assets.UIFs))
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
 
@@ -82,7 +82,7 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 	monitorGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		monitorGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.FileFromFS("./ui/dist/", http.FS(assets.UIFs))
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
 
@@ -96,14 +96,14 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
-	elfindlerGroup := kokoGroup.Group("/elfinder")
-	elfindlerGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	elfinderGroup := kokoGroup.Group("/elfinder")
+	elfinderGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
-		elfindlerGroup.GET("/sftp/", func(ctx *gin.Context) {
+		elfinderGroup.GET("/sftp/", func(ctx *gin.Context) {
 			metaData := webSrv.GenerateViewMeta("_")
 			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
-		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
+		elfinderGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
 			hostId := ctx.Param("host")
 			if ok := common.ValidUUIDString(hostId); !ok {
 				ctx.AbortWithStatus(http.StatusBadRequest)
@@ -112,7 +112,7 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 			metaData := webSrv.GenerateViewMeta(hostId)
 			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
-		elfindlerGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
+		elfinderGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}
 
 	debugGroup := eng.Group("/debug/pprof")
