@@ -183,7 +183,7 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 	length := len(permAccounts)
 	switch length {
 	case 0:
-		warningInfo := lang.T("No system user found.")
+		warningInfo := lang.T("No account found.")
 		_, _ = io.WriteString(h.term, warningInfo+"\n\r")
 		return model.PermAccount{}, false
 	case 1:
@@ -265,7 +265,7 @@ func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bo
 		return protocols[0], true
 	default:
 	}
-	displaySystemUsers := protocols
+	displayProtocols := protocols
 
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Protocol")
@@ -273,11 +273,11 @@ func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bo
 	labels := []string{idLabel, nameLabel}
 	fields := []string{"ID", "Protocol"}
 
-	data := make([]map[string]string, len(displaySystemUsers))
-	for i := range displaySystemUsers {
+	data := make([]map[string]string, len(displayProtocols))
+	for i := range displayProtocols {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		row["Protocol"] = displaySystemUsers[i]
+		row["Protocol"] = displayProtocols[i]
 		data[i] = row
 	}
 	w, _ := h.GetPtySize()
@@ -305,7 +305,7 @@ func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bo
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 		line, err := h.term.ReadLine()
 		if err != nil {
-			logger.Errorf("select account err: %s", err)
+			logger.Errorf("select protocol err: %s", err)
 			return "", false
 		}
 		line = strings.TrimSpace(line)
@@ -315,11 +315,11 @@ func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bo
 			return "", false
 		}
 		if num, err2 := strconv.Atoi(line); err2 == nil {
-			if num > 0 && num <= len(displaySystemUsers) {
-				return displaySystemUsers[num-1], true
+			if num > 0 && num <= len(displayProtocols) {
+				return displayProtocols[num-1], true
 			}
 		} else {
-			logger.Errorf("select account not right number %s", line)
+			logger.Errorf("select protocol not right number %s", line)
 			return "", false
 		}
 	}
