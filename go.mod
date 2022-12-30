@@ -10,7 +10,7 @@ require (
 	github.com/LeeEirc/tclientlib v0.0.1
 	github.com/LeeEirc/terminalparser v0.0.0-20220328021224-de16b7643ea4
 	github.com/aliyun/aliyun-oss-go-sdk v1.9.8
-	github.com/aws/aws-sdk-go v1.19.46
+	github.com/aws/aws-sdk-go v1.33.0
 	github.com/creack/pty v1.1.18
 	github.com/denisenkom/go-mssqldb v0.11.0
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
@@ -64,7 +64,7 @@ require (
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
+	github.com/jmespath/go-jmespath v0.3.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
