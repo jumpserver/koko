@@ -93,10 +93,10 @@ func (h *tty) HandleMessage(msg *Message) {
 				return
 			}
 			h.shareInfo = &info
-			sessionDetail, err3 := h.jmsService.GetSessionById(info.Record.SessionId)
+			sessionDetail, err3 := h.jmsService.GetSessionById(info.Record.Session.ID)
 			if err3 != nil {
 				logger.Errorf("Ws[%s] terminal get session %s err: %s",
-					h.ws.Uuid, info.Record.SessionId, err3)
+					h.ws.Uuid, info.Record.Session.ID, err3)
 				h.sendCloseMessage()
 				return
 			}
@@ -293,7 +293,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 	case TargetTypeMonitor:
 		h.Monitor(h.backendClient, h.targetId)
 	case TargetTypeShare:
-		roomID := h.shareInfo.Record.SessionId
+		roomID := h.shareInfo.Record.Session.ID
 		h.JoinRoom(h.backendClient, roomID)
 	default:
 		connectToken := h.ConnectToken
