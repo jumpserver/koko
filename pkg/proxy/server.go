@@ -633,7 +633,6 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 	return dGateway, nil
 }
 
-// getSSHConn 获取ssh连接
 func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	clusterServer := s.connOpts.app.Attrs.Cluster
 	if localTunnelAddr != nil {
@@ -787,6 +786,7 @@ func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 	return
 }
 
+// getSSHConn 获取ssh连接
 func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	loginSystemUser := s.systemUserAuthInfo
 	if s.suFromSystemUserAuthInfo != nil {

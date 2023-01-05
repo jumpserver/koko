@@ -1,10 +1,12 @@
 package koko
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -16,8 +18,10 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/i18n"
+	sdkcommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/sshd"
 	"github.com/jumpserver/koko/pkg/utils"
@@ -152,9 +156,15 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		utils.IgnoreErrWriteString(sess, "Not auth user.\n")
 		return
 	}
-	termConf := s.GetTerminalConfig()
+
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty {
+		// PyCharm use command with pty to initialize remote development environment,
+		// so let this request execute first
+		if len(sess.Command()) != 0 {
+			goto direct
+		}
+		termConf := s.GetTerminalConfig()
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 			opts := make([]handler.DirectOpt, 0, 5)
 			opts = append(opts, handler.DirectTargetAsset(directRequest.AssetInfo))
@@ -184,11 +194,8 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		utils.IgnoreErrWriteWindowTitle(sess, termConf.HeaderTitle)
 		return
 	}
-	if !config.GetConf().EnableVscodeSupport {
-		utils.IgnoreErrWriteString(sess, "No PTY requested.\n")
-		return
-	}
 
+direct:
 	if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 		if directRequest.IsToken() {
 			// connection token 的方式使用 vscode 连接
@@ -256,7 +263,7 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
-	var domainGateways *model.Domain
+	var domain *model.Domain
 	if asset.Domain != "" {
 		domainInfo, err := s.jmsService.GetDomainGateways(asset.Domain)
 		if err != nil {
@@ -264,9 +271,9 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 			utils.IgnoreErrWriteString(sess, err.Error())
 			return
 		}
-		domainGateways = &domainInfo
+		domain = &domainInfo
 	}
-	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, domainGateways)
+	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, domain)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get SSH Client failed: %s", err)
@@ -274,6 +281,23 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 		return
 	}
 	defer sshClient.Close()
+	if len(sess.Command()) != 0 {
+		s.proxyDirectCommand(
+			sess,
+			sshClient,
+			&model.ConnectTokenInfo{
+				User:               user,
+				SystemUserAuthInfo: &systemUserAuthInfo,
+				Asset:              &asset,
+			},
+		)
+		return
+	}
+
+	if !config.GetConf().EnableVscodeSupport {
+		utils.IgnoreErrWriteString(sess, "No support vscode like requested.\n")
+		return
+	}
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
 		user:       user,
@@ -285,16 +309,16 @@ func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Ass
 	}
 }
 
-func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.ConnectTokenInfo) {
+func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokenInfo *model.ConnectTokenInfo) {
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
 		utils.IgnoreErrWriteString(sess, "not found ctx id")
 		return
 	}
-	asset := tokeInfo.Asset
-	systemUserAuthInfo := tokeInfo.SystemUserAuthInfo
-	domain := tokeInfo.Domain
+	asset := tokenInfo.Asset
+	systemUserAuthInfo := tokenInfo.SystemUserAuthInfo
+	domain := tokenInfo.Domain
 	sshAuthOpts := buildSSHClientOptions(asset, systemUserAuthInfo, domain)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
@@ -303,19 +327,165 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokeInfo *model.Connec
 		return
 	}
 	defer sshClient.Close()
-	perm := model.Permission{Actions: tokeInfo.Actions}
+	if len(sess.Command()) != 0 {
+		s.proxyDirectCommand(sess, sshClient, tokenInfo)
+		return
+	}
+
+	if !config.GetConf().EnableVscodeSupport {
+		utils.IgnoreErrWriteString(sess, "No support vscode like requested.\n")
+		return
+	}
+
+	perm := model.Permission{Actions: tokenInfo.Actions}
 	permInfo := model.ExpireInfo{
 		HasPermission: perm.EnableConnect(),
-		ExpireAt:      tokeInfo.ExpiredAt,
+		ExpireAt:      tokenInfo.ExpiredAt,
 	}
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
-		user:       tokeInfo.User,
+		user:       tokenInfo.User,
 		client:     sshClient,
 		expireInfo: &permInfo,
 	}
 	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
+	}
+}
+
+func (s *server) proxyDirectCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
+	token *model.ConnectTokenInfo) {
+	rawStr := sess.RawCommand()
+	// scp command can not be disabled for vscode initial logic
+	// if strings.HasPrefix(rawStr, "scp") {
+	// 	logger.Errorf("Not support scp command %s", rawStr)
+	// 	utils.IgnoreErrWriteString(sess, "Not support scp command")
+	// 	return
+	// }
+	retSession := &model.Session{
+		ID:           common.UUID(),
+		User:         token.User.String(),
+		SystemUser:   token.SystemUserAuthInfo.String(),
+		LoginFrom:    "ST", // means SSH Terminal
+		RemoteAddr:   sess.RemoteAddr().String(),
+		Protocol:     token.SystemUserAuthInfo.Protocol,
+		UserID:       token.User.ID,
+		SystemUserID: token.SystemUserAuthInfo.ID,
+		Asset:        token.Asset.Hostname,
+		AssetID:      token.Asset.ID,
+		OrgID:        token.Asset.OrgID,
+	}
+	err := s.jmsService.CreateSession(*retSession)
+	if err != nil {
+		logger.Errorf("Create command session err: %s", err)
+		return
+	}
+	ctx, cancel := context.WithCancel(sess.Context())
+	defer cancel()
+	proxy.AddCommandSession(retSession.ID, cancel)
+
+	defer func() {
+		if err2 := s.jmsService.SessionFinished(retSession.ID, sdkcommon.NewNowUTCTime()); err2 != nil {
+			logger.Errorf("finish command session err: %s", err)
+		}
+		proxy.RemoveCommandSession(retSession.ID)
+	}()
+
+	goSess, err := sshClient.AcquireSession()
+	if err != nil {
+		logger.Errorf("Get SSH session failed: %s", err)
+		return
+	}
+	defer goSess.Close()
+	defer sshClient.ReleaseSession(goSess)
+	go func() {
+		<-ctx.Done()
+		_ = goSess.Close()
+	}()
+
+	// to fix this issue: https://github.com/ploxiln/fab-classic/issues/46
+	// make pty for client when client required or command is login shell
+	if pty, _, isPty := sess.Pty(); isPty ||
+		(strings.Contains(rawStr, "bash --login") || strings.Contains(rawStr, "bash -l")) {
+		goSess.RequestPty(
+			pty.Term,
+			pty.Window.Width,
+			pty.Window.Height,
+			gossh.TerminalModes{
+				gossh.ECHO:          1,     // enable echoing
+				gossh.TTY_OP_ISPEED: 14400, // input speed = 14.4 kbaud
+				gossh.TTY_OP_OSPEED: 14400, // output speed = 14.4 kbaud
+			},
+		)
+	}
+
+	goSess.Stdin = sess
+	out, err := goSess.StdoutPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session stdout failed: %s", err)
+		return
+	}
+	errOut, err := goSess.StderrPipe()
+	if err != nil {
+		logger.Errorf("Get SSH session stderr failed: %s", err)
+		return
+	}
+	reader := io.MultiReader(out, errOut)
+	go func() {
+		var outResult strings.Builder
+		now := time.Now()
+		maxSize := 1024
+		buf := make([]byte, 1024)
+		for {
+			n, err := reader.Read(buf)
+			if err != nil {
+				if err != io.EOF {
+					logger.Errorf("Read ssh session output failed: %s", err)
+				}
+				break
+			}
+			_, _ = sess.Write(buf[:n])
+			maxSize -= n
+			if maxSize >= 0 {
+				_, _ = outResult.Write(buf[:n])
+			}
+		}
+		// trim for database column length
+		var input, output string
+		if len(rawStr) > 128 {
+			input = rawStr[:128]
+		} else {
+			input = rawStr
+		}
+		i := strings.LastIndexByte(outResult.String(), '\r')
+		if i <= 0 {
+			output = outResult.String()
+		} else if i > 0 && i < 1024 {
+			output = outResult.String()[:i]
+		} else {
+			output = outResult.String()[:1024]
+		}
+		termCfg := s.GetTerminalConfig()
+		cmdStorage := proxy.NewCommandStorage(s.jmsService, &termCfg)
+		if err2 := cmdStorage.BulkSave([]*model.Command{&model.Command{
+			SessionID:   retSession.ID,
+			OrgID:       retSession.OrgID,
+			Input:       input,
+			Output:      output,
+			User:        retSession.User,
+			Server:      retSession.Asset,
+			SystemUser:  token.SystemUserAuthInfo.String(),
+			Timestamp:   now.Unix(),
+			DateCreated: now.UTC(),
+			RiskLevel:   model.NormalLevel,
+		}}); err2 != nil {
+			logger.Errorf("Create command err: %s", err2)
+		}
+	}()
+	err = goSess.Run(rawStr)
+	if err != nil {
+		logger.Errorf("User %s Run command %s failed: %s",
+			token.User.String(), rawStr, err)
 	}
 }
 
@@ -374,7 +544,7 @@ func (s *server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 }
 
 func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.SystemUserAuthInfo,
-	domainGateways *model.Domain) []srvconn.SSHClientOption {
+	domain *model.Domain) []srvconn.SSHClientOption {
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 7)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(systemUserAuthInfo.Username))
@@ -395,10 +565,10 @@ func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.SystemU
 		}
 	}
 
-	if domainGateways != nil && len(domainGateways.Gateways) > 0 {
-		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(domainGateways.Gateways))
-		for i := range domainGateways.Gateways {
-			gateway := domainGateways.Gateways[i]
+	if domain != nil && len(domain.Gateways) > 0 {
+		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(domain.Gateways))
+		for i := range domain.Gateways {
+			gateway := domain.Gateways[i]
 			proxyArg := srvconn.SSHClientOptions{
 				Host:       gateway.IP,
 				Port:       strconv.Itoa(gateway.Port),
