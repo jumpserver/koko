@@ -128,8 +128,8 @@ func (ad *AssetDir) loadAssetDetail() {
 }
 
 func (ad *AssetDir) loadAssetDomain() {
-	if ad.detailAsset != nil && ad.detailAsset.Domain != "" {
-		domainGateways, err := ad.jmsService.GetDomainGateways(ad.detailAsset.Domain)
+	if ad.detailAsset != nil && ad.detailAsset.Domain != nil {
+		domainGateways, err := ad.jmsService.GetDomainGateways(ad.detailAsset.Domain.ID)
 		if err != nil {
 			logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Name, err)
 			return
