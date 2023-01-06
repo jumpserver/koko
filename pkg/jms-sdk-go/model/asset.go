@@ -31,7 +31,8 @@ type Asset struct {
 	Specific  Specific     `json:"specific"`
 	Platform  BasePlatform `json:"platform"`
 
-	Domain   string `json:"domain"` // 是否需要走网域
+	Domain *BaseDomain `json:"domain"` // token 方式获取的资产，domain 为 nil
+
 	Comment  string `json:"comment"`
 	OrgName  string `json:"org_name"`
 	IsActive bool   `json:"is_active"` // 判断资产是否禁用
