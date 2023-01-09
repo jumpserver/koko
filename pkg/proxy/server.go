@@ -970,10 +970,11 @@ func (s *Server) Proxy() {
 			_ = s.cacheSSHConnection.Close()
 		}
 	}()
-	if !s.checkLoginConfirm() {
-		logger.Errorf("Conn[%s]: check login confirm failed", s.UserConn.ID())
-		return
-	}
+	// todo: 复核将在 web 端处理
+	//if !s.checkLoginConfirm() {
+	//	logger.Errorf("Conn[%s]: check login confirm failed", s.UserConn.ID())
+	//	return
+	//}
 	lang := s.connOpts.getLang()
 	ctx, cancel := context.WithCancel(context.Background())
 	sw := SwitchSession{
