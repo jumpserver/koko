@@ -377,12 +377,47 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		AssetId:       asset.ID,
 		Account:       selectAccount.Alias,
 		Protocol:      protocol,
-		ConnectMethod: "ssh",
+		ConnectMethod: model.ProtocolSSH,
 	}
-	connectToken, err := d.jmsService.CreateConnectTokenAndGetAuthInfo(&req)
+	tokenInfo, err := d.jmsService.CreateSuperConnectToken(&req)
+	if err != nil {
+		if tokenInfo.Code == "" {
+			logger.Errorf("Create connect token and auth info failed: %s", err)
+			utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
+			return
+		}
+		switch tokenInfo.Code {
+		case model.ACLReject:
+			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
+			utils.IgnoreErrWriteString(d.term, lang.T("ACL reject"))
+		case model.ACLReview:
+			reviewHandler := LoginReviewHandler{
+				readWriter: d.wrapperSess,
+				i18nLang:   d.i18nLang,
+				user:       d.opts.User,
+				jmsService: d.jmsService,
+				req:        &req,
+			}
+			ok2, err2 := reviewHandler.WaitReview(d.sess.Context())
+			if err2 != nil {
+				logger.Errorf("Wait login review failed: %s", err)
+				utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
+				return
+			}
+			if !ok2 {
+				logger.Error("Wait login review failed")
+				return
+			}
+			tokenInfo = reviewHandler.tokenInfo
+		default:
+			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
+			return
+		}
+	}
+	connectToken, err := d.jmsService.GetConnectTokenInfo(tokenInfo.ID)
 	if err != nil {
 		logger.Errorf("Create connect token and auth info failed: %s", err)
-		utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
+		utils.IgnoreErrWriteString(d.term, lang.T("get connect token err"))
 		return
 	}
 	d.LoginConnectToken(&connectToken)

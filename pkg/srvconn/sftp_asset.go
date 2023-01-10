@@ -553,15 +553,21 @@ func (ad *AssetDir) getConnectTokenAccount(su *model.PermAccount) (model.Account
 		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
 	}
-	connectInfo, err := ad.jmsService.CreateSuperConnectToken(&req)
+	// sftp 不支持 ACL 复核的资产，需要从 web terminal 中登录
+	tokenInfo, err := ad.jmsService.CreateSuperConnectToken(&req)
+	if err != nil {
+		msg := err.Error()
+		if tokenInfo.Detail != "" {
+			msg = tokenInfo.Detail
+		}
+		logger.Errorf("Create super connect token failed: %s", msg)
+		return model.Account{}, fmt.Errorf("create super connect token failed: %s", msg)
+	}
+	connectToken, err := ad.jmsService.GetConnectTokenInfo(tokenInfo.ID)
 	if err != nil {
 		return model.Account{}, err
 	}
-	tokenInfo, err := ad.jmsService.GetConnectTokenInfo(connectInfo.ID)
-	if err != nil {
-		return model.Account{}, err
-	}
-	return tokenInfo.Account, nil
+	return connectToken.Account, nil
 }
 
 func (ad *AssetDir) getCacheSftpConn(su *model.PermAccount) (*SftpConn, bool) {

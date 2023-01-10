@@ -19,6 +19,9 @@ type ConnectToken struct {
 
 	CommandFilterACLs []CommandACL `json:"command_filter_acls"`
 
+	Ticket     *ObjectId   `json:"from_ticket,omitempty"`
+	TicketInfo interface{} `json:"from_ticket_info,omitempty"`
+
 	Code   string `json:"code"`
 	Detail string `json:"detail"`
 }
@@ -47,4 +50,15 @@ type ConnectTokenInfo struct {
 	ExpireTime  int    `json:"expire_time"`
 	AccountName string `json:"account_name"`
 	Protocol    string `json:"protocol"`
+
+	Ticket     *ObjectId  `json:"from_ticket,omitempty"`
+	TicketInfo TicketInfo `json:"from_ticket_info,omitempty"`
+
+	Code   string `json:"code,omitempty"`
+	Detail string `json:"detail,omitempty"`
 }
+
+const (
+	ACLReview = "acl_review"
+	ACLReject = "acl_reject"
+)

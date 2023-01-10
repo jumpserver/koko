@@ -10,10 +10,10 @@ type ReqInfo struct {
 }
 
 type TicketState struct {
-	ID        string `json:"id"`
-	Processor string `json:"processor,omitempty"`
-	State     string `json:"state"`
-	Status    string `json:"status"`
+	ID        string     `json:"id"`
+	Processor string     `json:"processor,omitempty"`
+	State     LabelFiled `json:"state"`
+	Status    LabelFiled `json:"status"`
 }
 
 const (
@@ -30,8 +30,8 @@ type AssetLoginTicketInfo struct {
 }
 
 type TicketInfo struct {
-	CheckReq        ReqInfo  `json:"check_review_status"`
-	CloseReq        ReqInfo  `json:"close_review"`
-	TicketDetailUrl string   `json:"ticket_detail_url"`
-	Reviewers       []string `json:"reviewers"`
+	CheckReq        ReqInfo  `json:"check_ticket_api"`
+	CloseReq        ReqInfo  `json:"close_ticket_api"`
+	TicketDetailUrl string   `json:"ticket_detail_page_url"`
+	Reviewers       []string `json:"assignees"`
 }

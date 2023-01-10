@@ -245,7 +245,17 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
 	}
-	connectToken, err := s.jmsService.CreateConnectTokenAndGetAuthInfo(req)
+	// ssh 非交互式的直连格式，不支持资产的登录复核
+	tokenInfo, err := s.jmsService.CreateSuperConnectToken(req)
+	if err != nil {
+		msg := err.Error()
+		if tokenInfo.Detail != "" {
+			msg = tokenInfo.Detail
+		}
+		logger.Errorf("Create super connect token failed: %s", msg)
+		return
+	}
+	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())

@@ -20,8 +20,8 @@ func (s *JMService) GetConnectTokenInfo(tokenId string) (resp model.ConnectToken
 	return
 }
 
-func (s *JMService) CreateSuperConnectToken(params *SuperConnectTokenReq) (resp model.ConnectTokenInfo, err error) {
-	_, err = s.authClient.Post(SuperConnectTokenInfoURL, params, &resp)
+func (s *JMService) CreateSuperConnectToken(data *SuperConnectTokenReq) (resp model.ConnectTokenInfo, err error) {
+	_, err = s.authClient.Post(SuperConnectTokenInfoURL, data, &resp, data.Params)
 	return
 }
 
@@ -45,4 +45,6 @@ type SuperConnectTokenReq struct {
 	ConnectMethod string `json:"connect_method"`
 	InputUsername string `json:"input_username"`
 	InputSecret   string `json:"input_secret"`
+
+	Params map[string]string `json:"-"`
 }
