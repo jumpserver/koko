@@ -100,6 +100,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		return
 	}
 	i18nLang := u.h.i18nLang
+	lang := i18n.NewLang(i18nLang)
 	req := service.SuperConnectTokenReq{
 		UserId:        u.user.ID,
 		AssetId:       asset.ID,
@@ -107,16 +108,46 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
 	}
-	res, err := u.h.jmsService.CreateSuperConnectToken(&req)
+	tokenInfo, err := u.h.jmsService.CreateSuperConnectToken(&req)
 	if err != nil {
-		logger.Errorf("Create super connect token err: %s", err)
-		utils.IgnoreErrWriteString(u.h.term, "create connect token err")
-		return
+		if tokenInfo.Code == "" {
+			logger.Errorf("Create connect token and auth info failed: %s", err)
+			utils.IgnoreErrWriteString(u.h.term, lang.T("Core API failed"))
+			return
+		}
+		switch tokenInfo.Code {
+		case model.ACLReject:
+			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
+			utils.IgnoreErrWriteString(u.h.term, lang.T("ACL reject"))
+		case model.ACLReview:
+			reviewHandler := LoginReviewHandler{
+				readWriter: u.h.sess,
+				i18nLang:   u.h.i18nLang,
+				user:       u.user,
+				jmsService: u.h.jmsService,
+				req:        &req,
+			}
+			ok2, err2 := reviewHandler.WaitReview(u.h.sess.Context())
+			if err2 != nil {
+				logger.Errorf("Wait login review failed: %s", err)
+				utils.IgnoreErrWriteString(u.h.term, lang.T("Core API failed"))
+				return
+			}
+			if !ok2 {
+				logger.Error("Wait login review failed")
+				return
+			}
+			tokenInfo = reviewHandler.tokenInfo
+		default:
+			logger.Errorf("Create connect token and auth info failed: %s %s", tokenInfo.Code, tokenInfo.Detail)
+			return
+		}
 	}
-	connectToken, err := u.h.jmsService.GetConnectTokenInfo(res.ID)
+
+	connectToken, err := u.h.jmsService.GetConnectTokenInfo(tokenInfo.ID)
 	if err != nil {
 		logger.Errorf("connect token err: %s", err)
-		utils.IgnoreErrWriteString(u.h.term, "get connect token err")
+		utils.IgnoreErrWriteString(u.h.term, lang.T("get connect token err"))
 		return
 	}
 	proxyOpts := make([]proxy.ConnectionOption, 0, 10)

@@ -1,38 +1,85 @@
-package proxy
+package handler
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
 	"golang.org/x/term"
 
 	"github.com/jumpserver/koko/pkg/auth"
+	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 // 校验用户登录资产是否需要复核
-func (s *Server) validateLoginConfirm(srv *auth.LoginConfirmService, userCon UserConnection) bool {
-	lang := s.connOpts.getLang()
-	ok, err := srv.CheckIsNeedLoginConfirm()
-	if err != nil {
-		logger.Errorf("Conn[%s] validate login confirm api err: %s",
-			userCon.ID(), err.Error())
-		msg := lang.T("validate Login confirm err: Core Api failed")
-		utils.IgnoreErrWriteString(userCon, msg)
-		utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
-		return false
-	}
-	if !ok {
-		logger.Debugf("Conn[%s] no need login confirm", userCon.ID())
-		return true
+
+type LoginReviewHandler struct {
+	i18nLang   string
+	readWriter io.ReadWriteCloser
+	jmsService *service.JMService
+	user       *model.User
+	req        *service.SuperConnectTokenReq
+
+	tokenInfo model.ConnectTokenInfo
+}
+
+func (l *LoginReviewHandler) GetTokenInfo() model.ConnectTokenInfo {
+	return l.tokenInfo
+}
+
+func (l *LoginReviewHandler) WaitReview(ctx context.Context) (bool, error) {
+	lang := i18n.NewLang(l.i18nLang)
+	vt := term.NewTerminal(l.readWriter, "y/n: ")
+	utils.IgnoreErrWriteString(vt, lang.T("Need ACL review, continue? (y/n): "))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+	count := 0
+	for {
+		okMsg, err2 := vt.ReadLine()
+		if err2 != nil {
+			logger.Errorf("Wait confirm user readLine exit: %s", err2.Error())
+			return false, err2
+		}
+		count++
+		if okMsg == "" && count < 3 {
+			continue
+		}
+		if count >= 3 && strings.ToLower(okMsg) != "y" {
+			logger.Info("ACL review required cancel")
+			utils.IgnoreErrWriteString(vt, lang.T("Cancel to login asset or max 3 retry"))
+			utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+			return false, nil
+		}
+		if strings.ToLower(okMsg) == "y" {
+			break
+		}
+
 	}
 
-	ctx, cancelFunc := context.WithCancel(userCon.Context())
-	vt := term.NewTerminal(userCon, "")
-	defer userCon.Close()
+	l.req.Params = map[string]string{"create_ticket": "true"}
+	tokenInfo, err := l.jmsService.CreateSuperConnectToken(l.req)
+	if err != nil {
+		logger.Errorf("Create connect token and auth info failed: %s", err)
+		utils.IgnoreErrWriteString(vt, lang.T("Core API failed"))
+		return false, err
+	}
+	l.tokenInfo = tokenInfo
+	srv := auth.NewLoginReview(l.jmsService,
+		auth.WithReviewUser(l.user),
+		auth.WithReviewTokenInfo(&tokenInfo))
+	return l.WaitTicketReview(ctx, &srv)
+}
+
+func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.LoginReviewService) (bool, error) {
+	lang := i18n.NewLang(l.i18nLang)
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer l.readWriter.Close()
+	vt := term.NewTerminal(l.readWriter, " ")
 	go func() {
 		defer cancelFunc()
 		for {
@@ -43,11 +90,12 @@ func (s *Server) validateLoginConfirm(srv *auth.LoginConfirmService, userCon Use
 			}
 			switch line {
 			case "quit", "q":
-				logger.Infof("Conn[%s] quit confirm", userCon.ID())
+				logger.Infof("User %s quit confirm", l.user.String())
 				return
 			}
 		}
 	}()
+	userCon := l.readWriter
 	reviewers := srv.GetReviewers()
 	detailURL := srv.GetTicketUrl()
 	titleMsg := lang.T("Need ticket confirm to login, already send email to the reviewers")
@@ -95,9 +143,9 @@ func (s *Server) validateLoginConfirm(srv *auth.LoginConfirmService, userCon Use
 		// 审核取消
 		statusMsg = utils.WrapperString(lang.T("Cancel confirm"), utils.Red)
 	}
-	logger.Infof("Conn[%s] Login Confirm result: %s", userCon.ID(), statusMsg)
+	logger.Infof("User %s Login Confirm result: %s", l.user.String(), statusMsg)
 	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
 	utils.IgnoreErrWriteString(userCon, statusMsg)
 	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
-	return success
+	return success, nil
 }

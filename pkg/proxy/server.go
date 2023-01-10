@@ -16,7 +16,6 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
-	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
@@ -158,8 +157,6 @@ type Server struct {
 	keyboardMode int32
 
 	OnSessionInfo func(info *SessionInfo)
-
-	loginTicketId string
 }
 
 type SessionInfo struct {
@@ -947,19 +944,6 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 	}
 }
 
-func (s *Server) checkLoginConfirm() bool {
-	assetId := s.connOpts.authInfo.Asset.ID
-	user := s.connOpts.authInfo.User
-	opts := make([]auth.ConfirmOption, 0, 4)
-	opts = append(opts, auth.ConfirmWithUser(&user))
-	opts = append(opts, auth.ConfirmWithAccount(s.account))
-	opts = append(opts, auth.ConfirmWithAssetId(assetId))
-	confirmSrv := auth.NewLoginConfirm(s.jmsService, opts...)
-	ok := s.validateLoginConfirm(&confirmSrv, s.UserConn)
-	s.loginTicketId = confirmSrv.GetTicketId()
-	return ok
-}
-
 func (s *Server) Proxy() {
 	if err := s.checkRequiredAuth(); err != nil {
 		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
@@ -970,11 +954,6 @@ func (s *Server) Proxy() {
 			_ = s.cacheSSHConnection.Close()
 		}
 	}()
-	// todo: 复核将在 web 端处理
-	//if !s.checkLoginConfirm() {
-	//	logger.Errorf("Conn[%s]: check login confirm failed", s.UserConn.ID())
-	//	return
-	//}
 	lang := s.connOpts.getLang()
 	ctx, cancel := context.WithCancel(context.Background())
 	sw := SwitchSession{
@@ -993,11 +972,12 @@ func (s *Server) Proxy() {
 			s.UserConn.ID(), s.ID, msg)
 		return
 	}
-	if s.loginTicketId != "" {
+	if s.connOpts.authInfo.Ticket != nil {
+		reviewTicketId := s.connOpts.authInfo.Ticket.ID
 		msg := fmt.Sprintf("Conn[%s] create session %s ticket %s relation",
-			s.UserConn.ID(), s.ID, s.loginTicketId)
-		logger.Debug(msg)
-		if err := s.jmsService.CreateSessionTicketRelation(s.sessionInfo.ID, s.loginTicketId); err != nil {
+			s.UserConn.ID(), s.ID, reviewTicketId)
+		logger.Infof(msg)
+		if err := s.jmsService.CreateSessionTicketRelation(s.sessionInfo.ID, reviewTicketId); err != nil {
 			logger.Errorf("%s err: %s", msg, err)
 		}
 	}
