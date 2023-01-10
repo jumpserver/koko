@@ -241,7 +241,7 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 	req := &service.SuperConnectTokenReq{
 		UserId:        user.ID,
 		AssetId:       asset.ID,
-		Account:       permAccount.Name,
+		Account:       permAccount.Alias,
 		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
 	}
