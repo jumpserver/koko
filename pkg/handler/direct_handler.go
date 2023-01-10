@@ -375,7 +375,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 	req := service.SuperConnectTokenReq{
 		UserId:        d.opts.User.ID,
 		AssetId:       asset.ID,
-		Account:       selectAccount.Name,
+		Account:       selectAccount.Alias,
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
 	}

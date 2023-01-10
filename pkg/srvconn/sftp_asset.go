@@ -549,7 +549,7 @@ func (ad *AssetDir) getConnectTokenAccount(su *model.PermAccount) (model.Account
 	req := service.SuperConnectTokenReq{
 		UserId:        ad.user.ID,
 		AssetId:       ad.ID,
-		Account:       su.Name,
+		Account:       su.Alias,
 		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
 	}

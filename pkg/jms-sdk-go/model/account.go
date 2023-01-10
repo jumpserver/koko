@@ -43,6 +43,7 @@ type PermAccount struct {
 	SecretType string  `json:"secret_type"`
 	HasSecret  bool    `json:"has_secret"`
 	Actions    Actions `json:"actions"`
+	Alias      string  `json:"alias"`
 
 	Secret string
 }
