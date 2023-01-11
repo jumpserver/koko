@@ -15,7 +15,7 @@ type dbAttrs struct {
 	UseSSL           bool   `json:"use_ssl"`
 	CaCert           string `json:"ca_cert"`
 	ClientCert       string `json:"client_cert"`
-	CertKey          string `json:"cert_key"`
+	CertKey          string `json:"client_key"`
 	AllowInvalidCert bool   `json:"allow_invalid_cert"`
 }
 
