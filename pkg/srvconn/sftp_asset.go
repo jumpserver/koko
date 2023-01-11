@@ -723,7 +723,7 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		User:       ad.user.String(),
 		Hostname:   ad.detailAsset.String(),
 		OrgID:      ad.detailAsset.OrgID,
-		SystemUser: su.String(),
+		Account:    su.String(),
 		RemoteAddr: ad.addr,
 		Operate:    operate,
 		Path:       filename,

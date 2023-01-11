@@ -8,7 +8,7 @@ type FTPLog struct {
 	User       string         `json:"user"`
 	Hostname   string         `json:"asset"`
 	OrgID      string         `json:"org_id"`
-	SystemUser string         `json:"system_user"`
+	Account    string         `json:"account"`
 	RemoteAddr string         `json:"remote_addr"`
 	Operate    string         `json:"operate"`
 	Path       string         `json:"filename"`
