@@ -390,6 +390,8 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		case model.ACLReject:
 			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
 			utils.IgnoreErrWriteString(d.term, lang.T("ACL reject"))
+			utils.IgnoreErrWriteString(d.term, utils.CharNewLine)
+			return
 		case model.ACLReview:
 			reviewHandler := LoginReviewHandler{
 				readWriter: d.wrapperSess,
