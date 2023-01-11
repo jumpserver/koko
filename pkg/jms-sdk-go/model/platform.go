@@ -9,14 +9,14 @@ type Platform struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 
-	Protocols     PlatformProtocols `json:"protocols"`
-	Category      LabelValue        `json:"category"`
-	Charset       LabelValue        `json:"charset"`
-	Type          LabelValue        `json:"type"`
-	SuEnabled     bool              `json:"su_enabled"`
-	SuMethod      string            `json:"su_method"`
-	DomainEnabled bool              `json:"domain_enabled"`
-	Comment       string            `json:"comment"`
+	Protocols PlatformProtocols `json:"protocols"`
+	Category  LabelValue        `json:"category"`
+	Charset   LabelValue        `json:"charset"`
+	Type      LabelValue        `json:"type"`
+	SuEnabled bool              `json:"su_enabled"`
+	//SuMethod  LabelValue        `json:"su_method"`
+	//DomainEnabled bool              `json:"domain_enabled"`
+	Comment string `json:"comment"`
 }
 
 type PlatformProtocols []PlatformProtocol
