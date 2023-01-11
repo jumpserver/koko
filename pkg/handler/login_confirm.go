@@ -78,7 +78,6 @@ func (l *LoginReviewHandler) WaitReview(ctx context.Context) (bool, error) {
 func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.LoginReviewService) (bool, error) {
 	lang := i18n.NewLang(l.i18nLang)
 	ctx, cancelFunc := context.WithCancel(ctx)
-	defer l.readWriter.Close()
 	vt := term.NewTerminal(l.readWriter, " ")
 	go func() {
 		defer cancelFunc()
@@ -95,29 +94,29 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 			}
 		}
 	}()
-	userCon := l.readWriter
 	reviewers := srv.GetReviewers()
 	detailURL := srv.GetTicketUrl()
 	titleMsg := lang.T("Need ticket confirm to login, already send email to the reviewers")
 	reviewersMsg := fmt.Sprintf(lang.T("Ticket Reviewers: %s"), strings.Join(reviewers, ", "))
 	detailURLMsg := fmt.Sprintf(lang.T("Could copy website URL to notify reviewers: %s"), detailURL)
 	waitMsg := lang.T("Please waiting for the reviewers to confirm, enter q to exit. ")
-	utils.IgnoreErrWriteString(userCon, titleMsg)
-	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
-	utils.IgnoreErrWriteString(userCon, reviewersMsg)
-	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
-	utils.IgnoreErrWriteString(userCon, detailURLMsg)
-	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, titleMsg)
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, reviewersMsg)
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, detailURLMsg)
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 	go func() {
 		delay := 0
 		for {
 			select {
 			case <-ctx.Done():
+
 				return
 			default:
 				delayS := fmt.Sprintf("%ds", delay)
 				data := strings.Repeat("\x08", len(delayS)+len(waitMsg)) + waitMsg + delayS
-				utils.IgnoreErrWriteString(userCon, data)
+				utils.IgnoreErrWriteString(vt, data)
 				time.Sleep(time.Second)
 				delay += 1
 			}
@@ -126,6 +125,7 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 
 	status := srv.WaitLoginConfirm(ctx)
 	cancelFunc()
+	l.readWriter.Close()
 	processor := srv.GetProcessor()
 	var success bool
 	statusMsg := lang.T("Unknown status")
@@ -144,8 +144,8 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 		statusMsg = utils.WrapperString(lang.T("Cancel confirm"), utils.Red)
 	}
 	logger.Infof("User %s Login Confirm result: %s", l.user.String(), statusMsg)
-	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
-	utils.IgnoreErrWriteString(userCon, statusMsg)
-	utils.IgnoreErrWriteString(userCon, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
+	utils.IgnoreErrWriteString(vt, statusMsg)
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 	return success, nil
 }
