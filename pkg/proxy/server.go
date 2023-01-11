@@ -197,7 +197,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			OrgID:      asset.OrgID,
 			User:       user.String(),
 			Hostname:   asset.String(),
-			SystemUser: s.account.String(),
+			Account:    s.account.String(),
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
 			Path:       zinfo.Filename(),
