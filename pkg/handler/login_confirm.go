@@ -49,7 +49,7 @@ func (l *LoginReviewHandler) WaitReview(ctx context.Context) (bool, error) {
 		if okMsg == "" && count < 3 {
 			continue
 		}
-		if count >= 3 && strings.ToLower(okMsg) != "y" {
+		if count >= 3 || strings.ToLower(okMsg) != "y" {
 			logger.Info("ACL review required cancel")
 			utils.IgnoreErrWriteString(vt, lang.T("Cancel to login asset or max 3 retry"))
 			utils.IgnoreErrWriteString(vt, utils.CharNewLine)

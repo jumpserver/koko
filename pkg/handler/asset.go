@@ -119,6 +119,8 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		case model.ACLReject:
 			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
 			utils.IgnoreErrWriteString(u.h.term, lang.T("ACL reject"))
+			utils.IgnoreErrWriteString(u.h.term, utils.CharNewLine)
+			return
 		case model.ACLReview:
 			reviewHandler := LoginReviewHandler{
 				readWriter: u.h.sess,
