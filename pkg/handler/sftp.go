@@ -34,7 +34,7 @@ func (fs *sftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 		}
 		return fileInfos, err
 	case "Stat":
-		logger.Debug("stat method: ", r.Filepath)
+		logger.Debug("Stat method: ", r.Filepath)
 		fsInfo, err := fs.Stat(r.Filepath)
 		return listerat([]os.FileInfo{fsInfo}), err
 	case "Readlink":
@@ -53,16 +53,19 @@ func (fs *sftpHandler) Filecmd(r *sftp.Request) (err error) {
 	case "Setstat":
 		return
 	case "Rename":
-		logger.Debugf("%s=>%s", r.Filepath, r.Target)
+		logger.Debugf("rename: %s=>%s", r.Filepath, r.Target)
 		return fs.Rename(r.Filepath, r.Target)
 	case "Rmdir":
+		logger.Debugf("rmdir: %s", r.Filepath)
 		err = fs.RemoveDirectory(r.Filepath)
 	case "Remove":
+		logger.Debugf("remove: %s", r.Filepath)
 		err = fs.Remove(r.Filepath)
 	case "Mkdir":
+		logger.Debugf("mkdir: %s", r.Filepath)
 		err = fs.MkdirAll(r.Filepath)
 	case "Symlink":
-		logger.Debugf("%s=>%s", r.Filepath, r.Target)
+		logger.Debugf("symlink: %s=>%s", r.Filepath, r.Target)
 		err = fs.Symlink(r.Filepath, r.Target)
 	default:
 		return
@@ -79,7 +82,7 @@ func (fs *sftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {
-			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
+			logger.Errorf("Close remote sftp file %s for write failed err: %s", r.Filepath, err)
 		}
 		logger.Infof("Sftp file write %s done", r.Filepath)
 	}()
@@ -95,7 +98,7 @@ func (fs *sftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {
-			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
+			logger.Errorf("Close remote sftp file %s for read failed, err: %s", r.Filepath, err)
 		}
 		logger.Infof("Sftp File read %s done", r.Filepath)
 

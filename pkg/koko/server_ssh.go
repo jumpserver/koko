@@ -2,6 +2,7 @@ package koko
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -31,11 +32,11 @@ const (
 	nextAuthMethod = "keyboard-interactive"
 )
 
-func (s *server) GetSSHAddr() string {
+func (s *Server) GetSSHAddr() string {
 	cf := config.GlobalConfig
 	return net.JoinHostPort(cf.BindHost, cf.SSHPort)
 }
-func (s *server) GetSSHSigner() ssh.Signer {
+func (s *Server) GetSSHSigner() ssh.Signer {
 	conf := s.GetTerminalConfig()
 	singer, err := sshd.ParsePrivateKeyFromString(conf.HostKey)
 	if err != nil {
@@ -44,14 +45,14 @@ func (s *server) GetSSHSigner() ssh.Signer {
 	return singer
 }
 
-func (s *server) KeyboardInteractiveAuth(ctx ssh.Context,
+func (s *Server) KeyboardInteractiveAuth(ctx ssh.Context,
 	challenger gossh.KeyboardInteractiveChallenge) sshd.AuthStatus {
 	return auth.SSHKeyboardInteractiveAuth(ctx, challenger)
 }
 
 const ctxID = "ctxID"
 
-func (s *server) PasswordAuth(ctx ssh.Context, password string) sshd.AuthStatus {
+func (s *Server) PasswordAuth(ctx ssh.Context, password string) sshd.AuthStatus {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
 	if !tConfig.PasswordAuth {
@@ -62,7 +63,7 @@ func (s *server) PasswordAuth(ctx ssh.Context, password string) sshd.AuthStatus 
 	return sshAuthHandler(ctx, password, "")
 }
 
-func (s *server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) sshd.AuthStatus {
+func (s *Server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) sshd.AuthStatus {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
 	if !tConfig.PublicKeyAuth {
@@ -74,11 +75,11 @@ func (s *server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) sshd.AuthStat
 	return sshAuthHandler(ctx, "", publicKey)
 }
 
-func (s *server) NextAuthMethodsHandler(ctx ssh.Context) []string {
+func (s *Server) NextAuthMethodsHandler(ctx ssh.Context) []string {
 	return []string{nextAuthMethod}
 }
 
-func (s *server) SFTPHandler(sess ssh.Session) {
+func (s *Server) SFTPHandler(sess ssh.Session) {
 	currentUser, ok := sess.Context().Value(auth.ContextKeyUser).(*model.User)
 	if !ok || currentUser.ID == "" {
 		logger.Errorf("SFTP User not found, exit.")
@@ -105,12 +106,32 @@ func (s *server) SFTPHandler(sess ssh.Session) {
 	logger.Infof("SFTP request %s: Handler exit.", reqID)
 }
 
-func (s *server) LocalPortForwardingPermission(ctx ssh.Context, destinationHost string, destinationPort uint32) bool {
+func (s *Server) LocalPortForwardingCallback(ctx ssh.Context, destinationHost string, destinationPort uint32) bool {
 	return config.GlobalConfig.EnableLocalPortForward
 }
-func (s *server) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewChannel, destAddr string) {
-	if !config.GetConf().EnableVscodeSupport {
+
+type localForwardChannelData struct {
+	DestAddr string
+	DestPort uint32
+
+	OriginAddr string
+	OriginPort uint32
+}
+
+func (s *Server) DirectTCPIPChannelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
+	localD := localForwardChannelData{}
+	if err := gossh.Unmarshal(newChan.ExtraData(), &localD); err != nil {
+		_ = newChan.Reject(gossh.ConnectionFailed, "error parsing forward data: "+err.Error())
+		return
+	}
+
+	if srv.LocalPortForwardingCallback == nil || !srv.LocalPortForwardingCallback(ctx, localD.DestAddr, localD.DestPort) {
 		_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled")
+		return
+	}
+
+	if !config.GetConf().EnableIDESupport {
+		_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled, ide support not enabled")
 		return
 	}
 	reqId, ok := ctx.Value(ctxID).(string)
@@ -118,12 +139,13 @@ func (s *server) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewCha
 		_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled")
 		return
 	}
-	vsReq := s.getVSCodeReq(reqId)
-	if vsReq == nil {
-		_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled")
+	client := s.getIDEClient(reqId)
+	if client == nil {
+		_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled, cannot found alive connection")
 		return
 	}
-	dConn, err := vsReq.client.Dial("tcp", destAddr)
+	dest := net.JoinHostPort(localD.DestAddr, strconv.FormatInt(int64(localD.DestPort), 10))
+	dConn, err := client.Dial("tcp", dest)
 	if err != nil {
 		_ = newChan.Reject(gossh.ConnectionFailed, err.Error())
 		return
@@ -135,8 +157,8 @@ func (s *server) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewCha
 		_ = newChan.Reject(gossh.ConnectionFailed, err.Error())
 		return
 	}
-	logger.Infof("User %s start port forwarding from (%s) to (%s)", vsReq.user,
-		vsReq.client, destAddr)
+	logger.Infof("User %s start port forwarding from (%s) to (%s)", client.user,
+		client, dest)
 	defer ch.Close()
 	go gossh.DiscardRequests(reqs)
 	go func() {
@@ -145,11 +167,184 @@ func (s *server) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewCha
 		_, _ = io.Copy(ch, dConn)
 	}()
 	_, _ = io.Copy(dConn, ch)
-	logger.Infof("User %s end port forwarding from (%s) to (%s)", vsReq.user,
-		vsReq.client, destAddr)
+	logger.Infof("User %s end port forwarding from (%s) to (%s)", client.user,
+		client, dest)
 }
 
-func (s *server) SessionHandler(sess ssh.Session) {
+func (s *Server) ReversePortForwardingCallback(ctx ssh.Context, destinationHost string, destinationPort uint32) bool {
+	return config.GlobalConfig.EnableReversePortForward
+}
+
+type remoteForwardRequest struct {
+	BindAddr string
+	BindPort uint32
+}
+
+type remoteForwardSuccess struct {
+	BindPort uint32
+}
+
+type remoteForwardCancelRequest struct {
+	BindAddr string
+	BindPort uint32
+}
+
+type remoteForwardChannelData struct {
+	DestAddr   string
+	DestPort   uint32
+	OriginAddr string
+	OriginPort uint32
+}
+
+func (s *Server) RequestHandler(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte) {
+	reqId, ok := ctx.Value(ctxID).(string)
+	if !ok {
+		return false, []byte("port forwarding is disabled")
+	}
+
+	switch req.Type {
+	case "tcpip-forward":
+		var reqPayload remoteForwardRequest
+		if err := gossh.Unmarshal(req.Payload, &reqPayload); err != nil {
+			// TODO: log parse failure
+			return false, []byte{}
+		}
+		if srv.ReversePortForwardingCallback == nil || !srv.ReversePortForwardingCallback(ctx, reqPayload.BindAddr, reqPayload.BindPort) {
+			return false, []byte("port forwarding is disabled")
+		}
+
+		addr := net.JoinHostPort(reqPayload.BindAddr, strconv.Itoa(int(reqPayload.BindPort)))
+		client := s.getIDEClient(reqId)
+		if client == nil {
+			user := ctx.Value(auth.ContextKeyUser).(*model.User)
+			directReq := ctx.Value(auth.ContextKeyDirectLoginFormat)
+			directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq)
+			if !ok3 {
+				return false, []byte("port forwarding is disabled, must be direct login request")
+			}
+
+			var tokenInfo *model.ConnectTokenInfo
+			var err error
+			if directRequest.IsToken() {
+				// connection token 的方式使用 vscode 连接
+				tokenInfo = directRequest.Info
+				matchedType := tokenInfo.TypeName == model.ConnectAsset
+				matchedProtocol := tokenInfo.SystemUserAuthInfo.Protocol == model.ProtocolSSH
+				assetSupportedSSH := tokenInfo.Asset.IsSupportProtocol(model.ProtocolSSH)
+				if !matchedType || !matchedProtocol || !assetSupportedSSH {
+					msg := "not ssh asset connection token"
+					logger.Errorf("ide support failed: %s", msg)
+					return false, []byte(msg)
+				}
+			} else {
+				tokenInfo, err = s.buildTokenInfo(user, directRequest)
+				if err != nil {
+					msg := "cannot build connect token"
+					logger.Errorf("ide supoort failed, err:%s", err.Error())
+					return false, []byte(msg)
+				}
+			}
+			client, err = s.buildIDEClientByTokenInfo(reqId, tokenInfo)
+			if err != nil {
+				logger.Error(err)
+				return false, []byte("port forwarding is disabled, cannot build ide client")
+			}
+		}
+
+		go func() {
+			s.addIDEClient(client)
+			defer s.deleteIDEClient(client)
+
+			<-ctx.Done()
+			logger.Info("ide client removed, all alive forward will be closed by default")
+		}()
+		ln, err := client.Listen("tcp", addr)
+		if err != nil {
+			return false, []byte("port forwarding is disabled, cannot connect peer")
+		}
+
+		go func() {
+			client.AddForward(addr, ln)
+			defer client.RemoveForward(addr)
+			<-ctx.Done()
+			logger.Info("ide port forward removed")
+		}()
+
+		_, destPortStr, _ := net.SplitHostPort(ln.Addr().String())
+		destPort, _ := strconv.Atoi(destPortStr)
+		go func() {
+			for {
+				c, err := ln.Accept()
+				if err != nil {
+					// TODO: log accept failure
+					break
+				}
+				originAddr, orignPortStr, _ := net.SplitHostPort(c.RemoteAddr().String())
+				originPort, _ := strconv.Atoi(orignPortStr)
+				payload := gossh.Marshal(&remoteForwardChannelData{
+					DestAddr:   reqPayload.BindAddr,
+					DestPort:   uint32(destPort),
+					OriginAddr: originAddr,
+					OriginPort: uint32(originPort),
+				})
+				conn := ctx.Value(ssh.ContextKeyConn).(*gossh.ServerConn)
+				go func() {
+					ch, reqs, err := conn.OpenChannel(sshd.ChannelForwardedTCPIP, payload)
+					if err != nil {
+						// TODO: log failure to open channel
+						logger.Error(err)
+						c.Close()
+						return
+					}
+					go gossh.DiscardRequests(reqs)
+					go func() {
+						defer ch.Close()
+						defer c.Close()
+						io.Copy(ch, c)
+					}()
+					go func() {
+						defer ch.Close()
+						defer c.Close()
+						io.Copy(c, ch)
+					}()
+				}()
+			}
+		}()
+		return true, gossh.Marshal(&remoteForwardSuccess{uint32(destPort)})
+
+	case "cancel-tcpip-forward":
+		reqId, ok := ctx.Value(ctxID).(string)
+		if !ok {
+			return false, []byte("port forwarding is disabled")
+		}
+		if !config.GetConf().EnableIDESupport {
+			return false, []byte("port forwarding is disabled, ide support not enabled")
+		}
+		client := s.getIDEClient(reqId)
+		if client == nil {
+			return false, []byte("port forwarding is disabled, cannot found alive connection")
+		}
+
+		var reqPayload remoteForwardCancelRequest
+		if err := gossh.Unmarshal(req.Payload, &reqPayload); err != nil {
+			// TODO: log parse failure
+			return false, []byte{}
+		}
+		addr := net.JoinHostPort(reqPayload.BindAddr, strconv.Itoa(int(reqPayload.BindPort)))
+
+		ln := client.GetForward(addr)
+		if ln != nil {
+			ln.Close()
+			client.RemoveForward(addr)
+		}
+
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func (s *Server) SessionHandler(sess ssh.Session) {
 	user, ok := sess.Context().Value(auth.ContextKeyUser).(*model.User)
 	if !ok || user.ID == "" {
 		logger.Errorf("SSH User %s not found, exit.", sess.User())
@@ -162,7 +357,8 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		// PyCharm use command with pty to initialize remote development environment,
 		// so let this request execute first
 		if len(sess.Command()) != 0 {
-			goto direct
+			s.ideSupport(sess, user, directReq)
+			return
 		}
 		termConf := s.GetTerminalConfig()
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
@@ -195,7 +391,14 @@ func (s *server) SessionHandler(sess ssh.Session) {
 		return
 	}
 
-direct:
+	s.ideSupport(sess, user, directReq)
+}
+
+func (s *Server) ideSupport(sess ssh.Session, user *model.User, directReq interface{}) {
+	if !config.GetConf().EnableIDESupport {
+		utils.IgnoreErrWriteWindowTitle(sess, "ide support not enabled.\n")
+		return
+	}
 	if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 		if directRequest.IsToken() {
 			// connection token 的方式使用 vscode 连接
@@ -206,135 +409,114 @@ direct:
 			if !matchedType || !matchedProtocol || !assetSupportedSSH {
 				msg := "not ssh asset connection token"
 				utils.IgnoreErrWriteString(sess, msg)
-				logger.Errorf("vscode failed: %s", msg)
+				logger.Errorf("ide support failed: %s", msg)
 				return
 			}
-			s.proxyVscodeByTokenInfo(sess, tokenInfo)
+			s.proxyIDEByTokenInfo(sess, tokenInfo)
 			return
 		}
-		selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
+		tokenInfo, err := s.buildTokenInfo(user, directRequest)
 		if err != nil {
-			logger.Error(err)
 			utils.IgnoreErrWriteString(sess, err.Error())
 			return
 		}
-		if len(selectedAssets) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetInfo)
-			utils.IgnoreErrWriteString(sess, msg)
-			logger.Error(msg)
-			return
-		}
-		selectSysUsers, err := s.getMatchedSystemUsers(user, directRequest, selectedAssets[0])
-		if err != nil {
-			logger.Error(err)
-			utils.IgnoreErrWriteString(sess, err.Error())
-			return
-		}
-		if len(selectSysUsers) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), directRequest.SysUserInfo)
-			utils.IgnoreErrWriteString(sess, msg)
-			logger.Error(msg)
-			return
-		}
-		s.proxyVscode(sess, user, selectedAssets[0], selectSysUsers[0])
+		s.proxyIDEByTokenInfo(sess, tokenInfo)
 	}
-
 }
 
-func (s *server) proxyVscode(sess ssh.Session, user *model.User, asset model.Asset,
-	systemUser model.SystemUser) {
-	ctxId, ok := sess.Context().Value(ctxID).(string)
-	if !ok {
-		logger.Error("Not found ctxID")
-		utils.IgnoreErrWriteString(sess, "not found ctx id")
-		return
+func (s *Server) buildTokenInfo(user *model.User, directRequest *auth.DirectLoginAssetReq) (*model.ConnectTokenInfo, error) {
+	selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
 	}
+	if len(selectedAssets) != 1 {
+		msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetInfo)
+		logger.Error(msg)
+		return nil, errors.New(msg)
+	}
+	asset := selectedAssets[0]
+	selectedSysUsers, err := s.getMatchedSystemUsers(user, directRequest, asset)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+	if len(selectedSysUsers) != 1 {
+		msg := fmt.Sprintf(i18n.T("Must be unique system user for %s"), directRequest.SysUserInfo)
+		logger.Error(msg)
+		return nil, errors.New(msg)
+	}
+	systemUser := selectedSysUsers[0]
+
 	systemUserAuthInfo, err := s.jmsService.GetSystemUserAuthById(systemUser.ID, asset.ID,
 		user.ID, user.Username)
 	if err != nil {
 		logger.Errorf("Get system user auth failed: %s", err)
-		utils.IgnoreErrWriteString(sess, err.Error())
-		return
+		return nil, err
 	}
 	permInfo, err := s.jmsService.ValidateAssetConnectPermission(user.ID,
 		asset.ID, systemUser.ID)
 	if err != nil {
 		logger.Errorf("Get asset Permission info err: %s", err)
-		utils.IgnoreErrWriteString(sess, err.Error())
-		return
+		return nil, err
 	}
 	var domain *model.Domain
 	if asset.Domain != "" {
 		domainInfo, err := s.jmsService.GetDomainGateways(asset.Domain)
 		if err != nil {
 			logger.Errorf("Get system user auth failed: %s", err)
-			utils.IgnoreErrWriteString(sess, err.Error())
-			return
+			return nil, err
 		}
 		domain = &domainInfo
 	}
-	sshAuthOpts := buildSSHClientOptions(&asset, &systemUserAuthInfo, domain)
-	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
-	if err != nil {
-		logger.Errorf("Get SSH Client failed: %s", err)
-		utils.IgnoreErrWriteString(sess, err.Error())
-		return
-	}
-	defer sshClient.Close()
-	if len(sess.Command()) != 0 {
-		s.proxyDirectCommand(
-			sess,
-			sshClient,
-			&model.ConnectTokenInfo{
-				User:               user,
-				SystemUserAuthInfo: &systemUserAuthInfo,
-				Asset:              &asset,
-			},
-		)
-		return
-	}
 
-	if !config.GetConf().EnableVscodeSupport {
-		utils.IgnoreErrWriteString(sess, "No support vscode like requested.\n")
-		return
-	}
-	vsReq := &vscodeReq{
-		reqId:      ctxId,
-		user:       user,
-		client:     sshClient,
-		expireInfo: &permInfo,
-	}
-	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
-		utils.IgnoreErrWriteString(sess, err.Error())
-	}
+	return &model.ConnectTokenInfo{
+		User:               user,
+		Asset:              &asset,
+		SystemUserAuthInfo: &systemUserAuthInfo,
+		Domain:             domain,
+		ExpiredAt:          permInfo.ExpireAt,
+	}, nil
 }
 
-func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokenInfo *model.ConnectTokenInfo) {
-	ctxId, ok := sess.Context().Value(ctxID).(string)
+func (s *Server) proxyIDEByTokenInfo(sess ssh.Session, tokenInfo *model.ConnectTokenInfo) {
+	reqId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
 		utils.IgnoreErrWriteString(sess, "not found ctx id")
 		return
 	}
+
+	var err error
+	client := s.getIDEClient(reqId)
+	if client == nil {
+		client, err = s.buildIDEClientByTokenInfo(reqId, tokenInfo)
+		if err != nil {
+			logger.Errorf("build IDE client failed, err:%s\n", err.Error())
+			utils.IgnoreErrWriteString(sess, err.Error())
+			return
+		}
+	}
+
+	if len(sess.Command()) != 0 {
+		err = s.proxyCommand(sess, client)
+	} else {
+		err = s.proxyShell(sess, client)
+	}
+
+	if err != nil {
+		utils.IgnoreErrWriteString(sess, err.Error())
+	}
+}
+
+func (s *Server) buildIDEClientByTokenInfo(reqId string, tokenInfo *model.ConnectTokenInfo) (*IDEClient, error) {
 	asset := tokenInfo.Asset
 	systemUserAuthInfo := tokenInfo.SystemUserAuthInfo
 	domain := tokenInfo.Domain
 	sshAuthOpts := buildSSHClientOptions(asset, systemUserAuthInfo, domain)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
-		logger.Errorf("Get SSH Client failed: %s", err)
-		utils.IgnoreErrWriteString(sess, err.Error())
-		return
-	}
-	defer sshClient.Close()
-	if len(sess.Command()) != 0 {
-		s.proxyDirectCommand(sess, sshClient, tokenInfo)
-		return
-	}
-
-	if !config.GetConf().EnableVscodeSupport {
-		utils.IgnoreErrWriteString(sess, "No support vscode like requested.\n")
-		return
+		return nil, err
 	}
 
 	perm := model.Permission{Actions: tokenInfo.Actions}
@@ -342,66 +524,67 @@ func (s *server) proxyVscodeByTokenInfo(sess ssh.Session, tokenInfo *model.Conne
 		HasPermission: perm.EnableConnect(),
 		ExpireAt:      tokenInfo.ExpiredAt,
 	}
-	vsReq := &vscodeReq{
-		reqId:      ctxId,
+
+	return &IDEClient{
+		SSHClient:  sshClient,
+		reqId:      reqId,
 		user:       tokenInfo.User,
-		client:     sshClient,
+		tokenInfo:  tokenInfo,
 		expireInfo: &permInfo,
-	}
-	if err = s.proxyVscodeShell(sess, vsReq, sshClient); err != nil {
-		utils.IgnoreErrWriteString(sess, err.Error())
-	}
+	}, nil
 }
 
-func (s *server) proxyDirectCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
-	token *model.ConnectTokenInfo) {
-	rawStr := sess.RawCommand()
-	// scp command can not be disabled for vscode initial logic
-	// if strings.HasPrefix(rawStr, "scp") {
-	// 	logger.Errorf("Not support scp command %s", rawStr)
-	// 	utils.IgnoreErrWriteString(sess, "Not support scp command")
-	// 	return
-	// }
-	retSession := &model.Session{
-		ID:           common.UUID(),
-		User:         token.User.String(),
-		SystemUser:   token.SystemUserAuthInfo.String(),
-		LoginFrom:    "ST", // means SSH Terminal
-		RemoteAddr:   sess.RemoteAddr().String(),
-		Protocol:     token.SystemUserAuthInfo.Protocol,
-		UserID:       token.User.ID,
-		SystemUserID: token.SystemUserAuthInfo.ID,
-		Asset:        token.Asset.Hostname,
-		AssetID:      token.Asset.ID,
-		OrgID:        token.Asset.OrgID,
-	}
-	err := s.jmsService.CreateSession(*retSession)
-	if err != nil {
-		logger.Errorf("Create command session err: %s", err)
-		return
-	}
-	ctx, cancel := context.WithCancel(sess.Context())
-	defer cancel()
-	proxy.AddCommandSession(retSession.ID, cancel)
-
-	defer func() {
-		if err2 := s.jmsService.SessionFinished(retSession.ID, sdkcommon.NewNowUTCTime()); err2 != nil {
-			logger.Errorf("finish command session err: %s", err)
-		}
-		proxy.RemoveCommandSession(retSession.ID)
-	}()
-
-	goSess, err := sshClient.AcquireSession()
+func (s *Server) proxyCommand(sess ssh.Session,
+	client *IDEClient) error {
+	goSess, err := client.AcquireSession()
 	if err != nil {
 		logger.Errorf("Get SSH session failed: %s", err)
-		return
+		return err
 	}
 	defer goSess.Close()
-	defer sshClient.ReleaseSession(goSess)
-	go func() {
-		<-ctx.Done()
-		_ = goSess.Close()
-	}()
+	defer client.ReleaseSession(goSess)
+
+	if client.session == nil {
+		retSession := model.Session{
+			ID:           common.UUID(),
+			User:         client.tokenInfo.User.String(),
+			SystemUser:   client.tokenInfo.SystemUserAuthInfo.String(),
+			LoginFrom:    "ST", // means SSH Terminal
+			RemoteAddr:   sess.RemoteAddr().String(),
+			Protocol:     client.tokenInfo.SystemUserAuthInfo.Protocol,
+			UserID:       client.tokenInfo.User.ID,
+			SystemUserID: client.tokenInfo.SystemUserAuthInfo.ID,
+			Asset:        client.tokenInfo.Asset.Hostname,
+			AssetID:      client.tokenInfo.Asset.ID,
+			OrgID:        client.tokenInfo.Asset.OrgID,
+		}
+
+		if err := s.jmsService.CreateSession(retSession); err != nil {
+			logger.Errorf("Create command session err: %s", err)
+			return err
+		}
+
+		ctx, cancel := context.WithCancel(sess.Context())
+		proxy.AddCommandSession(retSession.ID, cancel)
+
+		go func() {
+			defer func() {
+				if err := s.jmsService.SessionFinished(retSession.ID, sdkcommon.NewNowUTCTime()); err != nil {
+					logger.Errorf("finish session err: %s", err)
+				}
+				proxy.RemoveCommandSession(retSession.ID)
+			}()
+			<-ctx.Done()
+		}()
+		client.session = &retSession
+	}
+
+	rawStr := sess.RawCommand()
+	if strings.HasPrefix(rawStr, "scp") {
+		// since the initialization loggic of vscode remote plugin relies on the scp command,
+		// it cannot be disabled
+		logger.Warnf("found scp command %s", rawStr)
+	}
 
 	// to fix this issue: https://github.com/ploxiln/fab-classic/issues/46
 	// make pty for client when client required or command is login shell
@@ -420,20 +603,19 @@ func (s *server) proxyDirectCommand(sess ssh.Session, sshClient *srvconn.SSHClie
 	}
 
 	goSess.Stdin = sess
-	out, err := goSess.StdoutPipe()
+	stdout, err := goSess.StdoutPipe()
 	if err != nil {
-		logger.Errorf("Get SSH session stdout failed: %s", err)
-		return
+		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
+		return err
 	}
-	errOut, err := goSess.StderrPipe()
+	stderr, err := goSess.StderrPipe()
 	if err != nil {
-		logger.Errorf("Get SSH session stderr failed: %s", err)
-		return
+		logger.Errorf("Get SSH session StderrPipe failed: %s", err)
+		return err
 	}
-	reader := io.MultiReader(out, errOut)
+	reader := io.MultiReader(stdout, stderr)
 	go func() {
 		var outResult strings.Builder
-		now := time.Now()
 		maxSize := 1024
 		buf := make([]byte, 1024)
 		for {
@@ -467,37 +649,49 @@ func (s *server) proxyDirectCommand(sess ssh.Session, sshClient *srvconn.SSHClie
 		}
 		termCfg := s.GetTerminalConfig()
 		cmdStorage := proxy.NewCommandStorage(s.jmsService, &termCfg)
-		if err2 := cmdStorage.BulkSave([]*model.Command{&model.Command{
-			SessionID:   retSession.ID,
-			OrgID:       retSession.OrgID,
+		now := time.Now()
+
+		err := cmdStorage.BulkSave([]*model.Command{&model.Command{
+			SessionID:   client.session.ID,
+			OrgID:       client.session.OrgID,
 			Input:       input,
 			Output:      output,
-			User:        retSession.User,
-			Server:      retSession.Asset,
-			SystemUser:  token.SystemUserAuthInfo.String(),
+			User:        client.tokenInfo.User.String(),
+			Server:      client.tokenInfo.Asset.String(),
+			SystemUser:  client.tokenInfo.SystemUserAuthInfo.String(),
 			Timestamp:   now.Unix(),
 			DateCreated: now.UTC(),
 			RiskLevel:   model.NormalLevel,
-		}}); err2 != nil {
-			logger.Errorf("Create command err: %s", err2)
+		}})
+		if err != nil {
+			logger.Errorf("Create command err: %s", err)
 		}
 	}()
 	err = goSess.Run(rawStr)
 	if err != nil {
-		logger.Errorf("User %s Run command %s failed: %s",
-			token.User.String(), rawStr, err)
+		logger.Errorf("SSH conn[%s] user(%s) exec command on remote(%s) failed, cmd: %s, err: %s",
+			client.reqId, client.user, client, rawStr, err)
+		return err
 	}
+	logger.Infof("SSH conn[%s] user(%s) exec command on remote(%s) successs, cmd: %s",
+		client.reqId, client.user, client, rawStr)
+
+	go s.checkExpire(sess, client)
+
+	// the reason for returning immediately here is that
+	// exec type requests need to end the session immediately
+	return nil
 }
 
-func (s *server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient) error {
-	goSess, err := sshClient.AcquireSession()
+func (s *Server) proxyShell(sess ssh.Session, client *IDEClient) error {
+	goSess, err := client.AcquireSession()
 	if err != nil {
 		logger.Errorf("Get SSH session failed: %s", err)
 		return err
 	}
 	defer goSess.Close()
-	defer sshClient.ReleaseSession(goSess)
-	stdOut, err := goSess.StdoutPipe()
+	defer client.ReleaseSession(goSess)
+	stdout, err := goSess.StdoutPipe()
 	if err != nil {
 		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)
 		return err
@@ -512,33 +706,52 @@ func (s *server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 		logger.Errorf("Get SSH session shell failed: %s", err)
 		return err
 	}
-	logger.Infof("User %s start vscode request to %s", vsReq.user, sshClient)
+	logger.Infof("SSH conn[%s] user(%s) request shell on remote(%s) success",
+		client.reqId, client.user, client)
 
-	s.addVSCodeReq(vsReq)
-	defer s.deleteVSCodeReq(vsReq)
 	go func() {
 		_, _ = io.Copy(stdin, sess)
-		logger.Infof("User %s vscode request %s stdin end", vsReq.user, sshClient)
+		logger.Infof("SSH conn[%s] user(%s) request shell on remote(%s) stdin end",
+			client.reqId, client.user, client)
 	}()
 	go func() {
-		_, _ = io.Copy(sess, stdOut)
-		logger.Infof("User %s vscode request %s stdOut end", vsReq.user, sshClient)
+		_, _ = io.Copy(sess, stdout)
+		logger.Infof("SSH conn[%s] user(%s) request shell on remote(%s) stdout end",
+			client.reqId, client.user, client)
 	}()
+
+	// the shell type requests are long-connected, so there is no need to end the session immediately
+	return s.checkExpire(sess, client)
+}
+
+func (s *Server) checkExpire(sess ssh.Session, client *IDEClient) error {
+	oldReq := s.getIDEClient(client.reqId)
+	if oldReq != nil {
+		// session alreay exist, no need to double check
+		return nil
+	}
+	s.addIDEClient(client)
+	defer func() {
+		client.Close()
+		s.deleteIDEClient(client)
+	}()
+
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-sess.Context().Done():
-			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done",
-				vsReq.reqId, vsReq.user, sshClient)
+			logger.Infof("SSH conn[%s] user(%s) to remote(%s) session done",
+				client.reqId, client.user, client)
 			return nil
 		case now := <-ticker.C:
-			if vsReq.expireInfo.IsExpired(now) {
-				logger.Infof("SSH conn[%s] User %s end vscode request %s as permission has expired",
-					vsReq.reqId, vsReq.user, sshClient)
+			if client.expireInfo.IsExpired(now) {
+				logger.Infof("SSH conn[%s] user(%s) to remote(%s) session exit, cause permission expired",
+					client.reqId, client.user, client)
 				return nil
 			}
-			logger.Debugf("SSH conn[%s] user %s vscode request still alive", vsReq.reqId, vsReq.user)
+			logger.Debugf("SSH conn[%s] user(%s) to remote(%s) session still alive",
+				client.reqId, client.user, client)
 		}
 	}
 }
@@ -585,7 +798,7 @@ func buildSSHClientOptions(asset *model.Asset, systemUserAuthInfo *model.SystemU
 	return sshAuthOpts
 }
 
-func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
+func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
 	if req.IsUUIDString() {
 		asset, err := s.jmsService.GetAssetById(req.AssetInfo)
 		if err != nil {
@@ -602,7 +815,7 @@ func (s *server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 	return assets, nil
 }
 
-func (s *server) getMatchedSystemUsers(user *model.User, req *auth.DirectLoginAssetReq,
+func (s *Server) getMatchedSystemUsers(user *model.User, req *auth.DirectLoginAssetReq,
 	asset model.Asset) ([]model.SystemUser, error) {
 	if req.IsUUIDString() {
 		systemUser, err := s.jmsService.GetSystemUserById(req.SysUserInfo)
