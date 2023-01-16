@@ -23,6 +23,11 @@ const (
 	sshSubSystemSFTP      = "sftp"
 )
 
+var (
+	supportedMACs = []string{"hmac-sha2-256-etm@openssh.com",
+		"hmac-sha2-256", "hmac-sha1"}
+)
+
 type Server struct {
 	Srv     *ssh.Server
 	Handler *handler.Server
@@ -59,12 +64,15 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 	}
 	sshHandler := handler.NewServer(termCfg, jmsService)
 	srv := &ssh.Server{
-		Addr:                        addr,
-		KeyboardInteractiveHandler:  auth.SSHKeyboardInteractiveAuth,
-		PasswordHandler:             sshHandler.PasswordAuth,
-		PublicKeyHandler:            sshHandler.PublicKeyAuth,
-		NextAuthMethodsHandler:      func(ctx ssh.Context) []string { return []string{nextAuthMethod} },
-		HostSigners:                 []ssh.Signer{singer},
+		Addr:                       addr,
+		KeyboardInteractiveHandler: auth.SSHKeyboardInteractiveAuth,
+		PasswordHandler:            sshHandler.PasswordAuth,
+		PublicKeyHandler:           sshHandler.PublicKeyAuth,
+		NextAuthMethodsHandler:     func(ctx ssh.Context) []string { return []string{nextAuthMethod} },
+		HostSigners:                []ssh.Signer{singer},
+		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
+			return &gossh.ServerConfig{Config: gossh.Config{MACs: supportedMACs}}
+		},
 		Handler:                     sshHandler.SessionHandler,
 		LocalPortForwardingCallback: sshHandler.LocalPortForwardingPermission,
 		SubsystemHandlers:           map[string]ssh.SubsystemHandler{sshSubSystemSFTP: sshHandler.SFTPHandler},
