@@ -180,7 +180,7 @@ msgstr "刷新最新的机器和节点信息"
 #. lang.T
 #: pkg/handler/banner.go:38
 msgid "Chinese-English-Japanese switch"
-msgstr "中英日语言切换"
+msgstr "中-English-日本語语言切换"
 
 #. lang.T
 #: pkg/handler/banner.go:39
