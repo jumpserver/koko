@@ -168,7 +168,7 @@ msgstr ""
 #. lang.T
 #: pkg/handler/banner.go:38
 msgid "Chinese-English-Japanese switch"
-msgstr ""
+msgstr "中文-English-日本語 switch"
 
 #. lang.T
 #: pkg/handler/banner.go:39

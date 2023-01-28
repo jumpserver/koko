@@ -174,7 +174,7 @@ msgstr "アセットとノードを更新する"
 #. lang.T
 #: pkg/handler/banner.go:38
 msgid "Chinese-English-Japanese switch"
-msgstr "中国語と日本語の切り替え"
+msgstr "中文-English-日本語の切り替え"
 
 #. lang.T
 #: pkg/handler/banner.go:39
