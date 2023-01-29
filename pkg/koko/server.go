@@ -12,15 +12,15 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 )
 
-type server struct {
+type Server struct {
 	terminalConf atomic.Value
 	jmsService   *service.JMService
 	sync.Mutex
 
-	vscodeClients map[string]*vscodeReq
+	ideClients map[string]*IDEClient
 }
 
-func (s *server) run() {
+func (s *Server) run() {
 	for {
 		time.Sleep(time.Minute)
 		conf, err := s.jmsService.GetTerminalConfig()
@@ -32,36 +32,37 @@ func (s *server) run() {
 	}
 }
 
-func (s *server) UpdateTerminalConfig(conf model.TerminalConfig) {
+func (s *Server) UpdateTerminalConfig(conf model.TerminalConfig) {
 	s.terminalConf.Store(conf)
 }
 
-func (s *server) GetTerminalConfig() model.TerminalConfig {
+func (s *Server) GetTerminalConfig() model.TerminalConfig {
 	return s.terminalConf.Load().(model.TerminalConfig)
 }
 
-func (s *server) getVSCodeReq(reqId string) *vscodeReq {
+func (s *Server) getIDEClient(reqId string) *IDEClient {
 	s.Lock()
 	defer s.Unlock()
-	return s.vscodeClients[reqId]
+	return s.ideClients[reqId]
 }
 
-func (s *server) addVSCodeReq(vsReq *vscodeReq) {
+func (s *Server) addIDEClient(client *IDEClient) {
 	s.Lock()
 	defer s.Unlock()
-	s.vscodeClients[vsReq.reqId] = vsReq
+	s.ideClients[client.reqId] = client
 }
 
-func (s *server) deleteVSCodeReq(vsReq *vscodeReq) {
+func (s *Server) deleteIDEClient(client *IDEClient) {
 	s.Lock()
 	defer s.Unlock()
-	delete(s.vscodeClients, vsReq.reqId)
+	delete(s.ideClients, client.reqId)
 }
 
-type vscodeReq struct {
-	reqId  string
-	user   *model.User
-	client *srvconn.SSHClient
-
+type IDEClient struct {
+	*srvconn.SSHClient
+	reqId      string
+	user       *model.User
+	session    *model.Session
+	tokenInfo  *model.ConnectTokenInfo
 	expireInfo *model.ExpireInfo
 }

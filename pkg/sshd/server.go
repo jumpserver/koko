@@ -3,7 +3,6 @@ package sshd
 import (
 	"context"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -14,9 +13,12 @@ import (
 )
 
 const (
-	sshChannelSession     = "session"
-	sshChannelDirectTCPIP = "direct-tcpip"
-	sshSubSystemSFTP      = "sftp"
+	ChannelSession            = "session"
+	ChannelDirectTCPIP        = "direct-tcpip"
+	ChannelForwardedTCPIP     = "forwarded-tcpip"
+	ChannelTCPIPForward       = "tcpip-forward"
+	ChannelCancelTCPIPForward = "cancel-tcpip-forward"
+	SubSystemSFTP             = "sftp"
 )
 
 type Server struct {
@@ -48,8 +50,10 @@ type SSHHandler interface {
 	NextAuthMethodsHandler(ctx ssh.Context) []string
 	SessionHandler(ssh.Session)
 	SFTPHandler(ssh.Session)
-	LocalPortForwardingPermission(ctx ssh.Context, destinationHost string, destinationPort uint32) bool
-	DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewChannel, destAddr string)
+	RequestHandler(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (ok bool, payload []byte)
+	LocalPortForwardingCallback(ctx ssh.Context, destinationHost string, destinationPort uint32) bool
+	ReversePortForwardingCallback(ctx ssh.Context, destinationHost string, destinationPort uint32) bool
+	DirectTCPIPChannelHandler(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context)
 }
 
 type AuthStatus ssh.AuthResult
@@ -62,10 +66,9 @@ const (
 
 func NewSSHServer(handler SSHHandler) *Server {
 	srv := &ssh.Server{
-		LocalPortForwardingCallback: func(ctx ssh.Context, destinationHost string, destinationPort uint32) bool {
-			return handler.LocalPortForwardingPermission(ctx, destinationHost, destinationPort)
-		},
-		Addr: handler.GetSSHAddr(),
+		LocalPortForwardingCallback:   handler.LocalPortForwardingCallback,
+		ReversePortForwardingCallback: handler.ReversePortForwardingCallback,
+		Addr:                          handler.GetSSHAddr(),
 		KeyboardInteractiveHandler: func(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) ssh.AuthResult {
 			return ssh.AuthResult(handler.KeyboardInteractiveAuth(ctx, challenger))
 		},
@@ -81,33 +84,16 @@ func NewSSHServer(handler SSHHandler) *Server {
 		HostSigners: []ssh.Signer{handler.GetSSHSigner()},
 		Handler:     handler.SessionHandler,
 		SubsystemHandlers: map[string]ssh.SubsystemHandler{
-			sshSubSystemSFTP: handler.SFTPHandler,
+			SubSystemSFTP: handler.SFTPHandler,
 		},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
-			sshChannelSession: ssh.DefaultSessionHandler,
-			sshChannelDirectTCPIP: func(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
-				localD := localForwardChannelData{}
-				if err := gossh.Unmarshal(newChan.ExtraData(), &localD); err != nil {
-					_ = newChan.Reject(gossh.ConnectionFailed, "error parsing forward data: "+err.Error())
-					return
-				}
-
-				if srv.LocalPortForwardingCallback == nil || !srv.LocalPortForwardingCallback(ctx, localD.DestAddr, localD.DestPort) {
-					_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled")
-					return
-				}
-				dest := net.JoinHostPort(localD.DestAddr, strconv.FormatInt(int64(localD.DestPort), 10))
-				handler.DirectTCPIPChannelHandler(ctx, newChan, dest)
-			},
+			ChannelSession:     ssh.DefaultSessionHandler,
+			ChannelDirectTCPIP: handler.DirectTCPIPChannelHandler,
+		},
+		RequestHandlers: map[string]ssh.RequestHandler{
+			ChannelTCPIPForward:       handler.RequestHandler,
+			ChannelCancelTCPIPForward: handler.RequestHandler,
 		},
 	}
 	return &Server{srv}
-}
-
-type localForwardChannelData struct {
-	DestAddr string
-	DestPort uint32
-
-	OriginAddr string
-	OriginPort uint32
 }

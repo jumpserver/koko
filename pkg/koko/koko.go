@@ -79,14 +79,14 @@ func runTasks(jmsService *service.JMService) {
 	go keepHeartbeat(jmsService)
 }
 
-func NewServer(jmsService *service.JMService) *server {
+func NewServer(jmsService *service.JMService) *Server {
 	terminalConf, err := jmsService.GetTerminalConfig()
 	if err != nil {
 		logger.Fatal(err)
 	}
-	app := server{
+	app := Server{
 		jmsService:    jmsService,
-		vscodeClients: make(map[string]*vscodeReq),
+		ideClients: make(map[string]*IDEClient),
 	}
 	app.UpdateTerminalConfig(terminalConf)
 	go app.run()

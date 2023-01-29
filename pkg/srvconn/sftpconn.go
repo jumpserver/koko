@@ -19,6 +19,7 @@ var errNoSelectAsset = errors.New("please select one of the assets")
 
 type UserSftpConn struct {
 	User *model.User
+	Assets []model.Asset
 	Addr string
 	Dirs map[string]os.FileInfo
 
@@ -226,6 +227,11 @@ func (u *UserSftpConn) List() (res []os.FileInfo, err error) {
 }
 
 func (u *UserSftpConn) ParsePath(path string) (fi os.FileInfo, restPath string) {
+	// add asset hostname as prefix if only one asset
+	if u.Assets != nil && len(u.Assets) == 1 {
+		path = fmt.Sprintf("/%s%s", cleanFolderName(u.Assets[0].Hostname), path)
+	}
+
 	path = strings.TrimPrefix(path, "/")
 	data := strings.Split(path, "/")
 	if len(data) == 1 && data[0] == "" {

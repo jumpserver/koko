@@ -45,8 +45,9 @@ type Config struct {
 	RedisDBIndex  int      `mapstructure:"REDIS_DB_ROOM"`
 	RedisClusters []string `mapstructure:"REDIS_CLUSTERS"`
 
-	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
-	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
+	EnableLocalPortForward   bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
+	EnableReversePortForward bool `mapstructure:"ENABLE_REVERSE_PORT_FORWARD"`
+	EnableIDESupport         bool `mapstructure:"ENABLE_IDE_SUPPORT"`
 
 	RootPath          string
 	DataFolderPath    string
@@ -125,8 +126,9 @@ func getDefaultConfig() Config {
 		RedisPort:           "6379",
 		RedisPassword:       "",
 
-		EnableLocalPortForward: false,
-		EnableVscodeSupport:    false,
+		EnableLocalPortForward:   false,
+		EnableReversePortForward: false,
+		EnableIDESupport:         false,
 	}
 
 }

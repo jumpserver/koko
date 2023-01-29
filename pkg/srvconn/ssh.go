@@ -189,16 +189,24 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 			return nil, fmt.Errorf("%w: %s", ErrSSHClient, err)
 		}
 		gosshClient := gossh.NewClient(proxyConn, chans, reqs)
-		return &SSHClient{Cfg: cfg, Client: gosshClient,
+		return &SSHClient{
+			Cfg:             cfg,
+			Client:          gosshClient,
 			traceSessionMap: make(map[*gossh.Session]time.Time),
-			ProxyClient:     proxyClient}, nil
+			ProxyClient:     proxyClient,
+			forwards:        make(map[string]net.Listener),
+		}, nil
 	}
 	gosshClient, err := gossh.Dial("tcp", destAddr, &gosshCfg)
 	if err != nil {
 		return nil, err
 	}
-	return &SSHClient{Client: gosshClient, Cfg: cfg,
-		traceSessionMap: make(map[*gossh.Session]time.Time)}, nil
+	return &SSHClient{
+		Client:          gosshClient,
+		Cfg:             cfg,
+		traceSessionMap: make(map[*gossh.Session]time.Time),
+		forwards:        make(map[string]net.Listener),
+	}, nil
 }
 
 type SSHClient struct {
@@ -211,6 +219,7 @@ type SSHClient struct {
 	traceSessionMap map[*gossh.Session]time.Time
 
 	refCount int32
+	forwards map[string]net.Listener
 }
 
 func (s *SSHClient) String() string {
@@ -252,6 +261,27 @@ func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
 	defer s.Mutex.Unlock()
 	delete(s.traceSessionMap, sess)
 	logger.Infof("SSHClient(%s) release one session remain %d", s, len(s.traceSessionMap))
+}
+
+func (s *SSHClient) GetForward(addr string) net.Listener {
+	s.Lock()
+	defer s.Unlock()
+
+	return s.forwards[addr]
+}
+
+func (s *SSHClient) AddForward(addr string, ln net.Listener) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.forwards[addr] = ln
+}
+
+func (s *SSHClient) RemoveForward(addr string) {
+	s.Lock()
+	defer s.Unlock()
+
+	delete(s.forwards, addr)
 }
 
 func createSSHConfig() gossh.Config {
