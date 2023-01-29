@@ -108,8 +108,6 @@ func (s *JMService) GetWsClient() (*websocket.Conn, error) {
 		scheme = "ws"
 	case "https":
 		scheme = "wss"
-	default:
-		scheme = "ws"
 	}
 	wsReqURL := url.URL{Scheme: scheme, Host: u.Host, Path: wsURL}
 	req, err := http.NewRequest(http.MethodGet, wsReqURL.String(), nil)

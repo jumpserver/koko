@@ -4,6 +4,11 @@ run:
   skip-dirs:
     - cmd/demo
     - cmd/i18ntool
+    - data
+    - locale
+    - docs
+    - ui
+    - .git
 
   skip-files:
     - pkg/utils/terminal.go
