@@ -32,12 +32,12 @@ func (d *domainGateway) run() {
 	for {
 		con, err := d.ln.Accept()
 		if err != nil {
-			logger.Errorf("Domain %s accept conn err: %s", d.domain.Name, err)
+			logger.Errorf("Domain gateway %s accept conn err: %s", d.selectedGateway.Name, err)
 			break
 		}
 		go d.handlerConn(con)
 	}
-	logger.Infof("Domain %s stop listen on %s", d.domain.Name, d.ln.Addr())
+	logger.Infof("Domain gateway %s stop listen on %s", d.selectedGateway.Name, d.ln.Addr())
 }
 
 func (d *domainGateway) handlerConn(srcCon net.Conn) {
@@ -79,7 +79,7 @@ func (d *domainGateway) Start() (err error) {
 		return err
 	}
 	go d.run()
-	logger.Infof("Domain %s start listen on %s", d.domain.Name, d.ln.Addr())
+	logger.Infof("Domain Gateway %s start listen on %s", d.selectedGateway.Name, d.ln.Addr())
 
 	return nil
 }
@@ -114,7 +114,7 @@ func (d *domainGateway) getAvailableGateway() bool {
 		d.selectedGateway = &gateway
 		return true
 	}
-	logger.Errorf("Domain %s has no available gateway", d.domain.Name)
+	logger.Errorf("Domain Gateway %s has no available gateway", d.domain.Name)
 	return false
 }
 
@@ -154,6 +154,6 @@ func (d *domainGateway) closeOnce() {
 	d.once.Do(func() {
 		_ = d.ln.Close()
 		_ = d.sshClient.Close()
-		logger.Debugf("Domain %s close listen and gateway ssh client", d.domain.Name)
+		logger.Debugf("Domain Gateway %s close listen and gateway ssh client", d.selectedGateway.Name)
 	})
 }
