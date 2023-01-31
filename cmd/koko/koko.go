@@ -3,52 +3,23 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-	"strconv"
-	"syscall"
-
-	"github.com/sevlyar/go-daemon"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/koko"
 )
-
-func startAsDaemon() {
-	ctx := &daemon.Context{
-		PidFileName: "/tmp/koko.pid",
-		PidFilePerm: 0644,
-		Umask:       027,
-		WorkDir:     "./",
-	}
-	child, err := ctx.Reborn()
-	if err != nil {
-		log.Fatalf("run failed: %v", err)
-	}
-	if child != nil {
-		return
-	}
-	defer ctx.Release()
-	koko.RunForever(configPath)
-}
 
 var (
 	Buildstamp = ""
 	Githash    = ""
 	Goversion  = ""
+	Version    = "unknown"
 
-	pidPath = "/tmp/koko.pid"
-
-	daemonFlag    = false
-	runSignalFlag = "start"
-	infoFlag      = false
+	infoFlag = false
 
 	configPath = ""
 )
 
 func init() {
-	flag.BoolVar(&daemonFlag, "d", false, "start as Daemon")
-	flag.StringVar(&runSignalFlag, "s", "start", "start | stop")
 	flag.StringVar(&configPath, "f", "config.yml", "config.yml path")
 	flag.BoolVar(&infoFlag, "V", false, "version info")
 }
@@ -56,33 +27,20 @@ func init() {
 func main() {
 	flag.Parse()
 	if infoFlag {
-		fmt.Printf("Version:             %s\n", koko.Version)
+		fmt.Printf("Version:             %s\n", Version)
 		fmt.Printf("Git Commit Hash:     %s\n", Githash)
 		fmt.Printf("UTC Build Time :     %s\n", Buildstamp)
 		fmt.Printf("Go Version:          %s\n", Goversion)
 		return
 	}
-
-	if runSignalFlag == "stop" {
-		pid, err := ioutil.ReadFile(pidPath)
-		if err != nil {
-			log.Fatal("File not exist")
-			return
-		}
-		pidInt, _ := strconv.Atoi(string(pid))
-		err = syscall.Kill(pidInt, syscall.SIGTERM)
-		if err != nil {
-			log.Fatalf("Stop failed: %v", err)
-		} else {
-			_ = os.Remove(pidPath)
-		}
-		return
-	}
-
-	switch {
-	case daemonFlag:
-		startAsDaemon()
-	default:
-		koko.RunForever(configPath)
-	}
+	fmt.Printf(startWelcomeMsg, time.Now().Format(timeFormat), Version)
+	koko.RunForever(configPath)
 }
+
+const (
+	timeFormat      = "2006-01-02 15:04:05"
+	startWelcomeMsg = `%s
+KoKo Version %s, more see https://www.jumpserver.org
+Quit the server with CONTROL-C.
+`
+)

@@ -25,9 +25,9 @@ func (s *JMService) FinishReply(sid string) error {
 	return s.sessionPatch(sid, data)
 }
 
-func (s *JMService) CreateSession(sess model.Session) error {
-	_, err := s.authClient.Post(SessionListURL, sess, nil)
-	return err
+func (s *JMService) CreateSession(sess model.Session) (ret model.Session, err error) {
+	_, err = s.authClient.Post(SessionListURL, sess, &ret)
+	return
 }
 
 func (s *JMService) SessionSuccess(sid string) error {

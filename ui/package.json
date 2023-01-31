@@ -9,28 +9,30 @@
     "fix": "vue-cli-service lint --fix"
   },
   "dependencies": {
-    "core-js": "^3.6.5",
-    "element-ui": "^2.15.5",
+    "@babel/core": "^7.20.5",
+    "@babel/eslint-parser": "^7.19.1",
+    "@babel/plugin-proposal-optional-chaining": "^7.18.9",
+    "core-js": "^3.26.1",
+    "element-ui": "^2.15.12",
     "nora-zmodemjs": "^1.1.1",
     "v-contextmenu": "^2.9.0",
-    "vue": "^2.6.11",
+    "vue": "^2.7.14",
     "vue-cookies": "^1.7.4",
     "vue-i18n": "^8.25.0",
     "vue-router": "^3.5.2",
     "vue-runtime-helpers": "^1.1.2",
     "vuejs-logger": "^1.5.5",
-    "xterm": "^4.13.0",
+    "xterm": "^4.19.0",
     "xterm-addon-fit": "^0.5.0",
     "xterm-theme": "^1.1.0"
   },
   "devDependencies": {
-    "@vue/cli-plugin-babel": "~4.5.0",
-    "@vue/cli-plugin-eslint": "~4.5.0",
-    "@vue/cli-service": "~4.5.0",
-    "babel-eslint": "^10.1.0",
-    "eslint": "^6.7.2",
-    "eslint-plugin-vue": "^6.2.2",
-    "vue-template-compiler": "^2.6.11"
+    "@vue/cli-plugin-babel": "^4.5.19",
+    "@vue/cli-plugin-eslint": "^4.5.19",
+    "@vue/cli-service": "^4.5.19",
+    "eslint": "^6.8.0",
+    "eslint-plugin-vue": "^9.8.0",
+    "vue-template-compiler": "^2.7.14"
   },
   "eslintConfig": {
     "root": true,
@@ -42,9 +44,11 @@
       "eslint:recommended"
     ],
     "parserOptions": {
-      "parser": "babel-eslint"
+      "parser": "@babel/eslint-parser"
     },
-    "rules": {}
+    "rules": {
+      "vue/multi-word-component-names": 0
+    }
   },
   "browserslist": [
     "> 1%",

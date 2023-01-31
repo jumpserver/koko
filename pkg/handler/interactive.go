@@ -11,6 +11,7 @@ import (
 
 	"github.com/gliderlabs/ssh"
 	"github.com/xlab/treeprint"
+	"golang.org/x/term"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
@@ -24,11 +25,11 @@ import (
 func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService,
 	termConfig model.TerminalConfig) *InteractiveHandler {
 	wrapperSess := NewWrapperSession(sess)
-	term := utils.NewTerminal(wrapperSess, "Opt> ")
+	vt := term.NewTerminal(wrapperSess, "Opt> ")
 	handler := &InteractiveHandler{
 		sess:         wrapperSess,
 		user:         user,
-		term:         term,
+		term:         vt,
 		jmsService:   jmsService,
 		terminalConf: &termConfig,
 	}
@@ -80,7 +81,7 @@ func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, ses
 type InteractiveHandler struct {
 	sess *WrapperSession
 	user *model.User
-	term *utils.Terminal
+	term *term.Terminal
 
 	selectHandler *UserSelectHandler
 
@@ -120,6 +121,12 @@ func (h *InteractiveHandler) Initial() {
 	}
 	h.firstLoadData()
 
+}
+
+func (h *InteractiveHandler) GetPtySize() (int, int) {
+	// todo: 优化直接存储
+	pty := h.sess.Pty()
+	return pty.Window.Width, pty.Window.Height
 }
 
 func (h *InteractiveHandler) firstLoadData() {
@@ -171,22 +178,19 @@ func (h *InteractiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
 	}
 }
 
-func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (systemUser model.SystemUser, ok bool) {
+func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (model.PermAccount, bool) {
 	lang := i18n.NewLang(h.i18nLang)
-	length := len(systemUsers)
+	length := len(permAccounts)
 	switch length {
 	case 0:
-		warningInfo := lang.T("No system user found.")
+		warningInfo := lang.T("No account found.")
 		_, _ = io.WriteString(h.term, warningInfo+"\n\r")
-		return model.SystemUser{}, false
+		return model.PermAccount{}, false
 	case 1:
-		return systemUsers[0], true
+		return permAccounts[0], true
 	default:
 	}
-	displaySystemUsers := selectHighestPrioritySystemUsers(systemUsers)
-	if len(displaySystemUsers) == 1 {
-		return displaySystemUsers[0], true
-	}
+	displaySystemUsers := permAccounts
 
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
@@ -203,7 +207,7 @@ func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 		row["Username"] = j.Username
 		data[i] = row
 	}
-	w, _ := h.term.GetSize()
+	w, _ := h.GetPtySize()
 	table := common.WrapperTable{
 		Fields: fields,
 		Labels: labels,
@@ -229,17 +233,94 @@ func (h *InteractiveHandler) chooseSystemUser(systemUsers []model.SystemUser) (s
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 		line, err := h.term.ReadLine()
 		if err != nil {
-			return
+			logger.Errorf("select account err: %s", err)
+			return model.PermAccount{}, false
 		}
 		line = strings.TrimSpace(line)
 		switch strings.ToLower(line) {
 		case "q", "b", "quit", "exit", "back":
-			return
+			logger.Info("select account cancel")
+			return model.PermAccount{}, false
 		}
-		if num, err := strconv.Atoi(line); err == nil {
+		if num, err2 := strconv.Atoi(line); err2 == nil {
 			if num > 0 && num <= len(displaySystemUsers) {
 				return displaySystemUsers[num-1], true
 			}
+		} else {
+			logger.Errorf("select account not right number %s", line)
+			return model.PermAccount{}, false
+		}
+	}
+}
+
+func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bool) {
+	lang := i18n.NewLang(h.i18nLang)
+	length := len(protocols)
+	switch length {
+	case 0:
+		warningInfo := lang.T("No protocol found.")
+		_, _ = io.WriteString(h.term, warningInfo+"\n\r")
+		return "", false
+	case 1:
+		return protocols[0], true
+	default:
+	}
+	displayProtocols := protocols
+
+	idLabel := lang.T("ID")
+	nameLabel := lang.T("Protocol")
+
+	labels := []string{idLabel, nameLabel}
+	fields := []string{"ID", "Protocol"}
+
+	data := make([]map[string]string, len(displayProtocols))
+	for i := range displayProtocols {
+		row := make(map[string]string)
+		row["ID"] = strconv.Itoa(i + 1)
+		row["Protocol"] = displayProtocols[i]
+		data[i] = row
+	}
+	w, _ := h.GetPtySize()
+	table := common.WrapperTable{
+		Fields: fields,
+		Labels: labels,
+		FieldsSize: map[string][3]int{
+			"ID":       {0, 0, 5},
+			"Protocol": {0, 8, 0},
+		},
+		Data:        data,
+		TotalSize:   w,
+		TruncPolicy: common.TruncMiddle,
+	}
+	table.Initial()
+
+	h.term.SetPrompt("ID> ")
+	selectTip := lang.T("Tips: Enter protocol ID")
+	backTip := lang.T("Back: B/b")
+	for {
+		utils.IgnoreErrWriteString(h.term, table.Display())
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(selectTip, utils.Green))
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(backTip, utils.Green))
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+		line, err := h.term.ReadLine()
+		if err != nil {
+			logger.Errorf("select protocol err: %s", err)
+			return "", false
+		}
+		line = strings.TrimSpace(line)
+		switch strings.ToLower(line) {
+		case "q", "b", "quit", "exit", "back":
+			logger.Info("select account cancel")
+			return "", false
+		}
+		if num, err2 := strconv.Atoi(line); err2 == nil {
+			if num > 0 && num <= len(displayProtocols) {
+				return displayProtocols[num-1], true
+			}
+		} else {
+			logger.Errorf("select protocol not right number %s", line)
+			return "", false
 		}
 	}
 }
@@ -289,31 +370,13 @@ func (h *InteractiveHandler) loadUserNodes() {
 	h.nodes = nodes
 }
 
-func selectHighestPrioritySystemUsers(systemUsers []model.SystemUser) []model.SystemUser {
-	length := len(systemUsers)
-	if length == 0 {
-		return systemUsers
-	}
-	var result = make([]model.SystemUser, 0)
-	model.SortSystemUserByPriority(systemUsers)
-
-	highestPriority := systemUsers[0].Priority
-	result = append(result, systemUsers[0])
-	for i := 1; i < length; i++ {
-		if highestPriority == systemUsers[i].Priority {
-			result = append(result, systemUsers[i])
-		}
-	}
-	return result
-}
-
-func getPageSize(term *utils.Terminal, termConf *model.TerminalConfig) int {
+func getPageSize(h *InteractiveHandler, termConf *model.TerminalConfig) int {
 	var (
 		pageSize  int
 		minHeight = 8 // 分页显示的最小高度
 
 	)
-	_, height := term.GetSize()
+	_, height := h.GetPtySize()
 
 	AssetListPageSize := termConf.AssetListPageSize
 	switch AssetListPageSize {

@@ -1,37 +1,56 @@
-package koko
+package httpd
 
 import (
-	"log"
-	"net"
+	"html/template"
+	"io/fs"
 	"net/http"
 	"net/http/pprof"
 
 	"github.com/gin-gonic/gin"
+
+	assets "github.com/jumpserver/koko"
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
-func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
+func getStaticFS() http.FileSystem {
+	staticFs, err := fs.Sub(assets.StaticFs, "static")
+	if err != nil {
+		logger.Debugf("Get static fs error: %s", err)
+		return http.Dir("./static/")
+	}
+
+	return http.FS(staticFs)
+}
+
+func getUIAssetFs() http.FileSystem {
+	uiAssetFs, err := fs.Sub(assets.UIFs, "ui/dist/assets")
+	if err != nil {
+		logger.Debugf("Get ui asset fs error: %s", err)
+		return http.Dir("./ui/dist/assets")
+	}
+
+	return http.FS(uiAssetFs)
+}
+
+func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 	if config.GlobalConfig.LogLevel != "DEBUG" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	eng := gin.New()
-	trustedProxies := []string{"0.0.0.0/0", "::/0"}
-	if err := eng.SetTrustedProxies(trustedProxies); err != nil {
-		log.Fatal(err)
-	}
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
-	rootGroup := eng.Group("")
-	kokoGroup := rootGroup.Group("/koko")
-	kokoGroup.Static("/static/", "./static")
-	kokoGroup.Static("/assets", "./ui/dist/assets")
-	kokoGroup.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
+	kokoGroup := eng.Group("/koko")
+	templ := template.Must(template.New("").ParseFS(assets.TemplateFs,
+		"templates/elfinder/*.html"))
+	eng.SetHTMLTemplate(templ)
+	kokoGroup.StaticFS("/static/", getStaticFS())
+	kokoGroup.StaticFS("/assets", getUIAssetFs())
+	kokoGroup.StaticFileFS("/favicon.ico", "ui/dist/favicon.ico", http.FS(assets.UIFs))
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
-	eng.LoadHTMLFiles("./templates/elfinder/file_manager.html")
 	wsGroup := kokoGroup.Group("/ws/")
 	{
 		wsGroup.Group("/terminal").Use(
@@ -43,18 +62,19 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		wsGroup.Group("/token").GET("/", webSrv.ProcessTokenWebsocket)
 	}
 
-	terminalGroup := kokoGroup.Group("/terminal")
-	terminalGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	connectGroup := kokoGroup.Group("/connect")
+	connectGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
-		terminalGroup.GET("/", func(ctx *gin.Context) {
-			ctx.File("./ui/dist/index.html")
+		connectGroup.GET("/", func(ctx *gin.Context) {
+			// https://github.com/gin-gonic/gin/issues/2654
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
 	shareGroup := kokoGroup.Group("/share")
 	shareGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		shareGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.File("./ui/dist/index.html")
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
 
@@ -62,28 +82,28 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 	monitorGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		monitorGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.File("./ui/dist/index.html")
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
 
 	tokenGroup := kokoGroup.Group("/token")
 	{
 		tokenGroup.GET("/", func(ctx *gin.Context) {
-			ctx.File("./ui/dist/index.html")
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 
 		tokenGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.File("./ui/dist/index.html")
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
-	elfindlerGroup := kokoGroup.Group("/elfinder")
-	elfindlerGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	elfinderGroup := kokoGroup.Group("/elfinder")
+	elfinderGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
-		elfindlerGroup.GET("/sftp/", func(ctx *gin.Context) {
+		elfinderGroup.GET("/sftp/", func(ctx *gin.Context) {
 			metaData := webSrv.GenerateViewMeta("_")
 			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
-		elfindlerGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
+		elfinderGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
 			hostId := ctx.Param("host")
 			if ok := common.ValidUUIDString(hostId); !ok {
 				ctx.AbortWithStatus(http.StatusBadRequest)
@@ -92,10 +112,10 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 			metaData := webSrv.GenerateViewMeta(hostId)
 			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
-		elfindlerGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
+		elfinderGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}
 
-	debugGroup := rootGroup.Group("/debug/pprof")
+	debugGroup := eng.Group("/debug/pprof")
 	debugGroup.Use(auth.HTTPMiddleDebugAuth())
 	{
 		debugGroup.GET("/", gin.WrapF(pprof.Index))
@@ -111,10 +131,5 @@ func registerWebHandlers(jmsService *service.JMService, webSrv *httpd.Server) {
 		debugGroup.GET("/mutex", gin.WrapF(pprof.Handler("mutex").ServeHTTP))
 		debugGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
 	}
-	conf := config.GetConf()
-	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
-	webSrv.Srv = &http.Server{
-		Addr:    addr,
-		Handler: eng,
-	}
+	return eng
 }

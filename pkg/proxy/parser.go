@@ -65,8 +65,8 @@ type Parser struct {
 	cmdInputParser  *CmdParser
 	cmdOutputParser *CmdParser
 
-	cmdFilterRules []model.FilterRule
-	closed         chan struct{}
+	cmdFilterACLs model.CommandACLs
+	closed        chan struct{}
 
 	confirmStatus commandConfirmStatus
 
@@ -221,13 +221,13 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				}
 				processor := p.confirmStatus.GetProcessor()
 				switch p.confirmStatus.GetAction() {
-				case model.ActionAllow:
+				case model.ActionAccept:
 					formatMsg := lang.T("%s approved")
 					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Green)
 					p.srvOutputChan <- []byte("\r\n")
 					p.srvOutputChan <- []byte(statusMsg)
 					p.userOutputChan <- []byte(p.confirmStatus.data)
-				case model.ActionDeny:
+				case model.ActionReject:
 					formatMsg := lang.T("%s rejected")
 					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Red)
 					p.srvOutputChan <- []byte("\r\n")
@@ -258,11 +258,11 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
 		if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
-			switch rule.Action {
-			case model.ActionDeny:
+			switch rule.Acl.Action {
+			case model.ActionReject:
 				p.forbiddenCommand(cmd)
 				return nil
-			case model.ActionConfirm:
+			case model.ActionReview:
 				p.confirmStatus.SetStatus(StatusQuery)
 				p.confirmStatus.SetRule(rule)
 				p.confirmStatus.SetCmd(p.command)
@@ -404,26 +404,34 @@ func (p *Parser) ParseServerOutput(b []byte) []byte {
 }
 
 // IsMatchCommandRule 判断命令是不是在过滤规则中
-func (p *Parser) IsMatchCommandRule(command string) (model.FilterRule, string, bool) {
-	for _, rule := range p.cmdFilterRules {
-		allowed, cmd := rule.Match(command)
+func (p *Parser) IsMatchCommandRule(command string) (CommandRule,
+	string, bool) {
+	for i := range p.cmdFilterACLs {
+		rule := p.cmdFilterACLs[i]
+		item, allowed, cmd := rule.Match(command)
 		switch allowed {
-		case model.ActionAllow:
-			return rule, cmd, true
-		case model.ActionConfirm, model.ActionDeny:
-			return rule, cmd, true
+		case model.ActionAccept:
+			return CommandRule{Acl: &rule, Item: &item}, cmd, true
+		case model.ActionReview, model.ActionReject:
+			return CommandRule{Acl: &rule, Item: &item}, cmd, true
 		default:
 		}
 	}
-	return model.FilterRule{}, "", false
+	return CommandRule{}, "", false
+}
+
+type CommandRule struct {
+	Acl  *model.CommandACL
+	Item *model.CommandFilterItem
 }
 
 func (p *Parser) waitCommandConfirm() {
 	cmd := p.confirmStatus.Cmd
-	resp, err := p.jmsService.SubmitCommandConfirm(p.id, p.confirmStatus.Rule.ID, p.confirmStatus.Cmd)
+	rule := p.confirmStatus.Rule
+	resp, err := p.jmsService.SubmitCommandReview(p.id, rule.Acl.ID, p.confirmStatus.Cmd)
 	if err != nil {
 		logger.Errorf("Session %s: submit command confirm api err: %s", p.id, err)
-		p.confirmStatus.SetAction(model.ActionDeny)
+		p.confirmStatus.SetAction(model.ActionReject)
 		return
 	}
 	lang := i18n.NewLang(p.i18nLang)
@@ -492,12 +500,12 @@ func (p *Parser) waitCommandConfirm() {
 		case model.TicketOpen:
 			continue
 		case model.TicketApproved:
-			p.confirmStatus.SetAction(model.ActionAllow)
+			p.confirmStatus.SetAction(model.ActionAccept)
 			p.confirmStatus.SetProcessor(statusResp.Processor)
 			return
 		case model.TicketRejected, model.TicketClosed:
 			p.confirmStatus.SetProcessor(statusResp.Processor)
-			p.confirmStatus.SetAction(model.ActionDeny)
+			p.confirmStatus.SetAction(model.ActionReject)
 			return
 		default:
 			logger.Errorf("Receive unknown command confirm status %s", statusResp.Status)

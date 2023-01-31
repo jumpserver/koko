@@ -8,35 +8,28 @@ import (
 	"strings"
 
 	"github.com/gliderlabs/ssh"
+	"golang.org/x/term"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
 /*
-直接连接资产使用的登录名，支持使用以下四种格式：
+直接连接资产使用的登录名，支持使用以下格式：
 
-1. JMS_username@systemUser_username@asset_ip
-2. JMS_username#systemUser_username#asset_ip
-3. JMS_username@systemUser_uuid@asset_uuid
-4. JMS_username#systemUser_uuid#asset_uuid
+1. JMS_username[@mysql|ssh|redis]@account_username@asset_ip
+2. JMS_username[#mysql|ssh|redis]#account_username#asset_ip
 
 JMS_username: 			JumpServer 平台上的用户名
-systemUser_username：	对应系统用户的用户名
+account_username：	    对应账号的用户名
 asset_ip: 				对应资产的ip
-systemUser_uuid:		对应系统用户的UUID
-asset_uuid:				对应资产的UUID
 
-
-FormatNORMAL: 使用 systemUser_username 和 asset_ip 的登录方式，即1和2的方式
-
-FormatUUID:  使用 systemUser_uuid 和 asset_uuid 的登录方式，即3和4的方式
+FormatNORMAL: 使用 account_username 和 asset_ip 的登录方式，即1和2的方式
 
 FormatToken:  使用 JMS-{token} 的方式登陆方式
 
@@ -46,38 +39,38 @@ type FormatType int
 
 const (
 	FormatNORMAL FormatType = iota
-	FormatUUID
 	FormatToken
 )
 
 type DirectOpt func(*directOpt)
 
 type directOpt struct {
-	targetAsset      string
-	targetSystemUser string
-	User             *model.User
-	terminalConf     *model.TerminalConfig
+	formatType    FormatType
+	protocol      string
+	targetAccount string
+	User          *model.User
+	terminalConf  *model.TerminalConfig
 
-	formatType FormatType
-
-	tokenInfo *model.ConnectTokenInfo
+	tokenInfo *model.ConnectToken
 
 	sftpMode bool
+
+	assets []model.Asset
 }
 
 func (d directOpt) IsTokenConnection() bool {
 	return d.formatType == FormatToken
 }
 
-func DirectTargetAsset(targetAsset string) DirectOpt {
+func DirectAssets(assets []model.Asset) DirectOpt {
 	return func(opts *directOpt) {
-		opts.targetAsset = targetAsset
+		opts.assets = assets
 	}
 }
 
-func DirectTargetSystemUser(targetSystemUser string) DirectOpt {
+func DirectTargetAccount(username string) DirectOpt {
 	return func(opts *directOpt) {
-		opts.targetSystemUser = targetSystemUser
+		opts.targetAccount = username
 	}
 }
 
@@ -99,9 +92,15 @@ func DirectFormatType(format FormatType) DirectOpt {
 	}
 }
 
-func DirectConnectToken(tokenInfo *model.ConnectTokenInfo) DirectOpt {
+func DirectConnectToken(tokenInfo *model.ConnectToken) DirectOpt {
 	return func(opts *directOpt) {
 		opts.tokenInfo = tokenInfo
+	}
+}
+
+func DirectConnectProtocol(protocol string) DirectOpt {
+	return func(opts *directOpt) {
+		opts.protocol = protocol
 	}
 }
 
@@ -111,112 +110,70 @@ func DirectConnectSftpMode(sftpMode bool) DirectOpt {
 	}
 }
 
-func selectAssetsByDirectOpt(jmsService *service.JMService, opts *directOpt) ([]model.Asset, error) {
-	switch opts.formatType {
-	case FormatUUID:
-		asset, err := jmsService.GetAssetById(opts.targetAsset)
-		if err != nil {
-			return nil, err
-		}
-		return []model.Asset{asset}, nil
-	default:
-		return jmsService.GetUserPermAssetsByIP(opts.User.ID, opts.targetAsset)
-	}
-}
-
-func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, optSetters ...DirectOpt) (*DirectHandler, error) {
+func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters ...DirectOpt) *DirectHandler {
 	opts := &directOpt{}
-	for i := range optSetters {
-		optSetters[i](opts)
+	for i := range setters {
+		setters[i](opts)
 	}
 	i18nLang := getUserDefaultLangCode(opts.User)
-	lang := i18n.NewLang(i18nLang)
 	var (
-		selectedAssets []model.Asset
-		err            error
-		wrapperSess    *WrapperSession
-		term           *utils.Terminal
-		errMsg         string
+		wrapperSess *WrapperSession
+		termVt      *term.Terminal
 	)
 
-	defer func() {
-		if err != nil && !opts.sftpMode {
-			utils.IgnoreErrWriteString(sess, errMsg)
-		}
-	}()
-	if !opts.IsTokenConnection() {
-		selectedAssets, err = selectAssetsByDirectOpt(jmsService, opts)
-		if err != nil {
-			logger.Errorf("Get direct asset failed: %s", err)
-			errMsg = lang.T("Core API failed")
-			return nil, err
-		}
-		if len(selectedAssets) <= 0 {
-			msg := fmt.Sprintf(lang.T("not found matched asset %s"), opts.targetAsset)
-			errMsg = msg + "\r\n"
-			err = fmt.Errorf("no found matched asset: %s", opts.targetAsset)
-			return nil, err
-		}
-	}
 	if !opts.sftpMode {
 		wrapperSess = NewWrapperSession(sess)
-		term = utils.NewTerminal(wrapperSess, "Opt> ")
+		termVt = term.NewTerminal(wrapperSess, "Opt> ")
 	}
 	d := &DirectHandler{
 		opts:       opts,
 		sess:       sess,
 		jmsService: jmsService,
-		assets:     selectedAssets,
 		i18nLang:   i18nLang,
 
 		wrapperSess: wrapperSess,
-		term:        term,
+		term:        termVt,
 	}
-	return d, nil
+	return d
 
 }
 
 type DirectHandler struct {
-	term        *utils.Terminal
+	term        *term.Terminal
 	sess        ssh.Session
 	wrapperSess *WrapperSession
 	opts        *directOpt
 	jmsService  *service.JMService
-
-	assets []model.Asset
-
-	selectedSystemUser *model.SystemUser
 
 	i18nLang string
 }
 
 func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 	addr, _, _ := net.SplitHostPort(d.sess.RemoteAddr().String())
-	var (
-		assets      []model.Asset
-		systemUsers []model.SystemUser
-	)
+	opts := make([]srvconn.UserSftpOption, 0, 5)
+	opts = append(opts, srvconn.WithUser(d.opts.User))
+	opts = append(opts, srvconn.WithRemoteAddr(addr))
 	if !d.opts.IsTokenConnection() {
-		assets = d.assets
-		if len(d.assets) == 1 {
-			systemUsers = d.getMatchedSystemUsers(d.assets[0])
-		}
+		opts = append(opts, srvconn.WithAssets(d.opts.assets))
 	} else {
-		assets = []model.Asset{*d.opts.tokenInfo.Asset}
-		systemUsers = d.getMatchedSystemUsers(*d.opts.tokenInfo.Asset)
+		opts = append(opts, srvconn.WithConnectToken(d.opts.tokenInfo))
 	}
-	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(d.jmsService,
-		d.opts.User, addr, assets, systemUsers)}
+	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(d.jmsService, opts...)}
 }
 
 func (d *DirectHandler) Dispatch() {
 	_, winChan, _ := d.sess.Pty()
 	go d.WatchWinSizeChange(winChan)
 	if d.opts.IsTokenConnection() {
-		d.LoginConnectToken()
+		d.LoginConnectToken(d.opts.tokenInfo)
 		return
 	}
 	d.LoginAsset()
+}
+
+func (d *DirectHandler) GetPtyWinSize() (width, height int) {
+	pty := d.wrapperSess.Pty()
+	return pty.Window.Width, pty.Window.Height
 }
 
 func (d *DirectHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
@@ -237,14 +194,14 @@ func (d *DirectHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
 }
 
 func (d *DirectHandler) LoginAsset() {
-	switch len(d.assets) {
+	switch len(d.opts.assets) {
 	case 1:
-		d.Proxy(d.assets[0])
+		d.Proxy(d.opts.assets[0])
 	default:
 		checkChan := make(chan bool)
 		go d.checkMaxIdleTime(checkChan)
 		for {
-			d.displayAssets(d.assets)
+			d.displayAssets(d.opts.assets)
 			checkChan <- true
 			num, err := d.term.ReadLine()
 			if err != nil {
@@ -252,9 +209,9 @@ func (d *DirectHandler) LoginAsset() {
 				return
 			}
 			checkChan <- false
-			if indexNum, err2 := strconv.Atoi(num); err2 == nil && len(d.assets) > 0 {
-				if indexNum > 0 && indexNum <= len(d.assets) {
-					d.Proxy(d.assets[indexNum-1])
+			if indexNum, err2 := strconv.Atoi(num); err2 == nil && len(d.opts.assets) > 0 {
+				if indexNum > 0 && indexNum <= len(d.opts.assets) {
+					d.Proxy(d.opts.assets[indexNum-1])
 					return
 				}
 			}
@@ -273,22 +230,19 @@ func (d *DirectHandler) checkMaxIdleTime(checkChan chan bool) {
 		d.sess, checkChan)
 }
 
-func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model.SystemUser, bool) {
+func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.PermAccount, bool) {
 	lang := i18n.NewLang(d.i18nLang)
-	length := len(systemUsers)
+	length := len(permAccounts)
 	switch length {
 	case 0:
-		warningInfo := lang.T("No system user found.")
-		_, _ = io.WriteString(d.sess, warningInfo+"\n\r")
-		return model.SystemUser{}, false
+		warningInfo := lang.T("No Account found.")
+		_, _ = io.WriteString(d.term, warningInfo+"\n\r")
+		return model.PermAccount{}, false
 	case 1:
-		return systemUsers[0], true
+		return permAccounts[0], true
 	default:
 	}
-	displaySystemUsers := selectHighestPrioritySystemUsers(systemUsers)
-	if len(displaySystemUsers) == 1 {
-		return displaySystemUsers[0], true
-	}
+	displayAccounts := permAccounts
 
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
@@ -297,15 +251,15 @@ func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model
 	labels := []string{idLabel, nameLabel, usernameLabel}
 	fields := []string{"ID", "Name", "Username"}
 
-	data := make([]map[string]string, len(displaySystemUsers))
-	for i, j := range displaySystemUsers {
+	data := make([]map[string]string, len(displayAccounts))
+	for i, j := range displayAccounts {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		row["Name"] = j.Name
 		row["Username"] = j.Username
 		data[i] = row
 	}
-	pty, _, _ := d.sess.Pty()
+	w, _ := d.GetPtyWinSize()
 	table := common.WrapperTable{
 		Fields: fields,
 		Labels: labels,
@@ -315,13 +269,13 @@ func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model
 			"Username": {0, 10, 0},
 		},
 		Data:        data,
-		TotalSize:   pty.Window.Width,
+		TotalSize:   w,
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
 
 	d.term.SetPrompt("ID> ")
-	selectTip := lang.T("Tips: Enter system user ID and directly login")
+	selectTip := lang.T("Tips: Enter account ID")
 	backTip := lang.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(d.term, table.Display())
@@ -331,17 +285,22 @@ func (d *DirectHandler) selectSystemUsers(systemUsers []model.SystemUser) (model
 		utils.IgnoreErrWriteString(d.term, utils.CharNewLine)
 		line, err := d.term.ReadLine()
 		if err != nil {
-			return model.SystemUser{}, false
+			logger.Errorf("select account err: %s", err)
+			return model.PermAccount{}, false
 		}
 		line = strings.TrimSpace(line)
 		switch strings.ToLower(line) {
 		case "q", "b", "quit", "exit", "back":
-			return model.SystemUser{}, false
+			logger.Info("select account cancel")
+			return model.PermAccount{}, false
 		}
-		if num, err := strconv.Atoi(line); err == nil {
-			if num > 0 && num <= len(displaySystemUsers) {
-				return displaySystemUsers[num-1], true
+		if num, err2 := strconv.Atoi(line); err2 == nil {
+			if num > 0 && num <= len(displayAccounts) {
+				return displayAccounts[num-1], true
 			}
+		} else {
+			logger.Errorf("select account not right number %s", line)
+			return model.PermAccount{}, false
 		}
 	}
 }
@@ -350,7 +309,7 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	assetListSortBy := d.opts.terminalConf.AssetListSortBy
 	model.AssetList(assets).SortBy(assetListSortBy)
 
-	term := d.term
+	vt := d.term
 	lang := i18n.NewLang(d.i18nLang)
 	idLabel := lang.T("ID")
 	hostLabel := lang.T("Hostname")
@@ -363,12 +322,12 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	for i := range assets {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
-		row["Hostname"] = assets[i].Hostname
-		row["IP"] = assets[i].IP
+		row["Hostname"] = assets[i].Name
+		row["IP"] = assets[i].Address
 		row["Comment"] = joinMultiLineString(assets[i].Comment)
 		data[i] = row
 	}
-	w, _ := d.term.GetSize()
+	w, _ := d.GetPtyWinSize()
 
 	table := common.WrapperTable{
 		Fields: fields,
@@ -386,75 +345,93 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	table.Initial()
 	loginTip := lang.T("select one asset to login")
 
-	_, _ = term.Write([]byte(utils.CharClear))
-	_, _ = term.Write([]byte(table.Display()))
-	utils.IgnoreErrWriteString(term, utils.WrapperString(loginTip, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
-	utils.IgnoreErrWriteString(term, utils.WrapperString(d.opts.targetAsset, utils.Green))
-	utils.IgnoreErrWriteString(term, utils.CharNewLine)
+	_, _ = vt.Write([]byte(utils.CharClear))
+	_, _ = vt.Write([]byte(table.Display()))
+	utils.IgnoreErrWriteString(vt, utils.WrapperString(loginTip, utils.Green))
+	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 }
 
 func (d *DirectHandler) Proxy(asset model.Asset) {
-	matched := d.getMatchedSystemUsers(asset)
 	lang := i18n.NewLang(d.i18nLang)
-	if len(matched) == 0 {
-		msg := fmt.Sprintf(lang.T("not found matched username %s"), d.opts.targetSystemUser)
-		utils.IgnoreErrWriteString(d.term, msg+"\r\n")
-		logger.Errorf("Get systemUser failed: %s", msg)
-		return
-	}
-	selectSys, ok := d.selectSystemUsers(matched)
-	if !ok {
-		logger.Info("Do not select system user")
-		return
-	}
-	d.selectedSystemUser = &selectSys
-	srv, err := proxy.NewServer(d.wrapperSess,
-		d.jmsService,
-		proxy.ConnectProtocolType(d.selectedSystemUser.Protocol),
-		proxy.ConnectUser(d.opts.User),
-		proxy.ConnectAsset(&asset),
-		proxy.ConnectSystemUser(d.selectedSystemUser),
-	)
+	accounts, err := d.jmsService.GetAccountsByUserIdAndAssetId(d.opts.User.ID, asset.ID)
 	if err != nil {
-		logger.Error(err)
+		logger.Errorf("Get account failed: %s", err)
+		utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
 		return
 	}
-	srv.Proxy()
-	logger.Infof("Request %s: asset %s proxy end", d.wrapperSess.Uuid, asset.Hostname)
-
+	matched := GetMatchedAccounts(accounts, d.opts.targetAccount)
+	if len(matched) == 0 {
+		msg := fmt.Sprintf(lang.T("not found matched username %s"), d.opts.targetAccount)
+		utils.IgnoreErrWriteString(d.term, msg+"\r\n")
+		logger.Errorf("Get account failed: %s", msg)
+		return
+	}
+	selectAccount, ok := d.chooseAccount(matched)
+	if !ok {
+		logger.Info("Do not select account")
+		return
+	}
+	protocol := d.opts.protocol
+	req := service.SuperConnectTokenReq{
+		UserId:        d.opts.User.ID,
+		AssetId:       asset.ID,
+		Account:       selectAccount.Alias,
+		Protocol:      protocol,
+		ConnectMethod: model.ProtocolSSH,
+	}
+	tokenInfo, err := d.jmsService.CreateSuperConnectToken(&req)
+	if err != nil {
+		if tokenInfo.Code == "" {
+			logger.Errorf("Create connect token and auth info failed: %s", err)
+			utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
+			return
+		}
+		switch tokenInfo.Code {
+		case model.ACLReject:
+			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
+			utils.IgnoreErrWriteString(d.term, lang.T("ACL reject"))
+			utils.IgnoreErrWriteString(d.term, utils.CharNewLine)
+			return
+		case model.ACLReview:
+			reviewHandler := LoginReviewHandler{
+				readWriter: d.wrapperSess,
+				i18nLang:   d.i18nLang,
+				user:       d.opts.User,
+				jmsService: d.jmsService,
+				req:        &req,
+			}
+			ok2, err2 := reviewHandler.WaitReview(d.sess.Context())
+			if err2 != nil {
+				logger.Errorf("Wait login review failed: %s", err)
+				utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
+				return
+			}
+			if !ok2 {
+				logger.Error("Wait login review failed")
+				return
+			}
+			tokenInfo = reviewHandler.tokenInfo
+		default:
+			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
+			return
+		}
+	}
+	connectToken, err := d.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	if err != nil {
+		logger.Errorf("Create connect token and auth info failed: %s", err)
+		utils.IgnoreErrWriteString(d.term, lang.T("get connect token err"))
+		return
+	}
+	d.LoginConnectToken(&connectToken)
 }
 
-func (d *DirectHandler) getMatchedSystemUsers(asset model.Asset) []model.SystemUser {
-	lang := i18n.NewLang(d.i18nLang)
-	switch d.opts.formatType {
-	case FormatUUID:
-		systemUser, err := d.jmsService.GetSystemUserById(d.opts.targetSystemUser)
-		if err != nil {
-			logger.Errorf("Get systemUser failed: %s", err)
-			utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
-			return nil
+func GetMatchedAccounts(accounts []model.PermAccount, username string) []model.PermAccount {
+	matched := make([]model.PermAccount, 0, len(accounts))
+	for i := range accounts {
+		account := accounts[i]
+		if account.Username == username {
+			matched = append(matched, account)
 		}
-		return []model.SystemUser{systemUser}
-	default:
-		systemUsers, err := d.jmsService.GetSystemUsersByUserIdAndAssetId(d.opts.User.ID, asset.ID)
-		if err != nil {
-			logger.Errorf("Get systemUser failed: %s", err)
-			utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
-			return nil
-		}
-		matched := make([]model.SystemUser, 0, len(systemUsers))
-		for i := range systemUsers {
-			compareUsername := systemUsers[i].Username
-
-			if systemUsers[i].UsernameSameWithUser {
-				// 此为动态系统用户，系统用户名和登录用户名相同
-				compareUsername = d.opts.User.Username
-			}
-			if compareUsername == d.opts.targetSystemUser {
-				matched = append(matched, systemUsers[i])
-			}
-		}
-		return matched
 	}
+	return matched
 }

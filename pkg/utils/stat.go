@@ -21,6 +21,10 @@ func CpuLoad1Usage() float64 {
 		avgLoadStat *load.AvgStat
 	)
 	cpuCount, err = cpu.Counts(true)
+	if err != nil {
+		logger.Errorf("Get cpu load 1min err: %s", err)
+		return -1
+	}
 	avgLoadStat, err = load.Avg()
 	if err != nil {
 		logger.Errorf("Get cpu load 1min err: %s", err)

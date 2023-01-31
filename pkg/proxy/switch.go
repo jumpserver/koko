@@ -51,10 +51,6 @@ func (s *SwitchSession) loadTerminateAdmin() string {
 	return s.terminateAdmin.Load().(string)
 }
 
-func (s *SwitchSession) SessionID() string {
-	return s.ID
-}
-
 func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 	// 命令记录
 	cmdRecorder := s.p.GetCommandRecorder()
@@ -169,7 +165,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		exitSignal <- struct{}{}
 		close(srvInChan)
 	}()
-	user := s.p.connOpts.user
+	user := s.p.connOpts.authInfo.User
 	meta := exchange.MetaMessage{
 		UserId:     user.ID,
 		User:       user.String(),

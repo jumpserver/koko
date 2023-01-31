@@ -8,116 +8,131 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:55
-msgid "No kubernetes"
-msgstr "いいえ kubernetes"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:68
-msgid "ID"
-msgstr "ID"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:69
-msgid "Name"
-msgstr "名前"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:70
-msgid "Cluster"
-msgstr "クラスター"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:71
-msgid "Comment"
-msgstr "コメント"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:90
-msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr "ページ番号：%d，ページあたりの行数：%d，合計ページ数：%d，合計数量：%d"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:110
-msgid ""
-"Enter ID number directly login the kubernetes, multiple search use // + "
-"field, such as: //16"
-msgstr ""
-"ヒント：KubernetesのIDを入力して直接ログインする，二次検索の使用 // + フィー"
-"ルド，のように：//192"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:111
-msgid "Page up: b\tPage down: n"
-msgstr "前のページ：b 次のページ：n"
-
-#. lang.T
-#: pkg/handler/app_mysql.go:56
+#: pkg/handler/app_database.go:26
 msgid "No Databases"
 msgstr "データベースなし"
 
 #. lang.T
+#: pkg/handler/app_database.go:31
+msgid "ID"
+msgstr "ID"
+
 #. lang.T
+#: pkg/handler/app_database.go:32
+msgid "Name"
+msgstr "名前"
+
 #. lang.T
-#: pkg/handler/app_mysql.go:69 pkg/handler/app_mysql.go:70
-#: pkg/handler/app_mysql.go:71
+#: pkg/handler/app_database.go:33
 msgid "IP"
 msgstr "IP"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:72
-msgid "DBType"
-msgstr "データベースのタイプ"
+#: pkg/handler/app_database.go:34
+msgid "Protocols"
+msgstr "プロトコル"
 
 #. lang.T
-#: pkg/handler/app_mysql.go:73
-msgid "DB Name"
-msgstr "データベース名"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/app_mysql.go:74 pkg/handler/app_mysql.go:96
-#: pkg/handler/app_mysql.go:117
-msgid ""
-"Enter ID number directly login the database, multiple search use // + field, "
-"such as: //16"
-msgstr ""
-"ヒント：データベースIDを入力して直接ログインする，二次検索の使用 // + フィー"
-"ルド，のように：//192"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/app_mysql.go:118 pkg/handler/asset.go:57
-msgid "No Assets"
-msgstr "資産なし"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/asset.go:86 pkg/handler/asset.go:87
-msgid "Hostname"
-msgstr "ホスト名"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/asset.go:88 pkg/handler/asset.go:89
+#: pkg/handler/app_database.go:35
 msgid "Platform"
 msgstr "プラットホーム"
 
 #. lang.T
+#: pkg/handler/app_database.go:36
+msgid "Organization"
+msgstr "おるがないず"
+
+#. lang.T
+#: pkg/handler/app_database.go:37
+msgid "Comment"
+msgstr "コメント"
+
+#. lang.T
+#: pkg/handler/app_database.go:62
+#, fuzzy
+msgid "the database"
+msgstr "データベースなし"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:27
+msgid "No kubernetes"
+msgstr "いいえ kubernetes"
+
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:90 pkg/handler/asset.go:109 pkg/handler/asset.go:129
+#. lang.T
+#: pkg/handler/app_k8s.go:32 pkg/handler/app_k8s.go:33
+#: pkg/handler/app_k8s.go:34
+msgid "Cluster"
+msgstr "クラスター"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/app_k8s.go:35 pkg/handler/app_k8s.go:36
+#: pkg/handler/app_k8s.go:55
+#, fuzzy
+msgid "the kubernetes"
+msgstr "いいえ kubernetes"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:79
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "ページ番号：%d，ページあたりの行数：%d，合計ページ数：%d，合計数量：%d"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:93
+#, fuzzy
 msgid ""
-"Enter ID number directly login the asset, multiple search use // + field, "
-"such as: //16"
+"Enter ID number directly login %s, multiple search use // + field, such "
+"as: //16"
 msgstr ""
 "ヒント：資産IDを入力して直接ログインする，二次検索の使用 // + フィールド，の"
 "ように：//192"
 
 #. lang.T
+#: pkg/handler/app_k8s.go:95
+msgid "Page up: b\tPage down: n"
+msgstr "前のページ：b 次のページ：n"
+
 #. lang.T
-#: pkg/handler/asset.go:130 pkg/handler/asset_node.go:24
+#: pkg/handler/asset.go:38
+msgid "No Assets"
+msgstr "資産なし"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:47 pkg/handler/asset.go:48 pkg/handler/asset.go:49
+#: pkg/handler/asset.go:50 pkg/handler/asset.go:51 pkg/handler/asset.go:52
+#: pkg/handler/asset.go:53 pkg/handler/asset.go:77
+msgid "the asset"
+msgstr "資産なし"
+
+#. lang.T
+#: pkg/handler/asset.go:115
+msgid "Core API failed"
+msgstr "Core API エラー発生"
+
+#. lang.T
+#: pkg/handler/asset.go:121
+#, fuzzy
+msgid "ACL reject"
+msgstr "%s は拒否されました"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:133 pkg/handler/asset.go:150
+msgid "get connect token err"
+msgstr "接続トークン取得エラー"
+
+#. lang.T
+#: pkg/handler/asset_node.go:22
 msgid "%s node has no assets"
 msgstr "%sノードに資産がありません"
 
@@ -174,7 +189,7 @@ msgstr "アセットとノードを更新する"
 #. lang.T
 #: pkg/handler/banner.go:38
 msgid "Chinese-English-Japanese switch"
-msgstr "中国語と日本語の切り替え"
+msgstr "中文-English-日本語の切り替え"
 
 #. lang.T
 #: pkg/handler/banner.go:39
@@ -192,58 +207,55 @@ msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 入力 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:151
-msgid "Core API failed"
-msgstr "Core API エラー発生"
-
-#. lang.T
-#: pkg/handler/direct_handler.go:155
-msgid "not found matched asset %s"
-msgstr "一致したアセット %s が見つかりません"
-
-#. lang.T
-#: pkg/handler/direct_handler.go:281
-msgid "No system user found."
-msgstr "システムユーザなし"
+#: pkg/handler/direct_handler.go:238
+msgid "No Account found."
+msgstr "アカウントが見つかりません"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:293 pkg/handler/direct_handler.go:294
-#: pkg/handler/direct_handler.go:295
+#: pkg/handler/direct_handler.go:247 pkg/handler/direct_handler.go:248
+#: pkg/handler/direct_handler.go:249
 msgid "Username"
 msgstr "ユーザー名"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:324
-msgid "Tips: Enter system user ID and directly login"
-msgstr "ヒント：システムユーザーIDを入力して直接ログインする"
+#: pkg/handler/direct_handler.go:278
+msgid "Tips: Enter account ID"
+msgstr "ヒント: アカウント ID を入力してください"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:325
+#: pkg/handler/direct_handler.go:279
 msgid "Back: B/b"
 msgstr "戻る: B/b"
 
 #. lang.T
 #. lang.T
+#: pkg/handler/direct_handler.go:314 pkg/handler/direct_handler.go:315
+msgid "Hostname"
+msgstr "ホスト名"
+
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:355 pkg/handler/direct_handler.go:356
-#: pkg/handler/direct_handler.go:357 pkg/handler/direct_handler.go:358
-#: pkg/handler/direct_handler.go:387
+#: pkg/handler/direct_handler.go:316 pkg/handler/direct_handler.go:317
+#: pkg/handler/direct_handler.go:346
 msgid "select one asset to login"
 msgstr "ログインするアセットを1つ選択"
 
 #. lang.T
-#: pkg/handler/direct_handler.go:401
+#. lang.T
+#: pkg/handler/direct_handler.go:359 pkg/handler/direct_handler.go:364
 msgid "not found matched username %s"
 msgstr "一致したユーザー名 %s が見つかりません"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:435 pkg/handler/direct_handler.go:443
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:386 pkg/handler/direct_handler.go:392
+#: pkg/handler/direct_handler.go:404 pkg/handler/direct_handler.go:420
 #: pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "ノード: [ID.Name(アセット量)]"
@@ -254,94 +266,126 @@ msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "ヒント: g+ノードIDを入力してノードの下のホストを表示します。例えば: g1"
 
 #. lang.T
-#: pkg/handler/interactive.go:61
+#: pkg/handler/interactive.go:62
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "%d 分以上のアイドル状態に接続し、切断します"
 
 #. lang.T
+#: pkg/handler/interactive.go:186
+#, fuzzy
+msgid "No account found."
+msgstr "アカウントが見つかりません"
+
 #. lang.T
 #. lang.T
 #. lang.T
 #. lang.T
+#: pkg/handler/interactive.go:195 pkg/handler/interactive.go:196
+#: pkg/handler/interactive.go:197 pkg/handler/interactive.go:226
+msgid "Tips: Enter system user ID and directly login"
+msgstr "ヒント：システムユーザーIDを入力して直接ログインする"
+
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:179 pkg/handler/interactive.go:191
-#: pkg/handler/interactive.go:192 pkg/handler/interactive.go:193
-#: pkg/handler/interactive.go:222 pkg/handler/interactive.go:223
-#: pkg/handler/interactive.go:277
+#: pkg/handler/interactive.go:227 pkg/handler/interactive.go:261
+msgid "No protocol found."
+msgstr "プロトコルが見つかりません"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:270 pkg/handler/interactive.go:271
+msgid "Protocol"
+msgstr "プロトコル"
+
+#. lang.T
+#: pkg/handler/interactive.go:298
+msgid "Tips: Enter protocol ID"
+msgstr "ヒント: プロトコル ID を入力してください"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:299 pkg/handler/interactive.go:358
 msgid "Refresh done"
 msgstr "更新完了"
 
 #. lang.T
-#: pkg/handler/select_handler.go:199
-msgid "Search: %s"
-msgstr "検索: %s"
+#: pkg/handler/login_confirm.go:39
+msgid "Need ACL review, continue? (y/n): "
+msgstr "ACLレビューが必要です。続行しますか？ (y/n): "
 
 #. lang.T
-#: pkg/handler/select_handler.go:226
-msgid "The asset is inactive"
-msgstr "アセットは非アクティブです"
-
-#. i18n.T
-#: pkg/koko/server_ssh.go:222
-msgid "Must be unique asset for %s"
-msgstr "%s の一意のアセットでなければなりません"
-
-#. i18n.T
-#: pkg/koko/server_ssh.go:234
-msgid "Must be unique system user for %s"
-msgstr "唯一のシステムユーザーでなければなりません %s"
-
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#. i18n.T
-#. lang.T
-#: pkg/koko/server_ssh.go:430 pkg/koko/server_ssh.go:437
-#: pkg/koko/server_ssh.go:448 pkg/koko/server_ssh.go:455
-#: pkg/proxy/login_confirm.go:21
-msgid "validate Login confirm err: Core Api failed"
-msgstr "検証ログオン再確認失敗：Core API異常"
+#: pkg/handler/login_confirm.go:54
+msgid "Cancel to login asset or max 3 retry"
+msgstr "アセットのログインをキャンセルするか、最大3回リトライします"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:51
+#. lang.T
+#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:101
 msgid "Need ticket confirm to login, already send email to the reviewers"
 msgstr "工単登録の再確認が必要で、すでにメールで審査者に通知した。"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:52
+#: pkg/handler/login_confirm.go:102
 msgid "Ticket Reviewers: %s"
 msgstr "チケットレビュー: %s"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:53
+#: pkg/handler/login_confirm.go:103
 msgid "Could copy website URL to notify reviewers: %s"
 msgstr "レビュー・アドレスのコピー、レビュー担当者への通知: %s"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:54
+#: pkg/handler/login_confirm.go:104
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
 msgstr "レビューアが確認するのを待って、q を入力して終了してください。"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:81
+#: pkg/handler/login_confirm.go:131
 msgid "Unknown status"
 msgstr "不明なステータス"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:85
+#: pkg/handler/login_confirm.go:135
 msgid "%s approved"
 msgstr "%s が承認されました"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:90
+#: pkg/handler/login_confirm.go:140
 msgid "%s rejected"
 msgstr "%s は拒否されました"
 
 #. lang.T
-#: pkg/proxy/login_confirm.go:94
+#: pkg/handler/login_confirm.go:144
 msgid "Cancel confirm"
 msgstr "確認をキャンセル"
+
+#. lang.T
+#: pkg/handler/select_handler.go:194
+msgid "Search: %s"
+msgstr "検索: %s"
+
+#. i18n.T
+#: pkg/handler/server_ssh.go:198
+msgid "Must be unique asset for %s"
+msgstr "%s の一意のアセットでなければなりません"
+
+#. i18n.T
+#: pkg/handler/server_ssh.go:219
+#, fuzzy
+msgid "Must be unique account for %s"
+msgstr "%s の一意のアセットでなければなりません"
+
+#. i18n.T
+#: pkg/handler/server_ssh.go:227
+#, fuzzy
+msgid "Must be auto login account for %s"
+msgstr "%s の一意のアセットでなければなりません"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/server_ssh.go:533 pkg/handler/server_ssh.go:542
+msgid "No found ssh protocol supported"
+msgstr "サポートされている ssh プロトコルが見つかりません"
 
 #. lang.T
 #: pkg/proxy/parser.go:171
@@ -366,7 +410,7 @@ msgid "have no permission to download file"
 msgstr "ファイルをダウンロードする権限がない"
 
 #. lang.T
-#: pkg/proxy/parser.go:434
+#: pkg/proxy/parser.go:442
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
 msgstr ""
@@ -374,7 +418,7 @@ msgstr ""
 "してください。"
 
 #. lang.T
-#: pkg/proxy/parser.go:442
+#: pkg/proxy/parser.go:450
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -384,12 +428,12 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:443 pkg/proxy/parser.go:444 pkg/proxy/server.go:66
+#: pkg/proxy/parser.go:451 pkg/proxy/parser.go:452 pkg/proxy/server.go:54
 msgid "%s protocol client not installed."
 msgstr "%s プロトコルクライアントがインストールされていません。"
 
 #. lang.T
-#: pkg/proxy/server.go:70
+#: pkg/proxy/server.go:58
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
@@ -397,27 +441,28 @@ msgstr ""
 "してください"
 
 #. lang.T
-#: pkg/proxy/server.go:178
-msgid "System user <%s> and asset <%s> protocol are inconsistent."
+#: pkg/proxy/server.go:66
+#, fuzzy
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "システムユーザ <%s> と資産 <%s> のプロトコルが一致しない"
 
 #. lang.T
-#: pkg/proxy/server.go:250
+#: pkg/proxy/server.go:100
 msgid "You don't have permission login %s"
 msgstr "ログイン権限がありません %s"
 
 #. lang.T
-#: pkg/proxy/server.go:509
+#: pkg/proxy/server.go:350
 msgid "You get auth token failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:516
+#: pkg/proxy/server.go:358
 msgid "Get auth username failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:521
+#: pkg/proxy/server.go:363
 msgid "Get auth password failed"
 msgstr "認証トークンの取得に失敗しました"
 
@@ -425,55 +470,55 @@ msgstr "認証トークンの取得に失敗しました"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:527 pkg/proxy/server.go:533 pkg/proxy/server.go:548
-#: pkg/proxy/server.go:598
+#: pkg/proxy/server.go:369 pkg/proxy/server.go:375 pkg/proxy/server.go:390
+#: pkg/proxy/server.go:447
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "SSH接続の再利用 (%s@%s) [接続数: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:899
+#: pkg/proxy/server.go:783
 msgid "Switched to %s"
 msgstr "%s に切り替え"
 
 #. lang.T
-#: pkg/proxy/server.go:1087
+#: pkg/proxy/server.go:968
 msgid "Connect with api server failed"
 msgstr "APIサーバーとの接続に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:1117
+#: pkg/proxy/server.go:1000
 msgid "Start domain gateway failed %s"
 msgstr "ドメインゲートウェイの開始に失敗した %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1125 pkg/proxy/server_options.go:170
+#: pkg/proxy/server.go:1008 pkg/proxy/server_options.go:105
 msgid "Connecting to %s@%s"
 msgstr "接続開始 %s@%s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:173
+#: pkg/proxy/server_options.go:109
 msgid "Connecting to Database %s"
 msgstr "データベース接続の開始 %s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:175
+#: pkg/proxy/server_options.go:111
 msgid "Connecting to Kubernetes %s"
 msgstr "Kubernetes %s への接続"
 
 #. lang.T
-#: pkg/proxy/server_options.go:177
+#: pkg/proxy/server_options.go:113
 msgid "Connecting to Kubernetes %s container %s"
 msgstr "Kubernetes %s コンテナー %s への接続"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:238 pkg/proxy/switch.go:246
+#: pkg/proxy/switch.go:234 pkg/proxy/switch.go:242
 msgid "Permission has expired, disconnect"
 msgstr "権限の有効期限が切れました。"
 
 #. lang.T
-#: pkg/proxy/switch.go:257
+#: pkg/proxy/switch.go:253
 msgid "Terminated by admin %s"
 msgstr "%s管理者が接続を終了"
 
@@ -501,6 +546,41 @@ msgstr "ネットワーク不通(ルーティング不通)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "ネットワーク不通（ネットワーク不可）"
+
+#~ msgid "DBType"
+#~ msgstr "データベースのタイプ"
+
+#~ msgid "DB Name"
+#~ msgstr "データベース名"
+
+#~ msgid "not found matched asset %s"
+#~ msgstr "一致したアセット %s が見つかりません"
+
+#~ msgid "No system user found."
+#~ msgstr "システムユーザなし"
+
+#~ msgid "validate Login confirm err: Core Api failed"
+#~ msgstr "検証ログオン再確認失敗：Core API異常"
+
+#~ msgid "Must be unique system user for %s"
+#~ msgstr "唯一のシステムユーザーでなければなりません %s"
+
+#~ msgid ""
+#~ "Enter ID number directly login the database, multiple search use // + "
+#~ "field, such as: //16"
+#~ msgstr ""
+#~ "ヒント：データベースIDを入力して直接ログインする，二次検索の使用 // + "
+#~ "フィールド，のように：//192"
+
+#~ msgid ""
+#~ "Enter ID number directly login the kubernetes, multiple search use // + "
+#~ "field, such as: //16"
+#~ msgstr ""
+#~ "ヒント：KubernetesのIDを入力して直接ログインする，二次検索の使用 // + "
+#~ "フィールド，のように：//192"
+
+#~ msgid "The asset is inactive"
+#~ msgstr "アセットは非アクティブです"
 
 #~ msgid "Command review is not currently supported"
 #~ msgstr "コマンドレビューは現在サポートされていません"

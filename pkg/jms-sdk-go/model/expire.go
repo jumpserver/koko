@@ -4,13 +4,8 @@ import (
 	"time"
 )
 
-type ExpireInfo struct {
-	HasPermission bool  `json:"has_permission"`
-	ExpireAt      int64 `json:"expire_at"`
+type ExpireInfo int64
 
-	Permission
-}
-
-func (e *ExpireInfo) IsExpired(now time.Time) bool {
-	return e.ExpireAt < now.Unix()
+func (e ExpireInfo) IsExpired(now time.Time) bool {
+	return int64(e) < now.Unix()
 }

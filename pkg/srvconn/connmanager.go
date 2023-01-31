@@ -18,8 +18,8 @@ func AddClientCache(key string, client *SSHClient) {
 	sshManager.AddClientCache(key, client)
 }
 
-func MakeReuseSSHClientKey(userId, assetId, systemUserId,
+func MakeReuseSSHClientKey(userId, assetId, account,
 	ip, username string) string {
 	return fmt.Sprintf("%s_%s_%s_%s_%s", userId, assetId,
-		systemUserId, ip, username)
+		account, ip, username)
 }

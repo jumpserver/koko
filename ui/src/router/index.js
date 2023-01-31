@@ -5,7 +5,7 @@ Vue.use(Router)
 
 export const allRoleRoutes = [
   {
-    path: '/terminal/',
+    path: '/connect/',
     name: 'Terminal',
     component: () => import('../views/Connection')
   },

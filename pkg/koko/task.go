@@ -1,10 +1,13 @@
 package koko
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
@@ -78,35 +81,108 @@ func uploadRemainReplay(jmsService *service.JMService) {
 
 // keepHeartbeat 保持心跳
 func keepHeartbeat(jmsService *service.JMService) {
-	for {
-		time.Sleep(30 * time.Second)
-		data := proxy.GetAliveSessions()
-		tasks, err := jmsService.TerminalHeartBeat(data)
-		if err != nil {
-			logger.Error(err)
-			continue
-		}
-		if len(tasks) != 0 {
-			for _, task := range tasks {
-				switch task.Name {
-				case TaskKillSession:
-					if sw, ok := proxy.GetSessionById(task.Args); ok {
-						sw.Terminate(task.Kwargs.TerminatedBy)
-						if err = jmsService.FinishTask(task.ID); err != nil {
-							logger.Error(err)
-						}
-					}
-				default:
+	KeepWsHeartbeat(jmsService)
+}
 
-				}
+func handleTerminalTask(jmsService *service.JMService, tasks []model.TerminalTask) {
+	for _, task := range tasks {
+		var terminalFlag bool
+		switch task.Name {
+		case model.TaskKillSession:
+			if sw, ok := proxy.GetSessionById(task.Args); ok {
+				sw.Terminate(task.Kwargs.TerminatedBy)
+				terminalFlag = true
 			}
+			if cmdCancel, ok := proxy.GetCommandSession(task.Args); ok {
+				cmdCancel()
+				terminalFlag = true
+
+			}
+			if !terminalFlag {
+				continue
+			}
+			if err := jmsService.FinishTask(task.ID); err != nil {
+				logger.Error(err)
+			}
+		default:
+
 		}
 	}
 }
 
-const (
-	TaskKillSession = "kill_session"
-)
+func KeepWsHeartbeat(jmsService *service.JMService) {
+	ws, err := jmsService.GetWsClient()
+	if err != nil {
+		logger.Errorf("Start ws client failed: %s", err)
+		time.Sleep(10 * time.Second)
+		go KeepWsHeartbeat(jmsService)
+		return
+	}
+	logger.Info("Start ws client success")
+	done := make(chan struct{}, 2)
+	go func() {
+		defer close(done)
+		for {
+			msgType, message, err2 := ws.ReadMessage()
+			if err2 != nil {
+				logger.Errorf("Ws client read err: %s", err2)
+				return
+			}
+			switch msgType {
+			case websocket.PingMessage,
+				websocket.PongMessage:
+				logger.Debug("Ws client ping/pong Message")
+				continue
+			case websocket.CloseMessage:
+				logger.Debug("Ws client close Message")
+				return
+			}
+			var tasks []model.TerminalTask
+			if err = json.Unmarshal(message, &tasks); err != nil {
+				logger.Errorf("Ws client Unmarshal failed: %s", err)
+				continue
+			}
+			if len(tasks) != 0 {
+				handleTerminalTask(jmsService, tasks)
+			}
+		}
+	}()
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	if err1 := ws.WriteJSON(GetStatusData()); err1 != nil {
+		logger.Errorf("Ws client send heartbeat data failed: %s", err1)
+	}
+	for {
+		select {
+		case <-done:
+			logger.Info("Ws client closed")
+			time.Sleep(10 * time.Second)
+			go KeepWsHeartbeat(jmsService)
+			return
+		case <-ticker.C:
+			if err1 := ws.WriteJSON(GetStatusData()); err1 != nil {
+				logger.Errorf("Ws client write stat data failed: %s", err1)
+				continue
+			}
+			logger.Debug("Ws client send heartbeat success")
+		}
+	}
+}
+
+func GetStatusData() interface{} {
+	sessions := proxy.GetAliveSessions()
+	payload := model.HeartbeatData{
+		SessionOnlineIds: sessions,
+		CpuUsed:          common.CpuLoad1Usage(),
+		MemoryUsed:       common.MemoryUsagePercent(),
+		DiskUsed:         common.DiskUsagePercent(),
+		SessionOnline:    len(sessions),
+	}
+	return map[string]interface{}{
+		"type":    "status",
+		"payload": payload,
+	}
+}
 
 func ValidateRemainReplayFile(path string) error {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, os.ModePerm)

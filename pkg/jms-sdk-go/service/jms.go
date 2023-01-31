@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/httplib"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -52,8 +55,8 @@ type JMService struct {
 }
 
 func (s *JMService) GetUserById(userID string) (user *model.User, err error) {
-	url := fmt.Sprintf(UserDetailURL, userID)
-	_, err = s.authClient.Get(url, &user)
+	reqURL := fmt.Sprintf(UserDetailURL, userID)
+	_, err = s.authClient.Get(reqURL, &user)
 	return
 }
 
@@ -93,3 +96,37 @@ func (s *JMService) Copy() *JMService {
 func (s *JMService) SetCookie(name, value string) {
 	s.authClient.SetCookie(name, value)
 }
+
+func (s *JMService) GetWsClient() (*websocket.Conn, error) {
+	u, err := url.Parse(s.opt.CoreHost)
+	if err != nil {
+		return nil, err
+	}
+	scheme := "ws"
+	switch u.Scheme {
+	case "http":
+		scheme = "ws"
+	case "https":
+		scheme = "wss"
+	}
+	wsReqURL := url.URL{Scheme: scheme, Host: u.Host, Path: wsURL}
+	req, err := http.NewRequest(http.MethodGet, wsReqURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	if s.opt.sign != nil {
+		if err = s.opt.sign.Sign(req); err != nil {
+			return nil, err
+		}
+	}
+	header := req.Header
+	c, _, err := websocket.DefaultDialer.Dial(wsReqURL.String(), header)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+const (
+	wsURL = "ws/terminal-task/"
+)

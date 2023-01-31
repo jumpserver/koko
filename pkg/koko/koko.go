@@ -2,7 +2,6 @@ package koko
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,23 +18,12 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 )
 
-var Version = "unknown"
-
 type Koko struct {
 	webSrv *httpd.Server
 	sshSrv *sshd.Server
 }
 
-const (
-	timeFormat      = "2006-01-02 15:04:05"
-	startWelcomeMsg = `%s
-KoKo Version %s, more see https://www.jumpserver.org
-Quit the server with CONTROL-C.
-`
-)
-
 func (k *Koko) Start() {
-	fmt.Printf(startWelcomeMsg, time.Now().Format(timeFormat), Version)
 	go k.webSrv.Start()
 	go k.sshSrv.Start()
 }
@@ -52,10 +40,8 @@ func RunForever(confPath string) {
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	jmsService := MustJMService()
-	srv := NewServer(jmsService)
 	webSrv := httpd.NewServer(jmsService)
-	registerWebHandlers(jmsService, webSrv)
-	sshSrv := sshd.NewSSHServer(srv)
+	sshSrv := sshd.NewSSHServer(jmsService)
 	app := &Koko{
 		webSrv: webSrv,
 		sshSrv: sshSrv,
@@ -77,20 +63,6 @@ func runTasks(jmsService *service.JMService) {
 		go uploadRemainReplay(jmsService)
 	}
 	go keepHeartbeat(jmsService)
-}
-
-func NewServer(jmsService *service.JMService) *server {
-	terminalConf, err := jmsService.GetTerminalConfig()
-	if err != nil {
-		logger.Fatal(err)
-	}
-	app := server{
-		jmsService:    jmsService,
-		vscodeClients: make(map[string]*vscodeReq),
-	}
-	app.UpdateTerminalConfig(terminalConf)
-	go app.run()
-	return &app
 }
 
 func MustJMService() *service.JMService {

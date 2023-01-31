@@ -16,19 +16,17 @@ log/
 vendor/
 config.yml
 host_key
-cmd/koko
 cmd/logs
 cmd/kokodir
 build
+build/
 release
 !config_example.yml
-*.yml
-
 
 .DS_Store
 package-lock.json
 node_modules
-dist/
+
 
 
 # local env files

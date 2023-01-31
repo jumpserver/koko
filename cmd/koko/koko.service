@@ -1,0 +1,15 @@
+[Unit]
+Description=JumpServer KoKo Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+WorkingDirectory=/opt/koko/
+ExecStart=/opt/koko/koko -f config.yml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -7,31 +7,29 @@ import (
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/sshd"
 )
 
-type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res sshd.AuthStatus)
+type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
 
 func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
-	return func(ctx ssh.Context, password, publicKey string) (res sshd.AuthStatus) {
+	return func(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult) {
 		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 		username := ctx.User()
 		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
 			if req.IsToken() && req.Authenticate(password) {
-				ctx.SetValue(ContextKeyUser, req.Info.User)
+				ctx.SetValue(ContextKeyUser, req.ConnectToken.User)
 				logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
 					actionAccepted, ctx.User(), remoteAddr)
-				return sshd.AuthSuccessful
+				return ssh.AuthSuccessful
 			}
 			username = req.User()
 		}
 		authMethod := "publickey"
 		action := actionAccepted
-		res = sshd.AuthFailed
+		res = ssh.AuthFailed
 		if password != "" {
 			authMethod = "password"
 		}
@@ -58,14 +56,14 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		switch authStatus {
 		case authMFARequired:
 			action = actionPartialAccepted
-			res = sshd.AuthPartiallySuccessful
+			res = ssh.AuthPartiallySuccessful
 			ctx.SetValue(ContextKeyAuthStatus, authMFARequired)
 		case authSuccess:
-			res = sshd.AuthSuccessful
+			res = ssh.AuthSuccessful
 			ctx.SetValue(ContextKeyUser, &user)
 		case authConfirmRequired:
 			action = actionPartialAccepted
-			res = sshd.AuthPartiallySuccessful
+			res = ssh.AuthPartiallySuccessful
 			ctx.SetValue(ContextKeyAuthStatus, authConfirmRequired)
 		default:
 			action = actionFailed
@@ -76,12 +74,12 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 	}
 }
 
-func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (res sshd.AuthStatus) {
+func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (res ssh.AuthResult) {
 	if value, ok := ctx.Value(ContextKeyAuthFailed).(*bool); ok && *value {
-		return sshd.AuthFailed
+		return ssh.AuthFailed
 	}
 	username := GetUsernameFromSSHCtx(ctx)
-	res = sshd.AuthFailed
+	res = ssh.AuthFailed
 	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 	if !ok {
 		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found session client.",
@@ -101,7 +99,7 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 		checkAuth = client.CheckMFAAuth
 	}
 	if checkAuth != nil && checkAuth(ctx, challenger) {
-		res = sshd.AuthSuccessful
+		res = ssh.AuthSuccessful
 	}
 	return
 }
@@ -118,32 +116,24 @@ const (
 )
 
 type DirectLoginAssetReq struct {
-	Username    string
-	SysUserInfo string
-	AssetInfo   string
-	Info        *model.ConnectTokenInfo
-}
-
-func (d *DirectLoginAssetReq) IsUUIDString() bool {
-	for _, item := range []string{d.SysUserInfo, d.AssetInfo} {
-		if !common.ValidUUIDString(item) {
-			return false
-		}
-	}
-	return true
+	Username        string
+	Protocol        string
+	AccountUsername string
+	AssetIP         string
+	ConnectToken    *model.ConnectToken
 }
 
 func (d *DirectLoginAssetReq) Authenticate(password string) bool {
-	return d.Info.Secret == password
+	return d.ConnectToken.Value == password
 }
 
 func (d *DirectLoginAssetReq) IsToken() bool {
-	return d.Info != nil
+	return d.ConnectToken != nil
 }
 
 func (d *DirectLoginAssetReq) User() string {
-	if d.IsToken() && d.Info.User != nil {
-		return d.Info.User.Username
+	if d.IsToken() && d.ConnectToken.User.ID != "" {
+		return d.ConnectToken.User.Username
 	}
 	return d.Username
 }
@@ -159,15 +149,32 @@ const (
 	tokenPrefix = "JMS-"
 )
 
+const (
+	sshProtocolLen  = 3
+	withProtocolLen = 4
+)
+
 func parseUserFormatBySeparator(s, Separator string) (DirectLoginAssetReq, bool) {
 	authInfos := strings.Split(s, Separator)
-	if len(authInfos) != 3 {
+	var req DirectLoginAssetReq
+	switch len(authInfos) {
+	case sshProtocolLen:
+		req = DirectLoginAssetReq{
+			Username:        authInfos[0],
+			Protocol:        model.ProtocolSSH,
+			AccountUsername: authInfos[1],
+			AssetIP:         authInfos[2],
+		}
+	case withProtocolLen:
+		req = DirectLoginAssetReq{
+			Username:        authInfos[0],
+			Protocol:        authInfos[1],
+			AccountUsername: authInfos[2],
+			AssetIP:         authInfos[3],
+		}
+	default:
 		return DirectLoginAssetReq{}, false
-	}
-	req := DirectLoginAssetReq{
-		Username:    authInfos[0],
-		SysUserInfo: authInfos[1],
-		AssetInfo:   authInfos[2],
+
 	}
 	return req, true
 }
@@ -211,8 +218,9 @@ func parseDirectLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Direc
 func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*DirectLoginAssetReq, bool) {
 	if strings.HasPrefix(ctx.User(), tokenPrefix) {
 		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
-		if resp, err := jmsService.GetConnectTokenAuth(token); err == nil {
-			req := DirectLoginAssetReq{Info: &resp.Info}
+		if connectToken, err := jmsService.GetConnectTokenInfo(token); err == nil {
+			req := DirectLoginAssetReq{ConnectToken: &connectToken,
+				Protocol: connectToken.Protocol}
 			return &req, true
 		} else {
 			logger.Errorf("Check user token %s failed: %s", ctx.User(), err)
