@@ -284,7 +284,7 @@ func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, se
 		data := map[string]interface{}{
 			"name":     u.allLocalData[i].Name,
 			"address":  assetData.Address,
-			"db_name":  assetData.Specific.DBName,
+			"db_name":  assetData.SpecInfo.DBName,
 			"org_name": assetData.OrgName,
 			"platform": assetData.Platform.Name,
 			"comment":  assetData.Comment,
