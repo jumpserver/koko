@@ -546,7 +546,7 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPort(port))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.account.Username))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.account.Secret))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(asset.Specific.DBName))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(asset.SpecInfo.DBName))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
@@ -572,11 +572,11 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
-		srvconn.SqlUseSSL(asset.Specific.UseSSL),
-		srvconn.SqlCaCert(asset.Specific.CaCert),
-		srvconn.SqlClientCert(asset.Specific.ClientCert),
-		srvconn.SqlCertKey(asset.Specific.CertKey),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
+		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
+		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
+		srvconn.SqlClientCert(asset.SecretInfo.ClientCert),
+		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -600,11 +600,11 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
-		srvconn.SqlUseSSL(asset.Specific.UseSSL),
-		srvconn.SqlCaCert(asset.Specific.CaCert),
-		srvconn.SqlCertKey(asset.Specific.CertKey),
-		srvconn.SqlAllowInvalidCert(asset.Specific.AllowInvalidCert),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
+		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
+		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
+		srvconn.SqlCertKey(asset.SecretInfo.ClientCert),
+		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -627,7 +627,7 @@ func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvcon
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -650,7 +650,7 @@ func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -673,7 +673,7 @@ func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
