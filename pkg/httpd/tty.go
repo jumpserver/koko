@@ -54,7 +54,7 @@ func (h *tty) CheckValidation() bool {
 	var ok bool
 	switch h.targetType {
 	case TargetTypeMonitor:
-		ok = h.CheckShareRoomReadPerm(h.ws.user.ID, h.targetId)
+		ok = h.CheckMonitorReadPerm(h.ws.user.ID, h.targetId)
 	case TargetTypeShare:
 		ok = h.CheckEnableShare()
 	default:
@@ -327,7 +327,7 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 	logger.Info("Ws tty proxy end")
 }
 
-func (h *tty) CheckShareRoomReadPerm(uerId, roomId string) bool {
+func (h *tty) CheckMonitorReadPerm(uerId, roomId string) bool {
 	ret, err := h.jmsService.ValidateJoinSessionPermission(uerId, roomId)
 	if err != nil {
 		logger.Errorf("Create share room %s failed: %s", roomId, err)

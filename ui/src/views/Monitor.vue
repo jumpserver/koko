@@ -23,7 +23,7 @@ export default {
     getConnectURL() {
       const params = this.$route.params
       const requireParams = new URLSearchParams();
-      requireParams.append('type', "shareroom");
+      requireParams.append('type', "monitor");
       requireParams.append('target_id', params.id);
       return `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`
     },
