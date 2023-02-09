@@ -313,17 +313,17 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	lang := i18n.NewLang(d.i18nLang)
 	idLabel := lang.T("ID")
 	hostLabel := lang.T("Hostname")
-	ipLabel := lang.T("IP")
+	ipLabel := lang.T("Address")
 	commentLabel := lang.T("Comment")
 
 	Labels := []string{idLabel, hostLabel, ipLabel, commentLabel}
-	fields := []string{"ID", "Hostname", "IP", "Comment"}
+	fields := []string{"ID", "Hostname", "Address", "Comment"}
 	data := make([]map[string]string, len(assets))
 	for i := range assets {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		row["Hostname"] = assets[i].Name
-		row["IP"] = assets[i].Address
+		row["Address"] = assets[i].Address
 		row["Comment"] = joinMultiLineString(assets[i].Comment)
 		data[i] = row
 	}
@@ -335,7 +335,7 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 		FieldsSize: map[string][3]int{
 			"ID":       {0, 0, 5},
 			"Hostname": {0, 40, 0},
-			"IP":       {0, 15, 40},
+			"Address":  {0, 15, 40},
 			"Comment":  {0, 0, 0},
 		},
 		Data:        data,

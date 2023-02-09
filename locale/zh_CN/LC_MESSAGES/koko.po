@@ -24,8 +24,8 @@ msgstr "名称"
 
 #. lang.T
 #: pkg/handler/app_database.go:33
-msgid "IP"
-msgstr "IP"
+msgid "Address"
+msgstr "地址"
 
 #. lang.T
 #: pkg/handler/app_database.go:34
@@ -97,7 +97,7 @@ msgid "Page up: b\tPage down: n"
 msgstr "上一页：b 下一页：n"
 
 #. lang.T
-#: pkg/handler/asset.go:38
+#: pkg/handler/asset.go:41
 msgid "No Assets"
 msgstr "没有资产"
 
@@ -109,29 +109,42 @@ msgstr "没有资产"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:47 pkg/handler/asset.go:48 pkg/handler/asset.go:49
 #: pkg/handler/asset.go:50 pkg/handler/asset.go:51 pkg/handler/asset.go:52
-#: pkg/handler/asset.go:53 pkg/handler/asset.go:77
+#: pkg/handler/asset.go:53 pkg/handler/asset.go:54 pkg/handler/asset.go:55
+#: pkg/handler/asset.go:56 pkg/handler/asset.go:80
 msgid "the asset"
 msgstr "资产"
 
 #. lang.T
-#: pkg/handler/asset.go:115
+#: pkg/handler/asset.go:107
+#, fuzzy
+msgid "%s protocol client not installed."
+msgstr "%s 协议的客户端未安装"
+
+#. lang.T
+#: pkg/handler/asset.go:110
+#, fuzzy
+msgid ""
+"Terminal does not support protocol %s, please use web terminal to access"
+msgstr "该终端不支持 %s 协议，请使用web终端登录"
+
+#. lang.T
+#: pkg/handler/asset.go:132
 #, fuzzy
 msgid "Core API failed"
 msgstr "Core API 发生错误"
 
 #. lang.T
-#: pkg/handler/asset.go:121
+#: pkg/handler/asset.go:138
 #, fuzzy
 msgid "ACL reject"
 msgstr "审核拒绝"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:133 pkg/handler/asset.go:150
+#: pkg/handler/asset.go:152 pkg/handler/asset.go:169
 msgid "get connect token err"
-msgstr ""
+msgstr "获取 connect token 错误"
 
 #. lang.T
 #: pkg/handler/asset_node.go:22
@@ -168,8 +181,9 @@ msgstr "搜索，如：/192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33
-msgid "display the host you have permission"
-msgstr "显示您有权限的主机"
+#, fuzzy
+msgid "display the assets you have permission"
+msgstr "显示您有权限的资产"
 
 #. lang.T
 #: pkg/handler/banner.go:34
@@ -264,7 +278,7 @@ msgstr "未发现匹配的用户名 %s"
 #. lang.T
 #. lang.T
 #: pkg/handler/direct_handler.go:386 pkg/handler/direct_handler.go:392
-#: pkg/handler/direct_handler.go:404 pkg/handler/direct_handler.go:420
+#: pkg/handler/direct_handler.go:406 pkg/handler/direct_handler.go:422
 #: pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
@@ -330,25 +344,25 @@ msgstr "取消登录资产或达到3次重试"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:101
+#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
 #, fuzzy
 msgid "Need ticket confirm to login, already send email to the reviewers"
 msgstr "需要工单登录复核，已发邮件通知审核人"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:102
+#: pkg/handler/login_confirm.go:100
 #, fuzzy
 msgid "Ticket Reviewers: %s"
 msgstr "工单审核人：%s "
 
 #. lang.T
-#: pkg/handler/login_confirm.go:103
+#: pkg/handler/login_confirm.go:101
 #, fuzzy
 msgid "Could copy website URL to notify reviewers: %s"
 msgstr "可复制审核地址，通知审核人：%s"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:104
+#: pkg/handler/login_confirm.go:102
 #, fuzzy
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
 msgstr "等待审核人复核确认，按 q 回车取消登录。"
@@ -399,7 +413,7 @@ msgstr "必须是自动登录账号 %s"
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/server_ssh.go:533 pkg/handler/server_ssh.go:542
+#: pkg/handler/server_ssh.go:542 pkg/handler/server_ssh.go:551
 msgid "No found ssh protocol supported"
 msgstr "未支持 ssh 协议"
 
@@ -442,20 +456,10 @@ msgstr "需要工单命令执行复核，已发邮件通知审核人"
 #. lang.T
 #. lang.T
 #. lang.T
+#. lang.T
+#. lang.T
 #: pkg/proxy/parser.go:451 pkg/proxy/parser.go:452 pkg/proxy/server.go:54
-#, fuzzy
-msgid "%s protocol client not installed."
-msgstr "%s 协议的客户端未安装"
-
-#. lang.T
-#: pkg/proxy/server.go:58
-#, fuzzy
-msgid ""
-"Terminal does not support protocol %s, please use web terminal to access"
-msgstr "该终端不支持 %s 协议，请使用web终端登录"
-
-#. lang.T
-#: pkg/proxy/server.go:66
+#: pkg/proxy/server.go:58 pkg/proxy/server.go:66
 #, fuzzy
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
@@ -569,6 +573,9 @@ msgstr "网络不通（路由不通）"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "网络不通（网络不可达）"
+
+#~ msgid "IP"
+#~ msgstr "IP"
 
 #~ msgid "DBType"
 #~ msgstr "数据库类型"
