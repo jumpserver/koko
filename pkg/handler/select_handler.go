@@ -322,10 +322,10 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	case TypeNodeAsset:
 		return u.retrieveRemoteNodeAsset(reqParam)
 	case TypeAsset:
-		reqParam.Category = "host"
+		reqParam.Category = ""
 		return u.retrieveRemoteAsset(reqParam)
 	default:
-		reqParam.Category = "host"
+		reqParam.Category = ""
 		// TypeAsset
 		u.SetSelectType(TypeAsset)
 		logger.Info("Retrieve default remote data type: Asset")

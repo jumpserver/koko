@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -46,18 +49,18 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	lang := i18n.NewLang(u.h.i18nLang)
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
-	ipLabel := lang.T("IP")
+	ipLabel := lang.T("Address")
 	protocolsLabel := lang.T("Protocols")
 	platformLabel := lang.T("Platform")
 	orgLabel := lang.T("Organization")
 	commentLabel := lang.T("Comment")
 
 	Labels := []string{idLabel, nameLabel, ipLabel, protocolsLabel, platformLabel, orgLabel, commentLabel}
-	fields := []string{"ID", "Name", "IP", "Protocols", "Platform", "Organization", "Comment"}
+	fields := []string{"ID", "Name", "Address", "Protocols", "Platform", "Organization", "Comment"}
 	fieldsSize := map[string][3]int{
 		"ID":           {0, 0, 5},
 		"Name":         {0, 8, 0},
-		"IP":           {0, 8, 40},
+		"Address":      {0, 8, 40},
 		"Protocols":    {0, 8, 0},
 		"Platform":     {0, 8, 0},
 		"Organization": {0, 8, 0},
@@ -67,7 +70,7 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		row["Name"] = item.Name
-		row["IP"] = item.Address
+		row["Address"] = item.Address
 		row["Protocols"] = strings.Join(item.SupportProtocols(), "|")
 		row["Platform"] = item.Platform.Name
 		row["Organization"] = item.OrgName
@@ -95,12 +98,26 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		logger.Info("not select protocol")
 		return
 	}
+	i18nLang := u.h.i18nLang
+	lang := i18n.NewLang(i18nLang)
+	if err2 := srvconn.IsSupportedProtocol(protocol); err2 != nil {
+		var errMsg string
+		switch {
+		case errors.As(err2, &srvconn.ErrNoClient{}):
+			errMsg = lang.T("%s protocol client not installed.")
+			errMsg = fmt.Sprintf(errMsg, protocol)
+		default:
+			errMsg = lang.T("Terminal does not support protocol %s, please use web terminal to access")
+			errMsg = fmt.Sprintf(errMsg, protocol)
+		}
+		utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(errMsg))
+		return
+	}
+
 	selectedAccount, ok := u.h.chooseAccount(accounts)
 	if !ok {
 		return
 	}
-	i18nLang := u.h.i18nLang
-	lang := i18n.NewLang(i18nLang)
 	req := service.SuperConnectTokenReq{
 		UserId:        u.user.ID,
 		AssetId:       asset.ID,

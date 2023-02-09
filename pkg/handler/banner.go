@@ -30,7 +30,7 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 	menu := Menu{
 		{id: 1, instruct: lang.T("part IP, Hostname, Comment"), helpText: lang.T("to search login if unique")},
 		{id: 2, instruct: lang.T("/ + IP, Hostname, Comment"), helpText: lang.T("to search, such as: /192.168")},
-		{id: 3, instruct: "p", helpText: lang.T("display the host you have permission")},
+		{id: 3, instruct: "p", helpText: lang.T("display the assets you have permission")},
 		{id: 4, instruct: "g", helpText: lang.T("display the node that you have permission")},
 		{id: 5, instruct: "d", helpText: lang.T("display the databases that you have permission")},
 		{id: 6, instruct: "k", helpText: lang.T("display the kubernetes that you have permission")},
