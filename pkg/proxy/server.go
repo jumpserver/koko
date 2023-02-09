@@ -603,7 +603,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
 		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
-		srvconn.SqlCertKey(asset.SecretInfo.ClientCert),
+		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
 		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
