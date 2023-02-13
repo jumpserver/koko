@@ -26,6 +26,7 @@ const (
 	TypeNodeAsset
 	TypeK8s
 	TypeDatabase
+	TypeHost
 )
 
 type UserSelectHandler struct {
@@ -57,7 +58,7 @@ func (u *UserSelectHandler) SetSelectType(s selectType) {
 			u.AutoCompletion()
 		}
 		u.h.term.SetPrompt("[Host]> ")
-	case TypeNodeAsset:
+	case TypeNodeAsset, TypeHost:
 		u.h.term.SetPrompt("[Host]> ")
 	case TypeK8s:
 		u.h.term.SetPrompt("[K8S]> ")
@@ -201,6 +202,8 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 		u.displayNodeAssetResult(searchHeader)
 	case TypeAsset:
 		u.displayAssetResult(searchHeader)
+	case TypeHost:
+		u.displayAssetResult(searchHeader)
 	default:
 		logger.Error("Display unknown type")
 	}
@@ -267,7 +270,7 @@ func (u *UserSelectHandler) retrieveLocal(searches ...string) []model.Asset {
 		return u.searchLocalDatabase(searches...)
 	case TypeK8s:
 		return u.searchLocalK8s(searches...)
-	case TypeAsset:
+	case TypeAsset, TypeHost:
 		return u.searchLocalAsset(searches...)
 	default:
 		// TypeAsset
@@ -323,6 +326,9 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		return u.retrieveRemoteNodeAsset(reqParam)
 	case TypeAsset:
 		reqParam.Category = ""
+		return u.retrieveRemoteAsset(reqParam)
+	case TypeHost:
+		reqParam.Category = "host"
 		return u.retrieveRemoteAsset(reqParam)
 	default:
 		reqParam.Category = ""
