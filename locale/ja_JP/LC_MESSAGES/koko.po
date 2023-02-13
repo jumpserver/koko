@@ -187,36 +187,42 @@ msgstr "権限を持つノードを表示する"
 
 #. lang.T
 #: pkg/handler/banner.go:35
+#, fuzzy
+msgid "display the hosts that you have permission"
+msgstr "権限を持つデータベースを表示します"
+
+#. lang.T
+#: pkg/handler/banner.go:36
 msgid "display the databases that you have permission"
 msgstr "権限を持つデータベースを表示する"
 
 #. lang.T
-#: pkg/handler/banner.go:36
+#: pkg/handler/banner.go:37
 msgid "display the kubernetes that you have permission"
 msgstr "権限を持つkubernetesを表示する"
 
 #. lang.T
-#: pkg/handler/banner.go:37
+#: pkg/handler/banner.go:38
 msgid "refresh your assets and nodes"
 msgstr "アセットとノードを更新する"
 
 #. lang.T
-#: pkg/handler/banner.go:38
+#: pkg/handler/banner.go:39
 msgid "Chinese-English-Japanese switch"
 msgstr "中文-English-日本語の切り替え"
 
 #. lang.T
-#: pkg/handler/banner.go:39
+#: pkg/handler/banner.go:40
 msgid "print help"
 msgstr "印刷ヘルプ"
 
 #. lang.T
-#: pkg/handler/banner.go:40
+#: pkg/handler/banner.go:41
 msgid "exit"
 msgstr "終了"
 
 #. lang.T
-#: pkg/handler/banner.go:58
+#: pkg/handler/banner.go:59
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 入力 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
 
@@ -270,12 +276,12 @@ msgstr "一致したユーザー名 %s が見つかりません"
 #. lang.T
 #: pkg/handler/direct_handler.go:386 pkg/handler/direct_handler.go:392
 #: pkg/handler/direct_handler.go:406 pkg/handler/direct_handler.go:422
-#: pkg/handler/dispatch.go:139
+#: pkg/handler/dispatch.go:143
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "ノード: [ID.Name(アセット量)]"
 
 #. lang.T
-#: pkg/handler/dispatch.go:141
+#: pkg/handler/dispatch.go:145
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "ヒント: g+ノードIDを入力してノードの下のホストを表示します。例えば: g1"
 
@@ -374,7 +380,7 @@ msgid "Cancel confirm"
 msgstr "確認をキャンセル"
 
 #. lang.T
-#: pkg/handler/select_handler.go:194
+#: pkg/handler/select_handler.go:195
 msgid "Search: %s"
 msgstr "検索: %s"
 

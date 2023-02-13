@@ -193,37 +193,43 @@ msgstr "显示您有权限的节点"
 #. lang.T
 #: pkg/handler/banner.go:35
 #, fuzzy
+msgid "display the hosts that you have permission"
+msgstr "显示您有权限的主机"
+
+#. lang.T
+#: pkg/handler/banner.go:36
+#, fuzzy
 msgid "display the databases that you have permission"
 msgstr "显示您有权限的数据库"
 
 #. lang.T
-#: pkg/handler/banner.go:36
+#: pkg/handler/banner.go:37
 #, fuzzy
 msgid "display the kubernetes that you have permission"
 msgstr "显示您有权限的Kubernetes"
 
 #. lang.T
-#: pkg/handler/banner.go:37
+#: pkg/handler/banner.go:38
 msgid "refresh your assets and nodes"
 msgstr "刷新最新的机器和节点信息"
 
 #. lang.T
-#: pkg/handler/banner.go:38
+#: pkg/handler/banner.go:39
 msgid "Chinese-English-Japanese switch"
 msgstr "中文-English-日本語语言切换"
 
 #. lang.T
-#: pkg/handler/banner.go:39
+#: pkg/handler/banner.go:40
 msgid "print help"
 msgstr "显示帮助"
 
 #. lang.T
-#: pkg/handler/banner.go:40
+#: pkg/handler/banner.go:41
 msgid "exit"
 msgstr "退出"
 
 #. lang.T
-#: pkg/handler/banner.go:58
+#: pkg/handler/banner.go:59
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
 
@@ -279,12 +285,12 @@ msgstr "未发现匹配的用户名 %s"
 #. lang.T
 #: pkg/handler/direct_handler.go:386 pkg/handler/direct_handler.go:392
 #: pkg/handler/direct_handler.go:406 pkg/handler/direct_handler.go:422
-#: pkg/handler/dispatch.go:139
+#: pkg/handler/dispatch.go:143
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
 
 #. lang.T
-#: pkg/handler/dispatch.go:141
+#: pkg/handler/dispatch.go:145
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
 
@@ -389,7 +395,7 @@ msgid "Cancel confirm"
 msgstr "取消登录复核"
 
 #. lang.T
-#: pkg/handler/select_handler.go:194
+#: pkg/handler/select_handler.go:195
 #, fuzzy
 msgid "Search: %s"
 msgstr "搜索：%s"

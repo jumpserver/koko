@@ -178,36 +178,41 @@ msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:35
-msgid "display the databases that you have permission"
+msgid "display the hosts that you have permission"
 msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:36
-msgid "display the kubernetes that you have permission"
+msgid "display the databases that you have permission"
 msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:37
-msgid "refresh your assets and nodes"
+msgid "display the kubernetes that you have permission"
 msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:38
+msgid "refresh your assets and nodes"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/banner.go:39
 msgid "Chinese-English-Japanese switch"
 msgstr "中文-English-日本語 switch"
 
 #. lang.T
-#: pkg/handler/banner.go:39
+#: pkg/handler/banner.go:40
 msgid "print help"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:40
+#: pkg/handler/banner.go:41
 msgid "exit"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:58
+#: pkg/handler/banner.go:59
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
@@ -261,12 +266,12 @@ msgstr ""
 #. lang.T
 #: pkg/handler/direct_handler.go:386 pkg/handler/direct_handler.go:392
 #: pkg/handler/direct_handler.go:406 pkg/handler/direct_handler.go:422
-#: pkg/handler/dispatch.go:139
+#: pkg/handler/dispatch.go:143
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/dispatch.go:141
+#: pkg/handler/dispatch.go:145
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
@@ -364,7 +369,7 @@ msgid "Cancel confirm"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/select_handler.go:194
+#: pkg/handler/select_handler.go:195
 msgid "Search: %s"
 msgstr ""
 

@@ -12,7 +12,6 @@ import (
 )
 
 type MenuItem struct {
-	id       int
 	instruct string
 	helpText string
 }
