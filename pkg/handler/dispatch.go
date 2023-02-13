@@ -47,6 +47,10 @@ func (h *InteractiveHandler) Dispatch() {
 			case "b":
 				h.selectHandler.MovePrePage()
 				continue
+			case "h":
+				h.selectHandler.SetSelectType(TypeHost)
+				h.selectHandler.Search("")
+				continue
 			case "d":
 				h.selectHandler.SetSelectType(TypeDatabase)
 				h.selectHandler.Search("")
@@ -58,7 +62,7 @@ func (h *InteractiveHandler) Dispatch() {
 				h.wg.Wait() // 等待node加载完成
 				h.displayNodeTree(h.nodes)
 				continue
-			case "h":
+			case "?":
 				h.displayHelp()
 				initialed = false
 				continue
