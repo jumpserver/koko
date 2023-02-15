@@ -53,6 +53,7 @@ type Session struct {
 	OrgID      string         `json:"org_id"`
 	UserID     string         `json:"user_id"`
 	AssetID    string         `json:"asset_id"`
+	AccountID  string         `json:"account_id"`
 	Type       LabelFiled     `json:"type"`
 }
 

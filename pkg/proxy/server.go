@@ -68,11 +68,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
 		return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol, msg)
 	}
-
-	var (
-		apiSession *model.Session
-	)
-
 	terminalConf, err := jmsService.GetTerminalConfig()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
@@ -82,7 +77,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		assetName = connOpts.k8sContainer.K8sName(asset.Name)
 	}
 
-	apiSession = &model.Session{
+	apiSession := &model.Session{
 		ID:         common.UUID(),
 		User:       user.String(),
 		Account:    account.String(),
@@ -92,6 +87,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		UserID:     user.ID,
 		Asset:      assetName,
 		AssetID:    asset.ID,
+		AccountID:  account.ID,
 		OrgID:      connOpts.authInfo.OrgId,
 		Type:       model.NORMALType,
 	}
