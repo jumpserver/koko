@@ -30,6 +30,16 @@ func (p PlatformProtocols) GetSftpPath(protocol string) string {
 	return "/tmp"
 }
 
+func (p Platform) GetProtocol(protocol string) PlatformProtocol {
+	for i := range p.Protocols {
+		item := p.Protocols[i]
+		if strings.EqualFold(item.Name, protocol) {
+			return item
+		}
+	}
+	return PlatformProtocol{}
+}
+
 type PlatformProtocol struct {
 	Protocol
 	Setting ProtocolSetting `json:"setting"`
@@ -43,6 +53,9 @@ type ProtocolSetting struct {
 	UsernameSelector string `json:"username_selector"`
 	PasswordSelector string `json:"password_selector"`
 	SubmitSelector   string `json:"submit_selector"`
+
+	// for redis 特殊处理的字段
+	AuthUsername bool `json:"auth_username"`
 }
 
 type Protocol struct {
