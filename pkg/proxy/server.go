@@ -561,16 +561,22 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.RedisConn, err error) {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
+	platform := s.connOpts.authInfo.Platform
 	host := asset.Address
 	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
+	username := s.account.Username
+	protocolSetting := platform.GetProtocol("redis")
+	if !protocolSetting.Setting.AuthUsername {
+		username = ""
+	}
 	srvConn, err = srvconn.NewRedisConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
+		srvconn.SqlUsername(username),
 		srvconn.SqlPassword(s.account.Secret),
 		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
