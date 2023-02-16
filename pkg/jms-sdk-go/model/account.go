@@ -56,3 +56,8 @@ func (a *PermAccount) IsSSHKey() bool {
 func (a *PermAccount) String() string {
 	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
 }
+
+const (
+	InputUser   = "@INPUT"
+	DynamicUser = "@USER"
+)
