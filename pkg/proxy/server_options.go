@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"fmt"
-
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -102,7 +101,13 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	switch protocol {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
-		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), account.Name, asset.Address)
+		accountName := account.Name
+		switch accountName {
+		case model.InputUser, model.DynamicUser:
+			accountName = account.Username
+		default:
+		}
+		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), accountName, asset.Address)
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
