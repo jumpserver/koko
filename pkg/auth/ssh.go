@@ -20,9 +20,9 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		username := ctx.User()
 		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
 			if req.IsToken() && req.Authenticate(password) {
-				ctx.SetValue(ContextKeyUser, req.ConnectToken.User)
+				ctx.SetValue(ContextKeyUser, &req.ConnectToken.User)
 				logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
-					actionAccepted, ctx.User(), remoteAddr)
+					actionAccepted, username, remoteAddr)
 				return ssh.AuthSuccessful
 			}
 			username = req.User()
