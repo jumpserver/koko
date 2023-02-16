@@ -40,7 +40,7 @@ const (
 	ProtocolRedis      = "redis"
 	ProtocolMongoDB    = "mongodb"
 	ProtocolPostgreSQL = "postgresql"
-	ProtocolClickHouse = "clickhouse"
+	ProtocolClickHouse = "clickhouse_tcp"
 )
 
 type ErrNoClient struct {
