@@ -287,6 +287,14 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		return
 	}
 	defer sshClient.Close()
+	vsReq := &vscodeReq{
+		reqId:      ctxId,
+		user:       &tokeInfo.User,
+		client:     sshClient,
+		expireInfo: tokeInfo.ExpireAt,
+	}
+	s.addVSCodeReq(vsReq)
+	defer s.deleteVSCodeReq(vsReq)
 	if len(sess.Command()) != 0 {
 		s.proxyAssetCommand(sess, sshClient, tokeInfo)
 		return
@@ -297,12 +305,6 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		return
 	}
 
-	vsReq := &vscodeReq{
-		reqId:      ctxId,
-		user:       &tokeInfo.User,
-		client:     sshClient,
-		expireInfo: tokeInfo.ExpireAt,
-	}
 	if err = s.proxyVscodeShell(sess, vsReq, sshClient, tokeInfo); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
 	}
@@ -464,8 +466,6 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	}
 	logger.Infof("User %s start vscode request to %s", vsReq.user, sshClient)
 
-	s.addVSCodeReq(vsReq)
-	defer s.deleteVSCodeReq(vsReq)
 	go func() {
 		_, _ = io.Copy(stdin, sess)
 		logger.Infof("User %s vscode request %s stdin end", vsReq.user, sshClient)
