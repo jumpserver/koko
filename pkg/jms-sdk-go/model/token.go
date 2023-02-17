@@ -36,6 +36,7 @@ func (c *ConnectToken) CreateSession(addr string,
 		OrgID:     c.OrgId,
 		UserID:    c.User.ID,
 		AssetID:   c.Asset.ID,
+		AccountID: c.Account.ID,
 		DateStart: common.NewNowUTCTime(),
 
 		RemoteAddr: addr,
