@@ -440,6 +440,8 @@ func (p *Parser) waitCommandConfirm() {
 	detailURL := resp.TicketDetailUrl
 	reviewers := resp.Reviewers
 	msg := lang.T("Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C.")
+	cmd = strings.ReplaceAll(cmd, "\r", "")
+	cmd = strings.ReplaceAll(cmd, "\n", "")
 	waitMsg := fmt.Sprintf(msg, cmd)
 	checkTimer := time.NewTicker(10 * time.Second)
 	defer checkTimer.Stop()
