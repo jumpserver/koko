@@ -81,7 +81,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		ID:         common.UUID(),
 		User:       user.String(),
 		Account:    account.String(),
-		LoginFrom:  model.LabelFiled(conn.LoginFrom()),
+		LoginFrom:  model.LabelField(conn.LoginFrom()),
 		RemoteAddr: conn.RemoteAddr(),
 		Protocol:   protocol,
 		UserID:     user.ID,
