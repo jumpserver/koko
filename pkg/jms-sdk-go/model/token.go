@@ -27,7 +27,7 @@ type ConnectToken struct {
 }
 
 func (c *ConnectToken) CreateSession(addr string,
-	loginFrom, SessionType LabelFiled) Session {
+	loginFrom, SessionType LabelField) Session {
 	return Session{
 		User:      c.User.String(),
 		Asset:     c.Asset.String(),
@@ -36,6 +36,7 @@ func (c *ConnectToken) CreateSession(addr string,
 		OrgID:     c.OrgId,
 		UserID:    c.User.ID,
 		AssetID:   c.Asset.ID,
+		AccountID: c.Account.ID,
 		DateStart: common.NewNowUTCTime(),
 
 		RemoteAddr: addr,

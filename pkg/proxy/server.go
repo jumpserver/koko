@@ -68,11 +68,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
 		return nil, fmt.Errorf("%w: %s", ErrUnMatchProtocol, msg)
 	}
-
-	var (
-		apiSession *model.Session
-	)
-
 	terminalConf, err := jmsService.GetTerminalConfig()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
@@ -82,16 +77,17 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		assetName = connOpts.k8sContainer.K8sName(asset.Name)
 	}
 
-	apiSession = &model.Session{
+	apiSession := &model.Session{
 		ID:         common.UUID(),
 		User:       user.String(),
 		Account:    account.String(),
-		LoginFrom:  model.LabelFiled(conn.LoginFrom()),
+		LoginFrom:  model.LabelField(conn.LoginFrom()),
 		RemoteAddr: conn.RemoteAddr(),
 		Protocol:   protocol,
 		UserID:     user.ID,
 		Asset:      assetName,
 		AssetID:    asset.ID,
+		AccountID:  account.ID,
 		OrgID:      connOpts.authInfo.OrgId,
 		Type:       model.NORMALType,
 	}
@@ -546,7 +542,7 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPort(port))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.account.Username))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.account.Secret))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(asset.Specific.DBName))
+	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(asset.SpecInfo.DBName))
 	mysqlOpts = append(mysqlOpts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
@@ -561,22 +557,28 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.RedisConn, err error) {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
+	platform := s.connOpts.authInfo.Platform
 	host := asset.Address
 	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
+	username := s.account.Username
+	protocolSetting := platform.GetProtocol("redis")
+	if !protocolSetting.Setting.AuthUsername {
+		username = ""
+	}
 	srvConn, err = srvconn.NewRedisConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
+		srvconn.SqlUsername(username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
-		srvconn.SqlUseSSL(asset.Specific.UseSSL),
-		srvconn.SqlCaCert(asset.Specific.CaCert),
-		srvconn.SqlClientCert(asset.Specific.ClientCert),
-		srvconn.SqlCertKey(asset.Specific.CertKey),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
+		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
+		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
+		srvconn.SqlClientCert(asset.SecretInfo.ClientCert),
+		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -600,11 +602,11 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
-		srvconn.SqlUseSSL(asset.Specific.UseSSL),
-		srvconn.SqlCaCert(asset.Specific.CaCert),
-		srvconn.SqlCertKey(asset.Specific.CertKey),
-		srvconn.SqlAllowInvalidCert(asset.Specific.AllowInvalidCert),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
+		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
+		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
+		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
+		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -627,7 +629,7 @@ func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvcon
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -650,7 +652,7 @@ func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -673,7 +675,7 @@ func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvco
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(s.account.Username),
 		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.Specific.DBName),
+		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,

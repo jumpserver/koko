@@ -8,17 +8,17 @@ import (
 )
 
 var (
-	_ json.Unmarshaler = (*LabelFiled)(nil)
-	_ json.Marshaler   = (*LabelFiled)(nil)
+	_ json.Unmarshaler = (*LabelField)(nil)
+	_ json.Marshaler   = (*LabelField)(nil)
 )
 
-type LabelFiled string
+type LabelField string
 
-func (s LabelFiled) MarshalJSON() ([]byte, error) {
+func (s LabelField) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + s + `"`), nil
 }
 
-func (s *LabelFiled) UnmarshalJSON(bytes []byte) error {
+func (s *LabelField) UnmarshalJSON(bytes []byte) error {
 	var labelValue struct {
 		Label string `json:"label"`
 		Value string `json:"value"`
@@ -26,19 +26,19 @@ func (s *LabelFiled) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, &labelValue); err != nil {
 		return err
 	}
-	*s = LabelFiled(labelValue.Value)
+	*s = LabelField(labelValue.Value)
 	return nil
 }
 
 const (
-	NORMALType  LabelFiled = "normal"
-	TUNNELType  LabelFiled = "tunnel"
-	COMMANDType LabelFiled = "command"
+	NORMALType  LabelField = "normal"
+	TUNNELType  LabelField = "tunnel"
+	COMMANDType LabelField = "command"
 )
 
 const (
-	LoginFromSSH LabelFiled = "ST"
-	LoginFromWeb LabelFiled = "WT"
+	LoginFromSSH LabelField = "ST"
+	LoginFromWeb LabelField = "WT"
 )
 
 type Session struct {
@@ -46,14 +46,15 @@ type Session struct {
 	User       string         `json:"user"`
 	Asset      string         `json:"asset"`
 	Account    string         `json:"account"`
-	LoginFrom  LabelFiled     `json:"login_from,omitempty"`
+	LoginFrom  LabelField     `json:"login_from,omitempty"`
 	RemoteAddr string         `json:"remote_addr"`
 	Protocol   string         `json:"protocol"`
 	DateStart  common.UTCTime `json:"date_start"`
 	OrgID      string         `json:"org_id"`
 	UserID     string         `json:"user_id"`
 	AssetID    string         `json:"asset_id"`
-	Type       LabelFiled     `json:"type"`
+	AccountID  string         `json:"account_id"`
+	Type       LabelField     `json:"type"`
 }
 
 type ReplayVersion string

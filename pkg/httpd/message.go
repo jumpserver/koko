@@ -48,13 +48,13 @@ type TerminalConnectData struct {
 }
 
 type ShareRequestMeta struct {
-	Users    []string   `json:"users"`
+	Users []string `json:"users"`
 }
 
 type ShareRequestParams struct {
-	SessionID  string     `json:"session_id"`
-	ExpireTime int        `json:"expired"`
-	Users      []string   `json:"users"`
+	SessionID  string   `json:"session_id"`
+	ExpireTime int      `json:"expired"`
+	Users      []string `json:"users"`
 }
 
 type GetUserParams struct {
@@ -73,8 +73,7 @@ type ShareInfo struct {
 const (
 	TargetTypeAsset = "asset"
 
-	// TargetTypeMonitor todo: 前端参数将 统一修改成 monitor
-	TargetTypeMonitor = "shareroom"
+	TargetTypeMonitor = "monitor"
 
 	TargetTypeShare = "share"
 )

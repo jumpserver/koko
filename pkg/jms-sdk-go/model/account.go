@@ -3,6 +3,7 @@ package model
 import "fmt"
 
 type BaseAccount struct {
+	ID         string     `json:"id"`
 	Name       string     `json:"name"`
 	Username   string     `json:"username"`
 	Secret     string     `json:"secret"`
@@ -55,3 +56,8 @@ func (a *PermAccount) IsSSHKey() bool {
 func (a *PermAccount) String() string {
 	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
 }
+
+const (
+	InputUser   = "@INPUT"
+	DynamicUser = "@USER"
+)
