@@ -31,6 +31,9 @@ jobs:
           config-name: release-config.yml
           version: ${{ steps.get_version.outputs.VERSION }}
           tag: ${{ steps.get_version.outputs.TAG }}
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16.5'
       - uses: actions/setup-go@v2
         with:
           go-version: '1.18.x' # The Go version to download (if necessary) and use.
