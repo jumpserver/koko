@@ -25,8 +25,6 @@ var (
 
 const (
 	k8sInitFilename = "init-kubectl.sh"
-
-	checkTokenCommand = `kubectl --insecure-skip-tls-verify=%s --token=%s --server=%s auth can-i get pods`
 )
 
 func IsValidK8sUserToken(o *k8sOptions) bool {
