@@ -58,7 +58,9 @@ func (h *tty) CheckValidation() bool {
 	case TargetTypeShare:
 		ok = h.CheckEnableShare()
 	default:
-		ok = h.ConnectToken.Asset.IsSupportProtocol(h.ConnectToken.Protocol)
+		if h.ConnectToken != nil {
+			ok = h.ConnectToken.Asset.IsSupportProtocol(h.ConnectToken.Protocol)
+		}
 	}
 	logger.Infof("Ws[%s] check connect type %s: %t", h.ws.Uuid, h.targetType, ok)
 	return ok
