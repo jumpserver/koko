@@ -71,8 +71,6 @@ type ShareInfo struct {
 }
 
 const (
-	TargetTypeAsset = "asset"
-
 	TargetTypeMonitor = "monitor"
 
 	TargetTypeShare = "share"
@@ -91,4 +89,10 @@ const (
 type ViewPageMata struct {
 	ID      string
 	IconURL string
+}
+
+type WsParams struct {
+	Token      string `json:"token"`
+	TargetType string `json:"type"`
+	TargetID   string `json:"target_id"`
 }
