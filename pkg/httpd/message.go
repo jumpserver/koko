@@ -92,7 +92,7 @@ type ViewPageMata struct {
 }
 
 type WsParams struct {
-	Token      string `json:"token"`
-	TargetType string `json:"type"`
-	TargetID   string `json:"target_id"`
+	Token      string `form:"token"`
+	TargetType string `form:"type"`
+	TargetID   string `form:"target_id"`
 }
