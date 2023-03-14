@@ -112,11 +112,7 @@ func (s *Server) SftpHostConnectorView(ctx *gin.Context) {
 }
 
 func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
-	var tokenParams struct {
-		Token    string `form:"token"`
-		Type     string `form:"type"`
-		TargetId string `form:"target_id"`
-	}
+	var tokenParams WsParams
 	if err := ctx.ShouldBind(&tokenParams); err != nil {
 		logger.Errorf("Ws miss required params( token ) err: %s", err)
 		ctx.AbortWithStatus(http.StatusBadRequest)
@@ -129,7 +125,8 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 		return
 	}
 	currentUser := userValue.(*model.User)
-	s.runTokenTTY(ctx, currentUser, tokenParams.Token)
+
+	s.runTTY(ctx, currentUser, &tokenParams)
 }
 
 func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
@@ -208,18 +205,7 @@ func (s *Server) Upgrade(ctx *gin.Context) (*ws.Socket, error) {
 	return wsSocket, nil
 }
 
-func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token string) {
-	res, err := s.JmsService.GetConnectTokenInfo(token)
-	if err != nil {
-		logger.Errorf("Get connect token info err: %s", err)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	if res.Code != "" {
-		logger.Errorf("Token is invalid: %s", res.Detail)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
+func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User, params *WsParams) {
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
@@ -236,12 +222,29 @@ func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token st
 		user:           currentUser,
 		setting:        &setting,
 	}
-	userConn.handler = &tty{
-		ws:           &userConn,
-		ConnectToken: &res,
-		jmsService:   s.JmsService,
-		extraParams:  ctx.Request.Form,
+	ttyHandler := &tty{
+		ws:          &userConn,
+		targetType:  params.TargetType,
+		targetId:    params.TargetID,
+		jmsService:  s.JmsService,
+		extraParams: ctx.Request.Form,
 	}
+	if params.Token != "" {
+		res, err := s.JmsService.GetConnectTokenInfo(params.Token)
+		if err != nil {
+			logger.Errorf("Get connect token info err: %s", err)
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+		if res.Code != "" {
+			logger.Errorf("Token is invalid: %s", res.Detail)
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+		ttyHandler.ConnectToken = &res
+	}
+	userConn.handler = ttyHandler
+
 	s.broadCaster.EnterUserWebsocket(&userConn)
 	defer s.broadCaster.LeaveUserWebsocket(&userConn)
 	userConn.Run()
