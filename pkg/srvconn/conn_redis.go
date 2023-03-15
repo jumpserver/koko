@@ -26,15 +26,15 @@ func NewRedisConnection(ops ...SqlOption) (*RedisConn, error) {
 		err  error
 	)
 	args := &sqlOption{
-		Username:         os.Getenv("USER"),
-		Password:         os.Getenv("PASSWORD"),
-		Host:             "127.0.0.1",
-		Port:             6379,
-		DBName:           "0",
-		UseSSL:           false,
-		CaCert:           "",
-		ClientCert:       "",
-		CertKey:          "",
+		Username:   os.Getenv("USER"),
+		Password:   os.Getenv("PASSWORD"),
+		Host:       "127.0.0.1",
+		Port:       6379,
+		DBName:     "0",
+		UseSSL:     false,
+		CaCert:     "",
+		ClientCert: "",
+		CertKey:    "",
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -145,7 +145,7 @@ func checkRedisAccount(args *sqlOption) error {
 		dialOptions = append(dialOptions, radix.DialAuthPass(args.Password))
 	}
 
-	if args.UseSSL{
+	if args.UseSSL {
 		tlsConfig := tls.Config{}
 		if args.CaCert != "" {
 			rootCAs := x509.NewCertPool()
@@ -169,5 +169,6 @@ func checkRedisAccount(args *sqlOption) error {
 		return err
 	}
 	defer conn.Close()
-	return nil
+	err = conn.Do(radix.Cmd(nil, "PING"))
+	return err
 }

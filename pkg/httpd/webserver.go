@@ -112,11 +112,7 @@ func (s *Server) SftpHostConnectorView(ctx *gin.Context) {
 }
 
 func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
-	var tokenParams struct {
-		Token    string `form:"token"`
-		Type     string `form:"type"`
-		TargetId string `form:"target_id"`
-	}
+	var tokenParams WsParams
 	if err := ctx.ShouldBind(&tokenParams); err != nil {
 		logger.Errorf("Ws miss required params( token ) err: %s", err)
 		ctx.AbortWithStatus(http.StatusBadRequest)
@@ -129,37 +125,8 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 		return
 	}
 	currentUser := userValue.(*model.User)
-	if tokenParams.Token == "" {
-		s.runTTY(ctx, currentUser, tokenParams.Type, tokenParams.TargetId)
-		return
-	}
-	s.runTokenTTY(ctx, currentUser, tokenParams.Token)
-}
 
-func (s *Server) ProcessTokenWebsocket(ctx *gin.Context) {
-	var targetParams struct {
-		TargetId string `form:"target_id"`
-	}
-	if err := ctx.ShouldBind(&targetParams); err != nil {
-		logger.Errorf("Ws miss required params(target_id ) err: %s", err)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	tokenUser, err := s.JmsService.GetTokenAsset(targetParams.TargetId)
-	if err != nil || tokenUser.UserID == "" {
-		logger.Errorf("Token is invalid: %s", targetParams.TargetId)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	currentUser, err := s.JmsService.GetUserById(tokenUser.UserID)
-	if err != nil || currentUser == nil {
-		logger.Errorf("Token userID is invalid: %s", tokenUser.UserID)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	targetId := tokenUser.AssetID
-	targetType := TargetTypeAsset
-	s.runTTY(ctx, currentUser, targetType, targetId)
+	s.runTTY(ctx, currentUser, &tokenParams)
 }
 
 func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
@@ -238,18 +205,7 @@ func (s *Server) Upgrade(ctx *gin.Context) (*ws.Socket, error) {
 	return wsSocket, nil
 }
 
-func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token string) {
-	res, err := s.JmsService.GetConnectTokenInfo(token)
-	if err != nil {
-		logger.Errorf("Get connect token info err: %s", err)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	if res.Code != "" {
-		logger.Errorf("Token is invalid: %s", res.Detail)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
+func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User, params *WsParams) {
 	wsSocket, err := s.Upgrade(ctx)
 	if err != nil {
 		logger.Errorf("Websocket upgrade err: %s", err)
@@ -266,43 +222,29 @@ func (s *Server) runTokenTTY(ctx *gin.Context, currentUser *model.User, token st
 		user:           currentUser,
 		setting:        &setting,
 	}
-	userConn.handler = &tty{
-		ws:           &userConn,
-		ConnectToken: &res,
-		jmsService:   s.JmsService,
-		extraParams:  ctx.Request.Form,
-	}
-	s.broadCaster.EnterUserWebsocket(&userConn)
-	defer s.broadCaster.LeaveUserWebsocket(&userConn)
-	userConn.Run()
-}
-
-func (s *Server) runTTY(ctx *gin.Context, currentUser *model.User,
-	targetType, targetId string) {
-	wsSocket, err := s.Upgrade(ctx)
-	if err != nil {
-		logger.Errorf("Websocket upgrade err: %s", err)
-		ctx.String(http.StatusBadRequest, "Websocket upgrade err %s", err)
-		return
-	}
-	defer wsSocket.Close()
-	setting := s.getPublicSetting()
-	userConn := UserWebsocket{
-		Uuid:           common.UUID(),
-		webSrv:         s,
-		conn:           wsSocket,
-		ctx:            ctx.Copy(),
-		messageChannel: make(chan *Message, 10),
-		user:           currentUser,
-		setting:        &setting,
-	}
-	userConn.handler = &tty{
+	ttyHandler := &tty{
 		ws:          &userConn,
-		targetType:  targetType,
-		targetId:    targetId,
+		targetType:  params.TargetType,
+		targetId:    params.TargetID,
 		jmsService:  s.JmsService,
 		extraParams: ctx.Request.Form,
 	}
+	if params.Token != "" {
+		res, err := s.JmsService.GetConnectTokenInfo(params.Token)
+		if err != nil {
+			logger.Errorf("Get connect token info err: %s", err)
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+		if res.Code != "" {
+			logger.Errorf("Token is invalid: %s", res.Detail)
+			ctx.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+		ttyHandler.ConnectToken = &res
+	}
+	userConn.handler = ttyHandler
+
 	s.broadCaster.EnterUserWebsocket(&userConn)
 	defer s.broadCaster.LeaveUserWebsocket(&userConn)
 	userConn.Run()

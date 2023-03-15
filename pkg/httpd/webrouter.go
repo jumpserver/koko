@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/pprof"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,20 +21,32 @@ func getStaticFS() http.FileSystem {
 	staticFs, err := fs.Sub(assets.StaticFs, "static")
 	if err != nil {
 		logger.Debugf("Get static fs error: %s", err)
-		return http.Dir("./static/")
+		staticDir := http.Dir("./static/")
+		return &StaticFSWrapper{
+			FileSystem:   staticDir,
+			FixedModTime: time.Now(),
+		}
+	}
+	return &StaticFSWrapper{
+		FileSystem:   http.FS(staticFs),
+		FixedModTime: time.Now(),
 	}
 
-	return http.FS(staticFs)
 }
 
 func getUIAssetFs() http.FileSystem {
 	uiAssetFs, err := fs.Sub(assets.UIFs, "ui/dist/assets")
 	if err != nil {
 		logger.Debugf("Get ui asset fs error: %s", err)
-		return http.Dir("./ui/dist/assets")
+		return &StaticFSWrapper{
+			FileSystem:   http.Dir("./ui/dist/assets"),
+			FixedModTime: time.Now(),
+		}
 	}
-
-	return http.FS(uiAssetFs)
+	return &StaticFSWrapper{
+		FileSystem:   http.FS(uiAssetFs),
+		FixedModTime: time.Now(),
+	}
 }
 
 func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
@@ -59,7 +72,6 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		wsGroup.Group("/elfinder").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessElfinderWebsocket)
 
-		wsGroup.Group("/token").GET("/", webSrv.ProcessTokenWebsocket)
 	}
 
 	connectGroup := kokoGroup.Group("/connect")

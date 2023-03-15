@@ -1,12 +1,15 @@
 package srvconn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/localcommand"
@@ -22,31 +25,21 @@ var (
 
 const (
 	k8sInitFilename = "init-kubectl.sh"
-
-	checkTokenCommand = `kubectl --insecure-skip-tls-verify=%s --token=%s --server=%s auth can-i get pods`
 )
 
-func isValidK8sUserToken(o *k8sOptions) bool {
-	skipVerifyTls := "true"
-	token := o.Token
-	server := o.ClusterServer
-	if !o.IsSkipTls {
-		skipVerifyTls = "false"
-	}
-	c := exec.Command("bash", "-c",
-		fmt.Sprintf(checkTokenCommand, skipVerifyTls, token, server))
-	out, err := c.CombinedOutput()
+func IsValidK8sUserToken(o *k8sOptions) bool {
+	k8sCfg := o.K8sCfg()
+	client, err := kubernetes.NewForConfig(k8sCfg)
 	if err != nil {
-		logger.Info(err)
+		logger.Errorf("K8sCon check token err: %s", err)
+		return false
 	}
-	result := strings.TrimSpace(string(out))
-	switch strings.ToLower(result) {
-	case "yes", "no":
-		logger.Info("K8sCon check token success")
-		return true
+	_, err = client.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("K8sCon check token pods err: %s", err)
+		return false
 	}
-	logger.Errorf("K8sCon check token err: %s", result)
-	return false
+	return true
 }
 
 func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
@@ -60,7 +53,7 @@ func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
-	if !isValidK8sUserToken(args) {
+	if !IsValidK8sUserToken(args) {
 		return nil, InValidToken
 	}
 	_, err := utils.Encrypt(args.Token, config.CipherKey)
@@ -98,6 +91,17 @@ type k8sOptions struct {
 	ExtraEnv      map[string]string
 
 	win Windows
+}
+
+func (o *k8sOptions) K8sCfg() *rest.Config {
+	kubeConf := &rest.Config{
+		Host:        o.ClusterServer,
+		BearerToken: o.Token,
+	}
+	if o.IsSkipTls {
+		kubeConf.Insecure = true
+	}
+	return kubeConf
 }
 
 func (o *k8sOptions) Env() []string {

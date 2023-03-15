@@ -32,11 +32,12 @@ RUN set -ex \
     && wget ${DOWNLOAD_URL}/public/helm-v3.9.0-linux-${TARGETARCH}.tar.gz -O helm.tar.gz \
     && tar -xf helm.tar.gz \
     && chmod +x linux-${TARGETARCH}/helm \
+    && chown root:root linux-${TARGETARCH}/helm \
     && mv linux-${TARGETARCH}/helm rawhelm \
     && wget ${DOWNLOAD_URL}/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xf kubectl_aliases.tar.gz \
     && wget ${DOWNLOAD_URL}/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz \
-    && tar xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
+    && tar -xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
     && chmod +x clickhouse-client
 
 ADD go.mod go.sum .
