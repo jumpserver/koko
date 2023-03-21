@@ -12,6 +12,7 @@ import (
 	"golang.org/x/text/transform"
 
 	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 func NewTelnetConnection(opts ...TelnetOption) (*TelnetConnection, error) {
@@ -72,13 +73,23 @@ func NewTelnetConnection(opts ...TelnetOption) (*TelnetConnection, error) {
 			transformWriter = transform.NewWriter(client, writerEncode)
 		}
 	}
-	return &TelnetConnection{
+	tCon := &TelnetConnection{
 		cfg:             cfg,
 		conn:            client,
 		proxyConn:       proxyClient,
 		transformReader: transformReader,
 		transformWriter: transformWriter,
-	}, nil
+	}
+	if cfg.suUserCfg != nil {
+		if err = LoginToTelnetSu(tCon); err != nil {
+			_ = tCon.Close()
+			logger.Errorf("Telnet Login to su user %s failed: %s",
+				cfg.suUserCfg.SuUsername(), err)
+			return nil, err
+		}
+	}
+	_, _ = tCon.Write([]byte("\r\n"))
+	return tCon, nil
 }
 
 func newTelnetClient(conn net.Conn, cfg *TelnetConfig) (*tclientlib.Client, error) {
@@ -127,10 +138,6 @@ type TelnetConnection struct {
 	once            sync.Once
 }
 
-func (tc *TelnetConnection) Protocol() string {
-	return "telnet"
-}
-
 func (tc *TelnetConnection) KeepAlive() error {
 	return nil
 }
@@ -166,6 +173,8 @@ type TelnetConfig struct {
 	Password string
 	Term     string
 	Charset  string
+
+	suUserCfg *SuConfig
 
 	Timeout time.Duration
 
@@ -227,5 +236,11 @@ func TelnetCharset(charset string) TelnetOption {
 func TelnetCustomSuccessPattern(successPattern *regexp.Regexp) TelnetOption {
 	return func(opt *TelnetConfig) {
 		opt.CustomSuccessPattern = successPattern
+	}
+}
+
+func TelnetSuConfig(cfg *SuConfig) TelnetOption {
+	return func(opt *TelnetConfig) {
+		opt.suUserCfg = cfg
 	}
 }
