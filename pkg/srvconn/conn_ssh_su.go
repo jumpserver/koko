@@ -3,6 +3,7 @@ package srvconn
 import (
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -10,18 +11,35 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-func LoginToSu(sc *SSHConnection) error {
-	successPattern := createSuccessPattern(sc.options.sudoUsername)
+func LoginToSSHSu(sc *SSHConnection) error {
+	cfg := sc.options.suUserConfig
+	sudoCommand := cfg.SuCommand()
+	password := cfg.SuPassword()
+	successPattern := cfg.SuccessPattern()
+	passwordPattern := cfg.PasswordMatchPattern()
 	steps := make([]stepItem, 0, 2)
+	if cfg.MethodType == SuMethodSu {
+		steps = append(steps,
+			stepItem{
+				Input:           sudoCommand,
+				ExpectPattern:   passwordPattern,
+				FinishedPattern: successPattern,
+				execCommand: func() error {
+					return sc.session.Start(sudoCommand)
+				},
+			})
+	} else {
+		_ = sc.session.Shell()
+		steps = append(steps, stepItem{
+			Input:           sudoCommand,
+			ExpectPattern:   passwordPattern,
+			FinishedPattern: successPattern,
+		})
+	}
+
 	steps = append(steps,
 		stepItem{
-			Input:           sc.options.sudoCommand,
-			ExpectPattern:   passwordMatchPattern,
-			FinishedPattern: successPattern,
-			IsCommand:       true,
-		},
-		stepItem{
-			Input:           sc.options.sudoPassword,
+			Input:           password,
 			ExpectPattern:   successPattern,
 			FinishedPattern: successPattern,
 		},
@@ -38,41 +56,41 @@ func LoginToSu(sc *SSHConnection) error {
 	return nil
 }
 
-func executeStep(step *stepItem, sc *SSHConnection) (bool, error) {
+func executeStep(step *stepItem, sc io.ReadWriteCloser) (bool, error) {
 	return step.Execute(sc)
 }
 
-const (
-	LinuxSuCommand = "su - %s; exit"
+/*
 
-	/*
-	 \b: word boundary 即: 匹配某个单词边界
-	*/
+1、执行 su | enable | system-view  相关命令
+2、等待密码输入 prompt (可能直接切换成功)
 
-	passwordMatchPattern = "(?i)\\bpassword\\b|密码"
-)
+3、输入密码
+4、等待成功提示
 
-var ErrorTimeout = errors.New("time out")
+完成
+
+*/
 
 type stepItem struct {
 	Input           string
 	ExpectPattern   string
-	IsCommand       bool
+	execCommand     func() error
 	FinishedPattern string
 }
 
-func (s *stepItem) Execute(sc *SSHConnection) (bool, error) {
+func (s *stepItem) Execute(sc io.ReadWriteCloser) (bool, error) {
 	resultChan := make(chan *ExecuteResult, 1)
 	matchReg, err := regexp.Compile(s.ExpectPattern)
 	if err != nil {
-		logger.Error(err)
+		logger.Errorf("Su step expect pattern %s compile failed: %s", s.ExpectPattern, err)
 	}
 	successReg, err := regexp.Compile(s.FinishedPattern)
 	if err != nil {
-		logger.Error(err)
+		logger.Errorf("Su step success pattern %s compile failed: %s", s.FinishedPattern, err)
 	}
-	if s.IsCommand {
-		_ = sc.session.Start(s.Input)
+	if s.execCommand != nil {
+		_ = s.execCommand()
 	} else {
 		_, _ = sc.Write([]byte(s.Input + "\r\n"))
 	}
@@ -89,12 +107,15 @@ func (s *stepItem) Execute(sc *SSHConnection) (bool, error) {
 			result := strings.TrimSpace(recStr.String())
 			if successReg != nil && successReg.MatchString(result) {
 				resultChan <- &ExecuteResult{Finished: true}
+				logger.Debugf("Sudo step success pattern ok: %s", result)
 				return
 			}
 			if matchReg != nil && matchReg.MatchString(result) {
 				resultChan <- &ExecuteResult{}
+				logger.Debugf("Sudo step match pattern ok: %s", result)
 				return
 			}
+			logger.Debugf("Sudo step result do not match any: %s", result)
 		}
 	}()
 	ticker := time.NewTicker(time.Second * 30)
@@ -112,14 +133,107 @@ type ExecuteResult struct {
 	Err      error
 }
 
-func createSuccessPattern(username string) string {
+func createLinuxSuccessPattern(username string) string {
 	pattern := fmt.Sprintf("%s@", username)
 	pattern = fmt.Sprintf("(?i)%s|%s|%s", pattern,
 		normalUserMark, superUserMark)
 	return pattern
 }
 
+func createCiscoSuccessPattern(username string) string {
+	return fmt.Sprintf("%s|%s", normalUserMark, superUserMark)
+}
+
 const (
 	normalUserMark = "\\s*\\$"
 	superUserMark  = "\\s*#"
 )
+
+const (
+	/*
+		Linux 相关
+	*/
+
+	LinuxSuCommand = "su - %s; exit"
+
+	/*
+		Cisco 相关
+	*/
+
+	SuCommandEnable = "enable"
+
+	/*
+		huawei 相关
+	*/
+
+	//SuCommandSystemView = "system-view"
+
+	/*
+	 \b: word boundary 即: 匹配某个单词边界
+	*/
+
+	passwordMatchPattern = "(?i)\\bpassword\\b|密码"
+)
+
+var ErrorTimeout = errors.New("time out")
+
+type SUMethodType string
+
+const (
+	SuMethodSu         SUMethodType = "su"
+	SuMethodEnable     SUMethodType = "enable"
+	SuMethodSystemView SUMethodType = "system-view"
+)
+
+func NewSuMethodType(suMethod string) SUMethodType {
+	method := strings.ToLower(suMethod)
+	switch method {
+	case "enable":
+		return SuMethodEnable
+	case "system-view":
+		return SuMethodSystemView
+	case "sudo", "su":
+		return SuMethodSu
+	}
+	return SuMethodSu
+}
+
+type SuConfig struct {
+	MethodType   SUMethodType
+	SudoUsername string
+	SudoPassword string
+}
+
+func (s SuConfig) SuCommand() string {
+	switch s.MethodType {
+	case SuMethodEnable:
+		return SuCommandEnable
+	//case SuMethodSystemView:
+	//	return SuCommandSystemView
+	default:
+
+	}
+	return fmt.Sprintf(LinuxSuCommand, s.SudoUsername)
+}
+
+func (s SuConfig) SuUsername() string {
+	return s.SudoUsername
+}
+
+func (s SuConfig) SuPassword() string {
+	return s.SudoPassword
+}
+
+func (s SuConfig) PasswordMatchPattern() string {
+	return passwordMatchPattern
+}
+
+func (s SuConfig) SuccessPattern() string {
+	switch s.MethodType {
+	case SuMethodEnable:
+		return createCiscoSuccessPattern(s.SudoUsername)
+	default:
+
+	}
+	return createLinuxSuccessPattern(s.SudoUsername)
+}
