@@ -56,7 +56,7 @@ func NewSSHConnection(sess *gossh.Session, opts ...SSHOption) (*SSHConnection, e
 		stdout:  stdout,
 		options: options,
 	}
-	if options.suUserConfig == nil {
+	if options.suConfig == nil {
 		err = sess.Shell()
 	} else {
 		err = LoginToSSHSu(conn)
@@ -103,7 +103,7 @@ type SSHOptions struct {
 	win     Windows
 	term    string
 
-	suUserConfig *SuConfig
+	suConfig *SuConfig
 }
 
 func SSHCharset(charset string) SSHOption {
@@ -126,6 +126,6 @@ func SSHTerm(termType string) SSHOption {
 
 func SSHSudoConfig(cfg *SuConfig) SSHOption {
 	return func(opt *SSHOptions) {
-		opt.suUserConfig = cfg
+		opt.suConfig = cfg
 	}
 }
