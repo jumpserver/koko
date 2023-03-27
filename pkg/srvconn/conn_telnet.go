@@ -80,11 +80,11 @@ func NewTelnetConnection(opts ...TelnetOption) (*TelnetConnection, error) {
 		transformReader: transformReader,
 		transformWriter: transformWriter,
 	}
-	if cfg.suUserCfg != nil {
+	if cfg.suCfg != nil {
 		if err = LoginToTelnetSu(tCon); err != nil {
 			_ = tCon.Close()
 			logger.Errorf("Telnet Login to su user %s failed: %s",
-				cfg.suUserCfg.SuUsername(), err)
+				cfg.suCfg.SudoUsername, err)
 			return nil, err
 		}
 	}
@@ -174,7 +174,7 @@ type TelnetConfig struct {
 	Term     string
 	Charset  string
 
-	suUserCfg *SuConfig
+	suCfg *SuConfig
 
 	Timeout time.Duration
 
@@ -241,6 +241,6 @@ func TelnetCustomSuccessPattern(successPattern *regexp.Regexp) TelnetOption {
 
 func TelnetSuConfig(cfg *SuConfig) TelnetOption {
 	return func(opt *TelnetConfig) {
-		opt.suUserCfg = cfg
+		opt.suCfg = cfg
 	}
 }
