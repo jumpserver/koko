@@ -96,6 +96,8 @@ var switchPasswordFailures = []string{
 	"wrong\\s*passwords",
 	"bad\\s*secrets",
 	"access\\s*denied",
+	"authentication\\s*failure",
+	"invalid\\s*password",
 }
 
 func createFailedPattern() string {
