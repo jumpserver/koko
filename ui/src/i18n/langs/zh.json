@@ -32,7 +32,14 @@
     "ThemeColors": "主题颜色",
     "ExceedTransferSize": "超过最大传输大小",
     "WaitFileTransfer": "等待文件传输结束",
-    "EndFileTransfer": "文件传输结束"
+    "EndFileTransfer": "文件传输结束",
+    "ReadOnly": "只读",
+    "Writable" : "读写",
+    "ActionPerm": "操作权限",
+    "Self": "我",
+    "RemoveShareUser": "你已经被移除共享会话",
+    "JoinShare": "加入共享",
+    "LeaveShare": "离开共享"
   },
   "Message": {
     "InputVerifyCode": "请输入验证码"

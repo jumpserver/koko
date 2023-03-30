@@ -171,10 +171,12 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		User:       user.String(),
 		Created:    common.NewNowUTCTime().String(),
 		RemoteAddr: userConn.RemoteAddr(),
+		TerminalId: userConn.ID(),
+		Primary:    true,
+		Writable:   true,
 	}
 	room.Broadcast(&exchange.RoomMessage{
 		Event: exchange.ShareJoin,
-		Body:  nil,
 		Meta:  meta,
 	})
 	if parser.zmodemParser != nil {

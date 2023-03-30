@@ -104,9 +104,9 @@ func (r *Room) run() {
 			delete(connMaps, con.Id)
 			logger.Debugf("Room %s current connections count: %d", r.Id, len(connMaps))
 		case msg := <-r.broadcastChan:
-			userConns := make([]*Conn, 0, len(connMaps))
+			userCones := make([]*Conn, 0, len(connMaps))
 			for k := range connMaps {
-				userConns = append(userConns, connMaps[k])
+				userCones = append(userCones, connMaps[k])
 			}
 			switch msg.Event {
 			case DataEvent:
@@ -128,7 +128,7 @@ func (r *Room) run() {
 					ZMODEMStatus = false
 				}
 			}
-			r.broadcastMessage(userConns, msg)
+			r.broadcastMessage(userCones, msg)
 
 		case <-r.exitSignal:
 			for k := range connMaps {

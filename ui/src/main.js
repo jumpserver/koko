@@ -11,6 +11,23 @@ import 'element-ui/lib/theme-chalk/display.css';
 import contextmenu from "v-contextmenu";
 import "v-contextmenu/dist/index.css";
 import VueCookies from 'vue-cookies'
+
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import {
+  faUser, faRightFromBracket,
+  faKeyboard,faTrashCan, faFilePen,faFile,
+    faFileCircleMinus,faEye
+} from '@fortawesome/free-solid-svg-icons'
+
+library.add(
+    faUser, faRightFromBracket,
+    faKeyboard,faTrashCan, faFilePen,faFile,
+    faFileCircleMinus,
+    faEye,
+)
+Vue.component('font-awesome-icon', FontAwesomeIcon)
+
 Vue.use(VueCookies);
 Vue.config.productionTip = false
 Vue.use(VueRouter)

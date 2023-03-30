@@ -24,9 +24,9 @@
         :modal="false"
         center>
       <div v-if="!shareId">
-          <el-form v-loading="loading">
+          <el-form v-loading="loading" :model="shareLinkRequest">
             <el-form-item :label="this.$t('Terminal.ExpiredTime')">
-              <el-select v-model="expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
+              <el-select v-model="shareLinkRequest.expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
                 <el-option
                     v-for="item in expiredOptions"
                     :key="item.value"
@@ -35,9 +35,19 @@
                 </el-option>
               </el-select>
             </el-form-item>
+            <el-form-item :label="this.$t('Terminal.ActionPerm')">
+              <el-select v-model="shareLinkRequest.actionPerm" :placeholder="this.$t('Terminal.ActionPerm')">
+                <el-option
+                    v-for="item in actionsPermOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value">
+                </el-option>
+              </el-select>
+            </el-form-item>
             <el-form-item :label="this.$t('Terminal.ShareUser')">
-                <el-select v-model="users" multiple filterable remote reserve-keyword :placeholder="this.$t('Terminal.GetShareUser')"
-                    :remote-method="getSessionUser" :loading="userLoading">
+                <el-select v-model="shareLinkRequest.users" multiple filterable remote reserve-keyword :placeholder="this.$t('Terminal.GetShareUser')"
+                           :remote-method="getSessionUser" :loading="userLoading">
                     <el-option
                       v-for="item in userOptions"
                       :key="item.id"
@@ -93,7 +103,11 @@ export default {
       dialogVisible: false,
       themeBackground: "#1f1b1b",
       shareDialogVisible: false,
-      expiredTime: 10,
+      shareLinkRequest: {
+        expiredTime: 10,
+        actionPerm: 1,
+        users: []
+      },
       expiredOptions: [
         {label: "1m", value: 1},
         {label: "5m", value: 5},
@@ -101,15 +115,17 @@ export default {
         {label: "20m", value: 20},
         {label: "60m", value: 60},
       ],
+      actionsPermOptions: [
+        {label: this.$t('Terminal.Writable'), value: 1},
+        {label: this.$t('Terminal.ReadOnly'), value: 0},
+      ],
       shareId: null,
       loading: false,
       userLoading: false,
       shareCode: null,
       shareInfo: null,
       onlineUsersMap: {},
-      onlineKeys: [],
       userOptions: [],
-      users: []
     }
   },
   computed: {
@@ -147,9 +163,38 @@ export default {
           disabled: () => Object.keys(this.onlineUsersMap).length < 1,
           content: Object.values(this.onlineUsersMap).map(item => {
             item.name = item.user
+            item.faIcon = item.writable?'fa-solid fa-keyboard':'fa-solid fa-eye'
+            item.iconTip = item.writable?this.$t('Terminal.Writable'):this.$t('Terminal.ReadOnly')
             return item
-          }),
-          itemClick: () => {}
+          }).sort((a, b) => new Date(a.created) - new Date(b.created)),
+          itemClick: () => {},
+          itemActions: [
+            {
+              faIcon:'fa-solid fa-trash-can',
+              tipText: this.$t('Terminal.Remove'),
+              style: {
+                color: "#f56c6c"
+              },
+              hidden: (user) => {
+                this.$log.debug("Remove user hidden: ", user)
+                return user.primary
+              },
+              click: (user) => {
+                if (user.primary) {
+                  return
+                }
+                this.$confirm(`确认 remove ${user.name} ?`)
+                    .then( () => {
+                      if (this.$refs.term) {
+                        this.$refs.term.removeShareUser(this.sessionId, user)
+                      }
+                    })
+                    .catch(() => {
+                      this.$log.debug("not Remove user", user)
+                    });
+              }
+            }
+          ],
         }
       ]
       return settings
@@ -222,17 +267,23 @@ export default {
         }
         case "TERMINAL_SHARE_JOIN": {
           const data = JSON.parse(msg.data);
-          const key = data.user_id + data.created;
+          const key = data.terminal_id
           this.$set(this.onlineUsersMap, key, data);
           this.$log.debug(this.onlineUsersMap);
-          this.updateOnlineCount();
+          if (data.primary) {
+            this.$log.debug("primary user 不提醒")
+            break
+          }
+          const joinMsg = `${data.user} ${this.$t('Terminal.JoinShare')}`
+          this.$message(joinMsg)
           break
         }
         case 'TERMINAL_SHARE_LEAVE': {
           const data = JSON.parse(msg.data);
-          const key = data.user_id + data.created;
+          const key = data.terminal_id;
           this.$delete(this.onlineUsersMap, key);
-          this.updateOnlineCount();
+          const leaveMsg = `${data.user} ${this.$t('Terminal.LeaveShare')}`
+          this.$message(leaveMsg)
           break
         }
         case 'TERMINAL_GET_SHARE_USER': {
@@ -258,21 +309,18 @@ export default {
     handleShareURlCreated() {
       this.loading = true
       if (this.$refs.term) {
-        this.$refs.term.createShareInfo(this.sessionId, this.expiredTime, this.users);
+        const req = this.shareLinkRequest;
+        this.$refs.term.createShareInfo(
+            this.sessionId, req.expiredTime,
+            req.users, req.actionPerm);
       }
-      this.$log.debug("分享请求数据： ", this.expiredTime, this.sessionId, this.users)
-
+      this.$log.debug("分享请求数据： ", this.sessionId,this.shareLinkRequest)
     },
     shareDialogClosed() {
       this.$log.debug("share dialog closed")
       this.loading = false;
       this.shareId = null;
       this.shareCode = null;
-    },
-    updateOnlineCount() {
-      const keys = Object.keys(this.onlineUsersMap);
-      this.$log.debug(keys);
-      this.onlineKeys = keys;
     },
     getSessionUser(query) {
       if (query !== '' && this.$refs.term) {
@@ -288,7 +336,6 @@ export default {
           Object.keys(this.onlineUsersMap).filter(key => {
             this.$delete(this.onlineUsersMap, key);
           })
-          this.updateOnlineCount();
           this.$log.debug("reconnect: ",data);
           break
       }
