@@ -9,7 +9,6 @@ import (
 	"github.com/gliderlabs/ssh"
 
 	"github.com/jumpserver/koko/pkg/exchange"
-
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -44,7 +43,7 @@ func (c *Client) Read(p []byte) (n int, err error) {
 func (c *Client) Write(p []byte) (n int, err error) {
 	msg := Message{
 		Id:   c.Conn.Uuid,
-		Type: TERMINALBINARY,
+		Type: TerminalBinary,
 		Raw:  p,
 	}
 	c.Conn.SendMessage(&msg)
@@ -94,21 +93,30 @@ func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
 	)
 	switch event {
 	case exchange.ShareJoin:
-		msgType = TERMINALSHAREJOIN
+		msgType = TerminalShareJoin
 		data, _ := json.Marshal(roomMsg.Meta)
 		msgData = string(data)
 	case exchange.ShareLeave:
-		msgType = TERMINALSHARELEAVE
+		msgType = TerminalShareLeave
 		data, _ := json.Marshal(roomMsg.Meta)
 		msgData = string(data)
 	case exchange.ShareUsers:
-		msgType = TERMINALSHAREUSERS
+		msgType = TerminalShareUsers
 		msgData = string(roomMsg.Body)
 	case exchange.WindowsEvent:
-		msgType = TERMINALRESIZE
+		msgType = TerminalResize
 		msgData = string(roomMsg.Body)
 	case exchange.ActionEvent:
-		msgType = TERMINALACTION
+		msgType = TerminalAction
+		msgData = string(roomMsg.Body)
+	case exchange.ShareRemoveUser:
+		msgType = TerminalShareUserRemove
+		meta := roomMsg.Meta
+		if meta.TerminalId != c.Conn.Uuid {
+			logger.Debugf("Remove share user Ignore not self: %+v", meta.User)
+			return
+		}
+		logger.Infof("Remove share user self: %+v", meta.User)
 		msgData = string(roomMsg.Body)
 	default:
 		logger.Infof("unsupported room msg %+v", roomMsg)

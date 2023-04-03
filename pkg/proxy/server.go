@@ -18,6 +18,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -153,6 +154,8 @@ type Server struct {
 	keyboardMode int32
 
 	OnSessionInfo func(info *SessionInfo)
+
+	BroadcastEvent func(event *exchange.RoomMessage)
 }
 
 type SessionInfo struct {

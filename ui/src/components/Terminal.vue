@@ -390,8 +390,15 @@ export default {
           break
         }
         case 'TERMINAL_ERROR': {
-          const errMsg = msg.data;
-          this.$message(errMsg);
+          const errMsg = msg.err;
+          this.$message.error(errMsg);
+          this.term.writeln(errMsg);
+          break
+        }
+        case 'ERROR': {
+          const errMsg = msg.err;
+          this.$message.error(errMsg);
+          this.term.writeln(errMsg);
           break
         }
         default:
@@ -586,8 +593,18 @@ export default {
       this.$log.debug("删除dialog的文件")
     },
 
-    createShareInfo(sid, val, users) {
-      this.sendWsMessage('TERMINAL_SHARE', {session_id: sid, expired: val, users: users})
+    createShareInfo(sid, expired, users, action_permission) {
+      const data = {
+        session: sid,
+        expired_time: expired,
+        users: users,
+        action_permission: action_permission
+      }
+      this.sendWsMessage('TERMINAL_SHARE', data)
+    },
+
+    removeShareUser(sessionId, userMeta) {
+      this.sendWsMessage('TERMINAL_SHARE_USER_REMOVE', {session:sessionId, user_meta:userMeta})
     },
 
     getUserInfo(val) {

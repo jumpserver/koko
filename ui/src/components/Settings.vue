@@ -17,17 +17,27 @@
           {{ i.title }}
           {{ i.content && Object.keys(i.content).length > 0 ? Object.keys(i.content).length : null }}
         </el-button>
-        <div v-if="i.content" class="content">
-          <el-button
-              v-for="(item, key) of i.content"
+        <div v-if="i.content" class="content" >
+          <div v-for="(item, key) of i.content"
               :key="key"
-              class="content-item"
-              type="text"
-              :disabled="i.disabled()"
-              @click="i.itemClick && i.itemClick(item.keys)"
+               style="padding-bottom: 2px;"
           >
-            {{ item.name }}
-          </el-button>
+            <el-tooltip class="item" effect="dark" :content="item.iconTip" placement="top-start" >
+            <font-awesome-icon :icon="item.faIcon" />
+          </el-tooltip>
+            <span style="padding-left: 5px;">{{ item.name }}</span>
+            <span
+                v-for="(action, index) of i.itemActions"
+                :key="index"
+                v-show="!action.hidden(item)"
+                @click.stop="action.click(item)"
+                style="float: right"
+            >
+              <el-tooltip class="item" effect="dark" :content="action.tipText" placement="top-start">
+              <font-awesome-icon :icon="action.faIcon" :style="action.style" />
+            </el-tooltip>
+            </span>
+          </div>
         </div>
       </li>
     </ul>

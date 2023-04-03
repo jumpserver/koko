@@ -32,7 +32,16 @@
     "ThemeColors": "テーマカラー",
     "ExceedTransferSize": "最大転送サイズを超えています",
     "WaitFileTransfer": "ファイル転送終了待ち",
-    "EndFileTransfer": "ファイル転送終了"
+    "EndFileTransfer": "ファイル転送終了",
+    "ReadOnly": "読み取り専用",
+    "Writable" : "書き込み可能",
+    "ActionPerm": "アクション権限",
+    "Self": "自分",
+    "RemoveShareUser": "あなたはすでに共有セッションから削除されました」という意味です",
+    "JoinShare": "共有セッションに参加",
+    "LeaveShare": "共有セッションから退出",
+    "Remove": "削除",
+    "RemoveShareUserConfirm": "共有セッションから削除してもよろしいですか？"
   },
   "Message": {
     "InputVerifyCode": "認証コードを入力してください"

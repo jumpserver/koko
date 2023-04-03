@@ -52,7 +52,7 @@ export default {
       code: '',
       codeDialog: true,
       onlineUsersMap: {},
-      onlineKeys: [],
+      terminalId: '',
     }
   },
   computed: {
@@ -67,9 +67,6 @@ export default {
         background: this.themeBackground
       }
     },
-    displayOnlineUser() {
-      return this.onlineKeys.length > 1;
-    },
     settings() {
       const settings = [
         {
@@ -83,9 +80,11 @@ export default {
           icon: 'el-icon-s-custom',
           disabled: () => Object.keys(this.onlineUsersMap).length > 1,
           content: Object.values(this.onlineUsersMap).map(item => {
-            item.name = item.user
+            item.name = (this.terminalId !== item.terminal_id)?item.user:item.user + ' ['+ this.$t('Terminal.Self')+']'
+            item.faIcon = item.writable?'fa-solid fa-keyboard':'fa-solid fa-eye'
+            item.iconTip = item.writable?this.$t('Terminal.Writable'):this.$t('Terminal.ReadOnly')
             return item
-          }),
+          }).sort((a, b) => new Date(a.created) - new Date(b.created)),
           itemClick: () => {}
         }
       ]
@@ -107,23 +106,28 @@ export default {
       switch (msgType) {
         case "TERMINAL_SHARE_JOIN": {
           const data = JSON.parse(msg.data);
-          const key = data.user_id + data.created;
+          const key = data.terminal_id
           this.$set(this.onlineUsersMap, key, data);
           this.$log.debug(this.onlineUsersMap);
-          this.updateOnlineCount();
+          if (this.terminalId === key) {
+            this.$log.debug("self join")
+            break
+          }
+          const joinMsg = `${data.user} ${this.$t('Terminal.JoinShare')}`
+          this.$message(joinMsg)
           break
         }
         case 'TERMINAL_SHARE_LEAVE': {
           const data = JSON.parse(msg.data);
-          const key = data.user_id + data.created;
+          const key = data.terminal_id;
           this.$delete(this.onlineUsersMap, key);
-          this.updateOnlineCount();
+          const leaveMsg = `${data.user} ${this.$t('Terminal.LeaveShare')}`
+          this.$message(leaveMsg)
           break
         }
         case 'TERMINAL_SHARE_USERS': {
           const data = JSON.parse(msg.data);
           this.onlineUsersMap = data;
-          this.updateOnlineCount();
           this.$log.debug(data);
           break
         }
@@ -132,7 +136,15 @@ export default {
           this.resize(data);
           break
         }
+        case 'TERMINAL_SHARE_USER_REMOVE': {
+          const data = JSON.parse(msg.data);
+          this.$log.debug(data);
+          this.$message(this.$t('Terminal.RemoveShareUser'))
+          this.$refs.term.ws.close();
+          break
+        }
         case 'TERMINAL_SESSION': {
+          this.terminalId = msg.id;
           const sessionInfo = JSON.parse(msg.data);
           const sessionDetail = sessionInfo.session;
           const user = this.$refs.term.currentUser;
@@ -173,11 +185,6 @@ export default {
         this.themeBackground = themeColors.background;
       }
       this.$log.debug(val);
-    },
-    updateOnlineCount() {
-      const keys = Object.keys(this.onlineUsersMap);
-      this.$log.debug(keys);
-      this.onlineKeys = keys;
     }
   },
 
