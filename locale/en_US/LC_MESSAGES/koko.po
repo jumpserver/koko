@@ -142,77 +142,77 @@ msgid "%s node has no assets"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:29
+#: pkg/handler/banner.go:28
 msgid "Welcome to use JumpServer open source fortress system"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:31
+#: pkg/handler/banner.go:30
 msgid "part IP, Hostname, Comment"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:31
+#: pkg/handler/banner.go:30
 msgid "to search login if unique"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:32
+#: pkg/handler/banner.go:31
 msgid "/ + IP, Hostname, Comment"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:32
+#: pkg/handler/banner.go:31
 msgid "to search, such as: /192.168"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:33
+#: pkg/handler/banner.go:32
 msgid "display the assets you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:34
+#: pkg/handler/banner.go:33
 msgid "display the node that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:35
+#: pkg/handler/banner.go:34
 msgid "display the hosts that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:36
+#: pkg/handler/banner.go:35
 msgid "display the databases that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:37
+#: pkg/handler/banner.go:36
 msgid "display the kubernetes that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:38
+#: pkg/handler/banner.go:37
 msgid "refresh your assets and nodes"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:39
+#: pkg/handler/banner.go:38
 msgid "Chinese-English-Japanese switch"
 msgstr "中文-English-日本語 switch"
 
 #. lang.T
-#: pkg/handler/banner.go:40
+#: pkg/handler/banner.go:39
 msgid "print help"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:41
+#: pkg/handler/banner.go:40
 msgid "exit"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:59
+#: pkg/handler/banner.go:58
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
@@ -423,7 +423,7 @@ msgid ""
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:450
+#: pkg/proxy/parser.go:452
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -433,28 +433,28 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:451 pkg/proxy/parser.go:452 pkg/proxy/server.go:54
-#: pkg/proxy/server.go:58 pkg/proxy/server.go:66
+#: pkg/proxy/parser.go:453 pkg/proxy/parser.go:454 pkg/proxy/server.go:55
+#: pkg/proxy/server.go:59 pkg/proxy/server.go:67
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:100
+#: pkg/proxy/server.go:97
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:350
+#: pkg/proxy/server.go:349
 msgid "You get auth token failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:358
+#: pkg/proxy/server.go:357
 msgid "Get auth username failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:363
+#: pkg/proxy/server.go:362
 msgid "Get auth password failed"
 msgstr ""
 
@@ -462,55 +462,66 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:369 pkg/proxy/server.go:375 pkg/proxy/server.go:390
-#: pkg/proxy/server.go:447
+#: pkg/proxy/server.go:368 pkg/proxy/server.go:374 pkg/proxy/server.go:389
+#: pkg/proxy/server.go:446
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:783
+#: pkg/proxy/server.go:793
 msgid "Switched to %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:968
+#. lang.T
+#: pkg/proxy/server.go:867 pkg/proxy/server.go:1009
 msgid "Connect with api server failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1000
+#: pkg/proxy/server.go:1041
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1008 pkg/proxy/server_options.go:105
-msgid "Connecting to %s@%s"
+#: pkg/proxy/server.go:1049 pkg/proxy/server_options.go:107
+msgid "Manual"
 msgstr ""
 
 #. lang.T
 #: pkg/proxy/server_options.go:109
+msgid "Dynamic"
+msgstr ""
+
+#. lang.T
+#: pkg/proxy/server_options.go:112
+msgid "Connecting to %s@%s"
+msgstr ""
+
+#. lang.T
+#: pkg/proxy/server_options.go:116
 msgid "Connecting to Database %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:111
+#: pkg/proxy/server_options.go:118
 msgid "Connecting to Kubernetes %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:113
+#: pkg/proxy/server_options.go:120
 msgid "Connecting to Kubernetes %s container %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:234 pkg/proxy/switch.go:242
+#: pkg/proxy/switch.go:236 pkg/proxy/switch.go:244
 msgid "Permission has expired, disconnect"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/switch.go:253
+#: pkg/proxy/switch.go:255
 msgid "Terminated by admin %s"
 msgstr ""
 

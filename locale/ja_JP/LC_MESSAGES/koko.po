@@ -150,79 +150,79 @@ msgid "%s node has no assets"
 msgstr "%sノードに資産がありません"
 
 #. lang.T
-#: pkg/handler/banner.go:29
+#: pkg/handler/banner.go:28
 msgid "Welcome to use JumpServer open source fortress system"
 msgstr "JumpServerオープンソース要塞システムを使用することを歓迎します"
 
 #. lang.T
-#: pkg/handler/banner.go:31
+#: pkg/handler/banner.go:30
 msgid "part IP, Hostname, Comment"
 msgstr "パートIP,ホスト名,コメント"
 
 #. lang.T
-#: pkg/handler/banner.go:31
+#: pkg/handler/banner.go:30
 msgid "to search login if unique"
 msgstr "検索ログイン(一意の場合)"
 
 #. lang.T
-#: pkg/handler/banner.go:32
+#: pkg/handler/banner.go:31
 msgid "/ + IP, Hostname, Comment"
 msgstr "/ + IP、ホスト名、コメント"
 
 #. lang.T
-#: pkg/handler/banner.go:32
+#: pkg/handler/banner.go:31
 msgid "to search, such as: /192.168"
 msgstr "検索, のように /192.168"
 
 #. lang.T
-#: pkg/handler/banner.go:33
+#: pkg/handler/banner.go:32
 #, fuzzy
 msgid "display the assets you have permission"
 msgstr "権限を持っているホストを表示する"
 
 #. lang.T
-#: pkg/handler/banner.go:34
+#: pkg/handler/banner.go:33
 msgid "display the node that you have permission"
 msgstr "権限を持つノードを表示する"
 
 #. lang.T
-#: pkg/handler/banner.go:35
+#: pkg/handler/banner.go:34
 #, fuzzy
 msgid "display the hosts that you have permission"
 msgstr "権限を持つデータベースを表示します"
 
 #. lang.T
-#: pkg/handler/banner.go:36
+#: pkg/handler/banner.go:35
 msgid "display the databases that you have permission"
 msgstr "権限を持つデータベースを表示する"
 
 #. lang.T
-#: pkg/handler/banner.go:37
+#: pkg/handler/banner.go:36
 msgid "display the kubernetes that you have permission"
 msgstr "権限を持つkubernetesを表示する"
 
 #. lang.T
-#: pkg/handler/banner.go:38
+#: pkg/handler/banner.go:37
 msgid "refresh your assets and nodes"
 msgstr "アセットとノードを更新する"
 
 #. lang.T
-#: pkg/handler/banner.go:39
+#: pkg/handler/banner.go:38
 msgid "Chinese-English-Japanese switch"
 msgstr "中文-English-日本語の切り替え"
 
 #. lang.T
-#: pkg/handler/banner.go:40
+#: pkg/handler/banner.go:39
 msgid "print help"
 msgstr "印刷ヘルプ"
 
 #. lang.T
-#: pkg/handler/banner.go:41
+#: pkg/handler/banner.go:40
 msgid "exit"
 msgstr "終了"
 
 #. lang.T
-#: pkg/handler/banner.go:59
+#: pkg/handler/banner.go:58
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 入力 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
 
@@ -438,7 +438,7 @@ msgstr ""
 "してください。"
 
 #. lang.T
-#: pkg/proxy/parser.go:450
+#: pkg/proxy/parser.go:452
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -450,29 +450,29 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:451 pkg/proxy/parser.go:452 pkg/proxy/server.go:54
-#: pkg/proxy/server.go:58 pkg/proxy/server.go:66
+#: pkg/proxy/parser.go:453 pkg/proxy/parser.go:454 pkg/proxy/server.go:55
+#: pkg/proxy/server.go:59 pkg/proxy/server.go:67
 #, fuzzy
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "システムユーザ <%s> と資産 <%s> のプロトコルが一致しない"
 
 #. lang.T
-#: pkg/proxy/server.go:100
+#: pkg/proxy/server.go:97
 msgid "You don't have permission login %s"
 msgstr "ログイン権限がありません %s"
 
 #. lang.T
-#: pkg/proxy/server.go:350
+#: pkg/proxy/server.go:349
 msgid "You get auth token failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:358
+#: pkg/proxy/server.go:357
 msgid "Get auth username failed"
 msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:363
+#: pkg/proxy/server.go:362
 msgid "Get auth password failed"
 msgstr "認証トークンの取得に失敗しました"
 
@@ -480,55 +480,68 @@ msgstr "認証トークンの取得に失敗しました"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:369 pkg/proxy/server.go:375 pkg/proxy/server.go:390
-#: pkg/proxy/server.go:447
+#: pkg/proxy/server.go:368 pkg/proxy/server.go:374 pkg/proxy/server.go:389
+#: pkg/proxy/server.go:446
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "SSH接続の再利用 (%s@%s) [接続数: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:783
+#: pkg/proxy/server.go:793
 msgid "Switched to %s"
 msgstr "%s に切り替え"
 
 #. lang.T
-#: pkg/proxy/server.go:968
+#. lang.T
+#: pkg/proxy/server.go:867 pkg/proxy/server.go:1009
 msgid "Connect with api server failed"
 msgstr "APIサーバーとの接続に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:1000
+#: pkg/proxy/server.go:1041
 msgid "Start domain gateway failed %s"
 msgstr "ドメインゲートウェイの開始に失敗した %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1008 pkg/proxy/server_options.go:105
+#: pkg/proxy/server.go:1049 pkg/proxy/server_options.go:107
+#, fuzzy
+msgid "Manual"
+msgstr "マニュアル"
+
+#. lang.T
+#: pkg/proxy/server_options.go:109
+#, fuzzy
+msgid "Dynamic"
+msgstr "ダイナミック"
+
+#. lang.T
+#: pkg/proxy/server_options.go:112
 msgid "Connecting to %s@%s"
 msgstr "接続開始 %s@%s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:109
+#: pkg/proxy/server_options.go:116
 msgid "Connecting to Database %s"
 msgstr "データベース接続の開始 %s"
 
 #. lang.T
-#: pkg/proxy/server_options.go:111
+#: pkg/proxy/server_options.go:118
 msgid "Connecting to Kubernetes %s"
 msgstr "Kubernetes %s への接続"
 
 #. lang.T
-#: pkg/proxy/server_options.go:113
+#: pkg/proxy/server_options.go:120
 msgid "Connecting to Kubernetes %s container %s"
 msgstr "Kubernetes %s コンテナー %s への接続"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:234 pkg/proxy/switch.go:242
+#: pkg/proxy/switch.go:236 pkg/proxy/switch.go:244
 msgid "Permission has expired, disconnect"
 msgstr "権限の有効期限が切れました。"
 
 #. lang.T
-#: pkg/proxy/switch.go:253
+#: pkg/proxy/switch.go:255
 msgid "Terminated by admin %s"
 msgstr "%s管理者が接続を終了"
 

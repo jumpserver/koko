@@ -101,10 +101,12 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	switch protocol {
 	case srvconn.ProtocolTELNET,
 		srvconn.ProtocolSSH:
-		accountName := account.Name
-		switch accountName {
-		case model.InputUser, model.DynamicUser:
-			accountName = account.Username
+		accountName := account.String()
+		switch account.Name {
+		case model.InputUser:
+			accountName = fmt.Sprintf("%s(%s)", lang.T("Manual"), account.Username)
+		case model.DynamicUser:
+			accountName = fmt.Sprintf("%s(%s)", lang.T("Dynamic"), account.Username)
 		default:
 		}
 		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), accountName, asset.Address)
