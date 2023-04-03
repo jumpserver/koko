@@ -105,7 +105,7 @@ export default {
       shareDialogVisible: false,
       shareLinkRequest: {
         expiredTime: 10,
-        actionPerm: 1,
+        actionPerm: 'writable',
         users: []
       },
       expiredOptions: [
@@ -116,8 +116,8 @@ export default {
         {label: "60m", value: 60},
       ],
       actionsPermOptions: [
-        {label: this.$t('Terminal.Writable'), value: 1},
-        {label: this.$t('Terminal.ReadOnly'), value: 0},
+        {label: this.$t('Terminal.Writable'), value: "writable"},
+        {label: this.$t('Terminal.ReadOnly'), value: "readonly"},
       ],
       shareId: null,
       loading: false,
@@ -183,7 +183,7 @@ export default {
                 if (user.primary) {
                   return
                 }
-                this.$confirm(`确认 remove ${user.name} ?`)
+                this.$confirm(this.$t('Terminal.RemoveShareUserConfirm'))
                     .then( () => {
                       if (this.$refs.term) {
                         this.$refs.term.removeShareUser(this.sessionId, user)

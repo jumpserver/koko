@@ -39,7 +39,9 @@
     "Self": "我",
     "RemoveShareUser": "你已经被移除共享会话",
     "JoinShare": "加入共享",
-    "LeaveShare": "离开共享"
+    "LeaveShare": "离开共享",
+    "Remove": "移除",
+    "RemoveShareUserConfirm": "确定要移除该用户吗？"
   },
   "Message": {
     "InputVerifyCode": "请输入验证码"

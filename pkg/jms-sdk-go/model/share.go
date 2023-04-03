@@ -6,7 +6,7 @@ type SharingSession struct {
 	ExpiredTime int    `json:"expired_time"`
 	Code        string `json:"verify_code"`
 
-	ActionPermission int `json:"action_permission"`
+	ActionPermission string `json:"action_permission"`
 }
 
 type ShareRecord struct {
@@ -17,17 +17,14 @@ type ShareRecord struct {
 	OrgId   string   `json:"org_id"`
 	OrgName string   `json:"org_name"`
 
-	ActionPermission struct {
-		Label string `json:"label"`
-		Value int    `json:"value"`
-	} `json:"action_permission"`
+	ActionPermission LabelValue `json:"action_permission"`
 
 	Err interface{} `json:"error"`
 }
 
 const (
-	readOnlyPermission  = 0
-	writeablePermission = 1
+	readOnlyPermission  = "readonly"
+	writeablePermission = "writeable"
 )
 
 func (s ShareRecord) Writeable() bool {
@@ -42,7 +39,7 @@ type SharingSessionRequest struct {
 	SessionID  string   `json:"session"`
 	ExpireTime int      `json:"expired_time"`
 	Users      []string `json:"users"`
-	ActionPerm int      `json:"action_permission"`
+	ActionPerm string   `json:"action_permission"`
 }
 
 type SharePostData struct {

@@ -39,7 +39,9 @@
     "Self": "自分",
     "RemoveShareUser": "あなたはすでに共有セッションから削除されました」という意味です",
     "JoinShare": "共有セッションに参加",
-    "LeaveShare": "共有セッションから退出"
+    "LeaveShare": "共有セッションから退出",
+    "Remove": "削除",
+    "RemoveShareUserConfirm": "共有セッションから削除してもよろしいですか？"
   },
   "Message": {
     "InputVerifyCode": "認証コードを入力してください"
