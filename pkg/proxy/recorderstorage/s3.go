@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
@@ -12,11 +13,12 @@ import (
 )
 
 type S3ReplayStorage struct {
-	Bucket    string
-	Region    string
-	AccessKey string
-	SecretKey string
-	Endpoint  string
+	Bucket        string
+	Region        string
+	AccessKey     string
+	SecretKey     string
+	Endpoint      string
+	WithoutSecret bool
 }
 
 func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
@@ -27,8 +29,15 @@ func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 		return err
 	}
 	defer file.Close()
+
+	var cred *credentials.Credentials
+	if s.WithoutSecret {
+		cred = ec2rolecreds.NewCredentials(session.Must(session.NewSession()))
+	} else {
+		cred = credentials.NewStaticCredentials(s.AccessKey, s.SecretKey, "")
+	}
 	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials(s.AccessKey, s.SecretKey, ""),
+		Credentials:      cred,
 		Endpoint:         aws.String(s.Endpoint),
 		Region:           aws.String(s.Region),
 		S3ForcePathStyle: aws.Bool(true),

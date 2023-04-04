@@ -54,10 +54,10 @@ type ReplayConfig struct {
 	SecretKey string `json:"SECRET_KEY,omitempty"`
 
 	/*
-		s3、 swift cos
+		s3 swift cos
 	*/
-
-	Region string `json:"REGION,omitempty"`
+	Region        string `json:"REGION,omitempty"`
+	WithoutSecret bool   `json:"WITHOUT_SECRET,omitempty"`
 
 	/*
 		azure 专属

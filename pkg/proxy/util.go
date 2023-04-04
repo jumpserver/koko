@@ -66,11 +66,12 @@ func NewReplayStorage(jmsService *service.JMService, conf *model.TerminalConfig)
 		}
 	case "s3", "swift", "cos":
 		var (
-			region    string
-			endpoint  string
-			bucket    string
-			accessKey string
-			secretKey string
+			region        string
+			endpoint      string
+			bucket        string
+			accessKey     string
+			secretKey     string
+			withoutSecret bool
 		)
 
 		bucket = cfg.Bucket
@@ -78,6 +79,7 @@ func NewReplayStorage(jmsService *service.JMService, conf *model.TerminalConfig)
 		region = cfg.Region
 		accessKey = cfg.AccessKey
 		secretKey = cfg.SecretKey
+		withoutSecret = cfg.WithoutSecret
 
 		if region == "" && endpoint != "" {
 			endpointArray := strings.Split(endpoint, ".")
@@ -89,11 +91,12 @@ func NewReplayStorage(jmsService *service.JMService, conf *model.TerminalConfig)
 			bucket = "jumpserver"
 		}
 		return storage.S3ReplayStorage{
-			Bucket:    bucket,
-			Region:    region,
-			AccessKey: accessKey,
-			SecretKey: secretKey,
-			Endpoint:  endpoint,
+			Bucket:        bucket,
+			Region:        region,
+			AccessKey:     accessKey,
+			SecretKey:     secretKey,
+			Endpoint:      endpoint,
+			WithoutSecret: withoutSecret,
 		}
 	case "obs":
 		var (
