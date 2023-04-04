@@ -46,6 +46,9 @@ type UserSelectHandler struct {
 	currentResult []model.Asset
 
 	*pageInfo
+
+	selectedAsset   *model.Asset
+	selectedAccount *model.PermAccount
 }
 
 func (u *UserSelectHandler) SetSelectType(s selectType) {

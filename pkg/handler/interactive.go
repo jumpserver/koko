@@ -221,9 +221,10 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
+	userHandler := h.selectHandler
 
 	h.term.SetPrompt("ID> ")
-	selectTip := lang.T("Tips: Enter system user ID and directly login")
+	selectTip := fmt.Sprintf(lang.T("Tips: Enter asset[%s] account ID"), userHandler.selectedAsset.String())
 	backTip := lang.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(h.term, table.Display())

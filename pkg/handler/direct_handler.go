@@ -146,6 +146,9 @@ type DirectHandler struct {
 	jmsService  *service.JMService
 
 	i18nLang string
+
+	selectAsset   *model.Asset
+	selectAccount *model.PermAccount
 }
 
 func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
@@ -275,7 +278,7 @@ func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.P
 	table.Initial()
 
 	d.term.SetPrompt("ID> ")
-	selectTip := lang.T("Tips: Enter account ID")
+	selectTip := fmt.Sprintf(lang.T("Tips: Enter asset[%s] account ID"), d.selectAsset.String())
 	backTip := lang.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(d.term, table.Display())
@@ -352,6 +355,7 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 }
 
 func (d *DirectHandler) Proxy(asset model.Asset) {
+	d.selectAsset = &asset
 	lang := i18n.NewLang(d.i18nLang)
 	accounts, err := d.jmsService.GetAccountsByUserIdAndAssetId(d.opts.User.ID, asset.ID)
 	if err != nil {
@@ -371,6 +375,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		logger.Info("Do not select account")
 		return
 	}
+	d.selectAccount = &selectAccount
 	protocol := d.opts.protocol
 	req := service.SuperConnectTokenReq{
 		UserId:        d.opts.User.ID,
