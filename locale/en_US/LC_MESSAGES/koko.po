@@ -217,45 +217,45 @@ msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/direct_handler.go:238
+#: pkg/handler/direct_handler.go:241
 msgid "No Account found."
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:247 pkg/handler/direct_handler.go:248
-#: pkg/handler/direct_handler.go:249
+#: pkg/handler/direct_handler.go:250 pkg/handler/direct_handler.go:251
+#: pkg/handler/direct_handler.go:252
 msgid "Username"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/direct_handler.go:278
-msgid "Tips: Enter account ID"
+#: pkg/handler/direct_handler.go:281
+msgid "Tips: Enter asset[%s] account ID"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/direct_handler.go:279
+#: pkg/handler/direct_handler.go:282
 msgid "Back: B/b"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:314 pkg/handler/direct_handler.go:315
+#: pkg/handler/direct_handler.go:317 pkg/handler/direct_handler.go:318
 msgid "Hostname"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:316 pkg/handler/direct_handler.go:317
-#: pkg/handler/direct_handler.go:346
+#: pkg/handler/direct_handler.go:319 pkg/handler/direct_handler.go:320
+#: pkg/handler/direct_handler.go:349
 msgid "select one asset to login"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:359 pkg/handler/direct_handler.go:364
+#: pkg/handler/direct_handler.go:363 pkg/handler/direct_handler.go:368
 msgid "not found matched username %s"
 msgstr ""
 
@@ -264,8 +264,8 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:386 pkg/handler/direct_handler.go:392
-#: pkg/handler/direct_handler.go:406 pkg/handler/direct_handler.go:422
+#: pkg/handler/direct_handler.go:391 pkg/handler/direct_handler.go:397
+#: pkg/handler/direct_handler.go:411 pkg/handler/direct_handler.go:427
 #: pkg/handler/dispatch.go:143
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""

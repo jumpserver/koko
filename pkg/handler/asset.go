@@ -88,6 +88,7 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 }
 
 func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
+	u.selectedAsset = &asset
 	accounts, err := u.h.jmsService.GetAccountsByUserIdAndAssetId(u.user.ID, asset.ID)
 	if err != nil {
 		logger.Errorf("Get asset accounts err: %s", err)
@@ -118,6 +119,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 	if !ok {
 		return
 	}
+	u.selectedAccount = &selectedAccount
 	req := service.SuperConnectTokenReq{
 		UserId:        u.user.ID,
 		AssetId:       asset.ID,
