@@ -7,7 +7,7 @@ on:
 name: Create Release And Upload assets
 
 jobs:
-  create-realese:
+  create-release:
     name: Create Release
     runs-on: ubuntu-latest
     outputs:
