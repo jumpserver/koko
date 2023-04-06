@@ -47,3 +47,7 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+demo
+assets/
+ui/dist/favicon.ico
+ui/dist/index.html
