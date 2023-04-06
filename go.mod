@@ -1,6 +1,6 @@
 module github.com/jumpserver/koko
 
-go 1.18
+go 1.19
 
 require (
 	github.com/Azure/azure-storage-blob-go v0.6.0
@@ -17,6 +17,7 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/gliderlabs/ssh v0.3.3
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.1+incompatible
 	github.com/jarcoal/httpmock v1.0.4
@@ -26,7 +27,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/pkg/sftp v1.13.4
-	github.com/satori/go.uuid v1.2.0
 	github.com/shirou/gopsutil/v3 v3.22.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.12.0
@@ -37,6 +37,7 @@ require (
 	golang.org/x/text v0.7.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.23.1
+	k8s.io/apimachinery v0.23.1
 	k8s.io/client-go v0.23.1
 )
 
@@ -82,6 +83,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -108,7 +110,6 @@ require (
 	gopkg.in/ini.v1 v1.66.6 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apimachinery v0.23.1 // indirect
 	k8s.io/klog/v2 v2.30.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b // indirect
