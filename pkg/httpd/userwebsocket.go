@@ -219,9 +219,8 @@ func (userCon *UserWebsocket) CurrentUser() *model.User {
 }
 
 func (userCon *UserWebsocket) SendErrMessage(errMsg string) {
-	data, _ := json.Marshal(
-		&Message{Id: userCon.Uuid, Type: ERROR, Err: errMsg},
-	)
+	msg := Message{Id: userCon.Uuid, Type: ERROR, Err: errMsg}
+	data, _ := json.Marshal(msg)
 	if err := userCon.conn.WriteText(data, maxWriteTimeOut); err != nil {
 		logger.Errorf("Ws[%s] send error message err: %s", userCon.Uuid, err)
 	}
@@ -231,4 +230,5 @@ var (
 	ErrAssetIdInvalid   = errors.New("asset id invalid")
 	ErrDisableShare     = errors.New("disable share")
 	ErrPermissionDenied = errors.New("permission denied")
+	ErrSftpDisabled     = errors.New("sftp disabled")
 )

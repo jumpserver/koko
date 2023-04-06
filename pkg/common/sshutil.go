@@ -5,7 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"io/ioutil"
+	"os"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -42,7 +42,7 @@ func EncodePrivateKeyToPEM(privateKey *rsa.PrivateKey) []byte {
 }
 
 func WriteKeyToFile(keyBytes []byte, saveFileTo string) error {
-	err := ioutil.WriteFile(saveFileTo, keyBytes, 0600)
+	err := os.WriteFile(saveFileTo, keyBytes, 0600)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func WriteKeyToFile(keyBytes []byte, saveFileTo string) error {
 }
 
 func GetPubKeyFromFile(keypath string) (ssh.Signer, error) {
-	buf, err := ioutil.ReadFile(keypath)
+	buf, err := os.ReadFile(keypath)
 	if err != nil {
 		return nil, err
 	}

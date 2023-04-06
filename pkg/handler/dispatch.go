@@ -139,6 +139,6 @@ func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList) {
 	_, _ = io.WriteString(h.term, tree.String())
 	_, err := io.WriteString(h.term, lang.T("Tips: Enter g+NodeID to display the host under the node, such as g1")+"\n\r")
 	if err != nil {
-		logger.Errorf("displayAssetNodes err:", err)
+		logger.Errorf("displayAssetNodes err: %s", err)
 	}
 }

@@ -46,6 +46,11 @@ func (h *webFolder) CheckValidation() error {
 	}
 	if h.ws.ConnectToken != nil {
 		connectToken := h.ws.ConnectToken
+		protocol := connectToken.Platform.GetProtocol(connectToken.Protocol)
+		if !protocol.Setting.SftpEnabled {
+			logger.Errorf("Web sftp asset %s sftp disabled", connectToken.Asset.String())
+			return ErrSftpDisabled
+		}
 		volOpts = append(volOpts, WithConnectToken(connectToken))
 	}
 	h.volume = NewUserVolume(apiClient, volOpts...)
