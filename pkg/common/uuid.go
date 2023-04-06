@@ -1,12 +1,12 @@
 package common
 
-import "github.com/satori/go.uuid"
+import "github.com/google/uuid"
 
 func UUID() string {
-	return uuid.NewV4().String()
+	return uuid.NewString()
 }
 
 func ValidUUIDString(sid string) bool {
-	_, err := uuid.FromString(sid)
+	_, err := uuid.Parse(sid)
 	return err == nil
 }

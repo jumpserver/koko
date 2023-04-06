@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/mediocregopher/radix/v3"
-	uuid "github.com/satori/go.uuid"
 
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -186,7 +186,7 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 	}
 
 	m := &redisRoomManager{
-		Id:                     uuid.NewV4().String(),
+		Id:                     common.UUID(),
 		pool:                   pool,
 		connFunc:               connFunc,
 		localRoomCache:         newLocalCache(),
