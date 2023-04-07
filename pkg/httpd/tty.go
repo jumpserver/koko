@@ -271,7 +271,7 @@ func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err err
 		h.ws.SendMessage(&Message{
 			Id:   h.ws.Uuid,
 			Type: TerminalError,
-			Data: errMsg,
+			Err:  errMsg,
 		})
 		return
 	}
