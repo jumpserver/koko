@@ -282,3 +282,13 @@ func ClearTempFileDelay(sleepTime time.Duration, filepath ...string) {
 		}
 	}()
 }
+
+var cleanLineExitCommand = []byte{
+	CharCTRLE, CharCleanLine, '\r', '\n',
+	'e', 'x', 'i', 't', '\r', '\n',
+}
+
+const (
+	CharCleanLine = '\x15'
+	CharCTRLE     = '\x05'
+)
