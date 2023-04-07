@@ -134,7 +134,8 @@ func (h *InteractiveHandler) ChangeLang() {
 
 func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList) {
 	lang := i18n.NewLang(h.i18nLang)
-	tree := ConstructNodeTree(nodes)
+	tree, newNodes := ConstructNodeTree(nodes)
+	h.nodes = newNodes
 	_, _ = io.WriteString(h.term, "\n\r"+lang.T("Node: [ ID.Name(Asset amount) ]"))
 	_, _ = io.WriteString(h.term, tree.String())
 	_, err := io.WriteString(h.term, lang.T("Tips: Enter g+NodeID to display the host under the node, such as g1")+"\n\r")
