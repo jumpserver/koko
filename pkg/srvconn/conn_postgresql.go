@@ -54,7 +54,7 @@ func (conn *PostgreSQLConn) KeepAlive() error {
 }
 
 func (conn *PostgreSQLConn) Close() error {
-	_, _ = conn.Write([]byte("\r\nexit\r\n"))
+	_, _ = conn.Write(cleanLineExitCommand)
 	return conn.LocalCommand.Close()
 }
 

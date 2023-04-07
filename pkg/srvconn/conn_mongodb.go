@@ -86,7 +86,7 @@ func (conn *MongoDBConn) KeepAlive() error {
 }
 
 func (conn *MongoDBConn) Close() error {
-	_, _ = conn.Write([]byte("\r\nexit\r\n"))
+	_, _ = conn.Write(cleanLineExitCommand)
 	return conn.LocalCommand.Close()
 }
 

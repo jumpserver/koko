@@ -59,7 +59,7 @@ func (conn *SQLServerConn) KeepAlive() error {
 }
 
 func (conn *SQLServerConn) Close() error {
-	_, _ = conn.Write([]byte("\r\nexit\r\n"))
+	_, _ = conn.Write(cleanLineExitCommand)
 	return conn.LocalCommand.Close()
 }
 
