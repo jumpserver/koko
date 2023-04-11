@@ -565,7 +565,16 @@ const (
 
 func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
-		platformMatched := s.connOpts.asset.Platform == linuxPlatform
+		baseOs := ""
+		if s.platform != nil {
+			baseOs = s.platform.BaseOs
+		}
+		compare := func(a, b string) bool {
+			return strings.EqualFold(a, b)
+		}
+		assetPlatform := s.connOpts.asset.Platform
+		isLinux := compare(assetPlatform, linuxPlatform) || compare(baseOs, linuxPlatform)
+		platformMatched := isLinux
 		protocolMatched := s.connOpts.systemUser.Protocol == model.ProtocolSSH
 		notSuSystemUser := !s.connOpts.systemUser.SuEnabled
 		return platformMatched && protocolMatched && notSuSystemUser
