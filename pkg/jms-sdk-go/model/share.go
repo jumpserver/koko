@@ -23,12 +23,12 @@ type ShareRecord struct {
 }
 
 const (
-	readOnlyPermission  = "readonly"
-	writeablePermission = "writeable"
+	readOnlyPermission = "readonly"
+	writablePermission = "writable"
 )
 
 func (s ShareRecord) Writeable() bool {
-	return s.ActionPermission.Value == writeablePermission
+	return s.ActionPermission.Value == writablePermission
 }
 
 type ObjectId struct {
