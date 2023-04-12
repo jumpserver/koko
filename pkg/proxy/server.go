@@ -400,9 +400,9 @@ const (
 
 func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
-		asset := s.connOpts.authInfo.Asset
+		platform := s.connOpts.authInfo.Platform
 		protocol := s.connOpts.authInfo.Protocol
-		platformMatched := asset.Platform.Name == linuxPlatform
+		platformMatched := strings.EqualFold(platform.Type.Value, linuxPlatform)
 		protocolMatched := protocol == model.ProtocolSSH
 		notSuSystemUser := s.suFromAccount == nil
 		return platformMatched && protocolMatched && notSuSystemUser
