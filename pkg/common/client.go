@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	neturl "net/url"
@@ -281,7 +280,7 @@ func (c *Client) UploadFile(reqUrl string, gFile string, res interface{}, params
 		return err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
 		msg := fmt.Sprintf("%s %s failed, get code: %d, %s", req.Method, req.URL, resp.StatusCode, string(body))
 		err = errors.New(msg)

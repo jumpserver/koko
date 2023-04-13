@@ -23,15 +23,15 @@ func NewClickHouseConnection(ops ...SqlOption) (*ClickHouseConn, error) {
 		err  error
 	)
 	args := &sqlOption{
-		Username:         os.Getenv("USER"),
-		Password:         os.Getenv("PASSWORD"),
-		Host:             "127.0.0.1",
-		Port:             9000,
-		DBName:           "default",
-		UseSSL:           false,
-		CaCert:           "",
-		ClientCert:       "",
-		CertKey:          "",
+		Username:   os.Getenv("USER"),
+		Password:   os.Getenv("PASSWORD"),
+		Host:       "127.0.0.1",
+		Port:       9000,
+		DBName:     "default",
+		UseSSL:     false,
+		CaCert:     "",
+		ClientCert: "",
+		CertKey:    "",
 		win: Windows{
 			Width:  80,
 			Height: 120,
@@ -67,7 +67,7 @@ func (conn *ClickHouseConn) KeepAlive() error {
 }
 
 func (conn *ClickHouseConn) Close() error {
-	_, _ = conn.Write([]byte("\r\nexit\r\n"))
+	_, _ = conn.Write(cleanLineExitCommand)
 	return conn.LocalCommand.Close()
 }
 
@@ -100,7 +100,6 @@ func (opt *sqlOption) ClickHouseCommandArgs() []string {
 	}
 	return params
 }
-
 
 func (opt *sqlOption) ClickHouseDataSourceName() string {
 	return fmt.Sprintf("tcp://%s:%d/%s?username=%s&password=%s",

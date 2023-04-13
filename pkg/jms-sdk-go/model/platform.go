@@ -14,7 +14,7 @@ type Platform struct {
 	Charset   LabelValue        `json:"charset"`
 	Type      LabelValue        `json:"type"`
 	SuEnabled bool              `json:"su_enabled"`
-	//SuMethod  LabelValue        `json:"su_method"`
+	SuMethod  *LabelValue       `json:"su_method,omitempty"`
 	//DomainEnabled bool              `json:"domain_enabled"`
 	Comment string `json:"comment"`
 }

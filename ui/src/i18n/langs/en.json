@@ -32,7 +32,16 @@
     "ThemeColors": "Theme Colors",
     "ExceedTransferSize": "exceed max transfer size",
     "WaitFileTransfer": "Wait file transfer to finish",
-    "EndFileTransfer": "File transfer end"
+    "EndFileTransfer": "File transfer end",
+    "ReadOnly": "Read-Only",
+    "Writable" : "Writable",
+    "ActionPerm": "Action Permission",
+    "Self": "Self",
+    "RemoveShareUser": "You have been removed from the shared session.",
+    "JoinShare": "Join Session",
+    "LeaveShare": "Leave Session",
+    "Remove": "Remove",
+    "RemoveShareUserConfirm": "Are you sure to remove the user from the shared session?"
   },
   "Message": {
     "InputVerifyCode": "Input Verify Code"

@@ -1,10 +1,7 @@
 package httpd
 
 import (
-	"encoding/json"
 	"github.com/jumpserver/koko/pkg/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -17,25 +14,17 @@ type webFolder struct {
 
 	targetId string
 
-	tokenId string
 	assetId string
 
-	connectToken *model.ConnectToken
-
 	volume *UserVolume
-
-	jmsService *service.JMService
 }
 
 func (h *webFolder) Name() string {
 	return WebFolderName
 }
 
-func (h *webFolder) CheckValidation() bool {
-	jmsServiceCopy := h.jmsService.Copy()
-	if langCode, err := h.ws.ctx.Cookie("django_language"); err == nil {
-		jmsServiceCopy.SetCookie("django_language", langCode)
-	}
+func (h *webFolder) CheckValidation() error {
+	apiClient := h.ws.apiClient
 	user := h.ws.CurrentUser()
 	volOpts := make([]VolumeOption, 0, 5)
 	volOpts = append(volOpts, WithUser(user))
@@ -45,42 +34,27 @@ func (h *webFolder) CheckValidation() bool {
 		assetId = h.targetId
 	}
 	if common.ValidUUIDString(assetId) {
-		assets, err := jmsServiceCopy.GetUserAssetByID(user.ID, assetId)
+		assets, err := apiClient.GetUserAssetByID(user.ID, assetId)
 		if err != nil {
 			logger.Errorf("Get user asset %s error: %s", assetId, err)
-			data, _ := json.Marshal(&Message{
-				Id:   h.ws.Uuid,
-				Type: TERMINALERROR,
-				Err:  "Core API err",
-			})
-			// todo: 优化错误提示
-			if err := h.ws.conn.WriteText(data, maxWriteTimeOut); err != nil {
-				logger.Errorf("Write message error: %s", err)
-			}
-			return false
+			return ErrAssetIdInvalid
 		}
 		if len(assets) != 1 {
 			logger.Errorf("Get user more than one asset %s: choose first", h.targetId)
 		}
 		volOpts = append(volOpts, WithAsset(&assets[0]))
 	}
-	if h.tokenId != "" {
-		connectToken, err := jmsServiceCopy.GetConnectTokenInfo(h.tokenId)
-		if err != nil {
-			logger.Errorf("Get connect token info %s error: %s", h.tokenId, err)
-			data, _ := json.Marshal(&Message{
-				Id:   h.ws.Uuid,
-				Type: TERMINALERROR,
-				Err:  "Core API err",
-			})
-			_ = h.ws.conn.WriteText(data, maxWriteTimeOut)
-			return false
+	if h.ws.ConnectToken != nil {
+		connectToken := h.ws.ConnectToken
+		protocol := connectToken.Platform.GetProtocol(connectToken.Protocol)
+		if !protocol.Setting.SftpEnabled {
+			logger.Errorf("Web sftp asset %s sftp disabled", connectToken.Asset.String())
+			return ErrSftpDisabled
 		}
-		h.connectToken = &connectToken
-		volOpts = append(volOpts, WithConnectToken(&connectToken))
+		volOpts = append(volOpts, WithConnectToken(connectToken))
 	}
-	h.volume = NewUserVolume(jmsServiceCopy, volOpts...)
-	return true
+	h.volume = NewUserVolume(apiClient, volOpts...)
+	return nil
 }
 
 func (h *webFolder) HandleMessage(*Message) {

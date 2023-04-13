@@ -18,6 +18,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/exchange"
 	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -153,6 +154,8 @@ type Server struct {
 	keyboardMode int32
 
 	OnSessionInfo func(info *SessionInfo)
+
+	BroadcastEvent func(event *exchange.RoomMessage)
 }
 
 type SessionInfo struct {
@@ -400,9 +403,9 @@ const (
 
 func (s *Server) checkReuseSSHClient() bool {
 	if config.GetConf().ReuseConnection {
-		asset := s.connOpts.authInfo.Asset
+		platform := s.connOpts.authInfo.Platform
 		protocol := s.connOpts.authInfo.Protocol
-		platformMatched := asset.Platform.Name == linuxPlatform
+		platformMatched := strings.EqualFold(platform.Type.Value, linuxPlatform)
 		protocolMatched := protocol == model.ProtocolSSH
 		notSuSystemUser := s.suFromAccount == nil
 		return platformMatched && protocolMatched && notSuSystemUser
@@ -768,11 +771,16 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		*/
 		suUsername := s.account.Username
 		suPassword := s.account.Secret
-		suCommand := fmt.Sprintf(srvconn.LinuxSuCommand, suUsername)
-		sshConnectOpts = append(sshConnectOpts, srvconn.SSHLoginToSudo(true))
-		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoCommand(suCommand))
-		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoUsername(suUsername))
-		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoPassword(suPassword))
+		sudoType := srvconn.SuMethodSu
+		if platform.SuMethod != nil {
+			sudoType = srvconn.NewSuMethodType(platform.SuMethod.Value)
+		}
+		cfg := srvconn.SuConfig{
+			MethodType:   sudoType,
+			SudoUsername: suUsername,
+			SudoPassword: suPassword,
+		}
+		sshConnectOpts = append(sshConnectOpts, srvconn.SSHSudoConfig(&cfg))
 	}
 	sshConn, err := srvconn.NewSSHConnection(sess, sshConnectOpts...)
 	if err != nil {
@@ -800,6 +808,10 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 }
 
 func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
+	loginAccount := s.account.GetBaseAccount()
+	if s.suFromAccount != nil {
+		loginAccount = s.suFromAccount
+	}
 	telnetOpts := make([]srvconn.TelnetOption, 0, 8)
 	timeout := config.GlobalConfig.SSHTimeout
 	pty := s.UserConn.Pty()
@@ -819,8 +831,8 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	platform := s.connOpts.authInfo.Platform
 	telnetOpts = append(telnetOpts, srvconn.TelnetHost(asset.Address))
 	telnetOpts = append(telnetOpts, srvconn.TelnetPort(asset.ProtocolPort(protocol)))
-	telnetOpts = append(telnetOpts, srvconn.TelnetUsername(s.account.Username))
-	telnetOpts = append(telnetOpts, srvconn.TelnetUPassword(s.account.Secret))
+	telnetOpts = append(telnetOpts, srvconn.TelnetUsername(loginAccount.Username))
+	telnetOpts = append(telnetOpts, srvconn.TelnetUPassword(loginAccount.Secret))
 	telnetOpts = append(telnetOpts, srvconn.TelnetUTimeout(timeout))
 	telnetOpts = append(telnetOpts, srvconn.TelnetPtyWin(srvconn.Windows{
 		Width:  pty.Window.Width,
@@ -832,7 +844,34 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	if proxyArgs != nil {
 		telnetOpts = append(telnetOpts, srvconn.TelnetProxyOptions(proxyArgs))
 	}
-	return srvconn.NewTelnetConnection(telnetOpts...)
+	if s.suFromAccount != nil {
+		suUsername := s.account.Username
+		suPassword := s.account.Secret
+		sudoType := srvconn.SuMethodSu
+		if platform.SuMethod != nil {
+			sudoType = srvconn.NewSuMethodType(platform.SuMethod.Value)
+		}
+		cfg := srvconn.SuConfig{
+			MethodType:   sudoType,
+			SudoUsername: suUsername,
+			SudoPassword: suPassword,
+		}
+		telnetOpts = append(telnetOpts, srvconn.TelnetSuConfig(&cfg))
+	}
+	tcon, err := srvconn.NewTelnetConnection(telnetOpts...)
+	if err != nil {
+		return tcon, err
+	}
+	if s.suFromAccount != nil {
+		lang := s.connOpts.getLang()
+		msg := fmt.Sprintf(lang.T("Switched to %s"), s.account)
+		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+		utils.IgnoreErrWriteString(s.UserConn, msg)
+		_, _ = tcon.Write([]byte("\r"))
+		logger.Infof("Conn[%s]: su login from %s to %s", s.UserConn.ID(),
+			loginAccount, s.account)
+	}
+	return tcon, nil
 }
 
 func (s *Server) getGatewayProxyOptions() []srvconn.SSHClientOptions {

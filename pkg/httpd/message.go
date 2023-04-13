@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"github.com/jumpserver/koko/pkg/exchange"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -15,25 +16,28 @@ type Message struct {
 }
 
 const (
-	PING           = "PING"
-	PONG           = "PONG"
-	CONNECT        = "CONNECT"
-	CLOSE          = "CLOSE"
-	TERMINALINIT   = "TERMINAL_INIT"
-	TERMINALDATA   = "TERMINAL_DATA"
-	TERMINALRESIZE = "TERMINAL_RESIZE"
-	TERMINALBINARY = "TERMINAL_BINARY"
-	TERMINALACTION = "TERMINAL_ACTION"
+	PING    = "PING"
+	PONG    = "PONG"
+	CONNECT = "CONNECT"
+	CLOSE   = "CLOSE"
+	ERROR   = "ERROR"
 
-	TERMINALSESSION = "TERMINAL_SESSION"
+	TerminalInit    = "TERMINAL_INIT"
+	TerminalData    = "TERMINAL_DATA"
+	TerminalResize  = "TERMINAL_RESIZE"
+	TerminalBinary  = "TERMINAL_BINARY"
+	TerminalAction  = "TERMINAL_ACTION"
+	TerminalSession = "TERMINAL_SESSION"
 
-	TERMINALSHARE         = "TERMINAL_SHARE"
-	TERMINALSHAREJOIN     = "TERMINAL_SHARE_JOIN"
-	TERMINALSHARELEAVE    = "TERMINAL_SHARE_LEAVE"
-	TERMINALSHAREUSERS    = "TERMINAL_SHARE_USERS"
-	TERMINALGETSHAREUSERS = "TERMINAL_GET_SHARE_USER"
+	TerminalShare        = "TERMINAL_SHARE"
+	TerminalShareJoin    = "TERMINAL_SHARE_JOIN"
+	TerminalShareLeave   = "TERMINAL_SHARE_LEAVE"
+	TerminalShareUsers   = "TERMINAL_SHARE_USERS"
+	TerminalGetShareUser = "TERMINAL_GET_SHARE_USER"
 
-	TERMINALERROR = "TERMINAL_ERROR"
+	TerminalShareUserRemove = "TERMINAL_SHARE_USER_REMOVE"
+
+	TerminalError = "TERMINAL_ERROR"
 )
 
 type WindowSize struct {
@@ -52,13 +56,16 @@ type ShareRequestMeta struct {
 }
 
 type ShareRequestParams struct {
-	SessionID  string   `json:"session_id"`
-	ExpireTime int      `json:"expired"`
-	Users      []string `json:"users"`
+	model.SharingSessionRequest
 }
 
 type GetUserParams struct {
 	Query string `json:"query"`
+}
+
+type RemoveSharingUserParams struct {
+	SessionId string               `json:"session"`
+	UserMeta  exchange.MetaMessage `json:"user_meta"`
 }
 
 type ShareResponse struct {
@@ -91,8 +98,18 @@ type ViewPageMata struct {
 	IconURL string
 }
 
-type WsParams struct {
-	Token      string `form:"token"`
+type WsRequestParams struct {
 	TargetType string `form:"type"`
-	TargetID   string `form:"target_id"`
+	TargetId   string `form:"target_id"`
+	Token      string `form:"token"`
+
+	AssetId string `form:"asset"`
+
+	// k8s container
+	Pod       string `form:"pod"`
+	Namespace string `form:"namespace"`
+	Container string `form:"container"`
+
+	// mysql database
+	DisableAutoHash string `form:"disableautohash"`
 }

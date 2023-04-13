@@ -221,9 +221,10 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
+	userHandler := h.selectHandler
 
 	h.term.SetPrompt("ID> ")
-	selectTip := lang.T("Tips: Enter system user ID and directly login")
+	selectTip := fmt.Sprintf(lang.T("Tips: Enter asset[%s] account ID"), userHandler.selectedAsset.String())
 	backTip := lang.T("Back: B/b")
 	for {
 		utils.IgnoreErrWriteString(h.term, table.Display())
@@ -397,27 +398,26 @@ func getPageSize(h *InteractiveHandler, termConf *model.TerminalConfig) int {
 	return pageSize
 }
 
-func ConstructNodeTree(assetNodes []model.Node) treeprint.Tree {
+func ConstructNodeTree(assetNodes []model.Node) (treeprint.Tree, []model.Node) {
 	model.SortNodesByKey(assetNodes)
-	keyIndexMap := make(map[string]int)
-	for index := range assetNodes {
-		keyIndexMap[assetNodes[index].Key] = index
-	}
 	rootTree := treeprint.New()
-	constructDisplayTree(rootTree, convertToDisplayTrees(assetNodes), keyIndexMap)
-	return rootTree
+	newNodes := make([]model.Node, 0, len(assetNodes))
+	newNodes = constructDisplayTree(rootTree, convertToDisplayTrees(assetNodes), newNodes)
+	return rootTree, newNodes
 }
 
-func constructDisplayTree(tree treeprint.Tree, rootNodes []*displayTree, keyMap map[string]int) {
+func constructDisplayTree(tree treeprint.Tree, rootNodes []*displayTree, newNodes []model.Node) []model.Node {
 	for i := 0; i < len(rootNodes); i++ {
 		subTree := tree.AddBranch(fmt.Sprintf("%d.%s(%s)",
-			keyMap[rootNodes[i].Key]+1, rootNodes[i].node.Name,
+			len(newNodes)+1, rootNodes[i].node.Name,
 			strconv.Itoa(rootNodes[i].node.AssetsAmount)))
+		newNodes = append(newNodes, rootNodes[i].node)
 		if len(rootNodes[i].subTrees) > 0 {
 			sort.Sort(nodeTrees(rootNodes[i].subTrees))
-			constructDisplayTree(subTree, rootNodes[i].subTrees, keyMap)
+			newNodes = constructDisplayTree(subTree, rootNodes[i].subTrees, newNodes)
 		}
 	}
+	return newNodes
 }
 
 func convertToDisplayTrees(assetNodes []model.Node) []*displayTree {

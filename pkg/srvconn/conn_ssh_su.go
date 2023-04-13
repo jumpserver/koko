@@ -3,108 +3,24 @@ package srvconn
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
-	"time"
-
-	"github.com/jumpserver/koko/pkg/logger"
 )
 
-func LoginToSu(sc *SSHConnection) error {
-	successPattern := createSuccessPattern(sc.options.sudoUsername)
-	steps := make([]stepItem, 0, 2)
-	steps = append(steps,
-		stepItem{
-			Input:           sc.options.sudoCommand,
-			ExpectPattern:   passwordMatchPattern,
-			FinishedPattern: successPattern,
-			IsCommand:       true,
-		},
-		stepItem{
-			Input:           sc.options.sudoPassword,
-			ExpectPattern:   successPattern,
-			FinishedPattern: successPattern,
-		},
-	)
-	for i := 0; i < len(steps); i++ {
-		finished, err := executeStep(&steps[i], sc)
-		if err != nil {
-			return err
-		}
-		if finished {
-			break
-		}
-	}
-	return nil
-}
-
-func executeStep(step *stepItem, sc *SSHConnection) (bool, error) {
-	return step.Execute(sc)
-}
-
-const (
-	LinuxSuCommand = "su - %s; exit"
-
-	/*
-	 \b: word boundary 即: 匹配某个单词边界
-	*/
-
-	passwordMatchPattern = "(?i)\\bpassword\\b|密码"
-)
-
-var ErrorTimeout = errors.New("time out")
-
-type stepItem struct {
-	Input           string
-	ExpectPattern   string
-	IsCommand       bool
-	FinishedPattern string
-}
-
-func (s *stepItem) Execute(sc *SSHConnection) (bool, error) {
-	resultChan := make(chan *ExecuteResult, 1)
-	matchReg, err := regexp.Compile(s.ExpectPattern)
+func LoginToSSHSu(sc *SSHConnection) error {
+	cfg := sc.options.suConfig
+	suService, err := NewSuService(cfg, sc)
 	if err != nil {
-		logger.Error(err)
+		return err
 	}
-	successReg, err := regexp.Compile(s.FinishedPattern)
-	if err != nil {
-		logger.Error(err)
-	}
-	if s.IsCommand {
-		_ = sc.session.Start(s.Input)
+	if cfg.MethodType == SuMethodSu {
+		startCmd := cfg.SuCommand()
+		suService.execCommand = func() {
+			_ = sc.session.Start(startCmd)
+		}
 	} else {
-		_, _ = sc.Write([]byte(s.Input + "\r\n"))
+		_ = sc.session.Shell()
 	}
-	go func() {
-		buf := make([]byte, 8192)
-		var recStr strings.Builder
-		for {
-			nr, err2 := sc.Read(buf)
-			if err2 != nil {
-				resultChan <- &ExecuteResult{Err: err2}
-				return
-			}
-			recStr.Write(buf[:nr])
-			result := strings.TrimSpace(recStr.String())
-			if successReg != nil && successReg.MatchString(result) {
-				resultChan <- &ExecuteResult{Finished: true}
-				return
-			}
-			if matchReg != nil && matchReg.MatchString(result) {
-				resultChan <- &ExecuteResult{}
-				return
-			}
-		}
-	}()
-	ticker := time.NewTicker(time.Second * 30)
-	defer ticker.Stop()
-	select {
-	case ret := <-resultChan:
-		return ret.Finished, ret.Err
-	case <-ticker.C:
-	}
-	return false, ErrorTimeout
+	return suService.RunSwitchUser()
 }
 
 type ExecuteResult struct {
@@ -112,14 +28,147 @@ type ExecuteResult struct {
 	Err      error
 }
 
-func createSuccessPattern(username string) string {
+func createLinuxSuccessPattern(username string) string {
 	pattern := fmt.Sprintf("%s@", username)
 	pattern = fmt.Sprintf("(?i)%s|%s|%s", pattern,
 		normalUserMark, superUserMark)
 	return pattern
 }
 
+func createCiscoSuccessPattern(username string) string {
+	return fmt.Sprintf("%s|%s", normalUserMark, superUserMark)
+}
+
+func createHuaweiH3CSuccessPattern(username string) string {
+	return huaweiH3CPs1Mark
+}
+
 const (
 	normalUserMark = "\\s*\\$"
 	superUserMark  = "\\s*#"
 )
+
+const (
+	/*
+	   huawei、h3c 的终端提示符
+	*/
+	huaweiH3CPs1Mark = "^<.*>"
+)
+
+const (
+	/*
+		Linux 相关
+	*/
+
+	LinuxSuCommand = "su - %s; exit"
+
+	/*
+		Cisco 相关
+	*/
+
+	SuCommandEnable = "enable"
+
+	/*
+		huawei 相关
+	*/
+
+	SuCommandSuper = "super 15"
+
+	/*
+		h3c super 相关
+	*/
+
+	SuCommandSuperH3C = "super level-15"
+
+	/*
+	 \b: word boundary 即: 匹配某个单词边界
+	*/
+
+	passwordMatchPattern = "(?i)\\bpassword\\b\\s*:|密码"
+
+	usernameMatchPattern = "(?i)username:?\\s*$|name:?\\s*$|用户名:?\\s*$"
+)
+
+// 收集完善切换用户失败的提示信息
+
+var switchPasswordFailures = []string{
+	"password has not been set",
+	"wrong\\s*passwords",
+	"bad\\s*secrets",
+	"access\\s*denied",
+	"authentication\\s*failure",
+	"invalid\\s*password",
+}
+
+func createFailedPattern() string {
+	allFailure := strings.Join(switchPasswordFailures, "|")
+	return fmt.Sprintf("(?i)%s", allFailure)
+}
+
+var ErrorTimeout = errors.New("i/o timeout")
+
+type SUMethodType string
+
+const (
+	SuMethodSu         SUMethodType = "su"
+	SuMethodEnable     SUMethodType = "enable"
+	SuMethodSuper      SUMethodType = "super"
+	SuMethodSuperLevel SUMethodType = "super_level"
+)
+
+func NewSuMethodType(suMethod string) SUMethodType {
+	method := strings.ToLower(suMethod)
+	switch method {
+	case "enable":
+		return SuMethodEnable
+	case "super":
+		return SuMethodSuper
+	case "super_level":
+		return SuMethodSuperLevel
+	case "sudo", "su":
+		return SuMethodSu
+	default:
+
+	}
+	return SuMethodSu
+}
+
+type SuConfig struct {
+	MethodType   SUMethodType
+	SudoUsername string
+	SudoPassword string
+}
+
+func (s *SuConfig) SuCommand() string {
+	switch s.MethodType {
+	case SuMethodEnable:
+		return SuCommandEnable
+	case SuMethodSuper:
+		return SuCommandSuper
+	case SuMethodSuperLevel:
+		return SuCommandSuperH3C
+	default:
+
+	}
+	return fmt.Sprintf(LinuxSuCommand, s.SudoUsername)
+}
+
+func (s *SuConfig) UsernameMatchPattern() string {
+	return usernameMatchPattern
+}
+
+func (s *SuConfig) PasswordMatchPattern() string {
+	return passwordMatchPattern
+}
+
+func (s *SuConfig) SuccessPattern() string {
+	switch s.MethodType {
+	case SuMethodEnable:
+		return createCiscoSuccessPattern(s.SudoUsername)
+	case SuMethodSuper, SuMethodSuperLevel:
+		return createHuaweiH3CSuccessPattern(s.SudoUsername)
+	default:
+
+	}
+	return createLinuxSuccessPattern(s.SudoUsername)
+}

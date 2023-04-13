@@ -56,10 +56,10 @@ func NewSSHConnection(sess *gossh.Session, opts ...SSHOption) (*SSHConnection, e
 		stdout:  stdout,
 		options: options,
 	}
-	if !options.isLoginToSu {
+	if options.suConfig == nil {
 		err = sess.Shell()
 	} else {
-		err = LoginToSu(conn)
+		err = LoginToSSHSu(conn)
 	}
 	if err != nil {
 		_ = sess.Close()
@@ -103,10 +103,7 @@ type SSHOptions struct {
 	win     Windows
 	term    string
 
-	isLoginToSu  bool
-	sudoCommand  string
-	sudoUsername string
-	sudoPassword string
+	suConfig *SuConfig
 }
 
 func SSHCharset(charset string) SSHOption {
@@ -127,26 +124,8 @@ func SSHTerm(termType string) SSHOption {
 	}
 }
 
-func SSHLoginToSudo(ok bool) SSHOption {
+func SSHSudoConfig(cfg *SuConfig) SSHOption {
 	return func(opt *SSHOptions) {
-		opt.isLoginToSu = ok
-	}
-}
-
-func SSHSudoCommand(cmd string) SSHOption {
-	return func(opt *SSHOptions) {
-		opt.sudoCommand = cmd
-	}
-}
-
-func SSHSudoUsername(username string) SSHOption {
-	return func(opt *SSHOptions) {
-		opt.sudoUsername = username
-	}
-}
-
-func SSHSudoPassword(password string) SSHOption {
-	return func(opt *SSHOptions) {
-		opt.sudoPassword = password
+		opt.suConfig = cfg
 	}
 }
