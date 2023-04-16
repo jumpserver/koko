@@ -12,10 +12,6 @@ type webFolder struct {
 
 	done chan struct{}
 
-	targetId string
-
-	assetId string
-
 	volume *UserVolume
 }
 
@@ -29,9 +25,11 @@ func (h *webFolder) CheckValidation() error {
 	volOpts := make([]VolumeOption, 0, 5)
 	volOpts = append(volOpts, WithUser(user))
 	volOpts = append(volOpts, WithAddr(h.ws.ClientIP()))
-	assetId := h.assetId
+	params := h.ws.wsParams
+	targetId := params.TargetId
+	assetId := params.AssetId
 	if assetId == "" {
-		assetId = h.targetId
+		assetId = targetId
 	}
 	if common.ValidUUIDString(assetId) {
 		assets, err := apiClient.GetUserAssetByID(user.ID, assetId)
@@ -40,7 +38,7 @@ func (h *webFolder) CheckValidation() error {
 			return ErrAssetIdInvalid
 		}
 		if len(assets) != 1 {
-			logger.Errorf("Get user more than one asset %s: choose first", h.targetId)
+			logger.Errorf("Get user more than one asset %s: choose first", targetId)
 		}
 		volOpts = append(volOpts, WithAsset(&assets[0]))
 	}
