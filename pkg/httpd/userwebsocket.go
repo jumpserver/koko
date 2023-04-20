@@ -106,8 +106,15 @@ func (userCon *UserWebsocket) Run() {
 func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) {
 	active := time.Now()
 	t := time.NewTicker(time.Minute)
+	maxErrCount := 10
+	errCount := 0
 	defer t.Stop()
 	for {
+		if errCount >= maxErrCount {
+			logger.Errorf("Ws[%s] send message err count more than %d and exit goroutine",
+				userCon.Uuid, maxErrCount)
+			return
+		}
 		var msg *Message
 		select {
 		case <-ctx.Done():
@@ -131,6 +138,7 @@ func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) {
 			err := userCon.conn.WriteBinary(msg.Raw, maxWriteTimeOut)
 			if err != nil {
 				logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
+				errCount++
 				continue
 			}
 		default:
@@ -138,9 +146,11 @@ func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) {
 			err := userCon.conn.WriteText(p, maxWriteTimeOut)
 			if err != nil {
 				logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
+				errCount++
 				continue
 			}
 		}
+		errCount = 0
 		active = time.Now()
 	}
 }
