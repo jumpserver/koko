@@ -117,13 +117,9 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 		logger.Errorf("Websocket upgrade err: %s", err)
 		return
 	}
-	params := userConn.wsParams
-	targetId := params.TargetId
 	userConn.handler = &webFolder{
-		ws:       userConn,
-		targetId: targetId,
-		assetId:  params.AssetId,
-		done:     make(chan struct{}),
+		ws:   userConn,
+		done: make(chan struct{}),
 	}
 	s.broadCaster.EnterUserWebsocket(userConn)
 	defer s.broadCaster.LeaveUserWebsocket(userConn)

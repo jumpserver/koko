@@ -71,7 +71,9 @@ func (a *Asset) ProtocolPort(protocol string) int {
 func (a *Asset) SupportProtocols() []string {
 	protocols := make([]string, 0, len(a.Protocols))
 	for _, item := range a.Protocols {
-		protocols = append(protocols, item.Name)
+		if item.Public {
+			protocols = append(protocols, item.Name)
+		}
 	}
 	return protocols
 }

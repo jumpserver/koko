@@ -59,9 +59,10 @@ type ProtocolSetting struct {
 }
 
 type Protocol struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
-	Port int    `json:"port"`
+	Id     int    `json:"id"`
+	Name   string `json:"name"`
+	Port   int    `json:"port"`
+	Public bool   `json:"public"`
 }
 
 type LabelValue struct {
