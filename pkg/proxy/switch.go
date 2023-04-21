@@ -180,7 +180,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				}
 			}
 			if err2 != nil {
-				logger.Errorf("Session[%s] srv read err: %s", s.ID, err)
+				logger.Errorf("Session[%s] srv read err: %s", s.ID, err2)
 				break
 			}
 		}
