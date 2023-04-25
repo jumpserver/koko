@@ -377,6 +377,11 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 			p.userOutputChan <- charEnter
 			return nil
 		}
+		if !p.zmodemParser.IsStartSession() {
+			p.srvOutputChan <- b
+			p.srvOutputChan <- []byte{0x4f, 0x4f}
+			return nil
+		}
 		return b
 	} else {
 		p.parseVimState(b)
