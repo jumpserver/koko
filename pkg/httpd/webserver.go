@@ -136,9 +136,9 @@ func (s *Server) UpgradeUserWsConn(ctx *gin.Context) (*UserWebsocket, error) {
 	apiClient := s.apiClient.Copy()
 	langCode := config.GetConf().LanguageCode
 	if cookieLang, err2 := ctx.Cookie("django_language"); err2 == nil {
-		apiClient.SetCookie("django_language", langCode)
 		langCode = cookieLang
 	}
+	apiClient.SetCookie("django_language", langCode)
 
 	//设置 websocket 协议层面对应的ping和pong 处理方法
 	underWsCon.SetPingHandler(func(appData string) error {
