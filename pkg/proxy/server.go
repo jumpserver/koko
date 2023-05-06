@@ -506,6 +506,9 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.Se
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
 		}),
+		srvconn.K8sExtraEnvs(map[string]string{
+			"K8sName": asset.Name,
+		}),
 	)
 	return
 }

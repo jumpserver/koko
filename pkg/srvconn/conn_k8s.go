@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -114,12 +116,15 @@ func (o *k8sOptions) Env() []string {
 	if !o.IsSkipTls {
 		skipTls = "false"
 	}
+	k8sName := strings.Trim(strconv.Quote(o.ExtraEnv["K8sName"]), "\"")
+	k8sName = strings.ReplaceAll(k8sName, "`", "\\`")
 	return []string{
 		fmt.Sprintf("KUBECTL_USER=%s", o.Username),
 		fmt.Sprintf("KUBECTL_CLUSTER=%s", o.ClusterServer),
 		fmt.Sprintf("KUBECTL_INSECURE_SKIP_TLS_VERIFY=%s", skipTls),
 		fmt.Sprintf("K8S_ENCRYPTED_TOKEN=%s", token),
 		fmt.Sprintf("WELCOME_BANNER=%s", config.KubectlBanner),
+		fmt.Sprintf("K8S_NAME=%s", k8sName),
 	}
 }
 
