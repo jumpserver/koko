@@ -79,8 +79,7 @@ func NewSSHServer(handler SSHHandler) *Server {
 			return handler.NextAuthMethodsHandler(ctx)
 		},
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
-			// todo: 可配置
-			supportedMACs := []string{"hmac-sha2-256-etm@openssh.com", "hmac-sha2-256", "hmac-sha1"}
+			supportedMACs := []string{"hmac-sha2-256-etm@openssh.com", "hmac-sha2-256"}
 			return &gossh.ServerConfig{Config: gossh.Config{MACs: supportedMACs}}
 		},
 		HostSigners: []ssh.Signer{handler.GetSSHSigner()},
