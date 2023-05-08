@@ -41,7 +41,9 @@
     "JoinShare": "Join Session",
     "LeaveShare": "Leave Session",
     "Remove": "Remove",
-    "RemoveShareUserConfirm": "Are you sure to remove the user from the shared session?"
+    "RemoveShareUserConfirm": "Are you sure to remove the user from the shared session?",
+    "Minute": "Minute",
+    "Minutes": "Minutes"
   },
   "Message": {
     "InputVerifyCode": "Input Verify Code"

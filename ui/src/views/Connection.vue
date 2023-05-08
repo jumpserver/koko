@@ -55,7 +55,7 @@
                       :value="item.id">
                     </el-option>
                   </el-select>
-                  <div style="color: #aaa">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
+                  <div style="color: #999;font-size: 12px">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
             </el-form-item>
           </el-form>
           <div>
@@ -109,11 +109,11 @@ export default {
         users: []
       },
       expiredOptions: [
-        {label: "1m", value: 1},
-        {label: "5m", value: 5},
-        {label: "10m", value: 10},
-        {label: "20m", value: 20},
-        {label: "60m", value: 60},
+        {label: this.getMinuteLabel(1), value: 1},
+        {label: this.getMinuteLabel(5), value: 5},
+        {label: this.getMinuteLabel(10), value: 10},
+        {label: this.getMinuteLabel(20), value: 20},
+        {label: this.getMinuteLabel(60), value: 60},
       ],
       actionsPermOptions: [
         {label: this.$t('Terminal.Writable'), value: "writable"},
@@ -339,7 +339,14 @@ export default {
           this.$log.debug("reconnect: ",data);
           break
       }
-    }
+    },
+    getMinuteLabel(item) {
+        let minuteLabel = this.$t('Terminal.Minute')
+        if (item > 1) {
+            minuteLabel = this.$t('Terminal.Minutes')
+        }
+      return `${item} ${minuteLabel}`
+    },
   },
 }
 </script>
