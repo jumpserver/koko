@@ -1,6 +1,6 @@
 {
   "Terminal": {
-    "ShareUser": "分享给",
+    "ShareUser": "分享用户",
     "ShareUserHelpText": "未选择用户，即允许所有人加入",
     "GetShareUser": "输入用户名",
     "UploadSuccess": "上传成功",
@@ -19,7 +19,7 @@
     "User": "用户",
     "VerifyCode": "验证码",
     "LinkAddr": "链接地址",
-    "ExpiredTime": "有效期",
+    "ExpiredTime": "有效期限",
     "SelectAction": "请选择",
     "CreateSuccess": "创建成功",
     "CreateLink": "创建分享链接",
@@ -41,7 +41,9 @@
     "JoinShare": "加入共享",
     "LeaveShare": "离开共享",
     "Remove": "移除",
-    "RemoveShareUserConfirm": "确定要移除该用户吗？"
+    "RemoveShareUserConfirm": "确定要移除该用户吗？",
+    "Minute": "分钟",
+    "Minutes": "分钟"
   },
   "Message": {
     "InputVerifyCode": "请输入验证码"

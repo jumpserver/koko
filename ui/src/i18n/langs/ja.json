@@ -41,7 +41,9 @@
     "JoinShare": "共有セッションに参加",
     "LeaveShare": "共有セッションから退出",
     "Remove": "削除",
-    "RemoveShareUserConfirm": "共有セッションから削除してもよろしいですか？"
+    "RemoveShareUserConfirm": "共有セッションから削除してもよろしいですか？",
+    "Minute": "分間",
+    "Minutes": "分間"
   },
   "Message": {
     "InputVerifyCode": "認証コードを入力してください"
