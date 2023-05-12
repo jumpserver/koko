@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/jumpserver/koko/pkg/proxy"
 	"io"
 	"os"
 	"sync"
@@ -19,11 +20,16 @@ func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string
 	opts := make([]srvconn.UserSftpOption, 0, 5)
 	opts = append(opts, srvconn.WithUser(user))
 	opts = append(opts, srvconn.WithRemoteAddr(addr))
-	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...)}
+	return &SftpHandler{
+		UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...),
+		recorder: proxy.GetFTPFileRecorder(jmsService),
+	}
 }
 
 type SftpHandler struct {
 	*srvconn.UserSftpConn
+
+	recorder *proxy.FTPFileRecorder
 }
 
 func (s *SftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
@@ -75,7 +81,7 @@ func (s *SftpHandler) Filecmd(r *sftp.Request) (err error) {
 
 func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
-	f, err := s.Create(r.Filepath)
+	f, ftpLog, err := s.Create(r.Filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -86,15 +92,17 @@ func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		}
 		logger.Infof("Sftp file write %s done", r.Filepath)
 	}()
-	return NewWriterAt(f), err
+	s.recorder.SetFTPLog(ftpLog)
+	return NewWriterAt(f, s.recorder), err
 }
 
 func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	logger.Debug("File read: ", r.Filepath)
-	f, err := s.Open(r.Filepath)
+	f, ftpLog, err := s.Open(r.Filepath)
 	if err != nil {
 		return nil, err
 	}
+	s.recorder.Record(ftpLog, f)
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {
@@ -124,18 +132,22 @@ func (f listerat) ListAt(ls []os.FileInfo, offset int64) (int, error) {
 	return n, nil
 }
 
-func NewWriterAt(f *sftp.File) io.WriterAt {
-	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
+func NewWriterAt(f *sftp.File, recorder *proxy.FTPFileRecorder) io.WriterAt {
+	return &clientReadWritAt{f: f, mu: new(sync.RWMutex), recorder: recorder}
 }
 
 type clientReadWritAt struct {
 	f  *sftp.File
 	mu *sync.RWMutex
+
+	recorder *proxy.FTPFileRecorder
 }
 
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.recorder.RecordWrite(p)
+	c.recorder.UploadFile(3)
 	_, _ = c.f.Seek(off, 0)
 	return c.f.Write(p)
 }

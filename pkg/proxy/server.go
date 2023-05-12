@@ -193,6 +193,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			operate = model.OperateDownload
 		}
 		item := model.FTPLog{
+			ID:         common.UUID(),
 			OrgID:      asset.OrgID,
 			User:       user.String(),
 			Hostname:   asset.String(),

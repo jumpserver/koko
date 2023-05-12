@@ -26,6 +26,8 @@ const (
 	FinishTaskURL       = "/api/v1/terminal/tasks/%s/"
 	JoinRoomValidateURL = "/api/v1/terminal/sessions/join/validate/"
 	FTPLogListURL       = "/api/v1/audits/ftp-logs/" // 上传 ftp日志
+	FTPLogUpdateURL     = "/api/v1/audits/ftp-logs/%s/"
+	FTPLogFileURL       = "/api/v1/audits/ftp-logs/%s/file/"
 )
 
 // 授权相关API

@@ -5,6 +5,7 @@ import (
 )
 
 type FTPLog struct {
+	ID         string         `json:"id"`
 	User       string         `json:"user"`
 	Hostname   string         `json:"asset"`
 	OrgID      string         `json:"org_id"`

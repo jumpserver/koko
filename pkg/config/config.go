@@ -30,6 +30,7 @@ type Config struct {
 	Comment             string `mapstructure:"COMMENT"`
 	LanguageCode        string `mapstructure:"LANGUAGE_CODE"`
 	UploadFailedReplay  bool   `mapstructure:"UPLOAD_FAILED_REPLAY_ON_START"`
+	UploadFailedFTPFile bool   `mapstructure:"UPLOAD_FAILED_FTP_FILE_ON_START"`
 	AssetLoadPolicy     string `mapstructure:"ASSET_LOAD_POLICY"` // all
 	ZipMaxSize          string `mapstructure:"ZIP_MAX_SIZE"`
 	ZipTmpPath          string `mapstructure:"ZIP_TMP_PATH"`
@@ -52,13 +53,14 @@ type Config struct {
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
 
-	RootPath          string
-	DataFolderPath    string
-	LogDirPath        string
-	KeyFolderPath     string
-	AccessKeyFilePath string
-	ReplayFolderPath  string
-	CertsFolderPath   string
+	RootPath            string
+	DataFolderPath      string
+	LogDirPath          string
+	KeyFolderPath       string
+	AccessKeyFilePath   string
+	ReplayFolderPath    string
+	FTPFileFolderPath   string
+	CertsFolderPath     string
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -90,6 +92,7 @@ func getDefaultConfig() Config {
 	rootPath := getPwdDirPath()
 	dataFolderPath := filepath.Join(rootPath, "data")
 	replayFolderPath := filepath.Join(dataFolderPath, "replays")
+	ftpFileFolderPath := filepath.Join(dataFolderPath, "ftp_files")
 	LogDirPath := filepath.Join(dataFolderPath, "logs")
 	keyFolderPath := filepath.Join(dataFolderPath, "keys")
 	CertsFolderPath := filepath.Join(dataFolderPath, "certs")
@@ -103,24 +106,26 @@ func getDefaultConfig() Config {
 		}
 	}
 	return Config{
-		Name:              defaultName,
-		CoreHost:          "http://localhost:8080",
-		BootstrapToken:    "",
-		BindHost:          "0.0.0.0",
-		SSHPort:           "2222",
-		SSHTimeout:        15,
-		HTTPPort:          "5000",
-		AccessKeyFilePath: accessKeyFilePath,
-		LogLevel:          "INFO",
-		RootPath:          rootPath,
-		DataFolderPath:    dataFolderPath,
-		LogDirPath:        LogDirPath,
-		KeyFolderPath:     keyFolderPath,
-		ReplayFolderPath:  replayFolderPath,
-		CertsFolderPath:   CertsFolderPath,
+		Name:                defaultName,
+		CoreHost:            "http://localhost:8080",
+		BootstrapToken:      "",
+		BindHost:            "0.0.0.0",
+		SSHPort:             "2222",
+		SSHTimeout:          15,
+		HTTPPort:            "5000",
+		AccessKeyFilePath:   accessKeyFilePath,
+		LogLevel:            "INFO",
+		RootPath:            rootPath,
+		DataFolderPath:      dataFolderPath,
+		LogDirPath:          LogDirPath,
+		KeyFolderPath:       keyFolderPath,
+		ReplayFolderPath:    replayFolderPath,
+		FTPFileFolderPath:   ftpFileFolderPath,
+		CertsFolderPath:     CertsFolderPath,
 
 		Comment:             "KOKO",
 		UploadFailedReplay:  true,
+		UploadFailedFTPFile: true,
 		ShowHiddenFile:      false,
 		ReuseConnection:     true,
 		AssetLoadPolicy:     "",
