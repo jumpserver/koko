@@ -97,6 +97,10 @@ func (s *JMService) SetCookie(name, value string) {
 	s.authClient.SetCookie(name, value)
 }
 
+func (s *JMService) SetHeader(key, value string) {
+	s.authClient.SetHeader(key, value)
+}
+
 func (s *JMService) GetWsClient() (*websocket.Conn, error) {
 	u, err := url.Parse(s.opt.CoreHost)
 	if err != nil {
