@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"fmt"
-	"github.com/jumpserver/koko/pkg/proxy"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 

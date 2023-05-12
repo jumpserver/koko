@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"github.com/jumpserver/koko/pkg/proxy"
 	"io"
 	"os"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
