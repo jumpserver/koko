@@ -86,6 +86,7 @@ $ npm run serve
 在 luna 访问 linux 资产，复制 iframe 地址，端口修改为 9530 即可，也可以修改 nginx 将 /koko 映射到这里
 
 ## 构建docker镜像
+依赖 docker buildx 构建多平台镜像，需要安装 docker 19.03+ 版本，并开启 docker buildx 插件。
 
 ```shell
 make docker
