@@ -115,12 +115,12 @@ msgid "the asset"
 msgstr "資産なし"
 
 #. lang.T
-#: pkg/handler/asset.go:107
+#: pkg/handler/asset.go:108
 msgid "%s protocol client not installed."
 msgstr "%s プロトコルクライアントがインストールされていません。"
 
 #. lang.T
-#: pkg/handler/asset.go:110
+#: pkg/handler/asset.go:111
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
@@ -128,19 +128,19 @@ msgstr ""
 "してください"
 
 #. lang.T
-#: pkg/handler/asset.go:132
+#: pkg/handler/asset.go:134
 msgid "Core API failed"
 msgstr "Core API エラー発生"
 
 #. lang.T
-#: pkg/handler/asset.go:138
+#: pkg/handler/asset.go:140
 #, fuzzy
 msgid "ACL reject"
 msgstr "%s は拒否されました"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:152 pkg/handler/asset.go:169
+#: pkg/handler/asset.go:154 pkg/handler/asset.go:171
 msgid "get connect token err"
 msgstr "接続トークン取得エラー"
 
@@ -277,12 +277,12 @@ msgstr "一致したユーザー名 %s が見つかりません"
 #. lang.T
 #: pkg/handler/direct_handler.go:391 pkg/handler/direct_handler.go:397
 #: pkg/handler/direct_handler.go:411 pkg/handler/direct_handler.go:427
-#: pkg/handler/dispatch.go:143
+#: pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "ノード: [ID.Name(アセット量)]"
 
 #. lang.T
-#: pkg/handler/dispatch.go:145
+#: pkg/handler/dispatch.go:141
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "ヒント: g+ノードIDを入力してノードの下のホストを表示します。例えば: g1"
 
@@ -301,31 +301,38 @@ msgstr "アカウントが見つかりません"
 #. lang.T
 #. lang.T
 #. lang.T
+#. lang.T
+#. lang.T
 #: pkg/handler/interactive.go:195 pkg/handler/interactive.go:196
-#: pkg/handler/interactive.go:197 pkg/handler/interactive.go:226
-msgid "Tips: Enter system user ID and directly login"
-msgstr "ヒント：システムユーザーIDを入力して直接ログインする"
+#: pkg/handler/interactive.go:197 pkg/handler/interactive.go:227
+#: pkg/handler/interactive.go:228 pkg/handler/interactive.go:254
+msgid "Select account exceed max retry times."
+msgstr "アカウントを選択する回数が最大値を超えました"
 
 #. lang.T
-#. lang.T
-#: pkg/handler/interactive.go:227 pkg/handler/interactive.go:261
+#: pkg/handler/interactive.go:265
 msgid "No protocol found."
 msgstr "プロトコルが見つかりません"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:270 pkg/handler/interactive.go:271
+#: pkg/handler/interactive.go:274 pkg/handler/interactive.go:275
 msgid "Protocol"
 msgstr "プロトコル"
 
 #. lang.T
-#: pkg/handler/interactive.go:298
+#: pkg/handler/interactive.go:302
 msgid "Tips: Enter protocol ID"
 msgstr "ヒント: プロトコル ID を入力してください"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:299 pkg/handler/interactive.go:358
+#: pkg/handler/interactive.go:303 pkg/handler/interactive.go:329
+msgid "Select protocol exceed max retry times."
+msgstr "プロトコルを選択する回数が最大値を超えました"
+
+#. lang.T
+#: pkg/handler/interactive.go:366
 msgid "Refresh done"
 msgstr "更新完了"
 
@@ -381,7 +388,7 @@ msgid "Cancel confirm"
 msgstr "確認をキャンセル"
 
 #. lang.T
-#: pkg/handler/select_handler.go:195
+#: pkg/handler/select_handler.go:198
 msgid "Search: %s"
 msgstr "検索: %s"
 
@@ -431,7 +438,7 @@ msgid "have no permission to download file"
 msgstr "ファイルをダウンロードする権限がない"
 
 #. lang.T
-#: pkg/proxy/parser.go:442
+#: pkg/proxy/parser.go:447
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
 msgstr ""
@@ -439,7 +446,7 @@ msgstr ""
 "してください。"
 
 #. lang.T
-#: pkg/proxy/parser.go:452
+#: pkg/proxy/parser.go:457
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -451,7 +458,7 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:453 pkg/proxy/parser.go:454 pkg/proxy/server.go:55
+#: pkg/proxy/parser.go:458 pkg/proxy/parser.go:459 pkg/proxy/server.go:55
 #: pkg/proxy/server.go:59 pkg/proxy/server.go:67
 #, fuzzy
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
@@ -487,24 +494,24 @@ msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "SSH接続の再利用 (%s@%s) [接続数: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:793
+#: pkg/proxy/server.go:796
 msgid "Switched to %s"
 msgstr "%s に切り替え"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:867 pkg/proxy/server.go:1009
+#: pkg/proxy/server.go:870 pkg/proxy/server.go:1012
 msgid "Connect with api server failed"
 msgstr "APIサーバーとの接続に失敗しました"
 
 #. lang.T
-#: pkg/proxy/server.go:1041
+#: pkg/proxy/server.go:1044
 msgid "Start domain gateway failed %s"
 msgstr "ドメインゲートウェイの開始に失敗した %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1049 pkg/proxy/server_options.go:107
+#: pkg/proxy/server.go:1052 pkg/proxy/server_options.go:107
 #, fuzzy
 msgid "Manual"
 msgstr "マニュアル"
@@ -537,12 +544,12 @@ msgstr "Kubernetes %s コンテナー %s への接続"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:236 pkg/proxy/switch.go:244
+#: pkg/proxy/switch.go:262 pkg/proxy/switch.go:270
 msgid "Permission has expired, disconnect"
 msgstr "権限の有効期限が切れました。"
 
 #. lang.T
-#: pkg/proxy/switch.go:255
+#: pkg/proxy/switch.go:281
 msgid "Terminated by admin %s"
 msgstr "%s管理者が接続を終了"
 
@@ -570,6 +577,9 @@ msgstr "ネットワーク不通(ルーティング不通)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "ネットワーク不通（ネットワーク不可）"
+
+#~ msgid "Tips: Enter system user ID and directly login"
+#~ msgstr "ヒント：システムユーザーIDを入力して直接ログインする"
 
 #~ msgid "IP"
 #~ msgstr "IP"
