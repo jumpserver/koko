@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
@@ -139,15 +140,40 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	go func() {
 		var (
 			exitFlag bool
-			err      error
-			nr       int
 		)
+		buffer := bytes.NewBuffer(make([]byte, 0, 1024*2))
+		/*
+		 这里使用了一个buffer，将用户输入的数据进行了分包，分包的依据是utf8编码的字符。
+		*/
+		maxLen := 1024
 		for {
-			buf := make([]byte, 1024)
-			nr, err = srvConn.Read(buf)
+			buf := make([]byte, maxLen)
+			nr, err2 := srvConn.Read(buf)
+			validBytes := buf[:nr]
 			if nr > 0 {
+				bufferLen := buffer.Len()
+				if bufferLen > 0 || nr == maxLen {
+					buffer.Write(buf[:nr])
+					validBytes = validBytes[:0]
+				}
+				remainBytes := buffer.Bytes()
+				for len(remainBytes) > 0 {
+					r, size := utf8.DecodeRune(remainBytes)
+					if r == utf8.RuneError {
+						// utf8 max 4 bytes
+						if len(remainBytes) <= 3 {
+							break
+						}
+					}
+					validBytes = append(validBytes, remainBytes[:size]...)
+					remainBytes = remainBytes[size:]
+				}
+				buffer.Reset()
+				if len(remainBytes) > 0 {
+					buffer.Write(remainBytes)
+				}
 				select {
-				case srvInChan <- buf[:nr]:
+				case srvInChan <- validBytes:
 				case <-done:
 					exitFlag = true
 					logger.Infof("Session[%s] done", s.ID)
@@ -156,8 +182,8 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 					break
 				}
 			}
-			if err != nil {
-				logger.Errorf("Session[%s] srv read err: %s", s.ID, err)
+			if err2 != nil {
+				logger.Errorf("Session[%s] srv read err: %s", s.ID, err2)
 				break
 			}
 		}

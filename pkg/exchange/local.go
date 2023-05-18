@@ -49,15 +49,15 @@ func (l *localCache) run() {
 	}
 }
 
-func (l localCache) Add(s *Room) {
+func (l *localCache) Add(s *Room) {
 	l.storeChan <- s
 }
 
-func (l localCache) Delete(s *Room) {
+func (l *localCache) Delete(s *Room) {
 	l.leaveChan <- s
 }
 
-func (l localCache) Get(sid string) *Room {
+func (l *localCache) Get(sid string) *Room {
 	l.checkChan <- sid
 	return <-l.resultChan
 }
