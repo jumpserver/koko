@@ -13,6 +13,7 @@ require (
 	github.com/aws/aws-sdk-go v1.19.46
 	github.com/creack/pty v1.1.18
 	github.com/denisenkom/go-mssqldb v0.11.0
+	github.com/dlclark/regexp2 v1.10.0
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/gin-gonic/gin v1.9.0
 	github.com/gliderlabs/ssh v0.3.3
