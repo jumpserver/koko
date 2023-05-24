@@ -2,8 +2,9 @@ package model
 
 import (
 	"regexp"
-	"regexp/syntax"
 	"sort"
+
+	"github.com/dlclark/regexp2"
 )
 
 var _ sort.Interface = CommandACLs{}
@@ -42,24 +43,20 @@ type CommandACL struct {
 	Reviewers     []interface{}       `json:"reviewers"`
 }
 
-func (cf *CommandFilterItem) Pattern() *regexp.Regexp {
+func (cf *CommandFilterItem) Pattern() FindStringer {
 	if cf.compiled {
 		return cf.pattern
 	}
-	syntaxFlag := syntax.Perl
+	regexp2Opt := regexp2.None
 	if cf.IgnoreCase {
-		syntaxFlag = syntax.Perl | syntax.FoldCase
+		regexp2Opt = regexp2.IgnoreCase
 	}
-	syntaxReg, err := syntax.Parse(cf.RePattern, syntaxFlag)
-	if err != nil {
-		return nil
-	}
-	pattern, err := regexp.Compile(syntaxReg.String())
+	regexp2Pattern, err := regexp2.Compile(cf.RePattern, regexp2Opt)
 	if err == nil {
-		cf.pattern = pattern
+		cf.pattern = &Regexp2{regexp2Pattern}
 		cf.compiled = true
 	}
-	return pattern
+	return cf.pattern
 }
 
 func (sf *CommandACL) Match(cmd string) (CommandFilterItem, CommandAction, string) {
@@ -86,7 +83,7 @@ type CommandFilterItem struct {
 	Type       string `json:"type"`
 	RePattern  string `json:"pattern"`
 
-	pattern  *regexp.Regexp
+	pattern  FindStringer
 	compiled bool
 }
 
@@ -107,3 +104,27 @@ var (
 		ActionUnknown: 2,
 	}
 )
+
+type FindStringer interface {
+	FindString(s string) string
+}
+
+type StdRegexp struct {
+	pattern *regexp.Regexp
+}
+
+func (r *StdRegexp) FindString(s string) string {
+	return r.pattern.FindString(s)
+}
+
+type Regexp2 struct {
+	pattern *regexp2.Regexp
+}
+
+func (r *Regexp2) FindString(s string) string {
+	match, err := r.pattern.FindStringMatch(s)
+	if err != nil || match == nil {
+		return ""
+	}
+	return match.String()
+}
