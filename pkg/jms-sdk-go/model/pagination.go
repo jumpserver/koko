@@ -17,4 +17,6 @@ type PaginationParam struct {
 	Category string
 	Type     string
 	IsActive bool
+
+	Protocols []string
 }

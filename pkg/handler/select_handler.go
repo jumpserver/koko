@@ -9,6 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -318,6 +319,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	switch u.currentType {
 	case TypeDatabase:
 		reqParam.Category = "database"
+		reqParam.Protocols = srvconn.SupportedDBProtocols()
 		return u.retrieveRemoteAsset(reqParam)
 	case TypeK8s:
 		reqParam.Type = "k8s"
@@ -326,12 +328,15 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		return u.retrieveRemoteNodeAsset(reqParam)
 	case TypeAsset:
 		reqParam.Category = ""
+		reqParam.Protocols = srvconn.SupportedProtocols()
 		return u.retrieveRemoteAsset(reqParam)
 	case TypeHost:
 		reqParam.Category = "host"
+		reqParam.Protocols = srvconn.SupportedHostProtocols()
 		return u.retrieveRemoteAsset(reqParam)
 	default:
 		reqParam.Category = ""
+		reqParam.Protocols = srvconn.SupportedProtocols()
 		// TypeAsset
 		u.SetSelectType(TypeAsset)
 		logger.Info("Retrieve default remote data type: Asset")
