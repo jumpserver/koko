@@ -24,13 +24,13 @@ func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) 
 }
 
 func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.Asset {
-	fields := map[string]struct{}{
-		"name":     {},
-		"address":  {},
-		"ip":       {},
-		"platform": {},
-		"org_name": {},
-		"comment":  {},
+	allFields := []string{"name", "address", "platform", "comment"}
+	fields := make(map[string]struct{}, len(allFields))
+	for i := range allFields {
+		if u.isHiddenField(allFields[i]) {
+			continue
+		}
+		fields[allFields[i]] = struct{}{}
 	}
 	return u.searchLocalFromFields(fields, searches...)
 }
@@ -45,46 +45,82 @@ func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 	u.displayAssets(searchHeader)
 }
 
+const maxFieldSize = 80 // 仅仅是限制字段显示长度最大为 80
+
 func (u *UserSelectHandler) displayAssets(searchHeader string) {
+	currentResult := u.currentResult
 	lang := i18n.NewLang(u.h.i18nLang)
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
-	ipLabel := lang.T("Address")
+	addressLabel := lang.T("Address")
 	protocolsLabel := lang.T("Protocols")
 	platformLabel := lang.T("Platform")
 	orgLabel := lang.T("Organization")
 	commentLabel := lang.T("Comment")
-
-	Labels := []string{idLabel, nameLabel, ipLabel, protocolsLabel, platformLabel, orgLabel, commentLabel}
-	fields := []string{"ID", "Name", "Address", "Protocols", "Platform", "Organization", "Comment"}
-	fieldsSize := map[string][3]int{
-		"ID":           {0, 0, 5},
-		"Name":         {0, 8, 0},
-		"Address":      {0, 8, 40},
-		"Protocols":    {0, 8, 0},
-		"Platform":     {0, 8, 0},
-		"Organization": {0, 8, 0},
-		"Comment":      {0, 0, 0},
-	}
-	generateRowFunc := func(i int, item *model.Asset) map[string]string {
+	idFieldSize := len(idLabel)
+	nameFieldSize := len(nameLabel)
+	addressFieldSize := len(addressLabel)
+	protocolsFieldSize := len(protocolsLabel)
+	platformFieldSize := len(platformLabel)
+	organizationFieldSize := len(orgLabel)
+	commentFieldSize := len(commentLabel)
+	data := make([]map[string]string, len(currentResult))
+	for i := range currentResult {
+		item := &u.currentResult[i]
 		row := make(map[string]string)
-		row["ID"] = strconv.Itoa(i + 1)
-		row["Name"] = item.Name
+		idNumber := strconv.Itoa(i + 1)
+		row["ID"] = idNumber
+		row["Name"] = strings.ReplaceAll(item.Name, " ", "_") // 多个空格可能会导致换行，所以全部替换成下划线
 		row["Address"] = item.Address
 		row["Protocols"] = strings.Join(item.SupportProtocols(), "|")
 		row["Platform"] = item.Platform.Name
 		row["Organization"] = item.OrgName
 		row["Comment"] = joinMultiLineString(item.Comment)
-		return row
+		data[i] = row
+		if idFieldSize < len(idNumber) {
+			idFieldSize = len(idNumber)
+		}
+		if len(item.Name) > nameFieldSize {
+			nameFieldSize = len(item.Name)
+		}
+		if len(item.Address) > addressFieldSize {
+			addressFieldSize = len(item.Address)
+		}
 	}
-	assetDisplay := lang.T("the asset")
-	data := make([]map[string]string, len(u.currentResult))
-	for i := range u.currentResult {
-		data[i] = generateRowFunc(i, &u.currentResult[i])
+	if nameFieldSize > maxFieldSize {
+		nameFieldSize = maxFieldSize
 	}
-	u.displayResult(searchHeader, assetDisplay,
-		Labels, fields, fieldsSize, generateRowFunc)
+	if addressFieldSize > maxFieldSize {
+		addressFieldSize = maxFieldSize
+	}
 
+	allFieldsSize := map[string][3]int{
+		"ID":           {idFieldSize, 0, 0},
+		"Name":         {nameFieldSize, 0, 0},
+		"Address":      {addressFieldSize, 0, 0},
+		"Protocols":    {0, protocolsFieldSize, 0},
+		"Platform":     {0, platformFieldSize, 0},
+		"Organization": {0, organizationFieldSize, 0},
+		"Comment":      {0, commentFieldSize, 0},
+	}
+	allLabels := []string{idLabel, nameLabel, addressLabel, protocolsLabel,
+		platformLabel, orgLabel, commentLabel}
+	allFields := []string{"ID", "Name", "Address", "Protocols",
+		"Platform", "Organization", "Comment"}
+	labels := make([]string, 0, len(allLabels))
+	fields := make([]string, 0, len(allFields))
+	for i := range allFields {
+		if u.isHiddenField(allFields[i]) {
+			continue
+		}
+		labels = append(labels, allLabels[i])
+		fields = append(fields, allFields[i])
+	}
+	fieldsSize := make(map[string][3]int, len(fields))
+	for i := range fields {
+		fieldsSize[fields[i]] = allFieldsSize[fields[i]]
+	}
+	u.displayResult(searchHeader, labels, fields, fieldsSize, data)
 }
 
 func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
@@ -180,4 +216,26 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		return
 	}
 	srv.Proxy()
+}
+
+func (u *UserSelectHandler) isHiddenField(field string) bool {
+	fieldName := strings.ToLower(field)
+	if isBuiltinFields(fieldName) {
+		return false
+	}
+	_, ok := u.hiddenFields[fieldName]
+	return ok
+}
+
+var builtinFields = map[string]struct{}{
+	"id":      {},
+	"name":    {},
+	"address": {},
+	"comment": {},
+}
+
+func isBuiltinFields(field string) bool {
+	fieldName := strings.ToLower(field)
+	_, ok := builtinFields[fieldName]
+	return ok
 }

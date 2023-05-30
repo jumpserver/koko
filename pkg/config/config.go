@@ -52,6 +52,8 @@ type Config struct {
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
 
+	HiddenFields []string `mapstructure:"HIDDEN_FIELDS"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
