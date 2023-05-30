@@ -130,9 +130,17 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		logger.Errorf("Get asset accounts err: %s", err)
 		return
 	}
-	protocol, ok := u.h.chooseAssetProtocol(asset.SupportProtocols())
+	// 过滤仅支持的连接协议
+	allSupportProtocols := srvconn.GetAllSupportedProtocols()
+	filterFunc := func(p string) bool {
+		name := strings.ToLower(p)
+		_, ok := allSupportProtocols[name]
+		return ok
+	}
+	protocols := asset.FilterProtocols(filterFunc)
+	protocol, ok := u.h.chooseAssetProtocol(protocols)
 	if !ok {
-		logger.Info("not select protocol")
+		logger.Info("Not select protocol")
 		return
 	}
 	i18nLang := u.h.i18nLang
@@ -153,6 +161,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 
 	selectedAccount, ok := u.h.chooseAccount(accounts)
 	if !ok {
+		logger.Info("Not select account")
 		return
 	}
 	u.selectedAccount = &selectedAccount

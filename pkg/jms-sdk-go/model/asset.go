@@ -78,6 +78,19 @@ func (a *Asset) SupportProtocols() []string {
 	return protocols
 }
 
+func (a *Asset) FilterProtocols(filter func(string) bool) []string {
+	protocols := make([]string, 0, len(a.Protocols))
+	for _, item := range a.Protocols {
+		if item.Public {
+			if filter != nil && !filter(item.Name) {
+				continue
+			}
+			protocols = append(protocols, item.Name)
+		}
+	}
+	return protocols
+}
+
 func (a *Asset) IsSupportProtocol(protocol string) bool {
 	for _, item := range a.Protocols {
 		protocolName := strings.ToLower(item.Name)

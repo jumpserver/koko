@@ -87,6 +87,14 @@ func IsSupportedProtocol(p string) error {
 	return ErrUnSupportedProtocol
 }
 
+func GetAllSupportedProtocols() map[string]struct{} {
+	supported := make(map[string]struct{}, len(supportedMap))
+	for k := range supportedMap {
+		supported[k] = struct{}{}
+	}
+	return supported
+}
+
 func builtinSupported() error {
 	return nil
 }
