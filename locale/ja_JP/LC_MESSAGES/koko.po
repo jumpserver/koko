@@ -8,90 +8,31 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. lang.T
-#: pkg/handler/app_database.go:26
+#: pkg/handler/app_database.go:11
 msgid "No Databases"
 msgstr "データベースなし"
 
 #. lang.T
-#: pkg/handler/app_database.go:31
-msgid "ID"
-msgstr "ID"
-
-#. lang.T
-#: pkg/handler/app_database.go:32
-msgid "Name"
-msgstr "名前"
-
-#. lang.T
-#: pkg/handler/app_database.go:33
-msgid "Address"
-msgstr "アドレス"
-
-#. lang.T
-#: pkg/handler/app_database.go:34
-msgid "Protocols"
-msgstr "プロトコル"
-
-#. lang.T
-#: pkg/handler/app_database.go:35
-msgid "Platform"
-msgstr "プラットホーム"
-
-#. lang.T
-#: pkg/handler/app_database.go:36
-msgid "Organization"
-msgstr "おるがないず"
-
-#. lang.T
-#: pkg/handler/app_database.go:37
-msgid "Comment"
-msgstr "コメント"
-
-#. lang.T
-#: pkg/handler/app_database.go:62
-#, fuzzy
-msgid "the database"
-msgstr "データベースなし"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:27
+#: pkg/handler/app_k8s.go:15
 msgid "No kubernetes"
 msgstr "いいえ kubernetes"
 
 #. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/app_k8s.go:32 pkg/handler/app_k8s.go:33
-#: pkg/handler/app_k8s.go:34
-msgid "Cluster"
-msgstr "クラスター"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/app_k8s.go:35 pkg/handler/app_k8s.go:36
-#: pkg/handler/app_k8s.go:55
-#, fuzzy
-msgid "the kubernetes"
-msgstr "いいえ kubernetes"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:79
+#: pkg/handler/app_k8s.go:31
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr "ページ番号：%d，ページあたりの行数：%d，合計ページ数：%d，合計数量：%d"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:93
+#: pkg/handler/app_k8s.go:45
 #, fuzzy
 msgid ""
-"Enter ID number directly login %s, multiple search use // + field, such "
-"as: //16"
+"Enter ID number directly login, multiple search use // + field, such as: //16"
 msgstr ""
 "ヒント：資産IDを入力して直接ログインする，二次検索の使用 // + フィールド，の"
 "ように：//192"
 
 #. lang.T
-#: pkg/handler/app_k8s.go:95
+#: pkg/handler/app_k8s.go:46
 msgid "Page up: b\tPage down: n"
 msgstr "前のページ：b 次のページ：n"
 
@@ -101,26 +42,47 @@ msgid "No Assets"
 msgstr "資産なし"
 
 #. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/asset.go:50 pkg/handler/asset.go:51 pkg/handler/asset.go:52
-#: pkg/handler/asset.go:53 pkg/handler/asset.go:54 pkg/handler/asset.go:55
-#: pkg/handler/asset.go:56 pkg/handler/asset.go:80
-msgid "the asset"
-msgstr "資産なし"
+#: pkg/handler/asset.go:53
+msgid "ID"
+msgstr "ID"
 
 #. lang.T
-#: pkg/handler/asset.go:108
+#: pkg/handler/asset.go:54
+msgid "Name"
+msgstr "名前"
+
+#. lang.T
+#: pkg/handler/asset.go:55
+msgid "Address"
+msgstr "アドレス"
+
+#. lang.T
+#: pkg/handler/asset.go:56
+msgid "Protocols"
+msgstr "プロトコル"
+
+#. lang.T
+#: pkg/handler/asset.go:57
+msgid "Platform"
+msgstr "プラットホーム"
+
+#. lang.T
+#: pkg/handler/asset.go:58
+msgid "Organization"
+msgstr "おるがないず"
+
+#. lang.T
+#: pkg/handler/asset.go:59
+msgid "Comment"
+msgstr "コメント"
+
+#. lang.T
+#: pkg/handler/asset.go:138
 msgid "%s protocol client not installed."
 msgstr "%s プロトコルクライアントがインストールされていません。"
 
 #. lang.T
-#: pkg/handler/asset.go:111
+#: pkg/handler/asset.go:141
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
@@ -128,19 +90,19 @@ msgstr ""
 "してください"
 
 #. lang.T
-#: pkg/handler/asset.go:134
+#: pkg/handler/asset.go:164
 msgid "Core API failed"
 msgstr "Core API エラー発生"
 
 #. lang.T
-#: pkg/handler/asset.go:140
+#: pkg/handler/asset.go:170
 #, fuzzy
 msgid "ACL reject"
-msgstr "%s は拒否されました"
+msgstr "は拒否されました"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:154 pkg/handler/asset.go:171
+#: pkg/handler/asset.go:184 pkg/handler/asset.go:201
 msgid "get connect token err"
 msgstr "接続トークン取得エラー"
 
@@ -292,7 +254,7 @@ msgid "Connect idle more than %d minutes, disconnect"
 msgstr "%d 分以上のアイドル状態に接続し、切断します"
 
 #. lang.T
-#: pkg/handler/interactive.go:186
+#: pkg/handler/interactive.go:194
 #, fuzzy
 msgid "No account found."
 msgstr "アカウントが見つかりません"
@@ -303,36 +265,36 @@ msgstr "アカウントが見つかりません"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:195 pkg/handler/interactive.go:196
-#: pkg/handler/interactive.go:197 pkg/handler/interactive.go:227
-#: pkg/handler/interactive.go:228 pkg/handler/interactive.go:254
+#: pkg/handler/interactive.go:203 pkg/handler/interactive.go:204
+#: pkg/handler/interactive.go:205 pkg/handler/interactive.go:235
+#: pkg/handler/interactive.go:236 pkg/handler/interactive.go:262
 msgid "Select account exceed max retry times."
 msgstr "アカウントを選択する回数が最大値を超えました"
 
 #. lang.T
-#: pkg/handler/interactive.go:265
+#: pkg/handler/interactive.go:273
 msgid "No protocol found."
 msgstr "プロトコルが見つかりません"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:274 pkg/handler/interactive.go:275
+#: pkg/handler/interactive.go:282 pkg/handler/interactive.go:283
 msgid "Protocol"
 msgstr "プロトコル"
 
 #. lang.T
-#: pkg/handler/interactive.go:302
+#: pkg/handler/interactive.go:310
 msgid "Tips: Enter protocol ID"
 msgstr "ヒント: プロトコル ID を入力してください"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:303 pkg/handler/interactive.go:329
+#: pkg/handler/interactive.go:311 pkg/handler/interactive.go:337
 msgid "Select protocol exceed max retry times."
 msgstr "プロトコルを選択する回数が最大値を超えました"
 
 #. lang.T
-#: pkg/handler/interactive.go:366
+#: pkg/handler/interactive.go:374
 msgid "Refresh done"
 msgstr "更新完了"
 
@@ -388,7 +350,7 @@ msgid "Cancel confirm"
 msgstr "確認をキャンセル"
 
 #. lang.T
-#: pkg/handler/select_handler.go:198
+#: pkg/handler/select_handler.go:200
 msgid "Search: %s"
 msgstr "検索: %s"
 
@@ -577,6 +539,20 @@ msgstr "ネットワーク不通(ルーティング不通)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "ネットワーク不通（ネットワーク不可）"
+
+#, fuzzy
+#~ msgid "the database"
+#~ msgstr "データベースなし"
+
+#~ msgid "Cluster"
+#~ msgstr "クラスター"
+
+#, fuzzy
+#~ msgid "the kubernetes"
+#~ msgstr "いいえ kubernetes"
+
+#~ msgid "the asset"
+#~ msgstr "資産なし"
 
 #~ msgid "Tips: Enter system user ID and directly login"
 #~ msgstr "ヒント：システムユーザーIDを入力して直接ログインする"

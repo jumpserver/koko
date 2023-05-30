@@ -49,6 +49,8 @@ type UserSelectHandler struct {
 
 	selectedAsset   *model.Asset
 	selectedAccount *model.PermAccount
+
+	hiddenFields map[string]struct{}
 }
 
 func (u *UserSelectHandler) SetSelectType(s selectType) {
@@ -269,11 +271,7 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 
 func (u *UserSelectHandler) retrieveLocal(searches ...string) []model.Asset {
 	switch u.currentType {
-	case TypeDatabase:
-		return u.searchLocalDatabase(searches...)
-	case TypeK8s:
-		return u.searchLocalK8s(searches...)
-	case TypeAsset, TypeHost:
+	case TypeAsset, TypeHost, TypeDatabase, TypeK8s:
 		return u.searchLocalAsset(searches...)
 	default:
 		// TypeAsset
@@ -290,7 +288,6 @@ func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, se
 		data := map[string]interface{}{
 			"name":     u.allLocalData[i].Name,
 			"address":  assetData.Address,
-			"db_name":  assetData.SpecInfo.DBName,
 			"org_name": assetData.OrgName,
 			"platform": assetData.Platform.Name,
 			"comment":  assetData.Comment,
