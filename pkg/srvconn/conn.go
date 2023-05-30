@@ -43,6 +43,33 @@ const (
 	ProtocolClickHouse = "clickhouse"
 )
 
+func SupportedDBProtocols() []string {
+	return []string{
+		ProtocolMySQL,
+		ProtocolMariadb,
+		ProtocolSQLServer,
+		ProtocolRedis,
+		ProtocolMongoDB,
+		ProtocolPostgreSQL,
+		ProtocolClickHouse,
+	}
+}
+
+func SupportedHostProtocols() []string {
+	return []string{
+		ProtocolSSH,
+		ProtocolTELNET,
+	}
+}
+
+func SupportedProtocols() []string {
+	protocols := make([]string, 0, len(supportedMap))
+	for k := range supportedMap {
+		protocols = append(protocols, k)
+	}
+	return protocols
+}
+
 type ErrNoClient struct {
 	Name string
 }
@@ -85,14 +112,6 @@ func IsSupportedProtocol(p string) error {
 		return checker()
 	}
 	return ErrUnSupportedProtocol
-}
-
-func GetAllSupportedProtocols() map[string]struct{} {
-	supported := make(map[string]struct{}, len(supportedMap))
-	for k := range supportedMap {
-		supported[k] = struct{}{}
-	}
-	return supported
 }
 
 func builtinSupported() error {

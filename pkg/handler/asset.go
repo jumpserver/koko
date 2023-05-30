@@ -131,11 +131,15 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		return
 	}
 	// 过滤仅支持的连接协议
-	allSupportProtocols := srvconn.GetAllSupportedProtocols()
+	allSupportedProtocols := srvconn.SupportedProtocols()
 	filterFunc := func(p string) bool {
 		name := strings.ToLower(p)
-		_, ok := allSupportProtocols[name]
-		return ok
+		for i := range allSupportedProtocols {
+			if strings.EqualFold(name, allSupportedProtocols[i]) {
+				return true
+			}
+		}
+		return false
 	}
 	protocols := asset.FilterProtocols(filterFunc)
 	protocol, ok := u.h.chooseAssetProtocol(protocols)

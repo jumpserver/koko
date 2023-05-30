@@ -94,6 +94,9 @@ func (s *JMService) getPaginationAssets(reqUrl string, param model.PaginationPar
 	if param.IsActive {
 		params["is_active"] = "true"
 	}
+	if param.Protocols != nil {
+		params["protocols"] = strings.Join(param.Protocols, ",")
+	}
 
 	paramsArray = append(paramsArray, params)
 	if param.PageSize > 0 {
