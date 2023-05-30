@@ -104,6 +104,9 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 			p.zmodemParser.Cleanup()
 			logger.Infof("Session %s: Parser routine done", p.id)
 		}()
+		cmdRecordTicker := time.NewTicker(time.Minute)
+		defer cmdRecordTicker.Stop()
+		lastActiveTime := time.Now()
 		for {
 			select {
 			case <-p.closed:
@@ -138,8 +141,14 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 					return
 				case p.srvOutputChan <- b:
 				}
-
+			case now := <-cmdRecordTicker.C:
+				// 每隔一分钟超时，尝试结算一次命令
+				if now.Sub(lastActiveTime) > time.Minute {
+					p.sendCommandRecord()
+				}
+				continue
 			}
+			lastActiveTime = time.Now()
 		}
 	}()
 	return p.userOutputChan, p.srvOutputChan
