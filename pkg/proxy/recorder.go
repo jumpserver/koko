@@ -341,9 +341,7 @@ func (r *FTPFileRecorder) Record(ftpLog *model.FTPLog, reader io.Reader) (err er
 	io.Copy(r.file, reader)
 	defer r.file.Close()
 	reader.(io.Seeker).Seek(0, io.SeekStart)
-	go func () {
-		r.uploadFTPFile()
-	}()
+	r.uploadFTPFile()
 	return
 }
 
@@ -352,18 +350,14 @@ func (r *FTPFileRecorder) isNullStorage() bool {
 }
 
 func (r *FTPFileRecorder) uploadFTPFile() {
-	logger.Infof("Session %s: FTP File recorder is uploading", r.FTPLog.ID)
+	logger.Infof("FTPLog %s: FTP File recorder is uploading", r.FTPLog.ID)
 	if !common.FileExists(r.absFilePath) {
 		logger.Info("FTP file not found, passed: ", r.absFilePath)
 		return
 	}
 	stat, err := os.Stat(r.absFilePath)
 	if err == nil {
-		if stat.Size() == 0 {
-			logger.Info("FTP file is empty, removed: ", r.absFilePath)
-			_ = os.Remove(r.absFilePath)
-			return
-		} else if stat.Size() >= r.MaxStore * 1024 * 1024 {
+		if stat.Size() >= r.MaxStore * 1024 * 1024 {
 			logger.Info("FTP file is exceeds the upper limit for saving files, removed: ", r.absFilePath)
 			_ = os.Remove(r.absFilePath)
 			return
@@ -394,7 +388,7 @@ func (r *FTPFileRecorder) UploadFile(maxRetry int) {
 				break
 			}
 			logger.Errorf("Session[%s] using server storage retry upload", r.FTPLog.ID)
-			r.storage = storage.ServerStorage{StorageType: "server", JmsService: r.jmsService}
+			r.storage = storage.FTPServerStorage{StorageType: "server", JmsService: r.jmsService}
 			r.UploadFile(3)
 			break
 		}

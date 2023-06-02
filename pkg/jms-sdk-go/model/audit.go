@@ -25,6 +25,7 @@ const (
 const (
 	OperateRemoveDir = "rmdir"
 	OperateRename    = "rename"
+	OperateRenameDir = "rename_dir"
 	OperateMkdir     = "mkdir"
 	OperateDelete    = "delete"
 	OperateSymlink   = "symlink"

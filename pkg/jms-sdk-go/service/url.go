@@ -27,7 +27,7 @@ const (
 	JoinRoomValidateURL = "/api/v1/terminal/sessions/join/validate/"
 	FTPLogListURL       = "/api/v1/audits/ftp-logs/" // 上传 ftp日志
 	FTPLogUpdateURL     = "/api/v1/audits/ftp-logs/%s/"
-	FTPLogFileURL       = "/api/v1/audits/ftp-logs/%s/file/"
+	FTPLogFileURL       = "/api/v1/audits/ftp-logs/%s/upload/"
 )
 
 // 授权相关API

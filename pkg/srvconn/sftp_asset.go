@@ -34,8 +34,6 @@ type AssetDir struct {
 
 	suMaps map[string]*model.PermAccount
 
-	logChan chan<- *model.FTPLog
-
 	sftpClients map[string]*SftpConn // Account stringer
 
 	once sync.Once
@@ -139,27 +137,27 @@ func (ad *AssetDir) loadAssetDomain() {
 	}
 }
 
-func (ad *AssetDir) Create(path string) (*sftp.File, *model.FTPLog, error) {
+func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
 		if len(pathData) == 1 && pathData[0] == "" {
-			return nil, nil, sftp.ErrSshFxPermissionDenied
+			return nil, sftp.ErrSshFxPermissionDenied
 		}
 		folderName = pathData[0]
 		pathData = pathData[1:]
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, nil, errNoSystemUser
+		return nil, errNoSystemUser
 	}
 	if !su.Actions.EnableUpload() {
-		return nil, nil, sftp.ErrSshFxPermissionDenied
+		return nil, sftp.ErrSshFxPermissionDenied
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil {
-		return nil, nil, sftp.ErrSshFxConnectionLost
+		return nil, sftp.ErrSshFxConnectionLost
 	}
 	sf, err := con.client.Create(realPath)
 	filename := realPath
@@ -169,7 +167,8 @@ func (ad *AssetDir) Create(path string) (*sftp.File, *model.FTPLog, error) {
 		isSuccess = true
 	}
 	ftpLog := ad.CreateFTPLog(su, operate, filename, isSuccess)
-	return sf, ftpLog, err
+	f := &SftpFile{File: sf, FTPLog: ftpLog}
+	return f, err
 }
 
 func (ad *AssetDir) MkdirAll(path string) (err error) {
@@ -205,26 +204,26 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	return
 }
 
-func (ad *AssetDir) Open(path string) (*sftp.File, *model.FTPLog, error) {
+func (ad *AssetDir) Open(path string) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
 		if len(pathData) == 1 && pathData[0] == "" {
-			return nil, nil, sftp.ErrSshFxPermissionDenied
+			return nil, sftp.ErrSshFxPermissionDenied
 		}
 		folderName = pathData[0]
 		pathData = pathData[1:]
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, nil, errNoSystemUser
+		return nil, errNoSystemUser
 	}
 	if !su.Actions.EnableDownload() {
-		return nil, nil, sftp.ErrSshFxPermissionDenied
+		return nil, sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil {
-		return nil, nil, sftp.ErrSshFxConnectionLost
+		return nil, sftp.ErrSshFxConnectionLost
 	}
 	sf, err := con.client.Open(realPath)
 	filename := realPath
@@ -234,7 +233,8 @@ func (ad *AssetDir) Open(path string) (*sftp.File, *model.FTPLog, error) {
 		isSuccess = true
 	}
 	ftpLog := ad.CreateFTPLog(su, operate, filename, isSuccess)
-	return sf, ftpLog, err
+	f := &SftpFile{File: sf, FTPLog: ftpLog}
+	return f, err
 }
 
 func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
@@ -355,6 +355,10 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
 	isSuccess := false
 	operate := model.OperateRename
+	fileInfo, err := conn2.client.Stat(newRealPath)
+	if err == nil && fileInfo.IsDir() {
+		operate = model.OperateRenameDir
+	}
 	if err == nil {
 		isSuccess = true
 	}
@@ -732,6 +736,8 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		DateStart:  common.NewNowUTCTime(),
 		IsSuccess:  isSuccess,
 	}
-	ad.logChan <- &data
+	if err := ad.jmsService.CreateFileOperationLog(data); err != nil {
+		logger.Errorf("Create ftp log err: %s", err)
+	}
 	return &data
 }

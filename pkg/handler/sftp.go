@@ -81,7 +81,7 @@ func (s *SftpHandler) Filecmd(r *sftp.Request) (err error) {
 
 func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	logger.Debug("File write: ", r.Filepath)
-	f, ftpLog, err := s.Create(r.Filepath)
+	f, err := s.Create(r.Filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -92,17 +92,17 @@ func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 		}
 		logger.Infof("Sftp file write %s done", r.Filepath)
 	}()
-	s.recorder.SetFTPLog(ftpLog)
-	return NewWriterAt(f, s.recorder), err
+	s.recorder.SetFTPLog(f.FTPLog)
+	return NewWriterAt(f.File, s.recorder), err
 }
 
 func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	logger.Debug("File read: ", r.Filepath)
-	f, ftpLog, err := s.Open(r.Filepath)
+	f, err := s.Open(r.Filepath)
 	if err != nil {
 		return nil, err
 	}
-	s.recorder.Record(ftpLog, f)
+	s.recorder.Record(f.FTPLog, f)
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {

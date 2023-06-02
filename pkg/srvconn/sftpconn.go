@@ -23,7 +23,6 @@ type UserSftpConn struct {
 	Dirs map[string]os.FileInfo
 
 	modeTime time.Time
-	logChan  chan *model.FTPLog
 
 	closed    chan struct{}
 	searchDir *SearchResultDir
@@ -151,36 +150,36 @@ func (u *UserSftpConn) Symlink(oldNamePath, newNamePath string) (err error) {
 	return sftp.ErrSshFxPermissionDenied
 }
 
-func (u *UserSftpConn) Create(path string) (*sftp.File, *model.FTPLog, error) {
+func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok {
-		return nil, nil, sftp.ErrSshFxPermissionDenied
+		return nil, sftp.ErrSshFxPermissionDenied
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return nil, nil, errNoSelectAsset
+		return nil, errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.Create(restPath)
 	}
 
-	return nil, nil, errNoSelectAsset
+	return nil, errNoSelectAsset
 }
 
-func (u *UserSftpConn) Open(path string) (*sftp.File, *model.FTPLog, error) {
+func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok {
-		return nil, nil, sftp.ErrSshFxPermissionDenied
+		return nil, sftp.ErrSshFxPermissionDenied
 	}
 
 	if _, ok := fi.(*NodeDir); ok {
-		return nil, nil, errNoSelectAsset
+		return nil, errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.Open(restPath)
 	}
 
-	return nil, nil, errNoSelectAsset
+	return nil, errNoSelectAsset
 }
 
 func (u *UserSftpConn) Close() {
@@ -321,7 +320,7 @@ func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeLi
 			opts = append(opts, WithFolderID(item.ID))
 			opts = append(opts, WithFolderName(folderName))
 			opts = append(opts, WitRemoteAddr(u.Addr))
-			assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, opts...)
+			assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 			dirs[folderName] = &assetDir
 		}
 	}
@@ -350,7 +349,7 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 		Actions:    actions,
 	}
 	opts = append(opts, WithPermAccounts([]model.PermAccount{permAccount}))
-	assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, opts...)
+	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 	dirs[folderName] = &assetDir
 	return dirs
 }
@@ -372,50 +371,10 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset) map[st
 		opts = append(opts, WithFolderName(folderName))
 		opts = append(opts, WitRemoteAddr(u.Addr))
 		opts = append(opts, WithAsset(assets[i]))
-		assetDir := NewAssetDir(u.jmsService, u.User, u.logChan, opts...)
+		assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 		dirs[folderName] = &assetDir
 	}
 	return dirs
-}
-
-func (u *UserSftpConn) loopPushFTPLog() {
-	ftpLogList := make([]*model.FTPLog, 0, 1024)
-	maxRetry := 0
-	var err error
-	tick := time.NewTicker(time.Second * 20)
-	defer tick.Stop()
-	for {
-		select {
-		case <-u.closed:
-			if len(ftpLogList) == 0 {
-				return
-			}
-		case <-tick.C:
-			if len(ftpLogList) == 0 {
-				continue
-			}
-		case logData, ok := <-u.logChan:
-			if !ok {
-				return
-			}
-			ftpLogList = append(ftpLogList, logData)
-		}
-
-		data := ftpLogList[len(ftpLogList)-1]
-		err = u.jmsService.CreateFileOperationLog(*data)
-		if err == nil {
-			ftpLogList = ftpLogList[:len(ftpLogList)-1]
-			maxRetry = 0
-			continue
-		} else {
-			logger.Errorf("Create FTP log err: %s", err.Error())
-		}
-
-		if maxRetry > 5 {
-			ftpLogList = ftpLogList[1:]
-		}
-		maxRetry++
-	}
 }
 
 func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
@@ -476,7 +435,6 @@ func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *Use
 		Addr:       sftpOpts.RemoteAddr,
 		Dirs:       map[string]os.FileInfo{},
 		modeTime:   time.Now().UTC(),
-		logChan:    make(chan *model.FTPLog, 1024),
 		closed:     make(chan struct{}),
 		jmsService: jmsService,
 	}
@@ -489,7 +447,6 @@ func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *Use
 	default:
 		u.Dirs = u.generateSubFoldersFromRootTree()
 	}
-	go u.loopPushFTPLog()
 	return &u
 }
 

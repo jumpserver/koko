@@ -143,8 +143,7 @@ func WithDomain(domain *model.Domain) FolderBuilderOption {
 	}
 }
 
-func NewAssetDir(jmsService *service.JMService, user *model.User, logChan chan<- *model.FTPLog,
-	opts ...FolderBuilderOption) AssetDir {
+func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...FolderBuilderOption) AssetDir {
 	var dirOpts folderOptions
 	for _, setter := range opts {
 		setter(&dirOpts)
@@ -159,12 +158,16 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, logChan chan<-
 		domain:      dirOpts.domain,
 		modeTime:    time.Now().UTC(),
 		suMaps:      generateSubAccountsFolderMap(dirOpts.permAccounts),
-		logChan:     logChan,
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,
 		sftpClients: map[string]*SftpConn{},
 		jmsService:  jmsService,
 	}
+}
+
+type SftpFile struct {
+	*sftp.File
+	FTPLog       *model.FTPLog
 }
 
 type SftpConn struct {

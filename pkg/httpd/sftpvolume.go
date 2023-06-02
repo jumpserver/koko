@@ -202,13 +202,13 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 
 func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	logger.Debug("GetFile path: ", path)
-	sftpFile, ftpLog, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
+	sf, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
 	if err != nil {
 		return nil, err
 	}
-	u.recorder.Record(ftpLog, sftpFile)
+	u.recorder.Record(sf.FTPLog, sf)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
-	return &fileReader{sftpFile}, nil
+	return &fileReader{sf}, nil
 }
 
 func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader) (elfinder.FileDir, error) {
@@ -222,14 +222,14 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 		path = filepath.Join(dirPath, filename)
 
 	}
-	logger.Debug("Volume upload file path: ", path, " ", filename, " ", uploadPath)
+	logger.Debug("Volume upload file path: ", path, "|", filename, "|", uploadPath)
 	var rest elfinder.FileDir
-	fd, ftpLog, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
+	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
 	defer fd.Close()
-	u.recorder.Record(ftpLog, reader)
+	u.recorder.Record(fd.FTPLog, reader)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		return rest, err
@@ -254,10 +254,12 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 			path = filepath.Join(dirPath, filename)
 
 		}
-		fd, ftpLog, err = u.UserSftp.Create(filepath.Join(u.basePath, path))
+		f, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 		if err != nil {
 			return err
 		}
+		fd = f.File
+		ftpLog = f.FTPLog
 		_, err = fd.Seek(rangeData.Offset, 0)
 		if err != nil {
 			return err
@@ -317,11 +319,11 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 
 	path := filepath.Join(dir, newFilename)
 	var rest elfinder.FileDir
-	fd, ftpLog, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
+	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
-	u.recorder.Record(ftpLog, fd)
+	u.recorder.Record(fd.FTPLog, fd)
 	_ = fd.Close()
 	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
 
@@ -363,7 +365,7 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 	if err == nil {
 		path += suffix
 	}
-	fd, _, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
+	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 	logger.Debug("volume paste: ", path, err)
 	if err != nil {
 		return rest, err

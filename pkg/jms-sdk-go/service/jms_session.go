@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
