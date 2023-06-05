@@ -15,6 +15,7 @@ type FTPLog struct {
 	Path       string         `json:"filename"`
 	DateStart  common.UTCTime `json:"date_start"`
 	IsSuccess  bool           `json:"is_success"`
+	Session    string         `json:"session"`
 }
 
 const (

@@ -8,16 +8,12 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 )
 
-type BaseStorage struct {}
-
 type ServerStorage struct {
-	BaseStorage
 	StorageType string
 	JmsService  *service.JMService
 }
 
 type FTPServerStorage struct {
-	BaseStorage
 	StorageType string
 	JmsService  *service.JMService
 }
@@ -25,6 +21,10 @@ type FTPServerStorage struct {
 func (s FTPServerStorage) Upload(filePath, target string) (err error) {
 	id := strings.Split(filepath.Base(filePath), ".")[0]
 	return s.JmsService.UploadFTPFile(id, filePath)
+}
+
+func (s FTPServerStorage) TypeName() string {
+	return s.StorageType
 }
 
 func (s ServerStorage) BulkSave(commands []*model.Command) (err error) {
@@ -36,6 +36,6 @@ func (s ServerStorage) Upload(gZipFilePath, target string) (err error) {
 	return s.JmsService.UploadReplay(sessionID, gZipFilePath)
 }
 
-func (s BaseStorage) TypeName() string {
+func (s ServerStorage) TypeName() string {
 	return s.StorageType
 }
