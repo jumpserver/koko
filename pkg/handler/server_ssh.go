@@ -313,10 +313,14 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
 	tokeInfo *model.ConnectToken) {
 	rawStr := sess.RawCommand()
-	if strings.HasPrefix(rawStr, "scp") {
-		logger.Errorf("Not support scp command %s", rawStr)
+	if strings.HasPrefix(rawStr, "scp") && !config.GetConf().EnableVscodeSupport {
+		logger.Errorf("Not support scp command: %s", rawStr)
 		utils.IgnoreErrWriteString(sess, "Not support scp command")
 		return
+	} else {
+		// 开启了 vscode 支持，放开使用 scp 命令传输文件
+		// todo: 解析 scp 数据包，获取文件信息
+		logger.Infof("Execute scp command: %s", rawStr)
 	}
 	// todo: 暂且不支持 acl 工单
 	acls := tokeInfo.CommandFilterACLs
@@ -398,6 +402,8 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 			if err != nil {
 				if err != io.EOF {
 					logger.Errorf("Read ssh session output failed: %s", err)
+				} else {
+					logger.Info("Read ssh command session output end")
 				}
 				break
 			}
@@ -407,7 +413,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 				_, _ = outResult.Write(buf[:n])
 			}
 		}
-		cmd.Output = outResult.String()
+		cmd.Output = strings.ReplaceAll(outResult.String(), "\x00", "")
 		termCfg := s.GetTerminalConfig()
 		cmdStorage := proxy.NewCommandStorage(s.jmsService, &termCfg)
 		if err2 := cmdStorage.BulkSave([]*model.Command{&cmd}); err2 != nil {
