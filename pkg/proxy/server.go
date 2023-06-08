@@ -161,6 +161,8 @@ type Server struct {
 type SessionInfo struct {
 	Session *model.Session    `json:"session"`
 	Perms   *model.Permission `json:"permission"`
+
+	BackspaceAsCtrlH *bool `json:"backspaceAsCtrlH,omitempty"`
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -432,8 +434,8 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		return nil, false
 	}
 	pty := s.UserConn.Pty()
-	platform := s.connOpts.authInfo.Platform
-	cacheConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(platform.Charset.Value),
+	charset := s.getCharset()
+	cacheConn, err := srvconn.NewSSHConnection(sess, srvconn.SSHCharset(charset),
 		srvconn.SSHPtyWin(srvconn.Windows{
 			Width:  pty.Window.Width,
 			Height: pty.Window.Height,
@@ -554,8 +556,19 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
 	}))
-	if s.connOpts.params != nil && s.connOpts.params.DisableMySQLAutoHash {
-		mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
+	tokenConnOpts := s.connOpts.authInfo.ConnectOptions
+	switch {
+	case tokenConnOpts.DisableAutoHash != nil:
+		if *tokenConnOpts.DisableAutoHash {
+			mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
+		}
+		logger.Debugf("Connection token set disableAutoHash: %v", *tokenConnOpts.DisableAutoHash)
+	case s.connOpts.params != nil:
+		if s.connOpts.params.DisableMySQLAutoHash {
+			mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
+			logger.Debugf("Connection params set disableAutoHash: true")
+		}
+
 	}
 	srvConn, err = srvconn.NewMySQLConnection(mysqlOpts...)
 	return
@@ -842,7 +855,8 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 		Width:  pty.Window.Width,
 		Height: pty.Window.Height,
 	}))
-	telnetOpts = append(telnetOpts, srvconn.TelnetCharset(platform.Charset.Value))
+	charset := s.getCharset()
+	telnetOpts = append(telnetOpts, srvconn.TelnetCharset(charset))
 	// 获取网关配置
 	proxyArgs := s.getGatewayProxyOptions()
 	if proxyArgs != nil {
@@ -989,6 +1003,24 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 	}
 }
 
+func (s *Server) getCharset() string {
+	platform := s.connOpts.authInfo.Platform
+	tokenConnOpts := s.connOpts.authInfo.ConnectOptions
+	charset := platform.Charset.Value
+	if tokenConnOpts.Charset != nil {
+		useCharset := strings.ToLower(*tokenConnOpts.Charset)
+		logger.Debugf("Conn[%s] set charset %s", s.UserConn.ID(), useCharset)
+		switch useCharset {
+		case "utf-8", "utf8":
+			charset = common.UTF8
+		case "gbk":
+			charset = common.GBK
+		default:
+		}
+	}
+	return charset
+}
+
 func (s *Server) Proxy() {
 	if err := s.checkRequiredAuth(); err != nil {
 		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
@@ -1077,10 +1109,13 @@ func (s *Server) Proxy() {
 	}
 	if s.OnSessionInfo != nil {
 		actions := s.connOpts.authInfo.Actions
+		tokenConnOpts := s.connOpts.authInfo.ConnectOptions
 		perm := actions.Permission()
 		info := SessionInfo{
 			Session: s.sessionInfo,
 			Perms:   &perm,
+
+			BackspaceAsCtrlH: tokenConnOpts.BackspaceAsCtrlH,
 		}
 		go s.OnSessionInfo(&info)
 	}

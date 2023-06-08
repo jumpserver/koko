@@ -106,10 +106,17 @@ func (h *InteractiveHandler) Initial() {
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.i18nLang = getUserDefaultLangCode(h.user)
 	h.displayHelp()
+	hiddenFields := make(map[string]struct{})
+	for i := range conf.HiddenFields {
+		name := strings.TrimSpace(strings.ToLower(conf.HiddenFields[i]))
+		hiddenFields[name] = struct{}{}
+	}
 	h.selectHandler = &UserSelectHandler{
 		user:     h.user,
 		h:        h,
 		pageInfo: &pageInfo{},
+
+		hiddenFields: hiddenFields,
 	}
 	switch h.assetLoadPolicy {
 	case "all":
@@ -226,7 +233,7 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 	h.term.SetPrompt("ID> ")
 	selectTip := fmt.Sprintf(lang.T("Tips: Enter asset[%s] account ID"), userHandler.selectedAsset.String())
 	backTip := lang.T("Back: B/b")
-	for {
+	for i := 0; i < 3; i++ {
 		utils.IgnoreErrWriteString(h.term, table.Display())
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(selectTip, utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
@@ -242,16 +249,19 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 		case "q", "b", "quit", "exit", "back":
 			logger.Info("select account cancel")
 			return model.PermAccount{}, false
+		case "":
+			continue
 		}
 		if num, err2 := strconv.Atoi(line); err2 == nil {
 			if num > 0 && num <= len(displaySystemUsers) {
 				return displaySystemUsers[num-1], true
 			}
-		} else {
-			logger.Errorf("select account not right number %s", line)
-			return model.PermAccount{}, false
 		}
 	}
+	maxTryTip := lang.T("Select account exceed max retry times.")
+	utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(maxTryTip))
+	utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+	return model.PermAccount{}, false
 }
 
 func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bool) {
@@ -298,7 +308,7 @@ func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bo
 	h.term.SetPrompt("ID> ")
 	selectTip := lang.T("Tips: Enter protocol ID")
 	backTip := lang.T("Back: B/b")
-	for {
+	for i := 0; i < 3; i++ {
 		utils.IgnoreErrWriteString(h.term, table.Display())
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(selectTip, utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
@@ -314,16 +324,20 @@ func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bo
 		case "q", "b", "quit", "exit", "back":
 			logger.Info("select account cancel")
 			return "", false
+		case "":
+			continue
 		}
 		if num, err2 := strconv.Atoi(line); err2 == nil {
 			if num > 0 && num <= len(displayProtocols) {
 				return displayProtocols[num-1], true
 			}
-		} else {
-			logger.Errorf("select protocol not right number %s", line)
-			return "", false
 		}
 	}
+	maxTryTip := lang.T("Select protocol exceed max retry times.")
+	utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(maxTryTip))
+	utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+	time.Sleep(time.Millisecond * 500)
+	return "", false
 }
 
 func (h *InteractiveHandler) refreshAssetsAndNodesData() {

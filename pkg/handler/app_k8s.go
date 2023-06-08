@@ -2,75 +2,27 @@ package handler
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) searchLocalK8s(searches ...string) []model.Asset {
-	fields := map[string]struct{}{
-		"name":     {},
-		"address":  {},
-		"org_name": {},
-		"comment":  {},
-	}
-	return u.searchLocalFromFields(fields, searches...)
-}
-
 func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
-	currentDBS := u.currentResult
+	currentResult := u.currentResult
 	lang := i18n.NewLang(u.h.i18nLang)
-	if len(currentDBS) == 0 {
+	if len(currentResult) == 0 {
 		noK8s := lang.T("No kubernetes")
 		u.displayNoResultMsg(searchHeader, noK8s)
 		return
 	}
-
-	idLabel := lang.T("ID")
-	nameLabel := lang.T("Name")
-	clusterLabel := lang.T("Cluster")
-	orgLabel := lang.T("Organization")
-	commentLabel := lang.T("Comment")
-	Labels := []string{idLabel, nameLabel, clusterLabel, orgLabel, commentLabel}
-	fields := []string{"ID", "Name", "Cluster", "Organization", "Comment"}
-	fieldSize := map[string][3]int{
-		"ID":           {0, 0, 5},
-		"Name":         {0, 8, 0},
-		"Cluster":      {0, 20, 0},
-		"Organization": {0, 8, 0},
-		"Comment":      {0, 0, 0},
-	}
-	generateRowFunc := func(i int, item *model.Asset) map[string]string {
-		row := make(map[string]string)
-		row["ID"] = strconv.Itoa(i + 1)
-		row["Name"] = item.Name
-		row["Cluster"] = item.Address
-		row["Organization"] = item.OrgName
-		row["Comment"] = joinMultiLineString(item.Comment)
-		return row
-	}
-	assetDisplay := lang.T("the kubernetes")
-	u.displayResult(searchHeader, assetDisplay,
-		Labels, fields, fieldSize, generateRowFunc)
+	u.displayAssets(searchHeader)
 }
 
-type createRowFunc func(int, *model.Asset) map[string]string
-
-func (u *UserSelectHandler) displayResult(searchHeader, assetDisplay string,
-	Labels, fields []string, fieldSize map[string][3]int,
-	generateRowFunc createRowFunc) {
+func (u *UserSelectHandler) displayResult(searchHeader string, Labels, fields []string,
+	fieldSize map[string][3]int, data []map[string]string) {
 	lang := i18n.NewLang(u.h.i18nLang)
-	currentDBS := u.currentResult
 	vt := u.h.term
-	data := make([]map[string]string, len(currentDBS))
-	for i := range currentDBS {
-		item := currentDBS[i]
-		data[i] = generateRowFunc(i, &item)
-	}
-
 	w, _ := u.h.GetPtySize()
 	currentPage := u.CurrentPage()
 	pageSize := u.PageSize()
@@ -90,8 +42,7 @@ func (u *UserSelectHandler) displayResult(searchHeader, assetDisplay string,
 		TruncPolicy: common.TruncMiddle,
 	}
 	table.Initial()
-	loginTip := lang.T("Enter ID number directly login %s, multiple search use // + field, such as: //16")
-	loginTip = fmt.Sprintf(loginTip, assetDisplay)
+	loginTip := lang.T("Enter ID number directly login, multiple search use // + field, such as: //16")
 	pageActionTip := lang.T("Page up: b	Page down: n")
 	actionTip := fmt.Sprintf("%s %s", loginTip, pageActionTip)
 	_, _ = vt.Write([]byte(utils.CharClear))

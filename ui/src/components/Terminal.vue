@@ -445,21 +445,21 @@ export default {
       let config = {};
       let fontSize = 14;
       let quickPaste = "0";
-      let backspaceAsCrtlH = "0";
+      let backspaceAsCtrlH = "0";
       // localStorage.getItem default null
       let localSettings = localStorage.getItem('LunaSetting')
       if (localSettings !== null) {
         let settings = JSON.parse(localSettings)
         fontSize = settings['fontSize']
         quickPaste = settings['quickPaste']
-        backspaceAsCrtlH = settings['backspaceAsCrtlH']
+        backspaceAsCtrlH = settings['backspaceAsCtrlH']
       }
       if (!fontSize || fontSize < 5 || fontSize > 50) {
         fontSize = 13;
       }
       config['fontSize'] = fontSize;
       config['quickPaste'] = quickPaste;
-      config['backspaceAsCrtlH'] = backspaceAsCrtlH;
+      config['backspaceAsCtrlH'] = backspaceAsCtrlH;
       return config
     },
 
@@ -480,6 +480,10 @@ export default {
       }
       this.$log.debug(file, fileList)
       this.fileList = fileList
+    },
+
+    setConfig(name, value) {
+      this.config[name] = value
     },
 
     handleReceiveSession(zsession) {
@@ -619,7 +623,7 @@ export default {
     },
 
     preprocessInput(data) {
-      if (this.config.backspaceAsCrtlH === "1") {
+      if (this.config.backspaceAsCtrlH === "1") {
         if (data.charCodeAt(0) === AsciiDel) {
           data = String.fromCharCode(AsciiBackspace)
         }

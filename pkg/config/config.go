@@ -53,14 +53,16 @@ type Config struct {
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
 
-	RootPath            string
-	DataFolderPath      string
-	LogDirPath          string
-	KeyFolderPath       string
-	AccessKeyFilePath   string
-	ReplayFolderPath    string
-	FTPFileFolderPath   string
-	CertsFolderPath     string
+	HiddenFields []string `mapstructure:"HIDDEN_FIELDS"`
+
+	RootPath          string
+	DataFolderPath    string
+	LogDirPath        string
+	KeyFolderPath     string
+	AccessKeyFilePath string
+	ReplayFolderPath  string
+	FTPFileFolderPath string
+	CertsFolderPath   string
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -106,22 +108,22 @@ func getDefaultConfig() Config {
 		}
 	}
 	return Config{
-		Name:                defaultName,
-		CoreHost:            "http://localhost:8080",
-		BootstrapToken:      "",
-		BindHost:            "0.0.0.0",
-		SSHPort:             "2222",
-		SSHTimeout:          15,
-		HTTPPort:            "5000",
-		AccessKeyFilePath:   accessKeyFilePath,
-		LogLevel:            "INFO",
-		RootPath:            rootPath,
-		DataFolderPath:      dataFolderPath,
-		LogDirPath:          LogDirPath,
-		KeyFolderPath:       keyFolderPath,
-		ReplayFolderPath:    replayFolderPath,
-		FTPFileFolderPath:   ftpFileFolderPath,
-		CertsFolderPath:     CertsFolderPath,
+		Name:              defaultName,
+		CoreHost:          "http://localhost:8080",
+		BootstrapToken:    "",
+		BindHost:          "0.0.0.0",
+		SSHPort:           "2222",
+		SSHTimeout:        15,
+		HTTPPort:          "5000",
+		AccessKeyFilePath: accessKeyFilePath,
+		LogLevel:          "INFO",
+		RootPath:          rootPath,
+		DataFolderPath:    dataFolderPath,
+		LogDirPath:        LogDirPath,
+		KeyFolderPath:     keyFolderPath,
+		ReplayFolderPath:  replayFolderPath,
+		FTPFileFolderPath: ftpFileFolderPath,
+		CertsFolderPath:   CertsFolderPath,
 
 		Comment:             "KOKO",
 		UploadFailedReplay:  true,
