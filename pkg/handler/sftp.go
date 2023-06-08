@@ -22,7 +22,7 @@ func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string
 	opts = append(opts, srvconn.WithRemoteAddr(addr))
 	return &SftpHandler{
 		UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...),
-		recorder: proxy.GetFTPFileRecorder(jmsService),
+		recorder:     proxy.GetFTPFileRecorder(jmsService),
 	}
 }
 
@@ -91,11 +91,9 @@ func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
 		}
 		logger.Infof("Sftp file write %s done", r.Filepath)
-		s.recorder.File.Close()
-		s.recorder.UploadFile(3)
+		s.recorder.FinishFTPFile(f.FTPLog.ID)
 	}()
-	s.recorder.SetFTPLog(f.FTPLog)
-	return NewWriterAt(f.File, s.recorder), err
+	return NewWriterAt(f, s.recorder), err
 }
 
 func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
@@ -104,7 +102,10 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.recorder.Record(f.FTPLog, f)
+	if err1 := s.recorder.Record(f.FTPLog, f); err1 != nil {
+		logger.Errorf("Record file %s err: %s", r.Filepath, err)
+	}
+	// 重置文件指针
 	_, _ = f.Seek(0, io.SeekStart)
 	go func() {
 		<-r.Context().Done()
@@ -135,12 +136,12 @@ func (f listerat) ListAt(ls []os.FileInfo, offset int64) (int, error) {
 	return n, nil
 }
 
-func NewWriterAt(f *sftp.File, recorder *proxy.FTPFileRecorder) io.WriterAt {
+func NewWriterAt(f *srvconn.SftpFile, recorder *proxy.FTPFileRecorder) io.WriterAt {
 	return &clientReadWritAt{f: f, mu: new(sync.RWMutex), recorder: recorder}
 }
 
 type clientReadWritAt struct {
-	f  *sftp.File
+	f  *srvconn.SftpFile
 	mu *sync.RWMutex
 
 	recorder *proxy.FTPFileRecorder
@@ -149,7 +150,9 @@ type clientReadWritAt struct {
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.recorder.RecordWrite(p)
+	if err1 := c.recorder.RecordFtpChunk(c.f.FTPLog, p, off); err1 != nil {
+		logger.Errorf("Record write err: %s", err1)
+	}
 	_, _ = c.f.Seek(off, 0)
 	return c.f.Write(p)
 }

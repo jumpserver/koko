@@ -79,7 +79,6 @@ func uploadRemainReplay(jmsService *service.JMService) {
 	logger.Info("Upload remain replay done")
 }
 
-
 // uploadRemainFTPFile 上传遗留的上传下载文件
 func uploadRemainFTPFile(jmsService *service.JMService) {
 	ftpFileDir := config.GetConf().FTPFileFolderPath
@@ -102,9 +101,11 @@ func uploadRemainFTPFile(jmsService *service.JMService) {
 
 	for absPath, remainFTPFile := range allRemainFiles {
 		absGzPath := absPath
-		Target, _ := filepath.Rel(ftpFileDir, absGzPath)
-		logger.Infof("Upload FTP file: %s, type: %s", absGzPath, ftpFileStorage.TypeName())
-		if err = ftpFileStorage.Upload(absGzPath, Target); err != nil {
+		dateTarget, _ := filepath.Rel(ftpFileDir, absGzPath)
+		targetName := strings.Join([]string{proxy.FtpTargetPrefix, dateTarget}, "/")
+		logger.Infof("Upload FTP file: %s, target: %s, type: %s", absGzPath,
+			targetName, ftpFileStorage.TypeName())
+		if err = ftpFileStorage.Upload(absGzPath, targetName); err != nil {
 			logger.Errorf("Upload remain FTP file %s failed: %s", absGzPath, err)
 			continue
 		}
@@ -256,7 +257,7 @@ type RemainReplay struct {
 }
 
 type RemainFTPFile struct {
-	Id      string // FTP log id
+	Id string // FTP log id
 }
 
 func parseReplayFilename(filename string) (replay RemainReplay, ok bool) {

@@ -14,7 +14,7 @@ type TerminalConfig struct {
 	HeartbeatDuration   int                    `json:"TERMINAL_HEARTBEAT_INTERVAL"`
 	HostKey             string                 `json:"TERMINAL_HOST_KEY"`
 	EnableSessionShare  bool                   `json:"SECURITY_SESSION_SHARE"`
-	FTPFileMaxStore     int64                  `json:"FTP_FILE_MAX_STORE"`
+	MaxStoreFTPFileSize int                    `json:"FTP_FILE_MAX_STORE"`
 }
 
 type Terminal struct {
