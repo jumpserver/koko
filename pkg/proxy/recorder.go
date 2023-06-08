@@ -277,7 +277,7 @@ type FTPFileRecorder struct {
 	MaxStore        int64
 	err             error
 
-	file *os.File
+	File *os.File
 }
 
 func (r *FTPFileRecorder) RealTarget() string {
@@ -300,13 +300,13 @@ func (r *FTPFileRecorder) PreRecord() (err error) {
 	storageTargetName := strings.Join([]string{today, r.FTPLog.ID}, "/")
 	r.absFilePath = absFilePath
 	r.Target = storageTargetName
-	fd, err := os.Create(r.absFilePath)
+	fd, err := os.OpenFile(r.absFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		logger.Errorf("Create FTP file %s error: %s\n", r.absFilePath, err)
 		return
 	}
-	logger.Infof("Create FTP file %s", r.absFilePath)
-	r.file = fd
+	logger.Debugf("Create or open FTP file %s", r.absFilePath)
+	r.File = fd
 	return
 }
 
@@ -322,10 +322,7 @@ func (r *FTPFileRecorder) RecordWrite(p []byte) (err error) {
 	if err != nil {
 		return
 	}
-	go func () {
-		r.file.Write(p)
-		defer r.file.Close()
-	}()
+	r.File.Write(p)
 	return
 }
 
@@ -338,8 +335,8 @@ func (r *FTPFileRecorder) Record(ftpLog *model.FTPLog, reader io.Reader) (err er
 	if err != nil {
 		return
 	}
-	io.Copy(r.file, reader)
-	defer r.file.Close()
+	io.Copy(r.File, reader)
+	defer r.File.Close()
 	reader.(io.Seeker).Seek(0, io.SeekStart)
 	r.uploadFTPFile()
 	return

@@ -91,6 +91,8 @@ func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
 		}
 		logger.Infof("Sftp file write %s done", r.Filepath)
+		s.recorder.File.Close()
+		s.recorder.UploadFile(3)
 	}()
 	s.recorder.SetFTPLog(f.FTPLog)
 	return NewWriterAt(f.File, s.recorder), err
@@ -147,7 +149,6 @@ func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.recorder.RecordWrite(p)
-	c.recorder.UploadFile(3)
 	_, _ = c.f.Seek(off, 0)
 	return c.f.Write(p)
 }
