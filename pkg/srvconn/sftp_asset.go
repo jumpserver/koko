@@ -309,7 +309,7 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 	if !ok {
 		return errNoSystemUser
 	}
-	if !su.Actions.EnableUpload() {
+	if !su.Actions.EnableDelete() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
@@ -380,7 +380,7 @@ func (ad *AssetDir) Remove(path string) (err error) {
 	if !ok {
 		return errNoSystemUser
 	}
-	if !su.Actions.EnableUpload() {
+	if !su.Actions.EnableDelete() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
