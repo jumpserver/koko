@@ -349,20 +349,17 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	if conn1 != conn2 {
 		return sftp.ErrSshFxOpUnsupported
 	}
-
-	err = conn1.client.Rename(oldRealPath, newRealPath)
-
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
-	isSuccess := false
 	operate := model.OperateRename
-	fileInfo, err := conn2.client.Stat(newRealPath)
-	if err == nil && fileInfo.IsDir() {
+	err = conn1.client.Rename(oldRealPath, newRealPath)
+	if err != nil {
+		ad.CreateFTPLog(su, operate, filename, false)
+		return err
+	}
+	if fileInfo, err := conn2.client.Stat(newRealPath); err == nil && fileInfo.IsDir() {
 		operate = model.OperateRenameDir
 	}
-	if err == nil {
-		isSuccess = true
-	}
-	ad.CreateFTPLog(su, operate, filename, isSuccess)
+	ad.CreateFTPLog(su, operate, filename, true)
 	return
 }
 
