@@ -207,7 +207,7 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 		return nil, err
 	}
 	u.recorder.Record(sf.FTPLog, sf)
-	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
+	_, _ = sf.Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
 	return &fileReader{sf}, nil
 }
