@@ -207,6 +207,7 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 		return nil, err
 	}
 	u.recorder.Record(sf.FTPLog, sf)
+	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
 	return &fileReader{sf}, nil
 }
@@ -230,6 +231,7 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 	}
 	defer fd.Close()
 	u.recorder.Record(fd.FTPLog, reader)
+	_, _ =reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		return rest, err
@@ -270,6 +272,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 		u.lock.Unlock()
 	}
 	u.recorder.Record(ftpLog, reader)
+	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		_ = fd.Close()
@@ -324,6 +327,7 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 		return rest, err
 	}
 	u.recorder.Record(fd.FTPLog, fd)
+	_, _ = fd.Seek(0, io.SeekStart)
 	_ = fd.Close()
 	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
 

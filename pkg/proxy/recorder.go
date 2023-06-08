@@ -337,7 +337,6 @@ func (r *FTPFileRecorder) Record(ftpLog *model.FTPLog, reader io.Reader) (err er
 	}
 	io.Copy(r.File, reader)
 	defer r.File.Close()
-	reader.(io.Seeker).Seek(0, io.SeekStart)
 	r.uploadFTPFile()
 	return
 }

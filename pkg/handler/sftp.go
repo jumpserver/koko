@@ -105,6 +105,7 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		return nil, err
 	}
 	s.recorder.Record(f.FTPLog, f)
+	_, _ = f.Seek(0, io.SeekStart)
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {
