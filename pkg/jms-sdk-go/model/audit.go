@@ -5,6 +5,7 @@ import (
 )
 
 type FTPLog struct {
+	ID         string         `json:"id"`
 	User       string         `json:"user"`
 	Hostname   string         `json:"asset"`
 	OrgID      string         `json:"org_id"`
@@ -14,6 +15,7 @@ type FTPLog struct {
 	Path       string         `json:"filename"`
 	DateStart  common.UTCTime `json:"date_start"`
 	IsSuccess  bool           `json:"is_success"`
+	Session    string         `json:"session"`
 }
 
 const (
@@ -24,6 +26,7 @@ const (
 const (
 	OperateRemoveDir = "rmdir"
 	OperateRename    = "rename"
+	OperateRenameDir = "rename_dir"
 	OperateMkdir     = "mkdir"
 	OperateDelete    = "delete"
 	OperateSymlink   = "symlink"

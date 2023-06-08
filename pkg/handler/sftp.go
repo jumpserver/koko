@@ -12,6 +12,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -19,11 +20,16 @@ func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string
 	opts := make([]srvconn.UserSftpOption, 0, 5)
 	opts = append(opts, srvconn.WithUser(user))
 	opts = append(opts, srvconn.WithRemoteAddr(addr))
-	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...)}
+	return &SftpHandler{
+		UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...),
+		recorder:     proxy.GetFTPFileRecorder(jmsService),
+	}
 }
 
 type SftpHandler struct {
 	*srvconn.UserSftpConn
+
+	recorder *proxy.FTPFileRecorder
 }
 
 func (s *SftpHandler) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
@@ -85,8 +91,9 @@ func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
 		}
 		logger.Infof("Sftp file write %s done", r.Filepath)
+		s.recorder.FinishFTPFile(f.FTPLog.ID)
 	}()
-	return NewWriterAt(f), err
+	return NewWriterAt(f, s.recorder), err
 }
 
 func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
@@ -95,6 +102,11 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err1 := s.recorder.Record(f.FTPLog, f); err1 != nil {
+		logger.Errorf("Record file %s err: %s", r.Filepath, err)
+	}
+	// 重置文件指针
+	_, _ = f.Seek(0, io.SeekStart)
 	go func() {
 		<-r.Context().Done()
 		if err := f.Close(); err != nil {
@@ -124,18 +136,23 @@ func (f listerat) ListAt(ls []os.FileInfo, offset int64) (int, error) {
 	return n, nil
 }
 
-func NewWriterAt(f *sftp.File) io.WriterAt {
-	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
+func NewWriterAt(f *srvconn.SftpFile, recorder *proxy.FTPFileRecorder) io.WriterAt {
+	return &clientReadWritAt{f: f, mu: new(sync.RWMutex), recorder: recorder}
 }
 
 type clientReadWritAt struct {
-	f  *sftp.File
+	f  *srvconn.SftpFile
 	mu *sync.RWMutex
+
+	recorder *proxy.FTPFileRecorder
 }
 
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if err1 := c.recorder.RecordFtpChunk(c.f.FTPLog, p, off); err1 != nil {
+		logger.Errorf("Record write err: %s", err1)
+	}
 	_, _ = c.f.Seek(off, 0)
 	return c.f.Write(p)
 }

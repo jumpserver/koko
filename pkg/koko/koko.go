@@ -62,6 +62,9 @@ func runTasks(jmsService *service.JMService) {
 	if config.GetConf().UploadFailedReplay {
 		go uploadRemainReplay(jmsService)
 	}
+	if config.GetConf().UploadFailedFTPFile {
+		go uploadRemainFTPFile(jmsService)
+	}
 	go keepHeartbeat(jmsService)
 }
 

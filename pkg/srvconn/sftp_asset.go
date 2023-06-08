@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
+	com "github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -32,8 +33,6 @@ type AssetDir struct {
 	platform    model.Platform
 
 	suMaps map[string]*model.PermAccount
-
-	logChan chan<- *model.FTPLog
 
 	sftpClients map[string]*SftpConn // Account stringer
 
@@ -138,7 +137,7 @@ func (ad *AssetDir) loadAssetDomain() {
 	}
 }
 
-func (ad *AssetDir) Create(path string) (*sftp.File, error) {
+func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -167,8 +166,9 @@ func (ad *AssetDir) Create(path string) (*sftp.File, error) {
 	if err == nil {
 		isSuccess = true
 	}
-	ad.CreateFTPLog(su, operate, filename, isSuccess)
-	return sf, err
+	ftpLog := ad.CreateFTPLog(su, operate, filename, isSuccess)
+	f := &SftpFile{File: sf, FTPLog: ftpLog}
+	return f, err
 }
 
 func (ad *AssetDir) MkdirAll(path string) (err error) {
@@ -204,7 +204,7 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	return
 }
 
-func (ad *AssetDir) Open(path string) (*sftp.File, error) {
+func (ad *AssetDir) Open(path string) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -232,8 +232,9 @@ func (ad *AssetDir) Open(path string) (*sftp.File, error) {
 	if err == nil {
 		isSuccess = true
 	}
-	ad.CreateFTPLog(su, operate, filename, isSuccess)
-	return sf, err
+	ftpLog := ad.CreateFTPLog(su, operate, filename, isSuccess)
+	f := &SftpFile{File: sf, FTPLog: ftpLog}
+	return f, err
 }
 
 func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
@@ -354,6 +355,10 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
 	isSuccess := false
 	operate := model.OperateRename
+	fileInfo, err := conn2.client.Stat(newRealPath)
+	if err == nil && fileInfo.IsDir() {
+		operate = model.OperateRenameDir
+	}
 	if err == nil {
 		isSuccess = true
 	}
@@ -718,8 +723,9 @@ func (ad *AssetDir) close() {
 	}
 }
 
-func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) {
+func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) *model.FTPLog {
 	data := model.FTPLog{
+		ID:         com.UUID(),
 		User:       ad.user.String(),
 		Hostname:   ad.detailAsset.String(),
 		OrgID:      ad.detailAsset.OrgID,
@@ -730,5 +736,8 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		DateStart:  common.NewNowUTCTime(),
 		IsSuccess:  isSuccess,
 	}
-	ad.logChan <- &data
+	if err := ad.jmsService.CreateFileOperationLog(data); err != nil {
+		logger.Errorf("Create ftp log err: %s", err)
+	}
+	return &data
 }
