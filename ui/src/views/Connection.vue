@@ -68,10 +68,10 @@
         </el-result>
         <el-form>
           <el-form-item :label="this.$t('Terminal.LinkAddr')">
-            <el-input readonly :value="shareURL"/>
+            <el-input readonly :value="shareURL" />
           </el-form-item>
           <el-form-item :label="this.$t('Terminal.VerifyCode')">
-            <el-input readonly :value="shareCode"/>
+            <el-input readonly :value="shareCode" />
           </el-form-item>
         </el-form>
         <div>
@@ -370,5 +370,13 @@ export default {
 
 .el-result {
   padding: 0
+}
+::v-deep .el-form-item__content {
+  display: flex;
+  flex-direction: column;
+}
+::v-deep .el-form-item__content > div,
+::v-deep .el-form-item__content > span {
+  flex: 1;
 }
 </style>
