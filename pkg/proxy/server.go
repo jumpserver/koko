@@ -586,7 +586,7 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 	}
 	username := s.account.Username
 	protocolSetting := platform.GetProtocol("redis")
-	if !protocolSetting.Setting.AuthUsername {
+	if s.account.IsNull() || !protocolSetting.Setting.AuthUsername {
 		username = ""
 	}
 	srvConn, err = srvconn.NewRedisConnection(

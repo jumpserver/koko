@@ -18,6 +18,12 @@ func (a *BaseAccount) IsSSHKey() bool {
 	return a.SecretType.Value == "ssh_key"
 }
 
+// 如果是 null，表示这个账号是一个空用户名
+
+func (a *BaseAccount) IsNull() bool {
+	return a.Username == "null"
+}
+
 type Account struct {
 	BaseAccount
 	SuFrom *BaseAccount `json:"su_from"`
