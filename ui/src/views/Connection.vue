@@ -9,7 +9,7 @@
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <RightPanel>
-      <Settings :settings="settings" :title="$t('Terminal.Settings')" />
+      <Settings :settings="settings" :title="$t('Terminal.Settings')"/>
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -24,58 +24,59 @@
         :modal="false"
         center>
       <div v-if="!shareId">
-          <el-form v-loading="loading" :model="shareLinkRequest">
-            <el-form-item :label="this.$t('Terminal.ExpiredTime')">
-              <el-select v-model="shareLinkRequest.expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
-                <el-option
-                    v-for="item in expiredOptions"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value">
-                </el-option>
-              </el-select>
-            </el-form-item>
-            <el-form-item :label="this.$t('Terminal.ActionPerm')">
-              <el-select v-model="shareLinkRequest.actionPerm" :placeholder="this.$t('Terminal.ActionPerm')">
-                <el-option
-                    v-for="item in actionsPermOptions"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value">
-                </el-option>
-              </el-select>
-            </el-form-item>
-            <el-form-item :label="this.$t('Terminal.ShareUser')">
-                <el-select v-model="shareLinkRequest.users" multiple filterable remote reserve-keyword :placeholder="this.$t('Terminal.GetShareUser')"
-                           :remote-method="getSessionUser" :loading="userLoading">
-                    <el-option
-                      v-for="item in userOptions"
-                      :key="item.id"
-                      :label="item.name + '(' + item.username + ')'"
-                      :value="item.id">
-                    </el-option>
-                  </el-select>
-                  <div style="color: #999;font-size: 12px">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
-            </el-form-item>
-          </el-form>
-          <div>
-            <el-button type="primary" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
-          </div>
+        <el-form v-loading="loading" :model="shareLinkRequest">
+          <el-form-item :label="this.$t('Terminal.ExpiredTime')">
+            <el-select v-model="shareLinkRequest.expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
+              <el-option
+                  v-for="item in expiredOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value">
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="this.$t('Terminal.ActionPerm')">
+            <el-select v-model="shareLinkRequest.actionPerm" :placeholder="this.$t('Terminal.ActionPerm')">
+              <el-option
+                  v-for="item in actionsPermOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value">
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="this.$t('Terminal.ShareUser')">
+            <el-select v-model="shareLinkRequest.users" multiple filterable remote reserve-keyword
+                       :placeholder="this.$t('Terminal.GetShareUser')"
+                       :remote-method="getSessionUser" :loading="userLoading">
+              <el-option
+                  v-for="item in userOptions"
+                  :key="item.id"
+                  :label="item.name + '(' + item.username + ')'"
+                  :value="item.id">
+              </el-option>
+            </el-select>
+            <div style="color: #999;font-size: 12px">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
+          </el-form-item>
+        </el-form>
+        <div>
+          <el-button type="primary" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
+        </div>
       </div>
       <div v-else>
-          <el-result icon="success" :title="this.$t('Terminal.CreateSuccess')">
-          </el-result>
-          <el-form>
-            <el-form-item :label="this.$t('Terminal.LinkAddr')">
-              <el-input readonly :value="shareURL"/>
-            </el-form-item>
-            <el-form-item :label="this.$t('Terminal.VerifyCode')">
-              <el-input readonly :value="shareCode"/>
-            </el-form-item>
-          </el-form>
-          <div>
-            <el-button type="primary" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }} </el-button>
-          </div>
+        <el-result icon="success" :title="this.$t('Terminal.CreateSuccess')">
+        </el-result>
+        <el-form>
+          <el-form-item :label="this.$t('Terminal.LinkAddr')">
+            <el-input readonly :value="shareURL" />
+          </el-form-item>
+          <el-form-item :label="this.$t('Terminal.VerifyCode')">
+            <el-input readonly :value="shareCode" />
+          </el-form-item>
+        </el-form>
+        <div>
+          <el-button type="primary" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }}</el-button>
+        </div>
       </div>
     </el-dialog>
   </el-container>
@@ -163,14 +164,15 @@ export default {
           disabled: () => Object.keys(this.onlineUsersMap).length < 1,
           content: Object.values(this.onlineUsersMap).map(item => {
             item.name = item.user
-            item.faIcon = item.writable?'fa-solid fa-keyboard':'fa-solid fa-eye'
-            item.iconTip = item.writable?this.$t('Terminal.Writable'):this.$t('Terminal.ReadOnly')
+            item.faIcon = item.writable ? 'fa-solid fa-keyboard' : 'fa-solid fa-eye'
+            item.iconTip = item.writable ? this.$t('Terminal.Writable') : this.$t('Terminal.ReadOnly')
             return item
           }).sort((a, b) => new Date(a.created) - new Date(b.created)),
-          itemClick: () => {},
+          itemClick: () => {
+          },
           itemActions: [
             {
-              faIcon:'fa-solid fa-trash-can',
+              faIcon: 'fa-solid fa-trash-can',
               tipText: this.$t('Terminal.Remove'),
               style: {
                 color: "#f56c6c"
@@ -184,7 +186,7 @@ export default {
                   return
                 }
                 this.$confirm(this.$t('Terminal.RemoveShareUserConfirm'))
-                    .then( () => {
+                    .then(() => {
                       if (this.$refs.term) {
                         this.$refs.term.removeShareUser(this.sessionId, user)
                       }
@@ -251,6 +253,12 @@ export default {
         case "TERMINAL_SESSION": {
           const sessionInfo = JSON.parse(msg.data);
           const sessionDetail = sessionInfo.session;
+          this.$log.debug("sessionDetail backspaceAsCtrlH: " ,sessionInfo.backspaceAsCtrlH);
+          if ((sessionInfo.backspaceAsCtrlH !== undefined) && this.$refs.term) {
+            const value = sessionInfo.backspaceAsCtrlH? '1' : '0';
+            this.$log.debug("set backspaceAsCtrlH: "+ value);
+            this.$refs.term.setConfig('backspaceAsCtrlH', value);
+          }
           this.sessionId = sessionDetail.id;
           const setting = this.$refs.term.setting;
           if (setting.SECURITY_SESSION_SHARE) {
@@ -314,7 +322,7 @@ export default {
             this.sessionId, req.expiredTime,
             req.users, req.actionPerm);
       }
-      this.$log.debug("分享请求数据： ", this.sessionId,this.shareLinkRequest)
+      this.$log.debug("分享请求数据： ", this.sessionId, this.shareLinkRequest)
     },
     shareDialogClosed() {
       this.$log.debug("share dialog closed")
@@ -336,15 +344,15 @@ export default {
           Object.keys(this.onlineUsersMap).filter(key => {
             this.$delete(this.onlineUsersMap, key);
           })
-          this.$log.debug("reconnect: ",data);
+          this.$log.debug("reconnect: ", data);
           break
       }
     },
     getMinuteLabel(item) {
-        let minuteLabel = this.$t('Terminal.Minute')
-        if (item > 1) {
-            minuteLabel = this.$t('Terminal.Minutes')
-        }
+      let minuteLabel = this.$t('Terminal.Minute')
+      if (item > 1) {
+        minuteLabel = this.$t('Terminal.Minutes')
+      }
       return `${item} ${minuteLabel}`
     },
   },
@@ -355,11 +363,20 @@ export default {
 .el-menu-item.is-active {
   color: #ffffff;
 }
+
 .settings {
   padding: 24px 20px;
 }
 
 .el-result {
   padding: 0
+}
+::v-deep .el-form-item__content {
+  display: flex;
+  flex-direction: column;
+}
+::v-deep .el-form-item__content > div,
+::v-deep .el-form-item__content > span {
+  flex: 1;
 }
 </style>

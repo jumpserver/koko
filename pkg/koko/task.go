@@ -79,6 +79,46 @@ func uploadRemainReplay(jmsService *service.JMService) {
 	logger.Info("Upload remain replay done")
 }
 
+// uploadRemainFTPFile 上传遗留的上传下载文件
+func uploadRemainFTPFile(jmsService *service.JMService) {
+	ftpFileDir := config.GetConf().FTPFileFolderPath
+	conf, err := jmsService.GetTerminalConfig()
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+	ftpFileStorage := proxy.NewFTPFileStorage(jmsService, &conf)
+	allRemainFiles := make(map[string]RemainFTPFile)
+	_ = filepath.Walk(ftpFileDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if ftpFileInfo, ok := parseFTPFilename(info.Name()); ok {
+			allRemainFiles[path] = ftpFileInfo
+		}
+		return nil
+	})
+
+	for absPath, remainFTPFile := range allRemainFiles {
+		absGzPath := absPath
+		dateTarget, _ := filepath.Rel(ftpFileDir, absGzPath)
+		targetName := strings.Join([]string{proxy.FtpTargetPrefix, dateTarget}, "/")
+		logger.Infof("Upload FTP file: %s, target: %s, type: %s", absGzPath,
+			targetName, ftpFileStorage.TypeName())
+		if err = ftpFileStorage.Upload(absGzPath, targetName); err != nil {
+			logger.Errorf("Upload remain FTP file %s failed: %s", absGzPath, err)
+			continue
+		}
+		if err := jmsService.FinishFTPFile(remainFTPFile.Id); err != nil {
+			logger.Errorf("Notify FTP file %s upload failed: %s", remainFTPFile.Id, err)
+			continue
+		}
+		_ = os.Remove(absGzPath)
+		logger.Infof("Upload remain FTP file %s success", absGzPath)
+	}
+	logger.Info("Upload remain FTP file done")
+}
+
 // keepHeartbeat 保持心跳
 func keepHeartbeat(jmsService *service.JMService) {
 	KeepWsHeartbeat(jmsService)
@@ -216,6 +256,10 @@ type RemainReplay struct {
 	Version model.ReplayVersion
 }
 
+type RemainFTPFile struct {
+	Id string // FTP log id
+}
+
 func parseReplayFilename(filename string) (replay RemainReplay, ok bool) {
 	// 未压缩的旧录像文件名格式是一个 UUID
 	if len(filename) == 36 {
@@ -226,6 +270,15 @@ func parseReplayFilename(filename string) (replay RemainReplay, ok bool) {
 	}
 	if replay.Id, replay.Version, ok = isReplayFile(filename); ok {
 		replay.IsGzip = isGzipFile(filename)
+	}
+	return
+}
+
+func parseFTPFilename(filename string) (ftpFile RemainFTPFile, ok bool) {
+	if len(filename) == 36 {
+		ftpFile.Id = filename
+		ok = true
+		return
 	}
 	return
 }

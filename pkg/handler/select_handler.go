@@ -9,6 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -49,6 +50,8 @@ type UserSelectHandler struct {
 
 	selectedAsset   *model.Asset
 	selectedAccount *model.PermAccount
+
+	hiddenFields map[string]struct{}
 }
 
 func (u *UserSelectHandler) SetSelectType(s selectType) {
@@ -269,11 +272,7 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 
 func (u *UserSelectHandler) retrieveLocal(searches ...string) []model.Asset {
 	switch u.currentType {
-	case TypeDatabase:
-		return u.searchLocalDatabase(searches...)
-	case TypeK8s:
-		return u.searchLocalK8s(searches...)
-	case TypeAsset, TypeHost:
+	case TypeAsset, TypeHost, TypeDatabase, TypeK8s:
 		return u.searchLocalAsset(searches...)
 	default:
 		// TypeAsset
@@ -290,7 +289,6 @@ func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, se
 		data := map[string]interface{}{
 			"name":     u.allLocalData[i].Name,
 			"address":  assetData.Address,
-			"db_name":  assetData.SpecInfo.DBName,
 			"org_name": assetData.OrgName,
 			"platform": assetData.Platform.Name,
 			"comment":  assetData.Comment,
@@ -321,6 +319,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 	switch u.currentType {
 	case TypeDatabase:
 		reqParam.Category = "database"
+		reqParam.Protocols = srvconn.SupportedDBProtocols()
 		return u.retrieveRemoteAsset(reqParam)
 	case TypeK8s:
 		reqParam.Type = "k8s"
@@ -329,12 +328,15 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		return u.retrieveRemoteNodeAsset(reqParam)
 	case TypeAsset:
 		reqParam.Category = ""
+		reqParam.Protocols = srvconn.SupportedProtocols()
 		return u.retrieveRemoteAsset(reqParam)
 	case TypeHost:
 		reqParam.Category = "host"
+		reqParam.Protocols = srvconn.SupportedHostProtocols()
 		return u.retrieveRemoteAsset(reqParam)
 	default:
 		reqParam.Category = ""
+		reqParam.Protocols = srvconn.SupportedProtocols()
 		// TypeAsset
 		u.SetSelectType(TypeAsset)
 		logger.Info("Retrieve default remote data type: Asset")

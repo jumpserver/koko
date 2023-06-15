@@ -15,6 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -80,6 +81,8 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	sftpOpts = append(sftpOpts, srvconn.WithRemoteAddr(volOpts.addr))
 	userSftp := srvconn.NewUserSftpConn(jmsService, sftpOpts...)
 	rawID := fmt.Sprintf("%s@%s", volOpts.user.Username, volOpts.addr)
+
+	recorder := proxy.GetFTPFileRecorder(jmsService)
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),
 		UserSftp:      userSftp,
@@ -87,6 +90,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 		basePath:      basePath,
 		chunkFilesMap: make(map[int]*sftp.File),
 		lock:          new(sync.Mutex),
+		recorder:      recorder,
 	}
 	return uVolume
 }
@@ -98,7 +102,10 @@ type UserVolume struct {
 	basePath string
 
 	chunkFilesMap map[int]*sftp.File
+	ftpLogMap     map[int]*model.FTPLog
 	lock          *sync.Mutex
+
+	recorder  *proxy.FTPFileRecorder
 }
 
 func (u *UserVolume) ID() string {
@@ -195,12 +202,14 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 
 func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	logger.Debug("GetFile path: ", path)
-	sftpFile, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
+	sf, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
 	if err != nil {
 		return nil, err
 	}
+	u.recorder.Record(sf.FTPLog, sf)
+	_, _ = sf.Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
-	return &fileReader{sftpFile}, nil
+	return &fileReader{sf}, nil
 }
 
 func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader) (elfinder.FileDir, error) {
@@ -214,14 +223,15 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 		path = filepath.Join(dirPath, filename)
 
 	}
-	logger.Debug("Volume upload file path: ", path, " ", filename, " ", uploadPath)
+	logger.Debug("Volume upload file path: ", path, "|", filename, "|", uploadPath)
 	var rest elfinder.FileDir
 	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 	if err != nil {
 		return rest, err
 	}
 	defer fd.Close()
-
+	u.recorder.Record(fd.FTPLog, reader)
+	_, _ =reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		return rest, err
@@ -234,6 +244,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 	var path string
 	u.lock.Lock()
 	fd, ok := u.chunkFilesMap[cid]
+	ftpLog, ok := u.ftpLogMap[cid]
 	u.lock.Unlock()
 	if !ok {
 		switch {
@@ -245,23 +256,29 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 			path = filepath.Join(dirPath, filename)
 
 		}
-		fd, err = u.UserSftp.Create(filepath.Join(u.basePath, path))
+		f, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
 		if err != nil {
 			return err
 		}
+		fd = f.File
+		ftpLog = f.FTPLog
 		_, err = fd.Seek(rangeData.Offset, 0)
 		if err != nil {
 			return err
 		}
 		u.lock.Lock()
 		u.chunkFilesMap[cid] = fd
+		u.ftpLogMap[cid] = ftpLog
 		u.lock.Unlock()
 	}
+	u.recorder.Record(ftpLog, reader)
+	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		_ = fd.Close()
 		u.lock.Lock()
 		delete(u.chunkFilesMap, cid)
+		delete(u.ftpLogMap, cid)
 		u.lock.Unlock()
 	}
 	return err
@@ -283,6 +300,7 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename st
 	if fd, ok := u.chunkFilesMap[cid]; ok {
 		_ = fd.Close()
 		delete(u.chunkFilesMap, cid)
+		delete(u.ftpLogMap, cid)
 	}
 	u.lock.Unlock()
 	return u.Info(path)
@@ -308,6 +326,8 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 	if err != nil {
 		return rest, err
 	}
+	u.recorder.Record(fd.FTPLog, fd)
+	_, _ = fd.Seek(0, io.SeekStart)
 	_ = fd.Close()
 	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
 

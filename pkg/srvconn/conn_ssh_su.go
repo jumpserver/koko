@@ -62,6 +62,8 @@ const (
 
 	LinuxSuCommand = "su - %s; exit"
 
+	LinuxSudoCommand = "sudo su - %s; exit"
+
 	/*
 		Cisco 相关
 	*/
@@ -110,6 +112,7 @@ var ErrorTimeout = errors.New("i/o timeout")
 type SUMethodType string
 
 const (
+	SuMethodSudo       SUMethodType = "sudo"
 	SuMethodSu         SUMethodType = "su"
 	SuMethodEnable     SUMethodType = "enable"
 	SuMethodSuper      SUMethodType = "super"
@@ -125,8 +128,10 @@ func NewSuMethodType(suMethod string) SUMethodType {
 		return SuMethodSuper
 	case "super_level":
 		return SuMethodSuperLevel
-	case "sudo", "su":
+	case "su":
 		return SuMethodSu
+	case "sudo":
+		return SuMethodSudo
 	default:
 
 	}
@@ -147,6 +152,8 @@ func (s *SuConfig) SuCommand() string {
 		return SuCommandSuper
 	case SuMethodSuperLevel:
 		return SuCommandSuperH3C
+	case SuMethodSudo:
+		return fmt.Sprintf(LinuxSudoCommand, s.SudoUsername)
 	default:
 
 	}

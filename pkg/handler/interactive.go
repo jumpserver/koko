@@ -106,10 +106,17 @@ func (h *InteractiveHandler) Initial() {
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
 	h.i18nLang = getUserDefaultLangCode(h.user)
 	h.displayHelp()
+	hiddenFields := make(map[string]struct{})
+	for i := range conf.HiddenFields {
+		name := strings.TrimSpace(strings.ToLower(conf.HiddenFields[i]))
+		hiddenFields[name] = struct{}{}
+	}
 	h.selectHandler = &UserSelectHandler{
 		user:     h.user,
 		h:        h,
 		pageInfo: &pageInfo{},
+
+		hiddenFields: hiddenFields,
 	}
 	switch h.assetLoadPolicy {
 	case "all":

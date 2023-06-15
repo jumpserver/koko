@@ -26,6 +26,10 @@ func (a Actions) EnablePaste() bool {
 	return a.haveAction(ActionPaste)
 }
 
+func (a Actions) EnableDelete() bool {
+	return a.haveAction(ActionDelete)
+}
+
 func (a Actions) haveAction(action string) bool {
 	for _, actionItem := range a {
 		if action == ActionALL || action == actionItem.Value {

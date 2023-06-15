@@ -17,6 +17,8 @@ type ConnectToken struct {
 	OrgName  string     `json:"org_name"`
 	Platform Platform   `json:"platform"`
 
+	ConnectOptions ConnectOptions `json:"connect_options"`
+
 	CommandFilterACLs []CommandACL `json:"command_filter_acls"`
 
 	Ticket     *ObjectId   `json:"from_ticket,omitempty"`
@@ -63,3 +65,9 @@ const (
 	ACLReview = "acl_review"
 	ACLReject = "acl_reject"
 )
+
+type ConnectOptions struct {
+	Charset          *string `json:"charset,omitempty"`
+	DisableAutoHash  *bool   `json:"disableautohash,omitempty"`
+	BackspaceAsCtrlH *bool   `json:"backspaceAsCtrlH,omitempty"`
+}

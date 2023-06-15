@@ -8,85 +8,28 @@ msgstr ""
 "X-Generator: xgotext\n"
 
 #. lang.T
-#: pkg/handler/app_database.go:26
+#: pkg/handler/app_database.go:11
 msgid "No Databases"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/app_database.go:31
-msgid "ID"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_database.go:32
-msgid "Name"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_database.go:33
-msgid "Address"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_database.go:34
-msgid "Protocols"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_database.go:35
-msgid "Platform"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_database.go:36
-msgid "Organization"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_database.go:37
-msgid "Comment"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_database.go:62
-msgid "the database"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_k8s.go:27
+#: pkg/handler/app_k8s.go:15
 msgid "No kubernetes"
 msgstr ""
 
 #. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/app_k8s.go:32 pkg/handler/app_k8s.go:33
-#: pkg/handler/app_k8s.go:34
-msgid "Cluster"
-msgstr ""
-
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/app_k8s.go:35 pkg/handler/app_k8s.go:36
-#: pkg/handler/app_k8s.go:55
-msgid "the kubernetes"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/app_k8s.go:79
+#: pkg/handler/app_k8s.go:31
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/app_k8s.go:93
+#: pkg/handler/app_k8s.go:45
 msgid ""
-"Enter ID number directly login %s, multiple search use // + field, such "
-"as: //16"
+"Enter ID number directly login, multiple search use // + field, such as: //16"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/app_k8s.go:95
+#: pkg/handler/app_k8s.go:46
 msgid "Page up: b\tPage down: n"
 msgstr ""
 
@@ -96,43 +39,64 @@ msgid "No Assets"
 msgstr ""
 
 #. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/asset.go:50 pkg/handler/asset.go:51 pkg/handler/asset.go:52
-#: pkg/handler/asset.go:53 pkg/handler/asset.go:54 pkg/handler/asset.go:55
-#: pkg/handler/asset.go:56 pkg/handler/asset.go:80
-msgid "the asset"
+#: pkg/handler/asset.go:53
+msgid "ID"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:108
+#: pkg/handler/asset.go:54
+msgid "Name"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:55
+msgid "Address"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:56
+msgid "Protocols"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:57
+msgid "Platform"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:58
+msgid "Organization"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:59
+msgid "Comment"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:138
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:111
+#: pkg/handler/asset.go:141
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:134
+#: pkg/handler/asset.go:164
 msgid "Core API failed"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:140
+#: pkg/handler/asset.go:170
 msgid "ACL reject"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:154 pkg/handler/asset.go:171
+#: pkg/handler/asset.go:184 pkg/handler/asset.go:201
 msgid "get connect token err"
 msgstr ""
 
@@ -281,7 +245,7 @@ msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:186
+#: pkg/handler/interactive.go:194
 msgid "No account found."
 msgstr ""
 
@@ -291,36 +255,36 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:195 pkg/handler/interactive.go:196
-#: pkg/handler/interactive.go:197 pkg/handler/interactive.go:227
-#: pkg/handler/interactive.go:228 pkg/handler/interactive.go:254
+#: pkg/handler/interactive.go:203 pkg/handler/interactive.go:204
+#: pkg/handler/interactive.go:205 pkg/handler/interactive.go:235
+#: pkg/handler/interactive.go:236 pkg/handler/interactive.go:262
 msgid "Select account exceed max retry times."
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:265
+#: pkg/handler/interactive.go:273
 msgid "No protocol found."
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:274 pkg/handler/interactive.go:275
+#: pkg/handler/interactive.go:282 pkg/handler/interactive.go:283
 msgid "Protocol"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:302
+#: pkg/handler/interactive.go:310
 msgid "Tips: Enter protocol ID"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:303 pkg/handler/interactive.go:329
+#: pkg/handler/interactive.go:311 pkg/handler/interactive.go:337
 msgid "Select protocol exceed max retry times."
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:366
+#: pkg/handler/interactive.go:374
 msgid "Refresh done"
 msgstr ""
 
@@ -376,7 +340,7 @@ msgid "Cancel confirm"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/select_handler.go:198
+#: pkg/handler/select_handler.go:200
 msgid "Search: %s"
 msgstr ""
 

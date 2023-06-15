@@ -2,17 +2,12 @@ package service
 
 import (
 	"fmt"
-
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func (s *JMService) Upload(sessionID, gZipFile string) error {
+func (s *JMService) UploadReplay(sid, gZipFile string) error {
 	version := model.ParseReplayVersion(gZipFile, model.Version3)
-	return s.UploadReplay(sessionID, gZipFile, version)
-}
-
-func (s *JMService) UploadReplay(sid, gZipFile string, version model.ReplayVersion) error {
 	var res map[string]interface{}
 	Url := fmt.Sprintf(SessionReplayURL, sid)
 	fields := make(map[string]string)
@@ -23,6 +18,19 @@ func (s *JMService) UploadReplay(sid, gZipFile string, version model.ReplayVersi
 func (s *JMService) FinishReply(sid string) error {
 	data := map[string]bool{"has_replay": true}
 	return s.sessionPatch(sid, data)
+}
+
+func (s *JMService) UploadFTPFile(fid, file string) error {
+	var res map[string]interface{}
+	url := fmt.Sprintf(FTPLogFileURL, fid)
+	return s.authClient.PostFileWithFields(url, file, nil, &res)
+}
+
+func (s *JMService) FinishFTPFile(fid string) error {
+	data := map[string]bool{"has_file": true}
+	url := fmt.Sprintf(FTPLogUpdateURL, fid)
+	_, err := s.authClient.Patch(url, data, nil)
+	return err
 }
 
 func (s *JMService) CreateSession(sess model.Session) (ret model.Session, err error) {
