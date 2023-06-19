@@ -91,6 +91,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 		chunkFilesMap: make(map[int]*sftp.File),
 		lock:          new(sync.Mutex),
 		recorder:      recorder,
+		ftpLogMap:     make(map[int]*model.FTPLog),
 	}
 	return uVolume
 }
@@ -105,7 +106,7 @@ type UserVolume struct {
 	ftpLogMap     map[int]*model.FTPLog
 	lock          *sync.Mutex
 
-	recorder  *proxy.FTPFileRecorder
+	recorder *proxy.FTPFileRecorder
 }
 
 func (u *UserVolume) ID() string {
@@ -206,7 +207,9 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	if err != nil {
 		return nil, err
 	}
-	u.recorder.Record(sf.FTPLog, sf)
+	if err1 := u.recorder.Record(sf.FTPLog, sf); err1 != nil {
+		logger.Errorf("Record file err: %s", err1)
+	}
 	_, _ = sf.Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
 	return &fileReader{sf}, nil
@@ -230,8 +233,10 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 		return rest, err
 	}
 	defer fd.Close()
-	u.recorder.Record(fd.FTPLog, reader)
-	_, _ =reader.(io.Seeker).Seek(0, io.SeekStart)
+	if err1 := u.recorder.Record(fd.FTPLog, reader); err1 != nil {
+		logger.Errorf("Record file err: %s", err1)
+	}
+	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		return rest, err
@@ -326,7 +331,9 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 	if err != nil {
 		return rest, err
 	}
-	u.recorder.Record(fd.FTPLog, fd)
+	if err1 := u.recorder.Record(fd.FTPLog, fd); err1 != nil {
+		logger.Errorf("Record file err: %s", err1)
+	}
 	_, _ = fd.Seek(0, io.SeekStart)
 	_ = fd.Close()
 	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
