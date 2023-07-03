@@ -249,7 +249,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 	var path string
 	u.lock.Lock()
 	fd, ok := u.chunkFilesMap[cid]
-	ftpLog, ok := u.ftpLogMap[cid]
+	ftpLog := u.ftpLogMap[cid]
 	u.lock.Unlock()
 	if !ok {
 		switch {
@@ -276,7 +276,9 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 		u.ftpLogMap[cid] = ftpLog
 		u.lock.Unlock()
 	}
-	u.recorder.Record(ftpLog, reader)
+	if err2 := u.recorder.Record(ftpLog, reader); err2 != nil {
+		logger.Errorf("Record file err: %s", err2)
+	}
 	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {

@@ -502,11 +502,15 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 	}
 
 	sftpRoot := ad.platform.Protocols.GetSftpPath(model.ProtocolSSH)
-
+	accountUsername := su.Username
+	username := ad.user.Username
 	switch strings.ToLower(sftpRoot) {
 	case "home", "~", "":
 		realPath = filepath.Join(conn.HomeDirPath, strings.TrimPrefix(path, "/"))
 	default:
+		//  ${ACCOUNT} 连接的账号用户名, ${USER} 当前用户用户名
+		sftpRoot = strings.ReplaceAll(sftpRoot, "${ACCOUNT}", accountUsername)
+		sftpRoot = strings.ReplaceAll(sftpRoot, "${USER}", username)
 		if strings.Index(sftpRoot, "/") != 0 {
 			sftpRoot = fmt.Sprintf("/%s", sftpRoot)
 		}
