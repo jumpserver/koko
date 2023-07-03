@@ -29,7 +29,7 @@ import 'xterm/css/xterm.css'
 import {Terminal} from 'xterm';
 import {FitAddon} from 'xterm-addon-fit';
 import ZmodemBrowser from "nora-zmodemjs/src/zmodem_browser";
-import {bytesHuman, decodeToStr, fireEvent} from '@/utils/common'
+import {bytesHuman, fireEvent} from '@/utils/common'
 import xtermTheme from "xterm-theme";
 
 const MaxTimeout = 30 * 1000
@@ -207,7 +207,7 @@ export default {
       this.zsentry = new ZmodemBrowser.Sentry({
         to_terminal: (octets) => {
           if (this.zsentry && !this.zsentry.get_confirmed_session()) {
-            this.term.write(decodeToStr(octets));
+            this.term.write(octets);
           }
         },
         sender: (octets) => {
@@ -283,7 +283,7 @@ export default {
         this.$log.debug("未开启zmodem 且当前在zmodem状态，不允许显示")
         return;
       }
-      this.term.write(decodeToStr(data));
+      this.term.write(data);
     },
 
     onWebsocketOpen() {
@@ -498,6 +498,7 @@ export default {
           this.saveToDisk(xfer, buffer);
           this.$message(this.$t("Terminal.DownloadSuccess") + " " + detail.name)
           this.term.write("\r\n")
+          this.zmodeSession.abort();
         }, console.error.bind(console));
       });
       zsession.on('session_end', () => {
