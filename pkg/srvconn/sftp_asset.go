@@ -22,15 +22,12 @@ import (
 )
 
 type AssetDir struct {
-	ID         string
-	folderName string
-	addr       string
-	modeTime   time.Time
+	opts folderOptions
+
+	modeTime time.Time
 
 	user        *model.User
 	detailAsset *model.Asset
-	domain      *model.Domain
-	platform    model.Platform
 
 	suMaps map[string]*model.PermAccount
 
@@ -47,7 +44,7 @@ type AssetDir struct {
 }
 
 func (ad *AssetDir) Name() string {
-	return ad.folderName
+	return ad.opts.Name
 }
 
 func (ad *AssetDir) Size() int64 { return 0 }
@@ -75,16 +72,13 @@ func (ad *AssetDir) loadSystemUsers() {
 		if ad.detailAsset == nil {
 			ad.loadAssetDetail()
 		}
-		if ad.domain == nil {
-			ad.loadAssetDomain()
-		}
 	})
 }
 
 func (ad *AssetDir) loadSubAccountDirs() {
-	permAccounts, err := ad.jmsService.GetAccountsByUserIdAndAssetId(ad.user.ID, ad.ID)
+	permAccounts, err := ad.jmsService.GetAccountsByUserIdAndAssetId(ad.user.ID, ad.opts.ID)
 	if err != nil {
-		logger.Errorf("Get asset %s perm accounts err: %s", ad.ID, err)
+		logger.Errorf("Get asset %s perm accounts err: %s", ad.opts.ID, err)
 		return
 	}
 	ad.suMaps = generateSubAccountsFolderMap(permAccounts)
@@ -100,9 +94,9 @@ func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*mode
 		return ok
 	}
 	for i := 0; i < len(accounts); i++ {
-		// todo: @USER 和 @INPUT 的情况特殊处理
+		//  不支持 @USER 和 @INPUT，
 		switch accounts[i].Username {
-		case "@INPUT", "@USER":
+		case model.InputUser, model.DynamicUser:
 			logger.Debugf("Skip @INPUT or @USER account %s", accounts[i].Name)
 			continue
 		default:
@@ -115,26 +109,15 @@ func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*mode
 }
 
 func (ad *AssetDir) loadAssetDetail() {
-	detailAssets, err := ad.jmsService.GetUserAssetByID(ad.user.ID, ad.ID)
+	detailAssets, err := ad.jmsService.GetUserAssetByID(ad.user.ID, ad.opts.ID)
 	if err != nil {
 		logger.Errorf("Get asset err: %s", err)
 		return
 	}
 	if len(detailAssets) != 1 {
-		logger.Errorf("Get asset %s more than one detail err: %s", ad.ID, err)
+		logger.Errorf("Get asset %s more than one detail err: %s", ad.opts.ID, err)
 	}
 	ad.detailAsset = &detailAssets[0]
-}
-
-func (ad *AssetDir) loadAssetDomain() {
-	if ad.detailAsset != nil && ad.detailAsset.Domain != nil {
-		domainGateways, err := ad.jmsService.GetDomainGateways(ad.detailAsset.Domain.ID)
-		if err != nil {
-			logger.Errorf("Get asset %s domain err: %s", ad.detailAsset.Name, err)
-			return
-		}
-		ad.domain = &domainGateways
-	}
 }
 
 func (ad *AssetDir) Create(path string) (*SftpFile, error) {
@@ -491,17 +474,12 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 			logger.Errorf("Get Sftp Client err: %s", err.Error())
 			return nil, ""
 		}
+		// todo: 这个地方将创建用户 sftp session
+		//conn.token.CreateSession(ad.opts.RemoteAddr, model.LoginFromSSH, model.SFTPType)
 		ad.sftpClients[su.String()] = conn
 	}
-	if ad.platform.Name == "" {
-		platform, err := ad.jmsService.GetAssetPlatform(ad.ID)
-		if err != nil {
-			logger.Errorf("Get asset platform err: %s", err.Error())
-		}
-		ad.platform = platform
-	}
-
-	sftpRoot := ad.platform.Protocols.GetSftpPath(model.ProtocolSSH)
+	platform := conn.token.Platform
+	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSSH)
 	accountUsername := su.Username
 	username := ad.user.Username
 	switch strings.ToLower(sftpRoot) {
@@ -536,25 +514,20 @@ func (ad *AssetDir) getSubFolderNames() []string {
 }
 
 func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err error) {
-	if su.Secret == "" {
-		account, err2 := ad.getConnectTokenAccount(su)
-		if err != nil {
-			return nil, fmt.Errorf("get connect token account err: %s", err2)
-		}
-		su.Secret = account.Secret
+	connectToken, err2 := ad.createConnectToken(su)
+	if err != nil {
+		return nil, fmt.Errorf("get connect token account err: %s", err2)
 	}
-	if ad.reuse {
-		if sftpConn, ok := ad.getCacheSftpConn(su); ok {
-			return sftpConn, nil
-		}
-	}
-	return ad.getNewSftpConn(su)
+	return ad.getNewSftpConn(&connectToken)
 }
 
-func (ad *AssetDir) getConnectTokenAccount(su *model.PermAccount) (model.Account, error) {
+func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToken, error) {
+	if ad.opts.token != nil {
+		return *ad.opts.token, nil
+	}
 	req := service.SuperConnectTokenReq{
 		UserId:        ad.user.ID,
-		AssetId:       ad.ID,
+		AssetId:       ad.opts.ID,
 		Account:       su.Alias,
 		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
@@ -567,111 +540,55 @@ func (ad *AssetDir) getConnectTokenAccount(su *model.PermAccount) (model.Account
 			msg = tokenInfo.Detail
 		}
 		logger.Errorf("Create super connect token failed: %s", msg)
-		return model.Account{}, fmt.Errorf("create super connect token failed: %s", msg)
+		return model.ConnectToken{}, fmt.Errorf("create super connect token failed: %s", msg)
 	}
-	connectToken, err := ad.jmsService.GetConnectTokenInfo(tokenInfo.ID)
-	if err != nil {
-		return model.Account{}, err
-	}
-	return connectToken.Account, nil
+	return ad.jmsService.GetConnectTokenInfo(tokenInfo.ID)
 }
 
-func (ad *AssetDir) getCacheSftpConn(su *model.PermAccount) (*SftpConn, bool) {
-	if ad.detailAsset == nil {
-		return nil, false
-	}
-	var (
-		sshClient *SSHClient
-		ok        bool
-	)
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.String(), ad.detailAsset.Address, su.Username)
-	switch su.Username {
-	case "":
-		sshClient, ok = searchSSHClientFromCache(key)
-		if ok {
-			su.Username = sshClient.Cfg.Username
-		}
-	default:
-		sshClient, ok = GetClientFromCache(key)
-	}
-
-	if ok {
-		logger.Infof("User %s get reuse ssh client(%s)", ad.user, sshClient)
-		sess, err := sshClient.AcquireSession()
-		if err != nil {
-			logger.Errorf("User %s reuse ssh client(%s) new session err: %s", ad.user, sshClient, err)
-			return nil, false
-		}
-		sftpClient, err := NewSftpConn(sess)
-		if err != nil {
-			_ = sess.Close()
-			sshClient.ReleaseSession(sess)
-			logger.Errorf("User %s reuse ssh client(%s) start sftp conn err: %s",
-				ad.user.String(), sshClient, err)
-			return nil, false
-		}
-		go func() {
-			_ = sftpClient.Wait()
-			sshClient.ReleaseSession(sess)
-			logger.Infof("Reuse ssh client(%s) for SFTP release", sshClient)
-		}()
-		HomeDirPath, err := sftpClient.Getwd()
-		if err != nil {
-			logger.Errorf("Reuse ssh client(%s) get home dir err: %s", sshClient, err)
-			_ = sftpClient.Close()
-			_ = sess.Close()
-			return nil, false
-		}
-		conn := &SftpConn{client: sftpClient, HomeDirPath: HomeDirPath}
-		logger.Infof("Reuse ssh client(%s) for SFTP, current ref: %d", sshClient, sshClient.RefCount())
-		return conn, true
-	}
-	logger.Debugf("User %s do not found reuse ssh client for SFTP", ad.user)
-	return nil, false
-}
-
-func (ad *AssetDir) getNewSftpConn(su *model.PermAccount) (conn *SftpConn, err error) {
+func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken) (conn *SftpConn, err error) {
 	if ad.detailAsset == nil {
 		return nil, errNoSelectAsset
 	}
-	key := MakeReuseSSHClientKey(ad.user.ID, ad.ID, su.String(), ad.detailAsset.Address, su.Username)
 	timeout := config.GlobalConfig.SSHTimeout
 
+	user := connectToken.User
+	asset := connectToken.Asset
+	account := connectToken.Account
+	username := account.Username
+
 	sshAuthOpts := make([]SSHClientOption, 0, 6)
-	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(su.Username))
-	sshAuthOpts = append(sshAuthOpts, SSHClientHost(ad.detailAsset.Address))
-	sshAuthOpts = append(sshAuthOpts, SSHClientPort(ad.detailAsset.ProtocolPort(model.ProtocolSSH)))
+	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
+	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
+	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(model.ProtocolSSH)))
 
 	sshAuthOpts = append(sshAuthOpts, SSHClientTimeout(timeout))
-	if su.IsSSHKey() {
-		if signer, err1 := gossh.ParsePrivateKey([]byte(su.Secret)); err1 == nil {
+	if account.IsSSHKey() {
+		if signer, err1 := gossh.ParsePrivateKey([]byte(account.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, SSHClientPrivateAuth(signer))
 		} else {
 			logger.Errorf("ssh private key parse failed: %s", err1)
 		}
 	} else {
-		sshAuthOpts = append(sshAuthOpts, SSHClientPassword(su.Secret))
+		sshAuthOpts = append(sshAuthOpts, SSHClientPassword(account.Secret))
 	}
 
-	if ad.domain != nil && len(ad.domain.Gateways) > 0 {
-		proxyArgs := make([]SSHClientOptions, 0, len(ad.domain.Gateways))
-		for i := range ad.domain.Gateways {
-			gateway := ad.domain.Gateways[i]
-			loginAccount := gateway.Account
-			port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
-			proxyArg := SSHClientOptions{
-				Host:     gateway.Address,
-				Port:     strconv.Itoa(port),
-				Username: loginAccount.Username,
-				Timeout:  timeout,
-			}
-			if loginAccount.IsSSHKey() {
-				proxyArg.PrivateKey = loginAccount.Secret
-			} else {
-				proxyArg.Password = loginAccount.Secret
-			}
-			proxyArgs = append(proxyArgs, proxyArg)
+	if connectToken.Gateway != nil {
+		gateway := connectToken.Gateway
+		proxyArgs := make([]SSHClientOptions, 0, 1)
+		loginAccount := gateway.Account
+		port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
+		proxyArg := SSHClientOptions{
+			Host:     gateway.Address,
+			Port:     strconv.Itoa(port),
+			Username: loginAccount.Username,
+			Timeout:  timeout,
 		}
+		if loginAccount.IsSSHKey() {
+			proxyArg.PrivateKey = loginAccount.Secret
+		} else {
+			proxyArg.Password = loginAccount.Secret
+		}
+		proxyArgs = append(proxyArgs, proxyArg)
 		sshAuthOpts = append(sshAuthOpts, SSHClientProxyClient(proxyArgs...))
 	}
 	sshClient, err := NewSSHClient(sshAuthOpts...)
@@ -685,28 +602,29 @@ func (ad *AssetDir) getNewSftpConn(su *model.PermAccount) (conn *SftpConn, err e
 		_ = sshClient.Close()
 		return nil, err
 	}
-	AddClientCache(key, sshClient)
 	sftpClient, err := NewSftpConn(sess)
 	if err != nil {
 		logger.Errorf("SSH client(%s) start sftp conn err %s", sshClient, err)
 		_ = sess.Close()
 		sshClient.ReleaseSession(sess)
+		_ = sshClient.Close()
 		return nil, err
 	}
 	go func() {
 		_ = sftpClient.Wait()
 		sshClient.ReleaseSession(sess)
-		logger.Infof("ssh client(%s) for SFTP release", sshClient)
+		_ = sshClient.Close()
+		logger.Infof("User %s SSH client(%s) for SFTP release", user.String(), sshClient)
 	}()
-	HomeDirPath, err := sftpClient.Getwd()
+	homeDirPath, err := sftpClient.Getwd()
 	if err != nil {
 		logger.Errorf("SSH client sftp (%s) get home dir err %s", sshClient, err)
 		_ = sftpClient.Close()
 		return nil, err
 	}
 	logger.Infof("SSH client %s start sftp client session success", sshClient)
-	conn = &SftpConn{client: sftpClient, HomeDirPath: HomeDirPath}
-	return conn, err
+	conn = &SftpConn{client: sftpClient, HomeDirPath: homeDirPath, token: connectToken}
+	return conn, nil
 }
 
 func (ad *AssetDir) parsePath(path string) []string {
@@ -728,10 +646,10 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 	data := model.FTPLog{
 		ID:         com.UUID(),
 		User:       ad.user.String(),
-		Hostname:   ad.detailAsset.String(),
+		Asset:      ad.detailAsset.String(),
 		OrgID:      ad.detailAsset.OrgID,
 		Account:    su.String(),
-		RemoteAddr: ad.addr,
+		RemoteAddr: ad.opts.RemoteAddr,
 		Operate:    operate,
 		Path:       filename,
 		DateStart:  common.NewNowUTCTime(),

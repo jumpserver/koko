@@ -79,6 +79,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	}
 	sftpOpts = append(sftpOpts, srvconn.WithUser(volOpts.user))
 	sftpOpts = append(sftpOpts, srvconn.WithRemoteAddr(volOpts.addr))
+	sftpOpts = append(sftpOpts, srvconn.WithLoginFrom(model.LoginFromWeb))
 	userSftp := srvconn.NewUserSftpConn(jmsService, sftpOpts...)
 	rawID := fmt.Sprintf("%s@%s", volOpts.user.Username, volOpts.addr)
 
@@ -86,7 +87,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),
 		UserSftp:      userSftp,
-		Homename:      homeName,
+		HomeName:      homeName,
 		basePath:      basePath,
 		chunkFilesMap: make(map[int]*sftp.File),
 		lock:          new(sync.Mutex),
@@ -99,7 +100,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 type UserVolume struct {
 	Uuid     string
 	UserSftp *srvconn.UserSftpConn
-	Homename string
+	HomeName string
 	basePath string
 
 	chunkFilesMap map[int]*sftp.File
@@ -405,7 +406,7 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 		readPem, writePem = elfinder.ReadWritePem(fInfo.Mode())
 	}
 	var rest elfinder.FileDir
-	rest.Name = u.Homename
+	rest.Name = u.HomeName
 	rest.Hash = hashPath(u.Uuid, "/")
 	rest.Size = size
 	rest.Volumeid = u.Uuid
