@@ -41,6 +41,8 @@ const MAX_TRANSFER_SIZE = 1024 * 1024 * 500 // 默认最大上传下载500M
 
 const AsciiDel = 127
 const AsciiBackspace = 8
+const AsciiCtrlC = 3
+const AsciiCtrlZ = 27
 
 export default {
   name: "Terminal",
@@ -460,6 +462,7 @@ export default {
       config['fontSize'] = fontSize;
       config['quickPaste'] = quickPaste;
       config['backspaceAsCtrlH'] = backspaceAsCtrlH;
+      config['ctrlCAsCtrlZ'] = '0';
       return config
     },
 
@@ -627,6 +630,13 @@ export default {
       if (this.config.backspaceAsCtrlH === "1") {
         if (data.charCodeAt(0) === AsciiDel) {
           data = String.fromCharCode(AsciiBackspace)
+          this.$log.debug("backspaceAsCtrlH enabled")
+        }
+      }
+      if (this.config.ctrlCAsCtrlZ === "1") {
+        if (data.charCodeAt(0) === AsciiCtrlC) {
+          data = String.fromCharCode(AsciiCtrlZ)
+          this.$log.debug("ctrlCAsCtrlZ enabled")
         }
       }
       return data

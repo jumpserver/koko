@@ -105,6 +105,8 @@ func (s *SSHManager) run() {
 				foundClient = userClient.GetClient()
 				logger.Infof("Found client(%s) and remain %d",
 					foundClient, userClient.Count())
+			}
+			if foundClient != nil {
 				foundClient.increaseSelfRef()
 			}
 			s.resultChan <- foundClient

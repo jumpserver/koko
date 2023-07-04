@@ -68,10 +68,10 @@
         </el-result>
         <el-form>
           <el-form-item :label="this.$t('Terminal.LinkAddr')">
-            <el-input readonly :value="shareURL" />
+            <el-input readonly :value="shareURL"/>
           </el-form-item>
           <el-form-item :label="this.$t('Terminal.VerifyCode')">
-            <el-input readonly :value="shareCode" />
+            <el-input readonly :value="shareCode"/>
           </el-form-item>
         </el-form>
         <div>
@@ -253,11 +253,17 @@ export default {
         case "TERMINAL_SESSION": {
           const sessionInfo = JSON.parse(msg.data);
           const sessionDetail = sessionInfo.session;
-          this.$log.debug("sessionDetail backspaceAsCtrlH: " ,sessionInfo.backspaceAsCtrlH);
+          this.$log.debug("sessionDetail backspaceAsCtrlH: ", sessionInfo.backspaceAsCtrlH);
+          this.$log.debug("sessionDetail ctrlCAsCtrlZ: ", sessionInfo.ctrlCAsCtrlZ);
           if ((sessionInfo.backspaceAsCtrlH !== undefined) && this.$refs.term) {
-            const value = sessionInfo.backspaceAsCtrlH? '1' : '0';
-            this.$log.debug("set backspaceAsCtrlH: "+ value);
+            const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+            this.$log.debug("set backspaceAsCtrlH: " + value);
             this.$refs.term.setConfig('backspaceAsCtrlH', value);
+          }
+          if (this.$refs.term) {
+            const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
+            this.$log.debug("set ctrlCAsCtrlZ: " + value);
+            this.$refs.term.setConfig('ctrlCAsCtrlZ', value);
           }
           this.sessionId = sessionDetail.id;
           const setting = this.$refs.term.setting;
@@ -371,10 +377,12 @@ export default {
 .el-result {
   padding: 0
 }
+
 ::v-deep .el-form-item__content {
   display: flex;
   flex-direction: column;
 }
+
 ::v-deep .el-form-item__content > div,
 ::v-deep .el-form-item__content > span {
   flex: 1;

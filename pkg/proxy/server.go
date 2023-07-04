@@ -164,6 +164,7 @@ type SessionInfo struct {
 	Perms   *model.Permission `json:"permission"`
 
 	BackspaceAsCtrlH *bool `json:"backspaceAsCtrlH,omitempty"`
+	CtrlCAsCtrlZ     bool  `json:"ctrlCAsCtrlZ"`
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -1116,12 +1117,17 @@ func (s *Server) Proxy() {
 	if s.OnSessionInfo != nil {
 		actions := s.connOpts.authInfo.Actions
 		tokenConnOpts := s.connOpts.authInfo.ConnectOptions
+		ctrlCAsCtrlZ := false
+		if s.connOpts.k8sContainer == nil {
+			ctrlCAsCtrlZ = true
+		}
 		perm := actions.Permission()
 		info := SessionInfo{
 			Session: s.sessionInfo,
 			Perms:   &perm,
 
 			BackspaceAsCtrlH: tokenConnOpts.BackspaceAsCtrlH,
+			CtrlCAsCtrlZ:     ctrlCAsCtrlZ,
 		}
 		go s.OnSessionInfo(&info)
 	}
