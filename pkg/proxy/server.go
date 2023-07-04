@@ -1118,7 +1118,7 @@ func (s *Server) Proxy() {
 		actions := s.connOpts.authInfo.Actions
 		tokenConnOpts := s.connOpts.authInfo.ConnectOptions
 		ctrlCAsCtrlZ := false
-		if s.connOpts.k8sContainer != nil {
+		if s.connOpts.k8sContainer == nil {
 			ctrlCAsCtrlZ = true
 		}
 		perm := actions.Permission()
