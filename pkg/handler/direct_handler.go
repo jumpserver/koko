@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"io"
 	"net"
 	"strconv"
@@ -161,7 +162,10 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 	} else {
 		opts = append(opts, srvconn.WithConnectToken(d.opts.tokenInfo))
 	}
-	return &SftpHandler{UserSftpConn: srvconn.NewUserSftpConn(d.jmsService, opts...)}
+	return &SftpHandler{
+		UserSftpConn: srvconn.NewUserSftpConn(d.jmsService, opts...),
+		recorder:     proxy.GetFTPFileRecorder(d.jmsService),
+	}
 }
 
 func (d *DirectHandler) Dispatch() {
