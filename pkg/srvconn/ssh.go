@@ -211,8 +211,20 @@ type SSHClient struct {
 	traceSessionMap map[*gossh.Session]time.Time
 
 	refCount int32
+	_selfRef int32
 }
 
+func (s *SSHClient) increaseSelfRef() {
+	s._selfRef++
+}
+
+func (s *SSHClient) decreaseSelfRef() {
+	s._selfRef--
+}
+
+func (s *SSHClient) selfRef() int32 {
+	return s._selfRef
+}
 func (s *SSHClient) String() string {
 	return fmt.Sprintf("%s@%s:%s", s.Cfg.Username,
 		s.Cfg.Host, s.Cfg.Port)

@@ -338,17 +338,7 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	opts = append(opts, WithFolderID(asset.ID))
 	opts = append(opts, WithFolderName(folderName))
 	opts = append(opts, WitRemoteAddr(u.Addr))
-	opts = append(opts, WithAsset(asset))
-	account := token.Account
-	actions := token.Actions
-	permAccount := model.PermAccount{
-		Name:       account.Name,
-		Username:   account.Username,
-		SecretType: account.SecretType.Value,
-		Secret:     account.Secret,
-		Actions:    actions,
-	}
-	opts = append(opts, WithPermAccounts([]model.PermAccount{permAccount}))
+	opts = append(opts, WithToken(token))
 	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 	dirs[folderName] = &assetDir
 	return dirs
@@ -395,6 +385,7 @@ func (u *UserSftpConn) Search(key string) (res []os.FileInfo, err error) {
 type userSftpOption struct {
 	user       *model.User
 	RemoteAddr string
+	loginFrom  model.LabelField
 	assets     []model.Asset
 	token      *model.ConnectToken
 }
@@ -410,6 +401,12 @@ func WithUser(user *model.User) UserSftpOption {
 func WithRemoteAddr(addr string) UserSftpOption {
 	return func(o *userSftpOption) {
 		o.RemoteAddr = addr
+	}
+}
+
+func WithLoginFrom(loginFrom model.LabelField) UserSftpOption {
+	return func(o *userSftpOption) {
+		o.loginFrom = loginFrom
 	}
 }
 

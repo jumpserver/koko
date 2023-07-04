@@ -44,20 +44,6 @@ func TestJMService_GetTerminalConfig(t *testing.T) {
 	t.Logf("%+v", conf)
 }
 
-func TestJMService_GetDomainGateways(t *testing.T) {
-	jms := setup()
-	domains := []string{
-		"aad81461-5f10-40f6-9064-ed6de855d0c7",
-	}
-	for i := range domains {
-		asset, err := jms.GetDomainGateways(domains[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Logf("%+v\n", asset)
-	}
-}
-
 func TestJMService_GetPublicSetting(t *testing.T) {
 	jms := setup()
 	setting, err := jms.GetPublicSetting()

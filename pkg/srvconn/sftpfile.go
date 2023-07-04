@@ -95,10 +95,9 @@ type folderOptions struct {
 	RemoteAddr  string
 	loadSubFunc SubFoldersLoadFunc
 
-	asset  *model.Asset
-	domain *model.Domain
+	asset *model.Asset
 
-	permAccounts []model.PermAccount
+	token *model.ConnectToken
 }
 
 func WithFolderName(name string) FolderBuilderOption {
@@ -131,15 +130,9 @@ func WithAsset(asset model.Asset) FolderBuilderOption {
 	}
 }
 
-func WithPermAccounts(accounts []model.PermAccount) FolderBuilderOption {
+func WithToken(token *model.ConnectToken) FolderBuilderOption {
 	return func(info *folderOptions) {
-		info.permAccounts = accounts
-	}
-}
-
-func WithDomain(domain *model.Domain) FolderBuilderOption {
-	return func(info *folderOptions) {
-		info.domain = domain
+		info.token = token
 	}
 }
 
@@ -149,15 +142,26 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		setter(&dirOpts)
 	}
 	conf := config.GetConf()
+	detailAsset := dirOpts.asset
+	var permAccounts []model.PermAccount
+	if dirOpts.token != nil {
+		account := dirOpts.token.Account
+		actions := dirOpts.token.Actions
+		permAccount := model.PermAccount{
+			Name:       account.Name,
+			Username:   account.Username,
+			SecretType: account.SecretType.Value,
+			Actions:    actions,
+		}
+		permAccounts = append(permAccounts, permAccount)
+		detailAsset = dirOpts.asset
+	}
 	return AssetDir{
-		ID:          dirOpts.ID,
-		folderName:  dirOpts.Name,
-		addr:        dirOpts.RemoteAddr,
+		opts:        dirOpts,
 		user:        user,
-		detailAsset: dirOpts.asset,
-		domain:      dirOpts.domain,
+		detailAsset: detailAsset,
 		modeTime:    time.Now().UTC(),
-		suMaps:      generateSubAccountsFolderMap(dirOpts.permAccounts),
+		suMaps:      generateSubAccountsFolderMap(permAccounts),
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,
 		sftpClients: map[string]*SftpConn{},
@@ -167,12 +171,13 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 
 type SftpFile struct {
 	*sftp.File
-	FTPLog       *model.FTPLog
+	FTPLog *model.FTPLog
 }
 
 type SftpConn struct {
 	HomeDirPath string
 	client      *sftp.Client
+	token       *model.ConnectToken
 }
 
 func (s *SftpConn) Close() {

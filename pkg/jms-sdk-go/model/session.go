@@ -34,6 +34,7 @@ const (
 	NORMALType  LabelField = "normal"
 	TUNNELType  LabelField = "tunnel"
 	COMMANDType LabelField = "command"
+	SFTPType    LabelField = "sftp"
 )
 
 const (

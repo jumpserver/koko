@@ -156,6 +156,7 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 	opts := make([]srvconn.UserSftpOption, 0, 5)
 	opts = append(opts, srvconn.WithUser(d.opts.User))
 	opts = append(opts, srvconn.WithRemoteAddr(addr))
+	opts = append(opts, srvconn.WithLoginFrom(model.LoginFromSSH))
 	if !d.opts.IsTokenConnection() {
 		opts = append(opts, srvconn.WithAssets(d.opts.assets))
 	} else {

@@ -1,6 +1,9 @@
 package model
 
-import "fmt"
+import (
+	"crypto/md5"
+	"fmt"
+)
 
 type BaseAccount struct {
 	ID         string     `json:"id"`
@@ -12,6 +15,11 @@ type BaseAccount struct {
 
 func (a *BaseAccount) String() string {
 	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
+}
+
+func (a *BaseAccount) HashId() string {
+	content := fmt.Sprintf("%s_%s", a.Username, a.Secret)
+	return fmt.Sprintf("%x", md5.Sum([]byte(content)))
 }
 
 func (a *BaseAccount) IsSSHKey() bool {
