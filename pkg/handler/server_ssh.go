@@ -22,6 +22,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -341,21 +342,24 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	session := tokeInfo.CreateSession(host, model.LoginFromSSH, model.COMMANDType)
-	retSession, err := s.jmsService.CreateSession(session)
+	reqSession := tokeInfo.CreateSession(host, model.LoginFromSSH, model.COMMANDType)
+	respSession, err := s.jmsService.CreateSession(reqSession)
 	if err != nil {
 		logger.Errorf("Create command session err: %s", err)
 		return
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
-	proxy.AddCommandSession(retSession.ID, cancel)
+	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) {
+		cancel()
+	})
+	session.AddSession(traceSession)
 
 	defer func() {
-		if err2 := s.jmsService.SessionFinished(retSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err)
 		}
-		proxy.RemoveCommandSession(retSession.ID)
+		session.RemoveSession(traceSession)
 	}()
 
 	goSess, err := sshClient.AcquireSession()
@@ -387,12 +391,12 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		var outResult strings.Builder
 		maxSize := 1024
 		cmd := model.Command{
-			SessionID:   retSession.ID,
-			OrgID:       retSession.OrgID,
+			SessionID:   respSession.ID,
+			OrgID:       respSession.OrgID,
 			Input:       rawStr,
-			User:        retSession.User,
-			Server:      retSession.Asset,
-			Account:     retSession.Account,
+			User:        respSession.User,
+			Server:      respSession.Asset,
+			Account:     respSession.Account,
 			Timestamp:   now.Unix(),
 			DateCreated: now,
 		}
@@ -430,8 +434,8 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient,
 	tokeInfo *model.ConnectToken) error {
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	session := tokeInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
-	retSession, err := s.jmsService.CreateSession(session)
+	reqSession := tokeInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
+	respSession, err := s.jmsService.CreateSession(reqSession)
 	if err != nil {
 		logger.Errorf("Create tunnel session err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
@@ -439,12 +443,15 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
-	proxy.AddCommandSession(retSession.ID, cancel)
+	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) {
+		cancel()
+	})
+	session.AddSession(traceSession)
 	defer func() {
-		if err2 := s.jmsService.SessionFinished(retSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err)
 		}
-		proxy.RemoveCommandSession(retSession.ID)
+		session.RemoveSession(traceSession)
 	}()
 
 	goSess, err := sshClient.AcquireSession()

@@ -12,13 +12,14 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 const (
 	SearchFolderName = "_Search"
 )
 
-var errNoSystemUser = errors.New("please select one of the systemUsers")
+var errNoAccountUser = errors.New("please select one of the account user")
 
 type SearchResultDir struct {
 	subDirs    map[string]os.FileInfo
@@ -93,6 +94,7 @@ type folderOptions struct {
 	ID          string
 	Name        string
 	RemoteAddr  string
+	fromType    model.LabelField
 	loadSubFunc SubFoldersLoadFunc
 
 	asset *model.Asset
@@ -136,6 +138,12 @@ func WithToken(token *model.ConnectToken) FolderBuilderOption {
 	}
 }
 
+func WithFromType(fromType model.LabelField) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.fromType = fromType
+	}
+}
+
 func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...FolderBuilderOption) AssetDir {
 	var dirOpts folderOptions
 	for _, setter := range opts {
@@ -165,7 +173,9 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,
 		sftpClients: map[string]*SftpConn{},
-		jmsService:  jmsService,
+
+		sftpTraceSessions: make(map[string]*session.Session),
+		jmsService:        jmsService,
 	}
 }
 
@@ -178,6 +188,7 @@ type SftpConn struct {
 	HomeDirPath string
 	client      *sftp.Client
 	token       *model.ConnectToken
+	isClosed    bool
 }
 
 func (s *SftpConn) Close() {
@@ -185,6 +196,7 @@ func (s *SftpConn) Close() {
 		return
 	}
 	_ = s.client.Close()
+	s.isClosed = true
 }
 
 func NewFakeFile(name string, isDir bool) *FakeFileInfo {

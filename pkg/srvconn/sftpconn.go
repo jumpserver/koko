@@ -18,8 +18,10 @@ import (
 var errNoSelectAsset = errors.New("please select one of the assets")
 
 type UserSftpConn struct {
-	User *model.User
-	Addr string
+	User      *model.User
+	Addr      string
+	loginFrom model.LabelField
+
 	Dirs map[string]os.FileInfo
 
 	modeTime time.Time
@@ -320,6 +322,7 @@ func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeLi
 			opts = append(opts, WithFolderID(item.ID))
 			opts = append(opts, WithFolderName(folderName))
 			opts = append(opts, WitRemoteAddr(u.Addr))
+			opts = append(opts, WithFromType(u.loginFrom))
 			assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 			dirs[folderName] = &assetDir
 		}
@@ -339,6 +342,7 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	opts = append(opts, WithFolderName(folderName))
 	opts = append(opts, WitRemoteAddr(u.Addr))
 	opts = append(opts, WithToken(token))
+	opts = append(opts, WithFromType(u.loginFrom))
 	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 	dirs[folderName] = &assetDir
 	return dirs
@@ -430,6 +434,7 @@ func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *Use
 	u := UserSftpConn{
 		User:       sftpOpts.user,
 		Addr:       sftpOpts.RemoteAddr,
+		loginFrom:  sftpOpts.loginFrom,
 		Dirs:       map[string]os.FileInfo{},
 		modeTime:   time.Now().UTC(),
 		closed:     make(chan struct{}),
