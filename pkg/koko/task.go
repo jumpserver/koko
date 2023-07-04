@@ -15,6 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 // uploadRemainReplay 上传遗留的录像
@@ -126,23 +127,13 @@ func keepHeartbeat(jmsService *service.JMService) {
 
 func handleTerminalTask(jmsService *service.JMService, tasks []model.TerminalTask) {
 	for _, task := range tasks {
-		var terminalFlag bool
 		switch task.Name {
 		case model.TaskKillSession:
-			if sw, ok := proxy.GetSessionById(task.Args); ok {
-				sw.Terminate(task.Kwargs.TerminatedBy)
-				terminalFlag = true
-			}
-			if cmdCancel, ok := proxy.GetCommandSession(task.Args); ok {
-				cmdCancel()
-				terminalFlag = true
-
-			}
-			if !terminalFlag {
-				continue
-			}
-			if err := jmsService.FinishTask(task.ID); err != nil {
-				logger.Error(err)
+			if sess, ok := session.GetSessionById(task.Args); ok {
+				sess.Terminal(&task)
+				if err := jmsService.FinishTask(task.ID); err != nil {
+					logger.Errorf("Finish task %s failed: %s", task.ID, err)
+				}
 			}
 		default:
 
@@ -210,7 +201,7 @@ func KeepWsHeartbeat(jmsService *service.JMService) {
 }
 
 func GetStatusData() interface{} {
-	sessions := proxy.GetAliveSessions()
+	sessions := session.GetAliveSessions()
 	payload := model.HeartbeatData{
 		SessionOnlineIds: sessions,
 		CpuUsed:          common.CpuLoad1Usage(),

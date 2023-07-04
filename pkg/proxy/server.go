@@ -23,6 +23,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
@@ -1060,8 +1061,11 @@ func (s *Server) Proxy() {
 			logger.Errorf("%s err: %s", msg, err)
 		}
 	}
-	AddCommonSwitch(&sw)
-	defer RemoveCommonSwitch(&sw)
+	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) {
+		sw.Terminate(task.Kwargs.TerminatedBy)
+	})
+	session.AddSession(traceSession)
+	defer session.RemoveSession(traceSession)
 	defer func() {
 		if err := s.DisConnectedCallback(); err != nil {
 			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)

@@ -19,6 +19,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 type AssetDir struct {
@@ -31,7 +32,8 @@ type AssetDir struct {
 
 	suMaps map[string]*model.PermAccount
 
-	sftpClients map[string]*SftpConn // Account stringer
+	sftpClients       map[string]*SftpConn // Account stringer
+	sftpTraceSessions map[string]*session.Session
 
 	once sync.Once
 
@@ -132,14 +134,14 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, errNoSystemUser
+		return nil, errNoAccountUser
 	}
 	if !su.Actions.EnableUpload() {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	sf, err := con.client.Create(realPath)
@@ -166,14 +168,14 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return errNoSystemUser
+		return errNoAccountUser
 	}
 	if !su.Actions.EnableUpload() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
 	err = con.client.MkdirAll(realPath)
@@ -199,7 +201,7 @@ func (ad *AssetDir) Open(path string) (*SftpFile, error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, errNoSystemUser
+		return nil, errNoAccountUser
 	}
 	if !su.Actions.EnableDownload() {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -235,11 +237,11 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, errNoSystemUser
+		return nil, errNoAccountUser
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	res, err = con.client.ReadDir(realPath)
@@ -267,11 +269,11 @@ func (ad *AssetDir) ReadLink(path string) (res string, err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return "", errNoSystemUser
+		return "", errNoAccountUser
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return "", sftp.ErrSshFxConnectionLost
 	}
 	res, err = con.client.ReadLink(realPath)
@@ -290,13 +292,13 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return errNoSystemUser
+		return errNoAccountUser
 	}
 	if !su.Actions.EnableDelete() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
 	err = ad.removeDirectoryAll(con.client, realPath)
@@ -325,12 +327,15 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return errNoSystemUser
+		return errNoAccountUser
 	}
 	conn1, oldRealPath := ad.GetSFTPAndRealPath(su, strings.Join(oldPathData, "/"))
 	conn2, newRealPath := ad.GetSFTPAndRealPath(su, strings.Join(newPathData, "/"))
 	if conn1 != conn2 {
 		return sftp.ErrSshFxOpUnsupported
+	}
+	if conn1 == nil || conn1.isClosed {
+		return sftp.ErrSshFxConnectionLost
 	}
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
 	operate := model.OperateRename
@@ -358,13 +363,13 @@ func (ad *AssetDir) Remove(path string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return errNoSystemUser
+		return errNoAccountUser
 	}
 	if !su.Actions.EnableDelete() {
 		return sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
 	err = con.client.Remove(realPath)
@@ -391,10 +396,10 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, errNoSystemUser
+		return nil, errNoAccountUser
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	res, err = con.client.Stat(realPath)
@@ -408,7 +413,7 @@ func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
 		if oldPathData[0] != newPathData[0] {
-			return errNoSystemUser
+			return errNoAccountUser
 		}
 		folderName = oldPathData[0]
 		oldPathData = oldPathData[1:]
@@ -416,7 +421,7 @@ func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return errNoSystemUser
+		return errNoAccountUser
 	}
 	if !su.Actions.EnableUpload() {
 		return sftp.ErrSshFxPermissionDenied
@@ -474,10 +479,25 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 			logger.Errorf("Get Sftp Client err: %s", err.Error())
 			return nil, ""
 		}
-		// todo: 这个地方将创建用户 sftp session
-		//conn.token.CreateSession(ad.opts.RemoteAddr, model.LoginFromSSH, model.SFTPType)
 		ad.sftpClients[su.String()] = conn
 	}
+	if _, ok1 := ad.sftpTraceSessions[su.String()]; !ok1 {
+		reqSession := conn.token.CreateSession(ad.opts.RemoteAddr, ad.opts.fromType, model.SFTPType)
+		respSession, err := ad.jmsService.CreateSession(reqSession)
+		if err != nil {
+			logger.Errorf("Create sftp Session err: %s", err.Error())
+			return nil, ""
+		}
+		terminalFunc := func(task *model.TerminalTask) {
+			ad.mu.Lock()
+			defer ad.mu.Unlock()
+			ad.finishSftpSession(su.String(), conn)
+		}
+		traceSession := session.NewSession(&respSession, terminalFunc)
+		session.AddSession(traceSession)
+		ad.sftpTraceSessions[su.String()] = traceSession
+	}
+
 	platform := conn.token.Platform
 	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSSH)
 	accountUsername := su.Username
@@ -635,11 +655,26 @@ func (ad *AssetDir) parsePath(path string) []string {
 func (ad *AssetDir) close() {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
-	for _, conn := range ad.sftpClients {
+	for key, conn := range ad.sftpClients {
 		if conn != nil {
-			conn.Close()
+			ad.finishSftpSession(key, conn)
 		}
 	}
+}
+
+func (ad *AssetDir) finishSftpSession(key string, conn *SftpConn) {
+	if conn.isClosed {
+		return
+	}
+	sess := ad.sftpTraceSessions[key]
+	if sess != nil {
+		session.RemoveSession(sess)
+		if err := ad.jmsService.SessionFinished(sess.ID, common.NewNowUTCTime()); err != nil {
+			logger.Errorf("SFTP Session finished err: %s", err)
+		}
+		logger.Debugf("SFTP Session finished %s", sess.ID)
+	}
+	conn.Close()
 }
 
 func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) *model.FTPLog {
