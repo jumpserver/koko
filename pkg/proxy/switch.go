@@ -225,7 +225,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			nr, err := userConn.Read(buf)
 			if nr > 0 {
 				index := bytes.IndexFunc(buf[:nr], func(r rune) bool {
-					return r == '\r' || r == '\n'
+					return r == '\r'
 				})
 				if index <= 0 || !parser.NeedRecord() {
 					room.Receive(&exchange.RoomMessage{
