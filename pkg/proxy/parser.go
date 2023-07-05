@@ -79,6 +79,9 @@ type Parser struct {
 	i18nLang string
 
 	platform *model.Platform
+
+	inputBuffer   bytes.Buffer
+	isMultipleCmd bool
 }
 
 func (p *Parser) initial() {
@@ -282,7 +285,33 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			default:
 			}
 		}
+		p.clearInputBuffer()
 	} else {
+		p.writeInputBuffer(b)
+		if bytes.Contains(b, charEnter) {
+			p.isMultipleCmd = true
+			p.command = p.readInputBuffer()
+			p.cmdCreateDate = time.Now()
+			p.inputState = false
+			p.clearInputBuffer()
+			if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
+				switch rule.Acl.Action {
+				case model.ActionReject:
+					p.forbiddenCommand(cmd)
+					return nil
+				case model.ActionReview:
+					p.confirmStatus.SetStatus(StatusQuery)
+					p.confirmStatus.SetRule(rule)
+					p.confirmStatus.SetCmd(p.command)
+					p.confirmStatus.SetData(string(b))
+					p.confirmStatus.ResetCtx()
+					p.srvOutputChan <- []byte("\r\n" + waitMsg)
+					return nil
+				default:
+				}
+			}
+			return b
+		}
 		p.inputState = true
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
@@ -303,6 +332,18 @@ func (p *Parser) IsNeedParse() bool {
 	}
 	p.inputPreState = p.inputState
 	return true
+}
+
+func (p *Parser) writeInputBuffer(b []byte) {
+	p.inputBuffer.Write(b)
+}
+
+func (p *Parser) readInputBuffer() string {
+	return p.inputBuffer.String()
+}
+
+func (p *Parser) clearInputBuffer() {
+	p.inputBuffer.Reset()
 }
 
 func (p *Parser) forbiddenCommand(cmd string) {
