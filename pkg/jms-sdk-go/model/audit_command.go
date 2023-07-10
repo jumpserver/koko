@@ -17,11 +17,10 @@ type Command struct {
 }
 
 const (
-	HighRiskFlag = "1"
-	LessRiskFlag = "0"
-)
-
-const (
-	DangerLevel = 5
-	NormalLevel = 0
+	NormalLevel  = 0
+	WarningLevel = 4
+	RejectLevel  = 5
+	ReviewReject = 6
+	ReviewAccept = 7
+	ReviewCancel = 8
 )

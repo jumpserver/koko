@@ -59,7 +59,7 @@ func (c *CommandRecorder) record() {
 			if !ok {
 				return
 			}
-			if p.RiskLevel == model.DangerLevel {
+			if p.RiskLevel >= model.WarningLevel && p.RiskLevel < model.ReviewAccept {
 				notificationList = append(notificationList, p)
 			}
 			cmdList = append(cmdList, p)
