@@ -13,6 +13,9 @@ type Command struct {
 	Timestamp int64  `json:"timestamp"`
 	RiskLevel int64  `json:"risk_level"`
 
+	CmdFilterAclId string `json:"cmd_filter_acl"`
+	CmdGroupId     string `json:"cmd_group"`
+
 	DateCreated time.Time `json:"@timestamp"`
 }
 

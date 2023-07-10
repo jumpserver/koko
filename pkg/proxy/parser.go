@@ -83,7 +83,8 @@ type Parser struct {
 	inputBuffer   bytes.Buffer
 	isMultipleCmd bool
 
-	currentCmdRiskLevel int64
+	currentCmdRiskLevel  int64
+	currentCmdFilterRule CommandRule
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -92,6 +93,18 @@ func (p *Parser) setCurrentCmdStatusLevel(level int64) {
 
 func (p *Parser) getCurrentCmdStatusLevel() int64 {
 	return p.currentCmdRiskLevel
+}
+
+func (p *Parser) setCurrentCmdFilterRule(rule CommandRule) {
+	p.currentCmdFilterRule = rule
+}
+
+func (p *Parser) getCurrentCmdFilterRule() CommandRule {
+	return p.currentCmdFilterRule
+}
+
+func (p *Parser) resetCurrentCmdFilterRule() {
+	p.currentCmdFilterRule = CommandRule{}
 }
 
 func (p *Parser) initial() {
@@ -287,9 +300,11 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			switch rule.Acl.Action {
 			case model.ActionReject:
 				p.setCurrentCmdStatusLevel(model.RejectLevel)
+				p.setCurrentCmdFilterRule(rule)
 				p.forbiddenCommand(cmd)
 				return nil
 			case model.ActionReview:
+				p.setCurrentCmdFilterRule(rule)
 				p.confirmStatus.SetStatus(StatusQuery)
 				p.confirmStatus.SetRule(rule)
 				p.confirmStatus.SetCmd(p.command)
@@ -298,6 +313,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.srvOutputChan <- []byte("\r\n" + waitMsg)
 				return nil
 			case model.ActionWarning:
+				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 			default:
 			}
@@ -314,10 +330,12 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
 				switch rule.Acl.Action {
 				case model.ActionReject:
+					p.setCurrentCmdFilterRule(rule)
 					p.setCurrentCmdStatusLevel(model.RejectLevel)
 					p.forbiddenCommand(cmd)
 					return nil
 				case model.ActionReview:
+					p.setCurrentCmdFilterRule(rule)
 					p.confirmStatus.SetStatus(StatusQuery)
 					p.confirmStatus.SetRule(rule)
 					p.confirmStatus.SetCmd(p.command)
@@ -326,6 +344,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 					p.srvOutputChan <- []byte("\r\n" + waitMsg)
 					return nil
 				case model.ActionWarning:
+					p.setCurrentCmdFilterRule(rule)
 					p.setCurrentCmdStatusLevel(model.WarningLevel)
 				default:
 				}
@@ -380,15 +399,8 @@ func (p *Parser) forbiddenCommand(cmd string) {
 	lang := i18n.NewLang(p.i18nLang)
 	fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
 	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
-	p.cmdRecordChan <- &ExecutedCommand{
-		Command:     p.command,
-		Output:      fbdMsg,
-		CreatedDate: p.cmdCreateDate,
-		RiskLevel:   p.getCurrentCmdStatusLevel(),
-		User:        p.currentActiveUser}
-	p.command = ""
-	p.output = ""
-	p.setCurrentCmdStatusLevel(model.NormalLevel)
+	p.output = fbdMsg
+	p.sendCommandToChan()
 	p.userOutputChan <- p.breakInputPacket()
 }
 
@@ -622,17 +634,35 @@ func (p *Parser) Close() {
 func (p *Parser) sendCommandRecord() {
 	if p.command != "" {
 		p.parseCmdOutput()
-		p.cmdRecordChan <- &ExecutedCommand{
-			Command:     p.command,
-			Output:      p.output,
-			CreatedDate: p.cmdCreateDate,
-			RiskLevel:   p.getCurrentCmdStatusLevel(),
-			User:        p.currentActiveUser,
-		}
-		p.command = ""
-		p.output = ""
+		p.sendCommandToChan()
 	}
 	p.setCurrentCmdStatusLevel(model.NormalLevel)
+	p.resetCurrentCmdFilterRule()
+}
+
+func (p *Parser) sendCommandToChan() {
+	if p.command == "" {
+		return
+	}
+	cmdFilterId := ""
+	cmdGroupId := ""
+	if rule := p.getCurrentCmdFilterRule(); rule.Acl != nil {
+		cmdFilterId = rule.Acl.ID
+		cmdGroupId = rule.Item.ID
+	}
+	p.cmdRecordChan <- &ExecutedCommand{
+		Command:        p.command,
+		Output:         p.output,
+		CreatedDate:    p.cmdCreateDate,
+		RiskLevel:      p.getCurrentCmdStatusLevel(),
+		CmdFilterACLId: cmdFilterId,
+		CmdGroupId:     cmdGroupId,
+		User:           p.currentActiveUser,
+	}
+	p.setCurrentCmdStatusLevel(model.NormalLevel)
+	p.resetCurrentCmdFilterRule()
+	p.command = ""
+	p.output = ""
 }
 
 func (p *Parser) NeedRecord() bool {
@@ -654,6 +684,9 @@ type ExecutedCommand struct {
 	CreatedDate time.Time
 	RiskLevel   int64
 	User        CurrentActiveUser
+
+	CmdFilterACLId string
+	CmdGroupId     string
 }
 
 type CurrentActiveUser struct {

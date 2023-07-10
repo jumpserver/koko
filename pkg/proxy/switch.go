@@ -88,7 +88,7 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 		output = item.Output[:1024]
 	}
 
-	return s.p.GenerateCommandItem(user, input, output, item.RiskLevel, item.CreatedDate)
+	return s.p.GenerateCommandItem(user, input, output, item)
 }
 
 // Bridge 桥接两个链接
