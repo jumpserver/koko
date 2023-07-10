@@ -315,6 +315,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			case model.ActionWarning:
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
+				logger.Debugf("Session %s: command %s match warning rule", p.id, p.command)
 			default:
 			}
 		}
@@ -508,7 +509,7 @@ func (p *Parser) IsMatchCommandRule(command string) (CommandRule,
 		rule := p.cmdFilterACLs[i]
 		item, allowed, cmd := rule.Match(command)
 		switch allowed {
-		case model.ActionAccept:
+		case model.ActionAccept, model.ActionWarning:
 			return CommandRule{Acl: &rule, Item: &item}, cmd, true
 		case model.ActionReview, model.ActionReject:
 			return CommandRule{Acl: &rule, Item: &item}, cmd, true

@@ -61,6 +61,7 @@ func (c *CommandRecorder) record() {
 			}
 			if p.RiskLevel >= model.WarningLevel && p.RiskLevel < model.ReviewAccept {
 				notificationList = append(notificationList, p)
+				logger.Debugf("Session %s: command notify %d", c.sessionID, p.RiskLevel)
 			}
 			cmdList = append(cmdList, p)
 			if len(cmdList) < 5 {
@@ -73,6 +74,7 @@ func (c *CommandRecorder) record() {
 		}
 		if len(notificationList) > 0 {
 			if err := c.jmsService.NotifyCommand(notificationList); err == nil {
+				logger.Debugf("Session %s: %d command notify success", c.sessionID, len(notificationList))
 				notificationList = notificationList[:0]
 			} else {
 				logger.Errorf("Session %s: command notify err: %s", c.sessionID, err)
