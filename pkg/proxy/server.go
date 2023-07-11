@@ -276,8 +276,7 @@ func (s *Server) GetCommandRecorder() *CommandRecorder {
 	return &cmdR
 }
 
-func (s *Server) GenerateCommandItem(user, input, output string,
-	riskLevel int64, createdDate time.Time) *model.Command {
+func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedCommand) *model.Command {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 	server := asset.String()
@@ -288,6 +287,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 			server = s.connOpts.k8sContainer.K8sName(server)
 		}
 	}
+	createdDate := item.CreatedDate
 	return &model.Command{
 		SessionID:   s.ID,
 		OrgID:       asset.OrgID,
@@ -297,8 +297,11 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		Input:       input,
 		Output:      output,
 		Timestamp:   createdDate.Unix(),
-		RiskLevel:   riskLevel,
+		RiskLevel:   item.RiskLevel,
 		DateCreated: createdDate.UTC(),
+
+		CmdFilterAclId: item.CmdFilterACLId,
+		CmdGroupId:     item.CmdGroupId,
 	}
 }
 
