@@ -1052,8 +1052,8 @@ func (s *Server) Proxy() {
 		msg := lang.T("Connect with api server failed")
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(s.UserConn, msg)
-		logger.Errorf("Conn[%s] submit session %s to core server err: %s",
-			s.UserConn.ID(), s.ID, msg)
+		logger.Errorf("Conn[%s] submit session %s to core server err: %s %s",
+			s.UserConn.ID(), s.ID, msg, err)
 		return
 	}
 	if s.connOpts.authInfo.Ticket != nil {
