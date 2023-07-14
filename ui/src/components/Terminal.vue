@@ -285,7 +285,7 @@ export default {
         this.$log.debug("未开启zmodem 且当前在zmodem状态，不允许显示")
         return;
       }
-      this.term.write(data);
+      this.term.write(new Uint8Array(data));
     },
 
     onWebsocketOpen() {
