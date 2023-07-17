@@ -31,6 +31,9 @@ func (a *BaseAccount) IsSSHKey() bool {
 func (a *BaseAccount) IsNull() bool {
 	return a.Username == "null"
 }
+func (a *BaseAccount) IsAnonymous() bool {
+	return a.Username == ANONUser
+}
 
 type Account struct {
 	BaseAccount
@@ -71,7 +74,12 @@ func (a *PermAccount) String() string {
 	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
 }
 
+func (a *PermAccount) IsAnonymous() bool {
+	return a.Username == ANONUser
+}
+
 const (
 	InputUser   = "@INPUT"
 	DynamicUser = "@USER"
+	ANONUser    = "@ANON"
 )
