@@ -24,7 +24,7 @@ LDFLAGS=-w -s
 KOKOLDFLAGS+=-X 'main.Buildstamp=$(BuildTime)'
 KOKOLDFLAGS+=-X 'main.Githash=$(COMMIT)'
 KOKOLDFLAGS+=-X 'main.Goversion=$(GOVERSION)'
-KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/koko.Version=$(VERSION)'
+KOKOLDFLAGS+=-X 'main.Version=$(VERSION)'
 KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 
 K8SCMDFLAGS=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
