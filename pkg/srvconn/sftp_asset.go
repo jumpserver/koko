@@ -98,8 +98,8 @@ func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*mode
 	for i := 0; i < len(accounts); i++ {
 		//  不支持 @USER 和 @INPUT，
 		switch accounts[i].Username {
-		case model.InputUser, model.DynamicUser:
-			logger.Debugf("Skip @INPUT or @USER account %s", accounts[i].Name)
+		case model.InputUser, model.DynamicUser, model.ANONUser:
+			logger.Debugf("Skip unSupported account %s", accounts[i].Name)
 			continue
 		default:
 		}
