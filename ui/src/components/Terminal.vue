@@ -42,7 +42,7 @@ const MAX_TRANSFER_SIZE = 1024 * 1024 * 500 // 默认最大上传下载500M
 const AsciiDel = 127
 const AsciiBackspace = 8
 const AsciiCtrlC = 3
-const AsciiCtrlZ = 27
+const AsciiCtrlZ = 26
 
 export default {
   name: "Terminal",
