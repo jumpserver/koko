@@ -6,16 +6,16 @@ import (
 
 var sshManager = newSSHManager()
 
-func searchSSHClientFromCache(prefixKey string) (client *SSHClient, ok bool) {
-	return sshManager.searchSSHClientFromCache(prefixKey)
-}
-
 func GetClientFromCache(key string) (client *SSHClient, ok bool) {
 	return sshManager.getClientFromCache(key)
 }
 
 func AddClientCache(key string, client *SSHClient) {
 	sshManager.AddClientCache(key, client)
+}
+
+func ReleaseClientCacheKey(key string, client *SSHClient) {
+	sshManager.ReleaseClientCacheKey(key, client)
 }
 
 func MakeReuseSSHClientKey(userId, assetId, account,

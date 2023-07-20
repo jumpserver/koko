@@ -114,7 +114,7 @@ func (s *SuSwitchService) runSwitchCommand() {
 		s.execCommand()
 	} else {
 		cmd := s.cfg.SuCommand()
-		_, _ = s.SrvConn.Write([]byte(cmd + "\r\n"))
+		_, _ = s.SrvConn.Write([]byte(cmd + "\r"))
 		s.needAuthOnce = true
 	}
 }

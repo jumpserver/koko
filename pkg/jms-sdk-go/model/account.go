@@ -1,6 +1,9 @@
 package model
 
-import "fmt"
+import (
+	"crypto/md5"
+	"fmt"
+)
 
 type BaseAccount struct {
 	ID         string     `json:"id"`
@@ -14,6 +17,11 @@ func (a *BaseAccount) String() string {
 	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
 }
 
+func (a *BaseAccount) HashId() string {
+	content := fmt.Sprintf("%s_%s", a.Username, a.Secret)
+	return fmt.Sprintf("%x", md5.Sum([]byte(content)))
+}
+
 func (a *BaseAccount) IsSSHKey() bool {
 	return a.SecretType.Value == "ssh_key"
 }
@@ -22,6 +30,9 @@ func (a *BaseAccount) IsSSHKey() bool {
 
 func (a *BaseAccount) IsNull() bool {
 	return a.Username == "null"
+}
+func (a *BaseAccount) IsAnonymous() bool {
+	return a.Username == ANONUser
 }
 
 type Account struct {
@@ -63,7 +74,12 @@ func (a *PermAccount) String() string {
 	return fmt.Sprintf("%s(%s)", a.Name, a.Username)
 }
 
+func (a *PermAccount) IsAnonymous() bool {
+	return a.Username == ANONUser
+}
+
 const (
 	InputUser   = "@INPUT"
 	DynamicUser = "@USER"
+	ANONUser    = "@ANON"
 )

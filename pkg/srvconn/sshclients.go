@@ -1,14 +1,13 @@
 package srvconn
 
 import (
-	"strings"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type UserSSHClient struct {
-	ID   string // userID_assetID_systemUserID_systemUsername
+	ID   string // 这个 user ssh client key 参考 MakeReuseSSHClientKey
 	data map[*SSHClient]int64
 	name string
 }
@@ -33,7 +32,7 @@ func (u *UserSSHClient) GetClient() *SSHClient {
 func (u *UserSSHClient) recycleClients() {
 	needRemovedClients := make([]*SSHClient, 0, len(u.data))
 	for client := range u.data {
-		if client.RefCount() <= 0 {
+		if client.RefCount() <= 0 && client.selfRef() <= 0 {
 			needRemovedClients = append(needRemovedClients, client)
 			_ = client.Close()
 		}
@@ -56,7 +55,8 @@ func newSSHManager() *SSHManager {
 		storeChan:  make(chan *storeClient),
 		reqChan:    make(chan string),
 		resultChan: make(chan *SSHClient),
-		searchChan: make(chan string),
+
+		releaseChan: make(chan *storeClient),
 	}
 	go m.run()
 	return &m
@@ -66,7 +66,8 @@ type SSHManager struct {
 	storeChan  chan *storeClient
 	reqChan    chan string // reqId
 	resultChan chan *SSHClient
-	searchChan chan string // prefix
+
+	releaseChan chan *storeClient
 }
 
 func (s *SSHManager) run() {
@@ -78,7 +79,7 @@ func (s *SSHManager) run() {
 		select {
 		case now := <-tick.C:
 			/*
-				1. 5 分钟无访问则 让所有的 UserSSHClient recycleClients
+				1. 1 分钟无访问则 让所有的 UserSSHClient recycleClients
 				2. 并清理 count==0 的 UserSSHClient
 			*/
 			if now.After(latestVisited.Add(time.Minute)) {
@@ -93,7 +94,7 @@ func (s *SSHManager) run() {
 					for i := range needRemovedClients {
 						delete(data, needRemovedClients[i])
 					}
-					logger.Infof("Remove %d user clients remain %d",
+					logger.Infof("Remove %d cache ssh clients remain %d",
 						len(needRemovedClients), len(data))
 				}
 			}
@@ -105,31 +106,33 @@ func (s *SSHManager) run() {
 				logger.Infof("Found client(%s) and remain %d",
 					foundClient, userClient.Count())
 			}
-			s.resultChan <- foundClient
-
-		case prefixKey := <-s.searchChan:
-			var foundClient *SSHClient
-			for key, userClient := range data {
-				if strings.HasPrefix(key, prefixKey) {
-					foundClient = userClient.GetClient()
-					logger.Infof("Found client(%s) and remain %d",
-						foundClient, userClient.Count())
-					break
-				}
+			if foundClient != nil {
+				foundClient.increaseSelfRef()
 			}
 			s.resultChan <- foundClient
+
 		case reqClient := <-s.storeChan:
-			userClient, ok := data[reqClient.reqId]
+			reqClient.SSHClient.increaseSelfRef()
+			userClient, ok := data[reqClient.key]
 			if !ok {
 				userClient = &UserSSHClient{
-					ID:   reqClient.reqId,
+					ID:   reqClient.key,
 					name: reqClient.SSHClient.String(),
 					data: make(map[*SSHClient]int64),
 				}
-				data[reqClient.reqId] = userClient
+				data[reqClient.key] = userClient
 			}
 			userClient.AddClient(reqClient.SSHClient)
 			logger.Infof("Store new client(%s) remain %d", reqClient.String(), userClient.Count())
+		case reqClient := <-s.releaseChan:
+			// 收到释放请求，及时释放对应的 SSHClient
+			reqClient.decreaseSelfRef()
+			if userClient, ok := data[reqClient.key]; ok {
+				userClient.recycleClients()
+			} else {
+				_ = reqClient.Close()
+				logger.Infof("SSH client(%s) not found in user ssh cache and close", reqClient.String())
+			}
 		}
 
 		latestVisited = time.Now()
@@ -144,18 +147,19 @@ func (s *SSHManager) getClientFromCache(key string) (*SSHClient, bool) {
 
 func (s *SSHManager) AddClientCache(key string, client *SSHClient) {
 	s.storeChan <- &storeClient{
-		reqId:     key,
+		key:       key,
 		SSHClient: client,
 	}
 }
 
-func (s *SSHManager) searchSSHClientFromCache(prefixKey string) (client *SSHClient, ok bool) {
-	s.searchChan <- prefixKey
-	client = <-s.resultChan
-	return client, client != nil
+func (s *SSHManager) ReleaseClientCacheKey(key string, client *SSHClient) {
+	s.releaseChan <- &storeClient{
+		key:       key,
+		SSHClient: client,
+	}
 }
 
 type storeClient struct {
-	reqId string
+	key string
 	*SSHClient
 }

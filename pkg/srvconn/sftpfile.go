@@ -12,13 +12,14 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 const (
 	SearchFolderName = "_Search"
 )
 
-var errNoSystemUser = errors.New("please select one of the systemUsers")
+var errNoAccountUser = errors.New("please select one of the account user")
 
 type SearchResultDir struct {
 	subDirs    map[string]os.FileInfo
@@ -93,12 +94,12 @@ type folderOptions struct {
 	ID          string
 	Name        string
 	RemoteAddr  string
+	fromType    model.LabelField
 	loadSubFunc SubFoldersLoadFunc
 
-	asset  *model.Asset
-	domain *model.Domain
+	asset *model.Asset
 
-	permAccounts []model.PermAccount
+	token *model.ConnectToken
 }
 
 func WithFolderName(name string) FolderBuilderOption {
@@ -131,15 +132,15 @@ func WithAsset(asset model.Asset) FolderBuilderOption {
 	}
 }
 
-func WithPermAccounts(accounts []model.PermAccount) FolderBuilderOption {
+func WithToken(token *model.ConnectToken) FolderBuilderOption {
 	return func(info *folderOptions) {
-		info.permAccounts = accounts
+		info.token = token
 	}
 }
 
-func WithDomain(domain *model.Domain) FolderBuilderOption {
+func WithFromType(fromType model.LabelField) FolderBuilderOption {
 	return func(info *folderOptions) {
-		info.domain = domain
+		info.fromType = fromType
 	}
 }
 
@@ -149,30 +150,45 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		setter(&dirOpts)
 	}
 	conf := config.GetConf()
+	detailAsset := dirOpts.asset
+	var permAccounts []model.PermAccount
+	if dirOpts.token != nil {
+		account := dirOpts.token.Account
+		actions := dirOpts.token.Actions
+		permAccount := model.PermAccount{
+			Name:       account.Name,
+			Username:   account.Username,
+			SecretType: account.SecretType.Value,
+			Actions:    actions,
+		}
+		permAccounts = append(permAccounts, permAccount)
+		detailAsset = dirOpts.asset
+	}
 	return AssetDir{
-		ID:          dirOpts.ID,
-		folderName:  dirOpts.Name,
-		addr:        dirOpts.RemoteAddr,
+		opts:        dirOpts,
 		user:        user,
-		detailAsset: dirOpts.asset,
-		domain:      dirOpts.domain,
+		detailAsset: detailAsset,
 		modeTime:    time.Now().UTC(),
-		suMaps:      generateSubAccountsFolderMap(dirOpts.permAccounts),
+		suMaps:      generateSubAccountsFolderMap(permAccounts),
 		ShowHidden:  conf.ShowHiddenFile,
 		reuse:       conf.ReuseConnection,
 		sftpClients: map[string]*SftpConn{},
-		jmsService:  jmsService,
+
+		sftpTraceSessions: make(map[string]*session.Session),
+		jmsService:        jmsService,
 	}
 }
 
 type SftpFile struct {
 	*sftp.File
-	FTPLog       *model.FTPLog
+	FTPLog *model.FTPLog
 }
 
 type SftpConn struct {
 	HomeDirPath string
 	client      *sftp.Client
+	token       *model.ConnectToken
+	isClosed    bool
 }
 
 func (s *SftpConn) Close() {
@@ -180,6 +196,7 @@ func (s *SftpConn) Close() {
 		return
 	}
 	_ = s.client.Close()
+	s.isClosed = true
 }
 
 func NewFakeFile(name string, isDir bool) *FakeFileInfo {

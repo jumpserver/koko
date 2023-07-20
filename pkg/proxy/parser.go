@@ -79,6 +79,32 @@ type Parser struct {
 	i18nLang string
 
 	platform *model.Platform
+
+	inputBuffer   bytes.Buffer
+	isMultipleCmd bool
+
+	currentCmdRiskLevel  int64
+	currentCmdFilterRule CommandRule
+}
+
+func (p *Parser) setCurrentCmdStatusLevel(level int64) {
+	p.currentCmdRiskLevel = level
+}
+
+func (p *Parser) getCurrentCmdStatusLevel() int64 {
+	return p.currentCmdRiskLevel
+}
+
+func (p *Parser) setCurrentCmdFilterRule(rule CommandRule) {
+	p.currentCmdFilterRule = rule
+}
+
+func (p *Parser) getCurrentCmdFilterRule() CommandRule {
+	return p.currentCmdFilterRule
+}
+
+func (p *Parser) resetCurrentCmdFilterRule() {
+	p.currentCmdFilterRule = CommandRule{}
 }
 
 func (p *Parser) initial() {
@@ -231,12 +257,14 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				processor := p.confirmStatus.GetProcessor()
 				switch p.confirmStatus.GetAction() {
 				case model.ActionAccept:
+					p.setCurrentCmdStatusLevel(model.ReviewAccept)
 					formatMsg := lang.T("%s approved")
 					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Green)
 					p.srvOutputChan <- []byte("\r\n")
 					p.srvOutputChan <- []byte(statusMsg)
 					p.userOutputChan <- []byte(p.confirmStatus.data)
 				case model.ActionReject:
+					p.setCurrentCmdStatusLevel(model.ReviewReject)
 					formatMsg := lang.T("%s rejected")
 					statusMsg := utils.WrapperString(fmt.Sprintf(formatMsg, processor), utils.Red)
 					p.srvOutputChan <- []byte("\r\n")
@@ -244,6 +272,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 					p.forbiddenCommand(p.confirmStatus.Cmd)
 				default:
 					// 默认是取消 不执行
+					p.setCurrentCmdStatusLevel(model.ReviewCancel)
 					p.srvOutputChan <- []byte("\r\n")
 					p.userOutputChan <- p.breakInputPacket()
 				}
@@ -251,6 +280,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.confirmStatus.SetStatus(StatusNone)
 			}()
 		case "n":
+			p.setCurrentCmdStatusLevel(model.ReviewCancel)
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
 			return p.breakInputPacket()
@@ -269,9 +299,12 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
 			switch rule.Acl.Action {
 			case model.ActionReject:
+				p.setCurrentCmdStatusLevel(model.RejectLevel)
+				p.setCurrentCmdFilterRule(rule)
 				p.forbiddenCommand(cmd)
 				return nil
 			case model.ActionReview:
+				p.setCurrentCmdFilterRule(rule)
 				p.confirmStatus.SetStatus(StatusQuery)
 				p.confirmStatus.SetRule(rule)
 				p.confirmStatus.SetCmd(p.command)
@@ -279,10 +312,46 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.confirmStatus.ResetCtx()
 				p.srvOutputChan <- []byte("\r\n" + waitMsg)
 				return nil
+			case model.ActionWarning:
+				p.setCurrentCmdFilterRule(rule)
+				p.setCurrentCmdStatusLevel(model.WarningLevel)
+				logger.Debugf("Session %s: command %s match warning rule", p.id, p.command)
 			default:
 			}
 		}
+		p.clearInputBuffer()
 	} else {
+		p.writeInputBuffer(b)
+		if p.supportMultiCmd() && bytes.Contains(b, charEnter) {
+			p.isMultipleCmd = true
+			p.command = p.readInputBuffer()
+			p.cmdCreateDate = time.Now()
+			p.inputState = false
+			p.clearInputBuffer()
+			if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
+				switch rule.Acl.Action {
+				case model.ActionReject:
+					p.setCurrentCmdFilterRule(rule)
+					p.setCurrentCmdStatusLevel(model.RejectLevel)
+					p.forbiddenCommand(cmd)
+					return nil
+				case model.ActionReview:
+					p.setCurrentCmdFilterRule(rule)
+					p.confirmStatus.SetStatus(StatusQuery)
+					p.confirmStatus.SetRule(rule)
+					p.confirmStatus.SetCmd(p.command)
+					p.confirmStatus.SetData(string(b))
+					p.confirmStatus.ResetCtx()
+					p.srvOutputChan <- []byte("\r\n" + waitMsg)
+					return nil
+				case model.ActionWarning:
+					p.setCurrentCmdFilterRule(rule)
+					p.setCurrentCmdStatusLevel(model.WarningLevel)
+				default:
+				}
+			}
+			return b
+		}
 		p.inputState = true
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
@@ -295,6 +364,16 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	return b
 }
 
+func (p *Parser) supportMultiCmd() bool {
+	switch p.protocolType {
+	case model.ProtocolSSH,
+		model.ProtocolTelnet,
+		model.ProtocolK8S:
+		return true
+	}
+	return false
+}
+
 func (p *Parser) IsNeedParse() bool {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -305,18 +384,24 @@ func (p *Parser) IsNeedParse() bool {
 	return true
 }
 
+func (p *Parser) writeInputBuffer(b []byte) {
+	p.inputBuffer.Write(b)
+}
+
+func (p *Parser) readInputBuffer() string {
+	return p.inputBuffer.String()
+}
+
+func (p *Parser) clearInputBuffer() {
+	p.inputBuffer.Reset()
+}
+
 func (p *Parser) forbiddenCommand(cmd string) {
 	lang := i18n.NewLang(p.i18nLang)
 	fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
 	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
-	p.cmdRecordChan <- &ExecutedCommand{
-		Command:     p.command,
-		Output:      fbdMsg,
-		CreatedDate: p.cmdCreateDate,
-		RiskLevel:   model.HighRiskFlag,
-		User:        p.currentActiveUser}
-	p.command = ""
-	p.output = ""
+	p.output = fbdMsg
+	p.sendCommandToChan()
 	p.userOutputChan <- p.breakInputPacket()
 }
 
@@ -424,7 +509,7 @@ func (p *Parser) IsMatchCommandRule(command string) (CommandRule,
 		rule := p.cmdFilterACLs[i]
 		item, allowed, cmd := rule.Match(command)
 		switch allowed {
-		case model.ActionAccept:
+		case model.ActionAccept, model.ActionWarning:
 			return CommandRule{Acl: &rule, Item: &item}, cmd, true
 		case model.ActionReview, model.ActionReject:
 			return CommandRule{Acl: &rule, Item: &item}, cmd, true
@@ -550,16 +635,35 @@ func (p *Parser) Close() {
 func (p *Parser) sendCommandRecord() {
 	if p.command != "" {
 		p.parseCmdOutput()
-		p.cmdRecordChan <- &ExecutedCommand{
-			Command:     p.command,
-			Output:      p.output,
-			CreatedDate: p.cmdCreateDate,
-			RiskLevel:   model.LessRiskFlag,
-			User:        p.currentActiveUser,
-		}
-		p.command = ""
-		p.output = ""
+		p.sendCommandToChan()
 	}
+	p.setCurrentCmdStatusLevel(model.NormalLevel)
+	p.resetCurrentCmdFilterRule()
+}
+
+func (p *Parser) sendCommandToChan() {
+	if p.command == "" {
+		return
+	}
+	cmdFilterId := ""
+	cmdGroupId := ""
+	if rule := p.getCurrentCmdFilterRule(); rule.Acl != nil {
+		cmdFilterId = rule.Acl.ID
+		cmdGroupId = rule.Item.ID
+	}
+	p.cmdRecordChan <- &ExecutedCommand{
+		Command:        p.command,
+		Output:         p.output,
+		CreatedDate:    p.cmdCreateDate,
+		RiskLevel:      p.getCurrentCmdStatusLevel(),
+		CmdFilterACLId: cmdFilterId,
+		CmdGroupId:     cmdGroupId,
+		User:           p.currentActiveUser,
+	}
+	p.setCurrentCmdStatusLevel(model.NormalLevel)
+	p.resetCurrentCmdFilterRule()
+	p.command = ""
+	p.output = ""
 }
 
 func (p *Parser) NeedRecord() bool {
@@ -579,8 +683,11 @@ type ExecutedCommand struct {
 	Command     string
 	Output      string
 	CreatedDate time.Time
-	RiskLevel   string
+	RiskLevel   int64
 	User        CurrentActiveUser
+
+	CmdFilterACLId string
+	CmdGroupId     string
 }
 
 type CurrentActiveUser struct {

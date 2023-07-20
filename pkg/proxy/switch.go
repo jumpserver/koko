@@ -69,10 +69,9 @@ func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
 // generateCommandResult 生成命令结果
 func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Command {
 	var (
-		input     string
-		output    string
-		riskLevel int64
-		user      string
+		input  string
+		output string
+		user   string
 	)
 	user = item.User.User
 	if len(item.Command) > 128 {
@@ -89,13 +88,7 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 		output = item.Output[:1024]
 	}
 
-	switch item.RiskLevel {
-	case model.HighRiskFlag:
-		riskLevel = model.DangerLevel
-	default:
-		riskLevel = model.NormalLevel
-	}
-	return s.p.GenerateCommandItem(user, input, output, riskLevel, item.CreatedDate)
+	return s.p.GenerateCommandItem(user, input, output, item)
 }
 
 // Bridge 桥接两个链接
@@ -225,7 +218,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			nr, err := userConn.Read(buf)
 			if nr > 0 {
 				index := bytes.IndexFunc(buf[:nr], func(r rune) bool {
-					return r == '\r' || r == '\n'
+					return r == '\r'
 				})
 				if index <= 0 || !parser.NeedRecord() {
 					room.Receive(&exchange.RoomMessage{

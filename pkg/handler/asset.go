@@ -162,8 +162,8 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(errMsg))
 		return
 	}
-
-	selectedAccount, ok := u.h.chooseAccount(accounts)
+	supportAccounts := u.filterValidAccount(accounts)
+	selectedAccount, ok := u.h.chooseAccount(supportAccounts)
 	if !ok {
 		logger.Info("Not select account")
 		return
@@ -238,6 +238,18 @@ func (u *UserSelectHandler) isHiddenField(field string) bool {
 	}
 	_, ok := u.hiddenFields[fieldName]
 	return ok
+}
+
+func (u *UserSelectHandler) filterValidAccount(accounts []model.PermAccount) []model.PermAccount {
+	ret := make([]model.PermAccount, 0, len(accounts))
+	for i := range accounts {
+		// 匿名账号不显示
+		if accounts[i].IsAnonymous() {
+			continue
+		}
+		ret = append(ret, accounts[i])
+	}
+	return ret
 }
 
 var builtinFields = map[string]struct{}{

@@ -23,6 +23,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
@@ -163,6 +164,7 @@ type SessionInfo struct {
 	Perms   *model.Permission `json:"permission"`
 
 	BackspaceAsCtrlH *bool `json:"backspaceAsCtrlH,omitempty"`
+	CtrlCAsCtrlZ     bool  `json:"ctrlCAsCtrlZ"`
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -198,7 +200,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			ID:         common.UUID(),
 			OrgID:      asset.OrgID,
 			User:       user.String(),
-			Hostname:   asset.String(),
+			Asset:      asset.String(),
 			Account:    s.account.String(),
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
@@ -274,8 +276,7 @@ func (s *Server) GetCommandRecorder() *CommandRecorder {
 	return &cmdR
 }
 
-func (s *Server) GenerateCommandItem(user, input, output string,
-	riskLevel int64, createdDate time.Time) *model.Command {
+func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedCommand) *model.Command {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 	server := asset.String()
@@ -286,6 +287,7 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 			server = s.connOpts.k8sContainer.K8sName(server)
 		}
 	}
+	createdDate := item.CreatedDate
 	return &model.Command{
 		SessionID:   s.ID,
 		OrgID:       asset.OrgID,
@@ -295,8 +297,11 @@ func (s *Server) GenerateCommandItem(user, input, output string,
 		Input:       input,
 		Output:      output,
 		Timestamp:   createdDate.Unix(),
-		RiskLevel:   riskLevel,
+		RiskLevel:   item.RiskLevel,
 		DateCreated: createdDate.UTC(),
+
+		CmdFilterAclId: item.CmdFilterACLId,
+		CmdGroupId:     item.CmdGroupId,
 	}
 }
 
@@ -421,10 +426,9 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	asset := s.connOpts.authInfo.Asset
 	user := s.connOpts.authInfo.User
 	loginAccount := s.account
-
-	keyId := srvconn.MakeReuseSSHClientKey(user.ID, asset.ID,
-		loginAccount.String(), asset.Address, s.account.Username)
-	sshClient, ok := srvconn.GetClientFromCache(keyId)
+	key := srvconn.MakeReuseSSHClientKey(user.ID, asset.ID,
+		loginAccount.ID, asset.Address, loginAccount.HashId())
+	sshClient, ok := srvconn.GetClientFromCache(key)
 	if !ok {
 		return nil, ok
 	}
@@ -444,6 +448,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		logger.Errorf("Cache ssh session failed: %s", err)
 		_ = sess.Close()
 		sshClient.ReleaseSession(sess)
+		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, false
 	}
 	reuseMsg := fmt.Sprintf(lang.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
@@ -453,6 +458,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)
 		logger.Infof("Reuse SSH client(%s) shell connection release", sshClient)
+		srvconn.ReleaseClientCacheKey(key, sshClient)
 	}()
 	return cacheConn, true
 }
@@ -712,8 +718,8 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 	user := s.connOpts.authInfo.User
-	key := srvconn.MakeReuseSSHClientKey(user.ID, asset.ID, loginAccount.String(),
-		asset.Address, loginAccount.Username)
+	key := srvconn.MakeReuseSSHClientKey(user.ID, asset.ID,
+		loginAccount.ID, asset.Address, loginAccount.HashId())
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(loginAccount.Username))
@@ -771,6 +777,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
 		return nil, err
 	}
+
 	platform := s.connOpts.authInfo.Platform
 	pty := s.UserConn.Pty()
 	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)
@@ -803,6 +810,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if err != nil {
 		_ = sess.Close()
 		sshClient.ReleaseSession(sess)
+		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, err
 	}
 	if s.suFromAccount != nil {
@@ -814,14 +822,13 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		logger.Infof("Conn[%s]: su login from %s to %s", s.UserConn.ID(),
 			loginAccount, s.account)
 	}
-
 	go func() {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)
 		logger.Infof("SSH client(%s) shell connection release", sshClient)
+		srvconn.ReleaseClientCacheKey(key, sshClient)
 	}()
 	return sshConn, nil
-
 }
 
 func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
@@ -1045,8 +1052,8 @@ func (s *Server) Proxy() {
 		msg := lang.T("Connect with api server failed")
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(s.UserConn, msg)
-		logger.Errorf("Conn[%s] submit session %s to core server err: %s",
-			s.UserConn.ID(), s.ID, msg)
+		logger.Errorf("Conn[%s] submit session %s to core server err: %s %s",
+			s.UserConn.ID(), s.ID, msg, err)
 		return
 	}
 	if s.connOpts.authInfo.Ticket != nil {
@@ -1058,8 +1065,11 @@ func (s *Server) Proxy() {
 			logger.Errorf("%s err: %s", msg, err)
 		}
 	}
-	AddCommonSwitch(&sw)
-	defer RemoveCommonSwitch(&sw)
+	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) {
+		sw.Terminate(task.Kwargs.TerminatedBy)
+	})
+	session.AddSession(traceSession)
+	defer session.RemoveSession(traceSession)
 	defer func() {
 		if err := s.DisConnectedCallback(); err != nil {
 			logger.Errorf("Conn[%s] update session %s err: %+v", s.UserConn.ID(), s.ID, err)
@@ -1110,12 +1120,19 @@ func (s *Server) Proxy() {
 	if s.OnSessionInfo != nil {
 		actions := s.connOpts.authInfo.Actions
 		tokenConnOpts := s.connOpts.authInfo.ConnectOptions
+		ctrlCAsCtrlZ := false
+		isK8s := s.connOpts.authInfo.Protocol == srvconn.ProtocolK8s
+		isNotPod := s.connOpts.k8sContainer == nil
+		if isK8s && isNotPod {
+			ctrlCAsCtrlZ = true
+		}
 		perm := actions.Permission()
 		info := SessionInfo{
 			Session: s.sessionInfo,
 			Perms:   &perm,
 
 			BackspaceAsCtrlH: tokenConnOpts.BackspaceAsCtrlH,
+			CtrlCAsCtrlZ:     ctrlCAsCtrlZ,
 		}
 		go s.OnSessionInfo(&info)
 	}

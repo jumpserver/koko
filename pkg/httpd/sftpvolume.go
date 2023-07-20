@@ -79,6 +79,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	}
 	sftpOpts = append(sftpOpts, srvconn.WithUser(volOpts.user))
 	sftpOpts = append(sftpOpts, srvconn.WithRemoteAddr(volOpts.addr))
+	sftpOpts = append(sftpOpts, srvconn.WithLoginFrom(model.LoginFromWeb))
 	userSftp := srvconn.NewUserSftpConn(jmsService, sftpOpts...)
 	rawID := fmt.Sprintf("%s@%s", volOpts.user.Username, volOpts.addr)
 
@@ -86,11 +87,12 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	uVolume := &UserVolume{
 		Uuid:          elfinder.GenerateID(rawID),
 		UserSftp:      userSftp,
-		Homename:      homeName,
+		HomeName:      homeName,
 		basePath:      basePath,
 		chunkFilesMap: make(map[int]*sftp.File),
 		lock:          new(sync.Mutex),
 		recorder:      recorder,
+		ftpLogMap:     make(map[int]*model.FTPLog),
 	}
 	return uVolume
 }
@@ -98,14 +100,14 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 type UserVolume struct {
 	Uuid     string
 	UserSftp *srvconn.UserSftpConn
-	Homename string
+	HomeName string
 	basePath string
 
 	chunkFilesMap map[int]*sftp.File
 	ftpLogMap     map[int]*model.FTPLog
 	lock          *sync.Mutex
 
-	recorder  *proxy.FTPFileRecorder
+	recorder *proxy.FTPFileRecorder
 }
 
 func (u *UserVolume) ID() string {
@@ -189,6 +191,20 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 		}
 
 		for i := 0; i < len(tmps); i++ {
+			if tmps[i].Mode()&os.ModeSymlink != 0 {
+				linkInfo := NewElfinderFileInfo(u.Uuid, path, tmps[i])
+				_, err2 := u.UserSftp.ReadDir(filepath.Join(u.basePath, path, tmps[i].Name()))
+				if err2 != nil {
+					logger.Errorf("link file %s is not dir err: %s", tmps[i].Name(), err)
+				} else {
+					logger.Infof("link file %s is dir", tmps[i].Name())
+					linkInfo.Mime = "directory"
+					linkInfo.Dirs = 1
+				}
+				dirs = append(dirs, linkInfo)
+				continue
+			}
+
 			dirs = append(dirs, NewElfinderFileInfo(u.Uuid, dirPath, tmps[i]))
 		}
 
@@ -206,7 +222,9 @@ func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
 	if err != nil {
 		return nil, err
 	}
-	u.recorder.Record(sf.FTPLog, sf)
+	if err1 := u.recorder.Record(sf.FTPLog, sf); err1 != nil {
+		logger.Errorf("Record file err: %s", err1)
+	}
 	_, _ = sf.Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
 	return &fileReader{sf}, nil
@@ -230,8 +248,10 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 		return rest, err
 	}
 	defer fd.Close()
-	u.recorder.Record(fd.FTPLog, reader)
-	_, _ =reader.(io.Seeker).Seek(0, io.SeekStart)
+	if err1 := u.recorder.Record(fd.FTPLog, reader); err1 != nil {
+		logger.Errorf("Record file err: %s", err1)
+	}
+	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
 		return rest, err
@@ -244,7 +264,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 	var path string
 	u.lock.Lock()
 	fd, ok := u.chunkFilesMap[cid]
-	ftpLog, ok := u.ftpLogMap[cid]
+	ftpLog := u.ftpLogMap[cid]
 	u.lock.Unlock()
 	if !ok {
 		switch {
@@ -271,7 +291,9 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 		u.ftpLogMap[cid] = ftpLog
 		u.lock.Unlock()
 	}
-	u.recorder.Record(ftpLog, reader)
+	if err2 := u.recorder.Record(ftpLog, reader); err2 != nil {
+		logger.Errorf("Record file err: %s", err2)
+	}
 	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
 	_, err = io.Copy(fd, reader)
 	if err != nil {
@@ -326,7 +348,9 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 	if err != nil {
 		return rest, err
 	}
-	u.recorder.Record(fd.FTPLog, fd)
+	if err1 := u.recorder.Record(fd.FTPLog, fd); err1 != nil {
+		logger.Errorf("Record file err: %s", err1)
+	}
 	_, _ = fd.Seek(0, io.SeekStart)
 	_ = fd.Close()
 	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
@@ -396,7 +420,7 @@ func (u *UserVolume) RootFileDir() elfinder.FileDir {
 		readPem, writePem = elfinder.ReadWritePem(fInfo.Mode())
 	}
 	var rest elfinder.FileDir
-	rest.Name = u.Homename
+	rest.Name = u.HomeName
 	rest.Hash = hashPath(u.Uuid, "/")
 	rest.Size = size
 	rest.Volumeid = u.Uuid

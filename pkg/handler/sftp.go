@@ -20,6 +20,7 @@ func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string
 	opts := make([]srvconn.UserSftpOption, 0, 5)
 	opts = append(opts, srvconn.WithUser(user))
 	opts = append(opts, srvconn.WithRemoteAddr(addr))
+	opts = append(opts, srvconn.WithLoginFrom(model.LoginFromSSH))
 	return &SftpHandler{
 		UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...),
 		recorder:     proxy.GetFTPFileRecorder(jmsService),
