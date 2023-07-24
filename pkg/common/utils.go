@@ -3,8 +3,8 @@ package common
 import (
 	"compress/gzip"
 	"io"
+	"net/netip"
 	"os"
-	"strings"
 	"time"
 	"unsafe"
 )
@@ -82,22 +82,13 @@ func CompareString(a, b string) bool {
 }
 
 func CompareIP(ipA, ipB string) bool {
-	iIPs := strings.Split(ipA, ".")
-	jIPs := strings.Split(ipB, ".")
-	for i := 0; i < len(iIPs); i++ {
-		if i >= len(jIPs) {
-			return false
-		}
-		if len(iIPs[i]) == len(jIPs[i]) {
-			if iIPs[i] == jIPs[i] {
-				continue
-			} else {
-				return iIPs[i] < jIPs[i]
-			}
-		} else {
-			return len(iIPs[i]) < len(jIPs[i])
-		}
-
+	addrA, err := netip.ParseAddr(ipA)
+	if err != nil {
+		return false
 	}
-	return true
+	addrB, err := netip.ParseAddr(ipB)
+	if err != nil {
+		return false
+	}
+	return addrA.Less(addrB)
 }
