@@ -47,11 +47,11 @@ func MakeSureDirExit(filePath string) {
 
 func ConvertSizeToBytes(size string) int {
 	defaultSize := 1024 * 1024 * 1024
-	suffixs := []string{"M", "m", "g", "G"}
-	for i := 0; i < len(suffixs); i++ {
-		if strings.HasSuffix(size, suffixs[i]) {
-			num := strings.TrimSuffix(size, suffixs[i])
-			switch strings.ToLower(suffixs[i]) {
+	suffixes := []string{"M", "m", "g", "G"}
+	for i := 0; i < len(suffixes); i++ {
+		if strings.HasSuffix(size, suffixes[i]) {
+			num := strings.TrimSuffix(size, suffixes[i])
+			switch strings.ToLower(suffixes[i]) {
 			case "m":
 				if sizeNum, err := strconv.Atoi(num); err == nil {
 					return sizeNum * 1024 * 1024
