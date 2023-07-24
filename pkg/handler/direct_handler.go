@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"github.com/jumpserver/koko/pkg/proxy"
 	"io"
 	"net"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -23,12 +23,12 @@ import (
 /*
 直接连接资产使用的登录名，支持使用以下格式：
 
-1. JMS_username[@mysql|ssh|redis]@account_username@asset_ip
-2. JMS_username[#mysql|ssh|redis]#account_username#asset_ip
+1. JMS_username[@mysql|ssh|redis]@account_username@asset_target
+2. JMS_username[#mysql|ssh|redis]#account_username#asset_target
 
 JMS_username: 			JumpServer 平台上的用户名
 account_username：	    对应账号的用户名
-asset_ip: 				对应资产的ip
+asset_target: 			对应资产的ip 或者 id
 
 FormatNORMAL: 使用 account_username 和 asset_ip 的登录方式，即1和2的方式
 

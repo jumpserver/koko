@@ -196,7 +196,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 		if len(selectedAssets) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetIP)
+			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetTarget)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
@@ -549,11 +549,26 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 }
 
 func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
-	assets, err := s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetIP)
+	var getUserPermAssets func() ([]model.Asset, error)
+	if common.ValidUUIDString(req.AssetTarget) {
+		getUserPermAssets = func() ([]model.Asset, error) {
+			return s.jmsService.GetUserPermAssetById(user.ID, req.AssetTarget)
+		}
+	} else {
+		getUserPermAssets = func() ([]model.Asset, error) {
+			return s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetTarget)
+		}
+	}
+	assets, err := getUserPermAssets()
 	if err != nil {
 		logger.Errorf("Get user %s perm asset failed: %s", user.String(), err)
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
 	}
+	if len(assets) == 0 {
+		logger.Infof("User %s no perm for asset %s", user.String(), req.AssetTarget)
+		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found asset"))
+	}
+
 	matched := make([]model.Asset, 0, len(assets))
 	for i := range assets {
 		if assets[i].IsSupportProtocol(req.Protocol) {
@@ -561,6 +576,7 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 		}
 	}
 	if len(matched) == 0 {
+		logger.Infof("Asset %s do not support %s protocol", req.AssetTarget, req.Protocol)
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found ssh protocol supported"))
 	}
 	return matched, nil
