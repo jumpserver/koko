@@ -63,6 +63,15 @@ func (s *JMService) GetUserPermAssetsByIP(userId, assetIP string) (assets []mode
 	return
 }
 
+func (s *JMService) GetUserPermAssetById(userId, assetId string) (assets []model.Asset, err error) {
+	params := map[string]string{
+		"id": assetId,
+	}
+	reqUrl := fmt.Sprintf(UserPermsAssetsURL, userId)
+	_, err = s.authClient.Get(reqUrl, &assets, params)
+	return
+}
+
 func (s *JMService) getPaginationAssets(reqUrl string, param model.PaginationParam) (resp model.PaginationResponse, err error) {
 	if param.PageSize < 0 {
 		param.PageSize = 0

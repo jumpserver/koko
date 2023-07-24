@@ -119,7 +119,7 @@ type DirectLoginAssetReq struct {
 	Username        string
 	Protocol        string
 	AccountUsername string
-	AssetIP         string
+	AssetTarget     string
 	ConnectToken    *model.ConnectToken
 }
 
@@ -163,14 +163,14 @@ func parseUserFormatBySeparator(s, Separator string) (DirectLoginAssetReq, bool)
 			Username:        authInfos[0],
 			Protocol:        model.ProtocolSSH,
 			AccountUsername: authInfos[1],
-			AssetIP:         authInfos[2],
+			AssetTarget:     authInfos[2],
 		}
 	case withProtocolLen:
 		req = DirectLoginAssetReq{
 			Username:        authInfos[0],
 			Protocol:        authInfos[1],
 			AccountUsername: authInfos[2],
-			AssetIP:         authInfos[3],
+			AssetTarget:     authInfos[3],
 		}
 	default:
 		return DirectLoginAssetReq{}, false
