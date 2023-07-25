@@ -90,9 +90,7 @@ ARG DEPENDENCIES="                    \
         ca-certificates               \
         curl                          \
         locales                       \
-        mariadb-client                \
         openssh-client                \
-        postgresql-client             \
         wget"
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \

@@ -94,7 +94,6 @@ ARG DEPENDENCIES="                    \
         ca-certificates               \
         curl                          \
         dnsutils                      \
-        freetds-bin                   \
         gdb                           \
         git                           \
         gnupg                         \
@@ -103,10 +102,8 @@ ARG DEPENDENCIES="                    \
         jq                            \
         less                          \
         locales                       \
-        mariadb-client                \
         net-tools                     \
         openssh-client                \
-        postgresql-client             \
         procps                        \
         redis-tools                   \
         sysstat                       \
