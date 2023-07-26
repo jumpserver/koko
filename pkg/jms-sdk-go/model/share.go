@@ -40,6 +40,7 @@ type SharingSessionRequest struct {
 	ExpireTime int      `json:"expired_time"`
 	Users      []string `json:"users"`
 	ActionPerm string   `json:"action_permission"`
+	OriginURL  string   `json:"origin"`
 }
 
 type SharePostData struct {
