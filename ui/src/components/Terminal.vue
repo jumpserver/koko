@@ -602,10 +602,12 @@ export default {
     },
 
     createShareInfo(sid, expired, users, action_permission) {
+      const origin = window.location.origin
       const data = {
         session: sid,
         expired_time: expired,
         users: users,
+        origin:origin,
         action_permission: action_permission
       }
       this.sendWsMessage('TERMINAL_SHARE', data)
