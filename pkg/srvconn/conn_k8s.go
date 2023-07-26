@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -36,12 +37,15 @@ func IsValidK8sUserToken(o *k8sOptions) bool {
 		logger.Errorf("K8sCon check token err: %s", err)
 		return false
 	}
-	_, err = client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	spec := v1.TokenReviewSpec{Token: o.Token}
+	resp, err := client.AuthenticationV1().TokenReviews().Create(context.TODO(),
+		&v1.TokenReview{Spec: spec}, metav1.CreateOptions{})
 	if err != nil {
 		logger.Errorf("K8sCon check token pods err: %s", err)
 		return false
 	}
-	return true
+	logger.Debugf("K8sCon check token resp: %+v", resp)
+	return resp.Status.Authenticated
 }
 
 func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
