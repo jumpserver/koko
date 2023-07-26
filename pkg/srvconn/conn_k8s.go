@@ -37,9 +37,8 @@ func IsValidK8sUserToken(o *k8sOptions) bool {
 		logger.Errorf("K8sCon check token err: %s", err)
 		return false
 	}
-	spec := v1.TokenReviewSpec{Token: o.Token}
 	resp, err := client.AuthenticationV1().TokenReviews().Create(context.TODO(),
-		&v1.TokenReview{Spec: spec}, metav1.CreateOptions{})
+		&v1.TokenReview{}, metav1.CreateOptions{})
 	if err != nil {
 		logger.Errorf("K8sCon check token pods err: %s", err)
 		return false
