@@ -144,6 +144,16 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
+	for {
+		if exitFile := IsExistPath(con.client, realPath); !exitFile {
+			break
+		}
+		oldPath := realPath
+		ext := filepath.Ext(realPath)
+		realPath = fmt.Sprintf("%s_duplicate_%s%s", realPath[:len(realPath)-len(ext)],
+			strconv.FormatInt(time.Now().Unix(), 10), realPath[len(realPath)-len(ext):])
+		logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
+	}
 	sf, err := con.client.Create(realPath)
 	filename := realPath
 	isSuccess := false
@@ -177,6 +187,15 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
+	}
+	for {
+		if exitFile := IsExistPath(con.client, realPath); !exitFile {
+			break
+		}
+		oldPath := realPath
+		realPath = fmt.Sprintf("%s_duplicate__%s", realPath,
+			strconv.FormatInt(time.Now().Unix(), 10))
+		logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
 	}
 	err = con.client.MkdirAll(realPath)
 	filename := realPath
@@ -694,4 +713,9 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		logger.Errorf("Create ftp log err: %s", err)
 	}
 	return &data
+}
+
+func IsExistPath(client *sftp.Client, path string) bool {
+	_, err := client.Stat(path)
+	return err == nil
 }

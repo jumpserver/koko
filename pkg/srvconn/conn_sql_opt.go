@@ -20,8 +20,7 @@ type sqlOption struct {
 	CertKeyPath      string
 	AllowInvalidCert bool
 
-	win                    Windows
-	disableMySQLAutoRehash bool
+	win Windows
 }
 
 type SqlOption func(*sqlOption)
