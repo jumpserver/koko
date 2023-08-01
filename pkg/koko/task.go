@@ -129,7 +129,7 @@ func handleTerminalTask(jmsService *service.JMService, tasks []model.TerminalTas
 	for _, task := range tasks {
 		sess, ok := session.GetSessionById(task.Args)
 		if !ok {
-			logger.Infof("Task %d session %s not found", task.ID, task.Args)
+			logger.Infof("Task %s session %s not found", task.ID, task.Args)
 			continue
 		}
 		logger.Infof("Handle task %s for session %s", task.Name, task.Args)
