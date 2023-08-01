@@ -127,17 +127,22 @@ func keepHeartbeat(jmsService *service.JMService) {
 
 func handleTerminalTask(jmsService *service.JMService, tasks []model.TerminalTask) {
 	for _, task := range tasks {
-		switch task.Name {
-		case model.TaskKillSession:
-			if sess, ok := session.GetSessionById(task.Args); ok {
-				sess.Terminal(&task)
-				if err := jmsService.FinishTask(task.ID); err != nil {
-					logger.Errorf("Finish task %s failed: %s", task.ID, err)
-				}
-			}
-		default:
-
+		sess, ok := session.GetSessionById(task.Args)
+		if !ok {
+			logger.Infof("Task %d session %s not found", task.ID, task.Args)
+			continue
 		}
+		logger.Infof("Handle task %s for session %s", task.Name, task.Args)
+		if err := sess.HandleTask(&task); err != nil {
+			logger.Errorf("Handle task %s failed: %s", task.Name, err)
+			continue
+		}
+		if err := jmsService.FinishTask(task.ID); err != nil {
+			logger.Errorf("Finish task %s failed: %s", task.ID, err)
+			continue
+		}
+		logger.Infof("Handle task %s for session %s success", task.Name, task.Args)
+
 	}
 }
 

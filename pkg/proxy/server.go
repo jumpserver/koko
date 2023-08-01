@@ -57,7 +57,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			errMsg = fmt.Sprintf(errMsg, protocol)
 			err = fmt.Errorf("%w: %s", ErrMissClient, err)
 		default:
-			errMsg = lang.T("Terminal does not support protocol %s, please use web terminal to access")
+			errMsg = lang.T("HandleTask does not support protocol %s, please use web terminal to access")
 			errMsg = fmt.Sprintf(errMsg, protocol)
 			err = fmt.Errorf("%w: %s", ErrUnMatchProtocol, err)
 		}
@@ -957,6 +957,7 @@ func (s *Server) Proxy() {
 		ctx:           ctx,
 		cancel:        cancel,
 		p:             s,
+		notifyMsgChan: make(chan *exchange.RoomMessage, 1),
 	}
 	if err := s.CreateSessionCallback(); err != nil {
 		msg := lang.T("Connect with api server failed")
@@ -975,8 +976,18 @@ func (s *Server) Proxy() {
 			logger.Errorf("%s err: %s", msg, err)
 		}
 	}
-	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) {
-		sw.Terminate(task.Kwargs.TerminatedBy)
+	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) error {
+		switch task.Name {
+		case model.TaskKillSession:
+			sw.Terminate(task.Kwargs.TerminatedBy)
+		case model.TaskLockSession:
+			sw.PauseOperation(task.Kwargs.CreatedByUser)
+		case model.TaskUnlockSession:
+			sw.ResumeOperation(task.Kwargs.CreatedByUser)
+		default:
+			return fmt.Errorf("ssh session unknown task %s", task.Name)
+		}
+		return nil
 	})
 	session.AddSession(traceSession)
 	defer session.RemoveSession(traceSession)

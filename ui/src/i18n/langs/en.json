@@ -43,7 +43,9 @@
     "Remove": "Remove",
     "RemoveShareUserConfirm": "Are you sure to remove the user from the shared session?",
     "Minute": "Minute",
-    "Minutes": "Minutes"
+    "Minutes": "Minutes",
+    "PauseSession" : "Pause Session",
+    "ResumeSession" : "Resume Session"
   },
   "Message": {
     "InputVerifyCode": "Input Verify Code"

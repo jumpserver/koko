@@ -37,10 +37,14 @@ type TerminalTask struct {
 
 const (
 	TaskKillSession = "kill_session"
+
+	TaskLockSession   = "lock_session"
+	TaskUnlockSession = "unlock_session"
 )
 
 type TaskKwargs struct {
-	TerminatedBy string `json:"terminated_by"`
+	TerminatedBy  string `json:"terminated_by"`
+	CreatedByUser string `json:"created_by"`
 }
 
 type ReplayConfig struct {
