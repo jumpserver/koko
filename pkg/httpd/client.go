@@ -118,6 +118,14 @@ func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
 		}
 		logger.Infof("Remove share user self: %+v", meta.User)
 		msgData = string(roomMsg.Body)
+	case exchange.PauseEvent:
+		msgType = TerminalSessionPause
+		msgData = string(roomMsg.Body)
+		logger.Debugf("Pause terminal session : %+v", roomMsg)
+	case exchange.ResumeEvent:
+		msgType = TerminalSessionResume
+		msgData = string(roomMsg.Body)
+		logger.Debugf("Resume terminal session : %+v", roomMsg)
 	default:
 		logger.Infof("unsupported room msg %+v", roomMsg)
 		return

@@ -30,6 +30,9 @@ const (
 	DataEvent    = "Data"
 	WindowsEvent = "Windows"
 
+	PauseEvent  = "Pause"
+	ResumeEvent = "Resume"
+
 	JoinEvent  = "Join"
 	LeaveEvent = "Leave"
 

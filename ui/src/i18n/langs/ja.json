@@ -43,7 +43,9 @@
     "Remove": "削除",
     "RemoveShareUserConfirm": "共有セッションから削除してもよろしいですか？",
     "Minute": "分間",
-    "Minutes": "分間"
+    "Minutes": "分間",
+    "PauseSession" : "セッションを一時停止",
+    "ResumeSession" : "セッションを再開"
   },
   "Message": {
     "InputVerifyCode": "認証コードを入力してください"

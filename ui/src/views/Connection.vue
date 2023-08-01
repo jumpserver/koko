@@ -302,8 +302,19 @@ export default {
         }
         case 'TERMINAL_GET_SHARE_USER': {
           this.userLoading = false;
+          this.userOptions = JSON.parse(msg.data);
+          break
+        }
+        case 'TERMINAL_SESSION_PAUSE': {
           const data = JSON.parse(msg.data);
-          this.userOptions = data;
+          const notifyMsg = `${data.user} ${this.$t('Terminal.PauseSession')}`
+          this.$message(notifyMsg)
+          break
+        }
+        case 'TERMINAL_SESSION_RESUME': {
+          const data = JSON.parse(msg.data);
+          const notifyMsg  = `${data.user} ${this.$t('Terminal.ResumeSession')}`
+          this.$message(notifyMsg)
           break
         }
         default:

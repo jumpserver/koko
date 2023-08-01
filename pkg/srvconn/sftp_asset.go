@@ -507,10 +507,15 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 			logger.Errorf("Create sftp Session err: %s", err.Error())
 			return nil, ""
 		}
-		terminalFunc := func(task *model.TerminalTask) {
-			ad.mu.Lock()
-			defer ad.mu.Unlock()
-			ad.finishSftpSession(su.String(), conn)
+		terminalFunc := func(task *model.TerminalTask) error {
+			switch task.Name {
+			case model.TaskKillSession:
+				ad.mu.Lock()
+				defer ad.mu.Unlock()
+				ad.finishSftpSession(su.String(), conn)
+				return nil
+			}
+			return fmt.Errorf("sftp session not support task: %s", task.Name)
 		}
 		traceSession := session.NewSession(&respSession, terminalFunc)
 		session.AddSession(traceSession)

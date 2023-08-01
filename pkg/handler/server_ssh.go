@@ -350,8 +350,13 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
-	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) {
-		cancel()
+	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) error {
+		switch task.Name {
+		case model.TaskKillSession:
+			cancel()
+			return nil
+		}
+		return fmt.Errorf("ssh proxy not support task: %s", task.Name)
 	})
 	session.AddSession(traceSession)
 
@@ -443,8 +448,13 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
-	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) {
-		cancel()
+	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) error {
+		switch task.Name {
+		case model.TaskKillSession:
+			cancel()
+			return nil
+		}
+		return fmt.Errorf("ssh proxy not support task: %s", task.Name)
 	})
 	session.AddSession(traceSession)
 	defer func() {
