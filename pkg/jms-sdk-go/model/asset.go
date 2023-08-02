@@ -139,17 +139,6 @@ const (
 	ProtocolSSH    = "ssh"
 	ProtocolTelnet = "telnet"
 	ProtocolK8S    = "k8s"
-	ProtocolMysql  = "mysql"
-)
-
-const (
-	AppTypeMySQL = "mysql"
-	AppTypeK8s   = "k8s"
-
-	AppTypeMariaDB    = "mariadb"
-	AppTypeSQLServer  = "sqlserver"
-	AppTypePostgres   = "postgresql"
-	AppTypeClickhouse = "clickhouse"
-	AppTypeRedis      = "redis"
-	AppTypeMongoDB    = "mongodb"
+	ProtocolSFTP   = "sftp"
+	ProtocolRedis  = "redis"
 )

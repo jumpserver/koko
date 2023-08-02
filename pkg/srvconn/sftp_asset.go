@@ -573,8 +573,8 @@ func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToke
 		UserId:        ad.user.ID,
 		AssetId:       ad.opts.ID,
 		Account:       su.Alias,
-		Protocol:      model.ProtocolSSH,
-		ConnectMethod: model.ProtocolSSH,
+		Protocol:      model.ProtocolSFTP,
+		ConnectMethod: model.ProtocolSFTP,
 	}
 	// sftp 不支持 ACL 复核的资产，需要从 web terminal 中登录
 	tokenInfo, err := ad.jmsService.CreateSuperConnectToken(&req)
@@ -599,11 +599,12 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken) (conn *Sftp
 	asset := connectToken.Asset
 	account := connectToken.Account
 	username := account.Username
+	protocol := connectToken.Protocol
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
 	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
-	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(model.ProtocolSSH)))
+	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(protocol)))
 
 	sshAuthOpts = append(sshAuthOpts, SSHClientTimeout(timeout))
 	if account.IsSSHKey() {
