@@ -333,7 +333,7 @@ func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeLi
 func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) map[string]os.FileInfo {
 	dirs := make(map[string]os.FileInfo)
 	asset := token.Asset
-	if !asset.IsSupportProtocol(ProtocolSSH) {
+	if !asset.IsSupportProtocol(ProtocolSFTP) {
 		return dirs
 	}
 	folderName := cleanFolderName(asset.Name)
@@ -355,7 +355,7 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset) map[st
 		return ok
 	}
 	for i := range assets {
-		if !assets[i].IsSupportProtocol(ProtocolSSH) {
+		if !assets[i].IsSupportProtocol(ProtocolSFTP) {
 			continue
 		}
 		folderName := cleanFolderName(assets[i].Name)

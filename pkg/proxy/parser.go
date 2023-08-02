@@ -418,7 +418,7 @@ func (p *Parser) parseCmdInput() {
 		p.command = ""
 	} else {
 		switch p.protocolType {
-		case model.AppTypeRedis:
+		case model.ProtocolRedis:
 			p.command = commands[len(commands)-1]
 		default:
 			p.command = strings.Join(commands, "\r\n")

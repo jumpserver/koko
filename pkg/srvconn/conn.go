@@ -31,6 +31,7 @@ type Windows struct {
 
 const (
 	ProtocolSSH    = "ssh"
+	ProtocolSFTP   = "sftp"
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
 
