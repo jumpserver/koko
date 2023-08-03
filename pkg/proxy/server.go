@@ -755,20 +755,43 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	telnetOpts := make([]srvconn.TelnetOption, 0, 8)
 	timeout := config.GlobalConfig.SSHTimeout
 	pty := s.UserConn.Pty()
-	cusString := s.terminalConf.TelnetRegex
-	if cusString != "" {
-		successPattern, err2 := regexp.Compile(cusString)
-		if err2 != nil {
-			logger.Errorf("Conn[%s] telnet custom regex %s compile err: %s",
-				s.UserConn.ID(), cusString, err)
-			return nil, err2
+	protocol := s.connOpts.authInfo.Protocol
+	asset := s.connOpts.authInfo.Asset
+	platform := s.connOpts.authInfo.Platform
+
+	protocolSetting := platform.GetProtocol(protocol)
+	usernamePrompt := strings.TrimSpace(protocolSetting.Setting.TelnetUsernamePrompt)
+	passwordPrompt := strings.TrimSpace(protocolSetting.Setting.TelnetPasswordPrompt)
+	successPrompt := strings.TrimSpace(protocolSetting.Setting.TelnetSuccessPrompt)
+
+	if usernamePrompt != "" {
+		usernamePattern, err1 := regexp.Compile(usernamePrompt)
+		if err1 != nil {
+			logger.Errorf("Conn[%s] telnet username regex %s compile err: %s",
+				s.UserConn.ID(), usernamePrompt, err)
+			return nil, err
+		}
+		telnetOpts = append(telnetOpts, srvconn.TelnetCustomUsernamePattern(usernamePattern))
+	}
+	if passwordPrompt != "" {
+		passwordPattern, err1 := regexp.Compile(passwordPrompt)
+		if err1 != nil {
+			logger.Errorf("Conn[%s] telnet password regex %s compile err: %s",
+				s.UserConn.ID(), passwordPrompt, err)
+			return nil, err
+		}
+		telnetOpts = append(telnetOpts, srvconn.TelnetCustomPasswordPattern(passwordPattern))
+	}
+	if successPrompt != "" {
+		successPattern, err1 := regexp.Compile(successPrompt)
+		if err1 != nil {
+			logger.Errorf("Conn[%s] telnet success regex %s compile err: %s",
+				s.UserConn.ID(), successPrompt, err)
+			return nil, err
 		}
 		telnetOpts = append(telnetOpts, srvconn.TelnetCustomSuccessPattern(successPattern))
 	}
 
-	protocol := s.connOpts.authInfo.Protocol
-	asset := s.connOpts.authInfo.Asset
-	platform := s.connOpts.authInfo.Platform
 	telnetOpts = append(telnetOpts, srvconn.TelnetHost(asset.Address))
 	telnetOpts = append(telnetOpts, srvconn.TelnetPort(asset.ProtocolPort(protocol)))
 	telnetOpts = append(telnetOpts, srvconn.TelnetUsername(loginAccount.Username))

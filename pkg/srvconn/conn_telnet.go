@@ -119,7 +119,9 @@ func newTelnetClient(conn net.Conn, cfg *TelnetConfig) (*tclientlib.Client, erro
 			High:     cfg.win.Height,
 			TermType: cfg.Term,
 		},
-		LoginSuccessRegex: cfg.CustomSuccessPattern,
+		LoginSuccessPromptRegex: cfg.CustomSuccessPattern,
+		UsernamePromptRegex:     cfg.CustomUsernamePattern,
+		PasswordPromptRegex:     cfg.CustomPasswordPattern,
 	})
 	close(done)
 	if err != nil {
@@ -180,7 +182,9 @@ type TelnetConfig struct {
 
 	win Windows
 
-	CustomSuccessPattern *regexp.Regexp
+	CustomSuccessPattern  *regexp.Regexp
+	CustomUsernamePattern *regexp.Regexp
+	CustomPasswordPattern *regexp.Regexp
 
 	proxySSHClientOptions []SSHClientOptions
 }
@@ -236,6 +240,18 @@ func TelnetCharset(charset string) TelnetOption {
 func TelnetCustomSuccessPattern(successPattern *regexp.Regexp) TelnetOption {
 	return func(opt *TelnetConfig) {
 		opt.CustomSuccessPattern = successPattern
+	}
+}
+
+func TelnetCustomUsernamePattern(usernamePrompt *regexp.Regexp) TelnetOption {
+	return func(opt *TelnetConfig) {
+		opt.CustomUsernamePattern = usernamePrompt
+	}
+}
+
+func TelnetCustomPasswordPattern(passwordPrompt *regexp.Regexp) TelnetOption {
+	return func(opt *TelnetConfig) {
+		opt.CustomPasswordPattern = passwordPrompt
 	}
 }
 
