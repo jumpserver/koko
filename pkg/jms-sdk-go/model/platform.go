@@ -56,6 +56,10 @@ type ProtocolSetting struct {
 
 	// for redis 特殊处理的字段
 	AuthUsername bool `json:"auth_username"`
+
+	TelnetUsernamePrompt string `json:"username_prompt"`
+	TelnetPasswordPrompt string `json:"password_prompt"`
+	TelnetSuccessPrompt  string `json:"success_prompt"`
 }
 
 type Protocol struct {
