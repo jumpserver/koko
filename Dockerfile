@@ -1,4 +1,4 @@
-FROM node:16.5 as ui-build
+FROM jumpserver/node:16.17.1 as ui-build
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
@@ -16,7 +16,7 @@ ADD ui .
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn build
 
-FROM golang:1.19-bullseye as stage-build
+FROM jumpserver/golang:1.19-buster as stage-build
 LABEL stage=stage-build
 ARG TARGETARCH
 

@@ -1,4 +1,4 @@
-FROM jumpserver/node:16.5 as ui-build
+FROM jumpserver/node:16.17.1 as ui-build
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
