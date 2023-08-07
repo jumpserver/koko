@@ -47,9 +47,9 @@ func (s *Server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResul
 		logger.Info("Core API disable publickey auth")
 		return ssh.AuthFailed
 	}
-	publicKey := common.Base64Encode(string(key.Marshal()))
 	sshAuthHandler := auth.SSHPasswordAndPublicKeyAuth(s.jmsService)
-	return sshAuthHandler(ctx, "", publicKey)
+	value := string(gossh.MarshalAuthorizedKey(key))
+	return sshAuthHandler(ctx, "", value)
 }
 
 func (s *Server) SFTPHandler(sess ssh.Session) {
