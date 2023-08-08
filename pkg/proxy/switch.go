@@ -35,6 +35,8 @@ type SwitchSession struct {
 	pausedStatus atomic.Bool // 暂停状态
 
 	notifyMsgChan chan *exchange.RoomMessage
+
+	MaxSessionTime time.Time
 }
 
 func (s *SwitchSession) Terminate(username string) {
@@ -284,6 +286,15 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		select {
 		// 检测是否超过最大空闲时间
 		case now := <-tick.C:
+			if s.MaxSessionTime.Before(now) {
+				msg := lang.T("Session max time reached, disconnect")
+				logger.Infof("Session[%s] max session time reached, disconnect", s.ID)
+				msg = utils.WrapperWarn(msg)
+				replayRecorder.Record([]byte(msg))
+				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				return
+			}
+
 			outTime := lastActiveTime.Add(maxIdleTime)
 			if now.After(outTime) {
 				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)

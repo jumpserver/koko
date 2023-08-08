@@ -973,14 +973,18 @@ func (s *Server) Proxy() {
 	}()
 	lang := s.connOpts.getLang()
 	ctx, cancel := context.WithCancel(context.Background())
+	maxIdleTime := s.terminalConf.MaxIdleTime
+	maxSessionTime := time.Now().Add(time.Duration(s.terminalConf.MaxSessionTime) * time.Hour)
 	sw := SwitchSession{
 		ID:            s.ID,
-		MaxIdleTime:   s.terminalConf.MaxIdleTime,
+		MaxIdleTime:   maxIdleTime,
 		keepAliveTime: 60,
 		ctx:           ctx,
 		cancel:        cancel,
 		p:             s,
 		notifyMsgChan: make(chan *exchange.RoomMessage, 1),
+
+		MaxSessionTime: maxSessionTime,
 	}
 	if err := s.CreateSessionCallback(); err != nil {
 		msg := lang.T("Connect with api server failed")
