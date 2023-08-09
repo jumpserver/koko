@@ -40,13 +40,12 @@ PLATFORM_LIST = \
 
 CURRENT_OS_ARCH = $(shell go env GOOS)-$(shell go env GOARCH)
 
+all-arch: $(PLATFORM_LIST)
+
 build:
 	$(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$(CURRENT_OS_ARCH) $(KOKOSRCFILE)
 	$(K8SCMDBUILD) -o $(BUILDDIR)/kubectl-$(CURRENT_OS_ARCH) $(KUBECTLFILE)
 	$(K8SCMDBUILD) -o $(BUILDDIR)/helm-$(CURRENT_OS_ARCH) $(HELMFILE)
-
-
-all-arch: $(PLATFORM_LIST)
 
 darwin-amd64:koko-ui
 	GOARCH=amd64 GOOS=darwin $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$@ $(KOKOSRCFILE)
