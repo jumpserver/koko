@@ -74,7 +74,7 @@ ENV VERSION=$VERSION
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
     set +x \
-    && make build \
+    && make build -s \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko-linux-${TARGETARCH} /opt/koko/koko \
     && mv /opt/koko/build/helm-linux-${TARGETARCH} /opt/koko/bin/helm \
