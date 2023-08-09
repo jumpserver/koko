@@ -74,18 +74,11 @@ ENV VERSION=$VERSION
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
     set +x \
-    && export cipherKey="$(head -c 100 /dev/urandom | base64 | head -c 32)"  \
-    && export KEYFLAG="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'" \
-    && export GOFlAGS="-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`'" \
-    && export GOFlAGS="$GOFlAGS -X 'main.Githash=`git rev-parse HEAD`'" \
-    && export GOFlAGS="${GOFlAGS} -X 'main.Goversion=`go version`'" \
-    && export GOFlAGS="$GOFlAGS -X 'main.Version=$VERSION'" \
-    && go build -ldflags "$GOFlAGS $KEYFLAG" -o koko ./cmd/koko \
-    && go build -ldflags "$KEYFLAG" -o kubectl ./cmd/kubectl \
-    && go build -ldflags "$KEYFLAG" -o helm ./cmd/helm \
+    && make build \
     && set -x && ls -al . \
-    && mv /opt/koko/helm /opt/koko/bin \
-    && mv /opt/koko/kubectl /opt/koko/bin
+    && mv /opt/koko/build/koko-linux-${TARGETARCH} /opt/koko/koko \
+    && mv /opt/koko/build/helm-linux-${TARGETARCH} /opt/koko/bin/helm \
+    && mv /opt/koko/build/kubectl-linux-${TARGETARCH} /opt/koko/bin/kubectl
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
