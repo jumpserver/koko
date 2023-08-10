@@ -197,7 +197,8 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 		return permAccounts[0], true
 	default:
 	}
-	displaySystemUsers := permAccounts
+	displayAccounts := model.PermAccountList(permAccounts)
+	sort.Sort(displayAccounts)
 
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
@@ -206,8 +207,8 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 	labels := []string{idLabel, nameLabel, usernameLabel}
 	fields := []string{"ID", "Name", "Username"}
 
-	data := make([]map[string]string, len(displaySystemUsers))
-	for i, j := range displaySystemUsers {
+	data := make([]map[string]string, len(displayAccounts))
+	for i, j := range displayAccounts {
 		row := make(map[string]string)
 		row["ID"] = strconv.Itoa(i + 1)
 		row["Name"] = j.Name
@@ -253,8 +254,8 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 			continue
 		}
 		if num, err2 := strconv.Atoi(line); err2 == nil {
-			if num > 0 && num <= len(displaySystemUsers) {
-				return displaySystemUsers[num-1], true
+			if num > 0 && num <= len(displayAccounts) {
+				return displayAccounts[num-1], true
 			}
 		}
 	}
