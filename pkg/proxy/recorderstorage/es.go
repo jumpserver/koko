@@ -36,7 +36,7 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 		return err
 	}
 	for _, item := range commands {
-		meta := []byte(fmt.Sprintf(`{ "index" : { } }%s`, "\n"))
+		meta := []byte(fmt.Sprintf(`{ "create" : { } }%s`, "\n"))
 		data, err := json.Marshal(item)
 		if err != nil {
 			logger.Errorf("ES marshal data to json err: %s", err)
@@ -115,6 +115,6 @@ type bulkResponse struct {
 					Reason string `json:"reason"`
 				} `json:"caused_by"`
 			} `json:"error"`
-		} `json:"index"`
+		} `json:"create"`
 	} `json:"items"`
 }
