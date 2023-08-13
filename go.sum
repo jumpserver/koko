@@ -64,8 +64,6 @@ github.com/LeeEirc/httpsig v1.2.1 h1:GGmCc2Bug3KeCchlZHwrfyjyAnw+JlzMjKDobPypirs
 github.com/LeeEirc/httpsig v1.2.1/go.mod h1:aoLZLXCSNDgkzsH2sGLWn3hlVbF+Voe8fCArxLt9nWA=
 github.com/LeeEirc/ssh v0.1.2-0.20220323091501-23b956e1e5a8 h1:UxED5pKJd9yel/LXEUHDn8C+pYhDogxwx7G9HZcov4w=
 github.com/LeeEirc/ssh v0.1.2-0.20220323091501-23b956e1e5a8/go.mod h1:bSl4MzlGJ2FbMCzfyuwruG2mrWY0dxE8wqWoAIhKe8k=
-github.com/LeeEirc/tclientlib v0.0.2 h1:BVZZX1JCQRAfp0beQLe4GR44+re3l8LOUQWoaBTJcag=
-github.com/LeeEirc/tclientlib v0.0.2/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
 github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d h1:4qUSGc/34IALiDs2kBrjbCKfx7zvAt16K+gTRzNN8Fo=
 github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
 github.com/LeeEirc/terminalparser v0.0.0-20220328021224-de16b7643ea4 h1:Gk7m4Nu2jqVqJAJqNlTYqkiq96WkANAtB4fVi+t7Xv8=

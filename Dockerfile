@@ -1,6 +1,6 @@
-FROM jumpserver/redis:6.2 as redis
+FROM redis:7.0-bullseye as redis
 
-FROM jumpserver/node:16.17.1 as ui-build
+FROM node:16.17.1-bullseye-slim as ui-build
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
@@ -18,12 +18,13 @@ ADD ui .
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn build
 
-FROM jumpserver/golang:1.19-buster as stage-build
+FROM golang:1.20-bullseye as stage-build
 LABEL stage=stage-build
 ARG TARGETARCH
 
 WORKDIR /opt/koko
 ARG HELM_VERSION=v3.12.2
+ARG KUBECTL_VERSION=v1.27.4
 ARG DOWNLOAD_URL=https://download.jumpserver.org
 
 RUN set -ex \
@@ -31,13 +32,14 @@ RUN set -ex \
 
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
-    && wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
-    && tar -xf kubectl.tar.gz -C /opt/koko/bin/ \
-    && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
     && \
     if [ "${TARGETARCH}" == "loong64" ]; then \
+        wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz; \
+        tar -xf kubectl.tar.gz -C /opt/koko/bin/; \
+        mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl; \
         wget -O helm.tar.gz https://github.com/wojiushixiaobai/helm-loongarch64/releases/download/${HELM_VERSION}/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz; \
     else \
+        wget -O /opt/koko/bin/rawkubectl https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl; \
         wget -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz; \
     fi \
     && tar -xf helm.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
@@ -87,7 +89,7 @@ RUN mkdir /opt/koko/release \
     && mv /opt/koko/utils/init-kubectl.sh /opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
@@ -121,7 +123,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     && sed -i "s@# alias @alias @g" ~/.bashrc \
     && rm -rf /var/lib/apt/lists/*
 
-ARG MONGOSH_VERSION=1.10.3
+ARG MONGOSH_VERSION=1.10.4
 RUN set -ex \
     && \
     case "${TARGETARCH}" in \
@@ -133,7 +135,7 @@ RUN set -ex \
             && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh_crypt_v1.so /usr/local/lib/ \
             && rm -rf mongosh-${MONGOSH_VERSION}-linux-x64* \
             ;; \
-        arm64) \
+        arm64|s390x|ppc64le) \
             wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
             && tar -xf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
             && chown root:root mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/* \
