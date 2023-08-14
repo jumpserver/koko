@@ -1,6 +1,6 @@
-FROM jumpserver/redis:6.2 as redis
+FROM redis:6.2-bullseye as redis
 
-FROM jumpserver/node:16.17.1 as ui-build
+FROM node:16.17.1-bullseye-slim as ui-build
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
@@ -18,7 +18,7 @@ ADD ui .
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn build
 
-FROM jumpserver/golang:1.19-buster as stage-build
+FROM golang:1.19-bullseye as stage-build
 LABEL stage=stage-build
 ARG TARGETARCH
 
@@ -34,12 +34,7 @@ RUN set -ex \
     && wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
     && tar -xf kubectl.tar.gz -C /opt/koko/bin/ \
     && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
-    && \
-    if [ "${TARGETARCH}" == "loong64" ]; then \
-        wget -O helm.tar.gz https://github.com/wojiushixiaobai/helm-loongarch64/releases/download/${HELM_VERSION}/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz; \
-    else \
-        wget -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz; \
-    fi \
+    && wget -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz; \
     && tar -xf helm.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
     && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
     && \
