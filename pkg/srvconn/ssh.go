@@ -269,12 +269,20 @@ func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
 func createSSHConfig() gossh.Config {
 	var cfg gossh.Config
 	cfg.SetDefaults()
-	cfg.Ciphers = append(cfg.Ciphers, notRecommendCiphers...)
+	cfg.Ciphers = supportedCiphers
 	cfg.KeyExchanges = append(cfg.KeyExchanges, notRecommendKeyExchanges...)
 	return cfg
 }
 
 var (
+	supportedCiphers = []string{
+		"aes128-ctr", "aes192-ctr", "aes256-ctr",
+		"aes128-gcm@openssh.com",
+		"chacha20-poly1305@openssh.com",
+		"arcfour256", "arcfour128", "arcfour",
+		"aes128-cbc",
+	}
+
 	notRecommendCiphers = []string{
 		"arcfour256", "arcfour128", "arcfour",
 		"aes128-cbc", "3des-cbc",
