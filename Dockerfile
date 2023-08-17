@@ -1,4 +1,6 @@
-FROM node:16.5 as ui-build
+FROM redis:6.2-bullseye as redis
+
+FROM node:16.17.1-bullseye-slim as ui-build
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
@@ -21,24 +23,30 @@ LABEL stage=stage-build
 ARG TARGETARCH
 
 WORKDIR /opt/koko
+ARG HELM_VERSION=v3.12.2
 ARG DOWNLOAD_URL=https://download.jumpserver.org
 
 RUN set -ex \
-    && echo "no" | dpkg-reconfigure dash \
+    && echo "no" | dpkg-reconfigure dash
+
+RUN set -ex \
+    && mkdir -p /opt/koko/bin \
     && wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
-    && tar -xf kubectl.tar.gz \
-    && chmod +x kubectl \
-    && mv kubectl rawkubectl \
-    && wget ${DOWNLOAD_URL}/public/helm-v3.9.0-linux-${TARGETARCH}.tar.gz -O helm.tar.gz \
-    && tar -xf helm.tar.gz \
-    && chmod +x linux-${TARGETARCH}/helm \
-    && chown root:root linux-${TARGETARCH}/helm \
-    && mv linux-${TARGETARCH}/helm rawhelm \
+    && tar -xf kubectl.tar.gz -C /opt/koko/bin/ \
+    && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
+    && wget -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
+    && tar -xf helm.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
+    && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
+    && \
+    if [ "${TARGETARCH}" == "amd64" ] || [ "${TARGETARCH}" == "arm64" ]; then \
+        wget ${DOWNLOAD_URL}/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz; \
+        tar -xf clickhouse-client-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/; \
+    fi \
     && wget ${DOWNLOAD_URL}/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
     && tar -xf kubectl_aliases.tar.gz \
-    && wget ${DOWNLOAD_URL}/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz \
-    && tar -xf clickhouse-client-linux-${TARGETARCH}.tar.gz \
-    && chmod +x clickhouse-client
+    && chmod +x /opt/koko/bin/* \
+    && chown root:root /opt/koko/bin/* \
+    && rm -f *.tar.gz
 
 ADD go.mod go.sum .
 
@@ -61,23 +69,11 @@ ENV VERSION=$VERSION
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
     set +x \
-    && export cipherKey="$(head -c 100 /dev/urandom | base64 | head -c 32)"  \
-    && export KEYFLAG="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'" \
-    && export GOFlAGS="-X 'main.Buildstamp=`date -u '+%Y-%m-%d %I:%M:%S%p'`'" \
-    && export GOFlAGS="$GOFlAGS -X 'main.Githash=`git rev-parse HEAD`'" \
-    && export GOFlAGS="${GOFlAGS} -X 'main.Goversion=`go version`'" \
-    && export GOFlAGS="$GOFlAGS -X 'main.Version=$VERSION'" \
-    && go build -ldflags "$GOFlAGS $KEYFLAG" -o koko ./cmd/koko \
-    && go build -ldflags "$KEYFLAG" -o kubectl ./cmd/kubectl \
-    && go build -ldflags "$KEYFLAG" -o helm ./cmd/helm \
-    && set -x && ls -al .
-
-RUN mkdir /opt/koko/bin \
-    && mv /opt/koko/kubectl /opt/koko/bin \
-    && mv /opt/koko/helm /opt/koko/bin \
-    && mv /opt/koko/clickhouse-client /opt/koko/bin \
-    && mv /opt/koko/rawkubectl /opt/koko/bin \
-    && mv /opt/koko/rawhelm /opt/koko/bin
+    && make build -s \
+    && set -x && ls -al . \
+    && mv /opt/koko/build/koko-linux-${TARGETARCH} /opt/koko/koko \
+    && mv /opt/koko/build/helm-linux-${TARGETARCH} /opt/koko/bin/helm \
+    && mv /opt/koko/build/kubectl-linux-${TARGETARCH} /opt/koko/bin/kubectl
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
@@ -86,34 +82,25 @@ RUN mkdir /opt/koko/release \
     && mv /opt/koko/utils/init-kubectl.sh /opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
-FROM debian:bullseye-slim
+FROM debian:buster-slim
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
         ca-certificates               \
         curl                          \
-        dnsutils                      \
-        freetds-bin                   \
-        gdb                           \
         git                           \
-        gnupg                         \
-        iproute2                      \
+        git-lfs                       \
         iputils-ping                  \
         jq                            \
         less                          \
         locales                       \
-        mariadb-client                \
-        net-tools                     \
         openssh-client                \
-        postgresql-client             \
-        procps                        \
-        redis-tools                   \
-        sysstat                       \
         telnet                        \
         unzip                         \
         vim                           \
-        wget"
+        wget                          \
+        xz-utils"
 
 ARG APT_MIRROR=http://mirrors.ustc.edu.cn
 
@@ -123,15 +110,38 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
-    && wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | apt-key add - \
-    && echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/5.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-5.0.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends mongodb-mongosh \
     && echo "no" | dpkg-reconfigure dash \
     && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
     && sed -i "s@# export @export @g" ~/.bashrc \
     && sed -i "s@# alias @alias @g" ~/.bashrc \
     && rm -rf /var/lib/apt/lists/*
+
+ARG MONGOSH_VERSION=1.10.3
+RUN set -ex \
+    && \
+    case "${TARGETARCH}" in \
+        amd64) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-x64/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh /usr/local/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh_crypt_v1.so /usr/local/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-x64* \
+            ;; \
+        arm64) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh /usr/local/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh_crypt_v1.so /usr/local/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}* \
+            ;; \
+        *) \
+            echo "Unsupported architecture: ${TARGETARCH}" \
+            ;; \
+    esac
+
+COPY --from=redis /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 
 WORKDIR /opt/koko/
 

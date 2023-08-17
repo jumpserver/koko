@@ -110,8 +110,7 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 		default:
 		}
 		msg = fmt.Sprintf(lang.T("Connecting to %s@%s"), accountName, asset.Address)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+	case srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		msg = fmt.Sprintf(lang.T("Connecting to Database %s"), asset.String())
 	case srvconn.ProtocolK8s:

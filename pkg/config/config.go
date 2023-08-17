@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+
+	"github.com/jumpserver/koko/pkg/common"
 )
 
 var (
@@ -213,13 +215,14 @@ const (
 /*
 SERVER_HOSTNAME: 环境变量名，可用于自定义默认注册名称的前缀
 default name rule:
-[Koko]-{SERVER_HOSTNAME}-{HOSTNAME}
+[Koko]-{SERVER_HOSTNAME}-{HOSTNAME}-RandomStr
  or
-[Koko]-{HOSTNAME}
+[Koko]-{HOSTNAME}-RandomStr
 */
 
 func getDefaultName() string {
 	hostname, _ := os.Hostname()
+	hostname = fmt.Sprintf("%s-%s", hostname, common.RandomStr(7))
 	if serverHostname, ok := os.LookupEnv(hostEnvKey); ok {
 		hostname = fmt.Sprintf("%s-%s", serverHostname, hostname)
 	}

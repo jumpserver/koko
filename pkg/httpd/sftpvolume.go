@@ -256,7 +256,7 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 	if err != nil {
 		return rest, err
 	}
-	return u.Info(path)
+	return u.Info(filepath.Join(filepath.Dir(path), filepath.Base(fd.FTPLog.Path)))
 }
 
 func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, rangeData elfinder.ChunkRange, reader io.Reader) error {

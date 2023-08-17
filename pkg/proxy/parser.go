@@ -85,6 +85,8 @@ type Parser struct {
 
 	currentCmdRiskLevel  int64
 	currentCmdFilterRule CommandRule
+
+	userInputFilter func([]byte) []byte
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -113,6 +115,10 @@ func (p *Parser) initial() {
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
+}
+
+func (p *Parser) SetUserInputFilter(filter func([]byte) []byte) {
+	p.userInputFilter = filter
 }
 
 // ParseStream 解析数据流
@@ -412,7 +418,7 @@ func (p *Parser) parseCmdInput() {
 		p.command = ""
 	} else {
 		switch p.protocolType {
-		case model.AppTypeRedis:
+		case model.ProtocolRedis:
 			p.command = commands[len(commands)-1]
 		default:
 			p.command = strings.Join(commands, "\r\n")
@@ -431,6 +437,9 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 	p.once.Do(func() {
 		p.inputInitial = true
 	})
+	if p.userInputFilter != nil {
+		b = p.userInputFilter(b)
+	}
 	nb := p.parseInputState(b)
 	return nb
 }

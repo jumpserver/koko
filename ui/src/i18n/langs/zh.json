@@ -43,7 +43,9 @@
     "Remove": "移除",
     "RemoveShareUserConfirm": "确定要移除该用户吗？",
     "Minute": "分钟",
-    "Minutes": "分钟"
+    "Minutes": "分钟",
+    "PauseSession" : "暂停此会话",
+    "ResumeSession" : "恢复此会话"
   },
   "Message": {
     "InputVerifyCode": "请输入验证码"

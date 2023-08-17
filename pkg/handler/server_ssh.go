@@ -47,9 +47,9 @@ func (s *Server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResul
 		logger.Info("Core API disable publickey auth")
 		return ssh.AuthFailed
 	}
-	publicKey := common.Base64Encode(string(key.Marshal()))
 	sshAuthHandler := auth.SSHPasswordAndPublicKeyAuth(s.jmsService)
-	return sshAuthHandler(ctx, "", publicKey)
+	value := string(gossh.MarshalAuthorizedKey(key))
+	return sshAuthHandler(ctx, "", value)
 }
 
 func (s *Server) SFTPHandler(sess ssh.Session) {
@@ -196,7 +196,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 		if len(selectedAssets) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetIP)
+			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetTarget)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
@@ -350,8 +350,13 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
-	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) {
-		cancel()
+	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) error {
+		switch task.Name {
+		case model.TaskKillSession:
+			cancel()
+			return nil
+		}
+		return fmt.Errorf("ssh proxy not support task: %s", task.Name)
 	})
 	session.AddSession(traceSession)
 
@@ -443,8 +448,13 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
-	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) {
-		cancel()
+	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) error {
+		switch task.Name {
+		case model.TaskKillSession:
+			cancel()
+			return nil
+		}
+		return fmt.Errorf("ssh proxy not support task: %s", task.Name)
 	})
 	session.AddSession(traceSession)
 	defer func() {
@@ -549,11 +559,26 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 }
 
 func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
-	assets, err := s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetIP)
+	var getUserPermAssets func() ([]model.Asset, error)
+	if common.ValidUUIDString(req.AssetTarget) {
+		getUserPermAssets = func() ([]model.Asset, error) {
+			return s.jmsService.GetUserPermAssetById(user.ID, req.AssetTarget)
+		}
+	} else {
+		getUserPermAssets = func() ([]model.Asset, error) {
+			return s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetTarget)
+		}
+	}
+	assets, err := getUserPermAssets()
 	if err != nil {
 		logger.Errorf("Get user %s perm asset failed: %s", user.String(), err)
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
 	}
+	if len(assets) == 0 {
+		logger.Infof("User %s no perm for asset %s", user.String(), req.AssetTarget)
+		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found asset"))
+	}
+
 	matched := make([]model.Asset, 0, len(assets))
 	for i := range assets {
 		if assets[i].IsSupportProtocol(req.Protocol) {
@@ -561,6 +586,7 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 		}
 	}
 	if len(matched) == 0 {
+		logger.Infof("Asset %s do not support %s protocol", req.AssetTarget, req.Protocol)
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found ssh protocol supported"))
 	}
 	return matched, nil

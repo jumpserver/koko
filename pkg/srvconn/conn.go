@@ -31,26 +31,19 @@ type Windows struct {
 
 const (
 	ProtocolSSH    = "ssh"
+	ProtocolSFTP   = "sftp"
 	ProtocolTELNET = "telnet"
 	ProtocolK8s    = "k8s"
 
-	ProtocolMySQL      = "mysql"
-	ProtocolMariadb    = "mariadb"
-	ProtocolSQLServer  = "sqlserver"
 	ProtocolRedis      = "redis"
 	ProtocolMongoDB    = "mongodb"
-	ProtocolPostgreSQL = "postgresql"
 	ProtocolClickHouse = "clickhouse"
 )
 
 func SupportedDBProtocols() []string {
 	return []string{
-		ProtocolMySQL,
-		ProtocolMariadb,
-		ProtocolSQLServer,
 		ProtocolRedis,
 		ProtocolMongoDB,
-		ProtocolPostgreSQL,
 		ProtocolClickHouse,
 	}
 }
@@ -95,15 +88,12 @@ var (
 type supportedChecker func() error
 
 var supportedMap = map[string]supportedChecker{
-	ProtocolSSH:        builtinSupported,
-	ProtocolTELNET:     builtinSupported,
-	ProtocolK8s:        kubectlSupported,
-	ProtocolMySQL:      mySQLSupported,
-	ProtocolMariadb:    mySQLSupported,
-	ProtocolSQLServer:  sqlServerSupported,
+	ProtocolSSH:    builtinSupported,
+	ProtocolTELNET: builtinSupported,
+	ProtocolK8s:    kubectlSupported,
+
 	ProtocolRedis:      redisSupported,
 	ProtocolMongoDB:    mongoDBSupported,
-	ProtocolPostgreSQL: postgreSQLSupported,
 	ProtocolClickHouse: clickhouseSupported,
 }
 
@@ -136,19 +126,6 @@ func kubectlSupported() error {
 	return ErrKubectlClient
 }
 
-func mySQLSupported() error {
-	checkLine := "mysql -V"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrMySQLClient, err)
-	}
-	if bytes.HasPrefix(out, []byte("mysql")) {
-		return nil
-	}
-	return ErrMySQLClient
-}
-
 func redisSupported() error {
 	checkLine := "redis-cli -v"
 	cmd := exec.Command("bash", "-c", checkLine)
@@ -173,32 +150,6 @@ func mongoDBSupported() error {
 		return nil
 	}
 	return ErrMongoDBClient
-}
-
-func sqlServerSupported() error {
-	checkLine := "tsql -C"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrSQLServerClient, err)
-	}
-	if strings.Contains(string(out), "freetds") {
-		return nil
-	}
-	return ErrSQLServerClient
-}
-
-func postgreSQLSupported() error {
-	checkLine := "psql -V"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrPostgreSQLClient, err)
-	}
-	if bytes.HasPrefix(out, []byte("psql")) {
-		return nil
-	}
-	return ErrPostgreSQLClient
 }
 
 func clickhouseSupported() error {

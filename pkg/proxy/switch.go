@@ -30,7 +30,13 @@ type SwitchSession struct {
 
 	p *Server
 
-	terminateAdmin atomic.Value // 终断会话的管理员名称
+	currentOperator atomic.Value // 终断会话的管理员名称
+
+	pausedStatus atomic.Bool // 暂停状态
+
+	notifyMsgChan chan *exchange.RoomMessage
+
+	MaxSessionTime time.Time
 }
 
 func (s *SwitchSession) Terminate(username string) {
@@ -38,18 +44,47 @@ func (s *SwitchSession) Terminate(username string) {
 	case <-s.ctx.Done():
 		return
 	default:
-		s.setTerminateAdmin(username)
+		s.setOperator(username)
 	}
 	s.cancel()
-	logger.Infof("Session[%s] receive terminate task from admin %s", s.ID, username)
+	logger.Infof("Session[%s] receive terminate task from %s", s.ID, username)
 }
 
-func (s *SwitchSession) setTerminateAdmin(username string) {
-	s.terminateAdmin.Store(username)
+func (s *SwitchSession) PauseOperation(username string) {
+	s.pausedStatus.Store(true)
+	s.setOperator(username)
+	logger.Infof("Session[%s] receive pause task from %s", s.ID, username)
+	p, _ := json.Marshal(map[string]string{"user": username})
+	s.notifyMsgChan <- &exchange.RoomMessage{
+		Event: exchange.PauseEvent,
+		Body:  p,
+	}
 }
 
-func (s *SwitchSession) loadTerminateAdmin() string {
-	return s.terminateAdmin.Load().(string)
+func (s *SwitchSession) ResumeOperation(username string) {
+	s.pausedStatus.Store(false)
+	s.setOperator(username)
+	logger.Infof("Session[%s] receive resume task from %s", s.ID, username)
+	p, _ := json.Marshal(map[string]string{"user": username})
+	s.notifyMsgChan <- &exchange.RoomMessage{
+		Event: exchange.ResumeEvent,
+		Body:  p,
+	}
+}
+
+func (s *SwitchSession) setOperator(username string) {
+	s.currentOperator.Store(username)
+}
+
+func (s *SwitchSession) loadOperator() string {
+	return s.currentOperator.Load().(string)
+}
+
+func (s *SwitchSession) filterUserInput(p []byte) []byte {
+	if s.pausedStatus.Load() {
+		return nil
+	}
+	return p
 }
 
 func (s *SwitchSession) recordCommand(cmdRecordChan chan *ExecutedCommand) {
@@ -103,6 +138,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	userInputMessageChan := make(chan *exchange.RoomMessage, 1)
 	// 处理数据流
 	userOutChan, srvOutChan := parser.ParseStream(userInputMessageChan, srvInChan)
+	parser.SetUserInputFilter(s.filterUserInput)
 
 	defer func() {
 		close(done)
@@ -250,6 +286,15 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		select {
 		// 检测是否超过最大空闲时间
 		case now := <-tick.C:
+			if s.MaxSessionTime.Before(now) {
+				msg := lang.T("Session max time reached, disconnect")
+				logger.Infof("Session[%s] max session time reached, disconnect", s.ID)
+				msg = utils.WrapperWarn(msg)
+				replayRecorder.Record([]byte(msg))
+				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				return
+			}
+
 			outTime := lastActiveTime.Add(maxIdleTime)
 			if now.After(outTime) {
 				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
@@ -270,7 +315,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			continue
 			// 手动结束
 		case <-s.ctx.Done():
-			adminUser := s.loadTerminateAdmin()
+			adminUser := s.loadOperator()
 			msg := fmt.Sprintf(lang.T("Terminated by admin %s"), adminUser)
 			msg = utils.WrapperWarn(msg)
 			replayRecorder.Record([]byte(msg))
@@ -309,8 +354,8 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			if !ok {
 				return
 			}
-			if _, err := srvConn.Write(p); err != nil {
-				logger.Errorf("Session[%s] srvConn write err: %s", s.ID, err)
+			if _, err1 := srvConn.Write(p); err1 != nil {
+				logger.Errorf("Session[%s] srvConn write err: %s", s.ID, err1)
 			}
 
 		case now := <-keepAliveTick.C:
@@ -326,6 +371,10 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		case <-exitSignal:
 			logger.Debugf("Session[%s] end by exit signal", s.ID)
 			return
+		case notifyMsg := <-s.notifyMsgChan:
+			logger.Infof("Session[%s] notify event: %s", s.ID, notifyMsg.Event)
+			room.Broadcast(notifyMsg)
+			continue
 		}
 		lastActiveTime = time.Now()
 	}

@@ -57,7 +57,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			errMsg = fmt.Sprintf(errMsg, protocol)
 			err = fmt.Errorf("%w: %s", ErrMissClient, err)
 		default:
-			errMsg = lang.T("Terminal does not support protocol %s, please use web terminal to access")
+			errMsg = lang.T("HandleTask does not support protocol %s, please use web terminal to access")
 			errMsg = fmt.Sprintf(errMsg, protocol)
 			err = fmt.Errorf("%w: %s", ErrUnMatchProtocol, err)
 		}
@@ -358,8 +358,7 @@ func (s *Server) checkRequiredAuth() error {
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return errors.New("no auth token")
 		}
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb, srvconn.ProtocolTELNET,
-		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgreSQL, srvconn.ProtocolClickHouse,
+	case srvconn.ProtocolTELNET, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolMongoDB:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
@@ -543,43 +542,6 @@ func (s *Server) getContainerConn(clusterServer string) (
 	return
 }
 
-func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = "127.0.0.1"
-		port = localTunnelAddr.Port
-	}
-	mysqlOpts := make([]srvconn.SqlOption, 0, 7)
-	mysqlOpts = append(mysqlOpts, srvconn.SqlHost(host))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlPort(port))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.account.Username))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.account.Secret))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(asset.SpecInfo.DBName))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlPtyWin(srvconn.Windows{
-		Width:  s.UserConn.Pty().Window.Width,
-		Height: s.UserConn.Pty().Window.Height,
-	}))
-	tokenConnOpts := s.connOpts.authInfo.ConnectOptions
-	switch {
-	case tokenConnOpts.DisableAutoHash != nil:
-		if *tokenConnOpts.DisableAutoHash {
-			mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
-		}
-		logger.Debugf("Connection token set disableAutoHash: %v", *tokenConnOpts.DisableAutoHash)
-	case s.connOpts.params != nil:
-		if s.connOpts.params.DisableMySQLAutoHash {
-			mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
-			logger.Debugf("Connection params set disableAutoHash: true")
-		}
-
-	}
-	srvConn, err = srvconn.NewMySQLConnection(mysqlOpts...)
-	return
-}
-
 func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.RedisConn, err error) {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
@@ -633,52 +595,6 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlCaCert(asset.SecretInfo.CaCert),
 		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
 		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
-	)
-	return
-}
-
-func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.SQLServerConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = "127.0.0.1"
-		port = localTunnelAddr.Port
-	}
-	srvConn, err = srvconn.NewSQLServerConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
-		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.SpecInfo.DBName),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
-	)
-	return
-}
-
-func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.PostgreSQLConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = "127.0.0.1"
-		port = localTunnelAddr.Port
-	}
-	srvConn, err = srvconn.NewPostgreSQLConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
-		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -839,20 +755,43 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	telnetOpts := make([]srvconn.TelnetOption, 0, 8)
 	timeout := config.GlobalConfig.SSHTimeout
 	pty := s.UserConn.Pty()
-	cusString := s.terminalConf.TelnetRegex
-	if cusString != "" {
-		successPattern, err2 := regexp.Compile(cusString)
-		if err2 != nil {
-			logger.Errorf("Conn[%s] telnet custom regex %s compile err: %s",
-				s.UserConn.ID(), cusString, err)
-			return nil, err2
+	protocol := s.connOpts.authInfo.Protocol
+	asset := s.connOpts.authInfo.Asset
+	platform := s.connOpts.authInfo.Platform
+
+	protocolSetting := platform.GetProtocol(protocol)
+	usernamePrompt := strings.TrimSpace(protocolSetting.Setting.TelnetUsernamePrompt)
+	passwordPrompt := strings.TrimSpace(protocolSetting.Setting.TelnetPasswordPrompt)
+	successPrompt := strings.TrimSpace(protocolSetting.Setting.TelnetSuccessPrompt)
+
+	if usernamePrompt != "" {
+		usernamePattern, err1 := regexp.Compile(usernamePrompt)
+		if err1 != nil {
+			logger.Errorf("Conn[%s] telnet username regex %s compile err: %s",
+				s.UserConn.ID(), usernamePrompt, err)
+			return nil, err
+		}
+		telnetOpts = append(telnetOpts, srvconn.TelnetCustomUsernamePattern(usernamePattern))
+	}
+	if passwordPrompt != "" {
+		passwordPattern, err1 := regexp.Compile(passwordPrompt)
+		if err1 != nil {
+			logger.Errorf("Conn[%s] telnet password regex %s compile err: %s",
+				s.UserConn.ID(), passwordPrompt, err)
+			return nil, err
+		}
+		telnetOpts = append(telnetOpts, srvconn.TelnetCustomPasswordPattern(passwordPattern))
+	}
+	if successPrompt != "" {
+		successPattern, err1 := regexp.Compile(successPrompt)
+		if err1 != nil {
+			logger.Errorf("Conn[%s] telnet success regex %s compile err: %s",
+				s.UserConn.ID(), successPrompt, err)
+			return nil, err
 		}
 		telnetOpts = append(telnetOpts, srvconn.TelnetCustomSuccessPattern(successPattern))
 	}
 
-	protocol := s.connOpts.authInfo.Protocol
-	asset := s.connOpts.authInfo.Asset
-	platform := s.connOpts.authInfo.Platform
 	telnetOpts = append(telnetOpts, srvconn.TelnetHost(asset.Address))
 	telnetOpts = append(telnetOpts, srvconn.TelnetPort(asset.ProtocolPort(protocol)))
 	telnetOpts = append(telnetOpts, srvconn.TelnetUsername(loginAccount.Username))
@@ -962,16 +901,10 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getTelnetConn()
 	case srvconn.ProtocolK8s:
 		return s.getK8sConConn(proxyAddr)
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-		return s.getMySQLConn(proxyAddr)
-	case srvconn.ProtocolSQLServer:
-		return s.getSQLServerConn(proxyAddr)
 	case srvconn.ProtocolRedis:
 		return s.getRedisConn(proxyAddr)
 	case srvconn.ProtocolMongoDB:
 		return s.getMongoDBConn(proxyAddr)
-	case srvconn.ProtocolPostgreSQL:
-		return s.getPostgreSQLConn(proxyAddr)
 	case srvconn.ProtocolClickHouse:
 		return s.getClickHouseConn(proxyAddr)
 	default:
@@ -1040,13 +973,18 @@ func (s *Server) Proxy() {
 	}()
 	lang := s.connOpts.getLang()
 	ctx, cancel := context.WithCancel(context.Background())
+	maxIdleTime := s.terminalConf.MaxIdleTime
+	maxSessionTime := time.Now().Add(time.Duration(s.terminalConf.MaxSessionTime) * time.Hour)
 	sw := SwitchSession{
 		ID:            s.ID,
-		MaxIdleTime:   s.terminalConf.MaxIdleTime,
+		MaxIdleTime:   maxIdleTime,
 		keepAliveTime: 60,
 		ctx:           ctx,
 		cancel:        cancel,
 		p:             s,
+		notifyMsgChan: make(chan *exchange.RoomMessage, 1),
+
+		MaxSessionTime: maxSessionTime,
 	}
 	if err := s.CreateSessionCallback(); err != nil {
 		msg := lang.T("Connect with api server failed")
@@ -1065,8 +1003,18 @@ func (s *Server) Proxy() {
 			logger.Errorf("%s err: %s", msg, err)
 		}
 	}
-	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) {
-		sw.Terminate(task.Kwargs.TerminatedBy)
+	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) error {
+		switch task.Name {
+		case model.TaskKillSession:
+			sw.Terminate(task.Kwargs.TerminatedBy)
+		case model.TaskLockSession:
+			sw.PauseOperation(task.Kwargs.CreatedByUser)
+		case model.TaskUnlockSession:
+			sw.ResumeOperation(task.Kwargs.CreatedByUser)
+		default:
+			return fmt.Errorf("ssh session unknown task %s", task.Name)
+		}
+		return nil
 	})
 	session.AddSession(traceSession)
 	defer session.RemoveSession(traceSession)

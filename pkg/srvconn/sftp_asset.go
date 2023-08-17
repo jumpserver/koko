@@ -144,6 +144,16 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
+	for {
+		if exitFile := IsExistPath(con.client, realPath); !exitFile {
+			break
+		}
+		oldPath := realPath
+		ext := filepath.Ext(realPath)
+		realPath = fmt.Sprintf("%s_duplicate_%s%s", realPath[:len(realPath)-len(ext)],
+			strconv.FormatInt(time.Now().Unix(), 10), realPath[len(realPath)-len(ext):])
+		logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
+	}
 	sf, err := con.client.Create(realPath)
 	filename := realPath
 	isSuccess := false
@@ -177,6 +187,15 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
 	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
+	}
+	for {
+		if exitFile := IsExistPath(con.client, realPath); !exitFile {
+			break
+		}
+		oldPath := realPath
+		realPath = fmt.Sprintf("%s_duplicate__%s", realPath,
+			strconv.FormatInt(time.Now().Unix(), 10))
+		logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
 	}
 	err = con.client.MkdirAll(realPath)
 	filename := realPath
@@ -488,10 +507,15 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 			logger.Errorf("Create sftp Session err: %s", err.Error())
 			return nil, ""
 		}
-		terminalFunc := func(task *model.TerminalTask) {
-			ad.mu.Lock()
-			defer ad.mu.Unlock()
-			ad.finishSftpSession(su.String(), conn)
+		terminalFunc := func(task *model.TerminalTask) error {
+			switch task.Name {
+			case model.TaskKillSession:
+				ad.mu.Lock()
+				defer ad.mu.Unlock()
+				ad.finishSftpSession(su.String(), conn)
+				return nil
+			}
+			return fmt.Errorf("sftp session not support task: %s", task.Name)
 		}
 		traceSession := session.NewSession(&respSession, terminalFunc)
 		session.AddSession(traceSession)
@@ -549,8 +573,8 @@ func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToke
 		UserId:        ad.user.ID,
 		AssetId:       ad.opts.ID,
 		Account:       su.Alias,
-		Protocol:      model.ProtocolSSH,
-		ConnectMethod: model.ProtocolSSH,
+		Protocol:      model.ProtocolSFTP,
+		ConnectMethod: model.ProtocolSFTP,
 	}
 	// sftp 不支持 ACL 复核的资产，需要从 web terminal 中登录
 	tokenInfo, err := ad.jmsService.CreateSuperConnectToken(&req)
@@ -575,11 +599,12 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken) (conn *Sftp
 	asset := connectToken.Asset
 	account := connectToken.Account
 	username := account.Username
+	protocol := connectToken.Protocol
 
 	sshAuthOpts := make([]SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
 	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
-	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(model.ProtocolSSH)))
+	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(protocol)))
 
 	sshAuthOpts = append(sshAuthOpts, SSHClientTimeout(timeout))
 	if account.IsSSHKey() {
@@ -694,4 +719,9 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		logger.Errorf("Create ftp log err: %s", err)
 	}
 	return &data
+}
+
+func IsExistPath(client *sftp.Client, path string) bool {
+	_, err := client.Stat(path)
+	return err == nil
 }
