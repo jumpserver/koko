@@ -240,5 +240,4 @@ var (
 	ErrAssetIdInvalid   = errors.New("asset id invalid")
 	ErrDisableShare     = errors.New("disable share")
 	ErrPermissionDenied = errors.New("permission denied")
-	ErrSftpDisabled     = errors.New("sftp disabled")
 )
