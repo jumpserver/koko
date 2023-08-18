@@ -82,7 +82,7 @@ RUN mkdir /opt/koko/release \
     && mv /opt/koko/utils/init-kubectl.sh /opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
