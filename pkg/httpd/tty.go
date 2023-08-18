@@ -36,7 +36,6 @@ func (h *tty) CleanUp() {
 	if h.backendClient != nil {
 		_ = h.backendClient.Close()
 	}
-	h.wg.Wait()
 }
 
 func (h *tty) CheckValidation() error {
