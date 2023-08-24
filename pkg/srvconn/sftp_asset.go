@@ -523,7 +523,7 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 	}
 
 	platform := conn.token.Platform
-	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSSH)
+	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSFTP)
 	accountUsername := su.Username
 	username := ad.user.Username
 	switch strings.ToLower(sftpRoot) {
