@@ -10,8 +10,8 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v6"
 
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type ESCommandStorage struct {
@@ -19,6 +19,7 @@ type ESCommandStorage struct {
 	Index   string
 	DocType string
 
+	IsDataStream       bool
 	InsecureSkipVerify bool
 }
 
@@ -35,8 +36,12 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 		logger.Errorf("ES new client err: %s", err)
 		return err
 	}
+	action := "index"
+	if es.IsDataStream {
+		action = "create"
+	}
 	for _, item := range commands {
-		meta := []byte(fmt.Sprintf(`{ "index" : { } }%s`, "\n"))
+		meta := []byte(fmt.Sprintf(`{ "%s" : { } }%s`, action, "\n"))
 		data, err := json.Marshal(item)
 		if err != nil {
 			logger.Errorf("ES marshal data to json err: %s", err)
@@ -76,14 +81,14 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) (err error) {
 		logger.Errorf("ES failure to parse response body: %s", err)
 	} else {
 		for _, d := range blk.Items {
-			if d.Index.Status > 201 {
+			if d[action].Status > 201 {
 				numErrors++
 				logger.Errorf("ES failure to save: [%d]: %s: %s: %s: %s",
-					d.Index.Status,
-					d.Index.Error.Type,
-					d.Index.Error.Reason,
-					d.Index.Error.Cause.Type,
-					d.Index.Error.Cause.Reason,
+					d[action].Status,
+					d[action].Error.Type,
+					d[action].Error.Reason,
+					d[action].Error.Cause.Type,
+					d[action].Error.Cause.Reason,
 				)
 			} else {
 				numIndexed++
@@ -99,22 +104,22 @@ func (es ESCommandStorage) TypeName() string {
 	return "es"
 }
 
+type bulkActionResponse struct {
+	ID     string `json:"_id"`
+	Result string `json:"result"`
+	Status int    `json:"status"`
+	Error  struct {
+		Type   string `json:"type"`
+		Reason string `json:"reason"`
+		Cause  struct {
+			Type   string `json:"type"`
+			Reason string `json:"reason"`
+		} `json:"caused_by"`
+	} `json:"error"`
+}
+
 // https://www.elastic.co/guide/en/elasticsearch/reference/master/docs-bulk.html#bulk-api-response-body
 type bulkResponse struct {
-	Errors bool `json:"errors"`
-	Items  []struct {
-		Index struct {
-			ID     string `json:"_id"`
-			Result string `json:"result"`
-			Status int    `json:"status"`
-			Error  struct {
-				Type   string `json:"type"`
-				Reason string `json:"reason"`
-				Cause  struct {
-					Type   string `json:"type"`
-					Reason string `json:"reason"`
-				} `json:"caused_by"`
-			} `json:"error"`
-		} `json:"index"`
-	} `json:"items"`
+	Errors bool                             `json:"errors"`
+	Items  []map[string]*bulkActionResponse `json:"items"`
 }

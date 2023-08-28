@@ -156,7 +156,7 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 		'DOC_TYPE': 'command',
 		  'HOSTS': ['http://172.16.10.122:9200'],
 		  'INDEX': 'jumpserver',
-		  'OTHER': {'IGNORE_VERIFY_CERTS': True},
+		  'OTHER': {'IGNORE_VERIFY_CERTS': True, 'IS_INDEX_DATASTREAM': True},
 		  'TYPE': 'es'
 		}
 	*/
@@ -167,11 +167,15 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 			hosts[i] = item.(string)
 		}
 		var skipVerify bool
+		var isDataStream bool
 		index := cf["INDEX"].(string)
 		docType := cf["DOC_TYPE"].(string)
 		if otherMap, ok := cf["OTHER"].(map[string]interface{}); ok {
 			if insecureSkipVerify, ok := otherMap["IGNORE_VERIFY_CERTS"]; ok {
 				skipVerify = insecureSkipVerify.(bool)
+			}
+			if isIndexDataStream, ok := otherMap["IS_INDEX_DATASTREAM"]; ok {
+				isDataStream = isIndexDataStream.(bool)
 			}
 		}
 		if index == "" {
@@ -184,6 +188,7 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 			Hosts:              hosts,
 			Index:              index,
 			DocType:            docType,
+			IsDataStream:       isDataStream,
 			InsecureSkipVerify: skipVerify,
 		}
 	case "null":
