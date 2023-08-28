@@ -133,6 +133,7 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 	if opt.Password != "" {
 		params = append(params, "--askpass")
 	}
+	params = append(params, "--raw")
 	return params
 }
 
