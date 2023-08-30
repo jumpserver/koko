@@ -47,6 +47,49 @@ body ::-webkit-scrollbar-thumb {
   height: 100%;
   overflow: hidden;
 }
+.el-dialog {
+  background-color: #303133;
+  color: #fff;
+  border-radius: 6px;
+}
+
+.el-dialog__title {
+  color: #fff;
+}
+
+.el-form-item__label {
+  color: #FFFFFF;
+}
+
+.el-input__inner {
+  background-color: #303133;
+  color: #fff;
+}
+
+.el-select-dropdown__list {
+  background-color: #303133;
+  color: #fff;
+}
+
+.el-select-dropdown__item.selected{
+  color: #c4c4c4;
+}
+
+.el-select:hover .el-input__inner:focus{
+    border-color: #c4c4c4;
+}
+
+.el-select .el-input.is-focus .el-input__inner{
+    border-color: #c4c4c4;
+}
+
+.el-result__title p{
+  color: #ffffff;
+}
+
+.el-dialog__headerbtn:focus .el-dialog__close, .el-dialog__headerbtn:hover .el-dialog__close{
+    color: #c4c4c4;
+}
 
 .el-dialog__body {
   padding-top: 10px!important;

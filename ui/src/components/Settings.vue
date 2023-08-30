@@ -75,7 +75,7 @@ export default {
   text-align: left;
   padding-left: 12px;
   font-size: 18px;
-  color: #000;
+  color: #faf7f7;
 }
 
 .item {
@@ -91,11 +91,11 @@ export default {
   padding-left: 10px;
   width: 100%;
   text-align: left;
-  color: #000;
+  color: #faf7f7;
 }
 
 .item-button.is-disabled {
-  color: rgb(0, 0, 0, 0.5);
+  color: rgb(250, 247, 247);
 }
 
 .item-button.is-disabled:hover {
@@ -110,6 +110,7 @@ export default {
 
 .content {
   padding: 4px 6px 4px 25px;
+  color: white;
 }
 
 .content-item {

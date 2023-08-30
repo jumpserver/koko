@@ -4,6 +4,7 @@
       :title="this.$t('Terminal.Theme')"
       :visible.sync="iVisible"
       width="50%"
+      class="theme-dialog"
       :close-on-press-escape="false">
 
       <div class="content">
@@ -48,7 +49,7 @@
                 <div class="show-color" :style="{backgroundColor: colors.blue}"></div>
                 <div>Blue</div>
               </el-col>
-              <el-col :span="3">
+              <el-col :span="4">
                 <div class="show-color" :style="{backgroundColor: colors.magenta}"></div>
                 <div>Magenta</div>
               </el-col>
@@ -82,7 +83,7 @@
                 <div class="show-color" :style="{backgroundColor: colors.brightBlue}"></div>
                 <div>BrightBlue</div>
               </el-col>
-              <el-col :span="3">
+              <el-col :span="4">
                 <div class="show-color" :style="{backgroundColor: colors.brightMagenta}"></div>
                 <div>BrightMagenta</div>
               </el-col>
@@ -150,15 +151,23 @@ export default {
 <style  scoped>
 .title {
   font-size: 14px;
+  color: #FFFFFF;
 }
+.theme-dialog .el-dialog__header{
+  background-color: #303133;
+  color: #fff;
+}
+
 .theme-colors {
   font-size: 12px;
+  color: #fff;
 }
 .theme-colors  .show-color {
   width: 100%;
   height: 24px;
   margin-bottom: 10px;
 }
+
 .theme-colors  .el-col {
   text-align: center;
 }

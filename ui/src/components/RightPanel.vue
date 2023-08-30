@@ -133,7 +133,7 @@ export default {
   box-shadow: 0 0 15px 0 rgba(0, 0, 0, .05);
   transition: all .25s cubic-bezier(.7, .3, .1, 1);
   transform: translate(100%);
-  background: #fff;
+  background: #303133;;
   z-index: 1200;
 }
 
