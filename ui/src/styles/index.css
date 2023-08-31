@@ -47,6 +47,7 @@ body ::-webkit-scrollbar-thumb {
   height: 100%;
   overflow: hidden;
 }
+
 .el-dialog {
   background-color: #303133;
   color: #fff;
@@ -58,7 +59,7 @@ body ::-webkit-scrollbar-thumb {
 }
 
 .el-form-item__label {
-  color: #FFFFFF;
+  color: #fff;
 }
 
 .el-input__inner {
@@ -84,7 +85,7 @@ body ::-webkit-scrollbar-thumb {
 }
 
 .el-result__title p{
-  color: #ffffff;
+  color: #fff;
 }
 
 .el-dialog__headerbtn:focus .el-dialog__close, .el-dialog__headerbtn:hover .el-dialog__close{

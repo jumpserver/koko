@@ -379,12 +379,12 @@ export default {
 
 <style scoped>
 .el-menu-item.is-active {
-  color: #ffffff;
+  color: #fff;
 }
 
 .settings {
   padding: 24px 20px;
-  color: #ffffff;
+  color: #fff;
 }
 
 .el-result {

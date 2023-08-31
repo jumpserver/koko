@@ -4524,7 +4524,7 @@ embed.elfinder-quicklook-preview-audio {
     -moz-box-shadow: 0 0 12px #999999;
     -webkit-box-shadow: 0 0 12px #999999;
     box-shadow: 0 0 12px #999999;
-    color: #FFFFFF;
+    color: #fff;
     opacity: 0.9;
     filter: alpha(opacity=90);
     background-color: #030303;

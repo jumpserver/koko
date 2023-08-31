@@ -151,7 +151,7 @@ export default {
 <style  scoped>
 .title {
   font-size: 14px;
-  color: #FFFFFF;
+  color: #fff;
 }
 .theme-dialog .el-dialog__header{
   background-color: #303133;
