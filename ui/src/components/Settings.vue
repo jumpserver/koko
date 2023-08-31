@@ -15,7 +15,9 @@
           @click.stop="i.click && itemClick(i)"
         >
           {{ i.title }}
-          {{ i.content && Object.keys(i.content).length > 0 ? Object.keys(i.content).length : null }}
+          <span v-if="i.content && Object.keys(i.content).length > 0">
+            ({{Object.keys(i.content).length }})
+          </span>
         </el-button>
         <div v-if="i.content" class="content" >
           <div v-for="(item, key) of i.content"

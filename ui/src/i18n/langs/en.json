@@ -1,7 +1,7 @@
 {
   "Terminal": {
-    "ShareUser": "Share user",
-    "ShareUserHelpText": "If no user is selected, everyone is allowed to join",
+    "ShareUser": "ForUser",
+    "ShareUserHelpText": "If left blank, everyone could join the session.",
     "GetShareUser": "Enter username",
     "UploadSuccess": "Upload success",
     "MustSelectOneFile": "Must select one file",
@@ -35,7 +35,7 @@
     "EndFileTransfer": "File transfer end",
     "ReadOnly": "Read-Only",
     "Writable" : "Writable",
-    "ActionPerm": "Action Permission",
+    "ActionPerm": "Actions",
     "Self": "Self",
     "RemoveShareUser": "You have been removed from the shared session.",
     "JoinShare": "Join Session",
