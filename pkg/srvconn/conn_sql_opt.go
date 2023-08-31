@@ -21,6 +21,8 @@ type sqlOption struct {
 	AllowInvalidCert bool
 
 	win Windows
+
+	disableMySQLAutoRehash bool
 }
 
 type SqlOption func(*sqlOption)
@@ -92,8 +94,8 @@ func SqlPtyWin(win Windows) SqlOption {
 }
 
 const (
-	mySQLMaxConnCount = 1
-	mySQLMaxIdleTime  = time.Second * 15
+	maxSQLConnCount = 1
+	maxIdleTime     = time.Second * 15
 )
 
 func checkDatabaseAccountValidate(driveName, datasourceName string) error {
@@ -101,10 +103,10 @@ func checkDatabaseAccountValidate(driveName, datasourceName string) error {
 	if err != nil {
 		return err
 	}
-	db.SetMaxOpenConns(mySQLMaxConnCount)
-	db.SetMaxIdleConns(mySQLMaxConnCount)
-	db.SetConnMaxLifetime(mySQLMaxIdleTime)
-	db.SetConnMaxIdleTime(mySQLMaxIdleTime)
+	db.SetMaxOpenConns(maxSQLConnCount)
+	db.SetMaxIdleConns(maxSQLConnCount)
+	db.SetConnMaxLifetime(maxIdleTime)
+	db.SetConnMaxIdleTime(maxIdleTime)
 	defer db.Close()
 	err = db.Ping()
 	if err != nil {
