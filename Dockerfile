@@ -96,6 +96,9 @@ ARG DEPENDENCIES="                    \
         less                          \
         locales                       \
         openssh-client                \
+        freetds-bin                   \
+        mariadb-client                \
+        postgresql-client             \
         telnet                        \
         unzip                         \
         vim                           \

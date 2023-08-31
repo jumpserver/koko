@@ -907,6 +907,13 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getMongoDBConn(proxyAddr)
 	case srvconn.ProtocolClickHouse:
 		return s.getClickHouseConn(proxyAddr)
+
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+		return s.getMySQLConn(proxyAddr)
+	case srvconn.ProtocolPostgresql:
+		return s.getPostgreSQLConn(proxyAddr)
+	case srvconn.ProtocolSQLServer:
+		return s.getSQLServerConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}

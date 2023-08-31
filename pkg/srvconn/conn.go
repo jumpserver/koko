@@ -38,6 +38,11 @@ const (
 	ProtocolRedis      = "redis"
 	ProtocolMongoDB    = "mongodb"
 	ProtocolClickHouse = "clickhouse"
+
+	ProtocolMySQL      = "mysql"
+	ProtocolMariadb    = "mariadb"
+	ProtocolSQLServer  = "sqlserver"
+	ProtocolPostgresql = "postgresql"
 )
 
 func SupportedDBProtocols() []string {
@@ -45,6 +50,11 @@ func SupportedDBProtocols() []string {
 		ProtocolRedis,
 		ProtocolMongoDB,
 		ProtocolClickHouse,
+
+		ProtocolMySQL,
+		ProtocolMariadb,
+		ProtocolSQLServer,
+		ProtocolPostgresql,
 	}
 }
 
@@ -95,6 +105,11 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolRedis:      redisSupported,
 	ProtocolMongoDB:    mongoDBSupported,
 	ProtocolClickHouse: clickhouseSupported,
+
+	ProtocolMySQL:      mySQLSupported,
+	ProtocolMariadb:    mySQLSupported,
+	ProtocolSQLServer:  sqlServerSupported,
+	ProtocolPostgresql: postgresqlSupported,
 }
 
 func IsSupportedProtocol(p string) error {
@@ -163,6 +178,45 @@ func clickhouseSupported() error {
 		return nil
 	}
 	return ErrClickHouseClient
+}
+
+func mySQLSupported() error {
+	checkLine := "mysql -V"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrMySQLClient, err)
+	}
+	if bytes.HasPrefix(out, []byte("mysql")) {
+		return nil
+	}
+	return ErrMySQLClient
+}
+
+func sqlServerSupported() error {
+	checkLine := "tsql -C"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrSQLServerClient, err)
+	}
+	if strings.Contains(string(out), "freetds") {
+		return nil
+	}
+	return ErrSQLServerClient
+}
+
+func postgresqlSupported() error {
+	checkLine := "psql -V"
+	cmd := exec.Command("bash", "-c", checkLine)
+	out, err := cmd.CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return fmt.Errorf("%w: %s", ErrPostgreSQLClient, err)
+	}
+	if bytes.HasPrefix(out, []byte("psql")) {
+		return nil
+	}
+	return ErrPostgreSQLClient
 }
 
 func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
