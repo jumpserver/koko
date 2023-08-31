@@ -22,6 +22,7 @@
         :close-on-click-modal="false"
         @close="shareDialogClosed"
         :modal="false"
+        class="share-dialog"
         center>
       <div v-if="!shareId">
         <el-form v-loading="loading" :model="shareLinkRequest">
@@ -56,15 +57,15 @@
                   :value="item.id">
               </el-option>
             </el-select>
-            <div style="color: #999;font-size: 12px">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
+            <div style="color: #d9d1d1;font-size: 12px">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
           </el-form-item>
         </el-form>
         <div>
-          <el-button type="primary" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
+          <el-button class="share-btn" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
         </div>
       </div>
       <div v-else>
-        <el-result icon="success" :title="this.$t('Terminal.CreateSuccess')">
+        <el-result icon="success" class="result" :title="this.$t('Terminal.CreateSuccess')">
         </el-result>
         <el-form>
           <el-form-item :label="this.$t('Terminal.LinkAddr')">
@@ -75,7 +76,7 @@
           </el-form-item>
         </el-form>
         <div>
-          <el-button type="primary" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }}</el-button>
+          <el-button class="share-btn" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }}</el-button>
         </div>
       </div>
     </el-dialog>
@@ -378,15 +379,21 @@ export default {
 
 <style scoped>
 .el-menu-item.is-active {
-  color: #ffffff;
+  color: #fff;
 }
 
 .settings {
   padding: 24px 20px;
+  color: #fff;
 }
 
 .el-result {
-  padding: 0
+  padding: 0;
+}
+
+.share-btn {
+  background-color: #343333;
+  color: white;
 }
 
 ::v-deep .el-form-item__content {

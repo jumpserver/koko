@@ -205,6 +205,6 @@ export default {
 
 <style scoped>
 .el-menu-item.is-active {
-  color: #ffffff;
+  color: #fff;
 }
 </style>
