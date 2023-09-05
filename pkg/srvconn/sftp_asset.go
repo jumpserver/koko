@@ -144,7 +144,7 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
-	for {
+	for !con.IsOverwriteFile() {
 		if exitFile := IsExistPath(con.client, realPath); !exitFile {
 			break
 		}
@@ -188,7 +188,7 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
-	for {
+	for !con.IsOverwriteFile() {
 		if exitFile := IsExistPath(con.client, realPath); !exitFile {
 			break
 		}
