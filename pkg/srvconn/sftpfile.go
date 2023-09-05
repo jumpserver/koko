@@ -3,6 +3,7 @@ package srvconn
 import (
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -190,6 +191,23 @@ type SftpConn struct {
 	token       *model.ConnectToken
 	isClosed    bool
 }
+
+func (s *SftpConn) IsOverwriteFile() bool {
+	resolution := s.token.ConnectOptions.FilenameConflictResolution
+	switch strings.ToLower(resolution) {
+	case FilenamePolicyReplace:
+		return true
+	case FilenamePolicySuffix:
+		return false
+	default:
+		return true
+	}
+}
+
+const (
+	FilenamePolicyReplace = "replace"
+	FilenamePolicySuffix  = "suffix"
+)
 
 func (s *SftpConn) Close() {
 	if s.client == nil {
