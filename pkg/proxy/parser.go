@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/LeeEirc/tclientlib"
-
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -733,6 +732,8 @@ func matchMark(p []byte, marks [][]byte) bool {
 const (
 	h3c    = "h3c"
 	huawei = "huawei"
+	cisco  = "cisco"
+	linux  = "linux"
 )
 
 func isH3C(p *model.Platform) bool {
@@ -741,6 +742,14 @@ func isH3C(p *model.Platform) bool {
 
 func isHuaWei(p *model.Platform) bool {
 	return isPlatform(p, huawei)
+}
+
+func isCisco(p *model.Platform) bool {
+	return isPlatform(p, cisco)
+}
+
+func isLinux(p *model.Platform) bool {
+	return isPlatform(p, linux)
 }
 
 func isPlatform(p *model.Platform, platform string) bool {
@@ -754,6 +763,9 @@ func (p *Parser) breakInputPacket() []byte {
 	switch p.protocolType {
 	case model.ProtocolTelnet:
 		if isHuaWei(p.platform) {
+			return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
+		}
+		if isCisco(p.platform) || isLinux(p.platform) {
 			return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 		}
 		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
