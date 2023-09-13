@@ -265,15 +265,15 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	}
 	res, err = con.client.ReadDir(realPath)
 	isRootAccount := con.token.Account.Username == "root"
-	noHiddenFiles := make([]os.FileInfo, 0, len(res))
+	fileInfoList := make([]os.FileInfo, 0, len(res))
 	for i := 0; i < len(res); i++ {
 		info := NewSftpFileInfo(res[i], isRootAccount)
 		if !ad.ShowHidden && strings.HasPrefix(info.Name(), ".") {
 			continue
 		}
-		noHiddenFiles = append(noHiddenFiles, info)
+		fileInfoList = append(fileInfoList, info)
 	}
-	return noHiddenFiles, err
+	return fileInfoList, err
 }
 
 func (ad *AssetDir) ReadLink(path string) (res string, err error) {
