@@ -16,7 +16,7 @@ const (
 	actionPartialAccepted = "Partial accepted"
 )
 
-func CreateSelectOptionsQuestion(options []string) string{
+func CreateSelectOptionsQuestion(options []string) string {
 	opts := make([]mfaOption, 0, len(options))
 	for i := range options {
 		opts = append(opts, mfaOption{
@@ -39,7 +39,8 @@ type mfaOption struct {
 	Value string
 }
 
-var mfaOptions = `{{ range . }}{{ .Index }}. {{.Value}}
+var mfaOptions = `
+{{ range . }}{{ .Index }}. {{.Value}}
 {{end}}Option> `
 
 var (
