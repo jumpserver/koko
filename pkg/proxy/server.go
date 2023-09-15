@@ -359,7 +359,10 @@ func (s *Server) checkRequiredAuth() error {
 			return errors.New("no auth token")
 		}
 	case srvconn.ProtocolTELNET, srvconn.ProtocolClickHouse,
-		srvconn.ProtocolMongoDB:
+		srvconn.ProtocolMongoDB,
+
+		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
