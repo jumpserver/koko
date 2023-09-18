@@ -24,7 +24,7 @@
         </el-form-item>
       </el-form>
       <div slot="footer">
-        <el-button type="primary" @click="submitCode">{{ this.$t('Terminal.ConfirmBtn') }}</el-button>
+        <el-button class="item-button" @click="submitCode">{{ this.$t('Terminal.ConfirmBtn') }}</el-button>
       </div>
     </el-dialog>
   </el-container>
@@ -207,4 +207,14 @@ export default {
 .el-menu-item.is-active {
   color: #fff;
 }
+
+.item-button {
+  background-color: #343333;
+  color: #faf7f7;
+}
+
+.item-button:hover {
+  background: rgb(134, 133, 133);
+}
+
 </style>

@@ -81,7 +81,7 @@ export default {
 }
 
 .item {
-  color: rgba(0, 0, 0, 0.65);
+  color: rgb(250, 247, 247);
   font-size: 14px;
   list-style-type: none;
   cursor: pointer;
@@ -107,7 +107,7 @@ export default {
 
 
 .item-button:hover {
-  background: rgba(0, 0, 0, .1);
+  background: rgb(134, 133, 133);
 }
 
 .content {
