@@ -449,12 +449,35 @@ export default {
       let quickPaste = "0";
       let backspaceAsCtrlH = "0";
       // localStorage.getItem default null
+      /**
+       * {
+       *     "basic": {
+       *         "is_async_asset_tree": true
+       *     },
+       *     "graphics": {
+       *         "rdp_resolution": "\"1024x768\"",
+       *         "keyboard_layout": "en-us-qwerty",
+       *         "rdp_client_option": [
+       *             "full_screen"
+       *         ],
+       *         "applet_connection_method": "web"
+       *     },
+       *     "command_line": {
+       *         "character_terminal_font_size": 14,
+       *         "is_backspace_as_ctrl_h": false,
+       *         "is_right_click_quickly_paste": false
+       *     }
+       * }
+       */
       let localSettings = localStorage.getItem('LunaSetting')
       if (localSettings !== null) {
         let settings = JSON.parse(localSettings)
-        fontSize = settings['fontSize']
-        quickPaste = settings['quickPaste']
-        backspaceAsCtrlH = settings['backspaceAsCtrlH']
+        let commandLine = settings['command_line']
+        if (commandLine) {
+          fontSize = commandLine['character_terminal_font_size']
+          quickPaste = commandLine['is_right_click_quickly_paste'] ? "1" : "0"
+          backspaceAsCtrlH = commandLine['is_backspace_as_ctrl_h'] ? "1" : "0"
+        }
       }
       if (!fontSize || fontSize < 5 || fontSize > 50) {
         fontSize = 13;
