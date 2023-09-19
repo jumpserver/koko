@@ -59,8 +59,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/ClickHouse/clickhouse-go v1.5.4 h1:cKjXeYLNWVJIx2J1K6H2CqyRmfwVJVY1OV1coaaFcI0=
 github.com/ClickHouse/clickhouse-go v1.5.4/go.mod h1:EaI/sW7Azgz9UATzd5ZdZHRUhHgv5+JMS9NSr2smCJI=
-github.com/LeeEirc/crypto v0.0.0-20230406074824-78021579524f h1:UASS9ej728CzLhyzJWbS0jTfqSaxaDBR046oK2lqRgs=
-github.com/LeeEirc/crypto v0.0.0-20230406074824-78021579524f/go.mod h1:pYwdfH91IfpZVANVyUOhSIPZaFoJGxTFbZhFTx+dXZU=
+github.com/LeeEirc/crypto v0.0.0-20230919154755-059031d26b68 h1:bkeuW/ujHp3Rr1K3Ah4/Onw9Ero9uMKX0rPxbzV5mvw=
+github.com/LeeEirc/crypto v0.0.0-20230919154755-059031d26b68/go.mod h1:pYwdfH91IfpZVANVyUOhSIPZaFoJGxTFbZhFTx+dXZU=
 github.com/LeeEirc/elfinder v0.0.14 h1:6ObxwIoC5zmrnKArUU5Mz++/T3lzgl1Ja0pS1Smd3j4=
 github.com/LeeEirc/elfinder v0.0.14/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/LeeEirc/httpsig v1.2.1 h1:GGmCc2Bug3KeCchlZHwrfyjyAnw+JlzMjKDobPypirs=
