@@ -144,7 +144,7 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
-	for {
+	for !con.IsOverwriteFile() {
 		if exitFile := IsExistPath(con.client, realPath); !exitFile {
 			break
 		}
@@ -188,7 +188,7 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
-	for {
+	for !con.IsOverwriteFile() {
 		if exitFile := IsExistPath(con.client, realPath); !exitFile {
 			break
 		}
@@ -264,16 +264,16 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	res, err = con.client.ReadDir(realPath)
-	if !ad.ShowHidden {
-		noHiddenFiles := make([]os.FileInfo, 0, len(res))
-		for i := 0; i < len(res); i++ {
-			if !strings.HasPrefix(res[i].Name(), ".") {
-				noHiddenFiles = append(noHiddenFiles, res[i])
-			}
+	isRootAccount := con.token.Account.Username == "root"
+	fileInfoList := make([]os.FileInfo, 0, len(res))
+	for i := 0; i < len(res); i++ {
+		info := NewSftpFileInfo(res[i], isRootAccount)
+		if !ad.ShowHidden && strings.HasPrefix(info.Name(), ".") {
+			continue
 		}
-		return noHiddenFiles, err
+		fileInfoList = append(fileInfoList, info)
 	}
-	return
+	return fileInfoList, err
 }
 
 func (ad *AssetDir) ReadLink(path string) (res string, err error) {
@@ -422,7 +422,8 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	res, err = con.client.Stat(realPath)
-	return
+	isRootAccount := con.token.Account.Username == "root"
+	return NewSftpFileInfo(res, isRootAccount), err
 }
 
 func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
@@ -523,16 +524,18 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 	}
 
 	platform := conn.token.Platform
-	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSSH)
+	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSFTP)
 	accountUsername := su.Username
 	username := ad.user.Username
 	switch strings.ToLower(sftpRoot) {
 	case "home", "~", "":
 		realPath = filepath.Join(conn.HomeDirPath, strings.TrimPrefix(path, "/"))
 	default:
-		//  ${ACCOUNT} 连接的账号用户名, ${USER} 当前用户用户名
+		//  ${ACCOUNT} 连接的账号用户名, ${USER} 当前用户用户名, ${HOME} 当前家目录
+		homeDir := conn.HomeDirPath
 		sftpRoot = strings.ReplaceAll(sftpRoot, "${ACCOUNT}", accountUsername)
 		sftpRoot = strings.ReplaceAll(sftpRoot, "${USER}", username)
+		sftpRoot = strings.ReplaceAll(sftpRoot, "${HOME}", homeDir)
 		if strings.Index(sftpRoot, "/") != 0 {
 			sftpRoot = fmt.Sprintf("/%s", sftpRoot)
 		}
@@ -724,4 +727,47 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 func IsExistPath(client *sftp.Client, path string) bool {
 	_, err := client.Stat(path)
 	return err == nil
+}
+
+func NewSftpFileInfo(info os.FileInfo, isRoot bool) os.FileInfo {
+	if !isRoot {
+		return info
+	}
+	return &SftpFileInfo{info: info, isRoot: isRoot}
+}
+
+type SftpFileInfo struct {
+	info   os.FileInfo
+	isRoot bool
+}
+
+func (ad *SftpFileInfo) Name() string {
+	return ad.info.Name()
+}
+
+func (ad *SftpFileInfo) Size() int64 {
+	return ad.info.Size()
+}
+
+/*
+	特殊处理：
+		如果是 root 账号，获取的目录信息，手动修改其文件权限可读写,
+		允许其在 web sftp 可以上传文件
+*/
+
+func (ad *SftpFileInfo) Mode() os.FileMode {
+	if ad.isRoot && ad.info.IsDir() {
+		return ad.info.Mode() | os.ModePerm
+	}
+	return ad.info.Mode()
+}
+
+func (ad *SftpFileInfo) ModTime() time.Time {
+	return ad.info.ModTime()
+}
+
+func (ad *SftpFileInfo) IsDir() bool { return ad.info.IsDir() }
+
+func (ad *SftpFileInfo) Sys() interface{} {
+	return ad.info.Sys()
 }

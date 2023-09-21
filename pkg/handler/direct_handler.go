@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -250,7 +251,8 @@ func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.P
 		return permAccounts[0], true
 	default:
 	}
-	displayAccounts := permAccounts
+	displayAccounts := model.PermAccountList(permAccounts)
+	sort.Sort(displayAccounts)
 
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")

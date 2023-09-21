@@ -83,3 +83,17 @@ const (
 	DynamicUser = "@USER"
 	ANONUser    = "@ANON"
 )
+
+type PermAccountList []PermAccount
+
+func (a PermAccountList) Len() int {
+	return len(a)
+}
+
+func (a PermAccountList) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a PermAccountList) Less(i, j int) bool {
+	return a[i].Name < a[j].Name
+}

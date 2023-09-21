@@ -359,7 +359,10 @@ func (s *Server) checkRequiredAuth() error {
 			return errors.New("no auth token")
 		}
 	case srvconn.ProtocolTELNET, srvconn.ProtocolClickHouse,
-		srvconn.ProtocolMongoDB:
+		srvconn.ProtocolMongoDB,
+
+		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql:
 		if err := s.getUsernameIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -907,6 +910,13 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getMongoDBConn(proxyAddr)
 	case srvconn.ProtocolClickHouse:
 		return s.getClickHouseConn(proxyAddr)
+
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+		return s.getMySQLConn(proxyAddr)
+	case srvconn.ProtocolPostgresql:
+		return s.getPostgreSQLConn(proxyAddr)
+	case srvconn.ProtocolSQLServer:
+		return s.getSQLServerConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}

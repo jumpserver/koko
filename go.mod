@@ -12,15 +12,18 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v2.2.7+incompatible
 	github.com/aws/aws-sdk-go v1.44.306
 	github.com/creack/pty v1.1.18
+	github.com/denisenkom/go-mssqldb v0.12.3
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/gin-gonic/gin v1.9.1
 	github.com/gliderlabs/ssh v0.3.3
+	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.1+incompatible
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/leonelquinteros/gotext v1.4.0
+	github.com/lib/pq v1.10.9
 	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pires/go-proxyproto v0.6.2
@@ -58,6 +61,8 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
@@ -121,5 +126,5 @@ require (
 
 replace (
 	github.com/gliderlabs/ssh => github.com/LeeEirc/ssh v0.1.2-0.20220323091501-23b956e1e5a8
-	golang.org/x/crypto => github.com/LeeEirc/crypto v0.0.0-20230406074824-78021579524f
+	golang.org/x/crypto => github.com/LeeEirc/crypto v0.0.0-20230919154755-059031d26b68
 )
