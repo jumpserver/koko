@@ -72,7 +72,12 @@ func startSQLServerCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err
 
 func startSQLServerNormalCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	//tsql 是启动sqlserver的客户端
-	return localcommand.New("tsql", opt.SQLServerCommandArgs())
+	opts, err := BuildNobodyWithOpts(localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
+	if err != nil {
+		logger.Errorf("build nobody with opts error: %s", err)
+		return nil, err
+	}
+	return localcommand.New("tsql", opt.SQLServerCommandArgs(), opts...)
 }
 
 func tryManualLoginSQLServerServer(opt *sqlOption, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {
