@@ -7,8 +7,8 @@ do
     sleep 2
 done
 # 限制所有可执行目录的权限
-chmod 700 /usr/local/sbin && chmod 700 /usr/local/bin
-chmod 700 /usr/sbin && chmod 700 /sbin &&  chmod 700 /bin
+chmod -R  700 /usr/local/sbin/ && chmod -R 700 /usr/local/bin/
+chmod -R  700 /usr/sbin/ && chmod -R 700 /sbin/ && chmod -R 700 /bin/
 
 
 # 放开部分需要的可执行权限
