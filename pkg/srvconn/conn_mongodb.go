@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/logger"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -92,7 +93,12 @@ func (conn *MongoDBConn) Close() error {
 
 func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	cmd := opt.MongoDBCommandArgs()
-	lcmd, err = localcommand.New("mongosh", cmd, localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
+	opts, err := BuildNobodyWithOpts(localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
+	if err != nil {
+		logger.Errorf("build nobody with opts error: %s", err)
+		return nil, err
+	}
+	lcmd, err = localcommand.New("mongosh", cmd, opts...)
 	if err != nil {
 		return nil, err
 	}
