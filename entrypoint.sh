@@ -14,6 +14,7 @@ chmod -R  700 /usr/sbin/* && chmod -R 700 /sbin/* && chmod -R 700 /bin/*
 # 放开部分需要的可执行权限
 chmod 755 `which mysql` `which psql` `which mongosh` `which tsql` `which redis` `which clickhouse-client`
 chmod 755 `which kubectl` `which rawkubectl` `which helm` `which rawhelm`
+chmod 755 `which jq` `which less` `which vim`
 
 cd /opt/koko
 ./koko
