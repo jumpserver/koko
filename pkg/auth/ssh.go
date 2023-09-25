@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/jumpserver/koko/pkg/config"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -36,12 +37,15 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		userAuthClient, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 		if !ok {
 			newClient := jmsService.CloneClient()
-
+			var accessKey model.AccessKey
+			conf := config.GetConf()
+			_ = accessKey.LoadFromFile(conf.AccessKeyFilePath)
 			userClient := service.NewUserClient(
 				service.UserClientUsername(username),
 				service.UserClientRemoteAddr(remoteAddr),
 				service.UserClientLoginType("T"),
 				service.UserClientHttpClient(&newClient),
+				service.UserClientSvcSignKey(accessKey),
 			)
 			userAuthClient = &UserAuthClient{
 				UserClient:  userClient,
