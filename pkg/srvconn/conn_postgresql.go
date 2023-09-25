@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/jumpserver/koko/pkg/logger"
 	_ "github.com/lib/pq"
 
 	"github.com/jumpserver/koko/pkg/localcommand"
@@ -61,7 +62,12 @@ func (conn *PostgreSQLConn) Close() error {
 func startPostgreSQLCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	argv := opt.PostgreSQLCommandArgs()
 	//psql 是启动postgresql的客户端
-	lcmd, err = localcommand.New("psql", argv, localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
+	opts, err := BuildNobodyWithOpts(localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
+	if err != nil {
+		logger.Errorf("build nobody with opts error: %s", err)
+		return nil, err
+	}
+	lcmd, err = localcommand.New("psql", argv, opts...)
 	if err != nil {
 		return nil, err
 	}
