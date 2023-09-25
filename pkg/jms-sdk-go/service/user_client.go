@@ -1,6 +1,14 @@
 package service
 
 import (
+	"bytes"
+	"crypto/aes"
+	"encoding/base64"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/httplib"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
@@ -33,6 +41,10 @@ func (u *UserClient) SetOption(setters ...UserClientOption) {
 	}
 }
 
+const (
+	svcHeader = "X-JMS-SVC"
+)
+
 func (u *UserClient) GetAPIToken() (resp AuthResponse, err error) {
 	data := map[string]string{
 		"username":    u.Opts.Username,
@@ -41,6 +53,15 @@ func (u *UserClient) GetAPIToken() (resp AuthResponse, err error) {
 		"remote_addr": u.Opts.RemoteAddr,
 		"login_type":  u.Opts.LoginType,
 	}
+	ak := u.Opts.signKey
+	// 移除 Secret 中的 "-", 保证长度为 32
+	secretKey := strings.ReplaceAll(ak.Secret, "-", "")
+	encryptKey, err := GenerateEncryptKey(secretKey)
+	if err != nil {
+		return resp, err
+	}
+	signKey := fmt.Sprintf("%s:%s", ak.ID, encryptKey)
+	u.client.SetHeader(svcHeader, fmt.Sprintf("Sign %s", signKey))
 	_, err = u.client.Post(UserTokenAuthURL, data, &resp)
 	return
 }
@@ -129,6 +150,18 @@ func UserClientHttpClient(con *httplib.Client) UserClientOption {
 	}
 }
 
+func UserClientSvcSignKey(key model.AccessKey) UserClientOption {
+	return func(args *UserClientOptions) {
+		args.signKey = key
+	}
+}
+
+func GenerateEncryptKey(key string) (string, error) {
+	seconds := time.Now().Unix()
+	value := strconv.FormatUint(uint64(seconds), 10)
+	return EncryptECB(value, key)
+}
+
 type UserClientOptions struct {
 	Username   string
 	Password   string
@@ -136,4 +169,51 @@ type UserClientOptions struct {
 	RemoteAddr string
 	LoginType  string
 	client     *httplib.Client
+
+	signKey model.AccessKey
+}
+
+func EncryptECB(plaintext string, key string) (string, error) {
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+	newPlaintext := make([]byte, 0, len(plaintext))
+	newPlaintext = append(newPlaintext, []byte(plaintext)...)
+	if len(newPlaintext)%aes.BlockSize != 0 {
+		padding := aes.BlockSize - len(plaintext)%aes.BlockSize
+		newPlaintext = append(newPlaintext, bytes.Repeat([]byte{byte(0x00)}, padding)...)
+	}
+
+	ciphertext := make([]byte, len(newPlaintext))
+	for i := 0; i < len(newPlaintext); i += aes.BlockSize {
+		block.Encrypt(ciphertext[i:i+aes.BlockSize], newPlaintext[i:i+aes.BlockSize])
+	}
+	ret := base64.StdEncoding.EncodeToString(ciphertext)
+	return ret, nil
+}
+
+func DecryptECB(ciphertext string, key string) (string, error) {
+	ret, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+
+	if len(ret)%aes.BlockSize != 0 {
+		return "", fmt.Errorf("ciphertext is not a multiple of the block size")
+	}
+	plaintext := make([]byte, len(ret))
+	for i := 0; i < len(ret); i += aes.BlockSize {
+		block.Decrypt(plaintext[i:i+aes.BlockSize], ret[i:i+aes.BlockSize])
+	}
+
+	// 移除 Zero 填充
+	for len(plaintext) > 0 && plaintext[len(plaintext)-1] == 0x00 {
+		plaintext = plaintext[:len(plaintext)-1]
+	}
+	return string(plaintext), nil
 }
