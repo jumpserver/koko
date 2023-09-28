@@ -15,6 +15,7 @@ chmod -R  700 /usr/sbin/* && chmod -R 700 /sbin/* && chmod -R 700 /bin/*
 chmod 755 `which mysql` `which psql` `which mongosh` `which tsql` `which redis` `which clickhouse-client`
 chmod 755 `which kubectl` `which rawkubectl` `which helm` `which rawhelm`
 chmod 755 `which jq` `which less` `which vim` `which ls` `which bash`
-
+# k8s 集群连接需要的命令
+chmod 755 `which grep`
 cd /opt/koko
 ./koko
