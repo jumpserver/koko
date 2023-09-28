@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"encoding/base64"
-	"fmt"
 	"testing"
 )
 
@@ -57,27 +56,4 @@ func encryptECB(plaintext []byte, key []byte) ([]byte, error) {
 	}
 
 	return ciphertext, nil
-}
-
-func decryptECB(ciphertext []byte, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ciphertext)%aes.BlockSize != 0 {
-		return nil, fmt.Errorf("ciphertext is not a multiple of the block size")
-	}
-
-	plaintext := make([]byte, len(ciphertext))
-	for i := 0; i < len(ciphertext); i += aes.BlockSize {
-		block.Decrypt(plaintext[i:i+aes.BlockSize], ciphertext[i:i+aes.BlockSize])
-	}
-
-	// 移除 Zero 填充
-	for len(plaintext) > 0 && plaintext[len(plaintext)-1] == 0x00 {
-		plaintext = plaintext[:len(plaintext)-1]
-	}
-
-	return plaintext, nil
 }
