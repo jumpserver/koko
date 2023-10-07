@@ -73,6 +73,7 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 		KeyboardInteractiveHandler: auth.SSHKeyboardInteractiveAuth,
 		PasswordHandler:            sshHandler.PasswordAuth,
 		PublicKeyHandler:           sshHandler.PublicKeyAuth,
+		AuthLogCallback:            auth.SSHAuthLogCallback,
 		NextAuthMethodsHandler:     func(ctx ssh.Context) []string { return []string{nextAuthMethod} },
 		HostSigners:                []ssh.Signer{singer},
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {

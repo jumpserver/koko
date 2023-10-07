@@ -125,6 +125,6 @@ require (
 )
 
 replace (
-	github.com/gliderlabs/ssh => github.com/LeeEirc/ssh v0.1.2-0.20220323091501-23b956e1e5a8
+	github.com/gliderlabs/ssh => github.com/LeeEirc/ssh v0.1.2-0.20231007053448-a6110c0dfc4a
 	golang.org/x/crypto => github.com/LeeEirc/crypto v0.0.0-20230919154755-059031d26b68
 )
