@@ -85,7 +85,8 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	}
 	// 2 steps auth must have a partial success method
 	if val := ctx.Value(ContextKeyPartialSuccessMethod); val == nil {
-		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found partial success method.")
+		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found partial success method.",
+			ctx.SessionID(), ctx.User())
 		return ssh.AuthFailed
 	}
 
