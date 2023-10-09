@@ -72,4 +72,5 @@ type ConnectOptions struct {
 	BackspaceAsCtrlH *bool   `json:"backspaceAsCtrlH,omitempty"`
 
 	FilenameConflictResolution string `json:"file_name_conflict_resolution,omitempty"`
+	TerminalThemeName          string `json:"terminal_theme_name,omitempty"`
 }

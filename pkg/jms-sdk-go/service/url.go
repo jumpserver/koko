@@ -77,3 +77,7 @@ const (
 	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"
 	AclCommandReviewURL  = "/api/v1/acls/command-filter-acls/command-review/"
 )
+
+const (
+	UserKoKoPreferenceURL = "/api/v1/users/preference/?category=koko"
+)

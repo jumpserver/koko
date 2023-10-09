@@ -144,25 +144,25 @@ export function removeClass(ele, cls) {
 
 /**
  * Default theme
+ * copy from https://github.com/xtermjs/xterm.js/blob/master/src/browser/services/ThemeService.ts#L152
  */
 export const defaultTheme = {
   background: '#1f1b1b',
-  black: '#151515',
-  blue: '#6c99bb',
-  brightBlack: '#505050',
-  brightBlue: '#6c99bb',
-  brightCyan: '#7dd6cf',
-  brightGreen: '#7e8e50',
-  brightMagenta: '#9f4e85',
-  brightRed: '#ac4142',
-  brightWhite: '#f5f5f5',
-  brightYellow: '#e5b567',
-  cursor: '#d0d0d0',
-  cyan: '#7dd6cf',
-  foreground: '#d0d0d0',
-  green: '#7e8e50',
-  magenta: '#9f4e85',
-  red: '#ac4142',
-  white: '#d0d0d0',
-  yellow: '#e5b567'
+  foreground: '#ffffff',
+  black:'#2e3436',
+  red:'#cc0000',
+  green:'#4e9a06',
+  yellow:'#c4a000',
+  blue: '#3465a4',
+  magenta: '#75507b',
+  cyan:'#06989a',
+  white:'#d3d7cf',
+  brightBlack:'#555753',
+  brightRed:'#ef2929',
+  brightGreen:'#8ae234',
+  brightYellow:'#fce94f',
+  brightBlue:'#729fcf',
+  brightMagenta:'#ad7fa8',
+  brightCyan:'#34e2e2',
+  brightWhite: '#eeeeec',
 }

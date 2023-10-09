@@ -45,7 +45,10 @@
     "Minute": "分間",
     "Minutes": "分間",
     "PauseSession" : "セッションを一時停止",
-    "ResumeSession" : "セッションを再開"
+    "ResumeSession" : "セッションを再開",
+    "SyncUserPreferenceSuccess": "ユーザー設定の同期に成功しました",
+    "SyncUserPreferenceFailed": "ユーザー設定の同期に失敗しました",
+    "Sync": "同期"
   },
   "Message": {
     "InputVerifyCode": "認証コードを入力してください"

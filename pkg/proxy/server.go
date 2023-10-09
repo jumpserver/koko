@@ -165,6 +165,8 @@ type SessionInfo struct {
 
 	BackspaceAsCtrlH *bool `json:"backspaceAsCtrlH,omitempty"`
 	CtrlCAsCtrlZ     bool  `json:"ctrlCAsCtrlZ"`
+
+	ThemeName string `json:"themeName"`
 }
 
 func (s *Server) IsKeyboardMode() bool {
@@ -1091,6 +1093,7 @@ func (s *Server) Proxy() {
 
 			BackspaceAsCtrlH: tokenConnOpts.BackspaceAsCtrlH,
 			CtrlCAsCtrlZ:     ctrlCAsCtrlZ,
+			ThemeName:        tokenConnOpts.TerminalThemeName,
 		}
 		go s.OnSessionInfo(&info)
 	}
