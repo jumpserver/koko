@@ -1,8 +1,9 @@
 package httpd
 
 import (
-	"github.com/jumpserver/koko/pkg/exchange"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/exchange"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
@@ -40,7 +41,11 @@ const (
 
 	TerminalShareUserRemove = "TERMINAL_SHARE_USER_REMOVE"
 
+	TerminalSyncUserPreference = "TERMINAL_SYNC_USER_PREFERENCE"
+
 	TerminalError = "TERMINAL_ERROR"
+
+	MessageNotify = "MESSAGE_NOTIFY"
 )
 
 type WindowSize struct {
@@ -78,6 +83,10 @@ type ShareResponse struct {
 
 type ShareInfo struct {
 	Record model.ShareRecord
+}
+
+type UserKoKoPreferenceParam struct {
+	ThemeName string `json:"terminal_theme_name"`
 }
 
 const (

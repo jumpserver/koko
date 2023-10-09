@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/gliderlabs/ssh"
-
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -186,6 +185,17 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 		logger.Debugf("Ws[%s] receive share remove user request %s", h.ws.Uuid, msg.Data)
 		go h.removeShareUser(&query)
 		return
+	case TerminalSyncUserPreference:
+		var preference UserKoKoPreferenceParam
+		err := json.Unmarshal([]byte(msg.Data), &preference)
+		if err != nil {
+			logger.Errorf("Ws[%s] message(%s) data unmarshal err: %s", h.ws.Uuid,
+				msg.Type, msg.Data)
+			return
+		}
+		logger.Debugf("Ws[%s] receive sync user preference request %s", h.ws.Uuid, msg.Data)
+		go h.syncUserPreference(&preference)
+		return
 	case CLOSE:
 		_ = h.backendClient.Close()
 	default:
@@ -207,6 +217,41 @@ func (h *tty) removeShareUser(query *RemoveSharingUserParams) {
 			Meta:  query.UserMeta,
 		})
 	}
+}
+
+func (h *tty) syncUserPreference(preference *UserKoKoPreferenceParam) {
+	/*
+		{"basic":{"file_name_conflict_resolution":"replace","terminal_theme_name":"Flat"}}
+	*/
+	reqCookies := h.ws.ctx.Request.Cookies()
+	var cookies = make(map[string]string)
+	for _, cookie := range reqCookies {
+		cookies[cookie.Name] = cookie.Value
+	}
+	data := model.UserKokoPreference{
+		Basic: model.KokoBasic{
+			ThemeName: preference.ThemeName,
+		},
+	}
+	var msg struct {
+		EventName string `json:"event_name"`
+	}
+	msg.EventName = "sync_user_preference"
+	errMsg := ""
+	err := h.ws.apiClient.SyncUserKokoPreference(cookies, data)
+	if err != nil {
+		logger.Errorf("Ws[%s] sync user preference err: %s", h.ws.Uuid, err)
+		errMsg = err.Error()
+	}
+	msgNotify, _ := json.Marshal(msg)
+
+	h.ws.SendMessage(&Message{
+		Id:   h.ws.Uuid,
+		Type: MessageNotify,
+		Data: string(msgNotify),
+		Err:  errMsg,
+	})
+
 }
 
 func (h *tty) createShareSession(shareData *ShareRequestParams) {

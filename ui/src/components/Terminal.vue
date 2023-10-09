@@ -29,7 +29,7 @@ import 'xterm/css/xterm.css'
 import {Terminal} from 'xterm';
 import {FitAddon} from 'xterm-addon-fit';
 import ZmodemBrowser from "nora-zmodemjs/src/zmodem_browser";
-import {bytesHuman, fireEvent} from '@/utils/common'
+import {bytesHuman, defaultTheme, fireEvent} from '@/utils/common'
 import xtermTheme from "xterm-theme";
 
 const MaxTimeout = 30 * 1000
@@ -52,7 +52,11 @@ export default {
     enableZmodem: {
       type: Boolean,
       default: false,
-    }
+    },
+    themeName: {
+      type: String,
+      default: 'Default',
+    },
   },
   data() {
     return {
@@ -80,17 +84,14 @@ export default {
   mounted: function () {
     this.registerJMSEvent()
     this.connect()
-    this.updateTheme()
+    this.updateTheme(this.themeName)
   },
   methods: {
-    updateTheme() {
-      const ThemeName = window.localStorage.getItem("themeName") || null
-      if (ThemeName) {
-        const theme = xtermTheme[ThemeName]
-        this.term.setOption("theme", theme);
-        this.$log.debug("theme: ", ThemeName)
-        this.$emit("background-color", theme.background)
-      }
+    updateTheme(themeName) {
+      const theme = xtermTheme[themeName] || defaultTheme
+      this.term.setOption("theme", theme)
+      this.$log.debug("theme: ",themeName)
+      this.$emit("background-color", theme.background)
     },
     createTerminal() {
       let lineHeight = this.config.lineHeight;
@@ -403,6 +404,26 @@ export default {
           this.term.writeln(errMsg);
           break
         }
+        case 'MESSAGE_NOTIFY': {
+          const errMsg = msg.err;
+          const eventData = JSON.parse(msg.data);
+
+          const eventName = eventData.event_name;
+          switch (eventName) {
+            case 'sync_user_preference':
+              if (errMsg === '' || errMsg === null) {
+                const successNotify = this.$t("Terminal.SyncUserPreferenceSuccess")
+                this.$message.success(successNotify)
+              } else {
+                const errNotify = `${this.$t("Terminal.SyncUserPreferenceFailed")}: ${errMsg}`
+                this.$message.error(errNotify);
+              }
+              break
+            default:
+              this.$log.debug("unknown: ", eventName)
+          }
+          break
+        }
         default:
           this.$log.debug("default: ", data)
       }
@@ -634,6 +655,10 @@ export default {
         action_permission: action_permission
       }
       this.sendWsMessage('TERMINAL_SHARE', data)
+    },
+
+    syncUserPreference(data) {
+      this.sendWsMessage('TERMINAL_SYNC_USER_PREFERENCE', data)
     },
 
     removeShareUser(sessionId, userMeta) {

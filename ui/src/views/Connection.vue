@@ -12,7 +12,10 @@
       <Settings :settings="settings" :title="$t('Terminal.Settings')"/>
     </RightPanel>
 
-    <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
+    <ThemeConfig :visible.sync="dialogVisible"  :themeName="themeName"
+                 @setTheme="handleChangeTheme"
+                 @syncThemeName="handleSyncTheme">
+    </ThemeConfig>
 
     <el-dialog
         :title="shareTitle"
@@ -89,6 +92,7 @@ import ThemeConfig from "@/components/ThemeConfig";
 import {BASE_URL, BASE_WS_URL, CopyTextToClipboard, defaultTheme} from "@/utils/common";
 import RightPanel from '@/components/RightPanel';
 import Settings from '@/components/Settings';
+import xtermTheme from "xterm-theme";
 
 export default {
   components: {
@@ -128,6 +132,7 @@ export default {
       shareInfo: null,
       onlineUsersMap: {},
       userOptions: [],
+      themeName: 'Default',
     }
   },
   computed: {
@@ -248,6 +253,7 @@ export default {
     },
     onThemeBackground(val) {
       this.themeBackground = val
+      this.$log.debug("onThemeBackground: ", val)
     },
     onWsData(msgType, msg) {
       switch (msgType) {
@@ -256,6 +262,7 @@ export default {
           const sessionDetail = sessionInfo.session;
           this.$log.debug("sessionDetail backspaceAsCtrlH: ", sessionInfo.backspaceAsCtrlH);
           this.$log.debug("sessionDetail ctrlCAsCtrlZ: ", sessionInfo.ctrlCAsCtrlZ);
+          this.$log.debug("sessionDetail themeName: ", sessionInfo.themeName);
           if ((sessionInfo.backspaceAsCtrlH !== undefined) && this.$refs.term) {
             const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
             this.$log.debug("set backspaceAsCtrlH: " + value);
@@ -271,6 +278,8 @@ export default {
           if (setting.SECURITY_SESSION_SHARE) {
             this.enableShare = true;
           }
+          this.themeName = sessionInfo.themeName;
+          this.updateThemeSetting(sessionInfo.themeName, xtermTheme[sessionInfo.themeName]);
           break
         }
         case "TERMINAL_SHARE": {
@@ -324,13 +333,24 @@ export default {
       this.$log.debug("on ws data: ", msg)
     },
 
-    handleChangeTheme(val) {
+    handleChangeTheme(themeName,val) {
+      this.updateThemeSetting(themeName, val)
+    },
+    handleSyncTheme(themeName,val) {
+      this.$log.debug(themeName,val);
+      if (this.$refs.term) {
+        const data = {'terminal_theme_name': themeName}
+        this.$refs.term.syncUserPreference(data);
+      }
+
+    },
+    updateThemeSetting(themeName,val) {
       const themeColors = val || defaultTheme;
       if (this.$refs.term.term) {
         this.$refs.term.term.setOption("theme", themeColors);
         this.themeBackground = themeColors.background;
       }
-      this.$log.debug(val);
+      this.$log.debug(themeName, val);
     },
     handleShareURlCreated() {
       this.loading = true
