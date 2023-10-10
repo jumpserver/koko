@@ -145,6 +145,10 @@ func NewReplayRecord(sid string, jmsService *service.JMService,
 	fd, err := os.Create(recorder.absFilePath)
 	if err != nil {
 		logger.Errorf("Create replay file %s error: %s\n", recorder.absFilePath, err)
+		reason := model.SessionReplayErrCreatedFailed
+		if err1 := jmsService.SessionReplayFailed(sid, reason); err1 != nil {
+			logger.Errorf("Session[%s] update replay status %s failed: %s", sid, reason, err1)
+		}
 		recorder.err = err
 		return recorder, err
 	}
@@ -242,6 +246,10 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		// 如果还是失败，上传 server 再传一次
 		if i == maxRetry {
 			if r.storage.TypeName() == "server" {
+				reason := model.SessionReplayErrUploadFailed
+				if err1 := r.jmsService.SessionReplayFailed(r.SessionID, reason); err1 != nil {
+					logger.Errorf("Session[%s] update replay status %s failed: %s", r.SessionID, reason, err1)
+				}
 				break
 			}
 			logger.Errorf("Session[%s] using server storage retry upload", r.SessionID)

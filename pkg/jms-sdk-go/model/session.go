@@ -86,3 +86,15 @@ func ParseReplayVersion(gzFile string, defaultValue ReplayVersion) ReplayVersion
 	}
 	return defaultValue
 }
+
+type ReplayError LabelField
+
+func (r ReplayError) Error() string {
+	return string(r)
+}
+
+const (
+	SessionReplayErrConnectFailed ReplayError = "connect_failed"
+	SessionReplayErrCreatedFailed ReplayError = "replay_create_failed"
+	SessionReplayErrUploadFailed  ReplayError = "replay_upload_failed"
+)

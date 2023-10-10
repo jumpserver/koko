@@ -43,7 +43,7 @@ func (s *JMService) SyncUserKokoPreference(cookies map[string]string, data model
 	checkNamePrefixValid := func(name string) bool {
 		invalidStrings := []string{`""`, `''`}
 		for _, invalidString := range invalidStrings {
-			if strings.Index(name, invalidString) != -1 {
+			if strings.Contains(name, invalidString) {
 				return false
 			}
 		}

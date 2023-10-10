@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
@@ -46,11 +47,20 @@ func (s *JMService) SessionSuccess(sid string) error {
 }
 
 func (s *JMService) SessionFailed(sid string, err error) error {
-	data := map[string]bool{
-		"is_success": false,
+	data := map[string]interface{}{
+		"is_success":   false,
+		"error_reason": model.SessionReplayErrConnectFailed,
 	}
 	return s.sessionPatch(sid, data)
 }
+
+func (s *JMService) SessionReplayFailed(sid string, err model.ReplayError) error {
+	data := map[string]interface{}{
+		"error_reason": err,
+	}
+	return s.sessionPatch(sid, data)
+}
+
 func (s *JMService) SessionDisconnect(sid string) error {
 	return s.SessionFinished(sid, common.NewNowUTCTime())
 }
