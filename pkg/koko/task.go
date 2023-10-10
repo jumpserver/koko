@@ -68,6 +68,10 @@ func uploadRemainReplay(jmsService *service.JMService) {
 		logger.Infof("Upload replay file: %s, type: %s", absGzPath, replayStorage.TypeName())
 		if err2 := replayStorage.Upload(absGzPath, Target); err2 != nil {
 			logger.Errorf("Upload remain replay file %s failed: %s", absGzPath, err2)
+			reason := model.SessionReplayErrUploadFailed
+			if err3 := jmsService.SessionReplayFailed(remainReplay.Id, reason); err3 != nil {
+				logger.Errorf("Update session %s status %s failed: %s", remainReplay.Id, reason, err3)
+			}
 			continue
 		}
 		if err := jmsService.FinishReply(remainReplay.Id); err != nil {
