@@ -136,6 +136,8 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 		sentinelOpts = append(sentinelOpts, dialOptions...)
 		if cfg.SentinelPassword != "" {
 			sentinelOpts = append(sentinelOpts, radix.DialAuthPass(cfg.SentinelPassword))
+		} else {
+			sentinelOpts = append(sentinelOpts, radix.DialAuthUser("", ""))
 		}
 		sentinelConnFunc := func(network, addr string) (radix.Conn, error) {
 			conn, err := radix.Dial(network, addr, sentinelOpts...)
