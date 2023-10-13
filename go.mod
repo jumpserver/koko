@@ -33,7 +33,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/xlab/treeprint v1.1.0
 	go.mongodb.org/mongo-driver v1.8.3
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
+	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
 	golang.org/x/text v0.8.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.23.1
@@ -119,6 +119,6 @@ require (
 )
 
 replace (
-	github.com/gliderlabs/ssh v0.3.3 => github.com/LeeEirc/ssh v0.1.2-0.20220323091501-23b956e1e5a8
+	github.com/gliderlabs/ssh => github.com/LeeEirc/ssh v0.1.2-0.20231007053448-a6110c0dfc4a
 	golang.org/x/crypto => github.com/LeeEirc/crypto v0.0.0-20230919154755-059031d26b68
 )
