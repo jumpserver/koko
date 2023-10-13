@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"net"
 	"strings"
 
@@ -84,6 +85,11 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	if value, ok := ctx.Value(ContextKeyAuthFailed).(*bool); ok && *value {
 		return sshd.AuthFailed
 	}
+	if val := ctx.Value(ContextKeyPartialSuccessMethod); val == nil {
+		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found partial success method.",
+			ctx.SessionID())
+		return sshd.AuthFailed
+	}
 	username := GetUsernameFromSSHCtx(ctx)
 	res = sshd.AuthFailed
 	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
@@ -110,6 +116,19 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	return
 }
 
+func SSHAuthLogCallback(ctx ssh.Context, method string, err error) {
+	if err == nil {
+		logger.Errorf("SSH conn[%s] auth method %s success", ctx.SessionID(), method)
+		return
+	}
+	if errors.Is(err, gossh.ErrPartialSuccess) {
+		ctx.SetValue(ContextKeyPartialSuccessMethod, method)
+		logger.Infof("SSH conn[%s] auth method %s partially success", ctx.SessionID(), method)
+	} else {
+		logger.Errorf("SSH conn[%s] auth method %s failed: %s", ctx.SessionID(), method, err)
+	}
+}
+
 const (
 	ContextKeyUser   = "CONTEXT_USER"
 	ContextKeyClient = "CONTEXT_CLIENT"
@@ -119,6 +138,8 @@ const (
 	ContextKeyAuthFailed = "CONTEXT_AUTH_FAILED"
 
 	ContextKeyDirectLoginFormat = "CONTEXT_DIRECT_LOGIN_FORMAT"
+
+	ContextKeyPartialSuccessMethod = "CONTEXT_PARTIAL_SUCCESS_METHOD"
 )
 
 type DirectLoginAssetReq struct {

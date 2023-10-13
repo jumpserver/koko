@@ -45,6 +45,7 @@ type SSHHandler interface {
 	KeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) AuthStatus
 	PasswordAuth(ctx ssh.Context, password string) AuthStatus
 	PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) AuthStatus
+	AuthLogCallback(ctx ssh.Context, method string, err error)
 	NextAuthMethodsHandler(ctx ssh.Context) []string
 	SessionHandler(ssh.Session)
 	SFTPHandler(ssh.Session)
@@ -74,6 +75,9 @@ func NewSSHServer(handler SSHHandler) *Server {
 		},
 		PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
 			return ssh.AuthResult(handler.PublicKeyAuth(ctx, key))
+		},
+		AuthLogCallback: func(ctx ssh.Context, method string, err error) {
+			handler.AuthLogCallback(ctx, method, err)
 		},
 		NextAuthMethodsHandler: func(ctx ssh.Context) []string {
 			return handler.NextAuthMethodsHandler(ctx)

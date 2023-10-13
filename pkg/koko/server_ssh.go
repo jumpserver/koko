@@ -70,6 +70,10 @@ func (s *server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) sshd.AuthStat
 	return sshAuthHandler(ctx, "", publicKey)
 }
 
+func (s *server) AuthLogCallback(ctx ssh.Context, method string, err error) {
+	auth.SSHAuthLogCallback(ctx, method, err)
+}
+
 func (s *server) NextAuthMethodsHandler(ctx ssh.Context) []string {
 	return []string{nextAuthMethod}
 }
