@@ -17,18 +17,6 @@ func (s *JMService) CreateSuperConnectToken(data *SuperConnectTokenReq) (resp mo
 	return
 }
 
-func (s *JMService) CreateConnectTokenAndGetAuthInfo(params *SuperConnectTokenReq) (model.ConnectToken, error) {
-	tokenInfo, err := s.CreateSuperConnectToken(params)
-	if err != nil {
-		return model.ConnectToken{}, err
-	}
-	connectToken, err := s.GetConnectTokenInfo(tokenInfo.ID)
-	if err != nil {
-		return model.ConnectToken{}, err
-	}
-	return connectToken, nil
-}
-
 type SuperConnectTokenReq struct {
 	UserId        string `json:"user"`
 	AssetId       string `json:"asset"`
@@ -37,6 +25,7 @@ type SuperConnectTokenReq struct {
 	ConnectMethod string `json:"connect_method"`
 	InputUsername string `json:"input_username"`
 	InputSecret   string `json:"input_secret"`
+	RemoteAddr    string `json:"remote_addr"`
 
 	Params map[string]string `json:"-"`
 }

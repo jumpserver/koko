@@ -175,6 +175,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		Account:       selectedAccount.Alias,
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
+		RemoteAddr:    u.h.sess.RemoteAddr(),
 	}
 	tokenInfo, err := u.h.jmsService.CreateSuperConnectToken(&req)
 	if err != nil {

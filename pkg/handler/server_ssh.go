@@ -239,12 +239,14 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset model.Asset,
 	permAccount model.PermAccount) {
 	//  仅支持 ssh 的协议资产
+	remoteAddr, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
 	req := &service.SuperConnectTokenReq{
 		UserId:        user.ID,
 		AssetId:       asset.ID,
 		Account:       permAccount.Alias,
 		Protocol:      model.ProtocolSSH,
 		ConnectMethod: model.ProtocolSSH,
+		RemoteAddr:    remoteAddr,
 	}
 	// ssh 非交互式的直连格式，不支持资产的登录复核
 	tokenInfo, err := s.jmsService.CreateSuperConnectToken(req)
