@@ -578,6 +578,7 @@ func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToke
 		Account:       su.Alias,
 		Protocol:      model.ProtocolSFTP,
 		ConnectMethod: model.ProtocolSFTP,
+		RemoteAddr:    ad.opts.RemoteAddr,
 	}
 	// sftp 不支持 ACL 复核的资产，需要从 web terminal 中登录
 	tokenInfo, err := ad.jmsService.CreateSuperConnectToken(&req)

@@ -390,6 +390,7 @@ func (d *DirectHandler) Proxy(asset model.Asset) {
 		Account:       selectAccount.Alias,
 		Protocol:      protocol,
 		ConnectMethod: model.ProtocolSSH,
+		RemoteAddr:    d.wrapperSess.RemoteAddr(),
 	}
 	tokenInfo, err := d.jmsService.CreateSuperConnectToken(&req)
 	if err != nil {
