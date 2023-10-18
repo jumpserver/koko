@@ -56,9 +56,9 @@ func (u *UserClient) GetAPIToken() (resp AuthResponse, err error) {
 	ak := u.Opts.signKey
 	// 移除 Secret 中的 "-", 保证长度为 32
 	secretKey := strings.ReplaceAll(ak.Secret, "-", "")
-	encryptKey, err := GenerateEncryptKey(secretKey)
+	encryptKey, err1 := GenerateEncryptKey(secretKey)
 	if err != nil {
-		return resp, err
+		return resp, err1
 	}
 	signKey := fmt.Sprintf("%s:%s", ak.ID, encryptKey)
 	u.client.SetHeader(svcHeader, fmt.Sprintf("Sign %s", signKey))

@@ -1,6 +1,9 @@
 package service
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
@@ -13,7 +16,21 @@ func (s *JMService) GetConnectTokenInfo(tokenId string) (resp model.ConnectToken
 }
 
 func (s *JMService) CreateSuperConnectToken(data *SuperConnectTokenReq) (resp model.ConnectTokenInfo, err error) {
-	_, err = s.authClient.Post(SuperConnectTokenInfoURL, data, &resp, data.Params)
+	ak := s.opt.accessKey
+	apiClient := s.authClient.Clone()
+	if s.opt.sign != nil {
+		apiClient.SetAuthSign(s.opt.sign)
+	}
+	apiClient.SetHeader(orgHeaderKey, orgHeaderValue)
+	// 移除 Secret 中的 "-", 保证长度为 32
+	secretKey := strings.ReplaceAll(ak.Secret, "-", "")
+	encryptKey, err1 := GenerateEncryptKey(secretKey)
+	if err != nil {
+		return resp, err1
+	}
+	signKey := fmt.Sprintf("%s:%s", ak.ID, encryptKey)
+	apiClient.SetHeader(svcHeader, fmt.Sprintf("Sign %s", signKey))
+	_, err = apiClient.Post(SuperConnectTokenInfoURL, data, &resp, data.Params)
 	return
 }
 
