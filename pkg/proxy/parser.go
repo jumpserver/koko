@@ -34,6 +34,10 @@ var (
 		[]byte("\x1b[?1047l"),
 		[]byte("\x1b[?47l"),
 	}
+	screenMarks = [][]byte{
+		[]byte{0x1b, 0x5b, 0x4b, 0x0d, 0x0a},
+		[]byte{0x1b, 0x5b, 0x34, 0x6c},
+	}
 )
 
 const (
@@ -452,8 +456,10 @@ func (p *Parser) parseZmodemState(b []byte) {
 // parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
 func (p *Parser) parseVimState(b []byte) {
 	if !p.inVimState && IsEditEnterMode(b) {
-		p.inVimState = true
-		logger.Debug("In vim state: true")
+		if !isNewScreen(b) {
+			p.inVimState = true
+			logger.Debug("In vim state: true")
+		}
 	}
 	if p.inVimState && IsEditExitMode(b) {
 		p.inVimState = false
@@ -702,6 +708,10 @@ type CurrentActiveUser struct {
 	UserId     string
 	User       string
 	RemoteAddr string
+}
+
+func isNewScreen(p []byte) bool {
+	return matchMark(p, screenMarks)
 }
 
 func IsEditEnterMode(p []byte) bool {
