@@ -2,15 +2,10 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
-
-func (s *JMService) GetTokenAsset(token string) (tokenUser model.TokenUser, err error) {
-	Url := fmt.Sprintf(TokenAssetURL, token)
-	_, err = s.authClient.Get(Url, &tokenUser)
-	return
-}
 
 func (s *JMService) GetConnectTokenInfo(tokenId string) (resp model.ConnectToken, err error) {
 	data := map[string]string{
@@ -21,20 +16,22 @@ func (s *JMService) GetConnectTokenInfo(tokenId string) (resp model.ConnectToken
 }
 
 func (s *JMService) CreateSuperConnectToken(data *SuperConnectTokenReq) (resp model.ConnectTokenInfo, err error) {
-	_, err = s.authClient.Post(SuperConnectTokenInfoURL, data, &resp, data.Params)
+	ak := s.opt.accessKey
+	apiClient := s.authClient.Clone()
+	if s.opt.sign != nil {
+		apiClient.SetAuthSign(s.opt.sign)
+	}
+	apiClient.SetHeader(orgHeaderKey, orgHeaderValue)
+	// 移除 Secret 中的 "-", 保证长度为 32
+	secretKey := strings.ReplaceAll(ak.Secret, "-", "")
+	encryptKey, err1 := GenerateEncryptKey(secretKey)
+	if err != nil {
+		return resp, err1
+	}
+	signKey := fmt.Sprintf("%s:%s", ak.ID, encryptKey)
+	apiClient.SetHeader(svcHeader, fmt.Sprintf("Sign %s", signKey))
+	_, err = apiClient.Post(SuperConnectTokenInfoURL, data, &resp, data.Params)
 	return
-}
-
-func (s *JMService) CreateConnectTokenAndGetAuthInfo(params *SuperConnectTokenReq) (model.ConnectToken, error) {
-	tokenInfo, err := s.CreateSuperConnectToken(params)
-	if err != nil {
-		return model.ConnectToken{}, err
-	}
-	connectToken, err := s.GetConnectTokenInfo(tokenInfo.ID)
-	if err != nil {
-		return model.ConnectToken{}, err
-	}
-	return connectToken, nil
 }
 
 type SuperConnectTokenReq struct {
@@ -45,6 +42,7 @@ type SuperConnectTokenReq struct {
 	ConnectMethod string `json:"connect_method"`
 	InputUsername string `json:"input_username"`
 	InputSecret   string `json:"input_secret"`
+	RemoteAddr    string `json:"remote_addr"`
 
 	Params map[string]string `json:"-"`
 }

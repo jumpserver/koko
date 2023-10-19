@@ -25,11 +25,9 @@ func (u *User) String() string {
 	return fmt.Sprintf("%s(%s)", u.Name, u.Username)
 }
 
-type TokenUser struct {
-	UserID         string `json:"user"`
-	UserName       string `json:"username"`
-	AssetID        string `json:"asset"`
-	Hostname       string `json:"hostname"`
-	SystemUserID   string `json:"system_user"`
-	SystemUserName string `json:"system_user_name"`
+type UserKokoPreference struct {
+	Basic KokoBasic `json:"basic"`
+}
+type KokoBasic struct {
+	ThemeName string `json:"terminal_theme_name"`
 }

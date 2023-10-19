@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"errors"
 	"net"
 	"strings"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/jumpserver/koko/pkg/config"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -36,12 +38,15 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		userAuthClient, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 		if !ok {
 			newClient := jmsService.CloneClient()
-
+			var accessKey model.AccessKey
+			conf := config.GetConf()
+			_ = accessKey.LoadFromFile(conf.AccessKeyFilePath)
 			userClient := service.NewUserClient(
 				service.UserClientUsername(username),
 				service.UserClientRemoteAddr(remoteAddr),
 				service.UserClientLoginType("T"),
 				service.UserClientHttpClient(&newClient),
+				service.UserClientSvcSignKey(accessKey),
 			)
 			userAuthClient = &UserAuthClient{
 				UserClient:  userClient,
@@ -78,6 +83,13 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	if value, ok := ctx.Value(ContextKeyAuthFailed).(*bool); ok && *value {
 		return ssh.AuthFailed
 	}
+	// 2 steps auth must have a partial success method
+	if val := ctx.Value(ContextKeyPartialSuccessMethod); val == nil {
+		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found partial success method.",
+			ctx.SessionID(), ctx.User())
+		return ssh.AuthFailed
+	}
+
 	username := GetUsernameFromSSHCtx(ctx)
 	res = ssh.AuthFailed
 	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
@@ -104,6 +116,19 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	return
 }
 
+func SSHAuthLogCallback(ctx ssh.Context, method string, err error) {
+	if err == nil {
+		logger.Errorf("SSH conn[%s] auth method %s success", ctx.SessionID(), method)
+		return
+	}
+	if errors.Is(err, gossh.ErrPartialSuccess) {
+		ctx.SetValue(ContextKeyPartialSuccessMethod, method)
+		logger.Infof("SSH conn[%s] auth method %s partially success", ctx.SessionID(), method)
+	} else {
+		logger.Errorf("SSH conn[%s] auth method %s failed: %s", ctx.SessionID(), method, err)
+	}
+}
+
 const (
 	ContextKeyUser   = "CONTEXT_USER"
 	ContextKeyClient = "CONTEXT_CLIENT"
@@ -113,6 +138,8 @@ const (
 	ContextKeyAuthFailed = "CONTEXT_AUTH_FAILED"
 
 	ContextKeyDirectLoginFormat = "CONTEXT_DIRECT_LOGIN_FORMAT"
+
+	ContextKeyPartialSuccessMethod = "CONTEXT_PARTIAL_SUCCESS_METHOD"
 )
 
 type DirectLoginAssetReq struct {

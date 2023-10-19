@@ -45,7 +45,10 @@
     "Minute": "Minute",
     "Minutes": "Minutes",
     "PauseSession" : "Pause Session",
-    "ResumeSession" : "Resume Session"
+    "ResumeSession" : "Resume Session",
+    "SyncUserPreferenceSuccess": "Sync user preference success",
+    "SyncUserPreferenceFailed": "Sync user preference failed",
+    "Sync": "Sync"
   },
   "Message": {
     "InputVerifyCode": "Input Verify Code"

@@ -8,9 +8,16 @@
       :close-on-press-escape="false">
 
       <div class="content">
-        <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')" style="width: 100%">
-            <el-option v-for="item in themes" :key="item" :label="item" :value="item"></el-option>
-          </el-select>
+        <el-form :inline="true" >
+          <el-form-item style="width: 73%">
+            <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')">
+              <el-option v-for="item in themes" :key="item" :label="item" :value="item"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item style="width: 20%" v-loading="loading" >
+            <el-button class="sync-btn" @click="syncTheme">{{ this.$t('Terminal.Sync') }}</el-button>
+          </el-form-item>
+        </el-form>
           <div v-if="Object.keys(colors).length > 0">
             <p class="title">Theme Colors</p>
             <el-row type="flex" class="theme-colors">
@@ -110,12 +117,17 @@ const themes = Object.keys(xtermTheme);
 export default {
   name: "ThemeConfig",
   props: {
-    visible: Boolean
+    visible: Boolean,
+    themeName: {
+      type: String,
+      required: true
+    },
   },
   data() {
     return {
       themes: ['Default', ...themes],
-      theme: window.localStorage.getItem("themeName") || 'Default',
+      theme: 'Default',
+      loading: false,
     };
   },
   computed: {
@@ -138,12 +150,22 @@ export default {
   watch: {
     theme(val) {
       const theme = val && val !== 'Default' ? val : '';
-      window.localStorage.setItem("themeName", theme);
-      this.$emit("setTheme", xtermTheme[theme]);
+      this.$emit("setTheme",theme, xtermTheme[theme]);
+    },
+    themeName(val) {
+      this.theme = val;
     }
   },
-  mounted() {
-    this.$emit("setTheme", xtermTheme[this.theme]);
+  methods: {
+    syncTheme() {
+      this.loading = true;
+      const vm = this;
+      this.$emit("syncThemeName",this.theme, xtermTheme[this.theme]);
+      // 5s后关闭loading, 避免出现异常
+      setTimeout(function () {
+        vm.loading = false;
+      }, 1000*5);
+    }
   }
 };
 </script>
@@ -177,4 +199,8 @@ export default {
   height: 300px;
 }
 
+.sync-btn {
+  background-color: #343333;
+  color: white;
+}
 </style>
