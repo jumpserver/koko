@@ -701,8 +701,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 
 	platform := s.connOpts.authInfo.Platform
 	pty := s.UserConn.Pty()
+	charset := s.getCharset()
 	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)
-	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(platform.Charset.Value))
+	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(charset))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHTerm(pty.Term))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHPtyWin(srvconn.Windows{
 		Width:  pty.Window.Width,
