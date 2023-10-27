@@ -967,6 +967,10 @@ func (s *Server) getCharset() string {
 			charset = common.UTF8
 		case "gbk":
 			charset = common.GBK
+		case "gb2312":
+			charset = common.GB2312
+		case "ios-8859-1", "ascii":
+			charset = common.ISOLatin1
 		default:
 		}
 	}
