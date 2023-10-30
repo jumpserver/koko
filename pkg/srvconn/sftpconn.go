@@ -355,10 +355,15 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.PermAsset) ma
 		return ok
 	}
 	for i := range assets {
-		// todo： 使用新的 API 过滤
-		//if !assets[i].IsSupportProtocol(ProtocolSFTP) {
-		//	continue
-		//}
+		// todo: 后期优化 API 循环查询的情况
+		permAssetDetail, err := u.jmsService.GetUserPermAssetDetailById(u.User.ID, assets[i].ID)
+		if err != nil {
+			logger.Errorf("Get perm detail asset %s err: %s", assets[i].Name, err)
+			continue
+		}
+		if !permAssetDetail.SupportProtocol(ProtocolSFTP) {
+			continue
+		}
 		folderName := cleanFolderName(assets[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 		opts := make([]FolderBuilderOption, 0, 5)
