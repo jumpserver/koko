@@ -57,14 +57,14 @@ type directOpt struct {
 
 	sftpMode bool
 
-	assets []model.Asset
+	assets []model.PermAsset
 }
 
 func (d directOpt) IsTokenConnection() bool {
 	return d.formatType == FormatToken
 }
 
-func DirectAssets(assets []model.Asset) DirectOpt {
+func DirectAssets(assets []model.PermAsset) DirectOpt {
 	return func(opts *directOpt) {
 		opts.assets = assets
 	}
@@ -149,7 +149,7 @@ type DirectHandler struct {
 
 	i18nLang string
 
-	selectAsset   *model.Asset
+	selectAsset   *model.PermAsset
 	selectAccount *model.PermAccount
 }
 
@@ -315,9 +315,9 @@ func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.P
 	}
 }
 
-func (d *DirectHandler) displayAssets(assets []model.Asset) {
+func (d *DirectHandler) displayAssets(assets []model.PermAsset) {
 	assetListSortBy := d.opts.terminalConf.AssetListSortBy
-	model.AssetList(assets).SortBy(assetListSortBy)
+	model.PermAssetList(assets).SortBy(assetListSortBy)
 
 	vt := d.term
 	lang := i18n.NewLang(d.i18nLang)
@@ -361,16 +361,16 @@ func (d *DirectHandler) displayAssets(assets []model.Asset) {
 	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 }
 
-func (d *DirectHandler) Proxy(asset model.Asset) {
+func (d *DirectHandler) Proxy(asset model.PermAsset) {
 	d.selectAsset = &asset
 	lang := i18n.NewLang(d.i18nLang)
-	accounts, err := d.jmsService.GetAccountsByUserIdAndAssetId(d.opts.User.ID, asset.ID)
+	permAssetDetail, err := d.jmsService.GetUserPermAssetDetailById(d.opts.User.ID, asset.ID)
 	if err != nil {
 		logger.Errorf("Get account failed: %s", err)
 		utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
 		return
 	}
-	matched := GetMatchedAccounts(accounts, d.opts.targetAccount)
+	matched := GetMatchedAccounts(permAssetDetail.PermedAccounts, d.opts.targetAccount)
 	if len(matched) == 0 {
 		msg := fmt.Sprintf(lang.T("not found matched username %s"), d.opts.targetAccount)
 		utils.IgnoreErrWriteString(d.term, msg+"\r\n")

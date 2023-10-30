@@ -348,16 +348,17 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	return dirs
 }
 
-func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset) map[string]os.FileInfo {
+func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.PermAsset) map[string]os.FileInfo {
 	dirs := make(map[string]os.FileInfo)
 	matchFunc := func(s string) bool {
 		_, ok := dirs[s]
 		return ok
 	}
 	for i := range assets {
-		if !assets[i].IsSupportProtocol(ProtocolSFTP) {
-			continue
-		}
+		// todo： 使用新的 API 过滤
+		//if !assets[i].IsSupportProtocol(ProtocolSFTP) {
+		//	continue
+		//}
 		folderName := cleanFolderName(assets[i].Name)
 		folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 		opts := make([]FolderBuilderOption, 0, 5)
@@ -390,7 +391,7 @@ type userSftpOption struct {
 	user       *model.User
 	RemoteAddr string
 	loginFrom  model.LabelField
-	assets     []model.Asset
+	assets     []model.PermAsset
 	token      *model.ConnectToken
 }
 
@@ -414,7 +415,7 @@ func WithLoginFrom(loginFrom model.LabelField) UserSftpOption {
 	}
 }
 
-func WithAssets(assets []model.Asset) UserSftpOption {
+func WithAssets(assets []model.PermAsset) UserSftpOption {
 	return func(o *userSftpOption) {
 		o.assets = assets
 	}

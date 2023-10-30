@@ -10,8 +10,7 @@ const (
 
 // 用户登陆认证使用的API
 const (
-	TokenAssetURL      = "/api/v1/authentication/connection-token/%s/" // Token name
-	UserTokenAuthURL   = "/api/v1/authentication/tokens/"              // 用户登录验证
+	UserTokenAuthURL   = "/api/v1/authentication/tokens/" // 用户登录验证
 	UserConfirmAuthURL = "/api/v1/authentication/login-confirm-ticket/status/"
 	AuthMFASelectURL   = "/api/v1/authentication/mfa/select/" // 选择 MFA
 
@@ -70,7 +69,7 @@ const (
 	SuperConnectTokenSecretURL = "/api/v1/authentication/super-connection-token/secret/"
 	SuperConnectTokenInfoURL   = "/api/v1/authentication/super-connection-token/"
 
-	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/accounts/"
+	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/"
 	AccountSecretURL          = "/api/v1/assets/account-secrets/%s/"
 	UserPermsAssetsURL        = "/api/v1/perms/users/%s/assets/"
 

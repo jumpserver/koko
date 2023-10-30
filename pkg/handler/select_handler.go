@@ -41,14 +41,14 @@ type UserSelectHandler struct {
 	hasPre  bool
 	hasNext bool
 
-	allLocalData []model.Asset
+	allLocalData []model.PermAsset
 
 	selectedNode  model.Node
-	currentResult []model.Asset
+	currentResult []model.PermAsset
 
 	*pageInfo
 
-	selectedAsset   *model.Asset
+	selectedAsset   *model.PermAsset
 	selectedAccount *model.PermAccount
 
 	hiddenFields map[string]struct{}
@@ -112,9 +112,9 @@ func (u *UserSelectHandler) SetNode(node model.Node) {
 	u.selectedNode = node
 }
 
-func (u *UserSelectHandler) SetAllLocalData(data []model.Asset) {
+func (u *UserSelectHandler) SetAllLocalData(data []model.PermAsset) {
 	// 使用副本
-	u.allLocalData = make([]model.Asset, len(data))
+	u.allLocalData = make([]model.PermAsset, len(data))
 	copy(u.allLocalData, data)
 }
 
@@ -215,11 +215,11 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 	}
 }
 
-func (u *UserSelectHandler) Proxy(target model.Asset) {
+func (u *UserSelectHandler) Proxy(target model.PermAsset) {
 	u.proxyAsset(target)
 }
 
-func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.Asset {
+func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.PermAsset {
 	switch u.loadingPolicy {
 	case loadingFromLocal:
 		return u.retrieveFromLocal(pageSize, offset, searches...)
@@ -228,7 +228,7 @@ func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) [
 	}
 }
 
-func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...string) []model.Asset {
+func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...string) []model.PermAsset {
 	if pageSize <= 0 {
 		pageSize = PAGESIZEALL
 	}
@@ -238,7 +238,7 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 
 	searchResult := u.retrieveLocal(searches...)
 	var (
-		totalData       []model.Asset
+		totalData       []model.PermAsset
 		total           int
 		currentOffset   int
 		currentPageSize int
@@ -270,7 +270,7 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 	return currentData
 }
 
-func (u *UserSelectHandler) retrieveLocal(searches ...string) []model.Asset {
+func (u *UserSelectHandler) retrieveLocal(searches ...string) []model.PermAsset {
 	switch u.currentType {
 	case TypeAsset, TypeHost, TypeDatabase, TypeK8s:
 		return u.searchLocalAsset(searches...)
@@ -282,8 +282,8 @@ func (u *UserSelectHandler) retrieveLocal(searches ...string) []model.Asset {
 	}
 }
 
-func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, searches ...string) []model.Asset {
-	items := make([]model.Asset, 0, len(u.allLocalData))
+func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, searches ...string) []model.PermAsset {
+	items := make([]model.PermAsset, 0, len(u.allLocalData))
 	for i := range u.allLocalData {
 		assetData := u.allLocalData[i]
 		data := map[string]interface{}{
@@ -300,7 +300,7 @@ func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, se
 	return items
 }
 
-func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ...string) []model.Asset {
+func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ...string) []model.PermAsset {
 
 	var order string
 	switch u.h.terminalConf.AssetListSortBy {
@@ -345,7 +345,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 }
 
 func (u *UserSelectHandler) updateRemotePageData(reqParam model.PaginationParam,
-	res model.PaginationResponse) []model.Asset {
+	res model.PaginationResponse) []model.PermAsset {
 	u.hasNext = false
 	u.hasPre = false
 
@@ -413,7 +413,7 @@ func joinMultiLineString(lines string) string {
 	return strings.Join(lineSlice, "|")
 }
 
-func getUniqueAssetFromKey(key string, currentResult []model.Asset) (data model.Asset, ok bool) {
+func getUniqueAssetFromKey(key string, currentResult []model.PermAsset) (data model.PermAsset, ok bool) {
 	result := make([]int, 0, len(currentResult))
 	for i := range currentResult {
 		asset := currentResult[i]
@@ -427,5 +427,5 @@ func getUniqueAssetFromKey(key string, currentResult []model.Asset) (data model.
 	if len(result) == 1 {
 		return currentResult[result[0]], true
 	}
-	return model.Asset{}, false
+	return model.PermAsset{}, false
 }

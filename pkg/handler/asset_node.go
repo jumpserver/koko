@@ -8,7 +8,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationParam) []model.Asset {
+func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationParam) []model.PermAsset {
 	res, err := u.h.jmsService.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user %s node assets failed %s", u.user.Name, err)

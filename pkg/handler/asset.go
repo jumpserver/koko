@@ -15,7 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []model.Asset {
+func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []model.PermAsset {
 	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user perm assets failed: %s", err.Error())
@@ -23,7 +23,7 @@ func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) 
 	return u.updateRemotePageData(reqParam, res)
 }
 
-func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.Asset {
+func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.PermAsset {
 	allFields := []string{"name", "address", "platform", "comment"}
 	fields := make(map[string]struct{}, len(allFields))
 	for i := range allFields {
@@ -53,14 +53,12 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
 	addressLabel := lang.T("Address")
-	protocolsLabel := lang.T("Protocols")
 	platformLabel := lang.T("Platform")
 	orgLabel := lang.T("Organization")
 	commentLabel := lang.T("Comment")
 	idFieldSize := len(idLabel)
 	nameFieldSize := len(nameLabel)
 	addressFieldSize := len(addressLabel)
-	protocolsFieldSize := len(protocolsLabel)
 	platformFieldSize := len(platformLabel)
 	organizationFieldSize := len(orgLabel)
 	commentFieldSize := len(commentLabel)
@@ -72,7 +70,6 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 		row["ID"] = idNumber
 		row["Name"] = strings.ReplaceAll(item.Name, " ", "_") // 多个空格可能会导致换行，所以全部替换成下划线
 		row["Address"] = item.Address
-		row["Protocols"] = strings.Join(item.SupportProtocols(), "|")
 		row["Platform"] = item.Platform.Name
 		row["Organization"] = item.OrgName
 		row["Comment"] = joinMultiLineString(item.Comment)
@@ -98,15 +95,12 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 		"ID":           {idFieldSize, 0, 0},
 		"Name":         {nameFieldSize, 0, 0},
 		"Address":      {addressFieldSize, 0, 0},
-		"Protocols":    {0, protocolsFieldSize, 0},
 		"Platform":     {0, platformFieldSize, 0},
 		"Organization": {0, organizationFieldSize, 0},
 		"Comment":      {0, commentFieldSize, 0},
 	}
-	allLabels := []string{idLabel, nameLabel, addressLabel, protocolsLabel,
-		platformLabel, orgLabel, commentLabel}
-	allFields := []string{"ID", "Name", "Address", "Protocols",
-		"Platform", "Organization", "Comment"}
+	allLabels := []string{idLabel, nameLabel, addressLabel, platformLabel, orgLabel, commentLabel}
+	allFields := []string{"ID", "Name", "Address", "Platform", "Organization", "Comment"}
 	labels := make([]string, 0, len(allLabels))
 	fields := make([]string, 0, len(allFields))
 	for i := range allFields {
@@ -123,9 +117,9 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	u.displayResult(searchHeader, labels, fields, fieldsSize, data)
 }
 
-func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
+func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 	u.selectedAsset = &asset
-	accounts, err := u.h.jmsService.GetAccountsByUserIdAndAssetId(u.user.ID, asset.ID)
+	permAssetDetail, err := u.h.jmsService.GetUserPermAssetDetailById(u.user.ID, asset.ID)
 	if err != nil {
 		logger.Errorf("Get asset accounts err: %s", err)
 		return
@@ -141,7 +135,12 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		}
 		return false
 	}
-	protocols := asset.FilterProtocols(filterFunc)
+	protocols := make([]string, 0, len(permAssetDetail.PermedProtocols))
+	for i := range permAssetDetail.PermedProtocols {
+		if filterFunc(permAssetDetail.PermedProtocols[i].Name) {
+			protocols = append(protocols, permAssetDetail.PermedProtocols[i].Name)
+		}
+	}
 	protocol, ok := u.h.chooseAssetProtocol(protocols)
 	if !ok {
 		logger.Info("Not select protocol")
@@ -162,7 +161,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.Asset) {
 		utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(errMsg))
 		return
 	}
-	supportAccounts := u.filterValidAccount(accounts)
+	supportAccounts := u.filterValidAccount(permAssetDetail.PermedAccounts)
 	selectedAccount, ok := u.h.chooseAccount(supportAccounts)
 	if !ok {
 		logger.Info("Not select account")

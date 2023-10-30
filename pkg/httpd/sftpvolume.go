@@ -22,7 +22,7 @@ import (
 type volumeOption struct {
 	addr         string
 	user         *model.User
-	asset        *model.Asset
+	asset        *model.PermAsset
 	connectToken *model.ConnectToken
 }
 type VolumeOption func(*volumeOption)
@@ -39,7 +39,7 @@ func WithAddr(addr string) VolumeOption {
 	}
 }
 
-func WithAsset(asset *model.Asset) VolumeOption {
+func WithAsset(asset *model.PermAsset) VolumeOption {
 	return func(opts *volumeOption) {
 		opts.asset = asset
 	}
@@ -60,7 +60,17 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	basePath := "/"
 	asset := volOpts.asset
 	if volOpts.connectToken != nil {
-		asset = &volOpts.connectToken.Asset
+		assetDetail := volOpts.connectToken.Asset
+		asset = &model.PermAsset{
+			ID:       assetDetail.ID,
+			Name:     assetDetail.Name,
+			Address:  assetDetail.Address,
+			Comment:  assetDetail.Comment,
+			Platform: assetDetail.Platform,
+			OrgID:    assetDetail.OrgID,
+			OrgName:  assetDetail.OrgName,
+			IsActive: assetDetail.IsActive,
+		}
 	}
 	if asset != nil {
 		folderName := asset.Name
@@ -75,7 +85,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 		sftpOpts = append(sftpOpts, srvconn.WithConnectToken(volOpts.connectToken))
 	}
 	if volOpts.asset != nil {
-		sftpOpts = append(sftpOpts, srvconn.WithAssets([]model.Asset{*volOpts.asset}))
+		sftpOpts = append(sftpOpts, srvconn.WithAssets([]model.PermAsset{*volOpts.asset}))
 	}
 	sftpOpts = append(sftpOpts, srvconn.WithUser(volOpts.user))
 	sftpOpts = append(sftpOpts, srvconn.WithRemoteAddr(volOpts.addr))
