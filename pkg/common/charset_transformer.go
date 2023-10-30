@@ -15,10 +15,8 @@ const (
 
 func LookupCharsetDecode(charset string) transform.Transformer {
 	switch charset {
-	case GBK:
+	case GBK, GB2312:
 		return simplifiedchinese.GBK.NewDecoder()
-	case GB2312:
-		return simplifiedchinese.HZGB2312.NewDecoder()
 	case ISOLatin1:
 		return charmap.ISO8859_1.NewDecoder()
 
@@ -27,10 +25,8 @@ func LookupCharsetDecode(charset string) transform.Transformer {
 }
 func LookupCharsetEncode(charset string) transform.Transformer {
 	switch charset {
-	case GBK:
+	case GBK, GB2312:
 		return simplifiedchinese.GBK.NewEncoder()
-	case GB2312:
-		return simplifiedchinese.HZGB2312.NewEncoder()
 	case ISOLatin1:
 		return charmap.ISO8859_1.NewEncoder()
 
