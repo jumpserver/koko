@@ -348,14 +348,20 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	return dirs
 }
 
-func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.Asset) map[string]os.FileInfo {
+func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.PermAsset) map[string]os.FileInfo {
 	dirs := make(map[string]os.FileInfo)
 	matchFunc := func(s string) bool {
 		_, ok := dirs[s]
 		return ok
 	}
 	for i := range assets {
-		if !assets[i].IsSupportProtocol(ProtocolSFTP) {
+		// todo: 后期优化 API 循环查询的情况
+		permAssetDetail, err := u.jmsService.GetUserPermAssetDetailById(u.User.ID, assets[i].ID)
+		if err != nil {
+			logger.Errorf("Get perm detail asset %s err: %s", assets[i].Name, err)
+			continue
+		}
+		if !permAssetDetail.SupportProtocol(ProtocolSFTP) {
 			continue
 		}
 		folderName := cleanFolderName(assets[i].Name)
@@ -390,7 +396,7 @@ type userSftpOption struct {
 	user       *model.User
 	RemoteAddr string
 	loginFrom  model.LabelField
-	assets     []model.Asset
+	assets     []model.PermAsset
 	token      *model.ConnectToken
 }
 
@@ -414,7 +420,7 @@ func WithLoginFrom(loginFrom model.LabelField) UserSftpOption {
 	}
 }
 
-func WithAssets(assets []model.Asset) UserSftpOption {
+func WithAssets(assets []model.PermAsset) UserSftpOption {
 	return func(o *userSftpOption) {
 		o.assets = assets
 	}

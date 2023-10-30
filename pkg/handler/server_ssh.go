@@ -201,8 +201,16 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			logger.Error(msg)
 			return
 		}
+		permAssetDetail, err := s.jmsService.GetUserPermAssetDetailById(user.ID, selectedAssets[0].ID)
+		if err != nil {
+			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetTarget)
+			utils.IgnoreErrWriteString(sess, msg)
+			logger.Errorf("Get permAssetDetail failed: %s", err)
+			return
+		}
+
 		matchedProtocol := directRequest.Protocol == model.ProtocolSSH
-		assetSupportedSSH := selectedAssets[0].IsSupportProtocol(model.ProtocolSSH)
+		assetSupportedSSH := permAssetDetail.SupportProtocol(model.ProtocolSSH)
 		if !matchedProtocol || !assetSupportedSSH {
 			msg := "not ssh asset connection"
 			utils.IgnoreErrWriteString(sess, msg)
@@ -210,7 +218,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 
-		selectAccounts, err := s.getMatchedAccounts(user, directRequest, selectedAssets[0])
+		selectAccounts, err := s.getMatchedAccounts(user, directRequest, permAssetDetail)
 		if err != nil {
 			logger.Error(err)
 			utils.IgnoreErrWriteString(sess, err.Error())
@@ -236,7 +244,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 
 }
 
-func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset model.Asset,
+func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset model.PermAsset,
 	permAccount model.PermAccount) {
 	//  仅支持 ssh 的协议资产
 	remoteAddr, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
@@ -560,14 +568,14 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 	return sshAuthOpts
 }
 
-func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.Asset, error) {
-	var getUserPermAssets func() ([]model.Asset, error)
+func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.PermAsset, error) {
+	var getUserPermAssets func() ([]model.PermAsset, error)
 	if common.ValidUUIDString(req.AssetTarget) {
-		getUserPermAssets = func() ([]model.Asset, error) {
+		getUserPermAssets = func() ([]model.PermAsset, error) {
 			return s.jmsService.GetUserPermAssetById(user.ID, req.AssetTarget)
 		}
 	} else {
-		getUserPermAssets = func() ([]model.Asset, error) {
+		getUserPermAssets = func() ([]model.PermAsset, error) {
 			return s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetTarget)
 		}
 	}
@@ -580,28 +588,12 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 		logger.Infof("User %s no perm for asset %s", user.String(), req.AssetTarget)
 		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found asset"))
 	}
-
-	matched := make([]model.Asset, 0, len(assets))
-	for i := range assets {
-		if assets[i].IsSupportProtocol(req.Protocol) {
-			matched = append(matched, assets[i])
-		}
-	}
-	if len(matched) == 0 {
-		logger.Infof("Asset %s do not support %s protocol", req.AssetTarget, req.Protocol)
-		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found ssh protocol supported"))
-	}
-	return matched, nil
+	return assets, nil
 }
 
 func (s *Server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAssetReq,
-	asset model.Asset) ([]model.PermAccount, error) {
-	accounts, err := s.jmsService.GetAccountsByUserIdAndAssetId(user.ID, asset.ID)
-	if err != nil {
-		logger.Errorf("Get account failed: %s", err)
-		return nil, err
-	}
-	matched := GetMatchedAccounts(accounts, req.AccountUsername)
+	permAssetDetail model.PermAssetDetail) ([]model.PermAccount, error) {
+	matched := GetMatchedAccounts(permAssetDetail.PermedAccounts, req.AccountUsername)
 	return matched, nil
 }
 
