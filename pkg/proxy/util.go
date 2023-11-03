@@ -88,10 +88,7 @@ func GetStorage(conf *model.TerminalConfig) Storage {
 		secretKey = cfg.SecretKey
 
 		if region == "" && endpoint != "" {
-			endpointArray := strings.Split(endpoint, ".")
-			if len(endpointArray) >= 2 {
-				region = endpointArray[1]
-			}
+			region = ParseEndpointRegion(endpoint)
 		}
 		if bucket == "" {
 			bucket = "jumpserver"
@@ -196,4 +193,12 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 	default:
 		return storage.ServerStorage{StorageType: "server", JmsService: jmsService}
 	}
+}
+
+func ParseEndpointRegion(s string) string {
+	endpoints := strings.Split(s, ".")
+	if len(endpoints) >= 3 {
+		return endpoints[len(endpoints)-3]
+	}
+	return ""
 }
