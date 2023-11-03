@@ -778,6 +778,9 @@ func (p *Parser) breakInputPacket() []byte {
 		if isCisco(p.platform) || isLinux(p.platform) {
 			return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 		}
+		if isH3C(p.platform) {
+			return []byte{CharCTRLE, CharCTRLX, '\r'}
+		}
 		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
 	case model.ProtocolSSH:
 		if isH3C(p.platform) {
