@@ -263,6 +263,8 @@ export default {
           this.$log.debug("sessionDetail backspaceAsCtrlH: ", sessionInfo.backspaceAsCtrlH);
           this.$log.debug("sessionDetail ctrlCAsCtrlZ: ", sessionInfo.ctrlCAsCtrlZ);
           this.$log.debug("sessionDetail themeName: ", sessionInfo.themeName);
+          this.$log.debug("sessionDetail permissions: ", sessionInfo.permission)
+          const enableShare = sessionInfo.permission.actions.includes('share');
           if ((sessionInfo.backspaceAsCtrlH !== undefined) && this.$refs.term) {
             const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
             this.$log.debug("set backspaceAsCtrlH: " + value);
@@ -275,7 +277,7 @@ export default {
           }
           this.sessionId = sessionDetail.id;
           const setting = this.$refs.term.setting;
-          if (setting.SECURITY_SESSION_SHARE) {
+          if (setting.SECURITY_SESSION_SHARE && enableShare) {
             this.enableShare = true;
           }
           this.themeName = sessionInfo.themeName;

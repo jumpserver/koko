@@ -30,6 +30,10 @@ func (a Actions) EnableDelete() bool {
 	return a.haveAction(ActionDelete)
 }
 
+func (a Actions) EnableShare() bool {
+	return a.haveAction(ActionShare)
+}
+
 func (a Actions) haveAction(action string) bool {
 	for _, actionItem := range a {
 		if action == ActionALL || action == actionItem.Value {
