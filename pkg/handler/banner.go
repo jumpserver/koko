@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"strings"
 	"text/template"
 
 	"github.com/jumpserver/koko/pkg/i18n"
@@ -62,4 +63,47 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 			logger.Error(err)
 		}
 	}
+}
+
+func (h *InteractiveHandler) displayAnnouncement(sess io.ReadWriter, setting *model.PublicSetting) {
+	if !setting.EnableAnnouncement {
+		return
+	}
+	if setting.Announcement.Subject == "" && setting.Announcement.Content == "" {
+		return
+	}
+	lang := i18n.NewLang(h.i18nLang)
+	greenBoldBegin := "\033[1;32m"
+	colorEnd := "\033[0m"
+	suffix := utils.CharNewLine
+	title := utils.CharNewLine + lang.T("Announcement: ") + setting.Announcement.Subject + suffix
+	content := PrettyContent(setting.Announcement.Content) + utils.CharNewLine
+	announcement := Announcement{
+		GreenBoldColor: greenBoldBegin,
+		ColorEnd:       colorEnd,
+		Title:          title,
+		Content:        content,
+	}
+	tmpl := template.Must(template.New("announcement").Parse(announcementTmpl))
+	if err := tmpl.Execute(sess, announcement); err != nil {
+		logger.Error(err)
+	}
+	utils.IgnoreErrWriteString(sess, utils.CharNewLine)
+}
+
+type Announcement struct {
+	GreenBoldColor string
+	ColorEnd       string
+	Title          string
+	Content        string
+}
+
+var announcementTmpl = `{{.GreenBoldColor}}{{.Title }}{{.ColorEnd}}
+{{.GreenBoldColor}}{{.Content}}{{.ColorEnd}}`
+
+func PrettyContent(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\n\n", "\n")
+	s = strings.ReplaceAll(s, "\n", "\r\n")
+	return s
 }
