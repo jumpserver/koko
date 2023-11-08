@@ -25,6 +25,10 @@ import (
 func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService,
 	termConfig model.TerminalConfig) *InteractiveHandler {
 	wrapperSess := NewWrapperSession(sess)
+	publicSetting, err := jmsService.GetPublicSetting()
+	if err != nil {
+		logger.Errorf("Get public setting error: %s", err)
+	}
 	vt := term.NewTerminal(wrapperSess, "Opt> ")
 	handler := &InteractiveHandler{
 		sess:         wrapperSess,
@@ -32,6 +36,8 @@ func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *servi
 		term:         vt,
 		jmsService:   jmsService,
 		terminalConf: &termConfig,
+
+		publicSetting: &publicSetting,
 	}
 	handler.Initial()
 	return handler
@@ -95,6 +101,8 @@ type InteractiveHandler struct {
 
 	terminalConf *model.TerminalConfig
 
+	publicSetting *model.PublicSetting
+
 	i18nLang string
 }
 
@@ -147,6 +155,7 @@ func (h *InteractiveHandler) firstLoadData() {
 func (h *InteractiveHandler) displayHelp() {
 	h.term.SetPrompt("Opt> ")
 	h.displayBanner(h.sess, h.user.Name, h.terminalConf)
+	h.displayAnnouncement(h.sess, h.publicSetting)
 }
 
 func (h *InteractiveHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {

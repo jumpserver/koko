@@ -8,8 +8,15 @@ type PublicSetting struct {
 		Image   string `json:"login_image"`
 		Favicon string `json:"favicon"`
 	} `json:"LOGO_URLS"`
-	EnableWatermark bool `json:"SECURITY_WATERMARK_ENABLED"`
+	EnableWatermark    bool `json:"SECURITY_WATERMARK_ENABLED"`
 	EnableSessionShare bool `json:"SECURITY_SESSION_SHARE"`
+	EnableAnnouncement bool `json:"ANNOUNCEMENT_ENABLED"`
+	Announcement       struct {
+		Id      string `json:"ID"`
+		Subject string `json:"SUBJECT"`
+		Content string `json:"CONTENT"`
+		Link    string `json:"LINK"`
+	} `json:"ANNOUNCEMENT"`
 }
 
 /*

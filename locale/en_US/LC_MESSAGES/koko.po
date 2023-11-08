@@ -55,31 +55,26 @@ msgstr ""
 
 #. lang.T
 #: pkg/handler/asset.go:56
-msgid "Protocols"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/asset.go:57
 msgid "Platform"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:58
+#: pkg/handler/asset.go:57
 msgid "Organization"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:59
+#: pkg/handler/asset.go:58
 msgid "Comment"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:156
+#: pkg/handler/asset.go:155
 msgid "%s protocol client not installed."
 msgstr ""
 
 #. lang.T
-#: pkg/handler/asset.go:159
+#: pkg/handler/asset.go:158
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
@@ -106,120 +101,125 @@ msgid "%s node has no assets"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:28
+#: pkg/handler/banner.go:29
 msgid "Welcome to use JumpServer open source fortress system"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:30
+#: pkg/handler/banner.go:31
 msgid "part IP, Hostname, Comment"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:30
+#: pkg/handler/banner.go:31
 msgid "to search login if unique"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:31
+#: pkg/handler/banner.go:32
 msgid "/ + IP, Hostname, Comment"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:31
+#: pkg/handler/banner.go:32
 msgid "to search, such as: /192.168"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:32
+#: pkg/handler/banner.go:33
 msgid "display the assets you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:33
+#: pkg/handler/banner.go:34
 msgid "display the node that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:34
+#: pkg/handler/banner.go:35
 msgid "display the hosts that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:35
+#: pkg/handler/banner.go:36
 msgid "display the databases that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:36
+#: pkg/handler/banner.go:37
 msgid "display the kubernetes that you have permission"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:37
+#: pkg/handler/banner.go:38
 msgid "refresh your assets and nodes"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:38
+#: pkg/handler/banner.go:39
 msgid "Chinese-English-Japanese switch"
 msgstr "中文-English-日本語 switch"
 
 #. lang.T
-#: pkg/handler/banner.go:39
+#: pkg/handler/banner.go:40
 msgid "print help"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:40
+#: pkg/handler/banner.go:41
 msgid "exit"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/banner.go:58
+#: pkg/handler/banner.go:59
 msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/direct_handler.go:246
+#: pkg/handler/banner.go:79
+msgid "Announcement: "
+msgstr ""
+
+#. lang.T
+#: pkg/handler/direct_handler.go:247
 msgid "No Account found."
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:255 pkg/handler/direct_handler.go:256
-#: pkg/handler/direct_handler.go:257
+#: pkg/handler/direct_handler.go:257 pkg/handler/direct_handler.go:258
+#: pkg/handler/direct_handler.go:259
 msgid "Username"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/direct_handler.go:286
+#: pkg/handler/direct_handler.go:288
 msgid "Tips: Enter asset[%s] account ID"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/direct_handler.go:287
+#: pkg/handler/direct_handler.go:289
 msgid "Back: B/b"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:322 pkg/handler/direct_handler.go:323
+#: pkg/handler/direct_handler.go:324 pkg/handler/direct_handler.go:325
 msgid "Hostname"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:324 pkg/handler/direct_handler.go:325
-#: pkg/handler/direct_handler.go:354
+#: pkg/handler/direct_handler.go:326 pkg/handler/direct_handler.go:327
+#: pkg/handler/direct_handler.go:356
 msgid "select one asset to login"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:368 pkg/handler/direct_handler.go:373
+#: pkg/handler/direct_handler.go:370 pkg/handler/direct_handler.go:375
 msgid "not found matched username %s"
 msgstr ""
 
@@ -228,8 +228,8 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/direct_handler.go:396 pkg/handler/direct_handler.go:402
-#: pkg/handler/direct_handler.go:416 pkg/handler/direct_handler.go:432
+#: pkg/handler/direct_handler.go:399 pkg/handler/direct_handler.go:405
+#: pkg/handler/direct_handler.go:419 pkg/handler/direct_handler.go:435
 #: pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
@@ -240,12 +240,12 @@ msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:62
+#: pkg/handler/interactive.go:68
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:193
+#: pkg/handler/interactive.go:202
 msgid "No account found."
 msgstr ""
 
@@ -255,36 +255,36 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:202 pkg/handler/interactive.go:203
-#: pkg/handler/interactive.go:204 pkg/handler/interactive.go:234
-#: pkg/handler/interactive.go:235 pkg/handler/interactive.go:261
+#: pkg/handler/interactive.go:212 pkg/handler/interactive.go:213
+#: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
+#: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
 msgid "Select account exceed max retry times."
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:272
+#: pkg/handler/interactive.go:282
 msgid "No protocol found."
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:281 pkg/handler/interactive.go:282
+#: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
 msgid "Protocol"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:309
+#: pkg/handler/interactive.go:319
 msgid "Tips: Enter protocol ID"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:310 pkg/handler/interactive.go:336
+#: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
 msgid "Select protocol exceed max retry times."
 msgstr ""
 
 #. lang.T
-#: pkg/handler/interactive.go:373
+#: pkg/handler/interactive.go:383
 msgid "Refresh done"
 msgstr ""
 
@@ -350,56 +350,52 @@ msgid "Must be unique asset for %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/server_ssh.go:220
+#. i18n.T
+#: pkg/handler/server_ssh.go:206 pkg/handler/server_ssh.go:228
 msgid "Must be unique account for %s"
 msgstr ""
 
 #. i18n.T
-#: pkg/handler/server_ssh.go:228
+#: pkg/handler/server_ssh.go:236
 msgid "Must be auto login account for %s"
 msgstr ""
 
 #. i18n.T
 #. i18n.T
-#: pkg/handler/server_ssh.go:575 pkg/handler/server_ssh.go:579
+#: pkg/handler/server_ssh.go:585 pkg/handler/server_ssh.go:589
 msgid "No found asset"
 msgstr ""
 
-#. i18n.T
-#: pkg/handler/server_ssh.go:590
-msgid "No found ssh protocol supported"
-msgstr ""
-
 #. lang.T
-#: pkg/proxy/parser.go:212
+#: pkg/proxy/parser.go:215
 msgid "have no permission to upload file"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:247
+#: pkg/proxy/parser.go:250
 msgid "the reviewers will confirm. continue or not [Y/n]"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:267 pkg/proxy/parser.go:274 pkg/proxy/parser.go:407
+#: pkg/proxy/parser.go:270 pkg/proxy/parser.go:277 pkg/proxy/parser.go:410
 msgid "Command `%s` is forbidden"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:476
+#: pkg/proxy/parser.go:481
 msgid "have no permission to download file"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:550
+#: pkg/proxy/parser.go:555
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:560
+#: pkg/proxy/parser.go:565
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -408,7 +404,7 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:561 pkg/proxy/parser.go:562 pkg/proxy/server.go:56
+#: pkg/proxy/parser.go:566 pkg/proxy/parser.go:567 pkg/proxy/server.go:56
 #: pkg/proxy/server.go:60
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
@@ -425,17 +421,17 @@ msgid "You don't have permission login %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:357
+#: pkg/proxy/server.go:359
 msgid "You get auth token failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:364
+#: pkg/proxy/server.go:369
 msgid "Get auth username failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:369
+#: pkg/proxy/server.go:374
 msgid "Get auth password failed"
 msgstr ""
 
@@ -443,55 +439,55 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:375 pkg/proxy/server.go:381 pkg/proxy/server.go:396
-#: pkg/proxy/server.go:453
+#: pkg/proxy/server.go:380 pkg/proxy/server.go:386 pkg/proxy/server.go:401
+#: pkg/proxy/server.go:458
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:734
+#: pkg/proxy/server.go:740
 msgid "Switched to %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:831 pkg/proxy/server.go:990
+#: pkg/proxy/server.go:837 pkg/proxy/server.go:1007
 msgid "Connect with api server failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:1035
+#: pkg/proxy/server.go:1052
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1043 pkg/proxy/server_options.go:107
+#: pkg/proxy/server.go:1060 pkg/proxy/server_options.go:108
 msgid "Manual"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:109
+#: pkg/proxy/server_options.go:110
 msgid "Dynamic"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:112
+#: pkg/proxy/server_options.go:113
 msgid "Connecting to %s@%s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:115
+#: pkg/proxy/server_options.go:117
 msgid "Connecting to Database %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:117
+#: pkg/proxy/server_options.go:119
 msgid "Connecting to Kubernetes %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server_options.go:119
+#: pkg/proxy/server_options.go:121
 msgid "Connecting to Kubernetes %s container %s"
 msgstr ""
 
