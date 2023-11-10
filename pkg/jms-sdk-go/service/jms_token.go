@@ -25,7 +25,7 @@ func (s *JMService) CreateSuperConnectToken(data *SuperConnectTokenReq) (resp mo
 	// 移除 Secret 中的 "-", 保证长度为 32
 	secretKey := strings.ReplaceAll(ak.Secret, "-", "")
 	encryptKey, err1 := GenerateEncryptKey(secretKey)
-	if err != nil {
+	if err1 != nil {
 		return resp, err1
 	}
 	signKey := fmt.Sprintf("%s:%s", ak.ID, encryptKey)
