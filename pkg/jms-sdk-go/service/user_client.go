@@ -57,7 +57,7 @@ func (u *UserClient) GetAPIToken() (resp AuthResponse, err error) {
 	// 移除 Secret 中的 "-", 保证长度为 32
 	secretKey := strings.ReplaceAll(ak.Secret, "-", "")
 	encryptKey, err1 := GenerateEncryptKey(secretKey)
-	if err != nil {
+	if err1 != nil {
 		return resp, err1
 	}
 	signKey := fmt.Sprintf("%s:%s", ak.ID, encryptKey)
@@ -157,6 +157,9 @@ func UserClientSvcSignKey(key model.AccessKey) UserClientOption {
 }
 
 func GenerateEncryptKey(key string) (string, error) {
+	if len(key) > 32 {
+		key = key[:32]
+	}
 	seconds := time.Now().Unix()
 	value := strconv.FormatUint(uint64(seconds), 10)
 	return EncryptECB(value, key)
