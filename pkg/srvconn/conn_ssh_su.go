@@ -12,12 +12,13 @@ func LoginToSSHSu(sc *SSHConnection) error {
 	if err != nil {
 		return err
 	}
-	if cfg.MethodType == SuMethodSu {
+	switch cfg.MethodType {
+	case SuMethodSu, SuMethodSudo:
 		startCmd := cfg.SuCommand()
 		suService.execCommand = func() {
 			_ = sc.session.Start(startCmd)
 		}
-	} else {
+	default:
 		_ = sc.session.Shell()
 	}
 	return suService.RunSwitchUser()
