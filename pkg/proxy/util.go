@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -196,9 +197,29 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 }
 
 func ParseEndpointRegion(s string) string {
+	if strings.Contains(s, amazonawsSuffix) {
+		return ParseAWSURLRegion(s)
+	}
 	endpoints := strings.Split(s, ".")
 	if len(endpoints) >= 3 {
 		return endpoints[len(endpoints)-3]
 	}
 	return ""
 }
+
+func ParseAWSURLRegion(s string) string {
+	endpoint, err := url.Parse(s)
+	if err != nil {
+		return ""
+	}
+	s = endpoint.Hostname()
+	s = strings.TrimSuffix(s, amazonawsCNSuffix)
+	s = strings.TrimSuffix(s, amazonawsSuffix)
+	regions := strings.Split(s, ".")
+	return regions[len(regions)-1]
+}
+
+const (
+	amazonawsCNSuffix = ".amazonaws.com.cn"
+	amazonawsSuffix   = ".amazonaws.com"
+)
