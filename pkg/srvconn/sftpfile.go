@@ -98,7 +98,7 @@ type folderOptions struct {
 	fromType    model.LabelField
 	loadSubFunc SubFoldersLoadFunc
 
-	asset *model.Asset
+	asset *model.PermAsset
 
 	token *model.ConnectToken
 }
@@ -127,7 +127,7 @@ func WithSubFoldersLoadFunc(loadFunc SubFoldersLoadFunc) FolderBuilderOption {
 	}
 }
 
-func WithAsset(asset model.Asset) FolderBuilderOption {
+func WithAsset(asset model.PermAsset) FolderBuilderOption {
 	return func(info *folderOptions) {
 		info.asset = &asset
 	}

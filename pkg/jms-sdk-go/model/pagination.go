@@ -1,10 +1,10 @@
 package model
 
 type PaginationResponse struct {
-	Total       int     `json:"count"`
-	NextURL     string  `json:"next"`
-	PreviousURL string  `json:"previous"`
-	Data        []Asset `json:"results"`
+	Total       int         `json:"count"`
+	NextURL     string      `json:"next"`
+	PreviousURL string      `json:"previous"`
+	Data        []PermAsset `json:"results"`
 }
 
 type PaginationParam struct {

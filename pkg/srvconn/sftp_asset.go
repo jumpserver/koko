@@ -28,7 +28,7 @@ type AssetDir struct {
 	modeTime time.Time
 
 	user        *model.User
-	detailAsset *model.Asset
+	detailAsset *model.PermAsset
 
 	suMaps map[string]*model.PermAccount
 
@@ -78,12 +78,12 @@ func (ad *AssetDir) loadSystemUsers() {
 }
 
 func (ad *AssetDir) loadSubAccountDirs() {
-	permAccounts, err := ad.jmsService.GetAccountsByUserIdAndAssetId(ad.user.ID, ad.opts.ID)
+	permAssetDetail, err := ad.jmsService.GetUserPermAssetDetailById(ad.user.ID, ad.opts.ID)
 	if err != nil {
-		logger.Errorf("Get asset %s perm accounts err: %s", ad.opts.ID, err)
+		logger.Errorf("Get asset %s perm asset detail err: %s", ad.opts.ID, err)
 		return
 	}
-	ad.suMaps = generateSubAccountsFolderMap(permAccounts)
+	ad.suMaps = generateSubAccountsFolderMap(permAssetDetail.PermedAccounts)
 }
 
 func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*model.PermAccount {
@@ -246,8 +246,8 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
 		if len(pathData) == 1 && pathData[0] == "" {
-			for folderName := range ad.suMaps {
-				res = append(res, NewFakeFile(folderName, true))
+			for accountName := range ad.suMaps {
+				res = append(res, NewFakeFile(accountName, true))
 			}
 			return
 		}

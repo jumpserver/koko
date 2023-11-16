@@ -701,8 +701,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 
 	platform := s.connOpts.authInfo.Platform
 	pty := s.UserConn.Pty()
+	charset := s.getCharset()
 	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)
-	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(platform.Charset.Value))
+	sshConnectOpts = append(sshConnectOpts, srvconn.SSHCharset(charset))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHTerm(pty.Term))
 	sshConnectOpts = append(sshConnectOpts, srvconn.SSHPtyWin(srvconn.Windows{
 		Width:  pty.Window.Width,
@@ -967,6 +968,10 @@ func (s *Server) getCharset() string {
 			charset = common.UTF8
 		case "gbk":
 			charset = common.GBK
+		case "gb2312":
+			charset = common.GB2312
+		case "ios-8859-1", "ascii":
+			charset = common.ISOLatin1
 		default:
 		}
 	}
