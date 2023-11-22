@@ -217,6 +217,7 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 
 func (u *UserSelectHandler) Proxy(target model.PermAsset) {
 	u.proxyAsset(target)
+	u.DisplayCurrentResult()
 }
 
 func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.PermAsset {
