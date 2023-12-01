@@ -271,6 +271,16 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 		if !ad.ShowHidden && strings.HasPrefix(info.Name(), ".") {
 			continue
 		}
+		//  兼容 MobaXterm, 打开软连接目录
+		if info.Mode()&os.ModeSymlink != 0 {
+			linkPath := filepath.Join(realPath, info.Name())
+			linkInfo, err1 := con.client.Stat(linkPath)
+			if err1 != nil {
+				logger.Errorf("ReadDir get link info err: %s", err1)
+				continue
+			}
+			info = NewSftpFileInfo(linkInfo, isRootAccount)
+		}
 		fileInfoList = append(fileInfoList, info)
 	}
 	return fileInfoList, err
