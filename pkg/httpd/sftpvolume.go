@@ -202,10 +202,10 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 
 		for i := 0; i < len(tmps); i++ {
 			if tmps[i].Mode()&os.ModeSymlink != 0 {
-				linkInfo := NewElfinderFileInfo(u.Uuid, path, tmps[i])
-				_, err2 := u.UserSftp.ReadDir(filepath.Join(u.basePath, path, tmps[i].Name()))
+				linkInfo := NewElfinderFileInfo(u.Uuid, dirPath, tmps[i])
+				_, err2 := u.UserSftp.ReadDir(filepath.Join(u.basePath, dirPath, tmps[i].Name()))
 				if err2 != nil {
-					logger.Errorf("link file %s is not dir err: %s", tmps[i].Name(), err)
+					logger.Errorf("link file %s is not dir err: %s", tmps[i].Name(), err2)
 				} else {
 					logger.Infof("link file %s is dir", tmps[i].Name())
 					linkInfo.Mime = "directory"
