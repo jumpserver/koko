@@ -44,6 +44,7 @@ func (c *ConnectToken) CreateSession(addr string,
 		RemoteAddr: addr,
 		LoginFrom:  loginFrom,
 		Type:       SessionType,
+		ErrReason:  LabelField(SessionReplayErrUnsupported),
 	}
 }
 

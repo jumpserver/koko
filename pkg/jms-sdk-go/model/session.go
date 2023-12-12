@@ -56,6 +56,7 @@ type Session struct {
 	AssetID    string         `json:"asset_id"`
 	AccountID  string         `json:"account_id"`
 	Type       LabelField     `json:"type"`
+	ErrReason  LabelField     `json:"error_reason,omitempty"`
 }
 
 type ReplayVersion string
@@ -97,4 +98,5 @@ const (
 	SessionReplayErrConnectFailed ReplayError = "connect_failed"
 	SessionReplayErrCreatedFailed ReplayError = "replay_create_failed"
 	SessionReplayErrUploadFailed  ReplayError = "replay_upload_failed"
+	SessionReplayErrUnsupported   ReplayError = "replay_unsupported"
 )
