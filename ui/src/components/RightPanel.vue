@@ -187,6 +187,7 @@ export default {
 
 .handle-button i {
   font-size: 20px;
-  line-height: 45px;
+  line-height: 44px;
+  vertical-align: top;
 }
 </style>
