@@ -103,7 +103,7 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err1 := s.recorder.Record(f.FTPLog, f); err1 != nil {
+	if err1 := s.recorder.RecordChunkRead(f.FTPLog, f); err1 != nil {
 		logger.Errorf("Record file %s err: %s", r.Filepath, err)
 	}
 	// 重置文件指针
@@ -114,6 +114,7 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
 		}
 		logger.Infof("Sftp File read %s done", r.Filepath)
+		s.recorder.FinishFTPFile(f.FTPLog.ID)
 
 	}()
 	return f, err

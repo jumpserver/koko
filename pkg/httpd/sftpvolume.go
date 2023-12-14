@@ -301,7 +301,7 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 		u.ftpLogMap[cid] = ftpLog
 		u.lock.Unlock()
 	}
-	if err2 := u.recorder.Record(ftpLog, reader); err2 != nil {
+	if err2 := u.recorder.RecordChunkRead(ftpLog, reader); err2 != nil {
 		logger.Errorf("Record file err: %s", err2)
 	}
 	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
@@ -331,7 +331,9 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename st
 	u.lock.Lock()
 	if fd, ok := u.chunkFilesMap[cid]; ok {
 		_ = fd.Close()
+		ftpLog := u.ftpLogMap[cid]
 		delete(u.chunkFilesMap, cid)
+		u.recorder.FinishFTPFile(ftpLog.ID)
 		delete(u.ftpLogMap, cid)
 	}
 	u.lock.Unlock()
