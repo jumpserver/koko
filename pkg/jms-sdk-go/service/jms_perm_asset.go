@@ -76,13 +76,11 @@ func (s *JMService) getPaginationAssets(reqUrl string, param model.PaginationPar
 	if param.PageSize < 0 {
 		param.PageSize = 0
 	}
-	paramsArray := make([]map[string]string, 0, len(param.Searches)+2)
+	searches := make([]string, 0, len(param.Searches))
 	for i := 0; i < len(param.Searches); i++ {
-		paramsArray = append(paramsArray, map[string]string{
-			"search": strings.TrimSpace(param.Searches[i]),
-		})
+		searches = append(searches, strings.TrimSpace(param.Searches[i]))
 	}
-
+	paramsArray := make([]map[string]string, 0, len(param.Searches)+2)
 	params := map[string]string{
 		"limit":  strconv.Itoa(param.PageSize),
 		"offset": strconv.Itoa(param.Offset),
@@ -105,6 +103,9 @@ func (s *JMService) getPaginationAssets(reqUrl string, param model.PaginationPar
 	}
 	if param.Protocols != nil {
 		params["protocols"] = strings.Join(param.Protocols, ",")
+	}
+	if len(searches) > 0 {
+		params["search"] = strings.Join(searches, ",")
 	}
 
 	paramsArray = append(paramsArray, params)
