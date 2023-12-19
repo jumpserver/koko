@@ -94,7 +94,7 @@ msgstr "Core API 发生错误"
 #: pkg/handler/asset.go:189
 #, fuzzy
 msgid "ACL reject"
-msgstr "审核拒绝"
+msgstr "本次登录已拒绝，原因是访问控制策略的限制"
 
 #. lang.T
 #. lang.T
