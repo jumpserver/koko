@@ -1,11 +1,12 @@
 #!/bin/bash
 set -e
-function init_nobody_user(){
-    echo `getent passwd | grep 'nobody' | grep '/nonexistent'  || usermod -d /nonexistent nobody` > /dev/null 2>&1
-    echo `getent group | grep 'nogroup' || groupadd nogroup` > /dev/null 2>&1
+function init_jms_k8s_user(){
+    echo `getent passwd | grep 'jms_k8s_user' || useradd -M -U -d /nonexistent jms_k8s_user` > /dev/null 2>&1
+    echo `getent passwd | grep 'jms_k8s_user' | grep '/nonexistent'  || usermod -d /nonexistent jms_k8s_user` > /dev/null 2>&1
+    echo `getent group | grep 'jms_k8s_user' || groupadd jms_k8s_user` > /dev/null 2>&1
 }
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-init_nobody_user
+init_jms_k8s_user
 
 if [ "${WELCOME_BANNER}" ]; then
     echo ${WELCOME_BANNER}
@@ -47,9 +48,9 @@ if [ ${KUBECTL_INSECURE_SKIP_TLS_VERIFY} == "true" ];then
     }
 fi
 
-chown -R nobody:nogroup .kube
-chown -R nobody:nogroup .bashrc
+chown -R jms_k8s_user:jms_k8s_user .kube
+chown -R jms_k8s_user:jms_k8s_user .bashrc
 
 export TMPDIR=/nonexistent
 
-exec su -s /bin/bash nobody
+exec su -s /bin/bash jms_k8s_user

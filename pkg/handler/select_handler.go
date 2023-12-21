@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -217,6 +218,8 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 
 func (u *UserSelectHandler) Proxy(target model.PermAsset) {
 	u.proxyAsset(target)
+	time.Sleep(time.Second * 2)
+	u.DisplayCurrentResult()
 }
 
 func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.PermAsset {

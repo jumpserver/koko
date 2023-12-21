@@ -312,6 +312,8 @@ func (r *FTPFileRecorder) setFTPFile(id string, info *FTPFileInfo) {
 func (r *FTPFileRecorder) CreateFTPFileInfo(logData *model.FTPLog) (info *FTPFileInfo, err error) {
 	info = &FTPFileInfo{
 		ftpLog: logData,
+
+		maxWrittenSize: r.MaxFileSize,
 	}
 	today := info.ftpLog.DateStart.UTC().Format(dateTimeFormat)
 	ftpFileRootDir := config.GetConf().FTPFileFolderPath
@@ -347,9 +349,11 @@ func (r *FTPFileRecorder) RecordFtpChunk(ftpLog *model.FTPLog, p []byte, off int
 	if err != nil {
 		return
 	}
-	_, _ = info.fd.Seek(off, io.SeekStart)
-	_, err = info.fd.Write(p)
-	return err
+	if info.isExceedWrittenSize() {
+		logger.Errorf("FTP file %s is exceeds the max limit and discard it", ftpLog.ID)
+		return nil
+	}
+	return info.WriteChunk(p, off)
 }
 
 func (r *FTPFileRecorder) FinishFTPFile(id string) {
@@ -372,14 +376,34 @@ func (r *FTPFileRecorder) Record(ftpLog *model.FTPLog, reader io.Reader) (err er
 	if err != nil {
 		return err
 	}
-	_, _ = io.Copy(info.fd, reader)
+	if err1 := info.WriteFromReader(reader); err1 != nil {
+		logger.Errorf("FTP file %s write err: %s", ftpLog.ID, err1)
+	}
 	_ = info.Close()
 	go r.UploadFile(3, ftpLog.ID)
 	return
 }
 
+func (r *FTPFileRecorder) RecordChunkRead(ftpLog *model.FTPLog, reader io.Reader) (err error) {
+	if r.isNullStorage() {
+		return
+	}
+	info := r.getFTPFile(ftpLog.ID)
+	if info == nil {
+		info, err = r.CreateFTPFileInfo(ftpLog)
+	}
+	if err != nil {
+		return err
+	}
+	if info.isExceedWrittenSize() {
+		logger.Errorf("FTP file %s is exceeds the max limit and discard it", ftpLog.ID)
+		return nil
+	}
+	return info.WriteFromReader(reader)
+}
+
 func (r *FTPFileRecorder) isNullStorage() bool {
-	return r.storage.TypeName() == "null"
+	return r.storage.TypeName() == "null" || r.MaxFileSize == 0
 }
 
 func (r *FTPFileRecorder) exceedFileMaxSize(info *FTPFileInfo) bool {
@@ -445,6 +469,64 @@ type FTPFileInfo struct {
 
 	absFilePath string
 	Target      string
+
+	maxWrittenSize int64
+	writtenBytes   int64
+}
+
+func (f *FTPFileInfo) WriteChunk(p []byte, off int64) error {
+	var (
+		nw  int
+		err error
+	)
+	_, err = f.fd.Seek(off, io.SeekStart)
+	if err != nil {
+		return err
+	}
+	nw, err = f.fd.Write(p)
+	if nw > 0 {
+		f.writtenBytes += int64(nw)
+	}
+	return err
+
+}
+
+func (f *FTPFileInfo) WriteFromReader(r io.Reader) error {
+	buf := make([]byte, 32*1024)
+	var err error
+	for {
+		nr, er := r.Read(buf)
+		if nr > 0 {
+			nw, ew := f.fd.Write(buf[0:nr])
+			if nw > 0 {
+				f.writtenBytes += int64(nw)
+				if f.isExceedWrittenSize() {
+					logger.Errorf("FTP file %s is exceeds the max limit and discard it",
+						f.ftpLog.ID)
+					return nil
+				}
+			}
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
+	}
+	return err
+}
+
+func (f *FTPFileInfo) isExceedWrittenSize() bool {
+	return f.writtenBytes >= f.maxWrittenSize
 }
 
 func (f *FTPFileInfo) Close() error {

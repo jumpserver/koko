@@ -103,17 +103,18 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err1 := s.recorder.Record(f.FTPLog, f); err1 != nil {
-		logger.Errorf("Record file %s err: %s", r.Filepath, err)
+	if err1 := s.recorder.RecordChunkRead(f.FTPLog, f); err1 != nil {
+		logger.Errorf("Record file %s err: %s", r.Filepath, err1)
 	}
 	// 重置文件指针
 	_, _ = f.Seek(0, io.SeekStart)
 	go func() {
 		<-r.Context().Done()
-		if err := f.Close(); err != nil {
-			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
+		if err2 := f.Close(); err2 != nil {
+			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err2)
 		}
 		logger.Infof("Sftp File read %s done", r.Filepath)
+		s.recorder.FinishFTPFile(f.FTPLog.ID)
 
 	}()
 	return f, err
