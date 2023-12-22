@@ -126,6 +126,17 @@ export default {
         this.termSelectionText = term.getSelection().trim();
       });
       term.attachCustomKeyEventHandler((e) => {
+        if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+          switch (e.key) {
+            case 'ArrowRight':
+              this.sendEventToLuna('KEYEVENT', 'alt+right')
+              break
+            case 'ArrowLeft':
+              this.sendEventToLuna('KEYEVENT', 'alt+left')
+              break
+          }
+        }
+
         if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
           return false;
         }
