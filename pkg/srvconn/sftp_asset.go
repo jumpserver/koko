@@ -330,6 +330,10 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
+	if con.IsRootPath(realPath) {
+		logger.Errorf("Diable to remove root setting path %s", realPath)
+		return sftp.ErrSshFxPermissionDenied
+	}
 	err = ad.removeDirectoryAll(con.client, realPath)
 	filename := realPath
 	isSuccess := false
@@ -532,25 +536,27 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 		session.AddSession(traceSession)
 		ad.sftpTraceSessions[su.String()] = traceSession
 	}
-
-	platform := conn.token.Platform
-	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSFTP)
-	accountUsername := su.Username
-	username := ad.user.Username
-	switch strings.ToLower(sftpRoot) {
-	case "home", "~", "":
-		realPath = filepath.Join(conn.HomeDirPath, strings.TrimPrefix(path, "/"))
-	default:
-		//  ${ACCOUNT} 连接的账号用户名, ${USER} 当前用户用户名, ${HOME} 当前家目录
-		homeDir := conn.HomeDirPath
-		sftpRoot = strings.ReplaceAll(sftpRoot, "${ACCOUNT}", accountUsername)
-		sftpRoot = strings.ReplaceAll(sftpRoot, "${USER}", username)
-		sftpRoot = strings.ReplaceAll(sftpRoot, "${HOME}", homeDir)
-		if strings.Index(sftpRoot, "/") != 0 {
-			sftpRoot = fmt.Sprintf("/%s", sftpRoot)
+	if conn.rootDirPath == "" {
+		platform := conn.token.Platform
+		sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSFTP)
+		accountUsername := su.Username
+		username := ad.user.Username
+		switch strings.ToLower(sftpRoot) {
+		case "home", "~", "":
+			sftpRoot = conn.HomeDirPath
+		default:
+			//  ${ACCOUNT} 连接的账号用户名, ${USER} 当前用户用户名, ${HOME} 当前家目录
+			homeDir := conn.HomeDirPath
+			sftpRoot = strings.ReplaceAll(sftpRoot, "${ACCOUNT}", accountUsername)
+			sftpRoot = strings.ReplaceAll(sftpRoot, "${USER}", username)
+			sftpRoot = strings.ReplaceAll(sftpRoot, "${HOME}", homeDir)
+			if strings.Index(sftpRoot, "/") != 0 {
+				sftpRoot = fmt.Sprintf("/%s", sftpRoot)
+			}
 		}
-		realPath = filepath.Join(sftpRoot, strings.TrimPrefix(path, "/"))
+		conn.rootDirPath = sftpRoot
 	}
+	realPath = filepath.Join(conn.rootDirPath, strings.TrimPrefix(path, "/"))
 	return
 }
 

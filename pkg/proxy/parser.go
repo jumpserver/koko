@@ -364,10 +364,10 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.inputState = true
 		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
 		if !p.inputPreState {
-			p.sendCommandRecord()
 			if ps1 := p.cmdOutputParser.GetPs1(); ps1 != "" {
 				p.cmdInputParser.SetPs1(ps1)
 			}
+			p.sendCommandRecord()
 		}
 	}
 	return b

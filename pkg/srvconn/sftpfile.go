@@ -190,6 +190,7 @@ type SftpConn struct {
 	client      *sftp.Client
 	token       *model.ConnectToken
 	isClosed    bool
+	rootDirPath string
 }
 
 func (s *SftpConn) IsOverwriteFile() bool {
@@ -202,6 +203,10 @@ func (s *SftpConn) IsOverwriteFile() bool {
 	default:
 		return true
 	}
+}
+
+func (s *SftpConn) IsRootPath(path string) bool {
+	return s.rootDirPath == path
 }
 
 const (
