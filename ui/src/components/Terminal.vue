@@ -185,6 +185,9 @@ export default {
             this.term.focus()
           }
           break
+        case 'OPEN':
+          this.$emit("event", "open", this.terminalId)
+          break
       }
       console.log('KoKo got post message: ', msg)
     },

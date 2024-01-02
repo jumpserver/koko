@@ -8,7 +8,7 @@
                 v-on:event="onEvent"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
-    <RightPanel>
+    <RightPanel ref="panel">
       <Settings :settings="settings" :title="$t('Terminal.Settings')"/>
     </RightPanel>
 
@@ -385,6 +385,10 @@ export default {
             this.$delete(this.onlineUsersMap, key);
           })
           this.$log.debug("reconnect: ", data);
+          break
+        case 'open':
+          this.$log.debug("open: ", data);
+          this.$refs.panel.toggle()
           break
       }
     },

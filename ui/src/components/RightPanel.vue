@@ -6,9 +6,6 @@
   >
     <div class="background" />
     <div class="right-panel">
-      <div ref="dragDiv" class="handle-button">
-        <i :class="show ? 'el-icon-close':'el-icon-setting'" />
-      </div>
       <div class="right-panel-items">
         <slot />
       </div>
@@ -107,6 +104,9 @@ export default {
       const element = this.$refs.container
       const body = document.querySelector('body')
       body.insertBefore(element, body.firstChild)
+    },
+    toggle() {
+      this.show = !this.show
     }
   }
 }
