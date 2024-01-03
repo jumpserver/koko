@@ -42,7 +42,7 @@ export default {
     }
   },
   mounted() {
-    this.init()
+    // this.init()
     this.insertToBody()
   },
   beforeDestroy() {
