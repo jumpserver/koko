@@ -23,7 +23,7 @@ jobs:
         build-args: |
           GOPROXY=direct
           APT_MIRROR=http://deb.debian.org
-        file: Dockerfile
+        file: Dockerfile-ce
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
