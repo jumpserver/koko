@@ -433,6 +433,8 @@ func (h *tty) JoinRoom(c *Client, roomID string) {
 			Body:  nil,
 			Meta:  meta,
 		})
+		logObj := model.SessionLifecycleLog{User: h.ws.user.String()}
+		h.ws.RecordLifecycleLog(roomID, model.UserJoinSession, logObj)
 		for {
 			buf := make([]byte, 1024)
 			nr, err := c.Read(buf)
@@ -451,6 +453,7 @@ func (h *tty) JoinRoom(c *Client, roomID string) {
 			Body:  nil,
 			Meta:  meta,
 		})
+		h.ws.RecordLifecycleLog(roomID, model.UserLeaveSession, logObj)
 		logger.Infof("Conn[%s] user read end", c.ID())
 		if err := h.ws.apiClient.FinishShareRoom(h.shareInfo.Record.ID); err != nil {
 			logger.Infof("Conn[%s] finish share room err: %s", c.ID(), err)
@@ -463,6 +466,8 @@ func (h *tty) Monitor(c *Client, roomID string) {
 		conn := exchange.WrapperUserCon(c)
 		room.Subscribe(conn)
 		defer room.UnSubscribe(conn)
+		logObj := model.SessionLifecycleLog{User: h.ws.user.String()}
+		h.ws.RecordLifecycleLog(roomID, model.AdminJoinMonitor, logObj)
 		for {
 			buf := make([]byte, 1024)
 			_, err := c.Read(buf)
@@ -473,5 +478,6 @@ func (h *tty) Monitor(c *Client, roomID string) {
 			logger.Debugf("Conn[%s] user monitor", c.ID())
 		}
 		logger.Infof("Conn[%s] user read end", c.ID())
+		h.ws.RecordLifecycleLog(roomID, model.AdminExitMonitor, logObj)
 	}
 }

@@ -232,6 +232,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		_ = os.Remove(r.absGzipFilePath)
 		return
 	}
+	r.recordLifecycleLog(model.ReplayUploadStart, "")
 	for i := 0; i <= maxRetry; i++ {
 		logger.Infof("Upload replay file: %s, type: %s", r.absGzipFilePath, r.storage.TypeName())
 		err := r.storage.Upload(r.absGzipFilePath, r.Target)
@@ -240,8 +241,10 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 			if err = r.jmsService.FinishReply(r.SessionID); err != nil {
 				logger.Errorf("Session[%s] finish replay err: %s", r.SessionID, err)
 			}
+			r.recordLifecycleLog(model.ReplayUploadSuccess, "")
 			break
 		}
+		r.recordLifecycleLog(model.ReplayUploadFailure, err.Error())
 		logger.Errorf("Upload replay file err: %s", err)
 		// 如果还是失败，上传 server 再传一次
 		if i == maxRetry {
@@ -257,6 +260,13 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 			r.UploadGzipFile(3)
 			break
 		}
+	}
+}
+
+func (r *ReplyRecorder) recordLifecycleLog(event model.LifecycleEvent, reason string) {
+	eventLog := model.SessionLifecycleLog{Reason: reason}
+	if err := r.jmsService.RecordSessionLifecycleLog(r.SessionID, event, eventLog); err != nil {
+		logger.Errorf("Update session %s activity log %s failed: %s", r.SessionID, event, err)
 	}
 }
 
