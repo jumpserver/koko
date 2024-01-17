@@ -42,7 +42,7 @@ jobs:
         env:
           VERSION: ${{ steps.get_version.outputs.TAG }}
         run: |
-         make -s && ls build
+         make all -s && ls build
       - name: Release Upload Assets
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
