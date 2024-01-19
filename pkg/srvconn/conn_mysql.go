@@ -215,6 +215,12 @@ func (opt *sqlOption) Envs() []string {
 	}
 
 	envs := make([]string, 0, 6)
+	// 设置下系统环境的语言, 中文输入问题
+	envLang := os.Getenv("LANG")
+	if envLang == "" {
+		envLang = "zh_CN.UTF-8"
+	}
+	envs = append(envs, fmt.Sprintf("LANG=%s", envLang))
 	envs = append(envs, fmt.Sprintf("USERNAME=%s", opt.Username))
 	envs = append(envs, fmt.Sprintf("HOSTNAME=%s", opt.Host))
 	envs = append(envs, fmt.Sprintf("PORT=%d", opt.Port))
