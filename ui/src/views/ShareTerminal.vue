@@ -3,10 +3,11 @@
     <el-main>
       <Terminal v-if="!codeDialog" ref='term' v-bind:connectURL="wsURL" v-bind:shareCode="shareCode"
                 v-on:background-color="onThemeBackground"
+                v-on:event="onEvent"
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
 
-    <RightPanel>
+    <RightPanel ref="panel">
       <Settings :settings="settings" :title="$t('Terminal.Settings')" />
     </RightPanel>
 
@@ -197,6 +198,14 @@ export default {
         this.themeBackground = themeColors.background;
       }
       this.$log.debug(val);
+    },
+    onEvent(event, data) {
+      switch (event) {
+        case 'open':
+          this.$log.debug("open: ", data);
+          this.$refs.panel.toggle()
+          break
+      }
     }
   },
 
