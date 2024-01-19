@@ -24,11 +24,11 @@ ARG TARGETARCH
 WORKDIR /opt/koko
 
 ARG HELM_VERSION=v3.13.3
-ARG KUBECTL_VERSION=v1.29.1
+ARG KUBECTL_VERSION=v1.29.0
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
-    && wget -q -O kubectl.tar.gz https://github.com/jumpserver-dev/kubectl/releases/download/${KUBECTL_VERSION}/kubectl-${KUBECTL_VERSION}-linux-${TARGETARCH}.tar.gz \
-    && tar -xf kubectl.tar.gz --strip-components=1 -C /opt/koko/bin/ \
+    && wget -q -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
+    && tar -xf kubectl.tar.gz --strip-components=3 -C /opt/koko/bin/ kubernetes/client/bin/kubectl \
     && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
     && wget -q -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf helm.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
