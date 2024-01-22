@@ -61,6 +61,7 @@ all: koko-ui
 	$(call make_artifact_full,darwin,arm64)
 	$(call make_artifact_full,linux,amd64)
 	$(call make_artifact_full,linux,arm64)
+	$(call make_artifact_full,linux,mips64le)
 	$(call make_artifact_full,linux,ppc64le)
 	$(call make_artifact_full,linux,s390x)
 	$(call make_artifact_full,linux,riscv64)
@@ -82,6 +83,9 @@ linux-arm64: koko-ui
 
 linux-loong64: koko-ui
 	$(call make_artifact_full,linux,loong64)
+
+linux-mips64le: koko-ui
+	$(call make_artifact_full,linux,mips64le)
 
 linux-ppc64le: koko-ui
 	$(call make_artifact_full,linux,ppc64le)
