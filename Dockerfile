@@ -10,35 +10,45 @@ RUN set -ex \
     && yarn config set registry ${NPM_REGISTRY}
 
 WORKDIR /opt/koko/ui
-ADD ui/package.json ui/yarn.lock ./
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko-yarn \
+ADD ui/package.json ui/yarn.lock .
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn install
 
 ADD ui .
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko-yarn \
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn build
 
 FROM golang:1.21-bullseye as stage-build
+LABEL stage=stage-build
 ARG TARGETARCH
 
 WORKDIR /opt/koko
+ARG HELM_VERSION=v3.12.2
+ARG DOWNLOAD_URL=https://download.jumpserver.org
 
-ARG HELM_VERSION=v3.13.3
-ARG KUBECTL_VERSION=v1.29.0
+RUN set -ex \
+    && echo "no" | dpkg-reconfigure dash
+
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
-    && wget -q -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
-    && tar -xf kubectl.tar.gz --strip-components=3 -C /opt/koko/bin/ kubernetes/client/bin/kubectl \
+    && wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
+    && tar -xf kubectl.tar.gz -C /opt/koko/bin/ \
     && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
-    && wget -q -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
+    && wget -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf helm.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
     && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
-    && wget -q https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
+    && \
+    if [ "${TARGETARCH}" == "amd64" ] || [ "${TARGETARCH}" == "arm64" ]; then \
+        wget ${DOWNLOAD_URL}/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz; \
+        tar -xf clickhouse-client-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/; \
+    fi \
+    && wget ${DOWNLOAD_URL}/public/kubectl_aliases.tar.gz -O kubectl_aliases.tar.gz \
+    && tar -xf kubectl_aliases.tar.gz \
     && chmod +x /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
     && rm -f *.tar.gz
 
-ADD go.mod go.sum ./
+ADD go.mod go.sum .
 
 ARG GOPROXY=https://goproxy.io
 ENV CGO_ENABLED=0
@@ -96,8 +106,8 @@ ARG DEPENDENCIES="                    \
         xz-utils"
 
 ARG APT_MIRROR=http://mirrors.ustc.edu.cn
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko-apt \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko-apt \
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
     && rm -f /etc/apt/apt.conf.d/docker-clean \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
@@ -106,38 +116,33 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko-apt \
     && echo "no" | dpkg-reconfigure dash \
     && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
     && sed -i "s@# export @export @g" ~/.bashrc \
-    && sed -i "s@# alias @alias @g" ~/.bashrc
+    && sed -i "s@# alias @alias @g" ~/.bashrc \
+    && rm -rf /var/lib/apt/lists/*
 
-ARG MONGOSH_VERSION=2.1.1
+ARG MONGOSH_VERSION=1.10.3
 RUN set -ex \
     && \
     case "${TARGETARCH}" in \
-        'amd64') \
-            ARCH=x64; \
+        amd64) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-x64/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh /usr/local/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh_crypt_v1.so /usr/local/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-x64* \
             ;; \
-        'arm64') \
-            ARCH=arm64; \
-            ;; \
-        's390x') \
-            ARCH=s390x; \
-            ;; \
-        'ppc64le') \
-            ARCH=ppc64le; \
+        arm64) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh /usr/local/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh_crypt_v1.so /usr/local/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}* \
             ;; \
         *) \
-            echo "Unsupported architecture: ${TARGETARCH}"; \
+            echo "Unsupported architecture: ${TARGETARCH}" \
             ;; \
-    esac \
-    && \
-    if [ -n "${ARCH}" ]; then \
-        wget -q https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${ARCH}.tgz \
-        && tar -xf mongosh-${MONGOSH_VERSION}-linux-${ARCH}.tgz \
-        && chown root:root mongosh-${MONGOSH_VERSION}-linux-${ARCH}/bin/* \
-        && mv mongosh-${MONGOSH_VERSION}-linux-${ARCH}/bin/mongosh /usr/local/bin/ \
-        && mv mongosh-${MONGOSH_VERSION}-linux-${ARCH}/bin/mongosh_crypt_v1.so /usr/local/lib/ \
-        && rm -rf mongosh-${MONGOSH_VERSION}-linux-${ARCH}* \
-        ; \
-    fi
+    esac
 
 COPY --from=redis /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 
