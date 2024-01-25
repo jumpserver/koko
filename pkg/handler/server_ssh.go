@@ -321,10 +321,21 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 	}
 }
 
+func IsScpCommand(rawStr string) bool {
+	rawCommands := strings.Split(rawStr, ";")
+	for _, cmd := range rawCommands {
+		cmd = strings.TrimSpace(cmd)
+		if strings.HasPrefix(cmd, "scp") {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
 	tokeInfo *model.ConnectToken) {
 	rawStr := sess.RawCommand()
-	if strings.HasPrefix(rawStr, "scp") && !config.GetConf().EnableVscodeSupport {
+	if IsScpCommand(rawStr) && !config.GetConf().EnableVscodeSupport {
 		logger.Errorf("Not support scp command: %s", rawStr)
 		utils.IgnoreErrWriteString(sess, "Not support scp command")
 		return
