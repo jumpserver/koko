@@ -2,6 +2,7 @@ package srvconn
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -106,8 +107,8 @@ func (opt *sqlOption) ClickHouseDataSourceName() string {
 		opt.Host,
 		opt.Port,
 		opt.DBName,
-		opt.Username,
-		opt.Password,
+		url.QueryEscape(opt.Username),
+		url.QueryEscape(opt.Password),
 	)
 }
 
