@@ -43,7 +43,6 @@ const AsciiDel = 127
 const AsciiBackspace = 8
 const AsciiCtrlC = 3
 const AsciiCtrlZ = 26
-const AsciiEnter = 13
 
 export default {
   name: "Terminal",
@@ -263,11 +262,7 @@ export default {
         this.$log.debug("term on data event")
         data = this.preprocessInput(data)
 
-        if (data.charCodeAt(0) === AsciiEnter) {
-          this.sendEventToLuna('RENEWAL', '')
-          this.$log.debug("Enter enabled")
-        }
-
+        this.sendEventToLuna('KEYBOARDEVENT', '')
         this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', data));
       });
 
