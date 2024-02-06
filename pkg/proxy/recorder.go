@@ -230,6 +230,7 @@ func (r *ReplyRecorder) uploadReplay() {
 func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 	if r.isNullStorage() {
 		_ = os.Remove(r.absGzipFilePath)
+		r.recordLifecycleLog(model.ReplayUploadFailure, string(model.ReasonErrNullStorage))
 		return
 	}
 	r.recordLifecycleLog(model.ReplayUploadStart, "")

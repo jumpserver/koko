@@ -136,4 +136,5 @@ const (
 	ReasonErrAdminTerminate    SessionLifecycleReasonErr = "admin_terminate"
 	ReasonErrMaxSessionTimeout SessionLifecycleReasonErr = "max_session_timeout"
 	ReasonErrPermissionExpired SessionLifecycleReasonErr = "permission_expired"
+	ReasonErrNullStorage       SessionLifecycleReasonErr = "null_storage"
 )
