@@ -535,6 +535,7 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 		traceSession := session.NewSession(&respSession, terminalFunc)
 		session.AddSession(traceSession)
 		ad.sftpTraceSessions[su.String()] = traceSession
+		ad.recordSessionLifecycle(traceSession.ID, model.AssetConnectSuccess, "")
 	}
 	if conn.rootDirPath == "" {
 		platform := conn.token.Platform
@@ -581,7 +582,7 @@ func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err er
 	if err != nil {
 		return nil, fmt.Errorf("get connect token account err: %s", err2)
 	}
-	return ad.getNewSftpConn(&connectToken)
+	return ad.getNewSftpConn(&connectToken, su)
 }
 
 func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToken, error) {
@@ -609,7 +610,8 @@ func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToke
 	return ad.jmsService.GetConnectTokenInfo(tokenInfo.ID)
 }
 
-func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken) (conn *SftpConn, err error) {
+func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
+	su *model.PermAccount) (conn *SftpConn, err error) {
 	if ad.detailAsset == nil {
 		return nil, errNoSelectAsset
 	}
@@ -680,6 +682,11 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken) (conn *Sftp
 		sshClient.ReleaseSession(sess)
 		_ = sshClient.Close()
 		logger.Infof("User %s SSH client(%s) for SFTP release", user.String(), sshClient)
+		if sftpSession, ok := ad.sftpTraceSessions[su.String()]; ok {
+			sid := sftpSession.ID
+			reason := string(model.ReasonErrConnectDisconnect)
+			ad.recordSessionLifecycle(sid, model.AssetConnectFinished, reason)
+		}
 	}()
 	homeDirPath, err := sftpClient.Getwd()
 	if err != nil {
@@ -739,6 +746,13 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		logger.Errorf("Create ftp log err: %s", err)
 	}
 	return &data
+}
+
+func (ad *AssetDir) recordSessionLifecycle(sid string, event model.LifecycleEvent, reason string) {
+	logObj := model.SessionLifecycleLog{Reason: reason}
+	if err := ad.jmsService.RecordSessionLifecycleLog(sid, event, logObj); err != nil {
+		logger.Errorf("Update session %s lifecycle %s failed: %s", sid, event, err)
+	}
 }
 
 func IsExistPath(client *sftp.Client, path string) bool {

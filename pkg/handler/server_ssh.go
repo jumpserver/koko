@@ -332,6 +332,13 @@ func IsScpCommand(rawStr string) bool {
 	return false
 }
 
+func (s *Server) recordSessionLifecycle(sid string, event model.LifecycleEvent, reason string) {
+	logObj := model.SessionLifecycleLog{Reason: reason}
+	if err2 := s.jmsService.RecordSessionLifecycleLog(sid, event, logObj); err2 != nil {
+		logger.Errorf("Record session %s lifecycle %s failed: %s", sid, event, err2)
+	}
+}
+
 func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
 	tokeInfo *model.ConnectToken) {
 	rawStr := sess.RawCommand()
@@ -371,6 +378,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
+
 	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) error {
 		switch task.Name {
 		case model.TaskKillSession:
@@ -393,6 +401,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		logger.Errorf("Get SSH session failed: %s", err)
 		return
 	}
+	s.recordSessionLifecycle(respSession.ID, model.AssetConnectSuccess, "")
 	defer goSess.Close()
 	defer sshClient.ReleaseSession(goSess)
 	go func() {
@@ -455,6 +464,8 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		logger.Errorf("User %s Run command %s failed: %s",
 			tokeInfo.User.String(), rawStr, err)
 	}
+	reason := string(model.ReasonErrConnectDisconnect)
+	s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)
 }
 
 func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient,
@@ -490,7 +501,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 		logger.Errorf("Get SSH session failed: %s", err)
 		return err
 	}
-
+	s.recordSessionLifecycle(respSession.ID, model.AssetConnectSuccess, "")
 	defer goSess.Close()
 	defer sshClient.ReleaseSession(goSess)
 	stdOut, err := goSess.StdoutPipe()
@@ -506,6 +517,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	err = goSess.Shell()
 	if err != nil {
 		logger.Errorf("Get SSH session shell failed: %s", err)
+		s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, err.Error())
 		return err
 	}
 	logger.Infof("User %s start vscode request to %s", vsReq.user, sshClient)
@@ -525,11 +537,15 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 		case <-ctx.Done():
 			logger.Infof("SSH conn[%s] User %s end vscode request %s as session done",
 				vsReq.reqId, vsReq.user, sshClient)
+			reason := string(model.ReasonErrConnectDisconnect)
+			s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)
 			return nil
 		case now := <-ticker.C:
 			if vsReq.expireInfo.IsExpired(now) {
 				logger.Infof("SSH conn[%s] User %s end vscode request %s as permission has expired",
 					vsReq.reqId, vsReq.user, sshClient)
+				reason := string(model.ReasonErrPermissionExpired)
+				s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)
 				return nil
 			}
 			logger.Debugf("SSH conn[%s] user %s vscode request still alive", vsReq.reqId, vsReq.user)
