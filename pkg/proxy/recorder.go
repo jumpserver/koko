@@ -201,6 +201,7 @@ func (r *ReplyRecorder) Record(p []byte) {
 
 func (r *ReplyRecorder) End() {
 	if r.isNullStorage() {
+		r.recordLifecycleLog(model.ReplayUploadFailure, string(model.ReasonErrNullStorage))
 		return
 	}
 	_ = r.file.Close()
