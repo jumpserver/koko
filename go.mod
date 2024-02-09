@@ -33,9 +33,9 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/xlab/treeprint v1.1.0
 	go.mongodb.org/mongo-driver v1.8.3
-	golang.org/x/crypto v0.14.0
-	golang.org/x/term v0.13.0
-	golang.org/x/text v0.13.0
+	golang.org/x/crypto v0.19.0
+	golang.org/x/term v0.17.0
+	golang.org/x/text v0.14.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.23.1
 	k8s.io/apimachinery v0.23.1
@@ -106,7 +106,7 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -125,6 +125,6 @@ require (
 )
 
 replace (
-	github.com/gliderlabs/ssh => github.com/LeeEirc/ssh v0.1.2-0.20231007053448-a6110c0dfc4a
-	golang.org/x/crypto => github.com/LeeEirc/crypto v0.0.0-20230919154755-059031d26b68
+	github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.1.2-0.20240209035326-4f0f6365ccae
+	golang.org/x/crypto => github.com/jumpserver-dev/crypto v0.0.0-20240209025851-4b55dc4c3463
 )
