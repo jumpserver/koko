@@ -19,6 +19,15 @@ type AuthSign interface {
 	Sign(req *http.Request) error
 }
 
+var debugDev = false
+
+func init() {
+	debugEnv := os.Getenv("DEBUG_DEV")
+	if strings.EqualFold(debugEnv, "true") || strings.EqualFold(debugEnv, "1") {
+		debugDev = true
+	}
+}
+
 const miniTimeout = time.Second * 30
 
 func NewClient(baseUrl string, timeout time.Duration) (*Client, error) {
@@ -156,11 +165,18 @@ func (c *Client) Do(method, reqUrl string, data, res interface{}, params ...map[
 	if err != nil {
 		return
 	}
+	start := time.Now()
 	resp, err = c.http.Do(req)
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
+	if debugDev {
+		now := time.Now()
+		date := now.Format("2006-01-02 15:04:05")
+		fmt.Printf("%s [DEBUG_DEV] Request %s %s cost: %v\n", date, req.Method, req.URL, now.Sub(start))
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp, err
