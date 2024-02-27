@@ -196,7 +196,7 @@ func (s *Server) GenerateViewMeta(targetId string) (meta ViewPageMata) {
 	if err != nil {
 		logger.Errorf("Get core api public setting err: %s", err)
 	}
-	meta.IconURL = setting.LogoURLS.Favicon
+	meta.IconURL = setting.Interface.Favicon
 	return
 }
 
