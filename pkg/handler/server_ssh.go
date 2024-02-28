@@ -391,7 +391,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 
 	defer func() {
 		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
-			logger.Errorf("Create tunnel session err: %s", err)
+			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
 	}()
@@ -491,7 +491,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	session.AddSession(traceSession)
 	defer func() {
 		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
-			logger.Errorf("Create tunnel session err: %s", err)
+			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
 	}()
