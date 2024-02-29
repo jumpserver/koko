@@ -100,3 +100,41 @@ const (
 	SessionReplayErrUploadFailed  ReplayError = "replay_upload_failed"
 	SessionReplayErrUnsupported   ReplayError = "replay_unsupported"
 )
+
+type LifecycleEvent string
+
+const (
+	AssetConnectSuccess  LifecycleEvent = "asset_connect_success"
+	AssetConnectFinished LifecycleEvent = "asset_connect_finished"
+	CreateShareLink      LifecycleEvent = "create_share_link"
+	UserJoinSession      LifecycleEvent = "user_join_session"
+	UserLeaveSession     LifecycleEvent = "user_leave_session"
+	AdminJoinMonitor     LifecycleEvent = "admin_join_monitor"
+	AdminExitMonitor     LifecycleEvent = "admin_exit_monitor"
+	ReplayConvertStart   LifecycleEvent = "replay_convert_start"
+	ReplayConvertSuccess LifecycleEvent = "replay_convert_success"
+	ReplayConvertFailure LifecycleEvent = "replay_convert_failure"
+	ReplayUploadStart    LifecycleEvent = "replay_upload_start"
+	ReplayUploadSuccess  LifecycleEvent = "replay_upload_success"
+	ReplayUploadFailure  LifecycleEvent = "replay_upload_failure"
+)
+
+type SessionLifecycleLog struct {
+	Reason string `json:"reason"`
+	User   string `json:"user"`
+}
+
+var EmptyLifecycleLog = SessionLifecycleLog{}
+
+type SessionLifecycleReasonErr string
+
+const (
+	ReasonErrConnectFailed     SessionLifecycleReasonErr = "connect_failed"
+	ReasonErrConnectDisconnect SessionLifecycleReasonErr = "connect_disconnect"
+	ReasonErrUserClose         SessionLifecycleReasonErr = "user_close"
+	ReasonErrIdleDisconnect    SessionLifecycleReasonErr = "idle_disconnect"
+	ReasonErrAdminTerminate    SessionLifecycleReasonErr = "admin_terminate"
+	ReasonErrMaxSessionTimeout SessionLifecycleReasonErr = "max_session_timeout"
+	ReasonErrPermissionExpired SessionLifecycleReasonErr = "permission_expired"
+	ReasonErrNullStorage       SessionLifecycleReasonErr = "null_storage"
+)

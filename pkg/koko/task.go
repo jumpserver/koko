@@ -43,6 +43,13 @@ func uploadRemainReplay(jmsService *service.JMService) {
 		return nil
 	})
 
+	recordLifecycleLog := func(id string, event model.LifecycleEvent, reason string) {
+		logObj := model.SessionLifecycleLog{Reason: reason}
+		if err1 := jmsService.RecordSessionLifecycleLog(id, event, logObj); err1 != nil {
+			logger.Errorf("Update session %s activity log failed: %s", id, err1)
+		}
+	}
+
 	for absPath, remainReplay := range allRemainFiles {
 		absGzPath := absPath
 		if !remainReplay.IsGzip {
@@ -64,18 +71,22 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			}
 			_ = os.Remove(absPath)
 		}
-		Target, _ := filepath.Rel(replayDir, absGzPath)
+		target, _ := filepath.Rel(replayDir, absGzPath)
+
+		recordLifecycleLog(remainReplay.Id, model.ReplayUploadStart, "")
 		logger.Infof("Upload replay file: %s, type: %s", absGzPath, replayStorage.TypeName())
-		if err2 := replayStorage.Upload(absGzPath, Target); err2 != nil {
+		if err2 := replayStorage.Upload(absGzPath, target); err2 != nil {
 			logger.Errorf("Upload remain replay file %s failed: %s", absGzPath, err2)
 			reason := model.SessionReplayErrUploadFailed
 			if err3 := jmsService.SessionReplayFailed(remainReplay.Id, reason); err3 != nil {
 				logger.Errorf("Update session %s status %s failed: %s", remainReplay.Id, reason, err3)
 			}
+			recordLifecycleLog(remainReplay.Id, model.ReplayUploadFailure, err2.Error())
 			continue
 		}
-		if err := jmsService.FinishReply(remainReplay.Id); err != nil {
-			logger.Errorf("Notify session %s upload failed: %s", remainReplay.Id, err)
+		recordLifecycleLog(remainReplay.Id, model.ReplayUploadSuccess, "")
+		if err1 := jmsService.FinishReply(remainReplay.Id); err1 != nil {
+			logger.Errorf("Notify session %s upload failed: %s", remainReplay.Id, err1)
 			continue
 		}
 		_ = os.Remove(absGzPath)
