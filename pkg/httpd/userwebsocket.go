@@ -241,3 +241,10 @@ var (
 	ErrDisableShare     = errors.New("disable share")
 	ErrPermissionDenied = errors.New("permission denied")
 )
+
+func (userCon *UserWebsocket) RecordLifecycleLog(sid string, event model.LifecycleEvent,
+	logObj model.SessionLifecycleLog) {
+	if err := userCon.apiClient.RecordSessionLifecycleLog(sid, event, logObj); err != nil {
+		logger.Errorf("Record session lifecycle log err: %s", err)
+	}
+}

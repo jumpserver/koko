@@ -1074,9 +1074,18 @@ func (s *Server) Proxy() {
 		if err2 := s.ConnectedFailedCallback(err); err2 != nil {
 			logger.Errorf("Conn[%s] update session err: %s", s.UserConn.ID(), err2)
 		}
+		errLog := model.SessionLifecycleLog{Reason: err.Error()}
+		if err1 := s.jmsService.RecordSessionLifecycleLog(s.sessionInfo.ID, model.AssetConnectFinished,
+			errLog); err1 != nil {
+			logger.Errorf("Conn[%s] record session activity log err: %s", s.UserConn.ID(), err1)
+		}
 		return
 	}
 	defer srvCon.Close()
+	if err1 := s.jmsService.RecordSessionLifecycleLog(s.sessionInfo.ID, model.AssetConnectSuccess,
+		model.EmptyLifecycleLog); err1 != nil {
+		logger.Errorf("Conn[%s] record session activity log err: %s", s.UserConn.ID(), err1)
+	}
 
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
 	if err2 := s.ConnectedSuccessCallback(); err2 != nil {
