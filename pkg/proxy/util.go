@@ -200,7 +200,11 @@ func ParseEndpointRegion(s string) string {
 	if strings.Contains(s, amazonawsSuffix) {
 		return ParseAWSURLRegion(s)
 	}
-	endpoints := strings.Split(s, ".")
+	endpoint, err := url.Parse(s)
+	if err != nil {
+		return ""
+	}
+	endpoints := strings.Split(endpoint.Hostname(), ".")
 	if len(endpoints) >= 3 {
 		return endpoints[len(endpoints)-3]
 	}
