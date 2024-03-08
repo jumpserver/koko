@@ -362,6 +362,9 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	if !ok {
 		return errNoAccountUser
 	}
+	if !su.Actions.EnableUpload() {
+		return sftp.ErrSshFxPermissionDenied
+	}
 	conn1, oldRealPath := ad.GetSFTPAndRealPath(su, strings.Join(oldPathData, "/"))
 	conn2, newRealPath := ad.GetSFTPAndRealPath(su, strings.Join(newPathData, "/"))
 	if conn1 != conn2 {
