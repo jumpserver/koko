@@ -339,13 +339,8 @@ func (s *Server) checkRequiredAuth() error {
 		srvconn.ProtocolMongoDB,
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
-		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql:
-		if err := s.getAuthPasswordIfNeed(); err != nil {
-			msg := utils.WrapperWarn(lang.T("Get auth password failed"))
-			utils.IgnoreErrWriteString(s.UserConn, msg)
-			return fmt.Errorf("get auth password failed: %s", err)
-		}
-	case srvconn.ProtocolRedis:
+		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql,
+		srvconn.ProtocolRedis:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth password failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
