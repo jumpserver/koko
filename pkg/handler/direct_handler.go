@@ -392,6 +392,15 @@ func (d *DirectHandler) Proxy(asset model.PermAsset) {
 		ConnectMethod: model.ProtocolSSH,
 		RemoteAddr:    d.wrapperSess.RemoteAddr(),
 	}
+	if selectAccount.IsInputUser() {
+		inputUsername, err1 := GetInputUsername(d.wrapperSess)
+		if err1 != nil {
+			logger.Errorf("Get input username err: %s", err1)
+			return
+		}
+		req.InputUsername = inputUsername
+	}
+
 	tokenInfo, err := d.jmsService.CreateSuperConnectToken(&req)
 	if err != nil {
 		if tokenInfo.Code == "" {

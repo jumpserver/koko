@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
+	"golang.org/x/term"
 )
 
 func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []model.PermAsset {
@@ -117,6 +119,23 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	u.displayResult(searchHeader, labels, fields, fieldsSize, data)
 }
 
+func GetInputUsername(sess io.ReadWriteCloser) (username string, err error) {
+	vt := term.NewTerminal(sess, "username: ")
+	count := 0
+	for count < 3 {
+		username, err = vt.ReadLine()
+		if err != nil {
+			return "", err
+		}
+		username = strings.TrimSpace(username)
+		if username != "" {
+			return username, nil
+		}
+		count++
+	}
+	return "", errors.New("input username exceed max retry")
+}
+
 func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 	u.selectedAsset = &asset
 	permAssetDetail, err := u.h.jmsService.GetUserPermAssetDetailById(u.user.ID, asset.ID)
@@ -176,6 +195,15 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 		ConnectMethod: "ssh",
 		RemoteAddr:    u.h.sess.RemoteAddr(),
 	}
+	if selectedAccount.IsInputUser() {
+		inputUsername, err1 := GetInputUsername(u.h.sess)
+		if err1 != nil {
+			logger.Errorf("Get input username err: %s", err1)
+			return
+		}
+		req.InputUsername = inputUsername
+	}
+
 	tokenInfo, err := u.h.jmsService.CreateSuperConnectToken(&req)
 	if err != nil {
 		if tokenInfo.Code == "" {

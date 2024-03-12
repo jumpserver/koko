@@ -307,36 +307,11 @@ func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedC
 	}
 }
 
-func (s *Server) getUsernameIfNeed() (err error) {
-	if s.account.Username == "" {
-		logger.Infof("Conn[%s] need manuel input system user username", s.UserConn.ID())
-		var username string
-		vt := term.NewTerminal(s.UserConn, "username: ")
-		for {
-			username, err = vt.ReadLine()
-			if err != nil {
-				return err
-			}
-			username = strings.TrimSpace(username)
-			if username != "" {
-				break
-			}
-		}
-		s.account.Username = username
-		logger.Infof("Conn[%s] get username from user input: %s", s.UserConn.ID(), username)
-	}
-	return
-}
-
 func (s *Server) getAuthPasswordIfNeed() (err error) {
 	var line string
 	if s.account.Secret == "" {
 		vt := term.NewTerminal(s.UserConn, "password: ")
-		if s.account.Username != "" {
-			line, err = vt.ReadPassword(fmt.Sprintf("%s's password: ", s.account.Username))
-		} else {
-			line, err = vt.ReadPassword("password: ")
-		}
+		line, err = vt.ReadPassword(fmt.Sprintf("%s's password: ", s.account.String()))
 
 		if err != nil {
 			logger.Errorf("Conn[%s] get password from user err: %s", s.UserConn.ID(), err.Error())
@@ -365,11 +340,6 @@ func (s *Server) checkRequiredAuth() error {
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql:
-		if err := s.getUsernameIfNeed(); err != nil {
-			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
-			utils.IgnoreErrWriteString(s.UserConn, msg)
-			return fmt.Errorf("get auth username failed: %s", err)
-		}
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth password failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -382,11 +352,6 @@ func (s *Server) checkRequiredAuth() error {
 			return fmt.Errorf("get auth password failed: %s", err)
 		}
 	case srvconn.ProtocolSSH:
-		if err := s.getUsernameIfNeed(); err != nil {
-			msg := utils.WrapperWarn(lang.T("Get auth username failed"))
-			utils.IgnoreErrWriteString(s.UserConn, msg)
-			return err
-		}
 		if s.checkReuseSSHClient() {
 			if cacheConn, ok := s.getCacheSSHConn(); ok {
 				s.cacheSSHConnection = cacheConn
