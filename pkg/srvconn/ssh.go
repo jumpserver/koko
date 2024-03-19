@@ -274,7 +274,7 @@ func createSSHConfig() gossh.Config {
 	ciphers = append(ciphers, cfg.Ciphers...)
 	cfg.Ciphers = ciphers
 	cfg.KeyExchanges = append(cfg.KeyExchanges, notRecommendKeyExchanges...)
-	cfg.MACs = []string{"hmac-sha2-256", "hmac-sha2-512", "hmac-sha1", "hmac-sha1-96"}
+	cfg.MACs = []string{"hmac-sha2-256", "hmac-sha1", "hmac-sha1-96"}
 	return cfg
 }
 
