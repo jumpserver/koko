@@ -117,7 +117,8 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		s.recorder.FinishFTPFile(f.FTPLog.ID)
 
 	}()
-	return f, err
+	// 包裹一层，兼容 WinSCP 目录的批量下载
+	return NewReaderAt(f), err
 }
 
 func (s *SftpHandler) Close() {
@@ -142,6 +143,10 @@ func NewWriterAt(f *srvconn.SftpFile, recorder *proxy.FTPFileRecorder) io.Writer
 	return &clientReadWritAt{f: f, mu: new(sync.RWMutex), recorder: recorder}
 }
 
+func NewReaderAt(f *srvconn.SftpFile) io.ReaderAt {
+	return &clientReadWritAt{f: f, mu: new(sync.RWMutex)}
+}
+
 type clientReadWritAt struct {
 	f  *srvconn.SftpFile
 	mu *sync.RWMutex
@@ -157,6 +162,12 @@ func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
 	}
 	_, _ = c.f.Seek(off, 0)
 	return c.f.Write(p)
+}
+
+func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.f.ReadAt(p, off)
 }
 
 type wrapperSFTPFileInfo struct {
