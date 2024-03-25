@@ -146,7 +146,7 @@
 			'cmdrm'        : '删除',
 			'cmdtrash'     : '至回收站', //from v2.1.24 added 29.4.2017
 			'cmdrestore'   : '恢复', //from v2.1.24 added 3.5.2017
-			'cmdsearch'    : '查找文件',
+			'cmdsearch'    : '查找资产',
 			'cmdup'        : '转到上一级文件夹',
 			'cmdupload'    : '上传文件',
 			'cmdview'      : '查看',
