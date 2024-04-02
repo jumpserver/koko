@@ -1,11 +1,11 @@
 #!/bin/sh
 #
 
-while [ "$(curl -I -m 10 -o /dev/null -s -w %{http_code} ${CORE_HOST}/api/health/)" != "200" ]
-do
-    echo "wait for jms_core $CORE_HOST ready"
+until /usr/local/bin/check ${CORE_HOST}/api/health/; do
+    echo "wait for jms_core ${CORE_HOST} ready"
     sleep 2
 done
+
 # 限制所有可执行目录的权限
 chmod -R  700 /usr/local/sbin/* && chmod -R 700 /usr/local/bin/* && chmod -R 700 /usr/bin/*
 chmod -R  700 /usr/sbin/* && chmod -R 700 /sbin/* && chmod -R 700 /bin/*
