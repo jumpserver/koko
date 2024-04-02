@@ -10,26 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - uses: docker/setup-qemu-action@v3
+    - uses: docker/setup-buildx-action@v3
 
-    - uses: docker/setup-qemu-action@v2
-
-    - uses: docker/setup-buildx-action@v2
-
-    - uses: docker/build-push-action@v3
+    - name: Build CE Image
+      uses: docker/build-push-action@v5
       with:
         context: .
         push: false
+        file: Dockerfile
         tags: jumpserver/koko:test
+        platforms: linux/amd64
         build-args: |
           GOPROXY=direct
           APT_MIRROR=http://deb.debian.org
-        file: Dockerfile
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - uses: LouisBrunner/checks-action@v1.5.0
-      if: always()
+    - name: Build EE Image
+      uses: docker/build-push-action@v5
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        name: Check Build
-        conclusion: ${{ job.status }}
+        context: .
+        push: false
+        file: Dockerfile-ee
+        tags: jumpserver/koko-ee:test
+        platforms: linux/amd64
+        build-args: |
+          GOPROXY=direct
+          APT_MIRROR=http://deb.debian.org
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
