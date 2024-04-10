@@ -10,6 +10,8 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
+const maxBufSize = 1024 * 100
+
 func NewCmdParser(sid, name string) *CmdParser {
 	parser := CmdParser{id: sid, name: name}
 	return &parser
@@ -28,7 +30,7 @@ type CmdParser struct {
 func (cp *CmdParser) WriteData(p []byte) (int, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	if cp.buf.Len() >= 1024 {
+	if cp.buf.Len() > maxBufSize {
 		return 0, nil
 	}
 	return cp.buf.Write(p)

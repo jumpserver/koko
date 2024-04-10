@@ -109,18 +109,18 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 		user   string
 	)
 	user = item.User.User
-	if len(item.Command) > 128 {
-		input = item.Command[:128]
+	if len(item.Command) > maxBufSize {
+		input = item.Command[:maxBufSize]
 	} else {
 		input = item.Command
 	}
 	i := strings.LastIndexByte(item.Output, '\r')
 	if i <= 0 {
 		output = item.Output
-	} else if i > 0 && i < 1024 {
+	} else if i > 0 && i < maxBufSize {
 		output = item.Output[:i]
 	} else {
-		output = item.Output[:1024]
+		output = item.Output[:maxBufSize]
 	}
 
 	return s.p.GenerateCommandItem(user, input, output, item)
