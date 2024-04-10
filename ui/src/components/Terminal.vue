@@ -7,7 +7,7 @@
         :close-on-press-escape="false"
         :close-on-click-modal="false"
         :show-close="false"
-        center>
+        align-center>
       <el-row type="flex" justify="center">
         <el-upload drag action="#" :auto-upload="false" :multiple="false" ref="upload"
                    :on-change="handleFileChange">
