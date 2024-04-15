@@ -209,6 +209,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			Path:       zinfo.Filename(),
 			DateStart:  modelCommon.NewUTCTime(zinfo.Time()),
 			IsSuccess:  status,
+			Session:    s.sessionInfo.ID,
 		}
 		if err := s.jmsService.CreateFileOperationLog(item); err != nil {
 			logger.Errorf("Create zmodem ftp log err: %s", err)
