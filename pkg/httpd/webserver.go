@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/LeeEirc/elfinder"
@@ -137,7 +138,7 @@ func (s *Server) UpgradeUserWsConn(ctx *gin.Context) (*UserWebsocket, error) {
 	langCode := config.GetConf().LanguageCode
 	if acceptLang := ctx.GetHeader("Accept-Language"); acceptLang != "" {
 		apiClient.SetHeader("Accept-Language", acceptLang)
-		langCode = acceptLang
+		langCode = ParseAcceptLanguageCode(acceptLang)
 	}
 	if cookieLang, err2 := ctx.Cookie("django_language"); err2 == nil {
 		apiClient.SetCookie("django_language", cookieLang)
@@ -206,4 +207,16 @@ func (s *Server) getPublicSetting() model.PublicSetting {
 		logger.Errorf("Get Public setting err: %s", err)
 	}
 	return setting
+}
+
+func ParseAcceptLanguageCode(language string) string {
+	// en,zh-TW;q=0.9,zh-CN;q=0.8,zh;q=0.7
+	// 解析出第一个语言代码
+	if language == "" {
+		return "zh-CN"
+	}
+	languages := strings.SplitN(language, ";", 2)
+	lang := strings.TrimSpace(languages[0])
+	languages = strings.SplitN(lang, ",", 2)
+	return languages[0]
 }
