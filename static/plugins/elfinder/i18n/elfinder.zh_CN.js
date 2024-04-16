@@ -211,7 +211,7 @@
 			'ntfsave'     : '保存文件',
 			'ntfarchive'  : '创建压缩包',
 			'ntfextract'  : '从压缩包提取文件',
-			'ntfsearch'   : '搜索文件',
+			'ntfsearch'   : '搜索资产',
 			'ntfresize'   : '正在更改尺寸',
 			'ntfsmth'     : '正在忙 >_<',
 			'ntfloadimg'  : '正在加载图片',
