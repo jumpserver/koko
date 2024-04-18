@@ -7,7 +7,7 @@
         :close-on-press-escape="false"
         :close-on-click-modal="false"
         :show-close="false"
-        center>
+        align-center>
       <el-row type="flex" justify="center">
         <el-upload drag action="#" :auto-upload="false" :multiple="false" ref="upload"
                    :on-change="handleFileChange">
@@ -553,6 +553,13 @@ export default {
       zsession.on('offer', xfer => {
         const buffer = [];
         const detail = xfer.get_details();
+        if (detail.size >= MAX_TRANSFER_SIZE) {
+          const msg = this.$t("Terminal.ExceedTransferSize") + ": " + bytesHuman(MAX_TRANSFER_SIZE)
+          this.$log.debug(msg)
+          this.$message(msg)
+          xfer.skip();
+          return
+        }
         xfer.on('input', payload => {
           this.updateReceiveProgress(xfer);
           buffer.push(new Uint8Array(payload));

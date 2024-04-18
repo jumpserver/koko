@@ -35,6 +35,7 @@
         let ws = new WebSocket(wsURL, ["JMS-KOKO"]);
         let interval;
         let wsId = '';
+        var tokenId = requireParams.get('token');
 
         var lunaId, origin;
         function handleEventFromLuna(evt) {
@@ -108,7 +109,7 @@
             ['rename'],
             ['view'],
         ];
-        if (targetId === '_') {
+        if (tokenId === null || tokenId === undefined || tokenId === "") {
             toolbar.push(['search'])
         }
         var url = '/koko/elfinder/connector/'+ targetId + '/';
