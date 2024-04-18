@@ -1,0 +1,684 @@
+msgid ""
+msgstr ""
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: xgotext\n"
+
+
+#. lang.T
+#: pkg/handler/app_database.go:11
+msgid "No Databases"
+msgstr "無資料庫"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:15
+msgid "No kubernetes"
+msgstr "沒有kubernetes"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:31
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "頁碼：%d，每頁行數：%d，總頁數：%d，總數量：%d"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:45
+#, fuzzy
+msgid ""
+"Enter ID number directly login, multiple search use // + field, such as: //16"
+msgstr "提示：輸入資產ID直接登入，二級搜索使用 // + 欄位，如：//192"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:46
+#, fuzzy
+msgid "Page up: b\tPage down: n"
+msgstr "上一頁：b 下一頁：n"
+
+#. lang.T
+#: pkg/handler/asset.go:41
+msgid "No Assets"
+msgstr "沒有資產"
+
+#. lang.T
+#: pkg/handler/asset.go:53
+msgid "ID"
+msgstr "ID"
+
+#. lang.T
+#: pkg/handler/asset.go:54
+msgid "Name"
+msgstr "名稱"
+
+#. lang.T
+#: pkg/handler/asset.go:55
+msgid "Address"
+msgstr "地址"
+
+#. lang.T
+#: pkg/handler/asset.go:56
+msgid "Platform"
+msgstr "平台"
+
+#. lang.T
+#: pkg/handler/asset.go:57
+msgid "Organization"
+msgstr "組織"
+
+#. lang.T
+#: pkg/handler/asset.go:58
+#, fuzzy
+msgid "Comment"
+msgstr "備註"
+
+#. lang.T
+#: pkg/handler/asset.go:155
+#, fuzzy
+msgid "%s protocol client not installed."
+msgstr "%s 協議的用戶端未安裝"
+
+#. lang.T
+#: pkg/handler/asset.go:158
+#, fuzzy
+msgid ""
+"Terminal does not support protocol %s, please use web terminal to access"
+msgstr "該終端不支持 %s 協議，請使用web終端登入"
+
+#. lang.T
+#: pkg/handler/asset.go:183
+#, fuzzy
+msgid "Core API failed"
+msgstr "Core API 發生錯誤"
+
+#. lang.T
+#: pkg/handler/asset.go:189
+#, fuzzy
+msgid "ACL reject"
+msgstr "本次登入已拒絕，原因是訪問控制策略的限制"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:203 pkg/handler/asset.go:220
+msgid "get connect token err"
+msgstr "獲取 connect token 錯誤"
+
+#. lang.T
+#: pkg/handler/asset_node.go:22
+msgid "%s node has no assets"
+msgstr "%s節點沒有資產"
+
+#. lang.T
+#: pkg/handler/banner.go:29
+#, fuzzy
+msgid "Welcome to use JumpServer open source fortress system"
+msgstr "歡迎使用JumpServer開源堡壘機系統"
+
+#. lang.T
+#: pkg/handler/banner.go:31
+msgid "part IP, Hostname, Comment"
+msgstr "部分IP，主機名，備註"
+
+#. lang.T
+#: pkg/handler/banner.go:31
+#, fuzzy
+msgid "to search login if unique"
+msgstr "搜索登入(如果唯一)"
+
+#. lang.T
+#: pkg/handler/banner.go:32
+msgid "/ + IP, Hostname, Comment"
+msgstr "/ + IP，主機名，備註"
+
+#. lang.T
+#: pkg/handler/banner.go:32
+#, fuzzy
+msgid "to search, such as: /192.168"
+msgstr "搜索，如：/192.168"
+
+#. lang.T
+#: pkg/handler/banner.go:33
+#, fuzzy
+msgid "display the assets you have permission"
+msgstr "顯示您有權限的資產"
+
+#. lang.T
+#: pkg/handler/banner.go:34
+msgid "display the node that you have permission"
+msgstr "顯示您有權限的節點"
+
+#. lang.T
+#: pkg/handler/banner.go:35
+#, fuzzy
+msgid "display the hosts that you have permission"
+msgstr "顯示您有權限的主機"
+
+#. lang.T
+#: pkg/handler/banner.go:36
+#, fuzzy
+msgid "display the databases that you have permission"
+msgstr "顯示您有權限的資料庫"
+
+#. lang.T
+#: pkg/handler/banner.go:37
+#, fuzzy
+msgid "display the kubernetes that you have permission"
+msgstr "顯示您有權限的Kubernetes"
+
+#. lang.T
+#: pkg/handler/banner.go:38
+msgid "refresh your assets and nodes"
+msgstr "刷新最新的機器和節點資訊"
+
+#. lang.T
+#: pkg/handler/banner.go:39
+msgid "Chinese-English-Japanese switch"
+msgstr "中文-English-日本語語言切換"
+
+#. lang.T
+#: pkg/handler/banner.go:40
+msgid "print help"
+msgstr "顯示幫助"
+
+#. lang.T
+#: pkg/handler/banner.go:41
+msgid "exit"
+msgstr "退出"
+
+#. lang.T
+#: pkg/handler/banner.go:59
+msgid "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr "\t%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
+
+#. lang.T
+#: pkg/handler/banner.go:79
+msgid "Announcement: "
+msgstr "公告："
+
+#. lang.T
+#: pkg/handler/direct_handler.go:247
+msgid "No Account found."
+msgstr "未發現帳號"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:257 pkg/handler/direct_handler.go:258
+#: pkg/handler/direct_handler.go:259
+#, fuzzy
+msgid "Username"
+msgstr "使用者名稱"
+
+#. lang.T
+#: pkg/handler/direct_handler.go:288
+#, fuzzy
+msgid "Tips: Enter asset[%s] account ID"
+msgstr "提示：輸入資產[%s]的帳號ID"
+
+#. lang.T
+#: pkg/handler/direct_handler.go:289
+msgid "Back: B/b"
+msgstr "返回：B/b"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:324 pkg/handler/direct_handler.go:325
+#, fuzzy
+msgid "Hostname"
+msgstr "主機名"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:326 pkg/handler/direct_handler.go:327
+#: pkg/handler/direct_handler.go:356
+msgid "select one asset to login"
+msgstr "選擇其中一個資產登入"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:370 pkg/handler/direct_handler.go:375
+msgid "not found matched username %s"
+msgstr "未發現匹配的使用者名稱 %s"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:399 pkg/handler/direct_handler.go:405
+#: pkg/handler/direct_handler.go:419 pkg/handler/direct_handler.go:435
+#: pkg/handler/dispatch.go:139
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr "節點：[ ID.名稱(資產數量) ]"
+
+#. lang.T
+#: pkg/handler/dispatch.go:141
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr "提示：輸入 g+節點ID 顯示節點下主機，如: g1"
+
+#. lang.T
+#: pkg/handler/interactive.go:68
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr "空閒時間超過%d分鐘，斷開連接"
+
+#. lang.T
+#: pkg/handler/interactive.go:202
+#, fuzzy
+msgid "No account found."
+msgstr "未發現帳號"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:212 pkg/handler/interactive.go:213
+#: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
+#: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
+msgid "Select account exceed max retry times."
+msgstr "選擇帳號超過最大重試次數"
+
+#. lang.T
+#: pkg/handler/interactive.go:282
+msgid "No protocol found."
+msgstr "無協議"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
+msgid "Protocol"
+msgstr "協議"
+
+#. lang.T
+#: pkg/handler/interactive.go:319
+msgid "Tips: Enter protocol ID"
+msgstr "提示：輸入協議ID"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
+msgid "Select protocol exceed max retry times."
+msgstr "選擇協議超過最大重試次數"
+
+#. lang.T
+#: pkg/handler/interactive.go:383
+msgid "Refresh done"
+msgstr "刷新完成"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:39
+msgid "Need ACL review, continue? (y/n): "
+msgstr "需要審核，繼續？(y/n): "
+
+#. lang.T
+#: pkg/handler/login_confirm.go:54
+msgid "Cancel to login asset or max 3 retry"
+msgstr "取消登入資產或達到3次重試"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
+#, fuzzy
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr "需要工單登入覆核，已發郵件通知審核人"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:100
+#, fuzzy
+msgid "Ticket Reviewers: %s"
+msgstr "工單審核人：%s "
+
+#. lang.T
+#: pkg/handler/login_confirm.go:101
+#, fuzzy
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "可複製審核地址，通知審核人：%s"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:102
+#, fuzzy
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr "等待審核人覆核確認，按 q 回車取消登入。"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:131
+msgid "Unknown status"
+msgstr "未知狀態"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:135
+msgid "%s approved"
+msgstr "%s 審核通過"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:140
+msgid "%s rejected"
+msgstr "%s 審核拒絕"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:144
+#, fuzzy
+msgid "Cancel confirm"
+msgstr "取消登入覆核"
+
+#. lang.T
+#: pkg/handler/select_handler.go:201
+#, fuzzy
+msgid "Search: %s"
+msgstr "搜索：%s"
+
+#. i18n.T
+#: pkg/handler/server_ssh.go:199
+msgid "Must be unique asset for %s"
+msgstr "必須是唯一的資產 %s"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/server_ssh.go:206 pkg/handler/server_ssh.go:228
+#, fuzzy
+msgid "Must be unique account for %s"
+msgstr "必須是唯一的帳號 %s"
+
+#. i18n.T
+#: pkg/handler/server_ssh.go:236
+#, fuzzy
+msgid "Must be auto login account for %s"
+msgstr "必須是自動登入帳號 %s"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/server_ssh.go:585 pkg/handler/server_ssh.go:589
+#, fuzzy
+msgid "No found asset"
+msgstr "未發現匹配的資產 %s"
+
+#. lang.T
+#: pkg/proxy/parser.go:215
+msgid "have no permission to upload file"
+msgstr "無權限上傳文件"
+
+#. lang.T
+#: pkg/proxy/parser.go:250
+msgid "the reviewers will confirm. continue or not [Y/n]"
+msgstr "需要審核人覆核，是否繼續 [Y/N]"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/parser.go:270 pkg/proxy/parser.go:277 pkg/proxy/parser.go:410
+msgid "Command `%s` is forbidden"
+msgstr "命令 `%s` 是被禁止的 ..."
+
+#. lang.T
+#: pkg/proxy/parser.go:481
+msgid "have no permission to download file"
+msgstr "無權限下載文件"
+
+#. lang.T
+#: pkg/proxy/parser.go:555
+#, fuzzy
+msgid ""
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
+msgstr "請等待審核人覆核命令 `%s`，取消按 CTRL+C。"
+
+#. lang.T
+#: pkg/proxy/parser.go:565
+#, fuzzy
+msgid ""
+"Need ticket confirm to execute command, already send email to the reviewers"
+msgstr "需要工單命令執行覆核，已發郵件通知審核人"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/parser.go:566 pkg/proxy/parser.go:567 pkg/proxy/server.go:56
+#: pkg/proxy/server.go:60
+#, fuzzy
+msgid ""
+"HandleTask does not support protocol %s, please use web terminal to access"
+msgstr "該終端不支持 %s 協議，請使用web終端登入"
+
+#. lang.T
+#: pkg/proxy/server.go:68
+#, fuzzy
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
+msgstr "系統用戶<%s>和資產<%s>協議不一致"
+
+#. lang.T
+#: pkg/proxy/server.go:98
+msgid "You don't have permission login %s"
+msgstr "你無權限登入 %s"
+
+#. lang.T
+#: pkg/proxy/server.go:359
+msgid "You get auth token failed"
+msgstr "你獲取認證令牌失敗"
+
+#. lang.T
+#: pkg/proxy/server.go:369
+#, fuzzy
+msgid "Get auth username failed"
+msgstr "你獲取認證令牌失敗"
+
+#. lang.T
+#: pkg/proxy/server.go:374
+#, fuzzy
+msgid "Get auth password failed"
+msgstr "你獲取認證令牌失敗"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:380 pkg/proxy/server.go:386 pkg/proxy/server.go:401
+#: pkg/proxy/server.go:458
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr "復用SSH連接（%s@%s）[連接數量: %d]"
+
+#. lang.T
+#: pkg/proxy/server.go:740
+msgid "Switched to %s"
+msgstr "已切換至%s"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:837 pkg/proxy/server.go:1007
+msgid "Connect with api server failed"
+msgstr "連接API服務失敗"
+
+#. lang.T
+#: pkg/proxy/server.go:1052
+#, fuzzy
+msgid "Start domain gateway failed %s"
+msgstr "啟動資料庫網關失敗%s"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:1060 pkg/proxy/server_options.go:108
+#, fuzzy
+msgid "Manual"
+msgstr "手動帳號"
+
+#. lang.T
+#: pkg/proxy/server_options.go:110
+#, fuzzy
+msgid "Dynamic"
+msgstr "動態帳號"
+
+#. lang.T
+#: pkg/proxy/server_options.go:113
+#, fuzzy
+msgid "Connecting to %s@%s"
+msgstr "開始連接到 %s@%s"
+
+#. lang.T
+#: pkg/proxy/server_options.go:117
+#, fuzzy
+msgid "Connecting to Database %s"
+msgstr "開始連接資料庫 %s"
+
+#. lang.T
+#: pkg/proxy/server_options.go:119
+#, fuzzy
+msgid "Connecting to Kubernetes %s"
+msgstr "開始連接Kubernetes %s"
+
+#. lang.T
+#: pkg/proxy/server_options.go:121
+#, fuzzy
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "開始連接Kubernetes %s 容器 %s"
+
+#. lang.T
+#: pkg/proxy/switch.go:290
+#, fuzzy
+msgid "Session max time reached, disconnect"
+msgstr "會話超過最大連接時間，斷開連接"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/switch.go:300 pkg/proxy/switch.go:308
+msgid "Permission has expired, disconnect"
+msgstr "授權已過期，斷開連接"
+
+#. lang.T
+#: pkg/proxy/switch.go:319
+#, fuzzy
+msgid "Terminated by admin %s"
+msgstr "%s 管理員中斷連接"
+
+#. lang.T
+#: pkg/proxy/tools.go:28
+#, fuzzy
+msgid "Authentication failed"
+msgstr "認證失敗（使用者名稱或密碼錯誤）"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
+msgid "Connection refused"
+msgstr "網路不通（連接拒絕）"
+
+#. lang.T
+#: pkg/proxy/tools.go:34
+msgid "i/o timeout"
+msgstr "網路不通（連接超時）"
+
+#. lang.T
+#: pkg/proxy/tools.go:37
+msgid "No route to host"
+msgstr "網路不通（路由不通）"
+
+#. lang.T
+#: pkg/proxy/tools.go:40
+msgid "network is unreachable"
+msgstr "網路不通（網路不可達）"
+
+#, fuzzy
+#~ msgid "Protocols"
+#~ msgstr "協議"
+
+#~ msgid "No found ssh protocol supported"
+#~ msgstr "未支持 ssh 協議"
+
+#, fuzzy
+#~ msgid "the database"
+#~ msgstr "無資料庫"
+
+#~ msgid "Cluster"
+#~ msgstr "集群"
+
+#, fuzzy
+#~ msgid "the kubernetes"
+#~ msgstr "kubernetes"
+
+#~ msgid "the asset"
+#~ msgstr "資產"
+
+#, fuzzy
+#~ msgid "Tips: Enter system user ID and directly login"
+#~ msgstr "提示：輸入系統用戶ID直接登入"
+
+#~ msgid "@INPUT"
+#~ msgstr "手動用戶"
+
+#~ msgid "@USER"
+#~ msgstr "動態用戶"
+
+#~ msgid "IP"
+#~ msgstr "IP"
+
+#~ msgid "DBType"
+#~ msgstr "資料庫類型"
+
+#, fuzzy
+#~ msgid "DB Name"
+#~ msgstr "資料庫名稱"
+
+#~ msgid "No system user found."
+#~ msgstr "沒有系統用戶"
+
+#~ msgid "validate Login confirm err: Core Api failed"
+#~ msgstr "校驗登入覆核失敗：Core API異常"
+
+#~ msgid "Must be unique system user for %s"
+#~ msgstr "必須是唯一的系統用戶 %s"
+
+#, fuzzy
+#~ msgid ""
+#~ "Enter ID number directly login the database, multiple search use // + "
+#~ "field, such as: //16"
+#~ msgstr "提示：輸入資料庫ID直接登入，二級搜索使用 // + 欄位，如：//192"
+
+#, fuzzy
+#~ msgid ""
+#~ "Enter ID number directly login the kubernetes, multiple search use // + "
+#~ "field, such as: //16"
+#~ msgstr "提示：輸入Kubernetes的ID直接登入，二級搜索使用 // + 欄位，如：//192"
+
+#~ msgid "The asset is inactive"
+#~ msgstr "該資產已禁用"
+
+#~ msgid "Command review is not currently supported"
+#~ msgstr "此命令覆核暫不支持"
+
+#~ msgid "Database %s protocol client not installed."
+#~ msgstr "%s 協議的資料庫用戶端未安裝"
+
+#, fuzzy
+#~ msgid "System user <%s> and database <%s> protocol are inconsistent."
+#~ msgstr "系統用戶<%s>和資產<%s>協議不一致"
+
+#~ msgid "Create database session failed"
+#~ msgstr "創建資料庫會話失敗"
+
+#~ msgid "Create DB domain gateway failed %s"
+#~ msgstr "創建資料庫網關失敗%s"
+
+#, fuzzy
+#~ msgid "System user <%s> and kubernetes <%s> protocol are inconsistent."
+#~ msgstr "系統用戶<%s>和kubernetes<%s>協議不一致"
+
+#, fuzzy
+#~ msgid "Create k8s session failed"
+#~ msgstr "創建Kubernetes會話失敗"
+
+#, fuzzy
+#~ msgid "Create k8s domain gateway failed %s"
+#~ msgstr "創建Kubernetes網關失敗%s"
+
+#~ msgid "Start k8s domain gateway failed %s"
+#~ msgstr "啟動kubernetes網關失敗%s"
+
+#~ msgid "Connect asset %s error: %s"
+#~ msgstr "連接資產 %s 發生錯誤：%s"
+
+#, fuzzy
+#~ msgid "Database connect idle more than %d minutes, disconnect"
+#~ msgstr "資料庫連接空閒時間超過 %d 分鐘，斷開連接"
+
+#, fuzzy
+#~ msgid "Database connection terminated by administrator"
+#~ msgstr "管理員中斷資料庫連接"

@@ -78,6 +78,10 @@ func (a *PermAccount) IsAnonymous() bool {
 	return a.Username == ANONUser
 }
 
+func (a *PermAccount) IsInputUser() bool {
+	return a.Username == InputUser
+}
+
 const (
 	InputUser   = "@INPUT"
 	DynamicUser = "@USER"

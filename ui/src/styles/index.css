@@ -96,6 +96,34 @@ body ::-webkit-scrollbar-thumb {
   padding-top: 10px!important;
 }
 
+.el-upload-dragger{
+  background-color: #3f3d3d;
+}
+
+.el-upload-dragger:hover{
+  border-color: rgb(134, 133, 133);
+}
+
+.el-upload-dragger .el-upload__text {
+  color: #fff;
+}
+
+.el-dialog__footer .el-button {
+  color: rgb(0, 0, 0, 0.5);
+  background: #f0f0f0;
+  border-color: #f0f0f0;
+}
+
+.el-dialog__footer .el-button:hover {
+  background: rgb(134, 133, 133);
+  border-color: rgb(134, 133, 133);
+}
+
+.el-dialog__footer .el-button.is-disabled:hover{
+  color: rgb(0, 0, 0, 0.5);
+  background: none;
+}
+
 .menu-list li {
   cursor: pointer;
 }

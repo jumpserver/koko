@@ -23,6 +23,8 @@ type sqlOption struct {
 	win Windows
 
 	disableMySQLAutoRehash bool
+
+	AuthSource string
 }
 
 type SqlOption func(*sqlOption)
@@ -90,6 +92,12 @@ func SqlAllowInvalidCert(allowInvalidCert bool) SqlOption {
 func SqlPtyWin(win Windows) SqlOption {
 	return func(args *sqlOption) {
 		args.win = win
+	}
+}
+
+func SqlAuthSource(authSource string) SqlOption {
+	return func(args *sqlOption) {
+		args.AuthSource = authSource
 	}
 }
 

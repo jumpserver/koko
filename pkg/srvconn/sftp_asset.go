@@ -362,6 +362,9 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	if !ok {
 		return errNoAccountUser
 	}
+	if !su.Actions.EnableUpload() {
+		return sftp.ErrSshFxPermissionDenied
+	}
 	conn1, oldRealPath := ad.GetSFTPAndRealPath(su, strings.Join(oldPathData, "/"))
 	conn2, newRealPath := ad.GetSFTPAndRealPath(su, strings.Join(newPathData, "/"))
 	if conn1 != conn2 {
@@ -730,6 +733,14 @@ func (ad *AssetDir) finishSftpSession(key string, conn *SftpConn) {
 }
 
 func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) *model.FTPLog {
+	sessionId := ""
+	if traceSession, ok := ad.sftpTraceSessions[su.String()]; ok {
+		sessionId = traceSession.ID
+	} else {
+		logger.Errorf("Not found sftp session for asset %s account %s",
+			ad.detailAsset.String(), su.String())
+	}
+
 	data := model.FTPLog{
 		ID:         com.UUID(),
 		User:       ad.user.String(),
@@ -741,6 +752,7 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		Path:       filename,
 		DateStart:  common.NewNowUTCTime(),
 		IsSuccess:  isSuccess,
+		Session:    sessionId,
 	}
 	if err := ad.jmsService.CreateFileOperationLog(data); err != nil {
 		logger.Errorf("Create ftp log err: %s", err)
