@@ -362,6 +362,9 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	if !ok {
 		return errNoAccountUser
 	}
+	if !su.Actions.EnableUpload() {
+		return sftp.ErrSshFxPermissionDenied
+	}
 	conn1, oldRealPath := ad.GetSFTPAndRealPath(su, strings.Join(oldPathData, "/"))
 	conn2, newRealPath := ad.GetSFTPAndRealPath(su, strings.Join(newPathData, "/"))
 	if conn1 != conn2 {
@@ -535,6 +538,7 @@ func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn
 		traceSession := session.NewSession(&respSession, terminalFunc)
 		session.AddSession(traceSession)
 		ad.sftpTraceSessions[su.String()] = traceSession
+		ad.recordSessionLifecycle(traceSession.ID, model.AssetConnectSuccess, "")
 	}
 	if conn.rootDirPath == "" {
 		platform := conn.token.Platform
@@ -581,7 +585,7 @@ func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err er
 	if err != nil {
 		return nil, fmt.Errorf("get connect token account err: %s", err2)
 	}
-	return ad.getNewSftpConn(&connectToken)
+	return ad.getNewSftpConn(&connectToken, su)
 }
 
 func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToken, error) {
@@ -609,7 +613,8 @@ func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToke
 	return ad.jmsService.GetConnectTokenInfo(tokenInfo.ID)
 }
 
-func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken) (conn *SftpConn, err error) {
+func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
+	su *model.PermAccount) (conn *SftpConn, err error) {
 	if ad.detailAsset == nil {
 		return nil, errNoSelectAsset
 	}
@@ -680,6 +685,11 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken) (conn *Sftp
 		sshClient.ReleaseSession(sess)
 		_ = sshClient.Close()
 		logger.Infof("User %s SSH client(%s) for SFTP release", user.String(), sshClient)
+		if sftpSession, ok := ad.sftpTraceSessions[su.String()]; ok {
+			sid := sftpSession.ID
+			reason := string(model.ReasonErrConnectDisconnect)
+			ad.recordSessionLifecycle(sid, model.AssetConnectFinished, reason)
+		}
 	}()
 	homeDirPath, err := sftpClient.Getwd()
 	if err != nil {
@@ -723,6 +733,14 @@ func (ad *AssetDir) finishSftpSession(key string, conn *SftpConn) {
 }
 
 func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) *model.FTPLog {
+	sessionId := ""
+	if traceSession, ok := ad.sftpTraceSessions[su.String()]; ok {
+		sessionId = traceSession.ID
+	} else {
+		logger.Errorf("Not found sftp session for asset %s account %s",
+			ad.detailAsset.String(), su.String())
+	}
+
 	data := model.FTPLog{
 		ID:         com.UUID(),
 		User:       ad.user.String(),
@@ -734,11 +752,19 @@ func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string
 		Path:       filename,
 		DateStart:  common.NewNowUTCTime(),
 		IsSuccess:  isSuccess,
+		Session:    sessionId,
 	}
 	if err := ad.jmsService.CreateFileOperationLog(data); err != nil {
 		logger.Errorf("Create ftp log err: %s", err)
 	}
 	return &data
+}
+
+func (ad *AssetDir) recordSessionLifecycle(sid string, event model.LifecycleEvent, reason string) {
+	logObj := model.SessionLifecycleLog{Reason: reason}
+	if err := ad.jmsService.RecordSessionLifecycleLog(sid, event, logObj); err != nil {
+		logger.Errorf("Update session %s lifecycle %s failed: %s", sid, event, err)
+	}
 }
 
 func IsExistPath(client *sftp.Client, path string) bool {

@@ -109,18 +109,18 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 		user   string
 	)
 	user = item.User.User
-	if len(item.Command) > 128 {
-		input = item.Command[:128]
+	if len(item.Command) > maxBufSize {
+		input = item.Command[:maxBufSize]
 	} else {
 		input = item.Command
 	}
 	i := strings.LastIndexByte(item.Output, '\r')
 	if i <= 0 {
 		output = item.Output
-	} else if i > 0 && i < 1024 {
+	} else if i > 0 && i < maxBufSize {
 		output = item.Output[:i]
 	} else {
-		output = item.Output[:1024]
+		output = item.Output[:maxBufSize]
 	}
 
 	return s.p.GenerateCommandItem(user, input, output, item)
@@ -292,6 +292,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				msg = utils.WrapperWarn(msg)
 				replayRecorder.Record([]byte(msg))
 				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				s.recordSessionFinished(model.ReasonErrMaxSessionTimeout)
 				return
 			}
 
@@ -302,6 +303,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				msg = utils.WrapperWarn(msg)
 				replayRecorder.Record([]byte(msg))
 				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				s.recordSessionFinished(model.ReasonErrIdleDisconnect)
 				return
 			}
 			if s.p.CheckPermissionExpired(now) {
@@ -310,6 +312,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				msg = utils.WrapperWarn(msg)
 				replayRecorder.Record([]byte(msg))
 				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				s.recordSessionFinished(model.ReasonErrPermissionExpired)
 				return
 			}
 			continue
@@ -321,6 +324,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			replayRecorder.Record([]byte(msg))
 			logger.Infof("Session[%s]: %s", s.ID, msg)
 			room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+			s.recordSessionFinished(model.ReasonErrAdminTerminate)
 			return
 			// 监控窗口大小变化
 		case win, ok := <-winCh:
@@ -339,6 +343,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {
+				s.recordSessionFinished(model.ReasonErrConnectDisconnect)
 				return
 			}
 			if parser.NeedRecord() {
@@ -352,6 +357,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			// 经过parse处理的user数据，发给server
 		case p, ok := <-userOutChan:
 			if !ok {
+				s.recordSessionFinished(model.ReasonErrUserClose)
 				return
 			}
 			if _, err1 := srvConn.Write(p); err1 != nil {
@@ -367,9 +373,11 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			continue
 		case <-userConn.Context().Done():
 			logger.Infof("Session[%s]: user conn context done", s.ID)
+			s.recordSessionFinished(model.ReasonErrUserClose)
 			return nil
 		case <-exitSignal:
 			logger.Debugf("Session[%s] end by exit signal", s.ID)
+			s.recordSessionFinished(model.ReasonErrConnectDisconnect)
 			return
 		case notifyMsg := <-s.notifyMsgChan:
 			logger.Infof("Session[%s] notify event: %s", s.ID, notifyMsg.Event)
@@ -377,5 +385,12 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			continue
 		}
 		lastActiveTime = time.Now()
+	}
+}
+
+func (s *SwitchSession) recordSessionFinished(reason model.SessionLifecycleReasonErr) {
+	logObj := model.SessionLifecycleLog{Reason: string(reason)}
+	if err := s.p.jmsService.RecordSessionLifecycleLog(s.ID, model.AssetConnectFinished, logObj); err != nil {
+		logger.Errorf("Session[%s] record session asset_connect_finished failed: %s", s.ID, err)
 	}
 }

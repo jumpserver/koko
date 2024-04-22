@@ -130,10 +130,19 @@ func addMongoParamsWithSSL(args *sqlOption, params map[string]string) {
 	}
 }
 
+func (opt *sqlOption) GetAuthSource() string {
+	//  authSource 默认是 admin，通过 platform 的 protocol 设置，修改这个认证的值
+	// https://www.mongodb.com/docs/manual/reference/connection-string/#mongodb-urioption-urioption.authSource
+	if opt.AuthSource == "" {
+		return "admin"
+	}
+	return opt.AuthSource
+}
+
 func (opt *sqlOption) MongoDBCommandArgs() []string {
 	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
 	params := map[string]string{
-		"authSource": "admin",
+		"authSource": opt.GetAuthSource(),
 	}
 	addMongoParamsWithSSL(opt, params)
 	uri := BuildMongoDBURI(
@@ -149,10 +158,8 @@ func (opt *sqlOption) MongoDBCommandArgs() []string {
 
 func checkMongoDBAccount(args *sqlOption) error {
 	host := net.JoinHostPort(args.Host, strconv.Itoa(args.Port))
-	// todo: authSource 暂且只使用 admin， 待后续可配置后，修改这个认证的值
-	// https://www.mongodb.com/docs/manual/reference/connection-string/#mongodb-urioption-urioption.authSource
 	params := map[string]string{
-		"authSource": "admin",
+		"authSource": args.GetAuthSource(),
 		"connect":    "direct",
 	}
 	addMongoParamsWithSSL(args, params)

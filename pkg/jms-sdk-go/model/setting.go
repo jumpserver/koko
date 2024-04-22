@@ -1,13 +1,13 @@
 package model
 
 type PublicSetting struct {
-	LoginTitle string `json:"LOGIN_TITLE"`
-	LogoURLS   struct {
-		LogOut  string `json:"logo_logout"`
-		Index   string `json:"logo_index"`
-		Image   string `json:"login_image"`
-		Favicon string `json:"favicon"`
-	} `json:"LOGO_URLS"`
+	Interface struct {
+		LoginTitle string `json:"login_title"`
+		LogOut     string `json:"logo_logout"`
+		Index      string `json:"logo_index"`
+		Image      string `json:"login_image"`
+		Favicon    string `json:"favicon"`
+	} `json:"INTERFACE"`
 	EnableWatermark    bool `json:"SECURITY_WATERMARK_ENABLED"`
 	EnableSessionShare bool `json:"SECURITY_SESSION_SHARE"`
 	EnableAnnouncement bool `json:"ANNOUNCEMENT_ENABLED"`
@@ -32,13 +32,6 @@ type PublicSetting struct {
 	"SECURITY_PASSWORD_EXPIRATION_TIME": 10000,
 	"SECURITY_LUNA_REMEMBER_AUTH": true,
 	"XPACK_LICENSE_IS_VALID": true,
-	"LOGIN_TITLE": "欢迎使用JumpServer开源堡垒机",
-	"LOGO_URLS": {
-		"logo_logout": "/static/img/logo.png",
-		"logo_index": "/static/img/logo_text.png",
-		"login_image": "/static/img/login_image.jpg",
-		"favicon": "/static/img/facio.ico"
-	},
 	"TICKETS_ENABLED": true,
 	"PASSWORD_RULE": {
 		"SECURITY_PASSWORD_MIN_LENGTH": 6,
@@ -53,6 +46,17 @@ type PublicSetting struct {
 	"AUTH_FEISHU": true,
 	"SECURITY_WATERMARK_ENABLED": true,
 	"SECURITY_SESSION_SHARE": true,
-	"XRDP_ENABLED": true
+	"XRDP_ENABLED": true,
+	INTERFACE: {
+		logo_logout: "/static/img/logo.png",
+		logo_index: "/static/img/logo_text_white.png",
+		login_image: "/static/img/login_image.png",
+		favicon: "/static/img/facio.ico",
+		login_title: "JumpServer 开源堡垒机",
+		theme: "classic_green",
+		theme_info: { },
+		beian_link: "",
+		beian_text: ""
+	}
 }
 */
