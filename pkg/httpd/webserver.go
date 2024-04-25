@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/LeeEirc/elfinder"
@@ -24,6 +25,7 @@ import (
 
 const (
 	defaultBufferSize = 1024
+	WebsocketErrorf   = "Websocket upgrade err: %s"
 )
 
 var upGrader = websocket.Upgrader{
@@ -106,7 +108,7 @@ func (s *Server) SftpHostConnectorView(ctx *gin.Context) {
 func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 	userConn, err := s.UpgradeUserWsConn(ctx)
 	if err != nil {
-		logger.Errorf("Websocket upgrade err: %s", err)
+		logger.Errorf(WebsocketErrorf, err)
 		return
 	}
 	s.runTTY(userConn)
@@ -115,12 +117,35 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 	userConn, err := s.UpgradeUserWsConn(ctx)
 	if err != nil {
-		logger.Errorf("Websocket upgrade err: %s", err)
+		logger.Errorf(WebsocketErrorf, err)
 		return
 	}
 	userConn.handler = &webFolder{
 		ws:   userConn,
 		done: make(chan struct{}),
+	}
+	s.broadCaster.EnterUserWebsocket(userConn)
+	defer s.broadCaster.LeaveUserWebsocket(userConn)
+	userConn.Run()
+}
+
+func (s *Server) ChatAIWebsocket(ctx *gin.Context) {
+	userConn, err := s.UpgradeUserWsConn(ctx)
+	if err != nil {
+		logger.Errorf(WebsocketErrorf, err)
+		return
+	}
+
+	termConf, err := userConn.apiClient.GetTerminalConfig()
+	if err != nil {
+		logger.Errorf("Get terminal config failed: %s", err)
+		return
+	}
+
+	userConn.handler = &chat{
+		ws:              userConn,
+		conversationMap: sync.Map{},
+		termConf:        &termConf,
 	}
 	s.broadCaster.EnterUserWebsocket(userConn)
 	defer s.broadCaster.LeaveUserWebsocket(userConn)
