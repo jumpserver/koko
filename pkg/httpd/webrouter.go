@@ -72,6 +72,9 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		wsGroup.Group("/elfinder").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessElfinderWebsocket)
 
+		wsGroup.Group("/chat/system").Use(
+			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ChatAIWebsocket)
+
 	}
 
 	connectGroup := kokoGroup.Group("/connect")
