@@ -11,6 +11,7 @@ body {
   overflow: auto;
   height: 100%;
   width: 100%;
+  font-family: "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 body ::-webkit-scrollbar-track {
