@@ -1,3 +1,25 @@
+@font-face {
+  font-family: 'Open Sans';
+  src: url('./fonts/OpenSans-Regular.ttf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('./fonts/OpenSans-Bold.ttf');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('./fonts/OpenSans-Light.ttf');
+  font-weight: 300;
+  font-style: normal;
+}
+
+
 html {
   height: 100%;
   width: 100%;
@@ -11,7 +33,8 @@ body {
   overflow: auto;
   height: 100%;
   width: 100%;
-  font-family: "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 body ::-webkit-scrollbar-track {
