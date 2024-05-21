@@ -6,6 +6,8 @@ const (
 	TerminalRegisterURL  = "/api/v1/terminal/terminal-registrations/" // 注册
 	TerminalConfigURL    = "/api/v1/terminal/terminals/config/"       // 获取配置
 	TerminalHeartBeatURL = "/api/v1/terminal/terminals/status/"
+
+	TerminalEncryptedConfigURL = "/api/v1/terminal/encrypted-config/"
 )
 
 // 用户登陆认证使用的API

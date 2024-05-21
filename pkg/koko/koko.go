@@ -40,6 +40,7 @@ func RunForever(confPath string) {
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	jmsService := MustJMService()
+	bootstrapWithJMService(jmsService)
 	webSrv := httpd.NewServer(jmsService)
 	sshSrv := sshd.NewSSHServer(jmsService)
 	app := &Koko{
@@ -55,7 +56,29 @@ func RunForever(confPath string) {
 func bootstrap() {
 	i18n.Initial()
 	logger.Initial()
+}
+
+func bootstrapWithJMService(jmsService *service.JMService) {
+	updateEncryptConfigValue(jmsService)
 	exchange.Initial()
+}
+
+func updateEncryptConfigValue(jmsService *service.JMService) {
+	cfg := config.GlobalConfig
+	encryptKey := cfg.SecretEncryptKey
+	if encryptKey != "" {
+		redisPassword := cfg.RedisPassword
+		ret, err := jmsService.GetEncryptedConfigValue(encryptKey, redisPassword)
+		if err != nil {
+			logger.Error("Get encrypted config value failed: " + err.Error())
+			return
+		}
+		if ret.Value != "" {
+			cfg.UpdateRedisPassword(ret.Value)
+		} else {
+			logger.Error("Get encrypted config value failed: empty value")
+		}
+	}
 }
 
 func runTasks(jmsService *service.JMService) {
