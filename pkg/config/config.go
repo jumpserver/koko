@@ -57,6 +57,8 @@ type Config struct {
 
 	HiddenFields []string `mapstructure:"HIDDEN_FIELDS"`
 
+	SecretEncryptKey string `mapstructure:"SECRET_ENCRYPT_KEY"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
@@ -71,6 +73,10 @@ func (c *Config) EnsureConfigValid() {
 	if c.LanguageCode == "" {
 		c.LanguageCode = "zh"
 	}
+}
+
+func (c *Config) UpdateRedisPassword(val string) {
+	c.RedisPassword = val
 }
 
 func GetConf() Config {
