@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/jumpserver/koko/pkg/cache"
 	"github.com/jumpserver/koko/pkg/config"
 	gossh "golang.org/x/crypto/ssh"
 
@@ -246,6 +247,12 @@ func parseDirectLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Direc
 func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*DirectLoginAssetReq, bool) {
 	if strings.HasPrefix(ctx.User(), tokenPrefix) {
 		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
+		key := cache.CreateAddrCacheKey(ctx.RemoteAddr(), token)
+		if connectToken := cache.TokenCacheInstance.Get(key); connectToken != nil {
+			req := DirectLoginAssetReq{ConnectToken: connectToken,
+				Protocol: connectToken.Protocol}
+			return &req, true
+		}
 		if connectToken, err := jmsService.GetConnectTokenInfo(token); err == nil {
 			req := DirectLoginAssetReq{ConnectToken: &connectToken,
 				Protocol: connectToken.Protocol}

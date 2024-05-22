@@ -1,6 +1,8 @@
 package model
 
-import "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
+import (
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
+)
 
 type ConnectToken struct {
 	Id       string     `json:"id"`
