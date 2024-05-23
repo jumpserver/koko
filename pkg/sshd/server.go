@@ -76,6 +76,7 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 		Version:          "JumpServer",
 		Banner:           "Welcome to JumpServer SSH Server\n",
 		HostSigners:      []ssh.Signer{singer},
+		MaxSessions:      int32(cf.SshMaxSessions),
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
 			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
 			return &gossh.ServerConfig{Config: cfg}
