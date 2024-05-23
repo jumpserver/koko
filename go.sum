@@ -287,8 +287,8 @@ github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1
 github.com/jstemmer/go-junit-report v0.9.1/go.mod h1:Brl9GWCQeLvo8nXZwPNNblvFj/XSXhF0NWZEnDohbsk=
 github.com/jumpserver-dev/crypto v0.0.0-20240209025851-4b55dc4c3463 h1:ZQTX/4gO/G8SFtzn9K8M2mac83TSIyEHX9/2bnBKf1Y=
 github.com/jumpserver-dev/crypto v0.0.0-20240209025851-4b55dc4c3463/go.mod h1:Iy9bg/ha4yyC70EfRS8jz+B6ybOBKMaSxLj6P6oBDfU=
-github.com/jumpserver-dev/ssh v0.1.2-0.20240209035326-4f0f6365ccae h1:zND4fMpJoOf90TILA9CY9KTub+YLK+pdiG6LM/+9UBo=
-github.com/jumpserver-dev/ssh v0.1.2-0.20240209035326-4f0f6365ccae/go.mod h1:KdoSNwfOgcFXlcr2OQ34eeKfIl7K8l6cAQ6twkYaLcU=
+github.com/jumpserver-dev/ssh v0.1.2-0.20240523042749-9bd9e7a5793e h1:AmskLnxDyU079ICOeJyHOZ06nD7onemw8Q+usJM4S/c=
+github.com/jumpserver-dev/ssh v0.1.2-0.20240523042749-9bd9e7a5793e/go.mod h1:KdoSNwfOgcFXlcr2OQ34eeKfIl7K8l6cAQ6twkYaLcU=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.13.6 h1:P76CopJELS0TiO2mebmnzgWaajssP/EszplttgQxcgc=

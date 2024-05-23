@@ -131,6 +131,6 @@ require (
 )
 
 replace (
-	github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.1.2-0.20240209035326-4f0f6365ccae
+	github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.1.2-0.20240523042749-9bd9e7a5793e
 	golang.org/x/crypto => github.com/jumpserver-dev/crypto v0.0.0-20240209025851-4b55dc4c3463
 )
