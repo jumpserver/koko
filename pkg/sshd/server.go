@@ -76,6 +76,7 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 		AuthLogCallback:            auth.SSHAuthLogCallback,
 		NextAuthMethodsHandler:     func(ctx ssh.Context) []string { return []string{nextAuthMethod} },
 		HostSigners:                []ssh.Signer{singer},
+		MaxSessions:                int32(cf.SshMaxSessions),
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
 			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
 			return &gossh.ServerConfig{Config: cfg}

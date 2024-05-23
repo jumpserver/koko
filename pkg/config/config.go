@@ -60,6 +60,8 @@ type Config struct {
 	// 仅控制是否缓存 sftp 的 token 连接
 	ConnectionTokenReusable bool `mapstructure:"CONNECTION_TOKEN_REUSABLE"`
 
+	SshMaxSessions int `mapstructure:"SSH_MAX_SESSIONS"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
