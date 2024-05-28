@@ -11,11 +11,11 @@ RUN set -ex \
 
 WORKDIR /opt/koko/ui
 ADD ui/package.json ui/yarn.lock .
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install
 
 ADD ui .
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn build
 
 FROM golang:1.22-bullseye as stage-build
@@ -30,6 +30,7 @@ ARG HELM_VERSION=v3.14.3
 ARG KUBECTL_VERSION=v1.29.3
 ARG CHECK_VERSION=v1.0.2
 ARG USQL_VERSION=v0.0.1
+ARG WISP_VERSION=v0.1.20
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
     && wget -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
@@ -40,9 +41,11 @@ RUN set -ex \
     && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
     && wget https://github.com/jumpserver-dev/healthcheck/releases/download/${CHECK_VERSION}/check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
+    && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz \
+    && tar -xf wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ \
     && wget https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
     && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
-    && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
+    && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
     && rm -f *.tar.gz
@@ -89,10 +92,12 @@ ARG DEPENDENCIES="                    \
         ca-certificates"
 
 ARG APT_MIRROR=http://mirrors.ustc.edu.cn
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko-apt \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko-apt \
-    sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    set -ex \
     && rm -f /etc/apt/apt.conf.d/docker-clean \
+    && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache \
+    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
@@ -109,7 +114,15 @@ COPY --from=stage-build /opt/koko/bin /usr/local/bin
 COPY --from=stage-build /opt/koko/release .
 COPY --from=stage-build /opt/koko/koko .
 
-ENV LANG=zh_CN.UTF-8
+ARG VERSION
+ENV VERSION=${VERSION}
 
-EXPOSE 2222 5000
-CMD ["./entrypoint.sh"]
+VOLUME /opt/koko/data
+
+ENTRYPOINT ["./entrypoint.sh"]
+
+EXPOSE 2222
+
+STOPSIGNAL SIGQUIT
+
+CMD [ "./koko" ]
