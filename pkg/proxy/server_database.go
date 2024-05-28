@@ -1,13 +1,25 @@
 package proxy
 
 import (
+	"errors"
 	"net"
 
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.MySQLConn, err error) {
+var usqlProtocolAlias = map[string]string{
+	srvconn.ProtocolMySQL:      "mysql",
+	srvconn.ProtocolMariadb:    "maria",
+	srvconn.ProtocolPostgresql: "postgres",
+	srvconn.ProtocolClickHouse: "clickhouse",
+	srvconn.ProtocolSQLServer:  "sqlserver",
+	srvconn.ProtocolOracle:     "oracle",
+}
+
+var errUnknownProtocol = errors.New("unknown protocol")
+
+func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQLConn, err error) {
+
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 	host := asset.Address
@@ -16,76 +28,25 @@ func (s *Server) getMySQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.My
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
-	mysqlOpts := make([]srvconn.SqlOption, 0, 7)
-	mysqlOpts = append(mysqlOpts, srvconn.SqlHost(host))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlPort(port))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlUsername(s.account.Username))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlPassword(s.account.Secret))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlDBName(asset.SpecInfo.DBName))
-	mysqlOpts = append(mysqlOpts, srvconn.SqlPtyWin(srvconn.Windows{
+
+	schema, ok := usqlProtocolAlias[protocol]
+	if !ok {
+		return nil, errUnknownProtocol
+	}
+
+	opts := make([]srvconn.SqlOption, 0, 9)
+	opts = append(opts, srvconn.SqlAssetName(asset.Name))
+	opts = append(opts, srvconn.SqlSchema(schema))
+	opts = append(opts, srvconn.SqlHost(host))
+	opts = append(opts, srvconn.SqlPort(port))
+	opts = append(opts, srvconn.SqlUsername(s.account.Username))
+	opts = append(opts, srvconn.SqlPassword(s.account.Secret))
+	opts = append(opts, srvconn.SqlDBName(asset.SpecInfo.DBName))
+	opts = append(opts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
 	}))
-	tokenConnOpts := s.connOpts.authInfo.ConnectOptions
-	switch {
-	case tokenConnOpts.DisableAutoHash != nil:
-		if *tokenConnOpts.DisableAutoHash {
-			mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
-		}
-		logger.Debugf("Connection token set disableAutoHash: %v", *tokenConnOpts.DisableAutoHash)
-	case s.connOpts.params != nil:
-		if s.connOpts.params.DisableMySQLAutoHash {
-			mysqlOpts = append(mysqlOpts, srvconn.MySQLDisableAutoReHash())
-			logger.Debugf("Connection params set disableAutoHash: true")
-		}
+	srvConn, err = srvconn.NewUSQLConnection(opts...)
 
-	}
-	srvConn, err = srvconn.NewMySQLConnection(mysqlOpts...)
-	return
-}
-
-func (s *Server) getSQLServerConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.SQLServerConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = "127.0.0.1"
-		port = localTunnelAddr.Port
-	}
-	srvConn, err = srvconn.NewSQLServerConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
-		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.SpecInfo.DBName),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
-	)
-	return
-}
-
-func (s *Server) getPostgreSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.PostgreSQLConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = "127.0.0.1"
-		port = localTunnelAddr.Port
-	}
-	srvConn, err = srvconn.NewPostgreSQLConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
-		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.SpecInfo.DBName),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
-	)
 	return
 }
