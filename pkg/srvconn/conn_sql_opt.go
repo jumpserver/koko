@@ -6,6 +6,8 @@ import (
 )
 
 type sqlOption struct {
+	AssetName        string
+	Schema           string
 	Username         string
 	Password         string
 	DBName           string
@@ -28,6 +30,18 @@ type sqlOption struct {
 }
 
 type SqlOption func(*sqlOption)
+
+func SqlSchema(schema string) SqlOption {
+	return SqlOption(func(args *sqlOption) {
+		args.Schema = schema
+	})
+}
+
+func SqlAssetName(assetName string) SqlOption {
+	return SqlOption(func(args *sqlOption) {
+		args.AssetName = assetName
+	})
+}
 
 func SqlUsername(username string) SqlOption {
 	return func(args *sqlOption) {

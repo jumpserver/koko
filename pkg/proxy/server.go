@@ -341,7 +341,7 @@ func (s *Server) checkRequiredAuth() error {
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql,
-		srvconn.ProtocolRedis:
+		srvconn.ProtocolRedis, srvconn.ProtocolOracle:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			msg := utils.WrapperWarn(lang.T("Get auth password failed"))
 			utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -564,29 +564,6 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
 		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
 		srvconn.SqlAuthSource(authSource),
-		srvconn.SqlPtyWin(srvconn.Windows{
-			Width:  s.UserConn.Pty().Window.Width,
-			Height: s.UserConn.Pty().Window.Height,
-		}),
-	)
-	return
-}
-
-func (s *Server) getClickHouseConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.ClickHouseConn, err error) {
-	asset := s.connOpts.authInfo.Asset
-	protocol := s.connOpts.authInfo.Protocol
-	host := asset.Address
-	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = "127.0.0.1"
-		port = localTunnelAddr.Port
-	}
-	srvConn, err = srvconn.NewClickHouseConnection(
-		srvconn.SqlHost(host),
-		srvconn.SqlPort(port),
-		srvconn.SqlUsername(s.account.Username),
-		srvconn.SqlPassword(s.account.Secret),
-		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -875,15 +852,13 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getRedisConn(proxyAddr)
 	case srvconn.ProtocolMongoDB:
 		return s.getMongoDBConn(proxyAddr)
-	case srvconn.ProtocolClickHouse:
-		return s.getClickHouseConn(proxyAddr)
-
-	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
-		return s.getMySQLConn(proxyAddr)
-	case srvconn.ProtocolPostgresql:
-		return s.getPostgreSQLConn(proxyAddr)
-	case srvconn.ProtocolSQLServer:
-		return s.getSQLServerConn(proxyAddr)
+	case srvconn.ProtocolMySQL,
+		srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql,
+		srvconn.ProtocolSQLServer,
+		srvconn.ProtocolClickHouse,
+		srvconn.ProtocolOracle:
+		return s.getUSQLConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol
 	}

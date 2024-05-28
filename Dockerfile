@@ -29,6 +29,7 @@ WORKDIR /opt/koko
 ARG HELM_VERSION=v3.14.3
 ARG KUBECTL_VERSION=v1.29.3
 ARG CHECK_VERSION=v1.0.2
+ARG USQL_VERSION=v0.0.1
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
     && wget -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
@@ -40,6 +41,8 @@ RUN set -ex \
     && wget https://github.com/jumpserver-dev/healthcheck/releases/download/${CHECK_VERSION}/check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
     && wget https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
+    && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
+    && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
     && rm -f *.tar.gz
