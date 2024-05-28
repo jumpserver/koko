@@ -10,7 +10,6 @@ import (
 	"github.com/pires/go-proxyproto"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -54,8 +53,6 @@ func (s *Server) Stop() {
 	logger.Fatal(s.Srv.Shutdown(ctx))
 }
 
-const nextAuthMethod = "keyboard-interactive"
-
 func NewSSHServer(jmsService *service.JMService) *Server {
 	cf := config.GlobalConfig
 	addr := net.JoinHostPort(cf.BindHost, cf.SSHPort)
@@ -69,13 +66,12 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 	}
 	sshHandler := handler.NewServer(termCfg, jmsService)
 	srv := &ssh.Server{
-		Addr:                       addr,
-		KeyboardInteractiveHandler: auth.SSHKeyboardInteractiveAuth,
-		PasswordHandler:            sshHandler.PasswordAuth,
-		PublicKeyHandler:           sshHandler.PublicKeyAuth,
-		AuthLogCallback:            auth.SSHAuthLogCallback,
-		NextAuthMethodsHandler:     func(ctx ssh.Context) []string { return []string{nextAuthMethod} },
-		HostSigners:                []ssh.Signer{singer},
+		Addr:             addr,
+		PasswordHandler:  sshHandler.PasswordAuth,
+		PublicKeyHandler: sshHandler.PublicKeyAuth,
+		Version:          "JumpServer",
+		Banner:           "Welcome to JumpServer SSH Server\n",
+		HostSigners:      []ssh.Signer{singer},
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
 			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
 			return &gossh.ServerConfig{Config: cfg}

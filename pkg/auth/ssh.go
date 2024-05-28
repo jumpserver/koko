@@ -14,13 +14,15 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult)
+var authErr = errors.New("auth failed")
+
+type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) error
 
 func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
-	return func(ctx ssh.Context, password, publicKey string) (res ssh.AuthResult) {
+	return func(ctx ssh.Context, password, publicKey string) error {
 		if password == "" && publicKey == "" {
 			logger.Errorf("SSH conn[%s] no password and publickey", ctx.SessionID())
-			return ssh.AuthFailed
+			return authErr
 		}
 		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 		username := ctx.User()
@@ -29,13 +31,13 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 				ctx.SetValue(ContextKeyUser, &req.ConnectToken.User)
 				logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
 					actionAccepted, username, remoteAddr)
-				return ssh.AuthSuccessful
+				return nil
 			}
 			username = req.User()
 		}
 		authMethod := "publickey"
 		action := actionAccepted
-		res = ssh.AuthFailed
+		var res error
 		if password != "" {
 			authMethod = "password"
 		}
@@ -62,47 +64,44 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		switch authStatus {
 		case authMFARequired:
 			action = actionPartialAccepted
-			res = ssh.AuthPartiallySuccessful
 			ctx.SetValue(ContextKeyAuthStatus, authMFARequired)
+			res = &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
+				KeyboardInteractiveCallback: SSHKeyboardInteractiveAuth,
+			}}
 		case authSuccess:
-			res = ssh.AuthSuccessful
 			ctx.SetValue(ContextKeyUser, &user)
 		case authConfirmRequired:
 			action = actionPartialAccepted
-			res = ssh.AuthPartiallySuccessful
 			ctx.SetValue(ContextKeyAuthStatus, authConfirmRequired)
+			res = &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
+				KeyboardInteractiveCallback: SSHKeyboardInteractiveAuth,
+			}}
 		default:
 			action = actionFailed
+			res = authErr
 		}
 		logger.Infof("SSH conn[%s] %s %s for %s from %s", ctx.SessionID(),
 			action, authMethod, username, remoteAddr)
-		return
+		return res
 	}
 }
 
-func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) (res ssh.AuthResult) {
+func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) error {
 	if value, ok := ctx.Value(ContextKeyAuthFailed).(*bool); ok && *value {
-		return ssh.AuthFailed
-	}
-	// 2 steps auth must have a partial success method
-	if val := ctx.Value(ContextKeyPartialSuccessMethod); val == nil {
-		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found partial success method.",
-			ctx.SessionID(), ctx.User())
-		return ssh.AuthFailed
+		return authErr
 	}
 
 	username := GetUsernameFromSSHCtx(ctx)
-	res = ssh.AuthFailed
 	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
 	if !ok {
 		logger.Errorf("SSH conn[%s] user %s Mfa Auth failed: not found session client.",
 			ctx.SessionID(), username)
-		return
+		return authErr
 	}
 	status, ok2 := ctx.Value(ContextKeyAuthStatus).(StatusAuth)
 	if !ok2 {
 		logger.Errorf("SSH conn[%s] user %s unknown auth", ctx.SessionID(), username)
-		return
+		return authErr
 	}
 	var checkAuth func(ssh.Context, gossh.KeyboardInteractiveChallenge) bool
 	switch status {
@@ -110,24 +109,13 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 		checkAuth = client.CheckConfirmAuth
 	case authMFARequired:
 		checkAuth = client.CheckMFAAuth
+	default:
+		return authErr
 	}
 	if checkAuth != nil && checkAuth(ctx, challenger) {
-		res = ssh.AuthSuccessful
+		return nil
 	}
-	return
-}
-
-func SSHAuthLogCallback(ctx ssh.Context, method string, err error) {
-	if err == nil {
-		logger.Errorf("SSH conn[%s] auth method %s success", ctx.SessionID(), method)
-		return
-	}
-	if errors.Is(err, gossh.ErrPartialSuccess) {
-		ctx.SetValue(ContextKeyPartialSuccessMethod, method)
-		logger.Infof("SSH conn[%s] auth method %s partially success", ctx.SessionID(), method)
-	} else {
-		logger.Errorf("SSH conn[%s] auth method %s failed: %s", ctx.SessionID(), method, err)
-	}
+	return authErr
 }
 
 const (
@@ -139,8 +127,6 @@ const (
 	ContextKeyAuthFailed = "CONTEXT_AUTH_FAILED"
 
 	ContextKeyDirectLoginFormat = "CONTEXT_DIRECT_LOGIN_FORMAT"
-
-	ContextKeyPartialSuccessMethod = "CONTEXT_PARTIAL_SUCCESS_METHOD"
 )
 
 type DirectLoginAssetReq struct {
