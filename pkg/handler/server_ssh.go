@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -29,23 +30,23 @@ import (
 
 const ctxID = "ctxID"
 
-func (s *Server) PasswordAuth(ctx ssh.Context, password string) ssh.AuthResult {
+func (s *Server) PasswordAuth(ctx ssh.Context, password string) error {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
 	if !tConfig.PasswordAuth {
-		logger.Info("Core API disable password auth auth")
-		return ssh.AuthFailed
+		logger.Info("Core API disable password auth")
+		return errors.New("password auth disabled")
 	}
 	sshAuthHandler := auth.SSHPasswordAndPublicKeyAuth(s.jmsService)
 	return sshAuthHandler(ctx, password, "")
 }
 
-func (s *Server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
+func (s *Server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) error {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
 	if !tConfig.PublicKeyAuth {
 		logger.Info("Core API disable publickey auth")
-		return ssh.AuthFailed
+		return errors.New("publickey auth disabled")
 	}
 	sshAuthHandler := auth.SSHPasswordAndPublicKeyAuth(s.jmsService)
 	value := string(gossh.MarshalAuthorizedKey(key))
