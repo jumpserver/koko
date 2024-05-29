@@ -59,19 +59,6 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	homeName := "Home"
 	basePath := "/"
 	asset := volOpts.asset
-	if volOpts.connectToken != nil {
-		assetDetail := volOpts.connectToken.Asset
-		asset = &model.PermAsset{
-			ID:       assetDetail.ID,
-			Name:     assetDetail.Name,
-			Address:  assetDetail.Address,
-			Comment:  assetDetail.Comment,
-			Platform: assetDetail.Platform,
-			OrgID:    assetDetail.OrgID,
-			OrgName:  assetDetail.OrgName,
-			IsActive: assetDetail.IsActive,
-		}
-	}
 	if asset != nil {
 		folderName := asset.Name
 		if strings.Contains(folderName, "/") {
