@@ -161,6 +161,29 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 	opts = append(opts, srvconn.WithLoginFrom(model.LoginFromSSH))
 	if !d.opts.IsTokenConnection() {
 		opts = append(opts, srvconn.WithAssets(d.opts.assets))
+		if len(d.opts.assets) == 1 {
+			asset := d.opts.assets[0]
+			if permAssetDetail, err := d.jmsService.GetUserPermAssetDetailById(d.opts.User.ID, asset.ID); err == nil {
+				matchedAccount := GetMatchedAccounts(permAssetDetail.PermedAccounts, d.opts.targetAccount)
+				if len(matchedAccount) == 1 {
+					selectAccount := &matchedAccount[0]
+					req := service.SuperConnectTokenReq{
+						UserId:        d.opts.User.ID,
+						AssetId:       asset.ID,
+						Account:       selectAccount.Alias,
+						Protocol:      model.ProtocolSFTP,
+						ConnectMethod: model.ProtocolSSH,
+						RemoteAddr:    addr,
+					}
+					if tokenInfo, err1 := d.jmsService.CreateSuperConnectToken(&req); err1 == nil {
+						if connectToken, err2 := d.jmsService.GetConnectTokenInfo(tokenInfo.ID); err2 == nil {
+							opts = append(opts, srvconn.WithConnectToken(&connectToken))
+							opts = append(opts, srvconn.WithAssets(nil))
+						}
+					}
+				}
+			}
+		}
 	} else {
 		opts = append(opts, srvconn.WithConnectToken(d.opts.tokenInfo))
 	}
