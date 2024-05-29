@@ -40,7 +40,6 @@ func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 	if u.assetDir != nil {
 		return u.assetDir.ReadDir(path)
 	}
-
 	fi, restPath := u.ParsePath(path)
 	if rootDir, ok := fi.(*UserSftpConn); ok {
 		return rootDir.List()
@@ -204,13 +203,8 @@ func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
 }
 
 func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
-	if len(u.Dirs) == 1 {
-		for _, item := range u.Dirs {
-			if assetDir, ok := item.(*AssetDir); ok {
-				assetDir.loadSystemUsers()
-				return assetDir.Open(path)
-			}
-		}
+	if u.assetDir != nil {
+		return u.assetDir.Open(path)
 	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok {
