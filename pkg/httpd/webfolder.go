@@ -45,6 +45,7 @@ func (h *webFolder) CheckValidation() error {
 	if h.ws.ConnectToken != nil {
 		connectToken := h.ws.ConnectToken
 		volOpts = append(volOpts, WithConnectToken(connectToken))
+		volOpts = append(volOpts, WithAsset(nil))
 	}
 	h.volume = NewUserVolume(apiClient, volOpts...)
 	return nil
