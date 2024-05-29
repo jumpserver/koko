@@ -101,6 +101,14 @@ type folderOptions struct {
 	asset *model.PermAsset
 
 	token *model.ConnectToken
+
+	accountUsername string
+}
+
+func WithFolderUsername(username string) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.accountUsername = username
+	}
 }
 
 func WithFolderName(name string) FolderBuilderOption {

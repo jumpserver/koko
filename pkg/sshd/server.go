@@ -20,6 +20,10 @@ const (
 	sshChannelSession     = "session"
 	sshChannelDirectTCPIP = "direct-tcpip"
 	sshSubSystemSFTP      = "sftp"
+
+	ChannelTCPIPForward       = "tcpip-forward"
+	ChannelCancelTCPIPForward = "cancel-tcpip-forward"
+	ChannelForwardedTCPIP     = "forwarded-tcpip"
 )
 
 var (
@@ -76,9 +80,10 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
 			return &gossh.ServerConfig{Config: cfg}
 		},
-		Handler:                     sshHandler.SessionHandler,
-		LocalPortForwardingCallback: sshHandler.LocalPortForwardingPermission,
-		SubsystemHandlers:           map[string]ssh.SubsystemHandler{sshSubSystemSFTP: sshHandler.SFTPHandler},
+		Handler:                       sshHandler.SessionHandler,
+		LocalPortForwardingCallback:   sshHandler.LocalPortForwardingPermission,
+		ReversePortForwardingCallback: sshHandler.ReversePortForwardingPermission,
+		SubsystemHandlers:             map[string]ssh.SubsystemHandler{sshSubSystemSFTP: sshHandler.SFTPHandler},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			sshChannelSession: ssh.DefaultSessionHandler,
 			sshChannelDirectTCPIP: func(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
@@ -95,6 +100,10 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 				dest := net.JoinHostPort(localD.DestAddr, strconv.FormatInt(int64(localD.DestPort), 10))
 				sshHandler.DirectTCPIPChannelHandler(ctx, newChan, dest)
 			},
+		},
+		RequestHandlers: map[string]ssh.RequestHandler{
+			ChannelTCPIPForward:       sshHandler.HandleSSHRequest,
+			ChannelCancelTCPIPForward: sshHandler.HandleSSHRequest,
 		},
 	}
 	return &Server{srv, sshHandler}
