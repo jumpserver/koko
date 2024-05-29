@@ -30,9 +30,17 @@ type UserSftpConn struct {
 	searchDir *SearchResultDir
 
 	jmsService *service.JMService
+
+	opts *userSftpOption
+
+	assetDir *AssetDir
 }
 
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.ReadDir(path)
+	}
+
 	fi, restPath := u.ParsePath(path)
 	if rootDir, ok := fi.(*UserSftpConn); ok {
 		return rootDir.List()
@@ -49,6 +57,10 @@ func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 }
 
 func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Stat(path)
+	}
+
 	fi, restPath := u.ParsePath(path)
 	if rootDir, ok := fi.(*UserSftpConn); ok {
 		return rootDir, nil
@@ -65,6 +77,9 @@ func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
 }
 
 func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.ReadLink(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return "", sftp.ErrSshFxOpUnsupported
@@ -81,6 +96,9 @@ func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
 }
 
 func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Rename(oldNamePath, newNamePath)
+	}
 	oldFi, oldRestPath := u.ParsePath(oldNamePath)
 	newFi, newRestPath := u.ParsePath(newNamePath)
 	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
@@ -95,6 +113,9 @@ func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
 }
 
 func (u *UserSftpConn) RemoveDirectory(path string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.RemoveDirectory(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return sftp.ErrSshFxPermissionDenied
@@ -110,6 +131,9 @@ func (u *UserSftpConn) RemoveDirectory(path string) (err error) {
 }
 
 func (u *UserSftpConn) Remove(path string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Remove(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return sftp.ErrSshFxPermissionDenied
@@ -125,6 +149,10 @@ func (u *UserSftpConn) Remove(path string) (err error) {
 }
 
 func (u *UserSftpConn) MkdirAll(path string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.MkdirAll(path)
+	}
+
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return sftp.ErrSshFxPermissionDenied
@@ -140,6 +168,9 @@ func (u *UserSftpConn) MkdirAll(path string) (err error) {
 }
 
 func (u *UserSftpConn) Symlink(oldNamePath, newNamePath string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Symlink(oldNamePath, newNamePath)
+	}
 	oldFi, oldRestPath := u.ParsePath(oldNamePath)
 	newFi, newRestPath := u.ParsePath(newNamePath)
 	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
@@ -153,6 +184,10 @@ func (u *UserSftpConn) Symlink(oldNamePath, newNamePath string) (err error) {
 }
 
 func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.Create(path)
+	}
+
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -169,6 +204,14 @@ func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
 }
 
 func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
+	if len(u.Dirs) == 1 {
+		for _, item := range u.Dirs {
+			if assetDir, ok := item.(*AssetDir); ok {
+				assetDir.loadSystemUsers()
+				return assetDir.Open(path)
+			}
+		}
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -220,6 +263,9 @@ func (u *UserSftpConn) Sys() interface{} {
 }
 
 func (u *UserSftpConn) List() (res []os.FileInfo, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.ReadDir("/")
+	}
 	for _, item := range u.Dirs {
 		res = append(res, item)
 	}
@@ -344,7 +390,9 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	opts = append(opts, WithToken(token))
 	opts = append(opts, WithFromType(u.loginFrom))
 	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
+	assetDir.loadSystemUsers()
 	dirs[folderName] = &assetDir
+	u.assetDir = &assetDir
 	return dirs
 }
 
@@ -371,6 +419,7 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.PermAsset) ma
 		opts = append(opts, WithFolderName(folderName))
 		opts = append(opts, WitRemoteAddr(u.Addr))
 		opts = append(opts, WithAsset(assets[i]))
+		opts = append(opts, WithFolderUsername(u.opts.accountUsername))
 		assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 		dirs[folderName] = &assetDir
 	}
@@ -398,6 +447,8 @@ type userSftpOption struct {
 	loginFrom  model.LabelField
 	assets     []model.PermAsset
 	token      *model.ConnectToken
+
+	accountUsername string
 }
 
 type UserSftpOption func(*userSftpOption)
@@ -432,6 +483,12 @@ func WithConnectToken(token *model.ConnectToken) UserSftpOption {
 	}
 }
 
+func WithAccountUsername(username string) UserSftpOption {
+	return func(o *userSftpOption) {
+		o.accountUsername = username
+	}
+}
+
 func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *UserSftpConn {
 	var sftpOpts userSftpOption
 	for _, setter := range opts {
@@ -445,6 +502,7 @@ func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *Use
 		modeTime:   time.Now().UTC(),
 		closed:     make(chan struct{}),
 		jmsService: jmsService,
+		opts:       &sftpOpts,
 	}
 
 	switch {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -74,4 +75,27 @@ type vscodeReq struct {
 
 	expireInfo model.ExpireInfo
 	Actions    model.Actions
+
+	sync.Mutex
+	forwards map[string]net.Listener
+}
+
+func (s *vscodeReq) GetForward(addr string) net.Listener {
+	s.Lock()
+	defer s.Unlock()
+
+	return s.forwards[addr]
+}
+
+func (s *vscodeReq) AddForward(addr string, ln net.Listener) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.forwards[addr] = ln
+}
+
+func (s *vscodeReq) RemoveForward(addr string) {
+	s.Lock()
+	defer s.Unlock()
+	delete(s.forwards, addr)
 }

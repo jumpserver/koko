@@ -83,7 +83,16 @@ func (ad *AssetDir) loadSubAccountDirs() {
 		logger.Errorf("Get asset %s perm asset detail err: %s", ad.opts.ID, err)
 		return
 	}
-	ad.suMaps = generateSubAccountsFolderMap(permAssetDetail.PermedAccounts)
+	accounts := make([]model.PermAccount, 0, len(permAssetDetail.PermedAccounts))
+	for i := 0; i < len(permAssetDetail.PermedAccounts); i++ {
+		pAccount := permAssetDetail.PermedAccounts[i]
+		if ad.opts.accountUsername != "" && ad.opts.accountUsername != pAccount.Username {
+			continue
+		}
+		accounts = append(accounts, pAccount)
+	}
+	ad.suMaps = generateSubAccountsFolderMap(accounts)
+
 }
 
 func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*model.PermAccount {
@@ -718,9 +727,6 @@ func (ad *AssetDir) close() {
 }
 
 func (ad *AssetDir) finishSftpSession(key string, conn *SftpConn) {
-	if conn.isClosed {
-		return
-	}
 	sess := ad.sftpTraceSessions[key]
 	if sess != nil {
 		session.RemoveSession(sess)
