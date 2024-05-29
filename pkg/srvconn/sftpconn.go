@@ -30,9 +30,14 @@ type UserSftpConn struct {
 	searchDir *SearchResultDir
 
 	jmsService *service.JMService
+
+	assetDir *AssetDir
 }
 
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.ReadDir(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if rootDir, ok := fi.(*UserSftpConn); ok {
 		return rootDir.List()
@@ -49,6 +54,9 @@ func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 }
 
 func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Stat(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if rootDir, ok := fi.(*UserSftpConn); ok {
 		return rootDir, nil
@@ -65,6 +73,9 @@ func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
 }
 
 func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.ReadLink(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return "", sftp.ErrSshFxOpUnsupported
@@ -81,6 +92,9 @@ func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
 }
 
 func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Rename(oldNamePath, newNamePath)
+	}
 	oldFi, oldRestPath := u.ParsePath(oldNamePath)
 	newFi, newRestPath := u.ParsePath(newNamePath)
 	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
@@ -95,6 +109,9 @@ func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
 }
 
 func (u *UserSftpConn) RemoveDirectory(path string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.RemoveDirectory(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return sftp.ErrSshFxPermissionDenied
@@ -110,6 +127,9 @@ func (u *UserSftpConn) RemoveDirectory(path string) (err error) {
 }
 
 func (u *UserSftpConn) Remove(path string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Remove(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return sftp.ErrSshFxPermissionDenied
@@ -125,6 +145,9 @@ func (u *UserSftpConn) Remove(path string) (err error) {
 }
 
 func (u *UserSftpConn) MkdirAll(path string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.MkdirAll(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok && restPath == "" {
 		return sftp.ErrSshFxPermissionDenied
@@ -140,6 +163,9 @@ func (u *UserSftpConn) MkdirAll(path string) (err error) {
 }
 
 func (u *UserSftpConn) Symlink(oldNamePath, newNamePath string) (err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Symlink(oldNamePath, newNamePath)
+	}
 	oldFi, oldRestPath := u.ParsePath(oldNamePath)
 	newFi, newRestPath := u.ParsePath(newNamePath)
 	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
@@ -153,6 +179,9 @@ func (u *UserSftpConn) Symlink(oldNamePath, newNamePath string) (err error) {
 }
 
 func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.Create(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -169,6 +198,9 @@ func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
 }
 
 func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.Open(path)
+	}
 	fi, restPath := u.ParsePath(path)
 	if _, ok := fi.(*UserSftpConn); ok {
 		return nil, sftp.ErrSshFxPermissionDenied
@@ -220,6 +252,9 @@ func (u *UserSftpConn) Sys() interface{} {
 }
 
 func (u *UserSftpConn) List() (res []os.FileInfo, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.ReadDir("/")
+	}
 	for _, item := range u.Dirs {
 		res = append(res, item)
 	}
@@ -345,6 +380,8 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	opts = append(opts, WithFromType(u.loginFrom))
 	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 	dirs[folderName] = &assetDir
+	assetDir.loadSystemUsers()
+	u.assetDir = &assetDir
 	return dirs
 }
 
