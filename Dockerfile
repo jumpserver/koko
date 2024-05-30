@@ -10,12 +10,14 @@ RUN set -ex \
     && yarn config set registry ${NPM_REGISTRY}
 
 WORKDIR /opt/koko/ui
-ADD ui/package.json ui/yarn.lock .
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
+    --mount=type=bind,source=ui/package.json,target=package.json \
+    --mount=type=bind,source=ui/yarn.lock,target=yarn.lock \
     yarn install
 
 ADD ui .
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked \
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn build
 
 FROM golang:1.22-bullseye as stage-build
@@ -25,7 +27,8 @@ ARG TARGETARCH
 RUN set -ex \
     && echo "no" | dpkg-reconfigure dash
 
-WORKDIR /opt/koko
+WORKDIR /opt
+
 ARG HELM_VERSION=v3.14.3
 ARG KUBECTL_VERSION=v1.29.3
 ARG CHECK_VERSION=v1.0.2
@@ -43,23 +46,23 @@ RUN set -ex \
     && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
     && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ \
-    && wget https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
     && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ \
+    && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
     && rm -f *.tar.gz
 
-ADD go.mod go.sum .
-
 ARG GOPROXY=https://goproxy.io
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
-ENV GOOS=linux
 
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=cache,target=/go/pkg/mod \
-    go mod download -x
+WORKDIR /opt/koko
+
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked,id=koko \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    --mount=type=bind,source=go.sum,target=go.sum \
+    go mod download
 
 COPY . .
 
@@ -68,8 +71,7 @@ COPY --from=ui-build /opt/koko/ui/dist ui/dist
 ARG VERSION
 ENV VERSION=$VERSION
 
-RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=cache,target=/go/pkg/mod \
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked,id=koko \
     set +x \
     && make build -s \
     && set -x && ls -al . \
@@ -92,8 +94,8 @@ ARG DEPENDENCIES="                    \
         ca-certificates"
 
 ARG APT_MIRROR=http://mirrors.ustc.edu.cn
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko \
     set -ex \
     && rm -f /etc/apt/apt.conf.d/docker-clean \
     && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache \
@@ -107,7 +109,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 COPY --from=redis /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 
-WORKDIR /opt/koko/
+WORKDIR /opt/koko
 
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
