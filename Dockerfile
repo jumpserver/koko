@@ -33,7 +33,6 @@ ARG HELM_VERSION=v3.14.3
 ARG KUBECTL_VERSION=v1.29.3
 ARG CHECK_VERSION=v1.0.2
 ARG USQL_VERSION=v0.0.1
-ARG WISP_VERSION=v0.1.20
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
     && wget -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
@@ -44,8 +43,6 @@ RUN set -ex \
     && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
     && wget https://github.com/jumpserver-dev/healthcheck/releases/download/${CHECK_VERSION}/check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
-    && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz \
-    && tar -xf wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ \
     && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ \
     && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
