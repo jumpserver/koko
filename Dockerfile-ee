@@ -9,8 +9,8 @@ ARG DEPENDENCIES="                    \
         wget"
 
 ARG APT_MIRROR=http://mirrors.ustc.edu.cn
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko \
     set -ex \
     && rm -f /etc/apt/apt.conf.d/docker-clean \
     && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache \
@@ -47,7 +47,7 @@ RUN set -ex \
             ;; \
     esac
 
-FROM registry.fit2cloud.com/jumpserver/koko:${VERSION}-lite
+FROM registry.fit2cloud.com/jumpserver/koko:${VERSION}-ce
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
@@ -65,8 +65,8 @@ ARG DEPENDENCIES="                    \
         wget                          \
         xz-utils"
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko \
     set -ex \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES}
