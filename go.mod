@@ -4,7 +4,6 @@ go 1.22
 
 require (
 	github.com/Azure/azure-storage-blob-go v0.6.0
-	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/LeeEirc/elfinder v0.0.14
 	github.com/LeeEirc/httpsig v1.2.1
 	github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d
@@ -12,18 +11,16 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v2.2.7+incompatible
 	github.com/aws/aws-sdk-go v1.44.306
 	github.com/creack/pty v1.1.18
-	github.com/denisenkom/go-mssqldb v0.12.3
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/gin-gonic/gin v1.9.1
 	github.com/gliderlabs/ssh v0.3.3
-	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.4.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.1+incompatible
+	github.com/influxdata/influxdb-client-go/v2 v2.13.0
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/leonelquinteros/gotext v1.4.0
-	github.com/lib/pq v1.10.9
 	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pires/go-proxyproto v0.6.2
@@ -47,9 +44,10 @@ require (
 require (
 	github.com/Azure/azure-pipeline-go v0.1.9 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
-	github.com/bytedance/sonic v1.9.1 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
+	github.com/bytedance/sonic v1.10.0-rc3 // indirect
+	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
+	github.com/chenzhuoyu/iasm v0.9.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
@@ -59,22 +57,21 @@ require (
 	github.com/go-playground/form v3.1.4+incompatible // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.14.0 // indirect
+	github.com/go-playground/validator/v10 v10.14.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
-	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/golang/snappy v0.0.1 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
@@ -85,6 +82,7 @@ require (
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/oapi-codegen/runtime v1.0.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
@@ -106,7 +104,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/arch v0.3.0 // indirect
+	golang.org/x/arch v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20240529005216-23cca8864a10 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/oauth2 v0.15.0 // indirect
