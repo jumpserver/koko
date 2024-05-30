@@ -8,13 +8,12 @@ if [ -n "$CORE_HOST" ]; then
     done
 fi
 
-export WORK_DIR=/opt/koko
-export COMPONENT_NAME=koko
-export WISP_TRACE_PROCESS=1
-export EXECUTE_PROGRAM=/opt/koko/koko
+: ${LOG_LEVEL:='ERROR'}
 
-if [ ! "$LOG_LEVEL" ]; then
-    export LOG_LEVEL=ERROR
-fi
+echo
+date
+echo "KoKo Version $VERSION, more see https://www.jumpserver.org"
+echo "Quit the server with CONTROL-C."
+echo
 
 exec "$@"
