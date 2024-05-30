@@ -127,9 +127,8 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 
 		ln, err := vsReq.client.Listen("tcp", addr)
 		if err != nil {
-			logger.Errorf("User %s start port forwarding from (%s) to (%s)", vsReq.user,
-				vsReq, addr)
-			return false, []byte("port forwarding is disabled, cannot connect peer")
+			logger.Errorf("port forwarding listen failed: %s", err.Error())
+			return false, []byte("port forwarding is failed, cannot listen tcp")
 		}
 		go func() {
 			vsReq.AddForward(addr, ln)
@@ -167,14 +166,18 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 					}
 					go gossh.DiscardRequests(reqs)
 					go func() {
-						defer ch.Close()
-						defer c.Close()
-						io.Copy(ch, c)
+						defer func() {
+							_ = ch.Close()
+							_ = c.Close()
+						}()
+						_, _ = io.Copy(ch, c)
 					}()
 					go func() {
-						defer ch.Close()
-						defer c.Close()
-						io.Copy(c, ch)
+						defer func() {
+							_ = ch.Close()
+							_ = c.Close()
+						}()
+						_, _ = io.Copy(c, ch)
 					}()
 				}()
 			}
@@ -194,7 +197,7 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 		addr := net.JoinHostPort(reqPayload.BindAddr, strconv.Itoa(int(reqPayload.BindPort)))
 		ln := vsReq.GetForward(addr)
 		if ln != nil {
-			ln.Close()
+			_ = ln.Close()
 			vsReq.RemoveForward(addr)
 		}
 		return true, nil
