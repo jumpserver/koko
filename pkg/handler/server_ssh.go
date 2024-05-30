@@ -276,19 +276,19 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 	s.proxyTokenInfo(sess, &connectToken)
 }
 
-func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) {
+func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken) {
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
 		utils.IgnoreErrWriteString(sess, "not found ctx id")
 		return
 	}
-	asset := tokeInfo.Asset
-	account := tokeInfo.Account
+	asset := tokenInfo.Asset
+	account := tokenInfo.Account
 	var gateways []model.Gateway
 	// todo：domain
-	if tokeInfo.Gateway != nil {
-		gateways = []model.Gateway{*tokeInfo.Gateway}
+	if tokenInfo.Gateway != nil {
+		gateways = []model.Gateway{*tokenInfo.Gateway}
 	}
 
 	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
@@ -301,9 +301,9 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 	//defer sshClient.Close()
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
-		user:       &tokeInfo.User,
+		user:       &tokenInfo.User,
 		client:     sshClient,
-		expireInfo: tokeInfo.ExpireAt,
+		expireInfo: tokenInfo.ExpireAt,
 		forwards:   make(map[string]net.Listener),
 	}
 
@@ -315,7 +315,7 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		logger.Infof("User %s end vscode request %s", vsReq.user, sshClient)
 	}()
 	if len(sess.Command()) != 0 {
-		s.proxyAssetCommand(sess, sshClient, tokeInfo)
+		s.proxyAssetCommand(sess, sshClient, tokenInfo)
 		return
 	}
 
@@ -324,7 +324,7 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		return
 	}
 
-	if err = s.proxyVscodeShell(sess, vsReq, sshClient, tokeInfo); err != nil {
+	if err = s.proxyVscodeShell(sess, vsReq, sshClient, tokenInfo); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
 	}
 }
@@ -348,7 +348,7 @@ func (s *Server) recordSessionLifecycle(sid string, event model.LifecycleEvent, 
 }
 
 func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
-	tokeInfo *model.ConnectToken) {
+	tokenInfo *model.ConnectToken) {
 	rawStr := sess.RawCommand()
 	if IsScpCommand(rawStr) {
 		if !config.GetConf().EnableVscodeSupport {
@@ -364,7 +364,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 
 	// todo: 暂且不支持 acl 工单
-	acls := tokeInfo.CommandFilterACLs
+	acls := tokenInfo.CommandFilterACLs
 	for i := range acls {
 		acl := acls[i]
 		_, action, _ := acl.Match(rawStr)
@@ -382,7 +382,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	reqSession := tokeInfo.CreateSession(host, model.LoginFromSSH, model.COMMANDType)
+	reqSession := tokenInfo.CreateSession(host, model.LoginFromSSH, model.COMMANDType)
 	respSession, err := s.jmsService.CreateSession(reqSession)
 	if err != nil {
 		logger.Errorf("Create command session err: %s", err)
@@ -490,16 +490,16 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	err = goSess.Run(rawStr)
 	if err != nil {
 		logger.Errorf("User %s Run command %s failed: %s",
-			tokeInfo.User.String(), rawStr, err)
+			tokenInfo.User.String(), rawStr, err)
 	}
 	reason := string(model.ReasonErrConnectDisconnect)
 	s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)
 }
 
 func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient,
-	tokeInfo *model.ConnectToken) error {
+	tokenInfo *model.ConnectToken) error {
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	reqSession := tokeInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
+	reqSession := tokenInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
 	respSession, err := s.jmsService.CreateSession(reqSession)
 	if err != nil {
 		logger.Errorf("Create tunnel session err: %s", err)
@@ -725,12 +725,12 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 	return &connectToken, nil
 }
 
-func (s *Server) buildSSHClient(tokeInfo *model.ConnectToken) (*srvconn.SSHClient, error) {
-	asset := tokeInfo.Asset
-	account := tokeInfo.Account
+func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClient, error) {
+	asset := tokenInfo.Asset
+	account := tokenInfo.Account
 	var gateways []model.Gateway
-	if tokeInfo.Gateway != nil {
-		gateways = []model.Gateway{*tokeInfo.Gateway}
+	if tokenInfo.Gateway != nil {
+		gateways = []model.Gateway{*tokenInfo.Gateway}
 	}
 	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
