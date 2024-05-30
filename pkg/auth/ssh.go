@@ -51,28 +51,22 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 			service.UserClientLoginType("T"),
 			service.UserClientHttpClient(&newClient),
 			service.UserClientSvcSignKey(accessKey),
+			service.UserClientPassword(password),
+			service.UserClientPublicKey(publicKey),
 		)
 		userAuthClient := &UserAuthClient{
 			UserClient:  userClient,
 			authOptions: make(map[string]authOptions),
 		}
 		ctx.SetValue(ContextKeyClient, userAuthClient)
-		userAuthClient.SetOption(service.UserClientPassword(password),
-			service.UserClientPublicKey(publicKey))
 		logger.Infof("SSH conn[%s] authenticating user %s %s", ctx.SessionID(), username, authMethod)
 		user, authStatus := userAuthClient.Authenticate(ctx)
 		switch authStatus {
-		case authMFARequired:
-			action = actionPartialAccepted
-			ctx.SetValue(ContextKeyAuthStatus, authMFARequired)
-			res = &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
-				KeyboardInteractiveCallback: SSHKeyboardInteractiveAuth,
-			}}
 		case authSuccess:
 			ctx.SetValue(ContextKeyUser, &user)
-		case authConfirmRequired:
+		case authConfirmRequired, authMFARequired:
 			action = actionPartialAccepted
-			ctx.SetValue(ContextKeyAuthStatus, authConfirmRequired)
+			ctx.SetValue(ContextKeyAuthStatus, authStatus)
 			res = &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
 				KeyboardInteractiveCallback: SSHKeyboardInteractiveAuth,
 			}}

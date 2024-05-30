@@ -29,10 +29,6 @@ type UserAuthClient struct {
 	mfaTypes []string
 }
 
-func (u *UserAuthClient) SetOption(setters ...service.UserClientOption) {
-	u.UserClient.SetOption(setters...)
-}
-
 func (u *UserAuthClient) Authenticate(ctx context.Context) (user model.User, authStatus StatusAuth) {
 	authStatus = authFailed
 	resp, err := u.UserClient.GetAPIToken()
@@ -232,9 +228,7 @@ loop:
 const (
 	ErrLoginConfirmWait     = "login_confirm_wait"
 	ErrLoginConfirmRejected = "login_confirm_rejected"
-	ErrLoginConfirmRequired = "login_confirm_required"
 	ErrMFARequired          = "mfa_required"
-	ErrPasswordFailed       = "password_failed"
 )
 
 func (u *UserAuthClient) CheckConfirm(ctx context.Context) (user model.User, authStatus StatusAuth) {
