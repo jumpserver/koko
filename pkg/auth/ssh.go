@@ -27,11 +27,16 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 		username := ctx.User()
 		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
-			if req.IsToken() && req.Authenticate(password) {
-				ctx.SetValue(ContextKeyUser, &req.ConnectToken.User)
-				logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
-					actionAccepted, username, remoteAddr)
-				return nil
+			if req.IsToken() {
+				if req.Authenticate(password) {
+					ctx.SetValue(ContextKeyUser, &req.ConnectToken.User)
+					logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
+						actionAccepted, username, remoteAddr)
+					return nil
+				} else {
+					logger.Errorf("SSH conn[%s] token %s auth failed", ctx.SessionID(), req.ConnectToken.Id)
+					return authErr
+				}
 			}
 			username = req.User()
 		}
