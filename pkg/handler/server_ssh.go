@@ -425,7 +425,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	// make pty for client when client required or command is login shell
 	if pty, _, isPty := sess.Pty(); isPty ||
 		(strings.Contains(rawStr, "bash --login") || strings.Contains(rawStr, "bash -l")) {
-		goSess.RequestPty(
+		_ = goSess.RequestPty(
 			pty.Term,
 			pty.Window.Width,
 			pty.Window.Height,
