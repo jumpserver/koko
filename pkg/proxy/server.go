@@ -428,18 +428,18 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	return cacheConn, true
 }
 
-func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, error) {
+func (s *Server) createAvailableGateWay(domain *model.Domain) (*DomainGateway, error) {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 
-	var dGateway *domainGateway
+	var dGateway *DomainGateway
 	switch protocol {
 	case srvconn.ProtocolK8s:
 		dstHost, dstPort, err := ParseUrlHostAndPort(asset.Address)
 		if err != nil {
 			return nil, err
 		}
-		dGateway = &domainGateway{
+		dGateway = &DomainGateway{
 			domain:          domain,
 			dstIP:           dstHost,
 			dstPort:         dstPort,
@@ -447,7 +447,7 @@ func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, e
 		}
 	default:
 		port := asset.ProtocolPort(protocol)
-		dGateway = &domainGateway{
+		dGateway = &DomainGateway{
 			domain:          domain,
 			dstIP:           asset.Address,
 			dstPort:         port,

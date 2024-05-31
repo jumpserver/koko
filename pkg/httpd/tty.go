@@ -25,6 +25,8 @@ type tty struct {
 	backendClient *Client
 
 	shareInfo *ShareInfo
+
+	K8sClients map[string]*Client
 }
 
 func (h *tty) Name() string {
@@ -34,6 +36,11 @@ func (h *tty) Name() string {
 func (h *tty) CleanUp() {
 	if h.backendClient != nil {
 		_ = h.backendClient.Close()
+	}
+
+	for id, client := range h.K8sClients {
+		_ = client.Close()
+		delete(h.K8sClients, id)
 	}
 }
 
@@ -108,10 +115,47 @@ func (h *tty) HandleMessage(msg *Message) {
 			pty: ssh.Pty{Term: "xterm", Window: win},
 		}
 		h.wg.Add(1)
-		go h.proxy(&h.wg)
+		go h.proxy(&h.wg, h.backendClient)
+		return
+	case TerminalK8SInit:
+		if msg.Id != h.ws.Uuid {
+			logger.Errorf("Ws[%s] terminal initial unknown message id %s", h.ws.Uuid, msg.Id)
+			return
+		}
+
+		var connectInfo TerminalConnectData
+		err := json.Unmarshal([]byte(msg.Data), &connectInfo)
+		if err != nil {
+			logger.Errorf("Ws[%s] terminal initial message data unmarshal err: %s",
+				h.ws.Uuid, err)
+			return
+		}
+
+		win := ssh.Window{
+			Width:  connectInfo.Cols,
+			Height: connectInfo.Rows,
+		}
+		userR, userW := io.Pipe()
+
+		KubernetesId := msg.KubernetesId
+		client := &Client{
+			WinChan: make(chan ssh.Window, 100), Conn: h.ws,
+			UserRead: userR, UserWrite: userW,
+			pty:          ssh.Pty{Term: "xterm", Window: win},
+			KubernetesId: KubernetesId, Namespace: msg.Namespace,
+			Pod: msg.Pod, Container: msg.Container,
+		}
+
+		if h.K8sClients == nil {
+			h.K8sClients = make(map[string]*Client)
+		}
+		h.K8sClients[KubernetesId] = client
+		h.wg.Add(1)
+		go h.proxy(&h.wg, client)
 		return
 	}
-	if h.initialed {
+
+	if h.initialed || func() bool { _, ok := h.K8sClients[msg.KubernetesId]; return ok }() {
 		h.handleTerminalMessage(msg)
 	}
 }
@@ -135,22 +179,13 @@ func (h *tty) sendSessionMessage(data string) {
 
 func (h *tty) handleTerminalMessage(msg *Message) {
 	switch msg.Type {
-	case TerminalData:
-		h.backendClient.WriteData([]byte(msg.Data))
-	case TerminalBinary:
-		h.backendClient.WriteData(msg.Raw)
-	case TerminalResize:
-		var size WindowSize
-		err := json.Unmarshal([]byte(msg.Data), &size)
-		if err != nil {
-			logger.Errorf("Ws[%s] message(%s) data unmarshal err: %s", h.ws.Uuid,
-				msg.Type, msg.Data)
-			return
-		}
-		h.backendClient.SetWinSize(ssh.Window{
-			Width:  size.Cols,
-			Height: size.Rows,
-		})
+	case TerminalData, TerminalBinary:
+		data := getDataBytes(msg)
+		h.backendClient.WriteData(data)
+	case TerminalResize, TerminalK8SResize:
+		h.handleResize(msg)
+	case TerminalK8SData, TerminalK8SBinary:
+		h.handleK8SMessage(msg)
 	case TerminalShare:
 		var shareData ShareRequestParams
 
@@ -198,9 +233,45 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 		return
 	case CLOSE:
 		_ = h.backendClient.Close()
+		if k8sClient, ok := h.K8sClients[msg.KubernetesId]; ok {
+			_ = k8sClient.Close()
+			delete(h.K8sClients, msg.KubernetesId)
+		}
 	default:
 		logger.Infof("Ws[%s] handle unknown message(%s) data %s", h.ws.Uuid,
 			msg.Type, msg.Data)
+	}
+}
+
+func getDataBytes(msg *Message) []byte {
+	if msg.Type == TerminalData || msg.Type == TerminalK8SData {
+		return []byte(msg.Data)
+	}
+	return msg.Raw
+}
+
+func (h *tty) handleK8SMessage(msg *Message) {
+	if k8sClient, ok := h.K8sClients[msg.KubernetesId]; ok {
+		k8sClient.WriteData(getDataBytes(msg))
+	}
+}
+
+func (h *tty) handleResize(msg *Message) {
+	var size WindowSize
+	err := json.Unmarshal([]byte(msg.Data), &size)
+	if err != nil {
+		logger.Errorf("Ws[%s] message(%s) data unmarshal err: %s", h.ws.Uuid, msg.Type, msg.Data)
+		return
+	}
+	if msg.Type == TerminalResize {
+		h.backendClient.SetWinSize(ssh.Window{
+			Width:  size.Cols,
+			Height: size.Rows,
+		})
+	} else if msg.Type == TerminalK8SResize {
+		if k8sClient, ok := h.K8sClients[msg.KubernetesId]; ok {
+			k8sClient.SetWinSize(ssh.Window{Width: size.Cols, Height: size.Rows})
+		}
 	}
 }
 
@@ -322,11 +393,10 @@ func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err err
 	return ShareInfo{recordRes}, nil
 }
 
-func (h *tty) getK8sContainerInfo() *proxy.ContainerInfo {
-	params := h.ws.wsParams
-	pod := params.Pod
-	namespace := params.Namespace
-	container := params.Container
+func (h *tty) getK8sContainerInfo(client *Client) *proxy.ContainerInfo {
+	pod := client.Pod
+	namespace := client.Namespace
+	container := client.Container
 	if pod == "" || namespace == "" || container == "" {
 		return nil
 	}
@@ -350,7 +420,7 @@ func (h *tty) getConnectionParams() *proxy.ConnectionParams {
 	return &params
 }
 
-func (h *tty) proxy(wg *sync.WaitGroup) {
+func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 	defer wg.Done()
 	params := h.ws.wsParams
 	switch params.TargetType {
@@ -365,8 +435,8 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(connectToken))
 		proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(h.ws.langCode))
 		proxyOpts = append(proxyOpts, proxy.ConnectParams(h.getConnectionParams()))
-		proxyOpts = append(proxyOpts, proxy.ConnectContainer(h.getK8sContainerInfo()))
-		srv, err := proxy.NewServer(h.backendClient, h.ws.apiClient, proxyOpts...)
+		proxyOpts = append(proxyOpts, proxy.ConnectContainer(h.getK8sContainerInfo(client)))
+		srv, err := proxy.NewServer(client, h.ws.apiClient, proxyOpts...)
 		if err != nil {
 			logger.Errorf("Create proxy server failed: %s", err)
 			h.sendCloseMessage()
@@ -378,7 +448,9 @@ func (h *tty) proxy(wg *sync.WaitGroup) {
 		}
 		srv.Proxy()
 	}
-	h.sendCloseMessage()
+	if params.TargetType != TargetTypeK8s {
+		h.sendCloseMessage()
+	}
 	logger.Info("Ws tty proxy end")
 }
 
