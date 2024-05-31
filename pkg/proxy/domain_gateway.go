@@ -15,7 +15,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-type domainGateway struct {
+type DomainGateway struct {
 	domain  *model.Domain
 	dstIP   string
 	dstPort int
@@ -27,7 +27,7 @@ type domainGateway struct {
 	once sync.Once
 }
 
-func (d *domainGateway) run() {
+func (d *DomainGateway) run() {
 	defer d.closeOnce()
 	for {
 		con, err := d.ln.Accept()
@@ -40,7 +40,7 @@ func (d *domainGateway) run() {
 	logger.Infof("Domain gateway %s stop listen on %s", d.selectedGateway.Name, d.ln.Addr())
 }
 
-func (d *domainGateway) handlerConn(srcCon net.Conn) {
+func (d *DomainGateway) handlerConn(srcCon net.Conn) {
 	defer srcCon.Close()
 	dstAddr := net.JoinHostPort(d.dstIP, strconv.Itoa(d.dstPort))
 	dstCon, err := d.sshClient.Dial("tcp", dstAddr)
@@ -69,7 +69,7 @@ func (d *domainGateway) handlerConn(srcCon net.Conn) {
 
 var ErrNoAvailable = errors.New("no available domain")
 
-func (d *domainGateway) Start() (err error) {
+func (d *DomainGateway) Start() (err error) {
 	if !d.getAvailableGateway() {
 		return ErrNoAvailable
 	}
@@ -83,11 +83,11 @@ func (d *domainGateway) Start() (err error) {
 
 	return nil
 }
-func (d *domainGateway) GetListenAddr() *net.TCPAddr {
+func (d *DomainGateway) GetListenAddr() *net.TCPAddr {
 	return d.ln.Addr().(*net.TCPAddr)
 }
 
-func (d *domainGateway) getAvailableGateway() bool {
+func (d *DomainGateway) getAvailableGateway() bool {
 	if d.selectedGateway != nil {
 		sshClient, err := d.createGatewaySSHClient(d.selectedGateway)
 		if err != nil {
@@ -118,7 +118,7 @@ func (d *domainGateway) getAvailableGateway() bool {
 	return false
 }
 
-func (d *domainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.Client, error) {
+func (d *DomainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.Client, error) {
 	configTimeout := time.Duration(config.GetConf().SSHTimeout)
 	auths := make([]gossh.AuthMethod, 0, 3)
 	loginAccount := gateway.Account
@@ -146,11 +146,11 @@ func (d *domainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.C
 	return gossh.Dial("tcp", addr, &sshConfig)
 }
 
-func (d *domainGateway) Stop() {
+func (d *DomainGateway) Stop() {
 	d.closeOnce()
 }
 
-func (d *domainGateway) closeOnce() {
+func (d *DomainGateway) closeOnce() {
 	d.once.Do(func() {
 		_ = d.ln.Close()
 		_ = d.sshClient.Close()

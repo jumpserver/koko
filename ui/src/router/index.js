@@ -15,6 +15,11 @@ export const allRoleRoutes = [
     component: () => import('../views/Connection')
   },
   {
+    path: '/ks/',
+    name: 'kubernetes',
+    component: () => import('../views/Kubernetes.vue')
+  },
+  {
     path: '/token/:id/',
     name: 'Token',
     component: () => import('../views/Connection')

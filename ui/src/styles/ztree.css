@@ -1,0 +1,164 @@
+/*-------------------------------------
+zTree Style using fontawesome instead of images
+
+version:    1.1
+author:     Mike King
+email:      mikkelking @ hotmail . com
+website:    http://code.google.com/p/jquerytree/
+
+-------------------------------------*/
+/* Definitions ----------------------*/
+/* End of Definitions ---------------*/
+/* Imports  -------------------------*/
+/* End of Imports  ------------------*/
+.ztree * {
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+  font-family: 'Open Sans', Verdana, Arial, Helvetica, AppleGothic, sans-serif;
+  background-color: #2f2a2a;
+}
+
+.ztree {
+  margin: 0;
+  padding: 5px;
+  color: #676a6c;
+  background-color: #f3f3f3;
+}
+
+.ztree li {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  line-height: 17px;
+  text-align: left;
+  white-space: nowrap;
+  outline: 0;
+}
+
+.ztree li ul {
+  margin: 0px;
+  padding: 0 0 0 18px;
+}
+
+.ztree li a {
+  padding-right: 3px;
+  margin: 0;
+  cursor: pointer;
+  height: 20px;
+  color: #676a6c;
+  background-color: transparent;
+  text-decoration: none;
+  vertical-align: top;
+  display: inline-block;
+}
+
+.ztree li a input.rename {
+  height: 14px;
+  width: 80px;
+  padding: 0;
+  margin: 0;
+  color: #f3f3f3;
+  background-color: #676a6c;
+  font-size: 12px;
+  border: 1px #585956 solid;
+  *border: 0px;
+}
+
+.ztree li a:hover {
+  background: #e7f4f9;
+  border-radius: 2px;
+  box-shadow: inset 0 0 1px #cccccc;
+}
+
+.ztree li a.curSelectedNode {
+  padding-top: 0px;
+  background-color: #beebff;
+  color: #676a6c;
+  height: 20px;
+  opacity: 0.8;
+}
+
+.ztree li a.curSelectedNode_Edit {
+  padding-top: 0px;
+  background-color: #f3f3f3;
+  color: red;
+  height: 20px;
+  border: 1px #676a6c solid;
+  opacity: 0.8;
+}
+
+.ztree li a.tmpTargetNode_inner {
+  padding-top: 0px;
+  background-color: #f3f3f3;
+  color: #676a6c;
+  height: 20px;
+  border: 1px #666 solid;
+  opacity: 0.8;
+  filter: alpha(opacity=80);
+}
+
+.ztree li span {
+  line-height: 20px;
+  margin-right: 2px;
+  background-color: transparent;
+}
+
+ul.tmpTargetzTree {
+  background-color: #FFE6B0;
+  opacity: 0.8;
+  filter: alpha(opacity=80);
+}
+
+span.tmpzTreeMove_arrow {
+  width: 16px;
+  height: 20px;
+  display: inline-block;
+  padding: 0;
+  margin: 2px 0 0 1px;
+  border: 0 none;
+  position: absolute;
+  background-color: transparent;
+  background-attachment: scroll;
+}
+
+span.tmpzTreeMove_arrow::before {
+  content: "\f04b";
+  font-family: FontAwesome;
+  color: #676a6c;
+}
+
+ul.ztree.zTreeDragUL {
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  width: auto;
+  height: auto;
+  overflow: hidden;
+  background-color: #cfcfcf;
+  border: 1px #676a6c dotted;
+  opacity: 0.8;
+  filter: alpha(opacity=80);
+}
+
+.ztreeMask {
+  z-index: 10000;
+  background-color: #cfcfcf;
+  opacity: 0.0;
+  filter: alpha(opacity=0);
+  position: absolute;
+}
+
+.ztree li span.button.assets_ico_open::before,
+.ztree li span.button.assets_ico_close::before {
+  content: "\F01C";
+}
+
+.ztree li span.button.applications_ico_open::before,
+.ztree li span.button.applications_ico_close::before {
+  content: "";
+}
+
+.ztree li span.button::before {
+  color: #FFFFFF;
+}

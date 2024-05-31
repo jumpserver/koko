@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/jumpserver/koko/pkg/proxy"
 	"io"
 	"time"
 
@@ -37,6 +38,7 @@ type UserWebsocket struct {
 
 	ConnectToken *model.ConnectToken
 	apiClient    *service.JMService
+	k8sClient    *proxy.KubernetesClient
 	langCode     string
 }
 
@@ -90,6 +92,21 @@ func (userCon *UserWebsocket) Run() {
 		userCon.SendErrMessage(err.Error())
 		return
 	}
+
+	if userCon.ConnectToken.Protocol == "k8s" {
+		var err error
+		userCon.k8sClient, err = proxy.NewKubernetesClient(
+			userCon.ConnectToken.Asset.Address,
+			userCon.ConnectToken.Account.Secret,
+			userCon.ConnectToken.Gateway,
+		)
+		if err != nil {
+			logger.Errorf("Ws[%s] create k8s client err: %s", userCon.Uuid, err)
+			userCon.SendErrMessage("Create k8s client err")
+			return
+		}
+	}
+
 	userCon.sendConnectMessage()
 	var errMsg string
 	select {
@@ -168,9 +185,11 @@ func (userCon *UserWebsocket) sendConnectMessage() {
 	var connectInfo struct {
 		User    *model.User          `json:"user"`
 		Setting *model.PublicSetting `json:"setting"`
+		Asset   *model.Asset         `json:"asset"`
 	}
 	connectInfo.User = userCon.user
 	connectInfo.Setting = userCon.setting
+	connectInfo.Asset = &userCon.ConnectToken.Asset
 	info, _ := json.Marshal(connectInfo)
 	msg := Message{
 		Id:   userCon.Uuid,
@@ -209,6 +228,33 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 		switch msg.Type {
 		case PING, PONG:
 			logger.Debugf("Ws[%s] receive %s message", userCon.Uuid, msg.Type)
+			continue
+		case TerminalK8STree:
+			namespace := msg.Namespace
+			pod := msg.Pod
+			var data []string
+
+			if namespace == "" {
+				data, err = userCon.k8sClient.GetNamespaces()
+			} else if pod == "" {
+				data, err = userCon.k8sClient.GetPodsInNamespace(namespace)
+			} else {
+				data, err = userCon.k8sClient.GetContainersInPod(namespace, pod)
+			}
+			if err != nil {
+				logger.Errorf("Ws[%s] get k8s tree data err: %s", userCon.Uuid, err)
+				data = []string{}
+			}
+
+			info, _ := json.Marshal(data)
+			responseMsg := Message{
+				Id:           userCon.Uuid,
+				Type:         TerminalK8STree,
+				Data:         string(info),
+				KubernetesId: msg.KubernetesId,
+			}
+
+			userCon.SendMessage(&responseMsg)
 			continue
 		default:
 			userCon.handler.HandleMessage(&msg)
