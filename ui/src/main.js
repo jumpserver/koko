@@ -1,10 +1,12 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import VueLogger from 'vuejs-logger'
+import '@/guards' // permission control
 import App from './App.vue'
 import router from './router'
 import i18n from './i18n/i18n'
 import loggerOptions from './plugins/logger'
+import store from '../store'
 import ElementUI from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css';
 import 'element-ui/lib/theme-chalk/display.css';
@@ -38,5 +40,6 @@ Vue.use(contextmenu);
 new Vue({
   router,
   i18n,
+  store,
   render: h => h(App),
 }).$mount('#app')
