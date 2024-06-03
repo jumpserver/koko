@@ -8,7 +8,7 @@
     </el-main>
 
     <RightPanel ref="panel">
-      <Settings :settings="settings" :title="$t('Terminal.Settings')" />
+      <Settings :settings="settings" :title="$t('Settings')" />
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible" @setTheme="handleChangeTheme"></ThemeConfig>
@@ -20,12 +20,12 @@
         :show-close="false"
         width="30%">
       <el-form ref="form" @submit.native.prevent>
-        <el-form-item :label="this.$t('Terminal.VerifyCode')">
+        <el-form-item :label="this.$t('VerifyCode')">
           <el-input v-model="code"></el-input>
         </el-form-item>
       </el-form>
       <div slot="footer">
-        <el-button class="item-button" @click="submitCode">{{ this.$t('Terminal.ConfirmBtn') }}</el-button>
+        <el-button class="item-button" @click="submitCode">{{ this.$t('ConfirmBtn') }}</el-button>
       </div>
     </el-dialog>
   </el-container>
@@ -71,19 +71,19 @@ export default {
     settings() {
       const settings = [
         {
-          title: this.$t('Terminal.ThemeConfig'),
+          title: this.$t('ThemeConfig'),
           icon: 'el-icon-orange',
           disabled: () => true,
           click: () => (this.dialogVisible = !this.dialogVisible),
         },
         {
-          title: this.$t('Terminal.User'),
+          title: this.$t('User'),
           icon: 'el-icon-s-custom',
           disabled: () => Object.keys(this.onlineUsersMap).length > 1,
           content: Object.values(this.onlineUsersMap).map(item => {
-            item.name = (this.terminalId !== item.terminal_id)?item.user:item.user + ' ['+ this.$t('Terminal.Self')+']'
+            item.name = (this.terminalId !== item.terminal_id)?item.user:item.user + ' ['+ this.$t('Self')+']'
             item.faIcon = item.writable?'fa-solid fa-keyboard':'fa-solid fa-eye'
-            item.iconTip = item.writable?this.$t('Terminal.Writable'):this.$t('Terminal.ReadOnly')
+            item.iconTip = item.writable?this.$t('Writable'):this.$t('ReadOnly')
             return item
           }).sort((a, b) => new Date(a.created) - new Date(b.created)),
           itemClick: () => {}
@@ -114,7 +114,7 @@ export default {
             this.$log.debug("self join")
             break
           }
-          const joinMsg = `${data.user} ${this.$t('Terminal.JoinShare')}`
+          const joinMsg = `${data.user} ${this.$t('JoinShare')}`
           this.$message(joinMsg)
           break
         }
@@ -122,7 +122,7 @@ export default {
           const data = JSON.parse(msg.data);
           const key = data.terminal_id;
           this.$delete(this.onlineUsersMap, key);
-          const leaveMsg = `${data.user} ${this.$t('Terminal.LeaveShare')}`
+          const leaveMsg = `${data.user} ${this.$t('LeaveShare')}`
           this.$message(leaveMsg)
           break
         }
@@ -140,7 +140,7 @@ export default {
         case 'TERMINAL_SHARE_USER_REMOVE': {
           const data = JSON.parse(msg.data);
           this.$log.debug(data);
-          this.$message(this.$t('Terminal.RemoveShareUser'))
+          this.$message(this.$t('RemoveShareUser'))
           this.$refs.term.ws.close();
           break
         }
@@ -162,13 +162,13 @@ export default {
         }
         case 'TERMINAL_SESSION_PAUSE': {
           const data = JSON.parse(msg.data);
-          const notifyMsg = `${data.user} ${this.$t('Terminal.PauseSession')}`
+          const notifyMsg = `${data.user} ${this.$t('PauseSession')}`
           this.$message(notifyMsg)
           break
         }
         case 'TERMINAL_SESSION_RESUME': {
           const data = JSON.parse(msg.data);
-          const notifyMsg  = `${data.user} ${this.$t('Terminal.ResumeSession')}`
+          const notifyMsg  = `${data.user} ${this.$t('ResumeSession')}`
           this.$message(notifyMsg)
           break
         }
@@ -179,7 +179,7 @@ export default {
     },
     submitCode() {
       if (this.code === '') {
-        this.$message(this.$t("Message.InputVerifyCode"))
+        this.$message(this.$t("InputVerifyCode"))
         return
       }
       this.$log.debug("code:", this.code)

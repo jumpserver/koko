@@ -9,7 +9,7 @@
                 v-on:ws-data="onWsData"></Terminal>
     </el-main>
     <RightPanel ref="panel">
-      <Settings :settings="settings" :title="$t('Terminal.Settings')"/>
+      <Settings :settings="settings" :title="$t('Settings')"/>
     </RightPanel>
 
     <ThemeConfig :visible.sync="dialogVisible"  :themeName="themeName"
@@ -29,8 +29,8 @@
         center>
       <div v-if="!shareId">
         <el-form v-loading="loading" :model="shareLinkRequest">
-          <el-form-item :label="this.$t('Terminal.ExpiredTime')">
-            <el-select v-model="shareLinkRequest.expiredTime" :placeholder="this.$t('Terminal.SelectAction')">
+          <el-form-item :label="this.$t('ExpiredTime')">
+            <el-select v-model="shareLinkRequest.expiredTime" :placeholder="this.$t('SelectAction')">
               <el-option
                   v-for="item in expiredOptions"
                   :key="item.value"
@@ -39,8 +39,8 @@
               </el-option>
             </el-select>
           </el-form-item>
-          <el-form-item :label="this.$t('Terminal.ActionPerm')">
-            <el-select v-model="shareLinkRequest.actionPerm" :placeholder="this.$t('Terminal.ActionPerm')">
+          <el-form-item :label="this.$t('ActionPerm')">
+            <el-select v-model="shareLinkRequest.actionPerm" :placeholder="this.$t('ActionPerm')">
               <el-option
                   v-for="item in actionsPermOptions"
                   :key="item.value"
@@ -49,9 +49,9 @@
               </el-option>
             </el-select>
           </el-form-item>
-          <el-form-item :label="this.$t('Terminal.ShareUser')">
+          <el-form-item :label="this.$t('ShareUser')">
             <el-select v-model="shareLinkRequest.users" multiple filterable remote reserve-keyword
-                       :placeholder="this.$t('Terminal.GetShareUser')"
+                       :placeholder="this.$t('GetShareUser')"
                        :remote-method="getSessionUser" :loading="userLoading">
               <el-option
                   v-for="item in userOptions"
@@ -60,26 +60,26 @@
                   :value="item.id">
               </el-option>
             </el-select>
-            <div style="color: #d9d1d1;font-size: 12px">{{ this.$t('Terminal.ShareUserHelpText') }}</div>
+            <div style="color: #d9d1d1;font-size: 12px">{{ this.$t('ShareUserHelpText') }}</div>
           </el-form-item>
         </el-form>
         <div>
-          <el-button class="share-btn" @click="handleShareURlCreated">{{ this.$t('Terminal.CreateLink') }}</el-button>
+          <el-button class="share-btn" @click="handleShareURlCreated">{{ this.$t('CreateLink') }}</el-button>
         </div>
       </div>
       <div v-else>
-        <el-result icon="success" class="result" :title="this.$t('Terminal.CreateSuccess')">
+        <el-result icon="success" class="result" :title="this.$t('CreateSuccess')">
         </el-result>
         <el-form>
-          <el-form-item :label="this.$t('Terminal.LinkAddr')">
+          <el-form-item :label="this.$t('LinkAddr')">
             <el-input readonly :value="shareURL"/>
           </el-form-item>
-          <el-form-item :label="this.$t('Terminal.VerifyCode')">
+          <el-form-item :label="this.$t('VerifyCode')">
             <el-input readonly :value="shareCode"/>
           </el-form-item>
         </el-form>
         <div>
-          <el-button class="share-btn" @click="copyShareURL">{{ this.$t('Terminal.CopyLink') }}</el-button>
+          <el-button class="share-btn" @click="copyShareURL">{{ this.$t('CopyLink') }}</el-button>
         </div>
       </div>
     </el-dialog>
@@ -122,8 +122,8 @@ export default {
         {label: this.getMinuteLabel(60), value: 60},
       ],
       actionsPermOptions: [
-        {label: this.$t('Terminal.Writable'), value: "writable"},
-        {label: this.$t('Terminal.ReadOnly'), value: "readonly"},
+        {label: this.$t('Writable'), value: "writable"},
+        {label: this.$t('ReadOnly'), value: "readonly"},
       ],
       shareId: null,
       loading: false,
@@ -145,33 +145,33 @@ export default {
       }
     },
     shareTitle() {
-      return this.shareId ? this.$t('Terminal.Share') : this.$t('Terminal.CreateLink')
+      return this.shareId ? this.$t('Share') : this.$t('CreateLink')
     },
     shareURL() {
-      return this.shareId ? this.generateShareURL() : this.$t('Terminal.NoLink')
+      return this.shareId ? this.generateShareURL() : this.$t('NoLink')
     },
     settings() {
       const settings = [
         {
-          title: this.$t('Terminal.ThemeConfig'),
+          title: this.$t('ThemeConfig'),
           icon: 'el-icon-orange',
           disabled: () => false,
           click: () => (this.dialogVisible = !this.dialogVisible),
         },
         {
-          title: this.$t('Terminal.Share'),
+          title: this.$t('Share'),
           icon: 'el-icon-share',
           disabled: () => !this.enableShare,
           click: () => (this.shareDialogVisible = !this.shareDialogVisible),
         },
         {
-          title: this.$t('Terminal.User'),
+          title: this.$t('User'),
           icon: 'el-icon-s-custom',
           disabled: () => Object.keys(this.onlineUsersMap).length < 1,
           content: Object.values(this.onlineUsersMap).map(item => {
             item.name = item.user
             item.faIcon = item.writable ? 'fa-solid fa-keyboard' : 'fa-solid fa-eye'
-            item.iconTip = item.writable ? this.$t('Terminal.Writable') : this.$t('Terminal.ReadOnly')
+            item.iconTip = item.writable ? this.$t('Writable') : this.$t('ReadOnly')
             return item
           }).sort((a, b) => new Date(a.created) - new Date(b.created)),
           itemClick: () => {
@@ -179,7 +179,7 @@ export default {
           itemActions: [
             {
               faIcon: 'fa-solid fa-trash-can',
-              tipText: this.$t('Terminal.Remove'),
+              tipText: this.$t('Remove'),
               style: {
                 color: "#f56c6c"
               },
@@ -191,7 +191,7 @@ export default {
                 if (user.primary) {
                   return
                 }
-                this.$confirm(this.$t('Terminal.RemoveShareUserConfirm'))
+                this.$confirm(this.$t('RemoveShareUserConfirm'))
                     .then(() => {
                       if (this.$refs.term) {
                         this.$refs.term.removeShareUser(this.sessionId, user)
@@ -245,11 +245,11 @@ export default {
       }
       const shareURL = this.generateShareURL();
       this.$log.debug("share URL: " + shareURL)
-      const linkTitle = this.$t('Terminal.LinkAddr');
-      const codeTitle = this.$t('Terminal.VerifyCode')
+      const linkTitle = this.$t('LinkAddr');
+      const codeTitle = this.$t('VerifyCode')
       const text = `${linkTitle}： ${shareURL}\n${codeTitle}: ${this.shareCode}`
       CopyTextToClipboard(text)
-      this.$message(this.$t("Terminal.CopyShareURLSuccess"))
+      this.$message(this.$t("CopyShareURLSuccess"))
     },
     onThemeBackground(val) {
       this.themeBackground = val
@@ -300,7 +300,7 @@ export default {
             this.$log.debug("primary user 不提醒")
             break
           }
-          const joinMsg = `${data.user} ${this.$t('Terminal.JoinShare')}`
+          const joinMsg = `${data.user} ${this.$t('JoinShare')}`
           this.$message(joinMsg)
           break
         }
@@ -308,7 +308,7 @@ export default {
           const data = JSON.parse(msg.data);
           const key = data.terminal_id;
           this.$delete(this.onlineUsersMap, key);
-          const leaveMsg = `${data.user} ${this.$t('Terminal.LeaveShare')}`
+          const leaveMsg = `${data.user} ${this.$t('LeaveShare')}`
           this.$message(leaveMsg)
           break
         }
@@ -319,13 +319,13 @@ export default {
         }
         case 'TERMINAL_SESSION_PAUSE': {
           const data = JSON.parse(msg.data);
-          const notifyMsg = `${data.user} ${this.$t('Terminal.PauseSession')}`
+          const notifyMsg = `${data.user} ${this.$t('PauseSession')}`
           this.$message(notifyMsg)
           break
         }
         case 'TERMINAL_SESSION_RESUME': {
           const data = JSON.parse(msg.data);
-          const notifyMsg  = `${data.user} ${this.$t('Terminal.ResumeSession')}`
+          const notifyMsg  = `${data.user} ${this.$t('ResumeSession')}`
           this.$message(notifyMsg)
           break
         }
@@ -393,9 +393,9 @@ export default {
       }
     },
     getMinuteLabel(item) {
-      let minuteLabel = this.$t('Terminal.Minute')
+      let minuteLabel = this.$t('Minute')
       if (item > 1) {
-        minuteLabel = this.$t('Terminal.Minutes')
+        minuteLabel = this.$t('Minutes')
       }
       return `${item} ${minuteLabel}`
     },
