@@ -3,10 +3,10 @@ package httpd
 import (
 	"context"
 	"encoding/json"
+	"github.com/gliderlabs/ssh"
 	"io"
 	"sync"
-
-	"github.com/gliderlabs/ssh"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -20,6 +20,10 @@ type Client struct {
 	pty       ssh.Pty
 
 	sync.Mutex
+
+	buffer      []byte
+	bufferMutex sync.Mutex
+	timer       *time.Timer
 }
 
 func (c *Client) WinCh() <-chan ssh.Window {
@@ -40,14 +44,34 @@ func (c *Client) Read(p []byte) (n int, err error) {
 	return c.UserRead.Read(p)
 }
 
+// 向客户端发送数据进行1毫秒的防抖处理
 func (c *Client) Write(p []byte) (n int, err error) {
-	msg := Message{
-		Id:   c.Conn.Uuid,
-		Type: TerminalBinary,
-		Raw:  p,
+	c.bufferMutex.Lock()
+	defer c.bufferMutex.Unlock()
+
+	c.buffer = append(c.buffer, p...)
+
+	if c.timer == nil {
+		c.timer = time.AfterFunc(time.Millisecond, c.flushBuffer)
 	}
-	c.Conn.SendMessage(&msg)
 	return len(p), nil
+}
+
+func (c *Client) flushBuffer() {
+	c.bufferMutex.Lock()
+	defer c.bufferMutex.Unlock()
+
+	if len(c.buffer) > 0 {
+		msg := Message{
+			Id:   c.Conn.Uuid,
+			Type: TerminalBinary,
+			Raw:  c.buffer,
+		}
+		c.Conn.SendMessage(&msg)
+		c.buffer = nil
+	}
+	c.timer.Stop()
+	c.timer = nil
 }
 
 func (c *Client) Pty() ssh.Pty {
