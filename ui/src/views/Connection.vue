@@ -28,7 +28,7 @@
         class="share-dialog"
         center>
       <div v-if="!shareId">
-        <el-form v-loading="loading" :model="shareLinkRequest">
+        <el-form label-position="top" v-loading="loading" :model="shareLinkRequest">
           <el-form-item :label="this.$t('ExpiredTime')">
             <el-select v-model="shareLinkRequest.expiredTime" :placeholder="this.$t('SelectAction')">
               <el-option
@@ -70,7 +70,7 @@
       <div v-else>
         <el-result icon="success" class="result" :title="this.$t('CreateSuccess')">
         </el-result>
-        <el-form>
+        <el-form label-position="top">
           <el-form-item :label="this.$t('LinkAddr')">
             <el-input readonly :value="shareURL"/>
           </el-form-item>
@@ -430,5 +430,8 @@ export default {
 ::v-deep .el-form-item__content > div,
 ::v-deep .el-form-item__content > span {
   flex: 1;
+}
+.result {
+  padding-bottom: 20px;
 }
 </style>
