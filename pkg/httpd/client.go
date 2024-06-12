@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/gliderlabs/ssh"
@@ -21,7 +22,7 @@ type Client struct {
 
 	sync.Mutex
 
-	buffer      []byte
+	buffer      bytes.Buffer
 	bufferMutex sync.Mutex
 	timer       *time.Timer
 }
@@ -49,7 +50,7 @@ func (c *Client) Write(p []byte) (n int, err error) {
 	c.bufferMutex.Lock()
 	defer c.bufferMutex.Unlock()
 
-	c.buffer = append(c.buffer, p...)
+	c.buffer.Write(p)
 
 	if c.timer == nil {
 		c.timer = time.AfterFunc(time.Millisecond, c.flushBuffer)
@@ -61,14 +62,14 @@ func (c *Client) flushBuffer() {
 	c.bufferMutex.Lock()
 	defer c.bufferMutex.Unlock()
 
-	if len(c.buffer) > 0 {
+	if c.buffer.Len() > 0 {
 		msg := Message{
 			Id:   c.Conn.Uuid,
 			Type: TerminalBinary,
-			Raw:  c.buffer,
+			Raw:  c.buffer.Bytes(),
 		}
 		c.Conn.SendMessage(&msg)
-		c.buffer = nil
+		c.buffer.Reset()
 	}
 	c.timer.Stop()
 	c.timer = nil
