@@ -160,7 +160,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 	}
 	termConf := s.GetTerminalConfig()
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
-	if pty, winChan, isPty := sess.Pty(); isPty {
+	if pty, winChan, isPty := sess.Pty(); isPty && sess.RawCommand() == "" {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 			selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
 			if err != nil {
@@ -306,15 +306,20 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
-	defer sshClient.Close()
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
 		user:       &tokeInfo.User,
 		client:     sshClient,
 		expireInfo: tokeInfo.ExpireAt,
 	}
-	s.addVSCodeReq(vsReq)
-	defer s.deleteVSCodeReq(vsReq)
+	go func() {
+		s.addVSCodeReq(vsReq)
+		defer s.deleteVSCodeReq(vsReq)
+		<-sess.Context().Done()
+		_ = sshClient.Close()
+		logger.Infof("User %s end vscode request %s", vsReq.user, sshClient)
+	}()
+
 	if len(sess.Command()) != 0 {
 		s.proxyAssetCommand(sess, sshClient, tokeInfo)
 		return
@@ -358,7 +363,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	} else {
 		// 开启了 vscode 支持，放开使用 scp 命令传输文件
 		// todo: 解析 scp 数据包，获取文件信息
-		logger.Infof("Execute scp command: %s", rawStr)
+		logger.Infof("Execute command: %s", rawStr)
 	}
 	// todo: 暂且不支持 acl 工单
 	acls := tokeInfo.CommandFilterACLs
