@@ -20,6 +20,7 @@ import (
 
 var (
 	charEnter = []byte("\r")
+	charLF    = []byte("\n")
 
 	enterMarks = [][]byte{
 		[]byte("\x1b[?1049h"),
@@ -189,6 +190,16 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 	return p.userOutputChan, p.srvOutputChan
 }
 
+func (p *Parser) isEnterKeyPress(b []byte) bool {
+	if bytes.LastIndex(b, charEnter) == 0 {
+		return true
+	}
+	if len(b) > 1 && bytes.HasSuffix(b, charLF) && isLinux(p.platform) {
+		return true
+	}
+	return false
+}
+
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
 	lang := i18n.NewLang(p.i18nLang)
@@ -298,13 +309,16 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 		return nil
 	}
-
-	if bytes.LastIndex(b, charEnter) == 0 {
+	p.writeInputBuffer(b)
+	if p.isEnterKeyPress(b) {
 		// 连续输入enter key, 结算上一条可能存在的命令结果
 		p.sendCommandRecord()
 		p.inputState = false
 		// 用户输入了Enter，开始结算命令
 		p.parseCmdInput()
+		if p.command == "" {
+			p.command = strings.TrimSpace(p.readInputBuffer())
+		}
 		if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
 			switch rule.Acl.Action {
 			case model.ActionReject:
@@ -330,7 +344,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 		p.clearInputBuffer()
 	} else {
-		p.writeInputBuffer(b)
 		if p.supportMultiCmd() && bytes.Contains(b, charEnter) {
 			p.isMultipleCmd = true
 			p.command = p.readInputBuffer()
