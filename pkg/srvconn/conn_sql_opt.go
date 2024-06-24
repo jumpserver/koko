@@ -1,11 +1,8 @@
 package srvconn
 
-import (
-	"database/sql"
-	"time"
-)
-
 type sqlOption struct {
+	AssetName        string
+	Schema           string
 	Username         string
 	Password         string
 	DBName           string
@@ -22,12 +19,22 @@ type sqlOption struct {
 
 	win Windows
 
-	disableMySQLAutoRehash bool
-
 	AuthSource string
 }
 
 type SqlOption func(*sqlOption)
+
+func SqlSchema(schema string) SqlOption {
+	return func(args *sqlOption) {
+		args.Schema = schema
+	}
+}
+
+func SqlAssetName(assetName string) SqlOption {
+	return func(args *sqlOption) {
+		args.AssetName = assetName
+	}
+}
 
 func SqlUsername(username string) SqlOption {
 	return func(args *sqlOption) {
@@ -99,26 +106,4 @@ func SqlAuthSource(authSource string) SqlOption {
 	return func(args *sqlOption) {
 		args.AuthSource = authSource
 	}
-}
-
-const (
-	maxSQLConnCount = 1
-	maxIdleTime     = time.Second * 15
-)
-
-func checkDatabaseAccountValidate(driveName, datasourceName string) error {
-	db, err := sql.Open(driveName, datasourceName)
-	if err != nil {
-		return err
-	}
-	db.SetMaxOpenConns(maxSQLConnCount)
-	db.SetMaxIdleConns(maxSQLConnCount)
-	db.SetConnMaxLifetime(maxIdleTime)
-	db.SetConnMaxIdleTime(maxIdleTime)
-	defer db.Close()
-	err = db.Ping()
-	if err != nil {
-		return err
-	}
-	return nil
 }
