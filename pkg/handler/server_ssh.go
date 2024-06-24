@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/jumpserver/koko/pkg/cache"
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
@@ -68,6 +69,14 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 		if err != nil {
 			logger.Errorf("Get matched assets failed: %s", err)
 			return
+		}
+		if directRequest.IsToken() && config.GetConf().ConnectionTokenReusable {
+			tokenInfo := directRequest.ConnectToken
+			key := cache.CreateAddrCacheKey(sess.RemoteAddr(), tokenInfo.Id)
+			// 缓存 token 信息
+			cache.TokenCacheInstance.Save(key, tokenInfo)
+			defer cache.TokenCacheInstance.Recycle(key)
+			logger.Infof("SFTP token key %s cached", key)
 		}
 		opts := buildDirectRequestOptions(currentUser, directRequest)
 		opts = append(opts, DirectConnectSftpMode(true))
