@@ -12,12 +12,18 @@ type Message struct {
 	Id   string `json:"id"`
 	Type string `json:"type"`
 	Data string `json:"data"`
-	Raw  []byte `json:"-"`
+	Raw  []byte `json:"raw"`
 	Err  string `json:"err"`
 
 	//Chat AI
 	Prompt    string `json:"prompt"`
 	Interrupt bool   `json:"interrupt"`
+
+	//K8S
+	KubernetesId string `json:"k8s_id"`
+	Namespace    string `json:"namespace"`
+	Pod          string `json:"pod"`
+	Container    string `json:"container"`
 }
 
 const (
@@ -50,6 +56,12 @@ const (
 	TerminalError = "TERMINAL_ERROR"
 
 	MessageNotify = "MESSAGE_NOTIFY"
+
+	TerminalK8SInit   = "TERMINAL_K8S_INIT"
+	TerminalK8STree   = "TERMINAL_K8S_TREE"
+	TerminalK8SData   = "TERMINAL_K8S_DATA"
+	TerminalK8SBinary = "TERMINAL_K8S_BINARY"
+	TerminalK8SResize = "TERMINAL_K8S_RESIZE"
 )
 
 type WindowSize struct {
@@ -97,6 +109,8 @@ const (
 	TargetTypeMonitor = "monitor"
 
 	TargetTypeShare = "share"
+
+	TargetTypeK8s = "k8s"
 )
 
 const (
