@@ -109,3 +109,11 @@ docker:
 clean:
 	-rm -rf $(BUILDDIR)
 	-rm -rf $(UIDIR)/dist/*
+
+.PHONY: run
+run:
+	go run ./cmd/koko/
+
+.PHONY: run-ui
+run-ui:
+	cd $(UIDIR) && yarn run serve
