@@ -1373,7 +1373,7 @@ div.elfinder-cwd-wrapper-list .ui-icon-grip-dotted-vertical {
   white-space: nowrap;
   -webkit-border-radius: 3px;
   border-radius: 3px;
-  text-transform: uppercase;
+  /*text-transform: uppercase;*/
   -webkit-box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
   box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.4);
   -webkit-transition: all 0.4s;
