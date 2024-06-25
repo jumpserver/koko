@@ -81,7 +81,8 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			if err3 := jmsService.SessionReplayFailed(remainReplay.Id, reason); err3 != nil {
 				logger.Errorf("Update session %s status %s failed: %s", remainReplay.Id, reason, err3)
 			}
-			recordLifecycleLog(remainReplay.Id, model.ReplayUploadFailure, err2.Error())
+			failureMsg := strings.ReplaceAll(err2.Error(), ",", " ")
+			recordLifecycleLog(remainReplay.Id, model.ReplayUploadFailure, failureMsg)
 			continue
 		}
 		recordLifecycleLog(remainReplay.Id, model.ReplayUploadSuccess, "")
