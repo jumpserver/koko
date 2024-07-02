@@ -56,11 +56,11 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 	}
 	cm := ColorMeta{GreenBoldColor: "\033[1;32m", ColorEnd: "\033[0m"}
 	for i, v := range menu {
-		line := fmt.Sprintf(lang.T("\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"),
+		line := fmt.Sprintf(lang.T("\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"),
 			i+1, v.instruct, v.helpText, "\r\n")
 		tmpl := template.Must(template.New("item").Parse(line))
-		if err := tmpl.Execute(sess, cm); err != nil {
-			logger.Error(err)
+		if err1 := tmpl.Execute(sess, cm); err1 != nil {
+			logger.Error(err1)
 		}
 	}
 }
