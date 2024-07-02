@@ -119,7 +119,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     && sed -i "s@# alias @alias @g" ~/.bashrc \
     && rm -rf /var/lib/apt/lists/*
 
-ARG MONGOSH_VERSION=1.10.3
+ARG MONGOSH_VERSION=2.2.10
 RUN set -ex \
     && \
     case "${TARGETARCH}" in \
