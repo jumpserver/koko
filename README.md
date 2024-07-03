@@ -1,7 +1,7 @@
 
 # KoKo
 
-**English** · [简体中文](./README.zh-CN.md)
+**English** · [简体中文](./README_zh-CN.md)
 
 KoKo is a connector of JumpServer for secure connections using character protocols, supporting SSH, Telnet, Kubernetes, SFTP and database protocols
 
@@ -59,7 +59,7 @@ cd koko-[branch name]-[commit]-linux-amd64
 ```
 
 
-## setup development environment
+## Setup development environment
 
 1. Run the backend server
 
