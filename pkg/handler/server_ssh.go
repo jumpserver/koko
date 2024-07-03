@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -30,23 +31,23 @@ import (
 
 const ctxID = "ctxID"
 
-func (s *Server) PasswordAuth(ctx ssh.Context, password string) ssh.AuthResult {
+func (s *Server) PasswordAuth(ctx ssh.Context, password string) error {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
 	if !tConfig.PasswordAuth {
-		logger.Info("Core API disable password auth auth")
-		return ssh.AuthFailed
+		logger.Info("Core API disable password auth")
+		return errors.New("password auth disabled")
 	}
 	sshAuthHandler := auth.SSHPasswordAndPublicKeyAuth(s.jmsService)
 	return sshAuthHandler(ctx, password, "")
 }
 
-func (s *Server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) ssh.AuthResult {
+func (s *Server) PublicKeyAuth(ctx ssh.Context, key ssh.PublicKey) error {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
 	if !tConfig.PublicKeyAuth {
 		logger.Info("Core API disable publickey auth")
-		return ssh.AuthFailed
+		return errors.New("publickey auth disabled")
 	}
 	sshAuthHandler := auth.SSHPasswordAndPublicKeyAuth(s.jmsService)
 	value := string(gossh.MarshalAuthorizedKey(key))
@@ -284,19 +285,19 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 	s.proxyTokenInfo(sess, &connectToken)
 }
 
-func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) {
+func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken) {
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
 		utils.IgnoreErrWriteString(sess, "not found ctx id")
 		return
 	}
-	asset := tokeInfo.Asset
-	account := tokeInfo.Account
+	asset := tokenInfo.Asset
+	account := tokenInfo.Account
 	var gateways []model.Gateway
 	// todo：domain
-	if tokeInfo.Gateway != nil {
-		gateways = []model.Gateway{*tokeInfo.Gateway}
+	if tokenInfo.Gateway != nil {
+		gateways = []model.Gateway{*tokenInfo.Gateway}
 	}
 
 	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
@@ -306,12 +307,15 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		utils.IgnoreErrWriteString(sess, err.Error())
 		return
 	}
+	//defer sshClient.Close()
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
-		user:       &tokeInfo.User,
+		user:       &tokenInfo.User,
 		client:     sshClient,
-		expireInfo: tokeInfo.ExpireAt,
+		expireInfo: tokenInfo.ExpireAt,
+		forwards:   make(map[string]net.Listener),
 	}
+
 	go func() {
 		s.addVSCodeReq(vsReq)
 		defer s.deleteVSCodeReq(vsReq)
@@ -319,9 +323,8 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		_ = sshClient.Close()
 		logger.Infof("User %s end vscode request %s", vsReq.user, sshClient)
 	}()
-
 	if len(sess.Command()) != 0 {
-		s.proxyAssetCommand(sess, sshClient, tokeInfo)
+		s.proxyAssetCommand(sess, sshClient, tokenInfo)
 		return
 	}
 
@@ -330,7 +333,7 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokeInfo *model.ConnectToken) 
 		return
 	}
 
-	if err = s.proxyVscodeShell(sess, vsReq, sshClient, tokeInfo); err != nil {
+	if err = s.proxyVscodeShell(sess, vsReq, sshClient, tokenInfo); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
 	}
 }
@@ -354,19 +357,23 @@ func (s *Server) recordSessionLifecycle(sid string, event model.LifecycleEvent, 
 }
 
 func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
-	tokeInfo *model.ConnectToken) {
+	tokenInfo *model.ConnectToken) {
 	rawStr := sess.RawCommand()
-	if IsScpCommand(rawStr) && !config.GetConf().EnableVscodeSupport {
-		logger.Errorf("Not support scp command: %s", rawStr)
-		utils.IgnoreErrWriteString(sess, "Not support scp command")
-		return
-	} else {
+	if IsScpCommand(rawStr) {
+		if !config.GetConf().EnableVscodeSupport {
+			logger.Errorf("Not support scp command: %s", rawStr)
+			utils.IgnoreErrWriteString(sess, "Not support scp command")
+			return
+		}
 		// 开启了 vscode 支持，放开使用 scp 命令传输文件
 		// todo: 解析 scp 数据包，获取文件信息
+		logger.Infof("Execute scp command: %s", rawStr)
+	} else {
 		logger.Infof("Execute command: %s", rawStr)
 	}
+
 	// todo: 暂且不支持 acl 工单
-	acls := tokeInfo.CommandFilterACLs
+	acls := tokenInfo.CommandFilterACLs
 	for i := range acls {
 		acl := acls[i]
 		_, action, _ := acl.Match(rawStr)
@@ -384,7 +391,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	reqSession := tokeInfo.CreateSession(host, model.LoginFromSSH, model.COMMANDType)
+	reqSession := tokenInfo.CreateSession(host, model.LoginFromSSH, model.COMMANDType)
 	respSession, err := s.jmsService.CreateSession(reqSession)
 	if err != nil {
 		logger.Errorf("Create command session err: %s", err)
@@ -423,6 +430,22 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		_ = goSess.Close()
 	}()
 
+	// to fix this issue: https://github.com/ploxiln/fab-classic/issues/46
+	// make pty for client when client required or command is login shell
+	if pty, _, isPty := sess.Pty(); isPty ||
+		(strings.Contains(rawStr, "bash --login") || strings.Contains(rawStr, "bash -l")) {
+		_ = goSess.RequestPty(
+			pty.Term,
+			pty.Window.Width,
+			pty.Window.Height,
+			gossh.TerminalModes{
+				gossh.ECHO:          1,     // enable echoing
+				gossh.TTY_OP_ISPEED: 14400, // input speed = 14.4 kbaud
+				gossh.TTY_OP_OSPEED: 14400, // output speed = 14.4 kbaud
+			},
+		)
+	}
+
 	goSess.Stdin = sess
 	out, err := goSess.StdoutPipe()
 	if err != nil {
@@ -451,9 +474,9 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		}
 		buf := make([]byte, 1024)
 		for {
-			n, err := reader.Read(buf)
-			if err != nil {
-				if err != io.EOF {
+			n, err1 := reader.Read(buf)
+			if err1 != nil {
+				if err1 != io.EOF {
 					logger.Errorf("Read ssh session output failed: %s", err)
 				} else {
 					logger.Info("Read ssh command session output end")
@@ -476,16 +499,16 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	err = goSess.Run(rawStr)
 	if err != nil {
 		logger.Errorf("User %s Run command %s failed: %s",
-			tokeInfo.User.String(), rawStr, err)
+			tokenInfo.User.String(), rawStr, err)
 	}
 	reason := string(model.ReasonErrConnectDisconnect)
 	s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)
 }
 
 func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient,
-	tokeInfo *model.ConnectToken) error {
+	tokenInfo *model.ConnectToken) error {
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
-	reqSession := tokeInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
+	reqSession := tokenInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
 	respSession, err := s.jmsService.CreateSession(reqSession)
 	if err != nil {
 		logger.Errorf("Create tunnel session err: %s", err)
@@ -648,4 +671,81 @@ func buildDirectRequestOptions(user *model.User, directRequest *auth.DirectLogin
 		opts = append(opts, DirectConnectToken(directRequest.ConnectToken))
 	}
 	return opts
+}
+
+func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.DirectLoginAssetReq) (*model.ConnectToken, error) {
+	selectedAssets, err := s.getMatchedAssetsByDirectReq(user, req)
+	if err != nil {
+		return nil, err
+	}
+	if len(selectedAssets) != 1 {
+		msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), req.AssetTarget)
+		return nil, errors.New(msg)
+	}
+	permAssetDetail, err := s.jmsService.GetUserPermAssetDetailById(user.ID, selectedAssets[0].ID)
+	if err != nil {
+		msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), req.AssetTarget)
+		logger.Errorf("Get permAssetDetail failed: %s", err)
+		return nil, errors.New(msg)
+	}
+
+	matchedProtocol := req.Protocol == model.ProtocolSSH
+	assetSupportedSSH := permAssetDetail.SupportProtocol(model.ProtocolSSH)
+	if !matchedProtocol || !assetSupportedSSH {
+		msg := "not ssh asset connection"
+		logger.Errorf("Direct Request ssh failed: %s", msg)
+		return nil, errors.New(msg)
+	}
+
+	selectAccounts, err := s.getMatchedAccounts(user, req, permAssetDetail)
+	if err != nil {
+		return nil, err
+	}
+	if len(selectAccounts) != 1 {
+		msg := fmt.Sprintf(i18n.T("Must be unique account for %s"), req.AccountUsername)
+		logger.Error(msg)
+		return nil, errors.New(msg)
+	}
+	selectAccount := selectAccounts[0]
+	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
+	sessReq := &service.SuperConnectTokenReq{
+		UserId:        user.ID,
+		AssetId:       permAssetDetail.ID,
+		Account:       selectAccount.Alias,
+		Protocol:      model.ProtocolSSH,
+		ConnectMethod: model.ProtocolSSH,
+		RemoteAddr:    remoteAddr,
+	}
+	// ssh 非交互式的直连格式，不支持资产的登录复核
+	tokenInfo, err := s.jmsService.CreateSuperConnectToken(sessReq)
+	if err != nil {
+		msg := err.Error()
+		if tokenInfo.Detail != "" {
+			msg = tokenInfo.Detail
+		}
+		logger.Errorf("Create super connect token failed: %s", msg)
+		return nil, err
+	}
+	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	if err != nil {
+		logger.Errorf("Create super connect token err: %s", err)
+		return nil, err
+	}
+	return &connectToken, nil
+}
+
+func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClient, error) {
+	asset := tokenInfo.Asset
+	account := tokenInfo.Account
+	var gateways []model.Gateway
+	if tokenInfo.Gateway != nil {
+		gateways = []model.Gateway{*tokenInfo.Gateway}
+	}
+	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
+	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
+	if err != nil {
+		logger.Errorf("Get SSH Client failed: %s", err)
+		return sshClient, err
+	}
+	return sshClient, nil
 }

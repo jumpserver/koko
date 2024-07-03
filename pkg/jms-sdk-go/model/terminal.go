@@ -16,6 +16,10 @@ type TerminalConfig struct {
 	HostKey             string                 `json:"TERMINAL_HOST_KEY"`
 	EnableSessionShare  bool                   `json:"SECURITY_SESSION_SHARE"`
 	MaxStoreFTPFileSize int                    `json:"FTP_FILE_MAX_STORE"`
+	GptBaseUrl          string                 `json:"GPT_BASE_URL"`
+	GptApiKey           string                 `json:"GPT_API_KEY"`
+	GptProxy            string                 `json:"GPT_PROXY"`
+	GptModel            string                 `json:"GPT_MODEL"`
 }
 
 type Terminal struct {

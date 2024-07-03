@@ -2,7 +2,7 @@
   <div>
     <div id="term"></div>
     <el-dialog
-        :title="this.$t('Terminal.UploadTitle')"
+        :title="this.$t('UploadTitle')"
         :visible.sync="zmodeDialogVisible"
         :close-on-press-escape="false"
         :close-on-click-modal="false"
@@ -12,12 +12,12 @@
         <el-upload drag action="#" :auto-upload="false" :multiple="false" ref="upload"
                    :on-change="handleFileChange">
           <i class="el-icon-upload"></i>
-          <div class="el-upload__text">{{ this.$t('Terminal.UploadTips') }}</div>
+          <div class="el-upload__text">{{ this.$t('UploadTips') }}</div>
         </el-upload>
       </el-row>
       <div slot="footer">
-        <el-button @click="closeZmodemDialog">{{ this.$t('Terminal.Cancel') }}</el-button>
-        <el-button type="primary" @click="uploadSubmit">{{ this.$t('Terminal.Upload') }}</el-button>
+        <el-button @click="closeZmodemDialog">{{ this.$t('Cancel') }}</el-button>
+        <el-button type="primary" @click="uploadSubmit">{{ this.$t('Upload') }}</el-button>
       </div>
     </el-dialog>
   </div>
@@ -393,12 +393,12 @@ export default {
               this.zmodemStatus = true
               if (!this.enableZmodem) {
                 // 等待用户 rz sz 文件传输
-                this.$message(this.$t("Terminal.WaitFileTransfer"));
+                this.$message(this.$t("WaitFileTransfer"));
               }
               break
             case zmodemEnd:
               if (!this.enableZmodem && this.zmodemStatus) {
-                this.$message(this.$t("Terminal.EndFileTransfer"));
+                this.$message(this.$t("EndFileTransfer"));
                 this.term.write("\r\n")
               }
               this.zmodemStatus = false
@@ -428,10 +428,10 @@ export default {
           switch (eventName) {
             case 'sync_user_preference':
               if (errMsg === '' || errMsg === null) {
-                const successNotify = this.$t("Terminal.SyncUserPreferenceSuccess")
+                const successNotify = this.$t("SyncUserPreferenceSuccess")
                 this.$message.success(successNotify)
               } else {
-                const errNotify = `${this.$t("Terminal.SyncUserPreferenceFailed")}: ${errMsg}`
+                const errNotify = `${this.$t("SyncUserPreferenceFailed")}: ${errMsg}`
                 this.$message.error(errNotify);
               }
               break
@@ -554,7 +554,7 @@ export default {
         const buffer = [];
         const detail = xfer.get_details();
         if (detail.size >= MAX_TRANSFER_SIZE) {
-          const msg = this.$t("Terminal.ExceedTransferSize") + ": " + bytesHuman(MAX_TRANSFER_SIZE)
+          const msg = this.$t("ExceedTransferSize") + ": " + bytesHuman(MAX_TRANSFER_SIZE)
           this.$log.debug(msg)
           this.$message(msg)
           xfer.skip();
@@ -566,7 +566,7 @@ export default {
         });
         xfer.accept().then(() => {
           this.saveToDisk(xfer, buffer);
-          this.$message(this.$t("Terminal.DownloadSuccess") + " " + detail.name)
+          this.$message(this.$t("DownloadSuccess") + " " + detail.name)
           this.term.write("\r\n")
           this.zmodeSession.abort();
         }, console.error.bind(console));
@@ -591,7 +591,7 @@ export default {
       } else {
         percent = Math.round(offset / total * 100);
       }
-      let msg = this.$t('Terminal.Download') + ' ' + name + ': ' + bytesHuman(total) + ' ' + percent + "%"
+      let msg = this.$t('Download') + ' ' + name + ': ' + bytesHuman(total) + ' ' + percent + "%"
       this.term.write("\r" + msg);
     },
     updateSendProgress(xfer, percent) {
@@ -599,7 +599,7 @@ export default {
       let name = detail.name;
       let total = detail.size;
       percent = Math.round(percent);
-      let msg = this.$t('Terminal.Upload') + ' ' + name + ': ' + bytesHuman(total) + ' ' + percent + "%"
+      let msg = this.$t('Upload') + ' ' + name + ': ' + bytesHuman(total) + ' ' + percent + "%"
       this.term.write("\r" + msg);
     },
     handleSendSession(zsession) {
@@ -616,17 +616,17 @@ export default {
 
     uploadSubmit() {
       if (this.fileList.length === 0) {
-        this.$message(this.$t("Terminal.MustSelectOneFile"))
+        this.$message(this.$t("MustSelectOneFile"))
         return;
       }
       if (this.fileList.length !== 1) {
-        this.$message(this.$t("Terminal.MustOneFile"))
+        this.$message(this.$t("MustOneFile"))
         return;
       }
       const selectFile = this.fileList[0]
       if (selectFile.size >= MAX_TRANSFER_SIZE) {
         this.$log.debug(selectFile)
-        const msg = this.$t("Terminal.ExceedTransferSize") + ": " + bytesHuman(MAX_TRANSFER_SIZE)
+        const msg = this.$t("ExceedTransferSize") + ": " + bytesHuman(MAX_TRANSFER_SIZE)
         this.$message(msg)
         return;
       }
@@ -648,7 +648,7 @@ export default {
             },
             on_file_complete: (obj) => {
               this.$log.debug("file_complete", obj);
-              this.$message(this.$t('Terminal.UploadSuccess') + ' ' + obj.name)
+              this.$message(this.$t('UploadSuccess') + ' ' + obj.name)
             },
           }
       ).then(this.zmodeSession.close.bind(this.zmodeSession),

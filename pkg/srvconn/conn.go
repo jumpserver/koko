@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/common"
@@ -43,18 +44,20 @@ const (
 	ProtocolMariadb    = "mariadb"
 	ProtocolSQLServer  = "sqlserver"
 	ProtocolPostgresql = "postgresql"
+	ProtocolOracle     = "oracle"
 )
 
 func SupportedDBProtocols() []string {
 	return []string{
 		ProtocolRedis,
 		ProtocolMongoDB,
-		ProtocolClickHouse,
 
 		ProtocolMySQL,
 		ProtocolMariadb,
+		ProtocolOracle,
 		ProtocolSQLServer,
 		ProtocolPostgresql,
+		ProtocolClickHouse,
 	}
 }
 
@@ -81,6 +84,14 @@ func (e ErrNoClient) Error() string {
 	return fmt.Sprintf("not found %s client", e.Name)
 }
 
+type ErrUSQLNoSupported struct {
+	Name string
+}
+
+func (e ErrUSQLNoSupported) Error() string {
+	return fmt.Sprintf("usql client not supported %s", e.Name)
+}
+
 var (
 	ErrUnSupportedProtocol = errors.New("unsupported protocol")
 
@@ -88,11 +99,6 @@ var (
 
 	ErrRedisClient   = ErrNoClient{"Redis"}
 	ErrMongoDBClient = ErrNoClient{"MongoDB"}
-
-	ErrMySQLClient      = ErrNoClient{"MySQL"}
-	ErrSQLServerClient  = ErrNoClient{"SQLServer"}
-	ErrPostgreSQLClient = ErrNoClient{"PostgreSQL"}
-	ErrClickHouseClient = ErrNoClient{"ClickHouse"}
 )
 
 type supportedChecker func() error
@@ -102,14 +108,15 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolTELNET: builtinSupported,
 	ProtocolK8s:    kubectlSupported,
 
-	ProtocolRedis:      redisSupported,
-	ProtocolMongoDB:    mongoDBSupported,
-	ProtocolClickHouse: clickhouseSupported,
+	ProtocolRedis:   redisSupported,
+	ProtocolMongoDB: mongoDBSupported,
 
-	ProtocolMySQL:      mySQLSupported,
-	ProtocolMariadb:    mySQLSupported,
-	ProtocolSQLServer:  sqlServerSupported,
-	ProtocolPostgresql: postgresqlSupported,
+	ProtocolMySQL:      usqlSupportedChecker(ProtocolMySQL),
+	ProtocolMariadb:    usqlSupportedChecker(ProtocolMariadb),
+	ProtocolSQLServer:  usqlSupportedChecker(ProtocolSQLServer),
+	ProtocolPostgresql: usqlSupportedChecker(ProtocolPostgresql),
+	ProtocolClickHouse: usqlSupportedChecker(ProtocolClickHouse),
+	ProtocolOracle:     usqlSupportedChecker(ProtocolOracle),
 }
 
 func IsSupportedProtocol(p string) error {
@@ -167,56 +174,29 @@ func mongoDBSupported() error {
 	return ErrMongoDBClient
 }
 
-func clickhouseSupported() error {
-	checkLine := "clickhouse-client -V"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrClickHouseClient, err)
-	}
-	if bytes.HasPrefix(out, []byte("ClickHouse")) {
-		return nil
-	}
-	return ErrClickHouseClient
+var usqlSupportedProtocols string
+var once sync.Once
+
+func ensureUSQLSupported() {
+	once.Do(func() {
+		checkLine := "usql -c '\\drivers'"
+		cmd := exec.Command("bash", "-c", checkLine)
+		out, err := cmd.CombinedOutput()
+		if err != nil && len(out) == 0 {
+			return
+		}
+		usqlSupportedProtocols = string(bytes.TrimSpace(out))
+	})
 }
 
-func mySQLSupported() error {
-	checkLine := "mysql -V"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrMySQLClient, err)
-	}
-	if bytes.HasPrefix(out, []byte("mysql")) {
+func usqlSupportedChecker(protocol string) func() error {
+	ensureUSQLSupported()
+	return func() error {
+		if !strings.Contains(usqlSupportedProtocols, protocol) {
+			return ErrUSQLNoSupported{Name: protocol}
+		}
 		return nil
 	}
-	return ErrMySQLClient
-}
-
-func sqlServerSupported() error {
-	checkLine := "tsql -C"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrSQLServerClient, err)
-	}
-	if strings.Contains(string(out), "freetds") {
-		return nil
-	}
-	return ErrSQLServerClient
-}
-
-func postgresqlSupported() error {
-	checkLine := "psql -V"
-	cmd := exec.Command("bash", "-c", checkLine)
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
-		return fmt.Errorf("%w: %s", ErrPostgreSQLClient, err)
-	}
-	if bytes.HasPrefix(out, []byte("psql")) {
-		return nil
-	}
-	return ErrPostgreSQLClient
 }
 
 func MatchLoginPrefix(prefix string, dbType string, lcmd *localcommand.LocalCommand) (*localcommand.LocalCommand, error) {

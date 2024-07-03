@@ -189,6 +189,38 @@ func NewCommandStorage(jmsService *service.JMService, conf *model.TerminalConfig
 			IsDataStream:       isDataStream,
 			InsecureSkipVerify: skipVerify,
 		}
+	case "influxdb":
+		var (
+			serverURL   string
+			authToken   string
+			bucket      string
+			measurement string
+		)
+		if sURL, ok1 := cf["SERVER_URL"].(string); ok1 {
+			serverURL = sURL
+		}
+		if token, ok1 := cf["AUTH_TOKEN"].(string); ok1 {
+			authToken = token
+		}
+		if bucketValue, ok1 := cf["BUCKET"].(string); ok1 {
+			bucket = bucketValue
+		}
+		if measurementValue, ok1 := cf["MEASUREMENT"].(string); ok1 {
+			measurement = measurementValue
+		}
+		if bucket == "" {
+			bucket = "jumpserver"
+		}
+		if measurement == "" {
+			measurement = "commands"
+		}
+		return storage.InfluxdbStorage{
+			ServerURL:   serverURL,
+			AuthToken:   authToken,
+			Bucket:      bucket,
+			Measurement: measurement,
+		}
+
 	case "null":
 		return storage.NewNullStorage()
 	default:

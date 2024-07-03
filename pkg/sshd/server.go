@@ -10,7 +10,6 @@ import (
 	"github.com/pires/go-proxyproto"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/handler"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
@@ -21,6 +20,10 @@ const (
 	sshChannelSession     = "session"
 	sshChannelDirectTCPIP = "direct-tcpip"
 	sshSubSystemSFTP      = "sftp"
+
+	ChannelTCPIPForward       = "tcpip-forward"
+	ChannelCancelTCPIPForward = "cancel-tcpip-forward"
+	ChannelForwardedTCPIP     = "forwarded-tcpip"
 )
 
 var (
@@ -54,8 +57,6 @@ func (s *Server) Stop() {
 	logger.Fatal(s.Srv.Shutdown(ctx))
 }
 
-const nextAuthMethod = "keyboard-interactive"
-
 func NewSSHServer(jmsService *service.JMService) *Server {
 	cf := config.GlobalConfig
 	addr := net.JoinHostPort(cf.BindHost, cf.SSHPort)
@@ -69,20 +70,20 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 	}
 	sshHandler := handler.NewServer(termCfg, jmsService)
 	srv := &ssh.Server{
-		Addr:                       addr,
-		KeyboardInteractiveHandler: auth.SSHKeyboardInteractiveAuth,
-		PasswordHandler:            sshHandler.PasswordAuth,
-		PublicKeyHandler:           sshHandler.PublicKeyAuth,
-		AuthLogCallback:            auth.SSHAuthLogCallback,
-		NextAuthMethodsHandler:     func(ctx ssh.Context) []string { return []string{nextAuthMethod} },
-		HostSigners:                []ssh.Signer{singer},
+		Addr:             addr,
+		PasswordHandler:  sshHandler.PasswordAuth,
+		PublicKeyHandler: sshHandler.PublicKeyAuth,
+		Version:          "JumpServer",
+		Banner:           "Welcome to JumpServer SSH Server\n",
+		HostSigners:      []ssh.Signer{singer},
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
 			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
 			return &gossh.ServerConfig{Config: cfg}
 		},
-		Handler:                     sshHandler.SessionHandler,
-		LocalPortForwardingCallback: sshHandler.LocalPortForwardingPermission,
-		SubsystemHandlers:           map[string]ssh.SubsystemHandler{sshSubSystemSFTP: sshHandler.SFTPHandler},
+		Handler:                       sshHandler.SessionHandler,
+		LocalPortForwardingCallback:   sshHandler.LocalPortForwardingPermission,
+		ReversePortForwardingCallback: sshHandler.ReversePortForwardingPermission,
+		SubsystemHandlers:             map[string]ssh.SubsystemHandler{sshSubSystemSFTP: sshHandler.SFTPHandler},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
 			sshChannelSession: ssh.DefaultSessionHandler,
 			sshChannelDirectTCPIP: func(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
@@ -99,6 +100,10 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 				dest := net.JoinHostPort(localD.DestAddr, strconv.FormatInt(int64(localD.DestPort), 10))
 				sshHandler.DirectTCPIPChannelHandler(ctx, newChan, dest)
 			},
+		},
+		RequestHandlers: map[string]ssh.RequestHandler{
+			ChannelTCPIPForward:       sshHandler.HandleSSHRequest,
+			ChannelCancelTCPIPForward: sshHandler.HandleSSHRequest,
 		},
 	}
 	return &Server{srv, sshHandler}

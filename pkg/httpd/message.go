@@ -14,6 +14,10 @@ type Message struct {
 	Data string `json:"data"`
 	Raw  []byte `json:"-"`
 	Err  string `json:"err"`
+
+	//Chat AI
+	Prompt    string `json:"prompt"`
+	Interrupt bool   `json:"interrupt"`
 }
 
 const (
@@ -103,6 +107,7 @@ const (
 const (
 	TTYName       = "terminal"
 	WebFolderName = "web_folder"
+	ChatName      = "chat"
 )
 
 type ViewPageMata struct {
@@ -124,4 +129,27 @@ type WsRequestParams struct {
 
 	// mysql database
 	DisableAutoHash string `form:"disableautohash"`
+}
+
+type OpenAIParam struct {
+	AuthToken string
+	BaseURL   string
+	Proxy     string
+	Model     string
+	Prompt    string
+}
+
+type AIConversation struct {
+	Id                   string
+	Prompt               string
+	HistoryRecords       []string
+	InterruptCurrentChat bool
+}
+
+type ChatGPTMessage struct {
+	ID         string    `json:"id"`
+	Content    string    `json:"content"`
+	CreateTime time.Time `json:"create_time,omitempty"`
+	Type       string    `json:"type"`
+	Role       string    `json:"role"`
 }

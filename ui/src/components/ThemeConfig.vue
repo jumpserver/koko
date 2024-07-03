@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-dialog
-      :title="this.$t('Terminal.Theme')"
+      :title="this.$t('Theme')"
       :visible.sync="iVisible"
       width="50%"
       class="theme-dialog"
@@ -10,12 +10,12 @@
       <div class="content">
         <el-form :inline="true" >
           <el-form-item style="width: 73%">
-            <el-select v-model="theme" :placeholder="this.$t('Terminal.SelectTheme')">
+            <el-select v-model="theme" :placeholder="this.$t('SelectTheme')">
               <el-option v-for="item in themes" :key="item" :label="item" :value="item"></el-option>
             </el-select>
           </el-form-item>
           <el-form-item style="width: 20%" v-loading="loading" >
-            <el-button class="sync-btn" @click="syncTheme">{{ this.$t('Terminal.Sync') }}</el-button>
+            <el-button class="sync-btn" @click="syncTheme">{{ this.$t('Sync') }}</el-button>
           </el-form-item>
         </el-form>
           <div v-if="Object.keys(colors).length > 0">

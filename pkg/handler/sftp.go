@@ -66,15 +66,19 @@ func (s *SftpHandler) Filecmd(r *sftp.Request) (err error) {
 		logger.Debugf("%s=>%s", r.Filepath, r.Target)
 		return s.Rename(r.Filepath, r.Target)
 	case "Rmdir":
+		logger.Debug("Remove directory: ", r.Filepath)
 		err = s.RemoveDirectory(r.Filepath)
 	case "Remove":
+		logger.Debug("Remove: ", r.Filepath)
 		err = s.Remove(r.Filepath)
 	case "Mkdir":
+		logger.Debug("Mkdir: ", r.Filepath)
 		err = s.MkdirAll(r.Filepath)
 	case "Symlink":
 		logger.Debugf("%s=>%s", r.Filepath, r.Target)
 		err = s.Symlink(r.Filepath, r.Target)
 	default:
+		logger.Debug("Unsupported method: ", r.Method)
 		return
 	}
 	return
