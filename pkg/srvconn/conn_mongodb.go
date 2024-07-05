@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -139,12 +140,43 @@ func (opt *sqlOption) GetAuthSource() string {
 	return opt.AuthSource
 }
 
-func (opt *sqlOption) MongoDBCommandArgs() []string {
-	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
-	params := map[string]string{
+func (opt *sqlOption) GetConnectionOptions() map[string]string {
+	if opt.ConnectionOptions == "" {
+		return nil
+	}
+	opts := strings.Split(opt.ConnectionOptions, "&")
+	if len(opts) == 0 {
+		return nil
+	}
+	optMap := make(map[string]string, len(opts))
+	for _, item := range opts {
+		kv := strings.Split(item, "=")
+		if len(kv) != 2 {
+			continue
+		}
+		optMap[kv[0]] = kv[1]
+
+	}
+	return optMap
+}
+
+func (opt *sqlOption) GetParams() (params map[string]string) {
+	params = map[string]string{
 		"authSource": opt.GetAuthSource(),
 	}
+	connectionOpts := opt.GetConnectionOptions()
+	if len(connectionOpts) > 0 {
+		for k, v := range connectionOpts {
+			params[k] = v
+		}
+	}
 	addMongoParamsWithSSL(opt, params)
+	return
+}
+
+func (opt *sqlOption) MongoDBCommandArgs() []string {
+	host := net.JoinHostPort(opt.Host, strconv.Itoa(opt.Port))
+	params := opt.GetParams()
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoDBName(opt.DBName),
@@ -158,11 +190,7 @@ func (opt *sqlOption) MongoDBCommandArgs() []string {
 
 func checkMongoDBAccount(args *sqlOption) error {
 	host := net.JoinHostPort(args.Host, strconv.Itoa(args.Port))
-	params := map[string]string{
-		"authSource": args.GetAuthSource(),
-		"connect":    "direct",
-	}
-	addMongoParamsWithSSL(args, params)
+	params := args.GetParams()
 	uri := BuildMongoDBURI(
 		MongoHost(host),
 		MongoAuth(args.Username, args.Password),
