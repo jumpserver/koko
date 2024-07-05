@@ -553,6 +553,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	platform := s.connOpts.authInfo.Platform
 	protocolSetting := platform.GetProtocol("mongodb")
 	authSource := protocolSetting.Setting.AuthSource
+	connectionOpts := protocolSetting.Setting.ConnectionOpts
 	srvConn, err = srvconn.NewMongoDBConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
@@ -564,6 +565,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
 		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
 		srvconn.SqlAuthSource(authSource),
+		srvconn.SqlConnectionOptions(connectionOpts),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,

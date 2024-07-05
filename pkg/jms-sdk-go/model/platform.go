@@ -62,7 +62,8 @@ type ProtocolSetting struct {
 	TelnetSuccessPrompt  string `json:"success_prompt"`
 
 	// for mongodb
-	AuthSource string `json:"auth_source"`
+	AuthSource     string `json:"auth_source"`
+	ConnectionOpts string `json:"connection_options"`
 }
 
 type Protocol struct {
