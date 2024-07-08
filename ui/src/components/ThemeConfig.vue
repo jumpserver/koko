@@ -15,7 +15,7 @@
             </el-select>
           </el-form-item>
           <el-form-item style="width: 20%" v-loading="loading" >
-            <el-button class="sync-btn" @click="syncTheme">{{ this.$t('Sync') }}</el-button>
+            <el-button class="sync-btn" @click="syncTheme">{{ this.$t('Confirm') }}</el-button>
           </el-form-item>
         </el-form>
           <div v-if="Object.keys(colors).length > 0">
