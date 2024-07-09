@@ -290,7 +290,7 @@ func StoreCAFileToLocal(caCert string) (caFilepath string, err error) {
 
 	filename := fmt.Sprintf("%s.pem", common.UUID())
 	caFilepath = filepath.Join(baseDir, filename)
-	file, err := os.OpenFile(caFilepath, os.O_WRONLY|os.O_CREATE, 0600)
+	file, err := os.OpenFile(caFilepath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return "", err
 	}
