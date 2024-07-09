@@ -1,6 +1,6 @@
-FROM redis:6.2-bullseye as redis
+FROM redis:6.2-bullseye AS redis
 
-FROM node:16.20-bullseye-slim as ui-build
+FROM node:16.20-bullseye-slim AS ui-build
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 ENV NPM_REGISTY=$NPM_REGISTRY
@@ -20,7 +20,7 @@ ADD ui .
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn build
 
-FROM golang:1.22-bullseye as stage-build
+FROM golang:1.22-bullseye AS stage-build
 LABEL stage=stage-build
 ARG TARGETARCH
 
