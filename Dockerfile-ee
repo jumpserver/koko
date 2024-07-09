@@ -1,6 +1,6 @@
 ARG VERSION
 
-FROM debian:bullseye-slim as stage-build
+FROM debian:bullseye-slim AS stage-build
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
