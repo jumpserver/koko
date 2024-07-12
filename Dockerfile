@@ -83,6 +83,32 @@ RUN mkdir /opt/koko/release \
     && mv /opt/koko/utils/init-kubectl.sh /opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
+ARG MONGOSH_VERSION=2.2.12
+RUN set -ex \
+    && mkdir -p /opt/koko/lib \
+    && \
+    case "${TARGETARCH}" in \
+        amd64) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-x64/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh /opt/koko/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-x64* \
+            ;; \
+        arm64|ppc64le|s390x) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh /opt/koko/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}* \
+            ;; \
+        *) \
+            echo "Unsupported architecture: ${TARGETARCH}" \
+            ;; \
+    esac
+
 FROM debian:bullseye-slim
 ARG TARGETARCH
 ENV LANG=en_US.UTF-8
@@ -110,6 +136,7 @@ WORKDIR /opt/koko
 
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
+COPY --from=stage-build /opt/koko/lib /usr/local/lib
 COPY --from=stage-build /opt/koko/release .
 COPY --from=stage-build /opt/koko/koko .
 
