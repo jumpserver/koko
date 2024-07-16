@@ -318,6 +318,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.parseCmdInput()
 		if p.command == "" {
 			p.command = strings.TrimSpace(p.readInputBuffer())
+			defer p.clearInputBuffer()
 		}
 		if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
 			switch rule.Acl.Action {
@@ -342,7 +343,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			default:
 			}
 		}
-		p.clearInputBuffer()
 	} else {
 		if p.supportMultiCmd() && bytes.Contains(b, charEnter) {
 			p.isMultipleCmd = true
