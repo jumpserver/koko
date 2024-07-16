@@ -591,7 +591,7 @@ func (ad *AssetDir) getSubFolderNames() []string {
 
 func (ad *AssetDir) GetSftpClient(su *model.PermAccount) (conn *SftpConn, err error) {
 	connectToken, err2 := ad.createConnectToken(su)
-	if err != nil {
+	if err2 != nil {
 		return nil, fmt.Errorf("get connect token account err: %s", err2)
 	}
 	return ad.getNewSftpConn(&connectToken, su)
