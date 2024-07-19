@@ -1,11 +1,13 @@
-FROM jumpserver/koko-base:20240718_083913 AS stage-build
+FROM jumpserver/koko-base:20240719_033232 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 COPY . .
 
+WORKDIR /opt/koko/ui
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
-    cd ui && yarn build
+    yarn build
 
+WORKDIR /opt/koko
 RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked,id=koko \
     set +x \
     && make build -s \
@@ -38,10 +40,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
+    && apt-get clean all \
     && echo "no" | dpkg-reconfigure dash \
     && sed -i "s@# export @export @g" ~/.bashrc \
     && sed -i "s@# alias @alias @g" ~/.bashrc
-
 
 WORKDIR /opt/koko
 
