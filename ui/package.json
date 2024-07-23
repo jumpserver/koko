@@ -1,70 +1,28 @@
 {
-  "name": "koko",
-  "version": "0.1.0",
+  "name": "my-vue-app",
   "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint",
-    "fix": "vue-cli-service lint --fix"
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@babel/core": "^7.20.5",
-    "@babel/eslint-parser": "^7.19.1",
-    "@babel/plugin-proposal-optional-chaining": "^7.18.9",
-    "@fortawesome/fontawesome-svg-core": "^6.4.0",
-    "@fortawesome/free-solid-svg-icons": "^6.4.0",
-    "@fortawesome/vue-fontawesome": "^2.0.10",
-    "axios": "^1.7.2",
-    "@ztree/ztree_v3": "^3.5.48",
-    "core-js": "^3.26.1",
-    "element-ui": "^2.15.12",
-    "jquery": "^3.7.1",
-    "nora-zmodemjs": "^1.1.1",
-    "sass": "^1.77.4",
-    "sass-loader": "7.1",
-    "semver": "6.3.1",
-    "uuid": "^9.0.1",
-    "v-contextmenu": "^2.9.0",
-    "vue": "^2.7.14",
-    "vue-cookies": "^1.7.4",
-    "vue-i18n": "^8.25.0",
-    "vue-router": "^3.5.2",
-    "vue-runtime-helpers": "^1.1.2",
-    "vuejs-logger": "^1.5.5",
-    "vuex": "^4.1.0",
-    "word-wrap": "1.2.5",
-    "xterm": "^4.19.0",
-    "xterm-addon-fit": "^0.5.0",
-    "xterm-theme": "^1.1.0"
+    "naive-ui": "^2.39.0",
+    "normalize.css": "^8.0.1",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.31",
+    "vue-i18n": "^9.13.1",
+    "vue-router": "^4.4.0"
   },
   "devDependencies": {
-    "@vue/cli-plugin-babel": "^4.5.19",
-    "@vue/cli-plugin-eslint": "^4.5.19",
-    "@vue/cli-service": "^4.5.19",
-    "eslint": "^6.8.0",
-    "eslint-plugin-vue": "^9.8.0",
-    "vue-template-compiler": "^2.7.14"
-  },
-  "eslintConfig": {
-    "root": true,
-    "env": {
-      "node": true
-    },
-    "extends": [
-      "plugin:vue/essential",
-      "eslint:recommended"
-    ],
-    "parserOptions": {
-      "parser": "@babel/eslint-parser"
-    },
-    "rules": {
-      "vue/multi-word-component-names": 0
-    }
-  },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead"
-  ]
+    "@types/node": "^20.14.11",
+    "@vitejs/plugin-vue": "^5.0.5",
+    "sass": "^1.77.8",
+    "typescript": "^5.2.2",
+    "unplugin-vue-components": "^0.27.3",
+    "vite": "^5.3.4",
+    "vue-tsc": "^2.0.24"
+  }
 }

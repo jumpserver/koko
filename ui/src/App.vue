@@ -1,15 +1,13 @@
-<template>
-  <div id="app">
-    <router-view/>
-  </div>
-</template>
-
-<script>
-
-export default {
-  name: 'App'
-}
+<script setup lang="ts">
+import { zhCN, dateZhCN } from 'naive-ui';
 </script>
 
-<style>
-</style>
+<template>
+	<n-config-provider :locale="zhCN" :date-locale="dateZhCN">
+		<n-message-provider>
+			<router-view />
+		</n-message-provider>
+	</n-config-provider>
+</template>
+
+<style scoped></style>
