@@ -51,3 +51,4 @@ demo
 assets/
 ui/dist/favicon.ico
 ui/dist/index.html
+docker-compose.yaml
