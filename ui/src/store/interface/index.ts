@@ -1,5 +1,5 @@
 export interface IGlobalState {
-	inited: boolean;
+    inited: boolean;
 
-	i18nLoaded: boolean;
+    i18nLoaded: boolean;
 }
