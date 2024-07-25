@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"io"
 	"time"
 
@@ -93,7 +94,7 @@ func (userCon *UserWebsocket) Run() {
 		return
 	}
 
-	if userCon.ConnectToken.Protocol == "k8s" {
+	if userCon.ConnectToken.Protocol == srvconn.ProtocolK8s {
 		var err error
 		userCon.k8sClient, err = proxy.NewKubernetesClient(
 			userCon.ConnectToken.Asset.Address,

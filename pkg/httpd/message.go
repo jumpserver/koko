@@ -109,8 +109,6 @@ const (
 	TargetTypeMonitor = "monitor"
 
 	TargetTypeShare = "share"
-
-	TargetTypeK8s = "k8s"
 )
 
 const (

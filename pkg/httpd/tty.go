@@ -3,6 +3,7 @@ package httpd
 import (
 	"encoding/json"
 	"errors"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"io"
 	"sync"
 
@@ -61,7 +62,6 @@ func (h *tty) CheckValidation() error {
 }
 
 func (h *tty) HandleMessage(msg *Message) {
-	params := h.ws.wsParams
 	switch msg.Type {
 	case TerminalInit:
 		if msg.Id != h.ws.Uuid {
@@ -73,86 +73,26 @@ func (h *tty) HandleMessage(msg *Message) {
 			return
 		}
 
-		var connectInfo TerminalConnectData
-		err := json.Unmarshal([]byte(msg.Data), &connectInfo)
+		connectInfo, err := h.validateAndInitSession(msg)
 		if err != nil {
-			logger.Errorf("Ws[%s] terminal initial message data unmarshal err: %s",
-				h.ws.Uuid, err)
 			return
 		}
-		if params.TargetType == TargetTypeShare {
-			code := connectInfo.Code
-			info, err2 := h.ValidateShareParams(params.TargetId, code)
-			if err2 != nil {
-				logger.Errorf("Ws[%s] terminal initial validate share err: %s",
-					h.ws.Uuid, err2)
-				h.sendCloseMessage()
-				return
-			}
-			h.shareInfo = &info
-			sessionDetail, err3 := h.ws.apiClient.GetSessionById(info.Record.Session.ID)
-			if err3 != nil {
-				logger.Errorf("Ws[%s] terminal get session %s err: %s",
-					h.ws.Uuid, info.Record.Session.ID, err3)
-				h.sendCloseMessage()
-				return
-			}
-			sessionInfo := proxy.SessionInfo{
-				Session: &sessionDetail,
-			}
-			data, _ := json.Marshal(sessionInfo)
-			h.sendSessionMessage(string(data))
-		}
+
 		h.initialed = true
-		win := ssh.Window{
-			Width:  connectInfo.Cols,
-			Height: connectInfo.Rows,
-		}
-		userR, userW := io.Pipe()
-		h.backendClient = &Client{
-			WinChan: make(chan ssh.Window, 100), Conn: h.ws,
-			UserRead: userR, UserWrite: userW,
-			pty: ssh.Pty{Term: "xterm", Window: win},
-		}
-		h.wg.Add(1)
-		go h.proxy(&h.wg, h.backendClient)
-		return
+		h.handleTerminalInit(connectInfo, "", "", "", "")
+
 	case TerminalK8SInit:
 		if msg.Id != h.ws.Uuid {
 			logger.Errorf("Ws[%s] terminal initial unknown message id %s", h.ws.Uuid, msg.Id)
 			return
 		}
 
-		var connectInfo TerminalConnectData
-		err := json.Unmarshal([]byte(msg.Data), &connectInfo)
+		connectInfo, err := h.validateAndInitSession(msg)
 		if err != nil {
-			logger.Errorf("Ws[%s] terminal initial message data unmarshal err: %s",
-				h.ws.Uuid, err)
 			return
 		}
 
-		win := ssh.Window{
-			Width:  connectInfo.Cols,
-			Height: connectInfo.Rows,
-		}
-		userR, userW := io.Pipe()
-
-		KubernetesId := msg.KubernetesId
-		client := &Client{
-			WinChan: make(chan ssh.Window, 100), Conn: h.ws,
-			UserRead: userR, UserWrite: userW,
-			pty:          ssh.Pty{Term: "xterm", Window: win},
-			KubernetesId: KubernetesId, Namespace: msg.Namespace,
-			Pod: msg.Pod, Container: msg.Container,
-		}
-
-		if h.K8sClients == nil {
-			h.K8sClients = make(map[string]*Client)
-		}
-		h.K8sClients[KubernetesId] = client
-		h.wg.Add(1)
-		go h.proxy(&h.wg, client)
-		return
+		h.handleTerminalInit(connectInfo, msg.KubernetesId, msg.Namespace, msg.Pod, msg.Container)
 	}
 
 	if h.initialed || func() bool { _, ok := h.K8sClients[msg.KubernetesId]; return ok }() {
@@ -175,6 +115,70 @@ func (h *tty) sendSessionMessage(data string) {
 		Data: data,
 	}
 	h.ws.SendMessage(&msg)
+}
+
+func (h *tty) validateAndInitSession(msg *Message) (TerminalConnectData, error) {
+	var connectInfo TerminalConnectData
+	err := json.Unmarshal([]byte(msg.Data), &connectInfo)
+	if err != nil {
+		logger.Errorf("Ws[%s] terminal initial message data unmarshal err: %s",
+			h.ws.Uuid, err)
+		return connectInfo, err
+	}
+
+	params := h.ws.wsParams
+
+	if params.TargetType == TargetTypeShare {
+		code := connectInfo.Code
+		info, err2 := h.ValidateShareParams(params.TargetId, code)
+		if err2 != nil {
+			logger.Errorf("Ws[%s] terminal initial validate share err: %s",
+				h.ws.Uuid, err2)
+			h.sendCloseMessage()
+			return connectInfo, err2
+		}
+		h.shareInfo = &info
+		sessionDetail, err3 := h.ws.apiClient.GetSessionById(info.Record.Session.ID)
+		if err3 != nil {
+			logger.Errorf("Ws[%s] terminal get session %s err: %s",
+				h.ws.Uuid, info.Record.Session.ID, err3)
+			h.sendCloseMessage()
+			return connectInfo, err3
+		}
+		sessionInfo := proxy.SessionInfo{
+			Session: &sessionDetail,
+		}
+		data, _ := json.Marshal(sessionInfo)
+		h.sendSessionMessage(string(data))
+	}
+	return connectInfo, nil
+}
+
+func (h *tty) handleTerminalInit(connectInfo TerminalConnectData, KubernetesId, namespace, pod, container string) {
+	win := ssh.Window{
+		Width:  connectInfo.Cols,
+		Height: connectInfo.Rows,
+	}
+	userR, userW := io.Pipe()
+	client := &Client{
+		WinChan: make(chan ssh.Window, 100), Conn: h.ws,
+		UserRead: userR, UserWrite: userW,
+		pty:          ssh.Pty{Term: "xterm", Window: win},
+		KubernetesId: KubernetesId, Namespace: namespace,
+		Pod: pod, Container: container,
+	}
+
+	if KubernetesId != "" {
+		if h.K8sClients == nil {
+			h.K8sClients = make(map[string]*Client)
+		}
+		h.K8sClients[KubernetesId] = client
+	} else {
+		h.backendClient = client
+	}
+
+	h.wg.Add(1)
+	go h.proxy(&h.wg, client)
 }
 
 func (h *tty) handleTerminalMessage(msg *Message) {
@@ -448,7 +452,8 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 		}
 		srv.Proxy()
 	}
-	if params.TargetType != TargetTypeK8s {
+
+	if params.TargetType != srvconn.ProtocolK8s {
 		h.sendCloseMessage()
 	}
 	logger.Info("Ws tty proxy end")
