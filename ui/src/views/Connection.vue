@@ -70,6 +70,7 @@ const shareURL = computed(() => {
 
 const getConnectURL = () => {
     const routeName = route.name;
+    console.log(window.location.search);
     const urlParams = new URLSearchParams(window.location.search.slice(1));
 
     let connectURL;
@@ -88,6 +89,7 @@ const getConnectURL = () => {
             connectURL = urlParams && `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`;
             break;
         default: {
+            console.log(urlParams);
             connectURL = urlParams && `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`;
         }
     }

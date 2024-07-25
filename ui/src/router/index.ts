@@ -1,5 +1,5 @@
 import { guard } from './helper/guard';
-import { createRouter, createWebHashHistory, RouteRecordRaw, Router } from 'vue-router';
+import { createRouter, createWebHistory, RouteRecordRaw, Router } from 'vue-router';
 
 const allRoutes: RouteRecordRaw[] = [
     {
@@ -35,7 +35,7 @@ const allRoutes: RouteRecordRaw[] = [
 ];
 
 const router: Router = createRouter({
-    history: createWebHashHistory('/koko/'),
+    history: createWebHistory('/koko/'),
     routes: allRoutes,
     scrollBehavior: () => ({ left: 0, top: 0 })
 });
