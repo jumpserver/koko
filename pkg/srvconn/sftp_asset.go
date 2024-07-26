@@ -37,7 +37,6 @@ type AssetDir struct {
 
 	once sync.Once
 
-	reuse      bool
 	ShowHidden bool
 
 	mu sync.Mutex
@@ -511,6 +510,19 @@ func (ad *AssetDir) removeDirectoryAll(conn *sftp.Client, path string) error {
 		}
 	}
 	return conn.RemoveDirectory(path)
+}
+
+func (ad *AssetDir) run() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+
+		}
+
+	}
+
 }
 
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {

@@ -347,8 +347,11 @@ func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeLi
 			folderName := cleanFolderName(node.Value)
 			folderName = findAvailableKeyByPaddingSuffix(matchFunc, folderName, paddingCharacter)
 			loadFunc := u.LoadNodeSubFoldersByKey(node.Key)
-			nodeDir := NewNodeDir(WithFolderID(item.ID),
-				WithFolderName(folderName), WithSubFoldersLoadFunc(loadFunc))
+			opts := make([]FolderBuilderOption, 0, 3)
+			opts = append(opts, WithFolderID(item.ID))
+			opts = append(opts, WithFolderName(folderName))
+			opts = append(opts, WithSubFoldersLoadFunc(loadFunc))
+			nodeDir := NewNodeDir(opts...)
 			dirs[folderName] = &nodeDir
 		case model.TreeTypeAsset:
 			assetMeta := item.Meta.Data

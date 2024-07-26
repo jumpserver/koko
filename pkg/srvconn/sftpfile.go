@@ -180,7 +180,6 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		modeTime:    time.Now().UTC(),
 		suMaps:      generateSubAccountsFolderMap(permAccounts),
 		ShowHidden:  conf.ShowHiddenFile,
-		reuse:       conf.ReuseConnection,
 		sftpClients: map[string]*SftpConn{},
 
 		sftpTraceSessions: make(map[string]*session.Session),
@@ -199,19 +198,21 @@ type SftpConn struct {
 	token       *model.ConnectToken
 	isClosed    bool
 	rootDirPath string
+
+	nextExpiredTime time.Time
+	status          string
+}
+
+func (s *SftpConn) IsExpired() bool {
+	return time.Since(s.nextExpiredTime) > 0
 }
 
 func (s *SftpConn) IsOverwriteFile() bool {
 	resolution := s.token.ConnectOptions.FilenameConflictResolution
-	switch strings.ToLower(resolution) {
-	case FilenamePolicyReplace:
-		return true
-	case FilenamePolicySuffix:
-		return false
-	default:
-		return true
-	}
+	return !strings.EqualFold(resolution, FilenamePolicySuffix)
 }
+
+// check if the path is root path and disable to remove
 
 func (s *SftpConn) IsRootPath(path string) bool {
 	return s.rootDirPath == path
