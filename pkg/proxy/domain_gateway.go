@@ -16,7 +16,6 @@ import (
 )
 
 type domainGateway struct {
-	domain  *model.Domain
 	dstIP   string
 	dstPort int
 
@@ -97,24 +96,6 @@ func (d *domainGateway) getAvailableGateway() bool {
 		d.sshClient = sshClient
 		return true
 	}
-
-	for i := range d.domain.Gateways {
-		gateway := d.domain.Gateways[i]
-		if !gateway.Protocols.IsSupportProtocol(model.ProtocolSSH) {
-			continue
-		}
-		logger.Debugf("Domain %s try dial gateway %s", d.domain.Name, gateway.Name)
-		sshClient, err := d.createGatewaySSHClient(&gateway)
-		if err != nil {
-			logger.Errorf("Dial gateway %s err: %s ", gateway.Name, err)
-			continue
-		}
-		logger.Infof("Domain %s use gateway %s", d.domain.Name, gateway.Name)
-		d.sshClient = sshClient
-		d.selectedGateway = &gateway
-		return true
-	}
-	logger.Errorf("Domain Gateway %s has no available gateway", d.domain.Name)
 	return false
 }
 
