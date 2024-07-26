@@ -207,6 +207,10 @@ func (s *SftpConn) IsExpired() bool {
 	return time.Since(s.nextExpiredTime) > 0
 }
 
+func (s *SftpConn) UpdateExpiredTime() {
+	s.nextExpiredTime = time.Now().Add(time.Duration(30) * time.Minute)
+}
+
 func (s *SftpConn) IsOverwriteFile() bool {
 	resolution := s.token.ConnectOptions.FilenameConflictResolution
 	return !strings.EqualFold(resolution, FilenamePolicySuffix)

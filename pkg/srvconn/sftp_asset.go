@@ -388,7 +388,7 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 		ad.CreateFTPLog(su, operate, filename, false)
 		return err
 	}
-	if fileInfo, err := conn2.client.Stat(newRealPath); err == nil && fileInfo.IsDir() {
+	if fileInfo, err1 := conn2.client.Stat(newRealPath); err1 == nil && fileInfo.IsDir() {
 		operate = model.OperateRenameDir
 	}
 	ad.CreateFTPLog(su, operate, filename, true)
