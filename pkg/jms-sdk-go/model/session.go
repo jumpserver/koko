@@ -128,6 +128,10 @@ var EmptyLifecycleLog = SessionLifecycleLog{}
 
 type SessionLifecycleReasonErr string
 
+func (s SessionLifecycleReasonErr) String() string {
+	return string(s)
+}
+
 const (
 	ReasonErrConnectFailed     SessionLifecycleReasonErr = "connect_failed"
 	ReasonErrConnectDisconnect SessionLifecycleReasonErr = "connect_disconnect"
