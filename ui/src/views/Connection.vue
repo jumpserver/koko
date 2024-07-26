@@ -1,8 +1,8 @@
 <template>
-    <n-space size="large" class="w-full h-full">
-        <Terminal :enable-zmodem="true" :connectURL="wsURL" />
-        <n-button type="default" @click="copyShareURL">Copy</n-button>
-    </n-space>
+  <n-space size="large" class="w-full h-full">
+    <Terminal :enable-zmodem="true" :connectURL="wsURL" :share-code="shareCode" @event="onEvent" @ws-data="onWsData" />
+    <n-button type="default" @click="copyShareURL">Copy</n-button>
+  </n-space>
 </template>
 
 <script setup lang="ts">
@@ -17,13 +17,13 @@ import { ref, reactive, computed } from 'vue';
 import Terminal from '@/components/Terminal/Terminal.vue';
 
 const { t } = useI18n();
-const { debug } = useLogger();
+const { debug } = useLogger('Connection');
 
 const route = useRoute();
 const message = useMessage();
 
 const shareId = ref(null);
-const shareCode = ref(null);
+const shareCode = ref<any>();
 const shareInfo = ref(null);
 
 const loading = ref(false);
@@ -38,83 +38,85 @@ const themeBackGround = ref('#1E1E1E');
 
 const onlineUsersMap = reactive({});
 const shareLinkRequest = reactive({
-    expiredTime: 10,
-    actionPerm: 'writable',
-    users: []
+  expiredTime: 10,
+  actionPerm: 'writable',
+  users: []
 });
 
 const userOptions = reactive([]);
 const expiredOptions = reactive([
-    { label: getMinuteLabel(1), value: 1 },
-    { label: getMinuteLabel(5), value: 5 },
-    { label: getMinuteLabel(10), value: 10 },
-    { label: getMinuteLabel(20), value: 20 },
-    { label: getMinuteLabel(60), value: 60 }
+  { label: getMinuteLabel(1), value: 1 },
+  { label: getMinuteLabel(5), value: 5 },
+  { label: getMinuteLabel(10), value: 10 },
+  { label: getMinuteLabel(20), value: 20 },
+  { label: getMinuteLabel(60), value: 60 }
 ]);
 const actionsPermOptions = reactive([
-    { label: t('Writable'), value: 'writable' },
-    { label: t('ReadOnly'), value: 'readonly' }
+  { label: t('Writable'), value: 'writable' },
+  { label: t('ReadOnly'), value: 'readonly' }
 ]);
 
 function getMinuteLabel(item: number) {
-    // console.log(item);
-    return '';
+  // console.log(item);
+  return '';
 }
 
 const wsURL = computed(() => {
-    return getConnectURL();
+  return getConnectURL();
 });
 const shareURL = computed(() => {
-    return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
+  return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
 });
 
 const getConnectURL = () => {
-    const routeName = route.name;
-    console.log(window.location.search);
-    const urlParams = new URLSearchParams(window.location.search.slice(1));
+  const routeName = route.name;
+  const urlParams = new URLSearchParams(window.location.search.slice(1));
 
-    let connectURL;
+  let connectURL;
 
-    switch (routeName) {
-        case 'Token':
-            const params = route.params;
-            const requireParams = new URLSearchParams();
+  switch (routeName) {
+    case 'Token':
+      const params = route.params;
+      const requireParams = new URLSearchParams();
 
-            requireParams.append('type', 'token');
-            requireParams.append('target_id', params.id as string);
+      requireParams.append('type', 'token');
+      requireParams.append('target_id', params.id as string);
 
-            connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
-            break;
-        case 'TokenParams':
-            connectURL = urlParams && `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`;
-            break;
-        default: {
-            console.log(urlParams);
-            connectURL = urlParams && `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`;
-        }
+      connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
+      break;
+    case 'TokenParams':
+      connectURL = urlParams && `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`;
+      break;
+    default: {
+      connectURL = urlParams && `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`;
     }
+  }
 
-    return connectURL;
+  return connectURL;
 };
 
 const copyShareURL = () => {
-    if (!enableShare.value) {
-        return;
-    }
-    if (!shareId.value) {
-        return;
-    }
+  if (!enableShare.value) {
+    return;
+  }
+  if (!shareId.value) {
+    return;
+  }
 
-    const url = shareURL.value;
-    const linkTitle = t('LinkAddr');
-    const codeTitle = t('VerifyCode');
-    const text = `${linkTitle}: ${shareURL}\n${codeTitle}: ${shareCode.value}`;
+  const url = shareURL.value;
+  const linkTitle = t('LinkAddr');
+  const codeTitle = t('VerifyCode');
+  const text = `${linkTitle}: ${shareURL}\n${codeTitle}: ${shareCode.value}`;
 
-    copyTextToClipboard(text);
+  copyTextToClipboard(text);
 
-    debug(`share URL:${url}`);
-    message.success(t('CopyShareURLSuccess'));
+  debug(`share URL:${url}`);
+  message.success(t('CopyShareURLSuccess'));
 };
+
+const onWsData = () => {};
+
+const onEvent = () => {};
 </script>
 
 <style scoped lang="scss"></style>

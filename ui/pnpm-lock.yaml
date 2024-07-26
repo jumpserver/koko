@@ -17,6 +17,9 @@ importers:
       alova:
         specifier: ^3.0.2
         version: 3.0.2
+      loglevel:
+        specifier: ^1.9.1
+        version: 1.9.1
       mitt:
         specifier: ^3.0.1
         version: 3.0.1
@@ -38,9 +41,6 @@ importers:
       vue:
         specifier: ^3.4.31
         version: 3.4.33(typescript@5.5.4)
-      vue-composable:
-        specifier: 1.0.0-beta.24
-        version: 1.0.0-beta.24
       vue-i18n:
         specifier: ^9.13.1
         version: 9.13.1(vue@3.4.33(typescript@5.5.4))
@@ -783,6 +783,10 @@ packages:
   lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
+  loglevel@1.9.1:
+    resolution: {integrity: sha512-hP3I3kCrDIMuRwAwHltphhDM1r8i55H33GgqjXbrisuJhF4kRhW1dNuxsRklp4bXl8DSdLaNLuiL4A/LWRfxvg==}
+    engines: {node: '>= 0.6.0'}
+
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
@@ -1144,10 +1148,6 @@ packages:
 
   vscode-uri@3.0.8:
     resolution: {integrity: sha512-AyFQ0EVmsOZOlAnxoFOGOq1SQDWAB7C6aqMGS23svWAllfOaxbuFvcT8D1i8z3Gyn8fraVeZNNmN6e9bxxXkKw==}
-
-  vue-composable@1.0.0-beta.24:
-    resolution: {integrity: sha512-rVxqIk+CCBDNlu7MK59FB6hIHbjpaNszSZ3o1fReXiDKpdw2AAnSWx5vqUpJgC4yGlUzBMJ2eUQIjij5/wr8Kg==}
-    hasBin: true
 
   vue-demi@0.14.8:
     resolution: {integrity: sha512-Uuqnk9YE9SsWeReYqK2alDI5YzciATE0r2SkA6iMAtuXvNTMNACJLJEXNXaEy94ECuBe4Sk6RzRU80kjdbIo1Q==}
@@ -1818,6 +1818,8 @@ snapshots:
 
   lodash@4.17.21: {}
 
+  loglevel@1.9.1: {}
+
   lru-cache@10.4.3: {}
 
   magic-string@0.30.10:
@@ -2182,10 +2184,6 @@ snapshots:
       vue: 3.4.33(typescript@5.5.4)
 
   vscode-uri@3.0.8: {}
-
-  vue-composable@1.0.0-beta.24:
-    dependencies:
-      '@vue/devtools-api': 6.6.3
 
   vue-demi@0.14.8(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4)):
     dependencies:

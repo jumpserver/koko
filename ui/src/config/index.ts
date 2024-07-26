@@ -14,3 +14,8 @@ const cookieLang = cookies.get('django_language');
 const browserLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'zh';
 
 export const lang = (cookieLang || storeLang || browserLang || 'zh').slice(0, 2);
+
+export const AsciiDel = 127;
+export const AsciiBackspace = 8;
+export const AsciiCtrlC = 3;
+export const AsciiCtrlZ = 26;

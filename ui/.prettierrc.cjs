@@ -1,8 +1,8 @@
 module.exports = {
   // 指定最大换行长度
-  printWidth: 100,
+  printWidth: 120,
   // 缩进制表符宽度 | 空格数
-  tabWidth: 4,
+  tabWidth: 2,
   // 使用制表符而不是空格缩进行 (true：制表符，false：空格)
   useTabs: false,
   // 结尾不用分号 (true：有，false：没有)

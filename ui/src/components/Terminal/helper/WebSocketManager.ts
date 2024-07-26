@@ -1,242 +1,175 @@
-import { useI18n } from 'vue-i18n';
-import { Terminal } from '@xterm/xterm';
-import { useLogger } from '@/hooks/useLogger.ts';
+// import { useI18n } from 'vue-i18n';
 import { fireEvent } from '@/utils';
+import { Terminal } from '@xterm/xterm';
 import { createDiscreteApi } from 'naive-ui';
+import { useLogger } from '@/hooks/useLogger.ts';
 
+import { handleError, writeBufferToTerminal, sendEventToLuna, formatMessage, updateIcon } from './index';
+import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
+import { FitAddon } from '@xterm/addon-fit';
+
+const { debug } = useLogger('WebSocketManager');
 const { message } = createDiscreteApi(['message']);
 
 class WebSocketManager {
-    public ws: WebSocket | null = null;
+  public wsURL: string;
+  public terminal: Terminal;
+  public ws: WebSocket | null = null;
+  public zsentry: ZmodemBrowser.Sentry | null;
+  public enableRzSz: boolean = false;
+  public zmodemStatus: boolean = false;
+  public terminalId: string = '';
+  public zmodemStart: string = 'ZMODEM_START';
+  public zmodemEnd: string = 'ZMODEM_END';
+  public fitAddon: FitAddon | null = null;
+  public code: any = '';
+  public setting: any;
 
-    private readonly lastSendTime;
+  public lastReceiveTime: Date = new Date();
 
-    private term: Terminal | null = null;
-    private pingInterval: any = null;
-    private lastReceiveTime: Date | null = null;
-    private zmodemStatus: boolean = false;
-    private enableZmodem: boolean = true;
-    private terminalId: string = '';
-    private zsentry: any = null;
+  constructor(
+    wsURL: string,
+    terminal: Terminal,
+    enableZmodem: boolean,
+    zsentry: ZmodemBrowser.Sentry,
+    fitAddon: FitAddon,
+    code: any
+  ) {
+    this.wsURL = wsURL;
+    this.terminal = terminal;
+    this.enableRzSz = enableZmodem;
+    this.zsentry = zsentry;
+    this.fitAddon = fitAddon;
+    this.code = code;
+  }
 
-    private MaxTimeout: number = 30 * 1000;
-    private zmodemEnd: string = 'ZMODEM_END';
-    private zmodemStart: string = 'ZMODEM_START';
+  private onWebsocketOpen() {}
 
-    constructor(lastSendTime: Date, enableZmodem: boolean) {
-        this.lastSendTime = lastSendTime;
-        this.enableZmodem = enableZmodem;
+  private onWebsocketMessage(e: MessageEvent) {
+    this.lastReceiveTime = new Date();
+
+    if (typeof e.data === 'object') {
+      if (this.enableRzSz) {
+        this.zsentry?.consume(e.data);
+      } else {
+        writeBufferToTerminal(this.enableRzSz, this.zmodemStatus, e.data, this.terminal);
+      }
+    } else {
+      debug(typeof e.data);
+      this.dispatch(e.data);
     }
+  }
 
-    private handleError(e: Event) {
-        const { info } = useLogger();
-        info(`Error: ${e}`);
-    }
+  public dispatch(data: any) {
+    // const { t } = useI18n();
 
-    private message(id: string, type: string, data: any): string {
-        return JSON.stringify({
-            id,
-            type,
-            data
-        });
-    }
+    if (data === undefined) return;
+    let msg = JSON.parse(data);
+    debug('------------------', data);
 
-    private writeBufferToTerminal(data: any) {
-        const { info } = useLogger();
-        if (!this.enableZmodem && this.zmodemStatus) {
-            info('未开启 ZMODEM 且当前在 ZMODEM 状态，不允许显示');
-            return;
+    switch (msg.type) {
+      case 'CONNECT': {
+        this.terminalId = msg.id;
+        try {
+          this.fitAddon && this.fitAddon.fit();
+        } catch (e) {
+          console.log(e);
         }
-        this.term?.write(new Uint8Array(data));
-    }
-
-    private dispatch(data: any) {
-        // const { t } = useI18n();
-        // const { info } = useLogger();
-        if (data === undefined) {
-            return;
+        const data = {
+          cols: this.terminal.cols,
+          rows: this.terminal.rows,
+          code: this.code
+        };
+        const info = JSON.parse(msg.data);
+        this.setting = info.setting;
+        debug(info.user);
+        updateIcon(this.setting);
+        this.ws && this.ws.send(formatMessage(this.terminalId, 'TERMINAL_INIT', JSON.stringify(data)));
+        break;
+      }
+      case 'CLOSE':
+        this.terminal.writeln('Receive Connection closed');
+        this.ws && this.ws.close();
+        sendEventToLuna('CLOSE', '');
+        break;
+      case 'PING':
+        break;
+      case 'TERMINAL_ACTION': {
+        const action = msg.data;
+        switch (action) {
+          case this.zmodemStart:
+            this.zmodemStatus = true;
+            if (!this.enableRzSz) {
+              // 等待用户 rz sz 文件传输
+              // message.info(t('WaitFileTransfer'));
+              message.info('WaitFileTransfer');
+            }
+            break;
+          case this.zmodemEnd:
+            if (!this.enableRzSz && this.zmodemStatus) {
+              // message.info(t('EndFileTransfer'));
+              message.info('EndFileTransfer');
+              this.terminal.write('\r\n');
+            }
+            this.zmodemStatus = false;
+            break;
+          default:
+            this.zmodemStatus = false;
         }
-        let msg = JSON.parse(data);
-        switch (msg.type) {
-            case 'CONNECT': {
-                this.terminalId = msg.id;
-                try {
-                    // this.fitAddon.fit();
-                } catch (e) {
-                    // info(`Error: ${e}`);
-                }
-                const data = {
-                    cols: this.term?.cols,
-                    rows: this.term?.rows
-                    // code: this.code
-                };
-                const messageInfo = JSON.parse(msg.data);
-                // this.currentUser = messageInfo.user;
-                // this.setting = messageInfo.setting;
-                // info(this.currentUser);
-                // this.updateIcon();
-                this.ws?.send(this.message(this.terminalId, 'TERMINAL_INIT', JSON.stringify(data)));
-                break;
-            }
-            case 'CLOSE':
-                this.term?.writeln('Receive Connection closed');
-                this.ws?.close();
-                // this.sendEventToLuna('CLOSE', '')
-                break;
-            case 'PING':
-                break;
-            case 'TERMINAL_ACTION': {
-                const action = msg.data;
-                switch (action) {
-                    case this.zmodemStart:
-                        this.zmodemStatus = true;
-                        if (!this.enableZmodem) {
-                            // 等待用户 rz sz 文件传输
-                            // message.info(t('WaitFileTransfer'));
-                        }
-                        break;
-                    case this.zmodemEnd:
-                        if (!this.enableZmodem && this.zmodemStatus) {
-                            // message.info(t('EndFileTransfer'));
-                            this.term?.write('\r\n');
-                        }
-                        this.zmodemStatus = false;
-                        break;
-                    default:
-                        this.zmodemStatus = false;
-                }
-                break;
-            }
-            case 'TERMINAL_ERROR':
-            case 'ERROR': {
-                const errMsg = msg.err;
-                message.error(errMsg);
-                this.term?.writeln(errMsg);
-                break;
-            }
-            case 'MESSAGE_NOTIFY': {
-                const errMsg = msg.err;
-                const eventData = JSON.parse(msg.data);
+        break;
+      }
+      case 'TERMINAL_ERROR':
+      case 'ERROR': {
+        const errMsg = msg.err;
+        message.error(errMsg);
+        this.terminal.writeln(errMsg);
+        break;
+      }
+      case 'MESSAGE_NOTIFY': {
+        const errMsg = msg.err;
+        const eventData = JSON.parse(msg.data);
 
-                const eventName = eventData.event_name;
-                switch (eventName) {
-                    case 'sync_user_preference':
-                        if (errMsg === '' || errMsg === null) {
-                            // const successNotify = t('SyncUserPreferenceSuccess');
-                            const successNotify = 'SyncUserPreferenceSuccess';
-                            message.success(successNotify);
-                        } else {
-                            // const errNotify = `${t('SyncUserPreferenceFailed')}: ${errMsg}`;
-                            const errNotify = `SyncUserPreferenceFailed': ${errMsg}`;
-                            message.error(errNotify);
-                        }
-                        break;
-                    default:
-                    // info(`unknown: ${eventName}`);
-                }
-                break;
-            }
-            default:
-            // info(`default: ${data}`);
-        }
-        // this.$emit('ws-data', msg.type, msg)
-    }
-
-    private onWebsocketOpen() {
-        // const { info } = useLogger();
-        if (this.pingInterval !== null) {
-            clearInterval(this.pingInterval);
-        }
-
-        this.lastReceiveTime = new Date();
-
-        this.pingInterval = setInterval(() => {
-            if (
-                this.ws?.readyState === WebSocket.CLOSING ||
-                this.ws?.readyState === WebSocket.CLOSED
-            ) {
-                clearInterval(this.pingInterval);
-                return;
-            }
-
-            let currentDate: Date = new Date();
-
-            if (
-                this.lastReceiveTime &&
-                currentDate.getTime() - this.lastReceiveTime.getTime() > this.MaxTimeout
-            ) {
-                // info('more than 30s do not receive data');
-            }
-
-            let pingTimeout = currentDate.getTime() - this.lastSendTime.getTime() - this.MaxTimeout;
-            if (pingTimeout < 0) {
-                return;
-            }
-
-            this.ws?.send(this.message(this.terminalId, 'PING', ''));
-        }, 25 * 1000);
-    }
-
-    private onWebsocketErr(e: ErrorEvent, term: Terminal) {
-        term.writeln('Connection websocket error');
-        console.log('Connection websocket error');
-        fireEvent(new Event('CLOSE'));
-        this.handleError(e);
-    }
-
-    private onWebsocketClose(e: CloseEvent, term: Terminal) {
-        term.writeln('Connection websocket closed');
-        fireEvent(new Event('CLOSE'));
-        this.handleError(e);
-    }
-
-    private onWebsocketMessage(e: MessageEvent, term: Terminal) {
-        const enableRzSz = this.enableZmodem;
-        // const { info } = useLogger();
-        this.lastReceiveTime = new Date();
-
-        if (typeof e.data === 'object') {
-            if (enableRzSz) {
-                this.zsentry.consume(e.data);
+        const eventName = eventData.event_name;
+        switch (eventName) {
+          case 'sync_user_preference':
+            if (errMsg === '' || errMsg === null) {
+              // const successNotify = t('SyncUserPreferenceSuccess');
+              const successNotify = 'SyncUserPreferenceSuccess';
+              message.success(successNotify);
             } else {
-                this.writeBufferToTerminal(e.data);
+              // const errNotify = `${t('SyncUserPreferenceFailed')}: ${errMsg}`;
+              const errNotify = `'SyncUserPreferenceFailed': ${errMsg}`;
+              message.error(errNotify);
             }
-        } else {
-            // info(typeof e.data);
-            console.log(term);
-            term.writeln('Connection websocket closed');
-            this.dispatch(e.data);
+            break;
+          default:
+            debug('unknown: ', eventName);
         }
+        break;
+      }
+      default:
+        debug('default: ', data);
     }
+  }
 
-    public isWsActivated() {
-        if (this.ws) {
-            return !(
-                this.ws.readyState === WebSocket.CLOSING || this.ws.readyState === WebSocket.CLOSED
-            );
-        }
-        return false;
-    }
+  public connectWs() {
+    this.ws = new WebSocket(this.wsURL, ['JMS-KOKO']);
+    this.ws.binaryType = 'arraybuffer';
+    this.ws.onopen = this.onWebsocketOpen;
+    this.ws.onerror = (e: Event) => {
+      this.terminal.write('Connection Websocket Error');
+      fireEvent(new Event('CLOSE', {}));
+      handleError(e);
+    };
+    this.ws.onclose = (e: Event) => {
+      this.terminal.write('Connection WebSocket Closed');
+      fireEvent(new Event('CLOSE', {}));
+      handleError(e);
+    };
+    this.ws.onmessage = (e: MessageEvent) => this.onWebsocketMessage(e);
 
-    public connectWs(url: string, term: Terminal, zsentry: any) {
-        this.zsentry = zsentry;
-        if (this.isWsActivated() && this.ws) {
-            message.info('try to reconnect to server');
-            this.ws.onerror = null;
-            this.ws.onclose = null;
-            this.ws.onmessage = null;
-            this.ws.close();
-        }
-
-        this.term = term;
-
-        this.ws = new WebSocket(url, ['JMS-KOKO']);
-        this.ws.binaryType = 'arraybuffer';
-        this.ws.onopen = () => this.onWebsocketOpen();
-        this.ws.onerror = (e: ErrorEvent) => this.onWebsocketErr(e, term);
-        this.ws.onclose = (e: CloseEvent) => this.onWebsocketClose(e, term);
-        this.ws.onmessage = (e: MessageEvent) => this.onWebsocketMessage(e, term);
-    }
+    return this.ws;
+  }
 }
 
 export default WebSocketManager;

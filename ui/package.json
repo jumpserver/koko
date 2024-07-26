@@ -12,6 +12,7 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "alova": "^3.0.2",
+    "loglevel": "^1.9.1",
     "mitt": "^3.0.1",
     "naive-ui": "^2.39.0",
     "nora-zmodemjs": "^1.1.1",
@@ -19,7 +20,6 @@
     "pinia": "^2.1.7",
     "uuid": "^10.0.0",
     "vue": "^3.4.31",
-    "vue-composable": "1.0.0-beta.24",
     "vue-i18n": "^9.13.1",
     "vue-router": "^4.4.0",
     "vue3-cookies": "^1.0.6"

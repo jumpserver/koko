@@ -1,34 +1,37 @@
-import { ref, Ref } from 'vue';
-import { useDateNow } from 'vue-composable';
+import log, { LogLevelDesc, Logger } from 'loglevel';
+import { Ref, ref } from 'vue';
 
-interface ILog {
-    level: string;
-    message: string;
-    timestamp: string;
+interface UseLogger {
+  logLevel: Ref<LogLevelDesc>;
+  setLogLevel: (level: LogLevelDesc) => void;
+  debug: (...args: any[]) => void;
+  info: (...args: any[]) => void;
+  warn: (...args: any[]) => void;
+  error: (...args: any[]) => void;
 }
 
-type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
+export const useLogger = (moduleName: string): UseLogger => {
+  const logLevel = ref<LogLevelDesc>(log.levels.DEBUG);
 
-export const useLogger = () => {
-    const logs: Ref<ILog[]> = ref([]);
-    const { now } = useDateNow();
+  const logger: Logger = log.getLogger(moduleName);
+  logger.setLevel(logLevel.value);
 
-    const log = (level: LogLevel, message: string) => {
-        const timestamp = new Date(now.value).toISOString();
-        logs.value.push({ level, message, timestamp });
-        console[level](`${timestamp}: ${message}`);
-    };
+  const setLogLevel = (level: LogLevelDesc) => {
+    logLevel.value = level;
+    logger.setLevel(level);
+  };
 
-    const info = (message: string) => log('info', message);
-    const warn = (message: string) => log('warn', message);
-    const debug = (message: string) => log('debug', message);
-    const error = (message: string) => log('error', message);
+  const debug = (...args: any[]) => logger.debug(`[${moduleName}] ->`, ...args);
+  const info = (...args: any[]) => logger.info(`[${moduleName}] ->`, ...args);
+  const warn = (...args: any[]) => logger.warn(`[${moduleName}] ->`, ...args);
+  const error = (...args: any[]) => logger.error(`[${moduleName}] ->`, ...args);
 
-    return {
-        logs,
-        debug,
-        info,
-        warn,
-        error
-    };
+  return {
+    logLevel,
+    setLogLevel,
+    debug,
+    info,
+    warn,
+    error
+  };
 };
