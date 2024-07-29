@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strings"
@@ -173,6 +174,7 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		permAccounts = append(permAccounts, permAccount)
 		detailAsset = dirOpts.asset
 	}
+	ctx, ctxCancel := context.WithCancel(context.Background())
 	return AssetDir{
 		opts:        dirOpts,
 		user:        user,
@@ -183,6 +185,8 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 
 		sftpSessions: make(map[string]*SftpSession),
 		jmsService:   jmsService,
+		ctx:          ctx,
+		ctxCancel:    ctxCancel,
 	}
 }
 

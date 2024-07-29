@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,6 +39,9 @@ type AssetDir struct {
 	ShowHidden bool
 
 	jmsService *service.JMService
+
+	ctx       context.Context
+	ctxCancel context.CancelFunc
 }
 
 func (ad *AssetDir) Name() string {
@@ -511,9 +515,11 @@ func (ad *AssetDir) removeDirectoryAll(conn *sftp.Client, path string) error {
 func (ad *AssetDir) run() {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
-	sftpCons := make([]*SftpSession, 0, len(ad.suMaps))
+	sftpSessions := make([]*SftpSession, 0, len(ad.suMaps))
 	for {
 		select {
+		case <-ad.ctx.Done():
+			return
 		case <-ticker.C:
 
 		}
@@ -526,16 +532,16 @@ func (ad *AssetDir) run() {
 				continue
 			}
 			if conn.IsExpired() {
-				sftpCons = append(sftpCons, conn)
+				sftpSessions = append(sftpSessions, conn)
 			}
 
 		}
 		ad.mu.Unlock()
-		for _, conn := range sftpCons {
+		for _, conn := range sftpSessions {
 			_ = conn.CloseWithReason(model.ReasonErrIdleDisconnect)
 			logger.Infof("SFTP session %s expired", conn.sess.ID)
 		}
-		sftpCons = sftpCons[:0]
+		sftpSessions = sftpSessions[:0]
 	}
 
 }
@@ -749,6 +755,7 @@ func (ad *AssetDir) parsePath(path string) []string {
 }
 
 func (ad *AssetDir) close() {
+	ad.ctxCancel()
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
 	for _, conn := range ad.sftpSessions {
