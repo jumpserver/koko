@@ -1,8 +1,11 @@
 <template>
-  <n-space size="large" class="w-full h-full">
-    <Terminal :enable-zmodem="true" :connectURL="wsURL" :share-code="shareCode" @event="onEvent" @ws-data="onWsData" />
-    <!--    <n-button type="default" @click="copyShareURL">Copy</n-button>-->
-  </n-space>
+  <Terminal
+    :enable-zmodem="true"
+    :connectURL="wsURL"
+    :share-code="shareCode"
+    @event="onEvent"
+    @ws-data="onWsData"
+  />
 </template>
 
 <script setup lang="ts">

@@ -2,9 +2,12 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { sendEventToLuna } from '@/components/Terminal/helper';
-import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
+import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel, defaultTheme } from '@/config';
 
 import type { ILunaConfig } from './interface';
+
+import xtermTheme from 'xterm-theme';
+import ZmodemBrowser, { SentryConfig } from 'nora-zmodemjs/src/zmodem_browser';
 
 const { debug } = useLogger('Terminal-Hook');
 
@@ -13,6 +16,23 @@ export const useTerminal = () => {
   let fitAddon: FitAddon;
   let termSelectionText: string;
   let config: ILunaConfig = {};
+
+  const createZsentry = (config: SentryConfig) => {
+    return new ZmodemBrowser.Sentry(config);
+  };
+
+  const setTerminalTheme = (
+    themeName: string,
+    emits: (event: 'background-color', backgroundColor: string) => void
+  ) => {
+    const theme = xtermTheme[themeName] || defaultTheme;
+
+    term.options.theme = theme;
+
+    debug(`Theme: ${themeName}`);
+
+    emits('background-color', theme.background);
+  };
 
   /**
    * @description 获取 Luna 配置
@@ -164,17 +184,23 @@ export const useTerminal = () => {
     fitAddon.fit();
     term.focus();
 
-    return term;
+    window.addEventListener('resize', handleResize, false);
+    term.onSelectionChange(() => getSelection());
+    el.addEventListener('mouseenter', () => terminalFocus(), false);
+
+    return {
+      term,
+      fitAddon
+    };
   };
 
   return {
-    getSelection,
-    handleResize,
-    terminalFocus,
     getLunaConfig,
+    createZsentry,
     createTerminal,
     preprocessInput,
     handleConextMenu,
+    setTerminalTheme,
     handleCustomKeyEvent
   };
 };

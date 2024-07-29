@@ -1,25 +1,25 @@
 export interface ITerminalProps {
-    // 连接 url
-    connectURL: string;
+  // 连接 url
+  connectURL: string;
 
-    //
-    shareCode?: string;
+  //
+  shareCode?: string;
 
-    // 主题名称
-    themeName?: string;
+  // 主题名称
+  themeName?: string;
 
-    //
-    enableZmodem: boolean;
+  //
+  enableZmodem?: boolean;
 }
 
 export interface ILunaConfig {
-    fontSize?: number;
+  fontSize?: number;
 
-    quickPaste?: string;
+  quickPaste?: string;
 
-    backspaceAsCtrlH?: string;
+  backspaceAsCtrlH?: string;
 
-    ctrlCAsCtrlZ?: string;
+  ctrlCAsCtrlZ?: string;
 
-    lineHeight?: number;
+  lineHeight?: number;
 }
