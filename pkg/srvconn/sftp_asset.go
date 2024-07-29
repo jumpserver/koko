@@ -29,17 +29,13 @@ type AssetDir struct {
 
 	user        *model.User
 	detailAsset *model.PermAsset
+	once        sync.Once
+	suMaps      map[string]*model.PermAccount
 
-	suMaps map[string]*model.PermAccount
-
-	sftpClients       map[string]*SftpConn // Account stringer
-	sftpTraceSessions map[string]*session.Session
-
-	once sync.Once
+	mu           sync.Mutex
+	sftpSessions map[string]*SftpSession
 
 	ShowHidden bool
-
-	mu sync.Mutex
 
 	jmsService *service.JMService
 }
@@ -515,12 +511,31 @@ func (ad *AssetDir) removeDirectoryAll(conn *sftp.Client, path string) error {
 func (ad *AssetDir) run() {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
+	sftpCons := make([]*SftpSession, 0, len(ad.suMaps))
 	for {
 		select {
 		case <-ticker.C:
 
 		}
+		ad.mu.Lock()
+		for _, conn := range ad.sftpSessions {
+			if conn.isClosed {
+				continue
+			}
+			if conn.client == nil {
+				continue
+			}
+			if conn.IsExpired() {
+				sftpCons = append(sftpCons, conn)
+			}
 
+		}
+		ad.mu.Unlock()
+		for _, conn := range sftpCons {
+			_ = conn.CloseWithReason(model.ReasonErrIdleDisconnect)
+			logger.Infof("SFTP session %s expired", conn.sess.ID)
+		}
+		sftpCons = sftpCons[:0]
 	}
 
 }
@@ -528,61 +543,49 @@ func (ad *AssetDir) run() {
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
-	var ok bool
-	conn, ok = ad.sftpClients[su.String()]
+	sftpSess, ok := ad.sftpSessions[su.String()]
 	if !ok {
-		var err error
-		conn, err = ad.GetSftpClient(su)
+		sftpSession, err := ad.createSftpSession(su)
 		if err != nil {
-			logger.Errorf("Get Sftp Client err: %s", err.Error())
+			logger.Errorf("Create sftp session err: %s", err.Error())
 			return nil, ""
 		}
-		ad.sftpClients[su.String()] = conn
+		ad.sftpSessions[su.String()] = sftpSession
 	}
-	if _, ok1 := ad.sftpTraceSessions[su.String()]; !ok1 {
-		reqSession := conn.token.CreateSession(ad.opts.RemoteAddr, ad.opts.fromType, model.SFTPType)
-		respSession, err := ad.jmsService.CreateSession(reqSession)
-		if err != nil {
-			logger.Errorf("Create sftp Session err: %s", err.Error())
-			return nil, ""
-		}
-		terminalFunc := func(task *model.TerminalTask) error {
-			switch task.Name {
-			case model.TaskKillSession:
-				ad.mu.Lock()
-				defer ad.mu.Unlock()
-				ad.finishSftpSession(su.String(), conn)
-				return nil
-			}
-			return fmt.Errorf("sftp session not support task: %s", task.Name)
-		}
-		traceSession := session.NewSession(&respSession, terminalFunc)
-		session.AddSession(traceSession)
-		ad.sftpTraceSessions[su.String()] = traceSession
-		ad.recordSessionLifecycle(traceSession.ID, model.AssetConnectSuccess, "")
+	realPath = filepath.Join(sftpSess.rootDirPath, strings.TrimPrefix(path, "/"))
+	return sftpSess.SftpConn, realPath
+}
+
+func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSession, err error) {
+	conn, err := ad.GetSftpClient(su)
+	if err != nil {
+		return nil, err
 	}
-	if conn.rootDirPath == "" {
-		platform := conn.token.Platform
-		sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSFTP)
-		accountUsername := su.Username
-		username := ad.user.Username
-		switch strings.ToLower(sftpRoot) {
-		case "home", "~", "":
-			sftpRoot = conn.HomeDirPath
-		default:
-			//  ${ACCOUNT} 连接的账号用户名, ${USER} 当前用户用户名, ${HOME} 当前家目录
-			homeDir := conn.HomeDirPath
-			sftpRoot = strings.ReplaceAll(sftpRoot, "${ACCOUNT}", accountUsername)
-			sftpRoot = strings.ReplaceAll(sftpRoot, "${USER}", username)
-			sftpRoot = strings.ReplaceAll(sftpRoot, "${HOME}", homeDir)
-			if strings.Index(sftpRoot, "/") != 0 {
-				sftpRoot = fmt.Sprintf("/%s", sftpRoot)
-			}
-		}
-		conn.rootDirPath = sftpRoot
+	reqSession := conn.token.CreateSession(ad.opts.RemoteAddr, ad.opts.fromType, model.SFTPType)
+	respSession, err1 := ad.jmsService.CreateSession(reqSession)
+	if err1 != nil {
+		logger.Errorf("Create sftp Session err: %s", err1.Error())
+		return nil, err1
 	}
-	realPath = filepath.Join(conn.rootDirPath, strings.TrimPrefix(path, "/"))
-	return
+	sftpSession := &SftpSession{SftpConn: conn, sess: &respSession, jmsService: ad.jmsService}
+	terminalFunc := func(task *model.TerminalTask) error {
+		switch task.Name {
+		case model.TaskKillSession:
+			_ = sftpSession.CloseWithReason(model.ReasonErrAdminTerminate)
+			return nil
+		}
+		return fmt.Errorf("sftp session not support task: %s", task.Name)
+	}
+	traceSession := session.NewSession(&respSession, terminalFunc)
+	session.AddSession(traceSession)
+	ad.recordSessionLifecycle(traceSession.ID, model.AssetConnectSuccess, "")
+
+	go func() {
+		_ = conn.client.Wait()
+		_ = sftpSession.Close()
+		logger.Infof("SFTP session %s closed", sftpSession.sess.ID)
+	}()
+	return sftpSession, nil
 }
 
 func (ad *AssetDir) IsUniqueSu() (folderName string, ok bool) {
@@ -640,8 +643,64 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 		return nil, errNoSelectAsset
 	}
 	timeout := config.GlobalConfig.SSHTimeout
+	sshClient, err := NewSSHClientWithToken(connectToken, timeout)
+	if err != nil {
+		logger.Errorf("Get new SSH client err: %s", err)
+		return nil, err
+	}
+	sess, err := sshClient.AcquireSession()
+	if err != nil {
+		logger.Errorf("SSH client(%s) start sftp client session err %s", sshClient, err)
+		_ = sshClient.Close()
+		return nil, err
+	}
+	sftpClient, err := NewSftpConn(sess)
+	if err != nil {
+		logger.Errorf("SSH client(%s) start sftp conn err %s", sshClient, err)
+		_ = sess.Close()
+		sshClient.ReleaseSession(sess)
+		_ = sshClient.Close()
+		return nil, err
+	}
+	homeDirPath, err := sftpClient.Getwd()
+	if err != nil {
+		logger.Errorf("SSH client sftp (%s) get home dir err %s", sshClient, err)
+		_ = sftpClient.Close()
+		sshClient.ReleaseSession(sess)
+		_ = sshClient.Close()
+		return nil, err
+	}
+	logger.Infof("SSH client %s start sftp client session success", sshClient)
 
-	user := connectToken.User
+	platform := connectToken.Platform
+	sftpRoot := platform.Protocols.GetSftpPath(model.ProtocolSFTP)
+	accountUsername := su.Username
+	username := ad.user.Username
+	switch strings.ToLower(sftpRoot) {
+	case "home", "~", "":
+		sftpRoot = homeDirPath
+	default:
+		//  ${ACCOUNT} 连接的账号用户名, ${USER} 当前用户用户名, ${HOME} 当前家目录
+		homeDir := homeDirPath
+		sftpRoot = strings.ReplaceAll(sftpRoot, "${ACCOUNT}", accountUsername)
+		sftpRoot = strings.ReplaceAll(sftpRoot, "${USER}", username)
+		sftpRoot = strings.ReplaceAll(sftpRoot, "${HOME}", homeDir)
+		if strings.Index(sftpRoot, "/") != 0 {
+			sftpRoot = fmt.Sprintf("/%s", sftpRoot)
+		}
+	}
+	conn = &SftpConn{
+		sshClient:   sshClient,
+		sshSession:  sess,
+		permAccount: su,
+		rootDirPath: sftpRoot,
+		client:      sftpClient,
+		HomeDirPath: homeDirPath,
+		token:       connectToken}
+	return conn, nil
+}
+
+func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
 	asset := connectToken.Asset
 	account := connectToken.Account
 	username := account.Username
@@ -651,7 +710,6 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
 	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(protocol)))
-
 	sshAuthOpts = append(sshAuthOpts, SSHClientTimeout(timeout))
 	if account.IsSSHKey() {
 		if signer, err1 := gossh.ParsePrivateKey([]byte(account.Secret)); err1 == nil {
@@ -682,45 +740,7 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 		proxyArgs = append(proxyArgs, proxyArg)
 		sshAuthOpts = append(sshAuthOpts, SSHClientProxyClient(proxyArgs...))
 	}
-	sshClient, err := NewSSHClient(sshAuthOpts...)
-	if err != nil {
-		logger.Errorf("Get new SSH client err: %s", err)
-		return nil, err
-	}
-	sess, err := sshClient.AcquireSession()
-	if err != nil {
-		logger.Errorf("SSH client(%s) start sftp client session err %s", sshClient, err)
-		_ = sshClient.Close()
-		return nil, err
-	}
-	sftpClient, err := NewSftpConn(sess)
-	if err != nil {
-		logger.Errorf("SSH client(%s) start sftp conn err %s", sshClient, err)
-		_ = sess.Close()
-		sshClient.ReleaseSession(sess)
-		_ = sshClient.Close()
-		return nil, err
-	}
-	go func() {
-		_ = sftpClient.Wait()
-		sshClient.ReleaseSession(sess)
-		_ = sshClient.Close()
-		logger.Infof("User %s SSH client(%s) for SFTP release", user.String(), sshClient)
-		if sftpSession, ok := ad.sftpTraceSessions[su.String()]; ok {
-			sid := sftpSession.ID
-			reason := string(model.ReasonErrConnectDisconnect)
-			ad.recordSessionLifecycle(sid, model.AssetConnectFinished, reason)
-		}
-	}()
-	homeDirPath, err := sftpClient.Getwd()
-	if err != nil {
-		logger.Errorf("SSH client sftp (%s) get home dir err %s", sshClient, err)
-		_ = sftpClient.Close()
-		return nil, err
-	}
-	logger.Infof("SSH client %s start sftp client session success", sshClient)
-	conn = &SftpConn{client: sftpClient, HomeDirPath: homeDirPath, token: connectToken}
-	return conn, nil
+	return NewSSHClient(sshAuthOpts...)
 }
 
 func (ad *AssetDir) parsePath(path string) []string {
@@ -731,29 +751,15 @@ func (ad *AssetDir) parsePath(path string) []string {
 func (ad *AssetDir) close() {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
-	for key, conn := range ad.sftpClients {
-		if conn != nil {
-			ad.finishSftpSession(key, conn)
-		}
+	for _, conn := range ad.sftpSessions {
+		_ = conn.Close()
 	}
-}
-
-func (ad *AssetDir) finishSftpSession(key string, conn *SftpConn) {
-	sess := ad.sftpTraceSessions[key]
-	if sess != nil {
-		session.RemoveSession(sess)
-		if err := ad.jmsService.SessionFinished(sess.ID, common.NewNowUTCTime()); err != nil {
-			logger.Errorf("SFTP Session finished err: %s", err)
-		}
-		logger.Debugf("SFTP Session finished %s", sess.ID)
-	}
-	conn.Close()
 }
 
 func (ad *AssetDir) CreateFTPLog(su *model.PermAccount, operate, filename string, isSuccess bool) *model.FTPLog {
 	sessionId := ""
-	if traceSession, ok := ad.sftpTraceSessions[su.String()]; ok {
-		sessionId = traceSession.ID
+	if traceSession, ok := ad.sftpSessions[su.String()]; ok {
+		sessionId = traceSession.sess.ID
 	} else {
 		logger.Errorf("Not found sftp session for asset %s account %s",
 			ad.detailAsset.String(), su.String())

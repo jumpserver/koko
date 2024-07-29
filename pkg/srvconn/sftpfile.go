@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
-	"github.com/jumpserver/koko/pkg/session"
 )
 
 const (
@@ -180,10 +180,9 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		modeTime:    time.Now().UTC(),
 		suMaps:      generateSubAccountsFolderMap(permAccounts),
 		ShowHidden:  conf.ShowHiddenFile,
-		sftpClients: map[string]*SftpConn{},
 
-		sftpTraceSessions: make(map[string]*session.Session),
-		jmsService:        jmsService,
+		sftpSessions: make(map[string]*SftpSession),
+		jmsService:   jmsService,
 	}
 }
 
@@ -193,8 +192,11 @@ type SftpFile struct {
 }
 
 type SftpConn struct {
+	permAccount *model.PermAccount
 	HomeDirPath string
 	client      *sftp.Client
+	sshClient   *SSHClient
+	sshSession  *gossh.Session
 	token       *model.ConnectToken
 	isClosed    bool
 	rootDirPath string
