@@ -1,5 +1,5 @@
 <template>
-  <div id="terminal"></div>
+  <div id="terminal" class="w-fll h-full"></div>
 </template>
 
 <script setup lang="ts">
@@ -8,15 +8,25 @@ import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { bytesHuman } from '@/utils';
 import { onMounted, reactive, ref } from 'vue';
-import { handleEventFromLuna, sendEventToLuna, wsIsActivated, formatMessage } from '@/components/Terminal/helper';
+import { useTerminal } from '@/hooks/useTerminal.ts';
+import {
+  handleEventFromLuna,
+  sendEventToLuna,
+  wsIsActivated,
+  formatMessage
+} from '@/components/Terminal/helper';
 
-import TerminalManager from './helper/TerminalManager';
+import { ILunaConfig } from '@/hooks/interface';
 import WebSocketManager from './helper/WebSocketManager';
 
 import type { Reactive, Ref } from 'vue';
 import type { ITerminalProps } from '../interface';
 
-import ZmodemBrowser, { SentryConfig, Detection, ZmodemSession } from 'nora-zmodemjs/src/zmodem_browser';
+import ZmodemBrowser, {
+  SentryConfig,
+  Detection,
+  ZmodemSession
+} from 'nora-zmodemjs/src/zmodem_browser';
 
 const { debug, info } = useLogger('TerminalComponent');
 
@@ -29,6 +39,17 @@ const emits = defineEmits<{
   (e: 'wsData', msgType: string, msg: any): void;
   (e: 'event', event: string, data: string): void;
 }>();
+
+const {
+  createTerminal,
+  getLunaConfig,
+  handleResize,
+  terminalFocus,
+  getSelection,
+  handleCustomKeyEvent,
+  handleConextMenu,
+  preprocessInput
+} = useTerminal();
 
 const lunaId = ref<string>('');
 const origin = ref<string>('');
@@ -52,30 +73,26 @@ const handleReceiveSession = (zsession: ZmodemSession) => {
   console.log(zsession);
 };
 
-// 主函数：创建 Terminal
-const createTerminal = () => {
-  const el: HTMLElement = document.getElementById('terminal')!;
+// 创建 Terminal
+const getTerminal = () => {
+  const config: ILunaConfig = getLunaConfig();
+  const el = document.getElementById('terminal') as HTMLElement;
 
-  const terminalManager: TerminalManager = new TerminalManager(el);
-  terminal.value = terminalManager.term!; // 将 Terminal 对象赋值给 ref
+  // 创建 Terminal
+  const terminal = createTerminal(el, config);
 
-  fitAddon.fit();
-  terminal.value.focus();
+  window.addEventListener('reset', () => handleResize(), false);
 
-  // 处理 xterm 实例上相关事件
-  terminal.value.onSelectionChange(() => {
-    terminalManager.handleSelectionChange(terminal.value as Terminal, termSelectionText);
-  });
-  terminal.value.attachCustomKeyEventHandler((event: KeyboardEvent): boolean =>
-    terminalManager.handleCustomKeyEvent(event, terminal.value as Terminal, lunaId.value, origin.value)
+  terminal.onSelectionChange(() => getSelection());
+  terminal.attachCustomKeyEventHandler((event: KeyboardEvent) =>
+    handleCustomKeyEvent(event, lunaId.value, origin.value)
   );
 
-  // 处理 Terminal 挂载节点的鼠标相关事件
-  el.addEventListener('mouseenter', () => terminalManager.handleMouseenter(terminal.value as Terminal), false);
+  el.addEventListener('resize', () => terminalFocus(), false);
   el.addEventListener(
     'contextmenu',
-    async ($event: MouseEvent) => {
-      const text = await terminalManager.handleConextMenu($event, termSelectionText.value);
+    ($event: MouseEvent) => {
+      const text = handleConextMenu($event);
 
       if (wsIsActivated(websocket.value as WebSocket)) {
         // todo))
@@ -85,24 +102,14 @@ const createTerminal = () => {
     false
   );
 
-  // 监听全局 resize
-  window.addEventListener(
-    'resize',
-    () => {
-      terminalManager.handleResize(fitAddon, terminal.value as Terminal);
-    },
-    false
-  );
-
-  return terminalManager;
+  return Terminal;
 };
 
 // 主函数：发起连接
 const connect = async () => {
   debug(props.connectURL);
 
-  // 创建 Terminal
-  const terminalManager = createTerminal();
+  getTerminal();
 
   debug(ZmodemBrowser);
 
@@ -145,15 +152,17 @@ const connect = async () => {
   terminal.value?.onData(data => {
     if (!wsIsActivated(websocket.value as WebSocket)) return debug('WebSocket Closed');
 
-    if (!props.enableZmodem && zmodemStatus.value) return debug('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
+    if (!props.enableZmodem && zmodemStatus.value)
+      return debug('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
 
     lastSendTime.value = new Date();
     debug('Term on data event');
 
-    data = terminalManager.preprocessInput(data);
+    data = preprocessInput(data);
     sendEventToLuna('KEYBOARDEVENT', '', lunaId.value, origin.value);
 
-    websocket.value && websocket.value.send(formatMessage(websocketManager.terminalId, 'TERMINAL_DATA', data));
+    websocket.value &&
+      websocket.value.send(formatMessage(websocketManager.terminalId, 'TERMINAL_DATA', data));
   });
 
   terminal.value?.onResize(({ cols, rows }) => {
@@ -164,7 +173,11 @@ const connect = async () => {
     console.log(cols, rows);
     websocket.value &&
       websocket.value.send(
-        formatMessage(websocketManager.terminalId, 'TERMINAL_RESIZE', JSON.stringify({ cols, rows }))
+        formatMessage(
+          websocketManager.terminalId,
+          'TERMINAL_RESIZE',
+          JSON.stringify({ cols, rows })
+        )
       );
   });
 
