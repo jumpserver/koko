@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -82,6 +83,7 @@ func NewNodeDir(builders ...FolderBuilderOption) NodeDir {
 		ID:          dirConf.ID,
 		folderName:  dirConf.Name,
 		subDirs:     map[string]os.FileInfo{},
+		_subDirs:    sync.Map{},
 		modeTime:    time.Now().UTC(),
 		once:        new(sync.Once),
 		loadSubFunc: dirConf.loadSubFunc,
@@ -104,6 +106,8 @@ type folderOptions struct {
 	token *model.ConnectToken
 
 	accountUsername string
+
+	terminalCfg *model.TerminalConfig
 }
 
 func WithFolderUsername(username string) FolderBuilderOption {
@@ -154,7 +158,13 @@ func WithFromType(fromType model.LabelField) FolderBuilderOption {
 	}
 }
 
-func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...FolderBuilderOption) AssetDir {
+func WithTerminalConfig(cfg *model.TerminalConfig) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.terminalCfg = cfg
+	}
+}
+
+func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...FolderBuilderOption) *AssetDir {
 	var dirOpts folderOptions
 	for _, setter := range opts {
 		setter(&dirOpts)
@@ -175,7 +185,7 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		detailAsset = dirOpts.asset
 	}
 	ctx, ctxCancel := context.WithCancel(context.Background())
-	return AssetDir{
+	return &AssetDir{
 		opts:        dirOpts,
 		user:        user,
 		detailAsset: detailAsset,
@@ -183,7 +193,7 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		suMaps:      generateSubAccountsFolderMap(permAccounts),
 		ShowHidden:  conf.ShowHiddenFile,
 
-		sftpSessions: make(map[string]*SftpSession),
+		sftpSessions: sync.Map{},
 		jmsService:   jmsService,
 		ctx:          ctx,
 		ctxCancel:    ctxCancel,
@@ -193,6 +203,15 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 type SftpFile struct {
 	*sftp.File
 	FTPLog *model.FTPLog
+
+	cleanupFunc func()
+}
+
+func (s *SftpFile) Close() error {
+	if s.cleanupFunc != nil {
+		s.cleanupFunc()
+	}
+	return s.File.Close()
 }
 
 type SftpConn struct {
@@ -206,15 +225,40 @@ type SftpConn struct {
 	rootDirPath string
 
 	nextExpiredTime time.Time
-	status          string
+	refs            atomic.Int32
+	lock            sync.Mutex
+	maxIdleTime     time.Duration
 }
 
 func (s *SftpConn) IsExpired() bool {
-	return time.Since(s.nextExpiredTime) > 0
+	if s.Ref() > 0 {
+		// some client is using
+		return false
+	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	now := time.Now()
+	return now.Sub(s.nextExpiredTime) > 0 || s.token.ExpireAt.IsExpired(now)
 }
 
 func (s *SftpConn) UpdateExpiredTime() {
-	s.nextExpiredTime = time.Now().Add(time.Duration(30) * time.Minute)
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.nextExpiredTime = time.Now().Add(s.maxIdleTime)
+}
+
+func (s *SftpConn) IncreaseRef() {
+	s.refs.Add(1)
+	s.UpdateExpiredTime()
+}
+
+func (s *SftpConn) DecreaseRef() {
+	s.refs.Add(-1)
+	s.UpdateExpiredTime()
+}
+
+func (s *SftpConn) Ref() int32 {
+	return s.refs.Load()
 }
 
 func (s *SftpConn) IsOverwriteFile() bool {

@@ -24,6 +24,7 @@ type volumeOption struct {
 	user         *model.User
 	asset        *model.PermAsset
 	connectToken *model.ConnectToken
+	terminalCfg  *model.TerminalConfig
 }
 type VolumeOption func(*volumeOption)
 
@@ -49,6 +50,13 @@ func WithConnectToken(connectToken *model.ConnectToken) VolumeOption {
 	return func(opts *volumeOption) {
 		opts.connectToken = connectToken
 	}
+}
+
+func WithTerminalCfg(cfg *model.TerminalConfig) VolumeOption {
+	return func(opts *volumeOption) {
+		opts.terminalCfg = cfg
+	}
+
 }
 
 func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVolume {
@@ -77,6 +85,7 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	sftpOpts = append(sftpOpts, srvconn.WithUser(volOpts.user))
 	sftpOpts = append(sftpOpts, srvconn.WithRemoteAddr(volOpts.addr))
 	sftpOpts = append(sftpOpts, srvconn.WithLoginFrom(model.LoginFromWeb))
+	sftpOpts = append(sftpOpts, srvconn.WithTerminalCfg(volOpts.terminalCfg))
 	userSftp := srvconn.NewUserSftpConn(jmsService, sftpOpts...)
 	rawID := fmt.Sprintf("%s@%s", volOpts.user.Username, volOpts.addr)
 

@@ -85,7 +85,7 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 		directSrv := NewDirectHandler(sess, s.jmsService, opts...)
 		sftpHandler = directSrv.NewSFTPHandler()
 	} else {
-		sftpHandler = NewSFTPHandler(s.jmsService, currentUser, addr)
+		sftpHandler = s.NewSftpHandler(currentUser, addr)
 	}
 	handlers := sftp.Handlers{
 		FileGet:  sftpHandler,
@@ -104,6 +104,19 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 	_ = req.Close()
 	sftpHandler.Close()
 	logger.Infof("SFTP request %s: Handler exit.", reqID)
+}
+
+func (s *Server) NewSftpHandler(user *model.User, addr string) *SftpHandler {
+	terminalCfg := s.GetTerminalConfig()
+	opts := make([]srvconn.UserSftpOption, 0, 5)
+	opts = append(opts, srvconn.WithUser(user))
+	opts = append(opts, srvconn.WithRemoteAddr(addr))
+	opts = append(opts, srvconn.WithLoginFrom(model.LoginFromSSH))
+	opts = append(opts, srvconn.WithTerminalCfg(&terminalCfg))
+	return &SftpHandler{
+		UserSftpConn: srvconn.NewUserSftpConn(s.jmsService, opts...),
+		recorder:     proxy.GetFTPFileRecorder(s.jmsService),
+	}
 }
 
 func (s *Server) LocalPortForwardingPermission(ctx ssh.Context, dstHost string, dstPort uint32) bool {

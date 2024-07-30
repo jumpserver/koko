@@ -366,8 +366,9 @@ func (u *UserSftpConn) generateSubFoldersFromNodeTree(nodeTrees model.NodeTreeLi
 			opts = append(opts, WithFolderName(folderName))
 			opts = append(opts, WitRemoteAddr(u.Addr))
 			opts = append(opts, WithFromType(u.loginFrom))
+			opts = append(opts, WithTerminalConfig(u.opts.terminalCfg))
 			assetDir := NewAssetDir(u.jmsService, u.User, opts...)
-			dirs[folderName] = &assetDir
+			dirs[folderName] = assetDir
 		}
 	}
 	return dirs
@@ -386,10 +387,11 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	opts = append(opts, WitRemoteAddr(u.Addr))
 	opts = append(opts, WithToken(token))
 	opts = append(opts, WithFromType(u.loginFrom))
+	opts = append(opts, WithTerminalConfig(u.opts.terminalCfg))
 	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 	assetDir.loadSystemUsers()
-	dirs[folderName] = &assetDir
-	u.assetDir = &assetDir
+	dirs[folderName] = assetDir
+	u.assetDir = assetDir
 	return dirs
 }
 
@@ -416,9 +418,11 @@ func (u *UserSftpConn) generateSubFoldersFromAssets(assets []model.PermAsset) ma
 		opts = append(opts, WithFolderName(folderName))
 		opts = append(opts, WitRemoteAddr(u.Addr))
 		opts = append(opts, WithAsset(assets[i]))
+		opts = append(opts, WithFromType(u.loginFrom))
+		opts = append(opts, WithTerminalConfig(u.opts.terminalCfg))
 		opts = append(opts, WithFolderUsername(u.opts.accountUsername))
 		assetDir := NewAssetDir(u.jmsService, u.User, opts...)
-		dirs[folderName] = &assetDir
+		dirs[folderName] = assetDir
 	}
 	return dirs
 }
@@ -446,6 +450,8 @@ type userSftpOption struct {
 	token      *model.ConnectToken
 
 	accountUsername string
+
+	terminalCfg *model.TerminalConfig
 }
 
 type UserSftpOption func(*userSftpOption)
@@ -486,6 +492,12 @@ func WithAccountUsername(username string) UserSftpOption {
 	}
 }
 
+func WithTerminalCfg(cfg *model.TerminalConfig) UserSftpOption {
+	return func(o *userSftpOption) {
+		o.terminalCfg = cfg
+	}
+}
+
 func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *UserSftpConn {
 	var sftpOpts userSftpOption
 	for _, setter := range opts {
@@ -510,7 +522,30 @@ func NewUserSftpConn(jmsService *service.JMService, opts ...UserSftpOption) *Use
 	default:
 		u.Dirs = u.generateSubFoldersFromRootTree()
 	}
+	go u.run()
 	return &u
+}
+
+func (u *UserSftpConn) run() {
+	tick := time.NewTicker(time.Minute)
+	defer tick.Stop()
+	for {
+		select {
+		case <-u.closed:
+			return
+		case <-tick.C:
+			logger.Debug("User sftp conn check expired")
+		}
+		for _, dir := range u.Dirs {
+			if nodeDir, ok := dir.(*NodeDir); ok {
+				nodeDir.checkExpired()
+				continue
+			}
+			if assetDir, ok := dir.(*AssetDir); ok {
+				assetDir.checkExpired()
+			}
+		}
+	}
 }
 
 func cleanFolderName(folderName string) string {
