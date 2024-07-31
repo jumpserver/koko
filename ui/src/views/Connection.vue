@@ -9,7 +9,6 @@
   />
 
   <Settings :settings="settings" />
-  <ThemeConfig />
 </template>
 
 <script setup lang="ts">
@@ -19,7 +18,7 @@ import { useLogger } from '@/hooks/useLogger';
 import { useDialog, useMessage } from 'naive-ui';
 import { copyTextToClipboard } from '@/utils';
 import { BASE_URL, BASE_WS_URL } from '@/config';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref } from 'vue';
 import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
 
 import mittBus from '@/utils/mittBus.ts';
@@ -108,15 +107,12 @@ const settings = computed((): ISettingProp[] => {
       disabled: () => false,
       click: () => {
         dialog.success({
-          title: '成功',
-          content: '厉害',
-          positiveText: '哇',
-          onPositiveClick: () => {
-            message.success('耶！');
-          }
+          title: t('Theme'),
+          showIcon: false,
+          style: 'width: 500px',
+          content: () => h(ThemeConfig)
         });
-        // mittBus.emit('open-setting');
-        mittBus.emit('show-theme-config');
+        mittBus.emit('open-setting');
       }
     },
     {
