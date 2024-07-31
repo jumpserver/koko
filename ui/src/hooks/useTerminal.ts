@@ -23,7 +23,7 @@ export const useTerminal = () => {
 
   const setTerminalTheme = (
     themeName: string,
-    emits: (event: 'background-color', backgroundColor: string) => void
+    emits?: (event: 'background-color', backgroundColor: string) => void
   ) => {
     const theme = xtermTheme[themeName] || defaultTheme;
 
@@ -31,7 +31,7 @@ export const useTerminal = () => {
 
     debug(`Theme: ${themeName}`);
 
-    emits('background-color', theme.background);
+    emits && emits('background-color', theme.background);
   };
 
   /**

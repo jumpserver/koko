@@ -16,10 +16,10 @@
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useLogger } from '@/hooks/useLogger';
-import { useMessage } from 'naive-ui';
+import { useDialog, useMessage } from 'naive-ui';
 import { copyTextToClipboard } from '@/utils';
 import { BASE_URL, BASE_WS_URL } from '@/config';
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
 
 import mittBus from '@/utils/mittBus.ts';
@@ -39,6 +39,7 @@ const shareInfo = ref(null);
 const dialogVisible = ref(false);
 const shareDialogVisible = ref(false);
 
+const terminalRef = ref(null);
 const sessionId = ref('');
 const themeBackGround = ref('#1E1E1E');
 const shareLinkRequest = reactive({
@@ -67,6 +68,8 @@ const actionsPermOptions = reactive([
   { label: t('Writable'), value: 'writable' },
   { label: t('ReadOnly'), value: 'readonly' }
 ]);
+
+const dialog = useDialog();
 
 const wsURL = computed(() => {
   const routeName = route.name;
@@ -104,6 +107,15 @@ const settings = computed((): ISettingProp[] => {
       icon: ApertureOutline,
       disabled: () => false,
       click: () => {
+        dialog.success({
+          title: '成功',
+          content: '厉害',
+          positiveText: '哇',
+          onPositiveClick: () => {
+            message.success('耶！');
+          }
+        });
+        // mittBus.emit('open-setting');
         mittBus.emit('show-theme-config');
       }
     },
@@ -225,7 +237,7 @@ const onEvent = (event: string, data: any) => {
       break;
     case 'open':
       debug('Open');
-      mittBus.emit('open-stting');
+      mittBus.emit('open-setting');
       break;
   }
 };

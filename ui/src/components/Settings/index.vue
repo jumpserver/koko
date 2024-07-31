@@ -81,13 +81,13 @@ const showDrawer = ref<boolean>(false);
 
 onMounted(() => {
   console.log('props', props.settings);
-  mittBus.on('open-stting', () => {
+  mittBus.on('open-setting', () => {
     showDrawer.value = !showDrawer.value;
   });
 });
 
 onUnmounted(() => {
-  mittBus.off('open-stting');
+  mittBus.off('open-setting');
 });
 </script>
 

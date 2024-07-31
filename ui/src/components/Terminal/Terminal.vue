@@ -31,6 +31,8 @@ import ZmodemBrowser, {
   Detection,
   ZmodemSession
 } from 'nora-zmodemjs/src/zmodem_browser';
+import mittBus from '@/utils/mittBus.ts';
+import { IXtermTheme } from '@/views/interface';
 
 const { debug, info } = useLogger('TerminalComponent');
 
@@ -318,6 +320,11 @@ onMounted(() => {
 
   // 设置主题
   setTerminalTheme(props.themeName, emits);
+
+  // 修改主题
+  mittBus.on('set-theme', ({ themeName }) => {
+    setTerminalTheme(themeName as string);
+  });
 });
 </script>
 
