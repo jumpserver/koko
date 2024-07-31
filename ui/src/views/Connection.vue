@@ -1,5 +1,6 @@
 <template>
   <Terminal
+    ref="terminalRef"
     :enable-zmodem="true"
     :connectURL="wsURL"
     :share-code="shareCode"
@@ -15,10 +16,11 @@
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useLogger } from '@/hooks/useLogger';
+import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useDialog, useMessage } from 'naive-ui';
 import { copyTextToClipboard } from '@/utils';
 import { BASE_URL, BASE_WS_URL } from '@/config';
-import { computed, h, onMounted, reactive, ref } from 'vue';
+import { computed, h, nextTick, onMounted, reactive, ref } from 'vue';
 import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
 
 import mittBus from '@/utils/mittBus.ts';
@@ -27,6 +29,8 @@ import Terminal from '@/components/Terminal/Terminal.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 
 import { ISettingProp } from '@/views/interface';
+
+const { setTerminalTheme } = useTerminal();
 
 const { t } = useI18n();
 const { debug } = useLogger('Connection');
@@ -107,11 +111,19 @@ const settings = computed((): ISettingProp[] => {
       disabled: () => false,
       click: () => {
         dialog.success({
+          class: 'set-theme',
           title: t('Theme'),
           showIcon: false,
-          style: 'width: 500px',
-          content: () => h(ThemeConfig)
+          style: 'width: 50%',
+          content: () =>
+            h(ThemeConfig, {
+              currentThemeName: themeName.value,
+              preview: (tempTheme: string) => {
+                themeName.value = tempTheme;
+              }
+            })
         });
+        // 关闭抽屉
         mittBus.emit('open-setting');
       }
     },
@@ -161,17 +173,46 @@ const copyShareURL = (msgType, msg) => {
   debug(`share URL:${url}`);
   message.success(t('CopyShareURLSuccess'));
 };
-const onWsData = (msgType: string, msg: any) => {
+const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
   const data = JSON.parse(msg.data);
 
-  console.log('msgType', msgType);
-  console.log('data', data);
+  debug('msgType:', msgType, 'onWsData:', data);
 
   switch (msgType) {
     case 'TERMINAL_SESSION': {
+      const sessionInfo = data;
+      const sessionDetail = sessionInfo.session;
+
+      debug(`SessionDetail themeName: ${sessionInfo.themeName}`);
+      debug(`SessionDetail permissions: ${sessionInfo.permission}`);
+      debug(`SessionDetail ctrlCAsCtrlZ: ${sessionInfo.ctrlCAsCtrlZ}`);
+      debug(`SessionDetail backspaceAsCtrlH: ${sessionInfo.backspaceAsCtrlH}`);
+
+      const enableShare = sessionInfo.permission.actions.includes('share');
+
+      if (sessionInfo.backspaceAsCtrlH) {
+        const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+        debug(`Set backspaceAsCtrlH: ${value}`);
+
+        terminal.options.backspaceAsCtrlH = value;
+      }
+
+      if (sessionInfo.ctrlCAsCtrlZ) {
+        const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
+        debug(`Set ctrlCAsCtrlZ: ${value}`);
+
+        terminal.options.ctrlCAsCtrlZ = value;
+      }
+
+      sessionId.value = sessionDetail.id;
+      themeName.value = sessionInfo.themeName;
+
+      nextTick(() => {
+        setTerminalTheme(themeName.value, terminal);
+      });
+
       break;
     }
-
     case 'TERMINAL_SHARE': {
       shareId.value = data.share_id;
       shareCode.value = data.code;

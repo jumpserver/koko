@@ -14,7 +14,7 @@ import { useLogger } from '@/hooks/useLogger.ts';
 import { useMessage } from 'naive-ui';
 import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useWebSocket } from '@/hooks/useWebSocket.ts';
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 import type { ILunaConfig } from '@/hooks/interface';
 import type { ITerminalProps } from '@/hooks/interface';
@@ -42,7 +42,7 @@ const props = withDefaults(defineProps<ITerminalProps>(), {
 });
 
 const emits = defineEmits<{
-  (e: 'wsData', msgType: string, msg: any): void;
+  (e: 'wsData', msgType: string, msg: any, terminal: Terminal): void;
   (e: 'event', event: string, data: string): void;
   (e: 'background-color', backgroundColor: string): void;
 }>();
@@ -52,7 +52,7 @@ const {
   createZsentry,
   createTerminal,
   preprocessInput,
-  handleConextMenu,
+  handleContextMenu,
   setTerminalTheme,
   handleCustomKeyEvent
 } = useTerminal();
@@ -73,7 +73,7 @@ const lastSendTime = ref<Date>(new Date());
 let ws: WebSocket;
 let zsentry: ZmodemBrowser.Sentry;
 let fitAddonInstance = ref<FitAddon | null>(null);
-let terminialInsrance = ref<Terminal | null>(null);
+let terminalInstance = ref<Terminal | null>(null);
 // let zmodeSession: ZmodemSession;
 // const zmodeDialogVisible = ref(false);
 
@@ -84,18 +84,10 @@ const handleReceiveSession = (zsession: ZmodemSession) => {
   console.log(zsession);
 };
 
-/**
- * @description 将数据写入 Terminal
- * @param data
- * @param terminal
- */
-const writeBufferToTerminal = (data: any, terminal: Terminal) => {
-  if (!props.enableZmodem && zmodemStatus.value)
-    return debug('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
-
-  terminal.write(new Uint8Array(data));
+const sendWsMessage = (type: string, data: any) => {
+  if (wsIsActivated(ws))
+    return ws.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
 };
-
 const sendDataFromWindow = (data: any): void => {
   if (!wsIsActivated(ws)) return debug('WebSocket Disconnected');
 
@@ -104,12 +96,13 @@ const sendDataFromWindow = (data: any): void => {
     debug('Send Data From Window');
   }
 };
+const writeBufferToTerminal = (data: any, terminal: Terminal) => {
+  if (!props.enableZmodem && zmodemStatus.value)
+    return debug('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
 
-/**
- * @description 分发 WebSocket 消息
- * @param data
- * @param terminal
- */
+  terminal.write(new Uint8Array(data));
+};
+
 const dispatch = (data: any, terminal: Terminal) => {
   if (data === undefined) return;
 
@@ -182,20 +175,15 @@ const dispatch = (data: any, terminal: Terminal) => {
       debug(`Default: ${data}`);
   }
 
-  emits('wsData', msg.type, msg);
+  emits('wsData', msg.type, msg, terminal);
 };
-
-/**
- * @description 创建 Terminal
- * @return {Terminal} term
- */
 const getTerminal = (): Terminal => {
   const config: ILunaConfig = getLunaConfig();
   const el = document.getElementById('terminal') as HTMLElement;
 
   const { fitAddon, term } = createTerminal(el, config);
 
-  terminialInsrance.value = term;
+  terminalInstance.value = term;
   fitAddonInstance.value = fitAddon;
 
   term.attachCustomKeyEventHandler((event: KeyboardEvent) =>
@@ -204,7 +192,7 @@ const getTerminal = (): Terminal => {
   el.addEventListener(
     'contextmenu',
     ($event: MouseEvent) => {
-      const text = handleConextMenu($event);
+      const text = handleContextMenu($event);
 
       if (wsIsActivated(ws)) {
         ws.send(formatMessage(terminalId.value, 'TERMINAL_DATA', text));
@@ -215,10 +203,6 @@ const getTerminal = (): Terminal => {
 
   return term;
 };
-
-/**
- * @description 发起连接
- */
 const connect = async () => {
   debug(props.connectURL);
 
@@ -311,7 +295,7 @@ onMounted(() => {
   window.addEventListener(
     'message',
     (e: MessageEvent) =>
-      handleEventFromLuna(e, emits, lunaId, origin, terminialInsrance, sendDataFromWindow),
+      handleEventFromLuna(e, emits, lunaId, origin, terminalInstance, sendDataFromWindow),
     false
   );
 
@@ -319,12 +303,27 @@ onMounted(() => {
   connect();
 
   // 设置主题
-  setTerminalTheme(props.themeName, emits);
+  setTerminalTheme(props.themeName, terminalInstance.value as Terminal, emits);
 
   // 修改主题
   mittBus.on('set-theme', ({ themeName }) => {
-    setTerminalTheme(themeName as string);
+    setTerminalTheme(themeName as string, terminalInstance.value as Terminal);
   });
+
+  mittBus.on('sync-theme', ({ type, data }) => {
+    sendWsMessage(type, data);
+  });
+});
+
+onUnmounted(() => {
+  mittBus.off('set-theme');
+  mittBus.off('set-theme');
+});
+
+defineExpose<{
+  terminalInstance: Terminal;
+}>({
+  terminalInstance: terminalInstance.value as Terminal
 });
 </script>
 

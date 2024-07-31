@@ -23,11 +23,12 @@ export const useTerminal = () => {
 
   const setTerminalTheme = (
     themeName: string,
+    terminal: Terminal,
     emits?: (event: 'background-color', backgroundColor: string) => void
   ) => {
     const theme = xtermTheme[themeName] || defaultTheme;
 
-    term.options.theme = theme;
+    terminal.options.theme = theme;
 
     debug(`Theme: ${themeName}`);
 
@@ -65,6 +66,7 @@ export const useTerminal = () => {
     const ua: string = navigator.userAgent.toLowerCase();
     config['lineHeight'] = ua.indexOf('windows') !== -1 ? 1.2 : 1;
 
+    console.log('getLunaConfig', config);
     return config;
   };
 
@@ -101,7 +103,7 @@ export const useTerminal = () => {
   /**
    * @description 处理右键菜单事件
    */
-  const handleConextMenu = async (e: MouseEvent) => {
+  const handleContextMenu = async (e: MouseEvent) => {
     if (e.ctrlKey || config.quickPaste !== '1') return;
 
     let text: string = '';
@@ -241,7 +243,7 @@ export const useTerminal = () => {
     createZsentry,
     createTerminal,
     preprocessInput,
-    handleConextMenu,
+    handleContextMenu,
     setTerminalTheme,
     handleCustomKeyEvent
   };
