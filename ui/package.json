@@ -27,6 +27,7 @@
   "devDependencies": {
     "@types/node": "^20.14.11",
     "@types/xterm": "^3.0.0",
+    "@vicons/ionicons5": "^0.12.0",
     "@vitejs/plugin-vue": "^5.0.5",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.39",

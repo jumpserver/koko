@@ -3,9 +3,13 @@
     :enable-zmodem="true"
     :connectURL="wsURL"
     :share-code="shareCode"
+    :theme-name="themeName"
     @event="onEvent"
     @ws-data="onWsData"
   />
+
+  <Settings :settings="settings" />
+  <ThemeConfig />
 </template>
 
 <script setup lang="ts">
@@ -15,9 +19,15 @@ import { useLogger } from '@/hooks/useLogger';
 import { useMessage } from 'naive-ui';
 import { copyTextToClipboard } from '@/utils';
 import { BASE_URL, BASE_WS_URL } from '@/config';
-import { ref, reactive, computed } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
 
+import mittBus from '@/utils/mittBus.ts';
+import Settings from '@/components/Settings/index.vue';
 import Terminal from '@/components/Terminal/Terminal.vue';
+import ThemeConfig from '@/components/ThemeConfig/index.vue';
+
+import { ISettingProp } from '@/views/interface';
 
 const { t } = useI18n();
 const { debug } = useLogger('Connection');
@@ -25,28 +35,27 @@ const { debug } = useLogger('Connection');
 const route = useRoute();
 const message = useMessage();
 
-const shareId = ref(null);
-const shareCode = ref<any>();
 const shareInfo = ref(null);
-
-const loading = ref(false);
-const userLoading = ref(false);
-const enableShare = ref(false);
 const dialogVisible = ref(false);
 const shareDialogVisible = ref(false);
 
 const sessionId = ref('');
-const themeName = ref('Default');
 const themeBackGround = ref('#1E1E1E');
-
-const onlineUsersMap = reactive({});
 const shareLinkRequest = reactive({
   expiredTime: 10,
   actionPerm: 'writable',
   users: []
 });
 
-const userOptions = reactive([]);
+const shareId = ref(null);
+const shareCode = ref<any>();
+const loading = ref(false);
+const userLoading = ref(false);
+const enableShare = ref(false);
+const themeName = ref('Default');
+const onlineUsersMap = reactive<{ [key: string]: any }>({});
+
+const userOptions = ref(null);
 const expiredOptions = reactive([
   { label: getMinuteLabel(1), value: 1 },
   { label: getMinuteLabel(5), value: 5 },
@@ -59,19 +68,7 @@ const actionsPermOptions = reactive([
   { label: t('ReadOnly'), value: 'readonly' }
 ]);
 
-function getMinuteLabel(item: number) {
-  // console.log(item);
-  return '';
-}
-
 const wsURL = computed(() => {
-  return getConnectURL();
-});
-const shareURL = computed(() => {
-  return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
-});
-
-const getConnectURL = () => {
   const routeName = route.name;
   const urlParams = new URLSearchParams(window.location.search.slice(1));
 
@@ -96,9 +93,49 @@ const getConnectURL = () => {
   }
 
   return connectURL;
-};
+});
+const shareURL = computed(() => {
+  return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
+});
+const settings = computed((): ISettingProp[] => {
+  return [
+    {
+      title: t('ThemeConfig'),
+      icon: ApertureOutline,
+      disabled: () => false,
+      click: () => {
+        mittBus.emit('show-theme-config');
+      }
+    },
+    {
+      title: t('Share'),
+      icon: ShareSocialOutline,
+      disabled: () => !enableShare.value,
+      click: () => {}
+    },
+    {
+      title: t('User'),
+      icon: PersonOutline,
+      disabled: () => Object.keys(onlineUsersMap).length < 1,
+      content: Object.values(onlineUsersMap)
+        .map((item: any) => {
+          item.name = item.user;
+          item.faIcon = item.writable ? 'fa-solid fa-keyboard' : 'fa-solid fa-eye';
+          item.iconTip = item.writable ? t('Writable') : t('ReadOnly');
+          return item;
+        })
+        .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
+      click: () => {}
+    }
+  ];
+});
 
-const copyShareURL = () => {
+function getMinuteLabel(item: number) {
+  // console.log(item);
+  return '';
+}
+
+const copyShareURL = (msgType, msg) => {
   if (!enableShare.value) {
     return;
   }
@@ -116,10 +153,84 @@ const copyShareURL = () => {
   debug(`share URL:${url}`);
   message.success(t('CopyShareURLSuccess'));
 };
+const onWsData = (msgType: string, msg: any) => {
+  const data = JSON.parse(msg.data);
 
-const onWsData = () => {};
+  console.log('msgType', msgType);
+  console.log('data', data);
 
-const onEvent = () => {};
+  switch (msgType) {
+    case 'TERMINAL_SESSION': {
+      break;
+    }
+
+    case 'TERMINAL_SHARE': {
+      shareId.value = data.share_id;
+      shareCode.value = data.code;
+
+      loading.value = false;
+      break;
+    }
+    case 'TERMINAL_SHARE_JOIN': {
+      const key: string = data.terminal_id;
+
+      onlineUsersMap[key] = data;
+
+      debug('onlineUsersMap', onlineUsersMap);
+
+      if (data.primary) {
+        debug('Primary User 不提醒');
+        break;
+      }
+
+      message.info(`${data.user} ${t('JoinShare')}`);
+      break;
+    }
+    case 'TERMINAL_SHARE_LEAVE': {
+      const key = data.terminal_id;
+
+      if (onlineUsersMap.hasOwnProperty(key)) {
+        delete onlineUsersMap[key]; // 确保删除属性时响应式更新
+      }
+
+      message.info(`${data.user} ${t('LeaveShare')}`);
+      break;
+    }
+    case 'TERMINAL_GET_SHARE_USER': {
+      userLoading.value = false;
+      userOptions.value = data;
+      break;
+    }
+    case 'TERMINAL_SESSION_PAUSE': {
+      message.info(`${data.user} ${t('PauseSession')}`);
+      break;
+    }
+    case 'TERMINAL_SESSION_RESUME': {
+      message.info(`${data.user} ${t('ResumeSession')}`);
+      break;
+    }
+    default:
+      break;
+  }
+
+  debug('On WebSocket Data:', msg);
+};
+const onEvent = (event: string, data: any) => {
+  switch (event) {
+    case 'reconnect':
+      debug('Reconnect');
+      // Object.keys(onlineUsersMap.value).filter(key => {
+      //
+      // });
+      break;
+    case 'open':
+      debug('Open');
+      mittBus.emit('open-stting');
+      break;
+  }
+};
+
+onMounted(() => {});
 </script>
 
 <style scoped lang="scss"></style>

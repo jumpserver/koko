@@ -1,8 +1,8 @@
 <template>
-  <n-layout class="layout-container">
-    <n-layout-content class="content-container">
+  <n-layout style="height: 100vh">
+    <n-scrollbar trigger="hover" style="max-height: 880px">
       <div id="terminal" class="terminal-container"></div>
-    </n-layout-content>
+    </n-scrollbar>
   </n-layout>
 </template>
 
@@ -16,8 +16,8 @@ import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useWebSocket } from '@/hooks/useWebSocket.ts';
 import { onMounted, ref } from 'vue';
 
-import type { ITerminalProps } from '../interface';
 import type { ILunaConfig } from '@/hooks/interface';
+import type { ITerminalProps } from '@/hooks/interface';
 
 import {
   handleEventFromLuna,
@@ -179,6 +179,8 @@ const dispatch = (data: any, terminal: Terminal) => {
     default:
       debug(`Default: ${data}`);
   }
+
+  emits('wsData', msg.type, msg);
 };
 
 /**
@@ -320,37 +322,19 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.layout-container {
-  height: 100vh; // 确保 n-layout 高度全屏
-  display: flex;
-  flex-direction: column;
-}
-
-.content-container {
-  flex-grow: 1; // 确保内容容器占满剩余空间
-  overflow: hidden;
-  display: flex;
-}
-
 .terminal-container {
-  flex-grow: 1; // 确保 terminal-container 占满父容器
-  width: 100%;
-  overflow: hidden; // 确保 terminal-container 不显示滚动条
-
-  :deep(.xterm) {
-    height: 100%;
-    width: 100%;
-  }
+  height: calc(100% - 10px);
+  overflow: hidden;
 
   :deep(.xterm-viewport) {
-    overflow: auto; // 确保 xterm-viewport 显示滚动条
+    overflow: hidden;
   }
 
   :deep(.xterm-screen) {
+    height: 878px !important;
+
     .xterm-rows {
-      width: 100%;
-      height: 100%;
-      padding-left: 10px;
+      //padding: 10px 0 0 10px;
     }
   }
 }

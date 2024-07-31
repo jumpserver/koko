@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :locale="zhCN" :date-locale="dateZhCN">
+  <n-config-provider :theme="darkTheme" :locale="zhCN" :date-locale="dateZhCN">
     <n-message-provider>
       <router-view v-if="i18nLoaded" />
     </n-message-provider>
@@ -13,6 +13,8 @@ import { BASE_URL } from '@/config';
 import { onMounted } from 'vue';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { storeToRefs } from 'pinia';
+// todo)) 与新 Luna 进行联动
+import { darkTheme } from 'naive-ui';
 import { alovaInstance } from '@/api';
 import { useGlobalStore } from '@/store/modules/global';
 import { zhCN, dateZhCN } from 'naive-ui';

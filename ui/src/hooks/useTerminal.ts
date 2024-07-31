@@ -120,13 +120,55 @@ export const useTerminal = () => {
   };
 
   /**
+   * @description 在不支持 clipboard 时的降级方案
+   * @param text
+   */
+  const fallbackCopyTextToClipboard = (text: string): void => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+
+    // Avoid scrolling to bottom
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      const successful = document.execCommand('copy');
+      const msg = successful ? 'successful' : 'unsuccessful';
+      debug('Fallback: Copying text command was ' + msg);
+    } catch (err) {
+      console.error('Fallback: Oops, unable to copy', err);
+    }
+
+    document.body.removeChild(textArea);
+  };
+
+  /**
    * @description 获取当前终端中的选定文本  handleSelectionChange
    */
-  const getSelection = (): void => {
+  const getSelection = async () => {
     debug('Select Change');
 
     termSelectionText = term.getSelection().trim();
-    navigator.clipboard.writeText(termSelectionText).then();
+
+    if (!navigator.clipboard) return fallbackCopyTextToClipboard(termSelectionText);
+
+    try {
+      await navigator.clipboard.writeText(termSelectionText);
+    } catch (e) {
+      fallbackCopyTextToClipboard(termSelectionText);
+    }
   };
 
   /**
