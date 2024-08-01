@@ -4,13 +4,10 @@ ARG TARGETARCH
 COPY . .
 
 WORKDIR /opt/koko/ui
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
-    yarn build
+RUN yarn build
 
 WORKDIR /opt/koko
-RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked,id=koko \
-    set +x \
-    && make build -s \
+RUN make build -s \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko-linux-${TARGETARCH} /opt/koko/koko \
     && mv /opt/koko/build/helm-linux-${TARGETARCH} /opt/koko/bin/helm \
@@ -31,9 +28,7 @@ ARG DEPENDENCIES="                    \
         ca-certificates"
 
 ARG APT_MIRROR=http://mirrors.ustc.edu.cn
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko \
-    set -ex \
+RUN set -ex \
     && rm -f /etc/apt/apt.conf.d/docker-clean \
     && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache \
     && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
