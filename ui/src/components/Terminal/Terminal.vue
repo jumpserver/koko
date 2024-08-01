@@ -47,7 +47,6 @@ const emits = defineEmits<{
 }>();
 
 const {
-  getLunaConfig,
   createZsentry,
   createTerminal,
   preprocessInput,
@@ -73,8 +72,46 @@ let ws: WebSocket;
 let zsentry: ZmodemBrowser.Sentry;
 let fitAddonInstance = ref<FitAddon | null>(null);
 let terminalInstance = ref<Terminal | null>(null);
+
+let lunaConfig: ILunaConfig = {};
+const el: HTMLElement = document.getElementById('terminal')!;
 // let zmodeSession: ZmodemSession;
 // const zmodeDialogVisible = ref(false);
+
+/**
+ * @description 获取 Luna 配置
+ */
+const getLunaConfig = (): ILunaConfig => {
+  let fontSize: number = 14;
+  let quickPaste: string = '0';
+  let backspaceAsCtrlH: string = '0';
+  let localSettings: string | null = localStorage.getItem('LunaSetting');
+
+  if (localSettings !== null) {
+    let settings = JSON.parse(localSettings);
+    let commandLine = settings['command_line'];
+    if (commandLine) {
+      fontSize = commandLine['character_terminal_font_size'];
+      quickPaste = commandLine['is_right_click_quickly_paste'] ? '1' : '0';
+      backspaceAsCtrlH = commandLine['is_backspace_as_ctrl_h'] ? '1' : '0';
+    }
+  }
+
+  if (!fontSize || fontSize < 5 || fontSize > 50) {
+    fontSize = 13;
+  }
+
+  lunaConfig['fontSize'] = fontSize;
+  lunaConfig['quickPaste'] = quickPaste;
+  lunaConfig['backspaceAsCtrlH'] = backspaceAsCtrlH;
+  lunaConfig['ctrlCAsCtrlZ'] = '0';
+
+  // 根据用户的操作系统类型设置行高
+  const ua: string = navigator.userAgent.toLowerCase();
+  lunaConfig['lineHeight'] = ua.indexOf('windows') !== -1 ? 1.2 : 1;
+
+  return lunaConfig;
+};
 
 const handleSendSession = (zsession: ZmodemSession) => {
   console.log(zsession);
@@ -176,36 +213,11 @@ const dispatch = (data: any, terminal: Terminal) => {
 
   emits('wsData', msg.type, msg, terminal, setting.value);
 };
-const getTerminal = (): Terminal => {
-  const config: ILunaConfig = getLunaConfig();
-  const el = document.getElementById('terminal') as HTMLElement;
 
-  const { fitAddon, term } = createTerminal(el, config);
-
-  terminalInstance.value = term;
-  fitAddonInstance.value = fitAddon;
-
-  term.attachCustomKeyEventHandler((event: KeyboardEvent) =>
-    handleCustomKeyEvent(event, lunaId.value, origin.value)
-  );
-  el.addEventListener(
-    'contextmenu',
-    ($event: MouseEvent) => {
-      const text = handleContextMenu($event);
-
-      if (wsIsActivated(ws)) {
-        ws.send(formatMessage(terminalId.value, 'TERMINAL_DATA', text));
-      }
-    },
-    false
-  );
-
-  return term;
-};
 const connect = async () => {
   debug(props.connectURL);
 
-  const terminal: Terminal = getTerminal();
+  const terminal: Terminal = createTerminal(el, lunaConfig);
 
   debug(ZmodemBrowser);
 
@@ -297,6 +309,9 @@ onMounted(() => {
       handleEventFromLuna(e, emits, lunaId, origin, terminalInstance, sendDataFromWindow),
     false
   );
+
+  // 获取 Luan 配置
+  getLunaConfig();
 
   // 发起连接
   connect();

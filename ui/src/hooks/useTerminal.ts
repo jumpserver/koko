@@ -1,21 +1,19 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { sendEventToLuna } from '@/components/Terminal/helper';
+import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Terminal/helper';
 import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel, defaultTheme } from '@/config';
 
 import type { ILunaConfig } from './interface';
 
 import xtermTheme from 'xterm-theme';
 import ZmodemBrowser, { SentryConfig } from 'nora-zmodemjs/src/zmodem_browser';
+import { ref } from 'vue';
 
 const { debug } = useLogger('Terminal-Hook');
 
 export const useTerminal = () => {
-  let term: Terminal;
-  let fitAddon: FitAddon;
-  let termSelectionText: string;
-  let config: ILunaConfig = {};
+  let termSelectionText = ref<string>('');
 
   const createZsentry = (config: SentryConfig) => {
     return new ZmodemBrowser.Sentry(config);
@@ -36,64 +34,21 @@ export const useTerminal = () => {
   };
 
   /**
-   * @description 获取 Luna 配置
-   */
-  const getLunaConfig = (): ILunaConfig => {
-    let fontSize: number = 14;
-    let quickPaste: string = '0';
-    let backspaceAsCtrlH: string = '0';
-    let localSettings: string | null = localStorage.getItem('LunaSetting');
-
-    if (localSettings !== null) {
-      let settings = JSON.parse(localSettings);
-      let commandLine = settings['command_line'];
-      if (commandLine) {
-        fontSize = commandLine['character_terminal_font_size'];
-        quickPaste = commandLine['is_right_click_quickly_paste'] ? '1' : '0';
-        backspaceAsCtrlH = commandLine['is_backspace_as_ctrl_h'] ? '1' : '0';
-      }
-    }
-    if (!fontSize || fontSize < 5 || fontSize > 50) {
-      fontSize = 13;
-    }
-
-    config['fontSize'] = fontSize;
-    config['quickPaste'] = quickPaste;
-    config['backspaceAsCtrlH'] = backspaceAsCtrlH;
-    config['ctrlCAsCtrlZ'] = '0';
-
-    // 根据用户的操作系统类型设置行高
-    const ua: string = navigator.userAgent.toLowerCase();
-    config['lineHeight'] = ua.indexOf('windows') !== -1 ? 1.2 : 1;
-
-    console.log('getLunaConfig', config);
-    return config;
-  };
-
-  /**
-   * @description 自适应 Terminal 大小
-   */
-  const handleResize = (): void => {
-    fitAddon.fit();
-    debug(`Windows resize event, ${term.cols}, ${term.rows}, ${term}`);
-  };
-
-  /**
    * @description 用于附加自定义的键盘事件处理程序,允许开发者拦截和处理终端中的键盘事件
    */
-  const handleCustomKeyEvent = (e: KeyboardEvent, lunaId: string, origin: string) => {
+  const handleCustomKeyEvent = (e: KeyboardEvent, terminal: Terminal) => {
     if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       switch (e.key) {
         case 'ArrowRight':
-          sendEventToLuna('KEYEVENT', 'alt+right', lunaId, origin);
+          sendEventToLuna('KEYEVENT', 'alt+right');
           break;
         case 'ArrowLeft':
-          sendEventToLuna('KEYEVENT', 'alt+left', lunaId, origin);
+          sendEventToLuna('KEYEVENT', 'alt+left');
           break;
       }
     }
 
-    if (e.ctrlKey && e.key === 'c' && term.hasSelection()) {
+    if (e.ctrlKey && e.key === 'c' && terminal.hasSelection()) {
       return false;
     }
 
@@ -102,8 +57,10 @@ export const useTerminal = () => {
 
   /**
    * @description 处理右键菜单事件
+   * @param {MouseEvent} e 鼠标事件
+   * @param {ILunaConfig} config Luna 配置
    */
-  const handleContextMenu = async (e: MouseEvent) => {
+  const handleContextMenu = async (e: MouseEvent, config: ILunaConfig) => {
     if (e.ctrlKey || config.quickPaste !== '1') return;
 
     let text: string = '';
@@ -111,12 +68,17 @@ export const useTerminal = () => {
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      if (termSelectionText !== '') {
-        text = termSelectionText;
+      if (termSelectionText.value !== '') {
+        text = termSelectionText.value;
       }
     }
 
     e.preventDefault();
+
+    //todo))
+    // if (wsIsActivated(ws)) {
+    //   ws.send(formatMessage(terminalId.value, 'TERMINAL_DATA', text));
+    // }
 
     return text;
   };
@@ -159,25 +121,18 @@ export const useTerminal = () => {
   /**
    * @description 获取当前终端中的选定文本  handleSelectionChange
    */
-  const getSelection = async () => {
+  const handleSelection = async (terminal: Terminal) => {
     debug('Select Change');
 
-    termSelectionText = term.getSelection().trim();
+    termSelectionText.value = terminal.getSelection().trim();
 
-    if (!navigator.clipboard) return fallbackCopyTextToClipboard(termSelectionText);
+    if (!navigator.clipboard) return fallbackCopyTextToClipboard(termSelectionText.value);
 
     try {
-      await navigator.clipboard.writeText(termSelectionText);
+      await navigator.clipboard.writeText(termSelectionText.value);
     } catch (e) {
-      fallbackCopyTextToClipboard(termSelectionText);
+      fallbackCopyTextToClipboard(termSelectionText.value);
     }
-  };
-
-  /**
-   * @description 聚焦 Terminal
-   */
-  const terminalFocus = (): void => {
-    term.focus();
   };
 
   /**
@@ -206,12 +161,46 @@ export const useTerminal = () => {
   };
 
   /**
+   * @description 初始化 Terminal 相关事件
+   * @param {Terminal} terminal Terminal 实例
+   * @param {FitAddon} fitAddon 实例
+   * @param {HTMLElement} el Terminal 所挂载的节点
+   * @param {ILunaConfig} config Luna 的配置
+   */
+  const initEvent = (
+    terminal: Terminal,
+    fitAddon: FitAddon,
+    el: HTMLElement,
+    config: ILunaConfig
+  ): void => {
+    // 初始化 window.resize 事件
+    window.addEventListener(
+      'resize',
+      () => {
+        fitAddon.fit();
+        debug(`Windows resize event, ${terminal.cols}, ${terminal.rows}, ${terminal}`);
+      },
+      false
+    );
+
+    // 初始化节点的鼠标事件
+    el.addEventListener('mouseenter', () => terminal.focus(), false);
+    el.addEventListener('contextmenu', ($event: MouseEvent) => handleContextMenu($event, config));
+
+    // 初始化 Terminal 实例事件
+    terminal.onSelectionChange(() => handleSelection(terminal));
+    terminal.attachCustomKeyEventHandler((event: KeyboardEvent) =>
+      handleCustomKeyEvent(event, terminal)
+    );
+  };
+
+  /**
    * @description 创建 Terminal
    * @param {HTMLElement} el
    * @param {ILunaConfig} config
    */
   const createTerminal = (el: HTMLElement, config: ILunaConfig) => {
-    term = new Terminal({
+    const terminal: Terminal = new Terminal({
       fontSize: config.fontSize,
       lineHeight: config.lineHeight,
       fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
@@ -221,25 +210,19 @@ export const useTerminal = () => {
       },
       scrollback: 5000
     });
-    fitAddon = new FitAddon();
+    const fitAddon: FitAddon = new FitAddon();
 
-    term.loadAddon(fitAddon);
-    term.open(el);
+    terminal.loadAddon(fitAddon);
+    terminal.open(el);
     fitAddon.fit();
-    term.focus();
+    terminal.focus();
 
-    window.addEventListener('resize', handleResize, false);
-    term.onSelectionChange(() => getSelection());
-    el.addEventListener('mouseenter', () => terminalFocus(), false);
+    initEvent(terminal, fitAddon, el, config);
 
-    return {
-      term,
-      fitAddon
-    };
+    return terminal;
   };
 
   return {
-    getLunaConfig,
     createZsentry,
     createTerminal,
     preprocessInput,
