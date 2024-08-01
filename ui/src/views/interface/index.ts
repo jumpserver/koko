@@ -1,4 +1,7 @@
 import { Component } from 'vue';
+import { Composer } from 'vue-i18n';
+
+export type TranslateFunction = Composer['t'];
 
 export interface ISettingProp {
   title: string;
@@ -6,6 +9,14 @@ export interface ISettingProp {
   disabled: () => any;
   click: () => any;
   content?: any;
+}
+
+export interface shareUser {
+  id: string;
+
+  name: string;
+
+  username: string;
 }
 
 export interface IXtermTheme {

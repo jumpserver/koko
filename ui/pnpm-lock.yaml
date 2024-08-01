@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@vueuse/core':
+        specifier: ^10.11.0
+        version: 10.11.0(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4))
       '@xterm/addon-fit':
         specifier: ^0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
@@ -444,6 +447,9 @@ packages:
   '@types/node@20.14.11':
     resolution: {integrity: sha512-kprQpL8MMeszbz6ojB5/tU8PLN4kesnN8Gjzw349rDlNgsSzg90lAVj3llK99Dh7JON+t9AuscPPFW6mPbTnSA==}
 
+  '@types/web-bluetooth@0.0.20':
+    resolution: {integrity: sha512-g9gZnnXVq7gM7v3tJCWV/qw7w+KeOlSHAhgF9RytFyifW6AF61hdT2ucrYhPq9hLs5JIryeupHV3qGk95dH9ow==}
+
   '@types/xterm@3.0.0':
     resolution: {integrity: sha512-+VaAJQmE7E1d1ebkIh/Zdc2mbXBVwxZGGSgqwzDPpk/HKo0mNT+iX5ZrnswztHSV+CDV+bURl7Yg7PWF7IZfXQ==}
     deprecated: This is a stub types definition for xterm.js (https://github.com/sourcelair/xterm.js/). xterm.js provides its own type definitions, so you don't need @types/xterm installed!
@@ -511,6 +517,15 @@ packages:
 
   '@vue/shared@3.4.33':
     resolution: {integrity: sha512-aoRY0jQk3A/cuvdkodTrM4NMfxco8n55eG4H7ML/CRy7OryHfiqvug4xrCBBMbbN+dvXAetDDwZW9DXWWjBntA==}
+
+  '@vueuse/core@10.11.0':
+    resolution: {integrity: sha512-x3sD4Mkm7PJ+pcq3HX8PLPBadXCAlSDR/waK87dz0gQE+qJnaaFhc/dZVfJz+IUYzTMVGum2QlR7ImiJQN4s6g==}
+
+  '@vueuse/metadata@10.11.0':
+    resolution: {integrity: sha512-kQX7l6l8dVWNqlqyN3ePW3KmjCQO3ZMgXuBMddIu83CmucrsBfXlH+JoviYyRBws/yLTQO8g3Pbw+bdIoVm4oQ==}
+
+  '@vueuse/shared@10.11.0':
+    resolution: {integrity: sha512-fyNoIXEq3PfX1L3NkNhtVQUSRtqYwJtJg+Bp9rIzculIZWHTkKSysujrOk2J+NrRulLTQH9+3gGSfYLWSEWU1A==}
 
   '@xterm/addon-fit@0.10.0':
     resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
@@ -1489,6 +1504,8 @@ snapshots:
     dependencies:
       undici-types: 5.26.5
 
+  '@types/web-bluetooth@0.0.20': {}
+
   '@types/xterm@3.0.0':
     dependencies:
       xterm: 5.3.0
@@ -1585,6 +1602,25 @@ snapshots:
       vue: 3.4.33(typescript@5.5.4)
 
   '@vue/shared@3.4.33': {}
+
+  '@vueuse/core@10.11.0(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4))':
+    dependencies:
+      '@types/web-bluetooth': 0.0.20
+      '@vueuse/metadata': 10.11.0
+      '@vueuse/shared': 10.11.0(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4))
+      vue-demi: 0.14.8(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4))
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
+
+  '@vueuse/metadata@10.11.0': {}
+
+  '@vueuse/shared@10.11.0(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4))':
+    dependencies:
+      vue-demi: 0.14.8(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4))
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
 
   '@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0)':
     dependencies:

@@ -32,7 +32,6 @@ import ZmodemBrowser, {
   ZmodemSession
 } from 'nora-zmodemjs/src/zmodem_browser';
 import mittBus from '@/utils/mittBus.ts';
-import { IXtermTheme } from '@/views/interface';
 
 const { debug, info } = useLogger('TerminalComponent');
 
@@ -42,7 +41,7 @@ const props = withDefaults(defineProps<ITerminalProps>(), {
 });
 
 const emits = defineEmits<{
-  (e: 'wsData', msgType: string, msg: any, terminal: Terminal): void;
+  (e: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any): void;
   (e: 'event', event: string, data: string): void;
   (e: 'background-color', backgroundColor: string): void;
 }>();
@@ -175,7 +174,7 @@ const dispatch = (data: any, terminal: Terminal) => {
       debug(`Default: ${data}`);
   }
 
-  emits('wsData', msg.type, msg, terminal);
+  emits('wsData', msg.type, msg, terminal, setting.value);
 };
 const getTerminal = (): Terminal => {
   const config: ILunaConfig = getLunaConfig();
@@ -313,17 +312,29 @@ onMounted(() => {
   mittBus.on('sync-theme', ({ type, data }) => {
     sendWsMessage(type, data);
   });
+
+  mittBus.on('share-user', ({ type, query }) => {
+    sendWsMessage(type, { query });
+  });
+
+  mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
+    const origin = window.location.origin;
+
+    sendWsMessage(type, {
+      origin,
+      session: sessionId,
+      users: shareLinkRequest.users,
+      expired_time: shareLinkRequest.expiredTime,
+      action_permission: shareLinkRequest.actionPerm
+    });
+  });
 });
 
 onUnmounted(() => {
   mittBus.off('set-theme');
-  mittBus.off('set-theme');
-});
-
-defineExpose<{
-  terminalInstance: Terminal;
-}>({
-  terminalInstance: terminalInstance.value as Terminal
+  mittBus.off('sync-theme');
+  mittBus.off('share-user');
+  mittBus.off('create-share-url');
 });
 </script>
 

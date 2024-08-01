@@ -16,19 +16,18 @@
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useLogger } from '@/hooks/useLogger';
+import { BASE_WS_URL } from '@/config';
 import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useDialog, useMessage } from 'naive-ui';
-import { copyTextToClipboard } from '@/utils';
-import { BASE_URL, BASE_WS_URL } from '@/config';
-import { computed, h, nextTick, onMounted, reactive, ref } from 'vue';
+import { ISettingProp, shareUser } from '@/views/interface';
+import { computed, h, nextTick, reactive, Ref, ref } from 'vue';
 import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
 
 import mittBus from '@/utils/mittBus.ts';
+import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import Terminal from '@/components/Terminal/Terminal.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
-
-import { ISettingProp } from '@/views/interface';
 
 const { setTerminalTheme } = useTerminal();
 
@@ -38,39 +37,18 @@ const { debug } = useLogger('Connection');
 const route = useRoute();
 const message = useMessage();
 
-const shareInfo = ref(null);
-const dialogVisible = ref(false);
-const shareDialogVisible = ref(false);
-
 const terminalRef = ref(null);
 const sessionId = ref('');
-const themeBackGround = ref('#1E1E1E');
-const shareLinkRequest = reactive({
-  expiredTime: 10,
-  actionPerm: 'writable',
-  users: []
-});
 
-const shareId = ref(null);
 const shareCode = ref<any>();
 const loading = ref(false);
 const userLoading = ref(false);
 const enableShare = ref(false);
 const themeName = ref('Default');
+const shareId = ref<string>('');
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
-const userOptions = ref(null);
-const expiredOptions = reactive([
-  { label: getMinuteLabel(1), value: 1 },
-  { label: getMinuteLabel(5), value: 5 },
-  { label: getMinuteLabel(10), value: 10 },
-  { label: getMinuteLabel(20), value: 20 },
-  { label: getMinuteLabel(60), value: 60 }
-]);
-const actionsPermOptions = reactive([
-  { label: t('Writable'), value: 'writable' },
-  { label: t('ReadOnly'), value: 'readonly' }
-]);
+const userOptions: Ref<shareUser[]> = ref([]);
 
 const dialog = useDialog();
 
@@ -100,8 +78,8 @@ const wsURL = computed(() => {
 
   return connectURL;
 });
-const shareURL = computed(() => {
-  return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
+const shareTitle = computed((): string => {
+  return shareId.value ? t('Share') : t('CreateLink');
 });
 const settings = computed((): ISettingProp[] => {
   return [
@@ -131,7 +109,24 @@ const settings = computed((): ISettingProp[] => {
       title: t('Share'),
       icon: ShareSocialOutline,
       disabled: () => !enableShare.value,
-      click: () => {}
+      click: () => {
+        dialog.success({
+          class: 'share',
+          title: shareTitle.value,
+          showIcon: false,
+          style: 'width: 35%',
+          content: () =>
+            h(Share, {
+              shareId: shareId.value,
+              shareCode: shareCode.value,
+              sessionId: sessionId.value,
+              enableShare: enableShare.value,
+              userOptions: userOptions.value
+            })
+        });
+        // 关闭抽屉
+        mittBus.emit('open-setting');
+      }
     },
     {
       title: t('User'),
@@ -150,30 +145,7 @@ const settings = computed((): ISettingProp[] => {
   ];
 });
 
-function getMinuteLabel(item: number) {
-  // console.log(item);
-  return '';
-}
-
-const copyShareURL = (msgType, msg) => {
-  if (!enableShare.value) {
-    return;
-  }
-  if (!shareId.value) {
-    return;
-  }
-
-  const url = shareURL.value;
-  const linkTitle = t('LinkAddr');
-  const codeTitle = t('VerifyCode');
-  const text = `${linkTitle}: ${shareURL}\n${codeTitle}: ${shareCode.value}`;
-
-  copyTextToClipboard(text);
-
-  debug(`share URL:${url}`);
-  message.success(t('CopyShareURLSuccess'));
-};
-const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
+const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) => {
   const data = JSON.parse(msg.data);
 
   debug('msgType:', msgType, 'onWsData:', data);
@@ -188,7 +160,7 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
       debug(`SessionDetail ctrlCAsCtrlZ: ${sessionInfo.ctrlCAsCtrlZ}`);
       debug(`SessionDetail backspaceAsCtrlH: ${sessionInfo.backspaceAsCtrlH}`);
 
-      const enableShare = sessionInfo.permission.actions.includes('share');
+      const share = sessionInfo.permission.actions.includes('share');
 
       if (sessionInfo.backspaceAsCtrlH) {
         const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
@@ -202,6 +174,10 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
         debug(`Set ctrlCAsCtrlZ: ${value}`);
 
         terminal.options.ctrlCAsCtrlZ = value;
+      }
+
+      if (setting.SECURITY_SESSION_SHARE && share) {
+        enableShare.value = true;
       }
 
       sessionId.value = sessionDetail.id;
@@ -278,8 +254,4 @@ const onEvent = (event: string, data: any) => {
       break;
   }
 };
-
-onMounted(() => {});
 </script>
-
-<style scoped lang="scss"></style>
