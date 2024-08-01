@@ -36,7 +36,7 @@ export const sendEventToLuna = (
  * @param {(event: 'event', eventName: string, data: string) => void} emits - Vue 的 emit 函数。
  * @param {Ref<string | null>} lunaId - Luna 实例的 ID。
  * @param {Ref<string | null>} origin - 消息的来源。
- * @param {Ref<Terminal | null>} terminal - xterm.js 的终端实例。
+ * @param {Terminal} terminal - xterm.js 的终端实例。
  * @param {(data: any) => void} sendDataFromWindow - 从窗口发送数据的函数。
  */
 export const handleEventFromLuna = (
@@ -44,7 +44,7 @@ export const handleEventFromLuna = (
   emits: (event: 'event', eventName: string, data: string) => void,
   lunaId: Ref<string | null>,
   origin: Ref<string | null>,
-  terminal: Ref<Terminal | null>,
+  terminal: Terminal,
   sendDataFromWindow: (data: any) => void
 ) => {
   const msg: LunaEventMessage = e.data;
@@ -64,7 +64,7 @@ export const handleEventFromLuna = (
       sendDataFromWindow(msg.data);
       break;
     case 'FOCUS':
-      terminal.value?.focus();
+      terminal.focus();
       break;
     case 'OPEN':
       emits('event', 'open', '');

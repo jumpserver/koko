@@ -1,5 +1,5 @@
 <template>
-  <Terminal
+  <TerminalComponent
     ref="terminalRef"
     :enable-zmodem="true"
     :connectURL="wsURL"
@@ -15,6 +15,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+import { Terminal } from '@xterm/xterm';
 import { useLogger } from '@/hooks/useLogger';
 import { BASE_WS_URL } from '@/config';
 import { useTerminal } from '@/hooks/useTerminal.ts';
@@ -26,8 +27,8 @@ import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ioni
 import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
-import Terminal from '@/components/Terminal/Terminal.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
+import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
 const { setTerminalTheme } = useTerminal();
 

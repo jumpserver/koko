@@ -7,31 +7,23 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { useMessage } from 'naive-ui';
 import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useWebSocket } from '@/hooks/useWebSocket.ts';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, Ref, ref } from 'vue';
 
 import type { ILunaConfig } from '@/hooks/interface';
 import type { ITerminalProps } from '@/hooks/interface';
 
-import {
-  handleEventFromLuna,
-  sendEventToLuna,
-  wsIsActivated,
-  formatMessage,
-  updateIcon
-} from '@/components/Terminal/helper';
+import { handleEventFromLuna, wsIsActivated, formatMessage } from '@/components/Terminal/helper';
 import ZmodemBrowser, {
   SentryConfig,
   Detection,
   ZmodemSession
 } from 'nora-zmodemjs/src/zmodem_browser';
 import mittBus from '@/utils/mittBus.ts';
+import { useZsentry } from '@/hooks/useZsentry.ts';
 
 const { debug, info } = useLogger('TerminalComponent');
 
@@ -46,18 +38,10 @@ const emits = defineEmits<{
   (e: 'background-color', backgroundColor: string): void;
 }>();
 
-const {
-  createZsentry,
-  createTerminal,
-  preprocessInput,
-  handleContextMenu,
-  setTerminalTheme,
-  handleCustomKeyEvent
-} = useTerminal();
-const { t } = useI18n();
-const { createWebSocket } = useWebSocket();
-
-const message = useMessage();
+const { createTerminal, setTerminalTheme, handleTerminalOnResize, handleTerminalOnData } =
+  useTerminal();
+const { createZsentry } = useZsentry();
+const { createWebSocket, onWebsocketOpen, handleOnWebsocketMessage } = useWebSocket();
 
 const lunaId = ref<string>('');
 const origin = ref<string>('');
@@ -66,21 +50,17 @@ const currentUser = ref<string>('');
 
 const setting = ref<any>(null);
 const zmodemStatus = ref<boolean>(false);
-const lastSendTime = ref<Date>(new Date());
+const lastSendTime: Ref<Date> = ref(new Date());
 
 let ws: WebSocket;
 let zsentry: ZmodemBrowser.Sentry;
-let fitAddonInstance = ref<FitAddon | null>(null);
-let terminalInstance = ref<Terminal | null>(null);
+let term: Terminal;
 
 let lunaConfig: ILunaConfig = {};
-const el: HTMLElement = document.getElementById('terminal')!;
+
 // let zmodeSession: ZmodemSession;
 // const zmodeDialogVisible = ref(false);
 
-/**
- * @description 获取 Luna 配置
- */
 const getLunaConfig = (): ILunaConfig => {
   let fontSize: number = 14;
   let quickPaste: string = '0';
@@ -112,116 +92,8 @@ const getLunaConfig = (): ILunaConfig => {
 
   return lunaConfig;
 };
-
-const handleSendSession = (zsession: ZmodemSession) => {
-  console.log(zsession);
-};
-const handleReceiveSession = (zsession: ZmodemSession) => {
-  console.log(zsession);
-};
-
-const sendWsMessage = (type: string, data: any) => {
-  if (wsIsActivated(ws))
-    return ws.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
-};
-const sendDataFromWindow = (data: any): void => {
-  if (!wsIsActivated(ws)) return debug('WebSocket Disconnected');
-
-  if (props.enableZmodem && !zmodemStatus.value) {
-    ws.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
-    debug('Send Data From Window');
-  }
-};
-const writeBufferToTerminal = (data: any, terminal: Terminal) => {
-  if (!props.enableZmodem && zmodemStatus.value)
-    return debug('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
-
-  terminal.write(new Uint8Array(data));
-};
-
-const dispatch = (data: any, terminal: Terminal) => {
-  if (data === undefined) return;
-
-  let msg = JSON.parse(data);
-
-  debug('dispatchData', msg);
-
-  switch (msg.type) {
-    case 'CONNECT':
-      terminalId.value = msg.id;
-
-      try {
-        fitAddonInstance.value?.fit();
-      } catch (e) {
-        console.log(e);
-      }
-
-      const terminalData = {
-        cols: terminal.cols,
-        rows: terminal.rows,
-        code: props.shareCode
-      };
-
-      const info = JSON.parse(msg.data);
-
-      debug('dispatchInfo', info);
-
-      currentUser.value = info.user;
-      setting.value = info.setting;
-
-      updateIcon(setting.value);
-
-      ws.send(formatMessage(terminalId.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
-      break;
-    case 'CLOSE':
-      terminal.writeln('Receive Connection closed');
-      ws.close();
-      sendEventToLuna('CLOSE', '');
-      break;
-    case 'PING':
-      break;
-    case 'TERMINAL_ACTION':
-      break;
-    case 'TERMINAL_ERROR':
-    case 'ERROR':
-      message.error(msg.err);
-      terminal.writeln(msg.err);
-      break;
-    case 'MESSAGE_NOTIFY':
-      const errMsg = msg.err;
-      const eventData = JSON.parse(msg.data);
-
-      const eventName = eventData.event_name;
-
-      switch (eventName) {
-        case 'sync_user_preference':
-          if (errMsg === '' || errMsg === null) {
-            const successNotify = t('SyncUserPreferenceSuccess');
-            message.success(successNotify);
-          } else {
-            const errNotify = `${t('SyncUserPreferenceFailed')}: ${errMsg}`;
-            message.error(errNotify);
-          }
-          break;
-        default:
-          debug('unknown: ', eventName);
-      }
-      break;
-    default:
-      debug(`Default: ${data}`);
-  }
-
-  emits('wsData', msg.type, msg, terminal, setting.value);
-};
-
-const connect = async () => {
-  debug(props.connectURL);
-
-  const terminal: Terminal = createTerminal(el, lunaConfig);
-
-  debug(ZmodemBrowser);
-
-  const config: SentryConfig = {
+const getzsentryConfig = (terminal: Terminal): SentryConfig => {
+  return {
     // 将数据写入终端。
     to_terminal: (octets: string) => {
       if (zsentry && !zsentry.get_confirmed_session()) {
@@ -254,45 +126,15 @@ const connect = async () => {
       }
     }
   };
-  zsentry = createZsentry(config);
+};
 
-  terminal.onData(data => {
-    if (!wsIsActivated(ws)) return debug('WebSocket Closed');
-
-    if (!props.enableZmodem && zmodemStatus.value)
-      return debug('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
-
-    lastSendTime.value = new Date();
-    debug('Term on data event');
-
-    data = preprocessInput(data);
-    sendEventToLuna('KEYBOARDEVENT', '');
-
-    ws.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
-  });
-  terminal.onResize(({ cols, rows }) => {
-    if (!wsIsActivated(ws)) return;
-
-    debug('Send Term Resize');
-
-    ws.send(formatMessage(terminalId.value, 'TERMINAL_RESIZE', JSON.stringify({ cols, rows })));
-  });
-
-  ws = createWebSocket(props.connectURL, terminal, lastSendTime);
-  ws.onmessage = (e: MessageEvent) => {
-    lastSendTime.value = new Date();
-
-    if (typeof e.data === 'object') {
-      if (props.enableZmodem) {
-        zsentry.consume(e.data);
-      } else {
-        writeBufferToTerminal(e.data, terminal);
-      }
-    } else {
-      debug(typeof e.data);
-      dispatch(e.data, terminal);
-    }
-  };
+const handleCunstomWindowEvent = (terminal: Terminal) => {
+  window.addEventListener(
+    'message',
+    (e: MessageEvent) =>
+      handleEventFromLuna(e, emits, lunaId, origin, terminal, sendDataFromWindow),
+    false
+  );
 
   window.SendTerminalData = sendDataFromWindow;
 
@@ -300,16 +142,87 @@ const connect = async () => {
     emits('event', 'reconnect', '');
   };
 };
-
-onMounted(() => {
-  // 监听从 Luna 发送的事件
-  window.addEventListener(
-    'message',
-    (e: MessageEvent) =>
-      handleEventFromLuna(e, emits, lunaId, origin, terminalInstance, sendDataFromWindow),
-    false
+const handleTerminalEvent = (terminal: Terminal) => {
+  terminal.onData(data =>
+    handleTerminalOnData(
+      ws,
+      data,
+      terminalId.value,
+      lunaConfig,
+      props.enableZmodem,
+      zmodemStatus.value,
+      lastSendTime
+    )
   );
 
+  terminal.onResize(({ cols, rows }) => handleTerminalOnResize(ws, cols, rows, terminalId.value));
+};
+
+const handleSendSession = (zsession: ZmodemSession) => {
+  console.log(zsession);
+};
+const handleReceiveSession = (zsession: ZmodemSession) => {
+  console.log(zsession);
+};
+
+const sendWsMessage = (type: string, data: any) => {
+  if (wsIsActivated(ws))
+    return ws.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
+};
+const sendDataFromWindow = (data: any): void => {
+  if (!wsIsActivated(ws)) return debug('WebSocket Disconnected');
+
+  if (props.enableZmodem && !zmodemStatus.value) {
+    ws.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
+    debug('Send Data From Window');
+  }
+};
+
+const connect = async () => {
+  debug(props.connectURL);
+
+  const el: HTMLElement = document.getElementById('terminal')!;
+
+  // 创建 Terminl 实例
+  const { terminal, fitAddon } = createTerminal(el, lunaConfig);
+
+  // 获取 zsentry 配置
+  const zsentryConfig: SentryConfig = getzsentryConfig(terminal);
+
+  // 创建 zsentry 实例
+  zsentry = createZsentry(zsentryConfig);
+
+  // 处理需要 ws 的 Terminal 事件
+  handleTerminalEvent(terminal);
+
+  // 创建 WebSocket
+  ws = createWebSocket(props.connectURL, terminal, lastSendTime);
+
+  // 处理 message 事件
+  ws.onopen = () => onWebsocketOpen(terminalId.value);
+  ws.onmessage = (e: MessageEvent) => {
+    handleOnWebsocketMessage(
+      e,
+      terminal,
+      props.enableZmodem,
+      zmodemStatus.value,
+      lastSendTime,
+      zsentry,
+      terminalId,
+      fitAddon,
+      props.shareCode,
+      currentUser,
+      setting,
+      emits
+    );
+  };
+
+  handleCunstomWindowEvent(terminal);
+
+  term = terminal;
+};
+
+onMounted(() => {
   // 获取 Luan 配置
   getLunaConfig();
 
@@ -317,11 +230,11 @@ onMounted(() => {
   connect();
 
   // 设置主题
-  setTerminalTheme(props.themeName, terminalInstance.value as Terminal, emits);
+  setTerminalTheme(props.themeName, term, emits);
 
   // 修改主题
   mittBus.on('set-theme', ({ themeName }) => {
-    setTerminalTheme(themeName as string, terminalInstance.value as Terminal);
+    setTerminalTheme(themeName as string, term);
   });
 
   mittBus.on('sync-theme', ({ type, data }) => {

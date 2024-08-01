@@ -1,5 +1,6 @@
 import { createDiscreteApi } from 'naive-ui';
 import { TranslateFunction } from '@/views/interface';
+import { Terminal } from '@xterm/xterm';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -56,4 +57,16 @@ export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
   }
 
   return `${item} ${minuteLabel}`;
+};
+
+export const writeBufferToTerminal = (
+  enableZmodem: boolean,
+  zmodemStatus: boolean,
+  terminal: Terminal,
+  data: any
+) => {
+  if (!enableZmodem && zmodemStatus)
+    return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
+
+  terminal.write(new Uint8Array(data));
 };

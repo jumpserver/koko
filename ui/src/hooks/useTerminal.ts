@@ -1,32 +1,27 @@
+import { Ref, ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Terminal/helper';
 import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel, defaultTheme } from '@/config';
-
+import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Terminal/helper';
 import type { ILunaConfig } from './interface';
 
 import xtermTheme from 'xterm-theme';
-import ZmodemBrowser, { SentryConfig } from 'nora-zmodemjs/src/zmodem_browser';
-import { ref } from 'vue';
 
 const { debug } = useLogger('Terminal-Hook');
 
 export const useTerminal = () => {
+  let terminal: Terminal;
   let termSelectionText = ref<string>('');
-
-  const createZsentry = (config: SentryConfig) => {
-    return new ZmodemBrowser.Sentry(config);
-  };
 
   const setTerminalTheme = (
     themeName: string,
-    terminal: Terminal,
+    term: Terminal,
     emits?: (event: 'background-color', backgroundColor: string) => void
   ) => {
     const theme = xtermTheme[themeName] || defaultTheme;
 
-    terminal.options.theme = theme;
+    term.options.theme = theme;
 
     debug(`Theme: ${themeName}`);
 
@@ -139,7 +134,7 @@ export const useTerminal = () => {
    * @description 对用户设置的特定键映射配置
    * @param data
    */
-  const preprocessInput = (data: string) => {
+  const preprocessInput = (data: string, config: ILunaConfig) => {
     // 如果配置项 backspaceAsCtrlH 启用（值为 "1"），并且输入数据包含删除键的 ASCII 码 (AsciiDel，即 127)，
     // 它会将其替换为退格键的 ASCII 码 (AsciiBackspace，即 8)
     if (config.backspaceAsCtrlH === '1') {
@@ -158,6 +153,58 @@ export const useTerminal = () => {
       }
     }
     return data;
+  };
+
+  /**
+   * @description 处理 Terminal 的 onData 事件
+   * @param ws
+   * @param data
+   * @param terminalId
+   * @param config
+   * @param enableZmodem
+   * @param zmodemStatus
+   * @param lastSendTime
+   */
+  const handleTerminalOnData = (
+    ws: WebSocket,
+    data: any,
+    terminalId: string,
+    config: ILunaConfig,
+    enableZmodem: boolean,
+    zmodemStatus: boolean,
+    lastSendTime: Ref<Date>
+  ) => {
+    console.log('enter');
+    if (!wsIsActivated(ws)) return debug('WebSocket Closed');
+
+    if (!enableZmodem && zmodemStatus) {
+      return debug('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
+    }
+
+    lastSendTime.value = new Date();
+
+    debug('Term on data event');
+
+    data = preprocessInput(data, config);
+
+    sendEventToLuna('KEYBOARDEVENT', '');
+
+    ws.send(formatMessage(terminalId, 'TERMINAL_DATA', data));
+  };
+
+  /**
+   * @description 处理 Terminal 的 resize 事件
+   * @param ws
+   * @param cols
+   * @param rows
+   * @param terminalId
+   */
+  const handleTerminalOnResize = (ws: WebSocket, cols: any, rows: any, terminalId: string) => {
+    if (!wsIsActivated(ws)) return;
+
+    debug('Send Term Resize');
+
+    ws.send(formatMessage(terminalId, 'TERMINAL_RESIZE', JSON.stringify({ cols, rows })));
   };
 
   /**
@@ -200,7 +247,7 @@ export const useTerminal = () => {
    * @param {ILunaConfig} config
    */
   const createTerminal = (el: HTMLElement, config: ILunaConfig) => {
-    const terminal: Terminal = new Terminal({
+    terminal = new Terminal({
       fontSize: config.fontSize,
       lineHeight: config.lineHeight,
       fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
@@ -219,15 +266,16 @@ export const useTerminal = () => {
 
     initEvent(terminal, fitAddon, el, config);
 
-    return terminal;
+    return {
+      terminal,
+      fitAddon
+    };
   };
 
   return {
-    createZsentry,
     createTerminal,
-    preprocessInput,
-    handleContextMenu,
     setTerminalTheme,
-    handleCustomKeyEvent
+    handleTerminalOnData,
+    handleTerminalOnResize
   };
 };
