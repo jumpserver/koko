@@ -31,7 +31,7 @@ export const useTerminal = () => {
   /**
    * @description 用于附加自定义的键盘事件处理程序,允许开发者拦截和处理终端中的键盘事件
    */
-  const handleCustomKeyEvent = (e: KeyboardEvent, terminal: Terminal) => {
+  const handleKeyEvent = (e: KeyboardEvent, terminal: Terminal) => {
     if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       switch (e.key) {
         case 'ArrowRight':
@@ -54,8 +54,9 @@ export const useTerminal = () => {
    * @description 处理右键菜单事件
    * @param {MouseEvent} e 鼠标事件
    * @param {ILunaConfig} config Luna 配置
+   * @param {WebSocket} ws
    */
-  const handleContextMenu = async (e: MouseEvent, config: ILunaConfig) => {
+  const handleContextMenu = async (e: MouseEvent, config: ILunaConfig, ws: WebSocket) => {
     if (e.ctrlKey || config.quickPaste !== '1') return;
 
     let text: string = '';
@@ -71,9 +72,9 @@ export const useTerminal = () => {
     e.preventDefault();
 
     //todo))
-    // if (wsIsActivated(ws)) {
-    //   ws.send(formatMessage(terminalId.value, 'TERMINAL_DATA', text));
-    // }
+    if (wsIsActivated(ws)) {
+      ws.send(formatMessage('1', 'TERMINAL_DATA', text));
+    }
 
     return text;
   };
@@ -208,37 +209,23 @@ export const useTerminal = () => {
   };
 
   /**
-   * @description 初始化 Terminal 相关事件
-   * @param {Terminal} terminal Terminal 实例
-   * @param {FitAddon} fitAddon 实例
-   * @param {HTMLElement} el Terminal 所挂载的节点
-   * @param {ILunaConfig} config Luna 的配置
+   * @description 初始化 el 与 Terminal 相关事件
+   * @param el
+   * @param terminal
+   * @param config
+   * @param ws
    */
-  const initEvent = (
-    terminal: Terminal,
-    fitAddon: FitAddon,
+  const initTerminalEvent = (
+    ws: WebSocket,
     el: HTMLElement,
+    terminal: Terminal,
     config: ILunaConfig
-  ): void => {
-    // 初始化 window.resize 事件
-    window.addEventListener(
-      'resize',
-      () => {
-        fitAddon.fit();
-        debug(`Windows resize event, ${terminal.cols}, ${terminal.rows}, ${terminal}`);
-      },
-      false
-    );
-
-    // 初始化节点的鼠标事件
-    el.addEventListener('mouseenter', () => terminal.focus(), false);
-    el.addEventListener('contextmenu', ($event: MouseEvent) => handleContextMenu($event, config));
-
-    // 初始化 Terminal 实例事件
+  ) => {
     terminal.onSelectionChange(() => handleSelection(terminal));
-    terminal.attachCustomKeyEventHandler((event: KeyboardEvent) =>
-      handleCustomKeyEvent(event, terminal)
-    );
+    terminal.attachCustomKeyEventHandler(e => handleKeyEvent(e, terminal));
+
+    el.addEventListener('mouseenter', () => terminal.focus(), false);
+    el.addEventListener('contextmenu', (e: MouseEvent) => handleContextMenu(e, config, ws));
   };
 
   /**
@@ -257,6 +244,7 @@ export const useTerminal = () => {
       },
       scrollback: 5000
     });
+
     const fitAddon: FitAddon = new FitAddon();
 
     terminal.loadAddon(fitAddon);
@@ -264,7 +252,14 @@ export const useTerminal = () => {
     fitAddon.fit();
     terminal.focus();
 
-    initEvent(terminal, fitAddon, el, config);
+    window.addEventListener(
+      'resize',
+      () => {
+        fitAddon.fit();
+        debug(`Windows resize event, ${terminal.cols}, ${terminal.rows}, ${terminal}`);
+      },
+      false
+    );
 
     return {
       terminal,
@@ -273,6 +268,7 @@ export const useTerminal = () => {
   };
 
   return {
+    initTerminalEvent,
     createTerminal,
     setTerminalTheme,
     handleTerminalOnData,

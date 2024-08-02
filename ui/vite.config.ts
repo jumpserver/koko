@@ -57,11 +57,7 @@ export default defineConfig({
     minify: false,
     cssCodeSplit: true,
     rollupOptions: {
-      external: ['vue'],
       output: {
-        globals: {
-          vue: 'Vue'
-        },
         entryFileNames: `assets/js/[name]-[hash].js`,
         chunkFileNames: `assets/js/[name]-[hash].js`,
         assetFileNames: `assets/[ext]/[name]-[hash].[ext]`,

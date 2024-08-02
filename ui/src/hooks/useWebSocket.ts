@@ -2,7 +2,7 @@ import { Ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { fireEvent, writeBufferToTerminal } from '@/utils';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { MaxTimeout } from '@/config';
+import { BASE_WS_URL, MaxTimeout } from '@/config';
 import {
   formatMessage,
   handleError,
@@ -13,23 +13,50 @@ import { createDiscreteApi } from 'naive-ui';
 import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
 import { FitAddon } from '@xterm/addon-fit';
 
+import { io, Socket } from 'socket.io-client';
+import { useRoute } from 'vue-router';
+
 const { message } = createDiscreteApi(['message']);
 
 const { debug } = useLogger('useWebSocket');
 
-export const useWebSocket = () => {
-  let ws: WebSocket;
+export const useWebSocket = (
+  enableZmodem: boolean,
+  zmodemStatus: Ref<boolean>,
+  zsentryRef: Ref<ZmodemBrowser.Sentry | null>,
+  fitAddon: FitAddon,
+  shareCode: any,
+  currentUser: Ref<any>,
+  setting: Ref<any>,
+  emits: (event: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any) => void
+): any => {
+  let ws: Socket;
   let terminal: Terminal;
   let lastReceiveTime: Date;
+  let id: Ref<string>;
 
   let pingInterval: number;
 
   let lastSendTime: Ref<Date>;
 
-  /**
-   * @description 在 WebSocket 连接成功建立时触发的回调
-   */
-  const onWebsocketOpen = (terminalId: string) => {
+  const handleMessage = (e: MessageEvent) => {
+    lastSendTime.value = new Date();
+
+    if (typeof e.data === 'object') {
+      if (enableZmodem) {
+        zsentryRef.value?.consume(e.data);
+      } else {
+        writeBufferToTerminal(enableZmodem, zmodemStatus.value, terminal, e.data);
+      }
+    } else {
+      debug(typeof e.data);
+      dispatch(e.data);
+    }
+  };
+
+  const onWebsocketOpen = (terminalId: string, socket: Socket) => {
+    console.log('-----------');
+
     sendEventToLuna('CONNECTED', '');
 
     if (pingInterval !== null) clearInterval(pingInterval);
@@ -37,8 +64,7 @@ export const useWebSocket = () => {
     lastReceiveTime = new Date();
 
     pingInterval = setInterval(() => {
-      if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED)
-        return clearInterval(pingInterval);
+      if (socket.disconnected) return clearInterval(pingInterval);
 
       let currentDate: Date = new Date();
 
@@ -48,28 +74,21 @@ export const useWebSocket = () => {
 
       let pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
 
-      if (pingTimeout < 0) {
-        return;
-      }
-      ws.send(formatMessage(terminalId, 'PING', ''));
+      if (pingTimeout < 0) return;
+
+      socket.emit('PING', terminalId, '');
+      // ws.send(formatMessage(terminalId, 'PING', ''));
     }, 25 * 1000);
   };
 
-  const dispatch = (
-    data: any,
-    terminalId: Ref<string>,
-    fitAddon: FitAddon,
-    shareCode: any,
-    currentUser: Ref<any>,
-    setting: Ref<any>,
-    emits: (event: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any) => void
-  ) => {
+  const dispatch = (data: any) => {
     if (data === undefined) return;
 
     let msg = JSON.parse(data);
+
     switch (msg.type) {
       case 'CONNECT': {
-        terminalId.value = msg.id;
+        id.value = msg.id;
 
         try {
           fitAddon.fit();
@@ -91,7 +110,7 @@ export const useWebSocket = () => {
 
         updateIcon(setting.value);
 
-        ws.send(formatMessage(terminalId.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
+        ws.send(formatMessage(id.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
         break;
       }
       case 'CLOSE': {
@@ -121,61 +140,97 @@ export const useWebSocket = () => {
     emits('wsData', msg.type, msg, terminal, setting.value);
   };
 
-  const handleOnWebsocketMessage = (
-    e: MessageEvent,
-    terminal: Terminal,
-    enableZmodem: boolean,
-    zmodemStatus: boolean,
-    lastSendTime: Ref<Date>,
-    zsentry: ZmodemBrowser.Sentry,
-    terminalId: Ref<string>,
-    fitAddon: FitAddon,
-    shareCode: any,
-    currentUser: Ref<any>,
-    setting: Ref<any>,
-    emits: (event: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any) => void
-  ) => {
-    lastSendTime.value = new Date();
+  const generateWsURL = () => {
+    const route = useRoute();
 
-    if (typeof e.data === 'object') {
-      if (enableZmodem) {
-        zsentry.consume(e.data);
-      } else {
-        writeBufferToTerminal(enableZmodem, zmodemStatus, terminal, e.data);
+    const routeName = route.name;
+    const urlParams = new URLSearchParams(window.location.search.slice(1));
+
+    let path, query;
+
+    switch (routeName) {
+      case 'Token': {
+        const params = route.params;
+        const requireParams = new URLSearchParams();
+
+        requireParams.append('type', 'token');
+        requireParams.append('target_id', params.id as string);
+
+        path = '/koko/ws/token/';
+        query = requireParams.toString();
+        break;
       }
-    } else {
-      debug(typeof e.data);
-      dispatch(e.data, terminalId, fitAddon, shareCode, currentUser, setting, emits);
+      case 'TokenParams': {
+        path = '/koko/ws/token/';
+        query = urlParams.toString();
+        break;
+      }
+      default: {
+        path = '/koko/ws/terminal/';
+        query = urlParams.toString();
+      }
     }
+
+    return {
+      path,
+      query
+    };
   };
 
-  /**
-   * @description 创建 WebSocket
-   */
-  const createWebSocket = (wsURL: string, term: Terminal, lastSend: Ref<Date>) => {
-    ws = new WebSocket(wsURL, ['JMS-KOKO']);
+  const createWebSocket = (term: Terminal, lastSend: Ref<Date>, terminalId: Ref<string>) => {
+    if (ws) {
+      // 清理旧的监听器和定时器
+      ws.removeAllListeners();
+      if (pingInterval !== null) clearInterval(pingInterval);
+      ws.close();
+    }
 
+    id = terminalId;
     terminal = term;
     lastSendTime = lastSend;
 
-    ws.binaryType = 'arraybuffer';
-    ws.onerror = (e: Event) => {
+    const { path, query } = generateWsURL();
+
+    const socket = io(BASE_WS_URL, {
+      path,
+      transports: ['websocket'],
+      query: Object.fromEntries(new URLSearchParams(query).entries()),
+      protocols: ['JMS-KOKO']
+    });
+
+    console.log(socket);
+    console.log(socket.connected);
+
+    socket.on('connect', () => {
+      console.log('connect');
+      onWebsocketOpen(terminalId.value, socket);
+    });
+
+    // 暴露出 onmessage
+    socket.on('message', (e: MessageEvent) => {
+      console.log(112312312312);
+      handleMessage(e);
+    });
+
+    socket.on('error', error => {
       terminal.write('Connection Websocket Error');
       fireEvent(new Event('CLOSE', {}));
-      handleError(e);
-    };
-    ws.onclose = (e: Event) => {
+      handleError(error);
+    });
+
+    socket.on('disconnect', (e: Socket.DisconnectReason) => {
       terminal.write('Connection WebSocket Closed');
       fireEvent(new Event('CLOSE', {}));
       handleError(e);
-    };
+    });
 
-    return ws;
+    ws = socket;
+
+    return socket;
   };
 
   return {
-    onWebsocketOpen,
     createWebSocket,
-    handleOnWebsocketMessage
+    handleMessage
   };
 };

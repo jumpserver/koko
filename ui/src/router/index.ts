@@ -40,6 +40,8 @@ const router: Router = createRouter({
   scrollBehavior: () => ({ left: 0, top: 0 })
 });
 
-router.beforeEach(guard);
+router.beforeEach(async (_to, _from, next) => {
+  await guard(next);
+});
 
 export default router;

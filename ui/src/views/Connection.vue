@@ -167,14 +167,14 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
         const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
         debug(`Set backspaceAsCtrlH: ${value}`);
 
-        terminal.options.backspaceAsCtrlH = value;
+        // terminal.options.backspaceAsCtrlH = value;
       }
 
       if (sessionInfo.ctrlCAsCtrlZ) {
         const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
         debug(`Set ctrlCAsCtrlZ: ${value}`);
 
-        terminal.options.ctrlCAsCtrlZ = value;
+        // terminal.options.ctrlCAsCtrlZ = value;
       }
 
       if (setting.SECURITY_SESSION_SHARE && share) {
@@ -248,6 +248,7 @@ const onEvent = (event: string, data: any) => {
       // Object.keys(onlineUsersMap.value).filter(key => {
       //
       // });
+      console.log(data);
       break;
     case 'open':
       debug('Open');

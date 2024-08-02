@@ -76,7 +76,7 @@ import { copyTextToClipboard, getMinuteLabel } from '@/utils';
 import { useDebounceFn } from '@vueuse/core';
 import { shareUser } from '@/views/interface';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { useDialogReactiveList, useMessage } from 'naive-ui';
+import { useDialogReactiveList } from 'naive-ui';
 import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 
 import type { SelectRenderTag } from 'naive-ui';

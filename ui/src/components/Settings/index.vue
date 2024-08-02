@@ -68,7 +68,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { ISettingProp } from '@/views/interface';
 import { useI18n } from 'vue-i18n';
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     settings: ISettingProp[];
   }>(),

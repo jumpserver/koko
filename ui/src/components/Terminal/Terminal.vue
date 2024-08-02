@@ -38,10 +38,17 @@ const emits = defineEmits<{
   (e: 'background-color', backgroundColor: string): void;
 }>();
 
-const { createTerminal, setTerminalTheme, handleTerminalOnResize, handleTerminalOnData } =
-  useTerminal();
+const {
+  createTerminal,
+  setTerminalTheme,
+  handleTerminalOnResize,
+  handleTerminalOnData,
+  initTerminalEvent
+} = useTerminal();
 const { createZsentry } = useZsentry();
-const { createWebSocket, onWebsocketOpen, handleOnWebsocketMessage } = useWebSocket();
+
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { FitAddon } from '@xterm/addon-fit';
 
 const lunaId = ref<string>('');
 const origin = ref<string>('');
@@ -53,80 +60,25 @@ const zmodemStatus = ref<boolean>(false);
 const lastSendTime: Ref<Date> = ref(new Date());
 
 let ws: WebSocket;
-let zsentry: ZmodemBrowser.Sentry;
+let zsentryRef: Ref<ZmodemBrowser.Sentry | null> = ref(null);
+let gFitAddon: Ref<FitAddon | null> = ref(null);
 let term: Terminal;
 
-let lunaConfig: ILunaConfig = {};
+const lunaConfig: Ref<ILunaConfig> = ref({});
+
+const { createWebSocket } = useWebSocket(
+  props.enableZmodem,
+  zmodemStatus,
+  zsentryRef,
+  gFitAddon.value as FitAddon,
+  props.shareCode,
+  currentUser,
+  setting,
+  emits
+);
 
 // let zmodeSession: ZmodemSession;
 // const zmodeDialogVisible = ref(false);
-
-const getLunaConfig = (): ILunaConfig => {
-  let fontSize: number = 14;
-  let quickPaste: string = '0';
-  let backspaceAsCtrlH: string = '0';
-  let localSettings: string | null = localStorage.getItem('LunaSetting');
-
-  if (localSettings !== null) {
-    let settings = JSON.parse(localSettings);
-    let commandLine = settings['command_line'];
-    if (commandLine) {
-      fontSize = commandLine['character_terminal_font_size'];
-      quickPaste = commandLine['is_right_click_quickly_paste'] ? '1' : '0';
-      backspaceAsCtrlH = commandLine['is_backspace_as_ctrl_h'] ? '1' : '0';
-    }
-  }
-
-  if (!fontSize || fontSize < 5 || fontSize > 50) {
-    fontSize = 13;
-  }
-
-  lunaConfig['fontSize'] = fontSize;
-  lunaConfig['quickPaste'] = quickPaste;
-  lunaConfig['backspaceAsCtrlH'] = backspaceAsCtrlH;
-  lunaConfig['ctrlCAsCtrlZ'] = '0';
-
-  // 根据用户的操作系统类型设置行高
-  const ua: string = navigator.userAgent.toLowerCase();
-  lunaConfig['lineHeight'] = ua.indexOf('windows') !== -1 ? 1.2 : 1;
-
-  return lunaConfig;
-};
-const getzsentryConfig = (terminal: Terminal): SentryConfig => {
-  return {
-    // 将数据写入终端。
-    to_terminal: (octets: string) => {
-      if (zsentry && !zsentry.get_confirmed_session()) {
-        terminal.write(octets);
-      }
-    },
-    // 将数据通过 WebSocket 发送
-    sender: (octets: Uint8Array) => {
-      if (!wsIsActivated(ws)) {
-        debug('WebSocket Closed');
-        return;
-      }
-      lastSendTime.value = new Date();
-      debug(`octets: ${octets}`);
-      ws.send(new Uint8Array(octets));
-    },
-    // 处理 Zmodem 撤回事件
-    on_retract: () => {
-      info('Zmodem Retract');
-    },
-    // 处理检测到的 Zmodem 会话
-    on_detect: (detection: Detection) => {
-      const zsession: ZmodemSession = detection.confirm();
-      terminal.write('\r\n'); // 使用 terminal ref
-
-      if (zsession.type === 'send') {
-        handleSendSession(zsession);
-      } else {
-        handleReceiveSession(zsession);
-      }
-    }
-  };
-};
 
 const handleCunstomWindowEvent = (terminal: Terminal) => {
   window.addEventListener(
@@ -158,13 +110,6 @@ const handleTerminalEvent = (terminal: Terminal) => {
   terminal.onResize(({ cols, rows }) => handleTerminalOnResize(ws, cols, rows, terminalId.value));
 };
 
-const handleSendSession = (zsession: ZmodemSession) => {
-  console.log(zsession);
-};
-const handleReceiveSession = (zsession: ZmodemSession) => {
-  console.log(zsession);
-};
-
 const sendWsMessage = (type: string, data: any) => {
   if (wsIsActivated(ws))
     return ws.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
@@ -178,59 +123,39 @@ const sendDataFromWindow = (data: any): void => {
   }
 };
 
-const connect = async () => {
-  debug(props.connectURL);
+// 处理需要 ws 的 Terminal 事件
+// handleTerminalEvent(terminal);
 
+onMounted(() => {
   const el: HTMLElement = document.getElementById('terminal')!;
 
-  // 创建 Terminl 实例
-  const { terminal, fitAddon } = createTerminal(el, lunaConfig);
+  const terminalStore = useTerminalStore();
 
-  // 获取 zsentry 配置
-  const zsentryConfig: SentryConfig = getzsentryConfig(terminal);
+  lunaConfig.value = terminalStore.getConfig;
 
-  // 创建 zsentry 实例
-  zsentry = createZsentry(zsentryConfig);
+  // 创建 Terminal
+  const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
 
-  // 处理需要 ws 的 Terminal 事件
-  handleTerminalEvent(terminal);
+  gFitAddon.value = fitAddon;
+
+  // 初始化 el 与 Terminal 相关事件
+  initTerminalEvent(ws, el, terminal, lunaConfig.value);
+
+  // 创建 Zsentry
+  zsentryRef.value = createZsentry(
+    ws,
+    terminal,
+    zsentryRef.value as ZmodemBrowser.Sentry,
+    lastSendTime
+  );
 
   // 创建 WebSocket
-  ws = createWebSocket(props.connectURL, terminal, lastSendTime);
-
-  // 处理 message 事件
-  ws.onopen = () => onWebsocketOpen(terminalId.value);
-  ws.onmessage = (e: MessageEvent) => {
-    handleOnWebsocketMessage(
-      e,
-      terminal,
-      props.enableZmodem,
-      zmodemStatus.value,
-      lastSendTime,
-      zsentry,
-      terminalId,
-      fitAddon,
-      props.shareCode,
-      currentUser,
-      setting,
-      emits
-    );
-  };
+  ws = createWebSocket(terminal, lastSendTime, terminalId);
 
   handleCunstomWindowEvent(terminal);
 
-  term = terminal;
-};
-
-onMounted(() => {
-  // 获取 Luan 配置
-  getLunaConfig();
-
-  // 发起连接
-  connect();
-
   // 设置主题
-  setTerminalTheme(props.themeName, term, emits);
+  // setTerminalTheme(props.themeName, term, emits);
 
   // 修改主题
   mittBus.on('set-theme', ({ themeName }) => {

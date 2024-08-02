@@ -87,7 +87,7 @@ export const wsIsActivated = (ws: WebSocket) => {
  *
  * @param {Event} e - 错误事件。
  */
-export const handleError = (e: Event) => {
+export const handleError = (e: any) => {
   info(e);
 };
 
