@@ -21,6 +21,18 @@ const { message } = createDiscreteApi(['message']);
 
 const { debug } = useLogger('useWebSocket');
 
+/**
+ * 管理 WebSocket 连接的自定义 hook，支持 Zmodem 文件传输。
+ *
+ * @param {boolean} enableZmodem - 是否启用 Zmodem。
+ * @param {Ref<boolean>} zmodemStatus - 跟踪 Zmodem 状态的 Ref。
+ * @param {Ref<ZmodemBrowser.Sentry | null>} sentryRef - Zmodem Sentry 实例的 Ref。
+ * @param {FitAddon} fitAddon - xterm.js 的 FitAddon 实例。
+ * @param {any} shareCode - 终端会话的分享代码。
+ * @param {Ref<any>} currentUser - 跟踪当前用户信息的 Ref。
+ * @param {Function} emits - 用于向父组件发出事件的函数。
+ * @returns {Object} - WebSocket 实用函数。
+ */
 export const useWebSocket = (
   enableZmodem: boolean,
   zmodemStatus: Ref<boolean>,
@@ -47,6 +59,11 @@ export const useWebSocket = (
 
   let lastSendTime: Ref<Date>;
 
+  /**
+   * 处理 WebSocket 消息。
+   *
+   * @param {MessageEvent} e - WebSocket 消息事件。
+   */
   const handleMessage = (e: MessageEvent) => {
     lastSendTime.value = new Date();
 
@@ -62,6 +79,12 @@ export const useWebSocket = (
     }
   };
 
+  /**
+   * 处理 WebSocket 连接打开事件。
+   *
+   * @param {string} terminalId - 终端的 ID。
+   * @param {WebSocket} socket - WebSocket 实例。
+   */
   const onWebsocketOpen = (terminalId: string, socket: WebSocket) => {
     sendEventToLuna('CONNECTED', '');
 
@@ -87,6 +110,11 @@ export const useWebSocket = (
     }, 25 * 1000);
   };
 
+  /**
+   * 分派 WebSocket 消息到相应的处理程序。
+   *
+   * @param {any} data - WebSocket 消息数据。
+   */
   const dispatch = (data: any) => {
     if (data === undefined) return;
 
@@ -147,7 +175,12 @@ export const useWebSocket = (
     emits('wsData', msg.type, msg, terminal, setting);
   };
 
-  const generateWsURL = () => {
+  /**
+   * 根据当前路由生成 WebSocket URL。
+   *
+   * @returns {string} - 生成的 WebSocket URL。
+   */
+  const generateWsURL = (): string => {
     const route = useRoute();
 
     const routeName = route.name;
@@ -178,7 +211,19 @@ export const useWebSocket = (
     return connectURL;
   };
 
-  const createWebSocket = (term: Terminal, lastSend: Ref<Date>, terminalId: Ref<string>) => {
+  /**
+   * 创建一个新的 WebSocket 连接。
+   *
+   * @param  term - xterm.js Terminal 实例。
+   * @param  lastSend - 跟踪最后发送时间的 Ref。
+   * @param  terminalId - 跟踪终端 ID 的 Ref。
+   * @returns {WebSocket} - WebSocket 实例。
+   */
+  const createWebSocket = (
+    term: Terminal,
+    lastSend: Ref<Date>,
+    terminalId: Ref<string>
+  ): WebSocket => {
     id = terminalId;
     terminal = term;
     lastSendTime = lastSend;
