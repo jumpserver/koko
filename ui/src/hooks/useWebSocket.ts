@@ -1,20 +1,21 @@
+import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
+
 import { Ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { Terminal } from '@xterm/xterm';
-import { fireEvent, writeBufferToTerminal } from '@/utils';
+import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
+import { createDiscreteApi } from 'naive-ui';
 import { BASE_WS_URL, MaxTimeout } from '@/config';
+import { fireEvent, writeBufferToTerminal } from '@/utils';
+import type { SettingConfig } from '@/hooks/interface';
+
 import {
   formatMessage,
   handleError,
   sendEventToLuna,
   updateIcon
 } from '@/components/Terminal/helper';
-import { createDiscreteApi } from 'naive-ui';
-import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
-import { FitAddon } from '@xterm/addon-fit';
-
-import { useRoute } from 'vue-router';
-import type { SettingConfig } from '@/hooks/interface';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -27,7 +28,13 @@ export const useWebSocket = (
   fitAddon: FitAddon,
   shareCode: any,
   currentUser: Ref<any>,
-  emits: (event: 'wsData', msgType: string, msg: any, terminal: Terminal) => void
+  emits: (
+    event: 'wsData',
+    msgType: string,
+    msg: any,
+    terminal: Terminal,
+    setting: SettingConfig
+  ) => void
 ): any => {
   let ws: WebSocket;
   let terminal: Terminal;
@@ -137,7 +144,7 @@ export const useWebSocket = (
       }
     }
 
-    emits('wsData', msg.type, msg, terminal);
+    emits('wsData', msg.type, msg, terminal, setting);
   };
 
   const generateWsURL = () => {
