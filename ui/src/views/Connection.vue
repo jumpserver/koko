@@ -13,7 +13,6 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 import { Terminal } from '@xterm/xterm';
 import { useLogger } from '@/hooks/useLogger';
 import { useTerminal } from '@/hooks/useTerminal.ts';
@@ -33,7 +32,6 @@ const { setTerminalTheme } = useTerminal();
 const { t } = useI18n();
 const { debug } = useLogger('Connection');
 
-const route = useRoute();
 const message = useMessage();
 
 const terminalRef = ref(null);
