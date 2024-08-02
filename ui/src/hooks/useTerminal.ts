@@ -214,15 +214,27 @@ export const useTerminal = () => {
    * @param terminal
    * @param config
    * @param ws
+   * @param terminalId
+   * @param enableZmodem
+   * @param zmodemStatus
+   * @param lastSendTime
    */
   const initTerminalEvent = (
     ws: WebSocket,
     el: HTMLElement,
     terminal: Terminal,
-    config: ILunaConfig
+    config: ILunaConfig,
+    terminalId: string,
+    enableZmodem: boolean,
+    zmodemStatus: boolean,
+    lastSendTime: Ref<Date>
   ) => {
     terminal.onSelectionChange(() => handleSelection(terminal));
     terminal.attachCustomKeyEventHandler(e => handleKeyEvent(e, terminal));
+    terminal.onResize(({ cols, rows }) => handleTerminalOnResize(ws, cols, rows, terminalId));
+    terminal.onData(data =>
+      handleTerminalOnData(ws, data, terminalId, config, enableZmodem, zmodemStatus, lastSendTime)
+    );
 
     el.addEventListener('mouseenter', () => terminal.focus(), false);
     el.addEventListener('contextmenu', (e: MouseEvent) => handleContextMenu(e, config, ws));

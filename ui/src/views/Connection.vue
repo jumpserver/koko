@@ -2,7 +2,6 @@
   <TerminalComponent
     ref="terminalRef"
     :enable-zmodem="true"
-    :connectURL="wsURL"
     :share-code="shareCode"
     :theme-name="themeName"
     @event="onEvent"
@@ -17,7 +16,6 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { Terminal } from '@xterm/xterm';
 import { useLogger } from '@/hooks/useLogger';
-import { BASE_WS_URL } from '@/config';
 import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useDialog, useMessage } from 'naive-ui';
 import { ISettingProp, shareUser } from '@/views/interface';
@@ -53,32 +51,6 @@ const userOptions: Ref<shareUser[]> = ref([]);
 
 const dialog = useDialog();
 
-const wsURL = computed(() => {
-  const routeName = route.name;
-  const urlParams = new URLSearchParams(window.location.search.slice(1));
-
-  let connectURL;
-
-  switch (routeName) {
-    case 'Token':
-      const params = route.params;
-      const requireParams = new URLSearchParams();
-
-      requireParams.append('type', 'token');
-      requireParams.append('target_id', params.id as string);
-
-      connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
-      break;
-    case 'TokenParams':
-      connectURL = urlParams && `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`;
-      break;
-    default: {
-      connectURL = urlParams && `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`;
-    }
-  }
-
-  return connectURL;
-});
 const shareTitle = computed((): string => {
   return shareId.value ? t('Share') : t('CreateLink');
 });

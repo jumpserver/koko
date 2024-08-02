@@ -13,7 +13,6 @@ import { createDiscreteApi } from 'naive-ui';
 import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
 import { FitAddon } from '@xterm/addon-fit';
 
-import { io, Socket } from 'socket.io-client';
 import { useRoute } from 'vue-router';
 
 const { message } = createDiscreteApi(['message']);
@@ -24,13 +23,13 @@ export const useWebSocket = (
   enableZmodem: boolean,
   zmodemStatus: Ref<boolean>,
   zsentryRef: Ref<ZmodemBrowser.Sentry | null>,
-  fitAddon: FitAddon,
+  gFitAddon: FitAddon,
   shareCode: any,
   currentUser: Ref<any>,
   setting: Ref<any>,
   emits: (event: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any) => void
 ): any => {
-  let ws: Socket;
+  let ws: WebSocket;
   let terminal: Terminal;
   let lastReceiveTime: Date;
   let id: Ref<string>;
@@ -38,6 +37,8 @@ export const useWebSocket = (
   let pingInterval: number;
 
   let lastSendTime: Ref<Date>;
+
+  const fitAddon = gFitAddon;
 
   const handleMessage = (e: MessageEvent) => {
     lastSendTime.value = new Date();
@@ -54,9 +55,7 @@ export const useWebSocket = (
     }
   };
 
-  const onWebsocketOpen = (terminalId: string, socket: Socket) => {
-    console.log('-----------');
-
+  const onWebsocketOpen = (terminalId: string, socket: WebSocket) => {
     sendEventToLuna('CONNECTED', '');
 
     if (pingInterval !== null) clearInterval(pingInterval);
@@ -64,7 +63,8 @@ export const useWebSocket = (
     lastReceiveTime = new Date();
 
     pingInterval = setInterval(() => {
-      if (socket.disconnected) return clearInterval(pingInterval);
+      if (socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED)
+        return clearInterval(pingInterval);
 
       let currentDate: Date = new Date();
 
@@ -76,8 +76,7 @@ export const useWebSocket = (
 
       if (pingTimeout < 0) return;
 
-      socket.emit('PING', terminalId, '');
-      // ws.send(formatMessage(terminalId, 'PING', ''));
+      socket.send(formatMessage(terminalId, 'PING', ''));
     }, 25 * 1000);
   };
 
@@ -146,7 +145,7 @@ export const useWebSocket = (
     const routeName = route.name;
     const urlParams = new URLSearchParams(window.location.search.slice(1));
 
-    let path, query;
+    let connectURL;
 
     switch (routeName) {
       case 'Token': {
@@ -156,73 +155,42 @@ export const useWebSocket = (
         requireParams.append('type', 'token');
         requireParams.append('target_id', params.id as string);
 
-        path = '/koko/ws/token/';
-        query = requireParams.toString();
+        connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
         break;
       }
       case 'TokenParams': {
-        path = '/koko/ws/token/';
-        query = urlParams.toString();
+        connectURL = urlParams && `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`;
         break;
       }
       default: {
-        path = '/koko/ws/terminal/';
-        query = urlParams.toString();
+        connectURL = urlParams && `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`;
       }
     }
 
-    return {
-      path,
-      query
-    };
+    return connectURL;
   };
 
   const createWebSocket = (term: Terminal, lastSend: Ref<Date>, terminalId: Ref<string>) => {
-    if (ws) {
-      // 清理旧的监听器和定时器
-      ws.removeAllListeners();
-      if (pingInterval !== null) clearInterval(pingInterval);
-      ws.close();
-    }
-
     id = terminalId;
     terminal = term;
     lastSendTime = lastSend;
 
-    const { path, query } = generateWsURL();
+    const connectURL = generateWsURL();
 
-    const socket = io(BASE_WS_URL, {
-      path,
-      transports: ['websocket'],
-      query: Object.fromEntries(new URLSearchParams(query).entries()),
-      protocols: ['JMS-KOKO']
-    });
+    const socket = new WebSocket(connectURL, ['JMS-KOKO']);
 
-    console.log(socket);
-    console.log(socket.connected);
-
-    socket.on('connect', () => {
-      console.log('connect');
-      onWebsocketOpen(terminalId.value, socket);
-    });
-
-    // 暴露出 onmessage
-    socket.on('message', (e: MessageEvent) => {
-      console.log(112312312312);
-      handleMessage(e);
-    });
-
-    socket.on('error', error => {
+    socket.onopen = () => onWebsocketOpen(terminalId.value, socket);
+    socket.onmessage = (e: MessageEvent) => handleMessage(e);
+    socket.onerror = e => {
       terminal.write('Connection Websocket Error');
       fireEvent(new Event('CLOSE', {}));
-      handleError(error);
-    });
-
-    socket.on('disconnect', (e: Socket.DisconnectReason) => {
+      handleError(e);
+    };
+    socket.onclose = e => {
       terminal.write('Connection WebSocket Closed');
       fireEvent(new Event('CLOSE', {}));
       handleError(e);
-    });
+    };
 
     ws = socket;
 

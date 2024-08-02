@@ -17,15 +17,11 @@ import type { ILunaConfig } from '@/hooks/interface';
 import type { ITerminalProps } from '@/hooks/interface';
 
 import { handleEventFromLuna, wsIsActivated, formatMessage } from '@/components/Terminal/helper';
-import ZmodemBrowser, {
-  SentryConfig,
-  Detection,
-  ZmodemSession
-} from 'nora-zmodemjs/src/zmodem_browser';
+import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
 import mittBus from '@/utils/mittBus.ts';
 import { useZsentry } from '@/hooks/useZsentry.ts';
 
-const { debug, info } = useLogger('TerminalComponent');
+const { debug } = useLogger('TerminalComponent');
 
 const props = withDefaults(defineProps<ITerminalProps>(), {
   themeName: 'Default',
@@ -38,13 +34,7 @@ const emits = defineEmits<{
   (e: 'background-color', backgroundColor: string): void;
 }>();
 
-const {
-  createTerminal,
-  setTerminalTheme,
-  handleTerminalOnResize,
-  handleTerminalOnData,
-  initTerminalEvent
-} = useTerminal();
+const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal();
 const { createZsentry } = useZsentry();
 
 import { useTerminalStore } from '@/store/modules/terminal.ts';
@@ -77,9 +67,6 @@ const { createWebSocket } = useWebSocket(
   emits
 );
 
-// let zmodeSession: ZmodemSession;
-// const zmodeDialogVisible = ref(false);
-
 const handleCunstomWindowEvent = (terminal: Terminal) => {
   window.addEventListener(
     'message',
@@ -93,21 +80,6 @@ const handleCunstomWindowEvent = (terminal: Terminal) => {
   window.Reconnect = () => {
     emits('event', 'reconnect', '');
   };
-};
-const handleTerminalEvent = (terminal: Terminal) => {
-  terminal.onData(data =>
-    handleTerminalOnData(
-      ws,
-      data,
-      terminalId.value,
-      lunaConfig,
-      props.enableZmodem,
-      zmodemStatus.value,
-      lastSendTime
-    )
-  );
-
-  terminal.onResize(({ cols, rows }) => handleTerminalOnResize(ws, cols, rows, terminalId.value));
 };
 
 const sendWsMessage = (type: string, data: any) => {
@@ -123,9 +95,6 @@ const sendDataFromWindow = (data: any): void => {
   }
 };
 
-// 处理需要 ws 的 Terminal 事件
-// handleTerminalEvent(terminal);
-
 onMounted(() => {
   const el: HTMLElement = document.getElementById('terminal')!;
 
@@ -139,7 +108,16 @@ onMounted(() => {
   gFitAddon.value = fitAddon;
 
   // 初始化 el 与 Terminal 相关事件
-  initTerminalEvent(ws, el, terminal, lunaConfig.value);
+  initTerminalEvent(
+    ws,
+    el,
+    terminal,
+    lunaConfig.value,
+    terminalId.value,
+    props.enableZmodem,
+    zmodemStatus.value,
+    lastSendTime
+  );
 
   // 创建 Zsentry
   zsentryRef.value = createZsentry(
@@ -155,7 +133,7 @@ onMounted(() => {
   handleCunstomWindowEvent(terminal);
 
   // 设置主题
-  // setTerminalTheme(props.themeName, term, emits);
+  setTerminalTheme(props.themeName, terminal, emits);
 
   // 修改主题
   mittBus.on('set-theme', ({ themeName }) => {
