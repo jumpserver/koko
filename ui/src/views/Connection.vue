@@ -27,27 +27,26 @@ import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
-const { setTerminalTheme } = useTerminal();
-
 const { t } = useI18n();
+const { setTerminalTheme } = useTerminal();
 const { debug } = useLogger('Connection');
 
+const dialog = useDialog();
 const message = useMessage();
 
-const terminalRef = ref(null);
+const shareId = ref('');
 const sessionId = ref('');
+const shareCode = ref('');
+const themeName = ref('Default');
 
-const shareCode = ref<any>();
+const terminalRef = ref(null);
+
 const loading = ref(false);
 const userLoading = ref(false);
 const enableShare = ref(false);
-const themeName = ref('Default');
-const shareId = ref<string>('');
+
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
-
 const userOptions: Ref<shareUser[]> = ref([]);
-
-const dialog = useDialog();
 
 const shareTitle = computed((): string => {
   return shareId.value ? t('Share') : t('CreateLink');
@@ -186,7 +185,7 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
       const key = data.terminal_id;
 
       if (onlineUsersMap.hasOwnProperty(key)) {
-        delete onlineUsersMap[key]; // 确保删除属性时响应式更新
+        delete onlineUsersMap[key];
       }
 
       message.info(`${data.user} ${t('LeaveShare')}`);

@@ -14,6 +14,7 @@ import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
 import { FitAddon } from '@xterm/addon-fit';
 
 import { useRoute } from 'vue-router';
+import type { SettingConfig } from '@/hooks/interface';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -22,12 +23,11 @@ const { debug } = useLogger('useWebSocket');
 export const useWebSocket = (
   enableZmodem: boolean,
   zmodemStatus: Ref<boolean>,
-  zsentryRef: Ref<ZmodemBrowser.Sentry | null>,
-  gFitAddon: FitAddon,
+  sentryRef: Ref<ZmodemBrowser.Sentry | null>,
+  fitAddon: FitAddon,
   shareCode: any,
   currentUser: Ref<any>,
-  setting: Ref<any>,
-  emits: (event: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any) => void
+  emits: (event: 'wsData', msgType: string, msg: any, terminal: Terminal) => void
 ): any => {
   let ws: WebSocket;
   let terminal: Terminal;
@@ -36,16 +36,16 @@ export const useWebSocket = (
 
   let pingInterval: number;
 
-  let lastSendTime: Ref<Date>;
+  let setting: SettingConfig;
 
-  const fitAddon = gFitAddon;
+  let lastSendTime: Ref<Date>;
 
   const handleMessage = (e: MessageEvent) => {
     lastSendTime.value = new Date();
 
     if (typeof e.data === 'object') {
       if (enableZmodem) {
-        zsentryRef.value?.consume(e.data);
+        sentryRef.value && sentryRef.value.consume(e.data);
       } else {
         writeBufferToTerminal(enableZmodem, zmodemStatus.value, terminal, e.data);
       }
@@ -105,9 +105,10 @@ export const useWebSocket = (
         debug('dispatchInfo', info);
 
         currentUser.value = info.user;
-        setting.value = info.setting;
 
-        updateIcon(setting.value);
+        setting = info.setting;
+
+        updateIcon(setting);
 
         ws.send(formatMessage(id.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
         break;
@@ -136,7 +137,7 @@ export const useWebSocket = (
       }
     }
 
-    emits('wsData', msg.type, msg, terminal, setting.value);
+    emits('wsData', msg.type, msg, terminal);
   };
 
   const generateWsURL = () => {

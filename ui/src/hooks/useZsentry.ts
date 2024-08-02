@@ -1,47 +1,56 @@
+import { Ref } from 'vue';
+import { Terminal } from '@xterm/xterm';
+import { useLogger } from '@/hooks/useLogger.ts';
+import { wsIsActivated } from '@/components/Terminal/helper';
+
 import ZmodemBrowser, {
   Detection,
+  Sentry,
   SentryConfig,
   ZmodemSession
 } from 'nora-zmodemjs/src/zmodem_browser';
-import { Terminal } from '@xterm/xterm';
-import { wsIsActivated } from '@/components/Terminal/helper';
-import { useLogger } from '@/hooks/useLogger.ts';
-import { Ref } from 'vue';
 
-const { debug, info } = useLogger('useZsentry');
+const { debug, info } = useLogger('useSentry');
 
-export const useZsentry = () => {
-  const generateZsentry = (
+interface SentryHook {
+  generateSentry: (
     ws: WebSocket,
     terminal: Terminal,
-    lastSendTime: Ref<Date>,
-    zsentryRef: ZmodemBrowser.Sentry
+    sentryRef: ZmodemBrowser.Sentry
+  ) => SentryConfig;
+  createSentry: (
+    ws: WebSocket,
+    terminal: Terminal,
+    sentryRef: Ref<ZmodemBrowser.Sentry | null>
+  ) => Sentry;
+}
+
+export const useSentry = (lastSendTime: Ref<Date>): SentryHook => {
+  /**
+   * 生成 ZSentry 配置
+   * @param ws WebSocket 实例
+   * @param terminal xterm.js 终端实例
+   * @param sentryRef ZmodemBrowser.Sentry 引用
+   */
+  const generateSentry = (
+    ws: WebSocket,
+    terminal: Terminal,
+    sentryRef: ZmodemBrowser.Sentry
   ): SentryConfig => {
     return {
-      // 将数据写入终端。
       to_terminal: (octets: string) => {
-        if (zsentryRef && !zsentryRef.get_confirmed_session()) return terminal.write(octets);
+        if (sentryRef && !sentryRef.get_confirmed_session()) return terminal.write(octets);
       },
-
-      // 将数据通过 WebSocket 发送
       sender: (octets: Uint8Array) => {
         if (!wsIsActivated(ws)) return debug('WebSocket Closed');
-
         lastSendTime.value = new Date();
-
         debug(`octets: ${octets}`);
         ws.send(new Uint8Array(octets));
       },
-
-      // 处理 Zmodem 撤回事件
       on_retract: () => info('Zmodem Retract'),
-
-      // 处理检测到的 Zmodem 会话
       on_detect: (detection: Detection) => {
         const zsession: ZmodemSession = detection.confirm();
-
         terminal.write('\r\n');
-
         if (zsession.type === 'send') {
           // handleSendSession(zsession);
         } else {
@@ -51,18 +60,29 @@ export const useZsentry = () => {
     };
   };
 
-  const createZsentry = (
+  /**
+   * 创建 ZSentry 实例
+   * @param ws WebSocket 实例
+   * @param terminal xterm.js 终端实例
+   * @param sentryRef ZmodemBrowser.Sentry 引用
+   */
+  const createSentry = (
     ws: WebSocket,
     terminal: Terminal,
-    zsentryRef: ZmodemBrowser.Sentry,
-    lastSendTime: Ref<Date>
-  ) => {
-    const zsentryConfig = generateZsentry(ws, terminal, lastSendTime, zsentryRef);
-
-    return new ZmodemBrowser.Sentry(zsentryConfig);
+    sentryRef: Ref<ZmodemBrowser.Sentry | null>
+  ): Sentry => {
+    const sentryConfig: SentryConfig = generateSentry(
+      ws,
+      terminal,
+      sentryRef.value as ZmodemBrowser.Sentry
+    );
+    const sentryInstance = new ZmodemBrowser.Sentry(sentryConfig);
+    sentryRef.value = sentryInstance;
+    return sentryInstance;
   };
 
   return {
-    createZsentry
+    createSentry,
+    generateSentry
   };
 };
