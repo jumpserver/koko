@@ -11,6 +11,8 @@ import './index.css';
 import 'normalize.css';
 // 引入自定义初始化样式
 import '@/style/reset.scss';
+// 引入图标注册脚本
+import 'virtual:svg-icons-register';
 // 引入 xterm 样式
 import '@xterm/xterm/css/xterm.css';
 
