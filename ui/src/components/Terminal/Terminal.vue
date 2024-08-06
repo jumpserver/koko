@@ -8,19 +8,16 @@
 
 <script setup lang="ts">
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { useSentry } from '@/hooks/useZsentry.ts';
 import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useWebSocket } from '@/hooks/useWebSocket.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { onMounted, onUnmounted, Ref, ref } from 'vue';
-import { formatMessage, handleEventFromLuna, wsIsActivated } from '@/components/Terminal/helper';
+import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Terminal/helper';
 
 import type { ILunaConfig, ITerminalProps } from '@/hooks/interface';
 
 import mittBus from '@/utils/mittBus.ts';
-import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
 
 const { debug } = useLogger('TerminalComponent');
 
@@ -34,7 +31,7 @@ const props = withDefaults(defineProps<ITerminalProps>(), {
 const emits = defineEmits<{
   (e: 'event', event: string, data: string): void;
   (e: 'background-color', backgroundColor: string): void;
-  (e: 'wsData', msgType: string, msg: any, terminal: Terminal): void;
+  (e: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any): void;
 }>();
 
 const lunaId = ref('');
@@ -47,13 +44,7 @@ const zmodemStatus = ref(false);
 const lastSendTime: Ref<Date> = ref(new Date());
 const lunaConfig: Ref<ILunaConfig> = ref({});
 
-let term: Terminal;
-let socket: WebSocket;
-let fitAddon: FitAddon;
-let sentryRef: Ref<ZmodemBrowser.Sentry | null> = ref(null);
-
 // 使用 hook
-const { createSentry } = useSentry(lastSendTime);
 const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal(
   terminalId,
   zmodemStatus,
@@ -63,40 +54,81 @@ const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal(
 );
 
 const { createWebSocket } = useWebSocket(
+  terminalId,
   props.enableZmodem,
   zmodemStatus,
-  sentryRef,
-  fitAddon,
   props.shareCode,
   currentUser,
   emits
 );
 
-const handleCustomWindowEvent = (terminal: Terminal) => {
+const sendDataFromWindow = (
+  data: any,
+  ws: Ref<WebSocket>,
+  send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+): void => {
+  if (!wsIsActivated(ws.value)) return debug('WebSocket Disconnected');
+
+  if (props.enableZmodem && !zmodemStatus.value) {
+    send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
+    debug('Send Data From Window');
+  }
+};
+
+const handleCustomWindowEvent = (
+  terminal: Terminal,
+  ws: Ref<WebSocket>,
+  send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+) => {
   window.addEventListener(
     'message',
-    (e: MessageEvent) =>
-      handleEventFromLuna(e, emits, lunaId, origin, terminal, sendDataFromWindow),
+    (e: MessageEvent) => {
+      const message = e.data;
+
+      switch (message.name) {
+        case 'PING': {
+          if (lunaId.value != null) return;
+
+          lunaId.value = message.id;
+          origin.value = e.origin;
+
+          sendEventToLuna('PONG', '', lunaId.value, origin.value);
+          break;
+        }
+        case 'CMD': {
+          sendDataFromWindow(message.data, ws, send);
+          break;
+        }
+        case 'FOCUS': {
+          terminal.focus();
+          break;
+        }
+        case 'OPEN': {
+          emits('event', 'open', '');
+          break;
+        }
+      }
+    },
     false
   );
 
-  window.SendTerminalData = sendDataFromWindow;
+  window.SendTerminalData = data => {
+    sendDataFromWindow(data, ws, send);
+  };
 
   window.Reconnect = () => {
     emits('event', 'reconnect', '');
   };
 };
 
-const sendWsMessage = (type: string, data: any) => {
-  if (wsIsActivated(socket))
-    return socket.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
-};
-const sendDataFromWindow = (data: any): void => {
-  if (!wsIsActivated(socket)) return debug('WebSocket Disconnected');
-
-  if (props.enableZmodem && !zmodemStatus.value) {
-    socket.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
-    debug('Send Data From Window');
+const sendWsMessage = (
+  type: string,
+  data: any,
+  ws: Ref<WebSocket>,
+  send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+) => {
+  if (wsIsActivated(ws.value)) {
+    return send(formatMessage(terminalId.value, type, JSON.stringify(data)));
   }
 };
 
@@ -109,47 +141,51 @@ onMounted(() => {
   lunaConfig.value = terminalStore.getConfig;
 
   // 创建 Terminal
-  const { terminal, fitAddon: createdFitAddon } = createTerminal(el, lunaConfig.value);
-
-  fitAddon = createdFitAddon;
+  const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
 
   // 创建 WebSocket
-  socket = createWebSocket(terminal, lastSendTime, terminalId);
+  const { send, ws } = createWebSocket(terminal, lastSendTime, fitAddon);
 
   // 创建 Sentry
-  sentryRef.value = createSentry(socket, terminal, sentryRef);
+  // sentryRef.value = createSentry(ws.value, terminal);
 
   // 初始化 el 与 Terminal 相关事件
-  initTerminalEvent(socket, el, terminal, lunaConfig.value);
+  initTerminalEvent(ws.value, el, terminal, lunaConfig.value);
 
-  handleCustomWindowEvent(terminal);
+  // 事件监听相关逻辑
+  handleCustomWindowEvent(terminal, ws, send);
 
   // 设置主题
   setTerminalTheme(theme, terminal);
 
   // 修改主题
   mittBus.on('set-theme', ({ themeName }) => {
-    setTerminalTheme(themeName as string, term);
+    setTerminalTheme(themeName as string, terminal);
   });
 
   mittBus.on('sync-theme', ({ type, data }) => {
-    sendWsMessage(type, data);
+    sendWsMessage(type, data, ws, send);
   });
 
   mittBus.on('share-user', ({ type, query }) => {
-    sendWsMessage(type, { query });
+    sendWsMessage(type, { query }, ws, send);
   });
 
   mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
     const origin = window.location.origin;
 
-    sendWsMessage(type, {
-      origin,
-      session: sessionId,
-      users: shareLinkRequest.users,
-      expired_time: shareLinkRequest.expiredTime,
-      action_permission: shareLinkRequest.actionPerm
-    });
+    sendWsMessage(
+      type,
+      {
+        origin,
+        session: sessionId,
+        users: shareLinkRequest.users,
+        expired_time: shareLinkRequest.expiredTime,
+        action_permission: shareLinkRequest.actionPerm
+      },
+      ws,
+      send
+    );
   });
 });
 

@@ -19,7 +19,6 @@
     "nora-zmodemjs": "^1.1.1",
     "normalize.css": "^8.0.1",
     "pinia": "^2.1.7",
-    "socket.io-client": "^4.7.5",
     "uuid": "^10.0.0",
     "vite-plugin-svg-icons": "^2.0.1",
     "vue": "^3.4.31",

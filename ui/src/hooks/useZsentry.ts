@@ -12,34 +12,17 @@ import ZmodemBrowser, {
 
 const { debug, info } = useLogger('useSentry');
 
-interface SentryHook {
-  generateSentry: (
-    ws: WebSocket,
-    terminal: Terminal,
-    sentryRef: ZmodemBrowser.Sentry
-  ) => SentryConfig;
-  createSentry: (
-    ws: WebSocket,
-    terminal: Terminal,
-    sentryRef: Ref<ZmodemBrowser.Sentry | null>
-  ) => Sentry;
-}
-
-export const useSentry = (lastSendTime: Ref<Date>): SentryHook => {
-  /**
-   * 生成 ZSentry 配置
-   * @param ws WebSocket 实例
-   * @param terminal xterm.js 终端实例
-   * @param sentryRef ZmodemBrowser.Sentry 引用
-   */
-  const generateSentry = (
-    ws: WebSocket,
-    terminal: Terminal,
-    sentryRef: ZmodemBrowser.Sentry
-  ): SentryConfig => {
+export const useSentry = (
+  lastSendTime: Ref<Date>
+): {
+  generateSentry: (ws: WebSocket, terminal: Terminal) => SentryConfig;
+  createSentry: (ws: WebSocket, terminal: Terminal) => Sentry;
+} => {
+  const generateSentry = (ws: WebSocket, terminal: Terminal): SentryConfig => {
     return {
       to_terminal: (octets: string) => {
-        if (sentryRef && !sentryRef.get_confirmed_session()) return terminal.write(octets);
+        terminal.write(octets);
+        // if (sentryRef && !sentryRef.get_confirmed_session()) return ;
       },
       sender: (octets: Uint8Array) => {
         if (!wsIsActivated(ws)) return debug('WebSocket Closed');
@@ -60,25 +43,9 @@ export const useSentry = (lastSendTime: Ref<Date>): SentryHook => {
     };
   };
 
-  /**
-   * 创建 ZSentry 实例
-   * @param ws WebSocket 实例
-   * @param terminal xterm.js 终端实例
-   * @param sentryRef ZmodemBrowser.Sentry 引用
-   */
-  const createSentry = (
-    ws: WebSocket,
-    terminal: Terminal,
-    sentryRef: Ref<ZmodemBrowser.Sentry | null>
-  ): Sentry => {
-    const sentryConfig: SentryConfig = generateSentry(
-      ws,
-      terminal,
-      sentryRef.value as ZmodemBrowser.Sentry
-    );
-    const sentryInstance = new ZmodemBrowser.Sentry(sentryConfig);
-    sentryRef.value = sentryInstance;
-    return sentryInstance;
+  const createSentry = (ws: WebSocket, terminal: Terminal): Sentry => {
+    const sentryConfig: SentryConfig = generateSentry(ws, terminal);
+    return new ZmodemBrowser.Sentry(sentryConfig);
   };
 
   return {

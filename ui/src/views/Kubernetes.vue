@@ -24,19 +24,30 @@
       <!-- isCollapsed -->
       <FileManagement class="file-management" />
     </n-layout-sider>
-    <MainContent />
+    <MainContent>
+      <template v-slot:terminal>
+        <Terminal :enable-zmodem="true" @ws-data="wsData" />
+      </template>
+    </MainContent>
   </n-layout>
 </template>
 
 <script setup lang="ts">
+import { useMessage } from 'naive-ui';
 import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
 import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 import FileManagement from '@/components/Kubernetes/FileManagement/index.vue';
 
-import { ref, onMounted, onUnmounted } from 'vue';
+import { onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
+import { BASE_WS_URL } from '@/config';
+import { useWebSocket } from '@vueuse/core';
+import Terminal from '@/components/Terminal/Terminal.vue';
+
+const route = useRoute();
+const message = useMessage();
 
 const sideWidth = ref(300);
-
 const handleTriggerClick = () => {
   // treeStore.changeCollapsed(!isCollapsed.value);
   // if (!isCollapsed.value) {
@@ -46,20 +57,30 @@ const handleTriggerClick = () => {
   // }
 };
 
-// mittBus.on('tree-click', handleTriggerClick);
+const wsData = () => {};
+
+// 由于在 k8s 中，是需要先通过 connect 之后才会有 tree，而组件解构
+const initConnection = () => {
+  const token = route.query.token!;
+  const connectionURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${token}`;
+
+  // const { status, data, send, open, close } = useWebSocket(connectionURL, {
+  //   onConnected: () => {
+  //     console.log('WebSocket connected');
+  //   },
+  //   onDisconnected: () => {
+  //     console.log('WebSocket disconnected');
+  //   },
+  //   onError: error => {
+  //     console.error('WebSocket error:', error);
+  //   },
+  //   immediate: true,
+  //   autoClose: true
+  // });
+};
 
 onMounted(() => {
-  const trigger = document.querySelector('.n-layout-toggle-button');
-  if (trigger) {
-    trigger.addEventListener('click', handleTriggerClick);
-  }
-});
-
-onUnmounted(() => {
-  const trigger = document.querySelector('.n-layout-toggle-button');
-  if (trigger) {
-    trigger.removeEventListener('click', handleTriggerClick);
-  }
+  initConnection();
 });
 </script>
 

@@ -1,43 +1,47 @@
-import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
-
-import { Ref } from 'vue';
+// 引入 hook
 import { useRoute } from 'vue-router';
+import { createDiscreteApi } from 'naive-ui';
+import { useLogger } from '@/hooks/useLogger.ts';
+import { useSentry } from '@/hooks/useZsentry.ts';
+import { useWebSocket as useVueuseWebSocket } from '@vueuse/core';
+
+// 引入类型定义
+import type { WebSocketStatus } from '@vueuse/core';
+import type { SettingConfig } from '@/hooks/interface';
+import type { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
+
+import { ref, Ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { useLogger } from '@/hooks/useLogger.ts';
-import { createDiscreteApi } from 'naive-ui';
 import { BASE_WS_URL, MaxTimeout } from '@/config';
 import { fireEvent, writeBufferToTerminal } from '@/utils';
-import type { SettingConfig } from '@/hooks/interface';
 
+// 引入工具函数
 import {
-  formatMessage,
+  updateIcon,
   handleError,
-  sendEventToLuna,
-  updateIcon
+  formatMessage,
+  sendEventToLuna
 } from '@/components/Terminal/helper';
 
-const { message } = createDiscreteApi(['message']);
-
 const { debug } = useLogger('useWebSocket');
+const { message } = createDiscreteApi(['message']);
 
 /**
  * 管理 WebSocket 连接的自定义 hook，支持 Zmodem 文件传输。
  *
+ * @param terminalId
  * @param {boolean} enableZmodem - 是否启用 Zmodem。
  * @param {Ref<boolean>} zmodemStatus - 跟踪 Zmodem 状态的 Ref。
- * @param {Ref<ZmodemBrowser.Sentry | null>} sentryRef - Zmodem Sentry 实例的 Ref。
- * @param {FitAddon} fitAddon - xterm.js 的 FitAddon 实例。
  * @param {any} shareCode - 终端会话的分享代码。
  * @param {Ref<any>} currentUser - 跟踪当前用户信息的 Ref。
  * @param {Function} emits - 用于向父组件发出事件的函数。
  * @returns {Object} - WebSocket 实用函数。
  */
 export const useWebSocket = (
+  terminalId: Ref<string>,
   enableZmodem: boolean,
   zmodemStatus: Ref<boolean>,
-  sentryRef: Ref<ZmodemBrowser.Sentry | null>,
-  fitAddon: FitAddon,
   shareCode: any,
   currentUser: Ref<any>,
   emits: (
@@ -48,44 +52,40 @@ export const useWebSocket = (
     setting: SettingConfig
   ) => void
 ): any => {
-  let ws: WebSocket;
+  let setting: SettingConfig;
   let terminal: Terminal;
   let lastReceiveTime: Date;
-  let id: Ref<string>;
-
   let pingInterval: number;
+  let lastSendTime: Ref<Date> = ref(new Date());
 
-  let setting: SettingConfig;
+  let sentry: Sentry;
+  let _fitAddon: Ref<FitAddon> = ref(new FitAddon());
 
-  let lastSendTime: Ref<Date>;
-
-  /**
-   * 处理 WebSocket 消息。
-   *
-   * @param {MessageEvent} e - WebSocket 消息事件。
-   */
-  const handleMessage = (e: MessageEvent) => {
+  /* 处理 WebSocket 消息 */
+  const handleMessage = (
+    data: Ref<any>,
+    close: WebSocket['close'],
+    send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+  ) => {
     lastSendTime.value = new Date();
 
-    if (typeof e.data === 'object') {
+    if (typeof data.value === 'object') {
       if (enableZmodem) {
-        sentryRef.value && sentryRef.value.consume(e.data);
+        sentry.consume(data.value);
       } else {
-        writeBufferToTerminal(enableZmodem, zmodemStatus.value, terminal, e.data);
+        writeBufferToTerminal(enableZmodem, zmodemStatus.value, terminal, data.value);
       }
     } else {
-      debug(typeof e.data);
-      dispatch(e.data);
+      debug(typeof data.value);
+      dispatch(data.value, close, send);
     }
   };
 
-  /**
-   * 处理 WebSocket 连接打开事件。
-   *
-   * @param {string} terminalId - 终端的 ID。
-   * @param {WebSocket} socket - WebSocket 实例。
-   */
-  const onWebsocketOpen = (terminalId: string, socket: WebSocket) => {
+  /* 处理 WebSocket 连接打开事件 */
+  const onWebsocketOpen = (
+    status: Ref<WebSocketStatus>,
+    send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+  ) => {
     sendEventToLuna('CONNECTED', '');
 
     if (pingInterval !== null) clearInterval(pingInterval);
@@ -93,8 +93,7 @@ export const useWebSocket = (
     lastReceiveTime = new Date();
 
     pingInterval = setInterval(() => {
-      if (socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED)
-        return clearInterval(pingInterval);
+      if (status.value === 'CLOSED') return clearInterval(pingInterval);
 
       let currentDate: Date = new Date();
 
@@ -106,26 +105,26 @@ export const useWebSocket = (
 
       if (pingTimeout < 0) return;
 
-      socket.send(formatMessage(terminalId, 'PING', ''));
+      send(formatMessage(terminalId.value, 'PING', ''));
     }, 25 * 1000);
   };
 
-  /**
-   * 分派 WebSocket 消息到相应的处理程序。
-   *
-   * @param {any} data - WebSocket 消息数据。
-   */
-  const dispatch = (data: any) => {
+  /* 分派 WebSocket 消息到相应的处理程序 */
+  const dispatch = (
+    data: any,
+    close: WebSocket['close'],
+    send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+  ) => {
     if (data === undefined) return;
 
     let msg = JSON.parse(data);
 
     switch (msg.type) {
       case 'CONNECT': {
-        id.value = msg.id;
+        terminalId.value = msg.id;
 
         try {
-          fitAddon.fit();
+          _fitAddon.value?.fit();
         } catch (e) {
           console.log(e);
         }
@@ -145,12 +144,12 @@ export const useWebSocket = (
 
         updateIcon(setting);
 
-        ws.send(formatMessage(id.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
+        send(formatMessage(terminalId.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
         break;
       }
       case 'CLOSE': {
         terminal.writeln('Receive Connection closed');
-        ws.close();
+        close();
         sendEventToLuna('CLOSE', '');
         break;
       }
@@ -175,11 +174,7 @@ export const useWebSocket = (
     emits('wsData', msg.type, msg, terminal, setting);
   };
 
-  /**
-   * 根据当前路由生成 WebSocket URL。
-   *
-   * @returns {string} - 生成的 WebSocket URL。
-   */
+  /* 根据当前路由生成 WebSocket URL */
   const generateWsURL = (): string => {
     const route = useRoute();
 
@@ -211,47 +206,68 @@ export const useWebSocket = (
     return connectURL;
   };
 
-  /**
-   * 创建一个新的 WebSocket 连接。
-   *
-   * @param  term - xterm.js Terminal 实例。
-   * @param  lastSend - 跟踪最后发送时间的 Ref。
-   * @param  terminalId - 跟踪终端 ID 的 Ref。
-   * @returns {WebSocket} - WebSocket 实例。
-   */
+  /* 创建 WebSocket */
+  const generateWebSocket = (connectURL: string) => {
+    const { status, data, send, open, close, ws } = useVueuseWebSocket(connectURL, {
+      onConnected: () => {
+        onWebsocketOpen(status, send);
+        ws.value && (ws.value.binaryType = 'arraybuffer');
+      },
+      onMessage: (_ws: WebSocket, _event: MessageEvent<any>) => {
+        handleMessage(data, close, send);
+      },
+      onError: (_ws: WebSocket, event: Event) => {
+        terminal.write('Connection Websocket Error');
+        fireEvent(new Event('CLOSE', {}));
+        handleError(event);
+      },
+      onDisconnected: (_ws: WebSocket, event: CloseEvent) => {
+        terminal.write('Connection WebSocket Closed');
+        fireEvent(new Event('CLOSE', {}));
+        handleError(event);
+      },
+      protocols: ['JMS-KOKO']
+    });
+
+    /**
+     * status: 当前 WebSocket 连接的状态
+     * data: 从 WebSocket 接收到的最新消息
+     * send: 通过 WebSocket 发送消息
+     * open: 用于手动打开 WebSocket 连接
+     * close: 手动关闭 WebSocket 连接
+     * ws: 当前 WebSocket 实例
+     */
+    return { status, data, send, open, close, ws };
+  };
+
   const createWebSocket = (
     term: Terminal,
     lastSend: Ref<Date>,
-    terminalId: Ref<string>
-  ): WebSocket => {
-    id = terminalId;
+    fitAddon: FitAddon
+  ): {
+    data: Ref<any>;
+    ws: Ref<WebSocket | undefined>;
+    send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean;
+    close: { (code?: number, reason?: string): void; (code?: number, reason?: string): void };
+    open: () => void;
+    status: Ref<WebSocketStatus>;
+  } => {
     terminal = term;
+    _fitAddon.value = fitAddon;
     lastSendTime = lastSend;
+
+    const { createSentry } = useSentry(lastSendTime);
 
     const connectURL = generateWsURL();
 
-    const socket = new WebSocket(connectURL, ['JMS-KOKO']);
+    const { status, data, send, open, close, ws } = generateWebSocket(connectURL);
 
-    socket.onopen = () => onWebsocketOpen(terminalId.value, socket);
-    socket.onmessage = (e: MessageEvent) => handleMessage(e);
-    socket.onerror = e => {
-      terminal.write('Connection Websocket Error');
-      fireEvent(new Event('CLOSE', {}));
-      handleError(e);
-    };
-    socket.onclose = e => {
-      terminal.write('Connection WebSocket Closed');
-      fireEvent(new Event('CLOSE', {}));
-      handleError(e);
-    };
+    ws && (sentry = createSentry(<WebSocket>ws.value, term));
 
-    ws = socket;
-
-    return socket;
+    return { status, data, send, open, close, ws };
   };
 
   return {
-    createWebSocket,
-    handleMessage
+    createWebSocket
   };
 };

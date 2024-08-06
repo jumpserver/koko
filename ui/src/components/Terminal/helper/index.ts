@@ -49,7 +49,7 @@ export const handleEventFromLuna = (
 ) => {
   const msg: LunaEventMessage = e.data;
 
-  info('Received post message:', msg);
+  // info('Received post message:', msg);
 
   switch (msg.name) {
     case 'PING':

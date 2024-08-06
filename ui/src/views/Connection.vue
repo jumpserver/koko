@@ -116,7 +116,7 @@ const settings = computed((): ISettingProp[] => {
 });
 
 const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) => {
-  const data = JSON.parse(msg.data);
+  const data = msg.data ? JSON.parse(msg.data) : '';
 
   debug('msgType:', msgType, 'onWsData:', data);
 

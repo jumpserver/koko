@@ -1,6 +1,6 @@
 export interface ITerminalProps {
   // 连接 url
-  // connectURL: string;
+  connectURL?: string;
 
   //
   shareCode?: string;

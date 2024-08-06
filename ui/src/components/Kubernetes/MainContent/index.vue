@@ -1,7 +1,11 @@
 <template>
   <n-layout :native-scrollbar="false" content-style="height: 100%">
-    <tab></tab>
-    <Main></Main>
+    <tab />
+    <Main>
+      <template v-slot:terminal>
+        <slot name="terminal"></slot>
+      </template>
+    </Main>
   </n-layout>
 </template>
 
