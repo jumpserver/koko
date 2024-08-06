@@ -7,18 +7,23 @@
 </template>
 
 <script setup lang="ts">
-import { Terminal } from '@xterm/xterm';
+// 引入 hook
+import { useI18n } from 'vue-i18n';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useWebSocket } from '@/hooks/useWebSocket.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
+
+// 类型声明
+import type { ILunaConfig, ITerminalProps } from '@/hooks/interface';
+
+import { Terminal } from '@xterm/xterm';
 import { onMounted, onUnmounted, Ref, ref } from 'vue';
 import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Terminal/helper';
 
-import type { ILunaConfig, ITerminalProps } from '@/hooks/interface';
-
 import mittBus from '@/utils/mittBus.ts';
 
+const { t } = useI18n();
 const { debug } = useLogger('TerminalComponent');
 
 // prop 参数
@@ -59,7 +64,8 @@ const { createWebSocket } = useWebSocket(
   zmodemStatus,
   props.shareCode,
   currentUser,
-  emits
+  emits,
+  t
 );
 
 const sendDataFromWindow = (
@@ -132,6 +138,8 @@ const sendWsMessage = (
   }
 };
 
+const handleSendSesson = (zsession: any) => {};
+
 onMounted(() => {
   const theme = props.themeName;
   const el: HTMLElement = document.getElementById('terminal')!;
@@ -145,9 +153,6 @@ onMounted(() => {
 
   // 创建 WebSocket
   const { send, ws } = createWebSocket(terminal, lastSendTime, fitAddon);
-
-  // 创建 Sentry
-  // sentryRef.value = createSentry(ws.value, terminal);
 
   // 初始化 el 与 Terminal 相关事件
   initTerminalEvent(ws.value, el, terminal, lunaConfig.value);

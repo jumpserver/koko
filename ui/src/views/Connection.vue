@@ -116,13 +116,9 @@ const settings = computed((): ISettingProp[] => {
 });
 
 const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) => {
-  const data = msg.data ? JSON.parse(msg.data) : '';
-
-  debug('msgType:', msgType, 'onWsData:', data);
-
   switch (msgType) {
     case 'TERMINAL_SESSION': {
-      const sessionInfo = data;
+      const sessionInfo = JSON.parse(msg.data);
       const sessionDetail = sessionInfo.session;
 
       debug(`SessionDetail themeName: ${sessionInfo.themeName}`);
@@ -160,6 +156,8 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
       break;
     }
     case 'TERMINAL_SHARE': {
+      const data = JSON.parse(msg.data);
+
       shareId.value = data.share_id;
       shareCode.value = data.code;
 
@@ -167,11 +165,13 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
       break;
     }
     case 'TERMINAL_SHARE_JOIN': {
+      const data = JSON.parse(msg.data);
+
       const key: string = data.terminal_id;
 
       onlineUsersMap[key] = data;
 
-      debug('onlineUsersMap', onlineUsersMap);
+      // debug('onlineUsersMap', onlineUsersMap);
 
       if (data.primary) {
         debug('Primary User 不提醒');
@@ -182,6 +182,7 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
       break;
     }
     case 'TERMINAL_SHARE_LEAVE': {
+      const data = JSON.parse(msg.data);
       const key = data.terminal_id;
 
       if (onlineUsersMap.hasOwnProperty(key)) {
@@ -193,14 +194,18 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
     }
     case 'TERMINAL_GET_SHARE_USER': {
       userLoading.value = false;
-      userOptions.value = data;
+      userOptions.value = JSON.parse(msg.data);
       break;
     }
     case 'TERMINAL_SESSION_PAUSE': {
+      const data = JSON.parse(msg.data);
+
       message.info(`${data.user} ${t('PauseSession')}`);
       break;
     }
     case 'TERMINAL_SESSION_RESUME': {
+      const data = JSON.parse(msg.data);
+
       message.info(`${data.user} ${t('ResumeSession')}`);
       break;
     }

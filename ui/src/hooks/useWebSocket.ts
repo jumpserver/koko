@@ -31,12 +31,13 @@ const { message } = createDiscreteApi(['message']);
  * 管理 WebSocket 连接的自定义 hook，支持 Zmodem 文件传输。
  *
  * @param terminalId
- * @param {boolean} enableZmodem - 是否启用 Zmodem。
- * @param {Ref<boolean>} zmodemStatus - 跟踪 Zmodem 状态的 Ref。
- * @param {any} shareCode - 终端会话的分享代码。
- * @param {Ref<any>} currentUser - 跟踪当前用户信息的 Ref。
- * @param {Function} emits - 用于向父组件发出事件的函数。
- * @returns {Object} - WebSocket 实用函数。
+ * @param enableZmodem - 是否启用 Zmodem。
+ * @param zmodemStatus - 跟踪 Zmodem 状态的 Ref。
+ * @param shareCode - 终端会话的分享代码。
+ * @param currentUser - 跟踪当前用户信息的 Ref。
+ * @param emits - 用于向父组件发出事件的函数。
+ * @param t
+ * @returns WebSocket
  */
 export const useWebSocket = (
   terminalId: Ref<string>,
@@ -50,7 +51,8 @@ export const useWebSocket = (
     msg: any,
     terminal: Terminal,
     setting: SettingConfig
-  ) => void
+  ) => void,
+  t: any
 ): any => {
   let setting: SettingConfig;
   let terminal: Terminal;
@@ -156,6 +158,30 @@ export const useWebSocket = (
       case 'PING':
         break;
       case 'TERMINAL_ACTION':
+        const action = msg.data;
+
+        switch (action) {
+          case 'ZMODEM_START': {
+            zmodemStatus.value = true;
+
+            if (!enableZmodem) {
+              message.info(t('WaitFileTransfer'));
+            }
+            break;
+          }
+          case 'ZMODEM_END': {
+            if (!enableZmodem && zmodemStatus.value) {
+              message.info(t('EndFileTransfer'));
+              terminal.write('\r\n');
+
+              zmodemStatus.value = false;
+            }
+            break;
+          }
+          default: {
+            zmodemStatus.value = false;
+          }
+        }
         break;
       case 'TERMINAL_ERROR':
       case 'ERROR': {
@@ -256,7 +282,7 @@ export const useWebSocket = (
     _fitAddon.value = fitAddon;
     lastSendTime = lastSend;
 
-    const { createSentry } = useSentry(lastSendTime);
+    const { createSentry } = useSentry(lastSendTime, t);
 
     const connectURL = generateWsURL();
 

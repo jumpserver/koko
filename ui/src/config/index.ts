@@ -21,9 +21,7 @@ export const AsciiCtrlC = 3;
 export const AsciiCtrlZ = 26;
 
 export const MaxTimeout = 30 * 1000;
-
-export const zmodemStart = 'ZMODEM_START';
-export const zmodemEnd = 'ZMODEM_END';
+export const MAX_TRANSFER_SIZE = 1024 * 1024 * 500;
 
 export const defaultTheme = {
   background: '#1E1E1E',

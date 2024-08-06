@@ -22,6 +22,7 @@ declare module 'vue' {
     NDescriptions: typeof import('naive-ui')['NDescriptions']
     NDescriptionsItem: typeof import('naive-ui')['NDescriptionsItem']
     NDialogProvider: typeof import('naive-ui')['NDialogProvider']
+    NDivider: typeof import('naive-ui')['NDivider']
     NDrawer: typeof import('naive-ui')['NDrawer']
     NDrawerContent: typeof import('naive-ui')['NDrawerContent']
     NDropdown: typeof import('naive-ui')['NDropdown']
@@ -40,6 +41,7 @@ declare module 'vue' {
     NList: typeof import('naive-ui')['NList']
     NListItem: typeof import('naive-ui')['NListItem']
     NMessageProvider: typeof import('naive-ui')['NMessageProvider']
+    NP: typeof import('naive-ui')['NP']
     NPopover: typeof import('naive-ui')['NPopover']
     NResult: typeof import('naive-ui')['NResult']
     NScrollbar: typeof import('naive-ui')['NScrollbar']
@@ -49,6 +51,8 @@ declare module 'vue' {
     NText: typeof import('naive-ui')['NText']
     NThing: typeof import('naive-ui')['NThing']
     NTree: typeof import('naive-ui')['NTree']
+    NUpload: typeof import('naive-ui')['NUpload']
+    NUploadDragger: typeof import('naive-ui')['NUploadDragger']
     Organization: typeof import('./src/components/Kubernetes/Sidebar/components/Organization/index.vue')['default']
     Profile: typeof import('./src/components/Kubernetes/Sidebar/components/Profile/index.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
@@ -63,5 +67,6 @@ declare module 'vue' {
     Terminal: typeof import('./src/components/Terminal/Terminal.vue')['default']
     ThemeConfig: typeof import('./src/components/ThemeConfig/index.vue')['default']
     Tree: typeof import('./src/components/Kubernetes/Sidebar/components/Tree/index.vue')['default']
+    Upload: typeof import('./src/components/Upload/index.vue')['default']
   }
 }

@@ -165,8 +165,6 @@ export const useTerminal = (
    * @param config
    */
   const handleTerminalOnData = (ws: WebSocket, data: any, config: ILunaConfig) => {
-    console.log('123', ws, data, config);
-
     if (!wsIsActivated(ws)) return debug('WebSocket Closed');
 
     if (!enableZmodem && zmodemStatus?.value) {
@@ -215,7 +213,6 @@ export const useTerminal = (
   ) => {
     terminal.onSelectionChange(() => handleSelection(terminal));
     terminal.onData(data => {
-      console.log('onData', data);
       handleTerminalOnData(ws, data, config);
     });
     terminal.onResize(({ cols, rows }) => handleTerminalOnResize(ws, cols, rows));
