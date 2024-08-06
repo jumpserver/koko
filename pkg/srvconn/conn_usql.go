@@ -1,7 +1,10 @@
 package srvconn
 
 import (
-	"fmt"
+	"net"
+	"net/url"
+	"strconv"
+
 	"github.com/jumpserver/koko/pkg/localcommand"
 )
 
@@ -57,13 +60,12 @@ func startUSQLCommand(opt *sqlOption) (*localcommand.LocalCommand, error) {
 }
 
 func (o *sqlOption) USQLCommandArgs() []string {
-	dsn := fmt.Sprintf("%s://%s:%s@%s:%d/%s",
-		o.Schema,
-		o.Username,
-		o.Password,
-		o.Host,
-		o.Port,
-		o.DBName)
+	var dsnURL url.URL
+	dsnURL.Scheme = o.Schema
+	dsnURL.Host = net.JoinHostPort(o.Host, strconv.Itoa(o.Port))
+	dsnURL.User = url.UserPassword(o.Username, o.Password)
+	dsnURL.Path = o.DBName
+	dsn := dsnURL.String()
 	prompt1 := "--variable=PROMPT1=" + o.AssetName + "%R%#"
 	return []string{dsn, prompt1}
 }
