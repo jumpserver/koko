@@ -13,7 +13,6 @@ declare module 'nora-zmodemjs/src/zmodem_browser' {
   export class Sentry {
     constructor(config: SentryConfig);
     get_confirmed_session(): ZmodemSession | null;
-    static save_to_disk(buffer: Uint8Array[], filename: string): void;
     consume(data: Uint8Array): void;
   }
 
@@ -26,6 +25,8 @@ declare module 'nora-zmodemjs/src/zmodem_browser' {
         on_file_complete?: (obj: any) => void;
       }
     ): Promise<void>;
+
+    static save_to_disk(buffer: Uint8Array[], filename: string): void;
   }
 
   export interface SentryConfig {

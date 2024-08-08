@@ -1,3 +1,5 @@
+import { TreeOption } from 'naive-ui';
+
 export interface ITerminalProps {
   // 连接 url
   connectURL?: string;
@@ -45,4 +47,12 @@ export interface SettingConfig {
   INTERFACE: Interface;
   SECURITY_SESSION_SHARE: boolean;
   SECURITY_WATERMARK_ENABLED: boolean;
+}
+
+export interface customTreeOption extends TreeOption {
+  id?: string;
+
+  namespace?: string;
+
+  pod?: string;
 }

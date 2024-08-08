@@ -41,18 +41,18 @@ const { message } = createDiscreteApi(['message']);
  */
 export const useWebSocket = (
   terminalId: Ref<string>,
-  enableZmodem: boolean,
-  zmodemStatus: Ref<boolean>,
-  shareCode: any,
-  currentUser: Ref<any>,
-  emits: (
+  enableZmodem?: boolean,
+  zmodemStatus?: Ref<boolean>,
+  shareCode?: any,
+  currentUser?: Ref<any>,
+  emits?: (
     event: 'wsData',
     msgType: string,
     msg: any,
     terminal: Terminal,
     setting: SettingConfig
   ) => void,
-  t: any
+  t?: any
 ): any => {
   let setting: SettingConfig;
   let terminal: Terminal;
@@ -63,7 +63,7 @@ export const useWebSocket = (
   let sentry: Sentry;
   let _fitAddon: Ref<FitAddon> = ref(new FitAddon());
 
-  /* 处理 WebSocket 消息 */
+  // 处理 WebSocket 消息
   const handleMessage = (
     data: Ref<any>,
     close: WebSocket['close'],
@@ -75,7 +75,12 @@ export const useWebSocket = (
       if (enableZmodem) {
         sentry.consume(data.value);
       } else {
-        writeBufferToTerminal(enableZmodem, zmodemStatus.value, terminal, data.value);
+        writeBufferToTerminal(
+          enableZmodem as boolean,
+          zmodemStatus?.value ?? false,
+          terminal,
+          data.value
+        );
       }
     } else {
       debug(typeof data.value);
@@ -83,7 +88,7 @@ export const useWebSocket = (
     }
   };
 
-  /* 处理 WebSocket 连接打开事件 */
+  // 处理 WebSocket 连接打开事件
   const onWebsocketOpen = (
     status: Ref<WebSocketStatus>,
     send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
@@ -111,7 +116,7 @@ export const useWebSocket = (
     }, 25 * 1000);
   };
 
-  /* 分派 WebSocket 消息到相应的处理程序 */
+  // 分派 WebSocket 消息到相应的处理程序
   const dispatch = (
     data: any,
     close: WebSocket['close'],
@@ -140,7 +145,7 @@ export const useWebSocket = (
         const info = JSON.parse(msg.data);
         debug('dispatchInfo', info);
 
-        currentUser.value = info.user;
+        currentUser!.value = info.user;
 
         setting = info.setting;
 
@@ -162,7 +167,7 @@ export const useWebSocket = (
 
         switch (action) {
           case 'ZMODEM_START': {
-            zmodemStatus.value = true;
+            if (zmodemStatus) zmodemStatus.value = true;
 
             if (!enableZmodem) {
               message.info(t('WaitFileTransfer'));
@@ -170,16 +175,16 @@ export const useWebSocket = (
             break;
           }
           case 'ZMODEM_END': {
-            if (!enableZmodem && zmodemStatus.value) {
+            if (!enableZmodem && zmodemStatus?.value) {
               message.info(t('EndFileTransfer'));
               terminal.write('\r\n');
 
-              zmodemStatus.value = false;
+              if (zmodemStatus) zmodemStatus.value = false;
             }
             break;
           }
           default: {
-            zmodemStatus.value = false;
+            if (zmodemStatus) zmodemStatus.value = false;
           }
         }
         break;
@@ -197,10 +202,10 @@ export const useWebSocket = (
       }
     }
 
-    emits('wsData', msg.type, msg, terminal, setting);
+    emits && emits('wsData', msg.type, msg, terminal, setting);
   };
 
-  /* 根据当前路由生成 WebSocket URL */
+  // 根据当前路由生成 WebSocket URL
   const generateWsURL = (): string => {
     const route = useRoute();
 
@@ -215,24 +220,28 @@ export const useWebSocket = (
         const requireParams = new URLSearchParams();
 
         requireParams.append('type', 'token');
-        requireParams.append('target_id', params.id as string);
+        requireParams.append('target_id', params.id ? params.id.toString() : '');
 
         connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
         break;
       }
       case 'TokenParams': {
-        connectURL = urlParams && `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`;
+        connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}` : '';
         break;
       }
       default: {
-        connectURL = urlParams && `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`;
+        connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}` : '';
       }
+    }
+
+    if (!connectURL) {
+      throw new Error('Unable to generate WebSocket URL, missing parameters.');
     }
 
     return connectURL;
   };
 
-  /* 创建 WebSocket */
+  // 创建 WebSocket
   const generateWebSocket = (connectURL: string) => {
     const { status, data, send, open, close, ws } = useVueuseWebSocket(connectURL, {
       onConnected: () => {
@@ -294,6 +303,7 @@ export const useWebSocket = (
   };
 
   return {
-    createWebSocket
+    createWebSocket,
+    onWebsocketOpen
   };
 };

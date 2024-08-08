@@ -15,7 +15,7 @@ const allRoutes: RouteRecordRaw[] = [
   {
     path: '/k8s/',
     name: 'kubernetes',
-    component: () => import(/* webpackChunkName: Ks */ '@/views/Kubernetes.vue')
+    component: () => import(/* webpackChunkName: Ks */ '@/views/Kubernetes/index.vue')
   },
   {
     path: '/token/:id/',

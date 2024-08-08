@@ -16,11 +16,16 @@ import 'virtual:svg-icons-register';
 // 引入 xterm 样式
 import '@xterm/xterm/css/xterm.css';
 
+// 引入指令
+import { draggable } from '@/directive/sidebarDraggable.ts';
+
 const app = createApp(App);
 
 app.use(i18n);
 app.use(pinia);
 app.use(router);
 app.use(VueCookies);
+
+app.directive('draggable', draggable);
 
 app.mount('#app');

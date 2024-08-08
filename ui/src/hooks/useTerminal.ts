@@ -20,6 +20,7 @@ export const useTerminal = (
 ) => {
   let termSelectionText = ref<string>('');
 
+  // 设置 Terminal 主题
   const setTerminalTheme = (themeName: string, term: Terminal) => {
     const theme = xtermTheme[themeName] || defaultTheme;
 
@@ -30,9 +31,7 @@ export const useTerminal = (
     emits && emits('background-color', theme.background);
   };
 
-  /**
-   * @description 用于附加自定义的键盘事件处理程序,允许开发者拦截和处理终端中的键盘事件
-   */
+  // 用于附加自定义的键盘事件处理程序,允许开发者拦截和处理终端中的键盘事件
   const handleKeyEvent = (e: KeyboardEvent, terminal: Terminal) => {
     if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       switch (e.key) {
@@ -52,12 +51,7 @@ export const useTerminal = (
     return !(e.ctrlKey && e.key === 'v');
   };
 
-  /**
-   * @description 处理右键菜单事件
-   * @param {MouseEvent} e 鼠标事件
-   * @param {ILunaConfig} config Luna 配置
-   * @param {WebSocket} ws
-   */
+  // 处理右键菜单事件
   const handleContextMenu = async (e: MouseEvent, config: ILunaConfig, ws: WebSocket) => {
     if (e.ctrlKey || config.quickPaste !== '1') return;
 
@@ -80,10 +74,7 @@ export const useTerminal = (
     return text;
   };
 
-  /**
-   * @description 在不支持 clipboard 时的降级方案
-   * @param text
-   */
+  // 在不支持 clipboard 时的降级方案
   const fallbackCopyTextToClipboard = (text: string): void => {
     const textArea = document.createElement('textarea');
     textArea.value = text;
@@ -115,10 +106,9 @@ export const useTerminal = (
     document.body.removeChild(textArea);
   };
 
-  /**
-   * @description 获取当前终端中的选定文本  handleSelectionChange
-   */
+  // 获取当前终端中的选定文本
   const handleSelection = async (terminal: Terminal) => {
+    // todo)) 现在会有问题
     debug('Select Change');
 
     termSelectionText.value = terminal.getSelection().trim();
@@ -132,11 +122,7 @@ export const useTerminal = (
     }
   };
 
-  /**
-   * @description 对用户设置的特定键映射配置
-   * @param data
-   * @param config
-   */
+  // 对用户设置的特定键映射配置
   const preprocessInput = (data: string, config: ILunaConfig) => {
     // 如果配置项 backspaceAsCtrlH 启用（值为 "1"），并且输入数据包含删除键的 ASCII 码 (AsciiDel，即 127)，
     // 它会将其替换为退格键的 ASCII 码 (AsciiBackspace，即 8)
@@ -158,12 +144,7 @@ export const useTerminal = (
     return data;
   };
 
-  /**
-   * @description 处理 Terminal 的 onData 事件
-   * @param ws
-   * @param data
-   * @param config
-   */
+  // 处理 Terminal 的 onData 事件
   const handleTerminalOnData = (ws: WebSocket, data: any, config: ILunaConfig) => {
     if (!wsIsActivated(ws)) return debug('WebSocket Closed');
 
@@ -182,12 +163,7 @@ export const useTerminal = (
     ws.send(formatMessage(<string>terminalId?.value, 'TERMINAL_DATA', data));
   };
 
-  /**
-   * @description 处理 Terminal 的 resize 事件
-   * @param ws
-   * @param cols
-   * @param rows
-   */
+  // 处理 Terminal 的 resize 事件
   const handleTerminalOnResize = (ws: WebSocket, cols: any, rows: any) => {
     if (!wsIsActivated(ws)) return;
 
@@ -198,13 +174,7 @@ export const useTerminal = (
     );
   };
 
-  /**
-   * @description 初始化 el 与 Terminal 相关事件
-   * @param el
-   * @param terminal
-   * @param config
-   * @param ws
-   */
+  // 初始化 el 与 Terminal 相关事件
   const initTerminalEvent = (
     ws: WebSocket,
     el: HTMLElement,
@@ -222,11 +192,7 @@ export const useTerminal = (
     el.addEventListener('contextmenu', (e: MouseEvent) => handleContextMenu(e, config, ws));
   };
 
-  /**
-   * @description 创建 Terminal
-   * @param {HTMLElement} el
-   * @param {ILunaConfig} config
-   */
+  // 创建 Terminal
   const createTerminal = (el: HTMLElement, config: ILunaConfig) => {
     const terminal = new Terminal({
       fontSize: config.fontSize,

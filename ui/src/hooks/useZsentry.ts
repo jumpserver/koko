@@ -82,6 +82,7 @@ export const useSentry = (lastSendTime: Ref<Date>, t: any): IUseSentry => {
         zmodeSession.value && zmodeSession.value.close();
       })
       .catch((e: Error) => {
+        // todo)) 现在上传文件会走到这里
         console.log(e);
       });
   };
@@ -183,7 +184,7 @@ export const useSentry = (lastSendTime: Ref<Date>, t: any): IUseSentry => {
       xfer
         .accept()
         .then(() => {
-          ZmodemBrowser.Sentry.save_to_disk(buffer, xfer.get_details().name);
+          ZmodemBrowser.Browser.save_to_disk(buffer, xfer.get_details().name);
           message.info(`${t('DownloadSuccess')}: ${detail.name}`);
 
           terminal.write('\r\n');
