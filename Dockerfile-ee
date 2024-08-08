@@ -1,4 +1,4 @@
-ARG VERSION
+ARG VERSION=dev
 
 FROM jumpserver/koko:${VERSION}-ce
 ARG TARGETARCH
