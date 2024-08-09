@@ -1,0 +1,55 @@
+$--el-main-tab-bg-color: #252526;
+$--el-main-tab-text-color: #ffffff;
+$--el-main-tab-icon-color: #c5c5c5;
+$--el-main-tab-icon-hover-color: #5a5d5e4f;
+$--el-main-text-color: #cccccc;
+$--el-main-bg-color: #1e1e1e;
+
+.header-tab {
+  width: 100% !important;
+  background-color: $--el-main-tab-bg-color;
+
+  .tab-item {
+    :deep(.text-item) {
+      color: $--el-main-tab-text-color;
+    }
+
+    :deep(.close-icon) {
+      color: $--el-main-tab-text-color;
+    }
+  }
+
+  .n-tab-pane {
+    padding-top: 0 !important;
+  }
+
+  :deep(.icon-item) {
+    svg {
+      color: $--el-main-tab-icon-color;
+      fill: $--el-main-tab-icon-color;
+    }
+
+    &:hover {
+      background-color: $--el-main-tab-icon-hover-color;
+    }
+  }
+}
+
+
+.terminal-container {
+  overflow: hidden;
+
+  :deep(.xterm-viewport) {
+    overflow: hidden;
+  }
+
+  :deep(.xterm-screen) {
+    //height: 878px !important;
+    height: calc(100vh - 40px) !important;
+
+
+    .xterm-rows {
+      padding: 10px 0 0 10px;
+    }
+  }
+}

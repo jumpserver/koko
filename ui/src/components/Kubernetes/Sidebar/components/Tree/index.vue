@@ -1,13 +1,10 @@
 <template>
-  <n-button
-    text
-    @click="handleTreeIconClick"
-    class="py-[5px]"
-    :class="isCollapsed ? '' : 'icon-wrapper'"
-  >
+  <n-button text @click="handleTreeIconClick" class="py-[5px] icon-wrapper">
     <svg-icon class="tree-icon" :name="name" :icon-style="iconStyle" />
   </n-button>
 </template>
+
+// :class="isCollapsed ? '' : 'icon-wrapper'"
 
 <script setup lang="ts">
 import mittBus from '@/utils/mittBus.ts';

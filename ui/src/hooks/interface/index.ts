@@ -55,4 +55,6 @@ export interface customTreeOption extends TreeOption {
   namespace?: string;
 
   pod?: string;
+
+  container?: string;
 }

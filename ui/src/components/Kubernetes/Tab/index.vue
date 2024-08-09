@@ -1,92 +1,66 @@
 <template>
   <n-layout-header class="header-tab relative">
-    <n-space justify="space-between" align="center">
-      <n-flex ref="el" style="gap: 0">
-        <n-flex
-          justify="center"
-          align="center"
-          v-for="item in list"
-          class="tab-item cursor-pointer transition-all duration-300 ease-in-out"
-          :key="item.id"
-          :class="{
-            'active-tab': item.isActive,
-            'first-click': item.clickCount === 1,
-            'second-click': item.clickCount === 2
-          }"
-          @click="handleTabClick(item)"
-        >
-          <n-text class="px-[10px] flex items-center">
-            <span
-              class="text-item inline-flex h-[35px] min-w-[85px] text-[13px] justify-center items-center"
-            >
-              {{ item.name }}
-            </span>
-            <n-icon
-              class="close-icon"
-              v-if="item.isActive"
-              :size="14"
-              :component="CloseOutline"
-            ></n-icon>
-          </n-text>
-        </n-flex>
-      </n-flex>
-      <!--	todo)) 组件拆分		-->
-      <n-flex
-        justify="space-between"
-        align="center"
-        class="h-[35px] mr-[15px]"
-        style="column-gap: 5px"
+    <n-flex ref="el" style="gap: 0">
+      <n-tabs
+        v-model:value="nameRef"
+        size="small"
+        type="card"
+        closable
+        tab-style="min-width: 80px;"
+        @close="handleClose"
       >
-        <n-popover>
-          <template #trigger>
-            <div
-              class="icon-item flex justify-center items-center w-[25px] h-[25px] cursor-pointer transition-all duration-300 ease-in-out hover:rounded-[5px]"
-            >
-              <svg-icon name="split" :icon-style="iconStyle" />
-            </div>
-          </template>
-          拆分
-        </n-popover>
+        <n-tab-pane
+          v-for="panel in panelsRef"
+          :key="panel"
+          :tab="panel.toString()"
+          :name="panel"
+          class="h-screen bg-[#101014]"
+        >
+          {{ panel }}
+        </n-tab-pane>
+        <template v-slot:suffix>
+          <n-flex
+            justify="space-between"
+            align="center"
+            class="h-[35px] mr-[15px]"
+            style="column-gap: 5px"
+          >
+            <n-popover>
+              <template #trigger>
+                <div
+                  class="icon-item flex justify-center items-center w-[25px] h-[25px] cursor-pointer transition-all duration-300 ease-in-out hover:rounded-[5px]"
+                >
+                  <svg-icon name="split" :icon-style="iconStyle" />
+                </div>
+              </template>
+              拆分
+            </n-popover>
 
-        <n-popover>
-          <template #trigger>
-            <div
-              class="icon-item flex justify-center items-center w-[25px] h-[25px] cursor-pointer transition-all duration-300 ease-in-out hover:rounded-[5px]"
-            >
-              <n-icon size="16px" :component="EllipsisHorizontal" />
-            </div>
-          </template>
-          操作
-        </n-popover>
-      </n-flex>
-      <!--	todo)) 组件拆分		-->
-    </n-space>
+            <n-popover>
+              <template #trigger>
+                <div
+                  class="icon-item flex justify-center items-center w-[25px] h-[25px] cursor-pointer transition-all duration-300 ease-in-out hover:rounded-[5px]"
+                >
+                  <n-icon size="16px" :component="EllipsisHorizontal" />
+                </div>
+              </template>
+              操作
+            </n-popover>
+          </n-flex>
+        </template>
+      </n-tabs>
+    </n-flex>
   </n-layout-header>
 </template>
 
 <script setup lang="ts">
 import SvgIcon from '@/components/SvgIcon/index.vue';
 
-import { type CSSProperties, reactive, ref } from 'vue';
-import { EllipsisHorizontal, CloseOutline } from '@vicons/ionicons5';
-import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
+import { type CSSProperties, ref } from 'vue';
+import { EllipsisHorizontal } from '@vicons/ionicons5';
+import { useMessage } from 'naive-ui';
 
 const el = ref();
-
-const list = reactive([
-  {
-    name: 'index.js',
-    id: 1,
-    clickCount: 0,
-    isActive: false
-  },
-  {
-    name: 'Jean',
-    id: 2,
-    clickCount: 0,
-    isActive: false
-  }
-]);
 
 const iconStyle: CSSProperties = {
   width: '16px',
@@ -94,28 +68,22 @@ const iconStyle: CSSProperties = {
   transition: 'fill 0.3s'
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const draggable = useDraggable<UseDraggableReturn>(el, list, {
-  animation: 150,
-  onStart() {
-    console.log('start');
-  },
-  onUpdate() {
-    console.log('update');
+const nameRef = ref(1);
+const message = useMessage();
+const panelsRef = ref([1, 2, 3, 4, 5, 6, 7]);
+function handleClose(name: number) {
+  const { value: panels } = panelsRef;
+  if (panels.length === 1) {
+    message.error('最后一个了');
+    return;
   }
-});
-
-const handleTabClick = (item: { id: number }) => {
-  list.forEach(tab => {
-    if (tab.id === item.id) {
-      tab.clickCount = tab.clickCount < 2 ? tab.clickCount + 1 : 1; // 重置为1时保证重新点击
-      tab.isActive = true;
-    } else {
-      tab.clickCount = 0;
-      tab.isActive = false;
-    }
-  });
-};
+  message.info(`关掉 ${name}`);
+  const index = panels.findIndex(v => name === v);
+  panels.splice(index, 1);
+  if (nameRef.value === name) {
+    nameRef.value = panels[index];
+  }
+}
 </script>
 
 <style scoped lang="scss">

@@ -28,11 +28,7 @@
         @sync-load-node="handleSyncLoadNode"
       />
     </n-layout-sider>
-    <MainContent>
-      <template v-slot:terminal>
-        <!--        <Terminal :enable-zmodem="true" @ws-data="wsData" />-->
-      </template>
-    </MainContent>
+    <MainContent :terminal-id="terminalId" :socket="socket" />
   </n-layout>
 </template>
 

@@ -1,11 +1,21 @@
-import { h, ref, Ref } from 'vue';
-import { NIcon, TreeOption } from 'naive-ui';
-import { useLogger } from '@/hooks/useLogger.ts';
-import { wsIsActivated } from '@/components/Terminal/helper';
-import { customTreeOption } from '@/hooks/interface';
-import { Folder } from '@vicons/ionicons5';
+// 引入 API
+import { h, ref } from 'vue';
 
+// 引入 Hook
+import { useLogger } from '@/hooks/useLogger.ts';
+
+// 引入类型
+import type { Ref } from 'vue';
+import type { TreeOption } from 'naive-ui';
+import type { customTreeOption } from '@/hooks/interface';
+
+// 组件
+import { NIcon } from 'naive-ui';
+import { Folder } from '@vicons/ionicons5';
+import mittBus from '@/utils/mittBus.ts';
 import SvgIcon from '@/components/SvgIcon/index.vue';
+
+import { wsIsActivated } from '@/components/Terminal/helper';
 
 const { debug } = useLogger('Tree-Hook');
 
@@ -58,58 +68,71 @@ export const useTree = (
     }
   };
 
+  // 处理子节点
+  const handleChildNodes = (name: string, nodeId: string) => {
+    let childNode: customTreeOption = {
+      id: `${nodeId}-${name}`,
+      key: `${nodeId}-${name}`,
+      label: name,
+      isLeaf: false,
+      prefix: () =>
+        h(NIcon, null, {
+          default: () => h(Folder)
+        })
+    };
+
+    if (!currentNode.value.namespace && !currentNode.value.pod) {
+      childNode.namespace = name;
+    } else if (currentNode.value.namespace && !currentNode.value.pod) {
+      childNode.namespace = currentNode.value.namespace;
+      childNode.pod = name;
+    } else if (
+      currentNode.value.namespace &&
+      currentNode.value.pod &&
+      !currentNode.value.container
+    ) {
+      childNode.container = currentNode.value.container;
+      childNode.isLeaf = true;
+      childNode.prefix = () =>
+        h(SvgIcon, {
+          name: 'k8s',
+          iconStyle: {
+            width: '14px',
+            height: '14px',
+            fill: '#D8D8D8'
+          }
+        });
+      childNode.container = name;
+
+      childNode.key = `${currentNode.value.namespace}-${currentNode.value.pod}-${childNode.container}`;
+    }
+
+    return childNode;
+  };
+
   // 更新节点
   const updateTreeNodes = (msg: any) => {
     const nodeId = msg.id;
 
     const data = JSON.parse(msg.data);
 
-    console.log('data', data);
-    console.log('currentNode', currentNode);
+    // 如果当前节点已经有 container，直接返回空数组，不再处理子节点
+    if (currentNode.value.container) {
+      // 发起 k8s 的 Terminal 请求
+      mittBus.emit('connect-terminal', currentNode.value);
+      return [];
+    }
 
-    const childNodes = data.map((name: string) => {
-      let childNode: customTreeOption = {
-        id: `${nodeId}-${name}`,
-        key: `${nodeId}-${name}`,
-        label: name,
-        isLeaf: false,
-        prefix: () =>
-          h(NIcon, null, {
-            default: () => h(Folder)
-          })
-      };
+    const childNodes = data
+      .map((name: string) => {
+        if (currentNode.value.container) {
+          return null;
+        }
+        return handleChildNodes(name, nodeId);
+      })
+      .filter(Boolean);
 
-      // 根据当前节点的层级设置子节点的 namespace 和 pod
-      if (!currentNode.value.namespace && !currentNode.value.pod) {
-        childNode.namespace = name;
-      } else if (currentNode.value.namespace && !currentNode.value.pod) {
-        childNode.namespace = currentNode.value.namespace;
-        childNode.pod = name;
-      } else if (
-        currentNode.value.namespace &&
-        currentNode.value.pod &&
-        !currentNode.value.container
-      ) {
-        childNode.container = currentNode.value.container;
-        childNode.isLeaf = true;
-        childNode.prefix = () =>
-          h(SvgIcon, {
-            name: 'k8s',
-            iconStyle: {
-              width: '14px',
-              height: '14px',
-              fill: '#D8D8D8'
-            }
-          });
-        childNode.container = name;
-      }
-
-      return childNode;
-    });
-
-    console.log('childNodes', childNodes);
-
-    if (!currentNode.value.children) {
+    if (!currentNode.value.children && !currentNode.value.isLeaf) {
       currentNode.value.children = childNodes;
     }
 

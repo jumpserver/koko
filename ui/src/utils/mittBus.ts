@@ -1,11 +1,19 @@
 import mitt, { Emitter } from 'mitt';
+import { customTreeOption } from '@/hooks/interface';
+import { shareUser } from '@/views/interface';
 
 type Event = {
-  updateTreeNodes: {
-    key: string;
-    label: string;
-    isLeaf: boolean;
+  'open-setting': void;
+  'show-theme-config': void;
+  'set-theme': { themeName: string };
+  'share-user': { type: string; query: string };
+  'sync-theme': { type: string; data: any };
+  'create-share-url': {
+    type: string;
+    sessionId: string;
+    shareLinkRequest: { expiredTime: number; actionPerm: string; users: shareUser[] };
   };
+  'connect-terminal': customTreeOption;
 };
 
 const mittBus: Emitter<Event> = mitt();

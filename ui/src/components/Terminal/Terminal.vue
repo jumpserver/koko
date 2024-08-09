@@ -52,6 +52,7 @@ const lunaConfig: Ref<ILunaConfig> = ref({});
 // 使用 hook
 const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal(
   terminalId,
+  'common',
   zmodemStatus,
   props.enableZmodem,
   lastSendTime,
@@ -155,7 +156,7 @@ onMounted(() => {
   const { send, ws } = createWebSocket(terminal, lastSendTime, fitAddon);
 
   // 初始化 el 与 Terminal 相关事件
-  initTerminalEvent(ws.value, el, terminal, lunaConfig.value);
+  ws.value, el, terminal, lunaConfig.value;
 
   // 事件监听相关逻辑
   handleCustomWindowEvent(terminal, ws, send);

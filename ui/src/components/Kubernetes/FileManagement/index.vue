@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { ref, h, watch, Ref } from 'vue';
-import { NIcon, TreeOption, DropdownOption, NPopover } from 'naive-ui';
+import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
 import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5';
 import { showToolTip } from '@/components/Kubernetes/FileManagement/helper';
 

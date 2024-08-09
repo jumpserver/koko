@@ -12,7 +12,8 @@ import xtermTheme from 'xterm-theme';
 const { debug } = useLogger('Terminal-Hook');
 
 export const useTerminal = (
-  terminalId?: Ref<string>,
+  id: Ref<string>,
+  type: string,
   zmodemStatus?: Ref<boolean>,
   enableZmodem?: boolean,
   lastSendTime: Ref<Date> = ref(new Date()),
@@ -145,22 +146,34 @@ export const useTerminal = (
   };
 
   // 处理 Terminal 的 onData 事件
-  const handleTerminalOnData = (ws: WebSocket, data: any, config: ILunaConfig) => {
+  const handleTerminalOnData = (data: any, config: ILunaConfig, ws: WebSocket) => {
     if (!wsIsActivated(ws)) return debug('WebSocket Closed');
 
     if (!enableZmodem && zmodemStatus?.value) {
       return debug('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
     }
 
-    lastSendTime.value = new Date();
-
     debug('Term on data event');
-
     data = preprocessInput(data, config);
 
-    sendEventToLuna('KEYBOARDEVENT', '');
+    lastSendTime.value = new Date();
 
-    ws.send(formatMessage(<string>terminalId?.value, 'TERMINAL_DATA', data));
+    const eventType = type === 'common' ? 'TERMINAL_DATA' : 'TERMINAL_K8S_DATA';
+
+    if (type === 'common') {
+      sendEventToLuna('KEYBOARDEVENT', '');
+    } else {
+      // k8s 的情况, data 需要额外处理
+      data = {
+        k8s_id: '',
+        namespace: '',
+        pod: '',
+        container: '',
+        ...data
+      };
+    }
+
+    ws.send(formatMessage(<string>id?.value, eventType, data));
   };
 
   // 处理 Terminal 的 resize 事件
@@ -169,9 +182,7 @@ export const useTerminal = (
 
     debug('Send Term Resize');
 
-    ws.send(
-      formatMessage(<string>terminalId?.value, 'TERMINAL_RESIZE', JSON.stringify({ cols, rows }))
-    );
+    ws.send(formatMessage(<string>id?.value, 'TERMINAL_RESIZE', JSON.stringify({ cols, rows })));
   };
 
   // 初始化 el 与 Terminal 相关事件
@@ -183,7 +194,7 @@ export const useTerminal = (
   ) => {
     terminal.onSelectionChange(() => handleSelection(terminal));
     terminal.onData(data => {
-      handleTerminalOnData(ws, data, config);
+      handleTerminalOnData(data, config, ws);
     });
     terminal.onResize(({ cols, rows }) => handleTerminalOnResize(ws, cols, rows));
     terminal.attachCustomKeyEventHandler(e => handleKeyEvent(e, terminal));
