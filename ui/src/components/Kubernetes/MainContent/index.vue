@@ -55,16 +55,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick, onMounted } from 'vue';
-import { CSSProperties } from 'vue';
+import { ref, reactive, nextTick, onMounted, Ref, onBeforeUnmount } from 'vue';
+
+// 引入 hook
 import { useMessage } from 'naive-ui';
-import { EllipsisHorizontal } from '@vicons/ionicons5';
 import { useLogger } from '@/hooks/useLogger.ts';
-import mittBus from '@/utils/mittBus.ts';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { useSentry } from '@/hooks/useZsentry.ts';
 import { useTerminal } from '@/hooks/useTerminal.ts';
+
+// 引入 store
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+
+// 引入 type
 import type { TabPaneProps } from 'naive-ui';
-import type { ILunaConfig } from '@/hooks/interface';
+import type { customTreeOption, ILunaConfig } from '@/hooks/interface';
+import type { CSSProperties } from 'vue';
+
+import mittBus from '@/utils/mittBus.ts';
+import { EllipsisHorizontal } from '@vicons/ionicons5';
+import { updateIcon } from '@/components/Terminal/helper';
+import { v4 as uuidv4 } from 'uuid';
 
 // 图标样式
 const iconStyle: CSSProperties = {
@@ -77,19 +87,26 @@ const iconStyle: CSSProperties = {
 const props = defineProps<{
   terminalId: string;
   socket: WebSocket | null;
+  connectInfo: any;
+  socketSend: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean;
 }>();
 
 // 创建消息和日志实例
 const message = useMessage();
 const { debug } = useLogger('K8s-Terminal');
 
-// 终端相关函数
-const { createTerminal, initTerminalEvent } = useTerminal(ref(props.terminalId), 'k8s');
-
 // 相关状态
 const nameRef = ref();
-const lunaConfig = ref<ILunaConfig>({});
+
+const code: Ref<any> = ref();
+const lastSendTime: Ref<Date> = ref(new Date());
+const lunaConfig: Ref<ILunaConfig> = ref({});
+
 const panels: TabPaneProps[] = reactive([]);
+
+// 终端相关函数
+const { createTerminal, initTerminalEvent } = useTerminal(ref(props.terminalId), 'k8s');
+const { createSentry } = useSentry(lastSendTime);
 
 // 处理关闭标签页事件
 const handleClose = (name: string) => {
@@ -99,7 +116,7 @@ const handleClose = (name: string) => {
 };
 
 // 创建 K8s 终端
-const createK8sTerminal = async (name?: string) => {
+const createK8sTerminal = async (currentNode: customTreeOption) => {
   await nextTick();
 
   const el: HTMLElement = document.getElementById('terminal')!;
@@ -110,10 +127,33 @@ const createK8sTerminal = async (name?: string) => {
   const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
 
   if (props.socket) {
-    initTerminalEvent(props.socket, el, terminal, lunaConfig.value);
-  }
+    const sentry = createSentry(props.socket, terminal);
 
-  terminal.write('Welcome!!!');
+    initTerminalEvent(props.socket, el, terminal, lunaConfig.value);
+
+    // todo))
+    const sendData = {
+      id: props.terminalId,
+      k8s_id: uuidv4(),
+      namespace: currentNode.namespace,
+      pod: currentNode.pod,
+      container: currentNode.container,
+      type: 'TERMINAL_K8S_INIT',
+      data: JSON.stringify({
+        cols: terminal.cols,
+        rows: terminal.rows,
+        code: ''
+      })
+    };
+
+    debug(`Current User: ${props.connectInfo.user}`);
+
+    updateIcon(props.connectInfo.setting);
+
+    props.socketSend(JSON.stringify(sendData));
+
+    terminal.write('Welcome!!!');
+  }
 };
 
 // 监听连接终端事件
@@ -128,8 +168,12 @@ onMounted(() => {
 
     debug('currentNode', currentNode);
 
-    createK8sTerminal(currentNode.key as string);
+    createK8sTerminal(currentNode);
   });
+});
+
+onBeforeUnmount(() => {
+  mittBus.off('connect-terminal');
 });
 </script>
 

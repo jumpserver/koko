@@ -51,10 +51,11 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, h, watch, Ref } from 'vue';
+import { ref, h, watch, Ref, nextTick } from 'vue';
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
 import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5';
 import { showToolTip } from '@/components/Kubernetes/FileManagement/helper';
+import mittBus from '@/utils/mittBus.ts';
 
 const props = defineProps<{
   treeNodes: any;
@@ -119,8 +120,12 @@ const handleOnLoad = (node: TreeOption) => {
 
 const nodeProps = ({ option }: { option: TreeOption }) => {
   return {
-    onClick: () => {
-      handleOnLoad(option);
+    onClick: async () => {
+      await nextTick();
+
+      if (option.isLeaf) {
+        mittBus.emit('connect-terminal', option);
+      }
     },
     onContextmenu(e: MouseEvent): void {
       dropdownOptions.value = [option];
@@ -174,13 +179,14 @@ const handleClickoutside = () => {
     }
 
     :deep(.n-collapse-item__content-wrapper) {
-      margin-left: 16px;
+      margin-top: 5px;
+      margin-left: 15px;
 
       .n-collapse-item__content-inner {
         padding-top: 0;
 
         .tree-item .n-tree-node-wrapper {
-          padding: unset;
+          padding: 0 0 5px 0;
           line-height: 22px;
 
           .n-tree-node-content {

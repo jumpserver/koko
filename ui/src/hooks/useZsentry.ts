@@ -32,7 +32,7 @@ interface IUseSentry {
   createSentry: (ws: WebSocket, terminal: Terminal) => Sentry;
 }
 
-export const useSentry = (lastSendTime: Ref<Date>, t: any): IUseSentry => {
+export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
   const term: Ref<Terminal | null> = ref(null);
   const fileList: Ref<UploadFileInfo[]> = ref([]);
   const sentryRef: Ref<Sentry | null> = ref(null);
@@ -219,7 +219,7 @@ export const useSentry = (lastSendTime: Ref<Date>, t: any): IUseSentry => {
         return debug('WebSocket Closed');
       }
       try {
-        lastSendTime.value = new Date();
+        lastSendTime && (lastSendTime.value = new Date());
         ws.send(new Uint8Array(octets));
       } catch (err) {
         error('Failed to send octets via WebSocket', err);

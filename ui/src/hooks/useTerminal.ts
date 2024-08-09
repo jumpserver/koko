@@ -164,6 +164,7 @@ export const useTerminal = (
       sendEventToLuna('KEYBOARDEVENT', '');
     } else {
       // k8s 的情况, data 需要额外处理
+      // todo))
       data = {
         k8s_id: '',
         namespace: '',
@@ -182,7 +183,26 @@ export const useTerminal = (
 
     debug('Send Term Resize');
 
-    ws.send(formatMessage(<string>id?.value, 'TERMINAL_RESIZE', JSON.stringify({ cols, rows })));
+    const eventType = type === 'common' ? 'TERMINAL_RESIZE' : 'TERMINAL_K8S_RESIZE';
+    let data = null;
+    let resizeData = null;
+
+    if (type === 'k8s') {
+      resizeData = JSON.stringify({ cols, rows });
+
+      // todo))
+      data = {
+        k8s_id: '',
+        namespace: '',
+        pod: '',
+        container: '',
+        resizeData
+      };
+    } else {
+      data = JSON.stringify({ cols, rows });
+    }
+
+    ws.send(formatMessage(<string>id?.value, eventType, data));
   };
 
   // 初始化 el 与 Terminal 相关事件

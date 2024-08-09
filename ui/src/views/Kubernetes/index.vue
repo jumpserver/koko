@@ -28,7 +28,12 @@
         @sync-load-node="handleSyncLoadNode"
       />
     </n-layout-sider>
-    <MainContent :terminal-id="terminalId" :socket="socket" />
+    <MainContent
+      :terminal-id="terminalId"
+      :socket="socket"
+      :socket-send="socketSend"
+      :connect-info="connectInfo"
+    />
   </n-layout>
 </template>
 

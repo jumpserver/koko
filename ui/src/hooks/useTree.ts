@@ -12,7 +12,6 @@ import type { customTreeOption } from '@/hooks/interface';
 // 组件
 import { NIcon } from 'naive-ui';
 import { Folder } from '@vicons/ionicons5';
-import mittBus from '@/utils/mittBus.ts';
 import SvgIcon from '@/components/SvgIcon/index.vue';
 
 import { wsIsActivated } from '@/components/Terminal/helper';
@@ -28,7 +27,7 @@ export const useTree = (
 ) => {
   // 当前的所有 Tree 节点
   const treeNodes: Ref<TreeOption[]> = ref([]);
-  const currentNode: Ref<customTreeOption> = ref({});
+  const currentNode: Ref<customTreeOption | null> = ref(null);
 
   // 初始化 Tree
   const initTree = (key: string, label: string): TreeOption[] => {
@@ -41,36 +40,18 @@ export const useTree = (
     return treeNodes.value;
   };
 
-  const beforeLoad = (treeNodes: customTreeOption) => {
-    // treeNodes 不存在时表示已经加载过
-    // 只有当 treeNodes 没有子节点，并且 treeNodes 存在是才会返回 true
-    return treeNodes && !treeNodes.children;
-  };
-
-  // 点击节点触发异步 Load
-  const syncLoadNode = (treeNodes: customTreeOption, terminalId: string) => {
-    const needLoad = beforeLoad(treeNodes);
-
-    currentNode.value = treeNodes;
-
-    if (needLoad) {
-      debug('Start Load Tree Node ....');
-
-      const loadDate: customTreeOption = {
-        id: terminalId,
-        pod: treeNodes?.pod || '',
-        type: 'TERMINAL_K8S_TREE',
-        k8s_id: treeNodes.id,
-        namespace: treeNodes?.namespace || ''
-      };
-
-      wsIsActivated(socket) && socketSend(JSON.stringify(loadDate));
-    }
+  const beforeLoad = (treeNode: customTreeOption) => {
+    return treeNode && !treeNode.children && !treeNode.isLeaf;
   };
 
   // 处理子节点
-  const handleChildNodes = (name: string, nodeId: string) => {
-    let childNode: customTreeOption = {
+  const handleChildNodes = (name: string, nodeId: string, currentNode: customTreeOption) => {
+    if (!currentNode) {
+      debug('currentNode is undefined or null');
+      return null;
+    }
+
+    const childNode: customTreeOption = {
       id: `${nodeId}-${name}`,
       key: `${nodeId}-${name}`,
       label: name,
@@ -81,17 +62,15 @@ export const useTree = (
         })
     };
 
-    if (!currentNode.value.namespace && !currentNode.value.pod) {
+    if (!currentNode.namespace && !currentNode.pod) {
       childNode.namespace = name;
-    } else if (currentNode.value.namespace && !currentNode.value.pod) {
-      childNode.namespace = currentNode.value.namespace;
+    } else if (currentNode.namespace && !currentNode.pod) {
+      childNode.namespace = currentNode.namespace;
       childNode.pod = name;
-    } else if (
-      currentNode.value.namespace &&
-      currentNode.value.pod &&
-      !currentNode.value.container
-    ) {
-      childNode.container = currentNode.value.container;
+    } else if (currentNode.namespace && currentNode.pod && !currentNode.container) {
+      childNode.namespace = currentNode.namespace;
+      childNode.pod = currentNode.pod;
+      childNode.container = name;
       childNode.isLeaf = true;
       childNode.prefix = () =>
         h(SvgIcon, {
@@ -102,9 +81,6 @@ export const useTree = (
             fill: '#D8D8D8'
           }
         });
-      childNode.container = name;
-
-      childNode.key = `${currentNode.value.namespace}-${currentNode.value.pod}-${childNode.container}`;
     }
 
     return childNode;
@@ -112,31 +88,51 @@ export const useTree = (
 
   // 更新节点
   const updateTreeNodes = (msg: any) => {
-    const nodeId = msg.id;
+    try {
+      const nodeId = msg.id;
+      const data = JSON.parse(msg.data);
 
-    const data = JSON.parse(msg.data);
+      if (!currentNode.value) {
+        debug('currentNode is undefined or null');
+        return [];
+      }
 
-    // 如果当前节点已经有 container，直接返回空数组，不再处理子节点
-    if (currentNode.value.container) {
-      // 发起 k8s 的 Terminal 请求
-      mittBus.emit('connect-terminal', currentNode.value);
+      const childNodes = data.map((name: string) => {
+        return handleChildNodes(name, nodeId, currentNode.value!);
+      });
+
+      if (!currentNode.value.children && !currentNode.value.isLeaf) {
+        currentNode.value.children = childNodes;
+      }
+
+      return childNodes;
+    } catch (error) {
+      debug('Error parsing message or updating tree nodes:', error);
       return [];
     }
+  };
 
-    const childNodes = data
-      .map((name: string) => {
-        if (currentNode.value.container) {
-          return null;
-        }
-        return handleChildNodes(name, nodeId);
-      })
-      .filter(Boolean);
+  // 点击节点触发异步 Load 或者直接连接终端
+  const syncLoadNode = (treeNode: customTreeOption, terminalId: string) => {
+    if (!treeNode) return;
 
-    if (!currentNode.value.children && !currentNode.value.isLeaf) {
-      currentNode.value.children = childNodes;
+    currentNode.value = treeNode;
+
+    if (!beforeLoad(treeNode)) return;
+
+    debug('Start Load Tree Node ....');
+
+    const loadDate: customTreeOption = {
+      id: terminalId,
+      pod: treeNode.pod || '',
+      type: 'TERMINAL_K8S_TREE',
+      k8s_id: treeNode.id,
+      namespace: treeNode.namespace || ''
+    };
+
+    if (wsIsActivated(socket)) {
+      socketSend(JSON.stringify(loadDate));
     }
-
-    return childNodes;
   };
 
   return {

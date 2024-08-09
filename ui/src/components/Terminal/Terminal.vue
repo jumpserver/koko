@@ -156,7 +156,7 @@ onMounted(() => {
   const { send, ws } = createWebSocket(terminal, lastSendTime, fitAddon);
 
   // 初始化 el 与 Terminal 相关事件
-  ws.value, el, terminal, lunaConfig.value;
+  initTerminalEvent(ws.value, el, terminal, lunaConfig.value);
 
   // 事件监听相关逻辑
   handleCustomWindowEvent(terminal, ws, send);
