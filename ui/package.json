@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prettier": "prettier --write \"src/**/*.{js,ts,json,tsx,css,less,scss,vue,html,md}\""
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
     "@vueuse/core": "^10.11.0",
+    "@xterm/addon-attach": "^0.11.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "alova": "^3.0.2",
@@ -30,7 +32,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
-    "@types/xterm": "^3.0.0",
     "@vicons/ionicons5": "^0.12.0",
     "@vitejs/plugin-vue": "^5.0.5",
     "autoprefixer": "^10.4.19",

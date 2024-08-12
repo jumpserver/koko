@@ -1,4 +1,4 @@
-<template>12312312</template>
+<template></template>
 
 <script setup lang="ts"></script>
 

@@ -1,54 +1,53 @@
 <template>
-  <n-layout has-sider class="custom-layout h-full">
-    <n-layout-header class="w-[40px]">
-      <n-flex
-        class="w-full h-full text-white bg-[#333333]"
-        vertical
-        align="center"
-        justify="space-between"
-      >
-        <SideTop />
-      </n-flex>
-    </n-layout-header>
-    <n-layout-sider
-      v-draggable="sideWidth"
-      bordered
-      collapsed
-      collapse-mode="width"
-      content-style="padding: 24px;"
-      class="transition-all duration-300"
-      :width="sideWidth"
-      :collapsed-width="0"
-      :native-scrollbar="false"
-      :show-collapsed-content="false"
-      :style="{
-        width: sideWidth + 'px',
-        maxWidth: '600px'
-      }"
-    >
-      <!-- isCollapsed -->
-      <FileManagement
-        :treeNodes="treeNodes"
-        :class="{
-          'transition-opacity duration-200': true,
-          'opacity-0': isFolded,
-          'opacity-100': !isFolded
-        }"
-        @sync-load-node="handleSyncLoadNode"
-      />
-    </n-layout-sider>
-    <MainContent
-      :socket="socket"
-      :terminal-id="terminalId"
-      :socket-send="socketSend"
-      :socket-data="socketData"
-      :connect-info="connectInfo"
-    />
-  </n-layout>
+    <n-layout has-sider class="custom-layout h-full">
+        <n-layout-header class="w-[40px]">
+            <n-flex
+                class="w-full h-full text-white bg-[#333333]"
+                vertical
+                align="center"
+                justify="space-between"
+            >
+                <SideTop />
+            </n-flex>
+        </n-layout-header>
+        <n-layout-sider
+            v-draggable="sideWidth"
+            bordered
+            collapsed
+            collapse-mode="width"
+            content-style="padding: 24px;"
+            class="transition-all duration-300"
+            :width="sideWidth"
+            :collapsed-width="0"
+            :native-scrollbar="false"
+            :show-collapsed-content="false"
+            :style="{
+                width: sideWidth + 'px',
+                maxWidth: '600px'
+            }"
+        >
+            <FileManagement
+                :treeNodes="treeNodes"
+                :class="{
+                    'transition-opacity duration-200': true,
+                    'opacity-0': isFolded,
+                    'opacity-100': !isFolded
+                }"
+                @sync-load-node="handleSyncLoadNode"
+            />
+        </n-layout-sider>
+        <MainContent
+            :socket="socket"
+            :terminal-id="terminalId"
+            :socket-send="socketSend"
+            :socket-data="socketData"
+        />
+    </n-layout>
 </template>
 
 <script setup lang="ts">
 // 使用 Hook
+import { useTreeStore } from '@/store/modules/tree.ts';
 import { useWebSocket as customUseWebSocket } from '@/hooks/useWebSocket.ts';
 
 import type { Ref } from 'vue';
@@ -59,8 +58,6 @@ import mittBus from '@/utils/mittBus.ts';
 import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
 import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 import FileManagement from '@/components/Kubernetes/FileManagement/index.vue';
-
-import { useTreeStore } from '@/store/modules/tree.ts';
 
 // 导入 API
 import { onMounted, onUnmounted, ref } from 'vue';
@@ -89,42 +86,42 @@ const isFolded = ref(false);
 const connectInfo = ref<any | null>(null);
 
 const { createWebSocket } = customUseWebSocket(terminalId, {
-  enableZmodem: enableZmodem.value,
-  zmodemStatus,
-  isK8s: true
+    enableZmodem: enableZmodem.value,
+    zmodemStatus,
+    isK8s: true
 });
 
 const handleClickOutSide = () => {};
 const handleSyncLoadNode = (treeNodes: customTreeOption) => {
-  if (socket.value) {
-    treeStore.loadTreeNode(socket.value, socketSend, treeNodes, terminalId.value);
-  }
+    if (socket.value) {
+        treeStore.loadTreeNode(socket.value, socketSend, treeNodes, terminalId.value);
+    }
 };
 const handleTreeClick = () => {
-  isFolded.value = !isFolded.value;
-  sideWidth.value = isFolded.value ? 0 : 300;
+    isFolded.value = !isFolded.value;
+    sideWidth.value = isFolded.value ? 0 : 300;
 };
 
 const initConnection = () => {
-  const { ws, send, data } = createWebSocket(lastSendTime, t);
+    const { ws, send, data } = createWebSocket(lastSendTime, t);
 
-  socket.value = ws.value!;
-  socketSend = send;
-  socketData = data;
+    socket.value = ws.value!;
+    socketSend = send;
+    socketData = data;
 };
 
 initConnection();
 
 onMounted(() => {
-  document.addEventListener('click', (e: Event) => handleClickOutSide, false);
+    document.addEventListener('click', (e: Event) => handleClickOutSide, false);
 
-  mittBus.on('fold-tree-click', handleTreeClick);
+    mittBus.on('fold-tree-click', handleTreeClick);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', (e: Event) => handleClickOutSide, false);
+    document.removeEventListener('click', (e: Event) => handleClickOutSide, false);
 
-  mittBus.off('fold-tree-click', handleTreeClick);
+    mittBus.off('fold-tree-click', handleTreeClick);
 });
 </script>
 

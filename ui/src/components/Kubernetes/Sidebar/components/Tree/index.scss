@@ -1,23 +1,23 @@
 .icon-wrapper {
-  position: relative;
-  width: 100%;
+    position: relative;
+    width: 100%;
 
-  .tree-icon {
-    fill: #1ab394 !important;
-  }
+    .tree-icon {
+        fill: #1ab394 !important;
+    }
 
-  &::before {
-    position: absolute;
-    top: 0;
-    left: 0;
-    display: block;
-    width: 2px;
-    height: 100%;
-    content: '';
-    background-color: #1ab394;
-  }
+    &::before {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: block;
+        width: 2px;
+        height: 100%;
+        content: '';
+        background-color: #1ab394;
+    }
 }
 
 .tree-icon:hover {
-  fill: #1ab394 !important;
+    fill: #1ab394 !important;
 }

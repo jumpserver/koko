@@ -10,28 +10,28 @@ const dialog = useDialog();
 const message = useMessage();
 
 dialog.warning({
-  class: 'verify',
-  title: t('VerifyCode'),
-  showIcon: false,
-  maskClosable: false,
-  style: 'width: 50%; padding-bottom: 45px',
-  titleStyle: 'margin-bottom: 30px',
-  content: () =>
-    h(NForm, {}, () => [
-      h(NGrid, {}, () => [
-        h(NGridItem, { span: 20, class: 'mr-[20px]' }, () => h(NInput, { size: 'medium' })),
-        h(NGridItem, { span: 4 }, () =>
-          h(
-            NButton,
-            { type: 'tertiary', round: true, class: 'w-full', size: 'medium' },
-            { default: () => t('ConfirmBtn') }
-          )
-        )
-      ])
-    ]),
-  onMaskClick: () => {
-    message.success('不能关闭');
-  }
+    class: 'verify',
+    title: t('VerifyCode'),
+    showIcon: false,
+    maskClosable: false,
+    style: 'width: 50%; padding-bottom: 45px',
+    titleStyle: 'margin-bottom: 30px',
+    content: () =>
+        h(NForm, {}, () => [
+            h(NGrid, {}, () => [
+                h(NGridItem, { span: 20, class: 'mr-[20px]' }, () => h(NInput, { size: 'medium' })),
+                h(NGridItem, { span: 4 }, () =>
+                    h(
+                        NButton,
+                        { type: 'tertiary', round: true, class: 'w-full', size: 'medium' },
+                        { default: () => t('ConfirmBtn') }
+                    )
+                )
+            ])
+        ]),
+    onMaskClick: () => {
+        message.success('不能关闭');
+    }
 });
 </script>
 

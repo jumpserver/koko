@@ -1,5 +1,5 @@
 <template>
-  <Terminal :connectURL="getConnectURL" />
+    <Terminal :connectURL="getConnectURL" />
 </template>
 
 <script setup lang="ts">
@@ -11,12 +11,12 @@ import Terminal from '@/components/Terminal/Terminal.vue';
 const route = useRoute();
 
 const getConnectURL = computed(() => {
-  const params = route.params;
-  const requireParams = new URLSearchParams();
+    const params = route.params;
+    const requireParams = new URLSearchParams();
 
-  requireParams.append('type', 'monitor');
-  requireParams.append('target_id', params.id as string);
+    requireParams.append('type', 'monitor');
+    requireParams.append('target_id', params.id as string);
 
-  return `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`;
+    return `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`;
 });
 </script>

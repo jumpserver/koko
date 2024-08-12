@@ -1,7 +1,7 @@
 <template>
-  <svg :style="iconStyle" aria-hidden="true">
-    <use :xlink:href="symbolId" />
-  </svg>
+    <svg :style="iconStyle" aria-hidden="true">
+        <use :xlink:href="symbolId" />
+    </svg>
 </template>
 
 <script setup lang="ts">
@@ -9,19 +9,19 @@
 import { computed, CSSProperties } from 'vue';
 
 interface SvgProps {
-  // 图标的名称 ==> 必传
-  name: string;
+    // 图标的名称 ==> 必传
+    name: string;
 
-  // 图标的前缀 ==> 非必传（默认为"icon"）
-  prefix?: string;
+    // 图标的前缀 ==> 非必传（默认为"icon"）
+    prefix?: string;
 
-  // 图标的样式 ==> 非必传
-  iconStyle?: CSSProperties;
+    // 图标的样式 ==> 非必传
+    iconStyle?: CSSProperties;
 }
 
 const props = withDefaults(defineProps<SvgProps>(), {
-  prefix: 'icon',
-  iconStyle: () => ({ width: '30px', height: '30px' })
+    prefix: 'icon',
+    iconStyle: () => ({ width: '30px', height: '30px' })
 });
 
 const symbolId = computed(() => `#${props.prefix}-${props.name}`);
@@ -29,6 +29,6 @@ const symbolId = computed(() => `#${props.prefix}-${props.name}`);
 
 <style lang="scss" scoped>
 svg:focus {
-  outline: unset;
+    outline: unset;
 }
 </style>

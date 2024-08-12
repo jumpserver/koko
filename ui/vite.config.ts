@@ -48,6 +48,11 @@ export default defineConfig({
         target: 'http://192.168.200.34:8080',
         ws: true,
         changeOrigin: true
+      },
+      '^/static/': {
+        target: 'http://192.168.200.34:8080',
+        ws: true,
+        changeOrigin: true
       }
     }
   },

@@ -3,77 +3,81 @@ import type { Ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
 
 export interface ITerminalProps {
-  // 连接 url
-  connectURL?: string;
+    // 连接 url
+    connectURL?: string;
 
-  //
-  // shareCode?: string;
+    //
+    // shareCode?: string;
 
-  // 主题名称
-  themeName?: string;
+    // 主题名称
+    themeName?: string;
 
-  //
-  enableZmodem: boolean;
+    //
+    enableZmodem: boolean;
 }
 
 export interface ILunaConfig {
-  fontSize?: number;
+    fontSize?: number;
 
-  quickPaste?: string;
+    quickPaste?: string;
 
-  backspaceAsCtrlH?: string;
+    backspaceAsCtrlH?: string;
 
-  ctrlCAsCtrlZ?: string;
+    ctrlCAsCtrlZ?: string;
 
-  lineHeight?: number;
+    lineHeight?: number;
+
+    fontFamily: string;
 }
 
 interface Announcement {
-  CONTENT: string;
-  ID: string;
-  LINK: string;
-  SUBJECT: string;
+    CONTENT: string;
+    ID: string;
+    LINK: string;
+    SUBJECT: string;
 }
 
 interface Interface {
-  favicon: string;
-  login_image: string;
-  login_title: string;
-  logo_index: string;
-  logo_logout: string;
+    favicon: string;
+    login_image: string;
+    login_title: string;
+    logo_index: string;
+    logo_logout: string;
 }
 
 export interface SettingConfig {
-  ANNOUNCEMENT?: Announcement;
-  ANNOUNCEMENT_ENABLED?: boolean;
-  INTERFACE?: Interface;
-  SECURITY_SESSION_SHARE?: boolean;
-  SECURITY_WATERMARK_ENABLED?: boolean;
+    ANNOUNCEMENT?: Announcement;
+    ANNOUNCEMENT_ENABLED?: boolean;
+    INTERFACE?: Interface;
+    SECURITY_SESSION_SHARE?: boolean;
+    SECURITY_WATERMARK_ENABLED?: boolean;
 }
 
 export interface customTreeOption extends TreeOption {
-  id?: string;
+    id?: string;
 
-  namespace?: string;
+    k8s_id?: string;
 
-  pod?: string;
+    namespace?: string;
 
-  container?: string;
+    pod?: string;
+
+    container?: string;
 }
 
 export interface EmitEvent<E = string, D = any> {
-  event: E;
-  data: D;
+    event: E;
+    data: D;
 }
 
 export interface paramsOptions {
-  enableZmodem: boolean;
+    enableZmodem: boolean;
 
-  zmodemStatus: Ref<boolean>;
+    zmodemStatus: Ref<boolean>;
 
-  emitCallback?: (type: string, msg: any, terminal: Terminal) => void;
+    emitCallback?: (type: string, msg: any, terminal: Terminal) => void;
 
-  i18nCallBack?: (key: string) => string;
+    i18nCallBack?: (key: string) => string;
 
-  isK8s?: boolean;
+    isK8s?: boolean;
 }
