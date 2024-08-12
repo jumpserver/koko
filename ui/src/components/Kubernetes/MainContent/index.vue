@@ -55,8 +55,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick, onMounted, Ref, onBeforeUnmount } from 'vue';
+import type { CSSProperties } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, reactive, Ref, ref, watch } from 'vue';
 
+// 引入 type
+import type { TabPaneProps } from 'naive-ui';
 // 引入 hook
 import { useMessage } from 'naive-ui';
 import { useLogger } from '@/hooks/useLogger.ts';
@@ -65,16 +68,14 @@ import { useTerminal } from '@/hooks/useTerminal.ts';
 
 // 引入 store
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-
-// 引入 type
-import type { TabPaneProps } from 'naive-ui';
 import type { customTreeOption, ILunaConfig } from '@/hooks/interface';
-import type { CSSProperties } from 'vue';
 
 import mittBus from '@/utils/mittBus.ts';
 import { EllipsisHorizontal } from '@vicons/ionicons5';
 import { updateIcon } from '@/components/Terminal/helper';
 import { v4 as uuidv4 } from 'uuid';
+import { base64ToUint8Array } from '@/components/Kubernetes/helper';
+import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 
 // 图标样式
 const iconStyle: CSSProperties = {
@@ -85,10 +86,11 @@ const iconStyle: CSSProperties = {
 
 // 获取 props
 const props = defineProps<{
-  terminalId: string;
   socket: WebSocket | null;
-  connectInfo: any;
+  terminalId: string;
+  socketData: any;
   socketSend: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean;
+  connectInfo: any;
 }>();
 
 // 创建消息和日志实例
@@ -98,11 +100,37 @@ const { debug } = useLogger('K8s-Terminal');
 // 相关状态
 const nameRef = ref();
 
-const code: Ref<any> = ref();
 const lastSendTime: Ref<Date> = ref(new Date());
 const lunaConfig: Ref<ILunaConfig> = ref({});
+const sentryRef: Ref<Sentry | undefined> = ref(undefined);
 
 const panels: TabPaneProps[] = reactive([]);
+
+watch(
+  () => props.socketData,
+  (newValue: any) => {
+    handleSocketData(JSON.parse(newValue));
+    console.log('socketData', JSON.parse(newValue));
+  }
+);
+
+const handleSocketData = (socketData: any) => {
+  switch (socketData.type) {
+    case 'TERMINAL_K8S_BINARY': {
+      sentryRef.value.consume(base64ToUint8Array(socketData.raw));
+      break;
+    }
+    case 'TERMINAL_ACTION': {
+      break;
+    }
+    case 'TERMINAL_ERROR': {
+      break;
+    }
+    default: {
+      debug('Default Handle SocketData Switch', socketData);
+    }
+  }
+};
 
 // 终端相关函数
 const { createTerminal, initTerminalEvent } = useTerminal(ref(props.terminalId), 'k8s');
@@ -127,7 +155,7 @@ const createK8sTerminal = async (currentNode: customTreeOption) => {
   const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
 
   if (props.socket) {
-    const sentry = createSentry(props.socket, terminal);
+    sentryRef.value = createSentry(props.socket, terminal);
 
     initTerminalEvent(props.socket, el, terminal, lunaConfig.value);
 
@@ -151,8 +179,6 @@ const createK8sTerminal = async (currentNode: customTreeOption) => {
     updateIcon(props.connectInfo.setting);
 
     props.socketSend(JSON.stringify(sendData));
-
-    terminal.write('Welcome!!!');
   }
 };
 

@@ -156,6 +156,8 @@ export const useTerminal = (
     debug('Term on data event');
     data = preprocessInput(data, config);
 
+    console.log('data', data);
+
     lastSendTime.value = new Date();
 
     const eventType = type === 'common' ? 'TERMINAL_DATA' : 'TERMINAL_K8S_DATA';

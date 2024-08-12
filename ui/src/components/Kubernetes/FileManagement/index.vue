@@ -16,6 +16,7 @@
                 draggable
                 show-line
                 block-node
+                block-line
                 expand-on-click
                 class="tree-item"
                 check-strategy="all"
@@ -26,6 +27,7 @@
                 :on-load="handleOnLoad"
                 :pattern="searchPattern"
                 :expanded-keys="expandedKeysRef"
+                :allow-checking-not-loaded="true"
                 :on-update:expanded-keys="handleExpandCollapse"
               />
               <!-- checkable -->
@@ -54,7 +56,7 @@ import { useI18n } from 'vue-i18n';
 import { ref, h, watch, Ref, nextTick } from 'vue';
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
 import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5';
-import { showToolTip } from '@/components/Kubernetes/FileManagement/helper';
+import { showToolTip } from '../helper/index';
 import mittBus from '@/utils/mittBus.ts';
 
 const props = defineProps<{

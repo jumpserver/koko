@@ -32,6 +32,7 @@
       :terminal-id="terminalId"
       :socket="socket"
       :socket-send="socketSend"
+      :socket-data="socketData"
       :connect-info="connectInfo"
     />
   </n-layout>
@@ -69,6 +70,7 @@ const { debug } = useLogger('Kubernetes');
 
 let socket: Ref<WebSocket | null> = ref(null);
 let socketSend: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean;
+let socketData: Ref<any>;
 
 let treeNodes = ref<TreeOption[]>([]);
 const sideWidth = ref(300);
@@ -143,6 +145,7 @@ const initConnection = (): UseWebSocketReturn<any> => {
 
   socket.value = ws.value!;
   socketSend = send;
+  socketData = data;
 
   return {
     status,
