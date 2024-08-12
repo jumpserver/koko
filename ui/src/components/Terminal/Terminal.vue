@@ -15,10 +15,11 @@ import { useWebSocket } from '@/hooks/useWebSocket.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 
 // 类型声明
-import type { ILunaConfig, ITerminalProps } from '@/hooks/interface';
+import type { Ref } from 'vue';
+import type { EmitEvent, ILunaConfig, ITerminalProps } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
-import { onMounted, onUnmounted, Ref, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Terminal/helper';
 
 import mittBus from '@/utils/mittBus.ts';
@@ -36,18 +37,18 @@ const props = withDefaults(defineProps<ITerminalProps>(), {
 const emits = defineEmits<{
   (e: 'event', event: string, data: string): void;
   (e: 'background-color', backgroundColor: string): void;
-  (e: 'wsData', msgType: string, msg: any, terminal: Terminal, setting: any): void;
+  (e: 'wsData', msgType: string, msg: any, terminal: Terminal): void;
 }>();
 
 const lunaId = ref('');
 const origin = ref('');
 const terminalId = ref('');
-const currentUser = ref('');
 
 const zmodemStatus = ref(false);
 
 const lastSendTime: Ref<Date> = ref(new Date());
 const lunaConfig: Ref<ILunaConfig> = ref({});
+let terminalRef: Ref<Terminal>;
 
 // 使用 hook
 const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal(
@@ -59,15 +60,14 @@ const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal(
   emits
 );
 
-const { createWebSocket } = useWebSocket(
-  terminalId,
-  props.enableZmodem,
+const { createWebSocket } = useWebSocket(terminalId, {
   zmodemStatus,
-  props.shareCode,
-  currentUser,
-  emits,
-  t
-);
+  enableZmodem: props.enableZmodem,
+  i18nCallBack: (key: string) => t(key),
+  emitCallback: (type: string, msg: any, terminal: Terminal) => {
+    emits('wsData', type, msg, terminal);
+  }
+});
 
 const sendDataFromWindow = (
   data: any,
@@ -139,8 +139,6 @@ const sendWsMessage = (
   }
 };
 
-const handleSendSesson = (zsession: any) => {};
-
 onMounted(() => {
   const theme = props.themeName;
   const el: HTMLElement = document.getElementById('terminal')!;
@@ -152,8 +150,10 @@ onMounted(() => {
   // 创建 Terminal
   const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
 
+  terminalRef.value = terminal;
+
   // 创建 WebSocket
-  const { send, ws } = createWebSocket(terminal, lastSendTime, fitAddon);
+  const { send, ws } = createWebSocket(lastSendTime, fitAddon, terminal);
 
   // 初始化 el 与 Terminal 相关事件
   initTerminalEvent(ws.value, el, terminal, lunaConfig.value);

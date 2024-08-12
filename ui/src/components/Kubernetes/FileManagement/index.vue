@@ -59,9 +59,16 @@ import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5
 import { showToolTip } from '../helper/index';
 import mittBus from '@/utils/mittBus.ts';
 
-const props = defineProps<{
-  treeNodes: any;
-}>();
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { storeToRefs } from 'pinia';
+
+const treeStore = useTreeStore();
+
+const { treeNodes, loadingTreeNode } = storeToRefs(treeStore);
+
+// const props = defineProps<{
+//   treeNodes: any;
+// }>();
 
 const emits = defineEmits<{
   (e: 'sync-load-node', data: TreeOption): void;
@@ -75,19 +82,19 @@ const dropdownX = ref(0);
 const dropdownY = ref(0);
 
 const expandedKeysRef = ref<string[]>([]);
-const isLoaded = ref(false);
-const treeData: Ref<TreeOption[]> = ref([]);
+// const isLoaded = ref(false);
+// const treeData: Ref<TreeOption[]> = ref([]);
 
-watch(
-  () => props.treeNodes,
-  newNode => {
-    isLoaded.value = true;
-    treeData.value = newNode;
-  },
-  {
-    deep: true
-  }
-);
+// watch(
+//   () => props.treeNodes,
+//   newNode => {
+//     isLoaded.value = true;
+//     treeData.value = newNode;
+//   },
+//   {
+//     deep: true
+//   }
+// );
 
 const handleExpandCollapse = (
   expandedKeys: string[],
@@ -116,7 +123,7 @@ const handleOnLoad = (node: TreeOption) => {
   emits('sync-load-node', node);
 
   return new Promise<boolean>(resolve => {
-    if (isLoaded.value) resolve(false);
+    if (loadingTreeNode.value) resolve(false);
   });
 };
 

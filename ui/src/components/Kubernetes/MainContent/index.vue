@@ -76,6 +76,8 @@ import { updateIcon } from '@/components/Terminal/helper';
 import { v4 as uuidv4 } from 'uuid';
 import { base64ToUint8Array } from '@/components/Kubernetes/helper';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
+import { Terminal } from '@xterm/xterm';
+import { useI18n } from 'vue-i18n';
 
 // 图标样式
 const iconStyle: CSSProperties = {
@@ -99,31 +101,59 @@ const { debug } = useLogger('K8s-Terminal');
 
 // 相关状态
 const nameRef = ref();
+const enableZmodem = ref(true);
+const zmodemStatus = ref(false);
 
 const lastSendTime: Ref<Date> = ref(new Date());
 const lunaConfig: Ref<ILunaConfig> = ref({});
 const sentryRef: Ref<Sentry | undefined> = ref(undefined);
+const terminalRef: Ref<Terminal | undefined> = ref(undefined);
 
 const panels: TabPaneProps[] = reactive([]);
+
+const { t } = useI18n();
 
 watch(
   () => props.socketData,
   (newValue: any) => {
     handleSocketData(JSON.parse(newValue));
-    console.log('socketData', JSON.parse(newValue));
   }
 );
 
 const handleSocketData = (socketData: any) => {
   switch (socketData.type) {
     case 'TERMINAL_K8S_BINARY': {
-      sentryRef.value.consume(base64ToUint8Array(socketData.raw));
+      sentryRef.value?.consume(base64ToUint8Array(socketData.raw));
       break;
     }
     case 'TERMINAL_ACTION': {
+      const action = socketData.data;
+      switch (action) {
+        case 'ZMODEM_START': {
+          zmodemStatus.value = true;
+          if (!enableZmodem.value) {
+            message.warning(t('Terminal.WaitFileTransfer'));
+          }
+          break;
+        }
+        case 'ZMODEM_END': {
+          if (!enableZmodem.value && zmodemStatus.value) {
+            message.warning(t('Terminal.EndFileTransfer'));
+            terminalRef.value?.writeln('\r\n');
+          }
+
+          zmodemStatus.value = false;
+          break;
+        }
+        default: {
+          zmodemStatus.value = false;
+        }
+      }
       break;
     }
     case 'TERMINAL_ERROR': {
+      message.error(`Socket Error ${socketData.err}`);
+      terminalRef.value?.writeln(socketData.err);
       break;
     }
     default: {
@@ -153,6 +183,8 @@ const createK8sTerminal = async (currentNode: customTreeOption) => {
   lunaConfig.value = terminalStore.getConfig;
 
   const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
+
+  terminalRef.value = terminal;
 
   if (props.socket) {
     sentryRef.value = createSentry(props.socket, terminal);

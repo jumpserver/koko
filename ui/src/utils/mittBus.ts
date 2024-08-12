@@ -14,6 +14,7 @@ type Event = {
     shareLinkRequest: { expiredTime: number; actionPerm: string; users: shareUser[] };
   };
   'connect-terminal': customTreeOption;
+  'fold-tree-click': void;
 };
 
 const mittBus: Emitter<Event> = mitt();

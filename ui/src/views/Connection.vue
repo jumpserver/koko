@@ -13,10 +13,13 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { Terminal } from '@xterm/xterm';
 import { useLogger } from '@/hooks/useLogger';
-import { useTerminal } from '@/hooks/useTerminal.ts';
 import { useDialog, useMessage } from 'naive-ui';
+import { useTerminal } from '@/hooks/useTerminal.ts';
+import { useParamsStore } from '@/store/modules/params.ts';
+
+import { storeToRefs } from 'pinia';
+import { Terminal } from '@xterm/xterm';
 import { ISettingProp, shareUser } from '@/views/interface';
 import { computed, h, nextTick, reactive, Ref, ref } from 'vue';
 import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
@@ -27,8 +30,11 @@ import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
+const paramsStore = useParamsStore();
+
 const { t } = useI18n();
 const { setTerminalTheme } = useTerminal();
+const { shareCode, setting } = storeToRefs(paramsStore);
 const { debug } = useLogger('Connection');
 
 const dialog = useDialog();
@@ -36,7 +42,6 @@ const message = useMessage();
 
 const shareId = ref('');
 const sessionId = ref('');
-const shareCode = ref('');
 const themeName = ref('Default');
 
 const terminalRef = ref(null);
@@ -115,7 +120,7 @@ const settings = computed((): ISettingProp[] => {
   ];
 });
 
-const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) => {
+const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
   switch (msgType) {
     case 'TERMINAL_SESSION': {
       const sessionInfo = JSON.parse(msg.data);
@@ -142,7 +147,7 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
         // terminal.options.ctrlCAsCtrlZ = value;
       }
 
-      if (setting.SECURITY_SESSION_SHARE && share) {
+      if (setting.value.SECURITY_SESSION_SHARE && share) {
         enableShare.value = true;
       }
 
@@ -159,7 +164,7 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal, setting: any) =
       const data = JSON.parse(msg.data);
 
       shareId.value = data.share_id;
-      shareCode.value = data.code;
+      paramsStore.setShareCode(data.code);
 
       loading.value = false;
       break;

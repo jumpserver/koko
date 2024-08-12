@@ -62,11 +62,11 @@ export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
 export const writeBufferToTerminal = (
   enableZmodem: boolean,
   zmodemStatus: boolean,
-  terminal: Terminal,
+  terminal: Terminal | null,
   data: any
 ) => {
   if (!enableZmodem && zmodemStatus)
     return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
 
-  terminal.write(new Uint8Array(data));
+  terminal && terminal.write(new Uint8Array(data));
 };

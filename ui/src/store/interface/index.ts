@@ -1,7 +1,18 @@
+import { customTreeOption, SettingConfig } from '@/hooks/interface';
+import type { TreeOption } from 'naive-ui';
+
 export interface IGlobalState {
   initialized: boolean;
 
   i18nLoaded: boolean;
+}
+
+export interface IParamsState {
+  shareCode: string;
+
+  currentUser: any;
+
+  setting: SettingConfig;
 }
 
 export interface ITerminalConfig {
@@ -22,6 +33,16 @@ export interface ITerminalConfig {
 
   // 行高
   lineHeight: number;
+}
+
+export interface ITreeState {
+  connectInfo: any;
+
+  treeNodes: TreeOption[];
+
+  loadingTreeNode: boolean;
+
+  currentNode: customTreeOption;
 }
 
 export type ObjToKeyValArray<T> = {

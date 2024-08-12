@@ -25,7 +25,7 @@ export const showToolTip = (option: TreeOption) => {
 
 /**
  * @description 将 Base64 转化为字节数组
- * @param raw
+ * @param base64
  */
 export const base64ToUint8Array = (base64: string): Uint8Array => {
   // 转为原始的二进制字符串（binaryString）。

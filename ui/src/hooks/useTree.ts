@@ -1,8 +1,10 @@
 // 引入 API
 import { h, ref } from 'vue';
-
+import { storeToRefs } from 'pinia';
+import { wsIsActivated } from '@/components/Terminal/helper';
 // 引入 Hook
 import { useLogger } from '@/hooks/useLogger.ts';
+import { useTreeStore } from '@/store/modules/tree.ts';
 
 // 引入类型
 import type { Ref } from 'vue';
@@ -14,8 +16,6 @@ import { NIcon } from 'naive-ui';
 import { Folder } from '@vicons/ionicons5';
 import SvgIcon from '@/components/SvgIcon/index.vue';
 
-import { wsIsActivated } from '@/components/Terminal/helper';
-
 const { debug } = useLogger('Tree-Hook');
 
 /**
@@ -25,9 +25,11 @@ export const useTree = (
   socket: WebSocket,
   socketSend: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
 ) => {
-  // 当前的所有 Tree 节点
+  const treeStore = useTreeStore();
+
+  const { currentNode } = storeToRefs(treeStore);
+
   const treeNodes: Ref<TreeOption[]> = ref([]);
-  const currentNode: Ref<customTreeOption | null> = ref(null);
 
   // 初始化 Tree
   const initTree = (key: string, label: string): TreeOption[] => {
@@ -105,6 +107,7 @@ export const useTree = (
         currentNode.value.children = childNodes;
       }
 
+      treeStore.setLoading(false);
       return childNodes;
     } catch (error) {
       debug('Error parsing message or updating tree nodes:', error);
@@ -115,8 +118,6 @@ export const useTree = (
   // 点击节点触发异步 Load 或者直接连接终端
   const syncLoadNode = (treeNode: customTreeOption, terminalId: string) => {
     if (!treeNode) return;
-
-    currentNode.value = treeNode;
 
     if (!beforeLoad(treeNode)) return;
 
