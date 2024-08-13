@@ -34,7 +34,14 @@ export interface ITerminalConfig {
     // 行高
     lineHeight: number;
 
+    // 字体
     fontFamily: string;
+
+    // 是否开启 Zmodem
+    enableZmodem: boolean;
+
+    // 当前 Zmodem 状态
+    zmodemStatus: boolean;
 }
 
 export interface ITreeState {

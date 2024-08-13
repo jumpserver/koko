@@ -10,13 +10,13 @@
 // 引入 hook
 import { useI18n } from 'vue-i18n';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { useTerminal } from '@/hooks/useTerminal.ts';
+import { useTerminal } from '@/hooks/new_useTerminal.ts';
 import { useWebSocket } from '@/hooks/useWebSocket.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 
 // 类型声明
 import type { Ref } from 'vue';
-import type { EmitEvent, ILunaConfig, ITerminalProps } from '@/hooks/interface';
+import type { ILunaConfig, ITerminalProps } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
 import { onMounted, onUnmounted, ref } from 'vue';
@@ -25,7 +25,7 @@ import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Term
 import mittBus from '@/utils/mittBus.ts';
 
 const { t } = useI18n();
-const { debug } = useLogger('TerminalComponent');
+// const { debug } = useLogger('TerminalComponent');
 
 // prop 参数
 const props = withDefaults(defineProps<ITerminalProps>(), {
@@ -40,166 +40,172 @@ const emits = defineEmits<{
     (e: 'wsData', msgType: string, msg: any, terminal: Terminal): void;
 }>();
 
-const lunaId = ref('');
-const origin = ref('');
-const terminalId = ref('');
+// const lunaId = ref('');
+// const origin = ref('');
+// const terminalId = ref('');
 
-const zmodemStatus = ref(false);
+// const zmodemStatus = ref(false);
 
-const lastSendTime: Ref<Date> = ref(new Date());
-const lunaConfig: Ref<ILunaConfig> = ref({});
-let terminalRef: Ref<Terminal | undefined> = ref(undefined);
+// const lastSendTime: Ref<Date> = ref(new Date());
+// const lunaConfig: Ref<ILunaConfig> = ref({});
+// let terminalRef: Ref<Terminal | undefined> = ref(undefined);
 
 // 使用 hook
-const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal(
-    terminalId,
-    'common',
-    zmodemStatus,
-    props.enableZmodem,
-    lastSendTime,
-    emits
-);
+// const { createTerminal, setTerminalTheme, initTerminalEvent } = useTerminal(
+//     terminalId,
+//     'common',
+//     zmodemStatus,
+//     props.enableZmodem,
+//     lastSendTime,
+//     emits
+// );
 
-const { createWebSocket } = useWebSocket(terminalId, {
-    zmodemStatus,
-    enableZmodem: props.enableZmodem,
-    i18nCallBack: (key: string) => t(key),
-    emitCallback: (type: string, msg: any, terminal: Terminal) => {
-        emits('wsData', type, msg, terminal);
-    }
-});
+// const { createWebSocket } = useWebSocket(terminalId, {
+//     zmodemStatus,
+//     enableZmodem: props.enableZmodem,
+//     i18nCallBack: (key: string) => t(key),
+//     emitCallback: (type: string, msg: any, terminal: Terminal) => {
+//         emits('wsData', type, msg, terminal);
+//     }
+// });
 
-const sendDataFromWindow = (
-    data: any,
-    ws: Ref<WebSocket>,
-    send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
-): void => {
-    if (!wsIsActivated(ws.value)) return debug('WebSocket Disconnected');
+// const sendDataFromWindow = (
+//     data: any,
+//     ws: Ref<WebSocket>,
+//     send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+// ): void => {
+//     if (!wsIsActivated(ws.value)) return debug('WebSocket Disconnected');
+//
+//     if (props.enableZmodem && !zmodemStatus.value) {
+//         send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
+//         debug('Send Data From Window');
+//     }
+// };
 
-    if (props.enableZmodem && !zmodemStatus.value) {
-        send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
-        debug('Send Data From Window');
-    }
-};
+// const handleCustomWindowEvent = (
+//     terminal: Terminal,
+//     ws: Ref<WebSocket>,
+//     send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
+// ) => {
+//     window.addEventListener(
+//         'message',
+//         (e: MessageEvent) => {
+//             const message = e.data;
+//
+//             switch (message.name) {
+//                 case 'PING': {
+//                     if (lunaId.value != null) return;
+//
+//                     lunaId.value = message.id;
+//                     origin.value = e.origin;
+//
+//                     sendEventToLuna('PONG', '', lunaId.value, origin.value);
+//                     break;
+//                 }
+//                 case 'CMD': {
+//                     sendDataFromWindow(message.data, ws, send);
+//                     break;
+//                 }
+//                 case 'FOCUS': {
+//                     terminal.focus();
+//                     break;
+//                 }
+//                 case 'OPEN': {
+//                     emits('event', 'open', '');
+//                     break;
+//                 }
+//             }
+//         },
+//         false
+//     );
+//
+//     window.SendTerminalData = data => {
+//         sendDataFromWindow(data, ws, send);
+//     };
+//
+//     window.Reconnect = () => {
+//         emits('event', 'reconnect', '');
+//     };
+// };
 
-const handleCustomWindowEvent = (
-    terminal: Terminal,
-    ws: Ref<WebSocket>,
-    send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
-) => {
-    window.addEventListener(
-        'message',
-        (e: MessageEvent) => {
-            const message = e.data;
-
-            switch (message.name) {
-                case 'PING': {
-                    if (lunaId.value != null) return;
-
-                    lunaId.value = message.id;
-                    origin.value = e.origin;
-
-                    sendEventToLuna('PONG', '', lunaId.value, origin.value);
-                    break;
-                }
-                case 'CMD': {
-                    sendDataFromWindow(message.data, ws, send);
-                    break;
-                }
-                case 'FOCUS': {
-                    terminal.focus();
-                    break;
-                }
-                case 'OPEN': {
-                    emits('event', 'open', '');
-                    break;
-                }
-            }
-        },
-        false
-    );
-
-    window.SendTerminalData = data => {
-        sendDataFromWindow(data, ws, send);
-    };
-
-    window.Reconnect = () => {
-        emits('event', 'reconnect', '');
-    };
-};
-
-const sendWsMessage = (
-    type: string,
-    data: any,
-    ws: Ref<WebSocket>,
-    send: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean
-) => {
-    if (wsIsActivated(ws.value)) {
-        return send(formatMessage(terminalId.value, type, JSON.stringify(data)));
-    }
-};
+// const sendWsMessage = (type: string, data: any, ws: WebSocket) => {
+//     ws.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
+// };
 
 onMounted(() => {
     const theme = props.themeName;
     const el: HTMLElement = document.getElementById('terminal')!;
 
-    const terminalStore = useTerminalStore();
+    const { createTerminal, setTerminalTheme, sendWsMessage } = useTerminal({
+        i18nCallBack: (key: string) => t(key),
+        emitCallback: (e: string, type: string, msg: any, terminal?: Terminal) => {
+            switch (e) {
+                case 'event': {
+                    emits('event', type, msg);
+                    break;
+                }
+                case 'wsData': {
+                    emits('wsData', type, msg, terminal);
+                    break;
+                }
+            }
+        }
+    });
 
-    lunaConfig.value = terminalStore.getConfig;
+    const { terminal } = createTerminal(el, 'common');
+
+    // const terminalStore = useTerminalStore();
+    //
+    // lunaConfig.value = terminalStore.getConfig;
 
     // 创建 Terminal
-    const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
-
-    terminalRef.value = terminal;
+    // const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
+    //
+    // terminalRef.value = terminal;
 
     // 创建 WebSocket
-    const { send, ws } = createWebSocket(lastSendTime, fitAddon, terminal);
+    // const { send, ws } = createWebSocket(lastSendTime, fitAddon, terminal);
 
     // 初始化 el 与 Terminal 相关事件
-    initTerminalEvent(ws.value, el, terminal, lunaConfig.value);
+    // initTerminalEvent(ws.value, el, terminal, lunaConfig.value);
 
     // 事件监听相关逻辑
-    handleCustomWindowEvent(terminal, ws, send);
+    // handleCustomWindowEvent(terminal, ws, send);
 
     // 设置主题
-    setTerminalTheme(theme, terminal);
+    setTerminalTheme(theme, terminal, emits);
 
     // 修改主题
     mittBus.on('set-theme', ({ themeName }) => {
-        setTerminalTheme(themeName as string, terminal);
+        setTerminalTheme(themeName as string, terminal, emits);
     });
 
     mittBus.on('sync-theme', ({ type, data }) => {
-        sendWsMessage(type, data, ws, send);
+        sendWsMessage(type, data);
     });
 
     mittBus.on('share-user', ({ type, query }) => {
-        sendWsMessage(type, { query }, ws, send);
+        sendWsMessage(type, { query });
     });
 
     mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
         const origin = window.location.origin;
 
-        sendWsMessage(
-            type,
-            {
-                origin,
-                session: sessionId,
-                users: shareLinkRequest.users,
-                expired_time: shareLinkRequest.expiredTime,
-                action_permission: shareLinkRequest.actionPerm
-            },
-            ws,
-            send
-        );
+        sendWsMessage(type, {
+            origin,
+            session: sessionId,
+            users: shareLinkRequest.users,
+            expired_time: shareLinkRequest.expiredTime,
+            action_permission: shareLinkRequest.actionPerm
+        });
     });
 });
 
 onUnmounted(() => {
     mittBus.off('set-theme');
-    mittBus.off('sync-theme');
-    mittBus.off('share-user');
-    mittBus.off('create-share-url');
+    // mittBus.off('sync-theme');
+    // mittBus.off('share-user');
+    // mittBus.off('create-share-url');
 });
 </script>
 

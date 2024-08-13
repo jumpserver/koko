@@ -168,6 +168,7 @@ const setTheme = (value: string) => {
 const syncTheme = () => {
     loading.value = true;
 
+    console.log('emits');
     mittBus.emit('sync-theme', {
         type: 'TERMINAL_SYNC_USER_PREFERENCE',
         data: { terminal_theme_name: theme.value }

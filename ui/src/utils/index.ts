@@ -1,6 +1,8 @@
 import { createDiscreteApi } from 'naive-ui';
 import { TranslateFunction } from '@/views/interface';
 import { Terminal } from '@xterm/xterm';
+import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
+import type { ILunaConfig } from '@/hooks/interface';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -68,4 +70,25 @@ export const writeBufferToTerminal = (
     if (!enableZmodem && zmodemStatus) return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
 
     terminal && terminal.write(new Uint8Array(data));
+};
+
+export const preprocessInput = (data: string, config: ILunaConfig) => {
+    // 如果配置项 backspaceAsCtrlH 启用（值为 "1"），并且输入数据包含删除键的 ASCII 码 (AsciiDel，即 127)，
+    // 它会将其替换为退格键的 ASCII 码 (AsciiBackspace，即 8)
+    if (config.backspaceAsCtrlH === '1') {
+        if (data.charCodeAt(0) === AsciiDel) {
+            data = String.fromCharCode(AsciiBackspace);
+            message.info('backspaceAsCtrlH enabled');
+        }
+    }
+
+    // 如果配置项 ctrlCAsCtrlZ 启用（值为 "1"），并且输入数据包含 Ctrl+C 的 ASCII 码 (AsciiCtrlC，即 3)，
+    // 它会将其替换为 Ctrl+Z 的 ASCII 码 (AsciiCtrlZ，即 26)。
+    if (config.ctrlCAsCtrlZ === '1') {
+        if (data.charCodeAt(0) === AsciiCtrlC) {
+            data = String.fromCharCode(AsciiCtrlZ);
+            message.info('ctrlCAsCtrlZ enabled');
+        }
+    }
+    return data;
 };

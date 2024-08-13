@@ -2,17 +2,21 @@ import { Ref, ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel, defaultTheme } from '@/config';
+import { defaultTheme } from '@/config';
 import { formatMessage, sendEventToLuna, wsIsActivated } from '@/components/Terminal/helper';
-
+import * as clipboard from 'clipboard-polyfill';
 import type { ILunaConfig } from './interface';
+
+import { readText } from 'clipboard-polyfill';
 
 import xtermTheme from 'xterm-theme';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { storeToRefs } from 'pinia';
+import { preprocessInput } from '@/utils';
+import { createDiscreteApi } from 'naive-ui';
 
 const { debug } = useLogger('Terminal-Hook');
-
+const { message } = createDiscreteApi(['message']);
 export const useTerminal = (
     id: Ref<string>,
     type: string,
@@ -61,90 +65,32 @@ export const useTerminal = (
         let text: string = '';
 
         try {
-            text = await navigator.clipboard.readText();
-        } catch {
-            if (termSelectionText.value !== '') {
-                text = termSelectionText.value;
-            }
+            text = await readText();
+            console.log('剪贴板内容：', text);
+        } catch (err) {
+            if (termSelectionText.value !== '') text = termSelectionText.value;
+            message.info(`${err}`);
         }
-
+        ws.send(formatMessage('1', 'TERMINAL_DATA', text));
         e.preventDefault();
-
-        if (wsIsActivated(ws)) {
-            ws.send(formatMessage('1', 'TERMINAL_DATA', text));
-        }
 
         return text;
     };
 
-    // 在不支持 clipboard 时的降级方案
-    const fallbackCopyTextToClipboard = (text: string): void => {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-
-        // Avoid scrolling to bottom
-        textArea.style.position = 'fixed';
-        textArea.style.top = '0';
-        textArea.style.left = '0';
-        textArea.style.width = '2em';
-        textArea.style.height = '2em';
-        textArea.style.padding = '0';
-        textArea.style.border = 'none';
-        textArea.style.outline = 'none';
-        textArea.style.boxShadow = 'none';
-        textArea.style.background = 'transparent';
-
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-
-        try {
-            const successful = document.execCommand('copy');
-            const msg = successful ? 'successful' : 'unsuccessful';
-            debug('Fallback: Copying text command was ' + msg);
-        } catch (err) {
-            console.error('Fallback: Oops, unable to copy', err);
-        }
-
-        document.body.removeChild(textArea);
-    };
-
     // 获取当前终端中的选定文本
     const handleSelection = async (terminal: Terminal) => {
-        // todo)) 现在会有问题
         debug('Select Change');
 
         termSelectionText.value = terminal.getSelection().trim();
 
-        if (!navigator.clipboard) return fallbackCopyTextToClipboard(termSelectionText.value);
-
-        try {
-            await navigator.clipboard.writeText(termSelectionText.value);
-        } catch (e) {
-            fallbackCopyTextToClipboard(termSelectionText.value);
-        }
-    };
-
-    // 对用户设置的特定键映射配置
-    const preprocessInput = (data: string, config: ILunaConfig) => {
-        // 如果配置项 backspaceAsCtrlH 启用（值为 "1"），并且输入数据包含删除键的 ASCII 码 (AsciiDel，即 127)，
-        // 它会将其替换为退格键的 ASCII 码 (AsciiBackspace，即 8)
-        if (config.backspaceAsCtrlH === '1') {
-            if (data.charCodeAt(0) === AsciiDel) {
-                data = String.fromCharCode(AsciiBackspace);
-                debug('backspaceAsCtrlH enabled');
-            }
-        }
-
-        // 如果配置项 ctrlCAsCtrlZ 启用（值为 "1"），并且输入数据包含 Ctrl+C 的 ASCII 码 (AsciiCtrlC，即 3)，
-        // 它会将其替换为 Ctrl+Z 的 ASCII 码 (AsciiCtrlZ，即 26)。
-        if (config.ctrlCAsCtrlZ === '1') {
-            if (data.charCodeAt(0) === AsciiCtrlC) {
-                data = String.fromCharCode(AsciiCtrlZ);
-                debug('ctrlCAsCtrlZ enabled');
-            }
-        }
-        return data;
+        clipboard
+            .writeText(termSelectionText.value)
+            .then(() => {
+                message.success('Copied!');
+            })
+            .catch(e => {
+                message.error(`Copy Error for ${e}`);
+            });
     };
 
     // 处理 Terminal 的 onData 事件

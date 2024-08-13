@@ -15,6 +15,7 @@ type Event = {
     };
     'connect-terminal': customTreeOption;
     'fold-tree-click': void;
+    'set-Terminal-theme': string;
 };
 
 const mittBus: Emitter<Event> = mitt();

@@ -14,9 +14,6 @@ importers:
       '@vueuse/core':
         specifier: ^10.11.0
         version: 10.11.0(@vue/composition-api@1.7.2(vue@3.4.33(typescript@5.5.4)))(vue@3.4.33(typescript@5.5.4))
-      '@xterm/addon-attach':
-        specifier: ^0.11.0
-        version: 0.11.0(@xterm/xterm@5.5.0)
       '@xterm/addon-fit':
         specifier: ^0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
@@ -26,6 +23,9 @@ importers:
       alova:
         specifier: ^3.0.2
         version: 3.0.2
+      clipboard-polyfill:
+        specifier: ^4.1.0
+        version: 4.1.0
       loglevel:
         specifier: ^1.9.1
         version: 1.9.1
@@ -545,11 +545,6 @@ packages:
   '@vueuse/shared@10.11.0':
     resolution: {integrity: sha512-fyNoIXEq3PfX1L3NkNhtVQUSRtqYwJtJg+Bp9rIzculIZWHTkKSysujrOk2J+NrRulLTQH9+3gGSfYLWSEWU1A==}
 
-  '@xterm/addon-attach@0.11.0':
-    resolution: {integrity: sha512-JboCN0QAY6ZLY/SSB/Zl2cQ5zW1Eh4X3fH7BnuR1NB7xGRhzbqU2Npmpiw/3zFlxDaU88vtKzok44JKi2L2V2Q==}
-    peerDependencies:
-      '@xterm/xterm': ^5.0.0
-
   '@xterm/addon-fit@0.10.0':
     resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
     peerDependencies:
@@ -710,6 +705,9 @@ packages:
   class-utils@0.3.6:
     resolution: {integrity: sha512-qOhPa/Fj7s6TY8H8esGu5QNpMMQxz79h+urzrNYN6mn+9BnxlDGf5QZ+XeCDsxSjPqsSR56XOZOJmpeurnLMeg==}
     engines: {node: '>=0.10.0'}
+
+  clipboard-polyfill@4.1.0:
+    resolution: {integrity: sha512-ksMESxI9ermQxE3hOC4DGwfjmrAxuHVtwQoJMsy06ylpaY4ybISb6y21yJ17xg9EO9ZVWvzSLIkJRlO93E8Gng==}
 
   clone@2.1.2:
     resolution: {integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==}
@@ -2461,10 +2459,6 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
-  '@xterm/addon-attach@0.11.0(@xterm/xterm@5.5.0)':
-    dependencies:
-      '@xterm/xterm': 5.5.0
-
   '@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0)':
     dependencies:
       '@xterm/xterm': 5.5.0
@@ -2645,6 +2639,8 @@ snapshots:
       define-property: 0.2.5
       isobject: 3.0.1
       static-extend: 0.1.2
+
+  clipboard-polyfill@4.1.0: {}
 
   clone@2.1.2: {}
 
