@@ -13,7 +13,7 @@ export interface ITerminalProps {
     themeName?: string;
 
     //
-    enableZmodem: boolean;
+    // enableZmodem: boolean;
 }
 
 export interface ILunaConfig {

@@ -11,13 +11,13 @@ import { useTerminalStore } from '@/store/modules/terminal';
 
 // 引入 API
 import { storeToRefs } from 'pinia';
-import { fireEvent, preprocessInput } from '@/utils';
+import { useRoute } from 'vue-router';
 import { createDiscreteApi } from 'naive-ui';
 import { readText } from 'clipboard-polyfill';
+import { fireEvent, preprocessInput } from '@/utils';
 
 import * as clipboard from 'clipboard-polyfill';
 import { BASE_WS_URL, MaxTimeout } from '@/config';
-import { useRoute } from 'vue-router';
 
 const { info } = useLogger('Hook Helper');
 const { message } = createDiscreteApi(['message']);
@@ -146,14 +146,14 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
  *
  * @param data
  * @param type
- * @param termianlId
+ * @param terminalId
  * @param config
  * @param socket
  */
 export const handleTerminalOnData = (
     data: string,
     type: string,
-    termianlId: string,
+    terminalId: string,
     config: ILunaConfig,
     socket: WebSocket
 ) => {
@@ -179,7 +179,7 @@ export const handleTerminalOnData = (
             return socket.send(
                 JSON.stringify({
                     data: data,
-                    id: termianlId,
+                    id: terminalId,
                     type: eventType,
                     pod: currentItem.pod,
                     k8s_id: currentItem.k8s_id,
@@ -192,7 +192,7 @@ export const handleTerminalOnData = (
 
     sendEventToLuna('KEYBOARDEVENT', '');
 
-    socket.send(formatMessage(termianlId, eventType, data));
+    socket.send(formatMessage(terminalId, eventType, data));
 };
 
 /**
@@ -241,7 +241,6 @@ export const onWebsocketOpen = (
 export const generateWsURL = () => {
     const route = useRoute();
 
-    console.log(route);
     const routeName = route.name;
     const urlParams = new URLSearchParams(window.location.search.slice(1));
 
@@ -264,6 +263,16 @@ export const generateWsURL = () => {
         }
         case 'kubernetes': {
             connectURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${route.query.token}`;
+            break;
+        }
+        case 'Share': {
+            const id = route.params.id as string;
+            const requireParams = new URLSearchParams();
+
+            requireParams.append('type', 'share');
+            requireParams.append('target_id', id);
+
+            connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
             break;
         }
         default: {

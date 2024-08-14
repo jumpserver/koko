@@ -28,7 +28,7 @@
                         :options="mappedUserOptions"
                         :clear-filter-after-select="false"
                         :placeholder="t('GetShareUser')"
-                        @search="debunceSearch"
+                        @search="debounceSearch"
                     />
                 </n-form-item-gi>
                 <n-form-item-gi :span="24">
@@ -68,11 +68,13 @@
 
 <script setup lang="ts">
 import mittBus from '@/utils/mittBus.ts';
+import * as clipboard from 'clipboard-polyfill';
 
-import { NTag } from 'naive-ui';
+import { useMessage, NTag } from 'naive-ui';
+
 import { useI18n } from 'vue-i18n';
 import { BASE_URL } from '@/config';
-import { copyTextToClipboard, getMinuteLabel } from '@/utils';
+import { getMinuteLabel } from '@/utils';
 import { useDebounceFn } from '@vueuse/core';
 import { shareUser } from '@/views/interface';
 import { useLogger } from '@/hooks/useLogger.ts';
@@ -89,7 +91,7 @@ const props = defineProps<{
     userOptions: shareUser[];
 }>();
 
-// const message = useMessage();
+const message = useMessage();
 const dialogReactiveList = useDialogReactiveList();
 
 const { t } = useI18n();
@@ -143,12 +145,16 @@ const copyShareURL = () => {
     const linkTitle = t('LinkAddr');
     const codeTitle = t('VerifyCode');
 
-    const text = `${linkTitle}: ${shareURL}\n${codeTitle}: ${props.shareCode}`;
+    const text = `${linkTitle}: ${url}\n${codeTitle}: ${props.shareCode}`;
 
-    copyTextToClipboard(text);
-
-    debug(`share URL:${url}`);
-    // message.success(t('CopyShareURLSuccess'));
+    clipboard
+        .writeText(text)
+        .then(() => {
+            message.success(t('CopyShareURLSuccess'));
+        })
+        .catch(e => {
+            message.error(`Copy Error for ${e}`);
+        });
 
     dialogReactiveList.value.forEach(item => {
         if (item.class === 'share') {
@@ -190,5 +196,5 @@ const renderTag: SelectRenderTag = ({ option, handleClose }) => {
     );
 };
 
-const debunceSearch = useDebounceFn(handleSearch, 300);
+const debounceSearch = useDebounceFn(handleSearch, 300);
 </script>

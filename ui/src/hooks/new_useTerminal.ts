@@ -204,6 +204,8 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         const paramsStore = useParamsStore();
         const terminalStore = useTerminalStore();
 
+        console.log('paramsStore', paramsStore);
+
         const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
         switch (msg.type) {

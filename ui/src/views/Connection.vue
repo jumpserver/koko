@@ -1,6 +1,5 @@
 <template>
     <TerminalComponent
-        ref="terminalRef"
         :enable-zmodem="true"
         :share-code="shareCode"
         :theme-name="themeName"
@@ -14,8 +13,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { useLogger } from '@/hooks/useLogger';
-import { useDialog, useMessage } from 'naive-ui';
-import { useTerminal } from '@/hooks/useTerminal.ts';
+import { useDialog, useMessage, NMessageProvider } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
 
 import { storeToRefs } from 'pinia';
@@ -29,11 +27,11 @@ import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
+import xtermTheme from 'xterm-theme';
 
 const paramsStore = useParamsStore();
 
 const { t } = useI18n();
-const { setTerminalTheme } = useTerminal();
 const { shareCode, setting } = storeToRefs(paramsStore);
 const { debug } = useLogger('Connection');
 
@@ -43,8 +41,6 @@ const message = useMessage();
 const shareId = ref('');
 const sessionId = ref('');
 const themeName = ref('Default');
-
-const terminalRef = ref(null);
 
 const loading = ref(false);
 const userLoading = ref(false);
@@ -56,6 +52,7 @@ const userOptions: Ref<shareUser[]> = ref([]);
 const shareTitle = computed((): string => {
     return shareId.value ? t('Share') : t('CreateLink');
 });
+
 const settings = computed((): ISettingProp[] => {
     return [
         {
@@ -91,13 +88,20 @@ const settings = computed((): ISettingProp[] => {
                     showIcon: false,
                     style: 'width: 35%',
                     content: () =>
-                        h(Share, {
-                            shareId: shareId.value,
-                            shareCode: shareCode.value,
-                            sessionId: sessionId.value,
-                            enableShare: enableShare.value,
-                            userOptions: userOptions.value
-                        })
+                        h(
+                            NMessageProvider, // 使用 NMessageProvider 包裹 Share 组件
+                            null,
+                            {
+                                default: () =>
+                                    h(Share, {
+                                        shareId: shareId.value,
+                                        shareCode: shareCode.value,
+                                        sessionId: sessionId.value,
+                                        enableShare: enableShare.value,
+                                        userOptions: userOptions.value
+                                    })
+                            }
+                        )
                 });
                 // 关闭抽屉
                 mittBus.emit('open-setting');
@@ -155,9 +159,8 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
             themeName.value = sessionInfo.themeName;
 
             nextTick(() => {
-                setTerminalTheme(themeName.value, terminal);
+                terminal.options.theme = xtermTheme[themeName.value];
             });
-
             break;
         }
         case 'TERMINAL_SHARE': {
