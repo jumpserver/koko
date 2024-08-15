@@ -11,7 +11,8 @@ type NodeDir struct {
 	ID         string
 	folderName string
 
-	subDirs map[string]os.FileInfo
+	subDirs  map[string]os.FileInfo
+	_subDirs sync.Map
 
 	modeTime time.Time
 
@@ -29,6 +30,7 @@ func (nd *NodeDir) Size() int64 { return 0 }
 func (nd *NodeDir) Mode() os.FileMode {
 	return os.FileMode(0444) | os.ModeDir
 }
+
 func (nd *NodeDir) ModTime() time.Time { return nd.modeTime }
 
 func (nd *NodeDir) IsDir() bool { return true }
@@ -49,6 +51,9 @@ func (nd *NodeDir) loadSubNodeTree() {
 		if nd.loadSubFunc != nil {
 			nd.subDirs = nd.loadSubFunc()
 		}
+		for k, v := range nd.subDirs {
+			nd._subDirs.Store(k, v)
+		}
 	})
 }
 
@@ -61,6 +66,18 @@ func (nd *NodeDir) close() {
 		if assetDir, ok := dir.(*AssetDir); ok {
 			assetDir.close()
 		}
-
 	}
+}
+
+func (nd *NodeDir) checkExpired() {
+	nd._subDirs.Range(func(key, value interface{}) bool {
+		if nodeDir, ok := value.(*NodeDir); ok {
+			nodeDir.checkExpired()
+			return true
+		}
+		if assetDir, ok := value.(*AssetDir); ok {
+			assetDir.checkExpired()
+		}
+		return true
+	})
 }

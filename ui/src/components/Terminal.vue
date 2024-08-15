@@ -94,12 +94,10 @@ export default {
       this.$emit("background-color", theme.background)
     },
     createTerminal() {
-      let lineHeight = this.config.lineHeight;
-      let fontSize = this.config.fontSize;
       const term = new Terminal({
         fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
-        lineHeight: lineHeight,
-        fontSize: fontSize,
+        lineHeight: this.config.lineHeight,
+        fontSize:  this.config.fontSize,
         rightClickSelectsWord: true,
         theme: {
           background: '#1f1b1b'
@@ -121,9 +119,9 @@ export default {
         term.focus();
       });
       term.onSelectionChange(() => {
-        document.execCommand('copy');
         this.$log.debug("select change")
         this.termSelectionText = term.getSelection().trim();
+        navigator.clipboard.writeText(this.termSelectionText);
       });
       term.attachCustomKeyEventHandler((e) => {
         if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
@@ -142,22 +140,19 @@ export default {
         }
         return !(e.ctrlKey && e.key === 'v');
       });
-      termRef.addEventListener('contextmenu', ($event) => {
+      termRef.addEventListener('contextmenu', async ($event) => {
         if ($event.ctrlKey || this.config.quickPaste !== '1') {
           return;
         }
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          navigator.clipboard.readText().then((text) => {
-            if (this.wsIsActivated()) {
-              this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', text))
-            }
-          })
-          $event.preventDefault();
+        let text = ''
+        if (navigator.clipboard?.readText) {
+          text = await navigator.clipboard.readText()
         } else if (this.termSelectionText !== "") {
-          if (this.wsIsActivated()) {
-            this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', this.termSelectionText))
-          }
-          $event.preventDefault();
+          text = this.termSelectionText
+        }
+        $event.preventDefault();
+        if (this.wsIsActivated()) {
+          this.ws.send(this.message(this.terminalId, 'TERMINAL_DATA', text))
         }
       })
       return term
@@ -408,12 +403,7 @@ export default {
           }
           break
         }
-        case 'TERMINAL_ERROR': {
-          const errMsg = msg.err;
-          this.$message.error(errMsg);
-          this.term.writeln(errMsg);
-          break
-        }
+        case 'TERMINAL_ERROR':
         case 'ERROR': {
           const errMsg = msg.err;
           this.$message.error(errMsg);
@@ -485,27 +475,6 @@ export default {
       let fontSize = 14;
       let quickPaste = "0";
       let backspaceAsCtrlH = "0";
-      // localStorage.getItem default null
-      /**
-       * {
-       *     "basic": {
-       *         "is_async_asset_tree": true
-       *     },
-       *     "graphics": {
-       *         "rdp_resolution": "\"1024x768\"",
-       *         "keyboard_layout": "en-us-qwerty",
-       *         "rdp_client_option": [
-       *             "full_screen"
-       *         ],
-       *         "applet_connection_method": "web"
-       *     },
-       *     "command_line": {
-       *         "character_terminal_font_size": 14,
-       *         "is_backspace_as_ctrl_h": false,
-       *         "is_right_click_quickly_paste": false
-       *     }
-       * }
-       */
       let localSettings = localStorage.getItem('LunaSetting')
       if (localSettings !== null) {
         let settings = JSON.parse(localSettings)

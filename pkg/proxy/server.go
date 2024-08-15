@@ -37,6 +37,8 @@ var (
 	ErrNoAuthInfo      = errors.New("no auth info")
 )
 
+const localIP = "127.0.0.1"
+
 func NewServer(conn UserConnection, jmsService *service.JMService, opts ...ConnectionOption) (*Server, error) {
 	connOpts := &ConnectionOptions{}
 	for _, setter := range opts {
@@ -139,9 +141,8 @@ type Server struct {
 
 	suFromAccount *model.BaseAccount
 
-	terminalConf   *model.TerminalConfig
-	domainGateways *model.Domain
-	gateway        *model.Gateway
+	terminalConf *model.TerminalConfig
+	gateway      *model.Gateway
 
 	sessionInfo *model.Session
 
@@ -428,31 +429,23 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	return cacheConn, true
 }
 
-func (s *Server) createAvailableGateWay(domain *model.Domain) (*domainGateway, error) {
+func (s *Server) createAvailableGateWay() (*domainGateway, error) {
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
-
-	var dGateway *domainGateway
-	switch protocol {
-	case srvconn.ProtocolK8s:
-		dstHost, dstPort, err := ParseUrlHostAndPort(asset.Address)
+	dstIP := asset.Address
+	dstPort := asset.ProtocolPort(protocol)
+	if protocol == srvconn.ProtocolK8s {
+		dstHost, dstPort1, err := ParseUrlHostAndPort(asset.Address)
 		if err != nil {
 			return nil, err
 		}
-		dGateway = &domainGateway{
-			domain:          domain,
-			dstIP:           dstHost,
-			dstPort:         dstPort,
-			selectedGateway: s.gateway,
-		}
-	default:
-		port := asset.ProtocolPort(protocol)
-		dGateway = &domainGateway{
-			domain:          domain,
-			dstIP:           asset.Address,
-			dstPort:         port,
-			selectedGateway: s.gateway,
-		}
+		dstIP = dstHost
+		dstPort = dstPort1
+	}
+	dGateway := &domainGateway{
+		dstIP:           dstIP,
+		dstPort:         dstPort,
+		selectedGateway: s.gateway,
 	}
 	return dGateway, nil
 }
@@ -462,11 +455,11 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.Se
 	asset := s.connOpts.authInfo.Asset
 	clusterServer := asset.Address
 	if localTunnelAddr != nil {
-		originUrl, err := url.Parse(clusterServer)
-		if err != nil {
-			return nil, err
+		originUrl, err1 := url.Parse(clusterServer)
+		if err1 != nil {
+			return nil, err1
 		}
-		clusterServer = ReplaceURLHostAndPort(originUrl, "127.0.0.1", localTunnelAddr.Port)
+		clusterServer = ReplaceURLHostAndPort(originUrl, localIP, localTunnelAddr.Port)
 	}
 	if s.connOpts.k8sContainer != nil {
 		return s.getContainerConn(clusterServer)
@@ -515,7 +508,7 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 	host := asset.Address
 	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
-		host = "127.0.0.1"
+		host = localIP
 		port = localTunnelAddr.Port
 	}
 	username := s.account.Username
@@ -547,12 +540,13 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	host := asset.Address
 	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
-		host = "127.0.0.1"
+		host = localIP
 		port = localTunnelAddr.Port
 	}
 	platform := s.connOpts.authInfo.Platform
 	protocolSetting := platform.GetProtocol("mongodb")
 	authSource := protocolSetting.Setting.AuthSource
+	connectionOpts := protocolSetting.Setting.ConnectionOpts
 	srvConn, err = srvconn.NewMongoDBConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
@@ -564,6 +558,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlCertKey(asset.SecretInfo.ClientKey),
 		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
 		srvconn.SqlAuthSource(authSource),
+		srvconn.SqlConnectionOptions(connectionOpts),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -804,29 +799,6 @@ func (s *Server) getGatewayProxyOptions() []srvconn.SSHClientOptions {
 		}
 		return []srvconn.SSHClientOptions{proxyArg}
 	}
-	// 多个网关的情况
-	if s.domainGateways != nil && len(s.domainGateways.Gateways) != 0 {
-		timeout := config.GlobalConfig.SSHTimeout
-		proxyArgs := make([]srvconn.SSHClientOptions, 0, len(s.domainGateways.Gateways))
-		for i := range s.domainGateways.Gateways {
-			gateway := s.domainGateways.Gateways[i]
-			loginAccount := gateway.Account
-			port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
-			proxyArg := srvconn.SSHClientOptions{
-				Host:     gateway.Address,
-				Port:     strconv.Itoa(port),
-				Username: loginAccount.Username,
-				Timeout:  timeout,
-			}
-			if loginAccount.IsSSHKey() {
-				proxyArg.PrivateKey = loginAccount.Secret
-			} else {
-				proxyArg.Password = loginAccount.Secret
-			}
-			proxyArgs = append(proxyArgs, proxyArg)
-		}
-		return proxyArgs
-	}
 	return nil
 }
 
@@ -980,13 +952,13 @@ func (s *Server) Proxy() {
 		}
 	}()
 	var proxyAddr *net.TCPAddr
-	if (s.domainGateways != nil && len(s.domainGateways.Gateways) != 0) || s.gateway != nil {
+	if s.gateway != nil {
 		protocol := s.connOpts.authInfo.Protocol
 		switch protocol {
 		case srvconn.ProtocolSSH, srvconn.ProtocolTELNET:
 			// ssh 和 telnet 协议不需要本地启动代理
 		default:
-			dGateway, err := s.createAvailableGateWay(s.domainGateways)
+			dGateway, err := s.createAvailableGateWay()
 			if err != nil {
 				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)

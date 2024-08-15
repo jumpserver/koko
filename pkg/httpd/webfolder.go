@@ -22,9 +22,15 @@ func (h *webFolder) Name() string {
 func (h *webFolder) CheckValidation() error {
 	apiClient := h.ws.apiClient
 	user := h.ws.CurrentUser()
+	terminalCfg, err := h.ws.apiClient.GetTerminalConfig()
+	if err != nil {
+		logger.Errorf("Get terminal config failed: %s", err)
+		return err
+	}
 	volOpts := make([]VolumeOption, 0, 5)
 	volOpts = append(volOpts, WithUser(user))
 	volOpts = append(volOpts, WithAddr(h.ws.ClientIP()))
+	volOpts = append(volOpts, WithTerminalCfg(&terminalCfg))
 	params := h.ws.wsParams
 	targetId := params.TargetId
 	assetId := params.AssetId
