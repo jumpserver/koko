@@ -204,8 +204,6 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         const paramsStore = useParamsStore();
         const terminalStore = useTerminalStore();
 
-        console.log('paramsStore', paramsStore);
-
         const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
         switch (msg.type) {
@@ -276,11 +274,11 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 break;
             }
             default: {
-                info(`Default: ${data}`);
+                info(JSON.parse(data));
             }
         }
 
-        callbackOptions.emitCallback && callbackOptions.emitCallback('wsData', msg.type, msg, terminal);
+        callbackOptions.emitCallback && callbackOptions.emitCallback('socketData', msg.type, msg, terminal);
     };
 
     /**

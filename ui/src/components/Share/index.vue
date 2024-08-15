@@ -82,20 +82,24 @@ import { useDialogReactiveList } from 'naive-ui';
 import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 
 import type { SelectRenderTag } from 'naive-ui';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { storeToRefs } from 'pinia';
 
 const props = defineProps<{
-    shareId: string;
-    shareCode: any;
+    // shareId: string;
+    // shareCode: any;
     sessionId: string;
     enableShare: boolean;
     userOptions: shareUser[];
 }>();
 
 const message = useMessage();
+const paramsStore = useParamsStore();
 const dialogReactiveList = useDialogReactiveList();
 
 const { t } = useI18n();
 const { debug } = useLogger('Share');
+const { shareCode, shareId } = storeToRefs(paramsStore);
 
 const loading = ref<boolean>(false);
 const shareUsers = ref<shareUser[]>([]);
@@ -118,7 +122,7 @@ const shareLinkRequest = reactive({
 });
 
 const shareURL = computed(() => {
-    return props.shareId ? `${BASE_URL}/koko/share/${props.shareId}/` : t('NoLink');
+    return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
 });
 const mappedUserOptions = computed(() => {
     return props.userOptions.map((item: shareUser) => ({
@@ -138,14 +142,14 @@ watch(
 );
 
 const copyShareURL = () => {
-    if (!props.shareId) return;
+    if (!shareId.value) return;
     if (!props.enableShare) return;
 
     const url = shareURL.value;
     const linkTitle = t('LinkAddr');
     const codeTitle = t('VerifyCode');
 
-    const text = `${linkTitle}: ${url}\n${codeTitle}: ${props.shareCode}`;
+    const text = `${linkTitle}: ${url}\n${codeTitle}: ${shareCode.value}`;
 
     clipboard
         .writeText(text)
@@ -158,11 +162,19 @@ const copyShareURL = () => {
 
     dialogReactiveList.value.forEach(item => {
         if (item.class === 'share') {
+            paramsStore.setShareId('');
+            paramsStore.setShareCode('');
             item.destroy();
         }
     });
 };
 const handleShareURlCreated = () => {
+    dialogReactiveList.value.forEach(item => {
+        if (item.class === 'share') {
+            item.title = t('Share');
+        }
+    });
+
     mittBus.emit('create-share-url', {
         type: 'TERMINAL_SHARE',
         sessionId: props.sessionId,

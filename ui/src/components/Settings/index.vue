@@ -16,43 +16,36 @@
                                 {{ item.title }}
                             </n-text>
                         </n-button>
-                        <n-list hoverable clickable v-else>
+                        <n-list class="mt-[-15px]" clickable v-else>
                             <n-list-item>
-                                <n-thing content-style="margin-top: 10px;">
+                                <n-thing class="ml-[15px] mt-[10px]">
                                     <template #header>
                                         <n-flex align="center" justify="center">
                                             <n-icon :component="item.icon" :size="16"></n-icon>
-                                            <n-text class="text-[14px]">{{ item.title }}</n-text>
+                                            <n-text class="text-[14px]">
+                                                {{ item.title }}
+                                                {{ `(${item.content.length})` }}
+                                            </n-text>
                                         </n-flex>
                                     </template>
                                     <template #description>
-                                        <n-space size="small" style="margin-top: 4px">
+                                        <n-flex size="small" style="margin-top: 4px">
                                             <n-tag
-                                                v-for="detail of item.content"
-                                                :bordered="false"
+                                                round
                                                 type="info"
                                                 size="small"
+                                                class="mt-[2.5px] mb-[2.5px] mx-[25px]"
+                                                v-for="detail of item.content"
+                                                :closable="item.content.indexOf(detail) !== 0"
+                                                :bordered="false"
+                                                @close="item.click(detail)"
                                             >
                                                 {{ detail.name }}
                                             </n-tag>
-                                        </n-space>
+                                        </n-flex>
                                     </template>
                                 </n-thing>
                             </n-list-item>
-                            <!--              <n-list-item>-->
-                            <!--                <n-thing title="他在时间门外" content-style="margin-top: 10px;">-->
-                            <!--                  <template #description>-->
-                            <!--                    <n-space size="small" style="margin-top: 4px">-->
-                            <!--                      <n-tag :bordered="false" type="info" size="small"> 环形公路 </n-tag>-->
-                            <!--                      <n-tag :bordered="false" type="info" size="small"> 潜水艇司机 </n-tag>-->
-                            <!--                    </n-space>-->
-                            <!--                  </template>-->
-                            <!--                  最新的打印机<br />-->
-                            <!--                  复制着彩色傀儡<br />-->
-                            <!--                  早上好我的罐头先生<br />-->
-                            <!--                  让他带你去被工厂敲击-->
-                            <!--                </n-thing>-->
-                            <!--              </n-list-item>-->
                         </n-list>
                     </template>
                 </n-flex>

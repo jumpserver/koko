@@ -4,11 +4,15 @@ import { SettingConfig } from '@/hooks/interface';
 
 export const useParamsStore = defineStore('params', {
     state: (): IParamsState => ({
+        shareId: '',
         shareCode: '',
         currentUser: null,
         setting: {}
     }),
     actions: {
+        setShareId(shareId: string) {
+            this.shareId = shareId;
+        },
         setShareCode(shareCode: string) {
             this.shareCode = shareCode;
         },

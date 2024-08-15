@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<ITerminalProps>(), {
 const emits = defineEmits<{
     (e: 'event', event: string, data: string): void;
     (e: 'background-color', backgroundColor: string): void;
-    (e: 'wsData', msgType: string, msg: any, terminal: Terminal): void;
+    (e: 'socketData', msgType: string, msg: any, terminal: Terminal): void;
 }>();
 
 onMounted(() => {
@@ -40,8 +40,8 @@ onMounted(() => {
                     emits('event', type, msg);
                     break;
                 }
-                case 'wsData': {
-                    emits('wsData', type, msg, terminal);
+                case 'socketData': {
+                    emits('socketData', type, msg, terminal!);
                     break;
                 }
             }
@@ -49,8 +49,6 @@ onMounted(() => {
     });
 
     const { terminal } = createTerminal(el, 'common');
-
-    console.log(terminal);
 
     // 设置主题
     setTerminalTheme(theme, terminal, emits);
@@ -66,6 +64,13 @@ onMounted(() => {
 
     mittBus.on('share-user', ({ type, query }) => {
         sendWsMessage(type, { query });
+    });
+
+    mittBus.on('remove-share-user', ({ sessionId, userMeta, type }) => {
+        sendWsMessage(type, {
+            session: sessionId,
+            user_meta: JSON.stringify(userMeta)
+        });
     });
 
     mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
@@ -86,6 +91,7 @@ onUnmounted(() => {
     mittBus.off('sync-theme');
     mittBus.off('share-user');
     mittBus.off('create-share-url');
+    mittBus.off('remove-share-user');
 });
 </script>
 

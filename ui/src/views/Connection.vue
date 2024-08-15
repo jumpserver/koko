@@ -4,7 +4,7 @@
         :share-code="shareCode"
         :theme-name="themeName"
         @event="onEvent"
-        @ws-data="onWsData"
+        @socketData="onSocketData"
     />
 
     <Settings :settings="settings" />
@@ -19,7 +19,7 @@ import { useParamsStore } from '@/store/modules/params.ts';
 import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
 import { ISettingProp, shareUser } from '@/views/interface';
-import { computed, h, nextTick, reactive, Ref, ref } from 'vue';
+import { computed, h, nextTick, reactive, Ref, ref, watchEffect } from 'vue';
 import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
 
 import mittBus from '@/utils/mittBus.ts';
@@ -38,7 +38,6 @@ const { debug } = useLogger('Connection');
 const dialog = useDialog();
 const message = useMessage();
 
-const shareId = ref('');
 const sessionId = ref('');
 const themeName = ref('Default');
 
@@ -48,10 +47,6 @@ const enableShare = ref(false);
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 const userOptions: Ref<shareUser[]> = ref([]);
-
-const shareTitle = computed((): string => {
-    return shareId.value ? t('Share') : t('CreateLink');
-});
 
 const settings = computed((): ISettingProp[] => {
     return [
@@ -84,24 +79,21 @@ const settings = computed((): ISettingProp[] => {
             click: () => {
                 dialog.success({
                     class: 'share',
-                    title: shareTitle.value,
+                    title: t('CreateLink'),
                     showIcon: false,
                     style: 'width: 35%',
-                    content: () =>
-                        h(
-                            NMessageProvider, // 使用 NMessageProvider 包裹 Share 组件
-                            null,
-                            {
-                                default: () =>
-                                    h(Share, {
-                                        shareId: shareId.value,
-                                        shareCode: shareCode.value,
-                                        sessionId: sessionId.value,
-                                        enableShare: enableShare.value,
-                                        userOptions: userOptions.value
-                                    })
-                            }
-                        )
+                    content: () => {
+                        return h(NMessageProvider, null, {
+                            default: () =>
+                                h(Share, {
+                                    sessionId: sessionId.value,
+                                    enableShare: enableShare.value,
+                                    userOptions: userOptions.value
+                                })
+                        });
+                    },
+                    onClose: () => resetShareDialog(),
+                    onMaskClick: () => resetShareDialog()
                 });
                 // 关闭抽屉
                 mittBus.emit('open-setting');
@@ -119,12 +111,34 @@ const settings = computed((): ISettingProp[] => {
                     return item;
                 })
                 .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
-            click: () => {}
+            click: user => {
+                if (user.primary) return;
+
+                dialog.warning({
+                    title: '警告',
+                    content: t('RemoveShareUserConfirm'),
+                    positiveText: '确定',
+                    negativeText: '取消',
+                    onPositiveClick: () => {
+                        mittBus.emit('remove-share-user', {
+                            sessionId: sessionId.value,
+                            userMeta: user,
+                            type: 'TERMINAL_SHARE_USER_REMOVE'
+                        });
+                    }
+                });
+            }
         }
     ];
 });
 
-const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
+const resetShareDialog = () => {
+    paramsStore.setShareId('');
+    paramsStore.setShareCode('');
+    dialog.destroyAll();
+};
+
+const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     switch (msgType) {
         case 'TERMINAL_SESSION': {
             const sessionInfo = JSON.parse(msg.data);
@@ -166,7 +180,7 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
         case 'TERMINAL_SHARE': {
             const data = JSON.parse(msg.data);
 
-            shareId.value = data.share_id;
+            paramsStore.setShareId(data.share_id);
             paramsStore.setShareCode(data.code);
 
             loading.value = false;
@@ -179,7 +193,7 @@ const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
 
             onlineUsersMap[key] = data;
 
-            // debug('onlineUsersMap', onlineUsersMap);
+            console.log('onlineUsersMap', onlineUsersMap);
 
             if (data.primary) {
                 debug('Primary User 不提醒');
@@ -230,7 +244,6 @@ const onEvent = (event: string, data: any) => {
             // Object.keys(onlineUsersMap.value).filter(key => {
             //
             // });
-            console.log(data);
             break;
         case 'open':
             debug('Open');

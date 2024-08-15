@@ -16,6 +16,7 @@ type Event = {
     'connect-terminal': customTreeOption;
     'fold-tree-click': void;
     'set-Terminal-theme': string;
+    'remove-share-user': { sessionId: string; userMeta: any; type: string };
 };
 
 const mittBus: Emitter<Event> = mitt();

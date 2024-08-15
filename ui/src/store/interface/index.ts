@@ -8,6 +8,8 @@ export interface IGlobalState {
 }
 
 export interface IParamsState {
+    shareId: string;
+
     shareCode: string;
 
     currentUser: any;

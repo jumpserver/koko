@@ -1,10 +1,23 @@
 <template>
-    <Terminal v-if="verified" @event="onEvent" @ws-data="onWsData" />
+    <n-watermark
+        cross
+        selectable
+        :rotate="-15"
+        :font-size="16"
+        :width="192"
+        :height="128"
+        :x-offset="12"
+        :y-offset="28"
+        :content="waterMarkContent"
+        :line-height="16"
+    >
+        <TerminalComponent v-if="verified" @event="onEvent" @socketData="onSocketData" />
+    </n-watermark>
 </template>
 
 <script setup lang="ts">
-import { h, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { h, reactive, ref } from 'vue';
 import {
     NInput,
     NButton,
@@ -16,10 +29,16 @@ import {
     useDialogReactiveList
 } from 'naive-ui';
 
-import Terminal from '@/components/Terminal/Terminal.vue';
+import TerminalComponent from '@/components/Terminal/Terminal.vue';
+
+import { storeToRefs } from 'pinia';
+import { useLogger } from '@/hooks/useLogger.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 
+import { Terminal } from '@xterm/xterm';
+
 const { t } = useI18n();
+const { info } = useLogger('Share Terminal Component');
 const dialog = useDialog();
 const message = useMessage();
 const dialogReactiveList = useDialogReactiveList();
@@ -27,8 +46,11 @@ const dialogReactiveList = useDialogReactiveList();
 const paramsStore = useParamsStore();
 
 const verified = ref(false);
-const verifyValue = ref('');
 const terminalId = ref('');
+const verifyValue = ref('');
+const waterMarkContent = ref('');
+
+const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
 const handleVerify = () => {
     if (verifyValue.value === '') return message.warning(t('InputVerifyCode'));
@@ -42,32 +64,79 @@ const handleVerify = () => {
     });
 };
 const onEvent = () => {};
-const onWsData = (msgType: string, msg: any, terminal: Terminal) => {
+const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
     switch (msgType) {
         case 'TERMINAL_SHARE_JOIN': {
             const data = JSON.parse(msg.data);
-            const key = data.terminal_id;
+            const key: string = data.terminal_id;
 
-            // if ()
+            onlineUsersMap[key] = data;
+
+            info(onlineUsersMap);
+
+            if (terminalId.value === key) {
+                message.success('Self Join');
+                break;
+            }
+
+            message.success(`${data.user} ${t('JoinShare')}`);
 
             break;
         }
         case 'TERMINAL_SHARE_LEAVE': {
+            const data = JSON.parse(msg.data);
+            const key = data.terminal_id;
+
+            if (onlineUsersMap.hasOwnProperty(key)) {
+                delete onlineUsersMap[key];
+            }
+
+            message.info(`${data.user} ${t('LeaveShare')}`);
             break;
         }
         case 'TERMINAL_SHARE_USERS': {
+            const data = JSON.parse(msg.data);
+
+            info(data);
+
+            Object.assign(onlineUsersMap, data);
+
             break;
         }
         case 'TERMINAL_RESIZE': {
+            // terminal 应该自动会 resize
             break;
         }
         case 'TERMINAL_SHARE_USER_REMOVE': {
+            message.info(t('RemoveShareUser'));
+            // todo)) close socket
             break;
         }
         case 'TERMINAL_SESSION': {
+            const paramsStore = useParamsStore();
+
+            const { currentUser, setting } = storeToRefs(paramsStore);
+
+            terminalId.value = msg.id;
+            const sessionInfo = JSON.parse(msg.data);
+            const sessionDetail = sessionInfo.session;
+
+            const username = `${currentUser.value.name} - ${currentUser.value.username}`;
+
+            waterMarkContent.value = `${username}\n${sessionDetail.asset}`;
+
+            console.log(waterMarkContent.value);
+
+            if (setting.value.SECURITY_WATERMARK_ENABLED) {
+            }
+
             break;
         }
         case 'TERMINAL_SESSION_PAUSE': {
+            const data = JSON.parse(msg.data);
+
+            message.info(`${data.user}: ${t('PauseSession')}`);
+
             break;
         }
         case 'TERMINAL_SESSION_RESUME': {
@@ -88,7 +157,7 @@ dialog.warning({
     title: t('VerifyCode'),
     showIcon: false,
     maskClosable: false,
-    style: 'width: 50%; padding-bottom: 45px',
+    style: 'width: 35%; padding-bottom: 45px',
     titleStyle: 'margin-bottom: 30px',
     content: () =>
         h(NForm, {}, () => [

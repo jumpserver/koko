@@ -57,6 +57,7 @@ declare module 'vue' {
     NTree: typeof import('naive-ui')['NTree']
     NUpload: typeof import('naive-ui')['NUpload']
     NUploadDragger: typeof import('naive-ui')['NUploadDragger']
+    NWatermark: typeof import('naive-ui')['NWatermark']
     Organization: typeof import('./src/components/Kubernetes/Sidebar/components/Organization/index.vue')['default']
     Profile: typeof import('./src/components/Kubernetes/Sidebar/components/Profile/index.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

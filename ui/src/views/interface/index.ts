@@ -7,7 +7,7 @@ export interface ISettingProp {
     title: string;
     icon: Component;
     disabled: () => any;
-    click: () => any;
+    click: (user: any) => any;
     content?: any;
 }
 
