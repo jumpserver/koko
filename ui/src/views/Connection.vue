@@ -13,21 +13,30 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { useLogger } from '@/hooks/useLogger';
-import { useDialog, useMessage, NMessageProvider } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
+import { useDialog, useMessage, NMessageProvider } from 'naive-ui';
 
 import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
-import { ISettingProp, shareUser } from '@/views/interface';
-import { computed, h, nextTick, reactive, Ref, ref, watchEffect } from 'vue';
-import { ApertureOutline, PersonOutline, ShareSocialOutline } from '@vicons/ionicons5';
 
+import { computed, h, markRaw, nextTick, reactive, ref } from 'vue';
+import {
+    ApertureOutline,
+    PersonOutline,
+    ShareSocialOutline,
+    LockClosedOutline,
+    PersonAdd
+} from '@vicons/ionicons5';
+
+import type { Ref } from 'vue';
+import type { ISettingProp, shareUser } from '@/views/interface';
+
+import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
-import xtermTheme from 'xterm-theme';
 
 const paramsStore = useParamsStore();
 
@@ -106,8 +115,8 @@ const settings = computed((): ISettingProp[] => {
             content: Object.values(onlineUsersMap)
                 .map((item: any) => {
                     item.name = item.user;
-                    item.faIcon = item.writable ? 'fa-solid fa-keyboard' : 'fa-solid fa-eye';
-                    item.iconTip = item.writable ? t('Writable') : t('ReadOnly');
+                    item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
+                    item.tip = item.writable ? t('Writable') : t('ReadOnly');
                     return item;
                 })
                 .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),

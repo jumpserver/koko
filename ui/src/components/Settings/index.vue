@@ -1,7 +1,7 @@
 <template>
     <div>
         <n-drawer v-model:show="showDrawer" :width="260">
-            <n-drawer-content :title="t('Settings')" closable>
+            <n-drawer-content :native-scrollbar="false" :title="t('Settings')" closable>
                 <n-flex vertical>
                     <template v-for="item of settings" :key="item.title">
                         <n-button
@@ -30,18 +30,39 @@
                                     </template>
                                     <template #description>
                                         <n-flex size="small" style="margin-top: 4px">
-                                            <n-tag
-                                                round
-                                                type="info"
-                                                size="small"
-                                                class="mt-[2.5px] mb-[2.5px] mx-[25px]"
+                                            <n-popover
+                                                trigger="hover"
+                                                placement="top-end"
                                                 v-for="detail of item.content"
-                                                :closable="item.content.indexOf(detail) !== 0"
-                                                :bordered="false"
-                                                @close="item.click(detail)"
+                                                :key="detail.name"
                                             >
-                                                {{ detail.name }}
-                                            </n-tag>
+                                                <template #trigger>
+                                                    <n-tag
+                                                        round
+                                                        strong
+                                                        size="small"
+                                                        class="mt-[2.5px] mb-[2.5px] mx-[25px] cursor-pointer"
+                                                        :bordered="false"
+                                                        :type="
+                                                            item.content.indexOf(detail) !== 0
+                                                                ? 'error'
+                                                                : 'success'
+                                                        "
+                                                        :closable="item.content.indexOf(detail) !== 0"
+                                                        @close="item.click(detail)"
+                                                    >
+                                                        <n-text class="cursor-pointer text-inherit">
+                                                            {{ detail.name }}
+                                                        </n-text>
+                                                        <template #icon>
+                                                            <n-icon :component="detail.icon" />
+                                                        </template>
+                                                    </n-tag>
+                                                </template>
+                                                <template #default>
+                                                    <span>{{ detail.tip }}</span>
+                                                </template>
+                                            </n-popover>
                                         </n-flex>
                                     </template>
                                 </n-thing>
@@ -82,5 +103,3 @@ onUnmounted(() => {
     mittBus.off('open-setting');
 });
 </script>
-
-<style scoped lang="scss"></style>
