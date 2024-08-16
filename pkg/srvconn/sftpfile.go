@@ -5,15 +5,16 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/pkg/sftp"
+	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
-	"github.com/jumpserver/koko/pkg/session"
 )
 
 const (
@@ -81,6 +82,7 @@ func NewNodeDir(builders ...FolderBuilderOption) NodeDir {
 		ID:          dirConf.ID,
 		folderName:  dirConf.Name,
 		subDirs:     map[string]os.FileInfo{},
+		_subDirs:    sync.Map{},
 		modeTime:    time.Now().UTC(),
 		once:        new(sync.Once),
 		loadSubFunc: dirConf.loadSubFunc,
@@ -103,6 +105,8 @@ type folderOptions struct {
 	token *model.ConnectToken
 
 	accountUsername string
+
+	terminalCfg *model.TerminalConfig
 }
 
 func WithFolderUsername(username string) FolderBuilderOption {
@@ -153,7 +157,13 @@ func WithFromType(fromType model.LabelField) FolderBuilderOption {
 	}
 }
 
-func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...FolderBuilderOption) AssetDir {
+func WithTerminalConfig(cfg *model.TerminalConfig) FolderBuilderOption {
+	return func(info *folderOptions) {
+		info.terminalCfg = cfg
+	}
+}
+
+func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...FolderBuilderOption) *AssetDir {
 	var dirOpts folderOptions
 	for _, setter := range opts {
 		setter(&dirOpts)
@@ -173,45 +183,86 @@ func NewAssetDir(jmsService *service.JMService, user *model.User, opts ...Folder
 		permAccounts = append(permAccounts, permAccount)
 		detailAsset = dirOpts.asset
 	}
-	return AssetDir{
+	return &AssetDir{
 		opts:        dirOpts,
 		user:        user,
 		detailAsset: detailAsset,
 		modeTime:    time.Now().UTC(),
 		suMaps:      generateSubAccountsFolderMap(permAccounts),
 		ShowHidden:  conf.ShowHiddenFile,
-		reuse:       conf.ReuseConnection,
-		sftpClients: map[string]*SftpConn{},
 
-		sftpTraceSessions: make(map[string]*session.Session),
-		jmsService:        jmsService,
+		sftpSessions: sync.Map{},
+		jmsService:   jmsService,
 	}
 }
 
 type SftpFile struct {
 	*sftp.File
 	FTPLog *model.FTPLog
+
+	cleanupFunc func()
+}
+
+func (s *SftpFile) Close() error {
+	if s.cleanupFunc != nil {
+		s.cleanupFunc()
+	}
+	return s.File.Close()
 }
 
 type SftpConn struct {
+	permAccount *model.PermAccount
 	HomeDirPath string
 	client      *sftp.Client
+	sshClient   *SSHClient
+	sshSession  *gossh.Session
 	token       *model.ConnectToken
 	isClosed    bool
 	rootDirPath string
+
+	nextExpiredTime time.Time
+	refs            atomic.Int32
+	lock            sync.Mutex
+	maxIdleTime     time.Duration
+}
+
+func (s *SftpConn) IsExpired() bool {
+	if s.Ref() > 0 {
+		// some client is using
+		return false
+	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	now := time.Now()
+	return now.Sub(s.nextExpiredTime) > 0 || s.token.ExpireAt.IsExpired(now)
+}
+
+func (s *SftpConn) UpdateExpiredTime() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.nextExpiredTime = time.Now().Add(s.maxIdleTime)
+}
+
+func (s *SftpConn) IncreaseRef() {
+	s.refs.Add(1)
+	s.UpdateExpiredTime()
+}
+
+func (s *SftpConn) DecreaseRef() {
+	s.refs.Add(-1)
+	s.UpdateExpiredTime()
+}
+
+func (s *SftpConn) Ref() int32 {
+	return s.refs.Load()
 }
 
 func (s *SftpConn) IsOverwriteFile() bool {
 	resolution := s.token.ConnectOptions.FilenameConflictResolution
-	switch strings.ToLower(resolution) {
-	case FilenamePolicyReplace:
-		return true
-	case FilenamePolicySuffix:
-		return false
-	default:
-		return true
-	}
+	return !strings.EqualFold(resolution, FilenamePolicySuffix)
 }
+
+// check if the path is root path and disable to remove
 
 func (s *SftpConn) IsRootPath(path string) bool {
 	return s.rootDirPath == path

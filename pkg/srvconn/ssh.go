@@ -225,6 +225,7 @@ func (s *SSHClient) decreaseSelfRef() {
 func (s *SSHClient) selfRef() int32 {
 	return s._selfRef
 }
+
 func (s *SSHClient) String() string {
 	return fmt.Sprintf("%s@%s:%s", s.Cfg.Username,
 		s.Cfg.Host, s.Cfg.Port)

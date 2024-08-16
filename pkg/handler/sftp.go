@@ -9,23 +9,10 @@ import (
 
 	"github.com/pkg/sftp"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
-
-func NewSFTPHandler(jmsService *service.JMService, user *model.User, addr string) *SftpHandler {
-	opts := make([]srvconn.UserSftpOption, 0, 5)
-	opts = append(opts, srvconn.WithUser(user))
-	opts = append(opts, srvconn.WithRemoteAddr(addr))
-	opts = append(opts, srvconn.WithLoginFrom(model.LoginFromSSH))
-	return &SftpHandler{
-		UserSftpConn: srvconn.NewUserSftpConn(jmsService, opts...),
-		recorder:     proxy.GetFTPFileRecorder(jmsService),
-	}
-}
 
 type SftpHandler struct {
 	*srvconn.UserSftpConn

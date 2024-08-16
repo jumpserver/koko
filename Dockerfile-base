@@ -1,0 +1,86 @@
+FROM redis:6.2-bullseye AS redis-stage
+FROM golang:1.22-bullseye AS stage-go-build
+
+FROM node:20.15-bullseye
+COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
+COPY --from=stage-go-build /go/ /go/
+COPY --from=redis-stage /usr/local/bin/redis-cli /usr/local/bin/redis-cli
+ENV GOPATH=/go
+ENV PATH=/go/bin:/usr/local/go/bin:$PATH
+ARG TARGETARCH
+ARG NPM_REGISTRY="https://registry.npmmirror.com"
+ENV NPM_REGISTY=$NPM_REGISTRY
+RUN set -ex \
+    && echo "no" | dpkg-reconfigure dash
+RUN set -ex \
+    && npm config set registry ${NPM_REGISTRY} \
+    && yarn config set registry ${NPM_REGISTRY}
+
+WORKDIR /opt
+
+ARG HELM_VERSION=v3.14.3
+ARG KUBECTL_VERSION=v1.29.3
+ARG CHECK_VERSION=v1.0.3
+ARG USQL_VERSION=v0.0.1
+RUN set -ex \
+    && mkdir -p /opt/koko/bin \
+    && wget -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
+    && tar -xf kubectl.tar.gz --strip-components=3 -C /opt/koko/bin/ kubernetes/client/bin/kubectl \
+    && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
+    && wget https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
+    && tar -xf helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
+    && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
+    && wget https://github.com/jumpserver-dev/healthcheck/releases/download/${CHECK_VERSION}/check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz \
+    && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
+    && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
+    && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ \
+    && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
+    && chmod 755 /opt/koko/bin/* \
+    && chown root:root /opt/koko/bin/* \
+    && rm -f *.tar.gz
+
+
+
+WORKDIR /opt/koko
+
+ARG MONGOSH_VERSION=2.2.12
+RUN set -ex \
+    && mkdir -p /opt/koko/lib \
+    && \
+    case "${TARGETARCH}" in \
+        amd64) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-x64/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh /opt/koko/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-x64* \
+            ;; \
+        arm64|ppc64le|s390x) \
+            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && tar -xf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
+            && chown root:root mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/* \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh /opt/koko/bin/ \
+            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
+            && rm -rf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}* \
+            ;; \
+        *) \
+            echo "Unsupported architecture: ${TARGETARCH}" \
+            ;; \
+    esac
+
+WORKDIR /opt/koko/ui
+
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
+    --mount=type=bind,source=ui/package.json,target=package.json \
+    --mount=type=bind,source=ui/yarn.lock,target=yarn.lock \
+    yarn install
+
+WORKDIR /opt/koko/
+
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
+
+COPY go.mod go.sum ./
+
+RUN go mod download -x

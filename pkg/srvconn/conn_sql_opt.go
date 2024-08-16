@@ -19,7 +19,8 @@ type sqlOption struct {
 
 	win Windows
 
-	AuthSource string
+	AuthSource        string
+	ConnectionOptions string
 }
 
 type SqlOption func(*sqlOption)
@@ -105,5 +106,11 @@ func SqlPtyWin(win Windows) SqlOption {
 func SqlAuthSource(authSource string) SqlOption {
 	return func(args *sqlOption) {
 		args.AuthSource = authSource
+	}
+}
+
+func SqlConnectionOptions(options string) SqlOption {
+	return func(args *sqlOption) {
+		args.ConnectionOptions = options
 	}
 }

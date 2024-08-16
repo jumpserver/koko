@@ -33,7 +33,7 @@ jobs:
           tag: ${{ steps.get_version.outputs.TAG }}
       - uses: actions/setup-node@v2
         with:
-          node-version: '16.20'
+          node-version: '20.15'
       - uses: actions/setup-go@v2
         with:
           go-version: '1.22.x' # The Go version to download (if necessary) and use.

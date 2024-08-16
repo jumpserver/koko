@@ -246,7 +246,8 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 			r.recordLifecycleLog(model.ReplayUploadSuccess, "")
 			break
 		}
-		r.recordLifecycleLog(model.ReplayUploadFailure, err.Error())
+		failureMsg := strings.ReplaceAll(err.Error(), ",", " ")
+		r.recordLifecycleLog(model.ReplayUploadFailure, failureMsg)
 		logger.Errorf("Upload replay file err: %s", err)
 		// 如果还是失败，上传 server 再传一次
 		if i == maxRetry {

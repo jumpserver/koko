@@ -25,6 +25,10 @@ func RemoveSession(s *Session) {
 	sessManager.Delete(s.ID)
 }
 
+func RemoveSessionById(id string) {
+	sessManager.Delete(id)
+}
+
 func newSessionManager() *sessionManager {
 	return &sessionManager{
 		data: make(map[string]*Session),

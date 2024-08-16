@@ -37,7 +37,7 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 func HTTPMiddleDebugAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		switch ctx.ClientIP() {
-		case "127.0.0.1", "localhost":
+		case "127.0.0.1", "localhost", "::1":
 			return
 		default:
 			_ = ctx.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid host %s", ctx.ClientIP()))

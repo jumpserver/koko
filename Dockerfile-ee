@@ -1,53 +1,6 @@
-ARG VERSION
+ARG VERSION=dev
 
-FROM debian:bullseye-slim as stage-build
-ARG TARGETARCH
-
-ARG DEPENDENCIES="                    \
-        ca-certificates               \
-        curl                          \
-        wget"
-
-ARG APT_MIRROR=http://mirrors.ustc.edu.cn
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko \
-    set -ex \
-    && rm -f /etc/apt/apt.conf.d/docker-clean \
-    && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache \
-    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get -y install --no-install-recommends ${DEPENDENCIES} \
-    && echo "no" | dpkg-reconfigure dash
-
-WORKDIR /opt/koko
-
-ARG MONGOSH_VERSION=1.10.3
-RUN set -ex \
-    && mkdir -p /opt/koko/bin /opt/koko/lib \
-    && \
-    case "${TARGETARCH}" in \
-        amd64) \
-            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
-            && tar -xf mongosh-${MONGOSH_VERSION}-linux-x64.tgz \
-            && chown root:root mongosh-${MONGOSH_VERSION}-linux-x64/bin/* \
-            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh /opt/koko/bin/ \
-            && mv mongosh-${MONGOSH_VERSION}-linux-x64/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
-            && rm -rf mongosh-${MONGOSH_VERSION}-linux-x64* \
-            ;; \
-        arm64) \
-            wget https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
-            && tar -xf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}.tgz \
-            && chown root:root mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/* \
-            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh /opt/koko/bin/ \
-            && mv mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}/bin/mongosh_crypt_v1.so /opt/koko/lib/ \
-            && rm -rf mongosh-${MONGOSH_VERSION}-linux-${TARGETARCH}* \
-            ;; \
-        *) \
-            echo "Unsupported architecture: ${TARGETARCH}" \
-            ;; \
-    esac
-
-FROM registry.fit2cloud.com/jumpserver/koko:${VERSION}-ce
+FROM jumpserver/koko:${VERSION}-ce
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
@@ -65,11 +18,10 @@ ARG DEPENDENCIES="                    \
         wget                          \
         xz-utils"
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=koko \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=koko \
-    set -ex \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends ${DEPENDENCIES}
+ARG APT_MIRROR=http://deb.debian.org
 
-COPY --from=stage-build /opt/koko/bin /usr/local/bin
-COPY --from=stage-build /opt/koko/lib /usr/local/lib
+RUN set -ex \
+    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
+    && apt-get clean

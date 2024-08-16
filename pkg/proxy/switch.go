@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -114,12 +113,8 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 	} else {
 		input = item.Command
 	}
-	i := strings.LastIndexByte(item.Output, '\r')
-	if i <= 0 {
-		output = item.Output
-	} else if i > 0 && i < maxBufSize {
-		output = item.Output[:i]
-	} else {
+	output = item.Output
+	if len(output) > maxBufSize {
 		output = item.Output[:maxBufSize]
 	}
 
