@@ -926,7 +926,7 @@ func (s *Server) Proxy() {
 		reviewTicketId := s.connOpts.authInfo.Ticket.ID
 		msg := fmt.Sprintf("Conn[%s] create session %s ticket %s relation",
 			s.UserConn.ID(), s.ID, reviewTicketId)
-		logger.Infof(msg)
+		logger.Info(msg)
 		if err := s.jmsService.CreateSessionTicketRelation(s.sessionInfo.ID, reviewTicketId); err != nil {
 			logger.Errorf("%s err: %s", msg, err)
 		}
