@@ -11,7 +11,12 @@
         :content="waterMarkContent"
         :line-height="16"
     >
-        <TerminalComponent v-if="verified" @event="onEvent" @socketData="onSocketData" />
+        <TerminalComponent
+            v-if="verified"
+            terminal-type="common"
+            @event="onEvent"
+            @socketData="onSocketData"
+        />
     </n-watermark>
 </template>
 

@@ -34,7 +34,7 @@
                 @sync-load-node="handleSyncLoad"
             />
         </n-layout-sider>
-        <!-- <MainContent :socket="socket" :terminal-id="terminalId" :socket-data="socketData" /> -->
+        <MainContent :socket="socket" />
     </n-layout>
 </template>
 
@@ -67,7 +67,6 @@ const { createTreeConnect, syncLoadNodes } = useK8s();
 const socket = createTreeConnect();
 
 const handleSyncLoad = (node: TreeOption) => {
-    console.log(node);
     syncLoadNodes(node);
 };
 

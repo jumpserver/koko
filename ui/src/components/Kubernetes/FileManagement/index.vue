@@ -30,7 +30,6 @@
                                 :allow-checking-not-loaded="true"
                                 :on-update:expanded-keys="handleExpandCollapse"
                             />
-                            <!-- checkable -->
                         </n-collapse-item>
                     </n-scrollbar>
                 </n-collapse>
@@ -53,14 +52,15 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
 import { ref, h, nextTick } from 'vue';
-import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
-import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5';
 import { showToolTip } from '../helper/index';
+import { useTreeStore } from '@/store/modules/tree.ts';
+
 import mittBus from '@/utils/mittBus.ts';
 
-import { useTreeStore } from '@/store/modules/tree.ts';
-import { storeToRefs } from 'pinia';
+import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
+import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5';
 
 const { t } = useI18n();
 const treeStore = useTreeStore();
@@ -75,11 +75,8 @@ const dropdownY = ref(0);
 const dropdownX = ref(0);
 const searchPattern = ref('');
 const showDropdown = ref(false);
-const dropdownOptions = ref<DropdownOption[]>([]);
-
 const expandedKeysRef = ref<string[]>([]);
-// const isLoaded = ref(false);
-// const treeData: Ref<TreeOption[]> = ref([]);
+const dropdownOptions = ref<DropdownOption[]>([]);
 
 /**
  * @description 处理节点展开

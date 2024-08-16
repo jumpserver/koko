@@ -1,8 +1,7 @@
 <template>
     <TerminalComponent
-        :enable-zmodem="true"
-        :share-code="shareCode"
         :theme-name="themeName"
+        terminal-type="common"
         @event="onEvent"
         @socketData="onSocketData"
     />

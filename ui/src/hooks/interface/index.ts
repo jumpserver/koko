@@ -3,17 +3,12 @@ import type { Ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
 
 export interface ITerminalProps {
-    // 连接 url
-    connectURL?: string;
-
-    //
-    // shareCode?: string;
-
     // 主题名称
     themeName?: string;
 
-    //
-    // enableZmodem: boolean;
+    terminalType: string;
+
+    socket?: WebSocket;
 }
 
 export interface ILunaConfig {

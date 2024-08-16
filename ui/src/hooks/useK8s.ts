@@ -99,7 +99,7 @@ export const useK8s = () => {
         }
 
         const childNode: customTreeOption = {
-            id: `${nodeId}-${name}`,
+            id: nodeId,
             key: uuidv4(),
             k8s_id: uuidv4(),
             label: name,
@@ -235,6 +235,8 @@ export const useK8s = () => {
         });
 
         socket = ws.value;
+
+        return ws.value;
     };
 
     return {

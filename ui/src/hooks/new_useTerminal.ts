@@ -8,7 +8,7 @@ import { useTerminalStore } from '@/store/modules/terminal';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 
 // 引入类型
-import { ref, Ref } from 'vue';
+import { ref, Ref, watch } from 'vue';
 import type { ILunaConfig } from '@/hooks/interface';
 
 // 引入工具函数
@@ -21,7 +21,8 @@ import {
     handleTerminalResize,
     handleTerminalSelection,
     onWebsocketOpen,
-    onWebsocketWrong
+    onWebsocketWrong,
+    base64ToUint8Array
 } from './index';
 
 import xtermTheme from 'xterm-theme';
@@ -41,6 +42,12 @@ interface ITerminalReturn {
 }
 
 interface ICallbackOptions {
+    // terminal 类型
+    terminalType: string;
+
+    // 传递进来的 socket，不传则在 createTerminal 时创建
+    transSocket?: WebSocket;
+
     emitCallback?: (e: string, type: string, msg: any, terminal?: Terminal) => void;
 
     i18nCallBack?: (key: string) => string;
@@ -55,8 +62,9 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
     let fitAddon: FitAddon;
 
-    let type: string;
+    let terminalRef: Ref<Terminal | null> = ref(null);
     let sentry: Sentry;
+    let type: string = callbackOptions.terminalType;
 
     let lunaId: Ref<string> = ref('');
     let origin: Ref<string> = ref('');
@@ -76,6 +84,21 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         const debouncedFit = useDebounceFn(() => fitAddon.fit(), 500);
 
         window.addEventListener('resize', debouncedFit, false);
+
+        if (callbackOptions.terminalType === 'k8s') {
+            const { createSentry } = useSentry(lastSendTime, callbackOptions.i18nCallBack);
+
+            watch(
+                () => terminalRef.value,
+                newValue => {
+                    sentry = createSentry(callbackOptions.transSocket, newValue);
+
+                    callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
+                        return handleK8sMessage(JSON.parse(e.data));
+                    });
+                }
+            );
+        }
     };
 
     /**
@@ -305,6 +328,38 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         }
     };
 
+    const handleK8sMessage = (socketData: any) => {
+        switch (socketData.type) {
+            case 'TERMINAL_K8S_BINARY': {
+                sentry.consume(base64ToUint8Array(socketData.raw));
+                break;
+            }
+            case 'TERMINAL_ACTION': {
+                const action = socketData.data;
+                switch (action) {
+                    case 'ZMODEM_START': {
+                        message.warning(t('Terminal.WaitFileTransfer'));
+                        break;
+                    }
+                    case 'ZMODEM_END': {
+                        message.warning(t('Terminal.EndFileTransfer'));
+                        terminalRef.value.writeln('\r\n');
+                        break;
+                    }
+                }
+                break;
+            }
+            case 'TERMINAL_ERROR': {
+                message.error(`Socket Error ${socketData.err}`);
+                terminalRef.value.write(socketData.err);
+                break;
+            }
+            default: {
+                // debug('Default Handle SocketData Switch');
+            }
+        }
+    };
+
     /**
      * 创建 Socket
      */
@@ -323,11 +378,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 onWebsocketWrong(event, 'disconnected', terminal);
             },
             onMessage: (socket: WebSocket, event: MessageEvent) => {
-                if (type === 'k8s') {
-                    // handleK8sMessage();
-                } else {
-                    handleMessage(socket, event, terminal);
-                }
+                handleMessage(socket, event, terminal);
             }
         });
 
@@ -343,10 +394,9 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
      * 创建终端
      *
      * @param {HTMLElement} el 挂载节点
-     * @param {string}_type type K8s 类型或者普通
      * @return Terminal
      */
-    const createTerminal = (el: HTMLElement, _type: string) => {
+    const createTerminal = (el: HTMLElement) => {
         const { fontSize, lineHeight, fontFamily } = lunaConfig;
 
         const options = {
@@ -368,13 +418,16 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
         fitAddon.fit();
 
-        type = _type;
-
         //* 初始化节点、Terminal 实例相关事件以及创建 Socket
         initElEvent(el);
         initTerminalEvent(terminal);
 
-        const socket = createWebSocket(terminal);
+        if (type === 'common') {
+            const socket = createWebSocket(terminal);
+        } else {
+            socket = callbackOptions.transSocket;
+            terminalRef.value = terminal;
+        }
 
         initCustomWindowEvent(terminal);
 

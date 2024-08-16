@@ -20,7 +20,9 @@
                 class="bg-[#101014] pt-0"
             >
                 <n-scrollbar trigger="hover">
-                    <TerminalComponent />
+                    <keep-alive>
+                        <TerminalComponent ref="terminalRef" terminal-type="k8s" :socket="socket" />
+                    </keep-alive>
                 </n-scrollbar>
             </n-tab-pane>
             <template v-slot:suffix>
@@ -78,7 +80,6 @@ import type { customTreeOption, ILunaConfig } from '@/hooks/interface';
 import mittBus from '@/utils/mittBus.ts';
 import { EllipsisHorizontal } from '@vicons/ionicons5';
 import { updateIcon } from '@/components/Terminal/helper';
-import { base64ToUint8Array } from '@/components/Kubernetes/helper';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { Terminal } from '@xterm/xterm';
 import { useI18n } from 'vue-i18n';
@@ -92,30 +93,22 @@ const iconStyle: CSSProperties = {
     transition: 'fill 0.3s'
 };
 
-// 获取 props
-const props = defineProps<{
-    socket: WebSocket | null;
-    terminalId?: string;
-    socketData?: any;
-    socketSend?: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean;
-}>();
-
 // 创建消息和日志实例
 const message = useMessage();
 const { debug } = useLogger('K8s-Terminal');
 
 // 相关状态
 const nameRef = ref('');
-const enableZmodem = ref(true);
-const zmodemStatus = ref(false);
+const terminalRef = ref(null);
 
 const lastSendTime: Ref<Date> = ref(new Date());
 const lunaConfig: Ref<ILunaConfig> = ref({});
-const sentryRef: Ref<Sentry | undefined> = ref(undefined);
-const terminalRef: Ref<Terminal | undefined> = ref(undefined);
 
 const panels: Ref<TabPaneProps[]> = ref([]);
-const termianlIdRef = ref('');
+
+const props = defineProps<{
+    socket: WebSocket;
+}>();
 
 const { t } = useI18n();
 
@@ -123,25 +116,11 @@ const treeStore = useTreeStore();
 
 const { connectInfo } = storeToRefs(treeStore);
 
-watch(
-    () => props.socketData,
-    (newValue: any) => {
-        handleSocketData(JSON.parse(newValue));
-    }
-);
-
-watch(
-    () => props.terminalId,
-    newValue => {
-        termianlIdRef.value = newValue;
-        console.log('newid', newValue);
-    }
-);
-
 const handleSocketData = (socketData: any) => {
     switch (socketData.type) {
         case 'TERMINAL_K8S_BINARY': {
-            sentryRef.value?.consume(base64ToUint8Array(socketData.raw));
+            console.log(123);
+            // sentryRef.value?.consume(base64ToUint8Array(socketData.raw));
             break;
         }
         case 'TERMINAL_ACTION': {
@@ -180,10 +159,6 @@ const handleSocketData = (socketData: any) => {
     }
 };
 
-// 终端相关函数
-const { createTerminal, initTerminalEvent } = useTerminal(termianlIdRef, 'k8s');
-const { createSentry } = useSentry(lastSendTime);
-
 // 处理关闭标签页事件
 const handleClose = (name: string) => {
     message.info(`已关闭: ${name}`);
@@ -202,47 +177,6 @@ const handleChangeTab = (value: string) => {
     nameRef.value = value;
 };
 
-// 创建 K8s 终端
-const createK8sTerminal = async (currentNode: customTreeOption) => {
-    await nextTick();
-
-    const terminalId = `terminal-${currentNode.key}`;
-    const el: HTMLElement = document.getElementById(terminalId)!;
-
-    const terminalStore = useTerminalStore();
-    lunaConfig.value = terminalStore.getConfig;
-
-    const { terminal, fitAddon } = createTerminal(el, lunaConfig.value);
-
-    terminalRef.value = terminal;
-
-    if (props.socket) {
-        sentryRef.value = createSentry(props.socket, terminal);
-
-        initTerminalEvent(props.socket, el, terminal, lunaConfig.value);
-
-        const sendData = {
-            id: props.terminalId,
-            k8s_id: currentNode.k8s_id,
-            namespace: currentNode.namespace,
-            pod: currentNode.pod,
-            container: currentNode.container,
-            type: 'TERMINAL_K8S_INIT',
-            data: JSON.stringify({
-                cols: terminal.cols,
-                rows: terminal.rows,
-                code: ''
-            })
-        };
-
-        debug(`Current User: ${connectInfo.value.user}`);
-
-        updateIcon(connectInfo.value.setting);
-
-        props.socketSend(JSON.stringify(sendData));
-    }
-};
-
 // 监听连接终端事件
 onMounted(() => {
     mittBus.on('connect-terminal', currentNode => {
@@ -251,11 +185,53 @@ onMounted(() => {
             tab: currentNode.label
         });
 
+        const sendTerminalData = () => {
+            if (terminalRef.value) {
+                const terminalInstance = terminalRef.value[0]?.terminalRef; // 获取子组件的 terminal 实例
+                const cols = terminalInstance?.cols;
+                const rows = terminalInstance?.rows;
+
+                if (cols && rows) {
+                    const sendData = {
+                        id: currentNode.id,
+                        k8s_id: currentNode.k8s_id,
+                        namespace: currentNode.namespace,
+                        pod: currentNode.pod,
+                        container: currentNode.container,
+                        type: 'TERMINAL_K8S_INIT',
+                        data: JSON.stringify({
+                            cols,
+                            rows,
+                            code: ''
+                        })
+                    };
+
+                    updateIcon(connectInfo.value.setting);
+                    props.socket.send(JSON.stringify(sendData));
+                } else {
+                    console.error('Failed to get terminal dimensions');
+                }
+            } else {
+                console.error('Terminal ref is not available');
+            }
+        };
+
+        // 立即发送数据
+        sendTerminalData();
+
+        // 监听 terminalRef 的变化，如果 terminal 实例准备好，再次发送数据
+        watch(
+            () => terminalRef.value,
+            newValue => {
+                if (newValue) {
+                    sendTerminalData();
+                }
+            }
+        );
+
         nameRef.value = currentNode.key as string;
 
         debug('currentNode', currentNode);
-
-        createK8sTerminal(currentNode);
     });
 });
 

@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { Terminal } from '@xterm/xterm';
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { useTerminal } from '@/hooks/new_useTerminal.ts';
 
 import type { ITerminalProps } from '@/hooks/interface';
@@ -19,7 +19,8 @@ import mittBus from '@/utils/mittBus.ts';
 const { t } = useI18n();
 
 const props = withDefaults(defineProps<ITerminalProps>(), {
-    themeName: 'Default'
+    themeName: 'Default',
+    terminalType: 'common'
 });
 
 const emits = defineEmits<{
@@ -28,11 +29,15 @@ const emits = defineEmits<{
     (e: 'socketData', msgType: string, msg: any, terminal: Terminal): void;
 }>();
 
+const terminalRef = ref(null);
+
 onMounted(() => {
     const theme = props.themeName;
     const el: HTMLElement = document.getElementById('terminal')!;
 
     const { createTerminal, setTerminalTheme, sendWsMessage } = useTerminal({
+        terminalType: props.terminalType,
+        transSocket: props.socket ? props.socket : undefined,
         i18nCallBack: (key: string) => t(key),
         emitCallback: (e: string, type: string, msg: any, terminal?: Terminal) => {
             switch (e) {
@@ -48,7 +53,9 @@ onMounted(() => {
         }
     });
 
-    const { terminal } = createTerminal(el, 'common');
+    const { terminal } = createTerminal(el);
+
+    terminalRef.value = terminal;
 
     // 设置主题
     setTerminalTheme(theme, terminal, emits);
@@ -84,6 +91,10 @@ onMounted(() => {
             action_permission: shareLinkRequest.actionPerm
         });
     });
+});
+
+defineExpose({
+    terminalRef
 });
 
 onUnmounted(() => {
