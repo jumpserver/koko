@@ -78,7 +78,7 @@ export const handleEventFromLuna = (
  * @param ws - WebSocket 实例。
  * @returns 如果 WebSocket 已激活则返回 true，否则返回 false。
  */
-export const wsIsActivated = (ws: WebSocket) => {
+export const wsIsActivated = (ws: WebSocket | undefined) => {
     return ws ? !(ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) : false;
 };
 

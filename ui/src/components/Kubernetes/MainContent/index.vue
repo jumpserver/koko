@@ -20,9 +20,7 @@
                 class="bg-[#101014] pt-0"
             >
                 <n-scrollbar trigger="hover">
-                    <keep-alive>
-                        <div :id="`terminal-${panel.name}`" class="terminal-container"></div>
-                    </keep-alive>
+                    <TerminalComponent />
                 </n-scrollbar>
             </n-tab-pane>
             <template v-slot:suffix>
@@ -61,7 +59,9 @@
 
 <script setup lang="ts">
 import type { CSSProperties } from 'vue';
-import { nextTick, onBeforeUnmount, onMounted, reactive, Ref, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+
+import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
 // 引入 type
 import type { TabPaneProps } from 'naive-ui';
@@ -95,9 +95,9 @@ const iconStyle: CSSProperties = {
 // 获取 props
 const props = defineProps<{
     socket: WebSocket | null;
-    terminalId: string;
-    socketData: any;
-    socketSend: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean;
+    terminalId?: string;
+    socketData?: any;
+    socketSend?: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean;
 }>();
 
 // 创建消息和日志实例

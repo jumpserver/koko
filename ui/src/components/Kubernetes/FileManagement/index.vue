@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ref, h, watch, Ref, nextTick } from 'vue';
+import { ref, h, nextTick } from 'vue';
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
 import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5';
 import { showToolTip } from '../helper/index';
@@ -62,40 +62,31 @@ import mittBus from '@/utils/mittBus.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { storeToRefs } from 'pinia';
 
+const { t } = useI18n();
 const treeStore = useTreeStore();
 
-const { treeNodes, loadingTreeNode } = storeToRefs(treeStore);
-
-// const props = defineProps<{
-//   treeNodes: any;
-// }>();
+const { treeNodes } = storeToRefs(treeStore);
 
 const emits = defineEmits<{
     (e: 'sync-load-node', data: TreeOption): void;
 }>();
 
-const { t } = useI18n();
+const dropdownY = ref(0);
+const dropdownX = ref(0);
 const searchPattern = ref('');
 const showDropdown = ref(false);
 const dropdownOptions = ref<DropdownOption[]>([]);
-const dropdownX = ref(0);
-const dropdownY = ref(0);
 
 const expandedKeysRef = ref<string[]>([]);
 // const isLoaded = ref(false);
 // const treeData: Ref<TreeOption[]> = ref([]);
 
-// watch(
-//   () => props.treeNodes,
-//   newNode => {
-//     isLoaded.value = true;
-//     treeData.value = newNode;
-//   },
-//   {
-//     deep: true
-//   }
-// );
-
+/**
+ * @description 处理节点展开
+ * @param expandedKeys
+ * @param _option
+ * @param meta
+ */
 const handleExpandCollapse = (
     expandedKeys: string[],
     _option: Array<TreeOption | null>,
@@ -119,14 +110,10 @@ const handleExpandCollapse = (
     }
 };
 
-const handleOnLoad = (node: TreeOption) => {
-    emits('sync-load-node', node);
-
-    return new Promise<boolean>(resolve => {
-        if (loadingTreeNode.value) resolve(false);
-    });
-};
-
+/**
+ * @description 处理节点行为
+ * @param option
+ */
 const nodeProps = ({ option }: { option: TreeOption }) => {
     return {
         onClick: async () => {
@@ -144,6 +131,16 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
             e.preventDefault();
         }
     };
+};
+
+const handleOnLoad = (node: TreeOption) => {
+    treeStore.setCurrentNode(node);
+
+    emits('sync-load-node', node);
+
+    return new Promise<boolean>(resolve => {
+        resolve(false);
+    });
 };
 
 const handleSelect = () => {
@@ -202,7 +199,7 @@ const handleClickoutside = () => {
                         padding-left: 5px;
 
                         .n-tree-node-content__text {
-                            white-space: nowrap; // 添加这一行来防止文字换行
+                            white-space: nowrap;
                         }
                     }
                 }

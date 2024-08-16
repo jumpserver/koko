@@ -317,10 +317,10 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
             },
             onError: (_ws: WebSocket, event: Event) => {
-                onWebsocketWrong(event, terminal, 'error');
+                onWebsocketWrong(event, 'error', terminal);
             },
             onDisconnected: (_ws: WebSocket, event: CloseEvent) => {
-                onWebsocketWrong(event, terminal, 'disconnected');
+                onWebsocketWrong(event, 'disconnected', terminal);
             },
             onMessage: (socket: WebSocket, event: MessageEvent) => {
                 if (type === 'k8s') {

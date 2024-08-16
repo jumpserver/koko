@@ -231,7 +231,7 @@ export const onWebsocketOpen = (
 
         if (pingTimeout < 0) return;
 
-        socket.send(formatMessage(terminalId, 'PING', ''));
+        // socket.send(formatMessage(terminalId, 'PING', ''));
     }, 25 * 1000);
 };
 
@@ -294,11 +294,16 @@ export const generateWsURL = () => {
  * @param terminal
  * @param type
  */
-export const onWebsocketWrong = (event: Event, terminal: Terminal, type: string) => {
-    if (type === 'error') {
-        terminal.write('Connection Websocket Error');
-    } else {
-        terminal.write('Connection Websocket Closed');
+export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal) => {
+    switch (type) {
+        case 'error': {
+            terminal ? terminal.write('Connection Websocket Error') : message.error('Error');
+            break;
+        }
+        case 'disconnected': {
+            terminal ? terminal.write('Connection Websocket Closed') : message.error('Disconnected');
+            break;
+        }
     }
 
     fireEvent(new Event('CLOSE', {}));

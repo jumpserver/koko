@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
-import type { ITreeState } from '@/store/interface';
+
 import type { TreeOption } from 'naive-ui';
+import type { ITreeState } from '@/store/interface';
 import type { customTreeOption } from '@/hooks/interface';
-import { useTree } from '@/hooks/useTree.ts';
 
 export const useTreeStore = defineStore('tree', {
     state: (): ITreeState => ({
@@ -12,22 +12,14 @@ export const useTreeStore = defineStore('tree', {
         currentNode: {}
     }),
     actions: {
-        setConnectInfo(id: string, info: any, initTree: (key: string, label: string) => TreeOption[]) {
-            this.connectInfo = info;
-
-            this.treeNodes = initTree(id, info.asset.name);
+        setTreeNodes(nodes: TreeOption) {
+            this.treeNodes.push(nodes);
         },
-        loadTreeNode(
-            socket: WebSocket,
-            socketSend: (data: string | ArrayBuffer | Blob, useBuffer?: boolean) => boolean,
-            treeNodes: customTreeOption,
-            id: string
-        ) {
-            const { syncLoadNode } = useTree(socket, socketSend);
-
-            this.currentNode = treeNodes;
-            this.loadingTreeNode = true;
-            syncLoadNode(treeNodes, id);
+        setConnectInfo(info: any) {
+            this.connectInfo = info;
+        },
+        setCurrentNode(currentNode: customTreeOption) {
+            this.currentNode = currentNode;
         },
         setLoading(loading: boolean) {
             this.loadingTreeNode = loading;
