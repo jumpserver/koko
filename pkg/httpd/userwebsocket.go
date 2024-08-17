@@ -94,7 +94,7 @@ func (userCon *UserWebsocket) Run() {
 		return
 	}
 
-	if userCon.ConnectToken.Protocol == srvconn.ProtocolK8s {
+	if userCon.ConnectToken != nil && userCon.ConnectToken.Protocol == srvconn.ProtocolK8s {
 		var err error
 		userCon.k8sClient, err = proxy.NewKubernetesClient(
 			userCon.ConnectToken.Asset.Address,
@@ -186,11 +186,17 @@ func (userCon *UserWebsocket) sendConnectMessage() {
 	var connectInfo struct {
 		User    *model.User          `json:"user"`
 		Setting *model.PublicSetting `json:"setting"`
-		Asset   *model.Asset         `json:"asset"`
+		Asset   *model.Asset         `json:"asset,omitempty"`
 	}
 	connectInfo.User = userCon.user
 	connectInfo.Setting = userCon.setting
-	connectInfo.Asset = &userCon.ConnectToken.Asset
+
+	if userCon.ConnectToken != nil {
+		connectInfo.Asset = &userCon.ConnectToken.Asset
+	} else {
+		connectInfo.Asset = nil
+	}
+
 	info, _ := json.Marshal(connectInfo)
 	msg := Message{
 		Id:   userCon.Uuid,

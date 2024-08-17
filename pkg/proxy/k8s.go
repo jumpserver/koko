@@ -14,7 +14,7 @@ import (
 
 type KubernetesClient struct {
 	Client  *kubernetes.Clientset
-	gateway *DomainGateway
+	gateway *domainGateway
 }
 
 func NewKubernetesClient(address, token string, gateway *model.Gateway) (*KubernetesClient, error) {
@@ -66,13 +66,12 @@ func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gat
 	return nil
 }
 
-func newK8sGateWayServer(address string, gateway *model.Gateway) (*DomainGateway, error) {
+func newK8sGateWayServer(address string, gateway *model.Gateway) (*domainGateway, error) {
 	dstHost, dstPort, err := ParseUrlHostAndPort(address)
 	if err != nil {
 		return nil, err
 	}
-	dGateway := &DomainGateway{
-		domain:          nil,
+	dGateway := &domainGateway{
 		dstIP:           dstHost,
 		dstPort:         dstPort,
 		selectedGateway: gateway,
@@ -86,7 +85,7 @@ func (kc *KubernetesClient) GetNamespaces() ([]string, error) {
 		return nil, err
 	}
 
-	namespaceNames := []string{}
+	var namespaceNames []string
 	for _, ns := range namespaces.Items {
 		namespaceNames = append(namespaceNames, ns.Name)
 	}
@@ -99,7 +98,7 @@ func (kc *KubernetesClient) GetPodsInNamespace(namespace string) ([]string, erro
 		return nil, err
 	}
 
-	podNames := []string{}
+	var podNames []string
 	for _, pod := range pods.Items {
 		podNames = append(podNames, pod.Name)
 	}
@@ -112,7 +111,7 @@ func (kc *KubernetesClient) GetContainersInPod(namespace, podName string) ([]str
 		return nil, err
 	}
 
-	containerNames := []string{}
+	var containerNames []string
 	for _, container := range pod.Spec.Containers {
 		containerNames = append(containerNames, container.Name)
 	}
