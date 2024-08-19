@@ -31,7 +31,8 @@
     "vue-draggable-plus": "^0.5.2",
     "vue-i18n": "^9.13.1",
     "vue-router": "^4.4.0",
-    "vue3-cookies": "^1.0.6"
+    "vue3-cookies": "^1.0.6",
+    "xterm-theme": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
