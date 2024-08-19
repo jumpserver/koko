@@ -8,9 +8,11 @@
 
 <script setup lang="ts">
 import Tree from './components/Tree/index.vue';
-import Organization from './components/Organization/index.vue';
+import Logo from './components/Logo/index.vue';
 
-import type { CSSProperties } from 'vue';
+import { CSSProperties, h } from 'vue';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { storeToRefs } from 'pinia';
 
 const iconStyle: CSSProperties = {
     fill: '#646A73',
@@ -19,16 +21,22 @@ const iconStyle: CSSProperties = {
     transition: 'fill 0.3s'
 };
 
+const paramsStore = useParamsStore();
+const { setting } = storeToRefs(paramsStore);
+
 const topIconOptions = [
+    {
+        iconStyle,
+        name: 'logo',
+        component: () =>
+            h(Logo, {
+                logoImage: setting.value.INTERFACE?.logo_logout as string
+            })
+    },
     {
         iconStyle,
         name: 'tree',
         component: Tree
-    },
-    {
-        iconStyle,
-        name: 'organize',
-        component: Organization
     }
 ];
 </script>

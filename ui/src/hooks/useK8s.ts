@@ -21,6 +21,7 @@ import type { customTreeOption } from '@/hooks/interface';
 
 import { generateWsURL, onWebsocketOpen, onWebsocketWrong } from './helper';
 import { updateIcon, wsIsActivated } from '@/components/Terminal/helper/index.ts';
+import { useParamsStore } from '@/store/modules/params.ts';
 
 const { debug } = useLogger('K8s');
 const { message } = createDiscreteApi(['message']);
@@ -171,6 +172,7 @@ export const useK8s = () => {
      */
     const handleMessage = (socket: WebSocket, event: MessageEvent) => {
         const treeStore = useTreeStore();
+        const paramsStore = useParamsStore();
 
         lastSendTime.value = new Date();
 
@@ -183,6 +185,8 @@ export const useK8s = () => {
                 terminalId.value = msg.id;
 
                 const info = JSON.parse(msg.data);
+
+                paramsStore.setSetting(info.setting);
 
                 updateIcon(info.setting);
 
