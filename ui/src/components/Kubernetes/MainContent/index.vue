@@ -20,7 +20,13 @@
             >
                 <n-scrollbar trigger="hover">
                     <keep-alive>
-                        <TerminalComponent ref="terminalRef" terminal-type="k8s" :socket="socket" />
+                        <TerminalComponent
+                            ref="terminalRef"
+                            terminal-type="k8s"
+                            :socket="socket"
+                            @socketData="onSocketData"
+                            :theme-name="themeName"
+                        />
                     </keep-alive>
                 </n-scrollbar>
             </n-tab-pane>
@@ -57,20 +63,29 @@
         </n-tabs>
         <Main v-if="panels.length === 0" />
     </n-layout>
+    <Settings :settings="settings" />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { updateIcon } from '@/components/Terminal/helper';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { EllipsisHorizontal } from '@vicons/ionicons5';
+import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import {
+    ApertureOutline,
+    EllipsisHorizontal,
+    LockClosedOutline,
+    PersonAdd,
+    PersonOutline,
+    ShareSocialOutline
+} from '@vicons/ionicons5';
 
 import Main from '../Main/index.vue';
 import mittBus from '@/utils/mittBus.ts';
+import Settings from '@/components/Settings/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
 // 引入 type
-import type { TabPaneProps } from 'naive-ui';
+import { NMessageProvider, TabPaneProps, useDialog } from 'naive-ui';
 import type { CSSProperties, Ref } from 'vue';
 
 // 引入 hook
@@ -78,6 +93,14 @@ import { useMessage } from 'naive-ui';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { v4 as uuidv4 } from 'uuid';
+import type { ISettingProp, shareUser } from '@/views/interface';
+import ThemeConfig from '@/components/ThemeConfig/index.vue';
+import Share from '@/components/Share/index.vue';
+import { useI18n } from 'vue-i18n';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { Terminal } from '@xterm/xterm';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import xtermTheme from 'xterm-theme';
 
 // 图标样式
 const iconStyle: CSSProperties = {
@@ -90,19 +113,190 @@ const iconStyle: CSSProperties = {
 const message = useMessage();
 const { debug } = useLogger('K8s-Terminal');
 
-// 相关状态
-const nameRef = ref('');
-const terminalRef: Ref<any[]> = ref([]);
-
-const panels: Ref<TabPaneProps[]> = ref([]);
-
 const props = defineProps<{
     socket: WebSocket | undefined;
 }>();
 
 const treeStore = useTreeStore();
 
+const { t } = useI18n();
+const dialog = useDialog();
+const paramsStore = useParamsStore();
+const terminalStore = useTerminalStore();
+
+const { setting } = storeToRefs(paramsStore);
 const { connectInfo } = storeToRefs(treeStore);
+
+const nameRef = ref('');
+const sessionId = ref('');
+const themeName = ref('Default');
+const enableShare = ref(false);
+const terminalRef: Ref<any[]> = ref([]);
+const panels: Ref<TabPaneProps[]> = ref([]);
+const userOptions = ref<shareUser[]>([]);
+
+const onlineUsersMap = reactive<{ [key: string]: any }>({});
+
+const settings = computed((): ISettingProp[] => {
+    return [
+        {
+            title: t('ThemeConfig'),
+            icon: ApertureOutline,
+            disabled: () => false,
+            click: () => {
+                dialog.success({
+                    class: 'set-theme',
+                    title: t('Theme'),
+                    showIcon: false,
+                    style: 'width: 50%',
+                    content: () =>
+                        h(ThemeConfig, {
+                            currentThemeName: themeName.value,
+                            preview: (tempTheme: string) => {
+                                themeName.value = tempTheme;
+                            }
+                        })
+                });
+                // 关闭抽屉
+                mittBus.emit('open-setting');
+            }
+        },
+        {
+            title: t('Share'),
+            icon: ShareSocialOutline,
+            disabled: () => !enableShare.value,
+            click: () => {
+                dialog.success({
+                    class: 'share',
+                    title: t('CreateLink'),
+                    showIcon: false,
+                    style: 'width: 35%',
+                    content: () => {
+                        return h(NMessageProvider, null, {
+                            default: () =>
+                                h(Share, {
+                                    sessionId: sessionId.value,
+                                    enableShare: enableShare.value,
+                                    userOptions: userOptions.value
+                                })
+                        });
+                    },
+                    onClose: () => resetShareDialog(),
+                    onMaskClick: () => resetShareDialog()
+                });
+                // 关闭抽屉
+                mittBus.emit('open-setting');
+            }
+        },
+        {
+            title: t('User'),
+            icon: PersonOutline,
+            disabled: () => Object.keys(onlineUsersMap).length < 1,
+            content: Object.values(onlineUsersMap)
+                .map((item: any) => {
+                    item.name = item.user;
+                    item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
+                    item.tip = item.writable ? t('Writable') : t('ReadOnly');
+                    return item;
+                })
+                .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
+            click: user => {
+                if (user.primary) return;
+
+                dialog.warning({
+                    title: '警告',
+                    content: t('RemoveShareUserConfirm'),
+                    positiveText: '确定',
+                    negativeText: '取消',
+                    onPositiveClick: () => {
+                        mittBus.emit('remove-share-user', {
+                            sessionId: sessionId.value,
+                            userMeta: user,
+                            type: 'TERMINAL_SHARE_USER_REMOVE'
+                        });
+                    }
+                });
+            }
+        }
+    ];
+});
+
+const resetShareDialog = () => {
+    paramsStore.setShareId('');
+    paramsStore.setShareCode('');
+    dialog.destroyAll();
+};
+
+const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
+    switch (msgType) {
+        case 'TERMINAL_SESSION':
+            const sessionInfo = JSON.parse(msg.data);
+            const sessionDetail = sessionInfo.session;
+
+            const share = sessionInfo.permission.actions.includes('share');
+
+            if (sessionInfo.backspaceAsCtrlH) {
+                const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+                debug(`Set backspaceAsCtrlH: ${value}`);
+
+                terminalStore.setTerminalConfig('backspaceAsCtrlH', value);
+            }
+
+            if (sessionInfo.ctrlCAsCtrlZ) {
+                const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
+                debug(`Set ctrlCAsCtrlZ: ${value}`);
+
+                terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);
+            }
+
+            if (setting.value.SECURITY_SESSION_SHARE && share) {
+                enableShare.value = true;
+            }
+
+            sessionId.value = sessionDetail.id;
+            themeName.value = sessionInfo.themeName;
+
+            nextTick(() => {
+                terminal.options.theme = xtermTheme[themeName.value];
+            });
+            break;
+        case 'TERMINAL_SHARE_JOIN':
+            const data = JSON.parse(msg.data);
+
+            const key: string = data.terminal_id;
+
+            onlineUsersMap[key] = data;
+
+            if (data.primary) {
+                debug('Primary User 不提醒');
+                break;
+            }
+
+            message.info(`${data.user} ${t('JoinShare')}`);
+            break;
+        case 'TERMINAL_SHARE_LEAVE': {
+            const data = JSON.parse(msg.data);
+            const key = data.terminal_id;
+
+            if (onlineUsersMap.hasOwnProperty(key)) {
+                delete onlineUsersMap[key];
+            }
+
+            message.info(`${data.user} ${t('LeaveShare')}`);
+            break;
+        }
+        case 'TERMINAL_SHARE': {
+            const data = JSON.parse(msg.data);
+
+            paramsStore.setShareId(data.share_id);
+            paramsStore.setShareCode(data.code);
+
+            break;
+        }
+        default:
+            break;
+    }
+};
 
 // 处理关闭标签页事件
 const handleClose = (name: string) => {

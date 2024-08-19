@@ -53,6 +53,7 @@ declare module 'vue' {
     Organization: typeof import('./src/components/Kubernetes/Sidebar/components/Organization/index.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Setting: typeof import('./src/components/Kubernetes/Sidebar/components/Setting/index.vue')['default']
     Settings: typeof import('./src/components/Settings/index.vue')['default']
     Share: typeof import('./src/components/Share/index.vue')['default']
     SideTop: typeof import('./src/components/Kubernetes/Sidebar/sideTop.vue')['default']

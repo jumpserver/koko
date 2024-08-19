@@ -1,6 +1,6 @@
 <template>
-    <n-layout style="height: 100vh">
-        <n-scrollbar trigger="hover" style="max-height: 880px">
+    <n-layout style="height: calc(100vh - 35px)">
+        <n-scrollbar trigger="hover" style="max-height: 100vh">
             <div id="terminal" class="terminal-container"></div>
         </n-scrollbar>
     </n-layout>
@@ -116,7 +116,8 @@ onUnmounted(() => {
     }
 
     :deep(.xterm-screen) {
-        height: 878px !important;
+        height: calc(100vh - 35px) !important;
+        //height: 878px !important;
     }
 }
 </style>

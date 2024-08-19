@@ -9,6 +9,6 @@
 
 <script setup lang="ts">
 defineProps<{
-    logoImage: string;
+    logoImage: string | undefined;
 }>();
 </script>

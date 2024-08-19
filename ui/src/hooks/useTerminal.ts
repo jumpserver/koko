@@ -68,6 +68,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
     let lunaId: Ref<string> = ref('');
     let origin: Ref<string> = ref('');
+    let k8s_id: Ref<string> = ref('');
     let terminalId: Ref<string> = ref('');
     let lastSendTime: Ref<Date> = ref(new Date());
     let lastReceiveTime: Ref<Date> = ref(new Date());
@@ -170,6 +171,16 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
      * @param data
      */
     const sendWsMessage = (type: string, data: any) => {
+        if (callbackOptions.terminalType === 'k8s') {
+            return socket?.send(
+                JSON.stringify({
+                    k8s_id: k8s_id.value,
+                    type,
+                    data: JSON.stringify(data)
+                })
+            );
+        }
+
         socket?.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
     };
 
@@ -336,20 +347,25 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
     };
 
     const handleK8sMessage = (socketData: any) => {
+        terminalId.value = socketData.id;
+
         switch (socketData.type) {
             case 'TERMINAL_K8S_BINARY': {
                 sentry.consume(base64ToUint8Array(socketData.raw));
+                k8s_id.value = socketData.k8s_id;
                 break;
             }
             case 'TERMINAL_ACTION': {
                 const action = socketData.data;
                 switch (action) {
                     case 'ZMODEM_START': {
-                        // message.warning(t('Terminal.WaitFileTransfer'));
+                        callbackOptions.i18nCallBack &&
+                            message.warning(callbackOptions.i18nCallBack('Terminal.WaitFileTransfer'));
                         break;
                     }
                     case 'ZMODEM_END': {
-                        // message.warning(t('Terminal.EndFileTransfer'));
+                        callbackOptions.i18nCallBack &&
+                            message.warning(callbackOptions.i18nCallBack('Terminal.EndFileTransfer'));
                         terminalRef.value?.writeln('\r\n');
                         break;
                     }
@@ -362,7 +378,13 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 break;
             }
             default: {
-                // debug('Default Handle SocketData Switch');
+                callbackOptions.emitCallback &&
+                    callbackOptions.emitCallback(
+                        'socketData',
+                        socketData.type,
+                        socketData,
+                        terminalRef.value!
+                    );
             }
         }
     };
