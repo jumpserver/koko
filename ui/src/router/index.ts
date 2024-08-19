@@ -5,12 +5,12 @@ const allRoutes: RouteRecordRaw[] = [
     {
         path: '/connect/',
         name: 'Terminal',
-        component: () => import(/* webpackChunkName: Connect */ '@/views/Connection.vue')
+        component: () => import(/* webpackChunkName: Connect */ '@/views/Connection/index.vue')
     },
     {
         path: '/token/',
         name: 'TokenParams',
-        component: () => import(/* webpackChunkName: Token */ '@/views/Connection.vue')
+        component: () => import(/* webpackChunkName: Token */ '@/views/Connection/index.vue')
     },
     {
         path: '/k8s/',
@@ -20,7 +20,7 @@ const allRoutes: RouteRecordRaw[] = [
     {
         path: '/token/:id/',
         name: 'Token',
-        component: () => import(/* webpackChunkName: TokenId */ '@/views/Connection.vue')
+        component: () => import(/* webpackChunkName: TokenId */ '@/views/Connection/index.vue')
     },
     {
         path: '/share/:id/',

@@ -14,6 +14,7 @@ export const useTreeStore = defineStore('tree', {
     actions: {
         setTreeNodes(nodes: TreeOption) {
             this.treeNodes.push(nodes);
+            this.currentNode = nodes;
         },
         setConnectInfo(info: any) {
             this.connectInfo = info;

@@ -1,4 +1,4 @@
-import type { Ref } from 'vue';
+import { Ref } from 'vue';
 import type { ILunaConfig } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
@@ -150,7 +150,7 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
  * @param config
  * @param socket
  */
-export const handleTerminalOnData = (
+export const handleTerminalOnData = async (
     data: string,
     type: string,
     terminalId: string,
@@ -185,6 +185,18 @@ export const handleTerminalOnData = (
                     k8s_id: currentItem.k8s_id,
                     namespace: currentItem.namespace,
                     container: currentItem.container
+                })
+            );
+        } else {
+            return socket.send(
+                JSON.stringify({
+                    data: data,
+                    id: terminalId,
+                    type: eventType,
+                    pod: '',
+                    k8s_id: currentNode.value.k8s_id,
+                    namespace: '',
+                    container: ''
                 })
             );
         }

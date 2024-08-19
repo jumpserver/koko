@@ -11,12 +11,7 @@
         :content="waterMarkContent"
         :line-height="16"
     >
-        <TerminalComponent
-            v-if="verified"
-            terminal-type="common"
-            @event="onEvent"
-            @socketData="onSocketData"
-        />
+        <TerminalComponent v-if="verified" terminal-type="common" @socketData="onSocketData" />
     </n-watermark>
 </template>
 
@@ -68,7 +63,7 @@ const handleVerify = () => {
         }
     });
 };
-const onEvent = () => {};
+
 const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
     switch (msgType) {
         case 'TERMINAL_SHARE_JOIN': {
@@ -112,11 +107,6 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
             // terminal 应该自动会 resize
             break;
         }
-        case 'TERMINAL_SHARE_USER_REMOVE': {
-            message.info(t('RemoveShareUser'));
-            // todo)) close socket
-            break;
-        }
         case 'TERMINAL_SESSION': {
             const paramsStore = useParamsStore();
 
@@ -128,11 +118,8 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
 
             const username = `${currentUser.value.name} - ${currentUser.value.username}`;
 
-            waterMarkContent.value = `${username}\n${sessionDetail.asset}`;
-
-            console.log(waterMarkContent.value);
-
             if (setting.value.SECURITY_WATERMARK_ENABLED) {
+                waterMarkContent.value = `${username}\n${sessionDetail.asset}`;
             }
 
             break;

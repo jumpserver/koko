@@ -8,7 +8,6 @@
             tab-style="min-width: 80px;"
             v-model:value="nameRef"
             @close="handleClose"
-            @before-leave="handleBeforeLeave"
             @update:value="handleChangeTab"
             class="header-tab relative"
         >
@@ -56,26 +55,29 @@
                 </n-flex>
             </template>
         </n-tabs>
+        <Main v-if="panels.length === 0" />
     </n-layout>
 </template>
 
 <script setup lang="ts">
-import type { CSSProperties } from 'vue';
-import { onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+import { updateIcon } from '@/components/Terminal/helper';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { EllipsisHorizontal } from '@vicons/ionicons5';
 
+import Main from '../Main/index.vue';
+import mittBus from '@/utils/mittBus.ts';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
 // 引入 type
 import type { TabPaneProps } from 'naive-ui';
+import type { CSSProperties, Ref } from 'vue';
+
 // 引入 hook
 import { useMessage } from 'naive-ui';
 import { useLogger } from '@/hooks/useLogger.ts';
-
-import mittBus from '@/utils/mittBus.ts';
-import { EllipsisHorizontal } from '@vicons/ionicons5';
-import { updateIcon } from '@/components/Terminal/helper';
 import { useTreeStore } from '@/store/modules/tree.ts';
-import { storeToRefs } from 'pinia';
+import { v4 as uuidv4 } from 'uuid';
 
 // 图标样式
 const iconStyle: CSSProperties = {
@@ -109,14 +111,7 @@ const handleClose = (name: string) => {
     panels.value.splice(index, 1);
 };
 
-const handleBeforeLeave = (tabName: string) => {
-    console.log('Before', tabName);
-
-    return true;
-};
-
 const handleChangeTab = (value: string) => {
-    console.log('ing', value);
     nameRef.value = value;
 };
 
@@ -130,32 +125,32 @@ onMounted(() => {
 
         const sendTerminalData = () => {
             if (terminalRef.value) {
-                console.log('terminalInstance', terminalRef.value);
+                nextTick(() => {
+                    const terminalInstance = terminalRef.value[0]?.terminalRef; // 获取子组件的 terminal 实例
+                    const cols = terminalInstance?.cols;
+                    const rows = terminalInstance?.rows;
 
-                const terminalInstance = terminalRef.value[0]?.terminalRef; // 获取子组件的 terminal 实例
-                const cols = terminalInstance?.cols;
-                const rows = terminalInstance?.rows;
+                    if (cols && rows) {
+                        const sendData = {
+                            id: currentNode.id,
+                            k8s_id: currentNode.k8s_id || uuidv4(),
+                            namespace: currentNode.namespace || '',
+                            pod: currentNode.pod || '',
+                            container: currentNode.container || '',
+                            type: 'TERMINAL_K8S_INIT',
+                            data: JSON.stringify({
+                                cols,
+                                rows,
+                                code: ''
+                            })
+                        };
 
-                if (cols && rows) {
-                    const sendData = {
-                        id: currentNode.id,
-                        k8s_id: currentNode.k8s_id,
-                        namespace: currentNode.namespace,
-                        pod: currentNode.pod,
-                        container: currentNode.container,
-                        type: 'TERMINAL_K8S_INIT',
-                        data: JSON.stringify({
-                            cols,
-                            rows,
-                            code: ''
-                        })
-                    };
-
-                    updateIcon(connectInfo.value.setting);
-                    props.socket?.send(JSON.stringify(sendData));
-                } else {
-                    console.error('Failed to get terminal dimensions');
-                }
+                        updateIcon(connectInfo.value.setting);
+                        props.socket?.send(JSON.stringify(sendData));
+                    } else {
+                        console.error('Failed to get terminal dimensions');
+                    }
+                });
             } else {
                 console.error('Terminal ref is not available');
             }

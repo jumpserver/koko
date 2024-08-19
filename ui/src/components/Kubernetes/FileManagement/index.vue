@@ -39,8 +39,9 @@
         <!-- Context Menu -->
         <n-dropdown
             trigger="manual"
-            placement="bottom-start"
+            placement="bottom"
             :show="showDropdown"
+            :show-arrow="true"
             :options="dropdownOptions"
             :x="dropdownX"
             :y="dropdownY"
@@ -60,7 +61,7 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import mittBus from '@/utils/mittBus.ts';
 
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
-import { Folder, FolderOpenOutline, EllipsisHorizontal } from '@vicons/ionicons5';
+import { Folder, FolderOpenOutline, EllipsisHorizontal, ExpandSharp, LinkSharp } from '@vicons/ionicons5';
 
 const { t } = useI18n();
 const treeStore = useTreeStore();
@@ -75,8 +76,22 @@ const dropdownY = ref(0);
 const dropdownX = ref(0);
 const searchPattern = ref('');
 const showDropdown = ref(false);
+const currentNodeInfo = ref();
 const expandedKeysRef = ref<string[]>([]);
 const dropdownOptions = ref<DropdownOption[]>([]);
+
+const allOptions = [
+    {
+        label: '展开',
+        key: 'expand',
+        icon: () => h(NIcon, null, { default: () => h(ExpandSharp) })
+    },
+    {
+        label: '连接',
+        key: 'connect',
+        icon: () => h(NIcon, null, { default: () => h(LinkSharp) })
+    }
+];
 
 /**
  * @description 处理节点展开
@@ -121,13 +136,28 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
             }
         },
         onContextmenu(e: MouseEvent): void {
-            dropdownOptions.value = [option];
+            currentNodeInfo.value = option;
+
+            handleFilter(option);
+
             showDropdown.value = true;
             dropdownX.value = e.clientX;
             dropdownY.value = e.clientY;
             e.preventDefault();
         }
     };
+};
+
+const handleFilter = (option: TreeOption) => {
+    dropdownOptions.value = allOptions.filter(item => {
+        if (option.isLeaf) {
+            return item.key === 'connect';
+        } else if (!option.isLeaf && !option?.isParent) {
+            return item.key === 'expand';
+        } else {
+            return true;
+        }
+    });
 };
 
 const handleOnLoad = (node: TreeOption) => {
@@ -140,8 +170,19 @@ const handleOnLoad = (node: TreeOption) => {
     });
 };
 
-const handleSelect = () => {
+const handleSelect = (key: string, _option: DropdownOption) => {
     showDropdown.value = false;
+
+    switch (key) {
+        case 'expand': {
+            handleOnLoad(currentNodeInfo.value);
+            break;
+        }
+        case 'connect': {
+            mittBus.emit('connect-terminal', currentNodeInfo.value);
+            break;
+        }
+    }
 };
 
 const handleClickoutside = () => {

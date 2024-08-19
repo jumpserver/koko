@@ -77,7 +77,10 @@ export const useK8s = () => {
         treeStore.setTreeNodes({
             key,
             label,
+            id: key,
+            k8s_id: uuidv4(),
             isLeaf: false,
+            isParent: true,
             prefix: () =>
                 h(NIcon, null, {
                     default: () => h(Folder)

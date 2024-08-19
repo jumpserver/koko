@@ -10,7 +10,7 @@
 import { useI18n } from 'vue-i18n';
 import { Terminal } from '@xterm/xterm';
 import { onMounted, onUnmounted, ref } from 'vue';
-import { useTerminal } from '@/hooks/new_useTerminal.ts';
+import { useTerminal } from '@/hooks/useTerminal.ts';
 
 import type { ITerminalProps } from '@/hooks/interface';
 

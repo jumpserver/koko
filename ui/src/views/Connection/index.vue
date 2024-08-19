@@ -5,20 +5,25 @@
         @event="onEvent"
         @socketData="onSocketData"
     />
-
     <Settings :settings="settings" />
 </template>
 
 <script setup lang="ts">
+// 引入 hook
 import { useI18n } from 'vue-i18n';
-import { useLogger } from '@/hooks/useLogger';
+import { useLogger } from '@/hooks/useLogger.ts';
+import { useDialog, useMessage } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
-import { useDialog, useMessage, NMessageProvider } from 'naive-ui';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
 
-import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
-
+import { storeToRefs } from 'pinia';
 import { computed, h, markRaw, nextTick, reactive, ref } from 'vue';
+
+import xtermTheme from 'xterm-theme';
+import mittBus from '@/utils/mittBus.ts';
+
+// 引入组件
 import {
     ApertureOutline,
     PersonOutline,
@@ -26,35 +31,32 @@ import {
     LockClosedOutline,
     PersonAdd
 } from '@vicons/ionicons5';
-
-import type { Ref } from 'vue';
-import type { ISettingProp, shareUser } from '@/views/interface';
-
-import xtermTheme from 'xterm-theme';
-import mittBus from '@/utils/mittBus.ts';
+import { NMessageProvider } from 'naive-ui';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
+import type { ISettingProp, shareUser } from '@/views/interface';
+
 const paramsStore = useParamsStore();
+const terminalStore = useTerminalStore();
 
 const { t } = useI18n();
+const { debug } = useLogger('Connection Component');
 const { setting } = storeToRefs(paramsStore);
-const { debug } = useLogger('Connection');
 
 const dialog = useDialog();
 const message = useMessage();
 
-const sessionId = ref('');
-const themeName = ref('Default');
-
 const loading = ref(false);
 const userLoading = ref(false);
 const enableShare = ref(false);
+const sessionId = ref('');
+const themeName = ref('Default');
+const userOptions = ref<shareUser[]>([]);
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
-const userOptions: Ref<shareUser[]> = ref([]);
 
 const settings = computed((): ISettingProp[] => {
     return [
@@ -145,7 +147,6 @@ const resetShareDialog = () => {
     paramsStore.setShareCode('');
     dialog.destroyAll();
 };
-
 const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     switch (msgType) {
         case 'TERMINAL_SESSION': {
@@ -163,14 +164,14 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
                 const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
                 debug(`Set backspaceAsCtrlH: ${value}`);
 
-                // terminal.options.backspaceAsCtrlH = value;
+                terminalStore.setTerminalConfig('backspaceAsCtrlH', value);
             }
 
             if (sessionInfo.ctrlCAsCtrlZ) {
                 const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
                 debug(`Set ctrlCAsCtrlZ: ${value}`);
 
-                // terminal.options.ctrlCAsCtrlZ = value;
+                terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);
             }
 
             if (setting.value.SECURITY_SESSION_SHARE && share) {
@@ -200,8 +201,6 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             const key: string = data.terminal_id;
 
             onlineUsersMap[key] = data;
-
-            console.log('onlineUsersMap', onlineUsersMap);
 
             if (data.primary) {
                 debug('Primary User 不提醒');
@@ -249,10 +248,14 @@ const onEvent = (event: string, data: any) => {
     switch (event) {
         case 'reconnect':
             debug('Reconnect');
-            console.log('Data:', data);
+            Object.keys(onlineUsersMap).filter(key => {
+                if (onlineUsersMap.hasOwnProperty(key)) {
+                    delete onlineUsersMap[key];
+                }
+            });
             break;
         case 'open':
-            debug('Open');
+            debug('Open', data);
             mittBus.emit('open-setting');
             break;
     }
