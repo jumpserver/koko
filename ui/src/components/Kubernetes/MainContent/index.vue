@@ -55,13 +55,13 @@
                     </n-popover>
                 </n-flex>
             </template>
-        </n-tabs> </n-layout
-    >≠
+        </n-tabs>
+    </n-layout>
 </template>
 
 <script setup lang="ts">
 import type { CSSProperties } from 'vue';
-import { nextTick, onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, Ref, ref, watch } from 'vue';
 
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
@@ -70,19 +70,10 @@ import type { TabPaneProps } from 'naive-ui';
 // 引入 hook
 import { useMessage } from 'naive-ui';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { useSentry } from '@/hooks/useZsentry.ts';
-import { useTerminal } from '@/hooks/useTerminal.ts';
-
-// 引入 store
-import { useTerminalStore } from '@/store/modules/terminal.ts';
-import type { customTreeOption, ILunaConfig } from '@/hooks/interface';
 
 import mittBus from '@/utils/mittBus.ts';
 import { EllipsisHorizontal } from '@vicons/ionicons5';
 import { updateIcon } from '@/components/Terminal/helper';
-import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
-import { Terminal } from '@xterm/xterm';
-import { useI18n } from 'vue-i18n';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { storeToRefs } from 'pinia';
 
@@ -99,65 +90,17 @@ const { debug } = useLogger('K8s-Terminal');
 
 // 相关状态
 const nameRef = ref('');
-const terminalRef = ref(null);
-
-const lastSendTime: Ref<Date> = ref(new Date());
-const lunaConfig: Ref<ILunaConfig> = ref({});
+const terminalRef: Ref<any[]> = ref([]);
 
 const panels: Ref<TabPaneProps[]> = ref([]);
 
 const props = defineProps<{
-    socket: WebSocket;
+    socket: WebSocket | undefined;
 }>();
-
-const { t } = useI18n();
 
 const treeStore = useTreeStore();
 
 const { connectInfo } = storeToRefs(treeStore);
-
-const handleSocketData = (socketData: any) => {
-    switch (socketData.type) {
-        case 'TERMINAL_K8S_BINARY': {
-            console.log(123);
-            // sentryRef.value?.consume(base64ToUint8Array(socketData.raw));
-            break;
-        }
-        case 'TERMINAL_ACTION': {
-            const action = socketData.data;
-            switch (action) {
-                case 'ZMODEM_START': {
-                    zmodemStatus.value = true;
-                    if (!enableZmodem.value) {
-                        message.warning(t('Terminal.WaitFileTransfer'));
-                    }
-                    break;
-                }
-                case 'ZMODEM_END': {
-                    if (!enableZmodem.value && zmodemStatus.value) {
-                        message.warning(t('Terminal.EndFileTransfer'));
-                        terminalRef.value?.writeln('\r\n');
-                    }
-
-                    zmodemStatus.value = false;
-                    break;
-                }
-                default: {
-                    zmodemStatus.value = false;
-                }
-            }
-            break;
-        }
-        case 'TERMINAL_ERROR': {
-            message.error(`Socket Error ${socketData.err}`);
-            terminalRef.value?.writeln(socketData.err);
-            break;
-        }
-        default: {
-            debug('Default Handle SocketData Switch', socketData);
-        }
-    }
-};
 
 // 处理关闭标签页事件
 const handleClose = (name: string) => {
@@ -187,6 +130,8 @@ onMounted(() => {
 
         const sendTerminalData = () => {
             if (terminalRef.value) {
+                console.log('terminalInstance', terminalRef.value);
+
                 const terminalInstance = terminalRef.value[0]?.terminalRef; // 获取子组件的 terminal 实例
                 const cols = terminalInstance?.cols;
                 const rows = terminalInstance?.rows;
@@ -207,7 +152,7 @@ onMounted(() => {
                     };
 
                     updateIcon(connectInfo.value.setting);
-                    props.socket.send(JSON.stringify(sendData));
+                    props.socket?.send(JSON.stringify(sendData));
                 } else {
                     console.error('Failed to get terminal dimensions');
                 }

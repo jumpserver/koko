@@ -231,7 +231,7 @@ export const onWebsocketOpen = (
 
         if (pingTimeout < 0) return;
 
-        // socket.send(formatMessage(terminalId, 'PING', ''));
+        socket.send(formatMessage(terminalId, 'PING', ''));
     }, 25 * 1000);
 };
 

@@ -38,7 +38,7 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 interface ITerminalReturn {
     sendWsMessage: (type: string, data: any) => void;
     setTerminalTheme: (themeName: string, terminal: Terminal, emit: any) => void;
-    createTerminal: (el: HTMLElement, _type: string) => any;
+    createTerminal: (el: HTMLElement) => any;
 }
 
 interface ICallbackOptions {
@@ -57,7 +57,7 @@ const { info } = useLogger('Terminal-hook');
 const { message } = createDiscreteApi(['message']);
 
 export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn => {
-    let socket: WebSocket;
+    let socket: WebSocket | undefined;
     let lunaConfig: ILunaConfig;
 
     let fitAddon: FitAddon;
@@ -91,11 +91,13 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
             watch(
                 () => terminalRef.value,
                 newValue => {
-                    sentry = createSentry(callbackOptions.transSocket, newValue);
+                    sentry = createSentry(callbackOptions.transSocket!, newValue!);
 
-                    callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
-                        return handleK8sMessage(JSON.parse(e.data));
-                    });
+                    if (callbackOptions.transSocket) {
+                        callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
+                            return handleK8sMessage(JSON.parse(e.data));
+                        });
+                    }
                 }
             );
         }
@@ -119,7 +121,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
         if (enableZmodem.value && !zmodemStatus.value) {
-            socket.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
+            socket?.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
         }
     };
 
@@ -168,7 +170,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
      * @param data
      */
     const sendWsMessage = (type: string, data: any) => {
-        socket.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
+        socket?.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
     };
 
     /**
@@ -178,7 +180,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
      */
     const initElEvent = (el: HTMLElement) => {
         const onContextMenu = (e: MouseEvent) => {
-            return handleContextMenu(e, lunaConfig, socket, termSelectionText.value);
+            return handleContextMenu(e, lunaConfig, socket!, termSelectionText.value);
         };
 
         el.addEventListener('mouseenter', () => fitAddon.fit(), false);
@@ -205,10 +207,10 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         });
         terminal.onData((data: string) => {
             lastSendTime.value = new Date();
-            return handleTerminalOnData(data, type, terminalId.value, lunaConfig, socket);
+            return handleTerminalOnData(data, type, terminalId.value, lunaConfig, socket!);
         });
         terminal.onResize(({ cols, rows }) => {
-            return debouncedTerminalResize(cols, rows, type, terminalId, socket);
+            return debouncedTerminalResize(cols, rows, type, terminalId, socket!);
         });
     };
 
@@ -338,12 +340,12 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 const action = socketData.data;
                 switch (action) {
                     case 'ZMODEM_START': {
-                        message.warning(t('Terminal.WaitFileTransfer'));
+                        // message.warning(t('Terminal.WaitFileTransfer'));
                         break;
                     }
                     case 'ZMODEM_END': {
-                        message.warning(t('Terminal.EndFileTransfer'));
-                        terminalRef.value.writeln('\r\n');
+                        // message.warning(t('Terminal.EndFileTransfer'));
+                        terminalRef.value?.writeln('\r\n');
                         break;
                     }
                 }
@@ -351,7 +353,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
             }
             case 'TERMINAL_ERROR': {
                 message.error(`Socket Error ${socketData.err}`);
-                terminalRef.value.write(socketData.err);
+                terminalRef.value?.write(socketData.err);
                 break;
             }
             default: {
@@ -423,7 +425,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         initTerminalEvent(terminal);
 
         if (type === 'common') {
-            const socket = createWebSocket(terminal);
+            socket = createWebSocket(terminal);
         } else {
             socket = callbackOptions.transSocket;
             terminalRef.value = terminal;

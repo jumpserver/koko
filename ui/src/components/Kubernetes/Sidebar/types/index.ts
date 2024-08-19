@@ -1,5 +1,3 @@
-import { CSSProperties, Component } from 'vue';
-
 export interface IActionOptions {
     // 唯一标识
     key: string;
@@ -21,29 +19,4 @@ export interface IActionOptions {
 
     // 是否隐藏
     disable?: boolean;
-}
-
-export interface optionsDetail {
-    key: string;
-    label?: string;
-    type?: string;
-    render?: () => JSX.Element;
-    onClink?: () => void;
-}
-
-export interface HeaderRightOptions {
-    // icon 名称
-    name: string;
-
-    // icon 样式
-    iconStyle: CSSProperties;
-
-    // 组件
-    component: Component;
-
-    // 下拉菜单选项
-    options?: optionsDetail[];
-
-    // 顶层的回调
-    onClick?: () => void;
 }

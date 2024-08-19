@@ -40,7 +40,7 @@ import TerminalComponent from '@/components/Terminal/Terminal.vue';
 const paramsStore = useParamsStore();
 
 const { t } = useI18n();
-const { shareCode, setting } = storeToRefs(paramsStore);
+const { setting } = storeToRefs(paramsStore);
 const { debug } = useLogger('Connection');
 
 const dialog = useDialog();
@@ -249,9 +249,7 @@ const onEvent = (event: string, data: any) => {
     switch (event) {
         case 'reconnect':
             debug('Reconnect');
-            // Object.keys(onlineUsersMap.value).filter(key => {
-            //
-            // });
+            console.log('Data:', data);
             break;
         case 'open':
             debug('Open');
