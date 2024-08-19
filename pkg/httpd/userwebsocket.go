@@ -248,9 +248,14 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			} else {
 				data, err = userCon.k8sClient.GetContainersInPod(namespace, pod)
 			}
+
 			if err != nil {
 				logger.Errorf("Ws[%s] get k8s tree data err: %s", userCon.Uuid, err)
-				data = []string{}
+				data = make([]string, 0)
+			}
+
+			if data == nil {
+				data = make([]string, 0)
 			}
 
 			info, _ := json.Marshal(data)
