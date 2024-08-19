@@ -121,7 +121,8 @@ export default {
       term.onSelectionChange(() => {
         this.$log.debug("select change")
         this.termSelectionText = term.getSelection().trim();
-        navigator.clipboard.writeText(this.termSelectionText);
+        // only work on https site
+        navigator.clipboard?.writeText(this.termSelectionText);
       });
       term.attachCustomKeyEventHandler((e) => {
         if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
