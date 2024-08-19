@@ -6,8 +6,8 @@ import { useLogger } from '@/hooks/useLogger.ts';
 import { formatMessage, handleError, sendEventToLuna } from '@/components/Terminal/helper';
 
 // 引入 Store
-import { useTreeStore } from '@/store/modules/tree';
-import { useTerminalStore } from '@/store/modules/terminal';
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
 
 // 引入 API
 import { storeToRefs } from 'pinia';

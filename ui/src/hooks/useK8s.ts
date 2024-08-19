@@ -19,7 +19,7 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import type { Ref } from 'vue';
 import type { customTreeOption } from '@/hooks/interface';
 
-import { generateWsURL, onWebsocketOpen, onWebsocketWrong } from './index.ts';
+import { generateWsURL, onWebsocketOpen, onWebsocketWrong } from './helper';
 import { updateIcon, wsIsActivated } from '@/components/Terminal/helper/index.ts';
 
 const { debug } = useLogger('K8s');

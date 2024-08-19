@@ -23,7 +23,7 @@ import {
     onWebsocketOpen,
     onWebsocketWrong,
     base64ToUint8Array
-} from './index';
+} from './helper';
 
 import xtermTheme from 'xterm-theme';
 import { createDiscreteApi } from 'naive-ui';

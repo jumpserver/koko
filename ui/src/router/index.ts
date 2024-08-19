@@ -25,12 +25,12 @@ const allRoutes: RouteRecordRaw[] = [
     {
         path: '/share/:id/',
         name: 'Share',
-        component: () => import(/* webpackChunkName: Share */ '@/views/ShareTerminal.vue')
+        component: () => import(/* webpackChunkName: Share */ '@/views/ShareTerminal/index.vue')
     },
     {
         path: '/monitor/:id/',
         name: 'Monitor',
-        component: () => import(/* webpackChunkName: Monitor */ '@/views/Monitor.vue')
+        component: () => import(/* webpackChunkName: Monitor */ '@/views/Monitor/index.vue')
     }
 ];
 
