@@ -159,7 +159,6 @@ export const useK8s = () => {
                 currentNode.value.children = childNodes;
             }
 
-            treeStore.setLoading(true);
             return childNodes;
         } catch (e) {
             message.error(`Error parsing message or updating tree nodes: ${e}`);
@@ -197,6 +196,7 @@ export const useK8s = () => {
             }
             case 'TERMINAL_K8S_TREE': {
                 updateTreeNodes(msg);
+
                 break;
             }
             case 'PING': {

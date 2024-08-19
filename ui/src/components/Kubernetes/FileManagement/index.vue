@@ -13,7 +13,6 @@
                         <n-collapse-item title="Kubernetes" class="collapse-item" name="asset-tree">
                             <n-tree
                                 cascade
-                                draggable
                                 show-line
                                 block-node
                                 block-line
@@ -24,7 +23,7 @@
                                 :render-label="showToolTip"
                                 :data="treeNodes"
                                 :node-props="nodeProps"
-                                :on-load="handleOnLoad"
+                                :on-load="useDebounceFn(handleOnLoad, 300)"
                                 :pattern="searchPattern"
                                 :expanded-keys="expandedKeysRef"
                                 :allow-checking-not-loaded="true"
@@ -55,6 +54,7 @@
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { ref, h, nextTick } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { showToolTip } from '../helper/index';
 import { useTreeStore } from '@/store/modules/tree.ts';
 
@@ -164,6 +164,12 @@ const handleOnLoad = (node: TreeOption) => {
     treeStore.setCurrentNode(node);
 
     emits('sync-load-node', node);
+
+    if (!expandedKeysRef.value.includes(node.key as string)) {
+        setTimeout(() => {
+            expandedKeysRef.value.push(node.key as string);
+        }, 300);
+    }
 
     return new Promise<boolean>(resolve => {
         resolve(false);

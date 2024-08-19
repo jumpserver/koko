@@ -49,7 +49,6 @@ import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 import FileManagement from '@/components/Kubernetes/FileManagement/index.vue';
 
 // 导入 API
-
 import { onMounted, onUnmounted, ref } from 'vue';
 
 const sideWidth = ref(300);
