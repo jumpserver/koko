@@ -40,17 +40,17 @@ export default defineConfig({
         // port: 9527,
         proxy: {
             '^/koko/ws/': {
-                target: 'http://192.168.200.16:5050',
+                target: 'localhost:5050',
                 ws: true,
                 changeOrigin: true
             },
             '^/api/': {
-                target: 'http://192.168.200.16:8080',
+                target: 'localhost:8080',
                 ws: true,
                 changeOrigin: true
             },
             '^/static/': {
-                target: 'http://192.168.200.16:8080',
+                target: 'localhost:8080',
                 ws: true,
                 changeOrigin: true
             }
