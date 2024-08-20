@@ -44,6 +44,9 @@ export interface ITerminalConfig {
 
     // 当前 Zmodem 状态
     zmodemStatus: boolean;
+
+    // 当前页签
+    currentTab: string;
 }
 
 export interface ITreeState {

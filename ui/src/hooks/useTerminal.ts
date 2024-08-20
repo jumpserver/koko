@@ -1,6 +1,6 @@
 // 导入外部库
-import { Ref } from 'vue';
 import { ref, watch } from 'vue';
+import { nextTick, Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -72,7 +72,6 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
     let lunaId: Ref<string> = ref('');
     let origin: Ref<string> = ref('');
     let k8s_id: Ref<string> = ref('');
-    // let sequences: Ref<string> = ref('');
     let terminalId: Ref<string> = ref('');
     let lastSendTime: Ref<Date> = ref(new Date());
     let lastReceiveTime: Ref<Date> = ref(new Date());
@@ -94,18 +93,27 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         if (callbackOptions.terminalType === 'k8s') {
             const { createSentry } = useSentry(lastSendTime, callbackOptions.i18nCallBack);
 
-            watch(
-                () => terminalRef.value,
-                newValue => {
-                    sentry = createSentry(callbackOptions.transSocket!, newValue!);
+            const { currentTab } = storeToRefs(useTerminalStore());
 
-                    if (callbackOptions.transSocket) {
-                        callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
-                            return handleK8sMessage(JSON.parse(e.data));
-                        });
+            nextTick(() => {
+                watch(
+                    () => k8s_id.value,
+                    newId => {
+                        console.log(newId);
                     }
+                );
+
+                sentry = createSentry(callbackOptions.transSocket!, terminalRef.value!);
+
+                console.log(currentTab.value);
+
+                if (callbackOptions.transSocket && currentTab.value === k8s_id.value) {
+                    // 现在相当于给所有的 socket 加上了 message
+                    callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
+                        return handleK8sMessage(JSON.parse(e.data));
+                    });
                 }
-            );
+            }).then();
         }
     };
 

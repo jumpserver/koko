@@ -13,7 +13,9 @@ export const useTerminalStore = defineStore('terminal', {
         fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
 
         enableZmodem: true,
-        zmodemStatus: false
+        zmodemStatus: false,
+
+        currentTab: ''
     }),
     getters: {
         getConfig: state => state

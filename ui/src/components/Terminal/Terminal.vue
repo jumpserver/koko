@@ -30,8 +30,6 @@ const emits = defineEmits<{
 }>();
 
 const terminalRef = ref<any>(null);
-const restore = ref<(() => void) | null>(null);
-const serializeFn = ref<(() => void) | null>(null);
 
 onMounted(() => {
     const theme = props.themeName;
@@ -58,8 +56,6 @@ onMounted(() => {
     const { terminal } = createTerminal(el);
 
     terminalRef.value = terminal;
-    // restore.value = restoreTerminalData;
-    // serializeFn.value = serializeTerminalData;
 
     // 设置主题
     setTerminalTheme(theme, terminal, emits);
@@ -98,8 +94,7 @@ onMounted(() => {
 });
 
 defineExpose({
-    terminalRef,
-    serializeFn
+    terminalRef
 });
 
 onUnmounted(() => {

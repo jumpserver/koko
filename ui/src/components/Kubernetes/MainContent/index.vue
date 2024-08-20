@@ -23,6 +23,7 @@
                     <TerminalComponent
                         ref="terminalRef"
                         :socket="socket"
+                        :key="panel.name"
                         :index-key="panel.name as string"
                         :theme-name="themeName"
                         :terminal-type="terminalType"
@@ -69,7 +70,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { updateIcon } from '@/components/Terminal/helper';
-import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
     ApertureOutline,
     EllipsisHorizontal,
@@ -309,6 +310,8 @@ const handleClose = (name: string) => {
 
 const handleChangeTab = (value: string) => {
     nameRef.value = value;
+
+    terminalStore.setTerminalConfig('currentTab', nameRef.value);
 };
 
 onMounted(() => {
@@ -363,16 +366,19 @@ onMounted(() => {
 
         sendTerminalData();
 
-        watch(
-            () => terminalRef.value,
-            newValue => {
-                if (newValue) {
-                    sendTerminalData();
-                }
-            }
-        );
+        // watch(
+        //     () => terminalRef.value,
+        //     newValue => {
+        //         if (newValue) {
+        //             sendTerminalData();
+        //         }
+        //     }
+        // );
 
-        nameRef.value = currentNode.key as string;
+        const key: string = currentNode.key as string;
+
+        nameRef.value = key;
+        terminalStore.setTerminalConfig('currentTab', key);
 
         debug('currentNode', currentNode);
     });
