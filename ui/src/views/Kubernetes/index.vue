@@ -2,20 +2,20 @@
     <n-layout has-sider class="custom-layout h-full">
         <n-layout-header class="w-[40px]">
             <n-flex
-                class="w-full h-full text-white bg-[#333333]"
                 vertical
                 align="center"
                 justify="space-between"
+                class="w-full h-full text-white bg-[#333333]"
             >
                 <SideTop />
             </n-flex>
         </n-layout-header>
         <n-layout-sider
-            v-draggable="sideWidth"
             bordered
             collapsed
             collapse-mode="width"
             content-style="padding: 24px;"
+            v-draggable="sideWidth"
             :width="sideWidth"
             :collapsed-width="0"
             :native-scrollbar="false"

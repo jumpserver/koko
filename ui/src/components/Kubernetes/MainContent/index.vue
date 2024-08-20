@@ -22,10 +22,10 @@
                     <keep-alive>
                         <TerminalComponent
                             ref="terminalRef"
-                            terminal-type="k8s"
                             :socket="socket"
-                            @socketData="onSocketData"
                             :theme-name="themeName"
+                            :terminal-type="terminalType"
+                            @socketData="onSocketData"
                         />
                     </keep-alive>
                 </n-scrollbar>
@@ -80,27 +80,28 @@ import {
 } from '@vicons/ionicons5';
 
 import Main from '../Main/index.vue';
+import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
+import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
+import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
 
 // 引入 type
 import { NMessageProvider, TabPaneProps, useDialog } from 'naive-ui';
+
 import type { CSSProperties, Ref } from 'vue';
+import type { ISettingProp, shareUser } from '@/views/interface';
 
 // 引入 hook
+import { useI18n } from 'vue-i18n';
+import { v4 as uuidv4 } from 'uuid';
 import { useMessage } from 'naive-ui';
+import { Terminal } from '@xterm/xterm';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
-import { v4 as uuidv4 } from 'uuid';
-import type { ISettingProp, shareUser } from '@/views/interface';
-import ThemeConfig from '@/components/ThemeConfig/index.vue';
-import Share from '@/components/Share/index.vue';
-import { useI18n } from 'vue-i18n';
 import { useParamsStore } from '@/store/modules/params.ts';
-import { Terminal } from '@xterm/xterm';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-import xtermTheme from 'xterm-theme';
 
 // 图标样式
 const iconStyle: CSSProperties = {
@@ -129,6 +130,7 @@ const { connectInfo } = storeToRefs(treeStore);
 
 const nameRef = ref('');
 const sessionId = ref('');
+const terminalType = ref('k8s');
 const themeName = ref('Default');
 const enableShare = ref(false);
 const terminalRef: Ref<any[]> = ref([]);
@@ -309,9 +311,18 @@ const handleChangeTab = (value: string) => {
     nameRef.value = value;
 };
 
-// 监听连接终端事件
 onMounted(() => {
     mittBus.on('connect-terminal', currentNode => {
+        // 检查 currentNode.key 是否已经存在
+        const existingPanel = panels.value.find(panel => panel.name === currentNode.key);
+
+        // 如果存在，直接切换到已有的标签页
+        if (existingPanel) {
+            nameRef.value = existingPanel.name as string;
+            return;
+        }
+
+        // 如果不存在，则添加新的标签页
         panels.value.push({
             name: currentNode.key,
             tab: currentNode.label
@@ -320,7 +331,7 @@ onMounted(() => {
         const sendTerminalData = () => {
             if (terminalRef.value) {
                 nextTick(() => {
-                    const terminalInstance = terminalRef.value[0]?.terminalRef; // 获取子组件的 terminal 实例
+                    const terminalInstance = terminalRef.value[0]?.terminalRef;
                     const cols = terminalInstance?.cols;
                     const rows = terminalInstance?.rows;
 
@@ -350,10 +361,8 @@ onMounted(() => {
             }
         };
 
-        // 立即发送数据
         sendTerminalData();
 
-        // 监听 terminalRef 的变化，如果 terminal 实例准备好，再次发送数据
         watch(
             () => terminalRef.value,
             newValue => {

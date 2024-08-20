@@ -8,7 +8,8 @@ import { useTerminalStore } from '@/store/modules/terminal';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 
 // 引入类型
-import { ref, Ref, watch } from 'vue';
+import { ref, watch } from 'vue';
+import type { Ref } from 'vue';
 import type { ILunaConfig } from '@/hooks/interface';
 
 // 引入工具函数
@@ -397,6 +398,10 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
         const { ws } = useWebSocket(connectURL, {
             protocols: ['JMS-KOKO'],
+            autoReconnect: {
+                retries: 5,
+                delay: 3000
+            },
             onConnected: (socket: WebSocket) => {
                 onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
             },

@@ -1,7 +1,7 @@
 <template>
     <TerminalComponent
         :theme-name="themeName"
-        terminal-type="common"
+        :terminal-type="terminalType"
         @event="onEvent"
         @socketData="onSocketData"
     />
@@ -9,7 +9,6 @@
 </template>
 
 <script setup lang="ts">
-// 引入 hook
 import { useI18n } from 'vue-i18n';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useDialog, useMessage } from 'naive-ui';
@@ -17,25 +16,26 @@ import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 
 import { Terminal } from '@xterm/xterm';
+
 import { storeToRefs } from 'pinia';
+import { NMessageProvider } from 'naive-ui';
 import { computed, h, markRaw, nextTick, reactive, ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 
-// 引入组件
-import {
-    ApertureOutline,
-    PersonOutline,
-    ShareSocialOutline,
-    LockClosedOutline,
-    PersonAdd
-} from '@vicons/ionicons5';
-import { NMessageProvider } from 'naive-ui';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import TerminalComponent from '@/components/Terminal/Terminal.vue';
+
+import {
+    PersonAdd,
+    PersonOutline,
+    ApertureOutline,
+    ShareSocialOutline,
+    LockClosedOutline
+} from '@vicons/ionicons5';
 
 import type { ISettingProp, shareUser } from '@/views/interface';
 
@@ -44,16 +44,16 @@ const terminalStore = useTerminalStore();
 
 const { t } = useI18n();
 const { debug } = useLogger('Connection Component');
+
 const { setting } = storeToRefs(paramsStore);
 
 const dialog = useDialog();
 const message = useMessage();
 
-const loading = ref(false);
-const userLoading = ref(false);
-const enableShare = ref(false);
-const sessionId = ref('');
-const themeName = ref('Default');
+const terminalType = ref<string>('common');
+const sessionId = ref<string>('');
+const themeName = ref<string>('Default');
+const enableShare = ref<boolean>(false);
 const userOptions = ref<shareUser[]>([]);
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
@@ -66,10 +66,10 @@ const settings = computed((): ISettingProp[] => {
             disabled: () => false,
             click: () => {
                 dialog.success({
-                    class: 'set-theme',
                     title: t('Theme'),
-                    showIcon: false,
+                    class: 'set-theme',
                     style: 'width: 50%',
+                    showIcon: false,
                     content: () =>
                         h(ThemeConfig, {
                             currentThemeName: themeName.value,
@@ -88,10 +88,10 @@ const settings = computed((): ISettingProp[] => {
             disabled: () => !enableShare.value,
             click: () => {
                 dialog.success({
-                    class: 'share',
                     title: t('CreateLink'),
-                    showIcon: false,
+                    class: 'share',
                     style: 'width: 35%',
+                    showIcon: false,
                     content: () => {
                         return h(NMessageProvider, null, {
                             default: () =>
@@ -192,7 +192,6 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             paramsStore.setShareId(data.share_id);
             paramsStore.setShareCode(data.code);
 
-            loading.value = false;
             break;
         }
         case 'TERMINAL_SHARE_JOIN': {
@@ -222,7 +221,6 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             break;
         }
         case 'TERMINAL_GET_SHARE_USER': {
-            userLoading.value = false;
             userOptions.value = JSON.parse(msg.data);
             break;
         }
