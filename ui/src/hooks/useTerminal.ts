@@ -5,7 +5,6 @@ import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { createDiscreteApi } from 'naive-ui';
-import { SerializeAddon } from '@xterm/addon-serialize';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 
@@ -63,7 +62,6 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
     let lunaConfig: ILunaConfig;
 
     let fitAddon: FitAddon;
-    let serializeAddon: SerializeAddon;
 
     let terminalRef: Ref<Terminal | null> = ref(null);
     let sentry: Sentry;
@@ -83,7 +81,6 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
      */
     const init = () => {
         fitAddon = new FitAddon();
-        serializeAddon = new SerializeAddon();
         lunaConfig = useTerminalStore().getConfig;
 
         const debouncedFit = useDebounceFn(() => fitAddon.fit(), 500);
@@ -479,7 +476,6 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         const terminal = new Terminal(options);
 
         terminal.loadAddon(fitAddon);
-        terminal.loadAddon(serializeAddon);
 
         terminal.open(el);
         terminal.focus();
