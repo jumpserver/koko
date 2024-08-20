@@ -1,0 +1,26 @@
+.custom-layout {
+    :deep(.n-layout-scroll-container) {
+        .n-layout-sider {
+            background-color: #252526;
+
+            .n-scrollbar .n-scrollbar-container .n-scrollbar-content {
+                padding: 0 !important;
+            }
+
+            &::after {
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 10px;
+                height: 100%;
+                cursor: ew-resize;
+                content: '';
+            }
+
+            // 设置折叠状态下 padding 为零，否则侧边 item 图标无法点击
+            &.n-layout-sider--collapsed .n-layout-sider-scroll-container {
+                padding: 0 !important;
+            }
+        }
+    }
+}

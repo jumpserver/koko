@@ -22,9 +22,15 @@ type Client struct {
 
 	sync.Mutex
 
+	// 用于防抖处理
 	buffer      bytes.Buffer
 	bufferMutex sync.Mutex
 	timer       *time.Timer
+
+	KubernetesId string
+	Namespace    string
+	Pod          string
+	Container    string
 }
 
 func (c *Client) WinCh() <-chan ssh.Window {
@@ -61,12 +67,17 @@ func (c *Client) Write(p []byte) (n int, err error) {
 func (c *Client) flushBuffer() {
 	c.bufferMutex.Lock()
 	defer c.bufferMutex.Unlock()
+	messageType := TerminalBinary
+	if c.KubernetesId != "" {
+		messageType = TerminalK8SBinary
+	}
 
 	if c.buffer.Len() > 0 {
 		msg := Message{
-			Id:   c.Conn.Uuid,
-			Type: TerminalBinary,
-			Raw:  c.buffer.Bytes(),
+			Id:           c.Conn.Uuid,
+			Type:         messageType,
+			Raw:          c.buffer.Bytes(),
+			KubernetesId: c.KubernetesId,
 		}
 		c.Conn.SendMessage(&msg)
 		c.buffer.Reset()
@@ -156,9 +167,10 @@ func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
 		return
 	}
 	var msg = Message{
-		Id:   c.Conn.Uuid,
-		Type: msgType,
-		Data: msgData,
+		Id:           c.Conn.Uuid,
+		Type:         msgType,
+		Data:         msgData,
+		KubernetesId: c.KubernetesId,
 	}
 	c.Conn.SendMessage(&msg)
 }

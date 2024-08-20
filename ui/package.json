@@ -1,65 +1,52 @@
 {
-  "name": "koko",
-  "version": "0.1.0",
+  "name": "my-vue-app",
   "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "serve": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service serve",
-    "build": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service build",
-    "lint": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service lint",
-    "fix": "NODE_OPTIONS=--openssl-legacy-provider vue-cli-service lint --fix"
+    "dev": "vite",
+    "serve": "vite",
+    "start": "vite",
+    "build": "vue-tsc -b && vite build",
+    "yarn:build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "prettier": "prettier --write \"src/**/*.{js,ts,json,tsx,css,less,scss,vue,html,md}\""
   },
   "dependencies": {
-    "@babel/core": "^7.24.9",
-    "@babel/eslint-parser": "^7.24.7",
-    "@babel/plugin-proposal-optional-chaining": "^7.18.9",
-    "@fortawesome/fontawesome-svg-core": "^6.4.0",
-    "@fortawesome/free-solid-svg-icons": "^6.4.0",
-    "@fortawesome/vue-fontawesome": "^2.0.10",
-    "axios": "^1.7.2",
-    "core-js": "^3.37.1",
-    "element-ui": "^2.15.12",
+    "@types/uuid": "^10.0.0",
+    "@vueuse/core": "^10.11.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "alova": "^3.0.2",
+    "clipboard-polyfill": "^4.1.0",
+    "loglevel": "^1.9.1",
+    "mitt": "^3.0.1",
+    "naive-ui": "^2.39.0",
     "nora-zmodemjs": "^1.1.1",
-    "semver": "6.3.1",
-    "v-contextmenu": "^2.9.0",
-    "vue": "^2.7.16",
-    "vue-cookies": "^1.7.4",
-    "vue-i18n": "^8.25.0",
-    "vue-router": "^3.5.2",
-    "vue-runtime-helpers": "^1.1.2",
-    "vuejs-logger": "^1.5.5",
-    "vuex": "^4.1.0",
-    "word-wrap": "1.2.5",
-    "xterm": "^4.19.0",
-    "xterm-addon-fit": "^0.5.0",
+    "normalize.css": "^8.0.1",
+    "pinia": "^2.1.7",
+    "uuid": "^10.0.0",
+    "vite-plugin-svg-icons": "^2.0.1",
+    "vue": "^3.4.31",
+    "vue-draggable-plus": "^0.5.2",
+    "vue-i18n": "^9.13.1",
+    "vue-router": "^4.4.0",
+    "vue3-cookies": "^1.0.6",
     "xterm-theme": "^1.1.0"
   },
   "devDependencies": {
-    "@vue/cli-plugin-babel": "^5.0.8",
-    "@vue/cli-plugin-eslint": "^5.0.8",
-    "@vue/cli-service": "^5.0.8",
-    "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^9.27.0",
-    "vue-template-compiler": "^2.7.14"
-  },
-  "eslintConfig": {
-    "root": true,
-    "env": {
-      "node": true
-    },
-    "extends": [
-      "plugin:vue/essential",
-      "eslint:recommended"
-    ],
-    "parserOptions": {
-      "parser": "@babel/eslint-parser"
-    },
-    "rules": {
-      "vue/multi-word-component-names": 0
-    }
-  },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead"
-  ]
+    "@types/node": "^20.14.11",
+    "@vicons/ionicons5": "^0.12.0",
+    "@vitejs/plugin-vue": "^5.0.5",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.39",
+    "prettier": "^3.3.3",
+    "sass": "^1.77.8",
+    "tailwindcss": "^3.4.6",
+    "typescript": "^5.2.2",
+    "unplugin-vue-components": "^0.27.3",
+    "vite": "^5.3.4",
+    "vite-plugin-webpackchunkname": "^1.0.3",
+    "vue-tsc": "^2.0.24"
+  }
 }
