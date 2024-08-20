@@ -1,5 +1,5 @@
 // 导入外部库
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import { nextTick, Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
@@ -92,22 +92,21 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
             const { currentTab } = storeToRefs(useTerminalStore());
 
-            nextTick(() => {
-                watch(
-                    () => k8s_id.value,
-                    newId => {
-                        console.log(newId);
-                    }
-                );
+            const messageHandlers = {
+                [currentTab.value]: (e: MessageEvent) => {
+                    handleK8sMessage(JSON.parse(e.data));
+                }
+            };
 
+            nextTick(() => {
                 sentry = createSentry(callbackOptions.transSocket!, terminalRef.value!);
 
-                console.log(currentTab.value);
-
                 if (callbackOptions.transSocket) {
-                    // 现在相当于给所有的 socket 加上了 message
                     callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
-                        return handleK8sMessage(JSON.parse(e.data));
+                        const handler = messageHandlers[currentTab.value];
+                        if (handler) {
+                            handler(e);
+                        }
                     });
                 }
             }).then();

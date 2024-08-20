@@ -29,8 +29,6 @@ export const draggable = {
                 startX = event.clientX;
                 startWidth = el.offsetWidth;
 
-                console.log(startX, startWidth);
-
                 document.addEventListener('mousemove', mouseMoveHandler);
                 document.addEventListener('mouseup', mouseUpHandler);
             }

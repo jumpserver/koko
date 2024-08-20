@@ -366,15 +366,6 @@ onMounted(() => {
 
         sendTerminalData();
 
-        // watch(
-        //     () => terminalRef.value,
-        //     newValue => {
-        //         if (newValue) {
-        //             sendTerminalData();
-        //         }
-        //     }
-        // );
-
         const key: string = currentNode.key as string;
 
         nameRef.value = key;
