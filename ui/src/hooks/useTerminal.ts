@@ -104,7 +104,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
                 console.log(currentTab.value);
 
-                if (callbackOptions.transSocket && currentTab.value === k8s_id.value) {
+                if (callbackOptions.transSocket) {
                     // 现在相当于给所有的 socket 加上了 message
                     callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
                         return handleK8sMessage(JSON.parse(e.data));
