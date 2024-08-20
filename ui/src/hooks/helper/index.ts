@@ -150,7 +150,7 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
  * @param config
  * @param socket
  */
-export const handleTerminalOnData = async (
+export const handleTerminalOnData = (
     data: string,
     type: string,
     terminalId: string,

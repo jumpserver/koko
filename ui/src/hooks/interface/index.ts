@@ -9,6 +9,8 @@ export interface ITerminalProps {
     terminalType: string;
 
     socket?: WebSocket;
+
+    indexKey?: string;
 }
 
 export interface ILunaConfig {

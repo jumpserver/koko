@@ -16,6 +16,7 @@
     "@types/uuid": "^10.0.0",
     "@vueuse/core": "^10.11.0",
     "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-serialize": "^0.13.0",
     "@xterm/xterm": "^5.5.0",
     "alova": "^3.0.2",
     "clipboard-polyfill": "^4.1.0",

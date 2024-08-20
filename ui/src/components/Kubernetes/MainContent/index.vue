@@ -16,18 +16,18 @@
                 :key="panel.name"
                 :tab="panel.tab"
                 :name="panel.name"
+                display-directive="show:lazy"
                 class="bg-[#101014] pt-0"
             >
                 <n-scrollbar trigger="hover">
-                    <keep-alive>
-                        <TerminalComponent
-                            ref="terminalRef"
-                            :socket="socket"
-                            :theme-name="themeName"
-                            :terminal-type="terminalType"
-                            @socketData="onSocketData"
-                        />
-                    </keep-alive>
+                    <TerminalComponent
+                        ref="terminalRef"
+                        :socket="socket"
+                        :index-key="panel.name as string"
+                        :theme-name="themeName"
+                        :terminal-type="terminalType"
+                        @socketData="onSocketData"
+                    />
                 </n-scrollbar>
             </n-tab-pane>
             <template v-slot:suffix>

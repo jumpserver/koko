@@ -1,7 +1,7 @@
 <template>
     <n-layout style="height: calc(100vh - 35px)">
         <n-scrollbar trigger="hover" style="max-height: 100vh">
-            <div id="terminal" class="terminal-container"></div>
+            <div :id="indexKey" class="terminal-container"></div>
         </n-scrollbar>
     </n-layout>
 </template>
@@ -29,11 +29,13 @@ const emits = defineEmits<{
     (e: 'socketData', msgType: string, msg: any, terminal: Terminal): void;
 }>();
 
-const terminalRef = ref(null);
+const terminalRef = ref<any>(null);
+const restore = ref<(() => void) | null>(null);
+const serializeFn = ref<(() => void) | null>(null);
 
 onMounted(() => {
     const theme = props.themeName;
-    const el: HTMLElement = document.getElementById('terminal')!;
+    const el: HTMLElement = document.getElementById(props.indexKey as string)!;
 
     const { createTerminal, setTerminalTheme, sendWsMessage } = useTerminal({
         terminalType: props.terminalType,
@@ -56,6 +58,8 @@ onMounted(() => {
     const { terminal } = createTerminal(el);
 
     terminalRef.value = terminal;
+    // restore.value = restoreTerminalData;
+    // serializeFn.value = serializeTerminalData;
 
     // 设置主题
     setTerminalTheme(theme, terminal, emits);
@@ -94,7 +98,8 @@ onMounted(() => {
 });
 
 defineExpose({
-    terminalRef
+    terminalRef,
+    serializeFn
 });
 
 onUnmounted(() => {

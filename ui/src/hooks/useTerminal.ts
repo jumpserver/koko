@@ -1,20 +1,28 @@
+// 导入外部库
+import { Ref } from 'vue';
+import { ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-
-// 导入 Store
-import { useTerminalStore } from '@/store/modules/terminal';
-
-// 导入 hook
+import { createDiscreteApi } from 'naive-ui';
+import { SerializeAddon } from '@xterm/addon-serialize';
+import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 
-// 引入类型
-import { ref, watch } from 'vue';
-import type { Ref } from 'vue';
+// 导入内部模块
+import { useLogger } from '@/hooks/useLogger.ts';
+import { useSentry } from '@/hooks/useZsentry.ts';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { useTerminalStore } from '@/store/modules/terminal';
+
+// 配置和 xterm 主题
+import { defaultTheme } from '@/config';
+import xtermTheme from 'xterm-theme';
 import type { ILunaConfig } from '@/hooks/interface';
 
 // 引入工具函数
-import { defaultTheme } from '@/config';
 import {
+    base64ToUint8Array,
     generateWsURL,
     handleContextMenu,
     handleCustomKey,
@@ -22,19 +30,10 @@ import {
     handleTerminalResize,
     handleTerminalSelection,
     onWebsocketOpen,
-    onWebsocketWrong,
-    base64ToUint8Array
+    onWebsocketWrong
 } from './helper';
-
-import xtermTheme from 'xterm-theme';
-import { createDiscreteApi } from 'naive-ui';
 import { writeBufferToTerminal } from '@/utils';
 import { formatMessage, sendEventToLuna, updateIcon, wsIsActivated } from '@/components/Terminal/helper';
-import { storeToRefs } from 'pinia';
-import { useParamsStore } from '@/store/modules/params.ts';
-import { useLogger } from '@/hooks/useLogger.ts';
-import { useSentry } from '@/hooks/useZsentry.ts';
-import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 
 interface ITerminalReturn {
     sendWsMessage: (type: string, data: any) => void;
@@ -49,8 +48,10 @@ interface ICallbackOptions {
     // 传递进来的 socket，不传则在 createTerminal 时创建
     transSocket?: WebSocket;
 
+    // emit 事件
     emitCallback?: (e: string, type: string, msg: any, terminal?: Terminal) => void;
 
+    // t
     i18nCallBack?: (key: string) => string;
 }
 
@@ -62,6 +63,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
     let lunaConfig: ILunaConfig;
 
     let fitAddon: FitAddon;
+    let serializeAddon: SerializeAddon;
 
     let terminalRef: Ref<Terminal | null> = ref(null);
     let sentry: Sentry;
@@ -70,6 +72,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
     let lunaId: Ref<string> = ref('');
     let origin: Ref<string> = ref('');
     let k8s_id: Ref<string> = ref('');
+    // let sequences: Ref<string> = ref('');
     let terminalId: Ref<string> = ref('');
     let lastSendTime: Ref<Date> = ref(new Date());
     let lastReceiveTime: Ref<Date> = ref(new Date());
@@ -81,6 +84,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
      */
     const init = () => {
         fitAddon = new FitAddon();
+        serializeAddon = new SerializeAddon();
         lunaConfig = useTerminalStore().getConfig;
 
         const debouncedFit = useDebounceFn(() => fitAddon.fit(), 500);
@@ -116,8 +120,15 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         emits('background-color', theme.background);
     };
 
+    /**
+     * 发送 TERMINAL_DATA
+     *
+     * @param data
+     */
     const sendDataFromWindow = (data: any) => {
-        if (!wsIsActivated(socket)) return message.error('WebSocket Disconnected');
+        if (!wsIsActivated(socket)) {
+            return message.error('WebSocket Disconnected');
+        }
 
         const terminalStore = useTerminalStore();
         const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
@@ -127,6 +138,11 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         }
     };
 
+    /**
+     * 设置 window 自定义事件
+     *
+     * @param terminal
+     */
     const initCustomWindowEvent = (terminal: Terminal) => {
         window.addEventListener('message', (e: MessageEvent) => {
             const message = e.data;
@@ -212,7 +228,9 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
             500
         );
 
-        terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => handleCustomKey(e, terminal));
+        terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+            return handleCustomKey(e, terminal);
+        });
 
         terminal.onSelectionChange(() => {
             return handleTerminalSelection(terminal, termSelectionText);
@@ -234,12 +252,12 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
      * @param data
      */
     const dispatch = (socket: WebSocket, terminal: Terminal, data: string) => {
-        if (data === undefined) return;
+        if (!data) return;
 
         let msg = JSON.parse(data);
 
-        const paramsStore = useParamsStore();
         const terminalStore = useTerminalStore();
+        const paramsStore = useParamsStore();
 
         const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
@@ -347,13 +365,19 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         }
     };
 
+    /**
+     * 处理 k8s 消息
+     *
+     * @param socketData
+     */
     const handleK8sMessage = (socketData: any) => {
         terminalId.value = socketData.id;
+        k8s_id.value = socketData.k8s_id;
 
         switch (socketData.type) {
             case 'TERMINAL_K8S_BINARY': {
                 sentry.consume(base64ToUint8Array(socketData.raw));
-                k8s_id.value = socketData.k8s_id;
+
                 break;
             }
             case 'TERMINAL_ACTION': {
@@ -447,6 +471,8 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         const terminal = new Terminal(options);
 
         terminal.loadAddon(fitAddon);
+        terminal.loadAddon(serializeAddon);
+
         terminal.open(el);
         terminal.focus();
 
