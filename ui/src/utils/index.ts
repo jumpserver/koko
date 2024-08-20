@@ -40,9 +40,12 @@ export const fireEvent = (e: Event) => {
 };
 
 export const bytesHuman = (bytes: number, precision?: any) => {
-    if (!/^([-+])?|(\.\d+)(\d+(\.\d+)?|(\d+\.)|Infinity)$/.test(bytes.toString())) {
+    const regex = /^([-+]?\d+(\.\d+)?|\.\d+|Infinity)$/;
+
+    if (!regex.test(bytes.toString())) {
         return '-';
     }
+
     if (bytes === 0) return '0';
     if (typeof precision === 'undefined') precision = 1;
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
