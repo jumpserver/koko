@@ -311,6 +311,8 @@ const handleClose = (name: string) => {
 const handleChangeTab = (value: string) => {
     nameRef.value = value;
 
+    console.log(nameRef);
+
     terminalStore.setTerminalConfig('currentTab', nameRef.value);
 };
 
@@ -375,10 +377,8 @@ onMounted(() => {
         //     }
         // );
 
-        const key: string = currentNode.key as string;
-
-        nameRef.value = key;
-        terminalStore.setTerminalConfig('currentTab', key);
+        nameRef.value = currentNode.key as string;
+        terminalStore.setTerminalConfig('currentTab', currentNode.k8s_id as string);
 
         debug('currentNode', currentNode);
     });

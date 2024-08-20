@@ -1,5 +1,5 @@
 // 导入外部库
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import { nextTick, Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { Terminal } from '@xterm/xterm';
@@ -87,31 +87,24 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
         window.addEventListener('resize', debouncedFit, false);
 
-        if (callbackOptions.terminalType === 'k8s') {
-            const { createSentry } = useSentry(lastSendTime, callbackOptions.i18nCallBack);
-
-            const { currentTab } = storeToRefs(useTerminalStore());
-
-            nextTick(() => {
-                watch(
-                    () => k8s_id.value,
-                    newId => {
-                        console.log(newId);
-                    }
-                );
-
-                sentry = createSentry(callbackOptions.transSocket!, terminalRef.value!);
-
-                console.log(currentTab.value);
-
-                if (callbackOptions.transSocket && currentTab.value === k8s_id.value) {
-                    // 现在相当于给所有的 socket 加上了 message
-                    callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
-                        return handleK8sMessage(JSON.parse(e.data));
-                    });
-                }
-            }).then();
-        }
+        // if (callbackOptions.terminalType === 'k8s') {
+        //     const { createSentry } = useSentry(lastSendTime, callbackOptions.i18nCallBack);
+        //
+        //     const { currentTab } = storeToRefs(useTerminalStore());
+        //
+        //     nextTick(() => {
+        //         sentry = createSentry(callbackOptions.transSocket!, terminalRef.value!);
+        //
+        //         console.log(currentTab.value);
+        //
+        //         if (callbackOptions.transSocket) {
+        //             // 现在相当于给所有的 socket 加上了 message
+        //             callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
+        //                 return handleK8sMessage(JSON.parse(e.data));
+        //             });
+        //         }
+        //     }).then();
+        // }
     };
 
     /**
@@ -422,35 +415,52 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
     /**
      * 创建 Socket
      */
-    const createWebSocket = (terminal: Terminal) => {
-        const connectURL = generateWsURL();
-
-        const { ws } = useWebSocket(connectURL, {
-            protocols: ['JMS-KOKO'],
-            autoReconnect: {
-                retries: 5,
-                delay: 3000
-            },
-            onConnected: (socket: WebSocket) => {
-                onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
-            },
-            onError: (_ws: WebSocket, event: Event) => {
-                onWebsocketWrong(event, 'error', terminal);
-            },
-            onDisconnected: (_ws: WebSocket, event: CloseEvent) => {
-                onWebsocketWrong(event, 'disconnected', terminal);
-            },
-            onMessage: (socket: WebSocket, event: MessageEvent) => {
-                handleMessage(socket, event, terminal);
-            }
-        });
-
+    const createWebSocket = (terminal?: Terminal) => {
         const { createSentry } = useSentry(lastSendTime, callbackOptions.i18nCallBack);
 
-        socket = ws.value!;
-        sentry = createSentry(ws.value!, terminal);
+        if (terminal) {
+            const connectURL = generateWsURL();
 
-        return ws.value;
+            const { ws } = useWebSocket(connectURL, {
+                protocols: ['JMS-KOKO'],
+                autoReconnect: {
+                    retries: 5,
+                    delay: 3000
+                },
+                onConnected: (socket: WebSocket) => {
+                    onWebsocketOpen(
+                        socket,
+                        lastSendTime.value,
+                        terminalId.value,
+                        pingInterval,
+                        lastReceiveTime
+                    );
+                },
+                onError: (_ws: WebSocket, event: Event) => {
+                    onWebsocketWrong(event, 'error', terminal);
+                },
+                onDisconnected: (_ws: WebSocket, event: CloseEvent) => {
+                    onWebsocketWrong(event, 'disconnected', terminal);
+                },
+                onMessage: (socket: WebSocket, event: MessageEvent) => {
+                    handleMessage(socket, event, terminal);
+                }
+            });
+
+            socket = ws.value!;
+            sentry = createSentry(ws.value!, terminal);
+
+            return ws.value;
+        } else {
+            sentry = createSentry(callbackOptions.transSocket!, terminalRef.value!);
+
+            if (callbackOptions.transSocket) {
+                // 现在相当于给所有的 socket 加上了 message
+                callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
+                    return handleK8sMessage(JSON.parse(e.data));
+                });
+            }
+        }
     };
 
     /**
@@ -491,6 +501,10 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
         } else {
             socket = callbackOptions.transSocket;
             terminalRef.value = terminal;
+
+            nextTick(() => {
+                createWebSocket();
+            }).then();
         }
 
         initCustomWindowEvent(terminal);
