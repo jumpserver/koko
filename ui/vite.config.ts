@@ -40,25 +40,6 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             }
         },
         base: env.VITE_PUBLIC_PATH,
-        preview: {
-            proxy: {
-                '^/koko/ws/': {
-                    target: 'http://192.168.200.16:5050',
-                    ws: true,
-                    changeOrigin: true
-                },
-                '^/api/': {
-                    target: 'http://192.168.200.16:8080',
-                    ws: true,
-                    changeOrigin: true
-                },
-                '^/static/': {
-                    target: 'http://192.168.200.16:8080',
-                    ws: true,
-                    changeOrigin: true
-                }
-            }
-        },
         server: {
             port: 9530,
             // port: 9527,
