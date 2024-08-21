@@ -20,7 +20,7 @@
                 class="bg-[#101014] pt-0"
             >
                 <n-scrollbar trigger="hover">
-                    <TerminalComponent
+                    <CustomTerminal
                         ref="terminalRef"
                         :socket="socket"
                         :key="panel.name"
@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { updateIcon } from '@/components/Terminal/helper';
+import { updateIcon } from '@/components/CustomTerminal/helper';
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
     ApertureOutline,
@@ -86,7 +86,7 @@ import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
-import TerminalComponent from '@/components/Terminal/Terminal.vue';
+import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
 // 引入 type
 import { NMessageProvider, TabPaneProps, useDialog } from 'naive-ui';
@@ -113,7 +113,7 @@ const iconStyle: CSSProperties = {
 
 // 创建消息和日志实例
 const message = useMessage();
-const { debug } = useLogger('K8s-Terminal');
+const { debug } = useLogger('K8s-CustomTerminal');
 
 const props = defineProps<{
     socket: WebSocket | undefined;
@@ -360,7 +360,7 @@ onMounted(() => {
                     }
                 });
             } else {
-                console.error('Terminal ref is not available');
+                console.error('CustomTerminal ref is not available');
             }
         };
 

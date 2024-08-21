@@ -1,5 +1,5 @@
 <template>
-    <TerminalComponent
+    <CustomComponent
         :theme-name="themeName"
         :terminal-type="terminalType"
         @event="onEvent"
@@ -27,7 +27,7 @@ import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
-import TerminalComponent from '@/components/Terminal/Terminal.vue';
+import CustomComponent from '@/components/CustomTerminal/index.vue';
 
 import {
     PersonAdd,

@@ -20,7 +20,7 @@ import type { Ref } from 'vue';
 import type { customTreeOption } from '@/hooks/interface';
 
 import { generateWsURL, onWebsocketOpen, onWebsocketWrong } from './helper';
-import { updateIcon, wsIsActivated } from '@/components/Terminal/helper/index.ts';
+import { updateIcon, wsIsActivated } from '@/components/CustomTerminal/helper/index.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 
 const { debug } = useLogger('K8s');
