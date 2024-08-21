@@ -4,11 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "serve": "vite",
-    "start": "vite",
     "build": "vue-tsc -b && vite build",
-    "yarn:build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "prettier": "prettier --write \"src/**/*.{js,ts,json,tsx,css,less,scss,vue,html,md}\""
   },
