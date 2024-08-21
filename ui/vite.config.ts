@@ -94,17 +94,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
                             return id.toString().split('node_modules/')[1].split('/')[0].toString();
                         }
                     }
-                },
-                plugins: [
-                    viteCompression({
-                        verbose: true,
-                        disable: false,
-                        threshold: 10240,
-                        algorithm: 'gzip',
-                        ext: '.gz',
-                        deleteOriginFile: Boolean(env.VITE_BUILD_COMPRESS_DELETE_ORIGIN_FILE)
-                    })
-                ]
+                }
             }
         }
     };
