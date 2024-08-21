@@ -11,7 +11,7 @@
         :content="waterMarkContent"
         :line-height="16"
     >
-        <TerminalComponent v-if="verified" terminal-type="common" @socketData="onSocketData" />
+        <CustomTerminal v-if="verified" terminal-type="common" @socketData="onSocketData" />
     </n-watermark>
 </template>
 
@@ -29,7 +29,7 @@ import {
     useDialogReactiveList
 } from 'naive-ui';
 
-import TerminalComponent from '@/components/Terminal/Terminal.vue';
+import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
 import { storeToRefs } from 'pinia';
 import { useLogger } from '@/hooks/useLogger.ts';
@@ -38,7 +38,7 @@ import { useParamsStore } from '@/store/modules/params.ts';
 import { Terminal } from '@xterm/xterm';
 
 const { t } = useI18n();
-const { info } = useLogger('Share Terminal Component');
+const { info } = useLogger('Share CustomTerminal Component');
 const dialog = useDialog();
 const message = useMessage();
 const dialogReactiveList = useDialogReactiveList();

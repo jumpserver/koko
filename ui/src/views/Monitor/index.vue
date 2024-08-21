@@ -6,7 +6,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { BASE_WS_URL } from '@/config';
-import Terminal from '@/components/Terminal/Terminal.vue';
+import Terminal from '@/components/CustomTerminal/index.vue';
 
 const route = useRoute();
 
