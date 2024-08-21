@@ -7,7 +7,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    CustomTerminal: typeof import('./src/components/CustomTerminal/index.vue')['default']
     FileManagement: typeof import('./src/components/Kubernetes/FileManagement/index.vue')['default']
     K8sTerminal: typeof import('./src/components/Kubernetes/k8sTerminal/index.vue')['default']
     Logo: typeof import('./src/components/Kubernetes/Sidebar/components/Logo/index.vue')['default']
@@ -58,6 +57,7 @@ declare module 'vue' {
     Share: typeof import('./src/components/Share/index.vue')['default']
     SideTop: typeof import('./src/components/Kubernetes/Sidebar/sideTop.vue')['default']
     SvgIcon: typeof import('./src/components/SvgIcon/index.vue')['default']
+    Terminal: typeof import('./src/components/Terminal.vue')['default']
     ThemeConfig: typeof import('./src/components/ThemeConfig/index.vue')['default']
     Tree: typeof import('./src/components/Kubernetes/Sidebar/components/Tree/index.vue')['default']
     Upload: typeof import('./src/components/Upload/index.vue')['default']

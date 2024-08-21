@@ -46,7 +46,6 @@
     "typescript": "^5.2.2",
     "unplugin-vue-components": "^0.27.3",
     "vite": "^5.3.4",
-    "vite-plugin-compression": "^0.5.1",
     "vite-plugin-webpackchunkname": "^1.0.3",
     "vue-tsc": "^2.0.24"
   }

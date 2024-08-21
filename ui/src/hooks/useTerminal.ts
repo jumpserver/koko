@@ -32,12 +32,7 @@ import {
     onWebsocketWrong
 } from './helper';
 import { writeBufferToTerminal } from '@/utils';
-import {
-    formatMessage,
-    sendEventToLuna,
-    updateIcon,
-    wsIsActivated
-} from '@/components/CustomTerminal/helper';
+import { formatMessage, sendEventToLuna, updateIcon, wsIsActivated } from '@/components/Terminal/helper';
 
 interface ITerminalReturn {
     sendWsMessage: (type: string, data: any) => void;
@@ -59,7 +54,7 @@ interface ICallbackOptions {
     i18nCallBack?: (key: string) => string;
 }
 
-const { info } = useLogger('CustomTerminal-hook');
+const { info } = useLogger('Terminal-hook');
 const { message } = createDiscreteApi(['message']);
 
 export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn => {
@@ -225,7 +220,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
     };
 
     /**
-     * 初始化 CustomTerminal 相关事件
+     * 初始化 Terminal 相关事件
      *
      * @param terminal
      */
@@ -394,12 +389,12 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 switch (action) {
                     case 'ZMODEM_START': {
                         callbackOptions.i18nCallBack &&
-                            message.warning(callbackOptions.i18nCallBack('CustomTerminal.WaitFileTransfer'));
+                            message.warning(callbackOptions.i18nCallBack('Terminal.WaitFileTransfer'));
                         break;
                     }
                     case 'ZMODEM_END': {
                         callbackOptions.i18nCallBack &&
-                            message.warning(callbackOptions.i18nCallBack('CustomTerminal.EndFileTransfer'));
+                            message.warning(callbackOptions.i18nCallBack('Terminal.EndFileTransfer'));
                         terminalRef.value?.writeln('\r\n');
                         break;
                     }
@@ -486,7 +481,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
 
         fitAddon.fit();
 
-        //* 初始化节点、CustomTerminal 实例相关事件以及创建 Socket
+        //* 初始化节点、Terminal 实例相关事件以及创建 Socket
         initElEvent(el);
         initTerminalEvent(terminal);
 

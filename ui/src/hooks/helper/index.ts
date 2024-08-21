@@ -3,7 +3,7 @@ import type { ILunaConfig } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { formatMessage, handleError, sendEventToLuna } from '@/components/CustomTerminal/helper';
+import { formatMessage, handleError, sendEventToLuna } from '@/components/Terminal/helper';
 
 // 引入 Store
 import { useTreeStore } from '@/store/modules/tree.ts';
@@ -55,7 +55,7 @@ export const handleContextMenu = async (
 };
 
 /**
- * CustomTerminal Resize 事件处理
+ * Terminal Resize 事件处理
  *
  * @param cols
  * @param rows
@@ -142,7 +142,7 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
 };
 
 /**
- * 处理 CustomTerminal 的输入事件
+ * 处理 Terminal 的输入事件
  *
  * @param data
  * @param type
