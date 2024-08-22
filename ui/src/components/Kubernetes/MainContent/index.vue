@@ -303,7 +303,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
 
 // 处理关闭标签页事件
 const handleClose = (name: string) => {
-    message.info(`已关闭: ${name}`);
+    // message.info(`已关闭: ${name}`);
     const index = panels.value.findIndex(panel => panel.name === name);
     panels.value.splice(index, 1);
 };
@@ -327,7 +327,7 @@ onMounted(() => {
 
         // 如果不存在，则添加新的标签页
         panels.value.push({
-            name: currentNode.key + uuidv4(),
+            name: currentNode.key,
             tab: currentNode.label
         });
 

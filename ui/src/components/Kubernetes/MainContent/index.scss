@@ -9,15 +9,22 @@ $--el-main-bg-color: #1e1e1e;
     width: 100% !important;
     background-color: $--el-main-tab-bg-color;
 
-    .tab-item {
-        :deep(.text-item) {
-            color: $--el-main-tab-text-color;
+    :deep(.n-tabs-tab) {
+        border: none !important;
+
+        .n-tabs-tab__label {
+            color: #969696;
         }
 
-        :deep(.close-icon) {
-            color: $--el-main-tab-text-color;
+        &.n-tabs-tab--active {
+            background-color: #1E1E1E !important;
+
+            .n-tabs-tab__label {
+                color: #ffffff;
+            }
         }
     }
+
 
     .n-tab-pane {
         padding-top: 0 !important;
@@ -32,6 +39,10 @@ $--el-main-bg-color: #1e1e1e;
         &:hover {
             background-color: $--el-main-tab-icon-hover-color;
         }
+    }
+
+    :deep(.n-tabs-nav__suffix) {
+        border: none !important;
     }
 }
 

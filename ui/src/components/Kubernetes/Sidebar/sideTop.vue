@@ -1,6 +1,11 @@
 <template>
-    <n-flex justify="center" align="center" class="w-full cursor-pointer">
+    <n-flex justify="center" align="center" class="cursor-pointer w-full h-[48px]">
         <template v-for="option of topIconOptions" :key="option.name">
+            <component :is="option.component" :name="option.name" :icon-style="option.iconStyle" />
+        </template>
+    </n-flex>
+    <n-flex justify="center" align="center" class="mb-[15px] cursor-pointer">
+        <template v-for="option of bottomOptions" :key="option.name">
             <component
                 :is="option.component"
                 :name="option.name"
@@ -13,12 +18,9 @@
 
 <script setup lang="ts">
 import Tree from './components/Tree/index.vue';
-import Logo from './components/Logo/index.vue';
 import Setting from './components/Setting/index.vue';
 
-import { CSSProperties, h } from 'vue';
-import { useParamsStore } from '@/store/modules/params.ts';
-import { storeToRefs } from 'pinia';
+import { CSSProperties } from 'vue';
 import mittBus from '@/utils/mittBus.ts';
 
 const iconStyle: CSSProperties = {
@@ -28,23 +30,15 @@ const iconStyle: CSSProperties = {
     transition: 'fill 0.3s'
 };
 
-const paramsStore = useParamsStore();
-const { setting } = storeToRefs(paramsStore);
-
 const topIconOptions = [
-    {
-        iconStyle,
-        name: 'logo',
-        component: () =>
-            h(Logo, {
-                logoImage: setting.value.INTERFACE?.logo_logout as string
-            })
-    },
     {
         iconStyle,
         name: 'tree',
         component: Tree
-    },
+    }
+];
+
+const bottomOptions = [
     {
         iconStyle,
         name: 'setting',
@@ -59,9 +53,5 @@ const topIconOptions = [
 <style scoped lang="scss">
 :deep(.n-flex) {
     gap: 15px 12px !important;
-
-    .tree-icon:hover {
-        fill: #1ab394 !important;
-    }
 }
 </style>

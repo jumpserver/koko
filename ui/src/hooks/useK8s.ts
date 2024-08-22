@@ -190,8 +190,6 @@ export const useK8s = () => {
 
                 updateIcon(info.setting);
 
-                message.info('K8s Websocket Connection Established');
-
                 // 初始化 Tree
                 treeStore.setConnectInfo(info);
                 initTree(msg.id, info.asset.name);
