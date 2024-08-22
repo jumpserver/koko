@@ -31,12 +31,12 @@ const emits = defineEmits<{
 
 const terminalRef = ref<any>(null);
 
-onMounted(() => {
+onMounted(async () => {
     const theme = props.themeName;
     const el: HTMLElement = document.getElementById(props.indexKey as string)!;
 
-    const { createTerminal, setTerminalTheme, sendWsMessage } = useTerminal({
-        terminalType: props.terminalType,
+    const { terminal, setTerminalTheme, sendWsMessage } = await useTerminal(el, {
+        type: props.terminalType,
         transSocket: props.socket ? props.socket : undefined,
         i18nCallBack: (key: string) => t(key),
         emitCallback: (e: string, type: string, msg: any, terminal?: Terminal) => {
@@ -53,16 +53,14 @@ onMounted(() => {
         }
     });
 
-    const { terminal } = createTerminal(el);
-
     terminalRef.value = terminal;
 
     // 设置主题
-    setTerminalTheme(theme, terminal, emits);
+    setTerminalTheme(theme, terminal!, emits);
 
     // 修改主题
     mittBus.on('set-theme', ({ themeName }) => {
-        setTerminalTheme(themeName as string, terminal, emits);
+        setTerminalTheme(themeName as string, terminal!, emits);
     });
 
     mittBus.on('sync-theme', ({ type, data }) => {

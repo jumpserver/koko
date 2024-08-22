@@ -1,5 +1,6 @@
 <template>
     <CustomComponent
+        index-key="id"
         :theme-name="themeName"
         :terminal-type="terminalType"
         @event="onEvent"

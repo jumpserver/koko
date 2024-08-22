@@ -333,8 +333,9 @@ onMounted(() => {
 
         const sendTerminalData = () => {
             if (terminalRef.value) {
-                nextTick(() => {
+                setTimeout(() => {
                     const terminalInstance = terminalRef.value[0]?.terminalRef;
+
                     const cols = terminalInstance?.cols;
                     const rows = terminalInstance?.rows;
 
