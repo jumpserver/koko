@@ -1,25 +1,8 @@
-// 导入外部库
-import { ref } from 'vue';
-import { nextTick, Ref } from 'vue';
-import { storeToRefs } from 'pinia';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { createDiscreteApi } from 'naive-ui';
-import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 
-// 导入内部模块
-import { useLogger } from '@/hooks/useLogger.ts';
-import { useSentry } from '@/hooks/useZsentry.ts';
-import { useParamsStore } from '@/store/modules/params.ts';
-import { useTerminalStore } from '@/store/modules/terminal';
+import { Terminal } from '@xterm/xterm';
 
-// 配置和 xterm 主题
-import { defaultTheme } from '@/config';
-import xtermTheme from 'xterm-theme';
-import type { ILunaConfig } from '@/hooks/interface';
-
-// 引入工具函数
+// 工具函数
 import {
     base64ToUint8Array,
     generateWsURL,
@@ -30,24 +13,35 @@ import {
     handleTerminalSelection,
     onWebsocketOpen,
     onWebsocketWrong
-} from './helper';
-import { writeBufferToTerminal } from '@/utils';
+} from '@/hooks/helper';
+import type { ILunaConfig } from '@/hooks/interface';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { createDiscreteApi } from 'naive-ui';
+import { FitAddon } from '@xterm/addon-fit';
+import { ref, Ref } from 'vue';
 import {
     formatMessage,
     sendEventToLuna,
     updateIcon,
     wsIsActivated
 } from '@/components/CustomTerminal/helper';
+import { storeToRefs } from 'pinia';
+import { writeBufferToTerminal } from '@/utils';
+import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
+import { useSentry } from '@/hooks/useZsentry.ts';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { defaultTheme } from '@/config';
+import xtermTheme from 'xterm-theme';
 
-interface ITerminalReturn {
+interface ITerminalInstance {
+    terminal: Terminal | undefined;
     sendWsMessage: (type: string, data: any) => void;
-    setTerminalTheme: (themeName: string, terminal: Terminal, emit: any) => void;
-    createTerminal: (el: HTMLElement) => any;
+    setTerminalTheme: (themeName: string, terminal: Terminal, emits: any) => void;
 }
 
 interface ICallbackOptions {
     // terminal 类型
-    terminalType: string;
+    type: string;
 
     // 传递进来的 socket，不传则在 createTerminal 时创建
     transSocket?: WebSocket;
@@ -59,208 +53,29 @@ interface ICallbackOptions {
     i18nCallBack?: (key: string) => string;
 }
 
-const { info } = useLogger('CustomTerminal-hook');
 const { message } = createDiscreteApi(['message']);
 
-export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn => {
-    let socket: WebSocket | undefined;
+export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Promise<ITerminalInstance> => {
+    let sentry: Sentry;
+    let socket: WebSocket;
+    let terminal: Terminal | undefined;
     let lunaConfig: ILunaConfig;
 
-    let fitAddon: FitAddon;
+    let fitAddon: FitAddon = new FitAddon();
 
-    let terminalRef: Ref<Terminal | null> = ref(null);
-    let sentry: Sentry;
-    let type: string = callbackOptions.terminalType;
+    let type: string = option.type;
 
     let lunaId: Ref<string> = ref('');
     let origin: Ref<string> = ref('');
     let k8s_id: Ref<string> = ref('');
     let terminalId: Ref<string> = ref('');
-    let lastSendTime: Ref<Date> = ref(new Date());
-    let lastReceiveTime: Ref<Date> = ref(new Date());
     let termSelectionText: Ref<string> = ref('');
     let pingInterval: Ref<number | null> = ref(null);
 
-    /**
-     * 获取相关配置
-     */
-    const init = () => {
-        fitAddon = new FitAddon();
-        lunaConfig = useTerminalStore().getConfig;
+    let lastSendTime: Ref<Date> = ref(new Date());
+    let lastReceiveTime: Ref<Date> = ref(new Date());
 
-        const debouncedFit = useDebounceFn(() => fitAddon.fit(), 500);
-
-        window.addEventListener('resize', debouncedFit, false);
-
-        if (callbackOptions.terminalType === 'k8s') {
-            const { createSentry } = useSentry(lastSendTime, callbackOptions.i18nCallBack);
-
-            const { currentTab } = storeToRefs(useTerminalStore());
-
-            const messageHandlers = {
-                [currentTab.value]: (e: MessageEvent) => {
-                    handleK8sMessage(JSON.parse(e.data));
-                }
-            };
-
-            nextTick(() => {
-                sentry = createSentry(callbackOptions.transSocket!, terminalRef.value!);
-
-                if (callbackOptions.transSocket) {
-                    callbackOptions.transSocket.addEventListener('message', (e: MessageEvent) => {
-                        const handler = messageHandlers[currentTab.value];
-                        if (handler) {
-                            handler(e);
-                        }
-                    });
-                }
-            }).then();
-        }
-    };
-
-    /**
-     * 设置主题
-     */
-    const setTerminalTheme = (themeName: string, terminal: Terminal, emits: any) => {
-        const theme = xtermTheme[themeName] || defaultTheme;
-
-        terminal.options.theme = theme;
-
-        emits('background-color', theme.background);
-    };
-
-    /**
-     * 发送 TERMINAL_DATA
-     *
-     * @param data
-     */
-    const sendDataFromWindow = (data: any) => {
-        if (!wsIsActivated(socket)) {
-            return message.error('WebSocket Disconnected');
-        }
-
-        const terminalStore = useTerminalStore();
-        const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
-
-        if (enableZmodem.value && !zmodemStatus.value) {
-            socket?.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
-        }
-    };
-
-    /**
-     * 设置 window 自定义事件
-     *
-     * @param terminal
-     */
-    const initCustomWindowEvent = (terminal: Terminal) => {
-        window.addEventListener('message', (e: MessageEvent) => {
-            const message = e.data;
-
-            switch (message.name) {
-                case 'PING': {
-                    if (lunaId.value != null) return;
-
-                    lunaId.value = message.id;
-                    origin.value = e.origin;
-
-                    sendEventToLuna('PONG', '', lunaId.value, origin.value);
-                    break;
-                }
-                case 'CMD': {
-                    sendDataFromWindow(message.data);
-                    break;
-                }
-                case 'FOCUS': {
-                    terminal.focus();
-                    break;
-                }
-                case 'OPEN': {
-                    callbackOptions.emitCallback && callbackOptions.emitCallback('event', 'open', '');
-                    break;
-                }
-            }
-        });
-
-        window.SendTerminalData = data => {
-            sendDataFromWindow(data);
-        };
-
-        window.Reconnect = () => {
-            callbackOptions.emitCallback && callbackOptions.emitCallback('event', 'reconnect', '');
-        };
-    };
-
-    /**
-     * 设置相关请求信息
-     *
-     * @param type
-     * @param data
-     */
-    const sendWsMessage = (type: string, data: any) => {
-        if (callbackOptions.terminalType === 'k8s') {
-            return socket?.send(
-                JSON.stringify({
-                    k8s_id: k8s_id.value,
-                    type,
-                    data: JSON.stringify(data)
-                })
-            );
-        }
-
-        socket?.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
-    };
-
-    /**
-     * 初始化 El 节点相关事件
-     *
-     * @param {HTMLElement} el
-     */
-    const initElEvent = (el: HTMLElement) => {
-        const onContextMenu = (e: MouseEvent) => {
-            return handleContextMenu(e, lunaConfig, socket!, termSelectionText.value);
-        };
-
-        el.addEventListener('mouseenter', () => fitAddon.fit(), false);
-        el.addEventListener('contextmenu', onContextMenu, false);
-    };
-
-    /**
-     * 初始化 CustomTerminal 相关事件
-     *
-     * @param terminal
-     */
-    const initTerminalEvent = (terminal: Terminal) => {
-        const debouncedTerminalResize = useDebounceFn(
-            (cols: number, rows: number, type: string, terminalId: Ref<string>, socket: WebSocket) => {
-                handleTerminalResize(cols, rows, type, terminalId.value, socket);
-            },
-            500
-        );
-
-        terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-            return handleCustomKey(e, terminal);
-        });
-
-        terminal.onSelectionChange(() => {
-            return handleTerminalSelection(terminal, termSelectionText);
-        });
-        terminal.onData((data: string) => {
-            lastSendTime.value = new Date();
-            return handleTerminalOnData(data, type, terminalId.value, lunaConfig, socket!);
-        });
-        terminal.onResize(({ cols, rows }) => {
-            return debouncedTerminalResize(cols, rows, type, terminalId, socket!);
-        });
-    };
-
-    /**
-     * message 分发
-     *
-     * @param socket
-     * @param terminal
-     * @param data
-     */
-    const dispatch = (socket: WebSocket, terminal: Terminal, data: string) => {
+    const dispatch = (data: string) => {
         if (!data) return;
 
         let msg = JSON.parse(data);
@@ -291,7 +106,7 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 break;
             }
             case 'CLOSE': {
-                terminal.writeln('Receive Connection closed');
+                terminal?.writeln('Receive Connection closed');
                 socket.close();
                 sendEventToLuna('CLOSE', '');
                 break;
@@ -306,17 +121,15 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                         terminalStore.setTerminalConfig('zmodemStatus', true);
 
                         if (enableZmodem.value) {
-                            callbackOptions.i18nCallBack &&
-                                message.info(callbackOptions.i18nCallBack('WaitFileTransfer'));
+                            option.i18nCallBack && message.info(option.i18nCallBack('WaitFileTransfer'));
                         }
                         break;
                     }
                     case 'ZMODEM_END': {
                         if (!enableZmodem.value && zmodemStatus.value) {
-                            callbackOptions.i18nCallBack &&
-                                message.info(callbackOptions.i18nCallBack('EndFileTransfer'));
+                            option.i18nCallBack && message.info(option.i18nCallBack('EndFileTransfer'));
 
-                            terminal.write('\r\n');
+                            terminal?.write('\r\n');
 
                             zmodemStatus.value = false;
                         }
@@ -331,33 +144,60 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
             case 'TERMINAL_ERROR':
             case 'ERROR': {
                 message.error(msg.err);
-                terminal.writeln(msg.err);
+                terminal?.writeln(msg.err);
                 break;
             }
             case 'MESSAGE_NOTIFY': {
                 break;
             }
             case 'TERMINAL_SHARE_USER_REMOVE': {
-                callbackOptions.i18nCallBack && message.info(callbackOptions.i18nCallBack('RemoveShareUser'));
+                option.i18nCallBack && message.info(option.i18nCallBack('RemoveShareUser'));
                 socket.close();
                 break;
             }
             default: {
-                info(JSON.parse(data));
+                console.log(JSON.parse(data));
             }
         }
 
-        callbackOptions.emitCallback && callbackOptions.emitCallback('socketData', msg.type, msg, terminal);
+        option.emitCallback && option.emitCallback('socketData', msg.type, msg, terminal);
     };
 
     /**
-     * 处理 onMessage
-     *
-     * @param socket
-     * @param event
-     * @param terminal
+     * 设置主题
      */
-    const handleMessage = (socket: WebSocket, event: MessageEvent, terminal: Terminal) => {
+    const setTerminalTheme = (themeName: string, terminal: Terminal, emits: any) => {
+        const theme = xtermTheme[themeName] || defaultTheme;
+
+        terminal.options.theme = theme;
+
+        emits('background-color', theme.background);
+    };
+
+    /**
+     * 设置相关请求信息
+     *
+     * @param type
+     * @param data
+     */
+    const sendWsMessage = (type: string, data: any) => {
+        if (option.type === 'k8s') {
+            return socket?.send(
+                JSON.stringify({
+                    k8s_id: k8s_id.value,
+                    type,
+                    data: JSON.stringify(data)
+                })
+            );
+        }
+
+        socket?.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
+    };
+
+    /**
+     * 处理非 K8s 的 message 事件
+     */
+    const handleMessage = (event: MessageEvent) => {
         lastReceiveTime.value = new Date();
 
         const terminalStore = useTerminalStore();
@@ -367,15 +207,15 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
             if (enableZmodem.value) {
                 sentry.consume(event.data);
             } else {
-                writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal, event.data);
+                writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);
             }
         } else {
-            dispatch(socket, terminal, event.data);
+            dispatch(event.data);
         }
     };
 
     /**
-     * 处理 k8s 消息
+     * 处理 K8s 的 message 事件
      *
      * @param socketData
      */
@@ -393,14 +233,14 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
                 const action = socketData.data;
                 switch (action) {
                     case 'ZMODEM_START': {
-                        callbackOptions.i18nCallBack &&
-                            message.warning(callbackOptions.i18nCallBack('CustomTerminal.WaitFileTransfer'));
+                        option.i18nCallBack &&
+                            message.warning(option.i18nCallBack('CustomTerminal.WaitFileTransfer'));
                         break;
                     }
                     case 'ZMODEM_END': {
-                        callbackOptions.i18nCallBack &&
-                            message.warning(callbackOptions.i18nCallBack('CustomTerminal.EndFileTransfer'));
-                        terminalRef.value?.writeln('\r\n');
+                        option.i18nCallBack &&
+                            message.warning(option.i18nCallBack('CustomTerminal.EndFileTransfer'));
+                        terminal?.writeln('\r\n');
                         break;
                     }
                 }
@@ -408,63 +248,171 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
             }
             case 'TERMINAL_ERROR': {
                 message.error(`Socket Error ${socketData.err}`);
-                terminalRef.value?.write(socketData.err);
+                terminal?.write(socketData.err);
                 break;
             }
             default: {
-                callbackOptions.emitCallback &&
-                    callbackOptions.emitCallback(
-                        'socketData',
-                        socketData.type,
-                        socketData,
-                        terminalRef.value!
-                    );
+                option.emitCallback &&
+                    option.emitCallback('socketData', socketData.type, socketData, terminal);
             }
         }
     };
 
     /**
-     * 创建 Socket
+     * 发送 TERMINAL_DATA
+     *
+     * @param data
      */
-    const createWebSocket = (terminal: Terminal) => {
-        const connectURL = generateWsURL();
+    const sendDataFromWindow = (data: any) => {
+        if (!wsIsActivated(socket)) {
+            return message.error('WebSocket Disconnected');
+        }
 
-        const { ws } = useWebSocket(connectURL, {
+        const terminalStore = useTerminalStore();
+        const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
+
+        if (enableZmodem.value && !zmodemStatus.value) {
+            socket?.send(formatMessage(terminalId.value, 'TERMINAL_DATA', data));
+        }
+    };
+
+    /**
+     * 初始非 k8s 的 socket 事件
+     */
+    const initSocketEvent = () => {
+        if (socket) {
+            socket.onopen = () => {
+                onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
+            };
+            socket.onmessage = (event: MessageEvent) => {
+                if (type === 'common') {
+                    handleMessage(event);
+                }
+            };
+            socket.onerror = (event: Event) => {
+                onWebsocketWrong(event, 'error', terminal);
+            };
+            socket.onclose = (event: CloseEvent) => {
+                onWebsocketWrong(event, 'disconnected', terminal);
+            };
+        }
+    };
+
+    /**
+     * 初始化 El 节点相关事件
+     */
+    const initElEvent = () => {
+        el.addEventListener('mouseenter', () => fitAddon.fit(), false);
+        el.addEventListener(
+            'contextmenu',
+            (e: MouseEvent) => {
+                handleContextMenu(e, lunaConfig, socket!, termSelectionText.value);
+            },
+            false
+        );
+    };
+
+    /**
+     * 设置 window 自定义事件
+     */
+    const initCustomWindowEvent = () => {
+        window.addEventListener('message', (e: MessageEvent) => {
+            const message = e.data;
+
+            switch (message.name) {
+                case 'PING': {
+                    if (lunaId.value != null) return;
+
+                    lunaId.value = message.id;
+                    origin.value = e.origin;
+
+                    sendEventToLuna('PONG', '', lunaId.value, origin.value);
+                    break;
+                }
+                case 'CMD': {
+                    sendDataFromWindow(message.data);
+                    break;
+                }
+                case 'FOCUS': {
+                    terminal?.focus();
+                    break;
+                }
+                case 'OPEN': {
+                    option.emitCallback && option.emitCallback('event', 'open', '');
+                    break;
+                }
+            }
+        });
+
+        window.addEventListener('resize', () => useDebounceFn(() => fitAddon.fit(), 500), false);
+
+        window.SendTerminalData = data => {
+            sendDataFromWindow(data);
+        };
+
+        window.Reconnect = () => {
+            option.emitCallback && option.emitCallback('event', 'reconnect', '');
+        };
+    };
+
+    /**
+     * 初始化 CustomTerminal 相关事件
+     */
+    const initTerminalEvent = () => {
+        if (terminal) {
+            terminal.loadAddon(fitAddon);
+            terminal.open(el);
+            terminal.focus();
+            fitAddon.fit();
+
+            terminal.onSelectionChange(() => {
+                handleTerminalSelection(terminal!, termSelectionText);
+            });
+            terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+                return handleCustomKey(e, terminal!);
+            });
+            terminal.onData((data: string) => {
+                lastSendTime.value = new Date();
+                handleTerminalOnData(data, type, terminalId.value, lunaConfig, socket);
+            });
+            terminal.onResize(({ cols, rows }) => {
+                useDebounceFn(() => handleTerminalResize(cols, rows, type, terminalId.value, socket), 500);
+            });
+        }
+    };
+
+    /**
+     * 创建非 k8s socket 连接
+     */
+    const createSocket = async (): Promise<WebSocket | undefined> => {
+        if (type === 'k8s') {
+            return Promise.resolve(option.transSocket);
+        }
+
+        let socketInstance: WebSocket;
+        const url: string = generateWsURL();
+
+        const { ws } = useWebSocket(url, {
             protocols: ['JMS-KOKO'],
             autoReconnect: {
                 retries: 5,
                 delay: 3000
-            },
-            onConnected: (socket: WebSocket) => {
-                onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
-            },
-            onError: (_ws: WebSocket, event: Event) => {
-                onWebsocketWrong(event, 'error', terminal);
-            },
-            onDisconnected: (_ws: WebSocket, event: CloseEvent) => {
-                onWebsocketWrong(event, 'disconnected', terminal);
-            },
-            onMessage: (socket: WebSocket, event: MessageEvent) => {
-                handleMessage(socket, event, terminal);
             }
         });
 
-        const { createSentry } = useSentry(lastSendTime, callbackOptions.i18nCallBack);
+        if (ws.value) {
+            socketInstance = ws.value;
 
-        socket = ws.value!;
-        sentry = createSentry(ws.value!, terminal);
-
-        return ws.value;
+            return socketInstance;
+        } else {
+            message.error('Failed to create WebSocket connection');
+        }
     };
 
-    /**
-     * 创建终端
-     *
-     * @param {HTMLElement} el 挂载节点
-     * @return Terminal
-     */
-    const createTerminal = (el: HTMLElement) => {
-        const { fontSize, lineHeight, fontFamily } = lunaConfig;
+    const createTerminal = async (config: ILunaConfig): Promise<Terminal> => {
+        let terminalInstance: Terminal;
+
+        const { fontSize, lineHeight, fontFamily } = config;
 
         const options = {
             fontSize,
@@ -477,39 +425,129 @@ export const useTerminal = (callbackOptions: ICallbackOptions): ITerminalReturn 
             scrollback: 5000
         };
 
-        const terminal = new Terminal(options);
+        terminalInstance = new Terminal(options);
 
-        terminal.loadAddon(fitAddon);
-
-        terminal.open(el);
-        terminal.focus();
-
-        fitAddon.fit();
-
-        //* 初始化节点、CustomTerminal 实例相关事件以及创建 Socket
-        initElEvent(el);
-        initTerminalEvent(terminal);
-
-        if (type === 'common') {
-            socket = createWebSocket(terminal);
-        } else {
-            socket = callbackOptions.transSocket;
-            terminalRef.value = terminal;
-        }
-
-        initCustomWindowEvent(terminal);
-
-        return {
-            socket,
-            terminal
-        };
+        return terminalInstance;
     };
 
-    init();
+    const initializeTerminal = (terminal: Terminal, socket: WebSocket, type: string) => {
+        initElEvent();
+        initTerminalEvent();
+        initCustomWindowEvent();
+
+        const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
+        sentry = createSentry(socket, terminal);
+
+        if (type === 'k8s') {
+            const { currentTab } = storeToRefs(useTerminalStore());
+
+            const messageHandlers = {
+                [currentTab.value]: (e: MessageEvent) => {
+                    handleK8sMessage(JSON.parse(e.data));
+                }
+            };
+
+            option.transSocket?.addEventListener('message', (e: MessageEvent) => {
+                const handler = messageHandlers[currentTab.value];
+                if (handler) {
+                    handler(e);
+                }
+            });
+        } else {
+            initSocketEvent();
+        }
+    };
+
+    const init = async () => {
+        const terminalStore = useTerminalStore();
+
+        lunaConfig = terminalStore.getConfig;
+
+        const [socketResult, terminalResult] = await Promise.allSettled([
+            createSocket(),
+            createTerminal(lunaConfig)
+        ]);
+
+        if (socketResult.status === 'fulfilled' && terminalResult.status === 'fulfilled') {
+            socket = socketResult.value!;
+            terminal = terminalResult.value;
+
+            initializeTerminal(terminal, socket, option.type);
+        } else {
+            if (socketResult.status === 'rejected') {
+                message.error('Socket error:', socketResult.reason);
+            }
+            if (terminalResult.status === 'rejected') {
+                message.error('Terminal error:', terminalResult.reason);
+            }
+        }
+
+        // if (option.type === 'common') {
+        //     const [socketResult, terminalResult] = await Promise.allSettled([
+        //         createSocket(),
+        //         createTerminal(lunaConfig)
+        //     ]);
+        //
+        //     if (socketResult.status === 'fulfilled' && terminalResult.status === 'fulfilled') {
+        //         if (socketResult.value) {
+        //             socket = socketResult.value;
+        //         }
+        //         terminal = terminalResult.value;
+        //
+        //         initElEvent();
+        //         initSocketEvent();
+        //         initTerminalEvent();
+        //         initCustomWindowEvent();
+        //
+        //         const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
+        //
+        //         sentry = createSentry(socket, terminal);
+        //     } else {
+        //         if (socketResult.status === 'rejected') {
+        //             message.error('Socket error:', socketResult.reason);
+        //         }
+        //         if (terminalResult.status === 'rejected') {
+        //             message.error('Terminal error:', terminalResult.reason);
+        //         }
+        //     }
+        // } else {
+        //     terminal = await createTerminal(lunaConfig);
+        //     socket = option.transSocket!;
+        //
+        //     initElEvent();
+        //     initTerminalEvent();
+        //     initCustomWindowEvent();
+        //
+        //     const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
+        //
+        //     sentry = createSentry(socket, terminal);
+        //
+        //     const { currentTab } = storeToRefs(useTerminalStore());
+        //
+        //     const messageHandlers = {
+        //         [currentTab.value]: (e: MessageEvent) => {
+        //             handleK8sMessage(JSON.parse(e.data));
+        //         }
+        //     };
+        //
+        //     if (option.transSocket) {
+        //         option.transSocket.addEventListener('message', (e: MessageEvent) => {
+        //             const handler = messageHandlers[currentTab.value];
+        //             if (handler) {
+        //                 handler(e);
+        //             }
+        //         });
+        //     }
+        // }
+
+        return terminal;
+    };
+
+    await init();
 
     return {
+        terminal,
         sendWsMessage,
-        createTerminal,
         setTerminalTheme
     };
 };
