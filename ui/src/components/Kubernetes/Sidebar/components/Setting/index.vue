@@ -27,6 +27,7 @@ const handleSetting = () => {
 
 <style scoped lang="scss">
 .setting-icon:hover {
-    fill: #1ab394 !important;
+    //fill: #1ab394 !important;
+    fill: #fff !important;
 }
 </style>
