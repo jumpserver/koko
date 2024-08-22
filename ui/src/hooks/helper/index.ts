@@ -28,14 +28,19 @@ const { message } = createDiscreteApi(['message']);
  * @param e
  * @param config
  * @param socket
+ * @param terminalId
  * @param termSelectionText
+ * @param k8s_id
  */
 export const handleContextMenu = async (
     e: MouseEvent,
     config: ILunaConfig,
     socket: WebSocket,
-    termSelectionText: string
+    terminalId: string,
+    termSelectionText: string,
+    k8s_id: string | undefined
 ) => {
+    e.preventDefault();
     if (e.ctrlKey || config.quickPaste !== '1') return;
 
     let text: string = '';
@@ -44,14 +49,20 @@ export const handleContextMenu = async (
         text = await readText();
     } catch (e) {
         if (termSelectionText !== '') text = termSelectionText;
-        message.info(`${e}`);
     }
 
-    socket.send(formatMessage('1', 'TERMINAL_DATA', text));
-
-    e.preventDefault();
-
-    return text;
+    if (k8s_id) {
+        socket.send(
+            JSON.stringify({
+                id: terminalId,
+                k8s_id,
+                type: 'TERMINAL_K8S_DATA',
+                data: text
+            })
+        );
+    } else {
+        socket.send(formatMessage(terminalId, 'TERMINAL_DATA', text));
+    }
 };
 
 /**
@@ -131,14 +142,16 @@ export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal): boolean =
 export const handleTerminalSelection = async (terminal: Terminal, termSelectionText: Ref<string>) => {
     termSelectionText.value = terminal.getSelection().trim();
 
-    clipboard
-        .writeText(termSelectionText.value)
-        .then(() => {
-            message.success('Copied!');
-        })
-        .catch(e => {
-            message.error(`Copy Error for ${e}`);
-        });
+    if (termSelectionText.value !== '') {
+        clipboard
+            .writeText(termSelectionText.value)
+            .then(() => {})
+            .catch(e => {
+                message.error(`Copy Error for ${e}`);
+            });
+    } else {
+        message.warning('请先选中文本再进行复制操作');
+    }
 };
 
 /**
