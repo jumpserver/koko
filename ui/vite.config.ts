@@ -23,7 +23,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             vue(),
             manualChunksPlugin(),
             createSvgIconsPlugin({
-                iconDirs: [resolve(process.cwd(), 'src/public/icons')],
+                iconDirs: [resolve(process.cwd(), 'src/asset/icons')],
                 symbolId: 'icon-[dir]-[name]'
             }),
             Components({ dts: true, resolvers: [NaiveUiResolver()] })
