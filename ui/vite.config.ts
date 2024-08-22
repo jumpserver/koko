@@ -8,6 +8,7 @@ import vue from '@vitejs/plugin-vue';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import Components from 'unplugin-vue-components/vite';
+import viteCompression from 'vite-plugin-compression';
 
 const pathResolve = (dir: string): string => {
     return resolve(__dirname, '.', dir);
@@ -19,13 +20,12 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
 
     return {
         plugins: [
-            createSvgIconsPlugin({
-                iconDirs: [resolve(process.cwd(), 'src/assets/icons')],
-                symbolId: 'icon-[dir]-[name]',
-                inject: 'body-first'
-            }),
             vue(),
             manualChunksPlugin(),
+            createSvgIconsPlugin({
+                iconDirs: [resolve(process.cwd(), 'src/public/icons')],
+                symbolId: 'icon-[dir]-[name]'
+            }),
             Components({ dts: true, resolvers: [NaiveUiResolver()] })
         ],
         resolve: {
