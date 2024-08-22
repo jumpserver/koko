@@ -11,7 +11,7 @@
         :content="waterMarkContent"
         :line-height="16"
     >
-        <CustomTerminal v-if="verified" terminal-type="common" @socketData="onSocketData" />
+        <CustomTerminal v-if="verified" index-key="id" terminal-type="common" @socketData="onSocketData" />
     </n-watermark>
 </template>
 

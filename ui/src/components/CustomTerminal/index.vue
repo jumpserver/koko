@@ -74,7 +74,7 @@ onMounted(async () => {
     mittBus.on('remove-share-user', ({ sessionId, userMeta, type }) => {
         sendWsMessage(type, {
             session: sessionId,
-            user_meta: JSON.stringify(userMeta)
+            user_meta: userMeta
         });
     });
 
