@@ -327,7 +327,7 @@ onMounted(() => {
 
         // 如果不存在，则添加新的标签页
         panels.value.push({
-            name: currentNode.key,
+            name: currentNode.key + uuidv4(),
             tab: currentNode.label
         });
 
