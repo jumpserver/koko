@@ -306,7 +306,14 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         el.addEventListener(
             'contextmenu',
             (e: MouseEvent) => {
-                handleContextMenu(e, lunaConfig, socket!, termSelectionText.value);
+                handleContextMenu(
+                    e,
+                    lunaConfig,
+                    socket!,
+                    terminalId.value,
+                    termSelectionText.value,
+                    k8s_id.value
+                );
             },
             false
         );
@@ -481,64 +488,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 message.error('Terminal error:', terminalResult.reason);
             }
         }
-
-        // if (option.type === 'common') {
-        //     const [socketResult, terminalResult] = await Promise.allSettled([
-        //         createSocket(),
-        //         createTerminal(lunaConfig)
-        //     ]);
-        //
-        //     if (socketResult.status === 'fulfilled' && terminalResult.status === 'fulfilled') {
-        //         if (socketResult.value) {
-        //             socket = socketResult.value;
-        //         }
-        //         terminal = terminalResult.value;
-        //
-        //         initElEvent();
-        //         initSocketEvent();
-        //         initTerminalEvent();
-        //         initCustomWindowEvent();
-        //
-        //         const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
-        //
-        //         sentry = createSentry(socket, terminal);
-        //     } else {
-        //         if (socketResult.status === 'rejected') {
-        //             message.error('Socket error:', socketResult.reason);
-        //         }
-        //         if (terminalResult.status === 'rejected') {
-        //             message.error('Terminal error:', terminalResult.reason);
-        //         }
-        //     }
-        // } else {
-        //     terminal = await createTerminal(lunaConfig);
-        //     socket = option.transSocket!;
-        //
-        //     initElEvent();
-        //     initTerminalEvent();
-        //     initCustomWindowEvent();
-        //
-        //     const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
-        //
-        //     sentry = createSentry(socket, terminal);
-        //
-        //     const { currentTab } = storeToRefs(useTerminalStore());
-        //
-        //     const messageHandlers = {
-        //         [currentTab.value]: (e: MessageEvent) => {
-        //             handleK8sMessage(JSON.parse(e.data));
-        //         }
-        //     };
-        //
-        //     if (option.transSocket) {
-        //         option.transSocket.addEventListener('message', (e: MessageEvent) => {
-        //             const handler = messageHandlers[currentTab.value];
-        //             if (handler) {
-        //                 handler(e);
-        //             }
-        //         });
-        //     }
-        // }
 
         return terminal;
     };
