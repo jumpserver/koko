@@ -150,7 +150,7 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
                 message.error(`Copy Error for ${e}`);
             });
     } else {
-        message.warning('请先选中文本再进行复制操作');
+        message.warning('Please select the text before copying');
     }
 };
 
