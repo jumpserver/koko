@@ -1,23 +1,29 @@
 .icon-wrapper {
     position: relative;
+    height: 100%;
     width: 100%;
 
-    .tree-icon {
-        fill: #1ab394 !important;
-    }
+    &.active {
+        .tree-icon {
+            //fill: #1ab394 !important;
+            fill: #ffffff !important;
+        }
 
-    &::before {
-        position: absolute;
-        top: 0;
-        left: 0;
-        display: block;
-        width: 2px;
-        height: 100%;
-        content: '';
-        background-color: #1ab394;
+        &::before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: block;
+            width: 2px;
+            height: 100%;
+            content: '';
+            //background-color: #1ab394;
+            background-color: #ffffff;
+        }
     }
 }
 
 .tree-icon:hover {
-    fill: #1ab394 !important;
+    //fill: #1ab394 !important;
+    fill: #fff !important;
 }

@@ -212,7 +212,7 @@ const handleClickoutside = () => {
     }
 
     :deep(.n-descriptions-table-wrapper) {
-        height: calc(100vh - 35px);
+        height: calc(100vh - 35px - 35px);
     }
 
     .collapse-item {

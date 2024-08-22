@@ -13,7 +13,8 @@ export const showToolTip = (option: TreeOption) => {
         NPopover,
         {
             trigger: 'hover',
-            placement: 'top'
+            placement: 'top-start',
+            delay: 500
         },
         {
             trigger: () =>

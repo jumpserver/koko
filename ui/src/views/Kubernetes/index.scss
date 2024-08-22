@@ -1,4 +1,6 @@
 .custom-layout {
+    height: calc(100vh - 35px);
+
     :deep(.n-layout-scroll-container) {
         .n-layout-sider {
             background-color: #252526;
