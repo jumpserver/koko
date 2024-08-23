@@ -1048,15 +1048,17 @@ func (s *Server) Proxy() {
 		return
 	}
 	defer srvCon.Close()
-	if err1 := s.jmsService.RecordSessionLifecycleLog(s.sessionInfo.ID, model.AssetConnectSuccess,
-		model.EmptyLifecycleLog); err1 != nil {
-		logger.Errorf("Conn[%s] record session activity log err: %s", s.UserConn.ID(), err1)
-	}
 
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
-	if err2 := s.ConnectedSuccessCallback(); err2 != nil {
-		logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
-	}
+	go func() {
+		if err1 := s.jmsService.RecordSessionLifecycleLog(s.sessionInfo.ID, model.AssetConnectSuccess,
+			model.EmptyLifecycleLog); err1 != nil {
+			logger.Errorf("Conn[%s] record session activity log err: %s", s.UserConn.ID(), err1)
+		}
+		if err2 := s.ConnectedSuccessCallback(); err2 != nil {
+			logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
+		}
+	}()
 	if s.OnSessionInfo != nil {
 		actions := s.connOpts.authInfo.Actions
 		tokenConnOpts := s.connOpts.authInfo.ConnectOptions
