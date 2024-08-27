@@ -268,6 +268,10 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
 
             break;
         }
+        case 'CLOSE': {
+            sessionId.value = '';
+            break;
+        }
         default:
             break;
     }

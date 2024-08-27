@@ -64,7 +64,7 @@ declare module 'vue' {
     TabSuffix: typeof import('./src/components/Kubernetes/MainContent/components/TabSuffix/index.vue')['default']
     ThemeConfig: typeof import('./src/components/ThemeConfig/index.vue')['default']
     Tip: typeof import('./src/components/Kubernetes/MainContent/components/Tip/index.vue')['default']
-    Tree: typeof import('./src/components/Kubernetes/Tree/index.vue')['default']
+    Tree: typeof import('./src/components/Kubernetes/Sidebar/components/Tree/index.vue')['default']
     Upload: typeof import('./src/components/Upload/index.vue')['default']
   }
 }

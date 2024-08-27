@@ -75,7 +75,7 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
             info(onlineUsersMap);
 
             if (terminalId.value === key) {
-                message.success('Self Join');
+                message.success(`${data.user} ${t('JoinedWithSuccess')}`);
                 break;
             }
 
@@ -116,10 +116,11 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
             const sessionInfo = JSON.parse(msg.data);
             const sessionDetail = sessionInfo.session;
 
-            const username = `${currentUser.value.name} - ${currentUser.value.username}`;
+            // const username = `${currentUser.value.name} - ${currentUser.value.username}`;
+            const username = `${sessionDetail.user}`;
 
             if (setting.value.SECURITY_WATERMARK_ENABLED) {
-                waterMarkContent.value = `${username}\n${sessionDetail.asset}`;
+                waterMarkContent.value = `${username}\n${sessionDetail.asset.split('(')[0]}`;
             }
 
             break;
