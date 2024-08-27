@@ -9,8 +9,16 @@ $--el-main-bg-color: #1e1e1e;
     width: 100% !important;
     background-color: $--el-main-tab-bg-color;
 
+    :deep(.n-tabs-nav) {
+        height: 35px;
+    }
+
+    .n-tabs-pad {
+        //border: none;
+    }
+
     :deep(.n-tabs-tab) {
-        border: none !important;
+        //border: none !important;
 
         .n-tabs-tab__label {
             color: #969696;
@@ -42,7 +50,11 @@ $--el-main-bg-color: #1e1e1e;
     }
 
     :deep(.n-tabs-nav__suffix) {
-        border: none !important;
+        border-left: 1px solid #3C3C3C;
+        border-bottom: 0;
+        border-bottom-left-radius: 5px;
+        //border-top-left-radius: 5px;
+        overflow: hidden;
     }
 }
 

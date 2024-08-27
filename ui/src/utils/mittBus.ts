@@ -4,19 +4,20 @@ import { shareUser } from '@/views/interface';
 
 type Event = {
     'open-setting': void;
+    'fold-tree-click': void;
     'show-theme-config': void;
+    'set-Terminal-theme': string;
+    'connect-terminal': customTreeOption;
     'set-theme': { themeName: string };
+    'terminal-search': { keyword: string; type?: string };
     'share-user': { type: string; query: string };
     'sync-theme': { type: string; data: any };
+    'remove-share-user': { sessionId: string; userMeta: any; type: string };
     'create-share-url': {
         type: string;
         sessionId: string;
         shareLinkRequest: { expiredTime: number; actionPerm: string; users: shareUser[] };
     };
-    'connect-terminal': customTreeOption;
-    'fold-tree-click': void;
-    'set-Terminal-theme': string;
-    'remove-share-user': { sessionId: string; userMeta: any; type: string };
 };
 
 const mittBus: Emitter<Event> = mitt();

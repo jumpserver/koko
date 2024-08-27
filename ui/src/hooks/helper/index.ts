@@ -150,7 +150,7 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
                 message.error(`Copy Error for ${e}`);
             });
     } else {
-        message.warning('Please select the text before copying');
+        // message.warning('Please select the text before copying');
     }
 };
 

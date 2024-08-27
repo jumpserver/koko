@@ -1,0 +1,54 @@
+.tree-wrapper {
+  height: 100%;
+  overflow: hidden;
+
+  :deep(.n-descriptions-header) {
+    height: 35px;
+    margin-bottom: unset;
+    margin-left: 24px;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 40px;
+    color: var(--el-aside-tree-head-title-color);
+  }
+
+  :deep(.n-descriptions-table-wrapper) {
+    height: calc(100vh - 35px - 35px);
+  }
+
+  .collapse-item {
+    margin: 0;
+    height: 100%;
+
+    :deep(.n-collapse-item__header) {
+      padding-top: 0;
+
+      .n-collapse-item__header-main {
+        height: 22px;
+        margin-left: 5px;
+      }
+    }
+
+    :deep(.n-collapse-item__content-wrapper) {
+      margin-top: 5px;
+      margin-left: 15px;
+
+      .n-collapse-item__content-inner {
+        padding-top: 0;
+
+        .tree-item .n-tree-node-wrapper {
+          padding: 0 0 5px 0;
+          line-height: 22px;
+
+          .n-tree-node-content {
+            padding-left: 5px;
+
+            .n-tree-node-content__text {
+              white-space: nowrap;
+            }
+          }
+        }
+      }
+    }
+  }
+}
