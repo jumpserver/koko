@@ -212,7 +212,6 @@ export const useK8s = () => {
                 break;
             }
             default: {
-                // todo 设置 msg.k8s_id, msg
             }
         }
     };

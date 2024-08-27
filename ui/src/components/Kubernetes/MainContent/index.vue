@@ -46,7 +46,6 @@ import { updateIcon } from '@/components/CustomTerminal/helper';
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
     ApertureOutline,
-    EllipsisHorizontal,
     LockClosedOutline,
     PersonAdd,
     PersonOutline,
@@ -61,7 +60,7 @@ import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
-import TabSuffix from '@/components/Kubernetes/MainContent/components/TabSuffix/index.vue';
+// import TabSuffix from '@/components/Kubernetes/MainContent/components/TabSuffix/index.vue';
 
 // 引入 type
 import { NMessageProvider, TabPaneProps, useDialog } from 'naive-ui';
@@ -270,6 +269,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
         }
         case 'CLOSE': {
             sessionId.value = '';
+            message.error(t('TerminalClosed'));
             break;
         }
         default:

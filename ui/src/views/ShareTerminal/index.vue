@@ -110,7 +110,7 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
         case 'TERMINAL_SESSION': {
             const paramsStore = useParamsStore();
 
-            const { currentUser, setting } = storeToRefs(paramsStore);
+            const { setting } = storeToRefs(paramsStore);
 
             terminalId.value = msg.id;
             const sessionInfo = JSON.parse(msg.data);

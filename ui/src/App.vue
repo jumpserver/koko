@@ -6,6 +6,11 @@
             </n-message-provider>
         </n-dialog-provider>
     </n-config-provider>
+    <n-float-button :right="20" :bottom="20" shape="circle">
+        <n-icon>
+            <CashIcon />
+        </n-icon>
+    </n-float-button>
 </template>
 
 <script setup lang="ts">
@@ -20,6 +25,7 @@ import { darkTheme } from 'naive-ui';
 import { alovaInstance } from '@/api';
 import { useGlobalStore } from '@/store/modules/global';
 import { zhCN, dateZhCN } from 'naive-ui';
+import { CashOutline as CashIcon } from '@vicons/ionicons5';
 
 const { error } = useLogger('App');
 const globalStore = useGlobalStore();
