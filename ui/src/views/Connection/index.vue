@@ -237,6 +237,10 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             message.info(`${data.user} ${t('ResumeSession')}`);
             break;
         }
+        case 'ClOSE': {
+            sessionId.value = '';
+            break;
+        }
         default:
             break;
     }
