@@ -116,9 +116,6 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
             const sessionInfo = JSON.parse(msg.data);
             const sessionDetail = sessionInfo.session;
 
-            console.log(currentUser);
-            console.log('sessionDetail', sessionDetail);
-
             // const username = `${currentUser.value.name} - ${currentUser.value.username}`;
             const username = `${sessionDetail.user}`;
 
