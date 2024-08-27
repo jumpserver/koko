@@ -206,8 +206,6 @@ export const useK8s = () => {
             }
             case 'CLOSE':
             case 'ERROR': {
-                message.error('Receive Connection Closed');
-
                 socket.close();
                 break;
             }

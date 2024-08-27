@@ -113,7 +113,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'CLOSE': {
-                terminal?.writeln('Receive Connection closed');
+                terminal?.writeln('Receive Connection Closed');
                 socket.close();
                 sendEventToLuna('CLOSE', '');
                 break;
@@ -273,7 +273,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'TERMINAL_ERROR': {
-                message.error(`Socket Error ${socketData.err}`);
+                // message.error(`Socket Error ${socketData.err}`);
                 terminal?.write(socketData.err);
                 break;
             }
@@ -526,6 +526,17 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         });
 
         mittBus.on('sync-theme', ({ type, data }) => {
+            if (option.type === 'k8s') {
+                return socket.send(
+                    JSON.stringify({
+                        k8s_id: k8s_id.value,
+                        id: terminalId.value,
+                        type,
+                        data: JSON.stringify(data)
+                    })
+                );
+            }
+
             sendWsMessage(type, data);
         });
     };

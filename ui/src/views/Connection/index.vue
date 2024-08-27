@@ -239,7 +239,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
         }
         case 'ClOSE': {
             sessionId.value = '';
-            message.error(t('TerminalClosed'));
+            message.error(t('WebSocketClosed'));
             break;
         }
         default:

@@ -3,7 +3,7 @@
         <n-descriptions label-placement="top" class="tree-wrapper">
             <template #header>
                 <n-flex align="center" justify="space-between">
-                    {{ t('List of Assets') }}
+                    {{ t('KubernetesManagement') }}
                     <n-icon size="16px" :component="EllipsisHorizontal" class="mr-2.5 cursor-pointer" />
                 </n-flex>
             </template>
