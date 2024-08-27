@@ -1,6 +1,24 @@
+// Terminal 相关
+import xtermTheme from 'xterm-theme';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { ISearchOptions, SearchAddon } from '@xterm/addon-search';
+import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
+import { defaultTheme } from '@/config';
+
+// hook
+import { createDiscreteApi } from 'naive-ui';
+import { useSentry } from '@/hooks/useZsentry.ts';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 
-import { Terminal } from '@xterm/xterm';
+// store
+import { storeToRefs } from 'pinia';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { useParamsStore } from '@/store/modules/params.ts';
+
+import { onUnmounted, ref, Ref } from 'vue';
+import { writeBufferToTerminal } from '@/utils';
+import type { ILunaConfig } from '@/hooks/interface';
 
 // 工具函数
 import {
@@ -14,28 +32,16 @@ import {
     onWebsocketOpen,
     onWebsocketWrong
 } from '@/hooks/helper';
-import type { ILunaConfig } from '@/hooks/interface';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
-import { createDiscreteApi } from 'naive-ui';
-import { FitAddon } from '@xterm/addon-fit';
-import { ref, Ref } from 'vue';
 import {
     formatMessage,
     sendEventToLuna,
     updateIcon,
     wsIsActivated
 } from '@/components/CustomTerminal/helper';
-import { storeToRefs } from 'pinia';
-import { writeBufferToTerminal } from '@/utils';
-import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
-import { useSentry } from '@/hooks/useZsentry.ts';
-import { useParamsStore } from '@/store/modules/params.ts';
-import { defaultTheme } from '@/config';
-import xtermTheme from 'xterm-theme';
+import mittBus from '@/utils/mittBus.ts';
 
 interface ITerminalInstance {
     terminal: Terminal | undefined;
-    sendWsMessage: (type: string, data: any) => void;
     setTerminalTheme: (themeName: string, terminal: Terminal, emits: any) => void;
 }
 
@@ -62,6 +68,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     let lunaConfig: ILunaConfig;
 
     let fitAddon: FitAddon = new FitAddon();
+    let searchAddon: SearchAddon = new SearchAddon();
 
     let type: string = option.type;
 
@@ -164,6 +171,26 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     };
 
     /**
+     * search Terminal 数据
+     */
+    const searchKeyWord = (keyword: string, type: string) => {
+        const searchOption: ISearchOptions = {
+            caseSensitive: false,
+            // @ts-ignore
+            decorations: {
+                matchBackground: '#FFFF54',
+                activeMatchBackground: '#F19B4A'
+            }
+        };
+
+        if (type === 'next') {
+            searchAddon.findNext(keyword, searchOption);
+        } else {
+            searchAddon.findPrevious(keyword, searchOption);
+        }
+    };
+
+    /**
      * 设置主题
      */
     const setTerminalTheme = (themeName: string, terminal: Terminal, emits: any) => {
@@ -220,11 +247,10 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
      * @param socketData
      */
     const handleK8sMessage = (socketData: any) => {
-        terminalId.value = socketData.id;
-        k8s_id.value = socketData.k8s_id;
-
         switch (socketData.type) {
             case 'TERMINAL_K8S_BINARY': {
+                terminalId.value = socketData.id;
+                k8s_id.value = socketData.k8s_id;
                 sentry.consume(base64ToUint8Array(socketData.raw));
 
                 break;
@@ -368,6 +394,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     const initTerminalEvent = () => {
         if (terminal) {
             terminal.loadAddon(fitAddon);
+            terminal.loadAddon(searchAddon);
+
             terminal.open(el);
             terminal.focus();
             fitAddon.fit();
@@ -422,6 +450,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         const { fontSize, lineHeight, fontFamily } = config;
 
         const options = {
+            allowProposedApi: true,
             fontSize,
             lineHeight,
             fontFamily,
@@ -465,6 +494,50 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         }
     };
 
+    /**
+     * 初始化事件总线相关事件
+     */
+    const initMittBusEvents = () => {
+        mittBus.on('terminal-search', ({ keyword, type = '' }) => {
+            searchKeyWord(keyword, type);
+        });
+
+        mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
+            const origin = window.location.origin;
+
+            sendWsMessage(type, {
+                origin,
+                session: sessionId,
+                users: shareLinkRequest.users,
+                expired_time: shareLinkRequest.expiredTime,
+                action_permission: shareLinkRequest.actionPerm
+            });
+        });
+
+        mittBus.on('remove-share-user', ({ sessionId, userMeta, type }) => {
+            sendWsMessage(type, {
+                session: sessionId,
+                user_meta: userMeta
+            });
+        });
+
+        mittBus.on('share-user', ({ type, query }) => {
+            sendWsMessage(type, { query });
+        });
+
+        mittBus.on('sync-theme', ({ type, data }) => {
+            sendWsMessage(type, data);
+        });
+    };
+
+    onUnmounted(() => {
+        mittBus.off('sync-theme');
+        mittBus.off('share-user');
+        mittBus.off('terminal-search');
+        mittBus.off('create-share-url');
+        mittBus.off('remove-share-user');
+    });
+
     const init = async () => {
         const terminalStore = useTerminalStore();
 
@@ -480,6 +553,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             terminal = terminalResult.value;
 
             initializeTerminal(terminal, socket, option.type);
+            initMittBusEvents();
         } else {
             if (socketResult.status === 'rejected') {
                 message.error('Socket error:', socketResult.reason);
@@ -496,7 +570,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
     return {
         terminal,
-        sendWsMessage,
         setTerminalTheme
     };
 };

@@ -13,6 +13,7 @@
     "@types/uuid": "^10.0.0",
     "@vueuse/core": "^10.11.0",
     "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-search": "^0.15.0",
     "@xterm/xterm": "^5.5.0",
     "alova": "^3.0.2",
     "clipboard-polyfill": "^4.1.0",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
+    "@vicons/fluent": "^0.12.0",
     "@vicons/ionicons5": "^0.12.0",
     "@vitejs/plugin-vue": "^5.0.5",
     "autoprefixer": "^10.4.19",

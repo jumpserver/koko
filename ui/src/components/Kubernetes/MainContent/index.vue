@@ -32,37 +32,10 @@
                 </n-scrollbar>
             </n-tab-pane>
             <template v-slot:suffix>
-                <n-flex
-                    justify="space-between"
-                    align="center"
-                    class="h-[35px] mr-[15px]"
-                    style="column-gap: 5px"
-                >
-                    <n-popover>
-                        <template #trigger>
-                            <div
-                                class="icon-item flex justify-center items-center w-[25px] h-[25px] cursor-pointer transition-all duration-300 ease-in-out hover:rounded-[5px]"
-                            >
-                                <svg-icon name="split" :icon-style="iconStyle" />
-                            </div>
-                        </template>
-                        拆分
-                    </n-popover>
-
-                    <n-popover>
-                        <template #trigger>
-                            <div
-                                class="icon-item flex justify-center items-center w-[25px] h-[25px] cursor-pointer transition-all duration-300 ease-in-out hover:rounded-[5px]"
-                            >
-                                <n-icon size="16px" :component="EllipsisHorizontal" />
-                            </div>
-                        </template>
-                        操作
-                    </n-popover>
-                </n-flex>
+                <!--                <TabSuffix />-->
             </template>
         </n-tabs>
-        <Main v-if="panels.length === 0" />
+        <Tip v-if="panels.length === 0" />
     </n-layout>
     <Settings :settings="settings" />
 </template>
@@ -80,18 +53,20 @@ import {
     ShareSocialOutline
 } from '@vicons/ionicons5';
 
-import Main from '../Main/index.vue';
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
+
+import Tip from './components/Tip/index.vue';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
+import TabSuffix from '@/components/Kubernetes/MainContent/components/TabSuffix/index.vue';
 
 // 引入 type
 import { NMessageProvider, TabPaneProps, useDialog } from 'naive-ui';
 
-import type { CSSProperties, Ref } from 'vue';
+import type { Ref } from 'vue';
 import type { ISettingProp, shareUser } from '@/views/interface';
 
 // 引入 hook
@@ -103,13 +78,6 @@ import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-
-// 图标样式
-const iconStyle: CSSProperties = {
-    width: '16px',
-    height: '16px',
-    transition: 'fill 0.3s'
-};
 
 // 创建消息和日志实例
 const message = useMessage();
@@ -286,6 +254,10 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             }
 
             message.info(`${data.user} ${t('LeaveShare')}`);
+            break;
+        }
+        case 'TERMINAL_GET_SHARE_USER': {
+            userOptions.value = JSON.parse(msg.data);
             break;
         }
         case 'TERMINAL_SHARE': {

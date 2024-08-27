@@ -8,11 +8,11 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { Terminal } from '@xterm/xterm';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useTerminal } from '@/hooks/useTerminal.ts';
 
-import type { ITerminalProps } from '@/hooks/interface';
+import { Terminal } from '@xterm/xterm';
+import { ITerminalProps } from '@/hooks/interface';
 
 import mittBus from '@/utils/mittBus.ts';
 
@@ -29,13 +29,13 @@ const emits = defineEmits<{
     (e: 'socketData', msgType: string, msg: any, terminal: Terminal): void;
 }>();
 
-const terminalRef = ref<any>(null);
+const terminalRef = ref<Terminal | undefined>(undefined);
 
 onMounted(async () => {
     const theme = props.themeName;
     const el: HTMLElement = document.getElementById(props.indexKey as string)!;
 
-    const { terminal, setTerminalTheme, sendWsMessage } = await useTerminal(el, {
+    const { terminal, setTerminalTheme } = await useTerminal(el, {
         type: props.terminalType,
         transSocket: props.socket ? props.socket : undefined,
         i18nCallBack: (key: string) => t(key),
@@ -62,33 +62,6 @@ onMounted(async () => {
     mittBus.on('set-theme', ({ themeName }) => {
         setTerminalTheme(themeName as string, terminal!, emits);
     });
-
-    mittBus.on('sync-theme', ({ type, data }) => {
-        sendWsMessage(type, data);
-    });
-
-    mittBus.on('share-user', ({ type, query }) => {
-        sendWsMessage(type, { query });
-    });
-
-    mittBus.on('remove-share-user', ({ sessionId, userMeta, type }) => {
-        sendWsMessage(type, {
-            session: sessionId,
-            user_meta: userMeta
-        });
-    });
-
-    mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
-        const origin = window.location.origin;
-
-        sendWsMessage(type, {
-            origin,
-            session: sessionId,
-            users: shareLinkRequest.users,
-            expired_time: shareLinkRequest.expiredTime,
-            action_permission: shareLinkRequest.actionPerm
-        });
-    });
 });
 
 defineExpose({
@@ -97,10 +70,6 @@ defineExpose({
 
 onUnmounted(() => {
     mittBus.off('set-theme');
-    mittBus.off('sync-theme');
-    mittBus.off('share-user');
-    mittBus.off('create-share-url');
-    mittBus.off('remove-share-user');
 });
 </script>
 

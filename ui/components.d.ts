@@ -7,8 +7,9 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ContentHeader: typeof import('./src/components/Kubernetes/ContentHeader/index.vue')['default']
     CustomTerminal: typeof import('./src/components/CustomTerminal/index.vue')['default']
-    FileManagement: typeof import('./src/components/Kubernetes/FileManagement/index.vue')['default']
+    FileManagement: typeof import('./src/components/Kubernetes/Tree/index.vue')['default']
     K8sTerminal: typeof import('./src/components/Kubernetes/k8sTerminal/index.vue')['default']
     Logo: typeof import('./src/components/Kubernetes/Sidebar/components/Logo/index.vue')['default']
     Main: typeof import('./src/components/Kubernetes/Main/index.vue')['default']
@@ -20,6 +21,7 @@ declare module 'vue' {
     NDescriptions: typeof import('naive-ui')['NDescriptions']
     NDescriptionsItem: typeof import('naive-ui')['NDescriptionsItem']
     NDialogProvider: typeof import('naive-ui')['NDialogProvider']
+    NDivider: typeof import('naive-ui')['NDivider']
     NDrawer: typeof import('naive-ui')['NDrawer']
     NDrawerContent: typeof import('naive-ui')['NDrawerContent']
     NDropdown: typeof import('naive-ui')['NDropdown']
@@ -53,13 +55,16 @@ declare module 'vue' {
     NWatermark: typeof import('naive-ui')['NWatermark']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Search: typeof import('./src/components/Kubernetes/Sidebar/components/Search/index.vue')['default']
     Setting: typeof import('./src/components/Kubernetes/Sidebar/components/Setting/index.vue')['default']
     Settings: typeof import('./src/components/Settings/index.vue')['default']
     Share: typeof import('./src/components/Share/index.vue')['default']
     SideTop: typeof import('./src/components/Kubernetes/Sidebar/sideTop.vue')['default']
     SvgIcon: typeof import('./src/components/SvgIcon/index.vue')['default']
+    TabSuffix: typeof import('./src/components/Kubernetes/MainContent/components/TabSuffix/index.vue')['default']
     ThemeConfig: typeof import('./src/components/ThemeConfig/index.vue')['default']
-    Tree: typeof import('./src/components/Kubernetes/Sidebar/components/Tree/index.vue')['default']
+    Tip: typeof import('./src/components/Kubernetes/MainContent/components/Tip/index.vue')['default']
+    Tree: typeof import('./src/components/Kubernetes/Tree/index.vue')['default']
     Upload: typeof import('./src/components/Upload/index.vue')['default']
   }
 }

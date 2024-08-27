@@ -1,7 +1,5 @@
 <template>
-    <n-flex align="center" class="h-[35px] bg-[#3C3C3C]">
-        <Logo class="ml-[7px]" :logo-image="setting.INTERFACE?.logo_logout" />
-    </n-flex>
+    <ContentHeader />
     <n-layout has-sider class="custom-layout h-full">
         <n-layout-header class="w-[48px]">
             <n-flex
@@ -28,7 +26,7 @@
                 maxWidth: '600px'
             }"
         >
-            <FileManagement
+            <Tree
                 :class="{
                     'transition-opacity duration-200': true,
                     'opacity-0': isFolded,
@@ -47,18 +45,13 @@ import { useK8s } from '@/hooks/useK8s';
 import { TreeOption } from 'naive-ui';
 
 import mittBus from '@/utils/mittBus';
+import Tree from '@/components/Kubernetes/Tree/index.vue';
 import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
 import MainContent from '@/components/Kubernetes/MainContent/index.vue';
-import Logo from '@/components/Kubernetes/Sidebar/components/Logo/index.vue';
-import FileManagement from '@/components/Kubernetes/FileManagement/index.vue';
+import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
 
 // 导入 API
 import { onMounted, onUnmounted, ref } from 'vue';
-import { useParamsStore } from '@/store/modules/params.ts';
-import { storeToRefs } from 'pinia';
-
-const paramsStore = useParamsStore();
-const { setting } = storeToRefs(paramsStore);
 
 const sideWidth = ref(300);
 const isFolded = ref(false);
