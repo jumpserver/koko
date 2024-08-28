@@ -1,9 +1,11 @@
 <template>
     <n-config-provider :theme="darkTheme" :locale="zhCN" :date-locale="dateZhCN">
         <n-dialog-provider>
-            <n-message-provider>
-                <router-view v-if="i18nLoaded" />
-            </n-message-provider>
+            <n-notification-provider>
+                <n-message-provider>
+                    <router-view v-if="i18nLoaded" />
+                </n-message-provider>
+            </n-notification-provider>
         </n-dialog-provider>
     </n-config-provider>
     <n-float-button :right="20" :bottom="20" shape="circle">
