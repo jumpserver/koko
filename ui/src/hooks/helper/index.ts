@@ -287,7 +287,7 @@ export const generateWsURL = () => {
             break;
         }
         case 'kubernetes': {
-            connectURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${route.query.token}`;
+            connectURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${route.query.token}&type=k8s`;
             break;
         }
         case 'Share': {
