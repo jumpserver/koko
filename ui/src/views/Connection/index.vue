@@ -19,6 +19,7 @@ import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
+import { useNotification } from 'naive-ui';
 import { NMessageProvider } from 'naive-ui';
 import { computed, h, markRaw, nextTick, reactive, ref } from 'vue';
 
@@ -50,6 +51,7 @@ const { setting } = storeToRefs(paramsStore);
 
 const dialog = useDialog();
 const message = useMessage();
+const notification = useNotification();
 
 const terminalType = ref<string>('common');
 const sessionId = ref<string>('');
@@ -237,9 +239,12 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             message.info(`${data.user} ${t('ResumeSession')}`);
             break;
         }
-        case 'ClOSE': {
-            sessionId.value = '';
-            message.error(t('TerminalClosed'));
+        case 'CLOSE': {
+            enableShare.value = false;
+            notification.error({
+                content: t('TerminalClosed'),
+                duration: 50000
+            });
             break;
         }
         default:

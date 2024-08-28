@@ -322,11 +322,11 @@ export const generateWsURL = () => {
 export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal) => {
     switch (type) {
         case 'error': {
-            terminal ? terminal.write('Connection Websocket Error') : message.error('Error');
+            terminal ? terminal.write('Connection Websocket Error') : '';
             break;
         }
         case 'disconnected': {
-            terminal ? terminal.write('Connection Websocket Closed') : message.error('Disconnected');
+            terminal ? terminal.write('Connection Websocket Closed') : '';
             break;
         }
     }

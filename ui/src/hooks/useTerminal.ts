@@ -113,7 +113,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'CLOSE': {
-                terminal?.writeln('Receive Connection closed');
                 socket.close();
                 sendEventToLuna('CLOSE', '');
                 break;
@@ -273,7 +272,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'TERMINAL_ERROR': {
-                message.error(`Socket Error ${socketData.err}`);
                 terminal?.write(socketData.err);
                 break;
             }
