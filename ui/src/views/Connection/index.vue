@@ -1,6 +1,7 @@
 <template>
     <CustomComponent
         index-key="id"
+        class="common-terminal"
         :theme-name="themeName"
         :terminal-type="terminalType"
         @event="onEvent"
@@ -269,3 +270,23 @@ const onEvent = (event: string, data: any) => {
     }
 };
 </script>
+
+<style scoped lang="scss">
+.common-terminal {
+    :deep(.terminal-container) {
+        overflow: hidden;
+        .terminal {
+            padding-top: 10px;
+            padding-left: 10px;
+        }
+
+        .xterm-viewport {
+            overflow: hidden;
+        }
+
+        .xterm-screen {
+            height: 100vh !important;
+        }
+    }
+}
+</style>

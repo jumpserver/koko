@@ -1,6 +1,6 @@
 <template>
-    <n-layout style="height: calc(100vh - 35px)">
-        <n-scrollbar trigger="hover" style="max-height: 100vh">
+    <n-layout :native-scrollbar="false">
+        <n-scrollbar trigger="hover">
             <div :id="indexKey" class="terminal-container"></div>
         </n-scrollbar>
     </n-layout>
@@ -72,19 +72,3 @@ onUnmounted(() => {
     mittBus.off('set-theme');
 });
 </script>
-
-<style scoped lang="scss">
-.terminal-container {
-    height: calc(100% - 10px);
-    overflow: hidden;
-
-    :deep(.xterm-viewport) {
-        overflow: hidden;
-    }
-
-    :deep(.xterm-screen) {
-        height: calc(100vh - 35px) !important;
-        //height: 878px !important;
-    }
-}
-</style>
