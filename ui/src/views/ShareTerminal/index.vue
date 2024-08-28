@@ -11,7 +11,13 @@
         :content="waterMarkContent"
         :line-height="16"
     >
-        <CustomTerminal v-if="verified" index-key="id" terminal-type="common" @socketData="onSocketData" />
+        <CustomTerminal
+            v-if="verified"
+            class="common-terminal"
+            index-key="id"
+            terminal-type="common"
+            @socketData="onSocketData"
+        />
     </n-watermark>
 </template>
 
@@ -187,3 +193,19 @@ dialog.warning({
     }
 });
 </script>
+
+<style scoped lang="scss">
+.common-terminal {
+    :deep(.terminal-container) {
+        overflow: hidden;
+
+        .xterm-viewport {
+            overflow: hidden;
+        }
+
+        .xterm-screen {
+            height: 100vh !important;
+        }
+    }
+}
+</style>

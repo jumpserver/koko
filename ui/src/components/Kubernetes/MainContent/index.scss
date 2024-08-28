@@ -58,7 +58,7 @@ $--el-main-bg-color: #1e1e1e;
     }
 }
 
-.terminal-container {
+.k8s-terminal {
     overflow: hidden;
 
     :deep(.xterm-viewport) {
@@ -66,8 +66,8 @@ $--el-main-bg-color: #1e1e1e;
     }
 
     :deep(.xterm-screen) {
-        //height: 878px !important;
-        height: calc(100vh - 40px) !important;
+        width: 100% !important;
+        height: calc(100vh - 75px) !important;
 
         .xterm-rows {
             padding: 10px 0 0 10px;

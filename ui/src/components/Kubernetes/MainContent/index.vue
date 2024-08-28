@@ -22,6 +22,7 @@
                 <n-scrollbar trigger="hover">
                     <CustomTerminal
                         ref="terminalRef"
+                        class="k8s-terminal"
                         :socket="socket"
                         :key="panel.name"
                         :index-key="panel.name as string"
