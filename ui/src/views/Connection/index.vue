@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { useDialog, useMessage } from 'naive-ui';
+import { useDialog, useMessage, useNotification } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 
@@ -50,6 +50,7 @@ const { setting } = storeToRefs(paramsStore);
 
 const dialog = useDialog();
 const message = useMessage();
+const notification = useNotification();
 
 const terminalType = ref<string>('common');
 const sessionId = ref<string>('');
@@ -238,8 +239,11 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             break;
         }
         case 'ClOSE': {
-            sessionId.value = '';
-            message.error(t('WebSocketClosed'));
+            enableShare.value = false;
+            notification.error({
+                content: t('WebSocketClosed'),
+                duration: 50000
+            });
             break;
         }
         default:

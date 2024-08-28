@@ -63,7 +63,7 @@ import CustomTerminal from '@/components/CustomTerminal/index.vue';
 // import TabSuffix from '@/components/Kubernetes/MainContent/components/TabSuffix/index.vue';
 
 // 引入 type
-import { NMessageProvider, TabPaneProps, useDialog } from 'naive-ui';
+import { NMessageProvider, TabPaneProps, useDialog, useNotification } from 'naive-ui';
 
 import type { Ref } from 'vue';
 import type { ISettingProp, shareUser } from '@/views/interface';
@@ -90,6 +90,8 @@ const treeStore = useTreeStore();
 
 const { t } = useI18n();
 const dialog = useDialog();
+const notification = useNotification();
+
 const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
@@ -268,8 +270,11 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             break;
         }
         case 'CLOSE': {
-            sessionId.value = '';
-            message.error(t('WebSocketClosed'));
+            enableShare.value = false;
+            notification.error({
+                content: t('WebSocketClosed'),
+                duration: 50000
+            });
             break;
         }
         default:
