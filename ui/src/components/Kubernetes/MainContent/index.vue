@@ -63,13 +63,11 @@ import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
 // import TabSuffix from '@/components/Kubernetes/MainContent/components/TabSuffix/index.vue';
 
-// 引入 type
 import { NMessageProvider, TabPaneProps, useDialog, useNotification } from 'naive-ui';
 
 import type { Ref } from 'vue';
 import type { ISettingProp, shareUser } from '@/views/interface';
 
-// 引入 hook
 import { useI18n } from 'vue-i18n';
 import { v4 as uuidv4 } from 'uuid';
 import { useMessage } from 'naive-ui';
@@ -79,7 +77,6 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 
-// 创建消息和日志实例
 const message = useMessage();
 const { debug } = useLogger('K8s-CustomTerminal');
 
@@ -272,6 +269,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
         }
         case 'CLOSE': {
             enableShare.value = false;
+
             notification.error({
                 content: t('WebSocketClosed'),
                 duration: 50000

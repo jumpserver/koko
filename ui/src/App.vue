@@ -8,32 +8,25 @@
             </n-notification-provider>
         </n-dialog-provider>
     </n-config-provider>
-    <n-float-button :right="20" :bottom="20" shape="circle">
-        <n-icon>
-            <CashIcon />
-        </n-icon>
-    </n-float-button>
 </template>
 
 <script setup lang="ts">
 import { lang } from '@/config';
-import { useI18n } from 'vue-i18n';
 import { BASE_URL } from '@/config';
-import { onMounted } from 'vue';
-import { useLogger } from '@/hooks/useLogger.ts';
-import { storeToRefs } from 'pinia';
-// todo)) 与新 Luna 进行联动
 import { darkTheme } from 'naive-ui';
 import { alovaInstance } from '@/api';
-import { useGlobalStore } from '@/store/modules/global';
 import { zhCN, dateZhCN } from 'naive-ui';
-import { CashOutline as CashIcon } from '@vicons/ionicons5';
 
-const { error } = useLogger('App');
-const globalStore = useGlobalStore();
+import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
+import { useLogger } from '@/hooks/useLogger.ts';
+import { useGlobalStore } from '@/store/modules/global';
 
 const { mergeLocaleMessage } = useI18n();
+const { error } = useLogger('App');
 
+const globalStore = useGlobalStore();
 const { i18nLoaded } = storeToRefs(globalStore);
 
 const setLanguage = async (lang: string): Promise<void> => {
