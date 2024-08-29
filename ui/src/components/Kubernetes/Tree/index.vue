@@ -161,19 +161,23 @@ const handleFilter = (option: TreeOption) => {
 };
 
 const handleOnLoad = (node: TreeOption) => {
+    let expendKey: string;
+
     treeStore.setCurrentNode(node);
 
     emits('sync-load-node', node);
 
-    if (!expandedKeysRef.value.includes(node.key as string)) {
-        setTimeout(() => {
-            expandedKeysRef.value.push(node.key as string);
-        }, 300);
+    if (typeof node.key === 'string') {
+        expendKey = node.key;
+
+        if (!expandedKeysRef.value.includes(expendKey)) {
+            setTimeout(() => {
+                expandedKeysRef.value.push(expendKey);
+            }, 300);
+        }
     }
 
-    return new Promise<boolean>(resolve => {
-        resolve(false);
-    });
+    return false;
 };
 
 const handleSelect = (key: string, _option: DropdownOption) => {

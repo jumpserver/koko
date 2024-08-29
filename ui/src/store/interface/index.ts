@@ -1,5 +1,4 @@
 import { customTreeOption, SettingConfig } from '@/hooks/interface';
-import type { TreeOption } from 'naive-ui';
 
 export interface IGlobalState {
     initialized: boolean;
@@ -52,9 +51,7 @@ export interface ITerminalConfig {
 export interface ITreeState {
     connectInfo: any;
 
-    treeNodes: TreeOption[];
-
-    loadingTreeNode: boolean;
+    treeNodes: customTreeOption[];
 
     currentNode: customTreeOption;
 }

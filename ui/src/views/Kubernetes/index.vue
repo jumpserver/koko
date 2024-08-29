@@ -56,8 +56,6 @@ import { onMounted, onUnmounted, ref } from 'vue';
 const sideWidth = ref(300);
 const isFolded = ref(false);
 
-const handleClickOutSide = () => {};
-
 const handleTreeClick = () => {
     isFolded.value = !isFolded.value;
     sideWidth.value = isFolded.value ? 0 : 300;
@@ -72,14 +70,10 @@ const handleSyncLoad = (node: TreeOption) => {
 };
 
 onMounted(() => {
-    document.addEventListener('click', (_e: Event) => handleClickOutSide, false);
-
     mittBus.on('fold-tree-click', handleTreeClick);
 });
 
 onUnmounted(() => {
-    document.removeEventListener('click', (_e: Event) => handleClickOutSide, false);
-
     mittBus.off('fold-tree-click', handleTreeClick);
 });
 </script>

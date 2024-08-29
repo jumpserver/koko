@@ -36,7 +36,7 @@
                 <!--                <TabSuffix />-->
             </template>
         </n-tabs>
-        <Tip v-if="panels.length === 0" />
+        <!--        <Tip v-if="panels.length === 0" />-->
     </n-layout>
     <Settings :settings="settings" />
 </template>
@@ -56,7 +56,7 @@ import {
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 
-import Tip from './components/Tip/index.vue';
+// import Tip from './components/Tip/index.vue';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
@@ -76,6 +76,7 @@ import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { customTreeOption } from '@/hooks/interface';
 
 const message = useMessage();
 const { debug } = useLogger('K8s-CustomTerminal');
@@ -94,7 +95,7 @@ const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { setting } = storeToRefs(paramsStore);
-const { connectInfo } = storeToRefs(treeStore);
+const { connectInfo, treeNodes } = storeToRefs(treeStore);
 
 const nameRef = ref('');
 const sessionId = ref('');
@@ -288,8 +289,28 @@ const handleClose = (name: string) => {
     panels.value.splice(index, 1);
 };
 
+const findNodeById = (id: string): void => {
+    const searchNode = (nodes: customTreeOption[]) => {
+        for (const node of nodes) {
+            if (node.id === id) {
+                treeStore.setCurrentNode(node);
+                return true;
+            }
+            if (node.children && node.children.length > 0) {
+                const found = searchNode(node.children);
+                if (found) return true;
+            }
+        }
+        return false;
+    };
+
+    searchNode(treeNodes.value);
+};
+
 const handleChangeTab = (value: string) => {
     nameRef.value = value;
+
+    findNodeById(value);
 
     terminalStore.setTerminalConfig('currentTab', nameRef.value);
 };
@@ -310,6 +331,8 @@ onMounted(() => {
             name: currentNode.key,
             tab: currentNode.label
         });
+
+        treeStore.setCurrentNode(currentNode);
 
         const sendTerminalData = () => {
             if (terminalRef.value) {

@@ -1,27 +1,20 @@
+import { NIcon } from 'naive-ui';
+import { v4 as uuid } from 'uuid';
+import { Folder } from '@vicons/ionicons5';
+import { Kubernetes } from '@vicons/carbon';
+
 import { ref, h } from 'vue';
 import { storeToRefs } from 'pinia';
-import { v4 as uuidv4 } from 'uuid';
-
-// 组件
-import { NIcon } from 'naive-ui';
-import { Folder } from '@vicons/ionicons5';
-import SvgIcon from '@/components/SvgIcon/index.vue';
-
-// 引入 Hook
 import { useLogger } from './useLogger.ts';
 import { useWebSocket } from '@vueuse/core';
 import { createDiscreteApi } from 'naive-ui';
-
-// 引入 Store
 import { useTreeStore } from '@/store/modules/tree.ts';
-
-// 类型
-import type { Ref } from 'vue';
-import type { customTreeOption } from '@/hooks/interface';
-
+import { useParamsStore } from '@/store/modules/params.ts';
 import { generateWsURL, onWebsocketOpen, onWebsocketWrong } from './helper';
 import { updateIcon, wsIsActivated } from '@/components/CustomTerminal/helper/index.ts';
-import { useParamsStore } from '@/store/modules/params.ts';
+
+import type { Ref } from 'vue';
+import type { customTreeOption } from '@/hooks/interface';
 
 const { debug } = useLogger('K8s');
 const { message } = createDiscreteApi(['message']);
@@ -47,46 +40,48 @@ export const useK8s = () => {
 
     /**
      * @description 点击节点触发异步 Load 或者直接连接终端
-     * @param treeNode
+     * @param node
      */
-    const syncLoadNodes = (treeNode: customTreeOption) => {
-        if (!treeNode) return;
+    const syncLoadNodes = (node: customTreeOption) => {
+        if (!node) return;
 
-        if (!beforeLoad(treeNode)) return;
+        if (!beforeLoad(node)) return;
 
         debug('Start Load Tree Node ....');
 
-        const loadDate: customTreeOption = {
-            id: terminalId.value,
-            pod: treeNode.pod || '',
+        const currentNode: customTreeOption = {
             type: 'TERMINAL_K8S_TREE',
-            k8s_id: treeNode.id,
-            namespace: treeNode.namespace || ''
+            k8s_id: node.k8s_id,
+            pod: node.pod || '',
+            namespace: node.namespace || ''
         };
 
         if (wsIsActivated(socket)) {
-            socket?.send(JSON.stringify(loadDate));
+            socket?.send(JSON.stringify(currentNode));
         }
     };
 
     /**
      * @description 初始化节点
      * @param key
-     * @param label
+     * @param rootNodeName
      */
-    const initTree = (key: string, label: string) => {
-        treeStore.setTreeNodes({
-            key,
-            label,
+    const initTree = (key: string, rootNodeName: string) => {
+        const treeRootNode: customTreeOption = {
             id: key,
-            k8s_id: uuidv4(),
+            key,
+            label: rootNodeName,
+            k8s_id: uuid(),
             isLeaf: false,
             isParent: true,
             prefix: () =>
                 h(NIcon, null, {
                     default: () => h(Folder)
                 })
-        });
+        };
+
+        treeStore.setTreeNodes(treeRootNode);
+        treeStore.setCurrentNode(treeRootNode);
     };
 
     /**
@@ -94,18 +89,17 @@ export const useK8s = () => {
      * @param name
      * @param nodeId
      */
-    const handleChildNodes = (name: string, nodeId: string) => {
+    const handleChildNodes = (name: string, nodeId: string): customTreeOption => {
         const node = currentNode.value;
 
         if (!node) {
             debug('currentNode is undefined or null');
-            return null;
+            return {};
         }
 
         const childNode: customTreeOption = {
-            id: nodeId,
-            key: uuidv4(),
-            k8s_id: uuidv4(),
+            key: uuid(),
+            k8s_id: uuid(),
             label: name,
             isLeaf: false,
             prefix: () =>
@@ -120,19 +114,19 @@ export const useK8s = () => {
             childNode.namespace = node.namespace;
             childNode.pod = name;
         } else if (node.namespace && node.pod && !node.container) {
-            childNode.namespace = node.namespace;
+            childNode.isLeaf = true;
+            childNode.id = nodeId;
             childNode.pod = node.pod;
             childNode.container = name;
-            childNode.isLeaf = true;
+            childNode.namespace = node.namespace;
             childNode.prefix = () =>
-                h(SvgIcon, {
-                    name: 'k8s',
-                    iconStyle: {
-                        width: '14px',
-                        height: '14px',
-                        fill: '#D8D8D8'
+                h(
+                    NIcon,
+                    { size: 20 },
+                    {
+                        default: () => h(Kubernetes)
                     }
-                });
+                );
         }
 
         return childNode;
@@ -147,20 +141,14 @@ export const useK8s = () => {
             const nodeId = msg.id;
             const data = JSON.parse(msg.data);
 
-            if (!currentNode.value) {
-                debug('currentNode is undefined or null');
-                return [];
-            }
-
-            const childNodes = data.map((name: string) => {
+            const childNodes = data.map((name: string): customTreeOption => {
                 return handleChildNodes(name, nodeId);
             });
 
+            // 如果当前鼠标点击节点没有 children，则为 treeNode 增加子元素
             if (!currentNode.value.children && !currentNode.value.isLeaf) {
-                currentNode.value.children = childNodes;
+                return treeStore.setChildren(childNodes);
             }
-
-            return childNodes;
         } catch (e) {
             message.error(`Error parsing message or updating tree nodes: ${e}`);
             return [];
@@ -182,17 +170,15 @@ export const useK8s = () => {
 
         switch (msg.type) {
             case 'CONNECT': {
-                terminalId.value = msg.id;
-
                 const info = JSON.parse(msg.data);
+                const rootNodeName = info.asset.name;
 
+                terminalId.value = msg.id;
                 paramsStore.setSetting(info.setting);
-
                 updateIcon(info.setting);
 
-                // 初始化 Tree
                 treeStore.setConnectInfo(info);
-                initTree(msg.id, info.asset.name);
+                initTree(msg.id, rootNodeName);
 
                 break;
             }
@@ -210,6 +196,7 @@ export const useK8s = () => {
                 break;
             }
             default: {
+                break;
             }
         }
     };
