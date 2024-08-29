@@ -1,5 +1,4 @@
 import { resolve } from 'path';
-import { createSvgIconsPlugin } from 'vite-plugin-svg-icons';
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
 import { manualChunksPlugin } from 'vite-plugin-webpackchunkname';
 import { defineConfig, loadEnv, ConfigEnv, UserConfig } from 'vite';
@@ -19,15 +18,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     const env = loadEnv(mode, root);
 
     return {
-        plugins: [
-            vue(),
-            manualChunksPlugin(),
-            createSvgIconsPlugin({
-                iconDirs: [resolve(process.cwd(), 'src/asset/icons')],
-                symbolId: 'icon-[dir]-[name]'
-            }),
-            Components({ dts: true, resolvers: [NaiveUiResolver()] })
-        ],
+        plugins: [vue(), manualChunksPlugin(), Components({ dts: true, resolvers: [NaiveUiResolver()] })],
         resolve: {
             extensions: ['.js', '.ts', '.vue', '.json'],
             alias: {
