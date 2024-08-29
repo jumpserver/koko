@@ -239,8 +239,9 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             message.info(`${data.user} ${t('ResumeSession')}`);
             break;
         }
-        case 'ClOSE': {
+        case 'CLOSE': {
             enableShare.value = false;
+
             notification.error({
                 content: t('WebSocketClosed'),
                 duration: 50000

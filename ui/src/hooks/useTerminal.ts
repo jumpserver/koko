@@ -274,10 +274,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             default: {
-                option.emitCallback &&
-                    option.emitCallback('socketData', socketData.type, socketData, terminal);
+                break;
             }
         }
+
+        option.emitCallback && option.emitCallback('socketData', socketData.type, socketData, terminal);
     };
 
     /**
