@@ -6,7 +6,7 @@
     &.active {
         .tree-icon {
             //fill: #1ab394 !important;
-            fill: #ffffff !important;
+            color: #ffffff !important;
         }
 
         &::before {
@@ -23,7 +23,3 @@
     }
 }
 
-.tree-icon:hover {
-    //fill: #1ab394 !important;
-    fill: #fff !important;
-}

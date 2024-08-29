@@ -5,20 +5,20 @@
         class="py-[5px] w-full icon-wrapper"
         :class="{ active: isActive }"
     >
-        <svg-icon class="tree-icon" :name="name" :icon-style="iconStyle" />
+        <n-icon
+            :component="TreeIcon"
+            color="#646A73"
+            size="30"
+            class="hover:!text-white transition-all duration-300 cursor-pointer tree-icon"
+        />
     </n-button>
 </template>
 
 <script setup lang="ts">
-import { CSSProperties, ref } from 'vue';
+import { ref } from 'vue';
+import { Tree as TreeIcon } from '@vicons/carbon';
 
 import mittBus from '@/utils/mittBus.ts';
-import SvgIcon from '@/components/SvgIcon/index.vue';
-
-defineProps<{
-    name: string;
-    iconStyle: CSSProperties;
-}>();
 
 const isActive = ref(true);
 

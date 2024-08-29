@@ -292,7 +292,7 @@ const handleClose = (name: string) => {
 const findNodeById = (id: string): void => {
     const searchNode = (nodes: customTreeOption[]) => {
         for (const node of nodes) {
-            if (node.id === id) {
+            if (node.key === id) {
                 treeStore.setCurrentNode(node);
                 return true;
             }
