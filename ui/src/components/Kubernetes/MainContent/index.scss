@@ -13,12 +13,14 @@ $--el-main-bg-color: #1e1e1e;
         height: 35px;
     }
 
-    .n-tabs-pad {
-        //border: none;
+    :deep(.n-tabs-tab-pad) {
+        display: none;
     }
 
+
     :deep(.n-tabs-tab) {
-        //border: none !important;
+        background-color: #2D2D2D !important;
+        border: none !important;
 
         .n-tabs-tab__label {
             color: #969696;
@@ -49,13 +51,6 @@ $--el-main-bg-color: #1e1e1e;
         }
     }
 
-    :deep(.n-tabs-nav__suffix) {
-        border-left: 1px solid #3C3C3C;
-        border-bottom: 0;
-        border-bottom-left-radius: 5px;
-        //border-top-left-radius: 5px;
-        overflow: hidden;
-    }
 }
 
 .k8s-terminal {

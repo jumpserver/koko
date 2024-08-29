@@ -1,9 +1,5 @@
 <template>
-    <n-flex
-        align="center"
-        class="h-[35px] bg-[#3C3C3C] border-b-[1px] border-[#252526]"
-        style="flex-wrap: nowrap"
-    >
+    <n-flex align="center" class="h-[35px] bg-[#3C3C3C]" style="flex-wrap: nowrap">
         <n-flex>
             <Logo class="ml-[7px]" :logo-image="setting.INTERFACE?.logo_logout" />
         </n-flex>

@@ -33,10 +33,10 @@
                 </n-scrollbar>
             </n-tab-pane>
             <template v-slot:suffix>
-                <!--                <TabSuffix />-->
+                <!-- <TabSuffix /> -->
             </template>
         </n-tabs>
-        <!--        <Tip v-if="panels.length === 0" />-->
+        <!-- <Tip v-if="panels.length === 0" /> -->
     </n-layout>
     <Settings :settings="settings" />
 </template>
@@ -284,9 +284,16 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
 
 // 处理关闭标签页事件
 const handleClose = (name: string) => {
-    // message.info(`已关闭: ${name}`);
     const index = panels.value.findIndex(panel => panel.name === name);
+
     panels.value.splice(index, 1);
+
+    nextTick(() => {
+        const panelLength = panels.value.length;
+        if (panelLength >= 1) {
+            nameRef.value = panels.value[panelLength - 1].name as string;
+        }
+    });
 };
 
 const findNodeById = (id: string): void => {

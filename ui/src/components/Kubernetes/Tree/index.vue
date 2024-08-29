@@ -4,7 +4,6 @@
             <template #header>
                 <n-flex align="center" justify="space-between">
                     {{ t('KubernetesManagement') }}
-                    <n-icon size="16px" :component="EllipsisHorizontal" class="mr-2.5 cursor-pointer" />
                 </n-flex>
             </template>
             <n-descriptions-item class="h-full">
@@ -45,7 +44,7 @@
             :x="dropdownX"
             :y="dropdownY"
             @select="handleSelect"
-            @clickoutside="handleClickoutside"
+            @clickoutside="handleClickOutside"
         />
     </div>
 </template>
@@ -61,7 +60,8 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import mittBus from '@/utils/mittBus.ts';
 
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
-import { Folder, FolderOpenOutline, EllipsisHorizontal, ExpandSharp, LinkSharp } from '@vicons/ionicons5';
+import { Folder, FolderOpenOutline } from '@vicons/ionicons5';
+import { Link, ExpandCategories } from '@vicons/carbon';
 
 const { t } = useI18n();
 const treeStore = useTreeStore();
@@ -84,12 +84,14 @@ const allOptions = [
     {
         label: '展开',
         key: 'expand',
-        icon: () => h(NIcon, null, { default: () => h(ExpandSharp) })
+        // disabled: true,
+        icon: () => h(NIcon, null, { default: () => h(ExpandCategories) })
     },
     {
         label: '连接',
         key: 'connect',
-        icon: () => h(NIcon, null, { default: () => h(LinkSharp) })
+        // disabled: true,
+        icon: () => h(NIcon, null, { default: () => h(Link) })
     }
 ];
 
@@ -195,7 +197,7 @@ const handleSelect = (key: string, _option: DropdownOption) => {
     }
 };
 
-const handleClickoutside = () => {
+const handleClickOutside = () => {
     showDropdown.value = false;
 };
 </script>
