@@ -171,52 +171,55 @@ export const handleTerminalOnData = (
     socket: WebSocket
 ) => {
     const terminalStore = useTerminalStore();
-
     const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
+    // 如果未开启 Zmodem 且当前在 Zmodem 状态，不允许输入
     if (!enableZmodem.value && zmodemStatus.value) {
         return message.warning('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
     }
 
     data = preprocessInput(data, config);
-
     const eventType = type === 'k8s' ? 'TERMINAL_K8S_DATA' : 'TERMINAL_DATA';
 
+    // 如果类型是 k8s，处理 k8s 的逻辑
     if (type === 'k8s') {
         const treeStore = useTreeStore();
         const { currentNode } = storeToRefs(treeStore);
+        const node = currentNode.value;
 
-        if (currentNode.value.children) {
-            const currentItem = currentNode.value.children[0];
+        // 获取默认的消息体
+        const messageData = {
+            data: data,
+            id: terminalId,
+            type: eventType,
+            pod: '',
+            k8s_id: node.k8s_id,
+            namespace: '',
+            container: ''
+        };
 
-            return socket.send(
-                JSON.stringify({
-                    data: data,
-                    id: terminalId,
-                    type: eventType,
-                    pod: currentItem.pod,
-                    k8s_id: currentItem.k8s_id,
-                    namespace: currentItem.namespace,
-                    container: currentItem.container
-                })
-            );
-        } else {
-            return socket.send(
-                JSON.stringify({
-                    data: data,
-                    id: terminalId,
-                    type: eventType,
-                    pod: '',
-                    k8s_id: currentNode.value.k8s_id,
-                    namespace: '',
-                    container: ''
-                })
-            );
+        // 如果有子节点并且是父节点的处理
+        if (node.children && node.isParent) {
+            return socket.send(JSON.stringify(messageData));
         }
+
+        // 如果有子节点但不是父节点，取第一个子节点的信息
+        if (node.children && node.children.length > 0) {
+            const currentItem = node.children[0];
+            Object.assign(messageData, {
+                pod: currentItem.pod,
+                k8s_id: currentItem.k8s_id,
+                namespace: currentItem.namespace,
+                container: currentItem.container
+            });
+        }
+
+        // 发送消息
+        return socket.send(JSON.stringify(messageData));
     }
 
+    // 处理非 k8s 的情况
     sendEventToLuna('KEYBOARDEVENT', '');
-
     socket.send(formatMessage(terminalId, eventType, data));
 };
 

@@ -141,13 +141,6 @@ watch(
     }
 );
 
-watch(
-    () => shareId.value,
-    value => {
-        console.log(value);
-    }
-);
-
 const copyShareURL = () => {
     if (!shareId.value) return;
     if (!props.enableShare) return;

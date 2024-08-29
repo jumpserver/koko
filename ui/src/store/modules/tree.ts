@@ -8,22 +8,35 @@ export const useTreeStore = defineStore('tree', {
     state: (): ITreeState => ({
         connectInfo: null,
         treeNodes: [],
-        loadingTreeNode: false,
         currentNode: {}
     }),
     actions: {
         setTreeNodes(nodes: TreeOption) {
             this.treeNodes.push(nodes);
-            this.currentNode = nodes;
+        },
+        setChildren(nodes: customTreeOption[]) {
+            const updateChildren = (tree: TreeOption[]) => {
+                for (const node of tree) {
+                    if (node.k8s_id === this.currentNode.k8s_id) {
+                        node.children = nodes;
+                        return true;
+                    } else if (node.children && node.children.length > 0) {
+                        const found = updateChildren(node.children);
+                        if (found) return true;
+                    }
+                }
+                return false;
+            };
+
+            if (this.treeNodes.length > 0) {
+                updateChildren(this.treeNodes);
+            }
         },
         setConnectInfo(info: any) {
             this.connectInfo = info;
         },
         setCurrentNode(currentNode: customTreeOption) {
             this.currentNode = currentNode;
-        },
-        setLoading(loading: boolean) {
-            this.loadingTreeNode = loading;
         }
     }
 });
