@@ -277,8 +277,8 @@ const onEvent = (event: string, data: any) => {
     :deep(.terminal-container) {
         overflow: hidden;
         .terminal {
-            padding-top: 10px;
-            padding-left: 10px;
+            //padding-top: 10px;
+            //padding-left: 10px;
         }
 
         .xterm-viewport {
