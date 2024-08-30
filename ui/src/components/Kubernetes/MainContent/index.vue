@@ -6,10 +6,10 @@
             type="card"
             tab="show:lazy"
             tab-style="min-width: 80px;"
+            class="header-tab relative"
             v-model:value="nameRef"
             @close="handleClose"
-            @update:value="handleChangeTab"
-            class="header-tab relative"
+            @update:value="useDebounceFn(() => handleChangeTab, 300)"
         >
             <n-tab-pane
                 v-for="panel of panels"
@@ -45,13 +45,7 @@
 import { storeToRefs } from 'pinia';
 import { updateIcon } from '@/components/CustomTerminal/helper';
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import {
-    ApertureOutline,
-    LockClosedOutline,
-    PersonAdd,
-    PersonOutline,
-    ShareSocialOutline
-} from '@vicons/ionicons5';
+import { ColorPalette, UserAvatar, Activity, NotSent, Share as ShareIcon } from '@vicons/carbon';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -67,16 +61,17 @@ import { NMessageProvider, TabPaneProps, useDialog, useNotification } from 'naiv
 
 import type { Ref } from 'vue';
 import type { ISettingProp, shareUser } from '@/views/interface';
+import type { customTreeOption } from '@/hooks/interface';
 
-import { useI18n } from 'vue-i18n';
-import { v4 as uuidv4 } from 'uuid';
-import { useMessage } from 'naive-ui';
+import { v4 as uuid } from 'uuid';
 import { Terminal } from '@xterm/xterm';
+import { useI18n } from 'vue-i18n';
+import { useMessage } from 'naive-ui';
+import { useDebounceFn } from '@vueuse/core';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-import { customTreeOption } from '@/hooks/interface';
 
 const message = useMessage();
 const { debug } = useLogger('K8s-CustomTerminal');
@@ -99,9 +94,9 @@ const { connectInfo, treeNodes } = storeToRefs(treeStore);
 
 const nameRef = ref('');
 const sessionId = ref('');
+const enableShare = ref(false);
 const terminalType = ref('k8s');
 const themeName = ref('Default');
-const enableShare = ref(false);
 const terminalRef: Ref<any[]> = ref([]);
 const panels: Ref<TabPaneProps[]> = ref([]);
 const userOptions = ref<shareUser[]>([]);
@@ -112,7 +107,7 @@ const settings = computed((): ISettingProp[] => {
     return [
         {
             title: t('ThemeConfig'),
-            icon: ApertureOutline,
+            icon: ColorPalette,
             disabled: () => false,
             click: () => {
                 dialog.success({
@@ -134,7 +129,7 @@ const settings = computed((): ISettingProp[] => {
         },
         {
             title: t('Share'),
-            icon: ShareSocialOutline,
+            icon: ShareIcon,
             disabled: () => !enableShare.value,
             click: () => {
                 dialog.success({
@@ -161,12 +156,12 @@ const settings = computed((): ISettingProp[] => {
         },
         {
             title: t('User'),
-            icon: PersonOutline,
+            icon: UserAvatar,
             disabled: () => Object.keys(onlineUsersMap).length < 1,
             content: Object.values(onlineUsersMap)
                 .map((item: any) => {
                     item.name = item.user;
-                    item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
+                    item.icon = item.writable ? markRaw(Activity) : markRaw(NotSent);
                     item.tip = item.writable ? t('Writable') : t('ReadOnly');
                     return item;
                 })
@@ -282,7 +277,11 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     }
 };
 
-// 处理关闭标签页事件
+/**
+ * 处理标签关闭
+ *
+ * @param name
+ */
 const handleClose = (name: string) => {
     const index = panels.value.findIndex(panel => panel.name === name);
 
@@ -296,6 +295,11 @@ const handleClose = (name: string) => {
     });
 };
 
+/**
+ * 递归查询切换标签时当前 tab 的 key，并重新设置 currentNode
+ *
+ * @param id
+ */
 const findNodeById = (id: string): void => {
     const searchNode = (nodes: customTreeOption[]) => {
         for (const node of nodes) {
@@ -314,6 +318,11 @@ const findNodeById = (id: string): void => {
     searchNode(treeNodes.value);
 };
 
+/**
+ * 切换标签
+ *
+ * @param value
+ */
 const handleChangeTab = (value: string) => {
     nameRef.value = value;
 
@@ -352,7 +361,7 @@ onMounted(() => {
                     if (cols && rows) {
                         const sendData = {
                             id: currentNode.id,
-                            k8s_id: currentNode.k8s_id || uuidv4(),
+                            k8s_id: currentNode.k8s_id || uuid(),
                             namespace: currentNode.namespace || '',
                             pod: currentNode.pod || '',
                             container: currentNode.container || '',
