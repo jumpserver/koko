@@ -9,7 +9,7 @@
             class="header-tab relative"
             v-model:value="nameRef"
             @close="handleClose"
-            @update:value="useDebounceFn(() => handleChangeTab, 300)"
+            @update:value="handleChangeTab"
         >
             <n-tab-pane
                 v-for="panel of panels"
