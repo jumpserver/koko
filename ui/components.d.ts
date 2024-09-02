@@ -55,7 +55,6 @@ declare module 'vue' {
     Settings: typeof import('./src/components/Settings/index.vue')['default']
     Share: typeof import('./src/components/Share/index.vue')['default']
     SideTop: typeof import('./src/components/Kubernetes/Sidebar/sideTop.vue')['default']
-    SvgIcon: typeof import('./src/components/SvgIcon/index.vue')['default']
     TabSuffix: typeof import('./src/components/Kubernetes/MainContent/components/TabSuffix/index.vue')['default']
     ThemeConfig: typeof import('./src/components/ThemeConfig/index.vue')['default']
     Tip: typeof import('./src/components/Kubernetes/MainContent/components/Tip/index.vue')['default']

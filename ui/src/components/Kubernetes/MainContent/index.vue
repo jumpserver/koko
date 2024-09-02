@@ -2,6 +2,7 @@
     <n-layout :native-scrollbar="false" content-style="height: 100%">
         <n-tabs
             closable
+            ref="el"
             size="small"
             type="card"
             tab="show:lazy"
@@ -45,10 +46,24 @@
 import { storeToRefs } from 'pinia';
 import { updateIcon } from '@/components/CustomTerminal/helper';
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import { ColorPalette, UserAvatar, Activity, NotSent, Share as ShareIcon } from '@vicons/carbon';
+import {
+    Stop,
+    Home,
+    Paste,
+    Insert,
+    NotSent,
+    Activity,
+    Keyboard,
+    UserAvatar,
+    ColorPalette,
+    Share as ShareIcon
+} from '@vicons/carbon';
+import { ArrowDown, ArrowUp, ArrowForward, ArrowBack } from '@vicons/ionicons5';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
+
+// import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
 
 // import Tip from './components/Tip/index.vue';
 import Share from '@/components/Share/index.vue';
@@ -67,6 +82,7 @@ import { v4 as uuid } from 'uuid';
 import { Terminal } from '@xterm/xterm';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
+import { readText } from 'clipboard-polyfill';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
@@ -91,6 +107,8 @@ const terminalStore = useTerminalStore();
 const { setting } = storeToRefs(paramsStore);
 const { connectInfo, treeNodes } = storeToRefs(treeStore);
 
+const el = ref();
+
 const nameRef = ref('');
 const sessionId = ref('');
 const enableShare = ref(false);
@@ -105,6 +123,7 @@ const onlineUsersMap = reactive<{ [key: string]: any }>({});
 const settings = computed((): ISettingProp[] => {
     return [
         {
+            label: 'ThemeConfig',
             title: t('ThemeConfig'),
             icon: ColorPalette,
             disabled: () => false,
@@ -127,6 +146,7 @@ const settings = computed((): ISettingProp[] => {
             }
         },
         {
+            label: 'Share',
             title: t('Share'),
             icon: ShareIcon,
             disabled: () => !enableShare.value,
@@ -154,6 +174,7 @@ const settings = computed((): ISettingProp[] => {
             }
         },
         {
+            label: 'User',
             title: t('User'),
             icon: UserAvatar,
             disabled: () => Object.keys(onlineUsersMap).length < 1,
@@ -182,6 +203,79 @@ const settings = computed((): ISettingProp[] => {
                     }
                 });
             }
+        },
+        {
+            label: 'Keyboard',
+            title: t('Keyboard shortcuts'),
+            icon: Keyboard,
+            content: [
+                {
+                    name: 'Ctrl + C',
+                    icon: Stop,
+                    tip: t('Stop'),
+                    click: () => {
+                        handleWriteData('Stop');
+                    }
+                },
+                {
+                    name: 'Command/Ctrl + V',
+                    icon: Paste,
+                    tip: t('Paste'),
+                    click: () => {
+                        handleWriteData('Paste');
+                    }
+                },
+                {
+                    name: 'Home',
+                    icon: Home,
+                    tip: t('Home'),
+                    click: () => {
+                        handleWriteData('Home');
+                    }
+                },
+                {
+                    name: 'Insert',
+                    icon: Insert,
+                    tip: t('Insert'),
+                    click: () => {
+                        handleWriteData('Insert');
+                    }
+                },
+                {
+                    name: 'Arrow Up',
+                    icon: ArrowUp,
+                    tip: t('ArrowUp'),
+                    click: () => {
+                        handleWriteData('ArrowUp');
+                    }
+                },
+                {
+                    name: 'Arrow Down',
+                    icon: ArrowDown,
+                    tip: t('ArrowDown'),
+                    click: () => {
+                        handleWriteData('ArrowDown');
+                    }
+                },
+                {
+                    name: 'Arrow Left',
+                    icon: ArrowBack,
+                    tip: t('ArrowBack'),
+                    click: () => {
+                        handleWriteData('ArrowLeft');
+                    }
+                },
+                {
+                    name: 'Arrow Right',
+                    icon: ArrowForward,
+                    tip: t('ArrowForward'),
+                    click: () => {
+                        handleWriteData('ArrowRight');
+                    }
+                }
+            ],
+            disabled: () => false,
+            click: () => {}
         }
     ];
 });
@@ -191,6 +285,10 @@ const resetShareDialog = () => {
     paramsStore.setShareCode('');
     dialog.destroyAll();
 };
+
+// const draggable = useDraggable<UseDraggableReturn>(el, panels.value, {
+//     animation: 150
+// });
 
 const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     switch (msgType) {
@@ -288,6 +386,7 @@ const handleClose = (name: string) => {
 
     nextTick(() => {
         const panelLength = panels.value.length;
+
         if (panelLength >= 1) {
             nameRef.value = panels.value[panelLength - 1].name as string;
         }
@@ -330,7 +429,76 @@ const handleChangeTab = (value: string) => {
     terminalStore.setTerminalConfig('currentTab', nameRef.value);
 };
 
+/**
+ * 向终端写入快捷命令
+ *
+ * @param type
+ */
+const handleWriteData = async (type: string) => {
+    if (!terminalRef.value || terminalRef.value.length === 0) {
+        message.error(t('No terminal instances available'));
+        return;
+    }
+    const terminalInstance: Terminal = terminalRef.value[0]?.terminalRef;
+    if (!terminalInstance) {
+        console.error('Terminal instance is not available');
+        return;
+    }
+
+    switch (type) {
+        case 'Paste': {
+            terminalInstance.paste(await readText());
+            break;
+        }
+        case 'Stop': {
+            terminalInstance.paste('^C');
+            break;
+        }
+        case 'ArrowUp': {
+            terminalInstance.paste('\x1b[A');
+            break;
+        }
+        case 'ArrowDown': {
+            terminalInstance.paste('\x1b[B');
+            break;
+        }
+        case 'ArrowLeft': {
+            terminalInstance.paste('\x1b[D');
+            break;
+        }
+        case 'ArrowRight': {
+            terminalInstance.paste('\x1b[C');
+            break;
+        }
+    }
+
+    requestAnimationFrame(() => {
+        terminalInstance.focus();
+    });
+};
+
 onMounted(() => {
+    const tabsElement = el.value?.$el?.querySelector('.n-tabs-tab');
+
+    if (tabsElement) {
+        // 使用 useDraggable 使 n-tabs 支持拖拽排序
+        // draggable(tabsElement, panels.value, {
+        //     animation: 150,
+        //     onEnd: event => {
+        //         // 处理拖拽结束后的面板顺序更新
+        //         const movedPanel = panels.value.splice(event.oldIndex, 1)[0];
+        //         panels.value.splice(event.newIndex, 0, movedPanel);
+        //
+        //         // 更新当前选中的标签
+        //         if (panels.value.length > 0) {
+        //             nameRef.value = panels.value[Math.min(event.newIndex, panels.value.length - 1)]
+        //                 .name as string;
+        //             terminalStore.setTerminalConfig('currentTab', nameRef.value);
+        //         }
+        //     }
+        // });
+    }
+
     mittBus.on('connect-terminal', currentNode => {
         // 检查 currentNode.key 是否已经存在
         const existingPanel = panels.value.find(panel => panel.name === currentNode.key);

@@ -81,7 +81,6 @@ export const preprocessInput = (data: string, config: ILunaConfig) => {
     if (config.backspaceAsCtrlH === '1') {
         if (data.charCodeAt(0) === AsciiDel) {
             data = String.fromCharCode(AsciiBackspace);
-            message.info('backspaceAsCtrlH enabled');
         }
     }
 
@@ -90,8 +89,28 @@ export const preprocessInput = (data: string, config: ILunaConfig) => {
     if (config.ctrlCAsCtrlZ === '1') {
         if (data.charCodeAt(0) === AsciiCtrlC) {
             data = String.fromCharCode(AsciiCtrlZ);
-            message.info('ctrlCAsCtrlZ enabled');
         }
     }
+
+    if (data === '^C') {
+        data = '\x03';
+    }
+
     return data;
+};
+
+export const getOs = () => {
+    const { platform, userAgent } = navigator;
+
+    if (platform.startsWith('Win') || userAgent.includes('Windows')) {
+        return 'Windows';
+    }
+
+    if (platform.startsWith('Mac') || userAgent.includes('Macintosh')) {
+        return 'macOS';
+    }
+
+    if (platform.startsWith('Linux') || userAgent.includes('Linux')) {
+        return 'Linux';
+    }
 };

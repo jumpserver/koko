@@ -16,7 +16,7 @@
                                 {{ item.title }}
                             </n-text>
                         </n-button>
-                        <n-list class="mt-[-15px]" clickable v-else>
+                        <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'User'">
                             <n-list-item>
                                 <n-thing class="ml-[15px] mt-[10px]">
                                     <template #header>
@@ -41,7 +41,7 @@
                                                         round
                                                         strong
                                                         size="small"
-                                                        class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[150px] cursor-pointer"
+                                                        class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer"
                                                         :bordered="false"
                                                         :type="
                                                             item.content.indexOf(detail) !== 0
@@ -57,6 +57,57 @@
                                                         </n-text>
                                                         <template #icon>
                                                             <n-icon :component="detail.icon" />
+                                                        </template>
+                                                    </n-tag>
+                                                </template>
+                                                <template #default>
+                                                    <span>{{ detail.tip }}</span>
+                                                </template>
+                                            </n-popover>
+                                        </n-flex>
+                                    </template>
+                                </n-thing>
+                            </n-list-item>
+                        </n-list>
+                        <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'Keyboard'">
+                            <n-list-item>
+                                <n-thing class="ml-[15px] mt-[10px]">
+                                    <template #header>
+                                        <n-flex align="center" justify="center">
+                                            <n-icon :component="item.icon" :size="18"></n-icon>
+                                            <n-text class="text-[14px]">
+                                                {{ item.title }}
+                                            </n-text>
+                                        </n-flex>
+                                    </template>
+                                    <template #description>
+                                        <n-flex size="small" style="margin-top: 4px">
+                                            <n-popover
+                                                trigger="hover"
+                                                placement="top"
+                                                v-for="detail of item.content"
+                                                :key="detail.name"
+                                            >
+                                                <template #trigger>
+                                                    <n-tag
+                                                        round
+                                                        strong
+                                                        type="info"
+                                                        size="small"
+                                                        class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] cursor-pointer"
+                                                        :bordered="false"
+                                                        :closable="false"
+                                                        @click="detail.click()"
+                                                    >
+                                                        <n-text class="cursor-pointer text-inherit">
+                                                            {{ detail.name }}
+                                                        </n-text>
+                                                        <template #icon>
+                                                            <n-icon
+                                                                size="16"
+                                                                class="ml-[5px] mr-[5px]"
+                                                                :component="detail.icon"
+                                                            />
                                                         </template>
                                                     </n-tag>
                                                 </template>
