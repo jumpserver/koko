@@ -9,7 +9,7 @@
             class="header-tab relative"
             v-model:value="nameRef"
             @close="handleClose"
-            @update:value="useDebounceFn(() => handleChangeTab, 300)"
+            @update:value="handleChangeTab"
         >
             <n-tab-pane
                 v-for="panel of panels"
@@ -67,7 +67,6 @@ import { v4 as uuid } from 'uuid';
 import { Terminal } from '@xterm/xterm';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { useDebounceFn } from '@vueuse/core';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
