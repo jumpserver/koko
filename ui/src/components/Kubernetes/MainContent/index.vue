@@ -286,6 +286,7 @@ const resetShareDialog = () => {
     dialog.destroyAll();
 };
 
+// @ts-ignore
 const draggable = useDraggable<UseDraggableReturn>(el, panels.value, {
     animation: 150
 });
