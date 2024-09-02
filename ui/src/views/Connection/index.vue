@@ -64,6 +64,7 @@ const onlineUsersMap = reactive<{ [key: string]: any }>({});
 const settings = computed((): ISettingProp[] => {
     return [
         {
+            label: 'ThemeConfig',
             title: t('ThemeConfig'),
             icon: ApertureOutline,
             disabled: () => false,
@@ -86,6 +87,7 @@ const settings = computed((): ISettingProp[] => {
             }
         },
         {
+            label: 'Share',
             title: t('Share'),
             icon: ShareSocialOutline,
             disabled: () => !enableShare.value,
@@ -113,6 +115,7 @@ const settings = computed((): ISettingProp[] => {
             }
         },
         {
+            label: 'User',
             title: t('User'),
             icon: PersonOutline,
             disabled: () => Object.keys(onlineUsersMap).length < 1,

@@ -4,6 +4,7 @@ import { Composer } from 'vue-i18n';
 export type TranslateFunction = Composer['t'];
 
 export interface ISettingProp {
+    label: string;
     title: string;
     icon: Component;
     disabled: () => any;
