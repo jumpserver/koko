@@ -3,7 +3,7 @@
         lazy
         :src="logoImage"
         alt="Logo 图片"
-        class="h-[35px] w-[35px] justify-center object-fill hover: cursor-pointer"
+        class="h-[30px] w-[30px] justify-center object-fill hover: cursor-pointer"
     />
 </template>
 

@@ -8,7 +8,7 @@
         <n-icon
             :component="TreeIcon"
             color="#646A73"
-            size="30"
+            size="26"
             class="hover:!text-white transition-all duration-300 cursor-pointer tree-icon"
         />
     </n-button>

@@ -8,8 +8,14 @@
             </template>
             <n-descriptions-item class="h-full">
                 <n-collapse arrow-placement="left" :default-expanded-names="['asset-tree']">
-                    <n-scrollbar style="max-height: calc(100vh - 30px)">
-                        <n-collapse-item title="Kubernetes" class="collapse-item" name="asset-tree">
+                    <n-scrollbar style="max-height: calc(100vh - 100px)">
+                        <n-collapse-item :title="treeNodes[0]?.label" class="collapse-item" name="asset-tree">
+                            <!-- <template #header>-->
+                            <!--     <n-icon :component="Kubernetes" size="18" />-->
+                            <!--     <n-text>-->
+                            <!--         {{ treeNodes[0]?.label }}-->
+                            <!--     </n-text>-->
+                            <!-- </template>-->
                             <n-tree
                                 cascade
                                 show-line
@@ -20,7 +26,7 @@
                                 check-strategy="all"
                                 checkbox-placement="left"
                                 :render-label="showToolTip"
-                                :data="treeNodes"
+                                :data="treeNodes[0]?.children"
                                 :node-props="nodeProps"
                                 :on-load="useDebounceFn(handleOnLoad, 300)"
                                 :pattern="searchPattern"
@@ -59,8 +65,9 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 
 import mittBus from '@/utils/mittBus.ts';
 
+// import { Kubernetes } from '@vicons/carbon';
+import { Folder, FolderOpen } from '@vicons/fa';
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
-import { Folder, FolderOpenOutline } from '@vicons/ionicons5';
 import { Link, ExpandCategories } from '@vicons/carbon';
 
 const { t } = useI18n();
@@ -107,19 +114,21 @@ const handleExpandCollapse = (
     meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
 ) => {
     expandedKeysRef.value = expandedKeys;
-    if (!meta.node) return;
+
     switch (meta.action) {
         case 'expand':
-            meta.node.prefix = () =>
-                h(NIcon, null, {
-                    default: () => h(FolderOpenOutline)
-                });
+            meta.node &&
+                (meta.node.prefix = () =>
+                    h(NIcon, null, {
+                        default: () => h(FolderOpen)
+                    }));
             break;
         case 'collapse':
-            meta.node.prefix = () =>
-                h(NIcon, null, {
-                    default: () => h(Folder)
-                });
+            meta.node &&
+                (meta.node.prefix = () =>
+                    h(NIcon, null, {
+                        default: () => h(Folder)
+                    }));
             break;
     }
 };
@@ -175,7 +184,8 @@ const handleOnLoad = (node: TreeOption) => {
         if (!expandedKeysRef.value.includes(expendKey)) {
             setTimeout(() => {
                 expandedKeysRef.value.push(expendKey);
-            }, 300);
+                handleExpandCollapse(expandedKeysRef.value, [], { node, action: 'expand' });
+            }, 200);
         }
     }
 
