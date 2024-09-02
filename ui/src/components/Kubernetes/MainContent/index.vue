@@ -63,7 +63,7 @@ import { ArrowDown, ArrowUp, ArrowForward, ArrowBack } from '@vicons/ionicons5';
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 
-import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
+// import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
 
 // import Tip from './components/Tip/index.vue';
 import Share from '@/components/Share/index.vue';
@@ -286,10 +286,9 @@ const resetShareDialog = () => {
     dialog.destroyAll();
 };
 
-// @ts-ignore
-const draggable = useDraggable<UseDraggableReturn>(el, panels.value, {
-    animation: 150
-});
+// const draggable = useDraggable<UseDraggableReturn>(el, panels.value, {
+//     animation: 150
+// });
 
 const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     switch (msgType) {
@@ -483,21 +482,21 @@ onMounted(() => {
 
     if (tabsElement) {
         // 使用 useDraggable 使 n-tabs 支持拖拽排序
-        draggable(tabsElement, panels.value, {
-            animation: 150,
-            onEnd: event => {
-                // 处理拖拽结束后的面板顺序更新
-                const movedPanel = panels.value.splice(event.oldIndex, 1)[0];
-                panels.value.splice(event.newIndex, 0, movedPanel);
-
-                // 更新当前选中的标签
-                if (panels.value.length > 0) {
-                    nameRef.value = panels.value[Math.min(event.newIndex, panels.value.length - 1)]
-                        .name as string;
-                    terminalStore.setTerminalConfig('currentTab', nameRef.value);
-                }
-            }
-        });
+        // draggable(tabsElement, panels.value, {
+        //     animation: 150,
+        //     onEnd: event => {
+        //         // 处理拖拽结束后的面板顺序更新
+        //         const movedPanel = panels.value.splice(event.oldIndex, 1)[0];
+        //         panels.value.splice(event.newIndex, 0, movedPanel);
+        //
+        //         // 更新当前选中的标签
+        //         if (panels.value.length > 0) {
+        //             nameRef.value = panels.value[Math.min(event.newIndex, panels.value.length - 1)]
+        //                 .name as string;
+        //             terminalStore.setTerminalConfig('currentTab', nameRef.value);
+        //         }
+        //     }
+        // });
     }
 
     mittBus.on('connect-terminal', currentNode => {
