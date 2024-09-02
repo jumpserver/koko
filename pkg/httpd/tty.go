@@ -108,6 +108,15 @@ func (h *tty) sendCloseMessage() {
 	h.ws.SendMessage(&closedMsg)
 }
 
+func (h *tty) sendK8SCloseMessage(KubernetesId string) {
+	closedMsg := Message{
+		Id:           h.ws.Uuid,
+		Type:         K8SClose,
+		KubernetesId: KubernetesId,
+	}
+	h.ws.SendMessage(&closedMsg)
+}
+
 func (h *tty) sendSessionMessage(data string) {
 	msg := Message{
 		Id:   h.ws.Uuid,
@@ -453,9 +462,12 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 		srv.Proxy()
 	}
 
-	if params.TargetType != srvconn.ProtocolK8s {
-		h.sendCloseMessage()
+	if params.TargetType == srvconn.ProtocolK8s {
+		delete(h.K8sClients, client.KubernetesId)
+		h.sendK8SCloseMessage(client.KubernetesId)
+		return
 	}
+	h.sendCloseMessage()
 	logger.Info("Ws tty proxy end")
 }
 

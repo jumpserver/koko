@@ -62,6 +62,7 @@ const (
 	TerminalK8SData   = "TERMINAL_K8S_DATA"
 	TerminalK8SBinary = "TERMINAL_K8S_BINARY"
 	TerminalK8SResize = "TERMINAL_K8S_RESIZE"
+	K8SClose          = "K8S_CLOSE"
 )
 
 type WindowSize struct {
