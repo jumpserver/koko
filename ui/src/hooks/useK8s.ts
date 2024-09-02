@@ -1,6 +1,6 @@
 import { NIcon } from 'naive-ui';
 import { v4 as uuid } from 'uuid';
-import { Folder } from '@vicons/ionicons5';
+import { Folder } from '@vicons/fa';
 import { Kubernetes } from '@vicons/carbon';
 
 import { ref, h } from 'vue';
@@ -79,6 +79,8 @@ export const useK8s = () => {
                     default: () => h(Folder)
                 })
         };
+
+        syncLoadNodes(treeRootNode);
 
         treeStore.setTreeNodes(treeRootNode);
         treeStore.setCurrentNode(treeRootNode);

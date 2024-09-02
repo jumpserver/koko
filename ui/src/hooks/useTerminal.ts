@@ -273,6 +273,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 terminal?.write(socketData.err);
                 break;
             }
+            case 'K8S_CLOSE': {
+                terminal?.attachCustomKeyEventHandler(() => {
+                    return false;
+                });
+
+                break;
+            }
             default: {
                 break;
             }
