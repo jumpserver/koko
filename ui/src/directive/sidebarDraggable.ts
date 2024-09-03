@@ -12,14 +12,17 @@ export const draggable = {
             if (newWidth >= 300 && newWidth <= 600) {
                 el.style.width = `${newWidth}px`;
 
-                // 更新传递的 ref 变量
-                binding.value = newWidth;
+                binding.value.width = newWidth;
             }
         };
 
         const mouseUpHandler = () => {
             document.removeEventListener('mousemove', mouseMoveHandler);
             document.removeEventListener('mouseup', mouseUpHandler);
+
+            if (binding.value.onDragEnd && typeof binding.value.onDragEnd === 'function') {
+                binding.value.onDragEnd(el, binding.value.width);
+            }
         };
 
         const mouseDownHandler = (event: MouseEvent) => {

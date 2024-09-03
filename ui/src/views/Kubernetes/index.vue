@@ -16,7 +16,7 @@
             collapsed
             collapse-mode="width"
             content-style="padding: 24px;"
-            v-draggable="sideWidth"
+            v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }"
             class="transition-width duration-300"
             :width="sideWidth"
             :collapsed-width="0"
@@ -52,22 +52,22 @@ import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
 import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
 
-import { onMounted, onUnmounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { BASE_WS_URL } from '@/config';
 
 const socket = ref();
 const sideWidth = ref(300);
 const isFolded = ref(false);
 
-const handleTreeClick = () => {
-    isFolded.value = !isFolded.value;
-    sideWidth.value = isFolded.value ? 0 : 300;
-};
-
 const { createTreeConnect, syncLoadNodes, reload } = useK8s();
 
 socket.value = createTreeConnect();
 
+/**
+ * 加载节点
+ *
+ * @param node
+ */
 const handleSyncLoad = (node: TreeOption) => {
     syncLoadNodes(node);
 
@@ -79,11 +79,23 @@ const handleSyncLoad = (node: TreeOption) => {
         if (tableElement && sideElement) {
             const tableWidth = tableElement.clientWidth;
 
+            sideWidth.value = tableWidth;
             sideElement.style.width = `${tableWidth}px`;
         }
     }, 300);
 };
 
+/**
+ * 点击 Tree 图标的回调
+ */
+const handleTreeClick = () => {
+    isFolded.value = !isFolded.value;
+    sideWidth.value = isFolded.value ? 0 : 300;
+};
+
+/**
+ * 重新加载
+ */
 const handleReloadTree = () => {
     if (socket.value) {
         socket.value.close();
@@ -93,6 +105,14 @@ const handleReloadTree = () => {
     const connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}` : '';
 
     reload(connectURL);
+};
+
+const handleDragEnd = (_el: HTMLElement, newWidth: number) => {
+    const tableElement = document.querySelector('.n-collapse') as HTMLElement;
+
+    nextTick(() => {
+        tableElement.style.width = newWidth + 'px';
+    });
 };
 
 onMounted(() => {
