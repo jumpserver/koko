@@ -21,16 +21,29 @@
                 class="bg-[#101014] pt-0"
             >
                 <n-scrollbar trigger="hover">
-                    <CustomTerminal
-                        ref="terminalRef"
-                        class="k8s-terminal"
-                        :socket="socket"
-                        :key="panel.name"
-                        :index-key="panel.name as string"
-                        :theme-name="themeName"
-                        :terminal-type="terminalType"
-                        @socketData="onSocketData"
-                    />
+                    <n-watermark
+                        cross
+                        selectable
+                        :rotate="-15"
+                        :font-size="16"
+                        :width="192"
+                        :height="128"
+                        :x-offset="12"
+                        :y-offset="28"
+                        :content="waterMarkContent"
+                        :line-height="16"
+                    >
+                        <CustomTerminal
+                            ref="terminalRef"
+                            class="k8s-terminal"
+                            :socket="socket"
+                            :key="panel.name"
+                            :index-key="panel.name as string"
+                            :theme-name="themeName"
+                            :terminal-type="terminalType"
+                            @socketData="onSocketData"
+                        />
+                    </n-watermark>
                 </n-scrollbar>
             </n-tab-pane>
             <template v-slot:suffix>
@@ -111,6 +124,7 @@ const el = ref();
 
 const nameRef = ref('');
 const sessionId = ref('');
+const waterMarkContent = ref('');
 const enableShare = ref(false);
 const terminalType = ref('k8s');
 const themeName = ref('Default');
@@ -297,6 +311,11 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             const sessionDetail = sessionInfo.session;
 
             const share = sessionInfo.permission.actions.includes('share');
+            const username = `${sessionDetail.user}`;
+
+            if (setting.value.SECURITY_WATERMARK_ENABLED) {
+                waterMarkContent.value = `${username}\n${sessionDetail.asset.split('(')[0]}`;
+            }
 
             if (sessionInfo.backspaceAsCtrlH) {
                 const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';

@@ -12,6 +12,7 @@ declare module 'vue' {
     Logo: typeof import('./src/components/Kubernetes/Sidebar/components/Logo/index.vue')['default']
     MainContent: typeof import('./src/components/Kubernetes/MainContent/index.vue')['default']
     NButton: typeof import('naive-ui')['NButton']
+    NButtonGroup: typeof import('naive-ui')['NButtonGroup']
     NCollapse: typeof import('naive-ui')['NCollapse']
     NCollapseItem: typeof import('naive-ui')['NCollapseItem']
     NConfigProvider: typeof import('naive-ui')['NConfigProvider']
