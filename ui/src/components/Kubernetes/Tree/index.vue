@@ -101,7 +101,7 @@ import { RefreshRound, LocationSearchingOutlined } from '@vicons/material';
 const { t } = useI18n();
 const treeStore = useTreeStore();
 
-const { treeNodes, currentNode } = storeToRefs(treeStore);
+const { treeNodes, root } = storeToRefs(treeStore);
 
 const emits = defineEmits<{
     (e: 'sync-load-node', data: TreeOption): void;
@@ -283,7 +283,7 @@ const handleSelect = (key: string, _option: DropdownOption) => {
  */
 const handleRootLink = (e: Event) => {
     e.stopPropagation();
-    mittBus.emit('connect-terminal', currentNode.value);
+    mittBus.emit('connect-terminal', root.value);
 };
 
 const handleClickOutside = () => {

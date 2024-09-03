@@ -8,7 +8,8 @@ export const useTreeStore = defineStore('tree', {
     state: (): ITreeState => ({
         connectInfo: null,
         treeNodes: [],
-        currentNode: {}
+        currentNode: {},
+        root: {}
     }),
     actions: {
         setTreeNodes(nodes: TreeOption) {
@@ -37,6 +38,9 @@ export const useTreeStore = defineStore('tree', {
         },
         setCurrentNode(currentNode: customTreeOption) {
             this.currentNode = currentNode;
+        },
+        setRoot(node: customTreeOption) {
+            this.root = node;
         }
     }
 });

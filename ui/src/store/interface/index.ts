@@ -54,6 +54,8 @@ export interface ITreeState {
     treeNodes: customTreeOption[];
 
     currentNode: customTreeOption;
+
+    root: customTreeOption;
 }
 
 export type ObjToKeyValArray<T> = {
