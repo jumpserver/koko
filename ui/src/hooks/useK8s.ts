@@ -1,7 +1,7 @@
 import { NIcon } from 'naive-ui';
 import { v4 as uuid } from 'uuid';
 import { Folder } from '@vicons/fa';
-import { Kubernetes } from '@vicons/carbon';
+import { Cube16Regular } from '@vicons/fluent';
 
 import { ref, h } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -124,9 +124,9 @@ export const useK8s = () => {
             childNode.prefix = () =>
                 h(
                     NIcon,
-                    { size: 20 },
+                    { size: 16 },
                     {
-                        default: () => h(Kubernetes)
+                        default: () => h(Cube16Regular)
                     }
                 );
         }
@@ -204,10 +204,17 @@ export const useK8s = () => {
     };
 
     /**
+     * 重新加载
+     */
+    const reload = (url: string) => {
+        createTreeConnect(url);
+    };
+
+    /**
      * 创建 Tree 的 Socket 连接
      */
-    const createTreeConnect = () => {
-        const connectURL = generateWsURL();
+    const createTreeConnect = (url?: string) => {
+        const connectURL = url ? url : generateWsURL();
 
         const { ws } = useWebSocket(connectURL, {
             protocols: ['JMS-KOKO'],
@@ -231,6 +238,7 @@ export const useK8s = () => {
     };
 
     return {
+        reload,
         syncLoadNodes,
         createTreeConnect
     };

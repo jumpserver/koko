@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="group">
         <n-descriptions label-placement="top" class="tree-wrapper">
             <template #header>
                 <n-flex align="center" justify="space-between">
@@ -7,15 +7,43 @@
                 </n-flex>
             </template>
             <n-descriptions-item class="h-full">
-                <n-collapse arrow-placement="left" :default-expanded-names="['asset-tree']">
+                <n-collapse arrow-placement="left" :accordion="true" :default-expanded-names="['asset-tree']">
                     <n-scrollbar style="max-height: calc(100vh - 100px)">
                         <n-collapse-item :title="treeNodes[0]?.label" class="collapse-item" name="asset-tree">
-                            <!-- <template #header>-->
-                            <!--     <n-icon :component="Kubernetes" size="18" />-->
-                            <!--     <n-text>-->
-                            <!--         {{ treeNodes[0]?.label }}-->
-                            <!--     </n-text>-->
-                            <!-- </template>-->
+                            <template #header-extra>
+                                <n-flex
+                                    justify="center"
+                                    style="gap: 8px 5px !important"
+                                    class="mr-[10px] !hidden group-hover:!flex"
+                                >
+                                    <template v-for="option of buttonGroups" :key="option.label">
+                                        <n-popover>
+                                            <template #trigger>
+                                                <n-button
+                                                    text
+                                                    class="w-[20px] h-[20px] p-[2px] hover:!bg-[#5A5D5E4F] rounded-[5px]"
+                                                    @click="
+                                                        (e: Event) => {
+                                                            option.click(e);
+                                                        }
+                                                    "
+                                                >
+                                                    <n-icon size="16" :component="option.icon" />
+                                                </n-button>
+                                            </template>
+                                            {{ option.label }}
+                                        </n-popover>
+                                    </template>
+                                </n-flex>
+                            </template>
+                            <n-input
+                                clearable
+                                size="small"
+                                placeholder="搜索"
+                                class="mb-[3px] pl-[4px]"
+                                v-if="showSearch"
+                                v-model:value="searchPattern"
+                            />
                             <n-tree
                                 cascade
                                 show-line
@@ -25,13 +53,13 @@
                                 class="tree-item"
                                 check-strategy="all"
                                 checkbox-placement="left"
+                                :node-props="nodeProps"
+                                :pattern="searchPattern"
                                 :render-label="showToolTip"
                                 :data="treeNodes[0]?.children"
-                                :node-props="nodeProps"
-                                :on-load="useDebounceFn(handleOnLoad, 300)"
-                                :pattern="searchPattern"
                                 :expanded-keys="expandedKeysRef"
                                 :allow-checking-not-loaded="true"
+                                :on-load="useDebounceFn(handleOnLoad, 300)"
                                 :on-update:expanded-keys="handleExpandCollapse"
                             />
                         </n-collapse-item>
@@ -65,23 +93,25 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 
 import mittBus from '@/utils/mittBus.ts';
 
-// import { Kubernetes } from '@vicons/carbon';
 import { Folder, FolderOpen } from '@vicons/fa';
-import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
 import { Link, ExpandCategories } from '@vicons/carbon';
+import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
+import { RefreshRound, LocationSearchingOutlined } from '@vicons/material';
 
 const { t } = useI18n();
 const treeStore = useTreeStore();
 
-const { treeNodes } = storeToRefs(treeStore);
+const { treeNodes, currentNode } = storeToRefs(treeStore);
 
 const emits = defineEmits<{
     (e: 'sync-load-node', data: TreeOption): void;
+    (e: 'reload-tree'): void;
 }>();
 
 const dropdownY = ref(0);
 const dropdownX = ref(0);
 const searchPattern = ref('');
+const showSearch = ref(false);
 const showDropdown = ref(false);
 const currentNodeInfo = ref();
 const expandedKeysRef = ref<string[]>([]);
@@ -99,6 +129,30 @@ const allOptions = [
         key: 'connect',
         // disabled: true,
         icon: () => h(NIcon, null, { default: () => h(Link) })
+    }
+];
+const buttonGroups = [
+    {
+        label: t('link'),
+        icon: Link,
+        click: (e: Event) => {
+            handleRootLink(e);
+        }
+    },
+    {
+        label: t('search'),
+        icon: LocationSearchingOutlined,
+        click: (e: Event) => {
+            e.stopPropagation();
+            showSearch.value = !showSearch.value;
+        }
+    },
+    {
+        label: t('refresh'),
+        icon: RefreshRound,
+        click: () => {
+            emits('reload-tree');
+        }
     }
 ];
 
@@ -134,7 +188,8 @@ const handleExpandCollapse = (
 };
 
 /**
- * @description 处理节点行为
+ * 处理节点行为
+ *
  * @param option
  */
 const nodeProps = ({ option }: { option: TreeOption }) => {
@@ -159,6 +214,11 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
     };
 };
 
+/**
+ * 过滤右键菜单行为
+ *
+ * @param option
+ */
 const handleFilter = (option: TreeOption) => {
     dropdownOptions.value = allOptions.filter(item => {
         if (option.isLeaf) {
@@ -171,6 +231,11 @@ const handleFilter = (option: TreeOption) => {
     });
 };
 
+/**
+ * 加载节点
+ *
+ * @param node
+ */
 const handleOnLoad = (node: TreeOption) => {
     let expendKey: string;
 
@@ -192,6 +257,12 @@ const handleOnLoad = (node: TreeOption) => {
     return false;
 };
 
+/**
+ * 右键菜单触发行为
+ *
+ * @param key
+ * @param _option
+ */
 const handleSelect = (key: string, _option: DropdownOption) => {
     showDropdown.value = false;
 
@@ -205,6 +276,14 @@ const handleSelect = (key: string, _option: DropdownOption) => {
             break;
         }
     }
+};
+
+/**
+ * 根节点连接
+ */
+const handleRootLink = (e: Event) => {
+    e.stopPropagation();
+    mittBus.emit('connect-terminal', currentNode.value);
 };
 
 const handleClickOutside = () => {
