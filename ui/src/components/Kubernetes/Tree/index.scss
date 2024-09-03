@@ -34,7 +34,7 @@
       margin-left: 15px;
 
       .n-collapse-item__content-inner {
-        padding-right: 10px;
+        padding-right: 15px;
         padding-top: 0;
 
         .tree-item .n-tree-node-wrapper {
@@ -46,6 +46,8 @@
 
             .n-tree-node-content__text {
               white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
             }
           }
         }
