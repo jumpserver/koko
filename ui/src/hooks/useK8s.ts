@@ -82,6 +82,7 @@ export const useK8s = () => {
 
         syncLoadNodes(treeRootNode);
 
+        treeStore.setRoot(treeRootNode);
         treeStore.setTreeNodes(treeRootNode);
         treeStore.setCurrentNode(treeRootNode);
     };
