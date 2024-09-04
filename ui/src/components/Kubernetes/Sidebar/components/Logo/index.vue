@@ -1,10 +1,12 @@
 <template>
-    <n-image
-        lazy
-        :src="logoImage"
-        alt="Logo 图片"
-        class="h-[30px] w-[30px] justify-center object-fill hover: cursor-pointer"
-    />
+    <n-spin :show="!logoImage" size="small">
+        <n-image
+            lazy
+            :src="logoImage"
+            alt=""
+            class="h-[30px] w-[30px] justify-center object-fill hover: cursor-pointer"
+        />
+    </n-spin>
 </template>
 
 <script setup lang="ts">

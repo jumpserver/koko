@@ -404,13 +404,12 @@ const handleClose = (name: string) => {
 
     panels.value.splice(index, 1);
 
-    // nextTick(() => {});
-
     const panelLength = panels.value.length;
 
     if (panelLength >= 1) {
         nameRef.value = panels.value[panelLength - 1].name as string;
         findNodeById(nameRef.value);
+        terminalStore.setTerminalConfig('currentTab', nameRef.value);
     }
 };
 
