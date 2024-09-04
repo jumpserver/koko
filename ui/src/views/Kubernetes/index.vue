@@ -42,8 +42,10 @@
 </template>
 
 <script setup lang="ts">
-// 使用 Hook
 import { useK8s } from '@/hooks/useK8s';
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+
 import { TreeOption } from 'naive-ui';
 
 import mittBus from '@/utils/mittBus';
@@ -52,24 +54,22 @@ import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
 import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
 
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { BASE_WS_URL } from '@/config';
-
 const socket = ref();
 const sideWidth = ref(300);
 const isFolded = ref(false);
 
-const { createTreeConnect, syncLoadNodes, reload } = useK8s();
+const treeStore = useTreeStore();
+const { createTreeConnect } = useK8s();
 
 socket.value = createTreeConnect();
 
 /**
  * 加载节点
  *
- * @param node
+ * @param _node
  */
-const handleSyncLoad = (node: TreeOption) => {
-    syncLoadNodes(node);
+const handleSyncLoad = (_node?: TreeOption) => {
+    // syncLoadNodes(node);
 
     // 根据节点宽度自动拓宽
     setTimeout(() => {
@@ -98,13 +98,9 @@ const handleTreeClick = () => {
  */
 const handleReloadTree = () => {
     if (socket.value) {
-        socket.value.close();
+        treeStore.setReload();
+        socket.value.send(JSON.stringify({ type: 'TERMINAL_K8S_TREE' }));
     }
-
-    const urlParams = new URLSearchParams(window.location.search.slice(1));
-    const connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}` : '';
-
-    reload(connectURL);
 };
 
 const handleDragEnd = (_el: HTMLElement, newWidth: number) => {

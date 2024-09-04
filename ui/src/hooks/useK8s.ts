@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { Folder } from '@vicons/fa';
 import { Cube16Regular } from '@vicons/fluent';
 
-import { ref, h } from 'vue';
+import { ref, h, Component } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useLogger } from './useLogger.ts';
 import { useWebSocket } from '@vueuse/core';
@@ -14,7 +14,7 @@ import { generateWsURL, onWebsocketOpen, onWebsocketWrong } from './helper';
 import { updateIcon, wsIsActivated } from '@/components/CustomTerminal/helper/index.ts';
 
 import type { Ref } from 'vue';
-import type { customTreeOption } from '@/hooks/interface';
+import { customTreeOption, IContainer, IPods } from '@/hooks/interface';
 
 const { debug } = useLogger('K8s');
 const { message } = createDiscreteApi(['message']);
@@ -62,11 +62,141 @@ export const useK8s = () => {
     };
 
     /**
-     * @description 初始化节点
+     * 设置额外的属性
+     *
+     * @param item
+     * @param label
+     * @param icon
+     * @param isLeaf
+     * @param id
+     */
+    const setCommonAttributes = (
+        item: any,
+        label: string,
+        icon: Component,
+        isLeaf: boolean = false,
+        id?: string
+    ) => {
+        Object.assign(item, {
+            id: id || uuid(),
+            label,
+            key: uuid(),
+            k8s_id: uuid(),
+            isLeaf,
+            prefix: () => h(NIcon, isLeaf ? { size: 16 } : null, { default: () => h(icon) })
+        });
+    };
+
+    /**
+     * 初始化同步树
+     *
+     * @param id
+     * @param info
+     */
+    const syncInitTree = (id: string, info: any) => {
+        const root: customTreeOption = {
+            id,
+            key: id,
+            label: info.asset.name,
+            k8s_id: uuid(),
+            isLeaf: false,
+            prefix: () =>
+                h(NIcon, null, {
+                    default: () => h(Folder)
+                })
+        };
+
+        treeStore.setRoot(root);
+
+        debug('Start Load Tree Node ....');
+
+        if (socket) {
+            socket.send(
+                JSON.stringify({
+                    type: 'TERMINAL_K8S_TREE'
+                })
+            );
+        }
+    };
+
+    /**
+     * 处理 Containers
+     *
+     * @param containers
+     * @param podName
+     * @param namespace
+     * @param parentId
+     */
+    const handleContainer = (
+        containers: IContainer[],
+        podName: string,
+        namespace: string,
+        parentId: string
+    ) => {
+        containers.forEach(container => {
+            Object.assign(container, {
+                pod: podName,
+                container: container.name,
+                namespace
+            });
+            setCommonAttributes(container, container.name, Cube16Regular, true, parentId);
+        });
+    };
+
+    /**
+     * 处理 pods
+     *
+     * @param pods
+     * @param namespace
+     * @param parentId
+     */
+    const handlePods = (pods: IPods[], namespace: string, parentId: string) => {
+        pods.forEach(pod => {
+            setCommonAttributes(pod, pod.name, Folder, false, parentId);
+
+            if (pod.containers && pod.containers?.length > 0) {
+                pod.namespace = namespace;
+                pod.children = pod.containers;
+                handleContainer(pod.children, pod.name, namespace, parentId);
+                delete pod.containers;
+            } else {
+                pod.children = [];
+            }
+        });
+    };
+
+    /**
+     * 二次处理节点
+     */
+    const filterSyncNodes = (msg: any) => {
+        const data = JSON.parse(msg.data as string);
+        const messageId = msg.id;
+
+        Object.keys(data).map(nodeKey => {
+            const node = data[nodeKey];
+            setCommonAttributes(node, nodeKey, Folder, false, messageId);
+
+            if (node.pods && node.pods.length > 0) {
+                node.children = node.pods;
+
+                delete node.pods;
+
+                handlePods(node.children, node.name, messageId);
+            } else {
+                node.children = [];
+            }
+
+            treeStore.setTreeNodes(node);
+        });
+    };
+
+    /**
+     * @description 异步初始化节点（异步）
      * @param key
      * @param rootNodeName
      */
-    const initTree = (key: string, rootNodeName: string) => {
+    // @ts-ignore
+    const asyncInitTree = (key: string, rootNodeName: string) => {
         const treeRootNode: customTreeOption = {
             id: key,
             key,
@@ -88,7 +218,7 @@ export const useK8s = () => {
     };
 
     /**
-     * @description 处理子节点
+     * @description 处理子节点（异步）
      * @param name
      * @param nodeId
      */
@@ -136,9 +266,10 @@ export const useK8s = () => {
     };
 
     /**
-     * @description 更新节点
+     * @description 更新节点（异步）
      * @param msg
      */
+    // @ts-ignore
     const updateTreeNodes = (msg: any) => {
         try {
             const nodeId = msg.id;
@@ -174,19 +305,20 @@ export const useK8s = () => {
         switch (msg.type) {
             case 'CONNECT': {
                 const info = JSON.parse(msg.data);
-                const rootNodeName = info.asset.name;
+                // const rootNodeName = info.asset.name;
 
                 terminalId.value = msg.id;
                 paramsStore.setSetting(info.setting);
                 updateIcon(info.setting);
 
                 treeStore.setConnectInfo(info);
-                initTree(msg.id, rootNodeName);
-
+                // asyncInitTree(msg.id, rootNodeName);
+                syncInitTree(msg.id, info);
                 break;
             }
             case 'TERMINAL_K8S_TREE': {
-                updateTreeNodes(msg);
+                // updateTreeNodes(msg);
+                filterSyncNodes(msg);
 
                 break;
             }
@@ -202,13 +334,6 @@ export const useK8s = () => {
                 break;
             }
         }
-    };
-
-    /**
-     * 重新加载
-     */
-    const reload = (url: string) => {
-        createTreeConnect(url);
     };
 
     /**
@@ -239,7 +364,6 @@ export const useK8s = () => {
     };
 
     return {
-        reload,
         syncLoadNodes,
         createTreeConnect
     };

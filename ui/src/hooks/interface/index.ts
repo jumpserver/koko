@@ -78,3 +78,29 @@ export interface paramsOptions {
 
     isK8s?: boolean;
 }
+
+export interface IContainer {
+    name: string;
+
+    type: string;
+
+    pod?: string;
+
+    container?: string;
+
+    namespace?: string;
+}
+
+export interface IPods {
+    name: string;
+
+    type: string;
+
+    containers?: IContainer[];
+
+    children?: IContainer[];
+
+    namespace?: string;
+
+    container?: string;
+}

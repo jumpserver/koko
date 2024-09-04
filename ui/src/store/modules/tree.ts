@@ -12,7 +12,7 @@ export const useTreeStore = defineStore('tree', {
         root: {}
     }),
     actions: {
-        setTreeNodes(nodes: TreeOption) {
+        setTreeNodes(nodes: customTreeOption) {
             this.treeNodes.push(nodes);
         },
         setChildren(nodes: customTreeOption[]) {
@@ -41,6 +41,9 @@ export const useTreeStore = defineStore('tree', {
         },
         setRoot(node: customTreeOption) {
             this.root = node;
+        },
+        setReload() {
+            this.treeNodes = [];
         }
     }
 });

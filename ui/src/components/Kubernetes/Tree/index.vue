@@ -9,7 +9,7 @@
             <n-descriptions-item class="h-full">
                 <n-collapse arrow-placement="left" :accordion="true" :default-expanded-names="['asset-tree']">
                     <n-scrollbar style="max-height: calc(100vh - 100px)">
-                        <n-collapse-item :title="treeNodes[0]?.label" class="collapse-item" name="asset-tree">
+                        <n-collapse-item :title="root?.label" class="collapse-item" name="asset-tree">
                             <template #header-extra>
                                 <n-flex
                                     justify="center"
@@ -56,12 +56,12 @@
                                 :node-props="nodeProps"
                                 :pattern="searchPattern"
                                 :render-label="showToolTip"
-                                :data="treeNodes[0]?.children"
+                                :data="treeNodes"
                                 :expanded-keys="expandedKeysRef"
                                 :allow-checking-not-loaded="true"
-                                :on-load="useDebounceFn(handleOnLoad, 300)"
                                 :on-update:expanded-keys="handleExpandCollapse"
                             />
+                            <!-- :on-load="useDebounceFn(handleOnLoad, 300)" -->
                         </n-collapse-item>
                     </n-scrollbar>
                 </n-collapse>
@@ -87,7 +87,6 @@
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { ref, h, nextTick } from 'vue';
-import { useDebounceFn } from '@vueuse/core';
 import { showToolTip } from '../helper/index';
 import { useTreeStore } from '@/store/modules/tree.ts';
 
@@ -104,7 +103,7 @@ const treeStore = useTreeStore();
 const { treeNodes, root } = storeToRefs(treeStore);
 
 const emits = defineEmits<{
-    (e: 'sync-load-node', data: TreeOption): void;
+    (e: 'sync-load-node', data?: TreeOption): void;
     (e: 'reload-tree'): void;
 }>();
 
@@ -150,7 +149,8 @@ const buttonGroups = [
     {
         label: t('refresh'),
         icon: RefreshRound,
-        click: () => {
+        click: (e: Event) => {
+            e.stopPropagation();
             emits('reload-tree');
         }
     }
@@ -197,6 +197,8 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
         onClick: async () => {
             await nextTick();
 
+            emits('sync-load-node');
+
             if (option.isLeaf) {
                 mittBus.emit('connect-terminal', option);
             }
@@ -236,6 +238,7 @@ const handleFilter = (option: TreeOption) => {
  *
  * @param node
  */
+// @ts-ignore
 const handleOnLoad = (node: TreeOption) => {
     let expendKey: string;
 
@@ -268,7 +271,20 @@ const handleSelect = (key: string, _option: DropdownOption) => {
 
     switch (key) {
         case 'expand': {
-            handleOnLoad(currentNodeInfo.value);
+            if (currentNodeInfo.value) {
+                if (!expandedKeysRef.value.includes(currentNodeInfo.value.key as string)) {
+                    expandedKeysRef.value.push(currentNodeInfo.value.key as string);
+                }
+
+                handleExpandCollapse(expandedKeysRef.value, [], {
+                    node: currentNodeInfo.value,
+                    action: 'expand'
+                });
+
+                // 原本的异步加载方法，现在用于自动将宽度展开
+                emits('sync-load-node');
+            }
+            // handleOnLoad(currentNodeInfo.value);
             break;
         }
         case 'connect': {
