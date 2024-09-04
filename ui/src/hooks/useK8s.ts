@@ -1,7 +1,7 @@
 import { NIcon } from 'naive-ui';
 import { v4 as uuid } from 'uuid';
-import { Folder } from '@vicons/fa';
 import { Cube16Regular } from '@vicons/fluent';
+import { Folder, Cubes, Expand } from '@vicons/fa';
 
 import { ref, h, Component } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -66,14 +66,14 @@ export const useK8s = () => {
      *
      * @param item
      * @param label
-     * @param icon
+     * @param _icon
      * @param isLeaf
      * @param id
      */
     const setCommonAttributes = (
         item: any,
         label: string,
-        icon: Component,
+        _icon: Component,
         isLeaf: boolean = false,
         id?: string
     ) => {
@@ -82,8 +82,8 @@ export const useK8s = () => {
             label,
             key: uuid(),
             k8s_id: uuid(),
-            isLeaf,
-            prefix: () => h(NIcon, isLeaf ? { size: 16 } : null, { default: () => h(icon) })
+            isLeaf
+            // prefix: () => h(NIcon, isLeaf ? { size: 16 } : null, { default: () => h(icon) })
         });
     };
 
@@ -137,7 +137,8 @@ export const useK8s = () => {
             Object.assign(container, {
                 pod: podName,
                 container: container.name,
-                namespace
+                namespace,
+                prefix: () => h(NIcon, {}, { default: () => h(Cube16Regular) })
             });
             setCommonAttributes(container, container.name, Cube16Regular, true, parentId);
         });
@@ -157,6 +158,7 @@ export const useK8s = () => {
             if (pod.containers && pod.containers?.length > 0) {
                 pod.namespace = namespace;
                 pod.children = pod.containers;
+                pod.prefix = () => h(NIcon, {}, { default: () => h(Cubes) });
                 handleContainer(pod.children, pod.name, namespace, parentId);
                 delete pod.containers;
             } else {
@@ -175,6 +177,7 @@ export const useK8s = () => {
         Object.keys(data).map(nodeKey => {
             const node = data[nodeKey];
             setCommonAttributes(node, nodeKey, Folder, false, messageId);
+            node.prefix = () => h(NIcon, {}, { default: () => h(Expand) });
 
             if (node.pods && node.pods.length > 0) {
                 node.children = node.pods;

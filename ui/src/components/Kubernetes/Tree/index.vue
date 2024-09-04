@@ -160,31 +160,31 @@ const buttonGroups = [
  * @description 处理节点展开
  * @param expandedKeys
  * @param _option
- * @param meta
+ * @param _meta
  */
 const handleExpandCollapse = (
     expandedKeys: string[],
     _option: Array<TreeOption | null>,
-    meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
+    _meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
 ) => {
     expandedKeysRef.value = expandedKeys;
 
-    switch (meta.action) {
-        case 'expand':
-            meta.node &&
-                (meta.node.prefix = () =>
-                    h(NIcon, null, {
-                        default: () => h(FolderOpen)
-                    }));
-            break;
-        case 'collapse':
-            meta.node &&
-                (meta.node.prefix = () =>
-                    h(NIcon, null, {
-                        default: () => h(Folder)
-                    }));
-            break;
-    }
+    // switch (meta.action) {
+    //     case 'expand':
+    //         meta.node &&
+    //             (meta.node.prefix = () =>
+    //                 h(NIcon, null, {
+    //                     default: () => h(FolderOpen)
+    //                 }));
+    //         break;
+    //     case 'collapse':
+    //         meta.node &&
+    //             (meta.node.prefix = () =>
+    //                 h(NIcon, null, {
+    //                     default: () => h(Folder)
+    //                 }));
+    //         break;
+    // }
 };
 
 /**
