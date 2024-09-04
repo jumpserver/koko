@@ -53,10 +53,10 @@
                                 class="tree-item"
                                 check-strategy="all"
                                 checkbox-placement="left"
+                                :data="treeNodes"
                                 :node-props="nodeProps"
                                 :pattern="searchPattern"
                                 :render-label="showToolTip"
-                                :data="treeNodes"
                                 :expanded-keys="expandedKeysRef"
                                 :allow-checking-not-loaded="true"
                                 :on-update:expanded-keys="handleExpandCollapse"
@@ -167,6 +167,8 @@ const handleExpandCollapse = (
     _meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
 ) => {
     expandedKeysRef.value = expandedKeys;
+
+    emits('sync-load-node');
 
     // switch (meta.action) {
     //     case 'expand':
