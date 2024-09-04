@@ -1,9 +1,9 @@
 import { NIcon } from 'naive-ui';
 import { v4 as uuid } from 'uuid';
+import { Folder, Docker } from '@vicons/fa';
 import { Cube16Regular } from '@vicons/fluent';
-import { Folder, Cubes, Expand } from '@vicons/fa';
 
-import { ref, h, Component } from 'vue';
+import { ref, h } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useLogger } from './useLogger.ts';
 import { useWebSocket } from '@vueuse/core';
@@ -66,24 +66,16 @@ export const useK8s = () => {
      *
      * @param item
      * @param label
-     * @param _icon
      * @param isLeaf
      * @param id
      */
-    const setCommonAttributes = (
-        item: any,
-        label: string,
-        _icon: Component,
-        isLeaf: boolean = false,
-        id?: string
-    ) => {
+    const setCommonAttributes = (item: any, label: string, isLeaf: boolean = false, id?: string) => {
         Object.assign(item, {
             id: id || uuid(),
             label,
             key: uuid(),
             k8s_id: uuid(),
             isLeaf
-            // prefix: () => h(NIcon, isLeaf ? { size: 16 } : null, { default: () => h(icon) })
         });
     };
 
@@ -138,9 +130,9 @@ export const useK8s = () => {
                 pod: podName,
                 container: container.name,
                 namespace,
-                prefix: () => h(NIcon, {}, { default: () => h(Cube16Regular) })
+                prefix: () => h(NIcon, { size: 13 }, { default: () => h(Docker) })
             });
-            setCommonAttributes(container, container.name, Cube16Regular, true, parentId);
+            setCommonAttributes(container, container.name, true, parentId);
         });
     };
 
@@ -153,12 +145,12 @@ export const useK8s = () => {
      */
     const handlePods = (pods: IPods[], namespace: string, parentId: string) => {
         pods.forEach(pod => {
-            setCommonAttributes(pod, pod.name, Folder, false, parentId);
+            setCommonAttributes(pod, pod.name, false, parentId);
 
             if (pod.containers && pod.containers?.length > 0) {
                 pod.namespace = namespace;
                 pod.children = pod.containers;
-                pod.prefix = () => h(NIcon, {}, { default: () => h(Cubes) });
+                pod.prefix = () => h(NIcon, { size: 13 }, { default: () => h(Cube16Regular) });
                 handleContainer(pod.children, pod.name, namespace, parentId);
                 delete pod.containers;
             } else {
@@ -176,8 +168,8 @@ export const useK8s = () => {
 
         Object.keys(data).map(nodeKey => {
             const node = data[nodeKey];
-            setCommonAttributes(node, nodeKey, Folder, false, messageId);
-            node.prefix = () => h(NIcon, {}, { default: () => h(Expand) });
+            setCommonAttributes(node, nodeKey, false, messageId);
+            node.prefix = () => h(NIcon, { size: 13 }, { default: () => h(Folder) });
 
             if (node.pods && node.pods.length > 0) {
                 node.children = node.pods;
@@ -208,9 +200,13 @@ export const useK8s = () => {
             isLeaf: false,
             isParent: true,
             prefix: () =>
-                h(NIcon, null, {
-                    default: () => h(Folder)
-                })
+                h(
+                    NIcon,
+                    { size: 13 },
+                    {
+                        default: () => h(Folder)
+                    }
+                )
         };
 
         syncLoadNodes(treeRootNode);
@@ -239,9 +235,13 @@ export const useK8s = () => {
             label: name,
             isLeaf: false,
             prefix: () =>
-                h(NIcon, null, {
-                    default: () => h(Folder)
-                })
+                h(
+                    NIcon,
+                    { size: 13 },
+                    {
+                        default: () => h(Folder)
+                    }
+                )
         };
 
         if (!node.namespace && !node.pod) {
@@ -258,7 +258,7 @@ export const useK8s = () => {
             childNode.prefix = () =>
                 h(
                     NIcon,
-                    { size: 16 },
+                    { size: 14 },
                     {
                         default: () => h(Cube16Regular)
                     }

@@ -6,9 +6,9 @@
         :class="{ active: isActive }"
     >
         <n-icon
-            :component="TreeIcon"
+            :component="Kubernetes"
             color="#646A73"
-            size="26"
+            size="30"
             class="hover:!text-white transition-all duration-300 cursor-pointer tree-icon"
         />
     </n-button>
@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Tree as TreeIcon } from '@vicons/carbon';
+import { Kubernetes } from '@vicons/carbon';
 
 import mittBus from '@/utils/mittBus.ts';
 

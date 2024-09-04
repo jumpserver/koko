@@ -28,7 +28,7 @@
                                                         }
                                                     "
                                                 >
-                                                    <n-icon size="16" :component="option.icon" />
+                                                    <n-icon size="13" :component="option.icon" />
                                                 </n-button>
                                             </template>
                                             {{ option.label }}
@@ -92,7 +92,9 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 
 import mittBus from '@/utils/mittBus.ts';
 
-import { Link, ExpandCategories } from '@vicons/carbon';
+import { Folder, FolderOpen } from '@vicons/fa';
+import { ExpandCategories } from '@vicons/carbon';
+import { Terminal2 } from '@vicons/tabler';
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
 import { RefreshRound, LocationSearchingOutlined } from '@vicons/material';
 
@@ -120,19 +122,19 @@ const allOptions = [
         label: '展开',
         key: 'expand',
         // disabled: true,
-        icon: () => h(NIcon, null, { default: () => h(ExpandCategories) })
+        icon: () => h(NIcon, { size: 13 }, { default: () => h(ExpandCategories) })
     },
     {
         label: '连接',
         key: 'connect',
         // disabled: true,
-        icon: () => h(NIcon, null, { default: () => h(Link) })
+        icon: () => h(NIcon, { size: 13 }, { default: () => h(Terminal2) })
     }
 ];
 const buttonGroups = [
     {
         label: t('link'),
-        icon: Link,
+        icon: Terminal2,
         click: (e: Event) => {
             handleRootLink(e);
         }
@@ -159,33 +161,45 @@ const buttonGroups = [
  * @description 处理节点展开
  * @param expandedKeys
  * @param _option
- * @param _meta
+ * @param meta
  */
 const handleExpandCollapse = (
     expandedKeys: string[],
     _option: Array<TreeOption | null>,
-    _meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
+    meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
 ) => {
     expandedKeysRef.value = expandedKeys;
 
     emits('sync-load-node');
 
-    // switch (meta.action) {
-    //     case 'expand':
-    //         meta.node &&
-    //             (meta.node.prefix = () =>
-    //                 h(NIcon, null, {
-    //                     default: () => h(FolderOpen)
-    //                 }));
-    //         break;
-    //     case 'collapse':
-    //         meta.node &&
-    //             (meta.node.prefix = () =>
-    //                 h(NIcon, null, {
-    //                     default: () => h(Folder)
-    //                 }));
-    //         break;
-    // }
+    if (meta.node && meta.node.type === 'pod') {
+        return;
+    }
+
+    switch (meta.action) {
+        case 'expand':
+            meta.node &&
+                (meta.node.prefix = () =>
+                    h(
+                        NIcon,
+                        { size: 14 },
+                        {
+                            default: () => h(FolderOpen)
+                        }
+                    ));
+            break;
+        case 'collapse':
+            meta.node &&
+                (meta.node.prefix = () =>
+                    h(
+                        NIcon,
+                        { size: 14 },
+                        {
+                            default: () => h(Folder)
+                        }
+                    ));
+            break;
+    }
 };
 
 /**
