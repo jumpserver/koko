@@ -482,8 +482,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         if (type === 'k8s') {
             const { currentTab } = storeToRefs(useTerminalStore());
 
-            console.log(currentTab.value);
-
             const messageHandlers = {
                 [currentTab.value]: (e: MessageEvent) => {
                     handleK8sMessage(JSON.parse(e.data));
