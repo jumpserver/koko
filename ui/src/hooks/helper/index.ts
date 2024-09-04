@@ -192,10 +192,10 @@ export const handleTerminalOnData = (
             data: data,
             id: terminalId,
             type: eventType,
-            pod: '',
+            pod: node.pod || '',
             k8s_id: node.k8s_id,
-            namespace: '',
-            container: ''
+            namespace: node.namespace || '',
+            container: node.container || ''
         };
 
         // 如果有子节点并且是父节点的处理

@@ -119,7 +119,7 @@ const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { setting } = storeToRefs(paramsStore);
-const { connectInfo, treeNodes } = storeToRefs(treeStore);
+const { connectInfo, treeNodes, root } = storeToRefs(treeStore);
 
 const el = ref();
 
@@ -404,13 +404,14 @@ const handleClose = (name: string) => {
 
     panels.value.splice(index, 1);
 
-    nextTick(() => {
-        const panelLength = panels.value.length;
+    // nextTick(() => {});
 
-        if (panelLength >= 1) {
-            nameRef.value = panels.value[panelLength - 1].name as string;
-        }
-    });
+    const panelLength = panels.value.length;
+
+    if (panelLength >= 1) {
+        nameRef.value = panels.value[panelLength - 1].name as string;
+        findNodeById(nameRef.value);
+    }
 };
 
 /**
@@ -419,6 +420,10 @@ const handleClose = (name: string) => {
  * @param id
  */
 const findNodeById = (id: string): void => {
+    if (id === root.value.id) {
+        return treeStore.setCurrentNode(root.value);
+    }
+
     const searchNode = (nodes: customTreeOption[]) => {
         for (const node of nodes) {
             if (node.key === id) {

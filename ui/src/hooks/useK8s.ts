@@ -1,7 +1,7 @@
 import { NIcon } from 'naive-ui';
 import { v4 as uuid } from 'uuid';
 import { Folder, Docker } from '@vicons/fa';
-import { Cube16Regular } from '@vicons/fluent';
+import { Cube24Regular } from '@vicons/fluent';
 
 import { ref, h } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -92,6 +92,7 @@ export const useK8s = () => {
             label: info.asset.name,
             k8s_id: uuid(),
             isLeaf: false,
+            isParent: true,
             prefix: () =>
                 h(NIcon, null, {
                     default: () => h(Folder)
@@ -130,7 +131,7 @@ export const useK8s = () => {
                 pod: podName,
                 container: container.name,
                 namespace,
-                prefix: () => h(NIcon, { size: 13 }, { default: () => h(Docker) })
+                prefix: () => h(NIcon, { size: 16 }, { default: () => h(Docker) })
             });
             setCommonAttributes(container, container.name, true, parentId);
         });
@@ -150,7 +151,7 @@ export const useK8s = () => {
             if (pod.containers && pod.containers?.length > 0) {
                 pod.namespace = namespace;
                 pod.children = pod.containers;
-                pod.prefix = () => h(NIcon, { size: 13 }, { default: () => h(Cube16Regular) });
+                pod.prefix = () => h(NIcon, { size: 16 }, { default: () => h(Cube24Regular) });
                 handleContainer(pod.children, pod.name, namespace, parentId);
                 delete pod.containers;
             } else {
@@ -169,7 +170,7 @@ export const useK8s = () => {
         Object.keys(data).map(nodeKey => {
             const node = data[nodeKey];
             setCommonAttributes(node, nodeKey, false, messageId);
-            node.prefix = () => h(NIcon, { size: 13 }, { default: () => h(Folder) });
+            node.prefix = () => h(NIcon, { size: 15 }, { default: () => h(Folder) });
 
             if (node.pods && node.pods.length > 0) {
                 node.children = node.pods;
@@ -260,7 +261,7 @@ export const useK8s = () => {
                     NIcon,
                     { size: 14 },
                     {
-                        default: () => h(Cube16Regular)
+                        default: () => h(Cube24Regular)
                     }
                 );
         }
