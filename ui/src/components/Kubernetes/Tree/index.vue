@@ -28,7 +28,7 @@
                                                         }
                                                     "
                                                 >
-                                                    <n-icon size="13" :component="option.icon" />
+                                                    <n-icon size="15" :component="option.icon" />
                                                 </n-button>
                                             </template>
                                             {{ option.label }}
@@ -93,10 +93,10 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import mittBus from '@/utils/mittBus.ts';
 
 import { Folder, FolderOpen } from '@vicons/fa';
+import { RefreshRound } from '@vicons/material';
 import { ExpandCategories } from '@vicons/carbon';
-import { Terminal2 } from '@vicons/tabler';
+import { Terminal2, Search } from '@vicons/tabler';
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
-import { RefreshRound, LocationSearchingOutlined } from '@vicons/material';
 
 const { t } = useI18n();
 const treeStore = useTreeStore();
@@ -122,18 +122,18 @@ const allOptions = [
         label: '展开',
         key: 'expand',
         // disabled: true,
-        icon: () => h(NIcon, { size: 13 }, { default: () => h(ExpandCategories) })
+        icon: () => h(NIcon, { size: 15 }, { default: () => h(ExpandCategories) })
     },
     {
         label: '连接',
         key: 'connect',
         // disabled: true,
-        icon: () => h(NIcon, { size: 13 }, { default: () => h(Terminal2) })
+        icon: () => h(NIcon, { size: 15 }, { default: () => h(Terminal2) })
     }
 ];
 const buttonGroups = [
     {
-        label: t('link'),
+        label: t('connect'),
         icon: Terminal2,
         click: (e: Event) => {
             handleRootLink(e);
@@ -141,7 +141,7 @@ const buttonGroups = [
     },
     {
         label: t('search'),
-        icon: LocationSearchingOutlined,
+        icon: Search,
         click: (e: Event) => {
             e.stopPropagation();
             showSearch.value = !showSearch.value;
