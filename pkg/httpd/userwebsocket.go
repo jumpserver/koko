@@ -237,32 +237,11 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			logger.Debugf("Ws[%s] receive %s message", userCon.Uuid, msg.Type)
 			continue
 		case TerminalK8STree:
-			namespace := msg.Namespace
-			pod := msg.Pod
-			var data []string
-
-			if namespace == "" {
-				data, err = userCon.k8sClient.GetNamespaces()
-			} else if pod == "" {
-				data, err = userCon.k8sClient.GetPodsInNamespace(namespace)
-			} else {
-				data, err = userCon.k8sClient.GetContainersInPod(namespace, pod)
-			}
-
-			if err != nil {
-				logger.Errorf("Ws[%s] get k8s tree data err: %s", userCon.Uuid, err)
-				data = make([]string, 0)
-			}
-
-			if data == nil {
-				data = make([]string, 0)
-			}
-
-			info, _ := json.Marshal(data)
+			data := userCon.k8sClient.GetTreeData()
 			responseMsg := Message{
 				Id:           userCon.Uuid,
 				Type:         TerminalK8STree,
-				Data:         string(info),
+				Data:         data,
 				KubernetesId: msg.KubernetesId,
 			}
 
