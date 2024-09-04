@@ -248,6 +248,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             case 'TERMINAL_K8S_BINARY': {
                 terminalId.value = socketData.id;
                 k8s_id.value = socketData.k8s_id;
+
                 sentry.consume(base64ToUint8Array(socketData.raw));
 
                 break;
