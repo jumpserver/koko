@@ -1,5 +1,5 @@
 import { TreeOption } from 'naive-ui';
-import type { Ref } from 'vue';
+import type { Component, Ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
 
 export interface ITerminalProps {
@@ -77,4 +77,32 @@ export interface paramsOptions {
     i18nCallBack?: (key: string) => string;
 
     isK8s?: boolean;
+}
+
+export interface IContainer {
+    name: string;
+
+    type: string;
+
+    pod?: string;
+
+    container?: string;
+
+    namespace?: string;
+}
+
+export interface IPods {
+    name: string;
+
+    type: string;
+
+    containers?: IContainer[];
+
+    children?: IContainer[];
+
+    namespace?: string;
+
+    container?: string;
+
+    prefix: Component;
 }

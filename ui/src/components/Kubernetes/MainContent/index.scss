@@ -17,9 +17,8 @@ $--el-main-bg-color: #1e1e1e;
         display: none;
     }
 
-
     :deep(.n-tabs-tab) {
-        background-color: #2D2D2D !important;
+        background-color: #2d2d2d !important;
         border: none !important;
 
         .n-tabs-tab__label {
@@ -27,14 +26,13 @@ $--el-main-bg-color: #1e1e1e;
         }
 
         &.n-tabs-tab--active {
-            background-color: #1E1E1E !important;
+            background-color: #1e1e1e !important;
 
             .n-tabs-tab__label {
                 color: #ffffff;
             }
         }
     }
-
 
     .n-tab-pane {
         padding-top: 0 !important;
@@ -50,7 +48,6 @@ $--el-main-bg-color: #1e1e1e;
             background-color: $--el-main-tab-icon-hover-color;
         }
     }
-
 }
 
 .k8s-terminal {
