@@ -92,7 +92,6 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 
 import mittBus from '@/utils/mittBus.ts';
 
-import { Folder, FolderOpen } from '@vicons/fa';
 import { Link, ExpandCategories } from '@vicons/carbon';
 import { NIcon, TreeOption, DropdownOption } from 'naive-ui';
 import { RefreshRound, LocationSearchingOutlined } from '@vicons/material';
