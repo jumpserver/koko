@@ -26,6 +26,7 @@
             .n-collapse-item__header-main {
                 height: 22px;
                 margin-left: 5px;
+                font-size: 13px;
             }
         }
 
@@ -38,8 +39,10 @@
                 padding-top: 0;
 
                 .tree-item .n-tree-node-wrapper {
-                    padding: 0 0 5px 0;
-                    line-height: 22px;
+                    //padding: 0 0 5px 0;
+                    padding: 0;
+                    line-height: 17px;
+                    font-size: 13px;
 
                     .n-tree-node-content {
                         padding-left: 5px;
@@ -48,6 +51,7 @@
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
+                            font-size: 13px;
                         }
                     }
                 }

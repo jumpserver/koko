@@ -24,14 +24,15 @@
                     <n-watermark
                         cross
                         selectable
-                        :rotate="-15"
-                        :font-size="16"
-                        :width="192"
-                        :height="128"
-                        :x-offset="12"
-                        :y-offset="28"
+                        :rotate="-45"
+                        :font-size="20"
+                        :width="300"
+                        :height="300"
                         :content="waterMarkContent"
-                        :line-height="16"
+                        :line-height="20"
+                        :x-offset="-60"
+                        :y-offset="60"
+                        :font-family="'Open Sans'"
                     >
                         <CustomTerminal
                             ref="terminalRef"

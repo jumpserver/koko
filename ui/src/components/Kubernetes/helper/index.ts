@@ -14,7 +14,7 @@ export const showToolTip = (option: TreeOption) => {
         {
             trigger: 'hover',
             placement: 'top-start',
-            delay: 500
+            delay: 1000
         },
         {
             trigger: () =>
