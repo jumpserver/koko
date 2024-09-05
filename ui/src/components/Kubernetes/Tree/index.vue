@@ -60,7 +60,16 @@
                                 :expanded-keys="expandedKeysRef"
                                 :allow-checking-not-loaded="true"
                                 :on-update:expanded-keys="handleExpandCollapse"
-                            />
+                            >
+                                <template #empty>
+                                    <template v-if="!isLoaded">
+                                        <n-spin size="small" class="w-full pt-[20px]" />
+                                    </template>
+                                    <template v-else>
+                                        <n-empty />
+                                    </template>
+                                </template>
+                            </n-tree>
                             <!-- :on-load="useDebounceFn(handleOnLoad, 300)" -->
                         </n-collapse-item>
                     </n-scrollbar>
@@ -86,7 +95,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
-import { ref, h, nextTick } from 'vue';
+import { ref, h, nextTick, watchEffect } from 'vue';
 import { showToolTip } from '../helper/index';
 import { useTreeStore } from '@/store/modules/tree.ts';
 
@@ -111,6 +120,7 @@ const emits = defineEmits<{
 const dropdownY = ref(0);
 const dropdownX = ref(0);
 const searchPattern = ref('');
+const isLoaded = ref(false);
 const showSearch = ref(false);
 const showDropdown = ref(false);
 const currentNodeInfo = ref();
@@ -152,10 +162,17 @@ const buttonGroups = [
         icon: RefreshRound,
         click: (e: Event) => {
             e.stopPropagation();
+            isLoaded.value = false;
             emits('reload-tree');
         }
     }
 ];
+
+watchEffect(() => {
+    if (treeNodes.value.length > 0) {
+        isLoaded.value = true;
+    }
+});
 
 /**
  * @description 处理节点展开
