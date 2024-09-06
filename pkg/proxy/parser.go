@@ -258,7 +258,24 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			p.confirmStatus.Status)
 		return nil
 	}
-	waitMsg := lang.T("the reviewers will confirm. continue or not [Y/n]")
+
+	WarnWaitMsg := lang.T("Need to send command alert, do you want to continue [Y/N]")
+	if p.confirmStatus.InQuery() && p.getCurrentCmdStatusLevel() == model.WarningLevel {
+		switch strings.ToLower(string(b)) {
+		case "y":
+			p.confirmStatus.SetStatus(StatusNone)
+			p.userOutputChan <- []byte("\n")
+		case "n":
+			p.confirmStatus.SetStatus(StatusNone)
+			p.srvOutputChan <- []byte("\r\n")
+			return p.breakInputPacket()
+		default:
+			p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
+		}
+		return nil
+	}
+
+	confirmWaitMsg := lang.T("the reviewers will confirm. continue or not [Y/n]")
 	if p.confirmStatus.InQuery() {
 		switch strings.ToLower(string(b)) {
 		case "y":
@@ -305,7 +322,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			p.srvOutputChan <- []byte("\r\n")
 			return p.breakInputPacket()
 		default:
-			p.srvOutputChan <- []byte("\r\n" + waitMsg)
+			p.srvOutputChan <- []byte("\r\n" + confirmWaitMsg)
 		}
 		return nil
 	}
@@ -334,12 +351,19 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.confirmStatus.SetCmd(p.command)
 				p.confirmStatus.SetData(string(b))
 				p.confirmStatus.ResetCtx()
-				p.srvOutputChan <- []byte("\r\n" + waitMsg)
+				p.srvOutputChan <- []byte("\r\n" + confirmWaitMsg)
 				return nil
 			case model.ActionWarning:
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 				logger.Debugf("Session %s: command %s match warning rule", p.id, p.command)
+			case model.ActionNotifyAndWarn:
+				p.confirmStatus.SetStatus(StatusQuery)
+				p.setCurrentCmdFilterRule(rule)
+				p.setCurrentCmdStatusLevel(model.WarningLevel)
+				logger.Debugf("Session %s: command %s match notify and warn rule", p.id, p.command)
+				p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
+				return nil
 			default:
 			}
 		}
@@ -364,11 +388,17 @@ func (p *Parser) parseInputState(b []byte) []byte {
 					p.confirmStatus.SetCmd(p.command)
 					p.confirmStatus.SetData(string(b))
 					p.confirmStatus.ResetCtx()
-					p.srvOutputChan <- []byte("\r\n" + waitMsg)
+					p.srvOutputChan <- []byte("\r\n" + confirmWaitMsg)
 					return nil
 				case model.ActionWarning:
 					p.setCurrentCmdFilterRule(rule)
 					p.setCurrentCmdStatusLevel(model.WarningLevel)
+				case model.ActionNotifyAndWarn:
+					p.confirmStatus.SetStatus(StatusQuery)
+					p.setCurrentCmdFilterRule(rule)
+					p.setCurrentCmdStatusLevel(model.WarningLevel)
+					p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
+					return nil
 				default:
 				}
 			}
@@ -536,7 +566,7 @@ func (p *Parser) IsMatchCommandRule(command string) (CommandRule,
 		rule := p.cmdFilterACLs[i]
 		item, allowed, cmd := rule.Match(command)
 		switch allowed {
-		case model.ActionAccept, model.ActionWarning:
+		case model.ActionAccept, model.ActionWarning, model.ActionNotifyAndWarn:
 			return CommandRule{Acl: &rule, Item: &item}, cmd, true
 		case model.ActionReview, model.ActionReject:
 			return CommandRule{Acl: &rule, Item: &item}, cmd, true
