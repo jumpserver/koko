@@ -77,7 +77,7 @@ import mittBus from '@/utils/mittBus.ts';
 
 // import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
 
-import Tip from './components/Tip/index.vue';
+// import Tip from './components/Tip/index.vue';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
