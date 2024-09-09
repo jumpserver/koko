@@ -129,28 +129,26 @@ const dropdownOptions = ref<DropdownOption[]>([]);
 
 const allOptions = [
     {
-        label: '展开',
+        label: t('Expand'),
         key: 'expand',
-        // disabled: true,
         icon: () => h(NIcon, { size: 15 }, { default: () => h(ExpandCategories) })
     },
     {
-        label: '连接',
+        label: t('Connect'),
         key: 'connect',
-        // disabled: true,
         icon: () => h(NIcon, { size: 15 }, { default: () => h(Terminal2) })
     }
 ];
 const buttonGroups = [
     {
-        label: t('connect'),
+        label: t('Connect'),
         icon: Terminal2,
         click: (e: Event) => {
             handleRootLink(e);
         }
     },
     {
-        label: t('search'),
+        label: t('Search'),
         icon: Search,
         click: (e: Event) => {
             e.stopPropagation();
@@ -158,7 +156,7 @@ const buttonGroups = [
         }
     },
     {
-        label: t('refresh'),
+        label: t('Refresh'),
         icon: RefreshRound,
         click: (e: Event) => {
             e.stopPropagation();

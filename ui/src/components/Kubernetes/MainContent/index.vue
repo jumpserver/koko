@@ -62,9 +62,7 @@ import { updateIcon } from '@/components/CustomTerminal/helper';
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
     Stop,
-    Home,
     Paste,
-    Insert,
     NotSent,
     Activity,
     Keyboard,
@@ -79,7 +77,7 @@ import mittBus from '@/utils/mittBus.ts';
 
 // import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
 
-// import Tip from './components/Tip/index.vue';
+import Tip from './components/Tip/index.vue';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
@@ -221,13 +219,13 @@ const settings = computed((): ISettingProp[] => {
         },
         {
             label: 'Keyboard',
-            title: t('Keyboard shortcuts'),
+            title: t('Hotkeys'),
             icon: Keyboard,
             content: [
                 {
                     name: 'Ctrl + C',
                     icon: Stop,
-                    tip: t('Stop'),
+                    tip: t('Cancel'),
                     click: () => {
                         handleWriteData('Stop');
                     }
@@ -240,26 +238,26 @@ const settings = computed((): ISettingProp[] => {
                         handleWriteData('Paste');
                     }
                 },
-                {
-                    name: 'Home',
-                    icon: Home,
-                    tip: t('Home'),
-                    click: () => {
-                        handleWriteData('Home');
-                    }
-                },
-                {
-                    name: 'Insert',
-                    icon: Insert,
-                    tip: t('Insert'),
-                    click: () => {
-                        handleWriteData('Insert');
-                    }
-                },
+                // {
+                //     name: 'Home',
+                //     icon: Home,
+                //     tip: t('Home'),
+                //     click: () => {
+                //         handleWriteData('Home');
+                //     }
+                // },
+                // {
+                //     name: 'Insert',
+                //     icon: Insert,
+                //     tip: t('Insert'),
+                //     click: () => {
+                //         handleWriteData('Insert');
+                //     }
+                // },
                 {
                     name: 'Arrow Up',
                     icon: ArrowUp,
-                    tip: t('ArrowUp'),
+                    tip: t('UpArrow'),
                     click: () => {
                         handleWriteData('ArrowUp');
                     }
@@ -267,7 +265,7 @@ const settings = computed((): ISettingProp[] => {
                 {
                     name: 'Arrow Down',
                     icon: ArrowDown,
-                    tip: t('ArrowDown'),
+                    tip: t('DownArrow'),
                     click: () => {
                         handleWriteData('ArrowDown');
                     }
@@ -275,7 +273,7 @@ const settings = computed((): ISettingProp[] => {
                 {
                     name: 'Arrow Left',
                     icon: ArrowBack,
-                    tip: t('ArrowBack'),
+                    tip: t('LeftArrow'),
                     click: () => {
                         handleWriteData('ArrowLeft');
                     }
@@ -283,7 +281,7 @@ const settings = computed((): ISettingProp[] => {
                 {
                     name: 'Arrow Right',
                     icon: ArrowForward,
-                    tip: t('ArrowForward'),
+                    tip: t('RightArrow'),
                     click: () => {
                         handleWriteData('ArrowRight');
                     }
