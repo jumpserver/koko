@@ -72,3 +72,12 @@ onUnmounted(() => {
     mittBus.off('set-theme');
 });
 </script>
+
+<style lang="scss" scoped>
+:deep(.terminal-container) {
+    .xterm {
+        padding-left: 10px;
+        padding-top: 10px;
+    }
+}
+</style>
