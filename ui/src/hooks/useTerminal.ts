@@ -359,8 +359,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
             switch (message.name) {
                 case 'PING': {
-                    if (lunaId.value != null) return;
-
                     lunaId.value = message.id;
                     origin.value = e.origin;
 
@@ -409,7 +407,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 handleTerminalSelection(terminal!, termSelectionText);
             });
             terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-                return handleCustomKey(e, terminal!);
+                return handleCustomKey(e, terminal!, lunaId.value, origin.value);
             });
             terminal.onData((data: string) => {
                 lastSendTime.value = new Date();
