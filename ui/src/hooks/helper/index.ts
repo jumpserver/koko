@@ -115,7 +115,7 @@ export const handleTerminalResize = (
  * @param terminal
  */
 export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal): boolean => {
-    if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         switch (e.key) {
             case 'ArrowRight':
                 sendEventToLuna('KEYEVENT', 'alt+right');

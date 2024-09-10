@@ -31,21 +31,12 @@ const getLunaConfig = () => {
 
     const localSetting: string | null = localStorage.getItem('LunaSetting');
 
-    info(localSetting);
-    console.log('localSetting', localSetting);
-
     let fontSize = terminalStore.fontSize;
 
     if (localSetting !== null) {
-        // 将 localSetting 从字符串解析为对象
         const parsedSetting = JSON.parse(localSetting);
 
-        info(parsedSetting);
-
-        // 确保解析成功后才能继续使用
         const commandLine = parsedSetting['command_line'];
-
-        info(commandLine);
 
         if (commandLine) {
             fontSize = commandLine['character_terminal_font_size'];
@@ -58,6 +49,7 @@ const getLunaConfig = () => {
         setTerminalConfig('fontSize', 13);
     }
 
+    setTerminalConfig('fontSize', fontSize);
     setTerminalConfig('ctrlCAsCtrlZ', '0');
 };
 const startUp = async (): Promise<boolean> => {
