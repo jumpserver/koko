@@ -31,6 +31,9 @@ const getLunaConfig = () => {
     const { setTerminalConfig } = terminalStore;
 
     const localSetting: string | null = localStorage.getItem('LunaSetting');
+
+    console.info(localSetting);
+
     let fontSize = terminalStore.fontSize;
 
     if (localSetting !== null) {
