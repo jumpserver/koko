@@ -47,11 +47,7 @@
                     </n-watermark>
                 </n-scrollbar>
             </n-tab-pane>
-            <template v-slot:suffix>
-                <!-- <TabSuffix /> -->
-            </template>
         </n-tabs>
-        <!-- <Tip v-if="panels.length === 0" /> -->
     </n-layout>
     <Settings :settings="settings" />
 </template>
@@ -75,14 +71,12 @@ import { ArrowDown, ArrowUp, ArrowForward, ArrowBack } from '@vicons/ionicons5';
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 
-// import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
+import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';
 
-// import Tip from './components/Tip/index.vue';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
-// import TabSuffix from '@/components/Kubernetes/MainContent/components/TabSuffix/index.vue';
 
 import { NMessageProvider, TabPaneProps, useDialog, useNotification } from 'naive-ui';
 
@@ -299,9 +293,57 @@ const resetShareDialog = () => {
     dialog.destroyAll();
 };
 
-// const draggable = useDraggable<UseDraggableReturn>(el, panels.value, {
-//     animation: 150
-// });
+const initializeDraggable = () => {
+    const tabsContainer = document.querySelector('.n-tabs-wrapper'); // 使用合适的选择器
+
+    if (tabsContainer) {
+        // @ts-ignore
+        useDraggable<UseDraggableReturn>(tabsContainer, panels.value, {
+            animation: 150,
+            onStart: () => console.log('Drag started'),
+            onEnd: async event => {
+                const newIndex = event.newIndex;
+                const oldIndex = event.oldIndex;
+
+                if (typeof oldIndex === 'number' && typeof newIndex === 'number' && oldIndex !== newIndex) {
+                    // 获取索引，确保它们从 0 开始
+                    // ? 不减 1 默认会从 1 的索引开始
+                    const oldIndex = event.oldIndex! - 1;
+                    const newIndex = event.newIndex! - 1;
+
+                    if (
+                        oldIndex < 0 ||
+                        newIndex < 0 ||
+                        oldIndex >= panels.value.length ||
+                        newIndex >= panels.value.length
+                    ) {
+                        console.error('Invalid index values:', oldIndex, newIndex);
+                        return;
+                    }
+
+                    // 生成新的 panels 数组
+                    const movedPanel = panels.value[oldIndex];
+                    const updatedPanels = [...panels.value];
+
+                    updatedPanels.splice(oldIndex, 1);
+                    updatedPanels.splice(newIndex, 0, movedPanel);
+
+                    // await nextTick();
+
+                    panels.value = updatedPanels;
+
+                    // 更新当前激活的标签
+                    const newActiveTab: string = panels.value[newIndex]?.name as string;
+
+                    if (newActiveTab) {
+                        nameRef.value = newActiveTab;
+                        terminalStore.setTerminalConfig('currentTab', newActiveTab);
+                    }
+                }
+            }
+        });
+    }
+};
 
 const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     switch (msgType) {
@@ -500,26 +542,9 @@ const handleWriteData = async (type: string) => {
 };
 
 onMounted(() => {
-    const tabsElement = el.value?.$el?.querySelector('.n-tabs-tab');
-
-    if (tabsElement) {
-        // 使用 useDraggable 使 n-tabs 支持拖拽排序
-        // draggable(tabsElement, panels.value, {
-        //     animation: 150,
-        //     onEnd: event => {
-        //         // 处理拖拽结束后的面板顺序更新
-        //         const movedPanel = panels.value.splice(event.oldIndex, 1)[0];
-        //         panels.value.splice(event.newIndex, 0, movedPanel);
-        //
-        //         // 更新当前选中的标签
-        //         if (panels.value.length > 0) {
-        //             nameRef.value = panels.value[Math.min(event.newIndex, panels.value.length - 1)]
-        //                 .name as string;
-        //             terminalStore.setTerminalConfig('currentTab', nameRef.value);
-        //         }
-        //     }
-        // });
-    }
+    nextTick(() => {
+        initializeDraggable();
+    });
 
     mittBus.on('connect-terminal', currentNode => {
         // 检查 currentNode.key 是否已经存在

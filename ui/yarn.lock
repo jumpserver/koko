@@ -401,6 +401,11 @@
   dependencies:
     undici-types "~6.13.0"
 
+"@types/sortablejs@^1.15.0":
+  version "1.15.0"
+  resolved "https://registry.yarnpkg.com/@types/sortablejs/-/sortablejs-1.15.0.tgz#695e481752e2a0a311c5e73b51d5f666fc202f93"
+  integrity sha512-qrhtM7M41EhH4tZQTNw2/RJkxllBx3reiJpTbgWCM2Dx0U1sZ6LwKp9lfNln9uqE26ZMKUaPEYaD4rzvOWYtZw==
+
 "@types/sortablejs@^1.15.8":
   version "1.15.8"
   resolved "https://registry.yarnpkg.com/@types/sortablejs/-/sortablejs-1.15.8.tgz#11ed555076046e00869a5ef85d1e7651e7a66ef6"
@@ -1528,6 +1533,11 @@ slash@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/slash/-/slash-4.0.0.tgz#2422372176c4c6c5addb5e2ada885af984b396a7"
   integrity sha512-3dOsAHXXUkQTpOYcoAxLIorMTp4gIQr5IW3iVb7A7lFIp0VHhnynm9izx6TssdrIcVIESAlVjtnO2K8bg+Coew==
+
+sortablejs@^1.15.3:
+  version "1.15.3"
+  resolved "https://registry.yarnpkg.com/sortablejs/-/sortablejs-1.15.3.tgz#033668db5ebfb11167d1249ab88e748f27959e29"
+  integrity sha512-zdK3/kwwAK1cJgy1rwl1YtNTbRmc8qW/+vgXf75A7NHag5of4pyI6uK86ktmQETyWRH7IGaE73uZOOBcGxgqZg==
 
 "source-map-js@>=0.6.2 <2.0.0", source-map-js@^1.0.2, source-map-js@^1.2.0:
   version "1.2.0"
