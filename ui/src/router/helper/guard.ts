@@ -37,7 +37,11 @@ const getLunaConfig = () => {
     let fontSize = terminalStore.fontSize;
 
     if (localSetting !== null) {
-        let commandLine = JSON.parse(localSetting)['command_line'];
+        // @ts-ignore
+        let commandLine = localSetting['command_line'];
+
+        console.info(commandLine);
+
         if (commandLine) {
             fontSize = commandLine['character_terminal_font_size'];
             setTerminalConfig('quickPaste', commandLine['is_right_click_quickly_paste'] ? '1' : '0');
