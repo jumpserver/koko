@@ -145,7 +145,7 @@ const settings = computed((): ISettingProp[] => {
                     class: 'set-theme',
                     title: t('Theme'),
                     showIcon: false,
-                    style: 'width: 50%',
+                    style: 'width: 50%; min-width: 810px',
                     content: () =>
                         h(ThemeConfig, {
                             currentThemeName: themeName.value,
@@ -168,7 +168,7 @@ const settings = computed((): ISettingProp[] => {
                     class: 'share',
                     title: t('CreateLink'),
                     showIcon: false,
-                    style: 'width: 35%',
+                    style: 'width: 35%; min-width: 500px',
                     content: () => {
                         return h(NMessageProvider, null, {
                             default: () =>
