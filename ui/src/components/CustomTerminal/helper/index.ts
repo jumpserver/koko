@@ -22,10 +22,14 @@ export const sendEventToLuna = (
     name: string,
     data: any,
     lunaId: string | null = '',
-    origin: string | null = null
+    origin: string | null = ''
 ) => {
     if (lunaId !== null && origin !== null) {
-        window.parent.postMessage({ name, id: lunaId, data }, origin);
+        try {
+            window.parent.postMessage({ name, id: lunaId, data }, origin);
+        } catch (e) {
+            console.info(e);
+        }
     }
 };
 

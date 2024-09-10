@@ -113,15 +113,22 @@ export const handleTerminalResize = (
  *
  * @param e
  * @param terminal
+ * @param lunaId
+ * @param origin
  */
-export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal): boolean => {
+export const handleCustomKey = (
+    e: KeyboardEvent,
+    terminal: Terminal,
+    lunaId: string,
+    origin: string
+): boolean => {
     if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         switch (e.key) {
             case 'ArrowRight':
-                window.parent.postMessage({ name: 'KEYEVENT', data: 'alt+shift+right' });
+                sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
                 break;
             case 'ArrowLeft':
-                window.parent.postMessage({ name: 'KEYEVENT', data: 'alt+shift+left' });
+                sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
                 break;
         }
 
