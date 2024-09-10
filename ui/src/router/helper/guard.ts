@@ -27,20 +27,25 @@ const onI18nLoaded = () => {
 };
 const getLunaConfig = () => {
     const terminalStore = useTerminalStore();
-
     const { setTerminalConfig } = terminalStore;
 
     const localSetting: string | null = localStorage.getItem('LunaSetting');
 
-    console.info(localSetting);
+    info(localSetting);
+    console.log('localSetting', localSetting);
 
     let fontSize = terminalStore.fontSize;
 
     if (localSetting !== null) {
-        // @ts-ignore
-        let commandLine = localSetting['command_line'];
+        // 将 localSetting 从字符串解析为对象
+        const parsedSetting = JSON.parse(localSetting);
 
-        console.info(commandLine);
+        info(parsedSetting);
+
+        // 确保解析成功后才能继续使用
+        const commandLine = parsedSetting['command_line'];
+
+        info(commandLine);
 
         if (commandLine) {
             fontSize = commandLine['character_terminal_font_size'];
