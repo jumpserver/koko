@@ -118,12 +118,14 @@ export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal): boolean =
     if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         switch (e.key) {
             case 'ArrowRight':
-                sendEventToLuna('KEYEVENT', 'alt+right');
+                window.parent.postMessage({ name: 'KEYEVENT', data: 'alt+shift+right' });
                 break;
             case 'ArrowLeft':
-                sendEventToLuna('KEYEVENT', 'alt+left');
+                window.parent.postMessage({ name: 'KEYEVENT', data: 'alt+shift+left' });
                 break;
         }
+
+        return false;
     }
 
     if (e.ctrlKey && e.key === 'c' && terminal.hasSelection()) {

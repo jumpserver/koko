@@ -76,8 +76,7 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 :deep(.terminal-container) {
     .xterm {
-        padding-left: 10px;
-        padding-top: 10px;
+        padding: 10px 0 10px 10px;
     }
 }
 </style>

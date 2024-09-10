@@ -285,7 +285,7 @@ const onEvent = (event: string, data: any) => {
         }
 
         .xterm-screen {
-            height: 100vh !important;
+            height: calc(100vh - 20px) !important;
         }
     }
 }
