@@ -41,7 +41,7 @@
                                                         round
                                                         strong
                                                         size="small"
-                                                        class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer"
+                                                        class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
                                                         :bordered="false"
                                                         :type="
                                                             item.content.indexOf(detail) !== 0
@@ -61,7 +61,7 @@
                                                     </n-tag>
                                                 </template>
                                                 <template #default>
-                                                    <span>{{ detail.tip }}</span>
+                                                    <span>{{ detail.tip }} {{ detail.name }}</span>
                                                 </template>
                                             </n-popover>
                                         </n-flex>
@@ -155,3 +155,10 @@ onUnmounted(() => {
     mittBus.off('open-setting');
 });
 </script>
+
+<style scoped lang="scss">
+:deep(.n-tag__content) {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+</style>

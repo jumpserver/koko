@@ -72,7 +72,7 @@ const settings = computed((): ISettingProp[] => {
                 dialog.success({
                     title: t('Theme'),
                     class: 'set-theme',
-                    style: 'width: 50%',
+                    style: 'width: 50%; min-width: 810px',
                     showIcon: false,
                     content: () =>
                         h(ThemeConfig, {
@@ -95,7 +95,7 @@ const settings = computed((): ISettingProp[] => {
                 dialog.success({
                     title: t('CreateLink'),
                     class: 'share',
-                    style: 'width: 35%',
+                    style: 'width: 35%; min-width: 500px',
                     showIcon: false,
                     content: () => {
                         return h(NMessageProvider, null, {
