@@ -6,7 +6,7 @@ export const useTerminalStore = defineStore('terminal', {
     state: (): ITerminalConfig => ({
         fontSize: 14,
         themeName: '',
-        quickPaste: '1',
+        quickPaste: '0',
         ctrlCAsCtrlZ: '',
         backspaceAsCtrlH: '0',
         lineHeight: 1,
