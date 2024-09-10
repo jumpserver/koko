@@ -204,7 +204,7 @@ dialog.warning({
         }
 
         .xterm-screen {
-            height: 100vh !important;
+            height: calc(100vh - 20px) !important;
         }
     }
 }

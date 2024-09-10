@@ -59,10 +59,6 @@ $--el-main-bg-color: #1e1e1e;
 
     :deep(.xterm-screen) {
         width: 100% !important;
-        height: calc(100vh - 75px) !important;
-
-        .xterm-rows {
-            //padding: 10px 0 0 10px;
-        }
+        height: calc(100vh - 90px) !important;
     }
 }
