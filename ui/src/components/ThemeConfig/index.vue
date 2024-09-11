@@ -5,11 +5,12 @@
                 <n-grid :cols="24">
                     <n-grid-item :span="20">
                         <n-select
+                            class="pr-[20px]"
                             v-model:value="theme"
                             :placeholder="t('SelectTheme')"
                             :options="themes"
                             @update:value="setTheme"
-                            class="pr-[20px]"
+                            @keydown="handlePreviewTheme"
                         />
                     </n-grid-item>
                     <n-grid-item :span="4">
@@ -160,11 +161,47 @@ const colors = computed(() => {
     }
 });
 
+/**
+ * 设置主题
+ *
+ * @param value
+ */
 const setTheme = (value: string) => {
     theme.value = value;
     props.preview(theme.value);
     mittBus.emit('set-theme', { themeName: value });
 };
+
+/**
+ * 处理当使用键盘上下键时的主题预览功能
+ *
+ * @param event
+ */
+const handlePreviewTheme = (event: KeyboardEvent) => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        const currentIndex = themes.value.findIndex(option => option.value === theme.value);
+
+        let nextIndex = currentIndex;
+
+        if (event.key === 'ArrowUp') {
+            // 如果当前索引为 0，则跳转到最后一个选项，否则向上移动
+            nextIndex = currentIndex === 0 ? themes.value.length - 1 : currentIndex - 1;
+        } else if (event.key === 'ArrowDown') {
+            // 如果当前索引为最后一个，则跳转到第一个选项，否则向下移动
+            nextIndex = currentIndex === themes.value.length - 1 ? 0 : currentIndex + 1;
+        }
+
+        const nextValue = themes.value[nextIndex]?.value;
+
+        if (nextValue) {
+            setTheme(nextValue);
+        }
+    }
+};
+
+/**
+ * 点击同步按钮的回调
+ */
 const syncTheme = () => {
     loading.value = true;
 
@@ -191,6 +228,7 @@ onMounted(() => {
         showThemeConfig.value = !showThemeConfig.value;
     });
 });
+
 onUnmounted(() => {
     mittBus.off('show-theme-config');
 });
