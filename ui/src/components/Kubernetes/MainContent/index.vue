@@ -300,7 +300,6 @@ const initializeDraggable = () => {
         // @ts-ignore
         useDraggable<UseDraggableReturn>(tabsContainer, panels.value, {
             animation: 150,
-            onStart: () => console.log('Drag started'),
             onEnd: async event => {
                 const newIndex = event.newIndex;
                 const oldIndex = event.oldIndex;
@@ -328,17 +327,18 @@ const initializeDraggable = () => {
                     updatedPanels.splice(oldIndex, 1);
                     updatedPanels.splice(newIndex, 0, movedPanel);
 
-                    // await nextTick();
+                    await nextTick(() => {
+                        panels.value = updatedPanels;
 
-                    panels.value = updatedPanels;
+                        // 更新当前激活的标签
+                        const newActiveTab: string = panels.value[newIndex]?.name as string;
 
-                    // 更新当前激活的标签
-                    const newActiveTab: string = panels.value[newIndex]?.name as string;
-
-                    if (newActiveTab) {
-                        nameRef.value = newActiveTab;
-                        terminalStore.setTerminalConfig('currentTab', newActiveTab);
-                    }
+                        if (newActiveTab) {
+                            nameRef.value = newActiveTab;
+                            findNodeById(newActiveTab);
+                            terminalStore.setTerminalConfig('currentTab', newActiveTab);
+                        }
+                    });
                 }
             }
         });
