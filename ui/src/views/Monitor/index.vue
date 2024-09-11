@@ -1,22 +1,26 @@
 <template>
-    <Terminal :connectURL="getConnectURL" />
+    <CustomTerminal index-key="id" class="common-terminal" :terminal-type="terminalType" />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
-import { BASE_WS_URL } from '@/config';
-import Terminal from '@/components/CustomTerminal/index.vue';
+import { ref } from 'vue';
+import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
-const route = useRoute();
-
-const getConnectURL = computed(() => {
-    const params = route.params;
-    const requireParams = new URLSearchParams();
-
-    requireParams.append('type', 'monitor');
-    requireParams.append('target_id', params.id as string);
-
-    return `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`;
-});
+const terminalType = ref<string>('common');
 </script>
+
+<style lang="scss" scoped>
+.common-terminal {
+    :deep(.terminal-container) {
+        overflow: hidden;
+
+        .xterm-viewport {
+            overflow: hidden;
+        }
+
+        .xterm-screen {
+            height: calc(100vh - 20px) !important;
+        }
+    }
+}
+</style>

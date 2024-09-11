@@ -5,10 +5,10 @@
                 <n-grid :cols="24">
                     <n-grid-item :span="20">
                         <n-select
-                            class="pr-[20px]"
+                            class="custom-select pr-[20px]"
                             v-model:value="theme"
-                            :placeholder="t('SelectTheme')"
                             :options="themes"
+                            :placeholder="t('SelectTheme')"
                             @update:value="setTheme"
                             @keydown="handlePreviewTheme"
                         />
@@ -195,6 +195,14 @@ const handlePreviewTheme = (event: KeyboardEvent) => {
 
         if (nextValue) {
             setTheme(nextValue);
+
+            setTimeout(() => {
+                const el = document.getElementsByClassName(
+                    'n-base-select-option--selected'
+                )[0] as HTMLElement;
+
+                el.classList.add('n-base-select-option--pending');
+            }, 100);
         }
     }
 };
@@ -258,5 +266,8 @@ onUnmounted(() => {
     .n-col {
         text-align: center;
     }
+}
+
+.custom-select {
 }
 </style>

@@ -333,7 +333,14 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
      * 初始化 El 节点相关事件
      */
     const initElEvent = () => {
-        el.addEventListener('mouseenter', () => fitAddon.fit(), false);
+        el.addEventListener(
+            'mouseenter',
+            () => {
+                fitAddon.fit();
+                terminal?.focus();
+            },
+            false
+        );
         el.addEventListener(
             'contextmenu',
             (e: MouseEvent) => {
