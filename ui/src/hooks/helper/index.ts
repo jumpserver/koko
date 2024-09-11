@@ -283,6 +283,8 @@ export const generateWsURL = () => {
 
     let connectURL;
 
+    console.log(routeName);
+
     switch (routeName) {
         case 'Token': {
             const params = route.params;
@@ -307,6 +309,16 @@ export const generateWsURL = () => {
             const requireParams = new URLSearchParams();
 
             requireParams.append('type', 'share');
+            requireParams.append('target_id', id);
+
+            connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+            break;
+        }
+        case 'Monitor': {
+            const id = route.params.id as string;
+            const requireParams = new URLSearchParams();
+
+            requireParams.append('type', 'monitor');
             requireParams.append('target_id', id);
 
             connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
