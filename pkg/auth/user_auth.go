@@ -51,6 +51,9 @@ func (u *UserAuthClient) Authenticate(ctx context.Context) (user model.User, aut
 				u.mfaTypes = append(u.mfaTypes, choiceType)
 			}
 			logger.Infof("User %s login need MFA", u.Opts.Username)
+			if len(u.mfaTypes) == 0 {
+				logger.Warnf("User %s login need MFA, but no MFA options", u.Opts.Username)
+			}
 			authStatus = authMFARequired
 		default:
 			logger.Errorf("User %s login err: %s", u.Opts.Username, resp.Err)
@@ -108,6 +111,17 @@ func (u *UserAuthClient) CheckMFAAuth(ctx ssh.Context, challenger gossh.Keyboard
 	count := 0
 	var selectedMFAType string
 	switch len(opts) {
+	case 0:
+		logger.Errorf("User %s has no MFA options", username)
+		warningMsg := "No MFA options, please visit website to update your Multi-factor authentication."
+		_, err := challenger(username, warningMsg, []string{"exit now"}, []bool{true})
+		if err != nil {
+			logger.Errorf("user %s happened err: %s", username, err)
+			return
+		}
+		ctx.SetValue(ContextKeyAuthStatus, authFailed)
+		return false
+
 	case 1:
 		// 仅有一个 option, 直接跳过选择界面
 		selectedMFAType = opts[0]
