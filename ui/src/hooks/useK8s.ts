@@ -165,6 +165,11 @@ export const useK8s = () => {
      */
     const filterSyncNodes = (msg: any) => {
         const data = JSON.parse(msg.data as string);
+
+        if (Object.keys(data).length === 0) {
+            return treeStore.setLoaded(false);
+        }
+
         const messageId = msg.id;
 
         Object.keys(data).map(nodeKey => {
@@ -183,6 +188,7 @@ export const useK8s = () => {
             }
 
             treeStore.setTreeNodes(node);
+            treeStore.setLoaded(true);
         });
     };
 

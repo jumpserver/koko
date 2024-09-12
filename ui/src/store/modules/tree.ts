@@ -9,7 +9,8 @@ export const useTreeStore = defineStore('tree', {
         connectInfo: null,
         treeNodes: [],
         currentNode: {},
-        root: {}
+        root: {},
+        isLoaded: false
     }),
     actions: {
         setTreeNodes(nodes: customTreeOption) {
@@ -44,6 +45,9 @@ export const useTreeStore = defineStore('tree', {
         },
         setReload() {
             this.treeNodes = [];
+        },
+        setLoaded(status: boolean) {
+            this.isLoaded = status;
         }
     }
 });
