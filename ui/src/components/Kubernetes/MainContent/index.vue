@@ -55,18 +55,19 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { updateIcon } from '@/components/CustomTerminal/helper';
+import { Ref } from 'vue';
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
-    Stop,
-    Paste,
-    NotSent,
     Activity,
-    Keyboard,
-    UserAvatar,
     ColorPalette,
-    Share as ShareIcon
+    Keyboard,
+    NotSent,
+    Paste,
+    Share as ShareIcon,
+    Stop,
+    UserAvatar
 } from '@vicons/carbon';
-import { ArrowDown, ArrowUp, ArrowForward, ArrowBack } from '@vicons/ionicons5';
+import { ArrowBack, ArrowDown, ArrowForward, ArrowUp } from '@vicons/ionicons5';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -78,16 +79,13 @@ import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
-import { NMessageProvider, TabPaneProps, useDialog, useNotification } from 'naive-ui';
-
-import type { Ref } from 'vue';
+import { NMessageProvider, TabPaneProps, useDialog, useMessage, useNotification } from 'naive-ui';
 import type { ISettingProp, shareUser } from '@/views/interface';
 import type { customTreeOption } from '@/hooks/interface';
 
 import { v4 as uuid } from 'uuid';
 import { Terminal } from '@xterm/xterm';
 import { useI18n } from 'vue-i18n';
-import { useMessage } from 'naive-ui';
 import { readText } from 'clipboard-polyfill';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
@@ -232,22 +230,6 @@ const settings = computed((): ISettingProp[] => {
                         handleWriteData('Paste');
                     }
                 },
-                // {
-                //     name: 'Home',
-                //     icon: Home,
-                //     tip: t('Home'),
-                //     click: () => {
-                //         handleWriteData('Home');
-                //     }
-                // },
-                // {
-                //     name: 'Insert',
-                //     icon: Insert,
-                //     tip: t('Insert'),
-                //     click: () => {
-                //         handleWriteData('Insert');
-                //     }
-                // },
                 {
                     name: 'Arrow Up',
                     icon: ArrowUp,
@@ -293,58 +275,62 @@ const resetShareDialog = () => {
     dialog.destroyAll();
 };
 
+/**
+ * 交换数组中的某两个值
+ *
+ * @param arr
+ * @param index1
+ * @param index2
+ */
+const swapElements = (arr: any[], index1: number, index2: number) => {
+    [arr[index1], arr[index2]] = [arr[index2], arr[index1]];
+    return arr;
+};
+
+/**
+ * 拖拽事件
+ */
 const initializeDraggable = () => {
-    const tabsContainer = document.querySelector('.n-tabs-wrapper'); // 使用合适的选择器
+    const tabsContainer = document.querySelector('.n-tabs-wrapper');
 
     if (tabsContainer) {
+        // 对于 useDraggable 如果直接操作 panel 可能会导致被注入一个 undefined 值从而导致报错，因此下面代码全部使用副本来操作
         // @ts-ignore
-        useDraggable<UseDraggableReturn>(tabsContainer, panels.value, {
+        useDraggable<UseDraggableReturn>(tabsContainer, JSON.parse(JSON.stringify(panels.value)), {
             animation: 150,
             onEnd: async event => {
-                const newIndex = event.newIndex;
-                const oldIndex = event.oldIndex;
-
-                if (typeof oldIndex === 'number' && typeof newIndex === 'number' && oldIndex !== newIndex) {
-                    // 获取索引，确保它们从 0 开始
-                    // ? 不减 1 默认会从 1 的索引开始
-                    const oldIndex = event.oldIndex! - 1;
-                    const newIndex = event.newIndex! - 1;
-
-                    if (
-                        oldIndex < 0 ||
-                        newIndex < 0 ||
-                        oldIndex >= panels.value.length ||
-                        newIndex >= panels.value.length
-                    ) {
-                        console.error('Invalid index values:', oldIndex, newIndex);
-                        return;
-                    }
-
-                    // 生成新的 panels 数组
-                    const movedPanel = panels.value[oldIndex];
-                    const updatedPanels = [...panels.value];
-
-                    updatedPanels.splice(oldIndex, 1);
-                    updatedPanels.splice(newIndex, 0, movedPanel);
-
-                    await nextTick(() => {
-                        panels.value = updatedPanels;
-
-                        // 更新当前激活的标签
-                        const newActiveTab: string = panels.value[newIndex]?.name as string;
-
-                        if (newActiveTab) {
-                            nameRef.value = newActiveTab;
-                            findNodeById(newActiveTab);
-                            terminalStore.setTerminalConfig('currentTab', newActiveTab);
-                        }
-                    });
+                if (!event || event.newIndex === undefined || event.oldIndex === undefined) {
+                    return console.warn('Event or index is undefined');
                 }
+
+                let newIndex = event!.newIndex - 1;
+                let oldIndex = event!.oldIndex - 1;
+
+                const clonedPanels = JSON.parse(JSON.stringify(panels.value));
+
+                panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(panel => panel !== null);
+
+                const newActiveTab: string = panels.value[newIndex!]?.name as string;
+
+                if (newActiveTab) {
+                    nameRef.value = newActiveTab;
+                    findNodeById(newActiveTab);
+                    terminalStore.setTerminalConfig('currentTab', newActiveTab);
+                }
+
+                await nextTick(() => {});
             }
         });
     }
 };
 
+/**
+ * 抛出外层的 socket 事件
+ *
+ * @param msgType
+ * @param msg
+ * @param terminal
+ */
 const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     switch (msgType) {
         case 'TERMINAL_SESSION':
@@ -604,8 +590,6 @@ onMounted(() => {
 
         nameRef.value = key;
         terminalStore.setTerminalConfig('currentTab', key);
-
-        debug('currentNode', currentNode);
     });
 });
 

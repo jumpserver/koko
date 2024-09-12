@@ -283,8 +283,6 @@ export const generateWsURL = () => {
 
     let connectURL;
 
-    console.log(routeName);
-
     switch (routeName) {
         case 'Token': {
             const params = route.params;

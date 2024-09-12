@@ -56,6 +56,8 @@ export interface ITreeState {
     currentNode: customTreeOption;
 
     root: customTreeOption;
+
+    isLoaded: boolean;
 }
 
 export type ObjToKeyValArray<T> = {
