@@ -71,7 +71,7 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 	dsnURL.Path = o.DBName
 
 	if o.UseSSL {
-		clientCertKeyPath, err := StoreCAFileToLocal(o.CertKey)
+		clientCertKeyPath, err := StorePrivateKeyFileToLocal(o.CertKey)
 		if err != nil {
 			return nil, err
 		}
