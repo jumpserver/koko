@@ -16,6 +16,7 @@ import { createDiscreteApi } from 'naive-ui';
 import { readText } from 'clipboard-polyfill';
 import { fireEvent, preprocessInput } from '@/utils';
 
+import mittBus from '@/utils/mittBus.ts';
 import * as clipboard from 'clipboard-polyfill';
 import { BASE_WS_URL, MaxTimeout } from '@/config';
 
@@ -125,13 +126,21 @@ export const handleCustomKey = (
     if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         switch (e.key) {
             case 'ArrowRight':
-                sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+                if (lunaId && origin) {
+                    sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+                } else {
+                    mittBus.emit('alt-shift-right');
+                }
+
                 break;
             case 'ArrowLeft':
-                sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+                if (lunaId && origin) {
+                    sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+                } else {
+                    mittBus.emit('alt-shift-left');
+                }
                 break;
         }
-
         return false;
     }
 
@@ -172,6 +181,7 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
  * @param config
  * @param socket
  */
+// todo
 export const handleTerminalOnData = (
     data: string,
     type: string,
