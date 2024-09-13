@@ -361,6 +361,13 @@ const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
             break;
         }
         case 'cloneConnect': {
+            findNodeById(contextIdentification.value);
+
+            nextTick(() => {
+                mittBus.emit('connect-terminal', currentNode.value);
+                showContextMenu.value = false;
+            });
+
             break;
         }
     }
