@@ -90,16 +90,20 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 
 		switch o.Schema {
 		case "postgres":
+			params.Set("sslmode", o.SqlPgSSLMode)
 
-			params.Set("sslcert", clientCertPath)
-			params.Set("sslkey", clientCertKeyPath)
-
-			if o.CaCert != "" {
+			if caCertPath != "" {
 				params.Set("sslrootcert", caCertPath)
-				params.Set("sslmode", "verify-full")
-			} else {
-				params.Set("sslmode", "require")
 			}
+
+			if clientCertPath != "" {
+				params.Set("sslcert", clientCertPath)
+			}
+
+			if clientCertKeyPath != "" {
+				params.Set("sslkey", clientCertKeyPath)
+			}
+
 		case "mysql":
 			params.Set("tls", "custom")
 			params.Set("ssl-ca", caCertPath)
