@@ -11,6 +11,7 @@
             v-model:value="nameRef"
             @close="handleClose"
             @update:value="handleChangeTab"
+            @contextmenu.prevent="handleContextMenu"
         >
             <n-tab-pane
                 v-for="panel of panels"
@@ -49,13 +50,26 @@
             </n-tab-pane>
         </n-tabs>
     </n-layout>
+    <n-dropdown
+        show-arrow
+        size="medium"
+        trigger="manual"
+        placement="bottom-start"
+        content-style='font-size: "13px"'
+        :x="dropdownX"
+        :y="dropdownY"
+        :show="showContextMenu"
+        :options="contextMenuOption"
+        @select="handleContextMenuSelect"
+        @clickoutside="handleClickOutside"
+    />
     <Settings :settings="settings" />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { updateIcon } from '@/components/CustomTerminal/helper';
-import { Ref } from 'vue';
+import { Component, Ref } from 'vue';
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import {
     Activity,
@@ -67,7 +81,10 @@ import {
     Stop,
     UserAvatar
 } from '@vicons/carbon';
-import { ArrowBack, ArrowDown, ArrowForward, ArrowUp } from '@vicons/ionicons5';
+import { CloneRegular } from '@vicons/fa';
+import { RefreshFilled } from '@vicons/material';
+import { ClosedCaption32Regular } from '@vicons/fluent';
+import { ArrowBack, ArrowDown, ArrowForward, ArrowUp, CloseCircleOutline } from '@vicons/ionicons5';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -79,7 +96,15 @@ import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
-import { NMessageProvider, TabPaneProps, useDialog, useMessage, useNotification } from 'naive-ui';
+import {
+    DropdownOption,
+    NIcon,
+    NMessageProvider,
+    TabPaneProps,
+    useDialog,
+    useMessage,
+    useNotification
+} from 'naive-ui';
 import type { ISettingProp, shareUser } from '@/views/interface';
 import type { customTreeOption } from '@/hooks/interface';
 
@@ -99,26 +124,29 @@ const props = defineProps<{
     socket: WebSocket | undefined;
 }>();
 
-const treeStore = useTreeStore();
-
 const { t } = useI18n();
 const dialog = useDialog();
 const notification = useNotification();
 
+const treeStore = useTreeStore();
 const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { setting } = storeToRefs(paramsStore);
-const { connectInfo, treeNodes, root } = storeToRefs(treeStore);
+const { connectInfo, treeNodes, root, currentNode } = storeToRefs(treeStore);
 
 const el = ref();
 
+const dropdownY = ref(0);
+const dropdownX = ref(0);
 const nameRef = ref('');
 const sessionId = ref('');
 const waterMarkContent = ref('');
 const enableShare = ref(false);
+const showContextMenu = ref(false);
 const terminalType = ref('k8s');
 const themeName = ref('Default');
+const contextIdentification = ref('');
 const terminalRef: Ref<any[]> = ref([]);
 const panels: Ref<TabPaneProps[]> = ref([]);
 const userOptions = ref<shareUser[]>([]);
@@ -269,6 +297,110 @@ const settings = computed((): ISettingProp[] => {
     ];
 });
 
+const contextMenuOption = reactive([
+    {
+        label: t('Reconnect'),
+        key: 'reconnect',
+        icon: renderIcon(RefreshFilled)
+    },
+    {
+        label: t('Close Current Tab'),
+        key: 'close',
+        icon: renderIcon(CloseCircleOutline)
+    },
+    {
+        label: t('Close All Tabs'),
+        key: 'closeAll',
+        icon: renderIcon(ClosedCaption32Regular)
+    },
+    {
+        label: t('Clone Connect'),
+        key: 'cloneConnect',
+        icon: renderIcon(CloneRegular)
+    }
+]);
+
+/**
+ * 用 h 函数渲染图标
+ */
+function renderIcon(icon: Component) {
+    return () => {
+        return h(NIcon, null, {
+            default: () => h(icon)
+        });
+    };
+}
+
+/**
+ * 右键菜单的回调
+ *
+ * @param key
+ * @param _option
+ */
+const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
+    switch (key) {
+        case 'reconnect': {
+            handleClose(contextIdentification.value);
+            findNodeById(contextIdentification.value);
+
+            nextTick(() => {
+                mittBus.emit('connect-terminal', currentNode.value);
+                showContextMenu.value = false;
+            });
+            break;
+        }
+        case 'close': {
+            contextIdentification.value ? handleClose(contextIdentification.value) : '';
+
+            showContextMenu.value = false;
+            break;
+        }
+        case 'closeAll': {
+            panels.value = [];
+            showContextMenu.value = false;
+            break;
+        }
+        case 'cloneConnect': {
+            break;
+        }
+    }
+};
+
+/**
+ * 每个 tab 标签的右侧快捷功能
+ */
+const handleContextMenu = (e: PointerEvent) => {
+    let target: HTMLElement = e.target as HTMLElement;
+
+    while (target && !target.hasAttribute('data-name')) {
+        target = target.parentElement as HTMLElement;
+    }
+
+    if (target) {
+        // 获取设置的 data 属性
+        const dataName: string = target.getAttribute('data-name') as string;
+
+        if (dataName) {
+            contextIdentification.value = dataName;
+
+            e.preventDefault();
+            showContextMenu.value = true;
+            dropdownY.value = e.clientY;
+            dropdownX.value = e.clientX;
+        }
+    }
+};
+
+/**
+ * 关闭右侧菜单
+ */
+const handleClickOutside = () => {
+    showContextMenu.value = false;
+};
+
+/**
+ * 重置分享表单的数据
+ */
 const resetShareDialog = () => {
     paramsStore.setShareId('');
     paramsStore.setShareCode('');
@@ -534,18 +666,35 @@ onMounted(() => {
 
     mittBus.on('connect-terminal', currentNode => {
         // 检查 currentNode.key 是否已经存在
+        let existingPanelName = uuid();
         const existingPanel = panels.value.find(panel => panel.name === currentNode.key);
 
         // 如果存在，直接切换到已有的标签页
         if (existingPanel) {
-            nameRef.value = existingPanel.name as string;
-            return;
+            panels.value.push({
+                name: existingPanelName as string,
+                tab: currentNode.label
+            });
+
+            currentNode.key = existingPanelName;
+        } else {
+            // 如果不存在，则添加新的标签页
+            panels.value.push({
+                name: currentNode.key,
+                tab: currentNode.label
+            });
         }
 
-        // 如果不存在，则添加新的标签页
-        panels.value.push({
-            name: currentNode.key,
-            tab: currentNode.label
+        // 用于 contentMenu 找到当前的唯一标识
+        nextTick(() => {
+            const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
+            const currentTabElement = Array.from(tabElements).find(
+                tab => tab.textContent?.trim() === currentNode.label
+            );
+
+            if (currentTabElement) {
+                currentTabElement.setAttribute('data-identification', currentNode.key as string);
+            }
         });
 
         treeStore.setCurrentNode(currentNode);
@@ -561,7 +710,7 @@ onMounted(() => {
                     if (cols && rows) {
                         const sendData = {
                             id: currentNode.id,
-                            k8s_id: currentNode.k8s_id || uuid(),
+                            k8s_id: existingPanel ? uuid() : currentNode.k8s_id,
                             namespace: currentNode.namespace || '',
                             pod: currentNode.pod || '',
                             container: currentNode.container || '',
