@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { useDialog, useMessage, useNotification } from 'naive-ui';
+import { useDialog, useMessage } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 
@@ -51,11 +51,10 @@ const { setting } = storeToRefs(paramsStore);
 
 const dialog = useDialog();
 const message = useMessage();
-const notification = useNotification();
 
-const terminalType = ref<string>('common');
 const sessionId = ref<string>('');
 const themeName = ref<string>('Default');
+const terminalType = ref<string>('common');
 const enableShare = ref<boolean>(false);
 const userOptions = ref<shareUser[]>([]);
 
@@ -148,11 +147,22 @@ const settings = computed((): ISettingProp[] => {
     ];
 });
 
+/**
+ * 重置分享连接表单
+ */
 const resetShareDialog = () => {
     paramsStore.setShareId('');
     paramsStore.setShareCode('');
     dialog.destroyAll();
 };
+
+/**
+ * 抛出到外层的 Socket message 事件处理
+ *
+ * @param msgType
+ * @param msg
+ * @param terminal
+ */
 const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     switch (msgType) {
         case 'TERMINAL_SESSION': {
@@ -245,10 +255,11 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
         case 'CLOSE': {
             enableShare.value = false;
 
-            notification.error({
-                content: t('WebSocketClosed'),
-                duration: 50000
-            });
+            // 用于删除分享的用户
+            if (onlineUsersMap.hasOwnProperty(msg.id)) {
+                delete onlineUsersMap[msg.id];
+            }
+
             break;
         }
         default:
@@ -257,6 +268,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
 
     debug('On WebSocket Data:', msg);
 };
+
 const onEvent = (event: string, data: any) => {
     switch (event) {
         case 'reconnect':
