@@ -108,6 +108,7 @@ import { useLogger } from '@/hooks/useLogger.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { useDebounceFn } from '@vueuse/core';
 
 const message = useMessage();
 const { debug } = useLogger('K8s-CustomTerminal');
@@ -672,6 +673,40 @@ const handleWriteData = async (type: string) => {
     });
 };
 
+/**
+ * 切换到上一个 Tab
+ */
+const switchToPreviousTab = () => {
+    const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
+
+    if (currentIndex > 0) {
+        nameRef.value = panels.value[currentIndex - 1].name as string;
+    } else {
+        nameRef.value = panels.value[panels.value.length - 1].name as string;
+    }
+
+    findNodeById(nameRef.value);
+
+    terminalStore.setTerminalConfig('currentTab', nameRef.value);
+};
+
+/**
+ * 切换到下一个 Tab
+ */
+const switchToNextTab = () => {
+    const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
+
+    if (currentIndex < panels.value.length - 1) {
+        nameRef.value = panels.value[currentIndex + 1].name as string;
+    } else {
+        nameRef.value = panels.value[0].name as string;
+    }
+
+    findNodeById(nameRef.value);
+
+    terminalStore.setTerminalConfig('currentTab', nameRef.value);
+};
+
 onMounted(() => {
     nextTick(() => {
         initializeDraggable();
@@ -754,9 +789,22 @@ onMounted(() => {
         terminalStore.setTerminalConfig('currentTab', key);
         deleteUserCounter.value++;
     });
+
+    const debouncedSwitchToPreviousTab = useDebounceFn(() => {
+        switchToPreviousTab();
+    }, 200);
+
+    const debouncedSwitchToNextTab = useDebounceFn(() => {
+        switchToNextTab();
+    }, 200);
+
+    mittBus.on('alt-shift-left', debouncedSwitchToPreviousTab);
+    mittBus.on('alt-shift-right', debouncedSwitchToNextTab);
 });
 
 onBeforeUnmount(() => {
+    mittBus.off('alt-shift-left', switchToPreviousTab);
+    mittBus.off('alt-shift-right', switchToNextTab);
     mittBus.off('connect-terminal');
 });
 </script>

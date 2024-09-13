@@ -3,6 +3,8 @@ import { customTreeOption } from '@/hooks/interface';
 import { shareUser } from '@/views/interface';
 
 type Event = {
+    'alt-shift-right': void;
+    'alt-shift-left': void;
     'open-setting': void;
     'fold-tree-click': void;
     'show-theme-config': void;
