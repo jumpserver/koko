@@ -1,5 +1,7 @@
 package model
 
+import "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
+
 type PublicSetting struct {
 	Interface struct {
 		LoginTitle string `json:"login_title"`
@@ -12,10 +14,12 @@ type PublicSetting struct {
 	EnableSessionShare bool `json:"SECURITY_SESSION_SHARE"`
 	EnableAnnouncement bool `json:"ANNOUNCEMENT_ENABLED"`
 	Announcement       struct {
-		Id      string `json:"ID"`
-		Subject string `json:"SUBJECT"`
-		Content string `json:"CONTENT"`
-		Link    string `json:"LINK"`
+		Id        string         `json:"ID"`
+		Subject   string         `json:"SUBJECT"`
+		Content   string         `json:"CONTENT"`
+		Link      string         `json:"LINK"`
+		DateStart common.UTCTime `json:"DATE_START"`
+		DateEnd   common.UTCTime `json:"DATE_END"`
 	} `json:"ANNOUNCEMENT"`
 }
 
