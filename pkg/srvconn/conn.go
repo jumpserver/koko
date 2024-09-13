@@ -254,13 +254,22 @@ func DoLogin(opt *sqlOption, lcmd *localcommand.LocalCommand, dbType string) (*l
 	return lcmd, nil
 }
 
-func StoreCAFileToLocal(caCert string) (caFilepath string, err error) {
-	if caCert == "" {
+func StoreCAFileToLocal(caCert string) (string, error) {
+	return createTmpFileToLocal(caCert, 0666)
+}
+
+func StorePrivateKeyFileToLocal(caCert string) (string, error) {
+	return createTmpFileToLocal(caCert, 0600)
+}
+
+func createTmpFileToLocal(content string, perm os.FileMode) (string, error) {
+
+	if content == "" {
 		return "", nil
 	}
 
 	baseDir := "./.ca_temp"
-	_, err = os.Stat(baseDir)
+	_, err := os.Stat(baseDir)
 	if os.IsNotExist(err) {
 		err = os.Mkdir(baseDir, os.ModePerm)
 		if err != nil {
@@ -269,15 +278,15 @@ func StoreCAFileToLocal(caCert string) (caFilepath string, err error) {
 	}
 
 	filename := fmt.Sprintf("%s.pem", common.UUID())
-	caFilepath = filepath.Join(baseDir, filename)
-	file, err := os.OpenFile(caFilepath, os.O_WRONLY|os.O_CREATE, 0666)
+	path := filepath.Join(baseDir, filename)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, perm)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
-	_, _ = file.WriteString(caCert)
+	_, _ = file.WriteString(content)
 
-	return caFilepath, err
+	return path, err
 }
 
 func ClearTempFileDelay(sleepTime time.Duration, filepath ...string) {
