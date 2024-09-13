@@ -96,15 +96,7 @@ import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
-import {
-    DropdownOption,
-    NIcon,
-    NMessageProvider,
-    TabPaneProps,
-    useDialog,
-    useMessage,
-    useNotification
-} from 'naive-ui';
+import { DropdownOption, NIcon, NMessageProvider, TabPaneProps, useDialog, useMessage } from 'naive-ui';
 import type { ISettingProp, shareUser } from '@/views/interface';
 import type { customTreeOption } from '@/hooks/interface';
 
@@ -126,7 +118,6 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const dialog = useDialog();
-const notification = useNotification();
 
 const treeStore = useTreeStore();
 const paramsStore = useParamsStore();
@@ -139,6 +130,7 @@ const el = ref();
 
 const dropdownY = ref(0);
 const dropdownX = ref(0);
+const deleteUserCounter = ref(0);
 const nameRef = ref('');
 const sessionId = ref('');
 const waterMarkContent = ref('');
@@ -547,11 +539,25 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
         }
         case 'CLOSE': {
             enableShare.value = false;
+            break;
+        }
+        case 'K8S_CLOSE': {
+            enableShare.value = false;
 
-            notification.error({
-                content: t('WebSocketClosed'),
-                duration: 50000
-            });
+            deleteUserCounter.value--;
+
+            // 用于删除根用户
+            if (deleteUserCounter.value === 0) {
+                for (const key in onlineUsersMap) {
+                    delete onlineUsersMap[key];
+                }
+            }
+
+            // 用于删除分享的用户
+            if (onlineUsersMap.hasOwnProperty(msg.id)) {
+                delete onlineUsersMap[msg.id];
+            }
+
             break;
         }
         default:
@@ -746,6 +752,7 @@ onMounted(() => {
 
         nameRef.value = key;
         terminalStore.setTerminalConfig('currentTab', key);
+        deleteUserCounter.value++;
     });
 });
 
