@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -70,6 +71,11 @@ func (h *InteractiveHandler) displayAnnouncement(sess io.ReadWriter, setting *mo
 		return
 	}
 	if setting.Announcement.Subject == "" && setting.Announcement.Content == "" {
+		return
+	}
+	now := time.Now()
+	if now.Before(setting.Announcement.DateStart.Time) || now.After(setting.Announcement.DateEnd.Time) {
+		logger.Info("Announcement is not in the effective date range")
 		return
 	}
 	lang := i18n.NewLang(h.i18nLang)
