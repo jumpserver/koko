@@ -17,6 +17,11 @@ jobs:
         with:
           go-version: 1.22
       - uses: actions/checkout@v4
+      - name: Create ui/dist directory
+        run: |
+          mkdir -p ui/dist
+          touch ui/dist/.gitkeep
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
