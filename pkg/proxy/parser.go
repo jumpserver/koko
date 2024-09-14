@@ -259,12 +259,12 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		return nil
 	}
 
-	WarnWaitMsg := lang.T("Need to send command alert, do you want to continue [Y/N]")
+	WarnWaitMsg := lang.T("The command you executed is risky and an alert notification will be sent to the administrator. Do you want to continue?[Y/N]")
 	if p.confirmStatus.InQuery() && p.getCurrentCmdStatusLevel() == model.WarningLevel {
 		switch strings.ToLower(string(b)) {
 		case "y":
 			p.confirmStatus.SetStatus(StatusNone)
-			p.userOutputChan <- []byte("\n")
+			p.userOutputChan <- []byte("\r\n")
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
