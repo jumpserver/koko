@@ -17,7 +17,7 @@ TARGETARCH ?= amd64
 
 UIDIR=ui
 NPMINSTALL=yarn install
-NPMBUILD=yarn build --no-clean
+NPMBUILD=yarn build
 
 LDFLAGS=-w -s
 
