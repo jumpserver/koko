@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/logger"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 type Container struct {
@@ -188,7 +188,7 @@ func (kc *KubernetesClient) GetTreeData() string {
 
 	jsonData, err := json.Marshal(namespaces)
 	if err != nil {
-		log.Error("Error marshalling JSON: %v\n", err)
+		logger.Errorf("Error marshalling JSON: %v", err)
 		return "{}"
 	}
 
