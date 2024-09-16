@@ -39,6 +39,7 @@ import {
     wsIsActivated
 } from '@/components/CustomTerminal/helper';
 import mittBus from '@/utils/mittBus.ts';
+import { useTreeStore } from '@/store/modules/tree.ts';
 
 interface ITerminalInstance {
     terminal: Terminal | undefined;
@@ -244,16 +245,26 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
      * @param socketData
      */
     const handleK8sMessage = (socketData: any) => {
+        const treeStore = useTreeStore();
+
         switch (socketData.type) {
             case 'TERMINAL_K8S_BINARY': {
                 terminalId.value = socketData.id;
                 k8s_id.value = socketData.k8s_id;
 
-                sentry.consume(base64ToUint8Array(socketData.raw));
+                const term = treeStore.getTerminalByK8sId(socketData.k8s_id);
+
+                if (term) {
+                    const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
+
+                    sentry = createSentry(socket, term);
+                    sentry.consume(base64ToUint8Array(socketData.raw));
+                }
 
                 break;
             }
             case 'TERMINAL_ACTION': {
+                // k8s 没有 rz 与 sz 的操作
                 const action = socketData.data;
                 switch (action) {
                     case 'ZMODEM_START': {
@@ -271,13 +282,27 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'TERMINAL_ERROR': {
-                terminal?.write(socketData.err);
+                const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
+
+                if (hasCurrentK8sId) {
+                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id);
+
+                    term?.write(socketData.err);
+                }
+
                 break;
             }
             case 'K8S_CLOSE': {
-                terminal?.attachCustomKeyEventHandler(() => {
-                    return false;
-                });
+                const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
+
+                // 如果 hasCurrentK8sId 为 true 表明需要操作的是当前的 k8s_id 的 terminal
+                if (hasCurrentK8sId) {
+                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id);
+
+                    term?.attachCustomKeyEventHandler(() => {
+                        return false;
+                    });
+                }
 
                 break;
             }
@@ -486,6 +511,9 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         if (type === 'k8s') {
             const { currentTab } = storeToRefs(useTerminalStore());
+            const { currentNode } = storeToRefs(useTreeStore());
+
+            useTreeStore().setK8sIdMap(currentNode.value.k8s_id!, terminal);
 
             const messageHandlers = {
                 [currentTab.value]: (e: MessageEvent) => {
