@@ -1,5 +1,6 @@
 <template>
     <CustomComponent
+        ref="terminalRef"
         index-key="id"
         class="common-terminal"
         :theme-name="themeName"
@@ -21,7 +22,7 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
-import { computed, h, markRaw, nextTick, reactive, ref } from 'vue';
+import { computed, h, markRaw, nextTick, reactive, Ref, ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -33,6 +34,10 @@ import CustomComponent from '@/components/CustomTerminal/index.vue';
 
 import {
     PersonAdd,
+    ArrowBack,
+    ArrowDown,
+    ArrowForward,
+    ArrowUp,
     PersonOutline,
     ApertureOutline,
     ShareSocialOutline,
@@ -40,6 +45,8 @@ import {
 } from '@vicons/ionicons5';
 
 import type { ISettingProp, shareUser } from '@/views/interface';
+import { Keyboard, Stop, Paste } from '@vicons/carbon';
+import { readText } from 'clipboard-polyfill';
 
 const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
@@ -57,6 +64,7 @@ const themeName = ref<string>('Default');
 const terminalType = ref<string>('common');
 const enableShare = ref<boolean>(false);
 const userOptions = ref<shareUser[]>([]);
+const terminalRef: Ref<any> = ref();
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
@@ -143,9 +151,116 @@ const settings = computed((): ISettingProp[] => {
                     }
                 });
             }
+        },
+        {
+            label: 'Keyboard',
+            title: t('Hotkeys'),
+            icon: Keyboard,
+            content: [
+                {
+                    name: 'Ctrl + C',
+                    icon: Stop,
+                    tip: t('Cancel'),
+                    click: () => {
+                        handleWriteData('Stop');
+                    }
+                },
+                {
+                    name: 'Command/Ctrl + V',
+                    icon: Paste,
+                    tip: t('Paste'),
+                    click: () => {
+                        handleWriteData('Paste');
+                    }
+                },
+                {
+                    name: 'Arrow Up',
+                    icon: ArrowUp,
+                    tip: t('UpArrow'),
+                    click: () => {
+                        handleWriteData('ArrowUp');
+                    }
+                },
+                {
+                    name: 'Arrow Down',
+                    icon: ArrowDown,
+                    tip: t('DownArrow'),
+                    click: () => {
+                        handleWriteData('ArrowDown');
+                    }
+                },
+                {
+                    name: 'Arrow Left',
+                    icon: ArrowBack,
+                    tip: t('LeftArrow'),
+                    click: () => {
+                        handleWriteData('ArrowLeft');
+                    }
+                },
+                {
+                    name: 'Arrow Right',
+                    icon: ArrowForward,
+                    tip: t('RightArrow'),
+                    click: () => {
+                        handleWriteData('ArrowRight');
+                    }
+                }
+            ],
+            disabled: () => false,
+            click: () => {}
         }
     ];
 });
+
+/**
+ * 向终端写入快捷命令
+ *
+ * @param type
+ */
+const handleWriteData = async (type: string) => {
+    if (!terminalRef.value) {
+        message.error(t('No terminal instances available'));
+        return;
+    }
+
+    const terminalInstance: Terminal = terminalRef.value?.terminalRef;
+
+    if (!terminalInstance) {
+        console.error('Terminal instance is not available');
+        return;
+    }
+
+    switch (type) {
+        case 'Paste': {
+            terminalInstance.paste(await readText());
+            break;
+        }
+        case 'Stop': {
+            terminalInstance.paste('^C');
+            break;
+        }
+        case 'ArrowUp': {
+            terminalInstance.paste('\x1b[A');
+            break;
+        }
+        case 'ArrowDown': {
+            terminalInstance.paste('\x1b[B');
+            break;
+        }
+        case 'ArrowLeft': {
+            terminalInstance.paste('\x1b[D');
+            break;
+        }
+        case 'ArrowRight': {
+            terminalInstance.paste('\x1b[C');
+            break;
+        }
+    }
+
+    requestAnimationFrame(() => {
+        terminalInstance.focus();
+    });
+};
 
 /**
  * 重置分享连接表单

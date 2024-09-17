@@ -635,7 +635,9 @@ const handleWriteData = async (type: string) => {
         message.error(t('No terminal instances available'));
         return;
     }
+
     const terminalInstance: Terminal = terminalRef.value[0]?.terminalRef;
+
     if (!terminalInstance) {
         console.error('Terminal instance is not available');
         return;
