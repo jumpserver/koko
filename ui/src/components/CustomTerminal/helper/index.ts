@@ -27,9 +27,7 @@ export const sendEventToLuna = (
     if (lunaId !== null && origin !== null) {
         try {
             window.parent.postMessage({ name, id: lunaId, data }, origin);
-        } catch (e) {
-            console.info(e);
-        }
+        } catch (e) {}
     }
 };
 
