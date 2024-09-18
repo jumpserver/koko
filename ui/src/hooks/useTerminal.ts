@@ -83,6 +83,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     let lastSendTime: Ref<Date> = ref(new Date());
     let lastReceiveTime: Ref<Date> = ref(new Date());
 
+    let messageHandlers = {};
+
     const dispatch = (data: string) => {
         if (!data) return;
 
@@ -207,9 +209,12 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
      */
     const sendWsMessage = (type: string, data: any) => {
         if (option.type === 'k8s') {
+            const treeStore = useTreeStore();
+            const { currentNode } = storeToRefs(treeStore);
+
             return socket?.send(
                 JSON.stringify({
-                    k8s_id: k8s_id.value,
+                    k8s_id: currentNode.value.k8s_id,
                     type,
                     data: JSON.stringify(data)
                 })
@@ -293,6 +298,9 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'K8S_CLOSE': {
+                const treeStore = useTreeStore();
+                const { currentTab } = storeToRefs(useTerminalStore());
+
                 const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
 
                 // 如果 hasCurrentK8sId 为 true 表明需要操作的是当前的 k8s_id 的 terminal
@@ -302,6 +310,16 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                     term?.attachCustomKeyEventHandler(() => {
                         return false;
                     });
+                }
+
+                if (currentTab.value) {
+                    // @ts-ignore
+                    const handler = messageHandlers[currentTab.value as string];
+                    if (handler) {
+                        socket.removeEventListener('message', handler);
+                        // @ts-ignore
+                        delete messageHandlers[currentTab.value as string];
+                    }
                 }
 
                 break;
@@ -517,14 +535,15 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
             treeStore.setK8sIdMap(currentNode.value.k8s_id!, { terminal, socket, ...currentNode.value });
 
-            const messageHandlers = {
+            messageHandlers = {
                 [currentTab.value]: (e: MessageEvent) => {
                     handleK8sMessage(JSON.parse(e.data));
                 }
             };
 
             option.transSocket?.addEventListener('message', (e: MessageEvent) => {
-                const handler = messageHandlers[currentTab.value];
+                // @ts-ignore
+                const handler = messageHandlers[currentTab.value as string];
                 if (handler) {
                     handler(e);
                 }
