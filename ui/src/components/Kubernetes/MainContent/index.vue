@@ -606,23 +606,20 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
  * @param name
  */
 const handleClose = (name: string) => {
-    const index = panels.value.findIndex(panel => {
-        // @ts-ignore
-        const node = treeStore.getTerminalByK8sId(panel.name);
-        const socket = node?.socket;
+    const node = treeStore.getTerminalByK8sId(name);
+    const socket = node?.socket;
 
-        if (socket) {
-            socket.send(
-                JSON.stringify({
-                    type: 'K8S_CLOSE',
-                    id: node.id,
-                    k8s_id: node.k8s_id
-                })
-            );
-        }
+    if (socket) {
+        socket.send(
+            JSON.stringify({
+                type: 'K8S_CLOSE',
+                id: node.id,
+                k8s_id: node.k8s_id
+            })
+        );
+    }
 
-        return panel.name === name;
-    });
+    const index = panels.value.findIndex(panel => panel.name === name);
 
     panels.value.splice(index, 1);
 

@@ -299,7 +299,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             }
             case 'K8S_CLOSE': {
                 const treeStore = useTreeStore();
-                const { currentTab } = storeToRefs(useTerminalStore());
 
                 const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
 
@@ -312,13 +311,16 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                     });
                 }
 
-                if (currentTab.value) {
+                const id = socketData.k8s_id;
+
+                if (id) {
                     // @ts-ignore
-                    const handler = messageHandlers[currentTab.value as string];
+                    const handler = messageHandlers[id];
+
                     if (handler) {
                         socket.removeEventListener('message', handler);
                         // @ts-ignore
-                        delete messageHandlers[currentTab.value as string];
+                        delete messageHandlers[id];
                     }
                 }
 
