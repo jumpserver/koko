@@ -432,6 +432,18 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         window.addEventListener('resize', () => useDebounceFn(() => fitAddon.fit(), 500), false);
 
+        if (option.type === 'k8s') {
+            window.addEventListener('keydown', (event: KeyboardEvent) => {
+                const isAltShift = event.altKey && event.shiftKey;
+
+                if (isAltShift && event.key === 'ArrowLeft') {
+                    mittBus.emit('alt-shift-left');
+                } else if (isAltShift && event.key === 'ArrowRight') {
+                    mittBus.emit('alt-shift-right');
+                }
+            });
+        }
+
         window.SendTerminalData = data => {
             sendDataFromWindow(data);
         };
