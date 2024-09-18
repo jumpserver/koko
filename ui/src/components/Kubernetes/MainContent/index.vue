@@ -134,7 +134,6 @@ const dropdownY = ref(0);
 const dropdownX = ref(0);
 const deleteUserCounter = ref(0);
 const nameRef = ref('');
-const sessionId = ref('');
 const waterMarkContent = ref('');
 const enableShare = ref(false);
 const showContextMenu = ref(false);
