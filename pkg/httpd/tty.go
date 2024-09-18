@@ -246,6 +246,7 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 		return
 	case CLOSE:
 		_ = h.backendClient.Close()
+	case K8SClose:
 		if k8sClient, ok := h.K8sClients[msg.KubernetesId]; ok {
 			_ = k8sClient.Close()
 			delete(h.K8sClients, msg.KubernetesId)
