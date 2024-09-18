@@ -70,11 +70,13 @@ export const useK8s = () => {
      * @param id
      */
     const setCommonAttributes = (item: any, label: string, isLeaf: boolean = false, id?: string) => {
+        const unique = uuid();
+
         Object.assign(item, {
             id: id || uuid(),
             label,
-            key: uuid(),
-            k8s_id: uuid(),
+            key: unique,
+            k8s_id: unique,
             isLeaf
         });
     };
@@ -86,11 +88,13 @@ export const useK8s = () => {
      * @param info
      */
     const syncInitTree = (id: string, info: any) => {
+        const unique = uuid();
+
         const root: customTreeOption = {
             id,
-            key: id,
             label: info.asset.name,
-            k8s_id: uuid(),
+            k8s_id: unique,
+            key: unique,
             isLeaf: false,
             isParent: true,
             prefix: () =>

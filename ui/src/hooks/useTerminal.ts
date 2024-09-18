@@ -252,7 +252,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 terminalId.value = socketData.id;
                 k8s_id.value = socketData.k8s_id;
 
-                const term = treeStore.getTerminalByK8sId(socketData.k8s_id);
+                const term = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
 
                 if (term) {
                     const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
@@ -285,7 +285,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
 
                 if (hasCurrentK8sId) {
-                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id);
+                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
 
                     term?.write(socketData.err);
                 }
@@ -297,7 +297,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
                 // 如果 hasCurrentK8sId 为 true 表明需要操作的是当前的 k8s_id 的 terminal
                 if (hasCurrentK8sId) {
-                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id);
+                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
 
                     term?.attachCustomKeyEventHandler(() => {
                         return false;
@@ -510,10 +510,12 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         sentry = createSentry(socket, terminal);
 
         if (type === 'k8s') {
-            const { currentTab } = storeToRefs(useTerminalStore());
-            const { currentNode } = storeToRefs(useTreeStore());
+            const treeStore = useTreeStore();
+            const { currentNode } = storeToRefs(treeStore);
 
-            useTreeStore().setK8sIdMap(currentNode.value.k8s_id!, terminal);
+            const { currentTab } = storeToRefs(useTerminalStore());
+
+            treeStore.setK8sIdMap(currentNode.value.k8s_id!, { terminal, socket, ...currentNode.value });
 
             const messageHandlers = {
                 [currentTab.value]: (e: MessageEvent) => {

@@ -3,7 +3,6 @@ import { defineStore } from 'pinia';
 import type { TreeOption } from 'naive-ui';
 import type { ITreeState } from '@/store/interface';
 import type { customTreeOption } from '@/hooks/interface';
-import { Terminal } from '@xterm/xterm';
 
 export const useTreeStore = defineStore('tree', {
     state: (): ITreeState => ({
@@ -51,11 +50,11 @@ export const useTreeStore = defineStore('tree', {
         setLoaded(status: boolean) {
             this.isLoaded = status;
         },
-        setK8sIdMap(k8s_id: string, terminal: Terminal) {
-            this.terminalMap.set(k8s_id, terminal);
+        setK8sIdMap(k8s_id: string, data: any) {
+            this.terminalMap.set(k8s_id, data);
         },
-        getTerminalByK8sId(k8s_id: string): Terminal {
-            return this.terminalMap.get(k8s_id) as Terminal;
+        getTerminalByK8sId(k8s_id: string): any {
+            return this.terminalMap.get(k8s_id);
         },
         removeK8sIdMap(k8s_id: string): boolean {
             return this.terminalMap.delete(k8s_id);
