@@ -1,5 +1,4 @@
 import { customTreeOption, SettingConfig } from '@/hooks/interface';
-import { Terminal } from '@xterm/xterm';
 
 export interface IGlobalState {
     initialized: boolean;
@@ -60,7 +59,7 @@ export interface ITreeState {
 
     isLoaded: boolean;
 
-    terminalMap: Map<string, Terminal>;
+    terminalMap: Map<string, any>;
 }
 
 export type ObjToKeyValArray<T> = {

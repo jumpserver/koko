@@ -217,11 +217,6 @@ export const handleTerminalOnData = (
             container: node.container || ''
         };
 
-        // 如果有子节点并且是父节点的处理
-        if (node.children && node.isParent) {
-            return socket.send(JSON.stringify(messageData));
-        }
-
         // 如果有子节点但不是父节点，取第一个子节点的信息
         if (node.children && node.children.length > 0) {
             const currentItem = node.children[0];

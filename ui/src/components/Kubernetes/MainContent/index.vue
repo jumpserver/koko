@@ -81,6 +81,7 @@ import {
     Stop,
     UserAvatar
 } from '@vicons/carbon';
+// @ts-ignore
 import { CloneRegular } from '@vicons/fa';
 import { RefreshFilled } from '@vicons/material';
 import { ClosedCaption32Regular } from '@vicons/fluent';
@@ -98,7 +99,6 @@ import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
 import { DropdownOption, NIcon, NMessageProvider, TabPaneProps, useDialog, useMessage } from 'naive-ui';
 import type { ISettingProp, shareUser } from '@/views/interface';
-import type { customTreeOption } from '@/hooks/interface';
 
 import { v4 as uuid } from 'uuid';
 import { Terminal } from '@xterm/xterm';
@@ -125,7 +125,7 @@ const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { setting } = storeToRefs(paramsStore);
-const { connectInfo, treeNodes, root, currentNode } = storeToRefs(treeStore);
+const { connectInfo, currentNode, terminalMap } = storeToRefs(treeStore);
 
 const el = ref();
 
@@ -143,6 +143,8 @@ const contextIdentification = ref('');
 const terminalRef: Ref<any[]> = ref([]);
 const panels: Ref<TabPaneProps[]> = ref([]);
 const userOptions = ref<shareUser[]>([]);
+
+const processedElements = new Set();
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
@@ -305,12 +307,12 @@ const contextMenuOption = reactive([
         label: t('Close All Tabs'),
         key: 'closeAll',
         icon: renderIcon(ClosedCaption32Regular)
-    },
-    {
-        label: t('Clone Connect'),
-        key: 'cloneConnect',
-        icon: renderIcon(CloneRegular)
     }
+    // {
+    //     label: t('Clone Connect'),
+    //     key: 'cloneConnect',
+    //     icon: renderIcon(CloneRegular)
+    // }
 ]);
 
 /**
@@ -333,10 +335,13 @@ function renderIcon(icon: Component) {
 const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
     switch (key) {
         case 'reconnect': {
-            handleClose(contextIdentification.value);
-            findNodeById(contextIdentification.value);
-
             nextTick(() => {
+                handleClose(contextIdentification.value);
+                findNodeById(contextIdentification.value);
+
+                // @ts-ignore
+                currentNode.value?.terminal.reset();
+
                 mittBus.emit('connect-terminal', currentNode.value);
                 showContextMenu.value = false;
             });
@@ -354,11 +359,15 @@ const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
             break;
         }
         case 'cloneConnect': {
+            // treeStore.getTerminalByK8sId(contextIdentification.value);
+            // treeStore.setCurrentNode(node);
+
             findNodeById(contextIdentification.value);
 
+            showContextMenu.value = false;
+
             nextTick(() => {
-                mittBus.emit('connect-terminal', currentNode.value);
-                showContextMenu.value = false;
+                mittBus.emit('connect-terminal', { skip: true, ...currentNode.value });
             });
 
             break;
@@ -572,7 +581,23 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
  * @param name
  */
 const handleClose = (name: string) => {
-    const index = panels.value.findIndex(panel => panel.name === name);
+    const index = panels.value.findIndex(panel => {
+        // @ts-ignore
+        const node = treeStore.getTerminalByK8sId(panel.name);
+        const socket = node?.socket;
+
+        if (socket) {
+            socket.send(
+                JSON.stringify({
+                    type: 'K8S_CLOSE',
+                    id: node.id,
+                    k8s_id: node.k8s_id
+                })
+            );
+        }
+
+        return panel.name === name;
+    });
 
     panels.value.splice(index, 1);
 
@@ -588,28 +613,25 @@ const handleClose = (name: string) => {
 /**
  * 递归查询切换标签时当前 tab 的 key，并重新设置 currentNode
  *
- * @param id
+ * @param nameRef
  */
-const findNodeById = (id: string): void => {
-    if (id === root.value.id) {
-        return treeStore.setCurrentNode(root.value);
-    }
-
-    const searchNode = (nodes: customTreeOption[]) => {
-        for (const node of nodes) {
-            if (node.key === id) {
-                treeStore.setCurrentNode(node);
-                return true;
-            }
-            if (node.children && node.children.length > 0) {
-                const found = searchNode(node.children);
-                if (found) return true;
-            }
+const findNodeById = (nameRef: string): void => {
+    for (const [_key, value] of terminalMap.value.entries()) {
+        if (value.k8s_id === nameRef) {
+            treeStore.setCurrentNode(value);
         }
-        return false;
-    };
+    }
+};
 
-    searchNode(treeNodes.value);
+const updateTabElements = (key: string) => {
+    const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
+
+    tabElements.forEach(element => {
+        if (!processedElements.has(element)) {
+            element.setAttribute('data-identification', key);
+            processedElements.add(element);
+        }
+    });
 };
 
 /**
@@ -719,7 +741,6 @@ onMounted(() => {
         let existingPanelName = uuid();
         const existingPanel = panels.value.find(panel => panel.name === currentNode.key);
 
-        // 如果存在，直接切换到已有的标签页
         if (existingPanel) {
             panels.value.push({
                 name: existingPanelName as string,
@@ -727,6 +748,7 @@ onMounted(() => {
             });
 
             currentNode.key = existingPanelName;
+            currentNode.k8s_id = existingPanelName;
         } else {
             // 如果不存在，则添加新的标签页
             panels.value.push({
@@ -737,14 +759,7 @@ onMounted(() => {
 
         // 用于 contentMenu 找到当前的唯一标识
         nextTick(() => {
-            const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
-            const currentTabElement = Array.from(tabElements).find(
-                tab => tab.textContent?.trim() === currentNode.label
-            );
-
-            if (currentTabElement) {
-                currentTabElement.setAttribute('data-identification', currentNode.key as string);
-            }
+            updateTabElements(currentNode?.key as string);
         });
 
         treeStore.setCurrentNode(currentNode);
@@ -760,7 +775,7 @@ onMounted(() => {
                     if (cols && rows) {
                         const sendData = {
                             id: currentNode.id,
-                            k8s_id: existingPanel ? uuid() : currentNode.k8s_id,
+                            k8s_id: currentNode.k8s_id,
                             namespace: currentNode.namespace || '',
                             pod: currentNode.pod || '',
                             container: currentNode.container || '',
