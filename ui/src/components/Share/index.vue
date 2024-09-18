@@ -77,7 +77,6 @@ import { BASE_URL } from '@/config';
 import { getMinuteLabel } from '@/utils';
 import { useDebounceFn } from '@vueuse/core';
 import { shareUser } from '@/views/interface';
-import { useLogger } from '@/hooks/useLogger.ts';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 
