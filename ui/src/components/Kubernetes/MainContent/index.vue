@@ -125,6 +125,7 @@ const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { setting } = storeToRefs(paramsStore);
+const { currentTab } = storeToRefs(terminalStore);
 const { connectInfo, currentNode, terminalMap } = storeToRefs(treeStore);
 
 const el = ref();
@@ -145,6 +146,7 @@ const panels: Ref<TabPaneProps[]> = ref([]);
 const userOptions = ref<shareUser[]>([]);
 
 const processedElements = new Set();
+const sessionIdMap = new Map();
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
@@ -179,8 +181,7 @@ const settings = computed((): ISettingProp[] => {
             icon: ShareIcon,
             disabled: () => !enableShare.value,
             click: () => {
-                // @ts-ignore
-                const id: string = currentNode.value.id;
+                const sessionId = sessionIdMap.get(currentTab.value);
 
                 dialog.success({
                     class: 'share',
@@ -191,7 +192,7 @@ const settings = computed((): ISettingProp[] => {
                         return h(NMessageProvider, null, {
                             default: () =>
                                 h(Share, {
-                                    sessionId: sessionId.value,
+                                    sessionId,
                                     enableShare: enableShare.value,
                                     userOptions: userOptions.value
                                 })
@@ -226,8 +227,10 @@ const settings = computed((): ISettingProp[] => {
                     positiveText: '确定',
                     negativeText: '取消',
                     onPositiveClick: () => {
+                        const sessionId = sessionIdMap.get(currentTab.value);
+
                         mittBus.emit('remove-share-user', {
-                            sessionId: sessionId.value,
+                            sessionId: sessionId,
                             userMeta: user,
                             type: 'TERMINAL_SHARE_USER_REMOVE'
                         });
@@ -520,7 +523,13 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
                 enableShare.value = true;
             }
 
-            sessionId.value = sessionDetail.id;
+            const currentK8sId: string = currentNode.value?.k8s_id as string;
+
+            if (currentK8sId) {
+                sessionIdMap.set(currentK8sId, sessionDetail.id);
+            }
+
+            // sessionId.value = sessionDetail.id;
             themeName.value = sessionInfo.themeName;
 
             nextTick(() => {
@@ -840,6 +849,7 @@ onMounted(() => {
         const sendTerminalData = () => {
             if (terminalRef.value) {
                 setTimeout(() => {
+                    // todo 优化
                     const terminalInstance = terminalRef.value[0]?.terminalRef;
 
                     const cols = terminalInstance?.cols;
