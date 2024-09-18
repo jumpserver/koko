@@ -179,6 +179,9 @@ const settings = computed((): ISettingProp[] => {
             icon: ShareIcon,
             disabled: () => !enableShare.value,
             click: () => {
+                // @ts-ignore
+                const id: string = currentNode.value.id;
+
                 dialog.success({
                     class: 'share',
                     title: t('CreateLink'),
@@ -327,6 +330,29 @@ function renderIcon(icon: Component) {
 }
 
 /**
+ * 重连事件的回调
+ */
+const handleReconnect = () => {
+    try {
+        findNodeById(contextIdentification.value);
+
+        delete currentNode.value.skip;
+
+        const terminal: Terminal = currentNode.value?.terminal as Terminal;
+
+        if (terminal) {
+            terminal.reset();
+
+            nextTick(() => {
+                mittBus.emit('connect-terminal', { skip: true, ...currentNode.value });
+
+                showContextMenu.value = false;
+            });
+        }
+    } catch (e) {}
+};
+
+/**
  * 右键菜单的回调
  *
  * @param key
@@ -335,16 +361,7 @@ function renderIcon(icon: Component) {
 const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
     switch (key) {
         case 'reconnect': {
-            nextTick(() => {
-                handleClose(contextIdentification.value);
-                findNodeById(contextIdentification.value);
-
-                // @ts-ignore
-                currentNode.value?.terminal.reset();
-
-                mittBus.emit('connect-terminal', currentNode.value);
-                showContextMenu.value = false;
-            });
+            handleReconnect();
             break;
         }
         case 'close': {
@@ -359,15 +376,15 @@ const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
             break;
         }
         case 'cloneConnect': {
-            // treeStore.getTerminalByK8sId(contextIdentification.value);
-            // treeStore.setCurrentNode(node);
-
-            findNodeById(contextIdentification.value);
-
-            showContextMenu.value = false;
+            // findNodeById(contextIdentification.value);
+            delete currentNode.value.skip;
 
             nextTick(() => {
-                mittBus.emit('connect-terminal', { skip: true, ...currentNode.value });
+                mittBus.emit('connect-terminal', { skip: false, ...currentNode.value });
+                showContextMenu.value = false;
+
+                console.log(panels);
+                console.log(currentNode.value);
             });
 
             break;
@@ -737,11 +754,18 @@ onMounted(() => {
     });
 
     mittBus.on('connect-terminal', currentNode => {
-        // 检查 currentNode.key 是否已经存在
         let existingPanelName = uuid();
-        const existingPanel = panels.value.find(panel => panel.name === currentNode.key);
 
-        if (existingPanel) {
+        const has = treeStore.getTerminalByK8sId(currentNode.k8s_id as string);
+
+        if (!has) {
+            panels.value.push({
+                name: currentNode.key,
+                tab: currentNode.label
+            });
+        }
+
+        if (has && !currentNode.skip) {
             panels.value.push({
                 name: existingPanelName as string,
                 tab: currentNode.label
@@ -749,12 +773,61 @@ onMounted(() => {
 
             currentNode.key = existingPanelName;
             currentNode.k8s_id = existingPanelName;
-        } else {
-            // 如果不存在，则添加新的标签页
-            panels.value.push({
-                name: currentNode.key,
-                tab: currentNode.label
+        }
+
+        // todo 冗余代码，后期优化
+        if (currentNode.skip) {
+            // 用于 contentMenu 找到当前的唯一标识
+            nextTick(() => {
+                updateTabElements(currentNode?.key as string);
             });
+
+            console.log(currentNode);
+            treeStore.setCurrentNode(currentNode);
+
+            const sendTerminalData = () => {
+                if (terminalRef.value) {
+                    setTimeout(() => {
+                        const terminalInstance = terminalRef.value[0]?.terminalRef;
+
+                        const cols = terminalInstance?.cols;
+                        const rows = terminalInstance?.rows;
+
+                        if (cols && rows) {
+                            const sendData = {
+                                id: currentNode.id,
+                                k8s_id: currentNode.k8s_id,
+                                namespace: currentNode.namespace || '',
+                                pod: currentNode.pod || '',
+                                container: currentNode.container || '',
+                                type: 'TERMINAL_K8S_INIT',
+                                data: JSON.stringify({
+                                    cols,
+                                    rows,
+                                    code: ''
+                                })
+                            };
+
+                            updateIcon(connectInfo.value.setting);
+                            props.socket?.send(JSON.stringify(sendData));
+                        } else {
+                            console.error('Failed to get terminal dimensions');
+                        }
+                    });
+                } else {
+                    console.error('CustomTerminal ref is not available');
+                }
+            };
+
+            sendTerminalData();
+
+            const key: string = currentNode.key as string;
+
+            nameRef.value = key;
+            terminalStore.setTerminalConfig('currentTab', key);
+            deleteUserCounter.value++;
+
+            return;
         }
 
         // 用于 contentMenu 找到当前的唯一标识

@@ -98,7 +98,6 @@ const paramsStore = useParamsStore();
 const dialogReactiveList = useDialogReactiveList();
 
 const { t } = useI18n();
-const { debug } = useLogger('Share');
 const { shareCode, shareId } = storeToRefs(paramsStore);
 
 const loading = ref<boolean>(false);
@@ -180,8 +179,6 @@ const handleShareURlCreated = () => {
         sessionId: props.sessionId,
         shareLinkRequest: shareLinkRequest
     });
-
-    debug(`分享请求数据: ${props.sessionId}, ${shareLinkRequest}`);
 };
 const handleSearch = (query: string) => {
     loading.value = true;
