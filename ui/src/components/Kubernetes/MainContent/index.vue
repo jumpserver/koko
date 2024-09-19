@@ -146,6 +146,7 @@ const userOptions = ref<shareUser[]>([]);
 
 const processedElements = new Set();
 const sessionIdMap = new Map();
+const ctrlCAsCtrlZMap = new Map();
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
@@ -525,12 +526,11 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
                 terminalStore.setTerminalConfig('backspaceAsCtrlH', value);
             }
 
-            if (sessionInfo.ctrlCAsCtrlZ) {
-                const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
-                debug(`Set ctrlCAsCtrlZ: ${value}`);
-
-                terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);
-            }
+            // if (sessionInfo.ctrlCAsCtrlZ) {
+            //     const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
+            //
+            //     terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);
+            // }
 
             if (setting.value.SECURITY_SESSION_SHARE && share) {
                 enableShare.value = true;
@@ -540,6 +540,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
 
             if (currentK8sId) {
                 sessionIdMap.set(currentK8sId, sessionDetail.id);
+                ctrlCAsCtrlZMap.set(currentK8sId, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');
             }
 
             // sessionId.value = sessionDetail.id;
@@ -669,6 +670,10 @@ const findNodeById = (nameRef: string): void => {
     for (const [_key, value] of terminalMap.value.entries()) {
         if (value.k8s_id === nameRef) {
             treeStore.setCurrentNode(value);
+
+            const ctrlCAsCtrl: string = ctrlCAsCtrlZMap.get(value.k8s_id);
+
+            terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
         }
     }
 };
