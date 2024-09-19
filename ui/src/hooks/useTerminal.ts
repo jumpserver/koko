@@ -300,17 +300,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             case 'K8S_CLOSE': {
                 const treeStore = useTreeStore();
 
-                const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
-
-                // 如果 hasCurrentK8sId 为 true 表明需要操作的是当前的 k8s_id 的 terminal
-                if (hasCurrentK8sId) {
-                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
-
-                    term?.attachCustomKeyEventHandler(() => {
-                        return false;
-                    });
-                }
-
                 const id = socketData.k8s_id;
 
                 if (id) {
@@ -322,6 +311,17 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                         // @ts-ignore
                         delete messageHandlers[id];
                     }
+                }
+
+                const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
+
+                // 如果 hasCurrentK8sId 为 true 表明需要操作的是当前的 k8s_id 的 terminal
+                if (hasCurrentK8sId) {
+                    const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
+
+                    term?.attachCustomKeyEventHandler(() => {
+                        return false;
+                    });
                 }
 
                 break;
