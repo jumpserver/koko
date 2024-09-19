@@ -237,12 +237,15 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			logger.Debugf("Ws[%s] receive %s message", userCon.Uuid, msg.Type)
 			continue
 		case TerminalK8STree:
-			data := userCon.k8sClient.GetTreeData()
+			data, err := userCon.k8sClient.GetTreeData()
 			responseMsg := Message{
 				Id:           userCon.Uuid,
 				Type:         TerminalK8STree,
 				Data:         data,
 				KubernetesId: msg.KubernetesId,
+			}
+			if err != nil {
+				responseMsg.Err = err.Error()
 			}
 
 			userCon.SendMessage(&responseMsg)
