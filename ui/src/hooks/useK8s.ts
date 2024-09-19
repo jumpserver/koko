@@ -7,7 +7,7 @@ import { ref, h } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useLogger } from './useLogger.ts';
 import { useWebSocket } from '@vueuse/core';
-import { createDiscreteApi } from 'naive-ui';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { generateWsURL, onWebsocketOpen, onWebsocketWrong } from './helper';
@@ -17,7 +17,11 @@ import type { Ref } from 'vue';
 import { customTreeOption, IContainer, IPods } from '@/hooks/interface';
 
 const { debug } = useLogger('K8s');
-const { message } = createDiscreteApi(['message']);
+const { message, notification } = createDiscreteApi(['message', 'notification'], {
+    configProviderProps: {
+        theme: darkTheme
+    }
+});
 
 export const useK8s = () => {
     const treeStore = useTreeStore();
@@ -168,6 +172,14 @@ export const useK8s = () => {
      * 二次处理节点
      */
     const filterSyncNodes = (msg: any) => {
+        if (msg.err) {
+            treeStore.setTreeNodes({} as customTreeOption);
+            return notification.error({
+                content: msg.err,
+                duration: 100000
+            });
+        }
+
         const data = JSON.parse(msg.data as string);
 
         if (Object.keys(data).length === 0) {

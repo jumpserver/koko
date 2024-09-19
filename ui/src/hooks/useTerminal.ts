@@ -547,7 +547,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
             const { currentTab } = storeToRefs(useTerminalStore());
 
-            treeStore.setK8sIdMap(currentNode.value.k8s_id!, { terminal, socket, ...currentNode.value });
+            treeStore.setK8sIdMap(currentNode.value.k8s_id!, {
+                terminal,
+                socket,
+                ...currentNode.value
+            });
 
             messageHandlers = {
                 [currentTab.value]: (e: MessageEvent) => {
@@ -558,6 +562,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             option.transSocket?.addEventListener('message', (e: MessageEvent) => {
                 // @ts-ignore
                 const handler = messageHandlers[currentTab.value as string];
+
                 if (handler) {
                     handler(e);
                 }
