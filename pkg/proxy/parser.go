@@ -595,7 +595,7 @@ func (p *Parser) waitCommandConfirm() {
 	cancelReq := resp.CloseReq
 	detailURL := resp.TicketDetailUrl
 	reviewers := resp.Reviewers
-	msg := lang.T("Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C.")
+	msg := lang.T("Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D.")
 	cmd = strings.ReplaceAll(cmd, "\r", "")
 	cmd = strings.ReplaceAll(cmd, "\n", "")
 	waitMsg := fmt.Sprintf(msg, cmd)

@@ -402,7 +402,7 @@ msgstr ""
 #. lang.T
 #: pkg/proxy/parser.go:598
 msgid ""
-"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D."
 msgstr ""
 
 #. lang.T

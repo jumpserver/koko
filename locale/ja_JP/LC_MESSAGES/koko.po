@@ -416,10 +416,9 @@ msgstr "ファイルをダウンロードする権限がない"
 #. lang.T
 #: pkg/proxy/parser.go:598
 msgid ""
-"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D."
 msgstr ""
-"レビューアがコマンド `%s` を確認するのを待ってください。CTRL + Cでキャンセル"
-"してください。"
+"レビュー担当者がコマンド `%s` をレビューするまでお待ちください。キャンセルするには、CTRL+C または CTRL+D を押してください。"
 
 #. lang.T
 #: pkg/proxy/parser.go:608

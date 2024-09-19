@@ -431,8 +431,8 @@ msgstr "无权限下载文件"
 #: pkg/proxy/parser.go:598
 #, fuzzy
 msgid ""
-"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C."
-msgstr "请等待审核人复核命令 `%s`，取消按 CTRL+C。"
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D."
+msgstr "请等待审核人复核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
 
 #. lang.T
 #: pkg/proxy/parser.go:608
