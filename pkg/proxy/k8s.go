@@ -121,7 +121,7 @@ var (
 	getPodContainersLine = "kubectl get pods --all-namespaces -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers"
 )
 
-func (kc *KubernetesClient) GetTreeData() string {
+func (kc *KubernetesClient) GetTreeData() (string, error) {
 	env := append(os.Environ(), "KUBECONFIG="+kc.configName)
 
 	namespacesCmd := exec.Command("bash", "-c", getNamespacesLine)
@@ -129,27 +129,32 @@ func (kc *KubernetesClient) GetTreeData() string {
 	namespacesOutput, err := namespacesCmd.CombinedOutput()
 	if err != nil {
 		logger.Debugf("Error executing kubectl get namespaces: %v", err)
-		return "{}"
+		return "{}", err
 	}
 
 	namespaceLines := strings.Split(strings.TrimSpace(string(namespacesOutput)), "\n")
+
+	namespaces := make(map[string]*Namespace)
+	for _, nsName := range namespaceLines {
+		if strings.HasPrefix(nsName, "error:") {
+			nsName = strings.TrimPrefix(nsName, "error: ")
+			return "{}", fmt.Errorf(nsName)
+		}
+
+		if nsName = strings.TrimSpace(nsName); nsName != "" {
+			namespaces[nsName] = &Namespace{Name: nsName, Type: "namespace"}
+		}
+	}
 
 	podsCmd := exec.Command("bash", "-c", getPodContainersLine)
 	podsCmd.Env = env
 	podsOutput, err := podsCmd.CombinedOutput()
 	if err != nil {
 		logger.Debugf("Error executing kubectl get pods: %v", err)
-		return "{}"
+		return "{}", err
 	}
 
 	podLines := strings.Split(strings.TrimSpace(string(podsOutput)), "\n")
-
-	namespaces := make(map[string]*Namespace)
-	for _, nsName := range namespaceLines {
-		if nsName = strings.TrimSpace(nsName); nsName != "" {
-			namespaces[nsName] = &Namespace{Name: nsName, Type: "namespace"}
-		}
-	}
 
 	for _, line := range podLines {
 		record := strings.Fields(line)
@@ -189,10 +194,10 @@ func (kc *KubernetesClient) GetTreeData() string {
 	jsonData, err := json.Marshal(namespaces)
 	if err != nil {
 		logger.Errorf("Error marshalling JSON: %v", err)
-		return "{}"
+		return "{}", err
 	}
 
-	return string(jsonData)
+	return string(jsonData), nil
 }
 
 func (kc *KubernetesClient) Close() {
