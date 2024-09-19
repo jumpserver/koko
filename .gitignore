@@ -24,10 +24,8 @@ release
 !config_example.yml
 
 .DS_Store
-package-lock.json
-node_modules
-
-
+ui/node_modules/
+ui/dist/
 
 # local env files
 .env.local
@@ -48,7 +46,5 @@ pnpm-debug.log*
 *.sln
 *.sw?
 demo
-assets/
-ui/dist/favicon.ico
-ui/dist/index.html
+
 docker-compose.yaml
