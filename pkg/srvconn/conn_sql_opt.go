@@ -9,6 +9,7 @@ type sqlOption struct {
 	Host             string
 	Port             int
 	UseSSL           bool
+	SqlPgSSLMode     string
 	CaCert           string
 	CaCertPath       string
 	ClientCert       string
@@ -70,6 +71,13 @@ func SqlPort(port int) SqlOption {
 func SqlUseSSL(useSSL bool) SqlOption {
 	return func(args *sqlOption) {
 		args.UseSSL = useSSL
+	}
+}
+
+func SqlPGSSLMode(mode string) SqlOption {
+	return func(args *sqlOption) {
+		args.SqlPgSSLMode = mode
+
 	}
 }
 

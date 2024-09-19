@@ -1,7 +1,9 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
-  skip-dirs:
+
+issues:
+  exclude-dirs:
     - cmd/demo
     - cmd/i18ntool
     - data
@@ -10,7 +12,7 @@ run:
     - ui
     - .git
 
-  skip-files:
+  exclude-files:
     - pkg/utils/terminal.go
 
 linters:
@@ -18,3 +20,5 @@ linters:
     - govet
     - staticcheck
 
+output:
+  format: colored-line-number

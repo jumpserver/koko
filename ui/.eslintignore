@@ -1,5 +1,0 @@
-# /node_modules/* and /bower_components/* ignored by default
-
-# Ignore built files except build/index.js
-build/*
-src/plugins/lib/*.js

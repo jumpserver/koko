@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: koko
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+builds:
+  - id: koko
+    main: ./cmd/koko/
+    binary: koko
+    goos:
+      - linux
+      - darwin
+      - freebsd
+      - netbsd
+    goarch:
+      - amd64
+      - arm64
+      - mips64le
+      - ppc64le
+      - s390x
+      - riscv64
+      - loong64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -w -s
+      - -X 'main.Buildstamp={{ .Date }}'
+      - -X 'main.Githash={{ .ShortCommit }}'
+      - -X 'main.Goversion={{ .Env.GOVERSION }}'
+      - -X 'main.Version={{ .Tag }}'
+      - -X 'github.com/jumpserver/koko/pkg/config.CipherKey={{ .Env.CipherKey }}'
+  - id: kubectl
+    main: ./cmd/kubectl/
+    binary: kubectl
+    goos:
+      - linux
+      - darwin
+      - freebsd
+      - netbsd
+    goarch:
+      - amd64
+      - arm64
+      - mips64le
+      - ppc64le
+      - s390x
+      - riscv64
+      - loong64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -w -s
+      - -X 'github.com/jumpserver/koko/pkg/config.CipherKey={{ .Env.CipherKey }}'
+  - id: helm
+    main: ./cmd/helm/
+    binary: helm
+    goos:
+      - linux
+      - darwin
+      - freebsd
+      - netbsd
+    goarch:
+      - amd64
+      - arm64
+      - mips64le
+      - ppc64le
+      - s390x
+      - riscv64
+      - loong64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -w -s
+      - -X 'github.com/jumpserver/koko/pkg/config.CipherKey={{ .Env.CipherKey }}'
+
+archives:
+  - format: tar.gz
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - README.md
+      - config_example.yml
+      - locale/*
+      - src: utils/init-kubectl.sh
+        dst: init-kubectl
+        strip_parent: true
+
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .ProjectName }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}{{- if .Arm }}v{{ .Arm }}{{ end }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+release:
+  draft: true
+  mode: append
+  extra_files:
+    - glob: dist/*.tar.gz
+    - glob: dist/*.txt
+  name_template: "Release {{.Tag}}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

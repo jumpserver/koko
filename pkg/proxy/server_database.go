@@ -42,6 +42,12 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 	opts = append(opts, srvconn.SqlUsername(s.account.Username))
 	opts = append(opts, srvconn.SqlPassword(s.account.Secret))
 	opts = append(opts, srvconn.SqlDBName(asset.SpecInfo.DBName))
+	opts = append(opts, srvconn.SqlUseSSL(asset.SpecInfo.UseSSL))
+	opts = append(opts, srvconn.SqlPGSSLMode(asset.SpecInfo.PgSSLMode))
+	opts = append(opts, srvconn.SqlCaCert(asset.SecretInfo.CaCert))
+	opts = append(opts, srvconn.SqlClientCert(asset.SecretInfo.ClientCert))
+	opts = append(opts, srvconn.SqlCertKey(asset.SecretInfo.ClientKey))
+	opts = append(opts, srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert))
 	opts = append(opts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,

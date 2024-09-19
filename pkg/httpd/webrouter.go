@@ -130,6 +130,15 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		elfinderGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}
 
+	k8sGroup := kokoGroup.Group("/k8s")
+	k8sGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	{
+		k8sGroup.GET("/", func(ctx *gin.Context) {
+			// https://github.com/gin-gonic/gin/issues/2654
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
+		})
+	}
+
 	debugGroup := eng.Group("/debug/pprof")
 	debugGroup.Use(auth.HTTPMiddleDebugAuth())
 	{
