@@ -138,7 +138,7 @@ func (kc *KubernetesClient) GetTreeData() (string, error) {
 	for _, nsName := range namespaceLines {
 		if strings.HasPrefix(nsName, "error:") {
 			nsName = strings.TrimPrefix(nsName, "error: ")
-			return "{}", fmt.Errorf(nsName)
+			return "{}", fmt.Errorf("%s", nsName)
 		}
 
 		if nsName = strings.TrimSpace(nsName); nsName != "" {
