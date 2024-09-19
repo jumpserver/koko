@@ -652,6 +652,8 @@ const handleClose = (name: string) => {
 
     panels.value.splice(index, 1);
 
+    treeStore.removeK8sIdMap(name);
+
     const panelLength = panels.value.length;
 
     if (panelLength >= 1) {
