@@ -5,16 +5,12 @@ VERSION ?= Unknown
 BuildTime := $(shell date -u '+%Y-%m-%d %I:%M:%S%p')
 COMMIT := $(shell git rev-parse HEAD)
 GOVERSION := $(shell go version)
+CipherKey := $(shell head -c 100 /dev/urandom | base64 | head -c 32)
 
 BASEPATH := $(shell pwd)
 KOKOSRCFILE := $(BASEPATH)/cmd/koko/
 KUBECTLFILE := $(BASEPATH)/cmd/kubectl/
 HELMFILE := $(BASEPATH)/cmd/helm/
-
-COMMIT := $(shell git rev-parse HEAD)
-GOVERSION := $(shell go version)
-CipherKey := $(shell head -c 100 /dev/urandom | base64 | head -c 32)
-TARGETARCH ?= amd64
 
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
