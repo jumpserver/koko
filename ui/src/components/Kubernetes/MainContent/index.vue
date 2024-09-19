@@ -209,13 +209,20 @@ const settings = computed((): ISettingProp[] => {
             title: t('User'),
             icon: UserAvatar,
             disabled: () => Object.keys(onlineUsersMap).length < 1,
-            content: Object.values(onlineUsersMap)
-                .map((item: any) => {
-                    item.name = item.user;
-                    item.icon = item.writable ? markRaw(Activity) : markRaw(NotSent);
-                    item.tip = item.writable ? t('Writable') : t('ReadOnly');
-                    return item;
-                })
+            content: Object.entries(onlineUsersMap)
+                .flatMap(([sessionKey, items]) =>
+                    items
+                        .filter((_item: any) => currentTab.value === sessionKey)
+                        .map((item: any) => {
+                            return {
+                                ...item,
+                                name: item.user,
+                                icon: item.writable ? markRaw(Activity) : markRaw(NotSent),
+                                tip: item.writable ? t('Writable') : t('ReadOnly'),
+                                sessionKey // 添加会话的 key 值
+                            };
+                        })
+                )
                 .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
             click: user => {
                 if (user.primary) return;
@@ -335,23 +342,30 @@ function renderIcon(icon: Component) {
  * 重连事件的回调
  */
 const handleReconnect = () => {
-    try {
-        findNodeById(contextIdentification.value);
+    const node = treeStore.getTerminalByK8sId(contextIdentification.value);
 
-        delete currentNode.value.skip;
+    const socket = node?.socket;
 
-        const terminal: Terminal = currentNode.value?.terminal as Terminal;
+    if (socket) {
+        socket.send(
+            JSON.stringify({
+                type: 'K8S_CLOSE',
+                id: node.id,
+                k8s_id: node.k8s_id
+            })
+        );
+    }
 
-        if (terminal) {
-            terminal.reset();
+    const index = panels.value.findIndex(panel => panel.name === contextIdentification.value);
 
-            nextTick(() => {
-                mittBus.emit('connect-terminal', { skip: true, ...currentNode.value });
+    panels.value.splice(index, 1);
 
-                showContextMenu.value = false;
-            });
-        }
-    } catch (e) {}
+    delete node.socket;
+    delete node.terminal;
+
+    mittBus.emit('connect-terminal', { skip: false, ...node });
+
+    showContextMenu.value = false;
 };
 
 /**
@@ -538,9 +552,13 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
         case 'TERMINAL_SHARE_JOIN':
             const data = JSON.parse(msg.data);
 
-            const key: string = data.terminal_id;
+            const k8s_id: string = msg.k8s_id;
 
-            onlineUsersMap[key] = data;
+            if (onlineUsersMap[k8s_id]) {
+                onlineUsersMap[k8s_id].push({ k8s_id: msg.k8s_id, ...data });
+            } else {
+                onlineUsersMap[k8s_id] = [{ k8s_id: msg.k8s_id, ...data }];
+            }
 
             if (data.primary) {
                 debug('Primary User 不提醒');
@@ -551,10 +569,20 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             break;
         case 'TERMINAL_SHARE_LEAVE': {
             const data = JSON.parse(msg.data);
-            const key = data.terminal_id;
 
-            if (onlineUsersMap.hasOwnProperty(key)) {
-                delete onlineUsersMap[key];
+            const k8s_id: string = msg.k8s_id;
+
+            if (onlineUsersMap.hasOwnProperty(k8s_id)) {
+                const items = onlineUsersMap[k8s_id];
+
+                const index = items.findIndex((item: any) => item.terminal_id === data.terminal_id);
+                if (index !== -1) {
+                    items.splice(index, 1);
+
+                    if (items.length === 0) {
+                        delete onlineUsersMap[k8s_id];
+                    }
+                }
             }
 
             message.info(`${data.user} ${t('LeaveShare')}`);
@@ -787,7 +815,6 @@ onMounted(() => {
                 updateTabElements(currentNode?.key as string);
             });
 
-            console.log(currentNode);
             treeStore.setCurrentNode(currentNode);
 
             const sendTerminalData = () => {
