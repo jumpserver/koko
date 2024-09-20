@@ -10,7 +10,7 @@ export const useTerminalStore = defineStore('terminal', {
         ctrlCAsCtrlZ: '',
         backspaceAsCtrlH: '0',
         lineHeight: 1,
-        fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
+        fontFamily: '"Open Sans", monaco, Consolas, "Lucida Console", monospace',
 
         enableZmodem: true,
         zmodemStatus: false,
