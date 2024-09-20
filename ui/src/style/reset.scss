@@ -1,3 +1,24 @@
+@font-face {
+    font-family: 'Open Sans';
+    src: url('./fonts/OpenSans-Regular.ttf');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    src: url('./fonts/OpenSans-Bold.ttf');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    src: url('./fonts/OpenSans-Light.ttf');
+    font-weight: 300;
+    font-style: normal;
+}
+
 html,
 body,
 #app {
@@ -5,7 +26,7 @@ body,
     height: 100%;
     padding: 0;
     margin: 0;
-    font-family: opensans, sans-serif;
+    font-family: 'Open Sans', sans-serif;
 }
 
 #app {
