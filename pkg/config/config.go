@@ -76,7 +76,7 @@ type Config struct {
 
 func (c *Config) EnsureConfigValid() {
 	if c.LanguageCode == "" {
-		c.LanguageCode = "zh"
+		c.LanguageCode = "en"
 	}
 }
 
@@ -133,6 +133,7 @@ func getDefaultConfig() Config {
 		ReplayFolderPath:  replayFolderPath,
 		FTPFileFolderPath: ftpFileFolderPath,
 		CertsFolderPath:   CertsFolderPath,
+		LanguageCode:      "en",
 
 		Comment:             "KOKO",
 		UploadFailedReplay:  true,
