@@ -64,6 +64,8 @@ type Config struct {
 
 	SshMaxSessions int `mapstructure:"SSH_MAX_SESSIONS"`
 
+	DisableInputAsCommand bool `mapstructure:"DISABLE_INPUT_AS_COMMAND"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string

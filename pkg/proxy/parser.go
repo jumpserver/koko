@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LeeEirc/tclientlib"
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -91,6 +92,8 @@ type Parser struct {
 	currentCmdFilterRule CommandRule
 
 	userInputFilter func([]byte) []byte
+
+	disableInputAsCmd bool
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -119,6 +122,7 @@ func (p *Parser) initial() {
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
+	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
 }
 
 func (p *Parser) SetUserInputFilter(filter func([]byte) []byte) {
@@ -437,6 +441,9 @@ func (p *Parser) IsNeedParse() bool {
 }
 
 func (p *Parser) writeInputBuffer(b []byte) {
+	if p.disableInputAsCmd {
+		return
+	}
 	p.inputBuffer.Write(b)
 }
 
