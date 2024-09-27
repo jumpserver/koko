@@ -222,13 +222,13 @@ func KeepWsHeartbeat(jmsService *service.JMService) {
 }
 
 func GetStatusData() interface{} {
-	sessions := session.GetAliveSessions()
+	ids := session.GetAliveSessionIds()
 	payload := model.HeartbeatData{
-		SessionOnlineIds: sessions,
+		SessionOnlineIds: ids,
 		CpuUsed:          common.CpuLoad1Usage(),
 		MemoryUsed:       common.MemoryUsagePercent(),
 		DiskUsed:         common.DiskUsagePercent(),
-		SessionOnline:    len(sessions),
+		SessionOnline:    len(ids),
 	}
 	return map[string]interface{}{
 		"type":    "status",

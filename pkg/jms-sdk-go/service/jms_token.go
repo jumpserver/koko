@@ -46,3 +46,15 @@ type SuperConnectTokenReq struct {
 
 	Params map[string]string `json:"-"`
 }
+
+func (s *JMService) CheckTokenStatus(tokenId string) (res TokenStatus, err error) {
+	reqURL := fmt.Sprintf(SuperConnectTokenCheckURL, tokenId)
+	_, err = s.authClient.Get(reqURL, &res)
+	return
+}
+
+type TokenStatus struct {
+	Detail  string      `json:"detail"`
+	Code    string      `json:"code"`
+	Expired interface{} `json:"expired"`
+}
