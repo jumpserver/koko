@@ -94,6 +94,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		AccountID:  account.ID,
 		OrgID:      connOpts.authInfo.OrgId,
 		Type:       model.NORMALType,
+		TokenId:    connOpts.authInfo.Id,
 	}
 
 	if !connOpts.authInfo.Actions.EnableConnect() {
@@ -939,6 +940,10 @@ func (s *Server) Proxy() {
 			sw.PauseOperation(task.Kwargs.CreatedByUser)
 		case model.TaskUnlockSession:
 			sw.ResumeOperation(task.Kwargs.CreatedByUser)
+		case model.TaskPermExpired:
+			sw.PermBecomeExpired(task.Name, task.Args)
+		case model.TaskPermValid:
+			sw.PermBecomeValid(task.Name, task.Args)
 		default:
 			return fmt.Errorf("ssh session unknown task %s", task.Name)
 		}

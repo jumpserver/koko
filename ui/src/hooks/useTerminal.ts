@@ -152,6 +152,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             }
             case 'TERMINAL_ERROR':
             case 'ERROR': {
+                terminal?.write(msg.err);
                 break;
             }
             case 'MESSAGE_NOTIFY': {

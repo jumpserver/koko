@@ -71,6 +71,8 @@ const (
 	SuperConnectTokenSecretURL = "/api/v1/authentication/super-connection-token/secret/"
 	SuperConnectTokenInfoURL   = "/api/v1/authentication/super-connection-token/"
 
+	SuperConnectTokenCheckURL = "/api/v1/authentication/super-connection-token/%s/check/"
+
 	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/"
 	AccountSecretURL          = "/api/v1/assets/account-secrets/%s/"
 	UserPermsAssetsURL        = "/api/v1/perms/users/%s/assets/"

@@ -33,11 +33,10 @@ type Terminal struct {
 }
 
 type TerminalTask struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	Args       string     `json:"args"`
-	Kwargs     TaskKwargs `json:"kwargs"`
-	IsFinished bool
+	ID     string     `json:"id"`
+	Name   string     `json:"name"`
+	Args   string     `json:"args"`
+	Kwargs TaskKwargs `json:"kwargs"`
 }
 
 const (
@@ -45,6 +44,11 @@ const (
 
 	TaskLockSession   = "lock_session"
 	TaskUnlockSession = "unlock_session"
+
+	// TaskPermExpired TaskPermValid 非 api 数据，仅用于内部处理
+
+	TaskPermExpired = "perm_expired"
+	TaskPermValid   = "perm_valid"
 )
 
 type TaskKwargs struct {

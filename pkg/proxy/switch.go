@@ -36,6 +36,10 @@ type SwitchSession struct {
 	notifyMsgChan chan *exchange.RoomMessage
 
 	MaxSessionTime time.Time
+
+	invalidPerm     atomic.Bool
+	invalidPermData []byte
+	invalidPermTime time.Time
 }
 
 func (s *SwitchSession) Terminate(username string) {
@@ -69,6 +73,42 @@ func (s *SwitchSession) ResumeOperation(username string) {
 		Event: exchange.ResumeEvent,
 		Body:  p,
 	}
+}
+
+func (s *SwitchSession) PermBecomeExpired(code, detail string) {
+	if s.invalidPerm.Load() {
+		return
+	}
+	s.invalidPerm.Store(true)
+	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
+	s.invalidPermData = p
+	s.invalidPermTime = time.Now()
+	s.notifyMsgChan <- &exchange.RoomMessage{
+		Event: exchange.PermExpiredEvent, Body: p}
+}
+
+func (s *SwitchSession) PermBecomeValid(code, detail string) {
+	if !s.invalidPerm.Load() {
+		return
+	}
+	s.invalidPerm.Store(false)
+	s.invalidPermTime = s.MaxSessionTime
+	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
+	s.invalidPermData = p
+	s.notifyMsgChan <- &exchange.RoomMessage{
+		Event: exchange.PermValidEvent, Body: p}
+}
+
+func (s *SwitchSession) CheckPermissionExpired(now time.Time) bool {
+	if s.p.CheckPermissionExpired(now) {
+		return true
+	}
+	if s.invalidPerm.Load() {
+		if now.After(s.invalidPermTime.Add(10 * time.Minute)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SwitchSession) setOperator(username string) {
@@ -301,7 +341,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				s.recordSessionFinished(model.ReasonErrIdleDisconnect)
 				return
 			}
-			if s.p.CheckPermissionExpired(now) {
+			if s.CheckPermissionExpired(now) {
 				msg := lang.T("Permission has expired, disconnect")
 				logger.Infof("Session[%s] permission has expired, disconnect", s.ID)
 				msg = utils.WrapperWarn(msg)
