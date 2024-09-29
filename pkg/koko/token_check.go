@@ -40,7 +40,6 @@ func handleTokenCheck(session *session.Session, tokenStatus *model.TokenCheckSta
 			Name: model.TaskPermValid,
 			Args: tokenStatus.Detail,
 		}
-		break
 	default:
 		task = model.TerminalTask{
 			Name: model.TaskPermExpired,
