@@ -66,6 +66,8 @@ func runTasks(jmsService *service.JMService) {
 		go uploadRemainFTPFile(jmsService)
 	}
 	go keepHeartbeat(jmsService)
+
+	go RunConnectTokensCheck(jmsService)
 }
 
 func MustJMService() *service.JMService {

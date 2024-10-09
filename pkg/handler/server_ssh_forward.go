@@ -93,6 +93,13 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 				switch task.Name {
 				case model.TaskKillSession:
 					cancel()
+					logger.Info("ide session  killed as task kill session")
+					return nil
+				case model.TaskPermExpired:
+					cancel()
+					logger.Info("ide session killed as task perm expired")
+					return nil
+				case model.TaskPermValid:
 					return nil
 				}
 				return fmt.Errorf("ssh proxy not support task: %s", task.Name)
