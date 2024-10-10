@@ -412,6 +412,10 @@ func (p *Parser) IsNeedParse() bool {
 }
 
 func (p *Parser) writeInputBuffer(b []byte) {
+	if b[0] == CtrlC {
+		p.cmdInputParser.buf.Reset()
+		return
+	}
 	if p.disableInputAsCmd {
 		return
 	}

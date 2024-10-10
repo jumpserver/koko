@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"bytes"
 	"strings"
 	"sync"
 
@@ -10,10 +9,56 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
+type RingBuffer struct {
+	data   []byte
+	size   int
+	start  int
+	end    int
+	length int
+}
+
+func (rb *RingBuffer) Write(p []byte) {
+	n := len(p)
+	for i := 0; i < n; i++ {
+		rb.data[rb.end] = p[i]
+		rb.end = (rb.end + 1) % rb.size
+		if rb.length == rb.size {
+			// 覆盖旧数据，start 也要前移
+			rb.start = (rb.start + 1) % rb.size
+		} else {
+			rb.length++
+		}
+	}
+}
+
+func (rb *RingBuffer) Bytes() []byte {
+	p := make([]byte, rb.length)
+	for i := 0; i < rb.length; i++ {
+		p[i] = rb.data[(rb.start+i)%rb.size]
+	}
+	return p
+}
+
+func (rb *RingBuffer) Reset() {
+	rb.start = 0
+	rb.end = 0
+	rb.length = 0
+	for i := 0; i < rb.size; i++ {
+		rb.data[i] = 0
+	}
+}
+
+func NewRingBuffer(size int) *RingBuffer {
+	return &RingBuffer{
+		data: make([]byte, size),
+		size: size,
+	}
+}
+
 const maxBufSize = 1024 * 100
 
 func NewCmdParser(sid, name string) *CmdParser {
-	parser := CmdParser{id: sid, name: name}
+	parser := CmdParser{id: sid, name: name, buf: NewRingBuffer(maxBufSize)}
 	return &parser
 }
 
@@ -21,7 +66,7 @@ type CmdParser struct {
 	id   string
 	name string
 
-	buf  bytes.Buffer
+	buf  *RingBuffer
 	lock sync.Mutex
 
 	ps1 string
@@ -30,10 +75,8 @@ type CmdParser struct {
 func (cp *CmdParser) WriteData(p []byte) (int, error) {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
-	if cp.buf.Len() > maxBufSize {
-		return 0, nil
-	}
-	return cp.buf.Write(p)
+	cp.buf.Write(p)
+	return len(p), nil
 }
 
 func (cp *CmdParser) Close() error {
