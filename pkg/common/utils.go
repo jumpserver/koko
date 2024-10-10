@@ -2,9 +2,11 @@ package common
 
 import (
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/netip"
 	"os"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -91,4 +93,58 @@ func CompareIP(ipA, ipB string) bool {
 		return false
 	}
 	return addrA.Less(addrB)
+}
+
+func ChunkedFileTransfer(fd io.WriterAt, readerAt io.ReaderAt, offset, fileSize int64) error {
+	chunkSize := int64(64 * 1024)
+	maxConcurrent := 200
+
+	var wg sync.WaitGroup
+	chunkCount := int(fileSize / chunkSize)
+	if fileSize%chunkSize != 0 {
+		chunkCount++
+	}
+
+	errChan := make(chan error, chunkCount)
+	sem := make(chan struct{}, maxConcurrent)
+	for i := 0; i < chunkCount; i++ {
+		wg.Add(1)
+		sem <- struct{}{}
+
+		go func(chunkIndex int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			start := int64(chunkIndex) * chunkSize
+			end := start + chunkSize
+			if end > fileSize {
+				end = fileSize
+			}
+
+			buf := make([]byte, end-start)
+			_, err := readerAt.ReadAt(buf, start)
+			if err != nil && err != io.EOF {
+				errChan <- fmt.Errorf("failed to read chunk %d: %v", chunkIndex, err)
+				return
+			}
+
+			_, err = fd.WriteAt(buf, offset+start)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to write chunk %d: %v", chunkIndex, err)
+				return
+			}
+
+		}(i)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
