@@ -447,6 +447,7 @@ const handleClickOutside = () => {
 const resetShareDialog = () => {
     paramsStore.setShareId('');
     paramsStore.setShareCode('');
+    userOptions.value = [];
     dialog.destroyAll();
 };
 
