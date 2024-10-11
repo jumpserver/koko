@@ -12,6 +12,7 @@ import (
 	"github.com/LeeEirc/elfinder"
 	"github.com/pkg/sftp"
 
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -222,21 +223,29 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 	return dirs
 }
 
-func (u *UserVolume) GetFile(path string) (reader io.ReadCloser, err error) {
+func (u *UserVolume) GetFile(path string) (fileData elfinder.FileData, err error) {
 	logger.Debug("GetFile path: ", path)
+	var rest elfinder.FileData
 	sf, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
 	if err != nil {
-		return nil, err
+		return rest, err
 	}
-	if err1 := u.recorder.Record(sf.FTPLog, sf); err1 != nil {
+
+	fileInfo, err := sf.Stat()
+	if err != nil {
+		return rest, err
+	}
+
+	if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf, 0, fileInfo.Size()); err1 != nil {
 		logger.Errorf("Record file err: %s", err1)
 	}
 	_, _ = sf.Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
-	return &fileReader{sf}, nil
+	fileData = elfinder.FileData{Reader: sf, Size: fileInfo.Size()}
+	return fileData, nil
 }
 
-func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader) (elfinder.FileDir, error) {
+func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader, totalSize int64) (elfinder.FileDir, error) {
 	var path string
 	switch {
 	case strings.Contains(uploadPath, filename):
@@ -254,11 +263,17 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 		return rest, err
 	}
 	defer fd.Close()
-	if err1 := u.recorder.Record(fd.FTPLog, reader); err1 != nil {
+
+	readerAt, ok := reader.(io.ReaderAt)
+	if !ok {
+		return rest, fmt.Errorf("the provided reader does not implement io.ReaderAt")
+	}
+
+	if err1 := u.recorder.ChunkedRecord(fd.FTPLog, readerAt, 0, totalSize); err1 != nil {
 		logger.Errorf("Record file err: %s", err1)
 	}
-	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
-	_, err = io.Copy(fd, reader)
+
+	err = common.ChunkedFileTransfer(fd, readerAt, 0, totalSize)
 	if err != nil {
 		return rest, err
 	}
@@ -297,11 +312,20 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 		u.ftpLogMap[cid] = ftpLog
 		u.lock.Unlock()
 	}
-	if err2 := u.recorder.RecordChunkRead(ftpLog, reader); err2 != nil {
+
+	fileSize := rangeData.Length
+	offset := rangeData.Offset
+	readerAt, ok := reader.(io.ReaderAt)
+	if !ok {
+		return fmt.Errorf("the provided reader does not implement io.ReaderAt")
+	}
+
+	if err2 := u.recorder.ChunkedRecord(ftpLog, readerAt, offset, fileSize); err2 != nil {
 		logger.Errorf("Record file err: %s", err2)
 	}
-	_, _ = reader.(io.Seeker).Seek(0, io.SeekStart)
-	_, err = io.Copy(fd, reader)
+
+	err = common.ChunkedFileTransfer(fd, readerAt, offset, fileSize)
+
 	if err != nil {
 		_ = fd.Close()
 		u.lock.Lock()
@@ -353,12 +377,20 @@ func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error)
 	path := filepath.Join(dir, newFilename)
 	var rest elfinder.FileDir
 	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
+
 	if err != nil {
 		return rest, err
 	}
-	if err1 := u.recorder.Record(fd.FTPLog, fd); err1 != nil {
+
+	fileInfo, err := fd.Stat()
+	if err != nil {
+		return rest, err
+	}
+
+	if err1 := u.recorder.ChunkedRecord(fd.FTPLog, fd, 0, fileInfo.Size()); err1 != nil {
 		logger.Errorf("Record file err: %s", err1)
 	}
+
 	_, _ = fd.Seek(0, io.SeekStart)
 	_ = fd.Close()
 	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
@@ -393,7 +425,9 @@ func (u *UserVolume) Remove(path string) error {
 	return u.UserSftp.Remove(filepath.Join(u.basePath, path))
 }
 
-func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (elfinder.FileDir, error) {
+func (u *UserVolume) Paste(dir, filename, suffix string, fileData elfinder.FileData) (elfinder.FileDir, error) {
+	reader := fileData.Reader
+	totalSize := fileData.Size
 	defer reader.Close()
 	var rest elfinder.FileDir
 	path := filepath.Join(dir, filename)
@@ -407,7 +441,13 @@ func (u *UserVolume) Paste(dir, filename, suffix string, reader io.ReadCloser) (
 		return rest, err
 	}
 	defer fd.Close()
-	_, err = io.Copy(fd, reader)
+
+	readerAt, ok := reader.(io.ReaderAt)
+	if !ok {
+		return rest, fmt.Errorf("the provided reader does not implement io.ReaderAt")
+	}
+
+	err = common.ChunkedFileTransfer(fd, readerAt, 0, totalSize)
 	if err != nil {
 		return rest, err
 	}
@@ -487,20 +527,4 @@ func hashPath(id, path string) string {
 
 func TrimPrefix(path string) string {
 	return strings.TrimPrefix(path, "/")
-}
-
-var (
-	_ io.ReadCloser = (*fileReader)(nil)
-)
-
-type fileReader struct {
-	read io.ReadCloser
-}
-
-func (f *fileReader) Read(p []byte) (nr int, err error) {
-	return f.read.Read(p)
-}
-
-func (f *fileReader) Close() error {
-	return f.read.Close()
 }
