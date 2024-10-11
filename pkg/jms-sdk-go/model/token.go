@@ -47,6 +47,7 @@ func (c *ConnectToken) CreateSession(addr string,
 		LoginFrom:  loginFrom,
 		Type:       SessionType,
 		ErrReason:  LabelField(SessionReplayErrUnsupported),
+		TokenId:    c.Id,
 	}
 }
 
@@ -77,3 +78,17 @@ type ConnectOptions struct {
 	FilenameConflictResolution string `json:"file_name_conflict_resolution,omitempty"`
 	TerminalThemeName          string `json:"terminal_theme_name,omitempty"`
 }
+
+// token 授权和过期状态
+
+type TokenCheckStatus struct {
+	Detail  string `json:"detail"`
+	Code    string `json:"code"`
+	Expired bool   `json:"expired"`
+}
+
+const (
+	CodePermOk             = "perm_ok"
+	CodePermAccountInvalid = "perm_account_invalid"
+	CodePermExpired        = "perm_expired"
+)

@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { h, reactive, ref } from 'vue';
+import {h, onUnmounted, reactive, ref} from 'vue';
 import {
     NInput,
     NButton,
@@ -55,8 +55,13 @@ const verified = ref(false);
 const terminalId = ref('');
 const verifyValue = ref('');
 const waterMarkContent = ref('');
+const warningIntervalId = ref<number>(0);
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
+
+onUnmounted(() => {
+  clearInterval(warningIntervalId.value);
+});
 
 const handleVerify = () => {
     if (verifyValue.value === '') return message.warning(t('InputVerifyCode'));
@@ -145,6 +150,20 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
 
             break;
         }
+      case 'TERMINAL_PERM_VALID': {
+        clearInterval(warningIntervalId.value);
+        message.info(`${t('PermissionValid')}`);
+        break;
+      }
+      case 'TERMINAL_PERM_EXPIRED': {
+        const data = JSON.parse(msg.data);
+        const warningMsg = `${t('PermissionExpired')}: ${data.detail}`;
+        message.warning(warningMsg);
+        warningIntervalId.value = setInterval(() => {
+          message.warning(warningMsg);
+        }, 1000 * 26);
+        break;
+      }
         default: {
             break;
         }

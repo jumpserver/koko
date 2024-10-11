@@ -409,6 +409,11 @@ func (r *FTPFileRecorder) ChunkedRecord(ftpLog *model.FTPLog, readerAt io.Reader
 		return err
 	}
 
+	if info.isExceedWrittenSize() {
+		logger.Errorf("FTP file %s is exceeds the max limit and discard it", ftpLog.ID)
+		return nil
+	}
+
 	if err1 := common.ChunkedFileTransfer(info.fd, readerAt, offset, totalSize); err1 != nil {
 		logger.Errorf("FTP file %s write err: %s", ftpLog.ID, err1)
 	}

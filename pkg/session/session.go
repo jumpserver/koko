@@ -2,11 +2,16 @@ package session
 
 import (
 	"fmt"
+
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 )
 
-func NewSession(s *model.Session, handleTaskFunc func(task *model.TerminalTask) error) *Session {
-	return &Session{Session: s, handleTaskFunc: handleTaskFunc}
+type TaskFunc func(task *model.TerminalTask) error
+
+func NewSession(s *model.Session, taskFunc TaskFunc) *Session {
+	return &Session{Session: s,
+		handleTaskFunc: taskFunc,
+	}
 }
 
 type Session struct {

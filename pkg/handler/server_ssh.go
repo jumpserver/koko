@@ -417,7 +417,17 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		switch task.Name {
 		case model.TaskKillSession:
 			cancel()
+			logger.Infof("User %s end command request %s as task kill_session",
+				tokenInfo.User.String(), sshClient)
 			return nil
+		case model.TaskPermExpired:
+			cancel()
+			logger.Infof("User %s end command request %s as task permission has expired",
+				tokenInfo.User.String(), sshClient)
+			return nil
+		case model.TaskPermValid:
+			return nil
+
 		}
 		return fmt.Errorf("ssh proxy not support task: %s", task.Name)
 	})
@@ -534,7 +544,15 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 		switch task.Name {
 		case model.TaskKillSession:
 			cancel()
+			logger.Infof("User %s end vscode request %s as task kill_session", vsReq.user, sshClient)
 			return nil
+		case model.TaskPermExpired:
+			cancel()
+			logger.Infof("User %s end vscode request %s as permission has expired", vsReq.user, sshClient)
+			return nil
+		case model.TaskPermValid:
+			return nil
+
 		}
 		return fmt.Errorf("ssh proxy not support task: %s", task.Name)
 	})
