@@ -280,7 +280,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		return nil
 	}
 
-	confirmWaitMsg := lang.T("the reviewers will confirm. continue or not [Y/n]")
+	confirmWaitMsg := lang.T("The command '%s' requires review. Continue or not [Y/n]?")
 	if p.confirmStatus.InQuery() {
 		switch strings.ToLower(string(b)) {
 		case "y":
@@ -327,7 +327,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			p.srvOutputChan <- []byte("\r\n")
 			return p.breakInputPacket()
 		default:
-			p.srvOutputChan <- []byte("\r\n" + confirmWaitMsg)
+			confirmMsg := fmt.Sprintf(confirmWaitMsg, stripNewLine(p.confirmStatus.Cmd))
+			p.srvOutputChan <- []byte("\r\n" + confirmMsg)
 		}
 		return nil
 	}
@@ -356,7 +357,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.confirmStatus.SetCmd(p.command)
 				p.confirmStatus.SetData(string(b))
 				p.confirmStatus.ResetCtx()
-				p.srvOutputChan <- []byte("\r\n" + confirmWaitMsg)
+				confirmMsg := fmt.Sprintf(confirmWaitMsg, stripNewLine(p.confirmStatus.Cmd))
+				p.srvOutputChan <- []byte("\r\n" + confirmMsg)
 				return nil
 			case model.ActionWarning:
 				p.setCurrentCmdFilterRule(rule)
@@ -367,7 +369,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 				logger.Debugf("Session %s: command %s match notify and warn rule", p.id, p.command)
-				p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
+				confirmMsg := fmt.Sprintf(confirmWaitMsg, stripNewLine(p.confirmStatus.Cmd))
+				p.srvOutputChan <- []byte("\r\n" + confirmMsg)
 				return nil
 			default:
 			}
