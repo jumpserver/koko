@@ -3,7 +3,7 @@ import { h, ref } from 'vue';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { bytesHuman } from '@/utils';
 import { wsIsActivated } from '@/components/CustomTerminal/helper';
-import { createDiscreteApi, UploadFileInfo } from 'naive-ui';
+import { createDiscreteApi, UploadFileInfo, darkTheme } from 'naive-ui';
 
 import { Terminal } from '@xterm/xterm';
 import { computed } from 'vue';
@@ -24,7 +24,11 @@ import { Ref } from 'vue';
 import { DialogOptions } from 'naive-ui/es/dialog/src/DialogProvider';
 
 // API 初始化
-const { message, dialog } = createDiscreteApi(['message', 'dialog']);
+const { message, dialog } = createDiscreteApi(['message', 'dialog'], {
+    configProviderProps: {
+        theme: darkTheme
+    }
+});
 const { debug, info, error } = useLogger('useSentry');
 
 interface IUseSentry {
@@ -50,6 +54,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         }
     };
 
+    /**
+     * upload 的回调
+     */
     const handleUpload = () => {
         const selectFile: UploadFileInfo = fileList.value[0];
 
@@ -63,10 +70,11 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
         if (!zmodeSession.value) return;
 
-        debug(`Zomdem submit file: ${selectFile.file}`);
-
         ZmodemBrowser.Browser.send_files(zmodeSession.value, selectFile.file as File, {
             on_offer_response: (_obj: any, xfer: ZmodemTransfer) => {
+                console.log('_obj', _obj);
+                console.log('xfer', xfer);
+
                 if (xfer) {
                     xfer.on('send_progress', (percent: number) => {
                         updateSendProgress(xfer, percent);
@@ -79,10 +87,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
             }
         })
             .then(() => {
-                zmodeSession.value && zmodeSession.value.close();
+                console.log('then');
             })
             .catch((e: Error) => {
-                // todo)) 现在上传文件会走到这里
                 console.log(e);
             });
     };
@@ -125,12 +132,16 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
                     debug('Cancel Abort');
                     zmodeSession.value.abort();
                 }
-
-                debug('删除 Dialog 的文件');
             }
         };
     });
 
+    /**
+     * 展示 progress 的函数
+     *
+     * @param xfer
+     * @param terminal
+     */
     const updateReceiveProgress = (xfer: ZmodemTransfer, terminal: Terminal) => {
         let detail = xfer.get_details();
         let name = detail.name;
@@ -145,21 +156,34 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
         let msg = `${t('Download')} ${name}: ${bytesHuman(total)} ${percent}% `;
 
-        terminal.write(msg);
+        terminal.write('\r' + msg);
     };
 
+    /**
+     * 处理 rz 命令
+     * @param zsession
+     * @param terminal
+     */
     const handleSendSession = (zsession: ZmodemSession, terminal: Terminal) => {
         zmodeSession.value = zsession;
 
         zsession.on('session_end', () => {
+            console.log('end');
             zmodeSession.value = null;
             fileList.value = [];
             terminal.write('\r\n');
+
+            zsession.close();
         });
 
         dialog.success(dialogOptions.value);
     };
 
+    /**
+     * 处理 sz 命令
+     * @param zsession
+     * @param terminal
+     */
     const handleReceiveSession = (zsession: ZmodemSession, terminal: Terminal) => {
         zsession.on('offer', (xfer: ZmodemTransfer) => {
             const buffer: Uint8Array[] = [];
@@ -217,6 +241,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
             if (!wsIsActivated(ws)) {
                 return debug('WebSocket Closed');
             }
+
+            console.log(wsIsActivated(ws));
+
             try {
                 lastSendTime && (lastSendTime.value = new Date());
                 ws.send(new Uint8Array(octets));
@@ -232,7 +259,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
             terminal.write('\r\n');
 
-            if (zsession.type === 'send') {
+            // @ts-ignore
+            if (!zsession._accepted_offer) {
+                console.log('2', zsession);
                 handleSendSession(zsession, terminal);
             } else {
                 handleReceiveSession(zsession, terminal);

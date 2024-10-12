@@ -129,9 +129,9 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                     case 'ZMODEM_START': {
                         terminalStore.setTerminalConfig('zmodemStatus', true);
 
-                        if (enableZmodem.value) {
-                            option.i18nCallBack && message.info(option.i18nCallBack('WaitFileTransfer'));
-                        }
+                        // if (enableZmodem.value) {
+                        //     option.i18nCallBack && message.info(option.i18nCallBack('WaitFileTransfer'));
+                        // }
                         break;
                     }
                     case 'ZMODEM_END': {
@@ -140,7 +140,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
                             terminal?.write('\r\n');
 
-                            zmodemStatus.value = false;
+                            terminalStore.setTerminalConfig('zmodemStatus', false);
                         }
                         break;
                     }
@@ -270,8 +270,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'TERMINAL_ACTION': {
-                // k8s 没有 rz 与 sz 的操作
                 const action = socketData.data;
+
                 switch (action) {
                     case 'ZMODEM_START': {
                         option.i18nCallBack &&
