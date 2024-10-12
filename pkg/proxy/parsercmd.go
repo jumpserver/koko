@@ -43,6 +43,9 @@ func (rb *RingBuffer) Reset() {
 	rb.start = 0
 	rb.end = 0
 	rb.length = 0
+	for i := 0; i < rb.size; i++ {
+		rb.data[i] = 0
+	}
 }
 
 func NewRingBuffer(size int) *RingBuffer {
