@@ -272,6 +272,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
+			p.command = ""
 			return p.breakInputPacket()
 		default:
 			p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
