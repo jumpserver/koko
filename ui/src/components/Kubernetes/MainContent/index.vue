@@ -662,6 +662,10 @@ const handleClose = (name: string) => {
         findNodeById(nameRef.value);
         terminalStore.setTerminalConfig('currentTab', nameRef.value);
     }
+
+    if (panelLength === 0) {
+        mittBus.emit('remove-event');
+    }
 };
 
 /**
