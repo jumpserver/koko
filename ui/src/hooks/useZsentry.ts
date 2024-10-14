@@ -69,12 +69,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         }
 
         if (!zmodeSession.value) return;
-
-        ZmodemBrowser.Browser.send_files(zmodeSession.value, selectFile.file as File, {
+        const files = fileList.value.map(item => item.file as File);
+        ZmodemBrowser.Browser.send_files(zmodeSession.value, files, {
             on_offer_response: (_obj: any, xfer: ZmodemTransfer) => {
-                console.log('_obj', _obj);
-                console.log('xfer', xfer);
-
                 if (xfer) {
                     xfer.on('send_progress', (percent: number) => {
                         updateSendProgress(xfer, percent);
@@ -87,7 +84,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
             }
         })
             .then(() => {
-                console.log('then');
+                zmodeSession.value?.close();
             })
             .catch((e: Error) => {
                 console.log(e);
@@ -168,7 +165,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         zmodeSession.value = zsession;
 
         zsession.on('session_end', () => {
-            console.log('end');
             zmodeSession.value = null;
             fileList.value = [];
             terminal.write('\r\n');
@@ -242,8 +238,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
                 return debug('WebSocket Closed');
             }
 
-            console.log(wsIsActivated(ws));
-
             try {
                 lastSendTime && (lastSendTime.value = new Date());
                 ws.send(new Uint8Array(octets));
@@ -261,7 +255,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
             // @ts-ignore
             if (!zsession._accepted_offer) {
-                console.log('2', zsession);
                 handleSendSession(zsession, terminal);
             } else {
                 handleReceiveSession(zsession, terminal);
