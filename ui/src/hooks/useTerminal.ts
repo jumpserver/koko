@@ -84,6 +84,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     let lastReceiveTime: Ref<Date> = ref(new Date());
 
     let messageHandlers = {};
+    let handleSocketMessage: any;
 
     const dispatch = (data: string) => {
         if (!data) return;
@@ -560,14 +561,16 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 }
             };
 
-            option.transSocket?.addEventListener('message', (e: MessageEvent) => {
+            handleSocketMessage = (e: MessageEvent) => {
                 // @ts-ignore
-                const handler = messageHandlers[currentTab.value as string];
+                const handler = messageHandlers[currentTab.value];
 
                 if (handler) {
                     handler(e);
                 }
-            });
+            };
+
+            option.transSocket?.addEventListener('message', handleSocketMessage);
         } else {
             initSocketEvent();
         }
@@ -577,6 +580,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
      * 初始化事件总线相关事件
      */
     const initMittBusEvents = () => {
+        mittBus.on('remove-event', () => {
+            // @ts-ignore
+            option.transSocket.removeEventListener('message', handleSocketMessage);
+        });
+
         mittBus.on('terminal-search', ({ keyword, type = '' }) => {
             searchKeyWord(keyword, type);
         });

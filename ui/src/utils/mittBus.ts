@@ -3,6 +3,7 @@ import { customTreeOption } from '@/hooks/interface';
 import { shareUser } from '@/views/interface';
 
 type Event = {
+    'remove-event': void;
     'alt-shift-right': void;
     'alt-shift-left': void;
     'open-setting': void;
