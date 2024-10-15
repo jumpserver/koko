@@ -237,7 +237,14 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         if (typeof event.data === 'object') {
             if (enableZmodem.value) {
-                sentry.consume(event.data);
+                try {
+                    sentry.consume(event.data);
+                } catch (e) {
+                    sentry.get_confirmed_session()?.abort()
+                    message.error('File transfer error, file transfer interrupted');
+                    console.log(e);
+                }
+
             } else {
                 writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);
             }
