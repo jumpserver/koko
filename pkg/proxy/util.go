@@ -234,13 +234,13 @@ func ParseEndpointRegion(s string) string {
 	}
 	endpoint, err := url.Parse(s)
 	if err != nil {
-		return ""
+		return s
 	}
 	endpoints := strings.Split(endpoint.Hostname(), ".")
 	if len(endpoints) >= 3 {
 		return endpoints[len(endpoints)-3]
 	}
-	return ""
+	return endpoints[0]
 }
 
 func ParseAWSURLRegion(s string) string {
