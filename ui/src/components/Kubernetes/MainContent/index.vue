@@ -378,6 +378,7 @@ const handleReconnect = () => {
 const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
     switch (key) {
         case 'reconnect': {
+            mittBus.emit('remove-event');
             handleReconnect();
             break;
         }
