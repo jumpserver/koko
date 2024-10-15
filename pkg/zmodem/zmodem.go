@@ -36,6 +36,8 @@ type ZmodemParser struct {
 	hasDataTransfer bool
 
 	FireStatusEvent func(event StatusEvent)
+
+	AbnormalFinish bool
 }
 
 // rz sz 解析的入口
@@ -47,6 +49,7 @@ func (z *ZmodemParser) Parse(p []byte) {
 		zSession := z.currentSession
 		zSession.consume(p)
 		if zSession.IsEnd() {
+			z.AbnormalFinish = zSession.AbnormalFinish
 			z.currentSession = nil
 			if z.FileEventCallback != nil && z.currentZFileInfo != nil {
 				info := z.currentZFileInfo
@@ -84,7 +87,6 @@ func (z *ZmodemParser) Parse(p []byte) {
 		z.currentSession = &ZSession{
 			Type: TypeDownload,
 			endCallback: func() {
-				z.setStatus(ZParserStatusNone)
 				if z.FireStatusEvent != nil {
 					z.FireStatusEvent(EndEvent)
 				}
@@ -101,7 +103,6 @@ func (z *ZmodemParser) Parse(p []byte) {
 		z.currentSession = &ZSession{
 			Type: TypeUpload,
 			endCallback: func() {
-				z.setStatus(ZParserStatusNone)
 				if z.FireStatusEvent != nil {
 					z.FireStatusEvent(EndEvent)
 				}

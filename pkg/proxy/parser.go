@@ -539,10 +539,8 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 			p.userOutputChan <- charEnter
 			return nil
 		}
-		if !p.zmodemParser.IsStartSession() {
-			p.srvOutputChan <- b
+		if !p.zmodemParser.IsStartSession() && p.zmodemParser.AbnormalFinish {
 			p.srvOutputChan <- []byte{0x4f, 0x4f}
-			return nil
 		}
 		return b
 	} else {
