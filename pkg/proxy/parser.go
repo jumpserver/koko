@@ -369,8 +369,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
 				logger.Debugf("Session %s: command %s match notify and warn rule", p.id, p.command)
-				confirmMsg := fmt.Sprintf(confirmWaitMsg, stripNewLine(p.confirmStatus.Cmd))
-				p.srvOutputChan <- []byte("\r\n" + confirmMsg)
+				p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
 				return nil
 			default:
 			}
