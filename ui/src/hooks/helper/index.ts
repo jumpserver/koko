@@ -106,6 +106,8 @@ export const handleTerminalResize = (
         };
     }
 
+    data = resizeData;
+
     socket.send(formatMessage(terminalId, eventType, data));
 };
 

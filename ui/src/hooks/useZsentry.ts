@@ -209,7 +209,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
                     terminal.write('\r\n');
 
-                    if (zmodeSession.value){
+                    if (zmodeSession.value) {
                         zmodeSession.value.abort();
                     }
                 })
