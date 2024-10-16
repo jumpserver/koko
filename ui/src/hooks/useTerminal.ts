@@ -240,8 +240,10 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 try {
                     sentry.consume(event.data);
                 } catch (e) {
-                    sentry.get_confirmed_session()?.abort()
-                    message.error('File transfer error, file transfer interrupted');
+                    if (sentry.get_confirmed_session()) {
+                        sentry.get_confirmed_session()?.abort();
+                        message.error('File transfer error, file transfer interrupted');
+                    }
                     console.log(e);
                 }
 
