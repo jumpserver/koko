@@ -181,6 +181,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
      * @param terminal
      */
     const handleReceiveSession = (zsession: ZmodemSession, terminal: Terminal) => {
+        zmodeSession.value = zsession;
         zsession.on('offer', (xfer: ZmodemTransfer) => {
             const buffer: Uint8Array[] = [];
             const detail = xfer.get_details();
@@ -208,7 +209,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
                     terminal.write('\r\n');
 
-                    if (zmodeSession.value) zmodeSession.value.abort();
+                    if (zmodeSession.value){
+                        zmodeSession.value.abort();
+                    }
                 })
                 .catch((e: Error) => {
                     message.error(`Error: ${e}`);
