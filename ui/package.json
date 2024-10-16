@@ -14,6 +14,7 @@
     "@vueuse/core": "^10.11.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-search": "^0.15.0",
+    "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
     "alova": "^3.0.2",
     "clipboard-polyfill": "^4.1.0",
