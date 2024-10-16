@@ -114,7 +114,7 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 	}
 
 	dsn := dsnURL.String()
-	prompt1 := "--variable=PROMPT1=" + o.AssetName + "%R%#"
+	prompt1 := "--variable=PROMPT1=" + o.Schema + "%R%#"
 
 	return []string{dsn, prompt1}, nil
 }
