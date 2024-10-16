@@ -22,7 +22,7 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
-import {computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref} from 'vue';
+import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -69,7 +69,7 @@ const warningIntervalId = ref<number>(0);
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
 onUnmounted(() => {
-  clearInterval(warningIntervalId.value);
+    clearInterval(warningIntervalId.value);
 });
 
 const settings = computed((): ISettingProp[] => {
@@ -371,20 +371,20 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
             message.info(`${data.user} ${t('ResumeSession')}`);
             break;
         }
-      case 'TERMINAL_PERM_VALID': {
-        clearInterval(warningIntervalId.value);
-        message.info(`${t('PermissionValid')}`);
-        break;
-      }
-      case 'TERMINAL_PERM_EXPIRED': {
-        const data = JSON.parse(msg.data);
-        const warningMsg = `${t('PermissionExpired')}: ${data.detail}`;
-        message.warning(warningMsg);
-        warningIntervalId.value = setInterval(() => {
-          message.warning(warningMsg);
-        }, 1000 * 60);
-        break;
-      }
+        case 'TERMINAL_PERM_VALID': {
+            clearInterval(warningIntervalId.value);
+            message.info(`${t('PermissionValid')}`);
+            break;
+        }
+        case 'TERMINAL_PERM_EXPIRED': {
+            const data = JSON.parse(msg.data);
+            const warningMsg = `${t('PermissionExpired')}: ${data.detail}`;
+            message.warning(warningMsg);
+            warningIntervalId.value = setInterval(() => {
+                message.warning(warningMsg);
+            }, 1000 * 60);
+            break;
+        }
         case 'CLOSE': {
             enableShare.value = false;
 

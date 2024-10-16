@@ -378,7 +378,6 @@ const handleReconnect = () => {
 const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
     switch (key) {
         case 'reconnect': {
-            mittBus.emit('remove-event');
             handleReconnect();
             break;
         }
@@ -819,6 +818,8 @@ onMounted(() => {
 
             currentNode.key = existingPanelName;
             currentNode.k8s_id = existingPanelName;
+
+            treeStore.setCurrentNode(currentNode);
         }
 
         // todo 冗余代码，后期优化
