@@ -41,7 +41,6 @@ export const handleContextMenu = async (
   termSelectionText: string,
   k8s_id: string | undefined
 ) => {
-  e.preventDefault();
   if (e.ctrlKey || config.quickPaste !== '1') return;
 
   let text: string = '';
@@ -51,7 +50,7 @@ export const handleContextMenu = async (
   } catch (e) {
     if (termSelectionText !== '') text = termSelectionText;
   }
-
+  e.preventDefault();
   if (k8s_id) {
     socket.send(
       JSON.stringify({
