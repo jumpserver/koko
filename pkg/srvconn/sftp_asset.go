@@ -581,6 +581,11 @@ func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSess
 		case model.TaskKillSession:
 			sftpSession.CloseWithReason(model.ReasonErrAdminTerminate)
 			return nil
+		case model.TaskPermExpired:
+			sftpSession.CloseWithReason(model.ReasonErrPermissionExpired)
+			return nil
+		case model.TaskPermValid:
+			return nil
 		}
 		return fmt.Errorf("sftp session not support task: %s", task.Name)
 	}

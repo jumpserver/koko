@@ -2,14 +2,15 @@
     <n-watermark
         cross
         selectable
-        :rotate="-15"
-        :font-size="16"
-        :width="192"
-        :height="128"
-        :x-offset="12"
-        :y-offset="28"
+        :rotate="-45"
+        :font-size="20"
+        :width="300"
+        :height="300"
+        :x-offset="-60"
+        :y-offset="60"
         :content="waterMarkContent"
-        :line-height="16"
+        :line-height="20"
+        :font-family="'Open Sans'"
     >
         <CustomTerminal
             v-if="verified"
@@ -23,7 +24,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { h, reactive, ref } from 'vue';
+import { h, onUnmounted, reactive, ref } from 'vue';
 import {
     NInput,
     NButton,
@@ -55,8 +56,13 @@ const verified = ref(false);
 const terminalId = ref('');
 const verifyValue = ref('');
 const waterMarkContent = ref('');
+const warningIntervalId = ref<number>(0);
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
+
+onUnmounted(() => {
+    clearInterval(warningIntervalId.value);
+});
 
 const handleVerify = () => {
     if (verifyValue.value === '') return message.warning(t('InputVerifyCode'));
@@ -143,6 +149,20 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
 
             message.info(`${data.user}: ${t('ResumeSession')}`);
 
+            break;
+        }
+        case 'TERMINAL_PERM_VALID': {
+            clearInterval(warningIntervalId.value);
+            message.info(`${t('PermissionValid')}`);
+            break;
+        }
+        case 'TERMINAL_PERM_EXPIRED': {
+            const data = JSON.parse(msg.data);
+            const warningMsg = `${t('PermissionExpired')}: ${data.detail}`;
+            message.warning(warningMsg);
+            warningIntervalId.value = setInterval(() => {
+                message.warning(warningMsg);
+            }, 1000 * 26);
             break;
         }
         default: {

@@ -185,6 +185,8 @@ type ZSession struct {
 	ZFileHeaderCallback func(zInfo *ZFileInfo)
 
 	zOnHeader func(hd *ZmodemHeader)
+
+	AbnormalFinish bool
 }
 
 // zsession 入口
@@ -199,6 +201,7 @@ func (s *ZSession) consume(p []byte) {
 			return
 		}
 		logger.Infof("Zmodem session %s abnormally finish", s.Type)
+		s.AbnormalFinish = true
 		return
 	}
 	if s.checkAbort(p) {
@@ -347,7 +350,7 @@ func (s *ZSession) onHeader(hd *ZmodemHeader) {
 		s.transferStatus = TransferStatusFinished
 		s.zFileInfo = nil
 	case ZFIN:
-		s.haveEnd = true
+		//s.haveEnd = true
 		if s.endCallback != nil {
 			s.endCallback()
 		}

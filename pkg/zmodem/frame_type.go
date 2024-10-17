@@ -1,6 +1,6 @@
 package zmodem
 
-//FRAME TYPES
+// FRAME TYPES
 const (
 	ZRQINIT    = 0x00 /* request receive init (s->r) */
 	ZRINIT     = 0x01 /* receive init (r->s) */
@@ -90,7 +90,7 @@ const (
 	CAN = 0x18
 )
 
-//ZDLE SEQUENCES
+// ZDLE SEQUENCES
 const (
 	ZCRCE = 0x68 /* CRC next, frame ends, header packet follows */
 	ZCRCG = 0x69 /* CRC next, frame continues nonstop */

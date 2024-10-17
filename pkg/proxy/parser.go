@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LeeEirc/tclientlib"
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -91,6 +92,8 @@ type Parser struct {
 	currentCmdFilterRule CommandRule
 
 	userInputFilter func([]byte) []byte
+
+	disableInputAsCmd bool
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -119,6 +122,7 @@ func (p *Parser) initial() {
 	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
+	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
 }
 
 func (p *Parser) SetUserInputFilter(filter func([]byte) []byte) {
@@ -268,6 +272,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
+			p.command = ""
 			return p.breakInputPacket()
 		default:
 			p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
@@ -275,7 +280,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		return nil
 	}
 
-	confirmWaitMsg := lang.T("the reviewers will confirm. continue or not [Y/n]")
+	confirmWaitMsg := lang.T("The command '%s' requires review. Continue or not [Y/n]?")
 	if p.confirmStatus.InQuery() {
 		switch strings.ToLower(string(b)) {
 		case "y":
@@ -322,7 +327,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			p.srvOutputChan <- []byte("\r\n")
 			return p.breakInputPacket()
 		default:
-			p.srvOutputChan <- []byte("\r\n" + confirmWaitMsg)
+			confirmMsg := fmt.Sprintf(confirmWaitMsg, stripNewLine(p.confirmStatus.Cmd))
+			p.srvOutputChan <- []byte("\r\n" + confirmMsg)
 		}
 		return nil
 	}
@@ -351,7 +357,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.confirmStatus.SetCmd(p.command)
 				p.confirmStatus.SetData(string(b))
 				p.confirmStatus.ResetCtx()
-				p.srvOutputChan <- []byte("\r\n" + confirmWaitMsg)
+				confirmMsg := fmt.Sprintf(confirmWaitMsg, stripNewLine(p.confirmStatus.Cmd))
+				p.srvOutputChan <- []byte("\r\n" + confirmMsg)
 				return nil
 			case model.ActionWarning:
 				p.setCurrentCmdFilterRule(rule)
@@ -437,6 +444,9 @@ func (p *Parser) IsNeedParse() bool {
 }
 
 func (p *Parser) writeInputBuffer(b []byte) {
+	if p.disableInputAsCmd {
+		return
+	}
 	p.inputBuffer.Write(b)
 }
 
@@ -528,10 +538,8 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 			p.userOutputChan <- charEnter
 			return nil
 		}
-		if !p.zmodemParser.IsStartSession() {
-			p.srvOutputChan <- b
+		if !p.zmodemParser.IsStartSession() && p.zmodemParser.AbnormalFinish {
 			p.srvOutputChan <- []byte{0x4f, 0x4f}
-			return nil
 		}
 		return b
 	} else {

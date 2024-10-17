@@ -57,6 +57,8 @@ type Session struct {
 	AccountID  string         `json:"account_id"`
 	Type       LabelField     `json:"type"`
 	ErrReason  LabelField     `json:"error_reason,omitempty"`
+	TokenId    string         `json:"token_id,omitempty"`
+	LangCode   string         `json:"lang_code,omitempty"`
 }
 
 type ReplayVersion string

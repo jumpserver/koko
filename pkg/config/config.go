@@ -64,6 +64,8 @@ type Config struct {
 
 	SshMaxSessions int `mapstructure:"SSH_MAX_SESSIONS"`
 
+	DisableInputAsCommand bool `mapstructure:"DISABLE_INPUT_AS_COMMAND"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
@@ -76,7 +78,7 @@ type Config struct {
 
 func (c *Config) EnsureConfigValid() {
 	if c.LanguageCode == "" {
-		c.LanguageCode = "zh"
+		c.LanguageCode = "en"
 	}
 }
 
@@ -133,6 +135,7 @@ func getDefaultConfig() Config {
 		ReplayFolderPath:  replayFolderPath,
 		FTPFileFolderPath: ftpFileFolderPath,
 		CertsFolderPath:   CertsFolderPath,
+		LanguageCode:      "en",
 
 		Comment:             "KOKO",
 		UploadFailedReplay:  true,

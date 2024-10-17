@@ -378,6 +378,7 @@ const handleReconnect = () => {
 const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
     switch (key) {
         case 'reconnect': {
+            mittBus.emit('remove-event');
             handleReconnect();
             break;
         }
@@ -447,6 +448,7 @@ const handleClickOutside = () => {
 const resetShareDialog = () => {
     paramsStore.setShareId('');
     paramsStore.setShareCode('');
+    userOptions.value = [];
     dialog.destroyAll();
 };
 
@@ -660,6 +662,10 @@ const handleClose = (name: string) => {
         nameRef.value = panels.value[panelLength - 1].name as string;
         findNodeById(nameRef.value);
         terminalStore.setTerminalConfig('currentTab', nameRef.value);
+    }
+
+    if (panelLength === 0) {
+        mittBus.emit('remove-event');
     }
 };
 

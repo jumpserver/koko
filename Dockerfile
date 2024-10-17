@@ -1,4 +1,5 @@
-FROM jumpserver/koko-base:20240916_022847 AS stage-build
+FROM jumpserver/koko-base:20241011_023915 AS stage-build
+
 WORKDIR /opt/koko
 ARG TARGETARCH
 COPY . .
@@ -12,9 +13,9 @@ RUN yarn build
 WORKDIR /opt/koko
 RUN make build -s \
     && set -x && ls -al . \
-    && mv /opt/koko/build/koko-linux-${TARGETARCH} /opt/koko/koko \
-    && mv /opt/koko/build/helm-linux-${TARGETARCH} /opt/koko/bin/helm \
-    && mv /opt/koko/build/kubectl-linux-${TARGETARCH} /opt/koko/bin/kubectl
+    && mv /opt/koko/build/koko /opt/koko/koko \
+    && mv /opt/koko/build/helm /opt/koko/bin/helm \
+    && mv /opt/koko/build/kubectl /opt/koko/bin/kubectl
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \

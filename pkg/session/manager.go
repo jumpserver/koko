@@ -13,8 +13,12 @@ func GetSessionById(id string) (s *Session, ok bool) {
 	return
 }
 
-func GetAliveSessions() []string {
+func GetAliveSessionIds() []string {
 	return sessManager.Range()
+}
+
+func GetSessions() []*Session {
+	return sessManager.GetSessions()
 }
 
 func AddSession(s *Session) {
@@ -67,4 +71,12 @@ func (s *sessionManager) Range() []string {
 	}
 
 	return sids
+}
+
+func (s *sessionManager) GetSessions() []*Session {
+	sessions := make([]*Session, 0, len(s.data))
+	for _, sess := range s.data {
+		sessions = append(sessions, sess)
+	}
+	return sessions
 }

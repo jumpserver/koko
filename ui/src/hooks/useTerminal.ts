@@ -2,6 +2,7 @@
 import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+// import { WebglAddon } from '@xterm/addon-webgl';
 import { ISearchOptions, SearchAddon } from '@xterm/addon-search';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { defaultTheme } from '@/config';
@@ -9,7 +10,7 @@ import { defaultTheme } from '@/config';
 // hook
 import { createDiscreteApi } from 'naive-ui';
 import { useSentry } from '@/hooks/useZsentry.ts';
-import { useDebounceFn, useWebSocket } from '@vueuse/core';
+import { useWebSocket } from '@vueuse/core';
 
 // store
 import { storeToRefs } from 'pinia';
@@ -84,6 +85,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     let lastReceiveTime: Ref<Date> = ref(new Date());
 
     let messageHandlers = {};
+    let handleSocketMessage: any;
 
     const dispatch = (data: string) => {
         if (!data) return;
@@ -97,6 +99,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         switch (msg.type) {
             case 'CONNECT': {
+                fitAddon.fit();
                 terminalId.value = msg.id;
 
                 const terminalData = {
@@ -129,9 +132,9 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                     case 'ZMODEM_START': {
                         terminalStore.setTerminalConfig('zmodemStatus', true);
 
-                        if (enableZmodem.value) {
-                            option.i18nCallBack && message.info(option.i18nCallBack('WaitFileTransfer'));
-                        }
+                        // if (enableZmodem.value) {
+                        //     option.i18nCallBack && message.info(option.i18nCallBack('WaitFileTransfer'));
+                        // }
                         break;
                     }
                     case 'ZMODEM_END': {
@@ -140,7 +143,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
                             terminal?.write('\r\n');
 
-                            zmodemStatus.value = false;
+                            terminalStore.setTerminalConfig('zmodemStatus', false);
                         }
                         break;
                     }
@@ -152,6 +155,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             }
             case 'TERMINAL_ERROR':
             case 'ERROR': {
+                terminal?.write(msg.err);
                 break;
             }
             case 'MESSAGE_NOTIFY': {
@@ -235,7 +239,15 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         if (typeof event.data === 'object') {
             if (enableZmodem.value) {
-                sentry.consume(event.data);
+                try {
+                    sentry.consume(event.data);
+                } catch (e) {
+                    if (sentry.get_confirmed_session()) {
+                        sentry.get_confirmed_session()?.abort();
+                        message.error('File transfer error, file transfer interrupted');
+                    }
+                    console.log(e);
+                }
             } else {
                 writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);
             }
@@ -269,8 +281,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 break;
             }
             case 'TERMINAL_ACTION': {
-                // k8s 没有 rz 与 sz 的操作
                 const action = socketData.data;
+
                 switch (action) {
                     case 'ZMODEM_START': {
                         option.i18nCallBack &&
@@ -432,7 +444,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             }
         });
 
-        window.addEventListener('resize', () => useDebounceFn(() => fitAddon.fit(), 500), false);
+        window.addEventListener(
+            'resize',
+            () => {
+                fitAddon.fit();
+            },
+            false
+        );
 
         if (option.type === 'k8s') {
             window.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -462,6 +480,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         if (terminal) {
             terminal.loadAddon(fitAddon);
             terminal.loadAddon(searchAddon);
+            // terminal.loadAddon(new WebglAddon());
 
             terminal.open(el);
             terminal.focus();
@@ -478,7 +497,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 handleTerminalOnData(data, type, terminalId.value, lunaConfig, socket);
             });
             terminal.onResize(({ cols, rows }) => {
-                useDebounceFn(() => handleTerminalResize(cols, rows, type, terminalId.value, socket), 500);
+                fitAddon.fit();
+                handleTerminalResize(cols, rows, type, terminalId.value, socket);
             });
         }
     };
@@ -559,14 +579,16 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 }
             };
 
-            option.transSocket?.addEventListener('message', (e: MessageEvent) => {
+            handleSocketMessage = (e: MessageEvent) => {
                 // @ts-ignore
-                const handler = messageHandlers[currentTab.value as string];
+                const handler = messageHandlers[currentTab.value];
 
                 if (handler) {
                     handler(e);
                 }
-            });
+            };
+
+            option.transSocket?.addEventListener('message', handleSocketMessage);
         } else {
             initSocketEvent();
         }
@@ -576,6 +598,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
      * 初始化事件总线相关事件
      */
     const initMittBusEvents = () => {
+        mittBus.on('remove-event', () => {
+            // @ts-ignore
+            option.transSocket.removeEventListener('message', handleSocketMessage);
+        });
+
         mittBus.on('terminal-search', ({ keyword, type = '' }) => {
             searchKeyWord(keyword, type);
         });

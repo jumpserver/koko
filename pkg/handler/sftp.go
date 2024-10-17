@@ -94,9 +94,16 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err1 := s.recorder.RecordChunkRead(f.FTPLog, f); err1 != nil {
+
+	fileInfo, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	if err1 := s.recorder.ChunkedRecord(f.FTPLog, f, 0, fileInfo.Size()); err1 != nil {
 		logger.Errorf("Record file %s err: %s", r.Filepath, err1)
 	}
+
 	// 重置文件指针
 	_, _ = f.Seek(0, io.SeekStart)
 	go func() {

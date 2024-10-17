@@ -43,6 +43,9 @@ const (
 	TerminalSessionPause  = "TERMINAL_SESSION_PAUSE"
 	TerminalSessionResume = "TERMINAL_SESSION_RESUME"
 
+	TerminalPermValid   = "TERMINAL_PERM_VALID"
+	TerminalPermExpired = "TERMINAL_PERM_EXPIRED"
+
 	TerminalShare        = "TERMINAL_SHARE"
 	TerminalShareJoin    = "TERMINAL_SHARE_JOIN"
 	TerminalShareLeave   = "TERMINAL_SHARE_LEAVE"

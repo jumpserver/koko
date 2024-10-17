@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/gliderlabs/ssh"
 	"io"
 	"sync"
 	"time"
+
+	"github.com/gliderlabs/ssh"
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -162,6 +163,14 @@ func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
 		msgType = TerminalSessionResume
 		msgData = string(roomMsg.Body)
 		logger.Debugf("Resume terminal session : %+v", roomMsg)
+	case exchange.PermValidEvent:
+		msgType = TerminalPermValid
+		msgData = string(roomMsg.Body)
+		logger.Debugf("Terminal perm is valid : %+v", roomMsg)
+	case exchange.PermExpiredEvent:
+		msgType = TerminalPermExpired
+		msgData = string(roomMsg.Body)
+		logger.Debugf("Terminal perm is expired : %+v", roomMsg)
 	default:
 		logger.Infof("unsupported room msg %+v", roomMsg)
 		return

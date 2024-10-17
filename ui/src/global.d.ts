@@ -19,7 +19,7 @@ declare module 'nora-zmodemjs/src/zmodem_browser' {
     export class Browser {
         static send_files(
             session: ZmodemSession,
-            files: File,
+            files: File[],
             opts?: {
                 on_offer_response?: (obj: any, xfer: ZmodemTransfer) => void;
                 on_file_complete?: (obj: any) => void;

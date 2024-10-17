@@ -46,6 +46,9 @@ const (
 
 	ActionEvent = "Action"
 
+	PermExpiredEvent = "PermExpired"
+	PermValidEvent   = "PermValid"
+
 	ShareRemoveUser = "Share_REMOVE_USER"
 )
 
