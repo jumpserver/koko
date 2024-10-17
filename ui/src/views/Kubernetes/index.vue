@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import { useK8s } from '@/hooks/useK8s';
+import { useKubernetes } from '@/hooks/useKubernetes.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 
@@ -59,9 +60,9 @@ const sideWidth = ref(300);
 const isFolded = ref(false);
 
 const treeStore = useTreeStore();
-const { createTreeConnect } = useK8s();
-
-socket.value = createTreeConnect();
+// const { createTreeConnect } = useK8s();
+socket.value = useKubernetes();
+// socket.value = createTreeConnect();
 
 /**
  * 加载节点

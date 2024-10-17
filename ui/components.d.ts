@@ -9,6 +9,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     ContentHeader: typeof import('./src/components/Kubernetes/ContentHeader/index.vue')['default']
     CustomTerminal: typeof import('./src/components/CustomTerminal/index.vue')['default']
+    Index1: typeof import('./src/components/Kubernetes/MainContent/index.vue')['default']
+    K8sTerminal: typeof import('./src/components/k8sTerminal/index.vue')['default']
     Logo: typeof import('./src/components/Kubernetes/Sidebar/components/Logo/index.vue')['default']
     MainContent: typeof import('./src/components/Kubernetes/MainContent/index.vue')['default']
     NButton: typeof import('naive-ui')['NButton']
