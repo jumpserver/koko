@@ -95,6 +95,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		OrgID:      connOpts.authInfo.OrgId,
 		Type:       model.NORMALType,
 		TokenId:    connOpts.authInfo.Id,
+		LangCode:   connOpts.i18nLang,
 	}
 
 	if !connOpts.authInfo.Actions.EnableConnect() {

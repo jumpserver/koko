@@ -11,6 +11,7 @@ import (
 
 // RunConnectTokensCheck every 5 minutes check token status
 func RunConnectTokensCheck(jmsService *service.JMService) {
+	apiClient := jmsService.Copy()
 	for {
 		time.Sleep(5 * time.Minute)
 		sessions := session.GetSessions()
@@ -21,7 +22,8 @@ func RunConnectTokensCheck(jmsService *service.JMService) {
 				handleTokenCheck(s, &ret)
 				continue
 			}
-			ret, err := jmsService.CheckTokenStatus(s.TokenId)
+			apiClient.SetCookie("django_language", s.LangCode)
+			ret, err := apiClient.CheckTokenStatus(s.TokenId)
 			if err != nil && ret.Code == "" {
 				logger.Errorf("Check token status failed: %s", err)
 				continue
