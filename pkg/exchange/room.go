@@ -30,7 +30,7 @@ func CreateRoom(id string, inChan chan *RoomMessage) *Room {
 		broadcastChan:  make(chan *RoomMessage),
 		subscriber:     make(chan *Conn),
 		unSubscriber:   make(chan *Conn),
-		exitSignal:     make(chan struct{}),
+		exitSignal:     make(chan struct{}, 1),
 		done:           make(chan struct{}),
 		recentMessages: ring.New(5),
 	}
@@ -139,12 +139,17 @@ func (r *Room) run() {
 }
 
 func (r *Room) Subscribe(conn *Conn) {
-	r.subscriber <- conn
-
+	select {
+	case <-r.done:
+	case r.subscriber <- conn:
+	}
 }
 
 func (r *Room) UnSubscribe(conn *Conn) {
-	r.unSubscriber <- conn
+	select {
+	case <-r.done:
+	case r.unSubscriber <- conn:
+	}
 }
 
 func (r *Room) Broadcast(msg *RoomMessage) {

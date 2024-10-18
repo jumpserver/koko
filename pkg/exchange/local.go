@@ -42,7 +42,7 @@ func (l *localCache) run() {
 			go s.run()
 		case s := <-l.leaveChan:
 			delete(l.caches, s.Id)
-			s.stop()
+			go s.stop()
 		case sid := <-l.checkChan:
 			l.resultChan <- l.caches[sid]
 		}

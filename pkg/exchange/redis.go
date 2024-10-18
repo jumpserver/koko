@@ -188,17 +188,17 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 	}
 
 	m := &redisRoomManager{
-		Id:                     common.UUID(),
-		pool:                   pool,
-		connFunc:               connFunc,
-		localRoomCache:         newLocalCache(),
-		remoteRoomCache:        newLocalCache(),
-		pubSub:                 pubSub,
-		subscribeEventsMsgCh:   redisMsgCh,
-		reqChan:                make(chan *subscribeRequest),
-		reqCancelChan:          make(chan *subscribeRequest),
-		removeProxyRoomChan:    make(chan *Room),
-		responseChan:           make(chan chan *subscribeResponse),
+		Id:                   common.UUID(),
+		pool:                 pool,
+		connFunc:             connFunc,
+		localRoomCache:       newLocalCache(),
+		remoteRoomCache:      newLocalCache(),
+		pubSub:               pubSub,
+		subscribeEventsMsgCh: redisMsgCh,
+		reqChan:              make(chan *subscribeRequest),
+		reqCancelChan:        make(chan *subscribeRequest),
+		removeProxyRoomChan:  make(chan *Room),
+		//responseChan:           make(chan chan *subscribeResponse),
 		removeRedisUserConChan: make(chan *redisChannel),
 	}
 	go m.run()
@@ -215,7 +215,7 @@ type redisRoomManager struct {
 	subscribeEventsMsgCh chan radix.PubSubMessage
 	pubSub               radix.PubSubConn
 
-	responseChan chan chan *subscribeResponse
+	//responseChan chan chan *subscribeResponse
 
 	reqChan chan *subscribeRequest
 
@@ -276,7 +276,7 @@ func (m *redisRoomManager) removeRoomId(roomId string) {
 	}
 	// 发布退出事件
 	req := m.createRoomEventRequest(roomId, ExitEvent)
-	_, err = m.sendRequest(&req)
+	err = m.publishRequest(&req)
 	if err != nil {
 		logger.Errorf("Redis cache publish room %s exit event err: %s", roomId, err)
 	} else {
@@ -299,14 +299,12 @@ func (m *redisRoomManager) run() {
 	for {
 		select {
 		case req := <-m.reqChan:
-			responseChan := make(chan *subscribeResponse, 1)
-			m.responseChan <- responseChan
 			switch req.Event {
 			case JoinEvent:
 				//	校验本地 是否已经存在
 				if room := m.remoteRoomCache.Get(req.RoomId); room != nil {
 					logger.Debugf("Redis cache already create room %s", req.RoomId)
-					responseChan <- &subscribeResponse{
+					req.ResponseChan <- &subscribeResponse{
 						Req:  req,
 						room: room,
 						err:  nil,
@@ -316,17 +314,17 @@ func (m *redisRoomManager) run() {
 				// 本地不存在则发送请求信号
 				if err := m.publishRequest(req); err != nil {
 					logger.Debugf("Redis cache send request join room %s err: %s", req.RoomId, err)
-					responseChan <- &subscribeResponse{
+					req.ResponseChan <- &subscribeResponse{
 						Req:  req,
 						room: nil,
 						err:  err,
 					}
 					continue
 				}
-				requestsMap[req.ReqId] = responseChan //不阻塞 等待返回结果
+				requestsMap[req.ReqId] = req.ResponseChan //不阻塞 等待返回结果
 			case ExitEvent:
 				if err := m.publishRequest(req); err != nil {
-					responseChan <- &subscribeResponse{
+					req.ResponseChan <- &subscribeResponse{
 						Req: req,
 						err: err,
 					}
@@ -334,7 +332,7 @@ func (m *redisRoomManager) run() {
 					logger.Errorf("Redis cache send request %s event %s err: %s", req.ReqId, req.Event, err)
 					continue
 				}
-				responseChan <- &subscribeResponse{Req: req}
+				req.ResponseChan <- &subscribeResponse{Req: req}
 			default:
 
 			}
@@ -537,16 +535,16 @@ func (m *redisRoomManager) sendRequest(req *subscribeRequest) (*subscribeRespons
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 	m.reqChan <- req
-	resultChan := <-m.responseChan
+	//resultChan := <-m.responseChan
 	select {
 	case <-ctx.Done():
 		select {
 		case m.reqCancelChan <- req:
 
-		case res := <-resultChan:
+		case res := <-req.ResponseChan:
 			return res, res.err
 		}
-	case res := <-resultChan:
+	case res := <-req.ResponseChan:
 		return res, res.err
 	}
 	return nil, fmt.Errorf("Redis cache send request event %s time out ", req.Event)
@@ -563,6 +561,8 @@ func (m *redisRoomManager) createRoomEventRequest(roomId, event string) subscrib
 		RoomId:  roomId,
 		Event:   event,
 		Channel: eventsChannel,
+
+		ResponseChan: make(chan *subscribeResponse, 1),
 	}
 }
 
@@ -572,6 +572,8 @@ func (m *redisRoomManager) createRoomResultRequest(reqId, roomId, event string) 
 		RoomId:  roomId,
 		Event:   event,
 		Channel: resultsChannel,
+
+		ResponseChan: make(chan *subscribeResponse, 1),
 	}
 }
 
@@ -586,6 +588,8 @@ type subscribeRequest struct {
 	RoomId  string `json:"room_id"`
 	Event   string `json:"event"`
 	Channel string `json:"-"`
+
+	ResponseChan chan *subscribeResponse `json:"-"`
 }
 
 func createSessionChannel(channel string) string {
