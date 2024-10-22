@@ -44,7 +44,7 @@ RUN set -ex \
 
 WORKDIR /opt/koko
 
-ARG MONGOSH_VERSION=2.2.12
+ARG MONGOSH_VERSION=2.3.2
 RUN set -ex \
     && mkdir -p /opt/koko/lib \
     && \
