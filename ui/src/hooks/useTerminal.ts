@@ -2,6 +2,7 @@
 import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+// import { WebglAddon } from '@xterm/addon-webgl';
 import { ISearchOptions, SearchAddon } from '@xterm/addon-search';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { defaultTheme } from '@/config';
@@ -9,7 +10,7 @@ import { defaultTheme } from '@/config';
 // hook
 import { createDiscreteApi } from 'naive-ui';
 import { useSentry } from '@/hooks/useZsentry.ts';
-import { useDebounceFn, useWebSocket } from '@vueuse/core';
+import { useWebSocket } from '@vueuse/core';
 
 // store
 import { storeToRefs } from 'pinia';
@@ -98,6 +99,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         switch (msg.type) {
             case 'CONNECT': {
+                fitAddon.fit();
                 terminalId.value = msg.id;
 
                 const terminalData = {
@@ -246,7 +248,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                     }
                     console.log(e);
                 }
-
             } else {
                 writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);
             }
@@ -443,7 +444,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             }
         });
 
-        window.addEventListener('resize', () => useDebounceFn(() => fitAddon.fit(), 500), false);
+        window.addEventListener(
+            'resize',
+            () => {
+                fitAddon.fit();
+            },
+            false
+        );
 
         if (option.type === 'k8s') {
             window.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -473,6 +480,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         if (terminal) {
             terminal.loadAddon(fitAddon);
             terminal.loadAddon(searchAddon);
+            // terminal.loadAddon(new WebglAddon());
 
             terminal.open(el);
             terminal.focus();
@@ -489,7 +497,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
                 handleTerminalOnData(data, type, terminalId.value, lunaConfig, socket);
             });
             terminal.onResize(({ cols, rows }) => {
-                useDebounceFn(() => handleTerminalResize(cols, rows, type, terminalId.value, socket), 500);
+                fitAddon.fit();
+                handleTerminalResize(cols, rows, type, terminalId.value, socket);
             });
         }
     };
