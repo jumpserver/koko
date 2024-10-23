@@ -120,9 +120,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			_, err2 := jmsService.CreateSession(*apiSession)
 			return err2
 		},
-		ConnectedSuccessCallback: func() error {
-			return jmsService.SessionSuccess(apiSession.ID)
-		},
 		ConnectedFailedCallback: func(err error) error {
 			return jmsService.SessionFailed(apiSession.ID, err)
 		},
@@ -150,10 +147,9 @@ type Server struct {
 
 	cacheSSHConnection *srvconn.SSHConnection
 
-	CreateSessionCallback    func() error
-	ConnectedSuccessCallback func() error
-	ConnectedFailedCallback  func(err error) error
-	DisConnectedCallback     func() error
+	CreateSessionCallback   func() error
+	ConnectedFailedCallback func(err error) error
+	DisConnectedCallback    func() error
 
 	keyboardMode int32
 
@@ -1005,9 +1001,6 @@ func (s *Server) Proxy() {
 	}
 
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
-	if err2 := s.ConnectedSuccessCallback(); err2 != nil {
-		logger.Errorf("Conn[%s] update session %s err: %s", s.UserConn.ID(), s.ID, err2)
-	}
 	if s.OnSessionInfo != nil {
 		actions := s.connOpts.authInfo.Actions
 		tokenConnOpts := s.connOpts.authInfo.ConnectOptions
