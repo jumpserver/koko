@@ -24,7 +24,7 @@
                                             <n-icon :component="item.icon" :size="18"></n-icon>
                                             <n-text class="text-[14px]">
                                                 {{ item.title }}
-                                                {{ `(${item.content.length})` }}
+                                                {{ `(${item.content().length})` }}
                                             </n-text>
                                         </n-flex>
                                     </template>
@@ -33,7 +33,7 @@
                                             <n-popover
                                                 trigger="hover"
                                                 placement="top"
-                                                v-for="detail of item.content"
+                                                v-for="detail of item.content()"
                                                 :key="detail.name"
                                             >
                                                 <template #trigger>
@@ -44,12 +44,12 @@
                                                         class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
                                                         :bordered="false"
                                                         :type="
-                                                            item.content.indexOf(detail) !== 0
+                                                            item.content().indexOf(detail) !== 0
                                                                 ? 'info'
                                                                 : 'success'
                                                         "
                                                         :closable="true"
-                                                        :disabled="item.content.indexOf(detail) === 0"
+                                                        :disabled="item.content().indexOf(detail) === 0"
                                                         @close="item.click(detail)"
                                                     >
                                                         <n-text class="cursor-pointer text-inherit">

@@ -12,6 +12,7 @@ declare module 'vue' {
     Index1: typeof import('./src/components/Kubernetes/MainContent/index.vue')['default']
     K8sTerminal: typeof import('./src/components/k8sTerminal/index.vue')['default']
     Logo: typeof import('./src/components/Kubernetes/Sidebar/components/Logo/index.vue')['default']
+    Main: typeof import('./src/components/Kubernetes/MainContent/main.vue')['default']
     MainContent: typeof import('./src/components/Kubernetes/MainContent/index.vue')['default']
     NButton: typeof import('naive-ui')['NButton']
     NCollapse: typeof import('naive-ui')['NCollapse']

@@ -37,12 +37,11 @@
                 @reload-tree="handleReloadTree"
             />
         </n-layout-sider>
-        <MainContent :socket="socket" />
+        <MainContent />
     </n-layout>
 </template>
 
 <script setup lang="ts">
-import { useK8s } from '@/hooks/useK8s';
 import { useKubernetes } from '@/hooks/useKubernetes.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
@@ -52,17 +51,18 @@ import { TreeOption } from 'naive-ui';
 import mittBus from '@/utils/mittBus';
 import Tree from '@/components/Kubernetes/Tree/index.vue';
 import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
-import MainContent from '@/components/Kubernetes/MainContent/index.vue';
+import MainContent from '@/components/Kubernetes/MainContent/main.vue';
 import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
+import { useI18n } from 'vue-i18n';
 
 const socket = ref();
 const sideWidth = ref(300);
 const isFolded = ref(false);
 
+const { t } = useI18n();
+
 const treeStore = useTreeStore();
-// const { createTreeConnect } = useK8s();
-socket.value = useKubernetes();
-// socket.value = createTreeConnect();
+socket.value = useKubernetes(t);
 
 /**
  * 加载节点

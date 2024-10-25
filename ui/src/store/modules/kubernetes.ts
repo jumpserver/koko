@@ -6,13 +6,19 @@ export interface IKubernetesState {
     globalTerminalId: string;
 
     globalSetting: SettingConfig;
+
+    lastReceiveTime: any;
+
+    lastSendTime: any;
 }
 
 export const useKubernetesStore = defineStore('kubernetes', {
     state: (): IKubernetesState => {
         return {
             globalTerminalId: '',
-            setting: {}
+            globalSetting: {},
+            lastReceiveTime: new Date(),
+            lastSendTime: new Date()
         };
     },
     actions: {
@@ -21,6 +27,12 @@ export const useKubernetesStore = defineStore('kubernetes', {
         },
         setGlobalSetting(setting: SettingConfig) {
             this.globalSetting = setting;
+        },
+        setLastReceiveTime(time: any) {
+            this.lastReceiveTime = time;
+        },
+        setLastSendTime(time: any) {
+            this.lastSendTime = time;
         }
     }
 });

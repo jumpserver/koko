@@ -61,4 +61,8 @@ $--el-main-bg-color: #1e1e1e;
         width: 100% !important;
         height: calc(100vh - 90px) !important;
     }
+
+    :deep(.xterm) {
+        padding: 10px 0 10px 10px;
+    }
 }
