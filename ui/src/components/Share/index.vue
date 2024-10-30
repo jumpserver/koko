@@ -122,11 +122,16 @@ const shareLinkRequest = reactive({
 const shareURL = computed(() => {
     return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
 });
+
 const mappedUserOptions = computed(() => {
-    return props.userOptions.map((item: shareUser) => ({
-        label: item.username,
-        value: item.id
-    }));
+    if (props.userOptions && props.userOptions.length > 0) {
+        return props.userOptions.map((item: shareUser) => ({
+            label: item.username,
+            value: item.id
+        }));
+    } else {
+        return [];
+    }
 });
 
 watch(

@@ -46,6 +46,8 @@ export interface ITerminalConfig {
 
     // 当前页签
     currentTab: string;
+
+    termSelectionText: string;
 }
 
 export interface ITreeState {

@@ -15,7 +15,9 @@ export const useTerminalStore = defineStore('terminal', {
         enableZmodem: true,
         zmodemStatus: false,
 
-        currentTab: ''
+        currentTab: '',
+
+        termSelectionText: ''
     }),
     getters: {
         getConfig: state => state
