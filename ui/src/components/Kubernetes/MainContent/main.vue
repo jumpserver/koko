@@ -379,7 +379,9 @@ const handleChangeTab = (value: string) => {
 
     findNodeById(value);
 
-    terminalStore.setTerminalConfig('currentTab', value);
+    nextTick(() => {
+        terminalStore.setTerminalConfig('currentTab', value);
+    });
 };
 
 /**
@@ -435,10 +437,13 @@ const handleReconnect = (type: string) => {
         operatedNode.k8s_id = uuid();
         operatedNode.position = index;
 
-        mittBus.emit('connect-terminal', { ...operatedNode });
+        const structuredClone = JSON.parse(JSON.stringify(operatedNode));
+
+        mittBus.emit('connect-terminal', { ...structuredClone });
     } else if (type === 'cloneConnect') {
         operatedNode.k8s_id = uuid();
-        mittBus.emit('connect-terminal', { ...operatedNode });
+        const structuredClone = JSON.parse(JSON.stringify(operatedNode));
+        mittBus.emit('connect-terminal', { ...structuredClone });
     }
 
     showContextMenu.value = false;
