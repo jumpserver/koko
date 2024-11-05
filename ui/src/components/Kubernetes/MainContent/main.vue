@@ -67,7 +67,7 @@ import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 
-import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref, unref } from 'vue';
+import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
 import { updateIcon } from '@/components/CustomTerminal/helper';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
