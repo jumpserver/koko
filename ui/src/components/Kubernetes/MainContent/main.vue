@@ -524,7 +524,8 @@ const initializeDraggable = () => {
                 let newIndex = event!.newIndex - 1;
                 let oldIndex = event!.oldIndex - 1;
 
-                const clonedPanels = JSON.parse(JSON.stringify(panels.value));
+                // 此处不能使用 JSON.parse(JSON.stringify) 的形式，否则会出现循环引用, 只需浅拷贝即可
+                const clonedPanels = panels.value.map(panel => ({ ...panel }));
 
                 panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(panel => panel !== null);
 
