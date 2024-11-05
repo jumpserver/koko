@@ -67,7 +67,7 @@ import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 
-import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref, unref } from 'vue';
 import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
 import { updateIcon } from '@/components/CustomTerminal/helper';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
@@ -379,9 +379,7 @@ const handleChangeTab = (value: string) => {
 
     findNodeById(value);
 
-    nextTick(() => {
-        terminalStore.setTerminalConfig('currentTab', value);
-    });
+    terminalStore.setTerminalConfig('currentTab', value);
 };
 
 /**
@@ -434,16 +432,15 @@ const handleReconnect = (type: string) => {
         panels.value.splice(index, 1);
         treeStore.removeK8sIdMap(operatedNode.k8s_id);
 
-        operatedNode.k8s_id = uuid();
+        const newId = uuid();
+
+        operatedNode.key = newId;
+        operatedNode.k8s_id = newId;
         operatedNode.position = index;
 
-        const structuredClone = JSON.parse(JSON.stringify(operatedNode));
-
-        mittBus.emit('connect-terminal', { ...structuredClone });
+        mittBus.emit('connect-terminal', { ...operatedNode });
     } else if (type === 'cloneConnect') {
-        operatedNode.k8s_id = uuid();
-        const structuredClone = JSON.parse(JSON.stringify(operatedNode));
-        mittBus.emit('connect-terminal', { ...structuredClone });
+        mittBus.emit('connect-terminal', { ...operatedNode });
     }
 
     showContextMenu.value = false;
@@ -538,8 +535,6 @@ const initializeDraggable = () => {
                     findNodeById(newActiveTab);
                     terminalStore.setTerminalConfig('currentTab', newActiveTab);
                 }
-
-                await nextTick(() => {});
             }
         });
     }
@@ -667,7 +662,9 @@ onMounted(() => {
         // 如果在 panels 中有相同的 k8s_id，则认为是对一个节点重复连接
         panels.value.forEach(panel => {
             if (panel.name === node.k8s_id) {
-                node.k8s_id = uuid();
+                const newId = uuid();
+                node.key = newId;
+                node.k8s_id = newId;
             }
         });
 

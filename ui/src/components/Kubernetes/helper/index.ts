@@ -5,7 +5,7 @@ import type { Component } from 'vue';
 import type { TreeOption } from 'naive-ui';
 import type { customTreeOption } from '@/hooks/interface';
 import { useTreeStore } from '@/store/modules/tree.ts';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
+// import { useTerminalStore } from '@/store/modules/terminal.ts';
 
 /**
  * @description 用于每个 Tree Item 的 Tooltip
@@ -57,14 +57,14 @@ export const swapElements = (arr: any[], index1: number, index2: number) => {
  */
 export const findNodeById = (nameRef: string) => {
     const treeStore = useTreeStore();
-    const terminalStore = useTerminalStore();
+    // const terminalStore = useTerminalStore();
 
     for (const [_key, value] of treeStore.terminalMap.entries()) {
         if (value.k8s_id === nameRef) {
             treeStore.setCurrentNode(value);
-            const ctrlCAsCtrl: string = value.ctrlCAsCtrlZMap.get(value.k8s_id);
-
-            terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
+            // const ctrlCAsCtrl: string = value.ctrlCAsCtrlZMap.get(value.k8s_id);
+            //
+            // terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
         }
     }
 };
