@@ -603,8 +603,6 @@ export const initElEvent = (
                 if (terminalStore.termSelectionText !== '') text = terminalStore.termSelectionText;
             }
 
-            console.log(text);
-
             e.preventDefault();
 
             socket.send(
