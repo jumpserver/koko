@@ -215,26 +215,29 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			nr, err2 := srvConn.Read(buf)
 			validBytes := buf[:nr]
 			if nr > 0 {
-				bufferLen := buffer.Len()
-				if bufferLen > 0 || nr == maxLen {
-					buffer.Write(buf[:nr])
-					validBytes = validBytes[:0]
-				}
-				remainBytes := buffer.Bytes()
-				for len(remainBytes) > 0 {
-					r, size := utf8.DecodeRune(remainBytes)
-					if r == utf8.RuneError {
-						// utf8 max 4 bytes
-						if len(remainBytes) <= 3 {
-							break
-						}
+				isZmodem := parser.zmodemParser.IsStartSession()
+				if !isZmodem {
+					bufferLen := buffer.Len()
+					if bufferLen > 0 || nr == maxLen {
+						buffer.Write(buf[:nr])
+						validBytes = validBytes[:0]
 					}
-					validBytes = append(validBytes, remainBytes[:size]...)
-					remainBytes = remainBytes[size:]
-				}
-				buffer.Reset()
-				if len(remainBytes) > 0 {
-					buffer.Write(remainBytes)
+					remainBytes := buffer.Bytes()
+					for len(remainBytes) > 0 {
+						r, size := utf8.DecodeRune(remainBytes)
+						if r == utf8.RuneError {
+							// utf8 max 4 bytes
+							if len(remainBytes) <= 3 {
+								break
+							}
+						}
+						validBytes = append(validBytes, remainBytes[:size]...)
+						remainBytes = remainBytes[size:]
+					}
+					buffer.Reset()
+					if len(remainBytes) > 0 {
+						buffer.Write(remainBytes)
+					}
 				}
 				select {
 				case srvInChan <- validBytes:

@@ -54,37 +54,53 @@ func (c *Client) Read(p []byte) (n int, err error) {
 
 // 向客户端发送数据进行1毫秒的防抖处理
 func (c *Client) Write(p []byte) (n int, err error) {
-	c.bufferMutex.Lock()
-	defer c.bufferMutex.Unlock()
+	category := c.Conn.ConnectToken.Platform.Category.Value
 
-	c.buffer.Write(p)
+	if category == "database" {
+		c.bufferMutex.Lock()
+		c.buffer.Write(p)
+		c.bufferMutex.Unlock()
 
-	if c.timer == nil {
-		c.timer = time.AfterFunc(time.Millisecond, c.flushBuffer)
+		if c.timer == nil {
+			c.timer = time.AfterFunc(time.Millisecond, c.flushBuffer)
+		}
+		return len(p), nil
+
 	}
+
+	messageType := TerminalBinary
+	if c.KubernetesId != "" {
+		messageType = TerminalK8SBinary
+	}
+
+	msg := Message{
+		Id:           c.Conn.Uuid,
+		Type:         messageType,
+		Raw:          p,
+		KubernetesId: c.KubernetesId,
+	}
+	c.Conn.SendMessage(&msg)
 	return len(p), nil
 }
 
 func (c *Client) flushBuffer() {
 	c.bufferMutex.Lock()
 	defer c.bufferMutex.Unlock()
-	messageType := TerminalBinary
-	if c.KubernetesId != "" {
-		messageType = TerminalK8SBinary
-	}
 
 	if c.buffer.Len() > 0 {
 		msg := Message{
-			Id:           c.Conn.Uuid,
-			Type:         messageType,
-			Raw:          c.buffer.Bytes(),
-			KubernetesId: c.KubernetesId,
+			Id:   c.Conn.Uuid,
+			Type: TerminalBinary,
+			Raw:  c.buffer.Bytes(),
 		}
 		c.Conn.SendMessage(&msg)
 		c.buffer.Reset()
 	}
-	c.timer.Stop()
-	c.timer = nil
+
+	if c.buffer.Len() == 0 && c.timer != nil {
+		c.timer.Stop()
+		c.timer = nil
+	}
 }
 
 func (c *Client) Pty() ssh.Pty {
