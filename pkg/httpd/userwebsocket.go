@@ -161,6 +161,8 @@ func (userCon *UserWebsocket) SendMessage(msg *Message) {
 	case <-userCon.conn.Request().Context().Done():
 		logger.Infof("Ws[%s] ctx done and ignore message type %s",
 			userCon.Uuid, msg.Type)
+	default:
+		logger.Errorf("Ws[%s] message channel full and ignore message type %s")
 	}
 }
 
