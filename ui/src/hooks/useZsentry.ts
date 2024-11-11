@@ -126,9 +126,13 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
             },
             onNegativeClick: () => {
                 if (zmodeSession.value) {
-                    debug('Cancel Abort');
-                    zmodeSession.value.abort();
+                    try {
+                        zmodeSession.value.abort();
+                    } catch (e) {
+                        return true;
+                    }
                 }
+                return true;
             }
         };
     });
