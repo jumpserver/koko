@@ -210,12 +210,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
                 .then(() => {
                     ZmodemBrowser.Browser.save_to_disk(buffer, xfer.get_details().name);
                     message.info(`${t('DownloadSuccess')}: ${detail.name}`);
-
                     terminal.write('\r\n');
-
-                    if (zmodeSession.value) {
-                        zmodeSession.value.abort();
-                    }
                 })
                 .catch((e: Error) => {
                     message.error(`Error: ${e}`);
@@ -223,6 +218,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         });
 
         zsession.on('session_end', () => {
+            if (zmodeSession.value) {
+                zmodeSession.value.abort();
+            }
             terminal.write('\r\n');
         });
 
