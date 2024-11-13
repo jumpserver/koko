@@ -1,69 +1,69 @@
 import { customTreeOption, SettingConfig } from '@/hooks/interface';
 
 export interface IGlobalState {
-    initialized: boolean;
+  initialized: boolean;
 
-    i18nLoaded: boolean;
+  i18nLoaded: boolean;
 }
 
 export interface IParamsState {
-    shareId: string;
+  shareId: string;
 
-    shareCode: string;
+  shareCode: string;
 
-    currentUser: any;
+  currentUser: any;
 
-    setting: SettingConfig;
+  setting: SettingConfig;
 }
 
 export interface ITerminalConfig {
-    // 主题
-    themeName: string;
+  // 主题
+  themeName: string;
 
-    // 快速粘贴
-    quickPaste: string;
+  // 快速粘贴
+  quickPaste: string;
 
-    // Ctrl
-    ctrlCAsCtrlZ: string;
+  // Ctrl
+  ctrlCAsCtrlZ: string;
 
-    // 退格键
-    backspaceAsCtrlH: string;
+  // 退格键
+  backspaceAsCtrlH: string;
 
-    // 字体大小
-    fontSize: number;
+  // 字体大小
+  fontSize: number;
 
-    // 行高
-    lineHeight: number;
+  // 行高
+  lineHeight: number;
 
-    // 字体
-    fontFamily: string;
+  // 字体
+  fontFamily: string;
 
-    // 是否开启 Zmodem
-    enableZmodem: boolean;
+  // 是否开启 Zmodem
+  enableZmodem: boolean;
 
-    // 当前 Zmodem 状态
-    zmodemStatus: boolean;
+  // 当前 Zmodem 状态
+  zmodemStatus: boolean;
 
-    // 当前页签
-    currentTab: string;
+  // 当前页签
+  currentTab: string;
 
-    termSelectionText: string;
+  termSelectionText: string;
 }
 
 export interface ITreeState {
-    connectInfo: any;
+  connectInfo: any;
 
-    treeNodes: customTreeOption[];
+  treeNodes: customTreeOption[];
 
-    currentNode: customTreeOption;
+  currentNode: customTreeOption;
 
-    root: customTreeOption;
+  root: customTreeOption;
 
-    isLoaded: boolean;
+  isLoaded: boolean;
 
-    terminalMap: Map<string, any>;
+  terminalMap: Map<string, any>;
 }
 
 export type ObjToKeyValArray<T> = {
-    [K in keyof T]: [K, T[K]];
+  [K in keyof T]: [K, T[K]];
 }[keyof T];
