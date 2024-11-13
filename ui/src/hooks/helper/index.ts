@@ -34,35 +34,35 @@ const { message } = createDiscreteApi(['message']);
  * @param k8s_id
  */
 export const handleContextMenu = async (
-    e: MouseEvent,
-    config: ILunaConfig,
-    socket: WebSocket,
-    terminalId: string,
-    termSelectionText: string,
-    k8s_id: string | undefined
+  e: MouseEvent,
+  config: ILunaConfig,
+  socket: WebSocket,
+  terminalId: string,
+  termSelectionText: string,
+  k8s_id: string | undefined
 ) => {
-    if (e.ctrlKey || config.quickPaste !== '1') return;
+  if (e.ctrlKey || config.quickPaste !== '1') return;
 
-    let text: string = '';
+  let text: string = '';
 
-    try {
-        text = await readText();
-    } catch (e) {
-        if (termSelectionText !== '') text = termSelectionText;
-    }
-    e.preventDefault();
-    if (k8s_id) {
-        socket.send(
-            JSON.stringify({
-                id: terminalId,
-                k8s_id,
-                type: 'TERMINAL_K8S_DATA',
-                data: text
-            })
-        );
-    } else {
-        socket.send(formatMessage(terminalId, 'TERMINAL_DATA', text));
-    }
+  try {
+    text = await readText();
+  } catch (e) {
+    if (termSelectionText !== '') text = termSelectionText;
+  }
+  e.preventDefault();
+  if (k8s_id) {
+    socket.send(
+      JSON.stringify({
+        id: terminalId,
+        k8s_id,
+        type: 'TERMINAL_K8S_DATA',
+        data: text
+      })
+    );
+  } else {
+    socket.send(formatMessage(terminalId, 'TERMINAL_DATA', text));
+  }
 };
 
 /**
@@ -75,39 +75,39 @@ export const handleContextMenu = async (
  * @param socket
  */
 export const handleTerminalResize = (
-    cols: number,
-    rows: number,
-    type: string,
-    terminalId: string,
-    socket: WebSocket
+  cols: number,
+  rows: number,
+  type: string,
+  terminalId: string,
+  socket: WebSocket
 ) => {
-    let data;
+  let data;
 
-    info('Send Term Resize');
+  info('Send Term Resize');
 
-    const treeStore = useTreeStore();
-    const { currentNode } = storeToRefs(treeStore);
+  const treeStore = useTreeStore();
+  const { currentNode } = storeToRefs(treeStore);
 
-    const eventType = type === 'k8s' ? 'TERMINAL_K8S_RESIZE' : 'TERMINAL_RESIZE';
-    const resizeData = JSON.stringify({ cols, rows });
+  const eventType = type === 'k8s' ? 'TERMINAL_K8S_RESIZE' : 'TERMINAL_RESIZE';
+  const resizeData = JSON.stringify({ cols, rows });
 
-    data = resizeData;
+  data = resizeData;
 
-    if (type === 'k8s' && currentNode.value.children) {
-        const currentItem = currentNode.value.children[0];
+  if (type === 'k8s' && currentNode.value.children) {
+    const currentItem = currentNode.value.children[0];
 
-        data = {
-            k8s_id: currentItem.k8s_id,
-            namespace: currentItem.namespace,
-            pod: currentItem.pod,
-            container: currentItem.container,
-            type: eventType,
-            id: terminalId,
-            resizeData
-        };
-    }
+    data = {
+      k8s_id: currentItem.k8s_id,
+      namespace: currentItem.namespace,
+      pod: currentItem.pod,
+      container: currentItem.container,
+      type: eventType,
+      id: terminalId,
+      resizeData
+    };
+  }
 
-    socket.send(formatMessage(terminalId, eventType, data));
+  socket.send(formatMessage(terminalId, eventType, data));
 };
 
 /**
@@ -119,37 +119,37 @@ export const handleTerminalResize = (
  * @param origin
  */
 export const handleCustomKey = (
-    e: KeyboardEvent,
-    terminal: Terminal,
-    lunaId: string,
-    origin: string
+  e: KeyboardEvent,
+  terminal: Terminal,
+  lunaId: string,
+  origin: string
 ): boolean => {
-    if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-        switch (e.key) {
-            case 'ArrowRight':
-                if (lunaId && origin) {
-                    sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
-                } else {
-                    mittBus.emit('alt-shift-right');
-                }
-
-                break;
-            case 'ArrowLeft':
-                if (lunaId && origin) {
-                    sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
-                } else {
-                    mittBus.emit('alt-shift-left');
-                }
-                break;
+  if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    switch (e.key) {
+      case 'ArrowRight':
+        if (lunaId && origin) {
+          sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+        } else {
+          mittBus.emit('alt-shift-right');
         }
-        return false;
-    }
 
-    if (e.ctrlKey && e.key === 'c' && terminal.hasSelection()) {
-        return false;
+        break;
+      case 'ArrowLeft':
+        if (lunaId && origin) {
+          sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+        } else {
+          mittBus.emit('alt-shift-left');
+        }
+        break;
     }
+    return false;
+  }
 
-    return !(e.ctrlKey && e.key === 'v');
+  if (e.ctrlKey && e.key === 'c' && terminal.hasSelection()) {
+    return false;
+  }
+
+  return !(e.ctrlKey && e.key === 'v');
 };
 
 /**
@@ -159,18 +159,18 @@ export const handleCustomKey = (
  * @param termSelectionText
  */
 export const handleTerminalSelection = async (terminal: Terminal, termSelectionText: Ref<string>) => {
-    termSelectionText.value = terminal.getSelection().trim();
+  termSelectionText.value = terminal.getSelection().trim();
 
-    if (termSelectionText.value !== '') {
-        clipboard
-            .writeText(termSelectionText.value)
-            .then(() => {})
-            .catch(e => {
-                message.error(`Copy Error for ${e}`);
-            });
-    } else {
-        // message.warning('Please select the text before copying');
-    }
+  if (termSelectionText.value !== '') {
+    clipboard
+      .writeText(termSelectionText.value)
+      .then(() => {})
+      .catch(e => {
+        message.error(`Copy Error for ${e}`);
+      });
+  } else {
+    // message.warning('Please select the text before copying');
+  }
 };
 
 /**
@@ -184,58 +184,58 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
  */
 // todo
 export const handleTerminalOnData = (
-    data: string,
-    type: string,
-    terminalId: string,
-    config: ILunaConfig,
-    socket: WebSocket
+  data: string,
+  type: string,
+  terminalId: string,
+  config: ILunaConfig,
+  socket: WebSocket
 ) => {
-    const terminalStore = useTerminalStore();
-    const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
+  const terminalStore = useTerminalStore();
+  const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
-    // 如果未开启 Zmodem 且当前在 Zmodem 状态，不允许输入
-    if (!enableZmodem.value && zmodemStatus.value) {
-        return message.warning('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
+  // 如果未开启 Zmodem 且当前在 Zmodem 状态，不允许输入
+  if (!enableZmodem.value && zmodemStatus.value) {
+    return message.warning('未开启 Zmodem 且当前在 Zmodem 状态，不允许输入');
+  }
+
+  data = preprocessInput(data, config);
+  const eventType = type === 'k8s' ? 'TERMINAL_K8S_DATA' : 'TERMINAL_DATA';
+
+  // 如果类型是 k8s，处理 k8s 的逻辑
+  if (type === 'k8s') {
+    const treeStore = useTreeStore();
+    const { currentNode } = storeToRefs(treeStore);
+    const node = currentNode.value;
+
+    // 获取默认的消息体
+    const messageData = {
+      data: data,
+      id: terminalId,
+      type: eventType,
+      pod: node.pod || '',
+      k8s_id: node.k8s_id,
+      namespace: node.namespace || '',
+      container: node.container || ''
+    };
+
+    // 如果有子节点但不是父节点，取第一个子节点的信息
+    if (node.children && node.children.length > 0) {
+      const currentItem = node.children[0];
+      Object.assign(messageData, {
+        pod: currentItem.pod,
+        k8s_id: currentItem.k8s_id,
+        namespace: currentItem.namespace,
+        container: currentItem.container
+      });
     }
 
-    data = preprocessInput(data, config);
-    const eventType = type === 'k8s' ? 'TERMINAL_K8S_DATA' : 'TERMINAL_DATA';
+    // 发送消息
+    return socket.send(JSON.stringify(messageData));
+  }
 
-    // 如果类型是 k8s，处理 k8s 的逻辑
-    if (type === 'k8s') {
-        const treeStore = useTreeStore();
-        const { currentNode } = storeToRefs(treeStore);
-        const node = currentNode.value;
-
-        // 获取默认的消息体
-        const messageData = {
-            data: data,
-            id: terminalId,
-            type: eventType,
-            pod: node.pod || '',
-            k8s_id: node.k8s_id,
-            namespace: node.namespace || '',
-            container: node.container || ''
-        };
-
-        // 如果有子节点但不是父节点，取第一个子节点的信息
-        if (node.children && node.children.length > 0) {
-            const currentItem = node.children[0];
-            Object.assign(messageData, {
-                pod: currentItem.pod,
-                k8s_id: currentItem.k8s_id,
-                namespace: currentItem.namespace,
-                container: currentItem.container
-            });
-        }
-
-        // 发送消息
-        return socket.send(JSON.stringify(messageData));
-    }
-
-    // 处理非 k8s 的情况
-    sendEventToLuna('KEYBOARDEVENT', '');
-    socket.send(formatMessage(terminalId, eventType, data));
+  // 处理非 k8s 的情况
+  sendEventToLuna('KEYBOARDEVENT', '');
+  socket.send(formatMessage(terminalId, eventType, data));
 };
 
 /**
@@ -248,96 +248,96 @@ export const handleTerminalOnData = (
  * @param terminalId
  */
 export const onWebsocketOpen = (
-    socket: WebSocket,
-    lastSendTime: Date,
-    terminalId: string,
-    pingInterval: Ref<number | null>,
-    lastReceiveTime: Ref<Date>
+  socket: WebSocket,
+  lastSendTime: Date,
+  terminalId: string,
+  pingInterval: Ref<number | null>,
+  lastReceiveTime: Ref<Date>
 ) => {
-    socket.binaryType = 'arraybuffer';
-    sendEventToLuna('CONNECTED', '');
+  socket.binaryType = 'arraybuffer';
+  sendEventToLuna('CONNECTED', '');
 
-    if (pingInterval.value) clearInterval(pingInterval.value);
+  if (pingInterval.value) clearInterval(pingInterval.value);
 
-    pingInterval.value = setInterval(() => {
-        if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
-            return clearInterval(pingInterval.value!);
-        }
+  pingInterval.value = setInterval(() => {
+    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
+      return clearInterval(pingInterval.value!);
+    }
 
-        let currentDate: Date = new Date();
+    let currentDate: Date = new Date();
 
-        if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
-            message.info('More than 30s do not receive data');
-        }
+    if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
+      message.info('More than 30s do not receive data');
+    }
 
-        let pingTimeout: number = currentDate.getTime() - lastSendTime.getTime();
+    let pingTimeout: number = currentDate.getTime() - lastSendTime.getTime();
 
-        if (pingTimeout < 0) return;
+    if (pingTimeout < 0) return;
 
-        socket.send(formatMessage(terminalId, 'PING', ''));
-    }, 25 * 1000);
+    socket.send(formatMessage(terminalId, 'PING', ''));
+  }, 25 * 1000);
 };
 
 /**
  * 生成 Socket url
  */
 export const generateWsURL = () => {
-    const route = useRoute();
+  const route = useRoute();
 
-    const routeName = route.name;
-    const urlParams = new URLSearchParams(window.location.search.slice(1));
+  const routeName = route.name;
+  const urlParams = new URLSearchParams(window.location.search.slice(1));
 
-    let connectURL;
+  let connectURL;
 
-    switch (routeName) {
-        case 'Token': {
-            const params = route.params;
-            const requireParams = new URLSearchParams();
+  switch (routeName) {
+    case 'Token': {
+      const params = route.params;
+      const requireParams = new URLSearchParams();
 
-            requireParams.append('type', 'token');
-            requireParams.append('target_id', params.id ? params.id.toString() : '');
+      requireParams.append('type', 'token');
+      requireParams.append('target_id', params.id ? params.id.toString() : '');
 
-            connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
-            break;
-        }
-        case 'TokenParams': {
-            connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}` : '';
-            break;
-        }
-        case 'kubernetes': {
-            connectURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${route.query.token}&type=k8s`;
-            break;
-        }
-        case 'Share': {
-            const id = route.params.id as string;
-            const requireParams = new URLSearchParams();
-
-            requireParams.append('type', 'share');
-            requireParams.append('target_id', id);
-
-            connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
-            break;
-        }
-        case 'Monitor': {
-            const id = route.params.id as string;
-            const requireParams = new URLSearchParams();
-
-            requireParams.append('type', 'monitor');
-            requireParams.append('target_id', id);
-
-            connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
-            break;
-        }
-        default: {
-            connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}` : '';
-        }
+      connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
+      break;
     }
-
-    if (!connectURL) {
-        message.error('Unable to generate WebSocket URL, missing parameters.');
+    case 'TokenParams': {
+      connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}` : '';
+      break;
     }
+    case 'kubernetes': {
+      connectURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${route.query.token}&type=k8s`;
+      break;
+    }
+    case 'Share': {
+      const id = route.params.id as string;
+      const requireParams = new URLSearchParams();
 
-    return connectURL;
+      requireParams.append('type', 'share');
+      requireParams.append('target_id', id);
+
+      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      break;
+    }
+    case 'Monitor': {
+      const id = route.params.id as string;
+      const requireParams = new URLSearchParams();
+
+      requireParams.append('type', 'monitor');
+      requireParams.append('target_id', id);
+
+      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      break;
+    }
+    default: {
+      connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}` : '';
+    }
+  }
+
+  if (!connectURL) {
+    message.error('Unable to generate WebSocket URL, missing parameters.');
+  }
+
+  return connectURL;
 };
 
 /**
@@ -348,19 +348,19 @@ export const generateWsURL = () => {
  * @param type
  */
 export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal) => {
-    switch (type) {
-        case 'error': {
-            terminal ? terminal.write('Connection Websocket Error') : '';
-            break;
-        }
-        case 'disconnected': {
-            terminal ? terminal.write('Connection Websocket Closed') : '';
-            break;
-        }
+  switch (type) {
+    case 'error': {
+      terminal ? terminal.write('Connection Websocket Error') : '';
+      break;
     }
+    case 'disconnected': {
+      terminal ? terminal.write('Connection Websocket Closed') : '';
+      break;
+    }
+  }
 
-    fireEvent(new Event('CLOSE', {}));
-    handleError(event);
+  fireEvent(new Event('CLOSE', {}));
+  handleError(event);
 };
 
 /**
@@ -368,13 +368,13 @@ export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal
  * @param base64
  */
 export const base64ToUint8Array = (base64: string): Uint8Array => {
-    // 转为原始的二进制字符串（binaryString）。
-    const binaryString = atob(base64);
-    const len = binaryString.length;
+  // 转为原始的二进制字符串（binaryString）。
+  const binaryString = atob(base64);
+  const len = binaryString.length;
 
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 };

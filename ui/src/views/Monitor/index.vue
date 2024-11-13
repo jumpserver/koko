@@ -1,5 +1,5 @@
 <template>
-    <CustomTerminal index-key="id" class="common-terminal" :terminal-type="terminalType" />
+  <CustomTerminal index-key="id" class="common-terminal" :terminal-type="terminalType" />
 </template>
 
 <script setup lang="ts">
@@ -11,16 +11,16 @@ const terminalType = ref<string>('common');
 
 <style lang="scss" scoped>
 .common-terminal {
-    :deep(.terminal-container) {
-        overflow: hidden;
+  :deep(.terminal-container) {
+    overflow: hidden;
 
-        .xterm-viewport {
-            overflow: hidden;
-        }
-
-        .xterm-screen {
-            height: calc(100vh - 20px) !important;
-        }
+    .xterm-viewport {
+      overflow: hidden;
     }
+
+    .xterm-screen {
+      height: calc(100vh - 20px) !important;
+    }
+  }
 }
 </style>
