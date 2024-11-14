@@ -49,6 +49,11 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			logger.Errorf("Update session %s activity log failed: %s", id, err1)
 		}
 	}
+	if len(allRemainFiles) == 0 {
+		logger.Info("No remain replay file to upload")
+		return
+	}
+
 	logger.Infof("Start upload remain %d replay files 10 min later ", len(allRemainFiles))
 	time.Sleep(10 * time.Minute)
 
@@ -117,6 +122,10 @@ func uploadRemainFTPFile(jmsService *service.JMService) {
 		}
 		return nil
 	})
+	if len(allRemainFiles) == 0 {
+		logger.Info("No remain ftp file to upload")
+		return
+	}
 	logger.Infof("Start upload remain %d ftp files 10 min later ", len(allRemainFiles))
 	time.Sleep(10 * time.Minute)
 
