@@ -49,6 +49,8 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			logger.Errorf("Update session %s activity log failed: %s", id, err1)
 		}
 	}
+	logger.Infof("Start upload remain %d replay files 10 min later ", len(allRemainFiles))
+	time.Sleep(10 * time.Minute)
 
 	for absPath, remainReplay := range allRemainFiles {
 		absGzPath := absPath
@@ -115,6 +117,8 @@ func uploadRemainFTPFile(jmsService *service.JMService) {
 		}
 		return nil
 	})
+	logger.Infof("Start upload remain %d ftp files 10 min later ", len(allRemainFiles))
+	time.Sleep(10 * time.Minute)
 
 	for absPath, remainFTPFile := range allRemainFiles {
 		absGzPath := absPath
