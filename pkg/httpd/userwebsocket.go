@@ -38,6 +38,8 @@ type UserWebsocket struct {
 	ConnectToken *model.ConnectToken
 	apiClient    *service.JMService
 	langCode     string
+
+	runCtx context.Context
 }
 
 func (userCon *UserWebsocket) initial() error {
@@ -75,15 +77,20 @@ func (userCon *UserWebsocket) Run() {
 		return
 	}
 	ctx, cancel := context.WithCancel(userCon.ctx.Request.Context())
+	userCon.runCtx = ctx
 	defer cancel()
-	errorsChan := make(chan error, 1)
-	go userCon.writeMessageLoop(ctx)
+	errorsChan := make(chan error, 2)
+	go func() {
+		userCon.writeMessageLoop(ctx)
+		cancel()
+	}()
 	go func() {
 		if err := userCon.readMessageLoop(); err != io.EOF {
 			logger.Errorf("Ws[%s] read message err: %s", userCon.Uuid, err)
 			errorsChan <- err
 		}
 		logger.Infof("Ws[%s] read message done", userCon.Uuid)
+		cancel()
 	}()
 	if err := userCon.handler.CheckValidation(); err != nil {
 		logger.Errorf("Ws[%s] check validation err: %s", userCon.Uuid, err)
@@ -161,8 +168,12 @@ func (userCon *UserWebsocket) SendMessage(msg *Message) {
 	case <-userCon.conn.Request().Context().Done():
 		logger.Infof("Ws[%s] ctx done and ignore message type %s",
 			userCon.Uuid, msg.Type)
+	case <-userCon.runCtx.Done():
+		logger.Errorf("Ws[%s] runctx done and ignore message type %s",
+			userCon.Uuid, msg.Type)
+		return
 	default:
-		logger.Errorf("Ws[%s] message channel full and ignore message type %s")
+		logger.Errorf("Ws[%s] message channel full and ignore message type %s", userCon.Uuid, msg.Type)
 	}
 }
 
