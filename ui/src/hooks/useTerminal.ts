@@ -167,7 +167,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         break;
       }
       default: {
-        console.log(JSON.parse(data));
       }
     }
 
