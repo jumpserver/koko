@@ -15,7 +15,6 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { useLogger } from '@/hooks/useLogger.ts';
 import { useDialog, useMessage } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
@@ -55,7 +54,6 @@ const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { t } = useI18n();
-const { debug } = useLogger('Connection Component');
 
 const { setting } = storeToRefs(paramsStore);
 
@@ -291,23 +289,16 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
       const sessionInfo = JSON.parse(msg.data);
       const sessionDetail = sessionInfo.session;
 
-      debug(`SessionDetail themeName: ${sessionInfo.themeName}`);
-      debug(`SessionDetail permissions: ${sessionInfo.permission}`);
-      debug(`SessionDetail ctrlCAsCtrlZ: ${sessionInfo.ctrlCAsCtrlZ}`);
-      debug(`SessionDetail backspaceAsCtrlH: ${sessionInfo.backspaceAsCtrlH}`);
-
       const share = sessionInfo.permission.actions.includes('share');
 
       if (sessionInfo.backspaceAsCtrlH) {
         const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
-        debug(`Set backspaceAsCtrlH: ${value}`);
 
         terminalStore.setTerminalConfig('backspaceAsCtrlH', value);
       }
 
       if (sessionInfo.ctrlCAsCtrlZ) {
         const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
-        debug(`Set ctrlCAsCtrlZ: ${value}`);
 
         terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);
       }
@@ -340,7 +331,6 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
       onlineUsersMap[key] = data;
 
       if (data.primary) {
-        debug('Primary User 不提醒');
         break;
       }
 
@@ -401,14 +391,11 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
     default:
       break;
   }
-
-  debug('On WebSocket Data:', msg);
 };
 
 const onEvent = (event: string, data: any) => {
   switch (event) {
     case 'reconnect':
-      debug('Reconnect');
       Object.keys(onlineUsersMap).filter(key => {
         if (onlineUsersMap.hasOwnProperty(key)) {
           delete onlineUsersMap[key];
@@ -416,14 +403,12 @@ const onEvent = (event: string, data: any) => {
       });
       break;
     case 'open':
-      debug('Open', data);
       mittBus.emit('open-setting');
       break;
   }
 };
 
 onMounted(() => {
-  console.log(1);
   mittBus.emit('open-fileList');
 });
 </script>
