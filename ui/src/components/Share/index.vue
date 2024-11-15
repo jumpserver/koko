@@ -87,8 +87,7 @@ const props = withDefaults(
   {
     sessionId: '',
     enableShare: false,
-    // @ts-ignore
-    userOptions: [
+    userOptions: () => [
       {
         id: '',
         name: '',
