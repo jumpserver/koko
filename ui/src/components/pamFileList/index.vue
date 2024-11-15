@@ -103,10 +103,11 @@
 </template>
 
 <script setup lang="ts">
+import dayjs from 'dayjs';
 import mittBus from '@/utils/mittBus.ts';
 
 import { Delete, CloudDownload } from '@vicons/carbon';
-import { NButton, NIcon, NTag, NText } from 'naive-ui';
+import { NButton, NFlex, NIcon, NTag, NText } from 'naive-ui';
 import { Folder, Folders, Settings } from '@vicons/tabler';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
@@ -222,7 +223,31 @@ const createColumns = (): DataTableColumns<RowData> => {
       title: t('Name'),
       key: 'name',
       resizable: true,
-      align: 'center'
+      align: 'center',
+      render(row) {
+        return h(
+          NFlex,
+          {
+            align: 'center'
+          },
+          {
+            default: () => [
+              h(NIcon, {
+                size: '16',
+                component: Folder
+              }),
+              h(
+                NText,
+                {
+                  depth: 1,
+                  strong: true
+                },
+                { default: () => row.name }
+              )
+            ]
+          }
+        );
+      }
     },
     {
       title: t('Date Modified'),
@@ -232,6 +257,19 @@ const createColumns = (): DataTableColumns<RowData> => {
       width: 220,
       ellipsis: {
         tooltip: true
+      },
+      render(row: RowData) {
+        return h(
+          NTag,
+          {
+            style: {
+              marginRight: '6px'
+            },
+            type: 'info',
+            bordered: false
+          },
+          { default: () => dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss') }
+        );
       }
     },
     {
@@ -239,7 +277,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       key: 'size',
       resizable: true,
       align: 'center',
-      render(row) {
+      render(row: RowData) {
         return h(
           NText,
           {
@@ -257,7 +295,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       key: 'type',
       resizable: true,
       align: 'center',
-      render(row) {
+      render(row: RowData) {
         return h(
           NTag,
           {
@@ -278,7 +316,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       key: 'actions',
       resizable: true,
       align: 'center',
-      render(row) {
+      render(row: RowData) {
         return actionItem.map(item => {
           return h(
             NButton,
