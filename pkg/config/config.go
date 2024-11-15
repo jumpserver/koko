@@ -154,6 +154,7 @@ func getDefaultConfig() Config {
 
 		EnableLocalPortForward: false,
 		EnableVscodeSupport:    false,
+		DisableInputAsCommand:  true,
 	}
 
 }
