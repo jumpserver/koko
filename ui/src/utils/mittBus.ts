@@ -7,6 +7,7 @@ type Event = {
   'alt-shift-right': void;
   'alt-shift-left': void;
   'open-setting': void;
+  'open-fileList': void;
   'fold-tree-click': void;
   'show-theme-config': void;
   'set-Terminal-theme': string;

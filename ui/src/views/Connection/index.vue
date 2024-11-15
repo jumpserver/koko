@@ -9,6 +9,8 @@
     @socketData="onSocketData"
   />
   <Settings :settings="settings" />
+
+  <PamFileList />
 </template>
 
 <script setup lang="ts">
@@ -22,13 +24,14 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
-import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref } from 'vue';
+import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref, onMounted } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
+import PamFileList from '@/components/pamFileList/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomComponent from '@/components/CustomTerminal/index.vue';
 
@@ -418,6 +421,11 @@ const onEvent = (event: string, data: any) => {
       break;
   }
 };
+
+onMounted(() => {
+  console.log(1);
+  mittBus.emit('open-fileList');
+});
 </script>
 
 <style scoped lang="scss">
