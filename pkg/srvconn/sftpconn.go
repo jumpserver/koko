@@ -36,6 +36,13 @@ type UserSftpConn struct {
 	assetDir *AssetDir
 }
 
+func (u *UserSftpConn) GetCurrentPath() string {
+	if u.assetDir != nil {
+		return u.assetDir.CurrentPath
+	}
+	return ""
+}
+
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 	if u.assetDir != nil {
 		return u.assetDir.ReadDir(path)
@@ -389,6 +396,7 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	opts = append(opts, WithFromType(u.loginFrom))
 	opts = append(opts, WithTerminalConfig(u.opts.terminalCfg))
 	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
+	assetDir.isFromWebTerminal = true
 	assetDir.loadSystemUsers()
 	dirs[folderName] = assetDir
 	u.assetDir = assetDir
