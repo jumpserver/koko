@@ -138,9 +138,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             break;
           }
           case 'ZMODEM_END': {
-            if (!enableZmodem.value && zmodemStatus.value) {
-              option.i18nCallBack && message.info(option.i18nCallBack('EndFileTransfer'));
-
+            if (enableZmodem.value && zmodemStatus.value) {
               terminal?.write('\r\n');
 
               terminalStore.setTerminalConfig('zmodemStatus', false);
