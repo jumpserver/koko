@@ -128,14 +128,15 @@ const settings = computed((): ISettingProp[] => {
       title: t('User'),
       icon: PersonOutline,
       disabled: () => Object.keys(onlineUsersMap).length < 1,
-      content: Object.values(onlineUsersMap)
-        .map((item: any) => {
-          item.name = item.user;
-          item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
-          item.tip = item.writable ? t('Writable') : t('ReadOnly');
-          return item;
-        })
-        .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
+      content: () =>
+        Object.values(onlineUsersMap)
+          .map((item: any) => {
+            item.name = item.user;
+            item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
+            item.tip = item.writable ? t('Writable') : t('ReadOnly');
+            return item;
+          })
+          .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
       click: user => {
         if (user.primary) return;
 
@@ -390,7 +391,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
   }
 };
 
-const onEvent = (event: string, data: any) => {
+const onEvent = (event: string, _data: any) => {
   switch (event) {
     case 'reconnect':
       Object.keys(onlineUsersMap).filter(key => {

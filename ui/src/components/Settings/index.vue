@@ -16,6 +16,8 @@
                 {{ item.title }}
               </n-text>
             </n-button>
+
+            <!-- 用户 -->
             <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'User'">
               <n-list-item>
                 <n-thing class="ml-[15px] mt-[10px]">
@@ -24,7 +26,7 @@
                       <n-icon :component="item.icon" :size="18"></n-icon>
                       <n-text class="text-[14px]">
                         {{ item.title }}
-                        {{ `(${item.content().length})` }}
+                        {{ `(${item?.content() ? item?.content().length : 0})` }}
                       </n-text>
                     </n-flex>
                   </template>
@@ -65,6 +67,8 @@
                 </n-thing>
               </n-list-item>
             </n-list>
+
+            <!-- 快捷键 -->
             <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'Keyboard'">
               <n-list-item>
                 <n-thing class="ml-[15px] mt-[10px]">
