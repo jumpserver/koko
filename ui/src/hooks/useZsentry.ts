@@ -36,6 +36,8 @@ interface IUseSentry {
   createSentry: (ws: WebSocket, terminal: Terminal) => Sentry;
 }
 
+let lastPercent = -1;
+
 export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
   const term: Ref<Terminal | null> = ref(null);
   const fileList: Ref<UploadFileInfo[]> = ref([]);
@@ -47,10 +49,25 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     let detail = xfer.get_details();
     let name = detail.name;
     let total = detail.size;
+
     percent = Math.round(percent);
 
-    if (term.value) {
-      term.value.write('\r' + `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}%`);
+    if (percent !== lastPercent) {
+      let progressBar = '';
+      let progressLength = Math.floor(percent / 2);
+
+      for (let i = 0; i < progressLength; i++) {
+        progressBar += '=';
+      }
+      for (let i = progressLength; i < 50; i++) {
+        progressBar += ' ';
+      }
+
+      let msg = `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}% [${progressBar}]`;
+
+      term.value?.write('\r' + msg);
+
+      lastPercent = percent;
     }
   };
 
@@ -69,7 +86,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     }
 
     if (!zmodeSession.value) return;
+
     const files = fileList.value.map(item => item.file as File);
+
     ZmodemBrowser.Browser.send_files(zmodeSession.value, files, {
       on_offer_response: (_obj: any, xfer: ZmodemTransfer) => {
         if (xfer) {
@@ -79,8 +98,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         }
       },
       on_file_complete: (obj: any) => {
-        debug(`File Complete: ${obj}`);
-        message.info(`${t('UploadSuccess')} ${obj.name}`);
+        message.success(`${t('EndFileTransfer')}: ${t('UploadSuccess')} ${obj.name}`, {
+          duration: 2000
+        });
       }
     })
       .then(() => {
@@ -168,15 +188,17 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
   const handleSendSession = (zsession: ZmodemSession, terminal: Terminal) => {
     zmodeSession.value = zsession;
 
-    zsession.on('session_end', () => {
-      zmodeSession.value = null;
-      fileList.value = [];
-      terminal.write('\r\n');
+    dialog.success(dialogOptions.value);
 
+    zsession.on('session_end', () => {
+      if (zmodeSession.value) {
+        fileList.value = [];
+        zmodeSession.value.abort();
+      }
+
+      terminal.write('\r\n');
       zsession.close();
     });
-
-    dialog.success(dialogOptions.value);
   };
 
   /**
@@ -193,7 +215,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       if (detail.size >= MAX_TRANSFER_SIZE) {
         const msg = `${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`;
 
-        debug(msg);
         message.info(msg);
 
         xfer.skip();
@@ -210,7 +231,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         .accept()
         .then(() => {
           ZmodemBrowser.Browser.save_to_disk(buffer, xfer.get_details().name);
-          message.info(`${t('DownloadSuccess')}: ${detail.name}`);
+          message.success(`${t('DownloadSuccess')}: ${detail.name}`);
           terminal.write('\r\n');
         })
         .catch((e: Error) => {
