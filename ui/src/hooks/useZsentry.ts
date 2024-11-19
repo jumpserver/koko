@@ -37,6 +37,7 @@ interface IUseSentry {
 }
 
 let lastPercent = -1;
+let messageShown = false;
 
 export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
   const term: Ref<Terminal | null> = ref(null);
@@ -45,11 +46,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
   const zmodeSession: Ref<ZmodemSession | null> = ref(null);
   const fileListLengthRef: Ref<number> = ref(0);
 
-  const updateSendProgress = (xfer: ZmodemTransfer, percent: number) => {
-    let detail = xfer.get_details();
-    let name = detail.name;
-    let total = detail.size;
-
+  const updateSendProgress = (name: string, total: number, percent: number) => {
     percent = Math.round(percent);
 
     if (percent !== lastPercent) {
@@ -64,6 +61,11 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       }
 
       let msg = `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}% [${progressBar}]`;
+
+      if (percent === 100 && !messageShown) {
+        message.info('上传已完成，请等待后续处理', { duration: 5000 });
+        messageShown = true;
+      }
 
       term.value?.write('\r' + msg);
 
@@ -82,7 +84,13 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     if (size >= MAX_TRANSFER_SIZE) {
       debug(`Select File: ${selectFile}`);
 
-      return message.info(`${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`);
+      message.error(`${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`);
+
+      try {
+        zmodeSession.value?.abort();
+      } catch (e) {}
+
+      return true;
     }
 
     if (!zmodeSession.value) return;
@@ -92,8 +100,12 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     ZmodemBrowser.Browser.send_files(zmodeSession.value, files, {
       on_offer_response: (_obj: any, xfer: ZmodemTransfer) => {
         if (xfer) {
+          const detail = xfer.get_details();
+          const name = detail.name;
+          const total = detail.size;
+
           xfer.on('send_progress', (percent: number) => {
-            updateSendProgress(xfer, percent);
+            updateSendProgress(name, total, percent);
           });
         }
       },
@@ -188,17 +200,17 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
   const handleSendSession = (zsession: ZmodemSession, terminal: Terminal) => {
     zmodeSession.value = zsession;
 
-    dialog.success(dialogOptions.value);
-
     zsession.on('session_end', () => {
+      terminal.write('\r\n');
+
       if (zmodeSession.value) {
         fileList.value = [];
         zmodeSession.value.abort();
+        zsession.close();
       }
-
-      terminal.write('\r\n');
-      zsession.close();
     });
+
+    dialog.success(dialogOptions.value);
   };
 
   /**
@@ -216,7 +228,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         const msg = `${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`;
 
         message.info(msg);
-
         xfer.skip();
 
         return;

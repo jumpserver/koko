@@ -138,7 +138,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             break;
           }
           case 'ZMODEM_END': {
-            if (enableZmodem.value && zmodemStatus.value) {
+            if (!enableZmodem.value && zmodemStatus.value) {
               terminal?.write('\r\n');
 
               terminalStore.setTerminalConfig('zmodemStatus', false);
@@ -165,7 +165,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         break;
       }
       default: {
-        console.log(JSON.parse(data));
       }
     }
 
