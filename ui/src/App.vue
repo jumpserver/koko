@@ -51,7 +51,12 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .n-config-provider {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   width: 100%;
   height: 100%;
+  background-color: #000;
 }
 </style>
