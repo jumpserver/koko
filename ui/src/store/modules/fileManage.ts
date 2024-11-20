@@ -6,13 +6,17 @@ interface IFileManageStoreState {
   fileList: IFileManageSftpFileItem[] | null;
 
   messageId: string;
+
+  currentPath: string;
 }
 
 export const useFileManageStore = defineStore('fileManage', {
   state: (): IFileManageStoreState => ({
     fileList: null,
 
-    messageId: ''
+    messageId: '',
+
+    currentPath: ''
   }),
   actions: {
     setFileList(fileList: IFileManageSftpFileItem[]) {
@@ -23,6 +27,9 @@ export const useFileManageStore = defineStore('fileManage', {
     },
     setMessageId(id: string): void {
       this.messageId = id;
+    },
+    setCurrentPath(currentPath: string): void {
+      this.currentPath = currentPath;
     }
   }
 });
