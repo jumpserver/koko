@@ -243,7 +243,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             sentry.get_confirmed_session()?.abort();
             message.error('File transfer error, file transfer interrupted');
           }
-          console.log(e);
         }
       } else {
         writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);

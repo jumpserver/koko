@@ -1,5 +1,5 @@
 <template>
-  <n-layout :native-scrollbar="false">
+  <n-layout :native-scrollbar="false" class="w-full h-full">
     <n-scrollbar trigger="hover">
       <div :id="indexKey" class="terminal-container"></div>
     </n-scrollbar>
