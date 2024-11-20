@@ -43,7 +43,6 @@ import { storeToRefs } from 'pinia';
 import { useParamsStore } from '@/store/modules/params.ts';
 
 import { Terminal } from '@xterm/xterm';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
 
 const { t } = useI18n();
 const dialog = useDialog();
