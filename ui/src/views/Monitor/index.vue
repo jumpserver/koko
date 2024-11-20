@@ -4,14 +4,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
-const terminalStore = useTerminalStore();
-
 const terminalType = ref<string>('common');
-
-terminalStore.setTerminalConfig('enableZmodem', false);
 </script>
 
 <style lang="scss" scoped>
