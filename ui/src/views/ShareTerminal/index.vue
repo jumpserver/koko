@@ -51,7 +51,6 @@ const message = useMessage();
 const dialogReactiveList = useDialogReactiveList();
 
 const paramsStore = useParamsStore();
-const terminalStore = useTerminalStore();
 
 const verified = ref(false);
 const terminalId = ref('');
@@ -60,8 +59,6 @@ const waterMarkContent = ref('');
 const warningIntervalId = ref<number>(0);
 
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
-
-terminalStore.setTerminalConfig('enableZmodem', false);
 
 onUnmounted(() => {
   clearInterval(warningIntervalId.value);
