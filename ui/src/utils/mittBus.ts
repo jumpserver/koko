@@ -8,6 +8,7 @@ type Event = {
   'alt-shift-left': void;
   'open-setting': void;
   'open-fileList': void;
+  'file-refresh': any;
   'fold-tree-click': void;
   'show-theme-config': void;
   'set-Terminal-theme': string;

@@ -8,6 +8,7 @@ import type { RouteRecordNameGeneric } from 'vue-router';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
 import { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
+import mittBus from '@/utils/mittBus.ts';
 
 enum MessageType {
   CONNECT = 'CONNECT',
@@ -68,6 +69,8 @@ const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
  * @param socket
  */
 const initSocketEvent = (socket: WebSocket) => {
+  const fileManageStore = useFileManageStore();
+
   socket.binaryType = 'arraybuffer';
 
   socket.onopen = () => {};
@@ -76,6 +79,8 @@ const initSocketEvent = (socket: WebSocket) => {
   socket.onclose = (event: CloseEvent) => {};
   socket.onmessage = (event: MessageEvent) => {
     const message: IFileManage = JSON.parse(event.data);
+
+    fileManageStore.setMessageId(message.id);
 
     switch (message.type) {
       case MessageType.CONNECT: {
@@ -115,7 +120,26 @@ const fileSocketConnection = (url: string, message: MessageApiInjection) => {
 
   initSocketEvent(<WebSocket>ws!.value);
 
-  return;
+  return ws.value;
+};
+
+/**
+ * @description 刷新文件列表
+ * @param socket
+ */
+export const refresh = (socket: WebSocket) => {
+  const fileManageStore = useFileManageStore();
+
+  const sendData = '';
+
+  const sendBody = {
+    cmd: 'list',
+    type: 'SFTP_DATA',
+    data: sendData,
+    id: fileManageStore.messageId
+  };
+
+  socket.send(JSON.stringify(sendBody));
 };
 
 /**
@@ -130,9 +154,17 @@ export const useFileManage = () => {
     fileConnectionUrl = getFileManageUrl();
 
     if (fileConnectionUrl) {
-      fileSocketConnection(fileConnectionUrl, message);
+      const socket = fileSocketConnection(fileConnectionUrl, message);
+
+      mittBus.on('file-refresh', () => {
+        refresh(<WebSocket>socket);
+      });
     }
   }
 
   init();
+};
+
+export const unloadListeners = () => {
+  mittBus.off('file-refresh');
 };
