@@ -1,16 +1,140 @@
 <template>
-  <n-drawer v-model:show="isShowList" :default-width="1050" resizable>
+  <n-drawer
+    resizable
+    v-model:show="isShowList"
+    :width="settingDrawer ? 270 : 1050"
+    class="transition-all duration-300 ease-in-out"
+  >
     <n-drawer-content>
-      <n-tabs type="line" animated :default-value="tabDefaultValue" class="w-full h-full">
+      <n-tabs
+        type="line"
+        animated
+        class="w-full h-full"
+        :default-value="tabDefaultValue"
+        @before-leave="handleBeforeLeave"
+      >
         <n-tab-pane name="setting" tab="Setting">
           <template #tab>
             <n-flex align="center" justify="flex-start">
-              <n-icon size="16" :component="Settings" />
-              <n-text depth="1" strong class="text-[14px]"> 设置 </n-text>
+              <n-icon size="20" :component="Settings" />
+              <n-text depth="1" strong class="text-[16px]"> 设置 </n-text>
             </n-flex>
           </template>
 
-          <template #default> </template>
+          <template #default>
+            <n-flex vertical>
+              <template v-for="item of settings" :key="item.title">
+                <n-button
+                  v-if="!item.content"
+                  quaternary
+                  class="justify-start items-center"
+                  :disabled="item.disabled()"
+                  @click="item.click"
+                >
+                  <n-icon size="18" :component="item.icon" class="mr-[10px]" />
+                  <n-text>
+                    {{ item.title }}
+                  </n-text>
+                </n-button>
+                <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'User'">
+                  <n-list-item>
+                    <n-thing class="ml-[15px] mt-[10px]">
+                      <template #header>
+                        <n-flex align="center" justify="center">
+                          <n-icon :component="item.icon" :size="18"></n-icon>
+                          <n-text class="text-[14px]">
+                            {{ item.title }}
+                            {{ `(${item.content().length})` }}
+                          </n-text>
+                        </n-flex>
+                      </template>
+                      <template #description>
+                        <n-flex size="small" style="margin-top: 4px">
+                          <n-popover
+                            trigger="hover"
+                            placement="top"
+                            v-for="detail of item.content()"
+                            :key="detail.name"
+                          >
+                            <template #trigger>
+                              <n-tag
+                                round
+                                strong
+                                size="small"
+                                class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
+                                :bordered="false"
+                                :type="item.content().indexOf(detail) !== 0 ? 'info' : 'success'"
+                                :closable="true"
+                                :disabled="item.content().indexOf(detail) === 0"
+                                @close="item.click(detail)"
+                              >
+                                <n-text class="cursor-pointer text-inherit">
+                                  {{ detail.name }}
+                                </n-text>
+                                <template #icon>
+                                  <n-icon :component="detail.icon" />
+                                </template>
+                              </n-tag>
+                            </template>
+                            <template #default>
+                              <span>{{ detail.tip }} {{ detail.name }}</span>
+                            </template>
+                          </n-popover>
+                        </n-flex>
+                      </template>
+                    </n-thing>
+                  </n-list-item>
+                </n-list>
+                <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'Keyboard'">
+                  <n-list-item>
+                    <n-thing class="ml-[15px] mt-[10px]">
+                      <template #header>
+                        <n-flex align="center" justify="center">
+                          <n-icon :component="item.icon" :size="18"></n-icon>
+                          <n-text class="text-[14px]">
+                            {{ item.title }}
+                          </n-text>
+                        </n-flex>
+                      </template>
+                      <template #description>
+                        <n-flex size="small" style="margin-top: 4px">
+                          <n-popover
+                            trigger="hover"
+                            placement="top"
+                            v-for="detail of item.content"
+                            :key="detail.name"
+                          >
+                            <template #trigger>
+                              <n-tag
+                                round
+                                strong
+                                type="info"
+                                size="small"
+                                class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] cursor-pointer"
+                                :bordered="false"
+                                :closable="false"
+                                @click="detail.click()"
+                              >
+                                <n-text class="cursor-pointer text-inherit">
+                                  {{ detail.name }}
+                                </n-text>
+                                <template #icon>
+                                  <n-icon size="16" class="ml-[5px] mr-[5px]" :component="detail.icon" />
+                                </template>
+                              </n-tag>
+                            </template>
+                            <template #default>
+                              <span>{{ detail.tip }}</span>
+                            </template>
+                          </n-popover>
+                        </n-flex>
+                      </template>
+                    </n-thing>
+                  </n-list-item>
+                </n-list>
+              </template>
+            </n-flex>
+          </template>
         </n-tab-pane>
         <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
           <template #tab>
@@ -22,74 +146,7 @@
 
           <template #default>
             <template v-if="isLoaded">
-              <n-flex align="center" justify="flex-start" class="!flex-nowrap !gap-x-10 h-[45px]">
-                <n-flex class="path-part !gap-x-6 h-full" align="center">
-                  <n-icon :component="ArrowBackIosFilled" size="16" class="icon-hover" />
-                  <n-icon :component="ArrowForwardIosFilled" size="16" class="icon-hover" />
-                </n-flex>
-                <n-flex class="file-part flex-[5] h-full">
-                  <n-flex class="root-node !flex-nowrap h-full" align="center" justify="center">
-                    <n-icon :component="Folder" size="18" />
-                    <n-text depth="1" class="text-[16px] cursor-pointer">root</n-text>
-                    <n-icon :component="ArrowForwardIosFilled" size="16" />
-                  </n-flex>
-                  <n-flex class="file-node !flex-nowrap h-full" align="center" justify="center">
-                    <n-icon :component="Folder" size="18" color="#63e2b7" />
-                    <n-text depth="1" class="text-[16px] cursor-pointer">web</n-text>
-                    <n-icon :component="ArrowForwardIosFilled" size="16" />
-                  </n-flex>
-                  <n-flex class="file-node !flex-nowrap h-full" align="center" justify="center">
-                    <n-icon :component="Folder" size="18" />
-                    <n-text depth="1" class="text-[16px] cursor-pointer">new</n-text>
-                  </n-flex>
-                </n-flex>
-                <n-flex class="upload-part" align="center" justify="center">
-                  <n-upload
-                    abstract
-                    :default-file-list="fileList"
-                    action="https://www.mocky.io/v2/5e4bafc63100007100d8b70f"
-                  >
-                    <n-button-group>
-                      <n-upload-trigger #="{ handleClick }" abstract>
-                        <n-button
-                          secondary
-                          round
-                          type="primary"
-                          size="small"
-                          @click="
-                            () => {
-                              handleClick();
-                              isShowUploadList = !isShowUploadList;
-                            }
-                          "
-                        >
-                          上传文件
-                        </n-button>
-                      </n-upload-trigger>
-                    </n-button-group>
-                    <n-card
-                      v-if="isShowUploadList"
-                      closable
-                      title="文件列表"
-                      class="absolute top-[3.5rem] right-2 z-[999999] w-[500px] h-[300px]"
-                    >
-                      <n-upload-file-list />
-                    </n-card>
-                  </n-upload>
-                </n-flex>
-              </n-flex>
-
-              <n-divider class="!my-[12px]" />
-
-              <n-flex class="table-part">
-                <n-data-table
-                  virtual-scroll
-                  :bordered="false"
-                  :columns="columns"
-                  :max-height="1150"
-                  :data="fileManageStore.fileList"
-                />
-              </n-flex>
+              <FileManage :columns="columns" />
             </template>
 
             <template v-else>
@@ -103,13 +160,13 @@
 </template>
 
 <script setup lang="ts">
+// @ts-ignore
 import dayjs from 'dayjs';
 import mittBus from '@/utils/mittBus.ts';
 
 import { Delete, CloudDownload } from '@vicons/carbon';
 import { NButton, NFlex, NIcon, NTag, NText } from 'naive-ui';
 import { Folder, Folders, Settings } from '@vicons/tabler';
-import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
@@ -117,9 +174,12 @@ import { useFileManage } from '@/hooks/useFileManage.ts';
 import { h, onBeforeUnmount, onMounted, ref, watch, unref } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
-import type { UploadFileInfo, DataTableColumns } from 'naive-ui';
+import type { DataTableColumns } from 'naive-ui';
+import type { ISettingProp } from '@/views/interface';
 
-interface RowData {
+import FileManage from './components/fileManage/index.vue';
+
+export interface RowData {
   is_dir: boolean;
   mod_time: string;
   name: string;
@@ -128,24 +188,24 @@ interface RowData {
   type: string;
 }
 
+const props = withDefaults(
+  defineProps<{
+    settings: ISettingProp[];
+  }>(),
+  {
+    settings: () => []
+  }
+);
+
 const { t } = useI18n();
 const message = useMessage();
 const fileManageStore = useFileManageStore();
 
 const isLoaded = ref(false);
 const isShowList = ref(false);
-const isShowUploadList = ref(false);
+const settingDrawer = ref(false);
 const tabDefaultValue = ref('fileManage');
-
 const tableData = ref<RowData[]>([]);
-const fileList = ref<UploadFileInfo[]>([
-  {
-    id: 'b',
-    name: 'file.doc',
-    status: 'finished',
-    type: 'text/plain'
-  }
-]);
 
 const actionItem = [
   {
@@ -344,6 +404,22 @@ const createColumns = (): DataTableColumns<RowData> => {
       }
     }
   ];
+};
+
+/**
+ * @description 再切换 tab 标签时动态修改 drawer 的宽度
+ * @param tabName
+ */
+const handleBeforeLeave = (tabName: string) => {
+  if (tabName === 'setting') {
+    settingDrawer.value = true;
+
+    return true;
+  }
+
+  settingDrawer.value = false;
+
+  return true;
 };
 
 const columns = createColumns();

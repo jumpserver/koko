@@ -8,9 +8,8 @@
     @event="onEvent"
     @socketData="onSocketData"
   />
-  <Settings :settings="settings" />
 
-  <PamFileList />
+  <PamFileList :settings="settings" />
 </template>
 
 <script setup lang="ts">
@@ -29,7 +28,6 @@ import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 
 import Share from '@/components/Share/index.vue';
-import Settings from '@/components/Settings/index.vue';
 import PamFileList from '@/components/pamFileList/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomComponent from '@/components/CustomTerminal/index.vue';
@@ -131,14 +129,15 @@ const settings = computed((): ISettingProp[] => {
       title: t('User'),
       icon: PersonOutline,
       disabled: () => Object.keys(onlineUsersMap).length < 1,
-      content: Object.values(onlineUsersMap)
-        .map((item: any) => {
-          item.name = item.user;
-          item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
-          item.tip = item.writable ? t('Writable') : t('ReadOnly');
-          return item;
-        })
-        .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
+      content: () =>
+        Object.values(onlineUsersMap)
+          .map((item: any) => {
+            item.name = item.user;
+            item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
+            item.tip = item.writable ? t('Writable') : t('ReadOnly');
+            return item;
+          })
+          .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
       click: user => {
         if (user.primary) return;
 
