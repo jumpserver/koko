@@ -37,6 +37,7 @@ func (u *UserAuthClient) Authenticate(ctx context.Context) (user model.User, aut
 		return
 	}
 	unsupportedMfaTypes := map[string]bool{
+		"face": true,
 		"FACE": true,
 	}
 	if resp.Err != "" {
