@@ -1,8 +1,8 @@
 <template>
   <n-drawer
-    resizable
     v-model:show="isShowList"
-    :width="settingDrawer ? 270 : 1050"
+    :auto-focus="false"
+    :width="settingDrawer ? 270 : 700"
     class="transition-all duration-300 ease-in-out"
   >
     <n-drawer-content>
@@ -163,21 +163,21 @@
 // @ts-ignore
 import dayjs from 'dayjs';
 import mittBus from '@/utils/mittBus.ts';
+// @ts-ignore
+import FileManage from './components/fileManage/index.vue';
 
 import { Delete, CloudDownload } from '@vicons/carbon';
-import { NButton, NFlex, NIcon, NTag, NText } from 'naive-ui';
 import { Folder, Folders, Settings } from '@vicons/tabler';
+import { NButton, NFlex, NIcon, NTag, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { useFileManage } from '@/hooks/useFileManage.ts';
-import { h, onBeforeUnmount, onMounted, ref, watch, unref } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
+import { h, onBeforeUnmount, onMounted, ref, watch, unref, nextTick } from 'vue';
 
 import type { DataTableColumns } from 'naive-ui';
 import type { ISettingProp } from '@/views/interface';
-
-import FileManage from './components/fileManage/index.vue';
 
 export interface RowData {
   is_dir: boolean;
@@ -239,10 +239,28 @@ watch(
   }
 );
 
+/**
+ * @description pam 中默认打开的是文件管理
+ */
 const handleOpenFileList = () => {
+  tabDefaultValue.value = 'fileManage';
   isShowList.value = !isShowList.value;
+};
 
-  useFileManage();
+/**
+ * luna 的默认连接中，点击 Setting 默认打开 Setting
+ */
+const handleOpenSetting = () => {
+  isShowList.value = !isShowList.value;
+  tabDefaultValue.value = 'setting';
+
+  nextTick(() => {
+    const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
+
+    if (drawerRef) {
+      drawerRef.style.width = '270px';
+    }
+  });
 };
 
 /**
@@ -417,19 +435,32 @@ const handleBeforeLeave = (tabName: string) => {
     return true;
   }
 
-  settingDrawer.value = false;
+  if (tabName === 'fileManage') {
+    settingDrawer.value = false;
 
-  return true;
+    nextTick(() => {
+      const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
+
+      if (drawerRef) {
+        drawerRef.style.width = '700px';
+      }
+    });
+
+    return true;
+  }
 };
 
 const columns = createColumns();
 
 onMounted(() => {
+  useFileManage();
   mittBus.on('open-fileList', handleOpenFileList);
+  mittBus.on('open-setting', handleOpenSetting);
 });
 
 onBeforeUnmount(() => {
   mittBus.off('open-fileList', handleOpenFileList);
+  mittBus.off('open-setting', handleOpenSetting);
 });
 </script>
 

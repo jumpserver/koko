@@ -431,6 +431,10 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           option.emitCallback && option.emitCallback('event', 'open', '');
           break;
         }
+        case 'FILE': {
+          option.emitCallback && option.emitCallback('event', 'file', '');
+          break;
+        }
       }
     });
 

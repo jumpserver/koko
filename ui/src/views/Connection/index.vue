@@ -22,7 +22,7 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
-import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref, onMounted } from 'vue';
+import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -404,12 +404,11 @@ const onEvent = (event: string, data: any) => {
     case 'open':
       mittBus.emit('open-setting');
       break;
+    case 'file':
+      mittBus.emit('open-fileList');
+      break;
   }
 };
-
-onMounted(() => {
-  mittBus.emit('open-fileList');
-});
 </script>
 
 <style scoped lang="scss">
