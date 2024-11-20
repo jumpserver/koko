@@ -182,7 +182,6 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
  * @param config
  * @param socket
  */
-// todo
 export const handleTerminalOnData = (
   data: string,
   type: string,
