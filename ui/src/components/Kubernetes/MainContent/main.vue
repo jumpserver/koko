@@ -568,7 +568,7 @@ const handleWriteData = async (type: string) => {
       break;
     }
     case 'Stop': {
-      terminal.paste('^C');
+      terminal.paste('\x03');
       break;
     }
     case 'ArrowUp': {

@@ -239,7 +239,7 @@ const handleWriteData = async (type: string) => {
       break;
     }
     case 'Stop': {
-      terminalInstance.paste('^C');
+      terminalInstance.paste('\x03');
       break;
     }
     case 'ArrowUp': {
