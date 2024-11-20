@@ -1,6 +1,6 @@
 <template>
   <ContentHeader />
-  <n-layout has-sider class="custom-layout h-full">
+  <n-layout has-sider class="custom-layout h-full w-full">
     <n-layout-header class="w-[48px]">
       <n-flex vertical align="center" justify="space-between" class="w-full h-full text-white bg-[#333333]">
         <SideTop />
@@ -12,7 +12,7 @@
       collapse-mode="width"
       content-style="padding: 24px;"
       v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }"
-      class="transition-width duration-300"
+      class="transition-width duration-300 w-full"
       :width="sideWidth"
       :collapsed-width="0"
       :native-scrollbar="false"

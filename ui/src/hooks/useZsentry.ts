@@ -63,7 +63,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       let msg = `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}% [${progressBar}]`;
 
       if (percent === 100 && !messageShown) {
-        message.info('上传已完成，请等待后续处理', { duration: 5000 });
+        message.info(t('UploadEnd'), { duration: 5000 });
         messageShown = true;
       }
 
@@ -152,6 +152,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
           message.error(t('MustSelectOneFile'));
           return false;
         } else {
+          message.info(t('UploadStart'));
           handleUpload();
           return true;
         }
