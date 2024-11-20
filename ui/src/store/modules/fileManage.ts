@@ -4,11 +4,15 @@ import type { IFileManageSftpFileItem } from '@/hooks/interface';
 
 interface IFileManageStoreState {
   fileList: IFileManageSftpFileItem[] | null;
+
+  messageId: string;
 }
 
 export const useFileManageStore = defineStore('fileManage', {
   state: (): IFileManageStoreState => ({
-    fileList: null
+    fileList: null,
+
+    messageId: ''
   }),
   actions: {
     setFileList(fileList: IFileManageSftpFileItem[]) {
@@ -16,6 +20,9 @@ export const useFileManageStore = defineStore('fileManage', {
         console.log('=>(fileManage.ts:15) fileList', fileList);
         this.fileList = fileList;
       }
+    },
+    setMessageId(id: string): void {
+      this.messageId = id;
     }
   }
 });
