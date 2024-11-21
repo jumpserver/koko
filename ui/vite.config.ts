@@ -5,7 +5,6 @@ import { defineConfig, loadEnv, ConfigEnv, UserConfig } from 'vite';
 
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from 'tailwindcss';
-import autoprefixer from 'autoprefixer';
 import Components from 'unplugin-vue-components/vite';
 import viteCompression from 'vite-plugin-compression';
 
@@ -27,7 +26,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
         },
         css: {
             postcss: {
-                plugins: [tailwindcss, autoprefixer]
+                // @ts-ignore
+                plugins: [tailwindcss]
             }
         },
         base: env.VITE_PUBLIC_PATH,

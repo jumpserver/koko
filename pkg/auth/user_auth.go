@@ -36,6 +36,10 @@ func (u *UserAuthClient) Authenticate(ctx context.Context) (user model.User, aut
 		logger.Errorf("User %s Authenticate err: %s", u.Opts.Username, err)
 		return
 	}
+	unsupportedMfaTypes := map[string]bool{
+		"face": true,
+		"FACE": true,
+	}
 	if resp.Err != "" {
 		switch resp.Err {
 		case ErrLoginConfirmWait:
@@ -44,6 +48,12 @@ func (u *UserAuthClient) Authenticate(ctx context.Context) (user model.User, aut
 		case ErrMFARequired:
 			u.mfaTypes = nil
 			for _, choiceType := range resp.Data.Choices {
+				if _, ok := unsupportedMfaTypes[choiceType]; ok {
+					logger.Infof("User %s login need MFA, skip %s as it not supported", u.Opts.Username,
+						choiceType)
+					continue
+				}
+
 				u.authOptions[choiceType] = authOptions{
 					MFAType: choiceType,
 					Url:     resp.Data.Url,

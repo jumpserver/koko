@@ -215,26 +215,29 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			nr, err2 := srvConn.Read(buf)
 			validBytes := buf[:nr]
 			if nr > 0 {
-				bufferLen := buffer.Len()
-				if bufferLen > 0 || nr == maxLen {
-					buffer.Write(buf[:nr])
-					validBytes = validBytes[:0]
-				}
-				remainBytes := buffer.Bytes()
-				for len(remainBytes) > 0 {
-					r, size := utf8.DecodeRune(remainBytes)
-					if r == utf8.RuneError {
-						// utf8 max 4 bytes
-						if len(remainBytes) <= 3 {
-							break
-						}
+				isZmodem := parser.zmodemParser.IsStartSession()
+				if !isZmodem {
+					bufferLen := buffer.Len()
+					if bufferLen > 0 || nr == maxLen {
+						buffer.Write(buf[:nr])
+						validBytes = validBytes[:0]
 					}
-					validBytes = append(validBytes, remainBytes[:size]...)
-					remainBytes = remainBytes[size:]
-				}
-				buffer.Reset()
-				if len(remainBytes) > 0 {
-					buffer.Write(remainBytes)
+					remainBytes := buffer.Bytes()
+					for len(remainBytes) > 0 {
+						r, size := utf8.DecodeRune(remainBytes)
+						if r == utf8.RuneError {
+							// utf8 max 4 bytes
+							if len(remainBytes) <= 3 {
+								break
+							}
+						}
+						validBytes = append(validBytes, remainBytes[:size]...)
+						remainBytes = remainBytes[size:]
+					}
+					buffer.Reset()
+					if len(remainBytes) > 0 {
+						buffer.Write(remainBytes)
+					}
 				}
 				select {
 				case srvInChan <- validBytes:
@@ -324,9 +327,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			if s.MaxSessionTime.Before(now) {
 				msg := lang.T("Session max time reached, disconnect")
 				logger.Infof("Session[%s] max session time reached, disconnect", s.ID)
-				msg = utils.WrapperWarn(msg)
-				replayRecorder.Record([]byte(msg))
-				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				s.disconnection(room, parser, replayRecorder, msg)
 				s.recordSessionFinished(model.ReasonErrMaxSessionTimeout)
 				return
 			}
@@ -335,18 +336,14 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			if now.After(outTime) {
 				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
 				logger.Infof("Session[%s] idle more than %d minutes, disconnect", s.ID, s.MaxIdleTime)
-				msg = utils.WrapperWarn(msg)
-				replayRecorder.Record([]byte(msg))
-				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				s.disconnection(room, parser, replayRecorder, msg)
 				s.recordSessionFinished(model.ReasonErrIdleDisconnect)
 				return
 			}
 			if s.CheckPermissionExpired(now) {
 				msg := lang.T("Permission has expired, disconnect")
 				logger.Infof("Session[%s] permission has expired, disconnect", s.ID)
-				msg = utils.WrapperWarn(msg)
-				replayRecorder.Record([]byte(msg))
-				room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+				s.disconnection(room, parser, replayRecorder, msg)
 				s.recordSessionFinished(model.ReasonErrPermissionExpired)
 				return
 			}
@@ -355,10 +352,8 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		case <-s.ctx.Done():
 			adminUser := s.loadOperator()
 			msg := fmt.Sprintf(lang.T("Terminated by admin %s"), adminUser)
-			msg = utils.WrapperWarn(msg)
-			replayRecorder.Record([]byte(msg))
 			logger.Infof("Session[%s]: %s", s.ID, msg)
-			room.Broadcast(&exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)})
+			s.disconnection(room, parser, replayRecorder, msg)
 			s.recordSessionFinished(model.ReasonErrAdminTerminate)
 			return
 			// 监控窗口大小变化
@@ -421,6 +416,20 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		}
 		lastActiveTime = time.Now()
 	}
+}
+func (s *SwitchSession) disconnection(room *exchange.Room, parser *Parser, replayRecorder *ReplyRecorder, msg string) {
+	msg = utils.WrapperWarn(msg)
+	replayRecorder.Record([]byte(msg))
+
+	roomMessage := &exchange.RoomMessage{Event: exchange.DataEvent, Body: []byte("\n\r" + msg)}
+	if parser.zmodemParser.IsStartSession() {
+		expectedSize := len(zmodem.SkipSequence) + len(zmodem.CancelSequence)
+		roomMessage.Body = make([]byte, 0, expectedSize)
+		roomMessage.Body = append(roomMessage.Body, zmodem.SkipSequence...)
+		roomMessage.Body = append(roomMessage.Body, zmodem.CancelSequence...)
+	}
+
+	room.Broadcast(roomMessage)
 }
 
 func (s *SwitchSession) recordSessionFinished(reason model.SessionLifecycleReasonErr) {

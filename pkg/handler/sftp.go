@@ -77,13 +77,24 @@ func (s *SftpHandler) Filewrite(r *sftp.Request) (io.WriterAt, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	go func() {
 		<-r.Context().Done()
+
+		fileInfo, err2 := f.Stat()
+		if err2 != nil {
+			logger.Errorf("Get file %s stat err: %s", r.Filepath, err2)
+			return
+		}
+
+		if err1 := s.recorder.ChunkedRecord(f.FTPLog, f, 0, fileInfo.Size()); err1 != nil {
+			logger.Errorf("Record file %s err: %s", r.Filepath, err1)
+		}
+
 		if err := f.Close(); err != nil {
 			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err)
 		}
 		logger.Infof("Sftp file write %s done", r.Filepath)
-		s.recorder.FinishFTPFile(f.FTPLog.ID)
 	}()
 	return NewWriterAt(f, s.recorder), err
 }
@@ -100,20 +111,18 @@ func (s *SftpHandler) Fileread(r *sftp.Request) (io.ReaderAt, error) {
 		return nil, err
 	}
 
-	if err1 := s.recorder.ChunkedRecord(f.FTPLog, f, 0, fileInfo.Size()); err1 != nil {
-		logger.Errorf("Record file %s err: %s", r.Filepath, err1)
-	}
-
-	// 重置文件指针
-	_, _ = f.Seek(0, io.SeekStart)
 	go func() {
 		<-r.Context().Done()
+
+		if err1 := s.recorder.ChunkedRecord(f.FTPLog, f, 0, fileInfo.Size()); err1 != nil {
+			logger.Errorf("Record file %s err: %s", r.Filepath, err1)
+		}
+
 		if err2 := f.Close(); err2 != nil {
 			logger.Errorf("Remote sftp file %s close err: %s", r.Filepath, err2)
 		}
-		logger.Infof("Sftp File read %s done", r.Filepath)
-		s.recorder.FinishFTPFile(f.FTPLog.ID)
 
+		logger.Infof("Sftp File read %s done", r.Filepath)
 	}()
 	// 包裹一层，兼容 WinSCP 目录的批量下载
 	return NewReaderAt(f), err
@@ -153,18 +162,10 @@ type clientReadWritAt struct {
 }
 
 func (c *clientReadWritAt) WriteAt(p []byte, off int64) (n int, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if err1 := c.recorder.RecordFtpChunk(c.f.FTPLog, p, off); err1 != nil {
-		logger.Errorf("Record write err: %s", err1)
-	}
-	_, _ = c.f.Seek(off, 0)
-	return c.f.Write(p)
+	return c.f.WriteAt(p, off)
 }
 
 func (c *clientReadWritAt) ReadAt(p []byte, off int64) (n int, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	return c.f.ReadAt(p, off)
 }
 

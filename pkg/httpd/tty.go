@@ -117,11 +117,12 @@ func (h *tty) sendK8SCloseMessage(KubernetesId string) {
 	h.ws.SendMessage(&closedMsg)
 }
 
-func (h *tty) sendSessionMessage(data string) {
+func (h *tty) sendSessionMessage(data string, KubernetesId string) {
 	msg := Message{
-		Id:   h.ws.Uuid,
-		Type: TerminalSession,
-		Data: data,
+		Id:           h.ws.Uuid,
+		Type:         TerminalSession,
+		Data:         data,
+		KubernetesId: KubernetesId,
 	}
 	h.ws.SendMessage(&msg)
 }
@@ -158,7 +159,7 @@ func (h *tty) validateAndInitSession(msg *Message) (TerminalConnectData, error) 
 			Session: &sessionDetail,
 		}
 		data, _ := json.Marshal(sessionInfo)
-		h.sendSessionMessage(string(data))
+		h.sendSessionMessage(string(data), msg.KubernetesId)
 	}
 	return connectInfo, nil
 }
@@ -458,7 +459,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 		}
 		srv.OnSessionInfo = func(info *proxy.SessionInfo) {
 			data, _ := json.Marshal(info)
-			h.sendSessionMessage(string(data))
+			h.sendSessionMessage(string(data), client.KubernetesId)
 		}
 		srv.Proxy()
 	}
