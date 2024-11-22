@@ -168,7 +168,7 @@ import FileManage from './components/fileManage/index.vue';
 
 import { Delete, CloudDownload } from '@vicons/carbon';
 import { Folder, Folders, Settings } from '@vicons/tabler';
-import { NButton, NFlex, NIcon, NTag, NText } from 'naive-ui';
+import { NButton, NEllipsis, NFlex, NIcon, NTag, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
@@ -178,6 +178,7 @@ import { h, onBeforeUnmount, onMounted, ref, watch, unref, nextTick } from 'vue'
 
 import type { DataTableColumns } from 'naive-ui';
 import type { ISettingProp } from '@/views/interface';
+import { getFileName } from '@/utils';
 
 export interface RowData {
   is_dir: boolean;
@@ -202,7 +203,8 @@ const message = useMessage();
 const fileManageStore = useFileManageStore();
 
 const isLoaded = ref(false);
-const isShowList = ref(false);
+// todo)) 还原为 false
+const isShowList = ref(true);
 const settingDrawer = ref(false);
 const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);
@@ -281,18 +283,6 @@ const formatBytes = (bytes: string | number, decimals?: number): string => {
 };
 
 /**
- * @description 处理文件名称
- * @param row
- */
-const getFileName = (row: RowData) => {
-  if (row.is_dir) {
-    return 'Folder';
-  }
-
-  return row.name.split('.')[1];
-};
-
-/**
  * @description 生成表头
  */
 const createColumns = (): DataTableColumns<RowData> => {
@@ -300,13 +290,18 @@ const createColumns = (): DataTableColumns<RowData> => {
     {
       title: t('Name'),
       key: 'name',
-      resizable: true,
-      align: 'center',
+      width: 260,
+      ellipsis: {
+        tooltip: true
+      },
       render(row) {
         return h(
           NFlex,
           {
-            align: 'center'
+            align: 'center',
+            style: {
+              flexWrap: 'no-wrap'
+            }
           },
           {
             default: () => [
@@ -315,12 +310,24 @@ const createColumns = (): DataTableColumns<RowData> => {
                 component: Folder
               }),
               h(
-                NText,
+                NEllipsis,
                 {
-                  depth: 1,
-                  strong: true
+                  style: {
+                    maxWidth: '260px',
+                    cursor: 'pointer'
+                  }
                 },
-                { default: () => row.name }
+                {
+                  default: () =>
+                    h(
+                      NText,
+                      {
+                        depth: 1,
+                        strong: true
+                      },
+                      { default: () => row.name }
+                    )
+                }
               )
             ]
           }
@@ -330,9 +337,8 @@ const createColumns = (): DataTableColumns<RowData> => {
     {
       title: t('Date Modified'),
       key: 'mod_time',
-      resizable: true,
       align: 'center',
-      width: 220,
+      width: 180,
       ellipsis: {
         tooltip: true
       },
@@ -340,6 +346,7 @@ const createColumns = (): DataTableColumns<RowData> => {
         return h(
           NTag,
           {
+            size: 'small',
             style: {
               marginRight: '6px'
             },
@@ -353,8 +360,8 @@ const createColumns = (): DataTableColumns<RowData> => {
     {
       title: t('Size'),
       key: 'size',
-      resizable: true,
       align: 'center',
+      width: 100,
       render(row: RowData) {
         return h(
           NText,
@@ -371,12 +378,12 @@ const createColumns = (): DataTableColumns<RowData> => {
     {
       title: t('Kind'),
       key: 'type',
-      resizable: true,
       align: 'center',
       render(row: RowData) {
         return h(
           NTag,
           {
+            size: 'small',
             style: {
               marginRight: '6px'
             },
@@ -388,39 +395,39 @@ const createColumns = (): DataTableColumns<RowData> => {
           }
         );
       }
-    },
-    {
-      title: t('Actions'),
-      key: 'actions',
-      resizable: true,
-      align: 'center',
-      render(row: RowData) {
-        return actionItem.map(item => {
-          return h(
-            NButton,
-            {
-              strong: true,
-              text: true,
-              size: 'small',
-              // @ts-ignore
-              type: item.type,
-              style: {
-                margin: '0 10px'
-              },
-              onClick: () => item.onClick(row)
-            },
-            {
-              default: () => [
-                h(NIcon, {
-                  size: 16,
-                  component: unref(item.iconName)
-                })
-              ]
-            }
-          );
-        });
-      }
     }
+    // {
+    //   title: t('Actions'),
+    //   key: 'actions',
+    //   resizable: true,
+    //   align: 'center',
+    //   render(row: RowData) {
+    //     return actionItem.map(item => {
+    //       return h(
+    //         NButton,
+    //         {
+    //           strong: true,
+    //           text: true,
+    //           size: 'small',
+    //           // @ts-ignore
+    //           type: item.type,
+    //           style: {
+    //             margin: '0 10px'
+    //           },
+    //           onClick: () => item.onClick(row)
+    //         },
+    //         {
+    //           default: () => [
+    //             h(NIcon, {
+    //               size: 16,
+    //               component: unref(item.iconName)
+    //             })
+    //           ]
+    //         }
+    //       );
+    //     });
+    //   }
+    // }
   ];
 };
 
