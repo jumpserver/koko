@@ -44,13 +44,15 @@ const getFileManageUrl = () => {
  * @param socket
  */
 const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: string, socket: WebSocket) => {
-  const sendData = '';
+  const sendData = {
+    path: ''
+  };
 
   const sendBody = {
     id,
     type: 'SFTP_DATA',
     cmd: 'list',
-    data: sendData
+    data: JSON.stringify(sendData)
   };
 
   if (messageData) {
@@ -81,6 +83,9 @@ const initSocketEvent = (socket: WebSocket) => {
     const message: IFileManage = JSON.parse(event.data);
 
     fileManageStore.setMessageId(message.id);
+    fileManageStore.setCurrentPath(message.current_path);
+
+    console.log('=>(useFileManage.ts:84) message', message);
 
     switch (message.type) {
       case MessageType.CONNECT: {
@@ -123,6 +128,19 @@ const fileSocketConnection = (url: string, message: MessageApiInjection) => {
   return ws.value;
 };
 
+const handleChangePath = (socket: WebSocket, path: string) => {
+  const fileManageStore = useFileManageStore();
+
+  const sendBody = {
+    id: fileManageStore.messageId,
+    type: 'SFTP_DATA',
+    cmd: 'list',
+    data: JSON.stringify(path)
+  };
+
+  socket.send(JSON.stringify(sendBody));
+};
+
 /**
  * @description 刷新文件列表
  * @param socket
@@ -158,6 +176,10 @@ export const useFileManage = () => {
 
       mittBus.on('file-refresh', () => {
         refresh(<WebSocket>socket);
+      });
+
+      mittBus.on('change-path', (path: string) => {
+        handleChangePath(<WebSocket>socket, path);
       });
     }
   }
