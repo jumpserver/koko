@@ -18,13 +18,15 @@ export enum MessageType {
   ERROR = 'ERROR',
   PING = 'PING',
   PONG = 'PONG',
-  SFTP_DATA = 'SFTP_DATA'
+  SFTP_DATA = 'SFTP_DATA',
+  SFTP_BINARY = 'SFTP_BINARY'
 }
 export enum ManageTypes {
   CREATE = 'CREATE',
   CHANGE = 'CHANGE',
   REFRESH = 'REFRESH',
-  RENAME = 'RENAME'
+  RENAME = 'RENAME',
+  REMOVE = 'REMOVE'
 }
 
 /**
@@ -43,6 +45,25 @@ const getFileManageUrl = () => {
 
     return fileConnectionUrl;
   }
+};
+
+/**
+ * @description 刷新文件列表
+ * @param socket
+ */
+export const refresh = (socket: WebSocket, path: string) => {
+  const sendData = {
+    path
+  };
+
+  const sendBody = {
+    id: uuid(),
+    cmd: 'list',
+    type: 'SFTP_DATA',
+    data: JSON.stringify(sendData)
+  };
+
+  socket.send(JSON.stringify(sendBody));
 };
 
 /**
@@ -77,7 +98,7 @@ const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
 
   messageData = [
     {
-      name: '...',
+      name: '..',
       size: '',
       perm: '',
       mod_time: '',
@@ -95,7 +116,10 @@ const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
  * @param socket
  */
 const initSocketEvent = (socket: WebSocket) => {
+  const globalMessage = useMessage();
   const fileManageStore = useFileManageStore();
+
+  let receivedBuffers: any = [];
 
   socket.binaryType = 'arraybuffer';
 
@@ -118,10 +142,48 @@ const initSocketEvent = (socket: WebSocket) => {
       }
 
       case MessageType.SFTP_DATA: {
-        // 在创建文件夹或文件的时候不需要去解析 data 数据
-        if (message.data !== 'ok') {
+        if (message.cmd === 'mkdir' && message.data === 'ok') {
+          globalMessage.success('创建成功');
+        }
+
+        if (message.cmd === 'rm' && message.data === 'ok') {
+          globalMessage.success('删除成功');
+        }
+
+        if (message.cmd === 'download' && message.data) {
+          const blob: Blob = new Blob(receivedBuffers, { type: 'application/octet-stream' });
+
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+
+          a.style.display = 'none';
+          a.href = url;
+          a.download = message.data;
+
+          document.body.appendChild(a);
+          a.click();
+
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          receivedBuffers = [];
+        }
+
+        if (message.cmd === 'list') {
           handleSocketSftpData(JSON.parse(message.data));
         }
+
+        break;
+      }
+
+      case MessageType.SFTP_BINARY: {
+        receivedBuffers.push(message.raw);
+
+        break;
+      }
+
+      case MessageType.ERROR: {
+        globalMessage.error('Error Occured!');
+
         break;
       }
 
@@ -205,19 +267,16 @@ const handleFileRename = (socket: WebSocket, path: string, newName: string) => {
 };
 
 /**
- * @description 刷新文件列表
+ * @description 移除文件
  * @param socket
+ * @param path
  */
-export const refresh = (socket: WebSocket, path: string) => {
-  const sendData = {
-    path
-  };
-
+const handleFileRemove = (socket: WebSocket, path: string) => {
   const sendBody = {
     id: uuid(),
-    cmd: 'list',
     type: 'SFTP_DATA',
-    data: JSON.stringify(sendData)
+    cmd: 'rm',
+    data: JSON.stringify({ path })
   };
 
   socket.send(JSON.stringify(sendBody));
@@ -281,6 +340,10 @@ export const useFileManage = () => {
             }
             case ManageTypes.RENAME: {
               handleFileRename(<WebSocket>socket, path, new_name!);
+              break;
+            }
+            case ManageTypes.REMOVE: {
+              handleFileRemove(<WebSocket>socket, path);
               break;
             }
           }

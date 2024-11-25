@@ -1,6 +1,6 @@
 <template>
-  <n-flex align="center" justify="space-between" class="!flex-nowrap !gap-x-10 h-[45px]">
-    <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
+  <n-flex align="center" justify="space-between" class="!flex-nowrap !gap-x-6 h-[45px]">
+    <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap flex-1" align="center">
       <n-button text :disabled="disabledBack" @click="handlePathBack">
         <n-icon size="16" class="icon-hover" :component="ArrowBackIosFilled" />
       </n-button>
@@ -9,9 +9,39 @@
         <n-icon :component="ArrowForwardIosFilled" size="16" class="icon-hover" />
       </n-button>
     </n-flex>
-    <n-flex class="action-part" align="center" justify="flex-end">
-      <n-button size="small" type="info" secondary @click="handleNewFolder"> {{ t('newFolder') }} </n-button>
-      <n-button size="small" type="info" secondary @click="handleNewFile"> {{ t('newFile') }} </n-button>
+
+    <n-scrollbar
+      x-scrollable
+      ref="scrollRef"
+      class="flex flex-2 items-center"
+      :content-style="{ height: '100%' }"
+    >
+      <n-flex class="file-part w-full h-full !flex-nowrap">
+        <n-flex
+          v-for="item of filePathList"
+          :key="item.id"
+          align="center"
+          justify="flex-start"
+          class="file-node !flex-nowrap"
+        >
+          <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
+          <n-text
+            depth="1"
+            class="text-[16px] cursor-pointer whitespace-nowrap"
+            :strong="item.active"
+            @click="handlePathClick(item)"
+          >
+            {{ item.path }}
+          </n-text>
+          <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
+        </n-flex>
+      </n-flex>
+    </n-scrollbar>
+
+    <n-flex class="action-part !flex-nowrap flex-2" align="center" justify="flex-end">
+      <n-button size="small" type="info" secondary round @click="handleNewFolder">
+        {{ t('newFolder') }}
+      </n-button>
       <n-upload
         abstract
         :default-file-list="fileList"
@@ -31,7 +61,7 @@
                 }
               "
             >
-              上传文件
+              {{ t('UploadTitle') }}
             </n-button>
           </n-upload-trigger>
         </n-button-group>
@@ -44,30 +74,15 @@
           <n-upload-file-list />
         </n-card>
       </n-upload>
-      <n-button size="small" type="info" secondary @click="handleRefresh">
-        <n-icon size="16" :component="Refresh" />
-      </n-button>
-    </n-flex>
-  </n-flex>
 
-  <n-flex class="file-part w-full h-10">
-    <n-flex
-      v-for="item of filePathList"
-      :key="item.id"
-      align="center"
-      justify="center"
-      class="file-node !flex-nowrap h-full"
-    >
-      <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
-      <n-text
-        depth="1"
-        class="text-[16px] cursor-pointer"
-        :strong="item.active"
-        @click="handlePathClick(item)"
-      >
-        {{ item.path }}
-      </n-text>
-      <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
+      <n-popover>
+        <template #trigger>
+          <n-button size="small" type="primary" round secondary strong @click="handleRefresh">
+            <n-icon size="16" :component="Refresh" />
+          </n-button>
+        </template>
+        {{ t('Refresh') }}
+      </n-popover>
     </n-flex>
   </n-flex>
 
@@ -100,10 +115,11 @@
   <n-modal
     v-model:show="showModal"
     preset="dialog"
-    content="你确认?"
-    positive-text="确认"
-    negative-text="取消"
     :title="modalTitle"
+    :content="modalContent"
+    :positive-text="t('Confirm')"
+    :negative-text="t('Cancel')"
+    :type="modalContent ? 'error' : 'success'"
     :content-style="{
       display: 'flex',
       alignItems: 'center',
@@ -113,7 +129,7 @@
     @positive-click="modalPositiveClick"
     @negative-click="modalNegativeClick"
   >
-    <n-input clearable v-model:value="newFileName" />
+    <n-input v-if="!modalContent" clearable v-model:value="newFileName" />
   </n-modal>
 </template>
 
@@ -154,9 +170,9 @@ const props = withDefaults(
   }
 );
 
-const emits = defineEmits<{
-  (e: 'resetLoaded');
-}>();
+// const emits = defineEmits<{
+//   (e: 'resetLoaded');
+// }>();
 
 const { t } = useI18n();
 const message = useMessage();
@@ -167,14 +183,18 @@ const fileManageStore = useFileManageStore();
 
 const x = ref(0);
 const y = ref(0);
+const modalType = ref('');
 const modalTitle = ref('');
 const forwardPath = ref('');
 const newFileName = ref('');
+const modalContent = ref('');
 const showModal = ref(false);
 const disabledBack = ref(true);
 const showDropdown = ref(false);
 const disabledForward = ref(true);
 const isShowUploadList = ref(false);
+
+const scrollRef = ref(null);
 
 const currentRowData = ref<RowData>();
 const filePathList = ref<IFilePath[]>([]);
@@ -214,6 +234,18 @@ watch(
               active: index === pathSegments.length - 1,
               showArrow: index !== pathSegments.length - 1
             });
+
+            nextTick(() => {
+              const contentRef = document.getElementsByClassName('n-scrollbar-content')[2];
+
+              if (scrollRef.value) {
+                // @ts-ignore
+                scrollRef.value.scrollTo({
+                  left: contentRef.scrollWidth + 299,
+                  behavior: 'smooth'
+                });
+              }
+            });
           } else {
             // 如果段已经存在，更新其状态
             existingItem.active = index === pathSegments.length - 1;
@@ -247,12 +279,17 @@ const handleSelect = (key: string) => {
 
   switch (key) {
     case 'rename': {
+      modalType.value = 'rename';
       showModal.value = true;
       modalTitle.value = '重命名';
 
       break;
     }
     case 'delete': {
+      modalType.value = 'delete';
+      showModal.value = true;
+      modalTitle.value = '您确定要删除该文件吗？';
+      modalContent.value = '这是一个危险的操作。';
       break;
     }
     case 'download': {
@@ -262,12 +299,10 @@ const handleSelect = (key: string) => {
         currentRowData.value
       );
 
-      if (currentRowData.value?.is_dir) {
-        mittBus.emit('download-file', {
-          path: currentRowData.value.name,
-          is_dir: currentRowData.value?.is_dir
-        });
-      }
+      mittBus.emit('download-file', {
+        path: `${fileManageStore.currentPath}/${currentRowData?.value?.name as string}`,
+        is_dir: currentRowData.value?.is_dir as boolean
+      });
 
       break;
     }
@@ -348,7 +383,7 @@ const modalPositiveClick = () => {
       return item.name === newFileName.value;
     }) ?? -1;
 
-  if (modalTitle.value === '重命名') {
+  if (modalType.value === 'rename') {
     if (index !== -1) {
       message.error(`已存在 ${newFileName.value} 请重新命名`);
 
@@ -359,7 +394,7 @@ const modalPositiveClick = () => {
     } else {
       mittBus.emit('file-manage', {
         type: ManageTypes.RENAME,
-        path: `${fileManageStore.currentPath}/${currentRowData.value.name}`,
+        path: `${fileManageStore.currentPath}/${currentRowData?.value?.name}`,
         new_name: newFileName.value
       });
 
@@ -367,7 +402,21 @@ const modalPositiveClick = () => {
 
       return;
     }
-  } else {
+  }
+
+  if (modalType.value === 'delete') {
+    mittBus.emit('file-manage', {
+      type: ManageTypes.REMOVE,
+      path: `${fileManageStore.currentPath}/${currentRowData?.value?.name}`
+    });
+
+    nextTick(() => {
+      modalTitle.value = '';
+      modalContent.value = '';
+    });
+  }
+
+  if (modalType.value === 'add') {
     if (index !== -1) {
       return message.error('该文件已添加');
     } else {
@@ -386,13 +435,9 @@ const modalNegativeClick = () => {
 };
 
 const handleNewFolder = () => {
+  modalType.value = 'add';
   showModal.value = true;
   modalTitle.value = '创建文件夹';
-};
-
-const handleNewFile = () => {
-  showModal.value = true;
-  modalTitle.value = '创建文件';
 };
 
 const handleRefresh = () => {
