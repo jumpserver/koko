@@ -268,18 +268,16 @@ const handleOpenSetting = () => {
 /**
  * @description 处理 size
  */
-const formatBytes = (bytes: string | number, decimals?: number): string => {
-  if (typeof bytes === 'string') {
-    bytes = parseInt(bytes, 10);
-  }
+const formatBytes = (bytes: string | number, decimals: number = 2): string => {
+  const byteNumber = typeof bytes === 'string' ? parseInt(bytes, 10) : Number(bytes);
 
-  if (bytes <= 0) return '0 Byte';
+  if (isNaN(byteNumber) || byteNumber <= 0) return '0 Byte';
 
   const units = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB'];
 
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const i = Math.floor(Math.log2(byteNumber) / Math.log2(1024));
 
-  return (bytes / Math.pow(1024, i)).toFixed(decimals) + ' ' + units[i];
+  return (byteNumber / Math.pow(1024, i)).toFixed(decimals) + ' ' + units[Math.min(i, units.length - 1)];
 };
 
 /**
@@ -353,7 +351,15 @@ const createColumns = (): DataTableColumns<RowData> => {
             type: 'info',
             bordered: false
           },
-          { default: () => dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss') }
+          {
+            default: () => {
+              if (row.mod_time) {
+                return dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss');
+              }
+
+              return '-';
+            }
+          }
         );
       }
     },
@@ -396,38 +402,6 @@ const createColumns = (): DataTableColumns<RowData> => {
         );
       }
     }
-    // {
-    //   title: t('Actions'),
-    //   key: 'actions',
-    //   resizable: true,
-    //   align: 'center',
-    //   render(row: RowData) {
-    //     return actionItem.map(item => {
-    //       return h(
-    //         NButton,
-    //         {
-    //           strong: true,
-    //           text: true,
-    //           size: 'small',
-    //           // @ts-ignore
-    //           type: item.type,
-    //           style: {
-    //             margin: '0 10px'
-    //           },
-    //           onClick: () => item.onClick(row)
-    //         },
-    //         {
-    //           default: () => [
-    //             h(NIcon, {
-    //               size: 16,
-    //               component: unref(item.iconName)
-    //             })
-    //           ]
-    //         }
-    //       );
-    //     });
-    //   }
-    // }
   ];
 };
 
