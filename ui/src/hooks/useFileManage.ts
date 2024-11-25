@@ -1,22 +1,30 @@
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
+import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 import { BASE_WS_URL } from '@/config';
 
+import mittBus from '@/utils/mittBus.ts';
+import { v4 as uuid } from 'uuid';
+
 import type { RouteRecordNameGeneric } from 'vue-router';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
-import { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
-import { useFileManageStore } from '@/store/modules/fileManage.ts';
-import mittBus from '@/utils/mittBus.ts';
+import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
 
-enum MessageType {
+export enum MessageType {
   CONNECT = 'CONNECT',
   CLOSE = 'CLOSE',
   ERROR = 'ERROR',
   PING = 'PING',
   PONG = 'PONG',
   SFTP_DATA = 'SFTP_DATA'
+}
+export enum ManageTypes {
+  CREATE = 'CREATE',
+  CHANGE = 'CHANGE',
+  REFRESH = 'REFRESH',
+  RENAME = 'RENAME'
 }
 
 /**
@@ -60,8 +68,24 @@ const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: strin
   }
 };
 
+/**
+ * @description 设置文件信息 table
+ * @param messageData
+ */
 const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
   const fileManageStore = useFileManageStore();
+
+  messageData = [
+    {
+      name: '...',
+      size: '',
+      perm: '',
+      mod_time: '',
+      type: '',
+      is_dir: true
+    },
+    ...messageData
+  ];
 
   fileManageStore.setFileList(messageData);
 };
@@ -94,7 +118,10 @@ const initSocketEvent = (socket: WebSocket) => {
       }
 
       case MessageType.SFTP_DATA: {
-        handleSocketSftpData(JSON.parse(message.data));
+        // 在创建文件夹或文件的时候不需要去解析 data 数据
+        if (message.data !== 'ok') {
+          handleSocketSftpData(JSON.parse(message.data));
+        }
         break;
       }
 
@@ -128,14 +155,50 @@ const fileSocketConnection = (url: string, message: MessageApiInjection) => {
   return ws.value;
 };
 
+/**
+ * @description 路径跳转的处理
+ * @param socket
+ * @param path
+ */
 const handleChangePath = (socket: WebSocket, path: string) => {
-  const fileManageStore = useFileManageStore();
-
   const sendBody = {
-    id: fileManageStore.messageId,
+    id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'list',
-    data: JSON.stringify(path)
+    data: JSON.stringify({ path })
+  };
+
+  socket.send(JSON.stringify(sendBody));
+};
+
+/**
+ * @description 创建文件夹
+ * @param socket
+ * @param path
+ */
+const handleFileCreate = (socket: WebSocket, path: string) => {
+  const sendBody = {
+    id: uuid(),
+    type: 'SFTP_DATA',
+    cmd: 'mkdir',
+    data: JSON.stringify({ path })
+  };
+
+  socket.send(JSON.stringify(sendBody));
+};
+
+/**
+ * @description 重命名
+ * @param socket
+ * @param path
+ * @param newName
+ */
+const handleFileRename = (socket: WebSocket, path: string, newName: string) => {
+  const sendBody = {
+    id: uuid(),
+    type: 'SFTP_DATA',
+    cmd: 'rename',
+    data: JSON.stringify({ path, new_name: newName })
   };
 
   socket.send(JSON.stringify(sendBody));
@@ -145,16 +208,38 @@ const handleChangePath = (socket: WebSocket, path: string) => {
  * @description 刷新文件列表
  * @param socket
  */
-export const refresh = (socket: WebSocket) => {
-  const fileManageStore = useFileManageStore();
-
-  const sendData = '';
+export const refresh = (socket: WebSocket, path: string) => {
+  const sendData = {
+    path
+  };
 
   const sendBody = {
+    id: uuid(),
     cmd: 'list',
     type: 'SFTP_DATA',
-    data: sendData,
-    id: fileManageStore.messageId
+    data: JSON.stringify(sendData)
+  };
+
+  socket.send(JSON.stringify(sendBody));
+};
+
+/**
+ * @description 下载文件
+ * @param socket
+ * @param path
+ * @param is_dir
+ */
+export const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
+  const sendData = {
+    path,
+    is_dir
+  };
+
+  const sendBody = {
+    id: uuid(),
+    type: 'SFTP_DATA',
+    cmd: 'download',
+    data: JSON.stringify(sendData)
   };
 
   socket.send(JSON.stringify(sendBody));
@@ -174,13 +259,33 @@ export const useFileManage = () => {
     if (fileConnectionUrl) {
       const socket = fileSocketConnection(fileConnectionUrl, message);
 
-      mittBus.on('file-refresh', () => {
-        refresh(<WebSocket>socket);
+      mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
+        handleFileDownload(<WebSocket>socket, path, is_dir);
       });
 
-      mittBus.on('change-path', (path: string) => {
-        handleChangePath(<WebSocket>socket, path);
-      });
+      mittBus.on(
+        'file-manage',
+        ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+          switch (type) {
+            case ManageTypes.CREATE: {
+              handleFileCreate(<WebSocket>socket, path);
+              break;
+            }
+            case ManageTypes.CHANGE: {
+              handleChangePath(<WebSocket>socket, path);
+              break;
+            }
+            case ManageTypes.REFRESH: {
+              refresh(<WebSocket>socket, path);
+              break;
+            }
+            case ManageTypes.RENAME: {
+              handleFileRename(<WebSocket>socket, path, new_name!);
+              break;
+            }
+          }
+        }
+      );
     }
   }
 
@@ -188,5 +293,5 @@ export const useFileManage = () => {
 };
 
 export const unloadListeners = () => {
-  mittBus.off('file-refresh');
+  mittBus.off('download-file');
 };

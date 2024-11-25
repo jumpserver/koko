@@ -1,6 +1,6 @@
 <template>
-  <n-flex align="center" justify="flex-start" class="!flex-nowrap !gap-x-10 h-[45px]">
-    <n-flex class="path-part !gap-x-6 h-full !flex-nowrap" align="center">
+  <n-flex align="center" justify="space-between" class="!flex-nowrap !gap-x-10 h-[45px]">
+    <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
       <n-button text :disabled="disabledBack" @click="handlePathBack">
         <n-icon size="16" class="icon-hover" :component="ArrowBackIosFilled" />
       </n-button>
@@ -9,22 +9,9 @@
         <n-icon :component="ArrowForwardIosFilled" size="16" class="icon-hover" />
       </n-button>
     </n-flex>
-    <n-flex class="file-part flex-[5] h-full">
-      <n-flex
-        v-for="item of filePathList"
-        :key="item.id"
-        align="center"
-        justify="center"
-        class="file-node !flex-nowrap h-full"
-      >
-        <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
-        <n-text depth="1" class="text-[16px] cursor-pointer" :strong="item.active">
-          {{ item.path }}
-        </n-text>
-        <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
-      </n-flex>
-    </n-flex>
-    <n-flex class="upload-part" align="center" justify="center">
+    <n-flex class="action-part" align="center" justify="flex-end">
+      <n-button size="small" type="info" secondary @click="handleNewFolder"> {{ t('newFolder') }} </n-button>
+      <n-button size="small" type="info" secondary @click="handleNewFile"> {{ t('newFile') }} </n-button>
       <n-upload
         abstract
         :default-file-list="fileList"
@@ -57,6 +44,30 @@
           <n-upload-file-list />
         </n-card>
       </n-upload>
+      <n-button size="small" type="info" secondary @click="handleRefresh">
+        <n-icon size="16" :component="Refresh" />
+      </n-button>
+    </n-flex>
+  </n-flex>
+
+  <n-flex class="file-part w-full h-10">
+    <n-flex
+      v-for="item of filePathList"
+      :key="item.id"
+      align="center"
+      justify="center"
+      class="file-node !flex-nowrap h-full"
+    >
+      <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
+      <n-text
+        depth="1"
+        class="text-[16px] cursor-pointer"
+        :strong="item.active"
+        @click="handlePathClick(item)"
+      >
+        {{ item.path }}
+      </n-text>
+      <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
     </n-flex>
   </n-flex>
 
@@ -73,29 +84,56 @@
       :data="fileManageStore.fileList"
     />
     <n-dropdown
-      placement="bottom-start"
+      size="small"
       trigger="manual"
+      placement="bottom-start"
       :x="x"
       :y="y"
+      :show-arrow="true"
       :options="options"
       :show="showDropdown"
-      :on-clickoutside="onClickoutside"
+      :on-clickoutside="onClickOutside"
       @select="handleSelect"
     />
   </n-flex>
+
+  <n-modal
+    v-model:show="showModal"
+    preset="dialog"
+    content="你确认?"
+    positive-text="确认"
+    negative-text="取消"
+    :title="modalTitle"
+    :content-style="{
+      display: 'flex',
+      alignItems: 'center',
+      height: '100%',
+      margin: '20px 0'
+    }"
+    @positive-click="modalPositiveClick"
+    @negative-click="modalNegativeClick"
+  >
+    <n-input clearable v-model:value="newFileName" />
+  </n-modal>
 </template>
 
 <script setup lang="ts">
-import { Folder } from '@vicons/tabler';
-import type { DataTableColumns, DropdownOption, UploadFileInfo } from 'naive-ui';
+import mittBus from '@/utils/mittBus.ts';
+
+import { Folder, Refresh } from '@vicons/tabler';
+import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
 import { NButton, NFlex, NIcon, NText, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
-import { h, nextTick, ref, watch } from 'vue';
+
+import { useI18n } from 'vue-i18n';
+import { getFileName } from '@/utils';
+import { getDropSelections } from './config.ts';
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
+import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
 import type { RowData } from '@/components/pamFileList/index.vue';
-import mittBus from '@/utils/mittBus.ts';
-import { getFileName } from '@/utils';
+import type { IFileManageSftpFileItem } from '@/hooks/interface';
 
 export interface IFilePath {
   id: string;
@@ -116,17 +154,29 @@ const props = withDefaults(
   }
 );
 
+const emits = defineEmits<{
+  (e: 'resetLoaded');
+}>();
+
+const { t } = useI18n();
 const message = useMessage();
+const options = getDropSelections(t);
 const fileManageStore = useFileManageStore();
+
+// TOdo)) 不用的后缀展示不同的文件 icon
 
 const x = ref(0);
 const y = ref(0);
+const modalTitle = ref('');
 const forwardPath = ref('');
+const newFileName = ref('');
+const showModal = ref(false);
 const disabledBack = ref(true);
 const showDropdown = ref(false);
 const disabledForward = ref(true);
 const isShowUploadList = ref(false);
 
+const currentRowData = ref<RowData>();
 const filePathList = ref<IFilePath[]>([]);
 const fileList = ref<UploadFileInfo[]>([
   {
@@ -188,23 +238,40 @@ watch(
   }
 );
 
-const options: DropdownOption[] = [
-  {
-    label: '编辑',
-    key: 'edit'
-  },
-  {
-    label: () => h('span', { style: { color: 'red' } }, '删除'),
-    key: 'delete'
-  }
-];
-
-const onClickoutside = () => {
+const onClickOutside = () => {
   showDropdown.value = false;
 };
 
-const handleSelect = () => {
+const handleSelect = (key: string) => {
   showDropdown.value = false;
+
+  switch (key) {
+    case 'rename': {
+      showModal.value = true;
+      modalTitle.value = '重命名';
+
+      break;
+    }
+    case 'delete': {
+      break;
+    }
+    case 'download': {
+      console.log(
+        '%c DEBUG[ currentRowData ]-1:',
+        'font-size:13px; background:#F0FFF0; color:#8B4513;',
+        currentRowData.value
+      );
+
+      if (currentRowData.value?.is_dir) {
+        mittBus.emit('download-file', {
+          path: currentRowData.value.name,
+          is_dir: currentRowData.value?.is_dir
+        });
+      }
+
+      break;
+    }
+  }
 };
 
 /**
@@ -234,7 +301,7 @@ const handlePathBack = () => {
 
   const backPath = removeLastPathSegment(fileManageStore.currentPath);
 
-  mittBus.emit('change-path', { path: backPath });
+  mittBus.emit('file-manage', { path: backPath, type: ManageTypes.CHANGE });
 
   if (filePathList.value.length > 1) {
     filePathList.value.splice(filePathList.value.length - 1, 1);
@@ -261,17 +328,82 @@ const handlePathForward = () => {
 
       const newForwardPath = `${fileManageStore.currentPath}/${firstExtraSegment}`;
 
-      mittBus.emit('change-path', { path: newForwardPath });
+      mittBus.emit('file-manage', { path: newForwardPath, type: ManageTypes.CHANGE });
     }
   }
 };
 
-// todo)) 子目录下存在 _ 返回的文件目录
+/**
+ * @description 鼠标手动跳转
+ */
+const handlePathClick = (item: IFilePath) => {
+  const path = item.path;
+
+  mittBus.emit('file-manage', { path, type: ManageTypes.CHANGE });
+};
+
+const modalPositiveClick = () => {
+  const index =
+    fileManageStore?.fileList?.findIndex((item: IFileManageSftpFileItem) => {
+      return item.name === newFileName.value;
+    }) ?? -1;
+
+  if (modalTitle.value === '重命名') {
+    if (index !== -1) {
+      message.error(`已存在 ${newFileName.value} 请重新命名`);
+
+      nextTick(() => {
+        newFileName.value = '';
+        return (showModal.value = true);
+      });
+    } else {
+      mittBus.emit('file-manage', {
+        type: ManageTypes.RENAME,
+        path: `${fileManageStore.currentPath}/${currentRowData.value.name}`,
+        new_name: newFileName.value
+      });
+
+      newFileName.value = '';
+
+      return;
+    }
+  } else {
+    if (index !== -1) {
+      return message.error('该文件已添加');
+    } else {
+      mittBus.emit('file-manage', {
+        path: `${fileManageStore.currentPath}/${newFileName.value}`,
+        type: ManageTypes.CREATE
+      });
+
+      newFileName.value = '';
+    }
+  }
+};
+
+const modalNegativeClick = () => {
+  newFileName.value = '';
+};
+
+const handleNewFolder = () => {
+  showModal.value = true;
+  modalTitle.value = '创建文件夹';
+};
+
+const handleNewFile = () => {
+  showModal.value = true;
+  modalTitle.value = '创建文件';
+};
+
+const handleRefresh = () => {
+  mittBus.emit('file-manage', { path: fileManageStore.currentPath, type: ManageTypes.REFRESH });
+};
+
 const rowProps = (row: RowData) => {
   return {
     style: 'cursor: pointer',
     onContextmenu: (e: MouseEvent) => {
-      message.info(JSON.stringify(row, null, 2));
+      currentRowData.value = row;
 
       e.preventDefault();
 
@@ -291,9 +423,13 @@ const rowProps = (row: RowData) => {
         return message.error('暂不支持文件预览');
       }
 
-      mittBus.emit('change-path', { path: splicePath });
+      mittBus.emit('file-manage', { path: splicePath, type: ManageTypes.CHANGE });
       disabledBack.value = false;
     }
   };
 };
+
+onBeforeUnmount(() => {
+  unloadListeners();
+});
 </script>

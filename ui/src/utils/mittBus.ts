@@ -1,6 +1,7 @@
 import mitt, { Emitter } from 'mitt';
-import { customTreeOption } from '@/hooks/interface';
 import { shareUser } from '@/views/interface';
+import { customTreeOption } from '@/hooks/interface';
+import { ManageTypes } from '@/hooks/useFileManage.ts';
 
 type Event = {
   'remove-event': void;
@@ -8,13 +9,13 @@ type Event = {
   'alt-shift-left': void;
   'open-setting': void;
   'open-fileList': void;
-  'change-path': any;
-  'file-refresh': any;
   'fold-tree-click': void;
   'show-theme-config': void;
   'set-Terminal-theme': string;
   'connect-terminal': customTreeOption;
   'set-theme': { themeName: string };
+  'file-manage': { path: string; type: ManageTypes; new_name?: string };
+  'download-file': { path: string; is_dir: boolean };
   'terminal-search': { keyword: string; type?: string };
   'share-user': { type: string; query: string };
   'sync-theme': { type: string; data: any };
