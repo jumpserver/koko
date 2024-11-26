@@ -1,5 +1,5 @@
 import { useRoute } from 'vue-router';
-import { useMessage } from 'naive-ui';
+import { type UploadFileInfo, useMessage } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
@@ -11,6 +11,7 @@ import { v4 as uuid } from 'uuid';
 import type { RouteRecordNameGeneric } from 'vue-router';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
 import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
+import { Ref } from 'vue';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -47,9 +48,24 @@ const getFileManageUrl = () => {
   }
 };
 
+const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+  const uint8Array = new Uint8Array(buffer);
+  const CHUNK_SIZE = 0x8000;
+
+  let result = '';
+
+  for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
+    const chunk = uint8Array.subarray(i, i + CHUNK_SIZE);
+    result += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+
+  return btoa(result);
+};
+
 /**
  * @description 刷新文件列表
  * @param socket
+ * @param path
  */
 export const refresh = (socket: WebSocket, path: string) => {
   const sendData = {
@@ -133,8 +149,6 @@ const initSocketEvent = (socket: WebSocket) => {
     fileManageStore.setMessageId(message.id);
     fileManageStore.setCurrentPath(message.current_path);
 
-    console.log('=>(useFileManage.ts:84) message', message);
-
     switch (message.type) {
       case MessageType.CONNECT: {
         handleSocketConnectEvent(JSON.parse(message.data), message.id, socket);
@@ -149,6 +163,10 @@ const initSocketEvent = (socket: WebSocket) => {
         if (message.cmd === 'rm' && message.data === 'ok') {
           globalMessage.success('删除成功');
         }
+
+        // if (message.cmd === 'upload' && message.data === 'ok') {
+        //   socket.send(JSON.stringify({}));
+        // }
 
         if (message.cmd === 'download' && message.data) {
           const blob: Blob = new Blob(receivedBuffers, { type: 'application/octet-stream' });
@@ -182,7 +200,7 @@ const initSocketEvent = (socket: WebSocket) => {
       }
 
       case MessageType.ERROR: {
-        globalMessage.error('Error Occured!');
+        globalMessage.error('Error Occurred!');
 
         break;
       }
@@ -288,7 +306,7 @@ const handleFileRemove = (socket: WebSocket, path: string) => {
  * @param path
  * @param is_dir
  */
-export const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
+const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
   const sendData = {
     path,
     is_dir
@@ -305,6 +323,85 @@ export const handleFileDownload = (socket: WebSocket, path: string, is_dir: bool
 };
 
 /**
+ * @description 上传文件
+ */
+const handleFileUpload = (
+  socket: WebSocket,
+  fileList: Ref<Array<UploadFileInfo>>,
+  onProgress: any,
+  onFinish: () => void,
+  onError: () => void
+) => {
+  const fileManageStore = useFileManageStore();
+  let CHUNK_SIZE = 1024 * 1024 * 2;
+
+  fileList.value.forEach(async (fileInfo: UploadFileInfo) => {
+    if (fileInfo.file) {
+      let sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
+      let sliceChunks = [];
+
+      const sendData = {
+        offSet: 0,
+        merge: false,
+        chunk: true,
+        size: fileInfo.file?.size,
+        path: `${fileManageStore.currentPath}/${fileInfo.name}`
+      };
+
+      const sendBody = {
+        cmd: 'upload',
+        type: 'SFTP_DATA',
+        id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(),
+        data: '',
+        raw: ''
+      };
+
+      for (let i = 0; i < sliceCount; i++) {
+        sliceChunks.push(fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+      }
+
+      let sentChunks = 0;
+
+      try {
+        for (const sliceChunk of sliceChunks) {
+          const arrayBuffer: ArrayBuffer = await sliceChunk.arrayBuffer();
+          const base64String: string = arrayBufferToBase64(arrayBuffer);
+
+          sendData.offSet = sentChunks * CHUNK_SIZE;
+          sendBody.raw = base64String;
+          sendBody.data = JSON.stringify(sendData);
+
+          socket.send(JSON.stringify(sendBody));
+
+          sentChunks++;
+
+          const percent = (sentChunks / sliceChunks.length) * 100;
+
+          console.log(
+            '%c DEBUG[ percent ]-79:',
+            'font-size:13px; background:#F0FFF0; color:#800000;',
+            percent
+          );
+
+          onProgress({ percent });
+
+          if (percent === 100) {
+            onFinish();
+
+            sendData.merge = true;
+            sendBody.data = JSON.stringify(sendData);
+
+            socket.send(JSON.stringify(sendBody));
+          }
+        }
+      } catch (e) {
+        onError();
+      }
+    }
+  });
+};
+
+/**
  * @description 用于处理文件管理相关逻辑
  */
 export const useFileManage = () => {
@@ -317,6 +414,23 @@ export const useFileManage = () => {
 
     if (fileConnectionUrl) {
       const socket = fileSocketConnection(fileConnectionUrl, message);
+
+      mittBus.on(
+        'file-upload',
+        ({
+          fileList,
+          onFinish,
+          onError,
+          onProgress
+        }: {
+          fileList: Ref<Array<UploadFileInfo>>;
+          onFinish: () => void;
+          onError: () => void;
+          onProgress: (e: { percent: number }) => void;
+        }) => {
+          handleFileUpload(<WebSocket>socket, fileList, onProgress, onFinish, onError);
+        }
+      );
 
       mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
         handleFileDownload(<WebSocket>socket, path, is_dir);

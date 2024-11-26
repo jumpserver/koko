@@ -10,9 +10,13 @@ import type { DropdownOption } from 'naive-ui';
 
 const renderIcon = (icon: Component) => {
   return () => {
-    return h(NIcon, null, {
-      default: () => h(icon)
-    });
+    return h(
+      NIcon,
+      { size: 16 },
+      {
+        default: () => h(icon)
+      }
+    );
   };
 };
 
