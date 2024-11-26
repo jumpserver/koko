@@ -48,6 +48,10 @@ const getFileManageUrl = () => {
   }
 };
 
+/**
+ * @description 将 buffer 转为 base64
+ * @param buffer
+ */
 const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
   const uint8Array = new Uint8Array(buffer);
   const CHUNK_SIZE = 0x8000;
@@ -142,7 +146,7 @@ const initSocketEvent = (socket: WebSocket) => {
   socket.onopen = () => {};
   socket.onerror = () => {};
 
-  socket.onclose = (event: CloseEvent) => {};
+  socket.onclose = () => {};
   socket.onmessage = (event: MessageEvent) => {
     const message: IFileManage = JSON.parse(event.data);
 
@@ -164,9 +168,24 @@ const initSocketEvent = (socket: WebSocket) => {
           globalMessage.success('删除成功');
         }
 
-        // if (message.cmd === 'upload' && message.data === 'ok') {
-        //   socket.send(JSON.stringify({}));
-        // }
+        if (message.cmd === 'upload' && message.data) {
+          fileManageStore.setReceived(true);
+
+          socket.send(
+            JSON.stringify({
+              cmd: 'upload',
+              type: 'SFTP_DATA',
+              id: '',
+              raw: '',
+              data: JSON.stringify({
+                offSet: '',
+                merge: true,
+                size: '',
+                path: message.data
+              })
+            })
+          );
+        }
 
         if (message.cmd === 'download' && message.data) {
           const blob: Blob = new Blob(receivedBuffers, { type: 'application/octet-stream' });
@@ -218,7 +237,7 @@ const initSocketEvent = (socket: WebSocket) => {
  * @param message
  */
 const fileSocketConnection = (url: string, message: MessageApiInjection) => {
-  const { data, status, close, open, send, ws } = useWebSocket(url, {
+  const { ws } = useWebSocket(url, {
     protocols: ['JMS-KOKO'],
     autoReconnect: {
       retries: 5,
@@ -323,6 +342,60 @@ const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) =>
 };
 
 /**
+ * @description 预处理 chunks
+ * @param sliceChunk
+ * @param socket
+ * @param CHUNK_SIZE
+ * @param fileInfo
+ * @param sentChunks
+ */
+const generateUploadChunks = async (
+  sliceChunk: Blob,
+  socket: WebSocket,
+  fileInfo: UploadFileInfo,
+  CHUNK_SIZE: number,
+  sentChunks: number
+) => {
+  const fileManageStore = useFileManageStore();
+
+  const sendData = {
+    offSet: 0,
+    merge: false,
+    chunk: true,
+    size: fileInfo.file?.size,
+    path: `${fileManageStore.currentPath}/${fileInfo.name}`
+  };
+
+  const sendBody = {
+    cmd: 'upload',
+    type: 'SFTP_DATA',
+    id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(),
+    data: '',
+    raw: ''
+  };
+
+  const arrayBuffer: ArrayBuffer = await sliceChunk.arrayBuffer();
+  const base64String: string = arrayBufferToBase64(arrayBuffer);
+
+  sendData.offSet = sentChunks * CHUNK_SIZE;
+  sendBody.raw = base64String;
+  sendBody.data = JSON.stringify(sendData);
+
+  socket.send(JSON.stringify(sendBody));
+
+  sentChunks++;
+
+  return new Promise<boolean>(resolve => {
+    const interval = setInterval(() => {
+      if (fileManageStore.isReceived) {
+        clearInterval(interval);
+        resolve(true);
+      }
+    }, 100);
+  });
+};
+
+/**
  * @description 上传文件
  */
 const handleFileUpload = (
@@ -333,28 +406,12 @@ const handleFileUpload = (
   onError: () => void
 ) => {
   const fileManageStore = useFileManageStore();
-  let CHUNK_SIZE = 1024 * 1024 * 2;
+  let CHUNK_SIZE = 1024 * 1024 * 5;
 
   fileList.value.forEach(async (fileInfo: UploadFileInfo) => {
     if (fileInfo.file) {
       let sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
       let sliceChunks = [];
-
-      const sendData = {
-        offSet: 0,
-        merge: false,
-        chunk: true,
-        size: fileInfo.file?.size,
-        path: `${fileManageStore.currentPath}/${fileInfo.name}`
-      };
-
-      const sendBody = {
-        cmd: 'upload',
-        type: 'SFTP_DATA',
-        id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(),
-        data: '',
-        raw: ''
-      };
 
       for (let i = 0; i < sliceCount; i++) {
         sliceChunks.push(fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
@@ -364,14 +421,8 @@ const handleFileUpload = (
 
       try {
         for (const sliceChunk of sliceChunks) {
-          const arrayBuffer: ArrayBuffer = await sliceChunk.arrayBuffer();
-          const base64String: string = arrayBufferToBase64(arrayBuffer);
-
-          sendData.offSet = sentChunks * CHUNK_SIZE;
-          sendBody.raw = base64String;
-          sendBody.data = JSON.stringify(sendData);
-
-          socket.send(JSON.stringify(sendBody));
+          fileManageStore.setReceived(false);
+          await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
 
           sentChunks++;
 
@@ -387,11 +438,6 @@ const handleFileUpload = (
 
           if (percent === 100) {
             onFinish();
-
-            sendData.merge = true;
-            sendBody.data = JSON.stringify(sendData);
-
-            socket.send(JSON.stringify(sendBody));
           }
         }
       } catch (e) {
