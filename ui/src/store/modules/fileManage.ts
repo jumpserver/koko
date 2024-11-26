@@ -8,6 +8,8 @@ interface IFileManageStoreState {
   messageId: string;
 
   currentPath: string;
+
+  isReceived: boolean;
 }
 
 export const useFileManageStore = defineStore('fileManage', {
@@ -16,7 +18,9 @@ export const useFileManageStore = defineStore('fileManage', {
 
     messageId: '',
 
-    currentPath: ''
+    currentPath: '',
+
+    isReceived: false
   }),
   actions: {
     setFileList(fileList: IFileManageSftpFileItem[]) {
@@ -30,6 +34,9 @@ export const useFileManageStore = defineStore('fileManage', {
     },
     setCurrentPath(currentPath: string): void {
       this.currentPath = currentPath;
+    },
+    setReceived(value: boolean) {
+      this.isReceived = value;
     }
   }
 });

@@ -39,7 +39,7 @@
     </n-scrollbar>
 
     <n-flex class="action-part !flex-nowrap flex-2" align="center" justify="flex-end">
-      <n-button size="small" type="info" secondary round @click="handleNewFolder">
+      <n-button size="small" strong round secondary type="success" @click="handleNewFolder">
         {{ t('newFolder') }}
       </n-button>
 
@@ -54,10 +54,11 @@
         <n-button-group>
           <n-upload-trigger #="{ handleClick }" abstract>
             <n-button
-              secondary
               round
-              type="primary"
+              strong
+              secondary
               size="small"
+              type="success"
               @click="
                 () => {
                   handleClick();
@@ -196,6 +197,12 @@ const props = withDefaults(
 const emits = defineEmits<{
   (e: 'resetLoaded'): void;
 }>();
+
+// todo)) download icon 需要改变
+// todo)) 自动刷新
+// todo)) 权限位的展示
+// todo)) 小屏幕下的宽度适配
+// todo)) [配色]
 
 const { t } = useI18n();
 const message = useMessage();
