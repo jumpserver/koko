@@ -42,10 +42,14 @@
       <n-button size="small" type="info" secondary round @click="handleNewFolder">
         {{ t('newFolder') }}
       </n-button>
+
       <n-upload
         abstract
-        :default-file-list="fileList"
-        action="https://www.mocky.io/v2/5e4bafc63100007100d8b70f"
+        multiple
+        :show-retry-button="false"
+        :custom-request="customRequest"
+        v-model:file-list="fileList"
+        @change="handleUploadFileChange"
       >
         <n-button-group>
           <n-upload-trigger #="{ handleClick }" abstract>
@@ -65,23 +69,42 @@
             </n-button>
           </n-upload-trigger>
         </n-button-group>
-        <n-card
-          v-if="isShowUploadList"
-          closable
-          title="文件列表"
-          class="absolute top-[3.5rem] right-2 z-[999999] w-[500px] h-[300px]"
+
+        <n-drawer
+          v-model:show="showInner"
+          :trap-focus="false"
+          :block-scroll="false"
+          :native-scrollbar="false"
+          :height="500"
+          placement="bottom"
+          to="#drawer-inner-target"
         >
-          <n-upload-file-list />
-        </n-card>
+          <n-drawer-content :title="t('FileList')">
+            <n-scrollbar style="max-height: 400px" v-if="fileList.length > 0">
+              <n-upload-file-list />
+            </n-scrollbar>
+
+            <n-empty v-else class="w-full h-full justify-center" />
+          </n-drawer-content>
+        </n-drawer>
       </n-upload>
 
       <n-popover>
         <template #trigger>
-          <n-button size="small" type="primary" round secondary strong @click="handleRefresh">
+          <n-button size="small" round strong @click="handleRefresh">
             <n-icon size="16" :component="Refresh" />
           </n-button>
         </template>
         {{ t('Refresh') }}
+      </n-popover>
+
+      <n-popover>
+        <template #trigger>
+          <n-button size="small" round strong @click="handleOpenTransferList">
+            <n-icon size="16" :component="Upload" />
+          </n-button>
+        </template>
+        {{ t('Upload') }}
       </n-popover>
     </n-flex>
   </n-flex>
@@ -136,9 +159,8 @@
 <script setup lang="ts">
 import mittBus from '@/utils/mittBus.ts';
 
-import { Folder, Refresh } from '@vicons/tabler';
-import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
-import { NButton, NFlex, NIcon, NText, useMessage } from 'naive-ui';
+import { Folder, Refresh, Upload } from '@vicons/tabler';
+import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
@@ -150,6 +172,7 @@ import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
 import type { RowData } from '@/components/pamFileList/index.vue';
 import type { IFileManageSftpFileItem } from '@/hooks/interface';
+import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
 
 export interface IFilePath {
   id: string;
@@ -170,16 +193,14 @@ const props = withDefaults(
   }
 );
 
-// const emits = defineEmits<{
-//   (e: 'resetLoaded');
-// }>();
+const emits = defineEmits<{
+  (e: 'resetLoaded'): void;
+}>();
 
 const { t } = useI18n();
 const message = useMessage();
 const options = getDropSelections(t);
 const fileManageStore = useFileManageStore();
-
-// TOdo)) 不用的后缀展示不同的文件 icon
 
 const x = ref(0);
 const y = ref(0);
@@ -188,6 +209,7 @@ const modalTitle = ref('');
 const forwardPath = ref('');
 const newFileName = ref('');
 const modalContent = ref('');
+const showInner = ref(false);
 const showModal = ref(false);
 const disabledBack = ref(true);
 const showDropdown = ref(false);
@@ -198,14 +220,7 @@ const scrollRef = ref(null);
 
 const currentRowData = ref<RowData>();
 const filePathList = ref<IFilePath[]>([]);
-const fileList = ref<UploadFileInfo[]>([
-  {
-    id: 'b',
-    name: 'file.doc',
-    status: 'finished',
-    type: 'text/plain'
-  }
-]);
+const fileList = ref<UploadFileInfo[]>([]);
 
 watch(
   () => fileManageStore.currentPath,
@@ -274,6 +289,10 @@ const onClickOutside = () => {
   showDropdown.value = false;
 };
 
+/**
+ * @description dropdown 的 select 回调
+ * @param key
+ */
 const handleSelect = (key: string) => {
   showDropdown.value = false;
 
@@ -293,12 +312,6 @@ const handleSelect = (key: string) => {
       break;
     }
     case 'download': {
-      console.log(
-        '%c DEBUG[ currentRowData ]-1:',
-        'font-size:13px; background:#F0FFF0; color:#8B4513;',
-        currentRowData.value
-      );
-
       mittBus.emit('download-file', {
         path: `${fileManageStore.currentPath}/${currentRowData?.value?.name as string}`,
         is_dir: currentRowData.value?.is_dir as boolean
@@ -377,6 +390,9 @@ const handlePathClick = (item: IFilePath) => {
   mittBus.emit('file-manage', { path, type: ManageTypes.CHANGE });
 };
 
+/**
+ * @description modal 对话框
+ */
 const modalPositiveClick = () => {
   const index =
     fileManageStore?.fileList?.findIndex((item: IFileManageSftpFileItem) => {
@@ -418,7 +434,7 @@ const modalPositiveClick = () => {
 
   if (modalType.value === 'add') {
     if (index !== -1) {
-      return message.error('该文件已添加');
+      return message.error('该文件已存在');
     } else {
       mittBus.emit('file-manage', {
         path: `${fileManageStore.currentPath}/${newFileName.value}`,
@@ -428,6 +444,31 @@ const modalPositiveClick = () => {
       newFileName.value = '';
     }
   }
+};
+
+/**
+ * @description 文件上传
+ */
+const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) => {
+  showInner.value = true;
+
+  if (options.fileList.length > 0) {
+    fileList.value = options.fileList;
+  }
+};
+
+/**
+ * @description 自定义上传
+ * @param onFinish
+ * @param onError
+ * @param onProgress
+ */
+const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
+  mittBus.emit('file-upload', { fileList, onFinish, onError, onProgress });
+};
+
+const handleOpenTransferList = () => {
+  showInner.value = true;
 };
 
 const modalNegativeClick = () => {

@@ -1,5 +1,6 @@
 <template>
   <n-drawer
+    id="drawer-inner-target"
     v-model:show="isShowList"
     :auto-focus="false"
     :width="settingDrawer ? 270 : 700"

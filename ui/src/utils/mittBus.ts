@@ -1,7 +1,10 @@
 import mitt, { Emitter } from 'mitt';
-import { shareUser } from '@/views/interface';
-import { customTreeOption } from '@/hooks/interface';
 import { ManageTypes } from '@/hooks/useFileManage.ts';
+
+import type { Ref } from 'vue';
+import type { shareUser } from '@/views/interface';
+import type { UploadFileInfo } from 'naive-ui';
+import type { customTreeOption } from '@/hooks/interface';
 
 type Event = {
   'remove-event': void;
@@ -15,6 +18,12 @@ type Event = {
   'connect-terminal': customTreeOption;
   'set-theme': { themeName: string };
   'file-manage': { path: string; type: ManageTypes; new_name?: string };
+  'file-upload': {
+    fileList: Ref<Array<UploadFileInfo>>;
+    onFinish: () => void;
+    onError: () => void;
+    onProgress: (e: { percent: number }) => void;
+  };
   'download-file': { path: string; is_dir: boolean };
   'terminal-search': { keyword: string; type?: string };
   'share-user': { type: string; query: string };
