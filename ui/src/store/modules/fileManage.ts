@@ -25,7 +25,11 @@ export const useFileManageStore = defineStore('fileManage', {
   actions: {
     setFileList(fileList: IFileManageSftpFileItem[]) {
       if (fileList) {
-        console.log('=>(fileManage.ts:15) fileList', fileList);
+        console.log(
+          '%c DEBUG[ fileList ]-72:',
+          'font-size:13px; background:#DCDCDC; color:#2F4F4F;',
+          fileList
+        );
         this.fileList = fileList;
       }
     },

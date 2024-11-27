@@ -116,17 +116,21 @@ const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: strin
 const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
   const fileManageStore = useFileManageStore();
 
-  messageData = [
-    {
-      name: '..',
-      size: '',
-      perm: '',
-      mod_time: '',
-      type: '',
-      is_dir: true
-    },
-    ...messageData
-  ];
+  if (fileManageStore.currentPath === '/') {
+    messageData = [...messageData];
+  } else {
+    messageData = [
+      {
+        name: '..',
+        size: '',
+        perm: '',
+        mod_time: '',
+        type: '',
+        is_dir: true
+      },
+      ...messageData
+    ];
+  }
 
   fileManageStore.setFileList(messageData);
 };
@@ -162,10 +166,20 @@ const initSocketEvent = (socket: WebSocket) => {
       case MessageType.SFTP_DATA: {
         if (message.cmd === 'mkdir' && message.data === 'ok') {
           globalMessage.success('创建成功');
+
+          mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'rm' && message.data === 'ok') {
           globalMessage.success('删除成功');
+
+          mittBus.emit('reload-table');
+        }
+
+        if (message.cmd === 'rename' && message.data === 'ok') {
+          globalMessage.success('修改成功');
+
+          mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'upload' && message.data) {
@@ -438,6 +452,8 @@ const handleFileUpload = (
 
           if (percent === 100) {
             onFinish();
+
+            mittBus.emit('reload-table');
           }
         }
       } catch (e) {

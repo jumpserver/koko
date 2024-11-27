@@ -11,6 +11,7 @@ type Event = {
   'alt-shift-right': void;
   'alt-shift-left': void;
   'open-setting': void;
+  'reload-table': void;
   'open-fileList': void;
   'fold-tree-click': void;
   'show-theme-config': void;

@@ -200,7 +200,6 @@ const props = withDefaults(
 );
 
 const { t } = useI18n();
-const message = useMessage();
 const fileManageStore = useFileManageStore();
 
 const isLoaded = ref(false);
@@ -209,25 +208,6 @@ const isShowList = ref(true);
 const settingDrawer = ref(false);
 const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);
-
-const actionItem = [
-  {
-    iconName: Delete,
-    label: t('Delete'),
-    type: 'error',
-    onClick: (row: RowData) => {
-      message.success(row.name);
-    }
-  },
-  {
-    iconName: CloudDownload,
-    label: t('Download'),
-    type: 'info',
-    onClick: (row: RowData) => {
-      message.success(row.name);
-    }
-  }
-];
 
 watch(
   () => fileManageStore.fileList,
@@ -305,27 +285,61 @@ const createColumns = (): DataTableColumns<RowData> => {
           {
             default: () => [
               h(NIcon, {
-                size: '16',
+                size: '18',
                 component: Folder
               }),
               h(
-                NEllipsis,
+                NFlex,
                 {
+                  justify: 'center',
+                  align: 'flex-start',
                   style: {
-                    maxWidth: '260px',
-                    cursor: 'pointer'
+                    flexDirection: 'column',
+                    rowGap: '0px'
                   }
                 },
                 {
-                  default: () =>
+                  default: () => [
+                    h(
+                      NEllipsis,
+                      {
+                        style: {
+                          maxWidth: '210px',
+                          cursor: 'pointer'
+                        }
+                      },
+                      {
+                        default: () =>
+                          h(
+                            NText,
+                            {
+                              depth: 1,
+                              strong: true
+                            },
+                            {
+                              default: () => row.name
+                            }
+                          )
+                      }
+                    ),
                     h(
                       NText,
                       {
-                        depth: 1,
-                        strong: true
+                        depth: 3,
+                        strong: true,
+                        style: {
+                          fontSize: '10px'
+                        }
                       },
-                      { default: () => row.name }
+                      {
+                        default: () => {
+                          if (row.name === '..') return;
+
+                          return row.perm ? row.perm : '-';
+                        }
+                      }
                     )
+                  ]
                 }
               )
             ]
@@ -343,14 +357,9 @@ const createColumns = (): DataTableColumns<RowData> => {
       },
       render(row: RowData) {
         return h(
-          NTag,
+          NText,
           {
-            size: 'small',
-            style: {
-              marginRight: '6px'
-            },
-            type: 'info',
-            bordered: false
+            depth: 1
           },
           {
             default: () => {
@@ -388,14 +397,10 @@ const createColumns = (): DataTableColumns<RowData> => {
       align: 'center',
       render(row: RowData) {
         return h(
-          NTag,
+          NText,
           {
-            size: 'small',
-            style: {
-              marginRight: '6px'
-            },
-            type: 'success',
-            bordered: false
+            depth: 1,
+            strong: true
           },
           {
             default: () => getFileName(row)
@@ -450,9 +455,5 @@ onBeforeUnmount(() => {
 ::v-deep(.n-tabs-pane-wrapper) {
   width: 100%;
   height: 100%;
-}
-
-::v-deep(.n-data-table-td--last-col) {
-  line-height: 100% !important;
 }
 </style>
