@@ -102,7 +102,7 @@
       <n-popover>
         <template #trigger>
           <n-button size="small" round strong @click="handleOpenTransferList">
-            <n-icon size="16" :component="Upload" />
+            <n-icon size="16" :component="List" />
           </n-button>
         </template>
         {{ t('Upload') }}
@@ -114,9 +114,11 @@
 
   <n-flex class="table-part">
     <n-data-table
+      remote
       virtual-scroll
       size="small"
       :bordered="false"
+      :loading="loading"
       :max-height="1000"
       :columns="columns"
       :row-props="rowProps"
@@ -160,14 +162,15 @@
 <script setup lang="ts">
 import mittBus from '@/utils/mittBus.ts';
 
-import { Folder, Refresh, Upload } from '@vicons/tabler';
+import { List } from '@vicons/ionicons5';
+import { Folder, Refresh } from '@vicons/tabler';
 import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
 import { getFileName } from '@/utils';
 import { getDropSelections } from './config.ts';
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
@@ -194,15 +197,7 @@ const props = withDefaults(
   }
 );
 
-const emits = defineEmits<{
-  (e: 'resetLoaded'): void;
-}>();
-
-// todo)) download icon 需要改变
-// todo)) 自动刷新
-// todo)) 权限位的展示
 // todo)) 小屏幕下的宽度适配
-// todo)) [配色]
 
 const { t } = useI18n();
 const message = useMessage();
@@ -216,12 +211,13 @@ const modalTitle = ref('');
 const forwardPath = ref('');
 const newFileName = ref('');
 const modalContent = ref('');
+const loading = ref(false);
 const showInner = ref(false);
 const showModal = ref(false);
-const disabledBack = ref(true);
 const showDropdown = ref(false);
-const disabledForward = ref(true);
 const isShowUploadList = ref(false);
+const disabledBack = ref(true);
+const disabledForward = ref(true);
 
 const scrollRef = ref(null);
 
@@ -233,6 +229,20 @@ watch(
   () => fileManageStore.currentPath,
   newPath => {
     if (newPath) {
+      if (newPath === '/') {
+        filePathList.value = [];
+
+        disabledBack.value = true;
+        filePathList.value.push({
+          id: '/',
+          path: '/',
+          active: true,
+          showArrow: false
+        });
+
+        return;
+      }
+
       // 重置所有项的 active 和 showArrow 状态
       filePathList.value.forEach(item => {
         item.active = false;
@@ -289,6 +299,18 @@ watch(
       // 如果 oldPath 包含 newPath，则重置 forwardPath 为 oldPath
       forwardPath.value = oldPath;
     }
+  }
+);
+
+watch(
+  () => fileManageStore.fileList,
+  newFileList => {
+    if (newFileList) {
+      loading.value = false;
+    }
+  },
+  {
+    immediate: true
   }
 );
 
@@ -363,7 +385,7 @@ const handlePathBack = () => {
   } else {
     disabledBack.value = true;
 
-    message.error('当前节点已为根节点！', { duration: 3000 });
+    // message.error('当前节点已为根节点！', { duration: 3000 });
   }
 };
 
@@ -398,6 +420,14 @@ const handlePathClick = (item: IFilePath) => {
 };
 
 /**
+ * @description 刷新
+ */
+const handleRefresh = () => {
+  loading.value = true;
+  mittBus.emit('file-manage', { path: fileManageStore.currentPath, type: ManageTypes.REFRESH });
+};
+
+/**
  * @description modal 对话框
  */
 const modalPositiveClick = () => {
@@ -415,6 +445,8 @@ const modalPositiveClick = () => {
         return (showModal.value = true);
       });
     } else {
+      loading.value = true;
+
       mittBus.emit('file-manage', {
         type: ManageTypes.RENAME,
         path: `${fileManageStore.currentPath}/${currentRowData?.value?.name}`,
@@ -428,6 +460,8 @@ const modalPositiveClick = () => {
   }
 
   if (modalType.value === 'delete') {
+    loading.value = true;
+
     mittBus.emit('file-manage', {
       type: ManageTypes.REMOVE,
       path: `${fileManageStore.currentPath}/${currentRowData?.value?.name}`
@@ -443,6 +477,8 @@ const modalPositiveClick = () => {
     if (index !== -1) {
       return message.error('该文件已存在');
     } else {
+      loading.value = true;
+
       mittBus.emit('file-manage', {
         path: `${fileManageStore.currentPath}/${newFileName.value}`,
         type: ManageTypes.CREATE
@@ -488,8 +524,10 @@ const handleNewFolder = () => {
   modalTitle.value = '创建文件夹';
 };
 
-const handleRefresh = () => {
-  mittBus.emit('file-manage', { path: fileManageStore.currentPath, type: ManageTypes.REFRESH });
+const handleTableLoading = () => {
+  loading.value = false;
+
+  handleRefresh();
 };
 
 const rowProps = (row: RowData) => {
@@ -516,13 +554,36 @@ const rowProps = (row: RowData) => {
         return message.error('暂不支持文件预览');
       }
 
+      if (row.name === '..') {
+        const backPath = removeLastPathSegment(fileManageStore.currentPath)
+          ? removeLastPathSegment(fileManageStore.currentPath)
+          : '/';
+
+        if (backPath === '/' && filePathList.value.findIndex(item => item.path === '/') === -1) {
+          fileManageStore.setCurrentPath('/');
+        }
+
+        mittBus.emit('file-manage', { path: backPath, type: ManageTypes.CHANGE });
+
+        handlePathBack();
+
+        return;
+      }
+
       mittBus.emit('file-manage', { path: splicePath, type: ManageTypes.CHANGE });
+
       disabledBack.value = false;
     }
   };
 };
 
+onMounted(() => {
+  mittBus.on('reload-table', handleTableLoading);
+});
+
 onBeforeUnmount(() => {
   unloadListeners();
+
+  mittBus.off('reload-table', handleTableLoading);
 });
 </script>

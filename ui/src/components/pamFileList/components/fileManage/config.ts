@@ -42,7 +42,8 @@ export const getDropSelections = (t: any): DropdownOption[] => {
         h(
           NIcon,
           {
-            color: 'red'
+            color: 'red',
+            size: 16
           },
           {
             default: () => h(Delete16Regular)
