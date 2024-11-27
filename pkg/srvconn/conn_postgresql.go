@@ -102,6 +102,21 @@ func (opt *sqlOption) PostgreSQLDataSourceName() string {
 		opt.DBName,
 	)
 }
+
+func (opt *sqlOption) PostgreSQLDataSourceSSL() string {
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s",
+		opt.Host,
+		opt.Port,
+		opt.Username,
+		opt.Password,
+		opt.DBName,
+	)
+}
+
 func checkPostgreSQLAccount(args *sqlOption) error {
-	return checkDatabaseAccountValidate("postgres", args.PostgreSQLDataSourceName())
+	if checkDatabaseAccountValidate("postgres", args.PostgreSQLDataSourceName()) == nil {
+		return nil
+	}
+	logger.Info("PostgreSQL account check failed, try to use sslmode=require")
+	return checkDatabaseAccountValidate("postgres", args.PostgreSQLDataSourceSSL())
 }
