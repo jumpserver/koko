@@ -24,7 +24,7 @@ func GetDecryptedToken() (token string, err error) {
 	return
 }
 
-func WrappedExec(commandString string, secretToHide string) {
+func WrappedExec(command string, args []string, secretToHide string) {
 	gracefulStop := make(chan os.Signal, 1)
 	// Ctrl + C 中断操作特殊处理，防止命令无法终止
 	signal.Notify(gracefulStop, os.Interrupt)
@@ -35,7 +35,7 @@ func WrappedExec(commandString string, secretToHide string) {
 		os.Exit(1)
 	}()
 
-	c := exec.Command("bash", "-c", commandString)
+	c := exec.Command(command, args...)
 	c.Stdin, c.Stdout = os.Stdin, os.Stdout
 	stderr, err := c.StderrPipe()
 	if err != nil {
