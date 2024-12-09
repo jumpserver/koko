@@ -35,13 +35,15 @@ define make_artifact_full
 	GOOS=$(1) GOARCH=$(2) $(K8SCMDBUILD) -o $(BUILDDIR)/kubectl-$(1)-$(2) $(KUBECTLFILE)
 	GOOS=$(1) GOARCH=$(2) $(K8SCMDBUILD) -o $(BUILDDIR)/helm-$(1)-$(2) $(HELMFILE)
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
-
 	cp $(BUILDDIR)/$(NAME)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/$(NAME)
-	cp $(BUILDDIR)/kubectl-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/kubectl
-	cp $(BUILDDIR)/helm-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/helm
-	cp -r $(BASEPATH)/locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
-	cp -r $(BASEPATH)/config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/config_example.yml
-	cp -r $(BASEPATH)/utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/init-kubectl.sh
+	cp README.md $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/README.md
+	cp LICENSE $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/LICENSE
+	cp config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/config_example.yml
+	cp entrypoint.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/entrypoint.sh
+	cp helm-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/helm
+	cp kubectl-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/kubectl
+	cp utils/init-kubectl.sh $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/init-kubectl.sh
+	cp -r locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
 
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$(1)-$(2).tar.gz $(NAME)-$(VERSION)-$(1)-$(2)
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2) $(BUILDDIR)/kubectl-$(1)-$(2) $(BUILDDIR)/helm-$(1)-$(2)
@@ -61,6 +63,7 @@ all: koko-ui
 	$(call make_artifact_full,linux,ppc64le)
 	$(call make_artifact_full,linux,s390x)
 	$(call make_artifact_full,linux,riscv64)
+	$(call make_artifact_full,linux,loong64)
 
 local: koko-ui
 	$(call make_artifact_full,$(shell go env GOOS),$(shell go env GOARCH))
