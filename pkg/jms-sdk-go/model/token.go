@@ -23,8 +23,9 @@ type ConnectToken struct {
 
 	CommandFilterACLs []CommandACL `json:"command_filter_acls"`
 
-	Ticket     *ObjectId   `json:"from_ticket,omitempty"`
-	TicketInfo interface{} `json:"from_ticket_info,omitempty"`
+	Ticket           *ObjectId   `json:"from_ticket,omitempty"`
+	TicketInfo       interface{} `json:"from_ticket_info,omitempty"`
+	FaceMonitorToken string      `json:"face_monitor_token,omitempty"`
 
 	Code   string `json:"code"`
 	Detail string `json:"detail"`
