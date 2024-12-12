@@ -86,3 +86,6 @@ const (
 const (
 	UserKoKoPreferenceURL = "/api/v1/users/preference/?category=koko"
 )
+const (
+	FaceMonitorContextUrl = "/api/v1/authentication/face-monitor/context/"
+)
