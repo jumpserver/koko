@@ -97,8 +97,16 @@ msgid "ACL reject"
 msgstr "本次登入已拒絕，原因是訪問控制策略的限制"
 
 #. lang.T
+#: pkg/handler/asset.go:223
+#, fuzzy
+msgid ""
+"Face verification is not supported yet. Please use the WebTerminal to "
+"connect the asset."
+msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
+
 #. lang.T
-#: pkg/handler/asset.go:231 pkg/handler/asset.go:248
+#. lang.T
+#: pkg/handler/asset.go:238 pkg/handler/asset.go:255
 msgid "get connect token err"
 msgstr "獲取 connect token 錯誤"
 
@@ -246,9 +254,10 @@ msgstr "未發現匹配的使用者名稱 %s"
 #. lang.T
 #. lang.T
 #. lang.T
+#. lang.T
 #: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
-#: pkg/handler/direct_handler.go:453 pkg/handler/direct_handler.go:469
-#: pkg/handler/dispatch.go:139
+#: pkg/handler/direct_handler.go:445 pkg/handler/direct_handler.go:460
+#: pkg/handler/direct_handler.go:476 pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "節點：[ ID.名稱(資產數量) ]"
 
@@ -411,7 +420,7 @@ msgid ""
 msgstr "您執行的指令存在風險，警告通知將發送給管理員。是否繼續？[Y/N]"
 
 #. lang.T
-#: pkg/proxy/parser.go:282
+#: pkg/proxy/parser.go:283
 #, fuzzy
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
 msgstr "命令 `%s` 需要複核，是否繼續？[Y/N]"
@@ -419,7 +428,7 @@ msgstr "命令 `%s` 需要複核，是否繼續？[Y/N]"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:302 pkg/proxy/parser.go:309 pkg/proxy/parser.go:463
+#: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
 msgid "Command `%s` is forbidden"
 msgstr "命令 `%s` 是被禁止的 ..."
 
@@ -429,7 +438,7 @@ msgid "have no permission to download file"
 msgstr "無權限下載文件"
 
 #. lang.T
-#: pkg/proxy/parser.go:608
+#: pkg/proxy/parser.go:606
 #, fuzzy
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
@@ -437,7 +446,7 @@ msgid ""
 msgstr "請等待審核人覆核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
 
 #. lang.T
-#: pkg/proxy/parser.go:618
+#: pkg/proxy/parser.go:616
 #, fuzzy
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
@@ -447,7 +456,7 @@ msgstr "需要工單命令執行覆核，已發郵件通知審核人"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:619 pkg/proxy/parser.go:620 pkg/proxy/server.go:58
+#: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
 #: pkg/proxy/server.go:62
 #, fuzzy
 msgid ""
@@ -461,47 +470,47 @@ msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "系統用戶<%s>和資產<%s>協議不一致"
 
 #. lang.T
-#: pkg/proxy/server.go:101
+#: pkg/proxy/server.go:102
 msgid "You don't have permission login %s"
 msgstr "你無權限登入 %s"
 
 #. lang.T
-#: pkg/proxy/server.go:337
+#: pkg/proxy/server.go:334
 msgid "You get auth token failed"
 msgstr "你獲取認證令牌失敗"
 
 #. lang.T
-#: pkg/proxy/server.go:348
+#: pkg/proxy/server.go:345
 #, fuzzy
 msgid "Get auth password failed"
 msgstr "你獲取認證令牌失敗"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:364 pkg/proxy/server.go:421
+#: pkg/proxy/server.go:361 pkg/proxy/server.go:418
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "復用SSH連接（%s@%s）[連接數量: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:677
+#: pkg/proxy/server.go:674
 msgid "Switched to %s"
 msgstr "已切換至%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:774 pkg/proxy/server.go:919
+#: pkg/proxy/server.go:771 pkg/proxy/server.go:916
 msgid "Connect with api server failed"
 msgstr "連接API服務失敗"
 
 #. lang.T
-#: pkg/proxy/server.go:968
+#: pkg/proxy/server.go:977
 #, fuzzy
 msgid "Start domain gateway failed %s"
 msgstr "啟動資料庫網關失敗%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:976 pkg/proxy/server_options.go:108
+#: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
 #, fuzzy
 msgid "Manual"
 msgstr "手動帳號"
@@ -537,19 +546,19 @@ msgid "Connecting to Kubernetes %s container %s"
 msgstr "開始連接Kubernetes %s 容器 %s"
 
 #. lang.T
-#: pkg/proxy/switch.go:325
+#: pkg/proxy/switch.go:328
 #, fuzzy
 msgid "Session max time reached, disconnect"
 msgstr "會話超過最大連接時間，斷開連接"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:336 pkg/proxy/switch.go:345
+#: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
 msgid "Permission has expired, disconnect"
 msgstr "授權已過期，斷開連接"
 
 #. lang.T
-#: pkg/proxy/switch.go:357
+#: pkg/proxy/switch.go:354
 #, fuzzy
 msgid "Terminated by admin %s"
 msgstr "%s 管理員中斷連接"

@@ -69,6 +69,8 @@ type ConnectTokenInfo struct {
 const (
 	ACLReview = "acl_review"
 	ACLReject = "acl_reject"
+
+	ACLFaceVerify = "acl_face_verify"
 )
 
 type ConnectOptions struct {
