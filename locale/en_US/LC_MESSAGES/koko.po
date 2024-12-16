@@ -90,8 +90,15 @@ msgid "ACL reject"
 msgstr ""
 
 #. lang.T
+#: pkg/handler/asset.go:223
+msgid ""
+"Face verification is not supported yet. Please use the WebTerminal to "
+"connect the asset."
+msgstr ""
+
 #. lang.T
-#: pkg/handler/asset.go:231 pkg/handler/asset.go:248
+#. lang.T
+#: pkg/handler/asset.go:238 pkg/handler/asset.go:255
 msgid "get connect token err"
 msgstr ""
 
@@ -228,9 +235,10 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
+#. lang.T
 #: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
-#: pkg/handler/direct_handler.go:453 pkg/handler/direct_handler.go:469
-#: pkg/handler/dispatch.go:139
+#: pkg/handler/direct_handler.go:445 pkg/handler/direct_handler.go:460
+#: pkg/handler/direct_handler.go:476 pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
@@ -383,14 +391,14 @@ msgid ""
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:282
+#: pkg/proxy/parser.go:283
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
 msgstr ""
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:302 pkg/proxy/parser.go:309 pkg/proxy/parser.go:463
+#: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
 msgid "Command `%s` is forbidden"
 msgstr ""
 
@@ -400,14 +408,14 @@ msgid "have no permission to download file"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:608
+#: pkg/proxy/parser.go:606
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
 "or CTRL+D."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/parser.go:618
+#: pkg/proxy/parser.go:616
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -416,7 +424,7 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:619 pkg/proxy/parser.go:620 pkg/proxy/server.go:58
+#: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
 #: pkg/proxy/server.go:62
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
@@ -428,45 +436,45 @@ msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:101
+#: pkg/proxy/server.go:102
 msgid "You don't have permission login %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:337
+#: pkg/proxy/server.go:334
 msgid "You get auth token failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:348
+#: pkg/proxy/server.go:345
 msgid "Get auth password failed"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:364 pkg/proxy/server.go:421
+#: pkg/proxy/server.go:361 pkg/proxy/server.go:418
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:677
+#: pkg/proxy/server.go:674
 msgid "Switched to %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:774 pkg/proxy/server.go:919
+#: pkg/proxy/server.go:771 pkg/proxy/server.go:916
 msgid "Connect with api server failed"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/server.go:968
+#: pkg/proxy/server.go:977
 msgid "Start domain gateway failed %s"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:976 pkg/proxy/server_options.go:108
+#: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
 msgid "Manual"
 msgstr ""
 
@@ -496,18 +504,18 @@ msgid "Connecting to Kubernetes %s container %s"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/switch.go:325
+#: pkg/proxy/switch.go:328
 msgid "Session max time reached, disconnect"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:336 pkg/proxy/switch.go:345
+#: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
 msgid "Permission has expired, disconnect"
 msgstr ""
 
 #. lang.T
-#: pkg/proxy/switch.go:357
+#: pkg/proxy/switch.go:354
 msgid "Terminated by admin %s"
 msgstr ""
 
