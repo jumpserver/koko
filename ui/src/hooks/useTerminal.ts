@@ -120,7 +120,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       }
       case 'CLOSE': {
         socket.close();
-        sendEventToLuna('CLOSE', '');
+        sendEventToLuna('CLOSE', '',lunaId.value, origin.value);
         break;
       }
       case 'PING':
