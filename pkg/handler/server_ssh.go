@@ -412,7 +412,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	}
 	ctx, cancel := context.WithCancel(sess.Context())
 	defer cancel()
-
+	respSession.TokenId = tokenInfo.Id
 	traceSession := session.NewSession(&respSession, func(task *model.TerminalTask) error {
 		switch task.Name {
 		case model.TaskKillSession:
