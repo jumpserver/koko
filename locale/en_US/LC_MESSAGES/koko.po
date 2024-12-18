@@ -92,13 +92,18 @@ msgstr ""
 #. lang.T
 #: pkg/handler/asset.go:223
 msgid ""
-"Face verification is not supported yet. Please use the WebTerminal to "
-"connect the asset."
+"Face ACL is not supported yet. Please use the WebTerminal to connect the "
+"asset."
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:238 pkg/handler/asset.go:255
+#: pkg/handler/asset.go:238 pkg/handler/asset.go:247
+msgid "Unknown error code: %s, detail: %s"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/asset.go:258
 msgid "get connect token err"
 msgstr ""
 
@@ -233,12 +238,18 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
 #: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
-#: pkg/handler/direct_handler.go:445 pkg/handler/direct_handler.go:460
-#: pkg/handler/direct_handler.go:476 pkg/handler/dispatch.go:139
+#: pkg/handler/direct_handler.go:445
+msgid ""
+"Face verification is not supported yet. Please use the WebTerminal to "
+"connect the asset."
+msgstr ""
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
+#: pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 

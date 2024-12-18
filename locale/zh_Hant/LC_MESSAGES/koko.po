@@ -100,13 +100,18 @@ msgstr "本次登入已拒絕，原因是訪問控制策略的限制"
 #: pkg/handler/asset.go:223
 #, fuzzy
 msgid ""
-"Face verification is not supported yet. Please use the WebTerminal to "
-"connect the asset."
+"Face ACL is not supported yet. Please use the WebTerminal to connect the "
+"asset."
 msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:238 pkg/handler/asset.go:255
+#: pkg/handler/asset.go:238 pkg/handler/asset.go:247
+msgid "Unknown error code: %s, detail: %s"
+msgstr "未知錯誤碼：%s，詳情：%s"
+
+#. lang.T
+#: pkg/handler/asset.go:258
 msgid "get connect token err"
 msgstr "獲取 connect token 錯誤"
 
@@ -252,12 +257,19 @@ msgstr "未發現匹配的使用者名稱 %s"
 #. lang.T
 #. lang.T
 #. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
 #: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
-#: pkg/handler/direct_handler.go:445 pkg/handler/direct_handler.go:460
-#: pkg/handler/direct_handler.go:476 pkg/handler/dispatch.go:139
+#: pkg/handler/direct_handler.go:445
+#, fuzzy
+msgid ""
+"Face verification is not supported yet. Please use the WebTerminal to "
+"connect the asset."
+msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
+#: pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "節點：[ ID.名稱(資產數量) ]"
 
