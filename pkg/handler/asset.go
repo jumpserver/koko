@@ -217,6 +217,13 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 			utils.IgnoreErrWriteString(u.h.term, lang.T("ACL reject"))
 			utils.IgnoreErrWriteString(u.h.term, utils.CharNewLine)
 			return
+		case model.ACLFaceVerify, model.ACLFaceOnline, model.ACLFaceOnlineNotSupported:
+			// todo: 需要人脸验证 后续需要发站内信通知用户，并且等待用户人脸验证通过
+			logger.Errorf("Create connect token and auth info failed: %s %s", tokenInfo.Code, tokenInfo.Detail)
+			msg := lang.T("Face ACL is not supported yet. Please use the WebTerminal to connect the asset.")
+			utils.IgnoreErrWriteString(u.h.term, msg)
+			utils.IgnoreErrWriteString(u.h.term, utils.CharNewLine)
+			return
 		case model.ACLReview:
 			reviewHandler := LoginReviewHandler{
 				readWriter: u.h.sess,
@@ -237,6 +244,9 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 			}
 			tokenInfo = reviewHandler.tokenInfo
 		default:
+			msg := lang.T("Unknown error code: %s, detail: %s")
+			utils.IgnoreErrWriteString(u.h.term, fmt.Sprintf(msg, tokenInfo.Code, tokenInfo.Detail))
+			utils.IgnoreErrWriteString(u.h.term, utils.CharNewLine)
 			logger.Errorf("Create connect token and auth info failed: %s %s", tokenInfo.Code, tokenInfo.Detail)
 			return
 		}

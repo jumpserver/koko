@@ -97,8 +97,21 @@ msgid "ACL reject"
 msgstr "本次登录已拒绝，原因是访问控制策略的限制"
 
 #. lang.T
+#: pkg/handler/asset.go:223
+#, fuzzy
+msgid ""
+"Face ACL is not supported yet. Please use the WebTerminal to connect the "
+"asset."
+msgstr "该终端不支持人脸访问规则，请使用web终端登录"
+
 #. lang.T
-#: pkg/handler/asset.go:231 pkg/handler/asset.go:248
+#. lang.T
+#: pkg/handler/asset.go:238 pkg/handler/asset.go:247
+msgid "Unknown error code: %s, detail: %s"
+msgstr "未知错误代码：%s，详情：%s"
+
+#. lang.T
+#: pkg/handler/asset.go:258
 msgid "get connect token err"
 msgstr "获取 connect token 错误"
 
@@ -244,10 +257,18 @@ msgstr "未发现匹配的用户名 %s"
 #. lang.T
 #. lang.T
 #. lang.T
-#. lang.T
-#. lang.T
 #: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
-#: pkg/handler/direct_handler.go:453 pkg/handler/direct_handler.go:469
+#: pkg/handler/direct_handler.go:445
+#, fuzzy
+msgid ""
+"Face verification is not supported yet. Please use the WebTerminal to "
+"connect the asset."
+msgstr "该终端不支持人脸识别认证，请使用web终端登录"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
 #: pkg/handler/dispatch.go:139
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
@@ -411,7 +432,7 @@ msgid ""
 msgstr "您执行的命令存在风险，告警通知将发送给管理员。是否继续？[Y/N]"
 
 #. lang.T
-#: pkg/proxy/parser.go:282
+#: pkg/proxy/parser.go:283
 #, fuzzy
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
 msgstr "命令 %s 需要复核，是否继续？[Y/N]"
@@ -419,7 +440,7 @@ msgstr "命令 %s 需要复核，是否继续？[Y/N]"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:302 pkg/proxy/parser.go:309 pkg/proxy/parser.go:463
+#: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
 msgid "Command `%s` is forbidden"
 msgstr "命令 `%s` 是被禁止的 ..."
 
@@ -429,7 +450,7 @@ msgid "have no permission to download file"
 msgstr "无权限下载文件"
 
 #. lang.T
-#: pkg/proxy/parser.go:608
+#: pkg/proxy/parser.go:606
 #, fuzzy
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
@@ -437,7 +458,7 @@ msgid ""
 msgstr "请等待审核人复核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
 
 #. lang.T
-#: pkg/proxy/parser.go:618
+#: pkg/proxy/parser.go:616
 #, fuzzy
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
@@ -447,7 +468,7 @@ msgstr "需要工单命令执行复核，已发邮件通知审核人"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:619 pkg/proxy/parser.go:620 pkg/proxy/server.go:58
+#: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
 #: pkg/proxy/server.go:62
 #, fuzzy
 msgid ""
@@ -461,47 +482,47 @@ msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. lang.T
-#: pkg/proxy/server.go:101
+#: pkg/proxy/server.go:102
 msgid "You don't have permission login %s"
 msgstr "你无权限登陆%s"
 
 #. lang.T
-#: pkg/proxy/server.go:337
+#: pkg/proxy/server.go:334
 msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
-#: pkg/proxy/server.go:348
+#: pkg/proxy/server.go:345
 #, fuzzy
 msgid "Get auth password failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:364 pkg/proxy/server.go:421
+#: pkg/proxy/server.go:361 pkg/proxy/server.go:418
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:677
+#: pkg/proxy/server.go:674
 msgid "Switched to %s"
 msgstr "已切换至%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:774 pkg/proxy/server.go:919
+#: pkg/proxy/server.go:771 pkg/proxy/server.go:916
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. lang.T
-#: pkg/proxy/server.go:968
+#: pkg/proxy/server.go:977
 #, fuzzy
 msgid "Start domain gateway failed %s"
 msgstr "启动数据库网关失败%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:976 pkg/proxy/server_options.go:108
+#: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
 #, fuzzy
 msgid "Manual"
 msgstr "手动账号"
@@ -537,19 +558,19 @@ msgid "Connecting to Kubernetes %s container %s"
 msgstr "开始连接Kubernetes %s 容器 %s"
 
 #. lang.T
-#: pkg/proxy/switch.go:325
+#: pkg/proxy/switch.go:328
 #, fuzzy
 msgid "Session max time reached, disconnect"
 msgstr "会话超过最大连接时间，断开连接"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:336 pkg/proxy/switch.go:345
+#: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
 msgid "Permission has expired, disconnect"
 msgstr "授权已过期，断开连接"
 
 #. lang.T
-#: pkg/proxy/switch.go:357
+#: pkg/proxy/switch.go:354
 #, fuzzy
 msgid "Terminated by admin %s"
 msgstr "%s 管理员终断连接"

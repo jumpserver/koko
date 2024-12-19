@@ -8,9 +8,6 @@ before:
     - go mod tidy
     - go generate ./...
 
-snapshot:
-  version_template: "{{ .Tag }}-next"
-
 builds:
   - id: koko
     main: ./cmd/koko/
@@ -87,6 +84,7 @@ archives:
       - LICENSE
       - README.md
       - config_example.yml
+      - entrypoint.sh
       - locale/*
       - src: utils/init-kubectl.sh
         dst: init-kubectl
@@ -98,7 +96,7 @@ archives:
     name_template: "{{ .ProjectName }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}{{- if .Arm }}v{{ .Arm }}{{ end }}"
 
 checksum:
-  name_template: "{{ .ProjectName }}_checksums.txt"
+  name_template: "checksums.txt"
 
 release:
   draft: true

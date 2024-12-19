@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20241030_063234 AS stage-build
+FROM jumpserver/koko-base:20241217_053647 AS stage-build
 
 WORKDIR /opt/koko
 ARG TARGETARCH
@@ -31,18 +31,15 @@ ENV LANG=en_US.UTF-8
 ARG DEPENDENCIES="                    \
         ca-certificates"
 
-ARG APT_MIRROR=http://mirrors.ustc.edu.cn
+ARG APT_MIRROR=http://deb.debian.org
+
 RUN set -ex \
-    && rm -f /etc/apt/apt.conf.d/docker-clean \
-    && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache \
     && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
     && apt-get clean all \
-    && echo "no" | dpkg-reconfigure dash \
-    && sed -i "s@# export @export @g" ~/.bashrc \
-    && sed -i "s@# alias @alias @g" ~/.bashrc
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/koko
 
