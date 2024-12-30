@@ -161,13 +161,25 @@ func getAvailableProxyClient(cfgs ...SSHClientOptions) (*SSHClient, error) {
 	return nil, ErrNoAvailable
 }
 
+var supportHostKeyAlgorithms = []string{
+	gossh.KeyAlgoED25519,
+	gossh.CertAlgoRSASHA256v01, gossh.CertAlgoRSASHA512v01,
+	gossh.CertAlgoRSAv01, gossh.CertAlgoDSAv01, gossh.CertAlgoECDSA256v01,
+	gossh.CertAlgoECDSA384v01, gossh.CertAlgoECDSA521v01, gossh.CertAlgoED25519v01,
+
+	gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521,
+	gossh.KeyAlgoRSA, gossh.KeyAlgoRSASHA256, gossh.KeyAlgoRSASHA512,
+	gossh.KeyAlgoDSA,
+}
+
 func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 	gosshCfg := gossh.ClientConfig{
-		User:            cfg.Username,
-		Auth:            cfg.AuthMethods(),
-		Timeout:         time.Duration(cfg.Timeout) * time.Second,
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
-		Config:          createSSHConfig(),
+		User:              cfg.Username,
+		Auth:              cfg.AuthMethods(),
+		Timeout:           time.Duration(cfg.Timeout) * time.Second,
+		HostKeyCallback:   gossh.InsecureIgnoreHostKey(),
+		Config:            createSSHConfig(),
+		HostKeyAlgorithms: supportHostKeyAlgorithms,
 	}
 	destAddr := net.JoinHostPort(cfg.Host, cfg.Port)
 	if len(cfg.proxySSHClientOptions) > 0 {
