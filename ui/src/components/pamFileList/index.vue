@@ -203,8 +203,7 @@ const { t } = useI18n();
 const fileManageStore = useFileManageStore();
 
 const isLoaded = ref(false);
-// todo)) 还原为 false
-const isShowList = ref(true);
+const isShowList = ref(false);
 const settingDrawer = ref(false);
 const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);

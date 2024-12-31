@@ -3,15 +3,15 @@ import { type UploadFileInfo, useMessage } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
+import { v4 as uuid } from 'uuid';
 import { BASE_WS_URL } from '@/config';
 
 import mittBus from '@/utils/mittBus.ts';
-import { v4 as uuid } from 'uuid';
 
+import type { Ref } from 'vue';
 import type { RouteRecordNameGeneric } from 'vue-router';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
 import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
-import { Ref } from 'vue';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -42,7 +42,7 @@ const getFileManageUrl = () => {
   let fileConnectionUrl: string = '';
 
   if (routeName === 'Terminal') {
-    fileConnectionUrl = urlParams ? `${BASE_WS_URL}/koko/ws/sftp/?${urlParams.toString()}` : '';
+    fileConnectionUrl = urlParams ? `${BASE_WS_URL}/koko/ws/sftp/?token=${urlParams.toString().split('&')[1].split('=')[1]}` : '';
 
     return fileConnectionUrl;
   }
