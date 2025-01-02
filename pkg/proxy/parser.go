@@ -586,7 +586,7 @@ func (p *Parser) waitCommandConfirm() {
 		titleMsg := lang.T("Need ticket confirm to execute command, already send email to the reviewers")
 		reviewersMsg := fmt.Sprintf(lang.T("Ticket Reviewers: %s"), strings.Join(reviewers, ", "))
 		detailURLMsg := fmt.Sprintf(lang.T("Could copy website URL to notify reviewers: %s"), detailURL)
-		spinner := []string{"|", "/", "-", "\\"}
+		spinner := []string{".   ", "..  ", "... "}
 		var tipString strings.Builder
 		tipString.WriteString(utils.CharNewLine)
 		tipString.WriteString(titleMsg)
