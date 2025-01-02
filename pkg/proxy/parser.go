@@ -586,6 +586,7 @@ func (p *Parser) waitCommandConfirm() {
 		titleMsg := lang.T("Need ticket confirm to execute command, already send email to the reviewers")
 		reviewersMsg := fmt.Sprintf(lang.T("Ticket Reviewers: %s"), strings.Join(reviewers, ", "))
 		detailURLMsg := fmt.Sprintf(lang.T("Could copy website URL to notify reviewers: %s"), detailURL)
+		spinner := []string{"|", "/", "-", "\\"}
 		var tipString strings.Builder
 		tipString.WriteString(utils.CharNewLine)
 		tipString.WriteString(titleMsg)
@@ -593,6 +594,8 @@ func (p *Parser) waitCommandConfirm() {
 		tipString.WriteString(reviewersMsg)
 		tipString.WriteString(utils.CharNewLine)
 		tipString.WriteString(detailURLMsg)
+		tipString.WriteString(utils.CharNewLine)
+		tipString.WriteString(waitMsg)
 		tipString.WriteString(utils.CharNewLine)
 		p.srvOutputChan <- []byte(utils.WrapperString(tipString.String(), utils.Green))
 		for {
@@ -603,7 +606,8 @@ func (p *Parser) waitCommandConfirm() {
 				return
 			default:
 				delayS := fmt.Sprintf("%ds", delay)
-				data := strings.Repeat("\x08", len(delayS)+len(waitMsg)) + waitMsg + delayS
+				currentSpinner := spinner[delay%len(spinner)]
+				data := strings.Repeat("\x08", len(delayS)+len(currentSpinner)) + currentSpinner + delayS
 				p.srvOutputChan <- []byte(data)
 				time.Sleep(time.Second)
 				delay += 1
