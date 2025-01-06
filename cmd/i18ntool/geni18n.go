@@ -59,6 +59,9 @@ func getDomainFile(domain string) *os.File {
 	}
 
 	// If the file doesn't exist, create it.
+	if _, err := os.Stat(*outputDir); err != nil {
+		_ = os.MkdirAll(*outputDir, 0755)
+	}
 	filePath := path.Join(*outputDir, domain+".po")
 	f, err := os.OpenFile(filePath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

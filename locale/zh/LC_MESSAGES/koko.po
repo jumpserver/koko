@@ -10,35 +10,35 @@ msgstr ""
 #. lang.T
 #: pkg/handler/app_database.go:11
 msgid "No Databases"
-msgstr "無資料庫"
+msgstr "无数据库"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:15
 msgid "No kubernetes"
-msgstr "沒有kubernetes"
+msgstr "没有kubernetes"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:31
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr "頁碼：%d，每頁行數：%d，總頁數：%d，總數量：%d"
+msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:45
 #, fuzzy
 msgid ""
 "Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr "提示：輸入資產ID直接登入，二級搜索使用 // + 欄位，如：//192"
+msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:46
 #, fuzzy
 msgid "Page up: b\tPage down: n"
-msgstr "上一頁：b 下一頁：n"
+msgstr "上一页：b 下一页：n"
 
 #. lang.T
 #: pkg/handler/asset.go:43
 msgid "No Assets"
-msgstr "沒有資產"
+msgstr "没有资产"
 
 #. lang.T
 #: pkg/handler/asset.go:55
@@ -48,7 +48,7 @@ msgstr "ID"
 #. lang.T
 #: pkg/handler/asset.go:56
 msgid "Name"
-msgstr "名稱"
+msgstr "名称"
 
 #. lang.T
 #: pkg/handler/asset.go:57
@@ -63,38 +63,38 @@ msgstr "平台"
 #. lang.T
 #: pkg/handler/asset.go:59
 msgid "Organization"
-msgstr "組織"
+msgstr "组织"
 
 #. lang.T
 #: pkg/handler/asset.go:60
 #, fuzzy
 msgid "Comment"
-msgstr "備註"
+msgstr "备注"
 
 #. lang.T
 #: pkg/handler/asset.go:174
 #, fuzzy
 msgid "%s protocol client not installed."
-msgstr "%s 協議的用戶端未安裝"
+msgstr "%s 协议的客户端未安装"
 
 #. lang.T
 #: pkg/handler/asset.go:177
 #, fuzzy
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
-msgstr "該終端不支持 %s 協議，請使用web終端登入"
+msgstr "该终端不支持 %s 协议，请使用web终端登录"
 
 #. lang.T
 #: pkg/handler/asset.go:211
 #, fuzzy
 msgid "Core API failed"
-msgstr "Core API 發生錯誤"
+msgstr "Core API 发生错误"
 
 #. lang.T
 #: pkg/handler/asset.go:217
 #, fuzzy
 msgid "ACL reject"
-msgstr "本次登入已拒絕，原因是訪問控制策略的限制"
+msgstr "本次登录已拒绝，原因是访问控制策略的限制"
 
 #. lang.T
 #: pkg/handler/asset.go:223
@@ -102,45 +102,45 @@ msgstr "本次登入已拒絕，原因是訪問控制策略的限制"
 msgid ""
 "Face ACL is not supported yet. Please use the WebTerminal to connect the "
 "asset."
-msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
+msgstr "该终端不支持人脸访问规则，请使用web终端登录"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/asset.go:238 pkg/handler/asset.go:247
 msgid "Unknown error code: %s, detail: %s"
-msgstr "未知錯誤碼：%s，詳情：%s"
+msgstr "未知错误代码：%s，详情：%s"
 
 #. lang.T
 #: pkg/handler/asset.go:258
 msgid "get connect token err"
-msgstr "獲取 connect token 錯誤"
+msgstr "获取 connect token 错误"
 
 #. lang.T
 #: pkg/handler/asset_node.go:22
 msgid "%s node has no assets"
-msgstr "%s節點沒有資產"
+msgstr "%s节点没有资产"
 
 #. lang.T
 #: pkg/handler/banner.go:30
 #, fuzzy
 msgid "Welcome to use JumpServer open source fortress system"
-msgstr "歡迎使用JumpServer開源堡壘機系統"
+msgstr "欢迎使用JumpServer开源堡垒机系统"
 
 #. lang.T
 #: pkg/handler/banner.go:32
 msgid "part IP, Hostname, Comment"
-msgstr "部分IP，主機名，備註"
+msgstr "部分IP，主机名，备注"
 
 #. lang.T
 #: pkg/handler/banner.go:32
 #, fuzzy
 msgid "to search login if unique"
-msgstr "搜索登入(如果唯一)"
+msgstr "搜索登录(如果唯一)"
 
 #. lang.T
 #: pkg/handler/banner.go:33
 msgid "/ + IP, Hostname, Comment"
-msgstr "/ + IP，主機名，備註"
+msgstr "/ + IP，主机名，备注"
 
 #. lang.T
 #: pkg/handler/banner.go:33
@@ -152,45 +152,45 @@ msgstr "搜索，如：/192.168"
 #: pkg/handler/banner.go:34
 #, fuzzy
 msgid "display the assets you have permission"
-msgstr "顯示您有權限的資產"
+msgstr "显示您有权限的资产"
 
 #. lang.T
 #: pkg/handler/banner.go:35
 msgid "display the node that you have permission"
-msgstr "顯示您有權限的節點"
+msgstr "显示您有权限的节点"
 
 #. lang.T
 #: pkg/handler/banner.go:36
 #, fuzzy
 msgid "display the hosts that you have permission"
-msgstr "顯示您有權限的主機"
+msgstr "显示您有权限的主机"
 
 #. lang.T
 #: pkg/handler/banner.go:37
 #, fuzzy
 msgid "display the databases that you have permission"
-msgstr "顯示您有權限的資料庫"
+msgstr "显示您有权限的数据库"
 
 #. lang.T
 #: pkg/handler/banner.go:38
 #, fuzzy
 msgid "display the kubernetes that you have permission"
-msgstr "顯示您有權限的Kubernetes"
+msgstr "显示您有权限的Kubernetes"
 
 #. lang.T
 #: pkg/handler/banner.go:39
 msgid "refresh your assets and nodes"
-msgstr "刷新最新的機器和節點資訊"
+msgstr "刷新最新的机器和节点信息"
 
 #. lang.T
 #: pkg/handler/banner.go:40
 msgid "language switch"
-msgstr ""
+msgstr "语言切换"
 
 #. lang.T
 #: pkg/handler/banner.go:41
 msgid "print help"
-msgstr "顯示幫助"
+msgstr "显示帮助"
 
 #. lang.T
 #: pkg/handler/banner.go:42
@@ -201,7 +201,7 @@ msgstr "退出"
 #: pkg/handler/banner.go:60
 #, fuzzy
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "\t%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
+msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
 
 #. lang.T
 #: pkg/handler/banner.go:85
@@ -211,7 +211,7 @@ msgstr "公告："
 #. lang.T
 #: pkg/handler/direct_handler.go:272
 msgid "No Account found."
-msgstr "未發現帳號"
+msgstr "未发现账号"
 
 #. lang.T
 #. lang.T
@@ -220,13 +220,13 @@ msgstr "未發現帳號"
 #: pkg/handler/direct_handler.go:284
 #, fuzzy
 msgid "Username"
-msgstr "使用者名稱"
+msgstr "用户名"
 
 #. lang.T
 #: pkg/handler/direct_handler.go:313
 #, fuzzy
 msgid "Tips: Enter asset[%s] account ID"
-msgstr "提示：輸入資產[%s]的帳號ID"
+msgstr "提示：输入资产[%s]的账号ID"
 
 #. lang.T
 #: pkg/handler/direct_handler.go:314
@@ -238,7 +238,7 @@ msgstr "返回：B/b"
 #: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
 #, fuzzy
 msgid "Hostname"
-msgstr "主機名"
+msgstr "主机名"
 
 #. lang.T
 #. lang.T
@@ -246,13 +246,13 @@ msgstr "主機名"
 #: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
 #: pkg/handler/direct_handler.go:381
 msgid "select one asset to login"
-msgstr "選擇其中一個資產登入"
+msgstr "选择其中一个资产登录"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/direct_handler.go:395 pkg/handler/direct_handler.go:400
 msgid "not found matched username %s"
-msgstr "未發現匹配的使用者名稱 %s"
+msgstr "未发现匹配的用户名 %s"
 
 #. lang.T
 #. lang.T
@@ -263,7 +263,7 @@ msgstr "未發現匹配的使用者名稱 %s"
 msgid ""
 "Face verification is not supported yet. Please use the WebTerminal to "
 "connect the asset."
-msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
+msgstr "该终端不支持人脸识别认证，请使用web终端登录"
 
 #. lang.T
 #. lang.T
@@ -274,39 +274,39 @@ msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
 #: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
 #: pkg/handler/dispatch.go:153
 msgid "Tips: switch language by ID"
-msgstr "提示：輸入ID切換語言"
+msgstr "提示：输入ID切换语言"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
 msgid "Invalid ID"
-msgstr "無效ID"
+msgstr "无效ID"
 
 #. lang.T
 #: pkg/handler/dispatch.go:186
 msgid "Switch language successfully"
-msgstr "切換語言成功"
+msgstr "切换语言成功"
 
 #. lang.T
 #: pkg/handler/dispatch.go:197
 msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "節點：[ ID.名稱(資產數量) ]"
+msgstr "节点：[ ID.名称(资产数量) ]"
 
 #. lang.T
 #: pkg/handler/dispatch.go:199
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "提示：輸入 g+節點ID 顯示節點下主機，如: g1"
+msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
 
 #. lang.T
 #: pkg/handler/interactive.go:68
 msgid "Connect idle more than %d minutes, disconnect"
-msgstr "空閒時間超過%d分鐘，斷開連接"
+msgstr "空闲时间超过%d分钟，断开连接"
 
 #. lang.T
 #: pkg/handler/interactive.go:202
 #, fuzzy
 msgid "No account found."
-msgstr "未發現帳號"
+msgstr "未发现账号"
 
 #. lang.T
 #. lang.T
@@ -318,29 +318,29 @@ msgstr "未發現帳號"
 #: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
 #: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
 msgid "Select account exceed max retry times."
-msgstr "選擇帳號超過最大重試次數"
+msgstr "选择账号超过最大重试次数"
 
 #. lang.T
 #: pkg/handler/interactive.go:282
 msgid "No protocol found."
-msgstr "無協議"
+msgstr "无协议"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
 msgid "Protocol"
-msgstr "協議"
+msgstr "协议"
 
 #. lang.T
 #: pkg/handler/interactive.go:319
 msgid "Tips: Enter protocol ID"
-msgstr "提示：輸入協議ID"
+msgstr "提示：输入协议ID"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
 msgid "Select protocol exceed max retry times."
-msgstr "選擇協議超過最大重試次數"
+msgstr "选择协议超过最大重试次数"
 
 #. lang.T
 #: pkg/handler/interactive.go:383
@@ -350,58 +350,58 @@ msgstr "刷新完成"
 #. lang.T
 #: pkg/handler/login_confirm.go:39
 msgid "Need ACL review, continue? (y/n): "
-msgstr "需要審核，繼續？(y/n): "
+msgstr "需要审核，继续？(y/n): "
 
 #. lang.T
 #: pkg/handler/login_confirm.go:54
 msgid "Cancel to login asset or max 3 retry"
-msgstr "取消登入資產或達到3次重試"
+msgstr "取消登录资产或达到3次重试"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
 #, fuzzy
 msgid "Need ticket confirm to login, already send email to the reviewers"
-msgstr "需要工單登入覆核，已發郵件通知審核人"
+msgstr "需要工单登录复核，已发邮件通知审核人"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:100
 #, fuzzy
 msgid "Ticket Reviewers: %s"
-msgstr "工單審核人：%s "
+msgstr "工单审核人：%s "
 
 #. lang.T
 #: pkg/handler/login_confirm.go:101
 #, fuzzy
 msgid "Could copy website URL to notify reviewers: %s"
-msgstr "可複製審核地址，通知審核人：%s"
+msgstr "可复制审核地址，通知审核人：%s"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:102
 #, fuzzy
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
-msgstr "等待審核人覆核確認，按 q 回車取消登入。"
+msgstr "等待审核人复核确认，按 q 回车取消登录。"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:131
 msgid "Unknown status"
-msgstr "未知狀態"
+msgstr "未知状态"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:135
 msgid "%s approved"
-msgstr "%s 審核通過"
+msgstr "%s 审核通过"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:140
 msgid "%s rejected"
-msgstr "%s 審核拒絕"
+msgstr "%s 审核拒绝"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:144
 #, fuzzy
 msgid "Cancel confirm"
-msgstr "取消登入覆核"
+msgstr "取消登录复核"
 
 #. lang.T
 #: pkg/handler/select_handler.go:201
@@ -412,27 +412,27 @@ msgstr "搜索：%s"
 #. i18n.T
 #: pkg/handler/server_ssh.go:222
 msgid "Must be unique asset for %s"
-msgstr "必須是唯一的資產 %s"
+msgstr "必须是唯一的资产 %s"
 
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
 #, fuzzy
 msgid "Must be unique account for %s"
-msgstr "必須是唯一的帳號 %s"
+msgstr "必须是唯一的账号 %s"
 
 #. i18n.T
 #: pkg/handler/server_ssh.go:259
 #, fuzzy
 msgid "Must be auto login account for %s"
-msgstr "必須是自動登入帳號 %s"
+msgstr "必须是自动登录账号 %s"
 
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
 #, fuzzy
 msgid "No found asset"
-msgstr "未發現匹配的資產 %s"
+msgstr "未发现匹配的资产 %s"
 
 #. i18n.T
 #. i18n.T
@@ -441,20 +441,20 @@ msgstr "未發現匹配的資產 %s"
 #: pkg/handler/server_ssh.go:713 pkg/handler/server_ssh.go:718
 #: pkg/handler/server_ssh.go:736 pkg/proxy/parser.go:230
 msgid "have no permission to upload file"
-msgstr "無權限上傳文件"
+msgstr "无权限上传文件"
 
 #. lang.T
 #: pkg/proxy/parser.go:266
 msgid ""
 "The command you executed is risky and an alert notification will be sent to "
 "the administrator. Do you want to continue?[Y/N]"
-msgstr "您執行的指令存在風險，警告通知將發送給管理員。是否繼續？[Y/N]"
+msgstr "您执行的命令存在风险，告警通知将发送给管理员。是否继续？[Y/N]"
 
 #. lang.T
 #: pkg/proxy/parser.go:283
 #, fuzzy
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
-msgstr "命令 `%s` 需要複核，是否繼續？[Y/N]"
+msgstr "命令 %s 需要复核，是否继续？[Y/N]"
 
 #. lang.T
 #. lang.T
@@ -466,7 +466,7 @@ msgstr "命令 `%s` 是被禁止的 ..."
 #. lang.T
 #: pkg/proxy/parser.go:534
 msgid "have no permission to download file"
-msgstr "無權限下載文件"
+msgstr "无权限下载文件"
 
 #. lang.T
 #: pkg/proxy/parser.go:606
@@ -474,14 +474,14 @@ msgstr "無權限下載文件"
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
 "or CTRL+D."
-msgstr "請等待審核人覆核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
+msgstr "请等待审核人复核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
 
 #. lang.T
 #: pkg/proxy/parser.go:616
 #, fuzzy
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
-msgstr "需要工單命令執行覆核，已發郵件通知審核人"
+msgstr "需要工单命令执行复核，已发邮件通知审核人"
 
 #. lang.T
 #. lang.T
@@ -492,130 +492,133 @@ msgstr "需要工單命令執行覆核，已發郵件通知審核人"
 #, fuzzy
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
-msgstr "該終端不支持 %s 協議，請使用web終端登入"
+msgstr "该终端不支持 %s 协议，请使用web终端登录"
 
 #. lang.T
 #: pkg/proxy/server.go:70
 #, fuzzy
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
-msgstr "系統用戶<%s>和資產<%s>協議不一致"
+msgstr "系统用户<%s>和资产<%s>协议不一致"
 
 #. lang.T
 #: pkg/proxy/server.go:102
 msgid "You don't have permission login %s"
-msgstr "你無權限登入 %s"
+msgstr "你无权限登陆%s"
 
 #. lang.T
 #: pkg/proxy/server.go:334
 msgid "You get auth token failed"
-msgstr "你獲取認證令牌失敗"
+msgstr "你获取认证令牌失败"
 
 #. lang.T
 #: pkg/proxy/server.go:345
 #, fuzzy
 msgid "Get auth password failed"
-msgstr "你獲取認證令牌失敗"
+msgstr "你获取认证令牌失败"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:361 pkg/proxy/server.go:418
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
-msgstr "復用SSH連接（%s@%s）[連接數量: %d]"
+msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 #. lang.T
 #: pkg/proxy/server.go:674
 msgid "Switched to %s"
-msgstr "已切換至%s"
+msgstr "已切换至%s"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:771 pkg/proxy/server.go:916
 msgid "Connect with api server failed"
-msgstr "連接API服務失敗"
+msgstr "连接API服务失败"
 
 #. lang.T
 #: pkg/proxy/server.go:977
 #, fuzzy
 msgid "Start domain gateway failed %s"
-msgstr "啟動資料庫網關失敗%s"
+msgstr "启动数据库网关失败%s"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
 #, fuzzy
 msgid "Manual"
-msgstr "手動帳號"
+msgstr "手动账号"
 
 #. lang.T
 #: pkg/proxy/server_options.go:110
 #, fuzzy
 msgid "Dynamic"
-msgstr "動態帳號"
+msgstr "动态账号"
 
 #. lang.T
 #: pkg/proxy/server_options.go:113
 #, fuzzy
 msgid "Connecting to %s@%s"
-msgstr "開始連接到 %s@%s"
+msgstr "开始连接到 %s@%s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:117
 #, fuzzy
 msgid "Connecting to Database %s"
-msgstr "開始連接資料庫 %s"
+msgstr "开始连接数据库 %s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:119
 #, fuzzy
 msgid "Connecting to Kubernetes %s"
-msgstr "開始連接Kubernetes %s"
+msgstr "开始连接Kubernetes %s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:121
 #, fuzzy
 msgid "Connecting to Kubernetes %s container %s"
-msgstr "開始連接Kubernetes %s 容器 %s"
+msgstr "开始连接Kubernetes %s 容器 %s"
 
 #. lang.T
 #: pkg/proxy/switch.go:328
 #, fuzzy
 msgid "Session max time reached, disconnect"
-msgstr "會話超過最大連接時間，斷開連接"
+msgstr "会话超过最大连接时间，断开连接"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
 msgid "Permission has expired, disconnect"
-msgstr "授權已過期，斷開連接"
+msgstr "授权已过期，断开连接"
 
 #. lang.T
 #: pkg/proxy/switch.go:354
 #, fuzzy
 msgid "Terminated by admin %s"
-msgstr "%s 管理員中斷連接"
+msgstr "%s 管理员终断连接"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
 #, fuzzy
 msgid "Authentication failed"
-msgstr "認證失敗（使用者名稱或密碼錯誤）"
+msgstr "认证失败（用户名或密码错误）"
 
 #. lang.T
 #: pkg/proxy/tools.go:31
 msgid "Connection refused"
-msgstr "網路不通（連接拒絕）"
+msgstr "网络不通（连接拒绝）"
 
 #. lang.T
 #: pkg/proxy/tools.go:34
 msgid "i/o timeout"
-msgstr "網路不通（連接超時）"
+msgstr "网络不通（连接超时）"
 
 #. lang.T
 #: pkg/proxy/tools.go:37
 msgid "No route to host"
-msgstr "網路不通（路由不通）"
+msgstr "网络不通（路由不通）"
 
 #. lang.T
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
-msgstr "網路不通（網路不可達）"
+msgstr "网络不通（网络不可达）"
+
+#~ msgid "Chinese-English-Japanese switch"
+#~ msgstr "中文-English-日本語语言切换"
