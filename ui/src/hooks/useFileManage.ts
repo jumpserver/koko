@@ -136,6 +136,39 @@ const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
 };
 
 /**
+ * @description 心跳检测机制
+ * @param socket WebSocket实例
+ */
+const heartBeat = (socket: WebSocket) => {
+  let pingInterval: number | null = null;
+  
+  const sendPing = () => {
+    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
+      clearInterval(pingInterval!);
+      return;
+    }
+
+    const pingMessage = {
+      id: uuid(),
+      type: MessageType.PING,
+      data: 'ping'
+    };
+
+    socket.send(JSON.stringify(pingMessage));
+  };
+
+  sendPing();
+
+  pingInterval = window.setInterval(sendPing, 2000);
+
+  return () => {
+    if (pingInterval) {
+      clearInterval(pingInterval);
+    }
+  };
+};
+
+/**
  * @description 处理 message
  * @param socket
  */
@@ -144,13 +177,14 @@ const initSocketEvent = (socket: WebSocket) => {
   const fileManageStore = useFileManageStore();
 
   let receivedBuffers: any = [];
+  let clearHeartbeat: (() => void) | null = null;
 
   socket.binaryType = 'arraybuffer';
 
-  socket.onopen = () => {};
-  socket.onerror = () => {};
-
-  socket.onclose = () => {};
+  socket.onopen = () => { clearHeartbeat = heartBeat(socket) };
+  socket.onerror = () => { clearHeartbeat?.() };
+  socket.onclose = () => { clearHeartbeat?.() };
+  
   socket.onmessage = (event: MessageEvent) => {
     const message: IFileManage = JSON.parse(event.data);
 
@@ -235,6 +269,19 @@ const initSocketEvent = (socket: WebSocket) => {
       case MessageType.ERROR: {
         globalMessage.error('Error Occurred!');
 
+        break;
+      }
+
+      case MessageType.PING: {
+        socket.send(JSON.stringify({
+          id: uuid(),
+          type: MessageType.PONG,
+          data: 'pong'
+        }));
+        break;
+      }
+    
+      case MessageType.PONG: {
         break;
       }
 
