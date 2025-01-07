@@ -8,8 +8,8 @@ const (
 	ZH     LanguageCode = "zh"
 	EN     LanguageCode = "en"
 	JA     LanguageCode = "ja"
-	ZHHant LanguageCode = "zh_hant"
-	PtBr   LanguageCode = "pt_br"
+	ZHHant LanguageCode = "zh_Hant"
+	PtBr   LanguageCode = "pt_BR"
 )
 
 var (
@@ -26,6 +26,7 @@ var i18nCodeMap = map[string]LanguageCode{
 	"pt_br":   PtBr,
 	"pt":      PtBr,
 	"zh-cn":   ZH,
+	"zh_cn":   ZH,
 	"zh-hans": ZH,
 	"zh-hant": ZHHant,
 	"zh_hant": ZHHant,
