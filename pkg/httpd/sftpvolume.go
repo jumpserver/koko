@@ -229,8 +229,10 @@ func (u *UserVolume) GetFile(path string) (fileData elfinder.FileData, err error
 
 	sf, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
 	if err != nil {
+		logger.Errorf("GetFile Open file %s err: %s", path, err)
 		return rest, err
 	}
+	logger.Info("GetFile Open file success: ", path)
 
 	// _, _ = sf.Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
