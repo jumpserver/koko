@@ -226,22 +226,30 @@ func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
 func (u *UserVolume) GetFile(path string) (fileData elfinder.FileData, err error) {
 	logger.Debug("GetFile path: ", path)
 	var rest elfinder.FileData
+	sfStatus, err := u.UserSftp.Stat(filepath.Join(u.basePath, TrimPrefix(path)))
+	if err != nil {
+		logger.Errorf("Get File path %s stat failed: %s", path, err)
+		return rest, err
+	}
+
 	sf, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
 	if err != nil {
 		return rest, err
 	}
+	go func() {
+		sf1, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
+		if err != nil {
+			logger.Errorf("Record file %s err: %s", path, err)
+			return
+		}
+		if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf1, 0, sfStatus.Size()); err1 != nil {
+			logger.Errorf("Record file err: %s", err1)
+		}
+	}()
 
-	fileInfo, err := sf.Stat()
-	if err != nil {
-		return rest, err
-	}
-
-	if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf, 0, fileInfo.Size()); err1 != nil {
-		logger.Errorf("Record file err: %s", err1)
-	}
-	_, _ = sf.Seek(0, io.SeekStart)
+	// _, _ = sf.Seek(0, io.SeekStart)
 	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
-	fileData = elfinder.FileData{Reader: sf, Size: fileInfo.Size()}
+	fileData = elfinder.FileData{Reader: &fileReader{read: sf}, Size: sfStatus.Size()}
 	return fileData, nil
 }
 
@@ -527,4 +535,16 @@ func hashPath(id, path string) string {
 
 func TrimPrefix(path string) string {
 	return strings.TrimPrefix(path, "/")
+}
+
+type fileReader struct {
+	read io.ReadCloser
+}
+
+func (f *fileReader) Read(p []byte) (nr int, err error) {
+	return f.read.Read(p)
+}
+
+func (f *fileReader) Close() error {
+	return f.read.Close()
 }
