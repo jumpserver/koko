@@ -169,8 +169,8 @@ msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:40
-msgid "Chinese-English-Japanese switch"
-msgstr "中文-English-日本語 switch"
+msgid "language switch"
+msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:41
@@ -248,13 +248,32 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
+#. lang.T
+#. lang.T
 #: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
-#: pkg/handler/dispatch.go:139
+#: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
+#: pkg/handler/dispatch.go:153
+msgid "Tips: switch language by ID"
+msgstr ""
+
+#. lang.T
+#. lang.T
+#: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
+msgid "Invalid ID"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/dispatch.go:186
+msgid "Switch language successfully"
+msgstr ""
+
+#. lang.T
+#: pkg/handler/dispatch.go:197
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/dispatch.go:141
+#: pkg/handler/dispatch.go:199
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 
@@ -554,3 +573,6 @@ msgstr ""
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr ""
+
+#~ msgid "Chinese-English-Japanese switch"
+#~ msgstr "中文-English-日本語 switch"

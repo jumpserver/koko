@@ -2,6 +2,7 @@ import { Ref } from 'vue';
 import type { ILunaConfig } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
+import { useDebounceFn } from '@vueuse/core';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { formatMessage, handleError, sendEventToLuna } from '@/components/CustomTerminal/helper';
 
@@ -124,11 +125,23 @@ export const handleCustomKey = (
   lunaId: string,
   origin: string
 ): boolean => {
+
+  const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: string) => {
+    switch (key) {
+      case 'ArrowRight':
+        sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+        break;
+      case 'ArrowLeft':
+        sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+        break;
+    }
+  }, 500);
+
   if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
     switch (e.key) {
       case 'ArrowRight':
         if (lunaId && origin) {
-          sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+          debouncedSwitchTab(lunaId, origin, 'ArrowRight');
         } else {
           mittBus.emit('alt-shift-right');
         }
@@ -136,7 +149,7 @@ export const handleCustomKey = (
         break;
       case 'ArrowLeft':
         if (lunaId && origin) {
-          sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+          debouncedSwitchTab(lunaId, origin, 'ArrowLeft');
         } else {
           mittBus.emit('alt-shift-left');
         }
