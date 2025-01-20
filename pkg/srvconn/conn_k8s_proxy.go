@@ -73,7 +73,7 @@ func (p *PortAllocator) Release(port int) {
 	delete(p.usedPorts, port)
 }
 
-var gloablPortAllocator = NewPortAllocator(6000, 7000)
+var gloablPortAllocator = NewPortAllocator(6001, 7000)
 
 type KubectlProxyConn struct {
 	Id   string
