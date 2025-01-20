@@ -27,7 +27,7 @@ mkdir -p .kube
 export HOME=/nonexistent
 export LANG=en_US.UTF-8
 
-echo `kubectl config set-credentials JumpServer-user` > /dev/null 2>&1
+echo `kubectl config set-credentials JumpServer-user --token=${KUBECTL_TOKEN}` > /dev/null 2>&1
 echo `kubectl config set-cluster kubernetes --server=${KUBECTL_CLUSTER}` > /dev/null 2>&1
 echo `kubectl config set-context kubernetes --cluster=kubernetes --user=JumpServer-user` > /dev/null 2>&1
 echo `kubectl config use-context kubernetes` > /dev/null 2>&1

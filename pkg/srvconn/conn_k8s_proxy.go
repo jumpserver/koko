@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -17,12 +18,12 @@ import (
 var ErrNoAvailablePort = errors.New("no available port")
 
 const (
-	MinPort = 1024
+	MinPort = 6000
 	MaxPort = 65535
 )
 
 func NewKubectlProxyConn(opt *k8sOptions) *KubectlProxyConn {
-	return &KubectlProxyConn{opts: opt}
+	return &KubectlProxyConn{opts: opt, Id: common.UUID()}
 }
 
 func NewPortAllocator(minPort, maxPort int) *PortAllocator {
@@ -75,6 +76,7 @@ func (p *PortAllocator) Release(port int) {
 var gloablPortAllocator = NewPortAllocator(6000, 7000)
 
 type KubectlProxyConn struct {
+	Id   string
 	opts *k8sOptions
 
 	Port       int
@@ -93,6 +95,7 @@ func (k *KubectlProxyConn) Close() error {
 			_ = os.Remove(k.configPath)
 		}
 		gloablPortAllocator.Release(k.Port)
+		gloablTokenMaps.Delete(k.Id)
 	})
 	return err
 }
@@ -152,12 +155,14 @@ func (k *KubectlProxyConn) Env() []string {
 		skipTls = "false"
 	}
 	clusterServer := k.ProxyAddr()
+	gloablTokenMaps.Store(k.Id, clusterServer)
 	k8sName := strings.Trim(strconv.Quote(o.ExtraEnv["K8sName"]), "\"")
 	k8sName = strings.ReplaceAll(k8sName, "`", "\\`")
 	return []string{
 		fmt.Sprintf("KUBECTL_USER=%s", o.Username),
-		fmt.Sprintf("KUBECTL_CLUSTER=%s", clusterServer),
+		fmt.Sprintf("KUBECTL_CLUSTER=%s", "http://localhost:6000"),
 		fmt.Sprintf("KUBECTL_INSECURE_SKIP_TLS_VERIFY=%s", skipTls),
+		fmt.Sprintf("KUBECTL_TOKEN=%s", k.Id),
 		fmt.Sprintf("WELCOME_BANNER=%s", config.KubectlBanner),
 		fmt.Sprintf("K8S_NAME=%s", k8sName),
 	}
