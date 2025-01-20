@@ -111,16 +111,17 @@ func (k *KubectlProxyConn) Start() error {
 	/*
 		kubetcl proxy --kubeconfig=path --port=port --api-prefix=/
 	*/
-	if !k.opts.DEBUG {
-		defer func() {
-			_ = os.Remove(k.configPath)
-		}()
-	}
+	// if !k.opts.DEBUG {
+	// 	defer func() {
+	// 		_ = os.Remove(k.configPath)
+	// 	}()
+	// }
 	logger.Infof("kubeconfig: %s", k.configPath)
 	k.proxyCmd = exec.Command("kubectl", "proxy",
 		fmt.Sprintf("--kubeconfig=%s", k.configPath),
 		fmt.Sprintf("--port=%d", port),
 		"--api-prefix=/")
+
 	err = k.proxyCmd.Start()
 	go func() {
 		_ = k.proxyCmd.Wait()
