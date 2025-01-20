@@ -1,7 +1,6 @@
 package srvconn
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,71 +14,25 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-var ErrNoAvailablePort = errors.New("no available port")
+var k8sProxyPath = "k8s_proxy"
 
-const (
-	MinPort = 6000
-	MaxPort = 65535
-)
+func GetK8sProxyDir() string {
+	pwd, _ := os.Getwd()
+	dirPath := filepath.Join(pwd, k8sProxyPath)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		_ = os.Mkdir(dirPath, 0700)
+	}
+	return dirPath
+}
 
 func NewKubectlProxyConn(opt *k8sOptions) *KubectlProxyConn {
 	return &KubectlProxyConn{opts: opt, Id: common.UUID()}
 }
 
-func NewPortAllocator(minPort, maxPort int) *PortAllocator {
-	if minPort < MinPort {
-		minPort = MinPort
-	}
-	if maxPort > MaxPort {
-		maxPort = MaxPort
-	}
-	ports := make([]int, maxPort-minPort+1)
-	for i := range ports {
-		ports[i] = minPort + i
-	}
-	return &PortAllocator{
-		ports:     ports,
-		usedPorts: make(map[int]bool),
-	}
-}
-
-type PortAllocator struct {
-	ports     []int
-	current   int
-	usedPorts map[int]bool
-	mu        sync.Mutex
-}
-
-func (p *PortAllocator) Allocate() (int, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for i := 0; i < len(p.ports); i++ {
-		port := p.ports[p.current]
-		if _, used := p.usedPorts[port]; !used {
-			p.usedPorts[port] = true
-			p.current = (p.current + 1) % len(p.ports)
-			return port, nil
-		}
-		p.current = (p.current + 1) % len(p.ports)
-	}
-
-	return 0, ErrNoAvailablePort
-}
-
-func (p *PortAllocator) Release(port int) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	delete(p.usedPorts, port)
-}
-
-var gloablPortAllocator = NewPortAllocator(6001, 7000)
-
 type KubectlProxyConn struct {
 	Id   string
 	opts *k8sOptions
 
-	Port       int
 	proxyCmd   *exec.Cmd
 	configPath string
 	once       sync.Once
@@ -94,7 +47,6 @@ func (k *KubectlProxyConn) Close() error {
 		if k.configPath != "" {
 			_ = os.Remove(k.configPath)
 		}
-		gloablPortAllocator.Release(k.Port)
 		gloablTokenMaps.Delete(k.Id)
 		_ = os.Remove(k.UnixPath())
 	})
@@ -102,18 +54,14 @@ func (k *KubectlProxyConn) Close() error {
 }
 
 func (k *KubectlProxyConn) Start() error {
-	port, err := gloablPortAllocator.Allocate()
-	if err != nil {
-		return err
-	}
-	k.Port = port
+	var err error
 	k.configPath, err = k.CreateKubeConfig(k.opts.ClusterServer, k.opts.Token)
 	if err != nil {
 		return err
 	}
 
 	/*
-		kubetcl proxy --kubeconfig=path --port=port --api-prefix=/
+		kubetcl proxy --kubeconfig=path --unix-socket=port --api-prefix=/
 	*/
 	// if !k.opts.DEBUG {
 	// 	defer func() {
@@ -136,17 +84,15 @@ func (k *KubectlProxyConn) Start() error {
 }
 
 func (k *KubectlProxyConn) UnixPath() string {
-	return fmt.Sprintf("/tmp/k8s%d.sock", k.Port)
+	k8sDir := GetK8sProxyDir()
+	return filepath.Join(k8sDir, fmt.Sprintf("proxy-%s.sock", k.Id))
 }
 
 func (k *KubectlProxyConn) CreateKubeConfig(server, token string) (string, error) {
-	k8sDir, err := os.MkdirTemp("", "k8s*")
-	if err != nil {
-		return "", err
-	}
-	configPath := filepath.Join(k8sDir, "config")
+	k8sDir := GetK8sProxyDir()
+	configPath := filepath.Join(k8sDir, fmt.Sprintf("config-%s", k.Id))
 	configContent := fmt.Sprintf(proxyconfigTmpl, server, token)
-	err = os.WriteFile(configPath, []byte(configContent), 0600)
+	err := os.WriteFile(configPath, []byte(configContent), 0600)
 	return configPath, err
 }
 
@@ -162,7 +108,7 @@ func (k *KubectlProxyConn) Env() []string {
 	k8sName = strings.ReplaceAll(k8sName, "`", "\\`")
 	return []string{
 		fmt.Sprintf("KUBECTL_USER=%s", o.Username),
-		fmt.Sprintf("KUBECTL_CLUSTER=%s", "https://127.0.0.1:6000"),
+		fmt.Sprintf("KUBECTL_CLUSTER=%s", k8sReverseProxyURL),
 		fmt.Sprintf("KUBECTL_INSECURE_SKIP_TLS_VERIFY=%s", skipTls),
 		fmt.Sprintf("KUBECTL_TOKEN=%s", k.Id),
 		fmt.Sprintf("WELCOME_BANNER=%s", config.KubectlBanner),

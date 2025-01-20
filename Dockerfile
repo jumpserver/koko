@@ -29,6 +29,7 @@ ARG TARGETARCH
 ENV LANG=en_US.UTF-8
 
 ARG DEPENDENCIES="                    \
+        bash-completion               \
         ca-certificates"
 
 ARG APT_MIRROR=http://deb.debian.org
@@ -45,7 +46,6 @@ WORKDIR /opt/koko
 
 COPY --from=stage-build /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
-COPY --from=stage-build /usr/share/bash-completion /usr/share/bash-completion
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
 COPY --from=stage-build /opt/koko/lib /usr/local/lib
 COPY --from=stage-build /opt/koko/release .

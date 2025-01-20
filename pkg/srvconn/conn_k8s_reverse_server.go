@@ -12,11 +12,13 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-var gloablTokenMaps = sync.Map{}
-var K8sReverseProxyPort = 6000
+var (
+	gloablTokenMaps     = sync.Map{}
+	K8sReverseProxyPort = 5001
+	k8sReverseProxyURL  = "https://127.0.0.1:5001"
+)
 
 func init() {
-
 	reverseProxy := NewK8sReverseProxy(K8sReverseProxyPort)
 	go func() {
 		if err := reverseProxy.Start(); err != nil {
