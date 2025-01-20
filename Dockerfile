@@ -45,6 +45,7 @@ WORKDIR /opt/koko
 
 COPY --from=stage-build /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
+COPY --from=stage-build /usr/share/bash-completion /usr/share/bash-completion
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
 COPY --from=stage-build /opt/koko/lib /usr/local/lib
 COPY --from=stage-build /opt/koko/release .
