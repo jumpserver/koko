@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -116,6 +116,7 @@ func (k *KubectlProxyConn) Start() error {
 			_ = os.Remove(k.configPath)
 		}()
 	}
+	logger.Infof("kubeconfig: %s", k.configPath)
 	k.proxyCmd = exec.Command("kubectl", "proxy",
 		fmt.Sprintf("--kubeconfig=%s", k.configPath),
 		fmt.Sprintf("--port=%d", port),
@@ -129,7 +130,7 @@ func (k *KubectlProxyConn) Start() error {
 }
 
 func (k *KubectlProxyConn) ProxyAddr() string {
-	return fmt.Sprint("http://127.0.0.1:%d", k.Port)
+	return fmt.Sprintf("http://127.0.0.1:%d", k.Port)
 }
 
 func (k *KubectlProxyConn) CreateKubeConfig(server, token string) (string, error) {
@@ -137,7 +138,7 @@ func (k *KubectlProxyConn) CreateKubeConfig(server, token string) (string, error
 	if err != nil {
 		return "", err
 	}
-	configPath := path.Join(k8sDir, "config")
+	configPath := filepath.Join(k8sDir, "config")
 	configContent := fmt.Sprintf(proxyconfigTmpl, server, token)
 	err = os.WriteFile(configPath, []byte(configContent), 0600)
 	return configPath, err
