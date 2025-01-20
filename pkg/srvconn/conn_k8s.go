@@ -71,12 +71,15 @@ func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
 	if !IsValidK8sUserToken(args) {
 		return nil, InValidToken
 	}
-	_, err := utils.Encrypt(args.Token, config.CipherKey)
+	kubeProxy := NewKubectlProxyConn(args)
+	err := kubeProxy.Start()
 	if err != nil {
-		return nil, fmt.Errorf("%w: encrypt k8s token failed %s", InValidToken, err)
+		logger.Errorf("K8sCon start proxy err: %s", err)
+		return nil, fmt.Errorf("K8sCon start proxy err: %w", err)
 	}
 
-	lcmd, err := startK8SLocalCommand(args)
+	envs := kubeProxy.Env()
+	lcmd, err := startK8SLocalCommand(envs)
 	if err != nil {
 		logger.Errorf("K8sCon start local pty err: %s", err)
 		return nil, fmt.Errorf("K8sCon start local pty err: %w", err)
@@ -86,10 +89,11 @@ func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
 		_ = lcmd.Close()
 		return nil, err
 	}
-	return &K8sCon{options: args, LocalCommand: lcmd}, nil
+	return &K8sCon{options: args, LocalCommand: lcmd, proxy: kubeProxy}, nil
 }
 
 type K8sCon struct {
+	proxy   *KubectlProxyConn
 	options *k8sOptions
 	*localcommand.LocalCommand
 }
@@ -98,12 +102,18 @@ func (k *K8sCon) KeepAlive() error {
 	return nil
 }
 
+func (k *K8sCon) Close() error {
+	_ = k.LocalCommand.Close()
+	return k.proxy.Close()
+}
+
 type k8sOptions struct {
 	ClusterServer string // https://172.16.10.51:8443
 	Username      string // user 系统用户名
 	Token         string // 授权token
 	IsSkipTls     bool
 	ExtraEnv      map[string]string
+	DEBUG         bool
 
 	win Windows
 }
@@ -141,7 +151,7 @@ func (o *k8sOptions) Env() []string {
 	}
 }
 
-func startK8SLocalCommand(args *k8sOptions) (*localcommand.LocalCommand, error) {
+func startK8SLocalCommand(env []string) (*localcommand.LocalCommand, error) {
 	pwd, _ := os.Getwd()
 	shPath := filepath.Join(pwd, k8sInitFilename)
 	argv := []string{
@@ -150,7 +160,7 @@ func startK8SLocalCommand(args *k8sOptions) (*localcommand.LocalCommand, error) 
 		"--mount-proc",
 		shPath,
 	}
-	return localcommand.New("unshare", argv, localcommand.WithEnv(args.Env()))
+	return localcommand.New("unshare", argv, localcommand.WithEnv(env))
 }
 
 type K8sOption func(*k8sOptions)
@@ -188,5 +198,11 @@ func K8sSkipTls(isSkipTls bool) K8sOption {
 func K8sPtyWin(win Windows) K8sOption {
 	return func(args *k8sOptions) {
 		args.win = win
+	}
+}
+
+func K8sDebug(debug bool) K8sOption {
+	return func(args *k8sOptions) {
+		args.DEBUG = debug
 	}
 }
