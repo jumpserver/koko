@@ -1,11 +1,12 @@
 package srvconn
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -43,13 +44,14 @@ func (k *K8sReverseProxy) Start() error {
 		Addr:    ":" + strconv.Itoa(k.Port),
 		Handler: mux,
 	}
-	return k.server.ListenAndServe()
+	return k.server.ListenAndServeTLS("server.crt", "server.key")
 }
 
 func (k *K8sReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger.Infof("k8s proxy request: %s", r.URL.Path)
+	logger.Infof("k8s proxy reverse request start: %s", r.URL.Path)
 	token := r.Header.Get("Authorization")
 	if token == "" {
+		logger.Errorf("k8s proxy reverse request unauthorized")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -60,33 +62,23 @@ func (k *K8sReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	value := val.(string)
-	targetUrl, err := url.Parse(value)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	unixSocketPath := val.(string)
+	targetUrl := &url.URL{Scheme: "http", Host: "unix"}
+	// Create custom transport for Unix socket
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return net.Dial("unix", unixSocketPath)
+		},
 	}
-	proxy := httputil.NewSingleHostReverseProxy(targetUrl)
-	if isWebSocketRequest(r) {
-		logger.Infof("k8s proxy websocket: %s", r.URL.Path)
-		serveWebSocket(w, r, targetUrl)
-		return
+	proxy := httputil.ReverseProxy{
+		Transport: transport,
+		Director: func(req *http.Request) {
+			req.URL.Scheme = targetUrl.Scheme
+			req.URL.Host = targetUrl.Host
+			req.Header.Set("Host", targetUrl.Host)
+			req.Header.Del("Authorization")
+		},
 	}
 	proxy.ServeHTTP(w, r)
-}
-
-func isWebSocketRequest(r *http.Request) bool {
-	return strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade") &&
-		strings.ToLower(r.Header.Get("Upgrade")) == "websocket"
-}
-
-func serveWebSocket(w http.ResponseWriter, r *http.Request, target *url.URL) {
-	director := func(req *http.Request) {
-		req.URL.Scheme = target.Scheme
-		req.URL.Host = target.Host
-		req.URL.Path = target.Path
-		req.Header.Set("Host", target.Host)
-	}
-	proxy := &httputil.ReverseProxy{Director: director}
-	proxy.ServeHTTP(w, r)
+	logger.Infof("k8s proxy reverse request done: %s", r.URL.Path)
 }

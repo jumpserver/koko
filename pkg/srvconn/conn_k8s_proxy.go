@@ -96,6 +96,7 @@ func (k *KubectlProxyConn) Close() error {
 		}
 		gloablPortAllocator.Release(k.Port)
 		gloablTokenMaps.Delete(k.Id)
+		_ = os.Remove(k.UnixPath())
 	})
 	return err
 }
@@ -121,8 +122,9 @@ func (k *KubectlProxyConn) Start() error {
 	// }
 	logger.Infof("kubeconfig: %s", k.configPath)
 	k.proxyCmd = exec.Command("kubectl", "proxy",
+		"--disable-filter=true",
 		fmt.Sprintf("--kubeconfig=%s", k.configPath),
-		fmt.Sprintf("--port=%d", port),
+		fmt.Sprintf("--unix-socket=%s", k.UnixPath()),
 		"--api-prefix=/")
 
 	err = k.proxyCmd.Start()
@@ -133,8 +135,8 @@ func (k *KubectlProxyConn) Start() error {
 	return err
 }
 
-func (k *KubectlProxyConn) ProxyAddr() string {
-	return fmt.Sprintf("http://127.0.0.1:%d", k.Port)
+func (k *KubectlProxyConn) UnixPath() string {
+	return fmt.Sprintf("/tmp/k8s%d.sock", k.Port)
 }
 
 func (k *KubectlProxyConn) CreateKubeConfig(server, token string) (string, error) {
@@ -154,13 +156,13 @@ func (k *KubectlProxyConn) Env() []string {
 	if !o.IsSkipTls {
 		skipTls = "false"
 	}
-	clusterServer := k.ProxyAddr()
+	clusterServer := k.UnixPath()
 	gloablTokenMaps.Store(k.Id, clusterServer)
 	k8sName := strings.Trim(strconv.Quote(o.ExtraEnv["K8sName"]), "\"")
 	k8sName = strings.ReplaceAll(k8sName, "`", "\\`")
 	return []string{
 		fmt.Sprintf("KUBECTL_USER=%s", o.Username),
-		fmt.Sprintf("KUBECTL_CLUSTER=%s", "http://localhost:6000"),
+		fmt.Sprintf("KUBECTL_CLUSTER=%s", "https://127.0.0.1:6000"),
 		fmt.Sprintf("KUBECTL_INSECURE_SKIP_TLS_VERIFY=%s", skipTls),
 		fmt.Sprintf("KUBECTL_TOKEN=%s", k.Id),
 		fmt.Sprintf("WELCOME_BANNER=%s", config.KubectlBanner),
