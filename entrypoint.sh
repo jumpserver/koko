@@ -18,7 +18,7 @@ echo
 
 # 创建 server.key server.crt
 if [ ! -f /opt/koko/server.key ]; then
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /opt/koko/server.key -out /opt/koko/server.crt -subj "/C=CN/ST=Beijing/L=Beijing/O=JumpServer/OU=JumpServer/CN=JumpServer"
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /opt/koko/server.key -out /opt/koko/server.crt -subj "/C=CN/ST=Beijing/L=Beijing/O=JumpServer/OU=JumpServer/CN=JumpServer"
 fi
 
 # /opt/koko to 700 disable other user access
