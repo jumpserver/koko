@@ -19,11 +19,18 @@ init_jms_k8s_user
 
 # 放开部分需要的可执行权限
 chmod 755 `which mysql` `which psql` `which mongosh` `which tsql` `which redis` `which clickhouse-client`
-chmod 755 `which kubectl` `which rawkubectl` `which helm` `which rawhelm`
+chmod 755 `which kubectl`  `which helm`
 
 # k8s 集群连接需要的命令
 chown :jms_k8s_user  `which jq` `which less` `which vim` `which ls` `which bash` `which grep`
 chmod  750 `which jq` `which less` `which vim` `which ls` `which bash` `which grep`
+# 创建 server.key server.crt
+if [ ! -f /opt/koko/server.key ]; then
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /opt/koko/server.key -out /opt/koko/server.crt -subj "/C=CN/ST=Beijing/L=Beijing/O=JumpServer/OU=JumpServer/CN=JumpServer"
+fi
+
+# /opt/koko to 700 disable other user access
+chmod 700 /opt/koko
 
 cd /opt/koko
 ./koko

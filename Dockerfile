@@ -33,10 +33,8 @@ RUN set -ex \
     && mkdir -p /opt/koko/bin \
     && wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
     && tar -xf kubectl.tar.gz -C /opt/koko/bin/ \
-    && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
     && wget -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf helm.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
-    && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
     && \
     if [ "${TARGETARCH}" == "amd64" ] || [ "${TARGETARCH}" == "arm64" ]; then \
         wget ${DOWNLOAD_URL}/files/clickhouse/22.20.2.11/clickhouse-client-linux-${TARGETARCH}.tar.gz; \
@@ -71,9 +69,7 @@ RUN --mount=type=cache,target=/root/.cache \
     set +x \
     && make build -s \
     && set -x && ls -al . \
-    && mv /opt/koko/build/koko-linux-${TARGETARCH} /opt/koko/koko \
-    && mv /opt/koko/build/helm-linux-${TARGETARCH} /opt/koko/bin/helm \
-    && mv /opt/koko/build/kubectl-linux-${TARGETARCH} /opt/koko/bin/kubectl
+    && mv /opt/koko/build/koko-linux-${TARGETARCH} /opt/koko/koko
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \

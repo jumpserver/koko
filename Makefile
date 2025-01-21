@@ -53,8 +53,6 @@ endef
 
 build:
 	$(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$(CURRENT_OS_ARCH) $(KOKOSRCFILE)
-	$(K8SCMDBUILD) -o $(BUILDDIR)/kubectl-$(CURRENT_OS_ARCH) $(KUBECTLFILE)
-	$(K8SCMDBUILD) -o $(BUILDDIR)/helm-$(CURRENT_OS_ARCH) $(HELMFILE)
 
 all: koko-ui
 	$(call make_artifact_full,darwin,amd64)
