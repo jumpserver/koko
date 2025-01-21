@@ -14,8 +14,8 @@ WORKDIR /opt/koko
 RUN make build -s \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko /opt/koko/koko \
-    && mv /opt/koko/build/helm /opt/koko/bin/helm \
-    && mv /opt/koko/build/kubectl /opt/koko/bin/kubectl
+    && mv /opt/koko/bin/rawhelm /opt/koko/bin/helm \
+    && mv /opt/koko/bin/rawkubectl /opt/koko/bin/kubectl
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
@@ -29,6 +29,9 @@ ARG TARGETARCH
 ENV LANG=en_US.UTF-8
 
 ARG DEPENDENCIES="                    \
+        bash-completion               \
+        jq                            \
+        less                          \
         ca-certificates"
 
 ARG APT_MIRROR=http://deb.debian.org

@@ -4,13 +4,10 @@ FROM jumpserver/koko:${VERSION}-ce
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
-        bash-completion               \
         curl                          \
         git                           \
         git-lfs                       \
         iputils-ping                  \
-        jq                            \
-        less                          \
         openssh-client                \
         telnet                        \
         unzip                         \

@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"io"
 	"time"
+
+	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/srvconn"
 
 	"github.com/gin-gonic/gin"
 	gorilla "github.com/gorilla/websocket"
@@ -118,6 +119,10 @@ func (userCon *UserWebsocket) Run() {
 	case <-ctx.Done():
 	}
 	userCon.handler.CleanUp()
+	if userCon.k8sClient != nil {
+		userCon.k8sClient.Close()
+	}
+
 	logger.Infof("Ws[%s] done with exit %s", userCon.Uuid, errMsg)
 }
 

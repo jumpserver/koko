@@ -27,18 +27,18 @@ mkdir -p .kube
 export HOME=/nonexistent
 export LANG=en_US.UTF-8
 
-echo `rawkubectl config set-credentials JumpServer-user` > /dev/null 2>&1
-echo `rawkubectl config set-cluster kubernetes --server=${KUBECTL_CLUSTER}` > /dev/null 2>&1
-echo `rawkubectl config set-context kubernetes --cluster=kubernetes --user=JumpServer-user` > /dev/null 2>&1
-echo `rawkubectl config use-context kubernetes` > /dev/null 2>&1
+echo `kubectl config set-credentials JumpServer-user --token=${KUBECTL_TOKEN}` > /dev/null 2>&1
+echo `kubectl config set-cluster kubernetes --server=${KUBECTL_CLUSTER}` > /dev/null 2>&1
+echo `kubectl config set-context kubernetes --cluster=kubernetes --user=JumpServer-user` > /dev/null 2>&1
+echo `kubectl config use-context kubernetes` > /dev/null 2>&1
 
 if [ ${KUBECTL_INSECURE_SKIP_TLS_VERIFY} == "true" ];then
     {
-        clusters=`rawkubectl config get-clusters | tail -n +2`
+        clusters=`kubectl config get-clusters | tail -n +2`
         for s in ${clusters[@]}; do
             {
-                echo `rawkubectl config set-cluster ${s} --insecure-skip-tls-verify=true` > /dev/null 2>&1
-                echo `rawkubectl config unset clusters.${s}.certificate-authority-data` > /dev/null 2>&1
+                echo `kubectl config set-cluster ${s} --insecure-skip-tls-verify=true` > /dev/null 2>&1
+                echo `kubectl config unset clusters.${s}.certificate-authority-data` > /dev/null 2>&1
             } || {
                 echo err > /dev/null 2>&1
             }
