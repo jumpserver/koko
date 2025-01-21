@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -50,23 +51,29 @@ func (k *K8sReverseProxy) Start() error {
 }
 
 func (k *K8sReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger.Infof("k8s proxy reverse request start: %s", r.URL.Path)
-	token := r.Header.Get("Authorization")
-	if token == "" {
-		logger.Errorf("k8s proxy reverse request unauthorized")
+	bearerToken := r.Header.Get("Authorization")
+	if bearerToken == "" {
+		logger.Error("k8s proxy reverse request unauthorized: without token")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	token = token[len("Bearer "):]
-	logger.Infof("k8s proxy token: %s", token)
-	val, ok := gloablTokenMaps.Load(token)
+
+	tokens := strings.SplitN(bearerToken, " ", 2)
+	schemaName := strings.TrimSpace(tokens[0])
+	if len(tokens) != 2 || schemaName != "Bearer" {
+		logger.Errorf("k8s proxy reverse request unauthorized: invalid token: %s", bearerToken)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	tokenId := strings.TrimSpace(tokens[1])
+	val, ok := gloablTokenMaps.Load(tokenId)
 	if !ok {
+		logger.Error("k8s proxy reverse request unauthorized: token not found")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 	unixSocketPath := val.(string)
 	targetUrl := &url.URL{Scheme: "http", Host: "unix"}
-	// Create custom transport for Unix socket
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return net.Dial("unix", unixSocketPath)
@@ -81,6 +88,7 @@ func (k *K8sReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.Header.Del("Authorization")
 		},
 	}
+	logger.Debugf("k8s reverse proxy %s request start: %s", tokenId, r.URL.Path)
 	proxy.ServeHTTP(w, r)
-	logger.Infof("k8s proxy reverse request done: %s", r.URL.Path)
+	logger.Debugf("k8s reverse proxy %s request end: %s", tokenId, r.URL.Path)
 }

@@ -30,6 +30,8 @@ ENV LANG=en_US.UTF-8
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
+        jq                            \
+        less                          \
         ca-certificates"
 
 ARG APT_MIRROR=http://deb.debian.org

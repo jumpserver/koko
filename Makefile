@@ -51,8 +51,6 @@ endef
 
 build:
 	GOARCH=$(GOARCH) GOOS=$(GOOS) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME) $(KOKOSRCFILE)
-	GOARCH=$(GOARCH) GOOS=$(GOOS) $(K8SCMDBUILD) -o $(BUILDDIR)/kubectl $(KUBECTLFILE)
-	GOARCH=$(GOARCH) GOOS=$(GOOS) $(K8SCMDBUILD) -o $(BUILDDIR)/helm $(HELMFILE)
 
 all: koko-ui
 	$(call make_artifact_full,darwin,amd64)

@@ -8,8 +8,6 @@ ARG DEPENDENCIES="                    \
         git                           \
         git-lfs                       \
         iputils-ping                  \
-        jq                            \
-        less                          \
         openssh-client                \
         telnet                        \
         unzip                         \

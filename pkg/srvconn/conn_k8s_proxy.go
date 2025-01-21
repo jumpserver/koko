@@ -14,11 +14,11 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-var k8sProxyPath = "k8s_proxy"
+var k8sProxyDirname = "k8s_proxy"
 
 func GetK8sProxyDir() string {
 	pwd, _ := os.Getwd()
-	dirPath := filepath.Join(pwd, k8sProxyPath)
+	dirPath := filepath.Join(pwd, k8sProxyDirname)
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		_ = os.Mkdir(dirPath, 0700)
 	}
@@ -63,11 +63,6 @@ func (k *KubectlProxyConn) Start() error {
 	/*
 		kubetcl proxy --kubeconfig=path --unix-socket=port --api-prefix=/
 	*/
-	// if !k.opts.DEBUG {
-	// 	defer func() {
-	// 		_ = os.Remove(k.configPath)
-	// 	}()
-	// }
 	logger.Infof("kubeconfig: %s", k.configPath)
 	k.proxyCmd = exec.Command("kubectl", "proxy",
 		"--disable-filter=true",
@@ -78,7 +73,7 @@ func (k *KubectlProxyConn) Start() error {
 	err = k.proxyCmd.Start()
 	go func() {
 		_ = k.proxyCmd.Wait()
-		logger.Infof("kubectl proxy %s exit", k.opts.ClusterServer)
+		logger.Infof("kubectl proxy id %s %s exit", k.Id, k.opts.ClusterServer)
 	}()
 	return err
 }
