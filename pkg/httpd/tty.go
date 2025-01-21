@@ -6,8 +6,6 @@ import (
 	"io"
 	"sync"
 
-	"github.com/jumpserver/koko/pkg/srvconn"
-
 	"github.com/gliderlabs/ssh"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
