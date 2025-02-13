@@ -98,6 +98,8 @@ func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err e
 		logger.Errorf("build nobody with opts error: %s", err)
 		return nil, err
 	}
+	tmpWorkDir := os.TempDir()
+	opts = append(opts, localcommand.WithWorkDir(tmpWorkDir))
 	lcmd, err = localcommand.New("mongosh", cmd, opts...)
 	if err != nil {
 		return nil, err
