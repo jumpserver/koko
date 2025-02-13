@@ -12,6 +12,7 @@ import (
 type LocalCommand struct {
 	command string
 	argv    []string
+	workDir string
 
 	env           []string
 	cmdCredential *syscall.Credential
@@ -41,6 +42,9 @@ func New(command string, argv []string, options ...Option) (*LocalCommand, error
 	if lcmd.cmdCredential != nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 		cmd.SysProcAttr.Credential = lcmd.cmdCredential
+	}
+	if lcmd.workDir != "" {
+		cmd.Dir = lcmd.workDir
 	}
 	ptyFd, err := pty.StartWithSize(cmd, lcmd.ptyWin)
 	if err != nil {
