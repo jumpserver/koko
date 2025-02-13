@@ -268,7 +268,7 @@ func createTmpFileToLocal(content string, perm os.FileMode) (string, error) {
 		return "", nil
 	}
 
-	baseDir := "./.ca_temp"
+	baseDir := filepath.Join(os.TempDir(), ".ca_temp")
 	_, err := os.Stat(baseDir)
 	if os.IsNotExist(err) {
 		err = os.Mkdir(baseDir, os.ModePerm)
