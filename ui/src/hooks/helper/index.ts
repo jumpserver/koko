@@ -111,6 +111,19 @@ export const handleTerminalResize = (
   socket.send(formatMessage(terminalId, eventType, data));
 };
 
+// 将防抖函数移到外部，确保只创建一次
+const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: string) => {
+  console.log('key')
+  switch (key) {
+    case 'ArrowRight':
+      sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+      break;
+    case 'ArrowLeft':
+      sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+      break;
+  }
+}, 500);
+
 /**
  * 针对特定的键盘组合进行操作
  *
@@ -125,35 +138,11 @@ export const handleCustomKey = (
   lunaId: string,
   origin: string
 ): boolean => {
-
-  const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: string) => {
-    switch (key) {
-      case 'ArrowRight':
-        sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
-        break;
-      case 'ArrowLeft':
-        sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
-        break;
-    }
-  }, 500);
-
   if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-    switch (e.key) {
-      case 'ArrowRight':
-        if (lunaId && origin) {
-          debouncedSwitchTab(lunaId, origin, 'ArrowRight');
-        } else {
-          mittBus.emit('alt-shift-right');
-        }
-
-        break;
-      case 'ArrowLeft':
-        if (lunaId && origin) {
-          debouncedSwitchTab(lunaId, origin, 'ArrowLeft');
-        } else {
-          mittBus.emit('alt-shift-left');
-        }
-        break;
+    if (lunaId && origin) {
+      debouncedSwitchTab(lunaId, origin, e.key);
+    } else {
+      mittBus.emit(e.key === 'ArrowRight' ? 'alt-shift-right' : 'alt-shift-left');
     }
     return false;
   }
