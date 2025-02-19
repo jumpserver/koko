@@ -11,6 +11,7 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -162,12 +163,19 @@ func getAvailableProxyClient(cfgs ...SSHClientOptions) (*SSHClient, error) {
 }
 
 func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
+	customCfg := config.GetConf()
+	var hostKeys []string
+	if customCfg.SSHClientHostKeys != nil {
+		hostKeys = customCfg.SSHClientHostKeys
+	}
 	gosshCfg := gossh.ClientConfig{
 		User:            cfg.Username,
 		Auth:            cfg.AuthMethods(),
 		Timeout:         time.Duration(cfg.Timeout) * time.Second,
 		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
 		Config:          createSSHConfig(),
+
+		HostKeyAlgorithms: hostKeys,
 	}
 	destAddr := net.JoinHostPort(cfg.Host, cfg.Port)
 	if len(cfg.proxySSHClientOptions) > 0 {
@@ -268,12 +276,33 @@ func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
 
 func createSSHConfig() gossh.Config {
 	var cfg gossh.Config
+	customCfg := config.GetConf()
+
 	cfg.SetDefaults()
+	//  ciphers
 	ciphers := make([]string, 0, len(cfg.Ciphers)+len(notRecommendCiphers))
-	ciphers = append(ciphers, notRecommendCiphers...)
-	ciphers = append(ciphers, cfg.Ciphers...)
+	if customCfg.SSHClientCiphers != nil {
+		cfg.Ciphers = customCfg.SSHClientCiphers
+	} else {
+		ciphers = append(ciphers, notRecommendCiphers...)
+		ciphers = append(ciphers, cfg.Ciphers...)
+	}
 	cfg.Ciphers = ciphers
-	cfg.KeyExchanges = append(cfg.KeyExchanges, notRecommendKeyExchanges...)
+
+	//  keyExchanges
+	keyExchanges := make([]string, 0, len(cfg.KeyExchanges)+len(notRecommendKeyExchanges))
+	if customCfg.SSHClientKeyExchanges != nil {
+		cfg.KeyExchanges = customCfg.SSHClientKeyExchanges
+	} else {
+		keyExchanges = append(keyExchanges, cfg.KeyExchanges...)
+		keyExchanges = append(keyExchanges, notRecommendKeyExchanges...)
+	}
+	cfg.KeyExchanges = keyExchanges
+
+	// MACs
+	if customCfg.SSHClientMACs != nil {
+		cfg.MACs = customCfg.SSHClientMACs
+	}
 	return cfg
 }
 

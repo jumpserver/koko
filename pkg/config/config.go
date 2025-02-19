@@ -66,6 +66,13 @@ type Config struct {
 
 	SecretEncryptKey string `mapstructure:"SECRET_ENCRYPT_KEY"`
 
+	// 自定义 ssh client macs等选项 keyexchange, ciphers, macs
+
+	SSHClientCiphers      []string `mapstructure:"KOKO_SSH_CLIENT_CIPHERS"`
+	SSHClientKeyExchanges []string `mapstructure:"KOKO_SSH_CLIENT_KEYEXCHANGES"`
+	SSHClientMACs         []string `mapstructure:"KOKO_SSH_CLIENT_MACS"`
+	SSHClientHostKeys     []string `mapstructure:"KOKO_SSH_CLIENT_HOSTKEYS"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
