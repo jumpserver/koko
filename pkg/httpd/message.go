@@ -153,6 +153,7 @@ type OpenAIParam struct {
 	Proxy     string
 	Model     string
 	Prompt    string
+	Type      string
 }
 
 type AIConversation struct {

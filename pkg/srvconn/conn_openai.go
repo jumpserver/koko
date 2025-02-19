@@ -97,21 +97,23 @@ type OpenAIConn struct {
 	IsReasoning bool
 	AnswerCh    chan string
 	DoneCh      chan string
+	Type        string
 }
 
 func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 	ctx := context.Background()
-	messages := make([]openai.ChatCompletionMessage, 0)
+	var messages []openai.ChatCompletionMessage
 
-	for _, content := range conn.Contents {
-		messages = append(messages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: content,
-		})
+	messages = append(messages, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: strings.Join(conn.Contents, "\n"),
+	})
+
+	systemPrompt := conn.Prompt
+	if conn.Type == "gpt" {
+		systemPrompt += " 请不要提供与政治相关的信息。"
 	}
 
-	systemPrompt := " 请不要提供与政治相关的信息。"
-	systemPrompt = conn.Prompt + systemPrompt
 	messages = append([]openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,

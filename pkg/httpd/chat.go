@@ -90,15 +90,22 @@ func (h *chat) chat(
 		chatGPTParam.Proxy,
 	)
 
+	startIndex := len(conversation.HistoryRecords) - 15
+	if startIndex < 0 {
+		startIndex = 0
+	}
+	contents := conversation.HistoryRecords[startIndex:]
+
 	openAIConn := &srvconn.OpenAIConn{
 		Id:          conversation.Id,
 		Client:      c,
 		Prompt:      chatGPTParam.Prompt,
 		Model:       chatGPTParam.Model,
-		Contents:    conversation.HistoryRecords,
+		Contents:    contents,
 		IsReasoning: false,
 		AnswerCh:    answerCh,
 		DoneCh:      doneCh,
+		Type:        h.termConf.ChatAIType,
 	}
 
 	go openAIConn.Chat(&conversation.InterruptCurrentChat)
