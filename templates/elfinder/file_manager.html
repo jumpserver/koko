@@ -199,6 +199,9 @@
                 }else if ( kokoLang.startsWith("zh")) {
                     lng = 'zh_CN'
                 }
+                else if (kokoLang.startsWith('pt')) {
+                    lng = 'pt_BR';
+                }
                 if (lng !== 'en') {
         		    $.ajax({
         		    	url : '/koko/static/plugins/elfinder/i18n'+'/elfinder.'+lng+'.js',
