@@ -3,9 +3,10 @@ package httpd
 import (
 	"encoding/json"
 	"errors"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"io"
 	"sync"
+
+	"github.com/jumpserver/koko/pkg/srvconn"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/jumpserver/koko/pkg/exchange"

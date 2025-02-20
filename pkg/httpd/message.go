@@ -153,6 +153,7 @@ type OpenAIParam struct {
 	Proxy     string
 	Model     string
 	Prompt    string
+	Type      string
 }
 
 type AIConversation struct {
@@ -163,9 +164,10 @@ type AIConversation struct {
 }
 
 type ChatGPTMessage struct {
-	ID         string    `json:"id"`
-	Content    string    `json:"content"`
-	CreateTime time.Time `json:"create_time,omitempty"`
-	Type       string    `json:"type"`
-	Role       string    `json:"role"`
+	ID          string    `json:"id"`
+	Content     string    `json:"content"`
+	CreateTime  time.Time `json:"create_time,omitempty"`
+	Type        string    `json:"type"`
+	Role        string    `json:"role"`
+	IsReasoning bool      `json:"is_reasoning"`
 }

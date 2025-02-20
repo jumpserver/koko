@@ -185,7 +185,11 @@ func (kc *KubernetesClient) GetTreeData() (string, error) {
 
 		for i := range ns.Pods {
 			if ns.Pods[i].Name == podName {
-				ns.Pods[i].Containers = append(ns.Pods[i].Containers, Container{Name: containerName, Type: "container"})
+				containers := make([]Container, 0)
+				for _, v := range strings.Split(containerName, ",") {
+					containers = append(containers, Container{Name: v, Type: "container"})
+				}
+				ns.Pods[i].Containers = append(ns.Pods[i].Containers, containers...)
 				break
 			}
 		}

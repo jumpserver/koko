@@ -90,14 +90,22 @@ func (h *chat) chat(
 		chatGPTParam.Proxy,
 	)
 
+	startIndex := len(conversation.HistoryRecords) - 15
+	if startIndex < 0 {
+		startIndex = 0
+	}
+	contents := conversation.HistoryRecords[startIndex:]
+
 	openAIConn := &srvconn.OpenAIConn{
-		Id:       conversation.Id,
-		Client:   c,
-		Prompt:   chatGPTParam.Prompt,
-		Model:    chatGPTParam.Model,
-		Contents: conversation.HistoryRecords,
-		AnswerCh: answerCh,
-		DoneCh:   doneCh,
+		Id:          conversation.Id,
+		Client:      c,
+		Prompt:      chatGPTParam.Prompt,
+		Model:       chatGPTParam.Model,
+		Contents:    contents,
+		IsReasoning: false,
+		AnswerCh:    answerCh,
+		DoneCh:      doneCh,
+		Type:        h.termConf.ChatAIType,
 	}
 
 	go openAIConn.Chat(&conversation.InterruptCurrentChat)
@@ -112,21 +120,22 @@ func (h *chat) processChatMessages(
 	for {
 		select {
 		case answer := <-openAIConn.AnswerCh:
-			h.sendSessionMessage(id, answer, messageID, "message")
+			h.sendSessionMessage(id, answer, messageID, "message", openAIConn.IsReasoning)
 		case answer := <-openAIConn.DoneCh:
-			h.sendSessionMessage(id, answer, messageID, "finish")
+			h.sendSessionMessage(id, answer, messageID, "finish", false)
 			return answer
 		}
 	}
 }
 
-func (h *chat) sendSessionMessage(id, answer, messageID, messageType string) {
+func (h *chat) sendSessionMessage(id, answer, messageID, messageType string, isReasoning bool) {
 	message := ChatGPTMessage{
-		Content:    answer,
-		ID:         messageID,
-		CreateTime: time.Now(),
-		Type:       messageType,
-		Role:       openai.ChatMessageRoleAssistant,
+		Content:     answer,
+		ID:          messageID,
+		CreateTime:  time.Now(),
+		Type:        messageType,
+		Role:        openai.ChatMessageRoleAssistant,
+		IsReasoning: isReasoning,
 	}
 	data, _ := json.Marshal(message)
 	msg := Message{
