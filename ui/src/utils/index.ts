@@ -3,6 +3,7 @@ import { TranslateFunction } from '@/views/interface';
 import { Terminal } from '@xterm/xterm';
 import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
 import type { ILunaConfig } from '@/hooks/interface';
+import { RowData } from '@/components/pamFileList/index.vue';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -99,18 +100,16 @@ export const preprocessInput = (data: string, config: ILunaConfig) => {
   }
 };
 
-export const getOs = () => {
-  const { platform, userAgent } = navigator;
-
-  if (platform.startsWith('Win') || userAgent.includes('Windows')) {
-    return 'Windows';
+/**
+ * @description 处理文件名称
+ * @param row
+ */
+export const getFileName = (row: RowData) => {
+  if (row.is_dir) {
+    return 'Folder';
   }
 
-  if (platform.startsWith('Mac') || userAgent.includes('Macintosh')) {
-    return 'macOS';
-  }
+  const lastDotIndex = row.name.lastIndexOf('.');
 
-  if (platform.startsWith('Linux') || userAgent.includes('Linux')) {
-    return 'Linux';
-  }
+  return lastDotIndex !== -1 ? row.name.slice(lastDotIndex + 1) : 'Folder';
 };
