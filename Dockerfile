@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20241115_092838 AS stage-build
+FROM jumpserver/koko-base:20250122_061645 AS stage-build
 
 WORKDIR /opt/koko
 ARG TARGETARCH
@@ -14,8 +14,8 @@ WORKDIR /opt/koko
 RUN make build -s \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko /opt/koko/koko \
-    && mv /opt/koko/build/helm /opt/koko/bin/helm \
-    && mv /opt/koko/build/kubectl /opt/koko/bin/kubectl
+    && mv /opt/koko/bin/rawhelm /opt/koko/bin/helm \
+    && mv /opt/koko/bin/rawkubectl /opt/koko/bin/kubectl
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
@@ -29,20 +29,20 @@ ARG TARGETARCH
 ENV LANG=en_US.UTF-8
 
 ARG DEPENDENCIES="                    \
+        bash-completion               \
+        jq                            \
+        less                          \
         ca-certificates"
 
-ARG APT_MIRROR=http://mirrors.ustc.edu.cn
+ARG APT_MIRROR=http://deb.debian.org
+
 RUN set -ex \
-    && rm -f /etc/apt/apt.conf.d/docker-clean \
-    && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/keep-cache \
     && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
     && apt-get clean all \
-    && echo "no" | dpkg-reconfigure dash \
-    && sed -i "s@# export @export @g" ~/.bashrc \
-    && sed -i "s@# alias @alias @g" ~/.bashrc
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/koko
 

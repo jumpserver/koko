@@ -93,11 +93,11 @@ export const preprocessInput = (data: string, config: ILunaConfig) => {
     }
   }
 
-  if (data === '^C') {
-    data = '\x03';
+  if (data.includes('\u001b[200~') || data.includes('\u001b[201~')) {
+    return data.replace(/\u001b\[200~|\u001b\[201~/g, '');
+  } else {
+    return data;
   }
-
-  return data;
 };
 
 /**

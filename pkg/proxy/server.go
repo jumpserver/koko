@@ -929,6 +929,18 @@ func (s *Server) Proxy() {
 			logger.Errorf("%s err: %s", msg, err)
 		}
 	}
+	if s.connOpts.authInfo.FaceMonitorToken != "" {
+		faceMonitorToken := s.connOpts.authInfo.FaceMonitorToken
+		faceReq := service.JoinFaceMonitorRequest{
+			FaceMonitorToken: faceMonitorToken,
+			SessionId:        s.sessionInfo.ID,
+		}
+		logger.Infof("Conn[%s] join face monitor %s", s.UserConn.ID(), faceMonitorToken)
+		if err := s.jmsService.JoinFaceMonitor(faceReq); err != nil {
+			logger.Errorf("Conn[%s] join face monitor err: %s", s.UserConn.ID(), err)
+		}
+	}
+
 	traceSession := session.NewSession(sw.p.sessionInfo, func(task *model.TerminalTask) error {
 		switch task.Name {
 		case model.TaskKillSession:

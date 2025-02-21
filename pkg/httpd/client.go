@@ -54,7 +54,11 @@ func (c *Client) Read(p []byte) (n int, err error) {
 
 // 向客户端发送数据进行1毫秒的防抖处理
 func (c *Client) Write(p []byte) (n int, err error) {
-	category := c.Conn.ConnectToken.Platform.Category.Value
+	category := ""
+	connectToken := c.Conn.ConnectToken
+	if connectToken != nil {
+		category = connectToken.Platform.Category.Value
+	}
 
 	if category == "database" {
 		c.bufferMutex.Lock()

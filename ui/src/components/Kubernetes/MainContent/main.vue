@@ -184,13 +184,7 @@ const settings = computed((): ISettingProp[] => {
       disabled: () => {
         const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
 
-        if (operatedNode && operatedNode.enableShare) {
-          nextTick(() => {
-            return operatedNode.enableShare;
-          });
-        }
-
-        return true;
+        return !operatedNode?.enableShare;
       },
       click: () => {
         const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
@@ -206,8 +200,8 @@ const settings = computed((): ISettingProp[] => {
               default: () =>
                 h(Share, {
                   sessionId,
-                  enableShare: operatedNode.enableShare,
-                  userOptions: operatedNode.userOptions
+                  enableShare: operatedNode?.enableShare,
+                  userOptions: operatedNode?.userOptions
                 })
             });
           },
@@ -574,7 +568,7 @@ const handleWriteData = async (type: string) => {
       break;
     }
     case 'Stop': {
-      terminal.paste('^C');
+      terminal.paste('\x03');
       break;
     }
     case 'ArrowUp': {

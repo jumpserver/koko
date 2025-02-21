@@ -78,13 +78,24 @@ import type { SelectRenderTag } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { storeToRefs } from 'pinia';
 
-const props = defineProps<{
-  // shareId: string;
-  // shareCode: any;
-  sessionId: string;
-  enableShare: boolean;
-  userOptions: shareUser[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    sessionId: string;
+    enableShare: boolean;
+    userOptions: shareUser[];
+  }>(),
+  {
+    sessionId: '',
+    enableShare: false,
+    userOptions: () => [
+      {
+        id: '',
+        name: '',
+        username: ''
+      }
+    ]
+  }
+);
 
 const message = useMessage();
 const paramsStore = useParamsStore();

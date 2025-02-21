@@ -170,7 +170,7 @@
             }
             var kokoLang = getCookieByName("django_language");
             if ( kokoLang.startsWith("en")) {
-                document.title = "File Manager"
+                document.title = "File explorer"
             }else if (kokoLang.startsWith("ja")) {
                 document.title = "ファイル管理"
             } else {
@@ -198,6 +198,9 @@
                     lng = "en"
                 }else if ( kokoLang.startsWith("zh")) {
                     lng = 'zh_CN'
+                }
+                else if (kokoLang.startsWith('pt')) {
+                    lng = 'pt_BR';
                 }
                 if (lng !== 'en') {
         		    $.ajax({

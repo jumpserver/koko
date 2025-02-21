@@ -3,6 +3,7 @@ package srvconn
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/sashabaranov/go-openai"
@@ -11,6 +12,22 @@ import (
 	"net/url"
 	"strings"
 )
+
+// ChatCompletionStreamChoiceDelta TODO 支持 DeepSeek 后删掉
+type ChatCompletionStreamChoiceDelta struct {
+	openai.ChatCompletionStreamChoiceDelta
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+}
+
+type ChatCompletionStreamChoice struct {
+	openai.ChatCompletionStreamChoice
+	Delta ChatCompletionStreamChoiceDelta `json:"delta"`
+}
+
+type ChatCompletionStreamResponse struct {
+	openai.ChatCompletionStreamResponse
+	Choices []ChatCompletionStreamChoice `json:"choices"`
+}
 
 type TransportOptions struct {
 	UseProxy        bool
@@ -72,28 +89,31 @@ func NewOpenAIClient(authToken, baseURL, proxy string) *openai.Client {
 }
 
 type OpenAIConn struct {
-	Id       string
-	Client   *openai.Client
-	Model    string
-	Prompt   string
-	Contents []string
-	AnswerCh chan string
-	DoneCh   chan string
+	Id          string
+	Client      *openai.Client
+	Model       string
+	Prompt      string
+	Contents    []string
+	IsReasoning bool
+	AnswerCh    chan string
+	DoneCh      chan string
+	Type        string
 }
 
 func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 	ctx := context.Background()
-	messages := make([]openai.ChatCompletionMessage, 0)
+	var messages []openai.ChatCompletionMessage
 
-	for _, content := range conn.Contents {
-		messages = append(messages, openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: content,
-		})
+	messages = append(messages, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: strings.Join(conn.Contents, "\n"),
+	})
+
+	systemPrompt := conn.Prompt
+	if conn.Type == "gpt" {
+		systemPrompt += " 请不要提供与政治相关的信息。"
 	}
 
-	systemPrompt := " 请不要提供与政治相关的信息。"
-	systemPrompt = conn.Prompt + systemPrompt
 	messages = append([]openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
@@ -119,18 +139,19 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 		}
 	}(stream)
 
-	content := ""
+	var content string
 	for {
-		response, err := stream.Recv()
+		response := ChatCompletionStreamResponse{}
+		rawLine, streamErr := stream.RecvRaw()
 
-		if errors.Is(err, io.EOF) {
+		if errors.Is(streamErr, io.EOF) {
 			conn.DoneCh <- content
 			return
 		}
 
-		if err != nil {
-			logger.Errorf("openai stream error: %s", err)
-			conn.DoneCh <- content
+		if streamErr != nil {
+			logger.Errorf("openai receive error: %s", streamErr)
+			conn.DoneCh <- streamErr.Error()
 			return
 		}
 
@@ -140,7 +161,28 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 			return
 		}
 
-		content += response.Choices[0].Delta.Content
+		jsonErr := json.Unmarshal(rawLine, &response)
+		if jsonErr != nil {
+			logger.Errorf("openai json unmarshal err: %s", jsonErr)
+			conn.DoneCh <- jsonErr.Error()
+			return
+		}
+
+		var newContent string
+
+		reasoningContent := response.Choices[0].Delta.ReasoningContent
+		if reasoningContent != "" {
+			conn.IsReasoning = true
+			newContent = reasoningContent
+		} else {
+			if conn.IsReasoning {
+				conn.IsReasoning = false
+				content = ""
+			}
+			newContent = response.Choices[0].Delta.Content
+		}
+
+		content += newContent
 		conn.AnswerCh <- content
 	}
 }

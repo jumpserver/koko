@@ -590,6 +590,7 @@ func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSess
 		logger.Errorf("Create sftp Session err: %s", err1.Error())
 		return nil, err1
 	}
+	respSession.TokenId = conn.token.Id
 	sftpSession := &SftpSession{SftpConn: conn, sess: &respSession, jmsService: ad.jmsService}
 	terminalFunc := func(task *model.TerminalTask) error {
 		switch task.Name {

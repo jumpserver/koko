@@ -11,6 +11,7 @@
     :content="waterMarkContent"
     :line-height="20"
     :font-family="'Open Sans'"
+    style="width: 100%; background-color: #1c1c1c"
   >
     <CustomTerminal
       v-if="verified"
@@ -39,13 +40,11 @@ import {
 import CustomTerminal from '@/components/CustomTerminal/index.vue';
 
 import { storeToRefs } from 'pinia';
-import { useLogger } from '@/hooks/useLogger.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 
 import { Terminal } from '@xterm/xterm';
 
 const { t } = useI18n();
-const { info } = useLogger('Share CustomTerminal Component');
 const dialog = useDialog();
 const message = useMessage();
 const dialogReactiveList = useDialogReactiveList();
@@ -84,8 +83,6 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
 
       onlineUsersMap[key] = data;
 
-      info(onlineUsersMap);
-
       if (terminalId.value === key) {
         message.success(`${data.user} ${t('JoinedWithSuccess')}`);
         break;
@@ -109,14 +106,11 @@ const onSocketData = (msgType: string, msg: any, _terminal: Terminal) => {
     case 'TERMINAL_SHARE_USERS': {
       const data = JSON.parse(msg.data);
 
-      info(data);
-
       Object.assign(onlineUsersMap, data);
 
       break;
     }
     case 'TERMINAL_RESIZE': {
-      // terminal 应该自动会 resize
       break;
     }
     case 'TERMINAL_SESSION': {
@@ -224,7 +218,7 @@ dialog.warning({
     }
 
     .xterm-screen {
-      height: calc(100vh - 20px) !important;
+      height: calc(100vh - 120px) !important;
     }
   }
 }

@@ -601,18 +601,18 @@ export const initElEvent = (
         text = await readText();
       } catch (e) {
         if (terminalStore.termSelectionText !== '') text = terminalStore.termSelectionText;
+      } finally {
+        socket.send(
+          JSON.stringify({
+            id: kubernetesStore.globalTerminalId,
+            k8s_id: terminalStore.currentTab,
+            type: 'TERMINAL_K8S_DATA',
+            data: text
+          })
+        );
       }
 
       e.preventDefault();
-
-      socket.send(
-        JSON.stringify({
-          id: kubernetesStore.globalTerminalId,
-          k8s_id: terminalStore.currentTab,
-          type: 'TERMINAL_K8S_DATA',
-          data: text
-        })
-      );
     },
     false
   );

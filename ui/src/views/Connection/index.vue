@@ -240,7 +240,7 @@ const handleWriteData = async (type: string) => {
       break;
     }
     case 'Stop': {
-      terminalInstance.paste('^C');
+      terminalInstance.paste('\x03');
       break;
     }
     case 'ArrowUp': {
@@ -392,7 +392,7 @@ const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {
   }
 };
 
-const onEvent = (event: string, data: any) => {
+const onEvent = (event: string, _data: any) => {
   switch (event) {
     case 'reconnect':
       Object.keys(onlineUsersMap).filter(key => {

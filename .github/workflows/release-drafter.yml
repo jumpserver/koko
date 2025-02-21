@@ -10,6 +10,10 @@ jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go_version: [ 'stable' ]
+        node_version: [ '20' ]
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
@@ -18,16 +22,17 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/go-build
+            ~/.npm
+            ~/.cache
             ~/go/pkg/mod
-            /usr/local/share/.cache/yarn
-          key: ${{ runner.os }}-koko
-          restore-keys: ${{ runner.os }}-koko
+          key: ${{ runner.os }}-build-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-build-
 
       - name: Get version
+        id: get_version
         run: |
           TAG=$(basename ${GITHUB_REF})
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
@@ -36,23 +41,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           config-name: release-config.yml
-          version: ${{ env.TAG }}
-          tag: ${{ env.TAG }}
+          version: ${{ steps.get_version.outputs.TAG }}
+          tag: ${{ steps.get_version.outputs.TAG }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.15'
+          node-version: ${{ matrix.node_version }}
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22' # The Go version to download (if necessary) and use.
+          go-version: ${{ matrix.go_version }}
+          cache: false
 
       - name: Make Build
         id: make_build
         run: |
          make all -s && ls build
         env:
-          VERSION: ${{ env.TAG }}
+          VERSION: ${{ steps.get_version.outputs.TAG }}
 
       - name: Release Upload Assets
         uses: softprops/action-gh-release@v2

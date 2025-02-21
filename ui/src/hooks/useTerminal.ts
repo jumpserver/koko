@@ -120,7 +120,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       }
       case 'CLOSE': {
         socket.close();
-        sendEventToLuna('CLOSE', '');
+        sendEventToLuna('CLOSE', '',lunaId.value, origin.value);
         break;
       }
       case 'PING':
@@ -139,8 +139,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           }
           case 'ZMODEM_END': {
             if (!enableZmodem.value && zmodemStatus.value) {
-              option.i18nCallBack && message.info(option.i18nCallBack('EndFileTransfer'));
-
               terminal?.write('\r\n');
 
               terminalStore.setTerminalConfig('zmodemStatus', false);
@@ -245,7 +243,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
             sentry.get_confirmed_session()?.abort();
             message.error('File transfer error, file transfer interrupted');
           }
-          console.log(e);
         }
       } else {
         writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);

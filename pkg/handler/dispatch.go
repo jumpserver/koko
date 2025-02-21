@@ -5,9 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/utils"
 )
 
 func (h *InteractiveHandler) Dispatch() {
@@ -120,13 +122,69 @@ func (h *InteractiveHandler) checkMaxIdleTime(checkChan <-chan bool) {
 func (h *InteractiveHandler) ChangeLang() {
 	lang := i18n.NewLang(h.i18nLang)
 	i18nLang := h.i18nLang
-	switch lang {
-	case i18n.EN:
-		i18nLang = i18n.ZH.String()
-	case i18n.ZH:
-		i18nLang = i18n.JA.String()
-	case i18n.JA:
-		i18nLang = i18n.EN.String()
+	allLangCodes := []i18n.LanguageCode{i18n.EN, i18n.ZH, i18n.ZHHant, i18n.JA, i18n.PtBr}
+	langs := []string{"English", "中文", "繁體中文", "日本語", "Português"}
+	idLabel := lang.T("ID")
+	nameLabel := lang.T("Name")
+	labels := []string{idLabel, nameLabel}
+	fields := []string{"ID", "Name"}
+	data := make([]map[string]string, len(langs))
+	for i, j := range langs {
+		row := make(map[string]string)
+		row["ID"] = strconv.Itoa(i + 1)
+		row["Name"] = j
+		data[i] = row
+	}
+	w, _ := h.GetPtySize()
+	table := common.WrapperTable{
+		Fields: fields,
+		Labels: labels,
+		FieldsSize: map[string][3]int{
+			"ID":   {0, 0, 5},
+			"Name": {0, 8, 0},
+		},
+		Data:        data,
+		TotalSize:   w,
+		TruncPolicy: common.TruncMiddle,
+	}
+	table.Initial()
+
+	h.term.SetPrompt("ID> ")
+	selectTip := lang.T("Tips: switch language by ID")
+	backTip := lang.T("Back: B/b")
+	for i := 0; i < 3; i++ {
+		utils.IgnoreErrWriteString(h.term, table.Display())
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(selectTip, utils.Green))
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(backTip, utils.Green))
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+		line, err := h.term.ReadLine()
+		if err != nil {
+			logger.Errorf("User %s switch language err %s", h.user.Name, err)
+			break
+		}
+		line = strings.TrimSpace(line)
+		switch strings.ToLower(line) {
+		case "q", "b", "quit", "exit", "back":
+			logger.Infof("User %s switch language exit", h.user.Name)
+			return
+		case "":
+			continue
+		}
+		if num, err2 := strconv.Atoi(line); err2 == nil {
+			if num > 0 && num <= len(allLangCodes) {
+				lang = allLangCodes[num-1]
+				i18nLang = lang.String()
+				break
+			} else {
+				utils.IgnoreErrWriteString(h.term, utils.WrapperString(lang.T("Invalid ID"), utils.Red))
+				utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+			}
+		}
+	}
+	if i18nLang != h.i18nLang {
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(lang.T("Switch language successfully"), utils.Green))
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 	}
 	userLangGlobalStore.Store(h.user.ID, i18nLang)
 	h.i18nLang = i18nLang

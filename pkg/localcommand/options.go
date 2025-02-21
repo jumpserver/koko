@@ -29,3 +29,9 @@ func WithPtyWin(width, height int) Option {
 		lcmd.ptyWin = &win
 	}
 }
+
+func WithWorkDir(dir string) Option {
+	return func(lcmd *LocalCommand) {
+		lcmd.workDir = dir
+	}
+}

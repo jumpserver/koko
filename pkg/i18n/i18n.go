@@ -12,18 +12,13 @@ import (
 func Initial() {
 	cf := config.GetConf()
 	localePath := path.Join(cf.RootPath, "locale")
-	if strings.HasPrefix(strings.ToLower(cf.LanguageCode), "en") {
-		gotext.Configure(localePath, "en_US", "koko")
-	} else if strings.HasPrefix(strings.ToLower(cf.LanguageCode), "ja") {
-		gotext.Configure(localePath, "ja_JP", "koko")
-	} else {
-		gotext.Configure(localePath, "zh_CN", "koko")
-	}
+	lowerCode := strings.ToLower(cf.LanguageCode)
+	gotext.Configure(localePath, lowerCode, "koko")
 	setupLangMap(localePath)
 }
 
 func setupLangMap(localePath string) {
-	for _, code := range []LanguageCode{EN, ZH, JA} {
+	for _, code := range allLangCodes {
 		enLocal := gotext.NewLocale(localePath, code.String())
 		enLocal.AddDomain("koko")
 		langMap[code] = enLocal
@@ -37,7 +32,10 @@ func NewLang(code string) LanguageCode {
 	} else if strings.Contains(code, "ja") {
 		return JA
 	}
-	return ZH
+	if i18nCode, ok := i18nCodeMap[code]; ok {
+		return i18nCode
+	}
+	return EN
 }
 
 func T(s string) string {
