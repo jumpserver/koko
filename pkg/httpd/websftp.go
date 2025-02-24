@@ -128,24 +128,21 @@ func (h *webSftp) streamFileContent(file FileData, response *Message) {
 	response.Type = SFTPBinary
 	buf := make([]byte, 1024*64)
 	for {
-		select {
-		default:
-			responseCopy := *response
-			n, err := file.Reader.Read(buf)
-			if err != nil {
-				if err != io.EOF {
-					logger.Errorf("Error reading file: %s", err)
-					responseCopy.Err = err.Error()
-					h.ws.SendMessage(&responseCopy)
-				}
-				responseCopy.Raw = append([]byte{}, buf[:n]...)
+		responseCopy := *response
+		n, err := file.Reader.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				logger.Errorf("Error reading file: %s", err)
+				responseCopy.Err = err.Error()
 				h.ws.SendMessage(&responseCopy)
-				return
 			}
-
 			responseCopy.Raw = append([]byte{}, buf[:n]...)
 			h.ws.SendMessage(&responseCopy)
+			return
 		}
+
+		responseCopy.Raw = append([]byte{}, buf[:n]...)
+		h.ws.SendMessage(&responseCopy)
 	}
 }
 
