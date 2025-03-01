@@ -14,6 +14,12 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
+const (
+	ResourceNamespace = "namespace"
+	ResourcePod       = "pod"
+	ResourceContainer = "container"
+)
+
 type Container struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
@@ -156,43 +162,21 @@ func (kc *KubernetesClient) GetTreeData() (string, error) {
 
 	podLines := strings.Split(strings.TrimSpace(string(podsOutput)), "\n")
 
+	k8sTree := NewTree()
 	for _, line := range podLines {
 		record := strings.Fields(line)
 		if len(record) < 3 {
 			continue
 		}
 
-		nsName, podName, containerName := record[0], record[1], record[2]
-
-		ns, exists := namespaces[nsName]
-		if !exists {
-			ns = &Namespace{Name: nsName, Type: "namespace"}
-			namespaces[nsName] = ns
+		nsName, podName, containerNames := record[0], record[1], record[2]
+		for _, containerName := range strings.Split(containerNames, ",") {
+			k8sTree.InsertResource(nsName, podName, containerName)
 		}
+	}
 
-		var pod *Pod
-		for i := range ns.Pods {
-			if ns.Pods[i].Name == podName {
-				pod = &ns.Pods[i]
-				break
-			}
-		}
-
-		if pod == nil {
-			pod = &Pod{Name: podName, Type: "pod"}
-			ns.Pods = append(ns.Pods, *pod)
-		}
-
-		for i := range ns.Pods {
-			if ns.Pods[i].Name == podName {
-				containers := make([]Container, 0)
-				for _, v := range strings.Split(containerName, ",") {
-					containers = append(containers, Container{Name: v, Type: "container"})
-				}
-				ns.Pods[i].Containers = append(ns.Pods[i].Containers, containers...)
-				break
-			}
-		}
+	for _, ns := range k8sTree.SearchNamespaces() {
+		namespaces[ns.Name] = &ns
 	}
 
 	jsonData, err := json.Marshal(namespaces)
@@ -215,4 +199,79 @@ func (kc *KubernetesClient) Close() {
 	if err != nil {
 		logger.Error(err)
 	}
+}
+
+type K8sResourceTree struct {
+	Root *K8sNode
+}
+
+type K8sNode struct {
+	Name    string
+	Type    string
+	SubTree map[string]*K8sNode
+}
+
+func NewTree() *K8sResourceTree {
+	return &K8sResourceTree{
+		Root: NewNode(),
+	}
+}
+
+func NewNode() *K8sNode {
+	return &K8sNode{
+		SubTree: make(map[string]*K8sNode),
+	}
+}
+
+func (node *K8sNode) insert(resource, resourceType string) *K8sNode {
+	if node.SubTree == nil {
+		node.SubTree = make(map[string]*K8sNode)
+	}
+	newNode := NewNode()
+	newNode.Type = resourceType
+	newNode.Name = resource
+	node.SubTree[resource] = newNode
+	return newNode
+}
+
+func (node *K8sNode) searchContainers() []Container {
+	containers := make([]Container, 0)
+	for _, container := range node.SubTree {
+		containers = append(containers, Container{
+			Type: container.Type,
+			Name: container.Name,
+		})
+	}
+	return containers
+}
+
+func (node *K8sNode) searchPods() []Pod {
+	pods := make([]Pod, 0)
+	for _, pod := range node.SubTree {
+		pods = append(pods, Pod{
+			Type:       pod.Type,
+			Name:       pod.Name,
+			Containers: pod.searchContainers(),
+		})
+	}
+	return pods
+}
+
+func (tree *K8sResourceTree) SearchNamespaces() []Namespace {
+	namespaces := make([]Namespace, 0)
+	for _, namespace := range tree.Root.SubTree {
+		namespaces = append(namespaces, Namespace{
+			Type: namespace.Type,
+			Name: namespace.Name,
+			Pods: namespace.searchPods(),
+		})
+	}
+	return namespaces
+}
+
+func (tree *K8sResourceTree) InsertResource(ns, pod, container string) {
+	cur := tree.Root
+	cur = cur.insert(ns, ResourceNamespace)
+	cur.insert(pod, ResourcePod)
+	cur.insert(container, ResourceContainer)
 }
