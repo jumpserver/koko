@@ -57,6 +57,27 @@ func TestK8sResourceTree_ResultTest(t *testing.T) {
 	fmt.Println("ok")
 }
 
+func TestK8sTreeGen_SpeedTest(t *testing.T) {
+	mockedData := GenPodLines(30000) // 模拟企业级生产环境小集群架构下的k8s规模
+
+	var duration1, duration2 int64
+	st1 := time.Now()
+	for i := 0; i <= 100; i++ {
+		v1(mockedData)
+	}
+	duration1 = time.Now().Sub(st1).Milliseconds()
+
+	st2 := time.Now()
+	for i := 0; i <= 100; i++ {
+		v2(mockedData)
+	}
+	duration2 = time.Now().Sub(st2).Milliseconds()
+
+	fmt.Printf("v1: %d\n", duration1/100)
+	fmt.Printf("v2: %d\n", duration2/100)
+	fmt.Printf("improvement: %2f\n", (float64(duration1-duration2))/float64(duration1))
+}
+
 func containersIsEqual(c1, c2 []Container) (ans bool) {
 	defer func() {
 		if !ans {
@@ -123,27 +144,6 @@ func nsIsEqual(n1, n2 map[string]*Namespace) (ans bool) {
 	return
 }
 
-func TestK8sTreeGen_SpeedTest(t *testing.T) {
-	mockedData := GenPodLines(30000) // 模拟企业级生产环境小集群架构下的k8s规模
-
-	var duration1, duration2 int64
-	st1 := time.Now()
-	for i := 0; i <= 100; i++ {
-		v1(mockedData)
-	}
-	duration1 = time.Now().Sub(st1).Milliseconds()
-
-	st2 := time.Now()
-	for i := 0; i <= 100; i++ {
-		v2(mockedData)
-	}
-	duration2 = time.Now().Sub(st2).Milliseconds()
-
-	fmt.Printf("v1: %d\n", duration1/100)
-	fmt.Printf("v2: %d\n", duration2/100)
-	fmt.Printf("improvement: %2f\n", (float64(duration1-duration2))/float64(duration1))
-}
-
 func v2(podLines []string) map[string]*Namespace {
 	namespaces := make(map[string]*Namespace)
 	k8sTree := NewTree()
@@ -205,6 +205,8 @@ func v1(podLines []string) map[string]*Namespace {
 }
 
 // 模拟大规模的生产环境的k8s集群数据
+//
+//nolint:gosec
 func GenPodLines(scale int) []string {
 	rand.Seed(time.Now().UnixNano())
 	lines := make([]string, scale)
@@ -239,6 +241,8 @@ func GenPodLines(scale int) []string {
 }
 
 // 生成命名空间名称
+//
+//nolint:gosec
 func genNsName() string {
 	prefix := choice([]string{
 		"app", "team", "project", "service", "system",
@@ -249,6 +253,8 @@ func genNsName() string {
 }
 
 // 生成Pod名称（基于命名空间特征）
+//
+//nolint:gosec
 func genPodName(ns string) string {
 	parts := strings.Split(ns, "-")
 	appType := ""
@@ -274,6 +280,8 @@ func genPodName(ns string) string {
 }
 
 // 生成容器列表（带sidecar模式）
+//
+//nolint:gosec
 func genContainers(ns string) string {
 	baseContainers := []string{
 		"nginx", "nodejs", "java-app", "python",
@@ -305,6 +313,8 @@ func genContainers(ns string) string {
 }
 
 // 辅助函数：随机选择
+//
+//nolint:gosec // 测试数据生成无需密码学安全随机
 func choice(options []string) string {
 	if len(options) == 0 {
 		return "none"
@@ -313,6 +323,8 @@ func choice(options []string) string {
 }
 
 // 生成随机字符串
+//
+//nolint:gosec
 func randomString(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, n)
