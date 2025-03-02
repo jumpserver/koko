@@ -1,8 +1,9 @@
 package proxy
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -208,7 +209,6 @@ func v1(podLines []string) map[string]*Namespace {
 //
 //nolint:gosec
 func GenPodLines(scale int) []string {
-	rand.Seed(time.Now().UnixNano())
 	lines := make([]string, scale)
 
 	// 预生成命名空间列表（约100个不同的ns）
@@ -226,9 +226,9 @@ func GenPodLines(scale int) []string {
 		case i < scale/100*15: // 15% 监控日志
 			ns = choice([]string{"monitoring", "logging", "security"})
 		case i < scale/2: // 50% 业务应用
-			ns = nsList[rand.Intn(30)+20] // 使用前50个业务ns
+			ns = nsList[CryptoRandInt(30)+20] // 使用前50个业务ns
 		default: // 30% 其他
-			ns = nsList[rand.Intn(len(nsList))]
+			ns = nsList[CryptoRandInt(len(nsList))]
 		}
 
 		lines[i] = fmt.Sprintf("%s\t%s\t%s",
@@ -248,7 +248,7 @@ func genNsName() string {
 		"app", "team", "project", "service", "system",
 		"infra", "test", "staging", "prod", "backend",
 	})
-	suffix := fmt.Sprintf("%03d", rand.Intn(200))
+	suffix := fmt.Sprintf("%03d", CryptoRandInt(200))
 	return fmt.Sprintf("%s-%s-%s", prefix, choice([]string{"web", "api", "data", "mobile"}), suffix)
 }
 
@@ -296,12 +296,12 @@ func genContainers(ns string) string {
 	var containers []string
 
 	// 主容器
-	main := baseContainers[rand.Intn(len(baseContainers))]
+	main := baseContainers[CryptoRandInt(len(baseContainers))]
 	containers = append(containers, main)
 
 	// 30%的Pod带sidecar
-	if rand.Float32() < 0.3 {
-		containers = append(containers, sidecars[rand.Intn(len(sidecars))])
+	if CryptoRandInt(100) < 30 {
+		containers = append(containers, sidecars[CryptoRandInt(len(sidecars))])
 	}
 
 	// 系统命名空间特殊处理
@@ -319,7 +319,7 @@ func choice(options []string) string {
 	if len(options) == 0 {
 		return "none"
 	}
-	return options[rand.Intn(len(options))]
+	return options[CryptoRandInt(len(options))]
 }
 
 // 生成随机字符串
@@ -329,7 +329,19 @@ func randomString(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[CryptoRandInt(len(letters))]
 	}
 	return string(b)
+}
+
+func CryptoRandInt(max int) int {
+	bigRange := big.NewInt(int64(max))
+
+	randomNum, err := rand.Int(rand.Reader, bigRange)
+	if err != nil {
+		return 0
+	}
+
+	// 调整到目标范围并返回
+	return int(randomNum.Int64())
 }
