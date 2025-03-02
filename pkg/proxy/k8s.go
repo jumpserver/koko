@@ -227,6 +227,9 @@ func (node *K8sNode) insert(resource, resourceType string) *K8sNode {
 	if node.SubTree == nil {
 		node.SubTree = make(map[string]*K8sNode)
 	}
+	if k8sNode, ok := node.SubTree[resource]; ok {
+		return k8sNode
+	}
 	newNode := NewNode()
 	newNode.Type = resourceType
 	newNode.Name = resource
@@ -271,7 +274,7 @@ func (tree *K8sResourceTree) SearchNamespaces() []Namespace {
 
 func (tree *K8sResourceTree) InsertResource(ns, pod, container string) {
 	cur := tree.Root
-	cur = cur.insert(ns, ResourceNamespace)
-	cur.insert(pod, ResourcePod)
-	cur.insert(container, ResourceContainer)
+	cur.insert(ns, ResourceNamespace).
+		insert(pod, ResourcePod).
+		insert(container, ResourceContainer)
 }
