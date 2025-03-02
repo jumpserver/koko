@@ -3,7 +3,6 @@ package proxy
 import (
 	"fmt"
 	"math/rand"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -49,23 +48,100 @@ func TestK8sResourceTree_SearchNamespaces(t *testing.T) {
 }
 
 func TestK8sResourceTree_ResultTest(t *testing.T) {
-	mockedData := GenPodLines()
+	mockedData := GenPodLines(30000)
 	res1 := v1(mockedData)
 	res2 := v2(mockedData)
-	if !reflect.DeepEqual(res1, res2) {
+	if !nsIsEqual(res1, res2) {
 		panic("not equal")
 	}
 	fmt.Println("ok")
 }
 
+func containersIsEqual(c1, c2 []Container) (ans bool) {
+	defer func() {
+		if !ans {
+			fmt.Println("container error")
+		}
+	}()
+	c1Map := make(map[string]Container)
+	for _, c := range c1 {
+		c1Map[c.Name] = c
+	}
+	for _, c := range c2 {
+		if cc, ok := c1Map[c.Name]; !ok {
+			return
+		} else if cc != c {
+			return
+		}
+		delete(c1Map, c.Name)
+	}
+	ans = len(c1Map) == 0
+	return
+}
+
+func podsIsEqual(p1, p2 []Pod) (ans bool) {
+	defer func() {
+		if !ans {
+			fmt.Println("pod error")
+		}
+	}()
+	p1Map := make(map[string]Pod)
+	for _, p := range p1 {
+		p1Map[p.Name] = p
+	}
+	for _, p := range p2 {
+		if pp, ok := p1Map[p.Name]; !ok {
+			return
+		} else if p.Name != pp.Name || !containersIsEqual(p.Containers, pp.Containers) {
+			return
+		}
+
+		delete(p1Map, p.Name)
+	}
+
+	ans = len(p1Map) == 0
+	return
+}
+
+func nsIsEqual(n1, n2 map[string]*Namespace) (ans bool) {
+	defer func() {
+		if !ans {
+			fmt.Println("ns error")
+		}
+	}()
+	n1Map := n1
+	for _, n := range n2 {
+		if nn, ok := n1Map[n.Name]; !ok {
+			return
+		} else if n.Name != nn.Name || !podsIsEqual(n.Pods, nn.Pods) {
+			return
+		}
+
+		delete(n1Map, n.Name)
+	}
+	ans = len(n1Map) == 0
+	return
+}
+
 func TestK8sTreeGen_SpeedTest(t *testing.T) {
-	mockedData := GenPodLines()
+	mockedData := GenPodLines(30000) // 模拟企业级生产环境小集群架构下的k8s规模
+
+	var duration1, duration2 int64
 	st1 := time.Now()
-	v1(mockedData)
-	fmt.Printf("duration v1: %dms", time.Now().Sub(st1).Milliseconds())
+	for i := 0; i <= 100; i++ {
+		v1(mockedData)
+	}
+	duration1 = time.Now().Sub(st1).Milliseconds()
+
 	st2 := time.Now()
-	v2(mockedData)
-	fmt.Printf("duration v2: %dms", time.Now().Sub(st2).Milliseconds())
+	for i := 0; i <= 100; i++ {
+		v2(mockedData)
+	}
+	duration2 = time.Now().Sub(st2).Milliseconds()
+
+	fmt.Printf("v1: %d\n", duration1/100)
+	fmt.Printf("v2: %d\n", duration2/100)
+	fmt.Printf("improvement: %2f\n", (float64(duration1-duration2))/float64(duration1))
 }
 
 func v2(podLines []string) map[string]*Namespace {
@@ -79,7 +155,8 @@ func v2(podLines []string) map[string]*Namespace {
 		}
 	}
 	for _, namespace := range k8sTree.SearchNamespaces() {
-		namespaces[namespace.Name] = &namespace
+		namespaceCopy := namespace
+		namespaces[namespace.Name] = &namespaceCopy
 	}
 	return namespaces
 }
@@ -128,9 +205,9 @@ func v1(podLines []string) map[string]*Namespace {
 }
 
 // 模拟大规模的生产环境的k8s集群数据
-func GenPodLines() []string {
+func GenPodLines(scale int) []string {
 	rand.Seed(time.Now().UnixNano())
-	lines := make([]string, 10000)
+	lines := make([]string, scale)
 
 	// 预生成命名空间列表（约100个不同的ns）
 	nsList := make([]string, 100)
@@ -139,14 +216,14 @@ func GenPodLines() []string {
 	}
 
 	// 真实集群的典型分布模式
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < scale; i++ {
 		var ns string
 		switch {
-		case i < 500: // 5% 系统组件
+		case i < scale/20: // 5% 系统组件
 			ns = choice([]string{"kube-system", "kube-public", "istio-system"})
-		case i < 2000: // 15% 监控日志
+		case i < scale/100*15: // 15% 监控日志
 			ns = choice([]string{"monitoring", "logging", "security"})
-		case i < 7000: // 50% 业务应用
+		case i < scale/2: // 50% 业务应用
 			ns = nsList[rand.Intn(30)+20] // 使用前50个业务ns
 		default: // 30% 其他
 			ns = nsList[rand.Intn(len(nsList))]
@@ -174,7 +251,12 @@ func genNsName() string {
 // 生成Pod名称（基于命名空间特征）
 func genPodName(ns string) string {
 	parts := strings.Split(ns, "-")
-	appType := parts[1]
+	appType := ""
+	if len(parts) > 1 {
+		appType = parts[1]
+	} else {
+		appType = parts[0]
+	}
 
 	templates := map[string][]string{
 		"web":    {"frontend", "ui", "portal"},
@@ -224,6 +306,9 @@ func genContainers(ns string) string {
 
 // 辅助函数：随机选择
 func choice(options []string) string {
+	if len(options) == 0 {
+		return "none"
+	}
 	return options[rand.Intn(len(options))]
 }
 
