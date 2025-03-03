@@ -518,7 +518,7 @@ export const useFileManage = (fileConnectionUrl: string) => {
   let socket: WebSocket | null = null;
 
   if (!fileConnectionUrl) {
-    throw new Error('无法获取文件管理连接地址');
+    return;
   }
 
   function cleanup() {
@@ -534,9 +534,7 @@ export const useFileManage = (fileConnectionUrl: string) => {
     try {
       const ws = fileSocketConnection(fileConnectionUrl, message);
 
-      if (!ws) {
-        throw new Error('WebSocket 连接失败');
-      }
+      if (!ws) return;
 
       socket = ws;
 
@@ -602,6 +600,7 @@ export const useFileManage = (fileConnectionUrl: string) => {
     } catch (error) {
       cleanup();
       console.error('File management initialization failed:', error);
+      
       throw error;
     }
   }
