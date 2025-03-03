@@ -167,15 +167,16 @@ import mittBus from '@/utils/mittBus.ts';
 // @ts-ignore
 import FileManage from './components/fileManage/index.vue';
 
-import { Delete, CloudDownload } from '@vicons/carbon';
 import { Folder, Folders, Settings } from '@vicons/tabler';
 import { NButton, NEllipsis, NFlex, NIcon, NTag, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { useMessage } from 'naive-ui';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { h, onBeforeUnmount, onMounted, ref, watch, unref, nextTick } from 'vue';
+import { useRoute } from 'vue-router';
+import { useMessage } from 'naive-ui';
+import { BASE_WS_URL } from '@/config';
 
 import type { DataTableColumns } from 'naive-ui';
 import type { ISettingProp } from '@/views/interface';
@@ -200,6 +201,8 @@ const props = withDefaults(
 );
 
 const { t } = useI18n();
+const route = useRoute();
+const message = useMessage();
 const fileManageStore = useFileManageStore();
 
 const isLoaded = ref(false);
@@ -207,6 +210,7 @@ const isShowList = ref(false);
 const settingDrawer = ref(false);
 const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);
+const socketInstance = ref<ReturnType<typeof useFileManage> | null>(null);
 
 watch(
   () => fileManageStore.fileList,
@@ -221,12 +225,50 @@ watch(
   }
 );
 
+const getFileConnectionUrl = () => {
+  const routeName = route.name;
+  const urlParams = new URLSearchParams(window.location.search.slice(1));
+  
+  if (routeName === 'Terminal') {
+    return urlParams ? `${BASE_WS_URL}/koko/ws/sftp/?token=${urlParams.toString().split('&')[1].split('=')[1]}` : '';
+  }
+  return '';
+};
+
 /**
  * @description pam 中默认打开的是文件管理
  */
 const handleOpenFileList = () => {
   tabDefaultValue.value = 'fileManage';
   isShowList.value = !isShowList.value;
+
+  if (isShowList.value) {
+    try {
+      if (socketInstance.value?.socket && socketInstance.value.socket.readyState === WebSocket.OPEN) {
+        return;
+      }
+
+      if (socketInstance.value) {
+        socketInstance.value.cleanup();
+        socketInstance.value = null;
+      }
+
+      const fileConnectionUrl = getFileConnectionUrl();
+      
+      if (!fileConnectionUrl) {
+        return
+      }
+
+      socketInstance.value = useFileManage(fileConnectionUrl);
+    } catch (error) {
+      console.error('Failed to initialize file management:', error);
+    }
+  } else {
+    if (socketInstance.value?.cleanup) {
+      socketInstance.value.cleanup();
+      socketInstance.value = null;
+    }
+  }
 };
 
 /**
@@ -439,7 +481,6 @@ const handleBeforeLeave = (tabName: string) => {
 const columns = createColumns();
 
 onMounted(() => {
-  useFileManage();
   mittBus.on('open-fileList', handleOpenFileList);
   mittBus.on('open-setting', handleOpenSetting);
 });
