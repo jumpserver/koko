@@ -215,7 +215,7 @@ const socketInstance = ref<ReturnType<typeof useFileManage> | null>(null);
 watch(
   () => fileManageStore.fileList,
   fileList => {
-    if (fileList) {
+    if (fileList && fileList.length > 0) {
       tableData.value = fileList;
       isLoaded.value = true;
     }

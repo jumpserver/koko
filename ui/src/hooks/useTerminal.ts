@@ -154,6 +154,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       case 'TERMINAL_ERROR':
       case 'ERROR': {
         terminal?.write(msg.err);
+        sendEventToLuna('TERMINAL_ERROR', '', lunaId.value, origin.value);
         break;
       }
       case 'MESSAGE_NOTIFY': {

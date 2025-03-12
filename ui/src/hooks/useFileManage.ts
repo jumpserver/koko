@@ -267,7 +267,7 @@ const initSocketEvent = (socket: WebSocket) => {
       }
 
       case MessageType.ERROR: {
-        globalMessage.error('Error Occurred!');
+        fileManageStore.setFileList([]);
 
         break;
       }
