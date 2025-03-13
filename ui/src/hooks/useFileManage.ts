@@ -513,30 +513,16 @@ const handleFileUpload = (
 /**
  * @description 用于处理文件管理相关逻辑
  */
-export const useFileManage = (fileConnectionUrl: string) => {
+export const useFileManage = () => {
+  let fileConnectionUrl: string | undefined = '';
+
   const message = useMessage();
-  let socket: WebSocket | null = null;
-
-  if (!fileConnectionUrl) {
-    return;
-  }
-
-  function cleanup() {
-    if (socket) {
-      socket.close();
-      mittBus.off('file-upload');
-      mittBus.off('download-file');
-      mittBus.off('file-manage');
-    }
-  }
 
   function init() {
-    try {
-      const ws = fileSocketConnection(fileConnectionUrl, message);
+    fileConnectionUrl = getFileManageUrl();
 
-      if (!ws) return;
-
-      socket = ws;
+    if (fileConnectionUrl) {
+      const socket = fileSocketConnection(fileConnectionUrl, message);
 
       mittBus.on(
         'file-upload',
@@ -551,61 +537,45 @@ export const useFileManage = (fileConnectionUrl: string) => {
           onError: () => void;
           onProgress: (e: { percent: number }) => void;
         }) => {
-          if (socket) {
-            handleFileUpload(socket, fileList, onProgress, onFinish, onError);
-          }
+          handleFileUpload(<WebSocket>socket, fileList, onProgress, onFinish, onError);
         }
       );
 
       mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
-        if (socket) {
-          handleFileDownload(socket, path, is_dir);
-        }
+        handleFileDownload(<WebSocket>socket, path, is_dir);
       });
 
       mittBus.on(
         'file-manage',
         ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
-          if (!socket) return;
-
           switch (type) {
             case ManageTypes.CREATE: {
-              handleFileCreate(socket, path);
+              handleFileCreate(<WebSocket>socket, path);
               break;
             }
             case ManageTypes.CHANGE: {
-              handleChangePath(socket, path);
+              handleChangePath(<WebSocket>socket, path);
               break;
             }
             case ManageTypes.REFRESH: {
-              refresh(socket, path);
+              refresh(<WebSocket>socket, path);
               break;
             }
             case ManageTypes.RENAME: {
-              handleFileRename(socket, path, new_name!);
+              handleFileRename(<WebSocket>socket, path, new_name!);
               break;
             }
             case ManageTypes.REMOVE: {
-              handleFileRemove(socket, path);
+              handleFileRemove(<WebSocket>socket, path);
               break;
             }
           }
         }
       );
-
-      return {
-        cleanup,
-        socket
-      };
-    } catch (error) {
-      cleanup();
-      console.error('File management initialization failed:', error);
-      
-      throw error;
     }
   }
 
-  return init();
+  init();
 };
 
 export const unloadListeners = () => {
