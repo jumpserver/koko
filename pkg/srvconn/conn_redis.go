@@ -96,7 +96,15 @@ func (conn *RedisConn) Close() error {
 
 func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	cmd := opt.RedisCommandArgs()
-	opts, err := BuildNobodyWithOpts(localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
+	envs := make([]string, 0, 2)
+	redisCliFile := os.Getenv("REDISCLI_RCFILE")
+	if redisCliFile != "" {
+		envs = append(envs, "REDISCLI_RCFILE="+redisCliFile)
+		logger.Infof("rediscli rcfile: %s", redisCliFile)
+	}
+	ptyOpt := localcommand.WithPtyWin(opt.win.Width, opt.win.Height)
+	envOpt := localcommand.WithEnv(envs)
+	opts, err := BuildNobodyWithOpts(ptyOpt, envOpt)
 	if err != nil {
 		logger.Errorf("build nobody with opts error: %s", err)
 		return nil, err
