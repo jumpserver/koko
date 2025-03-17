@@ -137,7 +137,7 @@
             </n-flex>
           </template>
         </n-tab-pane>
-        <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
+        <!-- <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
           <template #tab>
             <n-flex align="center" justify="flex-start">
               <n-icon size="20" :component="Folders" />
@@ -154,7 +154,7 @@
               <n-spin size="small" class="absolute w-full h-full" />
             </template>
           </template>
-        </n-tab-pane>
+        </n-tab-pane> -->
       </n-tabs>
     </n-drawer-content>
   </n-drawer>
@@ -439,7 +439,7 @@ const handleBeforeLeave = (tabName: string) => {
 const columns = createColumns();
 
 onMounted(() => {
-  useFileManage();
+  // useFileManage();
   mittBus.on('open-fileList', handleOpenFileList);
   mittBus.on('open-setting', handleOpenSetting);
 });
