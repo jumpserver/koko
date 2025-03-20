@@ -21,4 +21,5 @@ linters:
     - staticcheck
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number

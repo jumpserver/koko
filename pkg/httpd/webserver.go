@@ -129,6 +129,21 @@ func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
 	userConn.Run()
 }
 
+func (s *Server) ProcessSftpWebsocket(ctx *gin.Context) {
+	userConn, err := s.UpgradeUserWsConn(ctx)
+	if err != nil {
+		logger.Errorf(WebsocketErrorf, err)
+		return
+	}
+	userConn.handler = &webSftp{
+		ws:   userConn,
+		done: make(chan struct{}),
+	}
+	s.broadCaster.EnterUserWebsocket(userConn)
+	defer s.broadCaster.LeaveUserWebsocket(userConn)
+	userConn.Run()
+}
+
 func (s *Server) ChatAIWebsocket(ctx *gin.Context) {
 	userConn, err := s.UpgradeUserWsConn(ctx)
 	if err != nil {

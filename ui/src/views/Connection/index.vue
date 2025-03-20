@@ -8,7 +8,8 @@
     @event="onEvent"
     @socketData="onSocketData"
   />
-  <Settings :settings="settings" />
+
+  <PamFileList :settings="settings" />
 </template>
 
 <script setup lang="ts">
@@ -27,7 +28,7 @@ import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 
 import Share from '@/components/Share/index.vue';
-import Settings from '@/components/Settings/index.vue';
+import PamFileList from '@/components/pamFileList/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import CustomComponent from '@/components/CustomTerminal/index.vue';
 
@@ -402,6 +403,9 @@ const onEvent = (event: string, _data: any) => {
       break;
     case 'open':
       mittBus.emit('open-setting');
+      break;
+    case 'file':
+      mittBus.emit('open-fileList');
       break;
   }
 };

@@ -38,6 +38,9 @@ type AssetDir struct {
 	ShowHidden bool
 
 	jmsService *service.JMService
+
+	isFromWebTerminal bool
+	CurrentPath       string
 }
 
 func (ad *AssetDir) Name() string {
@@ -252,7 +255,7 @@ func (ad *AssetDir) Open(path string) (*SftpFile, error) {
 func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
-	if !ok {
+	if !ok && !ad.isFromWebTerminal {
 		if len(pathData) == 1 && pathData[0] == "" {
 			for accountName := range ad.suMaps {
 				res = append(res, NewFakeFile(accountName, true))
@@ -268,6 +271,8 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
+	ad.CurrentPath = realPath
+
 	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
@@ -277,7 +282,7 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	isRootAccount := con.token.Account.Username == "root"
 	fileInfoList := make([]os.FileInfo, 0, len(res))
 	for i := 0; i < len(res); i++ {
-		info := NewSftpFileInfo(res[i], isRootAccount)
+		info := NewSftpFileInfo(res[i], isRootAccount, ad.isFromWebTerminal)
 		if !ad.ShowHidden && strings.HasPrefix(info.Name(), ".") {
 			continue
 		}
@@ -289,7 +294,7 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 				logger.Errorf("ReadDir get link info err: %s", err1)
 				continue
 			}
-			info = NewSftpFileInfo(linkInfo, isRootAccount)
+			info = NewSftpFileInfo(linkInfo, isRootAccount, ad.isFromWebTerminal)
 		}
 		fileInfoList = append(fileInfoList, info)
 	}
@@ -459,7 +464,7 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 	defer con.DecreaseRef()
 	res, err = con.client.Stat(realPath)
 	isRootAccount := con.token.Account.Username == "root"
-	return NewSftpFileInfo(res, isRootAccount), err
+	return NewSftpFileInfo(res, isRootAccount, ad.isFromWebTerminal), err
 }
 
 func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
@@ -545,22 +550,32 @@ func (ad *AssetDir) checkExpired() {
 	})
 }
 
+func (ad *AssetDir) GetRealPath(sftpSess *SftpSession, path string) string {
+	realPath := filepath.Join(sftpSess.rootDirPath, strings.TrimPrefix(path, "/"))
+	if ad.isFromWebTerminal && path != "" {
+		return path
+	}
+	return realPath
+}
+
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
 	key := su.String()
 	if val, ok := ad.sftpSessions.Load(key); ok {
 		sftpSess := val.(*SftpSession)
-		realPath = filepath.Join(sftpSess.rootDirPath, strings.TrimPrefix(path, "/"))
+		realPath = ad.GetRealPath(sftpSess, path)
 		return sftpSess.SftpConn, realPath
 	}
+
 	sftpSession, err := ad.createSftpSession(su)
 	if err != nil {
 		logger.Errorf("Create sftp session err: %s", err.Error())
 		return nil, ""
 	}
 	ad.sftpSessions.Store(key, sftpSession)
-	realPath = filepath.Join(sftpSession.rootDirPath, strings.TrimPrefix(path, "/"))
+
+	realPath = ad.GetRealPath(sftpSession, path)
 	return sftpSession.SftpConn, realPath
 }
 
@@ -761,6 +776,9 @@ func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHC
 }
 
 func (ad *AssetDir) parsePath(path string) []string {
+	if ad.isFromWebTerminal {
+		return []string{path}
+	}
 	path = strings.TrimPrefix(path, "/")
 	return strings.Split(path, "/")
 }
@@ -815,16 +833,17 @@ func IsExistPath(client *sftp.Client, path string) bool {
 	return err == nil
 }
 
-func NewSftpFileInfo(info os.FileInfo, isRoot bool) os.FileInfo {
+func NewSftpFileInfo(info os.FileInfo, isRoot, isFromWebTerminal bool) os.FileInfo {
 	if !isRoot {
 		return info
 	}
-	return &SftpFileInfo{info: info, isRoot: isRoot}
+	return &SftpFileInfo{info: info, isRoot: isRoot, isFromWebTerminal: isFromWebTerminal}
 }
 
 type SftpFileInfo struct {
-	info   os.FileInfo
-	isRoot bool
+	info              os.FileInfo
+	isRoot            bool
+	isFromWebTerminal bool
 }
 
 func (ad *SftpFileInfo) Name() string {
@@ -842,6 +861,9 @@ func (ad *SftpFileInfo) Size() int64 {
 */
 
 func (ad *SftpFileInfo) Mode() os.FileMode {
+	if ad.isFromWebTerminal {
+		return ad.info.Mode()
+	}
 	if ad.isRoot && ad.info.IsDir() {
 		return ad.info.Mode() | os.ModePerm
 	}

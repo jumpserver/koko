@@ -1,5 +1,11 @@
 <template>
-  <n-config-provider :theme="darkTheme" :locale="zhCN" :date-locale="dateZhCN" class="overflow-hidden">
+  <n-config-provider
+    :locale="zhCN"
+    :theme="darkTheme"
+    :date-locale="dateZhCN"
+    :theme-overrides="themeOverrides"
+    class="overflow-hidden"
+  >
     <n-dialog-provider>
       <n-notification-provider>
         <n-message-provider>
@@ -16,6 +22,7 @@ import { BASE_URL } from '@/config';
 import { darkTheme } from 'naive-ui';
 import { alovaInstance } from '@/api';
 import { zhCN, dateZhCN } from 'naive-ui';
+import { themeOverrides } from './overrides.ts';
 
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';

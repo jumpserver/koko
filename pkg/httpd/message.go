@@ -19,11 +19,15 @@ type Message struct {
 	Prompt    string `json:"prompt"`
 	Interrupt bool   `json:"interrupt"`
 
-	//K8S
+	//K8s
 	KubernetesId string `json:"k8s_id"`
 	Namespace    string `json:"namespace"`
 	Pod          string `json:"pod"`
 	Container    string `json:"container"`
+
+	// Sftp
+	Cmd         string `json:"cmd"`
+	CurrentPath string `json:"current_path"`
 }
 
 const (
@@ -66,6 +70,9 @@ const (
 	TerminalK8SBinary = "TERMINAL_K8S_BINARY"
 	TerminalK8SResize = "TERMINAL_K8S_RESIZE"
 	K8SClose          = "K8S_CLOSE"
+
+	SFTPData   = "SFTP_DATA"
+	SFTPBinary = "SFTP_BINARY"
 )
 
 type WindowSize struct {

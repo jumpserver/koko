@@ -350,10 +350,7 @@ export const generateWsURL = () => {
  */
 export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal) => {
   switch (type) {
-    case 'error': {
-      terminal ? terminal.write('Connection Websocket Error') : '';
-      break;
-    }
+    case 'error': 
     case 'disconnected': {
       terminal ? terminal.write('Connection Websocket Closed') : '';
       break;
