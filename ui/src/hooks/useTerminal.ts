@@ -23,7 +23,6 @@ import type { ILunaConfig } from '@/hooks/interface';
 
 // 工具函数
 import {
-  base64ToUint8Array,
   generateWsURL,
   handleContextMenu,
   handleCustomKey,
@@ -40,7 +39,17 @@ import {
   wsIsActivated
 } from '@/components/CustomTerminal/helper';
 import mittBus from '@/utils/mittBus.ts';
-import { useTreeStore } from '@/store/modules/tree.ts';
+
+enum MessageType {
+  PING = 'PING',
+  CLOSE = 'CLOSE',
+  ERROR = 'ERROR',
+  CONNECT = 'CONNECT',
+  TERMINAL_ERROR = 'TERMINAL_ERROR',
+  MESSAGE_NOTIFY = 'MESSAGE_NOTIFY',
+  TERMINAL_ACTION = 'TERMINAL_ACTION',
+  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE',
+}
 
 interface ITerminalInstance {
   terminal: Terminal | undefined;
@@ -74,17 +83,15 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
   let type: string = option.type;
 
-  let lunaId: Ref<string> = ref('');
-  let origin: Ref<string> = ref('');
-  let k8s_id: Ref<string> = ref('');
-  let terminalId: Ref<string> = ref('');
-  let termSelectionText: Ref<string> = ref('');
+  let origin= ref('');
+  let lunaId = ref('');
+  let terminalId= ref('');
+  let termSelectionText = ref('');
   let pingInterval: Ref<number | null> = ref(null);
 
   let lastSendTime: Ref<Date> = ref(new Date());
   let lastReceiveTime: Ref<Date> = ref(new Date());
 
-  let messageHandlers = {};
   let handleSocketMessage: any;
 
   const dispatch = (data: string) => {
@@ -98,7 +105,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
     switch (msg.type) {
-      case 'CONNECT': {
+      case MessageType.CONNECT: {
         fitAddon.fit();
         terminalId.value = msg.id;
 
@@ -118,29 +125,24 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         socket.send(formatMessage(terminalId.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
         break;
       }
-      case 'CLOSE': {
+      case MessageType.CLOSE: {
         socket.close();
-        sendEventToLuna('CLOSE', '',lunaId.value, origin.value);
+        sendEventToLuna('CLOSE', '', lunaId.value, origin.value);
         break;
       }
-      case 'PING':
+      case MessageType.PING:
         break;
-      case 'TERMINAL_ACTION': {
+      case MessageType.TERMINAL_ACTION: {
         const action = msg.data;
 
         switch (action) {
           case 'ZMODEM_START': {
             terminalStore.setTerminalConfig('zmodemStatus', true);
-
-            // if (enableZmodem.value) {
-            //     option.i18nCallBack && message.info(option.i18nCallBack('WaitFileTransfer'));
-            // }
             break;
           }
           case 'ZMODEM_END': {
             if (!enableZmodem.value && zmodemStatus.value) {
               terminal?.write('\r\n');
-
               terminalStore.setTerminalConfig('zmodemStatus', false);
             }
             break;
@@ -151,16 +153,16 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         }
         break;
       }
-      case 'TERMINAL_ERROR':
-      case 'ERROR': {
+      case MessageType.TERMINAL_ERROR:
+      case MessageType.ERROR: {
         terminal?.write(msg.err);
         sendEventToLuna('TERMINAL_ERROR', '', lunaId.value, origin.value);
         break;
       }
-      case 'MESSAGE_NOTIFY': {
+      case MessageType.MESSAGE_NOTIFY: {
         break;
       }
-      case 'TERMINAL_SHARE_USER_REMOVE': {
+      case MessageType.TERMINAL_SHARE_USER_REMOVE: {
         option.i18nCallBack && message.info(option.i18nCallBack('RemoveShareUser'));
         socket.close();
         break;
@@ -210,19 +212,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
    * @param data
    */
   const sendWsMessage = (type: string, data: any) => {
-    if (option.type === 'k8s') {
-      const treeStore = useTreeStore();
-      const { currentNode } = storeToRefs(treeStore);
-
-      return socket?.send(
-        JSON.stringify({
-          k8s_id: currentNode.value.k8s_id,
-          type,
-          data: JSON.stringify(data)
-        })
-      );
-    }
-
     socket?.send(formatMessage(terminalId.value, type, JSON.stringify(data)));
   };
 
@@ -251,94 +240,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     } else {
       dispatch(event.data);
     }
-  };
-
-  /**
-   * 处理 K8s 的 message 事件
-   *
-   * @param socketData
-   */
-  const handleK8sMessage = (socketData: any) => {
-    const treeStore = useTreeStore();
-
-    switch (socketData.type) {
-      case 'TERMINAL_K8S_BINARY': {
-        terminalId.value = socketData.id;
-        k8s_id.value = socketData.k8s_id;
-
-        const term = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
-
-        if (term) {
-          const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
-
-          sentry = createSentry(socket, term);
-          sentry.consume(base64ToUint8Array(socketData.raw));
-        }
-
-        break;
-      }
-      case 'TERMINAL_ACTION': {
-        const action = socketData.data;
-
-        switch (action) {
-          case 'ZMODEM_START': {
-            option.i18nCallBack && message.warning(option.i18nCallBack('CustomTerminal.WaitFileTransfer'));
-            break;
-          }
-          case 'ZMODEM_END': {
-            option.i18nCallBack && message.warning(option.i18nCallBack('CustomTerminal.EndFileTransfer'));
-            terminal?.writeln('\r\n');
-            break;
-          }
-        }
-        break;
-      }
-      case 'TERMINAL_ERROR': {
-        const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
-
-        if (hasCurrentK8sId) {
-          const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
-
-          term?.write(socketData.err);
-        }
-
-        break;
-      }
-      case 'K8S_CLOSE': {
-        const treeStore = useTreeStore();
-
-        const id = socketData.k8s_id;
-
-        if (id) {
-          // @ts-ignore
-          const handler = messageHandlers[id];
-
-          if (handler) {
-            socket.removeEventListener('message', handler);
-            // @ts-ignore
-            delete messageHandlers[id];
-          }
-        }
-
-        const hasCurrentK8sId = treeStore.removeK8sIdMap(socketData.k8s_id);
-
-        // 如果 hasCurrentK8sId 为 true 表明需要操作的是当前的 k8s_id 的 terminal
-        if (hasCurrentK8sId) {
-          const term: Terminal = treeStore.getTerminalByK8sId(socketData.k8s_id)?.terminal;
-
-          term?.attachCustomKeyEventHandler(() => {
-            return false;
-          });
-        }
-
-        break;
-      }
-      default: {
-        break;
-      }
-    }
-
-    option.emitCallback && option.emitCallback('socketData', socketData.type, socketData, terminal);
   };
 
   /**
@@ -396,7 +297,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     el.addEventListener(
       'contextmenu',
       (e: MouseEvent) => {
-        handleContextMenu(e, lunaConfig, socket!, terminalId.value, termSelectionText.value, k8s_id.value);
+        handleContextMenu(e, lunaConfig, socket!, terminalId.value, termSelectionText.value);
       },
       false
     );
@@ -553,37 +454,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     const { createSentry } = useSentry(lastSendTime, option.i18nCallBack);
     sentry = createSentry(socket, terminal);
 
-    if (type === 'k8s') {
-      const treeStore = useTreeStore();
-      const { currentNode } = storeToRefs(treeStore);
-
-      const { currentTab } = storeToRefs(useTerminalStore());
-
-      treeStore.setK8sIdMap(currentNode.value.k8s_id!, {
-        terminal,
-        socket,
-        ...currentNode.value
-      });
-
-      messageHandlers = {
-        [currentTab.value]: (e: MessageEvent) => {
-          handleK8sMessage(JSON.parse(e.data));
-        }
-      };
-
-      handleSocketMessage = (e: MessageEvent) => {
-        // @ts-ignore
-        const handler = messageHandlers[currentTab.value];
-
-        if (handler) {
-          handler(e);
-        }
-      };
-
-      option.transSocket?.addEventListener('message', handleSocketMessage);
-    } else {
-      initSocketEvent();
-    }
+    initSocketEvent();
   };
 
   /**
@@ -623,17 +494,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     });
 
     mittBus.on('sync-theme', ({ type, data }) => {
-      if (option.type === 'k8s') {
-        return socket.send(
-          JSON.stringify({
-            k8s_id: k8s_id.value,
-            id: terminalId.value,
-            type,
-            data: JSON.stringify(data)
-          })
-        );
-      }
-
       sendWsMessage(type, data);
     });
   };
