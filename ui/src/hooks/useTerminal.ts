@@ -37,7 +37,7 @@ import {
   sendEventToLuna,
   updateIcon,
   wsIsActivated
-} from '@/components/CustomTerminal/helper';
+} from '@/components/TerminalComponent/helper';
 import mittBus from '@/utils/mittBus.ts';
 
 enum MessageType {
@@ -327,11 +327,22 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           break;
         }
         case 'OPEN': {
-          option.emitCallback && option.emitCallback('event', 'open', '');
+          option.emitCallback && option.emitCallback('event', 'open', {
+            lunaId: lunaId.value,
+            origin: origin.value
+          });
           break;
         }
         case 'FILE': {
-          option.emitCallback && option.emitCallback('event', 'file', '');
+          option.emitCallback && option.emitCallback('event', 'file', {
+            token: message?.SFTP_Token,
+          });
+          break;
+        }
+        case 'CREATE_FILE_CONNECT_TOKEN': {
+          option.emitCallback && option.emitCallback('event', 'create-file-connect-token', {
+            token: message?.SFTP_Token,
+          });
           break;
         }
       }

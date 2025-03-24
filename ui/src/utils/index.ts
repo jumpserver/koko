@@ -3,7 +3,7 @@ import { TranslateFunction } from '@/views/interface';
 import { Terminal } from '@xterm/xterm';
 import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
 import type { ILunaConfig } from '@/hooks/interface';
-import { RowData } from '@/components/pamFileList/index.vue';
+import { RowData } from '@/components/FileManagement/index.vue';
 
 const { message } = createDiscreteApi(['message']);
 

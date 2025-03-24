@@ -137,7 +137,7 @@
             </n-flex>
           </template>
         </n-tab-pane>
-        <!-- <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
+        <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
           <template #tab>
             <n-flex align="center" justify="flex-start">
               <n-icon size="20" :component="Folders" />
@@ -154,7 +154,7 @@
               <n-spin size="small" class="absolute w-full h-full" />
             </template>
           </template>
-        </n-tab-pane> -->
+        </n-tab-pane>
       </n-tabs>
     </n-drawer-content>
   </n-drawer>
@@ -193,11 +193,16 @@ export interface RowData {
 const props = withDefaults(
   defineProps<{
     settings: ISettingProp[];
+    sftpToken: string;
   }>(),
   {
-    settings: () => []
+    settings: () => [],
+    sftpToken: ''
   }
 );
+const emits = defineEmits<{
+  (e: 'create-file-connect-token'): void;
+}>()
 
 const { t } = useI18n();
 const fileManageStore = useFileManageStore();
@@ -207,6 +212,7 @@ const isShowList = ref(false);
 const settingDrawer = ref(false);
 const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);
+const fileManageSocket = ref<WebSocket | undefined>(undefined);
 
 watch(
   () => fileManageStore.fileList,
@@ -214,6 +220,18 @@ watch(
     if (fileList && fileList.length > 0) {
       tableData.value = fileList;
       isLoaded.value = true;
+    }
+  },
+  {
+    immediate: true
+  }
+);
+
+watch(
+  () => props.sftpToken,
+  token => {
+    if (token) {
+      fileManageSocket.value = useFileManage(token);
     }
   },
   {
@@ -411,35 +429,47 @@ const createColumns = (): DataTableColumns<RowData> => {
 };
 
 /**
- * @description 再切换 tab 标签时动态修改 drawer 的宽度
+ * @description 设置 drawer 宽度
+ * @param width
+ */
+const adjustDrawerWidth = (width: string) => {
+  nextTick(() => {
+    const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
+    
+    if (drawerRef) {
+      drawerRef.style.width = width;
+    }
+  });
+};
+
+/**
+ * @description 在切换 tab 标签时动态修改 drawer 的宽度
  * @param tabName
  */
 const handleBeforeLeave = (tabName: string) => {
   if (tabName === 'setting') {
     settingDrawer.value = true;
-
+    adjustDrawerWidth('270px');
     return true;
   }
 
   if (tabName === 'fileManage') {
     settingDrawer.value = false;
-
-    nextTick(() => {
-      const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
-
-      if (drawerRef) {
-        drawerRef.style.width = '700px';
-      }
-    });
-
+    
+    if (!fileManageSocket.value) {
+      emits('create-file-connect-token');
+    }
+    
+    adjustDrawerWidth('700px');
     return true;
   }
+  
+  return false;
 };
 
 const columns = createColumns();
 
 onMounted(() => {
-  // useFileManage();
   mittBus.on('open-fileList', handleOpenFileList);
   mittBus.on('open-setting', handleOpenSetting);
 });

@@ -174,7 +174,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
-import type { RowData } from '@/components/pamFileList/index.vue';
+import type { RowData } from '@/components/FileManagement/index.vue';
 import type { IFileManageSftpFileItem } from '@/hooks/interface';
 import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
 
