@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import CustomTerminal from '@/components/CustomTerminal/index.vue';
+import CustomTerminal from '@/components/TerminalComponent/index.vue';
 
 const terminalType = ref<string>('common');
 </script>

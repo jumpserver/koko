@@ -1,5 +1,5 @@
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
-import { formatMessage, updateIcon } from '@/components/CustomTerminal/helper';
+import { formatMessage, updateIcon } from '@/components/TerminalComponent/helper';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { base64ToUint8Array, generateWsURL } from './helper';
 import { useParamsStore } from '@/store/modules/params.ts';

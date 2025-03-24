@@ -1,6 +1,7 @@
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { type UploadFileInfo, useMessage } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 import { v4 as uuid } from 'uuid';
@@ -10,6 +11,7 @@ import mittBus from '@/utils/mittBus.ts';
 
 import type { Ref } from 'vue';
 import type { RouteRecordNameGeneric } from 'vue-router';
+import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui'
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
 import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
 
@@ -30,10 +32,20 @@ export enum ManageTypes {
   REMOVE = 'REMOVE'
 }
 
+const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
+  theme: darkTheme 
+}))
+const { message: globalTipsMessage }: { message: MessageApiInjection } = createDiscreteApi(
+  ['message'],
+  {
+    configProviderProps: configProviderPropsRef
+  }
+)
+
 /**
  * @description 获取文件管理的 url
  */
-const getFileManageUrl = () => {
+const getFileManageUrl = (token: string) => {
   const route = useRoute();
 
   const routeName: RouteRecordNameGeneric = route.name;
@@ -42,7 +54,7 @@ const getFileManageUrl = () => {
   let fileConnectionUrl: string = '';
 
   if (routeName === 'Terminal') {
-    fileConnectionUrl = urlParams ? `${BASE_WS_URL}/koko/ws/sftp/?token=${urlParams.toString().split('&')[1].split('=')[1]}` : '';
+    // fileConnectionUrl = urlParams ?  : '';
 
     return fileConnectionUrl;
   }
@@ -173,7 +185,6 @@ const heartBeat = (socket: WebSocket) => {
  * @param socket
  */
 const initSocketEvent = (socket: WebSocket) => {
-  const globalMessage = useMessage();
   const fileManageStore = useFileManageStore();
 
   let receivedBuffers: any = [];
@@ -199,19 +210,19 @@ const initSocketEvent = (socket: WebSocket) => {
 
       case MessageType.SFTP_DATA: {
         if (message.cmd === 'mkdir' && message.data === 'ok') {
-          globalMessage.success('创建成功');
+          globalTipsMessage.success('创建成功');
 
           mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'rm' && message.data === 'ok') {
-          globalMessage.success('删除成功');
+          globalTipsMessage.success('删除成功');
 
           mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'rename' && message.data === 'ok') {
-          globalMessage.success('修改成功');
+          globalTipsMessage.success('修改成功');
 
           mittBus.emit('reload-table');
         }
@@ -295,9 +306,8 @@ const initSocketEvent = (socket: WebSocket) => {
 /**
  * @description 文件管理中的 Socket 连接
  * @param url
- * @param message
  */
-const fileSocketConnection = (url: string, message: MessageApiInjection) => {
+const fileSocketConnection = (url: string) => {
   const { ws } = useWebSocket(url, {
     protocols: ['JMS-KOKO'],
     autoReconnect: {
@@ -307,7 +317,7 @@ const fileSocketConnection = (url: string, message: MessageApiInjection) => {
   });
 
   if (!ws.value) {
-    message.error('获取文件列表信息失败');
+    globalTipsMessage.error('获取文件列表信息失败');
   }
 
   initSocketEvent(<WebSocket>ws!.value);
@@ -513,71 +523,69 @@ const handleFileUpload = (
 /**
  * @description 用于处理文件管理相关逻辑
  */
-export const useFileManage = () => {
-  let fileConnectionUrl: string | undefined = '';
-
-  const message = useMessage();
+export const useFileManage = (token: string) => {
+  let fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
 
   function init() {
-    fileConnectionUrl = getFileManageUrl();
+    const socket = fileSocketConnection(fileConnectionUrl);
 
-    if (fileConnectionUrl) {
-      const socket = fileSocketConnection(fileConnectionUrl, message);
+    mittBus.on(
+      'file-upload',
+      ({
+        fileList,
+        onFinish,
+        onError,
+        onProgress
+      }: {
+        fileList: Ref<Array<UploadFileInfo>>;
+        onFinish: () => void;
+        onError: () => void;
+        onProgress: (e: { percent: number }) => void;
+      }) => {
+        handleFileUpload(<WebSocket>socket, fileList, onProgress, onFinish, onError);
+      }
+    );
 
-      mittBus.on(
-        'file-upload',
-        ({
-          fileList,
-          onFinish,
-          onError,
-          onProgress
-        }: {
-          fileList: Ref<Array<UploadFileInfo>>;
-          onFinish: () => void;
-          onError: () => void;
-          onProgress: (e: { percent: number }) => void;
-        }) => {
-          handleFileUpload(<WebSocket>socket, fileList, onProgress, onFinish, onError);
-        }
-      );
+    mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
+      handleFileDownload(<WebSocket>socket, path, is_dir);
+    });
 
-      mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
-        handleFileDownload(<WebSocket>socket, path, is_dir);
-      });
-
-      mittBus.on(
-        'file-manage',
-        ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
-          switch (type) {
-            case ManageTypes.CREATE: {
-              handleFileCreate(<WebSocket>socket, path);
-              break;
-            }
-            case ManageTypes.CHANGE: {
-              handleChangePath(<WebSocket>socket, path);
-              break;
-            }
-            case ManageTypes.REFRESH: {
-              refresh(<WebSocket>socket, path);
-              break;
-            }
-            case ManageTypes.RENAME: {
-              handleFileRename(<WebSocket>socket, path, new_name!);
-              break;
-            }
-            case ManageTypes.REMOVE: {
-              handleFileRemove(<WebSocket>socket, path);
-              break;
-            }
+    mittBus.on(
+      'file-manage',
+      ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+        switch (type) {
+          case ManageTypes.CREATE: {
+            handleFileCreate(<WebSocket>socket, path);
+            break;
+          }
+          case ManageTypes.CHANGE: {
+            handleChangePath(<WebSocket>socket, path);
+            break;
+          }
+          case ManageTypes.REFRESH: {
+            refresh(<WebSocket>socket, path);
+            break;
+          }
+          case ManageTypes.RENAME: {
+            handleFileRename(<WebSocket>socket, path, new_name!);
+            break;
+          }
+          case ManageTypes.REMOVE: {
+            handleFileRemove(<WebSocket>socket, path);
+            break;
           }
         }
-      );
-    }
+      }
+    );
+
+    return socket;
   }
 
-  init();
+  return init();
 };
 
 export const unloadListeners = () => {
   mittBus.off('download-file');
+  mittBus.off('file-upload');
+  mittBus.off('file-manage');
 };

@@ -69,7 +69,7 @@ import ThemeConfig from '@/components/ThemeConfig/index.vue';
 
 import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
-import { updateIcon } from '@/components/CustomTerminal/helper';
+import { updateIcon } from '@/components/TerminalComponent/helper';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';

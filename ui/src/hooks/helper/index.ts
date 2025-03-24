@@ -4,7 +4,7 @@ import type { ILunaConfig } from '@/hooks/interface';
 import { Terminal } from '@xterm/xterm';
 import { useDebounceFn } from '@vueuse/core';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { formatMessage, handleError, sendEventToLuna } from '@/components/CustomTerminal/helper';
+import { formatMessage, handleError, sendEventToLuna } from '@/components/TerminalComponent/helper';
 
 // 引入 Store
 import { useTreeStore } from '@/store/modules/tree.ts';
