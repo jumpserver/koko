@@ -65,9 +65,7 @@ func (c *Client) Write(p []byte) (n int, err error) {
 		c.buffer.Write(p)
 		c.bufferMutex.Unlock()
 
-		if c.timer == nil {
-			c.timer = time.AfterFunc(time.Millisecond, c.flushBuffer)
-		}
+		c.flushBuffer()
 		return len(p), nil
 
 	}
@@ -88,14 +86,13 @@ func (c *Client) Write(p []byte) (n int, err error) {
 }
 
 func (c *Client) flushBuffer() {
-	c.bufferMutex.Lock()
-	defer c.bufferMutex.Unlock()
-
 	if c.buffer.Len() > 0 {
+		b := make([]byte, c.buffer.Len())
+		copy(b, c.buffer.Bytes())
 		msg := Message{
 			Id:   c.Conn.Uuid,
 			Type: TerminalBinary,
-			Raw:  c.buffer.Bytes(),
+			Raw:  b,
 		}
 		c.Conn.SendMessage(&msg)
 		c.buffer.Reset()
