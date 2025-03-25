@@ -227,19 +227,19 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
           mittBus.emit('reload-table');
         }
 
-        if (message.cmd === 'upload' && message.data) {
+        if (message.cmd === 'upload' && message.data !== 'ok') {
           fileManageStore.setReceived(true);
 
           socket.send(
             JSON.stringify({
               cmd: 'upload',
               type: 'SFTP_DATA',
-              id: '',
+              id: message.id,
               raw: '',
               data: JSON.stringify({
-                offSet: '',
+                offSet: 0,
                 merge: true,
-                size: '',
+                size: 0,
                 path: message.data
               })
             })
@@ -477,7 +477,7 @@ const handleFileUpload = (
   onError: () => void
 ) => {
   const fileManageStore = useFileManageStore();
-  let CHUNK_SIZE = 1024 * 1024 * 5;
+  let CHUNK_SIZE = 1024 * 1024 * 3;
 
   fileList.value.forEach(async (fileInfo: UploadFileInfo) => {
     if (fileInfo.file) {
@@ -500,8 +500,8 @@ const handleFileUpload = (
           const percent = (sentChunks / sliceChunks.length) * 100;
 
           console.log(
-            '%c DEBUG[ percent ]-79:',
-            'font-size:13px; background:#F0FFF0; color:#800000;',
+            '%c DEBUG[ percent ]:',
+            'font-size:13px; background: #1ab394; color:#fff;',
             percent
           );
 
