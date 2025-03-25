@@ -5,6 +5,7 @@ import { defineConfig, loadEnv, ConfigEnv, UserConfig } from 'vite';
 
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from 'tailwindcss';
+import vueJsx from '@vitejs/plugin-vue-jsx';
 import Components from 'unplugin-vue-components/vite';
 import viteCompression from 'vite-plugin-compression';
 
@@ -17,7 +18,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     const env = loadEnv(mode, root);
 
     return {
-        plugins: [vue(), manualChunksPlugin(), Components({ dts: true, resolvers: [NaiveUiResolver()] })],
+        plugins: [vue(), vueJsx(), manualChunksPlugin(), Components({ dts: true, resolvers: [NaiveUiResolver()] })],
         resolve: {
             extensions: ['.js', '.ts', '.vue', '.json'],
             alias: {

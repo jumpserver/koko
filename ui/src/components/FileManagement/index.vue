@@ -1,15 +1,17 @@
 <template>
   <n-drawer
+    resizable
     id="drawer-inner-target"
-    v-model:show="isShowList"
     :auto-focus="false"
-    :width="settingDrawer ? 270 : 700"
-    class="transition-all duration-300 ease-in-out"
+    :default-width="drawerWidth"
+    :min-width="drawerMinWidth"
+    v-model:show="isShowList"
+    v-model:width="drawerWidth"
   >
     <n-drawer-content>
       <n-tabs
-        type="line"
         animated
+        type="line"
         class="w-full h-full"
         :default-value="tabDefaultValue"
         @before-leave="handleBeforeLeave"
@@ -164,22 +166,19 @@
 // @ts-ignore
 import dayjs from 'dayjs';
 import mittBus from '@/utils/mittBus.ts';
-// @ts-ignore
 import FileManage from './components/fileManage/index.vue';
 
-import { Delete, CloudDownload } from '@vicons/carbon';
 import { Folder, Folders, Settings } from '@vicons/tabler';
 import { NButton, NEllipsis, NFlex, NIcon, NTag, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { useMessage } from 'naive-ui';
+import { getFileName } from '@/utils';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { h, onBeforeUnmount, onMounted, ref, watch, unref, nextTick } from 'vue';
 
 import type { DataTableColumns } from 'naive-ui';
 import type { ISettingProp } from '@/views/interface';
-import { getFileName } from '@/utils';
 
 export interface RowData {
   is_dir: boolean;
@@ -210,6 +209,8 @@ const fileManageStore = useFileManageStore();
 const isLoaded = ref(false);
 const isShowList = ref(false);
 const settingDrawer = ref(false);
+const drawerWidth = ref(700);
+const drawerMinWidth = ref(650);
 const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);
 const fileManageSocket = ref<WebSocket | undefined>(undefined);
@@ -231,7 +232,7 @@ watch(
   () => props.sftpToken,
   token => {
     if (token) {
-      fileManageSocket.value = useFileManage(token);
+      fileManageSocket.value = useFileManage(token, t);
     }
   },
   {
@@ -244,6 +245,7 @@ watch(
  */
 const handleOpenFileList = () => {
   tabDefaultValue.value = 'fileManage';
+  drawerMinWidth.value = 650;
   isShowList.value = !isShowList.value;
 };
 
@@ -253,6 +255,7 @@ const handleOpenFileList = () => {
 const handleOpenSetting = () => {
   isShowList.value = !isShowList.value;
   tabDefaultValue.value = 'setting';
+  drawerMinWidth.value = 270;
 
   nextTick(() => {
     const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
@@ -365,7 +368,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       }
     },
     {
-      title: t('Date Modified'),
+      title: t('LastModified'),
       key: 'mod_time',
       align: 'center',
       width: 180,
@@ -409,7 +412,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       }
     },
     {
-      title: t('Kind'),
+      title: t('Type'),
       key: 'type',
       align: 'center',
       render(row: RowData) {
@@ -449,18 +452,21 @@ const adjustDrawerWidth = (width: string) => {
 const handleBeforeLeave = (tabName: string) => {
   if (tabName === 'setting') {
     settingDrawer.value = true;
-    adjustDrawerWidth('270px');
+    drawerWidth.value = 270;
+    drawerMinWidth.value = 270;
+
     return true;
   }
 
   if (tabName === 'fileManage') {
     settingDrawer.value = false;
-    
+    drawerWidth.value = 700;
+    drawerMinWidth.value = 650;
+
     if (!fileManageSocket.value) {
       emits('create-file-connect-token');
     }
     
-    adjustDrawerWidth('700px');
     return true;
   }
   

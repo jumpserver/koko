@@ -171,7 +171,7 @@ const heartBeat = (socket: WebSocket) => {
 
   sendPing();
 
-  pingInterval = window.setInterval(sendPing, 2000);
+  pingInterval = window.setInterval(sendPing, 200000);
 
   return () => {
     if (pingInterval) {
@@ -184,7 +184,7 @@ const heartBeat = (socket: WebSocket) => {
  * @description 处理 message
  * @param socket
  */
-const initSocketEvent = (socket: WebSocket) => {
+const initSocketEvent = (socket: WebSocket, t: any) => {
   const fileManageStore = useFileManageStore();
 
   let receivedBuffers: any = [];
@@ -210,19 +210,19 @@ const initSocketEvent = (socket: WebSocket) => {
 
       case MessageType.SFTP_DATA: {
         if (message.cmd === 'mkdir' && message.data === 'ok') {
-          globalTipsMessage.success('创建成功');
+          globalTipsMessage.success(t('OperationSuccessful'));
 
           mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'rm' && message.data === 'ok') {
-          globalTipsMessage.success('删除成功');
+          globalTipsMessage.success(t('OperationSuccessful'));
 
           mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'rename' && message.data === 'ok') {
-          globalTipsMessage.success('修改成功');
+          globalTipsMessage.success(t('OperationSuccessful'));
 
           mittBus.emit('reload-table');
         }
@@ -307,7 +307,7 @@ const initSocketEvent = (socket: WebSocket) => {
  * @description 文件管理中的 Socket 连接
  * @param url
  */
-const fileSocketConnection = (url: string) => {
+const fileSocketConnection = (url: string, t: any) => {
   const { ws } = useWebSocket(url, {
     protocols: ['JMS-KOKO'],
     autoReconnect: {
@@ -317,10 +317,10 @@ const fileSocketConnection = (url: string) => {
   });
 
   if (!ws.value) {
-    globalTipsMessage.error('获取文件列表信息失败');
+    globalTipsMessage.error(t('FileListError'));
   }
 
-  initSocketEvent(<WebSocket>ws!.value);
+  initSocketEvent(<WebSocket>ws!.value, t);
 
   return ws.value;
 };
@@ -523,11 +523,11 @@ const handleFileUpload = (
 /**
  * @description 用于处理文件管理相关逻辑
  */
-export const useFileManage = (token: string) => {
+export const useFileManage = (token: string, t: any) => {
   let fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
 
   function init() {
-    const socket = fileSocketConnection(fileConnectionUrl);
+    const socket = fileSocketConnection(fileConnectionUrl, t);
 
     mittBus.on(
       'file-upload',
