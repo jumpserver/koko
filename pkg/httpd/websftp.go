@@ -159,17 +159,19 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 	var err error
 	if request.Merge {
 		err = h.volume.MergeChunk(id, request.Path)
+		response.Data = "ok"
 	} else if request.Chunk {
 		err = h.volume.UploadChunk(id, request.Path, request.OffSet, int64(reader.Len()), readerAt)
+		response.Data = request.Path
 	} else {
 		err = h.volume.UploadFile(request.Path, readerAt, request.Size)
+		response.Data = request.Path
 	}
 	if err != nil {
 		response.Err = err.Error()
 		h.ws.SendMessage(response)
 		return
 	}
-	response.Data = request.Path
 	h.ws.SendMessage(response)
 }
 
