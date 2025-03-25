@@ -39,8 +39,16 @@
     </n-scrollbar>
 
     <n-flex class="action-part !flex-nowrap flex-2" align="center" justify="flex-end">
-      <n-button size="small" strong round secondary type="success" @click="handleNewFolder">
-        {{ t('newFolder') }}
+      <n-button 
+        secondary 
+        size="small"
+        class="custom-button-text"
+        @click="handleNewFolder"
+      >
+        <template #icon>
+          <n-icon :component="Plus" :size="12" />
+        </template>
+        {{ t('NewFolder') }}
       </n-button>
 
       <n-upload
@@ -54,11 +62,9 @@
         <n-button-group>
           <n-upload-trigger #="{ handleClick }" abstract>
             <n-button
-              round
-              strong
               secondary
               size="small"
-              type="success"
+              class="custom-button-text"
               @click="
                 () => {
                   handleClick();
@@ -72,15 +78,16 @@
         </n-button-group>
 
         <n-drawer
-          v-model:show="showInner"
+          resizable
+          placement="bottom"
+          to="#drawer-inner-target"
+          :default-height="500"
           :trap-focus="false"
           :block-scroll="false"
           :native-scrollbar="false"
-          :height="500"
-          placement="bottom"
-          to="#drawer-inner-target"
+          v-model:show="showInner"
         >
-          <n-drawer-content :title="t('FileList')">
+          <n-drawer-content :title="t('TransferHistory')">
             <n-scrollbar style="max-height: 400px" v-if="fileList.length > 0">
               <n-upload-file-list />
             </n-scrollbar>
@@ -92,20 +99,16 @@
 
       <n-popover>
         <template #trigger>
-          <n-button size="small" round strong @click="handleRefresh">
-            <n-icon size="16" :component="Refresh" />
-          </n-button>
+          <n-icon size="16" :component="Refresh" class="icon-hover" @click="handleRefresh" />
         </template>
         {{ t('Refresh') }}
       </n-popover>
 
       <n-popover>
         <template #trigger>
-          <n-button size="small" round strong @click="handleOpenTransferList">
-            <n-icon size="16" :component="List" />
-          </n-button>
+          <n-icon size="16" :component="List" class="icon-hover" @click="handleOpenTransferList" />
         </template>
-        {{ t('Upload') }}
+        {{ t('TransferHistory') }}
       </n-popover>
     </n-flex>
   </n-flex>
@@ -128,6 +131,7 @@
       size="small"
       trigger="manual"
       placement="bottom-start"
+      class="w-[8rem]"
       :x="x"
       :y="y"
       :show-arrow="true"
@@ -163,13 +167,13 @@
 import mittBus from '@/utils/mittBus.ts';
 
 import { List } from '@vicons/ionicons5';
-import { Folder, Refresh } from '@vicons/tabler';
+import { Folder, Refresh, Plus } from '@vicons/tabler';
 import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
 import { getFileName } from '@/utils';
-import { getDropSelections } from './config.ts';
+import { getDropSelections } from './config.tsx';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
@@ -329,15 +333,15 @@ const handleSelect = (key: string) => {
     case 'rename': {
       modalType.value = 'rename';
       showModal.value = true;
-      modalTitle.value = '重命名';
+      modalTitle.value = t('Rename');
 
       break;
     }
     case 'delete': {
       modalType.value = 'delete';
       showModal.value = true;
-      modalTitle.value = '您确定要删除该文件吗？';
-      modalContent.value = '这是一个危险的操作。';
+      modalTitle.value = t('ConfirmDelete');
+      modalContent.value = t('DangerWarning');
       break;
     }
     case 'download': {
