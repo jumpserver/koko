@@ -45,7 +45,7 @@ import {
   LockClosedOutline
 } from '@vicons/ionicons5';
 
-import type { ISettingProp, shareUser } from '@/views/interface';
+import type { ISettingProp, shareUser } from '@/types';
 import { Keyboard, Stop, Paste } from '@vicons/carbon';
 import { readText } from 'clipboard-polyfill';
 

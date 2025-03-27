@@ -2,7 +2,7 @@ import mitt, { Emitter } from 'mitt';
 import { ManageTypes } from '@/hooks/useFileManage.ts';
 
 import type { Ref } from 'vue';
-import type { shareUser } from '@/views/interface';
+import type { shareUser } from '@/types';
 import type { UploadFileInfo } from 'naive-ui';
 import type { customTreeOption } from '@/hooks/interface';
 

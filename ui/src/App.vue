@@ -51,7 +51,6 @@ const setLanguage = async (lang: string): Promise<void> => {
 };
 
 onMounted(() => {
-  // 设置语言
   setLanguage(lang);
 });
 </script>

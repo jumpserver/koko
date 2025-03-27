@@ -127,7 +127,7 @@
 import mittBus from '@/utils/mittBus.ts';
 
 import { onMounted, onUnmounted, ref } from 'vue';
-import { ISettingProp } from '@/views/interface';
+import { ISettingProp } from '@/types';
 import { useI18n } from 'vue-i18n';
 
 withDefaults(
