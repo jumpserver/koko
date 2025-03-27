@@ -1,5 +1,5 @@
 import { createDiscreteApi } from 'naive-ui';
-import { TranslateFunction } from '@/views/interface';
+import { TranslateFunction } from '@/types';
 import { Terminal } from '@xterm/xterm';
 import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
 import type { ILunaConfig } from '@/hooks/interface';

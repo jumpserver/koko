@@ -8,6 +8,11 @@ const allRoutes: RouteRecordRaw[] = [
     component: () => import(/* webpackChunkName: Connect */ '@/views/Connection/index.vue')
   },
   {
+    path: '/sftp/:id/',
+    name: 'SFTP',
+    component: () => import(/* webpackChunkName: SFTP */ '@/views/SFTP/index.vue')
+  },
+  {
     path: '/token/',
     name: 'TokenParams',
     component: () => import(/* webpackChunkName: Token */ '@/views/Connection/index.vue')

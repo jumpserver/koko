@@ -178,7 +178,7 @@ import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { h, onBeforeUnmount, onMounted, ref, watch, unref, nextTick } from 'vue';
 
 import type { DataTableColumns } from 'naive-ui';
-import type { ISettingProp } from '@/views/interface';
+import type { ISettingProp } from '@/types';
 
 export interface RowData {
   is_dir: boolean;
