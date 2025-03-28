@@ -88,3 +88,6 @@ To build multi-platform images using Docker Buildx, you need to install Docker v
 ```shell
 make docker
 ```
+
+## Acknowledgments
+This project depends on [usql](https://github.com/xo/usql) for database connections. We appreciate their support.
