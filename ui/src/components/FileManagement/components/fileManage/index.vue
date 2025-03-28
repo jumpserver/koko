@@ -53,10 +53,10 @@
 
       <n-upload
         abstract
-        multiple
+        :multiple="false"
         :show-retry-button="false"
         :custom-request="customRequest"
-        v-model:file-list="fileList"
+        v-model:file-list="uploadFileList"
         @change="handleUploadFileChange"
       >
         <n-button-group>
@@ -88,7 +88,7 @@
           v-model:show="showInner"
         >
           <n-drawer-content :title="t('TransferHistory')">
-            <n-scrollbar style="max-height: 400px" v-if="fileList.length > 0">
+            <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
               <n-upload-file-list />
             </n-scrollbar>
 
@@ -192,7 +192,7 @@ export interface IFilePath {
   showArrow: boolean;
 }
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     columns: DataTableColumns<RowData>;
   }>(),
@@ -200,8 +200,6 @@ const props = withDefaults(
     columns: () => []
   }
 );
-
-// todo)) 小屏幕下的宽度适配
 
 const { t } = useI18n();
 const message = useMessage();
@@ -227,7 +225,7 @@ const scrollRef = ref(null);
 
 const currentRowData = ref<RowData>();
 const filePathList = ref<IFilePath[]>([]);
-const fileList = ref<UploadFileInfo[]>([]);
+const uploadFileList = ref<UploadFileInfo[]>([]);
 
 watch(
   () => fileManageStore.currentPath,
@@ -500,7 +498,7 @@ const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) =>
   showInner.value = true;
 
   if (options.fileList.length > 0) {
-    fileList.value = options.fileList;
+    uploadFileList.value = options.fileList;
   }
 };
 
@@ -511,7 +509,7 @@ const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) =>
  * @param onProgress
  */
 const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
-  mittBus.emit('file-upload', { fileList, onFinish, onError, onProgress });
+  mittBus.emit('file-upload', { uploadFileList, onFinish, onError, onProgress });
 };
 
 const handleOpenTransferList = () => {

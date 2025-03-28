@@ -20,7 +20,7 @@ type Event = {
   'set-theme': { themeName: string };
   'file-manage': { path: string; type: ManageTypes; new_name?: string };
   'file-upload': {
-    fileList: Ref<Array<UploadFileInfo>>;
+    uploadFileList: Ref<Array<UploadFileInfo>>;
     onFinish: () => void;
     onError: () => void;
     onProgress: (e: { percent: number }) => void;
