@@ -1,5 +1,5 @@
-import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { computed, ref, watch } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
@@ -14,6 +14,8 @@ import type { RouteRecordNameGeneric } from 'vue-router';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui'
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
 import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
+import { message } from '@/languages/modules';
+import { PercentFilled } from '@vicons/material';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -227,23 +229,14 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
           mittBus.emit('reload-table');
         }
 
-        if (message.cmd === 'upload' && message.data !== 'ok') {
+        if (message.cmd === 'upload' && message.data === 'ok') {
           fileManageStore.setReceived(true);
 
-          socket.send(
-            JSON.stringify({
-              cmd: 'upload',
-              type: 'SFTP_DATA',
-              id: message.id,
-              raw: '',
-              data: JSON.stringify({
-                offSet: 0,
-                merge: true,
-                size: 0,
-                path: message.data
-              })
-            })
-          );
+          globalTipsMessage.success(t('UploadSuccess'));
+        }
+
+        if (message.cmd === 'upload' && message.data !== 'ok') {
+          fileManageStore.setReceived(true);
         }
 
         if (message.cmd === 'download' && message.data) {
@@ -272,7 +265,16 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
       }
 
       case MessageType.SFTP_BINARY: {
-        receivedBuffers.push(message.raw);
+        const binaryString = atob(message.raw);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+
+
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        receivedBuffers.push(bytes);
 
         break;
       }
@@ -425,7 +427,7 @@ const generateUploadChunks = async (
   socket: WebSocket,
   fileInfo: UploadFileInfo,
   CHUNK_SIZE: number,
-  sentChunks: number
+  sentChunks: Ref<number>
 ) => {
   const fileManageStore = useFileManageStore();
 
@@ -448,13 +450,13 @@ const generateUploadChunks = async (
   const arrayBuffer: ArrayBuffer = await sliceChunk.arrayBuffer();
   const base64String: string = arrayBufferToBase64(arrayBuffer);
 
-  sendData.offSet = sentChunks * CHUNK_SIZE;
+  sendData.offSet = sentChunks.value * CHUNK_SIZE;
   sendBody.raw = base64String;
   sendBody.data = JSON.stringify(sendData);
 
   socket.send(JSON.stringify(sendBody));
 
-  sentChunks++;
+  sentChunks.value++
 
   return new Promise<boolean>(resolve => {
     const interval = setInterval(() => {
@@ -469,55 +471,93 @@ const generateUploadChunks = async (
 /**
  * @description 上传文件
  */
-const handleFileUpload = (
+const handleFileUpload = async (
   socket: WebSocket,
-  fileList: Ref<Array<UploadFileInfo>>,
-  onProgress: any,
+  uploadFileList: Ref<Array<UploadFileInfo>>,
+  _onProgress: any,
   onFinish: () => void,
-  onError: () => void
+  onError: () => void,
+  t: any
 ) => {
+  const maxSliceCount = 100;
+  const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
-  let CHUNK_SIZE = 1024 * 1024 * 3;
+  const loadingMessage = globalTipsMessage.loading('上传进度: 0%', { duration: 1000000000 });
+  const fileInfo = uploadFileList.value[0];
 
-  fileList.value.forEach(async (fileInfo: UploadFileInfo) => {
-    if (fileInfo.file) {
-      let sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
-      let sliceChunks = [];
+  let sliceChunks = [];
+  let CHUNK_SIZE = 1024 * 1024 * 5;
+  let sentChunks = ref(0);
 
-      for (let i = 0; i < sliceCount; i++) {
-        sliceChunks.push(fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
-      }
+  const unwatch = watch(
+    () => sentChunks.value,
+    (newValue) => {      
+      const percent = (newValue / sliceChunks.length) * 100;
 
-      let sentChunks = 0;
+      console.log(
+        '%c DEBUG[ percent ]:',
+        'font-size:13px; background: #1ab394; color:#fff;',
+        percent
+      );
 
-      try {
-        for (const sliceChunk of sliceChunks) {
-          fileManageStore.setReceived(false);
-          await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
+      loadingMessage.content = `上传进度: ${Math.floor(percent)}%`;
 
-          sentChunks++;
-
-          const percent = (sentChunks / sliceChunks.length) * 100;
-
-          console.log(
-            '%c DEBUG[ percent ]:',
-            'font-size:13px; background: #1ab394; color:#fff;',
-            percent
-          );
-
-          onProgress({ percent });
-
-          if (percent === 100) {
-            onFinish();
-
-            mittBus.emit('reload-table');
-          }
-        }
-      } catch (e) {
-        onError();
+      if (percent >= 100) {
+        onFinish();
+        loadingMessage.destroy();
+        mittBus.emit('reload-table');
+        unwatch();
       }
     }
-  });
+  );
+
+  if (fileInfo && fileInfo.file) {
+    let sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
+    
+    // 如果切片数量大于最大切片数量，那么调大切片大小
+    if (sliceCount > maxSliceCount) {
+      sliceCount = maxSliceCount;
+      CHUNK_SIZE = Math.ceil(fileInfo.file?.size / maxSliceCount);
+    }
+
+    // 如果切片大小大于最大切片大小，那么依然调整切片数量
+    if (CHUNK_SIZE > maxChunkSize) {
+      CHUNK_SIZE = maxChunkSize;
+      sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
+    }
+
+    for (let i = 0; i < sliceCount; i++) {
+      sliceChunks.push(fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+    }
+
+    try {
+      for (const sliceChunk of sliceChunks) {
+        fileManageStore.setReceived(false);
+
+        await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
+      }
+
+      // 结束 chunk 发送 merge: true
+      socket.send(
+        JSON.stringify({
+          cmd: 'upload',
+          type: 'SFTP_DATA',
+          id: fileManageStore.messageId,
+          raw: '',
+          data: JSON.stringify({
+            offSet: 0,
+            merge: true,
+            size: 0,
+            path: `${fileManageStore.currentPath}/${fileInfo.name}`
+          })
+        })
+      );
+
+    } catch (e) {
+      loadingMessage.destroy(); 
+      onError();
+    }
+  }
 };
 
 /**
@@ -532,17 +572,17 @@ export const useFileManage = (token: string, t: any) => {
     mittBus.on(
       'file-upload',
       ({
-        fileList,
+        uploadFileList,
         onFinish,
         onError,
         onProgress
       }: {
-        fileList: Ref<Array<UploadFileInfo>>;
+        uploadFileList: Ref<Array<UploadFileInfo>>;
         onFinish: () => void;
         onError: () => void;
         onProgress: (e: { percent: number }) => void;
       }) => {
-        handleFileUpload(<WebSocket>socket, fileList, onProgress, onFinish, onError);
+        handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t);
       }
     );
 

@@ -27,7 +27,7 @@ export const useFileManageStore = defineStore('fileManage', {
       if (fileList) {
         console.log(
           '%c DEBUG[ fileList ]-72:',
-          'font-size:13px; background:#DCDCDC; color:#2F4F4F;',
+          'font-size:13px; background: #1ab394; color:#fff;',
           fileList
         );
         this.fileList = fileList;
