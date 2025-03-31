@@ -59,6 +59,7 @@ func (userCon *UserWebsocket) Run() {
 	case <-ctx.Done():
 	}
 	userCon.handler.CleanUp()
+
 	logger.Infof("Ws[%s] done with exit %s", userCon.Uuid, errMsg)
 }
 
