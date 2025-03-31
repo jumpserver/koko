@@ -63,15 +63,6 @@ const { t } = useI18n();
 const treeStore = useTreeStore();
 socket.value = useKubernetes(t);
 
-watch(
-  () => paramsStore.setting,
-  (newVal) => {
-    if (newVal?.SECURITY_WATERMARK_ENABLED) {
-      console.log('newVal', newVal);
-    }
-  }
-)
-
 /**
  * 加载节点
  *

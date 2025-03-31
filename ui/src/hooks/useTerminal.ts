@@ -8,9 +8,10 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { defaultTheme } from '@/config';
 
 // hook
+import { watch } from 'vue';
 import { createDiscreteApi } from 'naive-ui';
-import { useSentry } from '@/hooks/useZsentry.ts';
 import { useWebSocket } from '@vueuse/core';
+import { useSentry } from '@/hooks/useZsentry.ts';
 
 // store
 import { storeToRefs } from 'pinia';
@@ -83,16 +84,32 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
   let type: string = option.type;
 
+  let counter = ref(0);
   let origin= ref('');
   let lunaId = ref('');
   let terminalId= ref('');
   let termSelectionText = ref('');
-  let pingInterval: Ref<number | null> = ref(null);
+  let pingInterval = ref<number | null>(null);
+  let guaranteeInterval = ref<number | null>(null);
 
   let lastSendTime: Ref<Date> = ref(new Date());
   let lastReceiveTime: Ref<Date> = ref(new Date());
 
   let handleSocketMessage: any;
+
+  watch(
+    () => counter.value,
+    counter => {
+      if (counter >= 5) {
+        clearInterval(guaranteeInterval.value!);
+
+        socket.close();
+        terminal?.write('\r\n\r\n\r\n\x1b[31mFailed to connect to Luna\x1b[0m');
+
+        alert('Failed to connect to Luna');
+      }
+    }
+  )
 
   const dispatch = (data: string) => {
     if (!data) return;
@@ -260,12 +277,33 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     }
   };
 
+  
+  /**
+   *  @description 保证连接是通过 Luna 发起的, 如果 ping 次数大于 5 次，则直接关闭连接
+   */
+  const guaranteeLunaConnection = () => {
+    if (!lunaId.value) {
+      guaranteeInterval.value = setInterval(() => {
+        counter.value++;
+        
+        console.log(
+          '%c DEBUG[ Send Luna PING ]:',
+          'font-size:13px; background: #1ab394; color:#fff;',
+          counter.value
+        );
+
+        sendEventToLuna('PING', '', lunaId.value, origin.value);
+      }, 500);
+    }
+  }
+
   /**
    * 初始非 k8s 的 socket 事件
    */
   const initSocketEvent = () => {
     if (socket) {
       socket.onopen = () => {
+        guaranteeLunaConnection();
         onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
       };
       socket.onmessage = (event: MessageEvent) => {
@@ -318,6 +356,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           sendEventToLuna('PONG', '', lunaId.value, origin.value);
           break;
         }
+        case 'PONG': {
+          lunaId.value = message.id;
+          origin.value = e.origin;
+          
+          clearInterval(guaranteeInterval.value!);
+          break;
+        }
         case 'CMD': {
           sendDataFromWindow(message.data);
           break;
@@ -355,18 +400,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       },
       false
     );
-
-    if (option.type === 'k8s') {
-      window.addEventListener('keydown', (event: KeyboardEvent) => {
-        const isAltShift = event.altKey && event.shiftKey;
-
-        if (isAltShift && event.key === 'ArrowLeft') {
-          mittBus.emit('alt-shift-left');
-        } else if (isAltShift && event.key === 'ArrowRight') {
-          mittBus.emit('alt-shift-right');
-        }
-      });
-    }
 
     window.SendTerminalData = data => {
       sendDataFromWindow(data);
@@ -411,10 +444,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
    * 创建非 k8s socket 连接
    */
   const createSocket = async (): Promise<WebSocket | undefined> => {
-    if (type === 'k8s') {
-      return Promise.resolve(option.transSocket);
-    }
-
     let socketInstance: WebSocket;
     const url: string = generateWsURL();
 
