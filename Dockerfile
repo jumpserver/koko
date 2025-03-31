@@ -67,8 +67,6 @@ RUN --mount=type=cache,target=/root/.cache \
     && set -x && ls -al .
 
 RUN mkdir /opt/koko/bin \
-    && mv /opt/koko/kubectl /opt/koko/bin \
-    && mv /opt/koko/helm /opt/koko/bin \
     && mv /opt/koko/clickhouse-client /opt/koko/bin \
     && mv /opt/koko/rawkubectl /opt/koko/bin/kubectl \
     && mv /opt/koko/rawhelm /opt/koko/bin/helm
