@@ -1,7 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-.custom-button-text {
-  @apply text-white text-xs font-normal;
-}
+/* @layer utilities {
+  .custom-button-text {
+    @apply .text-white text-xs font-normal;
+  }
+} */

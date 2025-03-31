@@ -49,7 +49,7 @@ enum MessageType {
   TERMINAL_ERROR = 'TERMINAL_ERROR',
   MESSAGE_NOTIFY = 'MESSAGE_NOTIFY',
   TERMINAL_ACTION = 'TERMINAL_ACTION',
-  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE',
+  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE'
 }
 
 interface ITerminalInstance {
@@ -65,7 +65,12 @@ interface ICallbackOptions {
   transSocket?: WebSocket;
 
   // emit 事件
-  emitCallback?: (e: string, type: string, msg: any, terminal?: Terminal) => void;
+  emitCallback?: (
+    e: string,
+    type: string,
+    msg: any,
+    terminal?: Terminal
+  ) => void;
 
   // t
   i18nCallBack?: (key: string) => string;
@@ -73,7 +78,10 @@ interface ICallbackOptions {
 
 const { message } = createDiscreteApi(['message']);
 
-export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Promise<ITerminalInstance> => {
+export const useTerminal = async (
+  el: HTMLElement,
+  option: ICallbackOptions
+): Promise<ITerminalInstance> => {
   let sentry: Sentry;
   let socket: WebSocket;
   let terminal: Terminal | undefined;
@@ -85,9 +93,9 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
   let type: string = option.type;
 
   let counter = ref(0);
-  let origin= ref('');
+  let origin = ref('');
   let lunaId = ref('');
-  let terminalId= ref('');
+  let terminalId = ref('');
   let termSelectionText = ref('');
   let pingInterval = ref<number | null>(null);
   let guaranteeInterval = ref<number | null>(null);
@@ -109,7 +117,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         alert('Failed to connect to Luna');
       }
     }
-  )
+  );
 
   const dispatch = (data: string) => {
     if (!data) return;
@@ -139,7 +147,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         updateIcon(info.setting);
 
-        socket.send(formatMessage(terminalId.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
+        socket.send(
+          formatMessage(
+            terminalId.value,
+            'TERMINAL_INIT',
+            JSON.stringify(terminalData)
+          )
+        );
         break;
       }
       case MessageType.CLOSE: {
@@ -180,7 +194,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         break;
       }
       case MessageType.TERMINAL_SHARE_USER_REMOVE: {
-        option.i18nCallBack && message.info(option.i18nCallBack('RemoveShareUser'));
+        option.i18nCallBack &&
+          message.info(option.i18nCallBack('RemoveShareUser'));
         socket.close();
         break;
       }
@@ -188,7 +203,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       }
     }
 
-    option.emitCallback && option.emitCallback('socketData', msg.type, msg, terminal);
+    option.emitCallback &&
+      option.emitCallback('socketData', msg.type, msg, terminal);
   };
 
   /**
@@ -214,7 +230,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
   /**
    * 设置主题
    */
-  const setTerminalTheme = (themeName: string, terminal: Terminal, emits: any) => {
+  const setTerminalTheme = (
+    themeName: string,
+    terminal: Terminal,
+    emits: any
+  ) => {
     const theme = xtermTheme[themeName] || defaultTheme;
 
     terminal.options.theme = theme;
@@ -252,7 +272,12 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           }
         }
       } else {
-        writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);
+        writeBufferToTerminal(
+          enableZmodem.value,
+          zmodemStatus.value,
+          terminal!,
+          event.data
+        );
       }
     } else {
       dispatch(event.data);
@@ -277,7 +302,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     }
   };
 
-  
   /**
    *  @description 保证连接是通过 Luna 发起的, 如果 ping 次数大于 5 次，则直接关闭连接
    */
@@ -285,7 +309,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     if (!lunaId.value) {
       guaranteeInterval.value = setInterval(() => {
         counter.value++;
-        
+
         console.log(
           '%c DEBUG[ Send Luna PING ]:',
           'font-size:13px; background: #1ab394; color:#fff;',
@@ -295,7 +319,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         sendEventToLuna('PING', '', lunaId.value, origin.value);
       }, 500);
     }
-  }
+  };
 
   /**
    * 初始非 k8s 的 socket 事件
@@ -304,7 +328,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     if (socket) {
       socket.onopen = () => {
         guaranteeLunaConnection();
-        onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
+        onWebsocketOpen(
+          socket,
+          lastSendTime.value,
+          terminalId.value,
+          pingInterval,
+          lastReceiveTime
+        );
       };
       socket.onmessage = (event: MessageEvent) => {
         if (type === 'common') {
@@ -335,7 +365,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     el.addEventListener(
       'contextmenu',
       (e: MouseEvent) => {
-        handleContextMenu(e, lunaConfig, socket!, terminalId.value, termSelectionText.value);
+        handleContextMenu(
+          e,
+          lunaConfig,
+          socket!,
+          terminalId.value,
+          termSelectionText.value
+        );
       },
       false
     );
@@ -359,7 +395,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         case 'PONG': {
           lunaId.value = message.id;
           origin.value = e.origin;
-          
+
           clearInterval(guaranteeInterval.value!);
           break;
         }
@@ -372,22 +408,25 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           break;
         }
         case 'OPEN': {
-          option.emitCallback && option.emitCallback('event', 'open', {
-            lunaId: lunaId.value,
-            origin: origin.value
-          });
+          option.emitCallback &&
+            option.emitCallback('event', 'open', {
+              lunaId: lunaId.value,
+              origin: origin.value
+            });
           break;
         }
         case 'FILE': {
-          option.emitCallback && option.emitCallback('event', 'file', {
-            token: message?.SFTP_Token,
-          });
+          option.emitCallback &&
+            option.emitCallback('event', 'file', {
+              token: message?.SFTP_Token
+            });
           break;
         }
         case 'CREATE_FILE_CONNECT_TOKEN': {
-          option.emitCallback && option.emitCallback('event', 'create-file-connect-token', {
-            token: message?.SFTP_Token,
-          });
+          option.emitCallback &&
+            option.emitCallback('event', 'create-file-connect-token', {
+              token: message?.SFTP_Token
+            });
           break;
         }
       }
@@ -486,7 +525,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     return terminalInstance;
   };
 
-  const initializeTerminal = (terminal: Terminal, socket: WebSocket, type: string) => {
+  const initializeTerminal = (
+    terminal: Terminal,
+    socket: WebSocket,
+    type: string
+  ) => {
     initElEvent();
     initTerminalEvent();
     initCustomWindowEvent();
@@ -556,7 +599,10 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       createTerminal(lunaConfig)
     ]);
 
-    if (socketResult.status === 'fulfilled' && terminalResult.status === 'fulfilled') {
+    if (
+      socketResult.status === 'fulfilled' &&
+      terminalResult.status === 'fulfilled'
+    ) {
       socket = socketResult.value!;
       terminal = terminalResult.value;
 

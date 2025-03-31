@@ -1,4 +1,8 @@
-import { formatMessage, updateIcon, sendEventToLuna } from '@/components/TerminalComponent/helper';
+import {
+  formatMessage,
+  updateIcon,
+  sendEventToLuna
+} from '@/components/TerminalComponent/helper';
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { base64ToUint8Array, generateWsURL } from './helper';
@@ -28,34 +32,47 @@ import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 import { MaxTimeout } from '@/config';
 
-const { message, notification } = createDiscreteApi(['message', 'notification'], {
-  configProviderProps: {
-    theme: darkTheme
+const { message, notification } = createDiscreteApi(
+  ['message', 'notification'],
+  {
+    configProviderProps: {
+      theme: darkTheme
+    }
   }
-});
+);
 
-const origin = ref('')
-const lunaId = ref('')
+const origin = ref('');
+const lunaId = ref('');
 const counter = ref(0);
 const guaranteeInterval = ref<number | null>(null);
 
-const handleConnected = (socket: WebSocket, pingInterval: Ref<number | null>) => {
+const handleConnected = (
+  socket: WebSocket,
+  pingInterval: Ref<number | null>
+) => {
   const kubernetesStore = useKubernetesStore();
 
   if (pingInterval.value) clearInterval(pingInterval.value);
 
   pingInterval.value = setInterval(() => {
-    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
+    if (
+      socket.CLOSED === socket.readyState ||
+      socket.CLOSING === socket.readyState
+    ) {
       return clearInterval(pingInterval.value!);
     }
 
     let currentDate: Date = new Date();
 
-    if (kubernetesStore.lastReceiveTime.getTime() - currentDate.getTime() > MaxTimeout) {
+    if (
+      kubernetesStore.lastReceiveTime.getTime() - currentDate.getTime() >
+      MaxTimeout
+    ) {
       message.info('More than 30s do not receive data');
     }
 
-    let pingTimeout: number = currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
+    let pingTimeout: number =
+      currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
 
     if (pingTimeout < 0) return;
 
@@ -135,7 +152,11 @@ export const handleInterrupt = (type: string) => {
  * @param label
  * @param isLeaf
  */
-export const setCommonAttributes = (nodes: any, label: string, isLeaf: boolean) => {
+export const setCommonAttributes = (
+  nodes: any,
+  label: string,
+  isLeaf: boolean
+) => {
   const unique = uuid();
 
   Object.assign(nodes, {
@@ -154,7 +175,12 @@ export const setCommonAttributes = (nodes: any, label: string, isLeaf: boolean) 
  * @param namespace
  * @param socket
  */
-export const handleContainer = (containers: any, podName: string, namespace: string, socket: WebSocket) => {
+export const handleContainer = (
+  containers: any,
+  podName: string,
+  namespace: string,
+  socket: WebSocket
+) => {
   const kubernetesStore = useKubernetesStore();
 
   containers.forEach((container: any) => {
@@ -187,7 +213,8 @@ export const handlePods = (pods: any, namespace: string, socket: WebSocket) => {
       pod.isLeaf = false;
       pod.namespace = namespace;
       pod.children = pod.containers;
-      pod.prefix = () => h(NIcon, { size: 16 }, { default: () => h(Cube24Regular) });
+      pod.prefix = () =>
+        h(NIcon, { size: 16 }, { default: () => h(Cube24Regular) });
 
       // 处理最后的 container
       handleContainer(pod.children, pod.name, namespace, socket);
@@ -300,7 +327,12 @@ export const handleTreeMessage = (ws: WebSocket, event: MessageEvent) => {
   }
 };
 
-export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, createSentry: any, t: any) => {
+export const handleTerminalMessage = (
+  ws: WebSocket,
+  event: MessageEvent,
+  createSentry: any,
+  t: any
+) => {
   const treeStore = useTreeStore();
   const paramsStore = useParamsStore();
   const terminalStore = useTerminalStore();
@@ -350,10 +382,16 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         }
 
         if (operatedNode.ctrlCAsCtrlZMap) {
-          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');
+          operatedNode.ctrlCAsCtrlZMap.set(
+            info.k8s_id,
+            sessionInfo.ctrlCAsCtrlZ ? '1' : '0'
+          );
         } else {
           operatedNode.ctrlCAsCtrlZMap = new Map();
-          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');
+          operatedNode.ctrlCAsCtrlZMap.set(
+            info.k8s_id,
+            sessionInfo.ctrlCAsCtrlZ ? '1' : '0'
+          );
         }
 
         operatedNode.themeName = sessionInfo.themeName;
@@ -385,7 +423,10 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
 
         operatedNode.enableShare = false;
 
-        if (operatedNode.onlineUsersMap && operatedNode.onlineUsersMap.hasOwnProperty(info.id)) {
+        if (
+          operatedNode.onlineUsersMap &&
+          operatedNode.onlineUsersMap.hasOwnProperty(info.id)
+        ) {
           delete operatedNode.onlineUsersMap[info.id];
         }
 
@@ -397,8 +438,14 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         const data = JSON.parse(info.data);
         const k8s_id: string = info.k8s_id;
 
-        if (operatedNode.onlineUsersMap && operatedNode.onlineUsersMap[k8s_id]) {
-          operatedNode.onlineUsersMap[k8s_id].push({ k8s_id: info.k8s_id, ...data });
+        if (
+          operatedNode.onlineUsersMap &&
+          operatedNode.onlineUsersMap[k8s_id]
+        ) {
+          operatedNode.onlineUsersMap[k8s_id].push({
+            k8s_id: info.k8s_id,
+            ...data
+          });
           treeStore.setK8sIdMap(k8s_id, { ...operatedNode });
         } else {
           operatedNode.onlineUsersMap = {};
@@ -421,7 +468,9 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
 
         if (operatedNode.onlineUsersMap.hasOwnProperty(k8s_id)) {
           const items = operatedNode?.onlineUsersMap[k8s_id];
-          const index = items.findIndex((item: any) => item?.terminal_id === data?.terminal_id);
+          const index = items.findIndex(
+            (item: any) => item?.terminal_id === data?.terminal_id
+          );
 
           if (index !== -1) {
             items.splice(index, 1);
@@ -449,7 +498,9 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
 
   // 由于 TERMINAL_GET_SHARE_USER 不会返回 k8s id 所以只能根据当前页保存的 k8s id 去获取 node 信息
   if (info.type === 'TERMINAL_GET_SHARE_USER') {
-    const innerOperatedNode = treeStore.getTerminalByK8sId(terminalStore.currentTab);
+    const innerOperatedNode = treeStore.getTerminalByK8sId(
+      terminalStore.currentTab
+    );
     innerOperatedNode.userOptions = JSON.parse(info.data);
 
     treeStore.setK8sIdMap(terminalStore.currentTab, { ...innerOperatedNode });
@@ -477,22 +528,22 @@ export const createConnect = (t: any) => {
       protocols: ['JMS-KOKO'],
       onConnected: (ws: WebSocket) => {
         guaranteeLunaConnection();
-        handleConnected(ws, pingInterval)
+        handleConnected(ws, pingInterval);
 
         watch(
           () => counter.value,
           counter => {
             if (counter >= 5) {
               clearInterval(guaranteeInterval.value!);
-        
+
               ws.close();
-        
+
               alert('Failed to connect to Luna');
 
               window.close();
             }
           }
-        )
+        );
       },
       onMessage: (ws: WebSocket, event: MessageEvent) => {
         handleTreeMessage(ws, event);
@@ -577,11 +628,18 @@ export const initTerminalEvent = (
   });
 
   terminal.onSelectionChange(() => {
-    terminalStore.setTerminalConfig('termSelectionText', terminal.getSelection().trim());
+    terminalStore.setTerminalConfig(
+      'termSelectionText',
+      terminal.getSelection().trim()
+    );
   });
 
   terminal.attachCustomKeyEventHandler(e => {
-    if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    if (
+      e.altKey &&
+      e.shiftKey &&
+      (e.key === 'ArrowRight' || e.key === 'ArrowLeft')
+    ) {
       switch (e.key) {
         case 'ArrowRight':
           mittBus.emit('alt-shift-right');
@@ -639,7 +697,8 @@ export const initElEvent = (
       try {
         text = await readText();
       } catch (e) {
-        if (terminalStore.termSelectionText !== '') text = terminalStore.termSelectionText;
+        if (terminalStore.termSelectionText !== '')
+          text = terminalStore.termSelectionText;
       } finally {
         socket.send(
           JSON.stringify({
@@ -705,7 +764,10 @@ export const sendK8sMessage = (socket: WebSocket, type: string, data: any) => {
   );
 };
 
-export const initMittBusEvents = (searchAddon: SearchAddon, socket: WebSocket) => {
+export const initMittBusEvents = (
+  searchAddon: SearchAddon,
+  socket: WebSocket
+) => {
   mittBus.on('terminal-search', ({ keyword, type = '' }) => {
     const searchOption: ISearchOptions = {
       caseSensitive: false,
@@ -750,7 +812,11 @@ export const initMittBusEvents = (searchAddon: SearchAddon, socket: WebSocket) =
 /**
  * @description 创建 K8s 终端
  */
-export const createTerminal = (el: HTMLElement, socket: WebSocket, lunaConfig: ILunaConfig) => {
+export const createTerminal = (
+  el: HTMLElement,
+  socket: WebSocket,
+  lunaConfig: ILunaConfig
+) => {
   const { fontSize, lineHeight, fontFamily } = lunaConfig;
 
   const options = {
@@ -767,7 +833,12 @@ export const createTerminal = (el: HTMLElement, socket: WebSocket, lunaConfig: I
 
   const terminal: Terminal = new Terminal(options);
 
-  const { fitAddon, searchAddon } = initTerminalEvent(el, terminal, lunaConfig, socket);
+  const { fitAddon, searchAddon } = initTerminalEvent(
+    el,
+    terminal,
+    lunaConfig,
+    socket
+  );
 
   initElEvent(el, terminal, fitAddon, socket, lunaConfig);
   initCustomWindowEvent(fitAddon);
@@ -800,7 +871,7 @@ export const useKubernetes = (t: any) => {
         break;
       }
     }
-  })
+  });
 
   if (ws) {
     socket = ws;

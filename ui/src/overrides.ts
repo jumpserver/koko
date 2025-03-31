@@ -1,8 +1,7 @@
 import type { GlobalThemeOverrides } from 'naive-ui';
 
 export const themeOverrides: GlobalThemeOverrides = {
-  Drawer: {
-  },
+  Drawer: {},
   DataTable: {
     thColorModal: 'unset'
   }

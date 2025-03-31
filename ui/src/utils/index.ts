@@ -71,7 +71,8 @@ export const writeBufferToTerminal = (
   terminal: Terminal | null,
   data: any
 ) => {
-  if (!enableZmodem && zmodemStatus) return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
+  if (!enableZmodem && zmodemStatus)
+    return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
 
   terminal && terminal.write(new Uint8Array(data));
 };

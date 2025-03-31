@@ -4,7 +4,7 @@
     :theme="darkTheme"
     :date-locale="dateZhCN"
     :theme-overrides="themeOverrides"
-    class="overflow-hidden"
+    class="flex flex-col items-center justify-center h-full w-full overflow-hidden bg-black"
   >
     <n-dialog-provider>
       <n-notification-provider>
@@ -54,15 +54,3 @@ onMounted(() => {
   setLanguage(lang);
 });
 </script>
-
-<style scoped lang="scss">
-.n-config-provider {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  background-color: #000;
-}
-</style>

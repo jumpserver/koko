@@ -11,7 +11,6 @@ declare module 'vue' {
     FileManage: typeof import('./src/components/FileManagement/components/fileManage/index.vue')['default']
     FileManagement: typeof import('./src/components/FileManagement/index.vue')['default']
     Logo: typeof import('./src/components/Kubernetes/Sidebar/components/Logo/index.vue')['default']
-    Main: typeof import('./src/components/Kubernetes/MainContent/main.vue')['default']
     MainContent: typeof import('./src/components/Kubernetes/MainContent/index.vue')['default']
     NButton: typeof import('naive-ui')['NButton']
     NButtonGroup: typeof import('naive-ui')['NButtonGroup']

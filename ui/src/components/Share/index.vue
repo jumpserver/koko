@@ -32,7 +32,13 @@
           />
         </n-form-item-gi>
         <n-form-item-gi :span="24">
-          <n-button round tertiary type="primary" class="w-full text-white" @click="handleShareURlCreated">
+          <n-button
+            round
+            tertiary
+            type="primary"
+            class="w-full text-white"
+            @click="handleShareURlCreated"
+          >
             {{ t('CreateLink') }}
           </n-button>
         </n-form-item-gi>
@@ -51,7 +57,13 @@
           <n-input readonly :value="shareCode"></n-input>
         </n-form-item-gi>
         <n-form-item-gi :span="24">
-          <n-button round tertiary type="primary" class="w-full text-white" @click="copyShareURL">
+          <n-button
+            round
+            tertiary
+            type="primary"
+            class="w-full text-white"
+            @click="copyShareURL"
+          >
             {{ t('CopyLink') }}
           </n-button>
         </n-form-item-gi>
@@ -125,7 +137,9 @@ const shareLinkRequest = reactive({
 });
 
 const shareURL = computed(() => {
-  return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
+  return shareId.value
+    ? `${BASE_URL}/koko/share/${shareId.value}/`
+    : t('NoLink');
 });
 
 const mappedUserOptions = computed(() => {

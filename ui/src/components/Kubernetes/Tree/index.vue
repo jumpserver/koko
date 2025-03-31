@@ -7,9 +7,17 @@
         </n-flex>
       </template>
       <n-descriptions-item class="h-full">
-        <n-collapse arrow-placement="left" :accordion="true" :default-expanded-names="['asset-tree']">
+        <n-collapse
+          arrow-placement="left"
+          :accordion="true"
+          :default-expanded-names="['asset-tree']"
+        >
           <n-scrollbar style="max-height: calc(100vh - 100px)">
-            <n-collapse-item :title="root?.label" class="collapse-item" name="asset-tree">
+            <n-collapse-item
+              :title="root?.label"
+              class="collapse-item"
+              name="asset-tree"
+            >
               <template #header-extra>
                 <n-flex
                   justify="center"
@@ -282,7 +290,10 @@ const handleOnLoad = (node: TreeOption) => {
     if (!expandedKeysRef.value.includes(expendKey)) {
       setTimeout(() => {
         expandedKeysRef.value.push(expendKey);
-        handleExpandCollapse(expandedKeysRef.value, [], { node, action: 'expand' });
+        handleExpandCollapse(expandedKeysRef.value, [], {
+          node,
+          action: 'expand'
+        });
       }, 200);
     }
   }
@@ -302,7 +313,9 @@ const handleSelect = (key: string, _option: DropdownOption) => {
   switch (key) {
     case 'expand': {
       if (currentNodeInfo.value) {
-        if (!expandedKeysRef.value.includes(currentNodeInfo.value.key as string)) {
+        if (
+          !expandedKeysRef.value.includes(currentNodeInfo.value.key as string)
+        ) {
           expandedKeysRef.value.push(currentNodeInfo.value.key as string);
         }
 

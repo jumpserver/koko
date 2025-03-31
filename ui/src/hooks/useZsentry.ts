@@ -84,7 +84,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     if (size >= MAX_TRANSFER_SIZE) {
       debug(`Select File: ${selectFile}`);
 
-      message.error(`${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`);
+      message.error(
+        `${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`
+      );
 
       try {
         zmodeSession.value?.abort();
@@ -110,9 +112,12 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         }
       },
       on_file_complete: (obj: any) => {
-        message.success(`${t('EndFileTransfer')}: ${t('UploadSuccess')} ${obj.name}`, {
-          duration: 2000
-        });
+        message.success(
+          `${t('EndFileTransfer')}: ${t('UploadSuccess')} ${obj.name}`,
+          {
+            duration: 2000
+          }
+        );
       }
     })
       .then(() => {
@@ -219,7 +224,10 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
    * @param zsession
    * @param terminal
    */
-  const handleReceiveSession = (zsession: ZmodemSession, terminal: Terminal) => {
+  const handleReceiveSession = (
+    zsession: ZmodemSession,
+    terminal: Terminal
+  ) => {
     zmodeSession.value = zsession;
     zsession.on('offer', (xfer: ZmodemTransfer) => {
       const buffer: Uint8Array[] = [];

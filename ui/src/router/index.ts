@@ -1,41 +1,53 @@
 import { guard } from './helper/guard';
-import { createRouter, createWebHistory, RouteRecordRaw, Router } from 'vue-router';
+import {
+  createRouter,
+  createWebHistory,
+  RouteRecordRaw,
+  Router
+} from 'vue-router';
 
 const allRoutes: RouteRecordRaw[] = [
   {
     path: '/connect/',
     name: 'Terminal',
-    component: () => import(/* webpackChunkName: Connect */ '@/views/Connection/index.vue')
+    component: () =>
+      import(/* webpackChunkName: Connect */ '@/views/Connection/index.vue')
   },
   {
     path: '/sftp/:id/',
     name: 'SFTP',
-    component: () => import(/* webpackChunkName: SFTP */ '@/views/SFTP/index.vue')
+    component: () =>
+      import(/* webpackChunkName: SFTP */ '@/views/SFTP/index.vue')
   },
   {
     path: '/token/',
     name: 'TokenParams',
-    component: () => import(/* webpackChunkName: Token */ '@/views/Connection/index.vue')
+    component: () =>
+      import(/* webpackChunkName: Token */ '@/views/Connection/index.vue')
   },
   {
     path: '/k8s/',
     name: 'kubernetes',
-    component: () => import(/* webpackChunkName: Ks */ '@/views/Kubernetes/index.vue')
+    component: () =>
+      import(/* webpackChunkName: Ks */ '@/views/Kubernetes/index.vue')
   },
   {
     path: '/token/:id/',
     name: 'Token',
-    component: () => import(/* webpackChunkName: TokenId */ '@/views/Connection/index.vue')
+    component: () =>
+      import(/* webpackChunkName: TokenId */ '@/views/Connection/index.vue')
   },
   {
     path: '/share/:id/',
     name: 'Share',
-    component: () => import(/* webpackChunkName: Share */ '@/views/ShareTerminal/index.vue')
+    component: () =>
+      import(/* webpackChunkName: Share */ '@/views/ShareTerminal/index.vue')
   },
   {
     path: '/monitor/:id/',
     name: 'Monitor',
-    component: () => import(/* webpackChunkName: Monitor */ '@/views/Monitor/index.vue')
+    component: () =>
+      import(/* webpackChunkName: Monitor */ '@/views/Monitor/index.vue')
   }
 ];
 

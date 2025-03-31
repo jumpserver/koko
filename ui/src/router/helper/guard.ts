@@ -40,8 +40,14 @@ const getLunaConfig = () => {
 
     if (commandLine) {
       fontSize = commandLine['character_terminal_font_size'];
-      setTerminalConfig('quickPaste', commandLine['is_right_click_quickly_paste'] ? '1' : '0');
-      setTerminalConfig('backspaceAsCtrlH', commandLine['is_backspace_as_ctrl_h'] ? '1' : '0');
+      setTerminalConfig(
+        'quickPaste',
+        commandLine['is_right_click_quickly_paste'] ? '1' : '0'
+      );
+      setTerminalConfig(
+        'backspaceAsCtrlH',
+        commandLine['is_backspace_as_ctrl_h'] ? '1' : '0'
+      );
     }
   }
 
@@ -55,16 +61,6 @@ const getLunaConfig = () => {
 const startUp = async (): Promise<boolean> => {
   const globalStore = useGlobalStore();
 
-  const { initialized } = storeToRefs(globalStore);
-
-  if (initialized.value) {
-    info('Already initialized');
-    return true;
-  }
-
-  info('Initializing global store');
-
-  globalStore.init();
   await onI18nLoaded();
   getLunaConfig();
 

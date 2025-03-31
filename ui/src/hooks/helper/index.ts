@@ -4,7 +4,11 @@ import type { ILunaConfig } from '@/hooks/interface';
 import { Terminal } from '@xterm/xterm';
 import { useDebounceFn } from '@vueuse/core';
 import { useLogger } from '@/hooks/useLogger.ts';
-import { formatMessage, handleError, sendEventToLuna } from '@/components/TerminalComponent/helper';
+import {
+  formatMessage,
+  handleError,
+  sendEventToLuna
+} from '@/components/TerminalComponent/helper';
 
 // 引入 Store
 import { useTreeStore } from '@/store/modules/tree.ts';
@@ -38,7 +42,7 @@ export const handleContextMenu = async (
   config: ILunaConfig,
   socket: WebSocket,
   terminalId: string,
-  termSelectionText: string,
+  termSelectionText: string
 ) => {
   if (e.ctrlKey || config.quickPaste !== '1') return;
 
@@ -50,7 +54,7 @@ export const handleContextMenu = async (
     if (termSelectionText !== '') text = termSelectionText;
   }
   e.preventDefault();
-  
+
   socket.send(formatMessage(terminalId, 'TERMINAL_DATA', text));
 };
 
@@ -100,17 +104,20 @@ export const handleTerminalResize = (
 };
 
 // 将防抖函数移到外部，确保只创建一次
-const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: string) => {
-  console.log('key')
-  switch (key) {
-    case 'ArrowRight':
-      sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
-      break;
-    case 'ArrowLeft':
-      sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
-      break;
-  }
-}, 500);
+const debouncedSwitchTab = useDebounceFn(
+  (lunaId: string, origin: string, key: string) => {
+    console.log('key');
+    switch (key) {
+      case 'ArrowRight':
+        sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+        break;
+      case 'ArrowLeft':
+        sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+        break;
+    }
+  },
+  500
+);
 
 /**
  * 针对特定的键盘组合进行操作
@@ -126,11 +133,17 @@ export const handleCustomKey = (
   lunaId: string,
   origin: string
 ): boolean => {
-  if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+  if (
+    e.altKey &&
+    e.shiftKey &&
+    (e.key === 'ArrowRight' || e.key === 'ArrowLeft')
+  ) {
     if (lunaId && origin) {
       debouncedSwitchTab(lunaId, origin, e.key);
     } else {
-      mittBus.emit(e.key === 'ArrowRight' ? 'alt-shift-right' : 'alt-shift-left');
+      mittBus.emit(
+        e.key === 'ArrowRight' ? 'alt-shift-right' : 'alt-shift-left'
+      );
     }
     return false;
   }
@@ -148,7 +161,10 @@ export const handleCustomKey = (
  * @param terminal
  * @param termSelectionText
  */
-export const handleTerminalSelection = async (terminal: Terminal, termSelectionText: Ref<string>) => {
+export const handleTerminalSelection = async (
+  terminal: Terminal,
+  termSelectionText: Ref<string>
+) => {
   termSelectionText.value = terminal.getSelection().trim();
 
   if (termSelectionText.value !== '') {
@@ -249,7 +265,10 @@ export const onWebsocketOpen = (
   if (pingInterval.value) clearInterval(pingInterval.value);
 
   pingInterval.value = setInterval(() => {
-    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
+    if (
+      socket.CLOSED === socket.readyState ||
+      socket.CLOSING === socket.readyState
+    ) {
       return clearInterval(pingInterval.value!);
     }
 
@@ -290,7 +309,9 @@ export const generateWsURL = () => {
       break;
     }
     case 'TokenParams': {
-      connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}` : '';
+      connectURL = urlParams
+        ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`
+        : '';
       break;
     }
     case 'kubernetes': {
@@ -304,7 +325,8 @@ export const generateWsURL = () => {
       requireParams.append('type', 'share');
       requireParams.append('target_id', id);
 
-      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      connectURL =
+        BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
       break;
     }
     case 'Monitor': {
@@ -314,11 +336,14 @@ export const generateWsURL = () => {
       requireParams.append('type', 'monitor');
       requireParams.append('target_id', id);
 
-      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      connectURL =
+        BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
       break;
     }
     default: {
-      connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}` : '';
+      connectURL = urlParams
+        ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`
+        : '';
     }
   }
 
@@ -336,14 +361,22 @@ export const generateWsURL = () => {
  * @param terminal
  * @param type
  */
-export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal) => {
+export const onWebsocketWrong = (
+  event: Event,
+  type: string,
+  terminal?: Terminal
+) => {
   switch (type) {
     case 'error': {
-      terminal ? terminal.write('\x1b[31mConnection Websocket Error\x1b[0m' + '\r\n') : '';
+      terminal
+        ? terminal.write('\x1b[31mConnection Websocket Error\x1b[0m' + '\r\n')
+        : '';
       break;
     }
     case 'disconnected': {
-      terminal ? terminal.write('\x1b[31mConnection Websocket Closed\x1b[0m') : '';
+      terminal
+        ? terminal.write('\x1b[31mConnection Websocket Closed\x1b[0m')
+        : '';
       break;
     }
   }
