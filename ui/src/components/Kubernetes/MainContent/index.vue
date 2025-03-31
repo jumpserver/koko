@@ -707,8 +707,8 @@ onMounted(() => {
           }, 1000);
 
           updateIcon(connectInfo.value);
-        } catch (e) {
-          console.log(e);
+        } catch (e: any) {
+          throw new Error(e)
         }
       }
     });
