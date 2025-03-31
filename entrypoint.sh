@@ -17,5 +17,11 @@ chmod 755 `which kubectl` `which rawkubectl` `which helm` `which rawhelm`
 chmod 755 `which jq` `which less` `which vim` `which ls` `which bash`
 # k8s 集群连接需要的命令
 chmod 755 `which grep`
+
+if [ ! -f /opt/koko/server.key ]; then
+     openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /opt/koko/server.key -out /opt/koko/server.crt -subj "/C=CN/ST=Beijing/L=Beijing/O=JumpServer/OU=JumpServer/CN=JumpServer"
+ fi
+ 
+ chmod 700 /opt/koko
 cd /opt/koko
 ./koko
