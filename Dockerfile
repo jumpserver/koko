@@ -64,16 +64,14 @@ RUN --mount=type=cache,target=/root/.cache \
     && export GOFlAGS="${GOFlAGS} -X 'main.Goversion=`go version`'" \
     && export GOFlAGS="$GOFlAGS -X 'main.Version=$VERSION'" \
     && go build -ldflags "$GOFlAGS $KEYFLAG" -o koko ./cmd/koko \
-    && go build -ldflags "$KEYFLAG" -o kubectl ./cmd/kubectl \
-    && go build -ldflags "$KEYFLAG" -o helm ./cmd/helm \
     && set -x && ls -al .
 
 RUN mkdir /opt/koko/bin \
     && mv /opt/koko/kubectl /opt/koko/bin \
     && mv /opt/koko/helm /opt/koko/bin \
     && mv /opt/koko/clickhouse-client /opt/koko/bin \
-    && mv /opt/koko/rawkubectl /opt/koko/bin \
-    && mv /opt/koko/rawhelm /opt/koko/bin
+    && mv /opt/koko/rawkubectl /opt/koko/bin/kubectl \
+    && mv /opt/koko/rawhelm /opt/koko/bin/helm
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/static /opt/koko/release \
