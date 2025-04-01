@@ -43,7 +43,7 @@ func (h *chat) HandleMessage(msg *Message) {
 		conversation = &AIConversation{
 			Id:                   id,
 			Prompt:               msg.Prompt,
-			HistoryRecords:       make([]string, 0),
+			Context:              make([]QARecord, 0),
 			InterruptCurrentChat: false,
 		}
 
@@ -65,6 +65,8 @@ func (h *chat) HandleMessage(msg *Message) {
 		return
 	}
 
+	conversation.Question = msg.Data
+
 	openAIParam := &OpenAIParam{
 		AuthToken: h.termConf.GptApiKey,
 		BaseURL:   h.termConf.GptBaseUrl,
@@ -72,7 +74,7 @@ func (h *chat) HandleMessage(msg *Message) {
 		Model:     h.termConf.GptModel,
 		Prompt:    conversation.Prompt,
 	}
-	conversation.HistoryRecords = append(conversation.HistoryRecords, msg.Data)
+	//conversation.HistoryRecords = append(conversation.HistoryRecords, msg.Data)
 	go h.chat(openAIParam, conversation)
 }
 
@@ -90,18 +92,32 @@ func (h *chat) chat(
 		chatGPTParam.Proxy,
 	)
 
-	startIndex := len(conversation.HistoryRecords) - 15
+	startIndex := len(conversation.Context) - 8
 	if startIndex < 0 {
 		startIndex = 0
 	}
-	contents := conversation.HistoryRecords[startIndex:]
+	conversation.Context = conversation.Context[startIndex:]
+	context := conversation.Context
+
+	chatContext := make([]openai.ChatCompletionMessage, 0)
+	for _, record := range context {
+		chatContext = append(chatContext, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: record.Question,
+		})
+		chatContext = append(chatContext, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleAssistant,
+			Content: record.Answer,
+		})
+	}
 
 	openAIConn := &srvconn.OpenAIConn{
 		Id:          conversation.Id,
 		Client:      c,
 		Prompt:      chatGPTParam.Prompt,
 		Model:       chatGPTParam.Model,
-		Contents:    contents,
+		Question:    conversation.Question,
+		Context:     chatContext,
 		IsReasoning: false,
 		AnswerCh:    answerCh,
 		DoneCh:      doneCh,
@@ -109,11 +125,11 @@ func (h *chat) chat(
 	}
 
 	go openAIConn.Chat(&conversation.InterruptCurrentChat)
-	return h.processChatMessages(openAIConn)
+	return h.processChatMessages(openAIConn, conversation)
 }
 
 func (h *chat) processChatMessages(
-	openAIConn *srvconn.OpenAIConn,
+	openAIConn *srvconn.OpenAIConn, conversation *AIConversation,
 ) string {
 	messageID := common.UUID()
 	id := openAIConn.Id
@@ -123,6 +139,14 @@ func (h *chat) processChatMessages(
 			h.sendSessionMessage(id, answer, messageID, "message", openAIConn.IsReasoning)
 		case answer := <-openAIConn.DoneCh:
 			h.sendSessionMessage(id, answer, messageID, "finish", false)
+			runes := []rune(answer)
+			if len(runes) > 100 {
+				answer = string(runes[:100])
+			}
+			conversation.Context = append(conversation.Context, QARecord{
+				Question: conversation.Question,
+				Answer:   answer,
+			})
 			return answer
 		}
 	}
