@@ -306,6 +306,7 @@ export const useTerminal = async (
    *  @description 保证连接是通过 Luna 发起的, 如果 ping 次数大于 5 次，则直接关闭连接
    */
   const guaranteeLunaConnection = () => {
+    console.log('execute guaranteeLunaConnection');
     if (!lunaId.value) {
       guaranteeInterval.value = setInterval(() => {
         counter.value++;
@@ -382,12 +383,15 @@ export const useTerminal = async (
    */
   const initCustomWindowEvent = () => {
     window.addEventListener('message', (e: MessageEvent) => {
+      console.log('execute initCustomWindowEvent');
       const message = e.data;
 
       switch (message.name) {
         case 'PING': {
           lunaId.value = message.id;
           origin.value = e.origin;
+
+          console.log('set LunaID')
 
           sendEventToLuna('PONG', '', lunaId.value, origin.value);
           break;

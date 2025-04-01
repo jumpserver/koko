@@ -1,6 +1,5 @@
 // 引入 API
 import { h, ref } from 'vue';
-import { useLogger } from '@/hooks/useLogger.ts';
 import { bytesHuman } from '@/utils';
 import { wsIsActivated } from '@/components/TerminalComponent/helper';
 import { createDiscreteApi, UploadFileInfo, darkTheme } from 'naive-ui';
@@ -29,7 +28,6 @@ const { message, dialog } = createDiscreteApi(['message', 'dialog'], {
     theme: darkTheme
   }
 });
-const { debug, info, error } = useLogger('useSentry');
 
 interface IUseSentry {
   generateSentry: (ws: WebSocket, terminal: Terminal) => SentryConfig;
@@ -82,7 +80,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     const { size } = selectFile.file as File;
 
     if (size >= MAX_TRANSFER_SIZE) {
-      debug(`Select File: ${selectFile}`);
 
       message.error(
         `${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`
@@ -276,24 +273,25 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
           terminal.write(_octets);
         }
       } catch (err) {
-        error('Failed to write to terminal', err);
+        console.log('Failed to write to terminal');
       }
     };
 
     const sender = (octets: Uint8Array) => {
       if (!wsIsActivated(ws)) {
-        return debug('WebSocket Closed');
+        return;
       }
 
       try {
         lastSendTime && (lastSendTime.value = new Date());
         ws.send(new Uint8Array(octets));
       } catch (err) {
-        error('Failed to send octets via WebSocket', err);
+        console.log('Failed to send octets via WebSocket')
       }
     };
 
-    const on_retract = () => info('Zmodem Retract');
+    const on_retract = () => {
+    }
 
     const on_detect = (detection: Detection) => {
       const zsession: ZmodemSession = detection.confirm();

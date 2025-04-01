@@ -1,8 +1,5 @@
 import { Ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
-import { useLogger } from '@/hooks/useLogger.ts';
-
-const { info } = useLogger('HelperFunctions');
 
 interface LunaEventMessage {
   name: string;
@@ -51,8 +48,6 @@ export const handleEventFromLuna = (
 ) => {
   const msg: LunaEventMessage = e.data;
 
-  info('Received post message:', msg);
-
   switch (msg.name) {
     case 'PING':
       if (lunaId.value != null) return;
@@ -95,7 +90,6 @@ export const wsIsActivated = (ws: WebSocket | undefined) => {
  * @param {Event} e - 错误事件。
  */
 export const handleError = (e: any) => {
-  info(e);
 };
 
 /**

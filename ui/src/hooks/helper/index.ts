@@ -3,7 +3,6 @@ import type { ILunaConfig } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
 import { useDebounceFn } from '@vueuse/core';
-import { useLogger } from '@/hooks/useLogger.ts';
 import {
   formatMessage,
   handleError,
@@ -25,7 +24,6 @@ import mittBus from '@/utils/mittBus.ts';
 import * as clipboard from 'clipboard-polyfill';
 import { BASE_WS_URL, MaxTimeout } from '@/config';
 
-const { info } = useLogger('Hook Helper');
 const { message } = createDiscreteApi(['message']);
 
 /**
@@ -75,8 +73,6 @@ export const handleTerminalResize = (
   socket: WebSocket
 ) => {
   let data;
-
-  info('Send Term Resize');
 
   const treeStore = useTreeStore();
   const { currentNode } = storeToRefs(treeStore);
@@ -275,7 +271,6 @@ export const onWebsocketOpen = (
     let currentDate: Date = new Date();
 
     if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
-      message.info('More than 30s do not receive data');
     }
 
     let pingTimeout: number = currentDate.getTime() - lastSendTime.getTime();

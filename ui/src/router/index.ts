@@ -1,4 +1,4 @@
-import { guard } from './helper/guard';
+import { guard } from '../utils/guard';
 import {
   createRouter,
   createWebHistory,
