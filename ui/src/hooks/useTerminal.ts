@@ -8,7 +8,7 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { defaultTheme } from '@/config';
 
 // hook
-import { watch } from 'vue';
+import { watch, watchEffect } from 'vue';
 import { createDiscreteApi } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
 import { useSentry } from '@/hooks/useZsentry.ts';
@@ -40,6 +40,7 @@ import {
   wsIsActivated
 } from '@/components/TerminalComponent/helper';
 import mittBus from '@/utils/mittBus.ts';
+import { CollectionsBookmarkFilled } from '@vicons/material';
 
 enum MessageType {
   PING = 'PING',
@@ -282,19 +283,22 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
    *  @description 保证连接是通过 Luna 发起的, 如果 ping 次数大于 5 次，则直接关闭连接
    */
   const guaranteeLunaConnection = () => {
-    if (!lunaId.value) {
-      guaranteeInterval.value = setInterval(() => {
-        counter.value++;
-        
-        console.log(
-          '%c DEBUG[ Send Luna PING ]:',
-          'font-size:13px; background: #1ab394; color:#fff;',
-          counter.value
-        );
-
+    watchEffect(() => {
+      if (!lunaId.value) {
+        guaranteeInterval.value = setInterval(() => {
+          counter.value++;
+          
+          console.log(
+            '%c DEBUG [ Send Luna PING ]:',
+            'font-size:13px; background: #1ab394; color:#fff;',
+            counter.value
+          );
+        }, 1000);
+      } else {
+        clearInterval(guaranteeInterval.value!);
         sendEventToLuna('PING', '', lunaId.value, origin.value);
-      }, 500);
-    }
+      }
+    })
   }
 
   /**
@@ -307,9 +311,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
       };
       socket.onmessage = (event: MessageEvent) => {
-        if (type === 'common') {
-          handleMessage(event);
-        }
+        handleMessage(event);
       };
       socket.onerror = (event: Event) => {
         onWebsocketWrong(event, 'error', terminal);
