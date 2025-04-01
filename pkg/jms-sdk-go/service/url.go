@@ -77,6 +77,7 @@ const (
 
 	UserPermsAssetAccountsURL = "/api/v1/perms/users/%s/assets/%s/"
 	AccountSecretURL          = "/api/v1/assets/account-secrets/%s/"
+	AccountChatURL            = "/api/v1/accounts/accounts/chat/"
 	UserPermsAssetsURL        = "/api/v1/perms/users/%s/assets/"
 
 	AssetLoginConfirmURL = "/api/v1/acls/login-asset/check/"

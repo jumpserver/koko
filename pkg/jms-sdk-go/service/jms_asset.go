@@ -23,3 +23,9 @@ func (s *JMService) GetAccountSecretById(accountId string) (res model.AccountDet
 	_, err = s.authClient.Get(url, &res)
 	return
 }
+
+func (s *JMService) GetAccountChat() (res model.AccountChatDetail, err error) {
+	url := fmt.Sprintf(AccountChatURL)
+	_, err = s.authClient.Get(url, &res)
+	return
+}
