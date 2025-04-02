@@ -28,7 +28,7 @@ export const useTerminalSettingsStore = defineStore('terminalSettings', {
   state: (): Partial<ITerminalSettings> => ({
     fontSize: 14,
     lineHeight: 1,
-    fontFamily: 'Open Sans, monaco, Consolas, "Lucida Console", monospace',
+    fontFamily: 'Maple Mono,monaco, Consolas, "Lucida Console", monospace',
     themeName: '',
     quickPaste: '0',
     ctrlCAsCtrlZ: '0',

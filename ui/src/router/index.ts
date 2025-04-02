@@ -1,53 +1,42 @@
 import { guard } from '../utils/guard';
-import {
-  createRouter,
-  createWebHistory,
-  RouteRecordRaw,
-  Router
-} from 'vue-router';
+import { createRouter, createWebHistory, RouteRecordRaw, Router } from 'vue-router';
 
 const allRoutes: RouteRecordRaw[] = [
   {
     path: '/connect/',
     name: 'Terminal',
-    component: () =>
-      import(/* webpackChunkName: Connect */ '@/views/Connection/index.vue')
+    // component: () => import('@/views/Connection/index.vue')
+    component: () => import('@/views/GeneralConnection/index.vue')
   },
   {
     path: '/sftp/:id/',
     name: 'SFTP',
-    component: () =>
-      import(/* webpackChunkName: SFTP */ '@/views/SFTP/index.vue')
+    component: () => import('@/views/FileManagement/index.vue')
   },
   {
     path: '/token/',
     name: 'TokenParams',
-    component: () =>
-      import(/* webpackChunkName: Token */ '@/views/Connection/index.vue')
+    component: () => import('@/views/Connection/index.vue')
   },
   {
     path: '/k8s/',
     name: 'kubernetes',
-    component: () =>
-      import(/* webpackChunkName: Ks */ '@/views/Kubernetes/index.vue')
+    component: () => import('@/views/Kubernetes/index.vue')
   },
   {
     path: '/token/:id/',
     name: 'Token',
-    component: () =>
-      import(/* webpackChunkName: TokenId */ '@/views/Connection/index.vue')
+    component: () => import('@/views/Connection/index.vue')
   },
   {
     path: '/share/:id/',
     name: 'Share',
-    component: () =>
-      import(/* webpackChunkName: Share */ '@/views/ShareTerminal/index.vue')
+    component: () => import('@/views/ShareTerminal/index.vue')
   },
   {
     path: '/monitor/:id/',
     name: 'Monitor',
-    component: () =>
-      import(/* webpackChunkName: Monitor */ '@/views/Monitor/index.vue')
+    component: () => import('@/views/Monitor/index.vue')
   }
 ];
 
@@ -57,8 +46,8 @@ const router: Router = createRouter({
   scrollBehavior: () => ({ left: 0, top: 0 })
 });
 
-router.beforeEach(async (_to, _from, next) => {
-  await guard(next);
+router.beforeEach((_to, _from, next) => {
+  guard(next);
 });
 
 export default router;

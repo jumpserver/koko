@@ -8,7 +8,7 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { defaultTheme } from '@/config';
 
 // hook
-import { watch } from 'vue';
+import { watch, watchEffect } from 'vue';
 import { createDiscreteApi } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
 import { useSentry } from '@/hooks/useZsentry.ts';
@@ -306,21 +306,23 @@ export const useTerminal = async (
    *  @description 保证连接是通过 Luna 发起的, 如果 ping 次数大于 5 次，则直接关闭连接
    */
   const guaranteeLunaConnection = () => {
-    console.log('execute guaranteeLunaConnection');
-    if (!lunaId.value) {
-      guaranteeInterval.value = setInterval(() => {
-        counter.value++;
-
-        console.log(
-          '%c DEBUG[ Send Luna PING ]:',
-          'font-size:13px; background: #1ab394; color:#fff;',
-          counter.value
-        );
-
+    watchEffect(() => {
+      if (!lunaId.value) {
+        guaranteeInterval.value = setInterval(() => {
+          counter.value++;
+          
+          console.log(
+            '%c DEBUG [ Send Luna PING ]:',
+            'font-size:13px; background: #1ab394; color:#fff;',
+            counter.value
+          );
+        }, 1000);
+      } else {
+        clearInterval(guaranteeInterval.value!);
         sendEventToLuna('PING', '', lunaId.value, origin.value);
-      }, 500);
-    }
-  };
+      }
+    })
+  }
 
   /**
    * 初始非 k8s 的 socket 事件
@@ -338,9 +340,7 @@ export const useTerminal = async (
         );
       };
       socket.onmessage = (event: MessageEvent) => {
-        if (type === 'common') {
-          handleMessage(event);
-        }
+        handleMessage(event);
       };
       socket.onerror = (event: Event) => {
         onWebsocketWrong(event, 'error', terminal);

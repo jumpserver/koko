@@ -29,7 +29,7 @@ export const MaxTimeout = 30 * 1000;
 export const MAX_TRANSFER_SIZE = 1024 * 1024 * 500;
 
 export const defaultTheme = {
-  background: '#1E1E1E',
+  background: '#121414',
   foreground: '#ffffff',
   black: '#2e3436',
   red: '#cc0000',
