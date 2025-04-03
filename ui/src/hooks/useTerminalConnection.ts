@@ -66,8 +66,8 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
   let sentry: Sentry;
 
   let terminalId = ref<string>('');
-  let zmodemTransferStatus = ref<boolean>(true);
   let pingInterval = ref<number | null>(null);
+  let zmodemTransferStatus = ref<boolean>(true);
 
   const lastSendTime = ref(new Date());
   const lastReceiveTime = ref(new Date());

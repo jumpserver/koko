@@ -1,7 +1,1 @@
 @import "tailwindcss";
-
-/* @layer utilities {
-  .custom-button-text {
-    @apply .text-white text-xs font-normal;
-  }
-} */

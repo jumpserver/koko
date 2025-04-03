@@ -22,6 +22,7 @@
     "clipboard-polyfill": "^4.1.0",
     "dayjs": "^1.11.13",
     "loglevel": "^1.9.1",
+    "lucide-vue-next": "^0.487.0",
     "mitt": "^3.0.1",
     "naive-ui": "^2.39.0",
     "nora-zmodemjs": "^1.1.1",

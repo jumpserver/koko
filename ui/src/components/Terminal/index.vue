@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
+import { onMounted, watch, inject } from 'vue';
 import { useMessage } from 'naive-ui';
 import { Terminal } from '@xterm/xterm';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
@@ -14,6 +14,8 @@ const props = defineProps<{
   origin: string;
   socketInstance?: WebSocket | '';
 }>();
+
+const { getCurrentThemeName } = inject<(themeName: string) => void>('getCurrentThemeName');
 
 const message = useMessage();
 const { terminalId, initializeSocketEvent } = useTerminalConnection(props.lunaId, props.origin);

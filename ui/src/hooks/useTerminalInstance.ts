@@ -58,33 +58,30 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
   };
   /**
    * @description 终端 resize 事件
-   * @param terminalId 
-   * @returns 
+   * @param terminalId
+   * @returns
    */
   const terminalResizeEvent = (terminalId: string) => {
     if (!socket) {
-      return 
+      return;
     }
 
     terminalInstance.value?.onResize(({ cols, rows }) => {
       fitAddon.fit();
 
       const resizeData = JSON.stringify({ cols, rows });
-      socket.send(formatMessage(terminalId, FormatterMessageType.TERMINAL_RESIZE, resizeData))
-    })
-  }
+      socket.send(formatMessage(terminalId, FormatterMessageType.TERMINAL_RESIZE, resizeData));
+    });
+  };
   /**
    * @description 初始化元素事件
-   * @param el 
+   * @param el
    */
   const initializeElementEvent = (el: HTMLElement) => {
-    el.addEventListener(
-      'mouseenter',
-      () => {
-        fitAddon.fit();
-        terminalInstance.value?.focus();
-      }
-    );
+    el.addEventListener('mouseenter', () => {
+      fitAddon.fit();
+      terminalInstance.value?.focus();
+    });
 
     el.addEventListener(
       'contextmenu',
@@ -95,23 +92,23 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
 
         try {
           text = await readText();
-        } catch(e) {
-          terminalSelectionText.value ? text = terminalSelectionText.value : '';
+        } catch (e) {
+          terminalSelectionText.value ? (text = terminalSelectionText.value) : '';
         }
 
         e.preventDefault();
 
-        // Socket Send 
+        // Socket Send
       },
       false
-    )
+    );
   };
   /**
    * @description 搜索关键字
-   * @param keyword 
-   * @param type 
+   * @param keyword
+   * @param type
    */
-  const searchKeyWord = (keyword: string, type: string) => {}
+  const searchKeyWord = (keyword: string, type: string) => {};
   /**
    * @description  创建终端实例
    */
@@ -124,8 +121,8 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
       allowProposedApi: true,
       rightClickSelectsWord: true,
       scrollback: 5000,
-      theme: defaultTheme,
-      // theme: xtermTheme['ENCOM'],
+      // theme: defaultTheme,
+      theme: xtermTheme['ENCOM'],
       fontSize: fontSize?.value,
       lineHeight: lineHeight?.value,
       fontFamily: fontFamily?.value
@@ -135,9 +132,12 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
     initializeElementEvent(el);
     initializeTerminalEvent(terminalInstance.value);
 
-    window.addEventListener('resize', useDebounceFn(() => {
-      fitAddon.fit();
-    }, 500))
+    window.addEventListener(
+      'resize',
+      useDebounceFn(() => {
+        fitAddon.fit();
+      }, 500)
+    );
 
     // 终端的实际 open 交由组件控制
     return terminalInstance.value;
@@ -150,7 +150,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
 
     nextTick(() => {
       terminalInstance.value!.options.theme = theme;
-    })
+    });
   };
 
   return {
