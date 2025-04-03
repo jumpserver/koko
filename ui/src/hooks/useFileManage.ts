@@ -11,9 +11,13 @@ import mittBus from '@/utils/mittBus.ts';
 
 import type { Ref } from 'vue';
 import type { RouteRecordNameGeneric } from 'vue-router';
-import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui'
+import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
-import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
+import type {
+  IFileManage,
+  IFileManageConnectData,
+  IFileManageSftpFileItem
+} from '@/hooks/interface';
 import { message } from '@/languages/modules';
 import { PercentFilled } from '@vicons/material';
 
@@ -35,14 +39,12 @@ export enum ManageTypes {
 }
 
 const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
-  theme: darkTheme 
-}))
-const { message: globalTipsMessage }: { message: MessageApiInjection } = createDiscreteApi(
-  ['message'],
-  {
+  theme: darkTheme
+}));
+const { message: globalTipsMessage }: { message: MessageApiInjection } =
+  createDiscreteApi(['message'], {
     configProviderProps: configProviderPropsRef
-  }
-)
+  });
 
 /**
  * @description 获取文件管理的 url
@@ -51,7 +53,9 @@ const getFileManageUrl = (token: string) => {
   const route = useRoute();
 
   const routeName: RouteRecordNameGeneric = route.name;
-  const urlParams: URLSearchParams = new URLSearchParams(window.location.search.slice(1));
+  const urlParams: URLSearchParams = new URLSearchParams(
+    window.location.search.slice(1)
+  );
 
   let fileConnectionUrl: string = '';
 
@@ -106,7 +110,11 @@ export const refresh = (socket: WebSocket, path: string) => {
  * @param id
  * @param socket
  */
-const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: string, socket: WebSocket) => {
+const handleSocketConnectEvent = (
+  messageData: IFileManageConnectData,
+  id: string,
+  socket: WebSocket
+) => {
   const sendData = {
     path: ''
   };
@@ -155,9 +163,12 @@ const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
  */
 const heartBeat = (socket: WebSocket) => {
   let pingInterval: number | null = null;
-  
+
   const sendPing = () => {
-    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
+    if (
+      socket.CLOSED === socket.readyState ||
+      socket.CLOSING === socket.readyState
+    ) {
       clearInterval(pingInterval!);
       return;
     }
@@ -194,10 +205,16 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
   socket.binaryType = 'arraybuffer';
 
-  socket.onopen = () => { clearHeartbeat = heartBeat(socket) };
-  socket.onerror = () => { clearHeartbeat?.() };
-  socket.onclose = () => { clearHeartbeat?.() };
-  
+  socket.onopen = () => {
+    clearHeartbeat = heartBeat(socket);
+  };
+  socket.onerror = () => {
+    clearHeartbeat?.();
+  };
+  socket.onclose = () => {
+    clearHeartbeat?.();
+  };
+
   socket.onmessage = (event: MessageEvent) => {
     const message: IFileManage = JSON.parse(event.data);
 
@@ -240,7 +257,9 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         if (message.cmd === 'download' && message.data) {
-          const blob: Blob = new Blob(receivedBuffers, { type: 'application/octet-stream' });
+          const blob: Blob = new Blob(receivedBuffers, {
+            type: 'application/octet-stream'
+          });
 
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -269,9 +288,8 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         const len = binaryString.length;
         const bytes = new Uint8Array(len);
 
-
         for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+          bytes[i] = binaryString.charCodeAt(i);
         }
 
         receivedBuffers.push(bytes);
@@ -286,14 +304,16 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
       }
 
       case MessageType.PING: {
-        socket.send(JSON.stringify({
-          id: uuid(),
-          type: MessageType.PONG,
-          data: 'pong'
-        }));
+        socket.send(
+          JSON.stringify({
+            id: uuid(),
+            type: MessageType.PONG,
+            data: 'pong'
+          })
+        );
         break;
       }
-    
+
       case MessageType.PONG: {
         break;
       }
@@ -398,7 +418,11 @@ const handleFileRemove = (socket: WebSocket, path: string) => {
  * @param path
  * @param is_dir
  */
-const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
+const handleFileDownload = (
+  socket: WebSocket,
+  path: string,
+  is_dir: boolean
+) => {
   const sendData = {
     path,
     is_dir
@@ -456,7 +480,7 @@ const generateUploadChunks = async (
 
   socket.send(JSON.stringify(sendBody));
 
-  sentChunks.value++
+  sentChunks.value++;
 
   return new Promise<boolean>(resolve => {
     const interval = setInterval(() => {
@@ -482,7 +506,9 @@ const handleFileUpload = async (
   const maxSliceCount = 100;
   const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
-  const loadingMessage = globalTipsMessage.loading('上传进度: 0%', { duration: 1000000000 });
+  const loadingMessage = globalTipsMessage.loading('上传进度: 0%', {
+    duration: 1000000000
+  });
   const fileInfo = uploadFileList.value[0];
 
   let sliceChunks = [];
@@ -491,7 +517,7 @@ const handleFileUpload = async (
 
   const unwatch = watch(
     () => sentChunks.value,
-    (newValue) => {      
+    newValue => {
       const percent = (newValue / sliceChunks.length) * 100;
 
       console.log(
@@ -513,7 +539,7 @@ const handleFileUpload = async (
 
   if (fileInfo && fileInfo.file) {
     let sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
-    
+
     // 如果切片数量大于最大切片数量，那么调大切片大小
     if (sliceCount > maxSliceCount) {
       sliceCount = maxSliceCount;
@@ -527,14 +553,22 @@ const handleFileUpload = async (
     }
 
     for (let i = 0; i < sliceCount; i++) {
-      sliceChunks.push(fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+      sliceChunks.push(
+        fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+      );
     }
 
     try {
       for (const sliceChunk of sliceChunks) {
         fileManageStore.setReceived(false);
 
-        await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
+        await generateUploadChunks(
+          sliceChunk,
+          socket,
+          fileInfo,
+          CHUNK_SIZE,
+          sentChunks
+        );
       }
 
       // 结束 chunk 发送 merge: true
@@ -552,9 +586,8 @@ const handleFileUpload = async (
           })
         })
       );
-
     } catch (e) {
-      loadingMessage.destroy(); 
+      loadingMessage.destroy();
       onError();
     }
   }
@@ -582,17 +615,35 @@ export const useFileManage = (token: string, t: any) => {
         onError: () => void;
         onProgress: (e: { percent: number }) => void;
       }) => {
-        handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t);
+        handleFileUpload(
+          <WebSocket>socket,
+          uploadFileList,
+          onProgress,
+          onFinish,
+          onError,
+          t
+        );
       }
     );
 
-    mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
-      handleFileDownload(<WebSocket>socket, path, is_dir);
-    });
+    mittBus.on(
+      'download-file',
+      ({ path, is_dir }: { path: string; is_dir: boolean }) => {
+        handleFileDownload(<WebSocket>socket, path, is_dir);
+      }
+    );
 
     mittBus.on(
       'file-manage',
-      ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+      ({
+        path,
+        type,
+        new_name
+      }: {
+        path: string;
+        type: ManageTypes;
+        new_name?: string;
+      }) => {
         switch (type) {
           case ManageTypes.CREATE: {
             handleFileCreate(<WebSocket>socket, path);

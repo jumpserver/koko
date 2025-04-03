@@ -1,5 +1,9 @@
 <template>
-  <CustomTerminal index-key="id" class="common-terminal" :terminal-type="terminalType" />
+  <CustomTerminal
+    index-key="id"
+    class="common-terminal"
+    :terminal-type="terminalType"
+  />
 </template>
 
 <script setup lang="ts">

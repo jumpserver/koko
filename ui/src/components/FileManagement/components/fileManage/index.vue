@@ -1,12 +1,23 @@
 <template>
-  <n-flex align="center" justify="space-between" class="!flex-nowrap !gap-x-6 h-[45px]">
-    <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap flex-1" align="center">
+  <n-flex
+    align="center"
+    justify="space-between"
+    class="!flex-nowrap !gap-x-6 h-[45px]"
+  >
+    <n-flex
+      class="controls-part !gap-x-6 h-full !flex-nowrap flex-1"
+      align="center"
+    >
       <n-button text :disabled="disabledBack" @click="handlePathBack">
         <n-icon size="16" class="icon-hover" :component="ArrowBackIosFilled" />
       </n-button>
 
       <n-button text :disabled="disabledForward" @click="handlePathForward">
-        <n-icon :component="ArrowForwardIosFilled" size="16" class="icon-hover" />
+        <n-icon
+          :component="ArrowForwardIosFilled"
+          size="16"
+          class="icon-hover"
+        />
       </n-button>
     </n-flex>
 
@@ -24,7 +35,11 @@
           justify="flex-start"
           class="file-node !flex-nowrap"
         >
-          <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
+          <n-icon
+            :component="Folder"
+            size="18"
+            :color="item.active ? '#63e2b7' : ''"
+          />
           <n-text
             depth="1"
             class="text-[16px] cursor-pointer whitespace-nowrap"
@@ -33,14 +48,22 @@
           >
             {{ item.path }}
           </n-text>
-          <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
+          <n-icon
+            v-if="item.showArrow"
+            :component="ArrowForwardIosFilled"
+            size="16"
+          />
         </n-flex>
       </n-flex>
     </n-scrollbar>
 
-    <n-flex class="action-part !flex-nowrap flex-2" align="center" justify="flex-end">
-      <n-button 
-        secondary 
+    <n-flex
+      class="action-part !flex-nowrap flex-2"
+      align="center"
+      justify="flex-end"
+    >
+      <n-button
+        secondary
         size="small"
         class="custom-button-text"
         @click="handleNewFolder"
@@ -99,14 +122,24 @@
 
       <n-popover>
         <template #trigger>
-          <n-icon size="16" :component="Refresh" class="icon-hover" @click="handleRefresh" />
+          <n-icon
+            size="16"
+            :component="Refresh"
+            class="icon-hover"
+            @click="handleRefresh"
+          />
         </template>
         {{ t('Refresh') }}
       </n-popover>
 
       <n-popover>
         <template #trigger>
-          <n-icon size="16" :component="List" class="icon-hover" @click="handleOpenTransferList" />
+          <n-icon
+            size="16"
+            :component="List"
+            class="icon-hover"
+            @click="handleOpenTransferList"
+          />
         </template>
         {{ t('TransferHistory') }}
       </n-popover>
@@ -168,7 +201,14 @@ import mittBus from '@/utils/mittBus.ts';
 
 import { List } from '@vicons/ionicons5';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
-import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
+import {
+  NButton,
+  NFlex,
+  NIcon,
+  NText,
+  UploadCustomRequestOptions,
+  useMessage
+} from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
@@ -259,7 +299,9 @@ watch(
 
       pathSegments.forEach((segment, index) => {
         if (segment) {
-          const existingItem = filePathList.value.find(item => item.path === segment);
+          const existingItem = filePathList.value.find(
+            item => item.path === segment
+          );
 
           if (!existingItem) {
             filePathList.value.push({
@@ -270,7 +312,9 @@ watch(
             });
 
             nextTick(() => {
-              const contentRef = document.getElementsByClassName('n-scrollbar-content')[2];
+              const contentRef = document.getElementsByClassName(
+                'n-scrollbar-content'
+              )[2];
 
               if (scrollRef.value) {
                 // @ts-ignore
@@ -403,11 +447,16 @@ const handlePathForward = () => {
 
     if (forwardSegments.length > currentSegments.length) {
       // 移除多余的第一个路径段
-      const firstExtraSegment = forwardSegments.slice(currentSegments.length)[0];
+      const firstExtraSegment = forwardSegments.slice(
+        currentSegments.length
+      )[0];
 
       const newForwardPath = `${fileManageStore.currentPath}/${firstExtraSegment}`;
 
-      mittBus.emit('file-manage', { path: newForwardPath, type: ManageTypes.CHANGE });
+      mittBus.emit('file-manage', {
+        path: newForwardPath,
+        type: ManageTypes.CHANGE
+      });
     }
   }
 };
@@ -426,7 +475,10 @@ const handlePathClick = (item: IFilePath) => {
  */
 const handleRefresh = () => {
   loading.value = true;
-  mittBus.emit('file-manage', { path: fileManageStore.currentPath, type: ManageTypes.REFRESH });
+  mittBus.emit('file-manage', {
+    path: fileManageStore.currentPath,
+    type: ManageTypes.REFRESH
+  });
 };
 
 /**
@@ -494,7 +546,9 @@ const modalPositiveClick = () => {
 /**
  * @description 文件上传
  */
-const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) => {
+const handleUploadFileChange = (options: {
+  fileList: Array<UploadFileInfo>;
+}) => {
   showInner.value = true;
 
   if (options.fileList.length > 0) {
@@ -508,8 +562,17 @@ const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) =>
  * @param onError
  * @param onProgress
  */
-const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
-  mittBus.emit('file-upload', { uploadFileList, onFinish, onError, onProgress });
+const customRequest = ({
+  onFinish,
+  onError,
+  onProgress
+}: UploadCustomRequestOptions) => {
+  mittBus.emit('file-upload', {
+    uploadFileList,
+    onFinish,
+    onError,
+    onProgress
+  });
 };
 
 const handleOpenTransferList = () => {
@@ -561,18 +624,27 @@ const rowProps = (row: RowData) => {
           ? removeLastPathSegment(fileManageStore.currentPath)
           : '/';
 
-        if (backPath === '/' && filePathList.value.findIndex(item => item.path === '/') === -1) {
+        if (
+          backPath === '/' &&
+          filePathList.value.findIndex(item => item.path === '/') === -1
+        ) {
           fileManageStore.setCurrentPath('/');
         }
 
-        mittBus.emit('file-manage', { path: backPath, type: ManageTypes.CHANGE });
+        mittBus.emit('file-manage', {
+          path: backPath,
+          type: ManageTypes.CHANGE
+        });
 
         handlePathBack();
 
         return;
       }
 
-      mittBus.emit('file-manage', { path: splicePath, type: ManageTypes.CHANGE });
+      mittBus.emit('file-manage', {
+        path: splicePath,
+        type: ManageTypes.CHANGE
+      });
 
       disabledBack.value = false;
     }

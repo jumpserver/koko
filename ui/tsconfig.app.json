@@ -17,10 +17,12 @@
 		"noEmit": true,
 		"jsx": "preserve",
 
-		"baseUrl": "./",
-		"paths": {
-			"@/*": ["src/*"]
-		},
+		"baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
 		"types": ["vue"],
 		/* Linting */
 		"strict": true,

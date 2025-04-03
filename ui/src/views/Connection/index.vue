@@ -9,7 +9,11 @@
     @socket-data="onSocketData"
   />
 
-  <file-management :settings="settings" :sftp-token="sftpToken" @create-file-connect-token="createFileConnectToken" />
+  <file-management
+    :settings="settings"
+    :sftp-token="sftpToken"
+    @create-file-connect-token="createFileConnectToken"
+  />
 </template>
 
 <script setup lang="ts">
@@ -22,7 +26,15 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
-import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref } from 'vue';
+import {
+  computed,
+  h,
+  markRaw,
+  nextTick,
+  onUnmounted,
+  reactive,
+  ref
+} from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -31,7 +43,7 @@ import Share from '@/components/Share/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import FileManagement from '@/components/FileManagement/index.vue';
 import { sendEventToLuna } from '@/components/TerminalComponent/helper';
-import TerminalComponent from '@/components/TerminalComponent/index.vue'
+import TerminalComponent from '@/components/TerminalComponent/index.vue';
 
 import {
   PersonAdd,
@@ -137,11 +149,16 @@ const settings = computed((): ISettingProp[] => {
         Object.values(onlineUsersMap)
           .map((item: any) => {
             item.name = item.user;
-            item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
+            item.icon = item.writable
+              ? markRaw(PersonAdd)
+              : markRaw(LockClosedOutline);
             item.tip = item.writable ? t('Writable') : t('ReadOnly');
             return item;
           })
-          .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
+          .sort(
+            (a, b) =>
+              new Date(a.created).getTime() - new Date(b.created).getTime()
+          ),
       click: user => {
         if (user.primary) return;
 
@@ -272,7 +289,7 @@ const handleWriteData = async (type: string) => {
 
 const createFileConnectToken = () => {
   sendEventToLuna('CREATE_FILE_CONNECT_TOKEN', '', lunaId.value, origin.value);
-}
+};
 
 /**
  * 重置分享连接表单

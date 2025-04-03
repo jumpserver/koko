@@ -1,10 +1,18 @@
 <template>
-  <n-flex justify="center" align="center" class="cursor-pointer w-full h-[48px]">
+  <n-flex
+    justify="center"
+    align="center"
+    class="cursor-pointer w-full h-[48px]"
+  >
     <template v-for="option of topIconOptions" :key="option.name">
       <component :is="option.component" />
     </template>
   </n-flex>
-  <n-flex justify="center" align="center" class="mb-[5px] cursor-pointer w-[48px] h-[48px]">
+  <n-flex
+    justify="center"
+    align="center"
+    class="mb-[5px] cursor-pointer w-[48px] h-[48px]"
+  >
     <template v-for="option of bottomOptions" :key="option.name">
       <component :is="option.component" :on-click="option.onClick" />
     </template>

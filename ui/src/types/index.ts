@@ -1,7 +1,11 @@
-import { Component } from 'vue';
+import { Component, FunctionalComponent } from 'vue';
 import { Composer } from 'vue-i18n';
 
 export type TranslateFunction = Composer['t'];
+
+export type ObjToKeyValArray<T> = {
+  [K in keyof T]: [K, T[K]];
+}[keyof T];
 
 export interface ISettingProp {
   label: string;
@@ -40,4 +44,19 @@ export interface IXtermTheme {
   red: string;
   white: string;
   yellow: string;
+}
+
+export interface ISettingConfig {
+  drawerTitle: string;
+
+  items: Array<{
+    type: 'select' | 'button';
+    label: string;
+    labelIcon: FunctionalComponent;
+    labelStyle: {
+      fontSize: string;
+    };
+    disabled?: boolean;
+    value: string;
+  }>;
 }

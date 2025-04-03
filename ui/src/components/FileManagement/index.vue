@@ -39,7 +39,11 @@
                     {{ item.title }}
                   </n-text>
                 </n-button>
-                <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'User'">
+                <n-list
+                  class="mt-[-15px]"
+                  clickable
+                  v-else-if="item.label === 'User'"
+                >
                   <n-list-item>
                     <n-thing class="ml-[15px] mt-[10px]">
                       <template #header>
@@ -66,7 +70,11 @@
                                 size="small"
                                 class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
                                 :bordered="false"
-                                :type="item.content().indexOf(detail) !== 0 ? 'info' : 'success'"
+                                :type="
+                                  item.content().indexOf(detail) !== 0
+                                    ? 'info'
+                                    : 'success'
+                                "
                                 :closable="true"
                                 :disabled="item.content().indexOf(detail) === 0"
                                 @close="item.click(detail)"
@@ -88,7 +96,11 @@
                     </n-thing>
                   </n-list-item>
                 </n-list>
-                <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'Keyboard'">
+                <n-list
+                  class="mt-[-15px]"
+                  clickable
+                  v-else-if="item.label === 'Keyboard'"
+                >
                   <n-list-item>
                     <n-thing class="ml-[15px] mt-[10px]">
                       <template #header>
@@ -122,7 +134,11 @@
                                   {{ detail.name }}
                                 </n-text>
                                 <template #icon>
-                                  <n-icon size="16" class="ml-[5px] mr-[5px]" :component="detail.icon" />
+                                  <n-icon
+                                    size="16"
+                                    class="ml-[5px] mr-[5px]"
+                                    :component="detail.icon"
+                                  />
                                 </template>
                               </n-tag>
                             </template>
@@ -139,7 +155,11 @@
             </n-flex>
           </template>
         </n-tab-pane>
-        <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
+        <n-tab-pane
+          name="fileManage"
+          tab="FileManage"
+          class="w-full h-full relative"
+        >
           <template #tab>
             <n-flex align="center" justify="flex-start">
               <n-icon size="20" :component="Folders" />
@@ -175,7 +195,15 @@ import { useI18n } from 'vue-i18n';
 import { getFileName } from '@/utils';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
-import { h, onBeforeUnmount, onMounted, ref, watch, unref, nextTick } from 'vue';
+import {
+  h,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  unref,
+  nextTick
+} from 'vue';
 
 import type { DataTableColumns } from 'naive-ui';
 import type { ISettingProp } from '@/types';
@@ -201,7 +229,7 @@ const props = withDefaults(
 );
 const emits = defineEmits<{
   (e: 'create-file-connect-token'): void;
-}>()
+}>();
 
 const { t } = useI18n();
 const fileManageStore = useFileManageStore();
@@ -258,7 +286,9 @@ const handleOpenSetting = () => {
   drawerMinWidth.value = 270;
 
   nextTick(() => {
-    const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
+    const drawerRef: HTMLElement = document.getElementsByClassName(
+      'n-drawer'
+    )[0] as HTMLElement;
 
     if (drawerRef) {
       drawerRef.style.width = '270px';
@@ -270,7 +300,8 @@ const handleOpenSetting = () => {
  * @description 处理 size
  */
 const formatBytes = (bytes: string | number, decimals: number = 2): string => {
-  const byteNumber = typeof bytes === 'string' ? parseInt(bytes, 10) : Number(bytes);
+  const byteNumber =
+    typeof bytes === 'string' ? parseInt(bytes, 10) : Number(bytes);
 
   if (isNaN(byteNumber) || byteNumber <= 0) return '0 Byte';
 
@@ -278,7 +309,11 @@ const formatBytes = (bytes: string | number, decimals: number = 2): string => {
 
   const i = Math.floor(Math.log2(byteNumber) / Math.log2(1024));
 
-  return (byteNumber / Math.pow(1024, i)).toFixed(decimals) + ' ' + units[Math.min(i, units.length - 1)];
+  return (
+    (byteNumber / Math.pow(1024, i)).toFixed(decimals) +
+    ' ' +
+    units[Math.min(i, units.length - 1)]
+  );
 };
 
 /**
@@ -384,7 +419,9 @@ const createColumns = (): DataTableColumns<RowData> => {
           {
             default: () => {
               if (row.mod_time) {
-                return dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss');
+                return dayjs(Number(row.mod_time) * 1000).format(
+                  'YYYY-MM-DD HH:mm:ss'
+                );
               }
 
               return '-';
@@ -437,8 +474,10 @@ const createColumns = (): DataTableColumns<RowData> => {
  */
 const adjustDrawerWidth = (width: string) => {
   nextTick(() => {
-    const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
-    
+    const drawerRef: HTMLElement = document.getElementsByClassName(
+      'n-drawer'
+    )[0] as HTMLElement;
+
     if (drawerRef) {
       drawerRef.style.width = width;
     }
@@ -466,10 +505,10 @@ const handleBeforeLeave = (tabName: string) => {
     if (!fileManageSocket.value) {
       emits('create-file-connect-token');
     }
-    
+
     return true;
   }
-  
+
   return false;
 };
 

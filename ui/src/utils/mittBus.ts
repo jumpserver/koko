@@ -33,7 +33,11 @@ type Event = {
   'create-share-url': {
     type: string;
     sessionId: string;
-    shareLinkRequest: { expiredTime: number; actionPerm: string; users: shareUser[] };
+    shareLinkRequest: {
+      expiredTime: number;
+      actionPerm: string;
+      users: shareUser[];
+    };
   };
 };
 
