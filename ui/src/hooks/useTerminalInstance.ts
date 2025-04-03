@@ -1,15 +1,17 @@
 import xtermTheme from 'xterm-theme';
 
 import { storeToRefs } from 'pinia';
-import { ref, computed, nextTick } from 'vue';
 import { defaultTheme } from '@/config';
-import { writeText, readText } from 'clipboard-polyfill';
+import { useDebounceFn } from '@vueuse/core';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
+import { writeText, readText } from 'clipboard-polyfill';
+import { ref, computed, nextTick, inject, watch } from 'vue';
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
-
+import { formatMessage } from '@/hooks/useTerminalConnection';
+import { FormatterMessageType } from '@/hooks/useTerminalConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
 import type { ConfigProviderProps } from 'naive-ui';
@@ -18,7 +20,7 @@ import type { ConfigProviderProps } from 'naive-ui';
  * @description 终端控制器
  * @param config
  */
-export const useTerminalInstance = () => {
+export const useTerminalInstance = (socket?: WebSocket | '') => {
   let fitAddon = new FitAddon();
   let searchAddon = new SearchAddon();
 
@@ -43,10 +45,6 @@ export const useTerminalInstance = () => {
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(searchAddon);
 
-    terminal.onResize(({ cols, rows }) => {
-      console.log('resize', cols, rows);
-      fitAddon.fit();
-    });
     terminal.onSelectionChange(async () => {
       terminalSelectionText.value = terminal.getSelection().trim();
 
@@ -57,11 +55,28 @@ export const useTerminalInstance = () => {
       // TODO: 国际化 => Unable to copy content to the clipboard. Please check your browser settings or permissions.
       await writeText(terminalSelectionText.value);
     });
-    terminal.onData((data) => {
-      console.log('data', data);
-    })
   };
+  /**
+   * @description 终端 resize 事件
+   * @param terminalId 
+   * @returns 
+   */
+  const terminalResizeEvent = (terminalId: string) => {
+    if (!socket) {
+      return 
+    }
 
+    terminalInstance.value?.onResize(({ cols, rows }) => {
+      fitAddon.fit();
+
+      const resizeData = JSON.stringify({ cols, rows });
+      socket.send(formatMessage(terminalId, FormatterMessageType.TERMINAL_RESIZE, resizeData))
+    })
+  }
+  /**
+   * @description 初始化元素事件
+   * @param el 
+   */
   const initializeElementEvent = (el: HTMLElement) => {
     el.addEventListener(
       'mouseenter',
@@ -97,7 +112,6 @@ export const useTerminalInstance = () => {
    * @param type 
    */
   const searchKeyWord = (keyword: string, type: string) => {}
-
   /**
    * @description  创建终端实例
    */
@@ -110,8 +124,8 @@ export const useTerminalInstance = () => {
       allowProposedApi: true,
       rightClickSelectsWord: true,
       scrollback: 5000,
-      // theme: defaultTheme,
-      theme: xtermTheme['ENCOM'],
+      theme: defaultTheme,
+      // theme: xtermTheme['ENCOM'],
       fontSize: fontSize?.value,
       lineHeight: lineHeight?.value,
       fontFamily: fontFamily?.value
@@ -120,6 +134,10 @@ export const useTerminalInstance = () => {
     // 添加适配器以及初始化终端事件
     initializeElementEvent(el);
     initializeTerminalEvent(terminalInstance.value);
+
+    window.addEventListener('resize', useDebounceFn(() => {
+      fitAddon.fit();
+    }, 500))
 
     // 终端的实际 open 交由组件控制
     return terminalInstance.value;
@@ -137,6 +155,7 @@ export const useTerminalInstance = () => {
 
   return {
     setTerminalTheme,
+    terminalResizeEvent,
     createTerminalInstance
   };
 };

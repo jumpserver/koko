@@ -383,15 +383,12 @@ export const useTerminal = async (
    */
   const initCustomWindowEvent = () => {
     window.addEventListener('message', (e: MessageEvent) => {
-      console.log('execute initCustomWindowEvent');
       const message = e.data;
 
       switch (message.name) {
         case 'PING': {
           lunaId.value = message.id;
           origin.value = e.origin;
-
-          console.log('set LunaID')
 
           sendEventToLuna('PONG', '', lunaId.value, origin.value);
           break;

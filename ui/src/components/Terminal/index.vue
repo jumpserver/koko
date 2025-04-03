@@ -3,8 +3,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import { useMessage} from 'naive-ui';
+import { onMounted, watch } from 'vue';
+import { useMessage } from 'naive-ui';
 import { Terminal } from '@xterm/xterm';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
@@ -12,14 +12,23 @@ import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 const props = defineProps<{
   lunaId: string;
   origin: string;
-  socket?: WebSocket | '';
+  socketInstance?: WebSocket | '';
 }>();
 
-const message = useMessage()
-const { createTerminalInstance } = useTerminalInstance();
-const { initializeSocketEvent} = useTerminalConnection(props.lunaId, props.origin)
+const message = useMessage();
+const { terminalId, initializeSocketEvent } = useTerminalConnection(props.lunaId, props.origin);
+const { createTerminalInstance, terminalResizeEvent } = useTerminalInstance(props.socketInstance);
 
 onMounted(() => {
+  watch(
+    () => terminalId.value,
+    id => {
+      if (id) {
+        terminalResizeEvent(terminalId.value);
+      }
+    }
+  );
+
   const terminalContainer: HTMLElement | null = document.getElementById('terminal-container');
 
   if (!terminalContainer) {
@@ -30,17 +39,18 @@ onMounted(() => {
 
   terminalInstance.open(terminalContainer);
 
-  if (!props.socket) {
-    return
+  if (!props.socketInstance) {
+    return;
   }
 
-  initializeSocketEvent(terminalInstance, props.socket);
+  initializeSocketEvent(terminalInstance, props.socketInstance);
 });
 </script>
 
 <style scoped lang="scss">
 #terminal-container {
   :deep(.terminal) {
+    height: 100%;
     padding: 10px 0 5px 10px;
 
     .xterm-viewport {

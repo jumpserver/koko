@@ -1,4 +1,3 @@
-// 引入 API
 import { h, ref } from 'vue';
 import { bytesHuman } from '@/utils';
 import { wsIsActivated } from '@/components/TerminalComponent/helper';
@@ -8,10 +7,8 @@ import { Terminal } from '@xterm/xterm';
 import { computed } from 'vue';
 import { MAX_TRANSFER_SIZE } from '@/config';
 
-// 引入组件
 import Upload from '@/components/Upload/index.vue';
 
-// 引入类型定义
 import ZmodemBrowser, {
   Detection,
   Sentry,
@@ -22,7 +19,6 @@ import ZmodemBrowser, {
 import { Ref } from 'vue';
 import { DialogOptions } from 'naive-ui/es/dialog/src/DialogProvider';
 
-// API 初始化
 const { message, dialog } = createDiscreteApi(['message', 'dialog'], {
   configProviderProps: {
     theme: darkTheme
@@ -80,10 +76,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     const { size } = selectFile.file as File;
 
     if (size >= MAX_TRANSFER_SIZE) {
-
-      message.error(
-        `${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`
-      );
+      message.error(`${t('ExceedTransferSize')}: ${bytesHuman(MAX_TRANSFER_SIZE)}`);
 
       try {
         zmodeSession.value?.abort();
@@ -109,12 +102,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         }
       },
       on_file_complete: (obj: any) => {
-        message.success(
-          `${t('EndFileTransfer')}: ${t('UploadSuccess')} ${obj.name}`,
-          {
-            duration: 2000
-          }
-        );
+        message.success(`${t('EndFileTransfer')}: ${t('UploadSuccess')} ${obj.name}`, {
+          duration: 2000
+        });
       }
     })
       .then(() => {
@@ -154,7 +144,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
           message.error(t('MustSelectOneFile'));
           return false;
         } else {
-          message.info(t('UploadStart'));
           handleUpload();
           return true;
         }
@@ -221,10 +210,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
    * @param zsession
    * @param terminal
    */
-  const handleReceiveSession = (
-    zsession: ZmodemSession,
-    terminal: Terminal
-  ) => {
+  const handleReceiveSession = (zsession: ZmodemSession, terminal: Terminal) => {
     zmodeSession.value = zsession;
     zsession.on('offer', (xfer: ZmodemTransfer) => {
       const buffer: Uint8Array[] = [];
@@ -286,12 +272,11 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         lastSendTime && (lastSendTime.value = new Date());
         ws.send(new Uint8Array(octets));
       } catch (err) {
-        console.log('Failed to send octets via WebSocket')
+        console.log('Failed to send octets via WebSocket');
       }
     };
 
-    const on_retract = () => {
-    }
+    const on_retract = () => {};
 
     const on_detect = (detection: Detection) => {
       const zsession: ZmodemSession = detection.confirm();

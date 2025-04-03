@@ -1,5 +1,5 @@
 <template>
-  <Terminal :socket="socketInstance" :lunaId="lunaId" :origin="origin" />
+  <Terminal :socket-instance="socketInstance" :lunaId="lunaId" :origin="origin" />
 </template>
 
 <script setup lang="ts">

@@ -77,7 +77,7 @@ export const writeBufferToTerminal = (
   terminal && terminal.write(new Uint8Array(data));
 };
 
-export const preprocessInput = (data: string, config: ILunaConfig) => {
+export const preprocessInput = (data: string, config: Partial<ILunaConfig>) => {
   // 如果配置项 backspaceAsCtrlH 启用（值为 "1"），并且输入数据包含删除键的 ASCII 码 (AsciiDel，即 127)，
   // 它会将其替换为退格键的 ASCII 码 (AsciiBackspace，即 8)
   if (config.backspaceAsCtrlH === '1') {
