@@ -121,8 +121,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
       allowProposedApi: true,
       rightClickSelectsWord: true,
       scrollback: 5000,
-      // theme: defaultTheme,
-      theme: xtermTheme['ENCOM'],
+      theme: defaultTheme,
       fontSize: fontSize?.value,
       lineHeight: lineHeight?.value,
       fontFamily: fontFamily?.value

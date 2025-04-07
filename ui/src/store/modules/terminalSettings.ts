@@ -22,6 +22,9 @@ export interface ITerminalSettings {
 
   // 是否启用退格键作为 Ctrl+H
   backspaceAsCtrlH: string;
+
+  // 主题
+  theme: string;
 }
 
 export const useTerminalSettingsStore = defineStore('terminalSettings', {
@@ -32,16 +35,15 @@ export const useTerminalSettingsStore = defineStore('terminalSettings', {
     themeName: '',
     quickPaste: '0',
     ctrlCAsCtrlZ: '0',
-    backspaceAsCtrlH: '0'
+    backspaceAsCtrlH: '0',
+    theme: ''
   }),
   getters: {
     getConfig: state => state
   },
   actions: {
     setDefaultTerminalConfig(...args: ObjToKeyValArray<ITerminalSettings>) {
-      this.$patch({ [args[0]]: args[1] })
+      this.$patch({ [args[0]]: args[1] });
     }
   }
 });
-
-

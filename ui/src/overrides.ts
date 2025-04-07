@@ -8,10 +8,29 @@ export const themeOverrides: GlobalThemeOverrides = {
   Form: {},
   Select: {
     peers: {
+      InternalSelection: {
+        borderHover: '1px solid #16987D',
+        borderActive: '1px solid #16987D',
+        borderFocus: '1px solid #16987D'
+      },
       InternalSelectMenu: {
-        color: '#191D1D'
+        color: '#191D1D',
+        optionTextColor: '#fff',
+        optionCheckColor: '#16987D'
       }
     }
+  },
+  Card: {
+    colorModal: '#191D1D'
+  },
+  Button: {
+    borderFocusPrimary: '1px solid #16987D',
+    borderHoverPrimary: '1px solid #16987D',
+    borderPrimary: '1px solid #16987D',
+    colorPrimary: '#16987D',
+    colorFocusPrimary: '#16987D',
+    colorHoverPrimary: '#16987D',
+    textColorPrimary: '#EBEBEB'
   },
   DataTable: {
     thColorModal: 'unset'

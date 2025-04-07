@@ -47,16 +47,19 @@ export interface IXtermTheme {
 }
 
 export interface ISettingConfig {
+  theme?: string;
   drawerTitle: string;
 
   items: Array<{
-    type: 'select' | 'button';
+    type: 'select' | 'button' | 'create';
     label: string;
     labelIcon: FunctionalComponent;
     labelStyle: {
       fontSize: string;
     };
+    showMore?: boolean;
     disabled?: boolean;
-    value: string;
+    value?: string;
+    options?: any;
   }>;
 }

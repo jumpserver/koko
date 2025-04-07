@@ -1,6 +1,6 @@
 import { useI18n } from 'vue-i18n';
 import { Terminal } from '@xterm/xterm';
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
 
 import { MaxTimeout } from '@/config';
@@ -11,15 +11,20 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, updateIcon } from '@/components/TerminalComponent/helper';
 
+// todo 命名
+import type { shareUser } from '@/types';
 import type { ConfigProviderProps } from 'naive-ui';
+import type { SettingConfig } from '@/hooks/interface';
 
 export enum FormatterMessageType {
   PING = 'PING',
   TERMINAL_INIT = 'TERMINAL_INIT',
   TERMINAL_DATA = 'TERMINAL_DATA',
+  TERMINAL_SHARE = 'TERMINAL_SHARE',
   TERMINAL_RESIZE = 'TERMINAL_RESIZE',
   TERMINAL_K8S_DATA = 'TERMINAL_K8S_DATA',
-  TERMINAL_K8S_RESIZE = 'TERMINAL_K8S_RESIZE'
+  TERMINAL_K8S_RESIZE = 'TERMINAL_K8S_RESIZE',
+  TERMINAL_GET_SHARE_USER = 'TERMINAL_GET_SHARE_USER'
 }
 
 enum SendLunaMessageType {
@@ -41,9 +46,12 @@ enum MessageType {
   CLOSE = 'CLOSE',
   ERROR = 'ERROR',
   CONNECT = 'CONNECT',
+  TERMINAL_SHARE = 'TERMINAL_SHARE',
   TERMINAL_ERROR = 'TERMINAL_ERROR',
   MESSAGE_NOTIFY = 'MESSAGE_NOTIFY',
   TERMINAL_ACTION = 'TERMINAL_ACTION',
+  TERMINAL_SESSION = 'TERMINAL_SESSION',
+  TERMINAL_GET_SHARE_USER = 'TERMINAL_GET_SHARE_USER',
   TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE'
 }
 
@@ -65,12 +73,19 @@ export const formatMessage = (id: string, type: FormatterMessageType, data: any)
 export const useTerminalConnection = (lunaId: string, origin: string) => {
   let sentry: Sentry;
 
-  let terminalId = ref<string>('');
-  let pingInterval = ref<number | null>(null);
-  let zmodemTransferStatus = ref<boolean>(true);
+  const shareId = ref<string>('');
+  const shareCode = ref<string>('');
+  const sessionId = ref<string>('');
+  const terminalId = ref<string>('');
+  const pingInterval = ref<number | null>(null);
+  const enableShare = ref<boolean>(false);
+
+  const zmodemTransferStatus = ref<boolean>(true);
 
   const lastSendTime = ref(new Date());
   const lastReceiveTime = ref(new Date());
+  const userOptions = ref<shareUser[]>([]);
+  const featureSetting = ref<Partial<SettingConfig>>({});
 
   const terminalSettingsStore = useTerminalSettingsStore();
 
@@ -119,7 +134,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
     }, 25 * 1000);
   };
   /**
-   * @description 分发消息
+   * @description 分发消息 在 dispatch 中处理所有的消息类型，然后需要什么就通过 hook 返回到组件中
    * @param data
    * @param terminal
    * @param socket
@@ -130,9 +145,25 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
     let parsedMessageData = JSON.parse(data);
 
     switch (parsedMessageData.type) {
+      case MessageType.CLOSE: {
+        socket.close();
+
+        sendEventToLuna(SendLunaMessageType.CLOSE, '', lunaId, origin);
+        break;
+      }
+      case MessageType.ERROR: {
+        terminal.write(parsedMessageData.err);
+
+        sendEventToLuna(SendLunaMessageType.TERMINAL_ERROR, '', lunaId, origin);
+        break;
+      }
+      case MessageType.PING: {
+        break;
+      }
       case MessageType.CONNECT: {
         terminalId.value = parsedMessageData.id;
 
+        // todo code 需要设置
         const terminalData = {
           cols: terminal.cols,
           rows: terminal.rows,
@@ -141,12 +172,24 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         const info = JSON.parse(parsedMessageData.data);
 
-        // todo 设置 setting 和 当前用户
+        featureSetting.value = info.setting;
+        // todo 设置当前用户
 
         // 更新网页图标
         updateIcon(info.setting);
 
         socket.send(formatMessage(terminalId.value, FormatterMessageType.TERMINAL_INIT, JSON.stringify(terminalData)));
+        break;
+      }
+      case MessageType.MESSAGE_NOTIFY: {
+        break;
+      }
+      case MessageType.TERMINAL_SHARE: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        shareId.value = data.share_id;
+        shareCode.value = data.code;
+
         break;
       }
       case MessageType.TERMINAL_ACTION: {
@@ -167,22 +210,35 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
         }
         break;
       }
-      case MessageType.CLOSE: {
-        socket.close();
+      case MessageType.TERMINAL_SESSION: {
+        const sessionInfo = JSON.parse(parsedMessageData.data);
+        const sessionDetail = sessionInfo.session;
 
-        sendEventToLuna(SendLunaMessageType.CLOSE, '', lunaId, origin);
-        break;
-      }
-      case MessageType.ERROR: {
-        terminal.write(parsedMessageData.err);
+        const share = sessionInfo.permission.actions.includes('share');
 
-        sendEventToLuna(SendLunaMessageType.TERMINAL_ERROR, '', lunaId, origin);
+        if (sessionInfo.backspaceAsCtrlH) {
+          const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+
+          terminalSettingsStore.setDefaultTerminalConfig('backspaceAsCtrlH', value);
+        }
+
+        if (sessionInfo.ctrlCAsCtrlZ) {
+          const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
+
+          terminalSettingsStore.setDefaultTerminalConfig('ctrlCAsCtrlZ', value);
+        }
+
+        if (featureSetting.value.SECURITY_SESSION_SHARE && share) {
+          enableShare.value = true;
+        }
+
+        sessionId.value = sessionDetail.id;
+        terminalSettingsStore.setDefaultTerminalConfig('theme', sessionInfo.themeName);
+
         break;
       }
-      case MessageType.PING: {
-        break;
-      }
-      case MessageType.MESSAGE_NOTIFY: {
+      case MessageType.TERMINAL_GET_SHARE_USER: {
+        userOptions.value = JSON.parse(parsedMessageData.data);
         break;
       }
       case MessageType.TERMINAL_SHARE_USER_REMOVE: {
@@ -209,6 +265,61 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
     } else {
       writeBufferToTerminal(true, false, terminal, event.data);
     }
+  };
+  /**
+   * @description 创建分享链接
+   */
+  const handleCreateShareUrl = (
+    socket: WebSocket,
+    shareLinkRequest: any
+  ): Promise<{ shareId: string; shareCode: string }> => {
+    if (!socket || !terminalId.value) return Promise.reject('');
+
+    return new Promise(resolve => {
+      const origin = window.location.origin;
+
+      socket?.send(
+        formatMessage(
+          terminalId.value,
+          FormatterMessageType.TERMINAL_SHARE,
+          JSON.stringify({
+            origin,
+            session: sessionId.value,
+            users: shareLinkRequest.users,
+            expired_time: shareLinkRequest.expiredTime,
+            action_permission: shareLinkRequest.actionPerm
+          })
+        )
+      );
+
+      watch(
+        [shareId, shareCode],
+        ([newShareId, newShareCode]) => {
+          if (newShareId && newShareCode) {
+            resolve({
+              shareId: newShareId,
+              shareCode: newShareCode
+            });
+          }
+        },
+        { immediate: true }
+      );
+    });
+  };
+  const getShareUser = (socket: WebSocket, query: any): Promise<shareUser[]> => {
+    return new Promise(resolve => {
+      socket.send(
+        formatMessage(terminalId.value, FormatterMessageType.TERMINAL_GET_SHARE_USER, JSON.stringify({ query }))
+      );
+
+      watch(
+        () => userOptions.value,
+        (newUserOptions) => {
+          resolve(newUserOptions);
+        },
+        { immediate: true }
+      );
+    });
   };
   /**
    * @description 初始化 socket 事件
@@ -251,7 +362,14 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
   };
 
   return {
-    terminalId,
+    connectionStatus: {
+      sessionId,
+      terminalId,
+      enableShare,
+      userOptions
+    },
+    getShareUser,
+    handleCreateShareUrl,
     initializeSocketEvent
   };
 };
