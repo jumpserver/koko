@@ -289,7 +289,7 @@ var (
 
 	notRecommendKeyExchanges = []string{
 		"diffie-hellman-group1-sha1", "diffie-hellman-group-exchange-sha1",
-		"diffie-hellman-group-exchange-sha256",
+		"diffie-hellman-group-exchange-sha256", "diffie-hellman-group16-sha512",
 	}
 
 	// copy from golang.org/x/crypto/ssh/common.go
