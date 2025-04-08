@@ -552,7 +552,7 @@ func (ad *AssetDir) checkExpired() {
 
 func (ad *AssetDir) GetRealPath(sftpSess *SftpSession, path string) string {
 	realPath := filepath.Join(sftpSess.rootDirPath, strings.TrimPrefix(path, "/"))
-	if ad.isFromWebTerminal && path != "" {
+	if ad.isFromWebTerminal && path != "" && strings.HasPrefix(path, sftpSess.rootDirPath) {
 		return path
 	}
 	return realPath
