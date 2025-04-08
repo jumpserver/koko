@@ -9,11 +9,7 @@
     @socket-data="onSocketData"
   />
 
-  <file-management
-    :settings="settings"
-    :sftp-token="sftpToken"
-    @create-file-connect-token="createFileConnectToken"
-  />
+  <file-management :settings="settings" :sftp-token="sftpToken" @create-file-connect-token="createFileConnectToken" />
 </template>
 
 <script setup lang="ts">
@@ -26,15 +22,7 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
-import {
-  computed,
-  h,
-  markRaw,
-  nextTick,
-  onUnmounted,
-  reactive,
-  ref
-} from 'vue';
+import { computed, h, markRaw, nextTick, onUnmounted, reactive, ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
@@ -56,10 +44,11 @@ import {
   ShareSocialOutline,
   LockClosedOutline
 } from '@vicons/ionicons5';
-
-import type { ISettingProp, ShareUserOptions } from '@/types';
-import { Keyboard, Stop, Paste } from '@vicons/carbon';
 import { readText } from 'clipboard-polyfill';
+import { Keyboard, Stop, Paste } from '@vicons/carbon';
+
+import type { ISettingProp } from '@/types';
+import type { ShareUserOptions } from '@/types/modules/user.type';
 
 const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
@@ -149,16 +138,11 @@ const settings = computed((): ISettingProp[] => {
         Object.values(onlineUsersMap)
           .map((item: any) => {
             item.name = item.user;
-            item.icon = item.writable
-              ? markRaw(PersonAdd)
-              : markRaw(LockClosedOutline);
+            item.icon = item.writable ? markRaw(PersonAdd) : markRaw(LockClosedOutline);
             item.tip = item.writable ? t('Writable') : t('ReadOnly');
             return item;
           })
-          .sort(
-            (a, b) =>
-              new Date(a.created).getTime() - new Date(b.created).getTime()
-          ),
+          .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),
       click: user => {
         if (user.primary) return;
 

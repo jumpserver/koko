@@ -7,3 +7,11 @@ export interface OnlineUser {
   primary: boolean;
   writable: boolean;
 }
+
+export interface ShareUserOptions {
+  id: string;
+
+  name: string;
+
+  username: string;
+}

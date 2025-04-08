@@ -9,9 +9,9 @@ import { ref, computed, nextTick, inject, watch } from 'vue';
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { FormatterMessageType } from '@/enum';
 import { SearchAddon } from '@xterm/addon-search';
 import { formatMessage } from '@/hooks/useTerminalConnection';
-import { FormatterMessageType } from '@/hooks/useTerminalConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
 import type { ConfigProviderProps } from 'naive-ui';

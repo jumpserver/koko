@@ -33,7 +33,8 @@ import { Palette, Share2, UsersRound } from 'lucide-vue-next';
 import { useWebSocketManager } from '@/hooks/useWebSocketManager';
 import { sendEventToLuna } from '@/components/TerminalComponent/helper';
 
-import type { ISettingConfig, ShareUserOptions } from '@/types';
+import type { SettingConfig } from '@/types/modules/setting.type';
+import type { ShareUserOptions } from '@/types/modules/user.type';
 
 enum WindowMessageType {
   PING = 'PING',
@@ -57,7 +58,7 @@ const currentOnlineUsers = ref<any>([]);
 const currentUserOptions = ref<ShareUserOptions[]>([]);
 const socketInstance = ref<WebSocket | ''>('');
 
-const settingsConfig: ISettingConfig = {
+const settingsConfig: SettingConfig = {
   drawerTitle: t('Settings'),
   items: [
     {

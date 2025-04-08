@@ -1,4 +1,4 @@
-import { Component, FunctionalComponent } from 'vue';
+import { Component } from 'vue';
 import { Composer } from 'vue-i18n';
 
 export type TranslateFunction = Composer['t'];
@@ -14,14 +14,6 @@ export interface ISettingProp {
   disabled: () => any;
   click: (user: any) => any;
   content?: any;
-}
-
-export interface ShareUserOptions {
-  id: string;
-
-  name: string;
-
-  username: string;
 }
 
 export interface IXtermTheme {
@@ -44,22 +36,4 @@ export interface IXtermTheme {
   red: string;
   white: string;
   yellow: string;
-}
-
-export interface ISettingConfig {
-  theme?: string;
-  drawerTitle: string;
-
-  items: Array<{
-    type: 'select' | 'button' | 'create' | 'list';
-    label: string;
-    labelIcon: FunctionalComponent;
-    labelStyle: {
-      fontSize: string;
-    };
-    showMore?: boolean;
-    disabled?: boolean;
-    value?: string;
-    options?: any;
-  }>;
 }

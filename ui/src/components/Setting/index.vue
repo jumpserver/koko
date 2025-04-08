@@ -106,14 +106,14 @@ import { ref, watch, computed } from 'vue';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { Ellipsis, ChevronLeft, ChevronDown, Delete } from 'lucide-vue-next';
 
-import type { OnlineUser } from '@/types/modules/user.type';
-import type { ISettingConfig, ShareUserOptions } from '@/types';
+import type { SettingConfig } from '@/types/modules/setting.type';
+import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
 
 const props = defineProps<{
   shareId: string;
   shareCode: string;
   shareEnable: boolean;
-  settings: ISettingConfig;
+  settings: SettingConfig;
   socketInstance: WebSocket | '';
   currentOnlineUsers: OnlineUser[];
   shareUserOptions: ShareUserOptions[];

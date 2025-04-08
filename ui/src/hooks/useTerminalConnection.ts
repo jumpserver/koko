@@ -11,52 +11,11 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, updateIcon } from '@/components/TerminalComponent/helper';
 
-// todo 命名
-import type { ShareUserOptions } from '@/types';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/hooks/interface';
 import type { OnlineUser } from '@/types/modules/user.type';
-export enum FormatterMessageType {
-  PING = 'PING',
-  TERMINAL_INIT = 'TERMINAL_INIT',
-  TERMINAL_DATA = 'TERMINAL_DATA',
-  TERMINAL_SHARE = 'TERMINAL_SHARE',
-  TERMINAL_RESIZE = 'TERMINAL_RESIZE',
-  TERMINAL_K8S_DATA = 'TERMINAL_K8S_DATA',
-  TERMINAL_K8S_RESIZE = 'TERMINAL_K8S_RESIZE',
-  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE',
-  TERMINAL_GET_SHARE_USER = 'TERMINAL_GET_SHARE_USER'
-}
-
-enum SendLunaMessageType {
-  PING = 'PING',
-  CLOSE = 'CLOSE',
-  PONG = 'PONG',
-  CONNECT = 'CONNECT',
-  TERMINAL_ERROR = 'TERMINAL_ERROR',
-  MESSAGE_NOTIFY = 'MESSAGE_NOTIFY'
-}
-
-enum ZmodemActionType {
-  ZMODEM_START = 'ZMODEM_START',
-  ZMODEM_END = 'ZMODEM_END'
-}
-
-enum MessageType {
-  PING = 'PING',
-  CLOSE = 'CLOSE',
-  ERROR = 'ERROR',
-  CONNECT = 'CONNECT',
-  TERMINAL_SHARE = 'TERMINAL_SHARE',
-  TERMINAL_ERROR = 'TERMINAL_ERROR',
-  MESSAGE_NOTIFY = 'MESSAGE_NOTIFY',
-  TERMINAL_ACTION = 'TERMINAL_ACTION',
-  TERMINAL_SESSION = 'TERMINAL_SESSION',
-  TERMINAL_SHARE_JOIN = 'TERMINAL_SHARE_JOIN',
-  TERMINAL_SHARE_LEAVE = 'TERMINAL_SHARE_LEAVE',
-  TERMINAL_GET_SHARE_USER = 'TERMINAL_GET_SHARE_USER',
-  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE'
-}
+import type { ShareUserOptions } from '@/types/modules/user.type';
+import { FormatterMessageType, MessageType, SendLunaMessageType, ZmodemActionType } from '@/enum';
 
 /**
  * @description 格式化消息
@@ -84,6 +43,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
   const sessionId = ref<string>('');
   const terminalId = ref<string>('');
   const pingInterval = ref<number | null>(null);
+  const warningInterval = ref<number | null>(null);
   const enableShare = ref<boolean>(false);
 
   const zmodemTransferStatus = ref<boolean>(true);
@@ -152,6 +112,9 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
     switch (parsedMessageData.type) {
       case MessageType.CLOSE: {
+        enableShare.value = false;
+        onlineUsers.value = [];
+
         socket.close();
 
         sendEventToLuna(SendLunaMessageType.CLOSE, '', lunaId, origin);
@@ -254,6 +217,11 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         break;
       }
+      case MessageType.TERMINAL_PERM_VALID: {
+        clearInterval(warningInterval.value!);
+        message.info(`${t('PermissionValid')}`);
+        break;
+      }
       case MessageType.TERMINAL_SHARE_LEAVE: {
         const data: OnlineUser = JSON.parse(parsedMessageData.data);
 
@@ -265,8 +233,31 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
         }
         break;
       }
+      case MessageType.TERMINAL_PERM_EXPIRED: {
+        const data = JSON.parse(parsedMessageData.data);
+        const warningMsg = `${t('PermissionExpired')}: ${data.detail}`;
+
+        message.warning(warningMsg);
+
+        warningInterval.value = setInterval(() => {
+          message.warning(warningMsg);
+        }, 1000 * 60);
+        break;
+      }
+      case MessageType.TERMINAL_SESSION_PAUSE: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        message.info(`${data.user} ${t('PauseSession')}`);
+        break;
+      }
       case MessageType.TERMINAL_GET_SHARE_USER: {
         userOptions.value = JSON.parse(parsedMessageData.data);
+        break;
+      }
+      case MessageType.TERMINAL_SESSION_RESUME: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        message.info(`${data.user} ${t('ResumeSession')}`);
         break;
       }
       case MessageType.TERMINAL_SHARE_USER_REMOVE: {
