@@ -11,11 +11,9 @@ import mittBus from '@/utils/mittBus.ts';
 
 import type { Ref } from 'vue';
 import type { RouteRecordNameGeneric } from 'vue-router';
-import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui'
+import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
 import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
-import { message } from '@/languages/modules';
-import { PercentFilled } from '@vicons/material';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -35,32 +33,11 @@ export enum ManageTypes {
 }
 
 const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
-  theme: darkTheme 
-}))
-const { message: globalTipsMessage }: { message: MessageApiInjection } = createDiscreteApi(
-  ['message'],
-  {
-    configProviderProps: configProviderPropsRef
-  }
-)
-
-/**
- * @description 获取文件管理的 url
- */
-const getFileManageUrl = (token: string) => {
-  const route = useRoute();
-
-  const routeName: RouteRecordNameGeneric = route.name;
-  const urlParams: URLSearchParams = new URLSearchParams(window.location.search.slice(1));
-
-  let fileConnectionUrl: string = '';
-
-  if (routeName === 'Terminal') {
-    // fileConnectionUrl = urlParams ?  : '';
-
-    return fileConnectionUrl;
-  }
-};
+  theme: darkTheme
+}));
+const { message: globalTipsMessage }: { message: MessageApiInjection } = createDiscreteApi(['message'], {
+  configProviderProps: configProviderPropsRef
+});
 
 /**
  * @description 将 buffer 转为 base64
@@ -155,7 +132,7 @@ const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
  */
 const heartBeat = (socket: WebSocket) => {
   let pingInterval: number | null = null;
-  
+
   const sendPing = () => {
     if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
       clearInterval(pingInterval!);
@@ -194,10 +171,16 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
   socket.binaryType = 'arraybuffer';
 
-  socket.onopen = () => { clearHeartbeat = heartBeat(socket) };
-  socket.onerror = () => { clearHeartbeat?.() };
-  socket.onclose = () => { clearHeartbeat?.() };
-  
+  socket.onopen = () => {
+    clearHeartbeat = heartBeat(socket);
+  };
+  socket.onerror = () => {
+    clearHeartbeat?.();
+  };
+  socket.onclose = () => {
+    clearHeartbeat?.();
+  };
+
   socket.onmessage = (event: MessageEvent) => {
     const message: IFileManage = JSON.parse(event.data);
 
@@ -269,9 +252,8 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         const len = binaryString.length;
         const bytes = new Uint8Array(len);
 
-
         for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+          bytes[i] = binaryString.charCodeAt(i);
         }
 
         receivedBuffers.push(bytes);
@@ -286,14 +268,16 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
       }
 
       case MessageType.PING: {
-        socket.send(JSON.stringify({
-          id: uuid(),
-          type: MessageType.PONG,
-          data: 'pong'
-        }));
+        socket.send(
+          JSON.stringify({
+            id: uuid(),
+            type: MessageType.PONG,
+            data: 'pong'
+          })
+        );
         break;
       }
-    
+
       case MessageType.PONG: {
         break;
       }
@@ -456,7 +440,7 @@ const generateUploadChunks = async (
 
   socket.send(JSON.stringify(sendBody));
 
-  sentChunks.value++
+  sentChunks.value++;
 
   return new Promise<boolean>(resolve => {
     const interval = setInterval(() => {
@@ -483,7 +467,19 @@ const handleFileUpload = async (
   const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
   const loadingMessage = globalTipsMessage.loading('上传进度: 0%', { duration: 1000000000 });
-  const fileInfo = uploadFileList.value[0];
+
+  let fileInfo = uploadFileList.value[uploadFileList.value.length - 1];
+
+  // 检查是否已存在同名文件
+  const existingFiles = new Set(fileManageStore.fileList?.map(file => file.name) || []);
+
+  for (let i = uploadFileList.value.length - 1; i >= 0; i--) {
+    const file = uploadFileList.value[i];
+    if (!existingFiles.has(file.name)) {
+      fileInfo = file;
+      break;
+    }
+  }
 
   let sliceChunks = [];
   let CHUNK_SIZE = 1024 * 1024 * 5;
@@ -491,14 +487,10 @@ const handleFileUpload = async (
 
   const unwatch = watch(
     () => sentChunks.value,
-    (newValue) => {      
+    newValue => {
       const percent = (newValue / sliceChunks.length) * 100;
 
-      console.log(
-        '%c DEBUG[ percent ]:',
-        'font-size:13px; background: #1ab394; color:#fff;',
-        percent
-      );
+      console.log('%c DEBUG[ percent ]:', 'font-size:13px; background: #1ab394; color:#fff;', percent);
 
       loadingMessage.content = `上传进度: ${Math.floor(percent)}%`;
 
@@ -513,7 +505,7 @@ const handleFileUpload = async (
 
   if (fileInfo && fileInfo.file) {
     let sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
-    
+
     // 如果切片数量大于最大切片数量，那么调大切片大小
     if (sliceCount > maxSliceCount) {
       sliceCount = maxSliceCount;
@@ -552,9 +544,8 @@ const handleFileUpload = async (
           })
         })
       );
-
     } catch (e) {
-      loadingMessage.destroy(); 
+      loadingMessage.destroy();
       onError();
     }
   }

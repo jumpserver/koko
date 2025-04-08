@@ -149,7 +149,9 @@
 
           <template #default>
             <template v-if="isLoaded">
-              <FileManage :columns="columns" />
+              <keep-alive>
+                <FileManage :columns="columns" />
+              </keep-alive>
             </template>
 
             <template v-else>
