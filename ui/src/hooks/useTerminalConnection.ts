@@ -12,10 +12,10 @@ import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, updateIcon } from '@/components/TerminalComponent/helper';
 
 // todo 命名
-import type { shareUser } from '@/types';
+import type { ShareUserOptions } from '@/types';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/hooks/interface';
-
+import type { OnlineUser } from '@/types/modules/user.type';
 export enum FormatterMessageType {
   PING = 'PING',
   TERMINAL_INIT = 'TERMINAL_INIT',
@@ -24,6 +24,7 @@ export enum FormatterMessageType {
   TERMINAL_RESIZE = 'TERMINAL_RESIZE',
   TERMINAL_K8S_DATA = 'TERMINAL_K8S_DATA',
   TERMINAL_K8S_RESIZE = 'TERMINAL_K8S_RESIZE',
+  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE',
   TERMINAL_GET_SHARE_USER = 'TERMINAL_GET_SHARE_USER'
 }
 
@@ -51,6 +52,8 @@ enum MessageType {
   MESSAGE_NOTIFY = 'MESSAGE_NOTIFY',
   TERMINAL_ACTION = 'TERMINAL_ACTION',
   TERMINAL_SESSION = 'TERMINAL_SESSION',
+  TERMINAL_SHARE_JOIN = 'TERMINAL_SHARE_JOIN',
+  TERMINAL_SHARE_LEAVE = 'TERMINAL_SHARE_LEAVE',
   TERMINAL_GET_SHARE_USER = 'TERMINAL_GET_SHARE_USER',
   TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE'
 }
@@ -73,6 +76,9 @@ export const formatMessage = (id: string, type: FormatterMessageType, data: any)
 export const useTerminalConnection = (lunaId: string, origin: string) => {
   let sentry: Sentry;
 
+  // todo 类型补全
+  const onlineUsers = ref<OnlineUser[]>([]);
+
   const shareId = ref<string>('');
   const shareCode = ref<string>('');
   const sessionId = ref<string>('');
@@ -84,7 +90,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
   const lastSendTime = ref(new Date());
   const lastReceiveTime = ref(new Date());
-  const userOptions = ref<shareUser[]>([]);
+  const userOptions = ref<ShareUserOptions[]>([]);
   const featureSetting = ref<Partial<SettingConfig>>({});
 
   const terminalSettingsStore = useTerminalSettingsStore();
@@ -139,7 +145,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
    * @param terminal
    * @param socket
    */
-  const dispatch = (data: string, terminal: Terminal, socket: WebSocket) => {
+  const dispatch = (data: string, terminal: Terminal, socket: WebSocket, t: any) => {
     if (!data) return;
 
     let parsedMessageData = JSON.parse(data);
@@ -173,7 +179,6 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
         const info = JSON.parse(parsedMessageData.data);
 
         featureSetting.value = info.setting;
-        // todo 设置当前用户
 
         // 更新网页图标
         updateIcon(info.setting);
@@ -237,12 +242,36 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         break;
       }
+      case MessageType.TERMINAL_SHARE_JOIN: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        // data 中如果 primary 为 true 则表示是当前用户
+        onlineUsers.value.push(data);
+
+        if (!data.primary) {
+          message.info(`${data.user} ${t('JoinShare')}`);
+        }
+
+        break;
+      }
+      case MessageType.TERMINAL_SHARE_LEAVE: {
+        const data: OnlineUser = JSON.parse(parsedMessageData.data);
+
+        const index = onlineUsers.value.findIndex(item => item.user_id === data.user_id);
+
+        if (index !== -1) {
+          onlineUsers.value.splice(index, 1);
+          message.info(`${data.user} ${t('LeaveShare')}`);
+        }
+        break;
+      }
       case MessageType.TERMINAL_GET_SHARE_USER: {
         userOptions.value = JSON.parse(parsedMessageData.data);
         break;
       }
       case MessageType.TERMINAL_SHARE_USER_REMOVE: {
-        // todo
+        message.info(t('RemoveShareUser'));
+        socket.close();
         break;
       }
     }
@@ -306,7 +335,29 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       );
     });
   };
-  const getShareUser = (socket: WebSocket, query: any): Promise<shareUser[]> => {
+  /**
+   * @description 移除指定分享用户
+   * @param socket
+   */
+  const handeleRemoveShareUser = (socket: WebSocket, userMeta: OnlineUser) => {
+    socket.send(
+      formatMessage(
+        terminalId.value,
+        FormatterMessageType.TERMINAL_SHARE_USER_REMOVE,
+        JSON.stringify({
+          session: sessionId.value,
+          user_meta: userMeta
+        })
+      )
+    );
+  };
+  /**
+   * @description 获取指定分享用户
+   * @param socket
+   * @param query
+   * @returns
+   */
+  const getShareUser = (socket: WebSocket, query: any): Promise<ShareUserOptions[]> => {
     return new Promise(resolve => {
       socket.send(
         formatMessage(terminalId.value, FormatterMessageType.TERMINAL_GET_SHARE_USER, JSON.stringify({ query }))
@@ -314,7 +365,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
       watch(
         () => userOptions.value,
-        (newUserOptions) => {
+        newUserOptions => {
           resolve(newUserOptions);
         },
         { immediate: true }
@@ -326,7 +377,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
    * @param terminal
    * @param socket
    */
-  const initializeSocketEvent = (terminal: Terminal, socket: WebSocket) => {
+  const initializeSocketEvent = (terminal: Terminal, socket: WebSocket, t: any) => {
     // 创建 ZMODEM 实例
     createZmodemInstance(terminal, socket);
 
@@ -346,7 +397,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       if (typeof event.data === 'object') {
         handleBinaryMessage(event, terminal);
       } else {
-        dispatch(event.data, terminal, socket);
+        dispatch(event.data, terminal, socket, t);
       }
     };
 
@@ -366,10 +417,12 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       sessionId,
       terminalId,
       enableShare,
-      userOptions
+      userOptions,
+      onlineUsers
     },
     getShareUser,
     handleCreateShareUrl,
-    initializeSocketEvent
+    initializeSocketEvent,
+    handeleRemoveShareUser
   };
 };

@@ -3,20 +3,22 @@
     :socket-instance="socketInstance"
     :lunaId="lunaId"
     :origin="origin"
+    @update:onlineUsers="handleUpdateOnlineUsers"
     @update:shareResult="handleUpdateShareResult"
     @update:shareEnable="handleUpdateShareEnable"
     @update:shareUserOptions="handleUpdateShareUserOptions"
   />
 
   <Setting
-    v-if="showSettings"
+    v-if="showDrawer"
     :settings="settingsConfig"
     :share-id="currentShareId"
     :share-code="currentShareCode"
     :share-enable="currentEnableShare"
-    :share-user-options="currentUserOptions"
     :socket-instance="socketInstance"
-    @update:open="showSettings = $event"
+    :share-user-options="currentUserOptions"
+    :current-online-users="currentOnlineUsers"
+    @update:open="showDrawer = $event"
     class="transition-all duration-500 ease-in-out"
   />
 </template>
@@ -27,11 +29,11 @@ import Terminal from '@/components/Terminal/index.vue';
 
 import { useI18n } from 'vue-i18n';
 import { onMounted, ref } from 'vue';
-import { Palette, Share2 } from 'lucide-vue-next';
+import { Palette, Share2, UsersRound } from 'lucide-vue-next';
 import { useWebSocketManager } from '@/hooks/useWebSocketManager';
 import { sendEventToLuna } from '@/components/TerminalComponent/helper';
 
-import type { ISettingConfig, shareUser } from '@/types';
+import type { ISettingConfig, ShareUserOptions } from '@/types';
 
 enum WindowMessageType {
   PING = 'PING',
@@ -49,9 +51,10 @@ const lunaId = ref<string>('');
 const origin = ref<string>('');
 const currentShareId = ref<string>('');
 const currentShareCode = ref<string>('');
-const showSettings = ref<boolean>(false);
+const showDrawer = ref<boolean>(false);
 const currentEnableShare = ref<boolean>(false);
-const currentUserOptions = ref<shareUser[]>([]);
+const currentOnlineUsers = ref<any>([]);
+const currentUserOptions = ref<ShareUserOptions[]>([]);
 const socketInstance = ref<WebSocket | ''>('');
 
 const settingsConfig: ISettingConfig = {
@@ -66,6 +69,14 @@ const settingsConfig: ISettingConfig = {
       },
       showMore: true,
       value: 'default'
+    },
+    {
+      type: 'list',
+      label: t('OnlineUsers'),
+      labelIcon: UsersRound,
+      labelStyle: {
+        fontSize: '14px'
+      }
     },
     {
       type: 'create',
@@ -93,7 +104,7 @@ const initializeWindowEvent = () => {
       }
       case WindowMessageType.OPEN: {
         // 默认情况打开的就是 Settings
-        showSettings.value = true;
+        showDrawer.value = true;
         break;
       }
     }
@@ -112,7 +123,7 @@ const handleUpdateShareResult = ({ shareId, shareCode }: { shareId: string; shar
  * @description 更新分享用户选项
  * @param userOptions
  */
-const handleUpdateShareUserOptions = (userOptions: shareUser[]) => {
+const handleUpdateShareUserOptions = (userOptions: ShareUserOptions[]) => {
   currentUserOptions.value = userOptions;
 };
 /**
@@ -121,6 +132,13 @@ const handleUpdateShareUserOptions = (userOptions: shareUser[]) => {
  */
 const handleUpdateShareEnable = (shareEnable: boolean) => {
   currentEnableShare.value = shareEnable;
+};
+/**
+ * @description 更新在线用户
+ * @param onlineUsers
+ */
+const handleUpdateOnlineUsers = (onlineUsers: any) => {
+  currentOnlineUsers.value = onlineUsers;
 };
 
 socketInstance.value = createSocket();

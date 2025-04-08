@@ -57,7 +57,7 @@ import {
   LockClosedOutline
 } from '@vicons/ionicons5';
 
-import type { ISettingProp, shareUser } from '@/types';
+import type { ISettingProp, ShareUserOptions } from '@/types';
 import { Keyboard, Stop, Paste } from '@vicons/carbon';
 import { readText } from 'clipboard-polyfill';
 
@@ -80,7 +80,7 @@ const themeName = ref('Default');
 const terminalType = ref('common');
 const enableShare = ref(false);
 const warningIntervalId = ref(0);
-const userOptions = ref<shareUser[]>([]);
+const userOptions = ref<ShareUserOptions[]>([]);
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
 onUnmounted(() => {

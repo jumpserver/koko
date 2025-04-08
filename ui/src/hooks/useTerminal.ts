@@ -557,7 +557,7 @@ export const useTerminal = async (
     mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
       const origin = window.location.origin;
 
-      {sendWsMessage}(type, {
+      sendWsMessage(type, {
         origin,
         session: sessionId,
         users: shareLinkRequest.users,

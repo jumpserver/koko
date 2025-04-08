@@ -16,7 +16,7 @@ export interface ISettingProp {
   content?: any;
 }
 
-export interface shareUser {
+export interface ShareUserOptions {
   id: string;
 
   name: string;
@@ -51,7 +51,7 @@ export interface ISettingConfig {
   drawerTitle: string;
 
   items: Array<{
-    type: 'select' | 'button' | 'create';
+    type: 'select' | 'button' | 'create' | 'list';
     label: string;
     labelIcon: FunctionalComponent;
     labelStyle: {

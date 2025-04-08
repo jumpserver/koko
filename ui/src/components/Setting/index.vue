@@ -30,6 +30,54 @@
             />
           </template>
 
+          <template v-if="item.type === 'list'">
+            <n-card size="small">
+              <!-- <n-list :data="shareUserOptions" :bordered="false" size="small" /> -->
+
+              <n-flex justify="center" vertical class="w-full">
+                <n-flex align="center">
+                  <n-text> 当前用户: </n-text>
+                  <n-text depth="1" strong class="text-sm">{{ currentUser.user }}</n-text>
+                </n-flex>
+
+                <n-collapse @item-header-click="handleItemHeaderClick" :default-expanded-names="'online-user'">
+                  <template #header-extra>
+                    <ChevronLeft v-if="showLeftArrow" :size="18" class="focus:outline-none" />
+                    <ChevronDown v-else="showLeftArrow" :size="18" class="focus:outline-none" />
+                  </template>
+                  <n-collapse-item title="在线用户:" name="online-user">
+                    <n-flex
+                      v-if="onlineUsers.length > 0"
+                      v-for="item in onlineUsers"
+                      :key="item.user_id"
+                      align="center"
+                      justify="space-between"
+                      class="w-full"
+                    >
+                      {{ item.user }}
+
+                      <n-popconfirm
+                        :positive-text="t('Delete')"
+                        :positive-button-props="{ type: 'error' }"
+                        @positive-click="handlePositiveClick(item)"
+                        @negative-click="handleNegativeClick"
+                      >
+                        <template #trigger>
+                          <Delete
+                            :size="20"
+                            class="cursor-pointer focus:outline-none hover:text-red-500 hover:transition-all duration-300"
+                          />
+                        </template>
+                        {{ t('RemoveShareUserConfirm') }}
+                      </n-popconfirm>
+                    </n-flex>
+                    <n-empty v-else description="暂无在线用户" />
+                  </n-collapse-item>
+                </n-collapse>
+              </n-flex>
+            </n-card>
+          </template>
+
           <template v-if="item.type === 'create'">
             <n-card size="small">
               <Share
@@ -50,30 +98,36 @@
 
 <script setup lang="ts">
 import xtermTheme from 'xterm-theme';
+import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
 
-import { ref, watch } from 'vue';
-import { Ellipsis } from 'lucide-vue-next';
+import { useI18n } from 'vue-i18n';
+import { ref, watch, computed } from 'vue';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
+import { Ellipsis, ChevronLeft, ChevronDown, Delete } from 'lucide-vue-next';
 
-import type { ISettingConfig, shareUser } from '@/types';
+import type { OnlineUser } from '@/types/modules/user.type';
+import type { ISettingConfig, ShareUserOptions } from '@/types';
 
 const props = defineProps<{
   shareId: string;
   shareCode: string;
   shareEnable: boolean;
-  shareUserOptions: shareUser[];
   settings: ISettingConfig;
   socketInstance: WebSocket | '';
+  currentOnlineUsers: OnlineUser[];
+  shareUserOptions: ShareUserOptions[];
 }>();
 
 const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
 }>();
 
+const { t } = useI18n();
 const terminalSettingsStore = useTerminalSettingsStore();
 
 const show = ref(true);
+const showLeftArrow = ref(false);
 const currentTheme = ref(terminalSettingsStore.theme);
 const themeOptions = ref([
   {
@@ -88,12 +142,31 @@ const themeOptions = ref([
   })
 ]);
 
+const currentUser = computed(() => {
+  return props.currentOnlineUsers.filter(item => item.primary)[0];
+});
+
+const onlineUsers = computed(() => {
+  return props.currentOnlineUsers.filter(item => !item.primary);
+});
+
 watch(
   () => show.value,
   value => {
     if (!value) {
       emit('update:open', value);
     }
+  }
+);
+
+watch(
+  () => props.currentOnlineUsers,
+  value => {
+    if (value.length > 0) {
+      showLeftArrow.value = false;
+    }
+
+    showLeftArrow.value = true;
   }
 );
 
@@ -131,12 +204,42 @@ const previewTheme = (event: KeyboardEvent) => {
     handleUpdateTheme(currentTheme.value!);
   }
 };
+/**
+ * @description 点击折叠按钮
+ * @param data
+ */
+const handleItemHeaderClick = (data: { name: string | number; expanded: boolean; event: MouseEvent }) => {
+  data.expanded ? (showLeftArrow.value = false) : (showLeftArrow.value = true);
+};
+/**
+ * @description 移除在线用户
+ * @param user_id
+ */
+const handlePositiveClick = (userMeta: OnlineUser) => {
+  mittBus.emit('remove-share-user', {
+    // todo 参数没有必要
+    sessionId: '',
+    userMeta: userMeta,
+    type: 'TERMINAL_SHARE_USER_REMOVE'
+  });
+};
+const handleNegativeClick = () => {};
 </script>
 
 <style scoped lang="scss">
 .n-form-item.n-form-item--top-labelled .n-form-item-label {
   align-items: center;
   padding: unset;
+}
+
+.n-collapse {
+  :deep(.n-collapse-item-arrow) {
+    display: none !important;
+  }
+
+  :deep(.n-collapse-item__content-inner) {
+    padding-top: 5px !important;
+  }
 }
 
 :deep(.n-form-item-label__text) {

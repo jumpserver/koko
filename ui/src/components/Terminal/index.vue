@@ -6,6 +6,7 @@
 import mittBus from '@/utils/mittBus.ts';
 import xtermTheme from 'xterm-theme';
 
+import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { onMounted, watch } from 'vue';
 import { Terminal } from '@xterm/xterm';
@@ -14,7 +15,7 @@ import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { formatMessage } from '@/components/TerminalComponent/helper';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
-import type { shareUser } from '@/types';
+import type { ShareUserOptions } from '@/types';
 
 const props = defineProps<{
   lunaId: string;
@@ -30,20 +31,20 @@ const emits = defineEmits<{
       shareCode: string;
     }
   ): void;
+  (e: 'update:onlineUsers', onlineUsers: any[]): void;
   (e: 'update:shareEnable', shareEnable: boolean): void;
-  (e: 'update:shareUserOptions', shareUserOptions: shareUser[]): void;
+  (e: 'update:shareUserOptions', shareUserOptions: ShareUserOptions[]): void;
 }>();
 
+const { t } = useI18n();
 const message = useMessage();
 const terminalSettingsStore = useTerminalSettingsStore();
-const { connectionStatus, initializeSocketEvent, handleCreateShareUrl, getShareUser } = useTerminalConnection(
-  props.lunaId,
-  props.origin
-);
+const { connectionStatus, initializeSocketEvent, handleCreateShareUrl, getShareUser, handeleRemoveShareUser } =
+  useTerminalConnection(props.lunaId, props.origin);
 const { createTerminalInstance, terminalResizeEvent } = useTerminalInstance(props.socketInstance);
 
 onMounted(() => {
-  const { terminalId, enableShare } = connectionStatus;
+  const { terminalId, enableShare, onlineUsers } = connectionStatus;
 
   const terminalContainer: HTMLElement | null = document.getElementById('terminal-container');
 
@@ -59,8 +60,17 @@ onMounted(() => {
     return;
   }
 
-  initializeSocketEvent(terminalInstance, props.socketInstance);
+  initializeSocketEvent(terminalInstance, props.socketInstance, t);
 
+  mittBus.on('share-user', async ({ type, query }) => {
+    if (!props.socketInstance) {
+      return;
+    }
+
+    const userOptions: ShareUserOptions[] = await getShareUser(props.socketInstance, query);
+
+    emits('update:shareUserOptions', userOptions);
+  });
   mittBus.on('create-share-url', async ({ type, shareLinkRequest }: { type: string; shareLinkRequest: any }) => {
     if (!props.socketInstance) {
       return;
@@ -73,27 +83,13 @@ onMounted(() => {
       shareCode
     });
   });
-  mittBus.on('share-user', async ({ type, query }) => {
+  mittBus.on('remove-share-user', ({ type, userMeta }) => {
     if (!props.socketInstance) {
       return;
     }
 
-    const userOptions: shareUser[] = await getShareUser(props.socketInstance, query);
-
-    emits('update:shareUserOptions', userOptions);
+    handeleRemoveShareUser(props.socketInstance, userMeta);
   });
-
-  // watch(
-  //   () => [userOptions.value],
-  //   () => {
-  //     if (enableShare.value !== undefined) {
-  //       emits('update:shareOptions', {
-  //         userOptions: userOptions.value
-  //       });
-  //     }
-  //   },
-  //   { deep: true }
-  // );
 
   watch(
     () => enableShare.value,
@@ -130,6 +126,14 @@ onMounted(() => {
         )
       );
     }
+  );
+
+  watch(
+    () => onlineUsers.value,
+    userMap => {
+      emits('update:onlineUsers', userMap);
+    },
+    { deep: true }
   );
 });
 </script>
