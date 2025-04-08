@@ -12,7 +12,7 @@ fi
 
 echo
 date
-echo "KoKo Version $VERSION, more see https://www.jumpserver.org"
+echo "KoKo Version $VERSION, more see https://www.jumpserver.com"
 echo "Quit the server with CONTROL-C."
 echo
 

@@ -40,7 +40,7 @@ func main() {
 const (
 	timeFormat      = "2006-01-02 15:04:05"
 	startWelcomeMsg = `%s
-KoKo Version %s, more see https://www.jumpserver.org
+KoKo Version %s, more see https://www.jumpserver.com
 Quit the server with CONTROL-C.
 `
 )
