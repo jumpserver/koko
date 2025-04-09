@@ -40,7 +40,6 @@ import {
   wsIsActivated
 } from '@/components/TerminalComponent/helper';
 import mittBus from '@/utils/mittBus.ts';
-import { CollectionsBookmarkFilled } from '@vicons/material';
 
 enum MessageType {
   PING = 'PING',

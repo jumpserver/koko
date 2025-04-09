@@ -9,7 +9,8 @@
     @socket-data="onSocketData"
   />
 
-  <file-management :settings="settings" :sftp-token="sftpToken" @create-file-connect-token="createFileConnectToken" />
+  <settings :settings="settings" />
+  <file-management :sftp-token="sftpToken" @create-file-connect-token="createFileConnectToken" />
 </template>
 
 <script setup lang="ts">
@@ -22,15 +23,15 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
+import { sendEventToLuna } from '@/components/TerminalComponent/helper';
 import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
-
 import Share from '@/components/Share/index.vue';
+import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import FileManagement from '@/components/FileManagement/index.vue';
-import { sendEventToLuna } from '@/components/TerminalComponent/helper';
 import TerminalComponent from '@/components/TerminalComponent/index.vue'
 
 import {
