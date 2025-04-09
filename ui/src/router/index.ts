@@ -6,7 +6,7 @@ const allRoutes: RouteRecordRaw[] = [
     path: '/connect/',
     name: 'Terminal',
     // component: () => import('@/views/Connection/index.vue')
-    component: () => import('@/views/GeneralConnection/index.vue')
+    component: () => import('@/views/connect/index.vue')
   },
   {
     path: '/sftp/:id/',

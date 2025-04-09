@@ -2,7 +2,7 @@ import mitt, { Emitter } from 'mitt';
 import { ManageTypes } from '@/hooks/useFileManage.ts';
 
 import type { Ref } from 'vue';
-import type { shareUser } from '@/types';
+import type { ShareUserOptions } from '@/types/modules/user.type';
 import type { UploadFileInfo } from 'naive-ui';
 import type { customTreeOption } from '@/hooks/interface';
 
@@ -36,9 +36,10 @@ type Event = {
     shareLinkRequest: {
       expiredTime: number;
       actionPerm: string;
-      users: shareUser[];
+      users: ShareUserOptions[];
     };
   };
+  'writeDataToTerminal': { type: string };
 };
 
 const mittBus: Emitter<Event> = mitt();

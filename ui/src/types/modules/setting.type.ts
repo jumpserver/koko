@@ -5,7 +5,7 @@ export interface SettingConfig {
   drawerTitle: string;
 
   items: Array<{
-    type: 'select' | 'button' | 'create' | 'list';
+    type: 'select' | 'keyboard' | 'create' | 'list';
     label: string;
     labelIcon: FunctionalComponent;
     labelStyle: {

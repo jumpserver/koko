@@ -1,5 +1,5 @@
 <template>
-  <n-drawer v-model:show="show" resizable :default-width="502">
+  <n-drawer :show="show" resizable :default-width="502" @mask-click="closeDrawer" @update:show="closeDrawer">
     <!-- Settings 情况下的抽屉 -->
     <n-drawer-content :title="settings.drawerTitle" :native-scrollbar="false" closable>
       <template v-for="item of settings.items" :key="item.label">
@@ -32,8 +32,6 @@
 
           <template v-if="item.type === 'list'">
             <n-card size="small">
-              <!-- <n-list :data="shareUserOptions" :bordered="false" size="small" /> -->
-
               <n-flex justify="center" vertical class="w-full">
                 <n-flex align="center">
                   <n-text> 当前用户: </n-text>
@@ -88,6 +86,10 @@
               />
             </n-card>
           </template>
+
+          <template v-if="item.type === 'keyboard'">
+            <Keyboard />
+          </template>
         </n-form-item>
       </template>
     </n-drawer-content>
@@ -100,6 +102,7 @@
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
+import Keyboard from '@/components/Keyboard/index.vue';
 
 import { useI18n } from 'vue-i18n';
 import { ref, watch, computed } from 'vue';
@@ -112,6 +115,7 @@ import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
 const props = defineProps<{
   shareId: string;
   shareCode: string;
+  show: boolean;
   shareEnable: boolean;
   settings: SettingConfig;
   socketInstance: WebSocket | '';
@@ -126,7 +130,6 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const terminalSettingsStore = useTerminalSettingsStore();
 
-const show = ref(true);
 const showLeftArrow = ref(false);
 const currentTheme = ref(terminalSettingsStore.theme);
 const themeOptions = ref([
@@ -151,15 +154,6 @@ const onlineUsers = computed(() => {
 });
 
 watch(
-  () => show.value,
-  value => {
-    if (!value) {
-      emit('update:open', value);
-    }
-  }
-);
-
-watch(
   () => props.currentOnlineUsers,
   value => {
     if (value.length > 0) {
@@ -167,6 +161,13 @@ watch(
     }
 
     showLeftArrow.value = true;
+  }
+);
+
+watch(
+  () => terminalSettingsStore.theme,
+  value => {
+    currentTheme.value = value;
   }
 );
 
@@ -224,6 +225,13 @@ const handlePositiveClick = (userMeta: OnlineUser) => {
   });
 };
 const handleNegativeClick = () => {};
+
+/**
+ * @description 关闭抽屉
+ */
+const closeDrawer = () => {
+  emit('update:open', false);
+};
 </script>
 
 <style scoped lang="scss">

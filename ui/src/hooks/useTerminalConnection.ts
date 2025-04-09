@@ -132,11 +132,10 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       case MessageType.CONNECT: {
         terminalId.value = parsedMessageData.id;
 
-        // todo code 需要设置
         const terminalData = {
           cols: terminal.cols,
           rows: terminal.rows,
-          code: ''
+          code: shareCode.value
         };
 
         const info = JSON.parse(parsedMessageData.data);
@@ -343,6 +342,13 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
     );
   };
   /**
+   * @description 设置分享代码
+   * @param code
+   */
+  const setShareCode = (code: string) => {
+    shareCode.value = code;
+  };
+  /**
    * @description 获取指定分享用户
    * @param socket
    * @param query
@@ -412,6 +418,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       onlineUsers
     },
     getShareUser,
+    setShareCode,
     handleCreateShareUrl,
     initializeSocketEvent,
     handeleRemoveShareUser

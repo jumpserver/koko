@@ -10,7 +10,7 @@
   />
 
   <Setting
-    v-if="showDrawer"
+    :show="show"
     :settings="settingsConfig"
     :share-id="currentShareId"
     :share-code="currentShareCode"
@@ -18,7 +18,7 @@
     :socket-instance="socketInstance"
     :share-user-options="currentUserOptions"
     :current-online-users="currentOnlineUsers"
-    @update:open="showDrawer = $event"
+    @update:open="show = $event"
     class="transition-all duration-500 ease-in-out"
   />
 </template>
@@ -29,12 +29,12 @@ import Terminal from '@/components/Terminal/index.vue';
 
 import { useI18n } from 'vue-i18n';
 import { onMounted, ref } from 'vue';
-import { Palette, Share2, UsersRound } from 'lucide-vue-next';
 import { useWebSocketManager } from '@/hooks/useWebSocketManager';
 import { sendEventToLuna } from '@/components/TerminalComponent/helper';
+import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
 
 import type { SettingConfig } from '@/types/modules/setting.type';
-import type { ShareUserOptions } from '@/types/modules/user.type';
+import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
 
 enum WindowMessageType {
   PING = 'PING',
@@ -52,9 +52,9 @@ const lunaId = ref<string>('');
 const origin = ref<string>('');
 const currentShareId = ref<string>('');
 const currentShareCode = ref<string>('');
-const showDrawer = ref<boolean>(false);
+const show = ref<boolean>(false);
 const currentEnableShare = ref<boolean>(false);
-const currentOnlineUsers = ref<any>([]);
+const currentOnlineUsers = ref<OnlineUser[]>([]);
 const currentUserOptions = ref<ShareUserOptions[]>([]);
 const socketInstance = ref<WebSocket | ''>('');
 
@@ -87,6 +87,14 @@ const settingsConfig: SettingConfig = {
         fontSize: '14px'
       },
       showMore: false
+    },
+    {
+      type: 'keyboard',
+      label: t('Hotkeys'),
+      labelIcon: Keyboard,
+      labelStyle: {
+        fontSize: '14px'
+      }
     }
   ]
 };
@@ -104,8 +112,7 @@ const initializeWindowEvent = () => {
         break;
       }
       case WindowMessageType.OPEN: {
-        // 默认情况打开的就是 Settings
-        showDrawer.value = true;
+        show.value = true;
         break;
       }
     }
@@ -138,7 +145,7 @@ const handleUpdateShareEnable = (shareEnable: boolean) => {
  * @description 更新在线用户
  * @param onlineUsers
  */
-const handleUpdateOnlineUsers = (onlineUsers: any) => {
+const handleUpdateOnlineUsers = (onlineUsers: OnlineUser[]) => {
   currentOnlineUsers.value = onlineUsers;
 };
 

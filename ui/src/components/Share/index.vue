@@ -86,7 +86,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 
-import type { ShareUserOptions } from '@/types';
+import type { ShareUserOptions } from '@/types/modules/user.type';
 import type { SelectRenderTag } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
 // import { storeToRefs } from 'pinia';

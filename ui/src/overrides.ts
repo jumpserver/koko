@@ -34,5 +34,13 @@ export const themeOverrides: GlobalThemeOverrides = {
   },
   DataTable: {
     thColorModal: 'unset'
+  },
+  Table: {
+    thColorModal: '#191D1D',
+    tdColorModal: '#191D1D'
+  },
+  Tag: {
+    borderPrimary: '1px solid #16987D',
+    textColorPrimary: '#16987D',
   }
 };

@@ -8,18 +8,20 @@ import xtermTheme from 'xterm-theme';
 
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { onMounted, watch } from 'vue';
 import { Terminal } from '@xterm/xterm';
+import { readText } from 'clipboard-polyfill';
+import { onMounted, watch, onBeforeUnmount } from 'vue';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { formatMessage } from '@/components/TerminalComponent/helper';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
-import type { ShareUserOptions } from '@/types';
+import type { ShareUserOptions } from '@/types/modules/user.type';
 
 const props = defineProps<{
-  lunaId: string;
-  origin: string;
+  lunaId?: string;
+  origin?: string;
+  shareCode?: string;
   socketInstance?: WebSocket | '';
 }>();
 
@@ -39,8 +41,14 @@ const emits = defineEmits<{
 const { t } = useI18n();
 const message = useMessage();
 const terminalSettingsStore = useTerminalSettingsStore();
-const { connectionStatus, initializeSocketEvent, handleCreateShareUrl, getShareUser, handeleRemoveShareUser } =
-  useTerminalConnection(props.lunaId, props.origin);
+const {
+  connectionStatus,
+  initializeSocketEvent,
+  handleCreateShareUrl,
+  getShareUser,
+  setShareCode,
+  handeleRemoveShareUser
+} = useTerminalConnection(props.lunaId!, props.origin!);
 const { createTerminalInstance, terminalResizeEvent } = useTerminalInstance(props.socketInstance);
 
 onMounted(() => {
@@ -90,6 +98,28 @@ onMounted(() => {
 
     handeleRemoveShareUser(props.socketInstance, userMeta);
   });
+  mittBus.on('writeDataToTerminal', async ({ type }) => {
+    switch (type) {
+      case 'Stop':
+        terminalInstance.paste('\x03');
+        break;
+      case 'Paste':
+        terminalInstance.paste(await readText());
+        break;
+      case 'ArrowUp':
+        terminalInstance.paste('\x1b[A');
+        break;
+      case 'ArrowDown':
+        terminalInstance.paste('\x1b[B');
+        break;
+      case 'ArrowLeft':
+        terminalInstance.paste('\x1b[D');
+        break;
+      case 'ArrowRight':
+        terminalInstance.paste('\x1b[C');
+        break;
+    }
+  });
 
   watch(
     () => enableShare.value,
@@ -103,6 +133,15 @@ onMounted(() => {
     id => {
       if (id) {
         terminalResizeEvent(terminalId.value);
+      }
+    }
+  );
+
+  watch(
+    () => props.shareCode,
+    code => {
+      if (code) {
+        setShareCode(code);
       }
     }
   );
@@ -135,6 +174,13 @@ onMounted(() => {
     },
     { deep: true }
   );
+});
+
+onBeforeUnmount(() => {
+  mittBus.off('share-user');
+  mittBus.off('create-share-url');
+  mittBus.off('remove-share-user');
+  mittBus.off('writeDataToTerminal');
 });
 </script>
 
