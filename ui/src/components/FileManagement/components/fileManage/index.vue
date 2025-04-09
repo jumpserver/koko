@@ -57,17 +57,8 @@
       </n-flex>
     </n-scrollbar>
 
-    <n-flex
-      class="action-part !flex-nowrap flex-2"
-      align="center"
-      justify="flex-end"
-    >
-      <n-button
-        secondary
-        size="small"
-        class="custom-button-text"
-        @click="handleNewFolder"
-      >
+    <n-flex class="action-part !flex-nowrap flex-2" align="center" justify="flex-end">
+      <n-button secondary size="small" class="custom-button-text" @click="handleNewFolder">
         <template #icon>
           <n-icon :component="Plus" :size="12" />
         </template>
@@ -100,24 +91,26 @@
           </n-upload-trigger>
         </n-button-group>
 
-        <n-drawer
-          resizable
-          placement="bottom"
-          to="#drawer-inner-target"
-          :default-height="500"
-          :trap-focus="false"
-          :block-scroll="false"
-          :native-scrollbar="false"
-          v-model:show="showInner"
-        >
-          <n-drawer-content :title="t('TransferHistory')">
-            <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
-              <n-upload-file-list />
-            </n-scrollbar>
+        <keep-alive>
+          <n-drawer
+            resizable
+            placement="bottom"
+            to="#drawer-inner-target"
+            :default-height="500"
+            :trap-focus="false"
+            :block-scroll="false"
+            :native-scrollbar="false"
+            v-model:show="showInner"
+          >
+            <n-drawer-content :title="t('TransferHistory')">
+              <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
+                <n-upload-file-list />
+              </n-scrollbar>
 
-            <n-empty v-else class="w-full h-full justify-center" />
-          </n-drawer-content>
-        </n-drawer>
+              <n-empty v-else class="w-full h-full justify-center" />
+            </n-drawer-content>
+          </n-drawer>
+        </keep-alive>
       </n-upload>
 
       <n-popover>
@@ -214,7 +207,7 @@ import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 import { useI18n } from 'vue-i18n';
 import { getFileName } from '@/utils';
 import { getDropSelections } from './config.tsx';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
@@ -265,6 +258,7 @@ const scrollRef = ref(null);
 
 const currentRowData = ref<RowData>();
 const filePathList = ref<IFilePath[]>([]);
+const persistedUploadFiles = ref<UploadFileInfo[]>([]);
 const uploadFileList = ref<UploadFileInfo[]>([]);
 
 watch(
@@ -358,6 +352,16 @@ watch(
   {
     immediate: true
   }
+);
+
+watch(
+  () => uploadFileList.value,
+  newValue => {
+    if (newValue && newValue.length > 0) {
+      persistedUploadFiles.value = [...newValue];
+    }
+  },
+  { deep: true }
 );
 
 const onClickOutside = () => {
@@ -553,6 +557,7 @@ const handleUploadFileChange = (options: {
 
   if (options.fileList.length > 0) {
     uploadFileList.value = options.fileList;
+    fileManageStore.setUploadFileList(options.fileList);
   }
 };
 
@@ -562,11 +567,7 @@ const handleUploadFileChange = (options: {
  * @param onError
  * @param onProgress
  */
-const customRequest = ({
-  onFinish,
-  onError,
-  onProgress
-}: UploadCustomRequestOptions) => {
+const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
   mittBus.emit('file-upload', {
     uploadFileList,
     onFinish,
@@ -575,7 +576,14 @@ const customRequest = ({
   });
 };
 
+/**
+ * @description 打开传输历史列表
+ */
 const handleOpenTransferList = () => {
+  // 从 store 中恢复文件列表
+  if (fileManageStore.uploadFileList.length > 0) {
+    uploadFileList.value = [...fileManageStore.uploadFileList];
+  }
   showInner.value = true;
 };
 
@@ -653,6 +661,10 @@ const rowProps = (row: RowData) => {
 
 onMounted(() => {
   mittBus.on('reload-table', handleTableLoading);
+
+  if (fileManageStore.uploadFileList.length > 0) {
+    uploadFileList.value = [...fileManageStore.uploadFileList];
+  }
 });
 
 onBeforeUnmount(() => {
@@ -660,4 +672,12 @@ onBeforeUnmount(() => {
 
   mittBus.off('reload-table', handleTableLoading);
 });
+
+onActivated(() => {
+  if (persistedUploadFiles.value.length > 0) {
+    uploadFileList.value = [...persistedUploadFiles.value];
+  }
+});
+
+provide('persistedUploadFiles', persistedUploadFiles);
 </script>

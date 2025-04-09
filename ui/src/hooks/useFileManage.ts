@@ -13,13 +13,7 @@ import type { Ref } from 'vue';
 import type { RouteRecordNameGeneric } from 'vue-router';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
-import type {
-  IFileManage,
-  IFileManageConnectData,
-  IFileManageSftpFileItem
-} from '@/hooks/interface';
-import { message } from '@/languages/modules';
-import { PercentFilled } from '@vicons/material';
+import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -41,30 +35,9 @@ export enum ManageTypes {
 const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
   theme: darkTheme
 }));
-const { message: globalTipsMessage }: { message: MessageApiInjection } =
-  createDiscreteApi(['message'], {
-    configProviderProps: configProviderPropsRef
-  });
-
-/**
- * @description 获取文件管理的 url
- */
-const getFileManageUrl = (token: string) => {
-  const route = useRoute();
-
-  const routeName: RouteRecordNameGeneric = route.name;
-  const urlParams: URLSearchParams = new URLSearchParams(
-    window.location.search.slice(1)
-  );
-
-  let fileConnectionUrl: string = '';
-
-  if (routeName === 'Terminal') {
-    // fileConnectionUrl = urlParams ?  : '';
-
-    return fileConnectionUrl;
-  }
-};
+const { message: globalTipsMessage }: { message: MessageApiInjection } = createDiscreteApi(['message'], {
+  configProviderProps: configProviderPropsRef
+});
 
 /**
  * @description 将 buffer 转为 base64
@@ -506,10 +479,20 @@ const handleFileUpload = async (
   const maxSliceCount = 100;
   const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
-  const loadingMessage = globalTipsMessage.loading('上传进度: 0%', {
-    duration: 1000000000
-  });
-  const fileInfo = uploadFileList.value[0];
+  const loadingMessage = globalTipsMessage.loading('上传进度: 0%', { duration: 1000000000 });
+
+  let fileInfo = uploadFileList.value[uploadFileList.value.length - 1];
+
+  // 检查是否已存在同名文件
+  const existingFiles = new Set(fileManageStore.fileList?.map(file => file.name) || []);
+
+  for (let i = uploadFileList.value.length - 1; i >= 0; i--) {
+    const file = uploadFileList.value[i];
+    if (!existingFiles.has(file.name)) {
+      fileInfo = file;
+      break;
+    }
+  }
 
   let sliceChunks = [];
   let CHUNK_SIZE = 1024 * 1024 * 5;
@@ -520,11 +503,7 @@ const handleFileUpload = async (
     newValue => {
       const percent = (newValue / sliceChunks.length) * 100;
 
-      console.log(
-        '%c DEBUG[ percent ]:',
-        'font-size:13px; background: #1ab394; color:#fff;',
-        percent
-      );
+      console.log('%c DEBUG[ percent ]:', 'font-size:13px; background: #1ab394; color:#fff;', percent);
 
       loadingMessage.content = `上传进度: ${Math.floor(percent)}%`;
 
