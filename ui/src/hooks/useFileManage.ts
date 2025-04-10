@@ -39,6 +39,8 @@ const { message: globalTipsMessage }: { message: MessageApiInjection } = createD
   configProviderProps: configProviderPropsRef
 });
 
+let initialPath = '';
+
 /**
  * @description 将 buffer 转为 base64
  * @param buffer
@@ -107,7 +109,13 @@ const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: strin
 const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
   const fileManageStore = useFileManageStore();
 
-  if (fileManageStore.currentPath === '/') {
+  // 初始化时保存初始路径
+  if (initialPath === '') {
+    initialPath = fileManageStore.currentPath;
+  }
+
+  // 如果当前路径是根目录或者是初始路径，则不添加 .. 文件夹
+  if (fileManageStore.currentPath === '/' || fileManageStore.currentPath === initialPath) {
     messageData = [...messageData];
   } else {
     messageData = [

@@ -316,6 +316,7 @@ watch(
   newFileList => {
     if (newFileList) {
       loading.value = false;
+      dataList.value = newFileList;
     }
   },
   {
@@ -336,17 +337,14 @@ watch(
 watch(
   () => searchValue.value,
   (newVal: string) => {
-    console.log(newVal);
     if (newVal) {
-      // 模糊搜索
       dataList.value = fileManageStore.fileList!.filter(item =>
         item.name.toLowerCase().includes(newVal.toLowerCase())
       );
     } else {
       dataList.value = fileManageStore.fileList!;
     }
-  },
-  { immediate: true }
+  }
 );
 
 const onClickOutside = () => {
@@ -408,6 +406,8 @@ const removeLastPathSegment = (path: string): string => {
  * @description 后退
  */
 const handlePathBack = () => {
+  searchValue.value = '';
+
   disabledForward.value = false;
   forwardPath.value = fileManageStore.currentPath;
 
@@ -419,8 +419,6 @@ const handlePathBack = () => {
     filePathList.value.splice(filePathList.value.length - 1, 1);
   } else {
     disabledBack.value = true;
-
-    // message.error('当前节点已为根节点！', { duration: 3000 });
   }
 };
 
@@ -428,6 +426,8 @@ const handlePathBack = () => {
  * @description 前进
  */
 const handlePathForward = () => {
+  searchValue.value = '';
+
   if (forwardPath.value !== fileManageStore.currentPath) {
     disabledBack.value = false;
 
@@ -449,8 +449,9 @@ const handlePathForward = () => {
  * @description 鼠标手动跳转
  */
 const handlePathClick = (item: IFilePath) => {
-  const path = item.path;
+  searchValue.value = '';
 
+  const path = item.path;
   mittBus.emit('file-manage', { path, type: ManageTypes.CHANGE });
 };
 
@@ -595,6 +596,8 @@ const rowProps = (row: RowData) => {
       });
     },
     onClick: () => {
+      searchValue.value = '';
+
       const suffix = getFileName(row);
       const splicePath = `${fileManageStore.currentPath}/${row.name}`;
 
