@@ -1,7 +1,11 @@
 <template>
   <div>
     <n-drawer v-model:show="showDrawer" :width="260">
-      <n-drawer-content :native-scrollbar="false" :title="t('Settings')" closable>
+      <n-drawer-content
+        :native-scrollbar="false"
+        :title="t('Settings')"
+        closable
+      >
         <n-flex vertical>
           <template v-for="item of settings" :key="item.title">
             <n-button
@@ -18,7 +22,11 @@
             </n-button>
 
             <!-- 用户 -->
-            <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'User'">
+            <n-list
+              class="mt-[-15px]"
+              clickable
+              v-else-if="item.label === 'User'"
+            >
               <n-list-item>
                 <n-thing class="ml-[15px] mt-[10px]">
                   <template #header>
@@ -26,7 +34,9 @@
                       <n-icon :component="item.icon" :size="18"></n-icon>
                       <n-text class="text-[14px]">
                         {{ item.title }}
-                        {{ `(${item?.content() ? item?.content().length : 0})` }}
+                        {{
+                          `(${item?.content() ? item?.content().length : 0})`
+                        }}
                       </n-text>
                     </n-flex>
                   </template>
@@ -45,7 +55,11 @@
                             size="small"
                             class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
                             :bordered="false"
-                            :type="item.content().indexOf(detail) !== 0 ? 'info' : 'success'"
+                            :type="
+                              item.content().indexOf(detail) !== 0
+                                ? 'info'
+                                : 'success'
+                            "
                             :closable="true"
                             :disabled="item.content().indexOf(detail) === 0"
                             @close="item.click(detail)"
@@ -69,7 +83,11 @@
             </n-list>
 
             <!-- 快捷键 -->
-            <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'Keyboard'">
+            <n-list
+              class="mt-[-15px]"
+              clickable
+              v-else-if="item.label === 'Keyboard'"
+            >
               <n-list-item>
                 <n-thing class="ml-[15px] mt-[10px]">
                   <template #header>
@@ -103,7 +121,11 @@
                               {{ detail.name }}
                             </n-text>
                             <template #icon>
-                              <n-icon size="16" class="ml-[5px] mr-[5px]" :component="detail.icon" />
+                              <n-icon
+                                size="16"
+                                class="ml-[5px] mr-[5px]"
+                                :component="detail.icon"
+                              />
                             </template>
                           </n-tag>
                         </template>

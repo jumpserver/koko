@@ -83,7 +83,11 @@ export const refresh = (socket: WebSocket, path: string) => {
  * @param id
  * @param socket
  */
-const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: string, socket: WebSocket) => {
+const handleSocketConnectEvent = (
+  messageData: IFileManageConnectData,
+  id: string,
+  socket: WebSocket
+) => {
   const sendData = {
     path: ''
   };
@@ -134,7 +138,10 @@ const heartBeat = (socket: WebSocket) => {
   let pingInterval: number | null = null;
 
   const sendPing = () => {
-    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
+    if (
+      socket.CLOSED === socket.readyState ||
+      socket.CLOSING === socket.readyState
+    ) {
       clearInterval(pingInterval!);
       return;
     }
@@ -223,7 +230,9 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         if (message.cmd === 'download' && message.data) {
-          const blob: Blob = new Blob(receivedBuffers, { type: 'application/octet-stream' });
+          const blob: Blob = new Blob(receivedBuffers, {
+            type: 'application/octet-stream'
+          });
 
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -382,7 +391,11 @@ const handleFileRemove = (socket: WebSocket, path: string) => {
  * @param path
  * @param is_dir
  */
-const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
+const handleFileDownload = (
+  socket: WebSocket,
+  path: string,
+  is_dir: boolean
+) => {
   const sendData = {
     path,
     is_dir
@@ -519,14 +532,22 @@ const handleFileUpload = async (
     }
 
     for (let i = 0; i < sliceCount; i++) {
-      sliceChunks.push(fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+      sliceChunks.push(
+        fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+      );
     }
 
     try {
       for (const sliceChunk of sliceChunks) {
         fileManageStore.setReceived(false);
 
-        await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
+        await generateUploadChunks(
+          sliceChunk,
+          socket,
+          fileInfo,
+          CHUNK_SIZE,
+          sentChunks
+        );
       }
 
       // 结束 chunk 发送 merge: true
@@ -573,17 +594,35 @@ export const useFileManage = (token: string, t: any) => {
         onError: () => void;
         onProgress: (e: { percent: number }) => void;
       }) => {
-        handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t);
+        handleFileUpload(
+          <WebSocket>socket,
+          uploadFileList,
+          onProgress,
+          onFinish,
+          onError,
+          t
+        );
       }
     );
 
-    mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
-      handleFileDownload(<WebSocket>socket, path, is_dir);
-    });
+    mittBus.on(
+      'download-file',
+      ({ path, is_dir }: { path: string; is_dir: boolean }) => {
+        handleFileDownload(<WebSocket>socket, path, is_dir);
+      }
+    );
 
     mittBus.on(
       'file-manage',
-      ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+      ({
+        path,
+        type,
+        new_name
+      }: {
+        path: string;
+        type: ManageTypes;
+        new_name?: string;
+      }) => {
         switch (type) {
           case ManageTypes.CREATE: {
             handleFileCreate(<WebSocket>socket, path);

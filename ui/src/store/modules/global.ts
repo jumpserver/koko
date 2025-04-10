@@ -8,9 +8,6 @@ export const useGlobalStore = defineStore('global', {
   }),
   getters: {},
   actions: {
-    init() {
-      this.initialized = true;
-    },
     setI18nLoaded(payload: boolean) {
       this.i18nLoaded = payload;
     }

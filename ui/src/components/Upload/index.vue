@@ -1,5 +1,11 @@
 <template>
-  <n-upload directory-dnd action="#" :default-upload="false" @change="handleFileChange" :max="1">
+  <n-upload
+    directory-dnd
+    action="#"
+    :default-upload="false"
+    @change="handleFileChange"
+    :max="1"
+  >
     <n-upload-dragger>
       <div style="margin-bottom: 12px">
         <n-icon size="48" :depth="3">
