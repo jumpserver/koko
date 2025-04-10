@@ -1,142 +1,148 @@
 <template>
-  <n-flex align="center" justify="space-between" class="!flex-nowrap !gap-x-6 h-[45px]">
-    <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap flex-1" align="center">
-      <n-button text :disabled="disabledBack" @click="handlePathBack">
-        <n-icon size="16" class="icon-hover" :component="ArrowBackIosFilled" />
-      </n-button>
+  <n-flex align="center" justify="space-between" vertical class="!gap-x-6">
+    <n-flex align="center" class="w-full !flex-nowrap">
+      <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
+        <n-button text :disabled="disabledBack" @click="handlePathBack">
+          <n-icon size="16" class="icon-hover" :component="ArrowBackIosFilled" />
+        </n-button>
 
-      <n-button text :disabled="disabledForward" @click="handlePathForward">
-        <n-icon :component="ArrowForwardIosFilled" size="16" class="icon-hover" />
-      </n-button>
+        <n-button text :disabled="disabledForward" @click="handlePathForward">
+          <n-icon :component="ArrowForwardIosFilled" size="16" class="icon-hover" />
+        </n-button>
+      </n-flex>
+
+      <n-scrollbar x-scrollable ref="scrollRef" :content-style="{ height: '100%' }">
+        <n-flex class="file-part w-full h-full !flex-nowrap">
+          <n-flex
+            v-for="item of filePathList"
+            :key="item.id"
+            align="center"
+            justify="flex-start"
+            class="file-node !flex-nowrap"
+          >
+            <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
+            <n-text
+              depth="1"
+              class="text-[16px] cursor-pointer whitespace-nowrap"
+              :strong="item.active"
+              @click="handlePathClick(item)"
+            >
+              {{ item.path }}
+            </n-text>
+            <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
+          </n-flex>
+        </n-flex>
+      </n-scrollbar>
     </n-flex>
 
-    <n-scrollbar
-      x-scrollable
-      ref="scrollRef"
-      class="flex flex-2 items-center"
-      :content-style="{ height: '100%' }"
-    >
-      <n-flex class="file-part w-full h-full !flex-nowrap">
-        <n-flex
-          v-for="item of filePathList"
-          :key="item.id"
-          align="center"
-          justify="flex-start"
-          class="file-node !flex-nowrap"
+    <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
+      <n-input clearable size="small" v-model:value="searchValue">
+        <template #prefix>
+          <Search :size="16" class="focus:outline-none" />
+        </template>
+      </n-input>
+
+      <n-flex align="center" class="!flex-nowrap">
+        <n-button secondary size="small" class="custom-button-text" @click="handleNewFolder">
+          <template #icon>
+            <n-icon :component="Plus" :size="12" />
+          </template>
+          {{ t('NewFolder') }}
+        </n-button>
+
+        <n-upload
+          abstract
+          :multiple="false"
+          :show-retry-button="false"
+          :custom-request="customRequest"
+          v-model:file-list="uploadFileList"
+          @change="handleUploadFileChange"
         >
-          <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
-          <n-text
-            depth="1"
-            class="text-[16px] cursor-pointer whitespace-nowrap"
-            :strong="item.active"
-            @click="handlePathClick(item)"
-          >
-            {{ item.path }}
-          </n-text>
-          <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
-        </n-flex>
-      </n-flex>
-    </n-scrollbar>
+          <n-button-group>
+            <n-upload-trigger #="{ handleClick }" abstract>
+              <n-button
+                secondary
+                size="small"
+                class="custom-button-text"
+                @click="
+                  () => {
+                    handleClick();
+                    isShowUploadList = !isShowUploadList;
+                  }
+                "
+              >
+                {{ t('UploadTitle') }}
+              </n-button>
+            </n-upload-trigger>
+          </n-button-group>
 
-    <n-flex class="action-part !flex-nowrap flex-2" align="center" justify="flex-end">
-      <n-button secondary size="small" class="custom-button-text" @click="handleNewFolder">
-        <template #icon>
-          <n-icon :component="Plus" :size="12" />
-        </template>
-        {{ t('NewFolder') }}
-      </n-button>
-
-      <n-upload
-        abstract
-        :multiple="false"
-        :show-retry-button="false"
-        :custom-request="customRequest"
-        v-model:file-list="uploadFileList"
-        @change="handleUploadFileChange"
-      >
-        <n-button-group>
-          <n-upload-trigger #="{ handleClick }" abstract>
-            <n-button
-              secondary
-              size="small"
-              class="custom-button-text"
-              @click="
-                () => {
-                  handleClick();
-                  isShowUploadList = !isShowUploadList;
-                }
-              "
+          <keep-alive>
+            <n-drawer
+              resizable
+              placement="bottom"
+              to="#drawer-inner-target"
+              :default-height="500"
+              :trap-focus="false"
+              :block-scroll="false"
+              :native-scrollbar="false"
+              v-model:show="showInner"
             >
-              {{ t('UploadTitle') }}
-            </n-button>
-          </n-upload-trigger>
-        </n-button-group>
+              <n-drawer-content :title="t('TransferHistory')">
+                <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
+                  <n-upload-file-list />
+                </n-scrollbar>
 
-        <keep-alive>
-          <n-drawer
-            resizable
-            placement="bottom"
-            to="#drawer-inner-target"
-            :default-height="500"
-            :trap-focus="false"
-            :block-scroll="false"
-            :native-scrollbar="false"
-            v-model:show="showInner"
-          >
-            <n-drawer-content :title="t('TransferHistory')">
-              <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
-                <n-upload-file-list />
-              </n-scrollbar>
+                <n-empty v-else class="w-full h-full justify-center" />
+              </n-drawer-content>
+            </n-drawer>
+          </keep-alive>
+        </n-upload>
 
-              <n-empty v-else class="w-full h-full justify-center" />
-            </n-drawer-content>
-          </n-drawer>
-        </keep-alive>
-      </n-upload>
+        <n-popover>
+          <template #trigger>
+            <n-icon size="16" :component="Refresh" class="icon-hover" @click="handleRefresh" />
+          </template>
+          {{ t('Refresh') }}
+        </n-popover>
 
-      <n-popover>
-        <template #trigger>
-          <n-icon size="16" :component="Refresh" class="icon-hover" @click="handleRefresh" />
-        </template>
-        {{ t('Refresh') }}
-      </n-popover>
-
-      <n-popover>
-        <template #trigger>
-          <n-icon size="16" :component="List" class="icon-hover" @click="handleOpenTransferList" />
-        </template>
-        {{ t('TransferHistory') }}
-      </n-popover>
+        <n-popover>
+          <template #trigger>
+            <n-icon size="16" :component="List" class="icon-hover" @click="handleOpenTransferList" />
+          </template>
+          {{ t('TransferHistory') }}
+        </n-popover>
+      </n-flex>
     </n-flex>
   </n-flex>
 
-  <n-divider class="!my-[12px]" />
-
-  <n-flex class="table-part">
-    <n-data-table
-      remote
-      virtual-scroll
-      size="small"
-      :bordered="false"
-      :loading="loading"
-      :max-height="1000"
-      :columns="columns"
-      :row-props="rowProps"
-      :data="fileManageStore.fileList"
-    />
-    <n-dropdown
-      size="small"
-      trigger="manual"
-      placement="bottom-start"
-      class="w-[8rem]"
-      :x="x"
-      :y="y"
-      :show-arrow="true"
-      :options="options"
-      :show="showDropdown"
-      :on-clickoutside="onClickOutside"
-      @select="handleSelect"
-    />
+  <n-flex class="mt-4">
+    <n-card size="small">
+      <n-data-table
+        remote
+        single-line
+        virtual-scroll
+        size="small"
+        :bordered="false"
+        :loading="loading"
+        :max-height="1000"
+        :columns="columns"
+        :row-props="rowProps"
+        :data="dataList"
+      />
+      <n-dropdown
+        size="small"
+        trigger="manual"
+        placement="bottom-start"
+        class="w-[8rem]"
+        :x="x"
+        :y="y"
+        :show-arrow="true"
+        :options="options"
+        :show="showDropdown"
+        :on-clickoutside="onClickOutside"
+        @select="handleSelect"
+      />
+    </n-card>
   </n-flex>
 
   <n-modal
@@ -164,6 +170,7 @@
 import mittBus from '@/utils/mittBus.ts';
 
 import { List } from '@vicons/ionicons5';
+import { Search } from 'lucide-vue-next';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
 import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
@@ -209,6 +216,7 @@ const modalType = ref('');
 const modalTitle = ref('');
 const forwardPath = ref('');
 const newFileName = ref('');
+const searchValue = ref('');
 const modalContent = ref('');
 const loading = ref(false);
 const showInner = ref(false);
@@ -219,6 +227,7 @@ const disabledBack = ref(true);
 const disabledForward = ref(true);
 
 const scrollRef = ref(null);
+const dataList = ref<any[]>([]);
 
 const currentRowData = ref<RowData>();
 const filePathList = ref<IFilePath[]>([]);
@@ -322,6 +331,22 @@ watch(
     }
   },
   { deep: true }
+);
+
+watch(
+  () => searchValue.value,
+  (newVal: string) => {
+    console.log(newVal);
+    if (newVal) {
+      // 模糊搜索
+      dataList.value = fileManageStore.fileList!.filter(item =>
+        item.name.toLowerCase().includes(newVal.toLowerCase())
+      );
+    } else {
+      dataList.value = fileManageStore.fileList!;
+    }
+  },
+  { immediate: true }
 );
 
 const onClickOutside = () => {
