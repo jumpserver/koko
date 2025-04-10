@@ -41,6 +41,6 @@ export const themeOverrides: GlobalThemeOverrides = {
   },
   Tag: {
     borderPrimary: '1px solid #16987D',
-    textColorPrimary: '#16987D',
+    textColorPrimary: '#16987D'
   }
 };

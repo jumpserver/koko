@@ -41,7 +41,7 @@
                 <n-collapse @item-header-click="handleItemHeaderClick" :default-expanded-names="'online-user'">
                   <template #header-extra>
                     <ChevronLeft v-if="showLeftArrow" :size="18" class="focus:outline-none" />
-                    <ChevronDown v-else="showLeftArrow" :size="18" class="focus:outline-none" />
+                    <ChevronDown v-else :size="18" class="focus:outline-none" />
                   </template>
                   <n-collapse-item title="在线用户:" name="online-user">
                     <n-flex
@@ -156,8 +156,8 @@ const onlineUsers = computed(() => {
 watch(
   () => props.currentOnlineUsers,
   value => {
-    if (value.length > 0) {
-      showLeftArrow.value = false;
+    if (value.length === 1) {
+      return (showLeftArrow.value = false);
     }
 
     showLeftArrow.value = true;

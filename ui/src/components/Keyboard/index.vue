@@ -37,7 +37,7 @@
 import mittBus from '@/utils/mittBus.ts';
 import { reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Ban, ClipboardPaste, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-vue-next';
+import { Ban, Save, Undo2, ClipboardPaste, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-vue-next';
 
 import type { FunctionalComponent } from 'vue';
 
@@ -60,11 +60,27 @@ const keyboardList = reactive<KeyboardItem[]>([
     }
   },
   {
+    icon: Save,
+    label: t('Save'),
+    keywords: ['Command/Ctrl', 'S'],
+    click: () => {
+      writeDataToTerminal('Save');
+    }
+  },
+  {
     icon: ClipboardPaste,
     label: t('Paste'),
     keywords: ['Command/Ctrl', 'V'],
     click: () => {
       writeDataToTerminal('Paste');
+    }
+  },
+  {
+    icon: Undo2,
+    label: t('Undo'),
+    keywords: ['Command/Ctrl', 'Z'],
+    click: () => {
+      writeDataToTerminal('Undo');
     }
   },
   {

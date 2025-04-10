@@ -103,6 +103,12 @@ onMounted(() => {
       case 'Stop':
         terminalInstance.paste('\x03');
         break;
+      case 'Save':
+        terminalInstance.paste('\x13');
+        break;
+      case 'Undo':
+        terminalInstance.paste('\x1A');
+        break;
       case 'Paste':
         terminalInstance.paste(await readText());
         break;
