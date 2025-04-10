@@ -9,8 +9,23 @@
     @socket-data="onSocketData"
   />
 
-  <settings :settings="settings" />
-  <file-management :sftp-token="sftpToken" @create-file-connect-token="createFileConnectToken" />
+  <!-- TODO 暂时这么实现，后续将 setting 与 file-management 进行整合 -->
+  <template v-if="!showTab">
+    <settings :settings="settings" />
+    <file-management
+      :show-tab="false"
+      :sftp-token="sftpToken"
+      @create-file-connect-token="createFileConnectToken"
+    />
+  </template>
+  <template v-else>
+    <file-management
+      :show-tab="true"
+      :settings="settings"
+      :sftp-token="sftpToken"
+      @create-file-connect-token="createFileConnectToken"
+    />
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -32,7 +47,7 @@ import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import FileManagement from '@/components/FileManagement/index.vue';
-import TerminalComponent from '@/components/TerminalComponent/index.vue'
+import TerminalComponent from '@/components/TerminalComponent/index.vue';
 
 import {
   PersonAdd,
@@ -67,6 +82,7 @@ const sftpToken = ref('');
 const sessionId = ref('');
 const themeName = ref('Default');
 const terminalType = ref('common');
+const showTab = ref(false);
 const enableShare = ref(false);
 const warningIntervalId = ref(0);
 const userOptions = ref<shareUser[]>([]);
@@ -273,7 +289,7 @@ const handleWriteData = async (type: string) => {
 
 const createFileConnectToken = () => {
   sendEventToLuna('CREATE_FILE_CONNECT_TOKEN', '', lunaId.value, origin.value);
-}
+};
 
 /**
  * 重置分享连接表单
@@ -414,6 +430,13 @@ const onEvent = (event: string, _data: any) => {
       mittBus.emit('open-setting');
       lunaId.value = _data.lunaId;
       origin.value = _data.origin;
+
+      if (_data.noFileTab) {
+        showTab.value = false;
+      } else {
+        showTab.value = true;
+      }
+
       break;
     case 'file':
       mittBus.emit('open-fileList');

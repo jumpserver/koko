@@ -49,7 +49,7 @@ enum MessageType {
   TERMINAL_ERROR = 'TERMINAL_ERROR',
   MESSAGE_NOTIFY = 'MESSAGE_NOTIFY',
   TERMINAL_ACTION = 'TERMINAL_ACTION',
-  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE',
+  TERMINAL_SHARE_USER_REMOVE = 'TERMINAL_SHARE_USER_REMOVE'
 }
 
 interface ITerminalInstance {
@@ -85,9 +85,9 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
   let type: string = option.type;
 
   let counter = ref(0);
-  let origin= ref('');
+  let origin = ref('');
   let lunaId = ref('');
-  let terminalId= ref('');
+  let terminalId = ref('');
   let termSelectionText = ref('');
   let pingInterval = ref<number | null>(null);
   let guaranteeInterval = ref<number | null>(null);
@@ -109,7 +109,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         alert('Failed to connect to Luna');
       }
     }
-  )
+  );
 
   const dispatch = (data: string) => {
     if (!data) return;
@@ -174,6 +174,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       case MessageType.ERROR: {
         terminal?.write(msg.err);
         sendEventToLuna('TERMINAL_ERROR', '', lunaId.value, origin.value);
+        clearInterval(guaranteeInterval.value!);
         break;
       }
       case MessageType.MESSAGE_NOTIFY: {
@@ -277,7 +278,6 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     }
   };
 
-  
   /**
    *  @description 保证连接是通过 Luna 发起的, 如果 ping 次数大于 5 次，则直接关闭连接
    */
@@ -286,7 +286,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       if (!lunaId.value) {
         guaranteeInterval.value = setInterval(() => {
           counter.value++;
-          
+
           console.log(
             '%c DEBUG [ Send Luna PING ]:',
             'font-size:13px; background: #1ab394; color:#fff;',
@@ -297,8 +297,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         clearInterval(guaranteeInterval.value!);
         sendEventToLuna('PING', '', lunaId.value, origin.value);
       }
-    })
-  }
+    });
+  };
 
   /**
    * 初始非 k8s 的 socket 事件
@@ -360,7 +360,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         case 'PONG': {
           lunaId.value = message.id;
           origin.value = e.origin;
-          
+
           clearInterval(guaranteeInterval.value!);
           break;
         }
@@ -373,22 +373,26 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           break;
         }
         case 'OPEN': {
-          option.emitCallback && option.emitCallback('event', 'open', {
-            lunaId: lunaId.value,
-            origin: origin.value
-          });
+          option.emitCallback &&
+            option.emitCallback('event', 'open', {
+              lunaId: lunaId.value,
+              origin: origin.value,
+              noFileTab: message?.noFileTab
+            });
           break;
         }
         case 'FILE': {
-          option.emitCallback && option.emitCallback('event', 'file', {
-            token: message?.SFTP_Token,
-          });
+          option.emitCallback &&
+            option.emitCallback('event', 'file', {
+              token: message?.SFTP_Token
+            });
           break;
         }
         case 'CREATE_FILE_CONNECT_TOKEN': {
-          option.emitCallback && option.emitCallback('event', 'create-file-connect-token', {
-            token: message?.SFTP_Token,
-          });
+          option.emitCallback &&
+            option.emitCallback('event', 'create-file-connect-token', {
+              token: message?.SFTP_Token
+            });
           break;
         }
       }
