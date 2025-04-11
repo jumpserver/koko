@@ -306,8 +306,16 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
   const initSocketEvent = () => {
     if (socket) {
       socket.onopen = () => {
-        guaranteeLunaConnection();
+        const excludePath = ['/koko/monitor/'];
+        const currentPath = window.location.pathname;
         onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
+
+        // 如果当前路径包含了 excludePath 中的任意一个，则不进行保证连接
+        if (excludePath.some(path => currentPath.includes(path))) {
+          return;
+        }
+
+        guaranteeLunaConnection();
       };
       socket.onmessage = (event: MessageEvent) => {
         handleMessage(event);
