@@ -234,7 +234,7 @@ const fileManageSocket = ref<WebSocket | undefined>(undefined);
 watch(
   () => fileManageStore.fileList,
   fileList => {
-    if (fileList && fileList.length > 0) {
+    if (fileList) {
       tableData.value = fileList;
       isLoaded.value = true;
     }
