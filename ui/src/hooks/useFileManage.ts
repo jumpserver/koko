@@ -10,7 +10,6 @@ import { BASE_WS_URL } from '@/config';
 import mittBus from '@/utils/mittBus.ts';
 
 import type { Ref } from 'vue';
-import type { RouteRecordNameGeneric } from 'vue-router';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
 import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
@@ -21,6 +20,7 @@ export enum MessageType {
   ERROR = 'ERROR',
   PING = 'PING',
   PONG = 'PONG',
+  CLOSED = 'closed',
   SFTP_DATA = 'SFTP_DATA',
   SFTP_BINARY = 'SFTP_BINARY'
 }
@@ -39,7 +39,11 @@ const { message: globalTipsMessage }: { message: MessageApiInjection } = createD
   configProviderProps: configProviderPropsRef
 });
 
+// TODO 都是 hook 内部状态
 let initialPath = '';
+let fileSize = '';
+let interrupt = ref(false);
+let isStop = ref(false);
 
 /**
  * @description 将 buffer 转为 base64
@@ -172,6 +176,7 @@ const heartBeat = (socket: WebSocket) => {
  * @param socket
  */
 const initSocketEvent = (socket: WebSocket, t: any) => {
+  // const loadingMessage = globalTipsMessage.loading('下载进度: 0%', { duration: 1000000000 });
   const fileManageStore = useFileManageStore();
 
   let receivedBuffers: any = [];
@@ -214,6 +219,10 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
           mittBus.emit('reload-table');
         }
 
+        if (message.cmd === 'rm' && message.err === 'permission denied') {
+          globalTipsMessage.error(t('PermissionDenied'));
+        }
+
         if (message.cmd === 'rename' && message.data === 'ok') {
           globalTipsMessage.success(t('OperationSuccessful'));
 
@@ -221,9 +230,19 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         if (message.cmd === 'upload' && message.data === 'ok') {
-          fileManageStore.setReceived(true);
-
-          globalTipsMessage.success(t('UploadSuccess'));
+          const stopUploadWatch = watch(
+            () => isStop.value,
+            newVal => {
+              if (newVal) {
+                globalTipsMessage.error(t('CancelFileUpload'));
+                isStop.value = false;
+                stopUploadWatch();
+              } else {
+                fileManageStore.setReceived(true);
+                globalTipsMessage.success(t('UploadSuccess'));
+              }
+            }
+          );
         }
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
@@ -246,12 +265,12 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
           window.URL.revokeObjectURL(url);
           document.body.removeChild(a);
           receivedBuffers = [];
+          // loadingMessage.destroy();
         }
 
         if (message.cmd === 'list') {
           handleSocketSftpData(JSON.parse(message.data));
         }
-
         break;
       }
 
@@ -265,6 +284,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         receivedBuffers.push(bytes);
+        // loadingMessage.content = `下载进度: ${Math.floor(receivedBuffers.length / Number(fileSize))}%`;
 
         break;
       }
@@ -287,6 +307,11 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
       }
 
       case MessageType.PONG: {
+        break;
+      }
+
+      case MessageType.CLOSED: {
+        interrupt.value = true;
         break;
       }
 
@@ -461,6 +486,18 @@ const generateUploadChunks = async (
 };
 
 /**
+ * @description 中断上传,停止继续发送切片信息
+ * @param socket
+ * @param fileInfo
+ */
+const interraptUpload = (socket: WebSocket, fileInfo: UploadFileInfo) => {
+  isStop.value = true;
+
+  console.log('fileInfo', fileInfo);
+  // TODO 增加后端标识
+};
+
+/**
  * @description 上传文件
  */
 const handleFileUpload = async (
@@ -474,7 +511,7 @@ const handleFileUpload = async (
   const maxSliceCount = 100;
   const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
-  const loadingMessage = globalTipsMessage.loading('上传进度: 0%', { duration: 1000000000 });
+  const loadingMessage = globalTipsMessage.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
 
   let fileInfo = uploadFileList.value[uploadFileList.value.length - 1];
 
@@ -493,14 +530,25 @@ const handleFileUpload = async (
   let CHUNK_SIZE = 1024 * 1024 * 5;
   let sentChunks = ref(0);
 
+  watch(
+    () => interrupt.value,
+    newVal => {
+      if (newVal) {
+        onError();
+        globalTipsMessage.error(t('CancelFileUpload'));
+        loadingMessage.destroy();
+      }
+    }
+  );
+
   const unwatch = watch(
     () => sentChunks.value,
     newValue => {
       const percent = (newValue / sliceChunks.length) * 100;
 
-      console.log('%c DEBUG[ percent ]:', 'font-size:13px; background: #1ab394; color:#fff;', percent);
+      _onProgress({ percent });
 
-      loadingMessage.content = `上传进度: ${Math.floor(percent)}%`;
+      loadingMessage.content = `${t('UploadProgress')}: ${Math.floor(percent)}%`;
 
       if (percent >= 100) {
         onFinish();
@@ -533,6 +581,13 @@ const handleFileUpload = async (
     try {
       for (const sliceChunk of sliceChunks) {
         fileManageStore.setReceived(false);
+
+        if (isStop.value) {
+          globalTipsMessage.error(t('CancelFileUpload'));
+          onError();
+          loadingMessage.destroy();
+          break;
+        }
 
         await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
       }
@@ -585,7 +640,8 @@ export const useFileManage = (token: string, t: any) => {
       }
     );
 
-    mittBus.on('download-file', ({ path, is_dir }: { path: string; is_dir: boolean }) => {
+    mittBus.on('download-file', ({ path, is_dir, size }: { path: string; is_dir: boolean; size: string }) => {
+      fileSize = size;
       handleFileDownload(<WebSocket>socket, path, is_dir);
     });
 
@@ -617,6 +673,10 @@ export const useFileManage = (token: string, t: any) => {
       }
     );
 
+    mittBus.on('stop-upload', ({ fileInfo }: { fileInfo: UploadFileInfo }) => {
+      interraptUpload(<WebSocket>socket, fileInfo);
+    });
+
     return socket;
   }
 
@@ -627,4 +687,5 @@ export const unloadListeners = () => {
   mittBus.off('download-file');
   mittBus.off('file-upload');
   mittBus.off('file-manage');
+  mittBus.off('stop-upload');
 };
