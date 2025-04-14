@@ -107,6 +107,7 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         terminal?.write('\r\n\r\n\r\n\x1b[31mFailed to connect to Luna\x1b[0m');
 
         alert('Failed to connect to Luna');
+        window.close();
       }
     }
   );

@@ -5,11 +5,11 @@ import { base64ToUint8Array, generateWsURL } from './helper';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useSentry } from '@/hooks/useZsentry.ts';
+import { h, ref, watch, watchEffect } from 'vue';
 import { readText } from 'clipboard-polyfill';
 import { useWebSocket } from '@vueuse/core';
 import { preprocessInput } from '@/utils';
 import { storeToRefs } from 'pinia';
-import { h, ref, watch } from 'vue';
 
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 import { Cube24Regular } from '@vicons/fluent';
@@ -34,8 +34,8 @@ const { message, notification } = createDiscreteApi(['message', 'notification'],
   }
 });
 
-const origin = ref('')
-const lunaId = ref('')
+const origin = ref('');
+const lunaId = ref('');
 const counter = ref(0);
 const guaranteeInterval = ref<number | null>(null);
 
@@ -64,19 +64,22 @@ const handleConnected = (socket: WebSocket, pingInterval: Ref<number | null>) =>
 };
 
 const guaranteeLunaConnection = () => {
-  if (!lunaId.value) {
-    guaranteeInterval.value = setInterval(() => {
-      counter.value++;
+  watchEffect(() => {
+    if (!lunaId.value) {
+      guaranteeInterval.value = setInterval(() => {
+        counter.value++;
 
-      console.log(
-        '%c DEBUG[ Send Luna PING ]:',
-        'font-size:13px; background: #1ab394; color:#fff;',
-        counter.value
-      );
-
+        console.log(
+          '%c DEBUG [ Send Luna PING ]:',
+          'font-size:13px; background: #1ab394; color:#fff;',
+          counter.value
+        );
+      }, 1000);
+    } else {
+      clearInterval(guaranteeInterval.value!);
       sendEventToLuna('PING', '', lunaId.value, origin.value);
-    }, 500);
-  }
+    }
+  });
 };
 
 /**
@@ -476,23 +479,20 @@ export const createConnect = (t: any) => {
     const { ws } = useWebSocket(connectURL, {
       protocols: ['JMS-KOKO'],
       onConnected: (ws: WebSocket) => {
-        guaranteeLunaConnection();
-        handleConnected(ws, pingInterval)
-
         watch(
           () => counter.value,
           counter => {
             if (counter >= 5) {
               clearInterval(guaranteeInterval.value!);
-        
-              ws.close();
-        
-              alert('Failed to connect to Luna');
 
+              alert('Failed to connect to Luna');
+              ws.close();
               window.close();
             }
           }
-        )
+        );
+        guaranteeLunaConnection();
+        handleConnected(ws, pingInterval);
       },
       onMessage: (ws: WebSocket, event: MessageEvent) => {
         handleTreeMessage(ws, event);
@@ -800,7 +800,7 @@ export const useKubernetes = (t: any) => {
         break;
       }
     }
-  })
+  });
 
   if (ws) {
     socket = ws;
