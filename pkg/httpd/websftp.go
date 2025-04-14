@@ -179,7 +179,7 @@ func (h *webSftp) handleDownload(request *webSftpRequest, response *Message) {
 
 func (h *webSftp) streamFileContent(file FileData, response *Message) {
 	response.Type = SFTPBinary
-	buf := make([]byte, 1024*64)
+	buf := make([]byte, 1024*1024*2)
 	for {
 		responseCopy := *response
 		n, err := file.Reader.Read(buf)
