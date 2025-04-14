@@ -44,7 +44,7 @@ let initialPath = '';
 let fileSize = '';
 let interrupt = ref(false);
 let isStop = ref(false);
-
+let downLoadMessage = null;
 /**
  * @description 将 buffer 转为 base64
  * @param buffer
@@ -176,7 +176,6 @@ const heartBeat = (socket: WebSocket) => {
  * @param socket
  */
 const initSocketEvent = (socket: WebSocket, t: any) => {
-  // const loadingMessage = globalTipsMessage.loading('下载进度: 0%', { duration: 1000000000 });
   const fileManageStore = useFileManageStore();
 
   let receivedBuffers: any = [];
@@ -265,7 +264,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
           window.URL.revokeObjectURL(url);
           document.body.removeChild(a);
           receivedBuffers = [];
-          // loadingMessage.destroy();
+          downLoadMessage!.destroy();
         }
 
         if (message.cmd === 'list') {
@@ -284,7 +283,16 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         receivedBuffers.push(bytes);
-        // loadingMessage.content = `下载进度: ${Math.floor(receivedBuffers.length / Number(fileSize))}%`;
+
+        let receivedBytes = 0;
+        
+        for (const buffer of receivedBuffers) {
+          receivedBytes += buffer.length;
+        }
+
+        const percent = (receivedBytes / Number(fileSize)) * 100;
+
+        downLoadMessage!.content = `Downloading: ${Math.floor(percent)}%`;
 
         break;
       }
@@ -416,6 +424,8 @@ const handleFileRemove = (socket: WebSocket, path: string) => {
  * @param is_dir
  */
 const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
+  downLoadMessage = globalTipsMessage.loading(`Downloading: 0%`, { duration: 1000000000 });
+
   const sendData = {
     path,
     is_dir
@@ -492,9 +502,6 @@ const generateUploadChunks = async (
  */
 const interraptUpload = (socket: WebSocket, fileInfo: UploadFileInfo) => {
   isStop.value = true;
-
-  console.log('fileInfo', fileInfo);
-  // TODO 增加后端标识
 };
 
 /**
