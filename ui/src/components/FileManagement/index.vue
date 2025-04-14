@@ -164,9 +164,7 @@
 
     <n-drawer-content v-else closable :title="t('FileManagement')">
       <template v-if="isLoaded">
-        <keep-alive>
-          <FileManage :columns="columns" />
-        </keep-alive>
+        <FileManage :columns="columns" />
       </template>
 
       <template v-else>

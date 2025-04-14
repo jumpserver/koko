@@ -56,6 +56,7 @@
           :show-retry-button="false"
           :custom-request="customRequest"
           v-model:file-list="uploadFileList"
+          @remove="handleRemoveItem"
           @change="handleUploadFileChange"
         >
           <n-button-group>
@@ -76,26 +77,24 @@
             </n-upload-trigger>
           </n-button-group>
 
-          <keep-alive>
-            <n-drawer
-              resizable
-              placement="bottom"
-              to="#drawer-inner-target"
-              :default-height="500"
-              :trap-focus="false"
-              :block-scroll="false"
-              :native-scrollbar="false"
-              v-model:show="showInner"
-            >
-              <n-drawer-content :title="t('TransferHistory')">
-                <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
-                  <n-upload-file-list />
-                </n-scrollbar>
+          <n-drawer
+            resizable
+            placement="bottom"
+            to="#drawer-inner-target"
+            :default-height="500"
+            :trap-focus="false"
+            :block-scroll="false"
+            :native-scrollbar="false"
+            v-model:show="showInner"
+          >
+            <n-drawer-content :title="t('TransferHistory')">
+              <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
+                <n-upload-file-list />
+              </n-scrollbar>
 
-                <n-empty v-else class="w-full h-full justify-center" />
-              </n-drawer-content>
-            </n-drawer>
-          </keep-alive>
+              <n-empty v-else class="w-full h-full justify-center" />
+            </n-drawer-content>
+          </n-drawer>
         </n-upload>
 
         <n-popover>
@@ -229,10 +228,11 @@ const disabledForward = ref(true);
 const scrollRef = ref(null);
 const dataList = ref<any[]>([]);
 
-const currentRowData = ref<RowData>();
 const filePathList = ref<IFilePath[]>([]);
+const currentRowData = ref<Partial<RowData>>({});
 const persistedUploadFiles = ref<UploadFileInfo[]>([]);
 const uploadFileList = ref<UploadFileInfo[]>([]);
+const stopUploadFile = ref<UploadFileInfo>();
 
 watch(
   () => fileManageStore.currentPath,
@@ -351,6 +351,12 @@ const onClickOutside = () => {
   showDropdown.value = false;
 };
 
+const handleRemoveItem = (data: { file: UploadFileInfo; fileList: UploadFileInfo[] }) => {
+  mittBus.emit('stop-upload', { fileInfo: data.file });
+
+  return false;
+};
+
 /**
  * @description dropdown 的 select 回调
  * @param key
@@ -376,7 +382,8 @@ const handleSelect = (key: string) => {
     case 'download': {
       mittBus.emit('download-file', {
         path: `${fileManageStore.currentPath}/${currentRowData?.value?.name as string}`,
-        is_dir: currentRowData.value?.is_dir as boolean
+        is_dir: currentRowData.value.is_dir!,
+        size: currentRowData.value.size!
       });
 
       break;
@@ -522,6 +529,13 @@ const modalPositiveClick = () => {
 
       newFileName.value = '';
     }
+  }
+
+  // TODO 提示
+  if (modalType.value === 'stop') {
+    loading.value = true;
+
+    mittBus.emit('stop-upload', { fileInfo: stopUploadFile.value! });
   }
 };
 
