@@ -48,7 +48,7 @@ func (h *webSftp) HandleMessage(msg *Message) {
 	case "cancel":
 		// TODO Interrupt download
 	default:
-		go h.dispatch(msg)
+		go h.dispatch(*msg)
 	}
 }
 
@@ -101,7 +101,7 @@ type webSftpRequest struct {
 	IsDir   bool   `json:"is_dir"`
 }
 
-func (h *webSftp) dispatch(msg *Message) {
+func (h *webSftp) dispatch(msg Message) {
 	message := Message{
 		Id:          msg.Id,
 		Cmd:         msg.Cmd,
