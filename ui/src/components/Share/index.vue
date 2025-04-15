@@ -125,7 +125,7 @@ const shareLinkRequest = reactive({
 });
 
 const shareURL = computed(() => {
-  return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
+  return shareId.value ? `${BASE_URL}/luna/share/${shareId.value}/` : t('NoLink');
 });
 
 const mappedUserOptions = computed(() => {
