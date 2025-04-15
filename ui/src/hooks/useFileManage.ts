@@ -47,8 +47,6 @@ let interrupt = ref(false);
 let isStop = ref(false);
 let downLoadMessage = null;
 
-
-
 /**
  * @description 将 buffer 转为 base64
  * @param buffer
@@ -233,19 +231,8 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         if (message.cmd === 'upload' && message.data === 'ok') {
-          const stopUploadWatch = watch(
-            () => isStop.value,
-            newVal => {
-              if (newVal) {
-                globalTipsMessage.error(t('CancelFileUpload'));
-                isStop.value = false;
-                stopUploadWatch();
-              } else {
-                fileManageStore.setReceived(true);
-                globalTipsMessage.success(t('UploadSuccess'));
-              }
-            }
-          );
+          fileManageStore.setReceived(true);
+          globalTipsMessage.success(t('UploadSuccess'));
         }
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
@@ -289,7 +276,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         receivedBuffers.push(bytes);
 
         let receivedBytes = 0;
-        
+
         for (const buffer of receivedBuffers) {
           receivedBytes += buffer.length;
         }
@@ -589,17 +576,20 @@ const handleFileUpload = async (
     }
 
     try {
+      uploadFileId.value = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString();
+
       for (const sliceChunk of sliceChunks) {
         fileManageStore.setReceived(false);
 
         if (isStop.value) {
+          console.log('exec');
           globalTipsMessage.error(t('CancelFileUpload'));
           onError();
           loadingMessage.destroy();
-          break;
+          isStop.value = false;
+          return;
         }
 
-        uploadFileId.value = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString();
         await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
       }
 
