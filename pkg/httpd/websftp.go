@@ -48,7 +48,7 @@ func (h *webSftp) HandleMessage(msg *Message) {
 	case "cancel":
 		// TODO Interrupt download
 	default:
-		go h.dispatch()
+		go h.dispatch(msg)
 	}
 }
 
@@ -101,10 +101,10 @@ type webSftpRequest struct {
 	IsDir   bool   `json:"is_dir"`
 }
 
-func (h *webSftp) dispatch() {
+func (h *webSftp) dispatch(msg *Message) {
 	message := Message{
-		Id:          h.msg.Id,
-		Cmd:         h.msg.Cmd,
+		Id:          msg.Id,
+		Cmd:         msg.Cmd,
 		Type:        SFTPData,
 		CurrentPath: h.currentPath,
 	}
@@ -128,9 +128,23 @@ func (h *webSftp) dispatch() {
 	case "list":
 		h.handleList(request, &message)
 	case "download":
-		h.handleDownload(request, &message)
+		if h.ws.ConnectToken.Actions.EnableDownload() {
+			h.handleDownload(request, &message)
+		} else {
+			message.Err = "Permission denied"
+			h.ws.SendMessage(&message)
+			return
+		}
+
 	case "upload":
-		h.handleUpload(request, h.msg, &message)
+		if h.ws.ConnectToken.Actions.EnableUpload() {
+			h.handleUpload(request, h.msg, &message)
+		} else {
+			message.Err = "Permission denied"
+			h.ws.SendMessage(&message)
+			return
+		}
+
 	case "rm":
 		h.handleAction(h.rm, request, &message)
 	case "rename":
