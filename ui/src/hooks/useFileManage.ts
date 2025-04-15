@@ -222,6 +222,8 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
         if (message.cmd === 'rm' && message.err === 'permission denied') {
           globalTipsMessage.error(t('PermissionDenied'));
+
+          mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'rename' && message.data === 'ok') {
@@ -233,6 +235,13 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         if (message.cmd === 'upload' && message.data === 'ok') {
           fileManageStore.setReceived(true);
           globalTipsMessage.success(t('UploadSuccess'));
+
+          mittBus.emit('reload-table');
+        }
+
+        if (message.cmd === 'upload' && message.data === '' && message.err === 'Permission denied') {
+          globalTipsMessage.error(t('PermissionDenied'));
+          isStop.value = true;
         }
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
@@ -550,7 +559,6 @@ const handleFileUpload = async (
       if (percent >= 100) {
         onFinish();
         loadingMessage.destroy();
-        mittBus.emit('reload-table');
         unwatch();
       }
     }
