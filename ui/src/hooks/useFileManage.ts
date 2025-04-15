@@ -42,9 +42,13 @@ const { message: globalTipsMessage }: { message: MessageApiInjection } = createD
 // TODO 都是 hook 内部状态
 let initialPath = '';
 let fileSize = '';
+let uploadFileId = ref('');
 let interrupt = ref(false);
 let isStop = ref(false);
 let downLoadMessage = null;
+
+
+
 /**
  * @description 将 buffer 转为 base64
  * @param buffer
@@ -291,8 +295,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         const percent = (receivedBytes / Number(fileSize)) * 100;
-
-        downLoadMessage!.content = `Downloading: ${Math.floor(percent)}%`;
+        downLoadMessage!.content = `Downloading: ${percent.toFixed(2)}%`;
 
         break;
       }
@@ -424,7 +427,7 @@ const handleFileRemove = (socket: WebSocket, path: string) => {
  * @param is_dir
  */
 const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
-  downLoadMessage = globalTipsMessage.loading(`Downloading: 0%`, { duration: 1000000000 });
+  downLoadMessage = globalTipsMessage.loading(`Downloading: 0.00%`, { duration: 1000000000 });
 
   const sendData = {
     path,
@@ -469,7 +472,7 @@ const generateUploadChunks = async (
   const sendBody = {
     cmd: 'upload',
     type: 'SFTP_DATA',
-    id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(),
+    id: uploadFileId.value,
     data: '',
     raw: ''
   };
@@ -596,6 +599,7 @@ const handleFileUpload = async (
           break;
         }
 
+        uploadFileId.value = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString();
         await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
       }
 
@@ -614,6 +618,7 @@ const handleFileUpload = async (
           })
         })
       );
+      uploadFileId.value = '';
     } catch (e) {
       loadingMessage.destroy();
       onError();
