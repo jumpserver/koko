@@ -43,8 +43,8 @@ const { message: globalTipsMessage }: { message: MessageApiInjection } = createD
 let initialPath = '';
 let fileSize = '';
 let uploadFileId = ref('');
-let interrupt = ref(false);
-let isStop = ref(false);
+let uploadInterrupt = ref(false);
+let uploadInterruptType = ref<'permission' | 'manual' | null>(null);
 let downLoadMessage = null;
 
 /**
@@ -241,7 +241,8 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
         if (message.cmd === 'upload' && message.data === '' && message.err === 'Permission denied') {
           globalTipsMessage.error(t('PermissionDenied'));
-          isStop.value = true;
+          uploadInterrupt.value = true;
+          uploadInterruptType.value = 'permission';
         }
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
@@ -265,6 +266,13 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
           document.body.removeChild(a);
           receivedBuffers = [];
           downLoadMessage!.destroy();
+        }
+
+        if (message.cmd === 'download' && message.err === 'Permission denied') {
+          downLoadMessage!.destroy();
+          globalTipsMessage.error(t('PermissionDenied'));
+
+          mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'list') {
@@ -291,7 +299,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         }
 
         const percent = (receivedBytes / Number(fileSize)) * 100;
-        downLoadMessage!.content = `Downloading: ${percent.toFixed(2)}%`;
+        downLoadMessage!.content = `${t('DownloadProgress')}: ${percent.toFixed(2)}%`;
 
         break;
       }
@@ -321,7 +329,8 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         globalTipsMessage.error(t('The current file management drawing has expired.'), { duration: 1500 });
 
         setTimeout(() => {
-          interrupt.value = true;
+          uploadInterrupt.value = true;
+          uploadInterruptType.value = null;
         }, 1500);
         break;
       }
@@ -426,8 +435,8 @@ const handleFileRemove = (socket: WebSocket, path: string) => {
  * @param path
  * @param is_dir
  */
-const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean) => {
-  downLoadMessage = globalTipsMessage.loading(`Downloading: 0.00%`, { duration: 1000000000 });
+const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean, t: any) => {
+  downLoadMessage = globalTipsMessage.loading(`${t('DownloadProgress')}: 0.00%`, { duration: 1000000000 });
 
   const sendData = {
     path,
@@ -457,14 +466,16 @@ const generateUploadChunks = async (
   socket: WebSocket,
   fileInfo: UploadFileInfo,
   CHUNK_SIZE: number,
-  sentChunks: Ref<number>
+  sentChunks: Ref<number>,
+  isSingleChunk: boolean = false,
+  onError: (() => void) | null = null
 ) => {
   const fileManageStore = useFileManageStore();
 
   const sendData = {
     offSet: 0,
-    merge: false,
-    chunk: true,
+    merge: isSingleChunk,
+    chunk: !isSingleChunk,
     size: fileInfo.file?.size,
     path: `${fileManageStore.currentPath}/${fileInfo.name}`
   };
@@ -477,25 +488,41 @@ const generateUploadChunks = async (
     raw: ''
   };
 
-  const arrayBuffer: ArrayBuffer = await sliceChunk.arrayBuffer();
-  const base64String: string = arrayBufferToBase64(arrayBuffer);
+  try {
+    const arrayBuffer: ArrayBuffer = await sliceChunk.arrayBuffer();
+    const base64String: string = arrayBufferToBase64(arrayBuffer);
 
-  sendData.offSet = sentChunks.value * CHUNK_SIZE;
-  sendBody.raw = base64String;
-  sendBody.data = JSON.stringify(sendData);
+    sendData.offSet = sentChunks.value * CHUNK_SIZE;
+    sendBody.raw = base64String;
+    sendBody.data = JSON.stringify(sendData);
 
-  socket.send(JSON.stringify(sendBody));
+    socket.send(JSON.stringify(sendBody));
 
-  sentChunks.value++;
+    sentChunks.value++;
 
-  return new Promise<boolean>(resolve => {
-    const interval = setInterval(() => {
-      if (fileManageStore.isReceived) {
-        clearInterval(interval);
-        resolve(true);
-      }
-    }, 100);
-  });
+    return new Promise<boolean>(resolve => {
+      const interval = setInterval(() => {
+        if (uploadInterrupt.value) {
+          clearInterval(interval);
+          if (onError) {
+            onError();
+          }
+          resolve(false);
+          return;
+        }
+
+        if (fileManageStore.isReceived) {
+          clearInterval(interval);
+          resolve(true);
+        }
+      }, 100);
+    });
+  } catch (error) {
+    if (onError) {
+      onError();
+    }
+    return false;
+  }
 };
 
 /**
@@ -504,7 +531,8 @@ const generateUploadChunks = async (
  * @param fileInfo
  */
 const interraptUpload = (socket: WebSocket, fileInfo: UploadFileInfo) => {
-  isStop.value = true;
+  uploadInterrupt.value = true;
+  uploadInterruptType.value = 'manual';
 };
 
 /**
@@ -523,6 +551,10 @@ const handleFileUpload = async (
   const fileManageStore = useFileManageStore();
   const loadingMessage = globalTipsMessage.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
 
+  // 确保开始新的上传任务时重置中断状态
+  uploadInterrupt.value = false;
+  uploadInterruptType.value = null;
+
   let fileInfo = uploadFileList.value[uploadFileList.value.length - 1];
 
   // 检查是否已存在同名文件
@@ -539,17 +571,6 @@ const handleFileUpload = async (
   let sliceChunks = [];
   let CHUNK_SIZE = 1024 * 1024 * 5;
   let sentChunks = ref(0);
-
-  watch(
-    () => interrupt.value,
-    newVal => {
-      if (newVal) {
-        onError();
-        globalTipsMessage.error(t('CancelFileUpload'));
-        loadingMessage.destroy();
-      }
-    }
-  );
 
   const unwatch = watch(
     () => sentChunks.value,
@@ -590,36 +611,58 @@ const handleFileUpload = async (
     try {
       uploadFileId.value = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString();
 
+      // 判断是否只有一个切片
+      const isSingleChunk = sliceChunks.length === 1;
+
       for (const sliceChunk of sliceChunks) {
         fileManageStore.setReceived(false);
 
-        if (isStop.value) {
-          console.log('exec');
-          globalTipsMessage.error(t('CancelFileUpload'));
+        if (uploadInterrupt.value) {
+          // 只有在用户主动取消时才显示取消提示
+          if (uploadInterruptType.value === 'manual') {
+            globalTipsMessage.error(t('CancelFileUpload'));
+          }
           onError();
           loadingMessage.destroy();
-          isStop.value = false;
+          uploadInterrupt.value = false;
+          uploadInterruptType.value = null;
           return;
         }
 
-        await generateUploadChunks(sliceChunk, socket, fileInfo, CHUNK_SIZE, sentChunks);
+        const result = await generateUploadChunks(
+          sliceChunk,
+          socket,
+          fileInfo,
+          CHUNK_SIZE,
+          sentChunks,
+          isSingleChunk,
+          onError
+        );
+
+        if (!result) {
+          loadingMessage.destroy();
+          return;
+        }
       }
 
-      // 结束 chunk 发送 merge: true
-      socket.send(
-        JSON.stringify({
-          cmd: 'upload',
-          type: 'SFTP_DATA',
-          id: fileManageStore.messageId,
-          raw: '',
-          data: JSON.stringify({
-            offSet: 0,
-            merge: true,
-            size: 0,
-            path: `${fileManageStore.currentPath}/${fileInfo.name}`
+      // 如果不是单切片，才需要发送merge请求
+      if (sliceChunks.length > 1) {
+        // 结束 chunk 发送 merge: true
+        socket.send(
+          JSON.stringify({
+            cmd: 'upload',
+            type: 'SFTP_DATA',
+            id: fileManageStore.messageId,
+            raw: '',
+            data: JSON.stringify({
+              offSet: 0,
+              merge: true,
+              size: 0,
+              path: `${fileManageStore.currentPath}/${fileInfo.name}`
+            })
           })
-        })
-      );
+        );
+      }
       uploadFileId.value = '';
     } catch (e) {
       loadingMessage.destroy();
@@ -656,7 +699,7 @@ export const useFileManage = (token: string, t: any) => {
 
     mittBus.on('download-file', ({ path, is_dir, size }: { path: string; is_dir: boolean; size: string }) => {
       fileSize = size;
-      handleFileDownload(<WebSocket>socket, path, is_dir);
+      handleFileDownload(<WebSocket>socket, path, is_dir, t);
     });
 
     mittBus.on(
