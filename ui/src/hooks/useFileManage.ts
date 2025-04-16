@@ -318,7 +318,11 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
       }
 
       case MessageType.CLOSED: {
-        interrupt.value = true;
+        globalTipsMessage.error(t('The current file management drawing has expired.'), { duration: 1500 });
+
+        setTimeout(() => {
+          interrupt.value = true;
+        }, 1500);
         break;
       }
 
