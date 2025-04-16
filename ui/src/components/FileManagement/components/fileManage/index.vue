@@ -11,7 +11,7 @@
         </n-button>
       </n-flex>
 
-      <n-scrollbar x-scrollable ref="scrollRef" :content-style="{ height: '100%' }">
+      <n-scrollbar x-scrollable ref="scrollRef" :content-style="{ height: '40px' }">
         <n-flex class="file-part w-full h-full !flex-nowrap">
           <n-flex
             v-for="item of filePathList"
@@ -238,60 +238,45 @@ watch(
   () => fileManageStore.currentPath,
   newPath => {
     if (newPath) {
+      // 重置现有路径列表
+      filePathList.value = [];
+
       if (newPath === '/') {
-        filePathList.value = [];
-
         disabledBack.value = true;
-        filePathList.value.push({
-          id: '/',
-          path: '/',
-          active: true,
-          showArrow: false
-        });
-
         return;
       }
-
-      // 重置所有项的 active 和 showArrow 状态
-      filePathList.value.forEach(item => {
-        item.active = false;
-        item.showArrow = true;
-      });
 
       if (fileManageStore.currentPath === forwardPath.value) {
         disabledForward.value = true;
       }
 
-      const pathSegments = newPath.split('/');
+      // 分割路径
+      const pathSegments = newPath.split('/').filter(segment => segment);
 
+      // 根据路径段构建完整的路径列表
+      let currentPath = '';
       pathSegments.forEach((segment, index) => {
-        if (segment) {
-          const existingItem = filePathList.value.find(item => item.path === segment);
+        // 更新当前路径
+        currentPath += '/' + segment;
 
-          if (!existingItem) {
-            filePathList.value.push({
-              id: segment,
-              path: segment,
-              active: index === pathSegments.length - 1,
-              showArrow: index !== pathSegments.length - 1
-            });
+        // 添加到路径列表
+        filePathList.value.push({
+          id: currentPath, // 使用完整路径作为ID
+          path: segment, // 显示路径段名称
+          active: index === pathSegments.length - 1,
+          showArrow: index !== pathSegments.length - 1
+        });
+      });
 
-            nextTick(() => {
-              const contentRef = document.getElementsByClassName('n-scrollbar-content')[2];
-
-              if (scrollRef.value) {
-                // @ts-ignore
-                scrollRef.value.scrollTo({
-                  left: contentRef.scrollWidth + 299,
-                  behavior: 'smooth'
-                });
-              }
-            });
-          } else {
-            // 如果段已经存在，更新其状态
-            existingItem.active = index === pathSegments.length - 1;
-            existingItem.showArrow = index !== pathSegments.length - 1;
-          }
+      // 滚动到最后一个路径段
+      nextTick(() => {
+        const contentRef = document.getElementsByClassName('n-scrollbar-content')[2];
+        if (scrollRef.value && contentRef) {
+          // @ts-ignore
+          scrollRef.value.scrollTo({
+            left: contentRef.scrollWidth,
+            behavior: 'smooth'
+          });
         }
       });
     }
@@ -415,18 +400,21 @@ const removeLastPathSegment = (path: string): string => {
 const handlePathBack = () => {
   searchValue.value = '';
 
+  // 保存当前路径用于前进导航
   disabledForward.value = false;
   forwardPath.value = fileManageStore.currentPath;
 
   const backPath = removeLastPathSegment(fileManageStore.currentPath);
 
-  mittBus.emit('file-manage', { path: backPath, type: ManageTypes.CHANGE });
-
-  if (filePathList.value.length > 1) {
-    filePathList.value.splice(filePathList.value.length - 1, 1);
-  } else {
+  // 如果返回到根目录，设置后退按钮为禁用
+  if (backPath === '' || backPath === '/') {
     disabledBack.value = true;
   }
+
+  mittBus.emit('file-manage', {
+    path: backPath || '/',
+    type: ManageTypes.CHANGE
+  });
 };
 
 /**
@@ -458,8 +446,15 @@ const handlePathForward = () => {
 const handlePathClick = (item: IFilePath) => {
   searchValue.value = '';
 
-  const path = item.path;
-  mittBus.emit('file-manage', { path, type: ManageTypes.CHANGE });
+  // 如果点击了当前活动的路径段，不执行任何操作
+  if (item.active) return;
+
+  // 保存当前路径用于前进导航
+  disabledForward.value = false;
+  forwardPath.value = fileManageStore.currentPath;
+
+  // 直接使用完整路径ID进行导航
+  mittBus.emit('file-manage', { path: item.id, type: ManageTypes.CHANGE });
 };
 
 /**
