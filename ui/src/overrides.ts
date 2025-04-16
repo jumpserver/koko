@@ -42,5 +42,13 @@ export const themeOverrides: GlobalThemeOverrides = {
   Tag: {
     borderPrimary: '1px solid #16987D',
     textColorPrimary: '#16987D'
+  },
+  Upload: {
+    peers: {
+      Progress: {
+        fillColor: '#16987D',
+        fillColorInfo: '#16987D',
+      }
+    }
   }
 };

@@ -115,6 +115,7 @@ export const useTerminal = async (
         terminal?.write('\r\n\r\n\r\n\x1b[31mFailed to connect to Luna\x1b[0m');
 
         alert('Failed to connect to Luna');
+        window.close();
       }
     }
   );
@@ -188,6 +189,7 @@ export const useTerminal = async (
       case MessageType.ERROR: {
         terminal?.write(msg.err);
         sendEventToLuna('TERMINAL_ERROR', '', lunaId.value, origin.value);
+        clearInterval(guaranteeInterval.value!);
         break;
       }
       case MessageType.MESSAGE_NOTIFY: {
@@ -310,7 +312,7 @@ export const useTerminal = async (
       if (!lunaId.value) {
         guaranteeInterval.value = setInterval(() => {
           counter.value++;
-          
+
           console.log(
             '%c DEBUG [ Send Luna PING ]:',
             'font-size:13px; background: #1ab394; color:#fff;',
@@ -321,8 +323,8 @@ export const useTerminal = async (
         clearInterval(guaranteeInterval.value!);
         sendEventToLuna('PING', '', lunaId.value, origin.value);
       }
-    })
-  }
+    });
+  };
 
   /**
    * 初始非 k8s 的 socket 事件
@@ -330,14 +332,16 @@ export const useTerminal = async (
   const initSocketEvent = () => {
     if (socket) {
       socket.onopen = () => {
+        const excludePath = ['/koko/monitor/'];
+        const currentPath = window.location.pathname;
+        onWebsocketOpen(socket, lastSendTime.value, terminalId.value, pingInterval, lastReceiveTime);
+
+        // 如果当前路径包含了 excludePath 中的任意一个，则不进行保证连接
+        if (excludePath.some(path => currentPath.includes(path))) {
+          return;
+        }
+
         guaranteeLunaConnection();
-        onWebsocketOpen(
-          socket,
-          lastSendTime.value,
-          terminalId.value,
-          pingInterval,
-          lastReceiveTime
-        );
       };
       socket.onmessage = (event: MessageEvent) => {
         handleMessage(event);
@@ -412,7 +416,8 @@ export const useTerminal = async (
           option.emitCallback &&
             option.emitCallback('event', 'open', {
               lunaId: lunaId.value,
-              origin: origin.value
+              origin: origin.value,
+              noFileTab: message?.noFileTab
             });
           break;
         }

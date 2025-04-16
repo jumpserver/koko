@@ -25,7 +25,8 @@ type Event = {
     onError: () => void;
     onProgress: (e: { percent: number }) => void;
   };
-  'download-file': { path: string; is_dir: boolean };
+  'download-file': { path: string; is_dir: boolean; size: string };
+  'stop-upload': { fileInfo: UploadFileInfo };
   'terminal-search': { keyword: string; type?: string };
   'share-user': { type: string; query: string };
   'sync-theme': { type: string; data: any };
