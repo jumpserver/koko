@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ContentHeader: typeof import('./src/components/Kubernetes/ContentHeader/index.vue')['default']
+    Drawer: typeof import('./src/components/Drawer/index.vue')['default']
     FileManage: typeof import('./src/components/FileManagement/components/fileManage/index.vue')['default']
     FileManagement: typeof import('./src/components/FileManagement/index.vue')['default']
     Keyboard: typeof import('./src/components/Keyboard/index.vue')['default']
@@ -51,8 +52,6 @@ declare module 'vue' {
     NScrollbar: typeof import('naive-ui')['NScrollbar']
     NSelect: typeof import('naive-ui')['NSelect']
     NSpin: typeof import('naive-ui')['NSpin']
-    NTab: typeof import('naive-ui')['NTab']
-    NTable: typeof import('naive-ui')['NTable']
     NTable: typeof import('naive-ui')['NTable']
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
@@ -69,6 +68,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Setting: typeof import('./src/components/Setting/index.vue')['default']
+    SettingComponent: typeof import('./src/components/SettingComponent/index.vue')['default']
     Settings: typeof import('./src/components/Settings/index.vue')['default']
     Share: typeof import('./src/components/Share/index.vue')['default']
     SideTop: typeof import('./src/components/Kubernetes/Sidebar/sideTop.vue')['default']

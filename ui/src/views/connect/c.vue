@@ -1,56 +1,58 @@
 <template>
-  <div class="h-full w-full">
-    <Terminal
-      :lunaId="lunaId"
-      :origin="origin"
-      :socket-instance="socketInstance"
-      @update:onlineUsers="handleUpdateOnlineUsers"
-      @update:shareResult="handleUpdateShareResult"
-      @update:shareEnable="handleUpdateShareEnable"
-      @update:shareUserOptions="handleUpdateShareUserOptions"
-    />
+  <Terminal
+    :socket-instance="socketInstance"
+    :lunaId="lunaId"
+    :origin="origin"
+    @update:onlineUsers="handleUpdateOnlineUsers"
+    @update:shareResult="handleUpdateShareResult"
+    @update:shareEnable="handleUpdateShareEnable"
+    @update:shareUserOptions="handleUpdateShareUserOptions"
+  />
 
-    <Drawer :title="title" :contentType="contentType" :show-drawer="showDrawer" @update:open="showDrawer = $event">
-      <template #setting>
-        <Setting
-          :settings="settingsConfig"
-          :share-id="currentShareId"
-          :share-code="currentShareCode"
-          :socket-instance="socketInstance"
-          :share-enable="currentEnableShare"
-          :share-user-options="currentUserOptions"
-          :current-online-users="currentOnlineUsers"
-        />
-      </template>
-    </Drawer>
-  </div>
+  <Setting
+    :show="show"
+    :settings="settingsConfig"
+    :share-id="currentShareId"
+    :share-code="currentShareCode"
+    :share-enable="currentEnableShare"
+    :socket-instance="socketInstance"
+    :share-user-options="currentUserOptions"
+    :current-online-users="currentOnlineUsers"
+    @update:open="show = $event"
+    class="transition-all duration-500 ease-in-out"
+  />
 </template>
 
 <script setup lang="ts">
-import Drawer from '@/components/Drawer/index.vue';
 import Setting from '@/components/Setting/index.vue';
 import Terminal from '@/components/Terminal/index.vue';
 
 import { useI18n } from 'vue-i18n';
-import { ref, onMounted } from 'vue';
-import { WINDOW_MESSAGE_TYPE } from '@/enum';
+import { onMounted, ref } from 'vue';
 import { useWebSocketManager } from '@/hooks/useWebSocketManager';
-import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
 import { sendEventToLuna } from '@/components/TerminalComponent/helper';
+import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
 
 import type { SettingConfig } from '@/types/modules/setting.type';
 import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
 
+enum WindowMessageType {
+  PING = 'PING',
+  PONG = 'PONG',
+  CMD = 'CMD',
+  FOCUS = 'FOCUS',
+  OPEN = 'OPEN',
+  FILE = 'FILE'
+}
+
 const { t } = useI18n();
 const { createSocket }: { createSocket: () => WebSocket | '' } = useWebSocketManager();
 
-const title = ref('');
 const lunaId = ref<string>('');
 const origin = ref<string>('');
 const currentShareId = ref<string>('');
 const currentShareCode = ref<string>('');
-const contentType = ref<'setting' | 'file-manager'>('setting');
-const showDrawer = ref<boolean>(false);
+const show = ref<boolean>(false);
 const currentEnableShare = ref<boolean>(false);
 const currentOnlineUsers = ref<OnlineUser[]>([]);
 const currentUserOptions = ref<ShareUserOptions[]>([]);
@@ -71,7 +73,7 @@ const settingsConfig: SettingConfig = {
     },
     {
       type: 'list',
-      label: t('OnlineUsers') + ':',
+      label: t('OnlineUsers'),
       labelIcon: UsersRound,
       labelStyle: {
         fontSize: '14px'
@@ -88,7 +90,7 @@ const settingsConfig: SettingConfig = {
     },
     {
       type: 'keyboard',
-      label: t('Hotkeys') + ':',
+      label: t('Hotkeys'),
       labelIcon: Keyboard,
       labelStyle: {
         fontSize: '14px'
@@ -97,30 +99,26 @@ const settingsConfig: SettingConfig = {
   ]
 };
 
-const receivePostMessage = (): void => {
+const initializeWindowEvent = () => {
   window.addEventListener('message', (e: MessageEvent) => {
     const windowMessage = e.data;
 
     switch (windowMessage.name) {
-      case WINDOW_MESSAGE_TYPE.PING:
+      case WindowMessageType.PING: {
         lunaId.value = windowMessage.id;
         origin.value = e.origin;
 
-        sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.value, origin.value);
+        sendEventToLuna(WindowMessageType.PONG, '', lunaId.value, origin.value);
         break;
-      case WINDOW_MESSAGE_TYPE.OPEN:
-        title.value = t('Settings');
-        contentType.value = 'setting';
-
-        showDrawer.value = true;
+      }
+      case WindowMessageType.OPEN: {
+        show.value = true;
         break;
-      case WINDOW_MESSAGE_TYPE.FILE:
-        title.value = t('FileManager');
-        contentType.value = 'file-manager';
-        break;
+      }
     }
   });
 };
+
 /**
  * @description 更新分享结果
  * @param param
@@ -154,6 +152,6 @@ const handleUpdateOnlineUsers = (onlineUsers: OnlineUser[]) => {
 socketInstance.value = createSocket();
 
 onMounted(() => {
-  receivePostMessage();
+  initializeWindowEvent();
 });
 </script>

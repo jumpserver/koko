@@ -2,26 +2,28 @@ import type { GlobalThemeOverrides } from 'naive-ui';
 
 export const themeOverrides: GlobalThemeOverrides = {
   Drawer: {
-    color: '#121515',
+    color: '#202222',
     titleTextColor: '#EBEBEB'
   },
   Form: {},
   Select: {
     peers: {
       InternalSelection: {
+        color: '#202222',
+        border: '1px solid #FFFFFF17',
         borderHover: '1px solid #16987D',
         borderActive: '1px solid #16987D',
         borderFocus: '1px solid #16987D'
       },
       InternalSelectMenu: {
-        color: '#191D1D',
+        color: '#303336',
         optionTextColor: '#fff',
         optionCheckColor: '#16987D'
       }
     }
   },
   Card: {
-    colorModal: '#191D1D'
+    colorModal: '#202222'
   },
   Button: {
     borderFocusPrimary: '1px solid #16987D',
@@ -36,8 +38,8 @@ export const themeOverrides: GlobalThemeOverrides = {
     thColorModal: 'unset'
   },
   Table: {
-    thColorModal: '#191D1D',
-    tdColorModal: '#191D1D'
+    thColorModal: '#202222',
+    tdColorModal: '#202222'
   },
   Tag: {
     borderPrimary: '1px solid #16987D',
@@ -47,7 +49,7 @@ export const themeOverrides: GlobalThemeOverrides = {
     peers: {
       Progress: {
         fillColor: '#16987D',
-        fillColorInfo: '#16987D',
+        fillColorInfo: '#16987D'
       }
     }
   }

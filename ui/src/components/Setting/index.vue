@@ -1,101 +1,98 @@
 <template>
-  <n-drawer :show="show" resizable :default-width="502" @mask-click="closeDrawer" @update:show="closeDrawer">
-    <!-- Settings 情况下的抽屉 -->
-    <n-drawer-content :title="settings.drawerTitle" :native-scrollbar="false" closable>
-      <template v-for="item of settings.items" :key="item.label">
-        <n-form-item path="theme" :label-style="item.labelStyle" label-align="top">
-          <template #label>
-            <n-flex align="center" justify="space-between" class="w-full">
-              <n-flex align="center" class="!gap-x-2">
-                <component :is="item.labelIcon" size="14" />
-                <span class="text-sm">{{ item.label }}</span>
-              </n-flex>
+  <div v-for="item of settings.items" :key="item.label">
+    <n-form-item path="theme" :label-style="item.labelStyle" label-align="top">
+      <template #label>
+        <n-flex align="center" justify="space-between" class="w-full">
+          <n-flex align="center" class="!gap-x-2">
+            <component :is="item.labelIcon" size="14" />
+            <span class="text-sm">{{ item.label }}</span>
+          </n-flex>
 
-              <n-tooltip size="small" v-if="item.showMore">
-                <template #trigger>
-                  <Ellipsis :size="14" class="cursor-pointer focus:outline-none" />
-                </template>
+          <n-tooltip size="small" v-if="item.showMore">
+            <template #trigger>
+              <Ellipsis :size="14" class="cursor-pointer focus:outline-none" />
+            </template>
 
-                <span> show more </span>
-              </n-tooltip>
-            </n-flex>
-          </template>
-          <template v-if="item.type === 'select'">
-            <n-select
-              :value="currentTheme"
-              :options="themeOptions"
-              @keydown="previewTheme"
-              @update:value="handleUpdateTheme"
-              size="small"
-            />
-          </template>
-
-          <template v-if="item.type === 'list'">
-            <n-card size="small">
-              <n-flex justify="center" vertical class="w-full">
-                <n-flex align="center">
-                  <n-text> 当前用户: </n-text>
-                  <n-text depth="1" strong class="text-sm">{{ currentUser.user }}</n-text>
-                </n-flex>
-
-                <n-collapse @item-header-click="handleItemHeaderClick" :default-expanded-names="'online-user'">
-                  <template #header-extra>
-                    <ChevronLeft v-if="showLeftArrow" :size="18" class="focus:outline-none" />
-                    <ChevronDown v-else :size="18" class="focus:outline-none" />
-                  </template>
-                  <n-collapse-item title="在线用户:" name="online-user">
-                    <n-flex
-                      v-if="onlineUsers.length > 0"
-                      v-for="item in onlineUsers"
-                      :key="item.user_id"
-                      align="center"
-                      justify="space-between"
-                      class="w-full"
-                    >
-                      {{ item.user }}
-
-                      <n-popconfirm
-                        :positive-text="t('Delete')"
-                        :positive-button-props="{ type: 'error' }"
-                        @positive-click="handlePositiveClick(item)"
-                        @negative-click="handleNegativeClick"
-                      >
-                        <template #trigger>
-                          <Delete
-                            :size="20"
-                            class="cursor-pointer focus:outline-none hover:text-red-500 hover:transition-all duration-300"
-                          />
-                        </template>
-                        {{ t('RemoveShareUserConfirm') }}
-                      </n-popconfirm>
-                    </n-flex>
-                    <n-empty v-else description="暂无在线用户" />
-                  </n-collapse-item>
-                </n-collapse>
-              </n-flex>
-            </n-card>
-          </template>
-
-          <template v-if="item.type === 'create'">
-            <n-card size="small">
-              <Share
-                :share-id="shareId"
-                :share-code="shareCode"
-                :share-enable="shareEnable"
-                :user-options="shareUserOptions"
-              />
-            </n-card>
-          </template>
-
-          <template v-if="item.type === 'keyboard'">
-            <Keyboard />
-          </template>
-        </n-form-item>
+            <span> show more </span>
+          </n-tooltip>
+        </n-flex>
       </template>
-    </n-drawer-content>
+      <template v-if="item.type === 'select'">
+        <n-select
+          size="small"
+          :value="currentTheme"
+          :options="themeOptions"
+          @keydown="previewTheme"
+          @update:value="handleUpdateTheme"
+        />
+      </template>
 
-    <!-- FileManager 情况下的抽屉 -->
-  </n-drawer>
+      <template v-if="item.type === 'list'">
+        <n-card size="small">
+          <n-flex justify="center" vertical class="w-full">
+            <n-flex align="center">
+              <n-text> 当前用户: </n-text>
+              <n-text depth="1" strong class="text-sm">{{ currentUser.user }}</n-text>
+            </n-flex>
+
+            <n-divider dashed class="!my-2" />
+
+            <n-collapse @item-header-click="handleItemHeaderClick" :default-expanded-names="'online-user'">
+              <template #header-extra>
+                <ChevronLeft v-if="showLeftArrow" :size="18" class="focus:outline-none" />
+                <ChevronDown v-else :size="18" class="focus:outline-none" />
+              </template>
+              <n-collapse-item title="在线用户:" name="online-user">
+                <n-flex
+                  v-if="onlineUsers.length > 0"
+                  v-for="item in onlineUsers"
+                  :key="item.user_id"
+                  align="center"
+                  justify="space-between"
+                  class="w-full"
+                >
+                  <n-tag closable size="small" type="primary" :bordered="false" @close="handlePositiveClick(item)">
+                    <span class="text-xs">{{ item.user }}</span>
+                  </n-tag>
+
+                  <!-- <n-popconfirm
+                    :positive-text="t('Delete')"
+                    :positive-button-props="{ type: 'error' }"
+                    @positive-click="handlePositiveClick(item)"
+                    @negative-click="handleNegativeClick"
+                  >
+                    <template #trigger>
+                      <Delete
+                        :size="20"
+                        class="cursor-pointer focus:outline-none hover:text-red-500 hover:transition-all duration-300"
+                      />
+                    </template>
+                    {{ t('RemoveShareUserConfirm') }}
+                  </n-popconfirm> -->
+                </n-flex>
+                <n-empty v-else description="暂无在线用户" />
+              </n-collapse-item>
+            </n-collapse>
+          </n-flex>
+        </n-card>
+      </template>
+
+      <template v-if="item.type === 'create'">
+        <n-card size="small">
+          <Share
+            :share-id="shareId"
+            :share-code="shareCode"
+            :share-enable="shareEnable"
+            :user-options="shareUserOptions"
+          />
+        </n-card>
+      </template>
+
+      <template v-if="item.type === 'keyboard'">
+        <Keyboard />
+      </template>
+    </n-form-item>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -115,7 +112,6 @@ import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
 const props = defineProps<{
   shareId: string;
   shareCode: string;
-  show: boolean;
   shareEnable: boolean;
   settings: SettingConfig;
   socketInstance: WebSocket | '';
@@ -225,13 +221,6 @@ const handlePositiveClick = (userMeta: OnlineUser) => {
   });
 };
 const handleNegativeClick = () => {};
-
-/**
- * @description 关闭抽屉
- */
-const closeDrawer = () => {
-  emit('update:open', false);
-};
 </script>
 
 <style scoped lang="scss">

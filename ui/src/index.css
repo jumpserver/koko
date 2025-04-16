@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+@utility {
+  .drawer-header-text {
+    @apply text-lg font-normal font-[PingFang SC];
+  }
+}

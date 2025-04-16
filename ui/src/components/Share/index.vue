@@ -146,7 +146,7 @@ const actionsPermOptions = reactive([
 ]);
 
 const shareURL = computed(() => {
-  return shareId.value ? `${BASE_URL}/luna/share/${shareId.value}/` : t('NoLink');
+  return props.shareId ? `${BASE_URL}/luna/share/${props.shareId}/` : t('NoLink');
 });
 const mappedUserOptions = computed(() => {
   if (props.userOptions && props.userOptions.length > 0) {
