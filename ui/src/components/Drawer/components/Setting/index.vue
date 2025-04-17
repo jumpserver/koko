@@ -54,21 +54,6 @@
                   <n-tag closable size="small" type="primary" :bordered="false" @close="handlePositiveClick(item)">
                     <span class="text-xs">{{ item.user }}</span>
                   </n-tag>
-
-                  <!-- <n-popconfirm
-                    :positive-text="t('Delete')"
-                    :positive-button-props="{ type: 'error' }"
-                    @positive-click="handlePositiveClick(item)"
-                    @negative-click="handleNegativeClick"
-                  >
-                    <template #trigger>
-                      <Delete
-                        :size="20"
-                        class="cursor-pointer focus:outline-none hover:text-red-500 hover:transition-all duration-300"
-                      />
-                    </template>
-                    {{ t('RemoveShareUserConfirm') }}
-                  </n-popconfirm> -->
                 </n-flex>
                 <n-empty v-else description="暂无在线用户" />
               </n-collapse-item>
@@ -98,33 +83,42 @@
 <script setup lang="ts">
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
+import Keyboard from '../Keyboard/index.vue';
 import Share from '@/components/Share/index.vue';
-import Keyboard from '@/components/Keyboard/index.vue';
 
 import { useI18n } from 'vue-i18n';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
-import { Ellipsis, ChevronLeft, ChevronDown, Delete } from 'lucide-vue-next';
+import { useConnectionStore } from '@/store/modules/useConnection';
+import { Ellipsis, ChevronLeft, ChevronDown } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
 
 import type { SettingConfig } from '@/types/modules/setting.type';
 import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
 
 const props = defineProps<{
-  shareId: string;
-  shareCode: string;
-  shareEnable: boolean;
   settings: SettingConfig;
-  socketInstance: WebSocket | '';
-  currentOnlineUsers: OnlineUser[];
-  shareUserOptions: ShareUserOptions[];
-}>();
-
-const emit = defineEmits<{
-  (e: 'update:open', value: boolean): void;
 }>();
 
 const { t } = useI18n();
 const terminalSettingsStore = useTerminalSettingsStore();
+const connectionStore = useConnectionStore();
+
+// 获取当前终端ID
+const currentTerminalId = computed(() => {
+  return terminalSettingsStore.activeTerminalId;
+});
+
+// 从connectionStore获取连接状态
+const connectionState = computed(() => {
+  return connectionStore.getConnectionState(currentTerminalId.value) || {};
+});
+
+const shareId = computed(() => connectionState.value.shareId || '');
+const shareCode = computed(() => connectionState.value.shareCode || '');
+const shareEnable = computed(() => connectionState.value.enableShare || false);
+const currentOnlineUsers = computed(() => connectionState.value.onlineUsers || []);
+const shareUserOptions = computed(() => connectionState.value.userOptions || []);
 
 const showLeftArrow = ref(false);
 const currentTheme = ref(terminalSettingsStore.theme);
@@ -142,15 +136,15 @@ const themeOptions = ref([
 ]);
 
 const currentUser = computed(() => {
-  return props.currentOnlineUsers.filter(item => item.primary)[0];
+  return currentOnlineUsers.value.filter(item => item.primary)[0];
 });
 
 const onlineUsers = computed(() => {
-  return props.currentOnlineUsers.filter(item => !item.primary);
+  return currentOnlineUsers.value.filter(item => !item.primary);
 });
 
 watch(
-  () => props.currentOnlineUsers,
+  () => currentOnlineUsers.value,
   value => {
     if (value.length === 1) {
       return (showLeftArrow.value = false);
@@ -175,6 +169,7 @@ const handleUpdateTheme = (value: string) => {
   currentTheme.value = value;
   terminalSettingsStore.setDefaultTerminalConfig('theme', value);
 };
+
 /**
  * @description 预览主题
  * @param event
@@ -201,6 +196,7 @@ const previewTheme = (event: KeyboardEvent) => {
     handleUpdateTheme(currentTheme.value!);
   }
 };
+
 /**
  * @description 点击折叠按钮
  * @param data
@@ -208,6 +204,7 @@ const previewTheme = (event: KeyboardEvent) => {
 const handleItemHeaderClick = (data: { name: string | number; expanded: boolean; event: MouseEvent }) => {
   data.expanded ? (showLeftArrow.value = false) : (showLeftArrow.value = true);
 };
+
 /**
  * @description 移除在线用户
  * @param user_id
@@ -220,7 +217,6 @@ const handlePositiveClick = (userMeta: OnlineUser) => {
     type: 'TERMINAL_SHARE_USER_REMOVE'
   });
 };
-const handleNegativeClick = () => {};
 </script>
 
 <style scoped lang="scss">

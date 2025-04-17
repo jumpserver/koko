@@ -1,4 +1,3 @@
-<!-- Drawer 组件，数据中间层、根据 slot 渲染 Setting 或 FileManager 组件 -->
 <template>
   <n-drawer resizable placement="right" :show="showDrawer" :default-width="502" @close="closeDrawer">
     <n-drawer-content closable :title="title" :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
@@ -8,20 +7,15 @@
         </n-flex>
       </template>
 
-      <template #default>
-        <div v-if="$slots.setting">
-          <slot name="setting" />
-        </div>
-
-        <div v-if="$slots.fileManager">
-          <slot name="fileManager" />
-        </div>
-      </template>
+      <Setting v-if="contentType === 'setting'" />
+      <!-- <FileManager v-if="contentType === 'file-manager'" /> -->
     </n-drawer-content>
   </n-drawer>
 </template>
 
 <script setup lang="ts">
+import Setting from './components/Setting/index.vue';
+
 type ContentType = 'setting' | 'file-manager';
 
 const DRAWER_HEADER_STYLE = {

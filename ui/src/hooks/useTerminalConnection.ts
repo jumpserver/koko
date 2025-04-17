@@ -10,6 +10,7 @@ import { writeBufferToTerminal } from '@/utils';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, updateIcon } from '@/components/TerminalComponent/helper';
+import { useConnectionStore } from '@/store/modules/useConnection';
 
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/hooks/interface';
@@ -35,7 +36,6 @@ export const formatMessage = (id: string, type: FormatterMessageType, data: any)
 export const useTerminalConnection = (lunaId: string, origin: string) => {
   let sentry: Sentry;
 
-  // todo 类型补全
   const onlineUsers = ref<OnlineUser[]>([]);
 
   const shareId = ref<string>('');
@@ -53,6 +53,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
   const userOptions = ref<ShareUserOptions[]>([]);
   const featureSetting = ref<Partial<SettingConfig>>({});
 
+  const connectionStore = useConnectionStore();
   const terminalSettingsStore = useTerminalSettingsStore();
 
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
@@ -115,6 +116,11 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
         enableShare.value = false;
         onlineUsers.value = [];
 
+        connectionStore.updateConnectionState(terminalId.value, {
+          enableShare: false,
+          onlineUsers: []
+        });
+
         socket.close();
 
         sendEventToLuna(SendLunaMessageType.CLOSE, '', lunaId, origin);
@@ -131,6 +137,12 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       }
       case MessageType.CONNECT: {
         terminalId.value = parsedMessageData.id;
+        connectionStore.setConnectionState(terminalId.value, {
+          lunaId: lunaId,
+          origin: origin,
+          socket: socket,
+          terminal: terminal
+        });
 
         const terminalData = {
           cols: terminal.cols,
@@ -142,7 +154,6 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         featureSetting.value = info.setting;
 
-        // 更新网页图标
         updateIcon(info.setting);
 
         socket.send(formatMessage(terminalId.value, FormatterMessageType.TERMINAL_INIT, JSON.stringify(terminalData)));
@@ -156,6 +167,10 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         shareId.value = data.share_id;
         shareCode.value = data.code;
+        connectionStore.updateConnectionState(terminalId.value, {
+          shareId: data.share_id,
+          shareCode: data.code
+        });
 
         break;
       }
@@ -210,6 +225,10 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
         // data 中如果 primary 为 true 则表示是当前用户
         onlineUsers.value.push(data);
 
+        connectionStore.updateConnectionState(terminalId.value, {
+          onlineUsers: onlineUsers.value
+        });
+
         if (!data.primary) {
           message.info(`${data.user} ${t('JoinShare')}`);
         }
@@ -228,6 +247,11 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         if (index !== -1) {
           onlineUsers.value.splice(index, 1);
+
+          connectionStore.updateConnectionState(terminalId.value, {
+            onlineUsers: onlineUsers.value
+          });
+
           message.info(`${data.user} ${t('LeaveShare')}`);
         }
         break;
@@ -251,6 +275,11 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       }
       case MessageType.TERMINAL_GET_SHARE_USER: {
         userOptions.value = JSON.parse(parsedMessageData.data);
+
+        connectionStore.updateConnectionState(terminalId.value, {
+          userOptions: userOptions.value
+        });
+
         break;
       }
       case MessageType.TERMINAL_SESSION_RESUME: {
@@ -347,6 +376,10 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
    */
   const setShareCode = (code: string) => {
     shareCode.value = code;
+
+    connectionStore.updateConnectionState(terminalId.value, {
+      shareCode: code
+    });
   };
   /**
    * @description 获取指定分享用户

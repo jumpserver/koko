@@ -1,34 +1,23 @@
 <template>
   <div class="h-full w-full">
-    <Terminal
+    <Terminal 
       :lunaId="lunaId"
       :origin="origin"
       :socket-instance="socketInstance"
-      @update:onlineUsers="handleUpdateOnlineUsers"
-      @update:shareResult="handleUpdateShareResult"
-      @update:shareEnable="handleUpdateShareEnable"
-      @update:shareUserOptions="handleUpdateShareUserOptions"
+      @update:drawer="handleUpdateDrawer"
     />
 
-    <Drawer :title="title" :contentType="contentType" :show-drawer="showDrawer" @update:open="showDrawer = $event">
-      <template #setting>
-        <Setting
-          :settings="settingsConfig"
-          :share-id="currentShareId"
-          :share-code="currentShareCode"
-          :socket-instance="socketInstance"
-          :share-enable="currentEnableShare"
-          :share-user-options="currentUserOptions"
-          :current-online-users="currentOnlineUsers"
-        />
-      </template>
-    </Drawer>
+    <Drawer 
+      :title="title"
+      :show-drawer="showDrawer"
+      :contentType="contentType"
+      @update:open="showDrawer = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import Drawer from '@/components/Drawer/index.vue';
-import Setting from '@/components/Setting/index.vue';
 import Terminal from '@/components/Terminal/index.vue';
 
 import { useI18n } from 'vue-i18n';
@@ -97,63 +86,38 @@ const settingsConfig: SettingConfig = {
   ]
 };
 
-const receivePostMessage = (): void => {
-  window.addEventListener('message', (e: MessageEvent) => {
-    const windowMessage = e.data;
-
-    switch (windowMessage.name) {
-      case WINDOW_MESSAGE_TYPE.PING:
-        lunaId.value = windowMessage.id;
-        origin.value = e.origin;
-
-        sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.value, origin.value);
-        break;
-      case WINDOW_MESSAGE_TYPE.OPEN:
-        title.value = t('Settings');
-        contentType.value = 'setting';
-
-        showDrawer.value = true;
-        break;
-      case WINDOW_MESSAGE_TYPE.FILE:
-        title.value = t('FileManager');
-        contentType.value = 'file-manager';
-        break;
-    }
-  });
-};
-/**
- * @description 更新分享结果
- * @param param
- */
-const handleUpdateShareResult = ({ shareId, shareCode }: { shareId: string; shareCode: string }) => {
-  currentShareId.value = shareId;
-  currentShareCode.value = shareCode;
-};
-/**
- * @description 更新分享用户选项
- * @param userOptions
- */
-const handleUpdateShareUserOptions = (userOptions: ShareUserOptions[]) => {
-  currentUserOptions.value = userOptions;
-};
-/**
- * @description 更新分享选项
- * @param param
- */
-const handleUpdateShareEnable = (shareEnable: boolean) => {
-  currentEnableShare.value = shareEnable;
-};
-/**
- * @description 更新在线用户
- * @param onlineUsers
- */
-const handleUpdateOnlineUsers = (onlineUsers: OnlineUser[]) => {
-  currentOnlineUsers.value = onlineUsers;
+const handleUpdateDrawer = (show: boolean, _title: string, _contentType: 'setting' | 'file-manager') => {
+  title.value = _title;
+  showDrawer.value = show;
+  contentType.value = _contentType;
 };
 
-socketInstance.value = createSocket();
+// const receivePostMessage = (): void => {
+//   window.addEventListener('message', (e: MessageEvent) => {
+//     const windowMessage = e.data;
+
+//     switch (windowMessage.name) {
+//       case WINDOW_MESSAGE_TYPE.PING:
+//         lunaId.value = windowMessage.id;
+//         origin.value = e.origin;
+
+//         sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.value, origin.value);
+//         break;
+//       case WINDOW_MESSAGE_TYPE.OPEN:
+//         title.value = t('Settings');
+//         contentType.value = 'setting';
+
+//         showDrawer.value = true;
+//         break;
+//       case WINDOW_MESSAGE_TYPE.FILE:
+//         title.value = t('FileManager');
+//         contentType.value = 'file-manager';
+//         break;
+//     }
+//   });
+// };
 
 onMounted(() => {
-  receivePostMessage();
+  // receivePostMessage();
 });
 </script>
