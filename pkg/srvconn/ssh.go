@@ -168,6 +168,8 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 		Timeout:         time.Duration(cfg.Timeout) * time.Second,
 		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
 		Config:          createSSHConfig(),
+
+		HostKeyAlgorithms: supportedHostKeyAlgos,
 	}
 	destAddr := net.JoinHostPort(cfg.Host, cfg.Port)
 	if len(cfg.proxySSHClientOptions) > 0 {
@@ -287,6 +289,23 @@ var (
 
 	notRecommendKeyExchanges = []string{
 		"diffie-hellman-group1-sha1", "diffie-hellman-group-exchange-sha1",
-		"diffie-hellman-group-exchange-sha256",
+		"diffie-hellman-group-exchange-sha256", "diffie-hellman-group16-sha512",
+	}
+
+	// copy from golang.org/x/crypto/ssh/common.go
+	/*
+		Change the algorithm order, placing KeyAlgoED25519 first.
+		Compatible with certain SSH servers.
+	*/
+	supportedHostKeyAlgos = []string{
+		gossh.KeyAlgoED25519,
+
+		gossh.CertAlgoRSASHA256v01, gossh.CertAlgoRSASHA512v01,
+		gossh.CertAlgoRSAv01, gossh.CertAlgoDSAv01, gossh.CertAlgoECDSA256v01,
+		gossh.CertAlgoECDSA384v01, gossh.CertAlgoECDSA521v01, gossh.CertAlgoED25519v01,
+
+		gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521,
+		gossh.KeyAlgoRSASHA256, gossh.KeyAlgoRSASHA512,
+		gossh.KeyAlgoRSA, gossh.KeyAlgoDSA,
 	}
 )

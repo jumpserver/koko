@@ -1,3 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.custom-button-text {
+  @apply text-white text-xs font-normal;
+}

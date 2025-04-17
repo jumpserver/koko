@@ -2,7 +2,7 @@
 import { h, ref } from 'vue';
 import { useLogger } from '@/hooks/useLogger.ts';
 import { bytesHuman } from '@/utils';
-import { wsIsActivated } from '@/components/CustomTerminal/helper';
+import { wsIsActivated } from '@/components/TerminalComponent/helper';
 import { createDiscreteApi, UploadFileInfo, darkTheme } from 'naive-ui';
 
 import { Terminal } from '@xterm/xterm';

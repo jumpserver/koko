@@ -1,949 +1,730 @@
-<!--<template>-->
-<!--    <n-layout :native-scrollbar="false" content-style="height: 100%">-->
-<!--        <n-tabs-->
-<!--            closable-->
-<!--            ref="el"-->
-<!--            size="small"-->
-<!--            type="card"-->
-<!--            tab="show:lazy"-->
-<!--            tab-style="min-width: 80px;"-->
-<!--            class="header-tab relative"-->
-<!--            v-model:value="nameRef"-->
-<!--            @close="handleClose"-->
-<!--            @update:value="handleChangeTab"-->
-<!--            @contextmenu.prevent="handleContextMenu"-->
-<!--        >-->
-<!--            <n-tab-pane-->
-<!--                v-for="panel of panels"-->
-<!--                :key="panel.name"-->
-<!--                :tab="panel.tab"-->
-<!--                :name="panel.name"-->
-<!--                display-directive="show:lazy"-->
-<!--                class="bg-[#101014] pt-0"-->
-<!--            >-->
-<!--                <n-scrollbar trigger="hover">-->
-<!--                    <n-watermark-->
-<!--                        cross-->
-<!--                        selectable-->
-<!--                        :rotate="-45"-->
-<!--                        :font-size="20"-->
-<!--                        :width="300"-->
-<!--                        :height="300"-->
-<!--                        :content="waterMarkContent"-->
-<!--                        :line-height="20"-->
-<!--                        :x-offset="-60"-->
-<!--                        :y-offset="60"-->
-<!--                        :font-family="'Open Sans'"-->
-<!--                    >-->
-<!--                        <CustomTerminal-->
-<!--                            ref="terminalRef"-->
-<!--                            class="k8s-terminal"-->
-<!--                            :socket="socket"-->
-<!--                            :key="panel.name"-->
-<!--                            :index-key="panel.name as string"-->
-<!--                            :theme-name="themeName"-->
-<!--                            :terminal-type="terminalType"-->
-<!--                            @socketData="onSocketData"-->
-<!--                        />-->
-<!--                    </n-watermark>-->
-<!--                </n-scrollbar>-->
-<!--            </n-tab-pane>-->
-<!--        </n-tabs>-->
-<!--    </n-layout>-->
-<!--    <n-dropdown-->
-<!--        show-arrow-->
-<!--        size="medium"-->
-<!--        trigger="manual"-->
-<!--        placement="bottom-start"-->
-<!--        content-style='font-size: "13px"'-->
-<!--        :x="dropdownX"-->
-<!--        :y="dropdownY"-->
-<!--        :show="showContextMenu"-->
-<!--        :options="contextMenuOption"-->
-<!--        @select="handleContextMenuSelect"-->
-<!--        @clickoutside="handleClickOutside"-->
-<!--    />-->
-<!--    <Settings :settings="settings" />-->
-<!--</template>-->
-
-<!--<script setup lang="ts">-->
-<!--import { storeToRefs } from 'pinia';-->
-<!--import { updateIcon } from '@/components/CustomTerminal/helper';-->
-<!--import { Component, Ref } from 'vue';-->
-<!--import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';-->
-<!--import {-->
-<!--    Activity,-->
-<!--    ColorPalette,-->
-<!--    Keyboard,-->
-<!--    NotSent,-->
-<!--    Paste,-->
-<!--    Share as ShareIcon,-->
-<!--    Stop,-->
-<!--    UserAvatar-->
-<!--} from '@vicons/carbon';-->
-<!--// @ts-ignore-->
-<!--import { CloneRegular } from '@vicons/fa';-->
-<!--import { RefreshFilled } from '@vicons/material';-->
-<!--import { ClosedCaption32Regular } from '@vicons/fluent';-->
-<!--import { ArrowBack, ArrowDown, ArrowForward, ArrowUp, CloseCircleOutline } from '@vicons/ionicons5';-->
-
-<!--import xtermTheme from 'xterm-theme';-->
-<!--import mittBus from '@/utils/mittBus.ts';-->
-
-<!--import { useDraggable, type UseDraggableReturn } from 'vue-draggable-plus';-->
-
-<!--import Share from '@/components/Share/index.vue';-->
-<!--import Settings from '@/components/Settings/index.vue';-->
-<!--import ThemeConfig from '@/components/ThemeConfig/index.vue';-->
-<!--import CustomTerminal from '@/components/CustomTerminal/index.vue';-->
-
-<!--import { DropdownOption, NIcon, NMessageProvider, TabPaneProps, useDialog, useMessage } from 'naive-ui';-->
-<!--import type { ISettingProp, shareUser } from '@/views/interface';-->
-
-<!--import { v4 as uuid } from 'uuid';-->
-<!--import { Terminal } from '@xterm/xterm';-->
-<!--import { useI18n } from 'vue-i18n';-->
-<!--import { readText } from 'clipboard-polyfill';-->
-<!--import { useLogger } from '@/hooks/useLogger.ts';-->
-<!--import { useTreeStore } from '@/store/modules/tree.ts';-->
-<!--import { useParamsStore } from '@/store/modules/params.ts';-->
-<!--import { useTerminalStore } from '@/store/modules/terminal.ts';-->
-<!--import { useDebounceFn } from '@vueuse/core';-->
-
-<!--const message = useMessage();-->
-<!--const { debug } = useLogger('K8s-CustomTerminal');-->
-
-<!--const props = defineProps<{-->
-<!--    socket: WebSocket | undefined;-->
-<!--}>();-->
-
-<!--const { t } = useI18n();-->
-<!--const dialog = useDialog();-->
-
-<!--const treeStore = useTreeStore();-->
-<!--const paramsStore = useParamsStore();-->
-<!--const terminalStore = useTerminalStore();-->
-
-<!--const { setting } = storeToRefs(paramsStore);-->
-<!--const { currentTab } = storeToRefs(terminalStore);-->
-<!--const { connectInfo, currentNode, terminalMap } = storeToRefs(treeStore);-->
-
-<!--const el = ref();-->
-
-<!--const dropdownY = ref(0);-->
-<!--const dropdownX = ref(0);-->
-<!--const deleteUserCounter = ref(0);-->
-<!--const nameRef = ref('');-->
-<!--const waterMarkContent = ref('');-->
-<!--const enableShare = ref(false);-->
-<!--const showContextMenu = ref(false);-->
-<!--const terminalType = ref('k8s');-->
-<!--const themeName = ref('Default');-->
-<!--const contextIdentification = ref('');-->
-<!--const terminalRef: Ref<any[]> = ref([]);-->
-<!--const panels: Ref<TabPaneProps[]> = ref([]);-->
-<!--const userOptions = ref<shareUser[]>([]);-->
-
-<!--const processedElements = new Set();-->
-<!--const sessionIdMap = new Map();-->
-<!--const ctrlCAsCtrlZMap = new Map();-->
-
-<!--const onlineUsersMap = reactive<{ [key: string]: any }>({});-->
-
-<!--const settings = computed((): ISettingProp[] => {-->
-<!--    return [-->
-<!--        {-->
-<!--            label: 'ThemeConfig',-->
-<!--            title: t('ThemeConfig'),-->
-<!--            icon: ColorPalette,-->
-<!--            disabled: () => false,-->
-<!--            click: () => {-->
-<!--                dialog.success({-->
-<!--                    class: 'set-theme',-->
-<!--                    title: t('Theme'),-->
-<!--                    showIcon: false,-->
-<!--                    style: 'width: 50%; min-width: 810px',-->
-<!--                    content: () =>-->
-<!--                        h(ThemeConfig, {-->
-<!--                            currentThemeName: themeName.value,-->
-<!--                            preview: (tempTheme: string) => {-->
-<!--                                themeName.value = tempTheme;-->
-<!--                            }-->
-<!--                        })-->
-<!--                });-->
-<!--                // 关闭抽屉-->
-<!--                mittBus.emit('open-setting');-->
-<!--            }-->
-<!--        },-->
-<!--        {-->
-<!--            label: 'Share',-->
-<!--            title: t('Share'),-->
-<!--            icon: ShareIcon,-->
-<!--            disabled: () => !enableShare.value,-->
-<!--            click: () => {-->
-<!--                const sessionId = sessionIdMap.get(currentTab.value);-->
-
-<!--                dialog.success({-->
-<!--                    class: 'share',-->
-<!--                    title: t('CreateLink'),-->
-<!--                    showIcon: false,-->
-<!--                    style: 'width: 35%; min-width: 500px',-->
-<!--                    content: () => {-->
-<!--                        return h(NMessageProvider, null, {-->
-<!--                            default: () =>-->
-<!--                                h(Share, {-->
-<!--                                    sessionId,-->
-<!--                                    enableShare: enableShare.value,-->
-<!--                                    userOptions: userOptions.value-->
-<!--                                })-->
-<!--                        });-->
-<!--                    },-->
-<!--                    onClose: () => resetShareDialog(),-->
-<!--                    onMaskClick: () => resetShareDialog()-->
-<!--                });-->
-<!--                // 关闭抽屉-->
-<!--                mittBus.emit('open-setting');-->
-<!--            }-->
-<!--        },-->
-<!--        {-->
-<!--            label: 'User',-->
-<!--            title: t('User'),-->
-<!--            icon: UserAvatar,-->
-<!--            disabled: () => Object.keys(onlineUsersMap).length < 1,-->
-<!--            content: Object.entries(onlineUsersMap)-->
-<!--                .flatMap(([sessionKey, items]) =>-->
-<!--                    items-->
-<!--                        .filter((_item: any) => currentTab.value === sessionKey)-->
-<!--                        .map((item: any) => {-->
-<!--                            return {-->
-<!--                                ...item,-->
-<!--                                name: item.user,-->
-<!--                                icon: item.writable ? markRaw(Activity) : markRaw(NotSent),-->
-<!--                                tip: item.writable ? t('Writable') : t('ReadOnly'),-->
-<!--                                sessionKey // 添加会话的 key 值-->
-<!--                            };-->
-<!--                        })-->
-<!--                )-->
-<!--                .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()),-->
-<!--            click: user => {-->
-<!--                if (user.primary) return;-->
-
-<!--                dialog.warning({-->
-<!--                    title: '警告',-->
-<!--                    content: t('RemoveShareUserConfirm'),-->
-<!--                    positiveText: '确定',-->
-<!--                    negativeText: '取消',-->
-<!--                    onPositiveClick: () => {-->
-<!--                        const sessionId = sessionIdMap.get(currentTab.value);-->
-
-<!--                        mittBus.emit('remove-share-user', {-->
-<!--                            sessionId: sessionId,-->
-<!--                            userMeta: user,-->
-<!--                            type: 'TERMINAL_SHARE_USER_REMOVE'-->
-<!--                        });-->
-<!--                    }-->
-<!--                });-->
-<!--            }-->
-<!--        },-->
-<!--        {-->
-<!--            label: 'Keyboard',-->
-<!--            title: t('Hotkeys'),-->
-<!--            icon: Keyboard,-->
-<!--            content: [-->
-<!--                {-->
-<!--                    name: 'Ctrl + C',-->
-<!--                    icon: Stop,-->
-<!--                    tip: t('Cancel'),-->
-<!--                    click: () => {-->
-<!--                        handleWriteData('Stop');-->
-<!--                    }-->
-<!--                },-->
-<!--                {-->
-<!--                    name: 'Command/Ctrl + V',-->
-<!--                    icon: Paste,-->
-<!--                    tip: t('Paste'),-->
-<!--                    click: () => {-->
-<!--                        handleWriteData('Paste');-->
-<!--                    }-->
-<!--                },-->
-<!--                {-->
-<!--                    name: 'Arrow Up',-->
-<!--                    icon: ArrowUp,-->
-<!--                    tip: t('UpArrow'),-->
-<!--                    click: () => {-->
-<!--                        handleWriteData('ArrowUp');-->
-<!--                    }-->
-<!--                },-->
-<!--                {-->
-<!--                    name: 'Arrow Down',-->
-<!--                    icon: ArrowDown,-->
-<!--                    tip: t('DownArrow'),-->
-<!--                    click: () => {-->
-<!--                        handleWriteData('ArrowDown');-->
-<!--                    }-->
-<!--                },-->
-<!--                {-->
-<!--                    name: 'Arrow Left',-->
-<!--                    icon: ArrowBack,-->
-<!--                    tip: t('LeftArrow'),-->
-<!--                    click: () => {-->
-<!--                        handleWriteData('ArrowLeft');-->
-<!--                    }-->
-<!--                },-->
-<!--                {-->
-<!--                    name: 'Arrow Right',-->
-<!--                    icon: ArrowForward,-->
-<!--                    tip: t('RightArrow'),-->
-<!--                    click: () => {-->
-<!--                        handleWriteData('ArrowRight');-->
-<!--                    }-->
-<!--                }-->
-<!--            ],-->
-<!--            disabled: () => false,-->
-<!--            click: () => {}-->
-<!--        }-->
-<!--    ];-->
-<!--});-->
-
-<!--const contextMenuOption = reactive([-->
-<!--    {-->
-<!--        label: t('Reconnect'),-->
-<!--        key: 'reconnect',-->
-<!--        icon: renderIcon(RefreshFilled)-->
-<!--    },-->
-<!--    {-->
-<!--        label: t('Close Current Tab'),-->
-<!--        key: 'close',-->
-<!--        icon: renderIcon(CloseCircleOutline)-->
-<!--    },-->
-<!--    {-->
-<!--        label: t('Close All Tabs'),-->
-<!--        key: 'closeAll',-->
-<!--        icon: renderIcon(ClosedCaption32Regular)-->
-<!--    }-->
-<!--    // {-->
-<!--    //     label: t('Clone Connect'),-->
-<!--    //     key: 'cloneConnect',-->
-<!--    //     icon: renderIcon(CloneRegular)-->
-<!--    // }-->
-<!--]);-->
-
-<!--/**-->
-<!-- * 用 h 函数渲染图标-->
-<!-- */-->
-<!--function renderIcon(icon: Component) {-->
-<!--    return () => {-->
-<!--        return h(NIcon, null, {-->
-<!--            default: () => h(icon)-->
-<!--        });-->
-<!--    };-->
-<!--}-->
-
-<!--/**-->
-<!-- * 重连事件的回调-->
-<!-- */-->
-<!--const handleReconnect = () => {-->
-<!--    const node = treeStore.getTerminalByK8sId(contextIdentification.value);-->
-
-<!--    const socket = node?.socket;-->
-
-<!--    if (socket) {-->
-<!--        socket.send(-->
-<!--            JSON.stringify({-->
-<!--                type: 'K8S_CLOSE',-->
-<!--                id: node.id,-->
-<!--                k8s_id: node.k8s_id-->
-<!--            })-->
-<!--        );-->
-<!--    }-->
-
-<!--    const index = panels.value.findIndex(panel => panel.name === contextIdentification.value);-->
-
-<!--    panels.value.splice(index, 1);-->
-
-<!--    delete node.socket;-->
-<!--    delete node.terminal;-->
-
-<!--    mittBus.emit('connect-terminal', { skip: false, ...node });-->
-
-<!--    showContextMenu.value = false;-->
-<!--};-->
-
-<!--/**-->
-<!-- * 右键菜单的回调-->
-<!-- *-->
-<!-- * @param key-->
-<!-- * @param _option-->
-<!-- */-->
-<!--const handleContextMenuSelect = (key: string, _option: DropdownOption) => {-->
-<!--    switch (key) {-->
-<!--        case 'reconnect': {-->
-<!--            handleReconnect();-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'close': {-->
-<!--            contextIdentification.value ? handleClose(contextIdentification.value) : '';-->
-
-<!--            showContextMenu.value = false;-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'closeAll': {-->
-<!--            panels.value = [];-->
-<!--            showContextMenu.value = false;-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'cloneConnect': {-->
-<!--            // findNodeById(contextIdentification.value);-->
-<!--            delete currentNode.value.skip;-->
-
-<!--            nextTick(() => {-->
-<!--                mittBus.emit('connect-terminal', { skip: false, ...currentNode.value });-->
-<!--                showContextMenu.value = false;-->
-
-<!--                console.log(panels);-->
-<!--                console.log(currentNode.value);-->
-<!--            });-->
-
-<!--            break;-->
-<!--        }-->
-<!--    }-->
-<!--};-->
-
-<!--/**-->
-<!-- * 每个 tab 标签的右侧快捷功能-->
-<!-- */-->
-<!--const handleContextMenu = (e: PointerEvent) => {-->
-<!--    let target: HTMLElement = e.target as HTMLElement;-->
-
-<!--    while (target && !target.hasAttribute('data-name')) {-->
-<!--        target = target.parentElement as HTMLElement;-->
-<!--    }-->
-
-<!--    if (target) {-->
-<!--        // 获取设置的 data 属性-->
-<!--        const dataName: string = target.getAttribute('data-name') as string;-->
-
-<!--        if (dataName) {-->
-<!--            contextIdentification.value = dataName;-->
-
-<!--            e.preventDefault();-->
-<!--            showContextMenu.value = true;-->
-<!--            dropdownY.value = e.clientY;-->
-<!--            dropdownX.value = e.clientX;-->
-<!--        }-->
-<!--    }-->
-<!--};-->
-
-<!--/**-->
-<!-- * 关闭右侧菜单-->
-<!-- */-->
-<!--const handleClickOutside = () => {-->
-<!--    showContextMenu.value = false;-->
-<!--};-->
-
-<!--/**-->
-<!-- * 重置分享表单的数据-->
-<!-- */-->
-<!--const resetShareDialog = () => {-->
-<!--    paramsStore.setShareId('');-->
-<!--    paramsStore.setShareCode('');-->
-<!--    userOptions.value = [];-->
-<!--    dialog.destroyAll();-->
-<!--};-->
-
-<!--/**-->
-<!-- * 交换数组中的某两个值-->
-<!-- *-->
-<!-- * @param arr-->
-<!-- * @param index1-->
-<!-- * @param index2-->
-<!-- */-->
-<!--const swapElements = (arr: any[], index1: number, index2: number) => {-->
-<!--    [arr[index1], arr[index2]] = [arr[index2], arr[index1]];-->
-<!--    return arr;-->
-<!--};-->
-
-<!--/**-->
-<!-- * 拖拽事件-->
-<!-- */-->
-<!--const initializeDraggable = () => {-->
-<!--    const tabsContainer = document.querySelector('.n-tabs-wrapper');-->
-
-<!--    if (tabsContainer) {-->
-<!--        // 对于 useDraggable 如果直接操作 panel 可能会导致被注入一个 undefined 值从而导致报错，因此下面代码全部使用副本来操作-->
-<!--        // @ts-ignore-->
-<!--        useDraggable<UseDraggableReturn>(tabsContainer, JSON.parse(JSON.stringify(panels.value)), {-->
-<!--            animation: 150,-->
-<!--            onEnd: async event => {-->
-<!--                if (!event || event.newIndex === undefined || event.oldIndex === undefined) {-->
-<!--                    return console.warn('Event or index is undefined');-->
-<!--                }-->
-
-<!--                let newIndex = event!.newIndex - 1;-->
-<!--                let oldIndex = event!.oldIndex - 1;-->
-
-<!--                const clonedPanels = JSON.parse(JSON.stringify(panels.value));-->
-
-<!--                panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(panel => panel !== null);-->
-
-<!--                const newActiveTab: string = panels.value[newIndex!]?.name as string;-->
-
-<!--                if (newActiveTab) {-->
-<!--                    nameRef.value = newActiveTab;-->
-<!--                    findNodeById(newActiveTab);-->
-<!--                    terminalStore.setTerminalConfig('currentTab', newActiveTab);-->
-<!--                }-->
-
-<!--                await nextTick(() => {});-->
-<!--            }-->
-<!--        });-->
-<!--    }-->
-<!--};-->
-
-<!--/**-->
-<!-- * 抛出外层的 socket 事件-->
-<!-- *-->
-<!-- * @param msgType-->
-<!-- * @param msg-->
-<!-- * @param terminal-->
-<!-- */-->
-<!--const onSocketData = (msgType: string, msg: any, terminal: Terminal) => {-->
-<!--    switch (msgType) {-->
-<!--        case 'TERMINAL_SESSION':-->
-<!--            const sessionInfo = JSON.parse(msg.data);-->
-<!--            const sessionDetail = sessionInfo.session;-->
-
-<!--            const share = sessionInfo.permission.actions.includes('share');-->
-<!--            const username = `${sessionDetail.user}`;-->
-
-<!--            if (setting.value.SECURITY_WATERMARK_ENABLED) {-->
-<!--                waterMarkContent.value = `${username}\n${sessionDetail.asset.split('(')[0]}`;-->
-<!--            }-->
-
-<!--            if (sessionInfo.backspaceAsCtrlH) {-->
-<!--                const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';-->
-<!--                debug(`Set backspaceAsCtrlH: ${value}`);-->
-
-<!--                terminalStore.setTerminalConfig('backspaceAsCtrlH', value);-->
-<!--            }-->
-
-<!--            // if (sessionInfo.ctrlCAsCtrlZ) {-->
-<!--            //     const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';-->
-<!--            //-->
-<!--            //     terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);-->
-<!--            // }-->
-
-<!--            if (setting.value.SECURITY_SESSION_SHARE && share) {-->
-<!--                enableShare.value = true;-->
-<!--            }-->
-
-<!--            const currentK8sId: string = currentNode.value?.k8s_id as string;-->
-
-<!--            if (currentK8sId) {-->
-<!--                sessionIdMap.set(currentK8sId, sessionDetail.id);-->
-<!--                ctrlCAsCtrlZMap.set(currentK8sId, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');-->
-<!--            }-->
-
-<!--            // sessionId.value = sessionDetail.id;-->
-<!--            themeName.value = sessionInfo.themeName;-->
-
-<!--            nextTick(() => {-->
-<!--                terminal.options.theme = xtermTheme[themeName.value];-->
-<!--            });-->
-<!--            break;-->
-<!--        case 'TERMINAL_SHARE_JOIN':-->
-<!--            const data = JSON.parse(msg.data);-->
-
-<!--            const k8s_id: string = msg.k8s_id;-->
-
-<!--            if (onlineUsersMap[k8s_id]) {-->
-<!--                onlineUsersMap[k8s_id].push({ k8s_id: msg.k8s_id, ...data });-->
-<!--            } else {-->
-<!--                onlineUsersMap[k8s_id] = [{ k8s_id: msg.k8s_id, ...data }];-->
-<!--            }-->
-
-<!--            if (data.primary) {-->
-<!--                debug('Primary User 不提醒');-->
-<!--                break;-->
-<!--            }-->
-
-<!--            message.info(`${data.user} ${t('JoinShare')}`);-->
-<!--            break;-->
-<!--        case 'TERMINAL_SHARE_LEAVE': {-->
-<!--            const data = JSON.parse(msg.data);-->
-
-<!--            const k8s_id: string = msg.k8s_id;-->
-
-<!--            if (onlineUsersMap.hasOwnProperty(k8s_id)) {-->
-<!--                const items = onlineUsersMap[k8s_id];-->
-
-<!--                const index = items.findIndex((item: any) => item.terminal_id === data.terminal_id);-->
-<!--                if (index !== -1) {-->
-<!--                    items.splice(index, 1);-->
-
-<!--                    if (items.length === 0) {-->
-<!--                        delete onlineUsersMap[k8s_id];-->
-<!--                    }-->
-<!--                }-->
-<!--            }-->
-
-<!--            message.info(`${data.user} ${t('LeaveShare')}`);-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'TERMINAL_GET_SHARE_USER': {-->
-<!--            userOptions.value = JSON.parse(msg.data);-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'TERMINAL_SHARE': {-->
-<!--            const data = JSON.parse(msg.data);-->
-
-<!--            paramsStore.setShareId(data.share_id);-->
-<!--            paramsStore.setShareCode(data.code);-->
-
-<!--            break;-->
-<!--        }-->
-<!--        case 'CLOSE': {-->
-<!--            enableShare.value = false;-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'K8S_CLOSE': {-->
-<!--            enableShare.value = false;-->
-
-<!--            deleteUserCounter.value&#45;&#45;;-->
-
-<!--            // 用于删除根用户-->
-<!--            if (deleteUserCounter.value === 0) {-->
-<!--                for (const key in onlineUsersMap) {-->
-<!--                    delete onlineUsersMap[key];-->
-<!--                }-->
-<!--            }-->
-
-<!--            // 用于删除分享的用户-->
-<!--            if (onlineUsersMap.hasOwnProperty(msg.id)) {-->
-<!--                delete onlineUsersMap[msg.id];-->
-<!--            }-->
-
-<!--            break;-->
-<!--        }-->
-<!--        default:-->
-<!--            break;-->
-<!--    }-->
-<!--};-->
-
-<!--/**-->
-<!-- * 处理标签关闭-->
-<!-- *-->
-<!-- * @param name-->
-<!-- */-->
-<!--const handleClose = (name: string) => {-->
-<!--    const node = treeStore.getTerminalByK8sId(name);-->
-<!--    const socket = node?.socket;-->
-
-<!--    if (socket) {-->
-<!--        socket.send(-->
-<!--            JSON.stringify({-->
-<!--                type: 'K8S_CLOSE',-->
-<!--                id: node.id,-->
-<!--                k8s_id: node.k8s_id-->
-<!--            })-->
-<!--        );-->
-<!--    }-->
-
-<!--    const index = panels.value.findIndex(panel => panel.name === name);-->
-
-<!--    panels.value.splice(index, 1);-->
-
-<!--    treeStore.removeK8sIdMap(name);-->
-
-<!--    const panelLength = panels.value.length;-->
-
-<!--    if (panelLength >= 1) {-->
-<!--        nameRef.value = panels.value[panelLength - 1].name as string;-->
-<!--        findNodeById(nameRef.value);-->
-<!--        terminalStore.setTerminalConfig('currentTab', nameRef.value);-->
-<!--    }-->
-
-<!--    if (panelLength === 0) {-->
-<!--        mittBus.emit('remove-event');-->
-<!--    }-->
-<!--};-->
-
-<!--/**-->
-<!-- * 递归查询切换标签时当前 tab 的 key，并重新设置 currentNode-->
-<!-- *-->
-<!-- * @param nameRef-->
-<!-- */-->
-<!--const findNodeById = (nameRef: string): void => {-->
-<!--    for (const [_key, value] of terminalMap.value.entries()) {-->
-<!--        if (value.k8s_id === nameRef) {-->
-<!--            treeStore.setCurrentNode(value);-->
-
-<!--            const ctrlCAsCtrl: string = ctrlCAsCtrlZMap.get(value.k8s_id);-->
-
-<!--            terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);-->
-<!--        }-->
-<!--    }-->
-<!--};-->
-
-<!--const updateTabElements = (key: string) => {-->
-<!--    const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');-->
-
-<!--    tabElements.forEach(element => {-->
-<!--        if (!processedElements.has(element)) {-->
-<!--            element.setAttribute('data-identification', key);-->
-<!--            processedElements.add(element);-->
-<!--        }-->
-<!--    });-->
-<!--};-->
-
-<!--/**-->
-<!-- * 切换标签-->
-<!-- *-->
-<!-- * @param value-->
-<!-- */-->
-<!--const handleChangeTab = (value: string) => {-->
-<!--    nameRef.value = value;-->
-
-<!--    findNodeById(value);-->
-
-<!--    terminalStore.setTerminalConfig('currentTab', nameRef.value);-->
-<!--};-->
-
-<!--/**-->
-<!-- * 向终端写入快捷命令-->
-<!-- *-->
-<!-- * @param type-->
-<!-- */-->
-<!--const handleWriteData = async (type: string) => {-->
-<!--    if (!terminalRef.value || terminalRef.value.length === 0) {-->
-<!--        message.error(t('No terminal instances available'));-->
-<!--        return;-->
-<!--    }-->
-
-<!--    const terminalInstance: Terminal = terminalRef.value[0]?.terminalRef;-->
-
-<!--    if (!terminalInstance) {-->
-<!--        console.error('Terminal instance is not available');-->
-<!--        return;-->
-<!--    }-->
-
-<!--    switch (type) {-->
-<!--        case 'Paste': {-->
-<!--            terminalInstance.paste(await readText());-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'Stop': {-->
-<!--            terminalInstance.paste('^C');-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'ArrowUp': {-->
-<!--            terminalInstance.paste('\x1b[A');-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'ArrowDown': {-->
-<!--            terminalInstance.paste('\x1b[B');-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'ArrowLeft': {-->
-<!--            terminalInstance.paste('\x1b[D');-->
-<!--            break;-->
-<!--        }-->
-<!--        case 'ArrowRight': {-->
-<!--            terminalInstance.paste('\x1b[C');-->
-<!--            break;-->
-<!--        }-->
-<!--    }-->
-
-<!--    requestAnimationFrame(() => {-->
-<!--        terminalInstance.focus();-->
-<!--    });-->
-<!--};-->
-
-<!--/**-->
-<!-- * 切换到上一个 Tab-->
-<!-- */-->
-<!--const switchToPreviousTab = () => {-->
-<!--    const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);-->
-
-<!--    if (currentIndex > 0) {-->
-<!--        nameRef.value = panels.value[currentIndex - 1].name as string;-->
-<!--    } else {-->
-<!--        nameRef.value = panels.value[panels.value.length - 1].name as string;-->
-<!--    }-->
-
-<!--    findNodeById(nameRef.value);-->
-
-<!--    terminalStore.setTerminalConfig('currentTab', nameRef.value);-->
-<!--};-->
-
-<!--/**-->
-<!-- * 切换到下一个 Tab-->
-<!-- */-->
-<!--const switchToNextTab = () => {-->
-<!--    const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);-->
-
-<!--    if (currentIndex < panels.value.length - 1) {-->
-<!--        nameRef.value = panels.value[currentIndex + 1].name as string;-->
-<!--    } else {-->
-<!--        nameRef.value = panels.value[0].name as string;-->
-<!--    }-->
-
-<!--    findNodeById(nameRef.value);-->
-
-<!--    terminalStore.setTerminalConfig('currentTab', nameRef.value);-->
-<!--};-->
-
-<!--onMounted(() => {-->
-<!--    nextTick(() => {-->
-<!--        initializeDraggable();-->
-<!--    });-->
-
-<!--    mittBus.on('connect-terminal', currentNode => {-->
-<!--        let existingPanelName = uuid();-->
-
-<!--        const has = treeStore.getTerminalByK8sId(currentNode.k8s_id as string);-->
-
-<!--        if (!has) {-->
-<!--            panels.value.push({-->
-<!--                name: currentNode.key,-->
-<!--                tab: currentNode.label-->
-<!--            });-->
-<!--        }-->
-
-<!--        if (has && !currentNode.skip) {-->
-<!--            panels.value.push({-->
-<!--                name: existingPanelName as string,-->
-<!--                tab: currentNode.label-->
-<!--            });-->
-
-<!--            currentNode.key = existingPanelName;-->
-<!--            currentNode.k8s_id = existingPanelName;-->
-
-<!--            treeStore.setCurrentNode(currentNode);-->
-<!--        }-->
-
-<!--        if (currentNode.skip) {-->
-<!--            // 用于 contentMenu 找到当前的唯一标识-->
-<!--            nextTick(() => {-->
-<!--                updateTabElements(currentNode?.key as string);-->
-<!--            });-->
-
-<!--            treeStore.setCurrentNode(currentNode);-->
-
-<!--            const sendTerminalData = () => {-->
-<!--                if (terminalRef.value) {-->
-<!--                    setTimeout(() => {-->
-<!--                        const terminalInstance = terminalRef.value[0]?.terminalRef;-->
-
-<!--                        const cols = terminalInstance?.cols;-->
-<!--                        const rows = terminalInstance?.rows;-->
-
-<!--                        if (cols && rows) {-->
-<!--                            const sendData = {-->
-<!--                                id: currentNode.id,-->
-<!--                                k8s_id: currentNode.k8s_id,-->
-<!--                                namespace: currentNode.namespace || '',-->
-<!--                                pod: currentNode.pod || '',-->
-<!--                                container: currentNode.container || '',-->
-<!--                                type: 'TERMINAL_K8S_INIT',-->
-<!--                                data: JSON.stringify({-->
-<!--                                    cols,-->
-<!--                                    rows,-->
-<!--                                    code: ''-->
-<!--                                })-->
-<!--                            };-->
-
-<!--                            updateIcon(connectInfo.value.setting);-->
-<!--                            props.socket?.send(JSON.stringify(sendData));-->
-<!--                        } else {-->
-<!--                            console.error('Failed to get terminal dimensions');-->
-<!--                        }-->
-<!--                    });-->
-<!--                } else {-->
-<!--                    console.error('CustomTerminal ref is not available');-->
-<!--                }-->
-<!--            };-->
-
-<!--            sendTerminalData();-->
-
-<!--            const key: string = currentNode.key as string;-->
-
-<!--            nameRef.value = key;-->
-<!--            terminalStore.setTerminalConfig('currentTab', key);-->
-<!--            deleteUserCounter.value++;-->
-
-<!--            return;-->
-<!--        }-->
-
-<!--        // 用于 contentMenu 找到当前的唯一标识-->
-<!--        nextTick(() => {-->
-<!--            updateTabElements(currentNode?.key as string);-->
-<!--        });-->
-
-<!--        treeStore.setCurrentNode(currentNode);-->
-
-<!--        const sendTerminalData = () => {-->
-<!--            if (terminalRef.value) {-->
-<!--                setTimeout(() => {-->
-<!--                    const terminalInstance = terminalRef.value[0]?.terminalRef;-->
-
-<!--                    const cols = terminalInstance?.cols;-->
-<!--                    const rows = terminalInstance?.rows;-->
-
-<!--                    if (cols && rows) {-->
-<!--                        const sendData = {-->
-<!--                            id: currentNode.id,-->
-<!--                            k8s_id: currentNode.k8s_id,-->
-<!--                            namespace: currentNode.namespace || '',-->
-<!--                            pod: currentNode.pod || '',-->
-<!--                            container: currentNode.container || '',-->
-<!--                            type: 'TERMINAL_K8S_INIT',-->
-<!--                            data: JSON.stringify({-->
-<!--                                cols,-->
-<!--                                rows,-->
-<!--                                code: ''-->
-<!--                            })-->
-<!--                        };-->
-
-<!--                        updateIcon(connectInfo.value.setting);-->
-<!--                        props.socket?.send(JSON.stringify(sendData));-->
-<!--                    } else {-->
-<!--                        console.error('Failed to get terminal dimensions');-->
-<!--                    }-->
-<!--                });-->
-<!--            } else {-->
-<!--                console.error('CustomTerminal ref is not available');-->
-<!--            }-->
-<!--        };-->
-
-<!--        sendTerminalData();-->
-
-<!--        const key: string = currentNode.key as string;-->
-
-<!--        nameRef.value = key;-->
-<!--        terminalStore.setTerminalConfig('currentTab', key);-->
-<!--        deleteUserCounter.value++;-->
-<!--    });-->
-
-<!--    const debouncedSwitchToPreviousTab = useDebounceFn(() => {-->
-<!--        switchToPreviousTab();-->
-<!--    }, 200);-->
-
-<!--    const debouncedSwitchToNextTab = useDebounceFn(() => {-->
-<!--        switchToNextTab();-->
-<!--    }, 200);-->
-
-<!--    mittBus.on('alt-shift-left', debouncedSwitchToPreviousTab);-->
-<!--    mittBus.on('alt-shift-right', debouncedSwitchToNextTab);-->
-<!--});-->
-
-<!--onBeforeUnmount(() => {-->
-<!--    mittBus.off('alt-shift-left', switchToPreviousTab);-->
-<!--    mittBus.off('alt-shift-right', switchToNextTab);-->
-<!--    mittBus.off('connect-terminal');-->
-<!--});-->
-<!--</script>-->
-
-<!--<style scoped lang="scss">-->
-<!--@import './index.scss';-->
-<!--</style>-->
+<template>
+  <n-layout :native-scrollbar="false" content-style="height: 100%">
+    <n-tabs
+      closable
+      size="small"
+      type="card"
+      tab="show:lazy"
+      tab-style="min-width: 80px;"
+      class="header-tab relative"
+      v-model:value="nameRef"
+      @close="handleClose"
+      @update:value="handleChangeTab"
+      @contextmenu.prevent="handleContextMenu"
+    >
+      <n-tab-pane
+        v-for="panel of panels"
+        :key="panel.name"
+        :tab="panel.tab"
+        :name="panel.name"
+        display-directive="show:lazy"
+        class="bg-[#101014] pt-0"
+      >
+        <n-layout :native-scrollbar="false">
+          <n-scrollbar trigger="hover">
+            <div class="k8s-terminal" :id="String(panel.name)"></div>
+          </n-scrollbar>
+        </n-layout>
+      </n-tab-pane>
+    </n-tabs>
+  </n-layout>
+  <n-dropdown
+    show-arrow
+    size="medium"
+    trigger="manual"
+    placement="bottom-start"
+    content-style='font-size: "13px"'
+    :x="dropdownX"
+    :y="dropdownY"
+    :show="showContextMenu"
+    :options="contextMenuOption"
+    @select="handleContextMenuSelect"
+    @clickoutside="handleClickOutside"
+  />
+  <Settings :settings="settings" />
+</template>
+
+<script setup lang="ts">
+import xtermTheme from 'xterm-theme';
+import mittBus from '@/utils/mittBus.ts';
+import Share from '@/components/Share/index.vue';
+import Settings from '@/components/Settings/index.vue';
+import ThemeConfig from '@/components/ThemeConfig/index.vue';
+
+import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
+import { updateIcon } from '@/components/TerminalComponent/helper';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { createTerminal } from '@/hooks/useKubernetes.ts';
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { useDraggable } from 'vue-draggable-plus';
+import { readText } from 'clipboard-polyfill';
+import { useDebounceFn } from '@vueuse/core';
+import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
+import { NMessageProvider, useDialog, useMessage } from 'naive-ui';
+import { v4 as uuid } from 'uuid';
+
+import type { UseDraggableReturn } from 'vue-draggable-plus';
+import type { DropdownOption, TabPaneProps } from 'naive-ui';
+import type { ISettingProp } from '@/types';
+import type { Ref } from 'vue';
+
+import { ArrowBack, ArrowDown, ArrowForward, ArrowUp, CloseCircleOutline } from '@vicons/ionicons5';
+import { ClosedCaption32Regular } from '@vicons/fluent';
+import { RefreshFilled } from '@vicons/material';
+import { CloneRegular } from '@vicons/fa';
+import { defaultTheme } from '@/config';
+import {
+  Activity,
+  ColorPalette,
+  Keyboard,
+  NotSent,
+  Paste,
+  Share as ShareIcon,
+  Stop,
+  UserAvatar
+} from '@vicons/carbon';
+
+const emits = defineEmits<{
+  (e: 'update:waterMarkContent', content: string): void
+}>()
+
+const dialog = useDialog();
+const message = useMessage();
+const treeStore = useTreeStore();
+const paramsStore = useParamsStore();
+const terminalStore = useTerminalStore();
+
+const { t } = useI18n();
+const { connectInfo } = storeToRefs(treeStore);
+
+const nameRef = ref('');
+const contextIdentification = ref('');
+const themeName = ref('Default');
+const dropdownY = ref(0);
+const dropdownX = ref(0);
+const showContextMenu = ref(false);
+const panels: Ref<TabPaneProps[]> = ref([]);
+
+const processedElements = new Set();
+const contextMenuOption = [
+  {
+    label: t('Reconnect'),
+    key: 'reconnect',
+    icon: renderIcon(RefreshFilled)
+  },
+  {
+    label: t('Close Current Tab'),
+    key: 'close',
+    icon: renderIcon(CloseCircleOutline)
+  },
+  {
+    label: t('Close All Tabs'),
+    key: 'closeAll',
+    icon: renderIcon(ClosedCaption32Regular)
+  },
+  {
+    label: t('Clone Connect'),
+    key: 'cloneConnect',
+    icon: renderIcon(CloneRegular)
+  }
+];
+
+const settings = computed((): ISettingProp[] => {
+  return [
+    {
+      label: 'ThemeConfig',
+      title: t('ThemeConfig'),
+      icon: ColorPalette,
+      disabled: () => {
+        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+
+        return !(operatedNode && operatedNode.terminal);
+      },
+      click: () => {
+        dialog.success({
+          class: 'set-theme',
+          title: t('Theme'),
+          showIcon: false,
+          style: 'width: 50%; min-width: 810px',
+          content: () => {
+            const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+
+            return h(ThemeConfig, {
+              currentThemeName: themeName.value,
+              preview: (tempTheme: string) => {
+                operatedNode.terminal.options.theme = xtermTheme[tempTheme] || defaultTheme;
+              }
+            });
+          }
+        });
+        // 关闭抽屉
+        mittBus.emit('open-setting');
+      }
+    },
+    {
+      label: 'Share',
+      title: t('Share'),
+      icon: ShareIcon,
+      disabled: () => {
+        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+
+        return !operatedNode?.enableShare;
+      },
+      click: () => {
+        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+        const sessionId = operatedNode.sessionIdMap.get(operatedNode.k8s_id);
+
+        dialog.success({
+          class: 'share',
+          title: t('CreateLink'),
+          showIcon: false,
+          style: 'width: 35%; min-width: 500px',
+          content: () => {
+            return h(NMessageProvider, null, {
+              default: () =>
+                h(Share, {
+                  sessionId,
+                  enableShare: operatedNode?.enableShare,
+                  userOptions: operatedNode?.userOptions
+                })
+            });
+          },
+          onClose: () => resetShareDialog(),
+          onMaskClick: () => resetShareDialog()
+        });
+        // 关闭抽屉
+        mittBus.emit('open-setting');
+      }
+    },
+    {
+      label: 'User',
+      title: t('User'),
+      icon: UserAvatar,
+      disabled: () => {
+        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+        return Object.keys(operatedNode.onlineUsersMap).length < 1;
+      },
+      content: () => {
+        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+
+        if (operatedNode && operatedNode.onlineUsersMap) {
+          return Object.entries(operatedNode?.onlineUsersMap)
+            .flatMap(([sessionKey, items]) =>
+              // @ts-ignore
+              items
+                .filter((_item: any) => {
+                  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+                  return operatedNode.k8s_id === sessionKey;
+                })
+                .map((item: any) => {
+                  return {
+                    ...item,
+                    name: item.user,
+                    icon: item.writable ? markRaw(Activity) : markRaw(NotSent),
+                    tip: item.writable ? t('Writable') : t('ReadOnly'),
+                    sessionKey // 添加会话的 key 值
+                  };
+                })
+            )
+            .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
+        }
+
+        return [];
+      },
+      click: user => {
+        if (user.primary) return;
+
+        dialog.warning({
+          title: '警告',
+          content: t('RemoveShareUserConfirm'),
+          positiveText: '确定',
+          negativeText: '取消',
+          onPositiveClick: () => {
+            const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+            const sessionId = operatedNode.sessionIdMap.get(operatedNode.k8s_id);
+
+            mittBus.emit('remove-share-user', {
+              sessionId: sessionId,
+              userMeta: user,
+              type: 'TERMINAL_SHARE_USER_REMOVE'
+            });
+          }
+        });
+      }
+    },
+    {
+      label: 'Keyboard',
+      title: t('Hotkeys'),
+      icon: Keyboard,
+      content: [
+        {
+          name: 'Ctrl + C',
+          icon: Stop,
+          tip: t('Cancel'),
+          click: () => {
+            handleWriteData('Stop');
+          }
+        },
+        {
+          name: 'Command/Ctrl + V',
+          icon: Paste,
+          tip: t('Paste'),
+          click: () => {
+            handleWriteData('Paste');
+          }
+        },
+        {
+          name: 'Arrow Up',
+          icon: ArrowUp,
+          tip: t('UpArrow'),
+          click: () => {
+            handleWriteData('ArrowUp');
+          }
+        },
+        {
+          name: 'Arrow Down',
+          icon: ArrowDown,
+          tip: t('DownArrow'),
+          click: () => {
+            handleWriteData('ArrowDown');
+          }
+        },
+        {
+          name: 'Arrow Left',
+          icon: ArrowBack,
+          tip: t('LeftArrow'),
+          click: () => {
+            handleWriteData('ArrowLeft');
+          }
+        },
+        {
+          name: 'Arrow Right',
+          icon: ArrowForward,
+          tip: t('RightArrow'),
+          click: () => {
+            handleWriteData('ArrowRight');
+          }
+        }
+      ],
+      disabled: () => false,
+      click: () => {}
+    }
+  ];
+});
+
+/**
+ * @description 处理标签关闭
+ *
+ * @param name
+ */
+const handleClose = (name: string) => {
+  const node = treeStore.getTerminalByK8sId(name);
+  const socket = node.socket;
+
+  if (socket) {
+    socket.send(
+      JSON.stringify({
+        type: 'K8S_CLOSE',
+        id: node.id,
+        k8s_id: node.k8s_id
+      })
+    );
+  }
+
+  const index = panels.value.findIndex(panel => panel.name === name);
+
+  panels.value.splice(index, 1);
+
+  treeStore.removeK8sIdMap(name);
+
+  const panelLength = panels.value.length;
+
+  // 只有当 tab 的数量大于 1 并且为当前所在的 tab 在关闭时才会自动定位到前一位
+  if (panelLength >= 1 && nameRef.value === name) {
+    nameRef.value = panels.value[panelLength - 1].name as string;
+    findNodeById(nameRef.value);
+    terminalStore.setTerminalConfig('currentTab', nameRef.value);
+  }
+};
+
+/**
+ * @description 切换标签
+ *
+ * @param value
+ */
+const handleChangeTab = (value: string) => {
+  nameRef.value = value;
+
+  findNodeById(value);
+
+  terminalStore.setTerminalConfig('currentTab', value);
+};
+
+/**
+ * @description 每个 tab 标签的右侧快捷功能
+ * @param e
+ */
+const handleContextMenu = (e: PointerEvent) => {
+  let target: HTMLElement = e.target as HTMLElement;
+
+  while (target && !target.hasAttribute('data-name')) {
+    target = target.parentElement as HTMLElement;
+  }
+
+  if (target) {
+    // 获取设置的 data 属性
+    const dataName: string = target.getAttribute('data-name') as string;
+
+    if (dataName) {
+      contextIdentification.value = dataName;
+
+      e.preventDefault();
+      showContextMenu.value = true;
+      dropdownY.value = e.clientY;
+      dropdownX.value = e.clientX;
+    }
+  }
+};
+
+/**
+ * @description 重新连接
+ */
+const handleReconnect = (type: string) => {
+  const operatedNode = treeStore.getTerminalByK8sId(contextIdentification.value);
+  const socket = operatedNode?.socket;
+
+  if (type === 'reconnect') {
+    if (socket) {
+      socket.send(
+        JSON.stringify({
+          type: 'K8S_CLOSE',
+          id: operatedNode.id,
+          k8s_id: operatedNode.k8s_id
+        })
+      );
+    }
+
+    // 找到所操作节点的下标，
+    const index = panels.value.findIndex(panel => panel.name === contextIdentification.value);
+
+    panels.value.splice(index, 1);
+    treeStore.removeK8sIdMap(operatedNode.k8s_id);
+
+    const newId = uuid();
+
+    operatedNode.key = newId;
+    operatedNode.k8s_id = newId;
+    operatedNode.position = index;
+
+    mittBus.emit('connect-terminal', { ...operatedNode });
+  } else if (type === 'cloneConnect') {
+    mittBus.emit('connect-terminal', { ...operatedNode });
+  }
+
+  showContextMenu.value = false;
+};
+
+/**
+ * @description 右键菜单的回调
+ *
+ * @param key
+ * @param _option
+ */
+const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
+  switch (key) {
+    case 'reconnect': {
+      // 对于重新连接来说只有 k8sid 需要变化，并且需要发送 K8S_CLOSE 时间
+      handleReconnect('reconnect');
+      break;
+    }
+    case 'close': {
+      handleClose(contextIdentification.value);
+      showContextMenu.value = false;
+      break;
+    }
+    case 'closeAll': {
+      panels.value.forEach((panel: any) => {
+        treeStore.removeK8sIdMap(panel.k8s_id);
+      });
+
+      panels.value = [];
+
+      showContextMenu.value = false;
+      break;
+    }
+    case 'cloneConnect': {
+      handleReconnect('cloneConnect');
+
+      break;
+    }
+  }
+};
+
+/**
+ * @description 更新 tab 的唯一标识
+ *
+ * @param key
+ */
+const updateTabElements = (key: string) => {
+  const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
+
+  tabElements.forEach(element => {
+    if (!processedElements.has(element)) {
+      element.setAttribute('data-identification', key);
+      processedElements.add(element);
+    }
+  });
+};
+
+/**
+ * @description 关闭右侧菜单
+ */
+const handleClickOutside = () => {
+  showContextMenu.value = false;
+};
+
+/**
+ * @description tab item 的拖拽处理
+ */
+const initializeDraggable = () => {
+  const tabsContainer = document.querySelector('.n-tabs-wrapper');
+
+  if (tabsContainer) {
+    // 对于 useDraggable 如果直接操作 panel 可能会导致被注入一个 undefined 值从而导致报错，因此下面代码全部使用副本来操作
+    // @ts-ignore
+    useDraggable<UseDraggableReturn>(tabsContainer, JSON.parse(JSON.stringify(panels.value)), {
+      animation: 150,
+      onEnd: async event => {
+        if (!event || event.newIndex === undefined || event.oldIndex === undefined) {
+          return console.warn('Event or index is undefined');
+        }
+
+        let newIndex = event!.newIndex - 1;
+        let oldIndex = event!.oldIndex - 1;
+
+        // 此处不能使用 JSON.parse(JSON.stringify) 的形式，否则会出现循环引用, 只需浅拷贝即可
+        const clonedPanels = panels.value.map(panel => ({ ...panel }));
+
+        panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(panel => panel !== null);
+
+        const newActiveTab: string = panels.value[newIndex!]?.name as string;
+
+        if (newActiveTab) {
+          nameRef.value = newActiveTab;
+          findNodeById(newActiveTab);
+          terminalStore.setTerminalConfig('currentTab', newActiveTab);
+        }
+      }
+    });
+  }
+};
+
+/**
+ * @description 重置分享表单的数据
+ */
+const resetShareDialog = () => {
+  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+  operatedNode.userOptions = [];
+
+  paramsStore.setShareId('');
+  paramsStore.setShareCode('');
+
+  treeStore.setK8sIdMap(nameRef.value, { ...operatedNode });
+  dialog.destroyAll();
+};
+
+/**
+ * @description 向终端写入快捷命令
+ *
+ * @param type
+ */
+const handleWriteData = async (type: string) => {
+  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+  const terminal = operatedNode.terminal;
+
+  if (!terminal) {
+    return message.error(t('No terminal instances available'));
+  }
+
+  switch (type) {
+    case 'Paste': {
+      terminal.paste(await readText());
+      break;
+    }
+    case 'Stop': {
+      terminal.paste('\x03');
+      break;
+    }
+    case 'ArrowUp': {
+      terminal.paste('\x1b[A');
+      break;
+    }
+    case 'ArrowDown': {
+      terminal.paste('\x1b[B');
+      break;
+    }
+    case 'ArrowLeft': {
+      terminal.paste('\x1b[D');
+      break;
+    }
+    case 'ArrowRight': {
+      terminal.paste('\x1b[C');
+      break;
+    }
+  }
+
+  await nextTick(() => {
+    terminal.focus();
+  });
+};
+
+/**
+ * @description 切换到上一个 Tab
+ */
+const switchToPreviousTab = () => {
+  const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
+
+  if (currentIndex > 0) {
+    nameRef.value = panels.value[currentIndex - 1].name as string;
+  } else {
+    nameRef.value = panels.value[panels.value.length - 1].name as string;
+  }
+
+  findNodeById(nameRef.value);
+
+  terminalStore.setTerminalConfig('currentTab', nameRef.value);
+};
+
+/**
+ * @description 切换到下一个 Tab
+ */
+const switchToNextTab = () => {
+  const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
+
+  if (currentIndex < panels.value.length - 1) {
+    nameRef.value = panels.value[currentIndex + 1].name as string;
+  } else {
+    nameRef.value = panels.value[0].name as string;
+  }
+
+  findNodeById(nameRef.value);
+
+  terminalStore.setTerminalConfig('currentTab', nameRef.value);
+};
+
+const debouncedSwitchToPreviousTab = useDebounceFn(() => {
+  switchToPreviousTab();
+}, 200);
+
+const debouncedSwitchToNextTab = useDebounceFn(() => {
+  switchToNextTab();
+}, 200);
+
+const unloadEvent = () => {
+  mittBus.off('sync-theme');
+  mittBus.off('share-user');
+  mittBus.off('terminal-search');
+  mittBus.off('create-share-url');
+  mittBus.off('remove-share-user');
+};
+
+onMounted(() => {
+  const lunaConfig = terminalStore.getConfig;
+
+  nextTick(() => {
+    initializeDraggable();
+  });
+
+  mittBus.on('connect-terminal', (node: any) => {
+    let index;
+
+    // 如果在 panels 中有相同的 k8s_id，则认为是对一个节点重复连接
+    panels.value.forEach(panel => {
+      if (panel.name === node.k8s_id) {
+        const newId = uuid();
+        node.key = newId;
+        node.k8s_id = newId;
+      }
+    });
+
+    if (node.position || node.position === 0) {
+      index = node.position;
+    } else {
+      index = panels.value.length;
+    }
+
+    panels.value.splice(index, 0, {
+      ...node,
+      // 二者为组件库的必填项
+      name: node.k8s_id,
+      tab: node.label
+    });
+
+    nameRef.value = node.k8s_id;
+
+    nextTick(() => {
+      treeStore.setCurrentNode(node);
+      terminalStore.setTerminalConfig('currentTab', node.k8s_id);
+
+      unloadEvent();
+      updateTabElements(node.k8s_id);
+
+      const el = document.getElementById(node.k8s_id);
+
+      if (el) {
+        const terminal = createTerminal(el, node.socket, lunaConfig);
+
+        treeStore.setK8sIdMap(node.k8s_id, {
+          ...node,
+          terminal
+        });
+
+        const firstSendMessage = {
+          id: node.id,
+          k8s_id: node.k8s_id,
+          namespace: node.namespace || '',
+          pod: node.pod || '',
+          container: node.container || '',
+          type: 'TERMINAL_K8S_INIT',
+          data: JSON.stringify({
+            cols: terminal.cols,
+            rows: terminal.rows,
+            code: ''
+          })
+        };
+
+        try {
+          // 发送初次连接的数据
+          node.socket.send(JSON.stringify(firstSendMessage));
+
+          const currentNode = treeStore.getTerminalByK8sId(node.k8s_id);
+
+          setTimeout(() => {
+            emits('update:waterMarkContent', currentNode.waterMarkContent);
+          }, 1000);
+
+          updateIcon(connectInfo.value);
+        } catch (e: any) {
+          throw new Error(e)
+        }
+      }
+    });
+  });
+
+  mittBus.on('alt-shift-left', debouncedSwitchToPreviousTab);
+  mittBus.on('alt-shift-right', debouncedSwitchToNextTab);
+});
+
+onBeforeUnmount(() => {
+  mittBus.off('alt-shift-left', debouncedSwitchToPreviousTab);
+  mittBus.off('alt-shift-right', debouncedSwitchToNextTab);
+  mittBus.off('connect-terminal');
+});
+</script>
+
+<style scoped lang="scss">
+@import './index.scss';
+</style>

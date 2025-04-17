@@ -1,15 +1,17 @@
 <template>
   <n-drawer
+    resizable
     id="drawer-inner-target"
-    v-model:show="isShowList"
     :auto-focus="false"
-    :width="settingDrawer ? 270 : 700"
-    class="transition-all duration-300 ease-in-out"
+    :default-width="drawerWidth"
+    :min-width="drawerMinWidth"
+    v-model:show="isShowList"
+    v-model:width="drawerWidth"
   >
-    <n-drawer-content>
+    <n-drawer-content v-if="showTab">
       <n-tabs
-        type="line"
         animated
+        type="line"
         class="w-full h-full"
         :default-value="tabDefaultValue"
         @before-leave="handleBeforeLeave"
@@ -137,7 +139,7 @@
             </n-flex>
           </template>
         </n-tab-pane>
-        <!-- <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
+        <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
           <template #tab>
             <n-flex align="center" justify="flex-start">
               <n-icon size="20" :component="Folders" />
@@ -147,15 +149,27 @@
 
           <template #default>
             <template v-if="isLoaded">
-              <FileManage :columns="columns" />
+              <keep-alive>
+                <FileManage :columns="columns" />
+              </keep-alive>
             </template>
 
             <template v-else>
               <n-spin size="small" class="absolute w-full h-full" />
             </template>
           </template>
-        </n-tab-pane> -->
+        </n-tab-pane>
       </n-tabs>
+    </n-drawer-content>
+
+    <n-drawer-content v-else closable :title="t('FileManagement')">
+      <template v-if="isLoaded">
+        <FileManage :columns="columns" />
+      </template>
+
+      <template v-else>
+        <n-spin size="small" class="absolute w-full h-full" />
+      </template>
     </n-drawer-content>
   </n-drawer>
 </template>
@@ -164,22 +178,19 @@
 // @ts-ignore
 import dayjs from 'dayjs';
 import mittBus from '@/utils/mittBus.ts';
-// @ts-ignore
 import FileManage from './components/fileManage/index.vue';
 
-import { Delete, CloudDownload } from '@vicons/carbon';
 import { Folder, Folders, Settings } from '@vicons/tabler';
 import { NButton, NEllipsis, NFlex, NIcon, NTag, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { useMessage } from 'naive-ui';
+import { getFileName } from '@/utils';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
-import { h, onBeforeUnmount, onMounted, ref, watch, unref, nextTick } from 'vue';
+import { h, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue';
 
 import type { DataTableColumns } from 'naive-ui';
-import type { ISettingProp } from '@/views/interface';
-import { getFileName } from '@/utils';
+import type { ISettingProp } from '@/types';
 
 export interface RowData {
   is_dir: boolean;
@@ -192,12 +203,19 @@ export interface RowData {
 
 const props = withDefaults(
   defineProps<{
-    settings: ISettingProp[];
+    showTab?: boolean;
+    settings?: ISettingProp[];
+    sftpToken: string;
   }>(),
   {
-    settings: () => []
+    settings: () => [],
+    sftpToken: '',
+    showTab: false
   }
 );
+const emits = defineEmits<{
+  (e: 'create-file-connect-token'): void;
+}>();
 
 const { t } = useI18n();
 const fileManageStore = useFileManageStore();
@@ -205,15 +223,30 @@ const fileManageStore = useFileManageStore();
 const isLoaded = ref(false);
 const isShowList = ref(false);
 const settingDrawer = ref(false);
+const drawerWidth = ref(700);
+const drawerMinWidth = ref(650);
 const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);
+const fileManageSocket = ref<WebSocket | undefined>(undefined);
 
 watch(
   () => fileManageStore.fileList,
   fileList => {
-    if (fileList && fileList.length > 0) {
+    if (fileList) {
       tableData.value = fileList;
       isLoaded.value = true;
+    }
+  },
+  {
+    immediate: true
+  }
+);
+
+watch(
+  () => props.sftpToken,
+  token => {
+    if (token) {
+      fileManageSocket.value = useFileManage(token, t);
     }
   },
   {
@@ -226,6 +259,7 @@ watch(
  */
 const handleOpenFileList = () => {
   tabDefaultValue.value = 'fileManage';
+  drawerMinWidth.value = 650;
   isShowList.value = !isShowList.value;
 };
 
@@ -235,6 +269,7 @@ const handleOpenFileList = () => {
 const handleOpenSetting = () => {
   isShowList.value = !isShowList.value;
   tabDefaultValue.value = 'setting';
+  drawerMinWidth.value = 270;
 
   nextTick(() => {
     const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
@@ -347,7 +382,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       }
     },
     {
-      title: t('Date Modified'),
+      title: t('LastModified'),
       key: 'mod_time',
       align: 'center',
       width: 180,
@@ -391,7 +426,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       }
     },
     {
-      title: t('Kind'),
+      title: t('Type'),
       key: 'type',
       align: 'center',
       render(row: RowData) {
@@ -411,37 +446,56 @@ const createColumns = (): DataTableColumns<RowData> => {
 };
 
 /**
- * @description 再切换 tab 标签时动态修改 drawer 的宽度
+ * @description 设置 drawer 宽度
+ * @param width
+ */
+const adjustDrawerWidth = (width: string) => {
+  nextTick(() => {
+    const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
+
+    if (drawerRef) {
+      drawerRef.style.width = width;
+    }
+  });
+};
+
+/**
+ * @description 在切换 tab 标签时动态修改 drawer 的宽度
  * @param tabName
  */
 const handleBeforeLeave = (tabName: string) => {
   if (tabName === 'setting') {
     settingDrawer.value = true;
+    drawerWidth.value = 270;
+    drawerMinWidth.value = 270;
 
     return true;
   }
 
   if (tabName === 'fileManage') {
     settingDrawer.value = false;
+    drawerWidth.value = 700;
+    drawerMinWidth.value = 650;
 
-    nextTick(() => {
-      const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
-
-      if (drawerRef) {
-        drawerRef.style.width = '700px';
-      }
-    });
+    if (!fileManageSocket.value) {
+      emits('create-file-connect-token');
+    }
 
     return true;
   }
+
+  return false;
 };
 
 const columns = createColumns();
 
 onMounted(() => {
-  // useFileManage();
+  // 展示 tab 则不监听 open-fileList
+  if (props.showTab) {
+    mittBus.on('open-setting', handleOpenSetting);
+  }
+
   mittBus.on('open-fileList', handleOpenFileList);
-  mittBus.on('open-setting', handleOpenSetting);
 });
 
 onBeforeUnmount(() => {

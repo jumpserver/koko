@@ -1,58 +1,62 @@
 <template>
-  <ContentHeader />
-  <n-layout has-sider class="custom-layout h-full w-full">
-    <n-layout-header class="w-[48px]">
-      <n-flex vertical align="center" justify="space-between" class="w-full h-full text-white bg-[#333333]">
-        <SideTop />
-      </n-flex>
-    </n-layout-header>
-    <n-layout-sider
-      bordered
-      collapsed
-      collapse-mode="width"
-      content-style="padding: 24px;"
-      v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }"
-      class="transition-width duration-300 w-full"
-      :width="sideWidth"
-      :collapsed-width="0"
-      :native-scrollbar="false"
-      :show-collapsed-content="false"
-      :style="{
-        width: sideWidth + 'px',
-        maxWidth: '600px'
-      }"
+  <n-watermark 
+    cross 
+    selectable 
+    full-screen 
+    class="w-full h-full"
+    :rotate="-45" 
+    :font-size="18" 
+    :line-height="20" 
+    :width="500" 
+    :height="400"
+    :y-offset="180" 
+    :font-family="'Open Sans'"
+    :content="waterMarkContent" 
     >
-      <Tree
-        :class="{
-          'transition-opacity duration-200': true,
-          'opacity-0': isFolded,
-          'opacity-100': !isFolded
-        }"
-        @sync-load-node="handleSyncLoad"
-        @reload-tree="handleReloadTree"
-      />
-    </n-layout-sider>
-    <MainContent />
-  </n-layout>
+      <ContentHeader />
+      <n-layout has-sider class="custom-layout h-full w-full">
+        <n-layout-header class="w-[48px]">
+          <n-flex vertical align="center" justify="space-between" class="w-full h-full text-white bg-[#333333]">
+            <SideTop />
+          </n-flex>
+        </n-layout-header>
+        <n-layout-sider bordered collapsed collapse-mode="width" content-style="padding: 24px;"
+          v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }" class="transition-width duration-300 w-full"
+          :width="sideWidth" :collapsed-width="0" :native-scrollbar="false" :show-collapsed-content="false" :style="{
+            width: sideWidth + 'px',
+            maxWidth: '600px'
+          }">
+          <Tree :class="{
+            'transition-opacity duration-200': true,
+            'opacity-0': isFolded,
+            'opacity-100': !isFolded
+          }" @sync-load-node="handleSyncLoad" @reload-tree="handleReloadTree" />
+        </n-layout-sider>
+        <MainContent @update:water-mark-content="handleUpdateWaterMarkContent" />
+      </n-layout>
+  </n-watermark>
 </template>
 
 <script setup lang="ts">
-import { useKubernetes } from '@/hooks/useKubernetes.ts';
-import { useTreeStore } from '@/store/modules/tree.ts';
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-
+import { useI18n } from 'vue-i18n';
 import { TreeOption } from 'naive-ui';
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { useKubernetes } from '@/hooks/useKubernetes.ts';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import mittBus from '@/utils/mittBus';
 import Tree from '@/components/Kubernetes/Tree/index.vue';
 import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
-import MainContent from '@/components/Kubernetes/MainContent/main.vue';
+import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
-import { useI18n } from 'vue-i18n';
+
+const paramsStore = useParamsStore();
 
 const socket = ref();
 const sideWidth = ref(300);
 const isFolded = ref(false);
+const waterMarkContent = ref('');
 
 const { t } = useI18n();
 
@@ -105,6 +109,10 @@ const handleDragEnd = (_el: HTMLElement, newWidth: number) => {
   nextTick(() => {
     tableElement.style.width = newWidth + 'px';
   });
+};
+
+const handleUpdateWaterMarkContent = (content: string) => {
+  waterMarkContent.value = content;
 };
 
 onMounted(() => {

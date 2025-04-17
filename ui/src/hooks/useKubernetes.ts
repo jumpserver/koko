@@ -1,15 +1,15 @@
+import { formatMessage, updateIcon, sendEventToLuna } from '@/components/TerminalComponent/helper';
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
-import { formatMessage, updateIcon } from '@/components/CustomTerminal/helper';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { base64ToUint8Array, generateWsURL } from './helper';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useSentry } from '@/hooks/useZsentry.ts';
+import { h, ref, watch, watchEffect } from 'vue';
 import { readText } from 'clipboard-polyfill';
 import { useWebSocket } from '@vueuse/core';
 import { preprocessInput } from '@/utils';
 import { storeToRefs } from 'pinia';
-import { h, ref } from 'vue';
 
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 import { Cube24Regular } from '@vicons/fluent';
@@ -34,6 +34,11 @@ const { message, notification } = createDiscreteApi(['message', 'notification'],
   }
 });
 
+const origin = ref('');
+const lunaId = ref('');
+const counter = ref(0);
+const guaranteeInterval = ref<number | null>(null);
+
 const handleConnected = (socket: WebSocket, pingInterval: Ref<number | null>) => {
   const kubernetesStore = useKubernetesStore();
 
@@ -56,6 +61,25 @@ const handleConnected = (socket: WebSocket, pingInterval: Ref<number | null>) =>
 
     socket.send(formatMessage(kubernetesStore.globalTerminalId, 'PING', ''));
   }, 25 * 1000);
+};
+
+const guaranteeLunaConnection = () => {
+  watchEffect(() => {
+    if (!lunaId.value) {
+      guaranteeInterval.value = setInterval(() => {
+        counter.value++;
+
+        console.log(
+          '%c DEBUG [ Send Luna PING ]:',
+          'font-size:13px; background: #1ab394; color:#fff;',
+          counter.value
+        );
+      }, 1000);
+    } else {
+      clearInterval(guaranteeInterval.value!);
+      sendEventToLuna('PING', '', lunaId.value, origin.value);
+    }
+  });
 };
 
 /**
@@ -454,7 +478,22 @@ export const createConnect = (t: any) => {
   if (connectURL) {
     const { ws } = useWebSocket(connectURL, {
       protocols: ['JMS-KOKO'],
-      onConnected: (ws: WebSocket) => handleConnected(ws, pingInterval),
+      onConnected: (ws: WebSocket) => {
+        watch(
+          () => counter.value,
+          counter => {
+            if (counter >= 5) {
+              clearInterval(guaranteeInterval.value!);
+
+              alert('Failed to connect to Luna');
+              ws.close();
+              window.close();
+            }
+          }
+        );
+        guaranteeLunaConnection();
+        handleConnected(ws, pingInterval);
+      },
       onMessage: (ws: WebSocket, event: MessageEvent) => {
         handleTreeMessage(ws, event);
         handleTerminalMessage(ws, event, createSentry, t);
@@ -741,6 +780,27 @@ export const useKubernetes = (t: any) => {
   let socket: WebSocket | undefined;
 
   const ws = createConnect(t);
+
+  window.addEventListener('message', (event: MessageEvent) => {
+    const message = event.data;
+
+    switch (message.name) {
+      case 'PING': {
+        lunaId.value = message.id;
+        origin.value = event.origin;
+
+        sendEventToLuna('PONG', '', lunaId.value, origin.value);
+        break;
+      }
+      case 'PONG': {
+        lunaId.value = message.id;
+        origin.value = event.origin;
+
+        clearInterval(guaranteeInterval.value!);
+        break;
+      }
+    }
+  });
 
   if (ws) {
     socket = ws;

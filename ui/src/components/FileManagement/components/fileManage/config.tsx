@@ -12,7 +12,7 @@ const renderIcon = (icon: Component) => {
   return () => {
     return h(
       NIcon,
-      { size: 16 },
+      { size: 20 },
       {
         default: () => h(icon)
       }
@@ -24,12 +24,12 @@ export const getDropSelections = (t: any): DropdownOption[] => {
   return [
     {
       key: 'rename',
-      label: t('rename'),
+      label: t('Rename'),
       icon: renderIcon(DriveFileRenameOutlineOutlined)
     },
     {
       key: 'download',
-      label: t('download'),
+      label: t('Download'),
       icon: renderIcon(Download)
     },
     {
@@ -38,30 +38,18 @@ export const getDropSelections = (t: any): DropdownOption[] => {
     },
     {
       key: 'delete',
-      icon: () =>
-        h(
-          NIcon,
-          {
-            color: 'red',
-            size: 16
-          },
-          {
-            default: () => h(Delete16Regular)
-          }
-        ),
-      label: () =>
-        h(
-          NText,
-          {
-            depth: 1,
-            style: {
-              color: 'red'
-            }
-          },
-          {
-            default: () => t('delete')
-          }
+      icon: () => {
+        return (
+          <NIcon size={ 20 } color="#F54A45" component={ Delete16Regular } />
         )
+      },
+      label: () => {
+        return (
+          <NText depth={ 1 } style={ { color: '#F54A45' } }>
+            { t('Delete') }
+          </NText>
+        )
+      }
     }
   ];
 };

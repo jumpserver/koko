@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 
 import type { IFileManageSftpFileItem } from '@/hooks/interface';
+import type { UploadFileInfo } from 'naive-ui';
 
 interface IFileManageStoreState {
   fileList: IFileManageSftpFileItem[] | null;
@@ -10,6 +11,8 @@ interface IFileManageStoreState {
   currentPath: string;
 
   isReceived: boolean;
+
+  uploadFileList: UploadFileInfo[];
 }
 
 export const useFileManageStore = defineStore('fileManage', {
@@ -20,16 +23,13 @@ export const useFileManageStore = defineStore('fileManage', {
 
     currentPath: '',
 
-    isReceived: false
+    isReceived: false,
+
+    uploadFileList: []
   }),
   actions: {
     setFileList(fileList: IFileManageSftpFileItem[]) {
       if (fileList) {
-        console.log(
-          '%c DEBUG[ fileList ]-72:',
-          'font-size:13px; background:#DCDCDC; color:#2F4F4F;',
-          fileList
-        );
         this.fileList = fileList;
       }
     },
@@ -41,6 +41,9 @@ export const useFileManageStore = defineStore('fileManage', {
     },
     setReceived(value: boolean) {
       this.isReceived = value;
+    },
+    setUploadFileList(fileList: UploadFileInfo[]) {
+      this.uploadFileList = fileList;
     }
   }
 });

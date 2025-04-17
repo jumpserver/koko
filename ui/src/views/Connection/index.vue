@@ -1,15 +1,31 @@
 <template>
-  <CustomComponent
+  <terminal-component
     ref="terminalRef"
     index-key="id"
     class="common-terminal"
     :theme-name="themeName"
     :terminal-type="terminalType"
     @event="onEvent"
-    @socketData="onSocketData"
+    @socket-data="onSocketData"
   />
 
-  <PamFileList :settings="settings" />
+  <!-- TODO 暂时这么实现，后续将 setting 与 file-management 进行整合 -->
+  <template v-if="!showTab">
+    <settings :settings="settings" />
+    <file-management
+      :show-tab="false"
+      :sftp-token="sftpToken"
+      @create-file-connect-token="createFileConnectToken"
+    />
+  </template>
+  <template v-else>
+    <file-management
+      :show-tab="true"
+      :settings="settings"
+      :sftp-token="sftpToken"
+      @create-file-connect-token="createFileConnectToken"
+    />
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -22,15 +38,16 @@ import { Terminal } from '@xterm/xterm';
 
 import { storeToRefs } from 'pinia';
 import { NMessageProvider } from 'naive-ui';
+import { sendEventToLuna } from '@/components/TerminalComponent/helper';
 import { computed, h, markRaw, nextTick, onUnmounted, reactive, Ref, ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
-
 import Share from '@/components/Share/index.vue';
-import PamFileList from '@/components/pamFileList/index.vue';
+import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
-import CustomComponent from '@/components/CustomTerminal/index.vue';
+import FileManagement from '@/components/FileManagement/index.vue';
+import TerminalComponent from '@/components/TerminalComponent/index.vue';
 
 import {
   PersonAdd,
@@ -44,7 +61,7 @@ import {
   LockClosedOutline
 } from '@vicons/ionicons5';
 
-import type { ISettingProp, shareUser } from '@/views/interface';
+import type { ISettingProp, shareUser } from '@/types';
 import { Keyboard, Stop, Paste } from '@vicons/carbon';
 import { readText } from 'clipboard-polyfill';
 
@@ -58,13 +75,17 @@ const { setting } = storeToRefs(paramsStore);
 const dialog = useDialog();
 const message = useMessage();
 
-const sessionId = ref<string>('');
-const themeName = ref<string>('Default');
-const terminalType = ref<string>('common');
-const enableShare = ref<boolean>(false);
+const lunaId = ref('');
+const origin = ref('');
+const terminalRef = ref();
+const sftpToken = ref('');
+const sessionId = ref('');
+const themeName = ref('Default');
+const terminalType = ref('common');
+const showTab = ref(false);
+const enableShare = ref(false);
+const warningIntervalId = ref(0);
 const userOptions = ref<shareUser[]>([]);
-const terminalRef: Ref<any> = ref();
-const warningIntervalId = ref<number>(0);
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
 onUnmounted(() => {
@@ -266,6 +287,10 @@ const handleWriteData = async (type: string) => {
   });
 };
 
+const createFileConnectToken = () => {
+  sendEventToLuna('CREATE_FILE_CONNECT_TOKEN', '', lunaId.value, origin.value);
+};
+
 /**
  * 重置分享连接表单
  */
@@ -403,9 +428,22 @@ const onEvent = (event: string, _data: any) => {
       break;
     case 'open':
       mittBus.emit('open-setting');
+      lunaId.value = _data.lunaId;
+      origin.value = _data.origin;
+
+      if (_data.noFileTab) {
+        showTab.value = false;
+      } else {
+        showTab.value = true;
+      }
+
       break;
     case 'file':
       mittBus.emit('open-fileList');
+      sftpToken.value = _data.token;
+      break;
+    case 'create-file-connect-token':
+      sftpToken.value = _data.token;
       break;
   }
 };

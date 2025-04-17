@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	InValidToken = errors.New("invalid token")
+	ErrValidToken = errors.New("invalid token")
 
 	_ ServerConnection = (*K8sCon)(nil)
 )
@@ -69,7 +69,7 @@ func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
 		setter(args)
 	}
 	if !IsValidK8sUserToken(args) {
-		return nil, InValidToken
+		return nil, ErrValidToken
 	}
 	kubeProxy := NewKubectlProxyConn(args)
 	err := kubeProxy.Start()

@@ -70,7 +70,7 @@ import { useI18n } from 'vue-i18n';
 import { BASE_URL } from '@/config';
 import { getMinuteLabel } from '@/utils';
 import { useDebounceFn } from '@vueuse/core';
-import { shareUser } from '@/views/interface';
+import { shareUser } from '@/types';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 
@@ -125,7 +125,7 @@ const shareLinkRequest = reactive({
 });
 
 const shareURL = computed(() => {
-  return shareId.value ? `${BASE_URL}/koko/share/${shareId.value}/` : t('NoLink');
+  return shareId.value ? `${BASE_URL}/luna/share/${shareId.value}/` : t('NoLink');
 });
 
 const mappedUserOptions = computed(() => {

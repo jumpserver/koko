@@ -37,7 +37,7 @@ import {
   useDialogReactiveList
 } from 'naive-ui';
 
-import CustomTerminal from '@/components/CustomTerminal/index.vue';
+import CustomTerminal from '@/components/TerminalComponent/index.vue';
 
 import { storeToRefs } from 'pinia';
 import { useParamsStore } from '@/store/modules/params.ts';

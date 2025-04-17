@@ -1,8 +1,16 @@
 import type { GlobalThemeOverrides } from 'naive-ui';
 
 export const themeOverrides: GlobalThemeOverrides = {
-  Drawer: {
-    // color: '#1E1E1E'
+  Drawer: {},
+  DataTable: {
+    thColorModal: 'unset'
   },
-  Table: {}
+  Upload: {
+    peers: {
+      Progress: {
+        fillColor: '#16987D',
+        fillColorInfo: '#16987D',
+      }
+    }
+  }
 };

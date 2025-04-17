@@ -66,13 +66,13 @@ func TestK8sTreeGen_SpeedTest(t *testing.T) {
 	for i := 0; i <= 100; i++ {
 		v1(mockedData)
 	}
-	duration1 = time.Now().Sub(st1).Milliseconds()
+	duration1 = time.Since(st1).Milliseconds()
 
 	st2 := time.Now()
 	for i := 0; i <= 100; i++ {
 		v2(mockedData)
 	}
-	duration2 = time.Now().Sub(st2).Milliseconds()
+	duration2 = time.Since(st2).Milliseconds()
 
 	fmt.Printf("v1: %d\n", duration1/100)
 	fmt.Printf("v2: %d\n", duration2/100)

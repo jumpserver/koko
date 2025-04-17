@@ -399,9 +399,6 @@ func (r *FTPFileRecorder) ChunkedRecord(ftpLog *model.FTPLog, readerAt io.Reader
 	if err1 := common.ChunkedFileTransfer(info.fd, readerAt, offset, totalSize); err1 != nil {
 		logger.Errorf("FTP file %s write err: %s", ftpLog.ID, err1)
 	}
-
-	_ = info.Close()
-	go r.UploadFile(3, ftpLog.ID)
 	return
 }
 
