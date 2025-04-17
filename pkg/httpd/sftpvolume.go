@@ -59,14 +59,24 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 	homeName := "Home"
 	basePath := "/"
 	asset := volOpts.asset
-	if asset != nil {
-		folderName := asset.Name
-		if strings.Contains(folderName, "/") {
-			folderName = strings.ReplaceAll(folderName, "/", "_")
-		}
-		homeName = folderName
-		basePath = filepath.Join("/", homeName)
-	}
+	if asset == nil && volOpts.connectToken != nil {
+        connectTokenAsset := volOpts.connectToken.Asset
+        if connectTokenAsset.ID != "" && connectTokenAsset.Name != "" {
+            permAsset := &model.PermAsset{
+                ID:   connectTokenAsset.ID,
+                Name: connectTokenAsset.Name,
+                Address: connectTokenAsset.Address,
+            }
+            asset = permAsset
+        }
+ }
+    if asset != nil {
+        folderName := asset.Name
+        if strings.Contains(folderName, "/") {
+            folderName = strings.ReplaceAll(folderName, "/", "_")
+        }
+        homeName = folderName
+    }
 	sftpOpts := make([]srvconn.UserSftpOption, 0, 5)
 	if volOpts.connectToken != nil {
 		sftpOpts = append(sftpOpts, srvconn.WithConnectToken(volOpts.connectToken))
