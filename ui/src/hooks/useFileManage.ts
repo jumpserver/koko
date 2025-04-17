@@ -326,7 +326,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
       }
 
       case MessageType.CLOSED: {
-        globalTipsMessage.error(t('The current file management drawing has expired.'));
+        globalTipsMessage.error(t('FileManagementExpired'));
 
         uploadInterrupt.value = true;
         uploadInterruptType.value = null;
