@@ -1,8 +1,5 @@
 import { Ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
-import { useLogger } from '@/hooks/useLogger.ts';
-
-const { info } = useLogger('HelperFunctions');
 
 interface LunaEventMessage {
   name: string;
@@ -51,8 +48,6 @@ export const handleEventFromLuna = (
 ) => {
   const msg: LunaEventMessage = e.data;
 
-  info('Received post message:', msg);
-
   switch (msg.name) {
     case 'PING':
       if (lunaId.value != null) return;
@@ -81,7 +76,12 @@ export const handleEventFromLuna = (
  * @returns 如果 WebSocket 已激活则返回 true，否则返回 false。
  */
 export const wsIsActivated = (ws: WebSocket | undefined) => {
-  return ws ? !(ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) : false;
+  return ws
+    ? !(
+        ws.readyState === WebSocket.CLOSING ||
+        ws.readyState === WebSocket.CLOSED
+      )
+    : false;
 };
 
 /**
@@ -90,7 +90,6 @@ export const wsIsActivated = (ws: WebSocket | undefined) => {
  * @param {Event} e - 错误事件。
  */
 export const handleError = (e: any) => {
-  info(e);
 };
 
 /**

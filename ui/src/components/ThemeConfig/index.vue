@@ -25,84 +25,141 @@
           <p class="title">Theme Colors</p>
           <n-grid :cols="24" type="flex" class="theme-colors mb-[35px]">
             <n-grid-item :span="8">
-              <div class="show-color" :style="{ backgroundColor: colors.background }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.background }"
+              ></div>
               <div>Background</div>
             </n-grid-item>
             <n-grid-item :span="8">
-              <div class="show-color" :style="{ backgroundColor: colors.foreground }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.foreground }"
+              ></div>
               <div>Foreground</div>
             </n-grid-item>
             <n-grid-item :span="8">
-              <div class="show-color" :style="{ backgroundColor: colors.cursor }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.cursor }"
+              ></div>
               <div>Cursor</div>
             </n-grid-item>
           </n-grid>
           <p class="title">ANSI Colors</p>
           <n-grid :cols="24" type="flex" class="theme-colors">
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.black }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.black }"
+              ></div>
               <div>Black</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.red }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.red }"
+              ></div>
               <div>Red</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.green }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.green }"
+              ></div>
               <div>Green</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.yellow }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.yellow }"
+              ></div>
               <div>Yellow</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.blue }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.blue }"
+              ></div>
               <div>Blue</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.magenta }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.magenta }"
+              ></div>
               <div>Magenta</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.cyan }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.cyan }"
+              ></div>
               <div>Cyan</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.white }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.white }"
+              ></div>
               <div>White</div>
             </n-grid-item>
           </n-grid>
           <n-grid :cols="24" type="flex" class="theme-colors">
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightBlack }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightBlack }"
+              ></div>
               <div>BrightBlack</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightRed }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightRed }"
+              ></div>
               <div>BrightRed</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightGreen }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightGreen }"
+              ></div>
               <div>BrightGreen</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightYellow }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightYellow }"
+              ></div>
               <div>BrightYellow</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightBlue }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightBlue }"
+              ></div>
               <div>BrightBlue</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightMagenta }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightMagenta }"
+              ></div>
               <div>BrightMagenta</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightCyan }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightCyan }"
+              ></div>
               <div>BrightCyan</div>
             </n-grid-item>
             <n-grid-item :span="3">
-              <div class="show-color" :style="{ backgroundColor: colors.brightWhite }"></div>
+              <div
+                class="show-color"
+                :style="{ backgroundColor: colors.brightWhite }"
+              ></div>
               <div>BrightWhite</div>
             </n-grid-item>
           </n-grid>
@@ -179,16 +236,20 @@ const setTheme = (value: string) => {
  */
 const handlePreviewTheme = (event: KeyboardEvent) => {
   if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-    const currentIndex = themes.value.findIndex(option => option.value === theme.value);
+    const currentIndex = themes.value.findIndex(
+      option => option.value === theme.value
+    );
 
     let nextIndex = currentIndex;
 
     if (event.key === 'ArrowUp') {
       // 如果当前索引为 0，则跳转到最后一个选项，否则向上移动
-      nextIndex = currentIndex === 0 ? themes.value.length - 1 : currentIndex - 1;
+      nextIndex =
+        currentIndex === 0 ? themes.value.length - 1 : currentIndex - 1;
     } else if (event.key === 'ArrowDown') {
       // 如果当前索引为最后一个，则跳转到第一个选项，否则向下移动
-      nextIndex = currentIndex === themes.value.length - 1 ? 0 : currentIndex + 1;
+      nextIndex =
+        currentIndex === themes.value.length - 1 ? 0 : currentIndex + 1;
     }
 
     const nextValue = themes.value[nextIndex]?.value;
@@ -197,7 +258,9 @@ const handlePreviewTheme = (event: KeyboardEvent) => {
       setTheme(nextValue);
 
       setTimeout(() => {
-        const el = document.getElementsByClassName('n-base-select-option--selected')[0] as HTMLElement;
+        const el = document.getElementsByClassName(
+          'n-base-select-option--selected'
+        )[0] as HTMLElement;
 
         el.classList.add('n-base-select-option--pending');
       }, 100);

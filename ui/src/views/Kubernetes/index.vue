@@ -1,39 +1,58 @@
 <template>
-  <n-watermark 
-    cross 
-    selectable 
-    full-screen 
+  <n-watermark
+    cross
+    selectable
+    full-screen
     class="w-full h-full"
-    :rotate="-45" 
-    :font-size="18" 
-    :line-height="20" 
-    :width="500" 
+    :rotate="-45"
+    :font-size="18"
+    :line-height="20"
+    :width="500"
     :height="400"
-    :y-offset="180" 
+    :y-offset="180"
     :font-family="'Open Sans'"
-    :content="waterMarkContent" 
-    >
-      <ContentHeader />
-      <n-layout has-sider class="custom-layout h-full w-full">
-        <n-layout-header class="w-[48px]">
-          <n-flex vertical align="center" justify="space-between" class="w-full h-full text-white bg-[#333333]">
-            <SideTop />
-          </n-flex>
-        </n-layout-header>
-        <n-layout-sider bordered collapsed collapse-mode="width" content-style="padding: 24px;"
-          v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }" class="transition-width duration-300 w-full"
-          :width="sideWidth" :collapsed-width="0" :native-scrollbar="false" :show-collapsed-content="false" :style="{
-            width: sideWidth + 'px',
-            maxWidth: '600px'
-          }">
-          <Tree :class="{
+    :content="waterMarkContent"
+  >
+    <ContentHeader />
+    <n-layout has-sider class="custom-layout h-full w-full">
+      <n-layout-header class="w-[48px]">
+        <n-flex
+          vertical
+          align="center"
+          justify="space-between"
+          class="w-full h-full text-white bg-[#333333]"
+        >
+          <SideTop />
+        </n-flex>
+      </n-layout-header>
+      <n-layout-sider
+        bordered
+        collapsed
+        collapse-mode="width"
+        content-style="padding: 24px;"
+        v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }"
+        class="transition-width duration-300 w-full"
+        :width="sideWidth"
+        :collapsed-width="0"
+        :native-scrollbar="false"
+        :show-collapsed-content="false"
+        :style="{
+          width: sideWidth + 'px',
+          maxWidth: '600px'
+        }"
+      >
+        <Tree
+          :class="{
             'transition-opacity duration-200': true,
             'opacity-0': isFolded,
             'opacity-100': !isFolded
-          }" @sync-load-node="handleSyncLoad" @reload-tree="handleReloadTree" />
-        </n-layout-sider>
-        <MainContent @update:water-mark-content="handleUpdateWaterMarkContent" />
-      </n-layout>
+          }"
+          @sync-load-node="handleSyncLoad"
+          @reload-tree="handleReloadTree"
+        />
+      </n-layout-sider>
+      <MainContent @update:water-mark-content="handleUpdateWaterMarkContent" />
+    </n-layout>
   </n-watermark>
 </template>
 
@@ -73,8 +92,12 @@ const handleSyncLoad = (_node?: TreeOption) => {
 
   // 根据节点宽度自动拓宽
   setTimeout(() => {
-    const tableElement = document.querySelector('.n-descriptions-table') as HTMLElement;
-    const sideElement = document.querySelector('.n-layout-sider') as HTMLElement;
+    const tableElement = document.querySelector(
+      '.n-descriptions-table'
+    ) as HTMLElement;
+    const sideElement = document.querySelector(
+      '.n-layout-sider'
+    ) as HTMLElement;
 
     if (tableElement && sideElement) {
       const tableWidth = tableElement.clientWidth;

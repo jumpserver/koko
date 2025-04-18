@@ -1,5 +1,9 @@
 <template>
-  <n-layout-content class="main-content" content-style="padding: 24px;" id="main-container">
+  <n-layout-content
+    class="main-content"
+    content-style="padding: 24px;"
+    id="main-container"
+  >
     <n-list v-if="false" class="tips" :show-divider="false">
       <n-list-item v-for="(tip, index) of systemTips" :key="index">
         <n-flex align="center" style="flex-wrap: nowrap">

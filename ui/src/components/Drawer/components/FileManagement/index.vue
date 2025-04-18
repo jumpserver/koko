@@ -1,5 +1,5 @@
 <template>
-  <n-drawer
+  <!-- <n-drawer
     resizable
     id="drawer-inner-target"
     :auto-focus="false"
@@ -163,15 +163,16 @@
     </n-drawer-content>
 
     <n-drawer-content v-else closable :title="t('FileManagement')">
-      <template v-if="isLoaded">
-        <FileManage :columns="columns" />
-      </template>
-
-      <template v-else>
-        <n-spin size="small" class="absolute w-full h-full" />
-      </template>
+      
     </n-drawer-content>
-  </n-drawer>
+  </n-drawer> -->
+  <template v-if="isLoaded">
+    <FileManage :columns="columns" />
+  </template>
+
+  <template v-else>
+    <n-spin size="small" class="absolute w-full h-full" />
+  </template>
 </template>
 
 <script setup lang="ts">

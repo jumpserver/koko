@@ -4,12 +4,12 @@
     :theme="darkTheme"
     :date-locale="dateZhCN"
     :theme-overrides="themeOverrides"
-    class="overflow-hidden"
+    class="flex items-center justify-center h-full w-full overflow-hidden bg-black"
   >
     <n-dialog-provider>
       <n-notification-provider>
         <n-message-provider>
-          <router-view v-if="i18nLoaded" />
+          <router-view />
         </n-message-provider>
       </n-notification-provider>
     </n-dialog-provider>
@@ -26,43 +26,20 @@ import { themeOverrides } from './overrides.ts';
 
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia';
-import { useLogger } from '@/hooks/useLogger.ts';
-import { useGlobalStore } from '@/store/modules/global';
 
 const { mergeLocaleMessage } = useI18n();
-const { error } = useLogger('App');
 
-const globalStore = useGlobalStore();
-const { i18nLoaded } = storeToRefs(globalStore);
-
-const setLanguage = async (lang: string): Promise<void> => {
+onMounted(async () => {
   try {
-    const res = await alovaInstance
+    const translations = await alovaInstance
       .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${lang}&flat=0`)
       .then(response => (response as Response).json());
 
-    mergeLocaleMessage(lang, res[lang]);
+    if (translations[lang]) {
+      mergeLocaleMessage(lang, translations[lang]);
+    }
   } catch (e) {
-    error(`${e}`);
-  } finally {
-    globalStore.setI18nLoaded(true);
+    throw new Error(`${e}`);
   }
-};
-
-onMounted(() => {
-  setLanguage(lang);
 });
 </script>
-
-<style scoped lang="scss">
-.n-config-provider {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  background-color: #000;
-}
-</style>

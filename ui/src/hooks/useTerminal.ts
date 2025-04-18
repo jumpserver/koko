@@ -65,7 +65,12 @@ interface ICallbackOptions {
   transSocket?: WebSocket;
 
   // emit 事件
-  emitCallback?: (e: string, type: string, msg: any, terminal?: Terminal) => void;
+  emitCallback?: (
+    e: string,
+    type: string,
+    msg: any,
+    terminal?: Terminal
+  ) => void;
 
   // t
   i18nCallBack?: (key: string) => string;
@@ -73,7 +78,10 @@ interface ICallbackOptions {
 
 const { message } = createDiscreteApi(['message']);
 
-export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Promise<ITerminalInstance> => {
+export const useTerminal = async (
+  el: HTMLElement,
+  option: ICallbackOptions
+): Promise<ITerminalInstance> => {
   let sentry: Sentry;
   let socket: WebSocket;
   let terminal: Terminal | undefined;
@@ -140,7 +148,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
 
         updateIcon(info.setting);
 
-        socket.send(formatMessage(terminalId.value, 'TERMINAL_INIT', JSON.stringify(terminalData)));
+        socket.send(
+          formatMessage(
+            terminalId.value,
+            'TERMINAL_INIT',
+            JSON.stringify(terminalData)
+          )
+        );
         break;
       }
       case MessageType.CLOSE: {
@@ -182,7 +196,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
         break;
       }
       case MessageType.TERMINAL_SHARE_USER_REMOVE: {
-        option.i18nCallBack && message.info(option.i18nCallBack('RemoveShareUser'));
+        option.i18nCallBack &&
+          message.info(option.i18nCallBack('RemoveShareUser'));
         socket.close();
         break;
       }
@@ -190,7 +205,8 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       }
     }
 
-    option.emitCallback && option.emitCallback('socketData', msg.type, msg, terminal);
+    option.emitCallback &&
+      option.emitCallback('socketData', msg.type, msg, terminal);
   };
 
   /**
@@ -216,7 +232,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
   /**
    * 设置主题
    */
-  const setTerminalTheme = (themeName: string, terminal: Terminal, emits: any) => {
+  const setTerminalTheme = (
+    themeName: string,
+    terminal: Terminal,
+    emits: any
+  ) => {
     const theme = xtermTheme[themeName] || defaultTheme;
 
     terminal.options.theme = theme;
@@ -254,7 +274,12 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
           }
         }
       } else {
-        writeBufferToTerminal(enableZmodem.value, zmodemStatus.value, terminal!, event.data);
+        writeBufferToTerminal(
+          enableZmodem.value,
+          zmodemStatus.value,
+          terminal!,
+          event.data
+        );
       }
     } else {
       dispatch(event.data);
@@ -345,7 +370,13 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     el.addEventListener(
       'contextmenu',
       (e: MouseEvent) => {
-        handleContextMenu(e, lunaConfig, socket!, terminalId.value, termSelectionText.value);
+        handleContextMenu(
+          e,
+          lunaConfig,
+          socket!,
+          terminalId.value,
+          termSelectionText.value
+        );
       },
       false
     );
@@ -500,7 +531,11 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
     return terminalInstance;
   };
 
-  const initializeTerminal = (terminal: Terminal, socket: WebSocket, type: string) => {
+  const initializeTerminal = (
+    terminal: Terminal,
+    socket: WebSocket,
+    type: string
+  ) => {
     initElEvent();
     initTerminalEvent();
     initCustomWindowEvent();
@@ -570,7 +605,10 @@ export const useTerminal = async (el: HTMLElement, option: ICallbackOptions): Pr
       createTerminal(lunaConfig)
     ]);
 
-    if (socketResult.status === 'fulfilled' && terminalResult.status === 'fulfilled') {
+    if (
+      socketResult.status === 'fulfilled' &&
+      terminalResult.status === 'fulfilled'
+    ) {
       socket = socketResult.value!;
       terminal = terminalResult.value;
 

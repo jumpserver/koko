@@ -46,7 +46,7 @@ import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
-import FileManagement from '@/components/FileManagement/index.vue';
+import FileManagement from '@/components/Drawer/components/FileManagement/index.vue';
 import TerminalComponent from '@/components/TerminalComponent/index.vue';
 
 import {
@@ -60,10 +60,11 @@ import {
   ShareSocialOutline,
   LockClosedOutline
 } from '@vicons/ionicons5';
-
-import type { ISettingProp, shareUser } from '@/types';
-import { Keyboard, Stop, Paste } from '@vicons/carbon';
 import { readText } from 'clipboard-polyfill';
+import { Keyboard, Stop, Paste } from '@vicons/carbon';
+
+import type { ISettingProp } from '@/types';
+import type { ShareUserOptions } from '@/types/modules/user.type';
 
 const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
@@ -85,7 +86,7 @@ const terminalType = ref('common');
 const showTab = ref(false);
 const enableShare = ref(false);
 const warningIntervalId = ref(0);
-const userOptions = ref<shareUser[]>([]);
+const userOptions = ref<ShareUserOptions[]>([]);
 const onlineUsersMap = reactive<{ [key: string]: any }>({});
 
 onUnmounted(() => {
