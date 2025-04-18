@@ -52,24 +52,24 @@ func WithConnectToken(connectToken *model.ConnectToken) VolumeOption {
 }
 
 func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVolume {
-	var volOpts volumeOption
-	for _, opt := range opts {
-		opt(&volOpts)
-	}
-	homeName := "Home"
-	basePath := "/"
-	asset := volOpts.asset
-	if asset == nil && volOpts.connectToken != nil {
+    var volOpts volumeOption
+    for _, opt := range opts {
+        opt(&volOpts)
+    }
+    homeName := "Home"
+    basePath := "/"
+    asset := volOpts.asset
+    if asset == nil && volOpts.connectToken != nil {
         connectTokenAsset := volOpts.connectToken.Asset
         if connectTokenAsset.ID != "" && connectTokenAsset.Name != "" {
             permAsset := &model.PermAsset{
-                ID:   connectTokenAsset.ID,
-                Name: connectTokenAsset.Name,
+                ID:      connectTokenAsset.ID,
+                Name:    connectTokenAsset.Name,
                 Address: connectTokenAsset.Address,
             }
             asset = permAsset
         }
- }
+    }
     if asset != nil {
         folderName := asset.Name
         if strings.Contains(folderName, "/") {
