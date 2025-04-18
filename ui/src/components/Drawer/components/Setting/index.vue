@@ -32,7 +32,7 @@
           <n-flex justify="center" vertical class="w-full">
             <n-flex align="center">
               <n-text> 当前用户: </n-text>
-              <n-text depth="1" strong class="text-sm">{{ currentUser.user }}</n-text>
+              <n-text depth="1" strong class="text-sm">{{ userFilters.currentUser?.user }}</n-text>
             </n-flex>
 
             <n-divider dashed class="!my-2" />
@@ -44,8 +44,8 @@
               </template>
               <n-collapse-item title="在线用户:" name="online-user">
                 <n-flex
-                  v-if="onlineUsers.length > 0"
-                  v-for="item in onlineUsers"
+                  v-if="userFilters.otherUsers.length > 0"
+                  v-for="item in userFilters.otherUsers"
                   :key="item.user_id"
                   align="center"
                   justify="space-between"
@@ -65,16 +65,18 @@
       <template v-if="item.type === 'create'">
         <n-card size="small">
           <Share
-            :share-id="shareId"
-            :share-code="shareCode"
-            :share-enable="shareEnable"
-            :user-options="shareUserOptions"
+            :share-id="currentTerminalConn.shareId"
+            :share-code="currentTerminalConn.shareCode"
+            :share-enable="currentTerminalConn.enableShare"
+            :user-options="currentTerminalConn.userOptions"
+            @create-share-url="handleCreateShareUrl"
+            @search-share-user="handleSearchShareUser"
           />
         </n-card>
       </template>
 
       <template v-if="item.type === 'keyboard'">
-        <Keyboard />
+        <Keyboard @write-command="handleWriteCommand" />
       </template>
     </n-form-item>
   </div>
@@ -82,82 +84,75 @@
 
 <script setup lang="ts">
 import xtermTheme from 'xterm-theme';
-import mittBus from '@/utils/mittBus.ts';
-import Keyboard from '../Keyboard/index.vue';
-import Share from '@/components/Share/index.vue';
+import Share from '@/components/Drawer/components/Share/index.vue';
+import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
 
-import { useI18n } from 'vue-i18n';
-import { ref, watch, computed, onMounted } from 'vue';
-import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
+import { storeToRefs } from 'pinia';
+import { readText } from 'clipboard-polyfill';
+import { FormatterMessageType } from '@/enum';
+import { ref, watch, computed, nextTick } from 'vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { Ellipsis, ChevronLeft, ChevronDown } from 'lucide-vue-next';
-import { storeToRefs } from 'pinia';
+import { formatMessage } from '@/components/TerminalComponent/helper';
+import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
+import type { OnlineUser } from '@/types/modules/user.type';
 import type { SettingConfig } from '@/types/modules/setting.type';
-import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
 
-const props = defineProps<{
+defineProps<{
   settings: SettingConfig;
 }>();
 
-const { t } = useI18n();
 const terminalSettingsStore = useTerminalSettingsStore();
 const connectionStore = useConnectionStore();
 
-// 获取当前终端ID
-const currentTerminalId = computed(() => {
-  return terminalSettingsStore.activeTerminalId;
+const { theme } = storeToRefs(terminalSettingsStore);
+
+const userFilters = computed(() => {
+  const users = currentTerminalConn.value.onlineUsers;
+  return {
+    currentUser: users.find(item => item.primary),
+    otherUsers: users.filter(item => !item.primary)
+  };
 });
 
-// 从connectionStore获取连接状态
-const connectionState = computed(() => {
-  return connectionStore.getConnectionState(currentTerminalId.value) || {};
+const currentTerminalConn = computed(() => {
+  // 默认取 map 中第 0 项
+  const conn = Array.from(connectionStore.connectionStateMap.values())[0] || {};
+
+  return {
+    socket: conn.socket,
+    terminal: conn.terminal,
+    shareId: conn.shareId || '',
+    shareCode: conn.shareCode || '',
+    sessionId: conn.sessionId || '',
+    terminalId: conn.terminalId || '',
+    enableShare: conn.enableShare || false,
+    userOptions: conn.userOptions || [],
+    onlineUsers: conn.onlineUsers || []
+  };
 });
 
-const shareId = computed(() => connectionState.value.shareId || '');
-const shareCode = computed(() => connectionState.value.shareCode || '');
-const shareEnable = computed(() => connectionState.value.enableShare || false);
-const currentOnlineUsers = computed(() => connectionState.value.onlineUsers || []);
-const shareUserOptions = computed(() => connectionState.value.userOptions || []);
+const origin = computed(() => window.location.origin);
 
 const showLeftArrow = ref(false);
-const currentTheme = ref(terminalSettingsStore.theme);
+const currentTheme = ref(theme?.value);
 const themeOptions = ref([
-  {
-    label: 'Default',
-    value: 'Default'
-  },
-  ...Object.keys(xtermTheme).map(item => {
-    return {
-      label: item,
-      value: item
-    };
-  })
+  { label: 'Default', value: 'Default' },
+  ...Object.keys(xtermTheme).map(item => ({ label: item, value: item }))
 ]);
 
-const currentUser = computed(() => {
-  return currentOnlineUsers.value.filter(item => item.primary)[0];
-});
-
-const onlineUsers = computed(() => {
-  return currentOnlineUsers.value.filter(item => !item.primary);
-});
-
 watch(
-  () => currentOnlineUsers.value,
+  () => theme?.value,
   value => {
-    if (value.length === 1) {
-      return (showLeftArrow.value = false);
-    }
-
-    showLeftArrow.value = true;
+    currentTheme.value = value;
   }
 );
 
 watch(
-  () => terminalSettingsStore.theme,
+  () => currentTerminalConn.value.onlineUsers,
   value => {
-    currentTheme.value = value;
+    showLeftArrow.value = value.length > 1;
   }
 );
 
@@ -168,6 +163,19 @@ watch(
 const handleUpdateTheme = (value: string) => {
   currentTheme.value = value;
   terminalSettingsStore.setDefaultTerminalConfig('theme', value);
+
+  nextTick(() => {
+    const { socket, terminalId } = currentTerminalConn.value;
+    socket?.send(
+      formatMessage(
+        terminalId,
+        'TERMINAL_SYNC_USER_PREFERENCE',
+        JSON.stringify({
+          terminal_theme_name: value
+        })
+      )
+    );
+  });
 };
 
 /**
@@ -177,7 +185,6 @@ const handleUpdateTheme = (value: string) => {
 const previewTheme = (event: KeyboardEvent) => {
   if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
     const currentIndex = themeOptions.value.findIndex(theme => theme.value === currentTheme.value);
-
     let nextIndex = currentIndex;
 
     if (event.key === 'ArrowUp') {
@@ -202,20 +209,90 @@ const previewTheme = (event: KeyboardEvent) => {
  * @param data
  */
 const handleItemHeaderClick = (data: { name: string | number; expanded: boolean; event: MouseEvent }) => {
-  data.expanded ? (showLeftArrow.value = false) : (showLeftArrow.value = true);
+  showLeftArrow.value = !data.expanded;
 };
 
 /**
  * @description 移除在线用户
- * @param user_id
+ * @param userMeta
  */
 const handlePositiveClick = (userMeta: OnlineUser) => {
-  mittBus.emit('remove-share-user', {
-    // todo 参数没有必要
-    sessionId: '',
-    userMeta: userMeta,
-    type: 'TERMINAL_SHARE_USER_REMOVE'
-  });
+  const { socket, terminalId, sessionId } = currentTerminalConn.value;
+  socket?.send(
+    formatMessage(
+      terminalId,
+      FormatterMessageType.TERMINAL_SHARE_USER_REMOVE,
+      JSON.stringify({
+        session: sessionId,
+        user_meta: userMeta
+      })
+    )
+  );
+};
+
+/**
+ * @description 创建分享链接
+ * @param shareLinkRequest
+ */
+const handleCreateShareUrl = (shareLinkRequest: any) => {
+  const { socket, terminalId, sessionId } = currentTerminalConn.value;
+  socket?.send(
+    formatMessage(
+      terminalId,
+      FormatterMessageType.TERMINAL_SHARE,
+      JSON.stringify({
+        origin: origin.value,
+        session: sessionId,
+        users: shareLinkRequest.users,
+        expired_time: shareLinkRequest.expiredTime,
+        action_permission: shareLinkRequest.actionPerm
+      })
+    )
+  );
+};
+
+/**
+ * @description 搜索分享用户
+ * @param query
+ */
+const handleSearchShareUser = (query: string) => {
+  const { socket, terminalId } = currentTerminalConn.value;
+  socket?.send(formatMessage(terminalId, FormatterMessageType.TERMINAL_GET_SHARE_USER, JSON.stringify({ query })));
+};
+
+/**
+ * @description 写入命令
+ * @param command
+ */
+const handleWriteCommand = async (command: string) => {
+  const { terminal } = currentTerminalConn.value;
+
+  switch (command) {
+    case 'Stop':
+      terminal?.paste('\x03');
+      break;
+    case 'Save':
+      terminal?.paste('\x13');
+      break;
+    case 'Undo':
+      terminal?.paste('\x1A');
+      break;
+    case 'Paste':
+      terminal?.paste(await readText());
+      break;
+    case 'ArrowUp':
+      terminal?.paste('\x1b[A');
+      break;
+    case 'ArrowDown':
+      terminal?.paste('\x1b[B');
+      break;
+    case 'ArrowLeft':
+      terminal?.paste('\x1b[D');
+      break;
+    case 'ArrowRight':
+      terminal?.paste('\x1b[C');
+      break;
+  }
 };
 </script>
 

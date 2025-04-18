@@ -43,10 +43,17 @@ import type { FunctionalComponent } from 'vue';
 
 interface KeyboardItem {
   icon: FunctionalComponent;
+
   label: string;
+
   keywords: string[];
+
   click: () => void;
 }
+
+const emit = defineEmits<{
+  (e: 'write-command', command: string): void;
+}>();
 
 const { t } = useI18n();
 
@@ -118,6 +125,7 @@ const keyboardList = reactive<KeyboardItem[]>([
 ]);
 
 const writeDataToTerminal = (type: string) => {
-  mittBus.emit('writeDataToTerminal', { type });
+  emit('write-command', type);
+  // mittBus.emit('writeDataToTerminal', { type });
 };
 </script>

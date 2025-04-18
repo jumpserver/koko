@@ -223,7 +223,7 @@ import { useConnectionStore } from '@/store/modules/useConnection';
 
 import { WINDOW_MESSAGE_TYPE } from '@/enum';
 
-const emitms = defineEmits<{
+const emits = defineEmits<{
   (e: 'update:drawer', show: boolean, title: string, contentType: 'setting' | 'file-manager'): void;
 }>();
 
@@ -270,10 +270,10 @@ const receivePostMessage = (): void => {
         sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.value, origin.value);
         break;
       case WINDOW_MESSAGE_TYPE.OPEN:
-        emitms('update:drawer', true, t('Settings'), 'setting');
+        emits('update:drawer', true, t('Settings'), 'setting');
         break;
       case WINDOW_MESSAGE_TYPE.FILE:
-        emitms('update:drawer', true, t('FileManager'), 'file-manager');
+        emits('update:drawer', true, t('FileManager'), 'file-manager');
         break;
     }
   });
@@ -281,21 +281,15 @@ const receivePostMessage = (): void => {
 
 onMounted(() => {
   receivePostMessage();
+
   socket.value = createSocket();
 
   if (!socket.value) {
     return;
   }
 
-  const {
-    connectionStatus,
-    initializeSocketEvent,
-    handleCreateShareUrl,
-    getShareUser,
-    setShareCode,
-    handeleRemoveShareUser
-  } = useTerminalConnection(lunaId.value, origin.value);
-  const { createTerminalInstance, terminalResizeEvent } = useTerminalInstance(socket.value);
+  const { initializeSocketEvent } = useTerminalConnection(lunaId, origin);
+  const { createTerminalInstance } = useTerminalInstance(socket.value);
 
   const terminalContainer: HTMLElement | null = document.getElementById('terminal-container');
 

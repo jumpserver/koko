@@ -1,16 +1,13 @@
 <template>
   <div class="h-full w-full">
-    <Terminal 
-      :lunaId="lunaId"
-      :origin="origin"
-      :socket-instance="socketInstance"
-      @update:drawer="handleUpdateDrawer"
-    />
+    <!-- prettier-ignore -->
+    <Terminal @update:drawer="handleUpdateDrawer" />
 
+    <!-- prettier-ignore -->
     <Drawer 
       :title="title"
       :show-drawer="showDrawer"
-      :contentType="contentType"
+      :content-type="contentType"
       @update:open="showDrawer = $event"
     />
   </div>
@@ -20,71 +17,11 @@
 import Drawer from '@/components/Drawer/index.vue';
 import Terminal from '@/components/Terminal/index.vue';
 
-import { useI18n } from 'vue-i18n';
 import { ref, onMounted } from 'vue';
-import { WINDOW_MESSAGE_TYPE } from '@/enum';
-import { useWebSocketManager } from '@/hooks/useWebSocketManager';
-import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
-import { sendEventToLuna } from '@/components/TerminalComponent/helper';
-
-import type { SettingConfig } from '@/types/modules/setting.type';
-import type { ShareUserOptions, OnlineUser } from '@/types/modules/user.type';
-
-const { t } = useI18n();
-const { createSocket }: { createSocket: () => WebSocket | '' } = useWebSocketManager();
 
 const title = ref('');
-const lunaId = ref<string>('');
-const origin = ref<string>('');
-const currentShareId = ref<string>('');
-const currentShareCode = ref<string>('');
 const contentType = ref<'setting' | 'file-manager'>('setting');
 const showDrawer = ref<boolean>(false);
-const currentEnableShare = ref<boolean>(false);
-const currentOnlineUsers = ref<OnlineUser[]>([]);
-const currentUserOptions = ref<ShareUserOptions[]>([]);
-const socketInstance = ref<WebSocket | ''>('');
-
-const settingsConfig: SettingConfig = {
-  drawerTitle: t('Settings'),
-  items: [
-    {
-      type: 'select',
-      label: t('Theme') + ':',
-      labelIcon: Palette,
-      labelStyle: {
-        fontSize: '14px'
-      },
-      showMore: true,
-      value: 'default'
-    },
-    {
-      type: 'list',
-      label: t('OnlineUsers') + ':',
-      labelIcon: UsersRound,
-      labelStyle: {
-        fontSize: '14px'
-      }
-    },
-    {
-      type: 'create',
-      label: t('CreateLink') + ':',
-      labelIcon: Share2,
-      labelStyle: {
-        fontSize: '14px'
-      },
-      showMore: false
-    },
-    {
-      type: 'keyboard',
-      label: t('Hotkeys') + ':',
-      labelIcon: Keyboard,
-      labelStyle: {
-        fontSize: '14px'
-      }
-    }
-  ]
-};
 
 const handleUpdateDrawer = (show: boolean, _title: string, _contentType: 'setting' | 'file-manager') => {
   title.value = _title;

@@ -1,80 +1,87 @@
 <template>
-  <template v-if="!currentShareId">
-    <n-form label-placement="top" :model="shareLinkRequest">
-      <n-grid :cols="24">
-        <n-form-item-gi :span="24" :label="t('ExpiredTime')">
-          <n-select
-            v-model:value="shareLinkRequest.expiredTime"
-            size="small"
-            :placeholder="t('SelectAction')"
-            :options="expiredOptions"
-          />
-        </n-form-item-gi>
-        <n-form-item-gi :span="24" :label="t('ActionPerm')">
-          <n-select
-            size="small"
-            v-model:value="shareLinkRequest.actionPerm"
-            :placeholder="t('ActionPerm')"
-            :options="actionsPermOptions"
-          />
-        </n-form-item-gi>
-        <n-form-item-gi :span="24" :label="t('ShareUser')">
-          <n-select
-            multiple
-            filterable
-            clearable
-            remote
-            size="small"
-            v-model:value="shareLinkRequest.users"
-            :loading="loading"
-            :render-tag="renderTag"
-            :options="mappedUserOptions"
-            :clear-filter-after-select="false"
-            :placeholder="t('GetShareUser')"
-            @search="debounceSearch"
-          />
-        </n-form-item-gi>
-      </n-grid>
+  <Transition name="fade" mode="out-in">
+    <div v-if="!currentShareId" key="create-form" class="min-h-[305px]">
+      <n-form label-placement="top" :model="shareLinkRequest">
+        <n-grid :cols="24">
+          <n-form-item-gi :span="24" :label="t('ExpiredTime')">
+            <n-select
+              v-model:value="shareLinkRequest.expiredTime"
+              size="small"
+              :placeholder="t('SelectAction')"
+              :options="expiredOptions"
+            />
+          </n-form-item-gi>
+          <n-form-item-gi :span="24" :label="t('ActionPerm')">
+            <n-select
+              size="small"
+              v-model:value="shareLinkRequest.actionPerm"
+              :placeholder="t('ActionPerm')"
+              :options="actionsPermOptions"
+            />
+          </n-form-item-gi>
+          <n-form-item-gi :span="24" :label="t('ShareUser')">
+            <n-select
+              multiple
+              filterable
+              clearable
+              remote
+              size="small"
+              v-model:value="shareLinkRequest.users"
+              :loading="loading"
+              :render-tag="renderTag"
+              :options="mappedUserOptions"
+              :clear-filter-after-select="false"
+              :placeholder="t('GetShareUser')"
+              @search="debounceSearch"
+            />
+          </n-form-item-gi>
+        </n-grid>
 
-      <n-button type="primary" size="small" class="!w-full" @click="handleShareURlCreated">
-        <n-text class="text-white text-sm">
-          {{ t('CreateLink') }}
-        </n-text>
-      </n-button>
-    </n-form>
-  </template>
-  <template v-else>
-    <n-result status="success" :description="t('CreateSuccess')" />
+        <n-button
+          type="primary"
+          size="small"
+          class="!w-full mt-1"
+          :disabled="!currentEnableShare"
+          @click="handleShareURlCreated"
+        >
+          <n-text class="text-white text-sm">
+            {{ t('CreateLink') }}
+          </n-text>
+        </n-button>
+      </n-form>
+    </div>
+    <div v-else key="share-result" class="relative min-h-[305px]">
+      <n-result status="success" :description="t('CreateSuccess')" class="relative" />
 
-    <n-tooltip size="small">
-      <template #trigger>
-        <Undo2 :size="16" class="absolute top-2 right-2 focus:outline-none" cursor="pointer" @click="handleBack" />
-      </template>
+      <n-tooltip size="small">
+        <template #trigger>
+          <Undo2 :size="16" class="absolute top-0 right-0 focus:outline-none" cursor="pointer" @click="handleBack" />
+        </template>
 
-      <span>{{ t('Back') }}</span>
-    </n-tooltip>
+        <span>{{ t('Back') }}</span>
+      </n-tooltip>
 
-    <n-form label-placement="top">
-      <n-grid :cols="24">
-        <n-form-item-gi :label="t('LinkAddr')" :span="24">
-          <n-input readonly :value="shareURL" />
-        </n-form-item-gi>
-        <n-form-item-gi :label="t('VerifyCode')" :span="24">
-          <n-input readonly :value="shareCode"></n-input>
-        </n-form-item-gi>
-      </n-grid>
+      <n-form label-placement="top">
+        <n-grid :cols="24">
+          <n-form-item-gi :label="t('LinkAddr')" :span="24">
+            <n-input readonly :value="shareURL" />
+          </n-form-item-gi>
+          <n-form-item-gi :label="t('VerifyCode')" :span="24">
+            <n-input readonly :value="shareCode"></n-input>
+          </n-form-item-gi>
+        </n-grid>
 
-      <n-button type="primary" size="small" class="!w-full" @click="copyShareURL">
-        <n-text class="text-white text-sm">
-          {{ t('CopyLink') }}
-        </n-text>
-      </n-button>
-    </n-form>
-  </template>
+        <n-button type="primary" size="small" class="!w-full" @click="copyShareURL">
+          <n-text class="text-white text-sm">
+            {{ t('CopyLink') }}
+          </n-text>
+        </n-button>
+      </n-form>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
-import mittBus from '@/utils/mittBus.ts';
 import * as clipboard from 'clipboard-polyfill';
 
 import { useI18n } from 'vue-i18n';
@@ -89,7 +96,11 @@ import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 import type { ShareUserOptions } from '@/types/modules/user.type';
 import type { SelectRenderTag } from 'naive-ui';
 import { useParamsStore } from '@/store/modules/params.ts';
-// import { storeToRefs } from 'pinia';
+
+const emits = defineEmits<{
+  (e: 'create-share-url', shareLinkRequest: any): void;
+  (e: 'search-share-user', query: string): void;
+}>();
 
 const props = withDefaults(
   defineProps<{
@@ -228,18 +239,15 @@ const handleShareURlCreated = () => {
     }
   });
 
-  mittBus.emit('create-share-url', {
-    type: 'TERMINAL_SHARE',
-    sessionId: props.sessionId,
-    shareLinkRequest: shareLinkRequest
-  });
+  emits('create-share-url', shareLinkRequest);
 };
 /**
  * @description 搜索分享用户
  */
 const handleSearch = (query: string) => {
   loading.value = true;
-  mittBus.emit('share-user', { type: 'TERMINAL_GET_SHARE_USER', query });
+
+  emits('search-share-user', query);
 };
 /**
  * @description 渲染分享用户标签
@@ -249,8 +257,8 @@ const renderTag: SelectRenderTag = ({ option, handleClose }) => {
     NTag,
     {
       closable: true,
-      round: true,
       size: 'small',
+      type: 'primary',
       onMousedown: (e: FocusEvent) => {
         e.preventDefault();
       },
@@ -267,3 +275,18 @@ const renderTag: SelectRenderTag = ({ option, handleClose }) => {
 
 const debounceSearch = useDebounceFn(handleSearch, 300);
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+</style>

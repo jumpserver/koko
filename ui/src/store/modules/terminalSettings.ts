@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import type { ITheme } from '@xterm/xterm';
 import type { ObjToKeyValArray } from '@/types';
 
 export interface ITerminalSettings {

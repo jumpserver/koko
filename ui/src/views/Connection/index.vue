@@ -46,7 +46,7 @@ import mittBus from '@/utils/mittBus.ts';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
-import FileManagement from '@/components/FileManagement/index.vue';
+import FileManagement from '@/components/Drawer/components/FileManagement/index.vue';
 import TerminalComponent from '@/components/TerminalComponent/index.vue';
 
 import {

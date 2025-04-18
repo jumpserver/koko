@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import Setting from '@/components/Setting/index.vue';
+import Setting from '@/components/Drawer/components/Setting/index.vue';
 import Terminal from '@/components/Terminal/index.vue';
 
 import { useI18n } from 'vue-i18n';

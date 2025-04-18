@@ -10,6 +10,10 @@ export interface ConnectionState {
 
   shareCode: string;
 
+  sessionId: string;
+
+  terminalId: string;
+
   enableShare: boolean;
   
   terminal: Terminal;

@@ -188,9 +188,9 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide 
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
-import type { RowData } from '@/components/FileManagement/index.vue';
 import type { IFileManageSftpFileItem } from '@/hooks/interface';
 import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
+import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 export interface IFilePath {
   id: string;

@@ -1,6 +1,6 @@
 import { useI18n } from 'vue-i18n';
 import { Terminal } from '@xterm/xterm';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, watchEffect } from 'vue';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
 
 import { MaxTimeout } from '@/config';
@@ -8,15 +8,16 @@ import { preprocessInput } from '@/utils';
 import { useSentry } from '@/hooks/useZsentry';
 import { writeBufferToTerminal } from '@/utils';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
+import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, updateIcon } from '@/components/TerminalComponent/helper';
-import { useConnectionStore } from '@/store/modules/useConnection';
+import { FormatterMessageType, MessageType, SendLunaMessageType, ZmodemActionType } from '@/enum';
 
+import type { Ref } from 'vue';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/hooks/interface';
 import type { OnlineUser } from '@/types/modules/user.type';
 import type { ShareUserOptions } from '@/types/modules/user.type';
-import { FormatterMessageType, MessageType, SendLunaMessageType, ZmodemActionType } from '@/enum';
 
 /**
  * @description 格式化消息
@@ -33,7 +34,7 @@ export const formatMessage = (id: string, type: FormatterMessageType, data: any)
   });
 };
 
-export const useTerminalConnection = (lunaId: string, origin: string) => {
+export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) => {
   let sentry: Sentry;
 
   const onlineUsers = ref<OnlineUser[]>([]);
@@ -123,13 +124,13 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         socket.close();
 
-        sendEventToLuna(SendLunaMessageType.CLOSE, '', lunaId, origin);
+        sendEventToLuna(SendLunaMessageType.CLOSE, '', lunaId.value, origin.value);
         break;
       }
       case MessageType.ERROR: {
         terminal.write(parsedMessageData.err);
 
-        sendEventToLuna(SendLunaMessageType.TERMINAL_ERROR, '', lunaId, origin);
+        sendEventToLuna(SendLunaMessageType.TERMINAL_ERROR, '', lunaId.value, origin.value);
         break;
       }
       case MessageType.PING: {
@@ -137,11 +138,18 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       }
       case MessageType.CONNECT: {
         terminalId.value = parsedMessageData.id;
+
         connectionStore.setConnectionState(terminalId.value, {
-          lunaId: lunaId,
-          origin: origin,
           socket: socket,
-          terminal: terminal
+          terminal: terminal,
+          terminalId: parsedMessageData.id
+        });
+
+        watchEffect(() => {
+          connectionStore.updateConnectionState(terminalId.value, {
+            lunaId: lunaId.value,
+            origin: origin.value
+          });
         });
 
         const terminalData = {
@@ -160,10 +168,18 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
         break;
       }
       case MessageType.MESSAGE_NOTIFY: {
+        const eventName = JSON.parse(parsedMessageData.data).event_name;
+
+        if (eventName === 'sync_user_preference') {
+          message.success(t('主题同步成功'));
+        }
+
         break;
       }
       case MessageType.TERMINAL_SHARE: {
         const data = JSON.parse(parsedMessageData.data);
+
+        console.log('TERMINAL_SHARE', data);
 
         shareId.value = data.share_id;
         shareCode.value = data.code;
@@ -212,9 +228,16 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
 
         if (featureSetting.value.SECURITY_SESSION_SHARE && share) {
           enableShare.value = true;
+
+          connectionStore.updateConnectionState(terminalId.value, {
+            enableShare: true
+          });
         }
 
         sessionId.value = sessionDetail.id;
+        connectionStore.updateConnectionState(terminalId.value, {
+          sessionId: sessionDetail.id
+        });
         terminalSettingsStore.setDefaultTerminalConfig('theme', sessionInfo.themeName);
 
         break;
@@ -243,7 +266,7 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
       case MessageType.TERMINAL_SHARE_LEAVE: {
         const data: OnlineUser = JSON.parse(parsedMessageData.data);
 
-        const index = onlineUsers.value.findIndex(item => item.user_id === data.user_id);
+        const index = onlineUsers.value.findIndex(item => item.user_id === data.user_id && !item.primary);
 
         if (index !== -1) {
           onlineUsers.value.splice(index, 1);
@@ -313,62 +336,6 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
     } else {
       writeBufferToTerminal(true, false, terminal, event.data);
     }
-  };
-  /**
-   * @description 创建分享链接
-   */
-  const handleCreateShareUrl = (
-    socket: WebSocket,
-    shareLinkRequest: any
-  ): Promise<{ shareId: string; shareCode: string }> => {
-    if (!socket || !terminalId.value) return Promise.reject('');
-
-    return new Promise(resolve => {
-      const origin = window.location.origin;
-
-      socket?.send(
-        formatMessage(
-          terminalId.value,
-          FormatterMessageType.TERMINAL_SHARE,
-          JSON.stringify({
-            origin,
-            session: sessionId.value,
-            users: shareLinkRequest.users,
-            expired_time: shareLinkRequest.expiredTime,
-            action_permission: shareLinkRequest.actionPerm
-          })
-        )
-      );
-
-      watch(
-        [shareId, shareCode],
-        ([newShareId, newShareCode]) => {
-          if (newShareId && newShareCode) {
-            resolve({
-              shareId: newShareId,
-              shareCode: newShareCode
-            });
-          }
-        },
-        { immediate: true }
-      );
-    });
-  };
-  /**
-   * @description 移除指定分享用户
-   * @param socket
-   */
-  const handeleRemoveShareUser = (socket: WebSocket, userMeta: OnlineUser) => {
-    socket.send(
-      formatMessage(
-        terminalId.value,
-        FormatterMessageType.TERMINAL_SHARE_USER_REMOVE,
-        JSON.stringify({
-          session: sessionId.value,
-          user_meta: userMeta
-        })
-      )
-    );
   };
   /**
    * @description 设置分享代码
@@ -452,8 +419,6 @@ export const useTerminalConnection = (lunaId: string, origin: string) => {
     },
     getShareUser,
     setShareCode,
-    handleCreateShareUrl,
-    initializeSocketEvent,
-    handeleRemoveShareUser
+    initializeSocketEvent
   };
 };

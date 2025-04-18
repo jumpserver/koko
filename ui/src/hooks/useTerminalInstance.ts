@@ -5,7 +5,7 @@ import { defaultTheme } from '@/config';
 import { useDebounceFn } from '@vueuse/core';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
 import { writeText, readText } from 'clipboard-polyfill';
-import { ref, computed, nextTick, inject, watch } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -36,6 +36,15 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
   const { message } = createDiscreteApi(['message'], {
     configProviderProps: configProviderPropsRef
   });
+
+  watch(
+    () => terminalSettingsStore.theme,
+    value => {
+      if (value) {
+        setTerminalTheme(value);
+      }
+    }
+  );
 
   /**
    * @description 加载终端适配器以及初始化载终端事件
@@ -114,7 +123,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
    */
   const createTerminalInstance = (el: HTMLElement): Terminal => {
     // terminal 设置
-    const { fontSize, lineHeight, fontFamily } = storeToRefs(terminalSettingsStore);
+    const { fontSize, lineHeight, fontFamily, theme } = storeToRefs(terminalSettingsStore);
 
     // 创建终端实例
     terminalInstance.value = new Terminal({
