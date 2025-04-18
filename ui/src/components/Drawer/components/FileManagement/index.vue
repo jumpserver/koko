@@ -1,5 +1,5 @@
 <template>
-  <n-drawer
+  <!-- <n-drawer
     resizable
     id="drawer-inner-target"
     :auto-focus="false"
@@ -163,15 +163,16 @@
     </n-drawer-content>
 
     <n-drawer-content v-else closable :title="t('FileManagement')">
-      <template v-if="isLoaded">
-        <FileManage :columns="columns" />
-      </template>
-
-      <template v-else>
-        <n-spin size="small" class="absolute w-full h-full" />
-      </template>
+      
     </n-drawer-content>
-  </n-drawer>
+  </n-drawer> -->
+  <template v-if="isLoaded">
+    <FileManage :columns="columns" />
+  </template>
+
+  <template v-else>
+    <n-spin size="small" class="absolute w-full h-full" />
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -284,8 +285,7 @@ const handleOpenSetting = () => {
  * @description 处理 size
  */
 const formatBytes = (bytes: string | number, decimals: number = 2): string => {
-  const byteNumber =
-    typeof bytes === 'string' ? parseInt(bytes, 10) : Number(bytes);
+  const byteNumber = typeof bytes === 'string' ? parseInt(bytes, 10) : Number(bytes);
 
   if (isNaN(byteNumber) || byteNumber <= 0) return '0 Byte';
 
@@ -293,11 +293,7 @@ const formatBytes = (bytes: string | number, decimals: number = 2): string => {
 
   const i = Math.floor(Math.log2(byteNumber) / Math.log2(1024));
 
-  return (
-    (byteNumber / Math.pow(1024, i)).toFixed(decimals) +
-    ' ' +
-    units[Math.min(i, units.length - 1)]
-  );
+  return (byteNumber / Math.pow(1024, i)).toFixed(decimals) + ' ' + units[Math.min(i, units.length - 1)];
 };
 
 /**
@@ -403,9 +399,7 @@ const createColumns = (): DataTableColumns<RowData> => {
           {
             default: () => {
               if (row.mod_time) {
-                return dayjs(Number(row.mod_time) * 1000).format(
-                  'YYYY-MM-DD HH:mm:ss'
-                );
+                return dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss');
               }
 
               return '-';

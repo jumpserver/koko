@@ -1,5 +1,13 @@
 <template>
-  <n-drawer resizable placement="right" :show="showDrawer" :default-width="502" @close="closeDrawer">
+  <n-drawer
+    resizable
+    placement="right"
+    :show="showDrawer"
+    :min-width="350"
+    :max-width="1024"
+    :default-width="502"
+    @update:show="closeDrawer"
+  >
     <n-drawer-content closable :title="title" :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
       <template #header>
         <n-flex align="center">
@@ -8,7 +16,7 @@
       </template>
 
       <Setting v-if="contentType === 'setting'" :settings="settingsConfig" />
-      <!-- <FileManager v-if="contentType === 'file-manager'" /> -->
+      <FileManager v-if="contentType === 'file-manager'" :sftp-token="token" />
     </n-drawer-content>
   </n-drawer>
 </template>
@@ -19,6 +27,7 @@ import { useI18n } from 'vue-i18n';
 import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
 
 import Setting from './components/Setting/index.vue';
+import FileManager from './components/FileManagement/index.vue';
 
 import type { SettingConfig } from '@/types/modules/setting.type';
 
@@ -36,6 +45,8 @@ defineProps<{
   title: string;
 
   showDrawer: boolean;
+
+  token?: string;
 
   contentType: ContentType;
 }>();

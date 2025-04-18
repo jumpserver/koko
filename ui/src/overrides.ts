@@ -35,7 +35,11 @@ export const themeOverrides: GlobalThemeOverrides = {
     textColorPrimary: '#EBEBEB'
   },
   DataTable: {
-    thColorModal: 'unset'
+    thColorModal: '#202222',
+    tdColorModal: '#202222',
+    tdColorHoverModal: 'rgba(255, 255, 255, 0.08)',
+    borderColorModal: 'rgba(255, 255, 255, 0.08)',
+    borderColorHoverModal: 'rgba(255, 255, 255, 0.08)'
   },
   Table: {
     thColorModal: '#202222',

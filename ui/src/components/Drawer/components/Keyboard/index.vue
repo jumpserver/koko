@@ -34,7 +34,6 @@
 </template>
 
 <script setup lang="ts">
-import mittBus from '@/utils/mittBus.ts';
 import { reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Ban, Save, Undo2, ClipboardPaste, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-vue-next';
@@ -126,6 +125,5 @@ const keyboardList = reactive<KeyboardItem[]>([
 
 const writeDataToTerminal = (type: string) => {
   emit('write-command', type);
-  // mittBus.emit('writeDataToTerminal', { type });
 };
 </script>

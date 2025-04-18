@@ -208,8 +208,6 @@ onBeforeUnmount(() => {
 </template>
 
 <script setup lang="ts">
-import xtermTheme from 'xterm-theme';
-
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { Terminal } from '@xterm/xterm';
@@ -224,7 +222,7 @@ import { useConnectionStore } from '@/store/modules/useConnection';
 import { WINDOW_MESSAGE_TYPE } from '@/enum';
 
 const emits = defineEmits<{
-  (e: 'update:drawer', show: boolean, title: string, contentType: 'setting' | 'file-manager'): void;
+  (e: 'update:drawer', show: boolean, title: string, contentType: 'setting' | 'file-manager', token?: string): void;
 }>();
 
 const { t } = useI18n();
@@ -273,7 +271,7 @@ const receivePostMessage = (): void => {
         emits('update:drawer', true, t('Settings'), 'setting');
         break;
       case WINDOW_MESSAGE_TYPE.FILE:
-        emits('update:drawer', true, t('FileManager'), 'file-manager');
+        emits('update:drawer', true, t('FileManager'), 'file-manager', windowMessage.SFTP_Token);
         break;
     }
   });
