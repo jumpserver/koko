@@ -93,7 +93,8 @@ type OpenAIConn struct {
 	Client      *openai.Client
 	Model       string
 	Prompt      string
-	Contents    []string
+	Question    string
+	Context     []openai.ChatCompletionMessage
 	IsReasoning bool
 	AnswerCh    chan string
 	DoneCh      chan string
@@ -102,11 +103,10 @@ type OpenAIConn struct {
 
 func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 	ctx := context.Background()
-	var messages []openai.ChatCompletionMessage
 
-	messages = append(messages, openai.ChatCompletionMessage{
+	messages := append(conn.Context, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
-		Content: strings.Join(conn.Contents, "\n"),
+		Content: conn.Question,
 	})
 
 	systemPrompt := conn.Prompt
@@ -180,6 +180,10 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 				content = ""
 			}
 			newContent = response.Choices[0].Delta.Content
+		}
+
+		if newContent == "" {
+			continue
 		}
 
 		content += newContent

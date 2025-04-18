@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"github.com/jumpserver/koko/pkg/proxy"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/exchange"
@@ -163,11 +164,19 @@ type OpenAIParam struct {
 	Type      string
 }
 
+type QARecord struct {
+	Question string
+	Answer   string
+}
+
 type AIConversation struct {
 	Id                   string
 	Prompt               string
-	HistoryRecords       []string
+	Question             string
+	Context              []QARecord
+	JMSServer            *proxy.ChatJMSServer
 	InterruptCurrentChat bool
+	NewDialogue          bool
 }
 
 type ChatGPTMessage struct {
