@@ -52,3 +52,24 @@ export enum WINDOW_MESSAGE_TYPE {
   OPEN = 'OPEN',
   FILE = 'FILE'
 }
+
+export enum SFTP_CMD {
+  RM = 'rm',
+  LIST = 'list',
+  MKDIR = 'mkdir',
+  MKFILE = 'mkfile',
+  RENAME = 'rename',
+  UPLOAD = 'upload',
+  DOWNLOAD = 'download'
+}
+
+export enum FILE_MANAGE_MESSAGE_TYPE {
+  CONNECT = 'CONNECT',
+  CLOSE = 'CLOSE',
+  ERROR = 'ERROR',
+  PING = 'PING',
+  PONG = 'PONG',
+  CLOSED = 'closed',
+  SFTP_DATA = 'SFTP_DATA',
+  SFTP_BINARY = 'SFTP_BINARY'
+}

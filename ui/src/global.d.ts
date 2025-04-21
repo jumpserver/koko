@@ -57,3 +57,9 @@ declare module 'nora-zmodemjs/src/zmodem_browser' {
     on(event: 'send_progress', handler: (percent: number) => void): void;
   }
 }
+
+declare namespace JSX {
+  interface IntrinsicElements {
+    [elemName: string]: any;
+  }
+}

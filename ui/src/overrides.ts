@@ -6,6 +6,16 @@ export const themeOverrides: GlobalThemeOverrides = {
     titleTextColor: '#EBEBEB'
   },
   Form: {},
+  Tree: {
+    nodeColorActive: '#1AB3941A'
+  },
+  Input: {
+    color: '#202222',
+    border: '1px solid #FFFFFF17',
+    borderHover: '1px solid #16987D',
+    borderActive: '1px solid #16987D',
+    borderFocus: '1px solid #16987D'
+  },
   Select: {
     peers: {
       InternalSelection: {
@@ -33,6 +43,10 @@ export const themeOverrides: GlobalThemeOverrides = {
     colorFocusPrimary: '#16987D',
     colorHoverPrimary: '#16987D',
     textColorPrimary: '#EBEBEB'
+  },
+  Switch: {
+    railColorActive: '#FFFFFF33',
+    buttonColor: '#202222'
   },
   DataTable: {
     thColorModal: '#202222',

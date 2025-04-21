@@ -21,7 +21,7 @@ import Terminal from '@/components/Terminal/index.vue';
 import { ref, onMounted } from 'vue';
 
 const title = ref('');
-const token = ref<string | unknown>('');
+const token = ref<string>('');
 const contentType = ref<'setting' | 'file-manager'>('setting');
 const showDrawer = ref<boolean>(false);
 
@@ -31,10 +31,11 @@ const handleUpdateDrawer = (
   _contentType: 'setting' | 'file-manager',
   _token?: string
 ) => {
-  title.value = _title;
   showDrawer.value = show;
+
+  title.value = _title;
+  token.value = _token || '';
   contentType.value = _contentType;
-  token.value = _token;
 };
 
 // const receivePostMessage = (): void => {

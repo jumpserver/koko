@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus.ts';
-import Share from '@/components/Share/index.vue';
+// import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 
@@ -202,14 +202,14 @@ const settings = computed((): ISettingProp[] => {
           showIcon: false,
           style: 'width: 35%; min-width: 500px',
           content: () => {
-            return h(NMessageProvider, null, {
-              default: () =>
-                h(Share, {
-                  sessionId,
-                  enableShare: operatedNode?.enableShare,
-                  userOptions: operatedNode?.userOptions
-                })
-            });
+            // return h(NMessageProvider, null, {
+            //   default: () =>
+            //     h(Share, {
+            //       sessionId,
+            //       enableShare: operatedNode?.enableShare,
+            //       userOptions: operatedNode?.userOptions
+            //     })
+            // });
           },
           onClose: () => resetShareDialog(),
           onMaskClick: () => resetShareDialog()

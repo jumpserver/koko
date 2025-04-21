@@ -1,4 +1,12 @@
 <template>
+  <div>
+    <h1>Connection</h1>
+  </div>
+</template>
+
+<script setup lang="ts"></script>
+
+<!-- <template>
   <terminal-component
     ref="terminalRef"
     index-key="id"
@@ -9,7 +17,6 @@
     @socket-data="onSocketData"
   />
 
-  <!-- TODO 暂时这么实现，后续将 setting 与 file-management 进行整合 -->
   <template v-if="!showTab">
     <settings :settings="settings" />
     <file-management
@@ -464,4 +471,4 @@ const onEvent = (event: string, _data: any) => {
     }
   }
 }
-</style>
+</style> -->

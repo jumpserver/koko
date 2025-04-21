@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div id="terminal-container" class="w-full h-full"></div>
 </template>
 
@@ -61,14 +61,14 @@ const receivePostMessage = (): void => {
         sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.value, origin.value);
         break;
       case WINDOW_MESSAGE_TYPE.OPEN:
-        // title.value = t('Settings');
-        // contentType.value = 'setting';
+        title.value = t('Settings');
+        contentType.value = 'setting';
 
-        // showDrawer.value = true;
+        showDrawer.value = true;
         break;
       case WINDOW_MESSAGE_TYPE.FILE:
-        // title.value = t('FileManager');
-        // contentType.value = 'file-manager';
+        title.value = t('FileManager');
+        contentType.value = 'file-manager';
         break;
     }
   });
@@ -104,4 +104,4 @@ onMounted(() => {
 
   initializeSocketEvent(terminalInstance, socket.value, t);
 });
-</script>
+</script> -->

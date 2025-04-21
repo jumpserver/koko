@@ -25,7 +25,7 @@ const allRoutes: RouteRecordRaw[] = [
   {
     path: '/token/:id/',
     name: 'Token',
-    component: () => import('@/views/Connection/index.vue')
+    component: () => import('@/views/connect/index.vue')
   },
   {
     path: '/share/:id/',
@@ -36,6 +36,11 @@ const allRoutes: RouteRecordRaw[] = [
     path: '/monitor/:id/',
     name: 'Monitor',
     component: () => import('@/views/Monitor/index.vue')
+  },
+  {
+    path: '/sftp',
+    name: 'SFTP',
+    component: () => import('@/views/FileManagement/index.vue')
   }
 ];
 

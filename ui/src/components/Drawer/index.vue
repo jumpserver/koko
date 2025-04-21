@@ -3,9 +3,9 @@
     resizable
     placement="right"
     :show="showDrawer"
-    :min-width="350"
-    :max-width="1024"
-    :default-width="502"
+    :min-width="drawerMinWidth"
+    :max-width="drawerMaxWidth"
+    :default-width="drawerDefaultWidth"
     @update:show="closeDrawer"
   >
     <n-drawer-content closable :title="title" :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
@@ -22,8 +22,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { reactive, ref, computed } from 'vue';
 import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
 
 import Setting from './components/Setting/index.vue';
@@ -41,7 +41,7 @@ const DRAWER_HEADER_STYLE = {
   fontFamily: 'PingFang SC'
 };
 
-defineProps<{
+const props = defineProps<{
   title: string;
 
   showDrawer: boolean;
@@ -57,6 +57,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
+const drawerMinWidth = ref(350);
+const drawerMaxWidth = ref(1024);
 const settingsConfig = reactive<SettingConfig>({
   drawerTitle: t('Settings'),
   items: [
@@ -96,6 +98,10 @@ const settingsConfig = reactive<SettingConfig>({
       }
     }
   ]
+});
+
+const drawerDefaultWidth = computed(() => {
+  return props.contentType === 'setting' ? 502 : 702;
 });
 
 /**
