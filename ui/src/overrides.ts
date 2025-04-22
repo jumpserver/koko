@@ -2,99 +2,99 @@ import type { GlobalThemeOverrides } from 'naive-ui';
 
 export const themeOverrides: GlobalThemeOverrides = {
   Drawer: {
-    color: '#202222',
-    titleTextColor: '#EBEBEB'
+    color: 'rgba(32, 34, 34, 1)',
+    titleTextColor: 'rgba(235, 235, 235, 1)'
   },
   Form: {},
   Tree: {
-    nodeColorActive: '#1AB3941A'
+    nodeColorActive: 'rgba(26, 179, 148, 0.1)'
   },
   Input: {
-    color: '#202222',
-    border: '1px solid #FFFFFF17',
-    borderHover: '1px solid #16987D',
-    borderActive: '1px solid #16987D',
-    borderFocus: '1px solid #16987D'
+    color: 'rgba(32, 34, 34, 1)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
+    borderHover: '1px solid rgba(22, 152, 125, 1)',
+    borderActive: '1px solid rgba(22, 152, 125, 1)',
+    borderFocus: '1px solid rgba(22, 152, 125, 1)'
   },
   Select: {
     peers: {
       InternalSelection: {
-        color: '#202222',
-        border: '1px solid #FFFFFF17',
-        borderHover: '1px solid #16987D',
-        borderActive: '1px solid #16987D',
-        borderFocus: '1px solid #16987D'
+        color: 'rgba(32, 34, 34, 1)',
+        border: '1px solid rgba(255, 255, 255, 0.09)',
+        borderHover: '1px solid rgba(22, 152, 125, 1)',
+        borderActive: '1px solid rgba(22, 152, 125, 1)',
+        borderFocus: '1px solid rgba(22, 152, 125, 1)'
       },
       InternalSelectMenu: {
-        color: '#303336',
-        optionTextColor: '#fff',
-        optionCheckColor: '#16987D'
+        color: 'rgba(48, 51, 54, 1)',
+        optionTextColor: 'rgba(255, 255, 255, 1)',
+        optionCheckColor: 'rgba(22, 152, 125, 1)'
       }
     }
   },
   Modal: {
     peers: {
       Dialog: {
-        color: '#202222'
+        color: 'rgba(32, 34, 34, 1)'
       }
     }
   },
   Card: {
-    color: '#202222',
-    colorModal: '#202222'
+    color: 'rgba(32, 34, 34, 1)',
+    colorModal: 'rgba(32, 34, 34, 1)'
   },
   Button: {
-    borderFocusPrimary: '1px solid #16987D',
-    borderHoverPrimary: '1px solid #16987D',
-    borderPrimary: '1px solid #16987D',
-    colorPrimary: '#16987D',
-    colorFocusPrimary: '#16987D',
-    colorHoverPrimary: '#16987D',
-    textColorPrimary: '#EBEBEB'
+    borderFocusPrimary: '1px solid rgba(22, 152, 125, 1)',
+    borderHoverPrimary: '1px solid rgba(22, 152, 125, 1)',
+    borderPrimary: '1px solid rgba(22, 152, 125, 1)',
+    colorPrimary: 'rgba(22, 152, 125, 1)',
+    colorFocusPrimary: 'rgba(22, 152, 125, 1)',
+    colorHoverPrimary: 'rgba(22, 152, 125, 1)',
+    textColorPrimary: 'rgba(235, 235, 235, 1)'
   },
   Switch: {
-    railColorActive: '#FFFFFF33',
-    buttonColor: '#202222'
+    railColorActive: 'rgba(255, 255, 255, 0.2)',
+    buttonColor: 'rgba(32, 34, 34, 1)'
   },
 
   DataTable: {
-    thColor: '#202222',
-    tdColor: '#202222',
+    thColor: 'rgba(32, 34, 34, 1)',
+    tdColor: 'rgba(32, 34, 34, 1)',
     tdColorHover: 'rgba(255, 255, 255, 0.08)',
-    thColorModal: '#202222',
-    tdColorModal: '#202222',
+    thColorModal: 'rgba(32, 34, 34, 1)',
+    tdColorModal: 'rgba(32, 34, 34, 1)',
     tdColorHoverModal: 'rgba(255, 255, 255, 0.08)',
     borderColorModal: 'rgba(255, 255, 255, 0.08)',
     borderColorHoverModal: 'rgba(255, 255, 255, 0.08)'
   },
   Ellipsis: {
-    textColor: '#EBEBEB',
+    textColor: 'rgba(235, 235, 235, 1)',
     peers: {
       Tooltip: {
-        color: '#303336',
-        textColor: '#FFFFFF',
+        color: 'rgba(48, 51, 54, 1)',
+        textColor: 'rgba(255, 255, 255, 1)',
         peers: {
           Popover: {
-            color: '#303336',
-            textColor: '#FFFFFF'
+            color: 'rgba(48, 51, 54, 1)',
+            textColor: 'rgba(255, 255, 255, 1)'
           }
         }
       }
     }
   },
   Table: {
-    thColorModal: '#202222',
-    tdColorModal: '#202222'
+    thColorModal: 'rgba(32, 34, 34, 1)',
+    tdColorModal: 'rgba(32, 34, 34, 1)'
   },
   Tag: {
-    borderPrimary: '1px solid #16987D',
-    textColorPrimary: '#16987D'
+    borderPrimary: '1px solid rgba(22, 152, 125, 1)',
+    textColorPrimary: 'rgba(22, 152, 125, 1)'
   },
   Upload: {
     peers: {
       Progress: {
-        fillColor: '#16987D',
-        fillColorInfo: '#16987D'
+        fillColor: 'rgba(22, 152, 125, 1)',
+        fillColorInfo: 'rgba(22, 152, 125, 1)'
       }
     }
   }
