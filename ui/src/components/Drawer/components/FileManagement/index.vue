@@ -281,20 +281,7 @@ const handleOpenSetting = () => {
   });
 };
 
-/**
- * @description 处理 size
- */
-const formatBytes = (bytes: string | number, decimals: number = 2): string => {
-  const byteNumber = typeof bytes === 'string' ? parseInt(bytes, 10) : Number(bytes);
 
-  if (isNaN(byteNumber) || byteNumber <= 0) return '0 Byte';
-
-  const units = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB'];
-
-  const i = Math.floor(Math.log2(byteNumber) / Math.log2(1024));
-
-  return (byteNumber / Math.pow(1024, i)).toFixed(decimals) + ' ' + units[Math.min(i, units.length - 1)];
-};
 
 /**
  * @description 生成表头
@@ -421,7 +408,7 @@ const createColumns = (): DataTableColumns<RowData> => {
             strong: true
           },
           {
-            default: () => formatBytes(row.size)
+            default: () => row.size
           }
         );
       }

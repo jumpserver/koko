@@ -32,7 +32,15 @@ export const themeOverrides: GlobalThemeOverrides = {
       }
     }
   },
+  Modal: {
+    peers: {
+      Dialog: {
+        color: '#202222'
+      }
+    }
+  },
   Card: {
+    color: '#202222',
     colorModal: '#202222'
   },
   Button: {
@@ -48,12 +56,31 @@ export const themeOverrides: GlobalThemeOverrides = {
     railColorActive: '#FFFFFF33',
     buttonColor: '#202222'
   },
+
   DataTable: {
+    thColor: '#202222',
+    tdColor: '#202222',
+    tdColorHover: 'rgba(255, 255, 255, 0.08)',
     thColorModal: '#202222',
     tdColorModal: '#202222',
     tdColorHoverModal: 'rgba(255, 255, 255, 0.08)',
     borderColorModal: 'rgba(255, 255, 255, 0.08)',
     borderColorHoverModal: 'rgba(255, 255, 255, 0.08)'
+  },
+  Ellipsis: {
+    textColor: '#EBEBEB',
+    peers: {
+      Tooltip: {
+        color: '#303336',
+        textColor: '#FFFFFF',
+        peers: {
+          Popover: {
+            color: '#303336',
+            textColor: '#FFFFFF'
+          }
+        }
+      }
+    }
   },
   Table: {
     thColorModal: '#202222',
