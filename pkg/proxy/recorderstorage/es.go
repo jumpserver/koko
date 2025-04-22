@@ -60,7 +60,7 @@ type bulkResponse struct {
 func (es ESCommandStorage) bulkActionBuffer(action string, commands []*model.Command) *bytes.Buffer {
 	var buf bytes.Buffer
 	for _, item := range commands {
-		meta := []byte(fmt.Sprintf(`{ "%s" : { } }%s`, action, "\n"))
+		meta := []byte(fmt.Sprintf(`{ "%s" : { "_type": "%s" } }%s`, action, es.DocType, "\n"))
 		data, _ := json.Marshal(item)
 		data = append(data, "\n"...)
 		buf.Write(meta)
