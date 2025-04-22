@@ -3,12 +3,9 @@ package httpd
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/session"
 	"io"
 	"strconv"
-	"time"
 )
 
 var _ Handler = (*webSftp)(nil)
@@ -21,8 +18,6 @@ type webSftp struct {
 	volume *UserWebVolume
 
 	currentPath string
-
-	isConnected bool
 
 	msg *Message
 }
@@ -38,57 +33,17 @@ func (h *webSftp) CheckValidation() error {
 	}
 
 	h.volume = NewUserWebVolume(volume)
-	go h.monitor()
 	return nil
 }
 
 func (h *webSftp) HandleMessage(msg *Message) {
 	h.msg = msg
-	switch msg.Cmd {
-	case "cancel":
-		// TODO Interrupt download
-	default:
-		go h.dispatch(*msg)
-	}
+	go h.dispatch(*msg)
 }
 
 func (h *webSftp) CleanUp() {
 	close(h.done)
 	h.volume.Close()
-}
-
-func (h *webSftp) monitor() {
-	for {
-		if !h.isConnected {
-			continue
-		}
-
-		if err := h.checkSession(); err != nil {
-			h.sendError("closed", err.Error())
-			return
-		}
-
-		time.Sleep(time.Second * 30)
-	}
-
-}
-
-func (h *webSftp) checkSession() error {
-	_, ok := session.GetSessionById(h.ws.ConnectToken.Id)
-	if !ok {
-		return errors.New("session closed")
-	}
-	return nil
-}
-
-func (h *webSftp) sendError(tp, err string) {
-	logger.Errorf("webSftp error: %v", err)
-	h.ws.SendMessage(&Message{
-		Id:   h.msg.Id,
-		Cmd:  h.msg.Cmd,
-		Type: tp,
-		Err:  err,
-	})
 }
 
 type webSftpRequest struct {
@@ -115,13 +70,6 @@ func (h *webSftp) dispatch(msg Message) {
 		message.Err = err.Error()
 		h.ws.SendMessage(&message)
 		return
-	}
-
-	if h.isConnected {
-		if err := h.checkSession(); err != nil {
-			h.sendError("closed", err.Error())
-			return
-		}
 	}
 
 	switch h.msg.Cmd {
@@ -155,8 +103,6 @@ func (h *webSftp) dispatch(msg Message) {
 		message.Err = "Unknown command"
 		h.ws.SendMessage(&message)
 	}
-
-	h.isConnected = true
 
 }
 
