@@ -15,13 +15,8 @@
   >
     <ContentHeader />
     <n-layout has-sider class="custom-layout h-full w-full">
-      <n-layout-header class="w-[48px]">
-        <n-flex
-          vertical
-          align="center"
-          justify="space-between"
-          class="w-full h-full text-white bg-[#333333]"
-        >
+      <n-layout-header class="!w-[48px]">
+        <n-flex vertical align="center" justify="space-between" class="w-full h-full text-white bg-[#333333]">
           <SideTop />
         </n-flex>
       </n-layout-header>
@@ -92,12 +87,8 @@ const handleSyncLoad = (_node?: TreeOption) => {
 
   // 根据节点宽度自动拓宽
   setTimeout(() => {
-    const tableElement = document.querySelector(
-      '.n-descriptions-table'
-    ) as HTMLElement;
-    const sideElement = document.querySelector(
-      '.n-layout-sider'
-    ) as HTMLElement;
+    const tableElement = document.querySelector('.n-descriptions-table') as HTMLElement;
+    const sideElement = document.querySelector('.n-layout-sider') as HTMLElement;
 
     if (tableElement && sideElement) {
       const tableWidth = tableElement.clientWidth;

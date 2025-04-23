@@ -16,6 +16,9 @@ export const themeOverrides: GlobalThemeOverrides = {
     borderActive: '1px solid rgba(22, 152, 125, 1)',
     borderFocus: '1px solid rgba(22, 152, 125, 1)'
   },
+  List: {
+    colorModal: 'rgba(32, 34, 34, 1)'
+  },
   Select: {
     peers: {
       InternalSelection: {
