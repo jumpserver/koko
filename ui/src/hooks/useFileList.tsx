@@ -200,23 +200,21 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
                 type: '',
                 is_dir: true
               },
-              ...sftpDataMessageData
+              ...(sftpDataMessageData as IFileManageSftpFileItem[])
             );
           }
 
           // 生成 Tree 数据
           if (treeData.length === 0) {
             // 首次加载，创建根节点
-            treeData.push(...generateTreeData(sftpDataMessageData, true));
+            treeData.push(...generateTreeData(sftpDataMessageData as IFileManageSftpFileItem[], true));
           } else {
             // 找到对应路径的节点
             const targetNode = findNodeByPath(treeData);
 
-            console.log(targetNode);
-
             if (targetNode) {
               // 更新节点的子节点
-              targetNode.children = generateTreeData(sftpDataMessageData, false);
+              targetNode.children = generateTreeData(sftpDataMessageData as IFileManageSftpFileItem[], false);
 
               // 确保目录节点不会被标记为叶子节点
               if (targetNode.is_dir) {
@@ -323,8 +321,28 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
 
           // 刷新
           socket?.value?.send(JSON.stringify(sendBody));
-        } else {
-          message.error('删除失败');
+        }
+
+        break;
+      case SFTP_CMD.RENAME:
+        // 重命名成功后，刷新当前目录
+        message.success('重命名成功');
+        if (typeof sftpDataMessageData === 'string' && sftpDataMessageData === 'ok') {
+          // 删除成功后，需要移除 currentPath 中所对应的路径
+          const pathParts = current_path.value.split('/');
+
+          pathParts.pop();
+          current_path.value = pathParts.join('/') || '/';
+
+          const sendBody = {
+            id: uuid(),
+            cmd: SFTP_CMD.LIST,
+            type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+            data: JSON.stringify({ path: current_path.value })
+          };
+
+          // 刷新
+          socket?.value?.send(JSON.stringify(sendBody));
         }
 
         break;

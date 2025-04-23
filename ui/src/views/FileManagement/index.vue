@@ -25,7 +25,13 @@
         </n-flex>
       </template>
       <template #2>
-        <Main :data="listData" :is-grid="isGrid" :current-node-path="currentNodePath" @enter-file="handleEnterFile" />
+        <Main
+          :data="listData"
+          :is-grid="isGrid"
+          :current-node-path="currentNodePath"
+          @enter-file="handleEnterFile"
+          @back="handleFileBack"
+        />
       </template>
     </n-split>
   </n-flex>
@@ -83,7 +89,6 @@ watch(
 watch(
   () => currentNodePath.value,
   newPath => {
-    console.log('newPath', newPath);
     if (!newPath) return;
 
     const pathParts = newPath.split('/').filter(part => part !== '');
@@ -188,6 +193,21 @@ const handleEnterFile = (filePath: string) => {
     }
   } else if (fileItem && !fileItem.is_dir) {
     message.info('暂未支持文件预览');
+  }
+};
+
+const handleFileBack = (filePath: string) => {
+  currentNodePath.value = filePath;
+
+  const sendBody = {
+    id: uuid(),
+    type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+    cmd: SFTP_CMD.LIST,
+    data: JSON.stringify({ path: filePath })
+  };
+
+  if (socket.value) {
+    socket.value.send(JSON.stringify(sendBody));
   }
 };
 

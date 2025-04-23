@@ -18,11 +18,11 @@
               </template>
             </n-button>
           </template>
-
           {{ item.label }}
         </n-popover>
       </template>
     </n-flex>
+
     <n-flex align="center" class="h-full w-69 !flex-nowrap">
       <n-input size="small" v-model:value="searchKeywords" :placeholder="searchPlaceholder" class="w-52">
         <template #prefix>
@@ -30,7 +30,7 @@
         </template>
       </n-input>
 
-      <n-switch size="large" v-model:value="isGrid" :round="false" @update-value="handleChangeLayout">
+      <n-switch size="large" v-model:value="isGrid" :round="false" @update-value="handleLayoutChange">
         <template #checked-icon>
           <LayoutGrid :size="16" color="#1AB394" />
         </template>
@@ -46,12 +46,9 @@
     positive-text="确认"
     :show-icon="false"
     :mask-closable="false"
-    :positive-button-props="{
-      type: 'primary',
-      size: 'small'
-    }"
+    :positive-button-props="MODAL_BUTTON_PROPS"
     v-model:show="showModal"
-    @positive-click="onPositiveClick"
+    @positive-click="handleModalConfirm"
   >
     <template #header>
       <div class="text-lg font-bold">{{ modalTitle }}</div>
@@ -59,15 +56,15 @@
 
     <template #default>
       <n-input
-        v-if="modalType === 'create'"
+        v-if="modalType === ModalTypes.CREATE || modalType === ModalTypes.RENAME"
         clearable
         class="mt-4"
         :status="inputStatus"
         v-model:value="modalContent"
-        @change="onChange"
+        @change="handleInputChange"
       />
 
-      <n-tag v-if="modalType === 'delete'" :bordered="false" type="error" size="small">
+      <n-tag v-if="modalType === ModalTypes.DELETE" :bordered="false" type="error" size="small">
         {{ deleteModalContent }}
       </n-tag>
     </template>
@@ -85,24 +82,31 @@ import {
   Trash2,
   Search,
   PenLine,
-  FilePlus2,
   RefreshCcw,
   FolderPlus,
   LayoutGrid,
   ClipboardCopy
 } from 'lucide-vue-next';
 
+const MODAL_BUTTON_PROPS = {
+  type: 'primary',
+  size: 'small'
+};
+
+const ModalTypes = {
+  CREATE: 'create',
+  RENAME: 'rename',
+  DELETE: 'delete'
+} as const;
+
+type ModalType = (typeof ModalTypes)[keyof typeof ModalTypes];
+
 interface LeftActionsMenu {
   label: string;
-
   icon: FunctionalComponent;
-
   disabled: boolean;
-
   click: () => void;
 }
-
-type ModalType = 'create' | 'rename' | 'delete';
 
 const props = defineProps<{
   socket: WebSocket | null;
@@ -125,49 +129,101 @@ const modalTitle = ref('');
 const modalContent = ref('');
 const searchKeywords = ref('');
 const searchPlaceholder = ref(t('Search'));
-const modalType = ref<ModalType>('create');
+const modalType = ref<ModalType>(ModalTypes.CREATE);
 
 const inputStatus = computed((): 'error' | 'default' => {
-  // if (modalContent.value.length === 0) {
-  //   return 'error';
-  // }
-
   return 'default';
 });
+
+const deleteModalContent = computed((): string => {
+  return props.currentNodePath.split('/').pop() || '';
+});
+
+const getFileName = (path: string) => path.split('/').pop() || '';
+
+const sendSftpCommand = (cmd: SFTP_CMD, data: any) => {
+  if (!props.socket) return;
+
+  const message = {
+    id: uuid(),
+    type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+    cmd,
+    data: JSON.stringify(data)
+  };
+
+  props.socket.send(JSON.stringify(message));
+};
+
+const handleRefresh = () => {
+  emits('update:loading', true);
+
+  const sendData = {
+    path: props.currentNodePath
+  };
+
+  sendSftpCommand(SFTP_CMD.LIST, sendData);
+};
+
+const handleLayoutChange = (value: boolean) => {
+  emits('update:layout', value);
+};
+
+const handleInputChange = (value: string) => {
+  console.log(value);
+};
+
+const openModal = (type: ModalType, title: string, content: string = '') => {
+  showModal.value = true;
+  modalType.value = type;
+  modalTitle.value = title;
+  if (content) {
+    modalContent.value = content;
+  }
+};
+
+const handleCreateFolder = () => {
+  openModal(ModalTypes.CREATE, t('NewFolder'));
+};
+
+const handleDelete = () => {
+  openModal(ModalTypes.DELETE, 'Do you want to delete this file?');
+};
+
+const handleRename = () => {
+  openModal(ModalTypes.RENAME, '重命名', getFileName(props.currentNodePath));
+};
+
+const handleModalConfirm = () => {
+  switch (modalType.value) {
+    case ModalTypes.DELETE:
+      sendSftpCommand(SFTP_CMD.RM, {
+        path: props.currentNodePath
+      });
+      break;
+
+    case ModalTypes.CREATE:
+      sendSftpCommand(SFTP_CMD.MKDIR, {
+        path: `${props.currentNodePath}/${modalContent.value}`
+      });
+      break;
+
+    case ModalTypes.RENAME:
+      sendSftpCommand(SFTP_CMD.RENAME, {
+        path: props.currentNodePath,
+        new_name: modalContent.value
+      });
+      showModal.value = false;
+      break;
+  }
+};
+
 const leftActionsMenu = computed((): LeftActionsMenu[] => {
   return [
     {
       label: '新建文件夹',
       icon: FolderPlus,
       disabled: props.currentNodePath.length === 0,
-      click: () => {
-        showModal.value = true;
-        modalType.value = 'create';
-        modalTitle.value = t('NewFolder');
-
-        // const sendData = {
-        //   path: props.currentNodePath
-        // };
-
-        // const sendBody = {
-        //   id: uuid(),
-        //   cmd: SFTP_CMD.MKDIR,
-        //   type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
-        //   data: JSON.stringify(sendData)
-        // };
-
-        // if (socket.value) {
-        //   socket.value.send(JSON.stringify(sendBody));
-        // }
-      }
-    },
-    {
-      label: '新增文件',
-      icon: FilePlus2,
-      disabled: false,
-      click: () => {
-        console.log('新增文件');
-      }
+      click: handleCreateFolder
     },
     {
       label: '复制',
@@ -189,88 +245,20 @@ const leftActionsMenu = computed((): LeftActionsMenu[] => {
       label: '刷新',
       icon: RefreshCcw,
       disabled: false,
-      click: () => {
-        emits('update:loading', true);
-
-        const sendData = {
-          path: props.currentNodePath
-        };
-
-        const sendBody = {
-          id: uuid(),
-          cmd: SFTP_CMD.LIST,
-          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
-          data: JSON.stringify(sendData)
-        };
-
-        if (props.socket) {
-          props.socket.send(JSON.stringify(sendBody));
-        }
-      }
+      click: handleRefresh
     },
     {
       label: '删除',
       icon: Trash2,
       disabled: props.currentNodePath.length === 0 || props.currentNodePath === props.initialPath,
-      click: () => {
-        showModal.value = true;
-        modalType.value = 'delete';
-        modalTitle.value = 'Do you want to delete this file?';
-      }
+      click: handleDelete
     },
     {
       label: '重命名',
       icon: PenLine,
       disabled: props.currentNodePath.length === 0,
-      click: () => {
-        console.log('重命名');
-      }
+      click: handleRename
     }
   ];
 });
-const deleteModalContent = computed((): string => {
-  return props.currentNodePath.split('/').pop() || '';
-});
-
-const onPositiveClick = () => {
-  if (modalType.value === 'delete') {
-    const sendBody = {
-      id: uuid(),
-      type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
-      cmd: SFTP_CMD.RM,
-      data: JSON.stringify({ path: `${props.currentNodePath}` })
-    };
-
-    if (props.socket) {
-      props.socket.send(JSON.stringify(sendBody));
-    }
-
-    return;
-  }
-
-  if (modalType.value === 'create') {
-    const sendBody = {
-      id: uuid(),
-      type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
-      cmd: SFTP_CMD.MKDIR,
-      data: JSON.stringify({ path: `${props.currentNodePath}/${modalContent.value}` })
-    };
-
-    if (props.socket) {
-      props.socket.send(JSON.stringify(sendBody));
-    }
-
-    return;
-  }
-
-  showModal.value = false;
-};
-
-const handleChangeLayout = (value: boolean) => {
-  emits('update:layout', value);
-};
-
-const onChange = (value: string) => {
-  console.log(value);
-};
 </script>
