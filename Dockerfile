@@ -28,6 +28,10 @@ FROM debian:bullseye-slim
 ARG TARGETARCH
 ENV LANG=en_US.UTF-8
 
+LABEL org.opencontainers.image.source=https://github.com/jumpserver/koko
+LABEL org.opencontainers.image.description="JumpServer Koko"
+
+
 ARG DEPENDENCIES="                    \
         bash-completion               \
         jq                            \
