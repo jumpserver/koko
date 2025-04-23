@@ -35,7 +35,23 @@ export const themeOverrides: GlobalThemeOverrides = {
   Modal: {
     peers: {
       Dialog: {
-        color: 'rgba(32, 34, 34, 1)'
+        color: 'rgba(32, 34, 34, 1)',
+        peers: {
+          Button: {
+            borderPressedPrimary: '1px solid rgba(22, 152, 125, 1)',
+            borderFocusPrimary: '1px solid rgba(22, 152, 125, 1)',
+            borderHoverPrimary: '1px solid rgba(22, 152, 125, 1)',
+            borderPrimary: '1px solid rgba(22, 152, 125, 1)',
+            colorPrimary: 'rgba(22, 152, 125, 1)',
+            colorFocusPrimary: 'rgba(22, 152, 125, 1)',
+            colorHoverPrimary: 'rgba(22, 152, 125, 1)',
+            colorPressedPrimary: 'rgba(22, 152, 125, 1)',
+            textColorPrimary: 'rgba(235, 235, 235, 1)',
+            textColorHoverPrimary: 'rgba(235, 235, 235, 1)',
+            textColorPressedPrimary: 'rgba(235, 235, 235, 1)',
+            textColorFocusPrimary: 'rgba(235, 235, 235, 1)'
+          }
+        }
       }
     }
   },

@@ -30,7 +30,7 @@
         </template>
       </n-input>
 
-      <n-switch size="large" v-model:value="isGrid" :round="false">
+      <n-switch size="large" v-model:value="isGrid" :round="false" @update-value="handleChangeLayout">
         <template #checked-icon>
           <LayoutGrid :size="16" color="#1AB394" />
         </template>
@@ -46,6 +46,10 @@
     positive-text="确认"
     :show-icon="false"
     :mask-closable="false"
+    :positive-button-props="{
+      type: 'primary',
+      size: 'small'
+    }"
     v-model:show="showModal"
     @positive-click="onPositiveClick"
   >
@@ -82,8 +86,6 @@ import {
   Search,
   PenLine,
   FilePlus2,
-  ArrowLeft,
-  ArrowRight,
   RefreshCcw,
   FolderPlus,
   LayoutGrid,
@@ -105,12 +107,15 @@ type ModalType = 'create' | 'rename' | 'delete';
 const props = defineProps<{
   socket: WebSocket | null;
 
+  initialPath: string;
+
   currentNodePath: string;
 }>();
 
 const emits = defineEmits<{
+  (e: 'update:layout', value: boolean): void;
   (e: 'update:loading', value: boolean): void;
-}>()
+}>();
 
 const { t } = useI18n();
 
@@ -131,45 +136,6 @@ const inputStatus = computed((): 'error' | 'default' => {
 });
 const leftActionsMenu = computed((): LeftActionsMenu[] => {
   return [
-    {
-      label: '后退',
-      icon: ArrowLeft,
-      disabled: props.currentNodePath.length === 0,
-      click: () => {
-        console.log('后退');
-      }
-    },
-    {
-      label: '前进',
-      icon: ArrowRight,
-      disabled: props.currentNodePath.length === 0,
-      click: () => {
-        console.log('前进');
-      }
-    },
-    {
-      label: '刷新',
-      icon: RefreshCcw,
-      disabled: false,
-      click: () => {
-        emits('update:loading', true);
-
-        const sendData = {
-          path: props.currentNodePath
-        };
-
-        const sendBody = {
-          id: uuid(),
-          cmd: SFTP_CMD.LIST,
-          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
-          data: JSON.stringify(sendData)
-        };
-
-        if (props.socket) {
-          props.socket.send(JSON.stringify(sendBody));
-        }
-      }
-    },
     {
       label: '新建文件夹',
       icon: FolderPlus,
@@ -220,9 +186,32 @@ const leftActionsMenu = computed((): LeftActionsMenu[] => {
       }
     },
     {
+      label: '刷新',
+      icon: RefreshCcw,
+      disabled: false,
+      click: () => {
+        emits('update:loading', true);
+
+        const sendData = {
+          path: props.currentNodePath
+        };
+
+        const sendBody = {
+          id: uuid(),
+          cmd: SFTP_CMD.LIST,
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          data: JSON.stringify(sendData)
+        };
+
+        if (props.socket) {
+          props.socket.send(JSON.stringify(sendBody));
+        }
+      }
+    },
+    {
       label: '删除',
       icon: Trash2,
-      disabled: props.currentNodePath.length === 0,
+      disabled: props.currentNodePath.length === 0 || props.currentNodePath === props.initialPath,
       click: () => {
         showModal.value = true;
         modalType.value = 'delete';
@@ -244,7 +233,41 @@ const deleteModalContent = computed((): string => {
 });
 
 const onPositiveClick = () => {
+  if (modalType.value === 'delete') {
+    const sendBody = {
+      id: uuid(),
+      type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+      cmd: SFTP_CMD.RM,
+      data: JSON.stringify({ path: `${props.currentNodePath}` })
+    };
+
+    if (props.socket) {
+      props.socket.send(JSON.stringify(sendBody));
+    }
+
+    return;
+  }
+
+  if (modalType.value === 'create') {
+    const sendBody = {
+      id: uuid(),
+      type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+      cmd: SFTP_CMD.MKDIR,
+      data: JSON.stringify({ path: `${props.currentNodePath}/${modalContent.value}` })
+    };
+
+    if (props.socket) {
+      props.socket.send(JSON.stringify(sendBody));
+    }
+
+    return;
+  }
+
   showModal.value = false;
+};
+
+const handleChangeLayout = (value: boolean) => {
+  emits('update:layout', value);
 };
 
 const onChange = (value: string) => {

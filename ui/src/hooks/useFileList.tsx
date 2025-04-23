@@ -84,11 +84,6 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
   };
 
   /**
-   * @description 生成抽屉形式的 Table 数据
-   */
-  const generateTableData = () => {};
-
-  /**
    * @description 异步加载节点
    */
   const handleLoad = (node: TreeOption) => {
@@ -99,8 +94,6 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
         cmd: SFTP_CMD.LIST,
         data: JSON.stringify({ path: node.path })
       };
-
-      console.log(node);
 
       if (socket.value) {
         socket.value.send(JSON.stringify(sendBody));
@@ -116,6 +109,8 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
 
   /**
    * @description 生成整个页面形式的 Tree 数据
+   * @param sftpDataMessageData 文件列表数据
+   * @param isRootNode 是否为根节点
    */
   const generateTreeData = (sftpDataMessageData: IFileManageSftpFileItem[], isRootNode: boolean = true) => {
     // 如果是根节点，则生成完整的树结构
@@ -176,7 +171,12 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
     }
   };
 
-  const dispatchSFTPCase = (cmdType: string, sftpDataMessageData: IFileManageSftpFileItem[]) => {
+  /**
+   * @description 处理 SFTP 命令的响应
+   * @param cmdType 命令类型
+   * @param sftpDataMessageData 响应数据，可能是文件列表数组或字符串
+   */
+  const dispatchSFTPCase = (cmdType: string, sftpDataMessageData: IFileManageSftpFileItem[] | string) => {
     switch (cmdType) {
       case SFTP_CMD.LIST:
         if (initial_path.value === '') {
@@ -212,9 +212,44 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
             // 找到对应路径的节点
             const targetNode = findNodeByPath(treeData);
 
+            console.log(targetNode);
+
             if (targetNode) {
               // 更新节点的子节点
-              return (targetNode.children = generateTreeData(sftpDataMessageData, false));
+              targetNode.children = generateTreeData(sftpDataMessageData, false);
+
+              // 确保目录节点不会被标记为叶子节点
+              if (targetNode.is_dir) {
+                targetNode.isLeaf = false;
+              }
+
+              return;
+            } else {
+              // 如果找不到对应路径的节点，可能是展开了新的路径
+              // 尝试找到父路径节点并添加新路径作为子节点
+              const pathParts = current_path.value.split('/');
+
+              if (pathParts.length > 1) {
+                // 去掉最后一个部分得到父路径
+                pathParts.pop();
+                const parentPath = pathParts.join('/') || '/';
+                const parentNode = findNodeByPath(treeData, parentPath);
+
+                if (parentNode && parentNode.children) {
+                  // 在父节点下添加当前路径的子节点
+                  const newNode = {
+                    key: current_path.value,
+                    label: current_path.value.split('/').pop() || '',
+                    is_dir: true,
+                    isLeaf: false,
+                    path: current_path.value,
+                    children: generateTreeData(sftpDataMessageData, false)
+                  };
+
+                  dispatchFilePrefix(newNode);
+                  parentNode.children.push(newNode);
+                }
+              }
             }
           }
 
@@ -252,24 +287,63 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
 
         break;
       case SFTP_CMD.MKDIR:
+        // 创建文件夹成功后，刷新当前目录
+        message.success('创建文件夹成功');
+        if (typeof sftpDataMessageData === 'string' && sftpDataMessageData === 'ok') {
+          const sendBody = {
+            id: uuid(),
+            cmd: SFTP_CMD.LIST,
+            type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+            data: JSON.stringify({ path: current_path.value })
+          };
+
+          socket?.value?.send(JSON.stringify(sendBody));
+        } else {
+          message.error('创建文件夹失败');
+        }
+
         break;
 
       case SFTP_CMD.RM:
+        // 删除文件/文件夹成功后，刷新当前目录
+        message.success('删除成功');
+        if (typeof sftpDataMessageData === 'string' && sftpDataMessageData === 'ok') {
+          // 删除成功后，需要移除 currentPath 中所对应的路径
+          const pathParts = current_path.value.split('/');
+
+          pathParts.pop();
+          current_path.value = pathParts.join('/') || '/';
+
+          const sendBody = {
+            id: uuid(),
+            cmd: SFTP_CMD.LIST,
+            type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+            data: JSON.stringify({ path: current_path.value })
+          };
+
+          // 刷新
+          socket?.value?.send(JSON.stringify(sendBody));
+        } else {
+          message.error('删除失败');
+        }
+
         break;
     }
   };
 
   /**
    * @description 递归查找节点
+   * @param nodes 要搜索的树节点数组
+   * @param path 可选的路径参数，如果不提供则使用current_path.value
    */
-  const findNodeByPath = (nodes: TreeOption[]): TreeOption | null => {
+  const findNodeByPath = (nodes: TreeOption[], path?: string): TreeOption | null => {
     for (const node of nodes) {
-      if (node.path === current_path.value) {
+      if (path ? node.path === path : node.path === current_path.value) {
         return node;
       }
 
       if (node.children && Array.isArray(node.children)) {
-        const found = findNodeByPath(node.children);
+        const found = findNodeByPath(node.children, path);
 
         if (found) {
           return found;
@@ -345,7 +419,20 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
           break;
         case FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA:
           const cmdType = transferMessage.cmd;
-          const sftpDataMessageData: IFileManageSftpFileItem[] = JSON.parse(transferMessage.data);
+          let sftpDataMessageData: IFileManageSftpFileItem[] | string;
+
+          // 检查数据是否为 JSON 格式
+          try {
+            const parsedData = JSON.parse(transferMessage.data);
+
+            if (typeof parsedData === 'string') {
+              sftpDataMessageData = parsedData;
+            } else {
+              sftpDataMessageData = parsedData;
+            }
+          } catch (error) {
+            sftpDataMessageData = transferMessage.data;
+          }
 
           current_path.value = transferMessage.current_path;
 
@@ -362,6 +449,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
     socket,
     treeData,
     listData,
+    initial_path,
     expandedKeys,
     handleLoad
   };
