@@ -51,8 +51,20 @@ import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
 
-import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
+import {
+  computed,
+  h,
+  markRaw,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref
+} from 'vue';
+import {
+  findNodeById,
+  renderIcon,
+  swapElements
+} from '@/components/Kubernetes/helper';
 import { updateIcon } from '@/components/TerminalComponent/helper';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
@@ -71,7 +83,13 @@ import type { DropdownOption, TabPaneProps } from 'naive-ui';
 import type { ISettingProp } from '@/types';
 import type { Ref } from 'vue';
 
-import { ArrowBack, ArrowDown, ArrowForward, ArrowUp, CloseCircleOutline } from '@vicons/ionicons5';
+import {
+  ArrowBack,
+  ArrowDown,
+  ArrowForward,
+  ArrowUp,
+  CloseCircleOutline
+} from '@vicons/ionicons5';
 import { ClosedCaption32Regular } from '@vicons/fluent';
 import { RefreshFilled } from '@vicons/material';
 import { CloneRegular } from '@vicons/fa';
@@ -88,8 +106,8 @@ import {
 } from '@vicons/carbon';
 
 const emits = defineEmits<{
-  (e: 'update:waterMarkContent', content: string): void
-}>()
+  (e: 'update:waterMarkContent', content: string): void;
+}>();
 
 const dialog = useDialog();
 const message = useMessage();
@@ -101,6 +119,7 @@ const { t } = useI18n();
 const { connectInfo } = storeToRefs(treeStore);
 
 const nameRef = ref('');
+const showDrawer = ref<boolean>(false);
 const contextIdentification = ref('');
 const themeName = ref('Default');
 const dropdownY = ref(0);
@@ -155,7 +174,8 @@ const settings = computed((): ISettingProp[] => {
             return h(ThemeConfig, {
               currentThemeName: themeName.value,
               preview: (tempTheme: string) => {
-                operatedNode.terminal.options.theme = xtermTheme[tempTheme] || defaultTheme;
+                operatedNode.terminal.options.theme =
+                  xtermTheme[tempTheme] || defaultTheme;
               }
             });
           }
@@ -216,7 +236,9 @@ const settings = computed((): ISettingProp[] => {
               // @ts-ignore
               items
                 .filter((_item: any) => {
-                  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+                  const operatedNode = treeStore.getTerminalByK8sId(
+                    nameRef.value
+                  );
                   return operatedNode.k8s_id === sessionKey;
                 })
                 .map((item: any) => {
@@ -229,7 +251,10 @@ const settings = computed((): ISettingProp[] => {
                   };
                 })
             )
-            .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
+            .sort(
+              (a, b) =>
+                new Date(a.created).getTime() - new Date(b.created).getTime()
+            );
         }
 
         return [];
@@ -244,7 +269,9 @@ const settings = computed((): ISettingProp[] => {
           negativeText: '取消',
           onPositiveClick: () => {
             const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-            const sessionId = operatedNode.sessionIdMap.get(operatedNode.k8s_id);
+            const sessionId = operatedNode.sessionIdMap.get(
+              operatedNode.k8s_id
+            );
 
             mittBus.emit('remove-share-user', {
               sessionId: sessionId,
@@ -393,7 +420,9 @@ const handleContextMenu = (e: PointerEvent) => {
  * @description 重新连接
  */
 const handleReconnect = (type: string) => {
-  const operatedNode = treeStore.getTerminalByK8sId(contextIdentification.value);
+  const operatedNode = treeStore.getTerminalByK8sId(
+    contextIdentification.value
+  );
   const socket = operatedNode?.socket;
 
   if (type === 'reconnect') {
@@ -408,7 +437,9 @@ const handleReconnect = (type: string) => {
     }
 
     // 找到所操作节点的下标，
-    const index = panels.value.findIndex(panel => panel.name === contextIdentification.value);
+    const index = panels.value.findIndex(
+      panel => panel.name === contextIdentification.value
+    );
 
     panels.value.splice(index, 1);
     treeStore.removeK8sIdMap(operatedNode.k8s_id);
@@ -495,30 +526,41 @@ const initializeDraggable = () => {
   if (tabsContainer) {
     // 对于 useDraggable 如果直接操作 panel 可能会导致被注入一个 undefined 值从而导致报错，因此下面代码全部使用副本来操作
     // @ts-ignore
-    useDraggable<UseDraggableReturn>(tabsContainer, JSON.parse(JSON.stringify(panels.value)), {
-      animation: 150,
-      onEnd: async event => {
-        if (!event || event.newIndex === undefined || event.oldIndex === undefined) {
-          return console.warn('Event or index is undefined');
-        }
+    useDraggable<UseDraggableReturn>(
+      // @ts-ignore
+      tabsContainer,
+      JSON.parse(JSON.stringify(panels.value)),
+      {
+        animation: 150,
+        onEnd: async event => {
+          if (
+            !event ||
+            event.newIndex === undefined ||
+            event.oldIndex === undefined
+          ) {
+            return console.warn('Event or index is undefined');
+          }
 
-        let newIndex = event!.newIndex - 1;
-        let oldIndex = event!.oldIndex - 1;
+          let newIndex = event!.newIndex - 1;
+          let oldIndex = event!.oldIndex - 1;
 
-        // 此处不能使用 JSON.parse(JSON.stringify) 的形式，否则会出现循环引用, 只需浅拷贝即可
-        const clonedPanels = panels.value.map(panel => ({ ...panel }));
+          // 此处不能使用 JSON.parse(JSON.stringify) 的形式，否则会出现循环引用, 只需浅拷贝即可
+          const clonedPanels = panels.value.map(panel => ({ ...panel }));
 
-        panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(panel => panel !== null);
+          panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(
+            panel => panel !== null
+          );
 
-        const newActiveTab: string = panels.value[newIndex!]?.name as string;
+          const newActiveTab: string = panels.value[newIndex!]?.name as string;
 
-        if (newActiveTab) {
-          nameRef.value = newActiveTab;
-          findNodeById(newActiveTab);
-          terminalStore.setTerminalConfig('currentTab', newActiveTab);
+          if (newActiveTab) {
+            nameRef.value = newActiveTab;
+            findNodeById(newActiveTab);
+            terminalStore.setTerminalConfig('currentTab', newActiveTab);
+          }
         }
       }
-    });
+    );
   }
 };
 
@@ -585,7 +627,9 @@ const handleWriteData = async (type: string) => {
  * @description 切换到上一个 Tab
  */
 const switchToPreviousTab = () => {
-  const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
+  const currentIndex = panels.value.findIndex(
+    panel => panel.name === nameRef.value
+  );
 
   if (currentIndex > 0) {
     nameRef.value = panels.value[currentIndex - 1].name as string;
@@ -602,7 +646,9 @@ const switchToPreviousTab = () => {
  * @description 切换到下一个 Tab
  */
 const switchToNextTab = () => {
-  const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
+  const currentIndex = panels.value.findIndex(
+    panel => panel.name === nameRef.value
+  );
 
   if (currentIndex < panels.value.length - 1) {
     nameRef.value = panels.value[currentIndex + 1].name as string;
@@ -636,6 +682,10 @@ onMounted(() => {
 
   nextTick(() => {
     initializeDraggable();
+  });
+
+  mittBus.on('open-setting', () => {
+    showDrawer.value = true;
   });
 
   mittBus.on('connect-terminal', (node: any) => {
@@ -708,7 +758,7 @@ onMounted(() => {
 
           updateIcon(connectInfo.value);
         } catch (e: any) {
-          throw new Error(e)
+          throw new Error(e);
         }
       }
     });

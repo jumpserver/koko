@@ -39,16 +39,14 @@ export const getDropSelections = (t: any): DropdownOption[] => {
     {
       key: 'delete',
       icon: () => {
-        return (
-          <NIcon size={ 20 } color="#F54A45" component={ Delete16Regular } />
-        )
+        return <NIcon size={20} color="#F54A45" component={Delete16Regular} />;
       },
       label: () => {
         return (
-          <NText depth={ 1 } style={ { color: '#F54A45' } }>
-            { t('Delete') }
+          <NText depth={1} style={{ color: '#F54A45' }}>
+            {t('Delete')}
           </NText>
-        )
+        );
       }
     }
   ];

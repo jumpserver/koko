@@ -171,7 +171,14 @@ import mittBus from '@/utils/mittBus.ts';
 import { List } from '@vicons/ionicons5';
 import { Search } from 'lucide-vue-next';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
-import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
+import {
+  NButton,
+  NFlex,
+  NIcon,
+  NText,
+  UploadCustomRequestOptions,
+  useMessage
+} from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
@@ -181,9 +188,9 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide 
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
-import type { RowData } from '@/components/FileManagement/index.vue';
 import type { IFileManageSftpFileItem } from '@/hooks/interface';
 import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
+import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 export interface IFilePath {
   id: string;
@@ -431,11 +438,16 @@ const handlePathForward = () => {
 
     if (forwardSegments.length > currentSegments.length) {
       // 移除多余的第一个路径段
-      const firstExtraSegment = forwardSegments.slice(currentSegments.length)[0];
+      const firstExtraSegment = forwardSegments.slice(
+        currentSegments.length
+      )[0];
 
       const newForwardPath = `${fileManageStore.currentPath}/${firstExtraSegment}`;
 
-      mittBus.emit('file-manage', { path: newForwardPath, type: ManageTypes.CHANGE });
+      mittBus.emit('file-manage', {
+        path: newForwardPath,
+        type: ManageTypes.CHANGE
+      });
     }
   }
 };
@@ -462,7 +474,10 @@ const handlePathClick = (item: IFilePath) => {
  */
 const handleRefresh = () => {
   loading.value = true;
-  mittBus.emit('file-manage', { path: fileManageStore.currentPath, type: ManageTypes.REFRESH });
+  mittBus.emit('file-manage', {
+    path: fileManageStore.currentPath,
+    type: ManageTypes.REFRESH
+  });
 };
 
 /**
@@ -537,7 +552,9 @@ const modalPositiveClick = () => {
 /**
  * @description 文件上传
  */
-const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) => {
+const handleUploadFileChange = (options: {
+  fileList: Array<UploadFileInfo>;
+}) => {
   showInner.value = true;
 
   if (options.fileList.length > 0) {
@@ -619,18 +636,27 @@ const rowProps = (row: RowData) => {
           ? removeLastPathSegment(fileManageStore.currentPath)
           : '/';
 
-        if (backPath === '/' && filePathList.value.findIndex(item => item.path === '/') === -1) {
+        if (
+          backPath === '/' &&
+          filePathList.value.findIndex(item => item.path === '/') === -1
+        ) {
           fileManageStore.setCurrentPath('/');
         }
 
-        mittBus.emit('file-manage', { path: backPath, type: ManageTypes.CHANGE });
+        mittBus.emit('file-manage', {
+          path: backPath,
+          type: ManageTypes.CHANGE
+        });
 
         handlePathBack();
 
         return;
       }
 
-      mittBus.emit('file-manage', { path: splicePath, type: ManageTypes.CHANGE });
+      mittBus.emit('file-manage', {
+        path: splicePath,
+        type: ManageTypes.CHANGE
+      });
 
       disabledBack.value = false;
     }

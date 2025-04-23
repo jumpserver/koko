@@ -1,12 +1,12 @@
 <template>
   <n-drawer v-model:show="showDrawer" :width="260">
     <n-drawer-content :native-scrollbar="false" :title="t('Settings')" closable>
-      <n-flex vertical>
+      <n-flex vertical justify="center" align="start">
         <template v-for="item of settings" :key="item.title">
           <n-button
             v-if="!item.content"
             quaternary
-            class="justify-start items-center"
+            class="!w-full !justify-start"
             :disabled="item.disabled()"
             @click="item.click"
           >
@@ -30,12 +30,7 @@
                 </template>
                 <template #description>
                   <n-flex size="small" style="margin-top: 4px">
-                    <n-popover
-                      trigger="hover"
-                      placement="top"
-                      v-for="detail of item.content()"
-                      :key="detail.name"
-                    >
+                    <n-popover trigger="hover" placement="top" v-for="detail of item.content()" :key="detail.name">
                       <template #trigger>
                         <n-tag
                           round
@@ -79,12 +74,7 @@
                 </template>
                 <template #description>
                   <n-flex size="small" style="margin-top: 4px">
-                    <n-popover
-                      trigger="hover"
-                      placement="top"
-                      v-for="detail of item.content"
-                      :key="detail.name"
-                    >
+                    <n-popover trigger="hover" placement="top" v-for="detail of item.content" :key="detail.name">
                       <template #trigger>
                         <n-tag
                           round
@@ -121,28 +111,22 @@
 
 <script setup lang="ts">
 import mittBus from '@/utils/mittBus.ts';
-
 import { onMounted, onUnmounted, ref } from 'vue';
 import { ISettingProp } from '@/types';
 import { useI18n } from 'vue-i18n';
-
 withDefaults(
   defineProps<{
     settings: ISettingProp[];
   }>(),
   {}
 );
-
 const { t } = useI18n();
-
 const showDrawer = ref<boolean>(false);
-
 onMounted(() => {
   mittBus.on('open-setting', () => {
     showDrawer.value = !showDrawer.value;
   });
 });
-
 onUnmounted(() => {
   mittBus.off('open-setting');
 });
