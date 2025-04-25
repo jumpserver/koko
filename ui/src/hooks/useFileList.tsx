@@ -189,7 +189,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
         if (type === 'direct') {
           // 如果当前路径是根目录或者是初始路径，则不添加 .. 文件夹
           if (current_path.value === '/' || current_path.value === initial_path.value) {
-            listData.push(...sftpDataMessageData);
+            listData.push(...(sftpDataMessageData as IFileManageSftpFileItem[]));
           } else {
             listData.push(
               {
@@ -241,7 +241,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
                     is_dir: true,
                     isLeaf: false,
                     path: current_path.value,
-                    children: generateTreeData(sftpDataMessageData, false)
+                    children: generateTreeData(sftpDataMessageData as IFileManageSftpFileItem[], false)
                   };
 
                   dispatchFilePrefix(newNode);
