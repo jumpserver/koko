@@ -68,7 +68,7 @@ import { useI18n } from 'vue-i18n';
 import { BASE_URL } from '@/config';
 import { getMinuteLabel } from '@/utils';
 import { useDebounceFn } from '@vueuse/core';
-import { shareUser } from '@/types';
+import { ShareUserOptions } from '@/types/modules/user.type';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 import type { SelectRenderTag } from 'naive-ui';
@@ -78,7 +78,7 @@ const props = withDefaults(
   defineProps<{
     sessionId: string;
     enableShare: boolean;
-    userOptions: shareUser[];
+    userOptions: ShareUserOptions[];
   }>(),
   {
     sessionId: '',
@@ -98,7 +98,7 @@ const dialogReactiveList = useDialogReactiveList();
 const { t } = useI18n();
 const { shareCode, shareId } = storeToRefs(paramsStore);
 const loading = ref<boolean>(false);
-const shareUsers = ref<shareUser[]>([]);
+const shareUsers = ref<ShareUserOptions[]>([]);
 const expiredOptions = reactive([
   { label: getMinuteLabel(1, t), value: 1 },
   { label: getMinuteLabel(5, t), value: 5 },
@@ -113,14 +113,14 @@ const actionsPermOptions = reactive([
 const shareLinkRequest = reactive({
   expiredTime: 10,
   actionPerm: 'writable',
-  users: [] as shareUser[]
+  users: [] as ShareUserOptions[]
 });
 const shareURL = computed(() => {
   return shareId.value ? `${BASE_URL}/luna/share/${shareId.value}/` : t('NoLink');
 });
 const mappedUserOptions = computed(() => {
   if (props.userOptions && props.userOptions.length > 0) {
-    return props.userOptions.map((item: shareUser) => ({
+    return props.userOptions.map((item: ShareUserOptions) => ({
       label: item.username,
       value: item.id
     }));
