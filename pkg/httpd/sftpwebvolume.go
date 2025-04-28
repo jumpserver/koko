@@ -223,7 +223,7 @@ func (u *UserWebVolume) MakeDir(path string) error {
 	return err
 }
 
-func (u *UserWebVolume) UploadFile(path string, readerAt io.ReaderAt, totalSize int64) error {
+func (u *UserWebVolume) UploadFile(path string, reader io.Reader, totalSize int64) error {
 	logger.Debug("WebVolume upload file path: ", path)
 	fd, err := u.UserSftp.Create(filepath.Join(path))
 	if err != nil {
@@ -231,8 +231,14 @@ func (u *UserWebVolume) UploadFile(path string, readerAt io.ReaderAt, totalSize 
 	}
 	defer fd.Close()
 
-	if err1 := u.recorder.ChunkedRecord(fd.FTPLog, readerAt, 0, totalSize); err1 != nil {
+	if err1 := u.recorder.Record(fd.FTPLog, reader); err1 != nil {
 		logger.Errorf("Record file err: %s", err1)
+	}
+
+	readerAt, ok := reader.(io.ReaderAt)
+	if !ok {
+		logger.Debug("reader is not io.ReaderAt, use io.SeekStart")
+		return fmt.Errorf("reader is not io.ReaderAt")
 	}
 
 	err = common.ChunkedFileTransfer(fd, readerAt, 0, totalSize)
