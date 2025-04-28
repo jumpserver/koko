@@ -177,7 +177,7 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 		err = h.volume.UploadChunk(id, request.Path, request.OffSet, int64(reader.Len()), readerAt)
 		response.Data = request.Path
 	} else {
-		err = h.volume.UploadFile(request.Path, readerAt, request.Size)
+		err = h.volume.UploadFile(request.Path, reader, request.Size)
 		response.Data = request.Path
 	}
 	if err != nil {
