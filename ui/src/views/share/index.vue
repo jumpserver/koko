@@ -1,16 +1,5 @@
 <template>
-  <n-watermark
-    :content="'--'"
-    :width="300"
-    :height="300"
-    :y-offset="60"
-    :x-offset="-60"
-    :font-size="20"
-    :line-height="20"
-    :font-family="'Open Sans'"
-  >
-    <Terminal :socket-instance="socketInstance" :share-code="shareCode" />
-  </n-watermark>
+  <Terminal v-if="shareCode" :share-code="shareCode" />
 </template>
 
 <script setup lang="ts">
@@ -20,20 +9,15 @@ import { useI18n } from 'vue-i18n';
 import { onMounted, ref } from 'vue';
 import { dialogContent } from './dialogContent';
 import { useDialog, useMessage } from 'naive-ui';
-import { useWebSocketManager } from '@/hooks/useWebSocketManager';
 
 const { t } = useI18n();
 const dialog = useDialog();
 const message = useMessage();
-const { createSocket }: { createSocket: () => WebSocket | '' } = useWebSocketManager();
 
 const shareCode = ref<string>('');
-const socketInstance = ref<WebSocket | ''>('');
 
 onMounted(() => {
   const contentInstance = dialogContent();
-
-  socketInstance.value = createSocket();
 
   dialog.create({
     showIcon: false,
@@ -55,7 +39,7 @@ onMounted(() => {
         return false;
       }
 
-      return false;
+      return true;
     }
   });
 });

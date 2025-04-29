@@ -20,10 +20,7 @@ export const draggable = {
       document.removeEventListener('mousemove', mouseMoveHandler);
       document.removeEventListener('mouseup', mouseUpHandler);
 
-      if (
-        binding.value.onDragEnd &&
-        typeof binding.value.onDragEnd === 'function'
-      ) {
+      if (binding.value.onDragEnd && typeof binding.value.onDragEnd === 'function') {
         binding.value.onDragEnd(el, binding.value.width);
       }
     };

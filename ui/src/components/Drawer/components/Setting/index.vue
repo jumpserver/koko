@@ -17,6 +17,7 @@
           </n-tooltip>
         </n-flex>
       </template>
+
       <template v-if="item.type === 'select'">
         <n-select
           size="small"
@@ -117,7 +118,7 @@ const userFilters = computed(() => {
 });
 
 const currentTerminalConn = computed(() => {
-  // 默认取 map 中第 0 项
+  // TODO 默认取 map 中第 0 项
   const conn = Array.from(connectionStore.connectionStateMap.values())[0] || {};
 
   return {

@@ -5,6 +5,9 @@ export const themeOverrides: GlobalThemeOverrides = {
     color: 'rgba(32, 34, 34, 1)',
     titleTextColor: 'rgba(235, 235, 235, 1)'
   },
+  Tabs: {
+    tabPaddingVerticalSmallLine: '6px 12px 6px 0'
+  },
   Form: {},
   Tree: {
     nodeColorActive: 'rgba(26, 179, 148, 0.1)'
@@ -63,19 +66,23 @@ export const themeOverrides: GlobalThemeOverrides = {
     colorModal: 'rgba(32, 34, 34, 1)'
   },
   Button: {
+    borderPressedPrimary: '1px solid rgba(22, 152, 125, 1)',
     borderFocusPrimary: '1px solid rgba(22, 152, 125, 1)',
     borderHoverPrimary: '1px solid rgba(22, 152, 125, 1)',
     borderPrimary: '1px solid rgba(22, 152, 125, 1)',
     colorPrimary: 'rgba(22, 152, 125, 1)',
     colorFocusPrimary: 'rgba(22, 152, 125, 1)',
     colorHoverPrimary: 'rgba(22, 152, 125, 1)',
-    textColorPrimary: 'rgba(235, 235, 235, 1)'
+    colorPressedPrimary: 'rgba(22, 152, 125, 1)',
+    textColorPrimary: 'rgba(235, 235, 235, 1)',
+    textColorHoverPrimary: 'rgba(235, 235, 235, 1)',
+    textColorPressedPrimary: 'rgba(235, 235, 235, 1)',
+    textColorFocusPrimary: 'rgba(235, 235, 235, 1)'
   },
   Switch: {
     railColorActive: 'rgba(255, 255, 255, 0.2)',
     buttonColor: 'rgba(32, 34, 34, 1)'
   },
-
   DataTable: {
     thColor: 'rgba(32, 34, 34, 1)',
     tdColor: 'rgba(32, 34, 34, 1)',
@@ -116,5 +123,10 @@ export const themeOverrides: GlobalThemeOverrides = {
         fillColorInfo: 'rgba(22, 152, 125, 1)'
       }
     }
+  },
+  Layout: {
+    color: 'rgba(0, 0, 0, 1)',
+    siderColor: 'rgba(0, 0, 0, 1)',
+    headerColor: 'rgba(0, 0, 0, 1)'
   }
 };

@@ -30,8 +30,7 @@ import Setting from './components/Setting/index.vue';
 import FileManager from './components/FileManagement/index.vue';
 
 import type { SettingConfig } from '@/types/modules/setting.type';
-
-type ContentType = 'setting' | 'file-manager';
+import type { ContentType } from '@/types/modules/connection.type';
 
 const DRAWER_HEADER_STYLE = {
   height: '55px',
@@ -69,7 +68,7 @@ const settingsConfig = reactive<SettingConfig>({
       labelStyle: {
         fontSize: '14px'
       },
-      showMore: true,
+      showMore: false,
       value: 'default'
     },
     {

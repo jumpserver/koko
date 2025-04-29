@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@alova/shared@^1.0.4":
-  version "1.0.4"
-  resolved "https://registry.yarnpkg.com/@alova/shared/-/shared-1.0.4.tgz#56176e6f71dbb8b8a8dec49092277c6e0705d55a"
-  integrity sha512-Tq47Wd5q76kPmGLXmPijb0AfsXW2aWR9Pid1KO1nz96BdWiKstx2t/ZLTNaGtQzYyB6M+puunaTTJbusJQPmkQ==
+"@alova/shared@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@alova/shared/-/shared-1.1.2.tgz#5aa769ba15413007e868a63a48fe2287a05eea34"
+  integrity sha512-8q/gMHFpzm7XYcaUlsyTCMDRRhFnewwheTeObMjPl1+bFdr+wZuBEHEPYIyd8tyzLwfrqpBeonaMN2tlngM8EA==
 
 "@ampproject/remapping@^2.2.0":
   version "2.3.0"
@@ -1228,12 +1228,12 @@ ajv@^6.12.4:
     json-schema-traverse "^0.4.1"
     uri-js "^4.2.2"
 
-alova@^3.0.2:
-  version "3.0.9"
-  resolved "https://registry.yarnpkg.com/alova/-/alova-3.0.9.tgz#cc1df03fa091ea141c27ba8907b5d2f1f617c70f"
-  integrity sha512-S/Z093mHtLXHhaq7DvRzy9c+qI3uaZFj7tckuubfaGT+DhwNFJcaEyc+IOwgioY9lFHd5ze1+BQ/foblwayKuA==
+alova@^3.2.10:
+  version "3.2.10"
+  resolved "https://registry.yarnpkg.com/alova/-/alova-3.2.10.tgz#0889cd488f8524601ce9452b0a8e01ff5f47d727"
+  integrity sha512-OHMuSNUbIUEsAq6q5DabISNgFMIXqrC/DPBQv1QJEwxW3fWlYlaF6Vr8b4iqwZnUd2+0rCmFm9GnpKWk7vvx2w==
   dependencies:
-    "@alova/shared" "^1.0.4"
+    "@alova/shared" "1.1.2"
     rate-limiter-flexible "^5.0.3"
 
 ansi-styles@^4.1.0:

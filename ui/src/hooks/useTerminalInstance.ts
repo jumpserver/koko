@@ -12,6 +12,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { FormatterMessageType } from '@/enum';
 import { SearchAddon } from '@xterm/addon-search';
 import { formatMessage } from '@/hooks/useTerminalConnection';
+import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
 import type { ConfigProviderProps } from 'naive-ui';
@@ -31,6 +32,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
     theme: darkTheme
   }));
 
+  const connectionStore = useConnectionStore();
   const terminalSettingsStore = useTerminalSettingsStore();
 
   const { message } = createDiscreteApi(['message'], {
@@ -107,7 +109,13 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
 
         e.preventDefault();
 
-        // Socket Send
+        const conn = Array.from(connectionStore.connectionStateMap.values())[0] || {};
+
+        if (!conn.socket) {
+          return;
+        }
+
+        conn.socket.send(formatMessage(conn.terminalId || '', FormatterMessageType.TERMINAL_DATA, text));
       },
       false
     );

@@ -24,3 +24,5 @@ export interface ConnectionState {
 
   onlineUsers: OnlineUser[];
 }
+
+export type ContentType = 'setting' | 'file-manager';
