@@ -1,6 +1,5 @@
 import { h, ref } from 'vue';
-import { bytesHuman } from '@/utils';
-import { wsIsActivated } from '@/components/TerminalComponent/helper';
+import { bytesHuman, wsIsActivated } from '@/utils';
 import { createDiscreteApi, UploadFileInfo, darkTheme } from 'naive-ui';
 
 import { Terminal } from '@xterm/xterm';

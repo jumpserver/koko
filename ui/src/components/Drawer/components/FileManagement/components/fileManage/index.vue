@@ -188,7 +188,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide 
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
-import type { IFileManageSftpFileItem } from '@/hooks/interface';
+import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
 import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
@@ -485,7 +485,7 @@ const handleRefresh = () => {
  */
 const modalPositiveClick = () => {
   const index =
-    fileManageStore?.fileList?.findIndex((item: IFileManageSftpFileItem) => {
+    fileManageStore?.fileList?.findIndex((item: FileManageSftpFileItem) => {
       return item.name === newFileName.value;
     }) ?? -1;
 

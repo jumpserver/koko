@@ -89,12 +89,12 @@ import Share from '@/components/Drawer/components/Share/index.vue';
 import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
 
 import { storeToRefs } from 'pinia';
+import { formatMessage } from '@/utils';
 import { readText } from 'clipboard-polyfill';
 import { FormatterMessageType } from '@/enum';
 import { ref, watch, computed, nextTick } from 'vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { Ellipsis, ChevronLeft, ChevronDown } from 'lucide-vue-next';
-import { formatMessage } from '@/components/TerminalComponent/helper';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
 import type { OnlineUser } from '@/types/modules/user.type';

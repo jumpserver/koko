@@ -74,7 +74,7 @@
 <script setup lang="ts">
 import { v4 as uuid } from 'uuid';
 import { useI18n } from 'vue-i18n';
-import { computed, ref, FunctionalComponent } from 'vue';
+import { computed, ref } from 'vue';
 import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/enum';
 import {
   List,
@@ -88,6 +88,8 @@ import {
   ClipboardCopy
 } from 'lucide-vue-next';
 
+import type { LeftActionsMenu } from '@/types/modules/file.type';
+
 const MODAL_BUTTON_PROPS = {
   type: 'primary',
   size: 'small'
@@ -100,13 +102,6 @@ const ModalTypes = {
 } as const;
 
 type ModalType = (typeof ModalTypes)[keyof typeof ModalTypes];
-
-interface LeftActionsMenu {
-  label: string;
-  icon: FunctionalComponent;
-  disabled: boolean;
-  click: () => void;
-}
 
 const props = defineProps<{
   socket: WebSocket | null;

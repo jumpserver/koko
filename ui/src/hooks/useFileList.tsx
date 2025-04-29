@@ -6,7 +6,7 @@ import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/enum';
 
 import type { TreeOption } from 'naive-ui';
 import type { RowData } from '@/types/modules/table.type';
-import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
+import type { FileManage, FileManageSftpFileItem } from '@/types/modules/file.type';
 
 import {
   Folder,
@@ -112,7 +112,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
    * @param sftpDataMessageData 文件列表数据
    * @param isRootNode 是否为根节点
    */
-  const generateTreeData = (sftpDataMessageData: IFileManageSftpFileItem[], isRootNode: boolean = true) => {
+  const generateTreeData = (sftpDataMessageData: FileManageSftpFileItem[], isRootNode: boolean = true) => {
     // 如果是根节点，则生成完整的树结构
     if (isRootNode) {
       const data: TreeOption[] = [];
@@ -176,7 +176,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
    * @param cmdType 命令类型
    * @param sftpDataMessageData 响应数据，可能是文件列表数组或字符串
    */
-  const dispatchSFTPCase = (cmdType: string, sftpDataMessageData: IFileManageSftpFileItem[] | string) => {
+  const dispatchSFTPCase = (cmdType: string, sftpDataMessageData: FileManageSftpFileItem[] | string) => {
     switch (cmdType) {
       case SFTP_CMD.LIST:
         if (initial_path.value === '') {
@@ -189,7 +189,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
         if (type === 'direct') {
           // 如果当前路径是根目录或者是初始路径，则不添加 .. 文件夹
           if (current_path.value === '/' || current_path.value === initial_path.value) {
-            listData.push(...(sftpDataMessageData as IFileManageSftpFileItem[]));
+            listData.push(...(sftpDataMessageData as FileManageSftpFileItem[]));
           } else {
             listData.push(
               {
@@ -200,21 +200,21 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
                 type: '',
                 is_dir: true
               },
-              ...(sftpDataMessageData as IFileManageSftpFileItem[])
+              ...(sftpDataMessageData as FileManageSftpFileItem[])
             );
           }
 
           // 生成 Tree 数据
           if (treeData.length === 0) {
             // 首次加载，创建根节点
-            treeData.push(...generateTreeData(sftpDataMessageData as IFileManageSftpFileItem[], true));
+            treeData.push(...generateTreeData(sftpDataMessageData as FileManageSftpFileItem[], true));
           } else {
             // 找到对应路径的节点
             const targetNode = findNodeByPath(treeData);
 
             if (targetNode) {
               // 更新节点的子节点
-              targetNode.children = generateTreeData(sftpDataMessageData as IFileManageSftpFileItem[], false);
+              targetNode.children = generateTreeData(sftpDataMessageData as FileManageSftpFileItem[], false);
 
               // 确保目录节点不会被标记为叶子节点
               if (targetNode.is_dir) {
@@ -241,7 +241,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
                     is_dir: true,
                     isLeaf: false,
                     path: current_path.value,
-                    children: generateTreeData(sftpDataMessageData as IFileManageSftpFileItem[], false)
+                    children: generateTreeData(sftpDataMessageData as FileManageSftpFileItem[], false)
                   };
 
                   dispatchFilePrefix(newNode);
@@ -396,7 +396,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
       console.log(event);
     };
     ws.value.onmessage = event => {
-      const transferMessage: IFileManage = JSON.parse(event.data);
+      const transferMessage: FileManage = JSON.parse(event.data);
 
       switch (transferMessage.type) {
         case FILE_MANAGE_MESSAGE_TYPE.PING:
@@ -437,7 +437,7 @@ export const useFileList = (token: string, type: 'direct' | 'drawer') => {
           break;
         case FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA:
           const cmdType = transferMessage.cmd;
-          let sftpDataMessageData: IFileManageSftpFileItem[] | string;
+          let sftpDataMessageData: FileManageSftpFileItem[] | string;
 
           // 检查数据是否为 JSON 格式
           try {

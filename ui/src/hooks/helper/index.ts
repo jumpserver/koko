@@ -3,11 +3,7 @@ import type { ILunaConfig } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
 import { useDebounceFn } from '@vueuse/core';
-import {
-  formatMessage,
-  handleError,
-  sendEventToLuna
-} from '@/components/TerminalComponent/helper';
+import { sendEventToLuna, formatMessage } from '@/utils';
 
 // 引入 Store
 import { useTreeStore } from '@/store/modules/tree.ts';
@@ -99,21 +95,17 @@ export const handleTerminalResize = (
   socket.send(formatMessage(terminalId, eventType, data));
 };
 
-// 将防抖函数移到外部，确保只创建一次
-const debouncedSwitchTab = useDebounceFn(
-  (lunaId: string, origin: string, key: string) => {
-    console.log('key');
-    switch (key) {
-      case 'ArrowRight':
-        sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
-        break;
-      case 'ArrowLeft':
-        sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
-        break;
-    }
-  },
-  500
-);
+const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: string) => {
+  console.log('key');
+  switch (key) {
+    case 'ArrowRight':
+      sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
+      break;
+    case 'ArrowLeft':
+      sendEventToLuna('KEYEVENT', 'alt+shift+left', lunaId, origin);
+      break;
+  }
+}, 500);
 
 /**
  * 针对特定的键盘组合进行操作
@@ -123,23 +115,12 @@ const debouncedSwitchTab = useDebounceFn(
  * @param lunaId
  * @param origin
  */
-export const handleCustomKey = (
-  e: KeyboardEvent,
-  terminal: Terminal,
-  lunaId: string,
-  origin: string
-): boolean => {
-  if (
-    e.altKey &&
-    e.shiftKey &&
-    (e.key === 'ArrowRight' || e.key === 'ArrowLeft')
-  ) {
+export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal, lunaId: string, origin: string): boolean => {
+  if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
     if (lunaId && origin) {
       debouncedSwitchTab(lunaId, origin, e.key);
     } else {
-      mittBus.emit(
-        e.key === 'ArrowRight' ? 'alt-shift-right' : 'alt-shift-left'
-      );
+      mittBus.emit(e.key === 'ArrowRight' ? 'alt-shift-right' : 'alt-shift-left');
     }
     return false;
   }
@@ -157,10 +138,7 @@ export const handleCustomKey = (
  * @param terminal
  * @param termSelectionText
  */
-export const handleTerminalSelection = async (
-  terminal: Terminal,
-  termSelectionText: Ref<string>
-) => {
+export const handleTerminalSelection = async (terminal: Terminal, termSelectionText: Ref<string>) => {
   termSelectionText.value = terminal.getSelection().trim();
 
   if (termSelectionText.value !== '') {
@@ -261,10 +239,7 @@ export const onWebsocketOpen = (
   if (pingInterval.value) clearInterval(pingInterval.value);
 
   pingInterval.value = setInterval(() => {
-    if (
-      socket.CLOSED === socket.readyState ||
-      socket.CLOSING === socket.readyState
-    ) {
+    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
       return clearInterval(pingInterval.value!);
     }
 
@@ -304,9 +279,7 @@ export const generateWsURL = () => {
       break;
     }
     case 'TokenParams': {
-      connectURL = urlParams
-        ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}`
-        : '';
+      connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/token/?${urlParams.toString()}` : '';
       break;
     }
     case 'kubernetes': {
@@ -320,8 +293,7 @@ export const generateWsURL = () => {
       requireParams.append('type', 'share');
       requireParams.append('target_id', id);
 
-      connectURL =
-        BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
       break;
     }
     case 'Monitor': {
@@ -331,14 +303,11 @@ export const generateWsURL = () => {
       requireParams.append('type', 'monitor');
       requireParams.append('target_id', id);
 
-      connectURL =
-        BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
       break;
     }
     default: {
-      connectURL = urlParams
-        ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}`
-        : '';
+      connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}` : '';
     }
   }
 
@@ -356,28 +325,19 @@ export const generateWsURL = () => {
  * @param terminal
  * @param type
  */
-export const onWebsocketWrong = (
-  event: Event,
-  type: string,
-  terminal?: Terminal
-) => {
+export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal) => {
   switch (type) {
     case 'error': {
-      terminal
-        ? terminal.write('\x1b[31mConnection Websocket Error\x1b[0m' + '\r\n')
-        : '';
+      terminal ? terminal.write('\x1b[31mConnection Websocket Error\x1b[0m' + '\r\n') : '';
       break;
     }
     case 'disconnected': {
-      terminal
-        ? terminal.write('\x1b[31mConnection Websocket Closed\x1b[0m')
-        : '';
+      terminal ? terminal.write('\x1b[31mConnection Websocket Closed\x1b[0m') : '';
       break;
     }
   }
 
   fireEvent(new Event('CLOSE', {}));
-  handleError(event);
 };
 
 /**
@@ -394,4 +354,26 @@ export const base64ToUint8Array = (base64: string): Uint8Array => {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+};
+
+/**
+ * @description 更新网页图标。
+ *
+ * @param {any} setting - 包含 LOGO_URLS 配置的设置对象。
+ */
+export const updateIcon = (setting: any) => {
+  const faviconURL = setting.INTERFACE.favicon;
+
+  let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+
+  if (!link) {
+    link = document.createElement('link') as HTMLLinkElement;
+    link.type = 'image/x-icon';
+    link.rel = 'shortcut icon';
+    document.getElementsByTagName('head')[0].appendChild(link);
+  }
+
+  if (faviconURL) {
+    link.href = faviconURL;
+  }
 };

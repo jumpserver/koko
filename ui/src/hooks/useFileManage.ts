@@ -12,7 +12,7 @@ import mittBus from '@/utils/mittBus.ts';
 import type { Ref } from 'vue';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
-import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
+import type { FileManage, FileManageConnectData, FileManageSftpFileItem } from '@/types/modules/file.type';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -91,11 +91,7 @@ export const refresh = (socket: WebSocket, path: string) => {
  * @param id
  * @param socket
  */
-const handleSocketConnectEvent = (
-  messageData: IFileManageConnectData,
-  id: string,
-  socket: WebSocket
-) => {
+const handleSocketConnectEvent = (messageData: FileManageConnectData, id: string, socket: WebSocket) => {
   const sendData = {
     path: ''
   };
@@ -116,7 +112,7 @@ const handleSocketConnectEvent = (
  * @description 设置文件信息 table
  * @param messageData
  */
-const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
+const handleSocketSftpData = (messageData: FileManageSftpFileItem[]) => {
   const fileManageStore = useFileManageStore();
 
   // 初始化时保存初始路径
@@ -152,10 +148,7 @@ const heartBeat = (socket: WebSocket) => {
   let pingInterval: number | null = null;
 
   const sendPing = () => {
-    if (
-      socket.CLOSED === socket.readyState ||
-      socket.CLOSING === socket.readyState
-    ) {
+    if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
       clearInterval(pingInterval!);
       return;
     }
@@ -203,7 +196,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
   };
 
   socket.onmessage = (event: MessageEvent) => {
-    const message: IFileManage = JSON.parse(event.data);
+    const message: FileManage = JSON.parse(event.data);
 
     fileManageStore.setMessageId(message.id);
     fileManageStore.setCurrentPath(message.current_path);
@@ -612,9 +605,7 @@ const handleFileUpload = async (
     }
 
     for (let i = 0; i < sliceCount; i++) {
-      sliceChunks.push(
-        fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-      );
+      sliceChunks.push(fileInfo.file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
     }
 
     try {
@@ -702,14 +693,7 @@ export const useFileManage = (token: string, t: any) => {
         onError: () => void;
         onProgress: (e: { percent: number }) => void;
       }) => {
-        handleFileUpload(
-          <WebSocket>socket,
-          uploadFileList,
-          onProgress,
-          onFinish,
-          onError,
-          t
-        );
+        handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t);
       }
     );
 
@@ -718,41 +702,30 @@ export const useFileManage = (token: string, t: any) => {
       handleFileDownload(<WebSocket>socket, path, is_dir, t);
     });
 
-    mittBus.on(
-      'file-manage',
-      ({
-        path,
-        type,
-        new_name
-      }: {
-        path: string;
-        type: ManageTypes;
-        new_name?: string;
-      }) => {
-        switch (type) {
-          case ManageTypes.CREATE: {
-            handleFileCreate(<WebSocket>socket, path);
-            break;
-          }
-          case ManageTypes.CHANGE: {
-            handleChangePath(<WebSocket>socket, path);
-            break;
-          }
-          case ManageTypes.REFRESH: {
-            refresh(<WebSocket>socket, path);
-            break;
-          }
-          case ManageTypes.RENAME: {
-            handleFileRename(<WebSocket>socket, path, new_name!);
-            break;
-          }
-          case ManageTypes.REMOVE: {
-            handleFileRemove(<WebSocket>socket, path);
-            break;
-          }
+    mittBus.on('file-manage', ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+      switch (type) {
+        case ManageTypes.CREATE: {
+          handleFileCreate(<WebSocket>socket, path);
+          break;
+        }
+        case ManageTypes.CHANGE: {
+          handleChangePath(<WebSocket>socket, path);
+          break;
+        }
+        case ManageTypes.REFRESH: {
+          refresh(<WebSocket>socket, path);
+          break;
+        }
+        case ManageTypes.RENAME: {
+          handleFileRename(<WebSocket>socket, path, new_name!);
+          break;
+        }
+        case ManageTypes.REMOVE: {
+          handleFileRemove(<WebSocket>socket, path);
+          break;
         }
       }
-    );
+    });
 
     mittBus.on('stop-upload', ({ fileInfo }: { fileInfo: UploadFileInfo }) => {
       interraptUpload(<WebSocket>socket, fileInfo);
