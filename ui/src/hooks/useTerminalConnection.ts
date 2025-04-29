@@ -212,7 +212,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
         const sessionInfo = JSON.parse(parsedMessageData.data);
         const sessionDetail = sessionInfo.session;
 
-        const share = sessionInfo.permission.actions.includes('share');
+        const share = sessionInfo?.permission?.actions?.includes('share');
 
         if (sessionInfo.backspaceAsCtrlH) {
           const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
@@ -410,13 +410,6 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
   };
 
   return {
-    connectionStatus: {
-      sessionId,
-      terminalId,
-      enableShare,
-      userOptions,
-      onlineUsers
-    },
     getShareUser,
     setShareCode,
     initializeSocketEvent
