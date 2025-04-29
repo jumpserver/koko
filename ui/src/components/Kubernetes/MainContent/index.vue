@@ -65,7 +65,7 @@ import {
   renderIcon,
   swapElements
 } from '@/components/Kubernetes/helper';
-import { updateIcon } from '@/components/TerminalComponent/helper';
+import { updateIcon } from '@/hooks/helper';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';

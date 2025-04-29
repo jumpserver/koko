@@ -86,7 +86,6 @@ declare module 'vue' {
     Table: typeof import('./src/components/Table/index.vue')['default']
     TabSuffix: typeof import('./src/components/Kubernetes/MainContent/components/TabSuffix/index.vue')['default']
     Terminal: typeof import('./src/components/Terminal/index.vue')['default']
-    TerminalComponent: typeof import('./src/components/TerminalComponent/index.vue')['default']
     ThemeConfig: typeof import('./src/components/ThemeConfig/index.vue')['default']
     Tip: typeof import('./src/components/Kubernetes/MainContent/components/Tip/index.vue')['default']
     Tree: typeof import('./src/components/Kubernetes/Tree/index.vue')['default']

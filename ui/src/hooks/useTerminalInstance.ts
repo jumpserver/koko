@@ -8,10 +8,10 @@ import { writeText, readText } from 'clipboard-polyfill';
 import { ref, computed, nextTick, watch } from 'vue';
 
 import { Terminal } from '@xterm/xterm';
+import { formatMessage } from '@/utils';
 import { FitAddon } from '@xterm/addon-fit';
 import { FormatterMessageType } from '@/enum';
 import { SearchAddon } from '@xterm/addon-search';
-import { formatMessage } from '@/hooks/useTerminalConnection';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 

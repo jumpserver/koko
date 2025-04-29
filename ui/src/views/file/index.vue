@@ -46,7 +46,7 @@ import { useFileList } from '@/hooks/useFileList';
 import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/enum';
 
 import { ref, onMounted, onUnmounted, watch } from 'vue';
-import { sendEventToLuna } from '@/components/TerminalComponent/helper';
+import { sendEventToLuna } from '@/utils';
 
 import type { TreeOption } from 'naive-ui';
 

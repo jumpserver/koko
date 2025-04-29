@@ -11,7 +11,6 @@ import { Terminal } from '@xterm/xterm';
 import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
 import { onMounted, watch, onBeforeUnmount, ref } from 'vue';
-import { sendEventToLuna } from '@/components/TerminalComponent/helper';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { useConnectionStore } from '@/store/modules/useConnection';

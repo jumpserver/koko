@@ -11,7 +11,7 @@ import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { sendEventToLuna } from '@/components/TerminalComponent/helper';
+import { sendEventToLuna } from '@/utils';
 
 import { WINDOW_MESSAGE_TYPE } from '@/enum';
 

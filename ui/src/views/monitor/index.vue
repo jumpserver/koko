@@ -1,30 +1,7 @@
 <template>
-  <CustomTerminal
-    index-key="id"
-    class="common-terminal"
-    :terminal-type="terminalType"
-  />
+  <Terminal />
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import CustomTerminal from '@/components/TerminalComponent/index.vue';
-
-const terminalType = ref<string>('common');
+import Terminal from '@/components/Terminal/index.vue';
 </script>
-
-<style lang="scss" scoped>
-.common-terminal {
-  :deep(.terminal-container) {
-    overflow: hidden;
-
-    .xterm-viewport {
-      overflow: hidden;
-    }
-
-    .xterm-screen {
-      height: calc(100vh - 20px) !important;
-    }
-  }
-}
-</style>

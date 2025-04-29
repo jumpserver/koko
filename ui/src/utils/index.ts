@@ -36,10 +36,19 @@ export const copyTextToClipboard = async (text: string): Promise<void> => {
   }
 };
 
+/**
+ * @description 触发事件
+ * @param e
+ */
 export const fireEvent = (e: Event) => {
   window.dispatchEvent(e);
 };
 
+/**
+ * @description 字节转换
+ * @param bytes
+ * @param precision
+ */
 export const bytesHuman = (bytes: number, precision?: any) => {
   const regex = /^([-+]?\d+(\.\d+)?|\.\d+|Infinity)$/;
 
@@ -49,12 +58,19 @@ export const bytesHuman = (bytes: number, precision?: any) => {
 
   if (bytes === 0) return '0';
   if (typeof precision === 'undefined') precision = 1;
+
   const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
   const num = Math.floor(Math.log(bytes) / Math.log(1024));
   const value = (bytes / Math.pow(1024, Math.floor(num))).toFixed(precision);
+
   return `${value} ${units[num]}`;
 };
 
+/**
+ * @description 获取分钟标签
+ * @param item
+ * @param t
+ */
 export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
   let minuteLabel = t('Minute');
 
@@ -65,14 +81,20 @@ export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
   return `${item} ${minuteLabel}`;
 };
 
+/**
+ * @description 将缓冲区写入终端
+ * @param enableZmodem
+ * @param zmodemStatus
+ * @param terminal
+ * @param data
+ */
 export const writeBufferToTerminal = (
   enableZmodem: boolean,
   zmodemStatus: boolean,
   terminal: Terminal | null,
   data: any
 ) => {
-  if (!enableZmodem && zmodemStatus)
-    return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
+  if (!enableZmodem && zmodemStatus) return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
 
   terminal && terminal.write(new Uint8Array(data));
 };
@@ -113,4 +135,46 @@ export const getFileName = (row: RowData) => {
   const lastDotIndex = row.name.lastIndexOf('.');
 
   return lastDotIndex !== -1 ? row.name.slice(lastDotIndex + 1) : 'Folder';
+};
+
+/**
+ * @description 使用 postMessage 发送事件到父窗口。
+ *
+ * @param {string} name - 事件的名称。
+ * @param {any} data - 要随事件发送的数据。
+ * @param {string | null} [lunaId=''] - Luna 实例的 ID。
+ * @param {string | null} [origin=null] - 消息的来源。
+ */
+export const sendEventToLuna = (name: string, data: any, lunaId: string | null = '', origin: string | null = '') => {
+  if (lunaId !== null && origin !== null) {
+    try {
+      window.parent.postMessage({ name, id: lunaId, data }, origin);
+    } catch (e) {}
+  }
+};
+
+/**
+ * @description 格式化消息为 JSON 字符串。
+ *
+ * @param id - 消息的 ID。
+ * @param type - 消息的类型。
+ * @param data - 消息的数据。
+ * @returns 格式化的 JSON 字符串。
+ */
+export const formatMessage = (id: string, type: string, data: any) => {
+  return JSON.stringify({
+    id,
+    type,
+    data
+  });
+};
+
+/**
+ * @description 检查 WebSocket 是否已激活。
+ *
+ * @param ws - WebSocket 实例。
+ * @returns 如果 WebSocket 已激活则返回 true，否则返回 false。
+ */
+export const wsIsActivated = (ws: WebSocket | undefined) => {
+  return ws ? !(ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) : false;
 };

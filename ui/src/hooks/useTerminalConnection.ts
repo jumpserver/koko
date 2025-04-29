@@ -5,12 +5,12 @@ import { darkTheme, createDiscreteApi } from 'naive-ui';
 
 import { MaxTimeout } from '@/config';
 import { preprocessInput } from '@/utils';
+import { updateIcon } from '@/hooks/helper';
 import { useSentry } from '@/hooks/useZsentry';
-import { writeBufferToTerminal } from '@/utils';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
-import { sendEventToLuna, updateIcon } from '@/components/TerminalComponent/helper';
+import { sendEventToLuna, formatMessage, writeBufferToTerminal } from '@/utils';
 import { FormatterMessageType, MessageType, SendLunaMessageType, ZmodemActionType } from '@/enum';
 
 import type { Ref } from 'vue';
@@ -18,21 +18,6 @@ import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/hooks/interface';
 import type { OnlineUser } from '@/types/modules/user.type';
 import type { ShareUserOptions } from '@/types/modules/user.type';
-
-/**
- * @description 格式化消息
- * @param id
- * @param type
- * @param data
- * @returns
- */
-export const formatMessage = (id: string, type: FormatterMessageType, data: any) => {
-  return JSON.stringify({
-    id,
-    type,
-    data
-  });
-};
 
 export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) => {
   let sentry: Sentry;
