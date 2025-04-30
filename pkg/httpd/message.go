@@ -19,6 +19,7 @@ type Message struct {
 	//Chat AI
 	Prompt    string `json:"prompt"`
 	Interrupt bool   `json:"interrupt"`
+	ChatModel string `json:"chat_model"`
 
 	//K8s
 	KubernetesId string `json:"k8s_id"`
@@ -173,6 +174,7 @@ type AIConversation struct {
 	Id                   string
 	Prompt               string
 	Question             string
+	Model                string
 	Context              []QARecord
 	JMSServer            *proxy.ChatJMSServer
 	InterruptCurrentChat bool

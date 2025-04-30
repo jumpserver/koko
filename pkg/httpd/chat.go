@@ -76,6 +76,7 @@ func (h *chat) getOrCreateConversation(msg *Message) (*AIConversation, error) {
 	conv := &AIConversation{
 		Id:        jmsSrv.Session.ID,
 		Prompt:    msg.Prompt,
+		Model:     msg.ChatModel,
 		Context:   make([]QARecord, 0),
 		JMSServer: jmsSrv,
 	}
@@ -106,11 +107,16 @@ func (h *chat) runChat(conv *AIConversation) {
 	}
 	messages := buildChatMessages(conv)
 
+	chatModel := conv.Model
+	if conv.Model == "" {
+		chatModel = h.term.GptModel
+	}
+
 	conn := &srvconn.OpenAIConn{
 		Id:          conv.Id,
 		Client:      client,
 		Prompt:      conv.Prompt,
-		Model:       h.term.GptModel,
+		Model:       chatModel,
 		Question:    conv.Question,
 		Context:     messages,
 		AnswerCh:    make(chan string),
