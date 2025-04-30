@@ -1,28 +1,21 @@
-// Terminal 相关
+//TODO 后续移除
+
 import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-// import { WebglAddon } from '@xterm/addon-webgl';
 import { ISearchOptions, SearchAddon } from '@xterm/addon-search';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { defaultTheme } from '@/config';
-
-// hook
 import { watch, watchEffect } from 'vue';
 import { createDiscreteApi } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
 import { useSentry } from '@/hooks/useZsentry.ts';
-
-// store
 import { storeToRefs } from 'pinia';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
-
 import { onUnmounted, ref, Ref } from 'vue';
 import { writeBufferToTerminal } from '@/utils';
 import type { ILunaConfig } from '@/hooks/interface';
-
-// 工具函数
 import {
   generateWsURL,
   handleContextMenu,
