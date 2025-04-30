@@ -25,13 +25,14 @@ import InputArea from './components/InputArea/index.vue';
 
 import { onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
+import { useChat } from '@/hooks/useChat.ts'
 import { useWebSocket } from '@vueuse/core'
 import { generateWsURL } from '@/hooks/helper'
 
 const message = useMessage()
+const { createChatSocket } = useChat()
 
-const url = generateWsURL()
-const { ws } = useWebSocket(url)
+createChatSocket()
 
 // ws.value?.onopen(() => {
 //   console.log('open')
