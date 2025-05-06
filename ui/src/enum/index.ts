@@ -50,7 +50,8 @@ export enum WINDOW_MESSAGE_TYPE {
   CMD = 'CMD',
   FOCUS = 'FOCUS',
   OPEN = 'OPEN',
-  FILE = 'FILE'
+  FILE = 'FILE',
+  CREATE_FILE_CONNECT_TOKEN = 'CREATE_FILE_CONNECT_TOKEN'
 }
 
 export enum SFTP_CMD {
