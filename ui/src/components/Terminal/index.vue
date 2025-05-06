@@ -4,14 +4,14 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { onMounted, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { Terminal } from '@xterm/xterm';
+import { sendEventToLuna } from '@/utils';
 import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
+import { onMounted, ref, watchEffect } from 'vue';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { sendEventToLuna } from '@/utils';
 
 import { WINDOW_MESSAGE_TYPE } from '@/enum';
 
@@ -23,6 +23,8 @@ const emits = defineEmits<{
 
 const props = defineProps<{
   shareCode?: string;
+
+  contentType?: ContentType;
 }>();
 
 const { t } = useI18n();
@@ -55,6 +57,9 @@ const createSocket = (): WebSocket | '' => {
   return '';
 };
 
+/**
+ * @description 接收 postMessage 消息
+ */
 const receivePostMessage = (): void => {
   window.addEventListener('message', (e: MessageEvent) => {
     const windowMessage = e.data;
@@ -70,6 +75,7 @@ const receivePostMessage = (): void => {
         emits('update:drawer', true, t('Settings'), 'setting');
         break;
       case WINDOW_MESSAGE_TYPE.FILE:
+      case WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN:
         emits('update:drawer', true, t('FileManager'), 'file-manager', windowMessage.SFTP_Token);
         break;
     }
@@ -101,6 +107,12 @@ onMounted(() => {
   if (props.shareCode) {
     setShareCode(props.shareCode);
   }
+
+  watchEffect(() => {
+    if (props.contentType && props.contentType === 'file-manager') {
+      sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
+    }
+  });
 
   initializeSocketEvent(terminalInstance, socket.value, t);
 });

@@ -1,16 +1,16 @@
 <template>
   <div class="h-full w-full">
     <!-- prettier-ignore -->
-    <Terminal @update:drawer="handleUpdateDrawer" />
+    <Terminal :content-type="contentType" @update:drawer="handleUpdateDrawer" />
 
     <!-- prettier-ignore -->
     <Drawer
-      v-if="showDrawer"
       :title="title"
       :token="token"
       :show-drawer="showDrawer"
       :content-type="contentType"
       @update:open="showDrawer = $event"
+      @update:content-type="contentType = $event"
     />
   </div>
 </template>
