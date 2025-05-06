@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 .icon-hover-primary {
-    @apply cursor-pointer  hover:text-[#16987D] focus:outline-none;
+    @apply cursor-pointer  hover:text-[#16987D] focus:outline-none transition-all duration-300;
 }
 
 .icon-hover-danger {
-    @apply cursor-pointer  hover:text-[#ff0000] focus:outline-none;
+    @apply cursor-pointer  hover:text-[#ff0000] focus:outline-none transition-all duration-300;
 }

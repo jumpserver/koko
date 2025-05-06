@@ -1,6 +1,12 @@
 <template>
-  <n-flex vertical class="w-full h-full max-h-128 flex-1 px-4 py-4 border-t-1 border-[#1a1a1a]">
+  <n-flex vertical class="w-full h-full flex-1 px-4 py-4 border-t-1 border-[#1a1a1a]">
+    <n-flex align="center" justify="end" class="w-full h-8">
+      <Eraser :size="20" class="icon-hover-primary" />
+    </n-flex>
+
     <textarea v-model="inputValue" class="w-full h-full resize-none outline-none" />
+
+    <!-- <n-input v-model="inputValue" type="textarea" class="w-full h-full resize-none outline-none" /> -->
 
     <n-flex justify="end" align="center">
       <n-text depth="1"> </n-text>
@@ -11,6 +17,7 @@
 
 <script setup lang="ts">
 import { ArrowEnterLeft20Filled } from '@vicons/fluent';
+import { Eraser } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
 const inputValue = ref('');
