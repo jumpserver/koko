@@ -8,15 +8,15 @@
     :default-width="drawerDefaultWidth"
     @update:show="closeDrawer"
   >
-    <n-drawer-content closable :title="title" :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
-      <template #header>
-        <n-flex align="center">
-          <span>{{ title }}</span>
-        </n-flex>
-      </template>
-
-      <Setting v-if="contentType === 'setting'" :settings="settingsConfig" />
-      <FileManager v-if="contentType === 'file-manager'" :sftp-token="token" />
+    <n-drawer-content closable :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
+      <n-tabs size="small" type="bar" :value="contentType" :pane-style="{ marginTop: '10px' }" @update:value="handleChangeTab">
+        <n-tab-pane name="setting" display-directive="if" :tab="t('Settings')">
+          <Setting :settings="settingsConfig" />
+        </n-tab-pane>
+        <n-tab-pane name="file-manager" display-directive="if" :tab="t('FileManagement')">
+          <FileManager :sftp-token="token" />
+        </n-tab-pane>
+      </n-tabs>
     </n-drawer-content>
   </n-drawer>
 </template>
@@ -33,6 +33,7 @@ import type { SettingConfig } from '@/types/modules/setting.type';
 import type { ContentType } from '@/types/modules/connection.type';
 
 const DRAWER_HEADER_STYLE = {
+  display: 'none',
   height: '55px',
   color: '#EBEBEB',
   fontSize: '16px',
@@ -52,6 +53,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
+  (e: 'update:content-type', value: ContentType): void;
 }>();
 
 const { t } = useI18n();
@@ -108,5 +110,9 @@ const drawerDefaultWidth = computed(() => {
  */
 const closeDrawer = () => {
   emit('update:open', false);
+};
+
+const handleChangeTab = (tab: ContentType) => {
+  emit('update:content-type', tab);
 };
 </script>
