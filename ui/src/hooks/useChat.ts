@@ -1,10 +1,9 @@
-import { ref } from 'vue'
-import { MessageType } from '@/enum'
-import { useWebSocket } from '@vueuse/core'
+import { ref } from 'vue';
+import { MessageType } from '@/enum';
+import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
 
 export const useChat = () => {
-
   const socket = ref<WebSocket>();
 
   const socketOnMessage = (message: MessageEvent) => {
@@ -16,30 +15,31 @@ export const useChat = () => {
       case MessageType.CONNECT:
         break;
     }
-  }
+  };
 
   const createChatSocket = () => {
-    const url = generateWsURL()
+    const url = generateWsURL();
 
-    const { ws } = useWebSocket(url)
+    const { ws } = useWebSocket(url);
 
     if (!ws.value) {
-
+      return;
     }
 
-    ws.value.onopen(() => {
-      // TODO 心跳
+    ws.value.onopen = () => {
       console.log('Connected to websocket');
-    })
-    ws.value.onmessage = socketOnMessage
+    };
+    ws.value.onmessage = socketOnMessage;
+    ws.value.onclose = () => {
+      console.log('Disconnected from websocket');
+    };
 
     return {
-      socket: socket.value,
-    }
-  }
-
+      socket: socket.value
+    };
+  };
 
   return {
     createChatSocket
-  }
-}
+  };
+};

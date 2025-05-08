@@ -55,7 +55,7 @@ export const OptionRender = (emits: EmitsType): SelectOption[] => {
     }
   ];
 
-  const commonClass = 'px-4 py-2 w-28 hover:bg-[#ffffff1A] cursor-pointer transition-all duration-300';
+  const commonClass = 'px-4 py-2 w-30 hover:bg-[#ffffff1A] cursor-pointer transition-all duration-300';
 
   return optionItems.map(item => ({
     value: item.value,

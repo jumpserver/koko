@@ -13,12 +13,6 @@
 
       <n-divider dashed class="!my-0" />
 
-      <n-space justify="end" class="w-full px-2 py-2">
-        <!-- <search :size="22" class="focus:outline-none hover:color-[rgba(22, 152, 125, 1)]" />
-        <square-pen :size="22" class="focus:outline-none hover:color-[rgba(22, 152, 125, 1)]" /> -->
-        <!--        <n-input />-->
-      </n-space>
-
       <n-space align="center" justify="center" class="w-full px-2" item-style="width: 100%">
         <conversation
           v-for="item in 1"
@@ -38,7 +32,6 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
-import { Search, SquarePen } from 'lucide-vue-next';
 import Conversation from '../Conversation/index.vue';
 
 import type { CSSProperties } from 'vue';
