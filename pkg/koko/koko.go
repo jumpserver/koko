@@ -37,9 +37,9 @@ func (k *Koko) Stop() {
 func RunForever(confPath string) {
 	config.Setup(confPath)
 	bootstrap()
+	jmsService := MustJMService()
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	jmsService := MustJMService()
 	bootstrapWithJMService(jmsService)
 	webSrv := httpd.NewServer(jmsService)
 	sshSrv := sshd.NewSSHServer(jmsService)
