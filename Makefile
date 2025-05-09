@@ -9,8 +9,6 @@ CipherKey := $(shell head -c 100 /dev/urandom | base64 | head -c 32)
 
 BASEPATH := $(shell pwd)
 KOKOSRCFILE := $(BASEPATH)/cmd/koko/
-KUBECTLFILE := $(BASEPATH)/cmd/kubectl/
-HELMFILE := $(BASEPATH)/cmd/helm/
 
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
@@ -23,21 +21,14 @@ KOKOLDFLAGS+=-X 'main.Goversion=$(GOVERSION)'
 KOKOLDFLAGS+=-X 'main.Version=$(VERSION)'
 KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 
-K8SCMDFLAGS=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
-
 KOKOBUILD=CGO_ENABLED=0 go build -trimpath -ldflags "$(KOKOLDFLAGS) ${LDFLAGS}"
-K8SCMDBUILD=CGO_ENABLED=0 go build -trimpath -ldflags "$(K8SCMDFLAGS) ${LDFLAGS}"
 
 UIDIR=ui
 
 define make_artifact_full
 	GOOS=$(1) GOARCH=$(2) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$(1)-$(2) $(KOKOSRCFILE)
-	GOOS=$(1) GOARCH=$(2) $(K8SCMDBUILD) -o $(BUILDDIR)/kubectl-$(1)-$(2) $(KUBECTLFILE)
-	GOOS=$(1) GOARCH=$(2) $(K8SCMDBUILD) -o $(BUILDDIR)/helm-$(1)-$(2) $(HELMFILE)
 	mkdir -p $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
 	cp $(BUILDDIR)/$(NAME)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/$(NAME)
-	cp $(BUILDDIR)/helm-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/helm
-	cp $(BUILDDIR)/kubectl-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/kubectl
 	cp README.md $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/README.md
 	cp LICENSE $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/LICENSE
 	cp config_example.yml $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/config_example.yml
@@ -46,7 +37,7 @@ define make_artifact_full
 	cp -r locale/* $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2)/locale/
 
 	cd $(BUILDDIR) && tar -czvf $(NAME)-$(VERSION)-$(1)-$(2).tar.gz $(NAME)-$(VERSION)-$(1)-$(2)
-	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2) $(BUILDDIR)/kubectl-$(1)-$(2) $(BUILDDIR)/helm-$(1)-$(2)
+	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2)
 endef
 
 build:
