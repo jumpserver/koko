@@ -32,8 +32,6 @@ k8scmdflags="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
 CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$goldflags" -o koko ${project_dir}/cmd/koko/ || exit 4
-CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$k8scmdflags" -o kubectl ${project_dir}/cmd/kubectl/  || exit 4
-CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$k8scmdflags" -o helm ${project_dir}/cmd/helm/  || exit 4
 set -x
 
 # 打包

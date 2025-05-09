@@ -35,8 +35,7 @@ func (l *LoginReviewHandler) GetTokenInfo() model.ConnectTokenInfo {
 
 func (l *LoginReviewHandler) WaitReview(ctx context.Context) (bool, error) {
 	lang := i18n.NewLang(l.i18nLang)
-	vt := term.NewTerminal(l.readWriter, "y/n: ")
-	utils.IgnoreErrWriteString(vt, lang.T("Need ACL review, continue? (y/n): "))
+	vt := term.NewTerminal(l.readWriter, lang.T("Need ACL review, continue? (y/n): "))
 	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 	count := 0
 	for {
