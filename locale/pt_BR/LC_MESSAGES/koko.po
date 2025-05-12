@@ -336,55 +336,55 @@ msgid "Refresh done"
 msgstr "Atualização concluída"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:39
+#: pkg/handler/login_confirm.go:38
 msgid "Need ACL review, continue? (y/n): "
 msgstr "Requere revisão de ACL, continuar? (y/n): "
 
 #. lang.T
-#: pkg/handler/login_confirm.go:54
+#: pkg/handler/login_confirm.go:53
 msgid "Cancel to login asset or max 3 retry"
 msgstr "Cancelar o login do ativo ou atingir 3 tentativas"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
+#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
 msgid "Need ticket confirm to login, already send email to the reviewers"
 msgstr ""
 "É necessário confirmar o ticket para login, já enviamos um e-mail aos "
 "revisores."
 
 #. lang.T
-#: pkg/handler/login_confirm.go:100
+#: pkg/handler/login_confirm.go:99
 msgid "Ticket Reviewers: %s"
 msgstr "Revisores do Ticket: %s"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:101
+#: pkg/handler/login_confirm.go:100
 msgid "Could copy website URL to notify reviewers: %s"
 msgstr "Você pode copiar o endereço de revisão para notificar os revisores: %s"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:102
+#: pkg/handler/login_confirm.go:101
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
 msgstr "Aguarde a confirmação dos revisores, digite q para sair."
 
 #. lang.T
-#: pkg/handler/login_confirm.go:131
+#: pkg/handler/login_confirm.go:130
 msgid "Unknown status"
 msgstr "Status desconhecido"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:135
+#: pkg/handler/login_confirm.go:134
 msgid "%s approved"
 msgstr "%s aprovado"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:140
+#: pkg/handler/login_confirm.go:139
 msgid "%s rejected"
 msgstr "%s rejeitado"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:144
+#: pkg/handler/login_confirm.go:143
 msgid "Cancel confirm"
 msgstr "Cancelar confirmação"
 
@@ -592,6 +592,3 @@ msgstr "Rede indisponível (roteamento indisponível)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "Rede indisponível (rede inacessível)"
-
-#~ msgid "Chinese-English-Japanese switch"
-#~ msgstr "alternância entre chinês-inglês-japonês"

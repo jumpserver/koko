@@ -1,597 +1,590 @@
 msgid ""
 msgstr ""
-"Language: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: \n"
 "X-Generator: xgotext\n"
-
-#. lang.T
+	
 #: pkg/handler/app_database.go:11
+#. lang.T
 msgid "No Databases"
 msgstr "Sin bases de datos"
 
-#. lang.T
 #: pkg/handler/app_k8s.go:15
+#. lang.T
 msgid "No kubernetes"
 msgstr "Sin Kubernetes"
 
-#. lang.T
 #: pkg/handler/app_k8s.go:31
+#. lang.T
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr ""
-"Página: %d, filas por página: %d, páginas totales: %d, total de elementos: %d"
+msgstr "Página: %d, filas por página: %d, páginas totales: %d, total de elementos: %d"
 
-#. lang.T
 #: pkg/handler/app_k8s.go:45
-msgid ""
-"Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr ""
-"Consejo: introduzca directamente el ID del activo para iniciar sesión; para "
-"búsquedas múltiples use // + campo, por ejemplo: //192"
-
 #. lang.T
+msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
+msgstr "Consejo: introduzca directamente el ID del activo para iniciar sesión; para búsquedas múltiples use // + campo, por ejemplo: //192"
+
 #: pkg/handler/app_k8s.go:46
-msgid "Page up: b\tPage down: n"
+#. lang.T
+msgid "Page up: b	Page down: n"
 msgstr "Página anterior: b\tPágina siguiente: n"
 
-#. lang.T
 #: pkg/handler/asset.go:43
+#. lang.T
 msgid "No Assets"
 msgstr "Sin activos"
 
-#. lang.T
 #: pkg/handler/asset.go:55
+#. lang.T
 msgid "ID"
 msgstr "ID"
 
-#. lang.T
 #: pkg/handler/asset.go:56
+#. lang.T
 msgid "Name"
 msgstr "Nombre"
 
-#. lang.T
 #: pkg/handler/asset.go:57
+#. lang.T
 msgid "Address"
 msgstr "Dirección"
 
-#. lang.T
 #: pkg/handler/asset.go:58
+#. lang.T
 msgid "Platform"
 msgstr "Plataforma"
 
-#. lang.T
 #: pkg/handler/asset.go:59
+#. lang.T
 msgid "Organization"
 msgstr "Organización"
 
-#. lang.T
 #: pkg/handler/asset.go:60
+#. lang.T
 msgid "Comment"
 msgstr "Comentario"
 
-#. lang.T
 #: pkg/handler/asset.go:174
+#. lang.T
 msgid "%s protocol client not installed."
 msgstr "Cliente del protocolo %s no está instalado."
 
-#. lang.T
 #: pkg/handler/asset.go:177
-msgid ""
-"Terminal does not support protocol %s, please use web terminal to access"
-msgstr ""
-"El terminal no admite el protocolo %s; utilice la terminal web para acceder."
-
 #. lang.T
+msgid "Terminal does not support protocol %s, please use web terminal to access"
+msgstr "El terminal no admite el protocolo %s; utilice la terminal web para acceder."
+
 #: pkg/handler/asset.go:211
+#. lang.T
 msgid "Core API failed"
 msgstr "Error en la API principal"
 
-#. lang.T
 #: pkg/handler/asset.go:217
+#. lang.T
 msgid "ACL reject"
-msgstr ""
-"Inicio de sesión rechazado por restricciones de la política de control de "
-"acceso"
+msgstr "Inicio de sesión rechazado por restricciones de la política de control de acceso"
 
-#. lang.T
 #: pkg/handler/asset.go:223
-msgid ""
-"Face ACL is not supported yet. Please use the WebTerminal to connect the "
-"asset."
-msgstr ""
-"Las reglas de ACL facial aún no son compatibles; utilice la terminal web "
-"para conectarse al activo."
+#. lang.T
+msgid "Face ACL is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "Las reglas de ACL facial aún no son compatibles; utilice la terminal web para conectarse al activo."
 
+#: pkg/handler/asset.go:238
 #. lang.T
+#: pkg/handler/asset.go:247
 #. lang.T
-#: pkg/handler/asset.go:238 pkg/handler/asset.go:247
 msgid "Unknown error code: %s, detail: %s"
 msgstr "Código de error desconocido: %s, detalle: %s"
 
-#. lang.T
 #: pkg/handler/asset.go:258
+#. lang.T
 msgid "get connect token err"
 msgstr "Error al obtener el token de conexión"
 
-#. lang.T
 #: pkg/handler/asset_node.go:22
+#. lang.T
 msgid "%s node has no assets"
 msgstr "El nodo %s no tiene activos"
 
-#. lang.T
 #: pkg/handler/banner.go:30
+#. lang.T
 msgid "Welcome to use JumpServer open source fortress system"
 msgstr "Bienvenido al sistema JumpServer de fortaleza de código abierto"
 
-#. lang.T
 #: pkg/handler/banner.go:32
+#. lang.T
 msgid "part IP, Hostname, Comment"
 msgstr "IP parcial, nombre de host, comentario"
 
-#. lang.T
 #: pkg/handler/banner.go:32
+#. lang.T
 msgid "to search login if unique"
 msgstr "Buscar inicio de sesión (si es único)"
 
-#. lang.T
 #: pkg/handler/banner.go:33
+#. lang.T
 msgid "/ + IP, Hostname, Comment"
 msgstr "/ + IP, nombre de host, comentario"
 
-#. lang.T
 #: pkg/handler/banner.go:33
+#. lang.T
 msgid "to search, such as: /192.168"
 msgstr "Buscar, por ejemplo: /192.168"
 
-#. lang.T
 #: pkg/handler/banner.go:34
+#. lang.T
 msgid "display the assets you have permission"
 msgstr "Mostrar los activos para los que tiene permiso"
 
-#. lang.T
 #: pkg/handler/banner.go:35
+#. lang.T
 msgid "display the node that you have permission"
 msgstr "Mostrar los nodos para los que tiene permiso"
 
-#. lang.T
 #: pkg/handler/banner.go:36
+#. lang.T
 msgid "display the hosts that you have permission"
 msgstr "Mostrar los hosts para los que tiene permiso"
 
-#. lang.T
 #: pkg/handler/banner.go:37
+#. lang.T
 msgid "display the databases that you have permission"
 msgstr "Mostrar las bases de datos para las que tiene permiso"
 
-#. lang.T
 #: pkg/handler/banner.go:38
+#. lang.T
 msgid "display the kubernetes that you have permission"
 msgstr "Mostrar los Kubernetes para los que tiene permiso"
 
-#. lang.T
 #: pkg/handler/banner.go:39
+#. lang.T
 msgid "refresh your assets and nodes"
 msgstr "Actualizar la información más reciente de máquinas y nodos"
 
-#. lang.T
 #: pkg/handler/banner.go:40
+#. lang.T
 msgid "language switch"
 msgstr "Cambio de idioma"
 
-#. lang.T
 #: pkg/handler/banner.go:41
+#. lang.T
 msgid "print help"
 msgstr "Mostrar ayuda"
 
-#. lang.T
 #: pkg/handler/banner.go:42
+#. lang.T
 msgid "exit"
 msgstr "Salir"
 
-#. lang.T
 #: pkg/handler/banner.go:60
+#. lang.T
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) Ingrese {{.GreenBoldColor}}%s{{.ColorEnd}} para %s.%s"
 
-#. lang.T
 #: pkg/handler/banner.go:85
+#. lang.T
 msgid "Announcement: "
 msgstr "Anuncio: "
 
-#. lang.T
 #: pkg/handler/direct_handler.go:272
+#. lang.T
 msgid "No Account found."
 msgstr "No se encontró ninguna cuenta"
 
+#: pkg/handler/direct_handler.go:282
 #. lang.T
+#: pkg/handler/direct_handler.go:283
 #. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:282 pkg/handler/direct_handler.go:283
 #: pkg/handler/direct_handler.go:284
+#. lang.T
 msgid "Username"
 msgstr "Nombre de usuario"
 
-#. lang.T
 #: pkg/handler/direct_handler.go:313
+#. lang.T
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "Consejo: introduzca el ID de cuenta del activo [%s]"
 
-#. lang.T
 #: pkg/handler/direct_handler.go:314
+#. lang.T
 msgid "Back: B/b"
 msgstr "Volver: B/b"
 
+#: pkg/handler/direct_handler.go:349
 #. lang.T
+#: pkg/handler/direct_handler.go:350
 #. lang.T
-#: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
 msgid "Hostname"
 msgstr "Nombre de host"
 
+#: pkg/handler/direct_handler.go:351
 #. lang.T
+#: pkg/handler/direct_handler.go:352
 #. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
 #: pkg/handler/direct_handler.go:381
+#. lang.T
 msgid "select one asset to login"
 msgstr "Seleccione un activo para iniciar sesión"
 
+#: pkg/handler/direct_handler.go:395
 #. lang.T
+#: pkg/handler/direct_handler.go:400
 #. lang.T
-#: pkg/handler/direct_handler.go:395 pkg/handler/direct_handler.go:400
 msgid "not found matched username %s"
 msgstr "No se encontró un nombre de usuario coincidente con %s"
 
+#: pkg/handler/direct_handler.go:433
 #. lang.T
+#: pkg/handler/direct_handler.go:439
 #. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
 #: pkg/handler/direct_handler.go:445
-msgid ""
-"Face verification is not supported yet. Please use the WebTerminal to "
-"connect the asset."
-msgstr ""
-"La verificación facial aún no es compatible; utilice la terminal web para "
-"conectar el activo."
+#. lang.T
+msgid "Face verification is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "La verificación facial aún no es compatible; utilice la terminal web para conectar el activo."
 
+#: pkg/handler/direct_handler.go:460
 #. lang.T
+#: pkg/handler/direct_handler.go:476
 #. lang.T
+#: pkg/handler/dispatch.go:127
 #. lang.T
+#: pkg/handler/dispatch.go:128
 #. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
-#: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
 #: pkg/handler/dispatch.go:153
+#. lang.T
 msgid "Tips: switch language by ID"
 msgstr "Consejo: cambie el idioma mediante el ID"
 
+#: pkg/handler/dispatch.go:154
 #. lang.T
+#: pkg/handler/dispatch.go:180
 #. lang.T
-#: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
 msgid "Invalid ID"
 msgstr "ID inválido"
 
-#. lang.T
 #: pkg/handler/dispatch.go:186
+#. lang.T
 msgid "Switch language successfully"
 msgstr "Cambio de idioma exitoso"
 
-#. lang.T
 #: pkg/handler/dispatch.go:197
+#. lang.T
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "Nodo: [ ID.Nombre(Cantidad de activos) ]"
 
-#. lang.T
 #: pkg/handler/dispatch.go:199
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr ""
-"Consejo: ingrese g+IDNodo para mostrar el host bajo el nodo, por ejemplo g1"
-
 #. lang.T
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr "Consejo: ingrese g+IDNodo para mostrar el host bajo el nodo, por ejemplo g1"
+
 #: pkg/handler/interactive.go:68
+#. lang.T
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "Conexión inactiva por más de %d minutos, desconectando"
 
-#. lang.T
 #: pkg/handler/interactive.go:202
+#. lang.T
 msgid "No account found."
 msgstr "No se encontró ninguna cuenta."
 
+#: pkg/handler/interactive.go:212
 #. lang.T
+#: pkg/handler/interactive.go:213
 #. lang.T
+#: pkg/handler/interactive.go:214
 #. lang.T
+#: pkg/handler/interactive.go:244
 #. lang.T
+#: pkg/handler/interactive.go:245
 #. lang.T
+#: pkg/handler/interactive.go:271
 #. lang.T
-#: pkg/handler/interactive.go:212 pkg/handler/interactive.go:213
-#: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
-#: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
 msgid "Select account exceed max retry times."
 msgstr "Selección de cuenta excede el número máximo de intentos."
 
-#. lang.T
 #: pkg/handler/interactive.go:282
+#. lang.T
 msgid "No protocol found."
 msgstr "No se encontró ningún protocolo."
 
+#: pkg/handler/interactive.go:291
 #. lang.T
+#: pkg/handler/interactive.go:292
 #. lang.T
-#: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
 msgid "Protocol"
 msgstr "Protocolo"
 
-#. lang.T
 #: pkg/handler/interactive.go:319
+#. lang.T
 msgid "Tips: Enter protocol ID"
 msgstr "Consejo: ingrese el ID del protocolo"
 
+#: pkg/handler/interactive.go:320
 #. lang.T
+#: pkg/handler/interactive.go:346
 #. lang.T
-#: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
 msgid "Select protocol exceed max retry times."
 msgstr "Selección de protocolo excede el número máximo de intentos."
 
-#. lang.T
 #: pkg/handler/interactive.go:383
+#. lang.T
 msgid "Refresh done"
 msgstr "Actualización completada"
 
-#. lang.T
 #: pkg/handler/login_confirm.go:38
+#. lang.T
 msgid "Need ACL review, continue? (y/n): "
 msgstr "¿Se requiere revisión de control de acceso? ¿Continuar? (y/n): "
 
-#. lang.T
 #: pkg/handler/login_confirm.go:53
+#. lang.T
 msgid "Cancel to login asset or max 3 retry"
 msgstr "Cancelar inicio de sesión del activo o máximo 3 reintentos"
 
+#: pkg/handler/login_confirm.go:67
 #. lang.T
+#: pkg/handler/login_confirm.go:98
 #. lang.T
-#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
 msgid "Need ticket confirm to login, already send email to the reviewers"
-msgstr ""
-"Se requiere confirmación de ticket para iniciar sesión; ya se ha enviado un "
-"correo a los revisores"
+msgstr "Se requiere confirmación de ticket para iniciar sesión; ya se ha enviado un correo a los revisores"
 
-#. lang.T
 #: pkg/handler/login_confirm.go:99
+#. lang.T
 msgid "Ticket Reviewers: %s"
 msgstr "Revisores de tickets: %s"
 
-#. lang.T
 #: pkg/handler/login_confirm.go:100
+#. lang.T
 msgid "Could copy website URL to notify reviewers: %s"
 msgstr "Puede copiar la URL del sitio web para notificar a los revisores: %s"
 
-#. lang.T
 #: pkg/handler/login_confirm.go:101
-msgid "Please waiting for the reviewers to confirm, enter q to exit. "
-msgstr ""
-"Por favor espere la confirmación de los revisores; ingrese q para salir."
-
 #. lang.T
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr "Por favor espere la confirmación de los revisores; ingrese q para salir."
+
 #: pkg/handler/login_confirm.go:130
+#. lang.T
 msgid "Unknown status"
 msgstr "Estado desconocido"
 
-#. lang.T
 #: pkg/handler/login_confirm.go:134
+#. lang.T
 msgid "%s approved"
 msgstr "%s aprobado"
 
-#. lang.T
 #: pkg/handler/login_confirm.go:139
+#. lang.T
 msgid "%s rejected"
 msgstr "%s rechazado"
 
-#. lang.T
 #: pkg/handler/login_confirm.go:143
+#. lang.T
 msgid "Cancel confirm"
 msgstr "Cancelar confirmación"
 
-#. lang.T
 #: pkg/handler/select_handler.go:201
+#. lang.T
 msgid "Search: %s"
 msgstr "Buscar: %s"
 
-#. i18n.T
 #: pkg/handler/server_ssh.go:222
+#. i18n.T
 msgid "Must be unique asset for %s"
 msgstr "Debe ser un activo único para %s"
 
+#: pkg/handler/server_ssh.go:229
 #. i18n.T
+#: pkg/handler/server_ssh.go:251
 #. i18n.T
-#: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
 msgid "Must be unique account for %s"
 msgstr "Debe ser una cuenta única para %s"
 
-#. i18n.T
 #: pkg/handler/server_ssh.go:259
+#. i18n.T
 msgid "Must be auto login account for %s"
 msgstr "Debe ser una cuenta de inicio de sesión automático para %s"
 
+#: pkg/handler/server_ssh.go:680
 #. i18n.T
+#: pkg/handler/server_ssh.go:684
 #. i18n.T
-#: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
 msgid "No found asset"
 msgstr "No se encontró el activo"
 
+#: pkg/handler/server_ssh.go:713
 #. i18n.T
+#: pkg/handler/server_ssh.go:718
 #. i18n.T
+#: pkg/handler/server_ssh.go:736
 #. i18n.T
+#: pkg/proxy/parser.go:230
 #. lang.T
-#: pkg/handler/server_ssh.go:713 pkg/handler/server_ssh.go:718
-#: pkg/handler/server_ssh.go:736 pkg/proxy/parser.go:230
 msgid "have no permission to upload file"
 msgstr "No tiene permiso para subir archivos"
 
-#. lang.T
 #: pkg/proxy/parser.go:266
-msgid ""
-"The command you executed is risky and an alert notification will be sent to "
-"the administrator. Do you want to continue?[Y/N]"
-msgstr ""
-"El comando que ejecutó es riesgoso y se enviará una notificación de alerta "
-"al administrador. ¿Desea continuar? [Y/N]"
-
 #. lang.T
+msgid "The command you executed is risky and an alert notification will be sent to the administrator. Do you want to continue?[Y/N]"
+msgstr "El comando que ejecutó es riesgoso y se enviará una notificación de alerta al administrador. ¿Desea continuar? [Y/N]"
+
 #: pkg/proxy/parser.go:283
+#. lang.T
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
 msgstr "El comando '%s' requiere revisión. ¿Continuar o no? [Y/n]?"
 
+#: pkg/proxy/parser.go:303
 #. lang.T
+#: pkg/proxy/parser.go:310
 #. lang.T
+#: pkg/proxy/parser.go:463
 #. lang.T
-#: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
 msgid "Command `%s` is forbidden"
 msgstr "El comando `%s` está prohibido"
 
-#. lang.T
 #: pkg/proxy/parser.go:534
+#. lang.T
 msgid "have no permission to download file"
 msgstr "No tiene permiso para descargar archivos"
 
-#. lang.T
 #: pkg/proxy/parser.go:606
-msgid ""
-"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
-"or CTRL+D."
-msgstr ""
-"Por favor espere a que los revisores confirmen el comando `%s`; cancele con "
-"CTRL+C o CTRL+D."
-
 #. lang.T
+msgid "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D."
+msgstr "Por favor espere a que los revisores confirmen el comando `%s`; cancele con CTRL+C o CTRL+D."
+
 #: pkg/proxy/parser.go:616
-msgid ""
-"Need ticket confirm to execute command, already send email to the reviewers"
-msgstr ""
-"Se requiere confirmación de ticket para ejecutar el comando; ya se ha "
-"enviado un correo a los revisores"
+#. lang.T
+msgid "Need ticket confirm to execute command, already send email to the reviewers"
+msgstr "Se requiere confirmación de ticket para ejecutar el comando; ya se ha enviado un correo a los revisores"
 
+#: pkg/proxy/parser.go:617
 #. lang.T
+#: pkg/proxy/parser.go:618
 #. lang.T
+#: pkg/proxy/server.go:58
 #. lang.T
-#. lang.T
-#: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
 #: pkg/proxy/server.go:62
-msgid ""
-"HandleTask does not support protocol %s, please use web terminal to access"
-msgstr ""
-"HandleTask no admite el protocolo %s; por favor use la terminal web para "
-"acceder."
-
 #. lang.T
+msgid "HandleTask does not support protocol %s, please use web terminal to access"
+msgstr "HandleTask no admite el protocolo %s; por favor use la terminal web para acceder."
+
 #: pkg/proxy/server.go:70
+#. lang.T
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "El protocolo de la cuenta <%s> y del activo <%s> no coincide."
 
-#. lang.T
 #: pkg/proxy/server.go:102
+#. lang.T
 msgid "You don't have permission login %s"
 msgstr "No tiene permiso para iniciar sesión en %s"
 
-#. lang.T
 #: pkg/proxy/server.go:334
+#. lang.T
 msgid "You get auth token failed"
 msgstr "Error al obtener el token de autenticación"
 
-#. lang.T
 #: pkg/proxy/server.go:345
+#. lang.T
 msgid "Get auth password failed"
 msgstr "Falló la obtención de la contraseña de autenticación"
 
+#: pkg/proxy/server.go:361
 #. lang.T
+#: pkg/proxy/server.go:418
 #. lang.T
-#: pkg/proxy/server.go:361 pkg/proxy/server.go:418
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "Reutilizar conexiones SSH (%s@%s) [Número de conexiones: %d]"
 
-#. lang.T
 #: pkg/proxy/server.go:674
+#. lang.T
 msgid "Switched to %s"
 msgstr "Cambiado a %s"
 
+#: pkg/proxy/server.go:771
 #. lang.T
+#: pkg/proxy/server.go:916
 #. lang.T
-#: pkg/proxy/server.go:771 pkg/proxy/server.go:916
 msgid "Connect with api server failed"
 msgstr "Fallo al conectar con el servidor API"
 
-#. lang.T
 #: pkg/proxy/server.go:977
+#. lang.T
 msgid "Start domain gateway failed %s"
 msgstr "Error al iniciar la puerta de enlace de dominio %s"
 
+#: pkg/proxy/server.go:985
 #. lang.T
+#: pkg/proxy/server_options.go:108
 #. lang.T
-#: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
 msgid "Manual"
 msgstr "Manual"
 
-#. lang.T
 #: pkg/proxy/server_options.go:110
+#. lang.T
 msgid "Dynamic"
 msgstr "Dinámico"
 
-#. lang.T
 #: pkg/proxy/server_options.go:113
+#. lang.T
 msgid "Connecting to %s@%s"
 msgstr "Conectando a %s@%s"
 
-#. lang.T
 #: pkg/proxy/server_options.go:117
+#. lang.T
 msgid "Connecting to Database %s"
 msgstr "Conectando a la base de datos %s"
 
-#. lang.T
 #: pkg/proxy/server_options.go:119
+#. lang.T
 msgid "Connecting to Kubernetes %s"
 msgstr "Conectando a Kubernetes %s"
 
-#. lang.T
 #: pkg/proxy/server_options.go:121
+#. lang.T
 msgid "Connecting to Kubernetes %s container %s"
 msgstr "Conectando al contenedor %s de Kubernetes %s"
 
-#. lang.T
 #: pkg/proxy/switch.go:328
+#. lang.T
 msgid "Session max time reached, disconnect"
 msgstr "Tiempo máximo de sesión alcanzado, desconectando"
 
+#: pkg/proxy/switch.go:337
 #. lang.T
+#: pkg/proxy/switch.go:344
 #. lang.T
-#: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
 msgid "Permission has expired, disconnect"
 msgstr "El permiso ha expirado, desconectando"
 
-#. lang.T
 #: pkg/proxy/switch.go:354
+#. lang.T
 msgid "Terminated by admin %s"
 msgstr "Terminado por el administrador %s"
 
-#. lang.T
 #: pkg/proxy/tools.go:28
+#. lang.T
 msgid "Authentication failed"
 msgstr "Autenticación fallida"
 
-#. lang.T
 #: pkg/proxy/tools.go:31
+#. lang.T
 msgid "Connection refused"
 msgstr "Conexión rechazada"
 
-#. lang.T
 #: pkg/proxy/tools.go:34
+#. lang.T
 msgid "i/o timeout"
 msgstr "Tiempo de espera de E/S agotado"
 
-#. lang.T
 #: pkg/proxy/tools.go:37
+#. lang.T
 msgid "No route to host"
 msgstr "No hay ruta al host"
 
-#. lang.T
 #: pkg/proxy/tools.go:40
+#. lang.T
 msgid "network is unreachable"
 msgstr "Red inalcanzable"

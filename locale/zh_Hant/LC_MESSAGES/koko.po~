@@ -10,35 +10,33 @@ msgstr ""
 #. lang.T
 #: pkg/handler/app_database.go:11
 msgid "No Databases"
-msgstr "데이터베이스가 없습니다"
+msgstr "無資料庫"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:15
 msgid "No kubernetes"
-msgstr "쿠버네티스 없음"
+msgstr "沒有kubernetes"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:31
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr "페이지 번호: %d, 페이지당 줄 수: %d, 총 페이지 수: %d, 총 개수: %d"
+msgstr "頁碼：%d，每頁行數：%d，總頁數：%d，總數量：%d"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:45
 msgid ""
 "Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr ""
-"팁: 자산 ID를 입력하여 직접 로그인하고, // + 필드를 사용하여 보조 검색을 실행"
-"하세요(예: //192)"
+msgstr "提示：輸入資產ID直接登入，二級搜索使用 // + 欄位，如：//192"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:46
 msgid "Page up: b\tPage down: n"
-msgstr "이전 페이지: b 다음 페이지: n"
+msgstr "上一頁：b 下一頁：n"
 
 #. lang.T
 #: pkg/handler/asset.go:43
 msgid "No Assets"
-msgstr "자산 없음"
+msgstr "沒有資產"
 
 #. lang.T
 #: pkg/handler/asset.go:55
@@ -48,160 +46,156 @@ msgstr "ID"
 #. lang.T
 #: pkg/handler/asset.go:56
 msgid "Name"
-msgstr "이름"
+msgstr "名稱"
 
 #. lang.T
 #: pkg/handler/asset.go:57
 msgid "Address"
-msgstr "주소"
+msgstr "地址"
 
 #. lang.T
 #: pkg/handler/asset.go:58
 msgid "Platform"
-msgstr "플랫폼"
+msgstr "平台"
 
 #. lang.T
 #: pkg/handler/asset.go:59
 msgid "Organization"
-msgstr "조직"
+msgstr "組織"
 
 #. lang.T
 #: pkg/handler/asset.go:60
 msgid "Comment"
-msgstr "비고"
+msgstr "備註"
 
 #. lang.T
 #: pkg/handler/asset.go:174
 msgid "%s protocol client not installed."
-msgstr "%s 프로토콜에 대한 클라이언트가 설치되지 않았습니다"
+msgstr "%s 協議的用戶端未安裝"
 
 #. lang.T
 #: pkg/handler/asset.go:177
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
-msgstr ""
-"이 터미널은 %s 프로토콜을 지원하지 않습니다. 웹 터미널을 사용하여 로그인하세"
-"요."
+msgstr "該終端不支持 %s 協議，請使用web終端登入"
 
 #. lang.T
 #: pkg/handler/asset.go:211
 msgid "Core API failed"
-msgstr "핵심 API 오류"
+msgstr "Core API 發生錯誤"
 
 #. lang.T
 #: pkg/handler/asset.go:217
 msgid "ACL reject"
-msgstr "액세스 제어 정책 제한으로 인해 이 로그인이 거부되었습니다."
+msgstr "本次登入已拒絕，原因是訪問控制策略的限制"
 
 #. lang.T
 #: pkg/handler/asset.go:223
 msgid ""
 "Face ACL is not supported yet. Please use the WebTerminal to connect the "
 "asset."
-msgstr ""
-"이 터미널은 얼굴 인식 접근 규칙을 지원하지 않습니다. 웹 터미널을 사용하여 로"
-"그인하세요."
+msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/asset.go:238 pkg/handler/asset.go:247
 msgid "Unknown error code: %s, detail: %s"
-msgstr "알 수 없는 오류 코드: %s, 세부 정보: %s"
+msgstr "未知錯誤碼：%s，詳情：%s"
 
 #. lang.T
 #: pkg/handler/asset.go:258
 msgid "get connect token err"
-msgstr "연결 토큰을 가져오는 중 오류가 발생했습니다"
+msgstr "獲取 connect token 錯誤"
 
 #. lang.T
 #: pkg/handler/asset_node.go:22
 msgid "%s node has no assets"
-msgstr "%s 노드에 자산이 없습니다"
+msgstr "%s節點沒有資產"
 
 #. lang.T
 #: pkg/handler/banner.go:30
 msgid "Welcome to use JumpServer open source fortress system"
-msgstr "JumpServer 오픈 소스 요새 호스트 시스템에 오신 것을 환영합니다"
+msgstr "歡迎使用JumpServer開源堡壘機系統"
 
 #. lang.T
 #: pkg/handler/banner.go:32
 msgid "part IP, Hostname, Comment"
-msgstr "부분 IP, 호스트 이름, 주석"
+msgstr "部分IP，主機名，備註"
 
 #. lang.T
 #: pkg/handler/banner.go:32
 msgid "to search login if unique"
-msgstr "로그인 검색(고유한 경우)"
+msgstr "搜索登入(如果唯一)"
 
 #. lang.T
 #: pkg/handler/banner.go:33
 msgid "/ + IP, Hostname, Comment"
-msgstr "/ + IP, 호스트 이름, 주석"
+msgstr "/ + IP，主機名，備註"
 
 #. lang.T
 #: pkg/handler/banner.go:33
 msgid "to search, such as: /192.168"
-msgstr "검색, 예: /192.168"
+msgstr "搜索，如：/192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:34
 msgid "display the assets you have permission"
-msgstr "권한이 있는 자산 표시"
+msgstr "顯示您有權限的資產"
 
 #. lang.T
 #: pkg/handler/banner.go:35
 msgid "display the node that you have permission"
-msgstr "권한이 있는 노드 표시"
+msgstr "顯示您有權限的節點"
 
 #. lang.T
 #: pkg/handler/banner.go:36
 msgid "display the hosts that you have permission"
-msgstr "권한이 있는 호스트 표시"
+msgstr "顯示您有權限的主機"
 
 #. lang.T
 #: pkg/handler/banner.go:37
 msgid "display the databases that you have permission"
-msgstr "권한이 있는 데이터베이스 표시"
+msgstr "顯示您有權限的資料庫"
 
 #. lang.T
 #: pkg/handler/banner.go:38
 msgid "display the kubernetes that you have permission"
-msgstr "Kubernetes에 대한 권한이 있음을 보여주세요"
+msgstr "顯示您有權限的Kubernetes"
 
 #. lang.T
 #: pkg/handler/banner.go:39
 msgid "refresh your assets and nodes"
-msgstr "최신 머신 및 노드 정보 새로 고침"
+msgstr "刷新最新的機器和節點資訊"
 
 #. lang.T
 #: pkg/handler/banner.go:40
 msgid "language switch"
-msgstr "언어 전환"
+msgstr ""
 
 #. lang.T
 #: pkg/handler/banner.go:41
 msgid "print help"
-msgstr "도움말 표시"
+msgstr "顯示幫助"
 
 #. lang.T
 #: pkg/handler/banner.go:42
 msgid "exit"
-msgstr "종료"
+msgstr "退出"
 
 #. lang.T
 #: pkg/handler/banner.go:60
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "\t%d) %s.%s에 대해 {{.GreenBoldColor}}%s{{.ColorEnd}}를 입력하세요"
+msgstr "\t%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
 
 #. lang.T
 #: pkg/handler/banner.go:85
 msgid "Announcement: "
-msgstr "공지사항:"
+msgstr "公告："
 
 #. lang.T
 #: pkg/handler/direct_handler.go:272
 msgid "No Account found."
-msgstr "계정을 찾을 수 없습니다"
+msgstr "未發現帳號"
 
 #. lang.T
 #. lang.T
@@ -209,23 +203,23 @@ msgstr "계정을 찾을 수 없습니다"
 #: pkg/handler/direct_handler.go:282 pkg/handler/direct_handler.go:283
 #: pkg/handler/direct_handler.go:284
 msgid "Username"
-msgstr "사용자 이름"
+msgstr "使用者名稱"
 
 #. lang.T
 #: pkg/handler/direct_handler.go:313
 msgid "Tips: Enter asset[%s] account ID"
-msgstr "힌트: 자산 [%s]의 계정 ID를 입력하세요"
+msgstr "提示：輸入資產[%s]的帳號ID"
 
 #. lang.T
 #: pkg/handler/direct_handler.go:314
 msgid "Back: B/b"
-msgstr "반환: B/b"
+msgstr "返回：B/b"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
 msgid "Hostname"
-msgstr "호스트 이름"
+msgstr "主機名"
 
 #. lang.T
 #. lang.T
@@ -233,13 +227,13 @@ msgstr "호스트 이름"
 #: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
 #: pkg/handler/direct_handler.go:381
 msgid "select one asset to login"
-msgstr "로그인할 자산을 선택하세요"
+msgstr "選擇其中一個資產登入"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/direct_handler.go:395 pkg/handler/direct_handler.go:400
 msgid "not found matched username %s"
-msgstr "%s에 맞는 사용자 이름을 찾을 수 없습니다"
+msgstr "未發現匹配的使用者名稱 %s"
 
 #. lang.T
 #. lang.T
@@ -249,9 +243,7 @@ msgstr "%s에 맞는 사용자 이름을 찾을 수 없습니다"
 msgid ""
 "Face verification is not supported yet. Please use the WebTerminal to "
 "connect the asset."
-msgstr ""
-"이 터미널은 얼굴 인식 인증을 지원하지 않습니다. 웹 터미널을 사용하여 로그인하"
-"세요."
+msgstr "該終端不支持人臉識別認證，請使用網頁終端登錄"
 
 #. lang.T
 #. lang.T
@@ -262,39 +254,38 @@ msgstr ""
 #: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
 #: pkg/handler/dispatch.go:153
 msgid "Tips: switch language by ID"
-msgstr "팁: 언어를 전환하려면 ID를 입력하세요"
+msgstr "提示：輸入ID切換語言"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
 msgid "Invalid ID"
-msgstr "잘못된 ID입니다"
+msgstr "無效ID"
 
 #. lang.T
 #: pkg/handler/dispatch.go:186
 msgid "Switch language successfully"
-msgstr "언어 전환이 성공했습니다"
+msgstr "切換語言成功"
 
 #. lang.T
 #: pkg/handler/dispatch.go:197
 msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "노드: [ID.Name(자산 수)]"
+msgstr "節點：[ ID.名稱(資產數量) ]"
 
 #. lang.T
 #: pkg/handler/dispatch.go:199
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr ""
-"팁: 노드 아래에 있는 호스트를 표시하려면 g+노드 ID를 입력하세요(예: g1)"
+msgstr "提示：輸入 g+節點ID 顯示節點下主機，如: g1"
 
 #. lang.T
 #: pkg/handler/interactive.go:68
 msgid "Connect idle more than %d minutes, disconnect"
-msgstr "유휴 시간이 %d분을 초과하여 연결이 끊어집니다."
+msgstr "空閒時間超過%d分鐘，斷開連接"
 
 #. lang.T
 #: pkg/handler/interactive.go:202
 msgid "No account found."
-msgstr "계정을 찾을 수 없습니다"
+msgstr "未發現帳號"
 
 #. lang.T
 #. lang.T
@@ -306,114 +297,112 @@ msgstr "계정을 찾을 수 없습니다"
 #: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
 #: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
 msgid "Select account exceed max retry times."
-msgstr "계정 선택에 대한 최대 재시도 횟수를 초과했습니다."
+msgstr "選擇帳號超過最大重試次數"
 
 #. lang.T
 #: pkg/handler/interactive.go:282
 msgid "No protocol found."
-msgstr "프로토콜 없음"
+msgstr "無協議"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
 msgid "Protocol"
-msgstr "프로토콜"
+msgstr "協議"
 
 #. lang.T
 #: pkg/handler/interactive.go:319
 msgid "Tips: Enter protocol ID"
-msgstr "힌트: 프로토콜 ID를 입력하세요"
+msgstr "提示：輸入協議ID"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
 msgid "Select protocol exceed max retry times."
-msgstr "선택한 프로토콜이 최대 재시도 횟수를 초과했습니다"
+msgstr "選擇協議超過最大重試次數"
 
 #. lang.T
 #: pkg/handler/interactive.go:383
 msgid "Refresh done"
-msgstr "새로 고침 완료"
+msgstr "刷新完成"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:38
+#: pkg/handler/login_confirm.go:39
 msgid "Need ACL review, continue? (y/n): "
-msgstr "검토가 필요합니다. 계속하시겠습니까? (y/n):"
+msgstr "需要審核，繼續？(y/n): "
 
 #. lang.T
-#: pkg/handler/login_confirm.go:53
+#: pkg/handler/login_confirm.go:54
 msgid "Cancel to login asset or max 3 retry"
-msgstr "로그인 취소 또는 3번 재시도"
+msgstr "取消登入資產或達到3次重試"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
+#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
 msgid "Need ticket confirm to login, already send email to the reviewers"
-msgstr ""
-"작업 지시를 검토하려면 로그인해야 합니다. 검토자에게 알리는 이메일이 전송되었"
-"습니다."
-
-#. lang.T
-#: pkg/handler/login_confirm.go:99
-msgid "Ticket Reviewers: %s"
-msgstr "티켓 검토자: %s"
+msgstr "需要工單登入覆核，已發郵件通知審核人"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:100
-msgid "Could copy website URL to notify reviewers: %s"
-msgstr "리뷰 주소를 복사하여 리뷰어에게 알릴 수 있습니다: %s"
+msgid "Ticket Reviewers: %s"
+msgstr "工單審核人：%s "
 
 #. lang.T
 #: pkg/handler/login_confirm.go:101
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "可複製審核地址，通知審核人：%s"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:102
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
-msgstr "리뷰어의 확인을 기다리는 중입니다. q를 눌러 로그인을 취소하세요."
+msgstr "等待審核人覆核確認，按 q 回車取消登入。"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:130
+#: pkg/handler/login_confirm.go:131
 msgid "Unknown status"
-msgstr "알 수 없는 상태"
+msgstr "未知狀態"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:134
+#: pkg/handler/login_confirm.go:135
 msgid "%s approved"
-msgstr "%s 승인됨"
+msgstr "%s 審核通過"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:139
+#: pkg/handler/login_confirm.go:140
 msgid "%s rejected"
-msgstr "%s 리뷰가 거부되었습니다"
+msgstr "%s 審核拒絕"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:143
+#: pkg/handler/login_confirm.go:144
 msgid "Cancel confirm"
-msgstr "로그인 검토 취소"
+msgstr "取消登入覆核"
 
 #. lang.T
 #: pkg/handler/select_handler.go:201
 msgid "Search: %s"
-msgstr "검색: %s"
+msgstr "搜索：%s"
 
 #. i18n.T
 #: pkg/handler/server_ssh.go:222
 msgid "Must be unique asset for %s"
-msgstr "자산 %s에 대해 고유해야 합니다"
+msgstr "必須是唯一的資產 %s"
 
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
 msgid "Must be unique account for %s"
-msgstr "고유한 계정이어야 합니다 %s"
+msgstr "必須是唯一的帳號 %s"
 
 #. i18n.T
 #: pkg/handler/server_ssh.go:259
 msgid "Must be auto login account for %s"
-msgstr "자동 로그인 계정 %s이어야 합니다"
+msgstr "必須是自動登入帳號 %s"
 
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
 msgid "No found asset"
-msgstr "%s에 맞는 에셋을 찾을 수 없습니다"
+msgstr "未發現匹配的資產 %s"
 
 #. i18n.T
 #. i18n.T
@@ -422,50 +411,44 @@ msgstr "%s에 맞는 에셋을 찾을 수 없습니다"
 #: pkg/handler/server_ssh.go:713 pkg/handler/server_ssh.go:718
 #: pkg/handler/server_ssh.go:736 pkg/proxy/parser.go:230
 msgid "have no permission to upload file"
-msgstr "파일 업로드 권한이 없습니다"
+msgstr "無權限上傳文件"
 
 #. lang.T
 #: pkg/proxy/parser.go:266
 msgid ""
 "The command you executed is risky and an alert notification will be sent to "
 "the administrator. Do you want to continue?[Y/N]"
-msgstr ""
-"실행한 명령은 위험합니다. 관리자에게 경고 알림이 전송됩니다. 계속하시겠습니"
-"까? [Y/N]"
+msgstr "您執行的指令存在風險，警告通知將發送給管理員。是否繼續？[Y/N]"
 
 #. lang.T
 #: pkg/proxy/parser.go:283
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
-msgstr "명령 %s를 검토해야 합니다. 계속하시겠습니까? [Y/N]"
+msgstr "命令 `%s` 需要複核，是否繼續？[Y/N]"
 
 #. lang.T
 #. lang.T
 #. lang.T
 #: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
 msgid "Command `%s` is forbidden"
-msgstr "명령 `%s`는 금지되어 있습니다..."
+msgstr "命令 `%s` 是被禁止的 ..."
 
 #. lang.T
 #: pkg/proxy/parser.go:534
 msgid "have no permission to download file"
-msgstr "파일을 다운로드할 권한이 없습니다"
+msgstr "無權限下載文件"
 
 #. lang.T
 #: pkg/proxy/parser.go:606
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
 "or CTRL+D."
-msgstr ""
-"검토자가 명령 `%s`를 검토할 때까지 기다려 주세요. 취소하려면 CTRL+C 또는 "
-"CTRL+D를 누르세요."
+msgstr "請等待審核人覆核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
 
 #. lang.T
 #: pkg/proxy/parser.go:616
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
-msgstr ""
-"작업 지시 명령 실행 검토가 필요하며 검토자에게 알리는 이메일이 전송되었습니"
-"다."
+msgstr "需要工單命令執行覆核，已發郵件通知審核人"
 
 #. lang.T
 #. lang.T
@@ -475,120 +458,118 @@ msgstr ""
 #: pkg/proxy/server.go:62
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
-msgstr ""
-"이 터미널은 %s 프로토콜을 지원하지 않습니다. 웹 터미널을 사용하여 로그인하세"
-"요."
+msgstr "該終端不支持 %s 協議，請使用web終端登入"
 
 #. lang.T
 #: pkg/proxy/server.go:70
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
-msgstr "시스템 사용자 <%s>와 자산 <%s>의 프로토콜이 일치하지 않습니다."
+msgstr "系統用戶<%s>和資產<%s>協議不一致"
 
 #. lang.T
 #: pkg/proxy/server.go:102
 msgid "You don't have permission login %s"
-msgstr "%s에 로그인할 권한이 없습니다"
+msgstr "你無權限登入 %s"
 
 #. lang.T
 #: pkg/proxy/server.go:334
 msgid "You get auth token failed"
-msgstr "인증 토큰을 얻지 못했습니다."
+msgstr "你獲取認證令牌失敗"
 
 #. lang.T
 #: pkg/proxy/server.go:345
 msgid "Get auth password failed"
-msgstr "인증 토큰을 얻지 못했습니다."
+msgstr "你獲取認證令牌失敗"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:361 pkg/proxy/server.go:418
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
-msgstr "SSH 연결 재사용(%s@%s) [연결 수: %d]"
+msgstr "復用SSH連接（%s@%s）[連接數量: %d]"
 
 #. lang.T
 #: pkg/proxy/server.go:674
 msgid "Switched to %s"
-msgstr "%s로 전환됨"
+msgstr "已切換至%s"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:771 pkg/proxy/server.go:916
 msgid "Connect with api server failed"
-msgstr "API 서버에 연결하지 못했습니다"
+msgstr "連接API服務失敗"
 
 #. lang.T
 #: pkg/proxy/server.go:977
 msgid "Start domain gateway failed %s"
-msgstr "데이터베이스 게이트웨이 %s를 시작하지 못했습니다"
+msgstr "啟動資料庫網關失敗%s"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
 msgid "Manual"
-msgstr "수동 계정"
+msgstr "手動帳號"
 
 #. lang.T
 #: pkg/proxy/server_options.go:110
 msgid "Dynamic"
-msgstr "동적 계정"
+msgstr "動態帳號"
 
 #. lang.T
 #: pkg/proxy/server_options.go:113
 msgid "Connecting to %s@%s"
-msgstr "%s@%s에 연결을 시작합니다"
+msgstr "開始連接到 %s@%s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:117
 msgid "Connecting to Database %s"
-msgstr "데이터베이스 %s에 연결을 시작합니다"
+msgstr "開始連接資料庫 %s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:119
 msgid "Connecting to Kubernetes %s"
-msgstr "Kubernetes %s에 연결을 시작합니다"
+msgstr "開始連接Kubernetes %s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:121
 msgid "Connecting to Kubernetes %s container %s"
-msgstr "Kubernetes %s 컨테이너 %s에 대한 연결을 시작합니다"
+msgstr "開始連接Kubernetes %s 容器 %s"
 
 #. lang.T
 #: pkg/proxy/switch.go:328
 msgid "Session max time reached, disconnect"
-msgstr "세션이 최대 연결 시간을 초과하여 연결을 끊습니다."
+msgstr "會話超過最大連接時間，斷開連接"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
 msgid "Permission has expired, disconnect"
-msgstr "권한이 만료되어 연결이 끊어졌습니다."
+msgstr "授權已過期，斷開連接"
 
 #. lang.T
 #: pkg/proxy/switch.go:354
 msgid "Terminated by admin %s"
-msgstr "%s 관리자 연결이 끊겼습니다"
+msgstr "%s 管理員中斷連接"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
 msgid "Authentication failed"
-msgstr "인증에 실패했습니다(잘못된 사용자 이름 또는 비밀번호)"
+msgstr "認證失敗（使用者名稱或密碼錯誤）"
 
 #. lang.T
 #: pkg/proxy/tools.go:31
 msgid "Connection refused"
-msgstr "네트워크에 접근할 수 없습니다(연결이 거부되었습니다)"
+msgstr "網路不通（連接拒絕）"
 
 #. lang.T
 #: pkg/proxy/tools.go:34
 msgid "i/o timeout"
-msgstr "네트워크를 사용할 수 없습니다(연결 시간이 초과되었습니다)"
+msgstr "網路不通（連接超時）"
 
 #. lang.T
 #: pkg/proxy/tools.go:37
 msgid "No route to host"
-msgstr "네트워크가 다운되었습니다(라우팅이 다운되었습니다)"
+msgstr "網路不通（路由不通）"
 
 #. lang.T
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
-msgstr "네트워크 다운(네트워크에 접근할 수 없음)"
+msgstr "網路不通（網路不可達）"
