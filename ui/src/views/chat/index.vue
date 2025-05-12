@@ -8,9 +8,12 @@
       </n-layout-header>
 
       <n-layout-content :content-style="{ height: 'calc(100vh - 4rem)' }">
-        <n-split direction="vertical" :default-size="0.66" :max="0.9" class="h-full w-full">
-          <template #1> <welcome /> </template>
-          <template #2> <input-area /> </template>
+        <n-split direction="vertical" :default-size="0.66" :max="0.9" :resize-trigger-size="2" class="h-full w-full">
+          <template #1> 
+            <!-- <welcome /> -->
+            <content />
+          </template>
+          <template #2> <input-area @send-message="handleSendMessage" /> </template>
         </n-split>
       </n-layout-content>
     </n-layout>
@@ -21,26 +24,21 @@
 import Sider from './components/Sider/index.vue';
 import Header from './components/Header/index.vue';
 import Welcome from './components/Welcome/index.vue';
+import Content from './components/Content/index.vue';
 import InputArea from './components/InputArea/index.vue';
 
-import { onMounted } from 'vue';
 import { useMessage } from 'naive-ui';
 import { useChat } from '@/hooks/useChat.ts';
-import { useWebSocket } from '@vueuse/core';
-import { generateWsURL } from '@/hooks/helper';
+
+import type { ChatSendMessage } from '@/types/modules/chat.type';
 
 const message = useMessage();
-const { createChatSocket } = useChat();
+const { createChatSocket, sendChatMessage } = useChat();
 
 createChatSocket();
 
-// ws.value?.onopen(() => {
-//   console.log('open')
-// })
-
-// ws.value?.onmessage((message: MessageEvent) => {
-//   console.log(message)
-// })
-
-onMounted(() => {});
+const handleSendMessage = (message: ChatSendMessage) => {
+  console.log(message);
+  sendChatMessage(message);
+};
 </script>

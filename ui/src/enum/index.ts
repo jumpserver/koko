@@ -24,11 +24,13 @@ export enum ZmodemActionType {
   ZMODEM_END = 'ZMODEM_END'
 }
 
+// todo 改为大写
 export enum MessageType {
   PING = 'PING',
   CLOSE = 'CLOSE',
   ERROR = 'ERROR',
   CONNECT = 'CONNECT',
+  MESSAGE = 'message',
   TERMINAL_SHARE = 'TERMINAL_SHARE',
   TERMINAL_ERROR = 'TERMINAL_ERROR',
   MESSAGE_NOTIFY = 'MESSAGE_NOTIFY',

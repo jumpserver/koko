@@ -40,6 +40,7 @@
     "xterm-theme": "^1.1.0"
   },
   "devDependencies": {
+    "@duskmoon/vue3-typed-js": "^0.0.4",
     "@eslint/js": "^9.23.0",
     "@types/node": "^20.14.11",
     "@types/sortablejs": "^1.15.0",
