@@ -1,15 +1,22 @@
 <template>
   <n-drawer
+    id="drawer-inner-target"
     resizable
     placement="right"
     :show="showDrawer"
     :min-width="drawerMinWidth"
     :max-width="drawerMaxWidth"
-    :default-width="drawerDefaultWidth"
-    @update:show="closeDrawer"
+    :width="drawerDefaultWidth"
+    @mask-click="closeDrawer"
   >
     <n-drawer-content closable :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
-      <n-tabs size="small" type="bar" :value="contentType" :pane-style="{ marginTop: '10px' }" @update:value="handleChangeTab">
+      <n-tabs
+        size="small"
+        type="bar"
+        :value="contentType"
+        :pane-style="{ marginTop: '10px' }"
+        @update:value="handleChangeTab"
+      >
         <n-tab-pane name="setting" display-directive="if" :tab="t('Settings')">
           <Setting :settings="settingsConfig" />
         </n-tab-pane>

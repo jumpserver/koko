@@ -371,7 +371,10 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
       terminal.write('\x1b[31mConnection Websocket Has Been Closed\x1b[0m');
     };
     socket.onerror = () => {
-      terminal.write('\x1b[31mConnection Websocket Error Occurred\x1b[0m');
+      // terminal.write('\x1b[31mConnection Websocket Error Occurred\x1b[0m');
+      // 换行
+      // terminal.write('\r\n');
+      // terminal.write('\r\n');
     };
     socket.onmessage = (event: MessageEvent) => {
       lastReceiveTime.value = new Date();
