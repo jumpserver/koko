@@ -24,6 +24,7 @@ type Event = {
     onFinish: () => void;
     onError: () => void;
     onProgress: (e: { percent: number }) => void;
+    loadingMessage?: any;
   };
   'download-file': { path: string; is_dir: boolean; size: string };
   'stop-upload': { fileInfo: UploadFileInfo };

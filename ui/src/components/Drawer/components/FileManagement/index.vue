@@ -1,171 +1,4 @@
 <template>
-  <!-- <n-drawer
-    resizable
-    id="drawer-inner-target"
-    :auto-focus="false"
-    :default-width="drawerWidth"
-    :min-width="drawerMinWidth"
-    v-model:show="isShowList"
-    v-model:width="drawerWidth"
-  >
-    <n-drawer-content v-if="showTab">
-      <n-tabs
-        animated
-        type="line"
-        class="w-full h-full"
-        :default-value="tabDefaultValue"
-        @before-leave="handleBeforeLeave"
-      >
-        <n-tab-pane name="setting" tab="Setting">
-          <template #tab>
-            <n-flex align="center" justify="flex-start">
-              <n-icon size="20" :component="Settings" />
-              <n-text depth="1" strong class="text-[16px]"> 设置 </n-text>
-            </n-flex>
-          </template>
-
-          <template #default>
-            <n-flex vertical>
-              <template v-for="item of settings" :key="item.title">
-                <n-button
-                  v-if="!item.content"
-                  quaternary
-                  class="justify-start items-center"
-                  :disabled="item.disabled()"
-                  @click="item.click"
-                >
-                  <n-icon size="18" :component="item.icon" class="mr-[10px]" />
-                  <n-text>
-                    {{ item.title }}
-                  </n-text>
-                </n-button>
-                <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'User'">
-                  <n-list-item>
-                    <n-thing class="ml-[15px] mt-[10px]">
-                      <template #header>
-                        <n-flex align="center" justify="center">
-                          <n-icon :component="item.icon" :size="18"></n-icon>
-                          <n-text class="text-[14px]">
-                            {{ item.title }}
-                            {{ `(${item.content().length})` }}
-                          </n-text>
-                        </n-flex>
-                      </template>
-                      <template #description>
-                        <n-flex size="small" style="margin-top: 4px">
-                          <n-popover
-                            trigger="hover"
-                            placement="top"
-                            v-for="detail of item.content()"
-                            :key="detail.name"
-                          >
-                            <template #trigger>
-                              <n-tag
-                                round
-                                strong
-                                size="small"
-                                class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] justify-around cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis"
-                                :bordered="false"
-                                :type="item.content().indexOf(detail) !== 0 ? 'info' : 'success'"
-                                :closable="true"
-                                :disabled="item.content().indexOf(detail) === 0"
-                                @close="item.click(detail)"
-                              >
-                                <n-text class="cursor-pointer text-inherit">
-                                  {{ detail.name }}
-                                </n-text>
-                                <template #icon>
-                                  <n-icon :component="detail.icon" />
-                                </template>
-                              </n-tag>
-                            </template>
-                            <template #default>
-                              <span>{{ detail.tip }} {{ detail.name }}</span>
-                            </template>
-                          </n-popover>
-                        </n-flex>
-                      </template>
-                    </n-thing>
-                  </n-list-item>
-                </n-list>
-                <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'Keyboard'">
-                  <n-list-item>
-                    <n-thing class="ml-[15px] mt-[10px]">
-                      <template #header>
-                        <n-flex align="center" justify="center">
-                          <n-icon :component="item.icon" :size="18"></n-icon>
-                          <n-text class="text-[14px]">
-                            {{ item.title }}
-                          </n-text>
-                        </n-flex>
-                      </template>
-                      <template #description>
-                        <n-flex size="small" style="margin-top: 4px">
-                          <n-popover
-                            trigger="hover"
-                            placement="top"
-                            v-for="detail of item.content"
-                            :key="detail.name"
-                          >
-                            <template #trigger>
-                              <n-tag
-                                round
-                                strong
-                                type="info"
-                                size="small"
-                                class="mt-[2.5px] mb-[2.5px] mx-[25px] w-[170px] cursor-pointer"
-                                :bordered="false"
-                                :closable="false"
-                                @click="detail.click()"
-                              >
-                                <n-text class="cursor-pointer text-inherit">
-                                  {{ detail.name }}
-                                </n-text>
-                                <template #icon>
-                                  <n-icon size="16" class="ml-[5px] mr-[5px]" :component="detail.icon" />
-                                </template>
-                              </n-tag>
-                            </template>
-                            <template #default>
-                              <span>{{ detail.tip }}</span>
-                            </template>
-                          </n-popover>
-                        </n-flex>
-                      </template>
-                    </n-thing>
-                  </n-list-item>
-                </n-list>
-              </template>
-            </n-flex>
-          </template>
-        </n-tab-pane>
-        <n-tab-pane name="fileManage" tab="FileManage" class="w-full h-full relative">
-          <template #tab>
-            <n-flex align="center" justify="flex-start">
-              <n-icon size="20" :component="Folders" />
-              <n-text depth="1" strong class="text-[16px]">文件管理</n-text>
-            </n-flex>
-          </template>
-
-          <template #default>
-            <template v-if="isLoaded">
-              <keep-alive>
-                <FileManage :columns="columns" />
-              </keep-alive>
-            </template>
-
-            <template v-else>
-              <n-spin size="small" class="absolute w-full h-full" />
-            </template>
-          </template>
-        </n-tab-pane>
-      </n-tabs>
-    </n-drawer-content>
-
-    <n-drawer-content v-else closable :title="t('FileManagement')">
-      
-    </n-drawer-content>
-  </n-drawer> -->
   <template v-if="isLoaded">
     <FileManage :columns="columns" />
   </template>
@@ -176,19 +9,18 @@
 </template>
 
 <script setup lang="ts">
-// @ts-ignore
 import dayjs from 'dayjs';
-import mittBus from '@/utils/mittBus.ts';
-import FileManage from './components/fileManage/index.vue';
+import prettyBytes from 'pretty-bytes';
+import FileManage from './fileManage/index.vue';
 
-import { Folder, Folders, Settings } from '@vicons/tabler';
-import { NButton, NEllipsis, NFlex, NIcon, NTag, NText } from 'naive-ui';
+import { Folder } from '@vicons/tabler';
+import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
+import { h, ref, watch } from 'vue';
 import { getFileName } from '@/utils';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
-import { h, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue';
 
 import type { DataTableColumns } from 'naive-ui';
 import type { ISettingProp } from '@/types';
@@ -214,19 +46,11 @@ const props = withDefaults(
     showTab: false
   }
 );
-const emits = defineEmits<{
-  (e: 'create-file-connect-token'): void;
-}>();
 
 const { t } = useI18n();
 const fileManageStore = useFileManageStore();
 
 const isLoaded = ref(false);
-const isShowList = ref(false);
-const settingDrawer = ref(false);
-const drawerWidth = ref(700);
-const drawerMinWidth = ref(650);
-const tabDefaultValue = ref('fileManage');
 const tableData = ref<RowData[]>([]);
 const fileManageSocket = ref<WebSocket | undefined>(undefined);
 
@@ -249,39 +73,8 @@ watch(
     if (token) {
       fileManageSocket.value = useFileManage(token, t);
     }
-  },
-  {
-    immediate: true
   }
 );
-
-/**
- * @description pam 中默认打开的是文件管理
- */
-const handleOpenFileList = () => {
-  tabDefaultValue.value = 'fileManage';
-  drawerMinWidth.value = 650;
-  isShowList.value = !isShowList.value;
-};
-
-/**
- * luna 的默认连接中，点击 Setting 默认打开 Setting
- */
-const handleOpenSetting = () => {
-  isShowList.value = !isShowList.value;
-  tabDefaultValue.value = 'setting';
-  drawerMinWidth.value = 270;
-
-  nextTick(() => {
-    const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
-
-    if (drawerRef) {
-      drawerRef.style.width = '270px';
-    }
-  });
-};
-
-
 
 /**
  * @description 生成表头
@@ -408,7 +201,7 @@ const createColumns = (): DataTableColumns<RowData> => {
             strong: true
           },
           {
-            default: () => row.size
+            default: () => prettyBytes(Number(row.size))
           }
         );
       }
@@ -433,63 +226,7 @@ const createColumns = (): DataTableColumns<RowData> => {
   ];
 };
 
-/**
- * @description 设置 drawer 宽度
- * @param width
- */
-const adjustDrawerWidth = (width: string) => {
-  nextTick(() => {
-    const drawerRef: HTMLElement = document.getElementsByClassName('n-drawer')[0] as HTMLElement;
-
-    if (drawerRef) {
-      drawerRef.style.width = width;
-    }
-  });
-};
-
-/**
- * @description 在切换 tab 标签时动态修改 drawer 的宽度
- * @param tabName
- */
-const handleBeforeLeave = (tabName: string) => {
-  if (tabName === 'setting') {
-    settingDrawer.value = true;
-    drawerWidth.value = 270;
-    drawerMinWidth.value = 270;
-
-    return true;
-  }
-
-  if (tabName === 'fileManage') {
-    settingDrawer.value = false;
-    drawerWidth.value = 700;
-    drawerMinWidth.value = 650;
-
-    if (!fileManageSocket.value) {
-      emits('create-file-connect-token');
-    }
-
-    return true;
-  }
-
-  return false;
-};
-
 const columns = createColumns();
-
-onMounted(() => {
-  // 展示 tab 则不监听 open-fileList
-  if (props.showTab) {
-    mittBus.on('open-setting', handleOpenSetting);
-  }
-
-  mittBus.on('open-fileList', handleOpenFileList);
-});
-
-onBeforeUnmount(() => {
-  mittBus.off('open-fileList', handleOpenFileList);
-  mittBus.off('open-setting', handleOpenSetting);
-});
 </script>
 
 <style scoped lang="scss">
