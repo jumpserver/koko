@@ -9,7 +9,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     ContentHeader: typeof import('./src/components/Kubernetes/ContentHeader/index.vue')['default']
     Drawer: typeof import('./src/components/Drawer/index.vue')['default']
-    FileManage: typeof import('./src/components/Drawer/components/FileManagement/components/fileManage/index.vue')['default']
+    FileManage: typeof import('./src/components/Drawer/components/FileManagement/fileManage/index.vue')['default']
     FileManagement: typeof import('./src/components/Drawer/components/FileManagement/index.vue')['default']
     GridFile: typeof import('./src/components/GridFile/index.vue')['default']
     I: typeof import('./src/components/Terminal/i.vue')['default']

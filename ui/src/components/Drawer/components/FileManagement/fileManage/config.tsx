@@ -1,5 +1,5 @@
+import { NIcon, NText } from 'naive-ui';
 import { Download } from '@vicons/tabler';
-import { NIcon, NButton, NText } from 'naive-ui';
 import { Delete16Regular } from '@vicons/fluent';
 import { DriveFileRenameOutlineOutlined } from '@vicons/material';
 
