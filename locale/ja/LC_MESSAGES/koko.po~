@@ -10,84 +10,88 @@ msgstr ""
 #. lang.T
 #: pkg/handler/app_database.go:11
 msgid "No Databases"
-msgstr ""
+msgstr "データベースなし"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:15
 msgid "No kubernetes"
-msgstr ""
+msgstr "いいえ kubernetes"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:31
 msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr ""
+msgstr "ページ番号：%d，ページあたりの行数：%d，合計ページ数：%d，合計数量：%d"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:45
 msgid ""
 "Enter ID number directly login, multiple search use // + field, such as: //16"
 msgstr ""
+"ヒント：資産IDを入力して直接ログインする，二次検索の使用 // + フィールド，の"
+"ように：//192"
 
 #. lang.T
 #: pkg/handler/app_k8s.go:46
 msgid "Page up: b\tPage down: n"
-msgstr ""
+msgstr "前のページ：b 次のページ：n"
 
 #. lang.T
 #: pkg/handler/asset.go:43
 msgid "No Assets"
-msgstr ""
+msgstr "資産なし"
 
 #. lang.T
 #: pkg/handler/asset.go:55
 msgid "ID"
-msgstr ""
+msgstr "ID"
 
 #. lang.T
 #: pkg/handler/asset.go:56
 msgid "Name"
-msgstr ""
+msgstr "名前"
 
 #. lang.T
 #: pkg/handler/asset.go:57
 msgid "Address"
-msgstr ""
+msgstr "アドレス"
 
 #. lang.T
 #: pkg/handler/asset.go:58
 msgid "Platform"
-msgstr ""
+msgstr "プラットホーム"
 
 #. lang.T
 #: pkg/handler/asset.go:59
 msgid "Organization"
-msgstr ""
+msgstr "おるがないず"
 
 #. lang.T
 #: pkg/handler/asset.go:60
 msgid "Comment"
-msgstr ""
+msgstr "コメント"
 
 #. lang.T
 #: pkg/handler/asset.go:174
 msgid "%s protocol client not installed."
-msgstr ""
+msgstr "%s プロトコルクライアントがインストールされていません。"
 
 #. lang.T
 #: pkg/handler/asset.go:177
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
+"この端末は %s プロトコルをサポートしていませんので、web端末を使用してログイン"
+"してください"
 
 #. lang.T
 #: pkg/handler/asset.go:211
 msgid "Core API failed"
-msgstr ""
+msgstr "Core API エラー発生"
 
 #. lang.T
 #: pkg/handler/asset.go:217
 msgid "ACL reject"
-msgstr ""
+msgstr "は拒否されました"
 
 #. lang.T
 #: pkg/handler/asset.go:223
@@ -95,107 +99,109 @@ msgid ""
 "Face ACL is not supported yet. Please use the WebTerminal to connect the "
 "asset."
 msgstr ""
+"該端末は顔認証アクセスルールをサポートしていません。資産に接続するには"
+"WebTerminalをご利用ください"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/asset.go:238 pkg/handler/asset.go:247
 msgid "Unknown error code: %s, detail: %s"
-msgstr ""
+msgstr "不明なエラーコード: %s, 詳細: %s"
 
 #. lang.T
 #: pkg/handler/asset.go:258
 msgid "get connect token err"
-msgstr ""
+msgstr "接続トークン取得エラー"
 
 #. lang.T
 #: pkg/handler/asset_node.go:22
 msgid "%s node has no assets"
-msgstr ""
+msgstr "%sノードに資産がありません"
 
 #. lang.T
 #: pkg/handler/banner.go:30
 msgid "Welcome to use JumpServer open source fortress system"
-msgstr ""
+msgstr "JumpServerオープンソース要塞システムを使用することを歓迎します"
 
 #. lang.T
 #: pkg/handler/banner.go:32
 msgid "part IP, Hostname, Comment"
-msgstr ""
+msgstr "パートIP,ホスト名,コメント"
 
 #. lang.T
 #: pkg/handler/banner.go:32
 msgid "to search login if unique"
-msgstr ""
+msgstr "検索ログイン(一意の場合)"
 
 #. lang.T
 #: pkg/handler/banner.go:33
 msgid "/ + IP, Hostname, Comment"
-msgstr ""
+msgstr "/ + IP、ホスト名、コメント"
 
 #. lang.T
 #: pkg/handler/banner.go:33
 msgid "to search, such as: /192.168"
-msgstr ""
+msgstr "検索, のように /192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:34
 msgid "display the assets you have permission"
-msgstr ""
+msgstr "権限を持っているホストを表示する"
 
 #. lang.T
 #: pkg/handler/banner.go:35
 msgid "display the node that you have permission"
-msgstr ""
+msgstr "権限を持つノードを表示する"
 
 #. lang.T
 #: pkg/handler/banner.go:36
 msgid "display the hosts that you have permission"
-msgstr ""
+msgstr "権限を持つデータベースを表示します"
 
 #. lang.T
 #: pkg/handler/banner.go:37
 msgid "display the databases that you have permission"
-msgstr ""
+msgstr "権限を持つデータベースを表示する"
 
 #. lang.T
 #: pkg/handler/banner.go:38
 msgid "display the kubernetes that you have permission"
-msgstr ""
+msgstr "権限を持つkubernetesを表示する"
 
 #. lang.T
 #: pkg/handler/banner.go:39
 msgid "refresh your assets and nodes"
-msgstr ""
+msgstr "アセットとノードを更新する"
 
 #. lang.T
 #: pkg/handler/banner.go:40
 msgid "language switch"
-msgstr ""
+msgstr "言語切り替え"
 
 #. lang.T
 #: pkg/handler/banner.go:41
 msgid "print help"
-msgstr ""
+msgstr "印刷ヘルプ"
 
 #. lang.T
 #: pkg/handler/banner.go:42
 msgid "exit"
-msgstr ""
+msgstr "終了"
 
 #. lang.T
 #: pkg/handler/banner.go:60
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr ""
+msgstr "\t%d) 入力 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
 
 #. lang.T
 #: pkg/handler/banner.go:85
 msgid "Announcement: "
-msgstr ""
+msgstr "お知らせ: "
 
 #. lang.T
 #: pkg/handler/direct_handler.go:272
 msgid "No Account found."
-msgstr ""
+msgstr "アカウントが見つかりません"
 
 #. lang.T
 #. lang.T
@@ -203,23 +209,23 @@ msgstr ""
 #: pkg/handler/direct_handler.go:282 pkg/handler/direct_handler.go:283
 #: pkg/handler/direct_handler.go:284
 msgid "Username"
-msgstr ""
+msgstr "ユーザー名"
 
 #. lang.T
 #: pkg/handler/direct_handler.go:313
 msgid "Tips: Enter asset[%s] account ID"
-msgstr ""
+msgstr "ヒント アセット[%s] アカウントIDを入力"
 
 #. lang.T
 #: pkg/handler/direct_handler.go:314
 msgid "Back: B/b"
-msgstr ""
+msgstr "戻る: B/b"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
 msgid "Hostname"
-msgstr ""
+msgstr "ホスト名"
 
 #. lang.T
 #. lang.T
@@ -227,13 +233,13 @@ msgstr ""
 #: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
 #: pkg/handler/direct_handler.go:381
 msgid "select one asset to login"
-msgstr ""
+msgstr "ログインするアセットを1つ選択"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/direct_handler.go:395 pkg/handler/direct_handler.go:400
 msgid "not found matched username %s"
-msgstr ""
+msgstr "一致したユーザー名 %s が見つかりません"
 
 #. lang.T
 #. lang.T
@@ -244,6 +250,8 @@ msgid ""
 "Face verification is not supported yet. Please use the WebTerminal to "
 "connect the asset."
 msgstr ""
+"顔認証はまだサポートされていません。資産に接続するにはWebTerminalをご利用くだ"
+"さい"
 
 #. lang.T
 #. lang.T
@@ -254,38 +262,38 @@ msgstr ""
 #: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
 #: pkg/handler/dispatch.go:153
 msgid "Tips: switch language by ID"
-msgstr ""
+msgstr "ヒント: IDで言語を切り替えます"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
 msgid "Invalid ID"
-msgstr ""
+msgstr "無効なID"
 
 #. lang.T
 #: pkg/handler/dispatch.go:186
 msgid "Switch language successfully"
-msgstr ""
+msgstr "言語切り替え成功"
 
 #. lang.T
 #: pkg/handler/dispatch.go:197
 msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr ""
+msgstr "ノード: [ID.Name(アセット量)]"
 
 #. lang.T
 #: pkg/handler/dispatch.go:199
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr ""
+msgstr "ヒント: g+ノードIDを入力してノードの下のホストを表示します。例えば: g1"
 
 #. lang.T
 #: pkg/handler/interactive.go:68
 msgid "Connect idle more than %d minutes, disconnect"
-msgstr ""
+msgstr "%d 分以上のアイドル状態に接続し、切断します"
 
 #. lang.T
 #: pkg/handler/interactive.go:202
 msgid "No account found."
-msgstr ""
+msgstr "アカウントが見つかりません"
 
 #. lang.T
 #. lang.T
@@ -297,112 +305,112 @@ msgstr ""
 #: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
 #: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
 msgid "Select account exceed max retry times."
-msgstr ""
+msgstr "アカウントを選択する回数が最大値を超えました"
 
 #. lang.T
 #: pkg/handler/interactive.go:282
 msgid "No protocol found."
-msgstr ""
+msgstr "プロトコルが見つかりません"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
 msgid "Protocol"
-msgstr ""
+msgstr "プロトコル"
 
 #. lang.T
 #: pkg/handler/interactive.go:319
 msgid "Tips: Enter protocol ID"
-msgstr ""
+msgstr "ヒント: プロトコル ID を入力してください"
 
 #. lang.T
 #. lang.T
 #: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
 msgid "Select protocol exceed max retry times."
-msgstr ""
+msgstr "プロトコルを選択する回数が最大値を超えました"
 
 #. lang.T
 #: pkg/handler/interactive.go:383
 msgid "Refresh done"
-msgstr ""
+msgstr "更新完了"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:38
+#: pkg/handler/login_confirm.go:39
 msgid "Need ACL review, continue? (y/n): "
-msgstr ""
+msgstr "ACLレビューが必要です。続行しますか？ (y/n): "
 
 #. lang.T
-#: pkg/handler/login_confirm.go:53
+#: pkg/handler/login_confirm.go:54
 msgid "Cancel to login asset or max 3 retry"
-msgstr ""
+msgstr "アセットのログインをキャンセルするか、最大3回リトライします"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
+#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
 msgid "Need ticket confirm to login, already send email to the reviewers"
-msgstr ""
-
-#. lang.T
-#: pkg/handler/login_confirm.go:99
-msgid "Ticket Reviewers: %s"
-msgstr ""
+msgstr "工単登録の再確認が必要で、すでにメールで審査者に通知した。"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:100
-msgid "Could copy website URL to notify reviewers: %s"
-msgstr ""
+msgid "Ticket Reviewers: %s"
+msgstr "チケットレビュー: %s"
 
 #. lang.T
 #: pkg/handler/login_confirm.go:101
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "レビュー・アドレスのコピー、レビュー担当者への通知: %s"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:102
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
-msgstr ""
+msgstr "レビューアが確認するのを待って、q を入力して終了してください。"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:130
+#: pkg/handler/login_confirm.go:131
 msgid "Unknown status"
-msgstr ""
+msgstr "不明なステータス"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:134
+#: pkg/handler/login_confirm.go:135
 msgid "%s approved"
-msgstr ""
+msgstr "%s が承認されました"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:139
+#: pkg/handler/login_confirm.go:140
 msgid "%s rejected"
-msgstr ""
+msgstr "%s は拒否されました"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:143
+#: pkg/handler/login_confirm.go:144
 msgid "Cancel confirm"
-msgstr ""
+msgstr "確認をキャンセル"
 
 #. lang.T
 #: pkg/handler/select_handler.go:201
 msgid "Search: %s"
-msgstr ""
+msgstr "検索: %s"
 
 #. i18n.T
 #: pkg/handler/server_ssh.go:222
 msgid "Must be unique asset for %s"
-msgstr ""
+msgstr "%s の一意のアセットでなければなりません"
 
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
 msgid "Must be unique account for %s"
-msgstr ""
+msgstr "%s の一意のアセットでなければなりません"
 
 #. i18n.T
 #: pkg/handler/server_ssh.go:259
 msgid "Must be auto login account for %s"
-msgstr ""
+msgstr "%s の一意のアセットでなければなりません"
 
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
 msgid "No found asset"
-msgstr ""
+msgstr "一致したアセット %s が見つかりません"
 
 #. i18n.T
 #. i18n.T
@@ -411,7 +419,7 @@ msgstr ""
 #: pkg/handler/server_ssh.go:713 pkg/handler/server_ssh.go:718
 #: pkg/handler/server_ssh.go:736 pkg/proxy/parser.go:230
 msgid "have no permission to upload file"
-msgstr ""
+msgstr "ファイルをアップロードする権限がない"
 
 #. lang.T
 #: pkg/proxy/parser.go:266
@@ -419,23 +427,24 @@ msgid ""
 "The command you executed is risky and an alert notification will be sent to "
 "the administrator. Do you want to continue?[Y/N]"
 msgstr ""
+"接続に失敗しました。データベース接続設定が正しいか確認してください[Y/N]"
 
 #. lang.T
 #: pkg/proxy/parser.go:283
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
-msgstr ""
+msgstr "レビューアが確認します。継続するかどうか [Y/n]"
 
 #. lang.T
 #. lang.T
 #. lang.T
 #: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
 msgid "Command `%s` is forbidden"
-msgstr ""
+msgstr "命令 `%s` は禁止されています"
 
 #. lang.T
 #: pkg/proxy/parser.go:534
 msgid "have no permission to download file"
-msgstr ""
+msgstr "ファイルをダウンロードする権限がない"
 
 #. lang.T
 #: pkg/proxy/parser.go:606
@@ -443,12 +452,16 @@ msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
 "or CTRL+D."
 msgstr ""
+"レビュー担当者がコマンド `%s` をレビューするまでお待ちください。キャンセルす"
+"るには、CTRL+C または CTRL+D を押してください。"
 
 #. lang.T
 #: pkg/proxy/parser.go:616
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
+"コマンドを実行するにはチケットの確認が必要です。すでにレビューアにメールを送"
+"信しています"
 
 #. lang.T
 #. lang.T
@@ -459,117 +472,119 @@ msgstr ""
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
 msgstr ""
+"この端末は %s プロトコルをサポートしていませんので、web端末を使用してログイン"
+"してください"
 
 #. lang.T
 #: pkg/proxy/server.go:70
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
-msgstr ""
+msgstr "システムユーザ <%s> と資産 <%s> のプロトコルが一致しない"
 
 #. lang.T
 #: pkg/proxy/server.go:102
 msgid "You don't have permission login %s"
-msgstr ""
+msgstr "ログイン権限がありません %s"
 
 #. lang.T
 #: pkg/proxy/server.go:334
 msgid "You get auth token failed"
-msgstr ""
+msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
 #: pkg/proxy/server.go:345
 msgid "Get auth password failed"
-msgstr ""
+msgstr "認証トークンの取得に失敗しました"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:361 pkg/proxy/server.go:418
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
-msgstr ""
+msgstr "SSH接続の再利用 (%s@%s) [接続数: %d]"
 
 #. lang.T
 #: pkg/proxy/server.go:674
 msgid "Switched to %s"
-msgstr ""
+msgstr "%s に切り替え"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:771 pkg/proxy/server.go:916
 msgid "Connect with api server failed"
-msgstr ""
+msgstr "APIサーバーとの接続に失敗しました"
 
 #. lang.T
 #: pkg/proxy/server.go:977
 msgid "Start domain gateway failed %s"
-msgstr ""
+msgstr "ドメインゲートウェイの開始に失敗した %s"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
 msgid "Manual"
-msgstr ""
+msgstr "マニュアル"
 
 #. lang.T
 #: pkg/proxy/server_options.go:110
 msgid "Dynamic"
-msgstr ""
+msgstr "ダイナミック"
 
 #. lang.T
 #: pkg/proxy/server_options.go:113
 msgid "Connecting to %s@%s"
-msgstr ""
+msgstr "接続開始 %s@%s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:117
 msgid "Connecting to Database %s"
-msgstr ""
+msgstr "データベース接続の開始 %s"
 
 #. lang.T
 #: pkg/proxy/server_options.go:119
 msgid "Connecting to Kubernetes %s"
-msgstr ""
+msgstr "Kubernetes %s への接続"
 
 #. lang.T
 #: pkg/proxy/server_options.go:121
 msgid "Connecting to Kubernetes %s container %s"
-msgstr ""
+msgstr "Kubernetes %s コンテナー %s への接続"
 
 #. lang.T
 #: pkg/proxy/switch.go:328
 msgid "Session max time reached, disconnect"
-msgstr ""
+msgstr "セッションの最大時間に達しました。"
 
 #. lang.T
 #. lang.T
 #: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
 msgid "Permission has expired, disconnect"
-msgstr ""
+msgstr "権限の有効期限が切れました。"
 
 #. lang.T
 #: pkg/proxy/switch.go:354
 msgid "Terminated by admin %s"
-msgstr ""
+msgstr "%s管理者が接続を終了"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
 msgid "Authentication failed"
-msgstr ""
+msgstr "認証に失敗しました(ユーザー名またはパスワードエラー)"
 
 #. lang.T
 #: pkg/proxy/tools.go:31
 msgid "Connection refused"
-msgstr ""
+msgstr "ネットワーク不通（接続拒否）"
 
 #. lang.T
 #: pkg/proxy/tools.go:34
 msgid "i/o timeout"
-msgstr ""
+msgstr "ネットワーク不通（接続タイムアウト）"
 
 #. lang.T
 #: pkg/proxy/tools.go:37
 msgid "No route to host"
-msgstr ""
+msgstr "ネットワーク不通(ルーティング不通)"
 
 #. lang.T
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
-msgstr ""
+msgstr "ネットワーク不通（ネットワーク不可）"

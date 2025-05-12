@@ -327,53 +327,53 @@ msgid "Refresh done"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:38
+#: pkg/handler/login_confirm.go:39
 msgid "Need ACL review, continue? (y/n): "
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:53
+#: pkg/handler/login_confirm.go:54
 msgid "Cancel to login asset or max 3 retry"
 msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
+#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
 msgid "Need ticket confirm to login, already send email to the reviewers"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:99
+#: pkg/handler/login_confirm.go:100
 msgid "Ticket Reviewers: %s"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:100
+#: pkg/handler/login_confirm.go:101
 msgid "Could copy website URL to notify reviewers: %s"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:101
+#: pkg/handler/login_confirm.go:102
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:130
+#: pkg/handler/login_confirm.go:131
 msgid "Unknown status"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:134
+#: pkg/handler/login_confirm.go:135
 msgid "%s approved"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:139
+#: pkg/handler/login_confirm.go:140
 msgid "%s rejected"
 msgstr ""
 
 #. lang.T
-#: pkg/handler/login_confirm.go:143
+#: pkg/handler/login_confirm.go:144
 msgid "Cancel confirm"
 msgstr ""
 

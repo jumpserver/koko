@@ -24,7 +24,6 @@ msgstr "ページ番号：%d，ページあたりの行数：%d，合計ペー�
 
 #. lang.T
 #: pkg/handler/app_k8s.go:45
-#, fuzzy
 msgid ""
 "Enter ID number directly login, multiple search use // + field, such as: //16"
 msgstr ""
@@ -91,13 +90,11 @@ msgstr "Core API エラー発生"
 
 #. lang.T
 #: pkg/handler/asset.go:217
-#, fuzzy
 msgid "ACL reject"
 msgstr "は拒否されました"
 
 #. lang.T
 #: pkg/handler/asset.go:223
-#, fuzzy
 msgid ""
 "Face ACL is not supported yet. Please use the WebTerminal to connect the "
 "asset."
@@ -148,7 +145,6 @@ msgstr "検索, のように /192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:34
-#, fuzzy
 msgid "display the assets you have permission"
 msgstr "権限を持っているホストを表示する"
 
@@ -159,7 +155,6 @@ msgstr "権限を持つノードを表示する"
 
 #. lang.T
 #: pkg/handler/banner.go:36
-#, fuzzy
 msgid "display the hosts that you have permission"
 msgstr "権限を持つデータベースを表示します"
 
@@ -195,7 +190,6 @@ msgstr "終了"
 
 #. lang.T
 #: pkg/handler/banner.go:60
-#, fuzzy
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
 msgstr "\t%d) 入力 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
 
@@ -219,7 +213,6 @@ msgstr "ユーザー名"
 
 #. lang.T
 #: pkg/handler/direct_handler.go:313
-#, fuzzy
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "ヒント アセット[%s] アカウントIDを入力"
 
@@ -253,7 +246,6 @@ msgstr "一致したユーザー名 %s が見つかりません"
 #. lang.T
 #: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
 #: pkg/handler/direct_handler.go:445
-#, fuzzy
 msgid ""
 "Face verification is not supported yet. Please use the WebTerminal to "
 "connect the asset."
@@ -300,7 +292,6 @@ msgstr "%d 分以上のアイドル状態に接続し、切断します"
 
 #. lang.T
 #: pkg/handler/interactive.go:202
-#, fuzzy
 msgid "No account found."
 msgstr "アカウントが見つかりません"
 
@@ -344,53 +335,53 @@ msgid "Refresh done"
 msgstr "更新完了"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:39
+#: pkg/handler/login_confirm.go:38
 msgid "Need ACL review, continue? (y/n): "
 msgstr "ACLレビューが必要です。続行しますか？ (y/n): "
 
 #. lang.T
-#: pkg/handler/login_confirm.go:54
+#: pkg/handler/login_confirm.go:53
 msgid "Cancel to login asset or max 3 retry"
 msgstr "アセットのログインをキャンセルするか、最大3回リトライします"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/login_confirm.go:68 pkg/handler/login_confirm.go:99
+#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
 msgid "Need ticket confirm to login, already send email to the reviewers"
 msgstr "工単登録の再確認が必要で、すでにメールで審査者に通知した。"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:100
+#: pkg/handler/login_confirm.go:99
 msgid "Ticket Reviewers: %s"
 msgstr "チケットレビュー: %s"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:101
+#: pkg/handler/login_confirm.go:100
 msgid "Could copy website URL to notify reviewers: %s"
 msgstr "レビュー・アドレスのコピー、レビュー担当者への通知: %s"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:102
+#: pkg/handler/login_confirm.go:101
 msgid "Please waiting for the reviewers to confirm, enter q to exit. "
 msgstr "レビューアが確認するのを待って、q を入力して終了してください。"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:131
+#: pkg/handler/login_confirm.go:130
 msgid "Unknown status"
 msgstr "不明なステータス"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:135
+#: pkg/handler/login_confirm.go:134
 msgid "%s approved"
 msgstr "%s が承認されました"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:140
+#: pkg/handler/login_confirm.go:139
 msgid "%s rejected"
 msgstr "%s は拒否されました"
 
 #. lang.T
-#: pkg/handler/login_confirm.go:144
+#: pkg/handler/login_confirm.go:143
 msgid "Cancel confirm"
 msgstr "確認をキャンセル"
 
@@ -407,20 +398,17 @@ msgstr "%s の一意のアセットでなければなりません"
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
-#, fuzzy
 msgid "Must be unique account for %s"
 msgstr "%s の一意のアセットでなければなりません"
 
 #. i18n.T
 #: pkg/handler/server_ssh.go:259
-#, fuzzy
 msgid "Must be auto login account for %s"
 msgstr "%s の一意のアセットでなければなりません"
 
 #. i18n.T
 #. i18n.T
 #: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
-#, fuzzy
 msgid "No found asset"
 msgstr "一致したアセット %s が見つかりません"
 
@@ -443,7 +431,6 @@ msgstr ""
 
 #. lang.T
 #: pkg/proxy/parser.go:283
-#, fuzzy
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
 msgstr "レビューアが確認します。継続するかどうか [Y/n]"
 
@@ -482,7 +469,6 @@ msgstr ""
 #. lang.T
 #: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
 #: pkg/proxy/server.go:62
-#, fuzzy
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
 msgstr ""
@@ -491,7 +477,6 @@ msgstr ""
 
 #. lang.T
 #: pkg/proxy/server.go:70
-#, fuzzy
 msgid "Account <%s> and asset <%s> protocol are inconsistent."
 msgstr "システムユーザ <%s> と資産 <%s> のプロトコルが一致しない"
 
@@ -535,13 +520,11 @@ msgstr "ドメインゲートウェイの開始に失敗した %s"
 #. lang.T
 #. lang.T
 #: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
-#, fuzzy
 msgid "Manual"
 msgstr "マニュアル"
 
 #. lang.T
 #: pkg/proxy/server_options.go:110
-#, fuzzy
 msgid "Dynamic"
 msgstr "ダイナミック"
 
@@ -567,7 +550,6 @@ msgstr "Kubernetes %s コンテナー %s への接続"
 
 #. lang.T
 #: pkg/proxy/switch.go:328
-#, fuzzy
 msgid "Session max time reached, disconnect"
 msgstr "セッションの最大時間に達しました。"
 
