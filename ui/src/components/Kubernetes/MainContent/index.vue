@@ -106,7 +106,7 @@ import {
 } from '@vicons/carbon';
 
 const emits = defineEmits<{
-  (e: 'update:waterMarkContent', content: string): void;
+  (e: 'update:waterMarkParams', content: string, rotate: number, width: number, height: number, fontSze: number, color: string): void;
 }>();
 
 const dialog = useDialog();
@@ -753,7 +753,14 @@ onMounted(() => {
           const currentNode = treeStore.getTerminalByK8sId(node.k8s_id);
 
           setTimeout(() => {
-            emits('update:waterMarkContent', currentNode.waterMarkContent);
+            emits('update:waterMarkParams',
+                currentNode.waterMarkContent,
+                currentNode.waterMarkRotate,
+                currentNode.waterMarkWidth,
+                currentNode.waterMarkHeight,
+                currentNode.waterMarkFontSize,
+                currentNode.waterMarkColor
+            );
           }, 1000);
 
           updateIcon(connectInfo.value);

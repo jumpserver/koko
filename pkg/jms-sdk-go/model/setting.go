@@ -10,9 +10,15 @@ type PublicSetting struct {
 		Image      string `json:"login_image"`
 		Favicon    string `json:"favicon"`
 	} `json:"INTERFACE"`
-	EnableWatermark    bool `json:"SECURITY_WATERMARK_ENABLED"`
-	EnableSessionShare bool `json:"SECURITY_SESSION_SHARE"`
-	EnableAnnouncement bool `json:"ANNOUNCEMENT_ENABLED"`
+	EnableWatermark    bool   `json:"SECURITY_WATERMARK_ENABLED"`
+	WatermarkContent   string `json:"SECURITY_WATERMARK_SESSION_CONTENT"`
+	WatermarkWidth     int    `json:"SECURITY_WATERMARK_WIDTH"`
+	WatermarkHeight    int    `json:"SECURITY_WATERMARK_HEIGHT"`
+	WatermarkRotate    int    `json:"SECURITY_WATERMARK_ROTATE"`
+	WatermarkFontSize  int    `json:"SECURITY_WATERMARK_FONT_SIZE"`
+	WatermarkColor     string `json:"SECURITY_WATERMARK_COLOR"`
+	EnableSessionShare bool   `json:"SECURITY_SESSION_SHARE"`
+	EnableAnnouncement bool   `json:"ANNOUNCEMENT_ENABLED"`
 	Announcement       struct {
 		Id        string         `json:"ID"`
 		Subject   string         `json:"SUBJECT"`
