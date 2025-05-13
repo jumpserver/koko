@@ -91,7 +91,7 @@ import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
 import { storeToRefs } from 'pinia';
 import { formatMessage } from '@/utils';
 import { readText } from 'clipboard-polyfill';
-import { FormatterMessageType } from '@/enum';
+import { FORMATTER_MESSAGE_TYPE } from '@/enum';
 import { ref, watch, computed, nextTick } from 'vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { Ellipsis, ChevronLeft, ChevronDown } from 'lucide-vue-next';
@@ -222,7 +222,7 @@ const handlePositiveClick = (userMeta: OnlineUser) => {
   socket?.send(
     formatMessage(
       terminalId,
-      FormatterMessageType.TERMINAL_SHARE_USER_REMOVE,
+      FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE,
       JSON.stringify({
         session: sessionId,
         user_meta: userMeta
@@ -240,7 +240,7 @@ const handleCreateShareUrl = (shareLinkRequest: any) => {
   socket?.send(
     formatMessage(
       terminalId,
-      FormatterMessageType.TERMINAL_SHARE,
+      FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE,
       JSON.stringify({
         origin: origin.value,
         session: sessionId,
@@ -258,7 +258,7 @@ const handleCreateShareUrl = (shareLinkRequest: any) => {
  */
 const handleSearchShareUser = (query: string) => {
   const { socket, terminalId } = currentTerminalConn.value;
-  socket?.send(formatMessage(terminalId, FormatterMessageType.TERMINAL_GET_SHARE_USER, JSON.stringify({ query })));
+  socket?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_GET_SHARE_USER, JSON.stringify({ query })));
 };
 
 /**

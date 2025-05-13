@@ -6,14 +6,15 @@
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { Terminal } from '@xterm/xterm';
-import { sendEventToLuna } from '@/utils';
 import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
 import { onMounted, ref, watchEffect } from 'vue';
+import { sendEventToLuna, formatMessage } from '@/utils';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
+import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 
-import { WINDOW_MESSAGE_TYPE } from '@/enum';
+import { WINDOW_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/enum';
 
 import type { ContentType } from '@/types/modules/connection.type';
 
@@ -29,8 +30,10 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const message = useMessage();
+const connectionStore = useConnectionStore();
 
 const socket = ref<WebSocket | ''>('');
+const terminal = ref<Terminal | null>(null);
 const lunaId = ref<string>('');
 const origin = ref<string>('');
 
@@ -65,6 +68,12 @@ const receivePostMessage = (): void => {
     const windowMessage = e.data;
 
     switch (windowMessage.name) {
+      case WINDOW_MESSAGE_TYPE.CMD:
+        if (typeof socket.value !== 'string') {
+          const termianlId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
+          socket.value?.send(formatMessage(termianlId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, windowMessage.data));
+        }
+        break;
       case WINDOW_MESSAGE_TYPE.PING:
         lunaId.value = windowMessage.id;
         origin.value = e.origin;
@@ -75,6 +84,9 @@ const receivePostMessage = (): void => {
         emits('update:drawer', true, t('Settings'), 'setting');
         break;
       case WINDOW_MESSAGE_TYPE.FILE:
+      case WINDOW_MESSAGE_TYPE.FOCUS:
+        terminal.value?.focus();
+        break;
       case WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN:
         emits('update:drawer', true, t('FileManager'), 'file-manager', windowMessage.SFTP_Token);
         break;
@@ -102,6 +114,7 @@ onMounted(() => {
 
   const terminalInstance: Terminal = createTerminalInstance(terminalContainer);
 
+  terminal.value = terminalInstance;
   terminalInstance.open(terminalContainer);
 
   if (props.shareCode) {

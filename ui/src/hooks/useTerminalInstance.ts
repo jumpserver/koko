@@ -10,7 +10,7 @@ import { ref, computed, nextTick, watch } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { formatMessage } from '@/utils';
 import { FitAddon } from '@xterm/addon-fit';
-import { FormatterMessageType } from '@/enum';
+import { FORMATTER_MESSAGE_TYPE } from '@/enum';
 import { SearchAddon } from '@xterm/addon-search';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
@@ -81,7 +81,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
       fitAddon.fit();
 
       const resizeData = JSON.stringify({ cols, rows });
-      socket.send(formatMessage(terminalId, FormatterMessageType.TERMINAL_RESIZE, resizeData));
+      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
     });
   };
   /**
@@ -115,7 +115,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
           return;
         }
 
-        conn.socket.send(formatMessage(conn.terminalId || '', FormatterMessageType.TERMINAL_DATA, text));
+        conn.socket.send(formatMessage(conn.terminalId || '', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
       },
       false
     );
