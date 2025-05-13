@@ -433,6 +433,10 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
 
         break;
       }
+      case 'TERMINAL_ERROR': {
+        currentTerminal.write(info.err);
+        break;
+      }
       case 'TERMINAL_SHARE_JOIN': {
         const data = JSON.parse(info.data);
         const k8s_id: string = info.k8s_id;

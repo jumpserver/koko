@@ -154,6 +154,10 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
         );
         break;
       }
+      case MESSAGE_TYPE.TERMINAL_ERROR: {
+        terminal.write(parsedMessageData.err);
+        break;
+      }
       case MESSAGE_TYPE.MESSAGE_NOTIFY: {
         const eventName = JSON.parse(parsedMessageData.data).event_name;
 
