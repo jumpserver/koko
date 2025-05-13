@@ -9,7 +9,7 @@
     <n-dialog-provider>
       <n-notification-provider>
         <n-message-provider>
-          <router-view />
+          <router-view v-if="loaded" />
         </n-message-provider>
       </n-notification-provider>
     </n-dialog-provider>
@@ -18,18 +18,20 @@
 
 <script setup lang="ts">
 import { lang } from '@/config';
+import { useI18n } from 'vue-i18n';
 import { BASE_URL } from '@/config';
 import { darkTheme } from 'naive-ui';
 import { alovaInstance } from '@/api';
 import { zhCN, dateZhCN } from 'naive-ui';
+import { onMounted, ref, nextTick } from 'vue';
 import { themeOverrides } from './overrides.ts';
-
-import { onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 const { mergeLocaleMessage } = useI18n();
 
+const loaded = ref(false);
+
 onMounted(async () => {
+  loaded.value = false;
   try {
     const translations = await alovaInstance
       .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${lang}&flat=0`)
@@ -37,6 +39,10 @@ onMounted(async () => {
 
     if (translations[lang]) {
       mergeLocaleMessage(lang, translations[lang]);
+
+      nextTick(() => {
+        loaded.value = true;
+      });
     }
   } catch (e) {
     throw new Error(`${e}`);
