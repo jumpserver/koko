@@ -2,8 +2,8 @@
   <n-table :single-line="false">
     <thead>
       <tr>
-        <th class="!text-center">格式</th>
-        <th class="!text-center">快捷键</th>
+        <th class="!text-center">{{ t('Format') }}</th>
+        <th class="!text-center">{{ t('Hotkeys') }}</th>
       </tr>
     </thead>
     <tbody>

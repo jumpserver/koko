@@ -149,14 +149,16 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         updateIcon(info.setting);
 
-        socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData)));
+        socket.send(
+          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
+        );
         break;
       }
       case MESSAGE_TYPE.MESSAGE_NOTIFY: {
         const eventName = JSON.parse(parsedMessageData.data).event_name;
 
         if (eventName === 'sync_user_preference') {
-          message.success(t('主题同步成功'));
+          message.success(t('ThemeSyncSuccessful'));
         }
 
         break;

@@ -42,11 +42,6 @@ const allRoutes: RouteRecordRaw[] = [
     name: 'SFTP',
     component: () => import('@/views/file/index.vue')
   },
-  {
-    path: '/chat',
-    name: 'Chat',
-    component: () => import('@/views/chat/index.vue')
-  }
 ];
 
 const router: Router = createRouter({

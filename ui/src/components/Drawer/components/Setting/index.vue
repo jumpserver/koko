@@ -32,7 +32,7 @@
         <n-card size="small">
           <n-flex justify="center" vertical class="w-full">
             <n-flex align="center">
-              <n-text> 当前用户: </n-text>
+              <n-text> {{ t('CurrentUser') }}: </n-text>
               <n-text depth="1" strong class="text-sm">{{ userFilters.currentUser?.user }}</n-text>
             </n-flex>
 
@@ -43,7 +43,7 @@
                 <ChevronLeft v-if="showLeftArrow" :size="18" class="focus:outline-none" />
                 <ChevronDown v-else :size="18" class="focus:outline-none" />
               </template>
-              <n-collapse-item title="在线用户:" name="online-user">
+              <n-collapse-item :title="t('OnlineUser') + ':'" name="online-user">
                 <n-flex
                   v-if="userFilters.otherUsers.length > 0"
                   v-for="item in userFilters.otherUsers"
@@ -56,7 +56,7 @@
                     <span class="text-xs">{{ item.user }}</span>
                   </n-tag>
                 </n-flex>
-                <n-empty v-else description="暂无在线用户" />
+                <n-empty v-else :description="t('NoOnlineUser')" />
               </n-collapse-item>
             </n-collapse>
           </n-flex>
@@ -88,6 +88,7 @@ import xtermTheme from 'xterm-theme';
 import Share from '@/components/Drawer/components/Share/index.vue';
 import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
 
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { formatMessage } from '@/utils';
 import { readText } from 'clipboard-polyfill';
@@ -107,6 +108,7 @@ defineProps<{
 const terminalSettingsStore = useTerminalSettingsStore();
 const connectionStore = useConnectionStore();
 
+const { t } = useI18n();
 const { theme } = storeToRefs(terminalSettingsStore);
 
 const userFilters = computed(() => {

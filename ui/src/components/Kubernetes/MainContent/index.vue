@@ -263,10 +263,10 @@ const settings = computed((): ISettingProp[] => {
         if (user.primary) return;
 
         dialog.warning({
-          title: '警告',
+          title: t('Warning'),
           content: t('RemoveShareUserConfirm'),
-          positiveText: '确定',
-          negativeText: '取消',
+          positiveText: t('ConfirmBtn'),
+          negativeText: t('Cancel'),
           onPositiveClick: () => {
             const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
             const sessionId = operatedNode.sessionIdMap.get(
