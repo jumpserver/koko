@@ -20,6 +20,7 @@ import type { ContentType } from '@/types/modules/connection.type';
 
 const emits = defineEmits<{
   (e: 'update:drawer', show: boolean, title: string, contentType: ContentType, token?: string): void;
+  (e: 'update:protocol', protocol: string): void;
 }>();
 
 const props = defineProps<{
@@ -36,6 +37,7 @@ const socket = ref<WebSocket | ''>('');
 const terminal = ref<Terminal | null>(null);
 const lunaId = ref<string>('');
 const origin = ref<string>('');
+const protocol = ref<string>('');
 
 /**
  * @description 创建 WebSocket 连接
@@ -75,8 +77,11 @@ const receivePostMessage = (): void => {
         }
         break;
       case WINDOW_MESSAGE_TYPE.PING:
-        lunaId.value = windowMessage.id;
         origin.value = e.origin;
+        lunaId.value = windowMessage.id;
+        protocol.value = windowMessage.protocol;
+
+        emits('update:protocol', protocol.value);
 
         sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.value, origin.value);
         break;
