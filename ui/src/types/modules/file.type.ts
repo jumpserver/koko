@@ -75,12 +75,6 @@ interface SettingAnnouncement {
 interface Setting {
   INTERFACE: InterfaceSettings;
   SECURITY_WATERMARK_ENABLED: boolean;
-  SECURITY_WATERMARK_SESSION_CONTENT: string;
-  SECURITY_WATERMARK_WIDTH: number;
-  SECURITY_WATERMARK_HEIGHT: number;
-  SECURITY_WATERMARK_ROTATE: number;
-  SECURITY_WATERMARK_COLOR: string;
-  SECURITY_WATERMARK_FONT_SIZE: number;
   SECURITY_SESSION_SHARE: boolean;
   ANNOUNCEMENT_ENABLED: boolean;
   ANNOUNCEMENT: SettingAnnouncement;

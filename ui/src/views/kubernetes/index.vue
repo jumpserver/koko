@@ -4,13 +4,12 @@
     selectable
     full-screen
     class="w-full h-full"
-    :global-rotate="-waterMarkRotate"
-    :font-size="waterMarkFontSize"
-    :width="waterMarkWidth"
-    :height="waterMarkHeight"
-    :line-height="waterMarkFontSize"
-    :font-color="waterMarkColor"
-    :y-offset="0"
+    :rotate="-45"
+    :font-size="18"
+    :line-height="20"
+    :width="500"
+    :height="400"
+    :y-offset="180"
     :font-family="'Open Sans'"
     :content="waterMarkContent"
   >
@@ -47,7 +46,7 @@
           @reload-tree="handleReloadTree"
         />
       </n-layout-sider>
-      <MainContent @update:water-mark-params="handleUpdateWaterMarkParams" />
+      <MainContent @update:water-mark-content="handleUpdateWaterMarkContent" />
     </n-layout>
   </n-watermark>
 </template>
@@ -72,11 +71,6 @@ const socket = ref();
 const sideWidth = ref(300);
 const isFolded = ref(false);
 const waterMarkContent = ref('');
-const waterMarkFontSize = ref(18);
-const waterMarkRotate = ref(45);
-const waterMarkWidth = ref(500);
-const waterMarkHeight = ref(400);
-const waterMarkColor = ref("rgba(128, 128, 128, .3)");
 
 const { t } = useI18n();
 
@@ -131,13 +125,8 @@ const handleDragEnd = (_el: HTMLElement, newWidth: number) => {
   });
 };
 
-const handleUpdateWaterMarkParams = (content: string, rotate: number, width: number, height: number, fontSze: number, color: string) => {
+const handleUpdateWaterMarkContent = (content: string) => {
   waterMarkContent.value = content;
-  waterMarkRotate.value = rotate;
-  waterMarkWidth.value = width;
-  waterMarkHeight.value = height;
-  waterMarkFontSize.value = fontSze;
-  waterMarkColor.value = color;
 };
 
 onMounted(() => {
