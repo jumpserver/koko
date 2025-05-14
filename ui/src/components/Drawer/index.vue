@@ -22,7 +22,7 @@
         </n-tab-pane>
         <n-tab-pane
           name="file-manager"
-          display-directive="if"
+          display-directive="show"
           :disabled="disabledFileManager"
           :tab="t('FileManagement')"
         >
