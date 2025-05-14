@@ -105,9 +105,6 @@ import {
   UserAvatar
 } from '@vicons/carbon';
 
-const emits = defineEmits<{
-  (e: 'update:waterMarkContent', content: string): void;
-}>();
 
 const dialog = useDialog();
 const message = useMessage();
@@ -751,10 +748,6 @@ onMounted(() => {
           node.socket.send(JSON.stringify(firstSendMessage));
 
           const currentNode = treeStore.getTerminalByK8sId(node.k8s_id);
-
-          setTimeout(() => {
-            emits('update:waterMarkContent', currentNode.waterMarkContent);
-          }, 1000);
 
           updateIcon(connectInfo.value);
         } catch (e: any) {
