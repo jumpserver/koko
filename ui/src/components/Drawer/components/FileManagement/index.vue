@@ -69,10 +69,13 @@ watch(
 
 watch(
   () => props.sftpToken,
-  token => {
-    if (token) {
-      fileManageSocket.value = useFileManage(token, t);
+  (newValue, oldValue) => {
+    if (newValue && newValue !== oldValue) {
+      fileManageSocket.value = useFileManage(newValue, t);
     }
+  },
+  {
+    immediate: true
   }
 );
 
