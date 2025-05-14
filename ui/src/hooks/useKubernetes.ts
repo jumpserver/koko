@@ -299,42 +299,7 @@ export const handleTreeMessage = (ws: WebSocket, event: MessageEvent) => {
     }
   }
 };
-export const formatDate = (date: Date) => {
-  const pad = (n : any) => n.toString().padStart(2, '0');
 
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1); // 月份从0开始
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  const seconds = pad(date.getSeconds());
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-const getWaterMarkFields= (session: any) => {
-  const userId = session.user_id;
-  const name = session.user.split('(')[0];
-  const userName = session.user.split('(')[1].slice(0, -1);
-  const assetId = session.asset_id;
-  const assetName = session.asset.split('(')[0];
-  const assetAddress = session.remote_addr;
-  const currentTime = formatDate(new Date());
-  return {userId, name, userName, assetId, assetName, assetAddress, currentTime};
-}
-const getWaterMarkContent = (session: any, template: string) => {
-  const fields: { [key: string]: any } = getWaterMarkFields(session);
-  // 找出模板中所有的变量占位符 ${xxx}
-  const placeholders = template.match(/\${([^}]+)}/g) || [];
-  const allVariables: { [key: string]: any } = {};
-  // 为模板中的每个变量准备值
-  placeholders.forEach(placeholder => {
-    const varName = placeholder.slice(2, -1); // 提取变量名，去掉 ${ 和 }
-    allVariables[varName] = fields[varName] !== undefined ? fields[varName] : 'N/A';
-  });
-  // 合并用户现有的字段和模板中可能缺失的字段
-  const safeFields = {...fields, ...allVariables};
-  // 安全解析模板
-  return new Function(...Object.keys(safeFields), `return \`${template}\`;`)(...Object.values(safeFields));
-}
 export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, createSentry: any, t: any) => {
   const treeStore = useTreeStore();
   const paramsStore = useParamsStore();
@@ -364,12 +329,7 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         const username = `${sessionDetail.user}`;
 
         if (setting.value.SECURITY_WATERMARK_ENABLED) {
-          operatedNode.waterMarkContent = getWaterMarkContent(sessionDetail, <string>setting.value.SECURITY_WATERMARK_SESSION_CONTENT);
-          operatedNode.waterMarkWidth = setting.value.SECURITY_WATERMARK_WIDTH;
-          operatedNode.waterMarkHeight = setting.value.SECURITY_WATERMARK_HEIGHT;
-          operatedNode.waterMarkRotate = setting.value.SECURITY_WATERMARK_ROTATE;
-          operatedNode.waterMarkFontSize = setting.value.SECURITY_WATERMARK_FONT_SIZE;
-          operatedNode.waterMarkColor = setting.value.SECURITY_WATERMARK_COLOR;
+          operatedNode.waterMarkContent = `${username}\n${sessionDetail.asset.split('(')[0]}`;
         }
 
         if (sessionInfo.backspaceAsCtrlH) {
