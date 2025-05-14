@@ -10,7 +10,6 @@ type PublicSetting struct {
 		Image      string `json:"login_image"`
 		Favicon    string `json:"favicon"`
 	} `json:"INTERFACE"`
-	EnableWatermark    bool `json:"SECURITY_WATERMARK_ENABLED"`
 	EnableSessionShare bool `json:"SECURITY_SESSION_SHARE"`
 	EnableAnnouncement bool `json:"ANNOUNCEMENT_ENABLED"`
 	Announcement       struct {

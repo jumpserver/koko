@@ -1,7 +1,7 @@
 <template>
   <n-flex
     align="center"
-    class="h-[35px] w-full bg-[#3C3C3C]"
+    class="h-[35px] bg-[#3C3C3C]"
     style="flex-wrap: nowrap"
   >
     <n-flex>

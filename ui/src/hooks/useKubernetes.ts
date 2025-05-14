@@ -328,10 +328,6 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         const share = sessionInfo.permission.actions.includes('share');
         const username = `${sessionDetail.user}`;
 
-        if (setting.value.SECURITY_WATERMARK_ENABLED) {
-          operatedNode.waterMarkContent = `${username}\n${sessionDetail.asset.split('(')[0]}`;
-        }
-
         if (sessionInfo.backspaceAsCtrlH) {
           const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
 
@@ -391,10 +387,6 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
 
         treeStore.setK8sIdMap(info.k8s_id, { ...operatedNode });
 
-        break;
-      }
-      case 'TERMINAL_ERROR': {
-        currentTerminal.write(info.err);
         break;
       }
       case 'TERMINAL_SHARE_JOIN': {
