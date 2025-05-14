@@ -20,7 +20,12 @@
         <n-tab-pane name="setting" display-directive="if" :tab="t('Settings')">
           <Setting :settings="settingsConfig" />
         </n-tab-pane>
-        <n-tab-pane name="file-manager" display-directive="if" :tab="t('FileManagement')">
+        <n-tab-pane
+          name="file-manager"
+          display-directive="if"
+          :disabled="disabledFileManager"
+          :tab="t('FileManagement')"
+        >
           <FileManager :sftp-token="token" />
         </n-tab-pane>
       </n-tabs>
@@ -31,6 +36,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { reactive, ref, computed } from 'vue';
+import { FILE_SUFFIX_DATABASE } from '@/config';
 import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
 
 import Setting from './components/Setting/index.vue';
@@ -56,6 +62,8 @@ const props = defineProps<{
   token?: string;
 
   contentType: ContentType;
+
+  defaultProtocol: string;
 }>();
 
 const emit = defineEmits<{
@@ -110,6 +118,9 @@ const settingsConfig = reactive<SettingConfig>({
 
 const drawerDefaultWidth = computed(() => {
   return props.contentType === 'setting' ? 502 : 702;
+});
+const disabledFileManager = computed(() => {
+  return FILE_SUFFIX_DATABASE.includes(props.defaultProtocol);
 });
 
 /**

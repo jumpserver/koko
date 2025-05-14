@@ -163,3 +163,5 @@ export const FILE_SUFFIX_CODE = [
 ];
 // 安装包类型的
 export const FILE_SUFFIX_INSTALL = ['deb', 'rpm', 'msi', 'exe', 'app', 'dmg', 'pkg', 'deb', 'rpm', 'msi', 'exe', 'app'];
+// 数据库类型
+export const FILE_SUFFIX_DATABASE = ['mysql', 'oracle', 'postgresql', 'sqlserver', 'mongodb', 'redis', 'memcached', 'sqlite', 'mariadb'];
