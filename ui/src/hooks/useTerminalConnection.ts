@@ -374,6 +374,8 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
       heartBeat(socket);
     };
     socket.onclose = () => {
+      terminal.write('\r\n');
+      terminal.write('\r\n');
       terminal.write('\x1b[31mConnection Websocket Has Been Closed\x1b[0m');
     };
     socket.onerror = () => {

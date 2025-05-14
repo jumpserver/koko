@@ -84,6 +84,8 @@ const receivePostMessage = (): void => {
         emits('update:drawer', true, t('Settings'), 'setting');
         break;
       case WINDOW_MESSAGE_TYPE.FILE:
+        emits('update:drawer', true, t('FileManager'), 'file-manager');
+        break;
       case WINDOW_MESSAGE_TYPE.FOCUS:
         terminal.value?.focus();
         break;
