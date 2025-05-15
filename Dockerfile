@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20250410_033050 AS stage-build
+FROM jumpserver/koko-base:20250513_030103 AS stage-build
 
 WORKDIR /opt/koko
 ARG TARGETARCH
@@ -27,6 +27,10 @@ RUN mkdir /opt/koko/release \
 FROM debian:bullseye-slim
 ARG TARGETARCH
 ENV LANG=en_US.UTF-8
+
+LABEL org.opencontainers.image.source=https://github.com/jumpserver/koko
+LABEL org.opencontainers.image.description="JumpServer Koko"
+
 
 ARG DEPENDENCIES="                    \
         bash-completion               \

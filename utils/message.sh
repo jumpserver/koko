@@ -3,7 +3,7 @@
 BASE_DIR=$(cd $(dirname $0);pwd)
 PROJECT_DIR=$(dirname ${BASE_DIR})
 
-LANG="zh zh_Hant en ja pt_BR"
+LANG="zh zh_Hant en ja pt_BR ko ru es"
 DOMAIN=koko
 BIN=${PROJECT_DIR}/cmd/i18ntool/geni18n.go
 INPUT=pkg

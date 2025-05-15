@@ -269,7 +269,7 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 		return rest, fmt.Errorf("the provided reader does not implement io.ReaderAt")
 	}
 
-	if err1 := u.recorder.ChunkedRecord(fd.FTPLog, readerAt, 0, totalSize); err1 != nil {
+	if err1 := u.recorder.Record(fd.FTPLog, reader); err1 != nil {
 		logger.Errorf("Record file err: %s", err1)
 	}
 

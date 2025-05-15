@@ -4,7 +4,7 @@ import { manualChunksPlugin } from 'vite-plugin-webpackchunkname';
 import { defineConfig, loadEnv, ConfigEnv, UserConfig } from 'vite';
 
 import vue from '@vitejs/plugin-vue';
-import tailwindcss from 'tailwindcss';
+import tailwindcss from '@tailwindcss/vite';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import Components from 'unplugin-vue-components/vite';
 import viteCompression from 'vite-plugin-compression';
@@ -18,17 +18,17 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
     const env = loadEnv(mode, root);
 
     return {
-        plugins: [vue(), vueJsx(), manualChunksPlugin(), Components({ dts: true, resolvers: [NaiveUiResolver()] })],
+        plugins: [
+            vue(), 
+            vueJsx(), 
+            tailwindcss(), 
+            manualChunksPlugin(), 
+            Components({ dts: true, resolvers: [NaiveUiResolver()] })
+        ],
         resolve: {
-            extensions: ['.js', '.ts', '.vue', '.json'],
+            extensions: ['.js', '.ts', '.tsx', '.vue', '.json'],
             alias: {
                 '@': pathResolve('src')
-            }
-        },
-        css: {
-            postcss: {
-                // @ts-ignore
-                plugins: [tailwindcss]
             }
         },
         base: env.VITE_PUBLIC_PATH,

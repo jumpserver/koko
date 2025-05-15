@@ -12,7 +12,12 @@ import mittBus from '@/utils/mittBus.ts';
 import type { Ref } from 'vue';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
-import type { IFileManage, IFileManageConnectData, IFileManageSftpFileItem } from '@/hooks/interface';
+import type {
+  FileManage,
+  FileManageConnectData,
+  FileManageSftpFileItem,
+  FileSendData
+} from '@/types/modules/file.type';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -91,7 +96,7 @@ export const refresh = (socket: WebSocket, path: string) => {
  * @param id
  * @param socket
  */
-const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: string, socket: WebSocket) => {
+const handleSocketConnectEvent = (messageData: FileManageConnectData, id: string, socket: WebSocket) => {
   const sendData = {
     path: ''
   };
@@ -112,7 +117,7 @@ const handleSocketConnectEvent = (messageData: IFileManageConnectData, id: strin
  * @description 设置文件信息 table
  * @param messageData
  */
-const handleSocketSftpData = (messageData: IFileManageSftpFileItem[]) => {
+const handleSocketSftpData = (messageData: FileManageSftpFileItem[]) => {
   const fileManageStore = useFileManageStore();
 
   // 初始化时保存初始路径
@@ -196,7 +201,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
   };
 
   socket.onmessage = (event: MessageEvent) => {
-    const message: IFileManage = JSON.parse(event.data);
+    const message: FileManage = JSON.parse(event.data);
 
     fileManageStore.setMessageId(message.id);
     fileManageStore.setCurrentPath(message.current_path);
@@ -247,10 +252,16 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
           fileManageStore.setReceived(true);
+
+          globalTipsMessage.success(t('UploadSuccess'));
+
+          mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'download' && message.data) {
-          const blob: Blob = new Blob(receivedBuffers, { type: 'application/octet-stream' });
+          const blob: Blob = new Blob(receivedBuffers, {
+            type: 'application/octet-stream'
+          });
 
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -469,14 +480,18 @@ const generateUploadChunks = async (
   onError: (() => void) | null = null
 ) => {
   const fileManageStore = useFileManageStore();
-
-  const sendData = {
+  let sendData: FileSendData = {
     offSet: 0,
-    merge: isSingleChunk,
-    chunk: !isSingleChunk,
     size: fileInfo.file?.size,
     path: `${fileManageStore.currentPath}/${fileInfo.name}`
   };
+
+  if (isSingleChunk) {
+    sendData.chunk = false;
+  } else {
+    sendData.merge = isSingleChunk;
+    sendData.chunk = !isSingleChunk;
+  }
 
   const sendBody = {
     cmd: 'upload',
@@ -542,12 +557,15 @@ const handleFileUpload = async (
   _onProgress: any,
   onFinish: () => void,
   onError: () => void,
-  t: any
+  t: any,
+  externalLoadingMessage?: any
 ) => {
   const maxSliceCount = 100;
   const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
-  const loadingMessage = globalTipsMessage.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
+
+  // prettier-ignore
+  const loadingMessage = externalLoadingMessage || globalTipsMessage.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
 
   // 确保开始新的上传任务时重置中断状态
   uploadInterrupt.value = false;
@@ -684,14 +702,16 @@ export const useFileManage = (token: string, t: any) => {
         uploadFileList,
         onFinish,
         onError,
-        onProgress
+        onProgress,
+        loadingMessage
       }: {
         uploadFileList: Ref<Array<UploadFileInfo>>;
         onFinish: () => void;
         onError: () => void;
         onProgress: (e: { percent: number }) => void;
+        loadingMessage?: any;
       }) => {
-        handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t);
+        handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t, loadingMessage);
       }
     );
 
@@ -700,33 +720,30 @@ export const useFileManage = (token: string, t: any) => {
       handleFileDownload(<WebSocket>socket, path, is_dir, t);
     });
 
-    mittBus.on(
-      'file-manage',
-      ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
-        switch (type) {
-          case ManageTypes.CREATE: {
-            handleFileCreate(<WebSocket>socket, path);
-            break;
-          }
-          case ManageTypes.CHANGE: {
-            handleChangePath(<WebSocket>socket, path);
-            break;
-          }
-          case ManageTypes.REFRESH: {
-            refresh(<WebSocket>socket, path);
-            break;
-          }
-          case ManageTypes.RENAME: {
-            handleFileRename(<WebSocket>socket, path, new_name!);
-            break;
-          }
-          case ManageTypes.REMOVE: {
-            handleFileRemove(<WebSocket>socket, path);
-            break;
-          }
+    mittBus.on('file-manage', ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
+      switch (type) {
+        case ManageTypes.CREATE: {
+          handleFileCreate(<WebSocket>socket, path);
+          break;
+        }
+        case ManageTypes.CHANGE: {
+          handleChangePath(<WebSocket>socket, path);
+          break;
+        }
+        case ManageTypes.REFRESH: {
+          refresh(<WebSocket>socket, path);
+          break;
+        }
+        case ManageTypes.RENAME: {
+          handleFileRename(<WebSocket>socket, path, new_name!);
+          break;
+        }
+        case ManageTypes.REMOVE: {
+          handleFileRemove(<WebSocket>socket, path);
+          break;
         }
       }
-    );
+    });
 
     mittBus.on('stop-upload', ({ fileInfo }: { fileInfo: UploadFileInfo }) => {
       interraptUpload(<WebSocket>socket, fileInfo);

@@ -3,8 +3,7 @@ import type { ILunaConfig } from '@/hooks/interface';
 
 import { Terminal } from '@xterm/xterm';
 import { useDebounceFn } from '@vueuse/core';
-import { useLogger } from '@/hooks/useLogger.ts';
-import { formatMessage, handleError, sendEventToLuna } from '@/components/TerminalComponent/helper';
+import { sendEventToLuna, formatMessage } from '@/utils';
 
 // 引入 Store
 import { useTreeStore } from '@/store/modules/tree.ts';
@@ -21,7 +20,6 @@ import mittBus from '@/utils/mittBus.ts';
 import * as clipboard from 'clipboard-polyfill';
 import { BASE_WS_URL, MaxTimeout } from '@/config';
 
-const { info } = useLogger('Hook Helper');
 const { message } = createDiscreteApi(['message']);
 
 /**
@@ -38,7 +36,7 @@ export const handleContextMenu = async (
   config: ILunaConfig,
   socket: WebSocket,
   terminalId: string,
-  termSelectionText: string,
+  termSelectionText: string
 ) => {
   if (e.ctrlKey || config.quickPaste !== '1') return;
 
@@ -50,7 +48,7 @@ export const handleContextMenu = async (
     if (termSelectionText !== '') text = termSelectionText;
   }
   e.preventDefault();
-  
+
   socket.send(formatMessage(terminalId, 'TERMINAL_DATA', text));
 };
 
@@ -71,8 +69,6 @@ export const handleTerminalResize = (
   socket: WebSocket
 ) => {
   let data;
-
-  info('Send Term Resize');
 
   const treeStore = useTreeStore();
   const { currentNode } = storeToRefs(treeStore);
@@ -99,9 +95,8 @@ export const handleTerminalResize = (
   socket.send(formatMessage(terminalId, eventType, data));
 };
 
-// 将防抖函数移到外部，确保只创建一次
 const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: string) => {
-  console.log('key')
+  console.log('key');
   switch (key) {
     case 'ArrowRight':
       sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
@@ -120,12 +115,7 @@ const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: s
  * @param lunaId
  * @param origin
  */
-export const handleCustomKey = (
-  e: KeyboardEvent,
-  terminal: Terminal,
-  lunaId: string,
-  origin: string
-): boolean => {
+export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal, lunaId: string, origin: string): boolean => {
   if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
     if (lunaId && origin) {
       debouncedSwitchTab(lunaId, origin, e.key);
@@ -256,7 +246,6 @@ export const onWebsocketOpen = (
     let currentDate: Date = new Date();
 
     if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
-      message.info('More than 30s do not receive data');
     }
 
     let pingTimeout: number = currentDate.getTime() - lastSendTime.getTime();
@@ -349,7 +338,6 @@ export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal
   }
 
   fireEvent(new Event('CLOSE', {}));
-  handleError(event);
 };
 
 /**
@@ -366,4 +354,26 @@ export const base64ToUint8Array = (base64: string): Uint8Array => {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+};
+
+/**
+ * @description 更新网页图标。
+ *
+ * @param {any} setting - 包含 LOGO_URLS 配置的设置对象。
+ */
+export const updateIcon = (setting: any) => {
+  const faviconURL = setting.INTERFACE.favicon;
+
+  let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+
+  if (!link) {
+    link = document.createElement('link') as HTMLLinkElement;
+    link.type = 'image/x-icon';
+    link.rel = 'shortcut icon';
+    document.getElementsByTagName('head')[0].appendChild(link);
+  }
+
+  if (faviconURL) {
+    link.href = faviconURL;
+  }
 };

@@ -169,15 +169,28 @@
                 return "";
             }
             var kokoLang = getCookieByName("django_language");
-            if ( kokoLang.startsWith("en")) {
-                document.title = "File explorer"
-            }else if (kokoLang.startsWith("ja")) {
-                document.title = "ファイル管理"
-            }else if (kokoLang.startsWith("pt")) {
-                document.title = "Arquivo gerenciar"
-            } else {
-                document.title = "文件管理"
+            if (kokoLang === "") {
+                kokoLang =(navigator.browserLanguage || navigator.language || navigator.userLanguage || "en");
             }
+            
+            const titles = {
+                'en': 'File explorer',
+                'ja': 'ファイル管理',
+                'pt': 'Arquivo gerenciar',
+                'zh': '文件管理',
+                'ko': '파일 탐색기',
+                'fr': 'Explorateur de fichiers',
+                'ru': 'Файловый менеджер',
+                'es': 'Explorador de archivos',
+            };
+            
+            let langKey = 'en'; // Default to English
+            if (kokoLang) {
+                const lang = kokoLang.toLowerCase().substring(0, 2);
+                langKey = Object.keys(titles).includes(lang) ? lang : 'en';
+            }
+            
+            document.title = titles[langKey];
 	    	var load = function () {
                 var loct = window.location.search;
 		        var full_lng, locm, lng;

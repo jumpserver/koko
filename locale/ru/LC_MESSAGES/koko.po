@@ -1,0 +1,598 @@
+msgid ""
+msgstr ""
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: xgotext\n"
+
+#. lang.T
+#: pkg/handler/app_database.go:11
+msgid "No Databases"
+msgstr "Нет баз данных"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:15
+msgid "No kubernetes"
+msgstr "Нет Kubernetes"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:31
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "Страница: %d, Количество: %d, Всего страниц: %d, Всего записей: %d"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:45
+msgid ""
+"Enter ID number directly login, multiple search use // + field, such as: //16"
+msgstr ""
+"Подсказка: введите ID ресурса для прямого входа; для расширенного поиска "
+"используйте // + поле, например: //192"
+
+#. lang.T
+#: pkg/handler/app_k8s.go:46
+msgid "Page up: b\tPage down: n"
+msgstr "Предыдущая страница: b  Следующая страница: n"
+
+#. lang.T
+#: pkg/handler/asset.go:43
+msgid "No Assets"
+msgstr "Нет активов"
+
+#. lang.T
+#: pkg/handler/asset.go:55
+msgid "ID"
+msgstr "ID"
+
+#. lang.T
+#: pkg/handler/asset.go:56
+msgid "Name"
+msgstr "Название"
+
+#. lang.T
+#: pkg/handler/asset.go:57
+msgid "Address"
+msgstr "Адрес"
+
+#. lang.T
+#: pkg/handler/asset.go:58
+msgid "Platform"
+msgstr "Платформа"
+
+#. lang.T
+#: pkg/handler/asset.go:59
+msgid "Organization"
+msgstr "Организация"
+
+#. lang.T
+#: pkg/handler/asset.go:60
+msgid "Comment"
+msgstr "Примечание"
+
+#. lang.T
+#: pkg/handler/asset.go:174
+msgid "%s protocol client not installed."
+msgstr "Клиент протокола %s не установлен."
+
+#. lang.T
+#: pkg/handler/asset.go:177
+msgid ""
+"Terminal does not support protocol %s, please use web terminal to access"
+msgstr ""
+"Терминал не поддерживает протокол %s. Пожалуйста, используйте веб-терминал."
+
+#. lang.T
+#: pkg/handler/asset.go:211
+msgid "Core API failed"
+msgstr "Ошибка основного API"
+
+#. lang.T
+#: pkg/handler/asset.go:217
+msgid "ACL reject"
+msgstr "Вход в систему отклонен из-за ограничений в политике контроля доступа."
+
+#. lang.T
+#: pkg/handler/asset.go:223
+msgid ""
+"Face ACL is not supported yet. Please use the WebTerminal to connect the "
+"asset."
+msgstr ""
+"Данный терминал не поддерживает правила доступа по лицу. Для входа "
+"используйте веб-терминал."
+
+#. lang.T
+#. lang.T
+#: pkg/handler/asset.go:238 pkg/handler/asset.go:247
+msgid "Unknown error code: %s, detail: %s"
+msgstr "Неизвестный код ошибки: %s, детали: %s"
+
+#. lang.T
+#: pkg/handler/asset.go:258
+msgid "get connect token err"
+msgstr "Ошибка получения токена подключения."
+
+#. lang.T
+#: pkg/handler/asset_node.go:22
+msgid "%s node has no assets"
+msgstr "У узла %s нет активов."
+
+#. lang.T
+#: pkg/handler/banner.go:30
+msgid "Welcome to use JumpServer open source fortress system"
+msgstr ""
+"Добро пожаловать в JumpServer — систему управления безопасным доступом с "
+"открытым исходным кодом."
+
+#. lang.T
+#: pkg/handler/banner.go:32
+msgid "part IP, Hostname, Comment"
+msgstr "Частичный IP, имя хоста, примечание"
+
+#. lang.T
+#: pkg/handler/banner.go:32
+msgid "to search login if unique"
+msgstr "Поиск для входа (если единственный результат)"
+
+#. lang.T
+#: pkg/handler/banner.go:33
+msgid "/ + IP, Hostname, Comment"
+msgstr "/ + IP, имя хоста, примечание"
+
+#. lang.T
+#: pkg/handler/banner.go:33
+msgid "to search, such as: /192.168"
+msgstr "Поиск, например: /192.168"
+
+#. lang.T
+#: pkg/handler/banner.go:34
+msgid "display the assets you have permission"
+msgstr "Показать активы, к которым у вас есть доступ"
+
+#. lang.T
+#: pkg/handler/banner.go:35
+msgid "display the node that you have permission"
+msgstr "Показать узлы, к которым у вас есть доступ"
+
+#. lang.T
+#: pkg/handler/banner.go:36
+msgid "display the hosts that you have permission"
+msgstr "Показать хосты, к которым у вас есть доступ"
+
+#. lang.T
+#: pkg/handler/banner.go:37
+msgid "display the databases that you have permission"
+msgstr "Показать базы данных, к которым у вас есть доступ"
+
+#. lang.T
+#: pkg/handler/banner.go:38
+msgid "display the kubernetes that you have permission"
+msgstr "Показать Kubernetes, к которому у вас есть доступ"
+
+#. lang.T
+#: pkg/handler/banner.go:39
+msgid "refresh your assets and nodes"
+msgstr "Обновить информацию о машинах и узлах"
+
+#. lang.T
+#: pkg/handler/banner.go:40
+msgid "language switch"
+msgstr "Смена языка"
+
+#. lang.T
+#: pkg/handler/banner.go:41
+msgid "print help"
+msgstr "Показать справку"
+
+#. lang.T
+#: pkg/handler/banner.go:42
+msgid "exit"
+msgstr "Выход"
+
+#. lang.T
+#: pkg/handler/banner.go:60
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr "\t%2d) Введите {{.GreenBoldColor}}%s{{.ColorEnd}}, чтобы %s.%s"
+
+#. lang.T
+#: pkg/handler/banner.go:85
+msgid "Announcement: "
+msgstr "Объявление: "
+
+#. lang.T
+#: pkg/handler/direct_handler.go:272
+msgid "No Account found."
+msgstr "Аккаунт не найден"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:282 pkg/handler/direct_handler.go:283
+#: pkg/handler/direct_handler.go:284
+msgid "Username"
+msgstr "имя пользователя"
+
+#. lang.T
+#: pkg/handler/direct_handler.go:313
+msgid "Tips: Enter asset[%s] account ID"
+msgstr "Совет: введите идентификатор учетной записи актива [%s]"
+
+#. lang.T
+#: pkg/handler/direct_handler.go:314
+msgid "Back: B/b"
+msgstr "Возвращение: ночлег и завтрак"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
+msgid "Hostname"
+msgstr "Имя хоста"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
+#: pkg/handler/direct_handler.go:381
+msgid "select one asset to login"
+msgstr "Выберите один из активов для входа"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:395 pkg/handler/direct_handler.go:400
+msgid "not found matched username %s"
+msgstr "Не найдено подходящего имени пользователя для %s"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
+#: pkg/handler/direct_handler.go:445
+msgid ""
+"Face verification is not supported yet. Please use the WebTerminal to "
+"connect the asset."
+msgstr ""
+"Данный терминал не поддерживает аутентификацию по распознаванию лиц. Для "
+"входа используйте веб-терминал."
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
+#: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
+#: pkg/handler/dispatch.go:153
+msgid "Tips: switch language by ID"
+msgstr "Совет: введите идентификатор, чтобы переключить язык."
+
+#. lang.T
+#. lang.T
+#: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
+msgid "Invalid ID"
+msgstr "Неверный идентификатор"
+
+#. lang.T
+#: pkg/handler/dispatch.go:186
+msgid "Switch language successfully"
+msgstr "Переключение языка прошло успешно"
+
+#. lang.T
+#: pkg/handler/dispatch.go:197
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr "Узел: [ID.Имя(Количество Активов)]"
+
+#. lang.T
+#: pkg/handler/dispatch.go:199
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr ""
+"Совет: введите g+node ID, чтобы отобразить хост под узлом, например: g1"
+
+#. lang.T
+#: pkg/handler/interactive.go:68
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr "Время простоя превышает %d минут, отключение"
+
+#. lang.T
+#: pkg/handler/interactive.go:202
+msgid "No account found."
+msgstr "Аккаунт не найден"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:212 pkg/handler/interactive.go:213
+#: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
+#: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
+msgid "Select account exceed max retry times."
+msgstr ""
+"Выберите учетную запись, которая превышает максимальное количество попыток"
+
+#. lang.T
+#: pkg/handler/interactive.go:282
+msgid "No protocol found."
+msgstr "Нет соглашения"
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
+msgid "Protocol"
+msgstr "протокол"
+
+#. lang.T
+#: pkg/handler/interactive.go:319
+msgid "Tips: Enter protocol ID"
+msgstr "Совет: введите идентификатор протокола."
+
+#. lang.T
+#. lang.T
+#: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
+msgid "Select protocol exceed max retry times."
+msgstr "Выбранный протокол превышает максимальное количество повторных попыток"
+
+#. lang.T
+#: pkg/handler/interactive.go:383
+msgid "Refresh done"
+msgstr "Обновить завершено"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:38
+msgid "Need ACL review, continue? (y/n): "
+msgstr "Требуется проверка, продолжить? (y/n): "
+
+#. lang.T
+#: pkg/handler/login_confirm.go:53
+msgid "Cancel to login asset or max 3 retry"
+msgstr "Вход в актив отменён или превышено число попыток (3)."
+
+#. lang.T
+#. lang.T
+#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr ""
+"Для проверки рабочего задания необходимо войти в систему, а проверяющий "
+"должен быть уведомлен по электронной почте."
+
+#. lang.T
+#: pkg/handler/login_confirm.go:99
+msgid "Ticket Reviewers: %s"
+msgstr "Рецензент рабочего заказа: %s"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:100
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "Вы можете скопировать адрес аудита и уведомить аудитора: %s"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:101
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr ""
+"Дождитесь, пока проверяющий проверит и подтвердит, нажмите q, чтобы отменить "
+"вход."
+
+#. lang.T
+#: pkg/handler/login_confirm.go:130
+msgid "Unknown status"
+msgstr "Неизвестный статус"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:134
+msgid "%s approved"
+msgstr "%s одобрено"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:139
+msgid "%s rejected"
+msgstr "%s отклонено"
+
+#. lang.T
+#: pkg/handler/login_confirm.go:143
+msgid "Cancel confirm"
+msgstr "Отменить проверку входа"
+
+#. lang.T
+#: pkg/handler/select_handler.go:201
+msgid "Search: %s"
+msgstr "Поиск: %s"
+
+#. i18n.T
+#: pkg/handler/server_ssh.go:222
+msgid "Must be unique asset for %s"
+msgstr "Актив %s должен быть уникальным"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
+msgid "Must be unique account for %s"
+msgstr "Аккаунт %s должен быть уникальным"
+
+#. i18n.T
+#: pkg/handler/server_ssh.go:259
+msgid "Must be auto login account for %s"
+msgstr "Аккаунт %s должен поддерживать авто-вход"
+
+#. i18n.T
+#. i18n.T
+#: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
+msgid "No found asset"
+msgstr "Не найден актив, соответствующий %s"
+
+#. i18n.T
+#. i18n.T
+#. i18n.T
+#. lang.T
+#: pkg/handler/server_ssh.go:713 pkg/handler/server_ssh.go:718
+#: pkg/handler/server_ssh.go:736 pkg/proxy/parser.go:230
+msgid "have no permission to upload file"
+msgstr "Нет прав на загрузку файла"
+
+#. lang.T
+#: pkg/proxy/parser.go:266
+msgid ""
+"The command you executed is risky and an alert notification will be sent to "
+"the administrator. Do you want to continue?[Y/N]"
+msgstr ""
+"Выполняемая вами команда рискованна, уведомление будет отправлено "
+"администратору. Продолжить? [Y/N]"
+
+#. lang.T
+#: pkg/proxy/parser.go:283
+msgid "The command '%s' requires review. Continue or not [Y/n]?"
+msgstr "Команда %s требует проверки. Продолжить? [Y/N]"
+
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
+msgid "Command `%s` is forbidden"
+msgstr "Команда `%s` запрещена ..."
+
+#. lang.T
+#: pkg/proxy/parser.go:534
+msgid "have no permission to download file"
+msgstr "Нет прав на скачивание файла"
+
+#. lang.T
+#: pkg/proxy/parser.go:606
+msgid ""
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
+"or CTRL+D."
+msgstr ""
+"Пожалуйста, дождитесь проверки команды `%s` проверяющим, для отмены нажмите "
+"CTRL+C или CTRL+D."
+
+#. lang.T
+#: pkg/proxy/parser.go:616
+msgid ""
+"Need ticket confirm to execute command, already send email to the reviewers"
+msgstr ""
+"Для выполнения команды требуется проверка через заявку, уведомление "
+"отправлено проверяющему по электронной почте."
+
+#. lang.T
+#. lang.T
+#. lang.T
+#. lang.T
+#: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
+#: pkg/proxy/server.go:62
+msgid ""
+"HandleTask does not support protocol %s, please use web terminal to access"
+msgstr ""
+"Терминал не поддерживает протокол %s. Пожалуйста, используйте веб-терминал."
+
+#. lang.T
+#: pkg/proxy/server.go:70
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
+msgstr "Протокол системного пользователя <%s> и ресурса <%s> не совпадает."
+
+#. lang.T
+#: pkg/proxy/server.go:102
+msgid "You don't have permission login %s"
+msgstr "У вас нет прав для входа в %s"
+
+#. lang.T
+#: pkg/proxy/server.go:334
+msgid "You get auth token failed"
+msgstr "Не удалось получить токен аутентификации"
+
+#. lang.T
+#: pkg/proxy/server.go:345
+msgid "Get auth password failed"
+msgstr "Вам не удалось получить токен аутентификации"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:361 pkg/proxy/server.go:418
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr ""
+"Повторное использование SSH-подключений (%s@%s) [Количество подключений: %d]"
+
+#. lang.T
+#: pkg/proxy/server.go:674
+msgid "Switched to %s"
+msgstr "Переключено на %s"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:771 pkg/proxy/server.go:916
+msgid "Connect with api server failed"
+msgstr "Соединение прервано администратором %s"
+
+#. lang.T
+#: pkg/proxy/server.go:977
+msgid "Start domain gateway failed %s"
+msgstr "Не удалось запустить шлюз баз данных %s"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
+msgid "Manual"
+msgstr "Ручная учетная запись"
+
+#. lang.T
+#: pkg/proxy/server_options.go:110
+msgid "Dynamic"
+msgstr "Динамическая учетная запись"
+
+#. lang.T
+#: pkg/proxy/server_options.go:113
+msgid "Connecting to %s@%s"
+msgstr "Подключение к %s@%s"
+
+#. lang.T
+#: pkg/proxy/server_options.go:117
+msgid "Connecting to Database %s"
+msgstr "Подключение к базе данных %s"
+
+#. lang.T
+#: pkg/proxy/server_options.go:119
+msgid "Connecting to Kubernetes %s"
+msgstr "Подключение к Kubernetes %s"
+
+#. lang.T
+#: pkg/proxy/server_options.go:121
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "Подключение к контейнеру %s в Kubernetes %s"
+
+#. lang.T
+#: pkg/proxy/switch.go:328
+msgid "Session max time reached, disconnect"
+msgstr "Максимальное время сеанса истекло, отключение"
+
+#. lang.T
+#. lang.T
+#: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
+msgid "Permission has expired, disconnect"
+msgstr "Авторизация истекла, отключение"
+
+#. lang.T
+#: pkg/proxy/switch.go:354
+msgid "Terminated by admin %s"
+msgstr "%s Администратор разорвал соединение"
+
+#. lang.T
+#: pkg/proxy/tools.go:28
+msgid "Authentication failed"
+msgstr "Ошибка аутентификации (неправильное имя пользователя или пароль)"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
+msgid "Connection refused"
+msgstr "Сеть недоступна (отказ в подключении)"
+
+#. lang.T
+#: pkg/proxy/tools.go:34
+msgid "i/o timeout"
+msgstr "Сеть недоступна (превышено время ожидания)"
+
+#. lang.T
+#: pkg/proxy/tools.go:37
+msgid "No route to host"
+msgstr "Сеть недоступна (маршрут недоступен)"
+
+#. lang.T
+#: pkg/proxy/tools.go:40
+msgid "network is unreachable"
+msgstr "Сеть недоступна (сеть недостижима)"

@@ -1,6 +1,6 @@
 module github.com/jumpserver/koko
 
-go 1.22
+go 1.23.0
 
 require (
 	github.com/Azure/azure-storage-blob-go v0.6.0
@@ -10,8 +10,8 @@ require (
 	github.com/LeeEirc/terminalparser v0.0.0-20220328021224-de16b7643ea4
 	github.com/aliyun/aliyun-oss-go-sdk v2.2.7+incompatible
 	github.com/aws/aws-sdk-go v1.44.306
-	github.com/creack/pty v1.1.18
-	github.com/dlclark/regexp2 v1.10.0
+	github.com/creack/pty v1.1.24
+	github.com/dlclark/regexp2 v1.11.5
 	github.com/elastic/go-elasticsearch/v6 v6.8.5
 	github.com/elastic/go-elasticsearch/v8 v8.14.0
 	github.com/gin-gonic/gin v1.9.1
@@ -32,9 +32,9 @@ require (
 	github.com/spf13/viper v1.18.2
 	github.com/xlab/treeprint v1.1.0
 	go.mongodb.org/mongo-driver v1.8.3
-	golang.org/x/crypto v0.32.0
-	golang.org/x/term v0.28.0
-	golang.org/x/text v0.21.0
+	golang.org/x/crypto v0.38.0
+	golang.org/x/term v0.32.0
+	golang.org/x/text v0.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.23.1
 	k8s.io/apimachinery v0.23.1
@@ -111,10 +111,10 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20240529005216-23cca8864a10 // indirect
-	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.15.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

@@ -23,7 +23,11 @@ export const showToolTip = (option: TreeOption) => {
     },
     {
       trigger: () =>
-        h('span', { style: { display: 'inline-block', whiteSpace: 'nowrap' } }, customOption.label),
+        h(
+          'span',
+          { style: { display: 'inline-block', whiteSpace: 'nowrap' } },
+          customOption.label
+        ),
       default: () => customOption.label
     }
   );

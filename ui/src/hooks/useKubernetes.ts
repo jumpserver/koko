@@ -1,4 +1,3 @@
-import { formatMessage, updateIcon, sendEventToLuna } from '@/components/TerminalComponent/helper';
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { base64ToUint8Array, generateWsURL } from './helper';
@@ -10,6 +9,8 @@ import { readText } from 'clipboard-polyfill';
 import { useWebSocket } from '@vueuse/core';
 import { preprocessInput } from '@/utils';
 import { storeToRefs } from 'pinia';
+import { updateIcon } from '@/hooks/helper';
+import { sendEventToLuna, formatMessage } from '@/utils';
 
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 import { Cube24Regular } from '@vicons/fluent';
@@ -69,11 +70,7 @@ const guaranteeLunaConnection = () => {
       guaranteeInterval.value = setInterval(() => {
         counter.value++;
 
-        console.log(
-          '%c DEBUG [ Send Luna PING ]:',
-          'font-size:13px; background: #1ab394; color:#fff;',
-          counter.value
-        );
+        console.log('%c DEBUG [ Send Luna PING ]:', 'font-size:13px; background: #1ab394; color:#fff;', counter.value);
       }, 1000);
     } else {
       clearInterval(guaranteeInterval.value!);
@@ -331,10 +328,6 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         const share = sessionInfo.permission.actions.includes('share');
         const username = `${sessionDetail.user}`;
 
-        if (setting.value.SECURITY_WATERMARK_ENABLED) {
-          operatedNode.waterMarkContent = `${username}\n${sessionDetail.asset.split('(')[0]}`;
-        }
-
         if (sessionInfo.backspaceAsCtrlH) {
           const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
 
@@ -401,7 +394,10 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         const k8s_id: string = info.k8s_id;
 
         if (operatedNode.onlineUsersMap && operatedNode.onlineUsersMap[k8s_id]) {
-          operatedNode.onlineUsersMap[k8s_id].push({ k8s_id: info.k8s_id, ...data });
+          operatedNode.onlineUsersMap[k8s_id].push({
+            k8s_id: info.k8s_id,
+            ...data
+          });
           treeStore.setK8sIdMap(k8s_id, { ...operatedNode });
         } else {
           operatedNode.onlineUsersMap = {};
@@ -514,12 +510,7 @@ export const createConnect = (t: any) => {
  * @param lunaConfig
  * @param socket
  */
-export const initTerminalEvent = (
-  el: HTMLElement,
-  terminal: Terminal,
-  lunaConfig: ILunaConfig,
-  socket: WebSocket
-) => {
+export const initTerminalEvent = (el: HTMLElement, terminal: Terminal, lunaConfig: ILunaConfig, socket: WebSocket) => {
   let fitAddon: FitAddon = new FitAddon();
   let searchAddon: SearchAddon = new SearchAddon();
 
