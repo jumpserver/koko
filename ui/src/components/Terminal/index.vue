@@ -6,8 +6,8 @@
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { Terminal } from '@xterm/xterm';
-import { useWebSocket } from '@vueuse/core';
 import { onMounted, ref, watch } from 'vue';
+import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
 import { sendEventToLuna, formatMessage } from '@/utils';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
@@ -128,20 +128,14 @@ onMounted(() => {
     setShareCode(props.shareCode);
   }
 
-  // watchEffect(() => {
-  //   if (props.contentType && props.contentType === 'file-manager') {
-  //     sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
-  //   }
-  // });
-
-  // watch(
-  //   () => props.contentType,
-  //   (newValue, oldValue) => {
-  //     if (newValue && newValue !== oldValue && newValue === 'file-manager') {
-  //       sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
-  //     }
-  //   }
-  // );
+  watch(
+    () => props.contentType,
+    (type, oldType) => {
+      if (type && type === 'file-manager' && oldType) {
+        sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
+      }
+    }
+  );
   initializeSocketEvent(terminalInstance, socket.value, t);
 });
 </script>

@@ -26,7 +26,7 @@ import type { ContentType } from '@/types/modules/connection.type';
 const title = ref<string>('');
 const token = ref<string>('');
 const defaultProtocol = ref<string>('ssh');
-const contentType = ref<ContentType>('setting');
+const contentType = ref<ContentType>('');
 const showDrawer = ref<boolean>(false);
 
 const handleUpdateDrawer = (show: boolean, _title: string, _contentType: ContentType, _token?: string) => {
