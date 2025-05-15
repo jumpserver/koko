@@ -10,10 +10,10 @@ import { onMounted, ref, watch } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
 import { sendEventToLuna, formatMessage } from '@/utils';
+import { useFileManageStore } from '@/store/modules/fileManage';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-
 import { WINDOW_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/enum';
 
 import type { ContentType } from '@/types/modules/connection.type';
@@ -32,6 +32,7 @@ const props = defineProps<{
 const { t } = useI18n();
 const message = useMessage();
 const connectionStore = useConnectionStore();
+const fileManageStore = useFileManageStore();
 
 const socket = ref<WebSocket | ''>('');
 const terminal = ref<Terminal | null>(null);
@@ -131,6 +132,10 @@ onMounted(() => {
   watch(
     () => props.contentType,
     (type, oldType) => {
+      if (type === 'setting') {
+        return fileManageStore.setFileList([]);
+      }
+
       if (type && type === 'file-manager' && oldType) {
         sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
       }
