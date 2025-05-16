@@ -99,14 +99,14 @@
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="Refresh" class="icon-hover" @click="handleRefresh" />
+            <n-icon size="16" :component="Refresh" class="icon-hover cursor-pointer" @click="handleRefresh" />
           </template>
           {{ t('Refresh') }}
         </n-popover>
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="List" class="icon-hover" @click="handleOpenTransferList" />
+            <n-icon size="16" :component="List" class="icon-hover cursor-pointer" @click="handleOpenTransferList" />
           </template>
           {{ t('TransferHistory') }}
         </n-popover>
@@ -171,14 +171,7 @@ import mittBus from '@/utils/mittBus.ts';
 import { List } from '@vicons/ionicons5';
 import { Search } from 'lucide-vue-next';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
-import {
-  NButton,
-  NFlex,
-  NIcon,
-  NText,
-  UploadCustomRequestOptions,
-  useMessage
-} from 'naive-ui';
+import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
@@ -330,9 +323,7 @@ watch(
   () => searchValue.value,
   (newVal: string) => {
     if (newVal) {
-      dataList.value = fileManageStore.fileList!.filter(item =>
-        item.name.toLowerCase().includes(newVal.toLowerCase())
-      );
+      dataList.value = fileManageStore.fileList!.filter(item => item.name.toLowerCase().includes(newVal.toLowerCase()));
     } else {
       dataList.value = fileManageStore.fileList!;
     }
@@ -438,9 +429,7 @@ const handlePathForward = () => {
 
     if (forwardSegments.length > currentSegments.length) {
       // 移除多余的第一个路径段
-      const firstExtraSegment = forwardSegments.slice(
-        currentSegments.length
-      )[0];
+      const firstExtraSegment = forwardSegments.slice(currentSegments.length)[0];
 
       const newForwardPath = `${fileManageStore.currentPath}/${firstExtraSegment}`;
 
@@ -552,9 +541,7 @@ const modalPositiveClick = () => {
 /**
  * @description 文件上传
  */
-const handleUploadFileChange = (options: {
-  fileList: Array<UploadFileInfo>;
-}) => {
+const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) => {
   showInner.value = true;
 
   if (options.fileList.length > 0) {
@@ -570,11 +557,21 @@ const handleUploadFileChange = (options: {
  * @param onProgress
  */
 const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
+  // 创建loading消息
+  const loadingMessage = message.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
+
   mittBus.emit('file-upload', {
     uploadFileList,
-    onFinish,
-    onError,
-    onProgress
+    onFinish: () => {
+      onFinish();
+      loadingMessage.destroy();
+    },
+    onError: () => {
+      onError();
+      loadingMessage.destroy();
+    },
+    onProgress,
+    loadingMessage
   });
 };
 
@@ -636,10 +633,7 @@ const rowProps = (row: RowData) => {
           ? removeLastPathSegment(fileManageStore.currentPath)
           : '/';
 
-        if (
-          backPath === '/' &&
-          filePathList.value.findIndex(item => item.path === '/') === -1
-        ) {
+        if (backPath === '/' && filePathList.value.findIndex(item => item.path === '/') === -1) {
           fileManageStore.setCurrentPath('/');
         }
 

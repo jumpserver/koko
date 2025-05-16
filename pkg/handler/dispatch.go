@@ -122,8 +122,8 @@ func (h *InteractiveHandler) checkMaxIdleTime(checkChan <-chan bool) {
 func (h *InteractiveHandler) ChangeLang() {
 	lang := i18n.NewLang(h.i18nLang)
 	i18nLang := h.i18nLang
-	allLangCodes := []i18n.LanguageCode{i18n.EN, i18n.ZH, i18n.ZHHant, i18n.JA, i18n.PtBr}
-	langs := []string{"English", "中文", "繁體中文", "日本語", "Português"}
+	allLangCodes := i18n.AllCodes
+	langs := i18n.AllLangCodesStr
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
 	labels := []string{idLabel, nameLabel}

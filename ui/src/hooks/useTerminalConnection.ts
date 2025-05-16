@@ -11,9 +11,10 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, formatMessage, writeBufferToTerminal } from '@/utils';
-import { FormatterMessageType, MessageType, SendLunaMessageType, ZmodemActionType } from '@/enum';
+import { FORMATTER_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/enum';
 
 import type { Ref } from 'vue';
+import type { FitAddon } from '@xterm/addon-fit';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/hooks/interface';
 import type { OnlineUser } from '@/types/modules/user.type';
@@ -83,7 +84,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
       if (pingTimeout < 0) return;
 
-      socket.send(formatMessage('', FormatterMessageType.PING, ''));
+      socket.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
     }, 25 * 1000);
   };
   /**
@@ -98,7 +99,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
     let parsedMessageData = JSON.parse(data);
 
     switch (parsedMessageData.type) {
-      case MessageType.CLOSE: {
+      case MESSAGE_TYPE.CLOSE: {
         enableShare.value = false;
         onlineUsers.value = [];
 
@@ -109,19 +110,19 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         socket.close();
 
-        sendEventToLuna(SendLunaMessageType.CLOSE, '', lunaId.value, origin.value);
+        sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.CLOSE, '', lunaId.value, origin.value);
         break;
       }
-      case MessageType.ERROR: {
+      case MESSAGE_TYPE.ERROR: {
         terminal.write(parsedMessageData.err);
 
-        sendEventToLuna(SendLunaMessageType.TERMINAL_ERROR, '', lunaId.value, origin.value);
+        sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '', lunaId.value, origin.value);
         break;
       }
-      case MessageType.PING: {
+      case MESSAGE_TYPE.PING: {
         break;
       }
-      case MessageType.CONNECT: {
+      case MESSAGE_TYPE.CONNECT: {
         terminalId.value = parsedMessageData.id;
 
         connectionStore.setConnectionState(terminalId.value, {
@@ -149,19 +150,25 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         updateIcon(info.setting);
 
-        socket.send(formatMessage(terminalId.value, FormatterMessageType.TERMINAL_INIT, JSON.stringify(terminalData)));
+        socket.send(
+          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
+        );
         break;
       }
-      case MessageType.MESSAGE_NOTIFY: {
+      case MESSAGE_TYPE.TERMINAL_ERROR: {
+        terminal.write(parsedMessageData.err);
+        break;
+      }
+      case MESSAGE_TYPE.MESSAGE_NOTIFY: {
         const eventName = JSON.parse(parsedMessageData.data).event_name;
 
         if (eventName === 'sync_user_preference') {
-          message.success(t('主题同步成功'));
+          message.success(t('ThemeSyncSuccessful'));
         }
 
         break;
       }
-      case MessageType.TERMINAL_SHARE: {
+      case MESSAGE_TYPE.TERMINAL_SHARE: {
         const data = JSON.parse(parsedMessageData.data);
 
         console.log('TERMINAL_SHARE', data);
@@ -175,15 +182,15 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         break;
       }
-      case MessageType.TERMINAL_ACTION: {
+      case MESSAGE_TYPE.TERMINAL_ACTION: {
         const actionType = parsedMessageData.data;
 
         switch (actionType) {
-          case ZmodemActionType.ZMODEM_START: {
+          case ZMODEM_ACTION_TYPE.ZMODEM_START: {
             zmodemTransferStatus.value = true;
             break;
           }
-          case ZmodemActionType.ZMODEM_END: {
+          case ZMODEM_ACTION_TYPE.ZMODEM_END: {
             terminal.write('\r\n');
             break;
           }
@@ -193,7 +200,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
         }
         break;
       }
-      case MessageType.TERMINAL_SESSION: {
+      case MESSAGE_TYPE.TERMINAL_SESSION: {
         const sessionInfo = JSON.parse(parsedMessageData.data);
         const sessionDetail = sessionInfo.session;
 
@@ -227,7 +234,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         break;
       }
-      case MessageType.TERMINAL_SHARE_JOIN: {
+      case MESSAGE_TYPE.TERMINAL_SHARE_JOIN: {
         const data = JSON.parse(parsedMessageData.data);
 
         // data 中如果 primary 为 true 则表示是当前用户
@@ -243,12 +250,12 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         break;
       }
-      case MessageType.TERMINAL_PERM_VALID: {
+      case MESSAGE_TYPE.TERMINAL_PERM_VALID: {
         clearInterval(warningInterval.value!);
         message.info(`${t('PermissionValid')}`);
         break;
       }
-      case MessageType.TERMINAL_SHARE_LEAVE: {
+      case MESSAGE_TYPE.TERMINAL_SHARE_LEAVE: {
         const data: OnlineUser = JSON.parse(parsedMessageData.data);
 
         const index = onlineUsers.value.findIndex(item => item.user_id === data.user_id && !item.primary);
@@ -264,7 +271,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
         }
         break;
       }
-      case MessageType.TERMINAL_PERM_EXPIRED: {
+      case MESSAGE_TYPE.TERMINAL_PERM_EXPIRED: {
         const data = JSON.parse(parsedMessageData.data);
         const warningMsg = `${t('PermissionExpired')}: ${data.detail}`;
 
@@ -275,13 +282,13 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
         }, 1000 * 60);
         break;
       }
-      case MessageType.TERMINAL_SESSION_PAUSE: {
+      case MESSAGE_TYPE.TERMINAL_SESSION_PAUSE: {
         const data = JSON.parse(parsedMessageData.data);
 
         message.info(`${data.user} ${t('PauseSession')}`);
         break;
       }
-      case MessageType.TERMINAL_GET_SHARE_USER: {
+      case MESSAGE_TYPE.TERMINAL_GET_SHARE_USER: {
         userOptions.value = JSON.parse(parsedMessageData.data);
 
         connectionStore.updateConnectionState(terminalId.value, {
@@ -290,13 +297,13 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         break;
       }
-      case MessageType.TERMINAL_SESSION_RESUME: {
+      case MESSAGE_TYPE.TERMINAL_SESSION_RESUME: {
         const data = JSON.parse(parsedMessageData.data);
 
         message.info(`${data.user} ${t('ResumeSession')}`);
         break;
       }
-      case MessageType.TERMINAL_SHARE_USER_REMOVE: {
+      case MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE: {
         message.info(t('RemoveShareUser'));
         socket.close();
         break;
@@ -342,7 +349,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
   const getShareUser = (socket: WebSocket, query: any): Promise<ShareUserOptions[]> => {
     return new Promise(resolve => {
       socket.send(
-        formatMessage(terminalId.value, FormatterMessageType.TERMINAL_GET_SHARE_USER, JSON.stringify({ query }))
+        formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_GET_SHARE_USER, JSON.stringify({ query }))
       );
 
       watch(
@@ -354,6 +361,25 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
       );
     });
   };
+
+  /**
+   * @description 终端 resize 事件
+   * @param terminalInstance
+   * @param socket
+   */
+  const terminalResizeEvent = (terminalInstance: Terminal, socket: WebSocket, fitAddon: FitAddon) => {
+    if (!socket) {
+      return;
+    }
+
+    terminalInstance.onResize(({ cols, rows }) => {
+      fitAddon.fit();
+
+      const resizeData = JSON.stringify({ cols, rows });
+      socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
+    });
+  };
+
   /**
    * @description 初始化 socket 事件
    * @param terminal
@@ -368,10 +394,15 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
       heartBeat(socket);
     };
     socket.onclose = () => {
-      terminal.write('\x1b[31mConnection Websocket Has Been Closed\x1b[0m');
+      terminal.write('\r\n');
+      terminal.write('\r\n');
+      terminal.write('\x1b[31mConnection websocket has been closed\x1b[0m');
     };
     socket.onerror = () => {
-      terminal.write('\x1b[31mConnection Websocket Error Occurred\x1b[0m');
+      // terminal.write('\x1b[31mConnection Websocket Error Occurred\x1b[0m');
+      // 换行
+      // terminal.write('\r\n');
+      // terminal.write('\r\n');
     };
     socket.onmessage = (event: MessageEvent) => {
       lastReceiveTime.value = new Date();
@@ -390,13 +421,14 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
       sendEventToLuna('KEYBOARDEVENT', '');
 
-      socket.send(formatMessage(terminalId.value, FormatterMessageType.TERMINAL_DATA, processedData));
+      socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
     });
   };
 
   return {
     getShareUser,
     setShareCode,
+    terminalResizeEvent,
     initializeSocketEvent
   };
 };

@@ -10,12 +10,18 @@ const (
 	JA     LanguageCode = "ja"
 	ZHHant LanguageCode = "zh_Hant"
 	PtBr   LanguageCode = "pt_BR"
+	Ko     LanguageCode = "ko"
+	Ru     LanguageCode = "ru"
+	Es     LanguageCode = "es"
 )
 
 var (
 	langMap = make(map[LanguageCode]*gotext.Locale)
 
-	allLangCodes = []LanguageCode{ZH, EN, JA, ZHHant, PtBr}
+	allLangCodes = []LanguageCode{ZH, EN, JA, ZHHant, PtBr, Ko, Ru, Es}
+
+	AllLangCodesStr = []string{"English", "中文", "繁體中文", "日本語", "Português", "한국어", "Русский", "Español"}
+	AllCodes        = []LanguageCode{EN, ZH, ZHHant, JA, PtBr, Ko, Ru, Es}
 )
 
 var i18nCodeMap = map[string]LanguageCode{
@@ -30,6 +36,9 @@ var i18nCodeMap = map[string]LanguageCode{
 	"zh-hans": ZH,
 	"zh-hant": ZHHant,
 	"zh_hant": ZHHant,
+	"ru":      Ru,
+	"ko":      Ko,
+	"es":      Es,
 }
 
 type LanguageCode string

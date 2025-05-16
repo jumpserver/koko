@@ -10,7 +10,7 @@ import { ref, computed, nextTick, watch } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { formatMessage } from '@/utils';
 import { FitAddon } from '@xterm/addon-fit';
-import { FormatterMessageType } from '@/enum';
+import { FORMATTER_MESSAGE_TYPE } from '@/enum';
 import { SearchAddon } from '@xterm/addon-search';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
@@ -67,23 +67,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
       await writeText(terminalSelectionText.value);
     });
   };
-  /**
-   * @description 终端 resize 事件
-   * @param terminalId
-   * @returns
-   */
-  const terminalResizeEvent = (terminalId: string) => {
-    if (!socket) {
-      return;
-    }
 
-    terminalInstance.value?.onResize(({ cols, rows }) => {
-      fitAddon.fit();
-
-      const resizeData = JSON.stringify({ cols, rows });
-      socket.send(formatMessage(terminalId, FormatterMessageType.TERMINAL_RESIZE, resizeData));
-    });
-  };
   /**
    * @description 初始化元素事件
    * @param el
@@ -115,7 +99,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
           return;
         }
 
-        conn.socket.send(formatMessage(conn.terminalId || '', FormatterMessageType.TERMINAL_DATA, text));
+        conn.socket.send(formatMessage(conn.terminalId || '', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
       },
       false
     );
@@ -148,13 +132,6 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
     initializeElementEvent(el);
     initializeTerminalEvent(terminalInstance.value);
 
-    window.addEventListener(
-      'resize',
-      useDebounceFn(() => {
-        fitAddon.fit();
-      }, 500)
-    );
-
     // 终端的实际 open 交由组件控制
     return terminalInstance.value;
   };
@@ -170,8 +147,8 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
   };
 
   return {
+    fitAddon,
     setTerminalTheme,
-    terminalResizeEvent,
     createTerminalInstance
   };
 };

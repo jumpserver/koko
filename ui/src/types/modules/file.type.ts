@@ -118,3 +118,11 @@ export interface LeftActionsMenu {
   disabled: boolean;
   click: () => void;
 }
+
+export interface FileSendData {
+  offSet: number;
+  size: number | undefined;
+  path: string;
+  merge?: boolean;
+  chunk?: boolean;
+}

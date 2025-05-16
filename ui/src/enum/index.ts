@@ -1,4 +1,4 @@
-export enum FormatterMessageType {
+export enum FORMATTER_MESSAGE_TYPE {
   PING = 'PING',
   TERMINAL_INIT = 'TERMINAL_INIT',
   TERMINAL_DATA = 'TERMINAL_DATA',
@@ -10,7 +10,7 @@ export enum FormatterMessageType {
   TERMINAL_GET_SHARE_USER = 'TERMINAL_GET_SHARE_USER'
 }
 
-export enum SendLunaMessageType {
+export enum SEND_LUNA_MESSAGE_TYPE {
   PING = 'PING',
   CLOSE = 'CLOSE',
   PONG = 'PONG',
@@ -19,13 +19,12 @@ export enum SendLunaMessageType {
   MESSAGE_NOTIFY = 'MESSAGE_NOTIFY'
 }
 
-export enum ZmodemActionType {
+export enum ZMODEM_ACTION_TYPE {
   ZMODEM_START = 'ZMODEM_START',
   ZMODEM_END = 'ZMODEM_END'
 }
 
-// todo 改为大写
-export enum MessageType {
+export enum MESSAGE_TYPE {
   PING = 'PING',
   CLOSE = 'CLOSE',
   ERROR = 'ERROR',

@@ -105,9 +105,6 @@ import {
   UserAvatar
 } from '@vicons/carbon';
 
-const emits = defineEmits<{
-  (e: 'update:waterMarkContent', content: string): void;
-}>();
 
 const dialog = useDialog();
 const message = useMessage();
@@ -263,10 +260,10 @@ const settings = computed((): ISettingProp[] => {
         if (user.primary) return;
 
         dialog.warning({
-          title: '警告',
+          title: t('Warning'),
           content: t('RemoveShareUserConfirm'),
-          positiveText: '确定',
-          negativeText: '取消',
+          positiveText: t('ConfirmBtn'),
+          negativeText: t('Cancel'),
           onPositiveClick: () => {
             const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
             const sessionId = operatedNode.sessionIdMap.get(
@@ -751,10 +748,6 @@ onMounted(() => {
           node.socket.send(JSON.stringify(firstSendMessage));
 
           const currentNode = treeStore.getTerminalByK8sId(node.k8s_id);
-
-          setTimeout(() => {
-            emits('update:waterMarkContent', currentNode.waterMarkContent);
-          }, 1000);
 
           updateIcon(connectInfo.value);
         } catch (e: any) {
