@@ -67,23 +67,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
       await writeText(terminalSelectionText.value);
     });
   };
-  /**
-   * @description 终端 resize 事件
-   * @param terminalId
-   * @returns
-   */
-  const terminalResizeEvent = (terminalId: string) => {
-    if (!socket) {
-      return;
-    }
 
-    terminalInstance.value?.onResize(({ cols, rows }) => {
-      fitAddon.fit();
-
-      const resizeData = JSON.stringify({ cols, rows });
-      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
-    });
-  };
   /**
    * @description 初始化元素事件
    * @param el
@@ -148,13 +132,6 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
     initializeElementEvent(el);
     initializeTerminalEvent(terminalInstance.value);
 
-    window.addEventListener(
-      'resize',
-      useDebounceFn(() => {
-        fitAddon.fit();
-      }, 500)
-    );
-
     // 终端的实际 open 交由组件控制
     return terminalInstance.value;
   };
@@ -170,8 +147,8 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
   };
 
   return {
+    fitAddon,
     setTerminalTheme,
-    terminalResizeEvent,
     createTerminalInstance
   };
 };

@@ -111,8 +111,8 @@ onMounted(() => {
     return;
   }
 
-  const { initializeSocketEvent, setShareCode } = useTerminalConnection(lunaId, origin);
-  const { createTerminalInstance } = useTerminalInstance(socket.value);
+  const { initializeSocketEvent, setShareCode, terminalResizeEvent } = useTerminalConnection(lunaId, origin);
+  const { createTerminalInstance, fitAddon } = useTerminalInstance(socket.value);
 
   const terminalContainer: HTMLElement | null = document.getElementById('terminal-container');
 
@@ -142,7 +142,9 @@ onMounted(() => {
       }
     }
   );
+
   initializeSocketEvent(terminalInstance, socket.value, t);
+  terminalResizeEvent(terminalInstance, socket.value, fitAddon);
 });
 </script>
 
