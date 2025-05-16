@@ -90,7 +90,7 @@ const receivePostMessage = (): void => {
         emits('update:drawer', true, t('Settings'), 'setting');
         break;
       case WINDOW_MESSAGE_TYPE.FILE:
-        emits('update:drawer', true, t('FileManager'), 'file-manager', windowMessage.token.id);
+        emits('update:drawer', true, t('FileManager'), 'file-manager', windowMessage.SFTP_Token);
         break;
       case WINDOW_MESSAGE_TYPE.FOCUS:
         terminal.value?.focus();
@@ -136,6 +136,7 @@ onMounted(() => {
         return fileManageStore.setFileList([]);
       }
 
+      console.log(type, oldType);
       if (type && type === 'file-manager' && oldType) {
         sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
       }
