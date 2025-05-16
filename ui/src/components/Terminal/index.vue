@@ -1,5 +1,5 @@
 <template>
-  <div id="terminal-container" class="w-full h-full"></div>
+  <div id="terminal-container" class="w-screen h-screen"></div>
 </template>
 
 <script setup lang="ts">
@@ -150,9 +150,27 @@ onMounted(() => {
   :deep(.terminal) {
     height: 100%;
     padding: 10px 0 5px 10px;
+  }
 
-    .xterm-viewport {
-      overflow-y: unset !important;
+  :deep(.xterm-viewport) {
+    background-color: #000000;
+
+    &::-webkit-scrollbar {
+      height: 4px;
+      width: 7px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #000000;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.35);
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
     }
   }
 }
