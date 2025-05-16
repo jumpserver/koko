@@ -111,8 +111,8 @@ onMounted(() => {
     return;
   }
 
-  const { initializeSocketEvent, setShareCode } = useTerminalConnection(lunaId, origin);
-  const { createTerminalInstance } = useTerminalInstance(socket.value);
+  const { initializeSocketEvent, setShareCode, terminalResizeEvent } = useTerminalConnection(lunaId, origin);
+  const { createTerminalInstance, fitAddon } = useTerminalInstance(socket.value);
 
   const terminalContainer: HTMLElement | null = document.getElementById('terminal-container');
 
@@ -136,12 +136,15 @@ onMounted(() => {
         return fileManageStore.setFileList([]);
       }
 
+      console.log(type, oldType);
       if (type && type === 'file-manager' && oldType) {
         sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
       }
     }
   );
+
   initializeSocketEvent(terminalInstance, socket.value, t);
+  terminalResizeEvent(terminalInstance, socket.value, fitAddon);
 });
 </script>
 
