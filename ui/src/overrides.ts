@@ -126,7 +126,7 @@ export const themeOverrides: GlobalThemeOverrides = {
   },
   Layout: {
     color: 'rgba(0, 0, 0, 1)',
-    siderColor: 'rgba(0, 0, 0, 1)',
+    siderColor: 'rgba(255, 255, 255, 0.09)',
     headerColor: 'rgba(0, 0, 0, 1)'
   }
 };
