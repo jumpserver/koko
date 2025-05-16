@@ -14,6 +14,7 @@ import { sendEventToLuna, formatMessage, writeBufferToTerminal } from '@/utils';
 import { FORMATTER_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/enum';
 
 import type { Ref } from 'vue';
+import type { FitAddon } from '@xterm/addon-fit';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/hooks/interface';
 import type { OnlineUser } from '@/types/modules/user.type';
@@ -360,6 +361,25 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
       );
     });
   };
+
+  /**
+   * @description 终端 resize 事件
+   * @param terminalInstance
+   * @param socket
+   */
+  const terminalResizeEvent = (terminalInstance: Terminal, socket: WebSocket, fitAddon: FitAddon) => {
+    if (!socket) {
+      return;
+    }
+
+    terminalInstance.onResize(({ cols, rows }) => {
+      fitAddon.fit();
+
+      const resizeData = JSON.stringify({ cols, rows });
+      socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
+    });
+  };
+
   /**
    * @description 初始化 socket 事件
    * @param terminal
@@ -408,6 +428,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
   return {
     getShareUser,
     setShareCode,
+    terminalResizeEvent,
     initializeSocketEvent
   };
 };
