@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+.icon-hover {
+  @apply hover:text-[#1AB394] transition-all duration-300 cursor-pointer;
+}
+
+.custom-border {
+  @apply relative;
+}
+
+.custom-border::after {
+  @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-gray-200 z-1;
+}
+
+.border-active {
+  @apply relative;
+}
+
+.border-active::after {
+  @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-[#1AB394] z-2;
+}
