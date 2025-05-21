@@ -5,9 +5,9 @@ import { darkTheme, createDiscreteApi } from 'naive-ui';
 
 import { MaxTimeout } from '@/config';
 import { preprocessInput } from '@/utils';
-import { updateIcon } from '@/hooks/helper';
 import { useSentry } from '@/hooks/useZsentry';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
+import { updateIcon, handleCustomKey } from '@/hooks/helper';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, formatMessage, writeBufferToTerminal } from '@/utils';
@@ -422,6 +422,10 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
       sendEventToLuna('KEYBOARDEVENT', '');
 
       socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
+    });
+
+    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      return handleCustomKey(e, terminal, lunaId.value, origin.value);
     });
   };
 
