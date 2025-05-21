@@ -3,32 +3,18 @@ import { Drawer, Flex } from 'antd';
 import { useState, useMemo } from 'react';
 import { Settings, Folder, Share2 } from 'lucide-react';
 
-import type { LucideProps } from 'lucide-react';
+// import File from '@/components/File';
+// import Share from '@/components/Share';
+import Detail from '@/components/Detail';
 
-interface DrawerItem {
-  label: string;
-
-  value: string;
-
-  component: React.ReactNode;
-
-  icon: React.ForwardRefExoticComponent<Omit<LucideProps, 'ref'>>;
-}
-
-interface SidebarProps {
-  open: boolean;
-
-  width: number;
-
-  setOpen: (open: boolean) => void;
-}
+import type { DrawerItem, SidebarProps } from '@/types/sidebar.type';
 
 const DRAWER_ITEMS: DrawerItem[] = [
   {
     label: 'Detail',
     value: 'settings',
     icon: Settings,
-    component: <div>Detail</div>
+    component: <Detail />
   },
   {
     label: 'File',
@@ -55,37 +41,30 @@ const DrawerTitle: React.FC = (): React.ReactNode => {
 
   return (
     <>
-      <Flex align="center" justify="space-around" className="w-full custom-border">
-        {items.map(item => (
-          <Flex
-            align="center"
-            gap="small"
-            justify="center"
-            className={`h-8 !pb-3 box-content icon-hover ${item.value === activeKey ? 'border-active' : ''}`}
-            key={item.value}
-            onClick={() => handleTabChange(item.value)}
-          >
-            <item.icon size={20} />
-            <span>{item.label}</span>
-          </Flex>
-        ))}
+      <Flex align="center" vertical className="h-full">
+        <Flex align="center" justify="space-around" className="w-full custom-border">
+          {items.map(item => (
+            <Flex
+              align="center"
+              gap="small"
+              justify="center"
+              className={`h-8 !py-3 box-content icon-hover ${item.value === activeKey ? 'border-active' : ''}`}
+              key={item.value}
+              onClick={() => handleTabChange(item.value)}
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </Flex>
+          ))}
+        </Flex>
+
+        <Flex className="w-full h-full">{items.find(item => item.value === activeKey)?.component}</Flex>
       </Flex>
     </>
   );
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ open, width, setOpen }) => {
-  // const [loading, setLoading] = useState<boolean>(false);
-
-  // const showLoading = () => {
-  //   setOpen(true);
-  //   setLoading(true);
-
-  //   setTimeout(() => {
-  //     setLoading(false);
-  //   }, 2000);
-  // };
-
   return (
     <>
       <Drawer
@@ -95,7 +74,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, width, setOpen }) => {
         open={open}
         mask={false}
         closeIcon={false}
-        // loading={loading}
         onClose={() => setOpen(false)}
       >
         <DrawerTitle />

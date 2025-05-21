@@ -4,7 +4,7 @@ import { Sidebar } from '@/layouts/components/Sidebar';
 import { MainContainer } from '@/layouts/components/MainContainer';
 
 export const LayoutComponent: React.FC = () => {
-  const [open, setOpen] = useState<boolean>(false);
+  const [open, setOpen] = useState<boolean>(true);
   const [sidebarWidth, setSidebarWidth] = useState<number>(650);
 
   const handleResize = (sizes: number[]) => {

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router';
-import { App as AntApp, ConfigProvider } from 'antd';
+import { App as AntApp, ConfigProvider, theme } from 'antd';
 
 import router from './routes';
 import useTerminalSetting from '@/store/useTerminalSetting';
@@ -34,7 +34,7 @@ export const App = () => {
   }, []);
 
   return (
-    <ConfigProvider>
+    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
       <AntApp message={{ maxCount: 1 }} notification={{ maxCount: 1 }}>
         <RouterProvider router={router} />
       </AntApp>

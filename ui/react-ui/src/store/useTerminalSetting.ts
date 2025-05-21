@@ -22,6 +22,7 @@ interface TerminalSetting {
   // 是否启用退格键作为 Ctrl+H
   backspaceAsCtrlH: string;
 
+  // 光标样式
   cursorInactiveStyle: 'bar';
 
   // 主题
@@ -34,7 +35,7 @@ type ObjToKeyValArray<T> = {
   [K in keyof T]: [K, T[K]];
 }[keyof T];
 
-const useTerminalSetting = create<TerminalSetting>((set, get) => ({
+const useTerminalSetting = create<TerminalSetting>(set => ({
   fontSize: 14,
   lineHeight: 1,
   fontFamily: 'Maple Mono, monaco, Consolas, "Lucida Console", monospace',
