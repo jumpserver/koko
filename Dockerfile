@@ -23,7 +23,8 @@ LABEL stage=stage-build
 ARG TARGETARCH
 
 WORKDIR /opt/koko
-ARG HELM_VERSION=v3.12.2
+ARG HELM_VERSION=v3.16.1
+ARG KUBECTL_VERSION=v1.31.3
 ARG DOWNLOAD_URL=https://download.jumpserver.org
 
 RUN set -ex \
@@ -31,8 +32,8 @@ RUN set -ex \
 
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
-    && wget ${DOWNLOAD_URL}/public/kubectl-linux-${TARGETARCH}.tar.gz -O kubectl.tar.gz \
-    && tar -xf kubectl.tar.gz -C /opt/koko/bin/ \
+    && wget -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
+    && tar -xf kubectl.tar.gz --strip-components=3 -C /opt/koko/bin/ kubernetes/client/bin/kubectl \
     && wget -O helm.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf helm.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
     && \
