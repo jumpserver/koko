@@ -43,6 +43,14 @@ onMounted(async () => {
       nextTick(() => {
         loaded.value = true;
       });
+    } else {
+      const defaultTranslations = Reflect.ownKeys(translations)[0] as string;
+
+      mergeLocaleMessage(defaultTranslations, translations[defaultTranslations]);
+
+      nextTick(() => {
+        loaded.value = true;
+      });
     }
   } catch (e) {
     throw new Error(`${e}`);
