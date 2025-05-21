@@ -63,7 +63,6 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
         return;
       }
 
-      // TODO: 国际化 => Unable to copy content to the clipboard. Please check your browser settings or permissions.
       await writeText(terminalSelectionText.value);
     });
   };
@@ -83,6 +82,8 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
       async (e: MouseEvent) => {
         if (e.ctrlKey || terminalSettingsStore.quickPaste !== '1') return;
 
+        e.preventDefault();
+
         let text: string = '';
 
         try {
@@ -90,8 +91,6 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
         } catch (e) {
           terminalSelectionText.value ? (text = terminalSelectionText.value) : '';
         }
-
-        e.preventDefault();
 
         const conn = Array.from(connectionStore.connectionStateMap.values())[0] || {};
 
