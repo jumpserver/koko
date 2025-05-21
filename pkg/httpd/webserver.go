@@ -158,9 +158,9 @@ func (s *Server) ChatAIWebsocket(ctx *gin.Context) {
 	}
 
 	userConn.handler = &chat{
-		ws:              userConn,
-		conversationMap: sync.Map{},
-		termConf:        &termConf,
+		ws:            userConn,
+		conversations: sync.Map{},
+		term:          &termConf,
 	}
 	s.broadCaster.EnterUserWebsocket(userConn)
 	defer s.broadCaster.LeaveUserWebsocket(userConn)

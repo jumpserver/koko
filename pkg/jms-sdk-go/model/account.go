@@ -55,6 +55,18 @@ type AccountDetail struct {
 	Privileged bool       `json:"privileged"`
 }
 
+type AssetChat struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type AccountChatDetail struct {
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	Username string    `json:"username"`
+	Asset    AssetChat `json:"asset"`
+}
+
 type PermAccount struct {
 	Name       string  `json:"name"`
 	Username   string  `json:"username"`

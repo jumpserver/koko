@@ -306,6 +306,10 @@ export const generateWsURL = () => {
       connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
       break;
     }
+    case 'Chat':
+      // connectURL = BASE_WS_URL + `/koko/ws/chat/system`
+      connectURL = 'ws://localhost:5050' + `/koko/ws/chat/system/`
+      break;
     default: {
       connectURL = urlParams ? `${BASE_WS_URL}/koko/ws/terminal/?${urlParams.toString()}` : '';
     }
