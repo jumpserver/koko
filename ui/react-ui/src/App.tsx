@@ -1,16 +1,14 @@
-import { ConfigProvider } from 'antd';
-import { LayoutComponent } from './layouts/index';
+import { RouterProvider } from 'react-router';
+import { App as AntApp, ConfigProvider } from 'antd';
+
+import router from './routes';
 
 export const App = () => {
   return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Drawer: {}
-        }
-      }}
-    >
-      <LayoutComponent />
+    <ConfigProvider>
+      <AntApp message={{ maxCount: 1 }} notification={{ maxCount: 1 }}>
+        <RouterProvider router={router} />
+      </AntApp>
     </ConfigProvider>
   );
 };

@@ -4,7 +4,7 @@ import { Sidebar } from '@/layouts/components/Sidebar';
 import { MainContainer } from '@/layouts/components/MainContainer';
 
 export const LayoutComponent: React.FC = () => {
-  const [open, setOpen] = useState<boolean>(true);
+  const [open, setOpen] = useState<boolean>(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(650);
 
   const handleResize = (sizes: number[]) => {
@@ -13,13 +13,13 @@ export const LayoutComponent: React.FC = () => {
 
   return (
     <Splitter style={{ height: '100vh' }} onResize={handleResize}>
-      <Splitter.Panel>
+      <Splitter.Panel className="overflow-hidden">
         <MainContainer />
       </Splitter.Panel>
-      
-      <Splitter.Panel defaultSize={sidebarWidth} max="50%" min="20%">
+
+      {/* <Splitter.Panel defaultSize={sidebarWidth} max="50%" min="20%">
         <Sidebar open={open} setOpen={setOpen} width={sidebarWidth} />
-      </Splitter.Panel>
+      </Splitter.Panel> */}
     </Splitter>
   );
 };
