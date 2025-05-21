@@ -1,7 +1,8 @@
 import { message } from 'antd';
+import { emitterEvent } from '@/utils';
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { formatMessage } from '@/utils';
 import { MESSAGE_TYPE, TERMINAL_MESSAGE_TYPE } from '@/enums';
+
 import type { Terminal } from '@xterm/xterm';
 
 interface Connection {
@@ -14,15 +15,15 @@ export const useConnection = () => {
   const [terminalId, setTerminalId] = useState<string>('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
-  // 使用 ref 跟踪最新值，解决闭包问题
   const socketRef = useRef<WebSocket | null>(null);
+  const terminalRef = useRef<Terminal | null>(null);
 
-  // 同步 socket 状态到 ref
-  useEffect(() => {
-    socketRef.current = socket;
-  }, [socket]);
-
-  const createSocket = useCallback((url: string) => {
+  /**
+   * @description 创建 socket
+   * @param url
+   * @returns
+   */
+  const createSocket = (url: string) => {
     const ws = new WebSocket(url, ['JMS-KOKO']);
 
     ws.binaryType = 'arraybuffer';
@@ -31,54 +32,60 @@ export const useConnection = () => {
     socketRef.current = ws;
 
     return ws;
-  }, []);
+  };
 
-  // prettier-ignore
-  const dispatchEvent = useCallback((data: string, terminal: Terminal) => {
-      // 使用 ref 而不是状态来获取最新的 socket
-      const currentSocket = socketRef.current;
+  /**
+   * @description 处理消息
+   */
+  const dispatchEvent = (data: string, terminal: Terminal) => {
+    const currentSocket = socketRef.current;
 
-      if (!data || !currentSocket) return;
+    if (!data || !currentSocket) return;
 
-      const parsedMessageData = JSON.parse(data);
+    const parsedMessageData = JSON.parse(data);
 
-      switch (parsedMessageData.type) {
-        case MESSAGE_TYPE.CLOSE: {
-          break;
-        }
-        case MESSAGE_TYPE.ERROR: {
-          message.error(parsedMessageData.err);
-          break;
-        }
-        case MESSAGE_TYPE.PING: {
-          break;
-        }
-        case MESSAGE_TYPE.CONNECT: {
-          const newTerminalId = parsedMessageData.id;
+    switch (parsedMessageData.type) {
+      case MESSAGE_TYPE.CLOSE: {
+        break;
+      }
+      case MESSAGE_TYPE.ERROR: {
+        message.error(parsedMessageData.err);
+        break;
+      }
+      case MESSAGE_TYPE.PING: {
+        break;
+      }
+      case MESSAGE_TYPE.CONNECT: {
+        const newTerminalId = parsedMessageData.id;
 
-          setTerminalId(newTerminalId);
+        setTerminalId(newTerminalId);
 
-          const info = JSON.parse(parsedMessageData.data);
+        const info = JSON.parse(parsedMessageData.data);
 
-          const terminalSendData = {
-            cols: terminal.cols,
-            rows: terminal.rows,
-            code: ''
-          };
+        const terminalSendData = {
+          cols: terminal.cols,
+          rows: terminal.rows,
+          code: ''
+        };
 
-          currentSocket.send(JSON.stringify({
+        currentSocket.send(
+          JSON.stringify({
             id: newTerminalId,
             type: TERMINAL_MESSAGE_TYPE.TERMINAL_INIT,
             data: JSON.stringify(terminalSendData)
-          }));
+          })
+        );
 
-          break;
-        }
+        break;
       }
-    },
-    []
-  );
+    }
+  };
 
+  /**
+   * @description 初始化连接
+   * @param terminal
+   * @param wsUrl
+   */
   const initializeConnection = useCallback(({ terminal, wsUrl }: Connection) => {
     const ws = createSocket(wsUrl);
 
@@ -108,11 +115,24 @@ export const useConnection = () => {
       console.log('WebSocket 连接错误', error);
     };
 
+    terminalRef.current = terminal;
+
+    terminal.onResize(({ cols, rows }) => {
+      console.log('终端大小', cols, rows);
+
+      ws.send(
+        JSON.stringify({
+          id: terminalId,
+          type: TERMINAL_MESSAGE_TYPE.TERMINAL_RESIZE,
+          data: JSON.stringify({ cols, rows })
+        })
+      );
+    });
+
     terminal.onData(data => {
       console.log('终端数据', data);
 
       if (socketRef.current) {
-        // 使用与 CONNECT 消息相同的格式发送数据
         socketRef.current.send(
           JSON.stringify({
             id: terminalId,
@@ -123,6 +143,10 @@ export const useConnection = () => {
       }
     });
   }, []);
+
+  useEffect(() => {
+    socketRef.current = socket;
+  }, [socket]);
 
   return {
     socketRef,

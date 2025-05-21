@@ -4,61 +4,97 @@ import { Terminal } from '@xterm/xterm';
 import { useEffect, useRef } from 'react';
 import { getConnectionUrl } from '@/utils';
 import { useSearchParams } from 'react-router';
-import { useTerminal } from '@/hooks/useTerminal';
 import { useConnection } from '@/hooks/useConnection';
-import { TERMINAL_MESSAGE_TYPE } from '@/enums';
+
+import { FitAddon } from '@xterm/addon-fit';
+import { WebglAddon } from '@xterm/addon-webgl';
+import { SearchAddon } from '@xterm/addon-search';
+
+import useTerminalSetting from '@/store/useTerminalSetting';
 
 const TerminalComponent: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { createTerminal, fitAddon } = useTerminal();
-  const { initializeConnection, socketRef, terminalId } = useConnection();
+
+  const { initializeConnection } = useConnection();
+
+  const wsUrl = getConnectionUrl('ws');
+  const token = searchParams.get('token');
+  const connectionURL = `${wsUrl}/koko/ws/terminal/?token=${token}`;
+
+  const terminal = useRef<Terminal | null>(null);
+  const terminalRef = useRef<HTMLDivElement | null>(null);
+  const fitAddon = useRef<FitAddon>(new FitAddon());
+  const webglAddon = useRef<WebglAddon>(new WebglAddon());
+  const searchAddon = useRef<SearchAddon>(new SearchAddon());
+
+  const { fontSize, lineHeight, cursorInactiveStyle, fontFamily } = useTerminalSetting();
 
   const handleWindowMessage = () => {};
 
   useEffect(() => {
-    window.addEventListener('message', handleWindowMessage);
+    const instance = new Terminal({
+      allowProposedApi: true,
+      rightClickSelectsWord: true,
+      scrollback: 5000,
+      fontSize,
+      lineHeight,
+      cursorInactiveStyle,
+      fontFamily,
+      theme: {
+        background: '#121414',
+        foreground: '#ffffff',
+        black: '#2e3436',
+        red: '#cc0000',
+        green: '#4e9a06',
+        yellow: '#c4a000',
+        blue: '#3465a4',
+        magenta: '#75507b',
+        cyan: '#06989a',
+        white: '#d3d7cf',
+        brightBlack: '#555753',
+        brightRed: '#ef2929',
+        brightGreen: '#8ae234',
+        brightYellow: '#fce94f',
+        brightBlue: '#729fcf',
+        brightMagenta: '#ad7fa8',
+        brightCyan: '#34e2e2',
+        brightWhite: '#eeeeec'
+      }
+    });
 
-    const el = document.getElementById('terminal-container');
+    instance.loadAddon(fitAddon.current);
+    instance.loadAddon(webglAddon.current);
+    instance.loadAddon(searchAddon.current);
 
-    if (!el) {
+    if (!terminalRef.current) {
       return;
     }
 
-    const terminalInstance = createTerminal(el);
+    instance.open(terminalRef.current);
+    fitAddon.current.fit();
 
-    const wsUrl = getConnectionUrl('ws');
-    const token = searchParams.get('token');
-
-    if (!terminalInstance) {
-      return;
-    }
-
-    initializeConnection({ wsUrl: `${wsUrl}/koko/ws/terminal/?token=${token}`, terminal: terminalInstance });
-
-    // terminalInstance.onResize(({ cols, rows }) => {
-    //   fitAddon.fit();
-
-    //   const resizeData = { cols, rows };
-
-    //   if (socketRef.current) {
-    //     socketRef.current.send(
-    //       JSON.stringify({
-    //         id: terminalId,
-    //         type: TERMINAL_MESSAGE_TYPE.TERMINAL_RESIZE,
-    //         data: JSON.stringify(resizeData)
-    //       })
-    //     );
-    //   }
-    // });
+    terminal.current = instance;
 
     return () => {
-      if (terminalInstance) {
-        terminalInstance.dispose();
-      }
+      instance.dispose();
     };
   }, []);
 
-  return <div id="terminal-container" className="w-screen h-screen"></div>;
+  useEffect(() => {
+    window.addEventListener('message', handleWindowMessage);
+
+    if (!terminal.current) {
+      return;
+    }
+
+    initializeConnection({ wsUrl: connectionURL, terminal: terminal.current });
+
+    return () => {
+      window.removeEventListener('message', handleWindowMessage);
+    };
+  }, []);
+
+  return <div ref={terminalRef} id="terminal-container" className="h-screen"></div>;
 };
 
 export default TerminalComponent;

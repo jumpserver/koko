@@ -1,8 +1,17 @@
+import mitt from 'mitt';
+
+import type { Emitter } from 'mitt';
+import type { FitAddon } from '@xterm/addon-fit';
+
 const PORT = document.location.port ? `:${document.location.port}` : '';
 const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
 
 const BASE_WS_URL = SCHEME + '://' + document.location.hostname + PORT;
 const BASE_URL = document.location.protocol + '//' + document.location.hostname + PORT;
+
+type EmitterEvent = {
+  'emit-resize': { fitAddon: FitAddon };
+};
 
 export const getConnectionUrl = (type: 'ws' | 'http') => {
   if (type === 'ws') {
@@ -43,3 +52,5 @@ export const formatMessage = (id: string, type: string, data: any) => {
     data
   });
 };
+
+export const emitterEvent: Emitter<EmitterEvent> = mitt();

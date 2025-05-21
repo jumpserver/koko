@@ -17,9 +17,9 @@ export const LayoutComponent: React.FC = () => {
         <MainContainer />
       </Splitter.Panel>
 
-      {/* <Splitter.Panel defaultSize={sidebarWidth} max="50%" min="20%">
+      <Splitter.Panel defaultSize={sidebarWidth} max="50%" min="20%">
         <Sidebar open={open} setOpen={setOpen} width={sidebarWidth} />
-      </Splitter.Panel> */}
+      </Splitter.Panel>
     </Splitter>
   );
 };
