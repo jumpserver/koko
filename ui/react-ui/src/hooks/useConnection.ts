@@ -50,6 +50,8 @@ export const useConnection = () => {
       }
       case MESSAGE_TYPE.ERROR: {
         message.error(parsedMessageData.err);
+
+        terminal.write('\r\n\r\n\x1b[31mConnection websocket has been closed\x1b[0m');
         break;
       }
       case MESSAGE_TYPE.PING: {

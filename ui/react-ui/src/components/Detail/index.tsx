@@ -1,8 +1,11 @@
-import { Collapse } from 'antd';
+import { Collapse, Card } from 'antd';
+import { useState } from 'react';
 
 import type { CollapseProps } from 'antd';
 
+import Theme from './widgets/Theme';
 import Overview from './widgets/Overview';
+import Appearance from './widgets/Appearance';
 
 const text = (
   <p style={{ paddingInlineStart: 24 }}>
@@ -20,17 +23,25 @@ const items: CollapseProps['items'] = [
   {
     key: '2',
     label: '外观设置',
-    children: text
+    children: <Appearance />
   },
   {
     key: '3',
     label: '主题设置',
-    children: text
+    children: <Theme />
   }
 ];
 
 const Detail: React.FC = () => {
-  return <Collapse items={items} bordered={false} defaultActiveKey={['1']} className="w-full h-full" />;
+  return (
+    <Collapse
+      expandIconPosition="end"
+      items={items}
+      bordered={false}
+      defaultActiveKey={['1']}
+      className="w-full h-full"
+    />
+  );
 };
 
 export default Detail;

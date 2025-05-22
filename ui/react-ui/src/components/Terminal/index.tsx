@@ -94,7 +94,7 @@ const TerminalComponent: React.FC = () => {
     };
   }, []);
 
-  return <div ref={terminalRef} id="terminal-container" className="h-screen"></div>;
+  return <div ref={terminalRef} id="terminal-container" className="h-full"></div>;
 };
 
 export default TerminalComponent;

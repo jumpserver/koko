@@ -1,6 +1,9 @@
-#terminal {
-  .terminal.xterm {
-    // height: 100%;
-    padding: 10px 0 5px 10px;
+.terminal.xterm {
+  height: 100%;
+  padding: 10px 0 0 10px;
+
+  // TODO 移除
+  .xterm-viewport {
+    overflow: hidden !important;
   }
 }

@@ -1,5 +1,5 @@
 import './index.scss';
-import { Drawer, Flex } from 'antd';
+import { Drawer, Flex, Card } from 'antd';
 import { useState, useMemo } from 'react';
 import { Settings, Folder, Share2 } from 'lucide-react';
 
@@ -42,7 +42,7 @@ const DrawerTitle: React.FC = (): React.ReactNode => {
   return (
     <>
       <Flex align="center" vertical className="h-full">
-        <Flex align="center" justify="space-around" className="w-full custom-border">
+        <Flex align="center" justify="space-around" className="w-full">
           {items.map(item => (
             <Flex
               align="center"
@@ -64,20 +64,12 @@ const DrawerTitle: React.FC = (): React.ReactNode => {
   );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({ open, width, setOpen }) => {
+export const Sidebar: React.FC = () => {
   return (
     <>
-      <Drawer
-        title={null}
-        placement="right"
-        width={width}
-        open={open}
-        mask={false}
-        closeIcon={false}
-        onClose={() => setOpen(false)}
-      >
+      <Card variant="borderless" className="h-full !rounded-none !bg-[#1D1D1D]">
         <DrawerTitle />
-      </Drawer>
+      </Card>
     </>
   );
 };
