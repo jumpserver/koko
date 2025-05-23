@@ -3,6 +3,8 @@ import mitt from 'mitt';
 import type { Emitter } from 'mitt';
 import type { FitAddon } from '@xterm/addon-fit';
 
+import { ASCII_DEL, ASCII_BACKSPACE } from '@/config';
+
 const PORT = document.location.port ? `:${document.location.port}` : '';
 const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
 
@@ -51,6 +53,32 @@ export const formatMessage = (id: string, type: string, data: any) => {
     type,
     data
   });
+};
+
+export const preprocessInput = (data: string, backspaceAsCtrlH: string) => {
+  // 如果两个条件都满足，则将输入字符从 DELETE（ASCII 127）转换为 BACKSPACE（ASCII 8，等同于 Ctrl+H）
+  if (backspaceAsCtrlH === '1' && data.charCodeAt(0) === ASCII_DEL) {
+    data = String.fromCharCode(ASCII_BACKSPACE);
+
+    return data;
+  }
+
+  return data;
+};
+
+export const updateIcon = (faviconURL: string) => {
+  let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+
+  if (!link) {
+    link = document.createElement('link') as HTMLLinkElement;
+    link.type = 'image/x-icon';
+    link.rel = 'shortcut icon';
+    document.getElementsByTagName('head')[0].appendChild(link);
+
+    return (link.href = faviconURL);
+  }
+
+  link.href = faviconURL;
 };
 
 export const emitterEvent: Emitter<EmitterEvent> = mitt();

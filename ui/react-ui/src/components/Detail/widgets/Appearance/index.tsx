@@ -1,11 +1,38 @@
-import { useState } from 'react';
-import { TextCursor } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { TextCursor, UserRoundPen } from 'lucide-react';
 import { FontSizeOutlined, FontColorsOutlined } from '@ant-design/icons';
 import { Card, Form, InputNumber, Segmented, Switch, Select, Space, Divider, Flex } from 'antd';
 
 const Appearance = () => {
   const [cursorStyle, setCursorStyle] = useState<string | number>('block');
   const handleFontSizeChange = () => {};
+
+  const fontFamilyOptions = useRef([
+    {
+      label: <span>Serif</span>,
+      title: 'serif',
+      options: [
+        { label: <span>Jack</span>, value: 'Jack' },
+        { label: <span>Lucy</span>, value: 'Lucy' }
+      ]
+    },
+    {
+      label: <span>Sans Serif</span>,
+      title: 'sans-serif',
+      options: [
+        { label: <span>Chloe</span>, value: 'Chloe' },
+        { label: <span>Lucas</span>, value: 'Lucas' }
+      ]
+    },
+    {
+      label: <span>Monospace</span>,
+      title: 'monospace',
+      options: [
+        { label: <span>Jack</span>, value: 'Jack' },
+        { label: <span>Lucy</span>, value: 'Lucy' }
+      ]
+    }
+  ]);
 
   return (
     <Card className="appearance-card" variant="borderless">
@@ -21,14 +48,7 @@ const Appearance = () => {
 
             <Flex gap={16} align="start">
               <Form.Item label="字体系列" style={{ flex: 3, marginBottom: '8px' }}>
-                <Select
-                  placeholder="选择字体"
-                  options={[
-                    { value: 'monospace', label: 'Monospace' },
-                    { value: 'sans-serif', label: 'Sans Serif' },
-                    { value: 'serif', label: 'Serif' }
-                  ]}
-                />
+                <Select placeholder="选择字体" options={fontFamilyOptions.current} />
               </Form.Item>
 
               <Form.Item label="字体大小" style={{ flex: 1, marginBottom: '8px' }}>
@@ -70,6 +90,15 @@ const Appearance = () => {
                 <Switch size="default" />
               </Form.Item>
             </Flex>
+          </div>
+
+          <div>
+            <Divider orientation="left" plain style={{ margin: '8px 0' }}>
+              <Space>
+                <UserRoundPen size={14} />
+                <span>操作偏好</span>
+              </Space>
+            </Divider>
           </div>
         </Form>
       </Space>

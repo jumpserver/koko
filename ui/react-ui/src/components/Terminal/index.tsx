@@ -1,5 +1,9 @@
 import './index.scss';
 
+// @ts-ignore
+import xtermTheme from 'xterm-theme';
+import useDetail from '@/store/useDetail';
+
 import { Terminal } from '@xterm/xterm';
 import { useEffect, useRef } from 'react';
 import { getConnectionUrl } from '@/utils';
@@ -10,8 +14,6 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
 
-import useTerminalSetting from '@/store/useTerminalSetting';
-
 const TerminalComponent: React.FC = () => {
   const [searchParams] = useSearchParams();
 
@@ -21,13 +23,15 @@ const TerminalComponent: React.FC = () => {
   const token = searchParams.get('token');
   const connectionURL = `${wsUrl}/koko/ws/terminal/?token=${token}`;
 
-  const terminal = useRef<Terminal | null>(null);
-  const terminalRef = useRef<HTMLDivElement | null>(null);
   const fitAddon = useRef<FitAddon>(new FitAddon());
   const webglAddon = useRef<WebglAddon>(new WebglAddon());
   const searchAddon = useRef<SearchAddon>(new SearchAddon());
 
-  const { fontSize, lineHeight, cursorInactiveStyle, fontFamily } = useTerminalSetting();
+  const terminal = useRef<Terminal | null>(null);
+  const connectionInitialized = useRef<boolean>(false);
+  const terminalRef = useRef<HTMLDivElement | null>(null);
+
+  const { terminalConfig } = useDetail();
 
   const handleWindowMessage = () => {};
 
@@ -36,63 +40,72 @@ const TerminalComponent: React.FC = () => {
       allowProposedApi: true,
       rightClickSelectsWord: true,
       scrollback: 5000,
-      fontSize,
-      lineHeight,
-      cursorInactiveStyle,
-      fontFamily,
-      theme: {
-        background: '#121414',
-        foreground: '#ffffff',
-        black: '#2e3436',
-        red: '#cc0000',
-        green: '#4e9a06',
-        yellow: '#c4a000',
-        blue: '#3465a4',
-        magenta: '#75507b',
-        cyan: '#06989a',
-        white: '#d3d7cf',
-        brightBlack: '#555753',
-        brightRed: '#ef2929',
-        brightGreen: '#8ae234',
-        brightYellow: '#fce94f',
-        brightBlue: '#729fcf',
-        brightMagenta: '#ad7fa8',
-        brightCyan: '#34e2e2',
-        brightWhite: '#eeeeec'
-      }
+      fontSize: terminalConfig.fontSize,
+      fontFamily: terminalConfig.fontFamily,
+      lineHeight: terminalConfig.lineHeight,
+      cursorBlink: terminalConfig.cursorBlink,
+      theme: terminalConfig.theme ? xtermTheme[terminalConfig.theme] : undefined,
+      cursorStyle: terminalConfig.cursorStyle === 'outline' ? 'block' : terminalConfig.cursorStyle
     });
 
     instance.loadAddon(fitAddon.current);
     instance.loadAddon(webglAddon.current);
     instance.loadAddon(searchAddon.current);
 
-    if (!terminalRef.current) {
-      return;
+    if (terminalRef.current) {
+      instance.open(terminalRef.current);
+      fitAddon.current.fit();
+      terminal.current = instance;
     }
-
-    instance.open(terminalRef.current);
-    fitAddon.current.fit();
-
-    terminal.current = instance;
 
     return () => {
       instance.dispose();
     };
   }, []);
 
+  // 初始化连接
   useEffect(() => {
     window.addEventListener('message', handleWindowMessage);
 
-    if (!terminal.current) {
-      return;
+    if (terminal.current && !connectionInitialized.current) {
+      initializeConnection({ wsUrl: connectionURL, terminal: terminal.current });
+      connectionInitialized.current = true;
     }
-
-    initializeConnection({ wsUrl: connectionURL, terminal: terminal.current });
 
     return () => {
       window.removeEventListener('message', handleWindowMessage);
     };
-  }, []);
+  }, [terminal.current]);
+
+  // 监听配置变化并更新终端设置
+  useEffect(() => {
+    if (!terminal.current) return;
+
+    const instance = terminal.current;
+
+    instance.options.fontSize = terminalConfig.fontSize;
+    instance.options.fontFamily = terminalConfig.fontFamily;
+    instance.options.lineHeight = terminalConfig.lineHeight;
+    instance.options.cursorBlink = terminalConfig.cursorBlink;
+
+    if (terminalConfig.theme) {
+      instance.options.theme = xtermTheme[terminalConfig.theme];
+    }
+
+    if (terminalConfig.cursorStyle) {
+      instance.options.cursorStyle = terminalConfig.cursorStyle === 'outline' ? 'block' : terminalConfig.cursorStyle;
+    }
+
+    setTimeout(() => {
+      if (fitAddon.current) {
+        try {
+          fitAddon.current.fit();
+        } catch (e) {
+          console.error('Failed to fit terminal:', e);
+        }
+      }
+    }, 0);
+  }, [terminalConfig]);
 
   return <div ref={terminalRef} id="terminal-container" className="h-full"></div>;
 };

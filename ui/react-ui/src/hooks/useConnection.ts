@@ -1,9 +1,12 @@
-import { message } from 'antd';
-import { emitterEvent } from '@/utils';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { message, theme } from 'antd';
+import { preprocessInput, updateIcon } from '@/utils';
 import { MESSAGE_TYPE, TERMINAL_MESSAGE_TYPE } from '@/enums';
+import { useState, useCallback, useEffect, useRef } from 'react';
+
+import useDetail from '@/store/useDetail';
 
 import type { Terminal } from '@xterm/xterm';
+import type { DetailMessage } from '@/types/detail.type';
 
 interface Connection {
   terminal: Terminal;
@@ -15,8 +18,12 @@ export const useConnection = () => {
   const [terminalId, setTerminalId] = useState<string>('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
+  const enableShareRef = useRef(false);
+  const sessionIdRef = useRef<string>('');
   const socketRef = useRef<WebSocket | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
+
+  const { setConnectionInfo, setTerminalConfig, terminalConfig } = useDetail();
 
   /**
    * @description 创建 socket
@@ -51,7 +58,6 @@ export const useConnection = () => {
       case MESSAGE_TYPE.ERROR: {
         message.error(parsedMessageData.err);
 
-        terminal.write('\r\n\r\n\x1b[31mConnection websocket has been closed\x1b[0m');
         break;
       }
       case MESSAGE_TYPE.PING: {
@@ -62,13 +68,23 @@ export const useConnection = () => {
 
         setTerminalId(newTerminalId);
 
-        const info = JSON.parse(parsedMessageData.data);
+        const info: DetailMessage = JSON.parse(parsedMessageData.data);
 
         const terminalSendData = {
           cols: terminal.cols,
           rows: terminal.rows,
           code: ''
         };
+
+        setConnectionInfo({
+          assetName: info.asset.name,
+          address: info.asset.address,
+          username: info.user.username
+        });
+
+        updateIcon(info.setting.INTERFACE!.favicon);
+
+        enableShareRef.current = info.setting.SECURITY_SESSION_SHARE || false;
 
         currentSocket.send(
           JSON.stringify({
@@ -77,6 +93,32 @@ export const useConnection = () => {
             data: JSON.stringify(terminalSendData)
           })
         );
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SESSION: {
+        const sessionInfo = JSON.parse(parsedMessageData.data);
+        const sessionDetail = sessionInfo.session;
+
+        const share = sessionInfo?.permission?.actions?.includes('share');
+
+        if (sessionInfo.backspaceAsCtrlH) {
+          setTerminalConfig({
+            backspaceAsCtrlH: sessionInfo.backspaceAsCtrlH
+          });
+        }
+
+        if (sessionInfo.themeName) {
+          setTerminalConfig({
+            theme: sessionInfo.themeName
+          });
+        }
+
+        if (enableShareRef.current && share) {
+          console.log('share');
+        }
+
+        sessionIdRef.current = sessionDetail.id;
 
         break;
       }
@@ -132,14 +174,14 @@ export const useConnection = () => {
     });
 
     terminal.onData(data => {
-      console.log('终端数据', data);
+      const processedData = preprocessInput(data, terminalConfig.backspaceAsCtrlH || '0');
 
       if (socketRef.current) {
         socketRef.current.send(
           JSON.stringify({
             id: terminalId,
             type: TERMINAL_MESSAGE_TYPE.TERMINAL_DATA,
-            data
+            data: processedData
           })
         );
       }

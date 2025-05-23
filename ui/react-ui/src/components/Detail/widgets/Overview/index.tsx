@@ -1,35 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Wifi, Cpu, MemoryStick, MoveUp, MoveDown } from 'lucide-react';
 import { Descriptions, Divider, Card, Space, Flex, Popover } from 'antd';
 
 import type { DescriptionsProps } from 'antd';
 
-const items: DescriptionsProps['items'] = [
-  {
-    key: '1',
-    label: 'UserName',
-    span: 1,
-    children: 'Zhou Maomao'
-  },
-  {
-    key: '2',
-    label: 'Telephone',
-    span: 1,
-    children: '1810000000'
-  },
-  {
-    key: '3',
-    label: 'Live',
-    span: 1,
-    children: 'Hangzhou, Zhejiang'
-  }
-];
+import useDetail from '@/store/useDetail';
 
 const Overview = () => {
   const [clicked, setClicked] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [items, setItems] = useState<DescriptionsProps['items']>([]);
 
-  const handleNetworkTest = () => {};
+  const { connection } = useDetail();
 
   const hide = () => {
     setClicked(false);
@@ -46,7 +28,32 @@ const Overview = () => {
     setClicked(open);
   };
 
+  const handleNetworkTest = () => {};
+
   const clickContent = <div>This is click content.</div>;
+
+  useEffect(() => {
+    setItems([
+      {
+        key: '1',
+        label: '登录用户',
+        span: 1,
+        children: connection.username
+      },
+      {
+        key: '2',
+        label: '资产地址',
+        span: 1,
+        children: connection.address
+      },
+      {
+        key: '3',
+        label: '资产名称',
+        span: 1,
+        children: connection.assetName
+      }
+    ]);
+  }, [connection]);
 
   return (
     <Card variant="outlined" style={{ width: '100%', height: '100%' }}>

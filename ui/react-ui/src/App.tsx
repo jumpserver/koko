@@ -3,12 +3,12 @@ import { RouterProvider } from 'react-router';
 import { App as AntApp, ConfigProvider, theme } from 'antd';
 
 import router from './routes';
-import useTerminalSetting from '@/store/useTerminalSetting';
+import useDetail from '@/store/useDetail';
 
 import type { LocalTerminalConfig, CommandLineConfig } from '@/types/terminal.type';
 
 export const App = () => {
-  const { setDefaultTerminalConfig } = useTerminalSetting();
+  const { setTerminalConfig } = useDetail();
 
   useEffect(() => {
     const localTerminalSetting = localStorage.getItem('LunaSetting');
@@ -21,15 +21,19 @@ export const App = () => {
 
       if (commandLine) {
         fontSize = commandLine.character_terminal_font_size;
-        setDefaultTerminalConfig('quickPaste', commandLine.is_right_click_quickly_paste ? '1' : '0');
-        setDefaultTerminalConfig('backspaceAsCtrlH', commandLine.is_backspace_as_ctrl_h ? '1' : '0');
+        setTerminalConfig({
+          quickPaste: commandLine.is_right_click_quickly_paste ? '1' : '0',
+          backspaceAsCtrlH: commandLine.is_backspace_as_ctrl_h ? '1' : '0'
+        });
       }
 
       if (!fontSize || fontSize < 5 || fontSize > 50) {
         fontSize = 13;
       }
 
-      setDefaultTerminalConfig('fontSize', fontSize);
+      setTerminalConfig({
+        fontSize
+      });
     }
   }, []);
 
