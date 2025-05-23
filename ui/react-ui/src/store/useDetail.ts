@@ -37,6 +37,7 @@ const useDetail = create(
       },
 
       share: {
+        shareCode: '',
         enabledShare: false,
         onlineUsers: [],
         searchEnabledShareUser: []

@@ -1,7 +1,6 @@
 import mitt from 'mitt';
 
 import type { Emitter } from 'mitt';
-import type { FitAddon } from '@xterm/addon-fit';
 
 import { ASCII_DEL, ASCII_BACKSPACE } from '@/config';
 
@@ -12,7 +11,7 @@ const BASE_WS_URL = SCHEME + '://' + document.location.hostname + PORT;
 const BASE_URL = document.location.protocol + '//' + document.location.hostname + PORT;
 
 type EmitterEvent = {
-  'emit-resize': { fitAddon: FitAddon };
+  'emit-resize': void;
 };
 
 export const getConnectionUrl = (type: 'ws' | 'http') => {

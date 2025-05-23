@@ -1,5 +1,5 @@
 import './index.scss';
-import { Drawer, Flex, Card } from 'antd';
+import { Flex, Card } from 'antd';
 import { useState, useMemo } from 'react';
 import { Settings, Folder, Share2 } from 'lucide-react';
 
@@ -7,7 +7,7 @@ import { Settings, Folder, Share2 } from 'lucide-react';
 // import Share from '@/components/Share';
 import Detail from '@/components/Detail';
 
-import type { DrawerItem, SidebarProps } from '@/types/sidebar.type';
+import type { DrawerItem } from '@/types/sidebar.type';
 
 const DRAWER_ITEMS: DrawerItem[] = [
   {
@@ -48,7 +48,7 @@ const DrawerTitle: React.FC = (): React.ReactNode => {
               align="center"
               gap="small"
               justify="center"
-              className={`h-8 !py-3 box-content icon-hover ${item.value === activeKey ? 'border-active' : ''}`}
+              className={`h-8 !pb-3 box-content icon-hover ${item.value === activeKey ? 'border-active' : ''}`}
               key={item.value}
               onClick={() => handleTabChange(item.value)}
             >

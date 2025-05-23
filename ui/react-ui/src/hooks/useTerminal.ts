@@ -7,6 +7,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
 
+// TODO 移除
 export const useTerminal = () => {
   const [el, setEl] = useState<HTMLElement | null>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);

@@ -128,9 +128,8 @@ export interface TerminalConfig {
 }
 
 export interface ShareInfo {
+  shareCode: string;
   enabledShare: boolean;
-
   onlineUsers: OnlineUser[];
-
   searchEnabledShareUser: ShareUserOptions[];
 }

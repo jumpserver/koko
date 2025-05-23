@@ -16,6 +16,7 @@
     "@xterm/addon-search": "^0.15.0",
     "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
+    "ahooks": "^3.8.5",
     "antd": "^5.25.1",
     "axios": "^1.9.0",
     "i18next": "^25.2.0",

@@ -4,6 +4,8 @@ import './index.scss';
 import xtermTheme from 'xterm-theme';
 import useDetail from '@/store/useDetail';
 
+import { useDebounceFn } from 'ahooks';
+import { emitterEvent } from '@/utils';
 import { Terminal } from '@xterm/xterm';
 import { useEffect, useRef } from 'react';
 import { getConnectionUrl } from '@/utils';
@@ -33,14 +35,27 @@ const TerminalComponent: React.FC = () => {
 
   const { terminalConfig } = useDetail();
 
-  const handleWindowMessage = () => {};
+  const handleWindowMessage = (message: MessageEvent) => {
+    const windowMessage = message.data;
+
+    // console.log(windowMessage);
+  };
+
+  const { run: handleResizeDebounced } = useDebounceFn(
+    () => {
+      if (fitAddon.current) {
+        fitAddon.current.fit();
+      }
+    },
+    { wait: 200 }
+  );
 
   useEffect(() => {
     const instance = new Terminal({
       allowProposedApi: true,
       rightClickSelectsWord: true,
       scrollback: 5000,
-      fontSize: terminalConfig.fontSize,
+      fontSize: Number(terminalConfig.fontSize),
       fontFamily: terminalConfig.fontFamily,
       lineHeight: terminalConfig.lineHeight,
       cursorBlink: terminalConfig.cursorBlink,
@@ -65,6 +80,8 @@ const TerminalComponent: React.FC = () => {
 
   // 初始化连接
   useEffect(() => {
+    emitterEvent.on('emit-resize', handleResizeDebounced);
+    window.addEventListener('resize', handleResizeDebounced);
     window.addEventListener('message', handleWindowMessage);
 
     if (terminal.current && !connectionInitialized.current) {
@@ -73,6 +90,8 @@ const TerminalComponent: React.FC = () => {
     }
 
     return () => {
+      emitterEvent.off('emit-resize', handleResizeDebounced);
+      window.removeEventListener('resize', handleResizeDebounced);
       window.removeEventListener('message', handleWindowMessage);
     };
   }, [terminal.current]);
@@ -83,7 +102,7 @@ const TerminalComponent: React.FC = () => {
 
     const instance = terminal.current;
 
-    instance.options.fontSize = terminalConfig.fontSize;
+    instance.options.fontSize = Number(terminalConfig.fontSize);
     instance.options.fontFamily = terminalConfig.fontFamily;
     instance.options.lineHeight = terminalConfig.lineHeight;
     instance.options.cursorBlink = terminalConfig.cursorBlink;

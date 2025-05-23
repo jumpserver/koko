@@ -121,7 +121,7 @@ const Appearance = () => {
             <Divider orientation="left" plain style={{ margin: '8px 0' }}>
               <Space>
                 <UserRoundPen size={14} />
-                <span>操作偏好</span>
+                <span>偏好</span>
               </Space>
             </Divider>
           </div>

@@ -2,7 +2,7 @@ import { message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { preprocessInput, updateIcon } from '@/utils';
 import { MESSAGE_TYPE, TERMINAL_MESSAGE_TYPE } from '@/enums';
-import { useState, useCallback, useEffect, useRef, use } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import useDetail from '@/store/useDetail';
 
@@ -75,7 +75,7 @@ export const useConnection = () => {
         const terminalSendData = {
           cols: terminal.cols,
           rows: terminal.rows,
-          code: ''
+          code: share.shareCode || ''
         };
 
         setConnectionInfo({
@@ -229,8 +229,6 @@ export const useConnection = () => {
     terminalRef.current = terminal;
 
     terminal.onResize(({ cols, rows }) => {
-      console.log('终端大小', cols, rows);
-
       ws.send(
         JSON.stringify({
           id: terminalId,
