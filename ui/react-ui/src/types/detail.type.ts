@@ -83,6 +83,24 @@ export interface DetailMessage {
   user: User;
 }
 
+export interface OnlineUser {
+  user_id: string;
+  user: string;
+  created: string;
+  remote_addr: string;
+  terminal_id: string;
+  primary: boolean;
+  writable: boolean;
+}
+
+export interface ShareUserOptions {
+  id: string;
+
+  name: string;
+
+  username: string;
+}
+
 export interface ConnectionInfo {
   username: string;
   address: string;
@@ -99,7 +117,7 @@ export interface ConnectionInfo {
 
 export interface TerminalConfig {
   fontFamily: string;
-  fontSize: number;
+  fontSize: number | string | null;
   cursorBlink: boolean;
   cursorStyle: 'outline' | 'block' | 'bar' | 'underline' | undefined;
   lineHeight: number;
@@ -112,5 +130,7 @@ export interface TerminalConfig {
 export interface ShareInfo {
   enabledShare: boolean;
 
+  onlineUsers: OnlineUser[];
 
+  searchEnabledShareUser: ShareUserOptions[];
 }

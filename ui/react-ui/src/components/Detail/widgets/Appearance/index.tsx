@@ -3,33 +3,53 @@ import { TextCursor, UserRoundPen } from 'lucide-react';
 import { FontSizeOutlined, FontColorsOutlined } from '@ant-design/icons';
 import { Card, Form, InputNumber, Segmented, Switch, Select, Space, Divider, Flex } from 'antd';
 
+import useDetail from '@/store/useDetail';
+
+import type { InputNumberProps } from 'antd';
+
 const Appearance = () => {
-  const [cursorStyle, setCursorStyle] = useState<string | number>('block');
-  const handleFontSizeChange = () => {};
+  const { setTerminalConfig, terminalConfig } = useDetail();
+
+  const handleFontSizeChange: InputNumberProps['onChange'] = (value: number | string | null) => {
+    setTerminalConfig({
+      fontSize: value
+    });
+  };
+
+  const handleFontFamilyChange = (value: string) => {
+    setTerminalConfig({
+      fontFamily: value
+    });
+  };
+
+  const handleCursorStyleChange = (value: 'block' | 'underline' | 'bar' | 'outline') => {
+    setTerminalConfig({
+      cursorStyle: value
+    });
+  };
+
+  const handleCursorBlinkChange = (checked: boolean) => {
+    setTerminalConfig({
+      cursorBlink: checked
+    });
+  };
 
   const fontFamilyOptions = useRef([
     {
-      label: <span>Serif</span>,
-      title: 'serif',
-      options: [
-        { label: <span>Jack</span>, value: 'Jack' },
-        { label: <span>Lucy</span>, value: 'Lucy' }
-      ]
-    },
-    {
       label: <span>Sans Serif</span>,
       title: 'sans-serif',
-      options: [
-        { label: <span>Chloe</span>, value: 'Chloe' },
-        { label: <span>Lucas</span>, value: 'Lucas' }
-      ]
+      options: [{ label: <span>Open Sans</span>, value: 'Open Sans' }]
     },
     {
       label: <span>Monospace</span>,
       title: 'monospace',
       options: [
-        { label: <span>Jack</span>, value: 'Jack' },
-        { label: <span>Lucy</span>, value: 'Lucy' }
+        { label: <span>Menlo</span>, value: 'Menlo' },
+        { label: <span>JetBrains Mono</span>, value: 'JetBrains Mono' },
+        { label: <span>Consolas</span>, value: 'Consolas' },
+        { label: <span>Fira Code</span>, value: 'Fira Code' },
+        { label: <span>Source Code Pro</span>, value: 'Source Code Pro' },
+        { label: <span>Monaco</span>, value: 'Monaco' }
       ]
     }
   ]);
@@ -48,7 +68,12 @@ const Appearance = () => {
 
             <Flex gap={16} align="start">
               <Form.Item label="字体系列" style={{ flex: 3, marginBottom: '8px' }}>
-                <Select placeholder="选择字体" options={fontFamilyOptions.current} />
+                <Select
+                  placeholder="选择字体"
+                  defaultValue={terminalConfig.fontFamily}
+                  options={fontFamilyOptions.current}
+                  onChange={handleFontFamilyChange}
+                />
               </Form.Item>
 
               <Form.Item label="字体大小" style={{ flex: 1, marginBottom: '8px' }}>
@@ -56,7 +81,7 @@ const Appearance = () => {
                   min={8}
                   max={32}
                   keyboard={true}
-                  defaultValue={16}
+                  defaultValue={terminalConfig.fontSize!}
                   onChange={handleFontSizeChange}
                   prefix={<FontSizeOutlined />}
                   style={{ width: '100%' }}
@@ -81,13 +106,13 @@ const Appearance = () => {
                     { value: 'underline', label: '下划线' },
                     { value: 'bar', label: '竖线' }
                   ]}
-                  value={cursorStyle}
-                  onChange={setCursorStyle}
+                  value={terminalConfig.cursorStyle}
+                  onChange={handleCursorStyleChange}
                 />
               </Form.Item>
 
               <Form.Item label="光标闪烁" style={{ flex: 1, marginBottom: '8px' }}>
-                <Switch size="default" />
+                <Switch size="default" onChange={handleCursorBlinkChange} checked={terminalConfig.cursorBlink} />
               </Form.Item>
             </Flex>
           </div>

@@ -1,12 +1,13 @@
-import { message, theme } from 'antd';
+import { message } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { preprocessInput, updateIcon } from '@/utils';
 import { MESSAGE_TYPE, TERMINAL_MESSAGE_TYPE } from '@/enums';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, use } from 'react';
 
 import useDetail from '@/store/useDetail';
 
 import type { Terminal } from '@xterm/xterm';
-import type { DetailMessage } from '@/types/detail.type';
+import type { DetailMessage, OnlineUser, ShareUserOptions } from '@/types/detail.type';
 
 interface Connection {
   terminal: Terminal;
@@ -23,7 +24,8 @@ export const useConnection = () => {
   const socketRef = useRef<WebSocket | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
 
-  const { setConnectionInfo, setTerminalConfig, terminalConfig } = useDetail();
+  const { t } = useTranslation();
+  const { setConnectionInfo, setTerminalConfig, setShareInfo, terminalConfig, share } = useDetail();
 
   /**
    * @description 创建 socket
@@ -115,11 +117,78 @@ export const useConnection = () => {
         }
 
         if (enableShareRef.current && share) {
-          console.log('share');
+          setShareInfo({
+            enabledShare: true
+          });
         }
 
-        sessionIdRef.current = sessionDetail.id;
+        setConnectionInfo({
+          sessionId: sessionDetail.id
+        });
 
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SHARE_JOIN: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        // data 中的 primary 字段如果不是 true 则表示的是加入的用户
+        if (!data.primary) {
+          message.info(`${data.user} ${t('JoinShare')}`);
+
+          if (share.onlineUsers) {
+            setShareInfo({
+              onlineUsers: [...share.onlineUsers, data]
+            });
+          }
+        }
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_PERM_VALID: {
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SHARE_LEAVE: {
+        const data: OnlineUser = JSON.parse(parsedMessageData.data);
+
+        const userIndex = share.onlineUsers?.findIndex(item => item.user_id === data.user_id && !item.primary);
+
+        if (userIndex !== -1) {
+          setShareInfo({
+            onlineUsers: share.onlineUsers?.filter(item => item.user_id !== data.user_id)
+          });
+
+          message.info(`${data.user} ${t('LeaveShare')}`);
+        }
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_PERM_EXPIRED: {
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SESSION_PAUSE: {
+        const data = JSON.parse(parsedMessageData.data);
+        message.info(`${data.user} ${t('PauseSession')}`);
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_GET_SHARE_USER: {
+        const data: ShareUserOptions = JSON.parse(parsedMessageData.data);
+
+        if (share.searchEnabledShareUser) {
+          setShareInfo({
+            searchEnabledShareUser: [...share.searchEnabledShareUser, data]
+          });
+        }
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SESSION_RESUME: {
+        const data = JSON.parse(parsedMessageData.data);
+        message.info(`${data.user} ${t('ResumeSession')}`);
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE: {
+        message.info(t('RemoveShareUser'));
+        socketRef.current?.close();
         break;
       }
     }
@@ -148,11 +217,9 @@ export const useConnection = () => {
     };
 
     ws.onclose = () => {
-      message.error('连接已关闭');
-
       terminal.write('\r\n');
       terminal.write('\r\n');
-      terminal.write('\r\n\r\n\x1b[31mConnection websocket has been closed\x1b[0m');
+      message.info('Connection websocket has been closed');
     };
 
     ws.onerror = error => {
