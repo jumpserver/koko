@@ -570,6 +570,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if s.suFromAccount != nil {
 		loginAccount = s.suFromAccount
 	}
+	platform := s.connOpts.authInfo.Platform
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 	user := s.connOpts.authInfo.User
@@ -586,7 +587,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		}
 	} else {
-		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
+		if !isPlatform(&platform, "MFA") {
+			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
+		}
 	}
 
 	password := loginAccount.Secret
@@ -633,7 +636,6 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		return nil, err
 	}
 
-	platform := s.connOpts.authInfo.Platform
 	pty := s.UserConn.Pty()
 	charset := s.getCharset()
 	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)
