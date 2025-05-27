@@ -12,6 +12,7 @@ const BASE_URL = document.location.protocol + '//' + document.location.hostname 
 
 type EmitterEvent = {
   'emit-resize': void;
+  'emit-generate-file-token': void;
 };
 
 export const getConnectionUrl = (type: 'ws' | 'http') => {
@@ -78,6 +79,12 @@ export const updateIcon = (faviconURL: string) => {
   }
 
   link.href = faviconURL;
+};
+
+export const sendEventToLuna = (name: string, data: any, lunaId: string | null = '', origin: string | null = '*') => {
+  if (lunaId !== null && origin !== null) {
+    window.parent.postMessage({ name, id: lunaId, data }, origin);
+  }
 };
 
 export const emitterEvent: Emitter<EmitterEvent> = mitt();

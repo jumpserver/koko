@@ -1,10 +1,11 @@
 import './index.scss';
 import { Flex, Card } from 'antd';
+import { emitterEvent } from '@/utils';
 import { useState, useMemo } from 'react';
 import { Settings, Folder, Share2 } from 'lucide-react';
 
-// import File from '@/components/File';
-// import Share from '@/components/Share';
+import File from '@/components/File';
+import Share from '@/components/Share';
 import Detail from '@/components/Detail';
 
 import type { DrawerItem } from '@/types/sidebar.type';
@@ -20,13 +21,13 @@ const DRAWER_ITEMS: DrawerItem[] = [
     label: 'File',
     value: 'file',
     icon: Folder,
-    component: <div>File</div>
+    component: <File />
   },
   {
     label: 'Share',
     value: 'share',
     icon: Share2,
-    component: <div>Share</div>
+    component: <Share />
   }
 ];
 
@@ -36,6 +37,11 @@ const DrawerTitle: React.FC = (): React.ReactNode => {
   const items = useMemo(() => DRAWER_ITEMS, []);
 
   const handleTabChange = (itemValue: string) => {
+    // 如果是 file，那么需要去发送 postMessage 让 luna 生成 token
+    if (itemValue === 'file') {
+      emitterEvent.emit('emit-generate-file-token');
+    }
+
     setActiveKey(itemValue);
   };
 

@@ -5,16 +5,18 @@ import xtermTheme from 'xterm-theme';
 import useDetail from '@/store/useDetail';
 
 import { useDebounceFn } from 'ahooks';
-import { emitterEvent } from '@/utils';
 import { Terminal } from '@xterm/xterm';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getConnectionUrl } from '@/utils';
+import { WINDOW_MESSAGE_TYPE } from '@/enums';
 import { useSearchParams } from 'react-router';
 import { useConnection } from '@/hooks/useConnection';
+import { emitterEvent, sendEventToLuna } from '@/utils';
 
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
+import { useFileStatus } from '@/store/useFileStatus';
 
 const TerminalComponent: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -25,6 +27,10 @@ const TerminalComponent: React.FC = () => {
   const token = searchParams.get('token');
   const connectionURL = `${wsUrl}/koko/ws/terminal/?token=${token}`;
 
+  const [fileToken, setFileToken] = useState<string>('');
+
+  const lunaId = useRef<string>('');
+  const origin = useRef<string>('');
   const fitAddon = useRef<FitAddon>(new FitAddon());
   const webglAddon = useRef<WebglAddon>(new WebglAddon());
   const searchAddon = useRef<SearchAddon>(new SearchAddon());
@@ -34,11 +40,29 @@ const TerminalComponent: React.FC = () => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
 
   const { terminalConfig } = useDetail();
+  const { setToken, setLoaded } = useFileStatus();
 
   const handleWindowMessage = (message: MessageEvent) => {
     const windowMessage = message.data;
 
-    // console.log(windowMessage);
+    switch (windowMessage.name) {
+      case WINDOW_MESSAGE_TYPE.CMD:
+        break;
+      case WINDOW_MESSAGE_TYPE.PING:
+        lunaId.current = windowMessage.id;
+        origin.current = windowMessage.origin;
+
+        setLoaded(false);
+        sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.current, origin.current);
+        break;
+      case WINDOW_MESSAGE_TYPE.FOCUS:
+        terminal.current?.focus();
+        break;
+      case WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN:
+        console.log(windowMessage.SFTP_Token);
+        setFileToken(windowMessage.SFTP_Token);
+        break;
+    }
   };
 
   const { run: handleResizeDebounced } = useDebounceFn(
@@ -49,6 +73,10 @@ const TerminalComponent: React.FC = () => {
     },
     { wait: 200 }
   );
+
+  const handleGenerateFileToken = useCallback(() => {
+    sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.current, origin.current);
+  }, []);
 
   useEffect(() => {
     const instance = new Terminal({
@@ -81,6 +109,7 @@ const TerminalComponent: React.FC = () => {
   // 初始化连接
   useEffect(() => {
     emitterEvent.on('emit-resize', handleResizeDebounced);
+    emitterEvent.on('emit-generate-file-token', handleGenerateFileToken);
     window.addEventListener('resize', handleResizeDebounced);
     window.addEventListener('message', handleWindowMessage);
 
@@ -91,6 +120,7 @@ const TerminalComponent: React.FC = () => {
 
     return () => {
       emitterEvent.off('emit-resize', handleResizeDebounced);
+      emitterEvent.off('emit-generate-file-token', handleGenerateFileToken);
       window.removeEventListener('resize', handleResizeDebounced);
       window.removeEventListener('message', handleWindowMessage);
     };
@@ -125,6 +155,12 @@ const TerminalComponent: React.FC = () => {
       }
     }, 0);
   }, [terminalConfig]);
+
+  useEffect(() => {
+    if (fileToken) {
+      setToken(fileToken);
+    }
+  }, [fileToken]);
 
   return <div ref={terminalRef} id="terminal-container" className="h-full"></div>;
 };
