@@ -1,0 +1,48 @@
+// 深色主题的模态框样式
+.dark-theme-modal {
+  .ant-modal-content {
+    background-color: #1f1f1f;
+    
+    .ant-modal-confirm-title {
+      color: #fff;
+    }
+    
+    .ant-modal-confirm-content {
+      color: #e0e0e0;
+    }
+    
+    .ant-modal-confirm-btns {
+      .ant-btn-default {
+        background-color: #2a2a2a;
+        border-color: #444;
+        color: #e0e0e0;
+        
+        &:hover {
+          background-color: #3a3a3a;
+          border-color: #555;
+        }
+      }
+    }
+  }
+  
+  &.ant-modal-wrap {
+    background-color: rgba(0, 0, 0, 0.65);
+  }
+  
+  .ant-modal-close-x {
+    color: #999;
+    
+    &:hover {
+      color: #fff;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .dark-theme-modal {
+    .ant-modal-content {
+      width: 90%;
+      margin: 0 auto;
+    }
+  }
+} 

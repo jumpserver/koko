@@ -3,9 +3,11 @@ import { message } from 'antd';
 import { v4 as uuid } from 'uuid';
 import { getConnectionUrl } from '@/utils';
 import { useFileStatus } from '@/store/useFileStatus';
-import { FILE_MANAGE_MESSAGE_TYPE, SFTP_CMD } from '@/enums';
+import { FILE_MANAGE_MESSAGE_TYPE, SFTP_CMD, FILE_OPERATION_TYPE } from '@/enums';
 
 import type { FileMessage, FileItem } from '@/types/file.type';
+
+// 定义文件操作类型
 
 export const useFileConnection = () => {
   const socket = useRef<WebSocket | null>(null);
@@ -42,23 +44,129 @@ export const useFileConnection = () => {
     const { cmd, data, current_path } = fileMessage;
 
     switch (cmd) {
+      case SFTP_CMD.RM:
+        if (fileMessage.data === 'ok') {
+          message.success('删除文件夹成功');
+          handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
+        }
+        break;
       case SFTP_CMD.LIST:
         {
           currentPath.current = current_path;
 
           setFileMessage({
-            paths: current_path.split('/')[1],
+            paths: current_path.split('/').filter(item => item !== '/' && item !== ''),
             fileList: JSON.parse(data)
           });
         }
 
         break;
       case SFTP_CMD.MKDIR:
+        if (fileMessage.data === 'ok') {
+          message.success('创建文件夹成功');
+          handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
+        }
         break;
       case SFTP_CMD.MKFILE:
         break;
       case SFTP_CMD.RENAME:
+        break;
     }
+  };
+
+  /**
+   * @description 统一处理文件操作
+   * @param operationType 操作类型
+   * @param path 操作的文件/文件夹路径（相对于当前路径）
+   */
+  const handleFileOperation = (operationType: FILE_OPERATION_TYPE, path?: string, newName?: string) => {
+    let sendBody: any;
+
+    switch (operationType) {
+      case FILE_OPERATION_TYPE.RENAME:
+        if (!path) {
+          console.error('重命名操作需要提供文件路径');
+          return;
+        }
+
+        sendBody = {
+          id: uuid(),
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          cmd: SFTP_CMD.RENAME,
+          data: JSON.stringify({ path: `${currentPath.current}/${path}`, new_name: newName })
+        };
+
+        console.log(sendBody);
+        break;
+
+      case FILE_OPERATION_TYPE.DELETE:
+        if (!path) {
+          console.error('删除操作需要提供文件路径');
+          return;
+        }
+        sendBody = {
+          id: uuid(),
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          cmd: SFTP_CMD.RM,
+          data: JSON.stringify({ path: `${currentPath.current}/${path}` })
+        };
+        break;
+
+      case FILE_OPERATION_TYPE.REFRESH:
+        sendBody = {
+          id: uuid(),
+          cmd: SFTP_CMD.LIST,
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          data: JSON.stringify({
+            path: currentPath.current
+          })
+        };
+        break;
+
+      case FILE_OPERATION_TYPE.OPEN_FOLDER:
+        console.log(path);
+        // 进入文件与返回到上一层级类似，只不过是路径不同
+        if (!path) {
+          sendBody = {
+            id: uuid(),
+            type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+            cmd: SFTP_CMD.LIST,
+            data: JSON.stringify({ path: currentPath.current.split('/').slice(0, -1).join('/') })
+          };
+          break;
+        }
+
+        sendBody = {
+          id: uuid(),
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          cmd: SFTP_CMD.LIST,
+          data: JSON.stringify({
+            path: `${currentPath.current}/${path}`
+          })
+        };
+        break;
+
+      case FILE_OPERATION_TYPE.CREATE_FOLDER:
+        if (!path) {
+          console.error('创建文件夹操作需要提供文件夹名称');
+          return;
+        }
+        sendBody = {
+          id: uuid(),
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          cmd: SFTP_CMD.MKDIR,
+          data: JSON.stringify({
+            path: currentPath.current + '/' + path
+          })
+        };
+        break;
+
+      default:
+        console.error('未知的文件操作类型:', operationType);
+        return;
+    }
+
+    socket.current?.send(JSON.stringify(sendBody));
   };
 
   /**
@@ -95,22 +203,6 @@ export const useFileConnection = () => {
     }
   };
 
-  /**
-   * @description 处理刷新事件
-   */
-  const handleRefresh = () => {
-    const sendBody = {
-      id: uuid(),
-      cmd: SFTP_CMD.LIST,
-      type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
-      data: JSON.stringify({
-        path: currentPath.current
-      })
-    };
-
-    socket.current?.send(JSON.stringify(sendBody));
-  };
-
   const createFileSocket = (token: string) => {
     const wsUrl = getConnectionUrl('ws');
 
@@ -136,7 +228,7 @@ export const useFileConnection = () => {
   };
 
   return {
-    handleRefresh,
-    createFileSocket
+    createFileSocket,
+    handleFileOperation
   };
 };

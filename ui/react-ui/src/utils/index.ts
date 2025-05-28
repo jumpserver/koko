@@ -83,7 +83,8 @@ export const updateIcon = (faviconURL: string) => {
 
 export const sendEventToLuna = (name: string, data: any, lunaId: string | null = '', origin: string | null = '*') => {
   if (lunaId !== null && origin !== null) {
-    window.parent.postMessage({ name, id: lunaId, data }, origin);
+    const targetOrigin = origin === '' ? '*' : origin;
+    window.parent.postMessage({ name, id: lunaId, data }, targetOrigin);
   }
 };
 

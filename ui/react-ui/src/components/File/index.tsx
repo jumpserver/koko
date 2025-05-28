@@ -1,192 +1,126 @@
-import dayjs from 'dayjs';
-import prettyBytes from 'pretty-bytes';
+import './index.scss';
+import FileModal from './widgets/FileModal';
+import FileTable from './widgets/FileTable';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { FILE_OPERATION_TYPE } from '@/enums';
 import { useFileStatus } from '@/store/useFileStatus';
+import { Card, Flex, Tooltip, Button, Switch } from 'antd';
 import { useFileConnection } from '@/hooks/useFileConnection';
-import { Download, Plus, Folder, File as FileIcon, RefreshCcw } from 'lucide-react';
-import { Card, Flex, Table, Tooltip, Space, Button, Dropdown, theme } from 'antd';
+import { Plus, Upload, RefreshCcw, Undo2 } from 'lucide-react';
 
-import type { TableProps, MenuProps } from 'antd';
 import type { FileItem } from '@/types/file.type';
 
-const columns: TableProps<FileItem>['columns'] = [
-  {
-    title: '文件名',
-    dataIndex: 'name',
-    key: 'name',
-    width: 200,
+interface CardExtraProps {
+  compact: boolean;
+  setCompact: (compact: boolean) => void;
+}
 
-    render: (_, { name, is_dir }) => (
-      <Tooltip placement="topLeft" mouseEnterDelay={0.5} title={name}>
-        <div className="flex items-center space-x-2 max-w-40 overflow-hidden">
-          <span className="flex-shrink-0">{is_dir ? <Folder size={16} /> : <FileIcon size={16} />}</span>
-          <span className="truncate">{name}</span>
-        </div>
-      </Tooltip>
-    )
-  },
-  {
-    title: '大小',
-    dataIndex: 'size',
-    key: 'size',
-    render: (_, { size }) => {
-      return prettyBytes(Number(size));
-    }
-  },
-  {
-    title: '修改时间',
-    dataIndex: 'mod_time',
-    key: 'mod_time',
-    width: 180,
-    render: (_, { mod_time }) => {
-      const timestamp = Number(mod_time) * 1000;
-
-      return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss');
-    }
-  },
-  {
-    title: '权限',
-    key: 'perm',
-    dataIndex: 'perm'
-  }
-];
-
-const items: MenuProps['items'] = [
-  {
-    label: '1st menu item',
-    key: '1',
-    onClick: e => {
-      console.log(e);
-    }
-  },
-  {
-    label: '2nd menu item',
-    key: '2'
-  },
-  {
-    label: '3rd menu item',
-    key: '3'
-  }
-];
+const CardExtra: React.FC<CardExtraProps> = ({ compact, setCompact }) => {
+  return (
+    <Tooltip title="紧凑表格">
+      <Switch size="small" checked={compact} onChange={setCompact} />
+    </Tooltip>
+  );
+};
 
 const File: React.FC = () => {
-  const { createFileSocket, handleRefresh } = useFileConnection();
-  const { loadedMessage, fileMessage, setLoaded } = useFileStatus();
-
-  const [selectedRow, setSelectedRow] = useState<FileItem | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [compact, setCompact] = useState(false);
+  const [fileModalVisible, setFileModalVisible] = useState(false);
+  const [fileModalTitle, setFileModalTitle] = useState('');
+  const [fileRenamePath, setFileRenamePath] = useState('');
+  const [fileModalType, setFileModalType] = useState<'create' | 'rename'>('create');
   const [fileList, setFileList] = useState<FileItem[]>([]);
 
+  const { createFileSocket, handleFileOperation } = useFileConnection();
+  const { loadedMessage, fileMessage, setLoaded } = useFileStatus();
+
   useEffect(() => {
-    if (!loadedMessage.loaded) {
+    console.log('文件管理状态更新:', { token: loadedMessage.token, loaded: loadedMessage.loaded });
+
+    if (loadedMessage.token && !loadedMessage.loaded) {
       createFileSocket(loadedMessage.token);
       setLoaded(true);
     }
   }, [loadedMessage.loaded, loadedMessage.token]);
 
   useEffect(() => {
-    console.log(fileMessage);
-    const { fileList } = fileMessage;
-
-    if (fileList.length > 0) {
-      setFileList(fileList);
-    }
+    setFileList(fileMessage.fileList);
   }, [fileMessage]);
 
-  // 动态生成菜单项
-  const getMenuItems = (record: FileItem) => [
-    {
-      label: `下载 ${record.name}`,
-      key: 'download',
-      onClick: () => {
-        console.log('下载文件:', record);
-        // 实现下载逻辑
-      }
-    },
-    {
-      label: record.is_dir ? '打开文件夹' : '打开文件',
-      key: 'open',
-      onClick: () => {
-        console.log('打开:', record);
-        // 实现打开逻辑
-      }
-    },
-    {
-      label: '删除',
-      key: 'delete',
-      danger: true,
-      onClick: () => {
-        console.log('删除:', record);
-        // 实现删除逻辑
-      }
-    }
-  ];
-
   return (
-    <Card title="yy 的文件管理器" variant="borderless" className="w-full">
-      <Flex vertical gap="middle">
-        <Flex align="center" className="w-full">
-          <div className="flex-1">
-            <Space split=">">
-              {fileMessage.paths.map((item, index) => (
-                <span key={index}>{item}</span>
-              ))}
-            </Space>
-          </div>
+    <>
+      <Card
+        title="yy 的文件管理器"
+        variant="borderless"
+        className="w-full"
+        extra={<CardExtra compact={compact} setCompact={setCompact} />}
+      >
+        <Flex vertical gap="middle">
+          <Flex vertical gap="small" align="center" justify="start">
+            {/* TODO 文件路径 */}
 
-          <Flex align="center" gap="small" className="shrink-0">
-            <Button icon={<Download size={14} />}>下载</Button>
-            <Button icon={<Plus size={14} />}>新建文件夹</Button>
+            <Flex align="center" justify="space-between" gap="small" className="shrink-0 w-full">
+              <Flex gap="middle">
+                <Button icon={<Upload size={14} />}>上传</Button>
+                <Button
+                  icon={<Plus size={14} />}
+                  onClick={() => {
+                    setFileModalTitle('新建文件夹');
+                    setFileModalVisible(true);
+                  }}
+                >
+                  新建文件夹
+                </Button>
+              </Flex>
 
-            <Tooltip title="刷新">
-              <Button icon={<RefreshCcw size={14} />} onClick={handleRefresh} />
-            </Tooltip>
+              <Flex gap="small">
+                <Tooltip title="返回到上一层级">
+                  <Button
+                    icon={<Undo2 size={14} />}
+                    onClick={() => handleFileOperation(FILE_OPERATION_TYPE.OPEN_FOLDER)}
+                  />
+                </Tooltip>
+
+                <Tooltip title="刷新">
+                  <Button
+                    icon={<RefreshCcw size={14} />}
+                    onClick={() => handleFileOperation(FILE_OPERATION_TYPE.REFRESH)}
+                  />
+                </Tooltip>
+              </Flex>
+            </Flex>
           </Flex>
-        </Flex>
 
-        <Table<FileItem>
-          pagination={false}
-          columns={columns}
-          dataSource={fileList}
-          onRow={record => ({
-            onContextMenu: event => {
-              event.preventDefault();
-              setPosition({ x: event.clientX, y: event.clientY });
-              setSelectedRow(record);
-              setVisible(true);
-            }
-          })}
-        />
-
-        {selectedRow && (
-          <Dropdown
-            open={visible}
-            menu={{ items: getMenuItems(selectedRow) }}
-            onOpenChange={open => {
-              if (!open) {
-                setVisible(false);
-                setSelectedRow(null);
-              }
+          <FileTable
+            fileList={fileList}
+            compact={compact}
+            onRenameFile={(path: string) => {
+              setFileRenamePath(path);
+              setFileModalType('rename');
+              setFileModalTitle('重命名文件');
+              setFileModalVisible(true);
             }}
-            dropdownRender={menu => (
-              <div
-                style={{
-                  position: 'fixed',
-                  left: `${position.x}px`,
-                  top: `${position.y}px`
-                }}
-              >
-                {menu}
-              </div>
-            )}
-          >
-            <span></span>
-          </Dropdown>
-        )}
-      </Flex>
-    </Card>
+            onOpenFolder={path => handleFileOperation(FILE_OPERATION_TYPE.OPEN_FOLDER, path)}
+            onDeleteFile={path => handleFileOperation(FILE_OPERATION_TYPE.DELETE, path)}
+          />
+        </Flex>
+      </Card>
+
+      <FileModal
+        title={fileModalTitle}
+        visible={fileModalVisible}
+        onCancel={() => setFileModalVisible(false)}
+        onConfirm={fileName => {
+          if (fileModalType === 'create') {
+            handleFileOperation(FILE_OPERATION_TYPE.CREATE_FOLDER, fileName);
+          } else {
+            handleFileOperation(FILE_OPERATION_TYPE.RENAME, fileRenamePath, fileName);
+          }
+          setFileModalVisible(false);
+        }}
+      />
+    </>
   );
 };
 

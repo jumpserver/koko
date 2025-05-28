@@ -74,3 +74,11 @@ export enum FILE_MANAGE_MESSAGE_TYPE {
   SFTP_DATA = 'SFTP_DATA',
   SFTP_BINARY = 'SFTP_BINARY'
 }
+
+export enum FILE_OPERATION_TYPE {
+  RENAME = 'rename',
+  DELETE = 'delete',
+  REFRESH = 'refresh',
+  OPEN_FOLDER = 'open_folder',
+  CREATE_FOLDER = 'create_folder'
+}

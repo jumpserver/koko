@@ -15,7 +15,10 @@ interface FileStatus {
 
   setLoaded: (loaded: boolean) => void;
   setToken: (token: string) => void;
-  setFileMessage: (fileMessage: { paths: string; fileList: FileItem[] }) => void;
+  setFileMessage: (fileMessage: { paths: string[]; fileList: FileItem[] }) => void;
+
+  resetFileMessage: () => void;
+  resetLoadedMessage: () => void;
 }
 
 export const useFileStatus = create(
@@ -35,27 +38,21 @@ export const useFileStatus = create(
       setLoaded: (loaded: boolean) => set(state => ({ loadedMessage: { ...state.loadedMessage, loaded } })),
       setToken: (token: string) => set(state => ({ loadedMessage: { ...state.loadedMessage, token } })),
 
-      setFileMessage: (_fileMessage: { paths: string; fileList: FileItem[] }) =>
+      setFileMessage: (_fileMessage: { paths: string[]; fileList: FileItem[] }) =>
         set(state => {
-          let newPath: string[];
-
-          const pathExists = state.fileMessage.paths.includes(_fileMessage.paths);
-
-          if (pathExists) {
-            // 如果存在这个目录那么直接就截取到那个路径下
-            const index = state.fileMessage.paths.indexOf(_fileMessage.paths);
-            newPath = state.fileMessage.paths.slice(0, index + 1);
-          } else {
-            newPath = [...state.fileMessage.paths, _fileMessage.paths];
-          }
+          // 过滤出 fileMessage 中已经有的 path
+          const newPath = _fileMessage.paths.filter(item => !state.fileMessage.paths.includes(item));
 
           return {
             fileMessage: {
-              paths: newPath,
+              paths: [...state.fileMessage.paths, ...newPath],
               fileList: _fileMessage.fileList
             }
           };
-        })
+        }),
+
+      resetFileMessage: () => set(() => ({ fileMessage: { paths: [], fileList: [] } })),
+      resetLoadedMessage: () => set(() => ({ loadedMessage: { loaded: false, token: '' } }))
     }),
     {
       name: 'KOKO_USER_FILE_STATUS',

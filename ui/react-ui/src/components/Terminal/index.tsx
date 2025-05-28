@@ -40,7 +40,7 @@ const TerminalComponent: React.FC = () => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
 
   const { terminalConfig } = useDetail();
-  const { setToken, setLoaded } = useFileStatus();
+  const { setToken, setLoaded, resetFileMessage, resetLoadedMessage } = useFileStatus();
 
   const handleWindowMessage = (message: MessageEvent) => {
     const windowMessage = message.data;
@@ -53,13 +53,15 @@ const TerminalComponent: React.FC = () => {
         origin.current = windowMessage.origin;
 
         setLoaded(false);
+        resetFileMessage();
+        resetLoadedMessage();
         sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.current, origin.current);
         break;
       case WINDOW_MESSAGE_TYPE.FOCUS:
         terminal.current?.focus();
         break;
       case WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN:
-        console.log(windowMessage.SFTP_Token);
+        console.log('windowMessage.SFTP_Token', windowMessage.SFTP_Token);
         setFileToken(windowMessage.SFTP_Token);
         break;
     }
