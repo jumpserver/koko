@@ -1,12 +1,13 @@
-import './index.scss';
 import FileModal from './widgets/FileModal';
 import FileTable from './widgets/FileTable';
+import FileUpload from './widgets/FileUpload';
+import UploadList from './widgets/UploadList';
 
 import { useEffect, useState } from 'react';
 import { FILE_OPERATION_TYPE } from '@/enums';
 import { useFileStatus } from '@/store/useFileStatus';
+import { Plus, RefreshCcw, Undo2, List } from 'lucide-react';
 import { useFileConnection } from '@/hooks/useFileConnection';
-import { Plus, Upload, RefreshCcw, Undo2 } from 'lucide-react';
 import { Card, Flex, Tooltip, Button, Switch, Spin } from 'antd';
 
 import type { FileItem } from '@/types/file.type';
@@ -26,14 +27,21 @@ const CardExtra: React.FC<CardExtraProps> = ({ compact, setCompact }) => {
 
 const File: React.FC = () => {
   const [compact, setCompact] = useState(false);
+  const [fileListVisible, setFileListVisible] = useState(false);
   const [fileModalVisible, setFileModalVisible] = useState(false);
   const [fileModalTitle, setFileModalTitle] = useState('');
   const [fileRenamePath, setFileRenamePath] = useState('');
   const [fileModalType, setFileModalType] = useState<'create' | 'rename'>('create');
   const [fileList, setFileList] = useState<FileItem[]>([]);
 
-  const { spinning, createFileSocket, handleFileOperation } = useFileConnection();
-  const { loadedMessage, fileMessage, setLoaded } = useFileStatus();
+  const {
+    spinning,
+    currentUploadMessage,
+    createFileSocket,
+    handleFileOperation,
+    handleFileUpload,
+  } = useFileConnection();
+  const { loadedMessage, fileMessage, uploadFileList, setLoaded } = useFileStatus();
 
   useEffect(() => {
     if (loadedMessage.token && !loadedMessage.loaded) {
@@ -45,6 +53,12 @@ const File: React.FC = () => {
   useEffect(() => {
     setFileList(fileMessage.fileList);
   }, [fileMessage]);
+
+  useEffect(() => {
+    if (currentUploadMessage?.status === 'uploading') {
+      setFileListVisible(true);
+    }
+  }, [currentUploadMessage]);
 
   return (
     <>
@@ -60,7 +74,8 @@ const File: React.FC = () => {
 
             <Flex align="center" justify="space-between" gap="small" className="shrink-0 w-full">
               <Flex gap="middle">
-                <Button icon={<Upload size={14} />}>上传</Button>
+                <FileUpload handleFileUpload={handleFileUpload} />
+
                 <Button
                   icon={<Plus size={14} />}
                   onClick={() => {
@@ -73,6 +88,7 @@ const File: React.FC = () => {
               </Flex>
 
               <Flex gap="small">
+                {/* TODO 根路径下的禁用 */}
                 <Tooltip title="返回到上一层级">
                   <Button
                     icon={<Undo2 size={14} />}
@@ -85,6 +101,10 @@ const File: React.FC = () => {
                     icon={<RefreshCcw size={14} />}
                     onClick={() => handleFileOperation(FILE_OPERATION_TYPE.REFRESH)}
                   />
+                </Tooltip>
+
+                <Tooltip title="上传列表">
+                  <Button icon={<List size={14} />} onClick={() => setFileListVisible(true)} />
                 </Tooltip>
               </Flex>
             </Flex>
@@ -119,6 +139,13 @@ const File: React.FC = () => {
           }
           setFileModalVisible(false);
         }}
+      />
+
+      <UploadList
+        uploadFileList={uploadFileList}
+        fileListVisible={fileListVisible}
+        currentUploadMessage={currentUploadMessage!}
+        closeFileList={() => setFileListVisible(false)}
       />
     </>
   );

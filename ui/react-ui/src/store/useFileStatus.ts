@@ -1,21 +1,26 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-import type { FileItem } from '@/types/file.type';
+import type { FileItem, UploadFileItem } from '@/types/file.type';
 
 interface FileStatus {
   loadedMessage: {
     loaded: boolean;
     token: string;
   };
+
   fileMessage: {
     paths: string[];
     fileList: FileItem[];
   };
 
+  uploadFileList: UploadFileItem[];
+
   setLoaded: (loaded: boolean) => void;
   setToken: (token: string) => void;
   setFileMessage: (fileMessage: { paths: string[]; fileList: FileItem[] }) => void;
+  setUploadFileList: (uploadFileList: UploadFileItem[]) => void;
+  clearUploadFileList: () => void;
 
   resetFileMessage: () => void;
   resetLoadedMessage: () => void;
@@ -34,7 +39,8 @@ export const useFileStatus = create(
         fileList: []
       },
 
-      // 单独设置 loaded
+      uploadFileList: [],
+
       setLoaded: (loaded: boolean) => set(state => ({ loadedMessage: { ...state.loadedMessage, loaded } })),
       setToken: (token: string) => set(state => ({ loadedMessage: { ...state.loadedMessage, token } })),
 
@@ -50,6 +56,9 @@ export const useFileStatus = create(
             }
           };
         }),
+      setUploadFileList: (uploadFileList: UploadFileItem[]) =>
+        set(state => ({ uploadFileList: [...state.uploadFileList, ...uploadFileList] })),
+      clearUploadFileList: () => set(() => ({ uploadFileList: [] })),
 
       resetFileMessage: () => set(() => ({ fileMessage: { paths: [], fileList: [] } })),
       resetLoadedMessage: () => set(() => ({ loadedMessage: { loaded: false, token: '' } }))

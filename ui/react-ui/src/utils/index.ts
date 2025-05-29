@@ -88,4 +88,18 @@ export const sendEventToLuna = (name: string, data: any, lunaId: string | null =
   }
 };
 
+export const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+  const uint8Array = new Uint8Array(buffer);
+  const CHUNK_SIZE = 0x8000;
+
+  let result = '';
+
+  for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
+    const chunk = uint8Array.subarray(i, i + CHUNK_SIZE);
+    result += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+
+  return btoa(result);
+};
+
 export const emitterEvent: Emitter<EmitterEvent> = mitt();

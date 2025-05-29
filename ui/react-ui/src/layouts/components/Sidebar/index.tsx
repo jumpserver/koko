@@ -73,7 +73,7 @@ const DrawerTitle: React.FC = (): React.ReactNode => {
 export const Sidebar: React.FC = () => {
   return (
     <>
-      <Card variant="borderless" className="h-full !rounded-none !bg-[#1D1D1D]">
+      <Card variant="borderless" className="relative h-full !rounded-none !bg-[#1D1D1D] overflow-hidden">
         <DrawerTitle />
       </Card>
     </>

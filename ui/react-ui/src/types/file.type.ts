@@ -126,3 +126,15 @@ export interface FileSendData {
   merge?: boolean;
   chunk?: boolean;
 }
+
+export interface UploadFileItem {
+  filename: string;
+
+  status: 'error' | 'success' | 'uploading';
+
+  md5: string;
+
+  totalSize: number;
+
+  uploaded: number;
+}

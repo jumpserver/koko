@@ -1,23 +1,27 @@
 import { message } from 'antd';
 import { v4 as uuid } from 'uuid';
 import { useRef, useState } from 'react';
-import { getConnectionUrl } from '@/utils';
 import { useFileStatus } from '@/store/useFileStatus';
+import { getConnectionUrl, arrayBufferToBase64 } from '@/utils';
 import { FILE_MANAGE_MESSAGE_TYPE, SFTP_CMD, FILE_OPERATION_TYPE } from '@/enums';
 
-import type { FileMessage, FileItem } from '@/types/file.type';
+import type { RcFile } from 'antd/es/upload/interface';
+import type { FileMessage, FileSendData, UploadFileItem } from '@/types/file.type';
 
-// 定义文件操作类型
+// 最大切片数量
+const MAX_SLICE_COUNT = 100;
 
 export const useFileConnection = () => {
   const [initialPath, setInitialPath] = useState<string>('');
   const [spinning, setSpinning] = useState(false);
+  const [currentUploadMessage, setCurrentUploadMessage] = useState<UploadFileItem | null>(null);
 
   const socket = useRef<WebSocket | null>(null);
+  const chunkReceived = useRef<boolean>(false);
   const messageId = useRef<string>('');
   const currentPath = useRef<string>('');
 
-  const { setFileMessage } = useFileStatus();
+  const { setFileMessage, setUploadFileList } = useFileStatus();
 
   /**
    * @description 处理连接事件
@@ -83,6 +87,8 @@ export const useFileConnection = () => {
           handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
         }
         break;
+      case SFTP_CMD.UPLOAD:
+        chunkReceived.current = true;
     }
   };
 
@@ -219,6 +225,110 @@ export const useFileConnection = () => {
     }
   };
 
+  /**
+   * @description 处理文件上传
+   * @param file 文件
+   */
+  const handleFileUpload = async (file: RcFile) => {
+    const sendBody = {
+      raw: '',
+      data: '',
+      id: Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(),
+      cmd: SFTP_CMD.UPLOAD,
+      type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA
+    };
+
+    const sendData: FileSendData = {
+      offSet: 0,
+      size: file.size,
+      path: `${currentPath.current}/${file.name}`
+    };
+
+    let chunkSize = 1024 * 1024 * 5;
+    let sliceCount = Math.ceil(file.size / chunkSize);
+
+    if (sliceCount > MAX_SLICE_COUNT) {
+      // 动态将 chunkSize 扩容 10%
+      sliceCount = MAX_SLICE_COUNT;
+      chunkSize = chunkSize * 1.1;
+    }
+
+    setCurrentUploadMessage({
+      filename: file.name,
+      totalSize: file.size,
+      status: 'uploading',
+      md5: '',
+      uploaded: 0
+    });
+
+    try {
+      for (let i = 0; i < sliceCount; i++) {
+        const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
+        const arrayBuffer = await chunk.arrayBuffer();
+        const base64String: string = arrayBufferToBase64(arrayBuffer);
+
+        sendData.offSet = i * chunkSize;
+        sendBody.raw = base64String;
+        sendBody.data = JSON.stringify(sendData);
+
+        // 重置确认状态
+        chunkReceived.current = false;
+
+        // 发送当前切片
+        socket.current?.send(JSON.stringify(sendBody));
+
+        // 等待当前切片的确认
+        await new Promise<void>(resolve => {
+          const checkReceived = () => {
+            console.log('chunkReceived', chunkReceived.current);
+            if (chunkReceived.current) {
+              resolve();
+            } else {
+              setTimeout(checkReceived, 100);
+            }
+          };
+          checkReceived();
+        });
+
+        // 更新进度
+        const uploadedBytes = (i + 1) * chunkSize > file.size ? file.size : (i + 1) * chunkSize;
+
+        setCurrentUploadMessage(prev => {
+          if (prev) {
+            return {
+              ...prev,
+              uploaded: uploadedBytes
+            };
+          }
+          return prev;
+        });
+      }
+
+      // 所有切片上传完成
+      setCurrentUploadMessage(prev => {
+        if (prev) {
+          return {
+            ...prev,
+            status: 'success',
+            uploaded: file.size
+          };
+        }
+        return prev;
+      });
+    } catch (e) {
+      message.error(String(e));
+      setCurrentUploadMessage(prev => {
+        if (prev) {
+          return {
+            ...prev,
+            status: 'error'
+          };
+        }
+        return prev;
+      });
+    }
+  };
+
   const createFileSocket = (token: string) => {
     const wsUrl = getConnectionUrl('ws');
 
@@ -249,6 +359,8 @@ export const useFileConnection = () => {
 
   return {
     spinning,
+    currentUploadMessage,
+    handleFileUpload,
     createFileSocket,
     handleFileOperation
   };
