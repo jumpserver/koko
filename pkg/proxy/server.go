@@ -16,12 +16,12 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
+	modelCommon "github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
-	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -121,10 +121,12 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 			return err2
 		},
 		ConnectedFailedCallback: func(err error) error {
-			return jmsService.SessionFailed(apiSession.ID, err)
+			_, err1 := jmsService.SessionFailed(apiSession.ID, err)
+			return err1
 		},
 		DisConnectedCallback: func() error {
-			return jmsService.SessionDisconnect(apiSession.ID)
+			_, err2 := jmsService.SessionDisconnect(apiSession.ID)
+			return err2
 		},
 	}, nil
 }

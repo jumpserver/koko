@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 )
 
 type ServerStorage struct {
@@ -33,7 +33,7 @@ func (s ServerStorage) BulkSave(commands []*model.Command) (err error) {
 
 func (s ServerStorage) Upload(gZipFilePath, target string) (err error) {
 	sessionID := strings.Split(filepath.Base(gZipFilePath), ".")[0]
-	return s.JmsService.UploadReplay(sessionID, gZipFilePath)
+	return s.JmsService.Upload(sessionID, gZipFilePath)
 }
 
 func (s ServerStorage) TypeName() string {

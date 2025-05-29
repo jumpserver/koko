@@ -13,9 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 	gorilla "github.com/gorilla/websocket"
 
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -55,7 +55,7 @@ func (userCon *UserWebsocket) initial() error {
 	userCon.wsParams = &wsParams
 	token := userCon.wsParams.Token
 	if token != "" {
-		connectToken, err := userCon.apiClient.GetConnectTokenInfo(token)
+		connectToken, err := userCon.apiClient.GetConnectTokenInfo(token, true)
 		if err != nil {
 			logger.Errorf("Get connect token info %s error: %s", token, err)
 			errMsg := "Token invalid"

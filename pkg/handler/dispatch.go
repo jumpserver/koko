@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -186,7 +186,6 @@ func (h *InteractiveHandler) ChangeLang() {
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(lang.T("Switch language successfully"), utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 	}
-	userLangGlobalStore.Store(h.user.ID, i18nLang)
 	h.i18nLang = i18nLang
 }
 

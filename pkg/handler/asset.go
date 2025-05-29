@@ -7,14 +7,16 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/term"
+
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
+
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
-	"golang.org/x/term"
 )
 
 func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) []model.PermAsset {
@@ -252,7 +254,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 		}
 	}
 
-	connectToken, err := u.h.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	connectToken, err := u.h.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("connect token err: %s", err)
 		utils.IgnoreErrWriteString(u.h.term, lang.T("get connect token err"))
