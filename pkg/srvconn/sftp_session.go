@@ -3,9 +3,9 @@ package srvconn
 import (
 	"sync"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
+	"github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 )
@@ -21,7 +21,7 @@ func (s *SftpSession) CloseWithReason(reason model.SessionLifecycleReasonErr) {
 	s.once.Do(func() {
 		s.SftpConn.Close()
 		session.RemoveSessionById(s.sess.ID)
-		if err := s.jmsService.SessionFinished(s.sess.ID, common.NewNowUTCTime()); err != nil {
+		if _, err := s.jmsService.SessionFinished(s.sess.ID, common.NewNowUTCTime()); err != nil {
 			logger.Errorf("SFTP Session finished err: %s", err)
 		}
 		logger.Debugf("SFTP Session finished %s", s.sess.ID)

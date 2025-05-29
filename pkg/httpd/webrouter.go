@@ -9,11 +9,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/jumpserver-dev/sdk-go/service"
 	assets "github.com/jumpserver/koko"
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 

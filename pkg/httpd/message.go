@@ -5,7 +5,7 @@ import (
 
 	"github.com/jumpserver/koko/pkg/exchange"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/model"
 )
 
 type Message struct {

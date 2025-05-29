@@ -15,13 +15,13 @@ import (
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
+	modelCommon "github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
-	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/session"
@@ -289,7 +289,7 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return
 	}
-	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
@@ -434,7 +434,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	session.AddSession(traceSession)
 
 	defer func() {
-		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if _, err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
@@ -558,7 +558,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	})
 	session.AddSession(traceSession)
 	defer func() {
-		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if _, err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
@@ -757,7 +757,7 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return nil, err
 	}
-	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
 		return nil, err

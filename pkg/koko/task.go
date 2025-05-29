@@ -9,10 +9,11 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
+
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/session"
@@ -34,7 +35,7 @@ func uploadRemainReplay(jmsService *service.JMService) {
 		}
 		if replayInfo, ok := parseReplayFilename(info.Name()); ok {
 			finishedTime := common.NewUTCTime(info.ModTime())
-			if err2 := jmsService.SessionFinished(replayInfo.Id, finishedTime); err2 != nil {
+			if _, err2 := jmsService.SessionFinished(replayInfo.Id, finishedTime); err2 != nil {
 				logger.Error(err2)
 				return nil
 			}
@@ -85,7 +86,7 @@ func uploadRemainReplay(jmsService *service.JMService) {
 		if err2 := replayStorage.Upload(absGzPath, target); err2 != nil {
 			logger.Errorf("Upload remain replay file %s failed: %s", absGzPath, err2)
 			reason := model.SessionReplayErrUploadFailed
-			if err3 := jmsService.SessionReplayFailed(remainReplay.Id, reason); err3 != nil {
+			if _, err3 := jmsService.SessionReplayFailed(remainReplay.Id, reason); err3 != nil {
 				logger.Errorf("Update session %s status %s failed: %s", remainReplay.Id, reason, err3)
 			}
 			failureMsg := strings.ReplaceAll(err2.Error(), ",", " ")
@@ -93,7 +94,7 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			continue
 		}
 		recordLifecycleLog(remainReplay.Id, model.ReplayUploadSuccess, "")
-		if err1 := jmsService.FinishReply(remainReplay.Id); err1 != nil {
+		if _, err1 := jmsService.FinishReply(remainReplay.Id); err1 != nil {
 			logger.Errorf("Notify session %s upload failed: %s", remainReplay.Id, err1)
 			continue
 		}

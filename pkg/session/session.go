@@ -3,7 +3,7 @@ package session
 import (
 	"fmt"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/model"
 )
 
 type TaskFunc func(task *model.TerminalTask) error

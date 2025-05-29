@@ -13,11 +13,12 @@ import (
 	"github.com/xlab/treeprint"
 	"golang.org/x/term"
 
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
+
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/utils"
 )
@@ -43,14 +44,9 @@ func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *servi
 	return handler
 }
 
-var (
-	// 全局永久缓存 ssh 登录用户切换的语言
-	userLangGlobalStore = sync.Map{}
-)
-
 func getUserDefaultLangCode(user *model.User) string {
-	if langCode, ok := userLangGlobalStore.Load(user.ID); ok {
-		return langCode.(string)
+	if user.Language != "" {
+		return user.Language
 	}
 	return config.GetConf().LanguageCode
 }
