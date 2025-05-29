@@ -1,6 +1,6 @@
-import { useRef } from 'react';
 import { message } from 'antd';
 import { v4 as uuid } from 'uuid';
+import { useRef, useState } from 'react';
 import { getConnectionUrl } from '@/utils';
 import { useFileStatus } from '@/store/useFileStatus';
 import { FILE_MANAGE_MESSAGE_TYPE, SFTP_CMD, FILE_OPERATION_TYPE } from '@/enums';
@@ -10,6 +10,9 @@ import type { FileMessage, FileItem } from '@/types/file.type';
 // 定义文件操作类型
 
 export const useFileConnection = () => {
+  const [initialPath, setInitialPath] = useState<string>('');
+  const [spinning, setSpinning] = useState(false);
+
   const socket = useRef<WebSocket | null>(null);
   const messageId = useRef<string>('');
   const currentPath = useRef<string>('');
@@ -45,6 +48,7 @@ export const useFileConnection = () => {
 
     switch (cmd) {
       case SFTP_CMD.RM:
+        setSpinning(false);
         if (fileMessage.data === 'ok') {
           message.success('删除文件夹成功');
           handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
@@ -52,6 +56,7 @@ export const useFileConnection = () => {
         break;
       case SFTP_CMD.LIST:
         {
+          setSpinning(false);
           currentPath.current = current_path;
 
           setFileMessage({
@@ -62,14 +67,21 @@ export const useFileConnection = () => {
 
         break;
       case SFTP_CMD.MKDIR:
+        setSpinning(false);
         if (fileMessage.data === 'ok') {
           message.success('创建文件夹成功');
           handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
         }
         break;
       case SFTP_CMD.MKFILE:
+        setSpinning(false);
         break;
       case SFTP_CMD.RENAME:
+        setSpinning(false);
+        if (fileMessage.data === 'ok') {
+          message.success('重命名成功');
+          handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
+        }
         break;
     }
   };
@@ -82,10 +94,13 @@ export const useFileConnection = () => {
   const handleFileOperation = (operationType: FILE_OPERATION_TYPE, path?: string, newName?: string) => {
     let sendBody: any;
 
+    setSpinning(true);
+
     switch (operationType) {
       case FILE_OPERATION_TYPE.RENAME:
         if (!path) {
           console.error('重命名操作需要提供文件路径');
+          setSpinning(false);
           return;
         }
 
@@ -96,12 +111,12 @@ export const useFileConnection = () => {
           data: JSON.stringify({ path: `${currentPath.current}/${path}`, new_name: newName })
         };
 
-        console.log(sendBody);
         break;
 
       case FILE_OPERATION_TYPE.DELETE:
         if (!path) {
           console.error('删除操作需要提供文件路径');
+          setSpinning(false);
           return;
         }
         sendBody = {
@@ -124,7 +139,6 @@ export const useFileConnection = () => {
         break;
 
       case FILE_OPERATION_TYPE.OPEN_FOLDER:
-        console.log(path);
         // 进入文件与返回到上一层级类似，只不过是路径不同
         if (!path) {
           sendBody = {
@@ -149,6 +163,7 @@ export const useFileConnection = () => {
       case FILE_OPERATION_TYPE.CREATE_FOLDER:
         if (!path) {
           console.error('创建文件夹操作需要提供文件夹名称');
+          setSpinning(false);
           return;
         }
         sendBody = {
@@ -163,6 +178,7 @@ export const useFileConnection = () => {
 
       default:
         console.error('未知的文件操作类型:', operationType);
+        setSpinning(false);
         return;
     }
 
@@ -216,9 +232,13 @@ export const useFileConnection = () => {
       message.success('SFTP Connection Success');
     };
 
-    ws.onerror = () => {};
+    ws.onerror = () => {
+      setSpinning(false);
+      message.error('SFTP 连接错误');
+    };
 
     ws.onclose = () => {
+      setSpinning(false);
       message.error('SFTP connection has been closed');
     };
 
@@ -228,6 +248,7 @@ export const useFileConnection = () => {
   };
 
   return {
+    spinning,
     createFileSocket,
     handleFileOperation
   };

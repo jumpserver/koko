@@ -5,9 +5,9 @@ import FileTable from './widgets/FileTable';
 import { useEffect, useState } from 'react';
 import { FILE_OPERATION_TYPE } from '@/enums';
 import { useFileStatus } from '@/store/useFileStatus';
-import { Card, Flex, Tooltip, Button, Switch } from 'antd';
 import { useFileConnection } from '@/hooks/useFileConnection';
 import { Plus, Upload, RefreshCcw, Undo2 } from 'lucide-react';
+import { Card, Flex, Tooltip, Button, Switch, Spin } from 'antd';
 
 import type { FileItem } from '@/types/file.type';
 
@@ -32,12 +32,10 @@ const File: React.FC = () => {
   const [fileModalType, setFileModalType] = useState<'create' | 'rename'>('create');
   const [fileList, setFileList] = useState<FileItem[]>([]);
 
-  const { createFileSocket, handleFileOperation } = useFileConnection();
+  const { spinning, createFileSocket, handleFileOperation } = useFileConnection();
   const { loadedMessage, fileMessage, setLoaded } = useFileStatus();
 
   useEffect(() => {
-    console.log('文件管理状态更新:', { token: loadedMessage.token, loaded: loadedMessage.loaded });
-
     if (loadedMessage.token && !loadedMessage.loaded) {
       createFileSocket(loadedMessage.token);
       setLoaded(true);
@@ -92,18 +90,20 @@ const File: React.FC = () => {
             </Flex>
           </Flex>
 
-          <FileTable
-            fileList={fileList}
-            compact={compact}
-            onRenameFile={(path: string) => {
-              setFileRenamePath(path);
-              setFileModalType('rename');
-              setFileModalTitle('重命名文件');
-              setFileModalVisible(true);
-            }}
-            onOpenFolder={path => handleFileOperation(FILE_OPERATION_TYPE.OPEN_FOLDER, path)}
-            onDeleteFile={path => handleFileOperation(FILE_OPERATION_TYPE.DELETE, path)}
-          />
+          <Spin spinning={spinning} tip="加载中...">
+            <FileTable
+              fileList={fileList}
+              compact={compact}
+              onRenameFile={(path: string) => {
+                setFileRenamePath(path);
+                setFileModalType('rename');
+                setFileModalTitle('重命名文件');
+                setFileModalVisible(true);
+              }}
+              onOpenFolder={path => handleFileOperation(FILE_OPERATION_TYPE.OPEN_FOLDER, path)}
+              onDeleteFile={path => handleFileOperation(FILE_OPERATION_TYPE.DELETE, path)}
+            />
+          </Spin>
         </Flex>
       </Card>
 
