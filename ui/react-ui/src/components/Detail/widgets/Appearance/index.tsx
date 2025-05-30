@@ -1,38 +1,27 @@
-import { useState, useRef } from 'react';
+// @ts-ignore
+import xtermTheme from 'xterm-theme';
+
+import { useRef, useCallback } from 'react';
 import { TextCursor, UserRoundPen } from 'lucide-react';
 import { FontSizeOutlined, FontColorsOutlined } from '@ant-design/icons';
 import { Card, Form, InputNumber, Segmented, Switch, Select, Space, Divider, Flex } from 'antd';
 
 import useDetail from '@/store/useDetail';
 
-import type { InputNumberProps } from 'antd';
-
 const Appearance = () => {
   const { setTerminalConfig, terminalConfig } = useDetail();
 
-  const handleFontSizeChange: InputNumberProps['onChange'] = (value: number | string | null) => {
-    setTerminalConfig({
-      fontSize: value
-    });
-  };
+  // prettier-ignore
+  const updateConfig = useCallback((key: string, value: any) => {
+      setTerminalConfig({ [key]: value });
+    },
+    [setTerminalConfig]
+  );
 
-  const handleFontFamilyChange = (value: string) => {
-    setTerminalConfig({
-      fontFamily: value
-    });
-  };
-
-  const handleCursorStyleChange = (value: 'block' | 'underline' | 'bar' | 'outline') => {
-    setTerminalConfig({
-      cursorStyle: value
-    });
-  };
-
-  const handleCursorBlinkChange = (checked: boolean) => {
-    setTerminalConfig({
-      cursorBlink: checked
-    });
-  };
+  const themeOptions = useRef([
+    { label: 'Default', value: 'Default' },
+    ...Object.keys(xtermTheme).map(item => ({ label: item, value: item }))
+  ]);
 
   const fontFamilyOptions = useRef([
     {
@@ -54,10 +43,17 @@ const Appearance = () => {
     }
   ]);
 
+  const cursorStyleOptions = [
+    { value: 'block', label: '块状' },
+    { value: 'underline', label: '下划线' },
+    { value: 'bar', label: '竖线' }
+  ];
+
   return (
     <Card className="appearance-card" variant="borderless">
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Form layout="vertical" style={{ width: '100%' }}>
+          {/* 字体设置 */}
           <div style={{ marginBottom: '16px' }}>
             <Divider orientation="left" plain style={{ margin: '8px 0' }}>
               <Space>
@@ -70,9 +66,9 @@ const Appearance = () => {
               <Form.Item label="字体系列" style={{ flex: 3, marginBottom: '8px' }}>
                 <Select
                   placeholder="选择字体"
-                  defaultValue={terminalConfig.fontFamily}
+                  value={terminalConfig.fontFamily}
                   options={fontFamilyOptions.current}
-                  onChange={handleFontFamilyChange}
+                  onChange={value => updateConfig('fontFamily', value)}
                 />
               </Form.Item>
 
@@ -81,8 +77,8 @@ const Appearance = () => {
                   min={8}
                   max={32}
                   keyboard={true}
-                  defaultValue={terminalConfig.fontSize!}
-                  onChange={handleFontSizeChange}
+                  value={terminalConfig.fontSize}
+                  onChange={value => updateConfig('fontSize', value)}
                   prefix={<FontSizeOutlined />}
                   style={{ width: '100%' }}
                 />
@@ -90,6 +86,7 @@ const Appearance = () => {
             </Flex>
           </div>
 
+          {/* 光标设置 */}
           <div>
             <Divider orientation="left" plain style={{ margin: '8px 0' }}>
               <Space>
@@ -101,22 +98,23 @@ const Appearance = () => {
             <Flex gap={16} align="start">
               <Form.Item label="光标样式" style={{ flex: 3, marginBottom: '8px' }}>
                 <Segmented
-                  options={[
-                    { value: 'block', label: '块状' },
-                    { value: 'underline', label: '下划线' },
-                    { value: 'bar', label: '竖线' }
-                  ]}
+                  options={cursorStyleOptions}
                   value={terminalConfig.cursorStyle}
-                  onChange={handleCursorStyleChange}
+                  onChange={value => updateConfig('cursorStyle', value)}
                 />
               </Form.Item>
 
               <Form.Item label="光标闪烁" style={{ flex: 1, marginBottom: '8px' }}>
-                <Switch size="default" onChange={handleCursorBlinkChange} checked={terminalConfig.cursorBlink} />
+                <Switch
+                  size="default"
+                  checked={terminalConfig.cursorBlink}
+                  onChange={checked => updateConfig('cursorBlink', checked)}
+                />
               </Form.Item>
             </Flex>
           </div>
 
+          {/* 主题设置 */}
           <div>
             <Divider orientation="left" plain style={{ margin: '8px 0' }}>
               <Space>
@@ -124,6 +122,14 @@ const Appearance = () => {
                 <span>偏好</span>
               </Space>
             </Divider>
+
+            <Form.Item label="主题" style={{ flex: 3, marginBottom: '8px' }}>
+              <Select
+                options={themeOptions.current}
+                value={terminalConfig.theme}
+                onChange={value => updateConfig('theme', value)}
+              />
+            </Form.Item>
           </div>
         </Form>
       </Space>

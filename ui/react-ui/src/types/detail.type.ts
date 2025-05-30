@@ -120,7 +120,7 @@ export interface TerminalConfig {
   fontSize: number | string | null;
   cursorBlink: boolean;
   cursorStyle: 'outline' | 'block' | 'bar' | 'underline' | undefined;
-  lineHeight: number;
+  lineHeight: number | string | null;
   themeName: string;
   quickPaste: string;
   backspaceAsCtrlH: string;

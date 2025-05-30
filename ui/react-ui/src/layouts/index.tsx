@@ -5,7 +5,7 @@ import { Sidebar } from '@/layouts/components/Sidebar';
 import { MainContainer } from '@/layouts/components/MainContainer';
 
 export const LayoutComponent: React.FC = () => {
-  const [sidebarWidth, setSidebarWidth] = useState<number>(650);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(775);
 
   const handleResize = (sizes: number[]) => {
     setSidebarWidth(sizes[1]);
@@ -18,7 +18,7 @@ export const LayoutComponent: React.FC = () => {
         <MainContainer />
       </Splitter.Panel>
 
-      <Splitter.Panel collapsible defaultSize={sidebarWidth} max="50%" min={585} style={{ overflowX: 'hidden' }}>
+      <Splitter.Panel collapsible defaultSize={sidebarWidth} max="50%" min={775} style={{ overflowX: 'hidden' }}>
         <Sidebar />
       </Splitter.Panel>
     </Splitter>

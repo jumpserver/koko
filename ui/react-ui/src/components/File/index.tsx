@@ -1,4 +1,3 @@
-import FileModal from './widgets/FileModal';
 import FileTable from './widgets/FileTable';
 import FileUpload from './widgets/FileUpload';
 import UploadList from './widgets/UploadList';
@@ -8,7 +7,7 @@ import { FILE_OPERATION_TYPE } from '@/enums';
 import { useFileStatus } from '@/store/useFileStatus';
 import { Plus, RefreshCcw, Undo2, List } from 'lucide-react';
 import { useFileConnection } from '@/hooks/useFileConnection';
-import { Card, Flex, Tooltip, Button, Switch, Spin } from 'antd';
+import { Card, Flex, Tooltip, Button, Switch, Spin, Modal, Input, message } from 'antd';
 
 import type { FileItem } from '@/types/file.type';
 
@@ -16,6 +15,8 @@ interface CardExtraProps {
   compact: boolean;
   setCompact: (compact: boolean) => void;
 }
+
+type ModalType = 'create' | 'rename';
 
 const CardExtra: React.FC<CardExtraProps> = ({ compact, setCompact }) => {
   return (
@@ -26,13 +27,10 @@ const CardExtra: React.FC<CardExtraProps> = ({ compact, setCompact }) => {
 };
 
 const File: React.FC = () => {
+  const [modal, contextHolder] = Modal.useModal();
   const [compact, setCompact] = useState(false);
   const [fileListVisible, setFileListVisible] = useState(false);
   const [userClosedUploadList, setUserClosedUploadList] = useState(false);
-  const [fileModalVisible, setFileModalVisible] = useState(false);
-  const [fileModalTitle, setFileModalTitle] = useState('');
-  const [fileRenamePath, setFileRenamePath] = useState('');
-  const [fileModalType, setFileModalType] = useState<'create' | 'rename'>('create');
   const [fileList, setFileList] = useState<FileItem[]>([]);
 
   const { spinning, currentUploadMessage, createFileSocket, handleFileOperation, handleFileUpload } =
@@ -56,6 +54,62 @@ const File: React.FC = () => {
     }
   }, [currentUploadMessage, userClosedUploadList]);
 
+  const InputComponent = ({
+    inputValue,
+    onValueChange
+  }: {
+    inputValue: string;
+    onValueChange: (value: string) => void;
+  }) => {
+    const [value, setValue] = useState(inputValue);
+
+    useEffect(() => {
+      onValueChange(value);
+    }, [value, onValueChange]);
+
+    return <Input allowClear value={value} onChange={e => setValue(e.target.value)} autoFocus />;
+  };
+
+  const createInputModal = (title: string, inputValue: string, type: ModalType, renamePath?: string) => {
+    let currentValue = inputValue;
+
+    modal.confirm({
+      title,
+      icon: null,
+      centered: true,
+      okText: '确认',
+      cancelText: '取消',
+      onOk: () => {
+        if (!currentValue.trim()) {
+          message.error('文件名不能为空');
+          return Promise.reject();
+        }
+
+        const isExist = fileMessage.fileList.find(item => item.name === currentValue.trim());
+
+        if (isExist && currentValue.trim() !== inputValue) {
+          message.error('文件名已存在');
+          return Promise.reject();
+        }
+
+        if (type === 'create') {
+          handleFileOperation(FILE_OPERATION_TYPE.CREATE_FOLDER, currentValue.trim());
+        } else {
+          handleFileOperation(FILE_OPERATION_TYPE.RENAME, renamePath || '', currentValue.trim());
+        }
+      },
+
+      content: (
+        <InputComponent
+          inputValue={inputValue}
+          onValueChange={value => {
+            currentValue = value;
+          }}
+        />
+      )
+    });
+  };
+
   return (
     <>
       <Card
@@ -75,8 +129,7 @@ const File: React.FC = () => {
                 <Button
                   icon={<Plus size={14} />}
                   onClick={() => {
-                    setFileModalTitle('新建文件夹');
-                    setFileModalVisible(true);
+                    createInputModal('新建文件夹', '', 'create');
                   }}
                 >
                   新建文件夹
@@ -117,10 +170,7 @@ const File: React.FC = () => {
               fileList={fileList}
               compact={compact}
               onRenameFile={(path: string) => {
-                setFileRenamePath(path);
-                setFileModalType('rename');
-                setFileModalTitle('重命名文件');
-                setFileModalVisible(true);
+                createInputModal('重命名文件', path, 'rename', path);
               }}
               onOpenFolder={path => handleFileOperation(FILE_OPERATION_TYPE.OPEN_FOLDER, path)}
               onDeleteFile={path => handleFileOperation(FILE_OPERATION_TYPE.DELETE, path)}
@@ -132,19 +182,7 @@ const File: React.FC = () => {
         </Flex>
       </Card>
 
-      <FileModal
-        title={fileModalTitle}
-        visible={fileModalVisible}
-        onCancel={() => setFileModalVisible(false)}
-        onConfirm={fileName => {
-          if (fileModalType === 'create') {
-            handleFileOperation(FILE_OPERATION_TYPE.CREATE_FOLDER, fileName);
-          } else {
-            handleFileOperation(FILE_OPERATION_TYPE.RENAME, fileRenamePath, fileName);
-          }
-          setFileModalVisible(false);
-        }}
-      />
+      {contextHolder}
 
       <UploadList
         fileListVisible={fileListVisible}

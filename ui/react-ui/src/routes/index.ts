@@ -52,6 +52,16 @@ const router = createBrowserRouter(
           Component: Share
         };
       }
+    },
+    {
+      path: '/editor',
+      lazy: async () => {
+        const { default: Editor } = await import('@/pages/editor');
+
+        return {
+          Component: Editor
+        };
+      }
     }
   ],
   {

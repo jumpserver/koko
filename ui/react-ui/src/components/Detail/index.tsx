@@ -1,24 +1,18 @@
 import { Collapse, type CollapseProps } from 'antd';
 
-import Theme from './widgets/Theme';
 import Overview from './widgets/Overview';
 import Appearance from './widgets/Appearance';
 
 const items: CollapseProps['items'] = [
   {
-    key: '1',
+    key: 'overview',
     label: '概览',
     children: <Overview />
   },
   {
-    key: '2',
+    key: 'appearance',
     label: '外观设置',
     children: <Appearance />
-  },
-  {
-    key: '3',
-    label: '主题设置',
-    children: <Theme />
   }
 ];
 
@@ -28,7 +22,7 @@ const Detail: React.FC = () => {
       expandIconPosition="end"
       items={items}
       bordered={false}
-      defaultActiveKey={['1']}
+      defaultActiveKey={['overview']}
       className="w-full h-full"
     />
   );

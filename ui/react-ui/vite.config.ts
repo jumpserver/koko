@@ -6,6 +6,7 @@ import type { ConfigEnv, UserConfig } from 'vite';
 
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react-swc';
+import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 
 export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   const __filename = fileURLToPath(import.meta.url);
@@ -15,7 +16,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   const env = loadEnv(mode, root);
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), monacoEditorPlugin({})],
     resolve: {
       alias: {
         '@': resolve(__dirname, './src')
