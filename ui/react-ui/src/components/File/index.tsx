@@ -28,20 +28,16 @@ const CardExtra: React.FC<CardExtraProps> = ({ compact, setCompact }) => {
 const File: React.FC = () => {
   const [compact, setCompact] = useState(false);
   const [fileListVisible, setFileListVisible] = useState(false);
+  const [userClosedUploadList, setUserClosedUploadList] = useState(false);
   const [fileModalVisible, setFileModalVisible] = useState(false);
   const [fileModalTitle, setFileModalTitle] = useState('');
   const [fileRenamePath, setFileRenamePath] = useState('');
   const [fileModalType, setFileModalType] = useState<'create' | 'rename'>('create');
   const [fileList, setFileList] = useState<FileItem[]>([]);
 
-  const {
-    spinning,
-    currentUploadMessage,
-    createFileSocket,
-    handleFileOperation,
-    handleFileUpload,
-  } = useFileConnection();
-  const { loadedMessage, fileMessage, uploadFileList, setLoaded } = useFileStatus();
+  const { spinning, currentUploadMessage, createFileSocket, handleFileOperation, handleFileUpload } =
+    useFileConnection();
+  const { loadedMessage, fileMessage, setLoaded } = useFileStatus();
 
   useEffect(() => {
     if (loadedMessage.token && !loadedMessage.loaded) {
@@ -55,10 +51,10 @@ const File: React.FC = () => {
   }, [fileMessage]);
 
   useEffect(() => {
-    if (currentUploadMessage?.status === 'uploading') {
+    if (currentUploadMessage?.status === 'uploading' && !userClosedUploadList) {
       setFileListVisible(true);
     }
-  }, [currentUploadMessage]);
+  }, [currentUploadMessage, userClosedUploadList]);
 
   return (
     <>
@@ -104,7 +100,13 @@ const File: React.FC = () => {
                 </Tooltip>
 
                 <Tooltip title="上传列表">
-                  <Button icon={<List size={14} />} onClick={() => setFileListVisible(true)} />
+                  <Button
+                    icon={<List size={14} />}
+                    onClick={() => {
+                      setFileListVisible(true);
+                      setUserClosedUploadList(false);
+                    }}
+                  />
                 </Tooltip>
               </Flex>
             </Flex>
@@ -122,6 +124,9 @@ const File: React.FC = () => {
               }}
               onOpenFolder={path => handleFileOperation(FILE_OPERATION_TYPE.OPEN_FOLDER, path)}
               onDeleteFile={path => handleFileOperation(FILE_OPERATION_TYPE.DELETE, path)}
+              onDownloadFile={(path: string, is_dir: boolean) => {
+                handleFileOperation(FILE_OPERATION_TYPE.DOWNLOAD, path, '', is_dir);
+              }}
             />
           </Spin>
         </Flex>
@@ -142,10 +147,12 @@ const File: React.FC = () => {
       />
 
       <UploadList
-        uploadFileList={uploadFileList}
         fileListVisible={fileListVisible}
         currentUploadMessage={currentUploadMessage!}
-        closeFileList={() => setFileListVisible(false)}
+        closeFileList={() => {
+          setFileListVisible(false);
+          setUserClosedUploadList(true);
+        }}
       />
     </>
   );

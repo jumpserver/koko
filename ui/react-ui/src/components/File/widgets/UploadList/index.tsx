@@ -10,8 +10,6 @@ import type { UploadFileItem } from '@/types/file.type';
 const { Text } = Typography;
 
 interface UploadListProps {
-  uploadFileList: any[];
-
   fileListVisible: boolean;
 
   currentUploadMessage: UploadFileItem;
@@ -45,12 +43,7 @@ const ListDescription = ({ size, uploaded, status }: { size: number; uploaded: n
   );
 };
 
-const UploadList: React.FC<UploadListProps> = ({
-  uploadFileList,
-  fileListVisible,
-  currentUploadMessage,
-  closeFileList
-}) => {
+const UploadList: React.FC<UploadListProps> = ({ fileListVisible, currentUploadMessage, closeFileList }) => {
   const handleDownloadFile = (file: any) => {
     console.log(file);
   };
@@ -93,7 +86,7 @@ const UploadList: React.FC<UploadListProps> = ({
               renderItem={item => (
                 <List.Item key={item.md5}>
                   <List.Item.Meta
-                    title={<a href="https://ant.design">{item.filename}</a>}
+                    title={item.filename}
                     description={
                       <ListDescription size={item.totalSize} uploaded={item.uploaded} status={item.status} />
                     }

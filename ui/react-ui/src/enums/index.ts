@@ -79,6 +79,7 @@ export enum FILE_OPERATION_TYPE {
   RENAME = 'rename',
   DELETE = 'delete',
   REFRESH = 'refresh',
+  DOWNLOAD = 'download',
   OPEN_FOLDER = 'open_folder',
   CREATE_FOLDER = 'create_folder'
 }

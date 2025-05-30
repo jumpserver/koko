@@ -14,10 +14,12 @@ const MAX_SLICE_COUNT = 100;
 export const useFileConnection = () => {
   const [initialPath, setInitialPath] = useState<string>('');
   const [spinning, setSpinning] = useState(false);
+  const [receivedBuffers, setReceivedBuffers] = useState<Uint8Array[]>([]);
   const [currentUploadMessage, setCurrentUploadMessage] = useState<UploadFileItem | null>(null);
 
-  const socket = useRef<WebSocket | null>(null);
   const chunkReceived = useRef<boolean>(false);
+  const uploadInterrupt = useRef<boolean>(false);
+  const socket = useRef<WebSocket | null>(null);
   const messageId = useRef<string>('');
   const currentPath = useRef<string>('');
 
@@ -44,6 +46,27 @@ export const useFileConnection = () => {
   };
 
   /**
+   * @description 生成下载链接
+   */
+  const handleTypeSftpBinaryEvent = (fileMessage: FileMessage) => {
+    const binaryString = atob(fileMessage.raw);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    setReceivedBuffers(prev => [...prev, bytes]);
+
+    let receivedBytes = 0;
+
+    for (const buffer of receivedBuffers) {
+      receivedBytes += buffer.length;
+    }
+  };
+
+  /**
    * @description 处理 SFTP 数据事件
    * @param fileMessage
    */
@@ -56,6 +79,14 @@ export const useFileConnection = () => {
         if (fileMessage.data === 'ok') {
           message.success('删除文件夹成功');
           handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
+
+          break;
+        }
+
+        if (fileMessage.err === 'permission denied') {
+          message.error('删除文件夹失败，权限不足');
+
+          break;
         }
         break;
       case SFTP_CMD.LIST:
@@ -89,6 +120,51 @@ export const useFileConnection = () => {
         break;
       case SFTP_CMD.UPLOAD:
         chunkReceived.current = true;
+
+        if (fileMessage.data === 'ok') {
+          message.success('上传成功');
+          handleFileOperation(FILE_OPERATION_TYPE.REFRESH);
+
+          break;
+        }
+
+        if (fileMessage.err === 'Permission denied') {
+          message.error('上传失败，权限不足');
+
+          // 立马终止上传，并设置上传状态为 error
+          uploadInterrupt.current = true;
+          break;
+        }
+
+        break;
+      case SFTP_CMD.DOWNLOAD: {
+        setSpinning(false);
+
+        if (fileMessage.err === 'Permission denied') {
+          message.error('下载失败，权限不足');
+
+          break;
+        }
+
+        const blob: Blob = new Blob(receivedBuffers, {
+          type: 'application/octet-stream'
+        });
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileMessage.data;
+
+        document.body.appendChild(a);
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setReceivedBuffers([]);
+        break;
+      }
     }
   };
 
@@ -97,7 +173,12 @@ export const useFileConnection = () => {
    * @param operationType 操作类型
    * @param path 操作的文件/文件夹路径（相对于当前路径）
    */
-  const handleFileOperation = (operationType: FILE_OPERATION_TYPE, path?: string, newName?: string) => {
+  const handleFileOperation = (
+    operationType: FILE_OPERATION_TYPE,
+    path?: string,
+    newName?: string,
+    is_dir?: boolean
+  ) => {
     let sendBody: any;
 
     setSpinning(true);
@@ -140,6 +221,18 @@ export const useFileConnection = () => {
           type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
           data: JSON.stringify({
             path: currentPath.current
+          })
+        };
+        break;
+
+      case FILE_OPERATION_TYPE.DOWNLOAD:
+        sendBody = {
+          id: uuid(),
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          cmd: SFTP_CMD.DOWNLOAD,
+          data: JSON.stringify({
+            path: `${currentPath.current}/${path}`,
+            is_dir
           })
         };
         break;
@@ -220,7 +313,7 @@ export const useFileConnection = () => {
         handleTypeSftpDataEvent(fileMessage);
         break;
       case FILE_MANAGE_MESSAGE_TYPE.SFTP_BINARY:
-        // handleTypeSftpBinaryEvent(fileMessage);
+        handleTypeSftpBinaryEvent(fileMessage);
         break;
     }
   };
@@ -262,11 +355,25 @@ export const useFileConnection = () => {
     });
 
     try {
+      uploadInterrupt.current = false;
+
       for (let i = 0; i < sliceCount; i++) {
+        if (uploadInterrupt.current) {
+          break;
+        }
+
         const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
         const arrayBuffer = await chunk.arrayBuffer();
         const base64String: string = arrayBufferToBase64(arrayBuffer);
 
+        // 单切片的小文件没有 merge 字段为 false
+        if (sliceCount === 1) {
+          sendData.merge = true;
+          sendData.chunk = false;
+        }
+
+        sendData.chunk = true;
+        sendData.merge = false;
         sendData.offSet = i * chunkSize;
         sendBody.raw = base64String;
         sendBody.data = JSON.stringify(sendData);
@@ -276,19 +383,6 @@ export const useFileConnection = () => {
 
         // 发送当前切片
         socket.current?.send(JSON.stringify(sendBody));
-
-        // 等待当前切片的确认
-        await new Promise<void>(resolve => {
-          const checkReceived = () => {
-            console.log('chunkReceived', chunkReceived.current);
-            if (chunkReceived.current) {
-              resolve();
-            } else {
-              setTimeout(checkReceived, 100);
-            }
-          };
-          checkReceived();
-        });
 
         // 更新进度
         const uploadedBytes = (i + 1) * chunkSize > file.size ? file.size : (i + 1) * chunkSize;
@@ -300,8 +394,45 @@ export const useFileConnection = () => {
               uploaded: uploadedBytes
             };
           }
+
           return prev;
         });
+
+        // 等待当前切片的确认或中断信号
+        await new Promise<void>(resolve => {
+          const checkReceived = () => {
+            if (uploadInterrupt.current) {
+              resolve();
+              return;
+            }
+
+            if (chunkReceived.current) {
+              resolve();
+              return;
+            }
+
+            setTimeout(checkReceived, 100);
+          };
+
+          checkReceived();
+        });
+      }
+
+      // 检查是否因为中断而退出循环
+      if (uploadInterrupt.current) {
+        setCurrentUploadMessage(prev => {
+          if (prev) {
+            return {
+              ...prev,
+              status: 'error',
+              uploaded: file.size
+            };
+          }
+
+          return prev;
+        });
+
+        return;
       }
 
       // 所有切片上传完成
@@ -313,10 +444,29 @@ export const useFileConnection = () => {
             uploaded: file.size
           };
         }
+
         return prev;
       });
+
+      // 发送 merge
+      socket.current?.send(
+        JSON.stringify({
+          id: messageId.current,
+          cmd: SFTP_CMD.UPLOAD,
+          type: FILE_MANAGE_MESSAGE_TYPE.SFTP_DATA,
+          data: JSON.stringify({
+            offSet: 0,
+            merge: true,
+            size: 0,
+            path: `${currentPath.current}/${file.name}`
+          })
+        })
+      );
     } catch (e) {
-      message.error(String(e));
+      // 如果是由于权限问题导致的上传中断，不再显示重复的错误消息
+      if (!uploadInterrupt.current) {
+        message.error(String(e));
+      }
       setCurrentUploadMessage(prev => {
         if (prev) {
           return {
@@ -329,6 +479,10 @@ export const useFileConnection = () => {
     }
   };
 
+  /**
+   * @description 创建文件连接
+   * @param token
+   */
   const createFileSocket = (token: string) => {
     const wsUrl = getConnectionUrl('ws');
 

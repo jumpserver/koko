@@ -14,10 +14,18 @@ interface FileTableProps {
 
   onRenameFile: (path: string) => void;
   onOpenFolder: (path: string) => void;
-  onDeleteFile?: (path: string) => void;
+  onDeleteFile: (path: string) => void;
+  onDownloadFile: (path: string, is_dir: boolean) => void;
 }
 
-const FileTable: React.FC<FileTableProps> = ({ fileList, compact, onOpenFolder, onDeleteFile, onRenameFile }) => {
+const FileTable: React.FC<FileTableProps> = ({
+  fileList,
+  compact,
+  onOpenFolder,
+  onDeleteFile,
+  onRenameFile,
+  onDownloadFile
+}) => {
   const getMenuItems = (record: FileItem): MenuProps['items'] => [
     {
       label: '复制',
@@ -49,9 +57,7 @@ const FileTable: React.FC<FileTableProps> = ({ fileList, compact, onOpenFolder, 
           okButtonProps: { danger: true },
           className: 'dark-theme-modal',
           onOk: () => {
-            if (onDeleteFile) {
-              onDeleteFile(record.name);
-            }
+            onDeleteFile(record.name);
           }
         };
 
@@ -109,7 +115,11 @@ const FileTable: React.FC<FileTableProps> = ({ fileList, compact, onOpenFolder, 
         return (
           <Space>
             <Tooltip title="下载">
-              <Button size="small" icon={<Download size={14} />} />
+              <Button
+                size="small"
+                icon={<Download size={14} />}
+                onClick={() => onDownloadFile(record.name, record.is_dir)}
+              />
             </Tooltip>
 
             <Tooltip title="重命名">
