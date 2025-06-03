@@ -1,166 +1,52 @@
-import { createDiscreteApi } from 'naive-ui';
-import { TranslateFunction } from '@/types';
-import { Terminal } from '@xterm/xterm';
-import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
-import type { ILunaConfig } from '@/hooks/interface';
-import { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
+import mitt from 'mitt';
 
-const { message } = createDiscreteApi(['message']);
+import type { Emitter } from 'mitt';
 
-/**
- * @description 复制文本功能
- * @param {string} text
- */
-export const copyTextToClipboard = async (text: string): Promise<void> => {
-  try {
-    // Clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      message.info('Text copied to clipboard');
-    } else {
-      // Fallback 方式，兼容不支持 Clipboard API 的情况
-      let transfer: HTMLTextAreaElement = document.createElement('textarea');
+import { ASCII_DEL, ASCII_BACKSPACE } from '@/config';
 
-      document.body.appendChild(transfer);
-      transfer.value = text;
-      transfer.focus();
-      transfer.select();
+const PORT = document.location.port ? `:${document.location.port}` : '';
+const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
 
-      document.execCommand('copy');
-      document.body.removeChild(transfer);
+const BASE_WS_URL = SCHEME + '://' + document.location.hostname + PORT;
+const BASE_URL = document.location.protocol + '//' + document.location.hostname + PORT;
 
-      message.info('Text copied to clipboard (fallback method)');
-    }
-  } catch (err) {
-    message.error(`Failed to copy text: ${err}`);
-  }
+type EmitterEvent = {
+  'emit-resize': void;
+  'emit-generate-file-token': void;
 };
 
-/**
- * @description 触发事件
- * @param e
- */
-export const fireEvent = (e: Event) => {
-  window.dispatchEvent(e);
-};
-
-/**
- * @description 字节转换
- * @param bytes
- * @param precision
- */
-export const bytesHuman = (bytes: number, precision?: any) => {
-  const regex = /^([-+]?\d+(\.\d+)?|\.\d+|Infinity)$/;
-
-  if (!regex.test(bytes.toString())) {
-    return '-';
+export const getConnectionUrl = (type: 'ws' | 'http') => {
+  if (type === 'ws') {
+    return BASE_WS_URL;
   }
 
-  if (bytes === 0) return '0';
-  if (typeof precision === 'undefined') precision = 1;
-
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
-  const num = Math.floor(Math.log(bytes) / Math.log(1024));
-  const value = (bytes / Math.pow(1024, Math.floor(num))).toFixed(precision);
-
-  return `${value} ${units[num]}`;
+  return BASE_URL;
 };
 
-/**
- * @description 获取分钟标签
- * @param item
- * @param t
- */
-export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
-  let minuteLabel = t('Minute');
+export const getCookie = (key: string) => {
+  const nameEQ = key + '=';
+  const ca = document.cookie.split(';');
 
-  if (item > 1) {
-    minuteLabel = t('Minutes');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
   }
 
-  return `${item} ${minuteLabel}`;
+  return null;
 };
 
-/**
- * @description 将缓冲区写入终端
- * @param enableZmodem
- * @param zmodemStatus
- * @param terminal
- * @param data
- */
-export const writeBufferToTerminal = (
-  enableZmodem: boolean,
-  zmodemStatus: boolean,
-  terminal: Terminal | null,
-  data: any
-) => {
-  if (!enableZmodem && zmodemStatus) return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
+export const getLang = () => {
+  const storeLang = getCookie('lang');
+  const cookieLang = getCookie('django_language');
 
-  terminal && terminal.write(new Uint8Array(data));
+  const browserLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'zh';
+
+  return storeLang || cookieLang || browserLang || 'zh';
 };
 
-export const preprocessInput = (data: string, config: Partial<ILunaConfig>) => {
-  // 如果配置项 backspaceAsCtrlH 启用（值为 "1"），并且输入数据包含删除键的 ASCII 码 (AsciiDel，即 127)，
-  // 它会将其替换为退格键的 ASCII 码 (AsciiBackspace，即 8)
-  if (config.backspaceAsCtrlH === '1') {
-    if (data.charCodeAt(0) === AsciiDel) {
-      data = String.fromCharCode(AsciiBackspace);
-    }
-  }
-
-  // 如果配置项 ctrlCAsCtrlZ 启用（值为 "1"），并且输入数据包含 Ctrl+C 的 ASCII 码 (AsciiCtrlC，即 3)，
-  // 它会将其替换为 Ctrl+Z 的 ASCII 码 (AsciiCtrlZ，即 26)。
-  if (config.ctrlCAsCtrlZ === '1') {
-    if (data.charCodeAt(0) === AsciiCtrlC) {
-      data = String.fromCharCode(AsciiCtrlZ);
-    }
-  }
-
-  if (data.includes('\u001b[200~') || data.includes('\u001b[201~')) {
-    return data.replace(/\u001b\[200~|\u001b\[201~/g, '');
-  } else {
-    return data;
-  }
-};
-
-/**
- * @description 处理文件名称
- * @param row
- */
-export const getFileName = (row: RowData) => {
-  if (row.is_dir) {
-    return 'Folder';
-  }
-
-  const lastDotIndex = row.name.lastIndexOf('.');
-
-  return lastDotIndex !== -1 ? row.name.slice(lastDotIndex + 1) : 'Folder';
-};
-
-/**
- * @description 使用 postMessage 发送事件到父窗口。
- *
- * @param {string} name - 事件的名称。
- * @param {any} data - 要随事件发送的数据。
- * @param {string | null} [lunaId=''] - Luna 实例的 ID。
- * @param {string | null} [origin=null] - 消息的来源。
- */
-export const sendEventToLuna = (name: string, data: any, lunaId: string | null = '', origin: string | null = '') => {
-  if (lunaId !== null && origin !== null) {
-    try {
-      window.parent.postMessage({ name, id: lunaId, data }, origin);
-    } catch (e) {}
-  }
-};
-
-/**
- * @description 格式化消息为 JSON 字符串。
- *
- * @param id - 消息的 ID。
- * @param type - 消息的类型。
- * @param data - 消息的数据。
- * @returns 格式化的 JSON 字符串。
- */
 export const formatMessage = (id: string, type: string, data: any) => {
   return JSON.stringify({
     id,
@@ -169,12 +55,51 @@ export const formatMessage = (id: string, type: string, data: any) => {
   });
 };
 
-/**
- * @description 检查 WebSocket 是否已激活。
- *
- * @param ws - WebSocket 实例。
- * @returns 如果 WebSocket 已激活则返回 true，否则返回 false。
- */
-export const wsIsActivated = (ws: WebSocket | undefined) => {
-  return ws ? !(ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) : false;
+export const preprocessInput = (data: string, backspaceAsCtrlH: string) => {
+  // 如果两个条件都满足，则将输入字符从 DELETE（ASCII 127）转换为 BACKSPACE（ASCII 8，等同于 Ctrl+H）
+  if (backspaceAsCtrlH === '1' && data.charCodeAt(0) === ASCII_DEL) {
+    data = String.fromCharCode(ASCII_BACKSPACE);
+
+    return data;
+  }
+
+  return data;
 };
+
+export const updateIcon = (faviconURL: string) => {
+  let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+
+  if (!link) {
+    link = document.createElement('link') as HTMLLinkElement;
+    link.type = 'image/x-icon';
+    link.rel = 'shortcut icon';
+    document.getElementsByTagName('head')[0].appendChild(link);
+
+    return (link.href = faviconURL);
+  }
+
+  link.href = faviconURL;
+};
+
+export const sendEventToLuna = (name: string, data: any, lunaId: string | null = '', origin: string | null = '*') => {
+  if (lunaId !== null && origin !== null) {
+    const targetOrigin = origin === '' ? '*' : origin;
+    window.parent.postMessage({ name, id: lunaId, data }, targetOrigin);
+  }
+};
+
+export const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+  const uint8Array = new Uint8Array(buffer);
+  const CHUNK_SIZE = 0x8000;
+
+  let result = '';
+
+  for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
+    const chunk = uint8Array.subarray(i, i + CHUNK_SIZE);
+    result += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+
+  return btoa(result);
+};
+
+export const emitterEvent: Emitter<EmitterEvent> = mitt();

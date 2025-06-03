@@ -1,2 +1,35 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
+#root {
+  background-color: #000000;
+  height: 100vh;
+  width: 100vw;
+}
+
+.icon-hover {
+  @apply hover:text-[#1AB394] transition-all duration-300 cursor-pointer;
+}
+
+.custom-border {
+  @apply relative;
+}
+
+.custom-border::after {
+  @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-[#FFFFFFFFD9] z-1;
+}
+
+.border-active {
+  @apply relative;
+}
+
+.border-active::after {
+  @apply content-[''] absolute bottom-0 left-0 w-full h-0.5 bg-[#1AB394] z-2;
+}
+
+.text-primary-color {
+  @apply text-[#1AB394];
+}
+
+.text-xxs {
+  @apply text-[10px];
+}
