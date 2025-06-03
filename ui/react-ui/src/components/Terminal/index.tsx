@@ -6,12 +6,12 @@ import useDetail from '@/store/useDetail';
 
 import { useDebounceFn } from 'ahooks';
 import { Terminal } from '@xterm/xterm';
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { getConnectionUrl } from '@/utils';
 import { WINDOW_MESSAGE_TYPE } from '@/enums';
 import { useSearchParams } from 'react-router';
 import { useConnection } from '@/hooks/useConnection';
 import { emitterEvent, sendEventToLuna } from '@/utils';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
@@ -23,6 +23,7 @@ const TerminalComponent: React.FC = () => {
 
   const { initializeConnection } = useConnection();
 
+  // TODO 会话监控、会话分享 的 url 路径不是 terminal
   const wsUrl = getConnectionUrl('ws');
   const token = searchParams.get('token');
   const connectionURL = `${wsUrl}/koko/ws/terminal/?token=${token}`;

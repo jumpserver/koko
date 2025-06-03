@@ -26,14 +26,6 @@ const router = createBrowserRouter(
             if (translations[lang]) {
               i18n.addResourceBundle(lang, 'translation', translations[lang], true, true);
               i18n.changeLanguage(lang);
-
-              // console.log('i18n实例情况:', {
-              //   初始化完成: i18n.isInitialized,
-              //   当前语言: i18n.language,
-              //   可用语言: i18n.languages,
-              //   翻译资源: Object.keys(i18n.store.data)
-              // });
-              // console.log('完整的zh-hans翻译资源:', JSON.stringify(i18n.getResourceBundle('zh-hans', 'translation')));
             }
 
             return {
@@ -50,16 +42,6 @@ const router = createBrowserRouter(
 
         return {
           Component: Share
-        };
-      }
-    },
-    {
-      path: '/editor',
-      lazy: async () => {
-        const { default: Editor } = await import('@/pages/editor');
-
-        return {
-          Component: Editor
         };
       }
     }
