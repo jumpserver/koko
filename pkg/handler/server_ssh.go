@@ -11,15 +11,15 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/jumpserver/koko/pkg/cache"
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
-	modelCommon "github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+
 	"github.com/jumpserver/koko/pkg/auth"
-	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/cache"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -434,7 +434,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	session.AddSession(traceSession)
 
 	defer func() {
-		if _, err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if _, err2 := s.jmsService.SessionFinished(respSession.ID, common.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
@@ -558,7 +558,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	})
 	session.AddSession(traceSession)
 	defer func() {
-		if _, err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if _, err2 := s.jmsService.SessionFinished(respSession.ID, common.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
@@ -665,7 +665,7 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 
 func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.PermAsset, error) {
 	var getUserPermAssets func() ([]model.PermAsset, error)
-	if common.ValidUUIDString(req.AssetTarget) {
+	if common.IsUUID(req.AssetTarget) {
 		getUserPermAssets = func() ([]model.PermAsset, error) {
 			return s.jmsService.GetUserPermAssetById(user.ID, req.AssetTarget)
 		}

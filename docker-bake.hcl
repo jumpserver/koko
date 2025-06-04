@@ -20,7 +20,7 @@ target "ee" {
     dockerfile = "Dockerfile-ee"
     tags = ["jumpserver/koko:${VERSION}-ee"]
     contexts = {
-        ce = "target:ce"
+        "jumpserver/koko:${VERSION}-ce" = "target:ce"
     }
     output = PUSH_ENABLED ? ["type=registry"] : ["type=docker"]
     args = {

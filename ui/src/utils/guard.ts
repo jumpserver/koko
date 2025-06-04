@@ -2,7 +2,7 @@ import { NavigationGuardNext } from 'vue-router';
 import i18n from '@/languages/index';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 
-import type { ILocalTermialConfig, CommandLineConfig } from '@/types/modules/guard.type.ts';
+import type { ILocalTerminalConfig, CommandLineConfig } from '@/types/modules/guard.type.ts';
 
 /**
  * @description 获取本地 Termianl 配置
@@ -14,7 +14,7 @@ const getLocalKokoSetting = () => {
   const { setDefaultTerminalConfig } = terminalSettingsStore;
 
   if (localTerminalSetting) {
-    const parsedSetting: ILocalTermialConfig = JSON.parse(localTerminalSetting);
+    const parsedSetting: ILocalTerminalConfig = JSON.parse(localTerminalSetting);
     const commandLine: CommandLineConfig = parsedSetting.command_line;
 
     let fontSize = 0
