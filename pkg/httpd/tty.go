@@ -81,6 +81,7 @@ func (h *tty) HandleMessage(msg *Message) {
 
 		h.initialed = true
 		h.handleTerminalInit(connectInfo, "", "", "", "")
+		return
 
 	case TerminalK8SInit:
 		if msg.Id != h.ws.Uuid {
@@ -94,6 +95,7 @@ func (h *tty) HandleMessage(msg *Message) {
 		}
 
 		h.handleTerminalInit(connectInfo, msg.KubernetesId, msg.Namespace, msg.Pod, msg.Container)
+		return
 	}
 
 	if h.initialed || func() bool { _, ok := h.K8sClients[msg.KubernetesId]; return ok }() {

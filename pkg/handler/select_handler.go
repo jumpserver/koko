@@ -20,6 +20,14 @@ const (
 	loadingFromRemote dataSource = "remote"
 )
 
+type prompt string
+
+const (
+	promptHost     prompt = "[Host]> "
+	promptK8s      prompt = "[K8S]> "
+	promptDatabase prompt = "[DB]> "
+)
+
 type selectType int
 
 const (
@@ -36,6 +44,7 @@ type UserSelectHandler struct {
 
 	loadingPolicy dataSource
 	currentType   selectType
+	promptStr     prompt
 	searchKeys    []string
 
 	hasPre  bool
@@ -63,15 +72,16 @@ func (u *UserSelectHandler) SetSelectType(s selectType) {
 			u.SetLoadPolicy(loadingFromLocal)
 			u.AutoCompletion()
 		}
-		u.h.term.SetPrompt("[Host]> ")
+		u.promptStr = promptHost
 	case TypeNodeAsset, TypeHost:
-		u.h.term.SetPrompt("[Host]> ")
+		u.promptStr = promptHost
 	case TypeK8s:
-		u.h.term.SetPrompt("[K8S]> ")
+		u.promptStr = promptK8s
 	case TypeDatabase:
-		u.h.term.SetPrompt("[DB]> ")
+		u.promptStr = promptDatabase
 	}
 	u.currentType = s
+	u.h.term.SetPrompt(string(u.promptStr))
 }
 
 func (u *UserSelectHandler) AutoCompletion() {
@@ -135,10 +145,7 @@ func (u *UserSelectHandler) MovePrePage() {
 	if u.HasPrev() {
 		offset := u.CurrentOffSet()
 		newPageSize := getPageSize(u.h, u.h.terminalConf)
-		start := offset - newPageSize*2
-		if start <= 0 {
-			start = 0
-		}
+		start := max(offset-newPageSize*2, 0)
 		u.currentResult = u.Retrieve(newPageSize, start, u.searchKeys...)
 	}
 	u.DisplayCurrentResult()
@@ -217,6 +224,8 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 
 func (u *UserSelectHandler) Proxy(target model.PermAsset) {
 	u.proxyAsset(target)
+	// set current prompt
+	u.h.term.SetPrompt(string(u.promptStr))
 }
 
 func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.PermAsset {
