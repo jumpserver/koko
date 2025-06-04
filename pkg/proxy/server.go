@@ -16,10 +16,10 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
-	modelCommon "github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
-	"github.com/jumpserver/koko/pkg/common"
+
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -116,7 +116,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		gateway:       connOpts.authInfo.Gateway,
 		sessionInfo:   apiSession,
 		CreateSessionCallback: func() error {
-			apiSession.DateStart = modelCommon.NewNowUTCTime()
+			apiSession.DateStart = common.NewNowUTCTime()
 			_, err2 := jmsService.CreateSession(*apiSession)
 			return err2
 		},
@@ -208,7 +208,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
 			Path:       zinfo.Filename(),
-			DateStart:  modelCommon.NewUTCTime(zinfo.Time()),
+			DateStart:  common.NewUTCTime(zinfo.Time()),
 			IsSuccess:  status,
 			Session:    s.sessionInfo.ID,
 		}
