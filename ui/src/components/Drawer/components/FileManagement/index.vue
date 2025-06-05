@@ -17,7 +17,7 @@ import { Folder } from '@vicons/tabler';
 import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { h, ref, watch } from 'vue';
+import { h, ref, watch, onUnmounted } from 'vue';
 import { getFileName } from '@/utils';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
@@ -70,14 +70,31 @@ watch(
 watch(
   () => props.sftpToken,
   (newValue, oldValue) => {
+    if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
+      fileManageSocket.value.close();
+    }
     if (newValue && newValue !== oldValue) {
-      fileManageSocket.value = useFileManage(newValue, t);
+     try {
+        fileManageSocket.value = useFileManage(newValue, t);
+      } catch (error) {
+        console.error('Failed to initialize file management socket:', error);
+        isLoaded.value = true; // 即使失败也设置加载完成，避免一直显示加载状态
+      }
     }
   },
   {
     immediate: true
   }
 );
+
+
+// ai added to close the WebSocket connection when the component is unmounted
+onUnmounted(() => {
+  if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
+    fileManageSocket.value.close();
+    fileManageSocket.value = undefined;
+  }
+});
 
 /**
  * @description 生成表头

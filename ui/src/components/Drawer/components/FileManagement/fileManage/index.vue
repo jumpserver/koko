@@ -11,7 +11,7 @@
         </n-button>
       </n-flex>
 
-      <n-scrollbar x-scrollable ref="scrollRef" :content-style="{ height: '40px' }">
+      <n-scrollbar ref="scrollRef" x-scrollable :content-style="{ height: '40px' }">
         <n-flex class="file-part w-full h-full !flex-nowrap">
           <n-flex
             v-for="item of filePathList"
@@ -36,7 +36,7 @@
     </n-flex>
 
     <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
-      <n-input clearable size="small" v-model:value="searchValue">
+      <n-input v-model:value="searchValue" clearable size="small">
         <template #prefix>
           <Search :size="16" class="focus:outline-none" />
         </template>
@@ -51,11 +51,11 @@
         </n-button>
 
         <n-upload
+          v-model:file-list="uploadFileList"
           abstract
           :multiple="false"
           :show-retry-button="false"
           :custom-request="customRequest"
-          v-model:file-list="uploadFileList"
           @remove="handleRemoveItem"
           @change="handleUploadFileChange"
         >
@@ -78,17 +78,16 @@
           </n-button-group>
 
           <n-drawer
+            v-model:show="showInner"
             resizable
             placement="bottom"
-            to="#drawer-inner-target"
             :default-height="500"
             :trap-focus="false"
             :block-scroll="false"
             :native-scrollbar="false"
-            v-model:show="showInner"
           >
             <n-drawer-content :title="t('TransferHistory')">
-              <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
+              <n-scrollbar v-if="uploadFileList" style="max-height: 400px">
                 <n-upload-file-list />
               </n-scrollbar>
 
@@ -99,14 +98,24 @@
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="Refresh" class="icon-hover cursor-pointer" @click="handleRefresh" />
+            <n-icon
+              size="16"
+              :component="Refresh"
+              class="icon-hover cursor-pointer text-white"
+              @click="handleRefresh"
+            />
           </template>
           {{ t('Refresh') }}
         </n-popover>
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="List" class="icon-hover cursor-pointer" @click="handleOpenTransferList" />
+            <n-icon
+              size="16"
+              :component="List"
+              class="icon-hover cursor-pointer text-white"
+              @click="handleOpenTransferList"
+            />
           </template>
           {{ t('TransferHistory') }}
         </n-popover>
@@ -161,12 +170,12 @@
     @positive-click="modalPositiveClick"
     @negative-click="modalNegativeClick"
   >
-    <n-input v-if="!modalContent" clearable v-model:value="newFileName" />
+    <n-input v-if="!modalContent" v-model:value="newFileName" clearable />
   </n-modal>
 </template>
 
 <script setup lang="ts">
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import { List } from '@vicons/ionicons5';
 import { Search } from 'lucide-vue-next';

@@ -38,7 +38,7 @@ const allRoutes: RouteRecordRaw[] = [
     component: () => import('@/views/monitor/index.vue')
   },
   {
-    path: '/sftp',
+    path: '/sftp/',
     name: 'SFTP',
     component: () => import('@/views/file/index.vue')
   },

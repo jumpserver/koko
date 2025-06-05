@@ -1,8 +1,8 @@
 import { createDiscreteApi } from 'naive-ui';
 import { TranslateFunction } from '@/types';
 import { Terminal } from '@xterm/xterm';
-import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
-import type { ILunaConfig } from '@/hooks/interface';
+import { AsciiBackspace, AsciiDel } from '@/utils/config';
+import type { ILunaConfig } from '@/types/modules/config.type';
 import { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 const { message } = createDiscreteApi(['message']);
@@ -19,7 +19,7 @@ export const copyTextToClipboard = async (text: string): Promise<void> => {
       message.info('Text copied to clipboard');
     } else {
       // Fallback 方式，兼容不支持 Clipboard API 的情况
-      let transfer: HTMLTextAreaElement = document.createElement('textarea');
+      const transfer: HTMLTextAreaElement = document.createElement('textarea');
 
       document.body.appendChild(transfer);
       transfer.value = text;
@@ -95,8 +95,8 @@ export const writeBufferToTerminal = (
   data: any
 ) => {
   if (!enableZmodem && zmodemStatus) return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
-
-  terminal && terminal.write(new Uint8Array(data));
+  if (!terminal) return;
+  terminal.write(new Uint8Array(data));
 };
 
 export const preprocessInput = (data: string, config: Partial<ILunaConfig>) => {
@@ -107,20 +107,10 @@ export const preprocessInput = (data: string, config: Partial<ILunaConfig>) => {
       data = String.fromCharCode(AsciiBackspace);
     }
   }
-
-  // 如果配置项 ctrlCAsCtrlZ 启用（值为 "1"），并且输入数据包含 Ctrl+C 的 ASCII 码 (AsciiCtrlC，即 3)，
-  // 它会将其替换为 Ctrl+Z 的 ASCII 码 (AsciiCtrlZ，即 26)。
-  if (config.ctrlCAsCtrlZ === '1') {
-    if (data.charCodeAt(0) === AsciiCtrlC) {
-      data = String.fromCharCode(AsciiCtrlZ);
-    }
-  }
-
   if (data.includes('\u001b[200~') || data.includes('\u001b[201~')) {
     return data.replace(/\u001b\[200~|\u001b\[201~/g, '');
-  } else {
-    return data;
   }
+  return data;
 };
 
 /**

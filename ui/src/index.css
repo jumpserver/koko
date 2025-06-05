@@ -1,2 +1,5 @@
 @import "tailwindcss";
 
+.icon-hover {
+    @apply cursor-pointer hover:text-[#63e2b7] duration-300 transition-all ease-in-out;
+}

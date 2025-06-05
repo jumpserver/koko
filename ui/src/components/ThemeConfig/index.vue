@@ -5,8 +5,8 @@
         <n-grid :cols="24">
           <n-grid-item :span="20">
             <n-select
-              class="custom-select pr-[20px]"
               v-model:value="theme"
+              class="custom-select pr-[20px]"
               :options="themes"
               :placeholder="t('SelectTheme')"
               @update:value="setTheme"
@@ -171,10 +171,10 @@
 
 <script setup lang="ts">
 import xtermTheme from 'xterm-theme';
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import { useI18n } from 'vue-i18n';
-import { defaultTheme } from '@/config';
+import { defaultTheme } from '@/utils/config';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 

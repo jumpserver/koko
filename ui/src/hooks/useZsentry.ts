@@ -4,7 +4,7 @@ import { createDiscreteApi, UploadFileInfo, darkTheme } from 'naive-ui';
 
 import { Terminal } from '@xterm/xterm';
 import { computed } from 'vue';
-import { MAX_TRANSFER_SIZE } from '@/config';
+import { MAX_TRANSFER_SIZE } from '@/utils/config';
 
 import Upload from '@/components/Upload/index.vue';
 
@@ -44,7 +44,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
     if (percent !== lastPercent) {
       let progressBar = '';
-      let progressLength = Math.floor(percent / 2);
+      const progressLength = Math.floor(percent / 2);
 
       for (let i = 0; i < progressLength; i++) {
         progressBar += '=';
@@ -53,7 +53,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         progressBar += ' ';
       }
 
-      let msg = `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}% [${progressBar}]`;
+      const msg = `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}% [${progressBar}]`;
 
       if (percent === 100 && !messageShown) {
         message.info(t('UploadEnd'), { duration: 5000 });
@@ -167,10 +167,10 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
    * @param terminal
    */
   const updateReceiveProgress = (xfer: ZmodemTransfer, terminal: Terminal) => {
-    let detail = xfer.get_details();
-    let name = detail.name;
-    let total = detail.size;
-    let offset = xfer.get_offset();
+    const detail = xfer.get_details();
+    const name = detail.name;
+    const total = detail.size;
+    const offset = xfer.get_offset();
     let percent;
     if (total === 0 || total === offset) {
       percent = 100;
@@ -178,7 +178,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       percent = Math.round((offset / total) * 100);
     }
 
-    let msg = `${t('Download')} ${name}: ${bytesHuman(total)} ${percent}% `;
+    const msg = `${t('Download')} ${name}: ${bytesHuman(total)} ${percent}% `;
 
     terminal.write('\r' + msg);
   };
@@ -282,7 +282,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
       terminal.write('\r\n');
 
-      // @ts-ignore
       if (zsession.type === 'send') {
         handleSendSession(zsession, terminal);
       } else {

@@ -1,10 +1,10 @@
 <template>
   <n-config-provider
-    :locale="zhCN"
+    :locale="enUS"
     :theme="darkTheme"
     :date-locale="dateZhCN"
     :theme-overrides="themeOverrides"
-    class="flex items-center justify-center h-full w-full overflow-hidden bg-black"
+    class="flex items-center justify-center h-full w-full overflow-hidden"
   >
     <n-dialog-provider>
       <n-notification-provider>
@@ -17,14 +17,13 @@
 </template>
 
 <script setup lang="ts">
-import { lang } from '@/config';
+
 import { useI18n } from 'vue-i18n';
-import { BASE_URL } from '@/config';
-import { darkTheme } from 'naive-ui';
+import { BASE_URL, LanguageCode } from '@/utils/config';
 import { alovaInstance } from '@/api';
-import { zhCN, dateZhCN } from 'naive-ui';
+import { enUS, dateZhCN, darkTheme} from 'naive-ui'
 import { onMounted, ref, nextTick } from 'vue';
-import { themeOverrides } from './overrides.ts';
+import { themeOverrides } from './overrides';
 
 const { mergeLocaleMessage } = useI18n();
 
@@ -34,24 +33,16 @@ onMounted(async () => {
   loaded.value = false;
   try {
     const translations = await alovaInstance
-      .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${lang}&flat=0`)
+      .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${LanguageCode}&flat=0`)
       .then(response => (response as Response).json());
 
-    if (translations[lang]) {
-      mergeLocaleMessage(lang, translations[lang]);
-
-      nextTick(() => {
-        loaded.value = true;
-      });
-    } else {
-      const defaultTranslations = Reflect.ownKeys(translations)[0] as string;
-
-      mergeLocaleMessage(defaultTranslations, translations[defaultTranslations]);
-
-      nextTick(() => {
-        loaded.value = true;
-      });
+    for (const [key, value] of Object.entries(translations)) {
+      mergeLocaleMessage(key, value);
     }
+    nextTick(() => {
+        loaded.value = true;
+      });
+  
   } catch (e) {
     throw new Error(`${e}`);
   }

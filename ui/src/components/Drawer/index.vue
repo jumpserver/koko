@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { reactive, ref, computed } from 'vue';
-import { FILE_SUFFIX_DATABASE } from '@/config';
+import { FILE_SUFFIX_DATABASE } from '@/utils/config';
 import { Palette, Share2, UsersRound, Keyboard } from 'lucide-vue-next';
 
 import Setting from './components/Setting/index.vue';
@@ -59,7 +59,7 @@ const props = defineProps<{
 
   showDrawer: boolean;
 
-  token?: string;
+  token: string;
 
   contentType: ContentType;
 

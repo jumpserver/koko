@@ -1,13 +1,13 @@
 <template>
   <n-layout :native-scrollbar="false" content-style="height: 100%">
     <n-tabs
+      v-model:value="nameRef"
       closable
       size="small"
       type="card"
       tab="show:lazy"
       tab-style="min-width: 80px;"
       class="header-tab relative"
-      v-model:value="nameRef"
       @close="handleClose"
       @update:value="handleChangeTab"
       @contextmenu.prevent="handleContextMenu"
@@ -22,7 +22,7 @@
       >
         <n-layout :native-scrollbar="false">
           <n-scrollbar trigger="hover">
-            <div class="k8s-terminal" :id="String(panel.name)"></div>
+            <div :id="String(panel.name)" class="k8s-terminal"></div>
           </n-scrollbar>
         </n-layout>
       </n-tab-pane>
@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import xtermTheme from 'xterm-theme';
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 import Share from '@/components/Share/index.vue';
 import Settings from '@/components/Settings/index.vue';
 import ThemeConfig from '@/components/ThemeConfig/index.vue';
@@ -93,7 +93,7 @@ import {
 import { ClosedCaption32Regular } from '@vicons/fluent';
 import { RefreshFilled } from '@vicons/material';
 import { CloneRegular } from '@vicons/fa';
-import { defaultTheme } from '@/config';
+import { defaultTheme } from '@/utils/config';
 import {
   Activity,
   ColorPalette,
@@ -769,5 +769,5 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-@import './index.scss';
+@use './index.scss';
 </style>
