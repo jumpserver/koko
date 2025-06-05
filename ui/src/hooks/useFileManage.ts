@@ -1,13 +1,12 @@
-import { useRoute } from 'vue-router';
 import { computed, ref, watch } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 import { v4 as uuid } from 'uuid';
-import { BASE_WS_URL } from '@/config';
+import { BASE_WS_URL } from '@/utils/config';
 
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import type { Ref } from 'vue';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';

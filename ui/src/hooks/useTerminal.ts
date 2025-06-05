@@ -5,7 +5,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { ISearchOptions, SearchAddon } from '@xterm/addon-search';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
-import { defaultTheme } from '@/config';
+import { defaultTheme } from '@/utils/config';
 import { watch, watchEffect } from 'vue';
 import { createDiscreteApi } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
@@ -26,7 +26,7 @@ import {
   onWebsocketOpen,
   onWebsocketWrong
 } from '@/hooks/helper';
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 import { updateIcon } from '@/hooks/helper';
 import { sendEventToLuna, formatMessage, wsIsActivated } from '@/utils';
 

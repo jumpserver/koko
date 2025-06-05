@@ -1,7 +1,7 @@
 import { createDiscreteApi } from 'naive-ui';
 import { TranslateFunction } from '@/types';
 import { Terminal } from '@xterm/xterm';
-import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/config';
+import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/utils/config';
 import type { ILunaConfig } from '@/hooks/interface';
 import { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 

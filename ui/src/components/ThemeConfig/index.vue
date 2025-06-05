@@ -171,10 +171,10 @@
 
 <script setup lang="ts">
 import xtermTheme from 'xterm-theme';
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import { useI18n } from 'vue-i18n';
-import { defaultTheme } from '@/config';
+import { defaultTheme } from '@/utils/config';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 

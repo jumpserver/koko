@@ -14,7 +14,7 @@ import { useFileManageStore } from '@/store/modules/fileManage';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { WINDOW_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/enum';
+import { WINDOW_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/utils/messageTypes';
 
 import type { ContentType } from '@/types/modules/connection.type';
 
@@ -73,8 +73,8 @@ const receivePostMessage = (): void => {
     switch (windowMessage.name) {
       case WINDOW_MESSAGE_TYPE.CMD:
         if (typeof socket.value !== 'string') {
-          const termianlId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
-          socket.value?.send(formatMessage(termianlId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, windowMessage.data));
+          const terminalId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
+          socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, windowMessage.data));
         }
         break;
       case WINDOW_MESSAGE_TYPE.PING:

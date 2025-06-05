@@ -61,18 +61,18 @@
 </template>
 
 <script setup lang="ts">
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 import * as clipboard from 'clipboard-polyfill';
 import { useMessage, NTag } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
-import { BASE_URL } from '@/config';
+import { BASE_URL } from '@/utils/config';
 import { getMinuteLabel } from '@/utils';
 import { useDebounceFn } from '@vueuse/core';
 import { ShareUserOptions } from '@/types/modules/user.type';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, nextTick, reactive, ref, watch, h } from 'vue';
 import type { SelectRenderTag } from 'naive-ui';
-import { useParamsStore } from '@/store/modules/params.ts';
+import { useParamsStore } from '@/store/modules/params';
 import { storeToRefs } from 'pinia';
 const props = withDefaults(
   defineProps<{

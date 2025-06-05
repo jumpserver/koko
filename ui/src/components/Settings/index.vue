@@ -110,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { ISettingProp } from '@/types';
 import { useI18n } from 'vue-i18n';

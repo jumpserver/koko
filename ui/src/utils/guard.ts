@@ -1,5 +1,5 @@
 import { NavigationGuardNext } from 'vue-router';
-import i18n from '@/languages/index';
+import i18n from '@/locales/index';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 
 import type { ILocalTerminalConfig, CommandLineConfig } from '@/types/modules/guard.type.ts';

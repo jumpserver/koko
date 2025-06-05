@@ -33,9 +33,6 @@ body,
   position: relative;
 }
 
-.icon-hover {
-  @apply cursor-pointer hover:text-[#63e2b7] duration-300 transition-all ease-in-out;
-}
 
 // 解决 h1 标签在 webkit 内核浏览器中文字大小失效问题
 :-webkit-any(article, aside, nav, section) h1 {

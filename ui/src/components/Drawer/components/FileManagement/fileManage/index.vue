@@ -166,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import { List } from '@vicons/ionicons5';
 import { Search } from 'lucide-vue-next';

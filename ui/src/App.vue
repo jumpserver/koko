@@ -17,14 +17,14 @@
 </template>
 
 <script setup lang="ts">
-import { lang } from '@/config';
+import { lang } from '@/utils/config';
 import { useI18n } from 'vue-i18n';
-import { BASE_URL } from '@/config';
+import { BASE_URL } from '@/utils/config';
 import { darkTheme } from 'naive-ui';
 import { alovaInstance } from '@/api';
 import { zhCN, dateZhCN } from 'naive-ui';
 import { onMounted, ref, nextTick } from 'vue';
-import { themeOverrides } from './overrides.ts';
+import { themeOverrides } from './overrides';
 
 const { mergeLocaleMessage } = useI18n();
 

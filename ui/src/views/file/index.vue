@@ -41,9 +41,8 @@
 import { v4 as uuid } from 'uuid';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
-import { WINDOW_MESSAGE_TYPE } from '@/enum';
 import { useFileList } from '@/hooks/useFileList';
-import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/enum';
+import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE,WINDOW_MESSAGE_TYPE } from '@/utils/messageTypes';
 
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { sendEventToLuna } from '@/utils';

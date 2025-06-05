@@ -107,7 +107,7 @@ import { ref, h, nextTick, watchEffect } from 'vue';
 import { showToolTip } from '../helper/index';
 import { useTreeStore } from '@/store/modules/tree.ts';
 
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import { Folder, FolderOpen } from '@vicons/fa';
 import { RefreshRound } from '@vicons/material';
@@ -260,45 +260,23 @@ const nodeProps = ({ option }: { option: TreeOption }) => {
  * @param option
  */
 const handleFilter = (option: TreeOption) => {
-  dropdownOptions.value = allOptions.filter(item => {
-    if (option.isLeaf) {
-      return item.key === 'connect';
-    } else if (!option.isLeaf && !option?.isParent) {
-      return item.key === 'expand';
-    } else {
-      return true;
-    }
-  });
-};
-
-/**
- * 加载节点
- *
- * @param node
- */
-// @ts-ignore
-const handleOnLoad = (node: TreeOption) => {
-  let expendKey: string;
-
-  treeStore.setCurrentNode(node);
-
-  emits('sync-load-node', node);
-
-  if (typeof node.key === 'string') {
-    expendKey = node.key;
-
-    if (!expandedKeysRef.value.includes(expendKey)) {
-      setTimeout(() => {
-        expandedKeysRef.value.push(expendKey);
-        handleExpandCollapse(expandedKeysRef.value, [], {
-          node,
-          action: 'expand'
-        });
-      }, 200);
-    }
+  if (option.isLeaf) {
+    dropdownOptions.value= [{
+      label: t('Connect'),
+      key: 'connect',
+      icon: () => h(NIcon, { size: 15 }, { default: () => h(Terminal2) })
+    }]
+    return;
   }
-
-  return false;
+  if (!option.isLeaf && !option?.isParent) {
+    dropdownOptions.value= [{
+      label: t('Expand'),
+      key: 'expand',
+      icon: () => h(NIcon, { size: 15 }, { default: () => h(ExpandCategories) })
+    }]
+    return;
+  }
+  dropdownOptions.value = allOptions;
 };
 
 /**
@@ -351,5 +329,5 @@ const handleClickOutside = () => {
 </script>
 
 <style scoped lang="scss">
-@import './index.scss';
+@use './index.scss';
 </style>

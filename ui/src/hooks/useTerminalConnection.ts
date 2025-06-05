@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { ref, computed, watch, watchEffect } from 'vue';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
 
-import { MaxTimeout } from '@/config';
+import { MaxTimeout } from '@/utils/config';
 import { preprocessInput } from '@/utils';
 import { useSentry } from '@/hooks/useZsentry';
 import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
@@ -11,7 +11,7 @@ import { updateIcon, handleCustomKey } from '@/hooks/helper';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, formatMessage, writeBufferToTerminal } from '@/utils';
-import { FORMATTER_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/enum';
+import { FORMATTER_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/utils/messageTypes.ts';
 
 import type { Ref } from 'vue';
 import type { FitAddon } from '@xterm/addon-fit';

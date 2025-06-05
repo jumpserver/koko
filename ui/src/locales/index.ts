@@ -1,4 +1,4 @@
-import { lang } from '@/config';
+import { lang } from '@/utils/config';
 import { message } from './modules';
 import { createI18n } from 'vue-i18n';
 

@@ -1,7 +1,7 @@
 import xtermTheme from 'xterm-theme';
 
 import { storeToRefs } from 'pinia';
-import { defaultTheme } from '@/config';
+import { defaultTheme } from '@/utils/config';
 import { useDebounceFn } from '@vueuse/core';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
 import { writeText, readText } from 'clipboard-polyfill';
@@ -10,7 +10,7 @@ import { ref, computed, nextTick, watch } from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { formatMessage } from '@/utils';
 import { FitAddon } from '@xterm/addon-fit';
-import { FORMATTER_MESSAGE_TYPE } from '@/enum';
+import { FORMATTER_MESSAGE_TYPE } from '@/utils/messageTypes'
 import { SearchAddon } from '@xterm/addon-search';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';

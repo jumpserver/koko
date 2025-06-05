@@ -16,9 +16,9 @@ import { createDiscreteApi } from 'naive-ui';
 import { readText } from 'clipboard-polyfill';
 import { fireEvent, preprocessInput } from '@/utils';
 
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 import * as clipboard from 'clipboard-polyfill';
-import { BASE_WS_URL, MaxTimeout } from '@/config';
+import { BASE_WS_URL, MaxTimeout } from '@/utils/config';
 
 const { message } = createDiscreteApi(['message']);
 

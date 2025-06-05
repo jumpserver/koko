@@ -26,8 +26,8 @@ import type { ISearchOptions } from '@xterm/addon-search';
 import type { Ref } from 'vue';
 
 import xtermTheme from 'xterm-theme';
-import mittBus from '@/utils/mittBus.ts';
-import { MaxTimeout } from '@/config';
+import mittBus from '@/utils/mittBus';
+import { MaxTimeout } from '@/utils/config';
 
 const { message, notification } = createDiscreteApi(['message', 'notification'], {
   configProviderProps: {

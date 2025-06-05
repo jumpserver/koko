@@ -4,7 +4,7 @@ import { createDiscreteApi, UploadFileInfo, darkTheme } from 'naive-ui';
 
 import { Terminal } from '@xterm/xterm';
 import { computed } from 'vue';
-import { MAX_TRANSFER_SIZE } from '@/config';
+import { MAX_TRANSFER_SIZE } from '@/utils/config';
 
 import Upload from '@/components/Upload/index.vue';
 
