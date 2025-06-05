@@ -1,8 +1,8 @@
 <template>
   <n-config-provider
-    :locale="zhCN"
+    :locale="enUS"
     :theme="darkTheme"
-    :date-locale="dateZhCN"
+    :date-locale="dateEnUS"
     :theme-overrides="themeOverrides"
     class="flex items-center justify-center h-full w-full overflow-hidden bg-black"
   >
@@ -17,12 +17,12 @@
 </template>
 
 <script setup lang="ts">
-import { lang } from '@/utils/config';
+
 import { useI18n } from 'vue-i18n';
-import { BASE_URL } from '@/utils/config';
+import { BASE_URL, lang } from '@/utils/config';
 import { darkTheme } from 'naive-ui';
 import { alovaInstance } from '@/api';
-import { zhCN, dateZhCN } from 'naive-ui';
+import { enUS, dateEnUS } from 'naive-ui'
 import { onMounted, ref, nextTick } from 'vue';
 import { themeOverrides } from './overrides';
 
