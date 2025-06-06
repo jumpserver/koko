@@ -167,10 +167,10 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
    * @param terminal
    */
   const updateReceiveProgress = (xfer: ZmodemTransfer, terminal: Terminal) => {
-    let detail = xfer.get_details();
-    let name = detail.name;
-    let total = detail.size;
-    let offset = xfer.get_offset();
+    const detail = xfer.get_details();
+    const name = detail.name;
+    const total = detail.size;
+    const offset = xfer.get_offset();
     let percent;
     if (total === 0 || total === offset) {
       percent = 100;
@@ -178,7 +178,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       percent = Math.round((offset / total) * 100);
     }
 
-    let msg = `${t('Download')} ${name}: ${bytesHuman(total)} ${percent}% `;
+    const msg = `${t('Download')} ${name}: ${bytesHuman(total)} ${percent}% `;
 
     terminal.write('\r' + msg);
   };

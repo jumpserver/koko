@@ -42,7 +42,7 @@ import { v4 as uuid } from 'uuid';
 import { useRoute } from 'vue-router';
 import { useMessage } from 'naive-ui';
 import { useFileList } from '@/hooks/useFileList';
-import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE,WINDOW_MESSAGE_TYPE } from '@/utils/messageTypes';
+import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE,LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { sendEventToLuna } from '@/utils';
@@ -114,8 +114,8 @@ const handleCommunication = (event: MessageEvent) => {
   const windowMessage = event.data;
 
   switch (windowMessage.name) {
-    case WINDOW_MESSAGE_TYPE.PING:
-      sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', windowMessage.id, event.origin);
+    case LUNA_MESSAGE_TYPE.PING:
+      sendEventToLuna(LUNA_MESSAGE_TYPE.PONG, '', windowMessage.id, event.origin);
       break;
   }
 };

@@ -5,8 +5,8 @@
         <n-grid :cols="24">
           <n-grid-item :span="20">
             <n-select
-              class="custom-select pr-[20px]"
               v-model:value="theme"
+              class="custom-select pr-[20px]"
               :options="themes"
               :placeholder="t('SelectTheme')"
               @update:value="setTheme"

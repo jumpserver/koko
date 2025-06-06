@@ -2,7 +2,7 @@ import { createDiscreteApi } from 'naive-ui';
 import { TranslateFunction } from '@/types';
 import { Terminal } from '@xterm/xterm';
 import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/utils/config';
-import type { ILunaConfig } from '@/hooks/interface';
+import type { ILunaConfig } from '@/types/modules/config.type';
 import { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 const { message } = createDiscreteApi(['message']);
@@ -19,7 +19,7 @@ export const copyTextToClipboard = async (text: string): Promise<void> => {
       message.info('Text copied to clipboard');
     } else {
       // Fallback 方式，兼容不支持 Clipboard API 的情况
-      let transfer: HTMLTextAreaElement = document.createElement('textarea');
+      const transfer: HTMLTextAreaElement = document.createElement('textarea');
 
       document.body.appendChild(transfer);
       transfer.value = text;

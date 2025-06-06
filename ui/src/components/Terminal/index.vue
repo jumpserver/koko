@@ -6,39 +6,30 @@
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { Terminal } from '@xterm/xterm';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import { generateWsURL } from '@/hooks/helper';
-import { sendEventToLuna, formatMessage } from '@/utils';
-import { useFileManageStore } from '@/store/modules/fileManage';
+import { formatMessage } from '@/utils';
 import { useTerminalInstance } from '@/hooks/useTerminalInstance';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { WINDOW_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/utils/messageTypes';
+import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
 
-import type { ContentType } from '@/types/modules/connection.type';
-
-const emits = defineEmits<{
-  (e: 'update:drawer', show: boolean, title: string, contentType: ContentType, token?: string): void;
-  (e: 'update:protocol', protocol: string): void;
-}>();
+import { LunaMessage } from '@/types/modules/postmessage.type';
+import { lunaCommunicator } from '@/utils/lunaBus';
 
 const props = defineProps<{
   shareCode?: string;
 
-  contentType?: ContentType;
 }>();
 
 const { t } = useI18n();
 const message = useMessage();
 const connectionStore = useConnectionStore();
-const fileManageStore = useFileManageStore();
 
 const socket = ref<WebSocket | ''>('');
 const terminal = ref<Terminal | null>(null);
-const lunaId = ref<string>('');
-const origin = ref<string>('');
-const protocol = ref<string>('');
+
 
 /**
  * @description 创建 WebSocket 连接
@@ -58,60 +49,20 @@ const createSocket = (): WebSocket | '' => {
   if (ws.value) {
     return ws.value;
   }
-
   message.error('Failed to create WebSocket connection');
   return '';
 };
 
-/**
- * @description 接收 postMessage 消息
- */
-const receivePostMessage = (): void => {
-  window.addEventListener('message', (e: MessageEvent) => {
-    const windowMessage = e.data;
 
-    switch (windowMessage.name) {
-      case WINDOW_MESSAGE_TYPE.CMD:
-        if (typeof socket.value !== 'string') {
-          const terminalId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
-          socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, windowMessage.data));
-        }
-        break;
-      case WINDOW_MESSAGE_TYPE.PING:
-        origin.value = e.origin;
-        lunaId.value = windowMessage.id;
-        protocol.value = windowMessage.protocol;
-
-        emits('update:protocol', protocol.value);
-
-        sendEventToLuna(WINDOW_MESSAGE_TYPE.PONG, '', lunaId.value, origin.value);
-        break;
-      case WINDOW_MESSAGE_TYPE.OPEN:
-        emits('update:drawer', true, t('Settings'), 'setting');
-        break;
-      case WINDOW_MESSAGE_TYPE.FILE:
-        emits('update:drawer', true, t('FileManager'), 'file-manager', windowMessage.SFTP_Token);
-        break;
-      case WINDOW_MESSAGE_TYPE.FOCUS:
-        terminal.value?.focus();
-        break;
-      case WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN:
-        emits('update:drawer', true, t('FileManager'), 'file-manager', windowMessage.SFTP_Token);
-        break;
-    }
-  });
-};
 
 onMounted(() => {
-  receivePostMessage();
 
   socket.value = createSocket();
-
   if (!socket.value) {
     return;
   }
 
-  const { initializeSocketEvent, setShareCode, terminalResizeEvent } = useTerminalConnection(lunaId, origin);
+  const { initializeSocketEvent, setShareCode, terminalResizeEvent } = useTerminalConnection();
   const { createTerminalInstance, fitAddon } = useTerminalInstance(socket.value);
 
   const terminalContainer: HTMLElement | null = document.getElementById('terminal-container');
@@ -129,23 +80,26 @@ onMounted(() => {
     setShareCode(props.shareCode);
   }
 
-  watch(
-    () => props.contentType,
-    (type, oldType) => {
-      if (type === 'setting') {
-        return fileManageStore.setFileList([]);
-      }
-
-      console.log(type, oldType);
-      if (type && type === 'file-manager' && oldType) {
-        sendEventToLuna(WINDOW_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '', lunaId.value, origin.value);
-      }
-    }
-  );
-
   initializeSocketEvent(terminalInstance, socket.value, t);
   terminalResizeEvent(terminalInstance, socket.value, fitAddon);
+
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, (msg: LunaMessage) => {
+    if (typeof socket.value !== 'string') {
+      const terminalId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
+      socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+    }
+  });
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, (msg: LunaMessage) => {
+    terminal.value?.focus();
+  });
+})
+
+
+onUnmounted(() => {
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CMD);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.FOCUS);
 });
+
 </script>
 
 <style scoped lang="scss">

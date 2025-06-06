@@ -21,7 +21,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 
-import type { customTreeOption, ILunaConfig } from '@/hooks/interface';
+import type { customTreeOption, ILunaConfig } from '@/types/modules/config.type';
 import type { ISearchOptions } from '@xterm/addon-search';
 import type { Ref } from 'vue';
 
@@ -50,13 +50,13 @@ const handleConnected = (socket: WebSocket, pingInterval: Ref<number | null>) =>
       return clearInterval(pingInterval.value!);
     }
 
-    let currentDate: Date = new Date();
+    const currentDate: Date = new Date();
 
     if (kubernetesStore.lastReceiveTime.getTime() - currentDate.getTime() > MaxTimeout) {
       message.info('More than 30s do not receive data');
     }
 
-    let pingTimeout: number = currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
+    const pingTimeout: number = currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
 
     if (pingTimeout < 0) return;
 
@@ -466,8 +466,8 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
  * @description 创建 k8s 连接
  */
 export const createConnect = (t: any) => {
-  let pingInterval: Ref<number | null> = ref(null);
-  let connectURL: string = generateWsURL();
+  const pingInterval: Ref<number | null> = ref(null);
+  const connectURL: string = generateWsURL();
 
   const { createSentry } = useSentry();
 
@@ -511,8 +511,8 @@ export const createConnect = (t: any) => {
  * @param socket
  */
 export const initTerminalEvent = (el: HTMLElement, terminal: Terminal, lunaConfig: ILunaConfig, socket: WebSocket) => {
-  let fitAddon: FitAddon = new FitAddon();
-  let searchAddon: SearchAddon = new SearchAddon();
+  const fitAddon: FitAddon = new FitAddon();
+  const searchAddon: SearchAddon = new SearchAddon();
 
   const terminalStore = useTerminalStore();
 

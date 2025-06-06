@@ -18,11 +18,11 @@
         </n-form-item-gi>
         <n-form-item-gi :span="24" :label="t('ShareUser')">
           <n-select
+            v-model:value="shareLinkRequest.users"
             multiple
             filterable
             clearable
             remote
-            v-model:value="shareLinkRequest.users"
             :loading="loading"
             :render-tag="renderTag"
             :options="mappedUserOptions"

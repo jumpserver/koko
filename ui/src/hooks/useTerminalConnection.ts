@@ -1,6 +1,6 @@
 import { useI18n } from 'vue-i18n';
 import { Terminal } from '@xterm/xterm';
-import { ref, computed, watch, watchEffect } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
 
 import { MaxTimeout } from '@/utils/config';
@@ -11,16 +11,15 @@ import { updateIcon, handleCustomKey } from '@/hooks/helper';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { sendEventToLuna, formatMessage, writeBufferToTerminal } from '@/utils';
-import { FORMATTER_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/utils/messageTypes.ts';
+import { FORMATTER_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/types/modules/message.type';
 
-import type { Ref } from 'vue';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { ConfigProviderProps } from 'naive-ui';
-import type { SettingConfig } from '@/hooks/interface';
+import type { SettingConfig } from '@/types/modules/config.type';
 import type { OnlineUser } from '@/types/modules/user.type';
 import type { ShareUserOptions } from '@/types/modules/user.type';
 
-export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) => {
+export const useTerminalConnection = () => {
   let sentry: Sentry;
 
   const onlineUsers = ref<OnlineUser[]>([]);
@@ -74,13 +73,13 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
         return clearInterval(pingInterval.value!);
       }
 
-      let currentDate = new Date();
+      const currentDate = new Date();
 
       if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
         socket.close();
       }
 
-      let pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime();
+      const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime();
 
       if (pingTimeout < 0) return;
 
@@ -96,7 +95,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
   const dispatch = (data: string, terminal: Terminal, socket: WebSocket, t: any) => {
     if (!data) return;
 
-    let parsedMessageData = JSON.parse(data);
+    const parsedMessageData = JSON.parse(data);
 
     switch (parsedMessageData.type) {
       case MESSAGE_TYPE.CLOSE: {
@@ -110,13 +109,13 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         socket.close();
 
-        sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.CLOSE, '', lunaId.value, origin.value);
+        // sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.CLOSE, '', lunaId.value, origin.value);
         break;
       }
       case MESSAGE_TYPE.ERROR: {
         terminal.write(parsedMessageData.err);
 
-        sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '', lunaId.value, origin.value);
+        // sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '', lunaId.value, origin.value);
         break;
       }
       case MESSAGE_TYPE.PING: {
@@ -131,12 +130,12 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
           terminalId: parsedMessageData.id
         });
 
-        watchEffect(() => {
-          connectionStore.updateConnectionState(terminalId.value, {
-            lunaId: lunaId.value,
-            origin: origin.value
-          });
-        });
+        // watchEffect(() => {
+        //   connectionStore.updateConnectionState(terminalId.value, {
+        //     lunaId: lunaId.value,
+        //     origin: origin.value
+        //   });
+        // });
 
         const terminalData = {
           cols: terminal.cols,
@@ -175,6 +174,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
 
         shareId.value = data.share_id;
         shareCode.value = data.code;
+        // todo 这里需要处理一下 shareId 和 shareCode 的 更新到 luna event
         connectionStore.updateConnectionState(terminalId.value, {
           shareId: data.share_id,
           shareCode: data.code
@@ -415,7 +415,7 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
     };
 
     terminal.onData((data: string) => {
-      let processedData = preprocessInput(data, terminalSettingsStore.getConfig);
+      const processedData = preprocessInput(data, terminalSettingsStore.getConfig);
 
       lastSendTime.value = new Date();
 
@@ -424,9 +424,9 @@ export const useTerminalConnection = (lunaId: Ref<string>, origin: Ref<string>) 
       socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
     });
 
-    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      return handleCustomKey(e, terminal, lunaId.value, origin.value);
-    });
+    // terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+    //   return handleCustomKey(e, terminal, lunaId.value, origin.value);
+    // });
   };
 
   return {

@@ -1,13 +1,13 @@
 <template>
   <n-layout :native-scrollbar="false" content-style="height: 100%">
     <n-tabs
+      v-model:value="nameRef"
       closable
       size="small"
       type="card"
       tab="show:lazy"
       tab-style="min-width: 80px;"
       class="header-tab relative"
-      v-model:value="nameRef"
       @close="handleClose"
       @update:value="handleChangeTab"
       @contextmenu.prevent="handleContextMenu"
@@ -22,7 +22,7 @@
       >
         <n-layout :native-scrollbar="false">
           <n-scrollbar trigger="hover">
-            <div class="k8s-terminal" :id="String(panel.name)"></div>
+            <div :id="String(panel.name)" class="k8s-terminal"></div>
           </n-scrollbar>
         </n-layout>
       </n-tab-pane>

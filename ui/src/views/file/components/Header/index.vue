@@ -75,7 +75,7 @@
 import { v4 as uuid } from 'uuid';
 import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
-import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/utils/messageTypes';
+import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/types/modules/message.type';
 import {
   List,
   Copy,

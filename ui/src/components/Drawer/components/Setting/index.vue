@@ -92,7 +92,7 @@ import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { formatMessage } from '@/utils';
 import { readText } from 'clipboard-polyfill';
-import { FORMATTER_MESSAGE_TYPE } from '@/utils/messageTypes';
+import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { ref, watch, computed, nextTick } from 'vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { Ellipsis, ChevronLeft, ChevronDown } from 'lucide-vue-next';

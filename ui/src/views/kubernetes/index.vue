@@ -8,11 +8,11 @@
         </n-flex>
       </n-layout-header>
       <n-layout-sider
+          v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }"
           bordered
           collapsed
           collapse-mode="width"
           content-style="padding: 24px;"
-          v-draggable="{ width: sideWidth, onDragEnd: handleDragEnd }"
           class="transition-width duration-300 w-full"
           :width="sideWidth"
           :collapsed-width="0"
@@ -43,7 +43,7 @@ import { useI18n } from 'vue-i18n';
 import { TreeOption } from 'naive-ui';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useKubernetes } from '@/hooks/useKubernetes.ts';
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 import mittBus from '@/utils/mittBus';
 import Tree from '@/components/Kubernetes/Tree/index.vue';

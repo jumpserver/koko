@@ -1,5 +1,5 @@
 import { Ref } from 'vue';
-import type { ILunaConfig } from '@/hooks/interface';
+import type { ILunaConfig } from '@/types/modules/config.type';
 
 import { Terminal } from '@xterm/xterm';
 import { useDebounceFn } from '@vueuse/core';
@@ -243,12 +243,12 @@ export const onWebsocketOpen = (
       return clearInterval(pingInterval.value!);
     }
 
-    let currentDate: Date = new Date();
+    const currentDate: Date = new Date();
 
     if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
     }
 
-    let pingTimeout: number = currentDate.getTime() - lastSendTime.getTime();
+    const pingTimeout: number = currentDate.getTime() - lastSendTime.getTime();
 
     if (pingTimeout < 0) return;
 

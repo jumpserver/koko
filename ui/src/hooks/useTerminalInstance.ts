@@ -2,42 +2,33 @@ import xtermTheme from 'xterm-theme';
 
 import { storeToRefs } from 'pinia';
 import { defaultTheme } from '@/utils/config';
-import { useDebounceFn } from '@vueuse/core';
-import { darkTheme, createDiscreteApi } from 'naive-ui';
 import { writeText, readText } from 'clipboard-polyfill';
-import { ref, computed, nextTick, watch } from 'vue';
+import { ref, nextTick, watch } from 'vue';
 
 import { Terminal } from '@xterm/xterm';
 import { formatMessage } from '@/utils';
 import { FitAddon } from '@xterm/addon-fit';
-import { FORMATTER_MESSAGE_TYPE } from '@/utils/messageTypes'
+import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type'
 import { SearchAddon } from '@xterm/addon-search';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
-import type { ConfigProviderProps } from 'naive-ui';
 
 /**
  * @description 终端控制器
  * @param config
  */
 export const useTerminalInstance = (socket?: WebSocket | '') => {
-  let fitAddon = new FitAddon();
-  let searchAddon = new SearchAddon();
+  const fitAddon = new FitAddon();
+  const searchAddon = new SearchAddon();
 
-  let terminalSelectionText = ref<string>('');
-  let terminalInstance = ref<Terminal>();
+  const terminalSelectionText = ref<string>('');
+  const terminalInstance = ref<Terminal>();
 
-  const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
-    theme: darkTheme
-  }));
 
   const connectionStore = useConnectionStore();
   const terminalSettingsStore = useTerminalSettingsStore();
 
-  const { message } = createDiscreteApi(['message'], {
-    configProviderProps: configProviderPropsRef
-  });
 
   watch(
     () => terminalSettingsStore.theme,
@@ -103,12 +94,7 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
       false
     );
   };
-  /**
-   * @description 搜索关键字
-   * @param keyword
-   * @param type
-   */
-  const searchKeyWord = (keyword: string, type: string) => {};
+
   /**
    * @description  创建终端实例
    */

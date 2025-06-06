@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { useMessage } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
 import { reactive, watchEffect, ref } from 'vue';
-import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/utils/messageTypes';
+import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 import type { TreeOption } from 'naive-ui';
 import type { RowData } from '@/types/modules/table.type';

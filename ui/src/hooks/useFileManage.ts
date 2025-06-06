@@ -690,7 +690,7 @@ const handleFileUpload = async (
  * @description 用于处理文件管理相关逻辑
  */
 export const useFileManage = (token: string, t: any) => {
-  let fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
+  const fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
 
   function init() {
     const socket = fileSocketConnection(fileConnectionUrl, t);

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { SettingConfig } from '@/hooks/interface';
+import { SettingConfig } from '@/types/modules/config.type';
 
 export interface IKubernetesState {
   // 全局的唯一 TerminalId

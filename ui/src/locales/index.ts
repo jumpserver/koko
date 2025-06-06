@@ -1,11 +1,11 @@
-import { lang } from '@/utils/config';
+import { LanguageCode } from '@/utils/config';
 import { message } from './modules';
 import { createI18n } from 'vue-i18n';
 
 import date from './date';
 
 const i18n = createI18n({
-  locale: lang,
+  locale: LanguageCode,
   fallbackLocale: 'en',
   legacy: false,
   allowComposition: true,
