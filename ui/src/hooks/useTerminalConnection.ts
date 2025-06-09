@@ -1,6 +1,6 @@
 import { useI18n } from 'vue-i18n';
 import { Terminal } from '@xterm/xterm';
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { darkTheme, createDiscreteApi } from 'naive-ui';
 import mitt from 'mitt'
 import { MaxTimeout } from '@/utils/config';
@@ -352,27 +352,6 @@ export const useTerminalConnection = () => {
       shareCode: code
     });
   };
-  /**
-   * @description 获取指定分享用户
-   * @param socket
-   * @param query
-   * @returns
-   */
-  const getShareUser = (socket: WebSocket, query: any): Promise<ShareUserOptions[]> => {
-    return new Promise(resolve => {
-      socket.send(
-        formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_GET_SHARE_USER, JSON.stringify({ query }))
-      );
-
-      watch(
-        () => userOptions.value,
-        newUserOptions => {
-          resolve(newUserOptions);
-        },
-        { immediate: true }
-      );
-    });
-  };
 
 
 
@@ -430,7 +409,6 @@ export const useTerminalConnection = () => {
   };
 
   return {
-    getShareUser,
     setShareCode,
     initializeSocketEvent,
     eventBus,

@@ -74,6 +74,8 @@ export interface LunaMessage {
     protocol: string;
     data: string | object | null;
     theme?: string;
+    user_meta?: string
+    
 }
 
 export interface ShareUserRequest {

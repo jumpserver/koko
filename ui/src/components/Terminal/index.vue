@@ -270,12 +270,29 @@ onMounted(() => {
       )
     );
   };
-
+  const handleRemoveShareUser = (msg: LunaMessage) => {
+    console.log('Received remove share user request:', msg);
+    if (!socket.value) {
+      message.error('WebSocket connection is not established');
+      return;
+    }
+    socket.value.send(
+    formatMessage(
+      terminalId.value,
+      FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE,
+      JSON.stringify({
+        session: sessionId.value,
+        user_meta: msg.user_meta
+      })
+    )
+  );
+  };
 
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST, handleCreateShareUrl);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE, handleRemoveShareUser);
   console.log('Luna communicator initialized and event listeners set up');
 })
 
@@ -285,6 +302,7 @@ onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.FOCUS);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE);
 });
 
 </script>
