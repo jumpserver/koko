@@ -23,6 +23,7 @@ import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
 export const eventBus = mitt<{
   'luna-event': { event: string; data: string };
   'terminal-session': TerminalSessionInfo,
+  'terminal-connect': { id: string}
 }>();
 // 修改 sendEventToLuna 函数
 const sendLunaEvent = (event: string, data: string) => {
@@ -135,6 +136,7 @@ export const useTerminalConnection = () => {
       }
       case MESSAGE_TYPE.CONNECT: {
         terminalId.value = parsedMessageData.id;
+        eventBus.emit('terminal-connect', { id: terminalId.value });
 
         connectionStore.setConnectionState(terminalId.value, {
           socket: socket,
@@ -186,7 +188,6 @@ export const useTerminalConnection = () => {
 
         shareId.value = data.share_id;
         shareCode.value = data.code;
-        // todo 这里需要处理一下 shareId 和 shareCode 的 更新到 luna event
         connectionStore.updateConnectionState(terminalId.value, {
           shareId: data.share_id,
           shareCode: data.code
@@ -401,6 +402,7 @@ export const useTerminalConnection = () => {
   const initializeSocketEvent = (terminal: Terminal, socket: WebSocket, t: any) => {
     // 创建 ZMODEM 实例
     createZmodemInstance(terminal, socket);
+    const isClosed =computed(() => socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING);
 
     socket.onopen = () => {
       socket.binaryType = 'arraybuffer';
@@ -434,6 +436,9 @@ export const useTerminalConnection = () => {
 
       sendLunaEvent('KEYBOARDEVENT', '');
 
+      if (isClosed.value) {
+        return;
+      }
       socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
     });
 

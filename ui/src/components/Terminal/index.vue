@@ -9,9 +9,8 @@ import { SearchAddon } from '@xterm/addon-search';
 import xtermTheme from 'xterm-theme';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { onMounted, onUnmounted, ref, nextTick } from 'vue';
+import { onMounted, onUnmounted, ref, nextTick, computed } from 'vue';
 import { useWebSocket } from '@vueuse/core';
-import { v4 as uuid } from 'uuid';
 import { writeText, readText } from 'clipboard-polyfill';
 
 import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
@@ -20,7 +19,7 @@ import { lunaCommunicator } from '@/utils/lunaBus';
 import { formatMessage } from '@/utils';
 import { generateWsURL } from '@/hooks/helper';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { LunaMessage, ShareUserRequest, TerminalSessionInfo} from '@/types/modules/postmessage.type';
+import { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 import { getDefaultTerminalConfig } from '@/utils/guard';
 
 
@@ -30,7 +29,7 @@ const props = defineProps<{
 
 const fitAddon = new FitAddon();
 const searchAddon = new SearchAddon();
-const terminalId = uuid();
+const terminalId = ref<string>('');
 const terminalSelectionText = ref<string>('');
 const terminalInstance = ref<Terminal>();
 const sessionId = ref<string>('');
@@ -105,10 +104,11 @@ onMounted(() => {
   if (!socket.value) {
     return;
   }
-  const { initializeSocketEvent, setShareCode, terminalResizeEvent, eventBus } = useTerminalConnection();
-  eventBus.on('luna-event', ({event, data}) => {
+  const { initializeSocketEvent, setShareCode, eventBus } = useTerminalConnection();
+  eventBus.on('luna-event', ({ event, data }) => {
     switch (event) {
-      case LUNA_MESSAGE_TYPE.CLOSE,LUNA_MESSAGE_TYPE.TERMINAL_ERROR:
+      case LUNA_MESSAGE_TYPE.CLOSE:
+      case LUNA_MESSAGE_TYPE.TERMINAL_ERROR:
         lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLOSE, data);
         break;
       case LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE:
@@ -124,6 +124,11 @@ onMounted(() => {
     sessionInfo.value = info;
     console.log('Received terminal session info:', info);
   });
+
+  eventBus.on('terminal-connect', ({ id }) => {
+    terminalId.value = id;
+  });
+
   terminalInstance.value = createXtermInstance();
 
   const terminalContainer = document.getElementById('terminal-container');
@@ -157,11 +162,11 @@ onMounted(() => {
         return;
       }
 
-      if (!socket.value) {
-        message.error('WebSocket connection is not established');
+      if (socket.value === '' || socket.value.readyState === WebSocket.CLOSED) {
+        message.error('WebSocket connection is closed, please refresh the page');
         return;
       }
-      socket.value.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
+      socket.value.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
     },
     false
   );
@@ -172,14 +177,24 @@ onMounted(() => {
   }
   setupTerminalEvent(terminalInstance.value);
   initializeSocketEvent(terminalInstance.value, socket.value, t);
-  terminalResizeEvent(terminalInstance.value, socket.value, fitAddon);
+
+  terminalInstance.value.onResize(({ cols, rows }) => {
+    fitAddon.fit();
+
+    const resizeData = JSON.stringify({ cols, rows });
+    if (!socket.value) {
+      message.error('WebSocket connection may be closed, please refresh the page');
+      return;
+    }
+    socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
+  });
 
   const handLunaCommand = (msg: LunaMessage) => {
     if (!socket.value) {
       message.error('WebSocket connection may be closed, please refresh the page');
       return;
     }
-    socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+    socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
 
   };
 
@@ -198,7 +213,7 @@ onMounted(() => {
 
   const handleCreateShareUrl = (shareLinkRequest: ShareUserRequest) => {
     console.log('Received share code request:', shareLinkRequest);
-    
+
     if (!socket.value) {
       message.error('WebSocket connection is not established');
       return;
@@ -207,7 +222,7 @@ onMounted(() => {
     const perm = data.action_permission || data.action_perm || 'writable';
     socket.value.send(
       formatMessage(
-        terminalId,
+        terminalId.value,
         FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE,
         JSON.stringify({
           origin: origin,
