@@ -13,7 +13,6 @@ import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import {  formatMessage, writeBufferToTerminal } from '@/utils';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/types/modules/message.type';
 
-import type { FitAddon } from '@xterm/addon-fit';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/types/modules/config.type';
 import type { OnlineUser } from '@/types/modules/user.type';
@@ -143,13 +142,6 @@ export const useTerminalConnection = () => {
           terminal: terminal,
           terminalId: parsedMessageData.id
         });
-
-        // watchEffect(() => {
-        //   connectionStore.updateConnectionState(terminalId.value, {
-        //     lunaId: lunaId.value,
-        //     origin: origin.value
-        //   });
-        // });
 
         const terminalData = {
           cols: terminal.cols,
@@ -376,23 +368,7 @@ export const useTerminalConnection = () => {
     });
   };
 
-  /**
-   * @description 终端 resize 事件
-   * @param terminalInstance
-   * @param socket
-   */
-  const terminalResizeEvent = (terminalInstance: Terminal, socket: WebSocket, fitAddon: FitAddon) => {
-    if (!socket) {
-      return;
-    }
 
-    terminalInstance.onResize(({ cols, rows }) => {
-      fitAddon.fit();
-
-      const resizeData = JSON.stringify({ cols, rows });
-      socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
-    });
-  };
 
   /**
    * @description 初始化 socket 事件
@@ -450,7 +426,6 @@ export const useTerminalConnection = () => {
   return {
     getShareUser,
     setShareCode,
-    terminalResizeEvent,
     initializeSocketEvent,
     eventBus,
   };

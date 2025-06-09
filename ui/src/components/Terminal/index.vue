@@ -9,7 +9,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import xtermTheme from 'xterm-theme';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { onMounted, onUnmounted, ref, nextTick, computed } from 'vue';
+import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import { writeText, readText } from 'clipboard-polyfill';
 
