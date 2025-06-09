@@ -13,13 +13,13 @@ import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 import { writeText, readText } from 'clipboard-polyfill';
 
-import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE} from '@/types/modules/message.type';
 import { defaultTheme } from '@/utils/config';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { formatMessage } from '@/utils';
 import { generateWsURL } from '@/hooks/helper';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
+import { LunaMessage, ShareUserRequest, TerminalSessionInfo, LunaEventType } from '@/types/modules/postmessage.type';
 import { getDefaultTerminalConfig } from '@/utils/guard';
 
 
@@ -129,7 +129,7 @@ onMounted(() => {
         console.log('Received share code response:', data);
         break;
       default:
-        console.warn(`Unknown event type: ${event}`);
+        lunaCommunicator.sendLuna(event as LunaEventType , data);
     }
   });
   eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
