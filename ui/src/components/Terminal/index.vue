@@ -54,6 +54,20 @@ const createSocket = (): WebSocket | '' => {
 };
 
 
+const handLunaCommand = (msg: LunaMessage) => {
+  if (typeof socket.value !== 'string') {
+    const terminalId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
+    socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+  }
+};
+
+const handLunaFocus = (msg: LunaMessage) => {
+  terminal.value?.focus();
+};
+
+const handLunaThemeChange = (msg: LunaMessage) => {
+
+};
 
 onMounted(() => {
 
@@ -83,21 +97,18 @@ onMounted(() => {
   initializeSocketEvent(terminalInstance, socket.value, t);
   terminalResizeEvent(terminalInstance, socket.value, fitAddon);
 
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, (msg: LunaMessage) => {
-    if (typeof socket.value !== 'string') {
-      const terminalId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
-      socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
-    }
-  });
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, (msg: LunaMessage) => {
-    terminal.value?.focus();
-  });
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
+
+
 })
 
 
 onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CMD);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.FOCUS);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE);
 });
 
 </script>

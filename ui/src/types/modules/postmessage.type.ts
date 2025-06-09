@@ -26,6 +26,29 @@ export interface LunaMessageEvents {
     [LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN]: {
         data: LunaMessage;
     };
+    [LUNA_MESSAGE_TYPE.SESSION_INFO]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.SHARE_USER]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.SHARE_USER_ADD]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE]: {
+        data: LunaMessage;
+    };
+
+    [LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE]: {
+        data: LunaMessage;
+    };
+
 }
 
 

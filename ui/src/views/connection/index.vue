@@ -2,7 +2,6 @@
   <div class="h-full w-full">
     <!-- prettier-ignore -->
     <Terminal />
-
   </div>
 </template>
 

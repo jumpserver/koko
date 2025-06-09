@@ -10,7 +10,7 @@ import { formatMessage } from '@/utils';
 import { FitAddon } from '@xterm/addon-fit';
 import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type'
 import { SearchAddon } from '@xterm/addon-search';
-import { useConnectionStore } from '@/store/modules/useConnection';
+import { useConnectionStore,  } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
 
