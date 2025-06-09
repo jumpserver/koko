@@ -13,13 +13,13 @@ import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 import { writeText, readText } from 'clipboard-polyfill';
 
-import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE} from '@/types/modules/message.type';
+import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { defaultTheme } from '@/utils/config';
-import { lunaCommunicator } from '@/utils/lunaBus';
+import { lunaCommunicator, LunaEventType } from '@/utils/lunaBus';
 import { formatMessage } from '@/utils';
 import { generateWsURL } from '@/hooks/helper';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { LunaMessage, ShareUserRequest, TerminalSessionInfo, LunaEventType } from '@/types/modules/postmessage.type';
+import { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 import { getDefaultTerminalConfig } from '@/utils/guard';
 
 
@@ -37,7 +37,7 @@ const origin = window.location.origin;
 const sessionInfo = ref<TerminalSessionInfo>();
 
 const debouncedSendLunaKey = useDebounceFn((key: string) => {
-   switch (key) {
+  switch (key) {
     case 'ArrowRight':
       lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.KEYEVENT, 'alt+shift+right');
       break;
@@ -129,7 +129,7 @@ onMounted(() => {
         console.log('Received share code response:', data);
         break;
       default:
-        lunaCommunicator.sendLuna(event as LunaEventType , data);
+        lunaCommunicator.sendLuna(event as LunaEventType, data);
     }
   });
   eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
@@ -142,7 +142,7 @@ onMounted(() => {
       });
     }
     if (info.backspaceAsCtrlH) {
-     defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? "1" : "0";
+      defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? "1" : "0";
     }
 
 
@@ -193,18 +193,18 @@ onMounted(() => {
   );
   terminalInstance.value.attachCustomKeyEventHandler((e: KeyboardEvent) => {
     if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-    debouncedSendLunaKey(e.key);
-    return false;
-  }
-  if (!terminalInstance.value) {
-    message.error('Terminal instance is not initialized');
-    return false;
-  }
-  if (e.ctrlKey && e.key === 'c' && terminalInstance.value.hasSelection()) {
-    return false;
-  }
+      debouncedSendLunaKey(e.key);
+      return false;
+    }
+    if (!terminalInstance.value) {
+      message.error('Terminal instance is not initialized');
+      return false;
+    }
+    if (e.ctrlKey && e.key === 'c' && terminalInstance.value.hasSelection()) {
+      return false;
+    }
 
-  return !(e.ctrlKey && e.key === 'v');
+    return !(e.ctrlKey && e.key === 'v');
   });
   terminalInstance.value.open(terminalContainer);
 
