@@ -3,7 +3,7 @@ import xtermTheme from 'xterm-theme';
 import { storeToRefs } from 'pinia';
 import { defaultTheme } from '@/utils/config';
 import { writeText, readText } from 'clipboard-polyfill';
-import { ref, nextTick, watch } from 'vue';
+import { ref, nextTick } from 'vue';
 
 import { Terminal } from '@xterm/xterm';
 import { formatMessage } from '@/utils';
@@ -29,15 +29,6 @@ export const useTerminalInstance = (socket?: WebSocket | '') => {
   const connectionStore = useConnectionStore();
   const terminalSettingsStore = useTerminalSettingsStore();
 
-
-  watch(
-    () => terminalSettingsStore.theme,
-    value => {
-      if (value) {
-        setTerminalTheme(value);
-      }
-    }
-  );
 
   /**
    * @description 加载终端适配器以及初始化载终端事件

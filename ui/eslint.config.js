@@ -18,10 +18,25 @@ export default defineConfig([
   { files: ["**/*.{js,mjs,cjs,ts,vue}"], plugins: { js }, extends: ["js/recommended"] },
   tseslint.configs.recommended,
   pluginVue.configs["flat/essential"],
-  { files: ["**/*.vue"], languageOptions: { parserOptions: { parser: tseslint.parser } }, rules: {
-    'vue/multi-word-component-names': 'off',
-    'vue/require-default-prop': 'error',
-    'vue/attributes-order': 'error',
-    'vue/attribute-hyphenation': 'error'
-  } },
+  {
+    files: ["**/*.vue"], languageOptions: { parserOptions: { parser: tseslint.parser } }, rules: {
+      'vue/multi-word-component-names': 'off',
+      'vue/require-default-prop': 'error',
+      'vue/attributes-order': 'error',
+      'vue/attribute-hyphenation': 'error',
+      "no-unused-vars": "off",
+      '@typescript-eslint/no-unused-vars': [
+      "error",
+      {
+        "args": "all",
+        "argsIgnorePattern": "^_",
+        "caughtErrors": "all",
+        "caughtErrorsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    }
+  },
 ]);

@@ -43,9 +43,21 @@ export interface LunaMessageEvents {
     };
 
     [LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST]: {
-        data: LunaMessage;
+        data: ShareUserRequest;
     };
     [LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE]: {
+        data: string;
+    };
+    [LUNA_MESSAGE_TYPE.CLOSE]: {
+        data: string;
+    };
+    [LUNA_MESSAGE_TYPE.CONNECT]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.TERMINAL_ERROR]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.MESSAGE_NOTIFY]: {
         data: LunaMessage;
     };
 
@@ -58,4 +70,41 @@ export interface LunaMessage {
     origin: string;
     protocol: string;
     data: string | object | null;
+    theme?: string;
+}
+
+export interface ShareUserRequest {
+    name: string;
+    data: {
+        expired_time: number;
+        action_permission: string;
+        action_perm: string;
+        users: string[];
+    }
+
+}
+
+export interface ShareUserResponse {
+    shareId: string;
+    code: string;
+    terminalId: string;
+}
+
+export interface TerminalSessionInfo {
+    session: TerminalSession,
+    permission: TerminalPermission,
+    backspaceAsCtrlH: boolean;
+    ctrlCAsCtrlZ: boolean;
+    themeName: string;
+}
+
+export interface TerminalSession {
+    id: string;
+    user: string;
+
+    userId: string;
+}
+
+export interface TerminalPermission {
+    actions: string[];
 }

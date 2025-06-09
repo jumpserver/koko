@@ -8,9 +8,11 @@ type LunaEventType = keyof LunaMessageEvents;
 // 创建事件-数据映射类型
 type EventPayloadMap = {
   [K in LunaEventType]: LunaMessageEvents[K]['data'] extends undefined
-    ? void
-    : LunaMessageEvents[K]['data'];
+  ? void
+  : LunaMessageEvents[K]['data'];
 };
+
+const allEventTypes = Object.keys(LUNA_MESSAGE_TYPE) as LunaEventType[];
 
 
 class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
@@ -26,34 +28,29 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
 
   private setupMessageListener() {
     window.addEventListener('message', (event: MessageEvent) => {
-        const message: LunaMessage = event.data;
-        switch (message.name) {
-            case LUNA_MESSAGE_TYPE.PING:
-                this.lunaId = message.id;
-                this.targetOrigin = event.origin;
-                this.protocol = message.protocol;
-                this.sendLuna(LUNA_MESSAGE_TYPE.PONG, '');
-                console.log(`LunaBus initialized with ID: ${this.lunaId}, Origin: ${this.targetOrigin}, Protocol: ${this.protocol}`);
-                break;
-            case LUNA_MESSAGE_TYPE.CMD,LUNA_MESSAGE_TYPE.FOCUS,
-            LUNA_MESSAGE_TYPE.OPEN,LUNA_MESSAGE_TYPE.FILE,
-            LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN:
-                this.mitt.emit(message.name, message);
-                break;
-            default:
-                // 处理其他类型的消息
-                if (message.name in this.mitt.all) {
-                    const eventType = message.name as keyof T;
-                    const data = message as T[keyof T];
-                    this.mitt.emit(eventType, data);
-                } else {
-                    console.warn(`Unhandled message type: ${message.name}`);
-                }
-        }
+      const message: LunaMessage = event.data;
+      switch (message.name) {
+        case LUNA_MESSAGE_TYPE.PING:
+          this.lunaId = message.id;
+          this.targetOrigin = event.origin;
+          this.protocol = message.protocol;
+          this.sendLuna(LUNA_MESSAGE_TYPE.PONG, '');
+          console.log(`LunaBus initialized with ID: ${this.lunaId}, Origin: ${this.targetOrigin}, Protocol: ${this.protocol}`);
+          break;
+        default:
+          // 处理其他类型的消息
+          if (allEventTypes.includes(message.name as LunaEventType)) {
+            const eventType = message.name as keyof T;
+            const data = message as T[keyof T];
+            this.mitt.emit(eventType, data);
+          } else {
+            console.warn(`Unhandled message type: ${message.name}`);
+          }
+      }
 
     });
   }
- // 发送消息到目标窗口
+  // 发送消息到目标窗口
   public sendLuna<K extends keyof T>(name: K, data: T[K]) {
     if (!this.lunaId || !this.targetOrigin) {
       console.warn('Target window not set');

@@ -44,7 +44,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
     if (percent !== lastPercent) {
       let progressBar = '';
-      let progressLength = Math.floor(percent / 2);
+      const progressLength = Math.floor(percent / 2);
 
       for (let i = 0; i < progressLength; i++) {
         progressBar += '=';
@@ -53,7 +53,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         progressBar += ' ';
       }
 
-      let msg = `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}% [${progressBar}]`;
+      const msg = `${t('Upload')} ${name}: ${bytesHuman(total)} ${percent}% [${progressBar}]`;
 
       if (percent === 100 && !messageShown) {
         message.info(t('UploadEnd'), { duration: 5000 });

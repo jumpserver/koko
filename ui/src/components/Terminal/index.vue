@@ -3,34 +3,56 @@
 </template>
 
 <script setup lang="ts">
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
+import xtermTheme from 'xterm-theme';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { Terminal } from '@xterm/xterm';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useWebSocket } from '@vueuse/core';
-import { generateWsURL } from '@/hooks/helper';
-import { formatMessage } from '@/utils';
-import { useTerminalInstance } from '@/hooks/useTerminalInstance';
-import { useConnectionStore } from '@/store/modules/useConnection';
-import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { v4 as uuid } from 'uuid';
+import { writeText, readText } from 'clipboard-polyfill';
 
-import { LunaMessage } from '@/types/modules/postmessage.type';
+import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { defaultTheme } from '@/utils/config';
 import { lunaCommunicator } from '@/utils/lunaBus';
+import { formatMessage } from '@/utils';
+import { generateWsURL } from '@/hooks/helper';
+import { useTerminalConnection } from '@/hooks/useTerminalConnection';
+import { LunaMessage, ShareUserRequest, TerminalSessionInfo} from '@/types/modules/postmessage.type';
+import { getDefaultTerminalConfig } from '@/utils/guard';
+
 
 const props = defineProps<{
   shareCode?: string;
-
 }>();
+
+const fitAddon = new FitAddon();
+const searchAddon = new SearchAddon();
+const terminalId = uuid();
+const terminalSelectionText = ref<string>('');
+const terminalInstance = ref<Terminal>();
+const sessionId = ref<string>('');
+const origin = window.location.origin;
+const sessionInfo = ref<TerminalSessionInfo>();
 
 const { t } = useI18n();
 const message = useMessage();
-const connectionStore = useConnectionStore();
 
 const socket = ref<WebSocket | ''>('');
-const terminal = ref<Terminal | null>(null);
 
+const setupTerminalEvent = (terminal: Terminal) => {
+  terminal.onSelectionChange(async () => {
+    terminalSelectionText.value = terminal.getSelection().trim();
 
+    if (!terminalSelectionText.value) {
+      return;
+    }
+
+    await writeText(terminalSelectionText.value);
+  });
+};
 /**
  * @description 创建 WebSocket 连接
  * @returns {WebSocket | ''}
@@ -53,21 +75,32 @@ const createSocket = (): WebSocket | '' => {
   return '';
 };
 
-
-const handLunaCommand = (msg: LunaMessage) => {
-  if (typeof socket.value !== 'string') {
-    const terminalId = Array.from(connectionStore.connectionStateMap.values())[0].terminalId || '';
-    socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+const getXtermTheme = (themeName: string) => {
+  if (!xtermTheme[themeName]) {
+    return defaultTheme;
   }
+  return xtermTheme[themeName];
+};
+const defaultTerminalCfg = getDefaultTerminalConfig();
+
+const createXtermInstance = () => {
+  const xterminal = new Terminal({
+    allowProposedApi: true,
+    rightClickSelectsWord: true,
+    scrollback: 5000,
+    theme: getXtermTheme(defaultTerminalCfg.themeName),
+    fontSize: defaultTerminalCfg.fontSize,
+    lineHeight: defaultTerminalCfg.lineHeight,
+    fontFamily: defaultTerminalCfg.fontFamily
+  });
+  xterminal.loadAddon(fitAddon);
+  xterminal.loadAddon(searchAddon);
+  return xterminal;
 };
 
-const handLunaFocus = (msg: LunaMessage) => {
-  terminal.value?.focus();
-};
 
-const handLunaThemeChange = (msg: LunaMessage) => {
 
-};
+
 
 onMounted(() => {
 
@@ -75,33 +108,127 @@ onMounted(() => {
   if (!socket.value) {
     return;
   }
+  const { initializeSocketEvent, setShareCode, terminalResizeEvent, eventBus } = useTerminalConnection();
+  eventBus.on('luna-event', ({event, data}) => {
+    switch (event) {
+      case LUNA_MESSAGE_TYPE.CLOSE,LUNA_MESSAGE_TYPE.TERMINAL_ERROR:
+        lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLOSE, data);
+        break;
+      case LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE:
+        lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, data);
+        console.log('Received share code response:', data);
+        break;
+      default:
+        console.warn(`Unknown event type: ${event}`);
+    }
+  });
+  eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
+    sessionId.value = info.session.id;
+    sessionInfo.value = info;
+    console.log('Received terminal session info:', info);
+  });
+  terminalInstance.value = createXtermInstance();
 
-  const { initializeSocketEvent, setShareCode, terminalResizeEvent } = useTerminalConnection();
-  const { createTerminalInstance, fitAddon } = useTerminalInstance(socket.value);
-
-  const terminalContainer: HTMLElement | null = document.getElementById('terminal-container');
-
+  const terminalContainer = document.getElementById('terminal-container');
   if (!terminalContainer) {
+    message.error('Terminal container not found');
     return;
   }
+  terminalContainer.addEventListener('mouseenter', () => {
+    fitAddon.fit();
+    terminalInstance.value?.focus();
+  });
 
-  const terminalInstance: Terminal = createTerminalInstance(terminalContainer);
+  terminalContainer.addEventListener(
+    'contextmenu',
+    async (e: MouseEvent) => {
+      if (e.ctrlKey || defaultTerminalCfg.quickPaste !== '1') return;
 
-  terminal.value = terminalInstance;
-  terminalInstance.open(terminalContainer);
+      e.preventDefault();
+
+      let text: string = '';
+
+      try {
+        text = await readText();
+      } catch (_e) {
+        if (terminalSelectionText.value) {
+          text = terminalSelectionText.value;
+        }
+      }
+      if (!text) {
+        console.log('No text to paste');
+        return;
+      }
+
+      if (!socket.value) {
+        message.error('WebSocket connection is not established');
+        return;
+      }
+      socket.value.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
+    },
+    false
+  );
+  terminalInstance.value.open(terminalContainer);
 
   if (props.shareCode) {
     setShareCode(props.shareCode);
   }
+  setupTerminalEvent(terminalInstance.value);
+  initializeSocketEvent(terminalInstance.value, socket.value, t);
+  terminalResizeEvent(terminalInstance.value, socket.value, fitAddon);
 
-  initializeSocketEvent(terminalInstance, socket.value, t);
-  terminalResizeEvent(terminalInstance, socket.value, fitAddon);
+  const handLunaCommand = (msg: LunaMessage) => {
+    if (!socket.value) {
+      message.error('WebSocket connection may be closed, please refresh the page');
+      return;
+    }
+    socket.value?.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+
+  };
+
+  const handLunaFocus = (_msg: LunaMessage) => {
+    terminalInstance.value?.focus();
+  };
+
+  const handLunaThemeChange = (_msg: LunaMessage) => {
+    const themeName = _msg.theme || 'Default';
+    const theme = getXtermTheme(themeName);
+
+    nextTick(() => {
+      terminalInstance.value!.options.theme = theme;
+    });
+  };
+
+  const handleCreateShareUrl = (shareLinkRequest: ShareUserRequest) => {
+    console.log('Received share code request:', shareLinkRequest);
+    
+    if (!socket.value) {
+      message.error('WebSocket connection is not established');
+      return;
+    }
+    const data = shareLinkRequest.data || {};
+    const perm = data.action_permission || data.action_perm || 'writable';
+    socket.value.send(
+      formatMessage(
+        terminalId,
+        FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE,
+        JSON.stringify({
+          origin: origin,
+          session: sessionId.value,
+          users: data.users,
+          expired_time: data.expired_time,
+          action_permission: perm
+        })
+      )
+    );
+  };
+
 
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
-
-
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST, handleCreateShareUrl);
+  console.log('Luna communicator initialized and event listeners set up');
 })
 
 
@@ -109,6 +236,7 @@ onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CMD);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.FOCUS);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST);
 });
 
 </script>
