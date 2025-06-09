@@ -3,7 +3,7 @@ import type { LunaMessageEvents, LunaMessage } from '@/types/modules/postmessage
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 // 获取所有事件类型
-type LunaEventType = keyof LunaMessageEvents;
+export type LunaEventType = keyof LunaMessageEvents;
 
 // 创建事件-数据映射类型
 type EventPayloadMap = {
