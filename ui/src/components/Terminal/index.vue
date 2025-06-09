@@ -99,9 +99,6 @@ const createXtermInstance = () => {
 };
 
 
-
-
-
 onMounted(() => {
 
   socket.value = createSocket();
