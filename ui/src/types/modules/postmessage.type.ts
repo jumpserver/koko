@@ -60,6 +60,9 @@ export interface LunaMessageEvents {
     [LUNA_MESSAGE_TYPE.MESSAGE_NOTIFY]: {
         data: LunaMessage;
     };
+    [LUNA_MESSAGE_TYPE.KEYEVENT]: {
+        data: string;
+    };
 
 }
 

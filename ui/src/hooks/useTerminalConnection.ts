@@ -10,7 +10,7 @@ import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import { updateIcon } from '@/hooks/helper';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
-import {  formatMessage, writeBufferToTerminal } from '@/utils';
+import { formatMessage, writeBufferToTerminal } from '@/utils';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/types/modules/message.type';
 
 import type { ConfigProviderProps } from 'naive-ui';
@@ -22,7 +22,7 @@ import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
 export const eventBus = mitt<{
   'luna-event': { event: string; data: string };
   'terminal-session': TerminalSessionInfo,
-  'terminal-connect': { id: string}
+  'terminal-connect': { id: string }
 }>();
 // 修改 sendEventToLuna 函数
 const sendLunaEvent = (event: string, data: string) => {
@@ -38,8 +38,8 @@ export const useTerminalConnection = () => {
   const shareCode = ref<string>('');
   const sessionId = ref<string>('');
   const terminalId = ref<string>('');
-  const pingInterval = ref<number | null>(null);
-  const warningInterval = ref<number | null>(null);
+  const pingInterval = ref<ReturnType<typeof setInterval> | null>(null);
+  const warningInterval = ref<ReturnType<typeof setInterval> | null>(null);
   const enableShare = ref<boolean>(false);
 
   const zmodemTransferStatus = ref<boolean>(true);
@@ -184,7 +184,7 @@ export const useTerminalConnection = () => {
           shareId: data.share_id,
           shareCode: data.code
         });
-        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, JSON.stringify(data));
+        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, parsedMessageData.data);
         break;
       }
       case MESSAGE_TYPE.TERMINAL_ACTION: {
@@ -249,6 +249,7 @@ export const useTerminalConnection = () => {
         connectionStore.updateConnectionState(terminalId.value, {
           onlineUsers: onlineUsers.value
         });
+        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_ADD, parsedMessageData.data);
 
         if (!data.primary) {
           message.info(`${data.user} ${t('JoinShare')}`);
@@ -263,6 +264,8 @@ export const useTerminalConnection = () => {
       }
       case MESSAGE_TYPE.TERMINAL_SHARE_LEAVE: {
         const data: OnlineUser = JSON.parse(parsedMessageData.data);
+
+        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_LEAVE, parsedMessageData.data);
 
         const index = onlineUsers.value.findIndex(item => item.user_id === data.user_id && !item.primary);
 
@@ -283,6 +286,9 @@ export const useTerminalConnection = () => {
 
         message.warning(warningMsg);
 
+        if (warningInterval.value) {
+          clearInterval(warningInterval.value);
+        }
         warningInterval.value = setInterval(() => {
           message.warning(warningMsg);
         }, 1000 * 60);
@@ -378,7 +384,7 @@ export const useTerminalConnection = () => {
   const initializeSocketEvent = (terminal: Terminal, socket: WebSocket, t: any) => {
     // 创建 ZMODEM 实例
     createZmodemInstance(terminal, socket);
-    const isClosed =computed(() => socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING);
+    const isClosed = computed(() => socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING);
 
     socket.onopen = () => {
       socket.binaryType = 'arraybuffer';

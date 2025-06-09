@@ -10,7 +10,7 @@ import xtermTheme from 'xterm-theme';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { onMounted, onUnmounted, ref, nextTick } from 'vue';
-import { useWebSocket } from '@vueuse/core';
+import { useDebounceFn, useWebSocket } from '@vueuse/core';
 import { writeText, readText } from 'clipboard-polyfill';
 
 import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
@@ -35,6 +35,18 @@ const terminalInstance = ref<Terminal>();
 const sessionId = ref<string>('');
 const origin = window.location.origin;
 const sessionInfo = ref<TerminalSessionInfo>();
+
+const debouncedSendLunaKey = useDebounceFn((key: string) => {
+   switch (key) {
+    case 'ArrowRight':
+      lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.KEYEVENT, 'alt+shift+right');
+      break;
+    case 'ArrowLeft':
+      lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.KEYEVENT, 'alt+shift+left');
+      break;
+  }
+}, 500);
+
 
 const { t } = useI18n();
 const message = useMessage();
@@ -80,17 +92,18 @@ const getXtermTheme = (themeName: string) => {
   }
   return xtermTheme[themeName];
 };
-const defaultTerminalCfg = getDefaultTerminalConfig();
+
+const defaultTerminalCfg = ref(getDefaultTerminalConfig());
 
 const createXtermInstance = () => {
   const xterminal = new Terminal({
     allowProposedApi: true,
     rightClickSelectsWord: true,
     scrollback: 5000,
-    theme: getXtermTheme(defaultTerminalCfg.themeName),
-    fontSize: defaultTerminalCfg.fontSize,
-    lineHeight: defaultTerminalCfg.lineHeight,
-    fontFamily: defaultTerminalCfg.fontFamily
+    theme: getXtermTheme(defaultTerminalCfg.value.themeName),
+    fontSize: defaultTerminalCfg.value.fontSize,
+    lineHeight: defaultTerminalCfg.value.lineHeight,
+    fontFamily: defaultTerminalCfg.value.fontFamily
   });
   xterminal.loadAddon(fitAddon);
   xterminal.loadAddon(searchAddon);
@@ -122,6 +135,17 @@ onMounted(() => {
   eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
     sessionId.value = info.session.id;
     sessionInfo.value = info;
+    if (info.themeName) {
+      const theme = getXtermTheme(info.themeName);
+      nextTick(() => {
+        terminalInstance.value!.options.theme = theme;
+      });
+    }
+    if (info.backspaceAsCtrlH) {
+     defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? "1" : "0";
+    }
+
+
     console.log('Received terminal session info:', info);
   });
 
@@ -144,12 +168,9 @@ onMounted(() => {
   terminalContainer.addEventListener(
     'contextmenu',
     async (e: MouseEvent) => {
-      if (e.ctrlKey || defaultTerminalCfg.quickPaste !== '1') return;
-
+      if (e.ctrlKey || defaultTerminalCfg.value.quickPaste !== '1') return;
       e.preventDefault();
-
       let text: string = '';
-
       try {
         text = await readText();
       } catch (_e) {
@@ -170,6 +191,21 @@ onMounted(() => {
     },
     false
   );
+  terminalInstance.value.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+    if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    debouncedSendLunaKey(e.key);
+    return false;
+  }
+  if (!terminalInstance.value) {
+    message.error('Terminal instance is not initialized');
+    return false;
+  }
+  if (e.ctrlKey && e.key === 'c' && terminalInstance.value.hasSelection()) {
+    return false;
+  }
+
+  return !(e.ctrlKey && e.key === 'v');
+  });
   terminalInstance.value.open(terminalContainer);
 
   if (props.shareCode) {
