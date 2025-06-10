@@ -84,7 +84,7 @@ export const useTerminalConnection = () => {
       }
 
       const currentDate = new Date();
-      const pongTimeout = currentDate.getTime() - lastReceiveTime.value.getTime()- MaxTimeout;
+      const pongTimeout = currentDate.getTime() - lastReceiveTime.value.getTime() - MaxTimeout;
       if (pongTimeout < 0) return;
 
       const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
@@ -396,10 +396,6 @@ export const useTerminalConnection = () => {
       }
       socket.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
     });
-
-    // terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-    //   return handleCustomKey(e, terminal, lunaId.value, origin.value);
-    // });
   };
 
   return {

@@ -63,6 +63,12 @@ export interface LunaMessageEvents {
     [LUNA_MESSAGE_TYPE.KEYEVENT]: {
         data: string;
     };
+    [LUNA_MESSAGE_TYPE.TERMINAL_CONTENT]: {
+        data: LunaMessage;
+    };
+    [LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE]: {
+        data: TerminalContentRepsonse;
+    };
 
 }
 
@@ -112,4 +118,10 @@ export interface TerminalSession {
 
 export interface TerminalPermission {
     actions: string[];
+}
+
+export interface TerminalContentRepsonse { 
+    terminalId: string;
+    content: string;
+    sessionId: string;
 }

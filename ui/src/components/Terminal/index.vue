@@ -217,6 +217,30 @@ onMounted(() => {
   });
   terminalInstance.value.open(terminalContainer);
 
+  const getXTerminalLineContent = (index: number) => {
+    const buffer = terminalInstance.value?.buffer.active;
+    if (!buffer) {
+      return '';
+    }
+    const result: string[] = [];
+    const bufferLineCount = buffer.length;
+    let startLine = bufferLineCount;
+    while ((result.length < index) || startLine >= 0) {
+      startLine--;
+      if (startLine < 0) {
+        break;
+      }
+      const line = buffer.getLine(startLine);
+      if (!line) {
+        console.warn(`Line ${startLine} is empty or undefined`);
+        continue;
+      }
+      result.unshift(line.translateToString());
+    }
+    return result.join('\n');
+  };
+
+
   if (props.shareCode) {
     setShareCode(props.shareCode);
   }
@@ -229,6 +253,11 @@ onMounted(() => {
       message.error('WebSocket connection may be closed, please refresh the page');
       return;
     }
+
+
+    const content = getXTerminalLineContent(10);
+    console.log('Current terminal content at line 10:', content);
+
     const resizeData = JSON.stringify({ cols, rows });
     socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
   }, 200);
@@ -302,12 +331,26 @@ onMounted(() => {
     );
   };
 
+  const handTerminalContent = (_msg: LunaMessage) => {
+    if (!terminalInstance.value) {
+      message.error('Terminal instance is not initialized');
+      return;
+    }
+    const content = getXTerminalLineContent(10);
+    const data = {
+      content: content,
+      sessionId: sessionId.value,
+      terminalId: terminalId.value
+    };
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, data);
+  };
+
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST, handleCreateShareUrl);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE, handleRemoveShareUser);
-  console.log('Luna communicator initialized and event listeners set up');
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent)
 })
 
 
