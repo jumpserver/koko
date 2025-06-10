@@ -84,12 +84,10 @@ export const useTerminalConnection = () => {
       }
 
       const currentDate = new Date();
+      const pongTimeout = currentDate.getTime() - lastReceiveTime.value.getTime()- MaxTimeout;
+      if (pongTimeout < 0) return;
 
-      if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
-        socket.close();
-      }
-
-      const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime();
+      const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
 
       if (pingTimeout < 0) return;
 
@@ -118,15 +116,11 @@ export const useTerminalConnection = () => {
         });
 
         socket.close();
-
-        // sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.CLOSE, '', lunaId.value, origin.value);
         sendLunaEvent(LUNA_MESSAGE_TYPE.CLOSE, '');
         break;
       }
       case MESSAGE_TYPE.ERROR: {
         terminal.write(parsedMessageData.err);
-
-        // sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '', lunaId.value, origin.value)
         sendLunaEvent(LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '');
         break;
       }
