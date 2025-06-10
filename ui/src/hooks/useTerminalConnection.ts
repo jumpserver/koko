@@ -11,7 +11,7 @@ import { updateIcon } from '@/hooks/helper';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { formatMessage, writeBufferToTerminal } from '@/utils';
-import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE, MESSAGE_TYPE, SEND_LUNA_MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/types/modules/message.type';
+import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE, MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/types/modules/message.type';
 
 import type { ConfigProviderProps } from 'naive-ui';
 import type { SettingConfig } from '@/types/modules/config.type';
@@ -120,14 +120,14 @@ export const useTerminalConnection = () => {
         socket.close();
 
         // sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.CLOSE, '', lunaId.value, origin.value);
-        sendLunaEvent(SEND_LUNA_MESSAGE_TYPE.CLOSE, '');
+        sendLunaEvent(LUNA_MESSAGE_TYPE.CLOSE, '');
         break;
       }
       case MESSAGE_TYPE.ERROR: {
         terminal.write(parsedMessageData.err);
 
         // sendEventToLuna(SEND_LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '', lunaId.value, origin.value)
-        sendLunaEvent(SEND_LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '');
+        sendLunaEvent(LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '');
         break;
       }
       case MESSAGE_TYPE.PING: {
