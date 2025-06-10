@@ -9,7 +9,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import xtermTheme from 'xterm-theme';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { onMounted, onUnmounted, ref, nextTick } from 'vue';
+import { onMounted, onUnmounted, ref, nextTick, watch } from 'vue';
 import { useDebounceFn, useWebSocket } from '@vueuse/core';
 import { writeText, readText } from 'clipboard-polyfill';
 
@@ -21,7 +21,11 @@ import { generateWsURL } from '@/hooks/helper';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 import { getDefaultTerminalConfig } from '@/utils/guard';
+import { useWindowSize } from '@vueuse/core'
 
+const { width, height } = useWindowSize()
+const { t } = useI18n();
+const message = useMessage();
 
 const props = defineProps<{
   shareCode?: string;
@@ -47,9 +51,6 @@ const debouncedSendLunaKey = useDebounceFn((key: string) => {
   }
 }, 500);
 
-
-const { t } = useI18n();
-const message = useMessage();
 
 const socket = ref<WebSocket | ''>('');
 
@@ -110,6 +111,14 @@ const createXtermInstance = () => {
   return xterminal;
 };
 
+watch([width, height], ([_newWidth, _newHeight]) => {
+  if (!terminalInstance.value || !fitAddon) return;
+  nextTick(() => {
+    // 调整终端大小
+    fitAddon.fit();
+  });
+}, { immediate: false }
+);
 
 onMounted(() => {
 
@@ -214,16 +223,17 @@ onMounted(() => {
   setupTerminalEvent(terminalInstance.value);
   initializeSocketEvent(terminalInstance.value, socket.value, t);
 
-  terminalInstance.value.onResize(({ cols, rows }) => {
+  const debouncedReisze = useDebounceFn(({ cols, rows }) => {
     fitAddon.fit();
-
-    const resizeData = JSON.stringify({ cols, rows });
     if (!socket.value) {
       message.error('WebSocket connection may be closed, please refresh the page');
       return;
     }
+    const resizeData = JSON.stringify({ cols, rows });
     socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
-  });
+  }, 200);
+
+  terminalInstance.value.onResize(({ cols, rows }) => debouncedReisze({ cols, rows }));
 
   const handLunaCommand = (msg: LunaMessage) => {
     if (!socket.value) {
