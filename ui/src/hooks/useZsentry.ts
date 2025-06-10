@@ -282,7 +282,6 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
       terminal.write('\r\n');
 
-      // @ts-ignore
       if (zsession.type === 'send') {
         handleSendSession(zsession, terminal);
       } else {

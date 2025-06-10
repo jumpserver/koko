@@ -101,7 +101,7 @@ export default defineConfig([
     }
   },
   {
-    files: ["**/*.vue"],
+    files: ["**/*.vue", "**/*.ts"],
     languageOptions: { parserOptions: { parser: tseslint.parser } },
     rules: {
       'vue/multi-word-component-names': 'off',
@@ -109,15 +109,17 @@ export default defineConfig([
       'vue/attributes-order': 'error',
       'vue/attribute-hyphenation': 'error',
       "no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-expressions": "off",
       '@typescript-eslint/no-unused-vars': [
         "error",
         {
           "args": "all",
-          "argsIgnorePattern": "^_",
+          "argsIgnorePattern": "^_|^e$|^err$|^error$",
+          "varsIgnorePattern": "^_|^e$|^err$|^error$",
           "caughtErrors": "all",
-          "caughtErrorsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_|^e$|^err$|^error$",
           "destructuredArrayIgnorePattern": "^_",
-          "varsIgnorePattern": "^_",
           "ignoreRestSiblings": true
         }
       ],
