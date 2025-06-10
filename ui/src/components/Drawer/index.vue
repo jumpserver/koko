@@ -78,16 +78,16 @@ const drawerMaxWidth = ref(1024);
 const settingsConfig = reactive<SettingConfig>({
   drawerTitle: t('Settings'),
   items: [
-    // {
-    //   type: 'select',
-    //   label: t('Theme') + ':',
-    //   labelIcon: Palette,
-    //   labelStyle: {
-    //     fontSize: '14px'
-    //   },
-    //   showMore: false,
-    //   value: 'default'
-    // },
+    {
+      type: 'select',
+      label: t('Theme') + ':',
+      labelIcon: Palette,
+      labelStyle: {
+        fontSize: '14px'
+      },
+      showMore: false,
+      value: 'default'
+    },
     {
       type: 'list',
       label: t('OnlineUsers') + ':',
@@ -96,23 +96,23 @@ const settingsConfig = reactive<SettingConfig>({
         fontSize: '14px'
       }
     },
-    // {
-    //   type: 'create',
-    //   label: t('CreateLink') + ':',
-    //   labelIcon: Share2,
-    //   labelStyle: {
-    //     fontSize: '14px'
-    //   },
-    //   showMore: false
-    // },
-    // {
-    //   type: 'keyboard',
-    //   label: t('Hotkeys') + ':',
-    //   labelIcon: Keyboard,
-    //   labelStyle: {
-    //     fontSize: '14px'
-    //   }
-    // }
+    {
+      type: 'create',
+      label: t('CreateLink') + ':',
+      labelIcon: Share2,
+      labelStyle: {
+        fontSize: '14px'
+      },
+      showMore: false
+    },
+    {
+      type: 'keyboard',
+      label: t('Hotkeys') + ':',
+      labelIcon: Keyboard,
+      labelStyle: {
+        fontSize: '14px'
+      }
+    }
   ]
 });
 
