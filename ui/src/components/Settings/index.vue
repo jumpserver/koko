@@ -16,7 +16,7 @@
             </n-text>
           </n-button>
           <!-- 用户 -->
-          <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'User'">
+          <n-list v-else-if="item.label === 'User'" class="mt-[-15px]" clickable>
             <n-list-item>
               <n-thing class="ml-[15px] mt-[10px]">
                 <template #header>
@@ -30,7 +30,7 @@
                 </template>
                 <template #description>
                   <n-flex size="small" style="margin-top: 4px">
-                    <n-popover trigger="hover" placement="top" v-for="detail of item.content()" :key="detail.name">
+                    <n-popover v-for="detail of item.content()" :key="detail.name" trigger="hover" placement="top">
                       <template #trigger>
                         <n-tag
                           round
@@ -61,7 +61,7 @@
             </n-list-item>
           </n-list>
           <!-- 快捷键 -->
-          <n-list class="mt-[-15px]" clickable v-else-if="item.label === 'Keyboard'">
+          <n-list v-else-if="item.label === 'Keyboard'" class="mt-[-15px]" clickable>
             <n-list-item>
               <n-thing class="ml-[15px] mt-[10px]">
                 <template #header>
@@ -74,7 +74,7 @@
                 </template>
                 <template #description>
                   <n-flex size="small" style="margin-top: 4px">
-                    <n-popover trigger="hover" placement="top" v-for="detail of item.content" :key="detail.name">
+                    <n-popover v-for="detail of item.content" :key="detail.name" trigger="hover" placement="top">
                       <template #trigger>
                         <n-tag
                           round

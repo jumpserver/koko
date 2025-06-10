@@ -253,11 +253,6 @@ onMounted(() => {
       message.error('WebSocket connection may be closed, please refresh the page');
       return;
     }
-
-
-    const content = getXTerminalLineContent(10);
-    console.log('Current terminal content at line 10:', content);
-
     const resizeData = JSON.stringify({ cols, rows });
     socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
   }, 200);
