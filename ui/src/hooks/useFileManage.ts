@@ -46,9 +46,9 @@ const { message: globalTipsMessage }: { message: MessageApiInjection } = createD
 // TODO 都是 hook 内部状态
 let initialPath = '';
 let fileSize = '';
-let uploadFileId = ref('');
-let uploadInterrupt = ref(false);
-let uploadInterruptType = ref<'permission' | 'manual' | null>(null);
+const uploadFileId = ref('');
+const uploadInterrupt = ref(false);
+const uploadInterruptType = ref<'permission' | 'manual' | null>(null);
 let downLoadMessage = null;
 
 /**
@@ -316,7 +316,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
       case MessageType.ERROR: {
         fileManageStore.setFileList([]);
-
+        globalTipsMessage.error(message.err ? message.err : t('FileListError'));
         break;
       }
 
@@ -479,7 +479,7 @@ const generateUploadChunks = async (
   onError: (() => void) | null = null
 ) => {
   const fileManageStore = useFileManageStore();
-  let sendData: FileSendData = {
+  const sendData: FileSendData = {
     offSet: 0,
     size: fileInfo.file?.size,
     path: `${fileManageStore.currentPath}/${fileInfo.name}`
@@ -583,9 +583,9 @@ const handleFileUpload = async (
     }
   }
 
-  let sliceChunks = [];
+  const sliceChunks = [];
   let CHUNK_SIZE = 1024 * 1024 * 5;
-  let sentChunks = ref(0);
+  const sentChunks = ref(0);
 
   const unwatch = watch(
     () => sentChunks.value,
