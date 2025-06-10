@@ -276,16 +276,20 @@ onMounted(() => {
       message.error('WebSocket connection is not established');
       return;
     }
+    if (!msg.data) {
+      message.error('Invalid data for removing share user');
+      return;
+    }
     socket.value.send(
-    formatMessage(
-      terminalId.value,
-      FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE,
-      JSON.stringify({
-        session: sessionId.value,
-        user_meta: msg.user_meta
-      })
-    )
-  );
+      formatMessage(
+        terminalId.value,
+        FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE,
+        JSON.stringify({
+          session: sessionId.value,
+          user_meta: msg.data || {}
+        })
+      )
+    );
   };
 
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
