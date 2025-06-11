@@ -5,12 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/sashabaranov/go-openai"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/sashabaranov/go-openai"
+
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 // ChatCompletionStreamChoiceDelta TODO 支持 DeepSeek 后删掉
