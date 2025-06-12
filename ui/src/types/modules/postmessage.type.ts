@@ -69,6 +69,9 @@ export interface LunaMessageEvents {
     [LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE]: {
         data: TerminalContentRepsonse;
     };
+    [LUNA_MESSAGE_TYPE.CLICK]: {
+        data: string;
+    };
 
 }
 

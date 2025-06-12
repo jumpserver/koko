@@ -44,7 +44,7 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
             const data = message as T[keyof T];
             this.mitt.emit(eventType, data);
           } else {
-            console.warn(`Unhandled message type: ${message.name}`);
+            console.warn(`Unhandled message type: ${message.name}`, message);
           }
       }
 

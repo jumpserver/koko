@@ -156,6 +156,14 @@ const mouseleave = () => {
   });
 };
 
+// 声明处理函数
+const handleDocumentClick = () => {
+  if (!terminalInstance.value) {
+    message.error('Terminal instance is not initialized');
+    return;
+  }
+  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLICK, "")
+};
 onMounted(() => {
 
   socket.value = createSocket();
@@ -361,6 +369,9 @@ onMounted(() => {
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST, handleCreateShareUrl);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE, handleRemoveShareUser);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent)
+
+  // 添加事件监听
+  document.addEventListener('click', handleDocumentClick);
 })
 
 
@@ -370,6 +381,7 @@ onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE);
+  document.removeEventListener('click', handleDocumentClick);
 });
 
 </script>
