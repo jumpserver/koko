@@ -98,14 +98,24 @@
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="Refresh" class="icon-hover cursor-pointer" @click="handleRefresh" />
+            <n-icon
+              size="16"
+              :component="Refresh"
+              class="icon-hover cursor-pointer text-white"
+              @click="handleRefresh"
+            />
           </template>
           {{ t('Refresh') }}
         </n-popover>
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="List" class="icon-hover cursor-pointer" @click="handleOpenTransferList" />
+            <n-icon
+              size="16"
+              :component="List"
+              class="icon-hover cursor-pointer text-white"
+              @click="handleOpenTransferList"
+            />
           </template>
           {{ t('TransferHistory') }}
         </n-popover>

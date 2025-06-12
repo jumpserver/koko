@@ -4,7 +4,7 @@
     :theme="darkTheme"
     :date-locale="dateZhCN"
     :theme-overrides="themeOverrides"
-    class="flex items-center justify-center h-full w-full overflow-hidden bg-black"
+    class="flex items-center justify-center h-full w-full overflow-hidden"
   >
     <n-dialog-provider>
       <n-notification-provider>
