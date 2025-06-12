@@ -74,7 +74,7 @@ watch(
       fileManageSocket.value.close();
     }
     if (newValue && newValue !== oldValue) {
-     try {
+      try {
         fileManageSocket.value = useFileManage(newValue, t);
       } catch (error) {
         console.error('Failed to initialize file management socket:', error);
@@ -86,7 +86,6 @@ watch(
     immediate: true
   }
 );
-
 
 // ai added to close the WebSocket connection when the component is unmounted
 onUnmounted(() => {
@@ -104,7 +103,7 @@ const createColumns = (): DataTableColumns<RowData> => {
     {
       title: t('Name'),
       key: 'name',
-      width: 260,
+      width: 160,
       ellipsis: {
         tooltip: true
       },
@@ -139,7 +138,7 @@ const createColumns = (): DataTableColumns<RowData> => {
                       NEllipsis,
                       {
                         style: {
-                          maxWidth: '210px',
+                          maxWidth: '145px',
                           cursor: 'pointer'
                         }
                       },
@@ -186,7 +185,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       title: t('LastModified'),
       key: 'mod_time',
       align: 'center',
-      width: 180,
+      width: 120,
       ellipsis: {
         tooltip: true
       },
@@ -230,6 +229,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       title: t('Type'),
       key: 'type',
       align: 'center',
+      width: 100,
       render(row: RowData) {
         return h(
           NText,
