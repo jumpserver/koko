@@ -1,5 +1,5 @@
 <template>
-  <div id="terminal-container" class="w-screen h-screen"></div>
+  <div id="terminal-container" class="w-screen h-screen" @mouseleave="mouseleave"></div>
 </template>
 
 <script setup lang="ts">
@@ -120,6 +120,42 @@ watch([width, height], ([_newWidth, _newHeight]) => {
 }, { immediate: false }
 );
 
+const getXTerminalLineContent = (index: number) => {
+  const buffer = terminalInstance.value?.buffer.active;
+  if (!buffer) {
+    return '';
+  }
+  const result: string[] = [];
+  const bufferLineCount = buffer.length;
+  let startLine = bufferLineCount;
+  while ((result.length < index) || startLine >= 0) {
+    startLine--;
+    if (startLine < 0) {
+      break;
+    }
+    const line = buffer.getLine(startLine);
+    if (!line) {
+      console.warn(`Line ${startLine} is empty or undefined`);
+      continue;
+    }
+    result.unshift(line.translateToString());
+  }
+  return result.join('\n');
+};
+
+const mouseleave = () => {
+  if (!terminalInstance.value) {
+    message.error('Terminal instance is not initialized');
+    return;
+  }
+  terminalInstance.value.blur();
+  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
+    content: getXTerminalLineContent(10),
+    sessionId: sessionId.value,
+    terminalId: terminalId.value
+  });
+};
+
 onMounted(() => {
 
   socket.value = createSocket();
@@ -218,28 +254,6 @@ onMounted(() => {
   });
   terminalInstance.value.open(terminalContainer);
 
-  const getXTerminalLineContent = (index: number) => {
-    const buffer = terminalInstance.value?.buffer.active;
-    if (!buffer) {
-      return '';
-    }
-    const result: string[] = [];
-    const bufferLineCount = buffer.length;
-    let startLine = bufferLineCount;
-    while ((result.length < index) || startLine >= 0) {
-      startLine--;
-      if (startLine < 0) {
-        break;
-      }
-      const line = buffer.getLine(startLine);
-      if (!line) {
-        console.warn(`Line ${startLine} is empty or undefined`);
-        continue;
-      }
-      result.unshift(line.translateToString());
-    }
-    return result.join('\n');
-  };
 
 
   if (props.shareCode) {
