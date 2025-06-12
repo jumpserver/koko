@@ -140,6 +140,7 @@ onMounted(() => {
       default:
         lunaCommunicator.sendLuna(event as LunaEventType, data);
     }
+    console.log('Send luna event:', event, data);
   });
   eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
     sessionId.value = info.session.id;

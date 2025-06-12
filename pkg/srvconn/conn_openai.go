@@ -171,7 +171,9 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 		}
 
 		var newContent string
-
+		if len(response.Choices) == 0 {
+			continue
+		}
 		reasoningContent := response.Choices[0].Delta.ReasoningContent
 		if reasoningContent != "" {
 			conn.IsReasoning = true
