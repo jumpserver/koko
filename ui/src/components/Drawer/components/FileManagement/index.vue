@@ -99,12 +99,12 @@ onUnmounted(() => {
 /**
  * @description 生成表头
  */
-const createColumns = (): DataTableColumns<RowData> => {
+ const createColumns = (): DataTableColumns<RowData> => {
   return [
     {
       title: t('Name'),
       key: 'name',
-      width: 260,
+      width: 160,
       ellipsis: {
         tooltip: true
       },
@@ -139,7 +139,7 @@ const createColumns = (): DataTableColumns<RowData> => {
                       NEllipsis,
                       {
                         style: {
-                          maxWidth: '210px',
+                          maxWidth: '145px',
                           cursor: 'pointer'
                         }
                       },
@@ -186,7 +186,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       title: t('LastModified'),
       key: 'mod_time',
       align: 'center',
-      width: 180,
+      width: 120,
       ellipsis: {
         tooltip: true
       },
@@ -230,6 +230,7 @@ const createColumns = (): DataTableColumns<RowData> => {
       title: t('Type'),
       key: 'type',
       align: 'center',
+      width: 100,
       render(row: RowData) {
         return h(
           NText,
