@@ -1,4 +1,5 @@
-import { customTreeOption, SettingConfig } from '@/hooks/interface';
+
+import { SettingConfig, customTreeOption } from '@/types/modules/config.type';
 
 export interface IGlobalState {
   initialized: boolean;

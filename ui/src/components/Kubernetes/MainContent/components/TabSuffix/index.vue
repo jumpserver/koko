@@ -58,7 +58,7 @@
 <!--import { EllipsisHorizontal, Search } from '@vicons/ionicons5';-->
 
 <!--import { Component, ref } from 'vue';-->
-<!--import mittBus from '@/utils/mittBus.ts';-->
+<!--import mittBus from '@/utils/mittBus';-->
 
 <!--interface ISuffixOptions {-->
 <!--    iconName: string;-->

@@ -3,8 +3,8 @@
     directory-dnd
     action="#"
     :default-upload="false"
-    @change="handleFileChange"
     :max="1"
+    @change="handleFileChange"
   >
     <n-upload-dragger>
       <div style="margin-bottom: 12px">

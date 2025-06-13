@@ -88,6 +88,13 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}
+	sftpGroup := kokoGroup.Group("/sftp")
+	sftpGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	{
+		sftpGroup.GET("/", func(ctx *gin.Context) {
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
+		})
+	}
 	shareGroup := kokoGroup.Group("/share")
 	shareGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{

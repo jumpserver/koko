@@ -18,7 +18,7 @@
 import { ref } from 'vue';
 import { Kubernetes } from '@vicons/carbon';
 
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 const isActive = ref(true);
 
@@ -29,5 +29,5 @@ const handleTreeIconClick = () => {
 </script>
 
 <style scoped lang="scss">
-@import './index.scss';
+@use './index.scss';
 </style>

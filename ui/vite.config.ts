@@ -7,7 +7,6 @@ import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import Components from 'unplugin-vue-components/vite';
-import viteCompression from 'vite-plugin-compression';
 
 const pathResolve = (dir: string): string => {
     return resolve(__dirname, '.', dir);
@@ -19,10 +18,10 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
 
     return {
         plugins: [
-            vue(), 
-            vueJsx(), 
-            tailwindcss(), 
-            manualChunksPlugin(), 
+            vue(),
+            vueJsx(),
+            tailwindcss(),
+            manualChunksPlugin(),
             Components({ dts: true, resolvers: [NaiveUiResolver()] })
         ],
         resolve: {

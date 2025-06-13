@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { useMessage } from 'naive-ui';
 import { useWebSocket } from '@vueuse/core';
 import { reactive, watchEffect, ref } from 'vue';
-import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/enum';
+import { SFTP_CMD, FILE_MANAGE_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 import type { TreeOption } from 'naive-ui';
 import type { RowData } from '@/types/modules/table.type';
@@ -28,7 +28,7 @@ import {
   FILE_SUFFIX_INSTALL,
   FILE_SUFFIX_DOCUMENT,
   FILE_SUFFIX_COMPRESSION
-} from '@/config';
+} from '@/utils/config';
 
 export const useFileList = (token: string, type: 'direct' | 'drawer') => {
   const message = useMessage();
