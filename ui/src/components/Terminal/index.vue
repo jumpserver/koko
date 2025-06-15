@@ -311,7 +311,7 @@ onMounted(() => {
       message.error('WebSocket connection is not established');
       return;
     }
-    const data = shareLinkRequest.data || {};
+    const data = shareLinkRequest.data.requestData || {};
     const perm = data.action_permission || data.action_perm || 'writable';
     socket.value.send(
       formatMessage(
@@ -319,7 +319,7 @@ onMounted(() => {
         FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE,
         JSON.stringify({
           origin: origin,
-          session: sessionId.value,
+          session: shareLinkRequest.data.sessionId,
           users: data.users,
           expired_time: data.expired_time,
           action_permission: perm
