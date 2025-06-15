@@ -243,7 +243,7 @@ export const useTerminalConnection = () => {
         connectionStore.updateConnectionState(terminalId.value, {
           onlineUsers: onlineUsers.value
         });
-        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_ADD, parsedMessageData.data);
+        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_ADD, JSON.stringify({ ...data, sessionId: sessionId.value }));
 
         if (!data.primary) {
           message.info(`${data.user} ${t('JoinShare')}`);
