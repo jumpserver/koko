@@ -55,7 +55,11 @@ export const themeOverrides: GlobalThemeOverrides = {
             textColorPrimary: 'rgba(235, 235, 235, 1)',
             textColorHoverPrimary: 'rgba(235, 235, 235, 1)',
             textColorPressedPrimary: 'rgba(235, 235, 235, 1)',
-            textColorFocusPrimary: 'rgba(235, 235, 235, 1)'
+            textColorFocusPrimary: 'rgba(235, 235, 235, 1)',
+            textColorError: 'rgba(235, 235, 235, 1)',
+            textColorHoverError: 'rgba(235, 235, 235, 1)',
+            textColorPressedError: 'rgba(235, 235, 235, 1)',
+            textColorFocusError: 'rgba(235, 235, 235, 1)',
           }
         }
       }

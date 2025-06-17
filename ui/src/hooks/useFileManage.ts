@@ -251,10 +251,6 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
           fileManageStore.setReceived(true);
-
-          globalTipsMessage.success(t('UploadSuccess'));
-
-          mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'download' && message.data) {
