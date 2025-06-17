@@ -20,7 +20,7 @@
             justify="flex-start"
             class="file-node !flex-nowrap"
           >
-            <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
+            <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" class="text-white" />
             <n-text
               depth="1"
               class="text-[16px] cursor-pointer whitespace-nowrap"
@@ -29,14 +29,14 @@
             >
               {{ item.path }}
             </n-text>
-            <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
+            <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" class="text-white" />
           </n-flex>
         </n-flex>
       </n-scrollbar>
     </n-flex>
 
     <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
-      <n-input v-model:value="searchValue" clearable size="small">
+      <n-input v-model:value="searchValue" clearable size="small" :placeholder="t('PleaseInput')">
         <template #prefix>
           <Search :size="16" class="focus:outline-none" />
         </template>
@@ -72,6 +72,10 @@
                   }
                 "
               >
+                <template #icon>
+                  <n-icon :component="Upload" :size="12" />
+                </template>
+
                 {{ t('UploadTitle') }}
               </n-button>
             </n-upload-trigger>
@@ -86,7 +90,12 @@
             :block-scroll="false"
             :native-scrollbar="false"
           >
-            <n-drawer-content :title="t('TransferHistory')">
+            <n-drawer-content
+              :title="t('TransferHistory')"
+              :body-style="{
+                overflow: 'unset'
+              }"
+            >
               <n-scrollbar v-if="uploadFileList" style="max-height: 400px">
                 <n-upload-file-list />
               </n-scrollbar>
@@ -136,7 +145,11 @@
         :columns="columns"
         :row-props="rowProps"
         :data="dataList"
-      />
+      >
+        <template #empty>
+          <n-empty class="w-full h-full justify-center" :description="t('NoData')" />
+        </template>
+      </n-data-table>
       <n-dropdown
         size="small"
         trigger="manual"
@@ -159,7 +172,6 @@
     :title="modalTitle"
     :content="modalContent"
     :positive-text="t('Confirm')"
-    :negative-text="t('Cancel')"
     :type="modalContent ? 'error' : 'success'"
     :content-style="{
       display: 'flex',
@@ -178,20 +190,20 @@
 import mittBus from '@/utils/mittBus';
 
 import { List } from '@vicons/ionicons5';
-import { Search } from 'lucide-vue-next';
+import { Search, Upload } from 'lucide-vue-next';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
-import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
+import { NButton, NFlex, NIcon, NText, NProgress, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
 import { getFileName } from '@/utils';
 import { getDropSelections } from './config.tsx';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide, computed } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
-import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
+import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 export interface IFilePath {
@@ -551,11 +563,14 @@ const modalPositiveClick = () => {
  * @description 文件上传
  */
 const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) => {
-  showInner.value = true;
-
   if (options.fileList.length > 0) {
     uploadFileList.value = options.fileList;
     fileManageStore.setUploadFileList(options.fileList);
+
+    // 使用 nextTick 确保数据更新后再打开抽屉
+    nextTick(() => {
+      showInner.value = true;
+    });
   }
 };
 
@@ -589,10 +604,11 @@ const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOpt
  */
 const handleOpenTransferList = () => {
   // 从 store 中恢复文件列表
-  if (fileManageStore.uploadFileList.length > 0) {
-    uploadFileList.value = [...fileManageStore.uploadFileList];
-  }
-  showInner.value = true;
+  uploadFileList.value = [...fileManageStore.uploadFileList];
+
+  nextTick(() => {
+    showInner.value = true;
+  });
 };
 
 const modalNegativeClick = () => {
@@ -606,9 +622,11 @@ const handleNewFolder = () => {
 };
 
 const handleTableLoading = () => {
-  loading.value = false;
-
-  handleRefresh();
+  loading.value = true;
+  mittBus.emit('file-manage', {
+    path: fileManageStore.currentPath,
+    type: ManageTypes.REFRESH
+  });
 };
 
 const rowProps = (row: RowData) => {
@@ -688,3 +706,9 @@ onActivated(() => {
 
 provide('persistedUploadFiles', persistedUploadFiles);
 </script>
+
+<style scoped lang="scss">
+:deep(.n-drawer .n-drawer-content .n-drawer-body) {
+  overflow: unset !important;
+}
+</style>
