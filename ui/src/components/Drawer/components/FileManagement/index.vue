@@ -9,16 +9,14 @@
 </template>
 
 <script setup lang="ts">
-import dayjs from 'dayjs';
 import prettyBytes from 'pretty-bytes';
 import FileManage from './fileManage/index.vue';
 
-import { Folder } from '@vicons/tabler';
+import { Folder,File } from '@vicons/tabler';
 import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
 import { h, ref, watch, onUnmounted } from 'vue';
-import { getFileName } from '@/utils';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
@@ -121,7 +119,7 @@ onUnmounted(() => {
             default: () => [
               h(NIcon, {
                 size: '18',
-                component: Folder
+                component: row.is_dir ? Folder : File,
               }),
               h(
                 NFlex,
@@ -183,32 +181,6 @@ onUnmounted(() => {
       }
     },
     {
-      title: t('LastModified'),
-      key: 'mod_time',
-      align: 'center',
-      width: 120,
-      ellipsis: {
-        tooltip: true
-      },
-      render(row: RowData) {
-        return h(
-          NText,
-          {
-            depth: 1
-          },
-          {
-            default: () => {
-              if (row.mod_time) {
-                return dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss');
-              }
-
-              return '-';
-            }
-          }
-        );
-      }
-    },
-    {
       title: t('Size'),
       key: 'size',
       align: 'center',
@@ -222,24 +194,6 @@ onUnmounted(() => {
           },
           {
             default: () => prettyBytes(Number(row.size))
-          }
-        );
-      }
-    },
-    {
-      title: t('Type'),
-      key: 'type',
-      align: 'center',
-      width: 100,
-      render(row: RowData) {
-        return h(
-          NText,
-          {
-            depth: 1,
-            strong: true
-          },
-          {
-            default: () => getFileName(row)
           }
         );
       }
