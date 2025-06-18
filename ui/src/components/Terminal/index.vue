@@ -21,9 +21,9 @@ import { generateWsURL } from '@/hooks/helper';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 import { getDefaultTerminalConfig } from '@/utils/guard';
-import { useWindowSize } from '@vueuse/core'
+import { useWindowSize } from '@vueuse/core';
 
-const { width, height } = useWindowSize()
+const { width, height } = useWindowSize();
 const { t } = useI18n();
 const message = useMessage();
 
@@ -50,7 +50,6 @@ const debouncedSendLunaKey = useDebounceFn((key: string) => {
       break;
   }
 }, 500);
-
 
 const socket = ref<WebSocket | ''>('');
 
@@ -111,13 +110,16 @@ const createXtermInstance = () => {
   return xterminal;
 };
 
-watch([width, height], ([_newWidth, _newHeight]) => {
-  if (!terminalInstance.value || !fitAddon) return;
-  nextTick(() => {
-    // 调整终端大小
-    fitAddon.fit();
-  });
-}, { immediate: false }
+watch(
+  [width, height],
+  ([_newWidth, _newHeight]) => {
+    if (!terminalInstance.value || !fitAddon) return;
+    nextTick(() => {
+      // 调整终端大小
+      fitAddon.fit();
+    });
+  },
+  { immediate: false }
 );
 
 const getXTerminalLineContent = (index: number) => {
@@ -128,7 +130,7 @@ const getXTerminalLineContent = (index: number) => {
   const result: string[] = [];
   const bufferLineCount = buffer.length;
   let startLine = bufferLineCount;
-  while ((result.length < index) || startLine >= 0) {
+  while (result.length < index || startLine >= 0) {
     startLine--;
     if (startLine < 0) {
       break;
@@ -162,10 +164,9 @@ const handleDocumentClick = () => {
     message.error('Terminal instance is not initialized');
     return;
   }
-  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLICK, "")
+  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLICK, '');
 };
 onMounted(() => {
-
   socket.value = createSocket();
   if (!socket.value) {
     return;
@@ -196,9 +197,8 @@ onMounted(() => {
       });
     }
     if (info.backspaceAsCtrlH) {
-      defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? "1" : "0";
+      defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? '1' : '0';
     }
-
 
     console.log('Received terminal session info:', info);
   });
@@ -262,15 +262,13 @@ onMounted(() => {
   });
   terminalInstance.value.open(terminalContainer);
 
-
-
   if (props.shareCode) {
     setShareCode(props.shareCode);
   }
   setupTerminalEvent(terminalInstance.value);
   initializeSocketEvent(terminalInstance.value, socket.value, t);
 
-  const debouncedReisze = useDebounceFn(({ cols, rows }) => {
+  const debouncedResize = useDebounceFn(({ cols, rows }) => {
     fitAddon.fit();
     if (!socket.value) {
       message.error('WebSocket connection may be closed, please refresh the page');
@@ -280,7 +278,7 @@ onMounted(() => {
     socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_RESIZE, resizeData));
   }, 200);
 
-  terminalInstance.value.onResize(({ cols, rows }) => debouncedReisze({ cols, rows }));
+  terminalInstance.value.onResize(({ cols, rows }) => debouncedResize({ cols, rows }));
 
   const handLunaCommand = (msg: LunaMessage) => {
     if (!socket.value) {
@@ -288,7 +286,6 @@ onMounted(() => {
       return;
     }
     socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
-
   };
 
   const handLunaFocus = (_msg: LunaMessage) => {
@@ -301,6 +298,20 @@ onMounted(() => {
 
     nextTick(() => {
       terminalInstance.value!.options.theme = theme;
+
+      if (!socket.value) {
+        return;
+      }
+
+      socket.value.send(
+        formatMessage(
+          terminalId.value,
+          'TERMINAL_SYNC_USER_PREFERENCE',
+          JSON.stringify({
+            terminal_theme_name: themeName
+          })
+        )
+      );
     });
   };
 
@@ -327,6 +338,7 @@ onMounted(() => {
       )
     );
   };
+
   const handleRemoveShareUser = (msg: LunaMessage) => {
     console.log('Received remove share user request:', msg);
     if (!socket.value) {
@@ -349,6 +361,39 @@ onMounted(() => {
     );
   };
 
+  const handLunaKeyboardEvent = (msg: LunaMessage) => {
+    if (!terminalInstance.value) {
+      message.error('Terminal instance is not initialized');
+      return;
+    }
+
+    if (!terminalInstance.value) {
+      return;
+    }
+
+    if (terminalId.value !== msg.terminalId) {
+      return;
+    }
+
+    switch (msg.shortcut) {
+      case 'Stop':
+        terminalInstance.value.paste('\x03');
+        break;
+      case 'ArrowUp':
+        terminalInstance.value.paste('\x1b[A');
+        break;
+      case 'ArrowDown':
+        terminalInstance.value.paste('\x1b[B');
+        break;
+      case 'ArrowLeft':
+        terminalInstance.value.paste('\x1b[D');
+        break;
+      case 'ArrowRight':
+        terminalInstance.value.paste('\x1b[C');
+        break;
+    }
+  };
+
   const handTerminalContent = (_msg: LunaMessage) => {
     if (!terminalInstance.value) {
       message.error('Terminal instance is not initialized');
@@ -365,15 +410,15 @@ onMounted(() => {
 
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.KEYBOARD_EVENT, handLunaKeyboardEvent);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST, handleCreateShareUrl);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE, handleRemoveShareUser);
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent)
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent);
 
   // 添加事件监听
   document.addEventListener('click', handleDocumentClick);
-})
-
+});
 
 onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CMD);
@@ -383,7 +428,6 @@ onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE);
   document.removeEventListener('click', handleDocumentClick);
 });
-
 </script>
 
 <style scoped lang="scss">

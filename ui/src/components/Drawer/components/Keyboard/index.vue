@@ -67,30 +67,6 @@ const keyboardList = reactive<KeyboardItem[]>([
       writeDataToTerminal('Stop');
     }
   },
-  // {
-  //   icon: Save,
-  //   label: t('Save'),
-  //   keywords: ['Command/Ctrl', 'S'],
-  //   click: () => {
-  //     writeDataToTerminal('Save');
-  //   }
-  // },
-  // {
-  //   icon: ClipboardPaste,
-  //   label: t('Paste'),
-  //   keywords: ['Command/Ctrl', 'V'],
-  //   click: () => {
-  //     writeDataToTerminal('Paste');
-  //   }
-  // },
-  // {
-  //   icon: Undo2,
-  //   label: t('Undo'),
-  //   keywords: ['Command/Ctrl', 'Z'],
-  //   click: () => {
-  //     writeDataToTerminal('Undo');
-  //   }
-  // },
   {
     icon: ArrowUp,
     label: t('UpArrow'),

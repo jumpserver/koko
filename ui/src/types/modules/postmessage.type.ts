@@ -68,6 +68,9 @@ export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.CLICK]: {
     data: string;
   };
+  [LUNA_MESSAGE_TYPE.KEYBOARD_EVENT]: {
+    data: LunaMessage;
+  };
 }
 
 export interface LunaMessage {
@@ -78,6 +81,8 @@ export interface LunaMessage {
   data: string | object | null;
   theme?: string;
   user_meta?: string;
+  shortcut?: string;
+  terminalId?: string;
 }
 
 export interface ShareUserRequest {
