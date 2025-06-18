@@ -141,10 +141,11 @@
         size="small"
         :bordered="false"
         :loading="loading"
-        :max-height="1000"
         :columns="columns"
         :row-props="rowProps"
         :data="dataList"
+        :style="{ height: 'calc(100vh - 120px)' }"
+        flex-height
       >
         <template #empty>
           <n-empty class="w-full h-full justify-center" :description="t('NoData')" />
@@ -192,13 +193,13 @@ import mittBus from '@/utils/mittBus';
 import { List } from '@vicons/ionicons5';
 import { Search, Upload } from 'lucide-vue-next';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
-import { NButton, NFlex, NIcon, NText, NProgress, UploadCustomRequestOptions, useMessage } from 'naive-ui';
+import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
 import { getFileName } from '@/utils';
 import { getDropSelections } from './config.tsx';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide, computed } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide } from 'vue';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
@@ -652,7 +653,8 @@ const rowProps = (row: RowData) => {
       const splicePath = `${fileManageStore.currentPath}/${row.name}`;
 
       if (suffix !== 'Folder') {
-        return message.error('暂不支持文件预览');
+        // return message.error('暂不支持文件预览');
+        return;
       }
 
       if (row.name === '..') {
