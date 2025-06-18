@@ -17,6 +17,10 @@ func GetAliveSessionIds() []string {
 	return sessManager.Range()
 }
 
+func GetAliveSessionTokenIds() []string {
+	return sessManager.RangeToken()
+}
+
 func GetSessions() []*Session {
 	return sessManager.GetSessions()
 }
@@ -71,6 +75,17 @@ func (s *sessionManager) Range() []string {
 	}
 
 	return sids
+}
+
+func (s *sessionManager) RangeToken() []string {
+	s.Lock()
+	defer s.Unlock()
+	tIds := make([]string, 0, len(s.data))
+	for _, session := range s.data {
+		tIds = append(tIds, session.TokenId)
+	}
+
+	return tIds
 }
 
 func (s *sessionManager) GetSessions() []*Session {
