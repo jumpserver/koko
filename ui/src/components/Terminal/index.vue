@@ -394,15 +394,10 @@ onUnmounted(() => {
   }
 
   :deep(.xterm-viewport) {
-    background-color: #000000;
 
     &::-webkit-scrollbar {
       height: 4px;
       width: 7px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: #000000;
     }
 
     &::-webkit-scrollbar-thumb {
