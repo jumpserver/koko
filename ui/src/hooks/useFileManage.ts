@@ -17,6 +17,8 @@ import type {
   FileManageSftpFileItem,
   FileSendData
 } from '@/types/modules/file.type';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -343,6 +345,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         fileManageStore.setCurrentPath('');
 
         socket.close();
+        lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.FILE_MANAGE_EXPIRED, '');
         break;
       }
 
