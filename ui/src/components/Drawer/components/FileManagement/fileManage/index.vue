@@ -94,7 +94,7 @@
             <n-drawer-content
               :title="t('TransferHistory')"
               :body-style="{
-                overflow: 'hidden',
+                overflow: 'unset',
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column'
