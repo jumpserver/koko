@@ -54,7 +54,6 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
   public sendLuna<K extends keyof T>(name: K, data: T[K]) {
     if (!this.lunaId || !this.targetOrigin) {
       console.warn('Target window not set');
-      return;
     }
     window.parent.postMessage({ name: name, id: this.lunaId, data }, this.targetOrigin);
   }
