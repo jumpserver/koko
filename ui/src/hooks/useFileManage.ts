@@ -331,11 +331,18 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         break;
       }
 
-      case MessageType.CLOSED: {
+      case MessageType.CLOSE: {
         globalTipsMessage.error(t('FileManagementExpired'));
 
         uploadInterrupt.value = true;
         uploadInterruptType.value = null;
+
+        // 文件列表置空
+        fileManageStore.setFileList([]);
+        // 文件路径置空
+        fileManageStore.setCurrentPath('');
+
+        socket.close();
         break;
       }
 
@@ -689,6 +696,7 @@ export const useFileManage = (token: string, t: any) => {
   const fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
 
   function init() {
+    console.log('🎯 useFileManage 初始化了！');
     const socket = fileSocketConnection(fileConnectionUrl, t);
 
     mittBus.on(

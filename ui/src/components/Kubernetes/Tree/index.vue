@@ -47,7 +47,7 @@
               <n-input
                 clearable
                 size="small"
-                placeholder="搜索"
+                :placeholder="t('Search')"
                 class="mb-[3px] pl-[4px]"
                 v-if="showSearch"
                 v-model:value="searchPattern"

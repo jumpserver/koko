@@ -68,6 +68,9 @@ export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.CLICK]: {
     data: string;
   };
+  [LUNA_MESSAGE_TYPE.FILE_MANAGE_EXPIRED]: {
+    data: string;
+  };
 }
 
 export interface LunaMessage {
