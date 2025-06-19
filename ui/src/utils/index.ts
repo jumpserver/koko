@@ -124,7 +124,7 @@ export const getFileName = (row: RowData) => {
 
   const lastDotIndex = row.name.lastIndexOf('.');
 
-  return lastDotIndex !== -1 ? row.name.slice(lastDotIndex + 1) : 'Folder';
+  return lastDotIndex !== -1 ? row.name.slice(lastDotIndex + 1) : 'File';
 };
 
 /**

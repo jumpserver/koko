@@ -651,7 +651,6 @@ const rowProps = (row: RowData) => {
 
       const suffix = getFileName(row);
       const splicePath = `${fileManageStore.currentPath}/${row.name}`;
-
       if (suffix !== 'Folder') {
         // return message.error('暂不支持文件预览');
         return;
