@@ -23,7 +23,7 @@
 import Tree from './components/Tree/index.vue';
 import Setting from './components/Setting/index.vue';
 
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 const topIconOptions = [
   {

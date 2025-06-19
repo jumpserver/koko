@@ -1,13 +1,12 @@
-import { useRoute } from 'vue-router';
 import { computed, ref, watch } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 import { v4 as uuid } from 'uuid';
-import { BASE_WS_URL } from '@/config';
+import { BASE_WS_URL } from '@/utils/config';
 
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import type { Ref } from 'vue';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
@@ -18,6 +17,8 @@ import type {
   FileManageSftpFileItem,
   FileSendData
 } from '@/types/modules/file.type';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -47,9 +48,9 @@ const { message: globalTipsMessage }: { message: MessageApiInjection } = createD
 // TODO 都是 hook 内部状态
 let initialPath = '';
 let fileSize = '';
-let uploadFileId = ref('');
-let uploadInterrupt = ref(false);
-let uploadInterruptType = ref<'permission' | 'manual' | null>(null);
+const uploadFileId = ref('');
+const uploadInterrupt = ref(false);
+const uploadInterruptType = ref<'permission' | 'manual' | null>(null);
 let downLoadMessage = null;
 
 /**
@@ -252,10 +253,6 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
           fileManageStore.setReceived(true);
-
-          globalTipsMessage.success(t('UploadSuccess'));
-
-          mittBus.emit('reload-table');
         }
 
         if (message.cmd === 'download' && message.data) {
@@ -317,7 +314,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
       case MessageType.ERROR: {
         fileManageStore.setFileList([]);
-
+        globalTipsMessage.error(message.err ? message.err : t('FileListError'));
         break;
       }
 
@@ -336,11 +333,19 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
         break;
       }
 
-      case MessageType.CLOSED: {
+      case MessageType.CLOSE: {
         globalTipsMessage.error(t('FileManagementExpired'));
 
         uploadInterrupt.value = true;
         uploadInterruptType.value = null;
+
+        // 文件列表置空
+        fileManageStore.setFileList([]);
+        // 文件路径置空
+        fileManageStore.setCurrentPath('');
+
+        socket.close();
+        lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.FILE_MANAGE_EXPIRED, '');
         break;
       }
 
@@ -480,7 +485,7 @@ const generateUploadChunks = async (
   onError: (() => void) | null = null
 ) => {
   const fileManageStore = useFileManageStore();
-  let sendData: FileSendData = {
+  const sendData: FileSendData = {
     offSet: 0,
     size: fileInfo.file?.size,
     path: `${fileManageStore.currentPath}/${fileInfo.name}`
@@ -584,9 +589,9 @@ const handleFileUpload = async (
     }
   }
 
-  let sliceChunks = [];
+  const sliceChunks = [];
   let CHUNK_SIZE = 1024 * 1024 * 5;
-  let sentChunks = ref(0);
+  const sentChunks = ref(0);
 
   const unwatch = watch(
     () => sentChunks.value,
@@ -691,9 +696,10 @@ const handleFileUpload = async (
  * @description 用于处理文件管理相关逻辑
  */
 export const useFileManage = (token: string, t: any) => {
-  let fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
+  const fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
 
   function init() {
+    console.log('🎯 useFileManage 初始化了！');
     const socket = fileSocketConnection(fileConnectionUrl, t);
 
     mittBus.on(

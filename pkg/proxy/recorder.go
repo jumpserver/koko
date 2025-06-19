@@ -10,11 +10,11 @@ import (
 
 	storage "github.com/jumpserver/koko/pkg/proxy/recorderstorage"
 
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/asciinema"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -146,7 +146,7 @@ func NewReplayRecord(sid string, jmsService *service.JMService,
 	if err != nil {
 		logger.Errorf("Create replay file %s error: %s\n", recorder.absFilePath, err)
 		reason := model.SessionReplayErrCreatedFailed
-		if err1 := jmsService.SessionReplayFailed(sid, reason); err1 != nil {
+		if _, err1 := jmsService.SessionReplayFailed(sid, reason); err1 != nil {
 			logger.Errorf("Session[%s] update replay status %s failed: %s", sid, reason, err1)
 		}
 		recorder.err = err
@@ -240,7 +240,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		err := r.storage.Upload(r.absGzipFilePath, r.Target)
 		if err == nil {
 			_ = os.Remove(r.absGzipFilePath)
-			if err = r.jmsService.FinishReply(r.SessionID); err != nil {
+			if _, err = r.jmsService.FinishReply(r.SessionID); err != nil {
 				logger.Errorf("Session[%s] finish replay err: %s", r.SessionID, err)
 			}
 			r.recordLifecycleLog(model.ReplayUploadSuccess, "")
@@ -253,7 +253,7 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		if i == maxRetry {
 			if r.storage.TypeName() == "server" {
 				reason := model.SessionReplayErrUploadFailed
-				if err1 := r.jmsService.SessionReplayFailed(r.SessionID, reason); err1 != nil {
+				if _, err1 := r.jmsService.SessionReplayFailed(r.SessionID, reason); err1 != nil {
 					logger.Errorf("Session[%s] update replay status %s failed: %s", r.SessionID, reason, err1)
 				}
 				break

@@ -9,11 +9,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/jumpserver-dev/sdk-go/service"
 	assets "github.com/jumpserver/koko"
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -85,6 +85,13 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 	{
 		connectGroup.GET("/", func(ctx *gin.Context) {
 			// https://github.com/gin-gonic/gin/issues/2654
+			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
+		})
+	}
+	sftpGroup := kokoGroup.Group("/sftp")
+	sftpGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	{
+		sftpGroup.GET("/", func(ctx *gin.Context) {
 			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
 		})
 	}

@@ -16,12 +16,12 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
-	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
+
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
-	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -116,15 +116,17 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		gateway:       connOpts.authInfo.Gateway,
 		sessionInfo:   apiSession,
 		CreateSessionCallback: func() error {
-			apiSession.DateStart = modelCommon.NewNowUTCTime()
+			apiSession.DateStart = common.NewNowUTCTime()
 			_, err2 := jmsService.CreateSession(*apiSession)
 			return err2
 		},
 		ConnectedFailedCallback: func(err error) error {
-			return jmsService.SessionFailed(apiSession.ID, err)
+			_, err1 := jmsService.SessionFailed(apiSession.ID, err)
+			return err1
 		},
 		DisConnectedCallback: func() error {
-			return jmsService.SessionDisconnect(apiSession.ID)
+			_, err2 := jmsService.SessionDisconnect(apiSession.ID)
+			return err2
 		},
 	}, nil
 }
@@ -206,7 +208,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 			RemoteAddr: s.UserConn.RemoteAddr(),
 			Operate:    operate,
 			Path:       zinfo.Filename(),
-			DateStart:  modelCommon.NewUTCTime(zinfo.Time()),
+			DateStart:  common.NewUTCTime(zinfo.Time()),
 			IsSuccess:  status,
 			Session:    s.sessionInfo.ID,
 		}
@@ -570,6 +572,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if s.suFromAccount != nil {
 		loginAccount = s.suFromAccount
 	}
+	platform := s.connOpts.authInfo.Platform
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 	user := s.connOpts.authInfo.User
@@ -586,7 +589,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		}
 	} else {
-		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
+		if !isPlatform(&platform, "MFA") {
+			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
+		}
 	}
 
 	password := loginAccount.Secret
@@ -633,7 +638,6 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		return nil, err
 	}
 
-	platform := s.connOpts.authInfo.Platform
 	pty := s.UserConn.Pty()
 	charset := s.getCharset()
 	sshConnectOpts := make([]srvconn.SSHOption, 0, 6)

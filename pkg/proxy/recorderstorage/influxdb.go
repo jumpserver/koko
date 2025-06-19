@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/influxdata/influxdb-client-go/v2"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 

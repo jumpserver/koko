@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { IParamsState } from '@/store/interface';
-import { SettingConfig } from '@/hooks/interface';
+import { IParamsState } from '@/types/modules/store.type';
+import { SettingConfig } from '@/types/modules/config.type';
 
 export const useParamsStore = defineStore('params', {
   state: (): IParamsState => ({

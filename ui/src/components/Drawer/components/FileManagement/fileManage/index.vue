@@ -11,7 +11,7 @@
         </n-button>
       </n-flex>
 
-      <n-scrollbar x-scrollable ref="scrollRef" :content-style="{ height: '40px' }">
+      <n-scrollbar ref="scrollRef" x-scrollable :content-style="{ height: '40px' }">
         <n-flex class="file-part w-full h-full !flex-nowrap">
           <n-flex
             v-for="item of filePathList"
@@ -20,7 +20,7 @@
             justify="flex-start"
             class="file-node !flex-nowrap"
           >
-            <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" />
+            <n-icon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" class="text-white" />
             <n-text
               depth="1"
               class="text-[16px] cursor-pointer whitespace-nowrap"
@@ -29,14 +29,14 @@
             >
               {{ item.path }}
             </n-text>
-            <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" />
+            <n-icon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" class="text-white" />
           </n-flex>
         </n-flex>
       </n-scrollbar>
     </n-flex>
 
     <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
-      <n-input clearable size="small" v-model:value="searchValue">
+      <n-input v-model:value="searchValue" clearable size="small" :placeholder="t('PleaseInput')">
         <template #prefix>
           <Search :size="16" class="focus:outline-none" />
         </template>
@@ -51,11 +51,11 @@
         </n-button>
 
         <n-upload
+          v-model:file-list="uploadFileList"
           abstract
           :multiple="false"
           :show-retry-button="false"
           :custom-request="customRequest"
-          v-model:file-list="uploadFileList"
           @remove="handleRemoveItem"
           @change="handleUploadFileChange"
         >
@@ -72,23 +72,35 @@
                   }
                 "
               >
+                <template #icon>
+                  <n-icon :component="Upload" :size="12" />
+                </template>
+
                 {{ t('UploadTitle') }}
               </n-button>
             </n-upload-trigger>
           </n-button-group>
 
           <n-drawer
+            v-model:show="showInner"
             resizable
             placement="bottom"
-            to="#drawer-inner-target"
-            :default-height="500"
+            :default-height="drawerHeight"
+            :max-height="drawerHeight"
             :trap-focus="false"
             :block-scroll="false"
             :native-scrollbar="false"
-            v-model:show="showInner"
           >
-            <n-drawer-content :title="t('TransferHistory')">
-              <n-scrollbar style="max-height: 400px" v-if="uploadFileList">
+            <n-drawer-content
+              :title="t('TransferHistory')"
+              :body-style="{
+                overflow: 'unset',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column'
+              }"
+            >
+              <n-scrollbar v-if="uploadFileList" :style="{ maxHeight: `${drawerHeight - 60}px`, flex: 1 }">
                 <n-upload-file-list />
               </n-scrollbar>
 
@@ -99,14 +111,24 @@
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="Refresh" class="icon-hover cursor-pointer" @click="handleRefresh" />
+            <n-icon
+              size="16"
+              :component="Refresh"
+              class="icon-hover cursor-pointer text-white"
+              @click="handleRefresh"
+            />
           </template>
           {{ t('Refresh') }}
         </n-popover>
 
         <n-popover>
           <template #trigger>
-            <n-icon size="16" :component="List" class="icon-hover cursor-pointer" @click="handleOpenTransferList" />
+            <n-icon
+              size="16"
+              :component="List"
+              class="icon-hover cursor-pointer text-white"
+              @click="handleOpenTransferList"
+            />
           </template>
           {{ t('TransferHistory') }}
         </n-popover>
@@ -123,11 +145,16 @@
         size="small"
         :bordered="false"
         :loading="loading"
-        :max-height="1000"
         :columns="columns"
         :row-props="rowProps"
         :data="dataList"
-      />
+        :style="{ height: 'calc(100vh - 120px)' }"
+        flex-height
+      >
+        <template #empty>
+          <n-empty class="w-full h-full justify-center" :description="t('NoData')" />
+        </template>
+      </n-data-table>
       <n-dropdown
         size="small"
         trigger="manual"
@@ -150,7 +177,6 @@
     :title="modalTitle"
     :content="modalContent"
     :positive-text="t('Confirm')"
-    :negative-text="t('Cancel')"
     :type="modalContent ? 'error' : 'success'"
     :content-style="{
       display: 'flex',
@@ -161,28 +187,30 @@
     @positive-click="modalPositiveClick"
     @negative-click="modalNegativeClick"
   >
-    <n-input v-if="!modalContent" clearable v-model:value="newFileName" />
+    <n-input v-if="!modalContent" v-model:value="newFileName" clearable :placeholder="t('PleaseInput')" />
   </n-modal>
 </template>
 
 <script setup lang="ts">
-import mittBus from '@/utils/mittBus.ts';
+import mittBus from '@/utils/mittBus';
 
 import { List } from '@vicons/ionicons5';
-import { Search } from 'lucide-vue-next';
+import { Search, Upload } from 'lucide-vue-next';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
-import { getFileName } from '@/utils';
+import { getFileName, sendEventToLuna } from '@/utils';
 import { getDropSelections } from './config.tsx';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide, computed } from 'vue';
+import { useWindowSize } from '@vueuse/core';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
-import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 import type { DataTableColumns, UploadFileInfo } from 'naive-ui';
+import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 export interface IFilePath {
@@ -208,6 +236,12 @@ const { t } = useI18n();
 const message = useMessage();
 const options = getDropSelections(t);
 const fileManageStore = useFileManageStore();
+const { height: windowHeight } = useWindowSize();
+
+const drawerHeight = computed(() => {
+  const maxHeight = Math.floor(windowHeight.value * 0.7);
+  return Math.max(300, maxHeight);
+});
 
 const x = ref(0);
 const y = ref(0);
@@ -480,7 +514,7 @@ const modalPositiveClick = () => {
 
   if (modalType.value === 'rename') {
     if (index !== -1) {
-      message.error(`已存在 ${newFileName.value} 请重新命名`);
+      message.error(`${newFileName.value} ${t('AlreadyExistsPleaseRename')}`);
 
       nextTick(() => {
         newFileName.value = '';
@@ -517,7 +551,7 @@ const modalPositiveClick = () => {
 
   if (modalType.value === 'add') {
     if (index !== -1) {
-      return message.error('该文件已存在');
+      return message.error(t('FileAlreadyExists'));
     } else {
       loading.value = true;
 
@@ -542,11 +576,14 @@ const modalPositiveClick = () => {
  * @description 文件上传
  */
 const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) => {
-  showInner.value = true;
-
   if (options.fileList.length > 0) {
     uploadFileList.value = options.fileList;
     fileManageStore.setUploadFileList(options.fileList);
+
+    // 使用 nextTick 确保数据更新后再打开抽屉
+    nextTick(() => {
+      showInner.value = true;
+    });
   }
 };
 
@@ -580,10 +617,11 @@ const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOpt
  */
 const handleOpenTransferList = () => {
   // 从 store 中恢复文件列表
-  if (fileManageStore.uploadFileList.length > 0) {
-    uploadFileList.value = [...fileManageStore.uploadFileList];
-  }
-  showInner.value = true;
+  uploadFileList.value = [...fileManageStore.uploadFileList];
+
+  nextTick(() => {
+    showInner.value = true;
+  });
 };
 
 const modalNegativeClick = () => {
@@ -593,13 +631,15 @@ const modalNegativeClick = () => {
 const handleNewFolder = () => {
   modalType.value = 'add';
   showModal.value = true;
-  modalTitle.value = '创建文件夹';
+  modalTitle.value = t('CreateFolder');
 };
 
 const handleTableLoading = () => {
-  loading.value = false;
-
-  handleRefresh();
+  loading.value = true;
+  mittBus.emit('file-manage', {
+    path: fileManageStore.currentPath,
+    type: ManageTypes.REFRESH
+  });
 };
 
 const rowProps = (row: RowData) => {
@@ -623,9 +663,9 @@ const rowProps = (row: RowData) => {
 
       const suffix = getFileName(row);
       const splicePath = `${fileManageStore.currentPath}/${row.name}`;
-
       if (suffix !== 'Folder') {
-        return message.error('暂不支持文件预览');
+        // return message.error('暂不支持文件预览');
+        return;
       }
 
       if (row.name === '..') {
@@ -679,3 +719,9 @@ onActivated(() => {
 
 provide('persistedUploadFiles', persistedUploadFiles);
 </script>
+
+<style scoped lang="scss">
+:deep(.n-drawer .n-drawer-content .n-drawer-body) {
+  overflow: unset !important;
+}
+</style>

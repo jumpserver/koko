@@ -9,9 +9,9 @@ import (
 	"github.com/jumpserver/koko/pkg/srvconn"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/exchange"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 )
@@ -81,6 +81,7 @@ func (h *tty) HandleMessage(msg *Message) {
 
 		h.initialed = true
 		h.handleTerminalInit(connectInfo, "", "", "", "")
+		return
 
 	case TerminalK8SInit:
 		if msg.Id != h.ws.Uuid {
@@ -94,6 +95,7 @@ func (h *tty) HandleMessage(msg *Message) {
 		}
 
 		h.handleTerminalInit(connectInfo, msg.KubernetesId, msg.Namespace, msg.Pod, msg.Container)
+		return
 	}
 
 	if h.initialed || func() bool { _, ok := h.K8sClients[msg.KubernetesId]; return ok }() {

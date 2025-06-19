@@ -8,7 +8,9 @@ on:
       - 'go.mod'
       - 'Dockerfile-base'
       - 'ui/package.json'
+      - 'package.json'
       - 'ui/yarn.lock'
+      - 'yarn.lock'
 
 jobs:
   build-and-push:

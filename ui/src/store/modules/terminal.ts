@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import type { ITerminalConfig, ObjToKeyValArray } from '@/store/interface';
+import type { ITerminalConfig, ObjToKeyValArray } from '@/types/modules/store.type';
 
 export const useTerminalStore = defineStore('terminal', {
   state: (): ITerminalConfig => ({

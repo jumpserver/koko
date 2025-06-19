@@ -9,16 +9,14 @@
 </template>
 
 <script setup lang="ts">
-import dayjs from 'dayjs';
 import prettyBytes from 'pretty-bytes';
 import FileManage from './fileManage/index.vue';
 
-import { Folder } from '@vicons/tabler';
+import { Folder,File } from '@vicons/tabler';
 import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { h, ref, watch } from 'vue';
-import { getFileName } from '@/utils';
+import { h, ref, watch, onUnmounted } from 'vue';
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
@@ -70,8 +68,16 @@ watch(
 watch(
   () => props.sftpToken,
   (newValue, oldValue) => {
+    if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
+      fileManageSocket.value.close();
+    }
     if (newValue && newValue !== oldValue) {
-      fileManageSocket.value = useFileManage(newValue, t);
+     try {
+        fileManageSocket.value = useFileManage(newValue, t);
+      } catch (error) {
+        console.error('Failed to initialize file management socket:', error);
+        isLoaded.value = true; // 即使失败也设置加载完成，避免一直显示加载状态
+      }
     }
   },
   {
@@ -79,15 +85,24 @@ watch(
   }
 );
 
+
+// ai added to close the WebSocket connection when the component is unmounted
+onUnmounted(() => {
+  if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
+    fileManageSocket.value.close();
+    fileManageSocket.value = undefined;
+  }
+});
+
 /**
  * @description 生成表头
  */
-const createColumns = (): DataTableColumns<RowData> => {
+ const createColumns = (): DataTableColumns<RowData> => {
   return [
     {
       title: t('Name'),
       key: 'name',
-      width: 260,
+      width: 160,
       ellipsis: {
         tooltip: true
       },
@@ -104,7 +119,7 @@ const createColumns = (): DataTableColumns<RowData> => {
             default: () => [
               h(NIcon, {
                 size: '18',
-                component: Folder
+                component: row.is_dir ? Folder : File,
               }),
               h(
                 NFlex,
@@ -122,7 +137,7 @@ const createColumns = (): DataTableColumns<RowData> => {
                       NEllipsis,
                       {
                         style: {
-                          maxWidth: '210px',
+                          maxWidth: '145px',
                           cursor: 'pointer'
                         }
                       },
@@ -166,32 +181,6 @@ const createColumns = (): DataTableColumns<RowData> => {
       }
     },
     {
-      title: t('LastModified'),
-      key: 'mod_time',
-      align: 'center',
-      width: 180,
-      ellipsis: {
-        tooltip: true
-      },
-      render(row: RowData) {
-        return h(
-          NText,
-          {
-            depth: 1
-          },
-          {
-            default: () => {
-              if (row.mod_time) {
-                return dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss');
-              }
-
-              return '-';
-            }
-          }
-        );
-      }
-    },
-    {
       title: t('Size'),
       key: 'size',
       align: 'center',
@@ -205,23 +194,6 @@ const createColumns = (): DataTableColumns<RowData> => {
           },
           {
             default: () => prettyBytes(Number(row.size))
-          }
-        );
-      }
-    },
-    {
-      title: t('Type'),
-      key: 'type',
-      align: 'center',
-      render(row: RowData) {
-        return h(
-          NText,
-          {
-            depth: 1,
-            strong: true
-          },
-          {
-            default: () => getFileName(row)
           }
         );
       }

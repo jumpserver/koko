@@ -13,11 +13,11 @@ import (
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	com "github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 )
@@ -663,7 +663,7 @@ func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToke
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return model.ConnectToken{}, fmt.Errorf("create super connect token failed: %s", msg)
 	}
-	return ad.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	return ad.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
 }
 
 func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,

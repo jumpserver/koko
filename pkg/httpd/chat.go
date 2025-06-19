@@ -2,12 +2,14 @@ package httpd
 
 import (
 	"encoding/json"
-	"github.com/jumpserver/koko/pkg/common"
-	"github.com/sashabaranov/go-openai"
 	"sync"
 	"time"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/sashabaranov/go-openai"
+
+	"github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )

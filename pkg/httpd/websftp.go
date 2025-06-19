@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/session"
 	"io"
 	"strconv"
 )
@@ -20,6 +21,8 @@ type webSftp struct {
 	currentPath string
 
 	msg *Message
+
+	started bool
 }
 
 func (h *webSftp) Name() string {
@@ -56,6 +59,15 @@ type webSftpRequest struct {
 	IsDir   bool   `json:"is_dir"`
 }
 
+func notInTokenIds(target string) bool {
+	for _, item := range session.GetAliveSessionTokenIds() {
+		if item == target {
+			return false
+		}
+	}
+	return true
+}
+
 func (h *webSftp) dispatch(msg Message) {
 	message := Message{
 		Id:          msg.Id,
@@ -71,6 +83,15 @@ func (h *webSftp) dispatch(msg Message) {
 		h.ws.SendMessage(&message)
 		return
 	}
+
+	if h.started && notInTokenIds(h.ws.ConnectToken.Id) {
+		message.Err = "Session expired or not found"
+		message.Type = CLOSE
+		h.ws.SendMessage(&message)
+		return
+	}
+
+	h.started = true
 
 	switch h.msg.Cmd {
 	case "list":
@@ -178,7 +199,7 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 		response.Data = request.Path
 	} else {
 		err = h.volume.UploadFile(request.Path, reader, request.Size)
-		response.Data = request.Path
+		response.Data = "ok"
 	}
 	if err != nil {
 		response.Err = err.Error()

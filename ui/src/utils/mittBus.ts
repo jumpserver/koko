@@ -4,7 +4,7 @@ import { ManageTypes } from '@/hooks/useFileManage.ts';
 import type { Ref } from 'vue';
 import type { ShareUserOptions } from '@/types/modules/user.type';
 import type { UploadFileInfo } from 'naive-ui';
-import type { customTreeOption } from '@/hooks/interface';
+import type { customTreeOption } from '@/types/modules/config.type';
 
 type Event = {
   'remove-event': void;

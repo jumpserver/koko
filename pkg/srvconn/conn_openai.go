@@ -5,12 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/sashabaranov/go-openai"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/sashabaranov/go-openai"
+
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 // ChatCompletionStreamChoiceDelta TODO 支持 DeepSeek 后删掉
@@ -169,7 +171,9 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 		}
 
 		var newContent string
-
+		if len(response.Choices) == 0 {
+			continue
+		}
 		reasoningContent := response.Choices[0].Delta.ReasoningContent
 		if reasoningContent != "" {
 			conn.IsReasoning = true

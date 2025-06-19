@@ -10,8 +10,8 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	gossh "golang.org/x/crypto/ssh"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -238,7 +238,7 @@ func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Dir
 				Protocol: connectToken.Protocol}
 			return &req, true
 		}
-		if connectToken, err := jmsService.GetConnectTokenInfo(token); err == nil {
+		if connectToken, err := jmsService.GetConnectTokenInfo(token, true); err == nil {
 			req := DirectLoginAssetReq{ConnectToken: &connectToken,
 				Protocol: connectToken.Protocol}
 			return &req, true

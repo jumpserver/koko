@@ -11,17 +11,17 @@ import (
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/jumpserver/koko/pkg/cache"
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/jumpserver-dev/sdk-go/common"
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
+
 	"github.com/jumpserver/koko/pkg/auth"
-	"github.com/jumpserver/koko/pkg/common"
+	"github.com/jumpserver/koko/pkg/cache"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
-	modelCommon "github.com/jumpserver/koko/pkg/jms-sdk-go/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/session"
@@ -172,6 +172,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 		utils.IgnoreErrWriteString(sess, "Not auth user.\n")
 		return
 	}
+	i18nLang := i18n.NewLang(user.Language)
 	termConf := s.GetTerminalConfig()
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty && sess.RawCommand() == "" {
@@ -219,14 +220,14 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 		if len(selectedAssets) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetTarget)
+			msg := fmt.Sprintf(i18nLang.T("Must be unique asset for %s"), directRequest.AssetTarget)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
 		}
 		permAssetDetail, err := s.jmsService.GetUserPermAssetDetailById(user.ID, selectedAssets[0].ID)
 		if err != nil {
-			msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), directRequest.AssetTarget)
+			msg := fmt.Sprintf(i18nLang.T("Must be unique asset for %s"), directRequest.AssetTarget)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Errorf("Get permAssetDetail failed: %s", err)
 			return
@@ -248,7 +249,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 		if len(selectAccounts) != 1 {
-			msg := fmt.Sprintf(i18n.T("Must be unique account for %s"), directRequest.AccountUsername)
+			msg := fmt.Sprintf(i18nLang.T("Must be unique account for %s"), directRequest.AccountUsername)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
@@ -256,7 +257,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 		selectAccount := selectAccounts[0]
 		switch selectAccount.Username {
 		case "@INPUT", "@USER":
-			msg := fmt.Sprintf(i18n.T("Must be auto login account for %s"), directRequest.AccountUsername)
+			msg := fmt.Sprintf(i18nLang.T("Must be auto login account for %s"), directRequest.AccountUsername)
 			utils.IgnoreErrWriteString(sess, msg)
 			logger.Error(msg)
 			return
@@ -289,7 +290,7 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return
 	}
-	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
@@ -434,7 +435,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	session.AddSession(traceSession)
 
 	defer func() {
-		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if _, err2 := s.jmsService.SessionFinished(respSession.ID, common.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
@@ -558,7 +559,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	})
 	session.AddSession(traceSession)
 	defer func() {
-		if err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
+		if _, err2 := s.jmsService.SessionFinished(respSession.ID, common.NewNowUTCTime()); err2 != nil {
 			logger.Errorf("Create tunnel session err: %s", err2)
 		}
 		session.RemoveSession(traceSession)
@@ -665,7 +666,7 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 
 func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.PermAsset, error) {
 	var getUserPermAssets func() ([]model.PermAsset, error)
-	if common.ValidUUIDString(req.AssetTarget) {
+	if common.IsUUID(req.AssetTarget) {
 		getUserPermAssets = func() ([]model.PermAsset, error) {
 			return s.jmsService.GetUserPermAssetById(user.ID, req.AssetTarget)
 		}
@@ -674,14 +675,15 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 			return s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetTarget)
 		}
 	}
+	i18nLang := i18n.NewLang(user.Language)
 	assets, err := getUserPermAssets()
 	if err != nil {
 		logger.Errorf("Get user %s perm asset failed: %s", user.String(), err)
-		return nil, fmt.Errorf("match asset failed: %s", i18n.T("Core API failed"))
+		return nil, fmt.Errorf("match asset failed: %s", i18nLang.T("Core API failed"))
 	}
 	if len(assets) == 0 {
 		logger.Infof("User %s no perm for asset %s", user.String(), req.AssetTarget)
-		return nil, fmt.Errorf("match asset failed: %s", i18n.T("No found asset"))
+		return nil, fmt.Errorf("match asset failed: %s", i18nLang.T("No found asset"))
 	}
 	return assets, nil
 }
@@ -709,13 +711,14 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 	if err != nil {
 		return nil, err
 	}
+	i18nLang := i18n.NewLang(user.Language)
 	if len(selectedAssets) != 1 {
-		msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), req.AssetTarget)
+		msg := fmt.Sprintf(i18nLang.T("Must be unique asset for %s"), req.AssetTarget)
 		return nil, errors.New(msg)
 	}
 	permAssetDetail, err := s.jmsService.GetUserPermAssetDetailById(user.ID, selectedAssets[0].ID)
 	if err != nil {
-		msg := fmt.Sprintf(i18n.T("Must be unique asset for %s"), req.AssetTarget)
+		msg := fmt.Sprintf(i18nLang.T("Must be unique asset for %s"), req.AssetTarget)
 		logger.Errorf("Get permAssetDetail failed: %s", err)
 		return nil, errors.New(msg)
 	}
@@ -733,7 +736,7 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 		return nil, err
 	}
 	if len(selectAccounts) != 1 {
-		msg := fmt.Sprintf(i18n.T("Must be unique account for %s"), req.AccountUsername)
+		msg := fmt.Sprintf(i18nLang.T("Must be unique account for %s"), req.AccountUsername)
 		logger.Error(msg)
 		return nil, errors.New(msg)
 	}
@@ -757,7 +760,7 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return nil, err
 	}
-	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID)
+	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
 		return nil, err

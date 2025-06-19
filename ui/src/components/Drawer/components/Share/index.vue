@@ -85,7 +85,7 @@
 import * as clipboard from 'clipboard-polyfill';
 
 import { useI18n } from 'vue-i18n';
-import { BASE_URL } from '@/config';
+import { BASE_URL } from '@/utils/config';
 import { Undo2 } from 'lucide-vue-next';
 import { getMinuteLabel } from '@/utils';
 import { useMessage, NTag } from 'naive-ui';

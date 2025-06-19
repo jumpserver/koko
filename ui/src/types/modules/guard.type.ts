@@ -20,7 +20,7 @@ export interface CommandLineConfig {
   terminal_theme_name: string;
 }
 
-export interface ILocalTermialConfig {
+export interface ILocalTerminalConfig {
   commandExecution: boolean;
   isSkipAllManualPassword: string;
   sqlClient: string;

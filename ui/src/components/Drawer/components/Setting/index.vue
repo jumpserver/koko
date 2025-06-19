@@ -8,7 +8,7 @@
             <span class="text-sm">{{ item.label }}</span>
           </n-flex>
 
-          <n-tooltip size="small" v-if="item.showMore">
+          <n-tooltip v-if="item.showMore" size="small">
             <template #trigger>
               <Ellipsis :size="14" class="cursor-pointer focus:outline-none" />
             </template>
@@ -38,15 +38,15 @@
 
             <n-divider dashed class="!my-2" />
 
-            <n-collapse @item-header-click="handleItemHeaderClick" :default-expanded-names="'online-user'">
+            <n-collapse :default-expanded-names="'online-user'" @item-header-click="handleItemHeaderClick">
               <template #header-extra>
                 <ChevronLeft v-if="showLeftArrow" :size="18" class="focus:outline-none" />
                 <ChevronDown v-else :size="18" class="focus:outline-none" />
               </template>
               <n-collapse-item :title="t('OnlineUser') + ':'" name="online-user">
                 <n-flex
-                  v-if="userFilters.otherUsers.length > 0"
                   v-for="item in userFilters.otherUsers"
+                  v-if="userFilters.otherUsers.length > 0"
                   :key="item.user_id"
                   align="center"
                   justify="space-between"
@@ -92,7 +92,7 @@ import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { formatMessage } from '@/utils';
 import { readText } from 'clipboard-polyfill';
-import { FORMATTER_MESSAGE_TYPE } from '@/enum';
+import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { ref, watch, computed, nextTick } from 'vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { Ellipsis, ChevronLeft, ChevronDown } from 'lucide-vue-next';

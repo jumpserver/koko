@@ -12,9 +12,9 @@ import (
 	"github.com/LeeEirc/elfinder"
 	"github.com/pkg/sftp"
 
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/common"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -236,7 +236,7 @@ func (u *UserVolume) GetFile(path string) (fileData elfinder.FileData, err error
 		return rest, err
 	}
 
-	if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf, 0, fileInfo.Size()); err1 != nil {
+	if err1 := u.recorder.Record(sf.FTPLog, sf); err1 != nil {
 		logger.Errorf("Record file err: %s", err1)
 	}
 	_, _ = sf.Seek(0, io.SeekStart)

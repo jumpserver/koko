@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v6/esapi"
 	elasticsearch8 "github.com/elastic/go-elasticsearch/v8"
 
-	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
