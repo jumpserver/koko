@@ -22,10 +22,10 @@ import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
 export const eventBus = mitt<{
   'luna-event': { event: string; data: string };
   'terminal-session': TerminalSessionInfo,
-  'terminal-connect': { id: string }
+  'terminal-connect': { id: string },
 }>();
 // 修改 sendEventToLuna 函数
-const sendLunaEvent = (event: string, data: string) => {
+export const sendLunaEvent = (event: string, data: string) => {
   eventBus.emit('luna-event', { event, data })
 }
 

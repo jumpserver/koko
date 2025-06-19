@@ -21,9 +21,9 @@ import { generateWsURL } from '@/hooks/helper';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 import { getDefaultTerminalConfig } from '@/utils/guard';
-import { useWindowSize } from '@vueuse/core'
+import { useWindowSize } from '@vueuse/core';
 
-const { width, height } = useWindowSize()
+const { width, height } = useWindowSize();
 const { t } = useI18n();
 const message = useMessage();
 
@@ -50,7 +50,6 @@ const debouncedSendLunaKey = useDebounceFn((key: string) => {
       break;
   }
 }, 500);
-
 
 const socket = ref<WebSocket | ''>('');
 
@@ -111,13 +110,16 @@ const createXtermInstance = () => {
   return xterminal;
 };
 
-watch([width, height], ([_newWidth, _newHeight]) => {
-  if (!terminalInstance.value || !fitAddon) return;
-  nextTick(() => {
-    // 调整终端大小
-    fitAddon.fit();
-  });
-}, { immediate: false }
+watch(
+  [width, height],
+  ([_newWidth, _newHeight]) => {
+    if (!terminalInstance.value || !fitAddon) return;
+    nextTick(() => {
+      // 调整终端大小
+      fitAddon.fit();
+    });
+  },
+  { immediate: false }
 );
 
 const getXTerminalLineContent = (index: number) => {
@@ -128,7 +130,7 @@ const getXTerminalLineContent = (index: number) => {
   const result: string[] = [];
   const bufferLineCount = buffer.length;
   let startLine = bufferLineCount;
-  while ((result.length < index) || startLine >= 0) {
+  while (result.length < index || startLine >= 0) {
     startLine--;
     if (startLine < 0) {
       break;
@@ -162,10 +164,9 @@ const handleDocumentClick = () => {
     message.error('Terminal instance is not initialized');
     return;
   }
-  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLICK, "")
+  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLICK, '');
 };
 onMounted(() => {
-
   socket.value = createSocket();
   if (!socket.value) {
     return;
@@ -179,13 +180,13 @@ onMounted(() => {
         break;
       case LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE:
         lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, data);
-        console.log('Received share code response:', data);
         break;
       default:
         lunaCommunicator.sendLuna(event as LunaEventType, data);
     }
     console.log('Send luna event:', event, data);
   });
+
   eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
     sessionId.value = info.session.id;
     sessionInfo.value = info;
@@ -196,9 +197,8 @@ onMounted(() => {
       });
     }
     if (info.backspaceAsCtrlH) {
-      defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? "1" : "0";
+      defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? '1' : '0';
     }
-
 
     console.log('Received terminal session info:', info);
   });
@@ -210,6 +210,7 @@ onMounted(() => {
   terminalInstance.value = createXtermInstance();
 
   const terminalContainer = document.getElementById('terminal-container');
+
   if (!terminalContainer) {
     message.error('Terminal container not found');
     return;
@@ -262,8 +263,6 @@ onMounted(() => {
   });
   terminalInstance.value.open(terminalContainer);
 
-
-
   if (props.shareCode) {
     setShareCode(props.shareCode);
   }
@@ -288,7 +287,6 @@ onMounted(() => {
       return;
     }
     socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
-
   };
 
   const handLunaFocus = (_msg: LunaMessage) => {
@@ -368,12 +366,11 @@ onMounted(() => {
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST, handleCreateShareUrl);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE, handleRemoveShareUser);
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent)
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent);
 
   // 添加事件监听
   document.addEventListener('click', handleDocumentClick);
-})
-
+});
 
 onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CMD);
@@ -383,7 +380,6 @@ onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE);
   document.removeEventListener('click', handleDocumentClick);
 });
-
 </script>
 
 <style scoped lang="scss">
@@ -394,7 +390,6 @@ onUnmounted(() => {
   }
 
   :deep(.xterm-viewport) {
-
     &::-webkit-scrollbar {
       height: 4px;
       width: 7px;

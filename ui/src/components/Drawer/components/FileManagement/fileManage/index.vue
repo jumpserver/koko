@@ -85,7 +85,8 @@
             v-model:show="showInner"
             resizable
             placement="bottom"
-            :default-height="500"
+            :default-height="drawerHeight"
+            :max-height="drawerHeight"
             :trap-focus="false"
             :block-scroll="false"
             :native-scrollbar="false"
@@ -93,10 +94,13 @@
             <n-drawer-content
               :title="t('TransferHistory')"
               :body-style="{
-                overflow: 'unset'
+                overflow: 'hidden',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column'
               }"
             >
-              <n-scrollbar v-if="uploadFileList" style="max-height: 400px">
+              <n-scrollbar v-if="uploadFileList" :style="{ maxHeight: `${drawerHeight - 60}px`, flex: 1 }">
                 <n-upload-file-list />
               </n-scrollbar>
 
@@ -183,7 +187,7 @@
     @positive-click="modalPositiveClick"
     @negative-click="modalNegativeClick"
   >
-    <n-input v-if="!modalContent" v-model:value="newFileName" clearable />
+    <n-input v-if="!modalContent" v-model:value="newFileName" clearable :placeholder="t('PleaseInput')" />
   </n-modal>
 </template>
 
@@ -193,13 +197,15 @@ import mittBus from '@/utils/mittBus';
 import { List } from '@vicons/ionicons5';
 import { Search, Upload } from 'lucide-vue-next';
 import { Folder, Refresh, Plus } from '@vicons/tabler';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { NButton, NFlex, NIcon, NText, UploadCustomRequestOptions, useMessage } from 'naive-ui';
 import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
 
 import { useI18n } from 'vue-i18n';
-import { getFileName } from '@/utils';
+import { getFileName, sendEventToLuna } from '@/utils';
 import { getDropSelections } from './config.tsx';
-import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, onActivated, provide, computed } from 'vue';
+import { useWindowSize } from '@vueuse/core';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
 
@@ -230,6 +236,12 @@ const { t } = useI18n();
 const message = useMessage();
 const options = getDropSelections(t);
 const fileManageStore = useFileManageStore();
+const { height: windowHeight } = useWindowSize();
+
+const drawerHeight = computed(() => {
+  const maxHeight = Math.floor(windowHeight.value * 0.7);
+  return Math.max(300, maxHeight);
+});
 
 const x = ref(0);
 const y = ref(0);
@@ -502,7 +514,7 @@ const modalPositiveClick = () => {
 
   if (modalType.value === 'rename') {
     if (index !== -1) {
-      message.error(`已存在 ${newFileName.value} 请重新命名`);
+      message.error(`${newFileName.value} ${t('AlreadyExistsPleaseRename')}`);
 
       nextTick(() => {
         newFileName.value = '';
@@ -539,7 +551,7 @@ const modalPositiveClick = () => {
 
   if (modalType.value === 'add') {
     if (index !== -1) {
-      return message.error('该文件已存在');
+      return message.error(t('FileAlreadyExists'));
     } else {
       loading.value = true;
 
@@ -619,7 +631,7 @@ const modalNegativeClick = () => {
 const handleNewFolder = () => {
   modalType.value = 'add';
   showModal.value = true;
-  modalTitle.value = '创建文件夹';
+  modalTitle.value = t('CreateFolder');
 };
 
 const handleTableLoading = () => {
