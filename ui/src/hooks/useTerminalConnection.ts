@@ -1,35 +1,38 @@
-import { useI18n } from 'vue-i18n';
-import { Terminal } from '@xterm/xterm';
-import { ref, computed } from 'vue';
-import { darkTheme, createDiscreteApi } from 'naive-ui';
-import mitt from 'mitt'
-import { MaxTimeout } from '@/utils/config';
-import { preprocessInput } from '@/utils';
-import { useSentry } from '@/hooks/useZsentry';
-import { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
-import { updateIcon } from '@/hooks/helper';
-import { useConnectionStore } from '@/store/modules/useConnection';
-import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
-import { formatMessage, writeBufferToTerminal } from '@/utils';
-import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE, MESSAGE_TYPE, ZMODEM_ACTION_TYPE } from '@/types/modules/message.type';
-
+import type { Terminal } from '@xterm/xterm';
 import type { ConfigProviderProps } from 'naive-ui';
+import type { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 import type { SettingConfig } from '@/types/modules/config.type';
-import type { OnlineUser } from '@/types/modules/user.type';
-import type { ShareUserOptions } from '@/types/modules/user.type';
 import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
+import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
+import mitt from 'mitt';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { updateIcon } from '@/hooks/helper';
+import { useSentry } from '@/hooks/useZsentry';
+import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
+
+import { useConnectionStore } from '@/store/modules/useConnection';
+import {
+  FORMATTER_MESSAGE_TYPE,
+  LUNA_MESSAGE_TYPE,
+  MESSAGE_TYPE,
+  ZMODEM_ACTION_TYPE,
+} from '@/types/modules/message.type';
+import { formatMessage, preprocessInput, writeBufferToTerminal } from '@/utils';
+import { MaxTimeout } from '@/utils/config';
 
 export const eventBus = mitt<{
   'luna-event': { event: string; data: string };
-  'terminal-session': TerminalSessionInfo,
-  'terminal-connect': { id: string },
+  'terminal-session': TerminalSessionInfo;
+  'terminal-connect': { id: string };
 }>();
 // 修改 sendEventToLuna 函数
-export const sendLunaEvent = (event: string, data: string) => {
-  eventBus.emit('luna-event', { event, data })
+export function sendLunaEvent(event: string, data: string) {
+  eventBus.emit('luna-event', { event, data });
 }
 
-export const useTerminalConnection = () => {
+export function useTerminalConnection() {
   let sentry: Sentry;
 
   const onlineUsers = ref<OnlineUser[]>([]);
@@ -53,11 +56,11 @@ export const useTerminalConnection = () => {
   const terminalSettingsStore = useTerminalSettingsStore();
 
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
-    theme: darkTheme
+    theme: darkTheme,
   }));
 
   const { message } = createDiscreteApi(['message'], {
-    configProviderProps: configProviderPropsRef
+    configProviderProps: configProviderPropsRef,
   });
   /**
    * @description 创建 ZMODEM 实例
@@ -75,7 +78,8 @@ export const useTerminalConnection = () => {
    * @param socket
    */
   const heartBeat = (socket: WebSocket) => {
-    if (pingInterval.value) clearInterval(pingInterval.value);
+    if (pingInterval.value)
+      clearInterval(pingInterval.value);
 
     pingInterval.value = setInterval(() => {
       // 如果 socket 已经关闭，则停止心跳
@@ -85,11 +89,13 @@ export const useTerminalConnection = () => {
 
       const currentDate = new Date();
       const pongTimeout = currentDate.getTime() - lastReceiveTime.value.getTime() - MaxTimeout;
-      if (pongTimeout < 0) return;
+      if (pongTimeout < 0)
+        return;
 
       const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
 
-      if (pingTimeout < 0) return;
+      if (pingTimeout < 0)
+        return;
 
       socket.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
     }, 25 * 1000);
@@ -101,7 +107,8 @@ export const useTerminalConnection = () => {
    * @param socket
    */
   const dispatch = (data: string, terminal: Terminal, socket: WebSocket, t: any) => {
-    if (!data) return;
+    if (!data)
+      return;
 
     const parsedMessageData = JSON.parse(data);
 
@@ -112,7 +119,7 @@ export const useTerminalConnection = () => {
 
         connectionStore.updateConnectionState(terminalId.value, {
           enableShare: false,
-          onlineUsers: []
+          onlineUsers: [],
         });
 
         socket.close();
@@ -132,15 +139,15 @@ export const useTerminalConnection = () => {
         eventBus.emit('terminal-connect', { id: terminalId.value });
 
         connectionStore.setConnectionState(terminalId.value, {
-          socket: socket,
-          terminal: terminal,
-          terminalId: parsedMessageData.id
+          socket,
+          terminal,
+          terminalId: parsedMessageData.id,
         });
 
         const terminalData = {
           cols: terminal.cols,
           rows: terminal.rows,
-          code: shareCode.value
+          code: shareCode.value,
         };
 
         const info = JSON.parse(parsedMessageData.data);
@@ -150,7 +157,7 @@ export const useTerminalConnection = () => {
         updateIcon(info.setting);
 
         socket.send(
-          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
+          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData)),
         );
         break;
       }
@@ -170,14 +177,13 @@ export const useTerminalConnection = () => {
       case MESSAGE_TYPE.TERMINAL_SHARE: {
         const data = JSON.parse(parsedMessageData.data);
 
-        console.log('TERMINAL_SHARE', data);
-
         shareId.value = data.share_id;
         shareCode.value = data.code;
         connectionStore.updateConnectionState(terminalId.value, {
           shareId: data.share_id,
-          shareCode: data.code
+          shareCode: data.code,
         });
+
         sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, parsedMessageData.data);
         break;
       }
@@ -222,13 +228,13 @@ export const useTerminalConnection = () => {
           enableShare.value = true;
 
           connectionStore.updateConnectionState(terminalId.value, {
-            enableShare: true
+            enableShare: true,
           });
         }
 
         sessionId.value = sessionDetail.id;
         connectionStore.updateConnectionState(terminalId.value, {
-          sessionId: sessionDetail.id
+          sessionId: sessionDetail.id,
         });
         terminalSettingsStore.setDefaultTerminalConfig('theme', sessionInfo.themeName);
 
@@ -241,7 +247,7 @@ export const useTerminalConnection = () => {
         onlineUsers.value.push(data);
 
         connectionStore.updateConnectionState(terminalId.value, {
-          onlineUsers: onlineUsers.value
+          onlineUsers: onlineUsers.value,
         });
         sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_ADD, JSON.stringify({ ...data, sessionId: sessionId.value }));
 
@@ -267,7 +273,7 @@ export const useTerminalConnection = () => {
           onlineUsers.value.splice(index, 1);
 
           connectionStore.updateConnectionState(terminalId.value, {
-            onlineUsers: onlineUsers.value
+            onlineUsers: onlineUsers.value,
           });
 
           message.info(`${data.user} ${t('LeaveShare')}`);
@@ -298,7 +304,7 @@ export const useTerminalConnection = () => {
         userOptions.value = JSON.parse(parsedMessageData.data);
 
         connectionStore.updateConnectionState(terminalId.value, {
-          userOptions: userOptions.value
+          userOptions: userOptions.value,
         });
 
         break;
@@ -325,13 +331,16 @@ export const useTerminalConnection = () => {
     if (zmodemTransferStatus.value) {
       try {
         sentry.consume(event.data);
-      } catch (e) {
+      }
+      catch (e) {
         if (sentry.get_confirmed_session()) {
           sentry.get_confirmed_session()?.abort();
           message.error('File transfer error, file transfer interrupted');
+          console.error(e);
         }
       }
-    } else {
+    }
+    else {
       writeBufferToTerminal(true, false, terminal, event.data);
     }
   };
@@ -343,11 +352,9 @@ export const useTerminalConnection = () => {
     shareCode.value = code;
 
     connectionStore.updateConnectionState(terminalId.value, {
-      shareCode: code
+      shareCode: code,
     });
   };
-
-
 
   /**
    * @description 初始化 socket 事件
@@ -366,7 +373,7 @@ export const useTerminalConnection = () => {
     socket.onclose = () => {
       terminal.write('\r\n');
       terminal.write('\r\n');
-      terminal.write('\x1b[31mConnection websocket has been closed\x1b[0m');
+      terminal.write('\x1B[31mConnection websocket has been closed\x1B[0m');
     };
     socket.onerror = () => {
       // terminal.write('\x1b[31mConnection Websocket Error Occurred\x1b[0m');
@@ -379,7 +386,8 @@ export const useTerminalConnection = () => {
 
       if (typeof event.data === 'object') {
         handleBinaryMessage(event, terminal);
-      } else {
+      }
+      else {
         dispatch(event.data, terminal, socket, t);
       }
     };
@@ -403,4 +411,4 @@ export const useTerminalConnection = () => {
     initializeSocketEvent,
     eventBus,
   };
-};
+}

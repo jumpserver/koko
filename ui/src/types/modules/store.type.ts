@@ -1,5 +1,4 @@
-
-import { SettingConfig, customTreeOption } from '@/types/modules/config.type';
+import type { customTreeOption, SettingConfig } from '@/types/modules/config.type';
 
 export interface IGlobalState {
   initialized: boolean;

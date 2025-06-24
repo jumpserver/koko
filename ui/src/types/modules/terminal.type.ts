@@ -1,4 +1,3 @@
-
 export interface ITerminalSettings {
   // 终端字体大小
   fontSize: number;

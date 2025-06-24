@@ -1,5 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
-import type { ShareUserOptions, OnlineUser } from './user.type';
+import type { OnlineUser, ShareUserOptions } from './user.type';
 
 export interface ConnectionState {
   origin: string;
@@ -15,7 +15,7 @@ export interface ConnectionState {
   terminalId: string;
 
   enableShare: boolean;
-  
+
   terminal: Terminal;
 
   socket: WebSocket | null;

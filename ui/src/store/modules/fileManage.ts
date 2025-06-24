@@ -1,7 +1,7 @@
-import { defineStore } from 'pinia';
+import type { UploadFileInfo } from 'naive-ui';
 
 import type { FileManageSftpFileItem } from '@/types/modules/file.type';
-import type { UploadFileInfo } from 'naive-ui';
+import { defineStore } from 'pinia';
 
 interface IFileManageStoreState {
   fileList: FileManageSftpFileItem[] | null;
@@ -25,7 +25,7 @@ export const useFileManageStore = defineStore('fileManage', {
 
     isReceived: false,
 
-    uploadFileList: []
+    uploadFileList: [],
   }),
   actions: {
     setFileList(fileList: FileManageSftpFileItem[]) {
@@ -44,6 +44,6 @@ export const useFileManageStore = defineStore('fileManage', {
     },
     setUploadFileList(fileList: UploadFileInfo[]) {
       this.uploadFileList = fileList;
-    }
-  }
+    },
+  },
 });

@@ -1,28 +1,9 @@
-<template>
-  <n-config-provider
-    :locale="enUS"
-    :theme="darkTheme"
-    :date-locale="dateZhCN"
-    :theme-overrides="themeOverrides"
-    class="flex items-center justify-center h-full w-full overflow-hidden"
-  >
-    <n-dialog-provider>
-      <n-notification-provider>
-        <n-message-provider>
-          <router-view v-if="loaded" />
-        </n-message-provider>
-      </n-notification-provider>
-    </n-dialog-provider>
-  </n-config-provider>
-</template>
-
 <script setup lang="ts">
-
+import { darkTheme, dateZhCN, enUS } from 'naive-ui';
+import { nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { BASE_URL, LanguageCode } from '@/utils/config';
 import { alovaInstance } from '@/api';
-import { enUS, dateZhCN, darkTheme} from 'naive-ui'
-import { onMounted, ref, nextTick } from 'vue';
+import { BASE_URL, LanguageCode } from '@/utils/config';
 import { themeOverrides } from './overrides';
 
 const { mergeLocaleMessage } = useI18n();
@@ -40,11 +21,29 @@ onMounted(async () => {
       mergeLocaleMessage(key, value);
     }
     nextTick(() => {
-        loaded.value = true;
-      });
-  
-  } catch (e) {
+      loaded.value = true;
+    });
+  }
+  catch (e) {
     throw new Error(`${e}`);
   }
 });
 </script>
+
+<template>
+  <n-config-provider
+    :locale="enUS"
+    :theme="darkTheme"
+    :date-locale="dateZhCN"
+    :theme-overrides="themeOverrides"
+    class="flex items-center justify-center h-full w-full overflow-hidden"
+  >
+    <n-dialog-provider>
+      <n-notification-provider>
+        <n-message-provider>
+          <router-view v-if="loaded" />
+        </n-message-provider>
+      </n-notification-provider>
+    </n-dialog-provider>
+  </n-config-provider>
+</template>

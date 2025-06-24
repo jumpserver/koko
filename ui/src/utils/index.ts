@@ -1,9 +1,9 @@
-import { createDiscreteApi } from 'naive-ui';
-import { TranslateFunction } from '@/types';
-import { Terminal } from '@xterm/xterm';
-import { AsciiBackspace, AsciiDel } from '@/utils/config';
+import type { Terminal } from '@xterm/xterm';
+import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
+import type { TranslateFunction } from '@/types';
 import type { ILunaConfig } from '@/types/modules/config.type';
-import { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
+import { createDiscreteApi } from 'naive-ui';
+import { AsciiBackspace, AsciiDel } from '@/utils/config';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -11,13 +11,14 @@ const { message } = createDiscreteApi(['message']);
  * @description 复制文本功能
  * @param {string} text
  */
-export const copyTextToClipboard = async (text: string): Promise<void> => {
+export async function copyTextToClipboard(text: string): Promise<void> {
   try {
     // Clipboard API
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text);
       message.info('Text copied to clipboard');
-    } else {
+    }
+    else {
       // Fallback 方式，兼容不支持 Clipboard API 的情况
       const transfer: HTMLTextAreaElement = document.createElement('textarea');
 
@@ -31,47 +32,50 @@ export const copyTextToClipboard = async (text: string): Promise<void> => {
 
       message.info('Text copied to clipboard (fallback method)');
     }
-  } catch (err) {
+  }
+  catch (err) {
     message.error(`Failed to copy text: ${err}`);
   }
-};
+}
 
 /**
  * @description 触发事件
  * @param e
  */
-export const fireEvent = (e: Event) => {
+export function fireEvent(e: Event) {
   window.dispatchEvent(e);
-};
+}
 
 /**
  * @description 字节转换
  * @param bytes
  * @param precision
  */
-export const bytesHuman = (bytes: number, precision?: any) => {
-  const regex = /^([-+]?\d+(\.\d+)?|\.\d+|Infinity)$/;
+export function bytesHuman(bytes: number, precision?: any) {
+  const regex = /^(?:[-+]?\d+(?:\.\d+)?|\.\d+|Infinity)$/;
 
   if (!regex.test(bytes.toString())) {
     return '-';
   }
 
-  if (bytes === 0) return '0';
-  if (typeof precision === 'undefined') precision = 1;
+  if (bytes === 0)
+    return '0';
+  if (typeof precision === 'undefined')
+    precision = 1;
 
   const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
   const num = Math.floor(Math.log(bytes) / Math.log(1024));
-  const value = (bytes / Math.pow(1024, Math.floor(num))).toFixed(precision);
+  const value = (bytes / 1024 ** Math.floor(num)).toFixed(precision);
 
   return `${value} ${units[num]}`;
-};
+}
 
 /**
  * @description 获取分钟标签
  * @param item
  * @param t
  */
-export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
+export function getMinuteLabel(item: number, t: TranslateFunction): string {
   let minuteLabel = t('Minute');
 
   if (item > 1) {
@@ -79,7 +83,7 @@ export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
   }
 
   return `${item} ${minuteLabel}`;
-};
+}
 
 /**
  * @description 将缓冲区写入终端
@@ -88,18 +92,20 @@ export const getMinuteLabel = (item: number, t: TranslateFunction): string => {
  * @param terminal
  * @param data
  */
-export const writeBufferToTerminal = (
+export function writeBufferToTerminal(
   enableZmodem: boolean,
   zmodemStatus: boolean,
   terminal: Terminal | null,
-  data: any
-) => {
-  if (!enableZmodem && zmodemStatus) return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
-  if (!terminal) return;
+  data: any,
+) {
+  if (!enableZmodem && zmodemStatus)
+    return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
+  if (!terminal)
+    return;
   terminal.write(new Uint8Array(data));
-};
+}
 
-export const preprocessInput = (data: string, config: Partial<ILunaConfig>) => {
+export function preprocessInput(data: string, config: Partial<ILunaConfig>) {
   // 如果配置项 backspaceAsCtrlH 启用（值为 "1"），并且输入数据包含删除键的 ASCII 码 (AsciiDel，即 127)，
   // 它会将其替换为退格键的 ASCII 码 (AsciiBackspace，即 8)
   if (config.backspaceAsCtrlH === '1') {
@@ -107,17 +113,23 @@ export const preprocessInput = (data: string, config: Partial<ILunaConfig>) => {
       data = String.fromCharCode(AsciiBackspace);
     }
   }
-  if (data.includes('\u001b[200~') || data.includes('\u001b[201~')) {
-    return data.replace(/\u001b\[200~|\u001b\[201~/g, '');
+
+  // 使用字符串替换方法避免在正则表达式中使用控制字符
+  const escSeq200 = '\u001B[200~';
+  const escSeq201 = '\u001B[201~';
+
+  if (data.includes(escSeq200) || data.includes(escSeq201)) {
+    return data.replace(escSeq200, '').replace(escSeq201, '');
   }
+
   return data;
-};
+}
 
 /**
  * @description 处理文件名称
  * @param row
  */
-export const getFileName = (row: RowData) => {
+export function getFileName(row: RowData) {
   if (row.is_dir) {
     return 'Folder';
   }
@@ -125,23 +137,26 @@ export const getFileName = (row: RowData) => {
   const lastDotIndex = row.name.lastIndexOf('.');
 
   return lastDotIndex !== -1 ? row.name.slice(lastDotIndex + 1) : 'File';
-};
+}
 
 /**
  * @description 使用 postMessage 发送事件到父窗口。
  *
  * @param {string} name - 事件的名称。
  * @param {any} data - 要随事件发送的数据。
- * @param {string | null} [lunaId=''] - Luna 实例的 ID。
- * @param {string | null} [origin=null] - 消息的来源。
+ * @param {string | null} [lunaId] - Luna 实例的 ID。
+ * @param {string | null} [origin] - 消息的来源。
  */
-export const sendEventToLuna = (name: string, data: any, lunaId: string | null = '', origin: string | null = '') => {
+export function sendEventToLuna(name: string, data: any, lunaId: string | null = '', origin: string | null = '') {
   if (lunaId !== null && origin !== null) {
     try {
       window.parent.postMessage({ name, id: lunaId, data }, origin);
-    } catch (e) {}
+    }
+    catch (e) {
+      console.error(e);
+    }
   }
-};
+}
 
 /**
  * @description 格式化消息为 JSON 字符串。
@@ -151,13 +166,13 @@ export const sendEventToLuna = (name: string, data: any, lunaId: string | null =
  * @param data - 消息的数据。
  * @returns 格式化的 JSON 字符串。
  */
-export const formatMessage = (id: string, type: string, data: any) => {
+export function formatMessage(id: string, type: string, data: any) {
   return JSON.stringify({
     id,
     type,
-    data
+    data,
   });
-};
+}
 
 /**
  * @description 检查 WebSocket 是否已激活。
@@ -165,6 +180,6 @@ export const formatMessage = (id: string, type: string, data: any) => {
  * @param ws - WebSocket 实例。
  * @returns 如果 WebSocket 已激活则返回 true，否则返回 false。
  */
-export const wsIsActivated = (ws: WebSocket | undefined) => {
+export function wsIsActivated(ws: WebSocket | undefined) {
   return ws ? !(ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) : false;
-};
+}

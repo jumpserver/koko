@@ -1,4 +1,4 @@
-import { LUNA_MESSAGE_TYPE } from './message.type';
+import type { LUNA_MESSAGE_TYPE } from './message.type';
 
 export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.PING]: {

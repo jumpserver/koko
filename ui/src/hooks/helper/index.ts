@@ -1,24 +1,23 @@
-import { Ref } from 'vue';
+import type { Terminal } from '@xterm/xterm';
+import type { Ref } from 'vue';
+
 import type { ILunaConfig } from '@/types/modules/config.type';
-
-import { Terminal } from '@xterm/xterm';
 import { useDebounceFn } from '@vueuse/core';
-import { sendEventToLuna, formatMessage } from '@/utils';
+import { readText } from 'clipboard-polyfill';
 
-// 引入 Store
-import { useTreeStore } from '@/store/modules/tree.ts';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
+import * as clipboard from 'clipboard-polyfill';
+import { createDiscreteApi } from 'naive-ui';
 
 // 引入 API
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
-import { createDiscreteApi } from 'naive-ui';
-import { readText } from 'clipboard-polyfill';
-import { fireEvent, preprocessInput } from '@/utils';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+// 引入 Store
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { fireEvent, formatMessage, preprocessInput, sendEventToLuna } from '@/utils';
 
-import mittBus from '@/utils/mittBus';
-import * as clipboard from 'clipboard-polyfill';
 import { BASE_WS_URL, MaxTimeout } from '@/utils/config';
+import mittBus from '@/utils/mittBus';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -31,26 +30,29 @@ const { message } = createDiscreteApi(['message']);
  * @param terminalId
  * @param termSelectionText
  */
-export const handleContextMenu = async (
+export async function handleContextMenu(
   e: MouseEvent,
   config: ILunaConfig,
   socket: WebSocket,
   terminalId: string,
-  termSelectionText: string
-) => {
-  if (e.ctrlKey || config.quickPaste !== '1') return;
+  termSelectionText: string,
+) {
+  if (e.ctrlKey || config.quickPaste !== '1')
+    return;
 
   let text: string = '';
 
   try {
     text = await readText();
-  } catch (e) {
-    if (termSelectionText !== '') text = termSelectionText;
+  }
+  catch {
+    if (termSelectionText !== '')
+      text = termSelectionText;
   }
   e.preventDefault();
 
   socket.send(formatMessage(terminalId, 'TERMINAL_DATA', text));
-};
+}
 
 /**
  * CustomTerminal Resize 事件处理
@@ -61,13 +63,7 @@ export const handleContextMenu = async (
  * @param terminalId
  * @param socket
  */
-export const handleTerminalResize = (
-  cols: number,
-  rows: number,
-  type: string,
-  terminalId: string,
-  socket: WebSocket
-) => {
+export function handleTerminalResize(cols: number, rows: number, type: string, terminalId: string, socket: WebSocket) {
   let data;
 
   const treeStore = useTreeStore();
@@ -88,15 +84,14 @@ export const handleTerminalResize = (
       container: currentItem.container,
       type: eventType,
       id: terminalId,
-      resizeData
+      resizeData,
     };
   }
 
   socket.send(formatMessage(terminalId, eventType, data));
-};
+}
 
 const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: string) => {
-  console.log('key');
   switch (key) {
     case 'ArrowRight':
       sendEventToLuna('KEYEVENT', 'alt+shift+right', lunaId, origin);
@@ -115,11 +110,12 @@ const debouncedSwitchTab = useDebounceFn((lunaId: string, origin: string, key: s
  * @param lunaId
  * @param origin
  */
-export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal, lunaId: string, origin: string): boolean => {
+export function handleCustomKey(e: KeyboardEvent, terminal: Terminal, lunaId: string, origin: string): boolean {
   if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
     if (lunaId && origin) {
       debouncedSwitchTab(lunaId, origin, e.key);
-    } else {
+    }
+    else {
       mittBus.emit(e.key === 'ArrowRight' ? 'alt-shift-right' : 'alt-shift-left');
     }
     return false;
@@ -130,7 +126,7 @@ export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal, lunaId: st
   }
 
   return !(e.ctrlKey && e.key === 'v');
-};
+}
 
 /**
  *左键选中
@@ -138,20 +134,23 @@ export const handleCustomKey = (e: KeyboardEvent, terminal: Terminal, lunaId: st
  * @param terminal
  * @param termSelectionText
  */
-export const handleTerminalSelection = async (terminal: Terminal, termSelectionText: Ref<string>) => {
+export async function handleTerminalSelection(terminal: Terminal, termSelectionText: Ref<string>) {
   termSelectionText.value = terminal.getSelection().trim();
 
   if (termSelectionText.value !== '') {
     clipboard
       .writeText(termSelectionText.value)
-      .then(() => {})
-      .catch(e => {
+      .then(() => {
+        // Copy successful
+      })
+      .catch((e) => {
         message.error(`Copy Error for ${e}`);
       });
-  } else {
+  }
+  else {
     // message.warning('Please select the text before copying');
   }
-};
+}
 
 /**
  * 处理 CustomTerminal 的输入事件
@@ -162,13 +161,13 @@ export const handleTerminalSelection = async (terminal: Terminal, termSelectionT
  * @param config
  * @param socket
  */
-export const handleTerminalOnData = (
+export function handleTerminalOnData(
   data: string,
   type: string,
   terminalId: string,
   config: ILunaConfig,
-  socket: WebSocket
-) => {
+  socket: WebSocket,
+) {
   const terminalStore = useTerminalStore();
   const { enableZmodem, zmodemStatus } = storeToRefs(terminalStore);
 
@@ -188,13 +187,13 @@ export const handleTerminalOnData = (
 
     // 获取默认的消息体
     const messageData = {
-      data: data,
+      data,
       id: terminalId,
       type: eventType,
       pod: node.pod || '',
       k8s_id: node.k8s_id,
       namespace: node.namespace || '',
-      container: node.container || ''
+      container: node.container || '',
     };
 
     // 如果有子节点但不是父节点，取第一个子节点的信息
@@ -204,7 +203,7 @@ export const handleTerminalOnData = (
         pod: currentItem.pod,
         k8s_id: currentItem.k8s_id,
         namespace: currentItem.namespace,
-        container: currentItem.container
+        container: currentItem.container,
       });
     }
 
@@ -215,28 +214,23 @@ export const handleTerminalOnData = (
   // 处理非 k8s 的情况
   sendEventToLuna('KEYBOARDEVENT', '');
   socket.send(formatMessage(terminalId, eventType, data));
-};
+}
 
 /**
  * Socket 打开时的回调
- *
- * @param socket
- * @param lastSendTime
- * @param pingInterval
- * @param lastReceiveTime
- * @param terminalId
  */
-export const onWebsocketOpen = (
+export function onWebsocketOpen(
   socket: WebSocket,
   lastSendTime: Date,
   terminalId: string,
   pingInterval: Ref<number | null>,
-  lastReceiveTime: Ref<Date>
-) => {
+  lastReceiveTime: Ref<Date>,
+) {
   socket.binaryType = 'arraybuffer';
   sendEventToLuna('CONNECTED', '');
 
-  if (pingInterval.value) clearInterval(pingInterval.value);
+  if (pingInterval.value)
+    clearInterval(pingInterval.value);
 
   pingInterval.value = setInterval(() => {
     if (socket.CLOSED === socket.readyState || socket.CLOSING === socket.readyState) {
@@ -246,20 +240,22 @@ export const onWebsocketOpen = (
     const currentDate: Date = new Date();
 
     if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
+      console.warn('Connection timeout detected');
     }
 
     const pingTimeout: number = currentDate.getTime() - lastSendTime.getTime();
 
-    if (pingTimeout < 0) return;
+    if (pingTimeout < 0)
+      return;
 
     socket.send(formatMessage(terminalId, 'PING', ''));
   }, 25 * 1000);
-};
+}
 
 /**
  * 生成 Socket url
  */
-export const generateWsURL = () => {
+export function generateWsURL() {
   const route = useRoute();
 
   const routeName = route.name;
@@ -275,7 +271,7 @@ export const generateWsURL = () => {
       requireParams.append('type', 'token');
       requireParams.append('target_id', params.id ? params.id.toString() : '');
 
-      connectURL = BASE_WS_URL + '/koko/ws/token/?' + requireParams.toString();
+      connectURL = `${BASE_WS_URL}/koko/ws/token/?${requireParams.toString()}`;
       break;
     }
     case 'TokenParams': {
@@ -293,7 +289,7 @@ export const generateWsURL = () => {
       requireParams.append('type', 'share');
       requireParams.append('target_id', id);
 
-      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      connectURL = `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`;
       break;
     }
     case 'Monitor': {
@@ -303,7 +299,7 @@ export const generateWsURL = () => {
       requireParams.append('type', 'monitor');
       requireParams.append('target_id', id);
 
-      connectURL = BASE_WS_URL + '/koko/ws/terminal/?' + requireParams.toString();
+      connectURL = `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`;
       break;
     }
     default: {
@@ -316,35 +312,38 @@ export const generateWsURL = () => {
   }
 
   return connectURL;
-};
+}
 
 /**
  * Socket 出错或断开连接的回调
  *
  * @param event
- * @param terminal
  * @param type
+ * @param terminal
  */
-export const onWebsocketWrong = (event: Event, type: string, terminal?: Terminal) => {
+export function onWebsocketWrong(event: Event, type: string, terminal?: Terminal) {
   switch (type) {
     case 'error': {
-      terminal ? terminal.write('\x1b[31mConnection Websocket Error\x1b[0m' + '\r\n') : '';
+      if (terminal) {
+        terminal.write('\x1B[31mConnection Websocket Error\x1B[0m' + '\r\n');
+      }
       break;
     }
     case 'disconnected': {
-      terminal ? terminal.write('\x1b[31mConnection Websocket Closed\x1b[0m') : '';
+      if (terminal) {
+        terminal.write('\x1B[31mConnection Websocket Closed\x1B[0m');
+      }
       break;
     }
   }
 
   fireEvent(new Event('CLOSE', {}));
-};
+}
 
 /**
  * @description 将 Base64 转化为字节数组
- * @param base64
  */
-export const base64ToUint8Array = (base64: string): Uint8Array => {
+export function base64ToUint8Array(base64: string): Uint8Array {
   // 转为原始的二进制字符串（binaryString）。
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -354,17 +353,17 @@ export const base64ToUint8Array = (base64: string): Uint8Array => {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
-};
+}
 
 /**
  * @description 更新网页图标。
  *
  * @param {any} setting - 包含 LOGO_URLS 配置的设置对象。
  */
-export const updateIcon = (setting: any) => {
+export function updateIcon(setting: any) {
   const faviconURL = setting.INTERFACE.favicon;
 
-  let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+  let link = document.querySelector('link[rel*=\'icon\']') as HTMLLinkElement;
 
   if (!link) {
     link = document.createElement('link') as HTMLLinkElement;
@@ -376,4 +375,4 @@ export const updateIcon = (setting: any) => {
   if (faviconURL) {
     link.href = faviconURL;
   }
-};
+}

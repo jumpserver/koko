@@ -1,5 +1,6 @@
-import mitt, { Emitter } from 'mitt';
-import type { LunaMessageEvents, LunaMessage } from '@/types/modules/postmessage.type';
+import type { Emitter } from 'mitt';
+import type { LunaMessage, LunaMessageEvents } from '@/types/modules/postmessage.type';
+import mitt from 'mitt';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 // 获取所有事件类型
@@ -7,13 +8,10 @@ export type LunaEventType = keyof LunaMessageEvents;
 
 // 创建事件-数据映射类型
 type EventPayloadMap = {
-  [K in LunaEventType]: LunaMessageEvents[K]['data'] extends undefined
-  ? void
-  : LunaMessageEvents[K]['data'];
+  [K in LunaEventType]: LunaMessageEvents[K]['data'] extends undefined ? void : LunaMessageEvents[K]['data'];
 };
 
 const allEventTypes = Object.keys(LUNA_MESSAGE_TYPE) as LunaEventType[];
-
 
 class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
   private mitt: Emitter<T>;
@@ -35,7 +33,6 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
           this.targetOrigin = event.origin;
           this.protocol = message.protocol;
           this.sendLuna(LUNA_MESSAGE_TYPE.PONG, '');
-          console.log(`LunaBus initialized with ID: ${this.lunaId}, Origin: ${this.targetOrigin}, Protocol: ${this.protocol}`);
           break;
         default:
           // 处理其他类型的消息
@@ -43,19 +40,21 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
             const eventType = message.name as keyof T;
             const data = message as T[keyof T];
             this.mitt.emit(eventType, data);
-          } else {
+          }
+          else {
             console.warn(`Unhandled message type: ${message.name}`, message);
           }
       }
-
     });
   }
+
   // 发送消息到目标窗口
   public sendLuna<K extends keyof T>(name: K, data: T[K]) {
     if (!this.lunaId || !this.targetOrigin) {
       console.warn('Target window not set');
     }
-    window.parent.postMessage({ name: name, id: this.lunaId, data }, this.targetOrigin);
+
+    window.parent.postMessage({ name, id: this.lunaId, data }, this.targetOrigin);
   }
 
   // 监听事件
@@ -76,7 +75,6 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
     };
     this.onLuna(type, onceHandler);
   }
-
 
   // 销毁实例
   public destroy() {

@@ -1,35 +1,30 @@
-<template>
-  <div id="terminal-container" class="w-screen h-screen" @mouseleave="mouseleave"></div>
-</template>
-
 <script setup lang="ts">
-import { Terminal } from '@xterm/xterm';
+import type { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
+import type { LunaEventType } from '@/utils/lunaBus';
+import { useDebounceFn, useWebSocket, useWindowSize } from '@vueuse/core';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
-import xtermTheme from 'xterm-theme';
-import { useI18n } from 'vue-i18n';
+import { Terminal } from '@xterm/xterm';
+import { readText, writeText } from 'clipboard-polyfill';
 import { useMessage } from 'naive-ui';
-import { onMounted, onUnmounted, ref, nextTick, watch } from 'vue';
-import { useDebounceFn, useWebSocket } from '@vueuse/core';
-import { writeText, readText } from 'clipboard-polyfill';
 
-import { LUNA_MESSAGE_TYPE, FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
-import { defaultTheme } from '@/utils/config';
-import { lunaCommunicator, LunaEventType } from '@/utils/lunaBus';
-import { formatMessage } from '@/utils';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import xtermTheme from 'xterm-theme';
 import { generateWsURL } from '@/hooks/helper';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
+import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { formatMessage } from '@/utils';
+import { defaultTheme } from '@/utils/config';
 import { getDefaultTerminalConfig } from '@/utils/guard';
-import { useWindowSize } from '@vueuse/core';
-
-const { width, height } = useWindowSize();
-const { t } = useI18n();
-const message = useMessage();
+import { lunaCommunicator } from '@/utils/lunaBus';
 
 const props = defineProps<{
   shareCode?: string;
 }>();
+const { width, height } = useWindowSize();
+const { t } = useI18n();
+const message = useMessage();
 
 const fitAddon = new FitAddon();
 const searchAddon = new SearchAddon();
@@ -53,7 +48,7 @@ const debouncedSendLunaKey = useDebounceFn((key: string) => {
 
 const socket = ref<WebSocket | ''>('');
 
-const setupTerminalEvent = (terminal: Terminal) => {
+function setupTerminalEvent(terminal: Terminal) {
   terminal.onSelectionChange(async () => {
     terminalSelectionText.value = terminal.getSelection().trim();
 
@@ -63,20 +58,19 @@ const setupTerminalEvent = (terminal: Terminal) => {
 
     await writeText(terminalSelectionText.value);
   });
-};
+}
 /**
  * @description 创建 WebSocket 连接
- * @returns {WebSocket | ''}
  */
-const createSocket = (): WebSocket | '' => {
+function createSocket(): WebSocket | '' {
   const url = generateWsURL();
 
   const { ws } = useWebSocket(url, {
     protocols: ['JMS-KOKO'],
     autoReconnect: {
       retries: 5,
-      delay: 3000
-    }
+      delay: 3000,
+    },
   });
 
   if (ws.value) {
@@ -84,45 +78,46 @@ const createSocket = (): WebSocket | '' => {
   }
   message.error('Failed to create WebSocket connection');
   return '';
-};
+}
 
-const getXtermTheme = (themeName: string) => {
+function getXtermTheme(themeName: string) {
   if (!xtermTheme[themeName]) {
     return defaultTheme;
   }
   return xtermTheme[themeName];
-};
+}
 
 const defaultTerminalCfg = ref(getDefaultTerminalConfig());
 
-const createXtermInstance = () => {
-  const xterminal = new Terminal({
+function createXtermInstance() {
+  const xTerminal = new Terminal({
     allowProposedApi: true,
     rightClickSelectsWord: true,
     scrollback: 5000,
     theme: getXtermTheme(defaultTerminalCfg.value.themeName),
     fontSize: defaultTerminalCfg.value.fontSize,
     lineHeight: defaultTerminalCfg.value.lineHeight,
-    fontFamily: defaultTerminalCfg.value.fontFamily
+    fontFamily: defaultTerminalCfg.value.fontFamily,
   });
-  xterminal.loadAddon(fitAddon);
-  xterminal.loadAddon(searchAddon);
-  return xterminal;
-};
+  xTerminal.loadAddon(fitAddon);
+  xTerminal.loadAddon(searchAddon);
+  return xTerminal;
+}
 
 watch(
   [width, height],
   ([_newWidth, _newHeight]) => {
-    if (!terminalInstance.value || !fitAddon) return;
+    if (!terminalInstance.value || !fitAddon)
+      return;
     nextTick(() => {
       // 调整终端大小
       fitAddon.fit();
     });
   },
-  { immediate: false }
+  { immediate: false },
 );
 
-const getXTerminalLineContent = (index: number) => {
+function getXTerminalLineContent(index: number) {
   const buffer = terminalInstance.value?.buffer.active;
   if (!buffer) {
     return '';
@@ -143,9 +138,9 @@ const getXTerminalLineContent = (index: number) => {
     result.unshift(line.translateToString());
   }
   return result.join('\n');
-};
+}
 
-const mouseleave = () => {
+function mouseleave() {
   if (!terminalInstance.value) {
     message.error('Terminal instance is not initialized');
     return;
@@ -154,18 +149,18 @@ const mouseleave = () => {
   lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
     content: getXTerminalLineContent(10),
     sessionId: sessionId.value,
-    terminalId: terminalId.value
+    terminalId: terminalId.value,
   });
-};
+}
 
 // 声明处理函数
-const handleDocumentClick = () => {
+function handleDocumentClick() {
   if (!terminalInstance.value) {
     message.error('Terminal instance is not initialized');
     return;
   }
   lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLICK, '');
-};
+}
 onMounted(() => {
   socket.value = createSocket();
   if (!socket.value) {
@@ -184,7 +179,6 @@ onMounted(() => {
       default:
         lunaCommunicator.sendLuna(event as LunaEventType, data);
     }
-    console.log('Send luna event:', event, data);
   });
 
   eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
@@ -199,8 +193,6 @@ onMounted(() => {
     if (info.backspaceAsCtrlH) {
       defaultTerminalCfg.value.backspaceAsCtrlH = info.backspaceAsCtrlH ? '1' : '0';
     }
-
-    console.log('Received terminal session info:', info);
   });
 
   eventBus.on('terminal-connect', ({ id }) => {
@@ -223,18 +215,20 @@ onMounted(() => {
   terminalContainer.addEventListener(
     'contextmenu',
     async (e: MouseEvent) => {
-      if (e.ctrlKey || defaultTerminalCfg.value.quickPaste !== '1') return;
+      if (e.ctrlKey || defaultTerminalCfg.value.quickPaste !== '1')
+        return;
       e.preventDefault();
       let text: string = '';
       try {
         text = await readText();
-      } catch (_e) {
+      }
+      catch (e) {
         if (terminalSelectionText.value) {
+          console.error(e);
           text = terminalSelectionText.value;
         }
       }
       if (!text) {
-        console.log('No text to paste');
         return;
       }
 
@@ -244,7 +238,7 @@ onMounted(() => {
       }
       socket.value.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
     },
-    false
+    false,
   );
   terminalInstance.value.attachCustomKeyEventHandler((e: KeyboardEvent) => {
     if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
@@ -303,8 +297,6 @@ onMounted(() => {
   };
 
   const handleCreateShareUrl = (shareLinkRequest: ShareUserRequest) => {
-    console.log('Received share code request:', shareLinkRequest);
-
     if (!socket.value) {
       message.error('WebSocket connection is not established');
       return;
@@ -316,17 +308,16 @@ onMounted(() => {
         terminalId.value,
         FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE,
         JSON.stringify({
-          origin: origin,
+          origin,
           session: shareLinkRequest.data.sessionId,
           users: data.users,
           expired_time: data.expired_time,
-          action_permission: perm
-        })
-      )
+          action_permission: perm,
+        }),
+      ),
     );
   };
   const handleRemoveShareUser = (msg: LunaMessage) => {
-    console.log('Received remove share user request:', msg);
     if (!socket.value) {
       message.error('WebSocket connection is not established');
       return;
@@ -341,9 +332,9 @@ onMounted(() => {
         FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE,
         JSON.stringify({
           session: sessionId.value,
-          user_meta: msg.data || {}
-        })
-      )
+          user_meta: msg.data || {},
+        }),
+      ),
     );
   };
 
@@ -354,9 +345,9 @@ onMounted(() => {
     }
     const content = getXTerminalLineContent(10);
     const data = {
-      content: content,
+      content,
       sessionId: sessionId.value,
-      terminalId: terminalId.value
+      terminalId: terminalId.value,
     };
     lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, data);
   };
@@ -381,6 +372,10 @@ onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick);
 });
 </script>
+
+<template>
+  <div id="terminal-container" class="w-screen h-screen" @mouseleave="mouseleave" />
+</template>
 
 <style scoped lang="scss">
 #terminal-container {

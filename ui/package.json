@@ -1,14 +1,16 @@
 {
   "name": "koko-terminal",
-  "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "version": "0.0.0",
+  "private": true,
   "scripts": {
-    "serve": "vue-tsc -b && vite",
-    "dev": "vue-tsc -b && vite",
-    "build": "vue-tsc -b && vite build",
+    "lint": "eslint",
     "preview": "vite preview",
+    "lint:fix": "eslint --fix",
     "check": "vue-tsc --noEmit",
+    "dev": "vue-tsc -b && vite",
+    "serve": "vue-tsc -b && vite",
+    "build": "vue-tsc -b && vite build",
     "prettier": "prettier --write \"src/**/*.{js,ts,json,tsx,css,less,scss,vue,html,md}\""
   },
   "dependencies": {
@@ -26,7 +28,6 @@
     "mitt": "^3.0.1",
     "naive-ui": "^2.39.0",
     "nora-zmodemjs": "^1.1.1",
-    "normalize.css": "^8.0.1",
     "pinia": "^3.0.2",
     "pretty-bytes": "^7.0.0",
     "sortablejs": "^1.15.3",
@@ -40,6 +41,7 @@
     "xterm-theme": "^1.1.0"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "^4.16.1",
     "@eslint/js": "^9.23.0",
     "@types/node": "^20.14.11",
     "@types/sortablejs": "^1.15.0",

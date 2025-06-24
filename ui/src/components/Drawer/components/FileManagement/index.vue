@@ -1,27 +1,17 @@
-<template>
-  <template v-if="isLoaded">
-    <FileManage :columns="columns" />
-  </template>
-
-  <template v-else>
-    <n-spin size="small" class="absolute w-full h-full" />
-  </template>
-</template>
-
 <script setup lang="ts">
-import prettyBytes from 'pretty-bytes';
-import FileManage from './fileManage/index.vue';
-
-import { Folder,File } from '@vicons/tabler';
-import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
-
-import { useI18n } from 'vue-i18n';
-import { h, ref, watch, onUnmounted } from 'vue';
-import { useFileManage } from '@/hooks/useFileManage.ts';
-import { useFileManageStore } from '@/store/modules/fileManage.ts';
-
 import type { DataTableColumns } from 'naive-ui';
 import type { ISettingProp } from '@/types';
+
+import { File, Folder } from '@vicons/tabler';
+import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
+
+import prettyBytes from 'pretty-bytes';
+import { h, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useFileManage } from '@/hooks/useFileManage.ts';
+
+import { useFileManageStore } from '@/store/modules/fileManage.ts';
+import FileManage from './fileManage/index.vue';
 
 export interface RowData {
   is_dir: boolean;
@@ -36,13 +26,13 @@ const props = withDefaults(
   defineProps<{
     showTab?: boolean;
     settings?: ISettingProp[];
-    sftpToken: string;
+    sftpToken?: string;
   }>(),
   {
     settings: () => [],
     sftpToken: '',
-    showTab: false
-  }
+    showTab: false,
+  },
 );
 
 const { t } = useI18n();
@@ -54,15 +44,15 @@ const fileManageSocket = ref<WebSocket | undefined>(undefined);
 
 watch(
   () => fileManageStore.fileList,
-  fileList => {
+  (fileList) => {
     if (fileList) {
       tableData.value = fileList;
       isLoaded.value = true;
     }
   },
   {
-    immediate: true
-  }
+    immediate: true,
+  },
 );
 
 watch(
@@ -72,19 +62,19 @@ watch(
       fileManageSocket.value.close();
     }
     if (newValue && newValue !== oldValue) {
-     try {
+      try {
         fileManageSocket.value = useFileManage(newValue, t);
-      } catch (error) {
+      }
+      catch (error) {
         console.error('Failed to initialize file management socket:', error);
         isLoaded.value = true; // 即使失败也设置加载完成，避免一直显示加载状态
       }
     }
   },
   {
-    immediate: true
-  }
+    immediate: true,
+  },
 );
-
 
 // ai added to close the WebSocket connection when the component is unmounted
 onUnmounted(() => {
@@ -97,14 +87,14 @@ onUnmounted(() => {
 /**
  * @description 生成表头
  */
- const createColumns = (): DataTableColumns<RowData> => {
+function createColumns(): DataTableColumns<RowData> {
   return [
     {
       title: t('Name'),
       key: 'name',
       width: 160,
       ellipsis: {
-        tooltip: true
+        tooltip: true,
       },
       render(row) {
         return h(
@@ -112,8 +102,8 @@ onUnmounted(() => {
           {
             align: 'center',
             style: {
-              flexWrap: 'no-wrap'
-            }
+              flexWrap: 'no-wrap',
+            },
           },
           {
             default: () => [
@@ -128,8 +118,8 @@ onUnmounted(() => {
                   align: 'flex-start',
                   style: {
                     flexDirection: 'column',
-                    rowGap: '0px'
-                  }
+                    rowGap: '0px',
+                  },
                 },
                 {
                   default: () => [
@@ -138,8 +128,8 @@ onUnmounted(() => {
                       {
                         style: {
                           maxWidth: '145px',
-                          cursor: 'pointer'
-                        }
+                          cursor: 'pointer',
+                        },
                       },
                       {
                         default: () =>
@@ -147,13 +137,13 @@ onUnmounted(() => {
                             NText,
                             {
                               depth: 1,
-                              strong: true
+                              strong: true,
                             },
                             {
-                              default: () => row.name
-                            }
-                          )
-                      }
+                              default: () => row.name,
+                            },
+                          ),
+                      },
                     ),
                     h(
                       NText,
@@ -161,24 +151,25 @@ onUnmounted(() => {
                         depth: 3,
                         strong: true,
                         style: {
-                          fontSize: '10px'
-                        }
+                          fontSize: '10px',
+                        },
                       },
                       {
                         default: () => {
-                          if (row.name === '..') return;
+                          if (row.name === '..')
+                            return;
 
                           return row.perm ? row.perm : '-';
-                        }
-                      }
-                    )
-                  ]
-                }
-              )
-            ]
-          }
+                        },
+                      },
+                    ),
+                  ],
+                },
+              ),
+            ],
+          },
         );
-      }
+      },
     },
     {
       title: t('Size'),
@@ -190,19 +181,29 @@ onUnmounted(() => {
           NText,
           {
             depth: 1,
-            strong: true
+            strong: true,
           },
           {
-            default: () => prettyBytes(Number(row.size))
-          }
+            default: () => prettyBytes(Number(row.size)),
+          },
         );
-      }
-    }
+      },
+    },
   ];
-};
+}
 
 const columns = createColumns();
 </script>
+
+<template>
+  <template v-if="isLoaded">
+    <FileManage :columns="columns" />
+  </template>
+
+  <template v-else>
+    <n-spin size="small" class="absolute w-full h-full" />
+  </template>
+</template>
 
 <style scoped lang="scss">
 ::v-deep(.n-tabs-pane-wrapper) {
