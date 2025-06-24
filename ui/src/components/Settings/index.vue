@@ -1,3 +1,27 @@
+<script setup lang="ts">
+import type { ISettingProp } from '@/types';
+import { onMounted, onUnmounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import mittBus from '@/utils/mittBus';
+
+withDefaults(
+  defineProps<{
+    settings: ISettingProp[];
+  }>(),
+  {},
+);
+const { t } = useI18n();
+const showDrawer = ref<boolean>(false);
+onMounted(() => {
+  mittBus.on('open-setting', () => {
+    showDrawer.value = !showDrawer.value;
+  });
+});
+onUnmounted(() => {
+  mittBus.off('open-setting');
+});
+</script>
+
 <template>
   <n-drawer v-model:show="showDrawer" :width="260">
     <n-drawer-content :native-scrollbar="false" :title="t('Settings')" closable>
@@ -21,7 +45,7 @@
               <n-thing class="ml-[15px] mt-[10px]">
                 <template #header>
                   <n-flex align="center" justify="center">
-                    <n-icon :component="item.icon" :size="18"></n-icon>
+                    <n-icon :component="item.icon" :size="18" />
                     <n-text class="text-[14px]">
                       {{ item.title }}
                       {{ `(${item?.content() ? item?.content().length : 0})` }}
@@ -66,7 +90,7 @@
               <n-thing class="ml-[15px] mt-[10px]">
                 <template #header>
                   <n-flex align="center" justify="center">
-                    <n-icon :component="item.icon" :size="18"></n-icon>
+                    <n-icon :component="item.icon" :size="18" />
                     <n-text class="text-[14px]">
                       {{ item.title }}
                     </n-text>
@@ -108,29 +132,6 @@
     </n-drawer-content>
   </n-drawer>
 </template>
-
-<script setup lang="ts">
-import mittBus from '@/utils/mittBus';
-import { onMounted, onUnmounted, ref } from 'vue';
-import { ISettingProp } from '@/types';
-import { useI18n } from 'vue-i18n';
-withDefaults(
-  defineProps<{
-    settings: ISettingProp[];
-  }>(),
-  {}
-);
-const { t } = useI18n();
-const showDrawer = ref<boolean>(false);
-onMounted(() => {
-  mittBus.on('open-setting', () => {
-    showDrawer.value = !showDrawer.value;
-  });
-});
-onUnmounted(() => {
-  mittBus.off('open-setting');
-});
-</script>
 
 <style scoped lang="scss">
 :deep(.n-tag__content) {

@@ -1,26 +1,27 @@
+import type { DataTableColumns } from 'naive-ui';
+
+import type { RowData } from '@/types/modules/table.type';
 import dayjs from 'dayjs';
-import { reactive } from 'vue';
 import { NText } from 'naive-ui';
+
 import { useI18n } from 'vue-i18n';
 import { getFileName } from '@/utils';
 
-import type { DataTableColumns, TreeOption } from 'naive-ui';
-import type { RowData } from '@/types/modules/table.type';
-
-export const useTable = () => {
+export function useTable() {
   /**
    * @description 处理 size
    */
   const formatBytes = (bytes: string | number, decimals: number = 2): string => {
-    const byteNumber = typeof bytes === 'string' ? parseInt(bytes, 10) : Number(bytes);
+    const byteNumber = typeof bytes === 'string' ? Number.parseInt(bytes, 10) : Number(bytes);
 
-    if (isNaN(byteNumber) || byteNumber <= 0) return '0 Byte';
+    if (Number.isNaN(byteNumber) || byteNumber <= 0)
+      return '0 Byte';
 
     const units = ['Byte', 'KB', 'MB', 'GB', 'TB', 'PB'];
 
     const i = Math.floor(Math.log2(byteNumber) / Math.log2(1024));
 
-    return (byteNumber / Math.pow(1024, i)).toFixed(decimals) + ' ' + units[Math.min(i, units.length - 1)];
+    return `${(byteNumber / 1024 ** i).toFixed(decimals)} ${units[Math.min(i, units.length - 1)]}`;
   };
 
   const createColumns = (): DataTableColumns<RowData> => {
@@ -31,15 +32,15 @@ export const useTable = () => {
         title: t('Name'),
         key: 'name',
         ellipsis: {
-          tooltip: true
-        }
+          tooltip: true,
+        },
       },
       {
         title: t('LastModified'),
         key: 'mod_time',
         align: 'center',
         ellipsis: {
-          tooltip: true
+          tooltip: true,
         },
         render: (row: RowData) => {
           return (
@@ -47,12 +48,12 @@ export const useTable = () => {
               {row.mod_time ? dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss') : '-'}
             </NText>
           );
-        }
+        },
       },
       {
         title: t('ActionPerm'),
         key: 'perm',
-        align: 'center'
+        align: 'center',
       },
       {
         title: t('Size'),
@@ -64,7 +65,7 @@ export const useTable = () => {
               {formatBytes(row.size)}
             </NText>
           );
-        }
+        },
       },
       {
         title: t('Type'),
@@ -76,12 +77,12 @@ export const useTable = () => {
               {getFileName(row)}
             </NText>
           );
-        }
-      }
+        },
+      },
     ];
   };
 
   return {
-    createColumns
+    createColumns,
   };
-};
+}

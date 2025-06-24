@@ -3,8 +3,8 @@ import { useCookies } from 'vue3-cookies';
 const PORT = document.location.port ? `:${document.location.port}` : '';
 const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
 
-export const BASE_WS_URL = SCHEME + '://' + document.location.hostname + PORT;
-export const BASE_URL = document.location.protocol + '//' + document.location.hostname + PORT;
+export const BASE_WS_URL = `${SCHEME}://${document.location.hostname}${PORT}`;
+export const BASE_URL = `${document.location.protocol}//${document.location.hostname}${PORT}`;
 
 const { cookies } = useCookies();
 
@@ -42,9 +42,8 @@ export const defaultTheme = {
   brightBlue: '#729fcf',
   brightMagenta: '#ad7fa8',
   brightCyan: '#34e2e2',
-  brightWhite: '#eeeeec'
+  brightWhite: '#eeeeec',
 };
-
 
 // 图片类型的
 export const FILE_SUFFIX_IMAGE = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'ico', 'svg', 'heic', 'heif'];
@@ -71,7 +70,7 @@ export const FILE_SUFFIX_VIDEO = [
   'mts',
   'ts',
   'm2t',
-  'm2ts'
+  'm2ts',
 ];
 // 压缩包类型的
 export const FILE_SUFFIX_COMPRESSION = [
@@ -95,7 +94,7 @@ export const FILE_SUFFIX_COMPRESSION = [
   'rpm',
   'msi',
   'exe',
-  'app'
+  'app',
 ];
 // 文档类型的
 export const FILE_SUFFIX_DOCUMENT = [
@@ -127,7 +126,7 @@ export const FILE_SUFFIX_DOCUMENT = [
   'config',
   'log',
   'lock',
-  'sock'
+  'sock',
 ];
 // 代码类型的
 export const FILE_SUFFIX_CODE = [
@@ -161,7 +160,7 @@ export const FILE_SUFFIX_CODE = [
   'ocaml',
   'erlang',
   'elixir',
-  'ocaml'
+  'ocaml',
 ];
 // 安装包类型的
 export const FILE_SUFFIX_INSTALL = ['deb', 'rpm', 'msi', 'exe', 'app', 'dmg', 'pkg', 'deb', 'rpm', 'msi', 'exe', 'app'];
@@ -175,5 +174,5 @@ export const FILE_SUFFIX_DATABASE = [
   'redis',
   'memcached',
   'sqlite',
-  'mariadb'
+  'mariadb',
 ];

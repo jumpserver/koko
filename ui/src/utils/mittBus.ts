@@ -1,12 +1,13 @@
-import mitt, { Emitter } from 'mitt';
-import { ManageTypes } from '@/hooks/useFileManage.ts';
-
-import type { Ref } from 'vue';
-import type { ShareUserOptions } from '@/types/modules/user.type';
+import type { Emitter } from 'mitt';
 import type { UploadFileInfo } from 'naive-ui';
-import type { customTreeOption } from '@/types/modules/config.type';
+import type { Ref } from 'vue';
 
-type Event = {
+import type { ManageTypes } from '@/hooks/useFileManage.ts';
+import type { customTreeOption } from '@/types/modules/config.type';
+import type { ShareUserOptions } from '@/types/modules/user.type';
+import mitt from 'mitt';
+
+interface Event {
   'remove-event': void;
   'alt-shift-right': void;
   'alt-shift-left': void;
@@ -42,7 +43,7 @@ type Event = {
     };
   };
   'writeDataToTerminal': { type: string };
-};
+}
 
 const mittBus: Emitter<Event> = mitt();
 

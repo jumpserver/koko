@@ -1,5 +1,5 @@
-import { Component } from 'vue';
-import { Composer } from 'vue-i18n';
+import type { Component } from 'vue';
+import type { Composer } from 'vue-i18n';
 
 export type TranslateFunction = Composer['t'];
 

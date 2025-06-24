@@ -1,14 +1,10 @@
-<template>
-  <Terminal v-if="shareCode" :share-code="shareCode" />
-</template>
-
 <script setup lang="ts">
-import Terminal from '@/components/Terminal/index.vue';
-
-import { useI18n } from 'vue-i18n';
-import { onMounted, ref } from 'vue';
-import { dialogContent } from './dialogContent';
 import { useDialog, useMessage } from 'naive-ui';
+
+import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Terminal from '@/components/Terminal/index.vue';
+import { dialogContent } from './dialogContent';
 
 const { t } = useI18n();
 const dialog = useDialog();
@@ -28,7 +24,7 @@ onMounted(() => {
     positiveText: t('ConfirmBtn'),
     positiveButtonProps: {
       size: 'small',
-      type: 'primary'
+      type: 'primary',
     },
     content: contentInstance.render,
     onPositiveClick: () => {
@@ -40,7 +36,11 @@ onMounted(() => {
       }
 
       return true;
-    }
+    },
   });
 });
 </script>
+
+<template>
+  <Terminal v-if="shareCode" :share-code="shareCode" />
+</template>

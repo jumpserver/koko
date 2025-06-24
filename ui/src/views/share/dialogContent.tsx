@@ -1,8 +1,8 @@
-import { ref } from 'vue';
 import { NInput } from 'naive-ui';
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-export const dialogContent = () => {
+export function dialogContent() {
   const { t } = useI18n();
 
   const verifyValue = ref('');
@@ -19,6 +19,6 @@ export const dialogContent = () => {
         placeholder={t('InputVerifyCode')}
       />
     ),
-    getValue: () => verifyValue.value
+    getValue: () => verifyValue.value,
   };
-};
+}

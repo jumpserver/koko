@@ -1,8 +1,7 @@
-import { defineStore } from 'pinia';
-
 import type { ObjToKeyValArray } from '@/types';
-import type { ITerminalSettings } from '@/types/modules/terminal.type';
 
+import type { ITerminalSettings } from '@/types/modules/terminal.type';
+import { defineStore } from 'pinia';
 
 export const useTerminalSettingsStore = defineStore('terminalSettings', {
   state: (): Partial<ITerminalSettings> => ({
@@ -13,14 +12,14 @@ export const useTerminalSettingsStore = defineStore('terminalSettings', {
     quickPaste: '0',
     ctrlCAsCtrlZ: '0',
     backspaceAsCtrlH: '0',
-    theme: ''
+    theme: '',
   }),
   getters: {
-    getConfig: state => state
+    getConfig: state => state,
   },
   actions: {
     setDefaultTerminalConfig(...args: ObjToKeyValArray<ITerminalSettings>) {
       this.$patch({ [args[0]]: args[1] });
-    }
-  }
+    },
+  },
 });

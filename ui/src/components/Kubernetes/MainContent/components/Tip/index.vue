@@ -1,9 +1,36 @@
+<script setup lang="ts">
+import { CheckmarkCircle } from '@vicons/ionicons5';
+import { reactive } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
+
+const systemTips = reactive([
+  {
+    content: t('Reselect connection method'),
+    action: t('Right click asset'),
+  },
+  {
+    content: t('Expand all asset'),
+    action: t('Right click node'),
+  },
+  {
+    content: t('Asset tree loading method'),
+    action: t('Settings or basic settings'),
+  },
+  {
+    content: t('Download the latest client'),
+    action: t('Help or download'),
+  },
+  {
+    content: t('Keyboard keys'),
+    action: t('Keyboard switch session'),
+  },
+]);
+</script>
+
 <template>
-  <n-layout-content
-    class="main-content"
-    content-style="padding: 24px;"
-    id="main-container"
-  >
+  <n-layout-content id="main-container" class="main-content" content-style="padding: 24px;">
     <n-list v-if="false" class="tips" :show-divider="false">
       <n-list-item v-for="(tip, index) of systemTips" :key="index">
         <n-flex align="center" style="flex-wrap: nowrap">
@@ -19,37 +46,6 @@
     </n-list>
   </n-layout-content>
 </template>
-
-<script setup lang="ts">
-import { reactive } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { CheckmarkCircle } from '@vicons/ionicons5';
-
-const { t } = useI18n();
-
-const systemTips = reactive([
-  {
-    content: t('Reselect connection method'),
-    action: t('Right click asset')
-  },
-  {
-    content: t('Expand all asset'),
-    action: t('Right click node')
-  },
-  {
-    content: t('Asset tree loading method'),
-    action: t('Settings or basic settings')
-  },
-  {
-    content: t('Download the latest client'),
-    action: t('Help or download')
-  },
-  {
-    content: t('Keyboard keys'),
-    action: t('Keyboard switch session')
-  }
-]);
-</script>
 
 <style scoped lang="scss">
 .main-content {

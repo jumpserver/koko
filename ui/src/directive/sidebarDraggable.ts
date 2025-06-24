@@ -1,4 +1,4 @@
-import { DirectiveBinding } from 'vue';
+import type { DirectiveBinding } from 'vue';
 
 export const draggable = {
   beforeMount(el: HTMLElement, binding: DirectiveBinding) {
@@ -38,5 +38,5 @@ export const draggable = {
     };
 
     el.addEventListener('mousedown', mouseDownHandler);
-  }
+  },
 };

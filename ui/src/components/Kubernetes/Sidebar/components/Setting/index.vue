@@ -1,3 +1,18 @@
+<script setup lang="ts">
+import { Settings } from '@vicons/carbon';
+import { useI18n } from 'vue-i18n';
+
+const props = defineProps<{
+  onClick: () => void;
+}>();
+
+const { t } = useI18n();
+
+function handleSetting() {
+  props.onClick();
+}
+</script>
+
 <template>
   <n-popover placement="right" trigger="hover">
     <template #trigger>
@@ -12,18 +27,3 @@
     {{ t('Custom Setting') }}
   </n-popover>
 </template>
-
-<script setup lang="ts">
-import { useI18n } from 'vue-i18n';
-import { Settings } from '@vicons/carbon';
-
-const { t } = useI18n();
-
-const props = defineProps<{
-  onClick: () => void;
-}>();
-
-const handleSetting = () => {
-  props.onClick();
-};
-</script>

@@ -1,27 +1,21 @@
-import { h, ref } from 'vue';
-import { bytesHuman, wsIsActivated } from '@/utils';
-import { createDiscreteApi, UploadFileInfo, darkTheme } from 'naive-ui';
+import type { Terminal } from '@xterm/xterm';
+import type { UploadFileInfo } from 'naive-ui';
+import type { DialogOptions } from 'naive-ui/es/dialog/src/DialogProvider';
+import type { Detection, Sentry, SentryConfig, ZmodemSession, ZmodemTransfer } from 'nora-zmodemjs/src/zmodem_browser';
 
-import { Terminal } from '@xterm/xterm';
-import { computed } from 'vue';
-import { MAX_TRANSFER_SIZE } from '@/utils/config';
+import type { Ref } from 'vue';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
+import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
+import { computed, h, ref } from 'vue';
 
 import Upload from '@/components/Upload/index.vue';
-
-import ZmodemBrowser, {
-  Detection,
-  Sentry,
-  SentryConfig,
-  ZmodemSession,
-  ZmodemTransfer
-} from 'nora-zmodemjs/src/zmodem_browser';
-import { Ref } from 'vue';
-import { DialogOptions } from 'naive-ui/es/dialog/src/DialogProvider';
+import { bytesHuman, wsIsActivated } from '@/utils';
+import { MAX_TRANSFER_SIZE } from '@/utils/config';
 
 const { message, dialog } = createDiscreteApi(['message', 'dialog'], {
   configProviderProps: {
-    theme: darkTheme
-  }
+    theme: darkTheme,
+  },
 });
 
 interface IUseSentry {
@@ -32,12 +26,21 @@ interface IUseSentry {
 let lastPercent = -1;
 let messageShown = false;
 
-export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
+export function useSentry(lastSendTime?: Ref<Date>, t?: any): IUseSentry {
   const term: Ref<Terminal | null> = ref(null);
   const fileList: Ref<UploadFileInfo[]> = ref([]);
   const sentryRef: Ref<Sentry | null> = ref(null);
   const zmodeSession: Ref<ZmodemSession | null> = ref(null);
   const fileListLengthRef: Ref<number> = ref(0);
+
+  // 处理 Upload 组件的 emit 事件
+  const handleUpdateFileList = (newFileList: UploadFileInfo[]) => {
+    fileList.value = newFileList;
+  };
+
+  const handleUpdateFileListLength = (newLength: number) => {
+    fileListLengthRef.value = newLength;
+  };
 
   const updateSendProgress = (name: string, total: number, percent: number) => {
     percent = Math.round(percent);
@@ -60,7 +63,7 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         messageShown = true;
       }
 
-      term.value?.write('\r' + msg);
+      term.value?.write(`\r${msg}`);
 
       lastPercent = percent;
     }
@@ -79,12 +82,16 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
       try {
         zmodeSession.value?.abort();
-      } catch (e) {}
+      }
+      catch {
+        // Ignore abort errors
+      }
 
       return true;
     }
 
-    if (!zmodeSession.value) return;
+    if (!zmodeSession.value)
+      return;
 
     const files = fileList.value.map(item => item.file as File);
 
@@ -102,15 +109,15 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       },
       on_file_complete: (obj: any) => {
         message.success(`${t('EndFileTransfer')}: ${t('UploadSuccess')} ${obj.name}`, {
-          duration: 2000
+          duration: 2000,
         });
-      }
+      },
     })
       .then(() => {
         zmodeSession.value?.close();
       })
       .catch((e: Error) => {
-        console.log(e);
+        console.error(e);
       });
   };
 
@@ -126,23 +133,26 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       negativeText: t('Cancel'),
       negativeButtonProps: {
         type: 'tertiary',
-        round: true
+        round: true,
       },
       positiveButtonProps: {
         type: 'tertiary',
-        round: true
+        round: true,
       },
       content: () =>
         h(Upload, {
           t,
-          fileList,
-          fileListLengthRef
+          'fileList': fileList.value,
+          'fileListLength': fileListLengthRef.value,
+          'onUpdate:fileList': handleUpdateFileList,
+          'onUpdate:fileListLength': handleUpdateFileListLength,
         }),
       onPositiveClick: async () => {
         if (fileListLengthRef.value === 0) {
           message.error(t('MustSelectOneFile'));
           return false;
-        } else {
+        }
+        else {
           handleUpload();
           return true;
         }
@@ -151,12 +161,13 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         if (zmodeSession.value) {
           try {
             zmodeSession.value.abort();
-          } catch (e) {
+          }
+          catch {
             return true;
           }
         }
         return true;
-      }
+      },
     };
   });
 
@@ -174,13 +185,14 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
     let percent;
     if (total === 0 || total === offset) {
       percent = 100;
-    } else {
+    }
+    else {
       percent = Math.round((offset / total) * 100);
     }
 
     const msg = `${t('Download')} ${name}: ${bytesHuman(total)} ${percent}% `;
 
-    terminal.write('\r' + msg);
+    terminal.write(`\r${msg}`);
   };
 
   /**
@@ -257,8 +269,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
         if (sentryRef.value && !sentryRef.value.get_confirmed_session()) {
           terminal.write(_octets);
         }
-      } catch (err) {
-        console.log('Failed to write to terminal');
+      }
+      catch {
+        console.warn('Failed to write to terminal');
       }
     };
 
@@ -270,8 +283,9 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
       try {
         lastSendTime && (lastSendTime.value = new Date());
         ws.send(new Uint8Array(octets));
-      } catch (err) {
-        console.log('Failed to send octets via WebSocket');
+      }
+      catch {
+        console.warn('Failed to send octets via WebSocket');
       }
     };
 
@@ -284,7 +298,8 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
 
       if (zsession.type === 'send') {
         handleSendSession(zsession, terminal);
-      } else {
+      }
+      else {
         handleReceiveSession(zsession, terminal);
       }
     };
@@ -304,4 +319,4 @@ export const useSentry = (lastSendTime?: Ref<Date>, t?: any): IUseSentry => {
   };
 
   return { createSentry, generateSentry };
-};
+}

@@ -1,14 +1,13 @@
-import { NavigationGuardNext } from 'vue-router';
-import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
+import type { NavigationGuardNext } from 'vue-router';
+import type { CommandLineConfig, ILocalTerminalConfig } from '@/types/modules/guard.type.ts';
 import type { ITerminalSettings } from '@/types/modules/terminal.type';
 
-
-import type { ILocalTerminalConfig, CommandLineConfig } from '@/types/modules/guard.type.ts';
+import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 
 /**
  * @description 获取本地 Termianl 配置
  */
-const getLocalKokoSetting = () => {
+function getLocalKokoSetting() {
   const terminalSettingsStore = useTerminalSettingsStore();
   const localTerminalSetting = localStorage.getItem('LunaSetting');
 
@@ -22,8 +21,8 @@ const getLocalKokoSetting = () => {
 
     if (commandLine) {
       fontSize = commandLine.character_terminal_font_size;
-      setDefaultTerminalConfig('quickPaste', commandLine.is_right_click_quickly_paste ? '1' : '0')
-      setDefaultTerminalConfig('backspaceAsCtrlH', commandLine.is_backspace_as_ctrl_h ? '1' : '0')
+      setDefaultTerminalConfig('quickPaste', commandLine.is_right_click_quickly_paste ? '1' : '0');
+      setDefaultTerminalConfig('backspaceAsCtrlH', commandLine.is_backspace_as_ctrl_h ? '1' : '0');
     }
 
     if (!fontSize || fontSize < 5 || fontSize > 50) {
@@ -34,14 +33,15 @@ const getLocalKokoSetting = () => {
   }
 }
 
-export const guard = (next: NavigationGuardNext) => {
+export function guard(next: NavigationGuardNext) {
   try {
     getLocalKokoSetting();
     next();
-  } catch (error) {
+  }
+  catch (error) {
     throw new Error(`Initialization failed: ${error}`);
   }
-};
+}
 
 export function getLocalDefaultKokoSetting(): CommandLineConfig {
   const localTerminalSetting = localStorage.getItem('LunaSetting');
@@ -62,10 +62,10 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
       const is_backspace_as_ctrl_h = commandLine.is_backspace_as_ctrl_h;
       const is_right_click_quickly_paste = commandLine.is_right_click_quickly_paste;
       const terminal_theme_name = commandLine.terminal_theme_name;
-      defaultCommandLine.character_terminal_font_size = fontSize? fontSize : 13;
-      defaultCommandLine.is_backspace_as_ctrl_h = is_backspace_as_ctrl_h? is_backspace_as_ctrl_h : false;
-      defaultCommandLine.is_right_click_quickly_paste = is_right_click_quickly_paste? is_right_click_quickly_paste : true;
-      defaultCommandLine.terminal_theme_name = terminal_theme_name? terminal_theme_name : 'Default';
+      defaultCommandLine.character_terminal_font_size = fontSize || 13;
+      defaultCommandLine.is_backspace_as_ctrl_h = is_backspace_as_ctrl_h || false;
+      defaultCommandLine.is_right_click_quickly_paste = is_right_click_quickly_paste || true;
+      defaultCommandLine.terminal_theme_name = terminal_theme_name || 'Default';
     }
 
     if (!fontSize || fontSize < 5 || fontSize > 50) {
@@ -74,7 +74,6 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
   }
   return defaultCommandLine;
 }
-
 
 export function getDefaultTerminalConfig(): ITerminalSettings {
   const defaultCommandLine = getLocalDefaultKokoSetting();
@@ -86,6 +85,6 @@ export function getDefaultTerminalConfig(): ITerminalSettings {
     quickPaste: defaultCommandLine.is_right_click_quickly_paste ? '1' : '0',
     ctrlCAsCtrlZ: '0',
     backspaceAsCtrlH: defaultCommandLine.is_backspace_as_ctrl_h ? '1' : '0',
-    theme: defaultCommandLine.terminal_theme_name
+    theme: defaultCommandLine.terminal_theme_name,
   };
 }

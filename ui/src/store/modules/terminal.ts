@@ -1,6 +1,6 @@
-import { defineStore } from 'pinia';
-
 import type { ITerminalConfig, ObjToKeyValArray } from '@/types/modules/store.type';
+
+import { defineStore } from 'pinia';
 
 export const useTerminalStore = defineStore('terminal', {
   state: (): ITerminalConfig => ({
@@ -17,14 +17,14 @@ export const useTerminalStore = defineStore('terminal', {
 
     currentTab: '',
 
-    termSelectionText: ''
+    termSelectionText: '',
   }),
   getters: {
-    getConfig: state => state
+    getConfig: state => state,
   },
   actions: {
     setTerminalConfig(...args: ObjToKeyValArray<ITerminalConfig>) {
       this.$patch({ [args[0]]: args[1] });
-    }
-  }
+    },
+  },
 });

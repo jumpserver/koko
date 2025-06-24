@@ -1,12 +1,12 @@
+import type { ConnectionState } from '@/types/modules/connection.type';
 // 构建 terminalId、socket、lunaId、origin、currentShareId、currentShareCode、currentEnableShare、currentUserOptions、currentOnlineUsers 等的 Map 关系
 import { defineStore } from 'pinia';
-import type { ConnectionState } from '@/types/modules/connection.type';
 
-type terminalId = string
+type terminalId = string;
 
 export const useConnectionStore = defineStore('connection', {
   state: () => ({
-    connectionStateMap: new Map<terminalId, Partial<ConnectionState>>()
+    connectionStateMap: new Map<terminalId, Partial<ConnectionState>>(),
   }),
   actions: {
     setConnectionState(terminalId: terminalId, connectionState: Partial<ConnectionState>) {
@@ -24,6 +24,6 @@ export const useConnectionStore = defineStore('connection', {
       if (state) {
         Object.assign(state, connectionState);
       }
-    }
-  }
+    },
+  },
 });

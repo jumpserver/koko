@@ -1,9 +1,9 @@
-import { h } from 'vue';
-import { NIcon, NPopover } from 'naive-ui';
-
-import type { Component } from 'vue';
 import type { TreeOption } from 'naive-ui';
+import type { Component } from 'vue';
+
 import type { customTreeOption } from '@/types/modules/config.type';
+import { NIcon, NPopover } from 'naive-ui';
+import { h } from 'vue';
 import { useTreeStore } from '@/store/modules/tree.ts';
 // import { useTerminalStore } from '@/store/modules/terminal.ts';
 
@@ -11,7 +11,7 @@ import { useTreeStore } from '@/store/modules/tree.ts';
  * @description 用于每个 Tree Item 的 Tooltip
  * @param option
  */
-export const showToolTip = (option: TreeOption) => {
+export function showToolTip(option: TreeOption) {
   const customOption = option.option as customTreeOption;
 
   return h(
@@ -19,30 +19,25 @@ export const showToolTip = (option: TreeOption) => {
     {
       trigger: 'hover',
       placement: 'top-start',
-      delay: 1000
+      delay: 1000,
     },
     {
-      trigger: () =>
-        h(
-          'span',
-          { style: { display: 'inline-block', whiteSpace: 'nowrap' } },
-          customOption.label
-        ),
-      default: () => customOption.label
-    }
+      trigger: () => h('span', { style: { display: 'inline-block', whiteSpace: 'nowrap' } }, customOption.label),
+      default: () => customOption.label,
+    },
   );
-};
+}
 
 /**
  * @description 用于渲染 setting 中的图标
  */
-export const renderIcon = (icon: Component) => {
+export function renderIcon(icon: Component) {
   return () => {
     return h(NIcon, null, {
-      default: () => h(icon)
+      default: () => h(icon),
     });
   };
-};
+}
 
 /**
  * 交换数组中的某两个值
@@ -51,15 +46,15 @@ export const renderIcon = (icon: Component) => {
  * @param index1
  * @param index2
  */
-export const swapElements = (arr: any[], index1: number, index2: number) => {
+export function swapElements(arr: any[], index1: number, index2: number) {
   [arr[index1], arr[index2]] = [arr[index2], arr[index1]];
   return arr;
-};
+}
 
 /**
  * 根据 id 查找对应的节点信息
  */
-export const findNodeById = (nameRef: string) => {
+export function findNodeById(nameRef: string) {
   const treeStore = useTreeStore();
   // const terminalStore = useTerminalStore();
 
@@ -71,4 +66,4 @@ export const findNodeById = (nameRef: string) => {
       // terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
     }
   }
-};
+}
