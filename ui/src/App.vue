@@ -2,7 +2,7 @@
 import type { GlobalThemeOverrides, NLocale } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { nextTick, onMounted, ref } from 'vue';
+import { nextTick, onMounted, provide, ref } from 'vue';
 import { darkTheme, dateZhCN, enUS, esAR, jaJP, koKR, ptBR, ruRU, zhCN, zhTW } from 'naive-ui';
 
 import { alovaInstance } from '@/api';
@@ -28,14 +28,16 @@ const langCodeMap = new Map(
   })
 );
 
+provide('manual-set-theme', (theme: string) => {
+  themeOverrides.value = createThemeOverrides(theme as 'default' | 'deepBlue' | 'darkGary');
+});
+
 onMounted(async () => {
   loaded.value = false;
 
   const langCode = langCodeMap.get(LanguageCode);
 
   themeOverrides.value = createThemeOverrides(ThemeCode as 'default' | 'deepBlue' | 'darkGary');
-
-  // setCurrentMainColor(ThemeCode);
 
   if (langCode) {
     componentsLocale.value = langCode;
