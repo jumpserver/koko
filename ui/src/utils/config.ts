@@ -14,6 +14,7 @@ const cookieLang = cookies.get('django_language');
 const browserLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'en';
 
 export const LanguageCode = cookieLang || storeLang || browserLang || 'en';
+export const ThemeCode = localStorage.getItem('themeType') || 'default';
 
 export const AsciiDel = 127;
 export const AsciiBackspace = 8;

@@ -33,7 +33,7 @@ const props = withDefaults(
     settings: () => [],
     sftpToken: '',
     showTab: false,
-  },
+  }
 );
 
 const { t } = useI18n();
@@ -45,7 +45,7 @@ const fileManageSocket = ref<WebSocket | undefined>(undefined);
 
 watch(
   () => fileManageStore.fileList,
-  (fileList) => {
+  fileList => {
     if (fileList) {
       tableData.value = fileList;
       isLoaded.value = true;
@@ -53,7 +53,7 @@ watch(
   },
   {
     immediate: true,
-  },
+  }
 );
 
 watch(
@@ -65,8 +65,7 @@ watch(
     if (newValue && newValue !== oldValue) {
       try {
         fileManageSocket.value = useFileManage(newValue, t);
-      }
-      catch (error) {
+      } catch (error) {
         console.error('Failed to initialize file management socket:', error);
         isLoaded.value = true; // 即使失败也设置加载完成，避免一直显示加载状态
       }
@@ -74,7 +73,7 @@ watch(
   },
   {
     immediate: true,
-  },
+  }
 );
 
 // ai added to close the WebSocket connection when the component is unmounted
@@ -93,7 +92,7 @@ function createColumns(): DataTableColumns<RowData> {
     {
       title: t('Name'),
       key: 'name',
-      width: 160,
+      width: 200,
       ellipsis: {
         tooltip: true,
       },
@@ -128,7 +127,7 @@ function createColumns(): DataTableColumns<RowData> {
                       NEllipsis,
                       {
                         style: {
-                          maxWidth: '145px',
+                          maxWidth: '120px',
                           cursor: 'pointer',
                         },
                       },
@@ -142,9 +141,9 @@ function createColumns(): DataTableColumns<RowData> {
                             },
                             {
                               default: () => row.name,
-                            },
+                            }
                           ),
-                      },
+                      }
                     ),
                     h(
                       NText,
@@ -157,18 +156,17 @@ function createColumns(): DataTableColumns<RowData> {
                       },
                       {
                         default: () => {
-                          if (row.name === '..')
-                            return;
+                          if (row.name === '..') return;
 
                           return row.perm ? row.perm : '-';
                         },
-                      },
+                      }
                     ),
                   ],
-                },
+                }
               ),
             ],
-          },
+          }
         );
       },
     },
@@ -186,7 +184,7 @@ function createColumns(): DataTableColumns<RowData> {
           },
           {
             default: () => prettyBytes(Number(row.size)),
-          },
+          }
         );
       },
     },

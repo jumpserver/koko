@@ -1,32 +1,61 @@
 <script setup lang="ts">
+import type { GlobalThemeOverrides, NLocale } from 'naive-ui';
+
 import { useI18n } from 'vue-i18n';
 import { nextTick, onMounted, ref } from 'vue';
-import { darkTheme, dateZhCN, enUS } from 'naive-ui';
+import { darkTheme, dateZhCN, enUS, esAR, jaJP, koKR, ptBR, ruRU, zhCN, zhTW } from 'naive-ui';
 
 import { alovaInstance } from '@/api';
-import { BASE_URL, LanguageCode } from '@/utils/config';
+import { BASE_URL, LanguageCode, ThemeCode } from '@/utils/config';
 
-import { themeOverrides } from './overrides';
+import { createThemeOverrides } from './overrides';
 
 const { mergeLocaleMessage } = useI18n();
 
 const loaded = ref(false);
+const componentsLocale = ref<NLocale | null>(null);
+const themeOverrides = ref<GlobalThemeOverrides | null>(null);
+const langCodeMap = new Map(
+  Object.entries({
+    ko: koKR,
+    ru: ruRU,
+    ja: jaJP,
+    es: esAR,
+    en: enUS,
+    'pt-br': ptBR,
+    'zh-hant': zhTW,
+    'zh-hans': zhCN,
+  })
+);
 
 onMounted(async () => {
   loaded.value = false;
+
+  const langCode = langCodeMap.get(LanguageCode);
+
+  themeOverrides.value = createThemeOverrides(ThemeCode as 'default' | 'deepBlue' | 'darkGary');
+
+  // setCurrentMainColor(ThemeCode);
+
+  if (langCode) {
+    componentsLocale.value = langCode;
+  } else {
+    componentsLocale.value = enUS;
+  }
+
   try {
     const translations = await alovaInstance
-      .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${LanguageCode}&flat=0`)
+      .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${langCode}&flat=0`)
       .then(response => (response as Response).json());
 
     for (const [key, value] of Object.entries(translations)) {
       mergeLocaleMessage(key, value);
     }
+
     nextTick(() => {
       loaded.value = true;
     });
-  }
-  catch (e) {
+  } catch (e) {
     throw new Error(`${e}`);
   }
 });
@@ -34,9 +63,9 @@ onMounted(async () => {
 
 <template>
   <n-config-provider
-    :locale="enUS"
     :theme="darkTheme"
     :date-locale="dateZhCN"
+    :locale="componentsLocale"
     :theme-overrides="themeOverrides"
     class="flex items-center justify-center h-full w-full overflow-hidden"
   >
