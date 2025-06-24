@@ -15,22 +15,6 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-// ChatCompletionStreamChoiceDelta TODO 支持 DeepSeek 后删掉
-type ChatCompletionStreamChoiceDelta struct {
-	openai.ChatCompletionStreamChoiceDelta
-	ReasoningContent string `json:"reasoning_content,omitempty"`
-}
-
-type ChatCompletionStreamChoice struct {
-	openai.ChatCompletionStreamChoice
-	Delta ChatCompletionStreamChoiceDelta `json:"delta"`
-}
-
-type ChatCompletionStreamResponse struct {
-	openai.ChatCompletionStreamResponse
-	Choices []ChatCompletionStreamChoice `json:"choices"`
-}
-
 type TransportOptions struct {
 	UseProxy        bool
 	ProxyURL        *url.URL
@@ -95,7 +79,8 @@ type OpenAIConn struct {
 	Client      *openai.Client
 	Model       string
 	Prompt      string
-	Contents    []string
+	Question    string
+	Context     []openai.ChatCompletionMessage
 	IsReasoning bool
 	AnswerCh    chan string
 	DoneCh      chan string
@@ -104,11 +89,10 @@ type OpenAIConn struct {
 
 func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 	ctx := context.Background()
-	var messages []openai.ChatCompletionMessage
 
-	messages = append(messages, openai.ChatCompletionMessage{
+	messages := append(conn.Context, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
-		Content: strings.Join(conn.Contents, "\n"),
+		Content: conn.Question,
 	})
 
 	systemPrompt := conn.Prompt
@@ -143,7 +127,7 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 
 	var content string
 	for {
-		response := ChatCompletionStreamResponse{}
+		var response = openai.ChatCompletionStreamResponse{}
 		rawLine, streamErr := stream.RecvRaw()
 
 		if errors.Is(streamErr, io.EOF) {
@@ -171,9 +155,7 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 		}
 
 		var newContent string
-		if len(response.Choices) == 0 {
-			continue
-		}
+
 		reasoningContent := response.Choices[0].Delta.ReasoningContent
 		if reasoningContent != "" {
 			conn.IsReasoning = true
@@ -184,6 +166,10 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 				content = ""
 			}
 			newContent = response.Choices[0].Delta.Content
+		}
+
+		if newContent == "" {
+			continue
 		}
 
 		content += newContent
