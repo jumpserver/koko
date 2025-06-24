@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import type { TreeOption } from 'naive-ui';
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
-import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 
-import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
-import Tree from '@/components/Kubernetes/Tree/index.vue';
-import { useKubernetes } from '@/hooks/useKubernetes.ts';
-import { useTreeStore } from '@/store/modules/tree.ts';
+import { useI18n } from 'vue-i18n';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+
 import mittBus from '@/utils/mittBus';
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { useKubernetes } from '@/hooks/useKubernetes.ts';
+import Tree from '@/components/Kubernetes/Tree/index.vue';
+import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
+import MainContent from '@/components/Kubernetes/MainContent/index.vue';
+import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
 
 const socket = ref();
 const sideWidth = ref(300);

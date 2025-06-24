@@ -1,6 +1,12 @@
+import type { Ref } from 'vue';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
-import type { Ref } from 'vue';
+
+import { v4 as uuid } from 'uuid';
+import { computed, ref, watch } from 'vue';
+import { useWebSocket } from '@vueuse/core';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
+
 import type {
   FileManage,
   FileManageConnectData,
@@ -8,17 +14,11 @@ import type {
   FileSendData,
 } from '@/types/modules/file.type';
 
-import { useWebSocket } from '@vueuse/core';
-import { createDiscreteApi, darkTheme } from 'naive-ui';
-
-import { v4 as uuid } from 'uuid';
-
-import { computed, ref, watch } from 'vue';
-import { useFileManageStore } from '@/store/modules/fileManage.ts';
-import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import mittBus from '@/utils/mittBus';
 import { BASE_WS_URL } from '@/utils/config';
 import { lunaCommunicator } from '@/utils/lunaBus';
-import mittBus from '@/utils/mittBus';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 export enum MessageType {
   CONNECT = 'CONNECT',

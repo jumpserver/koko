@@ -1,5 +1,5 @@
-import { NInput } from 'naive-ui';
 import { ref } from 'vue';
+import { NInput } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 
 export function dialogContent() {

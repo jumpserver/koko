@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+import { onMounted, ref } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 
-import { onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 import Terminal from '@/components/Terminal/index.vue';
+
 import { dialogContent } from './dialogContent';
 
 const { t } = useI18n();

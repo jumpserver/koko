@@ -1,7 +1,8 @@
 import type { UploadFileInfo } from 'naive-ui';
 
-import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 import { defineStore } from 'pinia';
+
+import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 
 interface IFileManageStoreState {
   fileList: FileManageSftpFileItem[] | null;

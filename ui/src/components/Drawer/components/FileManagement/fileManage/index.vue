@@ -1,22 +1,23 @@
 <script setup lang="ts">
 import type { DataTableColumns, UploadCustomRequestOptions, UploadFileInfo } from 'naive-ui';
 
-import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
-import type { FileManageSftpFileItem } from '@/types/modules/file.type';
-import { List } from '@vicons/ionicons5';
-import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
-import { Folder, Plus, Refresh } from '@vicons/tabler';
-import { useWindowSize } from '@vueuse/core';
-
-import { Search, Upload } from 'lucide-vue-next';
-import { NButton, NFlex, NIcon, NText, useMessage } from 'naive-ui';
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
-import { useFileManageStore } from '@/store/modules/fileManage.ts';
+import { List } from '@vicons/ionicons5';
+import { useWindowSize } from '@vueuse/core';
+import { Search, Upload } from 'lucide-vue-next';
+import { Folder, Plus, Refresh } from '@vicons/tabler';
+import { NButton, NFlex, NIcon, NText, useMessage } from 'naive-ui';
+import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
+
+import type { FileManageSftpFileItem } from '@/types/modules/file.type';
+import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 import { getFileName } from '@/utils';
 import mittBus from '@/utils/mittBus';
+import { useFileManageStore } from '@/store/modules/fileManage.ts';
+import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
+
 import { getDropSelections } from './config.tsx';
 
 export interface IFilePath {

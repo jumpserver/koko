@@ -1,36 +1,36 @@
 <script setup lang="ts">
-import type { DropdownOption, TabPaneProps } from 'naive-ui';
 import type { Ref } from 'vue';
+import type { DropdownOption, TabPaneProps } from 'naive-ui';
 import type { UseDraggableReturn } from 'vue-draggable-plus';
-import type { ISettingProp } from '@/types';
-import { Activity, ColorPalette, Keyboard, NotSent, Paste, Share as ShareIcon, Stop, UserAvatar } from '@vicons/carbon';
 
+import { v4 as uuid } from 'uuid';
+import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
+import xtermTheme from 'xterm-theme';
 import { CloneRegular } from '@vicons/fa';
-import { ClosedCaption32Regular } from '@vicons/fluent';
-import { ArrowBack, ArrowDown, ArrowForward, ArrowUp, CloseCircleOutline } from '@vicons/ionicons5';
-import { RefreshFilled } from '@vicons/material';
 import { useDebounceFn } from '@vueuse/core';
 import { readText } from 'clipboard-polyfill';
-import { NMessageProvider, useDialog, useMessage } from 'naive-ui';
-import { storeToRefs } from 'pinia';
-import { v4 as uuid } from 'uuid';
-import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { RefreshFilled } from '@vicons/material';
 import { useDraggable } from 'vue-draggable-plus';
-import { useI18n } from 'vue-i18n';
-import xtermTheme from 'xterm-theme';
-import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
+import { ClosedCaption32Regular } from '@vicons/fluent';
+import { NMessageProvider, useDialog, useMessage } from 'naive-ui';
+import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { ArrowBack, ArrowDown, ArrowForward, ArrowUp, CloseCircleOutline } from '@vicons/ionicons5';
+import { Activity, ColorPalette, Keyboard, NotSent, Paste, Share as ShareIcon, Stop, UserAvatar } from '@vicons/carbon';
 
-import Settings from '@/components/Settings/index.vue';
-import Share from '@/components/Share/index.vue';
-import ThemeConfig from '@/components/ThemeConfig/index.vue';
+import type { ISettingProp } from '@/types';
+
+import mittBus from '@/utils/mittBus';
 import { updateIcon } from '@/hooks/helper';
-
+import { defaultTheme } from '@/utils/config';
+import Share from '@/components/Share/index.vue';
+import Settings from '@/components/Settings/index.vue';
+import { useTreeStore } from '@/store/modules/tree.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
+import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-import { useTreeStore } from '@/store/modules/tree.ts';
-import { defaultTheme } from '@/utils/config';
-import mittBus from '@/utils/mittBus';
+import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
 
 const dialog = useDialog();
 const message = useMessage();

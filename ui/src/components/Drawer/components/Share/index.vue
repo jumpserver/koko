@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import type { SelectRenderTag } from 'naive-ui';
 
-import type { ShareUserOptions } from '@/types/modules/user.type';
+import { useI18n } from 'vue-i18n';
+import { Undo2 } from 'lucide-vue-next';
 import { useDebounceFn } from '@vueuse/core';
 import * as clipboard from 'clipboard-polyfill';
-import { Undo2 } from 'lucide-vue-next';
-import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
 import { computed, h, nextTick, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
 
-import { useParamsStore } from '@/store/modules/params.ts';
+import type { ShareUserOptions } from '@/types/modules/user.type';
+
 import { getMinuteLabel } from '@/utils';
 import { BASE_URL } from '@/utils/config';
+import { useParamsStore } from '@/store/modules/params.ts';
 
 const props = withDefaults(
   defineProps<{

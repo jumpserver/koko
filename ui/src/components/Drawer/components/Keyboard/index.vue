@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { FunctionalComponent } from 'vue';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ban } from 'lucide-vue-next';
+
 import { reactive } from 'vue';
-
-// Save, Undo2, ClipboardPaste,
-
 import { useI18n } from 'vue-i18n';
+// Save, Undo2, ClipboardPaste,
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ban } from 'lucide-vue-next';
 
 interface KeyboardItem {
   icon: FunctionalComponent;

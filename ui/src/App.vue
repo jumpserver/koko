@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { darkTheme, dateZhCN, enUS } from 'naive-ui';
-import { nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { nextTick, onMounted, ref } from 'vue';
+import { darkTheme, dateZhCN, enUS } from 'naive-ui';
+
 import { alovaInstance } from '@/api';
 import { BASE_URL, LanguageCode } from '@/utils/config';
+
 import { themeOverrides } from './overrides';
 
 const { mergeLocaleMessage } = useI18n();

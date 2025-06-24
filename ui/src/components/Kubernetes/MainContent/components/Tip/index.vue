@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { CheckmarkCircle } from '@vicons/ionicons5';
 import { reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { CheckmarkCircle } from '@vicons/ionicons5';
 
 const { t } = useI18n();
 

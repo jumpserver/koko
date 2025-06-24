@@ -1,4 +1,5 @@
 import type { Terminal } from '@xterm/xterm';
+
 import type { OnlineUser, ShareUserOptions } from './user.type';
 
 export interface ConnectionState {
