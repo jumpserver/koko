@@ -1,6 +1,7 @@
-import type { ConnectionState } from '@/types/modules/connection.type';
 // 构建 terminalId、socket、lunaId、origin、currentShareId、currentShareCode、currentEnableShare、currentUserOptions、currentOnlineUsers 等的 Map 关系
 import { defineStore } from 'pinia';
+
+import type { ConnectionState } from '@/types/modules/connection.type';
 
 type terminalId = string;
 

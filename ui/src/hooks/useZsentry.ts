@@ -1,16 +1,16 @@
+import type { Ref } from 'vue';
 import type { Terminal } from '@xterm/xterm';
 import type { UploadFileInfo } from 'naive-ui';
 import type { DialogOptions } from 'naive-ui/es/dialog/src/DialogProvider';
 import type { Detection, Sentry, SentryConfig, ZmodemSession, ZmodemTransfer } from 'nora-zmodemjs/src/zmodem_browser';
 
-import type { Ref } from 'vue';
+import { computed, h, ref } from 'vue';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
-import { computed, h, ref } from 'vue';
 
 import Upload from '@/components/Upload/index.vue';
-import { bytesHuman, wsIsActivated } from '@/utils';
 import { MAX_TRANSFER_SIZE } from '@/utils/config';
+import { bytesHuman, wsIsActivated } from '@/utils';
 
 const { message, dialog } = createDiscreteApi(['message', 'dialog'], {
   configProviderProps: {

@@ -1,6 +1,9 @@
 import type { Emitter } from 'mitt';
-import type { LunaMessage, LunaMessageEvents } from '@/types/modules/postmessage.type';
+
 import mitt from 'mitt';
+
+import type { LunaMessage, LunaMessageEvents } from '@/types/modules/postmessage.type';
+
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 // 获取所有事件类型

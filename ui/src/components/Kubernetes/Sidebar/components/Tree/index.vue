@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Kubernetes } from '@vicons/carbon';
 import { ref } from 'vue';
+import { Kubernetes } from '@vicons/carbon';
 
 import mittBus from '@/utils/mittBus';
 

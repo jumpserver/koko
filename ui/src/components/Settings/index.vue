@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import type { ISettingProp } from '@/types';
-import { onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { onMounted, onUnmounted, ref } from 'vue';
+
+import type { ISettingProp } from '@/types';
+
 import mittBus from '@/utils/mittBus';
 
 withDefaults(

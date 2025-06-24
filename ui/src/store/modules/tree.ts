@@ -1,8 +1,9 @@
 import type { TreeOption } from 'naive-ui';
 
-import type { customTreeOption } from '@/types/modules/config.type';
-import type { ITreeState } from '@/types/modules/store.type';
 import { defineStore } from 'pinia';
+
+import type { ITreeState } from '@/types/modules/store.type';
+import type { customTreeOption } from '@/types/modules/config.type';
 
 export const useTreeStore = defineStore('tree', {
   state: (): ITreeState => ({

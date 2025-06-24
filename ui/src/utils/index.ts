@@ -1,8 +1,11 @@
 import type { Terminal } from '@xterm/xterm';
-import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
+
+import { createDiscreteApi } from 'naive-ui';
+
 import type { TranslateFunction } from '@/types';
 import type { ILunaConfig } from '@/types/modules/config.type';
-import { createDiscreteApi } from 'naive-ui';
+import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
+
 import { AsciiBackspace, AsciiDel } from '@/utils/config';
 
 const { message } = createDiscreteApi(['message']);

@@ -1,7 +1,8 @@
 import { createI18n } from 'vue-i18n';
-import { LanguageCode } from '@/utils/config';
-import date from './date';
 
+import { LanguageCode } from '@/utils/config';
+
+import date from './date';
 import { message } from './modules';
 
 const i18n = createI18n({

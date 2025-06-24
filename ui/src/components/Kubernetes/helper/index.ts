@@ -1,9 +1,11 @@
-import type { TreeOption } from 'naive-ui';
 import type { Component } from 'vue';
+import type { TreeOption } from 'naive-ui';
+
+import { h } from 'vue';
+import { NIcon, NPopover } from 'naive-ui';
 
 import type { customTreeOption } from '@/types/modules/config.type';
-import { NIcon, NPopover } from 'naive-ui';
-import { h } from 'vue';
+
 import { useTreeStore } from '@/store/modules/tree.ts';
 // import { useTerminalStore } from '@/store/modules/terminal.ts';
 

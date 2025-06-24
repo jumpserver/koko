@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import type { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
-import type { LunaEventType } from '@/utils/lunaBus';
-import { useDebounceFn, useWebSocket, useWindowSize } from '@vueuse/core';
-import { FitAddon } from '@xterm/addon-fit';
-import { SearchAddon } from '@xterm/addon-search';
-import { Terminal } from '@xterm/xterm';
-import { readText, writeText } from 'clipboard-polyfill';
-import { useMessage } from 'naive-ui';
-
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import xtermTheme from 'xterm-theme';
-import { generateWsURL } from '@/hooks/helper';
-import { useTerminalConnection } from '@/hooks/useTerminalConnection';
-import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { useMessage } from 'naive-ui';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
+import { readText, writeText } from 'clipboard-polyfill';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useDebounceFn, useWebSocket, useWindowSize } from '@vueuse/core';
+
+import type { LunaEventType } from '@/utils/lunaBus';
+import type { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
+
 import { formatMessage } from '@/utils';
 import { defaultTheme } from '@/utils/config';
-import { getDefaultTerminalConfig } from '@/utils/guard';
+import { generateWsURL } from '@/hooks/helper';
 import { lunaCommunicator } from '@/utils/lunaBus';
+import { getDefaultTerminalConfig } from '@/utils/guard';
+import { useTerminalConnection } from '@/hooks/useTerminalConnection';
+import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 const props = defineProps<{
   shareCode?: string;

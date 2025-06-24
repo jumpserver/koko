@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import type { DropdownOption, TreeOption } from 'naive-ui';
-import { ExpandCategories } from '@vicons/carbon';
+
+import { NIcon } from 'naive-ui';
+import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
 import { Folder, FolderOpen } from '@vicons/fa';
 import { RefreshRound } from '@vicons/material';
+import { ExpandCategories } from '@vicons/carbon';
 import { Search, Terminal2 } from '@vicons/tabler';
-import { NIcon } from 'naive-ui';
-
-import { storeToRefs } from 'pinia';
-
 import { h, nextTick, ref, watchEffect } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useTreeStore } from '@/store/modules/tree.ts';
+
 import mittBus from '@/utils/mittBus';
+import { useTreeStore } from '@/store/modules/tree.ts';
+
 import { showToolTip } from '../helper/index';
 
 const emits = defineEmits<{

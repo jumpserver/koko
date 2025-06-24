@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import type { SelectRenderTag } from 'naive-ui';
-import type { ShareUserOptions } from '@/types/modules/user.type';
+
+import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
 import { useDebounceFn } from '@vueuse/core';
 import * as clipboard from 'clipboard-polyfill';
-import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
-import { storeToRefs } from 'pinia';
 import { computed, h, nextTick, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useParamsStore } from '@/store/modules/params';
+import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
+
+import type { ShareUserOptions } from '@/types/modules/user.type';
+
+import mittBus from '@/utils/mittBus';
 import { getMinuteLabel } from '@/utils';
 import { BASE_URL } from '@/utils/config';
-import mittBus from '@/utils/mittBus';
+import { useParamsStore } from '@/store/modules/params';
 
 const props = withDefaults(
   defineProps<{

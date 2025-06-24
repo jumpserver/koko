@@ -1,6 +1,7 @@
-import type { SettingConfig } from '@/types/modules/config.type';
-import type { IParamsState } from '@/types/modules/store.type';
 import { defineStore } from 'pinia';
+
+import type { IParamsState } from '@/types/modules/store.type';
+import type { SettingConfig } from '@/types/modules/config.type';
 
 export const useParamsStore = defineStore('params', {
   state: (): IParamsState => ({

@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import type { SettingConfig } from '@/types/modules/setting.type';
-import type { OnlineUser } from '@/types/modules/user.type';
-import { readText } from 'clipboard-polyfill';
-
-import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-vue-next';
-import { storeToRefs } from 'pinia';
-import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
 import xtermTheme from 'xterm-theme';
-import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
-import Share from '@/components/Drawer/components/Share/index.vue';
-import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
-import { useConnectionStore } from '@/store/modules/useConnection';
+import { readText } from 'clipboard-polyfill';
+import { computed, nextTick, ref, watch } from 'vue';
+import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-vue-next';
 
-import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
+import type { OnlineUser } from '@/types/modules/user.type';
+import type { SettingConfig } from '@/types/modules/setting.type';
+
 import { formatMessage } from '@/utils';
+import Share from '@/components/Drawer/components/Share/index.vue';
+import { useConnectionStore } from '@/store/modules/useConnection';
+import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
+import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
+import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
 defineProps<{
   settings: SettingConfig;

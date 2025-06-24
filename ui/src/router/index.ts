@@ -1,5 +1,7 @@
 import type { Router, RouteRecordRaw } from 'vue-router';
+
 import { createRouter, createWebHistory } from 'vue-router';
+
 import { guard } from '../utils/guard';
 
 const allRoutes: RouteRecordRaw[] = [

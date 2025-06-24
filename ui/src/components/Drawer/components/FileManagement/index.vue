@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import type { DataTableColumns } from 'naive-ui';
-import type { ISettingProp } from '@/types';
 
+import { useI18n } from 'vue-i18n';
+import prettyBytes from 'pretty-bytes';
 import { File, Folder } from '@vicons/tabler';
+import { h, onUnmounted, ref, watch } from 'vue';
 import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
 
-import prettyBytes from 'pretty-bytes';
-import { h, onUnmounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useFileManage } from '@/hooks/useFileManage.ts';
+import type { ISettingProp } from '@/types';
 
+import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
+
 import FileManage from './fileManage/index.vue';
 
 export interface RowData {

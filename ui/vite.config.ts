@@ -1,14 +1,15 @@
 import type { ConfigEnv, UserConfig } from 'vite';
-import { resolve } from 'node:path';
-import process from 'node:process';
-import tailwindcss from '@tailwindcss/vite';
-import vue from '@vitejs/plugin-vue';
-import vueJsx from '@vitejs/plugin-vue-jsx';
 
-import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
-import Components from 'unplugin-vue-components/vite';
+import process from 'node:process';
+import { resolve } from 'node:path';
+
+import vue from '@vitejs/plugin-vue';
+import tailwindcss from '@tailwindcss/vite';
+import vueJsx from '@vitejs/plugin-vue-jsx';
 import { defineConfig, loadEnv } from 'vite';
+import Components from 'unplugin-vue-components/vite';
 import { manualChunksPlugin } from 'vite-plugin-webpackchunkname';
+import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
 
 function pathResolve(dir: string): string {
   return resolve(__dirname, '.', dir);

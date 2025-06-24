@@ -1,6 +1,7 @@
 import type { NavigationGuardNext } from 'vue-router';
-import type { CommandLineConfig, ILocalTerminalConfig } from '@/types/modules/guard.type.ts';
+
 import type { ITerminalSettings } from '@/types/modules/terminal.type';
+import type { CommandLineConfig, ILocalTerminalConfig } from '@/types/modules/guard.type.ts';
 
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 

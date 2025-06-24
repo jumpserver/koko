@@ -1,11 +1,12 @@
+import type { Ref } from 'vue';
 import type { Emitter } from 'mitt';
 import type { UploadFileInfo } from 'naive-ui';
-import type { Ref } from 'vue';
+
+import mitt from 'mitt';
 
 import type { ManageTypes } from '@/hooks/useFileManage.ts';
-import type { customTreeOption } from '@/types/modules/config.type';
 import type { ShareUserOptions } from '@/types/modules/user.type';
-import mitt from 'mitt';
+import type { customTreeOption } from '@/types/modules/config.type';
 
 interface Event {
   'remove-event': void;

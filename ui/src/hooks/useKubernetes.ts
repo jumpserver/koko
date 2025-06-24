@@ -1,31 +1,31 @@
-import type { ISearchOptions } from '@xterm/addon-search';
 import type { Ref } from 'vue';
-import type { customTreeOption, ILunaConfig } from '@/types/modules/config.type';
+import type { ISearchOptions } from '@xterm/addon-search';
+
+import { v4 as uuid } from 'uuid';
+import { storeToRefs } from 'pinia';
+import xtermTheme from 'xterm-theme';
+import { Terminal } from '@xterm/xterm';
 import { Docker, Folder } from '@vicons/fa';
-import { Cube24Regular } from '@vicons/fluent';
 import { useWebSocket } from '@vueuse/core';
 import { FitAddon } from '@xterm/addon-fit';
-import { SearchAddon } from '@xterm/addon-search';
-import { Terminal } from '@xterm/xterm';
 import { readText } from 'clipboard-polyfill';
-import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
-import { storeToRefs } from 'pinia';
-import { v4 as uuid } from 'uuid';
-
+import { Cube24Regular } from '@vicons/fluent';
 import { h, ref, watch, watchEffect } from 'vue';
-import xtermTheme from 'xterm-theme';
-import { updateIcon } from '@/hooks/helper';
-import { useSentry } from '@/hooks/useZsentry.ts';
+import { SearchAddon } from '@xterm/addon-search';
+import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 
-import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
+import type { customTreeOption, ILunaConfig } from '@/types/modules/config.type';
+
+import mittBus from '@/utils/mittBus';
+import { updateIcon } from '@/hooks/helper';
+import { MaxTimeout } from '@/utils/config';
+import { useSentry } from '@/hooks/useZsentry.ts';
+import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-
-import { useTreeStore } from '@/store/modules/tree.ts';
+import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
 import { formatMessage, preprocessInput, sendEventToLuna } from '@/utils';
 
-import { MaxTimeout } from '@/utils/config';
-import mittBus from '@/utils/mittBus';
 import { base64ToUint8Array, generateWsURL } from './helper';
 
 const { message, notification } = createDiscreteApi(['message', 'notification'], {

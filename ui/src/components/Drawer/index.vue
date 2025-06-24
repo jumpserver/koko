@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import type { ContentType } from '@/types/modules/connection.type';
-import type { SettingConfig } from '@/types/modules/setting.type';
-import { Keyboard, Palette, Share2, UsersRound } from 'lucide-vue-next';
-import { computed, reactive, ref } from 'vue';
-
 import { useI18n } from 'vue-i18n';
+import { computed, reactive, ref } from 'vue';
+import { Keyboard, Palette, Share2, UsersRound } from 'lucide-vue-next';
+
+import type { SettingConfig } from '@/types/modules/setting.type';
+import type { ContentType } from '@/types/modules/connection.type';
+
 import { FILE_SUFFIX_DATABASE } from '@/utils/config';
 
-import FileManager from './components/FileManagement/index.vue';
 import Setting from './components/Setting/index.vue';
+import FileManager from './components/FileManagement/index.vue';
 
 const props = defineProps<{
   title: string;

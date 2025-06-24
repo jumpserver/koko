@@ -1,13 +1,13 @@
 import { createApp } from 'vue';
-
 import VueCookies from 'vue3-cookies';
+
 // 引入指令
 import { draggable } from '@/directive/sidebarDraggable.ts';
+
 import App from './App.vue';
+import pinia from './store';
 import i18n from './locales';
 import router from './router';
-
-import pinia from './store';
 import './main.css';
 
 // 引入 xterm 样式

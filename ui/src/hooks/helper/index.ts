@@ -1,23 +1,22 @@
-import type { Terminal } from '@xterm/xterm';
 import type { Ref } from 'vue';
-
-import type { ILunaConfig } from '@/types/modules/config.type';
-import { useDebounceFn } from '@vueuse/core';
-import { readText } from 'clipboard-polyfill';
-
-import * as clipboard from 'clipboard-polyfill';
-import { createDiscreteApi } from 'naive-ui';
+import type { Terminal } from '@xterm/xterm';
 
 // 引入 API
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { useDebounceFn } from '@vueuse/core';
+import { createDiscreteApi } from 'naive-ui';
+import { readText } from 'clipboard-polyfill';
+import * as clipboard from 'clipboard-polyfill';
+
+import type { ILunaConfig } from '@/types/modules/config.type';
+
+import mittBus from '@/utils/mittBus';
 // 引入 Store
 import { useTreeStore } from '@/store/modules/tree.ts';
-import { fireEvent, formatMessage, preprocessInput, sendEventToLuna } from '@/utils';
-
 import { BASE_WS_URL, MaxTimeout } from '@/utils/config';
-import mittBus from '@/utils/mittBus';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { fireEvent, formatMessage, preprocessInput, sendEventToLuna } from '@/utils';
 
 const { message } = createDiscreteApi(['message']);
 

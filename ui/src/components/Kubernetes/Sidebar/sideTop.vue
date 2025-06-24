@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import mittBus from '@/utils/mittBus';
-import Setting from './components/Setting/index.vue';
 
 import Tree from './components/Tree/index.vue';
+import Setting from './components/Setting/index.vue';
 
 const topIconOptions = [
   {

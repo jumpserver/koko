@@ -1,26 +1,28 @@
 import type { Terminal } from '@xterm/xterm';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
+
+import mitt from 'mitt';
+import { useI18n } from 'vue-i18n';
+import { computed, ref } from 'vue';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
+
 import type { SettingConfig } from '@/types/modules/config.type';
 import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
 import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
-import mitt from 'mitt';
-import { createDiscreteApi, darkTheme } from 'naive-ui';
-import { computed, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { updateIcon } from '@/hooks/helper';
-import { useSentry } from '@/hooks/useZsentry';
-import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
+import { updateIcon } from '@/hooks/helper';
+import { MaxTimeout } from '@/utils/config';
+import { useSentry } from '@/hooks/useZsentry';
 import { useConnectionStore } from '@/store/modules/useConnection';
+import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
+import { formatMessage, preprocessInput, writeBufferToTerminal } from '@/utils';
 import {
   FORMATTER_MESSAGE_TYPE,
   LUNA_MESSAGE_TYPE,
   MESSAGE_TYPE,
   ZMODEM_ACTION_TYPE,
 } from '@/types/modules/message.type';
-import { formatMessage, preprocessInput, writeBufferToTerminal } from '@/utils';
-import { MaxTimeout } from '@/utils/config';
 
 export const eventBus = mitt<{
   'luna-event': { event: string; data: string };

@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+import xtermTheme from 'xterm-theme';
 import { useDialogReactiveList } from 'naive-ui';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-import xtermTheme from 'xterm-theme';
-import { defaultTheme } from '@/utils/config';
 import mittBus from '@/utils/mittBus';
+import { defaultTheme } from '@/utils/config';
 
 const props = withDefaults(
   defineProps<{

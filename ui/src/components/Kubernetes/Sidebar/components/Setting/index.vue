@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Settings } from '@vicons/carbon';
 import { useI18n } from 'vue-i18n';
+import { Settings } from '@vicons/carbon';
 
 const props = defineProps<{
   onClick: () => void;

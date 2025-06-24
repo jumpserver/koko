@@ -1,12 +1,11 @@
-import type { DropdownOption } from 'naive-ui';
 import type { Component } from 'vue';
+import type { DropdownOption } from 'naive-ui';
+
+import { h } from 'vue';
+import { NIcon, NText } from 'naive-ui';
+import { Download } from '@vicons/tabler';
 import { Delete16Regular } from '@vicons/fluent';
 import { DriveFileRenameOutlineOutlined } from '@vicons/material';
-
-import { Download } from '@vicons/tabler';
-
-import { NIcon, NText } from 'naive-ui';
-import { h } from 'vue';
 
 function renderIcon(icon: Component) {
   return () => {

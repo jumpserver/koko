@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import Logo from '@/components/Kubernetes/Sidebar/components/Logo/index.vue';
 
 import { useParamsStore } from '@/store/modules/params.ts';
+import Logo from '@/components/Kubernetes/Sidebar/components/Logo/index.vue';
 
 const paramsStore = useParamsStore();
 const { setting } = storeToRefs(paramsStore);
