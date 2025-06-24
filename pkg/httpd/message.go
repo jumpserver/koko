@@ -175,7 +175,6 @@ type AIConversation struct {
 	Model                string
 	Context              []QARecord
 	InterruptCurrentChat bool
-	NewDialogue          bool
 }
 
 type ChatGPTMessage struct {

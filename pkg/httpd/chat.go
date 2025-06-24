@@ -47,7 +47,6 @@ func (h *chat) HandleMessage(msg *Message) {
 		return
 	}
 	conv.Question = msg.Data
-	conv.NewDialogue = true
 
 	go h.runChat(conv)
 }
