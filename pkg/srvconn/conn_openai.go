@@ -156,20 +156,18 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 
 		var newContent string
 
-		reasoningContent := response.Choices[0].Delta.ReasoningContent
-		if reasoningContent != "" {
+		delta := response.Choices[0].Delta
+
+		if delta.ReasoningContent != "" {
+			newContent = delta.ReasoningContent
 			conn.IsReasoning = true
-			newContent = reasoningContent
 		} else {
+			newContent = delta.Content
 			if conn.IsReasoning {
 				conn.IsReasoning = false
 				content = ""
+				continue
 			}
-			newContent = response.Choices[0].Delta.Content
-		}
-
-		if newContent == "" {
-			continue
 		}
 
 		content += newContent
