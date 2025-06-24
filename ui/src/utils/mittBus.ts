@@ -43,9 +43,10 @@ interface Event {
       users: ShareUserOptions[];
     };
   };
-  'writeDataToTerminal': { type: string };
+  writeDataToTerminal: { type: string };
 }
 
-const mittBus: Emitter<Event> = mitt();
+// @ts-expect-error mittBus is not typed
+const mittBus = mitt<Event>();
 
 export default mittBus;

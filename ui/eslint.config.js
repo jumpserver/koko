@@ -35,6 +35,7 @@ export default antfu(
           ],
         },
       ],
+      'antfu/top-level-function': 'off',
     },
   },
 );

@@ -129,8 +129,7 @@ function handleSocketSftpData(messageData: FileManageSftpFileItem[]) {
   // 如果当前路径是根目录或者是初始路径，则不添加 .. 文件夹
   if (fileManageStore.currentPath === '/' || fileManageStore.currentPath === initialPath) {
     messageData = [...messageData];
-  }
-  else {
+  } else {
     messageData = [
       {
         name: '..',
@@ -325,7 +324,7 @@ function initSocketEvent(socket: WebSocket, t: any) {
             id: uuid(),
             type: MessageType.PONG,
             data: 'pong',
-          }),
+          })
         );
         break;
       }
@@ -478,7 +477,7 @@ async function generateUploadChunks(
   CHUNK_SIZE: number,
   sentChunks: Ref<number>,
   isSingleChunk: boolean = false,
-  onError: (() => void) | null = null,
+  onError: (() => void) | null = null
 ) {
   const fileManageStore = useFileManageStore();
   const sendData: FileSendData = {
@@ -489,8 +488,7 @@ async function generateUploadChunks(
 
   if (isSingleChunk) {
     sendData.chunk = false;
-  }
-  else {
+  } else {
     sendData.merge = isSingleChunk;
     sendData.chunk = !isSingleChunk;
   }
@@ -515,7 +513,7 @@ async function generateUploadChunks(
 
     sentChunks.value++;
 
-    return new Promise<boolean>((resolve) => {
+    return new Promise<boolean>(resolve => {
       const interval = setInterval(() => {
         if (uploadInterrupt.value) {
           clearInterval(interval);
@@ -532,8 +530,7 @@ async function generateUploadChunks(
         }
       }, 100);
     });
-  }
-  catch (error) {
+  } catch (error) {
     if (onError) {
       onError();
     }
@@ -561,7 +558,7 @@ async function handleFileUpload(
   onFinish: () => void,
   onError: () => void,
   t: any,
-  externalLoadingMessage?: any,
+  externalLoadingMessage?: any
 ) {
   const maxSliceCount = 100;
   const maxChunkSize = 1024 * 1024 * 10;
@@ -593,7 +590,7 @@ async function handleFileUpload(
 
   const unwatch = watch(
     () => sentChunks.value,
-    (newValue) => {
+    newValue => {
       const percent = (newValue / sliceChunks.length) * 100;
 
       _onProgress({ percent });
@@ -605,7 +602,7 @@ async function handleFileUpload(
         loadingMessage.destroy();
         unwatch();
       }
-    },
+    }
   );
 
   if (fileInfo && fileInfo.file) {
@@ -655,7 +652,7 @@ async function handleFileUpload(
           CHUNK_SIZE,
           sentChunks,
           isSingleChunk,
-          onError,
+          onError
         );
 
         if (!result) {
@@ -679,12 +676,11 @@ async function handleFileUpload(
               size: 0,
               path: `${fileManageStore.currentPath}/${fileInfo.name}`,
             }),
-          }),
+          })
         );
       }
       uploadFileId.value = '';
-    }
-    catch (e) {
+    } catch (e) {
       loadingMessage.destroy();
       console.error(e);
       onError();
@@ -717,7 +713,7 @@ export function useFileManage(token: string, t: any) {
         loadingMessage?: any;
       }) => {
         handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t, loadingMessage);
-      },
+      }
     );
 
     mittBus.on('download-file', ({ path, is_dir, size }: { path: string; is_dir: boolean; size: string }) => {
@@ -750,8 +746,8 @@ export function useFileManage(token: string, t: any) {
       }
     });
 
-    mittBus.on('stop-upload', ({ fileInfo }: { fileInfo: UploadFileInfo }) => {
-      interraptUpload(<WebSocket>socket, fileInfo);
+    mittBus.on('stop-upload', () => {
+      interraptUpload();
     });
 
     return socket;
