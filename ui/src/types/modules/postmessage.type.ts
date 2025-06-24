@@ -71,6 +71,9 @@ export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.FILE_MANAGE_EXPIRED]: {
     data: string;
   };
+  [LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME]: {
+    data: string;
+  };
 }
 
 export interface LunaMessage {

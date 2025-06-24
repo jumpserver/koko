@@ -13,12 +13,15 @@ export const createThemeOverrides = (
   const primaryColor = lighten(0);
   const primaryColorHover = lighten(10);
   const primaryColorPressed = darken(10);
-  const backgroundColor = darken(20);
-  const surfaceColor = lighten(5);
-  const borderColor = alpha(0.09);
+  // 使用主色调的轻微变暗版本作为背景色，更贴近主色
+  const backgroundColor = darken(5);
+  const cardBackgroundColor = darken(3); // Card 专用背景色，更接近主色
+  const inputBackgroundColor = lighten(2); // Input 背景色，比主色稍亮
+  const surfaceColor = lighten(8); // 表面色，用于菜单等
+  const borderColor = alpha(0.15); // 增加边框透明度，更明显
   const textColor = 'rgba(235, 235, 235, 1)';
   const textColorSecondary = alpha(0.8, '#FFFFFF');
-  const hoverColor = alpha(0.08, '#FFFFFF');
+  const hoverColor = alpha(0.12, '#FFFFFF'); // 增加悬停效果透明度
 
   return {
     Drawer: {
@@ -33,7 +36,7 @@ export const createThemeOverrides = (
       nodeColorActive: alpha(0.1),
     },
     Input: {
-      color: backgroundColor,
+      color: inputBackgroundColor,
       border: `1px solid ${borderColor}`,
       borderHover: `1px solid ${primaryColor}`,
       borderActive: `1px solid ${primaryColor}`,
@@ -86,8 +89,8 @@ export const createThemeOverrides = (
       },
     },
     Card: {
-      color: backgroundColor,
-      colorModal: backgroundColor,
+      color: cardBackgroundColor,
+      colorModal: cardBackgroundColor,
     },
     Button: {
       borderPressedPrimary: `1px solid ${primaryColorPressed}`,
@@ -108,11 +111,11 @@ export const createThemeOverrides = (
       buttonColor: backgroundColor,
     },
     DataTable: {
-      thColor: backgroundColor,
-      tdColor: backgroundColor,
+      thColor: cardBackgroundColor,
+      tdColor: cardBackgroundColor,
       tdColorHover: hoverColor,
-      thColorModal: backgroundColor,
-      tdColorModal: backgroundColor,
+      thColorModal: cardBackgroundColor,
+      tdColorModal: cardBackgroundColor,
       tdColorHoverModal: hoverColor,
       borderColorModal: borderColor,
       borderColorHoverModal: borderColor,
@@ -133,8 +136,8 @@ export const createThemeOverrides = (
       },
     },
     Table: {
-      thColorModal: backgroundColor,
-      tdColorModal: backgroundColor,
+      thColorModal: cardBackgroundColor,
+      tdColorModal: cardBackgroundColor,
     },
     Tag: {
       borderPrimary: `1px solid ${primaryColor}`,

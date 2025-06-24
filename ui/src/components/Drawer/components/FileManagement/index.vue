@@ -4,12 +4,14 @@ import type { DataTableColumns } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import prettyBytes from 'pretty-bytes';
 import { File, Folder } from '@vicons/tabler';
-import { h, onUnmounted, ref, watch } from 'vue';
-import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
+import { NFlex, NIcon, NPopover, NText } from 'naive-ui';
+import { h, inject, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { ISettingProp } from '@/types';
 
+import { lunaCommunicator } from '@/utils/lunaBus';
 import { useFileManage } from '@/hooks/useFileManage.ts';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 import FileManage from './fileManage/index.vue';
@@ -42,6 +44,8 @@ const fileManageStore = useFileManageStore();
 const isLoaded = ref(false);
 const tableData = ref<RowData[]>([]);
 const fileManageSocket = ref<WebSocket | undefined>(undefined);
+
+const manualSetTheme = inject<(theme: string) => void>('manual-set-theme');
 
 watch(
   () => fileManageStore.fileList,
@@ -76,13 +80,9 @@ watch(
   }
 );
 
-// ai added to close the WebSocket connection when the component is unmounted
-onUnmounted(() => {
-  if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
-    fileManageSocket.value.close();
-    fileManageSocket.value = undefined;
-  }
-});
+const handleMainThemeChange = (themeName: any) => {
+  manualSetTheme?.(themeName!.data as string);
+};
 
 /**
  * @description 生成表头
@@ -92,77 +92,74 @@ function createColumns(): DataTableColumns<RowData> {
     {
       title: t('Name'),
       key: 'name',
-      width: 200,
       ellipsis: {
         tooltip: true,
       },
       render(row) {
+        const fileIcon = h(NIcon, {
+          size: 18,
+          component: row.is_dir ? Folder : File,
+          style: { marginRight: '8px' },
+        });
+
+        const fileName = h(
+          NPopover,
+          {
+            delay: 500,
+            placement: 'top-start',
+            style: { maxWidth: '485px' },
+          },
+          {
+            trigger: () =>
+              h(
+                NText,
+                {
+                  depth: 1,
+                  strong: true,
+                  style: {
+                    cursor: 'pointer',
+                    maxWidth: '200px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  },
+                },
+                { default: () => row.name }
+              ),
+            default: () =>
+              h(NText, { style: { maxWidth: '300px', wordBreak: 'break-all' } }, { default: () => row.name }),
+          }
+        );
+
+        const filePermission =
+          row.name !== '..' && row.perm
+            ? h(
+                NText,
+                {
+                  depth: 3,
+                  style: { fontSize: '10px', marginTop: '2px' },
+                },
+                { default: () => row.perm }
+              )
+            : null;
+
         return h(
           NFlex,
           {
             align: 'center',
-            style: {
-              flexWrap: 'no-wrap',
-            },
+            style: { gap: '0px' },
           },
           {
             default: () => [
-              h(NIcon, {
-                size: '18',
-                component: row.is_dir ? Folder : File,
-              }),
+              fileIcon,
               h(
                 NFlex,
                 {
-                  justify: 'center',
-                  align: 'flex-start',
-                  style: {
-                    flexDirection: 'column',
-                    rowGap: '0px',
-                  },
+                  vertical: true,
+                  style: { gap: '0px' },
                 },
                 {
-                  default: () => [
-                    h(
-                      NEllipsis,
-                      {
-                        style: {
-                          maxWidth: '120px',
-                          cursor: 'pointer',
-                        },
-                      },
-                      {
-                        default: () =>
-                          h(
-                            NText,
-                            {
-                              depth: 1,
-                              strong: true,
-                            },
-                            {
-                              default: () => row.name,
-                            }
-                          ),
-                      }
-                    ),
-                    h(
-                      NText,
-                      {
-                        depth: 3,
-                        strong: true,
-                        style: {
-                          fontSize: '10px',
-                        },
-                      },
-                      {
-                        default: () => {
-                          if (row.name === '..') return;
-
-                          return row.perm ? row.perm : '-';
-                        },
-                      }
-                    ),
-                  ],
+                  default: () => [fileName, filePermission].filter(Boolean),
                 }
               ),
             ],
@@ -190,6 +187,19 @@ function createColumns(): DataTableColumns<RowData> {
     },
   ];
 }
+
+onMounted(() => {
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
+});
+
+// ai added to close the WebSocket connection when the component is unmounted
+onUnmounted(() => {
+  if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
+    fileManageSocket.value.close();
+    fileManageSocket.value = undefined;
+  }
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
+});
 
 const columns = createColumns();
 </script>
