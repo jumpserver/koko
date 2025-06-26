@@ -1,21 +1,20 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { onMounted, ref } from 'vue';
+import { h, onMounted, ref } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 
 import Terminal from '@/components/Terminal/index.vue';
 
-import { dialogContent } from './dialogContent';
+import DialogContent from './dialogContent.vue';
 
 const { t } = useI18n();
 const dialog = useDialog();
 const message = useMessage();
 
 const shareCode = ref<string>('');
+const verifyValue = ref<string>('');
 
 onMounted(() => {
-  const contentInstance = dialogContent();
-
   dialog.create({
     showIcon: false,
     closable: false,
@@ -27,9 +26,15 @@ onMounted(() => {
       size: 'small',
       type: 'primary',
     },
-    content: contentInstance.render,
+    content: () =>
+      h(DialogContent, {
+        verifyValue: verifyValue.value,
+        onUpdateVerifyValue: (value: string) => {
+          verifyValue.value = value;
+        },
+      }),
     onPositiveClick: () => {
-      shareCode.value = contentInstance.getValue();
+      shareCode.value = verifyValue.value;
 
       if (!shareCode.value) {
         message.error(t('InputVerifyCode'));
