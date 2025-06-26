@@ -13,21 +13,16 @@ export const createThemeOverrides = (
   const primaryColor = lighten(0);
   const primaryColorHover = lighten(10);
   const primaryColorPressed = darken(10);
-  // 使用主色调的轻微变暗版本作为背景色，更贴近主色
   const backgroundColor = darken(5);
-  const cardBackgroundColor = darken(3); // Card 专用背景色，更接近主色
-  const inputBackgroundColor = lighten(2); // Input 背景色，比主色稍亮
-  const surfaceColor = lighten(8); // 表面色，用于菜单等
-  const borderColor = alpha(0.15); // 增加边框透明度，更明显
+  const cardBackgroundColor = darken(3);
+  const inputBackgroundColor = lighten(2);
+  const surfaceColor = lighten(8);
+  const borderColor = alpha(0.15);
   const textColor = 'rgba(235, 235, 235, 1)';
   const textColorSecondary = alpha(0.8, '#FFFFFF');
-  const hoverColor = alpha(0.12, '#FFFFFF'); // 增加悬停效果透明度
+  const hoverColor = alpha(0.12, '#FFFFFF');
 
   return {
-    Drawer: {
-      color: backgroundColor,
-      titleTextColor: textColor,
-    },
     Tabs: {
       tabPaddingVerticalSmallLine: '6px 12px 6px 0',
     },
@@ -155,6 +150,11 @@ export const createThemeOverrides = (
       color: darken(40),
       siderColor: darken(40),
       headerColor: darken(40),
+    },
+    Drawer: {
+      color: backgroundColor,
+      titleTextColor: textColor,
+      bodyPadding: '16px 24px',
     },
   };
 };

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { computed, reactive, ref } from 'vue';
-import { Keyboard, Palette, Share2, UsersRound } from 'lucide-vue-next';
+import { FolderKanban, Keyboard as KeyboardIcon, Palette, Share2, UsersRound } from 'lucide-vue-next';
 
 import type { SettingConfig } from '@/types/modules/setting.type';
 import type { ContentType } from '@/types/modules/connection.type';
@@ -9,18 +9,20 @@ import type { ContentType } from '@/types/modules/connection.type';
 import { FILE_SUFFIX_DATABASE } from '@/utils/config';
 
 import Setting from './components/Setting/index.vue';
+import Keyboard from './components/Keyboard/index.vue';
+import SessionShare from './components/SessionShare/index.vue';
 import FileManager from './components/FileManagement/index.vue';
 
 const props = defineProps<{
-  title: string;
+  // title: string;
 
   showDrawer: boolean;
 
-  token: string;
+  // token: string;
 
-  contentType: ContentType;
+  // contentType: ContentType;
 
-  defaultProtocol: string;
+  // defaultProtocol: string;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +38,26 @@ const DRAWER_HEADER_STYLE = {
   fontWeight: '500',
   fontFamily: 'PingFang SC',
 };
+
+const drawerTabs = [
+  {
+    name: 'file-manager',
+    label: '文件管理',
+    icon: FolderKanban,
+  },
+  {
+    name: 'share-session',
+    label: '会话分享',
+    icon: Share2,
+    component: SessionShare,
+  },
+  {
+    name: 'hotkeys',
+    label: '快捷键',
+    icon: KeyboardIcon,
+    component: Keyboard,
+  },
+];
 
 const { t } = useI18n();
 
@@ -83,7 +105,7 @@ const settingsConfig = reactive<SettingConfig>({
 });
 
 const drawerDefaultWidth = computed(() => {
-  return props.contentType === 'setting' ? 502 : 702;
+  return 502;
 });
 const disabledFileManager = computed(() => {
   return FILE_SUFFIX_DATABASE.includes(props.defaultProtocol);
@@ -92,9 +114,6 @@ const disabledFileManager = computed(() => {
 /**
  * @description 关闭抽屉
  */
-function closeDrawer() {
-  emit('update:open', false);
-}
 
 function handleChangeTab(tab: ContentType) {
   emit('update:content-type', tab);
@@ -107,29 +126,20 @@ function handleChangeTab(tab: ContentType) {
     resizable
     placement="right"
     :show="showDrawer"
-    :min-width="drawerMinWidth"
-    :max-width="drawerMaxWidth"
-    :width="drawerDefaultWidth"
-    @mask-click="closeDrawer"
+    :show-mask="false"
+    :default-width="600"
   >
     <n-drawer-content closable :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
-      <n-tabs
-        size="small"
-        type="bar"
-        :value="contentType"
-        :pane-style="{ marginTop: '10px' }"
-        @update:value="handleChangeTab"
-      >
-        <n-tab-pane name="setting" display-directive="if" :tab="t('Settings')">
-          <Setting :settings="settingsConfig" />
-        </n-tab-pane>
-        <n-tab-pane
-          name="file-manager"
-          display-directive="show"
-          :disabled="disabledFileManager"
-          :tab="t('FileManagement')"
-        >
-          <FileManager :sftp-token="token" />
+      <n-tabs size="small" type="segment" :pane-style="{ marginTop: '10px' }" @update:value="handleChangeTab">
+        <n-tab-pane v-for="tab in drawerTabs" :key="tab.name" :name="tab.name">
+          <template #tab>
+            <n-flex align="center">
+              <component :is="tab.icon" :size="16" />
+              <span>{{ tab.label }}</span>
+            </n-flex>
+          </template>
+
+          <component :is="tab.component" />
         </n-tab-pane>
       </n-tabs>
     </n-drawer-content>

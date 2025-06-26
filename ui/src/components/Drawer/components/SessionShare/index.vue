@@ -2,17 +2,18 @@
 import type { SelectRenderTag } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { Undo2 } from 'lucide-vue-next';
+import { Delete } from 'lucide-vue-next';
 import { useDebounceFn } from '@vueuse/core';
-import * as clipboard from 'clipboard-polyfill';
-import { computed, h, nextTick, reactive, ref, watch } from 'vue';
+import { writeText } from 'clipboard-polyfill';
 import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
+import { computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue';
 
 import type { ShareUserOptions } from '@/types/modules/user.type';
 
 import { getMinuteLabel } from '@/utils';
 import { BASE_URL } from '@/utils/config';
 import { useParamsStore } from '@/store/modules/params.ts';
+import { useConnectionStore } from '@/store/modules/useConnection.ts';
 
 const props = withDefaults(
   defineProps<{
@@ -34,7 +35,7 @@ const props = withDefaults(
         username: '',
       },
     ],
-  },
+  }
 );
 
 const emits = defineEmits<{
@@ -47,9 +48,6 @@ const paramsStore = useParamsStore();
 const dialogReactiveList = useDialogReactiveList();
 
 const { t } = useI18n();
-
-// TODO k8s 中仍然是这种方式
-// const { shareCode, shareId } = storeToRefs(paramsStore);
 
 const currentShareId = ref<string>('');
 const loading = ref<boolean>(false);
@@ -82,33 +80,32 @@ const mappedUserOptions = computed(() => {
       label: item.username,
       value: item.id,
     }));
-  }
-  else {
+  } else {
     return [];
   }
 });
 
 watch(
   () => props.userOptions,
-  (newValue) => {
+  newValue => {
     shareUsers.value = newValue;
     nextTick(() => {
       loading.value = false;
     });
-  },
+  }
 );
 watch(
   () => props.shareId,
-  (id) => {
+  id => {
     currentShareId.value = id;
-  },
+  }
 );
 watch(
   () => props.shareEnable,
-  (enable) => {
+  enable => {
     currentEnableShare.value = enable;
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 /**
@@ -121,10 +118,8 @@ function handleBack() {
  * @description 复制分享链接
  */
 function copyShareURL() {
-  if (!currentShareId.value)
-    return;
-  if (!currentEnableShare.value)
-    return;
+  if (!currentShareId.value) return;
+  if (!currentEnableShare.value) return;
 
   const url = shareURL.value;
   const linkTitle = t('LinkAddr');
@@ -132,16 +127,15 @@ function copyShareURL() {
 
   const text = `${linkTitle}: ${url}\n${codeTitle}: ${props.shareCode}`;
 
-  clipboard
-    .writeText(text)
+  writeText(text)
     .then(() => {
       message.success(t('CopyShareURLSuccess'));
     })
-    .catch((e) => {
+    .catch(e => {
       message.error(`Copy Error for ${e}`);
     });
 
-  dialogReactiveList.value.forEach((item) => {
+  dialogReactiveList.value.forEach(item => {
     if (item.class === 'share') {
       paramsStore.setShareId('');
       paramsStore.setShareCode('');
@@ -153,7 +147,7 @@ function copyShareURL() {
  * @description 创建分享链接
  */
 function handleShareURlCreated() {
-  dialogReactiveList.value.forEach((item) => {
+  dialogReactiveList.value.forEach(item => {
     if (item.class === 'share') {
       item.title = t('Share');
     }
@@ -189,15 +183,41 @@ const renderTag: SelectRenderTag = ({ option, handleClose }) => {
     },
     {
       default: () => option.label,
-    },
+    }
   );
 };
 
 const debounceSearch = useDebounceFn(handleSearch, 300);
+
+onMounted(() => {
+  const connectionStore = useConnectionStore();
+  console.log(connectionStore);
+});
 </script>
 
 <template>
-  <Transition name="fade" mode="out-in">
+  <n-flex vertical align="center">
+    <n-divider dashed title-placement="left" class="!mb-3 !mt-0">
+      <n-text depth="2" class="text-sm opacity-70"> 在线用户（{{ shareUsers.length }}） </n-text>
+    </n-divider>
+
+    <n-flex class="w-full">
+      <n-list class="w-full" bordered hoverable>
+        <n-list-item>
+          <template #suffix>
+            <Delete :size="18" class="cursor-pointer hover:text-red-500 transition-all duration-200" />
+          </template>
+
+          <n-flex vertical>
+            <n-text>Admin</n-text>
+
+            <NTag :bordered="false" type="primary"> 主用户 </NTag>
+          </n-flex>
+        </n-list-item>
+      </n-list>
+    </n-flex>
+  </n-flex>
+  <!-- <T ransition name="fade" mode="out-in">
     <div v-if="!currentShareId" key="create-form" class="min-h-[305px]">
       <n-form label-placement="top" :model="shareLinkRequest">
         <n-grid :cols="24">
@@ -276,7 +296,7 @@ const debounceSearch = useDebounceFn(handleSearch, 300);
         </n-button>
       </n-form>
     </div>
-  </Transition>
+  </T> -->
 </template>
 
 <style scoped>
