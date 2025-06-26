@@ -333,6 +333,11 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
           terminalStore.setTerminalConfig('backspaceAsCtrlH', value);
         }
 
+        if (sessionInfo.ctrlCAsCtrlZ) {
+          const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
+          terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);
+        }
+
         if (setting.value.SECURITY_SESSION_SHARE && share) {
           operatedNode.enableShare = true;
         }

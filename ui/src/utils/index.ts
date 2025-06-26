@@ -6,7 +6,7 @@ import type { TranslateFunction } from '@/types';
 import type { ILunaConfig } from '@/types/modules/config.type';
 import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
-import { AsciiBackspace, AsciiDel } from '@/utils/config';
+import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/utils/config';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -20,8 +20,7 @@ export async function copyTextToClipboard(text: string): Promise<void> {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text);
       message.info('Text copied to clipboard');
-    }
-    else {
+    } else {
       // Fallback 方式，兼容不支持 Clipboard API 的情况
       const transfer: HTMLTextAreaElement = document.createElement('textarea');
 
@@ -35,8 +34,7 @@ export async function copyTextToClipboard(text: string): Promise<void> {
 
       message.info('Text copied to clipboard (fallback method)');
     }
-  }
-  catch (err) {
+  } catch (err) {
     message.error(`Failed to copy text: ${err}`);
   }
 }
@@ -61,10 +59,8 @@ export function bytesHuman(bytes: number, precision?: any) {
     return '-';
   }
 
-  if (bytes === 0)
-    return '0';
-  if (typeof precision === 'undefined')
-    precision = 1;
+  if (bytes === 0) return '0';
+  if (typeof precision === 'undefined') precision = 1;
 
   const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
   const num = Math.floor(Math.log(bytes) / Math.log(1024));
@@ -99,12 +95,10 @@ export function writeBufferToTerminal(
   enableZmodem: boolean,
   zmodemStatus: boolean,
   terminal: Terminal | null,
-  data: any,
+  data: any
 ) {
-  if (!enableZmodem && zmodemStatus)
-    return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
-  if (!terminal)
-    return;
+  if (!enableZmodem && zmodemStatus) return message.error('未开启 Zmodem 且当前在 Zmodem 状态, 不允许显示');
+  if (!terminal) return;
   terminal.write(new Uint8Array(data));
 }
 
@@ -114,6 +108,12 @@ export function preprocessInput(data: string, config: Partial<ILunaConfig>) {
   if (config.backspaceAsCtrlH === '1') {
     if (data.charCodeAt(0) === AsciiDel) {
       data = String.fromCharCode(AsciiBackspace);
+    }
+  }
+
+  if (config.ctrlCAsCtrlZ === '1') {
+    if (data.charCodeAt(0) === AsciiCtrlC) {
+      data = String.fromCharCode(AsciiCtrlZ);
     }
   }
 
@@ -154,8 +154,7 @@ export function sendEventToLuna(name: string, data: any, lunaId: string | null =
   if (lunaId !== null && origin !== null) {
     try {
       window.parent.postMessage({ name, id: lunaId, data }, origin);
-    }
-    catch (e) {
+    } catch (e) {
       console.error(e);
     }
   }
