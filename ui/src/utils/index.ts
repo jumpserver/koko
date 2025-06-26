@@ -1,7 +1,7 @@
 import { createDiscreteApi } from 'naive-ui';
 import { TranslateFunction } from '@/types';
 import { Terminal } from '@xterm/xterm';
-import { AsciiBackspace, AsciiDel } from '@/utils/config';
+import { AsciiBackspace, AsciiDel, AsciiCtrlC, AsciiCtrlZ } from '@/utils/config';
 import type { ILunaConfig } from '@/types/modules/config.type';
 import { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
@@ -105,6 +105,11 @@ export const preprocessInput = (data: string, config: Partial<ILunaConfig>) => {
   if (config.backspaceAsCtrlH === '1') {
     if (data.charCodeAt(0) === AsciiDel) {
       data = String.fromCharCode(AsciiBackspace);
+    }
+  }
+  if (config.ctrlCAsCtrlZ === '1') {
+    if (data.charCodeAt(0) === AsciiCtrlC) {
+      data = String.fromCharCode(AsciiCtrlZ);
     }
   }
   if (data.includes('\u001b[200~') || data.includes('\u001b[201~')) {
