@@ -20,7 +20,6 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
   private mitt: Emitter<T>;
   private lunaId: string = '';
   private targetOrigin: string = '*';
-  private protocol: string = '';
 
   constructor() {
     this.mitt = mitt<T>();
@@ -34,14 +33,13 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
         case LUNA_MESSAGE_TYPE.PING:
           this.lunaId = message.id;
           this.targetOrigin = event.origin;
-          this.protocol = message.protocol;
           this.sendLuna(LUNA_MESSAGE_TYPE.PONG, '');
           break;
         default:
-          // 处理其他类型的消息
           if (allEventTypes.includes(message.name as LunaEventType)) {
             const eventType = message.name as keyof T;
             const data = message as T[keyof T];
+
             this.mitt.emit(eventType, data);
           } else {
             console.warn(`Unhandled message type: ${message.name}`, message);

@@ -3,7 +3,7 @@ import type { Terminal } from '@xterm/xterm';
 
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { SearchAddon } from '@xterm/addon-search';
+import { readText } from 'clipboard-polyfill';
 import { useWebSocket, useWindowSize } from '@vueuse/core';
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
@@ -11,10 +11,10 @@ import type { LunaEventType } from '@/utils/lunaBus';
 import type { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 
 import { formatMessage } from '@/utils';
-import { defaultTheme } from '@/utils/config';
 import { generateWsURL } from '@/hooks/helper';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTerminalCreate } from '@/hooks/useTerminalCreate.ts';
+import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
@@ -23,24 +23,21 @@ const props = defineProps<{
   shareCode?: string;
 }>();
 
-const origin = window.location.origin;
 const message = useMessage();
+const connectionStore = useConnectionStore();
 const terminalSettingsStore = useTerminalSettingsStore();
 
 const { t } = useI18n();
 const { width, height } = useWindowSize();
 const { fitAddon, createTerminal, terminalEvent, terminalTheme } = useTerminalCreate();
 
-// const fitAddon = new FitAddon();
-// const searchAddon = new SearchAddon();
-
 const sessionId = ref<string>('');
 const terminalId = ref<string>('');
 const terminalSelectionText = ref<string>('');
 
 const socket = ref<WebSocket | ''>('');
-const terminalRef = ref<HTMLDivElement>();
 const terminalInstance = ref<Terminal>();
+const terminalRef = ref<HTMLDivElement>();
 const sessionInfo = ref<TerminalSessionInfo>();
 
 watch(
@@ -139,8 +136,6 @@ onMounted(() => {
       case LUNA_MESSAGE_TYPE.TERMINAL_ERROR:
         lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLOSE, data);
         break;
-      case LUNA_MESSAGE_TYPE.OPEN:
-        break;
       case LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE:
         lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, data);
         break;
@@ -229,6 +224,11 @@ onMounted(() => {
       terminalInstance.value!.options.theme = theme;
     });
   };
+  const handleDrawerOpen = (_msg: LunaMessage) => {
+    connectionStore.updateConnectionState({
+      drawerOpenState: true,
+    });
+  };
 
   // const handleCreateShareUrl = (shareLinkRequest: ShareUserRequest) => {
   //   if (!socket.value) {
@@ -287,6 +287,7 @@ onMounted(() => {
     lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, data);
   };
 
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.OPEN, handleDrawerOpen);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);

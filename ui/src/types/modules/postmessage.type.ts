@@ -2,7 +2,7 @@ import type { LUNA_MESSAGE_TYPE } from './message.type';
 
 export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.PING]: {
-    data: LunaMessage;
+    data: string;
   };
   [LUNA_MESSAGE_TYPE.PONG]: {
     data: string;

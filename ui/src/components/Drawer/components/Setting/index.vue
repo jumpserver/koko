@@ -28,7 +28,7 @@ const { theme } = storeToRefs(terminalSettingsStore);
 
 const currentTerminalConn = computed(() => {
   // TODO 默认取 map 中第 0 项
-  const conn = Array.from(connectionStore.connectionStateMap.values())[0] || {};
+  const conn = connectionStore;
 
   return {
     socket: conn.socket,
@@ -62,16 +62,16 @@ const themeOptions = ref([
 
 watch(
   () => theme?.value,
-  (value) => {
+  value => {
     currentTheme.value = value;
-  },
+  }
 );
 
 watch(
   () => currentTerminalConn.value.onlineUsers,
-  (value) => {
+  value => {
     showLeftArrow.value = value.length > 1;
-  },
+  }
 );
 
 /**
@@ -90,8 +90,8 @@ function handleUpdateTheme(value: string) {
         'TERMINAL_SYNC_USER_PREFERENCE',
         JSON.stringify({
           terminal_theme_name: value,
-        }),
-      ),
+        })
+      )
     );
   });
 }
@@ -108,8 +108,7 @@ function previewTheme(event: KeyboardEvent) {
     if (event.key === 'ArrowUp') {
       // 如果当前索引为 0，则跳转到最后一个选项，否则向上移动
       nextIndex = currentIndex === 0 ? themeOptions.value.length - 1 : currentIndex - 1;
-    }
-    else if (event.key === 'ArrowDown') {
+    } else if (event.key === 'ArrowDown') {
       // 如果当前索引为最后一个，则跳转到第一个选项，否则向下移动
       nextIndex = currentIndex === themeOptions.value.length - 1 ? 0 : currentIndex + 1;
     }
@@ -142,8 +141,8 @@ function handlePositiveClick(userMeta: OnlineUser) {
       JSON.stringify({
         session: sessionId,
         user_meta: userMeta,
-      }),
-    ),
+      })
+    )
   );
 }
 
@@ -163,8 +162,8 @@ function handleCreateShareUrl(shareLinkRequest: any) {
         users: shareLinkRequest.users,
         expired_time: shareLinkRequest.expiredTime,
         action_permission: shareLinkRequest.actionPerm,
-      }),
-    ),
+      })
+    )
   );
 }
 
@@ -268,7 +267,13 @@ async function handleWriteCommand(command: string) {
                     justify="space-between"
                     class="w-full"
                   >
-                    <n-tag closable size="small" type="primary" :bordered="false" @close="handlePositiveClick(usersItem)">
+                    <n-tag
+                      closable
+                      size="small"
+                      type="primary"
+                      :bordered="false"
+                      @close="handlePositiveClick(usersItem)"
+                    >
                       <span class="text-xs">{{ usersItem.user }}</span>
                     </n-tag>
                   </n-flex>

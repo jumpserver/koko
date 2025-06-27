@@ -38,7 +38,17 @@ export const createThemeOverrides = (
       borderFocus: `1px solid ${primaryColor}`,
     },
     List: {
+      colorHover: backgroundColor,
       colorModal: backgroundColor,
+      colorHoverModal: hoverColor,
+      borderColor,
+      peers: {
+        ListItem: {
+          colorHover: hoverColor,
+          colorHoverModal: hoverColor,
+          borderRadius: '6px',
+        },
+      },
     },
     Select: {
       peers: {
@@ -137,6 +147,24 @@ export const createThemeOverrides = (
     Tag: {
       borderPrimary: `1px solid ${primaryColor}`,
       textColorPrimary: primaryColor,
+      colorSuccess: lighten(5),
+      borderSuccess: `1px solid ${lighten(8)}`,
+      textColorSuccess: textColor,
+      closeColorSuccess: textColorSecondary,
+      closeColorHoverSuccess: textColor,
+      closeColorPressedSuccess: darken(5),
+      colorWarning: alpha(0.1, '#FFB020'),
+      borderWarning: `1px solid ${alpha(0.3, '#FFB020')}`,
+      textColorWarning: '#FFB020',
+      closeColorWarning: alpha(0.6, '#FFB020'),
+      closeColorHoverWarning: '#FFB020',
+      closeColorPressedWarning: alpha(0.8, '#FFB020'),
+      color: cardBackgroundColor,
+      textColor: textColorSecondary,
+      border: `1px solid ${borderColor}`,
+      closeColor: textColorSecondary,
+      closeColorHover: textColor,
+      closeColorPressed: darken(5),
     },
     Upload: {
       peers: {

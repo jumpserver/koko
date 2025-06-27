@@ -80,8 +80,7 @@ export function useTerminalConnection() {
    * @param socket
    */
   const heartBeat = (socket: WebSocket) => {
-    if (pingInterval.value)
-      clearInterval(pingInterval.value);
+    if (pingInterval.value) clearInterval(pingInterval.value);
 
     pingInterval.value = setInterval(() => {
       // 如果 socket 已经关闭，则停止心跳
@@ -91,13 +90,11 @@ export function useTerminalConnection() {
 
       const currentDate = new Date();
       const pongTimeout = currentDate.getTime() - lastReceiveTime.value.getTime() - MaxTimeout;
-      if (pongTimeout < 0)
-        return;
+      if (pongTimeout < 0) return;
 
       const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
 
-      if (pingTimeout < 0)
-        return;
+      if (pingTimeout < 0) return;
 
       socket.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
     }, 25 * 1000);
@@ -109,8 +106,7 @@ export function useTerminalConnection() {
    * @param socket
    */
   const dispatch = (data: string, terminal: Terminal, socket: WebSocket, t: any) => {
-    if (!data)
-      return;
+    if (!data) return;
 
     const parsedMessageData = JSON.parse(data);
 
@@ -119,7 +115,7 @@ export function useTerminalConnection() {
         enableShare.value = false;
         onlineUsers.value = [];
 
-        connectionStore.updateConnectionState(terminalId.value, {
+        connectionStore.updateConnectionState({
           enableShare: false,
           onlineUsers: [],
         });
@@ -140,7 +136,7 @@ export function useTerminalConnection() {
         terminalId.value = parsedMessageData.id;
         eventBus.emit('terminal-connect', { id: terminalId.value });
 
-        connectionStore.setConnectionState(terminalId.value, {
+        connectionStore.setConnectionState({
           socket,
           terminal,
           terminalId: parsedMessageData.id,
@@ -159,7 +155,7 @@ export function useTerminalConnection() {
         updateIcon(info.setting);
 
         socket.send(
-          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData)),
+          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
         );
         break;
       }
@@ -181,12 +177,16 @@ export function useTerminalConnection() {
 
         shareId.value = data.share_id;
         shareCode.value = data.code;
-        connectionStore.updateConnectionState(terminalId.value, {
+
+        console.log(data);
+
+        connectionStore.updateConnectionState({
           shareId: data.share_id,
           shareCode: data.code,
         });
 
-        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, parsedMessageData.data);
+        console.log('connectionStore', connectionStore);
+
         break;
       }
       case MESSAGE_TYPE.TERMINAL_ACTION: {
@@ -229,13 +229,13 @@ export function useTerminalConnection() {
         if (featureSetting.value.SECURITY_SESSION_SHARE && share) {
           enableShare.value = true;
 
-          connectionStore.updateConnectionState(terminalId.value, {
+          connectionStore.updateConnectionState({
             enableShare: true,
           });
         }
 
         sessionId.value = sessionDetail.id;
-        connectionStore.updateConnectionState(terminalId.value, {
+        connectionStore.updateConnectionState({
           sessionId: sessionDetail.id,
         });
         terminalSettingsStore.setDefaultTerminalConfig('theme', sessionInfo.themeName);
@@ -248,7 +248,7 @@ export function useTerminalConnection() {
         // data 中如果 primary 为 true 则表示是当前用户
         onlineUsers.value.push(data);
 
-        connectionStore.updateConnectionState(terminalId.value, {
+        connectionStore.updateConnectionState({
           onlineUsers: onlineUsers.value,
         });
         sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_ADD, JSON.stringify({ ...data, sessionId: sessionId.value }));
@@ -274,7 +274,7 @@ export function useTerminalConnection() {
         if (index !== -1) {
           onlineUsers.value.splice(index, 1);
 
-          connectionStore.updateConnectionState(terminalId.value, {
+          connectionStore.updateConnectionState({
             onlineUsers: onlineUsers.value,
           });
 
@@ -305,7 +305,7 @@ export function useTerminalConnection() {
       case MESSAGE_TYPE.TERMINAL_GET_SHARE_USER: {
         userOptions.value = JSON.parse(parsedMessageData.data);
 
-        connectionStore.updateConnectionState(terminalId.value, {
+        connectionStore.updateConnectionState({
           userOptions: userOptions.value,
         });
 
@@ -333,16 +333,14 @@ export function useTerminalConnection() {
     if (zmodemTransferStatus.value) {
       try {
         sentry.consume(event.data);
-      }
-      catch (e) {
+      } catch (e) {
         if (sentry.get_confirmed_session()) {
           sentry.get_confirmed_session()?.abort();
           message.error('File transfer error, file transfer interrupted');
           console.error(e);
         }
       }
-    }
-    else {
+    } else {
       writeBufferToTerminal(true, false, terminal, event.data);
     }
   };
@@ -353,7 +351,7 @@ export function useTerminalConnection() {
   const setShareCode = (code: string) => {
     shareCode.value = code;
 
-    connectionStore.updateConnectionState(terminalId.value, {
+    connectionStore.updateConnectionState({
       shareCode: code,
     });
   };
@@ -388,8 +386,7 @@ export function useTerminalConnection() {
 
       if (typeof event.data === 'object') {
         handleBinaryMessage(event, terminal);
-      }
-      else {
+      } else {
         dispatch(event.data, terminal, socket, t);
       }
     };

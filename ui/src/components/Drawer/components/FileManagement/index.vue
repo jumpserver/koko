@@ -9,9 +9,7 @@ import { h, inject, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { ISettingProp } from '@/types';
 
-import { lunaCommunicator } from '@/utils/lunaBus';
 import { useFileManage } from '@/hooks/useFileManage.ts';
-import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 import FileManage from './fileManage/index.vue';
@@ -45,8 +43,6 @@ const isLoaded = ref(false);
 const tableData = ref<RowData[]>([]);
 const fileManageSocket = ref<WebSocket | undefined>(undefined);
 
-const manualSetTheme = inject<(theme: string) => void>('manual-set-theme');
-
 watch(
   () => fileManageStore.fileList,
   fileList => {
@@ -79,10 +75,6 @@ watch(
     immediate: true,
   }
 );
-
-const handleMainThemeChange = (themeName: any) => {
-  manualSetTheme?.(themeName!.data as string);
-};
 
 /**
  * @description 生成表头
@@ -188,9 +180,7 @@ function createColumns(): DataTableColumns<RowData> {
   ];
 }
 
-onMounted(() => {
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
-});
+onMounted(() => {});
 
 // ai added to close the WebSocket connection when the component is unmounted
 onUnmounted(() => {
@@ -198,7 +188,6 @@ onUnmounted(() => {
     fileManageSocket.value.close();
     fileManageSocket.value = undefined;
   }
-  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
 });
 
 const columns = createColumns();
