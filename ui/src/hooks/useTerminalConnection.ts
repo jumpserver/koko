@@ -85,11 +85,10 @@ export const useTerminalConnection = () => {
 
       const currentDate = new Date();
       const pongTimeout = currentDate.getTime() - lastReceiveTime.value.getTime() - MaxTimeout;
-      if (pongTimeout < 0) return;
-
       const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
 
-      if (pingTimeout < 0) return;
+      if ((pingTimeout < 0) && (pongTimeout < 0))
+        return;
 
       socket.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
     }, 25 * 1000);
