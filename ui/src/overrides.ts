@@ -146,7 +146,7 @@ export const createThemeOverrides = (
     },
     Tag: {
       borderPrimary: `1px solid ${primaryColor}`,
-      textColorPrimary: primaryColor,
+      textColorPrimary: textColor,
       colorSuccess: lighten(5),
       borderSuccess: `1px solid ${lighten(8)}`,
       textColorSuccess: textColor,
@@ -165,6 +165,7 @@ export const createThemeOverrides = (
       closeColor: textColorSecondary,
       closeColorHover: textColor,
       closeColorPressed: darken(5),
+      closeIconColor: alpha(0.8, '#FF0000'),
     },
     Upload: {
       peers: {

@@ -6,8 +6,8 @@ import { storeToRefs } from 'pinia';
 import { useDebounceFn } from '@vueuse/core';
 import { writeText } from 'clipboard-polyfill';
 import { Delete, Undo2 } from 'lucide-vue-next';
-import { useDialogReactiveList, useMessage } from 'naive-ui';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 
 import type { ShareUserOptions } from '@/types/modules/user.type';
 
@@ -16,8 +16,6 @@ import { formatMessage, getMinuteLabel } from '@/utils';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useConnectionStore } from '@/store/modules/useConnection.ts';
 import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
-
-import SearchTag from './SearchTag.vue';
 
 const message = useMessage();
 const paramsStore = useParamsStore();
@@ -76,6 +74,19 @@ const mappedUserOptions = computed(() => {
   }
 });
 
+const resetModalState = () => {
+  loading.value = false;
+  searchLoading.value = false;
+  showCreateForm.value = true;
+  shareLinkRequest.expiredTime = 10;
+  shareLinkRequest.actionPerm = 'writable';
+  shareLinkRequest.users = [];
+  connectionStore.updateConnectionState({
+    shareId: '',
+    shareCode: '',
+  });
+};
+
 const handleBack = () => {
   loading.value = false;
   showCreateForm.value = true;
@@ -83,11 +94,20 @@ const handleBack = () => {
     shareId: '',
     shareCode: '',
   });
+  shareLinkRequest.expiredTime = 10;
+  shareLinkRequest.actionPerm = 'writable';
+  shareLinkRequest.users = [];
 };
 
 const openModal = () => {
   showModal.value = true;
   showCreateForm.value = true;
+};
+
+const handleModalClose = (show: boolean) => {
+  if (!show) {
+    resetModalState();
+  }
 };
 
 const copyShareURL = () => {
@@ -169,6 +189,27 @@ const handleSearch = (_query: string) => {
   }, 500);
 };
 
+const renderTag: SelectRenderTag = ({ option, handleClose }) => {
+  return h(
+    NTag,
+    {
+      closable: true,
+      size: 'small',
+      type: 'primary',
+      onMousedown: (e: FocusEvent) => {
+        e.preventDefault();
+      },
+      onClose: (e: MouseEvent) => {
+        e.stopPropagation();
+        handleClose();
+      },
+    },
+    {
+      default: () => option.label,
+    }
+  );
+};
+
 const debounceSearch = useDebounceFn(handleSearch, 300);
 
 onMounted(() => {});
@@ -194,12 +235,12 @@ onMounted(() => {});
           <n-flex vertical>
             <n-text>{{ user.user }}</n-text>
             <n-flex :size="8">
-              <n-tag :bordered="false" size="small" :type="user.primary ? 'info' : 'default'">
+              <NTag :bordered="false" size="small" :type="user.primary ? 'info' : 'default'">
                 {{ user.primary ? '主用户' : '共享用户' }}
-              </n-tag>
-              <n-tag :bordered="false" :type="user.writable ? 'warning' : 'success'" size="small">
+              </NTag>
+              <NTag :bordered="false" :type="user.writable ? 'warning' : 'success'" size="small">
                 {{ user.writable ? '可写' : '只读' }}
-              </n-tag>
+              </NTag>
             </n-flex>
           </n-flex>
         </n-list-item>
@@ -218,7 +259,7 @@ onMounted(() => {});
       </n-button>
     </n-flex>
 
-    <n-modal v-model:show="showModal" :auto-focus="false">
+    <n-modal v-model:show="showModal" :auto-focus="false" @update:show="handleModalClose">
       <n-card style="width: 600px" bordered :title="cardTitle" role="dialog" size="large">
         <Transition name="fade" mode="out-in">
           <div v-if="showCreateForm" key="create-form" class="min-h-[305px] w-full">
@@ -249,7 +290,7 @@ onMounted(() => {});
                     remote
                     size="small"
                     :loading="searchLoading"
-                    :render-tag="SearchTag"
+                    :render-tag="renderTag"
                     :options="mappedUserOptions"
                     :clear-filter-after-select="false"
                     :placeholder="t('GetShareUser')"
