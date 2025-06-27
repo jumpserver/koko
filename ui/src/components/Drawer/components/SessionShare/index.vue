@@ -50,13 +50,21 @@ const actionsPermOptions = reactive([
   { label: t('ReadOnly'), value: 'readonly' },
 ]);
 
+watch(
+  () => connectionStore.shareCode,
+  nv => {
+    if (nv) {
+      showCreateForm.value = false;
+    }
+  }
+);
+
 const cardTitle = computed(() => {
   return showCreateForm.value ? t('CreateLink') : t('ShareLink');
 });
 const shareURL = computed(() => {
   return connectionStore.shareId ? `${BASE_URL}/luna/share/${connectionStore.shareId}/` : t('NoLink');
 });
-
 const mappedUserOptions = computed(() => {
   if (connectionStore.userOptions && connectionStore.userOptions.length > 0) {
     return connectionStore.userOptions.map((item: ShareUserOptions) => ({
@@ -67,14 +75,6 @@ const mappedUserOptions = computed(() => {
     return [];
   }
 });
-
-watch(
-  () => connectionStore,
-  newValue => {
-    console.log('newValue', newValue);
-  },
-  { deep: true }
-);
 
 const handleBack = () => {
   loading.value = false;
@@ -138,8 +138,8 @@ const handleShareURlCreated = () => {
         origin: window.location.origin,
         session: sessionId.value,
         users: shareLinkRequest.users,
-        expiredTime: shareLinkRequest.expiredTime,
-        actionPerm: shareLinkRequest.actionPerm,
+        expired_time: shareLinkRequest.expiredTime,
+        action_permission: shareLinkRequest.actionPerm,
       })
     )
   );
@@ -148,8 +148,22 @@ const handleShareURlCreated = () => {
 const handleSearch = (_query: string) => {
   searchLoading.value = true;
 
-  // TODO 搜索用户
-  // 模拟搜索完成，实际应该在搜索完成后设置为false
+  const { socket, terminalId } = storeToRefs(connectionStore);
+
+  if (!socket?.value || !terminalId?.value) {
+    return;
+  }
+
+  socket.value.send(
+    formatMessage(
+      terminalId.value,
+      FORMATTER_MESSAGE_TYPE.TERMINAL_GET_SHARE_USER,
+      JSON.stringify({
+        query: _query,
+      })
+    )
+  );
+
   setTimeout(() => {
     searchLoading.value = false;
   }, 500);
@@ -157,12 +171,7 @@ const handleSearch = (_query: string) => {
 
 const debounceSearch = useDebounceFn(handleSearch, 300);
 
-onMounted(() => {
-  // 初始化时检查是否已有分享链接
-  if (connectionStore.shareId) {
-    showCreateForm.value = false;
-  }
-});
+onMounted(() => {});
 </script>
 
 <template>
@@ -210,7 +219,7 @@ onMounted(() => {
     </n-flex>
 
     <n-modal v-model:show="showModal" :auto-focus="false">
-      <n-card style="width: 600px" bordered :title="cardTitle" role="dialog">
+      <n-card style="width: 600px" bordered :title="cardTitle" role="dialog" size="large">
         <Transition name="fade" mode="out-in">
           <div v-if="showCreateForm" key="create-form" class="min-h-[305px] w-full">
             <n-form label-placement="top" :model="shareLinkRequest">

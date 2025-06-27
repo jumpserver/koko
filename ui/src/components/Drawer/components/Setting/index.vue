@@ -10,7 +10,7 @@ import type { OnlineUser } from '@/types/modules/user.type';
 import type { SettingConfig } from '@/types/modules/setting.type';
 
 import { formatMessage } from '@/utils';
-import Share from '@/components/Drawer/components/Share/index.vue';
+// import Share from '@/components/Drawer/components/Share/index.vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
 import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
@@ -287,14 +287,14 @@ async function handleWriteCommand(command: string) {
 
       <template v-if="item.type === 'create'">
         <n-card size="small">
-          <Share
+          <!-- <Share
             :share-id="currentTerminalConn.shareId"
             :share-code="currentTerminalConn.shareCode"
             :share-enable="currentTerminalConn.enableShare"
             :user-options="currentTerminalConn.userOptions"
             @create-share-url="handleCreateShareUrl"
             @search-share-user="handleSearchShareUser"
-          />
+          /> -->
         </n-card>
       </template>
 
