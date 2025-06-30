@@ -8,8 +8,9 @@ import { useWebSocket, useWindowSize } from '@vueuse/core';
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { LunaEventType } from '@/utils/lunaBus';
-import type { LunaMessage, ShareUserRequest, TerminalSessionInfo } from '@/types/modules/postmessage.type';
+import type { LunaMessage, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 
+import mittBus from '@/utils/mittBus';
 import { formatMessage } from '@/utils';
 import { generateWsURL } from '@/hooks/helper';
 import { lunaCommunicator } from '@/utils/lunaBus';
@@ -291,20 +292,33 @@ onMounted(() => {
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
-  // lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST, handleCreateShareUrl);
-  // lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE, handleRemoveShareUser);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent);
 
   // 添加事件监听
   document.addEventListener('click', handleDocumentClick);
+
+  mittBus.on('writeCommand', command => {
+    if (!terminalInstance.value) {
+      return;
+    }
+    terminalInstance.value?.paste(command.type);
+  });
+
+  mittBus.on('remove-share-user', user => {
+    if (!socket.value) {
+      return;
+    }
+    socket.value.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE, user));
+  });
 });
 
 onUnmounted(() => {
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CMD);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.FOCUS);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE);
-  // lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_REQUEST);
-  // lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.SHARE_USER_REMOVE);
+
+  mittBus.off('writeCommand');
+  mittBus.off('remove-share-user');
   document.removeEventListener('click', handleDocumentClick);
 });
 </script>

@@ -6,11 +6,12 @@ import { storeToRefs } from 'pinia';
 import { useDebounceFn } from '@vueuse/core';
 import { writeText } from 'clipboard-polyfill';
 import { Delete, Undo2 } from 'lucide-vue-next';
+import { computed, h, reactive, ref, watch } from 'vue';
 import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
-import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 
 import type { ShareUserOptions } from '@/types/modules/user.type';
 
+import mittBus from '@/utils/mittBus';
 import { BASE_URL } from '@/utils/config';
 import { formatMessage, getMinuteLabel } from '@/utils';
 import { useParamsStore } from '@/store/modules/params.ts';
@@ -189,6 +190,18 @@ const handleSearch = (_query: string) => {
   }, 500);
 };
 
+const handleRemoveShareUser = (user: ShareUserOptions) => {
+  if (!connectionStore.sessionId) {
+    return;
+  }
+
+  mittBus.emit('remove-share-user', {
+    sessionId: connectionStore.sessionId,
+    userMeta: user,
+    type: 'remove',
+  });
+};
+
 const renderTag: SelectRenderTag = ({ option, handleClose }) => {
   return h(
     NTag,
@@ -211,8 +224,6 @@ const renderTag: SelectRenderTag = ({ option, handleClose }) => {
 };
 
 const debounceSearch = useDebounceFn(handleSearch, 300);
-
-onMounted(() => {});
 </script>
 
 <template>
@@ -229,6 +240,7 @@ onMounted(() => {});
               v-if="!user.primary"
               :size="18"
               class="cursor-pointer hover:text-red-500 transition-all duration-200"
+              @click="handleRemoveShareUser(user)"
             />
           </template>
 
@@ -239,7 +251,7 @@ onMounted(() => {});
                 {{ user.primary ? '主用户' : '共享用户' }}
               </NTag>
               <NTag :bordered="false" :type="user.writable ? 'warning' : 'success'" size="small">
-                {{ user.writable ? '可写' : '只读' }}
+                {{ user.writable ? t('Writable') : t('ReadOnly') }}
               </NTag>
             </n-flex>
           </n-flex>

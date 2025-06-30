@@ -4,15 +4,13 @@ import type { DataTableColumns } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import prettyBytes from 'pretty-bytes';
 import { File, Folder } from '@vicons/tabler';
+import { h, onUnmounted, ref, watch } from 'vue';
 import { NFlex, NIcon, NPopover, NText } from 'naive-ui';
-import { h, inject, onMounted, onUnmounted, ref, watch } from 'vue';
-
-import type { ISettingProp } from '@/types';
 
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
-import FileManage from './fileManage/index.vue';
+import FileManage from './widget/index.vue';
 
 export interface RowData {
   is_dir: boolean;
@@ -23,18 +21,9 @@ export interface RowData {
   type: string;
 }
 
-const props = withDefaults(
-  defineProps<{
-    showTab?: boolean;
-    settings?: ISettingProp[];
-    sftpToken?: string;
-  }>(),
-  {
-    settings: () => [],
-    sftpToken: '',
-    showTab: false,
-  }
-);
+const props = defineProps<{
+  sftpToken: string;
+}>();
 
 const { t } = useI18n();
 const fileManageStore = useFileManageStore();
@@ -58,28 +47,18 @@ watch(
 
 watch(
   () => props.sftpToken,
-  (newValue, oldValue) => {
-    if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
-      fileManageSocket.value.close();
-    }
-    if (newValue && newValue !== oldValue) {
-      try {
-        fileManageSocket.value = useFileManage(newValue, t);
-      } catch (error) {
-        console.error('Failed to initialize file management socket:', error);
-        isLoaded.value = true; // 即使失败也设置加载完成，避免一直显示加载状态
-      }
+  token => {
+    if (token) {
+      fileManageSocket.value = useFileManage(token, t);
     }
   },
-  {
-    immediate: true,
-  }
+  { immediate: true }
 );
 
 /**
  * @description 生成表头
  */
-function createColumns(): DataTableColumns<RowData> {
+const createColumns = (): DataTableColumns<RowData> => {
   return [
     {
       title: t('Name'),
@@ -178,11 +157,8 @@ function createColumns(): DataTableColumns<RowData> {
       },
     },
   ];
-}
+};
 
-onMounted(() => {});
-
-// ai added to close the WebSocket connection when the component is unmounted
 onUnmounted(() => {
   if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
     fileManageSocket.value.close();

@@ -4,62 +4,54 @@ import type { FunctionalComponent } from 'vue';
 import { reactive } from 'vue';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ban } from 'lucide-vue-next';
 
+import mittBus from '@/utils/mittBus';
+
 interface KeyboardItem {
   icon: FunctionalComponent;
   label: string;
-  keywords: string[];
   click: () => void;
 }
-
-const emit = defineEmits<{
-  (e: 'writeCommand', command: string): void;
-}>();
 
 const keyboardList = reactive<KeyboardItem[]>([
   {
     icon: Ban,
     label: 'Cancel + C',
-    keywords: ['Ctrl', 'C'],
     click: () => {
-      writeDataToTerminal('Stop');
+      writeDataToTerminal('\x03');
     },
   },
   {
     icon: ArrowUp,
     label: '向上箭头',
-    keywords: ['\u2191'],
     click: () => {
-      writeDataToTerminal('ArrowUp');
+      writeDataToTerminal('\x1B[A');
     },
   },
   {
     icon: ArrowDown,
     label: '向下箭头',
-    keywords: ['\u2193'],
     click: () => {
-      writeDataToTerminal('ArrowDown');
+      writeDataToTerminal('\x1B[B');
     },
   },
   {
     icon: ArrowLeft,
     label: '向左箭头',
-    keywords: ['\u2190'],
     click: () => {
-      writeDataToTerminal('ArrowLeft');
+      writeDataToTerminal('\x1B[D');
     },
   },
   {
     icon: ArrowRight,
     label: '向右箭头',
-    keywords: ['\u2192'],
     click: () => {
-      writeDataToTerminal('RightArrow');
+      writeDataToTerminal('\x1B[C');
     },
   },
 ]);
 
 function writeDataToTerminal(type: string) {
-  emit('writeCommand', type);
+  mittBus.emit('writeCommand', { type });
 }
 </script>
 

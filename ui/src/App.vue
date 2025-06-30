@@ -47,7 +47,7 @@ onMounted(async () => {
 
   try {
     const translations = await alovaInstance
-      .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${langCode}&flat=0`)
+      .Get(`${BASE_URL}/api/v1/settings/i18n/koko/?lang=${LanguageCode}&flat=0`)
       .then(response => (response as Response).json());
 
     for (const [key, value] of Object.entries(translations)) {

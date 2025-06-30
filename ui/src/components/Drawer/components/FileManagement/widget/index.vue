@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import type { DataTableColumns, UploadCustomRequestOptions, UploadFileInfo } from 'naive-ui';
+import type { DataTableColumns, DropdownOption, UploadCustomRequestOptions, UploadFileInfo } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { List } from '@vicons/ionicons5';
+import { useMessage } from 'naive-ui';
 import { useWindowSize } from '@vueuse/core';
-import { Search, Upload } from 'lucide-vue-next';
-import { Folder, Plus, Refresh } from '@vicons/tabler';
-import { NButton, NFlex, NIcon, NText, useMessage } from 'naive-ui';
-import { ArrowBackIosFilled, ArrowForwardIosFilled } from '@vicons/material';
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
+import { computed, h, nextTick, onActivated, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Folder,
+  ListTree,
+  PenLine,
+  Plus,
+  RefreshCcw,
+  Search,
+  Trash,
+  Upload,
+} from 'lucide-vue-next';
 
 import type { FileManageSftpFileItem } from '@/types/modules/file.type';
 import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
@@ -17,8 +26,6 @@ import { getFileName } from '@/utils';
 import mittBus from '@/utils/mittBus';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 import { ManageTypes, unloadListeners } from '@/hooks/useFileManage.ts';
-
-import { getDropSelections } from './config.tsx';
 
 export interface IFilePath {
   id: string;
@@ -36,14 +43,35 @@ withDefaults(
   }>(),
   {
     columns: () => [],
-  },
+  }
 );
 
 const { t } = useI18n();
 const message = useMessage();
-const options = getDropSelections(t);
 const fileManageStore = useFileManageStore();
 const { height: windowHeight } = useWindowSize();
+
+const options: DropdownOption[] = [
+  {
+    key: 'rename',
+    label: t('Rename'),
+    icon: () => h(PenLine, { size: 16 }),
+  },
+  {
+    key: 'download',
+    label: t('Download'),
+    icon: () => h(Download, { size: 16 }),
+  },
+  {
+    type: 'divider',
+    key: 'd1',
+  },
+  {
+    key: 'delete',
+    icon: () => h(Trash, { size: 16, color: '#ff6b6b' }),
+    label: () => h(n - text, { depth: 1, style: { color: '#ff6b6b' } }, { default: () => t('Delete') }),
+  },
+];
 
 const drawerHeight = computed(() => {
   const maxHeight = Math.floor(windowHeight.value * 0.7);
@@ -77,7 +105,7 @@ const stopUploadFile = ref<UploadFileInfo>();
 
 watch(
   () => fileManageStore.currentPath,
-  (newPath) => {
+  newPath => {
     if (newPath) {
       // 重置现有路径列表
       filePathList.value = [];
@@ -124,7 +152,7 @@ watch(
   },
   {
     immediate: true,
-  },
+  }
 );
 
 watch(
@@ -134,12 +162,12 @@ watch(
       // 如果 oldPath 包含 newPath，则重置 forwardPath 为 oldPath
       forwardPath.value = oldPath;
     }
-  },
+  }
 );
 
 watch(
   () => fileManageStore.fileList,
-  (newFileList) => {
+  newFileList => {
     if (newFileList) {
       loading.value = false;
       dataList.value = newFileList;
@@ -147,17 +175,17 @@ watch(
   },
   {
     immediate: true,
-  },
+  }
 );
 
 watch(
   () => uploadFileList.value,
-  (newValue) => {
+  newValue => {
     if (newValue && newValue.length > 0) {
       persistedUploadFiles.value = [...newValue];
     }
   },
-  { deep: true },
+  { deep: true }
 );
 
 watch(
@@ -165,28 +193,27 @@ watch(
   (newVal: string) => {
     if (newVal) {
       dataList.value = fileManageStore.fileList!.filter(item => item.name.toLowerCase().includes(newVal.toLowerCase()));
-    }
-    else {
+    } else {
       dataList.value = fileManageStore.fileList!;
     }
-  },
+  }
 );
 
-function onClickOutside() {
+const onClickOutside = () => {
   showDropdown.value = false;
-}
+};
 
-function handleRemoveItem(data: { file: UploadFileInfo; fileList: UploadFileInfo[] }) {
+const handleRemoveItem = (data: { file: UploadFileInfo; fileList: UploadFileInfo[] }) => {
   mittBus.emit('stop-upload', { fileInfo: data.file });
 
   return false;
-}
+};
 
 /**
  * @description dropdown 的 select 回调
  * @param key
  */
-function handleSelect(key: string) {
+const handleSelect = (key: string) => {
   showDropdown.value = false;
 
   switch (key) {
@@ -214,13 +241,13 @@ function handleSelect(key: string) {
       break;
     }
   }
-}
+};
 
 /**
  * @description 返回按钮对路径的预处理，用于移除最后的 /xxx
  * @param path
  */
-function removeLastPathSegment(path: string): string {
+const removeLastPathSegment = (path: string): string => {
   if (path.endsWith('/')) {
     path = path.slice(0, -1);
   }
@@ -229,16 +256,15 @@ function removeLastPathSegment(path: string): string {
 
   if (lastSegmentMatch) {
     return path.replace(lastSegmentMatch[0], '');
-  }
-  else {
+  } else {
     return '';
   }
-}
+};
 
 /**
  * @description 后退
  */
-function handlePathBack() {
+const handlePathBack = () => {
   searchValue.value = '';
 
   // 保存当前路径用于前进导航
@@ -256,12 +282,12 @@ function handlePathBack() {
     path: backPath || '/',
     type: ManageTypes.CHANGE,
   });
-}
+};
 
 /**
  * @description 前进
  */
-function handlePathForward() {
+const handlePathForward = () => {
   searchValue.value = '';
 
   if (forwardPath.value !== fileManageStore.currentPath) {
@@ -282,17 +308,16 @@ function handlePathForward() {
       });
     }
   }
-}
+};
 
 /**
  * @description 鼠标手动跳转
  */
-function handlePathClick(item: IFilePath) {
+const handlePathClick = (item: IFilePath) => {
   searchValue.value = '';
 
   // 如果点击了当前活动的路径段，不执行任何操作
-  if (item.active)
-    return;
+  if (item.active) return;
 
   // 保存当前路径用于前进导航
   disabledForward.value = false;
@@ -300,25 +325,25 @@ function handlePathClick(item: IFilePath) {
 
   // 直接使用完整路径ID进行导航
   mittBus.emit('file-manage', { path: item.id, type: ManageTypes.CHANGE });
-}
+};
 
 /**
  * @description 刷新
  */
-function handleRefresh() {
+const handleRefresh = () => {
   loading.value = true;
   mittBus.emit('file-manage', {
     path: fileManageStore.currentPath,
     type: ManageTypes.REFRESH,
   });
-}
+};
 
 /**
  * @description modal 对话框
  */
-function modalPositiveClick() {
-  const index
-    = fileManageStore?.fileList?.findIndex((item: FileManageSftpFileItem) => {
+const modalPositiveClick = () => {
+  const index =
+    fileManageStore?.fileList?.findIndex((item: FileManageSftpFileItem) => {
       return item.name === newFileName.value;
     }) ?? -1;
 
@@ -330,8 +355,7 @@ function modalPositiveClick() {
         newFileName.value = '';
         return (showModal.value = true);
       });
-    }
-    else {
+    } else {
       loading.value = true;
 
       mittBus.emit('file-manage', {
@@ -363,8 +387,7 @@ function modalPositiveClick() {
   if (modalType.value === 'add') {
     if (index !== -1) {
       return message.error(t('FileAlreadyExists'));
-    }
-    else {
+    } else {
       loading.value = true;
 
       mittBus.emit('file-manage', {
@@ -382,12 +405,12 @@ function modalPositiveClick() {
 
     mittBus.emit('stop-upload', { fileInfo: stopUploadFile.value! });
   }
-}
+};
 
 /**
  * @description 文件上传
  */
-function handleUploadFileChange(options: { fileList: Array<UploadFileInfo> }) {
+const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) => {
   if (options.fileList.length > 0) {
     uploadFileList.value = options.fileList;
     fileManageStore.setUploadFileList(options.fileList);
@@ -397,12 +420,12 @@ function handleUploadFileChange(options: { fileList: Array<UploadFileInfo> }) {
       showInner.value = true;
     });
   }
-}
+};
 
 /**
  * @description 自定义上传
  */
-function customRequest({ onFinish, onError, onProgress }: UploadCustomRequestOptions) {
+const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
   // 创建loading消息
   const loadingMessage = message.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
 
@@ -419,39 +442,39 @@ function customRequest({ onFinish, onError, onProgress }: UploadCustomRequestOpt
     onProgress,
     loadingMessage,
   });
-}
+};
 
 /**
  * @description 打开传输历史列表
  */
-function handleOpenTransferList() {
+const handleOpenTransferList = () => {
   // 从 store 中恢复文件列表
   uploadFileList.value = [...fileManageStore.uploadFileList];
 
   nextTick(() => {
     showInner.value = true;
   });
-}
+};
 
-function modalNegativeClick() {
+const modalNegativeClick = () => {
   newFileName.value = '';
-}
+};
 
-function handleNewFolder() {
+const handleNewFolder = () => {
   modalType.value = 'add';
   showModal.value = true;
   modalTitle.value = t('CreateFolder');
-}
+};
 
-function handleTableLoading() {
+const handleTableLoading = () => {
   loading.value = true;
   mittBus.emit('file-manage', {
     path: fileManageStore.currentPath,
     type: ManageTypes.REFRESH,
   });
-}
+};
 
-function rowProps(row: RowData) {
+const rowProps = (row: RowData) => {
   return {
     style: 'cursor: pointer',
     onContextmenu: (e: MouseEvent) => {
@@ -504,7 +527,7 @@ function rowProps(row: RowData) {
       disabledBack.value = false;
     },
   };
-}
+};
 
 onMounted(() => {
   mittBus.on('reload-table', handleTableLoading);
@@ -530,56 +553,57 @@ provide('persistedUploadFiles', persistedUploadFiles);
 </script>
 
 <template>
-  <NFlex align="center" justify="space-between" vertical class="!gap-x-6">
-    <NFlex align="center" class="w-full !flex-nowrap">
-      <NFlex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
-        <NButton text :disabled="disabledBack" @click="handlePathBack">
-          <NIcon size="16" class="icon-hover" :component="ArrowBackIosFilled" />
-        </NButton>
+  <n-flex align="center" justify="space-between" vertical class="!gap-x-6">
+    <n-flex align="center" class="w-full !flex-nowrap">
+      <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
+        <n-button text :disabled="disabledBack" @click="handlePathBack">
+          <ChevronLeft :size="16" class="icon-hover" />
+        </n-button>
 
-        <NButton text :disabled="disabledForward" @click="handlePathForward">
-          <NIcon :component="ArrowForwardIosFilled" size="16" class="icon-hover" />
-        </NButton>
-      </NFlex>
+        <n-button text :disabled="disabledForward" @click="handlePathForward">
+          <ChevronRight :size="16" class="icon-hover" />
+        </n-button>
+      </n-flex>
 
       <n-scrollbar ref="scrollRef" x-scrollable :content-style="{ height: '40px' }">
-        <NFlex class="file-part w-full h-full !flex-nowrap">
-          <NFlex
+        <n-flex class="file-part w-full h-full !flex-nowrap">
+          <n-flex
             v-for="item of filePathList"
             :key="item.id"
             align="center"
             justify="flex-start"
             class="file-node !flex-nowrap"
           >
-            <NIcon :component="Folder" size="18" :color="item.active ? '#63e2b7' : ''" class="text-white" />
-            <NText
+            <Folder :size="18" :color="item.active ? '#63e2b7' : ''" class="text-white" />
+            <n-text
               depth="1"
               class="text-[16px] cursor-pointer whitespace-nowrap"
               :strong="item.active"
               @click="handlePathClick(item)"
             >
               {{ item.path }}
-            </NText>
-            <NIcon v-if="item.showArrow" :component="ArrowForwardIosFilled" size="16" class="text-white" />
-          </NFlex>
-        </NFlex>
-      </n-scrollbar>
-    </NFlex>
+            </n-text>
 
-    <NFlex align="center" justify="space-between" class="w-full !flex-nowrap">
+            <ChevronRight v-if="item.showArrow" :size="16" class="text-white" />
+          </n-flex>
+        </n-flex>
+      </n-scrollbar>
+    </n-flex>
+
+    <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
       <n-input v-model:value="searchValue" clearable size="small" :placeholder="t('PleaseInput')">
         <template #prefix>
           <Search :size="16" class="focus:outline-none" />
         </template>
       </n-input>
 
-      <NFlex align="center" class="!flex-nowrap">
-        <NButton secondary size="small" class="custom-button-text" @click="handleNewFolder">
+      <n-flex align="center" class="!flex-nowrap">
+        <n-button secondary size="small" class="custom-button-text" @click="handleNewFolder">
           <template #icon>
-            <NIcon :component="Plus" :size="12" />
+            <Plus :size="12" />
           </template>
           {{ t('NewFolder') }}
-        </NButton>
+        </n-button>
 
         <n-upload
           v-model:file-list="uploadFileList"
@@ -592,7 +616,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
         >
           <n-button-group>
             <n-upload-trigger #="{ handleClick }" abstract>
-              <NButton
+              <n-button
                 secondary
                 size="small"
                 class="custom-button-text"
@@ -608,7 +632,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
                 </template>
 
                 {{ t('UploadTitle') }}
-              </NButton>
+              </n-button>
             </n-upload-trigger>
           </n-button-group>
 
@@ -618,11 +642,15 @@ provide('persistedUploadFiles', persistedUploadFiles);
             placement="bottom"
             :default-height="drawerHeight"
             :max-height="drawerHeight"
+            :show-mask="false"
             :trap-focus="false"
             :block-scroll="false"
             :native-scrollbar="false"
+            :height="300"
+            to="#drawer-inner-target"
           >
             <n-drawer-content
+              closable
               :title="t('TransferHistory')"
               :body-style="{
                 overflow: 'unset',
@@ -642,31 +670,35 @@ provide('persistedUploadFiles', persistedUploadFiles);
 
         <n-popover>
           <template #trigger>
-            <NIcon size="16" :component="Refresh" class="icon-hover cursor-pointer text-white" @click="handleRefresh" />
-          </template>
-          {{ t('Refresh') }}
-        </n-popover>
-
-        <n-popover>
-          <template #trigger>
-            <NIcon
-              size="16"
-              :component="List"
-              class="icon-hover cursor-pointer text-white"
+            <ListTree
+              :size="16"
+              class="icon-hover cursor-pointer !text-white focus:outline-none"
               @click="handleOpenTransferList"
             />
           </template>
           {{ t('TransferHistory') }}
         </n-popover>
-      </NFlex>
-    </NFlex>
-  </NFlex>
 
-  <NFlex class="mt-4">
+        <n-popover>
+          <template #trigger>
+            <RefreshCcw
+              :size="16"
+              class="icon-hover cursor-pointer !text-white focus:outline-none"
+              @click="handleRefresh"
+            />
+          </template>
+          {{ t('Refresh') }}
+        </n-popover>
+      </n-flex>
+    </n-flex>
+  </n-flex>
+
+  <n-flex class="mt-4">
     <n-card size="small">
       <n-data-table
         remote
         single-line
+        flex-height
         virtual-scroll
         size="small"
         :bordered="false"
@@ -674,8 +706,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
         :columns="columns"
         :row-props="rowProps"
         :data="dataList"
-        :style="{ height: 'calc(100vh - 120px)' }"
-        flex-height
+        :style="{ height: 'calc(100vh - 240px)' }"
       >
         <template #empty>
           <n-empty class="w-full h-full justify-center" :description="t('NoData')" />
@@ -685,7 +716,6 @@ provide('persistedUploadFiles', persistedUploadFiles);
         size="small"
         trigger="manual"
         placement="bottom-start"
-        class="w-[8rem]"
         :x="x"
         :y="y"
         :show-arrow="true"
@@ -695,7 +725,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
         @select="handleSelect"
       />
     </n-card>
-  </NFlex>
+  </n-flex>
 
   <n-modal
     v-model:show="showModal"
