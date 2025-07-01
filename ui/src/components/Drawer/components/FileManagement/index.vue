@@ -3,18 +3,14 @@ import type { DataTableColumns } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
 import prettyBytes from 'pretty-bytes';
-import { File, Folder } from '@vicons/tabler';
+import { File, Folder } from 'lucide-vue-next';
+import { h, onUnmounted, ref, watch } from 'vue';
 import { NFlex, NIcon, NPopover, NText } from 'naive-ui';
-import { h, inject, onMounted, onUnmounted, ref, watch } from 'vue';
 
-import type { ISettingProp } from '@/types';
-
-import { lunaCommunicator } from '@/utils/lunaBus';
 import { useFileManage } from '@/hooks/useFileManage.ts';
-import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
-import FileManage from './fileManage/index.vue';
+import FileManage from './widget/index.vue';
 
 export interface RowData {
   is_dir: boolean;
@@ -25,18 +21,9 @@ export interface RowData {
   type: string;
 }
 
-const props = withDefaults(
-  defineProps<{
-    showTab?: boolean;
-    settings?: ISettingProp[];
-    sftpToken?: string;
-  }>(),
-  {
-    settings: () => [],
-    sftpToken: '',
-    showTab: false,
-  }
-);
+const props = defineProps<{
+  sftpToken: string;
+}>();
 
 const { t } = useI18n();
 const fileManageStore = useFileManageStore();
@@ -44,8 +31,6 @@ const fileManageStore = useFileManageStore();
 const isLoaded = ref(false);
 const tableData = ref<RowData[]>([]);
 const fileManageSocket = ref<WebSocket | undefined>(undefined);
-
-const manualSetTheme = inject<(theme: string) => void>('manual-set-theme');
 
 watch(
   () => fileManageStore.fileList,
@@ -62,32 +47,18 @@ watch(
 
 watch(
   () => props.sftpToken,
-  (newValue, oldValue) => {
-    if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
-      fileManageSocket.value.close();
-    }
-    if (newValue && newValue !== oldValue) {
-      try {
-        fileManageSocket.value = useFileManage(newValue, t);
-      } catch (error) {
-        console.error('Failed to initialize file management socket:', error);
-        isLoaded.value = true; // 即使失败也设置加载完成，避免一直显示加载状态
-      }
+  token => {
+    if (token) {
+      fileManageSocket.value = useFileManage(token, t);
     }
   },
-  {
-    immediate: true,
-  }
+  { immediate: true }
 );
-
-const handleMainThemeChange = (themeName: any) => {
-  manualSetTheme?.(themeName!.data as string);
-};
 
 /**
  * @description 生成表头
  */
-function createColumns(): DataTableColumns<RowData> {
+const createColumns = (): DataTableColumns<RowData> => {
   return [
     {
       title: t('Name'),
@@ -186,19 +157,13 @@ function createColumns(): DataTableColumns<RowData> {
       },
     },
   ];
-}
+};
 
-onMounted(() => {
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
-});
-
-// ai added to close the WebSocket connection when the component is unmounted
 onUnmounted(() => {
   if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
     fileManageSocket.value.close();
     fileManageSocket.value = undefined;
   }
-  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
 });
 
 const columns = createColumns();

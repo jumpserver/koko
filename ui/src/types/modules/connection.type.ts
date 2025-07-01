@@ -24,6 +24,10 @@ export interface ConnectionState {
   userOptions: ShareUserOptions[];
 
   onlineUsers: OnlineUser[];
+
+  drawerOpenState: boolean;
+
+  drawerTabIndex: number;
 }
 
 export type ContentType = 'setting' | 'file-manager' | '';

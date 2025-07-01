@@ -6,7 +6,7 @@ import type { CommandLineConfig, ILocalTerminalConfig } from '@/types/modules/gu
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 
 /**
- * @description 获取本地 Termianl 配置
+ * @description 获取本地 Terminal 配置
  */
 function getLocalKokoSetting() {
   const terminalSettingsStore = useTerminalSettingsStore();
@@ -52,6 +52,7 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
     is_right_click_quickly_paste: true,
     terminal_theme_name: 'Default',
   };
+
   if (localTerminalSetting) {
     const parsedSetting: ILocalTerminalConfig = JSON.parse(localTerminalSetting);
     const commandLine: CommandLineConfig = parsedSetting.command_line;
@@ -73,11 +74,13 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
       fontSize = 13;
     }
   }
+  
   return defaultCommandLine;
 }
 
 export function getDefaultTerminalConfig(): ITerminalSettings {
   const defaultCommandLine = getLocalDefaultKokoSetting();
+
   return {
     fontSize: defaultCommandLine.character_terminal_font_size,
     lineHeight: 1.2,

@@ -1,104 +1,100 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { computed, reactive, ref } from 'vue';
-import { Keyboard, Palette, Share2, UsersRound } from 'lucide-vue-next';
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
+import { FolderKanban, Keyboard as KeyboardIcon, Share2, X } from 'lucide-vue-next';
 
-import type { SettingConfig } from '@/types/modules/setting.type';
-import type { ContentType } from '@/types/modules/connection.type';
+import type { LunaMessage } from '@/types/modules/postmessage.type';
 
-import { FILE_SUFFIX_DATABASE } from '@/utils/config';
+import mittBus from '@/utils/mittBus';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
-import Setting from './components/Setting/index.vue';
+import Keyboard from './components/Keyboard/index.vue';
+import SessionShare from './components/SessionShare/index.vue';
 import FileManager from './components/FileManagement/index.vue';
 
 const props = defineProps<{
-  title: string;
-
-  showDrawer: boolean;
-
-  token: string;
-
-  contentType: ContentType;
-
-  defaultProtocol: string;
+  hiddenFileManager?: boolean;
 }>();
 
-const emit = defineEmits<{
-  (e: 'update:open', value: boolean): void;
-  (e: 'update:content-type', value: ContentType): void;
-}>();
-
-const DRAWER_HEADER_STYLE = {
-  display: 'none',
-  height: '55px',
-  color: '#EBEBEB',
-  fontSize: '16px',
-  fontWeight: '500',
-  fontFamily: 'PingFang SC',
-};
+const manualSetTheme = inject<(theme: string) => void>('manual-set-theme');
 
 const { t } = useI18n();
 
-const drawerMinWidth = ref(350);
-const drawerMaxWidth = ref(1024);
-const settingsConfig = reactive<SettingConfig>({
-  drawerTitle: t('Settings'),
-  items: [
-    {
-      type: 'select',
-      label: `${t('Theme')}:`,
-      labelIcon: Palette,
-      labelStyle: {
-        fontSize: '14px',
-      },
-      showMore: false,
-      value: 'default',
-    },
-    {
-      type: 'list',
-      label: `${t('OnlineUsers')}:`,
-      labelIcon: UsersRound,
-      labelStyle: {
-        fontSize: '14px',
-      },
-    },
-    {
-      type: 'create',
-      label: `${t('CreateLink')}:`,
-      labelIcon: Share2,
-      labelStyle: {
-        fontSize: '14px',
-      },
-      showMore: false,
-    },
-    {
-      type: 'keyboard',
-      label: `${t('Hotkeys')}:`,
-      labelIcon: Keyboard,
-      labelStyle: {
-        fontSize: '14px',
-      },
-    },
-  ],
+const DRAWER_HEADER_STYLE = {
+  display: 'none',
+};
+
+const drawerTabs = [
+  {
+    name: 'file-manager',
+    label: '文件管理',
+    icon: FolderKanban,
+    component: FileManager,
+  },
+  {
+    name: 'share-session',
+    label: '会话分享',
+    icon: Share2,
+    component: SessionShare,
+  },
+  {
+    name: 'hotkeys',
+    label: t('Hotkeys'),
+    icon: KeyboardIcon,
+    component: Keyboard,
+  },
+];
+
+const drawerStatus = ref(false);
+const fileManagerToken = ref('');
+
+const filteredDrawerTabs = computed(() => {
+  if (props.hiddenFileManager) {
+    return drawerTabs.filter(tab => tab.name !== 'file-manager');
+  }
+
+  return drawerTabs;
 });
 
-const drawerDefaultWidth = computed(() => {
-  return props.contentType === 'setting' ? 502 : 702;
-});
-const disabledFileManager = computed(() => {
-  return FILE_SUFFIX_DATABASE.includes(props.defaultProtocol);
+const handleMainThemeChange = (themeName: any) => {
+  manualSetTheme?.(themeName!.data as string);
+};
+
+const closeDrawer = () => {
+  drawerStatus.value = false;
+};
+
+const handleOpenDrawer = () => {
+  if (!drawerStatus.value) {
+    drawerStatus.value = true;
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '');
+  }
+};
+
+const handleCreateFileConnectToken = (message: LunaMessage) => {
+  const token = (message as any).token;
+
+  if (token) {
+    fileManagerToken.value = token;
+  }
+};
+
+onMounted(() => {
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
+
+  mittBus.on('open-setting', () => {
+    drawerStatus.value = !drawerStatus.value;
+  });
 });
 
-/**
- * @description 关闭抽屉
- */
-function closeDrawer() {
-  emit('update:open', false);
-}
-
-function handleChangeTab(tab: ContentType) {
-  emit('update:content-type', tab);
-}
+onUnmounted(() => {
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME, handleMainThemeChange);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
+});
 </script>
 
 <template>
@@ -106,32 +102,32 @@ function handleChangeTab(tab: ContentType) {
     id="drawer-inner-target"
     resizable
     placement="right"
-    :show="showDrawer"
-    :min-width="drawerMinWidth"
-    :max-width="drawerMaxWidth"
-    :width="drawerDefaultWidth"
-    @mask-click="closeDrawer"
+    :show="true"
+    :show-mask="false"
+    :default-width="600"
+    class="relative"
+    :style="{
+      display: drawerStatus ? 'block' : 'none',
+      opacity: drawerStatus ? 1 : 0,
+      transform: drawerStatus ? 'translateX(0)' : 'translateX(100%)',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    }"
   >
     <n-drawer-content closable :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
-      <n-tabs
-        size="small"
-        type="bar"
-        :value="contentType"
-        :pane-style="{ marginTop: '10px' }"
-        @update:value="handleChangeTab"
-      >
-        <n-tab-pane name="setting" display-directive="if" :tab="t('Settings')">
-          <Setting :settings="settingsConfig" />
-        </n-tab-pane>
-        <n-tab-pane
-          name="file-manager"
-          display-directive="show"
-          :disabled="disabledFileManager"
-          :tab="t('FileManagement')"
-        >
-          <FileManager :sftp-token="token" />
+      <n-tabs size="medium" type="line" :default-value="filteredDrawerTabs[0].name">
+        <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
+          <template #tab>
+            <n-flex align="center">
+              <component :is="tab.icon" :size="16" />
+              <span>{{ tab.label }}</span>
+            </n-flex>
+          </template>
+
+          <component :is="tab.component" :sftp-token="fileManagerToken" />
         </n-tab-pane>
       </n-tabs>
+
+      <X class="absolute top-[28px] right-[1.25rem] cursor-pointer" :size="18" @click="closeDrawer" />
     </n-drawer-content>
   </n-drawer>
 </template>

@@ -2,7 +2,7 @@ import type { LUNA_MESSAGE_TYPE } from './message.type';
 
 export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.PING]: {
-    data: LunaMessage;
+    data: string;
   };
   [LUNA_MESSAGE_TYPE.PONG]: {
     data: string;
@@ -20,6 +20,9 @@ export interface LunaMessageEvents {
     data: LunaMessage;
   };
   [LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN]: {
+    data: string;
+  };
+  [LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN]: {
     data: LunaMessage;
   };
   [LUNA_MESSAGE_TYPE.SESSION_INFO]: {
@@ -74,6 +77,9 @@ export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME]: {
     data: string;
   };
+  [LUNA_MESSAGE_TYPE.OPEN_K8S_SETTING]: {
+    data: string;
+  };
 }
 
 export interface LunaMessage {
@@ -84,6 +90,7 @@ export interface LunaMessage {
   data: string | object | null;
   theme?: string;
   user_meta?: string;
+  token?: string;
 }
 
 export interface ShareUserRequest {

@@ -1337,26 +1337,6 @@
   resolved "https://registry.npmmirror.com/@vicons/carbon/-/carbon-0.12.0.tgz"
   integrity sha512-kCOgr/ZOhZzoiFLJ8pwxMa2TMxrkCUOA22qExPabus35F4+USqzcsxaPoYtqRd9ROOYiHrSqwapak/ywF0D9bg==
 
-"@vicons/fa@^0.12.0":
-  version "0.12.0"
-  resolved "https://registry.npmmirror.com/@vicons/fa/-/fa-0.12.0.tgz"
-  integrity sha512-g2PIeJLsTHUjt6bK63LxqC0uYQB7iu+xViJOxvp1s8b9/akpXVPVWjDTTsP980/0KYyMMe4U7F/aUo7wY+MsXA==
-
-"@vicons/fluent@^0.12.0":
-  version "0.12.0"
-  resolved "https://registry.npmmirror.com/@vicons/fluent/-/fluent-0.12.0.tgz"
-  integrity sha512-ATCiqPuiJ6RI5GBlD3BIpZ9Xw4MsCA4RpI5oR6MCti4quS4mX1Gp6N74FCzw7lgOj+80rV4HMKhZTVInwimpVQ==
-
-"@vicons/ionicons5@^0.12.0":
-  version "0.12.0"
-  resolved "https://registry.npmmirror.com/@vicons/ionicons5/-/ionicons5-0.12.0.tgz"
-  integrity sha512-Iy1EUVRpX0WWxeu1VIReR1zsZLMc4fqpt223czR+Rpnrwu7pt46nbnC2ycO7ItI/uqDLJxnbcMC7FujKs9IfFA==
-
-"@vicons/material@^0.12.0":
-  version "0.12.0"
-  resolved "https://registry.npmmirror.com/@vicons/material/-/material-0.12.0.tgz"
-  integrity sha512-chv1CYAl8P32P3Ycwgd5+vw/OFNc2mtkKdb1Rw4T5IJmKy6GVDsoUKV3N2l208HATn7CCQphZtuPDdsm7K2kmA==
-
 "@vicons/tabler@^0.12.0":
   version "0.12.0"
   resolved "https://registry.npmmirror.com/@vicons/tabler/-/tabler-0.12.0.tgz"
@@ -2884,10 +2864,10 @@ lru-cache@^5.1.1:
   dependencies:
     yallist "^3.0.2"
 
-lucide-vue-next@^0.487.0:
-  version "0.487.0"
-  resolved "https://registry.npmmirror.com/lucide-vue-next/-/lucide-vue-next-0.487.0.tgz"
-  integrity sha512-ilVgu9EHkfId7WSjmoPkzp13cuzpSGO5J16AmltjRHFoj6MlCBGY8BzsBU/ISKVlDheUxM+MsIYjNo/1hSEa6w==
+lucide-vue-next@^0.525.0:
+  version "0.525.0"
+  resolved "https://registry.yarnpkg.com/lucide-vue-next/-/lucide-vue-next-0.525.0.tgz#94bafb8dcb6b6344dbbd8a00d8230cf5478e444e"
+  integrity sha512-Xf8+x8B2DrnGDV/rxylS+KBp2FIe6ljwDn2JsGTZZvXIfhmm/q+nv8RuGO1OyoMjOVkkz7CqtUqJfwtFPRbB2w==
 
 magic-string@*, magic-string@^0.30.14, magic-string@^0.30.17:
   version "0.30.17"

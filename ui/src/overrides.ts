@@ -13,21 +13,16 @@ export const createThemeOverrides = (
   const primaryColor = lighten(0);
   const primaryColorHover = lighten(10);
   const primaryColorPressed = darken(10);
-  // 使用主色调的轻微变暗版本作为背景色，更贴近主色
   const backgroundColor = darken(5);
-  const cardBackgroundColor = darken(3); // Card 专用背景色，更接近主色
-  const inputBackgroundColor = lighten(2); // Input 背景色，比主色稍亮
-  const surfaceColor = lighten(8); // 表面色，用于菜单等
-  const borderColor = alpha(0.15); // 增加边框透明度，更明显
+  const cardBackgroundColor = darken(3);
+  const inputBackgroundColor = lighten(2);
+  const surfaceColor = lighten(8);
+  const borderColor = alpha(0.15);
   const textColor = 'rgba(235, 235, 235, 1)';
   const textColorSecondary = alpha(0.8, '#FFFFFF');
-  const hoverColor = alpha(0.12, '#FFFFFF'); // 增加悬停效果透明度
+  const hoverColor = alpha(0.12, '#FFFFFF');
 
   return {
-    Drawer: {
-      color: backgroundColor,
-      titleTextColor: textColor,
-    },
     Tabs: {
       tabPaddingVerticalSmallLine: '6px 12px 6px 0',
     },
@@ -43,7 +38,17 @@ export const createThemeOverrides = (
       borderFocus: `1px solid ${primaryColor}`,
     },
     List: {
+      colorHover: backgroundColor,
       colorModal: backgroundColor,
+      colorHoverModal: hoverColor,
+      borderColor,
+      peers: {
+        ListItem: {
+          colorHover: hoverColor,
+          colorHoverModal: hoverColor,
+          borderRadius: '6px',
+        },
+      },
     },
     Select: {
       peers: {
@@ -141,7 +146,26 @@ export const createThemeOverrides = (
     },
     Tag: {
       borderPrimary: `1px solid ${primaryColor}`,
-      textColorPrimary: primaryColor,
+      textColorPrimary: textColor,
+      colorSuccess: lighten(5),
+      borderSuccess: `1px solid ${lighten(8)}`,
+      textColorSuccess: textColor,
+      closeColorSuccess: textColorSecondary,
+      closeColorHoverSuccess: textColor,
+      closeColorPressedSuccess: darken(5),
+      colorWarning: alpha(0.1, '#FFB020'),
+      borderWarning: `1px solid ${alpha(0.3, '#FFB020')}`,
+      textColorWarning: '#FFB020',
+      closeColorWarning: alpha(0.6, '#FFB020'),
+      closeColorHoverWarning: '#FFB020',
+      closeColorPressedWarning: alpha(0.8, '#FFB020'),
+      color: cardBackgroundColor,
+      textColor: textColorSecondary,
+      border: `1px solid ${borderColor}`,
+      closeColor: textColorSecondary,
+      closeColorHover: textColor,
+      closeColorPressed: darken(5),
+      closeIconColor: alpha(0.8, '#FF0000'),
     },
     Upload: {
       peers: {
@@ -155,6 +179,51 @@ export const createThemeOverrides = (
       color: darken(40),
       siderColor: darken(40),
       headerColor: darken(40),
+    },
+    Drawer: {
+      color: backgroundColor,
+      titleTextColor: textColor,
+      bodyPadding: '16px 24px',
+    },
+    Dropdown: {
+      color: surfaceColor,
+      optionTextColor: textColor,
+      optionTextColorHover: textColor,
+      optionTextColorActive: textColor,
+      optionTextColorChildActive: primaryColor,
+      optionColorHover: hoverColor,
+      optionColorActive: alpha(0.15),
+      optionColorPressed: alpha(0.2),
+      groupHeaderTextColor: textColorSecondary,
+      dividerColor: alpha(0.3),
+      optionOpacityDisabled: 0.4,
+      optionCheckColor: primaryColor,
+      optionArrowColor: textColorSecondary,
+      borderColor,
+    },
+    Popover: {
+      color: surfaceColor,
+      textColor,
+      borderColor,
+      borderRadius: '8px',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      arrowColor: surfaceColor,
+      arrowColorInfo: surfaceColor,
+      arrowColorSuccess: lighten(5),
+      arrowColorWarning: alpha(0.1, '#FFB020'),
+      arrowColorError: alpha(0.1, '#ff6b6b'),
+      colorInfo: surfaceColor,
+      colorSuccess: lighten(5),
+      colorWarning: alpha(0.1, '#FFB020'),
+      colorError: alpha(0.1, '#ff6b6b'),
+      textColorInfo: textColor,
+      textColorSuccess: textColor,
+      textColorWarning: '#FFB020',
+      textColorError: '#ff6b6b',
+      borderColorInfo: borderColor,
+      borderColorSuccess: alpha(0.3, lighten(8)),
+      borderColorWarning: alpha(0.3, '#FFB020'),
+      borderColorError: alpha(0.3, '#ff6b6b'),
     },
   };
 };
