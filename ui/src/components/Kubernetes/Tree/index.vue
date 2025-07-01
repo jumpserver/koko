@@ -1,19 +1,16 @@
 <script setup lang="ts">
 import type { DropdownOption, TreeOption } from 'naive-ui';
 
-import { NIcon } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
-import { Folder, FolderOpen } from '@vicons/fa';
-import { RefreshRound } from '@vicons/material';
-import { ExpandCategories } from '@vicons/carbon';
-import { Search, Terminal2 } from '@vicons/tabler';
+import { NPopover } from 'naive-ui';
 import { h, nextTick, ref, watchEffect } from 'vue';
+import { Folder, FolderOpen, RefreshCcw, Search, SquareTerminal, UnfoldVertical } from 'lucide-vue-next';
+
+import type { customTreeOption } from '@/types/modules/config.type';
 
 import mittBus from '@/utils/mittBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
-
-import { showToolTip } from '../helper/index';
 
 const emits = defineEmits<{
   (e: 'syncLoadNode', data?: TreeOption): void;
@@ -38,18 +35,18 @@ const allOptions = [
   {
     label: t('Expand'),
     key: 'expand',
-    icon: () => h(NIcon, { size: 15 }, { default: () => h(ExpandCategories) }),
+    icon: () => h(UnfoldVertical, { size: 15 }),
   },
   {
     label: t('Connect'),
     key: 'connect',
-    icon: () => h(NIcon, { size: 15 }, { default: () => h(Terminal2) }),
+    icon: () => h(SquareTerminal, { size: 15 }),
   },
 ];
 const buttonGroups = [
   {
     label: t('Connect'),
-    icon: Terminal2,
+    icon: () => h(SquareTerminal, { size: 15 }),
     click: (e: Event) => {
       handleRootLink(e);
     },
@@ -64,7 +61,7 @@ const buttonGroups = [
   },
   {
     label: t('Refresh'),
-    icon: RefreshRound,
+    icon: RefreshCcw,
     click: (e: Event) => {
       e.stopPropagation();
       isLoaded.value = false;
@@ -79,10 +76,31 @@ watchEffect(() => {
   }
 });
 
+const showToolTip = (option: TreeOption) => {
+  const customOption = option.option as customTreeOption;
+
+  return h(
+    NPopover,
+    {
+      trigger: 'hover',
+      placement: 'top-start',
+      delay: 1000,
+    },
+    {
+      trigger: () => h('span', { style: { display: 'inline-block', whiteSpace: 'nowrap' } }, customOption.label),
+      default: () => customOption.label,
+    }
+  );
+};
+
 /**
  * @description 处理节点展开
  */
-function handleExpandCollapse(expandedKeys: string[], _option: Array<TreeOption | null>, meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }) {
+function handleExpandCollapse(
+  expandedKeys: string[],
+  _option: Array<TreeOption | null>,
+  meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
+) {
   expandedKeysRef.value = expandedKeys;
 
   emits('syncLoadNode');
@@ -93,26 +111,10 @@ function handleExpandCollapse(expandedKeys: string[], _option: Array<TreeOption 
 
   switch (meta.action) {
     case 'expand':
-      meta.node
-      && (meta.node.prefix = () =>
-        h(
-          NIcon,
-          { size: 14 },
-          {
-            default: () => h(FolderOpen),
-          },
-        ));
+      meta.node && (meta.node.prefix = () => h(FolderOpen, { size: 14 }));
       break;
     case 'collapse':
-      meta.node
-      && (meta.node.prefix = () =>
-        h(
-          NIcon,
-          { size: 14 },
-          {
-            default: () => h(Folder),
-          },
-        ));
+      meta.node && (meta.node.prefix = () => h(Folder, { size: 14 }));
       break;
   }
 }
@@ -155,7 +157,7 @@ function handleFilter(option: TreeOption) {
       {
         label: t('Connect'),
         key: 'connect',
-        icon: () => h(NIcon, { size: 15 }, { default: () => h(Terminal2) }),
+        icon: () => h(SquareTerminal, { size: 15 }),
       },
     ];
     return;
@@ -165,7 +167,7 @@ function handleFilter(option: TreeOption) {
       {
         label: t('Expand'),
         key: 'expand',
-        icon: () => h(NIcon, { size: 15 }, { default: () => h(ExpandCategories) }),
+        icon: () => h(UnfoldVertical, { size: 15 }),
       },
     ];
     return;
@@ -233,9 +235,9 @@ function handleClickOutside() {
           <n-scrollbar style="max-height: calc(100vh - 100px)">
             <n-collapse-item :title="root?.label" class="collapse-item" name="asset-tree">
               <template #header-extra>
-                <n-flex justify="center" style="gap: 8px 5px !important" class="mr-[10px] !hidden group-hover:!flex">
+                <n-flex justify="center" class="mr-[10px] !hidden group-hover:!flex">
                   <template v-for="option of buttonGroups" :key="option.label">
-                    <n-popover>
+                    <NPopover>
                       <template #trigger>
                         <n-button
                           text
@@ -246,11 +248,11 @@ function handleClickOutside() {
                             }
                           "
                         >
-                          <NIcon size="15" :component="option.icon" />
+                          <n-icon size="15" :component="option.icon" />
                         </n-button>
                       </template>
                       {{ option.label }}
-                    </n-popover>
+                    </NPopover>
                   </template>
                 </n-flex>
               </template>

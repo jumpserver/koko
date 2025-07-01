@@ -8,7 +8,7 @@ import mittBus from '@/utils/mittBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useKubernetes } from '@/hooks/useKubernetes.ts';
 import Tree from '@/components/Kubernetes/Tree/index.vue';
-import SideTop from '@/components/Kubernetes/Sidebar/sideTop.vue';
+import SideTop from '@/components/Kubernetes/Sidebar/index.vue';
 import MainContent from '@/components/Kubernetes/MainContent/index.vue';
 import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
 

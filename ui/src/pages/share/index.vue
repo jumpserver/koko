@@ -1,52 +1,54 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { h, onMounted, ref } from 'vue';
-import { useDialog, useMessage } from 'naive-ui';
+import { onMounted, ref } from 'vue';
+import { useMessage } from 'naive-ui';
 
 import Terminal from '@/components/Terminal/index.vue';
 
-import DialogContent from './dialogContent.vue';
-
 const { t } = useI18n();
-const dialog = useDialog();
 const message = useMessage();
 
 const shareCode = ref<string>('');
 const verifyValue = ref<string>('');
+const showModal = ref<boolean>(false);
 
 onMounted(() => {
-  dialog.create({
-    showIcon: false,
-    closable: false,
-    closeOnEsc: false,
-    maskClosable: false,
-    title: t('VerifyCode'),
-    positiveText: t('ConfirmBtn'),
-    positiveButtonProps: {
-      size: 'small',
-      type: 'primary',
-    },
-    content: () =>
-      h(DialogContent, {
-        verifyValue: verifyValue.value,
-        onUpdateVerifyValue: (value: string) => {
-          verifyValue.value = value;
-        },
-      }),
-    onPositiveClick: () => {
-      shareCode.value = verifyValue.value;
-
-      if (!shareCode.value) {
-        message.error(t('InputVerifyCode'));
-        return false;
-      }
-
-      return true;
-    },
-  });
+  showModal.value = true;
 });
+
+const handleConfirm = () => {
+  if (!verifyValue.value) {
+    message.error(t('InputVerifyCode'));
+    return;
+  }
+
+  shareCode.value = verifyValue.value;
+  showModal.value = false;
+};
 </script>
 
 <template>
-  <Terminal v-if="shareCode" :share-code="shareCode" />
+  <div>
+    <n-modal
+      v-model:show="showModal"
+      preset="dialog"
+      :title="t('VerifyCode')"
+      :positive-text="t('ConfirmBtn')"
+      :closable="false"
+      :close-on-esc="false"
+      :mask-closable="false"
+      @positive-click="handleConfirm"
+    >
+      <n-input
+        v-model:value="verifyValue"
+        clearable
+        size="small"
+        type="password"
+        show-password-on="mousedown"
+        :placeholder="t('InputVerifyCode')"
+      />
+    </n-modal>
+
+    <Terminal v-if="shareCode" :share-code="shareCode" />
+  </div>
 </template>

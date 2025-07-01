@@ -29,6 +29,7 @@ class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
   private setupMessageListener() {
     window.addEventListener('message', (event: MessageEvent) => {
       const message: LunaMessage = event.data;
+
       switch (message.name) {
         case LUNA_MESSAGE_TYPE.PING:
           this.lunaId = message.id;

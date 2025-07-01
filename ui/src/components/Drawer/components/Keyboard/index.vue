@@ -2,15 +2,24 @@
 import type { FunctionalComponent } from 'vue';
 
 import { reactive } from 'vue';
+import { useMessage } from 'naive-ui';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ban } from 'lucide-vue-next';
 
 import mittBus from '@/utils/mittBus';
+import { useTreeStore } from '@/store/modules/tree';
+import { useTerminalStore } from '@/store/modules/terminal';
+import { useSessionAdapter } from '@/hooks/useSessionAdapter';
 
 interface KeyboardItem {
   icon: FunctionalComponent;
   label: string;
   click: () => void;
 }
+
+const message = useMessage();
+const treeStore = useTreeStore();
+const terminalStore = useTerminalStore();
+const { isK8sEnvironment } = useSessionAdapter();
 
 const keyboardList = reactive<KeyboardItem[]>([
   {
@@ -51,7 +60,29 @@ const keyboardList = reactive<KeyboardItem[]>([
 ]);
 
 function writeDataToTerminal(type: string) {
-  mittBus.emit('writeCommand', { type });
+  if (isK8sEnvironment.value) {
+    // K8s 环境：根据当前 tab 获取对应的 terminal 实例
+    const currentTab = terminalStore.currentTab;
+    if (!currentTab) {
+      message.error('No active terminal tab found');
+      return;
+    }
+
+    const currentNode = treeStore.getTerminalByK8sId(currentTab);
+    const terminal = currentNode?.terminal;
+
+    if (!terminal) {
+      message.error('Terminal instance not found for current tab');
+      return;
+    }
+
+    // 直接向当前活跃的终端写入内容
+    terminal.paste(type);
+    terminal.focus();
+  } else {
+    // 普通连接：使用原有的 mittBus 事件机制
+    mittBus.emit('writeCommand', { type });
+  }
 }
 </script>
 

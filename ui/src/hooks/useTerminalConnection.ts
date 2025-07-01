@@ -92,8 +92,7 @@ export function useTerminalConnection() {
       const pongTimeout = currentDate.getTime() - lastReceiveTime.value.getTime() - MaxTimeout;
       const pingTimeout: number = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
 
-      if ((pingTimeout < 0) && (pongTimeout < 0))
-        return;
+      if (pingTimeout < 0 && pongTimeout < 0) return;
 
       socket.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
     }, 25 * 1000);
@@ -177,14 +176,10 @@ export function useTerminalConnection() {
         shareId.value = data.share_id;
         shareCode.value = data.code;
 
-        console.log(data);
-
         connectionStore.updateConnectionState({
           shareId: data.share_id,
           shareCode: data.code,
         });
-
-        console.log('connectionStore', connectionStore);
 
         break;
       }

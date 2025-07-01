@@ -13,7 +13,7 @@ import { getDefaultTerminalConfig } from '@/utils/guard';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 export const useTerminalCreate = () => {
-  // 会话状态和连接信息
+  // TODO 需要获取 sessionId 和 terminalId
   const sessionId = ref<string>('');
   const terminalId = ref<string>('');
 

@@ -2,7 +2,7 @@
 import type { DataTableColumns, DropdownOption, UploadCustomRequestOptions, UploadFileInfo } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { useMessage } from 'naive-ui';
+import { NText, useMessage } from 'naive-ui';
 import { useWindowSize } from '@vueuse/core';
 import { computed, h, nextTick, onActivated, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import {
@@ -69,7 +69,7 @@ const options: DropdownOption[] = [
   {
     key: 'delete',
     icon: () => h(Trash, { size: 16, color: '#ff6b6b' }),
-    label: () => h(n - text, { depth: 1, style: { color: '#ff6b6b' } }, { default: () => t('Delete') }),
+    label: () => h(NText, { depth: 1, style: { color: '#ff6b6b' } }, { default: () => t('Delete') }),
   },
 ];
 

@@ -3,7 +3,7 @@ import type { DataTableColumns } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
 import prettyBytes from 'pretty-bytes';
-import { File, Folder } from '@vicons/tabler';
+import { File, Folder } from 'lucide-vue-next';
 import { h, onUnmounted, ref, watch } from 'vue';
 import { NFlex, NIcon, NPopover, NText } from 'naive-ui';
 

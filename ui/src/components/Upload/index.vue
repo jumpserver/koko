@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { UploadFileInfo } from 'naive-ui';
 
-import { ArchiveOutline as ArchiveIcon } from '@vicons/ionicons5';
+import { Upload as UploadIcon } from 'lucide-vue-next';
 
 defineProps<{
   t: any;
@@ -24,9 +24,7 @@ function handleFileChange(options: { fileList: UploadFileInfo[] }) {
   <n-upload directory-dnd action="#" :default-upload="false" :max="1" @change="handleFileChange">
     <n-upload-dragger>
       <div style="margin-bottom: 12px">
-        <n-icon size="48" :depth="3">
-          <ArchiveIcon />
-        </n-icon>
+        <UploadIcon :size="48" />
       </div>
       <n-text style="font-size: 16px">
         {{ t('UploadTips') }}

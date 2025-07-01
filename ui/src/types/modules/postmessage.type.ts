@@ -77,6 +77,9 @@ export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.CHANGE_MAIN_THEME]: {
     data: string;
   };
+  [LUNA_MESSAGE_TYPE.OPEN_K8S_SETTING]: {
+    data: string;
+  };
 }
 
 export interface LunaMessage {

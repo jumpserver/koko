@@ -6,31 +6,20 @@ import type { UseDraggableReturn } from 'vue-draggable-plus';
 import { v4 as uuid } from 'uuid';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
-import xtermTheme from 'xterm-theme';
-import { CloneRegular } from '@vicons/fa';
 import { useDebounceFn } from '@vueuse/core';
 import { readText } from 'clipboard-polyfill';
-import { RefreshFilled } from '@vicons/material';
+import { useDialog, useMessage } from 'naive-ui';
 import { useDraggable } from 'vue-draggable-plus';
-import { ClosedCaption32Regular } from '@vicons/fluent';
-import { NMessageProvider, useDialog, useMessage } from 'naive-ui';
-import { computed, h, markRaw, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { ArrowBack, ArrowDown, ArrowForward, ArrowUp, CloseCircleOutline } from '@vicons/ionicons5';
-import { Activity, ColorPalette, Keyboard, NotSent, Paste, Share as ShareIcon, Stop, UserAvatar } from '@vicons/carbon';
-
-import type { ISettingProp } from '@/types';
+import { h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { BrushCleaning, CircleX, Copy, RotateCcw } from 'lucide-vue-next';
 
 import mittBus from '@/utils/mittBus';
 import { updateIcon } from '@/hooks/helper';
-import { defaultTheme } from '@/utils/config';
-import Share from '@/components/Share/index.vue';
-import Settings from '@/components/Settings/index.vue';
+import Drawer from '@/components/Drawer/index.vue';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
-import ThemeConfig from '@/components/ThemeConfig/index.vue';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-import { findNodeById, renderIcon, swapElements } from '@/components/Kubernetes/helper';
 
 const dialog = useDialog();
 const message = useMessage();
@@ -55,208 +44,43 @@ const contextMenuOption = [
   {
     label: t('Reconnect'),
     key: 'reconnect',
-    icon: renderIcon(RefreshFilled),
+    icon: h(RotateCcw, { size: 16 }),
   },
   {
     label: t('Close Current Tab'),
     key: 'close',
-    icon: renderIcon(CloseCircleOutline),
+    icon: h(CircleX, { size: 16 }),
   },
   {
     label: t('Close All Tabs'),
     key: 'closeAll',
-    icon: renderIcon(ClosedCaption32Regular),
+    icon: h(BrushCleaning, { size: 16 }),
   },
   {
     label: t('Clone Connect'),
     key: 'cloneConnect',
-    icon: renderIcon(CloneRegular),
+    icon: h(Copy, { size: 16 }),
   },
 ];
 
-const settings = computed((): ISettingProp[] => {
-  return [
-    {
-      label: 'ThemeConfig',
-      title: t('ThemeConfig'),
-      icon: ColorPalette,
-      disabled: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+const swapElements = (arr: any[], index1: number, index2: number) => {
+  [arr[index1], arr[index2]] = [arr[index2], arr[index1]];
+  return arr;
+};
 
-        return !(operatedNode && operatedNode.terminal);
-      },
-      click: () => {
-        dialog.success({
-          class: 'set-theme',
-          title: t('Theme'),
-          showIcon: false,
-          style: 'width: 50%; min-width: 810px',
-          content: () => {
-            const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+const findNodeById = (nameRef: string) => {
+  const treeStore = useTreeStore();
+  // const terminalStore = useTerminalStore();
 
-            return h(ThemeConfig, {
-              currentThemeName: themeName.value,
-              preview: (tempTheme: string) => {
-                operatedNode.terminal.options.theme = xtermTheme[tempTheme] || defaultTheme;
-              },
-            });
-          },
-        });
-        // 关闭抽屉
-        mittBus.emit('open-setting');
-      },
-    },
-    {
-      label: 'Share',
-      title: t('Share'),
-      icon: ShareIcon,
-      disabled: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-
-        return !operatedNode?.enableShare;
-      },
-      click: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-        const sessionId = operatedNode.sessionIdMap.get(operatedNode.k8s_id);
-
-        dialog.success({
-          class: 'share',
-          title: t('CreateLink'),
-          showIcon: false,
-          style: 'width: 35%; min-width: 500px',
-          content: () => {
-            return h(NMessageProvider, null, {
-              default: () =>
-                h(Share, {
-                  sessionId,
-                  enableShare: operatedNode?.enableShare,
-                  userOptions: operatedNode?.userOptions,
-                }),
-            });
-          },
-          onClose: () => resetShareDialog(),
-          onMaskClick: () => resetShareDialog(),
-        });
-        // 关闭抽屉
-        mittBus.emit('open-setting');
-      },
-    },
-    {
-      label: 'User',
-      title: t('User'),
-      icon: UserAvatar,
-      disabled: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-        return Object.keys(operatedNode.onlineUsersMap).length < 1;
-      },
-      content: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-
-        if (operatedNode && operatedNode.onlineUsersMap) {
-          return Object.entries(operatedNode?.onlineUsersMap)
-            .flatMap(([sessionKey, items]) =>
-              // @ts-expect-error 类型错误
-              items
-                .filter((_item: any) => {
-                  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-                  return operatedNode.k8s_id === sessionKey;
-                })
-                .map((item: any) => {
-                  return {
-                    ...item,
-                    name: item.user,
-                    icon: item.writable ? markRaw(Activity) : markRaw(NotSent),
-                    tip: item.writable ? t('Writable') : t('ReadOnly'),
-                    sessionKey, // 添加会话的 key 值
-                  };
-                }),
-            )
-            .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
-        }
-
-        return [];
-      },
-      click: (user) => {
-        if (user.primary)
-          return;
-
-        dialog.warning({
-          title: t('Warning'),
-          content: t('RemoveShareUserConfirm'),
-          positiveText: t('ConfirmBtn'),
-          negativeText: t('Cancel'),
-          onPositiveClick: () => {
-            const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-            const sessionId = operatedNode.sessionIdMap.get(operatedNode.k8s_id);
-
-            mittBus.emit('remove-share-user', {
-              sessionId,
-              userMeta: user,
-              type: 'TERMINAL_SHARE_USER_REMOVE',
-            });
-          },
-        });
-      },
-    },
-    {
-      label: 'Keyboard',
-      title: t('Hotkeys'),
-      icon: Keyboard,
-      content: [
-        {
-          name: 'Ctrl + C',
-          icon: Stop,
-          tip: t('Cancel'),
-          click: () => {
-            handleWriteData('Stop');
-          },
-        },
-        {
-          name: 'Command/Ctrl + V',
-          icon: Paste,
-          tip: t('Paste'),
-          click: () => {
-            handleWriteData('Paste');
-          },
-        },
-        {
-          name: 'Arrow Up',
-          icon: ArrowUp,
-          tip: t('UpArrow'),
-          click: () => {
-            handleWriteData('ArrowUp');
-          },
-        },
-        {
-          name: 'Arrow Down',
-          icon: ArrowDown,
-          tip: t('DownArrow'),
-          click: () => {
-            handleWriteData('ArrowDown');
-          },
-        },
-        {
-          name: 'Arrow Left',
-          icon: ArrowBack,
-          tip: t('LeftArrow'),
-          click: () => {
-            handleWriteData('ArrowLeft');
-          },
-        },
-        {
-          name: 'Arrow Right',
-          icon: ArrowForward,
-          tip: t('RightArrow'),
-          click: () => {
-            handleWriteData('ArrowRight');
-          },
-        },
-      ],
-      disabled: () => false,
-      click: () => {},
-    },
-  ];
-});
+  for (const [_key, value] of treeStore.terminalMap.entries()) {
+    if (value.k8s_id === nameRef) {
+      treeStore.setCurrentNode(value);
+      // const ctrlCAsCtrl: string = value.ctrlCAsCtrlZMap.get(value.k8s_id);
+      //
+      // terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
+    }
+  }
+};
 
 /**
  * @description 处理标签关闭
@@ -273,7 +97,7 @@ function handleClose(name: string) {
         type: 'K8S_CLOSE',
         id: node.id,
         k8s_id: node.k8s_id,
-      }),
+      })
     );
   }
 
@@ -346,7 +170,7 @@ function handleReconnect(type: string) {
           type: 'K8S_CLOSE',
           id: operatedNode.id,
           k8s_id: operatedNode.k8s_id,
-        }),
+        })
       );
     }
 
@@ -363,8 +187,7 @@ function handleReconnect(type: string) {
     operatedNode.position = index;
 
     mittBus.emit('connect-terminal', { ...operatedNode });
-  }
-  else if (type === 'cloneConnect') {
+  } else if (type === 'cloneConnect') {
     mittBus.emit('connect-terminal', { ...operatedNode });
   }
 
@@ -415,7 +238,7 @@ function handleContextMenuSelect(key: string, _option: DropdownOption) {
 function updateTabElements(key: string) {
   const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
 
-  tabElements.forEach((element) => {
+  tabElements.forEach(element => {
     if (!processedElements.has(element)) {
       element.setAttribute('data-identification', key);
       processedElements.add(element);
@@ -444,7 +267,7 @@ function initializeDraggable() {
       JSON.parse(JSON.stringify(panels.value)),
       {
         animation: 150,
-        onEnd: async (event) => {
+        onEnd: async event => {
           if (!event || event.newIndex === undefined || event.oldIndex === undefined) {
             return console.warn('Event or index is undefined');
           }
@@ -465,7 +288,7 @@ function initializeDraggable() {
             terminalStore.setTerminalConfig('currentTab', newActiveTab);
           }
         },
-      },
+      }
     );
   }
 }
@@ -537,8 +360,7 @@ function switchToPreviousTab() {
 
   if (currentIndex > 0) {
     nameRef.value = panels.value[currentIndex - 1].name as string;
-  }
-  else {
+  } else {
     nameRef.value = panels.value[panels.value.length - 1].name as string;
   }
 
@@ -555,8 +377,7 @@ function switchToNextTab() {
 
   if (currentIndex < panels.value.length - 1) {
     nameRef.value = panels.value[currentIndex + 1].name as string;
-  }
-  else {
+  } else {
     nameRef.value = panels.value[0].name as string;
   }
 
@@ -596,7 +417,7 @@ onMounted(() => {
     let index;
 
     // 如果在 panels 中有相同的 k8s_id，则认为是对一个节点重复连接
-    panels.value.forEach((panel) => {
+    panels.value.forEach(panel => {
       if (panel.name === node.k8s_id) {
         const newId = uuid();
         node.key = newId;
@@ -606,8 +427,7 @@ onMounted(() => {
 
     if (node.position || node.position === 0) {
       index = node.position;
-    }
-    else {
+    } else {
       index = panels.value.length;
     }
 
@@ -656,8 +476,7 @@ onMounted(() => {
           node.socket.send(JSON.stringify(firstSendMessage));
 
           updateIcon(connectInfo.value);
-        }
-        catch (e: any) {
+        } catch (e: any) {
           throw new Error(e);
         }
       }
@@ -695,7 +514,7 @@ onBeforeUnmount(() => {
         :tab="panel.tab"
         :name="panel.name"
         display-directive="show:lazy"
-        class="bg-[#101014] pt-0"
+        class="pt-0"
       >
         <n-layout :native-scrollbar="false">
           <n-scrollbar trigger="hover">
@@ -710,7 +529,7 @@ onBeforeUnmount(() => {
     size="medium"
     trigger="manual"
     placement="bottom-start"
-    content-style="font-size: &quot;13px&quot;"
+    content-style='font-size: "13px"'
     :x="dropdownX"
     :y="dropdownY"
     :show="showContextMenu"
@@ -718,7 +537,8 @@ onBeforeUnmount(() => {
     @select="handleContextMenuSelect"
     @clickoutside="handleClickOutside"
   />
-  <Settings :settings="settings" />
+
+  <Drawer :hidden-file-manager="true" />
 </template>
 
 <style scoped lang="scss">
