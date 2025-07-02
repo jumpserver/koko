@@ -16,7 +16,7 @@ type EventPayloadMap = {
 
 const allEventTypes = Object.keys(LUNA_MESSAGE_TYPE) as LunaEventType[];
 
-class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
+export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
   private mitt: Emitter<T>;
   private lunaId: string = '';
   private targetOrigin: string = '*';

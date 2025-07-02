@@ -7,15 +7,13 @@ import { readText } from 'clipboard-polyfill';
 import { useWebSocket, useWindowSize } from '@vueuse/core';
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
-import type { LunaEventType } from '@/utils/lunaBus';
-import type { LunaMessage, TerminalSessionInfo } from '@/types/modules/postmessage.type';
+import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
 
 import mittBus from '@/utils/mittBus';
 import { formatMessage } from '@/utils';
 import { generateWsURL } from '@/hooks/helper';
-import { lunaCommunicator } from '@/utils/lunaBus';
+import { useTerminalEvents } from '@/hooks/useTerminalEvents';
 import { useTerminalCreate } from '@/hooks/useTerminalCreate.ts';
-import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalConnection } from '@/hooks/useTerminalConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
@@ -25,8 +23,8 @@ const props = defineProps<{
 }>();
 
 const message = useMessage();
-const connectionStore = useConnectionStore();
 const terminalSettingsStore = useTerminalSettingsStore();
+const { onTerminalSession, onTerminalConnect, sendToLuna } = useTerminalEvents();
 
 const { t } = useI18n();
 const { width, height } = useWindowSize();
@@ -108,7 +106,7 @@ const mouseleave = () => {
   }
 
   terminalInstance.value.blur();
-  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
+  sendToLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
     content: getXTerminalLineContent(10),
     sessionId: sessionId.value,
     terminalId: terminalId.value,
@@ -119,7 +117,7 @@ const handleDocumentClick = () => {
     return message.error('Terminal instance is not initialized');
   }
 
-  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLICK, '');
+  sendToLuna(LUNA_MESSAGE_TYPE.CLICK, '');
 };
 
 onMounted(() => {
@@ -129,23 +127,9 @@ onMounted(() => {
     return;
   }
 
-  const { initializeSocketEvent, setShareCode, eventBus } = useTerminalConnection();
+  const { initializeSocketEvent, setShareCode } = useTerminalConnection();
 
-  eventBus.on('luna-event', ({ event, data }) => {
-    switch (event) {
-      case LUNA_MESSAGE_TYPE.CLOSE:
-      case LUNA_MESSAGE_TYPE.TERMINAL_ERROR:
-        lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CLOSE, data);
-        break;
-      case LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE:
-        lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.SHARE_CODE_RESPONSE, data);
-        break;
-      default:
-        lunaCommunicator.sendLuna(event as LunaEventType, data);
-    }
-  });
-
-  eventBus.on('terminal-session', (info: TerminalSessionInfo) => {
+  onTerminalSession((info: TerminalSessionInfo) => {
     sessionId.value = info.session.id;
     sessionInfo.value = info;
 
@@ -158,7 +142,7 @@ onMounted(() => {
     }
   });
 
-  eventBus.on('terminal-connect', ({ id }) => {
+  onTerminalConnect(({ id }) => {
     terminalId.value = id;
   });
 
@@ -207,50 +191,6 @@ onMounted(() => {
 
   initializeSocketEvent(terminalInstance.value, socket.value, t);
 
-  const handLunaCommand = (msg: LunaMessage) => {
-    if (!socket.value) {
-      message.error('WebSocket connection may be closed, please refresh the page');
-      return;
-    }
-    socket.value?.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
-  };
-  const handLunaFocus = (_msg: LunaMessage) => {
-    terminalInstance.value?.focus();
-  };
-  const handLunaThemeChange = (_msg: LunaMessage) => {
-    const themeName = _msg.theme || 'Default';
-    const theme = terminalTheme(themeName);
-
-    nextTick(() => {
-      terminalInstance.value!.options.theme = theme;
-    });
-  };
-  const handleDrawerOpen = (_msg: LunaMessage) => {
-    connectionStore.updateConnectionState({
-      drawerOpenState: true,
-    });
-  };
-  const handTerminalContent = (_msg: LunaMessage) => {
-    if (!terminalInstance.value) {
-      return message.error('Terminal instance is not initialized');
-    }
-
-    const content = getXTerminalLineContent(10);
-
-    const data = {
-      content,
-      sessionId: sessionId.value,
-      terminalId: terminalId.value,
-    };
-
-    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, data);
-  };
-
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.OPEN, handleDrawerOpen);
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.CMD, handLunaCommand);
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
-  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent);
 
   // 添加事件监听
   document.addEventListener('click', handleDocumentClick);
@@ -271,10 +211,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.CMD);
-  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.FOCUS);
-  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE);
-
   mittBus.off('writeCommand');
   mittBus.off('remove-share-user');
   document.removeEventListener('click', handleDocumentClick);

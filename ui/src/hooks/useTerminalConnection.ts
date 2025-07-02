@@ -2,13 +2,11 @@ import type { Terminal } from '@xterm/xterm';
 import type { ConfigProviderProps } from 'naive-ui';
 import type { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 
-import mitt from 'mitt';
 import { useI18n } from 'vue-i18n';
 import { computed, ref } from 'vue';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 
 import type { SettingConfig } from '@/types/modules/config.type';
-import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
 import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
 
 import { updateIcon } from '@/hooks/helper';
@@ -24,15 +22,7 @@ import {
   ZMODEM_ACTION_TYPE,
 } from '@/types/modules/message.type';
 
-export const eventBus = mitt<{
-  'luna-event': { event: string; data: string };
-  'terminal-session': TerminalSessionInfo;
-  'terminal-connect': { id: string };
-}>();
-// 修改 sendEventToLuna 函数
-export function sendLunaEvent(event: string, data: string) {
-  eventBus.emit('luna-event', { event, data });
-}
+import { useTerminalEvents } from './useTerminalEvents';
 
 export function useTerminalConnection() {
   let sentry: Sentry;
@@ -56,6 +46,9 @@ export function useTerminalConnection() {
 
   const connectionStore = useConnectionStore();
   const terminalSettingsStore = useTerminalSettingsStore();
+
+  // 使用新的事件系统
+  const { sendLunaEvent, emitTerminalConnect, emitTerminalSession } = useTerminalEvents();
 
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
     theme: darkTheme,
@@ -132,7 +125,7 @@ export function useTerminalConnection() {
       }
       case MESSAGE_TYPE.CONNECT: {
         terminalId.value = parsedMessageData.id;
-        eventBus.emit('terminal-connect', { id: terminalId.value });
+        emitTerminalConnect(terminalId.value);
 
         connectionStore.setConnectionState({
           socket,
@@ -204,7 +197,7 @@ export function useTerminalConnection() {
       case MESSAGE_TYPE.TERMINAL_SESSION: {
         const sessionInfo = JSON.parse(parsedMessageData.data);
         const sessionDetail = sessionInfo.session;
-        eventBus.emit('terminal-session', sessionInfo);
+        emitTerminalSession(sessionInfo);
 
         const share = sessionInfo?.permission?.actions?.includes('share');
 
@@ -370,8 +363,7 @@ export function useTerminalConnection() {
       terminal.write('\r\n');
       terminal.write('\x1B[31mConnection websocket has been closed\x1B[0m');
     };
-    socket.onerror = () => {
-    };
+    socket.onerror = () => {};
     socket.onmessage = (event: MessageEvent) => {
       lastReceiveTime.value = new Date();
 
@@ -399,6 +391,5 @@ export function useTerminalConnection() {
   return {
     setShareCode,
     initializeSocketEvent,
-    eventBus,
   };
 }

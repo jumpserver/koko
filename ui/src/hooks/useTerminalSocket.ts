@@ -1,22 +1,32 @@
+import type Zmodem from 'zmodem-ts';
 import type { ConfigProviderProps } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
 import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { writeText } from 'clipboard-polyfill';
+import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
+import { readText, writeText } from 'clipboard-polyfill';
 import { useDebounceFn, useWebSocket, useWindowSize } from '@vueuse/core';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { lunaCommunicator } from '@/utils/lunaBus';
-import { formatMessage, preprocessInput } from '@/utils';
 import { getDefaultTerminalConfig } from '@/utils/guard';
+import { formatMessage, preprocessInput } from '@/utils';
 import { defaultTheme, MaxTimeout } from '@/utils/config';
+import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
-import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import {
+  FORMATTER_MESSAGE_TYPE,
+  LUNA_MESSAGE_TYPE,
+  MESSAGE_TYPE,
+  ZMODEM_ACTION_TYPE,
+} from '@/types/modules/message.type';
 
+import { useZmodem } from './useZmodem';
 import { generateWsURL } from './helper';
+import { useTerminalEvents } from './useTerminalEvents';
 
 const isSocketClosing = (socket: WebSocket) => {
   return socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED;
@@ -24,21 +34,26 @@ const isSocketClosing = (socket: WebSocket) => {
 
 const useTerminalSocket = (el: HTMLElement) => {
   const { t } = useI18n();
+  const { createSentry } = useZmodem();
   const { width, height } = useWindowSize();
 
+  const { sendLunaEvent, emitTerminalConnect, emitTerminalSession } = useTerminalEvents();
+
+  const terminalId = ref('');
+  const terminalRef = ref<Terminal | null>(null);
+  const socketRef = ref<WebSocket | null>(null);
+
+  const connectionStore = useConnectionStore();
   const defaultTerminalCfg = getDefaultTerminalConfig();
   const terminalSettingsStore = useTerminalSettingsStore();
 
   const fitAddon = new FitAddon();
+  const searchAddon = new SearchAddon();
 
-  const terminalId = ref('');
   const selectionText = ref('');
-
   const lastSendTime = ref(new Date());
   const lastReceiveTime = ref(new Date());
-
-  const terminalRef = ref<Terminal | null>(null);
-  const socketRef = ref<WebSocket | null>(null);
+  const sentry = ref<Zmodem.Sentry | null>(null);
   const pingInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
@@ -88,6 +103,49 @@ const useTerminalSocket = (el: HTMLElement) => {
   };
 
   /**
+   * @description 分发 Socket 消息
+   */
+  const dispatch = (socketData: string) => {
+    if (!socketData || !socketRef.value || !terminalRef.value) return;
+
+    const parsedMessageData = JSON.parse(socketData);
+
+    switch (parsedMessageData.type) {
+      case MESSAGE_TYPE.CLOSE: {
+        connectionStore.updateConnectionState({
+          enableShare: false,
+          onlineUsers: [],
+        });
+
+        socketRef.value.close();
+        // sendLunaEvent(LUNA_MESSAGE_TYPE.CLOSE, '');
+      }
+    }
+  };
+
+  /**
+   * @description 终端 zmodem 处理二进制消息
+   * @param {MessageEvent} socketMessage
+   */
+  const handleBinaryMessage = (socketMessage: MessageEvent) => {
+    if (!terminalRef.value || !sentry.value) {
+      return;
+    }
+
+    try {
+      sentry.value.consume(socketMessage.data);
+    } catch (_e) {
+      // 关闭 zmodem 会话
+      if (sentry.value.get_confirmed_session()) {
+        sentry.value.get_confirmed_session()?.abort();
+        message.error('File transfer error, file transfer interrupted');
+      } else {
+        terminalRef.value!.write(new Uint8Array(socketMessage.data));
+      }
+    }
+  };
+
+  /**
    * @description 监听 socket 事件
    */
   const listenSocketEvent = () => {
@@ -122,7 +180,54 @@ const useTerminalSocket = (el: HTMLElement) => {
     };
     socketRef.value.onmessage = (message: MessageEvent) => {
       lastReceiveTime.value = new Date();
+
+      if (typeof message.data === 'object') {
+        handleBinaryMessage(message);
+      } else {
+        dispatch(message.data);
+      }
     };
+  };
+
+  /**
+   * @description 监听挂载节点事件
+   */
+  const listenElEvent = () => {
+    if (!terminalRef.value) {
+      return;
+    }
+
+    el.addEventListener('mouseenter', () => {
+      fitAddon.fit();
+      terminalRef.value!.focus();
+    });
+    el.addEventListener('contextmenu', async (e: MouseEvent) => {
+      // 只有在开启右键快速复制时才允许粘贴
+      // TODO 对于 terminal 的 contextmenu 后续需要进行封装
+      if (e.ctrlKey || terminalSettingsStore.quickPaste !== '1') return;
+
+      e.preventDefault();
+
+      let text: string = '';
+
+      try {
+        text = await readText();
+      } catch (_e) {
+        if (selectionText.value) {
+          text = selectionText.value;
+        }
+      }
+
+      if (!text) {
+        return;
+      }
+
+      if (isSocketClosing(socketRef.value!)) {
+        return message.error(t('WebSocket connection is closed, please refresh the page'));
+      }
+
+      socketRef.value!.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
+    });
   };
 
   /**
@@ -197,9 +302,7 @@ const useTerminalSocket = (el: HTMLElement) => {
     });
 
     terminal.loadAddon(fitAddon);
-    terminal.open(el);
-
-    fitAddon.fit();
+    terminal.loadAddon(searchAddon);
 
     terminalRef.value = terminal;
   };
@@ -234,8 +337,15 @@ const useTerminalSocket = (el: HTMLElement) => {
     createWebSocket();
 
     nextTick(() => {
+      sentry.value = createSentry(terminalRef.value!, socketRef.value!, lastSendTime);
+
+      listenElEvent();
       listenSocketEvent();
       listenTerminalRefEvent();
+
+      terminalRef.value?.open(el);
+
+      fitAddon.fit();
     });
   });
 

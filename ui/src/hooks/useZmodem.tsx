@@ -138,6 +138,11 @@ export const useZmodem = () => {
     fileInfo.value = options.fileList;
   };
 
+  /**
+   * 打开上传文件对话框
+   * @param {ZmodemSession} startState
+   * @param {Terminal} terminal
+   */
   const openUploadModal = (startState: ZmodemSession, terminal: Terminal) => {
     modal.create({
       preset: 'card',

@@ -4,6 +4,11 @@ interface Window {
   SendTerminalData: (data: any) => void;
 }
 
+declare module 'xterm-theme' {
+  const themes: { [key: string]: any };
+  export default themes;
+}
+
 declare module 'zmodem-ts' {
   export class Sentry {
     constructor(config: SentryConfig);
