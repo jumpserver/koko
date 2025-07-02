@@ -14,8 +14,6 @@
     "prettier": "prettier --write \"src/**/*.{js,ts,json,tsx,css,less,scss,vue,html,md}\""
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.0.17",
-    "@types/uuid": "^10.0.0",
     "@vueuse/core": "^10.11.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-search": "^0.15.0",
@@ -30,20 +28,22 @@
     "pinia": "^3.0.2",
     "pretty-bytes": "^7.0.0",
     "sortablejs": "^1.15.3",
-    "tailwindcss": "^4.0.17",
     "uuid": "^10.0.0",
     "vue": "^3.5.16",
     "vue-draggable-plus": "^0.5.2",
     "vue-i18n": "^11.1.5",
     "vue-router": "^4.4.0",
     "vue3-cookies": "^1.0.6",
-    "xterm-theme": "^1.1.0"
+    "xterm-theme": "^1.1.0",
+    "zmodem-ts": "^1.0.5"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.16.1",
     "@eslint/js": "^9.23.0",
+    "@tailwindcss/vite": "^4.0.17",
     "@types/node": "^20.14.11",
     "@types/sortablejs": "^1.15.0",
+    "@types/uuid": "^10.0.0",
     "@vicons/carbon": "^0.12.0",
     "@vicons/tabler": "^0.12.0",
     "@vitejs/plugin-vue": "^5.0.5",
@@ -54,6 +54,7 @@
     "globals": "^16.0.0",
     "prettier": "^3.3.3",
     "sass": "^1.77.8",
+    "tailwindcss": "^4.0.17",
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.29.0",
     "unplugin-vue-components": "^0.27.3",

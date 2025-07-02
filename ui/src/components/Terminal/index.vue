@@ -230,48 +230,6 @@ onMounted(() => {
       drawerOpenState: true,
     });
   };
-
-  // const handleCreateShareUrl = (shareLinkRequest: ShareUserRequest) => {
-  //   if (!socket.value) {
-  //     message.error('WebSocket connection is not established');
-  //     return;
-  //   }
-  //   const data = shareLinkRequest.data.requestData || {};
-  //   const perm = data.action_permission || data.action_perm || 'writable';
-  //   socket.value.send(
-  //     formatMessage(
-  //       terminalId.value,
-  //       FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE,
-  //       JSON.stringify({
-  //         origin,
-  //         session: shareLinkRequest.data.sessionId,
-  //         users: data.users,
-  //         expired_time: data.expired_time,
-  //         action_permission: perm,
-  //       })
-  //     )
-  //   );
-  // };
-  // const handleRemoveShareUser = (msg: LunaMessage) => {
-  //   if (!socket.value) {
-  //     message.error('WebSocket connection is not established');
-  //     return;
-  //   }
-  //   if (!msg.data) {
-  //     message.error('Invalid data for removing share user');
-  //     return;
-  //   }
-  //   socket.value.send(
-  //     formatMessage(
-  //       terminalId.value,
-  //       FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE,
-  //       JSON.stringify({
-  //         session: sessionId.value,
-  //         user_meta: msg.data || {},
-  //       })
-  //     )
-  //   );
-  // };
   const handTerminalContent = (_msg: LunaMessage) => {
     if (!terminalInstance.value) {
       return message.error('Terminal instance is not initialized');

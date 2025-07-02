@@ -358,6 +358,7 @@ export function useTerminalConnection() {
   const initializeSocketEvent = (terminal: Terminal, socket: WebSocket, t: any) => {
     // 创建 ZMODEM 实例
     createZmodemInstance(terminal, socket);
+
     const isClosed = computed(() => socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING);
 
     socket.onopen = () => {
@@ -370,10 +371,6 @@ export function useTerminalConnection() {
       terminal.write('\x1B[31mConnection websocket has been closed\x1B[0m');
     };
     socket.onerror = () => {
-      // terminal.write('\x1b[31mConnection Websocket Error Occurred\x1b[0m');
-      // 换行
-      // terminal.write('\r\n');
-      // terminal.write('\r\n');
     };
     socket.onmessage = (event: MessageEvent) => {
       lastReceiveTime.value = new Date();
