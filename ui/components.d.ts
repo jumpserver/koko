@@ -68,5 +68,6 @@ declare module 'vue' {
     Tree: typeof import('./src/components/Kubernetes/Tree/index.vue')['default']
     Upload: typeof import('./src/components/Upload/index.vue')['default']
     Widget: typeof import('./src/components/Drawer/components/FileManagement/widget/index.vue')['default']
+    ZmodemUpload: typeof import('./src/components/ZmodemUpload/index.vue')['default']
   }
 }

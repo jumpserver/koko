@@ -44,7 +44,7 @@ interface Event {
     };
   };
   writeDataToTerminal: { type: string };
-  writeCommand: { type: string };
+  'write-command': { type: string };
 }
 
 // @ts-expect-error mittBus is not typed

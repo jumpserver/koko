@@ -1,3 +1,5 @@
+import type { Terminal } from '@xterm/xterm';
+
 // 引入 API
 import { useRoute } from 'vue-router';
 import { createDiscreteApi } from 'naive-ui';
@@ -138,3 +140,30 @@ export function updateIcon(setting: any) {
     link.href = faviconURL;
   }
 }
+
+export const getXTerminalLineContent = (index: number, terminal: Terminal) => {
+  const buffer = terminal.buffer.active;
+
+  if (!buffer) return '';
+
+  const result: string[] = [];
+  const bufferLineCount = buffer.length;
+
+  let startLine = bufferLineCount;
+
+  while (result.length < index || startLine >= 0) {
+    startLine--;
+
+    if (startLine < 0) break;
+
+    const line = buffer.getLine(startLine);
+
+    if (!line) {
+      console.warn(`Line ${startLine} is empty or undefined`);
+      continue;
+    }
+
+    result.unshift(line.translateToString());
+  }
+  return result.join('\n');
+};

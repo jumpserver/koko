@@ -6,8 +6,11 @@ import { inject, nextTick } from 'vue';
 import type { LunaEventType } from '@/utils/lunaBus';
 import type { LunaMessage, TerminalSessionInfo } from '@/types/modules/postmessage.type';
 
+import mittBus from '@/utils/mittBus';
 import { formatMessage } from '@/utils';
 import { LunaCommunicator } from '@/utils/lunaBus';
+import { terminalTheme } from '@/hooks/useTerminalSocket';
+import { getXTerminalLineContent } from '@/hooks/helper/index';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
@@ -59,6 +62,14 @@ export const createTerminalContext = (): TerminalContext => {
       }
     });
 
+    mittBus.on('write-command', ({ type }) => {
+      const terminal = connectionStore.terminal;
+
+      if (terminal) {
+        terminal.paste(type);
+      }
+    });
+
     const handLunaCommand = (msg: LunaMessage) => {
       const socket = connectionStore.socket;
       const terminalId = connectionStore.terminalId;
@@ -72,6 +83,7 @@ export const createTerminalContext = (): TerminalContext => {
 
     const handLunaFocus = (_msg: LunaMessage) => {
       const terminal = connectionStore.terminal;
+
       if (terminal) {
         terminal.focus();
       }
@@ -82,10 +94,10 @@ export const createTerminalContext = (): TerminalContext => {
       if (!terminal) return;
 
       const themeName = _msg.theme || 'Default';
-      // TODO 这里需要导入 terminalTheme 函数，暂时简化处理
+      const theme = terminalTheme(themeName);
+
       nextTick(() => {
-        // TODO terminal.options.theme = terminalTheme(themeName);
-        console.warn('Theme change:', themeName);
+        terminal.options.theme = theme;
       });
     };
 
@@ -105,30 +117,8 @@ export const createTerminalContext = (): TerminalContext => {
         return;
       }
 
-      // TODO 简化获取终端内容的逻辑
-      const getXTerminalLineContent = (index: number) => {
-        const buffer = terminal.buffer.active;
-        if (!buffer) return '';
+      const content = getXTerminalLineContent(10, terminal);
 
-        const result: string[] = [];
-        const bufferLineCount = buffer.length;
-        let startLine = bufferLineCount;
-
-        while (result.length < index || startLine >= 0) {
-          startLine--;
-          if (startLine < 0) break;
-
-          const line = buffer.getLine(startLine);
-          if (!line) {
-            console.warn(`Line ${startLine} is empty or undefined`);
-            continue;
-          }
-          result.unshift(line.translateToString());
-        }
-        return result.join('\n');
-      };
-
-      const content = getXTerminalLineContent(10);
       const data = {
         content,
         sessionId,
@@ -151,6 +141,7 @@ export const createTerminalContext = (): TerminalContext => {
 
   const cleanup = () => {
     eventBus.all.clear();
+    mittBus.all.clear();
     lunaCommunicator.destroy();
   };
 

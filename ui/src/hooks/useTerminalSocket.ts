@@ -1,5 +1,5 @@
-import type Zmodem from 'zmodem-ts';
 import type { ConfigProviderProps } from 'naive-ui';
+import type { Sentry } from 'nora-zmodemjs/src/zmodem_browser';
 
 import { useI18n } from 'vue-i18n';
 import xtermTheme from 'xterm-theme';
@@ -9,14 +9,17 @@ import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { readText, writeText } from 'clipboard-polyfill';
 import { useDebounceFn, useWebSocket, useWindowSize } from '@vueuse/core';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+
+import type { SettingConfig } from '@/types/modules/config.type';
+import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
 
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { getDefaultTerminalConfig } from '@/utils/guard';
-import { formatMessage, preprocessInput } from '@/utils';
 import { defaultTheme, MaxTimeout } from '@/utils/config';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
+import { formatMessage, preprocessInput, writeBufferToTerminal } from '@/utils';
 import {
   FORMATTER_MESSAGE_TYPE,
   LUNA_MESSAGE_TYPE,
@@ -25,23 +28,60 @@ import {
 } from '@/types/modules/message.type';
 
 import { useZmodem } from './useZmodem';
-import { generateWsURL } from './helper';
+import { useSentry } from './useZsentry';
+import { generateWsURL, updateIcon } from './helper';
 import { useTerminalEvents } from './useTerminalEvents';
+import { getXTerminalLineContent } from './helper/index';
 
+/**
+ * @description 判断 WebSocket 是否关闭
+ * @param {WebSocket} socket
+ * @returns {boolean}
+ */
 const isSocketClosing = (socket: WebSocket) => {
   return socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED;
 };
 
-const useTerminalSocket = (el: HTMLElement) => {
+/**
+ * @description 获取终端主题
+ * @param {string} themeName
+ */
+export const terminalTheme = (themeName: string) => {
+  if (!xtermTheme[themeName]) {
+    return defaultTheme;
+  }
+  return xtermTheme[themeName];
+};
+
+export const useTerminalSocket = () => {
+  let sentry: Sentry | null = null;
+
   const { t } = useI18n();
   const { createSentry } = useZmodem();
   const { width, height } = useWindowSize();
 
   const { sendLunaEvent, emitTerminalConnect, emitTerminalSession } = useTerminalEvents();
 
+  const containerRef = shallowRef<HTMLElement>();
+
+  const shareId = ref('');
+  const shareCode = ref('');
+  const sessionId = ref('');
   const terminalId = ref('');
+  const selectionText = ref('');
+  const zmodemTransferStatus = ref(true);
+
+  const lastSendTime = ref(new Date());
+  const lastReceiveTime = ref(new Date());
+
+  const onlineUsers = ref<OnlineUser[]>([]);
+  const userOptions = ref<ShareUserOptions[]>([]);
+
   const terminalRef = ref<Terminal | null>(null);
   const socketRef = ref<WebSocket | null>(null);
+  const featureSetting = ref<Partial<SettingConfig>>({});
+  const pingInterval = ref<ReturnType<typeof setInterval> | null>(null);
+  const warningInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
   const connectionStore = useConnectionStore();
   const defaultTerminalCfg = getDefaultTerminalConfig();
@@ -50,17 +90,11 @@ const useTerminalSocket = (el: HTMLElement) => {
   const fitAddon = new FitAddon();
   const searchAddon = new SearchAddon();
 
-  const selectionText = ref('');
-  const lastSendTime = ref(new Date());
-  const lastReceiveTime = ref(new Date());
-  const sentry = ref<Zmodem.Sentry | null>(null);
-  const pingInterval = ref<ReturnType<typeof setInterval> | null>(null);
-
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
     theme: darkTheme,
   }));
 
-  const autoTerminalFit = watch([width.value, height.value], ([_newWidth, _newHeight]: [number, number]) => {
+  const autoTerminalFit = watch([width, height], ([_newWidth, _newHeight]: [number, number]) => {
     if (!terminalRef.value || !fitAddon) return;
 
     nextTick(() => {
@@ -91,16 +125,12 @@ const useTerminalSocket = (el: HTMLElement) => {
     }
   }, 500);
 
-  /**
-   * @description 获取终端主题
-   * @param {string} themeName
-   */
-  const terminalTheme = (themeName: string) => {
-    if (!xtermTheme[themeName]) {
-      return defaultTheme;
-    }
-    return xtermTheme[themeName];
-  };
+  // const createZmodemInstance = (terminal: Terminal, socket: WebSocket) => {
+  //   const { t } = useI18n();
+  //   const { createSentry } = useSentry(lastSendTime, t);
+
+  //   sentry = createSentry(socket, terminal);
+  // };
 
   /**
    * @description 分发 Socket 消息
@@ -118,7 +148,211 @@ const useTerminalSocket = (el: HTMLElement) => {
         });
 
         socketRef.value.close();
-        // sendLunaEvent(LUNA_MESSAGE_TYPE.CLOSE, '');
+        sendLunaEvent(LUNA_MESSAGE_TYPE.CLOSE, '');
+        break;
+      }
+      case MESSAGE_TYPE.ERROR: {
+        terminalRef.value!.write(parsedMessageData.err);
+        sendLunaEvent(LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '');
+        break;
+      }
+      case MESSAGE_TYPE.PING: {
+        break;
+      }
+      case MESSAGE_TYPE.CONNECT: {
+        terminalId.value = parsedMessageData.id;
+        emitTerminalConnect(terminalId.value);
+
+        connectionStore.setConnectionState({
+          socket: socketRef.value!,
+          terminal: terminalRef.value!,
+          terminalId: parsedMessageData.id,
+        });
+
+        const terminalData = {
+          cols: terminalRef.value!.cols,
+          rows: terminalRef.value!.rows,
+          code: shareCode.value,
+        };
+
+        const info = JSON.parse(parsedMessageData.data);
+
+        featureSetting.value = info.setting;
+
+        updateIcon(info.setting);
+
+        socketRef.value!.send(
+          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
+        );
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_ERROR: {
+        terminalRef.value!.write(parsedMessageData.err);
+        break;
+      }
+      case MESSAGE_TYPE.MESSAGE_NOTIFY: {
+        const eventName = JSON.parse(parsedMessageData.data).event_name;
+
+        if (eventName === 'sync_user_preference') {
+          message.success(t('ThemeSyncSuccessful'));
+        }
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SHARE: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        shareId.value = data.share_id;
+        shareCode.value = data.code;
+
+        connectionStore.updateConnectionState({
+          shareId: data.share_id,
+          shareCode: data.code,
+        });
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_ACTION: {
+        const actionType = parsedMessageData.data;
+
+        switch (actionType) {
+          case ZMODEM_ACTION_TYPE.ZMODEM_START: {
+            zmodemTransferStatus.value = true;
+            break;
+          }
+          case ZMODEM_ACTION_TYPE.ZMODEM_END: {
+            terminalRef.value!.write('\r\n');
+            break;
+          }
+          default: {
+            zmodemTransferStatus.value = false;
+          }
+        }
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SESSION: {
+        const sessionInfo = JSON.parse(parsedMessageData.data);
+        const sessionDetail = sessionInfo.session;
+
+        emitTerminalSession(sessionInfo);
+
+        const share = sessionInfo?.permission?.actions?.includes('share');
+
+        if (sessionInfo.backspaceAsCtrlH) {
+          const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+
+          terminalSettingsStore.setDefaultTerminalConfig('backspaceAsCtrlH', value);
+        }
+
+        if (sessionInfo.ctrlCAsCtrlZ) {
+          const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
+
+          terminalSettingsStore.setDefaultTerminalConfig('ctrlCAsCtrlZ', value);
+        }
+
+        if (sessionInfo.themeName) {
+          const theme = terminalTheme(sessionInfo.themeName);
+
+          nextTick(() => {
+            terminalRef.value!.options.theme = theme;
+          });
+        }
+
+        if (featureSetting.value.SECURITY_SESSION_SHARE && share) {
+          connectionStore.updateConnectionState({
+            enableShare: true,
+          });
+        }
+
+        sessionId.value = sessionDetail.id;
+        connectionStore.updateConnectionState({
+          sessionId: sessionDetail.id,
+        });
+        terminalSettingsStore.setDefaultTerminalConfig('theme', sessionInfo.themeName);
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SHARE_JOIN: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        // data 中如果 primary 为 true 则表示是当前用户
+        onlineUsers.value.push(data);
+
+        connectionStore.updateConnectionState({
+          onlineUsers: onlineUsers.value,
+        });
+        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_ADD, JSON.stringify({ ...data, sessionId: sessionId.value }));
+
+        if (!data.primary) {
+          message.info(`${data.user} ${t('JoinShare')}`);
+        }
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_PERM_VALID: {
+        clearInterval(warningInterval.value!);
+        message.info(`${t('PermissionValid')}`);
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SHARE_LEAVE: {
+        const data: OnlineUser = JSON.parse(parsedMessageData.data);
+
+        sendLunaEvent(LUNA_MESSAGE_TYPE.SHARE_USER_LEAVE, parsedMessageData.data);
+
+        const index = onlineUsers.value.findIndex(item => item.user_id === data.user_id && !item.primary);
+
+        if (index !== -1) {
+          onlineUsers.value.splice(index, 1);
+
+          connectionStore.updateConnectionState({
+            onlineUsers: onlineUsers.value,
+          });
+
+          message.info(`${data.user} ${t('LeaveShare')}`);
+        }
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_PERM_EXPIRED: {
+        const data = JSON.parse(parsedMessageData.data);
+        const warningMsg = `${t('PermissionExpired')}: ${data.detail}`;
+
+        message.warning(warningMsg);
+
+        if (warningInterval.value) {
+          clearInterval(warningInterval.value);
+        }
+        warningInterval.value = setInterval(() => {
+          message.warning(warningMsg);
+        }, 1000 * 60);
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SESSION_PAUSE: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        message.info(`${data.user} ${t('PauseSession')}`);
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_GET_SHARE_USER: {
+        userOptions.value = JSON.parse(parsedMessageData.data);
+
+        connectionStore.updateConnectionState({
+          userOptions: userOptions.value,
+        });
+
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SESSION_RESUME: {
+        const data = JSON.parse(parsedMessageData.data);
+
+        message.info(`${data.user} ${t('ResumeSession')}`);
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE: {
+        message.info(t('RemoveShareUser'));
+        socketRef.value!.close();
+        break;
       }
     }
   };
@@ -128,20 +362,21 @@ const useTerminalSocket = (el: HTMLElement) => {
    * @param {MessageEvent} socketMessage
    */
   const handleBinaryMessage = (socketMessage: MessageEvent) => {
-    if (!terminalRef.value || !sentry.value) {
+    if (!terminalRef.value || !sentry) {
       return;
     }
 
-    try {
-      sentry.value.consume(socketMessage.data);
-    } catch (_e) {
-      // 关闭 zmodem 会话
-      if (sentry.value.get_confirmed_session()) {
-        sentry.value.get_confirmed_session()?.abort();
-        message.error('File transfer error, file transfer interrupted');
-      } else {
-        terminalRef.value!.write(new Uint8Array(socketMessage.data));
+    if (zmodemTransferStatus.value) {
+      try {
+        sentry.consume(socketMessage.data);
+      } catch (_e) {
+        if (sentry.get_confirmed_session()) {
+          sentry.get_confirmed_session()?.abort();
+          message.error('File transfer error, file transfer interrupted');
+        }
       }
+    } else {
+      writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
     }
   };
 
@@ -152,6 +387,8 @@ const useTerminalSocket = (el: HTMLElement) => {
     if (!socketRef.value) {
       return;
     }
+
+    sentry = createSentry(terminalRef.value!, socketRef.value!, lastSendTime);
 
     socketRef.value.onopen = () => {
       if (pingInterval.value) clearInterval(pingInterval.value);
@@ -197,11 +434,14 @@ const useTerminalSocket = (el: HTMLElement) => {
       return;
     }
 
-    el.addEventListener('mouseenter', () => {
+    containerRef.value!.addEventListener('click', () => {
+      sendLunaEvent(LUNA_MESSAGE_TYPE.CLICK, '');
+    });
+    containerRef.value!.addEventListener('mouseenter', () => {
       fitAddon.fit();
       terminalRef.value!.focus();
     });
-    el.addEventListener('contextmenu', async (e: MouseEvent) => {
+    containerRef.value!.addEventListener('contextmenu', async (e: MouseEvent) => {
       // 只有在开启右键快速复制时才允许粘贴
       // TODO 对于 terminal 的 contextmenu 后续需要进行封装
       if (e.ctrlKey || terminalSettingsStore.quickPaste !== '1') return;
@@ -227,6 +467,15 @@ const useTerminalSocket = (el: HTMLElement) => {
       }
 
       socketRef.value!.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, text));
+    });
+    containerRef.value!.addEventListener('mouseleave', () => {
+      terminalRef.value?.blur();
+
+      sendLunaEvent(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
+        content: getXTerminalLineContent(10, terminalRef.value!),
+        sessionId: sessionId.value,
+        terminalId: terminalId.value,
+      });
     });
   };
 
@@ -331,19 +580,17 @@ const useTerminalSocket = (el: HTMLElement) => {
   };
 
   onMounted(() => {
-    if (!el) return;
+    if (!containerRef.value) return;
 
     createTerminal();
     createWebSocket();
 
     nextTick(() => {
-      sentry.value = createSentry(terminalRef.value!, socketRef.value!, lastSendTime);
-
-      listenElEvent();
       listenSocketEvent();
       listenTerminalRefEvent();
+      listenElEvent();
 
-      terminalRef.value?.open(el);
+      terminalRef.value?.open(containerRef.value!);
 
       fitAddon.fit();
     });
@@ -352,4 +599,8 @@ const useTerminalSocket = (el: HTMLElement) => {
   onUnmounted(() => {
     autoTerminalFit();
   });
+
+  return {
+    containerRef,
+  };
 };
