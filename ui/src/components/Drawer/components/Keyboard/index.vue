@@ -63,6 +63,7 @@ function writeDataToTerminal(type: string) {
   if (isK8sEnvironment.value) {
     // K8s 环境：根据当前 tab 获取对应的 terminal 实例
     const currentTab = terminalStore.currentTab;
+
     if (!currentTab) {
       message.error('No active terminal tab found');
       return;
@@ -81,7 +82,8 @@ function writeDataToTerminal(type: string) {
     terminal.focus();
   } else {
     // 普通连接：使用原有的 mittBus 事件机制
-    mittBus.emit('writeCommand', { type });
+    mittBus.emit('write-command', { type });
+
   }
 }
 </script>

@@ -21,7 +21,7 @@ declare module 'nora-zmodemjs/src/zmodem_browser' {
       session: ZmodemSession,
       files: File[],
       opts?: {
-        on_offer_response?: (obj: any, xfer: ZmodemTransfer) => void;
+        on_offer_response?: (obj: any, xfer: Transfer) => void;
         on_file_complete?: (obj: any) => void;
       }
     ) => Promise<void>;
@@ -29,15 +29,17 @@ declare module 'nora-zmodemjs/src/zmodem_browser' {
     static save_to_disk: (buffer: Uint8Array[], filename: string) => void;
   }
 
-  export interface SentryConfig {
-    to_terminal?: (octets: string) => void;
-    sender?: (octets: Uint8Array) => void;
-    on_retract?: () => void;
-    on_detect?: (detection: Detection) => void;
-  }
-
   export interface Detection {
     confirm: () => ZmodemSession;
+  }
+
+  export interface Transfer {
+    get_details: () => { name: string; size: number };
+    get_offset: () => number;
+    accept: () => Promise<void>;
+    skip: () => void;
+    on: ((event: 'input', handler: (payload: Uint8Array) => void) => void) &
+      ((event: 'send_progress', handler: (percent: number) => void) => void);
   }
 
   export interface ZmodemSession {
@@ -48,18 +50,10 @@ declare module 'nora-zmodemjs/src/zmodem_browser' {
     close: () => void;
   }
 
-  export interface ZmodemTransfer {
-    get_details: () => { name: string; size: number };
-    get_offset: () => number;
-    accept: () => Promise<void>;
-    skip: () => void;
-    on: ((event: 'input', handler: (payload: Uint8Array) => void) => void)
-      & ((event: 'send_progress', handler: (percent: number) => void) => void);
-  }
-}
-
-declare namespace JSX {
-  interface IntrinsicElements {
-    [elemName: string]: any;
+  export interface SentryConfig {
+    to_terminal?: (octets: string) => void;
+    sender?: (octets: Uint8Array) => void;
+    on_retract?: () => void;
+    on_detect?: (detection: Detection) => void;
   }
 }

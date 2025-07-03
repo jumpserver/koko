@@ -1845,7 +1845,7 @@ core-js-compat@^3.41.0:
   dependencies:
     browserslist "^4.25.0"
 
-crc-32@^1.1.1:
+crc-32@^1.1.1, crc-32@^1.2.2:
   version "1.2.2"
   resolved "https://registry.npmmirror.com/crc-32/-/crc-32-1.2.2.tgz"
   integrity sha512-ROmzCKrTnOwybPcJApAA6WBWij23HVfGVNKqqrZpuyZOHqK2CwHSvpGuyt/UNNvaIjEd8X5IFGp4Mh+Ie1IHJQ==
@@ -4217,6 +4217,13 @@ yocto-queue@^0.1.0:
   version "0.1.0"
   resolved "https://registry.npmmirror.com/yocto-queue/-/yocto-queue-0.1.0.tgz"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
+
+zmodem-ts@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/zmodem-ts/-/zmodem-ts-1.0.5.tgz#2adab064aff1eb8e258a170560cf80e81e9785f0"
+  integrity sha512-yyHiWd6OEZFSWB4F6JBTlJ1srOb+AOSr26JmHwzBxaiHZClm8It0YUPvwAyZC1ZP8AmWQ9sN8AIE4bmqsAiD9Q==
+  dependencies:
+    crc-32 "^1.2.2"
 
 zwitch@^2.0.0:
   version "2.0.4"

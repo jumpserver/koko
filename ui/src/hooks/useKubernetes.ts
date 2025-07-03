@@ -19,7 +19,7 @@ import type { customTreeOption, ILunaConfig } from '@/types/modules/config.type'
 import mittBus from '@/utils/mittBus';
 import { updateIcon } from '@/hooks/helper';
 import { MaxTimeout } from '@/utils/config';
-import { useSentry } from '@/hooks/useZsentry.ts';
+import { useZmodem } from '@/hooks/useZmodem';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
@@ -295,6 +295,7 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
   const treeStore = useTreeStore();
   const paramsStore = useParamsStore();
   const terminalStore = useTerminalStore();
+  const kubernetesStore = useKubernetesStore();
 
   const { setting } = storeToRefs(paramsStore);
 
@@ -305,7 +306,7 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
   const currentTerminal = operatedNode?.terminal;
 
   if (currentTerminal) {
-    const sentry = createSentry(ws, currentTerminal);
+    const sentry = createSentry(ws, currentTerminal, kubernetesStore.lastSendTime);
 
     switch (info.type) {
       case 'TERMINAL_K8S_BINARY': {
@@ -464,7 +465,7 @@ export function createConnect(t: any) {
   const pingInterval: Ref<number | null> = ref(null);
   const connectURL: string = generateWsURL();
 
-  const { createSentry } = useSentry();
+  const { createSentry } = useZmodem();
 
   if (connectURL) {
     const { ws } = useWebSocket(connectURL, {
