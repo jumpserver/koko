@@ -154,7 +154,7 @@ export const useZmodem = () => {
    */
   const handleFileChange = (options: { fileList: UploadFileInfo[] }) => {
     console.log(options);
-    fileInfo.value = options.fileList[0].file;
+    fileInfo.value = options.fileList[0].file as File;
   };
 
   /**
@@ -197,6 +197,8 @@ export const useZmodem = () => {
       },
       onNegativeClick: () => {
         cleanupSession();
+
+        terminal.write('\r\n');
         return true;
       },
       content: () => {

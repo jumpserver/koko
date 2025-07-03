@@ -28,7 +28,6 @@ import {
 } from '@/types/modules/message.type';
 
 import { useZmodem } from './useZmodem';
-import { useSentry } from './useZsentry';
 import { generateWsURL, updateIcon } from './helper';
 import { useTerminalEvents } from './useTerminalEvents';
 import { getXTerminalLineContent } from './helper/index';

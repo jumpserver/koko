@@ -18,9 +18,9 @@ const handleFileChange = (options: { fileList: UploadFileInfo }) => {
 <template>
   <n-upload directory-dnd action="#" :multiple="false" :default-upload="false" @change="handleFileChange">
     <n-upload-dragger>
-      <div style="margin-bottom: 12px">
+      <n-flex justify="center" align="center" class="mb-3">
         <UploadIcon :size="48" />
-      </div>
+      </n-flex>
       <n-text style="font-size: 16px">
         {{ t('UploadTips') }}
       </n-text>
