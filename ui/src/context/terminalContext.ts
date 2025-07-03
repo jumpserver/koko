@@ -62,6 +62,18 @@ export const createTerminalContext = (): TerminalContext => {
       }
     });
 
+    mittBus.on('remove-share-user', (user) => {
+      const socket = connectionStore.socket;
+      const terminalId = connectionStore.terminalId;
+
+      if (!socket || !terminalId) {
+        console.error('WebSocket connection may be closed, please refresh the page');
+        return;
+      }
+
+      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE, user));
+    });
+
     mittBus.on('write-command', ({ type }) => {
       const terminal = connectionStore.terminal;
 
