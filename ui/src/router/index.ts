@@ -8,42 +8,42 @@ const allRoutes: RouteRecordRaw[] = [
   {
     path: '/connect/',
     name: 'Terminal',
-    component: () => import('@/pages/connection/index.vue'),
+    component: () => import('@/views/connection/index.vue'),
   },
   {
     path: '/sftp/:id/',
     name: 'SFTP',
-    component: () => import('@/pages/file/index.vue'),
+    component: () => import('@/views/file/index.vue'),
   },
   {
     path: '/token/',
     name: 'TokenParams',
-    component: () => import('@/pages/connection/index.vue'),
+    component: () => import('@/views/connection/index.vue'),
   },
   {
     path: '/k8s/',
     name: 'kubernetes',
-    component: () => import('@/pages/kubernetes/index.vue'),
+    component: () => import('@/views/kubernetes/index.vue'),
   },
   {
     path: '/token/:id/',
     name: 'Token',
-    component: () => import('@/pages/connection/index.vue'),
+    component: () => import('@/views/connection/index.vue'),
   },
   {
     path: '/share/:id/',
     name: 'Share',
-    component: () => import('@/pages/share/index.vue'),
+    component: () => import('@/views/share/index.vue'),
   },
   {
     path: '/monitor/:id/',
     name: 'Monitor',
-    component: () => import('@/pages/monitor/index.vue'),
+    component: () => import('@/views/monitor/index.vue'),
   },
   {
     path: '/sftp/',
     name: 'SFTP',
-    component: () => import('@/pages/file/index.vue'),
+    component: () => import('@/views/file/index.vue'),
   },
 ];
 
