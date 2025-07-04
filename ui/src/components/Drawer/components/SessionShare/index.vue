@@ -2,9 +2,9 @@
 import type { SelectRenderTag } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
+import { NTag, useMessage } from 'naive-ui';
 import { useDebounceFn } from '@vueuse/core';
 import { computed, h, reactive, ref, watch } from 'vue';
-import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
 import { Crown, Delete, Lock, PenLine, Undo2, UserRound } from 'lucide-vue-next';
 
 import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
@@ -13,7 +13,6 @@ import { getMinuteLabel } from '@/utils';
 import { useSessionAdapter } from '@/hooks/useSessionAdapter';
 
 const message = useMessage();
-const dialogReactiveList = useDialogReactiveList();
 
 const {
   onlineUsers,
@@ -112,12 +111,6 @@ const handleModalClose = (show: boolean) => {
 
 const copyShareURLHandler = () => {
   adapterCopyShareURL();
-
-  dialogReactiveList.value.forEach(item => {
-    if (item.class === 'share') {
-      item.destroy();
-    }
-  });
 };
 
 const handleShareURlCreated = () => {
