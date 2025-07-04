@@ -265,7 +265,7 @@ export const useZmodem = () => {
             terminal.write(octets);
           }
         } catch (_e) {
-          message.error(t('Failed to write to terminal'));
+          message.error(t(  'Failed to write to terminal'));
         }
       },
       sender: (octets: Uint8Array) => {
