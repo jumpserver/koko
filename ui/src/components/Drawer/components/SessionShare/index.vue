@@ -3,9 +3,9 @@ import type { SelectRenderTag } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
 import { useDebounceFn } from '@vueuse/core';
-import { Delete, Undo2 } from 'lucide-vue-next';
 import { computed, h, reactive, ref, watch } from 'vue';
 import { NTag, useDialogReactiveList, useMessage } from 'naive-ui';
+import { Crown, Delete, Lock, PenLine, Undo2, UserRound } from 'lucide-vue-next';
 
 import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
 
@@ -176,21 +176,40 @@ const debounceSearch = useDebounceFn(handleSearch, 300);
       <n-list class="w-full" bordered hoverable>
         <n-list-item v-for="user in onlineUsers" :key="user.user_id">
           <template #suffix>
-            <Delete
+            <n-popconfirm
               v-if="!user.primary"
-              :size="18"
-              class="cursor-pointer hover:text-red-500 transition-all duration-200"
-              @click="handleRemoveShareUser(user)"
-            />
+              :ok-text="t('Confirm')"
+              :cancel-text="t('Cancel')"
+              :negative-button-props="{
+                type: 'default',
+              }"
+              @positive-click="handleRemoveShareUser(user)"
+            >
+              <template #trigger>
+                <Delete
+                  :size="18"
+                  class="cursor-pointer hover:text-red-500 transition-all duration-200 focus:outline-none"
+                />
+              </template>
+              <span>{{ t('RemoveUser') }}</span>
+            </n-popconfirm>
           </template>
 
           <n-flex vertical>
             <n-text>{{ user.user }}</n-text>
             <n-flex :size="8">
-              <NTag :bordered="false" size="small" :type="user.primary ? 'info' : 'default'">
+              <NTag :bordered="false" size="small" :type="user.primary ? 'info' : 'success'">
+                <template #icon>
+                  <Crown v-if="user.primary" :size="14" />
+                  <UserRound v-else :size="14" />
+                </template>
                 {{ user.primary ? '主用户' : '共享用户' }}
               </NTag>
               <NTag :bordered="false" :type="user.writable ? 'warning' : 'success'" size="small">
+                <template #icon>
+                  <PenLine v-if="user.writable" :size="14" />
+                  <Lock v-else :size="14" />
+                </template>
                 {{ user.writable ? t('Writable') : t('ReadOnly') }}
               </NTag>
             </n-flex>

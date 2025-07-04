@@ -4,9 +4,8 @@ import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { Detection, Transfer, ZmodemSession } from 'nora-zmodemjs/src/zmodem_browser';
 
 import { useI18n } from 'vue-i18n';
-import { computed, ref, h } from 'vue';
+import { computed, h, ref } from 'vue';
 import prettyBytes from 'pretty-bytes';
-
 import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
 import { createDiscreteApi, darkTheme, NText, NUpload, NUploadTrigger } from 'naive-ui';
 
@@ -153,7 +152,6 @@ export const useZmodem = () => {
    * @param {UploadFileInfo} options.fileList
    */
   const handleFileChange = (options: { fileList: UploadFileInfo[] }) => {
-    console.log(options);
     fileInfo.value = options.fileList[0].file as File;
   };
 

@@ -124,13 +124,6 @@ export const useTerminalSocket = () => {
     }
   }, 500);
 
-  // const createZmodemInstance = (terminal: Terminal, socket: WebSocket) => {
-  //   const { t } = useI18n();
-  //   const { createSentry } = useSentry(lastSendTime, t);
-
-  //   sentry = createSentry(socket, terminal);
-  // };
-
   /**
    * @description 分发 Socket 消息
    */
@@ -171,7 +164,7 @@ export const useTerminalSocket = () => {
         const terminalData = {
           cols: terminalRef.value!.cols,
           rows: terminalRef.value!.rows,
-          code: shareCode.value,
+          code: connectionStore.shareCode,
         };
 
         const info = JSON.parse(parsedMessageData.data);
