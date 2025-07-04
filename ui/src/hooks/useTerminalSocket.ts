@@ -405,7 +405,8 @@ export const useTerminalSocket = () => {
     socketRef.value.onclose = () => {
       if (!terminalRef.value) return;
 
-      terminalRef.value.write(`\x1B[31m${t('terminal.websocket.closed')}\x1B[0m`);
+      terminalRef.value.write(`\r\n`);
+      terminalRef.value.write(`\x1B[31m${t('Terminal websocket closed')}\x1B[0m`);
     };
     socketRef.value.onmessage = (message: MessageEvent) => {
       lastReceiveTime.value = new Date();

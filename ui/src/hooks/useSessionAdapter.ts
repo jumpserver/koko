@@ -62,7 +62,7 @@ export function useSessionAdapter() {
         shareCode: paramsStore.shareCode || '',
         sessionId: getCurrentK8sNode()?.sessionIdMap?.get(currentActiveTab.value) || '',
         enableShare: getCurrentK8sNode()?.enableShare || false,
-        shareURL: shareId ? `${BASE_URL}/luna/share/${shareId}/` : '',
+        shareURL: shareId ? `${BASE_URL}/luna/share/${shareId}/?code=${paramsStore.shareCode}` : '',
       };
     } else {
       const shareId = connectionStore.shareId || '';
@@ -71,7 +71,7 @@ export function useSessionAdapter() {
         shareCode: connectionStore.shareCode || '',
         sessionId: connectionStore.sessionId || '',
         enableShare: connectionStore.enableShare || false,
-        shareURL: shareId ? `${BASE_URL}/luna/share/${shareId}/` : '',
+        shareURL: shareId ? `${BASE_URL}/luna/share/${shareId}/?code=${connectionStore.shareCode}` : '',
       };
     }
   });
@@ -193,7 +193,7 @@ export function useSessionAdapter() {
 
     if (!currentShareId || !currentEnableShare) return;
 
-    const url = `${BASE_URL}/luna/share/${currentShareId}/`;
+    const url = `${BASE_URL}/luna/share/${currentShareId}`;
     const linkTitle = t('LinkAddr');
     const codeTitle = t('VerifyCode');
     const text = `${linkTitle}: ${url}\n${codeTitle}: ${currentShareCode}`;
