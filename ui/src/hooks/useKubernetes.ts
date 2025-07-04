@@ -50,14 +50,13 @@ function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
     }
 
     const currentDate: Date = new Date();
+    const pongTimeout: number = currentDate.getTime() - kubernetesStore.lastReceiveTime.getTime() - MaxTimeout;
+    const pingTimeout: number = currentDate.getTime() - kubernetesStore.lastSendTime.getTime() - MaxTimeout;
 
-    if (kubernetesStore.lastReceiveTime.getTime() - currentDate.getTime() > MaxTimeout) {
-      message.info('More than 30s do not receive data');
+    // 已经超时
+    if (pingTimeout < 0 && pongTimeout < 0) {
+      return clearInterval(pingInterval.value!);
     }
-
-    const pingTimeout: number = currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
-
-    if (pingTimeout < 0) return;
 
     socket.send(formatMessage(kubernetesStore.globalTerminalId, 'PING', ''));
   }, 25 * 1000);
@@ -319,21 +318,10 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
 
         const share = sessionInfo.permission.actions.includes('share');
 
-        if (sessionInfo.backspaceAsCtrlH) {
-          const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+        const backspaceValue = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+        const ctrlCValue = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
 
-          terminalStore.setTerminalConfig('backspaceAsCtrlH', value);
-        }
-
-        if (sessionInfo.ctrlCAsCtrlZ) {
-          const value = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
-          terminalStore.setTerminalConfig('ctrlCAsCtrlZ', value);
-        }
-
-        if (setting.value.SECURITY_SESSION_SHARE && share) {
-          operatedNode.enableShare = true;
-        }
-
+        // 存储到节点的配置映射中
         if (operatedNode.sessionIdMap) {
           operatedNode.sessionIdMap.set(info.k8s_id, sessionDetail.id);
         } else {
@@ -342,13 +330,30 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
         }
 
         if (operatedNode.ctrlCAsCtrlZMap) {
-          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');
+          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, ctrlCValue);
         } else {
           operatedNode.ctrlCAsCtrlZMap = new Map();
-          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');
+          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, ctrlCValue);
+        }
+
+        if (operatedNode.backspaceAsCtrlHMap) {
+          operatedNode.backspaceAsCtrlHMap.set(info.k8s_id, backspaceValue);
+        } else {
+          operatedNode.backspaceAsCtrlHMap = new Map();
+          operatedNode.backspaceAsCtrlHMap.set(info.k8s_id, backspaceValue);
         }
 
         operatedNode.themeName = sessionInfo.themeName;
+
+        // 如果当前激活的 tab 就是这个节点，立即更新 terminalStore 的配置
+        if (terminalStore.currentTab === info.k8s_id) {
+          terminalStore.setTerminalConfig('backspaceAsCtrlH', backspaceValue);
+          terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCValue);
+        }
+
+        if (setting.value.SECURITY_SESSION_SHARE && share) {
+          operatedNode.enableShare = true;
+        }
 
         treeStore.setK8sIdMap(info.k8s_id, { ...operatedNode });
 
@@ -506,8 +511,15 @@ export function createConnect(t: any) {
  * @param terminal
  * @param lunaConfig
  * @param socket
+ * @param nodeInfo
  */
-export function initTerminalEvent(el: HTMLElement, terminal: Terminal, lunaConfig: ILunaConfig, socket: WebSocket) {
+export function initTerminalEvent(
+  el: HTMLElement,
+  terminal: Terminal,
+  lunaConfig: ILunaConfig,
+  socket: WebSocket,
+  nodeInfo: any
+) {
   const fitAddon: FitAddon = new FitAddon();
   const searchAddon: SearchAddon = new SearchAddon();
 
@@ -521,21 +533,16 @@ export function initTerminalEvent(el: HTMLElement, terminal: Terminal, lunaConfi
   fitAddon.fit();
 
   terminal.onResize(({ cols, rows }) => {
-    const treeStore = useTreeStore();
-    const terminalStore = useTerminalStore();
-
-    const currentNode = treeStore.getTerminalByK8sId(terminalStore.currentTab);
-
     fitAddon.fit();
 
     const resizeData = JSON.stringify({ cols, rows });
     const sendData = {
-      id: currentNode.id,
-      k8s_id: currentNode.k8s_id,
+      id: nodeInfo.id,
+      k8s_id: nodeInfo.k8s_id,
       type: 'TERMINAL_K8S_RESIZE',
-      namespace: currentNode.namespace || '',
-      pod: currentNode.pod || '',
-      container: currentNode.container || '',
+      namespace: nodeInfo.namespace || '',
+      pod: nodeInfo.pod || '',
+      container: nodeInfo.container || '',
       resizeData,
     };
 
@@ -543,21 +550,27 @@ export function initTerminalEvent(el: HTMLElement, terminal: Terminal, lunaConfi
   });
 
   terminal.onData((data: string) => {
-    const treeStore = useTreeStore();
     const kubernetesStore = useKubernetesStore();
+    const terminalStore = useTerminalStore();
 
     kubernetesStore.setLastSendTime(new Date());
 
-    const inputMessage = preprocessInput(data, lunaConfig);
-    const currentTabInfo = treeStore.currentNode;
+    // 使用当前 terminalStore 中的配置，这样每个 tab 都有自己的配置
+    const currentConfig = {
+      ...lunaConfig,
+      ctrlCAsCtrlZ: terminalStore.ctrlCAsCtrlZ,
+      backspaceAsCtrlH: terminalStore.backspaceAsCtrlH,
+    };
+
+    const inputMessage = preprocessInput(data, currentConfig);
 
     const messageBody = {
       data: inputMessage,
-      id: currentTabInfo?.id,
-      pod: currentTabInfo?.pod || '',
-      k8s_id: currentTabInfo?.k8s_id,
-      namespace: currentTabInfo.namespace || '',
-      container: currentTabInfo.container || '',
+      id: nodeInfo.id,
+      pod: nodeInfo.pod || '',
+      k8s_id: nodeInfo.k8s_id,
+      namespace: nodeInfo.namespace || '',
+      container: nodeInfo.container || '',
       type: 'TERMINAL_K8S_DATA',
     };
 
@@ -603,7 +616,8 @@ export function initElEvent(
   terminal: Terminal,
   fitAddon: FitAddon,
   socket: WebSocket,
-  lunaConfig: ILunaConfig
+  lunaConfig: ILunaConfig,
+  nodeInfo: any
 ) {
   el.addEventListener(
     'mouseenter',
@@ -622,7 +636,6 @@ export function initElEvent(
       let text: string = '';
 
       const terminalStore = useTerminalStore();
-      const kubernetesStore = useKubernetesStore();
 
       try {
         text = await readText();
@@ -631,8 +644,8 @@ export function initElEvent(
       } finally {
         socket.send(
           JSON.stringify({
-            id: kubernetesStore.globalTerminalId,
-            k8s_id: terminalStore.currentTab,
+            id: nodeInfo.id,
+            k8s_id: nodeInfo.k8s_id,
             type: 'TERMINAL_K8S_DATA',
             data: text,
           })
@@ -738,7 +751,7 @@ export function initMittBusEvents(searchAddon: SearchAddon, socket: WebSocket) {
 /**
  * @description 创建 K8s 终端
  */
-export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: ILunaConfig) {
+export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: ILunaConfig, nodeInfo: any) {
   const { fontSize, lineHeight, fontFamily } = lunaConfig;
 
   const options = {
@@ -755,9 +768,9 @@ export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: I
 
   const terminal: Terminal = new Terminal(options);
 
-  const { fitAddon, searchAddon } = initTerminalEvent(el, terminal, lunaConfig, socket);
+  const { fitAddon, searchAddon } = initTerminalEvent(el, terminal, lunaConfig, socket, nodeInfo);
 
-  initElEvent(el, terminal, fitAddon, socket, lunaConfig);
+  initElEvent(el, terminal, fitAddon, socket, lunaConfig, nodeInfo);
   initCustomWindowEvent(fitAddon);
   initMittBusEvents(searchAddon, socket);
 

@@ -7,8 +7,6 @@ import { v4 as uuid } from 'uuid';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useDebounceFn } from '@vueuse/core';
-import { readText } from 'clipboard-polyfill';
-import { useDialog, useMessage } from 'naive-ui';
 import { useDraggable } from 'vue-draggable-plus';
 import { h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { BrushCleaning, CircleX, Copy, RotateCcw } from 'lucide-vue-next';
@@ -18,14 +16,10 @@ import { updateIcon } from '@/hooks/helper';
 import Drawer from '@/components/Drawer/index.vue';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';
-import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import TerminalProvider from '@/components/TerminalProvider/index.vue';
 
-const dialog = useDialog();
-const message = useMessage();
 const treeStore = useTreeStore();
-const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { t } = useI18n();
@@ -34,7 +28,6 @@ const { connectInfo } = storeToRefs(treeStore);
 const nameRef = ref('');
 const showDrawer = ref<boolean>(false);
 const contextIdentification = ref('');
-const themeName = ref('Default');
 const dropdownY = ref(0);
 const dropdownX = ref(0);
 const showContextMenu = ref(false);
@@ -45,22 +38,22 @@ const contextMenuOption = [
   {
     label: t('Reconnect'),
     key: 'reconnect',
-    icon: h(RotateCcw, { size: 16 }),
+    icon: () => h(RotateCcw, { size: 16 }),
   },
   {
     label: t('Close Current Tab'),
     key: 'close',
-    icon: h(CircleX, { size: 16 }),
+    icon: () => h(CircleX, { size: 16 }),
   },
   {
     label: t('Close All Tabs'),
     key: 'closeAll',
-    icon: h(BrushCleaning, { size: 16 }),
+    icon: () => h(BrushCleaning, { size: 16 }),
   },
   {
     label: t('Clone Connect'),
     key: 'cloneConnect',
-    icon: h(Copy, { size: 16 }),
+    icon: () => h(Copy, { size: 16 }),
   },
 ];
 
@@ -71,14 +64,22 @@ const swapElements = (arr: any[], index1: number, index2: number) => {
 
 const findNodeById = (nameRef: string) => {
   const treeStore = useTreeStore();
-  // const terminalStore = useTerminalStore();
 
   for (const [_key, value] of treeStore.terminalMap.entries()) {
     if (value.k8s_id === nameRef) {
       treeStore.setCurrentNode(value);
-      // const ctrlCAsCtrl: string = value.ctrlCAsCtrlZMap.get(value.k8s_id);
-      //
-      // terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
+
+      // 恢复当前节点的 ctrlCAsCtrlZ 配置
+      if (value.ctrlCAsCtrlZMap && value.ctrlCAsCtrlZMap.has(value.k8s_id)) {
+        const ctrlCAsCtrl: string = value.ctrlCAsCtrlZMap.get(value.k8s_id);
+        terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
+      }
+
+      // 恢复当前节点的 backspaceAsCtrlH 配置
+      if (value.backspaceAsCtrlHMap && value.backspaceAsCtrlHMap.has(value.k8s_id)) {
+        const backspaceAsCtrlH: string = value.backspaceAsCtrlHMap.get(value.k8s_id);
+        terminalStore.setTerminalConfig('backspaceAsCtrlH', backspaceAsCtrlH);
+      }
     }
   }
 };
@@ -98,7 +99,7 @@ function handleClose(name: string) {
         type: 'K8S_CLOSE',
         id: node.id,
         k8s_id: node.k8s_id,
-      }),
+      })
     );
   }
 
@@ -171,7 +172,7 @@ function handleReconnect(type: string) {
           type: 'K8S_CLOSE',
           id: operatedNode.id,
           k8s_id: operatedNode.k8s_id,
-        }),
+        })
       );
     }
 
@@ -188,8 +189,7 @@ function handleReconnect(type: string) {
     operatedNode.position = index;
 
     mittBus.emit('connect-terminal', { ...operatedNode });
-  }
-  else if (type === 'cloneConnect') {
+  } else if (type === 'cloneConnect') {
     mittBus.emit('connect-terminal', { ...operatedNode });
   }
 
@@ -240,7 +240,7 @@ function handleContextMenuSelect(key: string, _option: DropdownOption) {
 function updateTabElements(key: string) {
   const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
 
-  tabElements.forEach((element) => {
+  tabElements.forEach(element => {
     if (!processedElements.has(element)) {
       element.setAttribute('data-identification', key);
       processedElements.add(element);
@@ -269,7 +269,7 @@ function initializeDraggable() {
       JSON.parse(JSON.stringify(panels.value)),
       {
         animation: 150,
-        onEnd: async (event) => {
+        onEnd: async event => {
           if (!event || event.newIndex === undefined || event.oldIndex === undefined) {
             return console.warn('Event or index is undefined');
           }
@@ -290,68 +290,9 @@ function initializeDraggable() {
             terminalStore.setTerminalConfig('currentTab', newActiveTab);
           }
         },
-      },
+      }
     );
   }
-}
-
-/**
- * @description 重置分享表单的数据
- */
-function resetShareDialog() {
-  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-  operatedNode.userOptions = [];
-
-  paramsStore.setShareId('');
-  paramsStore.setShareCode('');
-
-  treeStore.setK8sIdMap(nameRef.value, { ...operatedNode });
-  dialog.destroyAll();
-}
-
-/**
- * @description 向终端写入快捷命令
- *
- * @param type
- */
-async function handleWriteData(type: string) {
-  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-  const terminal = operatedNode.terminal;
-
-  if (!terminal) {
-    return message.error(t('No terminal instances available'));
-  }
-
-  switch (type) {
-    case 'Paste': {
-      terminal.paste(await readText());
-      break;
-    }
-    case 'Stop': {
-      terminal.paste('\x03');
-      break;
-    }
-    case 'ArrowUp': {
-      terminal.paste('\x1B[A');
-      break;
-    }
-    case 'ArrowDown': {
-      terminal.paste('\x1B[B');
-      break;
-    }
-    case 'ArrowLeft': {
-      terminal.paste('\x1B[D');
-      break;
-    }
-    case 'ArrowRight': {
-      terminal.paste('\x1B[C');
-      break;
-    }
-  }
-
-  await nextTick(() => {
-    terminal.focus();
-  });
 }
 
 /**
@@ -362,8 +303,7 @@ function switchToPreviousTab() {
 
   if (currentIndex > 0) {
     nameRef.value = panels.value[currentIndex - 1].name as string;
-  }
-  else {
+  } else {
     nameRef.value = panels.value[panels.value.length - 1].name as string;
   }
 
@@ -380,8 +320,7 @@ function switchToNextTab() {
 
   if (currentIndex < panels.value.length - 1) {
     nameRef.value = panels.value[currentIndex + 1].name as string;
-  }
-  else {
+  } else {
     nameRef.value = panels.value[0].name as string;
   }
 
@@ -421,7 +360,7 @@ onMounted(() => {
     let index;
 
     // 如果在 panels 中有相同的 k8s_id，则认为是对一个节点重复连接
-    panels.value.forEach((panel) => {
+    panels.value.forEach(panel => {
       if (panel.name === node.k8s_id) {
         const newId = uuid();
         node.key = newId;
@@ -431,8 +370,7 @@ onMounted(() => {
 
     if (node.position || node.position === 0) {
       index = node.position;
-    }
-    else {
+    } else {
       index = panels.value.length;
     }
 
@@ -455,7 +393,7 @@ onMounted(() => {
       const el = document.getElementById(node.k8s_id);
 
       if (el) {
-        const terminal = createTerminal(el, node.socket, lunaConfig);
+        const terminal = createTerminal(el, node.socket, lunaConfig, node);
 
         treeStore.setK8sIdMap(node.k8s_id, {
           ...node,
@@ -481,8 +419,7 @@ onMounted(() => {
           node.socket.send(JSON.stringify(firstSendMessage));
 
           updateIcon(connectInfo.value);
-        }
-        catch (e: any) {
+        } catch (e: any) {
           throw new Error(e);
         }
       }
@@ -537,7 +474,7 @@ onBeforeUnmount(() => {
         size="medium"
         trigger="manual"
         placement="bottom-start"
-        content-style="font-size: &quot;13px&quot;"
+        content-style='font-size: "13px"'
         :x="dropdownX"
         :y="dropdownY"
         :show="showContextMenu"
