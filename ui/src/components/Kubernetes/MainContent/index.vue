@@ -20,6 +20,7 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
+import TerminalProvider from '@/components/TerminalProvider/index.vue';
 
 const dialog = useDialog();
 const message = useMessage();
@@ -97,7 +98,7 @@ function handleClose(name: string) {
         type: 'K8S_CLOSE',
         id: node.id,
         k8s_id: node.k8s_id,
-      })
+      }),
     );
   }
 
@@ -170,7 +171,7 @@ function handleReconnect(type: string) {
           type: 'K8S_CLOSE',
           id: operatedNode.id,
           k8s_id: operatedNode.k8s_id,
-        })
+        }),
       );
     }
 
@@ -187,7 +188,8 @@ function handleReconnect(type: string) {
     operatedNode.position = index;
 
     mittBus.emit('connect-terminal', { ...operatedNode });
-  } else if (type === 'cloneConnect') {
+  }
+  else if (type === 'cloneConnect') {
     mittBus.emit('connect-terminal', { ...operatedNode });
   }
 
@@ -238,7 +240,7 @@ function handleContextMenuSelect(key: string, _option: DropdownOption) {
 function updateTabElements(key: string) {
   const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
 
-  tabElements.forEach(element => {
+  tabElements.forEach((element) => {
     if (!processedElements.has(element)) {
       element.setAttribute('data-identification', key);
       processedElements.add(element);
@@ -267,7 +269,7 @@ function initializeDraggable() {
       JSON.parse(JSON.stringify(panels.value)),
       {
         animation: 150,
-        onEnd: async event => {
+        onEnd: async (event) => {
           if (!event || event.newIndex === undefined || event.oldIndex === undefined) {
             return console.warn('Event or index is undefined');
           }
@@ -288,7 +290,7 @@ function initializeDraggable() {
             terminalStore.setTerminalConfig('currentTab', newActiveTab);
           }
         },
-      }
+      },
     );
   }
 }
@@ -360,7 +362,8 @@ function switchToPreviousTab() {
 
   if (currentIndex > 0) {
     nameRef.value = panels.value[currentIndex - 1].name as string;
-  } else {
+  }
+  else {
     nameRef.value = panels.value[panels.value.length - 1].name as string;
   }
 
@@ -377,7 +380,8 @@ function switchToNextTab() {
 
   if (currentIndex < panels.value.length - 1) {
     nameRef.value = panels.value[currentIndex + 1].name as string;
-  } else {
+  }
+  else {
     nameRef.value = panels.value[0].name as string;
   }
 
@@ -417,7 +421,7 @@ onMounted(() => {
     let index;
 
     // 如果在 panels 中有相同的 k8s_id，则认为是对一个节点重复连接
-    panels.value.forEach(panel => {
+    panels.value.forEach((panel) => {
       if (panel.name === node.k8s_id) {
         const newId = uuid();
         node.key = newId;
@@ -427,7 +431,8 @@ onMounted(() => {
 
     if (node.position || node.position === 0) {
       index = node.position;
-    } else {
+    }
+    else {
       index = panels.value.length;
     }
 
@@ -476,7 +481,8 @@ onMounted(() => {
           node.socket.send(JSON.stringify(firstSendMessage));
 
           updateIcon(connectInfo.value);
-        } catch (e: any) {
+        }
+        catch (e: any) {
           throw new Error(e);
         }
       }
@@ -495,50 +501,56 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <n-layout :native-scrollbar="false" content-style="height: 100%">
-    <n-tabs
-      v-model:value="nameRef"
-      closable
-      size="small"
-      type="card"
-      tab="show:lazy"
-      tab-style="min-width: 80px;"
-      class="header-tab relative"
-      @close="handleClose"
-      @update:value="handleChangeTab"
-      @contextmenu.prevent="handleContextMenu"
-    >
-      <n-tab-pane
-        v-for="panel of panels"
-        :key="panel.name"
-        :tab="panel.tab"
-        :name="panel.name"
-        display-directive="show:lazy"
-        class="pt-0"
-      >
-        <n-layout :native-scrollbar="false">
-          <n-scrollbar trigger="hover">
-            <div :id="String(panel.name)" class="k8s-terminal" />
-          </n-scrollbar>
-        </n-layout>
-      </n-tab-pane>
-    </n-tabs>
-  </n-layout>
-  <n-dropdown
-    show-arrow
-    size="medium"
-    trigger="manual"
-    placement="bottom-start"
-    content-style='font-size: "13px"'
-    :x="dropdownX"
-    :y="dropdownY"
-    :show="showContextMenu"
-    :options="contextMenuOption"
-    @select="handleContextMenuSelect"
-    @clickoutside="handleClickOutside"
-  />
+  <TerminalProvider>
+    <template #terminal>
+      <n-layout :native-scrollbar="false" content-style="height: 100%">
+        <n-tabs
+          v-model:value="nameRef"
+          closable
+          size="small"
+          type="card"
+          tab="show:lazy"
+          tab-style="min-width: 80px;"
+          class="header-tab relative"
+          @close="handleClose"
+          @update:value="handleChangeTab"
+          @contextmenu.prevent="handleContextMenu"
+        >
+          <n-tab-pane
+            v-for="panel of panels"
+            :key="panel.name"
+            :tab="panel.tab"
+            :name="panel.name"
+            display-directive="show:lazy"
+            class="pt-0"
+          >
+            <n-layout :native-scrollbar="false">
+              <n-scrollbar trigger="hover">
+                <div :id="String(panel.name)" class="k8s-terminal" />
+              </n-scrollbar>
+            </n-layout>
+          </n-tab-pane>
+        </n-tabs>
+      </n-layout>
+      <n-dropdown
+        show-arrow
+        size="medium"
+        trigger="manual"
+        placement="bottom-start"
+        content-style="font-size: &quot;13px&quot;"
+        :x="dropdownX"
+        :y="dropdownY"
+        :show="showContextMenu"
+        :options="contextMenuOption"
+        @select="handleContextMenuSelect"
+        @clickoutside="handleClickOutside"
+      />
+    </template>
 
-  <Drawer :hidden-file-manager="true" />
+    <template #drawer>
+      <Drawer :hidden-file-manager="true" />
+    </template>
+  </TerminalProvider>
 </template>
 
 <style scoped lang="scss">

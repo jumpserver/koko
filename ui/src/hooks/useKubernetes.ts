@@ -306,7 +306,7 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
   const currentTerminal = operatedNode?.terminal;
 
   if (currentTerminal) {
-    const sentry = createSentry(ws, currentTerminal, kubernetesStore.lastSendTime);
+    const sentry = createSentry(currentTerminal, ws, kubernetesStore.lastSendTime);
 
     switch (info.type) {
       case 'TERMINAL_K8S_BINARY': {

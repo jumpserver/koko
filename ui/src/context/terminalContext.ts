@@ -62,7 +62,7 @@ export const createTerminalContext = (): TerminalContext => {
       }
     });
 
-    mittBus.on('remove-share-user', (user) => {
+    mittBus.on('remove-share-user', user => {
       const socket = connectionStore.socket;
       const terminalId = connectionStore.terminalId;
 
@@ -71,7 +71,16 @@ export const createTerminalContext = (): TerminalContext => {
         return;
       }
 
-      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE, user));
+      socket.send(
+        formatMessage(
+          terminalId,
+          FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE,
+          JSON.stringify({
+            session: user.sessionId,
+            user_meta: user.userMeta,
+          })
+        )
+      );
     });
 
     mittBus.on('write-command', ({ type }) => {

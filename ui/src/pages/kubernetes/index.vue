@@ -104,7 +104,8 @@ onUnmounted(() => {
         }"
       >
         <Tree
-          class="transition-opacity duration-200" :class="{
+          class="transition-opacity duration-200"
+          :class="{
             'opacity-0': isFolded,
             'opacity-100': !isFolded,
           }"
