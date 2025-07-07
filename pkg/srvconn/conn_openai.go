@@ -100,12 +100,14 @@ func (conn *OpenAIConn) Chat(interruptCurrentChat *bool) {
 		systemPrompt += " 请不要提供与政治相关的信息。"
 	}
 
-	messages = append([]openai.ChatCompletionMessage{
-		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: systemPrompt,
-		},
-	}, messages...)
+	if systemPrompt != "" {
+		messages = append([]openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: systemPrompt,
+			},
+		}, messages...)
+	}
 
 	req := openai.ChatCompletionRequest{
 		Model:    conn.Model,
