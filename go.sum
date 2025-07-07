@@ -276,8 +276,8 @@ github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHm
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
 github.com/jstemmer/go-junit-report v0.9.1/go.mod h1:Brl9GWCQeLvo8nXZwPNNblvFj/XSXhF0NWZEnDohbsk=
 github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d/go.mod h1:2PavIy+JPciBPrBUjwbNvtwB6RQlve+hkpll6QSNmOE=
-github.com/jumpserver-dev/sdk-go v0.0.0-20250529074750-b9b2ccd9d009 h1:Prjtt9USAWJkVcYRvc7f8qXV5ZEpQLXHdJUTEDarxuI=
-github.com/jumpserver-dev/sdk-go v0.0.0-20250529074750-b9b2ccd9d009/go.mod h1:oKqd4iFflZzsagiXplyWlpKZPp7ZZIrCSp6x3RfHX0U=
+github.com/jumpserver-dev/sdk-go v0.0.0-20250707080343-8930cdc15a34 h1:++XMXe0vaPZCBdzoEMkHysyoT+HEu4yc8JjxLbzaMVk=
+github.com/jumpserver-dev/sdk-go v0.0.0-20250707080343-8930cdc15a34/go.mod h1:oKqd4iFflZzsagiXplyWlpKZPp7ZZIrCSp6x3RfHX0U=
 github.com/jumpserver-dev/ssh v0.3.10 h1:0KOrEqcYV2Bzrc8sfWhMyL9ze8XQcKzAA9MdSbAJUxs=
 github.com/jumpserver-dev/ssh v0.3.10/go.mod h1:QIQNh76fVXsi6H3NXi/S9Gvfu2GYxV0H5a4Sf/ujxrg=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
@@ -371,8 +371,6 @@ github.com/sagikazarmark/locafero v0.4.0 h1:HApY1R9zGo4DBgr7dqsTH/JJxLTTsOt7u6ke
 github.com/sagikazarmark/locafero v0.4.0/go.mod h1:Pe1W6UlPYUk/+wc/6KFhbORCfqzgYEpgQ3O5fPuL3H4=
 github.com/sagikazarmark/slog-shim v0.1.0 h1:diDBnUNK9N/354PgrxMywXnAwEr1QZcOr6gto+ugjYE=
 github.com/sagikazarmark/slog-shim v0.1.0/go.mod h1:SrcSrq8aKtyuqEI1uvTDTK1arOWRIczQRv+GVI1AkeQ=
-github.com/sashabaranov/go-openai v1.36.1 h1:EVfRXwIlW2rUzpx6vR+aeIKCK/xylSrVYAx1TMTSX3g=
-github.com/sashabaranov/go-openai v1.36.1/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/sashabaranov/go-openai v1.40.2 h1:IALpUnkdy6BDp2ZSAiD4vz+C2wpiKOlfUQcViLrfTOk=
 github.com/sashabaranov/go-openai v1.40.2/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/shirou/gopsutil/v3 v3.24.5 h1:i0t8kL+kQTvpAYToeuiVk3TgDeKOFioZO3Ztz/iZ9pI=
