@@ -10,6 +10,7 @@
     "check": "vue-tsc --noEmit",
     "dev": "vue-tsc -b && vite",
     "serve": "vue-tsc -b && vite",
+    "start": "vue-tsc -b && vite",
     "build": "vue-tsc -b && vite build",
     "prettier": "prettier --write \"src/**/*.{js,ts,json,tsx,css,less,scss,vue,html,md}\""
   },
