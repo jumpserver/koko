@@ -575,14 +575,14 @@ provide('persistedUploadFiles', persistedUploadFiles);
             class="file-node !flex-nowrap"
           >
             <Folder :size="18" :color="item.active ? '#63e2b7' : ''" class="text-white" />
-            <n-text
+            <NText
               depth="1"
               class="text-[16px] cursor-pointer whitespace-nowrap"
               :strong="item.active"
               @click="handlePathClick(item)"
             >
               {{ item.path }}
-            </n-text>
+            </NText>
 
             <ChevronRight v-if="item.showArrow" :size="16" class="text-white" />
           </n-flex>
@@ -731,6 +731,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
     v-model:show="showModal"
     preset="dialog"
     :title="modalTitle"
+    :show-icon="false"
     :content="modalContent"
     :positive-text="t('Confirm')"
     :type="modalContent ? 'error' : 'success'"

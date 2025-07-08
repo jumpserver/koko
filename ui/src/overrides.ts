@@ -17,7 +17,7 @@ export const createThemeOverrides = (
   const cardBackgroundColor = darken(3);
   const inputBackgroundColor = lighten(2);
   const surfaceColor = lighten(8);
-  const borderColor = alpha(0.15);
+  const borderColor = alpha(0.3);
   const textColor = 'rgba(235, 235, 235, 1)';
   const textColorSecondary = alpha(0.8, '#FFFFFF');
   const hoverColor = alpha(0.12, '#FFFFFF');
@@ -306,7 +306,7 @@ export const createThemeOverrides = (
           textColorPrimary: textColor,
           textColorHoverPrimary: textColor,
           textColorPressedPrimary: textColor,
-          
+
           color: cardBackgroundColor,
           colorHover: hoverColor,
           colorPressed: alpha(0.2),
@@ -315,6 +315,18 @@ export const createThemeOverrides = (
           textColorPressed: textColor,
         },
       },
+    },
+    Descriptions: {
+      titleTextColor: textColor,
+      thColor: cardBackgroundColor,
+      thColorModal: cardBackgroundColor,
+      thColorPopover: cardBackgroundColor,
+      thTextColor: textColor,
+      tdTextColor: textColor,
+      tdColor: backgroundColor,
+      tdColorModal: backgroundColor,
+      tdColorPopover: backgroundColor,
+      borderColorModal: lighten(10),
     },
   };
 };

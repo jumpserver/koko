@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
-import { FolderKanban, Keyboard as KeyboardIcon, Share2, X } from 'lucide-vue-next';
+import { Focus, FolderKanban, Keyboard as KeyboardIcon, Share2, X } from 'lucide-vue-next';
 
 import type { LunaMessage } from '@/types/modules/postmessage.type';
 
@@ -12,6 +12,7 @@ import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import Keyboard from './components/Keyboard/index.vue';
 import SessionShare from './components/SessionShare/index.vue';
 import FileManager from './components/FileManagement/index.vue';
+import SessionDetail from './components/SessionDetail/index.vue';
 
 const props = defineProps<{
   hiddenFileManager?: boolean;
@@ -21,20 +22,22 @@ const manualSetTheme = inject<(theme: string) => void>('manual-set-theme');
 
 const { t } = useI18n();
 
-const DRAWER_HEADER_STYLE = {
-  display: 'none',
-};
-
 const drawerTabs = [
   {
+    name: 'session-detail',
+    label: t('SessionDetail'),
+    icon: Focus,
+    component: SessionDetail,
+  },
+  {
     name: 'file-manager',
-    label: '文件管理',
+    label: t('FileManagement'),
     icon: FolderKanban,
     component: FileManager,
   },
   {
     name: 'share-session',
-    label: '会话分享',
+    label: t('SessionShare'),
     icon: Share2,
     component: SessionShare,
   },
@@ -51,7 +54,7 @@ const fileManagerToken = ref('');
 
 const filteredDrawerTabs = computed(() => {
   if (props.hiddenFileManager) {
-    return drawerTabs.filter(tab => tab.name !== 'file-manager');
+    return drawerTabs.filter(tab => tab.name !== 'file-manager' && tab.name !== 'session-detail');
   }
 
   return drawerTabs;
@@ -113,8 +116,8 @@ onUnmounted(() => {
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     }"
   >
-    <n-drawer-content closable :native-scrollbar="false" :header-style="DRAWER_HEADER_STYLE">
-      <n-tabs size="medium" type="line" :default-value="filteredDrawerTabs[0].name">
+    <n-drawer-content closable :native-scrollbar="false" :header-style="{ display: 'none' }">
+      <n-tabs size="medium" type="line" :default-value="filteredDrawerTabs[0].name" class="custom-tabs">
         <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
           <template #tab>
             <n-flex align="center">
@@ -131,3 +134,11 @@ onUnmounted(() => {
     </n-drawer-content>
   </n-drawer>
 </template>
+
+<style scoped lang="scss">
+.custom-tabs {
+  ::v-deep(.n-tabs-nav--line-type.n-tabs-nav--top.n-tabs-nav) {
+    margin-right: 1.5rem;
+  }
+}
+</style>

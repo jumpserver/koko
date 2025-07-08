@@ -2,6 +2,7 @@
 import type { FunctionalComponent } from 'vue';
 
 import { reactive } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ban } from 'lucide-vue-next';
 
@@ -16,6 +17,7 @@ interface KeyboardItem {
   click: () => void;
 }
 
+const { t } = useI18n();
 const message = useMessage();
 const treeStore = useTreeStore();
 const terminalStore = useTerminalStore();
@@ -31,28 +33,28 @@ const keyboardList = reactive<KeyboardItem[]>([
   },
   {
     icon: ArrowUp,
-    label: '向上箭头',
+    label: t('UpArrow'),
     click: () => {
       writeDataToTerminal('\x1B[A');
     },
   },
   {
     icon: ArrowDown,
-    label: '向下箭头',
+    label: t('DownArrow'),
     click: () => {
       writeDataToTerminal('\x1B[B');
     },
   },
   {
     icon: ArrowLeft,
-    label: '向左箭头',
+    label: t('LeftArrow'),
     click: () => {
       writeDataToTerminal('\x1B[D');
     },
   },
   {
     icon: ArrowRight,
-    label: '向右箭头',
+    label: t('RightArrow'),
     click: () => {
       writeDataToTerminal('\x1B[C');
     },
@@ -91,7 +93,7 @@ function writeDataToTerminal(type: string) {
 <template>
   <div>
     <n-divider title-placement="left" dashed class="!mb-3 !mt-0">
-      <n-text depth="2" class="text-sm opacity-70"> 可用快捷键 </n-text>
+      <n-text depth="2" class="text-sm opacity-70"> {{ t('AvailableShortcutKey') }} </n-text>
     </n-divider>
 
     <n-grid x-gap="8" y-gap="8" :cols="2">
