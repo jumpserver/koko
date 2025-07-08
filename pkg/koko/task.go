@@ -79,6 +79,11 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			}
 			_ = os.Remove(absPath)
 		}
+		absFileInfo, err := os.Stat(absGzPath)
+		if err != nil {
+			logger.Errorf("Session %s: Replay file %s stat error: %s", remainReplay.Id, absGzPath, err)
+			continue
+		}
 		target, _ := filepath.Rel(replayDir, absGzPath)
 
 		recordLifecycleLog(remainReplay.Id, model.ReplayUploadStart, "")
@@ -93,8 +98,9 @@ func uploadRemainReplay(jmsService *service.JMService) {
 			recordLifecycleLog(remainReplay.Id, model.ReplayUploadFailure, failureMsg)
 			continue
 		}
+		replaySize := absFileInfo.Size()
 		recordLifecycleLog(remainReplay.Id, model.ReplayUploadSuccess, "")
-		if _, err1 := jmsService.FinishReply(remainReplay.Id); err1 != nil {
+		if _, err1 := jmsService.FinishReplyWithSize(remainReplay.Id, replaySize); err1 != nil {
 			logger.Errorf("Notify session %s upload failed: %s", remainReplay.Id, err1)
 			continue
 		}
