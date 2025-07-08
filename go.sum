@@ -276,8 +276,8 @@ github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHm
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
 github.com/jstemmer/go-junit-report v0.9.1/go.mod h1:Brl9GWCQeLvo8nXZwPNNblvFj/XSXhF0NWZEnDohbsk=
 github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d/go.mod h1:2PavIy+JPciBPrBUjwbNvtwB6RQlve+hkpll6QSNmOE=
-github.com/jumpserver-dev/sdk-go v0.0.0-20250707080343-8930cdc15a34 h1:++XMXe0vaPZCBdzoEMkHysyoT+HEu4yc8JjxLbzaMVk=
-github.com/jumpserver-dev/sdk-go v0.0.0-20250707080343-8930cdc15a34/go.mod h1:oKqd4iFflZzsagiXplyWlpKZPp7ZZIrCSp6x3RfHX0U=
+github.com/jumpserver-dev/sdk-go v0.0.0-20250708102012-cc8ddd4e8cad h1:Qn+cTLEsy0eJIUvRd1i/kLZD+sy/4fsFJPNea4BoiFo=
+github.com/jumpserver-dev/sdk-go v0.0.0-20250708102012-cc8ddd4e8cad/go.mod h1:oKqd4iFflZzsagiXplyWlpKZPp7ZZIrCSp6x3RfHX0U=
 github.com/jumpserver-dev/ssh v0.3.10 h1:0KOrEqcYV2Bzrc8sfWhMyL9ze8XQcKzAA9MdSbAJUxs=
 github.com/jumpserver-dev/ssh v0.3.10/go.mod h1:QIQNh76fVXsi6H3NXi/S9Gvfu2GYxV0H5a4Sf/ujxrg=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
