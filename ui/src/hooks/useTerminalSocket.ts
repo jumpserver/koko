@@ -6,8 +6,8 @@ import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
-import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { readText, writeText } from 'clipboard-polyfill';
+import { c, createDiscreteApi, darkTheme } from 'naive-ui';
 import { useDebounceFn, useWebSocket, useWindowSize } from '@vueuse/core';
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 
@@ -258,6 +258,17 @@ export const useTerminalSocket = () => {
           });
         }
 
+        const sessionMessage = sessionInfo.session;
+
+        connectionStore.updateConnectionState({
+          account: sessionMessage.account,
+          asset: sessionMessage.asset,
+          protocol: sessionMessage.protocol,
+          user: sessionMessage.user,
+          date_start: sessionMessage.date_start,
+          date_end: sessionMessage.date_end,
+        });
+
         sessionId.value = sessionDetail.id;
         connectionStore.updateConnectionState({
           sessionId: sessionDetail.id,
@@ -406,7 +417,7 @@ export const useTerminalSocket = () => {
       if (!terminalRef.value) return;
 
       terminalRef.value.write(`\r\n`);
-      terminalRef.value.write(`\x1B[31m${t('Terminal websocket closed')}\x1B[0m`);
+      terminalRef.value.write(`\x1B[31m${t('WebSocketClosed')}\x1B[0m`);
     };
     socketRef.value.onmessage = (message: MessageEvent) => {
       lastReceiveTime.value = new Date();

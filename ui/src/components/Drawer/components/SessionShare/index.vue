@@ -115,7 +115,7 @@ const copyShareURLHandler = () => {
 
 const handleShareURlCreated = () => {
   if (!shareInfo.value.sessionId) {
-    return message.error(t('创建连接失败'));
+    return message.error(t('FailedCreateConnection'));
   }
 
   loading.value = true;
@@ -162,7 +162,7 @@ const debounceSearch = useDebounceFn(handleSearch, 300);
 <template>
   <n-flex vertical align="center">
     <n-divider dashed title-placement="left" class="!mb-3 !mt-0">
-      <n-text depth="2" class="text-sm opacity-70"> 在线用户（{{ onlineUsers?.length || 0 }}） </n-text>
+      <n-text depth="2" class="text-sm opacity-70"> {{ t('OnlineUser') }}（{{ onlineUsers?.length || 0 }}） </n-text>
     </n-divider>
 
     <n-flex v-if="onlineUsers?.length" class="w-full mb-4">
@@ -196,7 +196,7 @@ const debounceSearch = useDebounceFn(handleSearch, 300);
                   <Crown v-if="user.primary" :size="14" />
                   <UserRound v-else :size="14" />
                 </template>
-                {{ user.primary ? '主用户' : '共享用户' }}
+                {{ user.primary ? t('PrimaryUser') : '共享用户' }}
               </NTag>
               <NTag :bordered="false" :type="user.writable ? 'warning' : 'success'" size="small">
                 <template #icon>

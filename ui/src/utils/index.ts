@@ -11,65 +11,6 @@ import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/utils/config
 const { message } = createDiscreteApi(['message']);
 
 /**
- * @description 复制文本功能
- * @param {string} text
- */
-export async function copyTextToClipboard(text: string): Promise<void> {
-  try {
-    // Clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      message.info('Text copied to clipboard');
-    } else {
-      // Fallback 方式，兼容不支持 Clipboard API 的情况
-      const transfer: HTMLTextAreaElement = document.createElement('textarea');
-
-      document.body.appendChild(transfer);
-      transfer.value = text;
-      transfer.focus();
-      transfer.select();
-
-      document.execCommand('copy');
-      document.body.removeChild(transfer);
-
-      message.info('Text copied to clipboard (fallback method)');
-    }
-  } catch (err) {
-    message.error(`Failed to copy text: ${err}`);
-  }
-}
-
-/**
- * @description 触发事件
- * @param e
- */
-export function fireEvent(e: Event) {
-  window.dispatchEvent(e);
-}
-
-/**
- * @description 字节转换
- * @param bytes
- * @param precision
- */
-export function bytesHuman(bytes: number, precision?: any) {
-  const regex = /^(?:[-+]?\d+(?:\.\d+)?|\.\d+|Infinity)$/;
-
-  if (!regex.test(bytes.toString())) {
-    return '-';
-  }
-
-  if (bytes === 0) return '0';
-  if (typeof precision === 'undefined') precision = 1;
-
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
-  const num = Math.floor(Math.log(bytes) / Math.log(1024));
-  const value = (bytes / 1024 ** Math.floor(num)).toFixed(precision);
-
-  return `${value} ${units[num]}`;
-}
-
-/**
  * @description 获取分钟标签
  * @param item
  * @param t
@@ -174,14 +115,4 @@ export function formatMessage(id: string, type: string, data: any) {
     type,
     data,
   });
-}
-
-/**
- * @description 检查 WebSocket 是否已激活。
- *
- * @param ws - WebSocket 实例。
- * @returns 如果 WebSocket 已激活则返回 true，否则返回 false。
- */
-export function wsIsActivated(ws: WebSocket | undefined) {
-  return ws ? !(ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) : false;
 }
