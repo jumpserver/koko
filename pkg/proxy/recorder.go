@@ -234,13 +234,20 @@ func (r *ReplyRecorder) UploadGzipFile(maxRetry int) {
 		r.recordLifecycleLog(model.ReplayUploadFailure, string(model.ReasonErrNullStorage))
 		return
 	}
+	absFileInfo, err := os.Stat(r.absGzipFilePath)
+	if err != nil {
+		logger.Errorf("Session %s: Replay file %s stat error: %s", r.SessionID, r.absGzipFilePath, err)
+		return
+	}
+	replaySize := absFileInfo.Size()
 	r.recordLifecycleLog(model.ReplayUploadStart, "")
+
 	for i := 0; i <= maxRetry; i++ {
 		logger.Infof("Upload replay file: %s, type: %s", r.absGzipFilePath, r.storage.TypeName())
 		err := r.storage.Upload(r.absGzipFilePath, r.Target)
 		if err == nil {
 			_ = os.Remove(r.absGzipFilePath)
-			if _, err = r.jmsService.FinishReply(r.SessionID); err != nil {
+			if _, err = r.jmsService.FinishReplyWithSize(r.SessionID, replaySize); err != nil {
 				logger.Errorf("Session[%s] finish replay err: %s", r.SessionID, err)
 			}
 			r.recordLifecycleLog(model.ReplayUploadSuccess, "")
