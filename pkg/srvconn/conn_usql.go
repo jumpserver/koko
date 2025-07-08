@@ -69,7 +69,7 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 	dsnURL.Host = net.JoinHostPort(o.Host, strconv.Itoa(o.Port))
 	dsnURL.User = url.UserPassword(o.Username, o.Password)
 	dsnURL.Path = o.DBName
-
+	params := url.Values{}
 	if o.UseSSL {
 		clientCertKeyPath, err := StorePrivateKeyFileToLocal(o.CertKey)
 		if err != nil {
@@ -85,8 +85,6 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 		}
 
 		defer ClearTempFileDelay(time.Minute, clientCertPath, clientCertKeyPath, caCertPath)
-
-		params := url.Values{}
 
 		switch o.Schema {
 		case "postgres":
@@ -110,9 +108,16 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 			params.Set("ssl-cert", clientCertPath)
 			params.Set("ssl-key", clientCertKeyPath)
 		}
-		dsnURL.RawQuery = params.Encode()
 	}
 
+	switch o.Schema {
+	case "sqlserver":
+		if o.SQLServerDisableEncrypt {
+			params.Set("encrypt", "disable")
+		}
+	default:
+	}
+	dsnURL.RawQuery = params.Encode()
 	dsn := dsnURL.String()
 	prompt1 := "--variable=PROMPT1=" + o.Schema + "%R%#"
 

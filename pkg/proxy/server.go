@@ -512,8 +512,12 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		port = localTunnelAddr.Port
 	}
 	username := s.account.Username
-	protocolSetting := platform.GetProtocol("redis")
-	if s.account.IsNull() || !protocolSetting.Setting.AuthUsername {
+	isAuthUsername := false
+	if platfromProtocol, ok := platform.GetProtocolSetting("redis"); ok {
+		protocolSetting := platfromProtocol.GetSetting()
+		isAuthUsername = protocolSetting.AuthUsername
+	}
+	if s.account.IsNull() || !isAuthUsername {
 		username = ""
 	}
 	srvConn, err = srvconn.NewRedisConnection(
@@ -544,9 +548,15 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		port = localTunnelAddr.Port
 	}
 	platform := s.connOpts.authInfo.Platform
-	protocolSetting := platform.GetProtocol("mongodb")
-	authSource := protocolSetting.Setting.AuthSource
-	connectionOpts := protocolSetting.Setting.ConnectionOpts
+
+	authSource := ""
+	connectionOpts := ""
+	if platfromProtocol, ok := platform.GetProtocolSetting("mongodb"); ok {
+		protocolSetting := platfromProtocol.GetSetting()
+		authSource = protocolSetting.AuthSource
+		connectionOpts = protocolSetting.ConnectionOpts
+	}
+
 	srvConn, err = srvconn.NewMongoDBConnection(
 		srvconn.SqlHost(host),
 		srvconn.SqlPort(port),
@@ -703,10 +713,15 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	asset := s.connOpts.authInfo.Asset
 	platform := s.connOpts.authInfo.Platform
 
-	protocolSetting := platform.GetProtocol(protocol)
-	usernamePrompt := strings.TrimSpace(protocolSetting.Setting.TelnetUsernamePrompt)
-	passwordPrompt := strings.TrimSpace(protocolSetting.Setting.TelnetPasswordPrompt)
-	successPrompt := strings.TrimSpace(protocolSetting.Setting.TelnetSuccessPrompt)
+	usernamePrompt := ""
+	passwordPrompt := ""
+	successPrompt := ""
+	if platfromProtocol, ok := platform.GetProtocolSetting(protocol); ok {
+		protocolSetting := platfromProtocol.GetSetting()
+		usernamePrompt = strings.TrimSpace(protocolSetting.TelnetUsernamePrompt)
+		passwordPrompt = strings.TrimSpace(protocolSetting.TelnetPasswordPrompt)
+		successPrompt = strings.TrimSpace(protocolSetting.TelnetSuccessPrompt)
+	}
 
 	if usernamePrompt != "" {
 		usernamePattern, err1 := regexp.Compile(usernamePrompt)

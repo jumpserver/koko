@@ -20,6 +20,7 @@ var errUnknownProtocol = errors.New("unknown protocol")
 
 func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQLConn, err error) {
 
+	platform := s.connOpts.authInfo.Platform
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
 	host := asset.Address
@@ -32,6 +33,11 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 	schema, ok := usqlProtocolAlias[protocol]
 	if !ok {
 		return nil, errUnknownProtocol
+	}
+	disableSQLServerEncrypt := false
+	if platfromProtocol, ok := platform.GetProtocolSetting(protocol); ok {
+		protocolSetting := platfromProtocol.GetSetting()
+		disableSQLServerEncrypt = !protocolSetting.Encrypt
 	}
 
 	opts := make([]srvconn.SqlOption, 0, 9)
@@ -48,6 +54,7 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 	opts = append(opts, srvconn.SqlClientCert(asset.SecretInfo.ClientCert))
 	opts = append(opts, srvconn.SqlCertKey(asset.SecretInfo.ClientKey))
 	opts = append(opts, srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert))
+	opts = append(opts, srvconn.SqlDisableSqlServerEncrypt(disableSQLServerEncrypt))
 	opts = append(opts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
