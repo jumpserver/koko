@@ -258,17 +258,6 @@ export const useTerminalSocket = () => {
           });
         }
 
-        const sessionMessage = sessionInfo.session;
-
-        connectionStore.updateConnectionState({
-          account: sessionMessage.account,
-          asset: sessionMessage.asset,
-          protocol: sessionMessage.protocol,
-          user: sessionMessage.user,
-          date_start: sessionMessage.date_start,
-          date_end: sessionMessage.date_end,
-        });
-
         sessionId.value = sessionDetail.id;
         connectionStore.updateConnectionState({
           sessionId: sessionDetail.id,

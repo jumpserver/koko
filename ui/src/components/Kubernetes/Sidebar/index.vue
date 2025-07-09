@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { computed, ref } from 'vue';
 import { Settings } from 'lucide-vue-next';
 import { Kubernetes } from '@vicons/carbon';
 
 import mittBus from '@/utils/mittBus';
+import { useColor } from '@/hooks/useColor';
 
 const { t } = useI18n();
+const { lighten } = useColor();
 
 const isActive = ref(true);
+
+const themeColors = computed(() => {
+  const colors = {
+    '--sidebar-icon-color': lighten(45),
+    '--sidebar-icon-hover-color': lighten(55),
+    '--sidebar-icon-active-color': lighten(60),
+    '--sidebar-active-border-color': '#1ab394',
+    '--sidebar-hover-bg-color': lighten(6),
+  };
+
+  return colors;
+});
 
 const handleOpenSetting = () => {
   mittBus.emit('open-setting');
@@ -21,7 +35,7 @@ const handleTreeIconClick = () => {
 </script>
 
 <template>
-  <n-flex justify="cent er" align="center" class="cursor-pointer w-full h-[48px]">
+  <n-flex justify="center" align="center" class="cursor-pointer w-full h-[48px]" :style="themeColors">
     <n-button text class="py-[5px] w-full icon-wrapper" :class="{ active: isActive }" @click="handleTreeIconClick">
       <n-icon
         :component="Kubernetes"
@@ -56,7 +70,7 @@ const handleTreeIconClick = () => {
 
   &.active {
     .tree-icon {
-      color: #ffffff !important;
+      color: var(--sidebar-icon-active-color) !important;
     }
 
     &::before {
@@ -67,8 +81,17 @@ const handleTreeIconClick = () => {
       width: 2px;
       height: 100%;
       content: '';
-      background-color: #1ab394;
+      background-color: var(--sidebar-active-border-color);
     }
+  }
+}
+
+:deep(.n-icon) {
+  color: var(--sidebar-icon-color);
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: var(--sidebar-icon-hover-color);
   }
 }
 </style>

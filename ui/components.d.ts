@@ -8,7 +8,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ContentHeader: typeof import('./src/components/Kubernetes/ContentHeader/index.vue')['default']
-    Details: typeof import('./src/components/Drawer/components/Details/index.vue')['default']
     Drawer: typeof import('./src/components/Drawer/index.vue')['default']
     FileManagement: typeof import('./src/components/Drawer/components/FileManagement/index.vue')['default']
     Keyboard: typeof import('./src/components/Drawer/components/Keyboard/index.vue')['default']
@@ -49,11 +48,9 @@ declare module 'vue' {
     NResult: typeof import('naive-ui')['NResult']
     NScrollbar: typeof import('naive-ui')['NScrollbar']
     NSelect: typeof import('naive-ui')['NSelect']
-    NSpace: typeof import('naive-ui')['NSpace']
     NSpin: typeof import('naive-ui')['NSpin']
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
-    NTag: typeof import('naive-ui')['NTag']
     NText: typeof import('naive-ui')['NText']
     NTooltip: typeof import('naive-ui')['NTooltip']
     NTree: typeof import('naive-ui')['NTree']
@@ -63,7 +60,6 @@ declare module 'vue' {
     NUploadTrigger: typeof import('naive-ui')['NUploadTrigger']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    SessionDetail: typeof import('./src/components/Drawer/components/SessionDetail/index.vue')['default']
     SessionShare: typeof import('./src/components/Drawer/components/SessionShare/index.vue')['default']
     Setting: typeof import('./src/components/Drawer/components/Setting/index.vue')['default']
     Sidebar: typeof import('./src/components/Kubernetes/Sidebar/index.vue')['default']
