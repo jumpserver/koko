@@ -4,12 +4,13 @@ import type { DropdownOption, TreeOption } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { NPopover } from 'naive-ui';
-import { h, nextTick, ref, watchEffect } from 'vue';
+import { computed, h, nextTick, ref, watchEffect } from 'vue';
 import { Folder, FolderOpen, RefreshCcw, Search, SquareTerminal, UnfoldVertical } from 'lucide-vue-next';
 
 import type { customTreeOption } from '@/types/modules/config.type';
 
 import mittBus from '@/utils/mittBus';
+import { useColor } from '@/hooks/useColor';
 import { useTreeStore } from '@/store/modules/tree.ts';
 
 const emits = defineEmits<{
@@ -17,9 +18,21 @@ const emits = defineEmits<{
   (e: 'reloadTree'): void;
 }>();
 const { t } = useI18n();
+const { lighten } = useColor();
 const treeStore = useTreeStore();
 
 const { treeNodes, root } = storeToRefs(treeStore);
+
+const themeColors = computed(() => {
+  const colors = {
+    '--tree-header-text-color': lighten(55),
+    '--tree-node-text-color': lighten(60),
+    '--tree-bg-color': lighten(3),
+    '--tree-hover-color': lighten(8),
+  };
+
+  return colors;
+});
 
 const dropdownY = ref(0);
 const dropdownX = ref(0);
@@ -223,7 +236,7 @@ function handleClickOutside() {
 </script>
 
 <template>
-  <div class="group">
+  <div class="group" :style="themeColors">
     <n-descriptions label-placement="top" class="tree-wrapper">
       <template #header>
         <n-flex align="center" justify="space-between">

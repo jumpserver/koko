@@ -8,11 +8,12 @@ import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useDebounceFn } from '@vueuse/core';
 import { useDraggable } from 'vue-draggable-plus';
-import { h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { BrushCleaning, CircleX, Copy, RotateCcw } from 'lucide-vue-next';
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import mittBus from '@/utils/mittBus';
 import { updateIcon } from '@/hooks/helper';
+import { useColor } from '@/hooks/useColor';
 import Drawer from '@/components/Drawer/index.vue';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';
@@ -23,7 +24,22 @@ const treeStore = useTreeStore();
 const terminalStore = useTerminalStore();
 
 const { t } = useI18n();
+const { lighten } = useColor();
 const { connectInfo } = storeToRefs(treeStore);
+
+const themeColors = computed(() => {
+  const colors = {
+    '--tab-bg-color': lighten(3),
+    '--tab-inactive-bg-color': lighten(6),
+    '--tab-active-bg-color': lighten(10),
+    '--tab-inactive-text-color': lighten(50),
+    '--tab-active-text-color': lighten(60),
+    '--icon-color': lighten(45),
+    '--icon-hover-bg-color': lighten(8),
+  };
+
+  return colors;
+});
 
 const nameRef = ref('');
 const showDrawer = ref<boolean>(false);
@@ -440,7 +456,7 @@ onBeforeUnmount(() => {
 <template>
   <TerminalProvider>
     <template #terminal>
-      <n-layout :native-scrollbar="false" content-style="height: 100%">
+      <n-layout :native-scrollbar="false" content-style="height: 100%" :style="themeColors">
         <n-tabs
           v-model:value="nameRef"
           closable

@@ -7,18 +7,6 @@ export interface ConnectionState {
 
   lunaId: string;
 
-  account: string;
-
-  asset: string;
-
-  protocol: string;
-
-  user: string;
-
-  date_start: string;
-
-  date_end: string;
-
   shareId: string;
 
   shareCode: string;

@@ -14,9 +14,9 @@ const mainThemeColorMap = new Map(
   })
 );
 
-export const useColor = () => {
-  const currentMainColoc = ref('');
+const currentMainColoc = ref('#303237');
 
+export const useColor = () => {
   const setCurrentMainColor = (color: string) => {
     const themeColor = mainThemeColorMap.get(color);
 
@@ -200,5 +200,6 @@ export const useColor = () => {
     lighten,
     alpha,
     setCurrentMainColor,
+    currentMainColor: currentMainColoc,
   };
 };

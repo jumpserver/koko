@@ -2,9 +2,10 @@
 import type { TreeOption } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 import mittBus from '@/utils/mittBus';
+import { useColor } from '@/hooks/useColor';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useKubernetes } from '@/hooks/useKubernetes.ts';
 import Tree from '@/components/Kubernetes/Tree/index.vue';
@@ -17,9 +18,21 @@ const sideWidth = ref(300);
 const isFolded = ref(false);
 
 const { t } = useI18n();
+const { lighten } = useColor();
 
 const treeStore = useTreeStore();
 socket.value = useKubernetes(t);
+
+const themeColors = computed(() => {
+  const colors = {
+    '--sidebar-bg-color': lighten(3),
+    '--sidebar-border-color': lighten(15),
+    '--sidebar-text-color': lighten(60),
+    '--nav-header-bg-color': lighten(5),
+  };
+
+  return colors;
+});
 
 /**
  * 加载节点
@@ -79,11 +92,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="w-full h-full">
+  <div class="w-full h-full" :style="themeColors">
     <ContentHeader />
     <n-layout has-sider class="custom-layout h-full w-full">
-      <n-layout-header class="!w-[48px]">
-        <n-flex vertical align="center" justify="space-between" class="w-full h-full text-white bg-[#333333]">
+      <n-layout-header class="!w-[48px]" :style="{ backgroundColor: 'var(--nav-header-bg-color)' }">
+        <n-flex vertical align="center" justify="space-between" class="w-full h-full">
           <SideTop />
         </n-flex>
       </n-layout-header>
