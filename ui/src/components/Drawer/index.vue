@@ -60,11 +60,13 @@ const closeDrawer = () => {
 const handleOpenDrawer = () => {
   if (!drawerStatus.value) {
     drawerStatus.value = true;
+  }
+};
 
-    if (!hasToken.value && !isRequestingToken.value) {
-      isRequestingToken.value = true;
-      lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '');
-    }
+const handleTabChange = (tabName: string) => {
+  if (tabName === 'file-manager' && !hasToken.value && !isRequestingToken.value) {
+    isRequestingToken.value = true;
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '');
   }
 };
 
@@ -118,6 +120,7 @@ onUnmounted(() => {
         justify-content="space-evenly"
         :default-value="filteredDrawerTabs[0].name"
         class="custom-tabs"
+        @update:value="handleTabChange"
       >
         <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
           <template #tab>
