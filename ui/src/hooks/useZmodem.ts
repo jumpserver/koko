@@ -6,8 +6,8 @@ import type { Detection, Transfer, ZmodemSession } from 'nora-zmodemjs/src/zmode
 import { useI18n } from 'vue-i18n';
 import { computed, h, ref } from 'vue';
 import prettyBytes from 'pretty-bytes';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
 import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
-import { createDiscreteApi, darkTheme, NText, NUpload, NUploadTrigger } from 'naive-ui';
 
 import { MAX_TRANSFER_SIZE } from '@/utils/config';
 import ZmodemUpload from '@/components/ZmodemUpload/index.vue';
@@ -265,7 +265,7 @@ export const useZmodem = () => {
             terminal.write(octets);
           }
         } catch (_e) {
-          message.error(t(  'Failed to write to terminal'));
+          message.error(t('Failed to write to terminal'));
         }
       },
       sender: (octets: Uint8Array) => {

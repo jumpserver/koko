@@ -12,7 +12,7 @@ import TerminalProvider from '@/components/TerminalProvider/index.vue';
       </template>
 
       <template #drawer>
-        <Drawer :show-drawer="false" />
+        <Drawer />
       </template>
     </TerminalProvider>
   </div>
