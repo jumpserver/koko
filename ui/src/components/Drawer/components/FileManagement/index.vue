@@ -23,6 +23,11 @@ export interface RowData {
 
 const props = defineProps<{
   sftpToken: string;
+  showEmpty: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'reconnect'): void;
 }>();
 
 const { t } = useI18n();
@@ -159,6 +164,10 @@ const createColumns = (): DataTableColumns<RowData> => {
   ];
 };
 
+const handleReconnect = () => {
+  emit('reconnect');
+};
+
 onUnmounted(() => {
   if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
     fileManageSocket.value.close();
@@ -170,7 +179,14 @@ const columns = createColumns();
 </script>
 
 <template>
-  <template v-if="isLoaded">
+  <template v-if="showEmpty">
+    <div class=" flex flex-col items-center justify-center h-full w-full gap-4">
+      <n-empty description="获取文件管理器 Token 超时" />
+      <n-button type="primary" @click="handleReconnect"> {{ t('Reconnect') }} </n-button>
+    </div>
+  </template>
+
+  <template v-else-if="isLoaded">
     <FileManage :columns="columns" />
   </template>
 

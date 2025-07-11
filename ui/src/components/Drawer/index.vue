@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { FolderKanban, Keyboard as KeyboardIcon, Share2, X } from 'lucide-vue-next';
 
 import type { LunaMessage } from '@/types/modules/postmessage.type';
@@ -16,6 +16,9 @@ import FileManager from './components/FileManagement/index.vue';
 const props = defineProps<{
   hiddenFileManager?: boolean;
 }>();
+
+// 15s 最大等待时间
+const MAX_WAIT_TIME = 1000 * 15;
 
 const { t } = useI18n();
 
@@ -41,9 +44,27 @@ const drawerTabs = [
 ];
 
 const hasToken = ref(false);
+const showEmpty = ref(false);
 const drawerStatus = ref(false);
 const isRequestingToken = ref(false);
 const fileManagerToken = ref('');
+const timeoutId = ref<number | null>(null);
+
+watch(
+  () => hasToken.value,
+  newVal => {
+    if (newVal) {
+      // 为 true 则获取到 token
+      isRequestingToken.value = false;
+      showEmpty.value = false;
+
+      if (timeoutId.value) {
+        clearTimeout(timeoutId.value);
+        timeoutId.value = null;
+      }
+    }
+  }
+);
 
 const filteredDrawerTabs = computed(() => {
   if (props.hiddenFileManager) {
@@ -65,8 +86,21 @@ const handleOpenDrawer = () => {
 
 const handleTabChange = (tabName: string) => {
   if (tabName === 'file-manager' && !hasToken.value && !isRequestingToken.value) {
+    if (timeoutId.value) {
+      clearTimeout(timeoutId.value);
+      timeoutId.value = null;
+    }
+
     isRequestingToken.value = true;
+    showEmpty.value = false;
     lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '');
+
+    timeoutId.value = setTimeout(() => {
+      if (!hasToken.value && isRequestingToken.value) {
+        showEmpty.value = true;
+        isRequestingToken.value = false;
+      }
+    }, MAX_WAIT_TIME);
   }
 };
 
@@ -76,10 +110,33 @@ const handleCreateFileConnectToken = (message: LunaMessage) => {
   if (token) {
     fileManagerToken.value = token;
     hasToken.value = true;
+  } else {
+    if (isRequestingToken.value) {
+      showEmpty.value = true;
+    }
+    isRequestingToken.value = false;
+  }
+};
+
+const handleReconnect = () => {
+  if (timeoutId.value) {
+    clearTimeout(timeoutId.value);
+    timeoutId.value = null;
   }
 
-  // 无论是否成功获取到 token，都重置请求状态
-  isRequestingToken.value = false;
+  hasToken.value = false;
+  showEmpty.value = false;
+  fileManagerToken.value = '';
+  isRequestingToken.value = true;
+
+  lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.CREATE_FILE_CONNECT_TOKEN, '');
+
+  timeoutId.value = setTimeout(() => {
+    if (!hasToken.value && isRequestingToken.value) {
+      showEmpty.value = true;
+      isRequestingToken.value = false;
+    }
+  }, MAX_WAIT_TIME);
 };
 
 onMounted(() => {
@@ -92,6 +149,11 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (timeoutId.value) {
+    clearTimeout(timeoutId.value);
+    timeoutId.value = null;
+  }
+
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
 });
@@ -130,7 +192,12 @@ onUnmounted(() => {
             </n-flex>
           </template>
 
-          <component :is="tab.component" :sftp-token="fileManagerToken" />
+          <component
+            :is="tab.component"
+            :sftp-token="fileManagerToken"
+            :show-empty="showEmpty"
+            @reconnect="handleReconnect"
+          />
         </n-tab-pane>
       </n-tabs>
 
