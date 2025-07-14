@@ -110,7 +110,7 @@ export function useSessionAdapter() {
       const sessionId = currentNode?.sessionIdMap?.get(currentActiveTab.value);
 
       if (!sessionId) {
-        message.error(t('创建连接失败'));
+        message.error(t('FailedCreateConnection'));
         return;
       }
 
@@ -124,7 +124,7 @@ export function useSessionAdapter() {
       const sessionId = connectionStore.sessionId;
 
       if (!socket?.value || !terminalId?.value || !sessionId) {
-        message.error(t('创建连接失败'));
+        message.error(t('FailedCreateConnection'));
         return;
       }
 

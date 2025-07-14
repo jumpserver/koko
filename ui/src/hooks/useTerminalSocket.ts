@@ -564,7 +564,7 @@ export const useTerminalSocket = () => {
     });
 
     if (!ws.value) {
-      return message.error('Failed to create WebSocket connection');
+      return message.error(t('FailedCreateConnection'));
     }
 
     ws.value.binaryType = 'arraybuffer';

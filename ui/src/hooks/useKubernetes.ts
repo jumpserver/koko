@@ -106,16 +106,16 @@ export function initTreeNodes(ws: WebSocket, id: string, info: any) {
  *
  * @param {string} type
  */
-export function handleInterrupt(type: string) {
+export function handleInterrupt(type: string, t: any) {
   switch (type) {
     case 'error': {
       // terminal.write('Connection Websocket Error');
-      message.error('Connection Websocket Error');
+      message.error(t('WebSocketError'));
       break;
     }
     case 'disconnected': {
       // terminal.write('Connection Websocket Closed');
-      message.info('Connection Websocket Closed');
+      message.error(t('WebSocketClosed'));
       break;
     }
   }
@@ -496,8 +496,8 @@ export function createConnect(t: any) {
         handleTreeMessage(ws, event);
         handleTerminalMessage(ws, event, createSentry, t);
       },
-      onError: () => handleInterrupt('error'),
-      onDisconnected: () => handleInterrupt('disconnected'),
+      onError: () => handleInterrupt('error', t),
+      onDisconnected: () => handleInterrupt('disconnected', t),
     });
 
     return ws.value;
