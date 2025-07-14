@@ -21,6 +21,8 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
   private lunaId: string = '';
   private targetOrigin: string = '*';
 
+  assetCategory = '';
+
   constructor() {
     this.mitt = mitt<T>();
     this.setupMessageListener();
@@ -33,6 +35,8 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
       switch (message.name) {
         case LUNA_MESSAGE_TYPE.PING:
           this.lunaId = message.id;
+          this.assetCategory = message.category;
+
           this.targetOrigin = event.origin;
           this.sendLuna(LUNA_MESSAGE_TYPE.PONG, '');
           break;
@@ -75,6 +79,11 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
       this.offLuna(type, onceHandler);
     };
     this.onLuna(type, onceHandler);
+  }
+
+  // 获取协议
+  public getProtocol() {
+    return this.assetCategory;
   }
 
   // 销毁实例

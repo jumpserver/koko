@@ -86,7 +86,7 @@ export interface LunaMessage {
   id: string;
   name: string;
   origin: string;
-  protocol: string;
+  category: string;
   data: string | object | null;
   theme?: string;
   user_meta?: string;

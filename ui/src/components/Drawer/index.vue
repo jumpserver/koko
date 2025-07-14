@@ -19,6 +19,7 @@ const props = defineProps<{
 
 // 15s 最大等待时间
 const MAX_WAIT_TIME = 1000 * 15;
+const DISABLED_PROTOCOLS = ['database', 'device'];
 
 const { t } = useI18n();
 
@@ -67,7 +68,7 @@ watch(
 );
 
 const filteredDrawerTabs = computed(() => {
-  if (props.hiddenFileManager) {
+  if (props.hiddenFileManager || DISABLED_PROTOCOLS.includes(lunaCommunicator.getProtocol())) {
     return drawerTabs.filter(tab => tab.name !== 'file-manager' && tab.name !== 'session-detail');
   }
 

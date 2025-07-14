@@ -7,6 +7,6 @@ const token = new URLSearchParams(window.location.search).get('token') || '';
 
 <template>
   <div class="h-full w-full">
-    <FileManager :sftp-token="token" />
+    <FileManager :sftp-token="token" :show-empty="false" />
   </div>
 </template>
