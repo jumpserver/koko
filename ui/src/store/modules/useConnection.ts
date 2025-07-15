@@ -1,4 +1,3 @@
-// 连接状态管理 - 每个 iframe 只管理一个连接
 import { defineStore } from 'pinia';
 
 import type { ConnectionState } from '@/types/modules/connection.type';
@@ -10,6 +9,7 @@ export const useConnectionStore = defineStore('connection', {
     shareId: '',
     shareCode: '',
     sessionId: '',
+    assetName: '',
     terminalId: '',
     enableShare: false,
     terminal: undefined,

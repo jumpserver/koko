@@ -746,8 +746,10 @@ export function useFileManage(token: string, t: any) {
       }
     });
 
-    mittBus.on('stop-upload', () => {
+    mittBus.on('stop-upload', (data: { fileInfo: UploadFileInfo }) => {
       interraptUpload();
+      // 发送上传停止成功事件
+      mittBus.emit('upload-stopped', { fileInfo: data.fileInfo });
     });
 
     return socket;
@@ -761,4 +763,5 @@ export function unloadListeners() {
   mittBus.off('file-upload');
   mittBus.off('file-manage');
   mittBus.off('stop-upload');
+  mittBus.off('upload-stopped');
 }
