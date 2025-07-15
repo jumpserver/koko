@@ -26,7 +26,7 @@ const { isK8sEnvironment } = useSessionAdapter();
 const keyboardList = reactive<KeyboardItem[]>([
   {
     icon: Ban,
-    label: 'Cancel + C',
+    label: 'Ctrl + C',
     click: () => {
       writeDataToTerminal('\x03');
     },

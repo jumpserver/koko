@@ -3,8 +3,12 @@
   background-color: var(--tab-bg-color) !important;
 
   :deep(.n-tabs-nav) {
-    height: 35px;
+    height: 45px;
     background-color: var(--tab-bg-color) !important;
+
+    .n-tabs-tab-wrapper {
+      height: 45px;
+    }
   }
 
   :deep(.n-tabs-tab-pad) {
@@ -53,7 +57,7 @@
 
   :deep(.xterm-screen) {
     width: 100% !important;
-    height: calc(100vh - 90px) !important;
+    height: calc(100vh - 65px) !important;
   }
 
   :deep(.xterm) {

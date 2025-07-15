@@ -6,8 +6,8 @@ import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { readText, writeText } from 'clipboard-polyfill';
-import { c, createDiscreteApi, darkTheme } from 'naive-ui';
 import { useDebounceFn, useWebSocket, useWindowSize } from '@vueuse/core';
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 

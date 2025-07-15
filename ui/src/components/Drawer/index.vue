@@ -176,6 +176,7 @@ onUnmounted(() => {
     :style="{
       display: drawerStatus ? 'block' : 'none',
       opacity: drawerStatus ? 1 : 0,
+      top: '1px',
     }"
   >
     <n-drawer-content :native-scrollbar="false">

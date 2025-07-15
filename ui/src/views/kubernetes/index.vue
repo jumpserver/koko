@@ -93,7 +93,6 @@ onUnmounted(() => {
 
 <template>
   <div class="w-full h-full" :style="themeColors">
-    <ContentHeader />
     <n-layout has-sider class="custom-layout h-full w-full">
       <n-layout-header class="!w-[48px]" :style="{ backgroundColor: 'var(--nav-header-bg-color)' }">
         <n-flex vertical align="center" justify="space-between" class="w-full h-full">
