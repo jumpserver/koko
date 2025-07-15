@@ -20,6 +20,7 @@ import mittBus from '@/utils/mittBus';
 import { updateIcon } from '@/hooks/helper';
 import { MaxTimeout } from '@/utils/config';
 import { useZmodem } from '@/hooks/useZmodem';
+import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
@@ -67,6 +68,8 @@ function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
 
 function guaranteeLunaConnection() {
   watchEffect(() => {
+    lunaId.value = lunaCommunicator.getLunaId();
+    origin.value = lunaCommunicator.getTargetOrigin();
     if (!lunaId.value) {
       guaranteeInterval.value = setInterval(() => {
         counter.value++;
@@ -784,27 +787,6 @@ export function useKubernetes(t: any) {
   let socket: WebSocket | undefined;
 
   const ws = createConnect(t);
-
-  window.addEventListener('message', (event: MessageEvent) => {
-    const message = event.data;
-
-    switch (message.name) {
-      case 'PING': {
-        lunaId.value = message.id;
-        origin.value = event.origin;
-
-        sendEventToLuna('PONG', '', lunaId.value, origin.value);
-        break;
-      }
-      case 'PONG': {
-        lunaId.value = message.id;
-        origin.value = event.origin;
-
-        clearInterval(guaranteeInterval.value!);
-        break;
-      }
-    }
-  });
 
   if (ws) {
     socket = ws;

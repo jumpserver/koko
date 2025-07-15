@@ -28,6 +28,14 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
     this.setupMessageListener();
   }
 
+  public getLunaId() {
+    return this.lunaId;
+  }
+
+  public getTargetOrigin() {
+    return this.targetOrigin;
+  }
+
   private setupMessageListener() {
     window.addEventListener('message', (event: MessageEvent) => {
       const message: LunaMessage = event.data;
