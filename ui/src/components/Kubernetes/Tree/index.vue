@@ -18,7 +18,7 @@ const emits = defineEmits<{
   (e: 'reloadTree'): void;
 }>();
 const { t } = useI18n();
-const { lighten } = useColor();
+const { lighten, darken } = useColor();
 const treeStore = useTreeStore();
 
 const { treeNodes, root } = storeToRefs(treeStore);
@@ -27,7 +27,7 @@ const themeColors = computed(() => {
   const colors = {
     '--tree-header-text-color': lighten(55),
     '--tree-node-text-color': lighten(60),
-    '--tree-bg-color': lighten(3),
+    '--tree-bg-color': darken(8),
     '--tree-hover-color': lighten(8),
   };
 
@@ -239,8 +239,10 @@ function handleClickOutside() {
   <div class="group" :style="themeColors">
     <n-descriptions label-placement="top" class="tree-wrapper">
       <template #header>
-        <n-flex align="center" justify="space-between">
-          {{ t('KubernetesManagement') }}
+        <n-flex align="center" justify="space-between" :style="{ backgroundColor: darken(4) }" class="pl-[24px] h-full">
+          <n-text depth="1" class="text-xs">
+            {{ t('KubernetesManagement') }}
+          </n-text>
         </n-flex>
       </template>
       <n-descriptions-item class="h-full">

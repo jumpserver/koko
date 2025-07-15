@@ -8,7 +8,7 @@ import mittBus from '@/utils/mittBus';
 import { useColor } from '@/hooks/useColor';
 
 const { t } = useI18n();
-const { lighten } = useColor();
+const { lighten, darken } = useColor();
 
 const isActive = ref(true);
 
@@ -19,24 +19,31 @@ const themeColors = computed(() => {
     '--sidebar-icon-active-color': lighten(60),
     '--sidebar-active-border-color': '#1ab394',
     '--sidebar-hover-bg-color': lighten(6),
+    backgroundColor: lighten(0),
   };
 
   return colors;
 });
 
-const handleOpenSetting = () => {
-  mittBus.emit('open-setting');
-};
-
 const handleTreeIconClick = () => {
   mittBus.emit('fold-tree-click');
   isActive.value = !isActive.value;
 };
+
+const handleOpenSetting = () => {
+  mittBus.emit('open-setting');
+};
 </script>
 
 <template>
-  <n-flex justify="center" align="center" class="cursor-pointer w-full h-[48px]" :style="themeColors">
-    <n-button text class="py-[5px] w-full icon-wrapper" :class="{ active: isActive }" @click="handleTreeIconClick">
+  <n-flex justify="center" align="center" class="cursor-pointer w-full h-[45px]" :style="themeColors">
+    <n-button
+      text
+      class="py-[5px] w-full icon-wrapper"
+      :class="{ active: isActive }"
+      :style="{ backgroundColor: darken(4) }"
+      @click="handleTreeIconClick"
+    >
       <n-icon
         :component="Kubernetes"
         size="30"
@@ -44,7 +51,7 @@ const handleTreeIconClick = () => {
       />
     </n-button>
   </n-flex>
-  <n-flex justify="center" align="center" class="mb-[5px] cursor-pointer w-[48px] h-[48px]">
+  <n-flex justify="center" align="center" class="mb-[5px] cursor-pointer w-[45px] h-[45px]">
     <n-popover placement="right" trigger="hover">
       <template #trigger>
         <Settings

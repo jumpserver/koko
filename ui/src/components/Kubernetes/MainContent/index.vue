@@ -24,14 +24,14 @@ const treeStore = useTreeStore();
 const terminalStore = useTerminalStore();
 
 const { t } = useI18n();
-const { lighten } = useColor();
+const { lighten, darken } = useColor();
 const { connectInfo } = storeToRefs(treeStore);
 
 const themeColors = computed(() => {
   const colors = {
-    '--tab-bg-color': lighten(3),
-    '--tab-inactive-bg-color': lighten(6),
-    '--tab-active-bg-color': lighten(10),
+    '--tab-bg-color': darken(5),
+    '--tab-inactive-bg-color': darken(3),
+    '--tab-active-bg-color': darken(1),
     '--tab-inactive-text-color': lighten(50),
     '--tab-active-text-color': lighten(60),
     '--icon-color': lighten(45),

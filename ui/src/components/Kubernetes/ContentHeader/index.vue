@@ -11,7 +11,7 @@ const { setting } = storeToRefs(paramsStore);
 
 const themeColors = computed(() => {
   const colors = {
-    '--header-bg-color': lighten(5),
+    '--header-bg-color': lighten(0),
   };
 
   return colors;
@@ -25,7 +25,7 @@ const themeColors = computed(() => {
     style="flex-wrap: nowrap; background-color: var(--header-bg-color)"
     :style="themeColors"
   >
-    <n-flex>
+    <n-flex class="ml-[6px]">
       <n-spin :show="!setting.INTERFACE?.logo_logout" size="small" class="h-[35px]">
         <n-image
           lazy

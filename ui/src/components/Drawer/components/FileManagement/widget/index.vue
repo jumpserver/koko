@@ -261,17 +261,31 @@ const handleSelect = (key: string) => {
  * @param path
  */
 const removeLastPathSegment = (path: string): string => {
+  // 移除末尾的斜杠
   if (path.endsWith('/')) {
     path = path.slice(0, -1);
   }
 
-  const lastSegmentMatch = path.match(/\/([^/]+)\/?$/);
-
-  if (lastSegmentMatch) {
-    return path.replace(lastSegmentMatch[0], '');
-  } else {
+  // 如果是根目录，返回空字符串
+  if (path === '') {
     return '';
   }
+
+  // 找到最后一个斜杠的位置
+  const lastSlashIndex = path.lastIndexOf('/');
+
+  // 如果没有找到斜杠，返回空字符串
+  if (lastSlashIndex === -1) {
+    return '';
+  }
+
+  // 如果斜杠在开头（根目录的情况），返回根目录
+  if (lastSlashIndex === 0) {
+    return '/';
+  }
+
+  // 返回去掉最后一个路径段的结果
+  return path.substring(0, lastSlashIndex);
 };
 
 /**
@@ -514,20 +528,21 @@ const rowProps = (row: RowData) => {
       }
 
       if (row.name === '..') {
-        const backPath = removeLastPathSegment(fileManageStore.currentPath)
-          ? removeLastPathSegment(fileManageStore.currentPath)
-          : '/';
+        const backPath = removeLastPathSegment(fileManageStore.currentPath) || '/';
 
-        if (backPath === '/' && filePathList.value.findIndex(item => item.path === '/') === -1) {
-          fileManageStore.setCurrentPath('/');
+        // 更新前进路径用于前进导航
+        disabledForward.value = false;
+        forwardPath.value = fileManageStore.currentPath;
+
+        // 如果返回到根目录，设置后退按钮为禁用
+        if (backPath === '/') {
+          disabledBack.value = true;
         }
 
         mittBus.emit('file-manage', {
           path: backPath,
           type: ManageTypes.CHANGE,
         });
-
-        handlePathBack();
 
         return;
       }
@@ -611,7 +626,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
     </n-flex>
 
     <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
-      <n-input v-model:value="searchValue" clearable size="small" :placeholder="t('PleaseInput')">
+      <n-input v-model:value="searchValue" clearable size="small" placeholder="">
         <template #prefix>
           <Search :size="16" class="focus:outline-none" />
         </template>
