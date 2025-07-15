@@ -11,7 +11,6 @@ import { useKubernetes } from '@/hooks/useKubernetes.ts';
 import Tree from '@/components/Kubernetes/Tree/index.vue';
 import SideTop from '@/components/Kubernetes/Sidebar/index.vue';
 import MainContent from '@/components/Kubernetes/MainContent/index.vue';
-import ContentHeader from '@/components/Kubernetes/ContentHeader/index.vue';
 
 const socket = ref();
 const sideWidth = ref(300);
