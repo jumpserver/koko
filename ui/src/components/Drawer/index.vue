@@ -28,7 +28,7 @@ const connectionStore = useConnectionStore();
 const drawerTabs = [
   {
     name: 'hotkeys',
-    label: t('General'),
+    label: t('Hotkeys'),
     icon: KeyboardIcon,
     component: Keyboard,
   },
@@ -52,6 +52,7 @@ const drawerStatus = ref(false);
 const isRequestingToken = ref(false);
 const fileManagerToken = ref('');
 const timeoutId = ref<number | null>(null);
+const assetCategory = ref('');
 
 watch(
   () => hasToken.value,
@@ -70,7 +71,7 @@ watch(
 );
 
 const filteredDrawerTabs = computed(() => {
-  if (props.hiddenFileManager || DISABLED_PROTOCOLS.includes(lunaCommunicator.getProtocol())) {
+  if (props.hiddenFileManager || DISABLED_PROTOCOLS.includes(assetCategory.value)) {
     return drawerTabs.filter(tab => tab.name !== 'file-manager' && tab.name !== 'session-detail');
   }
 
@@ -145,6 +146,15 @@ const handleReconnect = () => {
 onMounted(() => {
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.PING, () => {
+    const protocol = lunaCommunicator.getProtocol();
+    assetCategory.value = protocol;
+  });
+
+  const initialProtocol = lunaCommunicator.getProtocol();
+  if (initialProtocol) {
+    assetCategory.value = initialProtocol;
+  }
 
   mittBus.on('open-setting', () => {
     drawerStatus.value = !drawerStatus.value;
@@ -159,6 +169,7 @@ onUnmounted(() => {
 
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.PING);
 });
 </script>
 
