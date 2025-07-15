@@ -49,7 +49,7 @@ withDefaults(
 const { t } = useI18n();
 const message = useMessage();
 const fileManageStore = useFileManageStore();
-const { height: windowHeight } = useWindowSize();
+const { height: _windowHeight } = useWindowSize();
 
 const options: DropdownOption[] = [
   {
@@ -72,11 +72,6 @@ const options: DropdownOption[] = [
     label: () => h(NText, { depth: 1, style: { color: '#ff6b6b' } }, { default: () => t('Delete') }),
   },
 ];
-
-const drawerHeight = computed(() => {
-  const maxHeight = Math.floor(windowHeight.value * 0.7);
-  return Math.max(300, maxHeight);
-});
 
 const x = ref(0);
 const y = ref(0);
@@ -102,6 +97,13 @@ const currentRowData = ref<Partial<RowData>>({});
 const persistedUploadFiles = ref<UploadFileInfo[]>([]);
 const uploadFileList = ref<UploadFileInfo[]>([]);
 const stopUploadFile = ref<UploadFileInfo>();
+
+const _tableHeight = computed(() => {
+  if (!uploadFileList.value || uploadFileList.value.length === 0) {
+    return 240;
+  }
+  return 300;
+});
 
 watch(
   () => fileManageStore.currentPath,
@@ -204,9 +206,20 @@ const onClickOutside = () => {
 };
 
 const handleRemoveItem = (data: { file: UploadFileInfo; fileList: UploadFileInfo[] }) => {
-  mittBus.emit('stop-upload', { fileInfo: data.file });
+  const { file, fileList } = data;
 
-  return false;
+  // 如果文件正在上传中，发送停止上传事件
+  if (file.status === 'uploading') {
+    mittBus.emit('stop-upload', { fileInfo: file });
+    // 对于正在上传的文件，暂时不移除，等待停止上传完成后再移除
+    return false;
+  }
+
+  // 对于上传失败、已完成或其他状态的文件，允许直接移除
+  uploadFileList.value = fileList.filter(item => item.id !== file.id);
+  fileManageStore.setUploadFileList(uploadFileList.value);
+
+  return true;
 };
 
 /**
@@ -532,6 +545,12 @@ const rowProps = (row: RowData) => {
 onMounted(() => {
   mittBus.on('reload-table', handleTableLoading);
 
+  // 监听上传停止成功事件，移除对应的文件
+  mittBus.on('upload-stopped', (data: { fileInfo: UploadFileInfo }) => {
+    uploadFileList.value = uploadFileList.value.filter(item => item.id !== data.fileInfo.id);
+    fileManageStore.setUploadFileList(uploadFileList.value);
+  });
+
   if (fileManageStore.uploadFileList.length > 0) {
     uploadFileList.value = [...fileManageStore.uploadFileList];
   }
@@ -541,6 +560,7 @@ onBeforeUnmount(() => {
   unloadListeners();
 
   mittBus.off('reload-table', handleTableLoading);
+  mittBus.off('upload-stopped');
 });
 
 onActivated(() => {
@@ -636,7 +656,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
             </n-upload-trigger>
           </n-button-group>
 
-          <n-drawer
+          <!-- <n-drawer
             v-model:show="showInner"
             resizable
             placement="bottom"
@@ -660,12 +680,12 @@ provide('persistedUploadFiles', persistedUploadFiles);
               }"
             >
               <n-scrollbar v-if="uploadFileList" :style="{ maxHeight: `${drawerHeight - 60}px`, flex: 1 }">
-                <n-upload-file-list />
+
               </n-scrollbar>
 
               <n-empty v-else class="w-full h-full justify-center" />
             </n-drawer-content>
-          </n-drawer>
+          </n-drawer> -->
         </n-upload>
 
         <n-popover>
@@ -706,12 +726,13 @@ provide('persistedUploadFiles', persistedUploadFiles);
         :columns="columns"
         :row-props="rowProps"
         :data="dataList"
-        :style="{ height: 'calc(100vh - 240px)' }"
+        :style="{ height: `calc(100vh - 420px)` }"
       >
         <template #empty>
           <n-empty class="w-full h-full justify-center" :description="t('NoData')" />
         </template>
       </n-data-table>
+
       <n-dropdown
         size="small"
         trigger="manual"
@@ -724,6 +745,24 @@ provide('persistedUploadFiles', persistedUploadFiles);
         :on-clickoutside="onClickOutside"
         @select="handleSelect"
       />
+
+      <template v-if="uploadFileList.length > 0" #footer>
+        <n-divider />
+        <n-flex vertical class="w-full">
+          <NText>{{ t('Uploading') }}</NText>
+
+          <n-upload
+            abstract
+            file-list-class="max-height-32"
+            :show-preview-button="false"
+            :show-retry-button="false"
+            :file-list="uploadFileList"
+            @remove="handleRemoveItem"
+          >
+            <n-upload-file-list />
+          </n-upload>
+        </n-flex>
+      </template>
     </n-card>
   </n-flex>
 

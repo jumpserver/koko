@@ -170,6 +170,9 @@ export const useTerminalSocket = () => {
         const info = JSON.parse(parsedMessageData.data);
 
         featureSetting.value = info.setting;
+        connectionStore.setConnectionState({
+          assetName: info.asset.name,
+        });
 
         updateIcon(info.setting);
 

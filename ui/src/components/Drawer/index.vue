@@ -8,6 +8,7 @@ import type { LunaMessage } from '@/types/modules/postmessage.type';
 import mittBus from '@/utils/mittBus';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { useConnectionStore } from '@/store/modules/useConnection';
 
 import Keyboard from './components/Keyboard/index.vue';
 import SessionShare from './components/SessionShare/index.vue';
@@ -22,6 +23,7 @@ const MAX_WAIT_TIME = 1000 * 15;
 const DISABLED_PROTOCOLS = ['database', 'device'];
 
 const { t } = useI18n();
+const connectionStore = useConnectionStore();
 
 const drawerTabs = [
   {
@@ -176,7 +178,16 @@ onUnmounted(() => {
       opacity: drawerStatus ? 1 : 0,
     }"
   >
-    <n-drawer-content closable :native-scrollbar="false" :header-style="{ display: 'none' }">
+    <n-drawer-content :native-scrollbar="false">
+      <template #header>
+        <n-flex align="center" justify="space-between">
+          <n-text depth="1">
+            {{ connectionStore.assetName }}
+          </n-text>
+          <X class="cursor-pointer" :size="18" @click="closeDrawer" />
+        </n-flex>
+      </template>
+
       <n-tabs
         size="medium"
         type="line"
@@ -201,8 +212,6 @@ onUnmounted(() => {
           />
         </n-tab-pane>
       </n-tabs>
-
-      <X class="absolute top-[28px] right-[1.25rem] cursor-pointer" :size="18" @click="closeDrawer" />
     </n-drawer-content>
   </n-drawer>
 </template>

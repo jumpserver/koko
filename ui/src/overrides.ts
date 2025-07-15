@@ -238,8 +238,8 @@ export const createThemeOverrides = (
     Upload: {
       peers: {
         Progress: {
-          fillColor: primaryColor,
-          fillColorInfo: primaryColor,
+          fillColor: alpha(0.1, '#18a058'),
+          fillColorInfo: alpha(0.7, '#18a058'),
         },
       },
     },

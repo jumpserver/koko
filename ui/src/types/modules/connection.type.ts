@@ -11,6 +11,8 @@ export interface ConnectionState {
 
   shareCode: string;
 
+  assetName: string;
+
   sessionId: string;
 
   terminalId: string;
