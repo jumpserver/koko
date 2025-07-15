@@ -4,7 +4,7 @@ import type { FunctionalComponent } from 'vue';
 import { reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMessage } from 'naive-ui';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ban } from 'lucide-vue-next';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from 'lucide-vue-next';
 
 import mittBus from '@/utils/mittBus';
 import { useTreeStore } from '@/store/modules/tree';
@@ -12,8 +12,8 @@ import { useTerminalStore } from '@/store/modules/terminal';
 import { useSessionAdapter } from '@/hooks/useSessionAdapter';
 
 interface KeyboardItem {
-  icon: FunctionalComponent;
-  label: string;
+  icon?: FunctionalComponent;
+  label?: string;
   click: () => void;
 }
 
@@ -25,36 +25,36 @@ const { isK8sEnvironment } = useSessionAdapter();
 
 const keyboardList = reactive<KeyboardItem[]>([
   {
-    icon: Ban,
-    label: 'Ctrl + C',
+    // icon: Ban,
+    label: 'Ctrl+C',
     click: () => {
       writeDataToTerminal('\x03');
     },
   },
   {
     icon: ArrowUp,
-    label: t('UpArrow'),
+    // label: t('UpArrow'),
     click: () => {
       writeDataToTerminal('\x1B[A');
     },
   },
   {
     icon: ArrowDown,
-    label: t('DownArrow'),
+    // label: t('DownArrow'),
     click: () => {
       writeDataToTerminal('\x1B[B');
     },
   },
   {
     icon: ArrowLeft,
-    label: t('LeftArrow'),
+    // label: t('LeftArrow'),
     click: () => {
       writeDataToTerminal('\x1B[D');
     },
   },
   {
     icon: ArrowRight,
-    label: t('RightArrow'),
+    // label: t('RightArrow'),
     click: () => {
       writeDataToTerminal('\x1B[C');
     },
@@ -85,7 +85,6 @@ function writeDataToTerminal(type: string) {
   } else {
     // 普通连接：使用原有的 mittBus 事件机制
     mittBus.emit('write-command', { type });
-
   }
 }
 </script>
@@ -93,7 +92,9 @@ function writeDataToTerminal(type: string) {
 <template>
   <div>
     <n-divider title-placement="left" dashed class="!mb-3 !mt-0">
-      <n-text depth="2" class="text-sm opacity-70"> {{ t('AvailableShortcutKey') }} </n-text>
+      <n-text depth="2" class="text-sm opacity-70">
+        {{ t('AvailableShortcutKey') }}
+      </n-text>
     </n-divider>
 
     <n-grid x-gap="8" y-gap="8" :cols="2">
@@ -105,7 +106,7 @@ function writeDataToTerminal(type: string) {
           @click="item.click"
         >
           <template #default>
-            <n-flex align="center" :size="12" class="px-2 py-1">
+            <n-flex align="center" justify="center" :size="12" class="!gap-0">
               <component :is="item.icon" :size="20" class="text-white/90 flex-shrink-0" />
 
               <n-text class="text-sm text-white/90">

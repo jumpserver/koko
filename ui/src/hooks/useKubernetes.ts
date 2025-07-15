@@ -50,15 +50,18 @@ function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
     }
 
     const currentDate: Date = new Date();
-    const pongTimeout: number = currentDate.getTime() - kubernetesStore.lastReceiveTime.getTime() - MaxTimeout;
-    const pingTimeout: number = currentDate.getTime() - kubernetesStore.lastSendTime.getTime() - MaxTimeout;
+    const timeSinceLastReceive = currentDate.getTime() - kubernetesStore.lastReceiveTime.getTime();
+    const timeSinceLastSend = currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
 
-    // 已经超时
-    if (pingTimeout < 0 && pongTimeout < 0) {
-      return clearInterval(pingInterval.value!);
+    // 如果接收或发送都超时了，关闭心跳
+    if (timeSinceLastReceive > MaxTimeout || timeSinceLastSend > MaxTimeout) {
+      clearInterval(pingInterval.value!);
+      return;
     }
 
+    // 发送心跳
     socket.send(formatMessage(kubernetesStore.globalTerminalId, 'PING', ''));
+    kubernetesStore.setLastSendTime(new Date());
   }, 25 * 1000);
 }
 

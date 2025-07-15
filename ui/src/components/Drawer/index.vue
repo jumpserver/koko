@@ -28,7 +28,7 @@ const connectionStore = useConnectionStore();
 const drawerTabs = [
   {
     name: 'hotkeys',
-    label: t('Hotkeys'),
+    label: t('General'),
     icon: KeyboardIcon,
     component: Keyboard,
   },
@@ -189,14 +189,7 @@ onUnmounted(() => {
         </n-flex>
       </template>
 
-      <n-tabs
-        size="medium"
-        type="line"
-        justify-content="space-evenly"
-        :default-value="filteredDrawerTabs[0].name"
-        class="custom-tabs"
-        @update:value="handleTabChange"
-      >
+      <n-tabs size="medium" type="line" :default-value="filteredDrawerTabs[0].name" @update:value="handleTabChange">
         <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
           <template #tab>
             <n-flex align="center">
@@ -216,11 +209,3 @@ onUnmounted(() => {
     </n-drawer-content>
   </n-drawer>
 </template>
-
-<style scoped lang="scss">
-.custom-tabs {
-  ::v-deep(.n-tabs-nav--line-type.n-tabs-nav--top.n-tabs-nav) {
-    margin-right: 1.5rem;
-  }
-}
-</style>
