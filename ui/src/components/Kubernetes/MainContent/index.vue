@@ -19,6 +19,15 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import TerminalProvider from '@/components/TerminalProvider/index.vue';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { getXTerminalLineContent } from '@/hooks/helper/index';
+
+import {
+  FORMATTER_MESSAGE_TYPE,
+  LUNA_MESSAGE_TYPE,
+  MESSAGE_TYPE,
+  ZMODEM_ACTION_TYPE,
+} from '@/types/modules/message.type';
 
 const treeStore = useTreeStore();
 const terminalStore = useTerminalStore();
@@ -429,6 +438,14 @@ onMounted(() => {
             code: '',
           }),
         };
+        el.addEventListener('mouseleave', () => {
+           terminal.blur();
+            lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
+            content: getXTerminalLineContent(10, terminal),
+            sessionId: node.k8s_id,
+            terminalId: node.id,
+      });
+    });
 
         try {
           // 发送初次连接的数据
@@ -438,6 +455,7 @@ onMounted(() => {
         } catch (e: any) {
           throw new Error(e);
         }
+
       }
     });
   });
