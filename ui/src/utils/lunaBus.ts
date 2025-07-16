@@ -41,13 +41,19 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
       const message: LunaMessage = event.data;
 
       switch (message.name) {
-        case LUNA_MESSAGE_TYPE.PING:
+        case LUNA_MESSAGE_TYPE.PING: {
           this.lunaId = message.id;
           this.assetCategory = message.category;
 
           this.targetOrigin = event.origin;
           this.sendLuna(LUNA_MESSAGE_TYPE.PONG, '');
+
+          // 发送 PING 事件，让组件能够监听到
+          const eventType = message.name as keyof T;
+          const data = message as T[keyof T];
+          this.mitt.emit(eventType, data);
           break;
+        }
         default:
           if (allEventTypes.includes(message.name as LunaEventType)) {
             const eventType = message.name as keyof T;

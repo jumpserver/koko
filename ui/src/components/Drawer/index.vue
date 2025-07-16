@@ -52,6 +52,7 @@ const drawerStatus = ref(false);
 const isRequestingToken = ref(false);
 const fileManagerToken = ref('');
 const timeoutId = ref<number | null>(null);
+const assetCategory = ref('');
 
 watch(
   () => hasToken.value,
@@ -70,7 +71,7 @@ watch(
 );
 
 const filteredDrawerTabs = computed(() => {
-  if (props.hiddenFileManager || DISABLED_PROTOCOLS.includes(lunaCommunicator.getProtocol())) {
+  if (props.hiddenFileManager || DISABLED_PROTOCOLS.includes(assetCategory.value)) {
     return drawerTabs.filter(tab => tab.name !== 'file-manager' && tab.name !== 'session-detail');
   }
 
@@ -145,6 +146,15 @@ const handleReconnect = () => {
 onMounted(() => {
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
+  lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.PING, () => {
+    const protocol = lunaCommunicator.getProtocol();
+    assetCategory.value = protocol;
+  });
+
+  const initialProtocol = lunaCommunicator.getProtocol();
+  if (initialProtocol) {
+    assetCategory.value = initialProtocol;
+  }
 
   mittBus.on('open-setting', () => {
     drawerStatus.value = !drawerStatus.value;
@@ -159,6 +169,7 @@ onUnmounted(() => {
 
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
+  lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.PING);
 });
 </script>
 
@@ -189,14 +200,7 @@ onUnmounted(() => {
         </n-flex>
       </template>
 
-      <n-tabs
-        size="medium"
-        type="line"
-        justify-content="space-evenly"
-        :default-value="filteredDrawerTabs[0].name"
-        class="custom-tabs"
-        @update:value="handleTabChange"
-      >
+      <n-tabs size="medium" type="line" :default-value="filteredDrawerTabs[0].name" @update:value="handleTabChange">
         <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
           <template #tab>
             <n-flex align="center">
@@ -216,11 +220,3 @@ onUnmounted(() => {
     </n-drawer-content>
   </n-drawer>
 </template>
-
-<style scoped lang="scss">
-.custom-tabs {
-  ::v-deep(.n-tabs-nav--line-type.n-tabs-nav--top.n-tabs-nav) {
-    margin-right: 1.5rem;
-  }
-}
-</style>
