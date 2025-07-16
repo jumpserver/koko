@@ -396,19 +396,19 @@ export const useTerminalSocket = () => {
           return clearInterval(pingInterval.value!);
         }
 
-        // const currentDate = new Date();
-        // const timeSinceLastReceive = currentDate.getTime() - lastReceiveTime.value.getTime();
-        // const timeSinceLastSend = currentDate.getTime() - lastSendTime.value.getTime();
+        const currentDate = new Date();
 
-        // 如果接收或发送都超时了，关闭心跳
-        // if (timeSinceLastReceive > MaxTimeout || timeSinceLastSend > MaxTimeout) {
-        //   clearInterval(pingInterval.value!);
-        //   return;
-        // }
+        if ((lastReceiveTime.value as any) - (currentDate as any) > MaxTimeout) {
+          return console.error('More than 30 seconds do not receive data');
+        }
 
-        // 发送心跳
+        const pingTimeout = ((currentDate as any) - (lastSendTime.value as any)) - MaxTimeout;
+
+        if (pingTimeout < 0) {
+          return;
+        }
+
         socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
-        lastSendTime.value = new Date();
       }, 25 * 1000);
     };
     socketRef.value.onclose = () => {

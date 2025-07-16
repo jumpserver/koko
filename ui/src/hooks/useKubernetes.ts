@@ -50,19 +50,19 @@ function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
       return clearInterval(pingInterval.value!);
     }
 
-    // const currentDate: Date = new Date();
-    // const timeSinceLastReceive = currentDate.getTime() - kubernetesStore.lastReceiveTime.getTime();
-    // const timeSinceLastSend = currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
+    const currentDate: Date = new Date();
 
-    // 如果接收或发送都超时了，关闭心跳
-    // if (timeSinceLastReceive > MaxTimeout || timeSinceLastSend > MaxTimeout) {
-    //   clearInterval(pingInterval.value!);
-    //   return;
-    // }
+    if (kubernetesStore.lastReceiveTime - (currentDate as any) > MaxTimeout) {
+      return console.error('More than 30 seconds do not receive data');
+    }
 
-    // 发送心跳
+    const pingTimeout = ((currentDate as any) - kubernetesStore.lastSendTime) - MaxTimeout;
+
+    if (pingTimeout < 0) {
+      return;
+    }
+
     socket.send(formatMessage(kubernetesStore.globalTerminalId, 'PING', ''));
-    kubernetesStore.setLastSendTime(new Date());
   }, 25 * 1000);
 }
 
