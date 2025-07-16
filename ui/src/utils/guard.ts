@@ -38,8 +38,7 @@ export function guard(next: NavigationGuardNext) {
   try {
     getLocalKokoSetting();
     next();
-  }
-  catch (error) {
+  } catch (error) {
     throw new Error(`Initialization failed: ${error}`);
   }
 }
@@ -74,7 +73,7 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
       fontSize = 13;
     }
   }
-  
+
   return defaultCommandLine;
 }
 

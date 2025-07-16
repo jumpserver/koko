@@ -24,11 +24,9 @@ export const useTreeStore = defineStore('tree', {
           if (node.k8s_id === this.currentNode.k8s_id) {
             node.children = nodes;
             return true;
-          }
-          else if (node.children && node.children.length > 0) {
+          } else if (node.children && node.children.length > 0) {
             const found = updateChildren(node.children);
-            if (found)
-              return true;
+            if (found) return true;
           }
         }
         return false;
