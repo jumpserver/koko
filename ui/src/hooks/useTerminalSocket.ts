@@ -171,7 +171,7 @@ export const useTerminalSocket = () => {
 
         featureSetting.value = info.setting;
 
-        if (info.asset.name) {
+        if (info.asset?.name) {
           connectionStore.setConnectionState({
             assetName: info.asset.name,
           });
