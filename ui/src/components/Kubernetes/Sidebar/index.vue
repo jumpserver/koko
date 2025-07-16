@@ -19,7 +19,7 @@ const themeColors = computed(() => {
     '--sidebar-icon-active-color': lighten(60),
     '--sidebar-active-border-color': '#1ab394',
     '--sidebar-hover-bg-color': lighten(6),
-    backgroundColor: lighten(0),
+    backgroundColor: darken(5),
   };
 
   return colors;
