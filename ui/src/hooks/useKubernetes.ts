@@ -66,19 +66,22 @@ function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
   }, 25 * 1000);
 }
 
-function guaranteeLunaConnection() {
-  watchEffect(() => {
+function guaranteeLunaConnection(ws: WebSocket) {
+  guaranteeInterval.value = setInterval(() => {
     lunaId.value = lunaCommunicator.getLunaId();
-    origin.value = lunaCommunicator.getTargetOrigin();
-    if (!lunaId.value) {
-      guaranteeInterval.value = setInterval(() => {
-        counter.value++;
-      }, 1000);
-    } else {
+    if (lunaId.value) {
       clearInterval(guaranteeInterval.value!);
-      sendEventToLuna('PING', '', lunaId.value, origin.value);
+      return;
     }
-  });
+    counter.value++;
+    if (counter.value >= 5) {
+      // eslint-disable-next-line no-alert
+      alert('Failed to connect to Luna');
+      ws.close();
+      clearInterval(guaranteeInterval.value!);
+      window.close();
+    }
+  }, 1000);
 }
 
 /**
@@ -482,20 +485,7 @@ export function createConnect(t: any) {
     const { ws } = useWebSocket(connectURL, {
       protocols: ['JMS-KOKO'],
       onConnected: (ws: WebSocket) => {
-        watch(
-          () => counter.value,
-          counter => {
-            if (counter >= 5) {
-              clearInterval(guaranteeInterval.value!);
-
-              // eslint-disable-next-line no-alert
-              alert('Failed to connect to Luna');
-              ws.close();
-              window.close();
-            }
-          }
-        );
-        guaranteeLunaConnection();
+        guaranteeLunaConnection(ws);
         handleConnected(ws, pingInterval);
       },
       onMessage: (ws: WebSocket, event: MessageEvent) => {

@@ -180,7 +180,7 @@ const columns = createColumns();
 
 <template>
   <template v-if="showEmpty">
-    <div class=" flex flex-col items-center justify-center h-full w-full gap-4">
+    <div class="flex flex-col items-center justify-center h-full w-full gap-4">
       <n-empty description="获取文件管理器 Token 超时" />
       <n-button type="primary" @click="handleReconnect"> {{ t('Reconnect') }} </n-button>
     </div>
