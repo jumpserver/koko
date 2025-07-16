@@ -1,6 +1,7 @@
 import type { Ref } from 'vue';
 import type { ISearchOptions } from '@xterm/addon-search';
 
+import { h, ref } from 'vue';
 import { v4 as uuid } from 'uuid';
 import { storeToRefs } from 'pinia';
 import xtermTheme from 'xterm-theme';
@@ -10,7 +11,6 @@ import { FitAddon } from '@xterm/addon-fit';
 import { BrandDocker } from '@vicons/tabler';
 import { Box, Folder } from 'lucide-vue-next';
 import { readText } from 'clipboard-polyfill';
-import { h, ref, watch, watchEffect } from 'vue';
 import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 
@@ -22,10 +22,10 @@ import { MaxTimeout } from '@/utils/config';
 import { useZmodem } from '@/hooks/useZmodem';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
+import { formatMessage, preprocessInput } from '@/utils';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
-import { formatMessage, preprocessInput, sendEventToLuna } from '@/utils';
 
 import { base64ToUint8Array, generateWsURL } from './helper';
 
@@ -35,7 +35,6 @@ const { message, notification } = createDiscreteApi(['message', 'notification'],
   },
 });
 
-const origin = ref('');
 const lunaId = ref('');
 const counter = ref(0);
 const guaranteeInterval = ref<number | null>(null);
