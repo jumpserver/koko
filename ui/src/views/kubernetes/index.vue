@@ -17,7 +17,7 @@ const sideWidth = ref(300);
 const isFolded = ref(false);
 
 const { t } = useI18n();
-const { lighten } = useColor();
+const { lighten, darken } = useColor();
 
 const treeStore = useTreeStore();
 socket.value = useKubernetes(t);
@@ -27,7 +27,7 @@ const themeColors = computed(() => {
     '--sidebar-bg-color': lighten(3),
     '--sidebar-border-color': lighten(15),
     '--sidebar-text-color': lighten(60),
-    '--nav-header-bg-color': lighten(5),
+    '--nav-header-bg-color': darken(5),
   };
 
   return colors;
