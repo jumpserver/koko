@@ -53,10 +53,10 @@ function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
     const currentDate: Date = new Date();
 
     if (kubernetesStore.lastReceiveTime.getTime() - currentDate.getTime() > MaxTimeout) {
-      return console.error('More than 30 seconds do not receive data');
+      console.error('More than 30 seconds do not receive data');
     }
 
-    const pingTimeout = (currentDate.getTime() - kubernetesStore.lastSendTime.getTime()) - MaxTimeout;
+    const pingTimeout = currentDate.getTime() - kubernetesStore.lastSendTime.getTime() - MaxTimeout;
 
     if (pingTimeout < 0) {
       return;

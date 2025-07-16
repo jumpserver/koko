@@ -399,7 +399,7 @@ export const useTerminalSocket = () => {
         const currentDate = new Date();
 
         if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
-          return console.error('More than 30 seconds do not receive data');
+           console.error('More than 30 seconds do not receive data');
         }
 
         const pingTimeout = (currentDate.getTime() - lastSendTime.value.getTime()) - MaxTimeout;
