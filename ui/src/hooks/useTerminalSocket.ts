@@ -396,15 +396,15 @@ export const useTerminalSocket = () => {
           return clearInterval(pingInterval.value!);
         }
 
-        const currentDate = new Date();
-        const timeSinceLastReceive = currentDate.getTime() - lastReceiveTime.value.getTime();
-        const timeSinceLastSend = currentDate.getTime() - lastSendTime.value.getTime();
+        // const currentDate = new Date();
+        // const timeSinceLastReceive = currentDate.getTime() - lastReceiveTime.value.getTime();
+        // const timeSinceLastSend = currentDate.getTime() - lastSendTime.value.getTime();
 
         // 如果接收或发送都超时了，关闭心跳
-        if (timeSinceLastReceive > MaxTimeout || timeSinceLastSend > MaxTimeout) {
-          clearInterval(pingInterval.value!);
-          return;
-        }
+        // if (timeSinceLastReceive > MaxTimeout || timeSinceLastSend > MaxTimeout) {
+        //   clearInterval(pingInterval.value!);
+        //   return;
+        // }
 
         // 发送心跳
         socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
