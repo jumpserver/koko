@@ -764,8 +764,6 @@ provide('persistedUploadFiles', persistedUploadFiles);
       <template v-if="uploadFileList.length > 0" #footer>
         <n-divider />
         <n-flex vertical class="w-full">
-          <NText>{{ t('Uploading') }}</NText>
-
           <n-upload
             abstract
             file-list-class="max-height-32"

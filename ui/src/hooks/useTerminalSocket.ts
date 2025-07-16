@@ -397,18 +397,18 @@ export const useTerminalSocket = () => {
         }
 
         const currentDate = new Date();
-        const timeSinceLastReceive = currentDate.getTime() - lastReceiveTime.value.getTime();
-        const timeSinceLastSend = currentDate.getTime() - lastSendTime.value.getTime();
 
-        // 如果接收或发送都超时了，关闭心跳
-        if (timeSinceLastReceive > MaxTimeout || timeSinceLastSend > MaxTimeout) {
-          clearInterval(pingInterval.value!);
+        if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
+           console.error('More than 30 seconds do not receive data');
+        }
+
+        const pingTimeout = (currentDate.getTime() - lastSendTime.value.getTime()) - MaxTimeout;
+
+        if (pingTimeout < 0) {
           return;
         }
 
-        // 发送心跳
         socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
-        lastSendTime.value = new Date();
       }, 25 * 1000);
     };
     socketRef.value.onclose = () => {

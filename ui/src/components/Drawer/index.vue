@@ -26,8 +26,8 @@ const connectionStore = useConnectionStore();
 
 const drawerTabs = [
   {
-    name: 'hotkeys',
-    label: t('Hotkeys'),
+    name: 'general',
+    label: t('General'),
     icon: KeyboardIcon,
     component: Keyboard,
   },
