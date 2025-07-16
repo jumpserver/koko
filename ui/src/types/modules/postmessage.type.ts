@@ -86,7 +86,7 @@ export interface LunaMessage {
   id: string;
   name: string;
   origin: string;
-  category: string;
+  disbaleFileManager: boolean;
   data: string | object | null;
   theme?: string;
   user_meta?: string;
