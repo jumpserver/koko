@@ -21,7 +21,7 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
   private lunaId: string = '';
   private targetOrigin: string = '*';
 
-  assetCategory = '';
+  disbaleFileManager = false;
 
   constructor() {
     this.mitt = mitt<T>();
@@ -43,7 +43,7 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
       switch (message.name) {
         case LUNA_MESSAGE_TYPE.PING: {
           this.lunaId = message.id;
-          this.assetCategory = message.category;
+          this.disbaleFileManager = message.disbaleFileManager;
 
           this.targetOrigin = event.origin;
           this.sendLuna(LUNA_MESSAGE_TYPE.PONG, '');
@@ -95,9 +95,9 @@ export class LunaCommunicator<T extends EventPayloadMap = EventPayloadMap> {
     this.onLuna(type, onceHandler);
   }
 
-  // 获取协议
-  public getProtocol() {
-    return this.assetCategory;
+  // 获取是否禁用文件管理器
+  public getDisbaleFileManager() {
+    return this.disbaleFileManager;
   }
 
   // 销毁实例

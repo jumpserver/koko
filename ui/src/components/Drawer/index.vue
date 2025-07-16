@@ -20,7 +20,6 @@ const props = defineProps<{
 
 // 15s 最大等待时间
 const MAX_WAIT_TIME = 1000 * 15;
-const DISABLED_PROTOCOLS = ['database', 'device'];
 
 const { t } = useI18n();
 const connectionStore = useConnectionStore();
@@ -52,7 +51,7 @@ const drawerStatus = ref(false);
 const isRequestingToken = ref(false);
 const fileManagerToken = ref('');
 const timeoutId = ref<number | null>(null);
-const assetCategory = ref('');
+const isDisableFileManager = ref(false);
 
 watch(
   () => hasToken.value,
@@ -71,8 +70,8 @@ watch(
 );
 
 const filteredDrawerTabs = computed(() => {
-  if (props.hiddenFileManager || DISABLED_PROTOCOLS.includes(assetCategory.value)) {
-    return drawerTabs.filter(tab => tab.name !== 'file-manager' && tab.name !== 'session-detail');
+  if (props.hiddenFileManager || isDisableFileManager.value) {
+    return drawerTabs.filter(tab => tab.name !== 'file-manager');
   }
 
   return drawerTabs;
@@ -147,13 +146,13 @@ onMounted(() => {
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
   lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.PING, () => {
-    const protocol = lunaCommunicator.getProtocol();
-    assetCategory.value = protocol;
+    const disbaleFileManager = lunaCommunicator.getDisbaleFileManager();
+    isDisableFileManager.value = disbaleFileManager;
   });
 
-  const initialProtocol = lunaCommunicator.getProtocol();
-  if (initialProtocol) {
-    assetCategory.value = initialProtocol;
+  const initialDisbaleFileManager = lunaCommunicator.getDisbaleFileManager();
+  if (initialDisbaleFileManager) {
+    isDisableFileManager.value = initialDisbaleFileManager;
   }
 
   mittBus.on('open-setting', () => {
