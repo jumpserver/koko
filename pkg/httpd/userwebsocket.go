@@ -98,6 +98,8 @@ func (userCon *UserWebsocket) Run() {
 	if userCon.ConnectToken != nil && userCon.ConnectToken.Protocol == srvconn.ProtocolK8s {
 		var err error
 		userCon.k8sClient, err = proxy.NewKubernetesClient(
+			userCon.ConnectToken.Account.Name,
+			userCon.ConnectToken.Asset.Name,
 			userCon.ConnectToken.Asset.Address,
 			userCon.ConnectToken.Account.Secret,
 			userCon.ConnectToken.Gateway,

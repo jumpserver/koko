@@ -32,7 +32,7 @@ const (
 
 // 类似于 `kubectl --insecure-skip-tls-verify=%s --token=%s --server=%s auth can-i get pods`
 
-func IsValidK8sUserToken(o *k8sOptions) bool {
+func IsValidK8sUserToken(o *K8sOptions) bool {
 	k8sCfg := o.K8sCfg()
 	client, err := kubernetes.NewForConfig(k8sCfg)
 	if err != nil {
@@ -58,7 +58,7 @@ func IsValidK8sUserToken(o *k8sOptions) bool {
 }
 
 func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
-	args := &k8sOptions{
+	args := &K8sOptions{
 		Username:      os.Getenv("USER"),
 		ClusterServer: "https://127.0.0.1:8443",
 		Token:         "",
@@ -94,7 +94,7 @@ func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
 
 type K8sCon struct {
 	proxy   *KubectlProxyConn
-	options *k8sOptions
+	options *K8sOptions
 	*localcommand.LocalCommand
 }
 
@@ -107,7 +107,7 @@ func (k *K8sCon) Close() error {
 	return k.proxy.Close()
 }
 
-type k8sOptions struct {
+type K8sOptions struct {
 	ClusterServer string // https://172.16.10.51:8443
 	Username      string // user 系统用户名
 	Token         string // 授权token
@@ -118,7 +118,7 @@ type k8sOptions struct {
 	win Windows
 }
 
-func (o *k8sOptions) K8sCfg() *rest.Config {
+func (o *K8sOptions) K8sCfg() *rest.Config {
 	kubeConf := &rest.Config{
 		Host:        o.ClusterServer,
 		BearerToken: o.Token,
@@ -129,7 +129,7 @@ func (o *k8sOptions) K8sCfg() *rest.Config {
 	return kubeConf
 }
 
-func (o *k8sOptions) Env() []string {
+func (o *K8sOptions) Env() []string {
 	token, err := utils.Encrypt(o.Token, config.CipherKey)
 	if err != nil {
 		logger.Errorf("Encrypt k8s token err: %s", err)
@@ -163,46 +163,46 @@ func startK8SLocalCommand(env []string) (*localcommand.LocalCommand, error) {
 	return localcommand.New("unshare", argv, localcommand.WithEnv(env))
 }
 
-type K8sOption func(*k8sOptions)
+type K8sOption func(*K8sOptions)
 
 func K8sUsername(username string) K8sOption {
-	return func(args *k8sOptions) {
+	return func(args *K8sOptions) {
 		args.Username = username
 	}
 }
 
 func K8sToken(token string) K8sOption {
-	return func(args *k8sOptions) {
+	return func(args *K8sOptions) {
 		args.Token = token
 	}
 }
 
 func K8sClusterServer(clusterServer string) K8sOption {
-	return func(args *k8sOptions) {
+	return func(args *K8sOptions) {
 		args.ClusterServer = clusterServer
 	}
 }
 
 func K8sExtraEnvs(envs map[string]string) K8sOption {
-	return func(args *k8sOptions) {
+	return func(args *K8sOptions) {
 		args.ExtraEnv = envs
 	}
 }
 
 func K8sSkipTls(isSkipTls bool) K8sOption {
-	return func(args *k8sOptions) {
+	return func(args *K8sOptions) {
 		args.IsSkipTls = isSkipTls
 	}
 }
 
 func K8sPtyWin(win Windows) K8sOption {
-	return func(args *k8sOptions) {
+	return func(args *K8sOptions) {
 		args.win = win
 	}
 }
 
 func K8sDebug(debug bool) K8sOption {
-	return func(args *k8sOptions) {
+	return func(args *K8sOptions) {
 		args.DEBUG = debug
 	}
 }

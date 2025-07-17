@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"net"
 	"net/url"
 	"os"
@@ -42,15 +43,15 @@ type KubernetesClient struct {
 	gateway    *domainGateway
 }
 
-func NewKubernetesClient(address, token string, gateway *model.Gateway) (*KubernetesClient, error) {
+func NewKubernetesClient(accountName, assetName, address, token string, gateway *model.Gateway) (*KubernetesClient, error) {
 	kc := &KubernetesClient{}
-	if err := kc.InitClient(address, token, gateway); err != nil {
+	if err := kc.InitClient(accountName, assetName, address, token, gateway); err != nil {
 		return nil, err
 	}
 	return kc, nil
 }
 
-func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gateway) error {
+func (kc *KubernetesClient) InitClient(accountName, assetName, address, token string, gateway *model.Gateway) error {
 	var proxyAddr *net.TCPAddr
 	if gateway != nil {
 		dGateway, err := newK8sGateWayServer(address, gateway)
@@ -74,6 +75,17 @@ func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gat
 
 	kubeConfig := kc.GetKubeConfig(address, token)
 
+	args := &srvconn.K8sOptions{
+		Username:      accountName,
+		ClusterServer: address,
+		Token:         token,
+		IsSkipTls:     true,
+		ExtraEnv:      map[string]string{"K8sName": assetName},
+	}
+
+	if !srvconn.IsValidK8sUserToken(args) {
+		return srvconn.ErrValidToken
+	}
 	tmpFile, err := os.CreateTemp("", "kubeconfig-*.yaml")
 	if err != nil {
 		return fmt.Errorf("error creating temp file: %w", err)

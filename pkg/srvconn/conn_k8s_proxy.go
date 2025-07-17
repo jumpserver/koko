@@ -25,13 +25,13 @@ func GetK8sProxyDir() string {
 	return dirPath
 }
 
-func NewKubectlProxyConn(opt *k8sOptions) *KubectlProxyConn {
+func NewKubectlProxyConn(opt *K8sOptions) *KubectlProxyConn {
 	return &KubectlProxyConn{opts: opt, Id: common.UUID()}
 }
 
 type KubectlProxyConn struct {
 	Id   string
-	opts *k8sOptions
+	opts *K8sOptions
 
 	proxyCmd   *exec.Cmd
 	configPath string
