@@ -1,4 +1,4 @@
-import { TreeOption } from 'naive-ui';
+import type { TreeOption } from 'naive-ui';
 
 interface Interface {
   favicon: string;

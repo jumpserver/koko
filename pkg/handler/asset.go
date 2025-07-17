@@ -195,6 +195,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 		Account:       selectedAccount.Alias,
 		Protocol:      protocol,
 		ConnectMethod: "ssh",
+		InputUsername: selectedAccount.Username,
 		RemoteAddr:    u.h.sess.RemoteAddr(),
 	}
 	if selectedAccount.IsInputUser() {

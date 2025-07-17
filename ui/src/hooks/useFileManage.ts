@@ -1,24 +1,24 @@
-import { computed, ref, watch } from 'vue';
-import { useWebSocket } from '@vueuse/core';
-import { createDiscreteApi, darkTheme } from 'naive-ui';
-import { useFileManageStore } from '@/store/modules/fileManage.ts';
-
-import { v4 as uuid } from 'uuid';
-import { BASE_WS_URL } from '@/utils/config';
-
-import mittBus from '@/utils/mittBus';
-
 import type { Ref } from 'vue';
 import type { ConfigProviderProps, UploadFileInfo } from 'naive-ui';
 import type { MessageApiInjection } from 'naive-ui/es/message/src/MessageProvider';
+
+import { v4 as uuid } from 'uuid';
+import { computed, ref, watch } from 'vue';
+import { useWebSocket } from '@vueuse/core';
+import { createDiscreteApi, darkTheme } from 'naive-ui';
+
 import type {
   FileManage,
   FileManageConnectData,
   FileManageSftpFileItem,
-  FileSendData
+  FileSendData,
 } from '@/types/modules/file.type';
+
+import mittBus from '@/utils/mittBus';
+import { BASE_WS_URL } from '@/utils/config';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
 export enum MessageType {
   CONNECT = 'CONNECT',
@@ -28,21 +28,21 @@ export enum MessageType {
   PONG = 'PONG',
   CLOSED = 'closed',
   SFTP_DATA = 'SFTP_DATA',
-  SFTP_BINARY = 'SFTP_BINARY'
+  SFTP_BINARY = 'SFTP_BINARY',
 }
 export enum ManageTypes {
   CREATE = 'CREATE',
   CHANGE = 'CHANGE',
   REFRESH = 'REFRESH',
   RENAME = 'RENAME',
-  REMOVE = 'REMOVE'
+  REMOVE = 'REMOVE',
 }
 
 const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
-  theme: darkTheme
+  theme: darkTheme,
 }));
 const { message: globalTipsMessage }: { message: MessageApiInjection } = createDiscreteApi(['message'], {
-  configProviderProps: configProviderPropsRef
+  configProviderProps: configProviderPropsRef,
 });
 
 // TODO 都是 hook 内部状态
@@ -57,7 +57,7 @@ let downLoadMessage = null;
  * @description 将 buffer 转为 base64
  * @param buffer
  */
-const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const uint8Array = new Uint8Array(buffer);
   const CHUNK_SIZE = 0x8000;
 
@@ -69,27 +69,27 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
   }
 
   return btoa(result);
-};
+}
 
 /**
  * @description 刷新文件列表
  * @param socket
  * @param path
  */
-export const refresh = (socket: WebSocket, path: string) => {
+export function refresh(socket: WebSocket, path: string) {
   const sendData = {
-    path
+    path,
   };
 
   const sendBody = {
     id: uuid(),
     cmd: 'list',
     type: 'SFTP_DATA',
-    data: JSON.stringify(sendData)
+    data: JSON.stringify(sendData),
   };
 
   socket.send(JSON.stringify(sendBody));
-};
+}
 
 /**
  * @description 处理 type 为 connect 的方法
@@ -97,28 +97,28 @@ export const refresh = (socket: WebSocket, path: string) => {
  * @param id
  * @param socket
  */
-const handleSocketConnectEvent = (messageData: FileManageConnectData, id: string, socket: WebSocket) => {
+function handleSocketConnectEvent(messageData: FileManageConnectData, id: string, socket: WebSocket) {
   const sendData = {
-    path: ''
+    path: '',
   };
 
   const sendBody = {
     id,
     type: 'SFTP_DATA',
     cmd: 'list',
-    data: JSON.stringify(sendData)
+    data: JSON.stringify(sendData),
   };
 
   if (messageData) {
     socket.send(JSON.stringify(sendBody));
   }
-};
+}
 
 /**
  * @description 设置文件信息 table
  * @param messageData
  */
-const handleSocketSftpData = (messageData: FileManageSftpFileItem[]) => {
+function handleSocketSftpData(messageData: FileManageSftpFileItem[]) {
   const fileManageStore = useFileManageStore();
 
   // 初始化时保存初始路径
@@ -137,20 +137,20 @@ const handleSocketSftpData = (messageData: FileManageSftpFileItem[]) => {
         perm: '',
         mod_time: '',
         type: '',
-        is_dir: true
+        is_dir: true,
       },
-      ...messageData
+      ...messageData,
     ];
   }
 
   fileManageStore.setFileList(messageData);
-};
+}
 
 /**
  * @description 心跳检测机制
  * @param socket WebSocket实例
  */
-const heartBeat = (socket: WebSocket) => {
+function heartBeat(socket: WebSocket) {
   let pingInterval: number | null = null;
 
   const sendPing = () => {
@@ -162,7 +162,7 @@ const heartBeat = (socket: WebSocket) => {
     const pingMessage = {
       id: uuid(),
       type: MessageType.PING,
-      data: 'ping'
+      data: 'ping',
     };
 
     socket.send(JSON.stringify(pingMessage));
@@ -177,13 +177,13 @@ const heartBeat = (socket: WebSocket) => {
       clearInterval(pingInterval);
     }
   };
-};
+}
 
 /**
  * @description 处理 message
  * @param socket
  */
-const initSocketEvent = (socket: WebSocket, t: any) => {
+function initSocketEvent(socket: WebSocket, t: any) {
   const fileManageStore = useFileManageStore();
 
   let receivedBuffers: any = [];
@@ -257,7 +257,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
 
         if (message.cmd === 'download' && message.data) {
           const blob: Blob = new Blob(receivedBuffers, {
-            type: 'application/octet-stream'
+            type: 'application/octet-stream',
           });
 
           const url = window.URL.createObjectURL(blob);
@@ -323,7 +323,7 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
           JSON.stringify({
             id: uuid(),
             type: MessageType.PONG,
-            data: 'pong'
+            data: 'pong',
           })
         );
         break;
@@ -354,19 +354,19 @@ const initSocketEvent = (socket: WebSocket, t: any) => {
       }
     }
   };
-};
+}
 
 /**
  * @description 文件管理中的 Socket 连接
  * @param url
  */
-const fileSocketConnection = (url: string, t: any) => {
+function fileSocketConnection(url: string, t: any) {
   const { ws } = useWebSocket(url, {
     protocols: ['JMS-KOKO'],
     autoReconnect: {
       retries: 5,
-      delay: 3000
-    }
+      delay: 3000,
+    },
   });
 
   if (!ws.value) {
@@ -376,39 +376,39 @@ const fileSocketConnection = (url: string, t: any) => {
   initSocketEvent(<WebSocket>ws!.value, t);
 
   return ws.value;
-};
+}
 
 /**
  * @description 路径跳转的处理
  * @param socket
  * @param path
  */
-const handleChangePath = (socket: WebSocket, path: string) => {
+function handleChangePath(socket: WebSocket, path: string) {
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'list',
-    data: JSON.stringify({ path })
+    data: JSON.stringify({ path }),
   };
 
   socket.send(JSON.stringify(sendBody));
-};
+}
 
 /**
  * @description 创建文件夹
  * @param socket
  * @param path
  */
-const handleFileCreate = (socket: WebSocket, path: string) => {
+function handleFileCreate(socket: WebSocket, path: string) {
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'mkdir',
-    data: JSON.stringify({ path })
+    data: JSON.stringify({ path }),
   };
 
   socket.send(JSON.stringify(sendBody));
-};
+}
 
 /**
  * @description 重命名
@@ -416,32 +416,32 @@ const handleFileCreate = (socket: WebSocket, path: string) => {
  * @param path
  * @param newName
  */
-const handleFileRename = (socket: WebSocket, path: string, newName: string) => {
+function handleFileRename(socket: WebSocket, path: string, newName: string) {
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'rename',
-    data: JSON.stringify({ path, new_name: newName })
+    data: JSON.stringify({ path, new_name: newName }),
   };
 
   socket.send(JSON.stringify(sendBody));
-};
+}
 
 /**
  * @description 移除文件
  * @param socket
  * @param path
  */
-const handleFileRemove = (socket: WebSocket, path: string) => {
+function handleFileRemove(socket: WebSocket, path: string) {
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'rm',
-    data: JSON.stringify({ path })
+    data: JSON.stringify({ path }),
   };
 
   socket.send(JSON.stringify(sendBody));
-};
+}
 
 /**
  * @description 下载文件
@@ -449,33 +449,28 @@ const handleFileRemove = (socket: WebSocket, path: string) => {
  * @param path
  * @param is_dir
  */
-const handleFileDownload = (socket: WebSocket, path: string, is_dir: boolean, t: any) => {
+function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, t: any) {
   downLoadMessage = globalTipsMessage.loading(`${t('DownloadProgress')}: 0.00%`, { duration: 1000000000 });
 
   const sendData = {
     path,
-    is_dir
+    is_dir,
   };
 
   const sendBody = {
     id: uuid(),
     type: 'SFTP_DATA',
     cmd: 'download',
-    data: JSON.stringify(sendData)
+    data: JSON.stringify(sendData),
   };
 
   socket.send(JSON.stringify(sendBody));
-};
+}
 
 /**
  * @description 预处理 chunks
- * @param sliceChunk
- * @param socket
- * @param CHUNK_SIZE
- * @param fileInfo
- * @param sentChunks
  */
-const generateUploadChunks = async (
+async function generateUploadChunks(
   sliceChunk: Blob,
   socket: WebSocket,
   fileInfo: UploadFileInfo,
@@ -483,12 +478,12 @@ const generateUploadChunks = async (
   sentChunks: Ref<number>,
   isSingleChunk: boolean = false,
   onError: (() => void) | null = null
-) => {
+) {
   const fileManageStore = useFileManageStore();
   const sendData: FileSendData = {
     offSet: 0,
     size: fileInfo.file?.size,
-    path: `${fileManageStore.currentPath}/${fileInfo.name}`
+    path: `${fileManageStore.currentPath}/${fileInfo.name}`,
   };
 
   if (isSingleChunk) {
@@ -503,7 +498,7 @@ const generateUploadChunks = async (
     type: 'SFTP_DATA',
     id: uploadFileId.value,
     data: '',
-    raw: ''
+    raw: '',
   };
 
   try {
@@ -539,24 +534,24 @@ const generateUploadChunks = async (
     if (onError) {
       onError();
     }
+
+    console.error(error);
     return false;
   }
-};
+}
 
 /**
  * @description 中断上传,停止继续发送切片信息
- * @param socket
- * @param fileInfo
  */
-const interraptUpload = (socket: WebSocket, fileInfo: UploadFileInfo) => {
+function interraptUpload() {
   uploadInterrupt.value = true;
   uploadInterruptType.value = 'manual';
-};
+}
 
 /**
  * @description 上传文件
  */
-const handleFileUpload = async (
+async function handleFileUpload(
   socket: WebSocket,
   uploadFileList: Ref<Array<UploadFileInfo>>,
   _onProgress: any,
@@ -564,7 +559,7 @@ const handleFileUpload = async (
   onError: () => void,
   t: any,
   externalLoadingMessage?: any
-) => {
+) {
   const maxSliceCount = 100;
   const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
@@ -679,27 +674,27 @@ const handleFileUpload = async (
               offSet: 0,
               merge: true,
               size: 0,
-              path: `${fileManageStore.currentPath}/${fileInfo.name}`
-            })
+              path: `${fileManageStore.currentPath}/${fileInfo.name}`,
+            }),
           })
         );
       }
       uploadFileId.value = '';
     } catch (e) {
       loadingMessage.destroy();
+      console.error(e);
       onError();
     }
   }
-};
+}
 
 /**
  * @description 用于处理文件管理相关逻辑
  */
-export const useFileManage = (token: string, t: any) => {
+export function useFileManage(token: string, t: any) {
   const fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
 
   function init() {
-    console.log('🎯 useFileManage 初始化了！');
     const socket = fileSocketConnection(fileConnectionUrl, t);
 
     mittBus.on(
@@ -709,7 +704,7 @@ export const useFileManage = (token: string, t: any) => {
         onFinish,
         onError,
         onProgress,
-        loadingMessage
+        loadingMessage,
       }: {
         uploadFileList: Ref<Array<UploadFileInfo>>;
         onFinish: () => void;
@@ -751,19 +746,22 @@ export const useFileManage = (token: string, t: any) => {
       }
     });
 
-    mittBus.on('stop-upload', ({ fileInfo }: { fileInfo: UploadFileInfo }) => {
-      interraptUpload(<WebSocket>socket, fileInfo);
+    mittBus.on('stop-upload', (data: { fileInfo: UploadFileInfo }) => {
+      interraptUpload();
+      // 发送上传停止成功事件
+      mittBus.emit('upload-stopped', { fileInfo: data.fileInfo });
     });
 
     return socket;
   }
 
   return init();
-};
+}
 
-export const unloadListeners = () => {
+export function unloadListeners() {
   mittBus.off('download-file');
   mittBus.off('file-upload');
   mittBus.off('file-manage');
   mittBus.off('stop-upload');
-};
+  mittBus.off('upload-stopped');
+}

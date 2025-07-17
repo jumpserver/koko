@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia';
-import { IParamsState } from '@/types/modules/store.type';
-import { SettingConfig } from '@/types/modules/config.type';
+
+import type { IParamsState } from '@/types/modules/store.type';
+import type { SettingConfig } from '@/types/modules/config.type';
 
 export const useParamsStore = defineStore('params', {
   state: (): IParamsState => ({
     shareId: '',
     shareCode: '',
     currentUser: null,
-    setting: {}
+    setting: {},
   }),
   actions: {
     setShareId(shareId: string) {
@@ -21,6 +22,6 @@ export const useParamsStore = defineStore('params', {
     },
     setSetting(setting: SettingConfig) {
       this.setting = setting;
-    }
-  }
+    },
+  },
 });

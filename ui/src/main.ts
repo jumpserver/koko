@@ -1,21 +1,17 @@
 import { createApp } from 'vue';
-
-import App from './App.vue';
-import pinia from './store';
-import router from './router';
-import i18n from './locales';
 import VueCookies from 'vue3-cookies';
-
-import './index.css';
-// 初始化浏览器样式
-import 'normalize.css';
-// 引入自定义初始化样式
-import '@/style/reset.scss';
-// 引入 xterm 样式
-import '@xterm/xterm/css/xterm.css';
 
 // 引入指令
 import { draggable } from '@/directive/sidebarDraggable.ts';
+
+import App from './App.vue';
+import pinia from './store';
+import i18n from './locales';
+import router from './router';
+import './main.css';
+
+// 引入 xterm 样式
+import '@xterm/xterm/css/xterm.css';
 
 const app = createApp(App);
 

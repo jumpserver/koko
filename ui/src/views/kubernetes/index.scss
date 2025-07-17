@@ -1,9 +1,13 @@
 .custom-layout {
-  height: calc(100vh - 35px);
+  height: 100vh;
+
+  :deep(.n-layout-header) {
+    background-color: var(--nav-header-bg-color) !important;
+  }
 
   :deep(.n-layout-scroll-container) {
     .n-layout-sider {
-      background-color: #252526;
+      background-color: var(--sidebar-bg-color) !important;
 
       .n-scrollbar .n-scrollbar-container .n-scrollbar-content {
         padding: 0 !important;

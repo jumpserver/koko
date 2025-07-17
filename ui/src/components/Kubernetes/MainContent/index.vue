@@ -1,124 +1,49 @@
-<template>
-  <n-layout :native-scrollbar="false" content-style="height: 100%">
-    <n-tabs
-      v-model:value="nameRef"
-      closable
-      size="small"
-      type="card"
-      tab="show:lazy"
-      tab-style="min-width: 80px;"
-      class="header-tab relative"
-      @close="handleClose"
-      @update:value="handleChangeTab"
-      @contextmenu.prevent="handleContextMenu"
-    >
-      <n-tab-pane
-        v-for="panel of panels"
-        :key="panel.name"
-        :tab="panel.tab"
-        :name="panel.name"
-        display-directive="show:lazy"
-        class="bg-[#101014] pt-0"
-      >
-        <n-layout :native-scrollbar="false">
-          <n-scrollbar trigger="hover">
-            <div :id="String(panel.name)" class="k8s-terminal"></div>
-          </n-scrollbar>
-        </n-layout>
-      </n-tab-pane>
-    </n-tabs>
-  </n-layout>
-  <n-dropdown
-    show-arrow
-    size="medium"
-    trigger="manual"
-    placement="bottom-start"
-    content-style='font-size: "13px"'
-    :x="dropdownX"
-    :y="dropdownY"
-    :show="showContextMenu"
-    :options="contextMenuOption"
-    @select="handleContextMenuSelect"
-    @clickoutside="handleClickOutside"
-  />
-  <Settings :settings="settings" />
-</template>
-
 <script setup lang="ts">
-import xtermTheme from 'xterm-theme';
-import mittBus from '@/utils/mittBus';
-import Share from '@/components/Share/index.vue';
-import Settings from '@/components/Settings/index.vue';
-import ThemeConfig from '@/components/ThemeConfig/index.vue';
-
-import {
-  computed,
-  h,
-  markRaw,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref
-} from 'vue';
-import {
-  findNodeById,
-  renderIcon,
-  swapElements
-} from '@/components/Kubernetes/helper';
-import { updateIcon } from '@/hooks/helper';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
-import { useParamsStore } from '@/store/modules/params.ts';
-import { createTerminal } from '@/hooks/useKubernetes.ts';
-import { useTreeStore } from '@/store/modules/tree.ts';
-import { useDraggable } from 'vue-draggable-plus';
-import { readText } from 'clipboard-polyfill';
-import { useDebounceFn } from '@vueuse/core';
-import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n';
-import { NMessageProvider, useDialog, useMessage } from 'naive-ui';
-import { v4 as uuid } from 'uuid';
-
-import type { UseDraggableReturn } from 'vue-draggable-plus';
-import type { DropdownOption, TabPaneProps } from 'naive-ui';
-import type { ISettingProp } from '@/types';
 import type { Ref } from 'vue';
+import type { DropdownOption, TabPaneProps } from 'naive-ui';
+import type { UseDraggableReturn } from 'vue-draggable-plus';
 
-import {
-  ArrowBack,
-  ArrowDown,
-  ArrowForward,
-  ArrowUp,
-  CloseCircleOutline
-} from '@vicons/ionicons5';
-import { ClosedCaption32Regular } from '@vicons/fluent';
-import { RefreshFilled } from '@vicons/material';
-import { CloneRegular } from '@vicons/fa';
-import { defaultTheme } from '@/utils/config';
-import {
-  Activity,
-  ColorPalette,
-  Keyboard,
-  NotSent,
-  Paste,
-  Share as ShareIcon,
-  Stop,
-  UserAvatar
-} from '@vicons/carbon';
+import { v4 as uuid } from 'uuid';
+import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
+import { useDebounceFn } from '@vueuse/core';
+import { useDraggable } from 'vue-draggable-plus';
+import { BrushCleaning, CircleX, Copy, RotateCcw } from 'lucide-vue-next';
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
+import mittBus from '@/utils/mittBus';
+import { useColor } from '@/hooks/useColor';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { createTerminal } from '@/hooks/useKubernetes.ts';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { getXTerminalLineContent, updateIcon } from '@/hooks/helper';
 
-const dialog = useDialog();
-const message = useMessage();
 const treeStore = useTreeStore();
-const paramsStore = useParamsStore();
 const terminalStore = useTerminalStore();
 
 const { t } = useI18n();
+const { lighten, darken } = useColor();
 const { connectInfo } = storeToRefs(treeStore);
+
+const themeColors = computed(() => {
+  const colors = {
+    '--tab-bg-color': darken(5),
+    '--tab-inactive-bg-color': darken(3),
+    '--tab-active-bg-color': darken(1),
+    '--tab-inactive-text-color': lighten(50),
+    '--tab-active-text-color': lighten(60),
+    '--icon-color': lighten(45),
+    '--icon-hover-bg-color': lighten(8),
+  };
+
+  return colors;
+});
 
 const nameRef = ref('');
 const showDrawer = ref<boolean>(false);
 const contextIdentification = ref('');
-const themeName = ref('Default');
 const dropdownY = ref(0);
 const dropdownX = ref(0);
 const showContextMenu = ref(false);
@@ -129,222 +54,58 @@ const contextMenuOption = [
   {
     label: t('Reconnect'),
     key: 'reconnect',
-    icon: renderIcon(RefreshFilled)
+    icon: () => h(RotateCcw, { size: 16 }),
   },
   {
     label: t('Close Current Tab'),
     key: 'close',
-    icon: renderIcon(CloseCircleOutline)
+    icon: () => h(CircleX, { size: 16 }),
   },
   {
     label: t('Close All Tabs'),
     key: 'closeAll',
-    icon: renderIcon(ClosedCaption32Regular)
+    icon: () => h(BrushCleaning, { size: 16 }),
   },
   {
     label: t('Clone Connect'),
     key: 'cloneConnect',
-    icon: renderIcon(CloneRegular)
-  }
+    icon: () => h(Copy, { size: 16 }),
+  },
 ];
 
-const settings = computed((): ISettingProp[] => {
-  return [
-    {
-      label: 'ThemeConfig',
-      title: t('ThemeConfig'),
-      icon: ColorPalette,
-      disabled: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+const swapElements = (arr: any[], index1: number, index2: number) => {
+  [arr[index1], arr[index2]] = [arr[index2], arr[index1]];
+  return arr;
+};
 
-        return !(operatedNode && operatedNode.terminal);
-      },
-      click: () => {
-        dialog.success({
-          class: 'set-theme',
-          title: t('Theme'),
-          showIcon: false,
-          style: 'width: 50%; min-width: 810px',
-          content: () => {
-            const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
+const findNodeById = (nameRef: string) => {
+  const treeStore = useTreeStore();
 
-            return h(ThemeConfig, {
-              currentThemeName: themeName.value,
-              preview: (tempTheme: string) => {
-                operatedNode.terminal.options.theme =
-                  xtermTheme[tempTheme] || defaultTheme;
-              }
-            });
-          }
-        });
-        // 关闭抽屉
-        mittBus.emit('open-setting');
+  for (const [_key, value] of treeStore.terminalMap.entries()) {
+    if (value.k8s_id === nameRef) {
+      treeStore.setCurrentNode(value);
+
+      // 恢复当前节点的 ctrlCAsCtrlZ 配置
+      if (value.ctrlCAsCtrlZMap && value.ctrlCAsCtrlZMap.has(value.k8s_id)) {
+        const ctrlCAsCtrl: string = value.ctrlCAsCtrlZMap.get(value.k8s_id);
+        terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCAsCtrl);
       }
-    },
-    {
-      label: 'Share',
-      title: t('Share'),
-      icon: ShareIcon,
-      disabled: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
 
-        return !operatedNode?.enableShare;
-      },
-      click: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-        const sessionId = operatedNode.sessionIdMap.get(operatedNode.k8s_id);
-
-        dialog.success({
-          class: 'share',
-          title: t('CreateLink'),
-          showIcon: false,
-          style: 'width: 35%; min-width: 500px',
-          content: () => {
-            return h(NMessageProvider, null, {
-              default: () =>
-                h(Share, {
-                  sessionId,
-                  enableShare: operatedNode?.enableShare,
-                  userOptions: operatedNode?.userOptions
-                })
-            });
-          },
-          onClose: () => resetShareDialog(),
-          onMaskClick: () => resetShareDialog()
-        });
-        // 关闭抽屉
-        mittBus.emit('open-setting');
+      // 恢复当前节点的 backspaceAsCtrlH 配置
+      if (value.backspaceAsCtrlHMap && value.backspaceAsCtrlHMap.has(value.k8s_id)) {
+        const backspaceAsCtrlH: string = value.backspaceAsCtrlHMap.get(value.k8s_id);
+        terminalStore.setTerminalConfig('backspaceAsCtrlH', backspaceAsCtrlH);
       }
-    },
-    {
-      label: 'User',
-      title: t('User'),
-      icon: UserAvatar,
-      disabled: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-        return Object.keys(operatedNode.onlineUsersMap).length < 1;
-      },
-      content: () => {
-        const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-
-        if (operatedNode && operatedNode.onlineUsersMap) {
-          return Object.entries(operatedNode?.onlineUsersMap)
-            .flatMap(([sessionKey, items]) =>
-              // @ts-ignore
-              items
-                .filter((_item: any) => {
-                  const operatedNode = treeStore.getTerminalByK8sId(
-                    nameRef.value
-                  );
-                  return operatedNode.k8s_id === sessionKey;
-                })
-                .map((item: any) => {
-                  return {
-                    ...item,
-                    name: item.user,
-                    icon: item.writable ? markRaw(Activity) : markRaw(NotSent),
-                    tip: item.writable ? t('Writable') : t('ReadOnly'),
-                    sessionKey // 添加会话的 key 值
-                  };
-                })
-            )
-            .sort(
-              (a, b) =>
-                new Date(a.created).getTime() - new Date(b.created).getTime()
-            );
-        }
-
-        return [];
-      },
-      click: user => {
-        if (user.primary) return;
-
-        dialog.warning({
-          title: t('Warning'),
-          content: t('RemoveShareUserConfirm'),
-          positiveText: t('ConfirmBtn'),
-          negativeText: t('Cancel'),
-          onPositiveClick: () => {
-            const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-            const sessionId = operatedNode.sessionIdMap.get(
-              operatedNode.k8s_id
-            );
-
-            mittBus.emit('remove-share-user', {
-              sessionId: sessionId,
-              userMeta: user,
-              type: 'TERMINAL_SHARE_USER_REMOVE'
-            });
-          }
-        });
-      }
-    },
-    {
-      label: 'Keyboard',
-      title: t('Hotkeys'),
-      icon: Keyboard,
-      content: [
-        {
-          name: 'Ctrl + C',
-          icon: Stop,
-          tip: t('Cancel'),
-          click: () => {
-            handleWriteData('Stop');
-          }
-        },
-        {
-          name: 'Command/Ctrl + V',
-          icon: Paste,
-          tip: t('Paste'),
-          click: () => {
-            handleWriteData('Paste');
-          }
-        },
-        {
-          name: 'Arrow Up',
-          icon: ArrowUp,
-          tip: t('UpArrow'),
-          click: () => {
-            handleWriteData('ArrowUp');
-          }
-        },
-        {
-          name: 'Arrow Down',
-          icon: ArrowDown,
-          tip: t('DownArrow'),
-          click: () => {
-            handleWriteData('ArrowDown');
-          }
-        },
-        {
-          name: 'Arrow Left',
-          icon: ArrowBack,
-          tip: t('LeftArrow'),
-          click: () => {
-            handleWriteData('ArrowLeft');
-          }
-        },
-        {
-          name: 'Arrow Right',
-          icon: ArrowForward,
-          tip: t('RightArrow'),
-          click: () => {
-            handleWriteData('ArrowRight');
-          }
-        }
-      ],
-      disabled: () => false,
-      click: () => {}
     }
-  ];
-});
+  }
+};
 
 /**
  * @description 处理标签关闭
  *
  * @param name
  */
-const handleClose = (name: string) => {
+function handleClose(name: string) {
   const node = treeStore.getTerminalByK8sId(name);
   const socket = node.socket;
 
@@ -353,7 +114,7 @@ const handleClose = (name: string) => {
       JSON.stringify({
         type: 'K8S_CLOSE',
         id: node.id,
-        k8s_id: node.k8s_id
+        k8s_id: node.k8s_id,
       })
     );
   }
@@ -372,26 +133,26 @@ const handleClose = (name: string) => {
     findNodeById(nameRef.value);
     terminalStore.setTerminalConfig('currentTab', nameRef.value);
   }
-};
+}
 
 /**
  * @description 切换标签
  *
  * @param value
  */
-const handleChangeTab = (value: string) => {
+function handleChangeTab(value: string) {
   nameRef.value = value;
 
   findNodeById(value);
 
   terminalStore.setTerminalConfig('currentTab', value);
-};
+}
 
 /**
  * @description 每个 tab 标签的右侧快捷功能
  * @param e
  */
-const handleContextMenu = (e: PointerEvent) => {
+function handleContextMenu(e: PointerEvent) {
   let target: HTMLElement = e.target as HTMLElement;
 
   while (target && !target.hasAttribute('data-name')) {
@@ -411,15 +172,13 @@ const handleContextMenu = (e: PointerEvent) => {
       dropdownX.value = e.clientX;
     }
   }
-};
+}
 
 /**
  * @description 重新连接
  */
-const handleReconnect = (type: string) => {
-  const operatedNode = treeStore.getTerminalByK8sId(
-    contextIdentification.value
-  );
+function handleReconnect(type: string) {
+  const operatedNode = treeStore.getTerminalByK8sId(contextIdentification.value);
   const socket = operatedNode?.socket;
 
   if (type === 'reconnect') {
@@ -428,15 +187,13 @@ const handleReconnect = (type: string) => {
         JSON.stringify({
           type: 'K8S_CLOSE',
           id: operatedNode.id,
-          k8s_id: operatedNode.k8s_id
+          k8s_id: operatedNode.k8s_id,
         })
       );
     }
 
     // 找到所操作节点的下标，
-    const index = panels.value.findIndex(
-      panel => panel.name === contextIdentification.value
-    );
+    const index = panels.value.findIndex(panel => panel.name === contextIdentification.value);
 
     panels.value.splice(index, 1);
     treeStore.removeK8sIdMap(operatedNode.k8s_id);
@@ -453,7 +210,7 @@ const handleReconnect = (type: string) => {
   }
 
   showContextMenu.value = false;
-};
+}
 
 /**
  * @description 右键菜单的回调
@@ -461,7 +218,7 @@ const handleReconnect = (type: string) => {
  * @param key
  * @param _option
  */
-const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
+function handleContextMenuSelect(key: string, _option: DropdownOption) {
   switch (key) {
     case 'reconnect': {
       // 对于重新连接来说只有 k8sid 需要变化，并且需要发送 K8S_CLOSE 时间
@@ -489,14 +246,14 @@ const handleContextMenuSelect = (key: string, _option: DropdownOption) => {
       break;
     }
   }
-};
+}
 
 /**
  * @description 更新 tab 的唯一标识
  *
  * @param key
  */
-const updateTabElements = (key: string) => {
+function updateTabElements(key: string) {
   const tabElements = document.querySelectorAll('.n-tabs-tab-wrapper');
 
   tabElements.forEach(element => {
@@ -505,48 +262,41 @@ const updateTabElements = (key: string) => {
       processedElements.add(element);
     }
   });
-};
+}
 
 /**
  * @description 关闭右侧菜单
  */
-const handleClickOutside = () => {
+function handleClickOutside() {
   showContextMenu.value = false;
-};
+}
 
 /**
  * @description tab item 的拖拽处理
  */
-const initializeDraggable = () => {
+function initializeDraggable() {
   const tabsContainer = document.querySelector('.n-tabs-wrapper');
 
   if (tabsContainer) {
     // 对于 useDraggable 如果直接操作 panel 可能会导致被注入一个 undefined 值从而导致报错，因此下面代码全部使用副本来操作
-    // @ts-ignore
     useDraggable<UseDraggableReturn>(
-      // @ts-ignore
+      // @ts-expect-error 类型错误
       tabsContainer,
       JSON.parse(JSON.stringify(panels.value)),
       {
         animation: 150,
         onEnd: async event => {
-          if (
-            !event ||
-            event.newIndex === undefined ||
-            event.oldIndex === undefined
-          ) {
+          if (!event || event.newIndex === undefined || event.oldIndex === undefined) {
             return console.warn('Event or index is undefined');
           }
 
-          let newIndex = event!.newIndex - 1;
-          let oldIndex = event!.oldIndex - 1;
+          const newIndex = event!.newIndex - 1;
+          const oldIndex = event!.oldIndex - 1;
 
           // 此处不能使用 JSON.parse(JSON.stringify) 的形式，否则会出现循环引用, 只需浅拷贝即可
           const clonedPanels = panels.value.map(panel => ({ ...panel }));
 
-          panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(
-            panel => panel !== null
-          );
+          panels.value = swapElements(clonedPanels, newIndex, oldIndex).filter(panel => panel !== null);
 
           const newActiveTab: string = panels.value[newIndex!]?.name as string;
 
@@ -555,78 +305,17 @@ const initializeDraggable = () => {
             findNodeById(newActiveTab);
             terminalStore.setTerminalConfig('currentTab', newActiveTab);
           }
-        }
+        },
       }
     );
   }
-};
-
-/**
- * @description 重置分享表单的数据
- */
-const resetShareDialog = () => {
-  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-  operatedNode.userOptions = [];
-
-  paramsStore.setShareId('');
-  paramsStore.setShareCode('');
-
-  treeStore.setK8sIdMap(nameRef.value, { ...operatedNode });
-  dialog.destroyAll();
-};
-
-/**
- * @description 向终端写入快捷命令
- *
- * @param type
- */
-const handleWriteData = async (type: string) => {
-  const operatedNode = treeStore.getTerminalByK8sId(nameRef.value);
-  const terminal = operatedNode.terminal;
-
-  if (!terminal) {
-    return message.error(t('No terminal instances available'));
-  }
-
-  switch (type) {
-    case 'Paste': {
-      terminal.paste(await readText());
-      break;
-    }
-    case 'Stop': {
-      terminal.paste('\x03');
-      break;
-    }
-    case 'ArrowUp': {
-      terminal.paste('\x1b[A');
-      break;
-    }
-    case 'ArrowDown': {
-      terminal.paste('\x1b[B');
-      break;
-    }
-    case 'ArrowLeft': {
-      terminal.paste('\x1b[D');
-      break;
-    }
-    case 'ArrowRight': {
-      terminal.paste('\x1b[C');
-      break;
-    }
-  }
-
-  await nextTick(() => {
-    terminal.focus();
-  });
-};
+}
 
 /**
  * @description 切换到上一个 Tab
  */
-const switchToPreviousTab = () => {
-  const currentIndex = panels.value.findIndex(
-    panel => panel.name === nameRef.value
-  );
+function switchToPreviousTab() {
+  const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
 
   if (currentIndex > 0) {
     nameRef.value = panels.value[currentIndex - 1].name as string;
@@ -637,15 +326,13 @@ const switchToPreviousTab = () => {
   findNodeById(nameRef.value);
 
   terminalStore.setTerminalConfig('currentTab', nameRef.value);
-};
+}
 
 /**
  * @description 切换到下一个 Tab
  */
-const switchToNextTab = () => {
-  const currentIndex = panels.value.findIndex(
-    panel => panel.name === nameRef.value
-  );
+function switchToNextTab() {
+  const currentIndex = panels.value.findIndex(panel => panel.name === nameRef.value);
 
   if (currentIndex < panels.value.length - 1) {
     nameRef.value = panels.value[currentIndex + 1].name as string;
@@ -656,7 +343,7 @@ const switchToNextTab = () => {
   findNodeById(nameRef.value);
 
   terminalStore.setTerminalConfig('currentTab', nameRef.value);
-};
+}
 
 const debouncedSwitchToPreviousTab = useDebounceFn(() => {
   switchToPreviousTab();
@@ -666,13 +353,13 @@ const debouncedSwitchToNextTab = useDebounceFn(() => {
   switchToNextTab();
 }, 200);
 
-const unloadEvent = () => {
+function unloadEvent() {
   mittBus.off('sync-theme');
   mittBus.off('share-user');
   mittBus.off('terminal-search');
   mittBus.off('create-share-url');
   mittBus.off('remove-share-user');
-};
+}
 
 onMounted(() => {
   const lunaConfig = terminalStore.getConfig;
@@ -707,7 +394,7 @@ onMounted(() => {
       ...node,
       // 二者为组件库的必填项
       name: node.k8s_id,
-      tab: node.label
+      tab: node.label,
     });
 
     nameRef.value = node.k8s_id;
@@ -722,11 +409,11 @@ onMounted(() => {
       const el = document.getElementById(node.k8s_id);
 
       if (el) {
-        const terminal = createTerminal(el, node.socket, lunaConfig);
+        const terminal = createTerminal(el, node.socket, lunaConfig, node);
 
         treeStore.setK8sIdMap(node.k8s_id, {
           ...node,
-          terminal
+          terminal,
         });
 
         const firstSendMessage = {
@@ -739,16 +426,26 @@ onMounted(() => {
           data: JSON.stringify({
             cols: terminal.cols,
             rows: terminal.rows,
-            code: ''
-          })
+            code: '',
+          }),
         };
+
+        el.addEventListener('mouseleave', () => {
+          terminal.blur();
+          const currentNode = treeStore.getTerminalByK8sId(nameRef.value);
+          
+          if (currentNode) {
+            lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
+              content: getXTerminalLineContent(10, terminal),
+              sessionId: currentNode.k8s_id,
+              terminalId: currentNode.id,
+            });
+          }
+        });
 
         try {
           // 发送初次连接的数据
           node.socket.send(JSON.stringify(firstSendMessage));
-
-          const currentNode = treeStore.getTerminalByK8sId(node.k8s_id);
-
           updateIcon(connectInfo.value);
         } catch (e: any) {
           throw new Error(e);
@@ -767,6 +464,51 @@ onBeforeUnmount(() => {
   mittBus.off('connect-terminal');
 });
 </script>
+
+<template>
+  <n-layout :native-scrollbar="false" content-style="height: 100%" :style="themeColors">
+    <n-tabs
+      v-model:value="nameRef"
+      closable
+      size="small"
+      type="card"
+      tab="show:lazy"
+      tab-style="min-width: 80px;"
+      class="header-tab relative"
+      @close="handleClose"
+      @update:value="handleChangeTab"
+      @contextmenu.prevent="handleContextMenu"
+    >
+      <n-tab-pane
+        v-for="panel of panels"
+        :key="panel.name"
+        :tab="panel.tab"
+        :name="panel.name"
+        display-directive="show:lazy"
+        class="pt-0"
+      >
+        <n-layout :native-scrollbar="false">
+          <n-scrollbar trigger="hover">
+            <div :id="String(panel.name)" class="k8s-terminal" />
+          </n-scrollbar>
+        </n-layout>
+      </n-tab-pane>
+    </n-tabs>
+  </n-layout>
+  <n-dropdown
+    show-arrow
+    size="medium"
+    trigger="manual"
+    placement="bottom-start"
+    content-style='font-size: "13px"'
+    :x="dropdownX"
+    :y="dropdownY"
+    :show="showContextMenu"
+    :options="contextMenuOption"
+    @select="handleContextMenuSelect"
+    @clickoutside="handleClickOutside"
+  />
+</template>
 
 <style scoped lang="scss">
 @use './index.scss';

@@ -1,16 +1,14 @@
-$--el-main-tab-bg-color: #252526;
-$--el-main-tab-text-color: #ffffff;
-$--el-main-tab-icon-color: #c5c5c5;
-$--el-main-tab-icon-hover-color: #5a5d5e4f;
-$--el-main-text-color: #cccccc;
-$--el-main-bg-color: #1e1e1e;
-
 .header-tab {
   width: 100% !important;
-  background-color: $--el-main-tab-bg-color;
+  background-color: var(--tab-bg-color) !important;
 
   :deep(.n-tabs-nav) {
-    height: 35px;
+    height: 45px;
+    background-color: var(--tab-bg-color) !important;
+
+    .n-tabs-tab-wrapper {
+      height: 45px;
+    }
   }
 
   :deep(.n-tabs-tab-pad) {
@@ -18,18 +16,18 @@ $--el-main-bg-color: #1e1e1e;
   }
 
   :deep(.n-tabs-tab) {
-    background-color: #2d2d2d !important;
+    background-color: var(--tab-inactive-bg-color) !important;
     border: none !important;
 
     .n-tabs-tab__label {
-      color: #969696;
+      color: var(--tab-inactive-text-color) !important;
     }
 
     &.n-tabs-tab--active {
-      background-color: #1e1e1e !important;
+      background-color: var(--tab-active-bg-color) !important;
 
       .n-tabs-tab__label {
-        color: #ffffff;
+        color: var(--tab-active-text-color) !important;
       }
     }
   }
@@ -40,12 +38,12 @@ $--el-main-bg-color: #1e1e1e;
 
   :deep(.icon-item) {
     svg {
-      color: $--el-main-tab-icon-color;
-      fill: $--el-main-tab-icon-color;
+      color: var(--icon-color);
+      fill: var(--icon-color);
     }
 
     &:hover {
-      background-color: $--el-main-tab-icon-hover-color;
+      background-color: var(--icon-hover-bg-color);
     }
   }
 }
@@ -59,7 +57,7 @@ $--el-main-bg-color: #1e1e1e;
 
   :deep(.xterm-screen) {
     width: 100% !important;
-    height: calc(100vh - 90px) !important;
+    height: calc(100vh - 65px) !important;
   }
 
   :deep(.xterm) {

@@ -18,6 +18,8 @@ type sqlOption struct {
 	CertKeyPath      string
 	AllowInvalidCert bool
 
+	SQLServerDisableEncrypt bool // for sqlserver 2008
+
 	win Windows
 
 	AuthSource        string
@@ -120,5 +122,11 @@ func SqlAuthSource(authSource string) SqlOption {
 func SqlConnectionOptions(options string) SqlOption {
 	return func(args *sqlOption) {
 		args.ConnectionOptions = options
+	}
+}
+
+func SqlDisableSqlServerEncrypt(disbale bool) SqlOption {
+	return func(args *sqlOption) {
+		args.SQLServerDisableEncrypt = disbale
 	}
 }

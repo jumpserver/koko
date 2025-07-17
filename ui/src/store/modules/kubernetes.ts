@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { SettingConfig } from '@/types/modules/config.type';
+
+import type { SettingConfig } from '@/types/modules/config.type';
 
 export interface IKubernetesState {
   // 全局的唯一 TerminalId
@@ -18,7 +19,7 @@ export const useKubernetesStore = defineStore('kubernetes', {
       globalTerminalId: '',
       globalSetting: {},
       lastReceiveTime: new Date(),
-      lastSendTime: new Date()
+      lastSendTime: new Date(),
     };
   },
   actions: {
@@ -33,6 +34,6 @@ export const useKubernetesStore = defineStore('kubernetes', {
     },
     setLastSendTime(time: any) {
       this.lastSendTime = time;
-    }
-  }
+    },
+  },
 });

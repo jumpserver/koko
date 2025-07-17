@@ -1,46 +1,45 @@
-import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
-import { useTerminalStore } from '@/store/modules/terminal.ts';
-import { base64ToUint8Array, generateWsURL } from './helper';
-import { useParamsStore } from '@/store/modules/params.ts';
-import { useTreeStore } from '@/store/modules/tree.ts';
-import { useSentry } from '@/hooks/useZsentry.ts';
-import { h, ref, watch, watchEffect } from 'vue';
-import { readText } from 'clipboard-polyfill';
-import { useWebSocket } from '@vueuse/core';
-import { preprocessInput } from '@/utils';
-import { storeToRefs } from 'pinia';
-import { updateIcon } from '@/hooks/helper';
-import { sendEventToLuna, formatMessage } from '@/utils';
+import type { Ref } from 'vue';
+import type { ISearchOptions } from '@xterm/addon-search';
 
-import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
-import { Cube24Regular } from '@vicons/fluent';
-import { Docker, Folder } from '@vicons/fa';
+import { h, ref } from 'vue';
 import { v4 as uuid } from 'uuid';
-
+import { storeToRefs } from 'pinia';
+import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
+import { useWebSocket } from '@vueuse/core';
 import { FitAddon } from '@xterm/addon-fit';
+import { BrandDocker } from '@vicons/tabler';
+import { Box, Folder } from 'lucide-vue-next';
+import { readText } from 'clipboard-polyfill';
 import { SearchAddon } from '@xterm/addon-search';
+import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 
 import type { customTreeOption, ILunaConfig } from '@/types/modules/config.type';
-import type { ISearchOptions } from '@xterm/addon-search';
-import type { Ref } from 'vue';
 
-import xtermTheme from 'xterm-theme';
 import mittBus from '@/utils/mittBus';
+import { updateIcon } from '@/hooks/helper';
 import { MaxTimeout } from '@/utils/config';
+import { useZmodem } from '@/hooks/useZmodem';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { useTreeStore } from '@/store/modules/tree.ts';
+import { formatMessage, preprocessInput } from '@/utils';
+import { useParamsStore } from '@/store/modules/params.ts';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
+
+import { base64ToUint8Array, generateWsURL } from './helper';
 
 const { message, notification } = createDiscreteApi(['message', 'notification'], {
   configProviderProps: {
-    theme: darkTheme
-  }
+    theme: darkTheme,
+  },
 });
 
-const origin = ref('');
 const lunaId = ref('');
 const counter = ref(0);
 const guaranteeInterval = ref<number | null>(null);
 
-const handleConnected = (socket: WebSocket, pingInterval: Ref<number | null>) => {
+function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
   const kubernetesStore = useKubernetesStore();
 
   if (pingInterval.value) clearInterval(pingInterval.value);
@@ -53,40 +52,45 @@ const handleConnected = (socket: WebSocket, pingInterval: Ref<number | null>) =>
     const currentDate: Date = new Date();
 
     if (kubernetesStore.lastReceiveTime.getTime() - currentDate.getTime() > MaxTimeout) {
-      message.info('More than 30s do not receive data');
+      console.error('More than 30 seconds do not receive data');
     }
 
-    const pingTimeout: number = currentDate.getTime() - kubernetesStore.lastSendTime.getTime();
+    const pingTimeout = currentDate.getTime() - kubernetesStore.lastSendTime.getTime() - MaxTimeout;
 
-    if (pingTimeout < 0) return;
+    if (pingTimeout < 0) {
+      return;
+    }
 
     socket.send(formatMessage(kubernetesStore.globalTerminalId, 'PING', ''));
   }, 25 * 1000);
-};
+}
 
-const guaranteeLunaConnection = () => {
-  watchEffect(() => {
-    if (!lunaId.value) {
-      guaranteeInterval.value = setInterval(() => {
-        counter.value++;
-
-        console.log('%c DEBUG [ Send Luna PING ]:', 'font-size:13px; background: #1ab394; color:#fff;', counter.value);
-      }, 1000);
-    } else {
+function guaranteeLunaConnection(ws: WebSocket) {
+  guaranteeInterval.value = setInterval(() => {
+    lunaId.value = lunaCommunicator.getLunaId();
+    if (lunaId.value) {
       clearInterval(guaranteeInterval.value!);
-      sendEventToLuna('PING', '', lunaId.value, origin.value);
+      return;
     }
-  });
-};
+    counter.value++;
+    if (counter.value >= 5) {
+      // eslint-disable-next-line no-alert
+      alert('Failed to connect to Luna');
+      ws.close();
+      clearInterval(guaranteeInterval.value!);
+      window.close();
+    }
+  }, 1000);
+}
 
 /**
  * @description 初始化同步节点树
  */
-export const initTreeNodes = (ws: WebSocket, id: string, info: any) => {
+export function initTreeNodes(ws: WebSocket, id: string, info: any) {
   const unique = uuid();
   const treeStore = useTreeStore();
   const sendData: string = JSON.stringify({
-    type: 'TERMINAL_K8S_TREE'
+    type: 'TERMINAL_K8S_TREE',
   });
 
   const rootNode: customTreeOption = {
@@ -97,36 +101,33 @@ export const initTreeNodes = (ws: WebSocket, id: string, info: any) => {
     isParent: true,
     socket: ws,
     label: info.asset.name,
-    prefix: () =>
-      h(NIcon, null, {
-        default: () => h(Folder)
-      })
+    prefix: () => h(Folder),
   };
 
   treeStore.setRoot(rootNode);
 
   ws.send(sendData);
-};
+}
 
 /**
  * 处理 socket Error
  *
  * @param {string} type
  */
-export const handleInterrupt = (type: string) => {
+export function handleInterrupt(type: string, t: any) {
   switch (type) {
     case 'error': {
       // terminal.write('Connection Websocket Error');
-      message.error('Connection Websocket Error');
+      message.error(t('WebSocketError'));
       break;
     }
     case 'disconnected': {
       // terminal.write('Connection Websocket Closed');
-      message.info('Connection Websocket Closed');
+      message.error(t('WebSocketClosed'));
       break;
     }
   }
-};
+}
 
 /**
  * @description 设置通用属性
@@ -135,16 +136,16 @@ export const handleInterrupt = (type: string) => {
  * @param label
  * @param isLeaf
  */
-export const setCommonAttributes = (nodes: any, label: string, isLeaf: boolean) => {
+export function setCommonAttributes(nodes: any, label: string, isLeaf: boolean) {
   const unique = uuid();
 
   Object.assign(nodes, {
     label,
     key: unique,
     k8s_id: unique,
-    isLeaf
+    isLeaf,
   });
-};
+}
 
 /**
  * 处理最后的 container 节点
@@ -154,7 +155,7 @@ export const setCommonAttributes = (nodes: any, label: string, isLeaf: boolean) 
  * @param namespace
  * @param socket
  */
-export const handleContainer = (containers: any, podName: string, namespace: string, socket: WebSocket) => {
+export function handleContainer(containers: any, podName: string, namespace: string, socket: WebSocket) {
   const kubernetesStore = useKubernetesStore();
 
   containers.forEach((container: any) => {
@@ -165,12 +166,12 @@ export const handleContainer = (containers: any, podName: string, namespace: str
       pod: podName,
       container: container.name,
       id: kubernetesStore.globalTerminalId,
-      prefix: () => h(NIcon, { size: 16 }, { default: () => h(Docker) })
+      prefix: () => h(NIcon, { size: 16 }, { default: () => h(BrandDocker) }),
     });
 
     setCommonAttributes(container, container.name, true);
   });
-};
+}
 
 /**
  * 处理 Pod
@@ -179,7 +180,7 @@ export const handleContainer = (containers: any, podName: string, namespace: str
  * @param namespace
  * @param socket
  */
-export const handlePods = (pods: any, namespace: string, socket: WebSocket) => {
+export function handlePods(pods: any, namespace: string, socket: WebSocket) {
   pods.forEach((pod: any) => {
     if (pod.containers && pod.containers?.length > 0) {
       pod.key = uuid();
@@ -187,7 +188,7 @@ export const handlePods = (pods: any, namespace: string, socket: WebSocket) => {
       pod.isLeaf = false;
       pod.namespace = namespace;
       pod.children = pod.containers;
-      pod.prefix = () => h(NIcon, { size: 16 }, { default: () => h(Cube24Regular) });
+      pod.prefix = () => h(Box, { size: 16 });
 
       // 处理最后的 container
       handleContainer(pod.children, pod.name, namespace, socket);
@@ -197,7 +198,7 @@ export const handlePods = (pods: any, namespace: string, socket: WebSocket) => {
       pod.children = [];
     }
   });
-};
+}
 
 /**
  * 二次处理节点
@@ -205,7 +206,7 @@ export const handlePods = (pods: any, namespace: string, socket: WebSocket) => {
  * @param message
  * @param ws
  */
-export const handleTreeNodes = (message: any, ws: WebSocket) => {
+export function handleTreeNodes(message: any, ws: WebSocket) {
   const treeStore = useTreeStore();
 
   if (message.err) {
@@ -213,7 +214,7 @@ export const handleTreeNodes = (message: any, ws: WebSocket) => {
 
     return notification.error({
       content: message.err,
-      duration: 5000
+      duration: 5000,
     });
   }
 
@@ -223,14 +224,14 @@ export const handleTreeNodes = (message: any, ws: WebSocket) => {
     return treeStore.setLoaded(false);
   }
 
-  Object.keys(originNode).map(node => {
+  Object.keys(originNode).forEach(node => {
     // 得到每个 namespace
     const item = originNode[node];
 
     item.label = node;
     item.socket = ws;
     item.key = uuid();
-    item.prefix = () => h(NIcon, { size: 15 }, { default: () => h(Folder) });
+    item.prefix = () => h(Folder, { size: 15 });
 
     if (item.pods && item.pods.length > 0) {
       // 处理 pods
@@ -249,7 +250,7 @@ export const handleTreeNodes = (message: any, ws: WebSocket) => {
   });
 
   treeStore.setLoaded(true);
-};
+}
 
 /**
  * @description 处理 Tree 相关的 Socket 消息
@@ -257,10 +258,7 @@ export const handleTreeNodes = (message: any, ws: WebSocket) => {
  * @param ws
  * @param event
  */
-export const handleTreeMessage = (ws: WebSocket, event: MessageEvent) => {
-  let type: string;
-  let message: any;
-
+export function handleTreeMessage(ws: WebSocket, event: MessageEvent) {
   const treeStore = useTreeStore();
   const kubernetesStore = useKubernetesStore();
   const paramsStore = useParamsStore();
@@ -269,8 +267,8 @@ export const handleTreeMessage = (ws: WebSocket, event: MessageEvent) => {
 
   if (!event.data) return;
 
-  message = JSON.parse(event.data);
-  type = message.type;
+  const message = JSON.parse(event.data);
+  const type = message.type;
 
   switch (type) {
     case 'CLOSE':
@@ -298,12 +296,13 @@ export const handleTreeMessage = (ws: WebSocket, event: MessageEvent) => {
       break;
     }
   }
-};
+}
 
-export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, createSentry: any, t: any) => {
+export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, createSentry: any, t: any) {
   const treeStore = useTreeStore();
   const paramsStore = useParamsStore();
   const terminalStore = useTerminalStore();
+  const kubernetesStore = useKubernetesStore();
 
   const { setting } = storeToRefs(paramsStore);
 
@@ -314,7 +313,7 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
   const currentTerminal = operatedNode?.terminal;
 
   if (currentTerminal) {
-    const sentry = createSentry(ws, currentTerminal);
+    const sentry = createSentry(currentTerminal, ws, kubernetesStore.lastSendTime);
 
     switch (info.type) {
       case 'TERMINAL_K8S_BINARY': {
@@ -326,18 +325,11 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         const sessionDetail = sessionInfo.session;
 
         const share = sessionInfo.permission.actions.includes('share');
-        const username = `${sessionDetail.user}`;
 
-        if (sessionInfo.backspaceAsCtrlH) {
-          const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+        const backspaceValue = sessionInfo.backspaceAsCtrlH ? '1' : '0';
+        const ctrlCValue = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
 
-          terminalStore.setTerminalConfig('backspaceAsCtrlH', value);
-        }
-
-        if (setting.value.SECURITY_SESSION_SHARE && share) {
-          operatedNode.enableShare = true;
-        }
-
+        // 存储到节点的配置映射中
         if (operatedNode.sessionIdMap) {
           operatedNode.sessionIdMap.set(info.k8s_id, sessionDetail.id);
         } else {
@@ -346,13 +338,30 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         }
 
         if (operatedNode.ctrlCAsCtrlZMap) {
-          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');
+          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, ctrlCValue);
         } else {
           operatedNode.ctrlCAsCtrlZMap = new Map();
-          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, sessionInfo.ctrlCAsCtrlZ ? '1' : '0');
+          operatedNode.ctrlCAsCtrlZMap.set(info.k8s_id, ctrlCValue);
+        }
+
+        if (operatedNode.backspaceAsCtrlHMap) {
+          operatedNode.backspaceAsCtrlHMap.set(info.k8s_id, backspaceValue);
+        } else {
+          operatedNode.backspaceAsCtrlHMap = new Map();
+          operatedNode.backspaceAsCtrlHMap.set(info.k8s_id, backspaceValue);
         }
 
         operatedNode.themeName = sessionInfo.themeName;
+
+        // 如果当前激活的 tab 就是这个节点，立即更新 terminalStore 的配置
+        if (terminalStore.currentTab === info.k8s_id) {
+          terminalStore.setTerminalConfig('backspaceAsCtrlH', backspaceValue);
+          terminalStore.setTerminalConfig('ctrlCAsCtrlZ', ctrlCValue);
+        }
+
+        if (setting.value.SECURITY_SESSION_SHARE && share) {
+          operatedNode.enableShare = true;
+        }
 
         treeStore.setK8sIdMap(info.k8s_id, { ...operatedNode });
 
@@ -381,7 +390,7 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
 
         operatedNode.enableShare = false;
 
-        if (operatedNode.onlineUsersMap && operatedNode.onlineUsersMap.hasOwnProperty(info.id)) {
+        if (operatedNode.onlineUsersMap && Object.prototype.hasOwnProperty.call(operatedNode.onlineUsersMap, info.id)) {
           delete operatedNode.onlineUsersMap[info.id];
         }
 
@@ -396,7 +405,7 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         if (operatedNode.onlineUsersMap && operatedNode.onlineUsersMap[k8s_id]) {
           operatedNode.onlineUsersMap[k8s_id].push({
             k8s_id: info.k8s_id,
-            ...data
+            ...data,
           });
           treeStore.setK8sIdMap(k8s_id, { ...operatedNode });
         } else {
@@ -418,7 +427,7 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
         const data = JSON.parse(info.data);
         const k8s_id: string = info.k8s_id;
 
-        if (operatedNode.onlineUsersMap.hasOwnProperty(k8s_id)) {
+        if (Object.prototype.hasOwnProperty.call(operatedNode.onlineUsersMap, k8s_id)) {
           const items = operatedNode?.onlineUsersMap[k8s_id];
           const index = items.findIndex((item: any) => item?.terminal_id === data?.terminal_id);
 
@@ -460,47 +469,35 @@ export const handleTerminalMessage = (ws: WebSocket, event: MessageEvent, create
     paramsStore.setShareId(data.share_id);
     paramsStore.setShareCode(data.code);
   }
-};
+}
 
 /**
  * @description 创建 k8s 连接
  */
-export const createConnect = (t: any) => {
+export function createConnect(t: any) {
   const pingInterval: Ref<number | null> = ref(null);
   const connectURL: string = generateWsURL();
 
-  const { createSentry } = useSentry();
+  const { createSentry } = useZmodem();
 
   if (connectURL) {
     const { ws } = useWebSocket(connectURL, {
       protocols: ['JMS-KOKO'],
       onConnected: (ws: WebSocket) => {
-        watch(
-          () => counter.value,
-          counter => {
-            if (counter >= 5) {
-              clearInterval(guaranteeInterval.value!);
-
-              alert('Failed to connect to Luna');
-              ws.close();
-              window.close();
-            }
-          }
-        );
-        guaranteeLunaConnection();
+        guaranteeLunaConnection(ws);
         handleConnected(ws, pingInterval);
       },
       onMessage: (ws: WebSocket, event: MessageEvent) => {
         handleTreeMessage(ws, event);
         handleTerminalMessage(ws, event, createSentry, t);
       },
-      onError: () => handleInterrupt('error'),
-      onDisconnected: () => handleInterrupt('disconnected')
+      onError: () => handleInterrupt('error', t),
+      onDisconnected: () => handleInterrupt('disconnected', t),
     });
 
     return ws.value;
   }
-};
+}
 
 /**
  * @description 初始化终端事件
@@ -509,8 +506,15 @@ export const createConnect = (t: any) => {
  * @param terminal
  * @param lunaConfig
  * @param socket
+ * @param nodeInfo
  */
-export const initTerminalEvent = (el: HTMLElement, terminal: Terminal, lunaConfig: ILunaConfig, socket: WebSocket) => {
+export function initTerminalEvent(
+  el: HTMLElement,
+  terminal: Terminal,
+  lunaConfig: ILunaConfig,
+  socket: WebSocket,
+  nodeInfo: any
+) {
   const fitAddon: FitAddon = new FitAddon();
   const searchAddon: SearchAddon = new SearchAddon();
 
@@ -524,44 +528,45 @@ export const initTerminalEvent = (el: HTMLElement, terminal: Terminal, lunaConfi
   fitAddon.fit();
 
   terminal.onResize(({ cols, rows }) => {
-    const treeStore = useTreeStore();
-    const terminalStore = useTerminalStore();
-
-    const currentNode = treeStore.getTerminalByK8sId(terminalStore.currentTab);
-
     fitAddon.fit();
 
     const resizeData = JSON.stringify({ cols, rows });
     const sendData = {
-      id: currentNode.id,
-      k8s_id: currentNode.k8s_id,
+      id: nodeInfo.id,
+      k8s_id: nodeInfo.k8s_id,
       type: 'TERMINAL_K8S_RESIZE',
-      namespace: currentNode.namespace || '',
-      pod: currentNode.pod || '',
-      container: currentNode.container || '',
-      resizeData
+      namespace: nodeInfo.namespace || '',
+      pod: nodeInfo.pod || '',
+      container: nodeInfo.container || '',
+      resizeData,
     };
 
     socket.send(JSON.stringify(sendData));
   });
 
   terminal.onData((data: string) => {
-    const treeStore = useTreeStore();
     const kubernetesStore = useKubernetesStore();
+    const terminalStore = useTerminalStore();
 
     kubernetesStore.setLastSendTime(new Date());
 
-    const inputMessage = preprocessInput(data, lunaConfig);
-    const currentTabInfo = treeStore.currentNode;
+    // 使用当前 terminalStore 中的配置，这样每个 tab 都有自己的配置
+    const currentConfig = {
+      ...lunaConfig,
+      ctrlCAsCtrlZ: terminalStore.ctrlCAsCtrlZ,
+      backspaceAsCtrlH: terminalStore.backspaceAsCtrlH,
+    };
+
+    const inputMessage = preprocessInput(data, currentConfig);
 
     const messageBody = {
       data: inputMessage,
-      id: currentTabInfo?.id,
-      pod: currentTabInfo?.pod || '',
-      k8s_id: currentTabInfo?.k8s_id,
-      namespace: currentTabInfo.namespace || '',
-      container: currentTabInfo.container || '',
-      type: 'TERMINAL_K8S_DATA'
+      id: nodeInfo.id,
+      pod: nodeInfo.pod || '',
+      k8s_id: nodeInfo.k8s_id,
+      namespace: nodeInfo.namespace || '',
+      container: nodeInfo.container || '',
+      type: 'TERMINAL_K8S_DATA',
     };
 
     socket.send(JSON.stringify(messageBody));
@@ -594,20 +599,21 @@ export const initTerminalEvent = (el: HTMLElement, terminal: Terminal, lunaConfi
 
   return {
     fitAddon,
-    searchAddon
+    searchAddon,
   };
-};
+}
 
 /**
  * @description 初始节点相关事件
  */
-export const initElEvent = (
+export function initElEvent(
   el: HTMLElement,
   terminal: Terminal,
   fitAddon: FitAddon,
   socket: WebSocket,
-  lunaConfig: ILunaConfig
-) => {
+  lunaConfig: ILunaConfig,
+  nodeInfo: any
+) {
   el.addEventListener(
     'mouseenter',
     () => {
@@ -625,19 +631,18 @@ export const initElEvent = (
       let text: string = '';
 
       const terminalStore = useTerminalStore();
-      const kubernetesStore = useKubernetesStore();
 
       try {
         text = await readText();
-      } catch (e) {
+      } catch {
         if (terminalStore.termSelectionText !== '') text = terminalStore.termSelectionText;
       } finally {
         socket.send(
           JSON.stringify({
-            id: kubernetesStore.globalTerminalId,
-            k8s_id: terminalStore.currentTab,
+            id: nodeInfo.id,
+            k8s_id: nodeInfo.k8s_id,
             type: 'TERMINAL_K8S_DATA',
-            data: text
+            data: text,
           })
         );
       }
@@ -646,14 +651,14 @@ export const initElEvent = (
     },
     false
   );
-};
+}
 
 /**
  * @description 初始化全局 window 事件
  *
  * @param fitAddon
  */
-export const initCustomWindowEvent = (fitAddon: FitAddon) => {
+export function initCustomWindowEvent(fitAddon: FitAddon) {
   window.addEventListener(
     'resize',
     () => {
@@ -671,7 +676,7 @@ export const initCustomWindowEvent = (fitAddon: FitAddon) => {
       mittBus.emit('alt-shift-right');
     }
   });
-};
+}
 
 /**
  * @description 发送 k8s 事件
@@ -680,7 +685,7 @@ export const initCustomWindowEvent = (fitAddon: FitAddon) => {
  * @param type
  * @param data
  */
-export const sendK8sMessage = (socket: WebSocket, type: string, data: any) => {
+export function sendK8sMessage(socket: WebSocket, type: string, data: any) {
   const treeStore = useTreeStore();
   const terminalStore = useTerminalStore();
 
@@ -691,20 +696,20 @@ export const sendK8sMessage = (socket: WebSocket, type: string, data: any) => {
       id: currentNode.id,
       k8s_id: currentNode.k8s_id,
       type,
-      data: JSON.stringify(data)
+      data: JSON.stringify(data),
     })
   );
-};
+}
 
-export const initMittBusEvents = (searchAddon: SearchAddon, socket: WebSocket) => {
+export function initMittBusEvents(searchAddon: SearchAddon, socket: WebSocket) {
   mittBus.on('terminal-search', ({ keyword, type = '' }) => {
     const searchOption: ISearchOptions = {
       caseSensitive: false,
-      // @ts-ignore
+      // @ts-expect-error - xterm search addon types are incomplete for decorations
       decorations: {
         matchBackground: '#FFFF54',
-        activeMatchBackground: '#F19B4A'
-      }
+        activeMatchBackground: '#F19B4A',
+      },
     };
 
     if (type === 'next') {
@@ -721,13 +726,13 @@ export const initMittBusEvents = (searchAddon: SearchAddon, socket: WebSocket) =
       session: sessionId,
       users: shareLinkRequest.users,
       expired_time: shareLinkRequest.expiredTime,
-      action_permission: shareLinkRequest.actionPerm
+      action_permission: shareLinkRequest.actionPerm,
     });
   });
   mittBus.on('remove-share-user', ({ sessionId, userMeta, type }) => {
     sendK8sMessage(socket, type, {
       session: sessionId,
-      user_meta: userMeta
+      user_meta: userMeta,
     });
   });
   mittBus.on('share-user', ({ type, query }) => {
@@ -736,12 +741,12 @@ export const initMittBusEvents = (searchAddon: SearchAddon, socket: WebSocket) =
   mittBus.on('sync-theme', ({ type, data }) => {
     sendK8sMessage(socket, type, data);
   });
-};
+}
 
 /**
  * @description 创建 K8s 终端
  */
-export const createTerminal = (el: HTMLElement, socket: WebSocket, lunaConfig: ILunaConfig) => {
+export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: ILunaConfig, nodeInfo: any) {
   const { fontSize, lineHeight, fontFamily } = lunaConfig;
 
   const options = {
@@ -751,47 +756,26 @@ export const createTerminal = (el: HTMLElement, socket: WebSocket, lunaConfig: I
     fontFamily,
     rightClickSelectsWord: true,
     theme: {
-      background: '#1E1E1E'
+      background: '#1E1E1E',
     },
-    scrollback: 5000
+    scrollback: 5000,
   };
 
   const terminal: Terminal = new Terminal(options);
 
-  const { fitAddon, searchAddon } = initTerminalEvent(el, terminal, lunaConfig, socket);
+  const { fitAddon, searchAddon } = initTerminalEvent(el, terminal, lunaConfig, socket, nodeInfo);
 
-  initElEvent(el, terminal, fitAddon, socket, lunaConfig);
+  initElEvent(el, terminal, fitAddon, socket, lunaConfig, nodeInfo);
   initCustomWindowEvent(fitAddon);
   initMittBusEvents(searchAddon, socket);
 
   return terminal;
-};
+}
 
-export const useKubernetes = (t: any) => {
+export function useKubernetes(t: any) {
   let socket: WebSocket | undefined;
 
   const ws = createConnect(t);
-
-  window.addEventListener('message', (event: MessageEvent) => {
-    const message = event.data;
-
-    switch (message.name) {
-      case 'PING': {
-        lunaId.value = message.id;
-        origin.value = event.origin;
-
-        sendEventToLuna('PONG', '', lunaId.value, origin.value);
-        break;
-      }
-      case 'PONG': {
-        lunaId.value = message.id;
-        origin.value = event.origin;
-
-        clearInterval(guaranteeInterval.value!);
-        break;
-      }
-    }
-  });
 
   if (ws) {
     socket = ws;
@@ -799,4 +783,4 @@ export const useKubernetes = (t: any) => {
 
     return socket;
   }
-};
+}

@@ -19,13 +19,13 @@ require (
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.1+incompatible
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jarcoal/httpmock v1.0.4
-	github.com/jumpserver-dev/sdk-go v0.0.0-20250529074750-b9b2ccd9d009
+	github.com/jumpserver-dev/sdk-go v0.0.0-20250708102012-cc8ddd4e8cad
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pires/go-proxyproto v0.6.2
 	github.com/pkg/sftp v1.13.6
-	github.com/sashabaranov/go-openai v1.36.1
+	github.com/sashabaranov/go-openai v1.40.2
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.18.2

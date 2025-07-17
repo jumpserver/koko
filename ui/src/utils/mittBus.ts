@@ -1,12 +1,14 @@
-import mitt, { Emitter } from 'mitt';
-import { ManageTypes } from '@/hooks/useFileManage.ts';
-
 import type { Ref } from 'vue';
-import type { ShareUserOptions } from '@/types/modules/user.type';
+import type { Emitter } from 'mitt';
 import type { UploadFileInfo } from 'naive-ui';
+
+import mitt from 'mitt';
+
+import type { ManageTypes } from '@/hooks/useFileManage.ts';
+import type { ShareUserOptions } from '@/types/modules/user.type';
 import type { customTreeOption } from '@/types/modules/config.type';
 
-type Event = {
+interface Event {
   'remove-event': void;
   'alt-shift-right': void;
   'alt-shift-left': void;
@@ -28,6 +30,7 @@ type Event = {
   };
   'download-file': { path: string; is_dir: boolean; size: string };
   'stop-upload': { fileInfo: UploadFileInfo };
+  'upload-stopped': { fileInfo: UploadFileInfo };
   'terminal-search': { keyword: string; type?: string };
   'share-user': { type: string; query: string };
   'sync-theme': { type: string; data: any };
@@ -41,9 +44,11 @@ type Event = {
       users: ShareUserOptions[];
     };
   };
-  'writeDataToTerminal': { type: string };
-};
+  writeDataToTerminal: { type: string };
+  'write-command': { type: string };
+}
 
-const mittBus: Emitter<Event> = mitt();
+// @ts-expect-error mittBus is not typed
+const mittBus = mitt<Event>();
 
 export default mittBus;

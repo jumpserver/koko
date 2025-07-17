@@ -1,5 +1,6 @@
 import type { Terminal } from '@xterm/xterm';
-import type { ShareUserOptions, OnlineUser } from './user.type';
+
+import type { OnlineUser, ShareUserOptions } from './user.type';
 
 export interface ConnectionState {
   origin: string;
@@ -10,12 +11,14 @@ export interface ConnectionState {
 
   shareCode: string;
 
+  assetName: string;
+
   sessionId: string;
 
   terminalId: string;
 
   enableShare: boolean;
-  
+
   terminal: Terminal;
 
   socket: WebSocket | null;
@@ -23,6 +26,10 @@ export interface ConnectionState {
   userOptions: ShareUserOptions[];
 
   onlineUsers: OnlineUser[];
+
+  drawerOpenState: boolean;
+
+  drawerTabIndex: number;
 }
 
 export type ContentType = 'setting' | 'file-manager' | '';

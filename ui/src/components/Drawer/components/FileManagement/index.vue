@@ -1,27 +1,16 @@
-<template>
-  <template v-if="isLoaded">
-    <FileManage :columns="columns" />
-  </template>
-
-  <template v-else>
-    <n-spin size="small" class="absolute w-full h-full" />
-  </template>
-</template>
-
 <script setup lang="ts">
-import prettyBytes from 'pretty-bytes';
-import FileManage from './fileManage/index.vue';
-
-import { Folder,File } from '@vicons/tabler';
-import { NEllipsis, NFlex, NIcon, NText } from 'naive-ui';
+import type { DataTableColumns } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { h, ref, watch, onUnmounted } from 'vue';
+import prettyBytes from 'pretty-bytes';
+import { File, Folder } from 'lucide-vue-next';
+import { h, onUnmounted, ref, watch } from 'vue';
+import { NFlex, NIcon, NPopover, NText } from 'naive-ui';
+
 import { useFileManage } from '@/hooks/useFileManage.ts';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
-import type { DataTableColumns } from 'naive-ui';
-import type { ISettingProp } from '@/types';
+import FileManage from './widget/index.vue';
 
 export interface RowData {
   is_dir: boolean;
@@ -32,18 +21,14 @@ export interface RowData {
   type: string;
 }
 
-const props = withDefaults(
-  defineProps<{
-    showTab?: boolean;
-    settings?: ISettingProp[];
-    sftpToken: string;
-  }>(),
-  {
-    settings: () => [],
-    sftpToken: '',
-    showTab: false
-  }
-);
+const props = defineProps<{
+  sftpToken: string;
+  showEmpty: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'reconnect'): void;
+}>();
 
 const { t } = useI18n();
 const fileManageStore = useFileManageStore();
@@ -61,124 +46,102 @@ watch(
     }
   },
   {
-    immediate: true
+    immediate: true,
   }
 );
 
 watch(
   () => props.sftpToken,
-  (newValue, oldValue) => {
-    if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
-      fileManageSocket.value.close();
-    }
-    if (newValue && newValue !== oldValue) {
-     try {
-        fileManageSocket.value = useFileManage(newValue, t);
-      } catch (error) {
-        console.error('Failed to initialize file management socket:', error);
-        isLoaded.value = true; // 即使失败也设置加载完成，避免一直显示加载状态
-      }
+  token => {
+    if (token) {
+      fileManageSocket.value = useFileManage(token, t);
     }
   },
-  {
-    immediate: true
-  }
+  { immediate: true }
 );
-
-
-// ai added to close the WebSocket connection when the component is unmounted
-onUnmounted(() => {
-  if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
-    fileManageSocket.value.close();
-    fileManageSocket.value = undefined;
-  }
-});
 
 /**
  * @description 生成表头
  */
- const createColumns = (): DataTableColumns<RowData> => {
+const createColumns = (): DataTableColumns<RowData> => {
   return [
     {
       title: t('Name'),
       key: 'name',
-      width: 160,
       ellipsis: {
-        tooltip: true
+        tooltip: true,
       },
       render(row) {
+        const fileIcon = h(NIcon, {
+          size: 18,
+          component: row.is_dir ? Folder : File,
+          style: { marginRight: '8px' },
+        });
+
+        const fileName = h(
+          NPopover,
+          {
+            delay: 500,
+            placement: 'top-start',
+            style: { maxWidth: '485px' },
+          },
+          {
+            trigger: () =>
+              h(
+                NText,
+                {
+                  depth: 1,
+                  strong: true,
+                  style: {
+                    cursor: 'pointer',
+                    maxWidth: '200px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  },
+                },
+                { default: () => row.name }
+              ),
+            default: () =>
+              h(NText, { style: { maxWidth: '300px', wordBreak: 'break-all' } }, { default: () => row.name }),
+          }
+        );
+
+        const filePermission =
+          row.name !== '..' && row.perm
+            ? h(
+                NText,
+                {
+                  depth: 3,
+                  style: { fontSize: '10px', marginTop: '2px' },
+                },
+                { default: () => row.perm }
+              )
+            : null;
+
         return h(
           NFlex,
           {
             align: 'center',
-            style: {
-              flexWrap: 'no-wrap'
-            }
+            style: { gap: '0px' },
           },
           {
             default: () => [
-              h(NIcon, {
-                size: '18',
-                component: row.is_dir ? Folder : File,
-              }),
+              fileIcon,
               h(
                 NFlex,
                 {
-                  justify: 'center',
-                  align: 'flex-start',
-                  style: {
-                    flexDirection: 'column',
-                    rowGap: '0px'
-                  }
+                  vertical: true,
+                  style: { gap: '0px' },
                 },
                 {
-                  default: () => [
-                    h(
-                      NEllipsis,
-                      {
-                        style: {
-                          maxWidth: '145px',
-                          cursor: 'pointer'
-                        }
-                      },
-                      {
-                        default: () =>
-                          h(
-                            NText,
-                            {
-                              depth: 1,
-                              strong: true
-                            },
-                            {
-                              default: () => row.name
-                            }
-                          )
-                      }
-                    ),
-                    h(
-                      NText,
-                      {
-                        depth: 3,
-                        strong: true,
-                        style: {
-                          fontSize: '10px'
-                        }
-                      },
-                      {
-                        default: () => {
-                          if (row.name === '..') return;
-
-                          return row.perm ? row.perm : '-';
-                        }
-                      }
-                    )
-                  ]
+                  default: () => [fileName, filePermission].filter(Boolean),
                 }
-              )
-            ]
+              ),
+            ],
           }
         );
-      }
+      },
     },
     {
       title: t('Size'),
@@ -190,19 +153,47 @@ onUnmounted(() => {
           NText,
           {
             depth: 1,
-            strong: true
+            strong: true,
           },
           {
-            default: () => prettyBytes(Number(row.size))
+            default: () => prettyBytes(Number(row.size)),
           }
         );
-      }
-    }
+      },
+    },
   ];
 };
 
+const handleReconnect = () => {
+  emit('reconnect');
+};
+
+onUnmounted(() => {
+  if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
+    fileManageSocket.value.close();
+    fileManageSocket.value = undefined;
+  }
+});
+
 const columns = createColumns();
 </script>
+
+<template>
+  <template v-if="showEmpty">
+    <div class="flex flex-col items-center justify-center h-full w-full gap-4">
+      <n-empty description="获取文件管理器 Token 超时" />
+      <n-button type="primary" @click="handleReconnect"> {{ t('Reconnect') }} </n-button>
+    </div>
+  </template>
+
+  <template v-else-if="isLoaded">
+    <FileManage :columns="columns" />
+  </template>
+
+  <template v-else>
+    <n-spin size="small" class="absolute w-full h-full" />
+  </template>
+</template>
 
 <style scoped lang="scss">
 ::v-deep(.n-tabs-pane-wrapper) {
