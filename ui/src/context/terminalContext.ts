@@ -58,7 +58,7 @@ export const createTerminalContext = (): TerminalContext => {
       }
     });
 
-    mittBus.on('remove-share-user', (user) => {
+    mittBus.on('remove-share-user', user => {
       const socket = connectionStore.socket;
       const terminalId = connectionStore.terminalId;
 
@@ -74,8 +74,8 @@ export const createTerminalContext = (): TerminalContext => {
           JSON.stringify({
             session: user.sessionId,
             user_meta: user.userMeta,
-          }),
-        ),
+          })
+        )
       );
     });
 
@@ -88,19 +88,14 @@ export const createTerminalContext = (): TerminalContext => {
     });
 
     const handLunaCommand = (msg: LunaMessage) => {
-      const isK8sPage = window.location.pathname.includes('/k8s');
+      const terminalStore = useTerminalStore();
+      const currentTab = terminalStore.currentTab;
 
-      if (isK8sPage) {
-        const terminalStore = useTerminalStore();
+      // 只有在 k8s 连接或切换的时候 currentTab 才会有值
+      if (currentTab) {
         const treeStore = useTreeStore();
-
-        const currentTab = terminalStore.currentTab;
-        if (!currentTab) {
-          console.warn('No active K8s terminal tab found');
-          return;
-        }
-
         const currentNode = treeStore.getTerminalByK8sId(currentTab);
+
         if (!currentNode || !currentNode.terminal) {
           console.warn('No active K8s terminal instance found');
           return;
@@ -113,23 +108,24 @@ export const createTerminalContext = (): TerminalContext => {
               k8s_id: currentNode.k8s_id,
               type: 'TERMINAL_K8S_DATA',
               data: msg.data,
-            }),
+            })
           );
-        }
-        catch (error) {
+        } catch (error) {
           console.error('Failed to paste command to K8s terminal:', error);
         }
-      }
-      else {
-        const socket = connectionStore.socket;
-        const terminalId = connectionStore.terminalId;
 
-        if (!socket || !terminalId) {
-          console.error('WebSocket connection may be closed, please refresh the page');
-          return;
-        }
-        socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+        return;
       }
+
+      const socket = connectionStore.socket;
+      const terminalId = connectionStore.terminalId;
+
+      if (!socket || !terminalId) {
+        console.error('WebSocket connection may be closed, please refresh the page');
+        return;
+      }
+
+      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
     };
 
     const handLunaFocus = (_msg: LunaMessage) => {
@@ -142,8 +138,7 @@ export const createTerminalContext = (): TerminalContext => {
 
     const handLunaThemeChange = (_msg: LunaMessage) => {
       const terminal = connectionStore.terminal;
-      if (!terminal)
-        return;
+      if (!terminal) return;
 
       const themeName = _msg.theme || 'Default';
       const theme = terminalTheme(themeName);
