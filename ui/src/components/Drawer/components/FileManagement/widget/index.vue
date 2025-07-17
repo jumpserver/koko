@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Download,
   Folder,
-  ListTree,
   PenLine,
   Plus,
   RefreshCcw,
@@ -452,8 +451,7 @@ const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) =>
 /**
  * @description 自定义上传
  */
-const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
-  // 创建loading消息
+const customRequest = ({ file, onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
   const loadingMessage = message.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
 
   mittBus.emit('file-upload', {
@@ -461,6 +459,12 @@ const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOpt
     onFinish: () => {
       onFinish();
       loadingMessage.destroy();
+
+      // 文件上传成功后，5秒后自动移除
+      setTimeout(() => {
+        uploadFileList.value = uploadFileList.value.filter(item => item.id !== file.id);
+        fileManageStore.setUploadFileList(uploadFileList.value);
+      }, 5000);
     },
     onError: () => {
       onError();
@@ -474,14 +478,14 @@ const customRequest = ({ onFinish, onError, onProgress }: UploadCustomRequestOpt
 /**
  * @description 打开传输历史列表
  */
-const handleOpenTransferList = () => {
-  // 从 store 中恢复文件列表
-  uploadFileList.value = [...fileManageStore.uploadFileList];
+// const handleOpenTransferList = () => {
+// 从 store 中恢复文件列表
+//   uploadFileList.value = [...fileManageStore.uploadFileList];
 
-  nextTick(() => {
-    showInner.value = true;
-  });
-};
+//   nextTick(() => {
+//     showInner.value = true;
+//   });
+// };
 
 const modalNegativeClick = () => {
   newFileName.value = '';
@@ -703,7 +707,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
           </n-drawer> -->
         </n-upload>
 
-        <n-popover>
+        <!-- <n-popover>
           <template #trigger>
             <ListTree
               :size="16"
@@ -711,8 +715,8 @@ provide('persistedUploadFiles', persistedUploadFiles);
               @click="handleOpenTransferList"
             />
           </template>
-          {{ t('TransferHistory') }}
-        </n-popover>
+          {{ t('Transfer') }}
+        </n-popover> -->
 
         <n-popover>
           <template #trigger>
