@@ -12,22 +12,13 @@ import { BrushCleaning, CircleX, Copy, RotateCcw } from 'lucide-vue-next';
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import mittBus from '@/utils/mittBus';
-import { updateIcon } from '@/hooks/helper';
 import { useColor } from '@/hooks/useColor';
-import Drawer from '@/components/Drawer/index.vue';
+import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { createTerminal } from '@/hooks/useKubernetes.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
-import TerminalProvider from '@/components/TerminalProvider/index.vue';
-import { lunaCommunicator } from '@/utils/lunaBus';
-import { getXTerminalLineContent } from '@/hooks/helper/index';
-
-import {
-  FORMATTER_MESSAGE_TYPE,
-  LUNA_MESSAGE_TYPE,
-  MESSAGE_TYPE,
-  ZMODEM_ACTION_TYPE,
-} from '@/types/modules/message.type';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { getXTerminalLineContent, updateIcon } from '@/hooks/helper';
 
 const treeStore = useTreeStore();
 const terminalStore = useTerminalStore();
@@ -438,24 +429,27 @@ onMounted(() => {
             code: '',
           }),
         };
+
         el.addEventListener('mouseleave', () => {
-           terminal.blur();
+          terminal.blur();
+          const currentNode = treeStore.getTerminalByK8sId(nameRef.value);
+          
+          if (currentNode) {
             lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
-            content: getXTerminalLineContent(10, terminal),
-            sessionId: node.k8s_id,
-            terminalId: node.id,
-      });
-    });
+              content: getXTerminalLineContent(10, terminal),
+              sessionId: currentNode.k8s_id,
+              terminalId: currentNode.id,
+            });
+          }
+        });
 
         try {
           // 发送初次连接的数据
           node.socket.send(JSON.stringify(firstSendMessage));
-
           updateIcon(connectInfo.value);
         } catch (e: any) {
           throw new Error(e);
         }
-
       }
     });
   });
@@ -472,56 +466,48 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <TerminalProvider>
-    <template #terminal>
-      <n-layout :native-scrollbar="false" content-style="height: 100%" :style="themeColors">
-        <n-tabs
-          v-model:value="nameRef"
-          closable
-          size="small"
-          type="card"
-          tab="show:lazy"
-          tab-style="min-width: 80px;"
-          class="header-tab relative"
-          @close="handleClose"
-          @update:value="handleChangeTab"
-          @contextmenu.prevent="handleContextMenu"
-        >
-          <n-tab-pane
-            v-for="panel of panels"
-            :key="panel.name"
-            :tab="panel.tab"
-            :name="panel.name"
-            display-directive="show:lazy"
-            class="pt-0"
-          >
-            <n-layout :native-scrollbar="false">
-              <n-scrollbar trigger="hover">
-                <div :id="String(panel.name)" class="k8s-terminal" />
-              </n-scrollbar>
-            </n-layout>
-          </n-tab-pane>
-        </n-tabs>
-      </n-layout>
-      <n-dropdown
-        show-arrow
-        size="medium"
-        trigger="manual"
-        placement="bottom-start"
-        content-style='font-size: "13px"'
-        :x="dropdownX"
-        :y="dropdownY"
-        :show="showContextMenu"
-        :options="contextMenuOption"
-        @select="handleContextMenuSelect"
-        @clickoutside="handleClickOutside"
-      />
-    </template>
-
-    <template #drawer>
-      <Drawer :hidden-file-manager="true" />
-    </template>
-  </TerminalProvider>
+  <n-layout :native-scrollbar="false" content-style="height: 100%" :style="themeColors">
+    <n-tabs
+      v-model:value="nameRef"
+      closable
+      size="small"
+      type="card"
+      tab="show:lazy"
+      tab-style="min-width: 80px;"
+      class="header-tab relative"
+      @close="handleClose"
+      @update:value="handleChangeTab"
+      @contextmenu.prevent="handleContextMenu"
+    >
+      <n-tab-pane
+        v-for="panel of panels"
+        :key="panel.name"
+        :tab="panel.tab"
+        :name="panel.name"
+        display-directive="show:lazy"
+        class="pt-0"
+      >
+        <n-layout :native-scrollbar="false">
+          <n-scrollbar trigger="hover">
+            <div :id="String(panel.name)" class="k8s-terminal" />
+          </n-scrollbar>
+        </n-layout>
+      </n-tab-pane>
+    </n-tabs>
+  </n-layout>
+  <n-dropdown
+    show-arrow
+    size="medium"
+    trigger="manual"
+    placement="bottom-start"
+    content-style='font-size: "13px"'
+    :x="dropdownX"
+    :y="dropdownY"
+    :show="showContextMenu"
+    :options="contextMenuOption"
+    @select="handleContextMenuSelect"
+    @clickoutside="handleClickOutside"
+  />
 </template>
 
 <style scoped lang="scss">

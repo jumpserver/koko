@@ -8,13 +8,14 @@ import type { LunaMessage, TerminalSessionInfo } from '@/types/modules/postmessa
 
 import mittBus from '@/utils/mittBus';
 import { formatMessage } from '@/utils';
-import { LunaCommunicator } from '@/utils/lunaBus';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { useTreeStore } from '@/store/modules/tree.ts';
 import { terminalTheme } from '@/hooks/useTerminalSocket';
 import { getXTerminalLineContent } from '@/hooks/helper/index';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
-// 定义事件类型
 type TerminalEvents = Record<string, any> & {
   'luna-event': { event: string; data: any };
   'terminal-session': TerminalSessionInfo;
@@ -23,13 +24,9 @@ type TerminalEvents = Record<string, any> & {
 
 interface TerminalContext {
   eventBus: ReturnType<typeof mitt<TerminalEvents>>;
-
-  lunaCommunicator: LunaCommunicator;
-
+  lunaCommunicator: typeof lunaCommunicator;
   sendLunaEvent: (event: string, data: any) => void;
-
   initializeLunaListeners: () => void;
-
   initialize: () => void;
   cleanup: () => void;
 }
@@ -40,7 +37,6 @@ export const terminalContextKey: InjectionKey<TerminalContext> = Symbol('termina
 // 创建 Context 实例
 export const createTerminalContext = (): TerminalContext => {
   const eventBus = mitt<TerminalEvents>();
-  const lunaCommunicator = new LunaCommunicator();
   const connectionStore = useConnectionStore();
 
   const sendLunaEvent = (event: string, data: any) => {
@@ -62,7 +58,7 @@ export const createTerminalContext = (): TerminalContext => {
       }
     });
 
-    mittBus.on('remove-share-user', user => {
+    mittBus.on('remove-share-user', (user) => {
       const socket = connectionStore.socket;
       const terminalId = connectionStore.terminalId;
 
@@ -78,8 +74,8 @@ export const createTerminalContext = (): TerminalContext => {
           JSON.stringify({
             session: user.sessionId,
             user_meta: user.userMeta,
-          })
-        )
+          }),
+        ),
       );
     });
 
@@ -92,14 +88,48 @@ export const createTerminalContext = (): TerminalContext => {
     });
 
     const handLunaCommand = (msg: LunaMessage) => {
-      const socket = connectionStore.socket;
-      const terminalId = connectionStore.terminalId;
+      const isK8sPage = window.location.pathname.includes('/k8s');
 
-      if (!socket || !terminalId) {
-        console.error('WebSocket connection may be closed, please refresh the page');
-        return;
+      if (isK8sPage) {
+        const terminalStore = useTerminalStore();
+        const treeStore = useTreeStore();
+
+        const currentTab = terminalStore.currentTab;
+        if (!currentTab) {
+          console.warn('No active K8s terminal tab found');
+          return;
+        }
+
+        const currentNode = treeStore.getTerminalByK8sId(currentTab);
+        if (!currentNode || !currentNode.terminal) {
+          console.warn('No active K8s terminal instance found');
+          return;
+        }
+
+        try {
+          currentNode.socket.send(
+            JSON.stringify({
+              id: currentNode.id,
+              k8s_id: currentNode.k8s_id,
+              type: 'TERMINAL_K8S_DATA',
+              data: msg.data,
+            }),
+          );
+        }
+        catch (error) {
+          console.error('Failed to paste command to K8s terminal:', error);
+        }
       }
-      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+      else {
+        const socket = connectionStore.socket;
+        const terminalId = connectionStore.terminalId;
+
+        if (!socket || !terminalId) {
+          console.error('WebSocket connection may be closed, please refresh the page');
+          return;
+        }
+        socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+      }
     };
 
     const handLunaFocus = (_msg: LunaMessage) => {
@@ -112,7 +142,8 @@ export const createTerminalContext = (): TerminalContext => {
 
     const handLunaThemeChange = (_msg: LunaMessage) => {
       const terminal = connectionStore.terminal;
-      if (!terminal) return;
+      if (!terminal)
+        return;
 
       const themeName = _msg.theme || 'Default';
       const theme = terminalTheme(themeName);
