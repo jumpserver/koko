@@ -8,13 +8,14 @@ import type { LunaMessage, TerminalSessionInfo } from '@/types/modules/postmessa
 
 import mittBus from '@/utils/mittBus';
 import { formatMessage } from '@/utils';
-import { LunaCommunicator } from '@/utils/lunaBus';
+import { lunaCommunicator } from '@/utils/lunaBus';
+import { useTreeStore } from '@/store/modules/tree.ts';
 import { terminalTheme } from '@/hooks/useTerminalSocket';
 import { getXTerminalLineContent } from '@/hooks/helper/index';
+import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
-// 定义事件类型
 type TerminalEvents = Record<string, any> & {
   'luna-event': { event: string; data: any };
   'terminal-session': TerminalSessionInfo;
@@ -23,13 +24,9 @@ type TerminalEvents = Record<string, any> & {
 
 interface TerminalContext {
   eventBus: ReturnType<typeof mitt<TerminalEvents>>;
-
-  lunaCommunicator: LunaCommunicator;
-
+  lunaCommunicator: typeof lunaCommunicator;
   sendLunaEvent: (event: string, data: any) => void;
-
   initializeLunaListeners: () => void;
-
   initialize: () => void;
   cleanup: () => void;
 }
@@ -40,7 +37,6 @@ export const terminalContextKey: InjectionKey<TerminalContext> = Symbol('termina
 // 创建 Context 实例
 export const createTerminalContext = (): TerminalContext => {
   const eventBus = mitt<TerminalEvents>();
-  const lunaCommunicator = new LunaCommunicator();
   const connectionStore = useConnectionStore();
 
   const sendLunaEvent = (event: string, data: any) => {
@@ -92,6 +88,35 @@ export const createTerminalContext = (): TerminalContext => {
     });
 
     const handLunaCommand = (msg: LunaMessage) => {
+      const terminalStore = useTerminalStore();
+      const currentTab = terminalStore.currentTab;
+
+      // 只有在 k8s 连接或切换的时候 currentTab 才会有值
+      if (currentTab) {
+        const treeStore = useTreeStore();
+        const currentNode = treeStore.getTerminalByK8sId(currentTab);
+
+        if (!currentNode || !currentNode.terminal) {
+          console.warn('No active K8s terminal instance found');
+          return;
+        }
+
+        try {
+          currentNode.socket.send(
+            JSON.stringify({
+              id: currentNode.id,
+              k8s_id: currentNode.k8s_id,
+              type: 'TERMINAL_K8S_DATA',
+              data: msg.data,
+            })
+          );
+        } catch (error) {
+          console.error('Failed to paste command to K8s terminal:', error);
+        }
+
+        return;
+      }
+
       const socket = connectionStore.socket;
       const terminalId = connectionStore.terminalId;
 
@@ -99,6 +124,7 @@ export const createTerminalContext = (): TerminalContext => {
         console.error('WebSocket connection may be closed, please refresh the page');
         return;
       }
+
       socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
     };
 

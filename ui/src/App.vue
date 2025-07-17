@@ -33,7 +33,6 @@ const langCodeMap = new Map(
 );
 
 const handleMainThemeChange = (themeName: any) => {
-  console.log(themeName);
   setCurrentMainColor(themeName!.data as string);
   themeOverrides.value = createThemeOverrides(themeName!.data as 'default' | 'deepBlue' | 'darkGary');
 };

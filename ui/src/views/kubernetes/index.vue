@@ -6,6 +6,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 import mittBus from '@/utils/mittBus';
 import { useColor } from '@/hooks/useColor';
+import Drawer from '@/components/Drawer/index.vue';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { useKubernetes } from '@/hooks/useKubernetes.ts';
 import Tree from '@/components/Kubernetes/Tree/index.vue';
@@ -124,7 +125,15 @@ onUnmounted(() => {
           @reload-tree="handleReloadTree"
         />
       </n-layout-sider>
-      <MainContent />
+      <TerminalProvider>
+        <template #terminal>
+          <MainContent />
+        </template>
+
+        <template #drawer>
+          <Drawer :hidden-file-manager="true" />
+        </template>
+      </TerminalProvider>
     </n-layout>
   </div>
 </template>
