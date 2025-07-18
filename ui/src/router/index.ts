@@ -11,11 +11,6 @@ const allRoutes: RouteRecordRaw[] = [
     component: () => import('@/views/connection/index.vue'),
   },
   {
-    path: '/sftp/:id/',
-    name: 'SFTP',
-    component: () => import('@/views/file/index.vue'),
-  },
-  {
     path: '/token/',
     name: 'TokenParams',
     component: () => import('@/views/connection/index.vue'),
@@ -41,9 +36,9 @@ const allRoutes: RouteRecordRaw[] = [
     component: () => import('@/views/monitor/index.vue'),
   },
   {
-    path: '/sftp/',
-    name: 'SFTP',
-    component: () => import('@/views/file/index.vue'),
+    path: '/',
+    name: 'Card',
+    component: () => import('@/components/CardContainer/index.vue'),
   },
 ];
 

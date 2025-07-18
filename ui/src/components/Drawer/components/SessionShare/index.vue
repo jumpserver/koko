@@ -11,6 +11,9 @@ import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
 
 import { getMinuteLabel } from '@/utils';
 import { useSessionAdapter } from '@/hooks/useSessionAdapter';
+import CardContainer from '@/components/CardContainer/index.vue';
+
+import CreateLink from './widget/CreateLink.vue';
 
 const message = useMessage();
 
@@ -161,152 +164,164 @@ const debounceSearch = useDebounceFn(handleSearch, 300);
 
 <template>
   <n-flex vertical align="center">
-    <n-divider dashed title-placement="left" class="!mb-3 !mt-0">
-      <n-text depth="2" class="text-sm opacity-70"> {{ t('OnlineUser') }}（{{ onlineUsers?.length || 0 }}） </n-text>
-    </n-divider>
+    <CardContainer :title="t('CreateLink')">
+      <CreateLink />
+    </CardContainer>
+    <CardContainer>
+      <template #custom-header>
+        <n-text>会话成员</n-text>
 
-    <n-flex v-if="onlineUsers?.length" class="w-full mb-4">
-      <n-list class="w-full" bordered hoverable>
-        <n-list-item v-for="user in onlineUsers" :key="user.user_id">
-          <template #suffix>
-            <n-popconfirm
-              v-if="!user.primary"
-              :ok-text="t('Confirm')"
-              :cancel-text="t('Cancel')"
-              :negative-button-props="{
-                type: 'default',
-              }"
-              @positive-click="handleRemoveShareUser(user)"
-            >
-              <template #trigger>
-                <Delete
-                  :size="18"
-                  class="cursor-pointer hover:text-red-500 transition-all duration-200 focus:outline-none"
-                />
-              </template>
-              <span>{{ t('RemoveUser') }}</span>
-            </n-popconfirm>
-          </template>
+        <NTag round :bordered="false" type="success" size="small" class="ml-2">
+          {{ onlineUsers?.length || 0 }} 人
+        </NTag>
+      </template>
 
-          <n-flex vertical>
-            <n-text>{{ user.user }}</n-text>
-            <n-flex :size="8">
-              <NTag :bordered="false" size="small" :type="user.primary ? 'info' : 'success'">
-                <template #icon>
-                  <Crown v-if="user.primary" :size="14" />
-                  <UserRound v-else :size="14" />
-                </template>
-                {{ user.primary ? t('PrimaryUser') : '共享用户' }}
-              </NTag>
-              <NTag :bordered="false" :type="user.writable ? 'warning' : 'success'" size="small">
-                <template #icon>
-                  <PenLine v-if="user.writable" :size="14" />
-                  <Lock v-else :size="14" />
-                </template>
-                {{ user.writable ? t('Writable') : t('ReadOnly') }}
-              </NTag>
-            </n-flex>
-          </n-flex>
-        </n-list-item>
-      </n-list>
-
-      <n-button type="primary" size="small" class="!w-full mt-1" :disabled="!shareInfo.enableShare" @click="openModal">
-        <n-text class="text-white text-sm">
-          {{ t('CreateLink') }}
-        </n-text>
-      </n-button>
-    </n-flex>
-
-    <n-modal v-model:show="showModal" :auto-focus="false" @update:show="handleModalClose">
-      <n-card style="width: 600px" bordered :title="cardTitle" role="dialog" size="large">
-        <Transition name="fade" mode="out-in">
-          <div v-if="showCreateForm" key="create-form" class="min-h-[305px] w-full">
-            <n-form label-placement="top" :model="shareLinkRequest">
-              <n-grid :cols="24">
-                <n-form-item-gi :span="24" :label="t('ExpiredTime')">
-                  <n-select
-                    v-model:value="shareLinkRequest.expiredTime"
-                    size="small"
-                    :placeholder="t('SelectAction')"
-                    :options="expiredOptions"
-                  />
-                </n-form-item-gi>
-                <n-form-item-gi :span="24" :label="t('ActionPerm')">
-                  <n-select
-                    v-model:value="shareLinkRequest.actionPerm"
-                    size="small"
-                    :placeholder="t('ActionPerm')"
-                    :options="actionsPermOptions"
-                  />
-                </n-form-item-gi>
-                <n-form-item-gi :span="24" :label="t('ShareUser')">
-                  <n-select
-                    v-model:value="shareLinkRequest.users"
-                    multiple
-                    filterable
-                    clearable
-                    remote
-                    size="small"
-                    :loading="searchLoading"
-                    :render-tag="renderTag"
-                    :options="mappedUserOptions"
-                    :clear-filter-after-select="false"
-                    :placeholder="t('GetShareUser')"
-                    @search="debounceSearch"
-                  />
-                </n-form-item-gi>
-              </n-grid>
-
-              <n-button
-                type="primary"
-                size="small"
-                class="!w-full mt-1"
-                :loading="loading"
-                :disabled="!shareInfo.enableShare"
-                @click="handleShareURlCreated"
+      <n-flex v-if="onlineUsers?.length" class="w-full mb-4">
+        <UserItem v-for="i in 5" :key="i" :username="`user-${i}`" />
+        <!-- <n-list class="w-full" bordered hoverable>
+          <n-list-item v-for="user in onlineUsers" :key="user.user_id">
+            <template #suffix>
+              <n-popconfirm
+                v-if="!user.primary"
+                :ok-text="t('Confirm')"
+                :cancel-text="t('Cancel')"
+                :negative-button-props="{
+                  type: 'default',
+                }"
+                @positive-click="handleRemoveShareUser(user)"
               >
-                <n-text class="text-white text-sm">
-                  {{ t('CreateLink') }}
-                </n-text>
-              </n-button>
-            </n-form>
-          </div>
+                <template #trigger>
+                  <Delete
+                    :size="18"
+                    class="cursor-pointer hover:text-red-500 transition-all duration-200 focus:outline-none"
+                  />
+                </template>
+                <span>{{ t('RemoveUser') }}</span>
+              </n-popconfirm>
+            </template>
 
-          <div v-else key="share-result" class="relative min-h-[305px] w-full">
-            <n-result status="success" :description="t('CreateSuccess')" class="relative" />
+            <n-flex vertical>
+              <n-text>{{ user.user }}</n-text>
+              <n-flex :size="8">
+                <NTag :bordered="false" size="small" :type="user.primary ? 'info' : 'success'">
+                  <template #icon>
+                    <Crown v-if="user.primary" :size="14" />
+                    <UserRound v-else :size="14" />
+                  </template>
+                  {{ user.primary ? t('PrimaryUser') : '共享用户' }}
+                </NTag>
+                <NTag :bordered="false" :type="user.writable ? 'warning' : 'success'" size="small">
+                  <template #icon>
+                    <PenLine v-if="user.writable" :size="14" />
+                    <Lock v-else :size="14" />
+                  </template>
+                  {{ user.writable ? t('Writable') : t('ReadOnly') }}
+                </NTag>
+              </n-flex>
+            </n-flex>
+          </n-list-item>
+        </n-list> -->
 
-            <n-tooltip size="small">
-              <template #trigger>
-                <Undo2
-                  :size="16"
-                  class="absolute top-0 right-0 focus:outline-none cursor-pointer"
-                  @click="handleBack"
-                />
-              </template>
-              <span>{{ t('Back') }}</span>
-            </n-tooltip>
-
-            <n-form label-placement="top">
-              <n-grid :cols="24">
-                <n-form-item-gi :label="t('LinkAddr')" :span="24">
-                  <n-input readonly :value="shareURL" />
-                </n-form-item-gi>
-                <n-form-item-gi :label="t('VerifyCode')" :span="24">
-                  <n-input readonly :loading="!shareInfo.shareCode" :value="shareInfo.shareCode" />
-                </n-form-item-gi>
-              </n-grid>
-
-              <n-button type="primary" size="small" class="!w-full" @click="copyShareURLHandler">
-                <n-text class="text-white text-sm">
-                  {{ t('CopyLink') }}
-                </n-text>
-              </n-button>
-            </n-form>
-          </div>
-        </Transition>
-      </n-card>
-    </n-modal>
+        <!-- <n-button
+          type="primary"
+          size="small"
+          class="!w-full mt-1"
+          :disabled="!shareInfo.enableShare"
+          @click="openModal"
+        >
+          <n-text class="text-white text-sm">
+            {{ t('CreateLink') }}
+          </n-text>
+        </n-button> -->
+      </n-flex>
+    </CardContainer>
   </n-flex>
+
+  <n-modal v-model:show="showModal" :auto-focus="false" @update:show="handleModalClose">
+    <n-card style="width: 600px" bordered :title="cardTitle" role="dialog" size="large">
+      <Transition name="fade" mode="out-in">
+        <div v-if="showCreateForm" key="create-form" class="min-h-[305px] w-full">
+          <n-form label-placement="top" :model="shareLinkRequest">
+            <n-grid :cols="24">
+              <n-form-item-gi :span="24" :label="t('ExpiredTime')">
+                <n-select
+                  v-model:value="shareLinkRequest.expiredTime"
+                  size="small"
+                  :placeholder="t('SelectAction')"
+                  :options="expiredOptions"
+                />
+              </n-form-item-gi>
+              <n-form-item-gi :span="24" :label="t('ActionPerm')">
+                <n-select
+                  v-model:value="shareLinkRequest.actionPerm"
+                  size="small"
+                  :placeholder="t('ActionPerm')"
+                  :options="actionsPermOptions"
+                />
+              </n-form-item-gi>
+              <n-form-item-gi :span="24" :label="t('ShareUser')">
+                <n-select
+                  v-model:value="shareLinkRequest.users"
+                  multiple
+                  filterable
+                  clearable
+                  remote
+                  size="small"
+                  :loading="searchLoading"
+                  :render-tag="renderTag"
+                  :options="mappedUserOptions"
+                  :clear-filter-after-select="false"
+                  :placeholder="t('GetShareUser')"
+                  @search="debounceSearch"
+                />
+              </n-form-item-gi>
+            </n-grid>
+
+            <n-button
+              type="primary"
+              size="small"
+              class="!w-full mt-1"
+              :loading="loading"
+              :disabled="!shareInfo.enableShare"
+              @click="handleShareURlCreated"
+            >
+              <n-text class="text-white text-sm">
+                {{ t('CreateLink') }}
+              </n-text>
+            </n-button>
+          </n-form>
+        </div>
+
+        <div v-else key="share-result" class="relative min-h-[305px] w-full">
+          <n-result status="success" :description="t('CreateSuccess')" class="relative" />
+
+          <n-tooltip size="small">
+            <template #trigger>
+              <Undo2 :size="16" class="absolute top-0 right-0 focus:outline-none cursor-pointer" @click="handleBack" />
+            </template>
+            <span>{{ t('Back') }}</span>
+          </n-tooltip>
+
+          <n-form label-placement="top">
+            <n-grid :cols="24">
+              <n-form-item-gi :label="t('LinkAddr')" :span="24">
+                <n-input readonly :value="shareURL" />
+              </n-form-item-gi>
+              <n-form-item-gi :label="t('VerifyCode')" :span="24">
+                <n-input readonly :loading="!shareInfo.shareCode" :value="shareInfo.shareCode" />
+              </n-form-item-gi>
+            </n-grid>
+
+            <n-button type="primary" size="small" class="!w-full" @click="copyShareURLHandler">
+              <n-text class="text-white text-sm">
+                {{ t('CopyLink') }}
+              </n-text>
+            </n-button>
+          </n-form>
+        </div>
+      </Transition>
+    </n-card>
+  </n-modal>
 </template>
 
 <style scoped>

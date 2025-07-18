@@ -14,7 +14,7 @@ export const createThemeOverrides = (
   const primaryColorHover = lighten(10);
   const primaryColorPressed = darken(10);
   const backgroundColor = darken(5);
-  const cardBackgroundColor = darken(3);
+  const cardBackgroundColor = darken(7);
   const inputBackgroundColor = lighten(2);
   const surfaceColor = lighten(8);
   const borderColor = alpha(0.3);
@@ -56,22 +56,22 @@ export const createThemeOverrides = (
       boxShadowFocus: `0 0 0 2px ${alpha(0.2)}`,
     },
     List: {
-      colorHover: backgroundColor,
-      colorModal: backgroundColor,
-      colorHoverModal: hoverColor,
-      borderColor,
-      peers: {
-        ListItem: {
-          colorHover: hoverColor,
-          colorHoverModal: hoverColor,
-          borderRadius: '6px',
-        },
-      },
+      // colorHover: backgroundColor,
+      // colorModal: backgroundColor,
+      // colorHoverModal: hoverColor,
+      // borderColor,
+      // peers: {
+      //   ListItem: {
+      //     colorHover: hoverColor,
+      //     colorHoverModal: hoverColor,
+      //     borderRadius: '6px',
+      //   },
+      // },
     },
     Select: {
       peers: {
         InternalSelection: {
-          color: backgroundColor,
+          color: lighten(5),
           colorDisabled: darken(10),
           border: `1px solid ${borderColor}`,
           borderHover: `1px solid ${primaryColor}`,
@@ -131,7 +131,7 @@ export const createThemeOverrides = (
       borderFocusPrimary: `1px solid ${primaryColor}`,
       borderHoverPrimary: `1px solid ${primaryColorHover}`,
       borderPrimary: `1px solid ${primaryColor}`,
-      colorPrimary: primaryColor,
+      colorPrimary: lighten(300),
       colorFocusPrimary: primaryColor,
       colorHoverPrimary: primaryColorHover,
       colorPressedPrimary: primaryColorPressed,
@@ -148,6 +148,9 @@ export const createThemeOverrides = (
       textColor,
       textColorDisabled: textColorSecondary,
       opacityDisabled: 0.4,
+    },
+    Divider: {
+      color: lighten(4),
     },
     Checkbox: {
       color: backgroundColor,
@@ -213,27 +216,27 @@ export const createThemeOverrides = (
       tdColorModal: cardBackgroundColor,
     },
     Tag: {
-      borderPrimary: `1px solid ${primaryColor}`,
-      textColorPrimary: textColor,
-      colorSuccess: lighten(5),
-      borderSuccess: `1px solid ${lighten(8)}`,
-      textColorSuccess: textColor,
-      closeColorSuccess: textColorSecondary,
-      closeColorHoverSuccess: textColor,
-      closeColorPressedSuccess: darken(5),
-      colorWarning: alpha(0.1, '#FFB020'),
-      borderWarning: `1px solid ${alpha(0.3, '#FFB020')}`,
-      textColorWarning: '#FFB020',
-      closeColorWarning: alpha(0.6, '#FFB020'),
-      closeColorHoverWarning: '#FFB020',
-      closeColorPressedWarning: alpha(0.8, '#FFB020'),
-      color: cardBackgroundColor,
-      textColor: textColorSecondary,
-      border: `1px solid ${borderColor}`,
-      closeColor: textColorSecondary,
-      closeColorHover: textColor,
-      closeColorPressed: darken(5),
-      closeIconColor: alpha(0.8, '#FF0000'),
+      // borderPrimary: `1px solid ${primaryColor}`,
+      // textColorPrimary: textColor,
+      // colorSuccess: lighten(5),
+      // borderSuccess: `1px solid ${lighten(8)}`,
+      // textColorSuccess: textColor,
+      // closeColorSuccess: textColorSecondary,
+      // closeColorHoverSuccess: textColor,
+      // closeColorPressedSuccess: darken(5),
+      // colorWarning: alpha(0.1, '#FFB020'),
+      // borderWarning: `1px solid ${alpha(0.3, '#FFB020')}`,
+      // textColorWarning: '#FFB020',
+      // closeColorWarning: alpha(0.6, '#FFB020'),
+      // closeColorHoverWarning: '#FFB020',
+      // closeColorPressedWarning: alpha(0.8, '#FFB020'),
+      // color: cardBackgroundColor,
+      // textColor: textColorSecondary,
+      // border: `1px solid ${borderColor}`,
+      // closeColor: textColorSecondary,
+      // closeColorHover: textColor,
+      // closeColorPressed: darken(5),
+      // closeIconColor: alpha(0.8, '#FF0000'),
     },
     Upload: {
       peers: {
