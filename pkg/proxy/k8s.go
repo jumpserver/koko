@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/srvconn"
+	"k8s.io/client-go/rest"
 	"net"
 	"net/url"
 	"os"
@@ -72,7 +74,17 @@ func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gat
 		address = ReplaceURLHostAndPort(originUrl, "127.0.0.1", proxyAddr.Port)
 	}
 
-	kubeConfig := kc.GetKubeConfig(address, token)
+	kubeConf := &rest.Config{
+		Host:        address,
+		BearerToken: token,
+	}
+	kubeConf.Insecure = true
+
+	if !srvconn.IsValidK8sUserToken(kubeConf) {
+		return srvconn.ErrValidToken
+	}
+
+	kubeConfigYAML := kc.GetKubeConfig(address, token)
 
 	tmpFile, err := os.CreateTemp("", "kubeconfig-*.yaml")
 	if err != nil {
@@ -80,7 +92,7 @@ func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gat
 	}
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(kubeConfig)); err != nil {
+	if _, err := tmpFile.Write([]byte(kubeConfigYAML)); err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
 	}
 	kc.configName = tmpFile.Name()
