@@ -32,8 +32,7 @@ const (
 
 // 类似于 `kubectl --insecure-skip-tls-verify=%s --token=%s --server=%s auth can-i get pods`
 
-func IsValidK8sUserToken(o *k8sOptions) bool {
-	k8sCfg := o.K8sCfg()
+func IsValidK8sUserToken(k8sCfg *rest.Config) bool {
 	client, err := kubernetes.NewForConfig(k8sCfg)
 	if err != nil {
 		logger.Errorf("K8sCon new config err: %s", err)
@@ -68,7 +67,9 @@ func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
 	for _, setter := range ops {
 		setter(args)
 	}
-	if !IsValidK8sUserToken(args) {
+
+	k8sCfg := args.K8sCfg()
+	if !IsValidK8sUserToken(k8sCfg) {
 		return nil, ErrValidToken
 	}
 	kubeProxy := NewKubectlProxyConn(args)

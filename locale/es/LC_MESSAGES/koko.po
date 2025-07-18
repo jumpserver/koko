@@ -37,66 +37,66 @@ msgid "Page up: b\tPage down: n"
 msgstr "Página anterior: b\tPágina siguiente: n"
 
 #. lang.T
-#: pkg/handler/asset.go:43
+#: pkg/handler/asset.go:45
 msgid "No Assets"
 msgstr "Sin activos"
 
 #. lang.T
-#: pkg/handler/asset.go:55
+#: pkg/handler/asset.go:57
 msgid "ID"
 msgstr "ID"
 
 #. lang.T
-#: pkg/handler/asset.go:56
+#: pkg/handler/asset.go:58
 msgid "Name"
 msgstr "Nombre"
 
 #. lang.T
-#: pkg/handler/asset.go:57
+#: pkg/handler/asset.go:59
 msgid "Address"
 msgstr "Dirección"
 
 #. lang.T
-#: pkg/handler/asset.go:58
+#: pkg/handler/asset.go:60
 msgid "Platform"
 msgstr "Plataforma"
 
 #. lang.T
-#: pkg/handler/asset.go:59
+#: pkg/handler/asset.go:61
 msgid "Organization"
 msgstr "Organización"
 
 #. lang.T
-#: pkg/handler/asset.go:60
+#: pkg/handler/asset.go:62
 msgid "Comment"
 msgstr "Comentario"
 
 #. lang.T
-#: pkg/handler/asset.go:174
+#: pkg/handler/asset.go:176
 msgid "%s protocol client not installed."
 msgstr "Cliente del protocolo %s no está instalado."
 
 #. lang.T
-#: pkg/handler/asset.go:177
+#: pkg/handler/asset.go:179
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr ""
 "El terminal no admite el protocolo %s; utilice la terminal web para acceder."
 
 #. lang.T
-#: pkg/handler/asset.go:211
+#: pkg/handler/asset.go:214
 msgid "Core API failed"
 msgstr "Error en la API principal"
 
 #. lang.T
-#: pkg/handler/asset.go:217
+#: pkg/handler/asset.go:220
 msgid "ACL reject"
 msgstr ""
 "Inicio de sesión rechazado por restricciones de la política de control de "
 "acceso"
 
 #. lang.T
-#: pkg/handler/asset.go:223
+#: pkg/handler/asset.go:226
 msgid ""
 "Face ACL is not supported yet. Please use the WebTerminal to connect the "
 "asset."
@@ -106,12 +106,12 @@ msgstr ""
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:238 pkg/handler/asset.go:247
+#: pkg/handler/asset.go:241 pkg/handler/asset.go:250
 msgid "Unknown error code: %s, detail: %s"
 msgstr "Código de error desconocido: %s, detalle: %s"
 
 #. lang.T
-#: pkg/handler/asset.go:258
+#: pkg/handler/asset.go:261
 msgid "get connect token err"
 msgstr "Error al obtener el token de conexión"
 
@@ -278,23 +278,23 @@ msgid "Switch language successfully"
 msgstr "Cambio de idioma exitoso"
 
 #. lang.T
-#: pkg/handler/dispatch.go:197
+#: pkg/handler/dispatch.go:196
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "Nodo: [ ID.Nombre(Cantidad de activos) ]"
 
 #. lang.T
-#: pkg/handler/dispatch.go:199
+#: pkg/handler/dispatch.go:198
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 "Consejo: ingrese g+IDNodo para mostrar el host bajo el nodo, por ejemplo g1"
 
 #. lang.T
-#: pkg/handler/interactive.go:68
+#: pkg/handler/interactive.go:64
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "Conexión inactiva por más de %d minutos, desconectando"
 
 #. lang.T
-#: pkg/handler/interactive.go:202
+#: pkg/handler/interactive.go:198
 msgid "No account found."
 msgstr "No se encontró ninguna cuenta."
 
@@ -304,36 +304,36 @@ msgstr "No se encontró ninguna cuenta."
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:212 pkg/handler/interactive.go:213
-#: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
-#: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
+#: pkg/handler/interactive.go:208 pkg/handler/interactive.go:209
+#: pkg/handler/interactive.go:210 pkg/handler/interactive.go:240
+#: pkg/handler/interactive.go:241 pkg/handler/interactive.go:267
 msgid "Select account exceed max retry times."
 msgstr "Selección de cuenta excede el número máximo de intentos."
 
 #. lang.T
-#: pkg/handler/interactive.go:282
+#: pkg/handler/interactive.go:278
 msgid "No protocol found."
 msgstr "No se encontró ningún protocolo."
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
+#: pkg/handler/interactive.go:287 pkg/handler/interactive.go:288
 msgid "Protocol"
 msgstr "Protocolo"
 
 #. lang.T
-#: pkg/handler/interactive.go:319
+#: pkg/handler/interactive.go:315
 msgid "Tips: Enter protocol ID"
 msgstr "Consejo: ingrese el ID del protocolo"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
+#: pkg/handler/interactive.go:316 pkg/handler/interactive.go:342
 msgid "Select protocol exceed max retry times."
 msgstr "Selección de protocolo excede el número máximo de intentos."
 
 #. lang.T
-#: pkg/handler/interactive.go:383
+#: pkg/handler/interactive.go:379
 msgid "Refresh done"
 msgstr "Actualización completada"
 
@@ -392,38 +392,43 @@ msgid "Cancel confirm"
 msgstr "Cancelar confirmación"
 
 #. lang.T
-#: pkg/handler/select_handler.go:201
+#: pkg/handler/select_handler.go:208
 msgid "Search: %s"
 msgstr "Buscar: %s"
 
-#. i18n.T
-#: pkg/handler/server_ssh.go:222
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:223
 msgid "Must be unique asset for %s"
 msgstr "Debe ser un activo único para %s"
 
-#. i18n.T
-#. i18n.T
-#: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
+#. i18nLang.T
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:230 pkg/handler/server_ssh.go:252
 msgid "Must be unique account for %s"
 msgstr "Debe ser una cuenta única para %s"
 
-#. i18n.T
-#: pkg/handler/server_ssh.go:259
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:260
 msgid "Must be auto login account for %s"
 msgstr "Debe ser una cuenta de inicio de sesión automático para %s"
 
-#. i18n.T
-#. i18n.T
-#: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
+#. i18nLang.T
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:682 pkg/handler/server_ssh.go:686
 msgid "No found asset"
 msgstr "No se encontró el activo"
 
-#. i18n.T
-#. i18n.T
-#. i18n.T
+#. i18nLang.T
+#. i18nLang.T
+#. i18nLang.T
 #. lang.T
-#: pkg/handler/server_ssh.go:713 pkg/handler/server_ssh.go:718
-#: pkg/handler/server_ssh.go:736 pkg/proxy/parser.go:230
+#: pkg/handler/server_ssh.go:716 pkg/handler/server_ssh.go:721
+#: pkg/handler/server_ssh.go:739 pkg/httpd/userwebsocket.go:110
+msgid "Create k8s client err: %s"
+msgstr "Crear cliente k8s err: %s"
+
+#. lang.T
+#: pkg/proxy/parser.go:230
 msgid "have no permission to upload file"
 msgstr "No tiene permiso para subir archivos"
 
@@ -493,40 +498,40 @@ msgid "You don't have permission login %s"
 msgstr "No tiene permiso para iniciar sesión en %s"
 
 #. lang.T
-#: pkg/proxy/server.go:334
+#: pkg/proxy/server.go:336
 msgid "You get auth token failed"
 msgstr "Error al obtener el token de autenticación"
 
 #. lang.T
-#: pkg/proxy/server.go:345
+#: pkg/proxy/server.go:347
 msgid "Get auth password failed"
 msgstr "Falló la obtención de la contraseña de autenticación"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:361 pkg/proxy/server.go:418
+#: pkg/proxy/server.go:363 pkg/proxy/server.go:420
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "Reutilizar conexiones SSH (%s@%s) [Número de conexiones: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:674
+#: pkg/proxy/server.go:688
 msgid "Switched to %s"
 msgstr "Cambiado a %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:771 pkg/proxy/server.go:916
+#: pkg/proxy/server.go:790 pkg/proxy/server.go:935
 msgid "Connect with api server failed"
 msgstr "Fallo al conectar con el servidor API"
 
 #. lang.T
-#: pkg/proxy/server.go:977
+#: pkg/proxy/server.go:996
 msgid "Start domain gateway failed %s"
 msgstr "Error al iniciar la puerta de enlace de dominio %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
+#: pkg/proxy/server.go:1004 pkg/proxy/server_options.go:108
 msgid "Manual"
 msgstr "Manual"
 
