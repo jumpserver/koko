@@ -34,63 +34,63 @@ msgid "Page up: b\tPage down: n"
 msgstr "上一页：b 下一页：n"
 
 #. lang.T
-#: pkg/handler/asset.go:43
+#: pkg/handler/asset.go:45
 msgid "No Assets"
 msgstr "没有资产"
 
 #. lang.T
-#: pkg/handler/asset.go:55
+#: pkg/handler/asset.go:57
 msgid "ID"
 msgstr "ID"
 
 #. lang.T
-#: pkg/handler/asset.go:56
+#: pkg/handler/asset.go:58
 msgid "Name"
 msgstr "名称"
 
 #. lang.T
-#: pkg/handler/asset.go:57
+#: pkg/handler/asset.go:59
 msgid "Address"
 msgstr "地址"
 
 #. lang.T
-#: pkg/handler/asset.go:58
+#: pkg/handler/asset.go:60
 msgid "Platform"
 msgstr "平台"
 
 #. lang.T
-#: pkg/handler/asset.go:59
+#: pkg/handler/asset.go:61
 msgid "Organization"
 msgstr "组织"
 
 #. lang.T
-#: pkg/handler/asset.go:60
+#: pkg/handler/asset.go:62
 msgid "Comment"
 msgstr "备注"
 
 #. lang.T
-#: pkg/handler/asset.go:174
+#: pkg/handler/asset.go:176
 msgid "%s protocol client not installed."
 msgstr "%s 协议的客户端未安装"
 
 #. lang.T
-#: pkg/handler/asset.go:177
+#: pkg/handler/asset.go:179
 msgid ""
 "Terminal does not support protocol %s, please use web terminal to access"
 msgstr "该终端不支持 %s 协议，请使用web终端登录"
 
 #. lang.T
-#: pkg/handler/asset.go:211
+#: pkg/handler/asset.go:214
 msgid "Core API failed"
 msgstr "Core API 发生错误"
 
 #. lang.T
-#: pkg/handler/asset.go:217
+#: pkg/handler/asset.go:220
 msgid "ACL reject"
 msgstr "本次登录已拒绝，原因是访问控制策略的限制"
 
 #. lang.T
-#: pkg/handler/asset.go:223
+#: pkg/handler/asset.go:226
 msgid ""
 "Face ACL is not supported yet. Please use the WebTerminal to connect the "
 "asset."
@@ -98,12 +98,12 @@ msgstr "该终端不支持人脸访问规则，请使用web终端登录"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/asset.go:238 pkg/handler/asset.go:247
+#: pkg/handler/asset.go:241 pkg/handler/asset.go:250
 msgid "Unknown error code: %s, detail: %s"
 msgstr "未知错误代码：%s，详情：%s"
 
 #. lang.T
-#: pkg/handler/asset.go:258
+#: pkg/handler/asset.go:261
 msgid "get connect token err"
 msgstr "获取 connect token 错误"
 
@@ -268,22 +268,22 @@ msgid "Switch language successfully"
 msgstr "切换语言成功"
 
 #. lang.T
-#: pkg/handler/dispatch.go:197
+#: pkg/handler/dispatch.go:196
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "节点：[ ID.名称(资产数量) ]"
 
 #. lang.T
-#: pkg/handler/dispatch.go:199
+#: pkg/handler/dispatch.go:198
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
 
 #. lang.T
-#: pkg/handler/interactive.go:68
+#: pkg/handler/interactive.go:64
 msgid "Connect idle more than %d minutes, disconnect"
 msgstr "空闲时间超过%d分钟，断开连接"
 
 #. lang.T
-#: pkg/handler/interactive.go:202
+#: pkg/handler/interactive.go:198
 msgid "No account found."
 msgstr "未发现账号"
 
@@ -293,36 +293,36 @@ msgstr "未发现账号"
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:212 pkg/handler/interactive.go:213
-#: pkg/handler/interactive.go:214 pkg/handler/interactive.go:244
-#: pkg/handler/interactive.go:245 pkg/handler/interactive.go:271
+#: pkg/handler/interactive.go:208 pkg/handler/interactive.go:209
+#: pkg/handler/interactive.go:210 pkg/handler/interactive.go:240
+#: pkg/handler/interactive.go:241 pkg/handler/interactive.go:267
 msgid "Select account exceed max retry times."
 msgstr "选择账号超过最大重试次数"
 
 #. lang.T
-#: pkg/handler/interactive.go:282
+#: pkg/handler/interactive.go:278
 msgid "No protocol found."
 msgstr "无协议"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:291 pkg/handler/interactive.go:292
+#: pkg/handler/interactive.go:287 pkg/handler/interactive.go:288
 msgid "Protocol"
 msgstr "协议"
 
 #. lang.T
-#: pkg/handler/interactive.go:319
+#: pkg/handler/interactive.go:315
 msgid "Tips: Enter protocol ID"
 msgstr "提示：输入协议ID"
 
 #. lang.T
 #. lang.T
-#: pkg/handler/interactive.go:320 pkg/handler/interactive.go:346
+#: pkg/handler/interactive.go:316 pkg/handler/interactive.go:342
 msgid "Select protocol exceed max retry times."
 msgstr "选择协议超过最大重试次数"
 
 #. lang.T
-#: pkg/handler/interactive.go:383
+#: pkg/handler/interactive.go:379
 msgid "Refresh done"
 msgstr "刷新完成"
 
@@ -378,38 +378,43 @@ msgid "Cancel confirm"
 msgstr "取消登录复核"
 
 #. lang.T
-#: pkg/handler/select_handler.go:201
+#: pkg/handler/select_handler.go:208
 msgid "Search: %s"
 msgstr "搜索：%s"
 
-#. i18n.T
-#: pkg/handler/server_ssh.go:222
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:223
 msgid "Must be unique asset for %s"
 msgstr "必须是唯一的资产 %s"
 
-#. i18n.T
-#. i18n.T
-#: pkg/handler/server_ssh.go:229 pkg/handler/server_ssh.go:251
+#. i18nLang.T
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:230 pkg/handler/server_ssh.go:252
 msgid "Must be unique account for %s"
 msgstr "必须是唯一的账号 %s"
 
-#. i18n.T
-#: pkg/handler/server_ssh.go:259
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:260
 msgid "Must be auto login account for %s"
 msgstr "必须是自动登录账号 %s"
 
-#. i18n.T
-#. i18n.T
-#: pkg/handler/server_ssh.go:680 pkg/handler/server_ssh.go:684
+#. i18nLang.T
+#. i18nLang.T
+#: pkg/handler/server_ssh.go:682 pkg/handler/server_ssh.go:686
 msgid "No found asset"
 msgstr "未发现匹配的资产 %s"
 
-#. i18n.T
-#. i18n.T
-#. i18n.T
+#. i18nLang.T
+#. i18nLang.T
+#. i18nLang.T
 #. lang.T
-#: pkg/handler/server_ssh.go:713 pkg/handler/server_ssh.go:718
-#: pkg/handler/server_ssh.go:736 pkg/proxy/parser.go:230
+#: pkg/handler/server_ssh.go:716 pkg/handler/server_ssh.go:721
+#: pkg/handler/server_ssh.go:739 pkg/httpd/userwebsocket.go:110
+msgid "Create k8s client err: %s"
+msgstr "创建 k8s 客户端错误：%s"
+
+#. lang.T
+#: pkg/proxy/parser.go:230
 msgid "have no permission to upload file"
 msgstr "无权限上传文件"
 
@@ -471,40 +476,40 @@ msgid "You don't have permission login %s"
 msgstr "你无权限登陆%s"
 
 #. lang.T
-#: pkg/proxy/server.go:334
+#: pkg/proxy/server.go:336
 msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
-#: pkg/proxy/server.go:345
+#: pkg/proxy/server.go:347
 msgid "Get auth password failed"
 msgstr "你获取认证令牌失败"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:361 pkg/proxy/server.go:418
+#: pkg/proxy/server.go:363 pkg/proxy/server.go:420
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:674
+#: pkg/proxy/server.go:688
 msgid "Switched to %s"
 msgstr "已切换至%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:771 pkg/proxy/server.go:916
+#: pkg/proxy/server.go:790 pkg/proxy/server.go:935
 msgid "Connect with api server failed"
 msgstr "连接API服务失败"
 
 #. lang.T
-#: pkg/proxy/server.go:977
+#: pkg/proxy/server.go:996
 msgid "Start domain gateway failed %s"
 msgstr "启动数据库网关失败%s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:985 pkg/proxy/server_options.go:108
+#: pkg/proxy/server.go:1004 pkg/proxy/server_options.go:108
 msgid "Manual"
 msgstr "手动账号"
 
