@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { computed, ref } from 'vue';
 import { Trash2, UserRound } from 'lucide-vue-next';
 
 import { useColor } from '@/hooks/useColor';
 
-defineProps<{
+const props = defineProps<{
   username: string;
+
+  userId: string;
+
+  writable: boolean;
+
+  primary: boolean;
 }>();
 
+const emit = defineEmits<{
+  (e: 'removeUser', userId: string): void;
+}>();
+
+const { t } = useI18n();
 const { lighten } = useColor();
 
 const isHovered = ref(false);
@@ -27,7 +39,21 @@ const options = [
   },
 ];
 
-const value = ref('editor');
+const selectionValue = computed(() => {
+  if (props.primary) {
+    return 'admin';
+  }
+
+  if (props.writable) {
+    return 'editor';
+  }
+
+  return 'readonly';
+});
+
+const handleRemoveUser = () => {
+  emit('removeUser', props.userId);
+};
 </script>
 
 <template>
@@ -40,26 +66,44 @@ const value = ref('editor');
     @mouseleave="isHovered = false"
   >
     <n-flex align="center">
-      <n-avatar size="medium" :style="{ backgroundColor: '#6366f1', color: 'white' }">
-        <UserRound :size="16" />
-      </n-avatar>
+      <UserRound :size="18" />
 
       <n-flex vertical class="!gap-0">
         <n-flex align="center" class="!gap-0">
-          <n-text strong> 前端开发者 </n-text>
-          <NTag round :bordered="false" type="success" size="small" class="ml-2"> 所有者 </NTag>
+          <n-text strong>
+            {{ username }}
+          </n-text>
+          <NTag round :bordered="false" :type="primary ? 'success' : 'info'" size="small" class="ml-2">
+            {{ primary ? '所有者' : '成员' }}
+          </NTag>
         </n-flex>
-        <n-text depth="3" :style="{ fontSize: '12px' }"> 最后在线：3分钟前 </n-text>
+        <!-- <n-text depth="3" :style="{ fontSize: '12px' }"> 最后在线：3分钟前 </n-text> -->
       </n-flex>
     </n-flex>
 
     <n-flex align="center" :wrap="false">
-      <n-select v-model:value="value" size="small" :options="options" style="width: 100px" />
-      <n-button secondary type="error" size="small">
-        <template #icon>
-          <Trash2 :size="16" />
+      <n-select v-model:value="selectionValue" disabled size="small" :options="options" style="width: 100px" />
+
+      <n-popconfirm
+        :ok-text="t('Confirm')"
+        :cancel-text="t('Cancel')"
+        :negative-button-props="{
+          type: 'default',
+        }"
+        :positive-button-props="{
+          type: 'error',
+        }"
+        @positive-click="handleRemoveUser"
+      >
+        <template #trigger>
+          <n-button secondary type="error" size="small" :disabled="primary">
+            <template #icon>
+              <Trash2 :size="16" />
+            </template>
+          </n-button>
         </template>
-      </n-button>
+        <span>{{ t('RemoveUser') }}</span>
+      </n-popconfirm>
     </n-flex>
   </n-flex>
 
