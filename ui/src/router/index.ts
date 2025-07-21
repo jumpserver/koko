@@ -35,11 +35,6 @@ const allRoutes: RouteRecordRaw[] = [
     name: 'Monitor',
     component: () => import('@/views/monitor/index.vue'),
   },
-  {
-    path: '/',
-    name: 'Card',
-    component: () => import('@/components/CardContainer/index.vue'),
-  },
 ];
 
 const router: Router = createRouter({
