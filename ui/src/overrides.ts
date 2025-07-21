@@ -71,12 +71,14 @@ export const createThemeOverrides = (
     Select: {
       peers: {
         InternalSelection: {
+          borderFocus: `1px solid ${lighten(10)}`,
           color: lighten(5),
+          colorActive: lighten(5),
           colorDisabled: darken(10),
           border: `1px solid ${borderColor}`,
           borderHover: `1px solid ${primaryColor}`,
           borderActive: `1px solid ${primaryColor}`,
-          borderFocus: `1px solid ${primaryColor}`,
+          boxShadowActive: lighten(10),
           textColor,
           textColorDisabled: textColorSecondary,
           placeholderColor: textColorSecondary,
@@ -88,7 +90,7 @@ export const createThemeOverrides = (
           optionTextColor: textColor,
           optionTextColorActive: textColor,
           optionTextColorPressed: textColor,
-          optionCheckColor: primaryColor,
+          optionCheckColor: '#18a058',
           groupHeaderTextColor: textColorSecondary,
           actionTextColor: textColorSecondary,
           loadingColor: primaryColor,

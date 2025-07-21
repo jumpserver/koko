@@ -56,11 +56,11 @@ const actionsPermOptions = reactive([
 
 watch(
   () => shareInfo.value.shareCode,
-  nv => {
+  (nv) => {
     if (nv) {
       showCreateForm.value = false;
     }
-  }
+  },
 );
 
 const cardTitle = computed(() => {
@@ -77,7 +77,8 @@ const mappedUserOptions = computed(() => {
       label: item.username,
       value: item.id,
     }));
-  } else {
+  }
+  else {
     return [];
   }
 });
@@ -112,60 +113,15 @@ const handleModalClose = (show: boolean) => {
   }
 };
 
-const copyShareURLHandler = () => {
-  adapterCopyShareURL();
-};
-
-const handleShareURlCreated = () => {
-  if (!shareInfo.value.sessionId) {
-    return message.error(t('FailedCreateConnection'));
-  }
-
-  loading.value = true;
-  createShareLink(shareLinkRequest);
-};
-
-const handleSearch = (_query: string) => {
-  searchLoading.value = true;
-  searchUsers(_query);
-
-  setTimeout(() => {
-    searchLoading.value = false;
-  }, 500);
-};
-
 const handleRemoveShareUser = (user: OnlineUser) => {
   removeShareUser(user);
 };
-
-const renderTag: SelectRenderTag = ({ option, handleClose }) => {
-  return h(
-    NTag,
-    {
-      closable: true,
-      size: 'small',
-      type: 'primary',
-      onMousedown: (e: FocusEvent) => {
-        e.preventDefault();
-      },
-      onClose: (e: MouseEvent) => {
-        e.stopPropagation();
-        handleClose();
-      },
-    },
-    {
-      default: () => option.label,
-    }
-  );
-};
-
-const debounceSearch = useDebounceFn(handleSearch, 300);
 </script>
 
 <template>
   <n-flex vertical align="center">
     <CardContainer :title="t('CreateLink')">
-      <CreateLink />
+      <CreateLink :disabled-create-link="!shareInfo.enableShare" />
     </CardContainer>
     <CardContainer>
       <template #custom-header>
@@ -237,7 +193,7 @@ const debounceSearch = useDebounceFn(handleSearch, 300);
     </CardContainer>
   </n-flex>
 
-  <n-modal v-model:show="showModal" :auto-focus="false" @update:show="handleModalClose">
+  <!-- <n-modal v-model:show="showModal" :auto-focus="false" @update:show="handleModalClose">
     <n-card style="width: 600px" bordered :title="cardTitle" role="dialog" size="large">
       <Transition name="fade" mode="out-in">
         <div v-if="showCreateForm" key="create-form" class="min-h-[305px] w-full">
@@ -321,7 +277,7 @@ const debounceSearch = useDebounceFn(handleSearch, 300);
         </div>
       </Transition>
     </n-card>
-  </n-modal>
+  </n-modal> -->
 </template>
 
 <style scoped>

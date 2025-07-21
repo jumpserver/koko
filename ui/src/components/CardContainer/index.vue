@@ -6,7 +6,7 @@ const props = defineProps<{
   title?: string;
 }>();
 
-const collapseStatus = ref(false);
+const collapseStatus = ref(true);
 
 const handleCollapse = ({ expanded }: { expanded: boolean }) => {
   collapseStatus.value = expanded;
@@ -15,7 +15,12 @@ const handleCollapse = ({ expanded }: { expanded: boolean }) => {
 
 <template>
   <n-card bordered>
-    <n-collapse :trigger-areas="['extra', 'main']" :default-expanded-names="['1']" @item-header-click="handleCollapse">
+    <n-collapse
+      :trigger-areas="['extra', 'main']"
+      :default-expanded-names="['1']"
+      display-directive="show"
+      @item-header-click="handleCollapse"
+    >
       <n-collapse-item :title="title" name="1">
         <slot name="default" />
 
