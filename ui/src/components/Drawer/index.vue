@@ -47,7 +47,7 @@ const drawerTabs = [
 
 const hasToken = ref(false);
 const showEmpty = ref(false);
-const drawerStatus = ref(false);
+const drawerStatus = ref(true);
 const isRequestingToken = ref(false);
 const fileManagerToken = ref('');
 const timeoutId = ref<number | null>(null);
@@ -151,6 +151,7 @@ onMounted(() => {
   });
 
   const initialDisbaleFileManager = lunaCommunicator.getDisbaleFileManager();
+
   if (initialDisbaleFileManager) {
     isDisableFileManager.value = initialDisbaleFileManager;
   }
@@ -179,8 +180,8 @@ onUnmounted(() => {
     placement="right"
     :show="true"
     :show-mask="false"
-    :default-width="502"
-    :min-width="502"
+    :default-width="600"
+    :min-width="600"
     :max-width="800"
     class="relative"
     :style="{
@@ -199,23 +200,31 @@ onUnmounted(() => {
         </n-flex>
       </template>
 
-      <n-tabs size="medium" type="line" :default-value="filteredDrawerTabs[0].name" @update:value="handleTabChange">
-        <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
-          <template #tab>
-            <n-flex align="center">
-              <component :is="tab.icon" :size="16" />
-              <span>{{ tab.label }}</span>
-            </n-flex>
-          </template>
+      <n-card bordered>
+        <n-tabs
+          animated
+          size="medium"
+          type="segment"
+          :default-value="filteredDrawerTabs[0].name"
+          @update:value="handleTabChange"
+        >
+          <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
+            <template #tab>
+              <n-flex align="center">
+                <component :is="tab.icon" :size="16" />
+                <span>{{ tab.label }}</span>
+              </n-flex>
+            </template>
 
-          <component
-            :is="tab.component"
-            :sftp-token="fileManagerToken"
-            :show-empty="showEmpty"
-            @reconnect="handleReconnect"
-          />
-        </n-tab-pane>
-      </n-tabs>
+            <component
+              :is="tab.component"
+              :sftp-token="fileManagerToken"
+              :show-empty="showEmpty"
+              @reconnect="handleReconnect"
+            />
+          </n-tab-pane>
+        </n-tabs>
+      </n-card>
     </n-drawer-content>
   </n-drawer>
 </template>

@@ -10,6 +10,7 @@ import mittBus from '@/utils/mittBus';
 import { useTreeStore } from '@/store/modules/tree';
 import { useTerminalStore } from '@/store/modules/terminal';
 import { useSessionAdapter } from '@/hooks/useSessionAdapter';
+import CardContainer from '@/components/CardContainer/index.vue';
 
 interface KeyboardItem {
   icon?: FunctionalComponent;
@@ -90,13 +91,7 @@ function writeDataToTerminal(type: string) {
 </script>
 
 <template>
-  <div>
-    <n-divider title-placement="left" dashed class="!mb-3 !mt-0">
-      <n-text depth="2" class="text-sm opacity-70">
-        {{ t('AvailableShortcutKey') }}
-      </n-text>
-    </n-divider>
-
+  <CardContainer :title="t('AvailableShortcutKey')">
     <n-grid x-gap="8" y-gap="8" :cols="2">
       <n-gi v-for="item in keyboardList" :key="item.label">
         <n-card
@@ -117,5 +112,5 @@ function writeDataToTerminal(type: string) {
         </n-card>
       </n-gi>
     </n-grid>
-  </div>
+  </CardContainer>
 </template>
