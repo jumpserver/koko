@@ -237,6 +237,7 @@ func (s *Server) GetFilterParser() *Parser {
 	platform := s.connOpts.authInfo.Platform
 	// 过滤规则排序
 	sort.Sort(model.CommandACLs(filterRules))
+	pty := s.UserConn.Pty()
 	parser := Parser{
 		id:             s.ID,
 		protocolType:   protocol,
@@ -248,7 +249,7 @@ func (s *Server) GetFilterParser() *Parser {
 		i18nLang:       s.connOpts.i18nLang,
 		platform:       &platform,
 	}
-	parser.initial()
+	parser.initial(pty.Window.Width, pty.Window.Height)
 	return &parser
 }
 
