@@ -3,11 +3,20 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/LeeEirc/terminalparser"
 )
+
+var terminalDebug = false
+
+func init() {
+	if os.Getenv("TERMINALPARSER") != "" {
+		terminalDebug = true
+	}
+}
 
 const maxBufSize = 1024 * 100
 
@@ -44,24 +53,42 @@ func (s *TerminalParser) Feed(p []byte) {
 	if s.state == OutputState {
 		currentRow := s.Screen.GetCursorRow()
 		if currentRow.String() == s.Ps1sStr && s.cmd != "" {
-			// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
 			outputBuf := s.TryOutput()
-			//fmt.Println("=============================")
-			//fmt.Println("command input:  ", s.cmd)
-			//fmt.Println("command output: ", outputBuf)
 			if s.EmitCommands != nil {
 				s.EmitCommands(s.cmd, outputBuf)
 			}
+			if terminalDebug {
+				// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+				fmt.Println("============= match ps1 command================")
+				fmt.Println("ps1: ", s.Ps1sStr)
+				fmt.Println("command input:  ", s.cmd)
+				fmt.Println("command output: ", outputBuf)
+				fmt.Println("===============================================")
+				// 这个时候应该是 输入状态了，命令结束了
+			}
 			s.cmd = ""
-			//fmt.Println("================")
-			// 这个时候应该是 输入状态了，命令结束了
+			return
 		}
 	}
-
+	s.PrintLatestLines(10)
 }
 
 func (s *TerminalParser) OnSize() {
 
+}
+
+func (s *TerminalParser) PrintLatestLines(num int) {
+	if !terminalDebug {
+		return
+	}
+	maxRow := len(s.Screen.Rows)
+	start := maxRow - num
+	if start < 0 {
+		start = 0
+	}
+	for i := start; i < maxRow; i++ {
+		fmt.Println(s.Screen.Rows[i].String())
+	}
 }
 
 func (s *TerminalParser) TryOutput() string {
