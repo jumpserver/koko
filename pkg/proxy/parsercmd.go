@@ -2,92 +2,129 @@ package proxy
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/LeeEirc/terminalparser"
-
-	"github.com/jumpserver/koko/pkg/logger"
 )
 
 const maxBufSize = 1024 * 100
 
-func NewCmdParser(sid, name string) *CmdParser {
-	parser := CmdParser{id: sid, name: name}
-	return &parser
+const (
+	InputPreState = iota + 1
+	InputState
+	InVimState
+	OutputState
+)
+
+type TerminalParser struct {
+	InputBuf  bytes.Buffer
+	OutputBuf bytes.Buffer
+	Ps1sStr   string
+	Screen    terminalparser.Screen
+	state     int
+	once      sync.Once
+	mux       sync.Mutex
+
+	IsEnter func(p []byte) bool
+	cmd     string
+
+	EmitCommands func(cmd, out string)
 }
 
-type CmdParser struct {
-	id   string
-	name string
-
-	buf  bytes.Buffer
-	lock sync.Mutex
-
-	ps1 string
-}
-
-func (cp *CmdParser) WriteData(p []byte) (int, error) {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
-	if cp.buf.Len() > maxBufSize {
-		return 0, nil
-	}
-	return cp.buf.Write(p)
-}
-
-func (cp *CmdParser) Close() error {
-	logger.Infof("session ID: %s, ParseEngine name: %s Close", cp.id, cp.name)
-	return nil
-}
-
-func (cp *CmdParser) removePs1(s string) string {
-	// 通过去除Ps1 获取完整的命令
-	return strings.TrimPrefix(s, cp.ps1)
-}
-
-// Parse 解析命令或输出
-func (cp *CmdParser) Parse() []string {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
-	lines := make([]string, 0, 100)
-	for _, line := range cp.parse(cp.buf.Bytes()) {
-		line = cp.removePs1(line)
-		if line != "" {
-			lines = append(lines, line)
-		}
-	}
-	cp.buf.Reset()
-	return lines
-}
-
-func (cp *CmdParser) GetPs1() string {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
-	lines := cp.parse(cp.buf.Bytes())
-	if len(lines) == 0 {
-		return ""
-	}
-	cp.ps1 = lines[len(lines)-1]
-	// output的最后行大概率可能是 ps1
-	return cp.ps1
-}
-
-func (cp *CmdParser) SetPs1(s string) {
-	cp.lock.Lock()
-	defer cp.lock.Unlock()
-	cp.ps1 = s
-}
-
-func (cp *CmdParser) parse(p []byte) []string {
+func (s *TerminalParser) Feed(p []byte) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[%s] %s panic: %s\n", cp.id, cp.name, r)
+			fmt.Println("Recovered from panic:", r)
 		}
 	}()
-	s := terminalparser.Screen{
-		Rows:   make([]*terminalparser.Row, 0, 1024),
-		Cursor: &terminalparser.Cursor{},
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.Screen.Feed(p)
+	if s.state == OutputState {
+		s.OutputBuf.Write(p)
+		currentRow := s.Screen.GetCursorRow()
+		if currentRow.String() == s.Ps1sStr && s.cmd != "" {
+			// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+			outputBuf := s.TryOutput()
+			//fmt.Println("=============================")
+			//fmt.Println("command input:  ", s.cmd)
+			//fmt.Println("command output: ", outputBuf)
+			if s.EmitCommands != nil {
+				s.EmitCommands(s.cmd, outputBuf)
+			}
+			s.cmd = ""
+			//fmt.Println("================")
+			// 这个时候应该是 输入状态了，命令结束了
+		}
 	}
-	return s.Parse(p)
+
+}
+
+func (s *TerminalParser) OnSize() {
+
+}
+
+func (s *TerminalParser) TryOutput() string {
+	// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+	rows := s.Screen.Rows
+	maxRows := len(rows) - 1
+	outputRows := make([]string, 0, maxRows)
+	for i := maxRows - 1; i >= 0; i-- {
+		row := rows[i]
+		// insert row to outputRows first
+		if strings.HasPrefix(row.String(), s.Ps1sStr) {
+			break
+		}
+		outputRows = append(outputRows, row.String())
+	}
+	var outputBuf bytes.Buffer
+	for i := len(outputRows) - 1; i >= 0; i-- {
+		outputBuf.WriteString(outputRows[i])
+		outputBuf.Write([]byte{'\r', '\n'})
+	}
+	return outputBuf.String()
+}
+
+func DefaultEnterKeyPressHandler(p []byte) bool {
+	return p[len(p)-1] == charEnter[0]
+}
+
+func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
+	if len(chars) == 0 {
+		return "", false
+	}
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.once.Do(func() {
+		s.state = InputState
+		s.Ps1sStr = s.GetPs1()
+	})
+	isEnterFunc := DefaultEnterKeyPressHandler
+	if s.IsEnter != nil {
+		isEnterFunc = s.IsEnter
+	}
+
+	if isEnterFunc(chars) {
+		s.state = OutputState
+		lastLine := s.Screen.GetCursorRow()
+		cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
+		s.InputBuf.Reset()
+		s.cmd = cmd
+		return cmd, true
+	}
+	if s.state == OutputState {
+		s.state = InputState
+		s.Ps1sStr = s.GetPs1()
+		s.OutputBuf.Reset()
+	}
+	s.InputBuf.Write(chars)
+	return "", false
+}
+
+func (s *TerminalParser) GetPs1() string {
+	row := s.Screen.GetCursorRow()
+	rowStr := row.String()
+	return strings.TrimSuffix(rowStr, s.InputBuf.String())
 }
