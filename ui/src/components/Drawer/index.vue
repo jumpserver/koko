@@ -47,7 +47,7 @@ const drawerTabs = [
 
 const hasToken = ref(false);
 const showEmpty = ref(false);
-const drawerStatus = ref(true);
+const drawerStatus = ref(false);
 const isRequestingToken = ref(false);
 const fileManagerToken = ref('');
 const timeoutId = ref<number | null>(null);
