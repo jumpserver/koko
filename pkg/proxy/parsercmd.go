@@ -19,13 +19,12 @@ const (
 )
 
 type TerminalParser struct {
-	InputBuf  bytes.Buffer
-	OutputBuf bytes.Buffer
-	Ps1sStr   string
-	Screen    terminalparser.Screen
-	state     int
-	once      sync.Once
-	mux       sync.Mutex
+	InputBuf bytes.Buffer
+	Ps1sStr  string
+	Screen   terminalparser.Screen
+	state    int
+	once     sync.Once
+	mux      sync.Mutex
 
 	IsEnter func(p []byte) bool
 	cmd     string
@@ -43,7 +42,6 @@ func (s *TerminalParser) Feed(p []byte) {
 	defer s.mux.Unlock()
 	s.Screen.Feed(p)
 	if s.state == OutputState {
-		s.OutputBuf.Write(p)
 		currentRow := s.Screen.GetCursorRow()
 		if currentRow.String() == s.Ps1sStr && s.cmd != "" {
 			// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
@@ -117,7 +115,6 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	if s.state == OutputState {
 		s.state = InputState
 		s.Ps1sStr = s.GetPs1()
-		s.OutputBuf.Reset()
 	}
 	s.InputBuf.Write(chars)
 	return "", false
