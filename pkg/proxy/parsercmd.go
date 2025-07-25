@@ -45,6 +45,15 @@ type TerminalParser struct {
 	EmitCommands func(cmd, out string)
 }
 
+func (s *TerminalParser) SetState(state int) {
+	s.state = state
+}
+
+func (s *TerminalParser) resetCommand() {
+	s.cmd = ""
+
+}
+
 func (s *TerminalParser) Feed(p []byte) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -122,6 +131,7 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	}
 	s.mux.Lock()
 	defer s.mux.Unlock()
+
 	s.once.Do(func() {
 		s.state = InputState
 		s.Ps1sStr = s.GetPs1()
