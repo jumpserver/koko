@@ -18,6 +18,10 @@ func init() {
 	}
 }
 
+func DefaultEnterKeyPressHandler(p []byte) bool {
+	return p[len(p)-1] == charEnter[0]
+}
+
 const maxBufSize = 1024 * 100
 
 const (
@@ -112,10 +116,6 @@ func (s *TerminalParser) TryOutput() string {
 	return outputBuf.String()
 }
 
-func DefaultEnterKeyPressHandler(p []byte) bool {
-	return p[len(p)-1] == charEnter[0]
-}
-
 func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	if len(chars) == 0 {
 		return "", false
@@ -132,12 +132,10 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	}
 
 	if isEnterFunc(chars) {
+		// 针对多行命令，从最新一行，往前查找到最近一次的 ps1 之间的都是命令
 		s.state = OutputState
-		lastLine := s.Screen.GetCursorRow()
-		cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-		s.InputBuf.Reset()
-		s.cmd = cmd
-		return cmd, true
+		s.cmd = s.TryInput()
+		return s.cmd, true
 	}
 	if s.state == OutputState {
 		s.state = InputState
@@ -145,6 +143,13 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	}
 	s.InputBuf.Write(chars)
 	return "", false
+}
+
+func (s *TerminalParser) TryInput() string {
+	lastLine := s.Screen.GetCursorRow()
+	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
+	s.InputBuf.Reset()
+	return cmd
 }
 
 func (s *TerminalParser) GetPs1() string {
