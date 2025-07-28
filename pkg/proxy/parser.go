@@ -197,6 +197,10 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 	if len(b) > 1 && bytes.HasSuffix(b, charLF) && isLinux(p.platform) {
 		return true
 	}
+	// 多行命令，会有 \r 字符，此处也需要拦截
+	if bytes.ContainsRune(b, '\r') {
+		return true
+	}
 	return false
 }
 
@@ -328,7 +332,6 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 		return nil
 	}
-
 	if currentCmd, ok1 := p.TerminalParser.WriteInput(b); ok1 {
 		p.sendCommandRecord()
 		p.command = currentCmd
@@ -364,6 +367,11 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			default:
 			}
 		}
+		if strings.Contains(p.command, "\r") {
+			// 先记录一次 多行命令的输入，output 暂且为空
+			p.sendCommandToChan()
+			p.command = ""
+		}
 	}
 	return b
 }
@@ -389,10 +397,11 @@ func (p *Parser) IsNeedParse() bool {
 
 func (p *Parser) forbiddenCommand(cmd string) {
 	lang := i18n.NewLang(p.i18nLang)
-	fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
-	p.srvOutputChan <- []byte("\r\n" + fbdMsg)
+	fbdMsg := fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd)
+	p.srvOutputChan <- []byte("\r\n" + utils.WrapperWarn(fbdMsg))
 	p.output = fbdMsg
 	p.sendCommandToChan()
+	p.TerminalParser.resetCommand()
 	p.userOutputChan <- p.breakInputPacket()
 }
 
@@ -603,22 +612,28 @@ func (p *Parser) Close() {
 
 func (p *Parser) sendCommandRecord() {
 	if p.command != "" {
-		//p.parseCmdOutput()
 		p.output = p.TerminalParser.TryOutput()
 		p.sendCommandToChan()
 	}
+
 }
 
 func (p *Parser) EmitCommandEvent(cmd string, outputBuf string) {
+	if cmd == "" {
+		logger.Debugf("Session %s: Command cannot be empty: %s", p.id, outputBuf)
+		return
+	}
 	p.command = cmd
 	p.output = outputBuf
-	p.sendCommandRecord()
+	p.sendCommandToChan()
 }
 
 func (p *Parser) sendCommandToChan() {
 	if p.command == "" {
 		return
 	}
+	cmd := p.command
+	output := p.output
 	cmdFilterId := ""
 	cmdGroupId := ""
 	if rule := p.getCurrentCmdFilterRule(); rule.Acl != nil {
@@ -626,8 +641,8 @@ func (p *Parser) sendCommandToChan() {
 		cmdGroupId = rule.Item.ID
 	}
 	p.cmdRecordChan <- &ExecutedCommand{
-		Command:        p.command,
-		Output:         p.output,
+		Command:        cmd,
+		Output:         output,
 		CreatedDate:    p.cmdCreateDate,
 		RiskLevel:      p.getCurrentCmdStatusLevel(),
 		CmdFilterACLId: cmdFilterId,
@@ -741,12 +756,12 @@ func (p *Parser) breakInputPacket() []byte {
 		if isH3C(p.platform) {
 			return []byte{CharCTRLE, CharCTRLX, '\r'}
 		}
-		return []byte{tclientlib.IAC, tclientlib.BRK, '\r'}
+		return []byte{tclientlib.IAC, tclientlib.BRK, CharCTRLC, '\r'}
 	case model.ProtocolSSH:
 		if isH3C(p.platform) {
 			return []byte{CharCTRLE, CharCTRLX, '\r'}
 		}
-		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
+		return []byte{CharCTRLE, utils.CharCleanLine, CharCTRLC, '\r'}
 	default:
 	}
 	return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
