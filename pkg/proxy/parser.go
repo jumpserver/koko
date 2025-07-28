@@ -614,7 +614,9 @@ func (p *Parser) sendCommandRecord() {
 	if p.command != "" {
 		p.output = p.TerminalParser.TryOutput()
 		p.sendCommandToChan()
+		return
 	}
+	p.TerminalParser.TryMultipleCommands()
 
 }
 
