@@ -60,8 +60,7 @@ func (s *TerminalParser) resetCommand() {
 func (s *TerminalParser) Feed(p []byte) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("Recovered from panic:", r)
-			fmt.Println(string(debug.Stack()))
+			fmt.Printf("Recovered from panic: %s %s\n", r, string(debug.Stack()))
 		}
 	}()
 	s.mux.Lock()
@@ -117,24 +116,35 @@ func (s *TerminalParser) TryOutput() string {
 	maxRows := len(rows) - 1
 	outputRows := make([]string, 0, maxRows)
 	var matchCmd bool
+	ps1 := s.Ps1sStr
+	half := len(ps1) / 2
+	halfPs1 := ps1[:half]
 	for i := maxRows - 1; i >= 0; i-- {
 		row := rows[i]
+		rowStr := row.String()
 		// insert row to outputRows first
-		if strings.HasPrefix(row.String(), s.Ps1sStr) {
+		if strings.HasPrefix(rowStr, s.Ps1sStr) && strings.HasPrefix(rowStr, halfPs1) {
 			matchCmd = true
 			break
 		}
-		outputRows = append(outputRows, row.String())
+		outputRows = append(outputRows, rowStr)
 	}
 	if !matchCmd {
 		return ""
 	}
-	var outputBuf bytes.Buffer
-	for i := len(outputRows) - 1; i >= 0; i-- {
-		outputBuf.WriteString(outputRows[i])
-		outputBuf.Write([]byte{'\r', '\n'})
+	s.ResizeRows()
+	return reverseString(outputRows)
+}
+
+func (s *TerminalParser) ResizeRows() {
+	rowsLen := len(s.Screen.Rows)
+	oldRows := s.Screen.Rows
+	if rowsLen > 5000 {
+		rows := make([]*terminalparser.Row, 0, 3000)
+		start := rowsLen - 3000
+		rows = append(rows, oldRows[start:]...)
+		s.Screen.Rows = rows
 	}
-	return outputBuf.String()
 }
 
 func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
@@ -217,19 +227,22 @@ func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 			break
 		}
 	}
+	ps1 := s.Ps1sStr
+	half := len(ps1) / 2
+	halfPs1 := ps1[:half]
+	if terminalDebug {
+		fmt.Println("ps1: ", ps1, " halfPs1: ", halfPs1)
+	}
 	for i := len(cmds) - 1; i >= 0; i-- {
 		currentCommand := cmds[i]
 		if currentCommand == "" {
 			continue
 		}
-		ps1 := s.Ps1sStr
-		half := len(cmds) / 2
-		halfPs1 := ps1[:half]
 		for j > 0 {
 			row := rows[j]
 			rowStr := row.String()
 			j--
-			if strings.Contains(rowStr, currentCommand) && strings.HasPrefix(rowStr, halfPs1) {
+			if strings.Contains(rowStr, currentCommand) && strings.Contains(rowStr, halfPs1) {
 				// 匹配到 当前的命令，获取下所有的output
 				output := reverseString(outputs)
 				if s.EmitCommands != nil {
@@ -270,9 +283,11 @@ func (s *TerminalParser) TryMultipleCommands() {
 			//排除最后一个未执行的
 			commands = commands[:len(commands)-1]
 		}
-		for i := len(commands) - 1; i >= 0; i-- {
-			cmd := commands[i]
-			fmt.Printf("may be command: `%s`\n", cmd)
+		if terminalDebug {
+			for i := len(commands) - 1; i >= 0; i-- {
+				cmd := commands[i]
+				fmt.Printf("may be command: `%s`\n", cmd)
+			}
 		}
 		s.FindCommands(commands, startCommand)
 		s.commands = nil

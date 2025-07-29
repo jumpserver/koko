@@ -181,6 +181,7 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				// 每隔一分钟超时，尝试结算一次命令
 				if now.Sub(lastActiveTime) > time.Minute {
 					p.sendCommandRecord()
+					p.TerminalParser.TryMultipleCommands()
 				}
 				continue
 			}
@@ -616,7 +617,6 @@ func (p *Parser) sendCommandRecord() {
 		p.sendCommandToChan()
 		return
 	}
-	p.TerminalParser.TryMultipleCommands()
 
 }
 
