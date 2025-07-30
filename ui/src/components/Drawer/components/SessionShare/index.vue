@@ -27,7 +27,7 @@ const handleRemoveShareUser = (userId: string) => {
     </CardContainer>
     <CardContainer>
       <template #custom-header>
-        <n-text>会话成员</n-text>
+        <n-text class="text-xs-plus">会话成员</n-text>
 
         <NTag round :bordered="false" type="success" size="small" class="ml-2">
           {{ onlineUsers?.length || 0 }} 人

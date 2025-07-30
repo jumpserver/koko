@@ -102,9 +102,9 @@ function writeDataToTerminal(type: string) {
         >
           <template #default>
             <n-flex align="center" justify="center" :size="12" class="!gap-0">
-              <component :is="item.icon" :size="20" class="text-white/90 flex-shrink-0" />
+              <component :is="item.icon" :size="16" class="text-white/90 flex-shrink-0" />
 
-              <n-text class="text-sm text-white/90">
+              <n-text class="text-xs-plus text-white/90">
                 {{ item.label }}
               </n-text>
             </n-flex>
