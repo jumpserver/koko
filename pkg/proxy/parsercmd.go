@@ -89,7 +89,7 @@ func (s *TerminalParser) Feed(p []byte) {
 
 		// 多行命令 解析需要等完整输出，等下次输入的结果中，解析数据。参见WriteInput 里对 len(s.commands) >= 1  的处理
 	}
-	//s.PrintLatestLines(10)
+	s.PrintLatestLines(10)
 }
 
 func (s *TerminalParser) OnSize() {

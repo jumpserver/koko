@@ -763,7 +763,7 @@ func (p *Parser) breakInputPacket() []byte {
 		if isH3C(p.platform) {
 			return []byte{CharCTRLE, CharCTRLX, '\r'}
 		}
-		return []byte{CharCTRLE, utils.CharCleanLine, CharCTRLC, '\r'}
+		return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
 	default:
 	}
 	return []byte{CharCTRLE, utils.CharCleanLine, '\r'}
