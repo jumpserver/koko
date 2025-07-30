@@ -26,11 +26,11 @@ const isHovered = ref(false);
 
 const options = [
   {
-    label: '可编辑',
+    label: t('Writable'),
     value: 'editor',
   },
   {
-    label: '只读',
+    label: t('ReadOnly'),
     value: 'readonly',
   },
   {
@@ -70,7 +70,7 @@ const handleRemoveUser = () => {
 
       <n-flex vertical class="!gap-0">
         <n-flex align="center" class="!gap-0">
-          <n-text strong>
+          <n-text strong class="text-xs-plus">
             {{ username }}
           </n-text>
           <NTag round :bordered="false" :type="primary ? 'success' : 'info'" size="small" class="ml-2">
