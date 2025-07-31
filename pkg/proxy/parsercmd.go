@@ -55,7 +55,7 @@ func (s *TerminalParser) SetState(state int) {
 
 func (s *TerminalParser) resetCommand() {
 	s.cmd = ""
-
+	s.commands = nil
 }
 
 func (s *TerminalParser) Feed(p []byte) {
@@ -150,6 +150,11 @@ func (s *TerminalParser) ResizeRows() {
 
 func IsPrintable(s string) bool {
 	for _, r := range s {
+		switch r {
+		case '\t', '\n', '\r':
+			continue
+		default:
+		}
 		if !unicode.IsPrint(r) {
 			return false
 		}
@@ -197,8 +202,13 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 		} else {
 			s.cmd = cmd
 			suffixCmd := cmd[len(cmd)/2:]
-			if IsPrintable(inputStr) && strings.Contains(inputStr, suffixCmd) {
-				cmd = inputStr
+			if IsPrintable(inputStr) {
+				if strings.Contains(inputStr, suffixCmd) {
+					cmd = inputStr
+				} else if strings.Contains(inputStr, "\r") {
+					s.commands = strings.Split(inputStr, "\r")
+					cmd = inputStr
+				}
 			}
 		}
 		if terminalDebug {
