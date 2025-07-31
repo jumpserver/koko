@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
 )
@@ -147,6 +148,15 @@ func (s *TerminalParser) ResizeRows() {
 	}
 }
 
+func IsPrintable(s string) bool {
+	for _, r := range s {
+		if !unicode.IsPrint(r) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	if len(chars) == 0 {
 		return "", false
@@ -170,22 +180,33 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	/*
 		如果是多行命令，先完全解析下 input 内容做拦截，具体的执行命令及结果，则从命令解析器里面查找内容
 	*/
+	s.InputBuf.Write(chars)
 	if isEnterFunc(chars) {
 		// 针对多行命令，从最新一行，往前查找到最近一次的 ps1 之间的都是命令
+		inputStr := strings.TrimSpace(s.InputBuf.String())
 		s.state = OutputState
 		cmd := s.TryInput()
 
 		if cmd == "" && len(chars) > 1 {
-			cmd = string(chars[:])
-			s.commands = strings.Split(string(chars), "\r")
+			//从返回值解析，cmd 为 空的情况下，当前输入的则为
+			cmd = strings.TrimSpace(string(chars))
+			if strings.Contains(cmd, "\r") {
+				// 多行命令
+				s.commands = strings.Split(cmd, "\r")
+			}
 		} else {
 			s.cmd = cmd
+			suffixCmd := cmd[len(cmd)/2:]
+			if IsPrintable(inputStr) && strings.Contains(inputStr, suffixCmd) {
+				cmd = inputStr
+			}
 		}
 		if terminalDebug {
 			// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
 			fmt.Println("============= enter command================")
 			fmt.Println("ps1: ", s.Ps1sStr)
-			fmt.Println("command input:  ", s.cmd)
+			fmt.Println("command input1:  ", cmd)
+			fmt.Println("command input2:  ", s.cmd)
 			fmt.Println("commands :  ", s.commands)
 			fmt.Println("===============================================")
 			// 这个时候应该是 输出状态了，命令结束了
@@ -196,7 +217,6 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 		s.state = InputState
 		s.Ps1sStr = s.GetPs1()
 	}
-	s.InputBuf.Write(chars)
 	return "", false
 }
 
@@ -204,7 +224,7 @@ func (s *TerminalParser) TryInput() string {
 	lastLine := s.Screen.GetCursorRow()
 	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
 	s.InputBuf.Reset()
-	return cmd
+	return strings.TrimSpace(cmd)
 }
 
 func (s *TerminalParser) GetPs1() string {
