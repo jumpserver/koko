@@ -200,7 +200,7 @@ const handleBack = () => {
           :style="{
             border: item.checked ? `1px solid ${lighten(20)}` : '',
           }"
-          style="width: 100px; height: 45px"
+          style="width: 110px; height: 45px"
           @click="handleChangeExpired(item.value)"
         >
           <n-text depth="2" class="text-xs-plus">

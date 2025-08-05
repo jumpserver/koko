@@ -81,7 +81,7 @@ export const createThemeOverrides = (
           boxShadowActive: lighten(10),
           textColor,
           textColorDisabled: textColorSecondary,
-          placeholderColor: textColorSecondary,
+          placeholderColor: 'rgba(255,255,255,0.5)',
           placeholderColorDisabled: alpha(0.4),
           boxShadowFocus: `0 0 0 2px ${alpha(0.2)}`,
         },
