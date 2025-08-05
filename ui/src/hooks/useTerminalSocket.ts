@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { readText, writeText } from 'clipboard-polyfill';
@@ -87,6 +88,7 @@ export const useTerminalSocket = () => {
   const terminalSettingsStore = useTerminalSettingsStore();
 
   const fitAddon = new FitAddon();
+  const webglAddon = new WebglAddon();
   const searchAddon = new SearchAddon();
 
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
@@ -399,10 +401,10 @@ export const useTerminalSocket = () => {
         const currentDate = new Date();
 
         if (lastReceiveTime.value.getTime() - currentDate.getTime() > MaxTimeout) {
-           console.error('More than 30 seconds do not receive data');
+          console.error('More than 30 seconds do not receive data');
         }
 
-        const pingTimeout = (currentDate.getTime() - lastSendTime.value.getTime()) - MaxTimeout;
+        const pingTimeout = currentDate.getTime() - lastSendTime.value.getTime() - MaxTimeout;
 
         if (pingTimeout < 0) {
           return;
@@ -553,6 +555,7 @@ export const useTerminalSocket = () => {
     });
 
     terminal.loadAddon(fitAddon);
+    terminal.loadAddon(webglAddon);
     terminal.loadAddon(searchAddon);
 
     terminalRef.value = terminal;
