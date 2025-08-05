@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-storage-blob-go v0.6.0
 	github.com/LeeEirc/elfinder v0.0.15
 	github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d
-	github.com/LeeEirc/terminalparser v0.0.0-20250722111820-97b49b02acd2
+	github.com/LeeEirc/terminalparser v0.0.0-20250805101945-5d98f4a35511
 	github.com/aliyun/aliyun-oss-go-sdk v2.2.7+incompatible
 	github.com/aws/aws-sdk-go v1.44.306
 	github.com/creack/pty v1.1.24
