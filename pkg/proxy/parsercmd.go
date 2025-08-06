@@ -61,7 +61,9 @@ func (s *TerminalParser) resetCommand() {
 func (s *TerminalParser) Feed(p []byte) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Recovered from panic: %s %s\n", r, string(debug.Stack()))
+			if terminalDebug {
+				fmt.Printf("Recovered from panic: %s %s\n", r, string(debug.Stack()))
+			}
 		}
 	}()
 	s.mux.Lock()
