@@ -41,8 +41,12 @@ var (
 		[]byte("\x1b[?47l"),
 	}
 	screenMarks = [][]byte{
-		{0x1b, 0x5b, 0x4b, 0x0d, 0x0a},
-		{0x1b, 0x5b, 0x34, 0x6c},
+		{0x1b, 0x5b, 0x4b, 0x0d, 0x0a}, // 4b 0d 0a
+		//{0x1b, 0x5b, 0x34, 0x6c},
+	}
+	vimMarks = [][]byte{
+		{0x1b, 0x5b, 0x32, 0x3b, 0x31},                         // ESC ] 2;  设置标题 1b 5b 32 3b 31
+		{0x1b, 0x5b, 0x32, 0x32, 0x3b, 0x30, 0x3b, 0x30, 0x74}, // 1b 5b 32 32 3b 30 3b 30  74
 	}
 )
 
@@ -56,6 +60,9 @@ type Parser struct {
 	cmdRecordChan  chan *ExecutedCommand
 
 	TerminalParser *TerminalParser
+
+	isScreenMode bool
+	isEditMode   bool
 
 	inVimState bool
 	once       sync.Once
@@ -383,8 +390,9 @@ func (p *Parser) supportMultiCmd() bool {
 		model.ProtocolTelnet,
 		model.ProtocolK8S:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func (p *Parser) IsNeedParse() bool {
@@ -423,15 +431,29 @@ func (p *Parser) parseZmodemState(b []byte) {
 
 // parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
 func (p *Parser) parseVimState(b []byte) {
-	if !p.inVimState && IsEditEnterMode(b) {
-		if !isNewScreen(b) {
+	if !p.isEditMode && IsEditEnterMode(b) {
+		p.isEditMode = true
+		logger.Debugf("Session %s enter edit mode", p.id)
+	}
+	if p.isEditMode {
+		//if !p.inVimState && !p.isScreenMode {
+		//	fmt.Println("-----------hexdump---------")
+		//	fmt.Println(hex.Dump(b))
+		//}
+		if !p.isScreenMode && isNewScreen(b) {
+			p.isScreenMode = true
+			logger.Debugf("Session %s In screen state: true", p.id)
+		}
+		if !p.isScreenMode && !p.inVimState && matchMark(b, vimMarks) {
 			p.inVimState = true
-			logger.Debug("In vim state: true")
+			logger.Debugf("Session %s In vim state: true", p.id)
 		}
 	}
-	if p.inVimState && IsEditExitMode(b) {
+	if p.isEditMode && IsEditExitMode(b) {
+		p.isEditMode = false
 		p.inVimState = false
-		logger.Debug("In vim state: false")
+		p.isScreenMode = false
+		logger.Debugf("Session %s exit ( edit | vim | screen) mode", p.id)
 	}
 }
 
