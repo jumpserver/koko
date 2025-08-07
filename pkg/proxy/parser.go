@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"strings"
@@ -42,11 +43,11 @@ var (
 	}
 	screenMarks = [][]byte{
 		{0x1b, 0x5b, 0x4b, 0x0d, 0x0a}, // 4b 0d 0a
-		//{0x1b, 0x5b, 0x34, 0x6c},
+		//{0x1b, 0x5b, 0x34, 0x6c}, // 1b 5b 34 6c
 	}
 	vimMarks = [][]byte{
-		{0x1b, 0x5b, 0x32, 0x3b, 0x31},                         // ESC ] 2;  设置标题 1b 5b 32 3b 31
-		{0x1b, 0x5b, 0x32, 0x32, 0x3b, 0x30, 0x3b, 0x30, 0x74}, // 1b 5b 32 32 3b 30 3b 30  74
+		{0x1b, 0x5b, 0x32, 0x3b, 0x31}, // ESC ] 2;  设置标题 1b 5b 32 3b 31
+		//{0x1b, 0x5b, 0x32, 0x32, 0x3b, 0x30, 0x3b, 0x30, 0x74}, // 1b 5b 32 32 3b 30 3b 30  74  设置标题的控制字符
 	}
 )
 
@@ -442,11 +443,16 @@ func (p *Parser) parseVimState(b []byte) {
 		//}
 		if !p.isScreenMode && isNewScreen(b) {
 			p.isScreenMode = true
+			p.inVimState = false
 			logger.Debugf("Session %s In screen state: true", p.id)
 		}
 		if !p.isScreenMode && !p.inVimState && matchMark(b, vimMarks) {
 			p.inVimState = true
 			logger.Debugf("Session %s In vim state: true", p.id)
+			if terminalDebug {
+				fmt.Println("-----------vim hexdump---------")
+				fmt.Println(hex.Dump(b))
+			}
 		}
 	}
 	if p.isEditMode && IsEditExitMode(b) {
