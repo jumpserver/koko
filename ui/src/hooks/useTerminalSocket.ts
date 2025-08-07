@@ -60,7 +60,7 @@ export const useTerminalSocket = () => {
   const { createSentry } = useZmodem();
   const { width, height } = useWindowSize();
 
-  const { sendLunaEvent, emitTerminalConnect, emitTerminalSession } = useTerminalEvents();
+  const { sendLunaEvent, emitTerminalConnect, emitTerminalSession, sendMittEvent } = useTerminalEvents();
 
   const containerRef = shallowRef<HTMLElement>();
 
@@ -481,6 +481,16 @@ export const useTerminalSocket = () => {
         terminalId: terminalId.value,
       });
     });
+
+    // 监听 ctrl + f 或 command + f 快捷键
+    containerRef.value!.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'f') {
+          sendMittEvent('open-search');
+          e.preventDefault();
+        }
+      }
+    });
   };
 
   /**
@@ -606,6 +616,7 @@ export const useTerminalSocket = () => {
   });
 
   return {
+    searchAddon,
     containerRef,
   };
 };
