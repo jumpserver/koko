@@ -23,12 +23,15 @@ type TerminalEvents = Record<string, any> & {
 };
 
 interface TerminalContext {
-  eventBus: ReturnType<typeof mitt<TerminalEvents>>;
   lunaCommunicator: typeof lunaCommunicator;
-  sendLunaEvent: (event: string, data: any) => void;
-  initializeLunaListeners: () => void;
-  initialize: () => void;
+  eventBus: ReturnType<typeof mitt<TerminalEvents>>;
+
   cleanup: () => void;
+  initialize: () => void;
+  initializeLunaListeners: () => void;
+  sendMittEvent: (event: string, data: any) => void;
+  onMittEvent: (event: string, callback: (data: any) => void) => () => void;
+  sendLunaEvent: (event: string, data: any) => void;
 }
 
 // 创建注入键
@@ -182,6 +185,16 @@ export const createTerminalContext = (): TerminalContext => {
     lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent);
   };
 
+  const sendMittEvent = (event: string, data: any) => {
+    mittBus.emit(event as any, data);
+  };
+
+  const onMittEvent = (event: string, callback: (data: any) => void) => {
+    mittBus.on(event as any, callback);
+
+    return () => mittBus.off(event as any, callback);
+  };
+
   const initialize = () => {
     initializeLunaListeners();
   };
@@ -195,10 +208,13 @@ export const createTerminalContext = (): TerminalContext => {
   return {
     eventBus,
     lunaCommunicator,
-    sendLunaEvent,
-    initializeLunaListeners,
-    initialize,
+
     cleanup,
+    initialize,
+    sendLunaEvent,
+    sendMittEvent,
+    onMittEvent,
+    initializeLunaListeners,
   };
 };
 

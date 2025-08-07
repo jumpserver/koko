@@ -70,6 +70,20 @@ export const useTerminalEvents = () => {
     context.eventBus.emit('terminal-session', info);
   };
 
+  const sendMittEvent = (event: string, data?: any) => {
+    context.sendMittEvent(event, data || {});
+  };
+
+  const onMittEvent = (event: string, callback: (data: any) => void) => {
+    const unsubscribe = context.onMittEvent(event, callback);
+
+    onUnmounted(() => {
+      unsubscribe();
+    });
+
+    return unsubscribe;
+  };
+
   /**
    * 触发终端连接事件
    * @param {string} id - 终端 ID
@@ -119,6 +133,8 @@ export const useTerminalEvents = () => {
     onTerminalSession,
     onTerminalConnect,
     onLunaEvent,
+    sendMittEvent,
+    onMittEvent,
 
     sendToLuna,
     onLunaMessage,
