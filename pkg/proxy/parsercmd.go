@@ -2,8 +2,10 @@ package proxy
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -41,21 +43,102 @@ type TerminalParser struct {
 	once     sync.Once
 	mux      sync.Mutex
 
+	OutputBuf bytes.Buffer
+
 	IsEnter func(p []byte) bool
 	cmd     string
 
 	commands []string
 
 	EmitCommands func(cmd, out string)
+
+	tmuxParser *terminalparser.TmuxParser
+	isSubMode  bool
+
+	srvOutputBuf bytes.Buffer
+	srvInputBuf  bytes.Buffer
 }
 
 func (s *TerminalParser) SetState(state int) {
 	s.state = state
 }
 
+func (s *TerminalParser) CheckSubScreen(b []byte) {
+	if !s.isSubMode && IsEditEnterMode(b) {
+		s.isSubMode = true
+		s.tmuxParser = terminalparser.NewTmuxParser()
+	}
+	if s.isSubMode && IsEditExitMode(b) {
+		s.isSubMode = false
+		s.tmuxParser = nil
+		s.srvOutputBuf.Reset()
+	}
+}
+
 func (s *TerminalParser) resetCommand() {
 	s.cmd = ""
 	s.commands = nil
+}
+
+// 合并的正则表达式，匹配以下四种模式：
+// 1. 隐藏光标: ESC[?25l
+// 2. ANSI颜色转义序列: ESC[数字m
+// 3. ANSI位置转义序列: ESC[数字;数字H
+// 4. 数字开头的状态栏格式: [数字] 空格 内容 空格 内容...
+// 0D 0A \r \n
+var (
+	tmuxBarRegx = regexp.MustCompile(`\x1b\[\?(\d+)l\x1b\[(\d+)m\x1b\[(\d+)m\x1b\[(\d+);(\d+)H\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B.*\x1b\[\?(\d+)l\x1b\[\?(\d+)h`)
+	// \[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+
+
+	// 可能包含 \r\n
+	tmuxBar1Regx = regexp.MustCompile(`\r\n\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)
+
+	// 不包含 \r\n
+	tmuxBar2Regx = regexp.MustCompile(`\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)
+
+	tmuxBarPrefixReg = regexp.MustCompile(`^\x1b\[\?(\d+)l\x1b\[(\d+)m\x1b\[(\d+)m`)
+	tmuxBarSuffixReg = regexp.MustCompile(`\x1b\[\?(\d+)l\x1b\[\?(\d+)h$`)
+
+	// 1. 隐藏光标: ESC[?25l
+	hiddenCursorRegex = regexp.MustCompile(`\x1b\[\?(\d+)l`)
+
+	// 2. ANSI颜色转义序列: ESC[数字m
+	colorEscapeRegex = regexp.MustCompile(`\x1b\[(\d+)m`)
+
+	// 3. ANSI位置转义序列: ESC[数字;数字H
+	positionEscapeRegex = regexp.MustCompile(`\x1b\[(\d+);(\d+)H`)
+	scrollEscapeRegex   = regexp.MustCompile(`\x1b\[(\d+);(\d+)r`)
+
+	// 4. 数字开头的状态栏格式: [数字] 空格 内容 空格 内容...
+	statusBarFormatRegex = regexp.MustCompile(`\[\d+\]\s+.*\s+.*\s+.*\s+.*`)
+
+	// \x1b\[ 特殊字符
+	specialRegx = regexp.MustCompile(`\x1b\[`)
+)
+
+func IsTmuxStatusBarStr(p []byte) bool {
+	// 1b 5b 3f 32 35 6c 隐藏光标的字符
+	// hiddenCursor := []byte{0x1b, 0x5b, 0x3f, 0x32, 0x35, 0x6c}
+	// // 1b 5b 33 30 6d (ESC [30m)
+	// visibleCursor := []byte{0x1b, 0x5b, 0x33, 0x30, 0x6d}
+	// // 1b 5b 34 32 6d (ESC [42m)
+	// highlightCursor := []byte{0x1b, 0x5b, 0x34, 0x32, 0x6d}
+	// // 1b 5b 34 38 3b 31 48 (ESC [48;1H)
+	// focusedCursor := []byte{0x1b, 0x5b, 0x34, 0x38, 0x3b, 0x31, 0x48}
+	// colorEscapeRegex = regexp.MustCompile(`\x1b\[(\d+)m`)
+	// positionEscapeRegex = regexp.MustCompile(`\x1b\[(\d+);(\d+)H`)
+	return tmuxBar2Regx.Match(p)
+}
+
+func (s *TerminalParser) feed(p []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			if terminalDebug {
+				fmt.Printf("Recovered from panic: %s %s\n", r, string(debug.Stack()))
+			}
+		}
+	}()
+	s.Screen.Feed(p)
 }
 
 func (s *TerminalParser) Feed(p []byte) {
@@ -68,12 +151,54 @@ func (s *TerminalParser) Feed(p []byte) {
 	}()
 	s.mux.Lock()
 	defer s.mux.Unlock()
+	// 检测是否是 tmux 和 screen 的情况
+	s.CheckSubScreen(p)
+
+	if s.isSubMode {
+		s.tmuxParser.Feed(p)
+		if s.state == OutputState {
+			s.srvOutputBuf.Write(p)
+			ps1 := s.Ps1sStr
+			half := len(ps1) / 2
+			halfPs1 := ps1[:half]
+			currentRow := s.tmuxParser.TmuxScreen.GetCursorRow()
+			// 单行的命令解析
+			rowStr := currentRow.String()
+			if strings.HasPrefix(rowStr, halfPs1) && s.cmd != "" {
+				outputBuf := s.TryTmuxOutput()
+				if s.EmitCommands != nil {
+					s.EmitCommands(s.cmd, outputBuf)
+				}
+				if terminalDebug {
+					// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+					fmt.Println("============= match ps1 command================")
+					fmt.Println("ps1: ", s.Ps1sStr)
+					fmt.Println("command input:  ", s.cmd)
+					fmt.Println("command output: ", outputBuf)
+					fmt.Println("===============================================")
+					// 这个时候应该是 输入状态了，命令结束了
+				}
+				s.cmd = ""
+				return
+			}
+		}
+		return
+	}
+
 	s.Screen.Feed(p)
+	if terminalDebug {
+		fmt.Println("---------Feed-------------")
+		fmt.Println(hex.Dump(p))
+		fmt.Println("current row: ", s.Screen.GetCursorRow().String())
+		fmt.Println()
+	}
+
 	if s.state == OutputState {
+		s.srvOutputBuf.Write(p)
 		currentRow := s.Screen.GetCursorRow()
 		// 单行的命令解析
 		if currentRow.String() == s.Ps1sStr && s.cmd != "" {
-			outputBuf := s.TryOutput()
+			outputBuf := s.TrySrvOutput()
 			if s.EmitCommands != nil {
 				s.EmitCommands(s.cmd, outputBuf)
 			}
@@ -92,7 +217,7 @@ func (s *TerminalParser) Feed(p []byte) {
 
 		// 多行命令 解析需要等完整输出，等下次输入的结果中，解析数据。参见WriteInput 里对 len(s.commands) >= 1  的处理
 	}
-	s.PrintLatestLines(10)
+	//s.PrintLatestLines(10)
 }
 
 func (s *TerminalParser) OnSize() {
@@ -113,8 +238,32 @@ func (s *TerminalParser) PrintLatestLines(num int) {
 	}
 }
 
+func (s *TerminalParser) TryTmuxOutput() string {
+	return s.TrySrvOutput()
+}
+
+func (s *TerminalParser) TrySrvOutput() string {
+	output := s.srvOutputBuf.Bytes()
+	output = tmuxBar2Regx.ReplaceAll(output, []byte{})
+	outputs := TryParseResult(output)
+	var str bytes.Buffer
+	ps1 := strings.TrimSpace(s.Ps1sStr)
+	for i := range outputs {
+		o := outputs[i]
+		o = strings.TrimSpace(o)
+		o = strings.ReplaceAll(o, ps1, "")
+		o = strings.TrimSpace(o)
+		if len(o) > 0 {
+			str.WriteString(o)
+			str.WriteString("\n")
+		}
+	}
+	s.srvOutputBuf.Reset()
+	return str.String()
+}
+
 func (s *TerminalParser) TryOutput() string {
-	// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是output
+	// 从这里找上一个匹配的 ps1 row，然后这之间的 rows 就是 output
 	rows := s.Screen.Rows
 	maxRows := len(rows) - 1
 	outputRows := make([]string, 0, maxRows)
@@ -189,10 +338,15 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	*/
 	s.InputBuf.Write(chars)
 	if isEnterFunc(chars) {
-		// 针对多行命令，从最新一行，往前查找到最近一次的 ps1 之间的都是命令
 		inputStr := strings.TrimSpace(s.InputBuf.String())
 		s.state = OutputState
-		cmd := s.TryInput()
+		var cmd string
+		if s.isSubMode {
+			cmd = s.TryTmuxInput()
+		} else {
+			// 针对多行命令，从最新一行，往前查找到最近一次的 ps1 之间的都是命令
+			cmd = s.TryInput()
+		}
 
 		if cmd == "" && len(chars) > 1 {
 			//从返回值解析，cmd 为 空的情况下，当前输入的则为
@@ -232,6 +386,13 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	return "", false
 }
 
+func (s *TerminalParser) TryTmuxInput() string {
+	lastLine := s.tmuxParser.TmuxScreen.GetCursorRow()
+	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
+	s.InputBuf.Reset()
+	return strings.TrimSpace(cmd)
+}
+
 func (s *TerminalParser) TryInput() string {
 	lastLine := s.Screen.GetCursorRow()
 	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
@@ -240,6 +401,11 @@ func (s *TerminalParser) TryInput() string {
 }
 
 func (s *TerminalParser) GetPs1() string {
+	if s.isSubMode {
+		row := s.tmuxParser.TmuxScreen.GetCursorRow()
+		rowStr := row.String()
+		return strings.TrimSuffix(rowStr, s.InputBuf.String())
+	}
 	row := s.Screen.GetCursorRow()
 	rowStr := row.String()
 	return strings.TrimSuffix(rowStr, s.InputBuf.String())
@@ -334,4 +500,26 @@ func reverseString(rows []string) string {
 		str.Write([]byte{'\r', '\n'})
 	}
 	return str.String()
+}
+
+func TryParseResult(p []byte) []string {
+	defer func() {
+		if r := recover(); r != nil {
+			if terminalDebug {
+				fmt.Println("Recovered in TryParseResult", r, string(debug.Stack()))
+			}
+		}
+	}()
+	sn := terminalparser.NewScreen(100, 80)
+	outputs := sn.Parse(p)
+	rets := make([]string, 0, len(outputs))
+	for i := range outputs {
+		ret := outputs[i]
+		ret = strings.TrimSpace(ret)
+		if ret != "" {
+			rets = append(rets, ret)
+		}
+
+	}
+	return rets
 }
