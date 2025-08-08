@@ -135,3 +135,5 @@ require (
 )
 
 replace github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.3.10
+
+//replace github.com/LeeEirc/terminalparser => /Users/eric/Documents/codes/fit2cloud/terminalparser
