@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue';
+import type { SearchAddon } from '@xterm/addon-search';
 import type { DropdownOption, TabPaneProps } from 'naive-ui';
 import type { UseDraggableReturn } from 'vue-draggable-plus';
 
@@ -42,12 +43,14 @@ const themeColors = computed(() => {
 });
 
 const nameRef = ref('');
-const showDrawer = ref<boolean>(false);
 const contextIdentification = ref('');
+const showDrawer = ref(false);
+const showSearchInput = ref(false);
+const showContextMenu = ref(false);
 const dropdownY = ref(0);
 const dropdownX = ref(0);
-const showContextMenu = ref(false);
 const panels: Ref<TabPaneProps[]> = ref([]);
+const searchAddonRef = ref<SearchAddon | null>(null);
 
 const processedElements = new Set();
 const contextMenuOption = [
@@ -409,7 +412,9 @@ onMounted(() => {
       const el = document.getElementById(node.k8s_id);
 
       if (el) {
-        const terminal = createTerminal(el, node.socket, lunaConfig, node);
+        const { terminal, searchAddon } = createTerminal(el, node.socket, lunaConfig, node);
+
+        searchAddonRef.value = searchAddon;
 
         treeStore.setK8sIdMap(node.k8s_id, {
           ...node,
@@ -433,7 +438,7 @@ onMounted(() => {
         el.addEventListener('mouseleave', () => {
           terminal.blur();
           const currentNode = treeStore.getTerminalByK8sId(nameRef.value);
-          
+
           if (currentNode) {
             lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
               content: getXTerminalLineContent(10, terminal),
@@ -454,6 +459,9 @@ onMounted(() => {
     });
   });
 
+  mittBus.on('open-search', () => {
+    showSearchInput.value = true;
+  });
   mittBus.on('alt-shift-left', debouncedSwitchToPreviousTab);
   mittBus.on('alt-shift-right', debouncedSwitchToNextTab);
 });
@@ -466,6 +474,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <SearchInput
+    v-if="showSearchInput"
+    :is-kubernetes="true"
+    :search-addon="searchAddonRef"
+    @close="showSearchInput = false"
+  />
   <n-layout :native-scrollbar="false" content-style="height: 100%" :style="themeColors">
     <n-tabs
       v-model:value="nameRef"
