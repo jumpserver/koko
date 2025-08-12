@@ -12,9 +12,9 @@ import (
 
 	"github.com/LeeEirc/tclientlib"
 	"github.com/LeeEirc/terminalparser"
-
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver/koko/pkg/srvconn"
 
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
@@ -97,6 +97,8 @@ type Parser struct {
 	userInputFilter func([]byte) []byte
 
 	disableInputAsCmd bool
+
+	ParseScreen int
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -119,11 +121,35 @@ func (p *Parser) resetCurrentCmdFilterRule() {
 	p.currentCmdFilterRule = CommandRule{}
 }
 
+func (p *Parser) CurrentScreenType() int {
+	if isWindows(p.platform) {
+		return WindowsScreen
+	}
+	switch p.protocolType {
+	case srvconn.ProtocolMongoDB:
+		return MongoScreen
+	case srvconn.ProtocolMySQL,
+		srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql,
+		srvconn.ProtocolClickHouse,
+		srvconn.ProtocolOracle,
+		srvconn.ProtocolSQLServer:
+		return UsqlScreen
+	default:
+	}
+	return LinuxScreen
+}
+
 func (p *Parser) initial(w, h int) {
-	screen := terminalparser.NewScreen(h, w)
+	screenType := p.CurrentScreenType()
 	p.TerminalParser = &TerminalParser{IsEnter: p.isEnterKeyPress,
-		EmitCommands: p.EmitCommandEvent,
-		Screen:       screen}
+		EmitCommands:      p.EmitCommandEvent,
+		usqlScreenParser:  terminalparser.NewUSqlParser(),
+		winScreenParser:   terminalparser.NewWindowsParser(),
+		mongoScreenParser: terminalparser.NewMongoShParser(),
+		screenType:        screenType,
+		preScreenType:     screenType,
+		Screen:            terminalparser.NewScreen(h, w)}
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
@@ -745,10 +771,11 @@ func matchMark(p []byte, marks [][]byte) bool {
 */
 
 const (
-	h3c    = "h3c"
-	huawei = "huawei"
-	cisco  = "cisco"
-	linux  = "linux"
+	h3c     = "h3c"
+	huawei  = "huawei"
+	cisco   = "cisco"
+	linux   = "linux"
+	windows = "windows"
 )
 
 func isH3C(p *model.Platform) bool {
@@ -765,6 +792,10 @@ func isCisco(p *model.Platform) bool {
 
 func isLinux(p *model.Platform) bool {
 	return isPlatform(p, linux)
+}
+
+func isWindows(p *model.Platform) bool {
+	return isPlatform(p, windows)
 }
 
 func isPlatform(p *model.Platform, platform string) bool {
