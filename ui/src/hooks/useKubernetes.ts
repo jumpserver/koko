@@ -11,6 +11,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { BrandDocker } from '@vicons/tabler';
 import { Box, Folder } from 'lucide-vue-next';
 import { readText } from 'clipboard-polyfill';
+import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 
@@ -516,11 +517,13 @@ export function initTerminalEvent(
   nodeInfo: any
 ) {
   const fitAddon: FitAddon = new FitAddon();
+  const webglAddon: WebglAddon = new WebglAddon();
   const searchAddon: SearchAddon = new SearchAddon();
 
   const terminalStore = useTerminalStore();
 
   terminal.loadAddon(fitAddon);
+  terminal.loadAddon(webglAddon);
   terminal.loadAddon(searchAddon);
 
   terminal.open(el);
@@ -651,6 +654,15 @@ export function initElEvent(
     },
     false
   );
+
+  el.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'f') {
+        mittBus.emit('open-search');
+        e.preventDefault();
+      }
+    }
+  });
 }
 
 /**
@@ -769,7 +781,10 @@ export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: I
   initCustomWindowEvent(fitAddon);
   initMittBusEvents(searchAddon, socket);
 
-  return terminal;
+  return {
+    terminal,
+    searchAddon,
+  };
 }
 
 export function useKubernetes(t: any) {

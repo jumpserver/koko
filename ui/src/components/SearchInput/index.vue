@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import type { ISearchOptions, SearchAddon } from '@xterm/addon-search';
 
-import { ref, reactive, watch, computed } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useElementSize, useMutationObserver } from '@vueuse/core';
 import { CaseLower, CaseSensitive, ChevronDown, ChevronUp, Regex, X } from 'lucide-vue-next';
 
 import { useColor } from '@/hooks/useColor';
 
 const props = defineProps<{
   searchAddon: SearchAddon;
+  isKubernetes?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -30,6 +32,16 @@ const searchOptions = reactive<ISearchOptions>({
 const { darken, lighten } = useColor();
 
 const searchKey = ref('');
+const gutterWidth = 16;
+const drawerRef = ref<HTMLElement | null>(null);
+
+const { width } = useElementSize(drawerRef);
+
+const keyWordsSearch = (value: string) => {
+  if (value) {
+    props.searchAddon.findNext(value, searchOptions);
+  }
+};
 
 const toggleSearchOption = (option: keyof typeof searchOptions) => {
   if (option in searchOptions && typeof searchOptions[option] === 'boolean') {
@@ -70,22 +82,6 @@ const searchOptionButtons = [
   },
 ];
 
-watch(
-  () => searchKey.value,
-  value => {
-    if (!value) {
-      props.searchAddon.clearDecorations();
-      props.searchAddon.clearActiveDecoration();
-    }
-  }
-);
-
-const keyWordsSearch = (value: string) => {
-  if (value) {
-    props.searchAddon.findNext(value, searchOptions);
-  }
-};
-
 const handleSearchPrevious = () => {
   props.searchAddon.findPrevious(searchKey.value, searchOptions);
 };
@@ -105,12 +101,50 @@ const closeSearch = (shouldEmit = false) => {
 };
 
 const handleCloseSearch = () => closeSearch(true);
+
+const positionRight = computed(() => {
+  const w = width.value;
+
+  if (!drawerRef.value || w === 0) return `${gutterWidth}px`;
+
+  const clamped = Math.min(800, Math.max(600, Math.round(w)));
+  return `calc(${clamped}px + ${gutterWidth}px)`;
+});
+
+watch(
+  () => searchKey.value,
+  value => {
+    if (!value) {
+      props.searchAddon.clearDecorations();
+      props.searchAddon.clearActiveDecoration();
+    }
+  }
+);
+
+onMounted(() => {
+  drawerRef.value = document.getElementById('drawer-inner-target');
+});
+
+useMutationObserver(
+  () => document.body,
+  () => {
+    const el = document.getElementById('drawer-inner-target');
+
+    if (el !== drawerRef.value) {
+      drawerRef.value = el;
+    }
+  },
+  {
+    childList: true,
+    subtree: true,
+  }
+);
 </script>
 
 <template>
   <div
-    class="absolute flex items-center top-2 right-2 p-2 z-999 shadow-md rounded-md"
-    :style="{ backgroundColor: lighten(10) }"
+    class="absolute flex items-center right-2 p-2 z-999 shadow-md rounded-md"
+    :style="{ backgroundColor: lighten(10), top: isKubernetes ? '3rem' : '0.5rem', right: positionRight }"
   >
     <n-flex align="center" class="!gap-2">
       <n-input
