@@ -58,8 +58,8 @@ github.com/LeeEirc/httpsig v1.2.1 h1:GGmCc2Bug3KeCchlZHwrfyjyAnw+JlzMjKDobPypirs
 github.com/LeeEirc/httpsig v1.2.1/go.mod h1:aoLZLXCSNDgkzsH2sGLWn3hlVbF+Voe8fCArxLt9nWA=
 github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d h1:4qUSGc/34IALiDs2kBrjbCKfx7zvAt16K+gTRzNN8Fo=
 github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
-github.com/LeeEirc/terminalparser v0.0.0-20250812051053-5245a27ef7a2 h1:bwwKLLh+3y5wsqfGrq8/lwadmRWTK34EFx0Pr5MOtK4=
-github.com/LeeEirc/terminalparser v0.0.0-20250812051053-5245a27ef7a2/go.mod h1:+Qo7bjL1vsdwoGMGOceOoSyap+OKyBA3pI2cTC1aS/s=
+github.com/LeeEirc/terminalparser v0.0.0-20250813060410-a46e69a4db27 h1:eY7KzHEsba94Fs8oGUMC+CsbeOcSat8levNIHoIyuqU=
+github.com/LeeEirc/terminalparser v0.0.0-20250813060410-a46e69a4db27/go.mod h1:+Qo7bjL1vsdwoGMGOceOoSyap+OKyBA3pI2cTC1aS/s=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
