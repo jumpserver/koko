@@ -169,7 +169,7 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
 		Config:          createSSHConfig(),
 
-		HostKeyAlgorithms: supportedHostKeyAlgos,
+		HostKeyAlgorithms: allHostKeyAlgorithms(),
 	}
 	destAddr := net.JoinHostPort(cfg.Host, cfg.Port)
 	if len(cfg.proxySSHClientOptions) > 0 {
@@ -272,40 +272,29 @@ func (s *SSHClient) ReleaseSession(sess *gossh.Session) {
 func createSSHConfig() gossh.Config {
 	var cfg gossh.Config
 	cfg.SetDefaults()
-	ciphers := make([]string, 0, len(cfg.Ciphers)+len(notRecommendCiphers))
-	ciphers = append(ciphers, notRecommendCiphers...)
-	ciphers = append(ciphers, cfg.Ciphers...)
+	algos := gossh.SupportedAlgorithms()
+	insecureAlgos := gossh.InsecureAlgorithms()
+	ciphers := make([]string, 0, len(algos.Ciphers)+len(insecureAlgos.Ciphers))
+	ciphers = append(ciphers, insecureAlgos.Ciphers...)
+	ciphers = append(ciphers, algos.Ciphers...)
+	keyExchanges := make([]string, 0, len(algos.KeyExchanges)+len(insecureAlgos.KeyExchanges))
+	keyExchanges = append(keyExchanges, insecureAlgos.KeyExchanges...)
+	keyExchanges = append(keyExchanges, algos.KeyExchanges...)
 	cfg.Ciphers = ciphers
-	cfg.KeyExchanges = append(cfg.KeyExchanges, notRecommendKeyExchanges...)
+	cfg.KeyExchanges = keyExchanges
 	return cfg
 }
 
-var (
-	notRecommendCiphers = []string{
-		"aes128-ctr",
-		"arcfour256", "arcfour128", "arcfour",
-		"aes128-cbc", "3des-cbc",
-	}
-
-	notRecommendKeyExchanges = []string{
-		"diffie-hellman-group1-sha1", "diffie-hellman-group-exchange-sha1",
-		"diffie-hellman-group-exchange-sha256", "diffie-hellman-group16-sha512",
-	}
-
-	// copy from golang.org/x/crypto/ssh/common.go
+func allHostKeyAlgorithms() []string {
+	supportedAlgos := gossh.SupportedAlgorithms()
+	insecureAlgos := gossh.InsecureAlgorithms()
+	hostKeyAlgos := make([]string, 0, len(supportedAlgos.HostKeys)+len(insecureAlgos.HostKeys)+1)
 	/*
 		Change the algorithm order, placing KeyAlgoED25519 first.
 		Compatible with certain SSH servers.
 	*/
-	supportedHostKeyAlgos = []string{
-		gossh.KeyAlgoED25519,
-
-		gossh.CertAlgoRSASHA256v01, gossh.CertAlgoRSASHA512v01,
-		gossh.CertAlgoRSAv01, gossh.CertAlgoDSAv01, gossh.CertAlgoECDSA256v01,
-		gossh.CertAlgoECDSA384v01, gossh.CertAlgoECDSA521v01, gossh.CertAlgoED25519v01,
-
-		gossh.KeyAlgoECDSA256, gossh.KeyAlgoECDSA384, gossh.KeyAlgoECDSA521,
-		gossh.KeyAlgoRSASHA256, gossh.KeyAlgoRSASHA512,
-		gossh.KeyAlgoRSA, gossh.KeyAlgoDSA,
-	}
-)
+	hostKeyAlgos = append(hostKeyAlgos, gossh.KeyAlgoED25519)
+	hostKeyAlgos = append(hostKeyAlgos, supportedAlgos.HostKeys...)
+	hostKeyAlgos = append(hostKeyAlgos, insecureAlgos.HostKeys...)
+	return hostKeyAlgos
+}
