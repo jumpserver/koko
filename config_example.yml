@@ -23,6 +23,9 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # SSH连接超时时间 (default 15 seconds)
 # SSH_TIMEOUT: 15
 
+# Api Http请求的超时时间 (default 30 seconds)
+# HTTP_REQUEST_TIMEOUT: 30
+
 # 语言 [en,zh]
 # LANGUAGE_CODE: zh
 

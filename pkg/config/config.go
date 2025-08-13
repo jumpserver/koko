@@ -19,13 +19,14 @@ var (
 )
 
 type Config struct {
-	Name           string `mapstructure:"NAME"`
-	CoreHost       string `mapstructure:"CORE_HOST"`
-	BootstrapToken string `mapstructure:"BOOTSTRAP_TOKEN"`
-	BindHost       string `mapstructure:"BIND_HOST"`
-	SSHPort        string `mapstructure:"SSHD_PORT"`
-	HTTPPort       string `mapstructure:"HTTPD_PORT"`
-	SSHTimeout     int    `mapstructure:"SSH_TIMEOUT"`
+	Name               string `mapstructure:"NAME"`
+	CoreHost           string `mapstructure:"CORE_HOST"`
+	BootstrapToken     string `mapstructure:"BOOTSTRAP_TOKEN"`
+	BindHost           string `mapstructure:"BIND_HOST"`
+	SSHPort            string `mapstructure:"SSHD_PORT"`
+	HTTPPort           string `mapstructure:"HTTPD_PORT"`
+	SSHTimeout         int    `mapstructure:"SSH_TIMEOUT"`
+	HttpRequestTimeout int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
@@ -125,23 +126,24 @@ func getDefaultConfig() Config {
 		}
 	}
 	return Config{
-		Name:              defaultName,
-		CoreHost:          "http://localhost:8080",
-		BootstrapToken:    "",
-		BindHost:          "0.0.0.0",
-		SSHPort:           "2222",
-		SSHTimeout:        15,
-		HTTPPort:          "5000",
-		AccessKeyFilePath: accessKeyFilePath,
-		LogLevel:          "INFO",
-		RootPath:          rootPath,
-		DataFolderPath:    dataFolderPath,
-		LogDirPath:        LogDirPath,
-		KeyFolderPath:     keyFolderPath,
-		ReplayFolderPath:  replayFolderPath,
-		FTPFileFolderPath: ftpFileFolderPath,
-		CertsFolderPath:   CertsFolderPath,
-		LanguageCode:      "en",
+		Name:               defaultName,
+		CoreHost:           "http://localhost:8080",
+		BootstrapToken:     "",
+		BindHost:           "0.0.0.0",
+		SSHPort:            "2222",
+		SSHTimeout:         15,
+		HttpRequestTimeout: 30,
+		HTTPPort:           "5000",
+		AccessKeyFilePath:  accessKeyFilePath,
+		LogLevel:           "INFO",
+		RootPath:           rootPath,
+		DataFolderPath:     dataFolderPath,
+		LogDirPath:         LogDirPath,
+		KeyFolderPath:      keyFolderPath,
+		ReplayFolderPath:   replayFolderPath,
+		FTPFileFolderPath:  ftpFileFolderPath,
+		CertsFolderPath:    CertsFolderPath,
+		LanguageCode:       "en",
 
 		Comment:             "KOKO",
 		UploadFailedReplay:  true,
