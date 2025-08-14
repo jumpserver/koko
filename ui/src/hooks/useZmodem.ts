@@ -37,7 +37,6 @@ export const useZmodem = () => {
   const cleanupSession = () => {
     if (activeSession.value) {
       try {
-        activeSession.value.abort();
         activeSession.value.close();
       } catch (e) {
         console.warn('Error cleaning up session:', e);
@@ -144,6 +143,7 @@ export const useZmodem = () => {
       .catch((err: Error) => {
         message.error(err.message);
         cleanupSession();
+        activeSession.value?.abort();
       });
   };
 
@@ -295,6 +295,7 @@ export const useZmodem = () => {
         } catch (error) {
           console.warn('Error in ZMODEM detection:', error);
           cleanupSession();
+          activeSession.value?.abort();
         }
       },
     });
