@@ -59,12 +59,12 @@ export function preprocessInput(data: string, config: Partial<ILunaConfig>) {
   }
 
   // 使用字符串替换方法避免在正则表达式中使用控制字符
-  const escSeq200 = '\u001B[200~';
-  const escSeq201 = '\u001B[201~';
+  // const escSeq200 = '\u001B[200~';
+  // const escSeq201 = '\u001B[201~';
 
-  if (data.includes(escSeq200) || data.includes(escSeq201)) {
-    return data.replace(escSeq200, '').replace(escSeq201, '');
-  }
+  // if (data.includes(escSeq200) || data.includes(escSeq201)) {
+  //   return data.replace(escSeq200, '').replace(escSeq201, '');
+  // }
 
   return data;
 }
