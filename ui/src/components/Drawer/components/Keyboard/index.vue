@@ -76,8 +76,7 @@ function writeDataToTerminal(type: string) {
     const terminal = currentNode?.terminal;
 
     if (!terminal) {
-      // TODO 翻译
-      message.error('Terminal instance not found for current tab');
+      message.error(t('TerminalInstanceNotFound'));
       return;
     }
 

@@ -50,19 +50,18 @@ watch(
     if (userOptions && userOptions.length > 0) {
       searchLoading.value = false;
     }
-  },
+  }
 );
 
 watch(
   () => shareInfo.value.shareCode,
-  (nv) => {
+  nv => {
     if (nv) {
       showLinkResult.value = true;
-    }
-    else {
+    } else {
       showLinkResult.value = false;
     }
-  },
+  }
 );
 
 const mappedUserOptions = computed(() => {
@@ -71,8 +70,7 @@ const mappedUserOptions = computed(() => {
       label: item.username,
       value: item.id,
     }));
-  }
-  else {
+  } else {
     return [];
   }
 });
@@ -82,10 +80,10 @@ const createSingleSelectHandler = <T, K extends keyof T>(
   options: T[],
   valueKey: K,
   checkedKey: keyof T,
-  onSelect?: (value: T[K]) => void,
+  onSelect?: (value: T[K]) => void
 ) => {
   return (selectedValue: T[K]) => {
-    options.forEach((item) => {
+    options.forEach(item => {
       (item as any)[checkedKey] = item[valueKey] === selectedValue;
     });
 
@@ -133,7 +131,7 @@ const renderTag: SelectRenderTag = ({ option, handleClose }) => {
     },
     {
       default: () => option.label,
-    },
+    }
   );
 };
 
@@ -143,10 +141,10 @@ const handleSearch = (query: string) => {
 };
 
 const debounceSearch = useDebounceFn(handleSearch, 300);
-const handleChangeExpired = createSingleSelectHandler(expiredOptions, 'value', 'checked', (value) => {
+const handleChangeExpired = createSingleSelectHandler(expiredOptions, 'value', 'checked', value => {
   shareLinkRequest.expiredTime = value;
 });
-const handleChangeActionPerm = createSingleSelectHandler(actionsPermOptions, 'value', 'checked', (value) => {
+const handleChangeActionPerm = createSingleSelectHandler(actionsPermOptions, 'value', 'checked', value => {
   shareLinkRequest.actionPerm = value;
 });
 
@@ -181,7 +179,7 @@ const handleBack = () => {
     <n-descriptions-item>
       <template #label>
         <n-text class="text-xs-plus" depth="1">
-          会话持续时间
+          {{ t('ExpiredTime') }}
         </n-text>
       </template>
 
@@ -216,9 +214,7 @@ const handleBack = () => {
 
     <n-descriptions-item>
       <template #label>
-        <n-text class="text-xs-plus" depth="1">
-          权限设置
-        </n-text>
+        <n-text class="text-xs-plus" depth="1"> {{ t('ActionPerm') }} </n-text>
       </template>
 
       <n-flex align="center" :wrap="false" class="mt-2 cursor-pointer">
@@ -252,9 +248,7 @@ const handleBack = () => {
 
     <n-descriptions-item>
       <template #label>
-        <n-text class="text-xs-plus">
-          参与者
-        </n-text>
+        <n-text class="text-xs-plus"> {{ t('ShareUser') }} </n-text>
       </template>
 
       <n-flex vertical class="mt-2">
@@ -281,7 +275,14 @@ const handleBack = () => {
     </n-descriptions-item>
 
     <n-descriptions-item>
-      <n-button block secondary type="primary" class="mt-2 !text-xs-plus" :disabled="disabledCreateLink" @click="handleCreateLink">
+      <n-button
+        block
+        secondary
+        type="primary"
+        class="mt-2 !text-xs-plus"
+        :disabled="disabledCreateLink"
+        @click="handleCreateLink"
+      >
         {{ t('CreateLink') }}
       </n-button>
     </n-descriptions-item>

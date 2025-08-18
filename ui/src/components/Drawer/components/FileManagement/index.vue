@@ -181,8 +181,7 @@ const columns = createColumns();
 <template>
   <template v-if="showEmpty">
     <div class="flex flex-col items-center justify-center h-full w-full gap-4">
-      <!-- TODO 翻译 -->
-      <n-empty description="获取文件管理器 Token 超时" />
+      <n-empty :description="t('FileManagerTokenTimeout')" />
       <n-button type="primary" @click="handleReconnect">
         {{ t('Reconnect') }}
       </n-button>
