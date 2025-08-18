@@ -14,7 +14,8 @@ const { t } = useI18n();
 const handleRemoveShareUser = (userId: string) => {
   const currentDeleteUser = onlineUsers.value.find(user => user.user_id === userId && !user.primary);
 
-  if (!currentDeleteUser) return;
+  if (!currentDeleteUser)
+    return;
 
   removeShareUser(currentDeleteUser);
 };
@@ -24,7 +25,9 @@ const handleRemoveShareUser = (userId: string) => {
   <n-flex vertical align="center">
     <CardContainer>
       <template #custom-header>
-        <n-text class="text-xs-plus"> {{ t('OnlineUser') }} </n-text>
+        <n-text class="text-xs-plus">
+          {{ t('OnlineUser') }}
+        </n-text>
 
         <NTag round :bordered="false" type="success" size="small" class="ml-2">
           {{ onlineUsers?.length || 0 }}
@@ -44,7 +47,7 @@ const handleRemoveShareUser = (userId: string) => {
       </n-flex>
     </CardContainer>
 
-    <CardContainer :title="t('CreateLink')">
+    <CardContainer :title="t('ShareLink')">
       <CreateLink :disabled-create-link="!shareInfo.enableShare" />
     </CardContainer>
   </n-flex>
