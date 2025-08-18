@@ -181,17 +181,16 @@ const columns = createColumns();
 <template>
   <template v-if="showEmpty">
     <div class="flex flex-col items-center justify-center h-full w-full gap-4">
+      <!-- TODO 翻译 -->
       <n-empty description="获取文件管理器 Token 超时" />
-      <n-button type="primary" @click="handleReconnect"> {{ t('Reconnect') }} </n-button>
+      <n-button type="primary" @click="handleReconnect">
+        {{ t('Reconnect') }}
+      </n-button>
     </div>
   </template>
 
-  <template v-else-if="isLoaded">
-    <FileManage :columns="columns" />
-  </template>
-
   <template v-else>
-    <n-spin size="small" class="absolute w-full h-full" />
+    <FileManage :columns="columns" />
   </template>
 </template>
 
