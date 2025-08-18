@@ -217,12 +217,14 @@ onUnmounted(() => {
               </n-flex>
             </template>
 
-            <component
-              :is="tab.component"
-              :sftp-token="fileManagerToken"
-              :show-empty="showEmpty"
-              @reconnect="handleReconnect"
-            />
+            <n-spin :show="tab.name === 'file-manager' && isRequestingToken">
+              <component
+                :is="tab.component"
+                :sftp-token="fileManagerToken"
+                :show-empty="showEmpty"
+                @reconnect="handleReconnect"
+              />
+            </n-spin>
           </n-tab-pane>
         </n-tabs>
       </n-card>
