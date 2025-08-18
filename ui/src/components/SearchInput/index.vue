@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ISearchOptions, SearchAddon } from '@xterm/addon-search';
 
+import { useI18n } from 'vue-i18n';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useElementSize, useMutationObserver } from '@vueuse/core';
 import { CaseLower, CaseSensitive, ChevronDown, ChevronUp, Regex, X } from 'lucide-vue-next';
@@ -29,6 +30,7 @@ const searchOptions = reactive<ISearchOptions>({
   },
 });
 
+const { t } = useI18n();
 const { darken, lighten } = useColor();
 
 const searchKey = ref('');
@@ -65,19 +67,19 @@ const searchOptionButtons = [
   {
     key: 'caseSensitive' as const,
     icon: CaseSensitive,
-    label: '区分大小写',
+    label: t('CaseSensitive'),
     toggleFn: toggleCaseSensitive,
   },
   {
     key: 'wholeWord' as const,
     icon: CaseLower,
-    label: '全字匹配',
+    label: t('MatchWholeWords'),
     toggleFn: toggleWholeWord,
   },
   {
     key: 'regex' as const,
     icon: Regex,
-    label: '使用正则表达式',
+    label: t('UsingRegularExpressions'),
     toggleFn: toggleRegex,
   },
 ];

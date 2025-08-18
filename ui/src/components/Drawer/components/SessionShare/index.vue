@@ -24,10 +24,10 @@ const handleRemoveShareUser = (userId: string) => {
   <n-flex vertical align="center">
     <CardContainer>
       <template #custom-header>
-        <n-text class="text-xs-plus"> 会话成员 </n-text>
+        <n-text class="text-xs-plus"> {{ t('OnlineUser') }} </n-text>
 
         <NTag round :bordered="false" type="success" size="small" class="ml-2">
-          {{ onlineUsers?.length || 0 }} 人
+          {{ onlineUsers?.length || 0 }}
         </NTag>
       </template>
 
@@ -43,6 +43,7 @@ const handleRemoveShareUser = (userId: string) => {
         />
       </n-flex>
     </CardContainer>
+
     <CardContainer :title="t('CreateLink')">
       <CreateLink :disabled-create-link="!shareInfo.enableShare" />
     </CardContainer>

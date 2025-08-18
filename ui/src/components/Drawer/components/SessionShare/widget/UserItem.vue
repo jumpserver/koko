@@ -34,7 +34,7 @@ const options = [
     value: 'readonly',
   },
   {
-    label: '管理者',
+    label: t('Owner'),
     value: 'admin',
   },
 ];
@@ -74,10 +74,9 @@ const handleRemoveUser = () => {
             {{ username }}
           </n-text>
           <NTag round :bordered="false" :type="primary ? 'success' : 'info'" size="small" class="ml-2">
-            {{ primary ? '所有者' : '成员' }}
+            {{ primary ? t('PrimaryUser') : t('ShareUser') }}
           </NTag>
         </n-flex>
-        <!-- <n-text depth="3" :style="{ fontSize: '12px' }"> 最后在线：3分钟前 </n-text> -->
       </n-flex>
     </n-flex>
 
