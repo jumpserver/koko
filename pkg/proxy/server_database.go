@@ -35,8 +35,8 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 		return nil, errUnknownProtocol
 	}
 	disableSQLServerEncrypt := false
-	if platfromProtocol, ok := platform.GetProtocolSetting(protocol); ok {
-		protocolSetting := platfromProtocol.GetSetting()
+	if platformProtocol, ok1 := platform.GetProtocolSetting(protocol); ok1 {
+		protocolSetting := platformProtocol.GetSetting()
 		disableSQLServerEncrypt = !protocolSetting.Encrypt
 	}
 
