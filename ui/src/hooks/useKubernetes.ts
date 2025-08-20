@@ -275,6 +275,7 @@ export function handleTreeMessage(ws: WebSocket, event: MessageEvent) {
     case 'CLOSE':
     case 'ERROR': {
       ws.close();
+      mittBus.emit('connect-error');
       break;
     }
     case 'CONNECT': {
@@ -550,6 +551,14 @@ export function initTerminalEvent(
   terminal.onData((data: string) => {
     const kubernetesStore = useKubernetesStore();
     const terminalStore = useTerminalStore();
+    const treeStore = useTreeStore();
+
+    const currentK8sId = terminalStore.currentTab;
+    const currentNode = treeStore.getTerminalByK8sId(currentK8sId);
+
+    if (!currentNode) {
+      return;
+    }
 
     kubernetesStore.setLastSendTime(new Date());
 
@@ -564,11 +573,11 @@ export function initTerminalEvent(
 
     const messageBody = {
       data: inputMessage,
-      id: nodeInfo.id,
-      pod: nodeInfo.pod || '',
-      k8s_id: nodeInfo.k8s_id,
-      namespace: nodeInfo.namespace || '',
-      container: nodeInfo.container || '',
+      id: currentNode.id,
+      pod: currentNode.pod || '',
+      k8s_id: currentK8sId,
+      namespace: currentNode.namespace || '',
+      container: currentNode.container || '',
       type: 'TERMINAL_K8S_DATA',
     };
 
