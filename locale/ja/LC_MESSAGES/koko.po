@@ -269,7 +269,7 @@ msgstr "ヒント: IDで言語を切り替えます"
 #: pkg/handler/dispatch.go:154
 msgid ""
 "Tips: To set a default language, go to Personal Settings → Preferences on Web"
-msgstr ""
+msgstr "ヒント: デフォルトの言語を設定するには、Web 上の「個人設定 → 環境設定」に移動してください。"
 
 #. lang.T
 #. lang.T
