@@ -481,37 +481,4 @@ var (
 
 	// 不包含 \r\n
 	tmuxBar2Regx = regexp.MustCompile(`\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)
-
-	tmuxBarPrefixReg = regexp.MustCompile(`^\x1b\[\?(\d+)l\x1b\[(\d+)m\x1b\[(\d+)m`)
-	tmuxBarSuffixReg = regexp.MustCompile(`\x1b\[\?(\d+)l\x1b\[\?(\d+)h$`)
-
-	// 1. 隐藏光标: ESC[?25l
-	hiddenCursorRegex = regexp.MustCompile(`\x1b\[\?(\d+)l`)
-
-	// 2. ANSI颜色转义序列: ESC[数字m
-	colorEscapeRegex = regexp.MustCompile(`\x1b\[(\d+)m`)
-
-	// 3. ANSI位置转义序列: ESC[数字;数字H
-	positionEscapeRegex = regexp.MustCompile(`\x1b\[(\d+);(\d+)H`)
-	scrollEscapeRegex   = regexp.MustCompile(`\x1b\[(\d+);(\d+)r`)
-
-	// 4. 数字开头的状态栏格式: [数字] 空格 内容 空格 内容...
-	statusBarFormatRegex = regexp.MustCompile(`\[\d+\]\s+.*\s+.*\s+.*\s+.*`)
-
-	// \x1b\[ 特殊字符
-	specialRegx = regexp.MustCompile(`\x1b\[`)
 )
-
-func IsTmuxStatusBarStr(p []byte) bool {
-	// 1b 5b 3f 32 35 6c 隐藏光标的字符
-	// hiddenCursor := []byte{0x1b, 0x5b, 0x3f, 0x32, 0x35, 0x6c}
-	// // 1b 5b 33 30 6d (ESC [30m)
-	// visibleCursor := []byte{0x1b, 0x5b, 0x33, 0x30, 0x6d}
-	// // 1b 5b 34 32 6d (ESC [42m)
-	// highlightCursor := []byte{0x1b, 0x5b, 0x34, 0x32, 0x6d}
-	// // 1b 5b 34 38 3b 31 48 (ESC [48;1H)
-	// focusedCursor := []byte{0x1b, 0x5b, 0x34, 0x38, 0x3b, 0x31, 0x48}
-	// colorEscapeRegex = regexp.MustCompile(`\x1b\[(\d+)m`)
-	// positionEscapeRegex = regexp.MustCompile(`\x1b\[(\d+);(\d+)H`)
-	return tmuxBar2Regx.Match(p)
-}

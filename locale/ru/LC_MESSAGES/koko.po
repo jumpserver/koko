@@ -262,27 +262,34 @@ msgstr ""
 #: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
 #: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
 #: pkg/handler/dispatch.go:153
-msgid "Tips: switch language by ID"
+#, fuzzy
+msgid "Tips: switch language by ID (Current session only)"
 msgstr "Совет: введите идентификатор, чтобы переключить язык."
 
 #. lang.T
+#: pkg/handler/dispatch.go:154
+msgid ""
+"Tips: To set a default language, go to Personal Settings → Preferences on Web"
+msgstr ""
+
 #. lang.T
-#: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
+#. lang.T
+#: pkg/handler/dispatch.go:155 pkg/handler/dispatch.go:183
 msgid "Invalid ID"
 msgstr "Неверный идентификатор"
 
 #. lang.T
-#: pkg/handler/dispatch.go:186
+#: pkg/handler/dispatch.go:189
 msgid "Switch language successfully"
 msgstr "Переключение языка прошло успешно"
 
 #. lang.T
-#: pkg/handler/dispatch.go:196
+#: pkg/handler/dispatch.go:199
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "Узел: [ID.Имя(Количество Активов)]"
 
 #. lang.T
-#: pkg/handler/dispatch.go:198
+#: pkg/handler/dispatch.go:201
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 "Совет: введите g+node ID, чтобы отобразить хост под узлом, например: g1"
@@ -429,12 +436,12 @@ msgid "Create k8s client err: %s"
 msgstr "Ошибка создания клиента k8s: %s"
 
 #. lang.T
-#: pkg/proxy/parser.go:230
+#: pkg/proxy/parser.go:265
 msgid "have no permission to upload file"
 msgstr "Нет прав на загрузку файла"
 
 #. lang.T
-#: pkg/proxy/parser.go:266
+#: pkg/proxy/parser.go:301
 msgid ""
 "The command you executed is risky and an alert notification will be sent to "
 "the administrator. Do you want to continue?[Y/N]"
@@ -443,24 +450,24 @@ msgstr ""
 "администратору. Продолжить? [Y/N]"
 
 #. lang.T
-#: pkg/proxy/parser.go:283
+#: pkg/proxy/parser.go:318
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
 msgstr "Команда %s требует проверки. Продолжить? [Y/N]"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
+#: pkg/proxy/parser.go:338 pkg/proxy/parser.go:345 pkg/proxy/parser.go:436
 msgid "Command `%s` is forbidden"
 msgstr "Команда `%s` запрещена ..."
 
 #. lang.T
-#: pkg/proxy/parser.go:534
+#: pkg/proxy/parser.go:503
 msgid "have no permission to download file"
 msgstr "Нет прав на скачивание файла"
 
 #. lang.T
-#: pkg/proxy/parser.go:606
+#: pkg/proxy/parser.go:572
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
 "or CTRL+D."
@@ -469,7 +476,7 @@ msgstr ""
 "CTRL+C или CTRL+D."
 
 #. lang.T
-#: pkg/proxy/parser.go:616
+#: pkg/proxy/parser.go:582
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -480,7 +487,7 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
+#: pkg/proxy/parser.go:583 pkg/proxy/parser.go:584 pkg/proxy/server.go:58
 #: pkg/proxy/server.go:62
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
@@ -498,41 +505,41 @@ msgid "You don't have permission login %s"
 msgstr "У вас нет прав для входа в %s"
 
 #. lang.T
-#: pkg/proxy/server.go:336
+#: pkg/proxy/server.go:337
 msgid "You get auth token failed"
 msgstr "Не удалось получить токен аутентификации"
 
 #. lang.T
-#: pkg/proxy/server.go:347
+#: pkg/proxy/server.go:348
 msgid "Get auth password failed"
 msgstr "Вам не удалось получить токен аутентификации"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:363 pkg/proxy/server.go:420
+#: pkg/proxy/server.go:364 pkg/proxy/server.go:421
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr ""
 "Повторное использование SSH-подключений (%s@%s) [Количество подключений: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:688
+#: pkg/proxy/server.go:689
 msgid "Switched to %s"
 msgstr "Переключено на %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:790 pkg/proxy/server.go:935
+#: pkg/proxy/server.go:791 pkg/proxy/server.go:936
 msgid "Connect with api server failed"
 msgstr "Соединение прервано администратором %s"
 
 #. lang.T
-#: pkg/proxy/server.go:996
+#: pkg/proxy/server.go:997
 msgid "Start domain gateway failed %s"
 msgstr "Не удалось запустить шлюз баз данных %s"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1004 pkg/proxy/server_options.go:108
+#: pkg/proxy/server.go:1005 pkg/proxy/server_options.go:108
 msgid "Manual"
 msgstr "Ручная учетная запись"
 
@@ -562,18 +569,18 @@ msgid "Connecting to Kubernetes %s container %s"
 msgstr "Подключение к контейнеру %s в Kubernetes %s"
 
 #. lang.T
-#: pkg/proxy/switch.go:328
+#: pkg/proxy/switch.go:315
 msgid "Session max time reached, disconnect"
 msgstr "Максимальное время сеанса истекло, отключение"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
+#: pkg/proxy/switch.go:324 pkg/proxy/switch.go:331
 msgid "Permission has expired, disconnect"
 msgstr "Авторизация истекла, отключение"
 
 #. lang.T
-#: pkg/proxy/switch.go:354
+#: pkg/proxy/switch.go:341
 msgid "Terminated by admin %s"
 msgstr "%s Администратор разорвал соединение"
 

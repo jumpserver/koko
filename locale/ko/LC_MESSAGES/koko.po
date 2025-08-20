@@ -261,27 +261,34 @@ msgstr ""
 #: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
 #: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
 #: pkg/handler/dispatch.go:153
-msgid "Tips: switch language by ID"
+#, fuzzy
+msgid "Tips: switch language by ID (Current session only)"
 msgstr "팁: 언어를 전환하려면 ID를 입력하세요"
 
 #. lang.T
+#: pkg/handler/dispatch.go:154
+msgid ""
+"Tips: To set a default language, go to Personal Settings → Preferences on Web"
+msgstr ""
+
 #. lang.T
-#: pkg/handler/dispatch.go:154 pkg/handler/dispatch.go:180
+#. lang.T
+#: pkg/handler/dispatch.go:155 pkg/handler/dispatch.go:183
 msgid "Invalid ID"
 msgstr "잘못된 ID입니다"
 
 #. lang.T
-#: pkg/handler/dispatch.go:186
+#: pkg/handler/dispatch.go:189
 msgid "Switch language successfully"
 msgstr "언어 전환이 성공했습니다"
 
 #. lang.T
-#: pkg/handler/dispatch.go:196
+#: pkg/handler/dispatch.go:199
 msgid "Node: [ ID.Name(Asset amount) ]"
 msgstr "노드: [ID.Name(자산 수)]"
 
 #. lang.T
-#: pkg/handler/dispatch.go:198
+#: pkg/handler/dispatch.go:201
 msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
 msgstr ""
 "팁: 노드 아래에 있는 호스트를 표시하려면 g+노드 ID를 입력하세요(예: g1)"
@@ -425,12 +432,12 @@ msgid "Create k8s client err: %s"
 msgstr "k8s 클라이언트 생성 오류: %s"
 
 #. lang.T
-#: pkg/proxy/parser.go:230
+#: pkg/proxy/parser.go:265
 msgid "have no permission to upload file"
 msgstr "파일 업로드 권한이 없습니다"
 
 #. lang.T
-#: pkg/proxy/parser.go:266
+#: pkg/proxy/parser.go:301
 msgid ""
 "The command you executed is risky and an alert notification will be sent to "
 "the administrator. Do you want to continue?[Y/N]"
@@ -439,24 +446,24 @@ msgstr ""
 "까? [Y/N]"
 
 #. lang.T
-#: pkg/proxy/parser.go:283
+#: pkg/proxy/parser.go:318
 msgid "The command '%s' requires review. Continue or not [Y/n]?"
 msgstr "명령 %s를 검토해야 합니다. 계속하시겠습니까? [Y/N]"
 
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:303 pkg/proxy/parser.go:310 pkg/proxy/parser.go:463
+#: pkg/proxy/parser.go:338 pkg/proxy/parser.go:345 pkg/proxy/parser.go:436
 msgid "Command `%s` is forbidden"
 msgstr "명령 `%s`는 금지되어 있습니다..."
 
 #. lang.T
-#: pkg/proxy/parser.go:534
+#: pkg/proxy/parser.go:503
 msgid "have no permission to download file"
 msgstr "파일을 다운로드할 권한이 없습니다"
 
 #. lang.T
-#: pkg/proxy/parser.go:606
+#: pkg/proxy/parser.go:572
 msgid ""
 "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
 "or CTRL+D."
@@ -465,7 +472,7 @@ msgstr ""
 "CTRL+D를 누르세요."
 
 #. lang.T
-#: pkg/proxy/parser.go:616
+#: pkg/proxy/parser.go:582
 msgid ""
 "Need ticket confirm to execute command, already send email to the reviewers"
 msgstr ""
@@ -476,7 +483,7 @@ msgstr ""
 #. lang.T
 #. lang.T
 #. lang.T
-#: pkg/proxy/parser.go:617 pkg/proxy/parser.go:618 pkg/proxy/server.go:58
+#: pkg/proxy/parser.go:583 pkg/proxy/parser.go:584 pkg/proxy/server.go:58
 #: pkg/proxy/server.go:62
 msgid ""
 "HandleTask does not support protocol %s, please use web terminal to access"
@@ -495,40 +502,40 @@ msgid "You don't have permission login %s"
 msgstr "%s에 로그인할 권한이 없습니다"
 
 #. lang.T
-#: pkg/proxy/server.go:336
+#: pkg/proxy/server.go:337
 msgid "You get auth token failed"
 msgstr "인증 토큰을 얻지 못했습니다."
 
 #. lang.T
-#: pkg/proxy/server.go:347
+#: pkg/proxy/server.go:348
 msgid "Get auth password failed"
 msgstr "인증 토큰을 얻지 못했습니다."
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:363 pkg/proxy/server.go:420
+#: pkg/proxy/server.go:364 pkg/proxy/server.go:421
 msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
 msgstr "SSH 연결 재사용(%s@%s) [연결 수: %d]"
 
 #. lang.T
-#: pkg/proxy/server.go:688
+#: pkg/proxy/server.go:689
 msgid "Switched to %s"
 msgstr "%s로 전환됨"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:790 pkg/proxy/server.go:935
+#: pkg/proxy/server.go:791 pkg/proxy/server.go:936
 msgid "Connect with api server failed"
 msgstr "API 서버에 연결하지 못했습니다"
 
 #. lang.T
-#: pkg/proxy/server.go:996
+#: pkg/proxy/server.go:997
 msgid "Start domain gateway failed %s"
 msgstr "데이터베이스 게이트웨이 %s를 시작하지 못했습니다"
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/server.go:1004 pkg/proxy/server_options.go:108
+#: pkg/proxy/server.go:1005 pkg/proxy/server_options.go:108
 msgid "Manual"
 msgstr "수동 계정"
 
@@ -558,18 +565,18 @@ msgid "Connecting to Kubernetes %s container %s"
 msgstr "Kubernetes %s 컨테이너 %s에 대한 연결을 시작합니다"
 
 #. lang.T
-#: pkg/proxy/switch.go:328
+#: pkg/proxy/switch.go:315
 msgid "Session max time reached, disconnect"
 msgstr "세션이 최대 연결 시간을 초과하여 연결을 끊습니다."
 
 #. lang.T
 #. lang.T
-#: pkg/proxy/switch.go:337 pkg/proxy/switch.go:344
+#: pkg/proxy/switch.go:324 pkg/proxy/switch.go:331
 msgid "Permission has expired, disconnect"
 msgstr "권한이 만료되어 연결이 끊어졌습니다."
 
 #. lang.T
-#: pkg/proxy/switch.go:354
+#: pkg/proxy/switch.go:341
 msgid "Terminated by admin %s"
 msgstr "%s 관리자 연결이 끊겼습니다"
 
