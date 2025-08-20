@@ -346,6 +346,8 @@ function initSocketEvent(socket: WebSocket, t: any) {
 
         socket.close();
         lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.FILE_MANAGE_EXPIRED, '');
+
+        mittBus.emit('file-manager-expired');
         break;
       }
 

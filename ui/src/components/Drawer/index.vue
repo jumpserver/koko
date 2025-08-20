@@ -159,6 +159,11 @@ onMounted(() => {
   mittBus.on('open-setting', () => {
     drawerStatus.value = !drawerStatus.value;
   });
+
+  // 展示重连
+  mittBus.on('file-manager-expired', () => {
+    showEmpty.value = true;
+  });
 });
 
 onUnmounted(() => {
@@ -217,14 +222,12 @@ onUnmounted(() => {
               </n-flex>
             </template>
 
-            <n-spin :show="tab.name === 'file-manager' && isRequestingToken">
-              <component
-                :is="tab.component"
-                :sftp-token="fileManagerToken"
-                :show-empty="showEmpty"
-                @reconnect="handleReconnect"
-              />
-            </n-spin>
+            <component
+              :is="tab.component"
+              :sftp-token="fileManagerToken"
+              :show-empty="showEmpty"
+              @reconnect="handleReconnect"
+            />
           </n-tab-pane>
         </n-tabs>
       </n-card>
