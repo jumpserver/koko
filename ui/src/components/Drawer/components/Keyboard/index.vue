@@ -68,7 +68,7 @@ function writeDataToTerminal(type: string) {
     const currentTab = terminalStore.currentTab;
 
     if (!currentTab) {
-      message.error('No active terminal tab found');
+      message.error(t('NoActiveTerminalTabFound'));
       return;
     }
 

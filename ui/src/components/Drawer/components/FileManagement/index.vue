@@ -39,7 +39,7 @@ const fileManageSocket = ref<WebSocket | undefined>(undefined);
 
 watch(
   () => fileManageStore.fileList,
-  fileList => {
+  (fileList) => {
     if (fileList) {
       tableData.value = fileList;
       isLoaded.value = true;
@@ -47,17 +47,17 @@ watch(
   },
   {
     immediate: true,
-  }
+  },
 );
 
 watch(
   () => props.sftpToken,
-  token => {
+  (token) => {
     if (token) {
       fileManageSocket.value = useFileManage(token, t);
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 /**
@@ -100,22 +100,22 @@ const createColumns = (): DataTableColumns<RowData> => {
                     whiteSpace: 'nowrap',
                   },
                 },
-                { default: () => row.name }
+                { default: () => row.name },
               ),
             default: () =>
               h(NText, { style: { maxWidth: '300px', wordBreak: 'break-all' } }, { default: () => row.name }),
-          }
+          },
         );
 
-        const filePermission =
-          row.name !== '..' && row.perm
+        const filePermission
+          = row.name !== '..' && row.perm
             ? h(
                 NText,
                 {
                   depth: 3,
                   style: { fontSize: '10px', marginTop: '2px' },
                 },
-                { default: () => row.perm }
+                { default: () => row.perm },
               )
             : null;
 
@@ -136,10 +136,10 @@ const createColumns = (): DataTableColumns<RowData> => {
                 },
                 {
                   default: () => [fileName, filePermission].filter(Boolean),
-                }
+                },
               ),
             ],
-          }
+          },
         );
       },
     },
@@ -157,7 +157,7 @@ const createColumns = (): DataTableColumns<RowData> => {
           },
           {
             default: () => prettyBytes(Number(row.size)),
-          }
+          },
         );
       },
     },
@@ -182,7 +182,7 @@ const columns = createColumns();
   <template v-if="showEmpty">
     <div class="flex flex-col items-center justify-center h-full w-full gap-4">
       <n-empty :description="t('FileManagerTokenTimeout')" />
-      <n-button type="primary" @click="handleReconnect">
+      <n-button secondary size="small" @click="handleReconnect">
         {{ t('Reconnect') }}
       </n-button>
     </div>
