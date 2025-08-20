@@ -600,7 +600,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		}
 	} else {
-		if !isPlatform(&platform, "MFA") {
+		if !isPlatform(&platform, mfaAuth) {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
 		}
 	}
@@ -615,7 +615,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		for i := range questions {
 			q := questions[i]
 			vt.SetPrompt(questions[i])
-			logger.Debugf("Conn[%s] keyboard auth question [ %s ]", s.UserConn.ID(), q)
+			logger.Debugf("Conn[%s] keyboard auth question %d [ %s ]", s.UserConn.ID(), i, q)
 			if strings.Contains(strings.ToLower(q), "password") {
 				if password != "" {
 					ans[i] = password
