@@ -271,7 +271,7 @@ msgstr "Consejo: cambie el idioma mediante el ID"
 #: pkg/handler/dispatch.go:154
 msgid ""
 "Tips: To set a default language, go to Personal Settings → Preferences on Web"
-msgstr ""
+msgstr "Consejo: para configurar el idioma predeterminado, vaya a “Configuración personal → Preferencias” en la web."
 
 #. lang.T
 #. lang.T

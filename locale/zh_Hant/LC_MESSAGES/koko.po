@@ -261,7 +261,7 @@ msgstr "提示：輸入ID切換語言"
 #: pkg/handler/dispatch.go:154
 msgid ""
 "Tips: To set a default language, go to Personal Settings → Preferences on Web"
-msgstr ""
+msgstr "提示：如需設定預設語言，請前往 Web 端「個人設定 → 偏好設定」"
 
 #. lang.T
 #. lang.T

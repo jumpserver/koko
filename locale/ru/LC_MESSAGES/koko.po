@@ -270,7 +270,7 @@ msgstr "Совет: введите идентификатор, чтобы пер
 #: pkg/handler/dispatch.go:154
 msgid ""
 "Tips: To set a default language, go to Personal Settings → Preferences on Web"
-msgstr ""
+msgstr "Совет: чтобы установить язык по умолчанию, перейдите в раздел «Персональные настройки → Настройки» на сайте."
 
 #. lang.T
 #. lang.T
