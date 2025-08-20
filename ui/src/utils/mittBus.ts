@@ -47,6 +47,7 @@ interface Event {
   writeDataToTerminal: { type: string };
   'write-command': { type: string };
   'open-search': void;
+  'file-manager-expired': void;
 }
 
 // @ts-expect-error mittBus is not typed
