@@ -11,6 +11,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { BrandDocker } from '@vicons/tabler';
 import { Box, Folder } from 'lucide-vue-next';
 import { readText } from 'clipboard-polyfill';
+import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 
@@ -274,6 +275,7 @@ export function handleTreeMessage(ws: WebSocket, event: MessageEvent) {
     case 'CLOSE':
     case 'ERROR': {
       ws.close();
+      mittBus.emit('connect-error');
       break;
     }
     case 'CONNECT': {
@@ -516,11 +518,13 @@ export function initTerminalEvent(
   nodeInfo: any
 ) {
   const fitAddon: FitAddon = new FitAddon();
+  const webglAddon: WebglAddon = new WebglAddon();
   const searchAddon: SearchAddon = new SearchAddon();
 
   const terminalStore = useTerminalStore();
 
   terminal.loadAddon(fitAddon);
+  terminal.loadAddon(webglAddon);
   terminal.loadAddon(searchAddon);
 
   terminal.open(el);
@@ -547,6 +551,14 @@ export function initTerminalEvent(
   terminal.onData((data: string) => {
     const kubernetesStore = useKubernetesStore();
     const terminalStore = useTerminalStore();
+    const treeStore = useTreeStore();
+
+    const currentK8sId = terminalStore.currentTab;
+    const currentNode = treeStore.getTerminalByK8sId(currentK8sId);
+
+    if (!currentNode) {
+      return;
+    }
 
     kubernetesStore.setLastSendTime(new Date());
 
@@ -561,11 +573,11 @@ export function initTerminalEvent(
 
     const messageBody = {
       data: inputMessage,
-      id: nodeInfo.id,
-      pod: nodeInfo.pod || '',
-      k8s_id: nodeInfo.k8s_id,
-      namespace: nodeInfo.namespace || '',
-      container: nodeInfo.container || '',
+      id: currentNode.id,
+      pod: currentNode.pod || '',
+      k8s_id: currentK8sId,
+      namespace: currentNode.namespace || '',
+      container: currentNode.container || '',
       type: 'TERMINAL_K8S_DATA',
     };
 
@@ -651,6 +663,15 @@ export function initElEvent(
     },
     false
   );
+
+  el.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'f') {
+        mittBus.emit('open-search');
+        e.preventDefault();
+      }
+    }
+  });
 }
 
 /**
@@ -769,7 +790,10 @@ export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: I
   initCustomWindowEvent(fitAddon);
   initMittBusEvents(searchAddon, socket);
 
-  return terminal;
+  return {
+    terminal,
+    searchAddon,
+  };
 }
 
 export function useKubernetes(t: any) {

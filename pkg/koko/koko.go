@@ -95,8 +95,9 @@ func runTasks(jmsService *service.JMService) {
 
 func MustJMService() *service.JMService {
 	key := MustLoadValidAccessKey()
-	jmsService, err := service.NewAuthJMService(service.JMSCoreHost(
-		config.GlobalConfig.CoreHost), service.JMSTimeOut(30*time.Second),
+	jmsService, err := service.NewAuthJMService(
+		service.JMSCoreHost(config.GlobalConfig.CoreHost),
+		service.JMSTimeOut(time.Duration(config.GlobalConfig.HttpRequestTimeout)*time.Second),
 		service.JMSAccessKey(key.ID, key.Secret),
 	)
 	if err != nil {

@@ -63,10 +63,13 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
       const is_backspace_as_ctrl_h = commandLine.is_backspace_as_ctrl_h;
       const is_right_click_quickly_paste = commandLine.is_right_click_quickly_paste;
       const terminal_theme_name = commandLine.terminal_theme_name;
+      
       defaultCommandLine.character_terminal_font_size = fontSize || 13;
       defaultCommandLine.is_backspace_as_ctrl_h = is_backspace_as_ctrl_h || false;
-      defaultCommandLine.is_right_click_quickly_paste = is_right_click_quickly_paste || true;
       defaultCommandLine.terminal_theme_name = terminal_theme_name || 'Default';
+      defaultCommandLine.is_right_click_quickly_paste = is_right_click_quickly_paste
+        ? is_right_click_quickly_paste
+        : false;
     }
 
     if (!fontSize || fontSize < 5 || fontSize > 50) {

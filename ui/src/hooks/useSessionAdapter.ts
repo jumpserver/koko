@@ -205,19 +205,6 @@ export function useSessionAdapter() {
       .catch(e => {
         message.error(`Copy Error for ${e}`);
       });
-
-    // 清理分享信息
-    if (isK8sEnvironment.value) {
-      paramsStore.setShareId('');
-      paramsStore.setShareCode('');
-    } else {
-      connectionStore.updateConnectionState({
-        shareId: '',
-        shareCode: '',
-      });
-      paramsStore.setShareId('');
-      paramsStore.setShareCode('');
-    }
   };
 
   const resetShareState = () => {

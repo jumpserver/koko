@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Ref } from 'vue';
+import type { SearchAddon } from '@xterm/addon-search';
 import type { DropdownOption, TabPaneProps } from 'naive-ui';
 import type { UseDraggableReturn } from 'vue-draggable-plus';
 
@@ -42,12 +43,14 @@ const themeColors = computed(() => {
 });
 
 const nameRef = ref('');
-const showDrawer = ref<boolean>(false);
 const contextIdentification = ref('');
+const showDrawer = ref(false);
+const showSearchInput = ref(false);
+const showContextMenu = ref(false);
 const dropdownY = ref(0);
 const dropdownX = ref(0);
-const showContextMenu = ref(false);
 const panels: Ref<TabPaneProps[]> = ref([]);
+const searchAddonRef = ref<SearchAddon | null>(null);
 
 const processedElements = new Set();
 const contextMenuOption = [
@@ -96,6 +99,7 @@ const findNodeById = (nameRef: string) => {
         const backspaceAsCtrlH: string = value.backspaceAsCtrlHMap.get(value.k8s_id);
         terminalStore.setTerminalConfig('backspaceAsCtrlH', backspaceAsCtrlH);
       }
+      break;
     }
   }
 };
@@ -132,6 +136,8 @@ function handleClose(name: string) {
     nameRef.value = panels.value[panelLength - 1].name as string;
     findNodeById(nameRef.value);
     terminalStore.setTerminalConfig('currentTab', nameRef.value);
+    // 关闭后自动切换时也要切换焦点
+    focusActiveTerminal(nameRef.value);
   }
 }
 
@@ -146,6 +152,44 @@ function handleChangeTab(value: string) {
   findNodeById(value);
 
   terminalStore.setTerminalConfig('currentTab', value);
+
+  // 切换终端焦点
+  focusActiveTerminal(value);
+}
+
+/**
+ * @description 聚焦当前激活的终端，让其他终端失焦
+ */
+function focusActiveTerminal(activeK8sId: string) {
+  // 延迟执行，确保 Tab 切换的 DOM 更新完成
+  nextTick(() => {
+    setTimeout(() => {
+      for (const [_mapKey, node] of treeStore.terminalMap.entries()) {
+        const terminal = node?.terminal;
+        if (terminal) {
+          if (node.k8s_id === activeK8sId) {
+            // 获取终端的 DOM 元素
+            const terminalElement = document.getElementById(activeK8sId);
+            if (terminalElement) {
+              // 确保元素可见
+              terminalElement.style.display = '';
+
+              // 强制聚焦
+              terminal.focus();
+
+              // 额外确保 DOM 元素也获得焦点
+              const textareaElements = terminalElement.querySelectorAll('textarea');
+              if (textareaElements.length > 0) {
+                textareaElements[0].focus();
+              }
+            }
+          } else {
+            terminal.blur();
+          }
+        }
+      }
+    }, 100);
+  });
 }
 
 /**
@@ -409,7 +453,9 @@ onMounted(() => {
       const el = document.getElementById(node.k8s_id);
 
       if (el) {
-        const terminal = createTerminal(el, node.socket, lunaConfig, node);
+        const { terminal, searchAddon } = createTerminal(el, node.socket, lunaConfig, node);
+
+        searchAddonRef.value = searchAddon;
 
         treeStore.setK8sIdMap(node.k8s_id, {
           ...node,
@@ -433,7 +479,7 @@ onMounted(() => {
         el.addEventListener('mouseleave', () => {
           terminal.blur();
           const currentNode = treeStore.getTerminalByK8sId(nameRef.value);
-          
+
           if (currentNode) {
             lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE, {
               content: getXTerminalLineContent(10, terminal),
@@ -454,6 +500,9 @@ onMounted(() => {
     });
   });
 
+  mittBus.on('open-search', () => {
+    showSearchInput.value = true;
+  });
   mittBus.on('alt-shift-left', debouncedSwitchToPreviousTab);
   mittBus.on('alt-shift-right', debouncedSwitchToNextTab);
 });
@@ -466,6 +515,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <SearchInput
+    v-if="showSearchInput"
+    :is-kubernetes="true"
+    :search-addon="searchAddonRef"
+    @close="showSearchInput = false"
+  />
   <n-layout :native-scrollbar="false" content-style="height: 100%" :style="themeColors">
     <n-tabs
       v-model:value="nameRef"

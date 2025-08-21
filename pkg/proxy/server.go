@@ -237,6 +237,7 @@ func (s *Server) GetFilterParser() *Parser {
 	platform := s.connOpts.authInfo.Platform
 	// 过滤规则排序
 	sort.Sort(model.CommandACLs(filterRules))
+	pty := s.UserConn.Pty()
 	parser := Parser{
 		id:             s.ID,
 		protocolType:   protocol,
@@ -248,7 +249,7 @@ func (s *Server) GetFilterParser() *Parser {
 		i18nLang:       s.connOpts.i18nLang,
 		platform:       &platform,
 	}
-	parser.initial()
+	parser.initial(pty.Window.Width, pty.Window.Height)
 	return &parser
 }
 
@@ -513,8 +514,8 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 	}
 	username := s.account.Username
 	isAuthUsername := false
-	if platfromProtocol, ok := platform.GetProtocolSetting("redis"); ok {
-		protocolSetting := platfromProtocol.GetSetting()
+	if platformProtocol, ok := platform.GetProtocolSetting("redis"); ok {
+		protocolSetting := platformProtocol.GetSetting()
 		isAuthUsername = protocolSetting.AuthUsername
 	}
 	if s.account.IsNull() || !isAuthUsername {
@@ -551,8 +552,8 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 
 	authSource := ""
 	connectionOpts := ""
-	if platfromProtocol, ok := platform.GetProtocolSetting("mongodb"); ok {
-		protocolSetting := platfromProtocol.GetSetting()
+	if platformProtocol, ok := platform.GetProtocolSetting("mongodb"); ok {
+		protocolSetting := platformProtocol.GetSetting()
 		authSource = protocolSetting.AuthSource
 		connectionOpts = protocolSetting.ConnectionOpts
 	}
@@ -599,7 +600,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		}
 	} else {
-		if !isPlatform(&platform, "MFA") {
+		if !isPlatform(&platform, mfaAuth) {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
 		}
 	}
@@ -614,7 +615,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		for i := range questions {
 			q := questions[i]
 			vt.SetPrompt(questions[i])
-			logger.Debugf("Conn[%s] keyboard auth question [ %s ]", s.UserConn.ID(), q)
+			logger.Debugf("Conn[%s] keyboard auth question %d [ %s ]", s.UserConn.ID(), i, q)
 			if strings.Contains(strings.ToLower(q), "password") {
 				if password != "" {
 					ans[i] = password
@@ -716,8 +717,8 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	usernamePrompt := ""
 	passwordPrompt := ""
 	successPrompt := ""
-	if platfromProtocol, ok := platform.GetProtocolSetting(protocol); ok {
-		protocolSetting := platfromProtocol.GetSetting()
+	if platformProtocol, ok := platform.GetProtocolSetting(protocol); ok {
+		protocolSetting := platformProtocol.GetSetting()
 		usernamePrompt = strings.TrimSpace(protocolSetting.TelnetUsernamePrompt)
 		passwordPrompt = strings.TrimSpace(protocolSetting.TelnetPasswordPrompt)
 		successPrompt = strings.TrimSpace(protocolSetting.TelnetSuccessPrompt)

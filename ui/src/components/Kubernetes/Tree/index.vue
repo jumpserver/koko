@@ -4,7 +4,7 @@ import type { DropdownOption, TreeOption } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { NPopover } from 'naive-ui';
-import { computed, h, nextTick, ref, watchEffect } from 'vue';
+import { computed, h, nextTick, onMounted, onUnmounted, ref, watchEffect } from 'vue';
 import { Folder, FolderOpen, RefreshCcw, Search, SquareTerminal, UnfoldVertical } from 'lucide-vue-next';
 
 import type { customTreeOption } from '@/types/modules/config.type';
@@ -233,6 +233,16 @@ function handleRootLink(e: Event) {
 function handleClickOutside() {
   showDropdown.value = false;
 }
+
+onMounted(() => {
+  mittBus.on('connect-error', () => {
+    isLoaded.value = true;
+  });
+});
+
+onUnmounted(() => {
+  mittBus.off('connect-error');
+});
 </script>
 
 <template>

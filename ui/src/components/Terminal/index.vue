@@ -1,10 +1,22 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+
+import { useTerminalEvents } from '@/hooks/useTerminalEvents';
 import { useTerminalSocket } from '@/hooks/useTerminalSocket';
 
-const { containerRef } = useTerminalSocket();
+const showSearchInput = ref(false);
+
+const { onMittEvent } = useTerminalEvents();
+const { containerRef, searchAddon } = useTerminalSocket();
+
+onMittEvent('open-search', () => {
+  showSearchInput.value = true;
+});
 </script>
 
 <template>
+  <SearchInput v-if="showSearchInput" :search-addon="searchAddon" @close="showSearchInput = false" />
+
   <div id="terminal-container" ref="containerRef" class="w-screen h-screen" />
 </template>
 

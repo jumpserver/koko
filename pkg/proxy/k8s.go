@@ -1,9 +1,12 @@
 package proxy
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jumpserver/koko/pkg/srvconn"
+	"k8s.io/client-go/rest"
 	"net"
 	"net/url"
 	"os"
@@ -39,6 +42,7 @@ type Namespace struct {
 
 type KubernetesClient struct {
 	configName string
+	token      string
 	gateway    *domainGateway
 }
 
@@ -72,7 +76,17 @@ func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gat
 		address = ReplaceURLHostAndPort(originUrl, "127.0.0.1", proxyAddr.Port)
 	}
 
-	kubeConfig := kc.GetKubeConfig(address, token)
+	kubeConf := &rest.Config{
+		Host:        address,
+		BearerToken: token,
+	}
+	kubeConf.Insecure = true
+
+	if !srvconn.IsValidK8sUserToken(kubeConf) {
+		return srvconn.ErrValidToken
+	}
+
+	kubeConfigYAML := kc.GetKubeConfig(address, token)
 
 	tmpFile, err := os.CreateTemp("", "kubeconfig-*.yaml")
 	if err != nil {
@@ -80,10 +94,11 @@ func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gat
 	}
 	defer tmpFile.Close()
 
-	if _, err := tmpFile.Write([]byte(kubeConfig)); err != nil {
+	if _, err := tmpFile.Write([]byte(kubeConfigYAML)); err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
 	}
 	kc.configName = tmpFile.Name()
+	kc.token = token
 	return nil
 }
 
@@ -123,44 +138,29 @@ users:
 }
 
 var (
-	getNamespacesLine    = "kubectl get namespaces -o custom-columns=NAME:.metadata.name --no-headers"
-	getPodContainersLine = "kubectl get pods --all-namespaces -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers"
+	getNamespacesLineAll     = "kubectl get namespaces -o custom-columns=NAME:.metadata.name --no-headers"
+	getPodsAllNamespacesLine = "kubectl get pods --all-namespaces -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers"
+	getPodsInNamespaceFmt    = "kubectl get pods -n %s -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers"
+	getCurrentNSLine         = "kubectl config view --minify -o jsonpath='{..namespace}'"
 )
 
 func (kc *KubernetesClient) GetTreeData() (string, error) {
 	env := append(os.Environ(), "KUBECONFIG="+kc.configName)
 
-	namespacesCmd := exec.Command("bash", "-c", getNamespacesLine)
-	namespacesCmd.Env = env
-	namespacesOutput, err := namespacesCmd.CombinedOutput()
+	nsList, err := kc.resolveNamespaces(env)
 	if err != nil {
-		logger.Debugf("Error executing kubectl get namespaces: %v", err)
+		logger.Debugf("resolveNamespaces failed: %v", err)
 		return "{}", err
 	}
-
-	namespaceLines := strings.Split(strings.TrimSpace(string(namespacesOutput)), "\n")
-
-	namespaces := make(map[string]*Namespace)
-	for _, nsName := range namespaceLines {
-		if strings.HasPrefix(nsName, "error:") {
-			nsName = strings.TrimPrefix(nsName, "error: ")
-			return "{}", fmt.Errorf("%s", nsName)
-		}
-
-		if nsName = strings.TrimSpace(nsName); nsName != "" {
-			namespaces[nsName] = &Namespace{Name: nsName, Type: "namespace"}
-		}
+	if len(nsList) == 0 {
+		return "{}", fmt.Errorf("no accessible namespaces detected for current credentials")
 	}
 
-	podsCmd := exec.Command("bash", "-c", getPodContainersLine)
-	podsCmd.Env = env
-	podsOutput, err := podsCmd.CombinedOutput()
+	podLines, err := kc.listPodsSmart(env, nsList)
 	if err != nil {
-		logger.Debugf("Error executing kubectl get pods: %v", err)
+		logger.Debugf("listPodsSmart failed: %v", err)
 		return "{}", err
 	}
-
-	podLines := strings.Split(strings.TrimSpace(string(podsOutput)), "\n")
 
 	k8sTree := NewTree()
 	for _, line := range podLines {
@@ -168,13 +168,19 @@ func (kc *KubernetesClient) GetTreeData() (string, error) {
 		if len(record) < 3 {
 			continue
 		}
-
 		nsName, podName, containerNames := record[0], record[1], record[2]
 		for _, containerName := range strings.Split(containerNames, ",") {
+			if strings.TrimSpace(containerName) == "" {
+				continue
+			}
 			k8sTree.InsertResource(nsName, podName, containerName)
 		}
 	}
 
+	namespaces := make(map[string]*Namespace)
+	for _, ns := range nsList {
+		namespaces[ns] = &Namespace{Name: ns, Type: "namespace"}
+	}
 	for _, ns := range k8sTree.SearchNamespaces() {
 		namespaces[ns.Name] = &ns
 	}
@@ -184,7 +190,6 @@ func (kc *KubernetesClient) GetTreeData() (string, error) {
 		logger.Errorf("Error marshalling JSON: %v", err)
 		return "{}", err
 	}
-
 	return string(jsonData), nil
 }
 
@@ -238,7 +243,7 @@ func (node *K8sNode) insert(resource, resourceType string) *K8sNode {
 }
 
 func (node *K8sNode) searchContainers() []Container {
-	containers := make([]Container, 0)
+	containers := make([]Container, 0, len(node.SubTree))
 	for _, container := range node.SubTree {
 		containers = append(containers, Container{
 			Type: container.Type,
@@ -249,7 +254,7 @@ func (node *K8sNode) searchContainers() []Container {
 }
 
 func (node *K8sNode) searchPods() []Pod {
-	pods := make([]Pod, 0)
+	pods := make([]Pod, 0, len(node.SubTree))
 	for _, pod := range node.SubTree {
 		pods = append(pods, Pod{
 			Type:       pod.Type,
@@ -261,7 +266,7 @@ func (node *K8sNode) searchPods() []Pod {
 }
 
 func (tree *K8sResourceTree) SearchNamespaces() []Namespace {
-	namespaces := make([]Namespace, 0)
+	namespaces := make([]Namespace, 0, len(tree.Root.SubTree))
 	for _, namespace := range tree.Root.SubTree {
 		namespaces = append(namespaces, Namespace{
 			Type: namespace.Type,
@@ -277,4 +282,110 @@ func (tree *K8sResourceTree) InsertResource(ns, pod, container string) {
 	cur.insert(ns, ResourceNamespace).
 		insert(pod, ResourcePod).
 		insert(container, ResourceContainer)
+}
+
+func (kc *KubernetesClient) resolveNamespaces(env []string) ([]string, error) {
+	if out, err := runCmd(env, getNamespacesLineAll); err == nil {
+		return nonEmptyLines(out), nil
+	}
+
+	if ns, err := extractNamespaceFromSAToken(kc.token); err == nil && ns != "" {
+		return []string{ns}, nil
+	} else {
+		logger.Debugf("extractNamespaceFromSAToken failed: %v", err)
+	}
+
+	if curNS := strings.TrimSpace(shellOutOrEmpty(env, getCurrentNSLine)); curNS != "" {
+		return []string{curNS}, nil
+	}
+
+	return nil, fmt.Errorf("cannot determine accessible namespaces: no list permission, no SA token namespace, no context namespace")
+}
+
+func (kc *KubernetesClient) listPodsSmart(env []string, nsList []string) ([]string, error) {
+	if len(nsList) > 1 {
+		if out, err := runCmd(env, getPodsAllNamespacesLine); err == nil {
+			return nonEmptyLines(out), nil
+		}
+	}
+	var all []string
+	for _, ns := range nsList {
+		cmd := fmt.Sprintf(getPodsInNamespaceFmt, shellEscape(ns))
+		out, err := runCmd(env, cmd)
+		if err != nil {
+			logger.Debugf("list pods in ns %q failed: %v", ns, err)
+			continue
+		}
+		all = append(all, nonEmptyLines(out)...)
+	}
+	return all, nil
+}
+
+func extractNamespaceFromSAToken(token string) (string, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("token is not a JWT")
+	}
+	payloadB64 := parts[1]
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(payloadB64)
+	if err != nil {
+		if payloadBytes2, err2 := base64.StdEncoding.DecodeString(payloadB64); err2 == nil {
+			payloadBytes = payloadBytes2
+		} else {
+			return "", fmt.Errorf("failed to decode JWT payload: %v / %v", err, err2)
+		}
+	}
+
+	var claims map[string]any
+	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
+		return "", fmt.Errorf("failed to unmarshal JWT payload: %w", err)
+	}
+
+	if v, ok := claims["kubernetes.io/serviceaccount/namespace"]; ok {
+		if ns, ok := v.(string); ok && strings.TrimSpace(ns) != "" {
+			return ns, nil
+		}
+	}
+	return "", fmt.Errorf("no serviceaccount namespace claim in token")
+}
+
+func runCmd(env []string, line string) (string, error) {
+	cmd := exec.Command("bash", "-c", line)
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("cmd failed: %s, err: %w, out: %s", line, err, strings.TrimSpace(string(out)))
+	}
+	return string(out), nil
+}
+
+func shellOutOrEmpty(env []string, line string) string {
+	out, err := runCmd(env, line)
+	if err != nil {
+		return ""
+	}
+	return out
+}
+
+func nonEmptyLines(s string) []string {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	raw := strings.Split(strings.TrimSpace(s), "\n")
+	dst := make([]string, 0, len(raw))
+	for _, v := range raw {
+		v = strings.TrimSpace(v)
+		if v != "" && !strings.HasPrefix(v, "error:") {
+			dst = append(dst, v)
+		}
+	}
+	return dst
+}
+
+func shellEscape(s string) string {
+	if !strings.ContainsAny(s, " \t\n'\"\\$`") {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }

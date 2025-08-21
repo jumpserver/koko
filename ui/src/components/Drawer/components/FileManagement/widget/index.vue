@@ -80,7 +80,7 @@ const forwardPath = ref('');
 const newFileName = ref('');
 const searchValue = ref('');
 const modalContent = ref('');
-const loading = ref(false);
+const loading = ref(true);
 const showInner = ref(false);
 const showModal = ref(false);
 const showDropdown = ref(false);
@@ -425,7 +425,6 @@ const modalPositiveClick = () => {
     }
   }
 
-  // TODO 提示
   if (modalType.value === 'stop') {
     loading.value = true;
 

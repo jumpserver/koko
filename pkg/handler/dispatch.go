@@ -150,11 +150,14 @@ func (h *InteractiveHandler) ChangeLang() {
 	table.Initial()
 
 	h.term.SetPrompt("ID> ")
-	selectTip := lang.T("Tips: switch language by ID")
+	selectTip := lang.T("Tips: switch language by ID (Current session only)")
+	setLangTip := lang.T("Tips: To set a default language, go to Personal Settings → Preferences on Web")
 	backTip := lang.T("Back: B/b")
 	for i := 0; i < 3; i++ {
 		utils.IgnoreErrWriteString(h.term, table.Display())
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(selectTip, utils.Green))
+		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
+		utils.IgnoreErrWriteString(h.term, utils.WrapperString(setLangTip, utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(backTip, utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
