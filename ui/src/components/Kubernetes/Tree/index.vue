@@ -236,7 +236,7 @@ function handleClickOutside() {
 
 onMounted(() => {
   mittBus.on('connect-error', () => {
-    isLoaded.value = false;
+    isLoaded.value = true;
   });
 });
 
