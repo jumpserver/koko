@@ -236,6 +236,12 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 	if bytes.ContainsRune(b, '\r') {
 		return true
 	}
+	if p.TerminalParser != nil && p.TerminalParser.screenType == UsqlScreen {
+		// terminal 右键粘贴时，没有 \r 只有 \n
+		if bytes.ContainsRune(b, '\n') && bytes.ContainsRune(b, ';') {
+			return true
+		}
+	}
 	return false
 }
 
