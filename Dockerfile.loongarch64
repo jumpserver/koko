@@ -110,7 +110,7 @@ RUN mkdir /opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
 
-FROM lcr.loongnix.cn/library/debian:trixie-slim
+FROM lcr.loongnix.cn/library/debian:trixie-slim  AS stage-build
 ARG TARGETARCH
 ENV LANG=en_US.UTF-8
 
