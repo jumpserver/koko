@@ -1,7 +1,7 @@
-FROM redis:7.4.5-trixie AS redis-stage
-FROM golang:1.24-trixie AS stage-go-build
+FROM lcr.loongnix.cn/library/redis:7.4.5-trixie AS redis-stage
+FROM lcr.loongnix.cn/library/golang:1.24-trixie AS stage-go-build
 
-FROM node:20.19-trixie-slim
+FROM lcr.loongnix.cn/library/node:20.19-trixie-slim
 COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
 COPY --from=stage-go-build /go/ /go/
 COPY --from=redis-stage /usr/local/bin/redis-cli /usr/local/bin/redis-cli
@@ -9,7 +9,7 @@ ENV GOPATH=/go
 ENV PATH=/go/bin:/usr/local/go/bin:$PATH
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
-ENV NPM_REGISTY=$NPM_REGISTRY
+ENV NPM_REGISTRY=$NPM_REGISTRY
 
 RUN set -ex \
     && npm config set registry ${NPM_REGISTRY} \
@@ -67,7 +67,8 @@ ARG MONGOSH_VERSION=2.3.4
 #             ;; \
 #     esac
 
-COPY . .
+COPY ./ui/package.json /opt/koko/ui/package.json
+COPY ./ui/yarn.lock /opt/koko/ui/yarn.lock
 
 WORKDIR /opt/koko/ui
 
@@ -77,15 +78,19 @@ WORKDIR /opt/koko/
 
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
+ENV GOPROXY=https://goproxy.cn,direct
 
 COPY go.mod go.sum ./
 
-RUN go mod download -x
+RUN apt-get install debian-ports-archive-keyring \
+    && apt-get install -y ca-certificates \
+    && go mod download -x
 
 
 ARG VERSION
 ENV VERSION=$VERSION
 
+COPY . /opt/koko/
 WORKDIR /opt/koko/ui
 RUN yarn build
 
