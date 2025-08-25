@@ -69,6 +69,8 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       sourcemap: false,
       minify: false,
       cssCodeSplit: true,
+      // 针对龙芯架构的特殊配置
+      target: 'es2020',
       rollupOptions: {
         output: {
           entryFileNames: `assets/js/[name]-[hash].js`,
@@ -89,7 +91,22 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             }
           },
         },
+        // 排除 lightningcss 相关的原生模块
+        external: id => {
+          if (id.includes('lightningcss') && id.includes('.node')) {
+            return true;
+          }
+          return false;
+        },
       },
+    },
+    // 针对龙芯架构的优化配置
+    optimizeDeps: {
+      exclude: ['lightningcss'],
+    },
+    css: {
+      // 使用 PostCSS 而不是 lightningcss
+      postcss: './postcss.config.mjs',
     },
   };
 });
