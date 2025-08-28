@@ -524,6 +524,13 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	if err != nil {
 		logger.Errorf("User %s Run command %s failed: %s",
 			tokenInfo.User.String(), rawStr, err)
+		var exitErr *gossh.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode := exitErr.ExitStatus()
+			if err1 := sess.Exit(exitCode); err1 != nil {
+				logger.Errorf("Create sess exit code %d err: %s", exitCode, err1)
+			}
+		}
 	}
 	reason := string(model.ReasonErrConnectDisconnect)
 	s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)
