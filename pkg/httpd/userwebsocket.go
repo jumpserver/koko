@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/i18n"
 	"io"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 
