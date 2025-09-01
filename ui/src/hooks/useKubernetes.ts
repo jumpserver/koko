@@ -35,6 +35,7 @@ const { message, notification } = createDiscreteApi(['message', 'notification'],
     theme: darkTheme,
   },
 });
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 
 const lunaId = ref('');
 const counter = ref(0);
@@ -582,6 +583,7 @@ export function initTerminalEvent(
     };
 
     socket.send(JSON.stringify(messageBody));
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
   });
 
   terminal.onSelectionChange(() => {

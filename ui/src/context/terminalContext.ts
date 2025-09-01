@@ -131,6 +131,15 @@ export const createTerminalContext = (): TerminalContext => {
       socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
     };
 
+    const handInputActive = (_data: string) => {
+      const msg = {
+        id: '',
+        origin: '',
+        data: '',
+      } as LunaMessage;
+      handLunaCommand(msg);
+    };
+
     const handLunaFocus = (_msg: LunaMessage) => {
       const terminal = connectionStore.terminal;
 
@@ -183,6 +192,7 @@ export const createTerminalContext = (): TerminalContext => {
     lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.FOCUS, handLunaFocus);
     lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_THEME_CHANGE, handLunaThemeChange);
     lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.TERMINAL_CONTENT, handTerminalContent);
+    lunaCommunicator.onLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, handInputActive);
   };
 
   const sendMittEvent = (event: string, data: any) => {

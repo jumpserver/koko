@@ -290,15 +290,13 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		for {
 			buf := make([]byte, 1024)
 			nr, err1 := userConn.Read(buf)
-			if nr > 0 {
-				room.Receive(&exchange.RoomMessage{
-					Event: exchange.DataEvent, Body: buf[:nr],
-					Meta: meta})
-			}
 			if err1 != nil {
 				logger.Errorf("Session[%s] user read err: %s", s.ID, err1)
 				break
 			}
+			room.Receive(&exchange.RoomMessage{
+				Event: exchange.DataEvent, Body: buf[:nr],
+				Meta: meta})
 		}
 		logger.Infof("Session[%s] user read end", s.ID)
 		exitSignal <- struct{}{}

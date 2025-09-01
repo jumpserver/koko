@@ -511,6 +511,7 @@ export const useTerminalSocket = () => {
 
       const processedData = preprocessInput(data, terminalSettingsStore.getConfig);
       socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
+      lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
     });
     terminalRef.value.onResize(({ cols, rows }) => debouncedResize({ cols, rows }));
     terminalRef.value.onSelectionChange(async () => {
