@@ -127,10 +127,16 @@ func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err err
 }
 
 func (opt *sqlOption) RedisCommandArgs() []string {
-	params := []string{
+	params := make([]string, 0, 15)
+	if opt.ClusterMode {
+		params = append(params, "-c")
+	}
+	connArgs := []string{
 		"-h", opt.Host, "-p", strconv.Itoa(opt.Port),
 		"-n", opt.DBName,
 	}
+	params = append(params, connArgs...)
+
 	if opt.UseSSL {
 		params = append(params, "--tls")
 		if opt.CaCertPath != "" {

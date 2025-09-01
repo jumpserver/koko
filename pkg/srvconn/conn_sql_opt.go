@@ -20,6 +20,8 @@ type sqlOption struct {
 
 	SQLServerDisableEncrypt bool // for sqlserver 2008
 
+	ClusterMode bool
+
 	win Windows
 
 	AuthSource        string
@@ -128,5 +130,11 @@ func SqlConnectionOptions(options string) SqlOption {
 func SqlDisableSqlServerEncrypt(disbale bool) SqlOption {
 	return func(args *sqlOption) {
 		args.SQLServerDisableEncrypt = disbale
+	}
+}
+
+func SqlClusterMode(mode bool) SqlOption {
+	return func(args *sqlOption) {
+		args.ClusterMode = mode
 	}
 }
