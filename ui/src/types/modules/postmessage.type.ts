@@ -80,6 +80,9 @@ export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.OPEN_K8S_SETTING]: {
     data: string;
   };
+  [LUNA_MESSAGE_TYPE.INPUT_ACTIVE]: {
+    data: string;
+  };
 }
 
 export interface LunaMessage {

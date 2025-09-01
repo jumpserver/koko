@@ -1,5 +1,4 @@
 import type { Ref } from 'vue';
-import type { Emitter } from 'mitt';
 import type { UploadFileInfo } from 'naive-ui';
 
 import mitt from 'mitt';

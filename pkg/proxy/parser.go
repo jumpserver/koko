@@ -191,10 +191,9 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 					b = msg.Body
 				}
 				p.UpdateActiveUser(msg)
-				if len(b) == 0 {
-					continue
+				if len(b) > 0 {
+					b = p.ParseUserInput(b)
 				}
-				b = p.ParseUserInput(b)
 				select {
 				case <-p.closed:
 					return
