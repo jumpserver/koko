@@ -519,8 +519,8 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		protocolSetting := platformProtocol.GetSetting()
 		isAuthUsername = protocolSetting.AuthUsername
 
-		// 解析集群模式配置 TODO: 将优化 sdk-go 的 ProtocolSetting 加上 use_cluster_mode
-		if useCluster, exists := platformProtocol.Setting["use_cluster_mode"]; exists {
+		// 解析集群模式配置 TODO: 将优化 sdk-go 的 ProtocolSetting 加上 enable_cluster_mode
+		if useCluster, exists := platformProtocol.Setting["enable_cluster_mode"]; exists {
 			isClusterMode = parseBoolValue(useCluster)
 		}
 	}
