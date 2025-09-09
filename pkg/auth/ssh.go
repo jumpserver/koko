@@ -47,6 +47,21 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		if password != "" {
 			authMethod = "password"
 		}
+		checkedUser := ctx.Value(ContextKeyCheckUsername)
+		if authMethod == "publickey" && checkedUser == nil {
+			//  Only the first public key authentication is used to check whether the username has a public key.
+			ctx.SetValue(ContextKeyCheckUsername, true)
+			if pendingUser, err := jmsService.GetUserByUsername(username); err == nil {
+				if !pendingUser.HasPublicKeys {
+					logger.Infof("SSH conn[%s] user %s has no public keys", ctx.SessionID(), username)
+					return authErr
+				}
+			} else {
+				logger.Debugf("SSH conn[%s] user %s check public keys failed: %s",
+					ctx.SessionID(), username, err)
+			}
+		}
+
 		newClient := jmsService.CloneClient()
 		var accessKey model.AccessKey
 		conf := config.GetConf()
@@ -127,6 +142,8 @@ const (
 	ContextKeyAuthFailed = "CONTEXT_AUTH_FAILED"
 
 	ContextKeyDirectLoginFormat = "CONTEXT_DIRECT_LOGIN_FORMAT"
+
+	ContextKeyCheckUsername = "CONTEXT_CHECK_USERNAME"
 )
 
 type DirectLoginAssetReq struct {
