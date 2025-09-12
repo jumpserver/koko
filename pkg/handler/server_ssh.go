@@ -675,7 +675,7 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 	var getUserPermAssets func() ([]model.PermAsset, error)
 	if common.IsUUID(req.AssetTarget) {
 		getUserPermAssets = func() ([]model.PermAsset, error) {
-			return s.jmsService.GetUserPermAssetById(user.ID, req.AssetTarget)
+			return s.jmsService.GetUserPermAssetsById(user.ID, req.AssetTarget)
 		}
 	} else {
 		getUserPermAssets = func() ([]model.PermAsset, error) {
