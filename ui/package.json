@@ -59,7 +59,7 @@
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.29.0",
     "unplugin-vue-components": "^0.27.3",
-    "vite": "^6.3.5",
+    "vite": "^6.3.6",
     "vite-plugin-compression": "^0.5.1",
     "vite-plugin-webpackchunkname": "^1.0.3",
     "vue-eslint-parser": "^10.1.3",
