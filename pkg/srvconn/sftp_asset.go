@@ -118,15 +118,24 @@ func generateSubAccountsFolderMap(accounts []model.PermAccount) map[string]*mode
 }
 
 func (ad *AssetDir) loadAssetDetail() {
-	detailAssets, err := ad.jmsService.GetUserAssetByID(ad.user.ID, ad.opts.ID)
+	detailAsset, err := ad.jmsService.GetUserPermAssetDetailById(ad.user.ID, ad.opts.ID)
 	if err != nil {
-		logger.Errorf("Get asset err: %s", err)
+		logger.Errorf("Load asset detail err: %s", err)
 		return
 	}
-	if len(detailAssets) != 1 {
-		logger.Errorf("Get asset %s more than one detail err: %s", ad.opts.ID, err)
+	permAsset := &model.PermAsset{
+		ID:       detailAsset.ID,
+		Name:     detailAsset.Name,
+		Address:  detailAsset.Address,
+		Comment:  detailAsset.Comment,
+		Platform: detailAsset.Platform,
+		OrgID:    detailAsset.OrgID,
+		OrgName:  detailAsset.OrgName,
+		IsActive: detailAsset.IsActive,
+		Type:     detailAsset.Type,
+		Category: detailAsset.Category,
 	}
-	ad.detailAsset = &detailAssets[0]
+	ad.detailAsset = permAsset
 }
 
 func (ad *AssetDir) Create(path string) (*SftpFile, error) {

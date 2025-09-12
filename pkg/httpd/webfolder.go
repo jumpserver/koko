@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -70,15 +71,24 @@ func SftpCheckValidation(ws *UserWebsocket) (*UserVolume, error) {
 		volOpts = append(volOpts, WithConnectToken(connectToken))
 	} else {
 		if common.ValidUUIDString(assetId) {
-			assets, err := apiClient.GetUserAssetByID(user.ID, assetId)
-			if err != nil {
+			detailAsset, err1 := apiClient.GetUserPermAssetDetailById(user.ID, assetId)
+			if err1 != nil {
 				logger.Errorf("Get user asset %s error: %s", assetId, err)
 				return uv, ErrAssetIdInvalid
 			}
-			if len(assets) != 1 {
-				logger.Errorf("Get user more than one asset %s: choose first", targetId)
+			permAsset := &model.PermAsset{
+				ID:       detailAsset.ID,
+				Name:     detailAsset.Name,
+				Address:  detailAsset.Address,
+				Comment:  detailAsset.Comment,
+				Platform: detailAsset.Platform,
+				OrgID:    detailAsset.OrgID,
+				OrgName:  detailAsset.OrgName,
+				IsActive: detailAsset.IsActive,
+				Type:     detailAsset.Type,
+				Category: detailAsset.Category,
 			}
-			volOpts = append(volOpts, WithAsset(&assets[0]))
+			volOpts = append(volOpts, WithAsset(permAsset))
 		}
 	}
 
