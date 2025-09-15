@@ -160,7 +160,10 @@ onMounted(() => {
     drawerStatus.value = !drawerStatus.value;
   });
 
-  // 展示重连
+  mittBus.on('close-drawer', () => {
+    drawerStatus.value = false;
+  });
+
   mittBus.on('file-manager-expired', () => {
     showEmpty.value = true;
   });
@@ -172,6 +175,7 @@ onUnmounted(() => {
     timeoutId.value = null;
   }
 
+  mittBus.off('close-drawer');
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.OPEN, handleOpenDrawer);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.GET_FILE_CONNECT_TOKEN, handleCreateFileConnectToken);
   lunaCommunicator.offLuna(LUNA_MESSAGE_TYPE.PING);

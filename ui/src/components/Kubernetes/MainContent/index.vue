@@ -131,6 +131,11 @@ function handleClose(name: string) {
 
   const panelLength = panels.value.length;
 
+  // 如果所有 tab 都关闭了，自动关闭抽屉
+  if (panelLength === 0) {
+    mittBus.emit('close-drawer');
+  }
+
   // 只有当 tab 的数量大于 1 并且为当前所在的 tab 在关闭时才会自动定位到前一位
   if (panelLength >= 1 && nameRef.value === name) {
     nameRef.value = panels.value[panelLength - 1].name as string;
@@ -280,6 +285,8 @@ function handleContextMenuSelect(key: string, _option: DropdownOption) {
       });
 
       panels.value = [];
+
+      mittBus.emit('close-drawer');
 
       showContextMenu.value = false;
       break;
