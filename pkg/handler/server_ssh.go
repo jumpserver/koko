@@ -177,15 +177,17 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty && sess.RawCommand() == "" {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
-			selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
-			if err != nil {
-				utils.IgnoreErrWriteString(sess, err.Error())
-				logger.Errorf("Get matched assets failed: %s", err)
-				return
-			}
 			opts := buildDirectRequestOptions(user, directRequest)
 			opts = append(opts, DirectTerminalConf(&termConf))
-			opts = append(opts, DirectAssets(selectedAssets))
+			if !directRequest.IsToken() {
+				selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
+				if err != nil {
+					utils.IgnoreErrWriteString(sess, err.Error())
+					logger.Errorf("Get matched assets failed: %s", err)
+					return
+				}
+				opts = append(opts, DirectAssets(selectedAssets))
+			}
 			directSrv := NewDirectHandler(sess, s.jmsService, opts...)
 			directSrv.Dispatch()
 			return
