@@ -23,7 +23,7 @@ func (s *Server) ConvertErrorToReadableMsg(e error) string {
 		return ""
 	}
 	errMsg := e.Error()
-	lang := s.connOpts.getLang()
+	lang := s.connOpts.getLang(s.jmsService)
 	if strings.Contains(errMsg, UnAuth) || strings.Contains(errMsg, LoginFailed) {
 		return lang.T("Authentication failed")
 	}

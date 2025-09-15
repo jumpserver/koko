@@ -204,7 +204,7 @@ func (u *UserSelectHandler) HasNext() bool {
 }
 
 func (u *UserSelectHandler) DisplayCurrentResult() {
-	lang := i18n.NewLang(u.h.i18nLang)
+	lang := i18n.NewLang(u.h.i18nLang, u.h.jmsService)
 	searchHeader := fmt.Sprintf(lang.T("Search: %s"), strings.Join(u.searchKeys, " "))
 	switch u.currentType {
 	case TypeDatabase:

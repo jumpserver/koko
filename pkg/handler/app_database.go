@@ -6,7 +6,7 @@ import (
 
 func (u *UserSelectHandler) displayDatabaseResult(searchHeader string) {
 	currentResult := u.currentResult
-	lang := i18n.NewLang(u.h.i18nLang)
+	lang := i18n.NewLang(u.h.i18nLang, u.h.jmsService)
 	if len(currentResult) == 0 {
 		noDatabases := lang.T("No Databases")
 		u.displayNoResultMsg(searchHeader, noDatabases)

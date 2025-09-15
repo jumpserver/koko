@@ -172,7 +172,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 		utils.IgnoreErrWriteString(sess, "Not auth user.\n")
 		return
 	}
-	i18nLang := i18n.NewLang(user.Language)
+	i18nLang := i18n.NewLang(user.Language, s.jmsService)
 	termConf := s.GetTerminalConfig()
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty && sess.RawCommand() == "" {
@@ -684,7 +684,7 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 			return s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetTarget)
 		}
 	}
-	i18nLang := i18n.NewLang(user.Language)
+	i18nLang := i18n.NewLang(user.Language, s.jmsService)
 	assets, err := getUserPermAssets()
 	if err != nil {
 		logger.Errorf("Get user %s perm asset failed: %s", user.String(), err)
@@ -720,7 +720,7 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 	if err != nil {
 		return nil, err
 	}
-	i18nLang := i18n.NewLang(user.Language)
+	i18nLang := i18n.NewLang(user.Language, s.jmsService)
 	if len(selectedAssets) != 1 {
 		msg := fmt.Sprintf(i18nLang.T("Must be unique asset for %s"), req.AssetTarget)
 		return nil, errors.New(msg)
