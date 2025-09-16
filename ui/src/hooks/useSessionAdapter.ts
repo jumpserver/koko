@@ -215,21 +215,8 @@ export function useSessionAdapter() {
 
   const resetShareState = () => {
     if (isK8sEnvironment.value) {
-      const currentNode = getCurrentK8sNode();
-      const currentTabId = currentActiveTab.value;
-
-      if (currentNode && currentTabId) {
-        // 重置当前 tab 的分享状态
-        if (currentNode.shareIdMap) {
-          currentNode.shareIdMap.delete(currentTabId);
-        }
-        if (currentNode.shareCodeMap) {
-          currentNode.shareCodeMap.delete(currentTabId);
-        }
-
-        // 更新节点信息
-        treeStore.setK8sIdMap(currentTabId, { ...currentNode });
-      }
+      paramsStore.setShareId('');
+      paramsStore.setShareCode('');
     } else {
       connectionStore.updateConnectionState({
         shareId: '',

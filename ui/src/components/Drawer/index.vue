@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { FolderKanban, Keyboard as KeyboardIcon, Share2, X } from 'lucide-vue-next';
 
 import type { LunaMessage } from '@/types/modules/postmessage.type';
 
 import mittBus from '@/utils/mittBus';
 import { lunaCommunicator } from '@/utils/lunaBus';
+import { useSessionAdapter } from '@/hooks/useSessionAdapter';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useConnectionStore } from '@/store/modules/useConnection';
 
-import Keyboard from './components/Keyboard/index.vue';
+import General from './components/General/index.vue';
 import SessionShare from './components/SessionShare/index.vue';
 import FileManager from './components/FileManagement/index.vue';
 
@@ -23,13 +24,14 @@ const MAX_WAIT_TIME = 1000 * 15;
 
 const { t } = useI18n();
 const connectionStore = useConnectionStore();
+const { resetShareState } = useSessionAdapter();
 
 const drawerTabs = [
   {
     name: 'general',
     label: t('General'),
     icon: KeyboardIcon,
-    component: Keyboard,
+    component: General,
   },
   {
     name: 'file-manager',
@@ -162,6 +164,10 @@ onMounted(() => {
 
   mittBus.on('close-drawer', () => {
     drawerStatus.value = false;
+
+    nextTick(() => {
+      resetShareState();
+    });
   });
 
   mittBus.on('file-manager-expired', () => {
