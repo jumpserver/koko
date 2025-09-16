@@ -13,7 +13,7 @@ import { formatMessage } from '@/utils';
 // import Share from '@/components/Drawer/components/Share/index.vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
-import Keyboard from '@/components/Drawer/components/Keyboard/index.vue';
+import General from '@/components/Drawer/components/General/index.vue';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 
 defineProps<{
@@ -299,7 +299,7 @@ async function handleWriteCommand(command: string) {
       </template>
 
       <template v-if="item.type === 'keyboard'">
-        <Keyboard @write-command="handleWriteCommand" />
+        <General @write-command="handleWriteCommand" />
       </template>
     </n-form-item>
   </div>

@@ -214,7 +214,9 @@ const handleBack = () => {
 
     <n-descriptions-item>
       <template #label>
-        <n-text class="text-xs-plus" depth="1"> {{ t('ActionPerm') }} </n-text>
+        <n-text class="text-xs-plus" depth="1">
+          {{ t('ActionPerm') }}
+        </n-text>
       </template>
 
       <n-flex align="center" :wrap="false" class="mt-2 cursor-pointer">
@@ -248,7 +250,9 @@ const handleBack = () => {
 
     <n-descriptions-item>
       <template #label>
-        <n-text class="text-xs-plus"> {{ t('ShareUser') }} </n-text>
+        <n-text class="text-xs-plus">
+          {{ t('ShareUser') }}
+        </n-text>
       </template>
 
       <n-flex vertical class="mt-2">
