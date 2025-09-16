@@ -96,7 +96,8 @@ export const useTerminalSocket = () => {
   }));
 
   const autoTerminalFit = watch([width, height], ([_newWidth, _newHeight]: [number, number]) => {
-    if (!terminalRef.value || !fitAddon) return;
+    if (!terminalRef.value || !fitAddon)
+      return;
 
     nextTick(() => {
       fitAddon.fit();
@@ -108,7 +109,8 @@ export const useTerminalSocket = () => {
   });
 
   const debouncedResize = useDebounceFn(({ cols, rows }) => {
-    if (!fitAddon || !socketRef.value) return;
+    if (!fitAddon || !socketRef.value)
+      return;
 
     fitAddon.fit();
 
@@ -129,8 +131,19 @@ export const useTerminalSocket = () => {
   /**
    * @description 分发 Socket 消息
    */
+
+  let lastMessage: string;
+
+  function showInfoOnce(content: string) {
+    if (lastMessage === content)
+      return;
+    message.info(content);
+    lastMessage = content;
+  }
+
   const dispatch = (socketData: string) => {
-    if (!socketData || !socketRef.value || !terminalRef.value) return;
+    if (!socketData || !socketRef.value || !terminalRef.value)
+      return;
 
     const parsedMessageData = JSON.parse(socketData);
 
@@ -182,7 +195,7 @@ export const useTerminalSocket = () => {
         updateIcon(info.setting);
 
         socketRef.value!.send(
-          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
+          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData)),
         );
 
         break;
@@ -330,8 +343,14 @@ export const useTerminalSocket = () => {
       }
       case MESSAGE_TYPE.TERMINAL_SESSION_PAUSE: {
         const data = JSON.parse(parsedMessageData.data);
-
-        message.info(`${data.user} ${t('PauseSession')}`);
+        const content = `${data.user} ${t('PauseSession')}`;
+        showInfoOnce(content);
+        break;
+      }
+      case MESSAGE_TYPE.TERMINAL_SESSION_RESUME: {
+        const data = JSON.parse(parsedMessageData.data);
+        const content = `${data.user} ${t('ResumeSession')}`;
+        showInfoOnce(content);
         break;
       }
       case MESSAGE_TYPE.TERMINAL_GET_SHARE_USER: {
@@ -341,12 +360,6 @@ export const useTerminalSocket = () => {
           userOptions: userOptions.value,
         });
 
-        break;
-      }
-      case MESSAGE_TYPE.TERMINAL_SESSION_RESUME: {
-        const data = JSON.parse(parsedMessageData.data);
-
-        message.info(`${data.user} ${t('ResumeSession')}`);
         break;
       }
       case MESSAGE_TYPE.TERMINAL_SHARE_USER_REMOVE: {
@@ -369,13 +382,15 @@ export const useTerminalSocket = () => {
     if (zmodemTransferStatus.value) {
       try {
         sentry.consume(socketMessage.data);
-      } catch (_e) {
+      }
+      catch (_e) {
         if (sentry.get_confirmed_session()) {
           sentry.get_confirmed_session()?.abort();
           message.error('File transfer error, file transfer interrupted');
         }
       }
-    } else {
+    }
+    else {
       writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
     }
   };
@@ -391,7 +406,8 @@ export const useTerminalSocket = () => {
     sentry = createSentry(terminalRef.value!, socketRef.value!, lastSendTime);
 
     socketRef.value.onopen = () => {
-      if (pingInterval.value) clearInterval(pingInterval.value);
+      if (pingInterval.value)
+        clearInterval(pingInterval.value);
 
       pingInterval.value = setInterval(() => {
         if (isSocketClosing(socketRef.value!)) {
@@ -414,7 +430,8 @@ export const useTerminalSocket = () => {
       }, 25 * 1000);
     };
     socketRef.value.onclose = () => {
-      if (!terminalRef.value) return;
+      if (!terminalRef.value)
+        return;
 
       terminalRef.value.write(`\r\n`);
       terminalRef.value.write(`\x1B[31m${t('WebSocketClosed')}\x1B[0m`);
@@ -425,7 +442,8 @@ export const useTerminalSocket = () => {
       lastReceiveTime.value = new Date();
       if (typeof message.data === 'object') {
         handleBinaryMessage(message);
-      } else {
+      }
+      else {
         dispatch(message.data);
       }
     };
@@ -449,7 +467,8 @@ export const useTerminalSocket = () => {
     containerRef.value!.addEventListener('contextmenu', async (e: MouseEvent) => {
       // 只有在开启右键快速复制时才允许粘贴
       // TODO 对于 terminal 的 contextmenu 后续需要进行封装
-      if (e.ctrlKey || terminalSettingsStore.quickPaste !== '1') return;
+      if (e.ctrlKey || terminalSettingsStore.quickPaste !== '1')
+        return;
 
       e.preventDefault();
 
@@ -457,7 +476,8 @@ export const useTerminalSocket = () => {
 
       try {
         text = await readText();
-      } catch (_e) {
+      }
+      catch (_e) {
         if (selectionText.value) {
           text = selectionText.value;
         }
@@ -597,7 +617,8 @@ export const useTerminalSocket = () => {
   };
 
   onMounted(() => {
-    if (!containerRef.value) return;
+    if (!containerRef.value)
+      return;
 
     createTerminal();
     createWebSocket();
