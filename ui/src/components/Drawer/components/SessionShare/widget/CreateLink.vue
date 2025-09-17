@@ -44,12 +44,27 @@ const {
 const searchLoading = ref<boolean>(false);
 const showLinkResult = ref<boolean>(false);
 
+const shareLinkRequest = reactive({
+  expiredTime: 10,
+  actionPerm: 'writable',
+  users: [] as ShareUserOptions[],
+});
+
 watch(
   () => userOptions.value,
   (userOptions: ShareUserOptions[]) => {
     if (userOptions && userOptions.length > 0) {
       searchLoading.value = false;
     }
+  }
+);
+
+watch(
+  () => shareInfo.value.sessionId,
+  () => {
+    shareLinkRequest.users = [] as ShareUserOptions[];
+    searchLoading.value = false;
+    showLinkResult.value = !!shareInfo.value.shareCode;
   }
 );
 
@@ -93,12 +108,6 @@ const createSingleSelectHandler = <T, K extends keyof T>(
     }
   };
 };
-
-const shareLinkRequest = reactive({
-  expiredTime: 10,
-  actionPerm: 'writable',
-  users: [] as ShareUserOptions[],
-});
 
 const expiredOptions = reactive<ExpiredOption[]>([
   { label: getMinuteLabel(1, t), value: 1, checked: false },
