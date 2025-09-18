@@ -304,7 +304,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	keepAliveTime := time.Duration(s.keepAliveTime) * time.Second
 	keepAliveTick := time.NewTicker(keepAliveTime)
 	defer keepAliveTick.Stop()
-	lang := s.p.connOpts.getLang()
+	lang := s.p.connOpts.getLang(s.p.jmsService)
 	for {
 		select {
 		// 检测是否超过最大空闲时间

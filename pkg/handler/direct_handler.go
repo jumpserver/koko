@@ -260,12 +260,11 @@ func (d *DirectHandler) LoginAsset() {
 
 func (d *DirectHandler) checkMaxIdleTime(checkChan chan bool) {
 	maxIdleMinutes := d.opts.terminalConf.MaxIdleTime
-	checkMaxIdleTime(maxIdleMinutes, d.i18nLang, d.opts.User,
-		d.sess, checkChan)
+	checkMaxIdleTime(maxIdleMinutes, d.i18nLang, d.opts.User, d.sess, d.jmsService, checkChan)
 }
 
 func (d *DirectHandler) chooseAccount(permAccounts []model.PermAccount) (model.PermAccount, bool) {
-	lang := i18n.NewLang(d.i18nLang)
+	lang := i18n.NewLang(d.i18nLang, d.jmsService)
 	length := len(permAccounts)
 	switch length {
 	case 0:
@@ -345,7 +344,7 @@ func (d *DirectHandler) displayAssets(assets []model.PermAsset) {
 	model.PermAssetList(assets).SortBy(assetListSortBy)
 
 	vt := d.term
-	lang := i18n.NewLang(d.i18nLang)
+	lang := i18n.NewLang(d.i18nLang, d.jmsService)
 	idLabel := lang.T("ID")
 	hostLabel := lang.T("Hostname")
 	ipLabel := lang.T("Address")
@@ -388,7 +387,7 @@ func (d *DirectHandler) displayAssets(assets []model.PermAsset) {
 
 func (d *DirectHandler) Proxy(asset model.PermAsset) {
 	d.selectAsset = &asset
-	lang := i18n.NewLang(d.i18nLang)
+	lang := i18n.NewLang(d.i18nLang, d.jmsService)
 	permAssetDetail, err := d.jmsService.GetUserPermAssetDetailById(d.opts.User.ID, asset.ID)
 	if err != nil {
 		logger.Errorf("Get account failed: %s", err)

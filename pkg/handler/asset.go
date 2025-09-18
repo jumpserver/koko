@@ -40,7 +40,7 @@ func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.PermAss
 }
 
 func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
-	lang := i18n.NewLang(u.h.i18nLang)
+	lang := i18n.NewLang(u.h.i18nLang, u.h.jmsService)
 	if len(u.currentResult) == 0 {
 		noAssets := lang.T("No Assets")
 		u.displayNoResultMsg(searchHeader, noAssets)
@@ -53,7 +53,7 @@ const maxFieldSize = 80 // 仅仅是限制字段显示长度最大为 80
 
 func (u *UserSelectHandler) displayAssets(searchHeader string) {
 	currentResult := u.currentResult
-	lang := i18n.NewLang(u.h.i18nLang)
+	lang := i18n.NewLang(u.h.i18nLang, u.h.jmsService)
 	idLabel := lang.T("ID")
 	nameLabel := lang.T("Name")
 	addressLabel := lang.T("Address")
@@ -168,7 +168,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 		return
 	}
 	i18nLang := u.h.i18nLang
-	lang := i18n.NewLang(i18nLang)
+	lang := i18n.NewLang(i18nLang, u.h.jmsService)
 	if err2 := srvconn.IsSupportedProtocol(protocol); err2 != nil {
 		var errMsg string
 		switch {

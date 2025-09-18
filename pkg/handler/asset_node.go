@@ -17,7 +17,7 @@ func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationPar
 }
 
 func (u *UserSelectHandler) displayNodeAssetResult(searchHeader string) {
-	lang := i18n.NewLang(u.h.i18nLang)
+	lang := i18n.NewLang(u.h.i18nLang, u.h.jmsService)
 	if len(u.currentResult) == 0 {
 		noNodeAssets := fmt.Sprintf(lang.T("%s node has no assets"), u.selectedNode.Name)
 		u.displayNoResultMsg(searchHeader, noNodeAssets)
