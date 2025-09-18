@@ -22,6 +22,7 @@ ARG KUBECTL_VERSION=v1.31.3
 ARG CHECK_VERSION=v1.0.4
 ARG USQL_VERSION=v0.0.9
 
+
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
     && wget -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
