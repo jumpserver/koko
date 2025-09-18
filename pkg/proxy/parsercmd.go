@@ -477,7 +477,7 @@ var (
 	// \[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+
 
 	// 可能包含 \r\n
-	tmuxBar1Regx = regexp.MustCompile(`\r\n\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)
+	//tmuxBar1Regx = regexp.MustCompile(`\r\n\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)
 
 	// 不包含 \r\n
 	tmuxBar2Regx = regexp.MustCompile(`\[(\d+)]\s+\d+:.+\s+.+\s+.+\s+.+\x1b\(B`)

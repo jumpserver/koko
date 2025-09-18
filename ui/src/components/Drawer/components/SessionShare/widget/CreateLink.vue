@@ -44,12 +44,27 @@ const {
 const searchLoading = ref<boolean>(false);
 const showLinkResult = ref<boolean>(false);
 
+const shareLinkRequest = reactive({
+  expiredTime: 10,
+  actionPerm: 'writable',
+  users: [] as ShareUserOptions[],
+});
+
 watch(
   () => userOptions.value,
   (userOptions: ShareUserOptions[]) => {
     if (userOptions && userOptions.length > 0) {
       searchLoading.value = false;
     }
+  }
+);
+
+watch(
+  () => shareInfo.value.sessionId,
+  () => {
+    shareLinkRequest.users = [] as ShareUserOptions[];
+    searchLoading.value = false;
+    showLinkResult.value = !!shareInfo.value.shareCode;
   }
 );
 
@@ -93,12 +108,6 @@ const createSingleSelectHandler = <T, K extends keyof T>(
     }
   };
 };
-
-const shareLinkRequest = reactive({
-  expiredTime: 10,
-  actionPerm: 'writable',
-  users: [] as ShareUserOptions[],
-});
 
 const expiredOptions = reactive<ExpiredOption[]>([
   { label: getMinuteLabel(1, t), value: 1, checked: false },
@@ -214,7 +223,9 @@ const handleBack = () => {
 
     <n-descriptions-item>
       <template #label>
-        <n-text class="text-xs-plus" depth="1"> {{ t('ActionPerm') }} </n-text>
+        <n-text class="text-xs-plus" depth="1">
+          {{ t('ActionPerm') }}
+        </n-text>
       </template>
 
       <n-flex align="center" :wrap="false" class="mt-2 cursor-pointer">
@@ -248,7 +259,9 @@ const handleBack = () => {
 
     <n-descriptions-item>
       <template #label>
-        <n-text class="text-xs-plus"> {{ t('ShareUser') }} </n-text>
+        <n-text class="text-xs-plus">
+          {{ t('ShareUser') }}
+        </n-text>
       </template>
 
       <n-flex vertical class="mt-2">

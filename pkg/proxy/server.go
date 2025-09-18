@@ -514,9 +514,15 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 	}
 	username := s.account.Username
 	isAuthUsername := false
+	isClusterMode := false
 	if platformProtocol, ok := platform.GetProtocolSetting("redis"); ok {
 		protocolSetting := platformProtocol.GetSetting()
 		isAuthUsername = protocolSetting.AuthUsername
+
+		// 解析集群模式配置 TODO: 将优化 sdk-go 的 ProtocolSetting 加上 enable_cluster_mode
+		if useCluster, exists := platformProtocol.Setting["enable_cluster_mode"]; exists {
+			isClusterMode = parseBoolValue(useCluster)
+		}
 	}
 	if s.account.IsNull() || !isAuthUsername {
 		username = ""
@@ -526,6 +532,7 @@ func (s *Server) getRedisConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.Re
 		srvconn.SqlPort(port),
 		srvconn.SqlUsername(username),
 		srvconn.SqlPassword(s.account.Secret),
+		srvconn.SqlClusterMode(isClusterMode),
 		srvconn.SqlDBName(asset.SpecInfo.DBName),
 		srvconn.SqlUseSSL(asset.SpecInfo.UseSSL),
 		srvconn.SqlCaCert(asset.SecretInfo.CaCert),

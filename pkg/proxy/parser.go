@@ -88,8 +88,8 @@ type Parser struct {
 
 	platform *model.Platform
 
-	inputBuffer   bytes.Buffer
-	isMultipleCmd bool
+	//inputBuffer bytes.Buffer
+	//isMultipleCmd bool
 
 	currentCmdRiskLevel  int64
 	currentCmdFilterRule CommandRule
@@ -97,8 +97,6 @@ type Parser struct {
 	userInputFilter func([]byte) []byte
 
 	disableInputAsCmd bool
-
-	ParseScreen int
 }
 
 func (p *Parser) setCurrentCmdStatusLevel(level int64) {
@@ -191,10 +189,9 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 					b = msg.Body
 				}
 				p.UpdateActiveUser(msg)
-				if len(b) == 0 {
-					continue
+				if len(b) > 0 {
+					b = p.ParseUserInput(b)
 				}
-				b = p.ParseUserInput(b)
 				select {
 				case <-p.closed:
 					return
@@ -313,6 +310,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		case "n":
 			p.confirmStatus.SetStatus(StatusNone)
 			p.srvOutputChan <- []byte("\r\n")
+			p.TerminalParser.resetCommand()
 			p.command = ""
 			return p.breakInputPacket()
 		default:

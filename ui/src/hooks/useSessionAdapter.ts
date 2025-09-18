@@ -56,13 +56,19 @@ export function useSessionAdapter() {
 
   const shareInfo = computed(() => {
     if (isK8sEnvironment.value) {
-      const shareId = paramsStore.shareId || '';
+      const currentNode = getCurrentK8sNode();
+      const currentTabId = currentActiveTab.value;
+
+      // 从节点的分享映射中获取当前 tab 的分享信息
+      const shareId = currentNode?.shareIdMap?.get(currentTabId) || '';
+      const shareCode = currentNode?.shareCodeMap?.get(currentTabId) || '';
+
       return {
         shareId,
-        shareCode: paramsStore.shareCode || '',
-        sessionId: getCurrentK8sNode()?.sessionIdMap?.get(currentActiveTab.value) || '',
-        enableShare: getCurrentK8sNode()?.enableShare || false,
-        shareURL: shareId ? `${BASE_URL}/luna/share/${shareId}/?code=${paramsStore.shareCode}` : '',
+        shareCode,
+        sessionId: currentNode?.sessionIdMap?.get(currentTabId) || '',
+        enableShare: currentNode?.enableShare || false,
+        shareURL: shareId ? `${BASE_URL}/luna/share/${shareId}/?code=${shareCode}` : '',
       };
     } else {
       const shareId = connectionStore.shareId || '';
@@ -209,6 +215,21 @@ export function useSessionAdapter() {
 
   const resetShareState = () => {
     if (isK8sEnvironment.value) {
+      const currentNode = getCurrentK8sNode();
+      const currentTabId = currentActiveTab.value;
+
+      if (currentNode && currentTabId) {
+        if (currentNode.shareIdMap && currentNode.shareIdMap.has(currentTabId)) {
+          currentNode.shareIdMap.delete(currentTabId);
+        }
+        if (currentNode.shareCodeMap && currentNode.shareCodeMap.has(currentTabId)) {
+          currentNode.shareCodeMap.delete(currentTabId);
+        }
+
+        // 更新节点以触发响应式
+        treeStore.setK8sIdMap(currentTabId, { ...currentNode });
+      }
+
       paramsStore.setShareId('');
       paramsStore.setShareCode('');
     } else {

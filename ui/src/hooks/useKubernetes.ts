@@ -26,6 +26,7 @@ import { useTreeStore } from '@/store/modules/tree.ts';
 import { formatMessage, preprocessInput } from '@/utils';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
+import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
 
 import { base64ToUint8Array, generateWsURL } from './helper';
@@ -468,8 +469,22 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
   if (info.type === 'TERMINAL_SHARE') {
     const data = JSON.parse(info.data);
 
-    paramsStore.setShareId(data.share_id);
-    paramsStore.setShareCode(data.code);
+    const currentTab = terminalStore.currentTab;
+    const currentNode = treeStore.getTerminalByK8sId(currentTab);
+
+    if (currentNode) {
+      // 为当前节点添加分享状态映射
+      if (!currentNode.shareIdMap) {
+        currentNode.shareIdMap = new Map();
+      }
+      if (!currentNode.shareCodeMap) {
+        currentNode.shareCodeMap = new Map();
+      }
+
+      currentNode.shareIdMap.set(currentTab, data.share_id);
+      currentNode.shareCodeMap.set(currentTab, data.code);
+      treeStore.setK8sIdMap(currentTab, { ...currentNode });
+    }
   }
 }
 
@@ -582,6 +597,7 @@ export function initTerminalEvent(
     };
 
     socket.send(JSON.stringify(messageBody));
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
   });
 
   terminal.onSelectionChange(() => {

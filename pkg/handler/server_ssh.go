@@ -177,15 +177,17 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
 	if pty, winChan, isPty := sess.Pty(); isPty && sess.RawCommand() == "" {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
-			selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
-			if err != nil {
-				utils.IgnoreErrWriteString(sess, err.Error())
-				logger.Errorf("Get matched assets failed: %s", err)
-				return
-			}
 			opts := buildDirectRequestOptions(user, directRequest)
 			opts = append(opts, DirectTerminalConf(&termConf))
-			opts = append(opts, DirectAssets(selectedAssets))
+			if !directRequest.IsToken() {
+				selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
+				if err != nil {
+					utils.IgnoreErrWriteString(sess, err.Error())
+					logger.Errorf("Get matched assets failed: %s", err)
+					return
+				}
+				opts = append(opts, DirectAssets(selectedAssets))
+			}
 			directSrv := NewDirectHandler(sess, s.jmsService, opts...)
 			directSrv.Dispatch()
 			return
@@ -524,6 +526,13 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 	if err != nil {
 		logger.Errorf("User %s Run command %s failed: %s",
 			tokenInfo.User.String(), rawStr, err)
+		var exitErr *gossh.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode := exitErr.ExitStatus()
+			if err1 := sess.Exit(exitCode); err1 != nil {
+				logger.Errorf("Create sess exit code %d err: %s", exitCode, err1)
+			}
+		}
 	}
 	reason := string(model.ReasonErrConnectDisconnect)
 	s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)
@@ -668,7 +677,7 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 	var getUserPermAssets func() ([]model.PermAsset, error)
 	if common.IsUUID(req.AssetTarget) {
 		getUserPermAssets = func() ([]model.PermAsset, error) {
-			return s.jmsService.GetUserPermAssetById(user.ID, req.AssetTarget)
+			return s.jmsService.GetUserPermAssetsById(user.ID, req.AssetTarget)
 		}
 	} else {
 		getUserPermAssets = func() ([]model.PermAsset, error) {

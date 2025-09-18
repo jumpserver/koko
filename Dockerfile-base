@@ -1,5 +1,5 @@
 FROM redis:6.2-bullseye AS redis-stage
-FROM golang:1.23-bullseye AS stage-go-build
+FROM golang:1.24-bullseye AS stage-go-build
 
 FROM node:20.15-bullseye
 COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
@@ -20,7 +20,8 @@ WORKDIR /opt
 ARG HELM_VERSION=v3.16.1
 ARG KUBECTL_VERSION=v1.31.3
 ARG CHECK_VERSION=v1.0.4
-ARG USQL_VERSION=v0.0.7
+ARG USQL_VERSION=v0.0.9
+
 
 RUN set -ex \
     && mkdir -p /opt/koko/bin \

@@ -66,7 +66,7 @@ export interface LunaMessageEvents {
     data: LunaMessage;
   };
   [LUNA_MESSAGE_TYPE.TERMINAL_CONTENT_RESPONSE]: {
-    data: TerminalContentRepsonse;
+    data: TerminalContentResponse;
   };
   [LUNA_MESSAGE_TYPE.CLICK]: {
     data: string;
@@ -78,6 +78,9 @@ export interface LunaMessageEvents {
     data: string;
   };
   [LUNA_MESSAGE_TYPE.OPEN_K8S_SETTING]: {
+    data: string;
+  };
+  [LUNA_MESSAGE_TYPE.INPUT_ACTIVE]: {
     data: string;
   };
 }
@@ -121,8 +124,10 @@ export interface TerminalSessionInfo {
 }
 
 export interface TerminalSession {
+  ip: string;
   id: string;
   user: string;
+  asset: string;
 
   userId: string;
 }
@@ -131,7 +136,7 @@ export interface TerminalPermission {
   actions: string[];
 }
 
-export interface TerminalContentRepsonse {
+export interface TerminalContentResponse {
   terminalId: string;
   content: string;
   sessionId: string;
