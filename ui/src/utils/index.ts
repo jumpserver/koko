@@ -116,3 +116,27 @@ export function formatMessage(id: string, type: string, data: any) {
     data,
   });
 }
+
+/**
+ * @description 创建下载链接
+ * @param buffer
+ * @param message
+ */
+export function createDownloadLink(buffer: ArrayBuffer[], message: any) {
+  const blob: Blob = new Blob(buffer, {
+    type: 'application/octet-stream',
+  });
+
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+
+  a.style.display = 'none';
+  a.href = url;
+  a.download = message.data;
+
+  document.body.appendChild(a);
+  a.click();
+
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}

@@ -126,3 +126,4 @@ export interface FileSendData {
   merge?: boolean;
   chunk?: boolean;
 }
+

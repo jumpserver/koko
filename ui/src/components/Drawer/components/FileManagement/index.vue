@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { DataTableColumns } from 'naive-ui';
 
+import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
+import { h, watchEffect } from 'vue';
 import prettyBytes from 'pretty-bytes';
 import { File, Folder } from 'lucide-vue-next';
-import { h, onUnmounted, ref, watch } from 'vue';
-import { NFlex, NIcon, NPopover, NText } from 'naive-ui';
+import { NFlex, NIcon, NPopover, NTag, NText } from 'naive-ui';
 
-import { useFileManage } from '@/hooks/useFileManage.ts';
-import { useFileManageStore } from '@/store/modules/fileManage.ts';
+import { useFileOperation } from '@/hooks/useFileOperation';
 
 import FileManage from './widget/index.vue';
 
@@ -31,34 +31,13 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const fileManageStore = useFileManageStore();
+const { createFileSocket, fileList } = useFileOperation();
 
-const isLoaded = ref(false);
-const tableData = ref<RowData[]>([]);
-const fileManageSocket = ref<WebSocket | undefined>(undefined);
-
-watch(
-  () => fileManageStore.fileList,
-  (fileList) => {
-    if (fileList) {
-      tableData.value = fileList;
-      isLoaded.value = true;
-    }
-  },
-  {
-    immediate: true,
-  },
-);
-
-watch(
-  () => props.sftpToken,
-  (token) => {
-    if (token) {
-      fileManageSocket.value = useFileManage(token, t);
-    }
-  },
-  { immediate: true },
-);
+watchEffect(() => {
+  if (props.sftpToken) {
+    createFileSocket(props.sftpToken);
+  }
+});
 
 /**
  * @description 生成表头
@@ -71,6 +50,8 @@ const createColumns = (): DataTableColumns<RowData> => {
       ellipsis: {
         tooltip: true,
       },
+      resizable: true,
+      maxWidth: 320,
       render(row) {
         const fileIcon = h(NIcon, {
           size: 18,
@@ -100,30 +81,18 @@ const createColumns = (): DataTableColumns<RowData> => {
                     whiteSpace: 'nowrap',
                   },
                 },
-                { default: () => row.name },
+                { default: () => row.name }
               ),
             default: () =>
               h(NText, { style: { maxWidth: '300px', wordBreak: 'break-all' } }, { default: () => row.name }),
-          },
+          }
         );
-
-        const filePermission
-          = row.name !== '..' && row.perm
-            ? h(
-                NText,
-                {
-                  depth: 3,
-                  style: { fontSize: '10px', marginTop: '2px' },
-                },
-                { default: () => row.perm },
-              )
-            : null;
 
         return h(
           NFlex,
           {
             align: 'center',
-            style: { gap: '0px' },
+            style: { gap: '0px', flexWrap: 'nowrap' },
           },
           {
             default: () => [
@@ -135,11 +104,47 @@ const createColumns = (): DataTableColumns<RowData> => {
                   style: { gap: '0px' },
                 },
                 {
-                  default: () => [fileName, filePermission].filter(Boolean),
-                },
+                  default: () => [fileName],
+                }
               ),
             ],
-          },
+          }
+        );
+      },
+    },
+    {
+      title: '权限',
+      key: 'perm',
+      align: 'center',
+      width: 120,
+      render(row: RowData) {
+        let type: 'default' | 'info' | 'success' | 'warning' | 'error' = 'default';
+
+        if (row.perm.startsWith('d')) {
+          type = 'info';
+        } else if (row.perm.startsWith('-')) {
+          type = 'success';
+        } else if (row.perm.startsWith('s')) {
+          type = 'warning';
+        } else if (row.perm.includes('lock')) {
+          type = 'error';
+        } else {
+          type = 'error';
+        }
+
+        return h(NTag, { type, round: true, size: 'small', bordered: false }, { default: () => row.perm });
+      },
+    },
+    {
+      title: '修改时间',
+      key: 'mod_time',
+      align: 'center',
+      width: 180,
+      render(row: RowData) {
+        return h(
+          NText,
+          { depth: 1, strong: true },
+          { default: () => dayjs(Number(row.mod_time) * 1000).format('YYYY-MM-DD HH:mm:ss') }
         );
       },
     },
@@ -157,7 +162,7 @@ const createColumns = (): DataTableColumns<RowData> => {
           },
           {
             default: () => prettyBytes(Number(row.size)),
-          },
+          }
         );
       },
     },
@@ -167,13 +172,6 @@ const createColumns = (): DataTableColumns<RowData> => {
 const handleReconnect = () => {
   emit('reconnect');
 };
-
-onUnmounted(() => {
-  if (fileManageSocket.value && fileManageSocket.value.readyState === WebSocket.OPEN) {
-    fileManageSocket.value.close();
-    fileManageSocket.value = undefined;
-  }
-});
 
 const columns = createColumns();
 </script>
@@ -189,13 +187,6 @@ const columns = createColumns();
   </template>
 
   <template v-else>
-    <FileManage :columns="columns" />
+    <FileManage :columns="columns" :file-list="fileList" />
   </template>
 </template>
-
-<style scoped lang="scss">
-::v-deep(.n-tabs-pane-wrapper) {
-  width: 100%;
-  height: 100%;
-}
-</style>
