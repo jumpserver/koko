@@ -36,6 +36,8 @@ func DefaultEnterKeyPressHandler(p []byte) bool {
 
 const maxBufSize = 1024 * 100
 
+const maxOutPutBuffer = 1024 * 512
+
 const (
 	InputPreState = iota + 1
 	InputState
@@ -170,7 +172,10 @@ func (s *TerminalParser) Feed(p []byte) {
 	s.feed(p)
 
 	if s.state == OutputState {
-		s.srvOutputBuf.Write(p)
+		outputSize := len(s.srvOutputBuf.Bytes())
+		if outputSize < maxOutPutBuffer {
+			s.srvOutputBuf.Write(p)
+		}
 		ps1 := s.Ps1sStr
 		half := len(ps1) / 2
 		halfPs1 := ps1[:half]
