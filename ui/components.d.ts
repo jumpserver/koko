@@ -13,7 +13,6 @@ declare module 'vue' {
     Drawer: typeof import('./src/components/Drawer/index.vue')['default']
     FileManagement: typeof import('./src/components/Drawer/components/FileManagement/index.vue')['default']
     General: typeof import('./src/components/Drawer/components/General/index.vue')['default']
-    Keyboard: typeof import('./src/components/Drawer/components/Keyboard/index.vue')['default']
     MainContent: typeof import('./src/components/Kubernetes/MainContent/index.vue')['default']
     NButton: typeof import('naive-ui')['NButton']
     NButtonGroup: typeof import('naive-ui')['NButtonGroup']
