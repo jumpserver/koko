@@ -59,6 +59,7 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
 	}))
+	opts = append(opts, srvconn.SqlMaskingRules(s.connOpts.authInfo.DataMaskingRules))
 	srvConn, err = srvconn.NewUSQLConnection(opts...)
 
 	return
