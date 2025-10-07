@@ -1,5 +1,7 @@
 package srvconn
 
+import "github.com/jumpserver-dev/sdk-go/model"
+
 type sqlOption struct {
 	AssetName        string
 	Schema           string
@@ -26,6 +28,8 @@ type sqlOption struct {
 
 	AuthSource        string
 	ConnectionOptions string
+
+	DataMaskingRules []model.DataMaskingRule
 }
 
 type SqlOption func(*sqlOption)
@@ -136,5 +140,11 @@ func SqlDisableSqlServerEncrypt(disbale bool) SqlOption {
 func SqlClusterMode(mode bool) SqlOption {
 	return func(args *sqlOption) {
 		args.ClusterMode = mode
+	}
+}
+
+func SqlMaskingRules(rules []model.DataMaskingRule) SqlOption {
+	return func(args *sqlOption) {
+		args.DataMaskingRules = rules
 	}
 }
