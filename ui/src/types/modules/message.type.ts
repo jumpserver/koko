@@ -82,6 +82,8 @@ export enum SFTP_CMD {
   DOWNLOAD = 'download',
 }
 
+export type COMMAND_TYPE = 'mkdir' | 'rm' | 'rename' | 'upload' | 'download' | 'list';
+
 export enum FILE_MANAGE_MESSAGE_TYPE {
   CONNECT = 'CONNECT',
   CLOSE = 'CLOSE',

@@ -3,8 +3,7 @@ import type { DataTableColumns, DropdownOption, UploadCustomRequestOptions, Uplo
 
 import { useI18n } from 'vue-i18n';
 import { NText, useMessage } from 'naive-ui';
-import { useWindowSize } from '@vueuse/core';
-import { computed, h, nextTick, onActivated, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
+import { computed, h, nextTick, onActivated, onBeforeUnmount, onMounted, provide, ref, watch, watchEffect } from 'vue';
 import {
   ChevronLeft,
   ChevronRight,
@@ -36,11 +35,13 @@ export interface IFilePath {
   showArrow: boolean;
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
+    fileList: FileManageSftpFileItem[];
     columns?: DataTableColumns<RowData>;
   }>(),
   {
+    fileList: () => [],
     columns: () => [],
   }
 );
@@ -48,7 +49,6 @@ withDefaults(
 const { t } = useI18n();
 const message = useMessage();
 const fileManageStore = useFileManageStore();
-const { height: _windowHeight } = useWindowSize();
 
 const options: DropdownOption[] = [
   {
@@ -81,7 +81,6 @@ const newFileName = ref('');
 const searchValue = ref('');
 const modalContent = ref('');
 const loading = ref(true);
-const showInner = ref(false);
 const showModal = ref(false);
 const showDropdown = ref(false);
 const isShowUploadList = ref(false);
@@ -89,7 +88,6 @@ const disabledBack = ref(true);
 const disabledForward = ref(true);
 
 const scrollRef = ref(null);
-const dataList = ref<any[]>([]);
 
 const filePathList = ref<IFilePath[]>([]);
 const currentRowData = ref<Partial<RowData>>({});
@@ -97,108 +95,107 @@ const persistedUploadFiles = ref<UploadFileInfo[]>([]);
 const uploadFileList = ref<UploadFileInfo[]>([]);
 const stopUploadFile = ref<UploadFileInfo>();
 
-const _tableHeight = computed(() => {
-  if (!uploadFileList.value || uploadFileList.value.length === 0) {
-    return 240;
+watchEffect(() => {
+  if (props.fileList.length > 0) {
+    loading.value = false;
   }
-  return 300;
 });
 
-watch(
-  () => fileManageStore.currentPath,
-  newPath => {
-    if (newPath) {
-      // 重置现有路径列表
-      filePathList.value = [];
+// watch(
+//   () => fileManageStore.currentPath,
+//   newPath => {
+//     if (newPath) {
+//       // 重置现有路径列表
+//       filePathList.value = [];
 
-      if (newPath === '/') {
-        disabledBack.value = true;
-        return;
-      }
+//       if (newPath === '/') {
+//         disabledBack.value = true;
+//         return;
+//       }
 
-      if (fileManageStore.currentPath === forwardPath.value) {
-        disabledForward.value = true;
-      }
+//       if (fileManageStore.currentPath === forwardPath.value) {
+//         disabledForward.value = true;
+//       }
 
-      // 分割路径
-      const pathSegments = newPath.split('/').filter(segment => segment);
+//       // 分割路径
+//       const pathSegments = newPath.split('/').filter(segment => segment);
 
-      // 根据路径段构建完整的路径列表
-      let currentPath = '';
-      pathSegments.forEach((segment, index) => {
-        // 更新当前路径
-        currentPath += `/${segment}`;
+//       // 根据路径段构建完整的路径列表
+//       let currentPath = '';
+//       pathSegments.forEach((segment, index) => {
+//         // 更新当前路径
+//         currentPath += `/${segment}`;
 
-        // 添加到路径列表
-        filePathList.value.push({
-          id: currentPath, // 使用完整路径作为ID
-          path: segment, // 显示路径段名称
-          active: index === pathSegments.length - 1,
-          showArrow: index !== pathSegments.length - 1,
-        });
-      });
+//         // 添加到路径列表
+//         filePathList.value.push({
+//           id: currentPath, // 使用完整路径作为ID
+//           path: segment, // 显示路径段名称
+//           active: index === pathSegments.length - 1,
+//           showArrow: index !== pathSegments.length - 1,
+//         });
+//       });
 
-      // 滚动到最后一个路径段
-      nextTick(() => {
-        const contentRef = document.getElementsByClassName('n-scrollbar-content')[2];
-        if (scrollRef.value && contentRef) {
-          // @ts-expect-error 目标对象滚动
-          scrollRef.value.scrollTo({
-            left: contentRef.scrollWidth,
-            behavior: 'smooth',
-          });
-        }
-      });
-    }
-  },
-  {
-    immediate: true,
-  }
-);
+//       // 滚动到最后一个路径段
+//       nextTick(() => {
+//         const contentRef = document.getElementsByClassName('n-scrollbar-content')[2];
+//         if (scrollRef.value && contentRef) {
+//           // @ts-expect-error 目标对象滚动
+//           scrollRef.value.scrollTo({
+//             left: contentRef.scrollWidth,
+//             behavior: 'smooth',
+//           });
+//         }
+//       });
+//     }
+//   },
+//   {
+//     immediate: true,
+//   }
+// );
 
-watch(
-  () => forwardPath.value,
-  (newPath, oldPath) => {
-    if (oldPath && (oldPath === newPath || oldPath.startsWith(`${newPath}/`))) {
-      // 如果 oldPath 包含 newPath，则重置 forwardPath 为 oldPath
-      forwardPath.value = oldPath;
-    }
-  }
-);
+// watch(
+//   () => forwardPath.value,
+//   (newPath, oldPath) => {
+//     if (oldPath && (oldPath === newPath || oldPath.startsWith(`${newPath}/`))) {
+//       // 如果 oldPath 包含 newPath，则重置 forwardPath 为 oldPath
+//       forwardPath.value = oldPath;
+//     }
+//   }
+// );
 
-watch(
-  () => fileManageStore.fileList,
-  newFileList => {
-    if (newFileList) {
-      loading.value = false;
-      dataList.value = newFileList;
-    }
-  },
-  {
-    immediate: true,
-  }
-);
+// watch(
+//   () => fileManageStore.fileList,
+//   newFileList => {
+//     if (newFileList) {
+//       loading.value = false;
+//       dataList.value = newFileList;
+//     }
+//   },
+//   {
+//     immediate: true,
+//   }
+// );
 
-watch(
-  () => uploadFileList.value,
-  newValue => {
-    if (newValue && newValue.length > 0) {
-      persistedUploadFiles.value = [...newValue];
-    }
-  },
-  { deep: true }
-);
+// watch(
+//   () => uploadFileList.value,
+//   newValue => {
+//     if (newValue && newValue.length > 0) {
+//       persistedUploadFiles.value = [...newValue];
+//     }
+//   },
+//   { deep: true }
+// );
 
-watch(
-  () => searchValue.value,
-  (newVal: string) => {
-    if (newVal) {
-      dataList.value = fileManageStore.fileList!.filter(item => item.name.toLowerCase().includes(newVal.toLowerCase()));
-    } else {
-      dataList.value = fileManageStore.fileList!;
-    }
-  }
-);
+// watch(
+//   () => searchValue.value,
+//   (newVal: string) => {
+//     if (newVal) {
+//       dataList.value = fileManageStore.fileList!.filter(item => item.name.toLowerCase().includes(newVal.toLowerCase()));
+//     } else {
+//       dataList.value = fileManageStore.fileList!;
+//     }
+//   }
+// );
 
 const onClickOutside = () => {
   showDropdown.value = false;
@@ -216,7 +213,7 @@ const handleRemoveItem = (data: { file: UploadFileInfo; fileList: UploadFileInfo
 
   // 对于上传失败、已完成或其他状态的文件，允许直接移除
   uploadFileList.value = fileList.filter(item => item.id !== file.id);
-  fileManageStore.setUploadFileList(uploadFileList.value);
+  // fileManageStore.setUploadFileList(uploadFileList.value);
 
   return true;
 };
@@ -244,11 +241,11 @@ const handleSelect = (key: string) => {
       break;
     }
     case 'download': {
-      mittBus.emit('download-file', {
-        path: `${fileManageStore.currentPath}/${currentRowData?.value?.name as string}`,
-        is_dir: currentRowData.value.is_dir!,
-        size: currentRowData.value.size!,
-      });
+      // mittBus.emit('download-file', {
+      //   path: `${fileManageStore.currentPath}/${currentRowData?.value?.name as string}`,
+      //   is_dir: currentRowData.value.is_dir!,
+      //   size: currentRowData.value.size!,
+      // });
 
       break;
     }
@@ -439,11 +436,6 @@ const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) =>
   if (options.fileList.length > 0) {
     uploadFileList.value = options.fileList;
     fileManageStore.setUploadFileList(options.fileList);
-
-    // 使用 nextTick 确保数据更新后再打开抽屉
-    nextTick(() => {
-      showInner.value = true;
-    });
   }
 };
 
@@ -473,18 +465,6 @@ const customRequest = ({ file, onFinish, onError, onProgress }: UploadCustomRequ
     loadingMessage,
   });
 };
-
-/**
- * @description 打开传输历史列表
- */
-// const handleOpenTransferList = () => {
-// 从 store 中恢复文件列表
-//   uploadFileList.value = [...fileManageStore.uploadFileList];
-
-//   nextTick(() => {
-//     showInner.value = true;
-//   });
-// };
 
 const modalNegativeClick = () => {
   newFileName.value = '';
@@ -673,49 +653,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
               </n-button>
             </n-upload-trigger>
           </n-button-group>
-
-          <!-- <n-drawer
-            v-model:show="showInner"
-            resizable
-            placement="bottom"
-            :default-height="drawerHeight"
-            :max-height="drawerHeight"
-            :show-mask="false"
-            :trap-focus="false"
-            :block-scroll="false"
-            :native-scrollbar="false"
-            :height="300"
-            to="#drawer-inner-target"
-          >
-            <n-drawer-content
-              closable
-              :title="t('TransferHistory')"
-              :body-style="{
-                overflow: 'unset',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }"
-            >
-              <n-scrollbar v-if="uploadFileList" :style="{ maxHeight: `${drawerHeight - 60}px`, flex: 1 }">
-
-              </n-scrollbar>
-
-              <n-empty v-else class="w-full h-full justify-center" />
-            </n-drawer-content>
-          </n-drawer> -->
         </n-upload>
-
-        <!-- <n-popover>
-          <template #trigger>
-            <ListTree
-              :size="16"
-              class="icon-hover cursor-pointer !text-white focus:outline-none"
-              @click="handleOpenTransferList"
-            />
-          </template>
-          {{ t('Transfer') }}
-        </n-popover> -->
 
         <n-popover>
           <template #trigger>
@@ -743,7 +681,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
         :loading="loading"
         :columns="columns"
         :row-props="rowProps"
-        :data="dataList"
+        :data="fileList"
         :style="{ height: `calc(100vh - 420px)` }"
       >
         <template #empty>
