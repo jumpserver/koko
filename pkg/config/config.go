@@ -69,6 +69,9 @@ type Config struct {
 
 	SecretEncryptKey string `mapstructure:"SECRET_ENCRYPT_KEY"`
 
+	// Force both public key and password authentication (two-factor SSH login)
+	ForceMultiAuth bool `mapstructure:"FORCE_MULTI_AUTH"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
