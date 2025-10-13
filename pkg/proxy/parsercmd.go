@@ -234,11 +234,12 @@ func (s *TerminalParser) TryOutput() string {
 func (s *TerminalParser) ResizeRows() {
 	rowsLen := len(s.Screen.Rows)
 	oldRows := s.Screen.Rows
-	if rowsLen > 5000 {
-		rows := make([]*terminalparser.Row, 0, 3000)
-		start := rowsLen - 3000
+	if rowsLen > 500 {
+		rows := make([]*terminalparser.Row, 0, 300)
+		start := rowsLen - 300
 		rows = append(rows, oldRows[start:]...)
 		s.Screen.Rows = rows
+		oldRows = nil
 	}
 }
 
