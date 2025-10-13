@@ -233,14 +233,34 @@ func (s *TerminalParser) TryOutput() string {
 
 func (s *TerminalParser) ResizeRows() {
 	rowsLen := len(s.Screen.Rows)
-	oldRows := s.Screen.Rows
-	if rowsLen > 500 {
-		rows := make([]*terminalparser.Row, 0, 300)
-		start := rowsLen - 300
-		rows = append(rows, oldRows[start:]...)
-		s.Screen.Rows = rows
-		oldRows = nil
+	if rowsLen > maxRows {
+		s.Screen.Rows = trimRows(s.Screen.Rows)
 	}
+}
+
+const (
+	maxRows      = 500 // 触发裁剪的长度上限
+	keepRows     = 300 // 裁剪后保留的行数
+	shrinkFactor = 4   // 当 cap(rows) > keepRows*shrinkFactor 时做一次收缩重分配
+)
+
+func trimRows(rows []*terminalparser.Row) []*terminalparser.Row {
+	n := len(rows)
+	if n <= 500 {
+		return rows
+	}
+	start := n - keepRows
+
+	// 若容量过小（无法复用）或过大（长期占用大数组），做一次收缩分配。
+	if cap(rows) < keepRows || cap(rows) > keepRows*shrinkFactor {
+		newRows := make([]*terminalparser.Row, keepRows, maxRows)
+		copy(newRows, rows[start:])
+		return newRows
+	}
+
+	// 否则复用底层数组：把后 keepRows 项拷到开头，并重切片
+	copy(rows, rows[start:])
+	return rows[:keepRows]
 }
 
 func IsPrintable(s string) bool {
