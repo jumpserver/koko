@@ -230,11 +230,11 @@ func (s *TerminalParser) TryOutput() string {
 }
 
 func (s *TerminalParser) ResizeRows() {
-	rowsLen := len(s.Screen.Rows)
-	if rowsLen > maxRows {
-		s.Screen.Rows = trimRows(s.Screen.Rows)
-		s.Screen.Cursor.Y = keepRows
-	}
+	//rowsLen := len(s.Screen.Rows)
+	//if rowsLen > maxRows {
+	//	s.Screen.Rows = trimRows(s.Screen.Rows)
+	//	s.Screen.Cursor.Y = keepRows
+	//}
 }
 
 const (
@@ -365,7 +365,7 @@ func (s *TerminalParser) GetPs1() string {
 func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 	// 从最后一行开始往前查询命令
 	outputs := make([]string, 0, 10)
-	rows := s.Screen.Rows
+	rows := s.Screen.Rows.Values()
 	j := len(rows) - 1
 
 	// 去除 startCMd的干扰
