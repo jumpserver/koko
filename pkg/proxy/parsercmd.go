@@ -58,8 +58,6 @@ type TerminalParser struct {
 	once     sync.Once
 	mux      sync.Mutex
 
-	OutputBuf bytes.Buffer
-
 	IsEnter func(p []byte) bool
 	cmd     string
 
@@ -235,6 +233,7 @@ func (s *TerminalParser) ResizeRows() {
 	rowsLen := len(s.Screen.Rows)
 	if rowsLen > maxRows {
 		s.Screen.Rows = trimRows(s.Screen.Rows)
+		s.Screen.Cursor.Y = keepRows
 	}
 }
 
@@ -246,9 +245,6 @@ const (
 
 func trimRows(rows []*terminalparser.Row) []*terminalparser.Row {
 	n := len(rows)
-	if n <= 500 {
-		return rows
-	}
 	start := n - keepRows
 
 	// 若容量过小（无法复用）或过大（长期占用大数组），做一次收缩分配。
