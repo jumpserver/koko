@@ -63,7 +63,7 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
       const is_backspace_as_ctrl_h = commandLine.is_backspace_as_ctrl_h;
       const is_right_click_quickly_paste = commandLine.is_right_click_quickly_paste;
       const terminal_theme_name = commandLine.terminal_theme_name;
-      
+
       defaultCommandLine.character_terminal_font_size = fontSize || 13;
       defaultCommandLine.is_backspace_as_ctrl_h = is_backspace_as_ctrl_h || false;
       defaultCommandLine.terminal_theme_name = terminal_theme_name || 'Default';
