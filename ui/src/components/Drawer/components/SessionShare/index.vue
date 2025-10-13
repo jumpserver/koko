@@ -14,8 +14,7 @@ const { t } = useI18n();
 const handleRemoveShareUser = (userId: string) => {
   const currentDeleteUser = onlineUsers.value.find(user => user.user_id === userId && !user.primary);
 
-  if (!currentDeleteUser)
-    return;
+  if (!currentDeleteUser) return;
 
   removeShareUser(currentDeleteUser);
 };

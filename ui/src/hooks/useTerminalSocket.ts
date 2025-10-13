@@ -79,6 +79,7 @@ export const useTerminalSocket = () => {
 
   const terminalRef = ref<Terminal | null>(null);
   const socketRef = ref<WebSocket | null>(null);
+  const cleanupListeners = ref<Array<() => void>>([]);
   const featureSetting = ref<Partial<SettingConfig>>({});
   const pingInterval = ref<ReturnType<typeof setInterval> | null>(null);
   const warningInterval = ref<ReturnType<typeof setInterval> | null>(null);
@@ -91,13 +92,14 @@ export const useTerminalSocket = () => {
   const webglAddon = new WebglAddon();
   const searchAddon = new SearchAddon();
 
+  const disableCV = true;
+
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
     theme: darkTheme,
   }));
 
   const autoTerminalFit = watch([width, height], ([_newWidth, _newHeight]: [number, number]) => {
-    if (!terminalRef.value || !fitAddon)
-      return;
+    if (!terminalRef.value || !fitAddon) return;
 
     nextTick(() => {
       fitAddon.fit();
@@ -109,8 +111,7 @@ export const useTerminalSocket = () => {
   });
 
   const debouncedResize = useDebounceFn(({ cols, rows }) => {
-    if (!fitAddon || !socketRef.value)
-      return;
+    if (!fitAddon || !socketRef.value) return;
 
     fitAddon.fit();
 
@@ -135,15 +136,13 @@ export const useTerminalSocket = () => {
   let lastMessage: string;
 
   function showInfoOnce(content: string) {
-    if (lastMessage === content)
-      return;
+    if (lastMessage === content) return;
     message.info(content);
     lastMessage = content;
   }
 
   const dispatch = (socketData: string) => {
-    if (!socketData || !socketRef.value || !terminalRef.value)
-      return;
+    if (!socketData || !socketRef.value || !terminalRef.value) return;
 
     const parsedMessageData = JSON.parse(socketData);
 
@@ -195,7 +194,7 @@ export const useTerminalSocket = () => {
         updateIcon(info.setting);
 
         socketRef.value!.send(
-          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData)),
+          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
         );
 
         break;
@@ -382,15 +381,13 @@ export const useTerminalSocket = () => {
     if (zmodemTransferStatus.value) {
       try {
         sentry.consume(socketMessage.data);
-      }
-      catch (_e) {
+      } catch (_e) {
         if (sentry.get_confirmed_session()) {
           sentry.get_confirmed_session()?.abort();
           message.error('File transfer error, file transfer interrupted');
         }
       }
-    }
-    else {
+    } else {
       writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
     }
   };
@@ -406,8 +403,7 @@ export const useTerminalSocket = () => {
     sentry = createSentry(terminalRef.value!, socketRef.value!, lastSendTime);
 
     socketRef.value.onopen = () => {
-      if (pingInterval.value)
-        clearInterval(pingInterval.value);
+      if (pingInterval.value) clearInterval(pingInterval.value);
 
       pingInterval.value = setInterval(() => {
         if (isSocketClosing(socketRef.value!)) {
@@ -430,8 +426,7 @@ export const useTerminalSocket = () => {
       }, 25 * 1000);
     };
     socketRef.value.onclose = () => {
-      if (!terminalRef.value)
-        return;
+      if (!terminalRef.value) return;
 
       terminalRef.value.write(`\r\n`);
       terminalRef.value.write(`\x1B[31m${t('WebSocketClosed')}\x1B[0m`);
@@ -442,8 +437,7 @@ export const useTerminalSocket = () => {
       lastReceiveTime.value = new Date();
       if (typeof message.data === 'object') {
         handleBinaryMessage(message);
-      }
-      else {
+      } else {
         dispatch(message.data);
       }
     };
@@ -467,17 +461,19 @@ export const useTerminalSocket = () => {
     containerRef.value!.addEventListener('contextmenu', async (e: MouseEvent) => {
       // 只有在开启右键快速复制时才允许粘贴
       // TODO 对于 terminal 的 contextmenu 后续需要进行封装
-      if (e.ctrlKey || terminalSettingsStore.quickPaste !== '1')
-        return;
+      if (e.ctrlKey || terminalSettingsStore.quickPaste !== '1') return;
 
       e.preventDefault();
+      if (disableCV) {
+        console.log('粘贴已禁用');
+        return false;
+      }
 
       let text: string = '';
 
       try {
         text = await readText();
-      }
-      catch (_e) {
+      } catch (_e) {
         if (selectionText.value) {
           text = selectionText.value;
         }
@@ -535,6 +531,11 @@ export const useTerminalSocket = () => {
     });
     terminalRef.value.onResize(({ cols, rows }) => debouncedResize({ cols, rows }));
     terminalRef.value.onSelectionChange(async () => {
+      if (disableCV) {
+        selectionText.value = '';
+        console.log('选择复制粘贴已禁用');
+        return;
+      }
       selectionText.value = terminalRef.value!.getSelection() || '';
 
       if (!selectionText.value) {
@@ -547,6 +548,19 @@ export const useTerminalSocket = () => {
       if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         debouncedSendLunaKey(e.key);
         return false;
+      }
+
+      if (disableCV) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+          e.preventDefault(); // 阻止粘贴
+          console.log('粘贴已禁用');
+          return false;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+          e.preventDefault(); // 阻止复制
+          console.log('复制已禁用');
+          return false;
+        }
       }
 
       // 允许复制操作而不是发送中断信号
@@ -617,8 +631,7 @@ export const useTerminalSocket = () => {
   };
 
   onMounted(() => {
-    if (!containerRef.value)
-      return;
+    if (!containerRef.value) return;
 
     createTerminal();
     createWebSocket();
@@ -631,11 +644,80 @@ export const useTerminalSocket = () => {
       terminalRef.value?.open(containerRef.value!);
 
       fitAddon.fit();
+      if (disableCV) {
+        const tel = terminalRef.value?.element as HTMLElement | undefined;
+        // 某些版本可通过 terminalRef.value.textarea 额外加一层监听
+        const ta = (terminalRef.value as any).textarea as HTMLTextAreaElement | undefined;
+
+        // block native clipboard events (copy/cut/paste) at the DOM level
+        // keep a reference so we can remove the listeners on unmount
+        const prevent = (e: Event) => {
+          try {
+            // Some environments provide ClipboardEvent, others provide a generic Event
+            (e as ClipboardEvent).preventDefault?.();
+          } catch (_err) {
+            // ignore
+          }
+          e.stopImmediatePropagation();
+        };
+
+        ['copy', 'cut', 'paste'].forEach(type => {
+          // only attach to elements that exist
+          let attached = false;
+          if (tel) {
+            try {
+              tel.addEventListener(type, prevent, { capture: true });
+              attached = true;
+            } catch (_e) {
+              // ignore if attach fails
+            }
+          }
+
+          if (ta) {
+            try {
+              ta.addEventListener(type, prevent, { capture: true });
+              attached = true;
+            } catch (_e) {
+              // ignore
+            }
+          }
+
+          // push the remover to cleanup list only if we actually attached
+          if (attached) {
+            cleanupListeners.value.push(() => {
+              if (tel) {
+                try {
+                  tel.removeEventListener(type, prevent, { capture: true } as EventListenerOptions);
+                } catch (_e) {
+                  // ignore
+                }
+              }
+
+              if (ta) {
+                try {
+                  ta.removeEventListener(type, prevent, { capture: true } as EventListenerOptions);
+                } catch (_e) {
+                  // ignore
+                }
+              }
+            });
+          }
+        });
+      }
     });
   });
 
   onUnmounted(() => {
+    // stop the auto-fit watcher
     autoTerminalFit();
+
+    // remove any DOM clipboard listeners we attached
+    try {
+      cleanupListeners.value.forEach(fn => fn());
+    } catch (_e) {
+      // ignore
+    }
+    cleanupListeners.value = [];
   });
 
   return {
