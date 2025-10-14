@@ -355,6 +355,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				Body:  p,
 			}
 			room.Broadcast(&msg)
+			parser.TerminalParser.OnSize(win.Width, win.Height)
 			// 经过parse处理的server数据，发给user
 		case p, ok := <-srvOutChan:
 			if !ok {

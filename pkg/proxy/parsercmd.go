@@ -201,7 +201,7 @@ func (s *TerminalParser) Feed(p []byte) {
 	}
 }
 
-func (s *TerminalParser) OnSize() {
+func (s *TerminalParser) OnSize(w, h int) {
 
 }
 
@@ -209,7 +209,7 @@ func (s *TerminalParser) TrySrvOutput() string {
 	output := s.srvOutputBuf.Bytes()
 	output = tmuxBar2Regx.ReplaceAll(output, []byte{})
 	outputs := TryParseResult(output)
-	var str bytes.Buffer
+	var str strings.Builder
 	ps1 := strings.TrimSpace(s.Ps1sStr)
 	for i := range outputs {
 		o := outputs[i]
@@ -235,19 +235,6 @@ func (s *TerminalParser) ResizeRows() {
 	//	s.Screen.Rows = trimRows(s.Screen.Rows)
 	//	s.Screen.Cursor.Y = keepRows
 	//}
-}
-
-const (
-	maxRows  = 500 // 触发裁剪的长度上限
-	keepRows = 300 // 裁剪后保留的行数
-)
-
-func trimRows(rows []*terminalparser.Row) []*terminalparser.Row {
-	n := len(rows)
-	start := n - keepRows
-	// 否则复用底层数组：把后 keepRows 项拷到开头，并重切片
-	copy(rows, rows[start:])
-	return rows[:keepRows]
 }
 
 func IsPrintable(s string) bool {
@@ -330,6 +317,11 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 		return cmd, true
 	}
 	if s.state == OutputState {
+		if s.cmd != "" {
+			outputBuf := s.TrySrvOutput()
+			s.EmitCommands(s.cmd, outputBuf)
+			s.cmd = ""
+		}
 		s.state = InputState
 		s.Ps1sStr = s.GetPs1()
 	}
@@ -465,18 +457,7 @@ func TryParseResult(p []byte) []string {
 			}
 		}
 	}()
-	sn := terminalparser.NewScreen(100, 80)
-	outputs := sn.Parse(p)
-	rets := make([]string, 0, len(outputs))
-	for i := range outputs {
-		ret := outputs[i]
-		ret = strings.TrimSpace(ret)
-		if ret != "" {
-			rets = append(rets, ret)
-		}
-
-	}
-	return rets
+	return terminalparser.ParseOutput(p)
 }
 
 // 合并的正则表达式，匹配以下四种模式：
