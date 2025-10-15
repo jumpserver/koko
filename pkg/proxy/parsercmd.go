@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"regexp"
@@ -36,7 +35,7 @@ func DefaultEnterKeyPressHandler(p []byte) bool {
 
 const maxBufSize = 1024 * 100
 
-const maxOutPutBuffer = 1024 * 512
+const maxOutPutBuffer = 1024 * 200
 
 const (
 	InputPreState = iota + 1
@@ -53,7 +52,7 @@ type ScreenParser interface {
 type TerminalParser struct {
 	InputBuf bytes.Buffer
 	Ps1sStr  string
-	Screen   *terminalparser.Screen
+	Screen   *terminalparser.TerminalParser
 	state    int
 	once     sync.Once
 	mux      sync.Mutex
@@ -105,7 +104,7 @@ func (s *TerminalParser) resetCommand() {
 func (s *TerminalParser) GetCursorRow() string {
 	switch s.screenType {
 	case LinuxScreen:
-		row := s.Screen.GetCursorRow()
+		row := s.Screen.TScreen.GetCursorRow()
 		return row.String()
 	case UsqlScreen:
 		row := s.usqlScreenParser.TmuxScreen.GetCursorRow()
@@ -117,7 +116,7 @@ func (s *TerminalParser) GetCursorRow() string {
 		row := s.tmuxParser.TmuxScreen.GetCursorRow()
 		return row.String()
 	default:
-		row := s.Screen.GetCursorRow()
+		row := s.Screen.TScreen.GetCursorRow()
 		return row.String()
 	}
 }
@@ -148,7 +147,7 @@ func (s *TerminalParser) feed(p []byte) {
 	}
 	if terminalDebug {
 		fmt.Println("---------Feed-------------")
-		fmt.Println(hex.Dump(p))
+		//fmt.Println(hex.Dump(p))
 		fmt.Println("current row: ", s.GetCursorRow())
 		fmt.Println()
 	}
@@ -336,7 +335,7 @@ func (s *TerminalParser) TryTmuxInput() string {
 }
 
 func (s *TerminalParser) TryInput() string {
-	lastLine := s.Screen.GetCursorRow()
+	lastLine := s.Screen.TScreen.GetCursorRow()
 	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
 	s.InputBuf.Reset()
 	return strings.TrimSpace(cmd)
@@ -357,7 +356,7 @@ func (s *TerminalParser) GetPs1() string {
 func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 	// 从最后一行开始往前查询命令
 	outputs := make([]string, 0, 10)
-	rows := s.Screen.Rows.Values()
+	rows := s.Screen.TScreen.Rows.Values()
 	j := len(rows) - 1
 
 	// 去除 startCMd的干扰
@@ -406,7 +405,7 @@ func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 }
 
 func (s *TerminalParser) CurrentRowHasPs1() bool {
-	row := s.Screen.GetCursorRow()
+	row := s.Screen.TScreen.GetCursorRow()
 	rowStr := row.String()
 	return strings.Contains(rowStr, s.Ps1sStr)
 }

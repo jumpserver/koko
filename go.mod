@@ -148,4 +148,4 @@ require (
 
 replace github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.3.10
 
-//replace github.com/LeeEirc/terminalparser => ../terminalparser
+replace github.com/LeeEirc/terminalparser => ../terminalparser

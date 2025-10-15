@@ -147,7 +147,7 @@ func (p *Parser) initial(w, h int) {
 		mongoScreenParser: terminalparser.NewMongoShParser(),
 		screenType:        screenType,
 		preScreenType:     screenType,
-		Screen:            terminalparser.NewScreen(h, w)}
+		Screen:            terminalparser.NewTerminalParser()}
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
