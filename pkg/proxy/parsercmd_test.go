@@ -48,3 +48,16 @@ func TestIsTmuxStatusBar(t *testing.T) {
 	t.Logf("hasbar2: %v", hasBar2)
 
 }
+
+func TestIsPasswordPrompt(t *testing.T) {
+	prompts := []string{
+		"password:",
+		"[sudo] password for eric:",
+	}
+	for _, prompt := range prompts {
+		if !IsPasswordPrompt(prompt) {
+			t.Error(prompt)
+		}
+
+	}
+}

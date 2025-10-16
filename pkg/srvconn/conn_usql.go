@@ -1,8 +1,11 @@
 package srvconn
 
 import (
+	"encoding/json"
+	"github.com/jumpserver-dev/sdk-go/model"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 	"time"
 
@@ -108,6 +111,22 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 			params.Set("ssl-cert", clientCertPath)
 			params.Set("ssl-key", clientCertKeyPath)
 		}
+	}
+
+	if len(o.DataMaskingRules) > 0 {
+		rules := model.DataMaskingRules(o.DataMaskingRules)
+		sort.Sort(rules)
+		var activeRules []model.DataMaskingRule
+		for _, rule := range rules {
+			if rule.IsActive {
+				activeRules = append(activeRules, rule)
+			}
+		}
+		rulesJson, err := json.Marshal(activeRules)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("data-masking-rules", string(rulesJson))
 	}
 
 	switch o.Schema {

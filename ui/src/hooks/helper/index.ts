@@ -151,19 +151,19 @@ export const getXTerminalLineContent = (index: number, terminal: Terminal) => {
 
   let startLine = bufferLineCount;
 
-  while (result.length < index || startLine >= 0) {
-    startLine--;
-
-    if (startLine < 0) break;
-
+  while (true) {
+    if (result.length > index || startLine <= 0) {
+      console.warn(`Line ${startLine} is empty or result.length > ${result.length}`);
+      break;
+    }
     const line = buffer.getLine(startLine);
-
-    if (!line) {
+    const stripLine = line?.translateToString(true);
+    startLine--;
+    if (!stripLine) {
       console.warn(`Line ${startLine} is empty or undefined`);
       continue;
     }
-
-    result.unshift(line.translateToString());
+    result.unshift(stripLine);
   }
   return result.join('\n');
 };

@@ -36,6 +36,8 @@ func DefaultEnterKeyPressHandler(p []byte) bool {
 
 const maxBufSize = 1024 * 100
 
+const maxOutPutBuffer = 1024 * 512
+
 const (
 	InputPreState = iota + 1
 	InputState
@@ -170,7 +172,10 @@ func (s *TerminalParser) Feed(p []byte) {
 	s.feed(p)
 
 	if s.state == OutputState {
-		s.srvOutputBuf.Write(p)
+		outputSize := len(s.srvOutputBuf.Bytes())
+		if outputSize < maxOutPutBuffer {
+			s.srvOutputBuf.Write(p)
+		}
 		ps1 := s.Ps1sStr
 		half := len(ps1) / 2
 		halfPs1 := ps1[:half]
@@ -301,6 +306,17 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 				} else if strings.Contains(inputStr, "\r") {
 					s.commands = strings.Split(inputStr, "\r")
 					cmd = inputStr
+				}
+			}
+			if s.cmd == "" && cmd != "" && len(s.commands) == 0 {
+				if IsPasswordPrompt(s.Ps1sStr) {
+					if terminalDebug {
+						fmt.Println("============ password Input ignore =============")
+						fmt.Println("ps1: ", s.Ps1sStr)
+						fmt.Println("inputStr:", inputStr)
+					}
+					cmd = ""
+					s.cmd = cmd
 				}
 			}
 		}
@@ -464,6 +480,28 @@ func TryParseResult(p []byte) []string {
 
 	}
 	return rets
+}
+
+// filtering for password input scenarios
+var passwordPromptRegexps = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)password:?$`),                    // 常见的 Password:
+	regexp.MustCompile(`(?i)\[sudo]\s*password\s*for\s+.*:`), // [sudo] password for user:
+	regexp.MustCompile(`(?i)enter\s+passphrase\s+for\s+.*:`), // SSH/GPG 私钥 passphrase
+	regexp.MustCompile(`(?i)passphrase\s+for\s+key\s+.*:`),   // git/ssh key 提示
+	regexp.MustCompile(`(?i)请输入密码[:：]?$`),                    // 中文
+	regexp.MustCompile(`(?i)mot de passe[:：]?$`),             // 法语
+	regexp.MustCompile(`(?i)contraseña[:：]?$`),               // 西班牙语
+	regexp.MustCompile(`(?i)senha[:：]?$`),                    // 葡萄牙语
+}
+
+func IsPasswordPrompt(ps1 string) bool {
+	ps1 = strings.TrimSpace(ps1)
+	for _, re := range passwordPromptRegexps {
+		if re.MatchString(ps1) {
+			return true
+		}
+	}
+	return false
 }
 
 // 合并的正则表达式，匹配以下四种模式：
