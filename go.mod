@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-storage-blob-go v0.15.0
 	github.com/LeeEirc/elfinder v0.0.15
 	github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d
-	github.com/LeeEirc/terminalparser v0.0.0-20251014075141-a34490082571
+	github.com/LeeEirc/terminalparser v0.0.0-20251017083153-a7b52e114a35
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/creack/pty v1.1.24
@@ -148,4 +148,4 @@ require (
 
 replace github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.3.10
 
-replace github.com/LeeEirc/terminalparser => ../terminalparser
+//replace github.com/LeeEirc/terminalparser => ../terminalparser
