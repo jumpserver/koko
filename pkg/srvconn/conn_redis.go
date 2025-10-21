@@ -109,6 +109,7 @@ func startRedisCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err err
 		logger.Errorf("build nobody with opts error: %s", err)
 		return nil, err
 	}
+	opts = append(opts, envOpt)
 	lcmd, err = localcommand.New("redis-cli", cmd, opts...)
 	if err != nil {
 		return nil, err
