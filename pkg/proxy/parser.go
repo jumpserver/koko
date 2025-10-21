@@ -9,14 +9,12 @@ import (
 	"time"
 
 	"github.com/LeeEirc/tclientlib"
-	"github.com/LeeEirc/terminalparser"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -58,11 +56,6 @@ type Parser struct {
 	srvOutputChan  chan []byte
 	cmdRecordChan  chan *ExecutedCommand
 
-	TerminalParser *TerminalParser
-
-	isScreenMode bool
-	isEditMode   bool
-
 	inputInitial  bool
 	inputPreState bool
 	inputState    bool
@@ -71,9 +64,11 @@ type Parser struct {
 	once       sync.Once
 	lock       sync.RWMutex
 
-	command       string
-	output        string
-	cmdCreateDate time.Time
+	command         string
+	output          string
+	cmdCreateDate   time.Time
+	cmdInputParser  *CmdParser
+	cmdOutputParser *CmdParser
 
 	cmdFilterACLs model.CommandACLs
 	closed        chan struct{}
@@ -90,8 +85,8 @@ type Parser struct {
 
 	platform *model.Platform
 
-	//inputBuffer   bytes.Buffer
-	//isMultipleCmd bool
+	inputBuffer   bytes.Buffer
+	isMultipleCmd bool
 
 	currentCmdRiskLevel  int64
 	currentCmdFilterRule CommandRule
@@ -122,40 +117,12 @@ func (p *Parser) resetCurrentCmdFilterRule() {
 }
 
 func (p *Parser) initial() {
-	screenType := p.CurrentScreenType()
-	p.TerminalParser = &TerminalParser{IsEnter: p.isEnterKeyPress,
-		EmitCommands:      p.EmitCommandEvent,
-		winScreenParser:   terminalparser.NewWindowsParser(),
-		mongoScreenParser: terminalparser.NewMongoShParser(),
-		screenType:        screenType,
-		preScreenType:     screenType,
-		Screen:            terminalparser.NewTerminalParser()}
 
+	p.cmdInputParser = NewCmdParser(p.id, CommandInputParserName)
+	p.cmdOutputParser = NewCmdParser(p.id, CommandOutputParserName)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
-}
-
-func (p *Parser) CurrentScreenType() int {
-	if isWindows(p.platform) {
-		return WindowsScreen
-	}
-	switch p.protocolType {
-	case srvconn.ProtocolMongoDB:
-		return MongoScreen
-	default:
-	}
-	return LinuxScreen
-}
-
-func (p *Parser) EmitCommandEvent(cmd string, outputBuf string) {
-	if cmd == "" {
-		logger.Debugf("Session %s: Command cannot be empty: %s", p.id, outputBuf)
-		return
-	}
-	p.command = cmd
-	p.output = outputBuf
-	p.sendCommandToChan()
 }
 
 func (p *Parser) SetUserInputFilter(filter func([]byte) []byte) {
@@ -346,12 +313,18 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 		return nil
 	}
-
-	if currentCmd, ok1 := p.TerminalParser.WriteInput(b); ok1 {
+	p.writeInputBuffer(b)
+	if p.isEnterKeyPress(b) {
+		// 连续输入enter key, 结算上一条可能存在的命令结果
 		p.sendCommandRecord()
-		p.command = currentCmd
-		p.cmdCreateDate = time.Now()
-		if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
+		p.inputState = false
+		// 用户输入了Enter，开始结算命令
+		p.parseCmdInput()
+		if p.command == "" {
+			p.command = strings.TrimSpace(p.readInputBuffer())
+		}
+		p.clearInputBuffer()
+		if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
 			switch rule.Acl.Action {
 			case model.ActionReject:
 				p.setCurrentCmdStatusLevel(model.RejectLevel)
@@ -365,8 +338,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.confirmStatus.SetCmd(p.command)
 				p.confirmStatus.SetData(string(b))
 				p.confirmStatus.ResetCtx()
-				confirmMsg := fmt.Sprintf(waitMsg, stripNewLine(p.confirmStatus.Cmd))
-				p.srvOutputChan <- []byte("\r\n" + confirmMsg)
+				p.srvOutputChan <- []byte("\r\n" + waitMsg)
 				return nil
 			case model.ActionWarning:
 				p.setCurrentCmdFilterRule(rule)
@@ -375,13 +347,58 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			default:
 			}
 		}
-		if strings.Contains(p.command, "\r") {
-			// 先记录一次 多行命令的输入，output 暂且为空
-			p.sendCommandToChan()
-			p.command = ""
+		p.clearInputBuffer()
+	} else {
+		if p.supportMultiCmd() && bytes.Contains(b, charEnter) {
+			p.isMultipleCmd = true
+			p.command = p.readInputBuffer()
+			p.cmdCreateDate = time.Now()
+			p.inputState = false
+			p.clearInputBuffer()
+			if rule, cmd, ok := p.IsMatchCommandRule(p.command); ok {
+				switch rule.Acl.Action {
+				case model.ActionReject:
+					p.setCurrentCmdFilterRule(rule)
+					p.setCurrentCmdStatusLevel(model.RejectLevel)
+					p.forbiddenCommand(cmd)
+					return nil
+				case model.ActionReview:
+					p.setCurrentCmdFilterRule(rule)
+					p.confirmStatus.SetStatus(StatusQuery)
+					p.confirmStatus.SetRule(rule)
+					p.confirmStatus.SetCmd(p.command)
+					p.confirmStatus.SetData(string(b))
+					p.confirmStatus.ResetCtx()
+					p.srvOutputChan <- []byte("\r\n" + waitMsg)
+					return nil
+				case model.ActionWarning:
+					p.setCurrentCmdFilterRule(rule)
+					p.setCurrentCmdStatusLevel(model.WarningLevel)
+				default:
+				}
+			}
+			return b
+		}
+		p.inputState = true
+		// 用户又开始输入，并上次不处于输入状态，开始结算上次命令的结果
+		if !p.inputPreState {
+			if ps1 := p.cmdOutputParser.GetPs1(); ps1 != "" {
+				p.cmdInputParser.SetPs1(ps1)
+			}
+			p.sendCommandRecord()
 		}
 	}
 	return b
+}
+
+func (p *Parser) supportMultiCmd() bool {
+	switch p.protocolType {
+	case model.ProtocolSSH,
+		model.ProtocolTelnet,
+		model.ProtocolK8S:
+		return true
+	}
+	return false
 }
 
 func (p *Parser) IsNeedParse() bool {
@@ -394,6 +411,21 @@ func (p *Parser) IsNeedParse() bool {
 	return true
 }
 
+func (p *Parser) writeInputBuffer(b []byte) {
+	if p.disableInputAsCmd {
+		return
+	}
+	p.inputBuffer.Write(b)
+}
+
+func (p *Parser) readInputBuffer() string {
+	return p.inputBuffer.String()
+}
+
+func (p *Parser) clearInputBuffer() {
+	p.inputBuffer.Reset()
+}
+
 func (p *Parser) forbiddenCommand(cmd string) {
 	lang := i18n.NewLang(p.i18nLang)
 	fbdMsg := utils.WrapperWarn(fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd))
@@ -401,6 +433,27 @@ func (p *Parser) forbiddenCommand(cmd string) {
 	p.output = fbdMsg
 	p.sendCommandToChan()
 	p.userOutputChan <- p.breakInputPacket()
+}
+
+// parseCmdInput 解析命令的输入
+func (p *Parser) parseCmdInput() {
+	commands := p.cmdInputParser.Parse()
+	if len(commands) <= 0 {
+		p.command = ""
+	} else {
+		switch p.protocolType {
+		case model.ProtocolRedis:
+			p.command = commands[len(commands)-1]
+		default:
+			p.command = strings.Join(commands, "\r\n")
+		}
+	}
+	p.cmdCreateDate = time.Now()
+}
+
+// parseCmdOutput 解析命令输出
+func (p *Parser) parseCmdOutput() {
+	p.output = strings.Join(p.cmdOutputParser.Parse(), "\r\n")
 }
 
 // ParseUserInput 解析用户的输入
@@ -470,7 +523,10 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		logger.Infof("Zmodem start session %s", p.zmodemParser.Status())
 		return b
 	}
-	p.TerminalParser.Feed(b)
+	if p.inputState {
+		_, _ = p.cmdInputParser.WriteData(b)
+	}
+	_, _ = p.cmdOutputParser.WriteData(b)
 	return b
 }
 
@@ -610,16 +666,18 @@ func (p *Parser) Close() {
 		close(p.closed)
 
 	}
-
+	_ = p.cmdOutputParser.Close()
+	_ = p.cmdInputParser.Close()
 	logger.Infof("Session %s: Parser close", p.id)
 }
 
 func (p *Parser) sendCommandRecord() {
 	if p.command != "" {
-		p.output = p.TerminalParser.TryOutput()
+		p.parseCmdOutput()
 		p.sendCommandToChan()
-		return
 	}
+	p.setCurrentCmdStatusLevel(model.NormalLevel)
+	p.resetCurrentCmdFilterRule()
 }
 
 func (p *Parser) sendCommandToChan() {
@@ -711,8 +769,6 @@ const (
 	huawei = "huawei"
 	cisco  = "cisco"
 	linux  = "linux"
-
-	windows = "windows"
 )
 
 func isH3C(p *model.Platform) bool {
@@ -729,10 +785,6 @@ func isCisco(p *model.Platform) bool {
 
 func isLinux(p *model.Platform) bool {
 	return isPlatform(p, linux)
-}
-
-func isWindows(p *model.Platform) bool {
-	return isPlatform(p, windows)
 }
 
 func isPlatform(p *model.Platform, platform string) bool {
