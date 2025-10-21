@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"context"
-	"strings"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/jms-sdk-go/model"
@@ -119,9 +118,3 @@ const (
 	CtrlC = 3
 	CtrlD = 4
 )
-
-func stripNewLine(cmd string) string {
-	cmd = strings.ReplaceAll(cmd, "\r", "")
-	cmd = strings.ReplaceAll(cmd, "\n", "")
-	return cmd
-}

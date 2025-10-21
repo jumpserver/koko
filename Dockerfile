@@ -18,7 +18,7 @@ ADD ui .
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
     yarn build
 
-FROM golang:1.24-bullseye as stage-build
+FROM golang:1.21-bullseye as stage-build
 LABEL stage=stage-build
 ARG TARGETARCH
 
