@@ -206,7 +206,9 @@ func (s *TerminalParser) OnSize(w, h int) {
 
 func (s *TerminalParser) TrySrvOutput() string {
 	output := s.srvOutputBuf.Bytes()
-	output = tmuxBar2Regx.ReplaceAll(output, []byte{})
+	if s.screenType == TmuxScreen {
+		output = tmuxBar2Regx.ReplaceAll(output, []byte{})
+	}
 	outputs := TryParseResult(output)
 	var str strings.Builder
 	ps1 := strings.TrimSpace(s.Ps1sStr)
@@ -221,7 +223,8 @@ func (s *TerminalParser) TrySrvOutput() string {
 		}
 	}
 	s.srvOutputBuf.Reset()
-	if s.srvOutputBuf.Cap() > maxBufSize {
+	maxCapBuf := 1024 * 50
+	if s.srvOutputBuf.Cap() > maxCapBuf {
 		s.srvOutputBuf = bytes.Buffer{}
 	}
 	return str.String()
@@ -328,20 +331,6 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 		s.Ps1sStr = s.GetPs1()
 	}
 	return "", false
-}
-
-func (s *TerminalParser) TryTmuxInput() string {
-	lastLine := s.tmuxParser.TmuxScreen.GetCursorRow()
-	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-	s.InputBuf.Reset()
-	return strings.TrimSpace(cmd)
-}
-
-func (s *TerminalParser) TryInput() string {
-	lastLine := s.Screen.TScreen.GetCursorRow()
-	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-	s.InputBuf.Reset()
-	return strings.TrimSpace(cmd)
 }
 
 func (s *TerminalParser) TryLastRowInput() string {
