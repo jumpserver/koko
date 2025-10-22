@@ -19,7 +19,7 @@ require (
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.25.4+incompatible
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jarcoal/httpmock v1.0.4
-	github.com/jumpserver-dev/sdk-go v0.0.0-20251007162206-113f4e3fdde6
+	github.com/jumpserver-dev/sdk-go v0.0.0-20251022101724-9077892db11a
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/olekukonko/tablewriter v0.0.5
