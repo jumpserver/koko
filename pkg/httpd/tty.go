@@ -29,6 +29,8 @@ type tty struct {
 	shareInfo *ShareInfo
 
 	K8sClients map[string]*Client
+
+	sessionInfo *proxy.SessionInfo
 }
 
 func (h *tty) Name() string {
@@ -358,6 +360,18 @@ func (h *tty) createShareSession(shareData *ShareRequestParams) {
 }
 
 func (h *tty) getShareUserInfo(query GetUserParams) {
+	if h.sessionInfo == nil {
+		logger.Errorf("Ws[%s] get share User info without sessioninfo", h.ws.Uuid)
+		return
+	}
+	if h.sessionInfo.Perms == nil {
+		logger.Errorf("Ws[%s] get share User info without permissions", h.ws.Uuid)
+		return
+	}
+	if !h.sessionInfo.Perms.EnableShare() {
+		logger.Errorf("Ws[%s] get share User info without permissions", h.ws.Uuid)
+		return
+	}
 	shareUserResp, err := h.ws.apiClient.GetShareUserInfo(query.Query)
 	if err != nil {
 		logger.Error(err)
@@ -461,6 +475,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 			return
 		}
 		srv.OnSessionInfo = func(info *proxy.SessionInfo) {
+			h.sessionInfo = info
 			data, _ := json.Marshal(info)
 			h.sendSessionMessage(string(data), client.KubernetesId)
 		}
