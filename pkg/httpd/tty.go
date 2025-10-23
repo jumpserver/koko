@@ -283,7 +283,7 @@ func (h *tty) getShareUserInfo(query GetUserParams) {
 		logger.Errorf("Ws[%s] get share User info without permissions", h.ws.Uuid)
 		return
 	}
-	shareUserResp, err := h.ws.apiClient.GetShareUserInfo(query.Query)
+	shareUserResp, err := h.ws.apiClient.GetSuggestionUsers(query.Query)
 	if err != nil {
 		logger.Error(err)
 		return

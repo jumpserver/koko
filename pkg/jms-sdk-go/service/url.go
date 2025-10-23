@@ -47,6 +47,8 @@ const (
 	AssetPlatFormURL = "/api/v1/assets/assets/%s/platform/"
 
 	DomainDetailWithGateways = "/api/v1/assets/domains/%s/?gateway=1"
+
+	UserSuggestionsURL = "/api/v1/users/users/suggestions/"
 )
 
 const (

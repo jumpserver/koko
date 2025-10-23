@@ -20,6 +20,13 @@ func (s *JMService) GetShareUserInfo(query string) (res []*model.MiniUser, err e
 	return
 }
 
+func (s *JMService) GetSuggestionUsers(query string) (res []*model.MiniUser, err error) {
+	params := make(map[string]string)
+	params["search"] = query
+	_, err = s.authClient.Get(UserSuggestionsURL, &res, params)
+	return
+}
+
 func (s *JMService) JoinShareRoom(data model.SharePostData) (res model.ShareRecord, err error) {
 	_, err = s.authClient.Post(ShareSessionJoinURL, data, &res)
 	return
