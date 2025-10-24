@@ -8,7 +8,7 @@ require (
 	github.com/LeeEirc/elfinder v0.0.14
 	github.com/LeeEirc/httpsig v1.2.1
 	github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d
-	github.com/LeeEirc/terminalparser v0.0.0-20251022082022-75e37cacd4d5
+	github.com/LeeEirc/terminalparser v0.0.0-20251024092110-2a0f74fe8b1f
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aws/aws-sdk-go v1.44.306
 	github.com/creack/pty v1.1.18
