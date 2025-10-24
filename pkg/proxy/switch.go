@@ -246,29 +246,14 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	go func() {
 		for {
 			buf := make([]byte, 1024)
-			nr, err := userConn.Read(buf)
-			if nr > 0 {
-				index := bytes.IndexFunc(buf[:nr], func(r rune) bool {
-					return r == '\r'
-				})
-				if index <= 0 || !parser.NeedRecord() {
-					room.Receive(&exchange.RoomMessage{
-						Event: exchange.DataEvent, Body: buf[:nr],
-						Meta: meta})
-				} else {
-					room.Receive(&exchange.RoomMessage{
-						Event: exchange.DataEvent, Body: buf[:index],
-						Meta: meta})
-					time.Sleep(time.Millisecond * 100)
-					room.Receive(&exchange.RoomMessage{
-						Event: exchange.DataEvent, Body: buf[index:nr],
-						Meta: meta})
-				}
-			}
-			if err != nil {
-				logger.Errorf("Session[%s] user read err: %s", s.ID, err)
+			nr, err1 := userConn.Read(buf)
+			if err1 != nil {
+				logger.Errorf("Session[%s] user read err: %s", s.ID, err1)
 				break
 			}
+			room.Receive(&exchange.RoomMessage{
+				Event: exchange.DataEvent, Body: buf[:nr],
+				Meta: meta})
 		}
 		logger.Infof("Session[%s] user read end", s.ID)
 		exitSignal <- struct{}{}
