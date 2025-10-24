@@ -63,9 +63,9 @@ type Parser struct {
 	isScreenMode bool
 	isEditMode   bool
 
-	inputInitial  bool
-	inputPreState bool
-	inputState    bool
+	//inputInitial  bool
+	//inputPreState bool
+	//inputState    bool
 
 	inVimState bool
 	once       sync.Once
@@ -394,7 +394,6 @@ func (p *Parser) IsNeedParse() bool {
 	if p.inVimState {
 		return false
 	}
-	p.inputPreState = p.inputState
 	return true
 }
 
@@ -409,9 +408,6 @@ func (p *Parser) forbiddenCommand(cmd string) {
 
 // ParseUserInput 解析用户的输入
 func (p *Parser) ParseUserInput(b []byte) []byte {
-	p.once.Do(func() {
-		p.inputInitial = true
-	})
 	if p.userInputFilter != nil {
 		b = p.userInputFilter(b)
 	}
@@ -465,7 +461,7 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		return b
 	} else {
 		p.parseVimState(b)
-		if p.inVimState || !p.inputInitial {
+		if p.inVimState {
 			return b
 		}
 		p.parseZmodemState(b)
