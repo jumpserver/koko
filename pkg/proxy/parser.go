@@ -234,6 +234,10 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 	if len(b) > 1 && bytes.HasSuffix(b, charLF) && isLinux(p.platform) {
 		return true
 	}
+	// 多行命令，会有 \r 字符，此处也需要拦截
+	if bytes.ContainsRune(b, '\r') {
+		return true
+	}
 	return false
 }
 
