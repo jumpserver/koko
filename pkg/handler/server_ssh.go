@@ -316,13 +316,34 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 	if tokenInfo.Gateway != nil {
 		gateways = []model.Gateway{*tokenInfo.Gateway}
 	}
+	enableReused := config.GetConf().ReuseConnection
+	reusedKey := GenerateSSHTokenResueKey(tokenInfo)
 
-	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
-	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
-	if err != nil {
-		logger.Errorf("Get SSH Client failed: %s", err)
-		utils.IgnoreErrWriteString(sess, err.Error())
-		return
+	var (
+		sshClient *srvconn.SSHClient
+		ok1       bool
+		err1      error
+	)
+	if enableReused {
+		sshClient, ok1 = srvconn.GetClientFromCache(reusedKey)
+		if ok1 {
+			logger.Infof("reused ssh client: %s", sshClient)
+		}
+	}
+	if sshClient == nil {
+		sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
+		// add Reuse ssh client
+		sshClient, err1 = srvconn.NewSSHClient(sshAuthOpts...)
+		if err1 != nil {
+			logger.Errorf("Get SSH Client failed: %s", err1)
+			utils.IgnoreErrWriteString(sess, err1.Error())
+			return
+		}
+		if enableReused {
+			srvconn.AddClientCache(reusedKey, sshClient)
+			sshClient.Reused = true
+			sshClient.KeyId = reusedKey
+		}
 	}
 	//defer sshClient.Close()
 	vsReq := &vscodeReq{
@@ -337,7 +358,11 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 		s.addVSCodeReq(vsReq)
 		defer s.deleteVSCodeReq(vsReq)
 		<-sess.Context().Done()
-		_ = sshClient.Close()
+		if sshClient.Reused || sshClient.KeyId != "" {
+			srvconn.ReleaseClientCacheKey(sshClient.KeyId, sshClient)
+		} else {
+			_ = sshClient.Close()
+		}
 		logger.Infof("User %s end vscode request %s", vsReq.user, sshClient)
 	}()
 	if len(sess.Command()) != 0 {
@@ -350,7 +375,7 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 		return
 	}
 
-	if err = s.proxyVscodeShell(sess, vsReq, sshClient, tokenInfo); err != nil {
+	if err := s.proxyVscodeShell(sess, vsReq, sshClient, tokenInfo); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
 	}
 }
@@ -783,10 +808,34 @@ func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClie
 		gateways = []model.Gateway{*tokenInfo.Gateway}
 	}
 	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
+	// add reuse ssh client
+	enableReused := config.GetConf().ReuseConnection
+	reusedKey := GenerateSSHTokenResueKey(tokenInfo)
+	if enableReused {
+		if client, ok := srvconn.GetClientFromCache(reusedKey); ok {
+			logger.Infof("Reused ssh client key: %s", reusedKey)
+			return client, nil
+		}
+	}
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get SSH Client failed: %s", err)
 		return sshClient, err
 	}
+	if enableReused {
+		srvconn.AddClientCache(reusedKey, sshClient)
+		sshClient.Reused = true
+		sshClient.KeyId = reusedKey
+	}
 	return sshClient, nil
+}
+
+func GenerateSSHTokenResueKey(tokenInfo *model.ConnectToken) string {
+	userId := tokenInfo.User.ID
+	assetId := tokenInfo.Asset.ID
+	ip := tokenInfo.Asset.Address
+	port := tokenInfo.Asset.ProtocolPort("ssh")
+	accountUsername := tokenInfo.Account.Username
+	return fmt.Sprintf("SSHD_%s_%s_%s_%d_%s",
+		userId, assetId, ip, port, accountUsername)
 }
