@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/sashabaranov/go-openai"
-	"sync"
-	"time"
 
 	"github.com/jumpserver/koko/pkg/srvconn"
 )

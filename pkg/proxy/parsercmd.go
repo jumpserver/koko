@@ -36,8 +36,6 @@ func DefaultEnterKeyPressHandler(p []byte) bool {
 
 const maxBufSize = 1024 * 100
 
-const maxOutPutBuffer = 1024 * 512
-
 const (
 	InputPreState = iota + 1
 	InputState
@@ -57,8 +55,6 @@ type TerminalParser struct {
 	state    int
 	once     sync.Once
 	mux      sync.Mutex
-
-	OutputBuf bytes.Buffer
 
 	IsEnter func(p []byte) bool
 	cmd     string
@@ -172,8 +168,7 @@ func (s *TerminalParser) Feed(p []byte) {
 	s.feed(p)
 
 	if s.state == OutputState {
-		outputSize := len(s.srvOutputBuf.Bytes())
-		if outputSize < maxOutPutBuffer {
+		if s.srvOutputBuf.Len() < maxBufSize {
 			s.srvOutputBuf.Write(p)
 		}
 		ps1 := s.Ps1sStr
@@ -209,21 +204,24 @@ func (s *TerminalParser) OnSize() {
 
 func (s *TerminalParser) TrySrvOutput() string {
 	output := s.srvOutputBuf.Bytes()
-	output = tmuxBar2Regx.ReplaceAll(output, []byte{})
-	outputs := TryParseResult(output)
-	var str bytes.Buffer
+	if s.tmuxParser != nil {
+		output = tmuxBar2Regx.ReplaceAll(output, []byte{})
+	}
+	outputs := terminalparser.ParseOutput(output)
+	var str strings.Builder
 	ps1 := strings.TrimSpace(s.Ps1sStr)
-	for i := range outputs {
-		o := outputs[i]
+	for _, o := range outputs {
 		o = strings.TrimSpace(o)
 		o = strings.ReplaceAll(o, ps1, "")
-		o = strings.TrimSpace(o)
-		if len(o) > 0 {
+		if len(o) > 0 && str.Len() < maxBufSize {
 			str.WriteString(o)
 			str.WriteString("\n")
 		}
 	}
 	s.srvOutputBuf.Reset()
+	if s.srvOutputBuf.Cap() > maxBufSize {
+		s.srvOutputBuf = bytes.Buffer{}
+	}
 	return str.String()
 }
 
@@ -233,12 +231,16 @@ func (s *TerminalParser) TryOutput() string {
 
 func (s *TerminalParser) ResizeRows() {
 	rowsLen := len(s.Screen.Rows)
-	oldRows := s.Screen.Rows
-	if rowsLen > 5000 {
+	if rowsLen > 1000 {
+		oldRows := s.Screen.Rows
+		oldY := s.Screen.Cursor.Y
 		rows := make([]*terminalparser.Row, 0, 3000)
-		start := rowsLen - 3000
+		start := rowsLen - 1000
 		rows = append(rows, oldRows[start:]...)
 		s.Screen.Rows = rows
+		if oldY >= len(rows) {
+			s.Screen.Cursor.Y = len(rows)
+		}
 	}
 }
 
@@ -416,12 +418,6 @@ func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 	}
 }
 
-func (s *TerminalParser) CurrentRowHasPs1() bool {
-	row := s.Screen.GetCursorRow()
-	rowStr := row.String()
-	return strings.Contains(rowStr, s.Ps1sStr)
-}
-
 func (s *TerminalParser) TryMultipleCommands() {
 	if s.screenType != LinuxScreen {
 		// 仅 linux screen方式支持
@@ -458,28 +454,6 @@ func reverseString(rows []string) string {
 		str.Write([]byte{'\r', '\n'})
 	}
 	return str.String()
-}
-
-func TryParseResult(p []byte) []string {
-	defer func() {
-		if r := recover(); r != nil {
-			if terminalDebug {
-				fmt.Println("Recovered in TryParseResult", r, string(debug.Stack()))
-			}
-		}
-	}()
-	sn := terminalparser.NewScreen(100, 80)
-	outputs := sn.Parse(p)
-	rets := make([]string, 0, len(outputs))
-	for i := range outputs {
-		ret := outputs[i]
-		ret = strings.TrimSpace(ret)
-		if ret != "" {
-			rets = append(rets, ret)
-		}
-
-	}
-	return rets
 }
 
 // filtering for password input scenarios
