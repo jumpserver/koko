@@ -88,9 +88,6 @@ type Parser struct {
 
 	platform *model.Platform
 
-	//inputBuffer bytes.Buffer
-	//isMultipleCmd bool
-
 	currentCmdRiskLevel  int64
 	currentCmdFilterRule CommandRule
 
