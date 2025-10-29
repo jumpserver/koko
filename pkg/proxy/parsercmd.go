@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 var terminalDebug = false
@@ -168,8 +169,17 @@ func (s *TerminalParser) Feed(p []byte) {
 	s.feed(p)
 
 	if s.state == OutputState {
+		// output 且解析出 cmd 才写入 output 减少内存
 		if s.srvOutputBuf.Len() < maxBufSize {
 			s.srvOutputBuf.Write(p)
+		} else {
+			// 长时间输出达到最大值，直接命令结算一次
+			outputBuf := s.TrySrvOutput()
+			if s.EmitCommands != nil {
+				s.EmitCommands(s.cmd, outputBuf)
+				s.cmd = ""
+				return
+			}
 		}
 		ps1 := s.Ps1sStr
 		half := len(ps1) / 2
@@ -226,21 +236,35 @@ func (s *TerminalParser) TrySrvOutput() string {
 }
 
 func (s *TerminalParser) TryOutput() string {
+	s.cmd = ""
 	return s.TrySrvOutput()
 }
 
 func (s *TerminalParser) ResizeRows() {
 	rowsLen := len(s.Screen.Rows)
-	if rowsLen > 1000 {
+	if rowsLen >= 2000 {
+		newRows := make([]*terminalparser.Row, 1000, 2000)
 		oldRows := s.Screen.Rows
 		oldY := s.Screen.Cursor.Y
-		rows := make([]*terminalparser.Row, 0, 3000)
-		start := rowsLen - 1000
-		rows = append(rows, oldRows[start:]...)
-		s.Screen.Rows = rows
-		if oldY >= len(rows) {
-			s.Screen.Cursor.Y = len(rows)
+		keep := 1000
+		start := rowsLen - keep
+		if start < 0 {
+			start = 0
 		}
+		latestRows := oldRows[start:]
+		copy(newRows, latestRows)
+		s.Screen.Rows = newRows
+		if oldY >= len(latestRows) {
+			s.Screen.Cursor.Y = len(latestRows)
+		}
+		// for gc
+		for i := 0; i < start; i++ {
+			oldRows[i] = nil
+		}
+		// for gc
+		oldRows = nil
+		latestRows = nil
+		logger.Debugf("Resize Y: %d, row Len: %d", s.Screen.Cursor.Y, len(s.Screen.Rows))
 	}
 }
 
@@ -462,10 +486,10 @@ var passwordPromptRegexps = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)\[sudo]\s*password\s*for\s+.*:`), // [sudo] password for user:
 	regexp.MustCompile(`(?i)enter\s+passphrase\s+for\s+.*:`), // SSH/GPG 私钥 passphrase
 	regexp.MustCompile(`(?i)passphrase\s+for\s+key\s+.*:`),   // git/ssh key 提示
-	regexp.MustCompile(`(?i)请输入密码[:：]?$`),                    // 中文
-	regexp.MustCompile(`(?i)mot de passe[:：]?$`),             // 法语
-	regexp.MustCompile(`(?i)contraseña[:：]?$`),               // 西班牙语
-	regexp.MustCompile(`(?i)senha[:：]?$`),                    // 葡萄牙语
+	regexp.MustCompile(`(?i)请输入密码[:：]?$`),
+	regexp.MustCompile(`(?i)mot de passe[:：]?$`),
+	regexp.MustCompile(`(?i)contraseña[:：]?$`),
+	regexp.MustCompile(`(?i)senha[:：]?$`),
 }
 
 func IsPasswordPrompt(ps1 string) bool {
