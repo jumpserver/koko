@@ -280,7 +280,6 @@ func (s *SftpConn) Close() {
 	if s.sshClient != nil {
 		_ = s.sshClient.Close()
 	}
-
 	s.isClosed = true
 }
 
