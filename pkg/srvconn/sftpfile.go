@@ -274,10 +274,13 @@ const (
 )
 
 func (s *SftpConn) Close() {
-	if s.client == nil {
-		return
+	if s.client != nil {
+		_ = s.client.Close()
 	}
-	_ = s.client.Close()
+	if s.sshClient != nil {
+		_ = s.sshClient.Close()
+	}
+
 	s.isClosed = true
 }
 
