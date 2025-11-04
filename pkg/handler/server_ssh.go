@@ -459,7 +459,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 
 	// to fix this issue: https://github.com/ploxiln/fab-classic/issues/46
 	// make pty for client when client required or command is login shell
-	if pty, _, isPty := sess.Pty(); isPty ||
+	if pty, _, isPty := sess.Pty(); isPty &&
 		(strings.Contains(rawStr, "bash --login") || strings.Contains(rawStr, "bash -l")) {
 		_ = goSess.RequestPty(
 			pty.Term,

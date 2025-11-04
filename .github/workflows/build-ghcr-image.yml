@@ -1,0 +1,60 @@
+name: build image and push to ghcr.io
+
+on:
+  workflow_dispatch:
+    inputs:
+      BRANCH:
+        description: 'branch'
+        type: string
+        default: 'dev'
+      VERSION:
+        description: 'version'
+        type: string
+        default: 'dev'
+      PLATFORMS:
+        description: 'platforms'
+        type: string
+        default: 'linux/amd64,linux/arm64'
+      IMAGE_TAG:
+        description: "image tag"
+        type: string
+        default: 'dev'
+        required: true
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.BRANCH }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract repository name
+        id: repo
+        run: echo "REPO=$(basename ${{ github.repository }})" >> $GITHUB_ENV
+
+      - name: Extract image prefix
+        run: |
+          echo "IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          platforms:  ${{ inputs.PLATFORMS }}
+          push: true
+          build-args: VERSION=${{ inputs.VERSION }}
+          file: Dockerfile
+          tags: ${{ env.IMAGE_PREFIX }}/${{ env.REPO }}:${{ inputs.IMAGE_TAG }}
+
