@@ -166,7 +166,7 @@ func (s *SuSwitchService) handleResult(p []byte) matchStatus {
 			}
 		}
 	}
-	if s.passwordRegexp != nil {
+	if s.passwordRegexp != nil && !s.inputAuthOnce {
 		for _, line := range lineBytes {
 			if s.passwordRegexp.Match(line) {
 				_, _ = s.SrvConn.Write([]byte(s.cfg.SudoPassword + "\r"))
