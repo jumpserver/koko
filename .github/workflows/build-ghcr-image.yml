@@ -52,6 +52,7 @@ jobs:
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
         with:
+          context: .
           platforms:  ${{ inputs.PLATFORMS }}
           push: true
           build-args: VERSION=${{ inputs.VERSION }}
