@@ -24,7 +24,7 @@ RUN mkdir /opt/koko/release \
     && mv /opt/koko/utils/init-kubectl.sh /opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
-FROM debian:bullseye-slim
+FROM debian:trixie
 ARG TARGETARCH
 ENV LANG=en_US.UTF-8
 
@@ -36,12 +36,13 @@ ARG DEPENDENCIES="                    \
         bash-completion               \
         jq                            \
         less                          \
+        redis-tools                   \
         ca-certificates"
 
 ARG APT_MIRROR=http://deb.debian.org
 
 RUN set -ex \
-    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
+    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
@@ -50,7 +51,6 @@ RUN set -ex \
 
 WORKDIR /opt/koko
 
-COPY --from=stage-build /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
 COPY --from=stage-build /opt/koko/bin /usr/local/bin
 COPY --from=stage-build /opt/koko/lib /usr/local/lib
