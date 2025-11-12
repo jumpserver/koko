@@ -2883,6 +2883,7 @@ tr.elfinder-cwd-file td .elfinder-cwd-select {
     -moz-user-select: text;
     -khtml-user-select: text;
     user-select: text;
+    overflow: visible;
 }
 
 .elfinder .std42-dialog .ui-dialog-content label {
@@ -5197,4 +5198,3 @@ embed.elfinder-quicklook-preview-audio {
     rgba(0, 0, 0, 0.1) 95%,
     rgba(0, 0, 0, 0) 100%);
 }
-
