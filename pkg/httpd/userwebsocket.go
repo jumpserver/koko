@@ -102,6 +102,7 @@ func (userCon *UserWebsocket) Run() {
 		var err error
 		userCon.k8sClient, err = proxy.NewKubernetesClient(
 			userCon.ConnectToken.Asset.Address,
+			userCon.ConnectToken.Asset.SpecInfo.Namespace,
 			userCon.ConnectToken.Account.Secret,
 			userCon.ConnectToken.Gateway,
 		)
