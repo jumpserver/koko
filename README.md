@@ -9,11 +9,28 @@ Koko is implemented using Golang and Vue, and the name comes from a Dota hero [K
 
 ## Features
 
+### Protocol Support
+- **SSH/SFTP**: Secure remote connections and file transfers
+- **Telnet**: Legacy device remote management
+- **Kubernetes**: Container and Pod management
+- **Databases**: MySQL, PostgreSQL, Redis, MongoDB, Oracle, SQL Server, and more
 
-- SSH
-- SFTP
-- Web Terminal
-- Web File Management
+### Core Capabilities
+- **Web Terminal**: Browser-based terminal access, no client installation required
+- **Web File Management**: Visual file browsing, upload, and download
+- **Session Recording**: Automatic recording of all operations with playback for auditing
+- **Command Auditing**: Record and filter user commands, block dangerous commands
+- **Session Sharing**: Real-time multi-user collaboration with session monitoring
+- **Connection Reuse**: Optimize connection performance, reduce authentication overhead
+
+### Additional Features
+- Multi-language support (Chinese/English)
+- Multiple storage backends (Local/S3/OSS/Azure/ES, etc.)
+- VSCode Remote SSH support
+- Distributed deployment and high availability
+- Flexible configuration options
+
+> 📖 For detailed feature documentation, see [docs/功能说明.md](./docs/功能说明.md) (Chinese)
 
 
 ## Installation

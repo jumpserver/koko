@@ -9,11 +9,28 @@ Koko 使用 Golang 和 Vue 来实现，名字来自 Dota 英雄 [Kunkka](https:/
 
 ## 主要功能
 
+### 协议支持
+- **SSH/SFTP**: 安全的远程连接和文件传输
+- **Telnet**: 传统设备远程管理
+- **Kubernetes**: 容器和 Pod 管理
+- **数据库**: MySQL、PostgreSQL、Redis、MongoDB、Oracle、SQL Server 等
 
-- SSH
-- SFTP
-- web terminal
-- web文件管理
+### 核心能力
+- **Web Terminal**: 基于浏览器的终端访问，无需安装客户端
+- **Web 文件管理**: 可视化文件浏览、上传、下载
+- **会话录制**: 自动录制所有操作，支持回放审计
+- **命令审计**: 记录和过滤用户命令，支持危险命令阻断
+- **会话共享**: 多人实时协作，支持会话监控
+- **连接复用**: 优化连接性能，减少认证次数
+
+### 更多特性
+- 多语言支持（中文/英文）
+- 多种存储后端（本地/S3/OSS/Azure/ES 等）
+- VSCode Remote SSH 支持
+- 分布式部署和高可用
+- 灵活的配置选项
+
+> 📖 详细功能说明请查看 [docs/功能说明.md](./docs/功能说明.md)
 
 
 ## 安装
