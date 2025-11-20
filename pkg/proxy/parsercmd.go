@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 var terminalDebug = false
@@ -36,8 +37,6 @@ func DefaultEnterKeyPressHandler(p []byte) bool {
 
 const maxBufSize = 1024 * 100
 
-const maxOutPutBuffer = 1024 * 512
-
 const (
 	InputPreState = iota + 1
 	InputState
@@ -57,8 +56,6 @@ type TerminalParser struct {
 	state    int
 	once     sync.Once
 	mux      sync.Mutex
-
-	OutputBuf bytes.Buffer
 
 	IsEnter func(p []byte) bool
 	cmd     string
@@ -172,9 +169,17 @@ func (s *TerminalParser) Feed(p []byte) {
 	s.feed(p)
 
 	if s.state == OutputState {
-		outputSize := len(s.srvOutputBuf.Bytes())
-		if outputSize < maxOutPutBuffer {
+		// output 且解析出 cmd 才写入 output 减少内存
+		if s.srvOutputBuf.Len() < maxBufSize {
 			s.srvOutputBuf.Write(p)
+		} else {
+			// 长时间输出达到最大值，直接命令结算一次
+			outputBuf := s.TrySrvOutput()
+			if s.EmitCommands != nil {
+				s.EmitCommands(s.cmd, outputBuf)
+				s.cmd = ""
+				return
+			}
 		}
 		ps1 := s.Ps1sStr
 		half := len(ps1) / 2
@@ -209,36 +214,57 @@ func (s *TerminalParser) OnSize() {
 
 func (s *TerminalParser) TrySrvOutput() string {
 	output := s.srvOutputBuf.Bytes()
-	output = tmuxBar2Regx.ReplaceAll(output, []byte{})
-	outputs := TryParseResult(output)
-	var str bytes.Buffer
+	if s.tmuxParser != nil {
+		output = tmuxBar2Regx.ReplaceAll(output, []byte{})
+	}
+	outputs := terminalparser.ParseOutput(output)
+	var str strings.Builder
 	ps1 := strings.TrimSpace(s.Ps1sStr)
-	for i := range outputs {
-		o := outputs[i]
+	for _, o := range outputs {
 		o = strings.TrimSpace(o)
 		o = strings.ReplaceAll(o, ps1, "")
-		o = strings.TrimSpace(o)
-		if len(o) > 0 {
+		if len(o) > 0 && str.Len() < maxBufSize {
 			str.WriteString(o)
 			str.WriteString("\n")
 		}
 	}
 	s.srvOutputBuf.Reset()
+	if s.srvOutputBuf.Cap() > maxBufSize {
+		s.srvOutputBuf = bytes.Buffer{}
+	}
 	return str.String()
 }
 
 func (s *TerminalParser) TryOutput() string {
+	s.cmd = ""
 	return s.TrySrvOutput()
 }
 
 func (s *TerminalParser) ResizeRows() {
 	rowsLen := len(s.Screen.Rows)
-	oldRows := s.Screen.Rows
-	if rowsLen > 5000 {
-		rows := make([]*terminalparser.Row, 0, 3000)
-		start := rowsLen - 3000
-		rows = append(rows, oldRows[start:]...)
-		s.Screen.Rows = rows
+	if rowsLen >= 2000 {
+		newRows := make([]*terminalparser.Row, 1000, 2000)
+		oldRows := s.Screen.Rows
+		oldY := s.Screen.Cursor.Y
+		keep := 1000
+		start := rowsLen - keep
+		if start < 0 {
+			start = 0
+		}
+		latestRows := oldRows[start:]
+		copy(newRows, latestRows)
+		s.Screen.Rows = newRows
+		if oldY >= len(latestRows) {
+			s.Screen.Cursor.Y = len(latestRows)
+		}
+		// for gc
+		for i := 0; i < start; i++ {
+			oldRows[i] = nil
+		}
+		// for gc
+		oldRows = nil
+		latestRows = nil
+		logger.Debugf("Resize Y: %d, row Len: %d", s.Screen.Cursor.Y, len(s.Screen.Rows))
 	}
 }
 
@@ -416,12 +442,6 @@ func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 	}
 }
 
-func (s *TerminalParser) CurrentRowHasPs1() bool {
-	row := s.Screen.GetCursorRow()
-	rowStr := row.String()
-	return strings.Contains(rowStr, s.Ps1sStr)
-}
-
 func (s *TerminalParser) TryMultipleCommands() {
 	if s.screenType != LinuxScreen {
 		// 仅 linux screen方式支持
@@ -460,38 +480,16 @@ func reverseString(rows []string) string {
 	return str.String()
 }
 
-func TryParseResult(p []byte) []string {
-	defer func() {
-		if r := recover(); r != nil {
-			if terminalDebug {
-				fmt.Println("Recovered in TryParseResult", r, string(debug.Stack()))
-			}
-		}
-	}()
-	sn := terminalparser.NewScreen(100, 80)
-	outputs := sn.Parse(p)
-	rets := make([]string, 0, len(outputs))
-	for i := range outputs {
-		ret := outputs[i]
-		ret = strings.TrimSpace(ret)
-		if ret != "" {
-			rets = append(rets, ret)
-		}
-
-	}
-	return rets
-}
-
 // filtering for password input scenarios
 var passwordPromptRegexps = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)password:?$`),                    // 常见的 Password:
 	regexp.MustCompile(`(?i)\[sudo]\s*password\s*for\s+.*:`), // [sudo] password for user:
 	regexp.MustCompile(`(?i)enter\s+passphrase\s+for\s+.*:`), // SSH/GPG 私钥 passphrase
 	regexp.MustCompile(`(?i)passphrase\s+for\s+key\s+.*:`),   // git/ssh key 提示
-	regexp.MustCompile(`(?i)请输入密码[:：]?$`),                    // 中文
-	regexp.MustCompile(`(?i)mot de passe[:：]?$`),             // 法语
-	regexp.MustCompile(`(?i)contraseña[:：]?$`),               // 西班牙语
-	regexp.MustCompile(`(?i)senha[:：]?$`),                    // 葡萄牙语
+	regexp.MustCompile(`(?i)请输入密码[:：]?$`),
+	regexp.MustCompile(`(?i)mot de passe[:：]?$`),
+	regexp.MustCompile(`(?i)contraseña[:：]?$`),
+	regexp.MustCompile(`(?i)senha[:：]?$`),
 }
 
 func IsPasswordPrompt(ps1 string) bool {

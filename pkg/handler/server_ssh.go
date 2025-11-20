@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gliderlabs/ssh"
@@ -458,7 +459,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 
 	// to fix this issue: https://github.com/ploxiln/fab-classic/issues/46
 	// make pty for client when client required or command is login shell
-	if pty, _, isPty := sess.Pty(); isPty ||
+	if pty, _, isPty := sess.Pty(); isPty &&
 		(strings.Contains(rawStr, "bash --login") || strings.Contains(rawStr, "bash -l")) {
 		_ = goSess.RequestPty(
 			pty.Term,
@@ -483,45 +484,24 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		logger.Errorf("Get SSH session stderr failed: %s", err)
 		return
 	}
-	reader := io.MultiReader(out, errOut)
+	stderrWriter := sess.Stderr()
+	recordBuf := utils.NewMaxSizeBuffer(1024)
+	var wg sync.WaitGroup
+	wg.Add(2)
 	go func() {
-		now := time.Now()
-		var outResult strings.Builder
-		maxSize := 1024
-		cmd := model.Command{
-			SessionID:   respSession.ID,
-			OrgID:       respSession.OrgID,
-			Input:       rawStr,
-			User:        respSession.User,
-			Server:      respSession.Asset,
-			Account:     respSession.Account,
-			Timestamp:   now.Unix(),
-			DateCreated: now,
-		}
-		buf := make([]byte, 1024)
-		for {
-			n, err1 := reader.Read(buf)
-			if err1 != nil {
-				if err1 != io.EOF {
-					logger.Errorf("Read ssh session output failed: %s", err)
-				} else {
-					logger.Info("Read ssh command session output end")
-				}
-				break
-			}
-			_, _ = sess.Write(buf[:n])
-			maxSize -= n
-			if maxSize >= 0 {
-				_, _ = outResult.Write(buf[:n])
-			}
-		}
-		cmd.Output = strings.ReplaceAll(outResult.String(), "\x00", "")
-		termCfg := s.GetTerminalConfig()
-		cmdStorage := proxy.NewCommandStorage(s.jmsService, &termCfg)
-		if err2 := cmdStorage.BulkSave([]*model.Command{&cmd}); err2 != nil {
-			logger.Errorf("Create command err: %s", err2)
-		}
+		defer wg.Done()
+		outRecorderWriter := io.MultiWriter(sess, recordBuf)
+		_, _ = io.Copy(outRecorderWriter, out)
+		logger.Debugf("User %s finished session stdout", tokenInfo.User.String())
 	}()
+
+	go func() {
+		defer wg.Done()
+		errRecorderWriter := io.MultiWriter(stderrWriter, recordBuf)
+		_, _ = io.Copy(errRecorderWriter, errOut)
+		logger.Debugf("User %s finished session stderr", tokenInfo.User.String())
+	}()
+	now := time.Now()
 	err = goSess.Run(rawStr)
 	if err != nil {
 		logger.Errorf("User %s Run command %s failed: %s",
@@ -533,6 +513,24 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 				logger.Errorf("Create sess exit code %d err: %s", exitCode, err1)
 			}
 		}
+	}
+	wg.Wait()
+	cmd := model.Command{
+		SessionID:   respSession.ID,
+		OrgID:       respSession.OrgID,
+		Input:       rawStr,
+		User:        respSession.User,
+		Server:      respSession.Asset,
+		Account:     respSession.Account,
+		Timestamp:   now.Unix(),
+		DateCreated: now,
+	}
+	outResult := recordBuf.String()
+	cmd.Output = strings.ReplaceAll(outResult, "\x00", "")
+	termCfg := s.GetTerminalConfig()
+	cmdStorage := proxy.NewCommandStorage(s.jmsService, &termCfg)
+	if err2 := cmdStorage.BulkSave([]*model.Command{&cmd}); err2 != nil {
+		logger.Errorf("Create command err: %s", err2)
 	}
 	reason := string(model.ReasonErrConnectDisconnect)
 	s.recordSessionLifecycle(respSession.ID, model.AssetConnectFinished, reason)

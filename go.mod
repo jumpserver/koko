@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-storage-blob-go v0.15.0
 	github.com/LeeEirc/elfinder v0.0.15
 	github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d
-	github.com/LeeEirc/terminalparser v0.0.0-20250821052754-85a28345b25b
+	github.com/LeeEirc/terminalparser v0.0.0-20251029102619-45086b8f9b58
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/creack/pty v1.1.24
@@ -19,22 +19,22 @@ require (
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.25.4+incompatible
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jarcoal/httpmock v1.0.4
-	github.com/jumpserver-dev/sdk-go v0.0.0-20251007162206-113f4e3fdde6
+	github.com/jumpserver-dev/sdk-go v0.0.0-20251022101724-9077892db11a
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pires/go-proxyproto v0.8.1
-	github.com/pkg/sftp v1.13.6
+	github.com/pkg/sftp v1.13.10
 	github.com/sashabaranov/go-openai v1.40.2
 	github.com/shirou/gopsutil/v3 v3.24.5
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
 	github.com/xlab/treeprint v1.1.0
 	go.mongodb.org/mongo-driver v1.8.3
-	golang.org/x/crypto v0.41.0
-	golang.org/x/term v0.34.0
-	golang.org/x/text v0.28.0
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0
+	golang.org/x/crypto v0.43.0
+	golang.org/x/term v0.36.0
+	golang.org/x/text v0.30.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	k8s.io/api v0.34.0
 	k8s.io/apimachinery v0.34.0
 	k8s.io/client-go v0.34.0
@@ -47,6 +47,8 @@ require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/clipperhouse/stringish v0.1.1 // indirect
+	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/danielgatis/go-utf8 v1.0.1 // indirect
 	github.com/danielgatis/go-vte v1.0.9 // indirect
@@ -87,7 +89,7 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-ieproxy v0.0.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/spdystream v0.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -98,7 +100,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
@@ -125,10 +126,10 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/exp v0.0.0-20240529005216-23cca8864a10 // indirect
-	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/net v0.45.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect

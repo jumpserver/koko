@@ -1,10 +1,8 @@
-FROM redis:6.2-bullseye AS redis-stage
-FROM golang:1.24-bullseye AS stage-go-build
+FROM golang:1.24-trixie AS stage-go-build
 
-FROM node:20.15-bullseye
+FROM node:20-trixie
 COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
 COPY --from=stage-go-build /go/ /go/
-COPY --from=redis-stage /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 ENV GOPATH=/go
 ENV PATH=/go/bin:/usr/local/go/bin:$PATH
 ARG TARGETARCH
@@ -20,7 +18,7 @@ WORKDIR /opt
 ARG HELM_VERSION=v3.17.4
 ARG KUBECTL_VERSION=v1.32.9
 ARG CHECK_VERSION=v1.0.5
-ARG USQL_VERSION=v0.1.5
+ARG USQL_VERSION=v0.1.7
 
 
 RUN set -ex \
