@@ -55,7 +55,7 @@ func (k *KubectlProxyConn) Close() error {
 
 func (k *KubectlProxyConn) Start() error {
 	var err error
-	k.configPath, err = k.CreateKubeConfig(k.opts.ClusterServer, k.opts.Token)
+	k.configPath, err = k.CreateKubeConfig(k.opts.ClusterServer, k.opts.ExtraEnv["Namespace"], k.opts.Token)
 	if err != nil {
 		return err
 	}
@@ -83,10 +83,10 @@ func (k *KubectlProxyConn) UnixPath() string {
 	return filepath.Join(k8sDir, fmt.Sprintf("proxy-%s.sock", k.Id))
 }
 
-func (k *KubectlProxyConn) CreateKubeConfig(server, token string) (string, error) {
+func (k *KubectlProxyConn) CreateKubeConfig(server, namespace, token string) (string, error) {
 	k8sDir := GetK8sProxyDir()
 	configPath := filepath.Join(k8sDir, fmt.Sprintf("config-%s", k.Id))
-	configContent := fmt.Sprintf(proxyconfigTmpl, server, token)
+	configContent := fmt.Sprintf(proxyconfigTmpl, server, namespace, token)
 	err := os.WriteFile(configPath, []byte(configContent), 0600)
 	return configPath, err
 }
@@ -104,6 +104,7 @@ func (k *KubectlProxyConn) Env() []string {
 	return []string{
 		fmt.Sprintf("KUBECTL_USER=%s", o.Username),
 		fmt.Sprintf("KUBECTL_CLUSTER=%s", k8sReverseProxyURL),
+		fmt.Sprintf("KUBECTL_NAMESPACE=%s", o.ExtraEnv["Namespace"]),
 		fmt.Sprintf("KUBECTL_INSECURE_SKIP_TLS_VERIFY=%s", skipTls),
 		fmt.Sprintf("KUBECTL_TOKEN=%s", k.Id),
 		fmt.Sprintf("WELCOME_BANNER=%s", config.KubectlBanner),
@@ -121,6 +122,7 @@ contexts:
 - context:
     cluster: kubernetes
     user: JumpServer-user
+    namespace: %s
   name: kubernetes
 current-context: kubernetes
 kind: Config
