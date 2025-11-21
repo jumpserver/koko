@@ -31,9 +31,9 @@ require (
 	github.com/spf13/viper v1.18.2
 	github.com/xlab/treeprint v1.1.0
 	go.mongodb.org/mongo-driver v1.8.3
-	golang.org/x/crypto v0.43.0
-	golang.org/x/term v0.36.0
-	golang.org/x/text v0.30.0
+	golang.org/x/crypto v0.45.0
+	golang.org/x/term v0.37.0
+	golang.org/x/text v0.31.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	k8s.io/api v0.34.0
 	k8s.io/apimachinery v0.34.0
@@ -126,10 +126,10 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/exp v0.0.0-20240529005216-23cca8864a10 // indirect
-	golang.org/x/net v0.45.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
