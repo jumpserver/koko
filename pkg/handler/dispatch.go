@@ -116,11 +116,11 @@ func (h *InteractiveHandler) Dispatch() {
 
 func (h *InteractiveHandler) checkMaxIdleTime(checkChan <-chan bool) {
 	maxIdleMinutes := h.terminalConf.MaxIdleTime
-	checkMaxIdleTime(maxIdleMinutes, h.i18nLang, h.user, h.sess.Sess, checkChan)
+	checkMaxIdleTime(maxIdleMinutes, h.i18nLang, h.user, h.sess.Sess, h.jmsService, checkChan)
 }
 
 func (h *InteractiveHandler) ChangeLang() {
-	lang := i18n.NewLang(h.i18nLang)
+	lang := i18n.NewLang(h.i18nLang, h.jmsService)
 	i18nLang := h.i18nLang
 	allLangCodes := i18n.AllCodes
 	langs := i18n.AllLangCodesStr
@@ -176,8 +176,8 @@ func (h *InteractiveHandler) ChangeLang() {
 		}
 		if num, err2 := strconv.Atoi(line); err2 == nil {
 			if num > 0 && num <= len(allLangCodes) {
-				lang = allLangCodes[num-1]
-				i18nLang = lang.String()
+				langC := allLangCodes[num-1]
+				i18nLang = langC.String()
 				break
 			} else {
 				utils.IgnoreErrWriteString(h.term, utils.WrapperString(lang.T("Invalid ID"), utils.Red))
@@ -193,7 +193,7 @@ func (h *InteractiveHandler) ChangeLang() {
 }
 
 func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList) {
-	lang := i18n.NewLang(h.i18nLang)
+	lang := i18n.NewLang(h.i18nLang, h.jmsService)
 	tree, newNodes := ConstructNodeTree(nodes)
 	h.nodes = newNodes
 	_, _ = io.WriteString(h.term, "\n\r"+lang.T("Node: [ ID.Name(Asset amount) ]"))

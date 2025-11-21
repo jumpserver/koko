@@ -51,7 +51,7 @@ func getUserDefaultLangCode(user *model.User) string {
 	return config.GetConf().LanguageCode
 }
 
-func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, sess ssh.Session, checkChan <-chan bool) {
+func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, sess ssh.Session, jmsService *service.JMService, checkChan <-chan bool) {
 	maxIdleTime := time.Duration(maxIdleMinutes) * time.Minute
 	tick := time.NewTicker(maxIdleTime)
 	defer tick.Stop()
@@ -60,7 +60,7 @@ func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, ses
 		select {
 		case <-tick.C:
 			if checkStatus {
-				lang := i18n.NewLang(langCode)
+				lang := i18n.NewLang(langCode, jmsService)
 				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), maxIdleMinutes)
 				_, _ = io.WriteString(sess, "\r\n"+msg+"\r\n")
 				_ = sess.Close()
@@ -191,7 +191,7 @@ func (h *InteractiveHandler) keepSessionAlive(keepAliveTime time.Duration) {
 }
 
 func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (model.PermAccount, bool) {
-	lang := i18n.NewLang(h.i18nLang)
+	lang := i18n.NewLang(h.i18nLang, h.jmsService)
 	length := len(permAccounts)
 	switch length {
 	case 0:
@@ -271,7 +271,7 @@ func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (mo
 }
 
 func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bool) {
-	lang := i18n.NewLang(h.i18nLang)
+	lang := i18n.NewLang(h.i18nLang, h.jmsService)
 	length := len(protocols)
 	switch length {
 	case 0:
@@ -375,7 +375,7 @@ func (h *InteractiveHandler) refreshAssetsAndNodesData() {
 		h.terminalConf = &tConfig
 	}()
 	h.wg.Wait()
-	lang := i18n.NewLang(h.i18nLang)
+	lang := i18n.NewLang(h.i18nLang, h.jmsService)
 	_, err := io.WriteString(h.term, lang.T("Refresh done")+"\n\r")
 	if err != nil {
 		logger.Error("refresh Assets Nodes err:", err)

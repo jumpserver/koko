@@ -34,7 +34,7 @@ func (l *LoginReviewHandler) GetTokenInfo() model.ConnectTokenInfo {
 }
 
 func (l *LoginReviewHandler) WaitReview(ctx context.Context) (bool, error) {
-	lang := i18n.NewLang(l.i18nLang)
+	lang := i18n.NewLang(l.i18nLang, l.jmsService)
 	vt := term.NewTerminal(l.readWriter, lang.T("Need ACL review, continue? (y/n): "))
 	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 	count := 0
@@ -75,7 +75,7 @@ func (l *LoginReviewHandler) WaitReview(ctx context.Context) (bool, error) {
 }
 
 func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.LoginReviewService) (bool, error) {
-	lang := i18n.NewLang(l.i18nLang)
+	lang := i18n.NewLang(l.i18nLang, l.jmsService)
 	ctx, cancelFunc := context.WithCancel(ctx)
 	vt := term.NewTerminal(l.readWriter, " ")
 	go func() {

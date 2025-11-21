@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
@@ -93,11 +94,11 @@ func (opts *ConnectionOptions) TerminalTitle() string {
 	return title
 }
 
-func (opts *ConnectionOptions) ConnectMsg() string {
+func (opts *ConnectionOptions) ConnectMsg(jmsService *service.JMService) string {
 	protocol := opts.authInfo.Protocol
 	asset := opts.authInfo.Asset
 	account := opts.authInfo.Account
-	lang := opts.getLang()
+	lang := opts.getLang(jmsService)
 	msg := ""
 	switch protocol {
 	case srvconn.ProtocolTELNET,
@@ -125,6 +126,6 @@ func (opts *ConnectionOptions) ConnectMsg() string {
 	return msg
 }
 
-func (opts *ConnectionOptions) getLang() i18n.LanguageCode {
-	return i18n.NewLang(opts.i18nLang)
+func (opts *ConnectionOptions) getLang(jmsService *service.JMService) *i18n.Language {
+	return i18n.NewLang(opts.i18nLang, jmsService)
 }

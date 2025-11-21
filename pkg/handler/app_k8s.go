@@ -10,7 +10,7 @@ import (
 
 func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 	currentResult := u.currentResult
-	lang := i18n.NewLang(u.h.i18nLang)
+	lang := i18n.NewLang(u.h.i18nLang, u.h.jmsService)
 	if len(currentResult) == 0 {
 		noK8s := lang.T("No kubernetes")
 		u.displayNoResultMsg(searchHeader, noK8s)
@@ -21,7 +21,7 @@ func (u *UserSelectHandler) displayK8sResult(searchHeader string) {
 
 func (u *UserSelectHandler) displayResult(searchHeader string, Labels, fields []string,
 	fieldSize map[string][3]int, data []map[string]string) {
-	lang := i18n.NewLang(u.h.i18nLang)
+	lang := i18n.NewLang(u.h.i18nLang, u.h.jmsService)
 	vt := u.h.term
 	w, _ := u.h.GetPtySize()
 	currentPage := u.CurrentPage()
