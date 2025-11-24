@@ -123,6 +123,7 @@ func (s *SSHManager) run() {
 				data[reqClient.key] = userClient
 			}
 			userClient.AddClient(reqClient.SSHClient)
+			reqClient.SSHClient.KeyId = reqClient.key
 			logger.Infof("Store new client(%s) remain %d", reqClient.String(), userClient.Count())
 		case reqClient := <-s.releaseChan:
 			// 收到释放请求，及时释放对应的 SSHClient
