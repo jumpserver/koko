@@ -341,8 +341,6 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 		}
 		if enableReused {
 			srvconn.AddClientCache(reusedKey, sshClient)
-			sshClient.Reused = true
-			sshClient.KeyId = reusedKey
 		}
 	}
 	//defer sshClient.Close()
@@ -358,7 +356,7 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 		s.addVSCodeReq(vsReq)
 		defer s.deleteVSCodeReq(vsReq)
 		<-sess.Context().Done()
-		if sshClient.Reused || sshClient.KeyId != "" {
+		if sshClient.KeyId != "" {
 			srvconn.ReleaseClientCacheKey(sshClient.KeyId, sshClient)
 		} else {
 			_ = sshClient.Close()
@@ -824,8 +822,6 @@ func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClie
 	}
 	if enableReused {
 		srvconn.AddClientCache(reusedKey, sshClient)
-		sshClient.Reused = true
-		sshClient.KeyId = reusedKey
 	}
 	return sshClient, nil
 }

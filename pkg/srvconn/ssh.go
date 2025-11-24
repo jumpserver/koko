@@ -215,8 +215,7 @@ type SSHClient struct {
 	refCount int32
 	_selfRef int32
 
-	Reused bool
-	KeyId  string
+	KeyId string
 }
 
 func (s *SSHClient) increaseSelfRef() {

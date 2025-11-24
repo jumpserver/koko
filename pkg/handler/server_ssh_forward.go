@@ -123,7 +123,7 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 				s.addVSCodeReq(vsReq)
 				defer s.deleteVSCodeReq(vsReq)
 				<-childCtx.Done()
-				if sshClient.Reused || sshClient.KeyId != "" {
+				if sshClient.KeyId != "" {
 					srvconn.ReleaseClientCacheKey(sshClient.KeyId, sshClient)
 				} else {
 					_ = sshClient.Close()
