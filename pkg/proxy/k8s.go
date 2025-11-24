@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jumpserver/koko/pkg/srvconn"
-	"k8s.io/client-go/rest"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/srvconn"
+	"k8s.io/client-go/rest"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -46,15 +47,15 @@ type KubernetesClient struct {
 	gateway    *domainGateway
 }
 
-func NewKubernetesClient(address, token string, gateway *model.Gateway) (*KubernetesClient, error) {
+func NewKubernetesClient(address, namespace, token string, gateway *model.Gateway) (*KubernetesClient, error) {
 	kc := &KubernetesClient{}
-	if err := kc.InitClient(address, token, gateway); err != nil {
+	if err := kc.InitClient(address, namespace, token, gateway); err != nil {
 		return nil, err
 	}
 	return kc, nil
 }
 
-func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gateway) error {
+func (kc *KubernetesClient) InitClient(address, namespace, token string, gateway *model.Gateway) error {
 	var proxyAddr *net.TCPAddr
 	if gateway != nil {
 		dGateway, err := newK8sGateWayServer(address, gateway)
@@ -86,7 +87,7 @@ func (kc *KubernetesClient) InitClient(address, token string, gateway *model.Gat
 		return srvconn.ErrValidToken
 	}
 
-	kubeConfigYAML := kc.GetKubeConfig(address, token)
+	kubeConfigYAML := kc.GetKubeConfig(address, namespace, token)
 
 	tmpFile, err := os.CreateTemp("", "kubeconfig-*.yaml")
 	if err != nil {
@@ -115,7 +116,7 @@ func newK8sGateWayServer(address string, gateway *model.Gateway) (*domainGateway
 	return dGateway, nil
 }
 
-func (kc *KubernetesClient) GetKubeConfig(address, token string) string {
+func (kc *KubernetesClient) GetKubeConfig(address, namespace, token string) string {
 	return fmt.Sprintf(`
 apiVersion: v1
 kind: Config
@@ -128,20 +129,21 @@ contexts:
 - context:
     cluster: remote-cluster
     user: remote-user
+    namespace: %s
   name: remote-context
 current-context: remote-context
 users:
 - name: remote-user
   user:
     token: %s
-`, address, token)
+`, address, namespace, token)
 }
 
 var (
-	getNamespacesLineAll     = "kubectl get namespaces -o custom-columns=NAME:.metadata.name --no-headers"
-	getPodsAllNamespacesLine = "kubectl get pods --all-namespaces -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers"
-	getPodsInNamespaceFmt    = "kubectl get pods -n %s -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers"
-	getCurrentNSLine         = "kubectl config view --minify -o jsonpath='{..namespace}'"
+	getNamespacesLineAll     = "kubectl get namespaces -o custom-columns=NAME:.metadata.name --no-headers 2>/dev/null"
+	getPodsAllNamespacesLine = "kubectl get pods --all-namespaces -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers 2>/dev/null"
+	getPodsInNamespaceFmt    = "kubectl get pods -n %s -o custom-columns=NAMESPACE:.metadata.namespace,POD:.metadata.name,CONTAINER:.spec.containers[*].name --no-headers 2>/dev/null"
+	getCurrentNSLine         = "kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null"
 )
 
 func (kc *KubernetesClient) GetTreeData() (string, error) {
@@ -285,6 +287,10 @@ func (tree *K8sResourceTree) InsertResource(ns, pod, container string) {
 }
 
 func (kc *KubernetesClient) resolveNamespaces(env []string) ([]string, error) {
+	if curNS := strings.TrimSpace(shellOutOrEmpty(env, getCurrentNSLine)); curNS != "" {
+		return []string{curNS}, nil
+	}
+
 	if out, err := runCmd(env, getNamespacesLineAll); err == nil {
 		return nonEmptyLines(out), nil
 	}
@@ -293,10 +299,6 @@ func (kc *KubernetesClient) resolveNamespaces(env []string) ([]string, error) {
 		return []string{ns}, nil
 	} else {
 		logger.Debugf("extractNamespaceFromSAToken failed: %v", err)
-	}
-
-	if curNS := strings.TrimSpace(shellOutOrEmpty(env, getCurrentNSLine)); curNS != "" {
-		return []string{curNS}, nil
 	}
 
 	return nil, fmt.Errorf("cannot determine accessible namespaces: no list permission, no SA token namespace, no context namespace")
