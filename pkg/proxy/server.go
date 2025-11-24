@@ -453,6 +453,14 @@ func (s *Server) createAvailableGateWay() (*domainGateway, error) {
 
 // getSSHConn 获取ssh连接
 func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
+	namespaceValue := ""
+	if k8sSettings, ok := s.connOpts.authInfo.Platform.GetProtocolSetting(srvconn.ProtocolK8s); ok {
+		if v, ok := k8sSettings.Setting["namespace"]; ok {
+			if s, ok := v.(string); ok {
+				namespaceValue = s
+			}
+		}
+	}
 	asset := s.connOpts.authInfo.Asset
 	clusterServer := asset.Address
 	if localTunnelAddr != nil {
@@ -475,7 +483,8 @@ func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.Se
 			Height: s.UserConn.Pty().Window.Height,
 		}),
 		srvconn.K8sExtraEnvs(map[string]string{
-			"K8sName": asset.Name,
+			"K8sName":   asset.Name,
+			"Namespace": namespaceValue,
 		}),
 	)
 	return
