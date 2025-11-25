@@ -28,11 +28,21 @@ const (
 
 var (
 	supportedMACs = []string{"hmac-sha2-256-etm@openssh.com",
-		"hmac-sha2-256", "hmac-sha1"}
+		"hmac-sha2-256"}
 
 	supportedKexAlgos = []string{
 		"curve25519-sha256", "curve25519-sha256@libssh.org",
 		"ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
+	}
+	publicKeyAuthAlgorithms = []string{
+		gossh.KeyAlgoED25519,
+		gossh.KeyAlgoSKED25519,
+		gossh.KeyAlgoSKECDSA256,
+		gossh.KeyAlgoECDSA256,
+		gossh.KeyAlgoECDSA384,
+		gossh.KeyAlgoECDSA521,
+		gossh.KeyAlgoRSASHA256,
+		gossh.KeyAlgoRSASHA512,
 	}
 )
 
@@ -78,7 +88,7 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 		MaxSessions:      int32(cf.SshMaxSessions),
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
 			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
-			return &gossh.ServerConfig{Config: cfg}
+			return &gossh.ServerConfig{Config: cfg, PublicKeyAuthAlgorithms: publicKeyAuthAlgorithms}
 		},
 		Handler:                       sshHandler.SessionHandler,
 		LocalPortForwardingCallback:   sshHandler.LocalPortForwardingPermission,
