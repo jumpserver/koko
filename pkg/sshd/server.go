@@ -41,8 +41,6 @@ var (
 		gossh.KeyAlgoECDSA256,
 		gossh.KeyAlgoECDSA384,
 		gossh.KeyAlgoECDSA521,
-		gossh.KeyAlgoRSASHA256,
-		gossh.KeyAlgoRSASHA512,
 	}
 )
 
