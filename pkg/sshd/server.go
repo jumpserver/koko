@@ -41,6 +41,8 @@ var (
 		gossh.KeyAlgoECDSA256,
 		gossh.KeyAlgoECDSA384,
 		gossh.KeyAlgoECDSA521,
+		gossh.KeyAlgoRSASHA256,
+		gossh.KeyAlgoRSASHA512,
 	}
 )
 
@@ -76,13 +78,23 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 	if err != nil {
 		logger.Fatalf("Parse Terminal private key failed: %s\n", err)
 	}
+	hostSigner := singer
+	if singer.PublicKey().Type() == "ssh-rsa" {
+		multiAlgoSigner, err1 := gossh.NewSignerWithAlgorithms(singer.(gossh.AlgorithmSigner),
+			[]string{gossh.KeyAlgoRSASHA256, gossh.KeyAlgoRSASHA512})
+		if err1 != nil {
+			logger.Fatal(err1)
+		}
+		hostSigner = multiAlgoSigner
+	}
+
 	sshHandler := handler.NewServer(termCfg, jmsService)
 	srv := &ssh.Server{
 		Addr:             addr,
 		PasswordHandler:  sshHandler.PasswordAuth,
 		PublicKeyHandler: sshHandler.PublicKeyAuth,
 		Version:          "JumpServer",
-		HostSigners:      []ssh.Signer{singer},
+		HostSigners:      []ssh.Signer{hostSigner},
 		MaxSessions:      int32(cf.SshMaxSessions),
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
 			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
