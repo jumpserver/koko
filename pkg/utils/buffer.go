@@ -58,7 +58,12 @@ var (
 	LargeBufferPool = NewBufferPool(LargeBufferSize)
 )
 
-// BytesBufferPool provides a sync.Pool for bytes.Buffer
+// BytesBufferPool provides a sync.Pool for bytes.Buffer instances.
+// It helps reduce memory allocations by reusing bytes.Buffer objects.
+// Usage pattern:
+//   buf := GetBytesBuffer()
+//   defer PutBytesBuffer(buf)
+//   // use buf...
 var BytesBufferPool = sync.Pool{
 	New: func() interface{} {
 		return new(bytes.Buffer)

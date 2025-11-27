@@ -26,6 +26,10 @@ var (
 const (
 	bin16HeaderLen = 7
 	bin32HeaderLen = 9
+
+	// maxSubPacketBufCap is the maximum capacity for subPacketBuf before resetting
+	// to release memory. This helps prevent memory bloat from large file transfers.
+	maxSubPacketBufCap = 64 * 1024
 )
 
 func DecodeHexFrameHeader(p []byte) (h ZmodemHeader, offset int, ok bool) {
@@ -283,7 +287,7 @@ func (s *ZSession) consumeSubPacket() {
 	}
 	s.subPacketBuf.Reset()
 	// Reset subPacketBuf capacity if it's too large to avoid memory bloat
-	if s.subPacketBuf.Cap() > 64*1024 {
+	if s.subPacketBuf.Cap() > maxSubPacketBufCap {
 		s.subPacketBuf = bytes.Buffer{}
 	}
 	s.onSubPacket(s.parsedSubPacket)
