@@ -368,22 +368,31 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 func (s *TerminalParser) TryTmuxInput() string {
 	lastLine := s.tmuxParser.TmuxScreen.GetCursorRow()
 	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-	s.InputBuf.Reset()
+	s.resetInputBuf()
 	return strings.TrimSpace(cmd)
 }
 
 func (s *TerminalParser) TryInput() string {
 	lastLine := s.Screen.GetCursorRow()
 	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-	s.InputBuf.Reset()
+	s.resetInputBuf()
 	return strings.TrimSpace(cmd)
 }
 
 func (s *TerminalParser) TryLastRowInput() string {
 	rowStr := s.GetCursorRow()
 	cmd := strings.TrimPrefix(rowStr, s.Ps1sStr)
-	s.InputBuf.Reset()
+	s.resetInputBuf()
 	return strings.TrimSpace(cmd)
+}
+
+// resetInputBuf resets the input buffer and prevents memory bloat
+func (s *TerminalParser) resetInputBuf() {
+	s.InputBuf.Reset()
+	// If capacity is too large, create a new buffer to release memory
+	if s.InputBuf.Cap() > maxBufSize {
+		s.InputBuf = bytes.Buffer{}
+	}
 }
 
 func (s *TerminalParser) GetPs1() string {
