@@ -13,6 +13,7 @@ const (
 	Ko     LanguageCode = "ko"
 	Ru     LanguageCode = "ru"
 	Es     LanguageCode = "es"
+	Vi     LanguageCode = "vi"
 )
 
 var (
@@ -39,6 +40,7 @@ var i18nCodeMap = map[string]LanguageCode{
 	"ru":      Ru,
 	"ko":      Ko,
 	"es":      Es,
+	"vi":      Vi,
 }
 
 type LanguageCode string
