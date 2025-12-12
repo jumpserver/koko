@@ -67,6 +67,13 @@ func (userCon *UserWebsocket) initial() error {
 			userCon.SendErrMessage(errMsg)
 			return err
 		}
+
+		if userCon.user.ID != connectToken.User.ID {
+			logger.Errorf("No valid auth user found: %s vs %s",
+				userCon.user.String(), connectToken.User.String())
+			errMsg := "no valid auth user found"
+			return errors.New(errMsg)
+		}
 		userCon.ConnectToken = &connectToken
 	}
 	return nil
