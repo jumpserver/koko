@@ -1,5 +1,6 @@
 import type { Ref } from 'vue';
 import type { ISearchOptions } from '@xterm/addon-search';
+import type { TreeOption } from 'naive-ui';
 
 import { h, ref } from 'vue';
 import { v4 as uuid } from 'uuid';
@@ -40,6 +41,51 @@ const { message, notification } = createDiscreteApi(['message', 'notification'],
 const lunaId = ref('');
 const counter = ref(0);
 const guaranteeInterval = ref<number | null>(null);
+
+function getLabelString(label: unknown): string {
+  if (typeof label === 'string') return label;
+  if (label == null) return '';
+  return String(label);
+}
+
+function isAsciiUppercase(char: string): boolean {
+  return char >= 'A' && char <= 'Z';
+}
+
+function isAsciiLowercase(char: string): boolean {
+  return char >= 'a' && char <= 'z';
+}
+
+function azAzGroup(label: string): number {
+  const firstChar = label.trim().charAt(0);
+  if (isAsciiUppercase(firstChar)) return 0;
+  if (isAsciiLowercase(firstChar)) return 1;
+  return 2;
+}
+
+function compareLabelAZaz(aLabel: string, bLabel: string): number {
+  const aGroup = azAzGroup(aLabel);
+  const bGroup = azAzGroup(bLabel);
+  if (aGroup !== bGroup) return aGroup - bGroup;
+
+  const aLower = aLabel.toLowerCase();
+  const bLower = bLabel.toLowerCase();
+
+  const byLower = aLower.localeCompare(bLower, 'en', { numeric: true });
+  if (byLower !== 0) return byLower;
+
+  return aLabel.localeCompare(bLabel, 'en', { numeric: true });
+}
+
+function sortTreeNodesAZaz(nodes: TreeOption[]): void {
+  nodes.sort((a, b) => compareLabelAZaz(getLabelString(a.label), getLabelString(b.label)));
+
+  for (const node of nodes) {
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      sortTreeNodesAZaz(node.children);
+    }
+  }
+}
 
 function handleConnected(socket: WebSocket, pingInterval: Ref<number | null>) {
   const kubernetesStore = useKubernetesStore();
@@ -251,6 +297,7 @@ export function handleTreeNodes(message: any, ws: WebSocket) {
     treeStore.setTreeNodes(item);
   });
 
+  sortTreeNodesAZaz(treeStore.treeNodes);
   treeStore.setLoaded(true);
 }
 
