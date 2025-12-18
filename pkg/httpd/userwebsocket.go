@@ -67,6 +67,13 @@ func (userCon *UserWebsocket) initial() error {
 			userCon.SendErrMessage(errMsg)
 			return err
 		}
+
+		if userCon.user.ID != connectToken.User.ID {
+			logger.Errorf("No valid auth user found: %s vs %s",
+				userCon.user.String(), connectToken.User.String())
+			errMsg := "no valid auth user found"
+			return errors.New(errMsg)
+		}
 		userCon.ConnectToken = &connectToken
 	}
 	return nil
@@ -100,8 +107,17 @@ func (userCon *UserWebsocket) Run() {
 
 	if userCon.ConnectToken != nil && userCon.ConnectToken.Protocol == srvconn.ProtocolK8s {
 		var err error
+		namespaceValue := ""
+		if k8sSettings, ok := userCon.ConnectToken.Platform.GetProtocolSetting(srvconn.ProtocolK8s); ok {
+			if v, ok := k8sSettings.Setting["namespace"]; ok {
+				if s, ok := v.(string); ok {
+					namespaceValue = s
+				}
+			}
+		}
 		userCon.k8sClient, err = proxy.NewKubernetesClient(
 			userCon.ConnectToken.Asset.Address,
+			namespaceValue,
 			userCon.ConnectToken.Account.Secret,
 			userCon.ConnectToken.Gateway,
 		)

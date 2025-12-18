@@ -4,7 +4,7 @@ import type { DropdownOption, TreeOption } from 'naive-ui';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { NPopover } from 'naive-ui';
-import { computed, h, nextTick, onMounted, onUnmounted, ref, watchEffect } from 'vue';
+import { computed, h, nextTick, onMounted, onUnmounted, ref, watch, watchEffect } from 'vue';
 import { Folder, FolderOpen, RefreshCcw, Search, SquareTerminal, UnfoldVertical } from 'lucide-vue-next';
 
 import type { customTreeOption } from '@/types/modules/config.type';
@@ -42,6 +42,7 @@ const showSearch = ref(false);
 const showDropdown = ref(false);
 const currentNodeInfo = ref();
 const expandedKeysRef = ref<string[]>([]);
+const expandedKeysBeforeSearch = ref<string[] | null>(null);
 const dropdownOptions = ref<DropdownOption[]>([]);
 
 const allOptions = [
@@ -87,6 +88,84 @@ watchEffect(() => {
   if (treeNodes.value.length > 0) {
     isLoaded.value = true;
   }
+});
+
+function buildContainerSearchTree(nodes: TreeOption[], pattern: string): { data: TreeOption[]; expandedKeys: string[] } {
+  const normalizedPattern = pattern.trim().toLowerCase();
+  const searchRootKey = '__koko_container_search_root__';
+
+  if (!normalizedPattern) {
+    return { data: nodes, expandedKeys: [] };
+  }
+
+  const matchedContainers: TreeOption[] = [];
+
+  const visit = (node: TreeOption): void => {
+    const customNode = node as customTreeOption;
+    const isContainer = Boolean(customNode.container) || node.isLeaf === true;
+
+    if (isContainer) {
+      const label = typeof customNode.container === 'string' ? customNode.container : String(customNode.label ?? '');
+      if (label.toLowerCase().includes(normalizedPattern)) {
+        matchedContainers.push({ ...node });
+      }
+      return;
+    }
+
+    const children = Array.isArray(node.children) ? (node.children as TreeOption[]) : [];
+    for (const child of children) visit(child);
+  };
+
+  // 构建搜索内容节点
+  for (const node of nodes) visit(node);
+
+  if (matchedContainers.length === 0) {
+    return { data: [], expandedKeys: [] };
+  }
+
+  // 额外增加一个空的父节点
+  const rootNode: TreeOption = {
+    label: '',
+    key: searchRootKey,
+    isLeaf: false,
+    children: matchedContainers,
+    prefix: () => h(Folder, { size: 15 }),
+  };
+
+  return { data: [rootNode], expandedKeys: [searchRootKey] };
+}
+
+const searchTreeResult = computed(() => buildContainerSearchTree(treeNodes.value, searchPattern.value));
+const displayTreeNodes = computed(() => searchTreeResult.value.data);
+
+watch(
+  () => showSearch.value,
+  visible => {
+    if (!visible) {
+      searchPattern.value = '';
+    }
+  }
+);
+
+watch(
+  () => searchPattern.value.trim(),
+  (currentPattern, previousPattern) => {
+    if (currentPattern && !previousPattern) {
+      expandedKeysBeforeSearch.value = [...expandedKeysRef.value];
+      return;
+    }
+
+    if (!currentPattern && previousPattern) {
+      expandedKeysRef.value = expandedKeysBeforeSearch.value ?? [];
+      expandedKeysBeforeSearch.value = null;
+    }
+  }
+);
+
+watchEffect(() => {
+  const currentPattern = searchPattern.value.trim();
+  if (!currentPattern) return;
+  expandedKeysRef.value = searchTreeResult.value.expandedKeys;
 });
 
 const showToolTip = (option: TreeOption) => {
@@ -298,9 +377,8 @@ onUnmounted(() => {
                 class="tree-item"
                 check-strategy="all"
                 checkbox-placement="left"
-                :data="treeNodes"
+                :data="displayTreeNodes"
                 :node-props="nodeProps"
-                :pattern="searchPattern"
                 :render-label="showToolTip"
                 :expanded-keys="expandedKeysRef"
                 :allow-checking-not-loaded="true"

@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/gliderlabs/ssh"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	gossh "golang.org/x/crypto/ssh"
 
 	modelCommon "github.com/jumpserver-dev/sdk-go/common"
@@ -122,7 +123,11 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 				s.addVSCodeReq(vsReq)
 				defer s.deleteVSCodeReq(vsReq)
 				<-childCtx.Done()
-				_ = sshClient.Close()
+				if sshClient.KeyId != "" {
+					srvconn.ReleaseClientCacheKey(sshClient.KeyId, sshClient)
+				} else {
+					_ = sshClient.Close()
+				}
 				logger.Info("ide client removed, all alive forward will be closed by default")
 				if _, err2 := s.jmsService.SessionFinished(respSession.ID, modelCommon.NewNowUTCTime()); err2 != nil {
 					logger.Errorf("Create tunnel session err: %s", err2)

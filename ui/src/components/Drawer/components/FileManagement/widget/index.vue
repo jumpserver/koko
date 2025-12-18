@@ -799,7 +799,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
     @positive-click="modalPositiveClick"
     @negative-click="modalNegativeClick"
   >
-    <n-input v-if="!modalContent" v-model:value="newFileName" clearable :placeholder="t('PleaseInput')" />
+    <n-input v-if="!modalContent" maxlength="50" v-model:value="newFileName" clearable :placeholder="t('PleaseInput')" />
   </n-modal>
 </template>
 
