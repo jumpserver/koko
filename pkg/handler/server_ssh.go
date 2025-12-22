@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -414,6 +415,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 
 	// todo: 暂且不支持 acl 工单
 	acls := tokenInfo.CommandFilterACLs
+	sort.Sort(model.CommandACLs(acls))
 	for i := range acls {
 		acl := acls[i]
 		_, action, _ := acl.Match(rawStr)
@@ -427,6 +429,10 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 			logger.Errorf("ACL reject execute %s ", rawStr)
 			return
 		default:
+		}
+		if action == model.ActionAccept {
+			logger.Debugf("ACL accept execute %s ", rawStr)
+			break
 		}
 	}
 
