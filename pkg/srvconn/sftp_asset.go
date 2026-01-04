@@ -870,9 +870,6 @@ func (ad *SftpFileInfo) Size() int64 {
 */
 
 func (ad *SftpFileInfo) Mode() os.FileMode {
-	if ad.isFromWebTerminal {
-		return ad.info.Mode()
-	}
 	if ad.isRoot && ad.info.IsDir() {
 		return ad.info.Mode() | os.ModePerm
 	}
