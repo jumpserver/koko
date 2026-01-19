@@ -12,7 +12,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { BrandDocker } from '@vicons/tabler';
 import { Box, Folder } from 'lucide-vue-next';
 import { readText } from 'clipboard-polyfill';
-import { WebglAddon } from '@xterm/addon-webgl';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 
@@ -580,13 +580,13 @@ export function initTerminalEvent(
   nodeInfo: any
 ) {
   const fitAddon: FitAddon = new FitAddon();
-  const webglAddon: WebglAddon = new WebglAddon();
+  const canvasAddon: CanvasAddon = new CanvasAddon();
   const searchAddon: SearchAddon = new SearchAddon();
 
   const terminalStore = useTerminalStore();
 
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(webglAddon);
+  terminal.loadAddon(canvasAddon);
   terminal.loadAddon(searchAddon);
 
   terminal.open(el);

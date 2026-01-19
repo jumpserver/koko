@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import xtermTheme from 'xterm-theme';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { WebglAddon } from '@xterm/addon-webgl';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import { readText, writeText } from 'clipboard-polyfill';
@@ -88,7 +88,7 @@ export const useTerminalSocket = () => {
   const terminalSettingsStore = useTerminalSettingsStore();
 
   const fitAddon = new FitAddon();
-  const webglAddon = new WebglAddon();
+  const canvasAddon = new CanvasAddon();
   const searchAddon = new SearchAddon();
 
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
@@ -576,7 +576,7 @@ export const useTerminalSocket = () => {
     });
 
     terminal.loadAddon(fitAddon);
-    terminal.loadAddon(webglAddon);
+    terminal.loadAddon(canvasAddon);
     terminal.loadAddon(searchAddon);
 
     terminalRef.value = terminal;
