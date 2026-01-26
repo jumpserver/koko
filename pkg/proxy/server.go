@@ -44,7 +44,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	for _, setter := range opts {
 		setter(connOpts)
 	}
-	lang := connOpts.getLang()
+	lang := connOpts.getLang(jmsService)
 	protocol := connOpts.authInfo.Protocol
 	asset := connOpts.authInfo.Asset
 	account := connOpts.authInfo.Account
@@ -327,7 +327,7 @@ func (s *Server) getAuthPasswordIfNeed() (err error) {
 }
 
 func (s *Server) checkRequiredAuth() error {
-	lang := s.connOpts.getLang()
+	lang := s.connOpts.getLang(s.jmsService)
 	protocol := s.connOpts.authInfo.Protocol
 	asset := s.connOpts.authInfo.Asset
 	loginAccount := s.account
@@ -389,7 +389,7 @@ func (s *Server) checkReuseSSHClient() bool {
 }
 
 func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
-	lang := s.connOpts.getLang()
+	lang := s.connOpts.getLang(s.jmsService)
 	asset := s.connOpts.authInfo.Asset
 	user := s.connOpts.authInfo.User
 	loginAccount := s.account
@@ -701,7 +701,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		return nil, err
 	}
 	if s.suFromAccount != nil {
-		lang := s.connOpts.getLang()
+		lang := s.connOpts.getLang(s.jmsService)
 		msg := fmt.Sprintf(lang.T("Switched to %s"), s.account)
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
 		utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -803,7 +803,7 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 		return tcon, err
 	}
 	if s.suFromAccount != nil {
-		lang := s.connOpts.getLang()
+		lang := s.connOpts.getLang(s.jmsService)
 		msg := fmt.Sprintf(lang.T("Switched to %s"), s.account)
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
 		utils.IgnoreErrWriteString(s.UserConn, msg)
@@ -873,7 +873,7 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 func (s *Server) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
 	maxDelay := 5 * 60.0 // 最多执行五分钟
-	msg := fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
+	msg := fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(s.jmsService), delay)
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	var activeFlag bool
 	for delay < maxDelay {
@@ -887,7 +887,7 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 			}
 			if activeFlag {
 				utils.IgnoreErrWriteString(s.UserConn, utils.CharClear)
-				msg = fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
+				msg = fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(s.jmsService), delay)
 				utils.IgnoreErrWriteString(s.UserConn, msg)
 				activeFlag = false
 				break
@@ -933,7 +933,7 @@ func (s *Server) Proxy() {
 			_ = s.cacheSSHConnection.Close()
 		}
 	}()
-	lang := s.connOpts.getLang()
+	lang := s.connOpts.getLang(s.jmsService)
 	ctx, cancel := context.WithCancel(context.Background())
 	maxIdleTime := s.terminalConf.MaxIdleTime
 	maxSessionTime := time.Now().Add(time.Duration(s.terminalConf.MaxSessionTime) * time.Hour)
@@ -1076,7 +1076,7 @@ func (s *Server) Proxy() {
 }
 
 func (s *Server) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("%s error: %s", s.connOpts.ConnectMsg(),
+	msg := fmt.Sprintf("%s error: %s", s.connOpts.ConnectMsg(s.jmsService),
 		s.ConvertErrorToReadableMsg(err))
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)

@@ -241,7 +241,7 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
-	lang := i18n.NewLang(p.i18nLang)
+	lang := i18n.NewLang(p.i18nLang, p.jmsService)
 	if p.zmodemParser.IsStartSession() {
 		switch p.zmodemParser.Status() {
 		case zmodem.ZParserStatusReceive:
@@ -433,7 +433,7 @@ func (p *Parser) IsNeedParse() bool {
 }
 
 func (p *Parser) forbiddenCommand(cmd string) {
-	lang := i18n.NewLang(p.i18nLang)
+	lang := i18n.NewLang(p.i18nLang, p.jmsService)
 	fbdMsg := fmt.Sprintf(lang.T("Command `%s` is forbidden"), cmd)
 	p.srvOutputChan <- []byte("\r\n" + utils.WrapperWarn(fbdMsg))
 	p.output = fbdMsg
@@ -492,7 +492,7 @@ func (p *Parser) parseVimState(b []byte) {
 
 // splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
 func (p *Parser) splitCmdStream(b []byte) []byte {
-	lang := i18n.NewLang(p.i18nLang)
+	lang := i18n.NewLang(p.i18nLang, p.jmsService)
 	if p.zmodemParser.IsStartSession() {
 		if p.zmodemParser.Status() == zmodem.ZParserStatusSend {
 			p.zmodemParser.Parse(b)
@@ -565,7 +565,7 @@ func (p *Parser) waitCommandConfirm() {
 		p.confirmStatus.SetAction(model.ActionReject)
 		return
 	}
-	lang := i18n.NewLang(p.i18nLang)
+	lang := i18n.NewLang(p.i18nLang, p.jmsService)
 	checkReq := resp.CheckReq
 	cancelReq := resp.CloseReq
 	detailURL := resp.TicketDetailUrl

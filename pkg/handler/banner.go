@@ -26,7 +26,7 @@ type ColorMeta struct {
 }
 
 func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, termConf *model.TerminalConfig) {
-	lang := i18n.NewLang(h.i18nLang)
+	lang := i18n.NewLang(h.i18nLang, h.jmsService)
 	defaultTitle := utils.WrapperTitle(lang.T("Welcome to use JumpServer open source fortress system"))
 	menu := Menu{
 		{instruct: lang.T("part IP, Hostname, Comment"), helpText: lang.T("to search login if unique")},
@@ -78,7 +78,7 @@ func (h *InteractiveHandler) displayAnnouncement(sess io.ReadWriter, setting *mo
 		logger.Info("Announcement is not in the effective date range")
 		return
 	}
-	lang := i18n.NewLang(h.i18nLang)
+	lang := i18n.NewLang(h.i18nLang, h.jmsService)
 	greenBoldBegin := "\033[1;32m"
 	colorEnd := "\033[0m"
 	suffix := utils.CharNewLine

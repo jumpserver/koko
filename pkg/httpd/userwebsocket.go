@@ -80,7 +80,7 @@ func (userCon *UserWebsocket) initial() error {
 }
 
 func (userCon *UserWebsocket) Run() {
-	lang := i18n.NewLang(userCon.langCode)
+	lang := i18n.NewLang(userCon.langCode, userCon.apiClient)
 	if userCon.handler == nil {
 		return
 	}
