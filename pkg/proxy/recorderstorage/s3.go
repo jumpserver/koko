@@ -28,12 +28,13 @@ func (s S3ReplayStorage) Upload(gZipFilePath, target string) (err error) {
 	}
 	defer file.Close()
 	s3Config := &aws.Config{
-		Credentials:      credentials.NewStaticCredentials(s.AccessKey, s.SecretKey, ""),
 		Endpoint:         aws.String(s.Endpoint),
 		Region:           aws.String(s.Region),
 		S3ForcePathStyle: aws.Bool(true),
 	}
-
+	if s.AccessKey != "" && s.SecretKey != "" {
+		s3Config.Credentials = credentials.NewStaticCredentials(s.AccessKey, s.SecretKey, "")
+	}
 	sess, err := session.NewSession(s3Config)
 	if err != nil {
 		logger.Errorf("S3 new session failed: %s", err)
