@@ -18,6 +18,14 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
+// ftpReadBufferPool provides reusable 32KB buffers for FTP file operations
+var ftpReadBufferPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, 32*1024)
+		return &buf
+	},
+}
+
 type CommandRecorder struct {
 	sessionID string
 	storage   CommandStorage
@@ -482,7 +490,9 @@ type FTPFileInfo struct {
 }
 
 func (f *FTPFileInfo) WriteFromReader(r io.Reader) error {
-	buf := make([]byte, 32*1024)
+	bufPtr := ftpReadBufferPool.Get().(*[]byte)
+	buf := *bufPtr
+	defer ftpReadBufferPool.Put(bufPtr)
 	var err error
 	for {
 		nr, er := r.Read(buf)
