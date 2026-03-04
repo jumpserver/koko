@@ -91,6 +91,12 @@ export const useTerminalSocket = () => {
   const webglAddon = new WebglAddon();
   const searchAddon = new SearchAddon();
 
+  // 处理 webgl context 超过浏览器最大上下文时的处理
+  // https://github.com/xtermjs/xterm.js/tree/master/addons/addon-webgl
+  webglAddon.onContextLoss(() => {
+    webglAddon.dispose();
+  });
+
   const configProviderPropsRef = computed<ConfigProviderProps>(() => ({
     theme: darkTheme,
   }));
