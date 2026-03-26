@@ -395,6 +395,9 @@ func (u *UserSftpConn) generateSubFoldersFromToken(token *model.ConnectToken) ma
 	opts = append(opts, WithToken(token))
 	opts = append(opts, WithFromType(u.loginFrom))
 	opts = append(opts, WithTerminalConfig(u.opts.terminalCfg))
+	if u.opts.preparedDirectSFTP != nil && u.opts.preparedDirectSFTP.IsValid() {
+		opts = append(opts, WithPreparedDirectSFTPAsset(u.opts.preparedDirectSFTP))
+	}
 	assetDir := NewAssetDir(u.jmsService, u.User, opts...)
 	assetDir.isFromWebTerminal = true
 	assetDir.loadSystemUsers()
@@ -459,7 +462,8 @@ type userSftpOption struct {
 
 	accountUsername string
 
-	terminalCfg *model.TerminalConfig
+	terminalCfg        *model.TerminalConfig
+	preparedDirectSFTP *PreparedDirectSFTP
 }
 
 type UserSftpOption func(*userSftpOption)

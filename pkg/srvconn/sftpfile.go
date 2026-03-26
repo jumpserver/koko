@@ -106,7 +106,8 @@ type folderOptions struct {
 
 	accountUsername string
 
-	terminalCfg *model.TerminalConfig
+	terminalCfg        *model.TerminalConfig
+	preparedDirectSFTP *PreparedDirectSFTP
 }
 
 func WithFolderUsername(username string) FolderBuilderOption {
@@ -220,10 +221,11 @@ type SftpConn struct {
 	isClosed    bool
 	rootDirPath string
 
-	nextExpiredTime time.Time
-	refs            atomic.Int32
-	lock            sync.Mutex
-	maxIdleTime     time.Duration
+	nextExpiredTime    time.Time
+	refs               atomic.Int32
+	lock               sync.Mutex
+	maxIdleTime        time.Duration
+	disableIdleRecycle bool
 }
 
 func (s *SftpConn) IsExpired() bool {
@@ -234,6 +236,9 @@ func (s *SftpConn) IsExpired() bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	now := time.Now()
+	if s.disableIdleRecycle {
+		return s.token.ExpireAt.IsExpired(now)
+	}
 	return now.Sub(s.nextExpiredTime) > 0 || s.token.ExpireAt.IsExpired(now)
 }
 

@@ -53,7 +53,8 @@ type directOpt struct {
 	User          *model.User
 	terminalConf  *model.TerminalConfig
 
-	tokenInfo *model.ConnectToken
+	tokenInfo          *model.ConnectToken
+	preparedDirectSFTP *srvconn.PreparedDirectSFTP
 
 	sftpMode bool
 
@@ -97,6 +98,12 @@ func DirectFormatType(format FormatType) DirectOpt {
 func DirectConnectToken(tokenInfo *model.ConnectToken) DirectOpt {
 	return func(opts *directOpt) {
 		opts.tokenInfo = tokenInfo
+	}
+}
+
+func DirectPreparedSFTP(prepared *srvconn.PreparedDirectSFTP) DirectOpt {
+	return func(opts *directOpt) {
+		opts.preparedDirectSFTP = prepared
 	}
 }
 
@@ -188,6 +195,9 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 		opts = append(opts, srvconn.WithAccountUsername(d.opts.targetAccount))
 	} else {
 		opts = append(opts, srvconn.WithConnectToken(d.opts.tokenInfo))
+		if d.opts.preparedDirectSFTP != nil && d.opts.preparedDirectSFTP.IsValid() {
+			opts = append(opts, srvconn.WithPreparedDirectSFTP(d.opts.preparedDirectSFTP))
+		}
 	}
 	return &SftpHandler{
 		UserSftpConn: srvconn.NewUserSftpConn(d.jmsService, opts...),
