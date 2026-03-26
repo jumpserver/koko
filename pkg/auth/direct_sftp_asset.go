@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
@@ -24,7 +25,33 @@ const (
 )
 
 type directSFTPAssetAuthState struct {
-	Token *model.ConnectToken
+	Token     *model.ConnectToken
+	ctxDone   <-chan struct{}
+	sessionID string
+
+	mu            sync.Mutex
+	currentPrompt *directSFTPAssetPrompt
+	events        chan directSFTPAssetAuthEvent
+}
+
+type directSFTPAssetAuthEvent struct {
+	prompt   *directSFTPAssetPrompt
+	prepared *srvconn.PreparedDirectSFTP
+	err      error
+}
+
+type directSFTPAssetPrompt struct {
+	User        string
+	Instruction string
+	Questions   []string
+	Echos       []bool
+
+	answerCh chan directSFTPAssetPromptAnswer
+}
+
+type directSFTPAssetPromptAnswer struct {
+	answers []string
+	err     error
 }
 
 func completeSSHAuth(ctx ssh.Context) error {
@@ -38,17 +65,35 @@ func continueDirectSFTPAssetAuth(ctx ssh.Context, challenger gossh.KeyboardInter
 		logger.Errorf("SSH conn[%s] direct sftp asset auth state not found", ctx.SessionID())
 		return authErr
 	}
-	prepared, err := newPreparedDirectSFTP(state.Token, srvconn.SSHClientKeyboardAuth(
-		buildDirectSFTPChallengeBridge(state.Token, challenger),
-	))
-	if err != nil {
-		logger.Errorf("SSH conn[%s] direct sftp asset keyboard auth failed: %s", ctx.SessionID(), err)
-		return authErr
+	for {
+		prompt := state.currentPendingPrompt()
+		if prompt == nil {
+			event := state.waitForNextEvent()
+			switch {
+			case event.prompt != nil:
+				prompt = event.prompt
+			case event.prepared != nil:
+				storePreparedDirectSFTP(ctx, event.prepared)
+				ctx.SetValue(ContextKeyDirectSFTPAssetAuthState, nil)
+				ctx.SetValue(ContextKeyAuthPhase, AuthPhaseNone)
+				return nil
+			default:
+				logger.Errorf("SSH conn[%s] direct sftp asset keyboard auth failed: %s",
+					ctx.SessionID(), event.err)
+				return authErr
+			}
+		}
+
+		answers, err := challenger(prompt.User, prompt.Instruction, prompt.Questions, prompt.Echos)
+		if submitErr := state.submitPromptAnswers(answers, err); submitErr != nil {
+			logger.Errorf("SSH conn[%s] direct sftp submit client answers failed: %s", ctx.SessionID(), submitErr)
+			return authErr
+		}
+		if err != nil {
+			logger.Errorf("SSH conn[%s] direct sftp interactive client answer failed: %s", ctx.SessionID(), err)
+			return authErr
+		}
 	}
-	storePreparedDirectSFTP(ctx, prepared)
-	ctx.SetValue(ContextKeyDirectSFTPAssetAuthState, nil)
-	ctx.SetValue(ContextKeyAuthPhase, AuthPhaseNone)
-	return nil
 }
 
 func prepareDirectSFTPAssetIfNeeded(ctx ssh.Context) error {
@@ -74,48 +119,33 @@ func prepareDirectSFTPAssetIfNeeded(ctx ssh.Context) error {
 	}
 	token, err := BuildDirectConnectToken(ctx, jmsService, user, req)
 	if err != nil {
-		logger.Errorf("SSH conn[%s] build direct sftp token failed: %s", ctx.SessionID(), err)
+		logger.Errorf("SSH conn[%s] build direct sftp token failed: %s",
+			ctx.SessionID(), err)
 		return authErr
 	}
-	detector := &directSFTPChallengeDetector{password: token.Account.Secret}
-	prepared, err := newPreparedDirectSFTP(token, srvconn.SSHClientKeyboardAuth(detector.challenge))
-	if err == nil {
-		storePreparedDirectSFTP(ctx, prepared)
+	state := newDirectSFTPAssetAuthState(ctx.SessionID(), token, ctx.Done())
+	state.startHandshake()
+	event := state.waitForNextEvent()
+	switch {
+	case event.prepared != nil:
+		storePreparedDirectSFTP(ctx, event.prepared)
 		ctx.SetValue(ContextKeyAuthPhase, AuthPhaseNone)
 		return nil
-	}
-	if detector.needInteractive {
-		ctx.SetValue(ContextKeyDirectSFTPAssetAuthState, &directSFTPAssetAuthState{Token: token})
+	case event.prompt != nil:
+		logger.Infof("SSH conn[%s] direct sftp prepare requires keyboard-interactive", ctx.SessionID())
+		ctx.SetValue(ContextKeyDirectSFTPAssetAuthState, state)
 		ctx.SetValue(ContextKeyAuthPhase, AuthPhaseDirectSFTPAssetInteractive)
 		return &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
 			KeyboardInteractiveCallback: SSHKeyboardInteractiveAuth,
 		}}
+	default:
+		logger.Errorf("SSH conn[%s] prepare direct sftp asset failed: %s",
+			ctx.SessionID(), event.err)
+		return authErr
 	}
-	logger.Errorf("SSH conn[%s] prepare direct sftp asset failed: %s", ctx.SessionID(), err)
-	return authErr
 }
 
-type directSFTPChallengeDetector struct {
-	password        string
-	needInteractive bool
-}
-
-func (d *directSFTPChallengeDetector) challenge(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
-	if len(questions) == 0 {
-		return []string{}, nil
-	}
-	answers = make([]string, len(questions))
-	for i := range questions {
-		if isPasswordQuestion(questions[i]) && d.password != "" {
-			answers[i] = d.password
-			continue
-		}
-		d.needInteractive = true
-	}
-	return answers, nil
-}
-
-func buildDirectSFTPChallengeBridge(token *model.ConnectToken,
+func buildDirectSFTPChallengeBridge(sessionID string, token *model.ConnectToken,
 	challenger gossh.KeyboardInteractiveChallenge) gossh.KeyboardInteractiveChallenge {
 	password := ""
 	if token != nil && !token.Account.IsSSHKey() {
@@ -147,6 +177,7 @@ func buildDirectSFTPChallengeBridge(token *model.ConnectToken,
 			pendingQuestions = append(pendingQuestions, questions[i])
 			pendingEchos = append(pendingEchos, echo)
 		}
+		autoFilledCount := len(questions) - len(pendingIndexes)
 		if len(pendingIndexes) == 0 {
 			return answers, nil
 		}
@@ -155,8 +186,12 @@ func buildDirectSFTPChallengeBridge(token *model.ConnectToken,
 		if challengeUser == "" {
 			challengeUser = displayUser
 		}
+		logger.Infof("SSH conn[%s] direct sftp interactive forwarding %d/%d questions to client (auto-filled %d)",
+			sessionID, len(pendingIndexes), len(questions), autoFilledCount)
 		pendingAnswers, err := challenger(challengeUser, instruction, pendingQuestions, pendingEchos)
 		if err != nil {
+			logger.Errorf("SSH conn[%s] direct sftp interactive client challenge failed: %s",
+				sessionID, err)
 			return nil, err
 		}
 		if len(pendingAnswers) != len(pendingIndexes) {
@@ -166,6 +201,98 @@ func buildDirectSFTPChallengeBridge(token *model.ConnectToken,
 			answers[pendingIndexes[i]] = answer
 		}
 		return answers, nil
+	}
+}
+
+func newDirectSFTPAssetAuthState(sessionID string, token *model.ConnectToken, ctxDone <-chan struct{}) *directSFTPAssetAuthState {
+	return &directSFTPAssetAuthState{
+		Token:     token,
+		ctxDone:   ctxDone,
+		sessionID: sessionID,
+		events:    make(chan directSFTPAssetAuthEvent, 1),
+	}
+}
+
+func (s *directSFTPAssetAuthState) startHandshake() {
+	go func() {
+		prepared, err := newPreparedDirectSFTP(s.Token, srvconn.SSHClientKeyboardAuth(
+			buildDirectSFTPChallengeBridge(s.sessionID, s.Token, s.awaitClientAnswers),
+		))
+		select {
+		case s.events <- directSFTPAssetAuthEvent{prepared: prepared, err: err}:
+		case <-s.ctxDone:
+			if prepared != nil && prepared.Client != nil {
+				_ = prepared.Client.Close()
+			}
+		}
+	}()
+}
+
+func (s *directSFTPAssetAuthState) awaitClientAnswers(user, instruction string, questions []string, echos []bool) ([]string, error) {
+	prompt := &directSFTPAssetPrompt{
+		User:        user,
+		Instruction: instruction,
+		Questions:   append([]string(nil), questions...),
+		Echos:       append([]bool(nil), echos...),
+		answerCh:    make(chan directSFTPAssetPromptAnswer, 1),
+	}
+	s.setCurrentPendingPrompt(prompt)
+	select {
+	case s.events <- directSFTPAssetAuthEvent{prompt: prompt}:
+	case <-s.ctxDone:
+		s.setCurrentPendingPrompt(nil)
+		return nil, errors.New("direct sftp auth canceled")
+	}
+
+	select {
+	case answer := <-prompt.answerCh:
+		s.setCurrentPendingPrompt(nil)
+		return answer.answers, answer.err
+	case <-s.ctxDone:
+		s.setCurrentPendingPrompt(nil)
+		return nil, errors.New("direct sftp auth canceled")
+	}
+}
+
+func (s *directSFTPAssetAuthState) waitForNextEvent() directSFTPAssetAuthEvent {
+	select {
+	case event := <-s.events:
+		return event
+	case <-s.ctxDone:
+		return directSFTPAssetAuthEvent{err: errors.New("direct sftp auth canceled")}
+	}
+}
+
+func (s *directSFTPAssetAuthState) currentPendingPrompt() *directSFTPAssetPrompt {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.currentPrompt
+}
+
+func (s *directSFTPAssetAuthState) setCurrentPendingPrompt(prompt *directSFTPAssetPrompt) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.currentPrompt = prompt
+}
+
+func (s *directSFTPAssetAuthState) takeCurrentPendingPrompt() *directSFTPAssetPrompt {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prompt := s.currentPrompt
+	s.currentPrompt = nil
+	return prompt
+}
+
+func (s *directSFTPAssetAuthState) submitPromptAnswers(answers []string, err error) error {
+	prompt := s.takeCurrentPendingPrompt()
+	if prompt == nil {
+		return errors.New("direct sftp prompt not found")
+	}
+	select {
+	case prompt.answerCh <- directSFTPAssetPromptAnswer{answers: answers, err: err}:
+		return nil
+	case <-s.ctxDone:
+		return errors.New("direct sftp auth canceled")
 	}
 }
 
@@ -197,7 +324,7 @@ func storePreparedDirectSFTP(ctx ssh.Context, prepared *srvconn.PreparedDirectSF
 func buildSSHClientOptionsFromToken(token *model.ConnectToken, extraOpts ...srvconn.SSHClientOption) []srvconn.SSHClientOption {
 	asset := token.Asset
 	account := token.Account
-	timeout := config.GlobalConfig.SSHTimeout
+	timeout := config.GetConf().SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 8+len(extraOpts))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(account.Username))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
