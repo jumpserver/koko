@@ -38,15 +38,19 @@ func GetMatchedAssetsByDirectReq(jmsService *service.JMService, user *model.User
 	return assets, nil
 }
 
-func GetMatchedAccounts(req *DirectLoginAssetReq, permAssetDetail model.PermAssetDetail) ([]model.PermAccount, error) {
-	matched := make([]model.PermAccount, 0, len(permAssetDetail.PermedAccounts))
-	for i := range permAssetDetail.PermedAccounts {
-		account := permAssetDetail.PermedAccounts[i]
-		if account.Username == req.AccountUsername {
+func MatchAccountsByUsername(accounts []model.PermAccount, username string) []model.PermAccount {
+	matched := make([]model.PermAccount, 0, len(accounts))
+	for i := range accounts {
+		account := accounts[i]
+		if account.Username == username {
 			matched = append(matched, account)
 		}
 	}
-	return matched, nil
+	return matched
+}
+
+func GetMatchedAccounts(req *DirectLoginAssetReq, permAssetDetail model.PermAssetDetail) ([]model.PermAccount, error) {
+	return MatchAccountsByUsername(permAssetDetail.PermedAccounts, req.AccountUsername), nil
 }
 
 func BuildDirectConnectToken(ctx ssh.Context, jmsService *service.JMService, user *model.User,

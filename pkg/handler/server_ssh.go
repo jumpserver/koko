@@ -715,7 +715,7 @@ func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectL
 
 func (s *Server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAssetReq,
 	permAssetDetail model.PermAssetDetail) ([]model.PermAccount, error) {
-	return auth.GetMatchedAccounts(req, permAssetDetail)
+	return auth.MatchAccountsByUsername(permAssetDetail.PermedAccounts, req.AccountUsername), nil
 }
 
 func buildDirectRequestOptions(user *model.User, directRequest *auth.DirectLoginAssetReq) []DirectOpt {

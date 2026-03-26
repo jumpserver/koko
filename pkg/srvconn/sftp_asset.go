@@ -750,13 +750,13 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 	return conn, nil
 }
 
-func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
+func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int, extraOpts ...SSHClientOption) (*SSHClient, error) {
 	asset := connectToken.Asset
 	account := connectToken.Account
 	username := account.Username
 	protocol := connectToken.Protocol
 
-	sshAuthOpts := make([]SSHClientOption, 0, 6)
+	sshAuthOpts := make([]SSHClientOption, 0, 6+len(extraOpts))
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
 	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(protocol)))
@@ -790,6 +790,7 @@ func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHC
 		proxyArgs = append(proxyArgs, proxyArg)
 		sshAuthOpts = append(sshAuthOpts, SSHClientProxyClient(proxyArgs...))
 	}
+	sshAuthOpts = append(sshAuthOpts, extraOpts...)
 	return NewSSHClient(sshAuthOpts...)
 }
 

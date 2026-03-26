@@ -2,7 +2,6 @@ package auth
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -302,7 +301,7 @@ func isPasswordQuestion(question string) bool {
 }
 
 func newPreparedDirectSFTP(token *model.ConnectToken, extraOpts ...srvconn.SSHClientOption) (*srvconn.PreparedDirectSFTP, error) {
-	sshClient, err := srvconn.NewSSHClient(buildSSHClientOptionsFromToken(token, extraOpts...)...)
+	sshClient, err := srvconn.NewSSHClientWithToken(token, config.GetConf().SSHTimeout, extraOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -319,44 +318,6 @@ func storePreparedDirectSFTP(ctx ssh.Context, prepared *srvconn.PreparedDirectSF
 		<-done
 		_ = client.Close()
 	}(ctx.Done(), prepared.Client)
-}
-
-func buildSSHClientOptionsFromToken(token *model.ConnectToken, extraOpts ...srvconn.SSHClientOption) []srvconn.SSHClientOption {
-	asset := token.Asset
-	account := token.Account
-	timeout := config.GetConf().SSHTimeout
-	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 8+len(extraOpts))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(account.Username))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(token.Protocol)))
-	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
-	if account.IsSSHKey() {
-		if signer, err := gossh.ParsePrivateKey([]byte(account.Secret)); err == nil {
-			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
-		}
-	} else {
-		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(account.Secret))
-	}
-	if token.Gateway != nil {
-		gateway := token.Gateway
-		proxyArgs := make([]srvconn.SSHClientOptions, 0, 1)
-		loginAccount := gateway.Account
-		proxyArg := srvconn.SSHClientOptions{
-			Host:     gateway.Address,
-			Port:     strconv.Itoa(gateway.Protocols.GetProtocolPort(model.ProtocolSSH)),
-			Username: loginAccount.Username,
-			Timeout:  timeout,
-		}
-		if loginAccount.IsSSHKey() {
-			proxyArg.PrivateKey = loginAccount.Secret
-		} else {
-			proxyArg.Password = loginAccount.Secret
-		}
-		proxyArgs = append(proxyArgs, proxyArg)
-		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientProxyClient(proxyArgs...))
-	}
-	sshAuthOpts = append(sshAuthOpts, extraOpts...)
-	return sshAuthOpts
 }
 
 func isPartialSuccess(err error) bool {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -172,7 +173,7 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 		if len(d.opts.assets) == 1 {
 			asset := d.opts.assets[0]
 			if permAssetDetail, err := d.jmsService.GetUserPermAssetDetailById(d.opts.User.ID, asset.ID); err == nil {
-				matchedAccount := GetMatchedAccounts(permAssetDetail.PermedAccounts, d.opts.targetAccount)
+				matchedAccount := auth.MatchAccountsByUsername(permAssetDetail.PermedAccounts, d.opts.targetAccount)
 				if len(matchedAccount) == 1 {
 					selectAccount := &matchedAccount[0]
 					req := service.SuperConnectTokenReq{
@@ -405,7 +406,7 @@ func (d *DirectHandler) Proxy(asset model.PermAsset) {
 		utils.IgnoreErrWriteString(d.term, lang.T("Core API failed"))
 		return
 	}
-	matched := GetMatchedAccounts(permAssetDetail.PermedAccounts, d.opts.targetAccount)
+	matched := auth.MatchAccountsByUsername(permAssetDetail.PermedAccounts, d.opts.targetAccount)
 	if len(matched) == 0 {
 		msg := fmt.Sprintf(lang.T("not found matched username %s"), d.opts.targetAccount)
 		utils.IgnoreErrWriteString(d.term, msg+"\r\n")
@@ -487,15 +488,4 @@ func (d *DirectHandler) Proxy(asset model.PermAsset) {
 		return
 	}
 	d.LoginConnectToken(&connectToken)
-}
-
-func GetMatchedAccounts(accounts []model.PermAccount, username string) []model.PermAccount {
-	matched := make([]model.PermAccount, 0, len(accounts))
-	for i := range accounts {
-		account := accounts[i]
-		if account.Username == username {
-			matched = append(matched, account)
-		}
-	}
-	return matched
 }
