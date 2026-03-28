@@ -56,11 +56,11 @@ func (cfg *SSHClientOptions) AuthMethods() []gossh.AuthMethod {
 	if cfg.PrivateAuth != nil {
 		authMethods = append(authMethods, gossh.PublicKeys(cfg.PrivateAuth))
 	}
-	if cfg.Password != "" {
-		authMethods = append(authMethods, gossh.Password(cfg.Password))
-	}
 	if cfg.keyboardAuth != nil {
 		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
+	}
+	if cfg.Password != "" {
+		authMethods = append(authMethods, gossh.Password(cfg.Password))
 	}
 	if cfg.keyboardAuth == nil && cfg.Password != "" {
 		cfg.keyboardAuth = func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
