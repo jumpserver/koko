@@ -8,7 +8,7 @@ import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
 
 import mittBus from '@/utils/mittBus';
 import { formatMessage } from '@/utils';
-import { BASE_URL } from '@/utils/config';
+import { BASE_URL, SITE_ORIGIN } from '@/utils/config';
 import { useTreeStore } from '@/store/modules/tree';
 import { useParamsStore } from '@/store/modules/params';
 import { useTerminalStore } from '@/store/modules/terminal';
@@ -139,7 +139,7 @@ export function useSessionAdapter() {
           terminalId.value,
           FORMATTER_MESSAGE_TYPE.TERMINAL_SHARE,
           JSON.stringify({
-            origin: window.location.origin,
+            origin: SITE_ORIGIN,
             session: sessionId,
             users: shareLinkRequest.users,
             expired_time: shareLinkRequest.expiredTime,
