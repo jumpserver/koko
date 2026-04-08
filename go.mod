@@ -10,7 +10,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/creack/pty v1.1.24
-	github.com/elastic/go-elasticsearch/v6 v6.8.5
+	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-elasticsearch/v8 v8.14.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/gliderlabs/ssh v0.3.3

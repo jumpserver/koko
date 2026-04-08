@@ -9,8 +9,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/elastic/go-elasticsearch/v6"
-	"github.com/elastic/go-elasticsearch/v6/esapi"
+	"github.com/elastic/go-elasticsearch/v7"
+	"github.com/elastic/go-elasticsearch/v7/esapi"
 	elasticsearch8 "github.com/elastic/go-elasticsearch/v8"
 
 	"github.com/jumpserver-dev/sdk-go/model"
