@@ -15,6 +15,7 @@ import { useConnectionStore } from '@/store/modules/useConnection';
 import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
 import General from '@/components/Drawer/components/General/index.vue';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
+import { SITE_ORIGIN } from '@/utils/config';
 
 defineProps<{
   settings: SettingConfig;
@@ -51,7 +52,7 @@ const userFilters = computed(() => {
   };
 });
 
-const origin = computed(() => window.location.origin);
+const origin = computed(() => SITE_ORIGIN);
 
 const showLeftArrow = ref(false);
 const currentTheme = ref(theme?.value);
