@@ -23,14 +23,20 @@ function getSitePrefixFromQuery(): string {
   try {
     const params = new URLSearchParams(window.location.search || '');
     return normalizePrefix(params.get('site_prefix') || '');
-  } catch (error) {
+  }
+  catch (_error) {
     return '';
   }
 }
 
+const ORIGIN = window.location.origin;
+const WS_SCHEME = document.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+export const SITE_PREFIX = getSitePrefixFromQuery() || getSitePrefix();
+
 function withSitePrefix(path: string): string {
   if (!path) {
-    return getSitePrefix() || '/';
+    return SITE_PREFIX || '/';
   }
 
   if (/^[a-z][a-z\d+\-.]*:\/\//i.test(path) || path.startsWith('//')) {
@@ -38,13 +44,9 @@ function withSitePrefix(path: string): string {
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${getSitePrefix()}${normalizedPath}` || normalizedPath;
+  return `${SITE_PREFIX}${normalizedPath}` || normalizedPath;
 }
 
-const ORIGIN = window.location.origin;
-const WS_SCHEME = document.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-export const SITE_PREFIX = getSitePrefixFromQuery() || getSitePrefix();
 export const BASE_URL = `${ORIGIN}${SITE_PREFIX}`;
 export const BASE_WS_URL = `${WS_SCHEME}//${window.location.host}${SITE_PREFIX}`;
 export const SITE_ORIGIN = `${ORIGIN}${SITE_PREFIX}`;
