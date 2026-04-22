@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/common"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -166,7 +167,7 @@ func NewSSHClientWithCfg(cfg *SSHClientOptions) (*SSHClient, error) {
 		User:            cfg.Username,
 		Auth:            cfg.AuthMethods(),
 		Timeout:         time.Duration(cfg.Timeout) * time.Second,
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+		HostKeyCallback: common.NewTrustHostKeyCallback(),
 		Config:          createSSHConfig(),
 
 		HostKeyAlgorithms: allHostKeyAlgorithms(),
