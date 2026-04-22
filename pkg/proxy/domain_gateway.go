@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jumpserver/koko/pkg/common"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -116,10 +117,11 @@ func (d *domainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.C
 			return []string{loginAccount.Secret}, nil
 		}))
 	}
+
 	sshConfig := gossh.ClientConfig{
 		User:            loginAccount.Username,
 		Auth:            auths,
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+		HostKeyCallback: common.NewTrustHostKeyCallback(),
 		Timeout:         configTimeout * time.Second,
 	}
 	port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)

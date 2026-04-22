@@ -2,11 +2,12 @@ package exchange
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -110,7 +111,6 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 		}
 		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsCfg))
 	}
-
 	var connFunc radix.ConnFunc
 	if len(cfg.Clusters) > 0 {
 		cluster, err := radix.NewCluster(cfg.Clusters)
@@ -122,7 +122,8 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 
 		connFunc = func(network, addr string) (radix.Conn, error) {
 			topo := cluster.Topo()
-			node := topo[rand.Intn(len(topo))]
+			index, _ := rand.Int(rand.Reader, big.NewInt(int64(len(topo))))
+			node := topo[index.Int64()]
 			return radix.Dial(cfg.Network, node.Addr, dialOptions...)
 		}
 	} else if cfg.SentinelsHost != "" {
