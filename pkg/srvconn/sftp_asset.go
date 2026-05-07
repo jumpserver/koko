@@ -560,11 +560,24 @@ func (ad *AssetDir) checkExpired() {
 }
 
 func (ad *AssetDir) GetRealPath(sftpSess *SftpSession, path string) string {
-	realPath := filepath.Join(sftpSess.rootDirPath, strings.TrimPrefix(path, "/"))
-	if ad.isFromWebTerminal && path != "" && strings.HasPrefix(path, sftpSess.rootDirPath) {
-		return path
+	root := filepath.Clean(sftpSess.rootDirPath)
+	cleanPath := filepath.Clean("/" + path)
+	if ad.isFromWebTerminal && path != "" && isSubPath(root, cleanPath) {
+		return cleanPath
 	}
+	realPath := filepath.Join(root, strings.TrimPrefix(cleanPath, "/"))
 	return realPath
+}
+
+func isSubPath(base, target string) bool {
+	base = filepath.Clean(base)
+	target = filepath.Clean(target)
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return false
+	}
+	return rel == "." ||
+		(rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
