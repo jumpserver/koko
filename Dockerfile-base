@@ -1,4 +1,5 @@
-FROM golang:1.24-trixie AS stage-go-build
+ARG GO_VERSION=1.26.2
+FROM golang:${GO_VERSION}-trixie AS stage-go-build
 
 FROM node:20-trixie
 COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
@@ -15,8 +16,8 @@ RUN set -ex \
 
 WORKDIR /opt
 
-ARG HELM_VERSION=v3.17.4
-ARG KUBECTL_VERSION=v1.32.9
+ARG HELM_VERSION=v4.1.4
+ARG KUBECTL_VERSION=v1.36.0
 ARG CHECK_VERSION=v1.0.5
 ARG USQL_VERSION=v0.1.10
 
@@ -36,7 +37,7 @@ RUN set -ex \
     && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
-    && rm -f *.tar.gz
+    && rm -f *.tar.gz *.tar.bz2
 
 WORKDIR /opt/koko
 
@@ -81,5 +82,3 @@ ENV GO111MODULE=on
 COPY go.mod go.sum ./
 
 RUN go mod download -x
-
-
