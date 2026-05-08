@@ -1,5 +1,4 @@
-ARG GO_VERSION=1.26.2
-FROM golang:${GO_VERSION}-trixie AS stage-go-build
+FROM golang:1.26.3-trixie AS stage-go-build
 
 FROM node:20-trixie
 COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
@@ -18,9 +17,7 @@ WORKDIR /opt
 
 ARG HELM_VERSION=v4.1.4
 ARG KUBECTL_VERSION=v1.36.0
-ARG CHECK_VERSION=v1.0.5
 ARG USQL_VERSION=v0.1.10
-
 
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
@@ -30,8 +27,10 @@ RUN set -ex \
     && wget https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
     && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
-    && wget https://github.com/jumpserver-dev/healthcheck/releases/download/${CHECK_VERSION}/check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz \
-    && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ check \
+    && wget https://github.com/jumpserver-dev/healthcheck/releases/latest/download/check_linux_${TARGETARCH}.deb \
+    && dpkg -i check_linux_${TARGETARCH}.deb \
+    && cp /usr/local/bin/check /opt/koko/bin/ \
+    && rm -f check_linux_${TARGETARCH}.deb \
     && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
     && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
