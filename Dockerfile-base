@@ -17,7 +17,7 @@ WORKDIR /opt
 
 ARG HELM_VERSION=v4.1.4
 ARG KUBECTL_VERSION=v1.36.0
-ARG USQL_VERSION=v0.1.11
+ARG USQL_VERSION=v0.1.12
 
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
@@ -36,6 +36,7 @@ RUN set -ex \
     && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
+    && apt-get purge -y --auto-remove curl \
     && rm -f *.tar.gz *.tar.bz2
 
 WORKDIR /opt/koko
