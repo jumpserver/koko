@@ -8,7 +8,6 @@ ARG DEPENDENCIES="                    \
         iputils-ping                  \
         telnet                        \
         unzip                         \
-        wget                          \
         xz-utils"
 
 ARG APT_MIRROR=http://deb.debian.org
