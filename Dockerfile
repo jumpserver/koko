@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20260422_103200 AS stage-build
+FROM jumpserver/koko-base:20260512_094852 AS stage-build
 
 WORKDIR /opt/koko
 ARG TARGETARCH
@@ -13,9 +13,7 @@ RUN yarn build
 WORKDIR /opt/koko
 RUN make build -s \
     && set -x && ls -al . \
-    && mv /opt/koko/build/koko /opt/koko/koko \
-    && mv /opt/koko/bin/rawhelm /opt/koko/bin/helm \
-    && mv /opt/koko/bin/rawkubectl /opt/koko/bin/kubectl
+    && mv /opt/koko/build/koko /opt/koko/koko
 
 RUN mkdir /opt/koko/release \
     && mv /opt/koko/locale /opt/koko/release \
@@ -34,7 +32,6 @@ LABEL org.opencontainers.image.description="JumpServer Koko"
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
-        jq                            \
         less                          \
         redis-tools                   \
         ca-certificates"
@@ -45,6 +42,7 @@ RUN set -ex \
     && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
