@@ -36,7 +36,7 @@ const ctxID = "ctxID"
 func (s *Server) PasswordAuth(ctx ssh.Context, password string) error {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
-	if !tConfig.PasswordAuth {
+	if !tConfig.PasswordAuth && !auth.IsTokenLoginUsername(ctx.User()) {
 		logger.Info("Core API disable password auth")
 		return errors.New("password auth disabled")
 	}
