@@ -6,7 +6,6 @@ interface Interface {
   login_title: string;
   logo_index: string;
   logo_logout: string;
-  vender?: string;
 }
 
 interface Announcement {
@@ -35,6 +34,7 @@ export interface SettingConfig {
   ANNOUNCEMENT_ENABLED?: boolean;
   INTERFACE?: Interface;
   SECURITY_SESSION_SHARE?: boolean;
+  vendor?: string;
 }
 
 export interface ITerminalProps {
