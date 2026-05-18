@@ -72,7 +72,7 @@ onMounted(async () => {
   }
 
   if (publicSettingsResult.status === 'fulfilled') {
-    globalStore.setInterfaceVendor(publicSettingsResult.value.vendor?.toLowerCase() ?? null);
+    globalStore.setInterfaceVendor(publicSettingsResult.value.VENDOR?.toLowerCase() ?? null);
   }
   else {
     console.error('Failed to load public settings:', publicSettingsResult.reason);
