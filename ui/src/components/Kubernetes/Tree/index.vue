@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { Component } from 'vue';
 import type { DropdownOption, TreeOption } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia';
 import { NPopover } from 'naive-ui';
+import { storeToRefs } from 'pinia';
 import { computed, h, nextTick, onMounted, onUnmounted, ref, watch, watchEffect } from 'vue';
 import { Folder, FolderOpen, RefreshCcw, Search, SquareTerminal, UnfoldVertical } from 'lucide-vue-next';
 
@@ -12,6 +13,7 @@ import type { customTreeOption } from '@/types/modules/config.type';
 import mittBus from '@/utils/mittBus';
 import { useColor } from '@/hooks/useColor';
 import { useTreeStore } from '@/store/modules/tree.ts';
+import { useGlobalStore } from '@/store/modules/global';
 
 const emits = defineEmits<{
   (e: 'syncLoadNode', data?: TreeOption): void;
@@ -20,8 +22,16 @@ const emits = defineEmits<{
 const { t } = useI18n();
 const { lighten, darken } = useColor();
 const treeStore = useTreeStore();
+const globalStore = useGlobalStore();
 
 const { treeNodes, root } = storeToRefs(treeStore);
+const { interfaceVendor } = storeToRefs(globalStore);
+
+interface TreeHeaderAction {
+  label: string;
+  icon: Component;
+  click: (e: Event) => void;
+}
 
 const themeColors = computed(() => {
   const colors = {
@@ -57,32 +67,41 @@ const allOptions = [
     icon: () => h(SquareTerminal, { size: 15 }),
   },
 ];
-const buttonGroups = [
-  {
-    label: t('Connect'),
-    icon: () => h(SquareTerminal, { size: 15 }),
-    click: (e: Event) => {
-      handleRootLink(e);
+const showRootConnect = computed(() => interfaceVendor.value === null || interfaceVendor.value === 'jumpserver');
+
+const buttonGroups = computed<TreeHeaderAction[]>(() => {
+  const groups: TreeHeaderAction[] = [
+    {
+      label: t('Search'),
+      icon: Search,
+      click: (e: Event) => {
+        e.stopPropagation();
+        showSearch.value = !showSearch.value;
+      },
     },
-  },
-  {
-    label: t('Search'),
-    icon: Search,
-    click: (e: Event) => {
-      e.stopPropagation();
-      showSearch.value = !showSearch.value;
+    {
+      label: t('Refresh'),
+      icon: RefreshCcw,
+      click: (e: Event) => {
+        e.stopPropagation();
+        isLoaded.value = false;
+        emits('reloadTree');
+      },
     },
-  },
-  {
-    label: t('Refresh'),
-    icon: RefreshCcw,
-    click: (e: Event) => {
-      e.stopPropagation();
-      isLoaded.value = false;
-      emits('reloadTree');
-    },
-  },
-];
+  ];
+
+  if (showRootConnect.value) {
+    groups.unshift({
+      label: t('Connect'),
+      icon: SquareTerminal,
+      click: (e: Event) => {
+        handleRootLink(e);
+      },
+    });
+  }
+
+  return groups;
+});
 
 watchEffect(() => {
   if (treeNodes.value.length > 0) {
@@ -140,11 +159,11 @@ const displayTreeNodes = computed(() => searchTreeResult.value.data);
 
 watch(
   () => showSearch.value,
-  visible => {
+  (visible) => {
     if (!visible) {
       searchPattern.value = '';
     }
-  }
+  },
 );
 
 watch(
@@ -159,12 +178,13 @@ watch(
       expandedKeysRef.value = expandedKeysBeforeSearch.value ?? [];
       expandedKeysBeforeSearch.value = null;
     }
-  }
+  },
 );
 
 watchEffect(() => {
   const currentPattern = searchPattern.value.trim();
-  if (!currentPattern) return;
+  if (!currentPattern)
+    return;
   expandedKeysRef.value = searchTreeResult.value.expandedKeys;
 });
 
@@ -181,7 +201,7 @@ const showToolTip = (option: TreeOption) => {
     {
       trigger: () => h('span', { style: { display: 'inline-block', whiteSpace: 'nowrap' } }, customOption.label),
       default: () => customOption.label,
-    }
+    },
   );
 };
 
@@ -191,7 +211,7 @@ const showToolTip = (option: TreeOption) => {
 function handleExpandCollapse(
   expandedKeys: string[],
   _option: Array<TreeOption | null>,
-  meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' }
+  meta: { node: TreeOption | null; action: 'expand' | 'collapse' | 'filter' },
 ) {
   expandedKeysRef.value = expandedKeys;
 

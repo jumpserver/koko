@@ -6,6 +6,7 @@ interface Interface {
   login_title: string;
   logo_index: string;
   logo_logout: string;
+  vender?: string;
 }
 
 interface Announcement {
