@@ -6,13 +6,10 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	"time"
-
-	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/jumpserver-dev/sdk-go/model"
-	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 type domainGateway struct {
@@ -88,7 +85,7 @@ func (d *domainGateway) GetListenAddr() *net.TCPAddr {
 
 func (d *domainGateway) getAvailableGateway() bool {
 	if d.selectedGateway != nil {
-		sshClient, err := d.createGatewaySSHClient(d.selectedGateway)
+		sshClient, err := newGatewaySSHClient(d.selectedGateway)
 		if err != nil {
 			logger.Errorf("Dial select gateway %s err: %s ", d.selectedGateway.Name, err)
 			return false
@@ -97,34 +94,6 @@ func (d *domainGateway) getAvailableGateway() bool {
 		return true
 	}
 	return false
-}
-
-func (d *domainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.Client, error) {
-	configTimeout := time.Duration(config.GetConf().SSHTimeout)
-	auths := make([]gossh.AuthMethod, 0, 3)
-	loginAccount := gateway.Account
-	if loginAccount.IsSSHKey() {
-		if signer, err1 := gossh.ParsePrivateKey([]byte(loginAccount.Secret)); err1 == nil {
-			auths = append(auths, gossh.PublicKeys(signer))
-		} else {
-			logger.Errorf("Domain gateway Parse private key error: %s", err1)
-		}
-	} else {
-		auths = append(auths, gossh.Password(loginAccount.Secret))
-		auths = append(auths, gossh.KeyboardInteractive(func(user, instruction string,
-			questions []string, echos []bool) (answers []string, err error) {
-			return []string{loginAccount.Secret}, nil
-		}))
-	}
-	sshConfig := gossh.ClientConfig{
-		User:            loginAccount.Username,
-		Auth:            auths,
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
-		Timeout:         configTimeout * time.Second,
-	}
-	port := gateway.Protocols.GetProtocolPort(model.ProtocolSSH)
-	addr := net.JoinHostPort(gateway.Address, strconv.Itoa(port))
-	return gossh.Dial("tcp", addr, &sshConfig)
 }
 
 func (d *domainGateway) Stop() {
