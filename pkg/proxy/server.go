@@ -443,6 +443,12 @@ func (s *Server) createAvailableGateWay() (*domainGateway, error) {
 	return dGateway, nil
 }
 
+func (s *Server) createAvailableHTTPGateWay() *domainHTTP {
+	return &domainHTTP{
+		selectedGateway: s.gateway,
+	}
+}
+
 // getSSHConn 获取ssh连接
 func (s *Server) getK8sConConn(localTunnelAddr *net.TCPAddr) (srvConn srvconn.ServerConnection, err error) {
 	namespaceValue := ""
@@ -552,18 +558,18 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	protocol := s.connOpts.authInfo.Protocol
 	host := asset.Address
 	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
-		host = localIP
-		port = localTunnelAddr.Port
-	}
 	platform := s.connOpts.authInfo.Platform
 
 	authSource := ""
 	connectionOpts := ""
+	proxyURL := ""
 	if platformProtocol, ok := platform.GetProtocolSetting("mongodb"); ok {
 		protocolSetting := platformProtocol.GetSetting()
 		authSource = protocolSetting.AuthSource
 		connectionOpts = protocolSetting.ConnectionOpts
+	}
+	if localTunnelAddr != nil {
+		proxyURL = fmt.Sprintf("http://%s", localTunnelAddr.String())
 	}
 
 	srvConn, err = srvconn.NewMongoDBConnection(
@@ -578,6 +584,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 		srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert),
 		srvconn.SqlAuthSource(authSource),
 		srvconn.SqlConnectionOptions(connectionOpts),
+		srvconn.SqlProxyURL(proxyURL),
 		srvconn.SqlPtyWin(srvconn.Windows{
 			Width:  s.UserConn.Pty().Window.Width,
 			Height: s.UserConn.Pty().Window.Height,
@@ -999,6 +1006,18 @@ func (s *Server) Proxy() {
 		switch protocol {
 		case srvconn.ProtocolSSH, srvconn.ProtocolTELNET:
 			// ssh 和 telnet 协议不需要本地启动代理
+		case srvconn.ProtocolMongoDB:
+			dHTTP := s.createAvailableHTTPGateWay()
+			err := dHTTP.Start()
+			if err != nil {
+				msg := lang.T("Start domain gateway failed %s")
+				msg = fmt.Sprintf(msg, err)
+				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				logger.Error(msg)
+				return
+			}
+			defer dHTTP.Stop()
+			proxyAddr = dHTTP.GetListenAddr()
 		default:
 			dGateway, err := s.createAvailableGateWay()
 			if err != nil {

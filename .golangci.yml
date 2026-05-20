@@ -1,25 +1,37 @@
+version: "2"
 run:
   timeout: 5m
   modules-download-mode: readonly
-
-issues:
-  exclude-dirs:
-    - cmd/demo
-    - cmd/i18ntool
-    - data
-    - locale
-    - docs
-    - ui
-    - .git
-
-  exclude-files:
-    - pkg/utils/terminal.go
 
 linters:
   enable:
     - govet
     - staticcheck
+  exclusions:
+    paths:
+      - cmd/demo
+      - cmd/i18ntool
+      - data
+      - locale
+      - docs
+      - ui
+      - .git
+      - pkg/utils/terminal.go
+
+formatters:
+  exclusions:
+    paths:
+      - cmd/demo
+      - cmd/i18ntool
+      - data
+      - locale
+      - docs
+      - ui
+      - .git
+      - pkg/utils/terminal.go
 
 output:
   formats:
-    - format: colored-line-number
+    text:
+      path: stdout
+      colors: true
