@@ -607,6 +607,8 @@ func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSess
 		return nil, err
 	}
 	reqSession := conn.token.CreateSession(ad.opts.RemoteAddr, ad.opts.fromType, model.SFTPType)
+	// The WebTerminal SSH protocol token was reused by the web folder, so we now force the protocol to SFTP.
+	reqSession.Protocol = model.ProtocolSFTP
 	respSession, err1 := ad.jmsService.CreateSession(reqSession)
 	if err1 != nil {
 		logger.Errorf("Create sftp Session err: %s", err1.Error())
