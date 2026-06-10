@@ -92,7 +92,7 @@ const (
 	 \b: word boundary 即: 匹配某个单词边界
 	*/
 
-	passwordMatchPattern = "(?i)\\bpassword\\b\\s*[:：]|密码\\s*[:：]|password\\s*[:：]\\s*"
+	passwordMatchPattern = `(?i)(?:\[\s*sudo\s*\]\s*)?\bpassword\b(?:\s+for\s+[^\r\n:：]+)?\s*[:：]|密码\s*[:：]`
 
 	usernameMatchPattern = "(?i)username:?\\s*$|name:?\\s*$|用户名:?\\s*$"
 )
