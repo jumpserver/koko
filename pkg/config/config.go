@@ -72,6 +72,9 @@ type Config struct {
 	// Force both public key and password authentication (two-factor SSH login)
 	ForceMultiAuth bool `mapstructure:"FORCE_MULTI_AUTH"`
 
+	// DOMAINS=* "demo.example.com:443,172.17.200.191:80"
+	DOMAINS string `mapstructure:"DOMAINS"`
+
 	RootPath          string
 	DataFolderPath    string
 	LogDirPath        string
