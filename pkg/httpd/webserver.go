@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -176,6 +177,9 @@ func (s *Server) UpgradeUserWsConn(ctx *gin.Context) (*UserWebsocket, error) {
 
 	apiClient := s.apiClient.Copy()
 	langCode := config.GetConf().LanguageCode
+	for key, value := range auth.RequestAuthHeaders(ctx.Request) {
+		apiClient.SetHeader(key, value)
+	}
 	if acceptLang := ctx.GetHeader("Accept-Language"); acceptLang != "" {
 		apiClient.SetHeader("Accept-Language", acceptLang)
 		langCode = ParseAcceptLanguageCode(acceptLang)
@@ -229,6 +233,31 @@ func (s *Server) HealthStatusHandler(ctx *gin.Context) {
 	status["timestamp"] = now.UTC()
 	status["uptime"] = now.Sub(upTime).String()
 	ctx.JSON(http.StatusOK, status)
+}
+
+func (s *Server) CreateConnectTicket(ctx *gin.Context) {
+	var payload struct {
+		TokenID string `json:"token_id"`
+	}
+
+	if err := ctx.ShouldBindJSON(&payload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"detail": fmt.Sprintf("invalid request body: %s", err),
+		})
+		return
+	}
+
+	userValue := ctx.MustGet(auth.ContextKeyUser)
+	currentUser := userValue.(*model.User)
+	headers := auth.RequestAuthHeaders(ctx.Request)
+	ticket := auth.ConnectTickets.Create(currentUser, headers, payload.TokenID)
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"ticket":      ticket.ID,
+		"token_id":    ticket.TokenID,
+		"expires_at":  ticket.ExpiresAt.UTC(),
+		"expires_in":  int(time.Until(ticket.ExpiresAt).Seconds()),
+	})
 }
 
 func (s *Server) GenerateViewMeta(targetId string) (meta ViewPageMata) {
