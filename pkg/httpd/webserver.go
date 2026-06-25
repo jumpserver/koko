@@ -238,6 +238,7 @@ func (s *Server) HealthStatusHandler(ctx *gin.Context) {
 func (s *Server) CreateConnectTicket(ctx *gin.Context) {
 	var payload struct {
 		TokenID string `json:"token_id"`
+		OrgID   string `json:"org_id"`
 	}
 
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
@@ -250,13 +251,14 @@ func (s *Server) CreateConnectTicket(ctx *gin.Context) {
 	userValue := ctx.MustGet(auth.ContextKeyUser)
 	currentUser := userValue.(*model.User)
 	headers := auth.RequestAuthHeaders(ctx.Request)
-	ticket := auth.ConnectTickets.Create(currentUser, headers, payload.TokenID)
+	ticket := auth.ConnectTickets.Create(currentUser, headers, payload.TokenID, payload.OrgID)
 
 	ctx.JSON(http.StatusCreated, gin.H{
-		"ticket":      ticket.ID,
-		"token_id":    ticket.TokenID,
-		"expires_at":  ticket.ExpiresAt.UTC(),
-		"expires_in":  int(time.Until(ticket.ExpiresAt).Seconds()),
+		"ticket":     ticket.ID,
+		"token_id":   ticket.TokenID,
+		"org_id":     ticket.OrgID,
+		"expires_at": ticket.ExpiresAt.UTC(),
+		"expires_in": int(time.Until(ticket.ExpiresAt).Seconds()),
 	})
 }
 

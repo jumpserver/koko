@@ -78,6 +78,9 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 				}
 				ctx.Request.Header.Set(key, value)
 			}
+			if strings.TrimSpace(ctx.Request.Header.Get(orgHeader)) == "" && ticket.OrgID != "" {
+				ctx.Request.Header.Set(orgHeader, ticket.OrgID)
+			}
 			ctx.Set(ContextKeyUser, ticket.User)
 			return
 		}

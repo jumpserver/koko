@@ -69,7 +69,12 @@ export function generateWsURL() {
       break;
     }
     case 'kubernetes': {
-      connectURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${route.query.token}&type=k8s`;
+      const requireParams = new URLSearchParams(urlParams.toString());
+
+      requireParams.set('token', route.query.token ? route.query.token.toString() : '');
+      requireParams.set('type', 'k8s');
+
+      connectURL = `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`;
       break;
     }
     case 'Share': {

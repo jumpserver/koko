@@ -22,6 +22,7 @@ type ConnectTicket struct {
 	User      *model.User
 	Headers   map[string]string
 	TokenID   string
+	OrgID     string
 	ExpiresAt time.Time
 }
 
@@ -38,12 +39,13 @@ func NewConnectTicketStore() *ConnectTicketStore {
 	return store
 }
 
-func (s *ConnectTicketStore) Create(user *model.User, headers map[string]string, tokenID string) *ConnectTicket {
+func (s *ConnectTicketStore) Create(user *model.User, headers map[string]string, tokenID string, orgID string) *ConnectTicket {
 	ticket := &ConnectTicket{
 		ID:        common.UUID(),
 		User:      cloneUser(user),
 		Headers:   cloneHeaders(headers),
 		TokenID:   strings.TrimSpace(tokenID),
+		OrgID:     strings.TrimSpace(orgID),
 		ExpiresAt: time.Now().Add(connectTicketDefaultTTL),
 	}
 
