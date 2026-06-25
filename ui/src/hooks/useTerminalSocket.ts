@@ -33,6 +33,9 @@ import { generateWsURL, updateIcon } from './helper';
 import { useTerminalEvents } from './useTerminalEvents';
 import { getXTerminalLineContent } from './helper/index';
 
+const pageQuery = new URLSearchParams(window.location.search);
+const queryTerminalThemeName = pageQuery.get('terminal_theme_name') || '';
+
 /**
  * @description 判断 WebSocket 是否关闭
  * @param {WebSocket} socket
@@ -267,8 +270,10 @@ export const useTerminalSocket = () => {
           terminalSettingsStore.setDefaultTerminalConfig('ctrlCAsCtrlZ', value);
         }
 
-        if (sessionInfo.themeName) {
-          const theme = terminalTheme(sessionInfo.themeName);
+        const effectiveThemeName = queryTerminalThemeName || sessionInfo.themeName;
+
+        if (effectiveThemeName) {
+          const theme = terminalTheme(effectiveThemeName);
 
           nextTick(() => {
             terminalRef.value!.options.theme = theme;
@@ -285,7 +290,8 @@ export const useTerminalSocket = () => {
         connectionStore.updateConnectionState({
           sessionId: sessionDetail.id,
         });
-        terminalSettingsStore.setDefaultTerminalConfig('theme', sessionInfo.themeName);
+        terminalSettingsStore.setDefaultTerminalConfig('theme', effectiveThemeName || sessionInfo.themeName);
+        terminalSettingsStore.setDefaultTerminalConfig('themeName', effectiveThemeName || sessionInfo.themeName);
 
         break;
       }

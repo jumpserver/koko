@@ -1,5 +1,6 @@
 import { useCookies } from 'vue3-cookies';
 
+const pageQuery = new URLSearchParams(window.location.search);
 const PORT = document.location.port ? `:${document.location.port}` : '';
 const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
 
@@ -14,7 +15,9 @@ const cookieLang = cookies.get('django_language');
 const browserLang = navigator.language || (navigator.languages && navigator.languages[0]) || 'en';
 
 export const LanguageCode = cookieLang || storeLang || browserLang || 'en';
-export const ThemeCode = localStorage.getItem('themeType') || 'default';
+const queryThemeCode = pageQuery.get('themeType') || '';
+export const ThemeCode = queryThemeCode || localStorage.getItem('themeType') || 'default';
+export const ColorMode = pageQuery.get('colorMode') === 'light' ? 'light' : 'dark';
 
 export const AsciiDel = 127;
 export const AsciiBackspace = 8;

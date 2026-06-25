@@ -11,6 +11,8 @@ import { useTerminalSettingsStore } from '@/store/modules/terminalSettings.ts';
 function getLocalKokoSetting() {
   const terminalSettingsStore = useTerminalSettingsStore();
   const localTerminalSetting = localStorage.getItem('LunaSetting');
+  const pageQuery = new URLSearchParams(window.location.search);
+  const queryTerminalTheme = pageQuery.get('terminal_theme_name') || '';
 
   const { setDefaultTerminalConfig } = terminalSettingsStore;
 
@@ -32,6 +34,11 @@ function getLocalKokoSetting() {
 
     setDefaultTerminalConfig('fontSize', fontSize);
   }
+
+  if (queryTerminalTheme) {
+    setDefaultTerminalConfig('themeName', queryTerminalTheme);
+    setDefaultTerminalConfig('theme', queryTerminalTheme);
+  }
 }
 
 export function guard(next: NavigationGuardNext) {
@@ -45,6 +52,8 @@ export function guard(next: NavigationGuardNext) {
 
 export function getLocalDefaultKokoSetting(): CommandLineConfig {
   const localTerminalSetting = localStorage.getItem('LunaSetting');
+  const pageQuery = new URLSearchParams(window.location.search);
+  const queryTerminalTheme = pageQuery.get('terminal_theme_name') || '';
   const defaultCommandLine: CommandLineConfig = {
     character_terminal_font_size: 13,
     is_backspace_as_ctrl_h: false,
@@ -75,6 +84,10 @@ export function getLocalDefaultKokoSetting(): CommandLineConfig {
     if (!fontSize || fontSize < 5 || fontSize > 50) {
       fontSize = 13;
     }
+  }
+
+  if (queryTerminalTheme) {
+    defaultCommandLine.terminal_theme_name = queryTerminalTheme;
   }
 
   return defaultCommandLine;

@@ -20,6 +20,8 @@ import { lunaCommunicator } from '@/utils/lunaBus';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
+const pageOnlyQueryKeys = new Set(['colorMode', 'themeType', 'terminal_theme_name', '_']);
+
 export enum MessageType {
   CONNECT = 'CONNECT',
   CLOSE = 'CLOSE',
@@ -695,6 +697,10 @@ async function handleFileUpload(
  */
 export function useFileManage(token: string, t: any) {
   const queryParams = new URLSearchParams(window.location.search.slice(1));
+
+  for (const key of pageOnlyQueryKeys) {
+    queryParams.delete(key);
+  }
 
   queryParams.set('token', token);
 

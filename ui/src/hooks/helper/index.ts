@@ -12,6 +12,18 @@ import { BASE_WS_URL } from '@/utils/config';
 
 const { message } = createDiscreteApi(['message']);
 
+const pageOnlyQueryKeys = new Set(['colorMode', 'themeType', 'terminal_theme_name', '_']);
+
+function createWsQueryParams(search: string) {
+  const params = new URLSearchParams(search);
+
+  for (const key of pageOnlyQueryKeys) {
+    params.delete(key);
+  }
+
+  return params;
+}
+
 /**
  * 右键复制文本
  *
@@ -49,7 +61,7 @@ export function generateWsURL() {
   const route = useRoute();
 
   const routeName = route.name;
-  const urlParams = new URLSearchParams(window.location.search.slice(1));
+  const urlParams = createWsQueryParams(window.location.search.slice(1));
 
   let connectURL;
 
