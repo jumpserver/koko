@@ -21,8 +21,8 @@ ARG K8S_BUNDLE_VERSION=v0.0.1
 
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
-    && wget https://github.com/jumpserver-dev/k8s-bundle/releases/download/${K8S_BUNDLE_VERSION}/k8s-bundle_amd64.deb \
-    && dpkg -i k8s-bundle_amd64.deb \
+    && wget https://github.com/jumpserver-dev/k8s-bundle/releases/download/${K8S_BUNDLE_VERSION}/k8s-bundle_${TARGETARCH}.deb \
+    && dpkg -i k8s-bundle_${TARGETARCH}.deb \
     && cp /usr/local/bin/kubectl /opt/koko/bin/kubectl \
     && cp /usr/local/bin/helm /opt/koko/bin/helm \
     && wget https://github.com/jumpserver-dev/healthcheck/releases/latest/download/check_linux_${TARGETARCH}.deb \
