@@ -20,7 +20,7 @@ import type { customTreeOption, ILunaConfig } from '@/types/modules/config.type'
 
 import mittBus from '@/utils/mittBus';
 import { updateIcon } from '@/hooks/helper';
-import { MaxTimeout } from '@/utils/config';
+import { MaxTimeout, SITE_ORIGIN } from '@/utils/config';
 import { useZmodem } from '@/hooks/useZmodem';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
@@ -803,7 +803,7 @@ export function initMittBusEvents(searchAddon: SearchAddon, socket: WebSocket) {
     }
   });
   mittBus.on('create-share-url', ({ type, sessionId, shareLinkRequest }) => {
-    const origin = window.location.origin;
+    const origin = SITE_ORIGIN;
 
     sendK8sMessage(socket, type, {
       origin,

@@ -45,13 +45,24 @@ const { message: globalTipsMessage }: { message: MessageApiInjection } = createD
   configProviderProps: configProviderPropsRef,
 });
 
+interface DownloadTaskState {
+  buffers: Uint8Array[];
+  fileSize: number;
+  message: any;
+}
+
+interface UploadTaskState {
+  abortType: 'permission' | 'manual' | null;
+  fileId: string;
+  fileInfo: UploadFileInfo;
+  requestId: string;
+  resolveAck?: (result: boolean) => void;
+}
+
 // TODO 都是 hook 内部状态
 let initialPath = '';
-let fileSize = '';
-const uploadFileId = ref('');
-const uploadInterrupt = ref(false);
-const uploadInterruptType = ref<'permission' | 'manual' | null>(null);
-let downLoadMessage = null;
+const downloadTasks = new Map<string, DownloadTaskState>();
+const uploadTasks = new Map<string, UploadTaskState>();
 
 /**
  * @description 将 buffer 转为 base64
@@ -186,7 +197,6 @@ function heartBeat(socket: WebSocket) {
 function initSocketEvent(socket: WebSocket, t: any) {
   const fileManageStore = useFileManageStore();
 
-  let receivedBuffers: any = [];
   let clearHeartbeat: (() => void) | null = null;
 
   socket.binaryType = 'arraybuffer';
@@ -204,7 +214,6 @@ function initSocketEvent(socket: WebSocket, t: any) {
   socket.onmessage = (event: MessageEvent) => {
     const message: FileManage = JSON.parse(event.data);
 
-    fileManageStore.setMessageId(message.id);
     fileManageStore.setCurrentPath(message.current_path);
 
     switch (message.type) {
@@ -214,6 +223,17 @@ function initSocketEvent(socket: WebSocket, t: any) {
       }
 
       case MessageType.SFTP_DATA: {
+        const uploadTask = uploadTasks.get(message.id);
+
+        if (uploadTask && message.cmd === 'upload') {
+          if (message.err || message.data === 'No permission') {
+            uploadTask.abortType = 'permission';
+          }
+          uploadTask.resolveAck?.(uploadTask.abortType == null);
+          uploadTask.resolveAck = undefined;
+          break;
+        }
+
         if (message.cmd === 'mkdir' && message.data === 'ok') {
           globalTipsMessage.success(t('OperationSuccessful'));
 
@@ -239,7 +259,6 @@ function initSocketEvent(socket: WebSocket, t: any) {
         }
 
         if (message.cmd === 'upload' && message.data === 'ok') {
-          fileManageStore.setReceived(true);
           globalTipsMessage.success(t('UploadSuccess'));
 
           mittBus.emit('reload-table');
@@ -247,16 +266,19 @@ function initSocketEvent(socket: WebSocket, t: any) {
 
         if (message.cmd === 'upload' && message.data === '' && message.err === 'Permission denied') {
           globalTipsMessage.error(t('PermissionDenied'));
-          uploadInterrupt.value = true;
-          uploadInterruptType.value = 'permission';
         }
 
         if (message.cmd === 'upload' && message.data !== 'ok') {
-          fileManageStore.setReceived(true);
         }
 
         if (message.cmd === 'download' && message.data) {
-          const blob: Blob = new Blob(receivedBuffers, {
+          const downloadTask = downloadTasks.get(message.id);
+
+          if (!downloadTask) {
+            break;
+          }
+
+          const blob: Blob = new Blob(downloadTask.buffers, {
             type: 'application/octet-stream',
           });
 
@@ -272,12 +294,15 @@ function initSocketEvent(socket: WebSocket, t: any) {
 
           window.URL.revokeObjectURL(url);
           document.body.removeChild(a);
-          receivedBuffers = [];
-          downLoadMessage!.destroy();
+          downloadTask.message.destroy();
+          downloadTasks.delete(message.id);
         }
 
         if (message.cmd === 'download' && message.err === 'Permission denied') {
-          downLoadMessage!.destroy();
+          const downloadTask = downloadTasks.get(message.id);
+
+          downloadTask?.message.destroy();
+          downloadTasks.delete(message.id);
           globalTipsMessage.error(t('PermissionDenied'));
 
           mittBus.emit('reload-table');
@@ -298,22 +323,48 @@ function initSocketEvent(socket: WebSocket, t: any) {
           bytes[i] = binaryString.charCodeAt(i);
         }
 
-        receivedBuffers.push(bytes);
+        const downloadTask = downloadTasks.get(message.id);
+
+        if (!downloadTask) {
+          break;
+        }
+
+        downloadTask.buffers.push(bytes);
 
         let receivedBytes = 0;
 
-        for (const buffer of receivedBuffers) {
+        for (const buffer of downloadTask.buffers) {
           receivedBytes += buffer.length;
         }
 
-        const percent = (receivedBytes / Number(fileSize)) * 100;
-        downLoadMessage!.content = `${t('DownloadProgress')}: ${percent.toFixed(2)}%`;
+        const percent = downloadTask.fileSize > 0 ? Math.min((receivedBytes / downloadTask.fileSize) * 100, 100) : 100;
+        downloadTask.message.content = `${t('DownloadProgress')}: ${percent.toFixed(2)}%`;
 
         break;
       }
 
       case MessageType.ERROR: {
-        fileManageStore.setFileList([]);
+        const uploadTask = uploadTasks.get(message.id);
+
+        if (uploadTask) {
+          uploadTask.abortType = 'permission';
+          uploadTask.resolveAck?.(false);
+          uploadTask.resolveAck = undefined;
+          uploadTasks.delete(message.id);
+          break;
+        }
+
+        const downloadTask = downloadTasks.get(message.id);
+
+        if (downloadTask) {
+          downloadTask.message.destroy();
+          downloadTasks.delete(message.id);
+          globalTipsMessage.error(message.err ? message.err : t('FileListError'));
+          break;
+        }
+        if (message.cmd === 'list') {
+          fileManageStore.setFileList([]);
+        }
         globalTipsMessage.error(message.err ? message.err : t('FileListError'));
         break;
       }
@@ -334,10 +385,15 @@ function initSocketEvent(socket: WebSocket, t: any) {
       }
 
       case MessageType.CLOSE: {
+        uploadTasks.forEach(task => {
+          task.abortType = 'permission';
+          task.resolveAck?.(false);
+          task.resolveAck = undefined;
+        });
+        uploadTasks.clear();
+        downloadTasks.forEach(task => task.message.destroy());
+        downloadTasks.clear();
         globalTipsMessage.error(t('FileManagementExpired'));
-
-        uploadInterrupt.value = true;
-        uploadInterruptType.value = null;
 
         // 文件列表置空
         fileManageStore.setFileList([]);
@@ -451,8 +507,14 @@ function handleFileRemove(socket: WebSocket, path: string) {
  * @param path
  * @param is_dir
  */
-function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, t: any) {
-  downLoadMessage = globalTipsMessage.loading(`${t('DownloadProgress')}: 0.00%`, { duration: 1000000000 });
+function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, size: string, t: any) {
+  const requestId = uuid();
+
+  downloadTasks.set(requestId, {
+    buffers: [],
+    fileSize: Number(size) || 0,
+    message: globalTipsMessage.loading(`${t('DownloadProgress')}: 0.00%`, { duration: 1000000000 }),
+  });
 
   const sendData = {
     path,
@@ -460,7 +522,7 @@ function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, t:
   };
 
   const sendBody = {
-    id: uuid(),
+    id: requestId,
     type: 'SFTP_DATA',
     cmd: 'download',
     data: JSON.stringify(sendData),
@@ -475,17 +537,16 @@ function handleFileDownload(socket: WebSocket, path: string, is_dir: boolean, t:
 async function generateUploadChunks(
   sliceChunk: Blob,
   socket: WebSocket,
-  fileInfo: UploadFileInfo,
+  uploadTask: UploadTaskState,
   CHUNK_SIZE: number,
   sentChunks: Ref<number>,
-  isSingleChunk: boolean = false,
-  onError: (() => void) | null = null
+  isSingleChunk: boolean = false
 ) {
   const fileManageStore = useFileManageStore();
   const sendData: FileSendData = {
     offSet: 0,
-    size: fileInfo.file?.size,
-    path: `${fileManageStore.currentPath}/${fileInfo.name}`,
+    size: uploadTask.fileInfo.file?.size,
+    path: `${fileManageStore.currentPath}/${uploadTask.fileInfo.name}`,
   };
 
   if (isSingleChunk) {
@@ -498,7 +559,7 @@ async function generateUploadChunks(
   const sendBody = {
     cmd: 'upload',
     type: 'SFTP_DATA',
-    id: uploadFileId.value,
+    id: uploadTask.requestId,
     data: '',
     raw: '',
   };
@@ -516,27 +577,9 @@ async function generateUploadChunks(
     sentChunks.value++;
 
     return new Promise<boolean>(resolve => {
-      const interval = setInterval(() => {
-        if (uploadInterrupt.value) {
-          clearInterval(interval);
-          if (onError) {
-            onError();
-          }
-          resolve(false);
-          return;
-        }
-
-        if (fileManageStore.isReceived) {
-          clearInterval(interval);
-          resolve(true);
-        }
-      }, 100);
+      uploadTask.resolveAck = resolve;
     });
   } catch (error) {
-    if (onError) {
-      onError();
-    }
-
     console.error(error);
     return false;
   }
@@ -545,9 +588,16 @@ async function generateUploadChunks(
 /**
  * @description 中断上传,停止继续发送切片信息
  */
-function interraptUpload() {
-  uploadInterrupt.value = true;
-  uploadInterruptType.value = 'manual';
+function interraptUpload(fileInfo: UploadFileInfo) {
+  const uploadTask = Array.from(uploadTasks.values()).find(task => task.fileId === fileInfo.id);
+
+  if (!uploadTask) {
+    return;
+  }
+
+  uploadTask.abortType = 'manual';
+  uploadTask.resolveAck?.(false);
+  uploadTask.resolveAck = undefined;
 }
 
 /**
@@ -555,40 +605,26 @@ function interraptUpload() {
  */
 async function handleFileUpload(
   socket: WebSocket,
-  uploadFileList: Ref<Array<UploadFileInfo>>,
+  fileInfo: UploadFileInfo,
   _onProgress: any,
   onFinish: () => void,
   onError: () => void,
-  t: any,
-  externalLoadingMessage?: any
+  t: any
 ) {
   const maxSliceCount = 100;
   const maxChunkSize = 1024 * 1024 * 10;
   const fileManageStore = useFileManageStore();
 
-  // prettier-ignore
-  const loadingMessage = externalLoadingMessage || globalTipsMessage.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
-
-  // 确保开始新的上传任务时重置中断状态
-  uploadInterrupt.value = false;
-  uploadInterruptType.value = null;
-
-  let fileInfo = uploadFileList.value[uploadFileList.value.length - 1];
-
-  // 检查是否已存在同名文件
-  const existingFiles = new Set(fileManageStore.fileList?.map(file => file.name) || []);
-
-  for (let i = uploadFileList.value.length - 1; i >= 0; i--) {
-    const file = uploadFileList.value[i];
-    if (!existingFiles.has(file.name)) {
-      fileInfo = file;
-      break;
-    }
-  }
-
   const sliceChunks = [];
   let CHUNK_SIZE = 1024 * 1024 * 5;
   const sentChunks = ref(0);
+  const requestId = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString();
+  const uploadTask: UploadTaskState = {
+    abortType: null,
+    fileId: fileInfo.id,
+    fileInfo,
+    requestId,
+  };
 
   const unwatch = watch(
     () => sentChunks.value,
@@ -597,17 +633,15 @@ async function handleFileUpload(
 
       _onProgress({ percent });
 
-      loadingMessage.content = `${t('UploadProgress')}: ${Math.floor(percent)}%`;
-
       if (percent >= 100) {
         onFinish();
-        loadingMessage.destroy();
         unwatch();
       }
     }
   );
 
   if (fileInfo && fileInfo.file) {
+    uploadTasks.set(requestId, uploadTask);
     let sliceCount = Math.ceil(fileInfo.file?.size / CHUNK_SIZE);
 
     // 如果切片数量大于最大切片数量，那么调大切片大小
@@ -627,40 +661,57 @@ async function handleFileUpload(
     }
 
     try {
-      uploadFileId.value = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString();
-
       // 判断是否只有一个切片
       const isSingleChunk = sliceChunks.length === 1;
 
       for (const sliceChunk of sliceChunks) {
-        fileManageStore.setReceived(false);
-
-        if (uploadInterrupt.value) {
+        if (uploadTask.abortType) {
           // 只有在用户主动取消时才显示取消提示
-          if (uploadInterruptType.value === 'manual') {
+          if (uploadTask.abortType === 'manual') {
             globalTipsMessage.error(t('CancelFileUpload'));
+            mittBus.emit('upload-stopped', { fileId: uploadTask.fileId });
           }
           onError();
-          loadingMessage.destroy();
-          uploadInterrupt.value = false;
-          uploadInterruptType.value = null;
+          unwatch();
+          uploadTasks.delete(requestId);
           return;
         }
 
         const result = await generateUploadChunks(
           sliceChunk,
           socket,
-          fileInfo,
+          uploadTask,
           CHUNK_SIZE,
           sentChunks,
-          isSingleChunk,
-          onError
+          isSingleChunk
         );
 
         if (!result) {
-          loadingMessage.destroy();
+          if (uploadTask.abortType === 'permission') {
+            globalTipsMessage.error(t('NoPermission'));
+          }
+          if (uploadTask.abortType === 'manual') {
+            mittBus.emit('upload-stopped', { fileId: uploadTask.fileId });
+          }
+          onError();
+          unwatch();
+          uploadTasks.delete(requestId);
           return;
         }
+      }
+
+      if (uploadTask.abortType) {
+        if (uploadTask.abortType === 'manual') {
+          globalTipsMessage.error(t('CancelFileUpload'));
+          mittBus.emit('upload-stopped', { fileId: uploadTask.fileId });
+        }
+        if (uploadTask.abortType === 'permission') {
+          globalTipsMessage.error(t('NoPermission'));
+        }
+        onError();
+        unwatch();
+        uploadTasks.delete(requestId);
+        return;
       }
 
       // 如果不是单切片，才需要发送merge请求
@@ -670,7 +721,7 @@ async function handleFileUpload(
           JSON.stringify({
             cmd: 'upload',
             type: 'SFTP_DATA',
-            id: fileManageStore.messageId,
+            id: requestId,
             raw: '',
             data: JSON.stringify({
               offSet: 0,
@@ -681,9 +732,10 @@ async function handleFileUpload(
           })
         );
       }
-      uploadFileId.value = '';
+      uploadTasks.delete(requestId);
     } catch (e) {
-      loadingMessage.destroy();
+      unwatch();
+      uploadTasks.delete(requestId);
       console.error(e);
       onError();
     }
@@ -702,25 +754,22 @@ export function useFileManage(token: string, t: any) {
     mittBus.on(
       'file-upload',
       ({
-        uploadFileList,
+        fileInfo,
         onFinish,
         onError,
         onProgress,
-        loadingMessage,
       }: {
-        uploadFileList: Ref<Array<UploadFileInfo>>;
+        fileInfo: UploadFileInfo;
         onFinish: () => void;
         onError: () => void;
         onProgress: (e: { percent: number }) => void;
-        loadingMessage?: any;
       }) => {
-        handleFileUpload(<WebSocket>socket, uploadFileList, onProgress, onFinish, onError, t, loadingMessage);
+        handleFileUpload(<WebSocket>socket, fileInfo, onProgress, onFinish, onError, t);
       }
     );
 
     mittBus.on('download-file', ({ path, is_dir, size }: { path: string; is_dir: boolean; size: string }) => {
-      fileSize = size;
-      handleFileDownload(<WebSocket>socket, path, is_dir, t);
+      handleFileDownload(<WebSocket>socket, path, is_dir, size, t);
     });
 
     mittBus.on('file-manage', ({ path, type, new_name }: { path: string; type: ManageTypes; new_name?: string }) => {
@@ -749,9 +798,7 @@ export function useFileManage(token: string, t: any) {
     });
 
     mittBus.on('stop-upload', (data: { fileInfo: UploadFileInfo }) => {
-      interraptUpload();
-      // 发送上传停止成功事件
-      mittBus.emit('upload-stopped', { fileInfo: data.fileInfo });
+      interraptUpload(data.fileInfo);
     });
 
     return socket;
