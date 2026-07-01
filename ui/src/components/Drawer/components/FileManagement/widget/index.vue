@@ -451,13 +451,10 @@ const handleUploadFileChange = (options: { fileList: Array<UploadFileInfo> }) =>
  * @description 自定义上传
  */
 const customRequest = ({ file, onFinish, onError, onProgress }: UploadCustomRequestOptions) => {
-  const loadingMessage = message.loading(`${t('UploadProgress')}: 0%`, { duration: 1000000000 });
-
   mittBus.emit('file-upload', {
-    uploadFileList,
+    fileInfo: file,
     onFinish: () => {
       onFinish();
-      loadingMessage.destroy();
 
       // 文件上传成功后，5秒后自动移除
       setTimeout(() => {
@@ -467,10 +464,8 @@ const customRequest = ({ file, onFinish, onError, onProgress }: UploadCustomRequ
     },
     onError: () => {
       onError();
-      loadingMessage.destroy();
     },
     onProgress,
-    loadingMessage,
   });
 };
 
@@ -564,8 +559,8 @@ onMounted(() => {
   mittBus.on('reload-table', handleTableLoading);
 
   // 监听上传停止成功事件，移除对应的文件
-  mittBus.on('upload-stopped', (data: { fileInfo: UploadFileInfo }) => {
-    uploadFileList.value = uploadFileList.value.filter(item => item.id !== data.fileInfo.id);
+  mittBus.on('upload-stopped', (data: { fileId: string }) => {
+    uploadFileList.value = uploadFileList.value.filter(item => item.id !== data.fileId);
     fileManageStore.setUploadFileList(uploadFileList.value);
   });
 

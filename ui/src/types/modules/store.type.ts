@@ -4,6 +4,8 @@ export interface IGlobalState {
   initialized: boolean;
 
   i18nLoaded: boolean;
+
+  interfaceVendor: string | null;
 }
 
 export interface IParamsState {
