@@ -269,7 +269,7 @@ msgstr "팁: 언어를 전환하려면 ID를 입력하세요"
 #: pkg/handler/dispatch.go:154
 msgid ""
 "Tips: To set a default language, go to Personal Settings → Preferences on Web"
-msgstr "팁: 기본 언어를 설정하려면 웹에서 "개인 설정 → 환경 설정"으로 이동하세요."
+msgstr "팁: 기본 언어를 설정하려면 웹에서 \"개인 설정 → 환경 설정\"으로 이동하세요."
 
 #. lang.T
 #. lang.T
@@ -582,6 +582,11 @@ msgstr "%s 관리자 연결이 끊겼습니다"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
+msgid "Deployment permission denied"
+msgstr "배포 권한이 부족합니다"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
 msgid "Authentication failed"
 msgstr "인증에 실패했습니다(잘못된 사용자 이름 또는 비밀번호)"
 

@@ -76,27 +76,6 @@ func SupportedProtocols() []string {
 	return protocols
 }
 
-func WithoutK8sProtocols() []string {
-	protocols := FilterProtocols(func(p string) bool {
-		if p == ProtocolK8s {
-			return false
-		}
-		return true
-	})
-	return protocols
-}
-
-func FilterProtocols(filter func(p string) bool) []string {
-	protocols := make([]string, 0, len(supportedMap))
-	for k := range supportedMap {
-		if !filter(k) {
-			continue
-		}
-		protocols = append(protocols, k)
-	}
-	return protocols
-}
-
 type ErrNoClient struct {
 	Name string
 }
@@ -115,6 +94,7 @@ func (e ErrUSQLNoSupported) Error() string {
 
 var (
 	ErrUnSupportedProtocol = errors.New("unsupported protocol")
+	ErrK8sNoPrivileged     = errors.New("koko deployment lacks privileged permission")
 
 	ErrKubectlClient = ErrNoClient{"Kubectl"}
 
