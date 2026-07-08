@@ -58,6 +58,8 @@ type Config struct {
 
 	EnableReversePortForward bool `mapstructure:"ENABLE_REVERSE_PORT_FORWARD"`
 
+	KokoPrivileged bool `mapstructure:"KOKO_PRIVILEGED"`
+
 	HiddenFields []string `mapstructure:"HIDDEN_FIELDS"`
 
 	// 仅控制是否缓存 sftp 的 token 连接
@@ -168,6 +170,7 @@ func getDefaultConfig() Config {
 
 		EnableLocalPortForward: false,
 		EnableVscodeSupport:    false,
+		KokoPrivileged:         true,
 		DisableInputAsCommand:  true,
 	}
 
