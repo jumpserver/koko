@@ -78,6 +78,10 @@ func (h *InteractiveHandler) Dispatch() {
 			case "q":
 				logger.Infof("user %s enter %s to exit", h.user.Name, line)
 				return
+			case "k":
+				h.selectHandler.SetSelectType(TypeK8s)
+				h.selectHandler.Search("")
+				continue
 			}
 		default:
 			switch {

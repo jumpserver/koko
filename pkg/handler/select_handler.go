@@ -337,7 +337,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		return u.retrieveRemoteNodeAsset(reqParam)
 	case TypeAsset:
 		reqParam.Category = ""
-		reqParam.Protocols = srvconn.WithoutK8sProtocols()
+		reqParam.Protocols = srvconn.SupportedProtocols()
 		return u.retrieveRemoteAsset(reqParam)
 	case TypeHost:
 		reqParam.Category = "host"
@@ -345,7 +345,7 @@ func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, searches ..
 		return u.retrieveRemoteAsset(reqParam)
 	default:
 		reqParam.Category = ""
-		reqParam.Protocols = srvconn.WithoutK8sProtocols()
+		reqParam.Protocols = srvconn.SupportedProtocols()
 		// TypeAsset
 		u.SetSelectType(TypeAsset)
 		logger.Info("Retrieve default remote data type: Asset")

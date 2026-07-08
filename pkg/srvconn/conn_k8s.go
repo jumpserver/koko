@@ -57,6 +57,10 @@ func IsValidK8sUserToken(k8sCfg *rest.Config) bool {
 }
 
 func NewK8sConnection(ops ...K8sOption) (*K8sCon, error) {
+	if !config.GetConf().KokoPrivileged {
+		return nil, ErrK8sNoPrivileged
+	}
+
 	args := &k8sOptions{
 		Username:      os.Getenv("USER"),
 		ClusterServer: "https://127.0.0.1:8443",
