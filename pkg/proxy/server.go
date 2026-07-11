@@ -210,7 +210,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 	}
 }
 
-func (s *Server) GetFilterParser() *Parser {
+func (s *Server) GetFilterParser() (*Parser, error) {
 	var (
 		enableUpload   bool
 		enableDownload bool
@@ -241,8 +241,10 @@ func (s *Server) GetFilterParser() *Parser {
 		i18nLang:       s.connOpts.i18nLang,
 		platform:       &platform,
 	}
-	parser.initial(pty.Window.Width, pty.Window.Height)
-	return &parser
+	if err := parser.initial(pty.Window.Width, pty.Window.Height); err != nil {
+		return nil, err
+	}
+	return &parser, nil
 }
 
 func (s *Server) GetReplayRecorder() *ReplyRecorder {

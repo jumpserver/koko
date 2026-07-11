@@ -79,6 +79,7 @@ type Parser struct {
 	confirmStatus commandConfirmStatus
 
 	zmodemParser        *zmodem.ZmodemParser
+	zmodemStartBuf      bytes.Buffer
 	enableDownload      bool
 	enableUpload        bool
 	abortedFileTransfer bool
@@ -116,38 +117,28 @@ func (p *Parser) resetCurrentCmdFilterRule() {
 	p.currentCmdFilterRule = CommandRule{}
 }
 
-func (p *Parser) CurrentScreenType() int {
-	if isWindows(p.platform) {
-		return WindowsScreen
+func (p *Parser) initial(w, h int) error {
+	if w <= 0 || h <= 0 || w > 65535 || h > 65535 {
+		return fmt.Errorf("create terminal parser: %w", terminalparser.ErrInvalidSize)
 	}
-	switch p.protocolType {
-	case srvconn.ProtocolMongoDB:
-		return MongoScreen
-	case srvconn.ProtocolMySQL,
-		srvconn.ProtocolMariadb,
-		srvconn.ProtocolPostgresql,
-		srvconn.ProtocolClickHouse,
-		srvconn.ProtocolOracle,
-		srvconn.ProtocolSQLServer:
-		return UsqlScreen
-	default:
+	terminal, err := terminalparser.New(
+		terminalparser.WithSize(uint16(w), uint16(h)),
+		terminalparser.WithMaxScrollback(0),
+	)
+	if err != nil {
+		return fmt.Errorf("create terminal parser: %w", err)
 	}
-	return LinuxScreen
-}
-
-func (p *Parser) initial(w, h int) {
-	screenType := p.CurrentScreenType()
-	p.TerminalParser = &TerminalParser{IsEnter: p.isEnterKeyPress,
-		EmitCommands:      p.EmitCommandEvent,
-		usqlScreenParser:  terminalparser.NewUSqlParser(),
-		winScreenParser:   terminalparser.NewWindowsParser(),
-		mongoScreenParser: terminalparser.NewMongoShParser(),
-		screenType:        screenType,
-		preScreenType:     screenType,
-		Screen:            terminalparser.NewScreen(h, w)}
+	p.TerminalParser = &TerminalParser{
+		IsEnter:      p.isEnterKeyPress,
+		EmitCommands: p.EmitCommandEvent,
+		Terminal:     terminal,
+		width:        uint16(w),
+		height:       uint16(h),
+	}
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
+	return nil
 }
 
 func (p *Parser) SetUserInputFilter(filter func([]byte) []byte) {
@@ -163,6 +154,9 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 		defer func() {
 			// 会话结束，结算命令结果
 			p.sendCommandRecord()
+			if err := p.TerminalParser.Close(); err != nil {
+				logger.Errorf("Session %s: close terminal parser failed: %s", p.id, err)
+			}
 			close(p.cmdRecordChan)
 			close(p.userOutputChan)
 			close(p.srvOutputChan)
@@ -230,7 +224,13 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 	if bytes.ContainsRune(b, '\r') {
 		return true
 	}
-	if p.TerminalParser != nil && p.TerminalParser.screenType == UsqlScreen {
+	switch p.protocolType {
+	case srvconn.ProtocolMySQL,
+		srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql,
+		srvconn.ProtocolClickHouse,
+		srvconn.ProtocolOracle,
+		srvconn.ProtocolSQLServer:
 		// terminal 右键粘贴时，没有 \r 只有 \n
 		if bytes.ContainsRune(b, '\n') && bytes.ContainsRune(b, ';') {
 			return true
@@ -451,16 +451,55 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 	return nb
 }
 
-// parseZmodemState 解析数据，查看是不是处于zmodem状态
-// 处于zmodem状态不会再解析命令
-func (p *Parser) parseZmodemState(b []byte) {
-	p.zmodemParser.Parse(b)
+const maxZmodemStartFrameSize = 64
+
+// filterZmodemStart 返回可以安全送入终端解析器的数据。可能被拆包的 rz/sz
+// 启动帧会被短暂缓存；原始数据仍由 splitCmdStream 原样转发给终端用户。
+func (p *Parser) filterZmodemStart(b []byte) []byte {
+	data := b
+	if p.zmodemStartBuf.Len() > 0 {
+		p.zmodemStartBuf.Write(b)
+		data = bytes.Clone(p.zmodemStartBuf.Bytes())
+		p.zmodemStartBuf.Reset()
+	}
+
+	prefix := zmodem.HexHeaderPrefix
+	start := bytes.Index(data, prefix)
+	if start < 0 {
+		maxPrefix := min(len(data), len(prefix)-1)
+		for size := maxPrefix; size > 0; size-- {
+			if bytes.Equal(data[len(data)-size:], prefix[:size]) {
+				p.zmodemStartBuf.Write(data[len(data)-size:])
+				return data[:len(data)-size]
+			}
+		}
+		return data
+	}
+
+	header := data[start:]
+	if bytes.IndexAny(header, "\r\n") < 0 {
+		if len(header) <= maxZmodemStartFrameSize {
+			p.zmodemStartBuf.Write(header)
+			return data[:start]
+		}
+		return data
+	}
+
+	p.zmodemParser.Parse(header)
+	if p.zmodemParser.IsStartSession() {
+		return data[:start]
+	}
+	return data
 }
 
 // parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
 func (p *Parser) parseVimState(b []byte) {
 	if !p.isEditMode && IsEditEnterMode(b) {
 		p.isEditMode = true
+		if isTerminalMultiplexerCommand(p.command) {
+			p.isScreenMode = true
+			p.inVimState = false
+		}
 		logger.Debugf("Session %s enter edit mode", p.id)
 	}
 	if p.isEditMode {
@@ -490,8 +529,26 @@ func (p *Parser) parseVimState(b []byte) {
 	}
 }
 
+func isTerminalMultiplexerCommand(command string) bool {
+	fields := strings.Fields(command)
+	for len(fields) > 0 {
+		field := strings.Trim(fields[0], "'\"")
+		fields = fields[1:]
+		if strings.Contains(field, "=") || field == "sudo" || field == "env" ||
+			field == "command" || field == "exec" {
+			continue
+		}
+		if index := strings.LastIndexByte(field, '/'); index >= 0 {
+			field = field[index+1:]
+		}
+		return field == "tmux" || field == "screen"
+	}
+	return false
+}
+
 // splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
 func (p *Parser) splitCmdStream(b []byte) []byte {
+	original := b
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		if p.zmodemParser.Status() == zmodem.ZParserStatusSend {
@@ -513,18 +570,36 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		}
 		return b
 	} else {
+		// vim 中的数据可能包含任意控制字符，保持原有优先级；退出 vim 后再恢复
+		// zmodem 检测。正常终端中则先识别 rz/sz，确保协议起始帧不会进入 VT。
+		if p.inVimState {
+			p.parseVimState(b)
+			if p.inVimState {
+				return b
+			}
+		}
+		parseBytes := p.filterZmodemStart(b)
+		if p.zmodemParser.IsStartSession() {
+			if len(parseBytes) > 0 {
+				p.parseVimState(parseBytes)
+				if !p.inVimState {
+					p.TerminalParser.Feed(parseBytes)
+				}
+			}
+			logger.Infof("Zmodem start session %s", p.zmodemParser.Status())
+			return original
+		}
+		b = parseBytes
+		if len(b) == 0 {
+			return original
+		}
 		p.parseVimState(b)
 		if p.inVimState {
-			return b
+			return original
 		}
-		p.parseZmodemState(b)
-	}
-	if p.zmodemParser.IsStartSession() {
-		logger.Infof("Zmodem start session %s", p.zmodemParser.Status())
-		return b
 	}
 	p.TerminalParser.Feed(b)
-	return b
+	return original
 }
 
 // ParseServerOutput 解析服务器输出
