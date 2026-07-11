@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
@@ -27,6 +28,22 @@ func DefaultEnterKeyPressHandler(p []byte) bool {
 
 const maxBufSize = 1024 * 100
 
+var activeTerminalParsers atomic.Int64
+
+type TerminalParserMetrics struct {
+	Active                 int64 `json:"active"`
+	ScrollbackRows         int   `json:"scrollback_rows"`
+	OutputBufferLimitBytes int   `json:"output_buffer_limit_bytes"`
+}
+
+func GetTerminalParserMetrics() TerminalParserMetrics {
+	return TerminalParserMetrics{
+		Active:                 activeTerminalParsers.Load(),
+		ScrollbackRows:         0,
+		OutputBufferLimitBytes: maxBufSize,
+	}
+}
+
 const (
 	InputPreState = iota + 1
 	InputState
@@ -35,12 +52,14 @@ const (
 )
 
 type TerminalParser struct {
-	InputBuf bytes.Buffer
-	Ps1sStr  string
-	Terminal *terminalparser.TerminalVT
-	state    int
-	once     sync.Once
-	mux      sync.Mutex
+	InputBuf  bytes.Buffer
+	Ps1sStr   string
+	Terminal  *terminalparser.TerminalVT
+	state     int
+	once      sync.Once
+	closeOnce sync.Once
+	mux       sync.Mutex
+	counted   bool
 
 	IsEnter func(p []byte) bool
 	cmd     string
@@ -54,10 +73,6 @@ type TerminalParser struct {
 	height       uint16
 }
 
-type cursorRowTerminal interface {
-	CursorRow() (string, error)
-}
-
 func (s *TerminalParser) SetState(state int) {
 	s.state = state
 }
@@ -68,25 +83,11 @@ func (s *TerminalParser) resetCommand() {
 }
 
 func (s *TerminalParser) GetCursorRow() string {
-	// CursorRow is provided by the sibling terminalparser change. Keep the
-	// viewport-only fallback until that commit is published and go.mod can be
-	// advanced without a local replace directive.
-	if terminal, ok := any(s.Terminal).(cursorRowTerminal); ok {
-		row, err := terminal.CursorRow()
-		if err == nil {
-			return row
-		}
+	row, err := s.Terminal.CursorRow()
+	if err != nil {
 		return ""
 	}
-	rows, err := s.Terminal.ScreenRows()
-	if err != nil || len(rows) == 0 {
-		return ""
-	}
-	y, err := s.Terminal.CursorY()
-	if err == nil && int(y) < len(rows) {
-		return rows[y]
-	}
-	return rows[len(rows)-1]
+	return row
 }
 
 func (s *TerminalParser) feed(p []byte) {
@@ -106,7 +107,27 @@ func (s *TerminalParser) Feed(p []byte) {
 	defer s.mux.Unlock()
 
 	s.feed(p)
+	s.processOutput(p)
+}
 
+// FeedScreen only updates VT state. It is used by full-screen editors so
+// alternate-screen transitions remain observable without parsing keystrokes
+// or recording editor repaint data as command output.
+func (s *TerminalParser) FeedScreen(p []byte) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.feed(p)
+}
+
+// ProcessOutput parses command completion after the same bytes have already
+// been applied through FeedScreen.
+func (s *TerminalParser) ProcessOutput(p []byte) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.processOutput(p)
+}
+
+func (s *TerminalParser) processOutput(p []byte) {
 	if s.state == OutputState {
 		// output 且解析出 cmd 才写入 output 减少内存
 		if s.srvOutputBuf.Len() < maxBufSize {
@@ -147,6 +168,13 @@ func (s *TerminalParser) Feed(p []byte) {
 	}
 }
 
+func (s *TerminalParser) IsScreenAlternate() bool {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	alternate, err := s.Terminal.IsScreenAlternate()
+	return err == nil && alternate
+}
+
 func (s *TerminalParser) Resize(width, height int) error {
 	if width <= 0 || height <= 0 || width > 65535 || height > 65535 {
 		return terminalparser.ErrInvalidSize
@@ -162,7 +190,15 @@ func (s *TerminalParser) Resize(width, height int) error {
 }
 
 func (s *TerminalParser) Close() error {
-	return s.Terminal.Close()
+	var err error
+	s.closeOnce.Do(func() {
+		err = s.Terminal.Close()
+		if s.counted {
+			activeTerminalParsers.Add(-1)
+			s.counted = false
+		}
+	})
+	return err
 }
 
 func (s *TerminalParser) parseSrvOutputRows() []string {

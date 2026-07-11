@@ -1,6 +1,7 @@
 package koko
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/monitoring"
 	"github.com/jumpserver/koko/pkg/sshd"
 
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -40,6 +42,19 @@ func RunForever(confPath string) {
 	jmsService := MustJMService()
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	memoryDump := make(chan os.Signal, 1)
+	signal.Notify(memoryDump, syscall.SIGUSR1)
+	defer signal.Stop(memoryDump)
+	go func() {
+		for range memoryDump {
+			payload, err := json.Marshal(monitoring.Snapshot())
+			if err != nil {
+				logger.Errorf("Marshal memory snapshot failed: %s", err)
+				continue
+			}
+			logger.Infof("Memory snapshot: %s", payload)
+		}
+	}()
 	bootstrapWithJMService(jmsService)
 	webSrv := httpd.NewServer(jmsService)
 	sshSrv := sshd.NewSSHServer(jmsService)
