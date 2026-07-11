@@ -164,7 +164,10 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 
-	parser := s.p.GetFilterParser()
+	parser, err := s.p.GetFilterParser()
+	if err != nil {
+		return err
+	}
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
 	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
@@ -347,6 +350,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			_ = srvConn.SetWinSize(win.Width, win.Height)
+			if err := parser.TerminalParser.Resize(win.Width, win.Height); err != nil {
+				logger.Errorf("Session[%s] resize terminal parser failed: %s", s.ID, err)
+			}
 			logger.Infof("Session[%s] Window server change: %d*%d",
 				s.ID, win.Width, win.Height)
 			p, _ := json.Marshal(win)
