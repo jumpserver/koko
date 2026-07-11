@@ -3,7 +3,6 @@ package proxy
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 
 	"strings"
@@ -67,7 +66,8 @@ type Parser struct {
 
 	inVimState bool
 	once       sync.Once
-	lock       sync.RWMutex
+	modeLock   sync.RWMutex
+	outputLock sync.Mutex
 
 	command       string
 	output        string
@@ -134,7 +134,9 @@ func (p *Parser) initial(w, h int) error {
 		Terminal:     terminal,
 		width:        uint16(w),
 		height:       uint16(h),
+		counted:      true,
 	}
+	activeTerminalParsers.Add(1)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
@@ -424,8 +426,8 @@ func (p *Parser) supportMultiCmd() bool {
 }
 
 func (p *Parser) IsNeedParse() bool {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.modeLock.RLock()
+	defer p.modeLock.RUnlock()
 	if p.inVimState {
 		return false
 	}
@@ -492,44 +494,52 @@ func (p *Parser) filterZmodemStart(b []byte) []byte {
 	return data
 }
 
-// parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
-func (p *Parser) parseVimState(b []byte) {
-	if !p.isEditMode && IsEditEnterMode(b) {
-		p.isEditMode = true
-		if isTerminalMultiplexerCommand(p.command) {
-			p.isScreenMode = true
-			p.inVimState = false
+// updateTerminalMode combines the VT alternate-screen state with the command
+// that entered it. Vim-like programs update the screen but suspend command
+// parsing; tmux/screen continue normal command parsing inside the multiplexer.
+func (p *Parser) updateTerminalMode(b []byte) {
+	alternate := p.TerminalParser.IsScreenAlternate()
+	p.modeLock.Lock()
+	defer p.modeLock.Unlock()
+	if !alternate {
+		if p.isEditMode || p.inVimState || p.isScreenMode {
+			logger.Debugf("Session %s exit alternate screen mode", p.id)
 		}
-		logger.Debugf("Session %s enter edit mode", p.id)
-	}
-	if p.isEditMode {
-		//if !p.inVimState && !p.isScreenMode {
-		//	fmt.Println("-----------hexdump---------")
-		//	fmt.Println(hex.Dump(b))
-		//}
-		if !p.isScreenMode && isNewScreen(b) {
-			p.isScreenMode = true
-			p.inVimState = false
-			logger.Debugf("Session %s In screen state: true", p.id)
-		}
-		if !p.isScreenMode && !p.inVimState && matchMark(b, vimMarks) {
-			p.inVimState = true
-			logger.Debugf("Session %s In vim state: true", p.id)
-			if terminalDebug {
-				fmt.Println("-----------vim hexdump---------")
-				fmt.Println(hex.Dump(b))
-			}
-		}
-	}
-	if p.isEditMode && IsEditExitMode(b) {
 		p.isEditMode = false
 		p.inVimState = false
 		p.isScreenMode = false
-		logger.Debugf("Session %s exit ( edit | vim | screen) mode", p.id)
+		return
+	}
+
+	p.isEditMode = true
+	if IsEditExitMode(b) && p.inVimState {
+		// Exiting an editor nested inside tmux restores the tmux alternate
+		// screen, so alternate may remain true here.
+		p.inVimState = false
+		logger.Debugf("Session %s exit editor mode", p.id)
+		return
+	}
+	if IsEditEnterMode(b) && isTerminalEditorCommand(p.command) {
+		p.inVimState = true
+		logger.Debugf("Session %s enter editor mode", p.id)
+		return
+	}
+	if isTerminalMultiplexerCommand(p.command) || isNewScreen(b) {
+		p.isScreenMode = true
+		p.inVimState = false
+		logger.Debugf("Session %s enter terminal multiplexer mode", p.id)
+		return
+	}
+	if !p.isScreenMode && !p.inVimState && matchMark(b, vimMarks) {
+		// Compatibility fallback for editors launched by shell wrappers that
+		// hide the executable name. It is only evaluated after VT confirms that
+		// the alternate screen is active.
+		p.inVimState = true
+		logger.Debugf("Session %s enter full-screen application mode", p.id)
 	}
 }
 
-func isTerminalMultiplexerCommand(command string) bool {
+func terminalCommandName(command string) string {
 	fields := strings.Fields(command)
 	for len(fields) > 0 {
 		field := strings.Trim(fields[0], "'\"")
@@ -541,9 +551,39 @@ func isTerminalMultiplexerCommand(command string) bool {
 		if index := strings.LastIndexByte(field, '/'); index >= 0 {
 			field = field[index+1:]
 		}
-		return field == "tmux" || field == "screen"
+		return field
 	}
-	return false
+	return ""
+}
+
+func isTerminalMultiplexerCommand(command string) bool {
+	switch terminalCommandName(command) {
+	case "tmux", "screen":
+		return true
+	default:
+		return false
+	}
+}
+
+func isTerminalEditorCommand(command string) bool {
+	switch terminalCommandName(command) {
+	case "vi", "view", "vim", "vimdiff", "nvim", "nano", "emacs",
+		"less", "more", "man", "top", "htop":
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Parser) consumeTerminalOutput(b []byte) {
+	if len(b) == 0 {
+		return
+	}
+	p.TerminalParser.FeedScreen(b)
+	p.updateTerminalMode(b)
+	if p.IsNeedParse() {
+		p.TerminalParser.ProcessOutput(b)
+	}
 }
 
 // splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
@@ -570,42 +610,28 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		}
 		return b
 	} else {
-		// vim 中的数据可能包含任意控制字符，保持原有优先级；退出 vim 后再恢复
-		// zmodem 检测。正常终端中则先识别 rz/sz，确保协议起始帧不会进入 VT。
-		if p.inVimState {
-			p.parseVimState(b)
-			if p.inVimState {
-				return b
-			}
+		// Editor repaint data may contain arbitrary control bytes. Continue to
+		// update TerminalVT, but don't interpret it as zmodem or command output.
+		if !p.IsNeedParse() {
+			p.consumeTerminalOutput(b)
+			return original
 		}
 		parseBytes := p.filterZmodemStart(b)
 		if p.zmodemParser.IsStartSession() {
-			if len(parseBytes) > 0 {
-				p.parseVimState(parseBytes)
-				if !p.inVimState {
-					p.TerminalParser.Feed(parseBytes)
-				}
-			}
+			p.consumeTerminalOutput(parseBytes)
 			logger.Infof("Zmodem start session %s", p.zmodemParser.Status())
 			return original
 		}
 		b = parseBytes
-		if len(b) == 0 {
-			return original
-		}
-		p.parseVimState(b)
-		if p.inVimState {
-			return original
-		}
 	}
-	p.TerminalParser.Feed(b)
+	p.consumeTerminalOutput(b)
 	return original
 }
 
 // ParseServerOutput 解析服务器输出
 func (p *Parser) ParseServerOutput(b []byte) []byte {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.outputLock.Lock()
+	defer p.outputLock.Unlock()
 	return p.splitCmdStream(b)
 }
 

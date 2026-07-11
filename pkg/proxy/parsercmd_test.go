@@ -58,7 +58,12 @@ func TestTmuxAlternateScreenStillFeedsTerminalParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	terminalParser := &TerminalParser{Terminal: terminal, width: 24, height: 4}
+	terminalParser := &TerminalParser{
+		Terminal: terminal,
+		state:    OutputState,
+		width:    24,
+		height:   4,
+	}
 	t.Cleanup(func() { _ = terminalParser.Close() })
 	parser := Parser{
 		TerminalParser: terminalParser,
@@ -66,7 +71,7 @@ func TestTmuxAlternateScreenStillFeedsTerminalParser(t *testing.T) {
 		command:        "tmux attach-session",
 	}
 
-	parser.splitCmdStream([]byte(
+	parser.ParseServerOutput([]byte(
 		"\x1b[?1049h" +
 			"\x1b[1;1Huser@tmux$ echo hi" +
 			"\x1b[2;1Htmux pane output" +
@@ -76,8 +81,113 @@ func TestTmuxAlternateScreenStillFeedsTerminalParser(t *testing.T) {
 	if parser.inVimState {
 		t.Fatal("tmux alternate screen was treated as vim")
 	}
+	if !parser.isScreenMode {
+		t.Fatal("tmux alternate screen was not recognized as a multiplexer")
+	}
 	if got := terminalParser.GetCursorRow(); got != "user@tmux$ echo hi" {
 		t.Fatalf("tmux data did not reach terminal parser: %q", got)
+	}
+	if terminalParser.srvOutputBuf.Len() == 0 {
+		t.Fatal("tmux output was not retained for command parsing")
+	}
+
+	terminalParser.resetSrvOutput()
+	parser.command = "echo still-parsed"
+	parser.ParseServerOutput([]byte("\x1b[2;1Hcommand output"))
+	if parser.inVimState || terminalParser.srvOutputBuf.Len() == 0 {
+		t.Fatal("command parsing did not continue inside tmux")
+	}
+}
+
+func TestVimUpdatesScreenWithoutParsingCommands(t *testing.T) {
+	terminal, err := terminalparser.New(
+		terminalparser.WithSize(40, 6),
+		terminalparser.WithMaxScrollback(0),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminalParser := &TerminalParser{
+		Terminal: terminal,
+		state:    OutputState,
+		cmd:      "vim notes.txt",
+		width:    40,
+		height:   6,
+	}
+	t.Cleanup(func() { _ = terminalParser.Close() })
+	parser := Parser{
+		TerminalParser: terminalParser,
+		zmodemParser:   zmodem.New(),
+		command:        "vim notes.txt",
+	}
+
+	frame := []byte("\x1b[?1049h\x1b[HVim buffer\x1b[2;1H-- INSERT --")
+	if forwarded := parser.ParseServerOutput(frame); !bytes.Equal(forwarded, frame) {
+		t.Fatalf("vim frame changed in transit: %x", forwarded)
+	}
+	if parser.IsNeedParse() {
+		t.Fatal("vim alternate screen did not suspend command parsing")
+	}
+	if got := terminalParser.GetCursorRow(); got != "-- INSERT --" {
+		t.Fatalf("vim frame did not update TerminalVT: %q", got)
+	}
+	if terminalParser.srvOutputBuf.Len() != 0 {
+		t.Fatalf("vim repaint entered command output buffer: %d", terminalParser.srvOutputBuf.Len())
+	}
+
+	parser.ParseUserInput([]byte("dd:w"))
+	if terminalParser.InputBuf.Len() != 0 {
+		t.Fatalf("vim keystrokes entered command input buffer: %q", terminalParser.InputBuf.String())
+	}
+
+	parser.ParseServerOutput([]byte("\x1b[?1049l"))
+	if !parser.IsNeedParse() {
+		t.Fatal("command parsing did not resume after leaving vim")
+	}
+}
+
+func TestTerminalCommandKinds(t *testing.T) {
+	tests := map[string]struct {
+		editor      bool
+		multiplexer bool
+	}{
+		"vim file":                      {editor: true},
+		"sudo /usr/bin/nvim file":       {editor: true},
+		"TERM=xterm-256color less file": {editor: true},
+		"tmux attach-session":           {multiplexer: true},
+		"sudo screen -x":                {multiplexer: true},
+		"echo vim":                      {},
+	}
+	for command, expected := range tests {
+		if got := isTerminalEditorCommand(command); got != expected.editor {
+			t.Errorf("isTerminalEditorCommand(%q) = %t", command, got)
+		}
+		if got := isTerminalMultiplexerCommand(command); got != expected.multiplexer {
+			t.Errorf("isTerminalMultiplexerCommand(%q) = %t", command, got)
+		}
+	}
+}
+
+func TestTerminalParserMetricsTrackCloseOnce(t *testing.T) {
+	terminal, err := terminalparser.New(terminalparser.WithMaxScrollback(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := GetTerminalParserMetrics().Active
+	activeTerminalParsers.Add(1)
+	parser := TerminalParser{Terminal: terminal, counted: true}
+
+	if got := GetTerminalParserMetrics().Active; got != before+1 {
+		t.Fatalf("active terminal parsers = %d, want %d", got, before+1)
+	}
+	if err := parser.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := parser.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := GetTerminalParserMetrics().Active; got != before {
+		t.Fatalf("active terminal parsers after close = %d, want %d", got, before)
 	}
 }
 

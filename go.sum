@@ -19,8 +19,8 @@ github.com/LeeEirc/httpsig v1.2.1 h1:GGmCc2Bug3KeCchlZHwrfyjyAnw+JlzMjKDobPypirs
 github.com/LeeEirc/httpsig v1.2.1/go.mod h1:aoLZLXCSNDgkzsH2sGLWn3hlVbF+Voe8fCArxLt9nWA=
 github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d h1:4qUSGc/34IALiDs2kBrjbCKfx7zvAt16K+gTRzNN8Fo=
 github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d/go.mod h1:TF2v0XZYyRcZfx4NmA/EEFRkdKZLsQd8YnlhGKl1KUA=
-github.com/LeeEirc/terminalparser v0.0.0-20260711035836-03b8cb1b4b90 h1:kbtb/9EOh02I8XF8/U/x2baVqHHLQzbaxZWnYdcqquw=
-github.com/LeeEirc/terminalparser v0.0.0-20260711035836-03b8cb1b4b90/go.mod h1:VjncA0Ny7vJLxV7zBC31nMvRqYtI6IbRHCty7QZwbQ8=
+github.com/LeeEirc/terminalparser v0.0.0-20260711100957-8badd682b48a h1:nNrem5uqy1WuPyirDvFAFBP0C9yXkR/3t3cfr0ggTfY=
+github.com/LeeEirc/terminalparser v0.0.0-20260711100957-8badd682b48a/go.mod h1:VjncA0Ny7vJLxV7zBC31nMvRqYtI6IbRHCty7QZwbQ8=
 github.com/RaveNoX/go-jsoncommentstrip v1.0.0/go.mod h1:78ihd09MekBnJnxpICcwzCMzGrKSKYe4AqU6PDYYpjk=
 github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible h1:8psS8a+wKfiLt1iVDX79F7Y6wUM49Lcha2FMXt4UM8g=
 github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
