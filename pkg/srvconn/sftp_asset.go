@@ -560,11 +560,24 @@ func (ad *AssetDir) checkExpired() {
 }
 
 func (ad *AssetDir) GetRealPath(sftpSess *SftpSession, path string) string {
-	realPath := filepath.Join(sftpSess.rootDirPath, strings.TrimPrefix(path, "/"))
-	if ad.isFromWebTerminal && path != "" && strings.HasPrefix(path, sftpSess.rootDirPath) {
-		return path
+	root := filepath.Clean(sftpSess.rootDirPath)
+	cleanPath := filepath.Clean("/" + path)
+	if ad.isFromWebTerminal && path != "" && isSubPath(root, cleanPath) {
+		return cleanPath
 	}
+	realPath := filepath.Join(root, strings.TrimPrefix(cleanPath, "/"))
 	return realPath
+}
+
+func isSubPath(base, target string) bool {
+	base = filepath.Clean(base)
+	target = filepath.Clean(target)
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return false
+	}
+	return rel == "." ||
+		(rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
@@ -594,6 +607,8 @@ func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSess
 		return nil, err
 	}
 	reqSession := conn.token.CreateSession(ad.opts.RemoteAddr, ad.opts.fromType, model.SFTPType)
+	// The WebTerminal SSH protocol token was reused by the web folder, so we now force the protocol to SFTP.
+	reqSession.Protocol = model.ProtocolSFTP
 	respSession, err1 := ad.jmsService.CreateSession(reqSession)
 	if err1 != nil {
 		logger.Errorf("Create sftp Session err: %s", err1.Error())

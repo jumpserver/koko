@@ -5,6 +5,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,11 +30,77 @@ const (
 	WebsocketErrorf   = "Websocket upgrade err: %s"
 )
 
+func normalizeHost(h string) string {
+	h = strings.TrimSpace(strings.ToLower(h))
+	host, _, err := net.SplitHostPort(h)
+	if err == nil {
+		return strings.Trim(host, "[]")
+	}
+	return strings.Trim(h, "[]")
+}
+
+func hostMatches(allowedHost, originHost string) bool {
+	allowedName := normalizeHost(allowedHost)
+	originName := normalizeHost(originHost)
+	if allowedName == "" || originName == "" {
+		return false
+	}
+	return allowedName == originName
+}
+
+func isInternalHost(host string) bool {
+	host = normalizeHost(host)
+	if host == "localhost" {
+		return true
+	}
+
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return false
+	}
+	return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast()
+}
+
+func domainsAllowOrigin(originHost, domains string) bool {
+	for _, domain := range strings.Split(domains, ",") {
+		domain = strings.TrimSpace(domain)
+		if domain == "" {
+			continue
+		}
+		if domain == "*" || hostMatches(domain, originHost) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	// 允许非浏览器，客户端访问
+	if len(origin) == 0 {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	originHost := normalizeHost(u.Host)
+	reqHost := normalizeHost(r.Host)
+	if hostMatches(originHost, reqHost) {
+		return true
+	}
+	if isInternalHost(originHost) {
+		return true
+	}
+
+	return domainsAllowOrigin(originHost, config.GetConf().DOMAINS)
+}
+
 var upGrader = websocket.Upgrader{
 	ReadBufferSize:  defaultBufferSize,
 	WriteBufferSize: defaultBufferSize,
 	Subprotocols:    []string{"JMS-KOKO"},
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	CheckOrigin:     checkOrigin,
 }
 
 func NewServer(jmsService *service.JMService) *Server {

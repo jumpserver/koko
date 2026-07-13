@@ -4,15 +4,9 @@ FROM jumpserver/koko:${VERSION}-ce
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
-        curl                          \
-        git                           \
-        git-lfs                       \
         iputils-ping                  \
-        openssh-client                \
         telnet                        \
         unzip                         \
-        vim                           \
-        wget                          \
         xz-utils"
 
 ARG APT_MIRROR=http://deb.debian.org

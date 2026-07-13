@@ -553,6 +553,11 @@ msgstr "Администратор %s прервал соединение"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
+msgid "Deployment permission denied"
+msgstr "Недостаточно прав для развертывания"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
 msgid "Authentication failed"
 msgstr "Ошибка аутентификации: неверное имя пользователя или пароль"
 

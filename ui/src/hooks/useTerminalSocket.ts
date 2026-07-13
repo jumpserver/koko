@@ -387,7 +387,8 @@ export const useTerminalSocket = () => {
       } catch (_e) {
         if (sentry.get_confirmed_session()) {
           sentry.get_confirmed_session()?.abort();
-          message.error('File transfer error, file transfer interrupted');
+          // message.error(t('File transfer error, file transfer interrupted'));
+          message.error(t('File transfer error, file transfer interrupted'));
         }
       }
     } else {
