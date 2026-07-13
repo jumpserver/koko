@@ -28,6 +28,7 @@ import (
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshcert"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -672,7 +673,14 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPort(asset.ProtocolPort(model.ProtocolSSH)))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientTimeout(timeout))
 	if account.IsSSHKey() {
-		if signer, err1 := gossh.ParsePrivateKey([]byte(account.Secret)); err1 == nil {
+		// sshcert.NewSigner returns a CertSigner when the secret
+		// blob carries an OpenSSH certificate whose key matches the
+		// embedded private key, so the downstream AuthMethods() will
+		// present the certificate instead of the bare public key.
+		// Blobs without a matching -cert-v01@openssh.com line fall
+		// back to the existing plain-key behaviour, keeping the
+		// change backwards-compatible with every existing deployment.
+		if signer, err1 := sshcert.NewSigner([]byte(account.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		} else {
 			logger.Errorf("Parse account %s private key failed: %s", account.Username, err1)
