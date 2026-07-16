@@ -26,16 +26,6 @@ const (
 	ChannelForwardedTCPIP     = "forwarded-tcpip"
 )
 
-var (
-	supportedMACs = []string{"hmac-sha2-256-etm@openssh.com",
-		"hmac-sha2-256", "hmac-sha1"}
-
-	supportedKexAlgos = []string{
-		"curve25519-sha256", "curve25519-sha256@libssh.org",
-		"ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
-	}
-)
-
 type Server struct {
 	Srv     *ssh.Server
 	Handler *handler.Server
@@ -77,7 +67,7 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 		HostSigners:      []ssh.Signer{singer},
 		MaxSessions:      int32(cf.SshMaxSessions),
 		ServerConfigCallback: func(ctx ssh.Context) *gossh.ServerConfig {
-			cfg := gossh.Config{MACs: supportedMACs, KeyExchanges: supportedKexAlgos}
+			cfg := DefaultSSHSrvConfig()
 			return &gossh.ServerConfig{Config: cfg}
 		},
 		Handler:                       sshHandler.SessionHandler,
@@ -115,4 +105,36 @@ type localForwardChannelData struct {
 
 	OriginAddr string
 	OriginPort uint32
+}
+
+func DefaultSSHSrvConfig() gossh.Config {
+	cfg := gossh.Config{}
+	cfg.SetDefaults()
+	macs := cfg.MACs
+	keyExchanges := cfg.KeyExchanges
+	insecureKeyExchangeMaps := map[string]struct{}{
+		gossh.InsecureKeyExchangeDH1SHA1:   {},
+		gossh.InsecureKeyExchangeDH14SHA1:  {},
+		gossh.InsecureKeyExchangeDHGEXSHA1: {},
+	}
+	insecureMacs := map[string]struct{}{
+		gossh.InsecureHMACSHA196: {},
+	}
+	filterMacs := make([]string, 0, len(macs))
+	for _, mac := range macs {
+		if _, ok := insecureMacs[mac]; ok {
+			continue
+		}
+		filterMacs = append(filterMacs, mac)
+	}
+	filterKeyExchanges := make([]string, 0, len(keyExchanges))
+	for _, key := range keyExchanges {
+		if _, ok := insecureKeyExchangeMaps[key]; ok {
+			continue
+		}
+		filterKeyExchanges = append(filterKeyExchanges, key)
+	}
+	cfg.MACs = filterMacs
+	cfg.KeyExchanges = filterKeyExchanges
+	return cfg
 }

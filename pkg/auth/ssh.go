@@ -221,6 +221,10 @@ const (
 	tokenPrefix = "JMS-"
 )
 
+func IsTokenLoginUsername(username string) bool {
+	return strings.HasPrefix(username, tokenPrefix)
+}
+
 const (
 	sshProtocolLen  = 3
 	withProtocolLen = 4
@@ -288,7 +292,7 @@ func parseDirectLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Direc
 }
 
 func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*DirectLoginAssetReq, bool) {
-	if strings.HasPrefix(ctx.User(), tokenPrefix) {
+	if IsTokenLoginUsername(ctx.User()) {
 		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
 		key := cache.CreateAddrCacheKey(ctx.RemoteAddr(), token)
 		if connectToken := cache.TokenCacheInstance.Get(key); connectToken != nil {

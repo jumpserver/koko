@@ -270,7 +270,7 @@ msgstr "Dica: mude o idioma pelo ID"
 #: pkg/handler/dispatch.go:154
 msgid ""
 "Tips: To set a default language, go to Personal Settings → Preferences on Web"
-msgstr "Dica: Para definir o idioma padrão, acesse "Configurações pessoais → Preferências" na web."
+msgstr "Dica: Para definir o idioma padrão, acesse \"Configurações pessoais → Preferências\" na web."
 
 #. lang.T
 #. lang.T
@@ -582,6 +582,11 @@ msgstr "Conexão terminada pelo administrador %s"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
+msgid "Deployment permission denied"
+msgstr "Permissão de implantação insuficiente"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
 msgid "Authentication failed"
 msgstr "Falha na autenticação (nome de usuário ou senha incorretos)"
 

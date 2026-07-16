@@ -58,6 +58,8 @@ type Config struct {
 
 	EnableReversePortForward bool `mapstructure:"ENABLE_REVERSE_PORT_FORWARD"`
 
+	KokoPrivileged bool `mapstructure:"KOKO_PRIVILEGED"`
+
 	HiddenFields []string `mapstructure:"HIDDEN_FIELDS"`
 
 	// 仅控制是否缓存 sftp 的 token 连接
@@ -71,6 +73,9 @@ type Config struct {
 
 	// Force both public key and password authentication (two-factor SSH login)
 	ForceMultiAuth bool `mapstructure:"FORCE_MULTI_AUTH"`
+
+	// DOMAINS=* "demo.example.com:443,172.17.200.191:80"
+	DOMAINS string `mapstructure:"DOMAINS"`
 
 	RootPath          string
 	DataFolderPath    string
@@ -165,6 +170,7 @@ func getDefaultConfig() Config {
 
 		EnableLocalPortForward: false,
 		EnableVscodeSupport:    false,
+		KokoPrivileged:         true,
 		DisableInputAsCommand:  true,
 	}
 

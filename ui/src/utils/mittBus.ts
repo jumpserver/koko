@@ -1,4 +1,3 @@
-import type { Ref } from 'vue';
 import type { UploadFileInfo } from 'naive-ui';
 
 import mitt from 'mitt';
@@ -21,15 +20,14 @@ interface Event {
   'set-theme': { themeName: string };
   'file-manage': { path: string; type: ManageTypes; new_name?: string };
   'file-upload': {
-    uploadFileList: Ref<Array<UploadFileInfo>>;
+    fileInfo: UploadFileInfo;
     onFinish: () => void;
     onError: () => void;
     onProgress: (e: { percent: number }) => void;
-    loadingMessage?: any;
   };
   'download-file': { path: string; is_dir: boolean; size: string };
   'stop-upload': { fileInfo: UploadFileInfo };
-  'upload-stopped': { fileInfo: UploadFileInfo };
+  'upload-stopped': { fileId: string };
   'terminal-search': { keyword: string; type?: string };
   'share-user': { type: string; query: string };
   'sync-theme': { type: string; data: any };

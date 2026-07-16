@@ -2339,7 +2339,6 @@ var elFinder = function(elm, opts, bootCallback) {
 			error = function(xhr, status) {
 				var error, data, 
 					d = self.options.debug;
-				
 				switch (status) {
 					case 'abort':
 						error = xhr.quiet ? '' : ['errConnect', 'errAbort'];
@@ -2366,7 +2365,9 @@ var elFinder = function(elm, opts, bootCallback) {
 							} catch(e) {}
 						}
 						if (! error) {
-							if (xhr.status == 403) {
+							if (xhr.status == 413 && cmd === 'upload') {
+								error = 'errUploadTotalSize';
+							} else if (xhr.status == 403) {
 								error = ['errConnect', 'errAccess', 'HTTP error ' + xhr.status];
 							} else if (xhr.status == 404) {
 								error = ['errConnect', 'errNotFound', 'HTTP error ' + xhr.status];
@@ -2401,7 +2402,7 @@ var elFinder = function(elm, opts, bootCallback) {
 				// Set currrent request command name
 				self.currentReqCmd = cmd;
 				
-				if (response.debug && (!d || d !== 'all')) {
+				if (response && response.debug && (!d || d !== 'all')) {
 					if (!d) {
 						d = self.options.debug = {};
 					}
@@ -6553,7 +6554,9 @@ elFinder.prototype = {
 				var status = xhr.status, res, curr = 0, error = '', errData, errObj;
 				
 				if (status >= 400) {
-					if (status > 500) {
+					if (status == 413) {
+						error = 'errUploadTotalSize';
+					} else if (status > 500) {
 						error = 'errResponse';
 					} else {
 						error = ['errResponse', 'errServerError'];
@@ -6565,9 +6568,8 @@ elFinder.prototype = {
 				}
 				
 				if (error) {
-					node.trigger('uploadabort');
-					getFile(files || {}).done(function(file) {
-						return dfrd.reject(file._cid? null : error);
+					return getFile(files || {}).done(function(file) {
+						node.trigger('uploadabort', file._cid? null : error);
 					});
 				}
 				

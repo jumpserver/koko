@@ -563,6 +563,11 @@ msgstr "%s 管理員中斷連接"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
+msgid "Deployment permission denied"
+msgstr "部署權限不足"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
 msgid "Authentication failed"
 msgstr "認證失敗（使用者名稱或密碼錯誤）"
 

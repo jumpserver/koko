@@ -28,6 +28,7 @@ type sqlOption struct {
 
 	AuthSource        string
 	ConnectionOptions string
+	ProxyURL          string
 
 	DataMaskingRules []model.DataMaskingRule
 }
@@ -128,6 +129,12 @@ func SqlAuthSource(authSource string) SqlOption {
 func SqlConnectionOptions(options string) SqlOption {
 	return func(args *sqlOption) {
 		args.ConnectionOptions = options
+	}
+}
+
+func SqlProxyURL(proxyURL string) SqlOption {
+	return func(args *sqlOption) {
+		args.ProxyURL = proxyURL
 	}
 }
 

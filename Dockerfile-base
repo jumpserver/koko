@@ -1,4 +1,4 @@
-FROM golang:1.24-trixie AS stage-go-build
+FROM golang:1.26.3-trixie AS stage-go-build
 
 FROM node:20-trixie
 COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
@@ -15,28 +15,26 @@ RUN set -ex \
 
 WORKDIR /opt
 
-ARG HELM_VERSION=v3.17.4
-ARG KUBECTL_VERSION=v1.32.9
-ARG CHECK_VERSION=v1.0.5
-ARG USQL_VERSION=v0.1.9
+ARG USQL_VERSION=v0.1.13
 
+ARG K8S_BUNDLE_VERSION=v0.0.1
 
 RUN set -ex \
     && mkdir -p /opt/koko/bin \
-    && wget -O kubectl.tar.gz https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-linux-${TARGETARCH}.tar.gz \
-    && tar -xf kubectl.tar.gz --strip-components=3 -C /opt/koko/bin/ kubernetes/client/bin/kubectl \
-    && mv /opt/koko/bin/kubectl /opt/koko/bin/rawkubectl \
-    && wget https://get.helm.sh/helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz \
-    && tar -xf helm-${HELM_VERSION}-linux-${TARGETARCH}.tar.gz --strip-components=1 -C /opt/koko/bin/ linux-${TARGETARCH}/helm \
-    && mv /opt/koko/bin/helm /opt/koko/bin/rawhelm \
-    && wget https://github.com/jumpserver-dev/healthcheck/releases/download/${CHECK_VERSION}/check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz \
-    && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ check \
+    && wget https://github.com/jumpserver-dev/k8s-bundle/releases/download/${K8S_BUNDLE_VERSION}/k8s-bundle_${TARGETARCH}.deb \
+    && dpkg -i k8s-bundle_${TARGETARCH}.deb \
+    && cp /usr/local/bin/kubectl /opt/koko/bin/kubectl \
+    && cp /usr/local/bin/helm /opt/koko/bin/helm \
+    && wget https://github.com/jumpserver-dev/healthcheck/releases/latest/download/check_linux_${TARGETARCH}.deb \
+    && dpkg -i check_linux_${TARGETARCH}.deb \
+    && cp /usr/local/bin/check /opt/koko/bin/ \
+    && rm -f check_linux_${TARGETARCH}.deb \
     && wget https://github.com/jumpserver-dev/usql/releases/download/${USQL_VERSION}/usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf usql-${USQL_VERSION}-linux-${TARGETARCH}.tar.gz -C /opt/koko/bin/ \
     && wget -O /opt/koko/.kubectl_aliases https://github.com/ahmetb/kubectl-aliases/raw/master/.kubectl_aliases \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
-    && rm -f *.tar.gz
+    && rm -f *.tar.gz *.tar.bz2
 
 WORKDIR /opt/koko
 
@@ -81,5 +79,3 @@ ENV GO111MODULE=on
 COPY go.mod go.sum ./
 
 RUN go mod download -x
-
-

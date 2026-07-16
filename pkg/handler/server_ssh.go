@@ -36,7 +36,7 @@ const ctxID = "ctxID"
 func (s *Server) PasswordAuth(ctx ssh.Context, password string) error {
 	ctx.SetValue(ctxID, ctx.SessionID())
 	tConfig := s.GetTerminalConfig()
-	if !tConfig.PasswordAuth {
+	if !tConfig.PasswordAuth && !auth.IsTokenLoginUsername(ctx.User()) {
 		logger.Info("Core API disable password auth")
 		return errors.New("password auth disabled")
 	}
@@ -98,13 +98,18 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 	reqID := common.UUID()
 	logger.Infof("SFTP request %s: Handler start", reqID)
 	req := sftp.NewRequestServer(sess, handlers)
-	if err := req.Serve(); err == io.EOF {
+	serveErr := req.Serve()
+	if errors.Is(serveErr, io.EOF) {
 		logger.Debugf("SFTP request %s: Exited session.", reqID)
-	} else if err != nil {
-		logger.Errorf("SFTP request %s: Server completed with error %s", reqID, err)
+	} else if serveErr != nil {
+		logger.Errorf("SFTP request %s: Server completed with error %s", reqID, serveErr)
 	}
-	_ = req.Close()
 	sftpHandler.Close()
+	if serveErr != nil && !errors.Is(serveErr, io.EOF) {
+		if err := sess.Exit(1); err != nil {
+			logger.Errorf("SFTP request %s: Send exit status failed: %s", reqID, err)
+		}
+	}
 	logger.Infof("SFTP request %s: Handler exit.", reqID)
 }
 

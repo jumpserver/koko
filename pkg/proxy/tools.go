@@ -1,10 +1,13 @@
 package proxy
 
 import (
+	"errors"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 const (
@@ -24,6 +27,9 @@ func (s *Server) ConvertErrorToReadableMsg(e error) string {
 	}
 	errMsg := e.Error()
 	lang := s.connOpts.getLang()
+	if errors.Is(e, srvconn.ErrK8sNoPrivileged) {
+		return lang.T("Deployment permission denied")
+	}
 	if strings.Contains(errMsg, UnAuth) || strings.Contains(errMsg, LoginFailed) {
 		return lang.T("Authentication failed")
 	}

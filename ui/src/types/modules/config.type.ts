@@ -34,6 +34,7 @@ export interface SettingConfig {
   ANNOUNCEMENT_ENABLED?: boolean;
   INTERFACE?: Interface;
   SECURITY_SESSION_SHARE?: boolean;
+  VENDOR?: string;
 }
 
 export interface ITerminalProps {
