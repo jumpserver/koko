@@ -20,8 +20,8 @@
     <script type="text/javascript" charset="utf-8">
         var urlParams = new URLSearchParams(window.location.search);
         var scheme = document.location.protocol == "https:" ? "wss" : "ws";
-        var port = document.location.port ? ":" + document.location.port : "";
-        var baseWsUrl = scheme + "://" + document.location.hostname + port + "/koko/ws/elfinder/?"
+        var kokoBaseUrl = document.location.pathname.split('/koko/')[0] + '/koko';
+        var baseWsUrl = scheme + "://" + document.location.host + kokoBaseUrl + "/ws/elfinder/?"
         var requireParams = new URLSearchParams();
         var targetId = {{ .ID }};
         requireParams.append('type', "elfinder");
@@ -112,7 +112,7 @@
         if (tokenId === null || tokenId === undefined || tokenId === "") {
             toolbar.push(['search'])
         }
-        var url = '/koko/elfinder/connector/'+ targetId + '/';
+        var url = kokoBaseUrl + '/elfinder/connector/'+ targetId + '/';
         function initElfinder(sid) {
             var elf;
             var opts = {
@@ -148,7 +148,7 @@
                 rememberLastDir: false,
                 placesFirst: false,
                 reloadClearHistory: true,
-                soundPath: '/koko/static/plugins/elfinder/sounds/',
+                soundPath: kokoBaseUrl + '/static/plugins/elfinder/sounds/',
 	    	};
 	    	var start = function(lng) {
 	    		$(function() {
@@ -219,7 +219,7 @@
                 }
                 if (lng !== 'en') {
         		    $.ajax({
-        		    	url : '/koko/static/plugins/elfinder/i18n'+'/elfinder.'+lng+'.js',
+                        url : kokoBaseUrl + '/static/plugins/elfinder/i18n'+'/elfinder.'+lng+'.js',
         		    	cache : true,
         		    	dataType : 'script'
         		    })
