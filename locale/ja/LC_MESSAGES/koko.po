@@ -600,3 +600,13 @@ msgstr "ネットワーク不通(ルーティング不通)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "ネットワーク不通（ネットワーク不可）"
+
+#. lang.T
+#: pkg/proxy/switch.go:418
+msgid "Session paused by %s"
+msgstr "セッションは %s によって一時停止されました"
+
+#. lang.T
+#: pkg/proxy/switch.go:420
+msgid "Session resumed by %s"
+msgstr "セッションは %s によって再開されました"

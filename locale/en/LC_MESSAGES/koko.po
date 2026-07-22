@@ -584,3 +584,13 @@ msgstr ""
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr ""
+
+#. lang.T
+#: pkg/proxy/switch.go:418
+msgid "Session paused by %s"
+msgstr ""
+
+#. lang.T
+#: pkg/proxy/switch.go:420
+msgid "Session resumed by %s"
+msgstr ""

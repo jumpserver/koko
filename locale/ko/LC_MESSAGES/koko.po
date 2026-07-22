@@ -604,3 +604,13 @@ msgstr "네트워크가 다운되었습니다(라우팅이 다운되었습니다
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "네트워크 다운(네트워크에 접근할 수 없음)"
+
+#. lang.T
+#: pkg/proxy/switch.go:418
+msgid "Session paused by %s"
+msgstr "%s 님이 세션을 일시 중지했습니다"
+
+#. lang.T
+#: pkg/proxy/switch.go:420
+msgid "Session resumed by %s"
+msgstr "%s 님이 세션을 재개했습니다"

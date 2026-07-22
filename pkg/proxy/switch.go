@@ -396,12 +396,42 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			return
 		case notifyMsg := <-s.notifyMsgChan:
 			logger.Infof("Session[%s] notify event: %s", s.ID, notifyMsg.Event)
-			room.Broadcast(notifyMsg)
+			switch notifyMsg.Event {
+			case exchange.PauseEvent, exchange.ResumeEvent:
+				s.sessionPauseOrResume(notifyMsg.Event, room, replayRecorder, srvConn)
+			default:
+				room.Broadcast(notifyMsg)
+			}
 			continue
 		}
 		lastActiveTime = time.Now()
 	}
 }
+
+func (s *SwitchSession) sessionPauseOrResume(event string, room *exchange.Room, replayRecorder *ReplyRecorder, srvConn srvconn.ServerConnection) {
+	adminUser := s.loadOperator()
+	lang := s.p.connOpts.getLang()
+
+	var text string
+	switch event {
+	case exchange.PauseEvent:
+		text = fmt.Sprintf(lang.T("Session paused by %s"), adminUser)
+	case exchange.ResumeEvent:
+		text = fmt.Sprintf(lang.T("Session resumed by %s"), adminUser)
+		if _, err := srvConn.Write([]byte("\n")); err != nil {
+			logger.Errorf("Session[%s] srvConn write err: %s", s.ID, err)
+		}
+	default:
+		return
+	}
+	msg := utils.WrapperWarn(text)
+	replayRecorder.Record([]byte(msg))
+	room.Broadcast(&exchange.RoomMessage{
+		Event: exchange.DataEvent,
+		Body:  []byte("\n\r" + msg),
+	})
+}
+
 func (s *SwitchSession) disconnection(room *exchange.Room, parser *Parser, replayRecorder *ReplyRecorder, msg string) {
 	msg = utils.WrapperWarn(msg)
 	replayRecorder.Record([]byte(msg))

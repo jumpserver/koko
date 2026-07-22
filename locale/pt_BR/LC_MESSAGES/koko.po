@@ -604,3 +604,13 @@ msgstr "Rede indisponível (roteamento indisponível)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "Rede indisponível (rede inacessível)"
+
+#. lang.T
+#: pkg/proxy/switch.go:418
+msgid "Session paused by %s"
+msgstr "Sessão pausada por %s"
+
+#. lang.T
+#: pkg/proxy/switch.go:420
+msgid "Session resumed by %s"
+msgstr "Sessão retomada por %s"

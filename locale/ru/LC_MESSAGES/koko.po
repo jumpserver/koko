@@ -575,3 +575,13 @@ msgstr "Нет соединения (маршрут недоступен)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "Нет соединения (сеть недоступна)"
+
+#. lang.T
+#: pkg/proxy/switch.go:418
+msgid "Session paused by %s"
+msgstr "Сессия приостановлена %s"
+
+#. lang.T
+#: pkg/proxy/switch.go:420
+msgid "Session resumed by %s"
+msgstr "Сессия возобновлена %s"
