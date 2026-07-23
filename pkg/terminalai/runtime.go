@@ -19,6 +19,12 @@ const (
 	defaultApprovalThreshold = 2
 	defaultExecutionTimeout  = 5 * time.Minute
 	profileTimeout           = 30 * time.Second
+	maxDecisionText          = 64 * 1024
+	maxPlanSummary           = 16 * 1024
+	maxStepTitle             = 512
+	maxStepObjective         = 4 * 1024
+	maxProposalExplanation   = 8 * 1024
+	maxReviewSummary         = 16 * 1024
 )
 
 type pendingApproval struct {
@@ -237,6 +243,9 @@ func (r *Runtime) finishProfile(profile AssetProfile) {
 	if profile.CommandLanguage == "" {
 		profile.CommandLanguage = r.profile.CommandLanguage
 	}
+	if profile.PlatformFamily == "" {
+		profile.PlatformFamily = r.profile.PlatformFamily
+	}
 	if profile.SessionContext.Protocol == "" {
 		profile.SessionContext = r.profile.SessionContext
 	}
@@ -332,13 +341,13 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		r.emitError(err)
 		return
 	}
+	if err := validateDecision(decision); err != nil {
+		r.emitError(err)
+		return
+	}
 	if decision.Kind == "answer" {
 		r.emitText(decision.Answer, "final")
 		r.appendAssistantHistory(decision.Answer)
-		return
-	}
-	if decision.Kind != "plan" || len(decision.Steps) == 0 || len(decision.Steps) > 20 {
-		r.emitError(fmt.Errorf("model returned an invalid plan"))
 		return
 	}
 	planID := runtimeID("plan")
@@ -442,6 +451,10 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			r.emitError(reviewErr)
 			return
 		}
+		if err = validateStepReview(review); err != nil {
+			r.emitError(err)
+			return
+		}
 		status := "completed"
 		if review.Outcome != "completed" {
 			status = "failed"
@@ -477,6 +490,10 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		return callErr
 	}); err != nil {
 		r.emitError(err)
+		return
+	}
+	if len(summary) == 0 || len(summary) > maxDecisionText {
+		r.emitError(fmt.Errorf("model returned an invalid summary"))
 		return
 	}
 	r.emitText(summary, "final")
@@ -565,15 +582,16 @@ func (r *Runtime) authorize(
 		"step": index + 1, "total": total, "command": proposal.Command,
 		"rationale": proposal.Rationale, "riskLevel": proposal.RiskLevel,
 		"riskReason": proposal.RiskReason, "execution": proposal.Execution,
-		"executionReason":    proposal.ExecutionCause,
-		"backgroundEligible": proposal.BackgroundEligible,
-		"approvalThreshold":  threshold, "executionMode": mode,
+		"executionReason":        proposal.ExecutionCause,
+		"backgroundEligible":     proposal.BackgroundEligible,
+		"policyApprovalRequired": proposal.ApprovalRequired,
+		"approvalThreshold":      threshold, "executionMode": mode,
 	}
 	if aclDecision.Action != "" && aclDecision.Action != "Unknown" {
 		data["commandACL"] = aclDecision
 		proposal.CommandACL = &aclDecision
 	}
-	if proposal.RiskLevel < threshold && !forceApproval {
+	if !requiresRiskApproval(proposal, threshold, forceApproval) {
 		data["approvalRequired"] = false
 		data["state"] = "auto_approved"
 		r.emitData("data-command", data, "process")
@@ -616,6 +634,15 @@ func (r *Runtime) authorize(
 		})
 		return pending.proposal, nil
 	}
+}
+
+func requiresRiskApproval(
+	proposal CommandProposal,
+	threshold int,
+	forceApproval bool,
+) bool {
+	return proposal.ApprovalRequired || forceApproval ||
+		proposal.RiskLevel >= threshold
 }
 
 func (r *Runtime) resolveApproval(decision approvalDecision) error {
@@ -927,7 +954,7 @@ func (r *Runtime) appendAssistantHistory(value string) {
 func (r *Runtime) trimHistoryLocked() {
 	total := 0
 	index := len(r.history)
-	for index > 0 && total < 96*1024 {
+	for index > 0 && total < maxModelHistory {
 		index--
 		total += len(r.history[index])
 	}
@@ -991,6 +1018,45 @@ func validateProposal(proposal *CommandProposal) error {
 	}
 	if !validExecution(proposal.Execution) {
 		return fmt.Errorf("model generated an invalid execution mode")
+	}
+	if len(proposal.Rationale) > maxProposalExplanation ||
+		len(proposal.RiskReason) > maxProposalExplanation ||
+		len(proposal.ExecutionCause) > maxProposalExplanation {
+		return fmt.Errorf("model generated oversized command metadata")
+	}
+	return nil
+}
+
+func validateDecision(decision Decision) error {
+	switch decision.Kind {
+	case "answer":
+		if len(decision.Answer) == 0 || len(decision.Answer) > maxDecisionText {
+			return fmt.Errorf("model returned an invalid answer")
+		}
+	case "plan":
+		if len(decision.Summary) > maxPlanSummary ||
+			len(decision.Steps) == 0 || len(decision.Steps) > 20 {
+			return fmt.Errorf("model returned an invalid plan")
+		}
+		for _, step := range decision.Steps {
+			if len(step.Title) == 0 || len(step.Title) > maxStepTitle ||
+				len(step.Objective) == 0 || len(step.Objective) > maxStepObjective {
+				return fmt.Errorf("model returned an invalid plan step")
+			}
+		}
+	default:
+		return fmt.Errorf("model returned an invalid decision")
+	}
+	return nil
+}
+
+func validateStepReview(review StepReview) error {
+	if review.Outcome != "completed" && review.Outcome != "error" {
+		return fmt.Errorf("model returned an invalid step review")
+	}
+	if len(review.Summary) > maxReviewSummary ||
+		len(review.ErrorReason) > maxReviewSummary {
+		return fmt.Errorf("model returned an oversized step review")
 	}
 	return nil
 }

@@ -15,6 +15,7 @@ var profileCommands = []string{
 
 type AssetProfile struct {
 	Adapter           string         `json:"adapter,omitempty"`
+	PlatformFamily    string         `json:"platformFamily,omitempty"`
 	CommandLanguage   string         `json:"commandLanguage,omitempty"`
 	SessionContext    SessionContext `json:"sessionContext,omitempty"`
 	OSName            string         `json:"osName"`

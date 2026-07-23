@@ -26,6 +26,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/terminalai"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -359,21 +360,9 @@ func (s *Server) SupportsBackgroundExecution() bool {
 	if s.suFromAccount != nil {
 		return false
 	}
-	protocol := s.connOpts.authInfo.Protocol
-	if protocol == srvconn.ProtocolMySQL {
-		return true
-	}
-	if protocol != srvconn.ProtocolSSH {
-		return false
-	}
-	platform := s.connOpts.authInfo.Platform
-	platformType := strings.TrimSpace(platform.Type.Value)
-	if platformType != "" {
-		return strings.EqualFold(platformType, linuxPlatform) ||
-			strings.EqualFold(platformType, "unix")
-	}
-	return strings.EqualFold(platform.BaseOs, "linux") ||
-		strings.EqualFold(platform.BaseOs, "unix")
+	return terminalai.SupportsBackground(
+		terminalai.NewSessionContext(s.connOpts.authInfo),
+	)
 }
 
 func (s *Server) CheckBackgroundExecution() error {

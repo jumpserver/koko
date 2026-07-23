@@ -6,12 +6,14 @@ import (
 )
 
 type SessionContext struct {
-	Protocol     string `json:"protocol"`
-	PlatformType string `json:"platformType,omitempty"`
-	PlatformName string `json:"platformName,omitempty"`
-	BaseOS       string `json:"baseOS,omitempty"`
-	AssetName    string `json:"assetName,omitempty"`
-	Database     string `json:"database,omitempty"`
+	Protocol         string `json:"protocol"`
+	AssetName        string `json:"assetName,omitempty"`
+	PlatformCategory string `json:"platformCategory,omitempty"`
+	PlatformType     string `json:"platformType,omitempty"`
+	PlatformName     string `json:"platformName,omitempty"`
+	BaseOS           string `json:"baseOS,omitempty"`
+	Charset          string `json:"charset,omitempty"`
+	Database         string `json:"database,omitempty"`
 }
 
 type Adapter interface {
@@ -21,42 +23,41 @@ type Adapter interface {
 	PrepareProposal(*CommandProposal) error
 }
 
-type adapterFactory func(SessionContext) Adapter
-
-var adapterFactories = map[string]adapterFactory{
-	"ssh": func(context SessionContext) Adapter {
-		if isShellContext(context) {
-			return &shellAdapter{context: context}
-		}
-		return &terminalAdapter{context: context}
-	},
-	"mysql": func(context SessionContext) Adapter {
-		return &mysqlAdapter{context: context}
-	},
-}
-
 func ResolveAdapter(context SessionContext) Adapter {
-	context.Protocol = strings.ToLower(strings.TrimSpace(context.Protocol))
-	if factory, ok := adapterFactories[context.Protocol]; ok {
-		return factory(context)
+	context = normalizeSessionContext(context)
+	if registration, ok := lookupProtocol(context.Protocol); ok {
+		if adapter := registration.NewAdapter(context); adapter != nil {
+			return adapter
+		}
 	}
 	return &terminalAdapter{context: context}
 }
 
 type terminalAdapter struct {
-	context SessionContext
+	context         SessionContext
+	name            string
+	platformFamily  string
+	commandLanguage string
+	sql             bool
 }
 
 func (a *terminalAdapter) Name() string {
+	if a.name != "" {
+		return a.name
+	}
 	return "terminal"
 }
 
 func (a *terminalAdapter) Profile() AssetProfile {
-	commandLanguage := "terminal input"
-	if isShellContext(a.context) {
-		commandLanguage = "POSIX shell command through the active PTY"
+	commandLanguage := a.commandLanguage
+	if commandLanguage == "" {
+		commandLanguage = resolvePlatformCommand(a.context).Language
 	}
-	return newAdapterProfile(a.Name(), commandLanguage, a.context)
+	profile := newAdapterProfile(a.Name(), commandLanguage, a.context)
+	if a.platformFamily != "" {
+		profile.PlatformFamily = a.platformFamily
+	}
+	return profile
 }
 
 func (a *terminalAdapter) SupportsBackground() bool {
@@ -67,7 +68,28 @@ func (a *terminalAdapter) PrepareProposal(proposal *CommandProposal) error {
 	if isInteractiveCommand(proposal.Command) {
 		return fmt.Errorf("model generated an interactive or unbounded command")
 	}
-	if isShellContext(a.context) {
+	if a.sql {
+		analysis, err := analyzeSQL(proposal.Command)
+		if err != nil {
+			return err
+		}
+		if analysis.multi {
+			return fmt.Errorf("model generated multiple SQL statements")
+		}
+		if analysis.incomplete {
+			return fmt.Errorf("model generated incomplete SQL")
+		}
+		proposal.RiskLevel, proposal.RiskReason = classifySQLRisk(
+			analysis, proposal.RiskLevel, proposal.RiskReason,
+		)
+		proposal.ApprovalRequired = analysis.RequiresApproval()
+		if proposal.ApprovalRequired {
+			proposal.RiskLevel, proposal.RiskReason = raiseRisk(
+				proposal.RiskLevel, proposal.RiskReason, 2,
+				"backend detected potentially data-changing SQL",
+			)
+		}
+	} else if isShellContext(a.context) {
 		proposal.RiskLevel, proposal.RiskReason = classifyRisk(
 			proposal.Command, proposal.RiskLevel, proposal.RiskReason,
 		)
@@ -81,13 +103,7 @@ func (a *terminalAdapter) PrepareProposal(proposal *CommandProposal) error {
 }
 
 func isShellContext(context SessionContext) bool {
-	platformType := strings.TrimSpace(context.PlatformType)
-	if platformType != "" {
-		return strings.EqualFold(platformType, "linux") ||
-			strings.EqualFold(platformType, "unix")
-	}
-	return strings.EqualFold(context.BaseOS, "linux") ||
-		strings.EqualFold(context.BaseOS, "unix")
+	return resolvePlatformCommand(context).Shell
 }
 
 type shellAdapter struct {
@@ -126,7 +142,9 @@ func (a *mysqlAdapter) Name() string {
 }
 
 func (a *mysqlAdapter) Profile() AssetProfile {
-	return newAdapterProfile(a.Name(), "single MySQL statement", a.context)
+	profile := newAdapterProfile(a.Name(), "single MySQL statement", a.context)
+	profile.PlatformFamily = "mysql"
+	return profile
 }
 
 func (a *mysqlAdapter) SupportsBackground() bool {
@@ -138,9 +156,22 @@ func (a *mysqlAdapter) PrepareProposal(proposal *CommandProposal) error {
 	if err != nil {
 		return err
 	}
+	if analysis.multi {
+		return fmt.Errorf("model generated multiple SQL statements")
+	}
+	if analysis.incomplete {
+		return fmt.Errorf("model generated incomplete SQL")
+	}
 	proposal.RiskLevel, proposal.RiskReason = classifySQLRisk(
 		analysis, proposal.RiskLevel, proposal.RiskReason,
 	)
+	proposal.ApprovalRequired = analysis.RequiresApproval()
+	if proposal.ApprovalRequired {
+		proposal.RiskLevel, proposal.RiskReason = raiseRisk(
+			proposal.RiskLevel, proposal.RiskReason, 2,
+			"backend detected potentially data-changing SQL",
+		)
+	}
 	proposal.BackgroundEligible = analysis.BackgroundEligible()
 	if proposal.Execution == ExecutionBackground && !proposal.BackgroundEligible {
 		proposal.Execution = ExecutionPTY
@@ -150,11 +181,25 @@ func (a *mysqlAdapter) PrepareProposal(proposal *CommandProposal) error {
 }
 
 func newAdapterProfile(name, commandLanguage string, context SessionContext) AssetProfile {
+	platform := resolvePlatformCommand(context)
 	return AssetProfile{
 		Adapter:         name,
 		CommandLanguage: commandLanguage,
+		PlatformFamily:  platform.Family,
 		SessionContext:  context,
 	}
+}
+
+func normalizeSessionContext(context SessionContext) SessionContext {
+	context.Protocol = strings.ToLower(strings.TrimSpace(context.Protocol))
+	context.AssetName = strings.TrimSpace(context.AssetName)
+	context.PlatformCategory = strings.TrimSpace(context.PlatformCategory)
+	context.PlatformType = strings.TrimSpace(context.PlatformType)
+	context.PlatformName = strings.TrimSpace(context.PlatformName)
+	context.BaseOS = strings.TrimSpace(context.BaseOS)
+	context.Charset = strings.TrimSpace(context.Charset)
+	context.Database = strings.TrimSpace(context.Database)
+	return context
 }
 
 func normalizeRisk(level int, reason string) (int, string) {

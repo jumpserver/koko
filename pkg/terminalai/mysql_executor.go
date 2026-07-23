@@ -25,7 +25,8 @@ const (
 	maxMySQLOutput = 100 * 1024
 )
 
-type MySQLConfig struct {
+type DatabaseConfig struct {
+	Protocol         string
 	Host             string
 	Port             int
 	ServerName       string
@@ -39,6 +40,8 @@ type MySQLConfig struct {
 	AllowInvalidCert bool
 	DataMaskingRules []model.DataMaskingRule
 }
+
+type MySQLConfig = DatabaseConfig
 
 type MySQLExecutor struct {
 	db            *sql.DB

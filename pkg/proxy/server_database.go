@@ -20,6 +20,7 @@ var usqlProtocolAlias = map[string]string{
 var errUnknownProtocol = errors.New("unknown protocol")
 
 type DatabaseConnectionInfo struct {
+	Protocol         string
 	Host             string
 	Port             int
 	ServerName       string
@@ -35,19 +36,22 @@ type DatabaseConnectionInfo struct {
 }
 
 func (s *Server) notifyDatabaseConnection(localTunnelAddr *net.TCPAddr) {
-	if s.OnDatabaseConnection == nil ||
-		s.connOpts.authInfo.Protocol != srvconn.ProtocolMySQL {
+	if s.OnDatabaseConnection == nil || !s.SupportsBackgroundExecution() {
+		return
+	}
+	protocol := s.connOpts.authInfo.Protocol
+	if _, ok := usqlProtocolAlias[protocol]; !ok {
 		return
 	}
 	asset := s.connOpts.authInfo.Asset
 	host := asset.Address
-	port := asset.ProtocolPort(srvconn.ProtocolMySQL)
+	port := asset.ProtocolPort(protocol)
 	if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
 	info := DatabaseConnectionInfo{
-		Host: host, Port: port, ServerName: asset.Address,
+		Protocol: protocol, Host: host, Port: port, ServerName: asset.Address,
 		Username: s.account.Username, Password: s.account.Secret,
 		Database: asset.SpecInfo.DBName,
 		UseSSL:   asset.SpecInfo.UseSSL, CACert: asset.SecretInfo.CaCert,

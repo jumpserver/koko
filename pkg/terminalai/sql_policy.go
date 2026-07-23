@@ -28,6 +28,25 @@ func (a sqlAnalysis) BackgroundEligible() bool {
 	return !a.multi && !a.incomplete && (a.kind == sqlRead || a.kind == sqlWrite)
 }
 
+func (a sqlAnalysis) RequiresApproval() bool {
+	if a.kind == sqlWrite || a.kind == sqlUnknown {
+		return true
+	}
+	if a.kind != sqlRead || a.keyword != "EXPLAIN" ||
+		!containsSQLWord(a.words, "ANALYZE") {
+		return false
+	}
+	for _, keyword := range []string{
+		"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "ALTER",
+		"DROP", "TRUNCATE", "GRANT", "REVOKE",
+	} {
+		if containsSQLWord(a.words, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
 func (a sqlAnalysis) PTYReason() string {
 	switch {
 	case a.multi:

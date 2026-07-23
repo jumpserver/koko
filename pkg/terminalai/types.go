@@ -48,6 +48,7 @@ type CommandProposal struct {
 	ExecutionCause     string              `json:"executionReason"`
 	CommandACL         *CommandACLDecision `json:"-"`
 	BackgroundEligible bool                `json:"-"`
+	ApprovalRequired   bool                `json:"-"`
 }
 
 type StepReview struct {

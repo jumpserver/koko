@@ -448,14 +448,9 @@ func (h *tty) initializeTerminalAI(client *Client) {
 		},
 	)
 	connectToken := h.ws.ConnectToken
-	client.Agent.SetAdapter(terminalai.ResolveAdapter(terminalai.SessionContext{
-		Protocol:     connectToken.Protocol,
-		PlatformType: connectToken.Platform.Type.Value,
-		PlatformName: connectToken.Platform.Name,
-		BaseOS:       connectToken.Platform.BaseOs,
-		AssetName:    connectToken.Asset.Name,
-		Database:     connectToken.Asset.SpecInfo.DBName,
-	}))
+	client.Agent.SetAdapter(terminalai.ResolveAdapter(
+		terminalai.NewSessionContext(connectToken),
+	))
 	client.Agent.RequireCommandACL()
 	client.Agent.SetInputLock(client.SetInputLocked)
 	client.Agent.AnnounceCapability()
@@ -740,6 +735,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 			return
 		}
 		agent := client.Agent
+		sessionContext := terminalai.NewSessionContext(connectToken)
 		if agent != nil {
 			if connectToken.Protocol == srvconn.ProtocolSSH &&
 				!srv.SupportsBackgroundExecution() {
@@ -811,6 +807,27 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 				})
 			})
 		}
+		setBackgroundExecutor := func(connection terminalai.BackgroundConnection) {
+			if agent == nil || !srv.SupportsBackgroundExecution() {
+				return
+			}
+			ctx, cancel := context.WithTimeout(client.Context(), 30*time.Second)
+			defer cancel()
+			executor, profileProvider, registered, initErr :=
+				terminalai.ResolveBackgroundExecutor(ctx, sessionContext, connection)
+			if !registered {
+				return
+			}
+			if initErr != nil {
+				logger.Errorf(
+					"Terminal AI %s background init failed: %s",
+					sessionContext.Protocol, initErr,
+				)
+				agent.DisableBackground(initErr.Error())
+				return
+			}
+			agent.SetBackgroundExecutor(executor, profileProvider)
+		}
 		srv.OnSessionInfo = func(info *proxy.SessionInfo) {
 			client.SetSessionInfo(info)
 			data, _ := json.Marshal(info)
@@ -820,31 +837,20 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 			}
 		}
 		srv.OnSSHClient = func(sshClient *srvconn.SSHClient) {
-			if agent != nil && srv.SupportsBackgroundExecution() {
-				executor := terminalai.NewSSHExecutor(sshClient)
-				agent.SetBackgroundExecutor(executor, executor)
-			}
+			setBackgroundExecutor(terminalai.BackgroundConnection{SSHClient: sshClient})
 		}
 		srv.OnDatabaseConnection = func(info proxy.DatabaseConnectionInfo) {
-			if agent == nil || !srv.SupportsBackgroundExecution() {
-				return
-			}
-			ctx, cancel := context.WithTimeout(client.Context(), 30*time.Second)
-			defer cancel()
-			executor, initErr := terminalai.NewMySQLExecutor(ctx, terminalai.MySQLConfig{
-				Host: info.Host, Port: info.Port, ServerName: info.ServerName,
-				Username: info.Username, Password: info.Password,
-				Database: info.Database, UseSSL: info.UseSSL,
-				CACert: info.CACert, ClientCert: info.ClientCert,
-				ClientKey: info.ClientKey, AllowInvalidCert: info.AllowInvalidCert,
-				DataMaskingRules: info.DataMaskingRules,
+			setBackgroundExecutor(terminalai.BackgroundConnection{
+				Database: &terminalai.DatabaseConfig{
+					Protocol: info.Protocol,
+					Host:     info.Host, Port: info.Port, ServerName: info.ServerName,
+					Username: info.Username, Password: info.Password,
+					Database: info.Database, UseSSL: info.UseSSL,
+					CACert: info.CACert, ClientCert: info.ClientCert,
+					ClientKey: info.ClientKey, AllowInvalidCert: info.AllowInvalidCert,
+					DataMaskingRules: info.DataMaskingRules,
+				},
 			})
-			if initErr != nil {
-				logger.Errorf("Terminal AI MySQL background init failed: %s", initErr)
-				agent.DisableBackground(initErr.Error())
-				return
-			}
-			agent.SetBackgroundExecutor(executor, nil)
 		}
 		srv.Proxy()
 		srv.CloseBackgroundRecorder()
