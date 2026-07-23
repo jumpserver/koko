@@ -40,6 +40,8 @@ type Client struct {
 	Observer     *terminalai.Observer
 	Agent        *terminalai.Runtime
 	SessionInfo  *proxy.SessionInfo
+	inputMu      sync.Mutex
+	inputLocked  bool
 }
 
 func (c *Client) SetSessionInfo(info *proxy.SessionInfo) {
@@ -138,6 +140,8 @@ func (c *Client) Pty() ssh.Pty {
 
 func (c *Client) Close() (err error) {
 	c.closeOnce.Do(func() {
+		_ = c.UserRead.Close()
+		_ = c.UserWrite.Close()
 		if c.Agent != nil {
 			c.Agent.Close()
 			c.Agent = nil
@@ -146,8 +150,6 @@ func (c *Client) Close() (err error) {
 			_ = c.Observer.Close()
 			c.Observer = nil
 		}
-		_ = c.UserRead.Close()
-		_ = c.UserWrite.Close()
 		c.initPipe()
 	})
 	return err
@@ -174,7 +176,24 @@ func (c *Client) ID() string {
 }
 
 func (c *Client) WriteData(p []byte) {
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	if c.inputLocked {
+		return
+	}
 	_, _ = c.UserWrite.Write(p)
+}
+
+func (c *Client) WriteAgentData(p []byte) {
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	_, _ = c.UserWrite.Write(p)
+}
+
+func (c *Client) SetInputLocked(locked bool) {
+	c.inputMu.Lock()
+	c.inputLocked = locked
+	c.inputMu.Unlock()
 }
 
 func (c *Client) Context() context.Context {

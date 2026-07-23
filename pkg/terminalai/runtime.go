@@ -1,22 +1,18 @@
 package terminalai
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/config"
-	"github.com/jumpserver/koko/pkg/srvconn"
-	gossh "golang.org/x/crypto/ssh"
 )
 
 const (
@@ -53,16 +49,24 @@ type Runtime struct {
 	activeExecution   string
 	aclCheck          func(string) CommandACLDecision
 	aclReview         func(context.Context, CommandACLDecision, string) (CommandACLDecision, error)
+	aclRequired       bool
 	backgroundRecord  func(string, string, *int, *CommandACLDecision)
 	backgroundGuard   func() error
+	authorizePTY      func(string, *CommandACLDecision)
+	inputLock         func(bool)
+	adapter           Adapter
 
-	sshMu               sync.RWMutex
-	sshClient           *srvconn.SSHClient
+	executorMu          sync.RWMutex
+	backgroundExecutor  BackgroundExecutor
 	backgroundAvailable bool
+	backgroundReason    string
 	profile             AssetProfile
 	profileReady        chan struct{}
 	profileOnce         sync.Once
+	profileReadyOnce    sync.Once
 	profileWG           sync.WaitGroup
+	aclReady            chan struct{}
+	aclReadyOnce        sync.Once
 
 	audit        *auditWriter
 	auditPending []auditEvent
@@ -83,6 +87,7 @@ func NewRuntime(
 		approvalThreshold: defaultApprovalThreshold,
 		executionMode:     ModeAuto,
 		profileReady:      make(chan struct{}),
+		aclReady:          make(chan struct{}),
 	}
 }
 
@@ -105,11 +110,36 @@ func (r *Runtime) AnnounceCapability() {
 }
 
 func (r *Runtime) DisableBackground(reason string) {
-	r.sshMu.Lock()
+	r.executorMu.Lock()
 	r.backgroundAvailable = false
-	r.sshMu.Unlock()
+	r.backgroundReason = reason
+	r.executorMu.Unlock()
+	r.mu.Lock()
+	r.executionMode = ModePTYOnly
+	r.mu.Unlock()
 	r.finishProfile(AssetProfile{DetectionError: reason})
 	r.emitCapability()
+	r.writeAudit("background_disabled", map[string]any{"reason": reason})
+}
+
+func (r *Runtime) SetAdapter(adapter Adapter) {
+	if adapter == nil {
+		return
+	}
+	r.mu.Lock()
+	r.adapter = adapter
+	r.profile = adapter.Profile()
+	r.mu.Unlock()
+	r.executorMu.Lock()
+	if adapter.SupportsBackground() {
+		r.backgroundReason = "background executor is initializing"
+	} else {
+		r.backgroundReason = "this asset adapter provides PTY execution only"
+	}
+	r.executorMu.Unlock()
+	if adapter.Name() != "ssh-shell" {
+		r.finishProfile(AssetProfile{})
+	}
 }
 
 func (r *Runtime) SetCommandACL(
@@ -119,6 +149,13 @@ func (r *Runtime) SetCommandACL(
 	r.mu.Lock()
 	r.aclCheck = check
 	r.aclReview = review
+	r.mu.Unlock()
+	r.aclReadyOnce.Do(func() { close(r.aclReady) })
+}
+
+func (r *Runtime) RequireCommandACL() {
+	r.mu.Lock()
+	r.aclRequired = true
 	r.mu.Unlock()
 }
 
@@ -136,73 +173,76 @@ func (r *Runtime) SetBackgroundGuard(check func() error) {
 	r.mu.Unlock()
 }
 
-func (r *Runtime) SetSSHClient(client *srvconn.SSHClient) {
-	if client == nil {
+func (r *Runtime) SetInputLock(lock func(bool)) {
+	r.mu.Lock()
+	r.inputLock = lock
+	r.mu.Unlock()
+}
+
+func (r *Runtime) SetPTYAuthorizer(
+	authorize func(string, *CommandACLDecision),
+) {
+	r.mu.Lock()
+	r.authorizePTY = authorize
+	r.mu.Unlock()
+}
+
+func (r *Runtime) SetBackgroundExecutor(
+	executor BackgroundExecutor, profileProvider ProfileProvider,
+) {
+	if executor == nil {
 		return
 	}
 	r.mu.Lock()
 	if r.closed {
 		r.mu.Unlock()
+		_ = executor.Close()
 		return
 	}
-	r.sshMu.Lock()
-	r.sshClient = client
+	adapter := r.adapter
+	if adapter == nil || !adapter.SupportsBackground() {
+		r.mu.Unlock()
+		_ = executor.Close()
+		return
+	}
+	r.executorMu.Lock()
+	previous := r.backgroundExecutor
+	r.backgroundExecutor = executor
 	r.backgroundAvailable = true
-	r.sshMu.Unlock()
-	r.profileOnce.Do(func() {
-		r.profileWG.Add(1)
-		go func() {
-			defer r.profileWG.Done()
-			r.loadProfile(client)
-		}()
-	})
+	r.backgroundReason = ""
+	r.executorMu.Unlock()
+	if profileProvider != nil {
+		r.profileOnce.Do(func() {
+			r.profileWG.Add(1)
+			go func() {
+				defer r.profileWG.Done()
+				ctx, cancel := context.WithTimeout(r.lifetimeCtx, profileTimeout)
+				defer cancel()
+				r.finishProfile(profileProvider.DetectProfile(ctx))
+			}()
+		})
+	}
 	r.mu.Unlock()
+	if previous != nil {
+		_ = previous.Close()
+	}
 	r.emitCapability()
-}
-
-func (r *Runtime) loadProfile(client *srvconn.SSHClient) {
-	ctx, cancel := context.WithTimeout(r.lifetimeCtx, profileTimeout)
-	defer cancel()
-	session, err := client.AcquireSession()
-	if err != nil {
-		r.finishProfile(AssetProfile{DetectionError: err.Error()})
-		return
-	}
-	defer func() {
-		_ = session.Close()
-		client.ReleaseSession(session)
-	}()
-	type result struct {
-		output []byte
-		err    error
-	}
-	done := make(chan result, 1)
-	go func() {
-		output, runErr := session.CombinedOutput(AssetProfileProbeCommand())
-		done <- result{output: output, err: runErr}
-	}()
-	select {
-	case <-ctx.Done():
-		_ = session.Close()
-		r.finishProfile(AssetProfile{DetectionError: ctx.Err().Error()})
-	case value := <-done:
-		profile := ParseAssetProfile(string(value.output))
-		if value.err != nil {
-			profile.DetectionError = value.err.Error()
-		}
-		r.finishProfile(profile)
-	}
 }
 
 func (r *Runtime) finishProfile(profile AssetProfile) {
 	r.mu.Lock()
+	if profile.Adapter == "" {
+		profile.Adapter = r.profile.Adapter
+	}
+	if profile.CommandLanguage == "" {
+		profile.CommandLanguage = r.profile.CommandLanguage
+	}
+	if profile.SessionContext.Protocol == "" {
+		profile.SessionContext = r.profile.SessionContext
+	}
 	r.profile = profile
 	r.mu.Unlock()
-	select {
-	case <-r.profileReady:
-	default:
-		close(r.profileReady)
-	}
+	r.profileReadyOnce.Do(func() { close(r.profileReady) })
 }
 
 func (r *Runtime) Handle(message ChatMessage) error {
@@ -318,9 +358,9 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			fmt.Sprintf("正在准备第 %d/%d 步…", index+1, len(decision.Steps)),
 			"planning", true,
 		)
-		r.sshMu.RLock()
+		r.executorMu.RLock()
 		backgroundAvailable := r.backgroundAvailable
-		r.sshMu.RUnlock()
+		r.executorMu.RUnlock()
 		snapshot = r.observer.Snapshot()
 		var proposal CommandProposal
 		if err := r.retry(ctx, func(callCtx context.Context) error {
@@ -338,9 +378,17 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			r.emitError(err)
 			return
 		}
-		proposal.RiskLevel, proposal.RiskReason = classifyRisk(
-			proposal.Command, proposal.RiskLevel, proposal.RiskReason,
-		)
+		r.mu.Lock()
+		adapter := r.adapter
+		r.mu.Unlock()
+		if adapter == nil {
+			r.emitError(fmt.Errorf("terminal AI adapter is unavailable"))
+			return
+		}
+		if err := adapter.PrepareProposal(&proposal); err != nil {
+			r.emitError(err)
+			return
+		}
 		if err := r.applyExecutionMode(&proposal); err != nil {
 			r.emitError(err)
 			return
@@ -370,9 +418,11 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		backgroundRecord := r.backgroundRecord
 		r.mu.Unlock()
 		if proposal.Execution == ExecutionBackground && backgroundRecord != nil {
+			if err != nil {
+				output = strings.TrimSpace(output + "\n" + err.Error())
+			}
 			backgroundRecord(proposal.Command, output, exitCode, proposal.CommandACL)
-		}
-		if err != nil {
+		} else if err != nil {
 			output = strings.TrimSpace(output + "\n" + err.Error())
 		}
 		r.emitData("data-execution", map[string]any{
@@ -441,6 +491,16 @@ func (r *Runtime) authorize(
 	proposal CommandProposal,
 ) (CommandProposal, error) {
 	r.mu.Lock()
+	aclRequired := r.aclRequired
+	r.mu.Unlock()
+	if aclRequired {
+		select {
+		case <-ctx.Done():
+			return CommandProposal{}, ctx.Err()
+		case <-r.aclReady:
+		}
+	}
+	r.mu.Lock()
 	threshold := r.approvalThreshold
 	mode := r.executionMode
 	aclCheck := r.aclCheck
@@ -448,7 +508,7 @@ func (r *Runtime) authorize(
 	r.mu.Unlock()
 	forceApproval := false
 	var aclDecision CommandACLDecision
-	if aclCheck != nil && proposal.Execution == ExecutionBackground {
+	if aclCheck != nil {
 		aclDecision = aclCheck(proposal.Command)
 		switch aclDecision.Action {
 		case "reject":
@@ -505,8 +565,9 @@ func (r *Runtime) authorize(
 		"step": index + 1, "total": total, "command": proposal.Command,
 		"rationale": proposal.Rationale, "riskLevel": proposal.RiskLevel,
 		"riskReason": proposal.RiskReason, "execution": proposal.Execution,
-		"executionReason":   proposal.ExecutionCause,
-		"approvalThreshold": threshold, "executionMode": mode,
+		"executionReason":    proposal.ExecutionCause,
+		"backgroundEligible": proposal.BackgroundEligible,
+		"approvalThreshold":  threshold, "executionMode": mode,
 	}
 	if aclDecision.Action != "" && aclDecision.Action != "Unknown" {
 		data["commandACL"] = aclDecision
@@ -542,69 +603,19 @@ func (r *Runtime) authorize(
 			return CommandProposal{}, context.Canceled
 		}
 		if mode == ModeAuto && validExecution(decision.Execution) {
-			previousExecution := pending.proposal.Execution
-			pending.proposal.Execution = decision.Execution
-			if previousExecution != ExecutionBackground &&
-				decision.Execution == ExecutionBackground {
-				if err := r.authorizeBackgroundOverride(
-					ctx, &pending.proposal, aclCheck, aclReview,
-				); err != nil {
-					return CommandProposal{}, err
-				}
+			if decision.Execution == ExecutionBackground &&
+				!pending.proposal.BackgroundEligible {
+				return CommandProposal{}, fmt.Errorf(
+					"this command cannot run in the background",
+				)
 			}
+			pending.proposal.Execution = decision.Execution
 		}
 		r.writeAudit("command_approved", map[string]any{
 			"id": id, "digest": digest, "execution": pending.proposal.Execution,
 		})
 		return pending.proposal, nil
 	}
-}
-
-func (r *Runtime) authorizeBackgroundOverride(
-	ctx context.Context,
-	proposal *CommandProposal,
-	check func(string) CommandACLDecision,
-	review func(context.Context, CommandACLDecision, string) (CommandACLDecision, error),
-) error {
-	if check == nil {
-		return nil
-	}
-	decision := check(proposal.Command)
-	switch decision.Action {
-	case "reject":
-		r.emitData("data-command-acl", decision, "final")
-		return fmt.Errorf("command rejected by ACL %q", decision.Name)
-	case "review":
-		r.emitData("data-command-acl", map[string]any{
-			"state": "waiting_for_review", "command": proposal.Command,
-			"decision": decision,
-		}, "process")
-		if review == nil {
-			return fmt.Errorf("command ACL review is unavailable")
-		}
-		reviewed, err := review(ctx, decision, proposal.Command)
-		if err != nil {
-			return err
-		}
-		decision = reviewed
-		state := "approved"
-		if reviewed.Action != "accept" {
-			state = "rejected"
-		}
-		r.emitData("data-command-acl", map[string]any{
-			"state": state, "command": proposal.Command,
-			"decision": reviewed,
-		}, "process")
-		if reviewed.Action != "accept" {
-			return fmt.Errorf("command rejected by ACL reviewer")
-		}
-	case "warning", "notify_and_warn":
-		r.emitData("data-command-acl", decision, "process")
-	}
-	if decision.Action != "" && decision.Action != "Unknown" {
-		proposal.CommandACL = &decision
-	}
-	return nil
 }
 
 func (r *Runtime) resolveApproval(decision approvalDecision) error {
@@ -664,9 +675,17 @@ func (r *Runtime) execute(
 	if proposal.Execution == ExecutionBackground {
 		return r.executeBackground(execCtx, proposal.Command, onOutput)
 	}
+	r.setInputLocked(true)
+	defer r.setInputLocked(false)
 	resultCh, err := r.observer.Begin(proposal.Command)
 	if err != nil {
 		return "", nil, err
+	}
+	r.mu.Lock()
+	authorizePTY := r.authorizePTY
+	r.mu.Unlock()
+	if authorizePTY != nil {
+		authorizePTY(proposal.Command, proposal.CommandACL)
 	}
 	r.writePTY([]byte(proposal.Command + "\r"))
 	select {
@@ -689,167 +708,78 @@ func (r *Runtime) executeBackground(
 			return "", nil, err
 		}
 	}
-	r.sshMu.RLock()
-	client := r.sshClient
+	r.executorMu.RLock()
+	executor := r.backgroundExecutor
 	available := r.backgroundAvailable
-	r.sshMu.RUnlock()
-	if client == nil || !available {
+	r.executorMu.RUnlock()
+	if executor == nil || !available {
 		return "", nil, fmt.Errorf("background execution is unavailable")
 	}
-	session, err := client.AcquireSession()
-	if err != nil {
-		r.disableBackground(err)
-		return "", nil, err
-	}
-	defer func() {
-		_ = session.Close()
-		client.ReleaseSession(session)
-	}()
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		r.disableBackground(err)
-		return "", nil, err
-	}
-	stderr, err := session.StderrPipe()
-	if err != nil {
-		r.disableBackground(err)
-		return "", nil, err
-	}
-	if err = session.Start(command); err != nil {
-		r.disableBackground(err)
-		return "", nil, err
-	}
-	buffer := &boundedOutput{onUpdate: func(output string) {
-		if backgroundGuard != nil {
-			_ = backgroundGuard()
-		}
-		if onOutput != nil {
-			onOutput(output)
-		}
-	}}
-	var writers sync.WaitGroup
-	writers.Add(2)
-	go copyOutput(&writers, buffer, stdout)
-	go copyOutput(&writers, buffer, stderr)
-	cancelDone := make(chan struct{})
+	executorCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	guardFailure := make(chan error, 1)
-	go func() {
-		ticker := time.NewTicker(15 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				_ = session.Close()
-				return
-			case <-cancelDone:
-				return
-			case <-ticker.C:
-				if backgroundGuard != nil {
-					if guardErr := backgroundGuard(); guardErr != nil {
-						guardFailure <- guardErr
-						_ = session.Close()
+	guardDone := make(chan struct{})
+	if backgroundGuard != nil {
+		go func() {
+			ticker := time.NewTicker(15 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-executorCtx.Done():
+					return
+				case <-guardDone:
+					return
+				case <-ticker.C:
+					if err := backgroundGuard(); err != nil {
+						select {
+						case guardFailure <- err:
+						default:
+						}
+						cancel()
 						return
 					}
 				}
 			}
+		}()
+	}
+	output, exitCode, err := executor.Execute(executorCtx, command, func(output string) {
+		if backgroundGuard != nil {
+			if guardErr := backgroundGuard(); guardErr != nil {
+				select {
+				case guardFailure <- guardErr:
+					cancel()
+				default:
+				}
+				return
+			}
 		}
-	}()
-	waitErr := session.Wait()
-	close(cancelDone)
-	writers.Wait()
-	output := buffer.String()
+		if onOutput != nil {
+			onOutput(output)
+		}
+	})
+	close(guardDone)
 	select {
 	case guardErr := <-guardFailure:
-		return output, nil, guardErr
+		return output, exitCode, guardErr
 	default:
 	}
-	if ctx.Err() != nil {
-		return output, nil, ctx.Err()
+	var unavailable *BackgroundUnavailableError
+	if errors.As(err, &unavailable) {
+		r.DisableBackground(unavailable.Error())
 	}
-	exitCode := 0
-	if waitErr != nil {
-		var exitErr *gossh.ExitError
-		if errors.As(waitErr, &exitErr) {
-			exitCode = exitErr.ExitStatus()
-		} else {
-			r.disableBackground(waitErr)
-			return output, nil, waitErr
-		}
-	}
-	return output, &exitCode, nil
-}
-
-func copyOutput(wg *sync.WaitGroup, target io.Writer, source io.Reader) {
-	defer wg.Done()
-	_, _ = io.Copy(target, source)
-}
-
-type boundedOutput struct {
-	mu        sync.Mutex
-	buffer    bytes.Buffer
-	truncated bool
-	onUpdate  func(string)
-	emitted   int
-}
-
-func (b *boundedOutput) Write(value []byte) (int, error) {
-	b.mu.Lock()
-	original := len(value)
-	if b.buffer.Len()+len(value) > maxObservedOutput {
-		combined := append(append([]byte(nil), b.buffer.Bytes()...), value...)
-		combined = combined[len(combined)-maxObservedOutput:]
-		b.buffer.Reset()
-		_, _ = b.buffer.Write(combined)
-		b.truncated = true
-	} else {
-		_, _ = b.buffer.Write(value)
-	}
-	var update string
-	if b.onUpdate != nil && b.emitted < maxObservedOutput {
-		remaining := maxObservedOutput - b.emitted
-		if len(value) > remaining {
-			update = string(value[:remaining])
-		} else {
-			update = string(value)
-		}
-		b.emitted += len(update)
-	}
-	b.mu.Unlock()
-	if update != "" {
-		b.onUpdate(update)
-	}
-	return original, nil
-}
-
-func (b *boundedOutput) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.stringLocked()
-}
-
-func (b *boundedOutput) stringLocked() string {
-	value := b.buffer.String()
-	if b.truncated {
-		return "[output truncated; showing last 100 KiB]\n" + value
-	}
-	return value
-}
-
-func (r *Runtime) disableBackground(cause error) {
-	r.sshMu.Lock()
-	r.backgroundAvailable = false
-	r.sshMu.Unlock()
-	r.emitCapability()
-	r.writeAudit("background_disabled", map[string]any{"reason": cause.Error()})
+	return output, exitCode, err
 }
 
 func (r *Runtime) applyExecutionMode(proposal *CommandProposal) error {
 	r.mu.Lock()
 	mode := r.executionMode
 	r.mu.Unlock()
-	r.sshMu.RLock()
+	r.executorMu.RLock()
 	backgroundAvailable := r.backgroundAvailable
-	r.sshMu.RUnlock()
+	r.executorMu.RUnlock()
+	if !proposal.BackgroundEligible {
+		backgroundAvailable = false
+	}
 	switch mode {
 	case ModePTYOnly:
 		if proposal.Execution != ExecutionPTY {
@@ -858,7 +788,7 @@ func (r *Runtime) applyExecutionMode(proposal *CommandProposal) error {
 		}
 	case ModeBackground:
 		if !backgroundAvailable {
-			return fmt.Errorf("background-only mode is active but background execution is unavailable")
+			return fmt.Errorf("background-only mode is active but this command cannot run in the background")
 		}
 		if proposal.Execution != ExecutionBackground {
 			proposal.Execution = ExecutionBackground
@@ -965,14 +895,26 @@ func (r *Runtime) emitCapability() {
 	}
 	threshold, mode := r.approvalThreshold, r.executionMode
 	r.mu.Unlock()
-	r.sshMu.RLock()
+	r.executorMu.RLock()
 	backgroundAvailable := r.backgroundAvailable
-	r.sshMu.RUnlock()
+	backgroundReason := r.backgroundReason
+	r.executorMu.RUnlock()
 	r.emitData("data-capability", map[string]any{
 		"enabled": true, "ptyExec": true,
 		"backgroundExec":    backgroundAvailable,
+		"backgroundReason":  backgroundReason,
 		"approvalThreshold": threshold, "executionMode": mode,
 	}, "process")
+}
+
+func (r *Runtime) setInputLocked(locked bool) {
+	r.mu.Lock()
+	lock := r.inputLock
+	r.mu.Unlock()
+	if lock != nil {
+		lock(locked)
+	}
+	r.emitData("data-input-lock", map[string]any{"locked": locked}, "process")
 }
 
 func (r *Runtime) appendAssistantHistory(value string) {
@@ -1014,6 +956,7 @@ func (r *Runtime) Close() {
 	cancel := r.cancel
 	audit := r.audit
 	lifetimeCancel := r.lifetimeCancel
+	inputLock := r.inputLock
 	r.mu.Unlock()
 	lifetimeCancel()
 	if cancel != nil {
@@ -1021,6 +964,17 @@ func (r *Runtime) Close() {
 	}
 	r.wg.Wait()
 	r.profileWG.Wait()
+	r.executorMu.Lock()
+	executor := r.backgroundExecutor
+	r.backgroundExecutor = nil
+	r.backgroundAvailable = false
+	r.executorMu.Unlock()
+	if executor != nil {
+		_ = executor.Close()
+	}
+	if inputLock != nil {
+		inputLock(false)
+	}
 	if audit != nil {
 		audit.Close()
 	}
@@ -1031,9 +985,6 @@ func validateProposal(proposal *CommandProposal) error {
 	if proposal.Command == "" || len(proposal.Command) > 4096 ||
 		strings.ContainsAny(proposal.Command, "\r\n") {
 		return fmt.Errorf("model generated an invalid command")
-	}
-	if isInteractiveCommand(proposal.Command) {
-		return fmt.Errorf("model generated an interactive or unbounded command")
 	}
 	if proposal.RiskLevel < 1 || proposal.RiskLevel > 4 {
 		return fmt.Errorf("model generated an invalid risk level")

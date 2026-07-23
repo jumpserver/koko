@@ -23,6 +23,10 @@ export interface ConnectionState {
 
   terminalAIBackground: boolean;
 
+  terminalAIBackgroundReason: string;
+
+  terminalAIInputLocked: boolean;
+
   terminal: Terminal;
 
   socket: WebSocket | null;

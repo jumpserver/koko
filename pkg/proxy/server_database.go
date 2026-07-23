@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -17,6 +18,47 @@ var usqlProtocolAlias = map[string]string{
 }
 
 var errUnknownProtocol = errors.New("unknown protocol")
+
+type DatabaseConnectionInfo struct {
+	Host             string
+	Port             int
+	ServerName       string
+	Username         string
+	Password         string
+	Database         string
+	UseSSL           bool
+	CACert           string
+	ClientCert       string
+	ClientKey        string
+	AllowInvalidCert bool
+	DataMaskingRules []model.DataMaskingRule
+}
+
+func (s *Server) notifyDatabaseConnection(localTunnelAddr *net.TCPAddr) {
+	if s.OnDatabaseConnection == nil ||
+		s.connOpts.authInfo.Protocol != srvconn.ProtocolMySQL {
+		return
+	}
+	asset := s.connOpts.authInfo.Asset
+	host := asset.Address
+	port := asset.ProtocolPort(srvconn.ProtocolMySQL)
+	if localTunnelAddr != nil {
+		host = "127.0.0.1"
+		port = localTunnelAddr.Port
+	}
+	info := DatabaseConnectionInfo{
+		Host: host, Port: port, ServerName: asset.Address,
+		Username: s.account.Username, Password: s.account.Secret,
+		Database: asset.SpecInfo.DBName,
+		UseSSL:   asset.SpecInfo.UseSSL, CACert: asset.SecretInfo.CaCert,
+		ClientCert: asset.SecretInfo.ClientCert, ClientKey: asset.SecretInfo.ClientKey,
+		AllowInvalidCert: asset.SpecInfo.AllowInvalidCert,
+		DataMaskingRules: append(
+			[]model.DataMaskingRule(nil), s.connOpts.authInfo.DataMaskingRules...,
+		),
+	}
+	go s.OnDatabaseConnection(info)
+}
 
 func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQLConn, err error) {
 

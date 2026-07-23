@@ -6,7 +6,9 @@ import (
 	"errors"
 	"io"
 	"math"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/srvconn"
 
@@ -418,7 +420,7 @@ func (h *tty) handleTerminalInit(
 func (h *tty) initializeTerminalAI(client *Client) {
 	if client == nil || client.KubernetesId != "" ||
 		h.ws.ConnectToken == nil ||
-		h.ws.ConnectToken.Protocol != srvconn.ProtocolSSH ||
+		h.ws.ConnectToken.Protocol == srvconn.ProtocolK8s ||
 		h.ws.wsParams.TargetType == TargetTypeMonitor ||
 		h.ws.wsParams.TargetType == TargetTypeShare {
 		return
@@ -434,7 +436,7 @@ func (h *tty) initializeTerminalAI(client *Client) {
 		return
 	}
 	client.Agent = terminalai.NewRuntime(
-		client.TerminalId, modelClient, client.Observer, client.WriteData,
+		client.TerminalId, modelClient, client.Observer, client.WriteAgentData,
 		func(message terminalai.ChatMessage) {
 			data, marshalErr := json.Marshal(message)
 			if marshalErr != nil {
@@ -445,6 +447,17 @@ func (h *tty) initializeTerminalAI(client *Client) {
 			})
 		},
 	)
+	connectToken := h.ws.ConnectToken
+	client.Agent.SetAdapter(terminalai.ResolveAdapter(terminalai.SessionContext{
+		Protocol:     connectToken.Protocol,
+		PlatformType: connectToken.Platform.Type.Value,
+		PlatformName: connectToken.Platform.Name,
+		BaseOS:       connectToken.Platform.BaseOs,
+		AssetName:    connectToken.Asset.Name,
+		Database:     connectToken.Asset.SpecInfo.DBName,
+	}))
+	client.Agent.RequireCommandACL()
+	client.Agent.SetInputLock(client.SetInputLocked)
 	client.Agent.AnnounceCapability()
 }
 
@@ -726,13 +739,24 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 			h.sendCloseMessage(client.TerminalId)
 			return
 		}
-		if client.Agent != nil {
-			if !srv.SupportsBackgroundExecution() {
-				client.Agent.DisableBackground(
-					"background execution is unavailable for su-from accounts",
-				)
+		agent := client.Agent
+		if agent != nil {
+			if connectToken.Protocol == srvconn.ProtocolSSH &&
+				!srv.SupportsBackgroundExecution() {
+				reason := "background execution is unavailable for this SSH platform"
+				platformType := strings.TrimSpace(connectToken.Platform.Type.Value)
+				isShellPlatform := strings.EqualFold(platformType, "linux") ||
+					strings.EqualFold(platformType, "unix")
+				if platformType == "" {
+					isShellPlatform = strings.EqualFold(connectToken.Platform.BaseOs, "linux") ||
+						strings.EqualFold(connectToken.Platform.BaseOs, "unix")
+				}
+				if isShellPlatform {
+					reason = "background execution is unavailable for su-from accounts"
+				}
+				agent.DisableBackground(reason)
 			}
-			client.Agent.SetCommandACL(
+			agent.SetCommandACL(
 				func(command string) terminalai.CommandACLDecision {
 					return terminalAIACLDecision(srv.MatchCommandACL(command))
 				},
@@ -754,7 +778,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 					return terminalAIACLDecision(reviewed), reviewErr
 				},
 			)
-			client.Agent.SetBackgroundRecorder(
+			agent.SetBackgroundRecorder(
 				func(
 					command, output string,
 					exitCode *int,
@@ -772,20 +796,55 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 					srv.RecordBackgroundCommand(command, output, exitCode, aclDecision)
 				},
 			)
-			client.Agent.SetBackgroundGuard(srv.CheckBackgroundExecution)
+			agent.SetBackgroundGuard(srv.CheckBackgroundExecution)
+			agent.SetPTYAuthorizer(func(
+				command string, decision *terminalai.CommandACLDecision,
+			) {
+				if decision == nil {
+					return
+				}
+				srv.AuthorizeTerminalAICommand(command, &proxy.CommandACLDecision{
+					Action: model.CommandAction(decision.Action),
+					ACLID:  decision.ACLID, ItemID: decision.ItemID,
+					Name: decision.Name, Matched: decision.Matched,
+					Reviewed: decision.Reviewed,
+				})
+			})
 		}
 		srv.OnSessionInfo = func(info *proxy.SessionInfo) {
 			client.SetSessionInfo(info)
 			data, _ := json.Marshal(info)
 			h.sendSessionMessage(string(data), client.KubernetesId, client.TerminalId)
-			if client.Agent != nil && info.Session != nil {
-				client.Agent.SetSessionID(info.Session.ID)
+			if agent != nil && info.Session != nil {
+				agent.SetSessionID(info.Session.ID)
 			}
 		}
 		srv.OnSSHClient = func(sshClient *srvconn.SSHClient) {
-			if client.Agent != nil && srv.SupportsBackgroundExecution() {
-				client.Agent.SetSSHClient(sshClient)
+			if agent != nil && srv.SupportsBackgroundExecution() {
+				executor := terminalai.NewSSHExecutor(sshClient)
+				agent.SetBackgroundExecutor(executor, executor)
 			}
+		}
+		srv.OnDatabaseConnection = func(info proxy.DatabaseConnectionInfo) {
+			if agent == nil || !srv.SupportsBackgroundExecution() {
+				return
+			}
+			ctx, cancel := context.WithTimeout(client.Context(), 30*time.Second)
+			defer cancel()
+			executor, initErr := terminalai.NewMySQLExecutor(ctx, terminalai.MySQLConfig{
+				Host: info.Host, Port: info.Port, ServerName: info.ServerName,
+				Username: info.Username, Password: info.Password,
+				Database: info.Database, UseSSL: info.UseSSL,
+				CACert: info.CACert, ClientCert: info.ClientCert,
+				ClientKey: info.ClientKey, AllowInvalidCert: info.AllowInvalidCert,
+				DataMaskingRules: info.DataMaskingRules,
+			})
+			if initErr != nil {
+				logger.Errorf("Terminal AI MySQL background init failed: %s", initErr)
+				agent.DisableBackground(initErr.Error())
+				return
+			}
+			agent.SetBackgroundExecutor(executor, nil)
 		}
 		srv.Proxy()
 		srv.CloseBackgroundRecorder()

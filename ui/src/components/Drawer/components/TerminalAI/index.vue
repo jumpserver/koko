@@ -360,6 +360,9 @@ function handleIncoming(message: ChatMessage) {
     executionMode.value = String(capability.executionMode || 'auto');
     return;
   }
+  if (message.parts.some(part => part.type === 'data-input-lock')) {
+    return;
+  }
   const policy = message.parts.find(part => part.type === 'data-policy')?.data;
   if (policy) {
     approvalThreshold.value = Number(policy.approvalThreshold) || approvalThreshold.value;
@@ -490,9 +493,17 @@ onUnmounted(() => mittBus.off('terminal-ai-message', handleIncoming));
           v-model:value="executionMode"
           size="small"
           :options="modeOptions"
+          :title="connectionStore.terminalAIBackgroundReason"
           @update:value="updatePolicy"
         />
       </div>
+      <p
+        v-if="!connectionStore.terminalAIBackground
+          && connectionStore.terminalAIBackgroundReason"
+        class="background-reason"
+      >
+        {{ connectionStore.terminalAIBackgroundReason }}
+      </p>
     </header>
 
     <main ref="messagesElement" class="messages">
@@ -598,7 +609,8 @@ onUnmounted(() => mittBus.off('terminal-ai-message', handleIncoming));
                       </n-radio>
                       <n-radio
                         value="background_exec"
-                        :disabled="!connectionStore.terminalAIBackground"
+                        :disabled="!connectionStore.terminalAIBackground
+                          || step.command.backgroundEligible === false"
                       >
                         后台执行
                       </n-radio>
@@ -774,6 +786,12 @@ onUnmounted(() => mittBus.off('terminal-ai-message', handleIncoming));
 .policy-controls > * {
   flex: 1;
   min-width: 0;
+}
+
+.background-reason {
+  margin: 7px 0 0;
+  color: var(--ai-text-muted);
+  font-size: 11px;
 }
 
 .messages {

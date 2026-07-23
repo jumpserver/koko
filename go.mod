@@ -14,6 +14,7 @@ require (
 	github.com/elastic/go-elasticsearch/v8 v8.19.5
 	github.com/gin-gonic/gin v1.10.1
 	github.com/gliderlabs/ssh v0.3.3
+	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.25.4+incompatible
@@ -41,6 +42,7 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/azure-pipeline-go v0.2.3 // indirect
 	github.com/LeeEirc/httpsig v1.2.1 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect

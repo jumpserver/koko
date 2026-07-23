@@ -93,6 +93,7 @@ type Parser struct {
 	currentCmdFilterRule CommandRule
 
 	userInputFilter func([]byte) []byte
+	terminalAIGrant func(string) (CommandACLDecision, bool)
 
 	disableInputAsCmd bool
 }
@@ -374,7 +375,9 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.sendCommandRecord()
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
-		if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
+		if decision, ok := p.consumeTerminalAIGrant(currentCmd); ok {
+			p.applyTerminalAIGrant(decision)
+		} else if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
 			switch rule.Acl.Action {
 			case model.ActionReject:
 				p.setCurrentCmdStatusLevel(model.RejectLevel)
@@ -412,6 +415,38 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 	}
 	return b
+}
+
+func (p *Parser) consumeTerminalAIGrant(command string) (CommandACLDecision, bool) {
+	if p.terminalAIGrant == nil {
+		return CommandACLDecision{}, false
+	}
+	return p.terminalAIGrant(command)
+}
+
+func (p *Parser) applyTerminalAIGrant(decision CommandACLDecision) {
+	for index := range p.cmdFilterACLs {
+		rule := &p.cmdFilterACLs[index]
+		if rule.ID != decision.ACLID {
+			continue
+		}
+		for itemIndex := range rule.CommandGroups {
+			item := &rule.CommandGroups[itemIndex]
+			if item.ID == decision.ItemID {
+				p.setCurrentCmdFilterRule(CommandRule{Acl: rule, Item: item})
+				break
+			}
+		}
+		break
+	}
+	if decision.Reviewed {
+		p.setCurrentCmdStatusLevel(model.ReviewAccept)
+		return
+	}
+	switch decision.Action {
+	case model.ActionWarning, model.ActionNotifyAndWarn:
+		p.setCurrentCmdStatusLevel(model.WarningLevel)
+	}
 }
 
 func (p *Parser) supportMultiCmd() bool {

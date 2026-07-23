@@ -154,6 +154,8 @@ type Server struct {
 
 	backgroundRecorderMu sync.Mutex
 	backgroundRecorder   *CommandRecorder
+	terminalAIGrantMu    sync.Mutex
+	terminalAIGrant      *terminalAICommandGrant
 	operationPaused      atomic.Bool
 	permissionInvalid    atomic.Bool
 	backgroundActiveAt   atomic.Int64
@@ -166,8 +168,9 @@ type Server struct {
 
 	keyboardMode int32
 
-	OnSessionInfo func(info *SessionInfo)
-	OnSSHClient   func(client *srvconn.SSHClient)
+	OnSessionInfo        func(info *SessionInfo)
+	OnSSHClient          func(client *srvconn.SSHClient)
+	OnDatabaseConnection func(info DatabaseConnectionInfo)
 
 	BroadcastEvent func(event *exchange.RoomMessage)
 }
@@ -194,6 +197,12 @@ type CommandACLDecision struct {
 	Reviewed  bool
 }
 
+type terminalAICommandGrant struct {
+	command  string
+	decision CommandACLDecision
+	expires  time.Time
+}
+
 func cloneCommandACLs(source []model.CommandACL) model.CommandACLs {
 	result := make(model.CommandACLs, len(source))
 	for index := range source {
@@ -218,6 +227,40 @@ func (s *Server) MatchCommandACL(command string) CommandACLDecision {
 		}
 	}
 	return CommandACLDecision{Action: model.ActionUnknown}
+}
+
+func (s *Server) AuthorizeTerminalAICommand(
+	command string, decision *CommandACLDecision,
+) {
+	if decision == nil || decision.Action == model.ActionUnknown {
+		return
+	}
+	s.terminalAIGrantMu.Lock()
+	s.terminalAIGrant = &terminalAICommandGrant{
+		command: strings.TrimSpace(command), decision: *decision,
+		expires: time.Now().Add(2 * time.Minute),
+	}
+	s.terminalAIGrantMu.Unlock()
+}
+
+func (s *Server) consumeTerminalAICommandGrant(
+	command string,
+) (CommandACLDecision, bool) {
+	s.terminalAIGrantMu.Lock()
+	defer s.terminalAIGrantMu.Unlock()
+	grant := s.terminalAIGrant
+	if grant == nil {
+		return CommandACLDecision{}, false
+	}
+	if time.Now().After(grant.expires) {
+		s.terminalAIGrant = nil
+		return CommandACLDecision{}, false
+	}
+	if strings.TrimSpace(command) != grant.command {
+		return CommandACLDecision{}, false
+	}
+	s.terminalAIGrant = nil
+	return grant.decision, true
 }
 
 func (s *Server) ReviewCommand(
@@ -313,7 +356,24 @@ func (s *Server) IsKeyboardMode() bool {
 }
 
 func (s *Server) SupportsBackgroundExecution() bool {
-	return s.connOpts.authInfo.Protocol == srvconn.ProtocolSSH && s.suFromAccount == nil
+	if s.suFromAccount != nil {
+		return false
+	}
+	protocol := s.connOpts.authInfo.Protocol
+	if protocol == srvconn.ProtocolMySQL {
+		return true
+	}
+	if protocol != srvconn.ProtocolSSH {
+		return false
+	}
+	platform := s.connOpts.authInfo.Platform
+	platformType := strings.TrimSpace(platform.Type.Value)
+	if platformType != "" {
+		return strings.EqualFold(platformType, linuxPlatform) ||
+			strings.EqualFold(platformType, "unix")
+	}
+	return strings.EqualFold(platform.BaseOs, "linux") ||
+		strings.EqualFold(platform.BaseOs, "unix")
 }
 
 func (s *Server) CheckBackgroundExecution() error {
@@ -395,15 +455,16 @@ func (s *Server) GetFilterParser() (*Parser, error) {
 	sort.Sort(model.CommandACLs(filterRules))
 	pty := s.UserConn.Pty()
 	parser := Parser{
-		id:             s.ID,
-		protocolType:   protocol,
-		jmsService:     s.jmsService,
-		cmdFilterACLs:  filterRules,
-		enableDownload: enableDownload,
-		enableUpload:   enableUpload,
-		zmodemParser:   zParser,
-		i18nLang:       s.connOpts.i18nLang,
-		platform:       &platform,
+		id:              s.ID,
+		protocolType:    protocol,
+		jmsService:      s.jmsService,
+		cmdFilterACLs:   filterRules,
+		enableDownload:  enableDownload,
+		enableUpload:    enableUpload,
+		zmodemParser:    zParser,
+		i18nLang:        s.connOpts.i18nLang,
+		platform:        &platform,
+		terminalAIGrant: s.consumeTerminalAICommandGrant,
 	}
 	if err := parser.initial(pty.Window.Width, pty.Window.Height); err != nil {
 		return nil, err
@@ -1232,6 +1293,7 @@ func (s *Server) Proxy() {
 	}
 
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
+	s.notifyDatabaseConnection(proxyAddr)
 	if s.OnSessionInfo != nil {
 		actions := s.connOpts.authInfo.Actions
 		tokenConnOpts := s.connOpts.authInfo.ConnectOptions

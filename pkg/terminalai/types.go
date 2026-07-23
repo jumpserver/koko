@@ -40,13 +40,14 @@ type Decision struct {
 }
 
 type CommandProposal struct {
-	Command        string              `json:"command"`
-	Rationale      string              `json:"rationale"`
-	RiskLevel      int                 `json:"riskLevel"`
-	RiskReason     string              `json:"riskReason"`
-	Execution      string              `json:"execution"`
-	ExecutionCause string              `json:"executionReason"`
-	CommandACL     *CommandACLDecision `json:"-"`
+	Command            string              `json:"command"`
+	Rationale          string              `json:"rationale"`
+	RiskLevel          int                 `json:"riskLevel"`
+	RiskReason         string              `json:"riskReason"`
+	Execution          string              `json:"execution"`
+	ExecutionCause     string              `json:"executionReason"`
+	CommandACL         *CommandACLDecision `json:"-"`
+	BackgroundEligible bool                `json:"-"`
 }
 
 type StepReview struct {

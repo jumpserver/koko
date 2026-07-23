@@ -14,13 +14,16 @@ var profileCommands = []string{
 }
 
 type AssetProfile struct {
-	OSName            string   `json:"osName"`
-	OSID              string   `json:"osId"`
-	VersionID         string   `json:"versionId"`
-	Kernel            string   `json:"kernel"`
-	Architecture      string   `json:"architecture"`
-	AvailableCommands []string `json:"availableCommands"`
-	DetectionError    string   `json:"detectionError,omitempty"`
+	Adapter           string         `json:"adapter,omitempty"`
+	CommandLanguage   string         `json:"commandLanguage,omitempty"`
+	SessionContext    SessionContext `json:"sessionContext,omitempty"`
+	OSName            string         `json:"osName"`
+	OSID              string         `json:"osId"`
+	VersionID         string         `json:"versionId"`
+	Kernel            string         `json:"kernel"`
+	Architecture      string         `json:"architecture"`
+	AvailableCommands []string       `json:"availableCommands"`
+	DetectionError    string         `json:"detectionError,omitempty"`
 }
 
 func AssetProfileProbeCommand() string {

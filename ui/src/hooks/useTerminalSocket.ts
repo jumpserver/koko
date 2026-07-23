@@ -196,6 +196,8 @@ export const useTerminalSocket = () => {
         connectionStore.updateConnectionState({
           terminalAIEnabled: false,
           terminalAIBackground: false,
+          terminalAIBackgroundReason: '',
+          terminalAIInputLocked: false,
         });
         const info = JSON.parse(parsedMessageData.data);
 
@@ -471,11 +473,22 @@ export const useTerminalSocket = () => {
       }
       case ENVELOPE_CHAT: {
         const chatMessage = parseJSONPayload<any>(frame.payload);
+        const messageTerminalId = Number(chatMessage.metadata?.terminalId) || 0;
+        const isCurrentTerminal = !messageTerminalId || messageTerminalId === terminalId.value;
         const capability = chatMessage.parts?.find((part: any) => part.type === 'data-capability')?.data;
-        if (capability) {
+        if (capability && isCurrentTerminal) {
           connectionStore.updateConnectionState({
             terminalAIEnabled: Boolean(capability.enabled),
             terminalAIBackground: Boolean(capability.backgroundExec),
+            terminalAIBackgroundReason: String(capability.backgroundReason || ''),
+          });
+        }
+        const inputLock = chatMessage.parts?.find(
+          (part: any) => part.type === 'data-input-lock',
+        )?.data;
+        if (inputLock && isCurrentTerminal) {
+          connectionStore.updateConnectionState({
+            terminalAIInputLocked: Boolean(inputLock.locked),
           });
         }
         mittBus.emit('terminal-ai-message', chatMessage);
@@ -496,9 +509,11 @@ export const useTerminalSocket = () => {
       terminalRef.value!,
       socketRef.value!,
       lastSendTime,
-      data => {
-        if (terminalId.value) socketRef.value?.send(buildTerminalInput(terminalId.value, data));
-      }
+      (data) => {
+        if (terminalId.value && !connectionStore.terminalAIInputLocked) {
+          socketRef.value?.send(buildTerminalInput(terminalId.value, data));
+        }
+      },
     );
 
     socketRef.value.onopen = () => {
@@ -581,6 +596,10 @@ export const useTerminalSocket = () => {
         return;
       }
 
+      if (connectionStore.terminalAIInputLocked) {
+        return;
+      }
+
       if (isSocketClosing(socketRef.value!)) {
         return message.error(t('WebSocket connection is closed, please refresh the page'));
       }
@@ -619,7 +638,7 @@ export const useTerminalSocket = () => {
     terminalRef.value.onData((data: string) => {
       lastSendTime.value = new Date();
 
-      if (isSocketClosing(socketRef.value!)) {
+      if (isSocketClosing(socketRef.value!) || connectionStore.terminalAIInputLocked) {
         return;
       }
 
