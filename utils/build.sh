@@ -31,6 +31,11 @@ goldflags="-X 'main.Buildstamp=$buildStamp' -X 'main.Githash=$gitHash' -X 'main.
 k8scmdflags="-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$cipherKey'"
 # 下载依赖模块并构建
 cd .. && go mod download || exit 3
+rm -rf "${project_dir}/ui_embed/ui"
+if [[ -d "${project_dir}/ui/dist" ]]; then
+  mkdir -p "${project_dir}/ui_embed/ui/dist"
+  cp -R "${project_dir}/ui/dist/." "${project_dir}/ui_embed/ui/dist/"
+fi
 CGO_ENABLED=0 GOOS="$OS" go build -ldflags "$goldflags" -o koko ${project_dir}/cmd/koko/ || exit 4
 set -x
 

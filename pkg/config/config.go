@@ -22,6 +22,7 @@ type Config struct {
 	Name               string `mapstructure:"NAME"`
 	CoreHost           string `mapstructure:"CORE_HOST"`
 	BootstrapToken     string `mapstructure:"BOOTSTRAP_TOKEN"`
+	DevMode            bool   `mapstructure:"DEV_MODE"`
 	BindHost           string `mapstructure:"BIND_HOST"`
 	SSHPort            string `mapstructure:"SSHD_PORT"`
 	HTTPPort           string `mapstructure:"HTTPD_PORT"`

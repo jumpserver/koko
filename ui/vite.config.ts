@@ -18,6 +18,12 @@ function pathResolve(dir: string): string {
 export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
   const root = process.cwd();
   const env = loadEnv(mode, root);
+  const kokoTarget = process.env.HTTPD_PORT
+    ? `http://127.0.0.1:${process.env.HTTPD_PORT}`
+    : env.VITE_KOKO_WS_URL;
+  const coreTarget = process.env.KOKO_DEV_CORE_PORT
+    ? `http://127.0.0.1:${process.env.KOKO_DEV_CORE_PORT}`
+    : env.VITE_KOKO_API_URL;
 
   return {
     plugins: [
@@ -39,12 +45,12 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
       // port: 9527,
       proxy: {
         '^/koko/ws/': {
-          target: env.VITE_KOKO_WS_URL,
+          target: kokoTarget,
           ws: true,
           changeOrigin: true,
         },
         '^/api/': {
-          target: env.VITE_KOKO_API_URL,
+          target: coreTarget,
           ws: true,
           changeOrigin: true,
         },

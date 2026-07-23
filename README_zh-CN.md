@@ -87,6 +87,24 @@ $ npm run serve
 3. 测试
 在 luna 访问 linux 资产，复制 iframe 地址，端口修改为 9530 即可，也可以修改 nginx 将 /koko 映射到这里
 
+### 无 Core Web 开发模式
+
+`make run-dev` 会启动 Koko 和仅监听本机回环地址的内置开发 Core，启动前不需要构建 `ui/dist`。另一个终端运行 `make run-ui`，由 Vite 提供页面，然后访问 `/koko/connect/?token=dev`。
+
+启动前通过环境变量提供开发资产：
+
+| 环境变量 | 必需 | 说明 |
+| --- | --- | --- |
+| `KOKO_DEV_ASSET_HOST` | 是 | SSH/SFTP 资产地址 |
+| `KOKO_DEV_ASSET_USERNAME` | 是 | 资产用户名 |
+| `KOKO_DEV_ASSET_PASSWORD` | 是 | 资产密码 |
+| `KOKO_DEV_ASSET_PORT` | 否 | SSH/SFTP 端口，默认 `22` |
+| `KOKO_DEV_ASSET_NAME` | 否 | 页面显示的资产名称 |
+| `KOKO_DEV_SFTP_ROOT` | 否 | SFTP 根目录，默认使用用户家目录 |
+| `KOKO_DEV_CORE_PORT` | 否 | 内置开发 Core 端口，默认 `18080` |
+
+Terminal AI 使用 OpenAI-compatible 接口。设置 `KOKO_DEV_AI_API_KEY` 和 `KOKO_DEV_AI_MODEL` 后启用；`KOKO_DEV_AI_BASE_URL` 和 `KOKO_DEV_AI_PROXY` 可选。AI 未配置时不影响 Web Terminal 和 SFTP。
+
 ## 构建docker镜像
 依赖 docker buildx 构建多平台镜像，需要安装 docker 19.03+ 版本，并开启 docker buildx 插件。
 
