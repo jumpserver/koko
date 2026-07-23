@@ -256,7 +256,12 @@ export const useZmodem = () => {
   };
 
   // Sentry 在 Zmodem 中用于监控终端数据流、识别 ZMODEM 协议信号、启动文件传输会话
-  const createSentry = (terminal: Terminal, socket: WebSocket, lastSendTime: Ref<Date>) => {
+  const createSentry = (
+    terminal: Terminal,
+    socket: WebSocket,
+    lastSendTime: Ref<Date>,
+    sendData?: (data: Uint8Array) => void
+  ) => {
     const sentry = new ZmodemBrowser.Sentry({
       to_terminal: (octets: string) => {
         try {
@@ -271,7 +276,9 @@ export const useZmodem = () => {
       sender: (octets: Uint8Array) => {
         try {
           lastSendTime.value = new Date();
-          socket.send(new Uint8Array(octets));
+          const data = new Uint8Array(octets);
+          if (sendData) sendData(data);
+          else socket.send(data);
         } catch (_e) {
           console.warn('Failed to send octets via WebSocket');
         }

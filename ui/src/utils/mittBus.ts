@@ -47,6 +47,7 @@ interface Event {
   'file-manager-expired': void;
   'connect-error': void;
   'close-drawer': void;
+  'terminal-ai-message': any;
 }
 
 // @ts-expect-error mittBus is not typed

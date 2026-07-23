@@ -93,6 +93,7 @@ type Parser struct {
 	currentCmdFilterRule CommandRule
 
 	userInputFilter func([]byte) []byte
+	terminalAIGrant func(string) (CommandACLDecision, bool)
 
 	disableInputAsCmd bool
 }
@@ -134,9 +135,7 @@ func (p *Parser) initial(w, h int) error {
 		Terminal:     terminal,
 		width:        uint16(w),
 		height:       uint16(h),
-		counted:      true,
 	}
-	activeTerminalParsers.Add(1)
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
@@ -374,7 +373,9 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.sendCommandRecord()
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
-		if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
+		if decision, ok := p.consumeTerminalAIGrant(currentCmd); ok {
+			p.applyTerminalAIGrant(decision)
+		} else if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
 			switch rule.Acl.Action {
 			case model.ActionReject:
 				p.setCurrentCmdStatusLevel(model.RejectLevel)
@@ -412,6 +413,38 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		}
 	}
 	return b
+}
+
+func (p *Parser) consumeTerminalAIGrant(command string) (CommandACLDecision, bool) {
+	if p.terminalAIGrant == nil {
+		return CommandACLDecision{}, false
+	}
+	return p.terminalAIGrant(command)
+}
+
+func (p *Parser) applyTerminalAIGrant(decision CommandACLDecision) {
+	for index := range p.cmdFilterACLs {
+		rule := &p.cmdFilterACLs[index]
+		if rule.ID != decision.ACLID {
+			continue
+		}
+		for itemIndex := range rule.CommandGroups {
+			item := &rule.CommandGroups[itemIndex]
+			if item.ID == decision.ItemID {
+				p.setCurrentCmdFilterRule(CommandRule{Acl: rule, Item: item})
+				break
+			}
+		}
+		break
+	}
+	if decision.Reviewed {
+		p.setCurrentCmdStatusLevel(model.ReviewAccept)
+		return
+	}
+	switch decision.Action {
+	case model.ActionWarning, model.ActionNotifyAndWarn:
+		p.setCurrentCmdStatusLevel(model.WarningLevel)
+	}
 }
 
 func (p *Parser) supportMultiCmd() bool {
@@ -502,9 +535,6 @@ func (p *Parser) updateTerminalMode(b []byte) {
 	p.modeLock.Lock()
 	defer p.modeLock.Unlock()
 	if !alternate {
-		if p.isEditMode || p.inVimState || p.isScreenMode {
-			logger.Debugf("Session %s exit alternate screen mode", p.id)
-		}
 		p.isEditMode = false
 		p.inVimState = false
 		p.isScreenMode = false
@@ -516,18 +546,15 @@ func (p *Parser) updateTerminalMode(b []byte) {
 		// Exiting an editor nested inside tmux restores the tmux alternate
 		// screen, so alternate may remain true here.
 		p.inVimState = false
-		logger.Debugf("Session %s exit editor mode", p.id)
 		return
 	}
 	if IsEditEnterMode(b) && isTerminalEditorCommand(p.command) {
 		p.inVimState = true
-		logger.Debugf("Session %s enter editor mode", p.id)
 		return
 	}
 	if isTerminalMultiplexerCommand(p.command) || isNewScreen(b) {
 		p.isScreenMode = true
 		p.inVimState = false
-		logger.Debugf("Session %s enter terminal multiplexer mode", p.id)
 		return
 	}
 	if !p.isScreenMode && !p.inVimState && matchMark(b, vimMarks) {
@@ -535,7 +562,6 @@ func (p *Parser) updateTerminalMode(b []byte) {
 		// hide the executable name. It is only evaluated after VT confirms that
 		// the alternate screen is active.
 		p.inVimState = true
-		logger.Debugf("Session %s enter full-screen application mode", p.id)
 	}
 }
 

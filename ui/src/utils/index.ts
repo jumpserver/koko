@@ -7,6 +7,11 @@ import type { ILunaConfig } from '@/types/modules/config.type';
 import type { RowData } from '@/components/Drawer/components/FileManagement/index.vue';
 
 import { AsciiBackspace, AsciiCtrlC, AsciiCtrlZ, AsciiDel } from '@/utils/config';
+import {
+  buildJSONEnvelope,
+  buildTerminalInput,
+  ENVELOPE_TERMINAL_COMMAND,
+} from '@/websocket/envelope';
 
 const { message } = createDiscreteApi(['message']);
 
@@ -102,17 +107,27 @@ export function sendEventToLuna(name: string, data: any, lunaId: string | null =
 }
 
 /**
- * @description 格式化消息为 JSON 字符串。
+ * @description 格式化消息为终端 Envelope。
  *
  * @param id - 消息的 ID。
  * @param type - 消息的类型。
  * @param data - 消息的数据。
- * @returns 格式化的 JSON 字符串。
+ * @returns 可直接发送的二进制 Envelope。
  */
-export function formatMessage(id: string, type: string, data: any) {
-  return JSON.stringify({
-    id,
-    type,
-    data,
+export function formatMessage(id: string | number, type: string, data: any) {
+  const terminalId = Number(id) || 0;
+  if (type === 'TERMINAL_DATA') {
+    return buildTerminalInput(terminalId, typeof data === 'string' ? data : new Uint8Array(data));
+  }
+  return buildJSONEnvelope(ENVELOPE_TERMINAL_COMMAND, {
+    terminalId,
+    command: type,
+    params: {
+      id: String(id || ''),
+      type,
+      data,
+      terminalId,
+    },
+    timestamp: Date.now(),
   });
 }

@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
@@ -28,22 +27,6 @@ func DefaultEnterKeyPressHandler(p []byte) bool {
 
 const maxBufSize = 1024 * 100
 
-var activeTerminalParsers atomic.Int64
-
-type TerminalParserMetrics struct {
-	Active                 int64 `json:"active"`
-	ScrollbackRows         int   `json:"scrollback_rows"`
-	OutputBufferLimitBytes int   `json:"output_buffer_limit_bytes"`
-}
-
-func GetTerminalParserMetrics() TerminalParserMetrics {
-	return TerminalParserMetrics{
-		Active:                 activeTerminalParsers.Load(),
-		ScrollbackRows:         0,
-		OutputBufferLimitBytes: maxBufSize,
-	}
-}
-
 const (
 	InputPreState = iota + 1
 	InputState
@@ -52,14 +35,12 @@ const (
 )
 
 type TerminalParser struct {
-	InputBuf  bytes.Buffer
-	Ps1sStr   string
-	Terminal  *terminalparser.TerminalVT
-	state     int
-	once      sync.Once
-	closeOnce sync.Once
-	mux       sync.Mutex
-	counted   bool
+	InputBuf bytes.Buffer
+	Ps1sStr  string
+	Terminal *terminalparser.TerminalVT
+	state    int
+	once     sync.Once
+	mux      sync.Mutex
 
 	IsEnter func(p []byte) bool
 	cmd     string
@@ -91,9 +72,7 @@ func (s *TerminalParser) GetCursorRow() string {
 }
 
 func (s *TerminalParser) feed(p []byte) {
-	if _, err := s.Terminal.Write(p); err != nil && terminalDebug {
-		fmt.Printf("terminal feed failed: %s\n", err)
-	}
+	s.Terminal.Write(p)
 	if terminalDebug {
 		fmt.Println("---------Feed-------------")
 		fmt.Println(hex.Dump(p))
@@ -190,15 +169,7 @@ func (s *TerminalParser) Resize(width, height int) error {
 }
 
 func (s *TerminalParser) Close() error {
-	var err error
-	s.closeOnce.Do(func() {
-		err = s.Terminal.Close()
-		if s.counted {
-			activeTerminalParsers.Add(-1)
-			s.counted = false
-		}
-	})
-	return err
+	return s.Terminal.Close()
 }
 
 func (s *TerminalParser) parseSrvOutputRows() []string {
@@ -208,10 +179,7 @@ func (s *TerminalParser) parseSrvOutputRows() []string {
 	if s.width > 0 && s.height > 0 {
 		options = append(options, terminalparser.WithSize(s.width, s.height))
 	}
-	outputs, err := terminalparser.Parse(output, options...)
-	if err != nil && terminalDebug {
-		fmt.Printf("terminal output parse failed: %s\n", err)
-	}
+	outputs, _ := terminalparser.Parse(output, options...)
 	return outputs
 }
 

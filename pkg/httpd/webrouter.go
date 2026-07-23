@@ -15,7 +15,6 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/monitoring"
 )
 
 func getStaticFS() http.FileSystem {
@@ -72,9 +71,6 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 
 		wsGroup.Group("/elfinder").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessElfinderWebsocket)
-
-		wsGroup.Group("/chat/system").Use(
-			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ChatAIWebsocket)
 
 		wsGroup.Group("/sftp").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessSftpWebsocket)
@@ -171,8 +167,5 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		debugGroup.GET("/mutex", gin.WrapF(pprof.Handler("mutex").ServeHTTP))
 		debugGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
 	}
-	eng.GET("/debug/memory", auth.HTTPMiddleDebugAuth(), func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, monitoring.Snapshot())
-	})
 	return eng
 }

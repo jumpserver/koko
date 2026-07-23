@@ -26,6 +26,7 @@ release
 .DS_Store
 ui/node_modules/
 ui/dist/
+ui_embed/ui/
 
 # local env files
 .env.local
@@ -48,3 +49,4 @@ pnpm-debug.log*
 demo
 
 docker-compose.yaml
+.env

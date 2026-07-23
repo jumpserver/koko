@@ -24,6 +24,7 @@ KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 KOKOBUILD=CGO_ENABLED=1 go build -trimpath -ldflags "$(KOKOLDFLAGS) ${LDFLAGS}"
 
 UIDIR=ui
+UIEMBEDDIR=ui_embed/ui/dist
 
 define make_artifact_full
 	GOOS=$(1) GOARCH=$(2) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME)-$(1)-$(2) $(KOKOSRCFILE)
@@ -40,7 +41,7 @@ define make_artifact_full
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2)
 endef
 
-build:
+build: prepare-ui-embed
 	GOARCH=$(GOARCH) GOOS=$(GOOS) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME) $(KOKOSRCFILE)
 
 all: koko-ui
@@ -87,6 +88,15 @@ linux-riscv64: koko-ui
 koko-ui:
 	@echo "build ui"
 	@cd $(UIDIR) && yarn install && yarn build
+	@$(MAKE) prepare-ui-embed
+
+.PHONY: prepare-ui-embed
+prepare-ui-embed:
+	@rm -rf ui_embed/ui
+	@if [ -d "$(UIDIR)/dist" ]; then \
+		mkdir -p "$(UIEMBEDDIR)"; \
+		cp -R "$(UIDIR)/dist/." "$(UIEMBEDDIR)/"; \
+	fi
 
 .PHONY: docker
 docker:

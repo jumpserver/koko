@@ -57,6 +57,16 @@ export const useTreeStore = defineStore('tree', {
     getTerminalByK8sId(k8s_id: string): any {
       return this.terminalMap.get(k8s_id);
     },
+    getTerminalById(terminalId: number): any {
+      for (const terminal of this.terminalMap.values()) {
+        if (Number(terminal.terminalId) === terminalId) return terminal;
+      }
+    },
+    getTerminalByRequestId(requestId: string): any {
+      for (const terminal of this.terminalMap.values()) {
+        if (terminal.terminalRequestId === requestId) return terminal;
+      }
+    },
     removeK8sIdMap(k8s_id: string): boolean {
       return this.terminalMap.delete(k8s_id);
     },

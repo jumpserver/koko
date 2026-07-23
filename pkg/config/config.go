@@ -69,6 +69,9 @@ type Config struct {
 
 	DisableInputAsCommand bool `mapstructure:"DISABLE_INPUT_AS_COMMAND"`
 
+	TerminalAIBackgroundTimeout int    `mapstructure:"TERMINAL_AI_BACKGROUND_TIMEOUT"`
+	TerminalAIRulesFile         string `mapstructure:"TERMINAL_AI_RULES_FILE"`
+
 	SecretEncryptKey string `mapstructure:"SECRET_ENCRYPT_KEY"`
 
 	// Force both public key and password authentication (two-factor SSH login)
@@ -90,6 +93,9 @@ type Config struct {
 func (c *Config) EnsureConfigValid() {
 	if c.LanguageCode == "" {
 		c.LanguageCode = "en"
+	}
+	if c.TerminalAIBackgroundTimeout <= 0 {
+		c.TerminalAIBackgroundTimeout = 300
 	}
 }
 
@@ -168,10 +174,11 @@ func getDefaultConfig() Config {
 		RedisPort:           "6379",
 		RedisPassword:       "",
 
-		EnableLocalPortForward: false,
-		EnableVscodeSupport:    false,
-		KokoPrivileged:         true,
-		DisableInputAsCommand:  true,
+		EnableLocalPortForward:      false,
+		EnableVscodeSupport:         false,
+		KokoPrivileged:              true,
+		DisableInputAsCommand:       true,
+		TerminalAIBackgroundTimeout: 300,
 	}
 
 }
