@@ -12,6 +12,8 @@ export const useConnectionStore = defineStore('connection', {
     assetName: '',
     terminalId: '',
     enableShare: false,
+    terminalAIEnabled: false,
+    terminalAIBackground: false,
     terminal: undefined,
     socket: null,
     userOptions: [],

@@ -15,12 +15,28 @@ import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } fr
 import type { SettingConfig } from '@/types/modules/config.type';
 import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
 
+import mittBus from '@/utils/mittBus';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { getDefaultTerminalConfig } from '@/utils/guard';
 import { defaultTheme, MaxTimeout } from '@/utils/config';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { formatMessage, preprocessInput, writeBufferToTerminal } from '@/utils';
+import {
+  buildJSONEnvelope,
+  buildTerminalInput,
+  createRequestId,
+  ENVELOPE_CHAT,
+  ENVELOPE_ERROR,
+  ENVELOPE_TERMINAL_CLOSE,
+  ENVELOPE_TERMINAL_COMMAND,
+  ENVELOPE_TERMINAL_CREATE,
+  ENVELOPE_TERMINAL_OUTPUT,
+  parseEnvelope,
+  parseJSONPayload,
+  parseTerminalPayload,
+  type TerminalCommandEnvelope,
+} from '@/websocket/envelope';
 import {
   FORMATTER_MESSAGE_TYPE,
   LUNA_MESSAGE_TYPE,
@@ -67,7 +83,7 @@ export const useTerminalSocket = () => {
   const shareId = ref('');
   const shareCode = ref('');
   const sessionId = ref('');
-  const terminalId = ref('');
+  const terminalId = ref(0);
   const selectionText = ref('');
   const zmodemTransferStatus = ref(true);
 
@@ -151,6 +167,10 @@ export const useTerminalSocket = () => {
 
     switch (parsedMessageData.type) {
       case MESSAGE_TYPE.CLOSE: {
+        const closedTerminalId = Number(parsedMessageData.terminalId) || 0;
+        if (closedTerminalId && terminalId.value && closedTerminalId !== terminalId.value) {
+          break;
+        }
         connectionStore.updateConnectionState({
           enableShare: false,
           onlineUsers: [],
@@ -161,6 +181,10 @@ export const useTerminalSocket = () => {
         break;
       }
       case MESSAGE_TYPE.ERROR: {
+        const errorTerminalId = Number(parsedMessageData.terminalId) || 0;
+        if (errorTerminalId && terminalId.value && errorTerminalId !== terminalId.value) {
+          break;
+        }
         terminalRef.value!.write(parsedMessageData.err);
         sendLunaEvent(LUNA_MESSAGE_TYPE.TERMINAL_ERROR, '');
         break;
@@ -169,21 +193,10 @@ export const useTerminalSocket = () => {
         break;
       }
       case MESSAGE_TYPE.CONNECT: {
-        terminalId.value = parsedMessageData.id;
-        emitTerminalConnect(terminalId.value);
-
-        connectionStore.setConnectionState({
-          socket: socketRef.value!,
-          terminal: terminalRef.value!,
-          terminalId: parsedMessageData.id,
+        connectionStore.updateConnectionState({
+          terminalAIEnabled: false,
+          terminalAIBackground: false,
         });
-
-        const terminalData = {
-          cols: terminalRef.value!.cols,
-          rows: terminalRef.value!.rows,
-          code: connectionStore.shareCode,
-        };
-
         const info = JSON.parse(parsedMessageData.data);
 
         featureSetting.value = info.setting;
@@ -197,9 +210,27 @@ export const useTerminalSocket = () => {
         updateIcon(info.setting);
 
         socketRef.value!.send(
-          formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_INIT, JSON.stringify(terminalData))
+          buildJSONEnvelope(ENVELOPE_TERMINAL_CREATE, {
+            requestId: createRequestId('primary'),
+            params: {
+              type: 'primary',
+              cols: terminalRef.value!.cols,
+              rows: terminalRef.value!.rows,
+              code: connectionStore.shareCode,
+            },
+          })
         );
 
+        break;
+      }
+      case 'created': {
+        terminalId.value = Number(parsedMessageData.terminalId) || 0;
+        emitTerminalConnect(String(terminalId.value));
+        connectionStore.setConnectionState({
+          socket: socketRef.value!,
+          terminal: terminalRef.value!,
+          terminalId: String(terminalId.value),
+        });
         break;
       }
       case MESSAGE_TYPE.TERMINAL_ERROR: {
@@ -372,18 +403,14 @@ export const useTerminalSocket = () => {
     }
   };
 
-  /**
-   * @description 终端 zmodem 处理二进制消息
-   * @param {MessageEvent} socketMessage
-   */
-  const handleBinaryMessage = (socketMessage: MessageEvent) => {
+  const handleBinaryMessage = (data: Uint8Array) => {
     if (!terminalRef.value || !sentry) {
       return;
     }
 
     if (zmodemTransferStatus.value) {
       try {
-        sentry.consume(socketMessage.data);
+        sentry.consume(data);
       } catch (_e) {
         if (sentry.get_confirmed_session()) {
           sentry.get_confirmed_session()?.abort();
@@ -392,7 +419,68 @@ export const useTerminalSocket = () => {
         }
       }
     } else {
-      writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
+      writeBufferToTerminal(true, false, terminalRef.value, data);
+    }
+  };
+
+  const handleEnvelopeMessage = (value: ArrayBuffer) => {
+    const frame = parseEnvelope(value);
+    switch (frame.type) {
+      case ENVELOPE_TERMINAL_OUTPUT: {
+        const terminalPayload = parseTerminalPayload(frame.payload);
+        if (terminalPayload.terminalId === terminalId.value) {
+          handleBinaryMessage(terminalPayload.data);
+        }
+        break;
+      }
+      case ENVELOPE_TERMINAL_COMMAND: {
+        const command = parseJSONPayload<TerminalCommandEnvelope>(frame.payload);
+        const params = (command.params || {}) as Record<string, unknown>;
+        dispatch(
+          JSON.stringify({
+            ...params,
+            type: command.command,
+            terminalId: command.terminalId || Number(params.terminalId) || 0,
+            requestId: command.requestId,
+          })
+        );
+        break;
+      }
+      case ENVELOPE_ERROR: {
+        const error = parseJSONPayload<Record<string, unknown>>(frame.payload);
+        dispatch(
+          JSON.stringify({
+            type: MESSAGE_TYPE.ERROR,
+            err: String(error.message || 'Terminal error'),
+            terminalId: Number(error.terminalId) || 0,
+            requestId: String(error.requestId || ''),
+          })
+        );
+        break;
+      }
+      case ENVELOPE_TERMINAL_CLOSE: {
+        const closed = parseJSONPayload<Record<string, unknown>>(frame.payload);
+        dispatch(
+          JSON.stringify({
+            type: MESSAGE_TYPE.CLOSE,
+            terminalId: Number(closed.terminalId) || 0,
+            data: String(closed.reason || ''),
+          })
+        );
+        break;
+      }
+      case ENVELOPE_CHAT: {
+        const chatMessage = parseJSONPayload<any>(frame.payload);
+        const capability = chatMessage.parts?.find((part: any) => part.type === 'data-capability')?.data;
+        if (capability) {
+          connectionStore.updateConnectionState({
+            terminalAIEnabled: Boolean(capability.enabled),
+            terminalAIBackground: Boolean(capability.backgroundExec),
+          });
+        }
+        mittBus.emit('terminal-ai-message', chatMessage);
+        break;
+      }
     }
   };
 
@@ -404,7 +492,14 @@ export const useTerminalSocket = () => {
       return;
     }
 
-    sentry = createSentry(terminalRef.value!, socketRef.value!, lastSendTime);
+    sentry = createSentry(
+      terminalRef.value!,
+      socketRef.value!,
+      lastSendTime,
+      data => {
+        if (terminalId.value) socketRef.value?.send(buildTerminalInput(terminalId.value, data));
+      }
+    );
 
     socketRef.value.onopen = () => {
       if (pingInterval.value) clearInterval(pingInterval.value);
@@ -426,7 +521,7 @@ export const useTerminalSocket = () => {
           return;
         }
 
-        socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.PING, ''));
+        socketRef.value!.send(formatMessage(0, FORMATTER_MESSAGE_TYPE.PING, ''));
       }, 25 * 1000);
     };
     socketRef.value.onclose = () => {
@@ -436,13 +531,16 @@ export const useTerminalSocket = () => {
       terminalRef.value.write(`\x1B[31m${t('WebSocketClosed')}\x1B[0m`);
     };
     const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-    socketRef.value.onmessage = async (message: MessageEvent) => {
+    socketRef.value.onmessage = async (event: MessageEvent) => {
       await sleep(1); // time sleep 0.001, avoid long write and block websocket send
       lastReceiveTime.value = new Date();
-      if (typeof message.data === 'object') {
-        handleBinaryMessage(message);
-      } else {
-        dispatch(message.data);
+      if (event.data instanceof ArrayBuffer) {
+        try {
+          handleEnvelopeMessage(event.data);
+        } catch (error) {
+          const content = error instanceof Error ? error.message : 'Invalid terminal message';
+          message.error(content);
+        }
       }
     };
   };
@@ -526,7 +624,9 @@ export const useTerminalSocket = () => {
       }
 
       const processedData = preprocessInput(data, terminalSettingsStore.getConfig);
-      socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
+      if (terminalId.value > 0) {
+        socketRef.value!.send(formatMessage(terminalId.value, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
+      }
       lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
     });
     terminalRef.value.onResize(({ cols, rows }) => debouncedResize({ cols, rows }));

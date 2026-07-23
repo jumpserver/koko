@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -105,6 +106,8 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		return nil, ErrPermission
 	}
 
+	commandACLs := cloneCommandACLs(connOpts.authInfo.CommandFilterACLs)
+	sort.Sort(commandACLs)
 	return &Server{
 		ID:            apiSession.ID,
 		UserConn:      conn,
@@ -115,6 +118,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		terminalConf:  &terminalConf,
 		gateway:       connOpts.authInfo.Gateway,
 		sessionInfo:   apiSession,
+		commandACLs:   commandACLs,
 		CreateSessionCallback: func() error {
 			apiSession.DateStart = common.NewNowUTCTime()
 			_, err2 := jmsService.CreateSession(*apiSession)
@@ -146,6 +150,13 @@ type Server struct {
 	gateway      *model.Gateway
 
 	sessionInfo *model.Session
+	commandACLs model.CommandACLs
+
+	backgroundRecorderMu sync.Mutex
+	backgroundRecorder   *CommandRecorder
+	operationPaused      atomic.Bool
+	permissionInvalid    atomic.Bool
+	backgroundActiveAt   atomic.Int64
 
 	cacheSSHConnection *srvconn.SSHConnection
 
@@ -156,6 +167,7 @@ type Server struct {
 	keyboardMode int32
 
 	OnSessionInfo func(info *SessionInfo)
+	OnSSHClient   func(client *srvconn.SSHClient)
 
 	BroadcastEvent func(event *exchange.RoomMessage)
 }
@@ -170,8 +182,152 @@ type SessionInfo struct {
 	ThemeName string `json:"themeName"`
 }
 
+type CommandACLDecision struct {
+	Action    model.CommandAction
+	ACLID     string
+	ItemID    string
+	Name      string
+	Matched   string
+	DetailURL string
+	Reviewers []string
+	Processor string
+	Reviewed  bool
+}
+
+func cloneCommandACLs(source []model.CommandACL) model.CommandACLs {
+	result := make(model.CommandACLs, len(source))
+	for index := range source {
+		result[index] = source[index]
+		result[index].CommandGroups = append(
+			[]model.CommandFilterItem(nil), source[index].CommandGroups...,
+		)
+	}
+	return result
+}
+
+func (s *Server) MatchCommandACL(command string) CommandACLDecision {
+	for index := range s.commandACLs {
+		rule := &s.commandACLs[index]
+		item, action, matched := rule.Match(command)
+		if action == model.ActionUnknown {
+			continue
+		}
+		return CommandACLDecision{
+			Action: action, ACLID: rule.ID, ItemID: item.ID,
+			Name: rule.Name, Matched: matched,
+		}
+	}
+	return CommandACLDecision{Action: model.ActionUnknown}
+}
+
+func (s *Server) ReviewCommand(
+	ctx context.Context, decision CommandACLDecision, command string,
+) (CommandACLDecision, error) {
+	ticket, err := s.jmsService.SubmitCommandReview(s.ID, decision.ACLID, command)
+	if err != nil {
+		return decision, err
+	}
+	decision.DetailURL = ticket.TicketDetailUrl
+	decision.Reviewers = ticket.Reviewers
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			_ = s.jmsService.CancelConfirmByRequestInfo(ticket.CloseReq)
+			return decision, ctx.Err()
+		case <-ticker.C:
+		}
+		status, checkErr := s.jmsService.CheckConfirmStatusByRequestInfo(ticket.CheckReq)
+		if checkErr != nil {
+			logger.Errorf("Session %s: check terminal AI command review failed: %s", s.ID, checkErr)
+			continue
+		}
+		decision.Processor = status.Processor
+		switch status.State {
+		case model.TicketOpen:
+			continue
+		case model.TicketApproved:
+			decision.Action = model.ActionAccept
+			decision.Reviewed = true
+			return decision, nil
+		case model.TicketRejected, model.TicketClosed:
+			decision.Action = model.ActionReject
+			return decision, nil
+		default:
+			logger.Errorf("Session %s: unknown terminal AI review status %s", s.ID, status.Status)
+		}
+	}
+}
+
+func (s *Server) RecordBackgroundCommand(
+	command, output string, exitCode *int, decision *CommandACLDecision,
+) {
+	riskLevel := int64(model.NormalLevel)
+	aclID, itemID := "", ""
+	if decision != nil {
+		aclID, itemID = decision.ACLID, decision.ItemID
+		switch {
+		case decision.Reviewed:
+			riskLevel = model.ReviewAccept
+		default:
+			switch decision.Action {
+			case model.ActionWarning, model.ActionNotifyAndWarn:
+				riskLevel = model.WarningLevel
+			}
+		}
+	}
+	if exitCode != nil {
+		output = fmt.Sprintf("[exit %d]\n%s", *exitCode, output)
+	}
+	now := time.Now()
+	record := &model.Command{
+		SessionID: s.sessionInfo.ID, OrgID: s.sessionInfo.OrgID,
+		Input: command, Output: output,
+		User: s.sessionInfo.User, Server: s.sessionInfo.Asset,
+		Account: s.sessionInfo.Account, Timestamp: now.Unix(),
+		RiskLevel: riskLevel, CmdFilterAclId: aclID, CmdGroupId: itemID,
+		DateCreated: now.UTC(),
+	}
+	s.backgroundRecorderMu.Lock()
+	if s.backgroundRecorder == nil {
+		s.backgroundRecorder = s.GetCommandRecorder()
+	}
+	recorder := s.backgroundRecorder
+	s.backgroundRecorderMu.Unlock()
+	recorder.Record(record)
+}
+
+func (s *Server) CloseBackgroundRecorder() {
+	s.backgroundRecorderMu.Lock()
+	recorder := s.backgroundRecorder
+	s.backgroundRecorder = nil
+	s.backgroundRecorderMu.Unlock()
+	if recorder != nil {
+		recorder.End()
+	}
+}
+
 func (s *Server) IsKeyboardMode() bool {
 	return atomic.LoadInt32(&s.keyboardMode) == 1
+}
+
+func (s *Server) SupportsBackgroundExecution() bool {
+	return s.connOpts.authInfo.Protocol == srvconn.ProtocolSSH && s.suFromAccount == nil
+}
+
+func (s *Server) CheckBackgroundExecution() error {
+	switch {
+	case !s.SupportsBackgroundExecution():
+		return errors.New("background execution is unavailable")
+	case s.operationPaused.Load():
+		return errors.New("the terminal session is paused")
+	case s.permissionInvalid.Load(), s.CheckPermissionExpired(time.Now()):
+		return errors.New("the terminal session permission is invalid")
+	default:
+		s.backgroundActiveAt.Store(time.Now().UnixNano())
+		return nil
+	}
 }
 
 func (s *Server) setKeyBoardMode() {
@@ -419,6 +575,9 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		sshClient.ReleaseSession(sess)
 		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, false
+	}
+	if s.OnSSHClient != nil {
+		s.OnSSHClient(sshClient)
 	}
 	reuseMsg := fmt.Sprintf(lang.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
 		loginAccount.Name, asset.Address, sshClient.RefCount())
@@ -708,6 +867,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		sshClient.ReleaseSession(sess)
 		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, err
+	}
+	if s.OnSSHClient != nil {
+		s.OnSSHClient(sshClient)
 	}
 	if s.suFromAccount != nil {
 		lang := s.connOpts.getLang()

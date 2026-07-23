@@ -19,6 +19,10 @@ export interface ConnectionState {
 
   enableShare: boolean;
 
+  terminalAIEnabled: boolean;
+
+  terminalAIBackground: boolean;
+
   terminal: Terminal;
 
   socket: WebSocket | null;

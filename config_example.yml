@@ -26,6 +26,9 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # Api Http请求的超时时间 (default 30 seconds)
 # HTTP_REQUEST_TIMEOUT: 30
 
+# Terminal AI 后台命令的执行超时时间（单位: 秒），默认 300
+# TERMINAL_AI_BACKGROUND_TIMEOUT: 300
+
 # 语言 [en,zh]
 # LANGUAGE_CODE: zh
 
