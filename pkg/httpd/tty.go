@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"math"
-	"strings"
 	"sync"
 	"time"
 
@@ -373,22 +372,14 @@ func (h *tty) handleTerminalInit(
 		Height: connectInfo.Rows,
 	}
 	userR, userW := io.Pipe()
-	observer, err := terminalai.NewObserver(connectInfo.Cols, connectInfo.Rows)
-	if err != nil {
-		h.ws.SendMessage(&Message{
-			Type: TerminalError, TerminalId: terminalID,
-			RequestId: requestID, Err: err.Error(),
-		})
-		return
-	}
 	client := &Client{
 		WinChan: make(chan ssh.Window, 100), Conn: h.ws,
 		UserRead: userR, UserWrite: userW,
 		pty:          ssh.Pty{Term: "xterm", Window: win},
 		KubernetesId: KubernetesId, Namespace: namespace,
-		Pod: pod, Container: container, TerminalId: terminalID, Observer: observer,
+		Pod: pod, Container: container, TerminalId: terminalID,
 	}
-	h.initializeTerminalAI(client)
+	h.initializeTerminalAI(client, connectInfo)
 	h.clientsMu.Lock()
 	if h.clients == nil {
 		h.clients = make(map[uint32]*Client)
@@ -417,7 +408,10 @@ func (h *tty) handleTerminalInit(
 	go h.proxy(&h.wg, client)
 }
 
-func (h *tty) initializeTerminalAI(client *Client) {
+func (h *tty) initializeTerminalAI(
+	client *Client,
+	connectInfo TerminalConnectData,
+) {
 	if client == nil || client.KubernetesId != "" ||
 		h.ws.ConnectToken == nil ||
 		h.ws.ConnectToken.Protocol == srvconn.ProtocolK8s ||
@@ -430,19 +424,17 @@ func (h *tty) initializeTerminalAI(client *Client) {
 		logger.Errorf("Get terminal AI config failed: %s", err)
 		return
 	}
-	modelClient, err := terminalai.NewModelClient(termConfig)
-	if err != nil {
-		logger.Infof("Terminal AI disabled for terminal %d: %s", client.TerminalId, err)
-		return
-	}
-	providerInfo := modelClient.ProviderInfo()
-	logger.Infof(
-		"Terminal AI provider %s model %s initialized for terminal %d",
-		providerInfo.Name, providerInfo.Model, client.TerminalId,
-	)
-	client.Agent = terminalai.NewRuntime(
-		client.TerminalId, modelClient, client.Observer, client.WriteAgentData,
-		func(message terminalai.ChatMessage) {
+	connectToken := h.ws.ConnectToken
+	session, err := terminalai.NewSession(terminalai.SessionOptions{
+		TerminalID:        client.TerminalId,
+		Width:             connectInfo.Cols,
+		Height:            connectInfo.Rows,
+		ModelConfig:       termConfig,
+		Context:           terminalai.NewSessionContext(connectToken),
+		WritePTY:          client.WriteAgentData,
+		SetInputLocked:    client.SetInputLocked,
+		RequireCommandACL: true,
+		Emit: func(message terminalai.ChatMessage) {
 			data, marshalErr := json.Marshal(message)
 			if marshalErr != nil {
 				return
@@ -451,13 +443,20 @@ func (h *tty) initializeTerminalAI(client *Client) {
 				Type: ChatMessage, TerminalId: client.TerminalId, Data: string(data),
 			})
 		},
+	})
+	if err != nil {
+		logger.Infof("Terminal AI disabled for terminal %d: %s", client.TerminalId, err)
+		return
+	}
+	providerInfo := session.ProviderInfo()
+	logger.Infof(
+		"Terminal AI feature %s provider %s model %s initialized for terminal %d",
+		terminalai.FeatureName(),
+		providerInfo.Name,
+		providerInfo.Model,
+		client.TerminalId,
 	)
-	connectToken := h.ws.ConnectToken
-	client.Agent.SetAdapter(terminalai.ResolveAdapter(
-		terminalai.NewSessionContext(connectToken),
-	))
-	client.Agent.RequireCommandACL()
-	client.Agent.SetInputLock(client.SetInputLocked)
+	client.Agent = session
 	client.Agent.AnnounceCapability()
 }
 
@@ -742,26 +741,16 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 		agent := client.Agent
 		sessionContext := terminalai.NewSessionContext(connectToken)
 		if agent != nil {
-			if connectToken.Protocol == srvconn.ProtocolSSH &&
-				!srv.SupportsBackgroundExecution() {
-				reason := "background execution is unavailable for this SSH platform"
-				platformType := strings.TrimSpace(connectToken.Platform.Type.Value)
-				isShellPlatform := strings.EqualFold(platformType, "linux") ||
-					strings.EqualFold(platformType, "unix")
-				if platformType == "" {
-					isShellPlatform = strings.EqualFold(connectToken.Platform.BaseOs, "linux") ||
-						strings.EqualFold(connectToken.Platform.BaseOs, "unix")
-				}
-				if isShellPlatform {
-					reason = "background execution is unavailable for su-from accounts"
-				}
-				agent.DisableBackground(reason)
+			if !srv.SupportsBackgroundExecution() {
+				agent.DisableBackground(
+					"background execution is unavailable for this connection",
+				)
 			}
-			agent.SetCommandACL(
-				func(command string) terminalai.CommandACLDecision {
+			agent.Bind(terminalai.SessionHooks{
+				CommandACLCheck: func(command string) terminalai.CommandACLDecision {
 					return terminalAIACLDecision(srv.MatchCommandACL(command))
 				},
-				func(
+				CommandACLReview: func(
 					ctx context.Context,
 					decision terminalai.CommandACLDecision,
 					command string,
@@ -778,9 +767,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 					)
 					return terminalAIACLDecision(reviewed), reviewErr
 				},
-			)
-			agent.SetBackgroundRecorder(
-				func(
+				BackgroundRecord: func(
 					command, output string,
 					exitCode *int,
 					decision *terminalai.CommandACLDecision,
@@ -796,20 +783,21 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 					}
 					srv.RecordBackgroundCommand(command, output, exitCode, aclDecision)
 				},
-			)
-			agent.SetBackgroundGuard(srv.CheckBackgroundExecution)
-			agent.SetPTYAuthorizer(func(
-				command string, decision *terminalai.CommandACLDecision,
-			) {
-				if decision == nil {
-					return
-				}
-				srv.AuthorizeTerminalAICommand(command, &proxy.CommandACLDecision{
-					Action: model.CommandAction(decision.Action),
-					ACLID:  decision.ACLID, ItemID: decision.ItemID,
-					Name: decision.Name, Matched: decision.Matched,
-					Reviewed: decision.Reviewed,
-				})
+				BackgroundGuard: srv.CheckBackgroundExecution,
+				PTYAuthorizer: func(
+					command string,
+					decision *terminalai.CommandACLDecision,
+				) {
+					if decision == nil {
+						return
+					}
+					srv.AuthorizeTerminalAICommand(command, &proxy.CommandACLDecision{
+						Action: model.CommandAction(decision.Action),
+						ACLID:  decision.ACLID, ItemID: decision.ItemID,
+						Name: decision.Name, Matched: decision.Matched,
+						Reviewed: decision.Reviewed,
+					})
+				},
 			})
 		}
 		setBackgroundExecutor := func(connection terminalai.BackgroundConnection) {
@@ -818,20 +806,12 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 			}
 			ctx, cancel := context.WithTimeout(client.Context(), 30*time.Second)
 			defer cancel()
-			executor, profileProvider, registered, initErr :=
-				terminalai.ResolveBackgroundExecutor(ctx, sessionContext, connection)
-			if !registered {
-				return
-			}
-			if initErr != nil {
+			if initErr := agent.AttachBackground(ctx, connection); initErr != nil {
 				logger.Errorf(
 					"Terminal AI %s background init failed: %s",
 					sessionContext.Protocol, initErr,
 				)
-				agent.DisableBackground(initErr.Error())
-				return
 			}
-			agent.SetBackgroundExecutor(executor, profileProvider)
 		}
 		srv.OnSessionInfo = func(info *proxy.SessionInfo) {
 			client.SetSessionInfo(info)

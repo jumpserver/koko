@@ -17,29 +17,12 @@ import (
 	"unicode/utf8"
 
 	mysqlDriver "github.com/go-sql-driver/mysql"
-	"github.com/jumpserver-dev/sdk-go/model"
 )
 
 const (
 	maxMySQLRows   = 1000
 	maxMySQLOutput = 100 * 1024
 )
-
-type DatabaseConfig struct {
-	Protocol         string
-	Host             string
-	Port             int
-	ServerName       string
-	Username         string
-	Password         string
-	Database         string
-	UseSSL           bool
-	CACert           string
-	ClientCert       string
-	ClientKey        string
-	AllowInvalidCert bool
-	DataMaskingRules []model.DataMaskingRule
-}
 
 type MySQLConfig = DatabaseConfig
 

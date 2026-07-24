@@ -37,8 +37,7 @@ type Client struct {
 	Namespace    string
 	Pod          string
 	Container    string
-	Observer     *terminalai.Observer
-	Agent        *terminalai.Runtime
+	Agent        terminalai.Session
 	SessionInfo  *proxy.SessionInfo
 	inputMu      sync.Mutex
 	inputLocked  bool
@@ -76,8 +75,8 @@ func (c *Client) Read(p []byte) (n int, err error) {
 
 // 向客户端发送数据进行1毫秒的防抖处理
 func (c *Client) Write(p []byte) (n int, err error) {
-	if c.Observer != nil {
-		c.Observer.Feed(p)
+	if c.Agent != nil {
+		c.Agent.Feed(p)
 	}
 	category := ""
 	connectToken := c.Conn.ConnectToken
@@ -146,10 +145,6 @@ func (c *Client) Close() (err error) {
 			c.Agent.Close()
 			c.Agent = nil
 		}
-		if c.Observer != nil {
-			_ = c.Observer.Close()
-			c.Observer = nil
-		}
 		c.initPipe()
 	})
 	return err
@@ -162,8 +157,8 @@ func (c *Client) initPipe() {
 }
 
 func (c *Client) SetWinSize(size ssh.Window) {
-	if c.Observer != nil {
-		c.Observer.Resize(size.Width, size.Height)
+	if c.Agent != nil {
+		c.Agent.Resize(size.Width, size.Height)
 	}
 	select {
 	case c.WinChan <- size:

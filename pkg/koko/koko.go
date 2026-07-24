@@ -46,17 +46,26 @@ func (k *Koko) Stop() {
 func RunForever(confPath string) {
 	config.Setup(confPath)
 	bootstrap()
-	ruleCount, err := terminalai.ConfigureRulesFile(
-		context.Background(), config.GetConf().TerminalAIRulesFile,
+	aiResult, err := terminalai.Configure(
+		context.Background(),
+		terminalai.Configuration{
+			RulesFile: config.GetConf().TerminalAIRulesFile,
+		},
 	)
 	if err != nil {
-		_, _ = terminalai.ConfigureRulesFile(context.Background(), "")
+		_, _ = terminalai.Configure(
+			context.Background(),
+			terminalai.Configuration{},
+		)
 		logger.Errorf(
 			"Load Terminal AI business rules failed; using built-in rules: %s",
 			err,
 		)
-	} else if ruleCount > 0 {
-		logger.Infof("Loaded %d Terminal AI business rules", ruleCount)
+	} else if aiResult.RuleCount > 0 {
+		logger.Infof(
+			"Loaded %d Terminal AI business rules",
+			aiResult.RuleCount,
+		)
 	}
 	var developmentCore *devcore.Server
 	if config.GlobalConfig.DevMode {

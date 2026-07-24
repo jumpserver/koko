@@ -23,11 +23,6 @@ type ProtocolRegistration struct {
 	NewBackgroundExecutor BackgroundExecutorFactory
 }
 
-type BackgroundConnection struct {
-	SSHClient *srvconn.SSHClient
-	Database  *DatabaseConfig
-}
-
 var protocolRegistry = struct {
 	sync.RWMutex
 	items map[string]ProtocolRegistration
@@ -62,7 +57,7 @@ func RegisteredProtocols() []string {
 	return result
 }
 
-func SupportsBackground(context SessionContext) bool {
+func supportsBackground(context SessionContext) bool {
 	context = normalizeSessionContext(context)
 	registration, ok := lookupProtocol(context.Protocol)
 	if !ok || registration.NewBackgroundExecutor == nil {
@@ -72,7 +67,7 @@ func SupportsBackground(context SessionContext) bool {
 	return adapter != nil && adapter.SupportsBackground()
 }
 
-func ResolveBackgroundExecutor(
+func resolveBackgroundExecutor(
 	ctx context.Context,
 	session SessionContext,
 	connection BackgroundConnection,
