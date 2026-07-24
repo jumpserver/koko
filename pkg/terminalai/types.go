@@ -53,15 +53,19 @@ type Decision struct {
 }
 
 type CommandProposal struct {
-	Command            string              `json:"command"`
-	Rationale          string              `json:"rationale"`
-	RiskLevel          int                 `json:"riskLevel"`
-	RiskReason         string              `json:"riskReason"`
-	Execution          string              `json:"execution"`
-	ExecutionCause     string              `json:"executionReason"`
-	CommandACL         *CommandACLDecision `json:"-"`
-	BackgroundEligible bool                `json:"-"`
-	ApprovalRequired   bool                `json:"-"`
+	Command             string              `json:"command"`
+	Rationale           string              `json:"rationale"`
+	RiskLevel           int                 `json:"riskLevel"`
+	RiskReason          string              `json:"riskReason"`
+	Execution           string              `json:"execution"`
+	ExecutionCause      string              `json:"executionReason"`
+	CommandACL          *CommandACLDecision `json:"-"`
+	BackgroundEligible  bool                `json:"-"`
+	ApprovalRequired    bool                `json:"-"`
+	MaxExecutionSeconds int                 `json:"-"`
+	RuleMatches         []RuleMatch         `json:"-"`
+	DeniedByRules       []RuleMatch         `json:"-"`
+	RulePolicy          RuleCommandPolicy   `json:"-"`
 }
 
 type PlannedStep struct {

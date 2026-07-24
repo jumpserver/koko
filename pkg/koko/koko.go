@@ -17,6 +17,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/monitoring"
 	"github.com/jumpserver/koko/pkg/sshd"
+	"github.com/jumpserver/koko/pkg/terminalai"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
@@ -45,6 +46,18 @@ func (k *Koko) Stop() {
 func RunForever(confPath string) {
 	config.Setup(confPath)
 	bootstrap()
+	ruleCount, err := terminalai.ConfigureRulesFile(
+		context.Background(), config.GetConf().TerminalAIRulesFile,
+	)
+	if err != nil {
+		_, _ = terminalai.ConfigureRulesFile(context.Background(), "")
+		logger.Errorf(
+			"Load Terminal AI business rules failed; using built-in rules: %s",
+			err,
+		)
+	} else if ruleCount > 0 {
+		logger.Infof("Loaded %d Terminal AI business rules", ruleCount)
+	}
 	var developmentCore *devcore.Server
 	if config.GlobalConfig.DevMode {
 		devConfig, err := devcore.LoadConfig()

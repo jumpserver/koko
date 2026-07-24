@@ -61,6 +61,7 @@ type Runtime struct {
 	authorizePTY      func(string, *CommandACLDecision)
 	inputLock         func(bool)
 	adapter           Adapter
+	ruleResolution    RuleResolution
 
 	executorMu          sync.RWMutex
 	backgroundExecutor  BackgroundExecutor
@@ -143,7 +144,12 @@ func (r *Runtime) SetAdapter(adapter Adapter) {
 		r.backgroundReason = "this asset adapter provides PTY execution only"
 	}
 	r.executorMu.Unlock()
-	if adapter.Name() != "ssh-shell" {
+	if aware, ok := adapter.(interface {
+		RuleResolution() RuleResolution
+	}); ok {
+		r.applyRuleResolution(aware.RuleResolution())
+	}
+	if !needsProfileDetection(adapter) || !adapter.SupportsBackground() {
 		r.finishProfile(AssetProfile{})
 	}
 }
@@ -250,8 +256,40 @@ func (r *Runtime) finishProfile(profile AssetProfile) {
 		profile.SessionContext = r.profile.SessionContext
 	}
 	r.profile = profile
+	adapter := r.adapter
 	r.mu.Unlock()
+	if aware, ok := adapter.(interface {
+		UpdateProfile(AssetProfile) RuleResolution
+	}); ok {
+		r.applyRuleResolution(aware.UpdateProfile(profile))
+	}
 	r.profileReadyOnce.Do(func() { close(r.profileReady) })
+}
+
+func (r *Runtime) applyRuleResolution(resolution RuleResolution) {
+	r.mu.Lock()
+	r.ruleResolution = resolution
+	model := r.model
+	if resolution.disablesBackground() {
+		r.executionMode = ModePTYOnly
+	}
+	r.mu.Unlock()
+	var executor BackgroundExecutor
+	if resolution.disablesBackground() {
+		r.executorMu.Lock()
+		executor = r.backgroundExecutor
+		r.backgroundExecutor = nil
+		r.backgroundAvailable = false
+		r.backgroundReason = "background execution is disabled by Terminal AI rules"
+		r.executorMu.Unlock()
+	}
+	if executor != nil {
+		_ = executor.Close()
+	}
+	if aware, ok := model.(RulePolicyModel); ok {
+		aware.SetPolicyInstructions(resolution.PromptInstructions)
+	}
+	r.writeAudit("rules_resolved", resolution)
 }
 
 func (r *Runtime) Handle(message ChatMessage) error {
@@ -536,6 +574,7 @@ func (r *Runtime) nextReActDecision(
 				proposal := *decision.Proposal
 				if err = validateProposal(&proposal); err == nil {
 					err = adapter.PrepareProposal(&proposal)
+					r.writeCommandRuleAudit(proposal, err)
 				}
 				if err == nil {
 					err = r.applyExecutionMode(&proposal)
@@ -853,6 +892,12 @@ func (r *Runtime) execute(
 			timeout = time.Duration(seconds) * time.Second
 		}
 	}
+	if proposal.MaxExecutionSeconds > 0 {
+		ruleTimeout := time.Duration(proposal.MaxExecutionSeconds) * time.Second
+		if ruleTimeout < timeout {
+			timeout = ruleTimeout
+		}
+	}
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	if proposal.Execution == ExecutionBackground {
@@ -885,6 +930,32 @@ func (r *Runtime) execute(
 	case result := <-resultCh:
 		return result.Output, nil, nil
 	}
+}
+
+func (r *Runtime) writeCommandRuleAudit(
+	proposal CommandProposal,
+	decisionErr error,
+) {
+	if len(proposal.RuleMatches) == 0 &&
+		len(proposal.DeniedByRules) == 0 {
+		return
+	}
+	payload := map[string]any{
+		"command":             proposal.Command,
+		"matches":             proposal.RuleMatches,
+		"minimumRiskResult":   proposal.RiskLevel,
+		"approvalRequired":    proposal.ApprovalRequired,
+		"execution":           proposal.Execution,
+		"maxExecutionSeconds": proposal.MaxExecutionSeconds,
+		"policy":              proposal.RulePolicy,
+	}
+	if len(proposal.DeniedByRules) > 0 {
+		payload["deniedBy"] = proposal.DeniedByRules
+	}
+	if decisionErr != nil {
+		payload["error"] = decisionErr.Error()
+	}
+	r.writeAudit("command_rules_applied", payload)
 }
 
 func (r *Runtime) executeBackground(

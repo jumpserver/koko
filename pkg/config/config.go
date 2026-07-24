@@ -70,7 +70,8 @@ type Config struct {
 
 	DisableInputAsCommand bool `mapstructure:"DISABLE_INPUT_AS_COMMAND"`
 
-	TerminalAIBackgroundTimeout int `mapstructure:"TERMINAL_AI_BACKGROUND_TIMEOUT"`
+	TerminalAIBackgroundTimeout int    `mapstructure:"TERMINAL_AI_BACKGROUND_TIMEOUT"`
+	TerminalAIRulesFile         string `mapstructure:"TERMINAL_AI_RULES_FILE"`
 
 	SecretEncryptKey string `mapstructure:"SECRET_ENCRYPT_KEY"`
 

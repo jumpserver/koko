@@ -59,6 +59,24 @@ func TestResolveAdapter(t *testing.T) {
 	}
 }
 
+func TestProfileDetectionCapability(t *testing.T) {
+	if !needsProfileDetection(ResolveAdapter(SessionContext{
+		Protocol: "ssh", BaseOS: "linux",
+	})) {
+		t.Fatal("SSH shell adapter did not expose profile detection capability")
+	}
+	if needsProfileDetection(ResolveAdapter(SessionContext{
+		Protocol: "ssh", PlatformType: "Cisco",
+	})) {
+		t.Fatal("network adapter unexpectedly requires profile detection")
+	}
+	if needsProfileDetection(ResolveAdapter(SessionContext{
+		Protocol: "mysql",
+	})) {
+		t.Fatal("MySQL adapter unexpectedly requires profile detection")
+	}
+}
+
 func TestProtocolPlatformProfiles(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -192,9 +210,11 @@ func TestBuiltInProtocolRegistry(t *testing.T) {
 
 func TestSessionContextExcludesCredentials(t *testing.T) {
 	token := &model.ConnectToken{
-		Protocol: "ssh",
+		Protocol: "ssh", OrgId: "private-org-id",
 		Asset: model.Asset{
-			Name: "asset", SpecInfo: model.SpecInfo{DBName: "database"},
+			ID: "private-asset-id", Name: "asset",
+			Address:  "private-asset-address",
+			SpecInfo: model.SpecInfo{DBName: "database"},
 		},
 		Account: model.Account{BaseAccount: model.BaseAccount{
 			Username: "credential-user", Secret: "credential-secret",
@@ -204,6 +224,7 @@ func TestSessionContextExcludesCredentials(t *testing.T) {
 			Category: model.LabelValue{Value: "host"},
 			Type:     model.LabelValue{Value: "linux"},
 			Charset:  model.LabelValue{Value: "utf-8"},
+			MetaData: map[string]any{"private-attribute": "private-value"},
 		},
 	}
 	value, err := json.Marshal(NewSessionContext(token))
@@ -212,8 +233,12 @@ func TestSessionContextExcludesCredentials(t *testing.T) {
 	}
 	text := string(value)
 	if strings.Contains(text, "credential-user") ||
-		strings.Contains(text, "credential-secret") {
-		t.Fatalf("session context contains account credentials: %s", text)
+		strings.Contains(text, "credential-secret") ||
+		strings.Contains(text, "private-asset-id") ||
+		strings.Contains(text, "private-asset-address") ||
+		strings.Contains(text, "private-org-id") ||
+		strings.Contains(text, "private-attribute") {
+		t.Fatalf("session context exposes matching-only data: %s", text)
 	}
 	for _, expected := range []string{"asset", "host", "linux", "utf-8", "database"} {
 		if !strings.Contains(text, expected) {

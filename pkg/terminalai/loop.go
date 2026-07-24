@@ -38,3 +38,7 @@ type ReActRequest struct {
 type ModelProviderInfo interface {
 	ProviderInfo() ProviderInfo
 }
+
+type RulePolicyModel interface {
+	SetPolicyInstructions([]string)
+}

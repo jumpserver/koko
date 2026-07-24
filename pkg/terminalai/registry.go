@@ -68,7 +68,7 @@ func SupportsBackground(context SessionContext) bool {
 	if !ok || registration.NewBackgroundExecutor == nil {
 		return false
 	}
-	adapter := registration.NewAdapter(context)
+	adapter := ResolveAdapter(context)
 	return adapter != nil && adapter.SupportsBackground()
 }
 
@@ -82,7 +82,7 @@ func ResolveBackgroundExecutor(
 	if !ok || registration.NewBackgroundExecutor == nil {
 		return nil, nil, false, nil
 	}
-	adapter := registration.NewAdapter(session)
+	adapter := ResolveAdapter(session)
 	if adapter == nil || !adapter.SupportsBackground() {
 		return nil, nil, false, nil
 	}
