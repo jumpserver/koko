@@ -9,6 +9,17 @@ const (
 
 	ExecutionPTY        = "pty"
 	ExecutionBackground = "background_exec"
+
+	ReActExecute = "execute"
+	ReActFinish  = "finish"
+
+	StepPending    = "pending"
+	StepInProgress = "in_progress"
+	StepReviewing  = "reviewing"
+	StepCompleted  = "completed"
+	StepFailed     = "failed"
+	StepRejected   = "rejected"
+	StepSkipped    = "skipped"
 )
 
 type ChatMessage struct {
@@ -26,10 +37,12 @@ type ChatPart struct {
 }
 
 type Step struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Objective string `json:"objective"`
-	Status    string `json:"status"`
+	ID           string `json:"id"`
+	ParentStepID string `json:"parentStepId,omitempty"`
+	Title        string `json:"title"`
+	Objective    string `json:"objective"`
+	Status       string `json:"status"`
+	rootStepID   string
 }
 
 type Decision struct {
@@ -51,20 +64,39 @@ type CommandProposal struct {
 	ApprovalRequired   bool                `json:"-"`
 }
 
-type StepReview struct {
+type PlannedStep struct {
+	ID           string `json:"id"`
+	ParentStepID string `json:"parentStepId"`
+	Title        string `json:"title"`
+	Objective    string `json:"objective"`
+}
+
+type ObservationReview struct {
+	StepID      string `json:"stepId"`
 	Outcome     string `json:"outcome"`
 	Summary     string `json:"summary"`
-	ErrorReason string `json:"errorReason,omitempty"`
+	ErrorReason string `json:"errorReason"`
+}
+
+type ReActDecision struct {
+	Kind           string            `json:"kind"`
+	ThoughtSummary string            `json:"thoughtSummary"`
+	Observation    ObservationReview `json:"observation"`
+	Steps          []PlannedStep     `json:"steps"`
+	NextStepID     string            `json:"nextStepId"`
+	Proposal       *CommandProposal  `json:"proposal"`
+	Summary        string            `json:"summary"`
 }
 
 type StepResult struct {
-	StepID    string `json:"stepId"`
-	Command   string `json:"command"`
-	Output    string `json:"output"`
-	Status    string `json:"status"`
-	Summary   string `json:"summary"`
-	Execution string `json:"execution"`
-	ExitCode  *int   `json:"exitCode,omitempty"`
+	StepID      string `json:"stepId"`
+	Command     string `json:"command"`
+	Output      string `json:"output"`
+	Status      string `json:"status"`
+	Summary     string `json:"summary"`
+	ErrorReason string `json:"errorReason,omitempty"`
+	Execution   string `json:"execution"`
+	ExitCode    *int   `json:"exitCode,omitempty"`
 }
 
 type CommandACLDecision struct {

@@ -65,9 +65,6 @@ func (a *terminalAdapter) SupportsBackground() bool {
 }
 
 func (a *terminalAdapter) PrepareProposal(proposal *CommandProposal) error {
-	if isInteractiveCommand(proposal.Command) {
-		return fmt.Errorf("model generated an interactive or unbounded command")
-	}
 	if a.sql {
 		analysis, err := analyzeSQL(proposal.Command)
 		if err != nil {
@@ -124,12 +121,15 @@ func (a *shellAdapter) SupportsBackground() bool {
 
 func (a *shellAdapter) PrepareProposal(proposal *CommandProposal) error {
 	if isInteractiveCommand(proposal.Command) {
-		return fmt.Errorf("model generated an interactive or unbounded command")
+		proposal.Execution = ExecutionPTY
+		proposal.ExecutionCause = "interactive commands require the active PTY"
+		proposal.BackgroundEligible = false
+	} else {
+		proposal.BackgroundEligible = true
 	}
 	proposal.RiskLevel, proposal.RiskReason = classifyRisk(
 		proposal.Command, proposal.RiskLevel, proposal.RiskReason,
 	)
-	proposal.BackgroundEligible = true
 	return nil
 }
 

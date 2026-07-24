@@ -315,6 +315,7 @@ func (r *Runtime) start(question string) error {
 }
 
 func (r *Runtime) run(ctx context.Context, question string) {
+	ctx = withModelRequestBudget(ctx, maxModelRequests)
 	defer func() {
 		r.mu.Lock()
 		r.busy = false
@@ -328,20 +329,18 @@ func (r *Runtime) run(ctx context.Context, question string) {
 	profile := r.currentProfile(ctx)
 	snapshot := r.observer.Snapshot()
 	r.mu.Lock()
-	history := strings.Join(r.history, "\n")
+	historyEntries := r.history
+	if len(historyEntries) > 0 {
+		historyEntries = historyEntries[:len(historyEntries)-1]
+	}
+	history := strings.Join(historyEntries, "\n")
 	mode := r.executionMode
 	r.mu.Unlock()
 	r.emitProgress("正在分析请求…", "analyzing", true)
-	var decision Decision
-	if err := r.retry(ctx, func(callCtx context.Context) error {
-		var err error
-		decision, err = r.model.Decide(callCtx, question, history, profile.String(), snapshot)
-		return err
-	}); err != nil {
-		r.emitError(err)
-		return
-	}
-	if err := validateDecision(decision); err != nil {
+	decision, err := r.initialDecision(
+		ctx, question, history, profile.String(), snapshot,
+	)
+	if err != nil {
 		r.emitError(err)
 		return
 	}
@@ -353,71 +352,91 @@ func (r *Runtime) run(ctx context.Context, question string) {
 	planID := runtimeID("plan")
 	for index := range decision.Steps {
 		decision.Steps[index].ID = fmt.Sprintf("%s-step-%d", planID, index+1)
-		decision.Steps[index].Status = "pending"
+		decision.Steps[index].ParentStepID = ""
+		decision.Steps[index].Status = StepPending
+		decision.Steps[index].rootStepID = decision.Steps[index].ID
 	}
-	r.emitData("data-plan", map[string]any{
-		"id": planID, "summary": decision.Summary, "steps": decision.Steps,
-	}, "process")
-	results := make([]StepResult, 0, len(decision.Steps))
-	for index := range decision.Steps {
+	plan := newReActPlan(planID, decision.Summary, decision.Steps)
+	r.emitPlan(plan, 0, "")
+	r.mu.Lock()
+	adapter := r.adapter
+	r.mu.Unlock()
+	if adapter == nil {
+		r.finishReAct(ctx, question, plan, 0, "terminal AI adapter is unavailable")
+		return
+	}
+	for round := 1; round <= maxReActRounds; round++ {
 		if ctx.Err() != nil {
 			return
 		}
 		r.emitProgress(
-			fmt.Sprintf("正在准备第 %d/%d 步…", index+1, len(decision.Steps)),
+			"正在更新执行计划…",
 			"planning", true,
 		)
 		r.executorMu.RLock()
 		backgroundAvailable := r.backgroundAvailable
 		r.executorMu.RUnlock()
 		snapshot = r.observer.Snapshot()
-		var proposal CommandProposal
-		if err := r.retry(ctx, func(callCtx context.Context) error {
-			var err error
-			proposal, err = r.model.Propose(
-				callCtx, question, decision.Summary, decision.Steps, index,
-				profile.String(), snapshot, results, mode, backgroundAvailable,
-			)
-			return err
-		}); err != nil {
-			r.emitError(err)
-			return
-		}
-		if err := validateProposal(&proposal); err != nil {
-			r.emitError(err)
-			return
-		}
-		r.mu.Lock()
-		adapter := r.adapter
-		r.mu.Unlock()
-		if adapter == nil {
-			r.emitError(fmt.Errorf("terminal AI adapter is unavailable"))
-			return
-		}
-		if err := adapter.PrepareProposal(&proposal); err != nil {
-			r.emitError(err)
-			return
-		}
-		if err := r.applyExecutionMode(&proposal); err != nil {
-			r.emitError(err)
-			return
-		}
-		approvedProposal, err := r.authorize(ctx, planID, decision.Steps[index], index, len(decision.Steps), proposal)
+		next, transition, err := r.nextReActDecision(
+			ctx, ReActRequest{
+				Question: question, PlanSummary: plan.summary,
+				Steps: plan.steps, Results: plan.results,
+				Profile: profile.String(), Snapshot: snapshot,
+				Mode: mode, BackgroundAvailable: backgroundAvailable,
+				Round: round, MaxRounds: maxReActRounds,
+			},
+			plan, adapter,
+		)
 		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				r.emitError(err)
+			if ctx.Err() != nil {
+				return
 			}
+			r.emitError(err)
+			r.finishReAct(ctx, question, plan, round, err.Error())
+			return
+		}
+		if next.Kind == ReActFinish {
+			plan.commit(transition)
+			r.emitObservation(plan, next.Observation)
+			r.emitPlan(plan, round, next.ThoughtSummary)
+			r.emitText(next.Summary, "final")
+			r.appendAssistantHistory(next.Summary)
+			return
+		}
+		if err = plan.beginExecution(transition); err != nil {
+			r.emitError(err)
+			r.finishReAct(ctx, question, plan, round, err.Error())
+			return
+		}
+		proposal := *next.Proposal
+		step, index := findStep(plan.steps, transition.nextStepID)
+		r.emitObservation(plan, next.Observation)
+		r.emitPlan(plan, round, next.ThoughtSummary)
+		approvedProposal, err := r.authorize(
+			ctx, planID, step, index, len(plan.steps), proposal,
+		)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			plan.rejectExecution(step.ID, proposal, err.Error())
+			r.emitPlan(plan, round, next.ThoughtSummary)
+			r.finishReAct(ctx, question, plan, round, err.Error())
 			return
 		}
 		proposal = approvedProposal
-		r.emitProgress("正在执行命令…", "executing", true)
+		progress := "正在执行命令…"
+		if proposal.Execution == ExecutionPTY {
+			progress = "命令正在当前 PTY 中执行，可直接在终端交互…"
+		}
+		r.emitProgress(progress, "executing", true)
 		r.mu.Lock()
 		r.activeExecution = proposal.Execution
 		r.mu.Unlock()
 		output, exitCode, err := r.execute(ctx, proposal, func(output string) {
 			r.emitData("data-execution", map[string]any{
-				"planId": planID, "stepId": decision.Steps[index].ID,
-				"step": index + 1, "total": len(decision.Steps),
+				"planId": planID, "stepId": step.ID,
+				"step": index + 1, "total": len(plan.steps),
 				"command": proposal.Command, "execution": proposal.Execution,
 				"output": output, "outcome": "running",
 			}, "process")
@@ -426,6 +445,7 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		r.activeExecution = ""
 		backgroundRecord := r.backgroundRecord
 		r.mu.Unlock()
+		executionErr := err
 		if proposal.Execution == ExecutionBackground && backgroundRecord != nil {
 			if err != nil {
 				output = strings.TrimSpace(output + "\n" + err.Error())
@@ -434,70 +454,206 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		} else if err != nil {
 			output = strings.TrimSpace(output + "\n" + err.Error())
 		}
+		if recordErr := plan.recordExecution(
+			step.ID, proposal, output, exitCode, executionErr,
+		); recordErr != nil {
+			r.emitError(recordErr)
+			r.finishReAct(ctx, question, plan, round, recordErr.Error())
+			return
+		}
 		r.emitData("data-execution", map[string]any{
-			"planId": planID, "stepId": decision.Steps[index].ID,
-			"step": index + 1, "total": len(decision.Steps),
+			"planId": planID, "stepId": step.ID,
+			"step": index + 1, "total": len(plan.steps),
 			"command": proposal.Command, "execution": proposal.Execution,
 			"output": output, "exitCode": exitCode, "outcome": "reviewing",
 		}, "process")
-		var review StepReview
-		if reviewErr := r.retry(ctx, func(callCtx context.Context) error {
+		r.emitPlan(plan, round, next.ThoughtSummary)
+	}
+	r.finishReAct(ctx, question, plan, maxReActRounds, "达到 20 轮 ReAct 上限")
+}
+
+func (r *Runtime) initialDecision(
+	ctx context.Context,
+	question, history, profile, snapshot string,
+) (Decision, error) {
+	var decision Decision
+	correction := ""
+	for repair := 0; repair < 2; repair++ {
+		err := r.retry(ctx, func(callCtx context.Context) error {
 			var callErr error
-			review, callErr = r.model.Review(
-				callCtx, decision.Steps[index], proposal, output, exitCode,
+			decision, callErr = r.model.Decide(
+				callCtx, question, history, profile, snapshot, correction,
 			)
 			return callErr
-		}); reviewErr != nil {
-			r.emitError(reviewErr)
-			return
+		})
+		if err != nil {
+			var outputErr *ModelOutputError
+			if repair == 0 && errors.As(err, &outputErr) {
+				correction = err.Error()
+				continue
+			}
+			return Decision{}, err
 		}
-		if err = validateStepReview(review); err != nil {
-			r.emitError(err)
-			return
+		if err = validateDecision(decision); err == nil {
+			return decision, nil
+		} else if repair == 0 {
+			correction = err.Error()
+			continue
 		}
-		status := "completed"
-		if review.Outcome != "completed" {
-			status = "failed"
-		}
-		decision.Steps[index].Status = status
-		result := StepResult{
-			StepID: decision.Steps[index].ID, Command: proposal.Command,
-			Output: output, Status: status, Summary: review.Summary,
-			Execution: proposal.Execution, ExitCode: exitCode,
-		}
-		results = append(results, result)
-		r.emitData("data-execution", map[string]any{
-			"planId": planID, "stepId": result.StepID,
-			"step": index + 1, "total": len(decision.Steps),
-			"command": result.Command, "execution": result.Execution,
-			"output": result.Output, "exitCode": result.ExitCode,
-			"outcome": status, "summary": result.Summary,
-		}, "process")
-		r.emitData("data-plan", map[string]any{
-			"id": planID, "summary": decision.Summary, "steps": decision.Steps,
-		}, "process")
-		if status == "failed" {
-			break
-		}
+		return Decision{}, err
 	}
+	return Decision{}, fmt.Errorf("model failed to produce an initial decision")
+}
+
+func (r *Runtime) nextReActDecision(
+	ctx context.Context,
+	request ReActRequest,
+	plan *reactPlan,
+	adapter Adapter,
+) (ReActDecision, reactTransition, error) {
+	var decision ReActDecision
+	var transition reactTransition
+	correction := ""
+	for repair := 0; repair < 2; repair++ {
+		request.Correction = correction
+		err := r.retry(ctx, func(callCtx context.Context) error {
+			var callErr error
+			decision, callErr = r.model.Next(callCtx, request)
+			return callErr
+		})
+		if err != nil {
+			var outputErr *ModelOutputError
+			if repair == 0 && errors.As(err, &outputErr) {
+				correction = err.Error()
+				continue
+			}
+			return decision, transition, err
+		}
+		if decision.Kind == ReActExecute {
+			if decision.Proposal == nil {
+				err = fmt.Errorf("model execute action has no proposal")
+			} else {
+				proposal := *decision.Proposal
+				if err = validateProposal(&proposal); err == nil {
+					err = adapter.PrepareProposal(&proposal)
+				}
+				if err == nil {
+					err = r.applyExecutionMode(&proposal)
+				}
+				if err == nil {
+					err = validateProposal(&proposal)
+				}
+				decision.Proposal = &proposal
+			}
+		}
+		if err == nil {
+			transition, err = plan.preview(decision)
+		}
+		if err == nil {
+			return decision, transition, nil
+		}
+		if repair == 0 {
+			correction = err.Error()
+			continue
+		}
+		return decision, transition, err
+	}
+	return decision, transition, fmt.Errorf("model failed to produce a valid ReAct action")
+}
+
+func (r *Runtime) finishReAct(
+	ctx context.Context,
+	question string,
+	plan *reactPlan,
+	round int,
+	reason string,
+) {
+	if ctx.Err() != nil {
+		return
+	}
+	plan.forceStop(reason)
+	r.emitLatestResult(plan)
+	r.emitPlan(plan, round, "执行已停止，正在整理结果")
 	r.emitProgress("正在生成执行总结…", "summarizing", true)
-	var summary string
-	if err := r.retry(ctx, func(callCtx context.Context) error {
-		var callErr error
-		summary, callErr = r.model.Summarize(
-			callCtx, question, decision.Summary, decision.Steps, results,
-		)
-		return callErr
-	}); err != nil {
-		r.emitError(err)
-		return
-	}
-	if len(summary) == 0 || len(summary) > maxDecisionText {
-		r.emitError(fmt.Errorf("model returned an invalid summary"))
-		return
+	summary := ""
+	if modelRequestUsage(ctx) < maxModelRequests {
+		err := r.retry(ctx, func(callCtx context.Context) error {
+			var callErr error
+			summary, callErr = r.model.Summarize(
+				callCtx, question, plan.summary, plan.steps, plan.results, reason,
+			)
+			return callErr
+		})
+		if err != nil || len(summary) == 0 || len(summary) > maxDecisionText {
+			summary = localReActSummary(plan, reason)
+		}
+	} else {
+		summary = localReActSummary(plan, reason)
 	}
 	r.emitText(summary, "final")
 	r.appendAssistantHistory(summary)
+}
+
+func (r *Runtime) emitPlan(plan *reactPlan, round int, thinking string) {
+	r.emitData("data-plan", map[string]any{
+		"id": plan.id, "summary": plan.summary,
+		"steps": plan.steps, "round": round,
+		"maxRounds": maxReActRounds, "thinking": thinking,
+	}, "process")
+}
+
+func (r *Runtime) emitObservation(
+	plan *reactPlan, review ObservationReview,
+) {
+	if review.Outcome == "none" {
+		return
+	}
+	for _, result := range plan.results {
+		if result.StepID == review.StepID {
+			r.emitResult(plan, result)
+			return
+		}
+	}
+}
+
+func (r *Runtime) emitLatestResult(plan *reactPlan) {
+	if len(plan.results) == 0 {
+		return
+	}
+	r.emitResult(plan, plan.results[len(plan.results)-1])
+}
+
+func (r *Runtime) emitResult(plan *reactPlan, result StepResult) {
+	_, index := findStep(plan.steps, result.StepID)
+	r.emitData("data-execution", map[string]any{
+		"planId": plan.id, "stepId": result.StepID,
+		"step": index + 1, "total": len(plan.steps),
+		"command": result.Command, "execution": result.Execution,
+		"output": result.Output, "exitCode": result.ExitCode,
+		"outcome": result.Status, "summary": result.Summary,
+		"errorReason": result.ErrorReason,
+	}, "process")
+}
+
+func findStep(steps []Step, stepID string) (Step, int) {
+	for index, step := range steps {
+		if step.ID == stepID {
+			return step, index
+		}
+	}
+	return Step{}, -1
+}
+
+func localReActSummary(plan *reactPlan, reason string) string {
+	counts := make(map[string]int)
+	for _, step := range plan.steps {
+		counts[step.Status]++
+	}
+	return fmt.Sprintf(
+		"任务已停止：%s。\n\n执行结果：完成 %d 步，失败 %d 步，拒绝 %d 步，未执行 %d 步。",
+		reason, counts[StepCompleted], counts[StepFailed],
+		counts[StepRejected], counts[StepSkipped],
+	)
 }
 
 func (r *Runtime) authorize(
@@ -618,7 +774,7 @@ func (r *Runtime) authorize(
 		}
 		r.mu.Unlock()
 		if !decision.Approved {
-			return CommandProposal{}, context.Canceled
+			return CommandProposal{}, errors.New("command approval was rejected")
 		}
 		if mode == ModeAuto && validExecution(decision.Execution) {
 			if decision.Execution == ExecutionBackground &&
@@ -703,7 +859,12 @@ func (r *Runtime) execute(
 		return r.executeBackground(execCtx, proposal.Command, onOutput)
 	}
 	r.setInputLocked(true)
-	defer r.setInputLocked(false)
+	inputLocked := true
+	defer func() {
+		if inputLocked {
+			r.setInputLocked(false)
+		}
+	}()
 	resultCh, err := r.observer.Begin(proposal.Command)
 	if err != nil {
 		return "", nil, err
@@ -715,6 +876,8 @@ func (r *Runtime) execute(
 		authorizePTY(proposal.Command, proposal.CommandACL)
 	}
 	r.writePTY([]byte(proposal.Command + "\r"))
+	r.setInputLocked(false)
+	inputLocked = false
 	select {
 	case <-execCtx.Done():
 		r.observer.Cancel()
@@ -846,13 +1009,13 @@ func (r *Runtime) currentProfile(ctx context.Context) AssetProfile {
 func (r *Runtime) retry(ctx context.Context, call func(context.Context) error) error {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		callCtx, cancel := context.WithTimeout(ctx, time.Minute)
+		callCtx, cancel := context.WithTimeout(ctx, modelRequestTimeout)
 		lastErr = callWithContext(callCtx, func() error { return call(callCtx) })
 		cancel()
 		if lastErr == nil || ctx.Err() != nil {
 			return lastErr
 		}
-		if attempt == 2 {
+		if attempt == 2 || !retryableModelError(lastErr) {
 			break
 		}
 		timer := time.NewTimer(time.Duration(2<<attempt) * time.Second)
@@ -863,7 +1026,21 @@ func (r *Runtime) retry(ctx context.Context, call func(context.Context) error) e
 		case <-timer.C:
 		}
 	}
+	if errors.Is(lastErr, context.DeadlineExceeded) {
+		return fmt.Errorf(
+			"terminal AI model request timed out after %s",
+			modelRequestTimeout,
+		)
+	}
 	return lastErr
+}
+
+func retryableModelError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var requestErr *ProviderRequestError
+	return errors.As(err, &requestErr) && requestErr.Retryable
 }
 
 func callWithContext(ctx context.Context, call func() error) error {
@@ -926,12 +1103,19 @@ func (r *Runtime) emitCapability() {
 	backgroundAvailable := r.backgroundAvailable
 	backgroundReason := r.backgroundReason
 	r.executorMu.RUnlock()
-	r.emitData("data-capability", map[string]any{
+	capability := map[string]any{
 		"enabled": true, "ptyExec": true,
 		"backgroundExec":    backgroundAvailable,
 		"backgroundReason":  backgroundReason,
 		"approvalThreshold": threshold, "executionMode": mode,
-	}, "process")
+	}
+	if provider, ok := r.model.(ModelProviderInfo); ok {
+		info := provider.ProviderInfo()
+		capability["provider"] = info.Name
+		capability["model"] = info.Model
+		capability["modelCapabilities"] = info.Capabilities
+	}
+	r.emitData("data-capability", capability, "process")
 }
 
 func (r *Runtime) setInputLocked(locked bool) {
@@ -1009,12 +1193,12 @@ func (r *Runtime) Close() {
 
 func validateProposal(proposal *CommandProposal) error {
 	proposal.Command = strings.TrimSpace(proposal.Command)
+	proposal.RiskLevel, proposal.RiskReason = normalizeRisk(
+		proposal.RiskLevel, proposal.RiskReason,
+	)
 	if proposal.Command == "" || len(proposal.Command) > 4096 ||
 		strings.ContainsAny(proposal.Command, "\r\n") {
 		return fmt.Errorf("model generated an invalid command")
-	}
-	if proposal.RiskLevel < 1 || proposal.RiskLevel > 4 {
-		return fmt.Errorf("model generated an invalid risk level")
 	}
 	if !validExecution(proposal.Execution) {
 		return fmt.Errorf("model generated an invalid execution mode")
@@ -1046,17 +1230,6 @@ func validateDecision(decision Decision) error {
 		}
 	default:
 		return fmt.Errorf("model returned an invalid decision")
-	}
-	return nil
-}
-
-func validateStepReview(review StepReview) error {
-	if review.Outcome != "completed" && review.Outcome != "error" {
-		return fmt.Errorf("model returned an invalid step review")
-	}
-	if len(review.Summary) > maxReviewSummary ||
-		len(review.ErrorReason) > maxReviewSummary {
-		return fmt.Errorf("model returned an oversized step review")
 	}
 	return nil
 }

@@ -119,7 +119,7 @@ run:
 
 .PHONY: run-dev
 run-dev:
-	.env && DEV_MODE=true go run ./cmd/koko/
+	DEV_MODE=true go run ./cmd/koko/
 
 .PHONY: run-ui
 run-ui:

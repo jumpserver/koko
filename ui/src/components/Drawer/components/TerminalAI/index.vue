@@ -176,13 +176,16 @@ const viewItems = computed<ViewItem[]>(() => {
         const plan = ensurePlan(planId, `${message.id}-plan-${partIndex}`);
         plan.summary = String(data.summary || plan.summary);
         const rawSteps = Array.isArray(data.steps) ? data.steps : [];
+        const nextSteps: ViewStep[] = [];
         rawSteps.forEach((rawStep: EventData, index: number) => {
           const step = ensureStep(plan, rawStep);
           step.index = index + 1;
           step.title = String(rawStep.title || step.title);
           step.objective = String(rawStep.objective || step.objective);
           step.status = String(rawStep.status || step.status);
+          nextSteps.push(step);
         });
+        plan.steps = nextSteps;
         return;
       }
 
@@ -388,6 +391,8 @@ function renderMarkdown(source: string) {
 }
 
 function stepStatus(step: ViewStep) {
+  if (['completed', 'failed', 'rejected', 'skipped'].includes(step.status))
+    return step.status;
   const outcome = String(step.execution?.outcome || '');
   if (outcome)
     return outcome;
@@ -413,6 +418,7 @@ function statusLabel(step: ViewStep) {
     rejected: '已拒绝',
     reviewing: '分析结果',
     running: '执行中',
+    skipped: '未执行',
     success: '完成',
     succeeded: '完成',
   };

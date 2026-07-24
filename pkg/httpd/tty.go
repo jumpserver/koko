@@ -435,6 +435,11 @@ func (h *tty) initializeTerminalAI(client *Client) {
 		logger.Infof("Terminal AI disabled for terminal %d: %s", client.TerminalId, err)
 		return
 	}
+	providerInfo := modelClient.ProviderInfo()
+	logger.Infof(
+		"Terminal AI provider %s model %s initialized for terminal %d",
+		providerInfo.Name, providerInfo.Model, client.TerminalId,
+	)
 	client.Agent = terminalai.NewRuntime(
 		client.TerminalId, modelClient, client.Observer, client.WriteAgentData,
 		func(message terminalai.ChatMessage) {

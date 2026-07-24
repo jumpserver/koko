@@ -453,7 +453,4 @@ func TestModelOutputLimits(t *testing.T) {
 	if err := validateProposal(&proposal); err == nil {
 		t.Fatal("oversized proposal metadata was accepted")
 	}
-	if err := validateStepReview(StepReview{Outcome: "unknown"}); err == nil {
-		t.Fatal("invalid review outcome was accepted")
-	}
 }

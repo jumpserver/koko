@@ -103,7 +103,7 @@ $ npm run serve
 | `KOKO_DEV_SFTP_ROOT` | 否 | SFTP 根目录，默认使用用户家目录 |
 | `KOKO_DEV_CORE_PORT` | 否 | 内置开发 Core 端口，默认 `18080` |
 
-Terminal AI 使用 OpenAI-compatible 接口。设置 `KOKO_DEV_AI_API_KEY` 和 `KOKO_DEV_AI_MODEL` 后启用；`KOKO_DEV_AI_BASE_URL` 和 `KOKO_DEV_AI_PROXY` 可选。AI 未配置时不影响 Web Terminal 和 SFTP。
+Terminal AI 使用 OpenAI-compatible 接口。设置 `KOKO_DEV_AI_API_KEY` 和 `KOKO_DEV_AI_MODEL` 后启用；`KOKO_DEV_AI_BASE_URL` 和 `KOKO_DEV_AI_PROXY` 可选。`TERMINAL_AI_PROVIDER` 可设为 `openai` 或 `deepseek`，未设置时默认使用 `openai`。`TERMINAL_AI_TOOL_CALL` 可设为 `auto`、`true` 或 `false`，默认自动优先使用模型 Tool Call，并在端点明确不支持时回退到结构化 JSON。AI 未配置时不影响 Web Terminal 和 SFTP。
 
 ## 构建docker镜像
 依赖 docker buildx 构建多平台镜像，需要安装 docker 19.03+ 版本，并开启 docker buildx 插件。

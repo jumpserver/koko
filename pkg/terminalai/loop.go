@@ -9,28 +9,32 @@ type LoopModel interface {
 	Decide(
 		ctx context.Context,
 		question, history, profile, snapshot string,
+		correction string,
 	) (Decision, error)
-	Propose(
-		ctx context.Context,
-		question, summary string,
-		steps []Step,
-		index int,
-		profile, snapshot string,
-		results []StepResult,
-		mode string,
-		backgroundAvailable bool,
-	) (CommandProposal, error)
-	Review(
-		ctx context.Context,
-		step Step,
-		proposal CommandProposal,
-		output string,
-		exitCode *int,
-	) (StepReview, error)
+	Next(ctx context.Context, request ReActRequest) (ReActDecision, error)
 	Summarize(
 		ctx context.Context,
 		question, summary string,
 		steps []Step,
 		results []StepResult,
+		stopReason string,
 	) (string, error)
+}
+
+type ReActRequest struct {
+	Question            string
+	PlanSummary         string
+	Steps               []Step
+	Results             []StepResult
+	Profile             string
+	Snapshot            string
+	Mode                string
+	BackgroundAvailable bool
+	Round               int
+	MaxRounds           int
+	Correction          string
+}
+
+type ModelProviderInfo interface {
+	ProviderInfo() ProviderInfo
 }
