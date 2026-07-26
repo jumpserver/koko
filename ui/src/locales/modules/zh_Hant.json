@@ -1,1 +1,7 @@
-{}
+{
+  "ClipboardCopyDenied": "不允許從終端複製內容",
+  "ClipboardPasteDenied": "不允許向終端貼上內容",
+  "ClipboardTextLimitExceeded": "{action}內容超過 {limit} 個字元的限制",
+  "Copy": "複製",
+  "Paste": "貼上"
+}
