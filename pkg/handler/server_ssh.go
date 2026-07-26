@@ -186,6 +186,13 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 		if directRequest, ok3 := directReq.(*auth.DirectLoginAssetReq); ok3 {
 			opts := buildDirectRequestOptions(user, directRequest)
 			opts = append(opts, DirectTerminalConf(&termConf))
+			if directRequest.IsToken() {
+				if prepared := auth.GetPreparedDirectSSHClient(
+					sess.Context(), directRequest.ConnectToken,
+				); prepared != nil {
+					opts = append(opts, DirectPreparedSSHClient(prepared))
+				}
+			}
 			if !directRequest.IsToken() {
 				selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
 				if err != nil {
@@ -219,7 +226,8 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 				logger.Errorf("vscode failed: %s", msg)
 				return
 			}
-			s.proxyTokenInfo(sess, tokenInfo)
+			preparedClient := auth.TakePreparedDirectSSHClient(sess.Context(), tokenInfo)
+			s.proxyTokenInfo(sess, tokenInfo, preparedClient)
 			return
 		}
 		selectedAssets, err := s.getMatchedAssetsByDirectReq(user, directRequest)
@@ -308,9 +316,17 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 	s.proxyTokenInfo(sess, &connectToken)
 }
 
-func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken) {
+func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken,
+	preparedClients ...*srvconn.SSHClient) {
+	var sshClient *srvconn.SSHClient
+	if len(preparedClients) > 0 {
+		sshClient = preparedClients[0]
+	}
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
+		if sshClient != nil {
+			_ = sshClient.Close()
+		}
 		logger.Error("Not found ctxID")
 		utils.IgnoreErrWriteString(sess, "not found ctx id")
 		return
@@ -325,12 +341,14 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 	enableReused := config.GetConf().ReuseConnection
 	reusedKey := GenerateSSHTokenResueKey(tokenInfo)
 
-	var (
-		sshClient *srvconn.SSHClient
-		ok1       bool
-		err1      error
-	)
-	if enableReused {
+	if sshClient != nil {
+		logger.Infof("Use SSH client authenticated during jms-token login: %s", sshClient)
+		if enableReused && sshClient.KeyId == "" {
+			srvconn.AddClientCache(reusedKey, sshClient)
+		}
+	}
+	if sshClient == nil && enableReused {
+		var ok1 bool
 		sshClient, ok1 = srvconn.GetClientFromCache(reusedKey)
 		if ok1 {
 			logger.Infof("reused ssh client: %s", sshClient)
@@ -339,6 +357,7 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 	if sshClient == nil {
 		sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
 		// add Reuse ssh client
+		var err1 error
 		sshClient, err1 = srvconn.NewSSHClient(sshAuthOpts...)
 		if err1 != nil {
 			logger.Errorf("Get SSH Client failed: %s", err1)
@@ -809,7 +828,8 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 	return &connectToken, nil
 }
 
-func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClient, error) {
+func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken,
+	preparedClients ...*srvconn.SSHClient) (*srvconn.SSHClient, error) {
 	asset := tokenInfo.Asset
 	account := tokenInfo.Account
 	var gateways []model.Gateway
@@ -820,6 +840,14 @@ func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClie
 	// add reuse ssh client
 	enableReused := config.GetConf().ReuseConnection
 	reusedKey := GenerateSSHTokenResueKey(tokenInfo)
+	if len(preparedClients) > 0 && preparedClients[0] != nil {
+		client := preparedClients[0]
+		logger.Infof("Use SSH client authenticated during jms-token login: %s", client)
+		if enableReused && client.KeyId == "" {
+			srvconn.AddClientCache(reusedKey, client)
+		}
+		return client, nil
+	}
 	if enableReused {
 		if client, ok := srvconn.GetClientFromCache(reusedKey); ok {
 			logger.Infof("Reused ssh client key: %s", reusedKey)

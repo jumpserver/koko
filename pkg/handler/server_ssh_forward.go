@@ -76,7 +76,8 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 					return false, []byte(msg)
 				}
 			}
-			sshClient, err1 := s.buildSSHClient(tokenInfo)
+			preparedClient := auth.TakePreparedDirectSSHClient(ctx, tokenInfo)
+			sshClient, err1 := s.buildSSHClient(tokenInfo, preparedClient)
 			if err1 != nil {
 				msg := "cannot build ssh client"
 				logger.Errorf("ide support failed: %s", msg)
@@ -86,6 +87,11 @@ func (s *Server) HandleSSHRequest(ctx ssh.Context, srv *ssh.Server, req *gossh.R
 			reqSession := tokenInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
 			respSession, err := s.jmsService.CreateSession(reqSession)
 			if err != nil {
+				if sshClient.KeyId != "" {
+					srvconn.ReleaseClientCacheKey(sshClient.KeyId, sshClient)
+				} else {
+					_ = sshClient.Close()
+				}
 				logger.Errorf("Create reverse port tunnel session err: %s", err)
 				return false, []byte("cannot create tunnel session")
 			}

@@ -777,8 +777,6 @@ const (
 	cisco   = "cisco"
 	linux   = "linux"
 	windows = "windows"
-
-	mfaAuth = "mfa"
 )
 
 func isH3C(p *model.Platform) bool {

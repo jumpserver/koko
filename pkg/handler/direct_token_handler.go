@@ -11,6 +11,9 @@ func (d *DirectHandler) LoginConnectToken(connectToken *model.ConnectToken) {
 	proxyOpts := make([]proxy.ConnectionOption, 0, 3)
 	proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(connectToken))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
+	if d.opts.preparedSSHClient != nil {
+		proxyOpts = append(proxyOpts, proxy.ConnectPreparedSSHClient(d.opts.preparedSSHClient))
+	}
 	srv, err := proxy.NewServer(d.wrapperSess, d.jmsService, proxyOpts...)
 	if err != nil {
 		logger.Errorf("create proxy server err: %s", err)

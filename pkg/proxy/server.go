@@ -350,6 +350,17 @@ func (s *Server) checkRequiredAuth() error {
 			return fmt.Errorf("get auth password failed: %s", err)
 		}
 	case srvconn.ProtocolSSH:
+		if s.connOpts.preparedSSHClient != nil &&
+			s.connOpts.preparedSSHClient.IsValidFor(s.connOpts.authInfo) {
+			if s.suFromAccount != nil && s.account.Secret == "" {
+				if err := s.getAuthPasswordIfNeed(); err != nil {
+					msg := utils.WrapperWarn(lang.T("Get auth password failed"))
+					utils.IgnoreErrWriteString(s.UserConn, msg)
+					return err
+				}
+			}
+			return nil
+		}
 		if s.checkReuseSSHClient() {
 			if cacheConn, ok := s.getCacheSSHConn(); ok {
 				s.cacheSSHConnection = cacheConn
@@ -612,7 +623,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	user := s.connOpts.authInfo.User
 	key := srvconn.MakeReuseSSHClientKey(user.ID, asset.ID,
 		loginAccount.ID, asset.Address, loginAccount.HashId())
-	timeout := config.GlobalConfig.SSHTimeout
+	timeout := config.GetConf().SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 6)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(loginAccount.Username))
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientHost(asset.Address))
@@ -622,10 +633,8 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		if signer, err1 := gossh.ParsePrivateKey([]byte(loginAccount.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		}
-	} else {
-		if !isPlatform(&platform, mfaAuth) {
-			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
-		}
+	} else if !srvconn.IsSSHMFATarget(&platform) {
+		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
 	}
 
 	password := loginAccount.Secret
@@ -660,15 +669,26 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if proxyArgs != nil {
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientProxyClient(proxyArgs...))
 	}
-	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
-	if err != nil {
-		logger.Errorf("Get new ssh client err: %s", err)
-		return nil, err
+	sshClient := s.connOpts.preparedSSHClient.TakeForToken(s.connOpts.authInfo)
+	if sshClient != nil {
+		logger.Infof("Conn[%s] use SSH client authenticated during jms-token login",
+			s.UserConn.ID())
+	} else {
+		sshClient, err = srvconn.NewSSHClient(sshAuthOpts...)
+		if err != nil {
+			logger.Errorf("Get new ssh client err: %s", err)
+			return nil, err
+		}
 	}
-	srvconn.AddClientCache(key, sshClient)
+	if sshClient.KeyId == "" {
+		srvconn.AddClientCache(key, sshClient)
+	} else {
+		key = sshClient.KeyId
+	}
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
+		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, err
 	}
 

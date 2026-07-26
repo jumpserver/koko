@@ -34,6 +34,12 @@ func ConnectTokenAuthInfo(authInfo *model.ConnectToken) ConnectionOption {
 	}
 }
 
+func ConnectPreparedSSHClient(prepared *srvconn.PreparedSSHClient) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.preparedSSHClient = prepared
+	}
+}
+
 type ConnectionOptions struct {
 	authInfo *model.ConnectToken
 
@@ -42,6 +48,8 @@ type ConnectionOptions struct {
 	k8sContainer *ContainerInfo
 
 	params *ConnectionParams
+
+	preparedSSHClient *srvconn.PreparedSSHClient
 }
 
 type ConnectionParams struct {

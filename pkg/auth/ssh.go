@@ -42,9 +42,19 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 			if req.IsToken() {
 				if req.Authenticate(password) {
 					ctx.SetValue(ContextKeyUser, &req.ConnectToken.User)
+					res := prepareDirectSSHAssetAuth(ctx, req)
+					action := actionAccepted
+					var partialErr *ssh.PartialSuccessError
+					switch {
+					case res == nil:
+					case errors.As(res, &partialErr):
+						action = actionPartialAccepted
+					default:
+						action = actionFailed
+					}
 					logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
-						actionAccepted, username, remoteAddr)
-					return nil
+						action, username, remoteAddr)
+					return res
 				} else {
 					logger.Errorf("SSH conn[%s] token %s auth failed", ctx.SessionID(), req.ConnectToken.Id)
 					return authErr
@@ -142,6 +152,10 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	if value, ok := ctx.Value(ContextKeyAuthFailed).(*bool); ok && *value {
 		return authErr
 	}
+	if state, ok := ctx.Value(ContextKeyDirectSSHAssetAuthState).(*directSSHAssetAuthState); ok &&
+		state != nil {
+		return continueDirectSSHAssetAuth(ctx, challenger)
+	}
 
 	username := GetUsernameFromSSHCtx(ctx)
 	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
@@ -185,6 +199,10 @@ const (
 	ContextKeyCurrentAuth = "CONTEXT_CURRENT_AUTH"
 
 	ContextKeyAuthCount = "CONTEXT_AUTH_COUNT"
+
+	ContextKeyPreparedDirectSSHClient = "CONTEXT_PREPARED_DIRECT_SSH_CLIENT"
+
+	ContextKeyDirectSSHAssetAuthState = "CONTEXT_DIRECT_SSH_ASSET_AUTH_STATE"
 )
 
 type DirectLoginAssetReq struct {

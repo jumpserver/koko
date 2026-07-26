@@ -58,6 +58,8 @@ type directOpt struct {
 	sftpMode bool
 
 	assets []model.PermAsset
+
+	preparedSSHClient *srvconn.PreparedSSHClient
 }
 
 func (d directOpt) IsTokenConnection() bool {
@@ -97,6 +99,12 @@ func DirectFormatType(format FormatType) DirectOpt {
 func DirectConnectToken(tokenInfo *model.ConnectToken) DirectOpt {
 	return func(opts *directOpt) {
 		opts.tokenInfo = tokenInfo
+	}
+}
+
+func DirectPreparedSSHClient(prepared *srvconn.PreparedSSHClient) DirectOpt {
+	return func(opts *directOpt) {
+		opts.preparedSSHClient = prepared
 	}
 }
 
