@@ -51,6 +51,8 @@ var (
 	}
 )
 
+const zmodemIdleTimeout = 30 * time.Second
+
 type Parser struct {
 	id           string
 	protocolType string
@@ -171,6 +173,8 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 		}()
 		cmdRecordTicker := time.NewTicker(time.Minute)
 		defer cmdRecordTicker.Stop()
+		zmodemTicker := time.NewTicker(time.Second)
+		defer zmodemTicker.Stop()
 		lastActiveTime := time.Now()
 		for {
 			select {
@@ -212,6 +216,19 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 					p.TerminalParser.TryMultipleCommands()
 				}
 				continue
+			case now := <-zmodemTicker.C:
+				if p.zmodemParser.IsExpired(now, zmodemIdleTimeout) {
+					logger.Warnf("Session %s: Zmodem transfer idle timeout", p.id)
+					select {
+					case <-p.closed:
+						return
+					case p.userOutputChan <- zmodem.CancelSequence:
+					}
+					if p.zmodemParser.Abort() {
+						p.abortedFileTransfer = false
+					}
+				}
+				continue
 			}
 			lastActiveTime = time.Now()
 		}
@@ -243,6 +260,26 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 func (p *Parser) parseInputState(b []byte) []byte {
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
+		p.zmodemParser.MarkActive()
+		if bytes.Contains(b, zmodem.AbortSession) {
+			logger.Infof("Session %s: user abort Zmodem transfer", p.id)
+			permissionDenied := p.abortedFileTransfer
+			status := p.zmodemParser.Status()
+			p.abortedFileTransfer = false
+			p.userOutputChan <- zmodem.CancelSequence
+			p.zmodemParser.Abort()
+			if permissionDenied {
+				msg := lang.T("have no permission to upload file")
+				if status == zmodem.ZParserStatusSend {
+					msg = lang.T("have no permission to download file")
+				}
+				p.srvOutputChan <- []byte("\r\n")
+				p.srvOutputChan <- []byte(msg)
+				p.srvOutputChan <- []byte("\r\n")
+			}
+			return nil
+		}
+
 		switch p.zmodemParser.Status() {
 		case zmodem.ZParserStatusReceive:
 			p.zmodemParser.Parse(b)
@@ -494,6 +531,7 @@ func (p *Parser) parseVimState(b []byte) {
 func (p *Parser) splitCmdStream(b []byte) []byte {
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
+		p.zmodemParser.MarkActive()
 		if p.zmodemParser.Status() == zmodem.ZParserStatusSend {
 			p.zmodemParser.Parse(b)
 		}
