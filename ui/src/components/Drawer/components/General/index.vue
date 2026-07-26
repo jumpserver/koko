@@ -7,10 +7,13 @@ import { onMounted, reactive } from 'vue';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from 'lucide-vue-next';
 
 // import type { TerminalSessionInfo } from '@/types/modules/postmessage.type';
-import mittBus from '@/utils/mittBus';
+import { formatMessage } from '@/utils';
+import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTreeStore } from '@/store/modules/tree';
 import { useTerminalStore } from '@/store/modules/terminal';
+import { useConnectionStore } from '@/store/modules/useConnection';
 import { useSessionAdapter } from '@/hooks/useSessionAdapter';
+import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 // import { useTerminalEvents } from '@/hooks/useTerminalEvents';
 import CardContainer from '@/components/CardContainer/index.vue';
 
@@ -24,6 +27,7 @@ const { t } = useI18n();
 const message = useMessage();
 const treeStore = useTreeStore();
 const terminalStore = useTerminalStore();
+const connectionStore = useConnectionStore();
 const { isK8sEnvironment } = useSessionAdapter();
 // const { onTerminalSession } = useTerminalEvents();
 
@@ -36,6 +40,12 @@ const keyboardList = reactive<KeyboardItem[]>([
     label: 'Ctrl+C',
     click: () => {
       writeDataToTerminal('\x03');
+    },
+  },
+  {
+    label: 'Ctrl+W',
+    click: () => {
+      writeDataToTerminal('\x17');
     },
   },
   {
@@ -80,18 +90,37 @@ function writeDataToTerminal(type: string) {
 
     const currentNode = treeStore.getTerminalByK8sId(currentTab);
     const terminal = currentNode?.terminal;
+    const socket = currentNode?.socket;
 
-    if (!terminal) {
+    if (!terminal || !socket) {
       message.error(t('TerminalInstanceNotFound'));
       return;
     }
 
-    // 直接向当前活跃的终端写入内容
-    terminal.paste(type);
+    socket.send(
+      JSON.stringify({
+        data: type,
+        id: currentNode.id,
+        pod: currentNode.pod || '',
+        k8s_id: currentNode.k8s_id,
+        namespace: currentNode.namespace || '',
+        container: currentNode.container || '',
+        type: FORMATTER_MESSAGE_TYPE.TERMINAL_K8S_DATA,
+      })
+    );
     terminal.focus();
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
   } else {
-    // 普通连接：使用原有的 mittBus 事件机制
-    mittBus.emit('write-command', { type });
+    const { socket, terminalId, terminal } = connectionStore;
+
+    if (!socket || !terminalId) {
+      console.error('WebSocket connection may be closed, please refresh the page');
+      return;
+    }
+
+    socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, type));
+    terminal?.focus();
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
   }
 }
 
