@@ -57,7 +57,7 @@ export const useTerminalSocket = () => {
   let sentry: Sentry | null = null;
 
   const { t } = useI18n();
-  const { createSentry } = useZmodem();
+  const { createSentry, abortActiveSession, finishDraining, stopDraining } = useZmodem();
   const { width, height } = useWindowSize();
 
   const { sendLunaEvent, emitTerminalConnect, emitTerminalSession, sendMittEvent } = useTerminalEvents();
@@ -237,6 +237,13 @@ export const useTerminalSocket = () => {
             break;
           }
           case ZMODEM_ACTION_TYPE.ZMODEM_END: {
+            finishDraining();
+            terminalRef.value!.write('\r\n');
+            break;
+          }
+          case ZMODEM_ACTION_TYPE.ZMODEM_ABORT: {
+            abortActiveSession();
+            finishDraining();
             terminalRef.value!.write('\r\n');
             break;
           }
@@ -386,9 +393,10 @@ export const useTerminalSocket = () => {
         sentry.consume(socketMessage.data);
       } catch (_e) {
         if (sentry.get_confirmed_session()) {
-          sentry.get_confirmed_session()?.abort();
-          // message.error(t('File transfer error, file transfer interrupted'));
+          abortActiveSession();
           message.error(t('File transfer error, file transfer interrupted'));
+        } else {
+          writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
         }
       }
     } else {
@@ -432,6 +440,7 @@ export const useTerminalSocket = () => {
     socketRef.value.onclose = () => {
       if (!terminalRef.value) return;
 
+      abortActiveSession();
       terminalRef.value.write(`\r\n`);
       terminalRef.value.write(`\x1B[31m${t('WebSocketClosed')}\x1B[0m`);
     };
@@ -630,6 +639,8 @@ export const useTerminalSocket = () => {
   });
 
   onUnmounted(() => {
+    abortActiveSession();
+    stopDraining();
     autoTerminalFit();
   });
 
