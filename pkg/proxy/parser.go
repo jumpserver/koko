@@ -51,7 +51,10 @@ var (
 	}
 )
 
-const zmodemIdleTimeout = 30 * time.Second
+const (
+	zmodemIdleTimeout    = 30 * time.Second
+	zmodemInterruptCtrlC = byte(0x03)
+)
 
 type Parser struct {
 	id           string
@@ -261,12 +264,12 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		p.zmodemParser.MarkActive()
-		if bytes.Contains(b, zmodem.AbortSession) {
-			logger.Infof("Session %s: user abort Zmodem transfer", p.id)
+		userInterrupt := len(b) == 1 && b[0] == zmodemInterruptCtrlC
+		if bytes.Contains(b, zmodem.AbortSession) || userInterrupt {
+			logger.Infof("Session %s: user abort Zmodem transfer, control key: %t", p.id, userInterrupt)
 			permissionDenied := p.abortedFileTransfer
 			status := p.zmodemParser.Status()
 			p.abortedFileTransfer = false
-			p.userOutputChan <- zmodem.CancelSequence
 			p.zmodemParser.Abort()
 			if permissionDenied {
 				msg := lang.T("have no permission to upload file")
@@ -277,7 +280,14 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				p.srvOutputChan <- []byte(msg)
 				p.srvOutputChan <- []byte("\r\n")
 			}
-			return nil
+			if !userInterrupt {
+				return zmodem.CancelSequence
+			}
+			// 同时发送 Ctrl-C 和标准取消序列，兼容 PTY 信号与 rz/sz 协议取消。
+			cancelSequence := make([]byte, 0, 1+len(zmodem.CancelSequence))
+			cancelSequence = append(cancelSequence, zmodemInterruptCtrlC)
+			cancelSequence = append(cancelSequence, zmodem.CancelSequence...)
+			return cancelSequence
 		}
 
 		switch p.zmodemParser.Status() {

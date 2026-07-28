@@ -143,6 +143,8 @@ export const useZmodem = () => {
     abortSession();
   };
 
+  const isActiveSession = () => Boolean(activeSession.value || activeTransferSession.value);
+
   const abortableDelay = (timeout: number, signal: AbortSignal) =>
     new Promise<void>((resolve, reject) => {
       if (signal.aborted) {
@@ -506,6 +508,7 @@ export const useZmodem = () => {
     createSentry,
     cleanupSession,
     abortActiveSession,
+    isActiveSession,
     finishDraining,
     stopDraining,
   };
