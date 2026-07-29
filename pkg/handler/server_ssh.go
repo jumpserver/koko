@@ -28,6 +28,7 @@ import (
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshx11"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -322,7 +323,19 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 	if tokenInfo.Gateway != nil {
 		gateways = []model.Gateway{*tokenInfo.Gateway}
 	}
-	enableReused := config.GetConf().ReuseConnection
+	x11Request, x11Requested := sshx11.RequestFromContext(sess.Context())
+	x11Allowed := x11Requested && sshx11.PlatformEnabled(tokenInfo.Platform)
+	if x11Requested && !x11Allowed {
+		msg := "X11 forwarding is disabled for this target platform.\n"
+		utils.IgnoreErrWriteString(sess.Stderr(), msg)
+		logger.Infof("SSH conn[%s] denied X11 forwarding to asset %s: platform field %s is not true",
+			ctxId, asset.ID, sshx11.PlatformMetaKey)
+	}
+
+	// An X11 channel has no field identifying the session that requested it.
+	// Never reuse the target SSH transport when X11 is active, otherwise a
+	// channel could be bridged to a different originating client.
+	enableReused := config.GetConf().ReuseConnection && !x11Allowed
 	reusedKey := GenerateSSHTokenResueKey(tokenInfo)
 
 	var (
@@ -358,19 +371,32 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 		forwards:   make(map[string]net.Listener),
 	}
 
-	go func() {
-		s.addVSCodeReq(vsReq)
-		defer s.deleteVSCodeReq(vsReq)
-		<-sess.Context().Done()
+	cleanup := func() {
 		if sshClient.KeyId != "" {
 			srvconn.ReleaseClientCacheKey(sshClient.KeyId, sshClient)
 		} else {
 			_ = sshClient.Close()
 		}
 		logger.Infof("User %s end vscode request %s", vsReq.user, sshClient)
-	}()
+	}
+	if x11Allowed {
+		// The X11 target transport is dedicated to this source session and must
+		// be closed when the handler finishes, even when an OpenSSH ControlMaster
+		// keeps the source transport alive.
+		s.addVSCodeReq(vsReq)
+		defer s.deleteVSCodeReq(vsReq)
+		defer cleanup()
+	} else {
+		// Preserve the existing lifetime for reusable non-X11 transports.
+		go func() {
+			s.addVSCodeReq(vsReq)
+			defer s.deleteVSCodeReq(vsReq)
+			<-sess.Context().Done()
+			cleanup()
+		}()
+	}
 	if len(sess.Command()) != 0 {
-		s.proxyAssetCommand(sess, sshClient, tokenInfo)
+		s.proxyAssetCommand(sess, sshClient, tokenInfo, x11Request, x11Allowed)
 		return
 	}
 
@@ -379,7 +405,8 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 		return
 	}
 
-	if err := s.proxyVscodeShell(sess, vsReq, sshClient, tokenInfo); err != nil {
+	if err := s.proxyVscodeShell(sess, vsReq, sshClient, tokenInfo,
+		x11Request, x11Allowed); err != nil {
 		utils.IgnoreErrWriteString(sess, err.Error())
 	}
 }
@@ -403,7 +430,7 @@ func (s *Server) recordSessionLifecycle(sid string, event model.LifecycleEvent, 
 }
 
 func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClient,
-	tokenInfo *model.ConnectToken) {
+	tokenInfo *model.ConnectToken, x11Request sshx11.Request, x11Allowed bool) {
 	rawStr := sess.RawCommand()
 	if IsScpCommand(rawStr) {
 		if !config.GetConf().EnableVscodeSupport {
@@ -491,6 +518,17 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 		_ = goSess.Close()
 	}()
 
+	if x11Allowed {
+		if err = sshx11.Forward(sess.Context(), sshClient.Client, goSess, x11Request); err != nil {
+			msg := fmt.Sprintf("X11 forwarding setup failed: %s\n", err)
+			utils.IgnoreErrWriteString(sess.Stderr(), msg)
+			logger.Errorf("Setup X11 forwarding for command session %s failed: %s",
+				respSession.ID, err)
+		} else {
+			logger.Infof("Enabled X11 forwarding for command session %s", respSession.ID)
+		}
+	}
+
 	// to fix this issue: https://github.com/ploxiln/fab-classic/issues/46
 	// make pty for client when client required or command is login shell
 	if pty, _, isPty := sess.Pty(); isPty &&
@@ -571,7 +609,7 @@ func (s *Server) proxyAssetCommand(sess ssh.Session, sshClient *srvconn.SSHClien
 }
 
 func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient *srvconn.SSHClient,
-	tokenInfo *model.ConnectToken) error {
+	tokenInfo *model.ConnectToken, x11Request sshx11.Request, x11Allowed bool) error {
 	host, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
 	reqSession := tokenInfo.CreateSession(host, model.LoginFromSSH, model.TUNNELType)
 	respSession, err := s.jmsService.CreateSession(reqSession)
@@ -614,6 +652,16 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 	s.recordSessionLifecycle(respSession.ID, model.AssetConnectSuccess, "")
 	defer goSess.Close()
 	defer sshClient.ReleaseSession(goSess)
+	if x11Allowed {
+		if err = sshx11.Forward(sess.Context(), sshClient.Client, goSess, x11Request); err != nil {
+			msg := fmt.Sprintf("X11 forwarding setup failed: %s\n", err)
+			utils.IgnoreErrWriteString(sess.Stderr(), msg)
+			logger.Errorf("Setup X11 forwarding for tunnel session %s failed: %s",
+				respSession.ID, err)
+		} else {
+			logger.Infof("Enabled X11 forwarding for tunnel session %s", respSession.ID)
+		}
+	}
 	stdOut, err := goSess.StdoutPipe()
 	if err != nil {
 		logger.Errorf("Get SSH session StdoutPipe failed: %s", err)

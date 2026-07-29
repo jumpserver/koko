@@ -75,7 +75,7 @@ func NewSSHServer(jmsService *service.JMService) *Server {
 		ReversePortForwardingCallback: sshHandler.ReversePortForwardingPermission,
 		SubsystemHandlers:             map[string]ssh.SubsystemHandler{sshSubSystemSFTP: sshHandler.SFTPHandler},
 		ChannelHandlers: map[string]ssh.ChannelHandler{
-			sshChannelSession: ssh.DefaultSessionHandler,
+			sshChannelSession: x11SessionHandler,
 			sshChannelDirectTCPIP: func(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
 				localD := localForwardChannelData{}
 				if err := gossh.Unmarshal(newChan.ExtraData(), &localD); err != nil {

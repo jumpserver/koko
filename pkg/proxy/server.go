@@ -25,6 +25,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshx11"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -660,16 +661,49 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if proxyArgs != nil {
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientProxyClient(proxyArgs...))
 	}
+
+	x11Request, x11Requested := sshx11.RequestFromContext(s.UserConn.Context())
+	x11Allowed := x11Requested && sshx11.PlatformEnabled(platform)
+	if x11Requested && !x11Allowed {
+		msg := "X11 forwarding is disabled for this target platform."
+		utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+		logger.Infof("Conn[%s] denied X11 forwarding to asset %s: platform field %s is not true",
+			s.UserConn.ID(), asset.ID, sshx11.PlatformMetaKey)
+	}
+
 	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
 	if err != nil {
 		logger.Errorf("Get new ssh client err: %s", err)
 		return nil, err
 	}
-	srvconn.AddClientCache(key, sshClient)
+	useClientCache := !x11Allowed
+	releaseClient := func() {
+		if useClientCache {
+			srvconn.ReleaseClientCacheKey(key, sshClient)
+			return
+		}
+		_ = sshClient.Close()
+	}
+	if useClientCache {
+		srvconn.AddClientCache(key, sshClient)
+	}
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
+		releaseClient()
 		return nil, err
+	}
+
+	if x11Allowed {
+		if err = sshx11.Forward(s.UserConn.Context(), sshClient.Client, sess, x11Request); err != nil {
+			msg := fmt.Sprintf("X11 forwarding setup failed: %s", err)
+			utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+			logger.Errorf("Conn[%s] setup X11 forwarding to asset %s failed: %s",
+				s.UserConn.ID(), asset.ID, err)
+		} else {
+			logger.Infof("Conn[%s] enabled X11 forwarding to asset %s",
+				s.UserConn.ID(), asset.ID)
+		}
 	}
 
 	pty := s.UserConn.Pty()
@@ -704,7 +738,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if err != nil {
 		_ = sess.Close()
 		sshClient.ReleaseSession(sess)
-		srvconn.ReleaseClientCacheKey(key, sshClient)
+		releaseClient()
 		return nil, err
 	}
 	if s.suFromAccount != nil {
@@ -720,7 +754,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)
 		logger.Infof("SSH client(%s) shell connection release", sshClient)
-		srvconn.ReleaseClientCacheKey(key, sshClient)
+		releaseClient()
 	}()
 	return sshConn, nil
 }
