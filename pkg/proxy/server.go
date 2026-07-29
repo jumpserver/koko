@@ -50,7 +50,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	protocol := connOpts.authInfo.Protocol
 	asset := connOpts.authInfo.Asset
 	account := connOpts.authInfo.Account
-	user := connOpts.authInfo.User
 	if err := srvconn.IsSupportedProtocol(protocol); err != nil {
 		logger.Errorf("Conn[%s] checking protocol %s failed: %s", conn.ID(),
 			protocol, err)
@@ -83,22 +82,15 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		assetName = connOpts.k8sContainer.K8sName(asset.Name)
 	}
 
-	apiSession := &model.Session{
-		ID:         common.UUID(),
-		User:       user.String(),
-		Account:    account.String(),
-		LoginFrom:  model.LabelField(conn.LoginFrom()),
-		RemoteAddr: conn.RemoteAddr(),
-		Protocol:   protocol,
-		UserID:     user.ID,
-		Asset:      assetName,
-		AssetID:    asset.ID,
-		AccountID:  account.ID,
-		OrgID:      connOpts.authInfo.OrgId,
-		Type:       model.NORMALType,
-		TokenId:    connOpts.authInfo.Id,
-		LangCode:   connOpts.i18nLang,
-	}
+	apiSession := connOpts.authInfo.CreateSession(
+		conn.RemoteAddr(),
+		model.LabelField(conn.LoginFrom()),
+		model.NORMALType,
+	)
+	apiSession.ID = common.UUID()
+	apiSession.Asset = assetName
+	apiSession.LangCode = connOpts.i18nLang
+	apiSessionRef := &apiSession
 
 	if !connOpts.authInfo.Actions.EnableConnect() {
 		msg := lang.T("You don't have permission login %s")
@@ -110,7 +102,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	commandACLs := cloneCommandACLs(connOpts.authInfo.CommandFilterACLs)
 	sort.Sort(commandACLs)
 	return &Server{
-		ID:            apiSession.ID,
+		ID:            apiSessionRef.ID,
 		UserConn:      conn,
 		jmsService:    jmsService,
 		connOpts:      connOpts,
@@ -118,19 +110,19 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		suFromAccount: account.SuFrom,
 		terminalConf:  &terminalConf,
 		gateway:       connOpts.authInfo.Gateway,
-		sessionInfo:   apiSession,
+		sessionInfo:   apiSessionRef,
 		commandACLs:   commandACLs,
 		CreateSessionCallback: func() error {
-			apiSession.DateStart = common.NewNowUTCTime()
-			_, err2 := jmsService.CreateSession(*apiSession)
+			apiSessionRef.DateStart = common.NewNowUTCTime()
+			_, err2 := jmsService.CreateSession(*apiSessionRef)
 			return err2
 		},
 		ConnectedFailedCallback: func(err error) error {
-			_, err1 := jmsService.SessionFailed(apiSession.ID, err)
+			_, err1 := jmsService.SessionFailed(apiSessionRef.ID, err)
 			return err1
 		},
 		DisConnectedCallback: func() error {
-			_, err2 := jmsService.SessionDisconnect(apiSession.ID)
+			_, err2 := jmsService.SessionDisconnect(apiSessionRef.ID)
 			return err2
 		},
 	}, nil

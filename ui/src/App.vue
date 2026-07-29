@@ -2,7 +2,7 @@
 import type { GlobalThemeOverrides, NLocale } from 'naive-ui';
 
 import { useI18n } from 'vue-i18n';
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { darkTheme, dateZhCN, enUS, esAR, jaJP, koKR, ptBR, ruRU, zhCN, zhTW } from 'naive-ui';
 
 import type { SettingConfig } from '@/types/modules/config.type';
@@ -12,7 +12,7 @@ import { useColor } from '@/hooks/useColor';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { useGlobalStore } from '@/store/modules/global';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
-import { BASE_URL, LanguageCode, ThemeCode } from '@/utils/config';
+import { BASE_URL, ColorMode, LanguageCode, ThemeCode } from '@/utils/config';
 
 import { createThemeOverrides } from './overrides';
 
@@ -23,6 +23,7 @@ const globalStore = useGlobalStore();
 const loaded = ref(false);
 const componentsLocale = ref<NLocale | null>(null);
 const themeOverrides = ref<GlobalThemeOverrides | null>(null);
+const appTheme = computed(() => (ColorMode === 'dark' ? darkTheme : null));
 const langCodeMap = new Map(
   Object.entries({
     'ko': koKR,
@@ -90,7 +91,7 @@ onUnmounted(() => {
 
 <template>
   <n-config-provider
-    :theme="darkTheme"
+    :theme="appTheme"
     :date-locale="dateZhCN"
     :locale="componentsLocale"
     :theme-overrides="themeOverrides"

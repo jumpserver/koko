@@ -12,6 +12,18 @@ import { BASE_WS_URL } from '@/utils/config';
 
 const { message } = createDiscreteApi(['message']);
 
+const pageOnlyQueryKeys = new Set(['colorMode', 'themeType', 'terminal_theme_name', '_']);
+
+function createWsQueryParams(search: string) {
+  const params = new URLSearchParams(search);
+
+  for (const key of pageOnlyQueryKeys) {
+    params.delete(key);
+  }
+
+  return params;
+}
+
 /**
  * 右键复制文本
  *
@@ -49,7 +61,7 @@ export function generateWsURL() {
   const route = useRoute();
 
   const routeName = route.name;
-  const urlParams = new URLSearchParams(window.location.search.slice(1));
+  const urlParams = createWsQueryParams(window.location.search.slice(1));
 
   let connectURL;
 
@@ -69,7 +81,12 @@ export function generateWsURL() {
       break;
     }
     case 'kubernetes': {
-      connectURL = `${BASE_WS_URL}/koko/ws/terminal/?token=${route.query.token}&type=k8s`;
+      const requireParams = new URLSearchParams(urlParams.toString());
+
+      requireParams.set('token', route.query.token ? route.query.token.toString() : '');
+      requireParams.set('type', 'k8s');
+
+      connectURL = `${BASE_WS_URL}/koko/ws/terminal/?${requireParams.toString()}`;
       break;
     }
     case 'Share': {

@@ -20,6 +20,8 @@ import { lunaCommunicator } from '@/utils/lunaBus';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useFileManageStore } from '@/store/modules/fileManage.ts';
 
+const pageOnlyQueryKeys = new Set(['colorMode', 'themeType', 'terminal_theme_name', '_']);
+
 export enum MessageType {
   CONNECT = 'CONNECT',
   CLOSE = 'CLOSE',
@@ -746,7 +748,15 @@ async function handleFileUpload(
  * @description 用于处理文件管理相关逻辑
  */
 export function useFileManage(token: string, t: any) {
-  const fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?token=${token}`;
+  const queryParams = new URLSearchParams(window.location.search.slice(1));
+
+  for (const key of pageOnlyQueryKeys) {
+    queryParams.delete(key);
+  }
+
+  queryParams.set('token', token);
+
+  const fileConnectionUrl: string = `${BASE_WS_URL}/koko/ws/sftp/?${queryParams.toString()}`;
 
   function init() {
     const socket = fileSocketConnection(fileConnectionUrl, t);
