@@ -18,15 +18,16 @@ import (
 type SSHClientOption func(conf *SSHClientOptions)
 
 type SSHClientOptions struct {
-	Host         string
-	Port         string
-	Username     string
-	Password     string
-	PrivateKey   string
-	Passphrase   string
-	Timeout      int
-	keyboardAuth gossh.KeyboardInteractiveChallenge
-	PrivateAuth  gossh.Signer
+	Host                      string
+	Port                      string
+	Username                  string
+	Password                  string
+	PrivateKey                string
+	Passphrase                string
+	Timeout                   int
+	keyboardAuth              gossh.KeyboardInteractiveChallenge
+	preferKeyboardInteractive bool
+	PrivateAuth               gossh.Signer
 
 	proxySSHClientOptions []SSHClientOptions
 }
@@ -57,10 +58,13 @@ func (cfg *SSHClientOptions) AuthMethods() []gossh.AuthMethod {
 	if cfg.PrivateAuth != nil {
 		authMethods = append(authMethods, gossh.PublicKeys(cfg.PrivateAuth))
 	}
+	if cfg.preferKeyboardInteractive && cfg.keyboardAuth != nil {
+		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
+	}
 	if cfg.Password != "" {
 		authMethods = append(authMethods, gossh.Password(cfg.Password))
 	}
-	if cfg.keyboardAuth != nil {
+	if !cfg.preferKeyboardInteractive && cfg.keyboardAuth != nil {
 		authMethods = append(authMethods, gossh.KeyboardInteractive(cfg.keyboardAuth))
 	}
 	if cfg.keyboardAuth == nil && cfg.Password != "" {
@@ -133,6 +137,13 @@ func SSHClientProxyClient(proxyArgs ...SSHClientOptions) SSHClientOption {
 func SSHClientKeyboardAuth(keyboardAuth gossh.KeyboardInteractiveChallenge) SSHClientOption {
 	return func(conf *SSHClientOptions) {
 		conf.keyboardAuth = keyboardAuth
+	}
+}
+
+// SSHClientPreferKeyboardInteractive prioritizes an explicit interactive callback over password auth.
+func SSHClientPreferKeyboardInteractive() SSHClientOption {
+	return func(conf *SSHClientOptions) {
+		conf.preferKeyboardInteractive = true
 	}
 }
 
