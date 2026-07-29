@@ -17,7 +17,7 @@ import type { OnlineUser, ShareUserOptions } from '@/types/modules/user.type';
 
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { getDefaultTerminalConfig } from '@/utils/guard';
-import { defaultTheme, MaxTimeout } from '@/utils/config';
+import { AsciiCtrlC, defaultTheme, MaxTimeout } from '@/utils/config';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
 import { formatMessage, preprocessInput, writeBufferToTerminal } from '@/utils';
@@ -57,7 +57,7 @@ export const useTerminalSocket = () => {
   let sentry: Sentry | null = null;
 
   const { t } = useI18n();
-  const { createSentry } = useZmodem();
+  const { createSentry, abortActiveSession, isActiveSession, finishDraining, stopDraining } = useZmodem();
   const { width, height } = useWindowSize();
 
   const { sendLunaEvent, emitTerminalConnect, emitTerminalSession, sendMittEvent } = useTerminalEvents();
@@ -237,6 +237,13 @@ export const useTerminalSocket = () => {
             break;
           }
           case ZMODEM_ACTION_TYPE.ZMODEM_END: {
+            finishDraining();
+            terminalRef.value!.write('\r\n');
+            break;
+          }
+          case ZMODEM_ACTION_TYPE.ZMODEM_ABORT: {
+            abortActiveSession();
+            finishDraining();
             terminalRef.value!.write('\r\n');
             break;
           }
@@ -386,9 +393,10 @@ export const useTerminalSocket = () => {
         sentry.consume(socketMessage.data);
       } catch (_e) {
         if (sentry.get_confirmed_session()) {
-          sentry.get_confirmed_session()?.abort();
-          // message.error(t('File transfer error, file transfer interrupted'));
+          abortActiveSession();
           message.error(t('File transfer error, file transfer interrupted'));
+        } else {
+          writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
         }
       }
     } else {
@@ -432,6 +440,7 @@ export const useTerminalSocket = () => {
     socketRef.value.onclose = () => {
       if (!terminalRef.value) return;
 
+      abortActiveSession();
       terminalRef.value.write(`\r\n`);
       terminalRef.value.write(`\x1B[31m${t('WebSocketClosed')}\x1B[0m`);
     };
@@ -525,7 +534,12 @@ export const useTerminalSocket = () => {
         return;
       }
 
-      const processedData = preprocessInput(data, terminalSettingsStore.getConfig);
+      const isZmodemInterrupt = isActiveSession() && data.length === 1 && data.charCodeAt(0) === AsciiCtrlC;
+      const processedData = isZmodemInterrupt ? data : preprocessInput(data, terminalSettingsStore.getConfig);
+      if (isZmodemInterrupt) {
+        // 先停止浏览器端传输，使 CAN 排在已缓冲的文件数据之后，再发送 Ctrl-C。
+        abortActiveSession();
+      }
       socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
       lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
     });
@@ -589,6 +603,30 @@ export const useTerminalSocket = () => {
     terminalRef.value = terminal;
   };
 
+  const handleZmodemInterruptKey = (event: KeyboardEvent) => {
+    if (
+      !event.ctrlKey
+      || event.key.toLowerCase() !== 'c'
+      || event.repeat
+      || !isActiveSession()
+      || terminalRef.value?.hasSelection()
+      || !socketRef.value
+      || socketRef.value.readyState !== WebSocket.OPEN
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    lastSendTime.value = new Date();
+    // session.abort() 会先把 CAN 追加到 WebSocket 队列尾部，避免残留文件块落入普通 shell。
+    abortActiveSession();
+    socketRef.value.send(
+      formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, String.fromCharCode(AsciiCtrlC)),
+    );
+    lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
+  };
+
   /**
    * @description 创建 WebSocket 连接
    */
@@ -615,6 +653,7 @@ export const useTerminalSocket = () => {
   onMounted(() => {
     if (!containerRef.value) return;
 
+    window.addEventListener('keydown', handleZmodemInterruptKey, true);
     createTerminal();
     createWebSocket();
 
@@ -630,6 +669,9 @@ export const useTerminalSocket = () => {
   });
 
   onUnmounted(() => {
+    window.removeEventListener('keydown', handleZmodemInterruptKey, true);
+    abortActiveSession();
+    stopDraining();
     autoTerminalFit();
   });
 
