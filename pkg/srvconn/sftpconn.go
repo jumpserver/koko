@@ -102,7 +102,18 @@ func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
 }
 
 func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
+	return u.rename(oldNamePath, newNamePath, false)
+}
+
+func (u *UserSftpConn) PosixRename(oldNamePath, newNamePath string) (err error) {
+	return u.rename(oldNamePath, newNamePath, true)
+}
+
+func (u *UserSftpConn) rename(oldNamePath, newNamePath string, overwrite bool) (err error) {
 	if u.assetDir != nil {
+		if overwrite {
+			return u.assetDir.PosixRename(oldNamePath, newNamePath)
+		}
 		return u.assetDir.Rename(oldNamePath, newNamePath)
 	}
 	oldFi, oldRestPath := u.ParsePath(oldNamePath)
@@ -110,6 +121,9 @@ func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
 	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
 		if newAssetDir, newOk := newFi.(*AssetDir); newOk {
 			if oldAssetDir == newAssetDir {
+				if overwrite {
+					return oldAssetDir.PosixRename(oldRestPath, newRestPath)
+				}
 				return oldAssetDir.Rename(oldRestPath, newRestPath)
 			}
 		}
@@ -223,6 +237,26 @@ func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
 		return assetDir.Open(restPath)
+	}
+
+	return nil, errNoSelectAsset
+}
+
+// OpenForWrite opens an existing file without truncating it.
+func (u *UserSftpConn) OpenForWrite(path string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.OpenForWrite(path)
+	}
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return nil, errNoSelectAsset
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.OpenForWrite(restPath)
 	}
 
 	return nil, errNoSelectAsset

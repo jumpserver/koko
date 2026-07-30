@@ -228,6 +228,15 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 }
 
 func (ad *AssetDir) Open(path string) (*SftpFile, error) {
+	return ad.openFile(path, false)
+}
+
+// OpenForWrite opens an existing remote file without truncating it.
+func (ad *AssetDir) OpenForWrite(path string) (*SftpFile, error) {
+	return ad.openFile(path, true)
+}
+
+func (ad *AssetDir) openFile(path string, write bool) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -241,7 +250,10 @@ func (ad *AssetDir) Open(path string) (*SftpFile, error) {
 	if !ok {
 		return nil, errNoAccountUser
 	}
-	if !su.Actions.EnableDownload() {
+	if write && !su.Actions.EnableUpload() {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+	if !write && !su.Actions.EnableDownload() {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
@@ -249,16 +261,25 @@ func (ad *AssetDir) Open(path string) (*SftpFile, error) {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	con.IncreaseRef()
-	sf, err := con.client.Open(realPath)
-	filename := realPath
-	isSuccess := false
-	operate := model.OperateDownload
-	if err == nil {
-		isSuccess = true
+	var (
+		sf      *sftp.File
+		err     error
+		operate = model.OperateDownload
+	)
+	if write {
+		sf, err = con.client.OpenFile(realPath, os.O_RDWR)
+		operate = model.OperateUpload
+	} else {
+		sf, err = con.client.Open(realPath)
 	}
-	ftpLog := ad.CreateFTPLog(su, operate, filename, isSuccess)
+	filename := realPath
+	ftpLog := ad.CreateFTPLog(su, operate, filename, err == nil)
+	if err != nil {
+		con.DecreaseRef()
+		return nil, err
+	}
 	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef}
-	return f, err
+	return f, nil
 }
 
 func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
@@ -374,6 +395,14 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 }
 
 func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
+	return ad.rename(oldNamePath, newNamePath, false)
+}
+
+func (ad *AssetDir) PosixRename(oldNamePath, newNamePath string) (err error) {
+	return ad.rename(oldNamePath, newNamePath, true)
+}
+
+func (ad *AssetDir) rename(oldNamePath, newNamePath string, overwrite bool) (err error) {
 	oldPathData := ad.parsePath(oldNamePath)
 	newPathData := ad.parsePath(newNamePath)
 
@@ -405,7 +434,11 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	defer conn1.DecreaseRef()
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
 	operate := model.OperateRename
-	err = conn1.client.Rename(oldRealPath, newRealPath)
+	if overwrite {
+		err = conn1.client.PosixRename(oldRealPath, newRealPath)
+	} else {
+		err = conn1.client.Rename(oldRealPath, newRealPath)
+	}
 	if err != nil {
 		ad.CreateFTPLog(su, operate, filename, false)
 		return err

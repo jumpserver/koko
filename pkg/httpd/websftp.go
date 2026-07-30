@@ -20,9 +20,8 @@ type webSftp struct {
 
 	currentPath string
 
-	msg *Message
-
-	started bool
+	started        bool
+	trackSessionID bool
 }
 
 func (h *webSftp) Name() string {
@@ -40,7 +39,6 @@ func (h *webSftp) CheckValidation() error {
 }
 
 func (h *webSftp) HandleMessage(msg *Message) {
-	h.msg = msg
 	go h.dispatch(*msg)
 }
 
@@ -50,13 +48,18 @@ func (h *webSftp) CleanUp() {
 }
 
 type webSftpRequest struct {
-	Path    string `json:"path"`
-	NewName string `json:"new_name"`
-	Chunk   bool   `json:"chunk"`
-	Merge   bool   `json:"merge"`
-	OffSet  int64  `json:"offset"`
-	Size    int64  `json:"size"`
-	IsDir   bool   `json:"is_dir"`
+	Path           string `json:"path"`
+	NewName        string `json:"new_name"`
+	Chunk          bool   `json:"chunk"`
+	Merge          bool   `json:"merge"`
+	OffSet         int64  `json:"offset"`
+	Size           int64  `json:"size"`
+	IsDir          bool   `json:"is_dir"`
+	TransferID     string `json:"transfer_id"`
+	Length         int64  `json:"length"`
+	SHA256         string `json:"sha256"`
+	ConflictPolicy string `json:"conflict_policy"`
+	Discard        bool   `json:"discard"`
 }
 
 func notInTokenIds(target string) bool {
@@ -77,23 +80,26 @@ func (h *webSftp) dispatch(msg Message) {
 	}
 
 	request := &webSftpRequest{}
-	err := json.Unmarshal([]byte(h.msg.Data), request)
+	err := json.Unmarshal([]byte(msg.Data), request)
 	if err != nil {
 		message.Err = err.Error()
 		h.ws.SendMessage(&message)
 		return
 	}
 
-	if h.started && notInTokenIds(h.ws.ConnectToken.Id) {
+	if h.started && h.trackSessionID && (h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id)) {
 		message.Err = "Session expired or not found"
 		message.Type = CLOSE
 		h.ws.SendMessage(&message)
 		return
 	}
+	if !h.started && h.ws.ConnectToken != nil {
+		h.trackSessionID = !notInTokenIds(h.ws.ConnectToken.Id)
+	}
 
 	h.started = true
 
-	switch h.msg.Cmd {
+	switch msg.Cmd {
 	case "list":
 		h.handleList(request, &message)
 	case "download":
@@ -107,7 +113,23 @@ func (h *webSftp) dispatch(msg Message) {
 
 	case "upload":
 		if h.ws.ConnectToken.Actions.EnableUpload() {
-			h.handleUpload(request, h.msg, &message)
+			h.handleUpload(request, &msg, &message)
+		} else {
+			message.Err = "Permission denied"
+			h.ws.SendMessage(&message)
+			return
+		}
+	case "transfer_read":
+		if h.ws.ConnectToken.Actions.EnableDownload() {
+			h.handleTransferRead(request, &message)
+		} else {
+			message.Err = "Permission denied"
+			h.ws.SendMessage(&message)
+			return
+		}
+	case "transfer_prepare", "transfer_write", "transfer_status", "transfer_commit", "transfer_cancel":
+		if h.ws.ConnectToken.Actions.EnableUpload() {
+			h.handleTransferMutation(request, &msg, &message)
 		} else {
 			message.Err = "Permission denied"
 			h.ws.SendMessage(&message)
