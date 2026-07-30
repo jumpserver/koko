@@ -32,19 +32,31 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 		},
 	}}
 	return func(ctx ssh.Context, password, publicKey string) error {
+		ctx.SetValue(ContextKeyJMService, jmsService)
 		if password == "" && publicKey == "" {
 			logger.Errorf("SSH conn[%s] no password and publickey", ctx.SessionID())
 			return authErr
 		}
 		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
 		username := ctx.User()
+		action := actionAccepted
+		var res error
 		if req, ok := parseDirectLoginReq(jmsService, ctx); ok {
 			if req.IsToken() {
 				if req.Authenticate(password) {
 					ctx.SetValue(ContextKeyUser, &req.ConnectToken.User)
+					res = completeSSHAuth(ctx)
+					switch {
+					case res == nil:
+						action = actionAccepted
+					case isPartialSuccess(res):
+						action = actionPartialAccepted
+					default:
+						action = actionFailed
+					}
 					logger.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
-						actionAccepted, username, remoteAddr)
-					return nil
+						action, username, remoteAddr)
+					return res
 				} else {
 					logger.Errorf("SSH conn[%s] token %s auth failed", ctx.SessionID(), req.ConnectToken.Id)
 					return authErr
@@ -53,8 +65,6 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 			username = req.User()
 		}
 		authMethod := "publickey"
-		action := actionAccepted
-		var res error
 		if password != "" {
 			authMethod = "password"
 		}
@@ -114,10 +124,20 @@ func SSHPasswordAndPublicKeyAuth(jmsService *service.JMService) SSHAuthFunc {
 				res = needPasswordAuthErr
 				ctx.SetValue(ContextKeyCurrentAuth, "password")
 				action = actionPartialAccepted
+			} else {
+				res = completeSSHAuth(ctx)
+				switch {
+				case res == nil:
+				case isPartialSuccess(res):
+					action = actionPartialAccepted
+				default:
+					action = actionFailed
+				}
 			}
 		case authConfirmRequired, authMFARequired:
 			action = actionPartialAccepted
 			ctx.SetValue(ContextKeyAuthStatus, authStatus)
+			ctx.SetValue(ContextKeyAuthPhase, AuthPhaseUserKeyboardInteractive)
 			res = &ssh.PartialSuccessError{Next: ssh.ServerAuthCallbacks{
 				KeyboardInteractiveCallback: SSHKeyboardInteractiveAuth,
 			}}
@@ -142,6 +162,9 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 	if value, ok := ctx.Value(ContextKeyAuthFailed).(*bool); ok && *value {
 		return authErr
 	}
+	if phase, ok := ctx.Value(ContextKeyAuthPhase).(AuthPhase); ok && phase == AuthPhaseDirectSFTPAssetInteractive {
+		return continueDirectSFTPAssetAuth(ctx, challenger)
+	}
 
 	username := GetUsernameFromSSHCtx(ctx)
 	client, ok := ctx.Value(ContextKeyClient).(*UserAuthClient)
@@ -165,7 +188,7 @@ func SSHKeyboardInteractiveAuth(ctx ssh.Context, challenger gossh.KeyboardIntera
 		return authErr
 	}
 	if checkAuth != nil && checkAuth(ctx, challenger) {
-		return nil
+		return completeSSHAuth(ctx)
 	}
 	return authErr
 }
@@ -185,6 +208,14 @@ const (
 	ContextKeyCurrentAuth = "CONTEXT_CURRENT_AUTH"
 
 	ContextKeyAuthCount = "CONTEXT_AUTH_COUNT"
+
+	ContextKeyJMService = "CONTEXT_JMS_SERVICE"
+
+	ContextKeyAuthPhase = "CONTEXT_AUTH_PHASE"
+
+	ContextKeyPreparedDirectSFTP = "CONTEXT_PREPARED_DIRECT_SFTP"
+
+	ContextKeyDirectSFTPAssetAuthState = "CONTEXT_DIRECT_SFTP_ASSET_AUTH_STATE"
 )
 
 type DirectLoginAssetReq struct {

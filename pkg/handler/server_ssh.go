@@ -64,26 +64,35 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 	}
 	addr, _, _ := net.SplitHostPort(sess.RemoteAddr().String())
 	directReq := sess.Context().Value(auth.ContextKeyDirectLoginFormat)
+	preparedDirectSFTP, _ := sess.Context().Value(auth.ContextKeyPreparedDirectSFTP).(*srvconn.PreparedDirectSFTP)
 	var sftpHandler *SftpHandler
 	termConf := s.GetTerminalConfig()
 	if directRequest, ok2 := directReq.(*auth.DirectLoginAssetReq); ok2 {
-		selectedAssets, err := s.getMatchedAssetsByDirectReq(currentUser, directRequest)
-		if err != nil {
-			logger.Errorf("Get matched assets failed: %s", err)
-			return
-		}
-		if directRequest.IsToken() && config.GetConf().ConnectionTokenReusable {
-			tokenInfo := directRequest.ConnectToken
-			key := cache.CreateAddrCacheKey(sess.RemoteAddr(), tokenInfo.Id)
-			// 缓存 token 信息
-			cache.TokenCacheInstance.Save(key, tokenInfo)
-			defer cache.TokenCacheInstance.Recycle(key)
-			logger.Infof("SFTP token key %s cached", key)
-		}
 		opts := buildDirectRequestOptions(currentUser, directRequest)
 		opts = append(opts, DirectConnectSftpMode(true))
-		opts = append(opts, DirectAssets(selectedAssets))
 		opts = append(opts, DirectTerminalConf(&termConf))
+		switch {
+		case preparedDirectSFTP != nil && preparedDirectSFTP.IsValid():
+			opts = append(opts, DirectFormatType(FormatToken))
+			opts = append(opts, DirectConnectToken(preparedDirectSFTP.Token))
+			opts = append(opts, DirectPreparedSFTP(preparedDirectSFTP))
+		case directRequest.IsToken():
+			if config.GetConf().ConnectionTokenReusable {
+				tokenInfo := directRequest.ConnectToken
+				key := cache.CreateAddrCacheKey(sess.RemoteAddr(), tokenInfo.Id)
+				// 缓存 token 信息
+				cache.TokenCacheInstance.Save(key, tokenInfo)
+				defer cache.TokenCacheInstance.Recycle(key)
+				logger.Infof("SFTP token key %s cached", key)
+			}
+		default:
+			selectedAssets, err := s.getMatchedAssetsByDirectReq(currentUser, directRequest)
+			if err != nil {
+				logger.Errorf("Get matched assets failed: %s", err)
+				return
+			}
+			opts = append(opts, DirectAssets(selectedAssets))
+		}
 		directSrv := NewDirectHandler(sess, s.jmsService, opts...)
 		sftpHandler = directSrv.NewSFTPHandler()
 	} else {
@@ -706,33 +715,12 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 }
 
 func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.PermAsset, error) {
-	var getUserPermAssets func() ([]model.PermAsset, error)
-	if common.IsUUID(req.AssetTarget) {
-		getUserPermAssets = func() ([]model.PermAsset, error) {
-			return s.jmsService.GetUserPermAssetsById(user.ID, req.AssetTarget)
-		}
-	} else {
-		getUserPermAssets = func() ([]model.PermAsset, error) {
-			return s.jmsService.GetUserPermAssetsByIP(user.ID, req.AssetTarget)
-		}
-	}
-	i18nLang := i18n.NewLang(user.Language)
-	assets, err := getUserPermAssets()
-	if err != nil {
-		logger.Errorf("Get user %s perm asset failed: %s", user.String(), err)
-		return nil, fmt.Errorf("match asset failed: %s", i18nLang.T("Core API failed"))
-	}
-	if len(assets) == 0 {
-		logger.Infof("User %s no perm for asset %s", user.String(), req.AssetTarget)
-		return nil, fmt.Errorf("match asset failed: %s", i18nLang.T("No found asset"))
-	}
-	return assets, nil
+	return auth.GetMatchedAssetsByDirectReq(s.jmsService, user, req)
 }
 
 func (s *Server) getMatchedAccounts(user *model.User, req *auth.DirectLoginAssetReq,
 	permAssetDetail model.PermAssetDetail) ([]model.PermAccount, error) {
-	matched := GetMatchedAccounts(permAssetDetail.PermedAccounts, req.AccountUsername)
-	return matched, nil
+	return auth.MatchAccountsByUsername(permAssetDetail.PermedAccounts, req.AccountUsername), nil
 }
 
 func buildDirectRequestOptions(user *model.User, directRequest *auth.DirectLoginAssetReq) []DirectOpt {
@@ -748,65 +736,7 @@ func buildDirectRequestOptions(user *model.User, directRequest *auth.DirectLogin
 }
 
 func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.DirectLoginAssetReq) (*model.ConnectToken, error) {
-	selectedAssets, err := s.getMatchedAssetsByDirectReq(user, req)
-	if err != nil {
-		return nil, err
-	}
-	i18nLang := i18n.NewLang(user.Language)
-	if len(selectedAssets) != 1 {
-		msg := fmt.Sprintf(i18nLang.T("Must be unique asset for %s"), req.AssetTarget)
-		return nil, errors.New(msg)
-	}
-	permAssetDetail, err := s.jmsService.GetUserPermAssetDetailById(user.ID, selectedAssets[0].ID)
-	if err != nil {
-		msg := fmt.Sprintf(i18nLang.T("Must be unique asset for %s"), req.AssetTarget)
-		logger.Errorf("Get permAssetDetail failed: %s", err)
-		return nil, errors.New(msg)
-	}
-
-	matchedProtocol := req.Protocol == model.ProtocolSSH
-	assetSupportedSSH := permAssetDetail.SupportProtocol(model.ProtocolSSH)
-	if !matchedProtocol || !assetSupportedSSH {
-		msg := "not ssh asset connection"
-		logger.Errorf("Direct Request ssh failed: %s", msg)
-		return nil, errors.New(msg)
-	}
-
-	selectAccounts, err := s.getMatchedAccounts(user, req, permAssetDetail)
-	if err != nil {
-		return nil, err
-	}
-	if len(selectAccounts) != 1 {
-		msg := fmt.Sprintf(i18nLang.T("Must be unique account for %s"), req.AccountUsername)
-		logger.Error(msg)
-		return nil, errors.New(msg)
-	}
-	selectAccount := selectAccounts[0]
-	remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
-	sessReq := &service.SuperConnectTokenReq{
-		UserId:        user.ID,
-		AssetId:       permAssetDetail.ID,
-		Account:       selectAccount.Alias,
-		Protocol:      model.ProtocolSSH,
-		ConnectMethod: model.ProtocolSSH,
-		RemoteAddr:    remoteAddr,
-	}
-	// ssh 非交互式的直连格式，不支持资产的登录复核
-	tokenInfo, err := s.jmsService.CreateSuperConnectToken(sessReq)
-	if err != nil {
-		msg := err.Error()
-		if tokenInfo.Detail != "" {
-			msg = tokenInfo.Detail
-		}
-		logger.Errorf("Create super connect token failed: %s", msg)
-		return nil, err
-	}
-	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
-	if err != nil {
-		logger.Errorf("Create super connect token err: %s", err)
-		return nil, err
-	}
-	return &connectToken, nil
+	return auth.BuildDirectConnectToken(ctx, s.jmsService, user, req)
 }
 
 func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClient, error) {

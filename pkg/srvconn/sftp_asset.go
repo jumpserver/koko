@@ -696,10 +696,18 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 		return nil, errNoSelectAsset
 	}
 	timeout := config.GlobalConfig.SSHTimeout
-	sshClient, err := NewSSHClientWithToken(connectToken, timeout)
-	if err != nil {
-		logger.Errorf("Get new SSH client err: %s", err)
-		return nil, err
+	sshClient := (*SSHClient)(nil)
+	disableIdleRecycle := false
+	if prepared := ad.opts.preparedDirectSFTP; prepared != nil && prepared.IsValid() {
+		sshClient = prepared.Client
+		disableIdleRecycle = prepared.DisableIdleRecycle
+		logger.Infof("Reuse prepared direct sftp client %s", sshClient)
+	} else {
+		sshClient, err = NewSSHClientWithToken(connectToken, timeout)
+		if err != nil {
+			logger.Errorf("Get new SSH client err: %s", err)
+			return nil, err
+		}
 	}
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
@@ -744,25 +752,26 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 	}
 	maxIdleInt := ad.opts.terminalCfg.MaxIdleTime
 	conn = &SftpConn{
-		sshClient:   sshClient,
-		sshSession:  sess,
-		permAccount: su,
-		rootDirPath: sftpRoot,
-		client:      sftpClient,
-		HomeDirPath: homeDirPath,
-		token:       connectToken,
-		maxIdleTime: time.Duration(maxIdleInt) * time.Minute,
+		sshClient:          sshClient,
+		sshSession:         sess,
+		permAccount:        su,
+		rootDirPath:        sftpRoot,
+		client:             sftpClient,
+		HomeDirPath:        homeDirPath,
+		token:              connectToken,
+		maxIdleTime:        time.Duration(maxIdleInt) * time.Minute,
+		disableIdleRecycle: disableIdleRecycle,
 	}
 	return conn, nil
 }
 
-func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
+func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int, extraOpts ...SSHClientOption) (*SSHClient, error) {
 	asset := connectToken.Asset
 	account := connectToken.Account
 	username := account.Username
 	protocol := connectToken.Protocol
 
-	sshAuthOpts := make([]SSHClientOption, 0, 6)
+	sshAuthOpts := make([]SSHClientOption, 0, 6+len(extraOpts))
 	sshAuthOpts = append(sshAuthOpts, SSHClientUsername(username))
 	sshAuthOpts = append(sshAuthOpts, SSHClientHost(asset.Address))
 	sshAuthOpts = append(sshAuthOpts, SSHClientPort(asset.ProtocolPort(protocol)))
@@ -796,6 +805,7 @@ func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHC
 		proxyArgs = append(proxyArgs, proxyArg)
 		sshAuthOpts = append(sshAuthOpts, SSHClientProxyClient(proxyArgs...))
 	}
+	sshAuthOpts = append(sshAuthOpts, extraOpts...)
 	return NewSSHClient(sshAuthOpts...)
 }
 
