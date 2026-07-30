@@ -40,6 +40,7 @@ func (builtInFeature) NewSession(options SessionOptions) (Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	modelClient.SetResponseLanguage(options.Language)
 	observer, err := NewObserver(options.Width, options.Height)
 	if err != nil {
 		return nil, err

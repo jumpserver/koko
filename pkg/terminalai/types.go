@@ -93,14 +93,15 @@ type ReActDecision struct {
 }
 
 type StepResult struct {
-	StepID      string `json:"stepId"`
-	Command     string `json:"command"`
-	Output      string `json:"output"`
-	Status      string `json:"status"`
-	Summary     string `json:"summary"`
-	ErrorReason string `json:"errorReason,omitempty"`
-	Execution   string `json:"execution"`
-	ExitCode    *int   `json:"exitCode,omitempty"`
+	StepID          string `json:"stepId"`
+	Command         string `json:"command"`
+	Output          string `json:"output"`
+	OutputTruncated bool   `json:"outputTruncated,omitempty"`
+	Status          string `json:"status"`
+	Summary         string `json:"summary"`
+	ErrorReason     string `json:"errorReason,omitempty"`
+	Execution       string `json:"execution"`
+	ExitCode        *int   `json:"exitCode,omitempty"`
 }
 
 type CommandACLDecision struct {

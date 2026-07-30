@@ -29,6 +29,7 @@ type SessionOptions struct {
 	Height            int
 	ModelConfig       model.TerminalConfig
 	Context           SessionContext
+	Language          string
 	WritePTY          func([]byte)
 	Emit              func(ChatMessage)
 	SetInputLocked    func(bool)

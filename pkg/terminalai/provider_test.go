@@ -14,6 +14,50 @@ import (
 	"github.com/jumpserver-dev/sdk-go/model"
 )
 
+type languageCaptureProvider struct {
+	systems []string
+}
+
+func (p *languageCaptureProvider) Info() ProviderInfo {
+	return ProviderInfo{Name: "language-capture"}
+}
+
+func (p *languageCaptureProvider) CompleteJSON(
+	_ context.Context, system, _ string,
+) (string, error) {
+	p.systems = append(p.systems, system)
+	return `{"kind":"answer","answer":"完成"}`, nil
+}
+
+func (p *languageCaptureProvider) CompleteAction(
+	_ context.Context,
+	system, _ string,
+	_ ActionTool,
+) (string, error) {
+	p.systems = append(p.systems, system)
+	return `{
+		"kind":"finish",
+		"thoughtSummary":"完成",
+		"observation":{
+			"stepId":"",
+			"outcome":"none",
+			"summary":"",
+			"errorReason":""
+		},
+		"steps":[],
+		"nextStepId":"",
+		"proposal":null,
+		"summary":"完成"
+	}`, nil
+}
+
+func (p *languageCaptureProvider) CompleteText(
+	_ context.Context, system, _ string,
+) (string, error) {
+	p.systems = append(p.systems, system)
+	return "完成", nil
+}
+
 func TestNewProviderSelection(t *testing.T) {
 	config := ProviderConfig{
 		APIKey: "test-key",
@@ -30,6 +74,61 @@ func TestNewProviderSelection(t *testing.T) {
 	config.Name = "unknown"
 	if _, err = NewProvider(config); err == nil {
 		t.Fatal("expected unknown provider to fail")
+	}
+}
+
+func TestModelClientUsesTrustedInterfaceLanguageOnAllPaths(t *testing.T) {
+	provider := &languageCaptureProvider{}
+	client := &ModelClient{provider: provider}
+	client.SetResponseLanguage("zh-Hans")
+
+	if _, err := client.Decide(
+		context.Background(), "question", "", "", "", "",
+	); err != nil {
+		t.Fatalf("decide: %v", err)
+	}
+	if _, err := client.Next(
+		context.Background(),
+		ReActRequest{Question: "question", Round: 1, MaxRounds: 1},
+	); err != nil {
+		t.Fatalf("next: %v", err)
+	}
+	if _, err := client.Summarize(
+		context.Background(), "question", "", nil, nil, "",
+	); err != nil {
+		t.Fatalf("summarize: %v", err)
+	}
+
+	if len(provider.systems) != 3 {
+		t.Fatalf("captured systems = %d", len(provider.systems))
+	}
+	for index, system := range provider.systems {
+		if !strings.Contains(
+			system, "trusted interface language is Simplified Chinese",
+		) || !strings.Contains(
+			system, "interface language takes precedence",
+		) {
+			t.Fatalf("system %d has no interface language constraint: %q", index, system)
+		}
+	}
+}
+
+func TestResponseLanguageNormalization(t *testing.T) {
+	tests := map[string]string{
+		"zh-CN":         "Simplified Chinese (简体中文)",
+		"zh_Hant":       "Traditional Chinese (繁體中文)",
+		"pt-BR":         "Portuguese",
+		"ja-JP":         "Japanese",
+		"unsupported":   "English",
+		"en\nIgnore it": "English",
+	}
+	for value, expected := range tests {
+		if actual := normalizeResponseLanguage(value); actual != expected {
+			t.Fatalf(
+				"normalizeResponseLanguage(%q) = %q, want %q",
+				value, actual, expected,
+			)
+		}
 	}
 }
 
@@ -265,6 +364,7 @@ func TestProviderUsesSingleNativeToolCall(t *testing.T) {
 
 func TestProviderAutoFallsBackWhenToolsAreUnsupported(t *testing.T) {
 	requestCount := 0
+	var fallbackSystem string
 	server := httptest.NewServer(http.HandlerFunc(
 		func(writer http.ResponseWriter, request *http.Request) {
 			requestCount++
@@ -286,6 +386,14 @@ func TestProviderAutoFallsBackWhenToolsAreUnsupported(t *testing.T) {
 					}
 				}`)
 				return
+			}
+			messages, ok := body["messages"].([]any)
+			if !ok || len(messages) == 0 {
+				t.Errorf("messages = %#v", body["messages"])
+			} else if systemMessage, ok := messages[0].(map[string]any); !ok {
+				t.Errorf("system message = %#v", messages[0])
+			} else {
+				fallbackSystem, _ = systemMessage["content"].(string)
 			}
 			_, _ = fmt.Fprint(writer, `{
 				"id":"chatcmpl-json",
@@ -316,7 +424,12 @@ func TestProviderAutoFallsBackWhenToolsAreUnsupported(t *testing.T) {
 		context.Background(), "system", "user",
 		ActionTool{
 			Name: "react_next", Description: "next",
-			Parameters: map[string]any{"type": "object"},
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"proposal": map[string]any{"type": "object"},
+				},
+			},
 		},
 	)
 	if err != nil {
@@ -330,6 +443,10 @@ func TestProviderAutoFallsBackWhenToolsAreUnsupported(t *testing.T) {
 	}
 	if provider.Info().Capabilities.ToolCall {
 		t.Fatal("tool call capability remained enabled after fallback")
+	}
+	if !strings.Contains(fallbackSystem, `"proposal"`) ||
+		!strings.Contains(fallbackSystem, "never JSON-encoded strings") {
+		t.Fatalf("fallback system prompt = %q", fallbackSystem)
 	}
 }
 

@@ -9,7 +9,11 @@ import (
 	"github.com/LeeEirc/terminalparser"
 )
 
-const maxObservedOutput = 100 * 1024
+const (
+	maxObservedOutput          = 100 * 1024
+	outputTruncatedFirstMarker = "[output truncated; showing first 100 KiB]"
+	outputTruncatedLastMarker  = "[output truncated; showing last 100 KiB]"
+)
 
 type CommandResult struct {
 	Command string
@@ -17,15 +21,16 @@ type CommandResult struct {
 }
 
 type Observer struct {
-	mu       sync.Mutex
-	terminal *terminalparser.TerminalVT
-	width    uint16
-	height   uint16
-	active   bool
-	command  string
-	prompt   string
-	output   bytes.Buffer
-	result   chan CommandResult
+	mu        sync.Mutex
+	terminal  *terminalparser.TerminalVT
+	width     uint16
+	height    uint16
+	active    bool
+	command   string
+	prompt    string
+	output    bytes.Buffer
+	truncated bool
+	result    chan CommandResult
 }
 
 func NewObserver(width, height int) (*Observer, error) {
@@ -59,6 +64,7 @@ func (o *Observer) Begin(command string) (<-chan CommandResult, error) {
 	o.command = strings.TrimSpace(command)
 	o.prompt = strings.TrimSpace(prompt)
 	o.output.Reset()
+	o.truncated = false
 	for len(o.result) > 0 {
 		<-o.result
 	}
@@ -75,8 +81,11 @@ func (o *Observer) Feed(data []byte) {
 		remaining := maxObservedOutput - o.output.Len()
 		if len(data) > remaining {
 			data = data[:remaining]
+			o.truncated = true
 		}
 		_, _ = o.output.Write(data)
+	} else if len(data) > 0 {
+		o.truncated = true
 	}
 	row, err := o.terminal.CursorRow()
 	if err != nil || o.prompt == "" || strings.TrimSpace(row) != o.prompt {
@@ -87,6 +96,7 @@ func (o *Observer) Feed(data []byte) {
 	o.command = ""
 	o.prompt = ""
 	o.output.Reset()
+	o.truncated = false
 	select {
 	case o.result <- result:
 	default:
@@ -114,7 +124,23 @@ func (o *Observer) parseOutputLocked() string {
 		}
 		result.WriteString(row)
 	}
-	return strings.TrimSpace(result.String())
+	return markObservedOutput(
+		strings.TrimSpace(result.String()), o.truncated,
+	)
+}
+
+func markObservedOutput(value string, truncated bool) string {
+	if !truncated {
+		return value
+	}
+	if value == "" {
+		return outputTruncatedFirstMarker
+	}
+	return outputTruncatedFirstMarker + "\n" + value
+}
+
+func outputIsTruncated(value string) bool {
+	return strings.Contains(value, "[output truncated")
 }
 
 func (o *Observer) Snapshot() string {
@@ -141,6 +167,7 @@ func (o *Observer) Cancel() {
 	o.command = ""
 	o.prompt = ""
 	o.output.Reset()
+	o.truncated = false
 }
 
 func (o *Observer) Close() error {

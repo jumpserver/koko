@@ -2,6 +2,7 @@ package terminalai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -96,7 +97,7 @@ func (p *openAICompatibleProvider) CompleteAction(
 	mode := p.toolCallMode
 	p.toolMu.RUnlock()
 	if !useToolCall {
-		return p.CompleteJSON(ctx, system, user)
+		return p.completeActionJSON(ctx, system, user, tool)
 	}
 	content, err := p.completeTool(ctx, system, user, tool)
 	if err == nil {
@@ -110,7 +111,7 @@ func (p *openAICompatibleProvider) CompleteAction(
 	p.toolMu.Lock()
 	p.toolCall = false
 	p.toolMu.Unlock()
-	return p.CompleteJSON(ctx, system, user)
+	return p.completeActionJSON(ctx, system, user, tool)
 }
 
 func (p *openAICompatibleProvider) CompleteText(
@@ -120,6 +121,26 @@ func (p *openAICompatibleProvider) CompleteText(
 		ctx, system, user,
 		openai.ChatCompletionNewParamsResponseFormatUnion{},
 	)
+}
+
+func (p *openAICompatibleProvider) completeActionJSON(
+	ctx context.Context,
+	system, user string,
+	tool ActionTool,
+) (string, error) {
+	schema, err := json.Marshal(tool.Parameters)
+	if err != nil {
+		return "", fmt.Errorf(
+			"encode terminal AI action %q schema: %w", tool.Name, err,
+		)
+	}
+	system = fmt.Sprintf(
+		"%s\nReturn only one JSON object containing the arguments for action %q. "+
+			"It must match this JSON Schema exactly. Object-valued fields must "+
+			"be JSON objects, never JSON-encoded strings:\n%s",
+		system, tool.Name, schema,
+	)
+	return p.CompleteJSON(ctx, system, user)
 }
 
 func (p *openAICompatibleProvider) completeTool(

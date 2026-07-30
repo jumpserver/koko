@@ -20,7 +20,7 @@ const (
 	ToolCallAuto         = "auto"
 	ToolCallEnabled      = "true"
 	ToolCallDisabled     = "false"
-	modelRequestTimeout  = 30 * time.Second
+	modelRequestTimeout  = 2 * time.Minute
 	maxModelRequests     = 30
 	errModelRequestLimit = "terminal AI model request budget exhausted"
 )

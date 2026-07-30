@@ -460,6 +460,42 @@ func TestPromptContextLimitIsUTF8Safe(t *testing.T) {
 	if len(results[0].Output) > maxModelResultOutput {
 		t.Fatalf("result output length = %d", len(results[0].Output))
 	}
+	if !results[0].OutputTruncated {
+		t.Fatal("compacted result is not marked as truncated")
+	}
+
+	many := make([]StepResult, maxReActRounds)
+	for index := range many {
+		many[index] = StepResult{
+			Output: strings.Repeat("x", maxModelResultOutput),
+			Status: StepCompleted,
+		}
+	}
+	many[len(many)-1].Status = StepReviewing
+	compacted := compactResults(many)
+	total := 0
+	for index := range compacted {
+		total += len(compacted[index].Output)
+		if index != len(compacted)-1 &&
+			len(compacted[index].Output) > maxModelArchivedResultOutput {
+			t.Fatalf(
+				"archived result %d output length = %d",
+				index, len(compacted[index].Output),
+			)
+		}
+	}
+	if total > maxModelResultsOutput {
+		t.Fatalf("total compacted result output length = %d", total)
+	}
+	if len(compacted[len(compacted)-1].Output) != maxModelResultOutput {
+		t.Fatalf(
+			"reviewing result output length = %d",
+			len(compacted[len(compacted)-1].Output),
+		)
+	}
+	if many[0].OutputTruncated {
+		t.Fatal("compaction modified the original results")
+	}
 }
 
 func TestModelOutputLimits(t *testing.T) {

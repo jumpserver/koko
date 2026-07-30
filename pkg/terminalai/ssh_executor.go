@@ -155,7 +155,7 @@ func (b *boundedOutput) String() string {
 	defer b.mu.Unlock()
 	value := b.buffer.String()
 	if b.truncated {
-		return "[output truncated; showing last 100 KiB]\n" + value
+		return outputTruncatedLastMarker + "\n" + value
 	}
 	return value
 }

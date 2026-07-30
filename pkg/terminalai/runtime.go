@@ -503,7 +503,8 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			"planId": planID, "stepId": step.ID,
 			"step": index + 1, "total": len(plan.steps),
 			"command": proposal.Command, "execution": proposal.Execution,
-			"output": output, "exitCode": exitCode, "outcome": "reviewing",
+			"output": output, "outputTruncated": outputIsTruncated(output),
+			"exitCode": exitCode, "outcome": "reviewing",
 		}, "process")
 		r.emitPlan(plan, round, next.ThoughtSummary)
 	}
@@ -584,6 +585,13 @@ func (r *Runtime) nextReActDecision(
 				}
 				decision.Proposal = &proposal
 			}
+		}
+		if err == nil && decision.Kind == ReActFinish &&
+			reviewingOutputIsIncomplete(request.Results) {
+			err = fmt.Errorf(
+				"cannot finish from a truncated command result; execute a " +
+					"bounded follow-up command and verify completeness",
+			)
 		}
 		if err == nil {
 			transition, err = plan.preview(decision)
@@ -669,7 +677,8 @@ func (r *Runtime) emitResult(plan *reactPlan, result StepResult) {
 		"step": index + 1, "total": len(plan.steps),
 		"command": result.Command, "execution": result.Execution,
 		"output": result.Output, "exitCode": result.ExitCode,
-		"outcome": result.Status, "summary": result.Summary,
+		"outputTruncated": result.OutputTruncated,
+		"outcome":         result.Status, "summary": result.Summary,
 		"errorReason": result.ErrorReason,
 	}, "process")
 }

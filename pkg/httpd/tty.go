@@ -431,6 +431,7 @@ func (h *tty) initializeTerminalAI(
 		Height:            connectInfo.Rows,
 		ModelConfig:       termConfig,
 		Context:           terminalai.NewSessionContext(connectToken),
+		Language:          h.ws.langCode,
 		WritePTY:          client.WriteAgentData,
 		SetInputLocked:    client.SetInputLocked,
 		RequireCommandACL: true,

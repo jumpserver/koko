@@ -191,7 +191,8 @@ func (p *reactPlan) recordExecution(
 		result := StepResult{
 			StepID: stepID, Command: proposal.Command,
 			Output: output, Status: StepReviewing,
-			Execution: proposal.Execution, ExitCode: exitCode,
+			OutputTruncated: outputIsTruncated(output),
+			Execution:       proposal.Execution, ExitCode: exitCode,
 		}
 		if executionErr != nil {
 			result.ErrorReason = executionErr.Error()

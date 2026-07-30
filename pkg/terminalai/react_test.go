@@ -212,3 +212,24 @@ func TestReActSameCommandContextLimit(t *testing.T) {
 		t.Fatalf("command loop error = %v", err)
 	}
 }
+
+func TestRecordedExecutionCarriesTruncationState(t *testing.T) {
+	plan := newReActPlan("plan-1", "inspect", []Step{{
+		ID: "step-1", Title: "inspect", Objective: "inspect",
+		Status: StepInProgress,
+	}})
+	exitCode := 0
+	err := plan.recordExecution(
+		"step-1",
+		CommandProposal{Command: "inspect", Execution: ExecutionPTY},
+		outputTruncatedFirstMarker+"\nvisible output",
+		&exitCode,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("record execution: %v", err)
+	}
+	if len(plan.results) != 1 || !plan.results[0].OutputTruncated {
+		t.Fatalf("recorded result = %#v", plan.results)
+	}
+}

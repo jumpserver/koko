@@ -3,6 +3,7 @@ package terminalai
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -182,5 +183,103 @@ func TestRuntimeReActContinuesAfterExecutionFailure(t *testing.T) {
 		finalSteps[0].Status != StepFailed ||
 		finalSteps[1].Status != StepCompleted {
 		t.Fatalf("final steps = %#v", finalSteps)
+	}
+}
+
+type truncatedFinishModel struct {
+	corrections []string
+}
+
+func (m *truncatedFinishModel) Decide(
+	context.Context,
+	string,
+	string,
+	string,
+	string,
+	string,
+) (Decision, error) {
+	return Decision{}, fmt.Errorf("unexpected initial decision")
+}
+
+func (m *truncatedFinishModel) Next(
+	_ context.Context, request ReActRequest,
+) (ReActDecision, error) {
+	m.corrections = append(m.corrections, request.Correction)
+	result := request.Results[len(request.Results)-1]
+	observation := ObservationReview{
+		StepID: result.StepID, Outcome: StepCompleted,
+		Summary: "查询执行成功",
+	}
+	if request.Correction == "" {
+		return ReActDecision{
+			Kind: ReActFinish, ThoughtSummary: "查询已经完成",
+			Observation: observation, Summary: "返回查询结果。",
+		}, nil
+	}
+	return ReActDecision{
+		Kind: ReActExecute, ThoughtSummary: "输出不完整，继续分段查询",
+		Observation: observation,
+		Steps: []PlannedStep{{
+			ID: "page-2", ParentStepID: result.StepID,
+			Title: "继续查询", Objective: "获取剩余结果并校验总数",
+		}},
+		NextStepID: "page-2",
+		Proposal: &CommandProposal{
+			Command: "bounded-query", RiskLevel: 1,
+			Execution: ExecutionPTY,
+		},
+	}, nil
+}
+
+func (m *truncatedFinishModel) Summarize(
+	context.Context,
+	string,
+	string,
+	[]Step,
+	[]StepResult,
+	string,
+) (string, error) {
+	return "", fmt.Errorf("unexpected summary")
+}
+
+func TestRuntimeRejectsFinishFromTruncatedResult(t *testing.T) {
+	model := &truncatedFinishModel{}
+	runtime := NewRuntime(
+		1, model, nil, func([]byte) {}, func(ChatMessage) {},
+	)
+	defer runtime.Close()
+	adapter := runtimeReActAdapter{}
+	runtime.SetAdapter(adapter)
+
+	plan := newReActPlan("plan-1", "查询全部结果", []Step{{
+		ID: "step-1", Title: "查询", Objective: "查询全部结果",
+		Status: StepReviewing, rootStepID: "step-1",
+	}})
+	plan.results = []StepResult{{
+		StepID: "step-1", Command: "query",
+		Output: strings.Repeat("x", maxModelResultOutput+1),
+		Status: StepReviewing, Execution: ExecutionPTY,
+	}}
+	decision, _, err := runtime.nextReActDecision(
+		context.Background(),
+		ReActRequest{
+			Question: "查询全部结果", PlanSummary: plan.summary,
+			Steps: plan.steps, Results: plan.results,
+			Mode: ModeAuto, Round: 2, MaxRounds: maxReActRounds,
+		},
+		plan,
+		adapter,
+	)
+	if err != nil {
+		t.Fatalf("next ReAct decision: %v", err)
+	}
+	if decision.Kind != ReActExecute ||
+		decision.Proposal == nil ||
+		decision.Proposal.Command != "bounded-query" {
+		t.Fatalf("decision = %#v", decision)
+	}
+	if len(model.corrections) != 2 ||
+		!strings.Contains(model.corrections[1], "truncated") {
+		t.Fatalf("model corrections = %#v", model.corrections)
 	}
 }
