@@ -2,11 +2,15 @@ package httpd
 
 import (
 	"archive/zip"
+	"bytes"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/common"
@@ -14,9 +18,13 @@ import (
 )
 
 const (
-	defaultZipMaxSize = 1024 * 1024 * 1024 // 1G
-	defaultTmpPath    = "/tmp"
+	defaultZipMaxSize     = 1024 * 1024 * 1024 // 1G
+	defaultTmpPath        = "/tmp"
+	maxWebEditorFileSize  = 10 * 1024 * 1024
+	webSftpConflictErrMsg = "remote file changed"
 )
+
+var ErrWebSftpFileConflict = errors.New(webSftpConflictErrMsg)
 
 type FileInfo struct {
 	Name    string `json:"name"`
@@ -25,6 +33,7 @@ type FileInfo struct {
 	ModTime string `json:"mod_time"`
 	Type    string `json:"type"`
 	IsDir   bool   `json:"is_dir"`
+	Version string `json:"version"`
 }
 
 type FileData struct {
@@ -44,6 +53,29 @@ type UserWebVolume struct {
 	*UserVolume
 }
 
+func newWebSftpFileInfo(info os.FileInfo) FileInfo {
+	return FileInfo{
+		Name:    info.Name(),
+		Size:    strconv.FormatInt(info.Size(), 10),
+		Perm:    info.Mode().String(),
+		ModTime: strconv.FormatInt(info.ModTime().Unix(), 10),
+		IsDir:   info.IsDir(),
+		Version: webSftpFileVersion(info),
+	}
+}
+
+func webSftpFileVersion(info os.FileInfo) string {
+	return fmt.Sprintf("%d\x00%d\x00%s", info.Size(), info.ModTime().Unix(), info.Mode().String())
+}
+
+func webSftpContentVersion(reader io.Reader) (string, error) {
+	hash := sha256.New()
+	if _, err := io.Copy(hash, reader); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+}
+
 func (u *UserWebVolume) List(path string) []FileInfo {
 	logger.Debug("Volume List: ", path)
 	files := make([]FileInfo, 0)
@@ -55,18 +87,7 @@ func (u *UserWebVolume) List(path string) []FileInfo {
 	}
 
 	for _, info := range originFiles {
-		size := fmt.Sprintf("%d", info.Size())
-		modTime := strconv.FormatInt(info.ModTime().Unix(), 10)
-
-		fileInfo := FileInfo{
-			Name:    info.Name(),
-			Size:    size,
-			Perm:    info.Mode().String(),
-			ModTime: modTime,
-			IsDir:   info.IsDir(),
-		}
-
-		files = append(files, fileInfo)
+		files = append(files, newWebSftpFileInfo(info))
 	}
 	return files
 }
@@ -194,10 +215,11 @@ func (u *UserWebVolume) GetFile(path string) (fileData FileData, err error) {
 	}
 
 	fileInfo, err := sf.Stat()
-	size := fileInfo.Size()
 	if err != nil {
+		_ = sf.Close()
 		return rest, err
 	}
+	size := fileInfo.Size()
 
 	if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf, 0, size); err1 != nil {
 		logger.Errorf("Record file err: %s", err1)
@@ -245,6 +267,114 @@ func (u *UserWebVolume) UploadFile(path string, reader io.Reader, totalSize int6
 	err = common.ChunkedFileTransfer(fd, readerAt, 0, totalSize)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (u *UserWebVolume) SaveFile(
+	path string,
+	reader *bytes.Reader,
+	totalSize int64,
+	expectedVersion *string,
+	force bool,
+) (FileInfo, error) {
+	var result FileInfo
+	if totalSize < 0 || int64(reader.Len()) != totalSize {
+		return result, fmt.Errorf("invalid file size")
+	}
+	if totalSize > maxWebEditorFileSize {
+		return result, fmt.Errorf("file exceeds the editor limit")
+	}
+	contentVersion, err := webSftpContentVersion(io.NewSectionReader(reader, 0, totalSize))
+	if err != nil {
+		return result, err
+	}
+
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	if expectedVersion != nil && !force {
+		if err := u.verifyExpectedVersion(path, *expectedVersion, false); err != nil {
+			return result, err
+		}
+	}
+
+	tempPath := filepath.Join(filepath.Dir(path), fmt.Sprintf(".jumpserver-editor-%s.tmp", common.UUID()))
+	removeTemp := true
+	defer func() {
+		if !removeTemp {
+			return
+		}
+		if err := u.UserSftp.DiscardUploadTemp(tempPath); err != nil && !os.IsNotExist(err) {
+			logger.Warnf("Discard editor temp file %s failed: %s", tempPath, err)
+		}
+	}()
+
+	fd, err := u.UserSftp.CreateEditorTemp(tempPath, path)
+	if err != nil {
+		return result, err
+	}
+	if err := u.recorder.Record(fd.FTPLog, reader); err != nil {
+		logger.Errorf("Record file err: %s", err)
+	}
+	if err := common.ChunkedFileTransfer(fd, reader, 0, totalSize); err != nil {
+		_ = fd.Close()
+		return result, err
+	}
+	if err := fd.Close(); err != nil {
+		return result, err
+	}
+
+	if expectedVersion != nil && !force {
+		if err := u.verifyExpectedVersion(path, *expectedVersion, true); err != nil {
+			return result, err
+		}
+	}
+	if err := u.UserSftp.AtomicReplace(tempPath, path); err != nil {
+		return result, err
+	}
+	removeTemp = false
+
+	info, err := u.UserSftp.Stat(path)
+	if err != nil {
+		return result, err
+	}
+	result = newWebSftpFileInfo(info)
+	result.Version = contentVersion
+	return result, nil
+}
+
+func (u *UserWebVolume) verifyExpectedVersion(path, expectedVersion string, verifyContent bool) error {
+	info, err := u.UserSftp.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrWebSftpFileConflict
+		}
+		return err
+	}
+	if !strings.HasPrefix(expectedVersion, "sha256:") {
+		if webSftpFileVersion(info) != expectedVersion {
+			return ErrWebSftpFileConflict
+		}
+		return nil
+	}
+	if !verifyContent {
+		return nil
+	}
+	if info.IsDir() || info.Size() > maxWebEditorFileSize {
+		return ErrWebSftpFileConflict
+	}
+	file, err := u.UserSftp.OpenForChecksum(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	currentVersion, err := webSftpContentVersion(io.LimitReader(file, maxWebEditorFileSize+1))
+	if err != nil {
+		return err
+	}
+	if currentVersion != expectedVersion {
+		return ErrWebSftpFileConflict
 	}
 	return nil
 }

@@ -3,10 +3,13 @@ package httpd
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/session"
+	"errors"
 	"io"
 	"strconv"
+	"sync"
+
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/session"
 )
 
 var _ Handler = (*webSftp)(nil)
@@ -18,8 +21,7 @@ type webSftp struct {
 
 	volume *UserWebVolume
 
-	currentPath string
-
+	stateMu        sync.Mutex
 	started        bool
 	trackSessionID bool
 }
@@ -48,18 +50,20 @@ func (h *webSftp) CleanUp() {
 }
 
 type webSftpRequest struct {
-	Path           string `json:"path"`
-	NewName        string `json:"new_name"`
-	Chunk          bool   `json:"chunk"`
-	Merge          bool   `json:"merge"`
-	OffSet         int64  `json:"offset"`
-	Size           int64  `json:"size"`
-	IsDir          bool   `json:"is_dir"`
-	TransferID     string `json:"transfer_id"`
-	Length         int64  `json:"length"`
-	SHA256         string `json:"sha256"`
-	ConflictPolicy string `json:"conflict_policy"`
-	Discard        bool   `json:"discard"`
+	Path            string  `json:"path"`
+	NewName         string  `json:"new_name"`
+	Chunk           bool    `json:"chunk"`
+	Merge           bool    `json:"merge"`
+	OffSet          int64   `json:"offset"`
+	Size            int64   `json:"size"`
+	IsDir           bool    `json:"is_dir"`
+	ExpectedVersion *string `json:"expected_version"`
+	Force           bool    `json:"force"`
+	TransferID      string  `json:"transfer_id"`
+	Length          int64   `json:"length"`
+	SHA256          string  `json:"sha256"`
+	ConflictPolicy  string  `json:"conflict_policy"`
+	Discard         bool    `json:"discard"`
 }
 
 func notInTokenIds(target string) bool {
@@ -73,10 +77,9 @@ func notInTokenIds(target string) bool {
 
 func (h *webSftp) dispatch(msg Message) {
 	message := Message{
-		Id:          msg.Id,
-		Cmd:         msg.Cmd,
-		Type:        SFTPData,
-		CurrentPath: h.currentPath,
+		Id:   msg.Id,
+		Cmd:  msg.Cmd,
+		Type: SFTPData,
 	}
 
 	request := &webSftpRequest{}
@@ -86,19 +89,23 @@ func (h *webSftp) dispatch(msg Message) {
 		h.ws.SendMessage(&message)
 		return
 	}
-
-	if h.started && h.trackSessionID && (h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id)) {
+	h.stateMu.Lock()
+	started := h.started
+	trackSessionID := h.trackSessionID
+	if !started {
+		h.started = true
+		if h.ws.ConnectToken != nil {
+			trackSessionID = !notInTokenIds(h.ws.ConnectToken.Id)
+			h.trackSessionID = trackSessionID
+		}
+	}
+	h.stateMu.Unlock()
+	if started && trackSessionID && (h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id)) {
 		message.Err = "Session expired or not found"
 		message.Type = CLOSE
 		h.ws.SendMessage(&message)
 		return
 	}
-	if !h.started && h.ws.ConnectToken != nil {
-		h.trackSessionID = !notInTokenIds(h.ws.ConnectToken.Id)
-	}
-
-	h.started = true
-
 	switch msg.Cmd {
 	case "list":
 		h.handleList(request, &message)
@@ -136,6 +143,15 @@ func (h *webSftp) dispatch(msg Message) {
 			return
 		}
 
+	case "save":
+		if h.ws.ConnectToken.Actions.EnableUpload() {
+			h.handleSave(request, &msg, &message)
+		} else {
+			message.Err = "Permission denied"
+			h.ws.SendMessage(&message)
+			return
+		}
+
 	case "rm":
 		h.handleAction(h.rm, request, &message)
 	case "rename":
@@ -150,16 +166,14 @@ func (h *webSftp) dispatch(msg Message) {
 }
 
 func (h *webSftp) handleList(request *webSftpRequest, response *Message) {
-	response.Data = h.list(request.Path)
-	response.CurrentPath = h.currentPath
+	response.Data, response.CurrentPath = h.list(request.Path)
 	h.ws.SendMessage(response)
 }
 
-func (h *webSftp) list(path string) string {
+func (h *webSftp) list(path string) (string, string) {
 	files := h.volume.List(path)
-	h.currentPath = h.volume.UserSftp.GetCurrentPath()
 	data, _ := json.Marshal(files)
-	return string(data)
+	return string(data), h.volume.UserSftp.GetCurrentPath()
 }
 
 func (h *webSftp) handleDownload(request *webSftpRequest, response *Message) {
@@ -228,6 +242,27 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 		h.ws.SendMessage(response)
 		return
 	}
+	h.ws.SendMessage(response)
+}
+
+func (h *webSftp) handleSave(request *webSftpRequest, msg *Message, response *Message) {
+	entry, err := h.volume.SaveFile(
+		request.Path,
+		bytes.NewReader(msg.Raw),
+		request.Size,
+		request.ExpectedVersion,
+		request.Force,
+	)
+	if err != nil {
+		response.Err = err.Error()
+		if errors.Is(err, ErrWebSftpFileConflict) {
+			response.ErrorCode = "sftp_file_conflict"
+		}
+		h.ws.SendMessage(response)
+		return
+	}
+	data, _ := json.Marshal(entry)
+	response.Data = string(data)
 	h.ws.SendMessage(response)
 }
 
