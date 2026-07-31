@@ -9,11 +9,12 @@ import (
 )
 
 type Message struct {
-	Id   string `json:"id"`
-	Type string `json:"type"`
-	Data string `json:"data"`
-	Raw  []byte `json:"raw"`
-	Err  string `json:"err"`
+	Id        string `json:"id"`
+	Type      string `json:"type"`
+	Data      string `json:"data"`
+	Raw       []byte `json:"raw"`
+	Err       string `json:"err"`
+	ErrorCode string `json:"error_code,omitempty"`
 
 	//Chat AI
 	Prompt    string `json:"prompt"`
