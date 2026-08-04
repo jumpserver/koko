@@ -28,12 +28,15 @@ const resolveDirectionAccess = (
   item?: ClipboardPolicyItem | null,
 ): ClipboardDirectionAccess => {
   const policyAllows = typeof item?.enabled === 'boolean' ? item.enabled : true;
+  const operationHasAcl = item?.acl_action !== null;
 
   return {
     // A policy may only reduce the permission granted by the connect token.
     enabled: hasAction(permission, direction) && policyAllows,
-    textLimit: normalizeLimit(item?.text_limit),
-    fileSizeLimit: normalizeLimit(item?.file_size_limit),
+    // acl_action=null means this operation was not selected by any clipboard
+    // ACL. Ignore limits left on the policy item in that case.
+    textLimit: operationHasAcl ? normalizeLimit(item?.text_limit) : 0,
+    fileSizeLimit: operationHasAcl ? normalizeLimit(item?.file_size_limit) : 0,
   };
 };
 
