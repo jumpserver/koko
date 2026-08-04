@@ -10,6 +10,7 @@ import mittBus from '@/utils/mittBus';
 import { formatMessage } from '@/utils';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
+import { useClipboardAcl } from '@/hooks/useClipboardAcl';
 import { terminalTheme } from '@/hooks/useTerminalSocket';
 import { getXTerminalLineContent } from '@/hooks/helper/index';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
@@ -41,6 +42,7 @@ export const terminalContextKey: InjectionKey<TerminalContext> = Symbol('termina
 export const createTerminalContext = (): TerminalContext => {
   const eventBus = mitt<TerminalEvents>();
   const connectionStore = useConnectionStore();
+  const { validateClipboardText } = useClipboardAcl();
 
   const sendLunaEvent = (event: string, data: any) => {
     eventBus.emit('luna-event', { event, data });
@@ -93,6 +95,11 @@ export const createTerminalContext = (): TerminalContext => {
     const handLunaCommand = (msg: LunaMessage) => {
       const terminalStore = useTerminalStore();
       const currentTab = terminalStore.currentTab;
+      const command = typeof msg.data === 'string' ? msg.data : '';
+
+      if (command && !validateClipboardText('paste', command)) {
+        return;
+      }
 
       // 只有在 k8s 连接或切换的时候 currentTab 才会有值
       if (currentTab) {
@@ -110,10 +117,11 @@ export const createTerminalContext = (): TerminalContext => {
               id: currentNode.id,
               k8s_id: currentNode.k8s_id,
               type: 'TERMINAL_K8S_DATA',
-              data: msg.data,
-            })
+              data: command,
+            }),
           );
-        } catch (error) {
+        }
+        catch (error) {
           console.error('Failed to paste command to K8s terminal:', error);
         }
 
@@ -128,7 +136,7 @@ export const createTerminalContext = (): TerminalContext => {
         return;
       }
 
-      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, msg.data));
+      socket.send(formatMessage(terminalId, FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, command));
     };
 
     const handInputActive = (_data: string) => {

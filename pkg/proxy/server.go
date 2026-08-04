@@ -161,8 +161,9 @@ type Server struct {
 }
 
 type SessionInfo struct {
-	Session *model.Session    `json:"session"`
-	Perms   *model.Permission `json:"permission"`
+	Session         *model.Session         `json:"session"`
+	Perms           *model.Permission      `json:"permission"`
+	ClipboardPolicy *model.ClipboardPolicy `json:"clipboard_policy,omitempty"`
 
 	BackspaceAsCtrlH *bool `json:"backspaceAsCtrlH,omitempty"`
 	CtrlCAsCtrlZ     bool  `json:"ctrlCAsCtrlZ"`
@@ -1079,8 +1080,9 @@ func (s *Server) Proxy() {
 		}
 		perm := actions.Permission()
 		info := SessionInfo{
-			Session: s.sessionInfo,
-			Perms:   &perm,
+			Session:         s.sessionInfo,
+			Perms:           &perm,
+			ClipboardPolicy: s.connOpts.authInfo.ClipboardPolicy,
 
 			BackspaceAsCtrlH: tokenConnOpts.BackspaceAsCtrlH,
 			CtrlCAsCtrlZ:     ctrlCAsCtrlZ,
