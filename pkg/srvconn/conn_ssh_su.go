@@ -89,10 +89,10 @@ const (
 	SuCommandSuperH3C = "super level-15"
 
 	/*
-		只匹配完整的密码提示行，避免将 banner 或密码过期信息误判为认证提示。
+		匹配行内的密码提示片段，兼容 sudo、PAM 和终端控制字符添加的前后缀。
 	*/
 
-	passwordMatchPattern = `(?i)^\s*(?:\[[^\r\n]*\]\s*)?(?:password(?:\s+for\s+[^:：\r\n]+)?|[^\s:：\r\n]+['’]s\s+password|(?:[^:：\r\n]*的\s*)?密码)\s*[:：]\s*$`
+	passwordMatchPattern = `(?i)(?:\bpassword\b(?:\s+for\s+[^:：\r\n]+)?|[^\s:：\r\n]+['’]s\s+\bpassword\b|(?:[^:：\r\n]*的\s*)?密码)\s*[:：]`
 
 	usernameMatchPattern = "(?i)username:?\\s*$|name:?\\s*$|用户名:?\\s*$"
 )

@@ -19,9 +19,11 @@ func TestPasswordMatchPattern(t *testing.T) {
 		{name: "possessive password", prompt: "ubuntu's Password:", match: true},
 		{name: "chinese", prompt: "密码：", match: true},
 		{name: "sudo chinese", prompt: "[sudo] ubuntu 的密码： ", match: true},
+		{name: "ansi decorated", prompt: "\x1b[31m[sudo] password for ubuntu: \x1b[0m", match: true},
+		{name: "embedded prompt", prompt: "PAM authentication: Password: ", match: true},
 		{name: "password expired", prompt: "password has expired:", match: false},
-		{name: "changing password", prompt: "Changing password for root:", match: false},
-		{name: "failed password log", prompt: "Last failed password: yesterday", match: false},
+		{name: "password required", prompt: "password is required:", match: false},
+		{name: "authentication failed", prompt: "password authentication failed:", match: false},
 	}
 
 	config := SuConfig{}
