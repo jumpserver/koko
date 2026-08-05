@@ -689,10 +689,14 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			account 是最终 su 的登录用户
 		*/
 		suUsername := s.account.Username
-		suPassword := s.account.Secret
 		sudoType := srvconn.SuMethodSu
 		if platform.SuMethod != nil {
 			sudoType = srvconn.NewSuMethodType(platform.SuMethod.Value)
+		}
+		suPassword := s.account.Secret
+		if sudoType.IsSudo() {
+			// sudo authenticates the invoking user by default.
+			suPassword = s.suFromAccount.Secret
 		}
 		cfg := srvconn.SuConfig{
 			MethodType:   sudoType,
@@ -794,10 +798,14 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	}
 	if s.suFromAccount != nil {
 		suUsername := s.account.Username
-		suPassword := s.account.Secret
 		sudoType := srvconn.SuMethodSu
 		if platform.SuMethod != nil {
 			sudoType = srvconn.NewSuMethodType(platform.SuMethod.Value)
+		}
+		suPassword := s.account.Secret
+		if sudoType.IsSudo() {
+			// sudo authenticates the invoking user by default.
+			suPassword = s.suFromAccount.Secret
 		}
 		cfg := srvconn.SuConfig{
 			MethodType:   sudoType,

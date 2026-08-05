@@ -89,10 +89,10 @@ const (
 	SuCommandSuperH3C = "super level-15"
 
 	/*
-	 \b: word boundary 即: 匹配某个单词边界
+		只匹配完整的密码提示行，避免将 banner 或密码过期信息误判为认证提示。
 	*/
 
-	passwordMatchPattern = "(?i)\\bpassword\\b\\s*[:：]|密码\\s*[:：]|password\\s*[:：]\\s*"
+	passwordMatchPattern = `(?i)^\s*(?:\[[^\r\n]*\]\s*)?(?:password(?:\s+for\s+[^:：\r\n]+)?|[^\s:：\r\n]+['’]s\s+password|(?:[^:：\r\n]*的\s*)?密码)\s*[:：]\s*$`
 
 	usernameMatchPattern = "(?i)username:?\\s*$|name:?\\s*$|用户名:?\\s*$"
 )
@@ -148,6 +148,11 @@ func NewSuMethodType(suMethod string) SUMethodType {
 
 	}
 	return SuMethodSu
+}
+
+// IsSudo reports whether the switch method authenticates through sudo.
+func (s SUMethodType) IsSudo() bool {
+	return s == SuMethodSudo || s == SuMethodOnlySudo
 }
 
 type SuConfig struct {
