@@ -1,1 +1,7 @@
-{}
+{
+  "ClipboardCopyDenied": "ターミナルからのコピーは許可されていません",
+  "ClipboardPasteDenied": "ターミナルへの貼り付けは許可されていません",
+  "ClipboardTextLimitExceeded": "{action}するテキストが {limit} 文字の上限を超えています",
+  "Copy": "コピー",
+  "Paste": "貼り付け"
+}

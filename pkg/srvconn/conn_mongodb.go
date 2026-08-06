@@ -1,8 +1,11 @@
 package srvconn
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -94,13 +97,15 @@ func (conn *MongoDBConn) Close() error {
 
 func startMongoDBCommand(opt *sqlOption) (lcmd *localcommand.LocalCommand, err error) {
 	cmd := opt.MongoDBCommandArgs()
-	opts, err := BuildNobodyWithOpts(localcommand.WithPtyWin(opt.win.Width, opt.win.Height))
+	envOpt := localcommand.WithEnv(opt.MongoDBCommandEnv())
+	opts, err := BuildNobodyWithOpts(localcommand.WithPtyWin(opt.win.Width, opt.win.Height), envOpt)
 	if err != nil {
 		logger.Errorf("build nobody with opts error: %s", err)
 		return nil, err
 	}
 	tmpWorkDir := os.TempDir()
 	opts = append(opts, localcommand.WithWorkDir(tmpWorkDir))
+	opts = append(opts, envOpt)
 	lcmd, err = localcommand.New("mongosh", cmd, opts...)
 	if err != nil {
 		return nil, err
@@ -190,6 +195,17 @@ func (opt *sqlOption) MongoDBCommandArgs() []string {
 	return uriParams
 }
 
+func (opt *sqlOption) MongoDBCommandEnv() []string {
+	if opt.ProxyURL == "" {
+		return nil
+	}
+	return []string{
+		"ALL_PROXY=" + opt.ProxyURL,
+		"HTTP_PROXY=" + opt.ProxyURL,
+		"HTTPS_PROXY=" + opt.ProxyURL,
+	}
+}
+
 func checkMongoDBAccount(args *sqlOption) error {
 	host := net.JoinHostPort(args.Host, strconv.Itoa(args.Port))
 	params := args.GetParams()
@@ -200,6 +216,13 @@ func checkMongoDBAccount(args *sqlOption) error {
 		MongoParams(params),
 	)
 	clientOptions := options.Client().ApplyURI(uri)
+	if args.ProxyURL != "" {
+		dialer, err := newMongoProxyDialer(args.ProxyURL)
+		if err != nil {
+			return err
+		}
+		clientOptions.SetDialer(dialer)
+	}
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
 		return err
@@ -212,6 +235,53 @@ func checkMongoDBAccount(args *sqlOption) error {
 		return err
 	}
 	return nil
+}
+
+type mongoProxyDialer struct {
+	proxyAddr string
+	dialer    net.Dialer
+}
+
+func newMongoProxyDialer(proxyURL string) (*mongoProxyDialer, error) {
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme != "http" {
+		return nil, fmt.Errorf("unsupported mongodb proxy scheme %q", u.Scheme)
+	}
+	if u.Host == "" {
+		return nil, fmt.Errorf("invalid mongodb proxy url %q", proxyURL)
+	}
+	return &mongoProxyDialer{proxyAddr: u.Host}, nil
+}
+
+func (d *mongoProxyDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	conn, err := d.dialer.DialContext(ctx, network, d.proxyAddr)
+	if err != nil {
+		return nil, err
+	}
+	req := &http.Request{
+		Method: http.MethodConnect,
+		URL:    &url.URL{Opaque: address},
+		Host:   address,
+		Header: make(http.Header),
+	}
+	if err = req.Write(conn); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		_ = conn.Close()
+		return nil, fmt.Errorf("mongodb proxy connect %s via %s failed: %s", address, d.proxyAddr, resp.Status)
+	}
+	return conn, nil
 }
 
 type MongoOpt func(*url.URL)

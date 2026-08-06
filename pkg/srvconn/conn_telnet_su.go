@@ -142,6 +142,7 @@ func (s *SuSwitchService) loginUsernameOrPassword(resultChan chan<- error) {
 			continue
 		case StatusFailed:
 			resultChan <- fmt.Errorf("failed login: %s", recStr.String())
+			return
 		case StatusUnMatch:
 		default:
 
@@ -169,6 +170,10 @@ func (s *SuSwitchService) handleResult(p []byte) matchStatus {
 	if s.passwordRegexp != nil {
 		for _, line := range lineBytes {
 			if s.passwordRegexp.Match(line) {
+				if s.inputAuthOnce {
+					logger.Debugf("Su switch step password pattern matched again: %s", p)
+					return StatusFailed
+				}
 				_, _ = s.SrvConn.Write([]byte(s.cfg.SudoPassword + "\r"))
 				s.inputAuthOnce = true
 				logger.Debugf("Su switch step password pattern ok: %s", p)

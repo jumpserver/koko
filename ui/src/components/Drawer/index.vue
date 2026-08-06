@@ -220,15 +220,15 @@ onUnmounted(() => {
         <n-tabs
           animated
           size="medium"
-          type="segment"
+          type="line"
           :default-value="filteredDrawerTabs[0].name"
           @update:value="handleTabChange"
         >
           <n-tab-pane v-for="tab in filteredDrawerTabs" :key="tab.name" display-directive="show" :name="tab.name">
             <template #tab>
-              <n-flex align="center">
+              <n-flex align="center" class="!flex-nowrap !gap-2">
                 <component :is="tab.icon" :size="16" />
-                <span>{{ tab.label }}</span>
+                <span class="whitespace-nowrap">{{ tab.label }}</span>
               </n-flex>
             </template>
 

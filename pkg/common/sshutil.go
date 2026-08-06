@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"net"
 	"os"
 
 	"golang.org/x/crypto/ssh"
@@ -61,4 +62,10 @@ func GetPubKeyFromFile(keypath string) (ssh.Signer, error) {
 	}
 
 	return pubkey, nil
+}
+
+func NewTrustHostKeyCallback() ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		return nil
+	}
 }

@@ -1,1 +1,7 @@
-{}
+{
+  "ClipboardCopyDenied": "不允许从终端复制内容",
+  "ClipboardPasteDenied": "不允许向终端粘贴内容",
+  "ClipboardTextLimitExceeded": "{action}内容超过 {limit} 个字符的限制",
+  "Copy": "复制",
+  "Paste": "粘贴"
+}

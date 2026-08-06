@@ -1,11 +1,58 @@
 import { useCookies } from 'vue3-cookies';
 
 const pageQuery = new URLSearchParams(window.location.search);
-const PORT = document.location.port ? `:${document.location.port}` : '';
-const SCHEME = document.location.protocol === 'https:' ? 'wss' : 'ws';
 
-export const BASE_WS_URL = `${SCHEME}://${document.location.hostname}${PORT}`;
-export const BASE_URL = `${document.location.protocol}//${document.location.hostname}${PORT}`;
+function normalizePrefix(path = ''): string {
+  if (!path || path === '/') {
+    return '';
+  }
+
+  return (path.startsWith('/') ? path : `/${path}`).replace(/\/+$/, '');
+}
+
+function getSitePrefix(pathname = window.location.pathname): string {
+  const marker = '/koko/';
+  let idx = pathname.indexOf(marker);
+
+  if (idx === -1 && /\/koko$/.test(pathname)) {
+    idx = pathname.length - '/koko'.length;
+  }
+
+  return idx > 0 ? normalizePrefix(pathname.slice(0, idx)) : '';
+}
+
+function getSitePrefixFromQuery(): string {
+  try {
+    const params = new URLSearchParams(window.location.search || '');
+    return normalizePrefix(params.get('site_prefix') || '');
+  }
+  catch (_error) {
+    return '';
+  }
+}
+
+const ORIGIN = window.location.origin;
+const WS_SCHEME = document.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+export const SITE_PREFIX = getSitePrefixFromQuery() || getSitePrefix();
+
+function withSitePrefix(path: string): string {
+  if (!path) {
+    return SITE_PREFIX || '/';
+  }
+
+  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(path) || path.startsWith('//')) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${SITE_PREFIX}${normalizedPath}` || normalizedPath;
+}
+
+export const BASE_URL = `${ORIGIN}${SITE_PREFIX}`;
+export const BASE_WS_URL = `${WS_SCHEME}//${window.location.host}${SITE_PREFIX}`;
+export const SITE_ORIGIN = `${ORIGIN}${SITE_PREFIX}`;
+export const withSiteBase = withSitePrefix;
 
 const { cookies } = useCookies();
 

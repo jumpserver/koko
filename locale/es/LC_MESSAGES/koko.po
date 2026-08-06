@@ -585,6 +585,11 @@ msgstr "Terminado por el administrador %s"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
+msgid "Deployment permission denied"
+msgstr "Permisos de implementación insuficientes"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
 msgid "Authentication failed"
 msgstr "Autenticación fallida"
 
