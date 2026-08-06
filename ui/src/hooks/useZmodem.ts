@@ -458,7 +458,13 @@ export const useZmodem = () => {
     session.start();
   };
 
-  const createSentry = (terminal: Terminal, socket: WebSocket, lastSendTime: Ref<Date>) => {
+  // Sentry 在 Zmodem 中用于监控终端数据流、识别 ZMODEM 协议信号、启动文件传输会话
+  const createSentry = (
+    terminal: Terminal,
+    socket: WebSocket,
+    lastSendTime: Ref<Date>,
+    sendData?: (data: Uint8Array) => void,
+  ) => {
     const sentry = new ZmodemBrowser.Sentry({
       to_terminal: (octets: number[] | Uint8Array) => {
         if (draining.value) {
@@ -478,7 +484,9 @@ export const useZmodem = () => {
           throw new Error(t('WebSocket connection is closed, please refresh the page'));
         }
         lastSendTime.value = new Date();
-        socket.send(new Uint8Array(octets));
+        const data = new Uint8Array(octets);
+        if (sendData) sendData(data);
+        else socket.send(data);
       },
       on_retract: () => {},
       on_detect: (detection: Detection) => {

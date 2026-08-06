@@ -16,9 +16,8 @@ type Message struct {
 	Err       string `json:"err"`
 	ErrorCode string `json:"error_code,omitempty"`
 
-	//Chat AI
-	Prompt    string `json:"prompt"`
-	Interrupt bool   `json:"interrupt"`
+	TerminalId uint32 `json:"terminalId,omitempty"`
+	RequestId  string `json:"requestId,omitempty"`
 
 	//K8s
 	KubernetesId string `json:"k8s_id"`
@@ -74,6 +73,9 @@ const (
 
 	SFTPData   = "SFTP_DATA"
 	SFTPBinary = "SFTP_BINARY"
+
+	TerminalCreate = "TERMINAL_CREATE"
+	ChatMessage    = "CHAT_MESSAGE"
 )
 
 type WindowSize struct {
@@ -131,7 +133,6 @@ const (
 const (
 	TTYName       = "terminal"
 	WebFolderName = "web_folder"
-	ChatName      = "chat"
 )
 
 type ViewPageMata struct {
@@ -153,36 +154,4 @@ type WsRequestParams struct {
 
 	// mysql database
 	DisableAutoHash string `form:"disableautohash"`
-}
-
-type OpenAIParam struct {
-	AuthToken string
-	BaseURL   string
-	Proxy     string
-	Model     string
-	Prompt    string
-	Type      string
-}
-
-type QARecord struct {
-	Question string
-	Answer   string
-}
-
-type AIConversation struct {
-	Id                   string
-	Prompt               string
-	Question             string
-	Model                string
-	Context              []QARecord
-	InterruptCurrentChat bool
-}
-
-type ChatGPTMessage struct {
-	ID          string    `json:"id"`
-	Content     string    `json:"content"`
-	CreateTime  time.Time `json:"create_time,omitempty"`
-	Type        string    `json:"type"`
-	Role        string    `json:"role"`
-	IsReasoning bool      `json:"is_reasoning"`
 }

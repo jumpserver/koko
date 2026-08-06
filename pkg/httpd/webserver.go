@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/LeeEirc/elfinder"
@@ -180,6 +179,7 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 		logger.Errorf(WebsocketErrorf, err)
 		return
 	}
+	userConn.envelopeProtocol = true
 	s.runTTY(userConn)
 }
 
@@ -207,29 +207,6 @@ func (s *Server) ProcessSftpWebsocket(ctx *gin.Context) {
 	userConn.handler = &webSftp{
 		ws:   userConn,
 		done: make(chan struct{}),
-	}
-	s.broadCaster.EnterUserWebsocket(userConn)
-	defer s.broadCaster.LeaveUserWebsocket(userConn)
-	userConn.Run()
-}
-
-func (s *Server) ChatAIWebsocket(ctx *gin.Context) {
-	userConn, err := s.UpgradeUserWsConn(ctx)
-	if err != nil {
-		logger.Errorf(WebsocketErrorf, err)
-		return
-	}
-
-	termConf, err := userConn.apiClient.GetTerminalConfig()
-	if err != nil {
-		logger.Errorf("Get terminal config failed: %s", err)
-		return
-	}
-
-	userConn.handler = &chat{
-		ws:            userConn,
-		conversations: sync.Map{},
-		term:          &termConf,
 	}
 	s.broadCaster.EnterUserWebsocket(userConn)
 	defer s.broadCaster.LeaveUserWebsocket(userConn)

@@ -48,3 +48,4 @@ pnpm-debug.log*
 demo
 
 docker-compose.yaml
+.env

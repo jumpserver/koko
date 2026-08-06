@@ -44,6 +44,8 @@ type UserWebsocket struct {
 	apiClient    *service.JMService
 	k8sClient    *proxy.KubernetesClient
 	langCode     string
+
+	envelopeProtocol bool
 }
 
 func (userCon *UserWebsocket) initial() error {
@@ -175,6 +177,22 @@ func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) {
 		case msg = <-userCon.messageChannel:
 
 		}
+		if userCon.envelopeProtocol {
+			payload, err := encodeMessageEnvelope(msg)
+			if err != nil {
+				logger.Errorf("Ws[%s] encode %s envelope err: %s", userCon.Uuid, msg.Type, err)
+				errCount++
+				continue
+			}
+			if err = userCon.conn.WriteBinary(payload, maxWriteTimeOut); err != nil {
+				logger.Errorf("Ws[%s] send %s envelope err: %s", userCon.Uuid, msg.Type, err)
+				errCount++
+				continue
+			}
+			errCount = 0
+			active = time.Now()
+			continue
+		}
 		switch msg.Type {
 		case TerminalBinary:
 			err := userCon.conn.WriteBinary(msg.Raw, maxWriteTimeOut)
@@ -247,6 +265,50 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 		if err != nil {
 			return err
 		}
+		if userCon.envelopeProtocol {
+			if opCode == gorilla.CloseMessage {
+				return nil
+			}
+			if opCode != gorilla.BinaryMessage {
+				logger.Errorf("Ws[%s] receive non-binary terminal envelope", userCon.Uuid)
+				continue
+			}
+			frame, parseErr := parseEnvelope(p)
+			if parseErr != nil {
+				logger.Errorf("Ws[%s] parse terminal envelope err: %s", userCon.Uuid, parseErr)
+				userCon.SendMessage(&Message{Type: TerminalError, Err: parseErr.Error()})
+				continue
+			}
+			msg, decodeErr := decodeEnvelopeMessage(frame)
+			if decodeErr != nil {
+				logger.Errorf("Ws[%s] decode terminal envelope err: %s", userCon.Uuid, decodeErr)
+				userCon.SendMessage(&Message{Type: TerminalError, Err: decodeErr.Error()})
+				continue
+			}
+			switch msg.Type {
+			case PING, PONG:
+			case TerminalK8STree:
+				if userCon.k8sClient == nil {
+					userCon.SendMessage(&Message{
+						Type: TerminalError, TerminalId: msg.TerminalId,
+						Err: "kubernetes client is unavailable",
+					})
+					continue
+				}
+				data, treeErr := userCon.k8sClient.GetTreeData()
+				responseMsg := Message{
+					Id: userCon.Uuid, Type: TerminalK8STree, Data: data,
+					TerminalId: msg.TerminalId, KubernetesId: msg.KubernetesId,
+				}
+				if treeErr != nil {
+					responseMsg.Err = treeErr.Error()
+				}
+				userCon.SendMessage(&responseMsg)
+			default:
+				userCon.handler.HandleMessage(msg)
+			}
+			continue
+		}
 		var msg Message
 		switch opCode {
 		case gorilla.BinaryMessage:
@@ -305,6 +367,16 @@ func (userCon *UserWebsocket) CurrentUser() *model.User {
 
 func (userCon *UserWebsocket) SendErrMessage(errMsg string) {
 	msg := Message{Id: userCon.Uuid, Type: ERROR, Err: errMsg}
+	if userCon.envelopeProtocol {
+		data, err := encodeMessageEnvelope(&msg)
+		if err == nil {
+			err = userCon.conn.WriteBinary(data, maxWriteTimeOut)
+		}
+		if err != nil {
+			logger.Errorf("Ws[%s] send error envelope err: %s", userCon.Uuid, err)
+		}
+		return
+	}
 	data, _ := json.Marshal(msg)
 	if err := userCon.conn.WriteText(data, maxWriteTimeOut); err != nil {
 		logger.Errorf("Ws[%s] send error message err: %s", userCon.Uuid, err)

@@ -17,11 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create ui/dist directory
-        run: |
-          mkdir -p ui/dist
-          touch ui/dist/.gitkeep
-
       - uses: actions/setup-go@v5
         with:
           go-version: stable

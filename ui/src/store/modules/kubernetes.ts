@@ -3,7 +3,7 @@ import { defineStore } from 'pinia';
 import type { SettingConfig } from '@/types/modules/config.type';
 
 export interface IKubernetesState {
-  // 全局的唯一 TerminalId
+  // WebSocket connection id used by non-terminal control messages.
   globalTerminalId: string;
 
   globalSetting: SettingConfig;

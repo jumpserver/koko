@@ -89,5 +89,13 @@ To build multi-platform images using Docker Buildx, you need to install Docker v
 make docker
 ```
 
+For local development and testing, export the bootstrap token used by JumpServer Core and start Koko with Docker Compose:
+
+```shell
+docker compose up --build
+```
+
+By default, Koko connects to `http://host.docker.internal:8080`, exposes SSH on port `2222` and HTTP on port `5000`. Set `CORE_HOST`, `KOKO_SSH_PORT`, or `KOKO_HTTP_PORT` to override them.
+
 ## Acknowledgments
 This project depends on [usql](https://github.com/xo/usql) for database connections. We appreciate their support.

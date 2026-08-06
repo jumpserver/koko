@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { FolderKanban, Keyboard as KeyboardIcon, Share2, X } from 'lucide-vue-next';
+import { Bot, FolderKanban, Keyboard as KeyboardIcon, Share2, X } from 'lucide-vue-next';
 
 import type { LunaMessage } from '@/types/modules/postmessage.type';
 
@@ -14,6 +14,7 @@ import { useConnectionStore } from '@/store/modules/useConnection';
 import General from './components/General/index.vue';
 import SessionShare from './components/SessionShare/index.vue';
 import FileManager from './components/FileManagement/index.vue';
+import TerminalAI from './components/TerminalAI/index.vue';
 
 const props = defineProps<{
   hiddenFileManager?: boolean;
@@ -45,6 +46,12 @@ const drawerTabs = [
     icon: Share2,
     component: SessionShare,
   },
+  {
+    name: 'terminal-ai',
+    label: 'Terminal AI',
+    icon: Bot,
+    component: TerminalAI,
+  },
 ];
 
 const hasToken = ref(false);
@@ -72,11 +79,11 @@ watch(
 );
 
 const filteredDrawerTabs = computed(() => {
-  if (props.hiddenFileManager || isDisableFileManager.value) {
-    return drawerTabs.filter(tab => tab.name !== 'file-manager');
-  }
-
-  return drawerTabs;
+  return drawerTabs.filter(tab => {
+    if (tab.name === 'file-manager' && (props.hiddenFileManager || isDisableFileManager.value)) return false;
+    if (tab.name === 'terminal-ai' && !connectionStore.terminalAIEnabled) return false;
+    return true;
+  });
 });
 
 const closeDrawer = () => {

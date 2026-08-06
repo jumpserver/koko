@@ -9,14 +9,14 @@
 
 @font-face {
   font-family: 'Open Sans';
-  src: url('./style/font/OpenSans-Bold.ttf');
+  src: url('./fonts/OpenSans-Bold.ttf');
   font-weight: bold;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Open Sans';
-  src: url('./style/font/OpenSans-Light.ttf');
+  src: url('./fonts/OpenSans-Light.ttf');
   font-weight: 300;
   font-style: normal;
 }

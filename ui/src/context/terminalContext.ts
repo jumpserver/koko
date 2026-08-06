@@ -16,6 +16,7 @@ import { getXTerminalLineContent } from '@/hooks/helper/index';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { useConnectionStore } from '@/store/modules/useConnection';
 import { FORMATTER_MESSAGE_TYPE, LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { buildTerminalInput } from '@/websocket/envelope';
 
 type TerminalEvents = Record<string, any> & {
   'luna-event': { event: string; data: any };
@@ -112,14 +113,9 @@ export const createTerminalContext = (): TerminalContext => {
         }
 
         try {
-          currentNode.socket.send(
-            JSON.stringify({
-              id: currentNode.id,
-              k8s_id: currentNode.k8s_id,
-              type: 'TERMINAL_K8S_DATA',
-              data: command,
-            }),
-          );
+          if (currentNode.terminalId) {
+            currentNode.socket.send(buildTerminalInput(currentNode.terminalId, command));
+          }
         }
         catch (error) {
           console.error('Failed to paste command to K8s terminal:', error);

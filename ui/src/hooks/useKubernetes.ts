@@ -32,6 +32,19 @@ import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
 import { validateClipboardText } from '@/utils/clipboardAcl';
+import {
+  buildJSONEnvelope,
+  buildTerminalInput,
+  ENVELOPE_ERROR,
+  ENVELOPE_TERMINAL_CLOSE,
+  ENVELOPE_TERMINAL_COMMAND,
+  ENVELOPE_TERMINAL_CREATE,
+  ENVELOPE_TERMINAL_OUTPUT,
+  parseEnvelope,
+  parseJSONPayload,
+  parseTerminalPayload,
+  type TerminalCommandEnvelope,
+} from '@/websocket/envelope';
 
 import { base64ToUint8Array, generateWsURL } from './helper';
 
@@ -66,6 +79,53 @@ function canUseClipboardText(direction: ClipboardDirection, text: string, sessio
   }
 
   return false;
+}
+
+function decodeKubernetesMessage(data: unknown): any | null {
+  if (typeof data === 'string') {
+    return JSON.parse(data);
+  }
+  if (!(data instanceof ArrayBuffer)) return null;
+
+  const frame = parseEnvelope(data);
+  switch (frame.type) {
+    case ENVELOPE_TERMINAL_OUTPUT: {
+      const payload = parseTerminalPayload(frame.payload);
+      return {
+        type: 'TERMINAL_K8S_BINARY',
+        terminalId: payload.terminalId,
+        raw: payload.data,
+      };
+    }
+    case ENVELOPE_TERMINAL_COMMAND: {
+      const command = parseJSONPayload<TerminalCommandEnvelope>(frame.payload);
+      return {
+        ...(command.params || {}),
+        type: command.command,
+        terminalId: command.terminalId || 0,
+        requestId: command.requestId,
+      };
+    }
+    case ENVELOPE_ERROR: {
+      const error = parseJSONPayload<Record<string, unknown>>(frame.payload);
+      return {
+        type: 'ERROR',
+        err: String(error.message || 'Terminal error'),
+        terminalId: Number(error.terminalId) || 0,
+        requestId: String(error.requestId || ''),
+      };
+    }
+    case ENVELOPE_TERMINAL_CLOSE: {
+      const closed = parseJSONPayload<Record<string, unknown>>(frame.payload);
+      return {
+        type: 'K8S_CLOSE',
+        terminalId: Number(closed.terminalId) || 0,
+        data: String(closed.reason || ''),
+      };
+    }
+    default:
+      return null;
+  }
 }
 
 function getLabelString(label: unknown): string {
@@ -163,9 +223,6 @@ function guaranteeLunaConnection(ws: WebSocket) {
 export function initTreeNodes(ws: WebSocket, id: string, info: any) {
   const unique = uuid();
   const treeStore = useTreeStore();
-  const sendData: string = JSON.stringify({
-    type: 'TERMINAL_K8S_TREE',
-  });
 
   const rootNode: customTreeOption = {
     id,
@@ -180,7 +237,7 @@ export function initTreeNodes(ws: WebSocket, id: string, info: any) {
 
   treeStore.setRoot(rootNode);
 
-  ws.send(sendData);
+  ws.send(formatMessage(0, 'TERMINAL_K8S_TREE', ''));
 }
 
 /**
@@ -333,21 +390,24 @@ export function handleTreeNodes(message: any, ws: WebSocket) {
  * @param ws
  * @param event
  */
-export function handleTreeMessage(ws: WebSocket, event: MessageEvent) {
+export function handleTreeMessage(ws: WebSocket, message: any) {
   const treeStore = useTreeStore();
   const kubernetesStore = useKubernetesStore();
   const paramsStore = useParamsStore();
 
   kubernetesStore.setLastReceiveTime(new Date());
 
-  if (!event.data) return;
-
-  const message = JSON.parse(event.data);
+  if (!message) return;
   const type = message.type;
 
   switch (type) {
-    case 'CLOSE':
     case 'ERROR': {
+      if (message.terminalId) break;
+      ws.close();
+      mittBus.emit('connect-error');
+      break;
+    }
+    case 'CLOSE': {
       ws.close();
       mittBus.emit('connect-error');
       break;
@@ -376,7 +436,7 @@ export function handleTreeMessage(ws: WebSocket, event: MessageEvent) {
   }
 }
 
-export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, createSentry: any, t: any) {
+export function handleTerminalMessage(ws: WebSocket, info: any, createSentry: any, t: any) {
   const treeStore = useTreeStore();
   const paramsStore = useParamsStore();
   const terminalStore = useTerminalStore();
@@ -384,18 +444,43 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
 
   const { setting } = storeToRefs(paramsStore);
 
-  const info = JSON.parse(event.data);
+  if (!info) return;
+
+  if (info.type === 'created' && info.requestId) {
+    const pendingNode = treeStore.getTerminalByRequestId(String(info.requestId));
+    if (pendingNode) {
+      pendingNode.terminalId = Number(info.terminalId);
+      delete pendingNode.terminalRequestId;
+      treeStore.setK8sIdMap(pendingNode.k8s_id, { ...pendingNode });
+    }
+    return;
+  }
 
   // 根据返回信息的 k8s id 找到与之对应的 terminal 实例
-  const operatedNode = treeStore.getTerminalByK8sId(info.k8s_id);
+  const operatedNode =
+    treeStore.getTerminalByK8sId(info.k8s_id) ||
+    treeStore.getTerminalById(Number(info.terminalId)) ||
+    treeStore.getTerminalByRequestId(String(info.requestId || ''));
+  if (operatedNode && !info.k8s_id) info.k8s_id = operatedNode.k8s_id;
   const currentTerminal = operatedNode?.terminal;
 
   if (currentTerminal) {
-    const sentry = createSentry(currentTerminal, ws, kubernetesStore.lastSendTime);
+    const sentry = createSentry(
+      currentTerminal,
+      ws,
+      kubernetesStore.lastSendTime,
+      (data: Uint8Array) => {
+        if (operatedNode.terminalId) ws.send(buildTerminalInput(operatedNode.terminalId, data));
+      }
+    );
 
     switch (info.type) {
+      case 'ERROR': {
+        currentTerminal.write(info.err);
+        break;
+      }
       case 'TERMINAL_K8S_BINARY': {
-        sentry.consume(base64ToUint8Array(info.raw));
+        sentry.consume(info.raw instanceof Uint8Array ? info.raw : base64ToUint8Array(info.raw));
         break;
       }
       case 'TERMINAL_SESSION': {
@@ -580,12 +665,19 @@ export function createConnect(t: any) {
     const { ws } = useWebSocket(connectURL, {
       protocols: ['JMS-KOKO'],
       onConnected: (ws: WebSocket) => {
+        ws.binaryType = 'arraybuffer';
         guaranteeLunaConnection(ws);
         handleConnected(ws, pingInterval);
       },
       onMessage: (ws: WebSocket, event: MessageEvent) => {
-        handleTreeMessage(ws, event);
-        handleTerminalMessage(ws, event, createSentry, t);
+        try {
+          const message = decodeKubernetesMessage(event.data);
+          handleTreeMessage(ws, message);
+          handleTerminalMessage(ws, message, createSentry, t);
+        } catch (error) {
+          const content = error instanceof Error ? error.message : 'Invalid terminal message';
+          notification.error({ content, duration: 5000 });
+        }
       },
       onError: () => handleInterrupt('error', t),
       onDisconnected: () => handleInterrupt('disconnected', t),
@@ -628,18 +720,10 @@ export function initTerminalEvent(
   terminal.onResize(({ cols, rows }) => {
     fitAddon.fit();
 
+    const currentNode = useTreeStore().getTerminalByK8sId(nodeInfo.k8s_id);
+    if (!currentNode?.terminalId) return;
     const resizeData = JSON.stringify({ cols, rows });
-    const sendData = {
-      id: nodeInfo.id,
-      k8s_id: nodeInfo.k8s_id,
-      type: 'TERMINAL_K8S_RESIZE',
-      namespace: nodeInfo.namespace || '',
-      pod: nodeInfo.pod || '',
-      container: nodeInfo.container || '',
-      resizeData,
-    };
-
-    socket.send(JSON.stringify(sendData));
+    socket.send(formatMessage(currentNode.terminalId, 'TERMINAL_RESIZE', resizeData));
   });
 
   terminal.onData((data: string) => {
@@ -664,18 +748,8 @@ export function initTerminalEvent(
     };
 
     const inputMessage = preprocessInput(data, currentConfig);
-
-    const messageBody = {
-      data: inputMessage,
-      id: currentNode.id,
-      pod: currentNode.pod || '',
-      k8s_id: currentK8sId,
-      namespace: currentNode.namespace || '',
-      container: currentNode.container || '',
-      type: 'TERMINAL_K8S_DATA',
-    };
-
-    socket.send(JSON.stringify(messageBody));
+    if (!currentNode.terminalId) return;
+    socket.send(buildTerminalInput(currentNode.terminalId, inputMessage));
     lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
   });
 
@@ -781,14 +855,10 @@ export function initElEvent(
         return;
       }
 
-      socket.send(
-        JSON.stringify({
-          id: nodeInfo.id,
-          k8s_id: nodeInfo.k8s_id,
-          type: 'TERMINAL_K8S_DATA',
-          data: text,
-        }),
-      );
+      const currentNode = useTreeStore().getTerminalByK8sId(nodeInfo.k8s_id);
+      if (currentNode?.terminalId) {
+        socket.send(buildTerminalInput(currentNode.terminalId, text));
+      }
 
       e.preventDefault();
     },
@@ -843,12 +913,18 @@ export function sendK8sMessage(socket: WebSocket, type: string, data: any) {
 
   const currentNode = treeStore.getTerminalByK8sId(terminalStore.currentTab);
 
+  if (!currentNode?.terminalId) return;
   socket.send(
-    JSON.stringify({
-      id: currentNode.id,
-      k8s_id: currentNode.k8s_id,
-      type,
-      data: JSON.stringify(data),
+    buildJSONEnvelope(ENVELOPE_TERMINAL_COMMAND, {
+      terminalId: currentNode.terminalId,
+      command: type,
+      params: {
+        id: currentNode.id,
+        k8s_id: currentNode.k8s_id,
+        terminalId: currentNode.terminalId,
+        type,
+        data: JSON.stringify(data),
+      },
     })
   );
 }
