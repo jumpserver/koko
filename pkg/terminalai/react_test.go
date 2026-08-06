@@ -1,0 +1,195 @@
+package terminalai
+
+import (
+	"context"
+	"reflect"
+	"testing"
+)
+
+func TestReactPlanKeepsStableTasksAcrossCommandAttempts(t *testing.T) {
+	steps := []Step{
+		{
+			ID: "task-1", Title: "Inspect", Objective: "Inspect the state",
+			Status: StepPending,
+		},
+		{
+			ID: "task-2", Title: "Verify", Objective: "Verify the outcome",
+			Status: StepPending,
+		},
+	}
+	plan := newReActPlan("plan-1", "Inspect and verify", steps)
+	first := ReActDecision{
+		Kind: ReActExecute, ThoughtSummary: "Inspect first",
+		Observation: ObservationReview{Outcome: "none"},
+		NextStepID:  "task-1",
+		Proposal: &CommandProposal{
+			Command: "first", Execution: ExecutionPTY,
+		},
+	}
+	transition, err := plan.preview(first)
+	if err != nil {
+		t.Fatalf("preview first command: %v", err)
+	}
+	if err = plan.beginExecution(transition); err != nil {
+		t.Fatalf("begin first command: %v", err)
+	}
+	if err = plan.recordExecution(
+		"execution-1", "task-1", *first.Proposal, "partial", nil, nil,
+	); err != nil {
+		t.Fatalf("record first command: %v", err)
+	}
+
+	second := ReActDecision{
+		Kind: ReActExecute, ThoughtSummary: "Inspect further",
+		Observation: ObservationReview{
+			StepID: "task-1", Outcome: ReActContinue,
+			Summary: "More evidence is required",
+		},
+		NextStepID: "task-1",
+		Proposal: &CommandProposal{
+			Command: "second", Execution: ExecutionPTY,
+		},
+	}
+	transition, err = plan.preview(second)
+	if err != nil {
+		t.Fatalf("preview second command: %v", err)
+	}
+	if len(transition.steps) != len(steps) {
+		t.Fatalf("task count changed from %d to %d", len(steps), len(transition.steps))
+	}
+	for index := range steps {
+		if transition.steps[index].ID != steps[index].ID {
+			t.Fatalf("task %d changed from %q to %q", index, steps[index].ID, transition.steps[index].ID)
+		}
+	}
+	if err = plan.beginExecution(transition); err != nil {
+		t.Fatalf("begin second command: %v", err)
+	}
+	if err = plan.recordExecution(
+		"execution-2", "task-1", *second.Proposal, "complete", nil, nil,
+	); err != nil {
+		t.Fatalf("record second command: %v", err)
+	}
+	if len(plan.results) != 2 || plan.results[0].ID != "execution-1" ||
+		plan.results[1].ID != "execution-2" {
+		t.Fatalf("command executions were not retained: %#v", plan.results)
+	}
+}
+
+func TestReactContinuationMustStayOnSameTask(t *testing.T) {
+	plan := newReActPlan("plan-1", "Stable plan", []Step{
+		{ID: "task-1", Title: "Inspect", Objective: "Inspect", Status: StepReviewing},
+		{ID: "task-2", Title: "Verify", Objective: "Verify", Status: StepPending},
+	})
+	plan.results = []StepResult{{
+		ID: "execution-1", StepID: "task-1", Command: "first",
+		Status: StepReviewing, Execution: ExecutionPTY,
+	}}
+	_, err := plan.preview(ReActDecision{
+		Kind: ReActExecute, ThoughtSummary: "Continue elsewhere",
+		Observation: ObservationReview{
+			StepID: "task-1", Outcome: ReActContinue, Summary: "Not done",
+		},
+		NextStepID: "task-2",
+		Proposal: &CommandProposal{
+			Command: "second", Execution: ExecutionPTY,
+		},
+	})
+	if err == nil {
+		t.Fatal("continuation unexpectedly changed logical tasks")
+	}
+}
+
+func TestInitialDecisionExecutesBeforeNextModelTurn(t *testing.T) {
+	events := make([]string, 0, 3)
+	model := &orderedLoopModel{events: &events}
+	observer, err := NewObserver(80, 24)
+	if err != nil {
+		t.Fatalf("create observer: %v", err)
+	}
+	t.Cleanup(func() { _ = observer.Close() })
+	runtime := NewRuntime(
+		1, model, observer, func([]byte) {}, func(ChatMessage) {},
+	)
+	runtime.SetAdapter(backgroundTestAdapter{})
+	runtime.SetBackgroundExecutor(&orderedExecutor{events: &events}, nil)
+	t.Cleanup(runtime.Close)
+
+	runtime.run(context.Background(), "inspect the terminal")
+	if want := []string{"decide", "execute", "next"}; !reflect.DeepEqual(events, want) {
+		t.Fatalf("event order = %v, want %v", events, want)
+	}
+	if model.nextCalls != 1 {
+		t.Fatalf("next model calls = %d, want 1", model.nextCalls)
+	}
+}
+
+type orderedLoopModel struct {
+	events    *[]string
+	nextCalls int
+}
+
+func (m *orderedLoopModel) Decide(
+	_ context.Context, _ InitialRequest,
+) (Decision, error) {
+	*m.events = append(*m.events, "decide")
+	return Decision{
+		Kind: ReActExecute, Summary: "Inspect",
+		ThoughtSummary: "Start inspection",
+		Steps:          []Step{{Title: "Inspect", Objective: "Inspect the terminal"}},
+		Proposal: &CommandProposal{
+			Command: "inspect", RiskLevel: 1,
+			Execution: ExecutionBackground,
+		},
+	}, nil
+}
+
+func (m *orderedLoopModel) Next(
+	_ context.Context, request ReActRequest,
+) (ReActDecision, error) {
+	*m.events = append(*m.events, "next")
+	m.nextCalls++
+	return ReActDecision{
+		Kind: ReActFinish, ThoughtSummary: "Inspection complete",
+		Observation: ObservationReview{
+			StepID: request.Steps[0].ID, Outcome: StepCompleted,
+			Summary: "The inspection completed",
+		},
+		Summary: "Done",
+	}, nil
+}
+
+func (m *orderedLoopModel) Summarize(
+	context.Context, string, string, []Step, []StepResult, string,
+) (string, error) {
+	return "Done", nil
+}
+
+type backgroundTestAdapter struct{}
+
+func (backgroundTestAdapter) Name() string { return "test" }
+
+func (backgroundTestAdapter) Profile() AssetProfile {
+	return AssetProfile{Adapter: "test", CommandLanguage: "test"}
+}
+
+func (backgroundTestAdapter) SupportsBackground() bool { return true }
+
+func (backgroundTestAdapter) PrepareProposal(proposal *CommandProposal) error {
+	proposal.BackgroundEligible = true
+	return nil
+}
+
+type orderedExecutor struct {
+	events *[]string
+}
+
+func (e *orderedExecutor) Execute(
+	_ context.Context, _ string, _ func(string),
+) (string, *int, error) {
+	*e.events = append(*e.events, "execute")
+	exitCode := 0
+	return "ok", &exitCode, nil
+}
+
+func (*orderedExecutor) Close() error { return nil }
