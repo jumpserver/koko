@@ -14,6 +14,5 @@ ARG APT_MIRROR=http://deb.debian.org
 RUN set -ex \
     && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
     && apt-get update \
-    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
     && apt-get clean
