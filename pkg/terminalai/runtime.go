@@ -21,6 +21,7 @@ const (
 	profileTimeout           = 30 * time.Second
 	maxDecisionText          = 64 * 1024
 	maxPlanSummary           = 16 * 1024
+	maxPlanTasks             = 5
 	maxStepTitle             = 512
 	maxStepObjective         = 4 * 1024
 	maxProposalExplanation   = 8 * 1024
@@ -373,10 +374,23 @@ func (r *Runtime) run(ctx context.Context, question string) {
 	}
 	history := strings.Join(historyEntries, "\n")
 	mode := r.executionMode
+	adapter := r.adapter
 	r.mu.Unlock()
-	r.emitProgress("正在分析请求…", "analyzing", true)
+	if adapter == nil {
+		r.emitError(errors.New("terminal AI adapter is unavailable"))
+		return
+	}
+	r.executorMu.RLock()
+	backgroundAvailable := r.backgroundAvailable
+	r.executorMu.RUnlock()
+	r.emitProgress("正在生成计划和首条命令…", "analyzing", true)
 	decision, err := r.initialDecision(
-		ctx, question, history, profile.String(), snapshot,
+		ctx, InitialRequest{
+			Question: question, History: history,
+			Profile: profile.String(), Snapshot: snapshot,
+			Mode: mode, BackgroundAvailable: backgroundAvailable,
+		},
+		adapter,
 	)
 	if err != nil {
 		r.emitError(err)
@@ -395,43 +409,47 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		decision.Steps[index].rootStepID = decision.Steps[index].ID
 	}
 	plan := newReActPlan(planID, decision.Summary, decision.Steps)
-	r.emitPlan(plan, 0, "")
-	r.mu.Lock()
-	adapter := r.adapter
-	r.mu.Unlock()
-	if adapter == nil {
-		r.finishReAct(ctx, question, plan, 0, "terminal AI adapter is unavailable")
+	next := ReActDecision{
+		Kind: ReActExecute, ThoughtSummary: decision.ThoughtSummary,
+		Observation: ObservationReview{Outcome: "none"},
+		NextStepID:  plan.steps[0].ID, Proposal: decision.Proposal,
+	}
+	transition, err := plan.preview(next)
+	if err != nil {
+		r.emitError(err)
 		return
 	}
 	for round := 1; round <= maxReActRounds; round++ {
 		if ctx.Err() != nil {
 			return
 		}
-		r.emitProgress(
-			"正在更新执行计划…",
-			"planning", true,
-		)
-		r.executorMu.RLock()
-		backgroundAvailable := r.backgroundAvailable
-		r.executorMu.RUnlock()
-		snapshot = r.observer.Snapshot()
-		next, transition, err := r.nextReActDecision(
-			ctx, ReActRequest{
-				Question: question, PlanSummary: plan.summary,
-				Steps: plan.steps, Results: plan.results,
-				Profile: profile.String(), Snapshot: snapshot,
-				Mode: mode, BackgroundAvailable: backgroundAvailable,
-				Round: round, MaxRounds: maxReActRounds,
-			},
-			plan, adapter,
-		)
-		if err != nil {
-			if ctx.Err() != nil {
+		if round > 1 {
+			r.emitProgress(
+				"正在评估执行结果并决定下一步…",
+				"planning", true,
+			)
+			r.executorMu.RLock()
+			backgroundAvailable = r.backgroundAvailable
+			r.executorMu.RUnlock()
+			snapshot = r.observer.Snapshot()
+			next, transition, err = r.nextReActDecision(
+				ctx, ReActRequest{
+					Question: question, PlanSummary: plan.summary,
+					Steps: plan.steps, Results: plan.results,
+					Profile: profile.String(), Snapshot: snapshot,
+					Mode: mode, BackgroundAvailable: backgroundAvailable,
+					Round: round, MaxRounds: maxReActRounds,
+				},
+				plan, adapter,
+			)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				r.emitError(err)
+				r.finishReAct(ctx, question, plan, round, err.Error())
 				return
 			}
-			r.emitError(err)
-			r.finishReAct(ctx, question, plan, round, err.Error())
-			return
 		}
 		if next.Kind == ReActFinish {
 			plan.commit(transition)
@@ -448,16 +466,17 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		}
 		proposal := *next.Proposal
 		step, index := findStep(plan.steps, transition.nextStepID)
+		executionID := runtimeID("execution")
 		r.emitObservation(plan, next.Observation)
 		r.emitPlan(plan, round, next.ThoughtSummary)
 		approvedProposal, err := r.authorize(
-			ctx, planID, step, index, len(plan.steps), proposal,
+			ctx, planID, executionID, step, index, len(plan.steps), proposal,
 		)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
-			plan.rejectExecution(step.ID, proposal, err.Error())
+			plan.rejectExecution(executionID, step.ID, proposal, err.Error())
 			r.emitPlan(plan, round, next.ThoughtSummary)
 			r.finishReAct(ctx, question, plan, round, err.Error())
 			return
@@ -474,7 +493,8 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		output, exitCode, err := r.execute(ctx, proposal, func(output string) {
 			r.emitData("data-execution", map[string]any{
 				"planId": planID, "stepId": step.ID,
-				"step": index + 1, "total": len(plan.steps),
+				"executionId": executionID,
+				"step":        index + 1, "total": len(plan.steps),
 				"command": proposal.Command, "execution": proposal.Execution,
 				"output": output, "outcome": "running",
 			}, "process")
@@ -493,7 +513,7 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			output = strings.TrimSpace(output + "\n" + err.Error())
 		}
 		if recordErr := plan.recordExecution(
-			step.ID, proposal, output, exitCode, executionErr,
+			executionID, step.ID, proposal, output, exitCode, executionErr,
 		); recordErr != nil {
 			r.emitError(recordErr)
 			r.finishReAct(ctx, question, plan, round, recordErr.Error())
@@ -501,7 +521,8 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		}
 		r.emitData("data-execution", map[string]any{
 			"planId": planID, "stepId": step.ID,
-			"step": index + 1, "total": len(plan.steps),
+			"executionId": executionID,
+			"step":        index + 1, "total": len(plan.steps),
 			"command": proposal.Command, "execution": proposal.Execution,
 			"output": output, "outputTruncated": outputIsTruncated(output),
 			"exitCode": exitCode, "outcome": "reviewing",
@@ -512,17 +533,15 @@ func (r *Runtime) run(ctx context.Context, question string) {
 }
 
 func (r *Runtime) initialDecision(
-	ctx context.Context,
-	question, history, profile, snapshot string,
+	ctx context.Context, request InitialRequest, adapter Adapter,
 ) (Decision, error) {
 	var decision Decision
 	correction := ""
 	for repair := 0; repair < 2; repair++ {
+		request.Correction = correction
 		err := r.retry(ctx, func(callCtx context.Context) error {
 			var callErr error
-			decision, callErr = r.model.Decide(
-				callCtx, question, history, profile, snapshot, correction,
-			)
+			decision, callErr = r.model.Decide(callCtx, request)
 			return callErr
 		})
 		if err != nil {
@@ -533,7 +552,13 @@ func (r *Runtime) initialDecision(
 			}
 			return Decision{}, err
 		}
-		if err = validateDecision(decision); err == nil {
+		if err = validateDecision(decision); err == nil &&
+			decision.Kind == ReActExecute {
+			proposal := *decision.Proposal
+			err = r.prepareProposal(adapter, &proposal)
+			decision.Proposal = &proposal
+		}
+		if err == nil {
 			return decision, nil
 		} else if repair == 0 {
 			correction = err.Error()
@@ -573,16 +598,7 @@ func (r *Runtime) nextReActDecision(
 				err = fmt.Errorf("model execute action has no proposal")
 			} else {
 				proposal := *decision.Proposal
-				if err = validateProposal(&proposal); err == nil {
-					err = adapter.PrepareProposal(&proposal)
-					r.writeCommandRuleAudit(proposal, err)
-				}
-				if err == nil {
-					err = r.applyExecutionMode(&proposal)
-				}
-				if err == nil {
-					err = validateProposal(&proposal)
-				}
+				err = r.prepareProposal(adapter, &proposal)
 				decision.Proposal = &proposal
 			}
 		}
@@ -606,6 +622,23 @@ func (r *Runtime) nextReActDecision(
 		return decision, transition, err
 	}
 	return decision, transition, fmt.Errorf("model failed to produce a valid ReAct action")
+}
+
+func (r *Runtime) prepareProposal(
+	adapter Adapter, proposal *CommandProposal,
+) error {
+	if err := validateProposal(proposal); err != nil {
+		return err
+	}
+	err := adapter.PrepareProposal(proposal)
+	r.writeCommandRuleAudit(*proposal, err)
+	if err != nil {
+		return err
+	}
+	if err = r.applyExecutionMode(proposal); err != nil {
+		return err
+	}
+	return validateProposal(proposal)
 }
 
 func (r *Runtime) finishReAct(
@@ -655,9 +688,9 @@ func (r *Runtime) emitObservation(
 	if review.Outcome == "none" {
 		return
 	}
-	for _, result := range plan.results {
-		if result.StepID == review.StepID {
-			r.emitResult(plan, result)
+	for index := len(plan.results) - 1; index >= 0; index-- {
+		if plan.results[index].StepID == review.StepID {
+			r.emitResult(plan, plan.results[index])
 			return
 		}
 	}
@@ -674,7 +707,8 @@ func (r *Runtime) emitResult(plan *reactPlan, result StepResult) {
 	_, index := findStep(plan.steps, result.StepID)
 	r.emitData("data-execution", map[string]any{
 		"planId": plan.id, "stepId": result.StepID,
-		"step": index + 1, "total": len(plan.steps),
+		"executionId": result.ID,
+		"step":        index + 1, "total": len(plan.steps),
 		"command": result.Command, "execution": result.Execution,
 		"output": result.Output, "exitCode": result.ExitCode,
 		"outputTruncated": result.OutputTruncated,
@@ -706,7 +740,7 @@ func localReActSummary(plan *reactPlan, reason string) string {
 
 func (r *Runtime) authorize(
 	ctx context.Context,
-	planID string,
+	planID, executionID string,
 	step Step,
 	index, total int,
 	proposal CommandProposal,
@@ -766,7 +800,8 @@ func (r *Runtime) authorize(
 	digest := proposalDigest(r.terminalID, planID, step.ID, proposal)
 	data := map[string]any{
 		"id": id, "digest": digest, "planId": planID, "stepId": step.ID,
-		"step": index + 1, "total": total, "command": proposal.Command,
+		"executionId": executionID,
+		"step":        index + 1, "total": total, "command": proposal.Command,
 		"rationale": proposal.Rationale, "riskLevel": proposal.RiskLevel,
 		"riskReason": proposal.RiskReason, "execution": proposal.Execution,
 		"executionReason":        proposal.ExecutionCause,
@@ -1317,12 +1352,18 @@ func validateProposal(proposal *CommandProposal) error {
 func validateDecision(decision Decision) error {
 	switch decision.Kind {
 	case "answer":
-		if len(decision.Answer) == 0 || len(decision.Answer) > maxDecisionText {
+		if len(decision.Answer) == 0 || len(decision.Answer) > maxDecisionText ||
+			decision.Summary != "" || decision.ThoughtSummary != "" ||
+			len(decision.Steps) != 0 || decision.Proposal != nil {
 			return fmt.Errorf("model returned an invalid answer")
 		}
-	case "plan":
+	case ReActExecute:
 		if len(decision.Summary) > maxPlanSummary ||
-			len(decision.Steps) == 0 || len(decision.Steps) > 20 {
+			len(decision.Summary) == 0 ||
+			len(decision.ThoughtSummary) == 0 ||
+			len(decision.ThoughtSummary) > maxThoughtSummary ||
+			len(decision.Steps) == 0 || len(decision.Steps) > maxPlanTasks ||
+			decision.Answer != "" || decision.Proposal == nil {
 			return fmt.Errorf("model returned an invalid plan")
 		}
 		for _, step := range decision.Steps {

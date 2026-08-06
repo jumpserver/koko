@@ -6,11 +6,7 @@ import "context"
 // owns planning, command policy and execution; providers only produce and
 // review structured decisions.
 type LoopModel interface {
-	Decide(
-		ctx context.Context,
-		question, history, profile, snapshot string,
-		correction string,
-	) (Decision, error)
+	Decide(ctx context.Context, request InitialRequest) (Decision, error)
 	Next(ctx context.Context, request ReActRequest) (ReActDecision, error)
 	Summarize(
 		ctx context.Context,
@@ -19,6 +15,16 @@ type LoopModel interface {
 		results []StepResult,
 		stopReason string,
 	) (string, error)
+}
+
+type InitialRequest struct {
+	Question            string
+	History             string
+	Profile             string
+	Snapshot            string
+	Mode                string
+	BackgroundAvailable bool
+	Correction          string
 }
 
 type ReActRequest struct {

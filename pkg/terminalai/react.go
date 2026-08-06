@@ -9,10 +9,8 @@ import (
 
 const (
 	maxReActRounds        = 20
-	maxPendingSteps       = 20
 	maxStepAttempts       = 3
 	maxSameCommandContext = 2
-	maxStepReference      = 256
 	maxThoughtSummary     = 2 * 1024
 )
 
@@ -60,13 +58,7 @@ func (p *reactPlan) preview(decision ReActDecision) (reactTransition, error) {
 	); err != nil {
 		return transition, err
 	}
-	var err error
-	transition.steps, transition.nextStepID, err = revisePendingSteps(
-		transition.steps, decision.Steps, decision.NextStepID,
-	)
-	if err != nil {
-		return transition, err
-	}
+	transition.nextStepID = decision.NextStepID
 	switch decision.Kind {
 	case ReActExecute:
 		if decision.Proposal == nil || decision.Summary != "" {
@@ -75,6 +67,13 @@ func (p *reactPlan) preview(decision ReActDecision) (reactTransition, error) {
 		if transition.nextStepID == "" {
 			return transition, fmt.Errorf("model execute action has no next step")
 		}
+		if decision.Observation.Outcome == ReActContinue &&
+			decision.Observation.StepID != transition.nextStepID {
+			return transition, fmt.Errorf(
+				"model must continue the same logical task",
+			)
+		}
+		var err error
 		transition.commandContextKey, err = p.validateExecution(
 			transition.steps, transition.results,
 			transition.nextStepID, *decision.Proposal,
@@ -93,7 +92,8 @@ func (p *reactPlan) preview(decision ReActDecision) (reactTransition, error) {
 			return transition, fmt.Errorf("finish action summary is invalid")
 		}
 		for index := range transition.steps {
-			if transition.steps[index].Status == StepPending {
+			if transition.steps[index].Status == StepPending ||
+				transition.steps[index].Status == StepInProgress {
 				transition.steps[index].Status = StepSkipped
 			}
 		}
@@ -115,7 +115,9 @@ func (p *reactPlan) validateExecution(
 	var step Step
 	found := false
 	for _, candidate := range steps {
-		if candidate.ID == stepID && candidate.Status == StepPending {
+		if candidate.ID == stepID &&
+			(candidate.Status == StepPending ||
+				candidate.Status == StepInProgress) {
 			step = candidate
 			found = true
 			break
@@ -166,7 +168,8 @@ func (p *reactPlan) beginExecution(
 	p.commit(transition)
 	for index := range p.steps {
 		if p.steps[index].ID == transition.nextStepID &&
-			p.steps[index].Status == StepPending {
+			(p.steps[index].Status == StepPending ||
+				p.steps[index].Status == StepInProgress) {
 			p.steps[index].Status = StepInProgress
 			p.commandRepeats[transition.commandContextKey]++
 			return nil
@@ -176,6 +179,7 @@ func (p *reactPlan) beginExecution(
 }
 
 func (p *reactPlan) recordExecution(
+	executionID string,
 	stepID string,
 	proposal CommandProposal,
 	output string,
@@ -189,7 +193,7 @@ func (p *reactPlan) recordExecution(
 		}
 		p.steps[index].Status = StepReviewing
 		result := StepResult{
-			StepID: stepID, Command: proposal.Command,
+			ID: executionID, StepID: stepID, Command: proposal.Command,
 			Output: output, Status: StepReviewing,
 			OutputTruncated: outputIsTruncated(output),
 			Execution:       proposal.Execution, ExitCode: exitCode,
@@ -204,6 +208,7 @@ func (p *reactPlan) recordExecution(
 }
 
 func (p *reactPlan) rejectExecution(
+	executionID string,
 	stepID string,
 	proposal CommandProposal,
 	reason string,
@@ -215,7 +220,7 @@ func (p *reactPlan) rejectExecution(
 		}
 	}
 	p.results = append(p.results, StepResult{
-		StepID: stepID, Command: proposal.Command,
+		ID: executionID, StepID: stepID, Command: proposal.Command,
 		Status: StepRejected, Summary: reason,
 		ErrorReason: reason, Execution: proposal.Execution,
 	})
@@ -274,22 +279,24 @@ func applyObservation(
 	}
 	result := &results[reviewingResult]
 	if review.StepID != result.StepID ||
-		(review.Outcome != StepCompleted && review.Outcome != "error") ||
+		(review.Outcome != StepCompleted && review.Outcome != "error" &&
+			review.Outcome != ReActContinue) ||
 		len(review.Summary) == 0 ||
 		len(review.Summary) > maxReviewSummary ||
 		len(review.ErrorReason) > maxReviewSummary {
 		return fmt.Errorf("model returned an invalid observation review")
 	}
+	commandFailed := result.ExitCode != nil && *result.ExitCode != 0 ||
+		result.ErrorReason != "" || review.ErrorReason != ""
 	if review.Outcome == StepCompleted &&
-		((result.ExitCode != nil && *result.ExitCode != 0) ||
-			result.ErrorReason != "") {
+		commandFailed {
 		return fmt.Errorf("model marked authoritative execution failure as completed")
 	}
-	status := StepCompleted
-	if review.Outcome == "error" {
-		status = StepFailed
+	resultStatus := StepCompleted
+	if commandFailed || review.Outcome == "error" {
+		resultStatus = StepFailed
 	}
-	result.Status = status
+	result.Status = resultStatus
 	result.Summary = review.Summary
 	if review.ErrorReason != "" {
 		result.ErrorReason = review.ErrorReason
@@ -297,135 +304,18 @@ func applyObservation(
 	for index := range steps {
 		if steps[index].ID == result.StepID &&
 			steps[index].Status == StepReviewing {
-			steps[index].Status = status
+			switch review.Outcome {
+			case StepCompleted:
+				steps[index].Status = StepCompleted
+			case "error":
+				steps[index].Status = StepFailed
+			case ReActContinue:
+				steps[index].Status = StepInProgress
+			}
 			return nil
 		}
 	}
 	return fmt.Errorf("reviewed step is unavailable")
-}
-
-func revisePendingSteps(
-	steps []Step,
-	drafts []PlannedStep,
-	nextReference string,
-) ([]Step, string, error) {
-	if len(drafts) > maxPendingSteps {
-		return nil, "", fmt.Errorf(
-			"model returned more than %d pending steps", maxPendingSteps,
-		)
-	}
-	history := make([]Step, 0, len(steps))
-	currentPending := make(map[string]Step)
-	known := make(map[string]Step)
-	for _, step := range steps {
-		known[step.ID] = step
-		if step.Status == StepPending {
-			currentPending[step.ID] = step
-		} else {
-			history = append(history, step)
-		}
-	}
-	references := make(map[string]string, len(drafts))
-	revised := make([]Step, len(drafts))
-	for index, draft := range drafts {
-		if err := validatePlannedStep(draft); err != nil {
-			return nil, "", err
-		}
-		if _, exists := references[draft.ID]; exists {
-			return nil, "", fmt.Errorf("model returned duplicate step references")
-		}
-		step, exists := currentPending[draft.ID]
-		if !exists {
-			if _, immutable := known[draft.ID]; immutable {
-				return nil, "", fmt.Errorf("model attempted to modify immutable step history")
-			}
-			step = Step{ID: runtimeID("step"), Status: StepPending}
-		}
-		step.Title = draft.Title
-		step.Objective = draft.Objective
-		step.rootStepID = ""
-		references[draft.ID] = step.ID
-		revised[index] = step
-	}
-	all := make(map[string]*Step, len(history)+len(revised))
-	for index := range history {
-		all[history[index].ID] = &history[index]
-	}
-	for index := range revised {
-		all[revised[index].ID] = &revised[index]
-	}
-	for index, draft := range drafts {
-		parentID := draft.ParentStepID
-		if mapped, exists := references[parentID]; exists {
-			parentID = mapped
-		}
-		if parentID != "" {
-			if _, exists := all[parentID]; !exists {
-				return nil, "", fmt.Errorf("model returned an unknown parent step")
-			}
-		}
-		if existing, exists := currentPending[draft.ID]; exists &&
-			parentID != existing.ParentStepID {
-			return nil, "", fmt.Errorf(
-				"model changed an existing step relationship; use a new step for split or merge",
-			)
-		}
-		revised[index].ParentStepID = parentID
-	}
-	visiting := make(map[string]bool)
-	resolved := make(map[string]bool)
-	var resolveRoot func(*Step) error
-	resolveRoot = func(step *Step) error {
-		if resolved[step.ID] {
-			return nil
-		}
-		if visiting[step.ID] {
-			return fmt.Errorf("model returned a cyclic step relationship")
-		}
-		visiting[step.ID] = true
-		if step.ParentStepID == "" {
-			step.rootStepID = step.ID
-		} else {
-			parent := all[step.ParentStepID]
-			if parent == nil {
-				return fmt.Errorf("model returned an unknown parent step")
-			}
-			if parent.rootStepID == "" {
-				if err := resolveRoot(parent); err != nil {
-					return err
-				}
-			}
-			step.rootStepID = parent.rootStepID
-		}
-		visiting[step.ID] = false
-		resolved[step.ID] = true
-		return nil
-	}
-	for index := range revised {
-		if err := resolveRoot(&revised[index]); err != nil {
-			return nil, "", err
-		}
-	}
-	nextStepID := ""
-	if nextReference != "" {
-		nextStepID = references[nextReference]
-		if nextStepID == "" {
-			return nil, "", fmt.Errorf("model selected an unknown next step")
-		}
-	}
-	return append(history, revised...), nextStepID, nil
-}
-
-func validatePlannedStep(step PlannedStep) error {
-	if len(step.ID) == 0 || len(step.ID) > maxStepReference ||
-		len(step.ParentStepID) > maxStepReference {
-		return fmt.Errorf("model returned an invalid step reference")
-	}
-	if len(step.Title) == 0 || len(step.Title) > maxStepTitle ||
-		len(step.Objective) == 0 || len(step.Objective) > maxStepObjective {
-		return fmt.Errorf("model returned an invalid pending step")
-	}
-	return nil
 }
 
 func latestObservationFingerprint(results []StepResult) string {

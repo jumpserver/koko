@@ -10,8 +10,9 @@ const (
 	ExecutionPTY        = "pty"
 	ExecutionBackground = "background_exec"
 
-	ReActExecute = "execute"
-	ReActFinish  = "finish"
+	ReActExecute  = "execute"
+	ReActFinish   = "finish"
+	ReActContinue = "continue"
 
 	StepPending    = "pending"
 	StepInProgress = "in_progress"
@@ -46,10 +47,12 @@ type Step struct {
 }
 
 type Decision struct {
-	Kind    string `json:"kind"`
-	Answer  string `json:"answer,omitempty"`
-	Summary string `json:"summary,omitempty"`
-	Steps   []Step `json:"steps,omitempty"`
+	Kind           string           `json:"kind"`
+	Answer         string           `json:"answer"`
+	Summary        string           `json:"summary"`
+	ThoughtSummary string           `json:"thoughtSummary"`
+	Steps          []Step           `json:"steps"`
+	Proposal       *CommandProposal `json:"proposal"`
 }
 
 type CommandProposal struct {
@@ -68,13 +71,6 @@ type CommandProposal struct {
 	RulePolicy          RuleCommandPolicy   `json:"-"`
 }
 
-type PlannedStep struct {
-	ID           string `json:"id"`
-	ParentStepID string `json:"parentStepId"`
-	Title        string `json:"title"`
-	Objective    string `json:"objective"`
-}
-
 type ObservationReview struct {
 	StepID      string `json:"stepId"`
 	Outcome     string `json:"outcome"`
@@ -86,13 +82,13 @@ type ReActDecision struct {
 	Kind           string            `json:"kind"`
 	ThoughtSummary string            `json:"thoughtSummary"`
 	Observation    ObservationReview `json:"observation"`
-	Steps          []PlannedStep     `json:"steps"`
 	NextStepID     string            `json:"nextStepId"`
 	Proposal       *CommandProposal  `json:"proposal"`
 	Summary        string            `json:"summary"`
 }
 
 type StepResult struct {
+	ID              string `json:"executionId"`
 	StepID          string `json:"stepId"`
 	Command         string `json:"command"`
 	Output          string `json:"output"`

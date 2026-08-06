@@ -50,7 +50,8 @@ func TestCommandACLReviewRequiresUserApproval(t *testing.T) {
 			}, 1)
 			go func() {
 				proposal, err := runtime.authorize(
-					ctx, "plan-1", Step{ID: "step-1"}, 0, 1,
+					ctx, "plan-1", "execution-1",
+					Step{ID: "step-1"}, 0, 1,
 					CommandProposal{
 						Command: "review-command", RiskLevel: 1,
 						Execution: ExecutionPTY,
