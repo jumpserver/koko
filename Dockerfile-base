@@ -1,17 +1,5 @@
-FROM golang:1.26.3-trixie AS stage-go-build
-
-FROM node:20-trixie
-COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
-COPY --from=stage-go-build /go/ /go/
-ENV GOPATH=/go
-ENV PATH=/go/bin:/usr/local/go/bin:$PATH
+FROM golang:1.26.3-trixie
 ARG TARGETARCH
-ARG NPM_REGISTRY="https://registry.npmmirror.com"
-ENV NPM_REGISTY=$NPM_REGISTRY
-
-RUN set -ex \
-    && npm config set registry ${NPM_REGISTRY} \
-    && yarn config set registry ${NPM_REGISTRY}
 
 WORKDIR /opt
 
@@ -84,13 +72,6 @@ RUN set -ex \
     && rm -rf /opt/zig /tmp/zig.tar.xz /tmp/ghostty.tar.gz /tmp/ghostty-${GHOSTTY_COMMIT} \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/koko/ui
-
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
-    --mount=type=bind,source=ui/package.json,target=package.json \
-    --mount=type=bind,source=ui/yarn.lock,target=yarn.lock \
-    yarn install
 
 WORKDIR /opt/koko/
 

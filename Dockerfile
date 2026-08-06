@@ -6,9 +6,6 @@ COPY . .
 ARG VERSION
 ENV VERSION=$VERSION
 
-WORKDIR /opt/koko/ui
-RUN yarn build
-
 WORKDIR /opt/koko
 RUN make build -s \
     && set -x && ls -al . \
