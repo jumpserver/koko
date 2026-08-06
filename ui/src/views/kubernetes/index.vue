@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 import mittBus from '@/utils/mittBus';
+import { formatMessage } from '@/utils';
 import { useColor } from '@/hooks/useColor';
 import Drawer from '@/components/Drawer/index.vue';
 import { useTreeStore } from '@/store/modules/tree.ts';
@@ -70,7 +71,7 @@ function handleTreeClick() {
 function handleReloadTree() {
   if (socket.value) {
     treeStore.setReload();
-    socket.value.send(JSON.stringify({ type: 'TERMINAL_K8S_TREE' }));
+    socket.value.send(formatMessage(0, 'TERMINAL_K8S_TREE', ''));
   }
 }
 

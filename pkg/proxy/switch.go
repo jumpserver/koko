@@ -55,6 +55,7 @@ func (s *SwitchSession) Terminate(username string) {
 
 func (s *SwitchSession) PauseOperation(username string) {
 	s.pausedStatus.Store(true)
+	s.p.operationPaused.Store(true)
 	s.setOperator(username)
 	logger.Infof("Session[%s] receive pause task from %s", s.ID, username)
 	p, _ := json.Marshal(map[string]string{"user": username})
@@ -66,6 +67,7 @@ func (s *SwitchSession) PauseOperation(username string) {
 
 func (s *SwitchSession) ResumeOperation(username string) {
 	s.pausedStatus.Store(false)
+	s.p.operationPaused.Store(false)
 	s.setOperator(username)
 	logger.Infof("Session[%s] receive resume task from %s", s.ID, username)
 	p, _ := json.Marshal(map[string]string{"user": username})
@@ -80,6 +82,7 @@ func (s *SwitchSession) PermBecomeExpired(code, detail string) {
 		return
 	}
 	s.invalidPerm.Store(true)
+	s.p.permissionInvalid.Store(true)
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
 	s.invalidPermData = p
 	s.invalidPermTime = time.Now()
@@ -92,6 +95,7 @@ func (s *SwitchSession) PermBecomeValid(code, detail string) {
 		return
 	}
 	s.invalidPerm.Store(false)
+	s.p.permissionInvalid.Store(false)
 	s.invalidPermTime = s.MaxSessionTime
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
 	s.invalidPermData = p
@@ -164,7 +168,10 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 
-	parser := s.p.GetFilterParser()
+	parser, err := s.p.GetFilterParser()
+	if err != nil {
+		return err
+	}
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
 	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
@@ -317,6 +324,12 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 
+			if timestamp := s.p.backgroundActiveAt.Load(); timestamp > 0 {
+				backgroundActive := time.Unix(0, timestamp)
+				if backgroundActive.After(lastActiveTime) {
+					lastActiveTime = backgroundActive
+				}
+			}
 			outTime := lastActiveTime.Add(maxIdleTime)
 			if now.After(outTime) {
 				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
@@ -347,6 +360,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			_ = srvConn.SetWinSize(win.Width, win.Height)
+			if err := parser.TerminalParser.Resize(win.Width, win.Height); err != nil {
+				logger.Errorf("Session[%s] resize terminal parser failed: %s", s.ID, err)
+			}
 			logger.Infof("Session[%s] Window server change: %d*%d",
 				s.ID, win.Width, win.Height)
 			p, _ := json.Marshal(win)

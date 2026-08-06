@@ -20,6 +20,12 @@ import { createTerminal } from '@/hooks/useKubernetes.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { getXTerminalLineContent, updateIcon } from '@/hooks/helper';
+import {
+  buildJSONEnvelope,
+  createRequestId,
+  ENVELOPE_TERMINAL_CLOSE,
+  ENVELOPE_TERMINAL_CREATE,
+} from '@/websocket/envelope';
 
 const treeStore = useTreeStore();
 const terminalStore = useTerminalStore();
@@ -113,12 +119,10 @@ function handleClose(name: string) {
   const node = treeStore.getTerminalByK8sId(name);
   const socket = node.socket;
 
-  if (socket) {
+  if (socket && node.terminalId) {
     socket.send(
-      JSON.stringify({
-        type: 'K8S_CLOSE',
-        id: node.id,
-        k8s_id: node.k8s_id,
+      buildJSONEnvelope(ENVELOPE_TERMINAL_CLOSE, {
+        terminalId: node.terminalId,
       })
     );
   }
@@ -231,12 +235,10 @@ function handleReconnect(type: string) {
   const socket = operatedNode?.socket;
 
   if (type === 'reconnect') {
-    if (socket) {
+    if (socket && operatedNode.terminalId) {
       socket.send(
-        JSON.stringify({
-          type: 'K8S_CLOSE',
-          id: operatedNode.id,
-          k8s_id: operatedNode.k8s_id,
+        buildJSONEnvelope(ENVELOPE_TERMINAL_CLOSE, {
+          terminalId: operatedNode.terminalId,
         })
       );
     }
@@ -281,6 +283,14 @@ function handleContextMenuSelect(key: string, _option: DropdownOption) {
     }
     case 'closeAll': {
       panels.value.forEach((panel: any) => {
+        const node = treeStore.getTerminalByK8sId(panel.k8s_id);
+        if (node?.socket && node.terminalId) {
+          node.socket.send(
+            buildJSONEnvelope(ENVELOPE_TERMINAL_CLOSE, {
+              terminalId: node.terminalId,
+            })
+          );
+        }
         treeStore.removeK8sIdMap(panel.k8s_id);
       });
 
@@ -469,19 +479,27 @@ onMounted(() => {
           terminal,
         });
 
-        const firstSendMessage = {
-          id: node.id,
-          k8s_id: node.k8s_id,
-          namespace: node.namespace || '',
-          pod: node.pod || '',
-          container: node.container || '',
-          type: 'TERMINAL_K8S_INIT',
-          data: JSON.stringify({
+        const requestId = createRequestId('k8s');
+        node.terminalRequestId = requestId;
+        treeStore.setK8sIdMap(node.k8s_id, {
+          ...treeStore.getTerminalByK8sId(node.k8s_id),
+          terminalRequestId: requestId,
+        });
+        const firstSendMessage = buildJSONEnvelope(ENVELOPE_TERMINAL_CREATE, {
+          requestId,
+          params: {
             cols: terminal.cols,
             rows: terminal.rows,
             code: '',
-          }),
-        };
+            type: 'kubernetes',
+            kubernetes: {
+              id: node.k8s_id,
+              namespace: node.namespace || '',
+              pod: node.pod || '',
+              container: node.container || '',
+            },
+          },
+        });
 
         el.addEventListener('mouseleave', () => {
           terminal.blur();
@@ -498,7 +516,7 @@ onMounted(() => {
 
         try {
           // 发送初次连接的数据
-          node.socket.send(JSON.stringify(firstSendMessage));
+          node.socket.send(firstSendMessage);
           updateIcon(connectInfo.value);
         } catch (e: any) {
           throw new Error(e);

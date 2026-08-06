@@ -1,6 +1,7 @@
 package koko
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/sshd"
+	"github.com/jumpserver/koko/pkg/terminalai"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
@@ -37,6 +39,27 @@ func (k *Koko) Stop() {
 func RunForever(confPath string) {
 	config.Setup(confPath)
 	bootstrap()
+	aiResult, err := terminalai.Configure(
+		context.Background(),
+		terminalai.Configuration{
+			RulesFile: config.GetConf().TerminalAIRulesFile,
+		},
+	)
+	if err != nil {
+		_, _ = terminalai.Configure(
+			context.Background(),
+			terminalai.Configuration{},
+		)
+		logger.Errorf(
+			"Load Terminal AI business rules failed; using built-in rules: %s",
+			err,
+		)
+	} else if aiResult.RuleCount > 0 {
+		logger.Infof(
+			"Loaded %d Terminal AI business rules",
+			aiResult.RuleCount,
+		)
+	}
 	jmsService := MustJMService()
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)

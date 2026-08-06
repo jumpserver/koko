@@ -1,13 +1,10 @@
-FROM jumpserver/koko-base:20260806_110938 AS stage-build
+FROM jumpserver/koko-base:20260806_150630 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 COPY . .
 
 ARG VERSION
 ENV VERSION=$VERSION
-
-WORKDIR /opt/koko/ui
-RUN yarn build
 
 WORKDIR /opt/koko
 RUN make build -s \

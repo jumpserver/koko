@@ -7,10 +7,6 @@ on:
     paths:
       - 'go.mod'
       - 'Dockerfile-base'
-      - 'ui/package.json'
-      - 'package.json'
-      - 'ui/yarn.lock'
-      - 'yarn.lock'
   workflow_dispatch:
     inputs:
       branch:

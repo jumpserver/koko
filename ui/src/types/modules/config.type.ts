@@ -53,6 +53,10 @@ export interface customTreeOption extends TreeOption {
 
   k8s_id?: string;
 
+  terminalId?: number;
+
+  terminalRequestId?: string;
+
   namespace?: string;
 
   pod?: string;
