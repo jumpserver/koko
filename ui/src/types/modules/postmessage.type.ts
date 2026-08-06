@@ -1,4 +1,5 @@
 import type { LUNA_MESSAGE_TYPE } from './message.type';
+import type { ClipboardPolicy } from './clipboard.type';
 
 export interface LunaMessageEvents {
   [LUNA_MESSAGE_TYPE.PING]: {
@@ -117,7 +118,8 @@ export interface ShareUserResponse {
 
 export interface TerminalSessionInfo {
   session: TerminalSession;
-  permission: TerminalPermission;
+  permission?: TerminalPermission;
+  clipboard_policy?: ClipboardPolicy;
   backspaceAsCtrlH: boolean;
   ctrlCAsCtrlZ: boolean;
   themeName: string;

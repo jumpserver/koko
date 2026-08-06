@@ -2,6 +2,8 @@ import type { Router, RouteRecordRaw } from 'vue-router';
 
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { withSiteBase } from '@/utils/config';
+
 import { guard } from '../utils/guard';
 
 const allRoutes: RouteRecordRaw[] = [
@@ -38,7 +40,7 @@ const allRoutes: RouteRecordRaw[] = [
 ];
 
 const router: Router = createRouter({
-  history: createWebHistory('/koko/'),
+  history: createWebHistory(withSiteBase('/koko/')),
   routes: allRoutes,
   scrollBehavior: () => ({ left: 0, top: 0 }),
 });

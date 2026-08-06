@@ -578,6 +578,11 @@ msgstr "%s管理者が接続を終了"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
+msgid "Deployment permission denied"
+msgstr "デプロイ権限が不足しています"
+
+#. lang.T
+#: pkg/proxy/tools.go:31
 msgid "Authentication failed"
 msgstr "認証に失敗しました(ユーザー名またはパスワードエラー)"
 

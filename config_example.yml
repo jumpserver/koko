@@ -65,3 +65,6 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 
 # 是否开启 针对 vscode 的 remote-ssh 远程开发支持 (前置条件: 必须开启 ENABLE_LOCAL_PORT_FORWARD )
 # ENABLE_VSCODE_SUPPORT: false
+
+# KoKo 是否以 privileged 权限运行。为 false 时，Kubernetes 集群连接会提示部署权限不足
+# KOKO_PRIVILEGED: true

@@ -460,7 +460,7 @@ onMounted(() => {
       const el = document.getElementById(node.k8s_id);
 
       if (el) {
-        const { terminal, searchAddon } = createTerminal(el, node.socket, lunaConfig, node);
+        const { terminal, searchAddon } = createTerminal(el, node.socket, lunaConfig, node, t);
 
         searchAddonRef.value = searchAddon;
 
