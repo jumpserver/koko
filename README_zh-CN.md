@@ -94,3 +94,11 @@ $ npm run serve
 make docker
 ```
 构建成功后，生成koko镜像
+
+本地开发测试时，导出与 JumpServer Core 一致的 Bootstrap Token，然后通过 Docker Compose 启动：
+
+```shell
+docker compose up --build
+```
+
+默认连接宿主机的 `http://host.docker.internal:8080`，SSH 端口为 `2222`，HTTP 端口为 `5000`。可通过 `CORE_HOST`、`KOKO_SSH_PORT` 和 `KOKO_HTTP_PORT` 覆盖。
