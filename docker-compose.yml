@@ -9,7 +9,7 @@ services:
     privileged: true
     environment:
       CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
-      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?PleaseChangeMe}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-PleaseChangeMe}
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
       KOKO_PRIVILEGED: ${KOKO_PRIVILEGED:-true}
       HTTPD_PORT: 5050
