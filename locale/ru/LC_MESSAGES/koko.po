@@ -580,3 +580,8 @@ msgstr "Нет соединения (маршрут недоступен)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "Нет соединения (сеть недоступна)"
+
+#. lang.T
+#: pkg/proxy/parser.go
+msgid "File exceeds maximum transfer size: %s"
+msgstr "Размер файла превышает максимальный размер передачи: %s"

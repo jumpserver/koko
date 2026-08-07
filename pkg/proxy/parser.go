@@ -51,8 +51,13 @@ var (
 )
 
 const (
-	zmodemIdleTimeout    = 30 * time.Second
-	zmodemInterruptCtrlC = byte(0x03)
+	zmodemIdleTimeout          = 10 * time.Second
+	zmodemSendHandshakeTimeout = 10 * time.Second
+	zmodemInputDrainTimeout    = 2 * time.Second
+	zmodemPromptRedrawDelay    = 500 * time.Millisecond
+	zmodemMaxTransferSize      = int64(500 * 1024 * 1024)
+	zmodemMaxTransferSizeLabel = "500 MB"
+	zmodemInterruptCtrlC       = byte(0x03)
 )
 
 type Parser struct {
@@ -83,12 +88,16 @@ type Parser struct {
 
 	confirmStatus commandConfirmStatus
 
-	zmodemParser        *zmodem.ZmodemParser
-	zmodemStartBuf      bytes.Buffer
-	enableDownload      bool
-	enableUpload        bool
-	abortedFileTransfer bool
-	currentActiveUser   CurrentActiveUser
+	zmodemParser          *zmodem.ZmodemParser
+	zmodemStartBuf        bytes.Buffer
+	enableDownload        bool
+	enableUpload          bool
+	abortedFileTransfer   bool
+	zmodemRejectMessage   string
+	drainingZmodemInput   bool
+	zmodemInputDrainUntil time.Time
+	zmodemPromptRedraw    chan struct{}
+	currentActiveUser     CurrentActiveUser
 
 	i18nLang string
 
@@ -155,9 +164,17 @@ func (p *Parser) SetUserInputFilter(filter func([]byte) []byte) {
 func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-chan []byte) (userOut, srvOut <-chan []byte) {
 	p.userOutputChan = make(chan []byte, 1)
 	p.srvOutputChan = make(chan []byte, 1)
+	p.zmodemPromptRedraw = make(chan struct{}, 1)
 	logger.Infof("Session %s: Parser start", p.id)
 	go func() {
+		var (
+			promptRedrawTimer  *time.Timer
+			promptRedrawTimerC <-chan time.Time
+		)
 		defer func() {
+			if promptRedrawTimer != nil {
+				promptRedrawTimer.Stop()
+			}
 			// 会话结束，结算命令结果
 			p.sendCommandRecord()
 			if err := p.TerminalParser.Close(); err != nil {
@@ -207,6 +224,28 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 					return
 				case p.srvOutputChan <- b:
 				}
+			case <-p.zmodemPromptRedraw:
+				if promptRedrawTimer == nil {
+					promptRedrawTimer = time.NewTimer(zmodemPromptRedrawDelay)
+				} else {
+					if !promptRedrawTimer.Stop() {
+						select {
+						case <-promptRedrawTimer.C:
+						default:
+						}
+					}
+					promptRedrawTimer.Reset(zmodemPromptRedrawDelay)
+				}
+				promptRedrawTimerC = promptRedrawTimer.C
+				continue
+			case <-promptRedrawTimerC:
+				promptRedrawTimerC = nil
+				select {
+				case <-p.closed:
+					return
+				case p.userOutputChan <- charEnter:
+				}
+				continue
 			case now := <-cmdRecordTicker.C:
 				// 每隔一分钟超时，尝试结算一次命令
 				if now.Sub(lastActiveTime) > time.Minute {
@@ -215,15 +254,23 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				}
 				continue
 			case now := <-zmodemTicker.C:
-				if p.zmodemParser.IsExpired(now, zmodemIdleTimeout) {
+				if p.drainingZmodemInput && !p.zmodemInputDrainUntil.IsZero() && !now.Before(p.zmodemInputDrainUntil) {
+					logger.Infof("Session %s: Zmodem input drain timeout, resume terminal input", p.id)
+					p.finishZmodemInputDrain()
+				}
+				if p.zmodemParser.IsExpired(now, zmodemIdleTimeout) ||
+					p.zmodemParser.IsSendHandshakeExpired(now, zmodemSendHandshakeTimeout) {
 					logger.Warnf("Session %s: Zmodem transfer idle timeout", p.id)
+					// 先用 PTY 中断结束远端 rz/sz，再等待浏览器的 CAN 标记清空已排队的文件块。
+					p.startZmodemInputDrain(now)
 					select {
 					case <-p.closed:
 						return
-					case p.userOutputChan <- zmodem.CancelSequence:
+					case p.userOutputChan <- []byte{zmodemInterruptCtrlC}:
 					}
 					if p.zmodemParser.Abort() {
 						p.abortedFileTransfer = false
+						p.zmodemRejectMessage = ""
 					}
 				}
 				continue
@@ -262,20 +309,33 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
+	if p.drainingZmodemInput {
+		// Ctrl-C 后浏览器会把 CAN 放在发送队列尾部；在此之前到达的内容都是残余文件数据。
+		if bytes.Contains(b, zmodem.AbortSession) {
+			p.finishZmodemInputDrain()
+		}
+		return nil
+	}
+
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		p.zmodemParser.MarkActive()
 		userInterrupt := len(b) == 1 && b[0] == zmodemInterruptCtrlC
 		if bytes.Contains(b, zmodem.AbortSession) || userInterrupt {
 			logger.Infof("Session %s: user abort Zmodem transfer, control key: %t", p.id, userInterrupt)
-			permissionDenied := p.abortedFileTransfer
+			if userInterrupt {
+				p.startZmodemInputDrain(time.Now())
+			}
+			rejected := p.abortedFileTransfer
+			rejectMessage := p.zmodemRejectMessage
 			status := p.zmodemParser.Status()
 			p.abortedFileTransfer = false
+			p.zmodemRejectMessage = ""
 			p.zmodemParser.Abort()
-			if permissionDenied {
-				msg := lang.T("have no permission to upload file")
-				if status == zmodem.ZParserStatusSend {
-					msg = lang.T("have no permission to download file")
+			if rejected {
+				msg := rejectMessage
+				if msg == "" {
+					msg = p.zmodemPermissionDeniedMessage(status)
 				}
 				p.srvOutputChan <- []byte("\r\n")
 				p.srvOutputChan <- []byte(msg)
@@ -284,7 +344,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			if !userInterrupt {
 				return zmodem.CancelSequence
 			}
-			// 同时发送 Ctrl-C 和标准取消序列，兼容 PTY 信号与 rz/sz 协议取消。
+			// rz/sz 会关闭 PTY 的信号处理，仅有 Ctrl-C 不一定退出；追加协议取消序列确保远端结束。
 			cancelSequence := make([]byte, 0, 1+len(zmodem.CancelSequence))
 			cancelSequence = append(cancelSequence, zmodemInterruptCtrlC)
 			cancelSequence = append(cancelSequence, zmodem.CancelSequence...)
@@ -294,9 +354,14 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		switch p.zmodemParser.Status() {
 		case zmodem.ZParserStatusReceive:
 			p.zmodemParser.Parse(b)
-			if p.zmodemParser.IsZFilePacket() && !p.enableUpload {
-				logger.Infof("Send zmodem user skip and srv abort to disable upload")
+			if p.zmodemParser.IsZFilePacket() {
+				rejectMessage := p.zmodemFileRejectMessage(zmodem.ZParserStatusReceive)
+				if rejectMessage == "" {
+					break
+				}
+				logger.Infof("Reject Zmodem upload: %s", rejectMessage)
 				p.abortedFileTransfer = true
+				p.zmodemRejectMessage = rejectMessage
 				// 不记录中断的文件
 				p.zmodemParser.SetAbortMark()
 				p.srvOutputChan <- zmodem.SkipSequence
@@ -310,8 +375,12 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				*/
 
 				logger.Info("Zmodem abort upload file finished")
-				msg := lang.T("have no permission to upload file")
+				msg := p.zmodemRejectMessage
 				p.abortedFileTransfer = false
+				p.zmodemRejectMessage = ""
+				if msg == "" {
+					msg = p.zmodemPermissionDeniedMessage(zmodem.ZParserStatusReceive)
+				}
 				p.srvOutputChan <- zmodem.CancelSequence
 				p.srvOutputChan <- []byte("\r\n")
 				p.srvOutputChan <- []byte(msg)
@@ -319,9 +388,14 @@ func (p *Parser) parseInputState(b []byte) []byte {
 				return charEnter
 			}
 		case zmodem.ZParserStatusSend:
-			if p.zmodemParser.IsZFilePacket() && !p.enableDownload {
-				logger.Infof("Send zmodem srv skip and user abort to disable download")
+			if p.zmodemParser.IsZFilePacket() {
+				rejectMessage := p.zmodemFileRejectMessage(zmodem.ZParserStatusSend)
+				if rejectMessage == "" {
+					break
+				}
+				logger.Infof("Reject Zmodem download: %s", rejectMessage)
 				p.abortedFileTransfer = true
+				p.zmodemRejectMessage = rejectMessage
 				p.userOutputChan <- zmodem.AbortSession
 				// 不记录中断的文件
 				p.zmodemParser.SetAbortMark()
@@ -491,6 +565,46 @@ func (p *Parser) applyTerminalAIGrant(decision CommandACLDecision) {
 	switch decision.Action {
 	case model.ActionWarning, model.ActionNotifyAndWarn:
 		p.setCurrentCmdStatusLevel(model.WarningLevel)
+	}
+}
+
+func (p *Parser) zmodemPermissionDeniedMessage(status string) string {
+	lang := i18n.NewLang(p.i18nLang)
+	if status == zmodem.ZParserStatusSend {
+		return lang.T("have no permission to download file")
+	}
+	return lang.T("have no permission to upload file")
+}
+
+func (p *Parser) zmodemFileRejectMessage(status string) string {
+	if status == zmodem.ZParserStatusSend {
+		if !p.enableDownload {
+			return p.zmodemPermissionDeniedMessage(status)
+		}
+	} else if !p.enableUpload {
+		return p.zmodemPermissionDeniedMessage(status)
+	}
+
+	info := p.zmodemParser.GetCurrentZFileInfo()
+	if info == nil || info.Size() < zmodemMaxTransferSize {
+		return ""
+	}
+	lang := i18n.NewLang(p.i18nLang)
+	return fmt.Sprintf(lang.T("File exceeds maximum transfer size: %s"), zmodemMaxTransferSizeLabel)
+}
+
+func (p *Parser) startZmodemInputDrain(now time.Time) {
+	p.drainingZmodemInput = true
+	p.zmodemInputDrainUntil = now.Add(zmodemInputDrainTimeout)
+}
+
+func (p *Parser) finishZmodemInputDrain() {
+	p.drainingZmodemInput = false
+	p.zmodemInputDrainUntil = time.Time{}
+	// 给远端 rz/sz 留出退出时间，再补回车让 shell 单独重绘提示符。
+	select {
+	case p.zmodemPromptRedraw <- struct{}{}:
+	default:
 	}
 }
 
@@ -668,19 +782,23 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		if p.zmodemParser.Status() == zmodem.ZParserStatusSend {
 			p.zmodemParser.Parse(b)
 		}
+		if p.zmodemParser.ConsumeLastAbort() {
+			b = sanitizeZmodemAbortOutput(b)
+		}
 		if !p.zmodemParser.IsStartSession() && p.abortedFileTransfer {
 			logger.Info("Zmodem abort download file finished")
+			msg := p.zmodemRejectMessage
 			p.abortedFileTransfer = false
+			p.zmodemRejectMessage = ""
 			p.srvOutputChan <- b
-			msg := lang.T("have no permission to download file")
+			if msg == "" {
+				msg = lang.T("have no permission to download file")
+			}
 			p.srvOutputChan <- []byte("\r\n")
 			p.srvOutputChan <- []byte(msg)
 			p.srvOutputChan <- []byte("\r\n")
 			p.userOutputChan <- charEnter
 			return nil
-		}
-		if !p.zmodemParser.IsStartSession() && p.zmodemParser.AbnormalFinish {
-			p.srvOutputChan <- []byte{0x4f, 0x4f}
 		}
 		return b
 	} else {
@@ -697,9 +815,76 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 			return original
 		}
 		b = parseBytes
+		if p.zmodemParser.ConsumeLastAbort() {
+			b = sanitizeZmodemAbortOutput(b)
+			p.consumeTerminalOutput(b)
+			return b
+		}
 	}
 	p.consumeTerminalOutput(b)
 	return original
+}
+
+// sanitizeZmodemAbortOutput removes protocol frames while preserving remote errors and the shell prompt.
+func sanitizeZmodemAbortOutput(b []byte) []byte {
+	const (
+		can = byte(0x18)
+		bs  = byte(0x08)
+	)
+
+	cleaned := make([]byte, 0, len(b))
+	remaining := b
+	for len(remaining) > 0 {
+		index := bytes.Index(remaining, zmodem.HexHeaderPrefix)
+		if index == -1 {
+			cleaned = append(cleaned, remaining...)
+			break
+		}
+
+		prefix := remaining[:index]
+		if bytes.HasSuffix(prefix, []byte("rz\r")) {
+			prefix = prefix[:len(prefix)-len("rz\r")]
+		}
+		cleaned = append(cleaned, prefix...)
+
+		header := remaining[index:]
+		end := bytes.IndexByte(header, 0x8a)
+		if end == -1 {
+			end = bytes.IndexByte(header, '\n')
+		}
+		if end == -1 {
+			break
+		}
+		end++
+		if end < len(header) && header[end] == 0x11 {
+			end++
+		}
+		remaining = header[end:]
+	}
+
+	result := cleaned[:0]
+	for index := 0; index < len(cleaned); {
+		if cleaned[index] != can {
+			result = append(result, cleaned[index])
+			index++
+			continue
+		}
+
+		end := index
+		for end < len(cleaned) && cleaned[end] == can {
+			end++
+		}
+		if end-index < len(zmodem.AbortSession) {
+			result = append(result, cleaned[index:end]...)
+			index = end
+			continue
+		}
+		for end < len(cleaned) && cleaned[end] == bs {
+			end++
+		}
+		index = end
+	}
+	return result
 }
 
 // ParseServerOutput 解析服务器输出

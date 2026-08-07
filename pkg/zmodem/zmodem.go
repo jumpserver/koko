@@ -30,6 +30,8 @@ type ZmodemParser struct {
 	status atomic.Value
 
 	lastActiveUnixNano atomic.Int64
+	sessionStartedNano atomic.Int64
+	sendHandshakeDone  atomic.Bool
 	initialHeaderBuf   []byte
 
 	FileEventCallback func(zinfo *ZFileInfo, status bool)
@@ -44,6 +46,7 @@ type ZmodemParser struct {
 	FireStatusEvent func(event StatusEvent)
 
 	AbnormalFinish bool
+	lastAbort      bool
 }
 
 // rz sz 解析的入口
@@ -119,6 +122,9 @@ func (z *ZmodemParser) startSession(sessionType, status string, remain []byte) {
 	z.abortMark = false
 	z.hasDataTransfer = false
 	z.AbnormalFinish = false
+	z.lastAbort = false
+	z.sessionStartedNano.Store(time.Now().UnixNano())
+	z.sendHandshakeDone.Store(false)
 	z.setStatus(status)
 	z.touch()
 	if z.FireStatusEvent != nil {
@@ -135,6 +141,7 @@ func (z *ZmodemParser) startSession(sessionType, status string, remain []byte) {
 func (z *ZmodemParser) finishSession(session *ZSession, fireStatusEvent bool) {
 	status := z.Status()
 	z.AbnormalFinish = session != nil && session.AbnormalFinish
+	z.lastAbort = session != nil && session.transferStatus == TransferStatusAbort
 	fileInfo := z.currentZFileInfo
 	shouldFireFileEvent := z.FileEventCallback != nil && fileInfo != nil && !z.abortMark
 	transferStatus := session != nil && session.transferStatus != TransferStatusAbort
@@ -145,6 +152,8 @@ func (z *ZmodemParser) finishSession(session *ZSession, fireStatusEvent bool) {
 	z.hasDataTransfer = false
 	z.abortMark = false
 	z.lastActiveUnixNano.Store(0)
+	z.sessionStartedNano.Store(0)
+	z.sendHandshakeDone.Store(false)
 	z.setStatus(ZParserStatusNone)
 	logger.Infof("Zmodem session %s end", status)
 	if fireStatusEvent && z.FireStatusEvent != nil {
@@ -157,6 +166,15 @@ func (z *ZmodemParser) finishSession(session *ZSession, fireStatusEvent bool) {
 	if shouldFireFileEvent {
 		z.FileEventCallback(fileInfo, transferStatus)
 	}
+}
+
+// ConsumeLastAbort reports an aborted session once, so its terminal output can be cleaned up.
+func (z *ZmodemParser) ConsumeLastAbort() bool {
+	z.Lock()
+	defer z.Unlock()
+	aborted := z.lastAbort
+	z.lastAbort = false
+	return aborted
 }
 
 func (z *ZmodemParser) touch() {
@@ -177,6 +195,15 @@ func (z *ZmodemParser) IsExpired(now time.Time, idleTimeout time.Duration) bool 
 	}
 	lastActive := z.lastActiveUnixNano.Load()
 	return lastActive > 0 && now.Sub(time.Unix(0, lastActive)) >= idleTimeout
+}
+
+// IsSendHandshakeExpired prevents repeated ZRQINIT frames from keeping a failed sz session alive forever.
+func (z *ZmodemParser) IsSendHandshakeExpired(now time.Time, timeout time.Duration) bool {
+	if z.Status() != ZParserStatusSend || timeout <= 0 || z.sendHandshakeDone.Load() {
+		return false
+	}
+	started := z.sessionStartedNano.Load()
+	return started > 0 && now.Sub(time.Unix(0, started)) >= timeout
 }
 
 // Abort resets an active session and emits one abort event.
@@ -247,6 +274,9 @@ func (z *ZmodemParser) OnHeader(hd *ZmodemHeader) {
 }
 
 func (z *ZmodemParser) zFileFrameCallback(info *ZFileInfo) {
+	if z.Status() == ZParserStatusSend {
+		z.sendHandshakeDone.Store(true)
+	}
 	z.currentZFileInfo = info
 	logger.Infof("Zmodem parser got filename: %s siz: %d", info.filename, info.size)
 }

@@ -9,16 +9,17 @@ import prettyBytes from 'pretty-bytes';
 import { createDiscreteApi, darkTheme } from 'naive-ui';
 import ZmodemBrowser from 'nora-zmodemjs/src/zmodem_browser';
 
-import { MAX_TRANSFER_SIZE } from '@/utils/config';
+import { formatMessage } from '@/utils';
+import { AsciiCtrlC, MAX_TRANSFER_SIZE } from '@/utils/config';
 import ZmodemUpload from '@/components/ZmodemUpload/index.vue';
+import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
 
-const UPLOAD_CHUNK_SIZE = 1024 * 1024;
-const SOCKET_BUFFER_HIGH_WATERMARK = 4 * 1024 * 1024;
-const SOCKET_BUFFER_LOW_WATERMARK = 1024 * 1024;
+const UPLOAD_CHUNK_SIZE = 64 * 1024;
+const SOCKET_BUFFER_HIGH_WATERMARK = 256 * 1024;
+const SOCKET_BUFFER_LOW_WATERMARK = 64 * 1024;
 const SOCKET_DRAIN_TIMEOUT = 30 * 1000;
 const PEER_RESPONSE_TIMEOUT = 30 * 1000;
 const DRAIN_FALLBACK_TIMEOUT = 10 * 1000;
-const DRAIN_END_GRACE = 3000;
 
 const createAbortError = () => new DOMException('File transfer cancelled', 'AbortError');
 
@@ -29,7 +30,39 @@ type ZmodemSendSession = ZmodemSession & {
   _file_offset: number;
 };
 
+interface ZmodemHeader {
+  _bytes4?: number[];
+}
+
+interface ZmodemHeaderFactory {
+  build: (name: string, ...args: unknown[]) => ZmodemHeader;
+  kokoClobberPatched?: boolean;
+}
+
+/**
+ * nora-zmodemjs 没有暴露 ZFILE 的管理选项，默认值会让部分 lrzsz 在同名文件上一直等待。
+ * 为上传的 ZFILE 设置 ZMCLOB，与命令行 rz 覆盖文件的行为保持一致。
+ */
+const enableUploadOverwrite = () => {
+  const headerFactory = (ZmodemBrowser as unknown as { Header?: ZmodemHeaderFactory }).Header;
+  if (!headerFactory || headerFactory.kokoClobberPatched) {
+    return;
+  }
+
+  const originalBuild = headerFactory.build.bind(headerFactory);
+  headerFactory.build = (name: string, ...args: unknown[]) => {
+    const header = originalBuild(name, ...args);
+    if (name === 'ZFILE' && header._bytes4?.length === 4) {
+      header._bytes4[2] = 0x04;
+    }
+    return header;
+  };
+  headerFactory.kokoClobberPatched = true;
+};
+
 export const useZmodem = () => {
+  enableUploadOverwrite();
+
   const { t } = useI18n();
 
   const fileInfo = ref<File | null>(null);
@@ -77,8 +110,24 @@ export const useZmodem = () => {
     if (drainTimer) {
       clearTimeout(drainTimer);
     }
-    // 后端先广播会话结束，再把 CAN 转给远端；留出短暂窗口吞掉残余协议字节。
-    drainTimer = setTimeout(stopDraining, DRAIN_END_GRACE);
+    drainTimer = setTimeout(stopDraining, DRAIN_FALLBACK_TIMEOUT);
+  };
+
+  const isReadableTerminalText = (octets: number[] | Uint8Array) => {
+    const bytes = octets instanceof Uint8Array ? octets : new Uint8Array(octets);
+    // ZMODEM 的十六进制帧以 ** ZDLE B 开头，即使是 ASCII 也不能作为 shell 输出显示。
+    if (bytes.length >= 4 && bytes[0] === 0x2A && bytes[1] === 0x2A && bytes[2] === 0x18 && bytes[3] === 0x42) {
+      return false;
+    }
+
+    try {
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      const visibleLength = Array.from(text).filter(char => char >= ' ' && char !== '\x7F').length;
+      return (text.includes('\r') || text.includes('\n')) && visibleLength >= 4 && visibleLength / text.length >= 0.6;
+    }
+    catch {
+      return false;
+    }
   };
 
   /**
@@ -128,8 +177,21 @@ export const useZmodem = () => {
     cleanupSession(session ?? undefined);
   };
 
+  const cancelSendSession = (session: ZmodemSession, socket: WebSocket) => {
+    // 先让 Koko 进入残余输入丢弃状态，再用 CAN 标记浏览器发送队列的末尾。
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(
+        formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, String.fromCharCode(AsciiCtrlC)),
+      );
+    }
+    abortSession(session);
+  };
+
   const handleSessionEnd = (session: ZmodemSession, terminal: Terminal) => {
-    terminal.write('\r\n');
+    // 上传完成由 handleUpload 输出 100% 并换行，避免留下 99% 和 100% 两条进度。
+    if (activeTransferSession.value !== session) {
+      terminal.write('\r\n');
+    }
     // close() 会先同步触发 session_end，再 resolve Promise；延后一轮以免把正常完成误判为取消。
     setTimeout(() => {
       if (activeTransferSession.value === session) {
@@ -275,7 +337,11 @@ export const useZmodem = () => {
     );
 
     if (!transfer) {
-      throw new Error('ZMODEM receiver skipped the file');
+      await waitForPeer(session.close(), signal);
+      terminal.write(`\r\n${t('ZmodemUploadSkipped')}\r\n`);
+      message.warning(t('ZmodemUploadSkipped'));
+      cleanupSession(session);
+      return;
     }
 
     let offset = transfer.get_offset();
@@ -327,8 +393,8 @@ export const useZmodem = () => {
       }
     }
 
-    await waitForPeer(session.close(), signal);
     writeUploadProgress(file, file.size, terminal, true);
+    await waitForPeer(session.close(), signal);
     terminal.write('\r\n');
     message.success(`${t('EndFileTransfer')}: ${t('UploadSuccess')} ${file.name}`, {
       duration: 2000,
@@ -403,8 +469,7 @@ export const useZmodem = () => {
         return false;
       },
       onNegativeClick: () => {
-        abortSession(session);
-        terminal.write('\r\n');
+        cancelSendSession(session, socket);
         return true;
       },
       content: () =>
@@ -453,7 +518,12 @@ export const useZmodem = () => {
         });
     });
 
-    session.on('session_end', () => handleSessionEnd(session, terminal));
+    session.on('session_end', () => {
+      if (session.aborted()) {
+        terminal.write(`\r\n${t('ZmodemDownloadFailed')}\r\n`);
+      }
+      handleSessionEnd(session, terminal);
+    });
 
     session.start();
   };
@@ -468,7 +538,11 @@ export const useZmodem = () => {
     const sentry = new ZmodemBrowser.Sentry({
       to_terminal: (octets: number[] | Uint8Array) => {
         if (draining.value) {
-          return;
+          // 不以固定延迟恢复：先丢弃残余二进制块，直到远端返回可读错误或 shell 提示符。
+          if (!isReadableTerminalText(octets)) {
+            return;
+          }
+          stopDraining();
         }
         try {
           if (!sentry.get_confirmed_session()) {
