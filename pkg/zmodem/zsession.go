@@ -172,6 +172,10 @@ func (z *ZFileInfo) Filename() string {
 	return z.filename
 }
 
+func (z *ZFileInfo) Size() int64 {
+	return int64(z.size)
+}
+
 func (z *ZFileInfo) Time() time.Time {
 	return z.parserTime
 }

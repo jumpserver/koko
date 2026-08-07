@@ -36,13 +36,11 @@ import { useTerminalEvents } from './useTerminalEvents';
 import { getXTerminalLineContent } from './helper/index';
 
 /**
- * @description 判断 WebSocket 是否关闭
+ * @description 判断 WebSocket 是否已可发送数据
  * @param {WebSocket} socket
  * @returns {boolean}
  */
-const isSocketClosing = (socket: WebSocket) => {
-  return socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED;
-};
+const isSocketOpen = (socket: WebSocket) => socket.readyState === WebSocket.OPEN;
 
 /**
  * @description 获取终端主题
@@ -71,8 +69,6 @@ export const useTerminalSocket = () => {
   const sessionId = ref('');
   const terminalId = ref('');
   const selectionText = ref('');
-  const zmodemTransferStatus = ref(true);
-
   const lastSendTime = ref(new Date());
   const lastReceiveTime = ref(new Date());
 
@@ -118,7 +114,7 @@ export const useTerminalSocket = () => {
   });
 
   const debouncedResize = useDebounceFn(({ cols, rows }) => {
-    if (!fitAddon || !socketRef.value) return;
+    if (!fitAddon || !socketRef.value || !isSocketOpen(socketRef.value)) return;
 
     fitAddon.fit();
 
@@ -237,23 +233,15 @@ export const useTerminalSocket = () => {
         const actionType = parsedMessageData.data;
 
         switch (actionType) {
-          case ZMODEM_ACTION_TYPE.ZMODEM_START: {
-            zmodemTransferStatus.value = true;
-            break;
-          }
           case ZMODEM_ACTION_TYPE.ZMODEM_END: {
             finishDraining();
-            terminalRef.value!.write('\r\n');
             break;
           }
           case ZMODEM_ACTION_TYPE.ZMODEM_ABORT: {
+            // 服务端超时或远端取消时也要释放 Sentry，否则后续 shell 提示符会一直被会话吞掉。
             abortActiveSession();
             finishDraining();
-            terminalRef.value!.write('\r\n');
             break;
-          }
-          default: {
-            zmodemTransferStatus.value = false;
           }
         }
 
@@ -394,19 +382,16 @@ export const useTerminalSocket = () => {
       return;
     }
 
-    if (zmodemTransferStatus.value) {
-      try {
-        sentry.consume(socketMessage.data);
-      } catch (_e) {
-        if (sentry.get_confirmed_session()) {
-          abortActiveSession();
-          message.error(t('File transfer error, file transfer interrupted'));
-        } else {
-          writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
-        }
+    try {
+      sentry.consume(socketMessage.data);
+    } catch (_e) {
+      if (sentry.get_confirmed_session()) {
+        abortActiveSession();
+        message.error(t('File transfer error, file transfer interrupted'));
       }
-    } else {
-      writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
+      else {
+        writeBufferToTerminal(true, false, terminalRef.value, socketMessage.data);
+      }
     }
   };
 
@@ -424,7 +409,7 @@ export const useTerminalSocket = () => {
       if (pingInterval.value) clearInterval(pingInterval.value);
 
       pingInterval.value = setInterval(() => {
-        if (isSocketClosing(socketRef.value!)) {
+        if (!isSocketOpen(socketRef.value!)) {
           return clearInterval(pingInterval.value!);
         }
 
@@ -502,7 +487,7 @@ export const useTerminalSocket = () => {
         return;
       }
 
-      if (isSocketClosing(socketRef.value!)) {
+      if (!isSocketOpen(socketRef.value!)) {
         return message.error(t('WebSocket connection is closed, please refresh the page'));
       }
 
@@ -568,17 +553,20 @@ export const useTerminalSocket = () => {
     terminalRef.value.onData((data: string) => {
       lastSendTime.value = new Date();
 
-      if (isSocketClosing(socketRef.value!)) {
+      if (!isSocketOpen(socketRef.value!)) {
         return;
       }
 
       const isZmodemInterrupt = isActiveSession() && data.length === 1 && data.charCodeAt(0) === AsciiCtrlC;
       const processedData = isZmodemInterrupt ? data : preprocessInput(data, terminalSettingsStore.getConfig);
       if (isZmodemInterrupt) {
-        // 先停止浏览器端传输，使 CAN 排在已缓冲的文件数据之后，再发送 Ctrl-C。
+        // 先让服务端进入丢弃状态，再让 CAN 标记浏览器发送队列的末尾。
+        socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
         abortActiveSession();
       }
-      socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
+      else {
+        socketRef.value!.send(formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, processedData));
+      }
       lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
     });
     terminalRef.value.onResize(({ cols, rows }) => debouncedResize({ cols, rows }));
@@ -662,11 +650,10 @@ export const useTerminalSocket = () => {
     event.preventDefault();
     event.stopPropagation();
     lastSendTime.value = new Date();
-    // session.abort() 会先把 CAN 追加到 WebSocket 队列尾部，避免残留文件块落入普通 shell。
-    abortActiveSession();
     socketRef.value.send(
       formatMessage('', FORMATTER_MESSAGE_TYPE.TERMINAL_DATA, String.fromCharCode(AsciiCtrlC)),
     );
+    abortActiveSession();
     lunaCommunicator.sendLuna(LUNA_MESSAGE_TYPE.INPUT_ACTIVE, '');
   };
 
