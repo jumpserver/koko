@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { Upload as UploadIcon } from 'lucide-vue-next';
-
 import type { UploadFileInfo } from 'naive-ui';
+
+import { Upload as UploadIcon } from 'lucide-vue-next';
 
 interface Props {
   t: (key: string) => string;
 }
 
-const props = defineProps<Props>();
-const emit = defineEmits(['file-change']);
+defineProps<Props>();
+const emit = defineEmits(['fileChange']);
 
-const handleFileChange = (options: { fileList: UploadFileInfo }) => {
-  emit('file-change', options);
+const handleFileChange = (options: { fileList: UploadFileInfo[] }) => {
+  emit('fileChange', options);
 };
 </script>
 
 <template>
-  <n-upload directory-dnd action="#" :multiple="false" :default-upload="false" @change="handleFileChange">
+  <n-upload action="#" :multiple="false" :max="1" :default-upload="false" @change="handleFileChange">
     <n-upload-dragger>
       <n-flex justify="center" align="center" class="mb-3">
         <UploadIcon :size="48" />
