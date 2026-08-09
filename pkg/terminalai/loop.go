@@ -1,6 +1,10 @@
 package terminalai
 
-import "context"
+import (
+	"context"
+
+	"github.com/jumpserver/koko/pkg/terminalai/provider"
+)
 
 // LoopModel isolates the agent loop from a concrete model provider. The loop
 // owns planning, command policy and execution; providers only produce and
@@ -42,9 +46,14 @@ type ReActRequest struct {
 }
 
 type ModelProviderInfo interface {
-	ProviderInfo() ProviderInfo
+	ProviderInfo() provider.ProviderInfo
 }
 
 type RulePolicyModel interface {
 	SetPolicyInstructions([]string)
+}
+
+type HistoryCompactor interface {
+	ShouldCompactHistory(string) bool
+	CompactHistory(context.Context, string) (string, error)
 }

@@ -3,6 +3,8 @@ package terminalai
 import (
 	"context"
 	"fmt"
+
+	"github.com/jumpserver/koko/pkg/terminalai/provider"
 )
 
 var (
@@ -36,13 +38,23 @@ func (builtInFeature) NewSession(options SessionOptions) (Session, error) {
 	if options.Emit == nil {
 		return nil, fmt.Errorf("terminal AI message emitter is required")
 	}
-	modelClient, err := NewModelClient(options.ModelConfig)
+	config := options.Config
+	journal := newAuditWriter(
+		options.UserID,
+		options.TerminalID,
+		config.MemoryRoot,
+		config.MemorySessions,
+	)
+	config.Provider.Trace = journal
+	modelClient, err := NewModelClient(config)
 	if err != nil {
+		journal.Close()
 		return nil, err
 	}
 	modelClient.SetResponseLanguage(options.Language)
 	observer, err := NewObserver(options.Width, options.Height)
 	if err != nil {
+		journal.Close()
 		return nil, err
 	}
 	runtime := NewRuntime(
@@ -53,6 +65,8 @@ func (builtInFeature) NewSession(options SessionOptions) (Session, error) {
 		options.Emit,
 	)
 	runtime.SetAdapter(ResolveAdapter(options.Context))
+	runtime.SetAuditWriter(journal)
+	runtime.SetModelLimits(config.MaxModelRequests, config.Provider.RequestTimeout)
 	if options.RequireCommandACL {
 		runtime.RequireCommandACL()
 	}
@@ -75,7 +89,7 @@ type builtInSession struct {
 	runtime  *Runtime
 	observer *Observer
 	context  SessionContext
-	info     ProviderInfo
+	info     provider.ProviderInfo
 }
 
 func (s *builtInSession) Handle(message ChatMessage) error {
@@ -129,7 +143,7 @@ func (s *builtInSession) AnnounceCapability() {
 	s.runtime.AnnounceCapability()
 }
 
-func (s *builtInSession) ProviderInfo() ProviderInfo {
+func (s *builtInSession) ProviderInfo() provider.ProviderInfo {
 	return s.info
 }
 

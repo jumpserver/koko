@@ -3,8 +3,59 @@ package terminalai
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestCompactResultsUsesReviewedSummary(t *testing.T) {
+	results := []StepResult{
+		{
+			ID: "execution-1", Status: StepCompleted,
+			Output: strings.Repeat("old output", 512), Summary: "reviewed result",
+		},
+		{
+			ID: "execution-2", Status: StepReviewing, Output: "current output",
+		},
+	}
+
+	compacted := compactResults(results)
+	if compacted[0].Output != "" || compacted[0].Summary != "reviewed result" {
+		t.Fatalf("reviewed result was not compacted: %#v", compacted[0])
+	}
+	if compacted[1].Output != "current output" {
+		t.Fatalf("current result output = %q", compacted[1].Output)
+	}
+	if results[0].Output == "" {
+		t.Fatal("source results were mutated")
+	}
+}
+
+func TestCompactResultsBoundsArchivedSummaries(t *testing.T) {
+	results := make([]StepResult, maxReActRounds)
+	for index := range results {
+		results[index] = StepResult{
+			Status: StepCompleted, Output: "raw output",
+			Summary: strings.Repeat("summary", maxModelArchivedResultOutput),
+		}
+	}
+
+	total := 0
+	for index, result := range compactResults(results) {
+		total += len(result.Output) + len(result.Summary)
+		if result.Summary == "" {
+			t.Fatalf("archived summary %d was discarded", index)
+		}
+		if index < len(results)-1 && result.Output != "" {
+			t.Fatalf("archived output was retained: %q", result.Output)
+		}
+		if index == len(results)-1 && result.Output != "raw output" {
+			t.Fatalf("latest output was compacted: %q", result.Output)
+		}
+	}
+	if total > maxModelResultsOutput {
+		t.Fatalf("compacted results use %d bytes, limit %d", total, maxModelResultsOutput)
+	}
+}
 
 func TestReactPlanKeepsStableTasksAcrossCommandAttempts(t *testing.T) {
 	steps := []Step{

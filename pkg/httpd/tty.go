@@ -427,9 +427,10 @@ func (h *tty) initializeTerminalAI(
 	connectToken := h.ws.ConnectToken
 	session, err := terminalai.NewSession(terminalai.SessionOptions{
 		TerminalID:        client.TerminalId,
+		UserID:            connectToken.User.ID,
 		Width:             connectInfo.Cols,
 		Height:            connectInfo.Rows,
-		ModelConfig:       termConfig,
+		Config:            terminalai.NewConfig(termConfig),
 		Context:           terminalai.NewSessionContext(connectToken),
 		Language:          h.ws.langCode,
 		WritePTY:          client.WriteAgentData,

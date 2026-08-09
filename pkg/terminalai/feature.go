@@ -8,6 +8,7 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/terminalai/provider"
 )
 
 const builtInFeatureName = "builtin"
@@ -25,9 +26,10 @@ type ConfigurationResult struct {
 // SessionOptions contains immutable dependencies for one terminal session.
 type SessionOptions struct {
 	TerminalID        uint32
+	UserID            string
 	Width             int
 	Height            int
-	ModelConfig       model.TerminalConfig
+	Config            Config
 	Context           SessionContext
 	Language          string
 	WritePTY          func([]byte)
@@ -86,7 +88,7 @@ type Session interface {
 	SetSessionID(string)
 	DisableBackground(string)
 	AnnounceCapability()
-	ProviderInfo() ProviderInfo
+	ProviderInfo() provider.ProviderInfo
 	Close()
 }
 

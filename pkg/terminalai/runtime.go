@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/terminalai/provider"
 )
 
 const (
@@ -26,6 +27,11 @@ const (
 	maxStepObjective         = 4 * 1024
 	maxProposalExplanation   = 8 * 1024
 	maxReviewSummary         = 16 * 1024
+	defaultModelRequestLimit = 30
+	defaultModelTimeout      = 5 * time.Minute
+	maxRuntimeHistory        = 1024 * 1024
+	maxHistoryCheckpoints    = 16
+	historyCheckpointPrefix  = "system: conversation checkpoint: "
 )
 
 type pendingApproval struct {
@@ -76,8 +82,10 @@ type Runtime struct {
 	aclReady            chan struct{}
 	aclReadyOnce        sync.Once
 
-	audit        *auditWriter
-	auditPending []auditEvent
+	audit               *auditWriter
+	auditPending        []auditEvent
+	modelRequestLimit   int
+	modelRequestTimeout time.Duration
 }
 
 func NewRuntime(
@@ -92,24 +100,36 @@ func NewRuntime(
 		terminalID: terminalID, model: model, observer: observer,
 		writePTY: writePTY, emit: emit,
 		lifetimeCtx: lifetimeCtx, lifetimeCancel: lifetimeCancel,
-		approvalThreshold: defaultApprovalThreshold,
-		executionMode:     ModeAuto,
-		profileReady:      make(chan struct{}),
-		aclReady:          make(chan struct{}),
+		approvalThreshold:   defaultApprovalThreshold,
+		executionMode:       ModeAuto,
+		modelRequestLimit:   defaultModelRequestLimit,
+		modelRequestTimeout: defaultModelTimeout,
+		profileReady:        make(chan struct{}),
+		aclReady:            make(chan struct{}),
 	}
 }
 
 func (r *Runtime) SetSessionID(sessionID string) {
 	r.mu.Lock()
-	if r.audit == nil {
-		r.audit = newAuditWriter(sessionID, r.terminalID)
-	}
 	writer := r.audit
 	pending := r.auditPending
 	r.auditPending = nil
 	r.mu.Unlock()
+	if writer == nil {
+		return
+	}
+	writer.SetSessionID(sessionID)
 	for _, event := range pending {
 		writer.Write(event.name, event.payload)
+	}
+}
+
+func (r *Runtime) SetModelLimits(requestLimit int, requestTimeout time.Duration) {
+	if requestLimit > 0 {
+		r.modelRequestLimit = requestLimit
+	}
+	if requestTimeout > 0 {
+		r.modelRequestTimeout = requestTimeout
 	}
 }
 
@@ -354,7 +374,7 @@ func (r *Runtime) start(question string) error {
 }
 
 func (r *Runtime) run(ctx context.Context, question string) {
-	ctx = withModelRequestBudget(ctx, maxModelRequests)
+	ctx = provider.WithRequestBudget(ctx, r.modelRequestLimit)
 	defer func() {
 		r.mu.Lock()
 		r.busy = false
@@ -364,6 +384,7 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		r.mu.Unlock()
 		r.emitProgress("", "idle", false)
 	}()
+	r.compactHistory(ctx)
 	r.emitProgress("正在读取当前终端状态…", "tool_running", true)
 	profile := r.currentProfile(ctx)
 	snapshot := r.observer.Snapshot()
@@ -545,8 +566,11 @@ func (r *Runtime) initialDecision(
 			return callErr
 		})
 		if err != nil {
-			var outputErr *ModelOutputError
+			var outputErr *provider.OutputError
 			if repair == 0 && errors.As(err, &outputErr) {
+				r.writeAudit("model_output_repair", map[string]any{
+					"operation": "initial", "error": err.Error(),
+				})
 				correction = err.Error()
 				continue
 			}
@@ -561,6 +585,9 @@ func (r *Runtime) initialDecision(
 		if err == nil {
 			return decision, nil
 		} else if repair == 0 {
+			r.writeAudit("model_output_repair", map[string]any{
+				"operation": "initial", "error": err.Error(),
+			})
 			correction = err.Error()
 			continue
 		}
@@ -586,8 +613,11 @@ func (r *Runtime) nextReActDecision(
 			return callErr
 		})
 		if err != nil {
-			var outputErr *ModelOutputError
+			var outputErr *provider.OutputError
 			if repair == 0 && errors.As(err, &outputErr) {
+				r.writeAudit("model_output_repair", map[string]any{
+					"operation": "react", "error": err.Error(),
+				})
 				correction = err.Error()
 				continue
 			}
@@ -616,6 +646,9 @@ func (r *Runtime) nextReActDecision(
 			return decision, transition, nil
 		}
 		if repair == 0 {
+			r.writeAudit("model_output_repair", map[string]any{
+				"operation": "react", "error": err.Error(),
+			})
 			correction = err.Error()
 			continue
 		}
@@ -656,7 +689,7 @@ func (r *Runtime) finishReAct(
 	r.emitPlan(plan, round, "执行已停止，正在整理结果")
 	r.emitProgress("正在生成执行总结…", "summarizing", true)
 	summary := ""
-	if modelRequestUsage(ctx) < maxModelRequests {
+	if provider.RequestUsage(ctx) < r.modelRequestLimit {
 		err := r.retry(ctx, func(callCtx context.Context) error {
 			var callErr error
 			summary, callErr = r.model.Summarize(
@@ -1147,7 +1180,7 @@ func (r *Runtime) currentProfile(ctx context.Context) AssetProfile {
 func (r *Runtime) retry(ctx context.Context, call func(context.Context) error) error {
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		callCtx, cancel := context.WithTimeout(ctx, modelRequestTimeout)
+		callCtx, cancel := context.WithTimeout(ctx, r.modelRequestTimeout)
 		lastErr = callWithContext(callCtx, func() error { return call(callCtx) })
 		cancel()
 		if lastErr == nil || ctx.Err() != nil {
@@ -1156,7 +1189,12 @@ func (r *Runtime) retry(ctx context.Context, call func(context.Context) error) e
 		if attempt == 2 || !retryableModelError(lastErr) {
 			break
 		}
-		timer := time.NewTimer(time.Duration(2<<attempt) * time.Second)
+		delay := time.Duration(2<<attempt) * time.Second
+		r.writeAudit("provider_retry", map[string]any{
+			"attempt": attempt + 2, "delay": delay.String(),
+			"error": lastErr.Error(),
+		})
+		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -1167,7 +1205,7 @@ func (r *Runtime) retry(ctx context.Context, call func(context.Context) error) e
 	if errors.Is(lastErr, context.DeadlineExceeded) {
 		return fmt.Errorf(
 			"terminal AI model request timed out after %s",
-			modelRequestTimeout,
+			r.modelRequestTimeout,
 		)
 	}
 	return lastErr
@@ -1177,8 +1215,7 @@ func retryableModelError(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
-	var requestErr *ProviderRequestError
-	return errors.As(err, &requestErr) && requestErr.Retryable
+	return provider.IsRetryable(err)
 }
 
 func callWithContext(ctx context.Context, call func() error) error {
@@ -1276,13 +1313,101 @@ func (r *Runtime) appendAssistantHistory(value string) {
 func (r *Runtime) trimHistoryLocked() {
 	total := 0
 	index := len(r.history)
-	for index > 0 && total < maxModelHistory {
+	for index > 0 && total < maxRuntimeHistory {
 		index--
 		total += len(r.history[index])
 	}
 	if index > 0 {
-		r.history = append([]string{"system: older conversation compacted"}, r.history[index:]...)
+		r.history = append(
+			[]string{"system: older conversation archived from runtime context"},
+			r.history[index:]...,
+		)
 	}
+}
+
+func (r *Runtime) compactHistory(ctx context.Context) {
+	compactor, ok := r.model.(HistoryCompactor)
+	if !ok {
+		return
+	}
+	r.mu.Lock()
+	if len(r.history) < 4 {
+		r.mu.Unlock()
+		return
+	}
+	end := len(r.history) - 3
+	start := 0
+	for index := end - 1; index >= 0; index-- {
+		if strings.HasPrefix(r.history[index], historyCheckpointPrefix) {
+			start = index + 1
+			break
+		}
+	}
+	if start >= end {
+		r.mu.Unlock()
+		return
+	}
+	segmentEntries := append([]string(nil), r.history[start:end]...)
+	segment := strings.Join(segmentEntries, "\n")
+	if !compactor.ShouldCompactHistory(segment) {
+		r.mu.Unlock()
+		return
+	}
+	r.mu.Unlock()
+
+	checkpoint := ""
+	err := r.retry(ctx, func(callCtx context.Context) error {
+		var callErr error
+		checkpoint, callErr = compactor.CompactHistory(callCtx, segment)
+		return callErr
+	})
+	modelGenerated := err == nil && strings.TrimSpace(checkpoint) != ""
+	if !modelGenerated {
+		checkpoint = headTailPrompt(segment, 8*1024)
+	}
+	checkpoint = historyCheckpointPrefix + strings.TrimSpace(checkpoint)
+
+	r.mu.Lock()
+	if start <= len(r.history) && end <= len(r.history) &&
+		strings.Join(r.history[start:end], "\n") == segment {
+		updated := make([]string, 0, len(r.history)-(end-start)+1)
+		updated = append(updated, r.history[:start]...)
+		updated = append(updated, checkpoint)
+		updated = append(updated, r.history[end:]...)
+		r.history = limitHistoryCheckpoints(updated)
+	}
+	r.mu.Unlock()
+	payload := map[string]any{
+		"sourceBytes": len(segment), "checkpoint": checkpoint,
+		"modelGenerated": modelGenerated,
+	}
+	if err != nil {
+		payload["error"] = err.Error()
+	}
+	r.writeAudit("history_checkpoint", payload)
+}
+
+func limitHistoryCheckpoints(history []string) []string {
+	count := 0
+	for _, entry := range history {
+		if strings.HasPrefix(entry, historyCheckpointPrefix) {
+			count++
+		}
+	}
+	remove := count - maxHistoryCheckpoints
+	if remove <= 0 {
+		return history
+	}
+	result := make([]string, 0, len(history)-remove+1)
+	result = append(result, "system: older conversation checkpoints archived")
+	for _, entry := range history {
+		if remove > 0 && strings.HasPrefix(entry, historyCheckpointPrefix) {
+			remove--
+			continue
+		}
+		result = append(result, entry)
+	}
+	return result
 }
 
 func (r *Runtime) Interrupt() {
