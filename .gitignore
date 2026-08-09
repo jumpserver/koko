@@ -21,6 +21,8 @@ cmd/kokodir
 build
 build/
 release
+/.cache/libghostty-vt/
+/third_party/libghostty-vt/
 !config_example.yml
 
 .DS_Store

@@ -72,7 +72,7 @@ $ vim config.yml  # 2. 修改配置文件, 编辑其中的地址 和 bootstrap k
 CORE_HOST: http://127.0.0.1:8080
 BOOTSTRAP_TOKEN: PleaseChangeMe<改成和core一样的>
 
-$ go run cmd/koko/koko.go # 3. 运行, 运行需要 go 如果没有，golang.org 下载安装
+$ make run # 3. 运行，首次运行会自动下载预编译的 libghostty-vt
 ```
 
 

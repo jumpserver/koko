@@ -70,7 +70,7 @@ $ vim config.yml  # 2. Modify the configuration file, edit the address and boots
 CORE_HOST: http://127.0.0.1:8080
 BOOTSTRAP_TOKEN: PleaseChangeMe <change to the same as core>
 
-$ go run ./cmd/koko/ # 3. Run, running requires go if not, download and install from go.dev
+$ make run # 3. Run; the prebuilt libghostty-vt is downloaded on first use
 ```
 
 

@@ -103,9 +103,15 @@ clean:
 	-rm -rf $(BUILDDIR)
 	-rm -rf $(UIDIR)/dist/*
 
+.PHONY: libghostty-vt
+libghostty-vt:
+	@./utils/setup-libghostty-vt.sh
+
 .PHONY: run
 run:
-	go run ./cmd/koko/
+	@LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)"; \
+	PKG_CONFIG_PATH="$${LIBGHOSTTY_VT_ROOT}/lib/pkgconfig$${PKG_CONFIG_PATH:+:$${PKG_CONFIG_PATH}}" \
+	CGO_ENABLED=1 go run ./cmd/koko/
 
 .PHONY: run-ui
 run-ui:
