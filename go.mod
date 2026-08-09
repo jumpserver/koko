@@ -33,7 +33,7 @@ require (
 	go.mongodb.org/mongo-driver v1.17.7
 	golang.org/x/crypto v0.52.0
 	golang.org/x/term v0.43.0
-	golang.org/x/text v0.37.0
+	golang.org/x/text v0.39.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	k8s.io/api v0.34.0
 	k8s.io/apimachinery v0.34.0
