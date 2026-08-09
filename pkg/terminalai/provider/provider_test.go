@@ -42,6 +42,20 @@ func TestProviderRoutingAndModelLimits(t *testing.T) {
 	}
 }
 
+func TestDeepSeekURLUsesDeepSeekProvider(t *testing.T) {
+	modelProvider, err := New(Config{
+		Name: NameOpenAI, APIKey: "key", BaseURL: "https://api.deepseek.com/v1",
+		Model: "deepseek-chat",
+	})
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	info := modelProvider.Info()
+	if info.Name != NameDeepSeek || info.EffectiveTransport != "deepseek-chat-completions" {
+		t.Fatalf("provider info = %#v", info)
+	}
+}
+
 func TestOpenAIReplaysPreviousEncryptedReasoning(t *testing.T) {
 	var requests [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 )
@@ -67,6 +68,9 @@ func NormalizeConfig(config Config) Config {
 	}
 	config.Model = strings.TrimSpace(config.Model)
 	config.BaseURL = strings.TrimSpace(config.BaseURL)
+	if isDeepSeekBaseURL(config.BaseURL) {
+		config.Name = NameDeepSeek
+	}
 	config.Proxy = strings.TrimSpace(config.Proxy)
 	config.ToolCallMode = strings.ToLower(strings.TrimSpace(config.ToolCallMode))
 	if config.ToolCallMode == "" {
@@ -100,6 +104,11 @@ func NormalizeConfig(config Config) Config {
 		config.MaxOutputTokens = outputTokens
 	}
 	return config
+}
+
+func isDeepSeekBaseURL(value string) bool {
+	baseURL, err := url.Parse(value)
+	return err == nil && strings.EqualFold(baseURL.Hostname(), "api.deepseek.com")
 }
 
 func ModelLimits(name, model string) (int64, int64) {
