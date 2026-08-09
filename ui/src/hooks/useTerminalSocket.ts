@@ -585,6 +585,10 @@ export const useTerminalSocket = () => {
       }
     });
     terminalRef.value.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.key === 'Enter' && e.isComposing) {
+        return false;
+      }
+
       if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         debouncedSendLunaKey(e.key);
         return false;
