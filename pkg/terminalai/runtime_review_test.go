@@ -56,6 +56,7 @@ func TestCommandACLReviewRequiresUserApproval(t *testing.T) {
 						Command: "review-command", RiskLevel: 1,
 						Execution: ExecutionPTY,
 					},
+					0,
 				)
 				result <- struct {
 					proposal CommandProposal

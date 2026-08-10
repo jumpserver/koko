@@ -365,17 +365,34 @@ func (r *Runtime) start(question string) error {
 	r.trimHistoryLocked()
 	r.wg.Add(1)
 	r.mu.Unlock()
-	r.writeAudit("user_message", map[string]any{"text": question})
+	taskID := runtimeID("task")
+	r.writeAudit("user_message", map[string]any{
+		"taskId": taskID, "text": question,
+	})
 	go func() {
 		defer r.wg.Done()
-		r.run(ctx, question)
+		r.runTask(ctx, taskID, question)
 	}()
 	return nil
 }
 
 func (r *Runtime) run(ctx context.Context, question string) {
+	r.runTask(ctx, runtimeID("task"), question)
+}
+
+func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
+	taskStarted := time.Now()
+	ctx = provider.WithLatencyTaskID(ctx, taskID)
 	ctx = provider.WithRequestBudget(ctx, r.modelRequestLimit)
 	defer func() {
+		outcome := "finished"
+		if ctx.Err() != nil {
+			outcome = "cancelled"
+		}
+		r.writeLatency(taskID, "task_total", taskStarted, map[string]any{
+			"outcome":       outcome,
+			"modelRequests": provider.RequestUsage(ctx),
+		})
 		r.mu.Lock()
 		r.busy = false
 		r.cancel = nil
@@ -384,10 +401,25 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		r.mu.Unlock()
 		r.emitProgress("", "idle", false)
 	}()
+	started := time.Now()
 	r.compactHistory(ctx)
+	r.writeLatency(taskID, "history_compaction", started, nil)
 	r.emitProgress("正在读取当前终端状态…", "tool_running", true)
+	started = time.Now()
 	profile := r.currentProfile(ctx)
+	profileOutcome := "success"
+	if profile.DetectionError != "" {
+		profileOutcome = "error"
+	}
+	r.writeLatency(taskID, "profile_wait", started, map[string]any{
+		"outcome": profileOutcome,
+	})
+	started = time.Now()
 	snapshot := r.observer.Snapshot()
+	r.writeLatency(taskID, "terminal_snapshot", started, map[string]any{
+		"bytes": len(snapshot),
+	})
+	started = time.Now()
 	r.mu.Lock()
 	historyEntries := r.history
 	if len(historyEntries) > 0 {
@@ -404,7 +436,12 @@ func (r *Runtime) run(ctx context.Context, question string) {
 	r.executorMu.RLock()
 	backgroundAvailable := r.backgroundAvailable
 	r.executorMu.RUnlock()
+	r.writeLatency(taskID, "context_assembly", started, map[string]any{
+		"historyBytes": len(history), "profileBytes": len(profile.String()),
+		"snapshotBytes": len(snapshot),
+	})
 	r.emitProgress("正在生成计划和首条命令…", "analyzing", true)
+	started = time.Now()
 	decision, err := r.initialDecision(
 		ctx, InitialRequest{
 			Question: question, History: history,
@@ -413,6 +450,14 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		},
 		adapter,
 	)
+	decisionDurationMs := elapsedMilliseconds(started)
+	decisionFields := map[string]any{
+		"outcome": latencyOutcome(err), "durationMs": decisionDurationMs,
+	}
+	if err == nil {
+		decisionFields["decision"] = decision.Kind
+	}
+	r.writeLatency(taskID, "initial_decision", started, decisionFields)
 	if err != nil {
 		r.emitError(err)
 		return
@@ -453,6 +498,7 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			backgroundAvailable = r.backgroundAvailable
 			r.executorMu.RUnlock()
 			snapshot = r.observer.Snapshot()
+			started = time.Now()
 			next, transition, err = r.nextReActDecision(
 				ctx, ReActRequest{
 					Question: question, PlanSummary: plan.summary,
@@ -463,12 +509,17 @@ func (r *Runtime) run(ctx context.Context, question string) {
 				},
 				plan, adapter,
 			)
+			decisionDurationMs = elapsedMilliseconds(started)
+			r.writeLatency(taskID, "react_decision", started, map[string]any{
+				"round": round, "outcome": latencyOutcome(err),
+				"durationMs": decisionDurationMs,
+			})
 			if err != nil {
 				if ctx.Err() != nil {
 					return
 				}
 				r.emitError(err)
-				r.finishReAct(ctx, question, plan, round, err.Error())
+				r.finishReAct(ctx, taskID, question, plan, round, err.Error())
 				return
 			}
 		}
@@ -482,7 +533,7 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		}
 		if err = plan.beginExecution(transition); err != nil {
 			r.emitError(err)
-			r.finishReAct(ctx, question, plan, round, err.Error())
+			r.finishReAct(ctx, taskID, question, plan, round, err.Error())
 			return
 		}
 		proposal := *next.Proposal
@@ -490,16 +541,22 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		executionID := runtimeID("execution")
 		r.emitObservation(plan, next.Observation)
 		r.emitPlan(plan, round, next.ThoughtSummary)
+		started = time.Now()
 		approvedProposal, err := r.authorize(
 			ctx, planID, executionID, step, index, len(plan.steps), proposal,
+			decisionDurationMs,
 		)
+		r.writeLatency(taskID, "authorization", started, map[string]any{
+			"round": round, "riskLevel": proposal.RiskLevel,
+			"outcome": latencyOutcome(err),
+		})
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
 			plan.rejectExecution(executionID, step.ID, proposal, err.Error())
 			r.emitPlan(plan, round, next.ThoughtSummary)
-			r.finishReAct(ctx, question, plan, round, err.Error())
+			r.finishReAct(ctx, taskID, question, plan, round, err.Error())
 			return
 		}
 		proposal = approvedProposal
@@ -511,6 +568,7 @@ func (r *Runtime) run(ctx context.Context, question string) {
 		r.mu.Lock()
 		r.activeExecution = proposal.Execution
 		r.mu.Unlock()
+		started = time.Now()
 		output, exitCode, err := r.execute(ctx, proposal, func(output string) {
 			r.emitData("data-execution", map[string]any{
 				"planId": planID, "stepId": step.ID,
@@ -519,6 +577,11 @@ func (r *Runtime) run(ctx context.Context, question string) {
 				"command": proposal.Command, "execution": proposal.Execution,
 				"output": output, "outcome": "running",
 			}, "process")
+		})
+		executionDurationMs := elapsedMilliseconds(started)
+		r.writeLatency(taskID, "command_execution", started, map[string]any{
+			"round": round, "execution": proposal.Execution,
+			"outcome": latencyOutcome(err), "durationMs": executionDurationMs,
 		})
 		r.mu.Lock()
 		r.activeExecution = ""
@@ -537,7 +600,7 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			executionID, step.ID, proposal, output, exitCode, executionErr,
 		); recordErr != nil {
 			r.emitError(recordErr)
-			r.finishReAct(ctx, question, plan, round, recordErr.Error())
+			r.finishReAct(ctx, taskID, question, plan, round, recordErr.Error())
 			return
 		}
 		r.emitData("data-execution", map[string]any{
@@ -546,11 +609,12 @@ func (r *Runtime) run(ctx context.Context, question string) {
 			"step":        index + 1, "total": len(plan.steps),
 			"command": proposal.Command, "execution": proposal.Execution,
 			"output": output, "outputTruncated": outputIsTruncated(output),
-			"exitCode": exitCode, "outcome": "reviewing",
+			"durationMs": executionDurationMs,
+			"exitCode":   exitCode, "outcome": "reviewing",
 		}, "process")
 		r.emitPlan(plan, round, next.ThoughtSummary)
 	}
-	r.finishReAct(ctx, question, plan, maxReActRounds, "达到 20 轮 ReAct 上限")
+	r.finishReAct(ctx, taskID, question, plan, maxReActRounds, "达到 20 轮 ReAct 上限")
 }
 
 func (r *Runtime) initialDecision(
@@ -676,6 +740,7 @@ func (r *Runtime) prepareProposal(
 
 func (r *Runtime) finishReAct(
 	ctx context.Context,
+	taskID string,
 	question string,
 	plan *reactPlan,
 	round int,
@@ -689,6 +754,8 @@ func (r *Runtime) finishReAct(
 	r.emitPlan(plan, round, "执行已停止，正在整理结果")
 	r.emitProgress("正在生成执行总结…", "summarizing", true)
 	summary := ""
+	started := time.Now()
+	source := "local"
 	if provider.RequestUsage(ctx) < r.modelRequestLimit {
 		err := r.retry(ctx, func(callCtx context.Context) error {
 			var callErr error
@@ -699,10 +766,15 @@ func (r *Runtime) finishReAct(
 		})
 		if err != nil || len(summary) == 0 || len(summary) > maxDecisionText {
 			summary = localReActSummary(plan, reason)
+		} else {
+			source = "model"
 		}
 	} else {
 		summary = localReActSummary(plan, reason)
 	}
+	r.writeLatency(taskID, "summary_generation", started, map[string]any{
+		"round": round, "source": source,
+	})
 	r.emitText(summary, "final")
 	r.appendAssistantHistory(summary)
 }
@@ -777,6 +849,7 @@ func (r *Runtime) authorize(
 	step Step,
 	index, total int,
 	proposal CommandProposal,
+	decisionDurationMs float64,
 ) (CommandProposal, error) {
 	r.mu.Lock()
 	aclRequired := r.aclRequired
@@ -837,6 +910,7 @@ func (r *Runtime) authorize(
 		"step":        index + 1, "total": total, "command": proposal.Command,
 		"rationale": proposal.Rationale, "riskLevel": proposal.RiskLevel,
 		"riskReason": proposal.RiskReason, "execution": proposal.Execution,
+		"decisionDurationMs":     decisionDurationMs,
 		"executionReason":        proposal.ExecutionCause,
 		"backgroundEligible":     proposal.BackgroundEligible,
 		"policyApprovalRequired": proposal.ApprovalRequired,

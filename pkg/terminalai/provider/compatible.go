@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -241,9 +242,11 @@ func (p *compatibleProvider) completeTool(
 	p.configureChatParams(&params, reasoning)
 	p.traceRequest(request, params, reasoning)
 	var rawResponse *http.Response
+	started := time.Now()
 	response, err := p.client.Chat.Completions.New(
 		ctx, params, option.WithResponseInto(&rawResponse),
 	)
+	p.traceProviderLatency(ctx, request, false, started, rawResponse, err)
 	if err != nil {
 		return CompletionResult{}, p.requestError(err, false)
 	}
@@ -292,9 +295,11 @@ func (p *compatibleProvider) completeChat(
 	p.configureChatParams(&params, reasoning)
 	p.traceRequest(request, params, reasoning)
 	var rawResponse *http.Response
+	started := time.Now()
 	response, err := p.client.Chat.Completions.New(
 		ctx, params, option.WithResponseInto(&rawResponse),
 	)
+	p.traceProviderLatency(ctx, request, false, started, rawResponse, err)
 	if err != nil {
 		return CompletionResult{}, p.requestError(err, false)
 	}
@@ -379,6 +384,38 @@ func (p *compatibleProvider) traceResponse(
 		"operation": request.Operation, "contextTier": request.Tier,
 		"result": result,
 	})
+}
+
+func (p *compatibleProvider) traceProviderLatency(
+	ctx context.Context,
+	request CompletionRequest,
+	responsesAPI bool,
+	started time.Time,
+	response *http.Response,
+	requestErr error,
+) {
+	transport := "chat-completions"
+	if responsesAPI {
+		transport = "responses"
+	}
+	payload := map[string]any{
+		"layer": "provider", "stage": "http_request",
+		"provider": p.config.Name, "model": p.config.Model,
+		"transport": transport, "baseURL": observableBaseURL(p.config.BaseURL),
+		"operation": request.Operation, "contextTier": request.Tier,
+		"outcome": "success",
+	}
+	if taskID := LatencyTaskID(ctx); taskID != "" {
+		payload["taskId"] = taskID
+	}
+	if requestErr != nil {
+		payload["outcome"] = "error"
+	}
+	if response != nil {
+		payload["statusCode"] = response.StatusCode
+		payload["requestId"] = responseRequestID(response)
+	}
+	traceLatency(p.config.Trace, started, payload)
 }
 
 func chatResult(response *openai.ChatCompletion, requestID string) CompletionResult {

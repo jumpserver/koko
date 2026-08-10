@@ -34,6 +34,7 @@ type auditMetrics struct {
 	ProviderFallbacks  int64               `json:"providerFallbacks"`
 	ContextFallbacks   int64               `json:"contextFallbacks"`
 	HistoryCheckpoints int64               `json:"historyCheckpoints"`
+	LatencyEvents      int64               `json:"latencyEvents"`
 	Usage              provider.TokenUsage `json:"usage"`
 }
 
@@ -169,6 +170,27 @@ func (r *Runtime) writeAudit(event string, payload any) {
 	}
 }
 
+func (r *Runtime) writeLatency(
+	taskID, stage string,
+	started time.Time,
+	payload map[string]any,
+) {
+	if payload == nil {
+		payload = make(map[string]any)
+	}
+	payload["layer"] = "runtime"
+	payload["stage"] = stage
+	payload["taskId"] = taskID
+	if _, exists := payload["durationMs"]; !exists {
+		payload["durationMs"] = elapsedMilliseconds(started)
+	}
+	r.writeAudit(provider.TraceLatency, payload)
+}
+
+func elapsedMilliseconds(started time.Time) float64 {
+	return float64(time.Since(started).Microseconds()) / 1000
+}
+
 func (w *auditWriter) Write(event string, payload any) {
 	if w == nil {
 		return
@@ -217,6 +239,8 @@ func (w *auditWriter) updateMetricsLocked(event string, payload any) {
 		w.metrics.ContextFallbacks++
 	case "history_checkpoint":
 		w.metrics.HistoryCheckpoints++
+	case provider.TraceLatency:
+		w.metrics.LatencyEvents++
 	}
 }
 

@@ -153,6 +153,7 @@ func TestReactContinuationMustStayOnSameTask(t *testing.T) {
 
 func TestInitialDecisionExecutesBeforeNextModelTurn(t *testing.T) {
 	events := make([]string, 0, 3)
+	messages := make([]ChatMessage, 0, 8)
 	model := &orderedLoopModel{events: &events}
 	observer, err := NewObserver(80, 24)
 	if err != nil {
@@ -160,7 +161,9 @@ func TestInitialDecisionExecutesBeforeNextModelTurn(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = observer.Close() })
 	runtime := NewRuntime(
-		1, model, observer, func([]byte) {}, func(ChatMessage) {},
+		1, model, observer, func([]byte) {}, func(message ChatMessage) {
+			messages = append(messages, message)
+		},
 	)
 	runtime.SetAdapter(backgroundTestAdapter{})
 	runtime.SetBackgroundExecutor(&orderedExecutor{events: &events}, nil)
@@ -172,6 +175,23 @@ func TestInitialDecisionExecutesBeforeNextModelTurn(t *testing.T) {
 	}
 	if model.nextCalls != 1 {
 		t.Fatalf("next model calls = %d, want 1", model.nextCalls)
+	}
+	durationFound := false
+	decisionDurationFound := false
+	for _, message := range messages {
+		if len(message.Parts) == 1 && message.Parts[0].Type == "data-command" {
+			data, _ := message.Parts[0].Data.(map[string]any)
+			decisionDurationFound = data["decisionDurationMs"] != nil
+		}
+		if len(message.Parts) == 1 && message.Parts[0].Type == "data-execution" {
+			data, _ := message.Parts[0].Data.(map[string]any)
+			if data["outcome"] == "reviewing" {
+				durationFound = data["durationMs"] != nil
+			}
+		}
+	}
+	if !decisionDurationFound || !durationFound {
+		t.Fatal("command decision or execution has no duration")
 	}
 }
 

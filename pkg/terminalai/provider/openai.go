@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -223,9 +224,11 @@ func (p *openAIProvider) completeResponses(
 	})
 
 	var rawResponse *http.Response
+	started := time.Now()
 	response, err := p.client.Responses.New(
 		ctx, params, option.WithResponseInto(&rawResponse),
 	)
+	p.fallback.traceProviderLatency(ctx, request, true, started, rawResponse, err)
 	if err != nil {
 		return CompletionResult{}, p.fallback.requestError(err, true)
 	}

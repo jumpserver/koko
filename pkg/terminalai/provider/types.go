@@ -20,6 +20,8 @@ const (
 	ReasoningOn   = "on"
 )
 
+const TraceLatency = "latency"
+
 type Operation string
 
 const (
@@ -120,8 +122,24 @@ type TraceSink interface {
 	Record(string, any)
 }
 
+type latencyTaskIDKey struct{}
+
+func WithLatencyTaskID(ctx context.Context, taskID string) context.Context {
+	return context.WithValue(ctx, latencyTaskIDKey{}, taskID)
+}
+
+func LatencyTaskID(ctx context.Context) string {
+	taskID, _ := ctx.Value(latencyTaskIDKey{}).(string)
+	return taskID
+}
+
 func trace(sink TraceSink, event string, payload any) {
 	if sink != nil {
 		sink.Record(event, payload)
 	}
+}
+
+func traceLatency(sink TraceSink, started time.Time, payload map[string]any) {
+	payload["durationMs"] = float64(time.Since(started).Microseconds()) / 1000
+	trace(sink, TraceLatency, payload)
 }

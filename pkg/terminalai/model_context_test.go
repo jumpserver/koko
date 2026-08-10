@@ -12,6 +12,17 @@ type contextFallbackProvider struct {
 	compactions []provider.ContextTier
 }
 
+type latencyTrace struct {
+	events []map[string]any
+}
+
+func (t *latencyTrace) Record(event string, payload any) {
+	if event == provider.TraceLatency {
+		values, _ := payload.(map[string]any)
+		t.events = append(t.events, values)
+	}
+}
+
 func (p *contextFallbackProvider) Info() provider.ProviderInfo {
 	return provider.ProviderInfo{}
 }
@@ -35,9 +46,14 @@ func (p *contextFallbackProvider) CompactState(tier provider.ContextTier) {
 
 func TestCompleteFallsBackToCompactContext(t *testing.T) {
 	modelProvider := &contextFallbackProvider{}
-	client := &ModelClient{provider: modelProvider}
+	trace := &latencyTrace{}
+	client := &ModelClient{
+		provider: modelProvider,
+		config:   Config{Provider: provider.Config{Trace: trace}},
+	}
+	ctx := provider.WithLatencyTaskID(context.Background(), "task-1")
 	result, err := client.completeWithFallback(
-		context.Background(),
+		ctx,
 		func(tier provider.ContextTier) provider.CompletionRequest {
 			return provider.CompletionRequest{Tier: tier}
 		},
@@ -53,5 +69,13 @@ func TestCompleteFallsBackToCompactContext(t *testing.T) {
 	if len(modelProvider.compactions) != 1 ||
 		modelProvider.compactions[0] != provider.ContextCompact {
 		t.Fatalf("provider compactions = %v", modelProvider.compactions)
+	}
+	if len(trace.events) != 4 {
+		t.Fatalf("latency events = %d, want 4", len(trace.events))
+	}
+	for _, event := range trace.events {
+		if event["taskId"] != "task-1" || event["durationMs"] == nil {
+			t.Fatalf("latency event = %#v", event)
+		}
 	}
 }

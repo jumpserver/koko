@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jumpserver/koko/pkg/terminalai/provider"
@@ -159,7 +160,11 @@ The proposal must contain one exact UTF-8, single-line terminal input supported 
 	if err != nil {
 		return decision, err
 	}
+	started := time.Now()
 	err = decodeModelJSON(result.Content, &decision)
+	c.recordLatency(ctx, "output_decode", "initial", started, map[string]any{
+		"outcome": latencyOutcome(err),
+	})
 	return decision, err
 }
 
@@ -187,7 +192,11 @@ For execute, proposal must be the object defined by the action schema, never a c
 	if err != nil {
 		return decision, err
 	}
+	started := time.Now()
 	err = decodeModelJSON(result.Content, &decision)
+	c.recordLatency(ctx, "output_decode", "react", started, map[string]any{
+		"outcome": latencyOutcome(err),
+	})
 	return decision, err
 }
 
@@ -236,7 +245,17 @@ func (c *ModelClient) completeWithFallback(
 		if index > 0 {
 			c.provider.CompactState(tier)
 		}
-		result, err = c.provider.Complete(ctx, build(tier))
+		started := time.Now()
+		request := build(tier)
+		c.recordLatency(ctx, "prompt_build", string(request.Operation), started, map[string]any{
+			"contextAttempt": index + 1, "contextTier": tier,
+		})
+		started = time.Now()
+		result, err = c.provider.Complete(ctx, request)
+		c.recordLatency(ctx, "provider_complete", string(request.Operation), started, map[string]any{
+			"contextAttempt": index + 1, "contextTier": tier,
+			"outcome": latencyOutcome(err),
+		})
 		if err == nil {
 			return result, nil
 		}
@@ -252,6 +271,32 @@ func (c *ModelClient) completeWithFallback(
 		}
 	}
 	return result, err
+}
+
+func (c *ModelClient) recordLatency(
+	ctx context.Context,
+	stage, operation string,
+	started time.Time,
+	payload map[string]any,
+) {
+	if c.config.Provider.Trace == nil {
+		return
+	}
+	payload["layer"] = "model"
+	payload["stage"] = stage
+	payload["operation"] = operation
+	payload["durationMs"] = float64(time.Since(started).Microseconds()) / 1000
+	if taskID := provider.LatencyTaskID(ctx); taskID != "" {
+		payload["taskId"] = taskID
+	}
+	c.config.Provider.Trace.Record(provider.TraceLatency, payload)
+}
+
+func latencyOutcome(err error) string {
+	if err != nil {
+		return "error"
+	}
+	return "success"
 }
 
 func (c *ModelClient) initialPrompt(
