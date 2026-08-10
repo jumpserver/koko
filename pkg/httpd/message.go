@@ -59,6 +59,12 @@ const (
 	TerminalShareUserRemove = "TERMINAL_SHARE_USER_REMOVE"
 
 	TerminalSyncUserPreference = "TERMINAL_SYNC_USER_PREFERENCE"
+	TerminalMetricsSubscribe   = "TERMINAL_METRICS_SUBSCRIBE"
+	TerminalMetricsUnsubscribe = "TERMINAL_METRICS_UNSUBSCRIBE"
+	TerminalMetricsUpdate      = "TERMINAL_METRICS_UPDATE"
+	TerminalMetricsStatus      = "TERMINAL_METRICS_STATUS"
+	TerminalLatencyPing        = "TERMINAL_LATENCY_PING"
+	TerminalLatencyPong        = "TERMINAL_LATENCY_PONG"
 
 	TerminalError = "TERMINAL_ERROR"
 

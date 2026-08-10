@@ -41,6 +41,7 @@ type Client struct {
 	SessionInfo  *proxy.SessionInfo
 	inputMu      sync.Mutex
 	inputLocked  bool
+	metrics      clientMetrics
 }
 
 func (c *Client) SetSessionInfo(info *proxy.SessionInfo) {
@@ -145,6 +146,7 @@ func (c *Client) Close() (err error) {
 			c.Agent.Close()
 			c.Agent = nil
 		}
+		c.stopMetrics()
 		c.initPipe()
 	})
 	return err

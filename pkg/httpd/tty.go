@@ -40,6 +40,10 @@ type tty struct {
 	clientsMu  sync.RWMutex
 }
 
+type metricsSubscribeParams struct {
+	IntervalSeconds int `json:"intervalSeconds"`
+}
+
 func (h *tty) Name() string {
 	return TTYName
 }
@@ -518,6 +522,29 @@ func (h *tty) handleTerminalMessage(msg *Message) {
 		logger.Debugf("Ws[%s] receive sync user preference request %s", h.ws.Uuid, msg.Data)
 		go h.syncUserPreference(msg.TerminalId, &preference)
 		return
+	case TerminalMetricsSubscribe:
+		client := h.getClient(msg.TerminalId)
+		if client == nil {
+			return
+		}
+		var params metricsSubscribeParams
+		if msg.Data != "" {
+			_ = json.Unmarshal([]byte(msg.Data), &params)
+		}
+		client.startMetrics(params.IntervalSeconds)
+		return
+	case TerminalMetricsUnsubscribe:
+		if client := h.getClient(msg.TerminalId); client != nil {
+			client.unsubscribeMetrics()
+		}
+		return
+	case TerminalLatencyPing:
+		if h.getClient(msg.TerminalId) != nil {
+			h.ws.SendMessage(&Message{
+				Type: TerminalLatencyPong, TerminalId: msg.TerminalId, Data: msg.Data,
+			})
+		}
+		return
 	case CLOSE:
 		if client := h.removeClient(msg.TerminalId); client != nil {
 			_ = client.Close()
@@ -823,7 +850,9 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 				agent.SetSessionID(info.Session.ID)
 			}
 		}
+		client.configureMetrics(srv.SupportsBackgroundExecution(), srv.CheckBackgroundExecution)
 		srv.OnSSHClient = func(sshClient *srvconn.SSHClient) {
+			client.setMetricsSSHClient(sshClient)
 			setBackgroundExecutor(terminalai.BackgroundConnection{SSHClient: sshClient})
 		}
 		srv.OnDatabaseConnection = func(info proxy.DatabaseConnectionInfo) {
