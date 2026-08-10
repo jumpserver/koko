@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strconv"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -220,12 +219,7 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 	reader := bytes.NewReader(msg.Raw)
 	var readerAt io.ReaderAt = reader
 
-	id, idErr := strconv.Atoi(msg.Id)
-	if idErr != nil {
-		response.Err = idErr.Error()
-		h.ws.SendMessage(response)
-		return
-	}
+	id := msg.Id
 	var err error
 	if request.Merge {
 		err = h.volume.MergeChunk(id, request.Path)

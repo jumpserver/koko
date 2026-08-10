@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -96,10 +97,10 @@ func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVol
 		UserSftp:      userSftp,
 		HomeName:      homeName,
 		basePath:      basePath,
-		chunkFilesMap: make(map[int]*sftp.File),
+		chunkFilesMap: make(map[string]*sftp.File),
 		lock:          new(sync.Mutex),
 		recorder:      recorder,
-		ftpLogMap:     make(map[int]*model.FTPLog),
+		ftpLogMap:     make(map[string]*model.FTPLog),
 	}
 	return uVolume
 }
@@ -110,8 +111,8 @@ type UserVolume struct {
 	HomeName string
 	basePath string
 
-	chunkFilesMap map[int]*sftp.File
-	ftpLogMap     map[int]*model.FTPLog
+	chunkFilesMap map[string]*sftp.File
+	ftpLogMap     map[string]*model.FTPLog
 	lock          *sync.Mutex
 
 	recorder *proxy.FTPFileRecorder
@@ -283,9 +284,10 @@ func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.
 func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, rangeData elfinder.ChunkRange, reader io.Reader) error {
 	var err error
 	var path string
+	key := strconv.Itoa(cid)
 	u.lock.Lock()
-	fd, ok := u.chunkFilesMap[cid]
-	ftpLog := u.ftpLogMap[cid]
+	fd, ok := u.chunkFilesMap[key]
+	ftpLog := u.ftpLogMap[key]
 	u.lock.Unlock()
 	if !ok {
 		switch {
@@ -308,8 +310,8 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 			return err
 		}
 		u.lock.Lock()
-		u.chunkFilesMap[cid] = fd
-		u.ftpLogMap[cid] = ftpLog
+		u.chunkFilesMap[key] = fd
+		u.ftpLogMap[key] = ftpLog
 		u.lock.Unlock()
 	}
 
@@ -329,8 +331,8 @@ func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, 
 	if err != nil {
 		_ = fd.Close()
 		u.lock.Lock()
-		delete(u.chunkFilesMap, cid)
-		delete(u.ftpLogMap, cid)
+		delete(u.chunkFilesMap, key)
+		delete(u.ftpLogMap, key)
 		u.lock.Unlock()
 	}
 	return err
@@ -348,13 +350,14 @@ func (u *UserVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename st
 
 	}
 	logger.Debug("Merge chunk path: ", path)
+	key := strconv.Itoa(cid)
 	u.lock.Lock()
-	if fd, ok := u.chunkFilesMap[cid]; ok {
+	if fd, ok := u.chunkFilesMap[key]; ok {
 		_ = fd.Close()
-		ftpLog := u.ftpLogMap[cid]
-		delete(u.chunkFilesMap, cid)
+		ftpLog := u.ftpLogMap[key]
+		delete(u.chunkFilesMap, key)
 		u.recorder.FinishFTPFile(ftpLog.ID)
-		delete(u.ftpLogMap, cid)
+		delete(u.ftpLogMap, key)
 	}
 	u.lock.Unlock()
 	return u.Info(path)

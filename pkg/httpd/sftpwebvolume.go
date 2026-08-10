@@ -379,7 +379,7 @@ func (u *UserWebVolume) verifyExpectedVersion(path, expectedVersion string, veri
 	return nil
 }
 
-func (u *UserWebVolume) UploadChunk(cid int, path string, offset, dataSize int64, readerAt io.ReaderAt) error {
+func (u *UserWebVolume) UploadChunk(cid string, path string, offset, dataSize int64, readerAt io.ReaderAt) error {
 	logger.Debug("WebVolume upload chunk file path: ", path)
 	var err error
 	u.lock.Lock()
@@ -419,13 +419,13 @@ func (u *UserWebVolume) UploadChunk(cid int, path string, offset, dataSize int64
 	return err
 }
 
-func (u *UserWebVolume) MergeChunk(cid int, path string) error {
+func (u *UserWebVolume) MergeChunk(cid string, path string) error {
 	logger.Debug("WebVolume merge chunk path: ", path)
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	fd, ok := u.chunkFilesMap[cid]
 	if !ok {
-		return fmt.Errorf("chunk file not found %d", cid)
+		return fmt.Errorf("chunk file not found %s", cid)
 	}
 	_ = fd.Close()
 	ftpLog := u.ftpLogMap[cid]
