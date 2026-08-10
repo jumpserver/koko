@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -28,10 +29,17 @@ type DatabaseConnectionInfo struct {
 	Password         string
 	Database         string
 	UseSSL           bool
+	PGSSLMode        string
 	CACert           string
 	ClientCert       string
 	ClientKey        string
 	AllowInvalidCert bool
+	Encrypt          bool
+	DisableEncrypt   bool
+	ClusterMode      bool
+	AuthSource       string
+	ConnectionOpts   string
+	ProxyURL         string
 	DataMaskingRules []model.DataMaskingRule
 }
 
@@ -40,28 +48,71 @@ func (s *Server) notifyDatabaseConnection(localTunnelAddr *net.TCPAddr) {
 		return
 	}
 	protocol := s.connOpts.authInfo.Protocol
-	if _, ok := usqlProtocolAlias[protocol]; !ok {
+	if !isDatabaseProtocol(protocol) {
 		return
 	}
 	asset := s.connOpts.authInfo.Asset
 	host := asset.Address
 	port := asset.ProtocolPort(protocol)
-	if localTunnelAddr != nil {
+	proxyURL := ""
+	if localTunnelAddr != nil && protocol == srvconn.ProtocolMongoDB {
+		proxyURL = fmt.Sprintf("http://%s", localTunnelAddr.String())
+	} else if localTunnelAddr != nil {
 		host = "127.0.0.1"
 		port = localTunnelAddr.Port
 	}
+	username := s.account.Username
+	var (
+		encrypt        bool
+		disableEncrypt bool
+		clusterMode    bool
+		authSource     string
+		connectionOpts string
+	)
+	if platformProtocol, ok := s.connOpts.authInfo.Platform.GetProtocolSetting(protocol); ok {
+		setting := platformProtocol.GetSetting()
+		encrypt = protocol == srvconn.ProtocolSQLServer && setting.Encrypt
+		disableEncrypt = protocol == srvconn.ProtocolSQLServer && !setting.Encrypt
+		clusterMode = setting.EnableClusterMode
+		authSource = setting.AuthSource
+		connectionOpts = setting.ConnectionOpts
+		if protocol == srvconn.ProtocolRedis {
+			if raw, exists := platformProtocol.Setting["enable_cluster_mode"]; exists {
+				clusterMode = parseBoolValue(raw)
+			}
+			if s.account.IsNull() || !setting.AuthUsername {
+				username = ""
+			}
+		}
+	}
 	info := DatabaseConnectionInfo{
 		Protocol: protocol, Host: host, Port: port, ServerName: asset.Address,
-		Username: s.account.Username, Password: s.account.Secret,
+		Username: username, Password: s.account.Secret,
 		Database: asset.SpecInfo.DBName,
-		UseSSL:   asset.SpecInfo.UseSSL, CACert: asset.SecretInfo.CaCert,
+		UseSSL:   asset.SpecInfo.UseSSL, PGSSLMode: asset.SpecInfo.PgSSLMode,
+		CACert:     asset.SecretInfo.CaCert,
 		ClientCert: asset.SecretInfo.ClientCert, ClientKey: asset.SecretInfo.ClientKey,
 		AllowInvalidCert: asset.SpecInfo.AllowInvalidCert,
+		Encrypt:          encrypt, DisableEncrypt: disableEncrypt,
+		ClusterMode: clusterMode,
+		AuthSource:  authSource, ConnectionOpts: connectionOpts, ProxyURL: proxyURL,
 		DataMaskingRules: append(
 			[]model.DataMaskingRule(nil), s.connOpts.authInfo.DataMaskingRules...,
 		),
 	}
 	go s.OnDatabaseConnection(info)
+}
+
+func isDatabaseProtocol(protocol string) bool {
+	switch protocol {
+	case srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
+		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolClickHouse, srvconn.ProtocolOracle:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQLConn, err error) {

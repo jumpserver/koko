@@ -140,22 +140,10 @@ func init() {
 				return &terminalAdapter{context: context}
 			},
 		},
-		{
-			Protocol: srvconn.ProtocolMySQL,
-			NewAdapter: func(context SessionContext) Adapter {
-				return &mysqlAdapter{context: context}
-			},
-			NewBackgroundExecutor: func(
-				ctx context.Context,
-				connection BackgroundConnection,
-			) (BackgroundExecutor, ProfileProvider, error) {
-				if connection.Database == nil {
-					return nil, nil, fmt.Errorf("MySQL background connection is unavailable")
-				}
-				executor, err := NewMySQLExecutor(ctx, *connection.Database)
-				return executor, nil, err
-			},
-		},
+		newSQLRegistration(
+			srvconn.ProtocolMySQL,
+			"single MySQL statement; do not use client meta-commands",
+		),
 		newSQLRegistration(
 			srvconn.ProtocolMariadb,
 			"single MariaDB SQL statement; do not use client meta-commands",
@@ -176,14 +164,8 @@ func init() {
 			srvconn.ProtocolClickHouse,
 			"single ClickHouse SQL statement; do not use client meta-commands",
 		),
-		newTerminalRegistration(
-			srvconn.ProtocolRedis,
-			"single Redis command supported by the active Redis terminal",
-		),
-		newTerminalRegistration(
-			srvconn.ProtocolMongoDB,
-			"single MongoDB shell expression supported by the active terminal",
-		),
+		newRedisRegistration(),
+		newMongoDBRegistration(),
 	}
 	for _, registration := range registrations {
 		if err := RegisterProtocol(registration); err != nil {
@@ -196,22 +178,58 @@ func newSQLRegistration(protocol, language string) ProtocolRegistration {
 	return ProtocolRegistration{
 		Protocol: protocol,
 		NewAdapter: func(context SessionContext) Adapter {
-			return &terminalAdapter{
-				context: context, name: protocol, platformFamily: protocol,
-				commandLanguage: language, sql: true,
+			return &sqlAdapter{
+				context: context, name: protocol, commandLanguage: language,
 			}
 		},
+		NewBackgroundExecutor: databaseBackgroundExecutor,
 	}
 }
 
-func newTerminalRegistration(protocol, language string) ProtocolRegistration {
+func newRedisRegistration() ProtocolRegistration {
 	return ProtocolRegistration{
-		Protocol: protocol,
+		Protocol: srvconn.ProtocolRedis,
 		NewAdapter: func(context SessionContext) Adapter {
-			return &terminalAdapter{
-				context: context, name: protocol, platformFamily: protocol,
-				commandLanguage: language,
-			}
+			return &redisAdapter{context: context}
 		},
+		NewBackgroundExecutor: databaseBackgroundExecutor,
 	}
+}
+
+func newMongoDBRegistration() ProtocolRegistration {
+	return ProtocolRegistration{
+		Protocol: srvconn.ProtocolMongoDB,
+		NewAdapter: func(context SessionContext) Adapter {
+			return &mongoDBAdapter{context: context}
+		},
+		NewBackgroundExecutor: databaseBackgroundExecutor,
+	}
+}
+
+func databaseBackgroundExecutor(
+	ctx context.Context,
+	connection BackgroundConnection,
+) (BackgroundExecutor, ProfileProvider, error) {
+	if connection.Database == nil {
+		return nil, nil, fmt.Errorf("database background connection is unavailable")
+	}
+	config := *connection.Database
+	var (
+		executor BackgroundExecutor
+		err      error
+	)
+	switch config.Protocol {
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb:
+		executor, err = NewMySQLExecutor(ctx, config)
+	case srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse:
+		executor, err = NewNativeSQLExecutor(ctx, config)
+	case srvconn.ProtocolRedis:
+		executor, err = NewRedisExecutor(ctx, config)
+	case srvconn.ProtocolMongoDB:
+		executor, err = NewMongoDBExecutor(ctx, config)
+	default:
+		err = fmt.Errorf("unsupported database background protocol %s", config.Protocol)
+	}
+	return executor, nil, err
 }

@@ -361,25 +361,27 @@ func (a *shellAdapter) PrepareProposal(proposal *CommandProposal) error {
 	return nil
 }
 
-type mysqlAdapter struct {
-	context SessionContext
+type sqlAdapter struct {
+	context         SessionContext
+	name            string
+	commandLanguage string
 }
 
-func (a *mysqlAdapter) Name() string {
-	return "mysql"
+func (a *sqlAdapter) Name() string {
+	return a.name
 }
 
-func (a *mysqlAdapter) Profile() AssetProfile {
-	profile := newAdapterProfile(a.Name(), "single MySQL statement", a.context)
-	profile.PlatformFamily = "mysql"
+func (a *sqlAdapter) Profile() AssetProfile {
+	profile := newAdapterProfile(a.Name(), a.commandLanguage, a.context)
+	profile.PlatformFamily = a.name
 	return profile
 }
 
-func (a *mysqlAdapter) SupportsBackground() bool {
+func (a *sqlAdapter) SupportsBackground() bool {
 	return true
 }
 
-func (a *mysqlAdapter) PrepareProposal(proposal *CommandProposal) error {
+func (a *sqlAdapter) PrepareProposal(proposal *CommandProposal) error {
 	analysis, err := analyzeSQL(proposal.Command)
 	if err != nil {
 		return err
@@ -406,6 +408,110 @@ func (a *mysqlAdapter) PrepareProposal(proposal *CommandProposal) error {
 		proposal.ExecutionCause = analysis.PTYReason()
 	}
 	return nil
+}
+
+type redisAdapter struct {
+	context SessionContext
+}
+
+func (a *redisAdapter) Name() string {
+	return "redis"
+}
+
+func (a *redisAdapter) Profile() AssetProfile {
+	profile := newAdapterProfile(
+		a.Name(), "single Redis command", a.context,
+	)
+	profile.PlatformFamily = a.Name()
+	return profile
+}
+
+func (a *redisAdapter) SupportsBackground() bool {
+	return true
+}
+
+func (a *redisAdapter) PrepareProposal(proposal *CommandProposal) error {
+	arguments, err := parseRedisCommand(proposal.Command)
+	if err != nil {
+		return err
+	}
+	proposal.RiskLevel, proposal.RiskReason = normalizeRisk(
+		proposal.RiskLevel, proposal.RiskReason,
+	)
+	classifyRedisProposal(arguments, proposal)
+	proposal.BackgroundEligible = redisBackgroundEligible(arguments)
+	if proposal.Execution == ExecutionBackground && !proposal.BackgroundEligible {
+		proposal.Execution = ExecutionPTY
+		proposal.ExecutionCause = "session-oriented or blocking Redis commands require the active PTY"
+	}
+	return nil
+}
+
+type mongoDBAdapter struct {
+	context SessionContext
+}
+
+func (a *mongoDBAdapter) Name() string {
+	return "mongodb"
+}
+
+func (a *mongoDBAdapter) Profile() AssetProfile {
+	profile := newAdapterProfile(
+		a.Name(),
+		"single MongoDB shell expression; use db.runCommand with one strict Extended JSON object for background execution",
+		a.context,
+	)
+	profile.PlatformFamily = a.Name()
+	return profile
+}
+
+func (a *mongoDBAdapter) SupportsBackground() bool {
+	return true
+}
+
+func (a *mongoDBAdapter) PrepareProposal(proposal *CommandProposal) error {
+	proposal.RiskLevel, proposal.RiskReason = normalizeRisk(
+		proposal.RiskLevel, proposal.RiskReason,
+	)
+	document, err := parseMongoDBCommand(proposal.Command)
+	proposal.BackgroundEligible = err == nil && mongoDBBackgroundEligible(document)
+	if err == nil {
+		classifyMongoDBProposal(document, proposal)
+	}
+	if proposal.Execution == ExecutionBackground && !proposal.BackgroundEligible {
+		proposal.Execution = ExecutionPTY
+		proposal.ExecutionCause = "MongoDB background execution requires a finite, session-independent db.runCommand with strict Extended JSON"
+	}
+	return nil
+}
+
+func classifyRedisProposal(arguments []string, proposal *CommandProposal) {
+	command := strings.ToUpper(arguments[0])
+	switch command {
+	case "GET", "MGET", "EXISTS", "TTL", "PTTL", "TYPE", "STRLEN",
+		"GETRANGE", "KEYS", "SCAN", "HGET", "HGETALL", "HMGET", "HLEN",
+		"HKEYS", "HVALS", "HEXISTS", "HRANDFIELD", "LLEN", "LRANGE",
+		"LINDEX", "SCARD", "SMEMBERS", "SISMEMBER", "SMISMEMBER",
+		"SRANDMEMBER", "ZCARD", "ZCOUNT", "ZLEXCOUNT", "ZRANGE",
+		"ZRANGEBYSCORE", "ZRANK", "ZREVRANGE", "ZREVRANK", "ZSCORE",
+		"ZMSCORE", "GEODIST", "GEOHASH", "GEOPOS", "GEOSEARCH", "PFCOUNT",
+		"BITCOUNT", "BITPOS", "DBSIZE", "INFO", "LASTSAVE", "TIME", "ROLE",
+		"COMMAND":
+		return
+	case "FLUSHALL", "FLUSHDB", "SHUTDOWN", "CONFIG", "ACL", "MODULE",
+		"DEBUG", "REPLICAOF", "SLAVEOF", "FAILOVER", "MIGRATE", "RESTORE",
+		"SWAPDB", "SCRIPT", "FUNCTION", "CLIENT":
+		proposal.RiskLevel, proposal.RiskReason = raiseRisk(
+			proposal.RiskLevel, proposal.RiskReason, 4,
+			"backend rule detected a destructive or administrative Redis command",
+		)
+	default:
+		proposal.RiskLevel, proposal.RiskReason = raiseRisk(
+			proposal.RiskLevel, proposal.RiskReason, 2,
+			"backend rule detected a potentially data-changing Redis command",
+		)
+	}
+	proposal.ApprovalRequired = true
 }
 
 func newAdapterProfile(name, commandLanguage string, context SessionContext) AssetProfile {

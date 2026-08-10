@@ -66,10 +66,17 @@ type DatabaseConfig struct {
 	Password         string
 	Database         string
 	UseSSL           bool
+	PGSSLMode        string
 	CACert           string
 	ClientCert       string
 	ClientKey        string
 	AllowInvalidCert bool
+	Encrypt          bool
+	DisableEncrypt   bool
+	ClusterMode      bool
+	AuthSource       string
+	ConnectionOpts   string
+	ProxyURL         string
 	DataMaskingRules []model.DataMaskingRule
 }
 
