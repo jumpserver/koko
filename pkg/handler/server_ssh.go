@@ -28,6 +28,7 @@ import (
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshcert"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -299,7 +300,7 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return
 	}
-	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
+	connectToken, err := sshcert.GetConnectTokenInfo(s.jmsService, tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
 		utils.IgnoreErrWriteString(sess, err.Error())
@@ -309,6 +310,7 @@ func (s *Server) proxyDirectRequest(sess ssh.Session, user *model.User, asset mo
 }
 
 func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken) {
+	defer tokenInfo.ClearSSHCertificateCredential()
 	ctxId, ok := sess.Context().Value(ctxID).(string)
 	if !ok {
 		logger.Error("Not found ctxID")
@@ -337,7 +339,12 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 		}
 	}
 	if sshClient == nil {
-		sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
+		sshAuthOpts, err2 := buildSSHClientOptions(&asset, &account, gateways)
+		if err2 != nil {
+			logger.Errorf("Build SSH client options failed: %s", err2)
+			utils.IgnoreErrWriteString(sess, err2.Error())
+			return
+		}
 		// add Reuse ssh client
 		sshClient, err1 = srvconn.NewSSHClient(sshAuthOpts...)
 		if err1 != nil {
@@ -349,6 +356,9 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 			srvconn.AddClientCache(reusedKey, sshClient)
 		}
 	}
+	// Authentication has completed (or an existing client was reused), so the
+	// ephemeral private key is no longer needed for this connection.
+	tokenInfo.ClearSSHCertificateCredential()
 	//defer sshClient.Close()
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
@@ -664,7 +674,7 @@ func (s *Server) proxyVscodeShell(sess ssh.Session, vsReq *vscodeReq, sshClient 
 }
 
 func buildSSHClientOptions(asset *model.Asset, account *model.Account,
-	gateways []model.Gateway) []srvconn.SSHClientOption {
+	gateways []model.Gateway) ([]srvconn.SSHClientOption, error) {
 	timeout := config.GlobalConfig.SSHTimeout
 	sshAuthOpts := make([]srvconn.SSHClientOption, 0, 7)
 	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientUsername(account.Username))
@@ -677,6 +687,12 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 		} else {
 			logger.Errorf("Parse account %s private key failed: %s", account.Username, err1)
 		}
+	} else if account.IsSSHCertificate() {
+		signer, err := sshcert.NewSigner(account.GetBaseAccount())
+		if err != nil {
+			return nil, err
+		}
+		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 	} else {
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(account.Secret))
 	}
@@ -702,7 +718,7 @@ func buildSSHClientOptions(asset *model.Asset, account *model.Account,
 		}
 		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientProxyClient(proxyArgs...))
 	}
-	return sshAuthOpts
+	return sshAuthOpts, nil
 }
 
 func (s *Server) getMatchedAssetsByDirectReq(user *model.User, req *auth.DirectLoginAssetReq) ([]model.PermAsset, error) {
@@ -801,7 +817,7 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return nil, err
 	}
-	connectToken, err := s.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
+	connectToken, err := sshcert.GetConnectTokenInfo(s.jmsService, tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create super connect token err: %s", err)
 		return nil, err
@@ -810,13 +826,17 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 }
 
 func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClient, error) {
+	defer tokenInfo.ClearSSHCertificateCredential()
 	asset := tokenInfo.Asset
 	account := tokenInfo.Account
 	var gateways []model.Gateway
 	if tokenInfo.Gateway != nil {
 		gateways = []model.Gateway{*tokenInfo.Gateway}
 	}
-	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
+	sshAuthOpts, err := buildSSHClientOptions(&asset, &account, gateways)
+	if err != nil {
+		return nil, err
+	}
 	// add reuse ssh client
 	enableReused := config.GetConf().ReuseConnection
 	reusedKey := GenerateSSHTokenResueKey(tokenInfo)

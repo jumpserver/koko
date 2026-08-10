@@ -16,6 +16,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshcert"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -255,12 +256,13 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 		}
 	}
 
-	connectToken, err := u.h.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
+	connectToken, err := sshcert.GetConnectTokenInfo(u.h.jmsService, tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("connect token err: %s", err)
 		utils.IgnoreErrWriteString(u.h.term, lang.T("get connect token err"))
 		return
 	}
+	defer connectToken.ClearSSHCertificateCredential()
 	proxyOpts := make([]proxy.ConnectionOption, 0, 10)
 	proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(&connectToken))
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))

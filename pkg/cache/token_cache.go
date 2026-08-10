@@ -87,6 +87,7 @@ func (c *ConnectTokenCache) GC() {
 		}
 	}
 	for _, k := range readyDelete {
+		c.data[k].token.ClearSSHCertificateCredential()
 		delete(c.data, k)
 		logger.Infof("ConnectToken %s is expired, recycled", k)
 	}

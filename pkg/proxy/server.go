@@ -25,6 +25,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshcert"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -607,6 +608,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if s.suFromAccount != nil {
 		loginAccount = s.suFromAccount
 	}
+	if loginAccount.IsSSHCertificate() {
+		defer loginAccount.ClearSSHCertificateCredential()
+	}
 	platform := s.connOpts.authInfo.Platform
 	asset := s.connOpts.authInfo.Asset
 	protocol := s.connOpts.authInfo.Protocol
@@ -623,6 +627,12 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		if signer, err1 := gossh.ParsePrivateKey([]byte(loginAccount.Secret)); err1 == nil {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 		}
+	} else if loginAccount.IsSSHCertificate() {
+		signer, err1 := sshcert.NewSigner(loginAccount)
+		if err1 != nil {
+			return nil, err1
+		}
+		sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPrivateAuth(signer))
 	} else {
 		if !isPlatform(&platform, mfaAuth) {
 			sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPassword(loginAccount.Secret))
@@ -940,6 +950,7 @@ func (s *Server) getCharset() string {
 }
 
 func (s *Server) Proxy() {
+	defer s.connOpts.authInfo.ClearSSHCertificateCredential()
 	if err := s.checkRequiredAuth(); err != nil {
 		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
 		return
