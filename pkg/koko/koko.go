@@ -12,6 +12,7 @@ import (
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/sshd"
 	"github.com/jumpserver/koko/pkg/terminalai"
@@ -21,18 +22,24 @@ import (
 )
 
 type Koko struct {
-	webSrv *httpd.Server
-	sshSrv *sshd.Server
+	webSrv     *httpd.Server
+	sshSrv     *sshd.Server
+	lion       *lion.Runtime
+	appContext context.Context
+	cancel     context.CancelFunc
 }
 
 func (k *Koko) Start() {
 	go k.webSrv.Start()
 	go k.sshSrv.Start()
+	k.lion.Start(k.appContext)
 }
 
 func (k *Koko) Stop() {
-	k.sshSrv.Stop()
 	k.webSrv.Stop()
+	k.sshSrv.Stop()
+	k.cancel()
+	k.lion.Stop()
 	logger.Info("Quit The KoKo")
 }
 
@@ -64,14 +71,19 @@ func RunForever(confPath string) {
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	bootstrapWithJMService(jmsService)
-	webSrv := httpd.NewServer(jmsService)
+	lionRuntime := lion.NewRuntime(jmsService)
+	webSrv := httpd.NewServer(jmsService, lionRuntime)
 	sshSrv := sshd.NewSSHServer(jmsService)
+	appContext, cancel := context.WithCancel(context.Background())
 	app := &Koko{
-		webSrv: webSrv,
-		sshSrv: sshSrv,
+		webSrv:     webSrv,
+		sshSrv:     sshSrv,
+		lion:       lionRuntime,
+		appContext: appContext,
+		cancel:     cancel,
 	}
 	app.Start()
-	runTasks(jmsService)
+	runTasks(jmsService, lionRuntime)
 	<-gracefulStop
 	app.Stop()
 }
@@ -104,14 +116,14 @@ func updateEncryptConfigValue(jmsService *service.JMService) {
 	}
 }
 
-func runTasks(jmsService *service.JMService) {
+func runTasks(jmsService *service.JMService, lionRuntime *lion.Runtime) {
 	if config.GetConf().UploadFailedReplay {
 		go uploadRemainReplay(jmsService)
 	}
 	if config.GetConf().UploadFailedFTPFile {
 		go uploadRemainFTPFile(jmsService)
 	}
-	go keepHeartbeat(jmsService)
+	go keepHeartbeat(jmsService, lionRuntime)
 
 	go RunConnectTokensCheck(jmsService)
 }

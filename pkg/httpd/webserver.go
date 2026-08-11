@@ -22,6 +22,7 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
+	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -103,9 +104,13 @@ var upGrader = websocket.Upgrader{
 	CheckOrigin:     checkOrigin,
 }
 
-func NewServer(jmsService *service.JMService) *Server {
+func NewServer(jmsService *service.JMService, lionRuntimes ...*lion.Runtime) *Server {
+	var lionRuntime *lion.Runtime
+	if len(lionRuntimes) > 0 {
+		lionRuntime = lionRuntimes[0]
+	}
 	srv := &Server{broadCaster: NewBroadcaster(), apiClient: jmsService}
-	eng := createRouter(jmsService, srv)
+	eng := createRouter(jmsService, srv, lionRuntime)
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	srv.Srv = &http.Server{Addr: addr, Handler: eng}

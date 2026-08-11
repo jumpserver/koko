@@ -14,6 +14,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/service"
 
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/session"
@@ -157,20 +158,24 @@ func uploadRemainFTPFile(jmsService *service.JMService) {
 }
 
 // keepHeartbeat 保持心跳
-func keepHeartbeat(jmsService *service.JMService) {
-	KeepWsHeartbeat(jmsService)
+func keepHeartbeat(jmsService *service.JMService, lionRuntime *lion.Runtime) {
+	KeepWsHeartbeat(jmsService, lionRuntime)
 }
 
-func handleTerminalTask(jmsService *service.JMService, tasks []model.TerminalTask) {
+func handleTerminalTask(jmsService *service.JMService, lionRuntime *lion.Runtime, tasks []model.TerminalTask) {
 	for _, task := range tasks {
 		sess, ok := session.GetSessionById(task.Args)
-		if !ok {
-			logger.Infof("Task %s session %s not found", task.ID, task.Args)
+		if ok {
+			logger.Infof("Handle task %s for Koko session %s", task.Name, task.Args)
+			if err := sess.HandleTask(&task); err != nil {
+				logger.Errorf("Handle Koko task %s failed: %s", task.Name, err)
+				continue
+			}
+		} else if handled, err := handleLionTask(lionRuntime, &task); err != nil {
+			logger.Errorf("Handle Lion task %s failed: %s", task.Name, err)
 			continue
-		}
-		logger.Infof("Handle task %s for session %s", task.Name, task.Args)
-		if err := sess.HandleTask(&task); err != nil {
-			logger.Errorf("Handle task %s failed: %s", task.Name, err)
+		} else if !handled {
+			logger.Infof("Task %s session %s not found", task.ID, task.Args)
 			continue
 		}
 		if err := jmsService.FinishTask(task.ID); err != nil {
@@ -182,12 +187,23 @@ func handleTerminalTask(jmsService *service.JMService, tasks []model.TerminalTas
 	}
 }
 
-func KeepWsHeartbeat(jmsService *service.JMService) {
+func handleLionTask(lionRuntime *lion.Runtime, task *model.TerminalTask) (bool, error) {
+	if lionRuntime == nil {
+		return false, nil
+	}
+	return lionRuntime.HandleTask(task)
+}
+
+func KeepWsHeartbeat(jmsService *service.JMService, lionRuntimes ...*lion.Runtime) {
+	var lionRuntime *lion.Runtime
+	if len(lionRuntimes) > 0 {
+		lionRuntime = lionRuntimes[0]
+	}
 	ws, err := jmsService.GetWsClient()
 	if err != nil {
 		logger.Errorf("Start ws client failed: %s", err)
 		time.Sleep(10 * time.Second)
-		go KeepWsHeartbeat(jmsService)
+		go KeepWsHeartbeat(jmsService, lionRuntime)
 		return
 	}
 	logger.Info("Start ws client success")
@@ -215,13 +231,13 @@ func KeepWsHeartbeat(jmsService *service.JMService) {
 				continue
 			}
 			if len(tasks) != 0 {
-				handleTerminalTask(jmsService, tasks)
+				handleTerminalTask(jmsService, lionRuntime, tasks)
 			}
 		}
 	}()
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	if err1 := ws.WriteJSON(GetStatusData()); err1 != nil {
+	if err1 := ws.WriteJSON(GetStatusData(lionRuntime)); err1 != nil {
 		logger.Errorf("Ws client send heartbeat data failed: %s", err1)
 	}
 	for {
@@ -229,10 +245,10 @@ func KeepWsHeartbeat(jmsService *service.JMService) {
 		case <-done:
 			logger.Info("Ws client closed")
 			time.Sleep(10 * time.Second)
-			go KeepWsHeartbeat(jmsService)
+			go KeepWsHeartbeat(jmsService, lionRuntime)
 			return
 		case <-ticker.C:
-			if err1 := ws.WriteJSON(GetStatusData()); err1 != nil {
+			if err1 := ws.WriteJSON(GetStatusData(lionRuntime)); err1 != nil {
 				logger.Errorf("Ws client write stat data failed: %s", err1)
 				continue
 			}
@@ -241,8 +257,12 @@ func KeepWsHeartbeat(jmsService *service.JMService) {
 	}
 }
 
-func GetStatusData() interface{} {
-	ids := session.GetAliveSessionIds()
+func GetStatusData(lionRuntimes ...*lion.Runtime) interface{} {
+	groups := [][]string{session.GetAliveSessionIds()}
+	if len(lionRuntimes) > 0 && lionRuntimes[0] != nil {
+		groups = append(groups, lionRuntimes[0].ActiveSessionIDs())
+	}
+	ids := mergeSessionIDs(groups...)
 	payload := model.HeartbeatData{
 		SessionOnlineIds: ids,
 		CpuUsed:          common.CpuLoad1Usage(),
@@ -254,6 +274,21 @@ func GetStatusData() interface{} {
 		"type":    "status",
 		"payload": payload,
 	}
+}
+
+func mergeSessionIDs(groups ...[]string) []string {
+	seen := make(map[string]struct{})
+	result := make([]string, 0)
+	for _, group := range groups {
+		for _, id := range group {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			result = append(result, id)
+		}
+	}
+	return result
 }
 
 func ValidateRemainReplayFile(path string) error {

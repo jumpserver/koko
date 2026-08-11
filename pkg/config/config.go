@@ -53,6 +53,27 @@ type Config struct {
 	RedisSentinelHosts    string `mapstructure:"REDIS_SENTINEL_HOSTS"`
 	RedisUseSSL           bool   `mapstructure:"REDIS_USE_SSL"`
 
+	GuacdAddrs string `mapstructure:"GUACD_ADDRS"`
+	GuaHost    string `mapstructure:"GUA_HOST"`
+	GuaPort    string `mapstructure:"GUA_PORT"`
+
+	DisableAllCopyPaste       bool `mapstructure:"JUMPSERVER_DISABLE_ALL_COPY_PASTE"`
+	DisableAllUpDownload      bool `mapstructure:"JUMPSERVER_DISABLE_ALL_UPLOAD_DOWNLOAD"`
+	EnableRemoteAppUpDownLoad bool `mapstructure:"JUMPSERVER_REMOTE_APP_UPLOAD_DOWNLOAD_ENABLE"`
+	EnableRemoteAPPCopyPaste  bool `mapstructure:"JUMPSERVER_REMOTE_APP_COPY_PASTE_ENABLE"`
+	CleanDriveScheduleTime    int  `mapstructure:"JUMPSERVER_CLEAN_DRIVE_SCHEDULE_TIME"`
+
+	EnableVideoWorker bool   `mapstructure:"ENABLE_VIDEO_WORKER"`
+	VideoWorkerHost   string `mapstructure:"VIDEO_WORKER_HOST"`
+	IgnoreVerifyCerts bool   `mapstructure:"IGNORE_VERIFY_CERTS"`
+	PandaHost         string `mapstructure:"PANDA_HOST"`
+	EnablePanda       bool   `mapstructure:"ENABLE_PANDA"`
+
+	ReplayMaxSize         int    `mapstructure:"REPLAY_MAX_SIZE"`
+	VncClipboardEncoding  string `mapstructure:"VNC_CLIPBOARD_ENCODING"`
+	DisableKeyboardRecord bool   `mapstructure:"DISABLE_KEYBOARD_RECORD"`
+	DriveScope            string `mapstructure:"LION_DRIVE_SCOPE"`
+
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
 
@@ -88,6 +109,13 @@ type Config struct {
 	ReplayFolderPath  string
 	FTPFileFolderPath string
 	CertsFolderPath   string
+
+	// Lion compatibility paths. RecordPath and FTPFilePath intentionally point
+	// at Koko's existing replay and FTP directories.
+	DrivePath         string
+	RecordPath        string
+	FTPFilePath       string
+	SessionFolderPath string
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -118,7 +146,8 @@ func Setup(configPath string) {
 	loadConfigFromFile(configPath, &conf)
 	conf.EnsureConfigValid()
 	GlobalConfig = &conf
-	log.Printf("%+v\n", GlobalConfig)
+	log.Printf("Config loaded: name=%q bind=%s ssh_port=%s http_port=%s share_room_type=%s\n",
+		conf.Name, conf.BindHost, conf.SSHPort, conf.HTTPPort, conf.ShareRoomType)
 }
 
 func getDefaultConfig() Config {
@@ -127,13 +156,15 @@ func getDefaultConfig() Config {
 	dataFolderPath := filepath.Join(rootPath, "data")
 	replayFolderPath := filepath.Join(dataFolderPath, "replays")
 	ftpFileFolderPath := filepath.Join(dataFolderPath, "ftp_files")
+	driveFolderPath := filepath.Join(dataFolderPath, "drive")
+	sessionFolderPath := filepath.Join(dataFolderPath, "sessions")
 	LogDirPath := filepath.Join(dataFolderPath, "logs")
 	keyFolderPath := filepath.Join(dataFolderPath, "keys")
 	CertsFolderPath := filepath.Join(dataFolderPath, "certs")
 	accessKeyFilePath := filepath.Join(keyFolderPath, ".access_key")
 
-	folders := []string{dataFolderPath, replayFolderPath,
-		keyFolderPath, LogDirPath, CertsFolderPath}
+	folders := []string{dataFolderPath, replayFolderPath, driveFolderPath,
+		sessionFolderPath, keyFolderPath, LogDirPath, CertsFolderPath}
 	for i := range folders {
 		if err := EnsureDirExist(folders[i]); err != nil {
 			log.Fatalf("Create folder failed: %s", err)
@@ -157,22 +188,33 @@ func getDefaultConfig() Config {
 		ReplayFolderPath:   replayFolderPath,
 		FTPFileFolderPath:  ftpFileFolderPath,
 		CertsFolderPath:    CertsFolderPath,
+		DrivePath:          driveFolderPath,
+		RecordPath:         replayFolderPath,
+		FTPFilePath:        ftpFileFolderPath,
+		SessionFolderPath:  sessionFolderPath,
 		LanguageCode:       "en",
 
-		Comment:             "KOKO",
-		UploadFailedReplay:  true,
-		UploadFailedFTPFile: true,
-		ShowHiddenFile:      false,
-		ReuseConnection:     true,
-		AssetLoadPolicy:     "",
-		ZipMaxSize:          "1024M",
-		ZipTmpPath:          "/tmp",
-		ClientAliveInterval: 30,
-		RetryAliveCountMax:  3,
-		ShareRoomType:       "local",
-		RedisHost:           "127.0.0.1",
-		RedisPort:           "6379",
-		RedisPassword:       "",
+		Comment:                "KOKO",
+		UploadFailedReplay:     true,
+		UploadFailedFTPFile:    true,
+		ShowHiddenFile:         false,
+		ReuseConnection:        true,
+		AssetLoadPolicy:        "",
+		ZipMaxSize:             "1024M",
+		ZipTmpPath:             "/tmp",
+		ClientAliveInterval:    30,
+		RetryAliveCountMax:     3,
+		ShareRoomType:          "local",
+		RedisHost:              "127.0.0.1",
+		RedisPort:              "6379",
+		RedisPassword:          "",
+		GuaHost:                "127.0.0.1",
+		GuaPort:                "4822",
+		CleanDriveScheduleTime: 1,
+		PandaHost:              "http://panda:9001",
+		VideoWorkerHost:        "http://video:9000",
+		ReplayMaxSize:          defaultLionReplayMaxSize,
+		DriveScope:             LionDriveScopeUser,
 
 		EnableLocalPortForward:      false,
 		EnableVscodeSupport:         false,

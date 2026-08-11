@@ -29,13 +29,15 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 		for _, cookie := range reqCookies {
 			cookies[cookie.Name] = cookie.Value
 		}
-		user, err = jmsService.CheckUserCookie(cookies)
-		if err == nil {
-			ctx.Set(ContextKeyUser, user)
-			return
-		}
+		if len(cookies) != 0 {
+			user, err = jmsService.CheckUserCookie(cookies)
+			if err == nil {
+				ctx.Set(ContextKeyUser, user)
+				return
+			}
 
-		logger.Errorf("Check user cookie failed: %+v %s", cookies, err.Error())
+			logger.Errorf("Check user cookie failed: %s", err)
+		}
 
 		headers := requestAuthHeaders(ctx.Request)
 		if len(headers) != 0 {
@@ -45,7 +47,7 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 				return
 			}
 
-			logger.Errorf("Check user bearer failed: %+v %s", headers, err.Error())
+			logger.Errorf("Check user bearer failed: %s", err)
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"detail": "authentication failed",
 			})
