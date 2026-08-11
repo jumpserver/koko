@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strconv"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/logger"
@@ -24,6 +23,14 @@ type webSftp struct {
 	stateMu        sync.Mutex
 	started        bool
 	trackSessionID bool
+
+	// 底层 chunkFilesMap/ftpLogMap 使用 int key(历史遗留,且受 elfinder.Volume 接口约束)。
+	// 前端消息 id 是字符串(新 client 用 UUID),这里在 handler 内维护 id->int 映射,
+	// 保证同一次上传的多个分片与最终 merge 命中同一个 key,不同上传之间不冲突。
+	// int 底层与 elfinder 路径的行为保持不变。
+	uploadKeyMu  sync.Mutex
+	uploadKeySeq int
+	uploadKeys   map[string]int
 }
 
 func (h *webSftp) Name() string {
@@ -47,6 +54,29 @@ func (h *webSftp) HandleMessage(msg *Message) {
 func (h *webSftp) CleanUp() {
 	close(h.done)
 	h.volume.Close()
+}
+
+// resolveUploadKey 将前端消息 id(可能是 UUID)映射为一个稳定的 int chunk key。
+// 同一个 msg.Id 多次调用返回同一个 int,保证分片上传与 merge 命中同一底层 chunk。
+func (h *webSftp) resolveUploadKey(msgID string) int {
+	h.uploadKeyMu.Lock()
+	defer h.uploadKeyMu.Unlock()
+	if h.uploadKeys == nil {
+		h.uploadKeys = make(map[string]int)
+	}
+	if key, ok := h.uploadKeys[msgID]; ok {
+		return key
+	}
+	h.uploadKeySeq++
+	h.uploadKeys[msgID] = h.uploadKeySeq
+	return h.uploadKeySeq
+}
+
+// releaseUploadKey 在一次上传结束(merge/单文件完成)后清理映射,避免长连接下累积。
+func (h *webSftp) releaseUploadKey(msgID string) {
+	h.uploadKeyMu.Lock()
+	defer h.uploadKeyMu.Unlock()
+	delete(h.uploadKeys, msgID)
 }
 
 type webSftpRequest struct {
@@ -220,20 +250,18 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 	reader := bytes.NewReader(msg.Raw)
 	var readerAt io.ReaderAt = reader
 
-	id, idErr := strconv.Atoi(msg.Id)
-	if idErr != nil {
-		response.Err = idErr.Error()
-		h.ws.SendMessage(response)
-		return
-	}
 	var err error
 	if request.Merge {
+		id := h.resolveUploadKey(msg.Id)
 		err = h.volume.MergeChunk(id, request.Path)
+		h.releaseUploadKey(msg.Id)
 		response.Data = "ok"
 	} else if request.Chunk {
+		id := h.resolveUploadKey(msg.Id)
 		err = h.volume.UploadChunk(id, request.Path, request.OffSet, int64(reader.Len()), readerAt)
 		response.Data = request.Path
 	} else {
+		// 新建文件/单块上传:不使用 chunk key,直接写入
 		err = h.volume.UploadFile(request.Path, reader, request.Size)
 		response.Data = "ok"
 	}
