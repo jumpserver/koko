@@ -2,6 +2,7 @@ package sshd
 
 import (
 	"context"
+	"errors"
 	"net"
 	"strconv"
 	"time"
@@ -35,16 +36,21 @@ func (s *Server) Start() {
 	logger.Infof("Start SSH server at %s", s.Srv.Addr)
 	ln, err := net.Listen("tcp", s.Srv.Addr)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Errorf("Start SSH server failed: %s", err)
+		return
 	}
 	proxyListener := &proxyproto.Listener{Listener: ln}
-	logger.Fatal(s.Srv.Serve(proxyListener))
+	if err = s.Srv.Serve(proxyListener); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		logger.Errorf("SSH server stopped unexpectedly: %s", err)
+	}
 }
 
 func (s *Server) Stop() {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
-	logger.Fatal(s.Srv.Shutdown(ctx))
+	if err := s.Srv.Shutdown(ctx); err != nil {
+		logger.Errorf("Stop SSH server failed: %s", err)
+	}
 }
 
 func NewSSHServer(jmsService *service.JMService) *Server {

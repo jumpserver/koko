@@ -14,6 +14,7 @@ import (
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -34,7 +35,7 @@ func getStaticFS() http.FileSystem {
 
 }
 
-func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
+func createRouter(jmsService *service.JMService, webSrv *Server, lionRuntime *lion.Runtime) *gin.Engine {
 	if config.GlobalConfig.LogLevel != "DEBUG" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -82,6 +83,9 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
 		})
 		elfinderGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
+	}
+	if lionRuntime != nil {
+		lionRuntime.RegisterRoutes(eng)
 	}
 
 	debugGroup := eng.Group("/debug/pprof")

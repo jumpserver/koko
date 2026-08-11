@@ -65,6 +65,41 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # REDIS_PASSWORD:
 # REDIS_CLUSTERS:
 # REDIS_DB_ROOM:
+# REDIS_SENTINEL_HOSTS:
+# REDIS_SENTINEL_PASSWORD:
+# REDIS_USE_SSL: false
+
+# Lion / Guacamole 配置。Lion 路由默认启用；guacd 不可用不会影响 Koko 启动。
+# 多个 guacd 地址以逗号分隔；设置后优先于 GUA_HOST/GUA_PORT。
+# GUACD_ADDRS:
+# GUA_HOST: 127.0.0.1
+# GUA_PORT: 4822
+
+# 全局禁用 Lion 剪贴板或文件传输。
+# JUMPSERVER_DISABLE_ALL_COPY_PASTE: false
+# JUMPSERVER_DISABLE_ALL_UPLOAD_DOWNLOAD: false
+
+# 远程应用的剪贴板和文件传输开关。
+# JUMPSERVER_REMOTE_APP_COPY_PASTE_ENABLE: false
+# JUMPSERVER_REMOTE_APP_UPLOAD_DOWNLOAD_ENABLE: false
+
+# Lion drive 清理周期（小时）；小于 1 时禁用。
+# JUMPSERVER_CLEAN_DRIVE_SCHEDULE_TIME: 1
+# LION_DRIVE_SCOPE: user
+
+# Lion 分片录像大小上限（字节）及录像输入记录配置。
+# REPLAY_MAX_SIZE: 314572800
+# DISABLE_KEYBOARD_RECORD: false
+
+# VNC 剪贴板编码。
+# VNC_CLIPBOARD_ENCODING:
+
+# 虚拟应用与录像转换服务。
+# ENABLE_PANDA: false
+# PANDA_HOST: http://panda:9001
+# ENABLE_VIDEO_WORKER: false
+# VIDEO_WORKER_HOST: http://video:9000
+# IGNORE_VERIFY_CERTS: false
 
 # 是否开启本地转发 (目前仅对 vscode remote ssh 有效果)
 # ENABLE_LOCAL_PORT_FORWARD: false

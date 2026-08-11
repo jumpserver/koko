@@ -13,6 +13,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
       KOKO_PRIVILEGED: ${KOKO_PRIVILEGED:-true}
       HTTPD_PORT: 5050
+      GUA_HOST: ${GUA_HOST:-guacd}
+      GUA_PORT: ${GUA_PORT:-4822}
+    depends_on:
+      - guacd
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:
@@ -26,3 +30,11 @@ services:
       timeout: 3s
       retries: 10
       start_period: 20s
+
+  guacd:
+    image: jumpserver/guacd:1.5.5-trixie
+    environment:
+      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-debug}
+    restart: always
+    volumes:
+      - ./data:/opt/koko/data:rw
