@@ -10,11 +10,15 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/pkg/sftp"
 )
 
 const transferChunkMaxSize = 2 * 1024 * 1024
+
+// transferKeepBothCommitMu 保证当前进程内所有 WebSocket 会话的后缀选取与最终重命名连续执行。
+var transferKeepBothCommitMu sync.Mutex
 
 type webSftpTransferResponse struct {
 	TransferID     string `json:"transfer_id"`
@@ -59,9 +63,80 @@ func isTransferStageMissing(err error) bool {
 	return errors.As(err, &statusErr) && statusErr.FxCode() == sftp.ErrSSHFxNoSuchFile
 }
 
+// nextTransferTargetPath 在目标路径可用时直接返回原路径，否则按照“名称 (序号).扩展名”的规则
+// 查找第一个可用的同级路径。没有独立扩展名的点文件会保留完整名称，例如“.env”会变为“.env (1)”。
+func nextTransferTargetPath(targetPath string, exists func(string) (bool, error)) (string, error) {
+	available, err := exists(targetPath)
+	if err != nil || !available {
+		return targetPath, err
+	}
+	filename := path.Base(targetPath)
+	extension := path.Ext(filename)
+	if strings.TrimSuffix(filename, extension) == "" {
+		extension = ""
+	}
+	base := strings.TrimSuffix(filename, extension)
+	directory := path.Dir(targetPath)
+	for index := 1; index <= 10000; index++ {
+		candidate := path.Join(directory, fmt.Sprintf("%s (%d)%s", base, index, extension))
+		occupied, statErr := exists(candidate)
+		if statErr != nil {
+			return "", statErr
+		}
+		if !occupied {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("unable to find an available file transfer target")
+}
+
+// transferTargetExists 区分 SFTP 路径不存在与其他 Stat 错误，避免把权限或连接错误误判为路径可用。
+func (u *UserWebVolume) transferTargetExists(targetPath string) (bool, error) {
+	_, err := u.UserSftp.Stat(targetPath)
+	if err == nil {
+		return true, nil
+	}
+	if isTransferStageMissing(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+// commitKeepBothTarget 在当前进程内串行执行候选路径选择和重命名。如果其他进程在 Stat 与 Rename
+// 之间抢占候选路径，则识别该冲突并使用下一个可用后缀重试。
+func commitKeepBothTarget(
+	targetPath string,
+	exists func(string) (bool, error),
+	rename func(string) error,
+) (string, error) {
+	transferKeepBothCommitMu.Lock()
+	defer transferKeepBothCommitMu.Unlock()
+
+	for attempts := 0; attempts < 10000; attempts++ {
+		candidate, err := nextTransferTargetPath(targetPath, exists)
+		if err != nil {
+			return "", err
+		}
+		if err = rename(candidate); err == nil {
+			return candidate, nil
+		}
+		occupied, statErr := exists(candidate)
+		if statErr != nil {
+			return "", statErr
+		}
+		if !occupied {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("unable to commit an available file transfer target")
+}
+
 func (u *UserWebVolume) prepareTransfer(transferID, targetPath string, totalSize int64, conflictPolicy string) (webSftpTransferResponse, error) {
 	if totalSize < 0 {
 		return webSftpTransferResponse{}, fmt.Errorf("invalid file transfer size")
+	}
+	if conflictPolicy != "ask" && conflictPolicy != "overwrite" && conflictPolicy != "skip" && conflictPolicy != "keep_both" {
+		return webSftpTransferResponse{}, fmt.Errorf("invalid file transfer conflict policy")
 	}
 	stagePath, err := transferStagePath(targetPath, transferID)
 	if err != nil {
@@ -81,7 +156,7 @@ func (u *UserWebVolume) prepareTransfer(transferID, targetPath string, totalSize
 		if conflictPolicy == "ask" {
 			return webSftpTransferResponse{TransferID: transferID, TotalBytes: totalSize, State: "conflict"}, nil
 		}
-		if conflictPolicy != "overwrite" {
+		if conflictPolicy != "overwrite" && conflictPolicy != "keep_both" {
 			return webSftpTransferResponse{}, fmt.Errorf("target file already exists")
 		}
 	}
@@ -222,7 +297,14 @@ func (u *UserWebVolume) commitTransfer(transferID, targetPath string, totalSize 
 	if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedSHA256) {
 		return webSftpTransferResponse{}, fmt.Errorf("file transfer checksum mismatch")
 	}
-	if conflictPolicy == "overwrite" {
+	if conflictPolicy == "keep_both" {
+		targetPath, err = commitKeepBothTarget(targetPath, u.transferTargetExists, func(candidate string) error {
+			return u.UserSftp.Rename(stagePath, candidate)
+		})
+		if err != nil {
+			return webSftpTransferResponse{}, err
+		}
+	} else if conflictPolicy == "overwrite" {
 		err = u.UserSftp.PosixRename(stagePath, targetPath)
 	} else {
 		err = u.UserSftp.Rename(stagePath, targetPath)
