@@ -26,7 +26,9 @@ type DomainGateway struct {
 	DstAddr string // 10.0.0.1:3389
 
 	sshClient       *gossh.Client
+	jumpClient      *gossh.Client
 	SelectedGateway *model.Gateway
+	Destination     *model.Gateway
 
 	ln net.Listener
 
@@ -40,10 +42,10 @@ func (d *DomainGateway) run() {
 		if err != nil {
 			break
 		}
-		logger.Infof("Accept new conn by gateway %s ", d.SelectedGateway.Name)
+		logger.Infof("Accept new conn by SSH forwarder %s ", d.Name())
 		go d.handlerConn(con)
 	}
-	logger.Infof("Stop proxy by gateway %s", d.SelectedGateway.Name)
+	logger.Infof("Stop proxy by SSH forwarder %s", d.Name())
 }
 
 func (d *DomainGateway) handlerConn(srcCon net.Conn) {
@@ -82,6 +84,16 @@ func (d *DomainGateway) GetListenAddr() *net.TCPAddr {
 }
 
 func (d *DomainGateway) getAvailableGateway() bool {
+	if d.Destination != nil {
+		sshClient, jumpClient, err := d.createDestinationSSHClient()
+		if err != nil {
+			logger.Errorf("Dial SSH destination %s err: %s", d.Destination.Name, err)
+			return false
+		}
+		d.sshClient = sshClient
+		d.jumpClient = jumpClient
+		return true
+	}
 	if d.SelectedGateway != nil {
 		sshClient, err := d.createGatewaySSHClient(d.SelectedGateway)
 		if err != nil {
@@ -94,7 +106,40 @@ func (d *DomainGateway) getAvailableGateway() bool {
 	}
 	return false
 }
+
+func (d *DomainGateway) createDestinationSSHClient() (*gossh.Client, *gossh.Client, error) {
+	if d.SelectedGateway == nil {
+		client, err := d.createGatewaySSHClient(d.Destination)
+		return client, nil, err
+	}
+	jumpClient, err := d.createGatewaySSHClient(d.SelectedGateway)
+	if err != nil {
+		return nil, nil, err
+	}
+	addr := gatewaySSHAddress(d.Destination)
+	conn, err := jumpClient.Dial("tcp", addr)
+	if err != nil {
+		_ = jumpClient.Close()
+		return nil, nil, err
+	}
+	_ = conn.SetDeadline(time.Now().Add(miniTimeout))
+	clientConn, chans, reqs, err := gossh.NewClientConn(
+		conn, addr, gatewaySSHConfig(d.Destination),
+	)
+	if err != nil {
+		_ = conn.Close()
+		_ = jumpClient.Close()
+		return nil, nil, err
+	}
+	_ = conn.SetDeadline(time.Time{})
+	return gossh.NewClient(clientConn, chans, reqs), jumpClient, nil
+}
+
 func (d *DomainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.Client, error) {
+	return gossh.Dial("tcp", gatewaySSHAddress(gateway), gatewaySSHConfig(gateway))
+}
+
+func gatewaySSHConfig(gateway *model.Gateway) *gossh.ClientConfig {
 	auths := make([]gossh.AuthMethod, 0, 3)
 	loginAccount := gateway.Account
 	if loginAccount.IsSSHKey() {
@@ -110,7 +155,7 @@ func (d *DomainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.C
 			return []string{loginAccount.Secret}, nil
 		}))
 	}
-	sshConfig := gossh.ClientConfig{
+	return &gossh.ClientConfig{
 		User:              loginAccount.Username,
 		Auth:              auths,
 		HostKeyCallback:   NewTrustHostKeyCallback(),
@@ -118,9 +163,21 @@ func (d *DomainGateway) createGatewaySSHClient(gateway *model.Gateway) (*gossh.C
 		Timeout:           miniTimeout,
 		HostKeyAlgorithms: allHostKeyAlgorithms(),
 	}
+}
+
+func gatewaySSHAddress(gateway *model.Gateway) string {
 	port := gateway.Protocols.GetProtocolPort("ssh")
-	addr := net.JoinHostPort(gateway.Address, strconv.Itoa(port))
-	return gossh.Dial("tcp", addr, &sshConfig)
+	return net.JoinHostPort(gateway.Address, strconv.Itoa(port))
+}
+
+func (d *DomainGateway) Name() string {
+	if d.Destination != nil {
+		return d.Destination.Name
+	}
+	if d.SelectedGateway != nil {
+		return d.SelectedGateway.Name
+	}
+	return "unknown"
 }
 func (d *DomainGateway) Stop() {
 	d.closeOnce()
@@ -128,8 +185,15 @@ func (d *DomainGateway) Stop() {
 
 func (d *DomainGateway) closeOnce() {
 	d.once.Do(func() {
-		_ = d.ln.Close()
-		_ = d.sshClient.Close()
+		if d.ln != nil {
+			_ = d.ln.Close()
+		}
+		if d.sshClient != nil {
+			_ = d.sshClient.Close()
+		}
+		if d.jumpClient != nil {
+			_ = d.jumpClient.Close()
+		}
 	})
 }
 
