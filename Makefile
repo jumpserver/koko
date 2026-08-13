@@ -40,7 +40,9 @@ define make_artifact_full
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2)
 endef
 
+.PHONY: build
 build:
+	mkdir -p $(BUILDDIR)
 	GOARCH=$(GOARCH) GOOS=$(GOOS) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME) $(KOKOSRCFILE)
 
 all:
