@@ -98,13 +98,6 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 		_ = ws.WriteMessage(websocket.TextMessage, []byte(errIns.String()))
 		return
 	}
-	userItem, ok := ctx.Get(config.GinCtxUserKey)
-	if !ok {
-		logger.Error("No auth user found")
-		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrAuthUser.String()))
-		return
-	}
-
 	defer func() {
 		if err2 := tunnelSession.ReleaseAppletAccount(); err2 != nil {
 			logger.Errorf("Release account failed: %s", err2)
@@ -119,6 +112,12 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 			}
 		}
 	}()
+	userItem, ok := ctx.Get(config.GinCtxUserKey)
+	if !ok {
+		logger.Error("No auth user found")
+		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrAuthUser.String()))
+		return
+	}
 	user := userItem.(*model.User)
 	if user.ID != tunnelSession.User.ID {
 		logger.Error("No valid auth user found")
@@ -163,12 +162,13 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 	for argName, argValue := range info.ExtraConfig() {
 		conf.SetParameter(argName, argValue)
 	}
-	if tunnelSession.Gateway != nil {
+	if tunnelSession.Gateway != nil || tunnelSession.GatewayTarget != nil {
 		dstAddr := net.JoinHostPort(conf.GetParameter(guacd.Hostname),
 			conf.GetParameter(guacd.Port))
 		domainGateway := gateway.DomainGateway{
 			DstAddr:         dstAddr,
 			SelectedGateway: tunnelSession.Gateway,
+			Destination:     tunnelSession.GatewayTarget,
 		}
 		if err = domainGateway.Start(); err != nil {
 			logger.Errorf("Start domain gateway err: %+v", err)
@@ -185,7 +185,7 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 		localAddr := domainGateway.GetListenAddr()
 		conf.SetParameter(guacd.Hostname, localAddr.IP.String())
 		conf.SetParameter(guacd.Port, strconv.Itoa(localAddr.Port))
-		logger.Infof("Start domain gateway %s listen on %s:%d", domainGateway.SelectedGateway.Name,
+		logger.Infof("Start SSH forwarder %s listen on %s:%d", domainGateway.Name(),
 			localAddr.IP.String(), localAddr.Port)
 	}
 
