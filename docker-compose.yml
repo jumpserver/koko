@@ -36,5 +36,6 @@ services:
     environment:
       GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-debug}
     restart: always
+    user: root
     volumes:
       - ./data:/opt/koko/data:rw
