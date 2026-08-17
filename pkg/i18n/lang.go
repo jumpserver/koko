@@ -1,6 +1,8 @@
 package i18n
 
 import (
+	"strings"
+
 	"github.com/leonelquinteros/gotext"
 )
 
@@ -41,10 +43,25 @@ var i18nCodeMap = map[string]LanguageCode{
 	"es":      Es,
 }
 
+// coreLangCodeMap koko 语言代码到 Core 语言代码的映射，仅列出无法直接转换的部分
+var coreLangCodeMap = map[LanguageCode]string{
+	ZH:     "zh-hans",
+	ZHHant: "zh-hant",
+	PtBr:   "pt-br",
+}
+
 type LanguageCode string
 
 func (l LanguageCode) String() string {
 	return string(l)
+}
+
+// CoreCode 返回 Core API 使用的语言代码
+func (l LanguageCode) CoreCode() string {
+	if code, ok := coreLangCodeMap[l]; ok {
+		return code
+	}
+	return strings.ToLower(string(l))
 }
 
 func (l LanguageCode) T(s string) string {

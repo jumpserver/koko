@@ -26,6 +26,8 @@ import (
 func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService,
 	termConfig model.TerminalConfig) *InteractiveHandler {
 	wrapperSess := NewWrapperSession(sess)
+	i18nLang := getUserDefaultLangCode(user)
+	jmsService = newLangAPIClient(jmsService, i18nLang)
 	publicSetting, err := jmsService.GetPublicSetting()
 	if err != nil {
 		logger.Errorf("Get public setting error: %s", err)
@@ -37,6 +39,7 @@ func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *servi
 		term:         vt,
 		jmsService:   jmsService,
 		terminalConf: &termConfig,
+		i18nLang:     i18nLang,
 
 		publicSetting: &publicSetting,
 	}
@@ -49,6 +52,19 @@ func getUserDefaultLangCode(user *model.User) string {
 		return user.Language
 	}
 	return config.GetConf().LanguageCode
+}
+
+// newLangAPIClient 复制一份会话独占的 API client，避免设置语言时影响其他用户
+func newLangAPIClient(jmsService *service.JMService, langCode string) *service.JMService {
+	apiClient := jmsService.Copy()
+	setAPIClientLang(apiClient, langCode)
+	return apiClient
+}
+
+func setAPIClientLang(jmsService *service.JMService, langCode string) {
+	coreCode := i18n.NewLang(langCode).CoreCode()
+	jmsService.SetHeader("Accept-Language", coreCode)
+	jmsService.SetCookie("django_language", coreCode)
 }
 
 func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, sess ssh.Session, checkChan <-chan bool) {
@@ -108,7 +124,6 @@ func (h *InteractiveHandler) Initial() {
 		go h.keepSessionAlive(time.Duration(conf.ClientAliveInterval) * time.Second)
 	}
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
-	h.i18nLang = getUserDefaultLangCode(h.user)
 	h.displayHelp()
 	hiddenFields := make(map[string]struct{})
 	for i := range conf.HiddenFields {
