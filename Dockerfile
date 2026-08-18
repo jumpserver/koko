@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20260811_151810 AS stage-build
+FROM jumpserver/koko-base:20260818_053739 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 COPY . .
@@ -18,18 +18,21 @@ RUN mkdir /opt/koko/release \
     && mv /opt/koko/utils/init-kubectl.sh /opt/koko/release \
     && chmod 755 /opt/koko/release/entrypoint.sh /opt/koko/release/init-kubectl.sh
 
-FROM debian:trixie
+FROM jumpserver/guacd:1.5.5-trixie
 ARG TARGETARCH
 ENV LANG=en_US.UTF-8
 
 LABEL org.opencontainers.image.source=https://github.com/jumpserver/koko
 LABEL org.opencontainers.image.description="JumpServer Koko"
 
+USER root
 
 ARG DEPENDENCIES="                    \
         bash-completion               \
         less                          \
+        openssl                       \
         redis-tools                   \
+        xz-utils                      \
         ca-certificates"
 
 ARG APT_MIRROR=http://deb.debian.org
@@ -43,6 +46,11 @@ RUN set -ex \
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
 
+RUN --mount=from=stage-build,source=/opt/s6-overlay,target=/tmp/s6-overlay \
+    set -ex \
+    && tar -C / -Jxpf /tmp/s6-overlay/s6-overlay-noarch.tar.xz \
+    && tar -C / -Jxpf /tmp/s6-overlay/s6-overlay-arch.tar.xz
+
 WORKDIR /opt/koko
 
 COPY --from=stage-build /opt/koko/.kubectl_aliases /opt/kubectl-aliases/.kubectl_aliases
@@ -51,15 +59,20 @@ COPY --from=stage-build /opt/koko/lib /usr/local/lib
 COPY --from=stage-build /opt/koko/release .
 COPY --from=stage-build /opt/koko/koko .
 
+COPY s6-overlay/cont-init.d/ /etc/cont-init.d/
+COPY s6-overlay/services.d/ /etc/services.d/
+RUN chmod +x /etc/cont-init.d/10-koko-init \
+    /etc/services.d/koko/run \
+    /etc/services.d/guacd/run \
+    /etc/services.d/guacd/log/run
+
 ARG VERSION
 ENV VERSION=${VERSION}
 
 VOLUME /opt/koko/data
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["/init"]
 
 EXPOSE 2222
 
 STOPSIGNAL SIGQUIT
-
-CMD [ "./koko" ]

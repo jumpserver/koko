@@ -24,6 +24,17 @@ RUN set -ex \
     && chown root:root /opt/koko/bin/* \
     && rm -f *.tar.gz *.tar.bz2
 
+ARG S6_OVERLAY_VERSION=3.2.2.0
+RUN set -ex \
+    && case "${TARGETARCH}" in \
+        amd64) s6_arch="x86_64" ;; \
+        arm64) s6_arch="aarch64" ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && mkdir -p /opt/s6-overlay \
+    && wget -O /opt/s6-overlay/s6-overlay-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
+    && wget -O /opt/s6-overlay/s6-overlay-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${s6_arch}.tar.xz"
+
 WORKDIR /opt/koko
 
 ARG MONGOSH_VERSION=2.3.4
