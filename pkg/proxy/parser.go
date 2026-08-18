@@ -101,6 +101,10 @@ type Parser struct {
 	zmodemOOSeen          int
 	zmodemOOUntil         time.Time
 	zmodemOONotice        string
+	awaitingZmodemSrvOO   bool
+	zmodemSrvOOSeen       int
+	zmodemSrvOOUntil      time.Time
+	zmodemSrvOONotice     string
 	zmodemPromptRedraw    chan struct{}
 	currentActiveUser     CurrentActiveUser
 
@@ -269,6 +273,10 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 					logger.Infof("Session %s: Zmodem OO wait timeout, resume terminal input", p.id)
 					p.finishZmodemOOWait()
 				}
+				if p.awaitingZmodemSrvOO && !p.zmodemSrvOOUntil.IsZero() && !now.Before(p.zmodemSrvOOUntil) {
+					logger.Infof("Session %s: Zmodem server OO wait timeout, resume terminal input", p.id)
+					p.finishZmodemServerOOWait()
+				}
 				if p.drainingZmodemInput && !p.zmodemInputDrainUntil.IsZero() && !now.Before(p.zmodemInputDrainUntil) {
 					logger.Infof("Session %s: Zmodem input drain timeout, resume terminal input", p.id)
 					p.finishZmodemInputDrain()
@@ -319,6 +327,11 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
+	if p.awaitingZmodemSrvOO {
+		// 下载结束阶段客户端回给远端的 ZFIN 必须原样通过，不能当作 shell 命令解析。
+		return b
+	}
+
 	if p.awaitingZmodemOO {
 		b = p.consumeZmodemOO(b)
 		if len(b) == 0 {
@@ -666,6 +679,63 @@ func (p *Parser) consumeZmodemOO(b []byte) []byte {
 	return nil
 }
 
+func (p *Parser) startZmodemServerOOWait(now time.Time, notice string) {
+	p.awaitingZmodemSrvOO = true
+	p.zmodemSrvOOSeen = 0
+	p.zmodemSrvOOUntil = now.Add(zmodemFinishTimeout)
+	p.zmodemSrvOONotice = notice
+}
+
+func (p *Parser) resetZmodemServerOOWait() {
+	p.awaitingZmodemSrvOO = false
+	p.zmodemSrvOOSeen = 0
+	p.zmodemSrvOOUntil = time.Time{}
+	p.zmodemSrvOONotice = ""
+}
+
+func (p *Parser) finishZmodemServerOOWait() {
+	notice := p.zmodemSrvOONotice
+	p.resetZmodemServerOOWait()
+	if notice != "" {
+		p.srvOutputChan <- []byte("\r\n")
+		p.srvOutputChan <- []byte(notice)
+		p.srvOutputChan <- []byte("\r\n")
+	}
+	p.scheduleZmodemPromptRedraw()
+}
+
+func (p *Parser) consumeZmodemServerOO(b []byte) []byte {
+	for index, value := range b {
+		if value == 'O' {
+			p.zmodemSrvOOSeen++
+			if p.zmodemSrvOOSeen == 2 {
+				p.finishZmodemServerOOWait()
+				return b[index+1:]
+			}
+			continue
+		}
+		p.zmodemSrvOOSeen = 0
+	}
+	return nil
+}
+
+func (p *Parser) rejectOversizedZmodemDownloadOffer() bool {
+	if p.zmodemParser.Status() != zmodem.ZParserStatusSend ||
+		!p.zmodemParser.IsZFilePacket() || !p.zmodemFileTooLarge() {
+		return false
+	}
+
+	rejectMessage := p.zmodemOversizedMessage()
+	logger.Infof("Reject oversized Zmodem download offer: %s", rejectMessage)
+	p.abortedFileTransfer = true
+	p.oversizedFileTransfer = true
+	p.zmodemRejectMessage = rejectMessage
+	p.zmodemParser.SetAbortMark()
+	// 不把超限 ZFILE 发给 FinalShell，直接代替客户端向远端发送 ZSKIP。
+	p.userOutputChan <- zmodem.SkipSequence
+	return true
+}
+
 func (p *Parser) startZmodemInputDrain(now time.Time) {
 	p.drainingZmodemInput = true
 	p.zmodemInputDrainUntil = now.Add(zmodemInputDrainTimeout)
@@ -765,11 +835,21 @@ func (p *Parser) parseVimState(b []byte) {
 
 // splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
 func (p *Parser) splitCmdStream(b []byte) []byte {
+	if p.awaitingZmodemSrvOO {
+		b = p.consumeZmodemServerOO(b)
+		if len(b) == 0 {
+			return nil
+		}
+	}
+
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		p.zmodemParser.MarkActive()
 		if p.zmodemParser.Status() == zmodem.ZParserStatusSend {
 			p.zmodemParser.Parse(b)
+			if p.rejectOversizedZmodemDownloadOffer() {
+				return nil
+			}
 		}
 		if p.zmodemParser.ConsumeLastAbort() {
 			b = sanitizeZmodemAbortOutput(b)
@@ -777,12 +857,17 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		if !p.zmodemParser.IsStartSession() && p.abortedFileTransfer {
 			logger.Info("Zmodem abort download file finished")
 			msg := p.zmodemRejectMessage
+			oversized := p.oversizedFileTransfer
 			p.abortedFileTransfer = false
 			p.oversizedFileTransfer = false
 			p.zmodemRejectMessage = ""
 			p.srvOutputChan <- b
 			if msg == "" {
 				msg = lang.T("have no permission to download file")
+			}
+			if oversized {
+				p.startZmodemServerOOWait(time.Now(), msg)
+				return nil
 			}
 			p.srvOutputChan <- []byte("\r\n")
 			p.srvOutputChan <- []byte(msg)
@@ -797,6 +882,9 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 			return b
 		}
 		p.parseZmodemState(b)
+		if p.rejectOversizedZmodemDownloadOffer() {
+			return nil
+		}
 		if p.zmodemParser.ConsumeLastAbort() {
 			return sanitizeZmodemAbortOutput(b)
 		}
