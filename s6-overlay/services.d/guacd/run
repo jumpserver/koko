@@ -1,0 +1,6 @@
+#!/command/with-contenv sh
+
+set -eu
+
+exec 2>&1
+exec /opt/guacamole/sbin/guacd -b 127.0.0.1 -L "${GUACD_LOG_LEVEL:-error}" -f

@@ -1,0 +1,43 @@
+#!/command/with-contenv sh
+
+set -eu
+
+if [ -n "${CORE_HOST:-}" ]; then
+    until check "${CORE_HOST}/api/health/"; do
+        echo "wait for jms_core ${CORE_HOST} ready"
+        sleep 2
+    done
+fi
+
+if [ -n "${TZ:-}" ] && [ -e "/usr/share/zoneinfo/${TZ}" ]; then
+    ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime
+fi
+
+mkdir -p /opt/koko/data/logs/guacd
+
+if [ ! -f /opt/koko/server.key ]; then
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout /opt/koko/server.key -out /opt/koko/server.crt \
+        -subj "/C=CN/ST=Beijing/L=Beijing/O=JumpServer/OU=JumpServer/CN=JumpServer"
+fi
+
+chmod 700 /opt/koko
+
+: "${LOG_LEVEL:=ERROR}"
+
+case "${LOG_LEVEL}" in
+    DEBUG) level="debug" ;;
+    INFO) level="info" ;;
+    WARN) level="warning" ;;
+    ERROR|FATAL|CRITICAL) level="error" ;;
+    *) level="error" ;;
+esac
+
+export GUACD_LOG_LEVEL="${level}"
+printf '%s' "${GUACD_LOG_LEVEL}" > /run/s6/container_environment/GUACD_LOG_LEVEL
+
+echo
+date
+echo "KoKo Version ${VERSION:-Unknown}, more see https://www.jumpserver.com"
+echo "Quit the server with CONTROL-C."
+echo
