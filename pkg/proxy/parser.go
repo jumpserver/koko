@@ -560,6 +560,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
 		if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
+			logger.Infof("command_rule_matched session_id=%q command=%q matched_command=%q acl_id=%q acl_name=%q rule_id=%q rule_name=%q action=%q",
+				p.id, currentCmd, cmd, rule.Acl.ID, rule.Acl.Name, rule.Item.ID, rule.Item.Name, rule.Acl.Action)
 			switch rule.Acl.Action {
 			case model.ActionReject:
 				p.setCurrentCmdStatusLevel(model.RejectLevel)
@@ -579,12 +581,10 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			case model.ActionWarning:
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
-				logger.Debugf("Session %s: command %s match warning rule", p.id, p.command)
 			case model.ActionNotifyAndWarn:
 				p.confirmStatus.SetStatus(StatusQuery)
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
-				logger.Debugf("Session %s: command %s match notify and warn rule", p.id, p.command)
 				p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
 				return nil
 			default:
