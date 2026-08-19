@@ -586,6 +586,16 @@ provide('persistedUploadFiles', persistedUploadFiles);
 </script>
 
 <template>
+  <n-upload
+    v-model:file-list="uploadFileList"
+    abstract
+    :multiple="false"
+    :show-retry-button="false"
+    :show-preview-button="false"
+    :custom-request="customRequest"
+    @remove="handleRemoveItem"
+    @change="handleUploadFileChange"
+  >
   <n-flex align="center" justify="space-between" vertical class="!gap-x-6">
     <n-flex align="center" class="w-full !flex-nowrap">
       <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
@@ -638,68 +648,27 @@ provide('persistedUploadFiles', persistedUploadFiles);
           {{ t('NewFolder') }}
         </n-button>
 
-        <n-upload
-          v-model:file-list="uploadFileList"
-          abstract
-          :multiple="false"
-          :show-retry-button="false"
-          :custom-request="customRequest"
-          @remove="handleRemoveItem"
-          @change="handleUploadFileChange"
-        >
-          <n-button-group>
-            <n-upload-trigger #="{ handleClick }" abstract>
-              <n-button
-                secondary
-                size="small"
-                class="custom-button-text"
-                @click="
-                  () => {
-                    handleClick();
-                    isShowUploadList = !isShowUploadList;
-                  }
-                "
-              >
-                <template #icon>
-                  <NIcon :component="Upload" :size="12" />
-                </template>
-
-                {{ t('UploadTitle') }}
-              </n-button>
-            </n-upload-trigger>
-          </n-button-group>
-
-          <!-- <n-drawer
-            v-model:show="showInner"
-            resizable
-            placement="bottom"
-            :default-height="drawerHeight"
-            :max-height="drawerHeight"
-            :show-mask="false"
-            :trap-focus="false"
-            :block-scroll="false"
-            :native-scrollbar="false"
-            :height="300"
-            to="#drawer-inner-target"
-          >
-            <n-drawer-content
-              closable
-              :title="t('TransferHistory')"
-              :body-style="{
-                overflow: 'unset',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }"
+        <n-button-group>
+          <n-upload-trigger #="{ handleClick }" abstract>
+            <n-button
+              secondary
+              size="small"
+              class="custom-button-text"
+              @click="
+                () => {
+                  handleClick();
+                  isShowUploadList = !isShowUploadList;
+                }
+              "
             >
-              <n-scrollbar v-if="uploadFileList" :style="{ maxHeight: `${drawerHeight - 60}px`, flex: 1 }">
+              <template #icon>
+                <NIcon :component="Upload" :size="12" />
+              </template>
 
-              </n-scrollbar>
-
-              <n-empty v-else class="w-full h-full justify-center" />
-            </n-drawer-content>
-          </n-drawer> -->
-        </n-upload>
+              {{ t('UploadTitle') }}
+            </n-button>
+          </n-upload-trigger>
+        </n-button-group>
 
         <!-- <n-popover>
           <template #trigger>
@@ -761,23 +730,13 @@ provide('persistedUploadFiles', persistedUploadFiles);
 
       <template v-if="uploadFileList.length > 0" #footer>
         <n-divider />
-        <n-flex vertical class="w-full">
-          <n-upload
-            abstract
-            file-list-class="max-height-32"
-            :show-preview-button="false"
-            :show-retry-button="false"
-            :file-list="uploadFileList"
-            @remove="handleRemoveItem"
-          >
-            <n-upload-file-list />
-          </n-upload>
-        </n-flex>
+        <n-upload-file-list class="max-h-32" />
       </template>
     </n-card>
   </n-flex>
+  </n-upload>
 
-  <n-modal
+  <n-modal>
     v-model:show="showModal"
     preset="dialog"
     :title="modalTitle"
