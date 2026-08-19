@@ -158,6 +158,58 @@ function handleSocketConnectEvent(messageData: FileManageConnectData, id: string
   }
 }
 
+function isPermissionDenied(err: string) {
+  return err.toLowerCase() === 'permission denied';
+}
+
+/**
+ * @description mkdir / rm / rename 无论成功失败都刷新列表，避免 loading 卡住
+ */
+function handleFileActionResult(message: FileManage, t: any) {
+  if (message.err) {
+    globalTipsMessage.error(isPermissionDenied(message.err) ? t('PermissionDenied') : message.err);
+  }
+  else if (message.data === 'ok') {
+    globalTipsMessage.success(t('OperationSuccessful'));
+  }
+
+  mittBus.emit('reload-table');
+}
+
+function handleDownloadResult(message: FileManage, t: any) {
+  const downloadTask = downloadTasks.get(message.id);
+
+  if (message.err) {
+    downloadTask?.message.destroy();
+    downloadTasks.delete(message.id);
+    globalTipsMessage.error(isPermissionDenied(message.err) ? t('PermissionDenied') : message.err);
+    return;
+  }
+
+  if (!message.data || !downloadTask) {
+    return;
+  }
+
+  const blob: Blob = new Blob(downloadTask.buffers, {
+    type: 'application/octet-stream',
+  });
+
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+
+  a.style.display = 'none';
+  a.href = url;
+  a.download = message.data;
+
+  document.body.appendChild(a);
+  a.click();
+
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+  downloadTask.message.destroy();
+  downloadTasks.delete(message.id);
+}
+
 /**
  * @description 设置文件信息 table
  * @param messageData
@@ -248,7 +300,17 @@ function initSocketEvent(socket: WebSocket, t: any) {
   };
 
   socket.onmessage = (event: MessageEvent) => {
-    const message: FileManage = JSON.parse(event.data);
+    let message: FileManage;
+
+    try {
+      message = JSON.parse(event.data);
+    }
+    catch (error) {
+      console.error(error);
+      fileManageStore.setFileList([...(fileManageStore.fileList || [])]);
+      globalTipsMessage.error(t('FileListError'));
+      return;
+    }
 
     fileManageStore.setCurrentPath(message.current_path);
 
@@ -271,69 +333,26 @@ function initSocketEvent(socket: WebSocket, t: any) {
           break;
         }
 
-        if (message.cmd === 'mkdir' && message.data === 'ok') {
-          globalTipsMessage.success(t('OperationSuccessful'));
-
-          mittBus.emit('reload-table');
+        if (message.cmd === 'mkdir' || message.cmd === 'rm' || message.cmd === 'rename') {
+          handleFileActionResult(message, t);
+          break;
         }
 
-        if (message.cmd === 'rm' && message.data === 'ok') {
-          globalTipsMessage.success(t('OperationSuccessful'));
-
-          mittBus.emit('reload-table');
-        }
-
-        if (message.cmd === 'rm' && message.err === 'permission denied') {
-          globalTipsMessage.error(t('PermissionDenied'));
-
-          mittBus.emit('reload-table');
-        }
-
-        if (message.cmd === 'rename' && message.data === 'ok') {
-          globalTipsMessage.success(t('OperationSuccessful'));
-
-          mittBus.emit('reload-table');
-        }
-
-        if (message.cmd === 'download' && message.data) {
-          const downloadTask = downloadTasks.get(message.id);
-
-          if (!downloadTask) {
-            break;
-          }
-
-          const blob: Blob = new Blob(downloadTask.buffers, {
-            type: 'application/octet-stream',
-          });
-
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-
-          a.style.display = 'none';
-          a.href = url;
-          a.download = message.data;
-
-          document.body.appendChild(a);
-          a.click();
-
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          downloadTask.message.destroy();
-          downloadTasks.delete(message.id);
-        }
-
-        if (message.cmd === 'download' && message.err === 'Permission denied') {
-          const downloadTask = downloadTasks.get(message.id);
-
-          downloadTask?.message.destroy();
-          downloadTasks.delete(message.id);
-          globalTipsMessage.error(t('PermissionDenied'));
-
-          mittBus.emit('reload-table');
+        if (message.cmd === 'download') {
+          handleDownloadResult(message, t);
+          break;
         }
 
         if (message.cmd === 'list') {
-          handleSocketSftpData(JSON.parse(message.data));
+          try {
+            const payload = message.data ? JSON.parse(message.data) : [];
+            handleSocketSftpData(Array.isArray(payload) ? payload : []);
+          }
+          catch (error) {
+            console.error(error);
+            fileManageStore.setFileList([]);
+            globalTipsMessage.error(t('FileListError'));
+          }
         }
         break;
       }
@@ -388,6 +407,9 @@ function initSocketEvent(socket: WebSocket, t: any) {
         }
         if (message.cmd === 'list') {
           fileManageStore.setFileList([]);
+        }
+        if (message.cmd === 'rm' || message.cmd === 'rename' || message.cmd === 'mkdir') {
+          mittBus.emit('reload-table');
         }
         globalTipsMessage.error(message.err ? message.err : t('FileListError'));
         break;
