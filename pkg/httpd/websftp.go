@@ -3,10 +3,16 @@ package httpd
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"path"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
-	"io"
-	"strconv"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 var _ Handler = (*webSftp)(nil)
@@ -23,6 +29,10 @@ type webSftp struct {
 	msg *Message
 
 	started bool
+
+	pathMu          sync.Mutex
+	remotePathMap   map[string]string
+	usedGBKFallback bool
 }
 
 func (h *webSftp) Name() string {
@@ -93,6 +103,13 @@ func (h *webSftp) dispatch(msg Message) {
 
 	h.started = true
 
+	if h.isSSHSidebarSftp() {
+		request.Path = h.toRemotePath(request.Path)
+		if request.NewName != "" {
+			request.NewName = h.encodeComponent(request.NewName)
+		}
+	}
+
 	switch h.msg.Cmd {
 	case "list":
 		h.handleList(request, &message)
@@ -133,9 +150,24 @@ func (h *webSftp) handleList(request *webSftpRequest, response *Message) {
 	h.ws.SendMessage(response)
 }
 
-func (h *webSftp) list(path string) string {
-	files := h.volume.List(path)
-	h.currentPath = h.volume.UserSftp.GetCurrentPath()
+func (h *webSftp) list(reqPath string) string {
+	files := h.volume.List(reqPath)
+	remoteCurrent := h.volume.UserSftp.GetCurrentPath()
+	if !h.isSSHSidebarSftp() {
+		h.currentPath = remoteCurrent
+		data, _ := json.Marshal(files)
+		return string(data)
+	}
+
+	displayCurrent := h.displayName(remoteCurrent)
+	h.rememberPath(displayCurrent, remoteCurrent)
+	h.currentPath = displayCurrent
+	for i := range files {
+		rawName := files[i].Name
+		displayName := h.displayName(rawName)
+		h.rememberPath(joinSFTPPath(displayCurrent, displayName), joinSFTPPath(remoteCurrent, rawName))
+		files[i].Name = displayName
+	}
 	data, _ := json.Marshal(files)
 	return string(data)
 }
@@ -153,7 +185,7 @@ func (h *webSftp) handleDownload(request *webSftpRequest, response *Message) {
 	}
 
 	h.streamFileContent(file, response)
-	response.Data = filename
+	response.Data = h.displayName(filename)
 	response.Type = SFTPData
 	h.ws.SendMessage(response)
 }
@@ -231,4 +263,87 @@ func (h *webSftp) rename(request *webSftpRequest) error {
 
 func (h *webSftp) mkdir(request *webSftpRequest) error {
 	return h.volume.MakeDir(request.Path)
+}
+
+func (h *webSftp) isSSHSidebarSftp() bool {
+	tok := h.ws.ConnectToken
+	return tok != nil && strings.EqualFold(tok.Protocol, srvconn.ProtocolSSH)
+}
+
+func (h *webSftp) charset() string {
+	tok := h.ws.ConnectToken
+	if tok == nil {
+		return common.UTF8
+	}
+	return common.ResolveConnectCharset(tok.Platform.Charset.Value, tok.ConnectOptions.Charset)
+}
+
+func (h *webSftp) displayName(raw string) string {
+	if !h.isSSHSidebarSftp() {
+		return raw
+	}
+	decoded := common.DecodeRemoteName(raw, h.charset())
+	if decoded != raw && common.NormalizeCharset(h.charset()) == common.UTF8 {
+		h.pathMu.Lock()
+		h.usedGBKFallback = true
+		h.pathMu.Unlock()
+	}
+	return decoded
+}
+
+func (h *webSftp) encodeComponent(name string) string {
+	if !h.isSSHSidebarSftp() {
+		return name
+	}
+	h.pathMu.Lock()
+	fallback := h.usedGBKFallback
+	h.pathMu.Unlock()
+	return common.EncodeRemoteName(name, h.charset(), fallback)
+}
+
+func (h *webSftp) rememberPath(display, remote string) {
+	if display == "" || display == remote {
+		return
+	}
+	h.pathMu.Lock()
+	defer h.pathMu.Unlock()
+	if h.remotePathMap == nil {
+		h.remotePathMap = make(map[string]string)
+	}
+	h.remotePathMap[display] = remote
+}
+
+func (h *webSftp) toRemotePath(display string) string {
+	if !h.isSSHSidebarSftp() || display == "" {
+		return display
+	}
+	h.pathMu.Lock()
+	defer h.pathMu.Unlock()
+	return h.toRemotePathLocked(display)
+}
+
+func (h *webSftp) toRemotePathLocked(display string) string {
+	if remote, ok := h.remotePathMap[display]; ok {
+		return remote
+	}
+	clean := path.Clean(display)
+	if clean == "/" {
+		return clean
+	}
+	dir, base := path.Split(clean)
+	dir = strings.TrimSuffix(dir, "/")
+	if dir == "" {
+		dir = "/"
+	}
+	if base == "" || dir == clean {
+		return common.EncodeRemoteName(display, h.charset(), h.usedGBKFallback)
+	}
+	return path.Join(h.toRemotePathLocked(dir), common.EncodeRemoteName(base, h.charset(), h.usedGBKFallback))
+}
+
+func joinSFTPPath(dir, name string) string {
+	if dir == "" || dir == "/" {
+		return path.Join("/", name)
+	}
+	return path.Join(dir, name)
 }
