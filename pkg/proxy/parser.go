@@ -58,7 +58,7 @@ const (
 	zmodemFinishTimeout        = 2 * time.Second
 	zmodemPromptRedrawDelay    = 500 * time.Millisecond
 	zmodemMaxTransferSize      = int64(500 * 1024 * 1024)
-	zmodemMaxTransferSizeLabel = "500 MB"
+	zmodemMaxTransferSizeLabel = "500 MiB"
 	zmodemInterruptCtrlC       = byte(0x03)
 )
 

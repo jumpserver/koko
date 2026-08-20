@@ -21,6 +21,8 @@ const SOCKET_DRAIN_TIMEOUT = 30 * 1000;
 const PEER_RESPONSE_TIMEOUT = 30 * 1000;
 const DRAIN_FALLBACK_TIMEOUT = 10 * 1000;
 
+const formatTransferSize = (size: number) => prettyBytes(size, { binary: true });
+
 const createAbortError = () => new DOMException('File transfer cancelled', 'AbortError');
 
 const isAbortError = (error: unknown) => error instanceof DOMException && error.name === 'AbortError';
@@ -291,7 +293,7 @@ export const useZmodem = () => {
 
     const completedLength = Math.floor(percent / 2);
     const progressBar = `${'='.repeat(completedLength)}${' '.repeat(50 - completedLength)}`;
-    const content = `${t('Upload')} ${file.name}: ${prettyBytes(file.size)} ${percent}% [${progressBar}]`;
+    const content = `${t('Upload')} ${file.name}: ${formatTransferSize(file.size)} ${percent}% [${progressBar}]`;
 
     terminal.write(`\r${content}`);
     lastPercent = percent;
@@ -306,7 +308,7 @@ export const useZmodem = () => {
       return previousPercent;
     }
 
-    const content = `${t('Download')} ${detail.name}: ${prettyBytes(detail.size)} ${percent}% `;
+    const content = `${t('Download')} ${detail.name}: ${formatTransferSize(detail.size)} ${percent}% `;
     terminal.write(`\r${content}`);
 
     return percent;
@@ -321,7 +323,7 @@ export const useZmodem = () => {
       throw new Error(t('MustSelectOneFile'));
     }
     if (file.size >= MAX_TRANSFER_SIZE) {
-      throw new Error(`${t('ExceedTransferSize')}: ${prettyBytes(MAX_TRANSFER_SIZE)}`);
+      throw new Error(`${t('ExceedTransferSize')}: ${formatTransferSize(MAX_TRANSFER_SIZE)}`);
     }
 
     resetProgress();
@@ -451,7 +453,7 @@ export const useZmodem = () => {
           return false;
         }
         if (fileInfo.value.size >= MAX_TRANSFER_SIZE) {
-          const content = `${t('ExceedTransferSize')}: ${prettyBytes(MAX_TRANSFER_SIZE)}`;
+          const content = `${t('ExceedTransferSize')}: ${formatTransferSize(MAX_TRANSFER_SIZE)}`;
           message.error(content);
           return false;
         }
@@ -494,7 +496,7 @@ export const useZmodem = () => {
       let previousPercent = -1;
 
       if (detail.size >= MAX_TRANSFER_SIZE) {
-        const content = `${t('ExceedTransferSize')}: ${prettyBytes(MAX_TRANSFER_SIZE)}`;
+        const content = `${t('ExceedTransferSize')}: ${formatTransferSize(MAX_TRANSFER_SIZE)}`;
         message.info(content);
         transfer.skip();
         return;
