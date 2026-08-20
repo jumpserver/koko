@@ -30,6 +30,10 @@ func (es ESCommandStorage) BulkSave(commands []*model.Command) error {
 	if es.IsEs8() {
 		return es.BulkSaveEs8(commands)
 	}
+	// 探测失败时也先试 Es8，避免 ES9 误走带 type 的旧接口
+	if err := es.BulkSaveEs8(commands); err == nil {
+		return nil
+	}
 	return es.BulkSaveEs(commands)
 }
 
@@ -167,7 +171,8 @@ func (es ESCommandStorage) IsEs8() bool {
 	if err2 := json.NewDecoder(resp.Body).Decode(&infoResp); err2 != nil {
 		return false
 	}
-	return infoResp.Version.Number[0] == '8'
+	major := infoResp.Version.Number[0]
+	return major == '8' || major == '9'
 }
 
 func (es ESCommandStorage) createEsClient() (*elasticsearch.Client, error) {

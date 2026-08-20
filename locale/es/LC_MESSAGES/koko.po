@@ -612,3 +612,8 @@ msgstr "No hay ruta al host"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "Red inalcanzable"
+
+#. lang.T
+#: pkg/proxy/parser.go
+msgid "File exceeds maximum transfer size: %s"
+msgstr "El archivo supera el tamaño máximo de transferencia: %s"

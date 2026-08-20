@@ -67,7 +67,7 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 	var sftpHandler *SftpHandler
 	termConf := s.GetTerminalConfig()
 	if directRequest, ok2 := directReq.(*auth.DirectLoginAssetReq); ok2 {
-		selectedAssets, err := s.getMatchedAssetsByDirectReq(currentUser, directRequest)
+		selectedAssets, err := s.getDirectSFTPAssets(currentUser, directRequest)
 		if err != nil {
 			logger.Errorf("Get matched assets failed: %s", err)
 			return
@@ -111,6 +111,14 @@ func (s *Server) SFTPHandler(sess ssh.Session) {
 		}
 	}
 	logger.Infof("SFTP request %s: Handler exit.", reqID)
+}
+
+func (s *Server) getDirectSFTPAssets(user *model.User,
+	req *auth.DirectLoginAssetReq) ([]model.PermAsset, error) {
+	if req.IsToken() {
+		return nil, nil
+	}
+	return s.getMatchedAssetsByDirectReq(user, req)
 }
 
 func (s *Server) NewSftpHandler(user *model.User, addr string) *SftpHandler {

@@ -161,8 +161,9 @@ type Server struct {
 }
 
 type SessionInfo struct {
-	Session *model.Session    `json:"session"`
-	Perms   *model.Permission `json:"permission"`
+	Session         *model.Session         `json:"session"`
+	Perms           *model.Permission      `json:"permission"`
+	ClipboardPolicy *model.ClipboardPolicy `json:"clipboard_policy,omitempty"`
 
 	BackspaceAsCtrlH *bool `json:"backspaceAsCtrlH,omitempty"`
 	CtrlCAsCtrlZ     bool  `json:"ctrlCAsCtrlZ"`
@@ -688,10 +689,14 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 			account 是最终 su 的登录用户
 		*/
 		suUsername := s.account.Username
-		suPassword := s.account.Secret
 		sudoType := srvconn.SuMethodSu
 		if platform.SuMethod != nil {
 			sudoType = srvconn.NewSuMethodType(platform.SuMethod.Value)
+		}
+		suPassword := s.account.Secret
+		if sudoType.IsSudo() {
+			// sudo authenticates the invoking user by default.
+			suPassword = s.suFromAccount.Secret
 		}
 		cfg := srvconn.SuConfig{
 			MethodType:   sudoType,
@@ -793,10 +798,14 @@ func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) 
 	}
 	if s.suFromAccount != nil {
 		suUsername := s.account.Username
-		suPassword := s.account.Secret
 		sudoType := srvconn.SuMethodSu
 		if platform.SuMethod != nil {
 			sudoType = srvconn.NewSuMethodType(platform.SuMethod.Value)
+		}
+		suPassword := s.account.Secret
+		if sudoType.IsSudo() {
+			// sudo authenticates the invoking user by default.
+			suPassword = s.suFromAccount.Secret
 		}
 		cfg := srvconn.SuConfig{
 			MethodType:   sudoType,
@@ -1079,8 +1088,9 @@ func (s *Server) Proxy() {
 		}
 		perm := actions.Permission()
 		info := SessionInfo{
-			Session: s.sessionInfo,
-			Perms:   &perm,
+			Session:         s.sessionInfo,
+			Perms:           &perm,
+			ClipboardPolicy: s.connOpts.authInfo.ClipboardPolicy,
 
 			BackspaceAsCtrlH: tokenConnOpts.BackspaceAsCtrlH,
 			CtrlCAsCtrlZ:     ctrlCAsCtrlZ,
@@ -1097,24 +1107,36 @@ func (s *Server) Proxy() {
 func (s *Server) sendConnectErrorMsg(err error) {
 	msg := fmt.Sprintf("%s error: %s", s.connOpts.ConnectMsg(),
 		s.ConvertErrorToReadableMsg(err))
+
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
 	logger.Error(msg)
+
 	protocol := s.connOpts.authInfo.Protocol
-	password := s.account.Secret
-	if password != "" {
-		passwordLen := len(s.account.Secret)
-		showLen := passwordLen / 2
-		hiddenLen := passwordLen - showLen
-		var msg2 string
-		if protocol == srvconn.ProtocolK8s {
-			msg2 = fmt.Sprintf("Try token: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
-		} else {
-			msg2 = fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
-		}
-		logger.Error(msg2)
+	credentialType := "password"
+
+	if protocol == srvconn.ProtocolK8s {
+		credentialType = "k8s_token"
+	} else if s.account.IsSSHKey() {
+		credentialType = "ssh_key"
 	}
 
+	credentialPresent := s.account.Secret != ""
+	summary := fmt.Sprintf(
+		"Conn[%s] authentication credential summary: type=%s present=%t",
+		s.UserConn.ID(), credentialType, credentialPresent,
+	)
+
+	if credentialType == "ssh_key" && credentialPresent {
+		if signer, parseErr := gossh.ParsePrivateKey([]byte(s.account.Secret)); parseErr == nil {
+			summary += fmt.Sprintf(
+				" fingerprint=%s",
+				gossh.FingerprintSHA256(signer.PublicKey()),
+			)
+		}
+	}
+
+	logger.Error(summary)
 }
 
 func ParseUrlHostAndPort(clusterAddr string) (host string, port int, err error) {

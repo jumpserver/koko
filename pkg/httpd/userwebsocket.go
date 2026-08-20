@@ -206,21 +206,32 @@ func (userCon *UserWebsocket) SendMessage(msg *Message) {
 	}
 }
 
-func (userCon *UserWebsocket) sendConnectMessage() {
-	var connectInfo struct {
-		User    *model.User          `json:"user"`
-		Setting *model.PublicSetting `json:"setting"`
-		Asset   *model.Asset         `json:"asset,omitempty"`
-	}
+type websocketConnectInfo struct {
+	User            *model.User            `json:"user"`
+	Setting         *model.PublicSetting   `json:"setting"`
+	Asset           *model.Asset           `json:"asset,omitempty"`
+	Permission      *model.Permission      `json:"permission,omitempty"`
+	ClipboardPolicy *model.ClipboardPolicy `json:"clipboard_policy,omitempty"`
+}
+
+func (userCon *UserWebsocket) buildConnectInfo() websocketConnectInfo {
+	var connectInfo websocketConnectInfo
 	connectInfo.User = userCon.user
 	connectInfo.Setting = userCon.setting
 
 	if userCon.ConnectToken != nil {
 		connectInfo.Asset = &userCon.ConnectToken.Asset
+		permission := userCon.ConnectToken.Actions.Permission()
+		connectInfo.Permission = &permission
+		connectInfo.ClipboardPolicy = userCon.ConnectToken.ClipboardPolicy
 	} else {
 		connectInfo.Asset = nil
 	}
+	return connectInfo
+}
 
+func (userCon *UserWebsocket) sendConnectMessage() {
+	connectInfo := userCon.buildConnectInfo()
 	info, _ := json.Marshal(connectInfo)
 	msg := Message{
 		Id:   userCon.Uuid,

@@ -42,7 +42,7 @@ withDefaults(
   }>(),
   {
     columns: () => [],
-  }
+  },
 );
 
 const { t } = useI18n();
@@ -106,7 +106,7 @@ const _tableHeight = computed(() => {
 
 watch(
   () => fileManageStore.currentPath,
-  newPath => {
+  (newPath) => {
     if (newPath) {
       // 重置现有路径列表
       filePathList.value = [];
@@ -153,7 +153,7 @@ watch(
   },
   {
     immediate: true,
-  }
+  },
 );
 
 watch(
@@ -163,12 +163,12 @@ watch(
       // 如果 oldPath 包含 newPath，则重置 forwardPath 为 oldPath
       forwardPath.value = oldPath;
     }
-  }
+  },
 );
 
 watch(
   () => fileManageStore.fileList,
-  newFileList => {
+  (newFileList) => {
     if (newFileList) {
       loading.value = false;
       dataList.value = newFileList;
@@ -176,17 +176,17 @@ watch(
   },
   {
     immediate: true,
-  }
+  },
 );
 
 watch(
   () => uploadFileList.value,
-  newValue => {
+  (newValue) => {
     if (newValue && newValue.length > 0) {
       persistedUploadFiles.value = [...newValue];
     }
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(
@@ -194,10 +194,11 @@ watch(
   (newVal: string) => {
     if (newVal) {
       dataList.value = fileManageStore.fileList!.filter(item => item.name.toLowerCase().includes(newVal.toLowerCase()));
-    } else {
+    }
+    else {
       dataList.value = fileManageStore.fileList!;
     }
-  }
+  },
 );
 
 const onClickOutside = () => {
@@ -343,7 +344,8 @@ const handlePathClick = (item: IFilePath) => {
   searchValue.value = '';
 
   // 如果点击了当前活动的路径段，不执行任何操作
-  if (item.active) return;
+  if (item.active)
+    return;
 
   // 保存当前路径用于前进导航
   disabledForward.value = false;
@@ -368,8 +370,8 @@ const handleRefresh = () => {
  * @description modal 对话框
  */
 const modalPositiveClick = () => {
-  const index =
-    fileManageStore?.fileList?.findIndex((item: FileManageSftpFileItem) => {
+  const index
+    = fileManageStore?.fileList?.findIndex((item: FileManageSftpFileItem) => {
       return item.name === newFileName.value;
     }) ?? -1;
 
@@ -381,7 +383,8 @@ const modalPositiveClick = () => {
         newFileName.value = '';
         return (showModal.value = true);
       });
-    } else {
+    }
+    else {
       loading.value = true;
 
       mittBus.emit('file-manage', {
@@ -413,7 +416,8 @@ const modalPositiveClick = () => {
   if (modalType.value === 'add') {
     if (index !== -1) {
       return message.error(t('FileAlreadyExists'));
-    } else {
+    }
+    else {
       loading.value = true;
 
       mittBus.emit('file-manage', {
@@ -586,67 +590,68 @@ provide('persistedUploadFiles', persistedUploadFiles);
 </script>
 
 <template>
-  <n-flex align="center" justify="space-between" vertical class="!gap-x-6">
-    <n-flex align="center" class="w-full !flex-nowrap">
-      <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
-        <n-button text :disabled="disabledBack" @click="handlePathBack">
-          <ChevronLeft :size="16" class="icon-hover" />
-        </n-button>
+  <n-upload
+    v-model:file-list="uploadFileList"
+    abstract
+    :multiple="false"
+    :show-retry-button="false"
+    :show-preview-button="false"
+    :custom-request="customRequest"
+    @remove="handleRemoveItem"
+    @change="handleUploadFileChange"
+  >
+    <n-flex align="center" justify="space-between" vertical class="!gap-x-6">
+      <n-flex align="center" class="w-full !flex-nowrap">
+        <n-flex class="controls-part !gap-x-6 h-full !flex-nowrap" align="center">
+          <n-button text :disabled="disabledBack" @click="handlePathBack">
+            <ChevronLeft :size="16" class="icon-hover" />
+          </n-button>
 
-        <n-button text :disabled="disabledForward" @click="handlePathForward">
-          <ChevronRight :size="16" class="icon-hover" />
-        </n-button>
+          <n-button text :disabled="disabledForward" @click="handlePathForward">
+            <ChevronRight :size="16" class="icon-hover" />
+          </n-button>
+        </n-flex>
+
+        <n-scrollbar ref="scrollRef" x-scrollable :content-style="{ height: '40px' }">
+          <n-flex class="file-part w-full h-full !flex-nowrap">
+            <n-flex
+              v-for="item of filePathList"
+              :key="item.id"
+              align="center"
+              justify="flex-start"
+              class="file-node !flex-nowrap"
+            >
+              <Folder :size="18" :color="item.active ? '#63e2b7' : ''" class="text-white" />
+              <NText
+                depth="1"
+                class="text-[16px] cursor-pointer whitespace-nowrap"
+                :strong="item.active"
+                @click="handlePathClick(item)"
+              >
+                {{ item.path }}
+              </NText>
+
+              <ChevronRight v-if="item.showArrow" :size="16" class="text-white" />
+            </n-flex>
+          </n-flex>
+        </n-scrollbar>
       </n-flex>
 
-      <n-scrollbar ref="scrollRef" x-scrollable :content-style="{ height: '40px' }">
-        <n-flex class="file-part w-full h-full !flex-nowrap">
-          <n-flex
-            v-for="item of filePathList"
-            :key="item.id"
-            align="center"
-            justify="flex-start"
-            class="file-node !flex-nowrap"
-          >
-            <Folder :size="18" :color="item.active ? '#63e2b7' : ''" class="text-white" />
-            <NText
-              depth="1"
-              class="text-[16px] cursor-pointer whitespace-nowrap"
-              :strong="item.active"
-              @click="handlePathClick(item)"
-            >
-              {{ item.path }}
-            </NText>
-
-            <ChevronRight v-if="item.showArrow" :size="16" class="text-white" />
-          </n-flex>
-        </n-flex>
-      </n-scrollbar>
-    </n-flex>
-
-    <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
-      <n-input v-model:value="searchValue" clearable size="small" placeholder="">
-        <template #prefix>
-          <Search :size="16" class="focus:outline-none" />
-        </template>
-      </n-input>
-
-      <n-flex align="center" class="!flex-nowrap">
-        <n-button secondary size="small" class="custom-button-text" @click="handleNewFolder">
-          <template #icon>
-            <Plus :size="12" />
+      <n-flex align="center" justify="space-between" class="w-full !flex-nowrap">
+        <n-input v-model:value="searchValue" clearable size="small" placeholder="">
+          <template #prefix>
+            <Search :size="16" class="focus:outline-none" />
           </template>
-          {{ t('NewFolder') }}
-        </n-button>
+        </n-input>
 
-        <n-upload
-          v-model:file-list="uploadFileList"
-          abstract
-          :multiple="false"
-          :show-retry-button="false"
-          :custom-request="customRequest"
-          @remove="handleRemoveItem"
-          @change="handleUploadFileChange"
-        >
+        <n-flex align="center" class="!flex-nowrap">
+          <n-button secondary size="small" class="custom-button-text" @click="handleNewFolder">
+            <template #icon>
+              <Plus :size="12" />
+            </template>
+            {{ t('NewFolder') }}
+          </n-button>
+
           <n-button-group>
             <n-upload-trigger #="{ handleClick }" abstract>
               <n-button
@@ -669,39 +674,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
             </n-upload-trigger>
           </n-button-group>
 
-          <!-- <n-drawer
-            v-model:show="showInner"
-            resizable
-            placement="bottom"
-            :default-height="drawerHeight"
-            :max-height="drawerHeight"
-            :show-mask="false"
-            :trap-focus="false"
-            :block-scroll="false"
-            :native-scrollbar="false"
-            :height="300"
-            to="#drawer-inner-target"
-          >
-            <n-drawer-content
-              closable
-              :title="t('TransferHistory')"
-              :body-style="{
-                overflow: 'unset',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }"
-            >
-              <n-scrollbar v-if="uploadFileList" :style="{ maxHeight: `${drawerHeight - 60}px`, flex: 1 }">
-
-              </n-scrollbar>
-
-              <n-empty v-else class="w-full h-full justify-center" />
-            </n-drawer-content>
-          </n-drawer> -->
-        </n-upload>
-
-        <!-- <n-popover>
+          <!-- <n-popover>
           <template #trigger>
             <ListTree
               :size="16"
@@ -712,70 +685,60 @@ provide('persistedUploadFiles', persistedUploadFiles);
           {{ t('Transfer') }}
         </n-popover> -->
 
-        <n-popover>
-          <template #trigger>
-            <RefreshCcw
-              :size="16"
-              class="icon-hover cursor-pointer !text-white focus:outline-none"
-              @click="handleRefresh"
-            />
-          </template>
-          {{ t('Refresh') }}
-        </n-popover>
+          <n-popover>
+            <template #trigger>
+              <RefreshCcw
+                :size="16"
+                class="icon-hover cursor-pointer !text-white focus:outline-none"
+                @click="handleRefresh"
+              />
+            </template>
+            {{ t('Refresh') }}
+          </n-popover>
+        </n-flex>
       </n-flex>
     </n-flex>
-  </n-flex>
 
-  <n-flex class="mt-4">
-    <n-card size="small">
-      <n-data-table
-        remote
-        single-line
-        flex-height
-        virtual-scroll
-        size="small"
-        :bordered="false"
-        :loading="loading"
-        :columns="columns"
-        :row-props="rowProps"
-        :data="dataList"
-        :style="{ height: `calc(100vh - 420px)` }"
-      >
-        <template #empty>
-          <n-empty class="w-full h-full justify-center" :description="t('NoData')" />
+    <n-flex class="mt-4">
+      <n-card size="small">
+        <n-data-table
+          remote
+          single-line
+          flex-height
+          virtual-scroll
+          size="small"
+          :bordered="false"
+          :loading="loading"
+          :columns="columns"
+          :row-props="rowProps"
+          :data="dataList"
+          :style="{ height: `calc(100vh - 420px)` }"
+        >
+          <template #empty>
+            <n-empty class="w-full h-full justify-center" :description="t('NoData')" />
+          </template>
+        </n-data-table>
+
+        <n-dropdown
+          size="small"
+          trigger="manual"
+          placement="bottom-start"
+          :x="x"
+          :y="y"
+          :show-arrow="true"
+          :options="options"
+          :show="showDropdown"
+          :on-clickoutside="onClickOutside"
+          @select="handleSelect"
+        />
+
+        <template v-if="uploadFileList.length > 0" #footer>
+          <n-divider />
+          <n-upload-file-list class="max-h-32" />
         </template>
-      </n-data-table>
-
-      <n-dropdown
-        size="small"
-        trigger="manual"
-        placement="bottom-start"
-        :x="x"
-        :y="y"
-        :show-arrow="true"
-        :options="options"
-        :show="showDropdown"
-        :on-clickoutside="onClickOutside"
-        @select="handleSelect"
-      />
-
-      <template v-if="uploadFileList.length > 0" #footer>
-        <n-divider />
-        <n-flex vertical class="w-full">
-          <n-upload
-            abstract
-            file-list-class="max-height-32"
-            :show-preview-button="false"
-            :show-retry-button="false"
-            :file-list="uploadFileList"
-            @remove="handleRemoveItem"
-          >
-            <n-upload-file-list />
-          </n-upload>
-        </n-flex>
-      </template>
-    </n-card>
-  </n-flex>
+      </n-card>
+    </n-flex>
+  </n-upload>
 
   <n-modal
     v-model:show="showModal"
@@ -794,7 +757,7 @@ provide('persistedUploadFiles', persistedUploadFiles);
     @positive-click="modalPositiveClick"
     @negative-click="modalNegativeClick"
   >
-    <n-input v-if="!modalContent" maxlength="50" v-model:value="newFileName" clearable :placeholder="t('PleaseInput')" />
+    <n-input v-if="!modalContent" v-model:value="newFileName" maxlength="50" clearable :placeholder="t('PleaseInput')" />
   </n-modal>
 </template>
 

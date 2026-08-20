@@ -1,1 +1,9 @@
-{}
+{
+  "ClipboardCopyDenied": "不允许从终端复制内容",
+  "ClipboardPasteDenied": "不允许向终端粘贴内容",
+  "ClipboardTextLimitExceeded": "{action}内容超过 {limit} 个字符的限制",
+  "ZmodemDownloadFailed": "下载失败：远端文件不存在或传输已取消",
+  "ZmodemUploadSkipped": "上传已跳过：远端未接受该文件",
+  "Copy": "复制",
+  "Paste": "粘贴"
+}

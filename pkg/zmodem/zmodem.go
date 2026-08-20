@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -12,6 +13,8 @@ const (
 	ZParserStatusNone    = ""
 	ZParserStatusSend    = "Send"
 	ZParserStatusReceive = "Receive"
+
+	initialHeaderBufferLimit = 256
 )
 
 func New() *ZmodemParser {
@@ -26,6 +29,11 @@ type ZmodemParser struct {
 
 	status atomic.Value
 
+	lastActiveUnixNano atomic.Int64
+	sessionStartedNano atomic.Int64
+	sendHandshakeDone  atomic.Bool
+	initialHeaderBuf   []byte
+
 	FileEventCallback func(zinfo *ZFileInfo, status bool)
 
 	currentZFileInfo *ZFileInfo
@@ -38,6 +46,7 @@ type ZmodemParser struct {
 	FireStatusEvent func(event StatusEvent)
 
 	AbnormalFinish bool
+	lastAbort      bool
 }
 
 // rz sz 解析的入口
@@ -46,80 +55,170 @@ func (z *ZmodemParser) Parse(p []byte) {
 	z.Lock()
 	defer z.Unlock()
 	if z.IsStartSession() {
+		z.touch()
 		zSession := z.currentSession
 		zSession.consume(p)
 		if zSession.IsEnd() {
-			z.AbnormalFinish = zSession.AbnormalFinish
-			z.currentSession = nil
-			if z.FileEventCallback != nil && z.currentZFileInfo != nil {
-				info := z.currentZFileInfo
-				transferStatus := false
-				if zSession.transferStatus != TransferStatusAbort {
-					transferStatus = true
-				}
-				if !z.abortMark {
-					z.FileEventCallback(info, transferStatus)
-				}
-				z.currentZFileInfo = nil
-				z.hasDataTransfer = false
-			}
-			logger.Infof("Zmodem session %s end", z.Status())
-			z.setStatus(ZParserStatusNone)
-			if z.FireStatusEvent != nil {
-				z.FireStatusEvent(EndEvent)
-			}
+			z.finishSession(zSession, true)
 		}
 		return
 	}
 
-	index := bytes.IndexByte(p, ZDLE)
-	if index == -1 {
-		return
-	}
-	remain := p[index:]
-	nr, hd := ParseHexHeader(remain)
-	if hd == nil {
-		return
-	}
-	remain = remain[nr+1:]
-	switch hd.Type {
-	case ZRQINIT:
-		z.currentSession = &ZSession{
-			Type: TypeDownload,
-			endCallback: func() {
-				if z.FireStatusEvent != nil {
-					z.FireStatusEvent(EndEvent)
-				}
-			},
-			ZFileHeaderCallback: z.zFileFrameCallback,
-			zOnHeader:           z.OnHeader,
+	z.consumeInitialHeader(p)
+}
+
+func (z *ZmodemParser) consumeInitialHeader(p []byte) {
+	z.initialHeaderBuf = append(z.initialHeaderBuf, p...)
+	for len(z.initialHeaderBuf) > 0 {
+		index := bytes.Index(z.initialHeaderBuf, HexHeaderPrefix)
+		if index == -1 {
+			retain := len(HexHeaderPrefix) - 1
+			if len(z.initialHeaderBuf) > retain {
+				z.initialHeaderBuf = append(
+					z.initialHeaderBuf[:0],
+					z.initialHeaderBuf[len(z.initialHeaderBuf)-retain:]...,
+				)
+			}
+			return
 		}
-		z.setStatus(ZParserStatusSend)
-		if z.FireStatusEvent != nil {
-			z.FireStatusEvent(StartEvent)
+
+		candidate := z.initialHeaderBuf[index:]
+		hd, offset, ok := DecodeHexFrameHeader(candidate)
+		if !ok {
+			hasTerminator := bytes.IndexByte(candidate, 0x8a) != -1 ||
+				bytes.IndexByte(candidate, 0x0a) != -1
+			if !hasTerminator && len(candidate) <= initialHeaderBufferLimit {
+				z.initialHeaderBuf = append(z.initialHeaderBuf[:0], candidate...)
+				return
+			}
+			// 丢弃损坏帧的第一个字节，继续寻找下一帧，避免解析器永久卡住。
+			z.initialHeaderBuf = append(z.initialHeaderBuf[:0], candidate[1:]...)
+			continue
 		}
+
+		remain := append([]byte(nil), candidate[offset+1:]...)
+		z.initialHeaderBuf = z.initialHeaderBuf[:0]
+		switch hd.Type {
+		case ZRQINIT:
+			z.startSession(TypeDownload, ZParserStatusSend, remain)
+			return
+		case ZRINIT:
+			z.startSession(TypeUpload, ZParserStatusReceive, remain)
+			return
+		default:
+			z.initialHeaderBuf = append(z.initialHeaderBuf, remain...)
+		}
+	}
+}
+
+func (z *ZmodemParser) startSession(sessionType, status string, remain []byte) {
+	z.currentSession = &ZSession{
+		Type:                sessionType,
+		ZFileHeaderCallback: z.zFileFrameCallback,
+		zOnHeader:           z.OnHeader,
+	}
+	z.currentHeader = nil
+	z.currentZFileInfo = nil
+	z.abortMark = false
+	z.hasDataTransfer = false
+	z.AbnormalFinish = false
+	z.lastAbort = false
+	z.sessionStartedNano.Store(time.Now().UnixNano())
+	z.sendHandshakeDone.Store(false)
+	z.setStatus(status)
+	z.touch()
+	if z.FireStatusEvent != nil {
+		z.FireStatusEvent(StartEvent)
+	}
+	if len(remain) > 0 {
 		z.currentSession.consume(remain)
-	case ZRINIT:
-		z.currentSession = &ZSession{
-			Type: TypeUpload,
-			endCallback: func() {
-				if z.FireStatusEvent != nil {
-					z.FireStatusEvent(EndEvent)
-				}
-			},
-			ZFileHeaderCallback: z.zFileFrameCallback,
-			zOnHeader:           z.OnHeader,
+		if z.currentSession.IsEnd() {
+			z.finishSession(z.currentSession, true)
 		}
-		z.setStatus(ZParserStatusReceive)
-		if z.FireStatusEvent != nil {
-			z.FireStatusEvent(StartEvent)
-		}
-		z.currentSession.consume(remain)
-	default:
-		z.currentSession = nil
-		z.abortMark = false
-		z.setStatus(ZParserStatusNone)
 	}
+}
+
+func (z *ZmodemParser) finishSession(session *ZSession, fireStatusEvent bool) {
+	status := z.Status()
+	z.AbnormalFinish = session != nil && session.AbnormalFinish
+	z.lastAbort = session != nil && session.transferStatus == TransferStatusAbort
+	fileInfo := z.currentZFileInfo
+	shouldFireFileEvent := z.FileEventCallback != nil && fileInfo != nil && !z.abortMark
+	transferStatus := session != nil && session.transferStatus != TransferStatusAbort
+	z.currentSession = nil
+	z.currentZFileInfo = nil
+	z.currentHeader = nil
+	z.initialHeaderBuf = z.initialHeaderBuf[:0]
+	z.hasDataTransfer = false
+	z.abortMark = false
+	z.lastActiveUnixNano.Store(0)
+	z.sessionStartedNano.Store(0)
+	z.sendHandshakeDone.Store(false)
+	z.setStatus(ZParserStatusNone)
+	logger.Infof("Zmodem session %s end", status)
+	if fireStatusEvent && z.FireStatusEvent != nil {
+		event := EndEvent
+		if session != nil && session.transferStatus == TransferStatusAbort {
+			event = AbortEvent
+		}
+		z.FireStatusEvent(event)
+	}
+	if shouldFireFileEvent {
+		z.FileEventCallback(fileInfo, transferStatus)
+	}
+}
+
+// ConsumeLastAbort reports an aborted session once, so its terminal output can be cleaned up.
+func (z *ZmodemParser) ConsumeLastAbort() bool {
+	z.Lock()
+	defer z.Unlock()
+	aborted := z.lastAbort
+	z.lastAbort = false
+	return aborted
+}
+
+func (z *ZmodemParser) touch() {
+	z.lastActiveUnixNano.Store(time.Now().UnixNano())
+}
+
+// MarkActive refreshes the idle deadline for protocol data flowing in either direction.
+func (z *ZmodemParser) MarkActive() {
+	if z.IsStartSession() {
+		z.touch()
+	}
+}
+
+// IsExpired reports whether an active transfer has stopped producing protocol data.
+func (z *ZmodemParser) IsExpired(now time.Time, idleTimeout time.Duration) bool {
+	if !z.IsStartSession() || idleTimeout <= 0 {
+		return false
+	}
+	lastActive := z.lastActiveUnixNano.Load()
+	return lastActive > 0 && now.Sub(time.Unix(0, lastActive)) >= idleTimeout
+}
+
+// IsSendHandshakeExpired prevents repeated ZRQINIT frames from keeping a failed sz session alive forever.
+func (z *ZmodemParser) IsSendHandshakeExpired(now time.Time, timeout time.Duration) bool {
+	if z.Status() != ZParserStatusSend || timeout <= 0 || z.sendHandshakeDone.Load() {
+		return false
+	}
+	started := z.sessionStartedNano.Load()
+	return started > 0 && now.Sub(time.Unix(0, started)) >= timeout
+}
+
+// Abort resets an active session and emits one abort event.
+func (z *ZmodemParser) Abort() bool {
+	z.Lock()
+	defer z.Unlock()
+	if !z.IsStartSession() {
+		return false
+	}
+	if z.currentSession != nil {
+		z.currentSession.transferStatus = TransferStatusAbort
+		z.currentSession.AbnormalFinish = true
+	}
+	z.finishSession(z.currentSession, true)
+	return true
 }
 
 func (z *ZmodemParser) IsStartSession() bool {
@@ -175,6 +274,9 @@ func (z *ZmodemParser) OnHeader(hd *ZmodemHeader) {
 }
 
 func (z *ZmodemParser) zFileFrameCallback(info *ZFileInfo) {
+	if z.Status() == ZParserStatusSend {
+		z.sendHandshakeDone.Store(true)
+	}
 	z.currentZFileInfo = info
 	logger.Infof("Zmodem parser got filename: %s siz: %d", info.filename, info.size)
 }
@@ -188,11 +290,15 @@ func (z *ZmodemParser) GetCurrentZFileInfo() *ZFileInfo {
 }
 
 func (z *ZmodemParser) Cleanup() {
-	if z.IsStartSession() {
-		if z.FileEventCallback != nil && z.currentZFileInfo != nil {
-			z.FileEventCallback(z.currentZFileInfo, false)
-		}
+	z.Lock()
+	defer z.Unlock()
+	if !z.IsStartSession() {
+		return
 	}
+	if z.currentSession != nil {
+		z.currentSession.transferStatus = TransferStatusAbort
+	}
+	z.finishSession(z.currentSession, false)
 }
 
 func ParseHexHeader(p []byte) (int, *ZmodemHeader) {

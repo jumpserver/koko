@@ -1,1 +1,9 @@
-{}
+{
+  "ClipboardCopyDenied": "ターミナルからのコピーは許可されていません",
+  "ClipboardPasteDenied": "ターミナルへの貼り付けは許可されていません",
+  "ClipboardTextLimitExceeded": "{action}するテキストが {limit} 文字の上限を超えています",
+  "ZmodemDownloadFailed": "ダウンロードに失敗しました。リモートファイルが存在しないか、転送が中断されました。",
+  "ZmodemUploadSkipped": "アップロードはスキップされました。リモート側がファイルを受け付けませんでした。",
+  "Copy": "コピー",
+  "Paste": "貼り付け"
+}

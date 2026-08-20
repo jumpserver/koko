@@ -609,3 +609,8 @@ msgstr "Rede indisponível (roteamento indisponível)"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "Rede indisponível (rede inacessível)"
+
+#. lang.T
+#: pkg/proxy/parser.go
+msgid "File exceeds maximum transfer size: %s"
+msgstr "O arquivo excede o tamanho máximo de transferência: %s"

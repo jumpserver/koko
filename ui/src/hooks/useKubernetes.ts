@@ -16,6 +16,7 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { SearchAddon } from '@xterm/addon-search';
 import { createDiscreteApi, darkTheme, NIcon } from 'naive-ui';
 
+import type { ClipboardDirection } from '@/types/modules/clipboard.type';
 import type { customTreeOption, ILunaConfig } from '@/types/modules/config.type';
 
 import mittBus from '@/utils/mittBus';
@@ -25,10 +26,12 @@ import { useZmodem } from '@/hooks/useZmodem';
 import { lunaCommunicator } from '@/utils/lunaBus';
 import { useTreeStore } from '@/store/modules/tree.ts';
 import { formatMessage, preprocessInput } from '@/utils';
+import { useClipboardStore } from '@/store/modules/clipboard';
 import { useParamsStore } from '@/store/modules/params.ts';
 import { useTerminalStore } from '@/store/modules/terminal.ts';
 import { LUNA_MESSAGE_TYPE } from '@/types/modules/message.type';
 import { useKubernetesStore } from '@/store/modules/kubernetes.ts';
+import { validateClipboardText } from '@/utils/clipboardAcl';
 
 import { base64ToUint8Array, generateWsURL } from './helper';
 
@@ -41,6 +44,29 @@ const { message, notification } = createDiscreteApi(['message', 'notification'],
 const lunaId = ref('');
 const counter = ref(0);
 const guaranteeInterval = ref<number | null>(null);
+
+function canUseClipboardText(direction: ClipboardDirection, text: string, sessionId: string, t: any): boolean {
+  const clipboardStore = useClipboardStore();
+  const result = validateClipboardText(clipboardStore.getAccess(sessionId), direction, text);
+
+  if (result.allowed) {
+    return true;
+  }
+
+  if (result.reason === 'text_limit') {
+    message.warning(
+      t('ClipboardTextLimitExceeded', {
+        action: t(direction === 'copy' ? 'Copy' : 'Paste'),
+        limit: result.limit,
+      }),
+    );
+  }
+  else {
+    message.warning(t(direction === 'copy' ? 'ClipboardCopyDenied' : 'ClipboardPasteDenied'));
+  }
+
+  return false;
+}
 
 function getLabelString(label: unknown): string {
   if (typeof label === 'string') return label;
@@ -328,8 +354,10 @@ export function handleTreeMessage(ws: WebSocket, event: MessageEvent) {
     }
     case 'CONNECT': {
       const info = JSON.parse(message.data);
+      const clipboardStore = useClipboardStore();
 
       //* 设置通用配置以及全局唯一 id
+      clipboardStore.initialize(info.permission, info.clipboard_policy);
       paramsStore.setSetting(info.setting);
       kubernetesStore.setGlobalSetting(info.setting);
       kubernetesStore.setGlobalTerminalId(message.id);
@@ -373,8 +401,11 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
       case 'TERMINAL_SESSION': {
         const sessionInfo = JSON.parse(info.data);
         const sessionDetail = sessionInfo.session;
+        const clipboardStore = useClipboardStore();
 
-        const share = sessionInfo.permission.actions.includes('share');
+        clipboardStore.setSessionAccess(info.k8s_id, sessionInfo.permission, sessionInfo.clipboard_policy);
+
+        const share = sessionInfo.permission?.actions?.includes('share');
 
         const backspaceValue = sessionInfo.backspaceAsCtrlH ? '1' : '0';
         const ctrlCValue = sessionInfo.ctrlCAsCtrlZ ? '1' : '0';
@@ -432,6 +463,7 @@ export function handleTerminalMessage(ws: WebSocket, event: MessageEvent, create
         break;
       }
       case 'K8S_CLOSE': {
+        useClipboardStore().removeSessionAccess(info.k8s_id);
         treeStore.removeK8sIdMap(info.k8s_id);
 
         currentTerminal?.attachCustomKeyEventHandler(() => {
@@ -577,7 +609,7 @@ export function initTerminalEvent(
   terminal: Terminal,
   lunaConfig: ILunaConfig,
   socket: WebSocket,
-  nodeInfo: any
+  nodeInfo: any,
 ) {
   const fitAddon: FitAddon = new FitAddon();
   const webglAddon: WebglAddon = new WebglAddon();
@@ -652,6 +684,10 @@ export function initTerminalEvent(
   });
 
   terminal.attachCustomKeyEventHandler(e => {
+    if (e.key === 'Enter' && e.isComposing) {
+      return false;
+    }
+
     if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       switch (e.key) {
         case 'ArrowRight':
@@ -665,11 +701,11 @@ export function initTerminalEvent(
       return false;
     }
 
-    if (e.ctrlKey && e.key === 'c' && terminal.hasSelection()) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && terminal.hasSelection()) {
       return false;
     }
 
-    return !(e.ctrlKey && e.key === 'v');
+    return !((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v');
   });
 
   return {
@@ -687,7 +723,8 @@ export function initElEvent(
   fitAddon: FitAddon,
   socket: WebSocket,
   lunaConfig: ILunaConfig,
-  nodeInfo: any
+  nodeInfo: any,
+  t: any,
 ) {
   el.addEventListener(
     'mouseenter',
@@ -695,7 +732,37 @@ export function initElEvent(
       fitAddon.fit();
       terminal?.focus();
     },
-    false
+    false,
+  );
+
+  el.addEventListener(
+    'paste',
+    (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData('text/plain') ?? '';
+
+      if (canUseClipboardText('paste', text, nodeInfo.k8s_id, t)) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    },
+    true,
+  );
+
+  el.addEventListener(
+    'copy',
+    (e: ClipboardEvent) => {
+      const text = terminal.getSelection();
+
+      if (!text || canUseClipboardText('copy', text, nodeInfo.k8s_id, t)) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    },
+    true,
   );
 
   el.addEventListener(
@@ -711,20 +778,25 @@ export function initElEvent(
         text = await readText();
       } catch {
         if (terminalStore.termSelectionText !== '') text = terminalStore.termSelectionText;
-      } finally {
-        socket.send(
-          JSON.stringify({
-            id: nodeInfo.id,
-            k8s_id: nodeInfo.k8s_id,
-            type: 'TERMINAL_K8S_DATA',
-            data: text,
-          })
-        );
       }
+
+      if (!text || !canUseClipboardText('paste', text, nodeInfo.k8s_id, t)) {
+        e.preventDefault();
+        return;
+      }
+
+      socket.send(
+        JSON.stringify({
+          id: nodeInfo.id,
+          k8s_id: nodeInfo.k8s_id,
+          type: 'TERMINAL_K8S_DATA',
+          data: text,
+        }),
+      );
 
       e.preventDefault();
     },
-    false
+    false,
   );
 
   el.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -830,7 +902,7 @@ export function initMittBusEvents(searchAddon: SearchAddon, socket: WebSocket) {
 /**
  * @description 创建 K8s 终端
  */
-export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: ILunaConfig, nodeInfo: any) {
+export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: ILunaConfig, nodeInfo: any, t: any) {
   const { fontSize, lineHeight, fontFamily } = lunaConfig;
 
   const options = {
@@ -849,7 +921,7 @@ export function createTerminal(el: HTMLElement, socket: WebSocket, lunaConfig: I
 
   const { fitAddon, searchAddon } = initTerminalEvent(el, terminal, lunaConfig, socket, nodeInfo);
 
-  initElEvent(el, terminal, fitAddon, socket, lunaConfig, nodeInfo);
+  initElEvent(el, terminal, fitAddon, socket, lunaConfig, nodeInfo, t);
   initCustomWindowEvent(fitAddon);
   initMittBusEvents(searchAddon, socket);
 

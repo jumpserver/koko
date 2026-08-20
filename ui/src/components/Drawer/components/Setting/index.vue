@@ -12,10 +12,11 @@ import type { SettingConfig } from '@/types/modules/setting.type';
 import { formatMessage } from '@/utils';
 // import Share from '@/components/Drawer/components/Share/index.vue';
 import { useConnectionStore } from '@/store/modules/useConnection';
+import { useClipboardAcl } from '@/hooks/useClipboardAcl';
 import { FORMATTER_MESSAGE_TYPE } from '@/types/modules/message.type';
+import { SITE_ORIGIN } from '@/utils/config';
 import General from '@/components/Drawer/components/General/index.vue';
 import { useTerminalSettingsStore } from '@/store/modules/terminalSettings';
-import { SITE_ORIGIN } from '@/utils/config';
 
 defineProps<{
   settings: SettingConfig;
@@ -23,6 +24,7 @@ defineProps<{
 
 const terminalSettingsStore = useTerminalSettingsStore();
 const connectionStore = useConnectionStore();
+const { validateClipboardText } = useClipboardAcl();
 
 const { t } = useI18n();
 const { theme } = storeToRefs(terminalSettingsStore);
@@ -195,7 +197,12 @@ async function handleWriteCommand(command: string) {
       terminal?.paste('\x1A');
       break;
     case 'Paste':
-      terminal?.paste(await readText());
+      {
+        const text = await readText();
+        if (validateClipboardText('paste', text)) {
+          terminal?.paste(text);
+        }
+      }
       break;
     case 'ArrowUp':
       terminal?.paste('\x1B[A');

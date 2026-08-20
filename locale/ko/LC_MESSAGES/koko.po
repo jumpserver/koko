@@ -609,3 +609,8 @@ msgstr "네트워크가 다운되었습니다(라우팅이 다운되었습니다
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "네트워크 다운(네트워크에 접근할 수 없음)"
+
+#. lang.T
+#: pkg/proxy/parser.go
+msgid "File exceeds maximum transfer size: %s"
+msgstr "파일이 최대 전송 크기를 초과했습니다: %s"

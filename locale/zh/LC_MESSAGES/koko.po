@@ -590,3 +590,8 @@ msgstr "网络不通（路由不通）"
 #: pkg/proxy/tools.go:40
 msgid "network is unreachable"
 msgstr "网络不通（网络不可达）"
+
+#. lang.T
+#: pkg/proxy/parser.go
+msgid "File exceeds maximum transfer size: %s"
+msgstr "文件超过最大传输大小：%s"
