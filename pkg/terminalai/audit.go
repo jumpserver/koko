@@ -144,6 +144,7 @@ func safeAuditName(value string) string {
 
 func (r *Runtime) SetAuditWriter(writer *auditWriter) {
 	r.mu.Lock()
+	r.auditConfigured = true
 	if r.audit == nil {
 		r.audit = writer
 	}
@@ -161,7 +162,7 @@ func (r *Runtime) SetAuditWriter(writer *auditWriter) {
 func (r *Runtime) writeAudit(event string, payload any) {
 	r.mu.Lock()
 	writer := r.audit
-	if writer == nil && len(r.auditPending) < 1000 {
+	if writer == nil && !r.auditConfigured && len(r.auditPending) < 1000 {
 		r.auditPending = append(r.auditPending, auditEvent{name: event, payload: payload})
 	}
 	r.mu.Unlock()

@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+func TestDisabledAuditDoesNotBufferEvents(t *testing.T) {
+	runtime := NewRuntime(1, nil, nil, nil, nil)
+	runtime.writeAudit("before_configuration", nil)
+	runtime.SetAuditWriter(nil)
+	runtime.writeAudit("after_configuration", nil)
+	if len(runtime.auditPending) != 0 {
+		t.Fatalf("disabled audit buffered %d events", len(runtime.auditPending))
+	}
+	runtime.lifetimeCancel()
+}
+
 func TestAuditWriterIsolatesUserAndRetainsTenSessions(t *testing.T) {
 	root := t.TempDir()
 	active := newAuditWriter("user-1", 1, root, 10)

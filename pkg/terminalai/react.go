@@ -256,6 +256,26 @@ func (p *reactPlan) forceStop(reason string) {
 	}
 }
 
+func (p *reactPlan) interrupt(reason string) {
+	for index := range p.steps {
+		switch p.steps[index].Status {
+		case StepPending:
+			p.steps[index].Status = StepSkipped
+		case StepInProgress, StepReviewing:
+			p.steps[index].Status = StepInterrupted
+		}
+	}
+	for index := range p.results {
+		if p.results[index].Status != StepReviewing {
+			continue
+		}
+		p.results[index].Status = StepInterrupted
+		if p.results[index].Summary == "" {
+			p.results[index].Summary = reason
+		}
+	}
+}
+
 func applyObservation(
 	steps []Step,
 	results []StepResult,

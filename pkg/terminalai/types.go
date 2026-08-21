@@ -14,13 +14,14 @@ const (
 	ReActFinish   = "finish"
 	ReActContinue = "continue"
 
-	StepPending    = "pending"
-	StepInProgress = "in_progress"
-	StepReviewing  = "reviewing"
-	StepCompleted  = "completed"
-	StepFailed     = "failed"
-	StepRejected   = "rejected"
-	StepSkipped    = "skipped"
+	StepPending     = "pending"
+	StepInProgress  = "in_progress"
+	StepReviewing   = "reviewing"
+	StepCompleted   = "completed"
+	StepFailed      = "failed"
+	StepInterrupted = "interrupted"
+	StepRejected    = "rejected"
+	StepSkipped     = "skipped"
 )
 
 type ChatMessage struct {

@@ -84,6 +84,7 @@ type Runtime struct {
 
 	audit               *auditWriter
 	auditPending        []auditEvent
+	auditConfigured     bool
 	modelRequestLimit   int
 	modelRequestTimeout time.Duration
 }
@@ -475,6 +476,18 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 		decision.Steps[index].rootStepID = decision.Steps[index].ID
 	}
 	plan := newReActPlan(planID, decision.Summary, decision.Steps)
+	round := 1
+	defer func() {
+		if ctx.Err() == nil {
+			return
+		}
+		plan.interrupt("任务已由用户中断")
+		if len(plan.results) > 0 &&
+			plan.results[len(plan.results)-1].Status == StepInterrupted {
+			r.emitLatestResult(plan)
+		}
+		r.emitPlan(plan, round, "任务已中断")
+	}()
 	next := ReActDecision{
 		Kind: ReActExecute, ThoughtSummary: decision.ThoughtSummary,
 		Observation: ObservationReview{Outcome: "none"},
@@ -485,7 +498,7 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 		r.emitError(err)
 		return
 	}
-	for round := 1; round <= maxReActRounds; round++ {
+	for ; round <= maxReActRounds; round++ {
 		if ctx.Err() != nil {
 			return
 		}
@@ -601,6 +614,9 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 		); recordErr != nil {
 			r.emitError(recordErr)
 			r.finishReAct(ctx, taskID, question, plan, round, recordErr.Error())
+			return
+		}
+		if ctx.Err() != nil {
 			return
 		}
 		r.emitData("data-execution", map[string]any{

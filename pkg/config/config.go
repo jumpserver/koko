@@ -92,6 +92,7 @@ type Config struct {
 
 	TerminalAIBackgroundTimeout int    `mapstructure:"TERMINAL_AI_BACKGROUND_TIMEOUT"`
 	TerminalAIRulesFile         string `mapstructure:"TERMINAL_AI_RULES_FILE"`
+	TerminalAIAuditEnabled      bool   `mapstructure:"TERMINAL_AI_AUDIT_ENABLED"`
 
 	SecretEncryptKey string `mapstructure:"SECRET_ENCRYPT_KEY"`
 
@@ -221,6 +222,7 @@ func getDefaultConfig() Config {
 		KokoPrivileged:              true,
 		DisableInputAsCommand:       true,
 		TerminalAIBackgroundTimeout: 300,
+		TerminalAIAuditEnabled:      false,
 	}
 
 }
