@@ -134,6 +134,10 @@ func (o *sqlOption) USQLCommandArgs() ([]string, error) {
 		if o.SQLServerDisableEncrypt {
 			params.Set("encrypt", "disable")
 		}
+	case "oracle":
+		if o.OracleUseSYSDBA {
+			params.Set("DBA PRIVILEGE", "SYSDBA")
+		}
 	default:
 	}
 	dsnURL.RawQuery = params.Encode()
