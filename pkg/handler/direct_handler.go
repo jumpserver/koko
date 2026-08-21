@@ -119,6 +119,7 @@ func NewDirectHandler(sess ssh.Session, jmsService *service.JMService, setters .
 		setters[i](opts)
 	}
 	i18nLang := getUserDefaultLangCode(opts.User)
+	jmsService = newLangAPIClient(jmsService, i18nLang)
 	var (
 		wrapperSess *WrapperSession
 		termVt      *term.Terminal

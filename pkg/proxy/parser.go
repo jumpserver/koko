@@ -55,9 +55,10 @@ const (
 	zmodemIdleTimeout          = 10 * time.Second
 	zmodemSendHandshakeTimeout = 10 * time.Second
 	zmodemInputDrainTimeout    = 2 * time.Second
+	zmodemFinishTimeout        = 2 * time.Second
 	zmodemPromptRedrawDelay    = 500 * time.Millisecond
 	zmodemMaxTransferSize      = int64(500 * 1024 * 1024)
-	zmodemMaxTransferSizeLabel = "500 MB"
+	zmodemMaxTransferSizeLabel = "500 MiB"
 	zmodemInterruptCtrlC       = byte(0x03)
 )
 
@@ -92,9 +93,18 @@ type Parser struct {
 	enableDownload        bool
 	enableUpload          bool
 	abortedFileTransfer   bool
+	oversizedFileTransfer bool
 	zmodemRejectMessage   string
 	drainingZmodemInput   bool
 	zmodemInputDrainUntil time.Time
+	awaitingZmodemOO      bool
+	zmodemOOSeen          int
+	zmodemOOUntil         time.Time
+	zmodemOONotice        string
+	awaitingZmodemSrvOO   bool
+	zmodemSrvOOSeen       int
+	zmodemSrvOOUntil      time.Time
+	zmodemSrvOONotice     string
 	zmodemPromptRedraw    chan struct{}
 	currentActiveUser     CurrentActiveUser
 
@@ -259,6 +269,14 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 				}
 				continue
 			case now := <-zmodemTicker.C:
+				if p.awaitingZmodemOO && !p.zmodemOOUntil.IsZero() && !now.Before(p.zmodemOOUntil) {
+					logger.Infof("Session %s: Zmodem OO wait timeout, resume terminal input", p.id)
+					p.finishZmodemOOWait()
+				}
+				if p.awaitingZmodemSrvOO && !p.zmodemSrvOOUntil.IsZero() && !now.Before(p.zmodemSrvOOUntil) {
+					logger.Infof("Session %s: Zmodem server OO wait timeout, resume terminal input", p.id)
+					p.finishZmodemServerOOWait()
+				}
 				if p.drainingZmodemInput && !p.zmodemInputDrainUntil.IsZero() && !now.Before(p.zmodemInputDrainUntil) {
 					logger.Infof("Session %s: Zmodem input drain timeout, resume terminal input", p.id)
 					p.finishZmodemInputDrain()
@@ -275,6 +293,7 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 					}
 					if p.zmodemParser.Abort() {
 						p.abortedFileTransfer = false
+						p.oversizedFileTransfer = false
 						p.zmodemRejectMessage = ""
 					}
 				}
@@ -308,6 +327,18 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 
 // parseInputState 切换用户输入状态, 并结算命令和结果
 func (p *Parser) parseInputState(b []byte) []byte {
+	if p.awaitingZmodemSrvOO {
+		// 下载结束阶段客户端回给远端的 ZFIN 必须原样通过，不能当作 shell 命令解析。
+		return b
+	}
+
+	if p.awaitingZmodemOO {
+		b = p.consumeZmodemOO(b)
+		if len(b) == 0 {
+			return nil
+		}
+	}
+
 	if p.drainingZmodemInput {
 		// Ctrl-C 后浏览器会把 CAN 放在发送队列尾部；在此之前到达的内容都是残余文件数据。
 		if bytes.Contains(b, zmodem.AbortSession) {
@@ -329,6 +360,7 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			rejectMessage := p.zmodemRejectMessage
 			status := p.zmodemParser.Status()
 			p.abortedFileTransfer = false
+			p.oversizedFileTransfer = false
 			p.zmodemRejectMessage = ""
 			p.zmodemParser.Abort()
 			if rejected {
@@ -354,12 +386,24 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		case zmodem.ZParserStatusReceive:
 			p.zmodemParser.Parse(b)
 			if p.zmodemParser.IsZFilePacket() {
+				if p.zmodemFileTooLarge() {
+					rejectMessage := p.zmodemOversizedMessage()
+					logger.Infof("Reject oversized Zmodem upload: %s", rejectMessage)
+					p.abortedFileTransfer = true
+					p.oversizedFileTransfer = true
+					p.zmodemRejectMessage = rejectMessage
+					p.zmodemParser.SetAbortMark()
+					// 让客户端按标准 ZSKIP/ZFIN 流程退出，FinalShell 收到主动 CAN 会关闭整个 SSH 会话。
+					p.srvOutputChan <- zmodem.SkipSequence
+					return p.zmodemRemoteCancelSequence()
+				}
 				rejectMessage := p.zmodemFileRejectMessage(zmodem.ZParserStatusReceive)
 				if rejectMessage == "" {
 					break
 				}
 				logger.Infof("Reject Zmodem upload: %s", rejectMessage)
 				p.abortedFileTransfer = true
+				p.oversizedFileTransfer = false
 				p.zmodemRejectMessage = rejectMessage
 				// 不记录中断的文件
 				p.zmodemParser.SetAbortMark()
@@ -375,25 +419,47 @@ func (p *Parser) parseInputState(b []byte) []byte {
 
 				logger.Info("Zmodem abort upload file finished")
 				msg := p.zmodemRejectMessage
+				oversized := p.oversizedFileTransfer
 				p.abortedFileTransfer = false
+				p.oversizedFileTransfer = false
 				p.zmodemRejectMessage = ""
 				if msg == "" {
 					msg = p.zmodemPermissionDeniedMessage(zmodem.ZParserStatusReceive)
 				}
-				p.srvOutputChan <- zmodem.CancelSequence
-				p.srvOutputChan <- []byte("\r\n")
-				p.srvOutputChan <- []byte(msg)
-				p.srvOutputChan <- []byte("\r\n")
+				if !oversized {
+					p.srvOutputChan <- zmodem.CancelSequence
+					p.srvOutputChan <- []byte("\r\n")
+					p.srvOutputChan <- []byte(msg)
+					p.srvOutputChan <- []byte("\r\n")
+				} else {
+					// ZSKIP 后 FinalShell 会发送 ZFIN；必须回 ZFIN，它才会发送 OO 并释放终端界面。
+					p.startZmodemOOWait(time.Now(), msg)
+					p.srvOutputChan <- zmodem.FinishSequence
+				}
+				if oversized {
+					return nil
+				}
 				return charEnter
 			}
 		case zmodem.ZParserStatusSend:
 			if p.zmodemParser.IsZFilePacket() {
+				if p.zmodemFileTooLarge() {
+					rejectMessage := p.zmodemOversizedMessage()
+					logger.Infof("Reject oversized Zmodem download: %s", rejectMessage)
+					p.abortedFileTransfer = true
+					p.oversizedFileTransfer = true
+					p.zmodemRejectMessage = rejectMessage
+					p.zmodemParser.SetAbortMark()
+					// 代替客户端向远端发送 ZSKIP，随后把远端 ZFIN 转给客户端正常结束会话。
+					return zmodem.SkipSequence
+				}
 				rejectMessage := p.zmodemFileRejectMessage(zmodem.ZParserStatusSend)
 				if rejectMessage == "" {
 					break
 				}
 				logger.Infof("Reject Zmodem download: %s", rejectMessage)
 				p.abortedFileTransfer = true
+				p.oversizedFileTransfer = false
 				p.zmodemRejectMessage = rejectMessage
 				p.userOutputChan <- zmodem.AbortSession
 				// 不记录中断的文件
@@ -494,6 +560,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
 		if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
+			logger.Infof("command_rule_matched session_id=%q command=%q matched_command=%q acl_id=%q acl_name=%q rule_id=%q rule_name=%q action=%q",
+				p.id, currentCmd, cmd, rule.Acl.ID, rule.Acl.Name, rule.Item.ID, rule.Item.Name, rule.Acl.Action)
 			switch rule.Acl.Action {
 			case model.ActionReject:
 				p.setCurrentCmdStatusLevel(model.RejectLevel)
@@ -513,12 +581,10 @@ func (p *Parser) parseInputState(b []byte) []byte {
 			case model.ActionWarning:
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
-				logger.Debugf("Session %s: command %s match warning rule", p.id, p.command)
 			case model.ActionNotifyAndWarn:
 				p.confirmStatus.SetStatus(StatusQuery)
 				p.setCurrentCmdFilterRule(rule)
 				p.setCurrentCmdStatusLevel(model.WarningLevel)
-				logger.Debugf("Session %s: command %s match notify and warn rule", p.id, p.command)
 				p.srvOutputChan <- []byte("\r\n" + WarnWaitMsg)
 				return nil
 			default:
@@ -550,12 +616,124 @@ func (p *Parser) zmodemFileRejectMessage(status string) string {
 		return p.zmodemPermissionDeniedMessage(status)
 	}
 
-	info := p.zmodemParser.GetCurrentZFileInfo()
-	if info == nil || info.Size() < zmodemMaxTransferSize {
+	if !p.zmodemFileTooLarge() {
 		return ""
 	}
+	return p.zmodemOversizedMessage()
+}
+
+func (p *Parser) zmodemFileTooLarge() bool {
+	info := p.zmodemParser.GetCurrentZFileInfo()
+	return info != nil && info.Size() >= zmodemMaxTransferSize
+}
+
+func (p *Parser) zmodemOversizedMessage() string {
 	lang := i18n.NewLang(p.i18nLang)
 	return fmt.Sprintf(lang.T("File exceeds maximum transfer size: %s"), zmodemMaxTransferSizeLabel)
+}
+
+func (p *Parser) zmodemRemoteCancelSequence() []byte {
+	cancelSequence := make([]byte, 0, 1+len(zmodem.CancelSequence))
+	cancelSequence = append(cancelSequence, zmodemInterruptCtrlC)
+	cancelSequence = append(cancelSequence, zmodem.CancelSequence...)
+	return cancelSequence
+}
+
+func (p *Parser) startZmodemOOWait(now time.Time, notice string) {
+	p.awaitingZmodemOO = true
+	p.zmodemOOSeen = 0
+	p.zmodemOOUntil = now.Add(zmodemFinishTimeout)
+	p.zmodemOONotice = notice
+}
+
+func (p *Parser) resetZmodemOOWait() {
+	p.awaitingZmodemOO = false
+	p.zmodemOOSeen = 0
+	p.zmodemOOUntil = time.Time{}
+	p.zmodemOONotice = ""
+}
+
+func (p *Parser) finishZmodemOOWait() {
+	notice := p.zmodemOONotice
+	p.resetZmodemOOWait()
+	if notice != "" {
+		p.srvOutputChan <- []byte("\r\n")
+		p.srvOutputChan <- []byte(notice)
+		p.srvOutputChan <- []byte("\r\n")
+	}
+	p.scheduleZmodemPromptRedraw()
+}
+
+func (p *Parser) consumeZmodemOO(b []byte) []byte {
+	for index, value := range b {
+		if value == 'O' {
+			p.zmodemOOSeen++
+			if p.zmodemOOSeen == 2 {
+				p.finishZmodemOOWait()
+				return b[index+1:]
+			}
+			continue
+		}
+		p.zmodemOOSeen = 0
+	}
+	return nil
+}
+
+func (p *Parser) startZmodemServerOOWait(now time.Time, notice string) {
+	p.awaitingZmodemSrvOO = true
+	p.zmodemSrvOOSeen = 0
+	p.zmodemSrvOOUntil = now.Add(zmodemFinishTimeout)
+	p.zmodemSrvOONotice = notice
+}
+
+func (p *Parser) resetZmodemServerOOWait() {
+	p.awaitingZmodemSrvOO = false
+	p.zmodemSrvOOSeen = 0
+	p.zmodemSrvOOUntil = time.Time{}
+	p.zmodemSrvOONotice = ""
+}
+
+func (p *Parser) finishZmodemServerOOWait() {
+	notice := p.zmodemSrvOONotice
+	p.resetZmodemServerOOWait()
+	if notice != "" {
+		p.srvOutputChan <- []byte("\r\n")
+		p.srvOutputChan <- []byte(notice)
+		p.srvOutputChan <- []byte("\r\n")
+	}
+	p.scheduleZmodemPromptRedraw()
+}
+
+func (p *Parser) consumeZmodemServerOO(b []byte) []byte {
+	for index, value := range b {
+		if value == 'O' {
+			p.zmodemSrvOOSeen++
+			if p.zmodemSrvOOSeen == 2 {
+				p.finishZmodemServerOOWait()
+				return b[index+1:]
+			}
+			continue
+		}
+		p.zmodemSrvOOSeen = 0
+	}
+	return nil
+}
+
+func (p *Parser) rejectOversizedZmodemDownloadOffer() bool {
+	if p.zmodemParser.Status() != zmodem.ZParserStatusSend ||
+		!p.zmodemParser.IsZFilePacket() || !p.zmodemFileTooLarge() {
+		return false
+	}
+
+	rejectMessage := p.zmodemOversizedMessage()
+	logger.Infof("Reject oversized Zmodem download offer: %s", rejectMessage)
+	p.abortedFileTransfer = true
+	p.oversizedFileTransfer = true
+	p.zmodemRejectMessage = rejectMessage
+	p.zmodemParser.SetAbortMark()
+	// 不把超限 ZFILE 发给 FinalShell，直接代替客户端向远端发送 ZSKIP。
+	p.userOutputChan <- zmodem.SkipSequence
+	return true
 }
 
 func (p *Parser) startZmodemInputDrain(now time.Time) {
@@ -566,6 +744,10 @@ func (p *Parser) startZmodemInputDrain(now time.Time) {
 func (p *Parser) finishZmodemInputDrain() {
 	p.drainingZmodemInput = false
 	p.zmodemInputDrainUntil = time.Time{}
+	p.scheduleZmodemPromptRedraw()
+}
+
+func (p *Parser) scheduleZmodemPromptRedraw() {
 	// 给远端 rz/sz 留出退出时间，再补回车让 shell 单独重绘提示符。
 	select {
 	case p.zmodemPromptRedraw <- struct{}{}:
@@ -653,11 +835,21 @@ func (p *Parser) parseVimState(b []byte) {
 
 // splitCmdStream 将服务器输出流分离到命令buffer和命令输出buffer
 func (p *Parser) splitCmdStream(b []byte) []byte {
+	if p.awaitingZmodemSrvOO {
+		b = p.consumeZmodemServerOO(b)
+		if len(b) == 0 {
+			return nil
+		}
+	}
+
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		p.zmodemParser.MarkActive()
 		if p.zmodemParser.Status() == zmodem.ZParserStatusSend {
 			p.zmodemParser.Parse(b)
+			if p.rejectOversizedZmodemDownloadOffer() {
+				return nil
+			}
 		}
 		if p.zmodemParser.ConsumeLastAbort() {
 			b = sanitizeZmodemAbortOutput(b)
@@ -665,11 +857,17 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		if !p.zmodemParser.IsStartSession() && p.abortedFileTransfer {
 			logger.Info("Zmodem abort download file finished")
 			msg := p.zmodemRejectMessage
+			oversized := p.oversizedFileTransfer
 			p.abortedFileTransfer = false
+			p.oversizedFileTransfer = false
 			p.zmodemRejectMessage = ""
 			p.srvOutputChan <- b
 			if msg == "" {
 				msg = lang.T("have no permission to download file")
+			}
+			if oversized {
+				p.startZmodemServerOOWait(time.Now(), msg)
+				return nil
 			}
 			p.srvOutputChan <- []byte("\r\n")
 			p.srvOutputChan <- []byte(msg)
@@ -684,6 +882,9 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 			return b
 		}
 		p.parseZmodemState(b)
+		if p.rejectOversizedZmodemDownloadOffer() {
+			return nil
+		}
 		if p.zmodemParser.ConsumeLastAbort() {
 			return sanitizeZmodemAbortOutput(b)
 		}

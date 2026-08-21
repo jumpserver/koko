@@ -684,6 +684,10 @@ export function initTerminalEvent(
   });
 
   terminal.attachCustomKeyEventHandler(e => {
+    if (e.key === 'Enter' && e.isComposing) {
+      return false;
+    }
+
     if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       switch (e.key) {
         case 'ArrowRight':

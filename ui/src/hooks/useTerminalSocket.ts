@@ -256,7 +256,10 @@ export const useTerminalSocket = () => {
 
         const share = sessionInfo?.permission?.actions?.includes('share');
 
-        if (sessionInfo.backspaceAsCtrlH) {
+        // `false` is an explicit per-session setting and must override the
+        // default terminal configuration. Only an omitted value should fall
+        // back to the global setting.
+        if (sessionInfo.backspaceAsCtrlH !== undefined) {
           const value = sessionInfo.backspaceAsCtrlH ? '1' : '0';
 
           terminalSettingsStore.setDefaultTerminalConfig('backspaceAsCtrlH', value);
@@ -585,6 +588,10 @@ export const useTerminalSocket = () => {
       }
     });
     terminalRef.value.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.key === 'Enter' && e.isComposing) {
+        return false;
+      }
+
       if (e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         debouncedSendLunaKey(e.key);
         return false;
