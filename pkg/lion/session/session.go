@@ -18,6 +18,7 @@ type TunnelSession struct {
 	RemoteApp      *model.Applet         `json:"remote_app"`
 	Permission     *model.Permission     `json:"permission"`
 	Gateway        *model.Gateway        `json:"-"`
+	GatewayTarget  *model.Gateway        `json:"-"`
 	TerminalConfig *model.TerminalConfig `json:"-"`
 	ExpireInfo     model.ExpireInfo      `json:"expire_info"`
 	ActionPerm     *ActionPermission     `json:"action_permission"`

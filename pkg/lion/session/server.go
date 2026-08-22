@@ -3,12 +3,15 @@ package session
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/jumpserver/koko/pkg/lion/gateway"
 	"github.com/jumpserver/koko/pkg/logger"
 
 	"github.com/jumpserver-dev/sdk-go/common"
@@ -42,7 +45,58 @@ var (
 type Server struct {
 	JmsService *service.JMService
 
-	PandaClient *panda.Client
+	PandaClient        *panda.Client
+	PandaClientFactory func(string) *panda.Client
+}
+
+func (s *Server) pandaClientFor(provider *model.VirtualAppProvider) *panda.Client {
+	if provider != nil && provider.ServiceURL != "" && s.PandaClientFactory != nil {
+		return s.PandaClientFactory(provider.ServiceURL)
+	}
+	return s.PandaClient
+}
+
+func providerSSHTarget(provider *model.VirtualAppProvider) *model.Gateway {
+	return &model.Gateway{
+		ID:        provider.Host.ID,
+		Name:      provider.Name,
+		Address:   provider.Host.Address,
+		Protocols: provider.Host.Protocols,
+		Account:   provider.Account,
+	}
+}
+
+func pandaAPIForwardAddress(serviceURL string) (string, *url.URL, error) {
+	parsed, err := url.Parse(serviceURL)
+	if err != nil || parsed.Hostname() == "" {
+		return "", nil, fmt.Errorf("invalid Panda service URL %q", serviceURL)
+	}
+	port := parsed.Port()
+	if port == "" {
+		if parsed.Scheme == "https" {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+	return net.JoinHostPort("127.0.0.1", port), parsed, nil
+}
+
+func (s *Server) startPandaAPIForward(provider *model.VirtualAppProvider) (*gateway.DomainGateway, string, error) {
+	dstAddr, parsedURL, err := pandaAPIForwardAddress(provider.ServiceURL)
+	if err != nil {
+		return nil, "", err
+	}
+	forwarder := &gateway.DomainGateway{
+		DstAddr:         dstAddr,
+		SelectedGateway: provider.Gateway,
+		Destination:     providerSSHTarget(provider),
+	}
+	if err = forwarder.Start(); err != nil {
+		return nil, "", err
+	}
+	parsedURL.Host = forwarder.GetListenAddr().String()
+	return forwarder, parsedURL.String(), nil
 }
 
 func ParseWidthAndHeight(ctx *gin.Context, connectToken *model.ConnectToken) (int, int) {
@@ -126,9 +180,6 @@ func (s *Server) CreatByToken(ctx *gin.Context, token string) (TunnelSession, er
 		// 替换成 发布机的 platform 信息
 		opts = append(opts, WithPlatform(appletOptions.Platform))
 	case connectVirtualAPP:
-		if s.PandaClient == nil {
-			return TunnelSession{}, fmt.Errorf("%w: panda is disabled or unavailable", ErrPandaAPIService)
-		}
 		virtualApp, err1 := s.JmsService.GetConnectTokenVirtualAppOption(token)
 		if err1 != nil {
 			msg := err1.Error()
@@ -140,22 +191,56 @@ func (s *Server) CreatByToken(ctx *gin.Context, token string) (TunnelSession, er
 		}
 		width, height := ParseWidthAndHeight(ctx, &connectToken)
 		appOpt := model.VirtualAppOption{
-			ImageName:     virtualApp.ImageName,
-			ImageProtocol: virtualApp.ImageProtocol,
-			ImagePort:     virtualApp.ImagePort,
-			DesktopWidth:  width,
-			DesktopHeight: height,
+			ImageName:      virtualApp.ImageName,
+			ImageProtocol:  virtualApp.ImageProtocol,
+			ImagePort:      virtualApp.ImagePort,
+			DesktopWidth:   width,
+			DesktopHeight:  height,
+			ConnectionMode: "",
 		}
-		virtualContainer, err2 := s.PandaClient.CreateContainer(token, appOpt)
+		if virtualApp.Provider != nil {
+			appOpt.ConnectionMode = virtualApp.Provider.ConnectionMode
+		}
+		var pandaAPIGateway *gateway.DomainGateway
+		pandaClient := s.pandaClientFor(virtualApp.Provider)
+		if virtualApp.Provider != nil && virtualApp.Provider.ConnectionMode == "ssh" {
+			var forwardedURL string
+			pandaAPIGateway, forwardedURL, err1 = s.startPandaAPIForward(virtualApp.Provider)
+			if err1 != nil {
+				return TunnelSession{}, fmt.Errorf("%w: start Panda API SSH forward: %s", ErrPandaAPIService, err1)
+			}
+			if s.PandaClientFactory == nil {
+				pandaAPIGateway.Stop()
+				return TunnelSession{}, fmt.Errorf("%w: Panda client factory is not configured", ErrPandaAPIService)
+			}
+			pandaClient = s.PandaClientFactory(forwardedURL)
+		}
+		if pandaClient == nil {
+			if pandaAPIGateway != nil {
+				pandaAPIGateway.Stop()
+			}
+			return TunnelSession{}, fmt.Errorf("%w: Panda client is not configured", ErrPandaAPIService)
+		}
+		virtualContainer, err2 := pandaClient.CreateContainer(token, appOpt)
 		if err2 != nil {
+			if pandaAPIGateway != nil {
+				pandaAPIGateway.Stop()
+			}
 			return TunnelSession{}, fmt.Errorf("%w: %s", ErrPandaAPIService, err2.Error())
 		}
 		logger.Infof("Create container %s success", virtualContainer.ContainerId)
 		opts = append(opts, WithVirtualAppOption(&virtualContainer))
+		opts = append(opts, WithVirtualAppClient(pandaClient))
+		opts = append(opts, WithVirtualAppAPIGateway(pandaAPIGateway))
 		logger.Infof("Connect applet(%s) use virtual app %s", connectToken.Asset.String(),
 			virtualContainer.String())
-		// 连接虚拟应用，不需要使用虚拟应用的网关
-		opts = append(opts, WithGateway(nil))
+		if virtualApp.Provider != nil && virtualApp.Provider.ConnectionMode == "ssh" {
+			opts = append(opts, WithGateway(virtualApp.Provider.Gateway))
+			opts = append(opts, WithGatewayTarget(providerSSHTarget(virtualApp.Provider)))
+		} else {
+			// Legacy and direct providers remain directly reachable by guacd.
+			opts = append(opts, WithGateway(nil))
+		}
 
 	default:
 		if _, err1 := s.JmsService.GetConnectTokenInfo(token, true); err1 != nil {
@@ -211,6 +296,18 @@ func WithGateway(gateway *model.Gateway) TunnelOption {
 	}
 }
 
+func WithGatewayTarget(target *model.Gateway) TunnelOption {
+	return func(tunnel *tunnelOption) {
+		tunnel.GatewayTarget = target
+	}
+}
+
+func WithVirtualAppAPIGateway(apiGateway *gateway.DomainGateway) TunnelOption {
+	return func(tunnel *tunnelOption) {
+		tunnel.virtualAppAPIGateway = apiGateway
+	}
+}
+
 func WithTerminalConfig(cfg *model.TerminalConfig) TunnelOption {
 	return func(tunnel *tunnelOption) {
 		tunnel.TerminalConfig = cfg
@@ -229,6 +326,12 @@ func WithVirtualAppOption(virtualAppOpt *model.VirtualAppContainer) TunnelOption
 	}
 }
 
+func WithVirtualAppClient(client *panda.Client) TunnelOption {
+	return func(tunnel *tunnelOption) {
+		tunnel.virtualAppClient = client
+	}
+}
+
 func WithUser(user *model.User) TunnelOption {
 	return func(tunnel *tunnelOption) {
 		tunnel.User = user
@@ -236,20 +339,23 @@ func WithUser(user *model.User) TunnelOption {
 }
 
 type tunnelOption struct {
-	Protocol   string
-	User       *model.User
-	Asset      *model.Asset
-	Account    *model.Account
-	Platform   *model.Platform
-	Domain     *model.Domain
-	Gateway    *model.Gateway
-	Actions    model.Actions
-	ExpireInfo model.ExpireInfo
+	Protocol      string
+	User          *model.User
+	Asset         *model.Asset
+	Account       *model.Account
+	Platform      *model.Platform
+	Domain        *model.Domain
+	Gateway       *model.Gateway
+	GatewayTarget *model.Gateway
+	Actions       model.Actions
+	ExpireInfo    model.ExpireInfo
 
-	authInfo       *model.ConnectToken
-	TerminalConfig *model.TerminalConfig
-	appletOpt      *model.AppletOption
-	virtualAppOPt  *model.VirtualAppContainer
+	authInfo             *model.ConnectToken
+	TerminalConfig       *model.TerminalConfig
+	appletOpt            *model.AppletOption
+	virtualAppOPt        *model.VirtualAppContainer
+	virtualAppClient     *panda.Client
+	virtualAppAPIGateway *gateway.DomainGateway
 }
 
 type TunnelOption func(*tunnelOption)
@@ -259,6 +365,19 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 	for _, setter := range opts {
 		setter(opt)
 	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		if opt.virtualAppAPIGateway != nil {
+			defer opt.virtualAppAPIGateway.Stop()
+		}
+		if opt.virtualAppOPt != nil && opt.virtualAppClient != nil {
+			if err2 := opt.virtualAppClient.ReleaseContainer(opt.virtualAppOPt.ContainerId); err2 != nil {
+				logger.Errorf("Release virtual app container after creating session failed: %s", err2)
+			}
+		}
+	}()
 	var targetType string
 	sessionProtocol := opt.Protocol
 	switch opt.authInfo.ConnectMethod.Type {
@@ -285,6 +404,7 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 	perm := opt.Actions.Permission()
 	sess.AppletOpts = opt.appletOpt
 	sess.VirtualAppOpts = opt.virtualAppOPt
+	sess.GatewayTarget = opt.GatewayTarget
 	sess.AuthInfo = opt.authInfo
 	comment := ""
 	if opt.appletOpt != nil {
@@ -321,11 +441,17 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 	sess.ConnectedFailedCallback = s.RegisterConnectedFailedCallback(jmsSession)
 	sess.DisConnectedCallback = s.RegisterDisConnectedCallback(jmsSession)
 	sess.ReleaseAppletAccount = func() error {
+		if opt.virtualAppAPIGateway != nil {
+			defer opt.virtualAppAPIGateway.Stop()
+		}
 		if opt.appletOpt != nil {
 			return s.JmsService.ReleaseAppletAccount(opt.appletOpt.ID)
 		}
 		if opt.virtualAppOPt != nil {
-			return s.PandaClient.ReleaseContainer(opt.virtualAppOPt.ContainerId)
+			if opt.virtualAppClient == nil {
+				return errors.New("Panda client is not configured")
+			}
+			return opt.virtualAppClient.ReleaseContainer(opt.virtualAppOPt.ContainerId)
 		}
 		return nil
 
