@@ -175,4 +175,4 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.3.10
+replace github.com/gliderlabs/ssh => github.com/jumpserver-dev/ssh v0.3.11
