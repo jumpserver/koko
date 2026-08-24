@@ -27,7 +27,6 @@ require (
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/jumpserver-dev/sdk-go v0.0.0-20260727030641-b0cef8e97370
 	github.com/leonelquinteros/gotext v1.4.0
-	github.com/mediocregopher/radix/v3 v3.8.0
 	github.com/microsoft/go-mssqldb v1.10.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openai/openai-go/v3 v3.46.0
@@ -162,7 +161,6 @@ require (
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
