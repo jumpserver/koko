@@ -210,12 +210,13 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		var (
 			exitFlag bool
 		)
+		readBuf := make([]byte, 8*1024)
 		for {
-			buf := make([]byte, 1024)
-			nr, err2 := srvConn.Read(buf)
+			nr, err2 := srvConn.Read(readBuf)
 			if nr > 0 {
+				data := append([]byte(nil), readBuf[:nr]...)
 				select {
-				case srvInChan <- buf[:nr]:
+				case srvInChan <- data:
 				case <-done:
 					exitFlag = true
 					logger.Infof("Session[%s] done", s.ID)
