@@ -18,6 +18,12 @@ type ProfileProvider interface {
 	DetectProfile(context.Context) AssetProfile
 }
 
+type SQLMetadataProvider interface {
+	SQLMetadataScope() string
+	LookupSQLSchema(context.Context, SQLSchemaLookupRequest) (SQLSchemaLookupResult, error)
+	InvalidateSQLMetadata()
+}
+
 type BackgroundUnavailableError struct {
 	Cause error
 }

@@ -2,6 +2,7 @@ package terminalai
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -105,6 +106,53 @@ func TestCommandACLReviewRequiresUserApproval(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSQLMetadataApprovalCanCoverCurrentDatabaseSession(t *testing.T) {
+	messages := make(chan ChatMessage, 2)
+	runtime := NewRuntime(
+		1, nil, nil, func([]byte) {},
+		func(message ChatMessage) { messages <- message },
+	)
+	t.Cleanup(runtime.Close)
+	result := make(chan error, 1)
+	go func() {
+		approved, err := runtime.authorizeMetadata(
+			context.Background(), "app", SQLSchemaLookupRequest{Tables: []string{"users"}},
+		)
+		if err == nil && !approved {
+			err = errors.New("metadata approval was rejected")
+		}
+		result <- err
+	}()
+
+	var data map[string]any
+	deadline := time.After(time.Second)
+	for data == nil {
+		select {
+		case message := <-messages:
+			if message.Parts[0].Type == "data-metadata-approval" {
+				data = message.Parts[0].Data.(map[string]any)
+			}
+		case <-deadline:
+			t.Fatal("metadata approval was not requested")
+		}
+	}
+	decision := metadataApprovalDecision{
+		ID: data["id"].(string), Digest: data["digest"].(string),
+		Decision: "approve_session",
+	}
+	if err := runtime.resolveMetadataApproval(decision); err != nil {
+		t.Fatalf("resolve metadata approval: %v", err)
+	}
+	if err := <-result; err != nil {
+		t.Fatalf("authorize metadata: %v", err)
+	}
+	if approved, err := runtime.authorizeMetadata(
+		context.Background(), "app", SQLSchemaLookupRequest{Tables: []string{"orders"}},
+	); err != nil || !approved {
+		t.Fatalf("reuse session approval: %t, %v", approved, err)
 	}
 }
 

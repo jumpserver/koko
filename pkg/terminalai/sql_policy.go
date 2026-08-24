@@ -100,6 +100,15 @@ func analyzeSQL(statement string) (sqlAnalysis, error) {
 	return analysis, nil
 }
 
+func isSchemaChangingSQL(analysis sqlAnalysis) bool {
+	switch analysis.keyword {
+	case "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME":
+		return true
+	default:
+		return false
+	}
+}
+
 func scanSQL(statement string) (
 	words []string, depths []int, semicolon, trailingOnly, incomplete bool,
 ) {

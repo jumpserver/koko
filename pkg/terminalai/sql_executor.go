@@ -25,6 +25,7 @@ const maxNativeSQLRows = 1000
 type NativeSQLExecutor struct {
 	db        *sql.DB
 	sanitizer ValueSanitizer
+	metadata  *sqlMetadataTool
 	closeOnce sync.Once
 }
 
@@ -38,6 +39,7 @@ func NewNativeSQLExecutor(
 	}
 	executor := &NativeSQLExecutor{
 		db: db, sanitizer: NewMySQLSanitizer(config.DataMaskingRules),
+		metadata: newSQLMetadataTool(db, config.Protocol, config.Database),
 	}
 	if err = db.PingContext(ctx); err != nil {
 		_ = executor.Close()
@@ -64,6 +66,9 @@ func (e *NativeSQLExecutor) Execute(
 	} else {
 		output, err = e.exec(ctx, command)
 	}
+	if err == nil && isSchemaChangingSQL(analysis) {
+		e.metadata.Invalidate()
+	}
 	if output != "" && onOutput != nil {
 		onOutput(output)
 	}
@@ -75,6 +80,20 @@ func (e *NativeSQLExecutor) Execute(
 		}
 	}
 	return output, nil, err
+}
+
+func (e *NativeSQLExecutor) SQLMetadataScope() string {
+	return e.metadata.Scope()
+}
+
+func (e *NativeSQLExecutor) LookupSQLSchema(
+	ctx context.Context, request SQLSchemaLookupRequest,
+) (SQLSchemaLookupResult, error) {
+	return e.metadata.Lookup(ctx, request)
+}
+
+func (e *NativeSQLExecutor) InvalidateSQLMetadata() {
+	e.metadata.Invalidate()
 }
 
 func (e *NativeSQLExecutor) query(ctx context.Context, command string) (string, error) {

@@ -17,21 +17,23 @@ import (
 )
 
 const (
-	defaultApprovalThreshold = 2
-	defaultExecutionTimeout  = 5 * time.Minute
-	profileTimeout           = 30 * time.Second
-	maxDecisionText          = 64 * 1024
-	maxPlanSummary           = 16 * 1024
-	maxPlanTasks             = 5
-	maxStepTitle             = 512
-	maxStepObjective         = 4 * 1024
-	maxProposalExplanation   = 8 * 1024
-	maxReviewSummary         = 16 * 1024
-	defaultModelRequestLimit = 30
-	defaultModelTimeout      = 5 * time.Minute
-	maxRuntimeHistory        = 1024 * 1024
-	maxHistoryCheckpoints    = 16
-	historyCheckpointPrefix  = "system: conversation checkpoint: "
+	defaultApprovalThreshold  = 2
+	defaultExecutionTimeout   = 5 * time.Minute
+	profileTimeout            = 30 * time.Second
+	maxDecisionText           = 64 * 1024
+	maxPlanSummary            = 16 * 1024
+	maxPlanTasks              = 5
+	maxStepTitle              = 512
+	maxStepObjective          = 4 * 1024
+	maxProposalExplanation    = 8 * 1024
+	maxReviewSummary          = 16 * 1024
+	defaultModelRequestLimit  = 30
+	defaultModelTimeout       = 5 * time.Minute
+	defaultSQLMetadataTimeout = 10 * time.Second
+	metadataApprovalTimeout   = 5 * time.Minute
+	maxRuntimeHistory         = 1024 * 1024
+	maxHistoryCheckpoints     = 16
+	historyCheckpointPrefix   = "system: conversation checkpoint: "
 )
 
 type pendingApproval struct {
@@ -39,6 +41,13 @@ type pendingApproval struct {
 	digest   string
 	proposal CommandProposal
 	decision chan approvalDecision
+}
+
+type pendingMetadataApproval struct {
+	id       string
+	digest   string
+	database string
+	decision chan metadataApprovalDecision
 }
 
 type Runtime struct {
@@ -55,6 +64,9 @@ type Runtime struct {
 	busy              bool
 	cancel            context.CancelFunc
 	pending           *pendingApproval
+	pendingMetadata   *pendingMetadataApproval
+	metadataApproved  bool
+	metadataDatabase  string
 	approvalThreshold int
 	executionMode     string
 	history           []string
@@ -332,6 +344,12 @@ func (r *Runtime) Handle(message ChatMessage) error {
 				return err
 			}
 			return r.resolveApproval(decision)
+		case "data-metadata-approval":
+			var decision metadataApprovalDecision
+			if err := decodePartData(part.Data, &decision); err != nil {
+				return err
+			}
+			return r.resolveMetadataApproval(decision)
 		case "data-policy":
 			var policy policyUpdate
 			if err := decodePartData(part.Data, &policy); err != nil {
@@ -398,6 +416,7 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 		r.busy = false
 		r.cancel = nil
 		r.pending = nil
+		r.pendingMetadata = nil
 		r.activeExecution = ""
 		r.mu.Unlock()
 		r.emitProgress("", "idle", false)
@@ -436,6 +455,8 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 	}
 	r.executorMu.RLock()
 	backgroundAvailable := r.backgroundAvailable
+	_, schemaLookupAvailable := r.backgroundExecutor.(SQLMetadataProvider)
+	schemaLookupAvailable = schemaLookupAvailable && backgroundAvailable
 	r.executorMu.RUnlock()
 	r.writeLatency(taskID, "context_assembly", started, map[string]any{
 		"historyBytes": len(history), "profileBytes": len(profile.String()),
@@ -443,14 +464,13 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 	})
 	r.emitProgress("正在生成计划和首条命令…", "analyzing", true)
 	started = time.Now()
-	decision, err := r.initialDecision(
-		ctx, InitialRequest{
-			Question: question, History: history,
-			Profile: profile.String(), Snapshot: snapshot,
-			Mode: mode, BackgroundAvailable: backgroundAvailable,
-		},
-		adapter,
-	)
+	initialRequest := InitialRequest{
+		Question: question, History: history,
+		Profile: profile.String(), Snapshot: snapshot,
+		Mode: mode, BackgroundAvailable: backgroundAvailable,
+		SchemaLookupAvailable: schemaLookupAvailable,
+	}
+	decision, err := r.initialDecision(ctx, initialRequest, adapter)
 	decisionDurationMs := elapsedMilliseconds(started)
 	decisionFields := map[string]any{
 		"outcome": latencyOutcome(err), "durationMs": decisionDurationMs,
@@ -462,6 +482,42 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 	if err != nil {
 		r.emitError(err)
 		return
+	}
+	if decision.Kind == ActionLookupSchema {
+		r.emitProgress(decision.ThoughtSummary, "metadata_lookup", true)
+		initialRequest.SchemaLookupAvailable = false
+		lookupStarted := time.Now()
+		result, approved, lookupErr := r.lookupSQLSchema(ctx, *decision.SchemaLookup)
+		r.writeLatency(taskID, "sql_metadata_lookup", lookupStarted, map[string]any{
+			"outcome": latencyOutcome(lookupErr), "approved": approved,
+		})
+		switch {
+		case lookupErr != nil:
+			initialRequest.SchemaContext = "SQL schema lookup failed: " + lookupErr.Error()
+			r.emitData("data-schema-result", map[string]any{
+				"database": result.Database, "tables": []SQLTableSchema{},
+				"error": lookupErr.Error(),
+			}, "process")
+		case !approved:
+			initialRequest.SchemaContext = "SQL schema lookup was rejected by the user. Continue using existing context."
+		default:
+			initialRequest.SchemaContext = mustJSON(result)
+			r.emitData("data-schema-result", result, "process")
+		}
+		started = time.Now()
+		decision, err = r.initialDecision(ctx, initialRequest, adapter)
+		decisionDurationMs = elapsedMilliseconds(started)
+		r.writeLatency(taskID, "post_metadata_decision", started, map[string]any{
+			"outcome": latencyOutcome(err), "durationMs": decisionDurationMs,
+		})
+		if err != nil {
+			r.emitError(err)
+			return
+		}
+		if decision.Kind == ActionLookupSchema {
+			r.emitError(errors.New("terminal AI requested repeated SQL schema lookup"))
+			return
+		}
 	}
 	if decision.Kind == "answer" {
 		r.emitText(decision.Answer, "final")
@@ -601,6 +657,9 @@ func (r *Runtime) runTask(ctx context.Context, taskID, question string) {
 		backgroundRecord := r.backgroundRecord
 		r.mu.Unlock()
 		executionErr := err
+		if executionErr == nil {
+			r.invalidateSQLMetadataForCommand(proposal.Command)
+		}
 		if proposal.Execution == ExecutionBackground && backgroundRecord != nil {
 			if err != nil {
 				output = strings.TrimSpace(output + "\n" + err.Error())
@@ -1042,6 +1101,131 @@ func (r *Runtime) resolveApproval(decision approvalDecision) error {
 		return nil
 	default:
 		return fmt.Errorf("approval was already decided")
+	}
+}
+
+func (r *Runtime) lookupSQLSchema(
+	ctx context.Context, request SQLSchemaLookupRequest,
+) (SQLSchemaLookupResult, bool, error) {
+	r.executorMu.RLock()
+	provider, ok := r.backgroundExecutor.(SQLMetadataProvider)
+	available := r.backgroundAvailable
+	r.executorMu.RUnlock()
+	if !ok || !available {
+		return SQLSchemaLookupResult{}, false, errors.New("SQL schema lookup is unavailable")
+	}
+	database := provider.SQLMetadataScope()
+	approved, err := r.authorizeMetadata(ctx, database, request)
+	if err != nil || !approved {
+		return SQLSchemaLookupResult{Database: database, Tables: []SQLTableSchema{}}, approved, err
+	}
+	r.mu.Lock()
+	backgroundGuard := r.backgroundGuard
+	r.mu.Unlock()
+	if backgroundGuard != nil {
+		if err = backgroundGuard(); err != nil {
+			return SQLSchemaLookupResult{Database: database}, true, err
+		}
+	}
+	lookupCtx, cancel := context.WithTimeout(ctx, defaultSQLMetadataTimeout)
+	defer cancel()
+	result, err := provider.LookupSQLSchema(lookupCtx, request)
+	if errors.Is(err, context.DeadlineExceeded) {
+		err = errors.New("SQL schema lookup timed out")
+	}
+	return result, true, err
+}
+
+func (r *Runtime) invalidateSQLMetadataForCommand(command string) {
+	analysis, err := analyzeSQL(command)
+	if err != nil || !isSchemaChangingSQL(analysis) {
+		return
+	}
+	r.executorMu.RLock()
+	provider, ok := r.backgroundExecutor.(SQLMetadataProvider)
+	r.executorMu.RUnlock()
+	if ok {
+		provider.InvalidateSQLMetadata()
+	}
+}
+
+func (r *Runtime) authorizeMetadata(
+	ctx context.Context, database string, request SQLSchemaLookupRequest,
+) (bool, error) {
+	r.mu.Lock()
+	if r.metadataApproved && r.metadataDatabase == database {
+		r.mu.Unlock()
+		return true, nil
+	}
+	r.mu.Unlock()
+	id := runtimeID("metadata-approval")
+	digest := metadataDigest(r.terminalID, database, request)
+	pending := &pendingMetadataApproval{
+		id: id, digest: digest, database: database,
+		decision: make(chan metadataApprovalDecision, 1),
+	}
+	r.mu.Lock()
+	r.pendingMetadata = pending
+	r.mu.Unlock()
+	r.emitProgress("正在等待数据库结构查询授权…", "metadata_approval", true)
+	r.emitData("data-metadata-approval", map[string]any{
+		"id": id, "digest": digest, "database": database,
+		"tables": request.Tables, "query": request.Query,
+		"maxMatches":       maxSQLMetadataMatches,
+		"tableLimit":       maxSQLMetadataTables,
+		"dataCategories":   []string{"columns", "nullable", "default_values"},
+		"expiresInSeconds": int(metadataApprovalTimeout / time.Second),
+	}, "process")
+	timer := time.NewTimer(metadataApprovalTimeout)
+	defer timer.Stop()
+	var decision metadataApprovalDecision
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	case <-timer.C:
+		return false, errors.New("SQL metadata approval timed out")
+	case decision = <-pending.decision:
+	}
+	r.mu.Lock()
+	if r.pendingMetadata == pending {
+		r.pendingMetadata = nil
+	}
+	if decision.Decision == "approve_session" {
+		r.metadataApproved = true
+		r.metadataDatabase = database
+	}
+	r.mu.Unlock()
+	r.emitData("data-metadata-approval-resolved", map[string]any{
+		"id": id, "decision": decision.Decision,
+	}, "process")
+	switch decision.Decision {
+	case "approve_once", "approve_session":
+		r.emitProgress("正在读取数据库表结构…", "metadata_lookup", true)
+		return true, nil
+	case "reject":
+		return false, nil
+	default:
+		return false, errors.New("invalid SQL metadata approval decision")
+	}
+}
+
+func (r *Runtime) resolveMetadataApproval(decision metadataApprovalDecision) error {
+	r.mu.Lock()
+	pending := r.pendingMetadata
+	r.mu.Unlock()
+	if pending == nil || pending.id != decision.ID || pending.digest != decision.Digest {
+		return fmt.Errorf("SQL metadata approval is stale or does not match the pending request")
+	}
+	switch decision.Decision {
+	case "approve_once", "approve_session", "reject":
+	default:
+		return fmt.Errorf("invalid SQL metadata approval decision")
+	}
+	select {
+	case pending.decision <- decision:
+		return nil
+	default:
+		return fmt.Errorf("SQL metadata approval was already decided")
 	}
 }
 
@@ -1569,8 +1753,17 @@ func validateDecision(decision Decision) error {
 	case "answer":
 		if len(decision.Answer) == 0 || len(decision.Answer) > maxDecisionText ||
 			decision.Summary != "" || decision.ThoughtSummary != "" ||
-			len(decision.Steps) != 0 || decision.Proposal != nil {
+			len(decision.Steps) != 0 || decision.Proposal != nil || decision.SchemaLookup != nil {
 			return fmt.Errorf("model returned an invalid answer")
+		}
+	case ActionLookupSchema:
+		if decision.Answer != "" || decision.Summary != "" || len(decision.Steps) != 0 ||
+			decision.Proposal != nil || decision.SchemaLookup == nil ||
+			len(decision.ThoughtSummary) == 0 || len(decision.ThoughtSummary) > maxThoughtSummary {
+			return fmt.Errorf("model returned an invalid SQL metadata lookup")
+		}
+		if _, err := normalizeSQLSchemaLookupRequest(*decision.SchemaLookup); err != nil {
+			return err
 		}
 	case ReActExecute:
 		if len(decision.Summary) > maxPlanSummary ||
@@ -1578,7 +1771,7 @@ func validateDecision(decision Decision) error {
 			len(decision.ThoughtSummary) == 0 ||
 			len(decision.ThoughtSummary) > maxThoughtSummary ||
 			len(decision.Steps) == 0 || len(decision.Steps) > maxPlanTasks ||
-			decision.Answer != "" || decision.Proposal == nil {
+			decision.Answer != "" || decision.Proposal == nil || decision.SchemaLookup != nil {
 			return fmt.Errorf("model returned an invalid plan")
 		}
 		for _, step := range decision.Steps {
@@ -1693,6 +1886,14 @@ func proposalDigest(
 		terminalID, planID, stepID, proposal.Command,
 		proposal.RiskLevel, proposal.Execution,
 	)
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
+}
+
+func metadataDigest(
+	terminalID uint32, database string, request SQLSchemaLookupRequest,
+) string {
+	value := fmt.Sprintf("%d\x00%s\x00%s", terminalID, database, mustJSON(request))
 	sum := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(sum[:])
 }
