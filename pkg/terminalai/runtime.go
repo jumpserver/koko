@@ -762,6 +762,12 @@ func (r *Runtime) nextReActDecision(
 			}
 			return decision, transition, err
 		}
+		if normalizeReActContinuation(&decision) {
+			r.writeAudit("model_output_normalized", map[string]any{
+				"operation": "react", "reason": "continue_same_logical_task",
+				"stepId": decision.Observation.StepID,
+			})
+		}
 		if decision.Kind == ReActExecute {
 			if decision.Proposal == nil {
 				err = fmt.Errorf("model execute action has no proposal")
@@ -794,6 +800,17 @@ func (r *Runtime) nextReActDecision(
 		return decision, transition, err
 	}
 	return decision, transition, fmt.Errorf("model failed to produce a valid ReAct action")
+}
+
+func normalizeReActContinuation(decision *ReActDecision) bool {
+	if decision == nil || decision.Kind != ReActExecute ||
+		decision.Observation.Outcome != ReActContinue ||
+		decision.Observation.StepID == "" ||
+		decision.NextStepID == decision.Observation.StepID {
+		return false
+	}
+	decision.NextStepID = decision.Observation.StepID
+	return true
 }
 
 func (r *Runtime) prepareProposal(

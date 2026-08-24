@@ -151,6 +151,19 @@ func TestReactContinuationMustStayOnSameTask(t *testing.T) {
 	}
 }
 
+func TestNormalizeReactContinuationKeepsReviewedTask(t *testing.T) {
+	decision := ReActDecision{
+		Kind: ReActExecute,
+		Observation: ObservationReview{
+			StepID: "task-1", Outcome: ReActContinue,
+		},
+		NextStepID: "task-2",
+	}
+	if !normalizeReActContinuation(&decision) || decision.NextStepID != "task-1" {
+		t.Fatalf("normalized next step = %q", decision.NextStepID)
+	}
+}
+
 func TestReactPlanInterruptsActiveWork(t *testing.T) {
 	plan := newReActPlan("plan-1", "Inspect", []Step{
 		{ID: "task-1", Status: StepReviewing},
