@@ -1,17 +1,43 @@
 package terminalai
 
 import (
-	"bufio"
 	"context"
+	"net"
+	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
-	"github.com/mediocregopher/radix/v3"
 	"go.mongodb.org/mongo-driver/bson"
 )
+
+type redisTestError string
+
+func (e redisTestError) Error() string { return string(e) }
+func (redisTestError) RedisError()     {}
+
+type redisExecutorTestClient struct{ t *testing.T }
+
+func (c redisExecutorTestClient) Do(ctx context.Context, args ...interface{}) *redis.Cmd {
+	if !reflect.DeepEqual(args, []interface{}{"MGET", "first", "second"}) {
+		c.t.Fatalf("unexpected Redis command %#v", args)
+	}
+	cmd := redis.NewCmd(ctx, args...)
+	cmd.SetVal([]interface{}{"one", "two"})
+	return cmd
+}
+
+func (redisExecutorTestClient) Ping(ctx context.Context) *redis.StatusCmd {
+	cmd := redis.NewStatusCmd(ctx, "PING")
+	cmd.SetVal("PONG")
+	return cmd
+}
+
+func (redisExecutorTestClient) Close() error { return nil }
 
 func TestDatabaseProtocolsSupportBackground(t *testing.T) {
 	protocols := []string{
@@ -99,9 +125,9 @@ func TestRedisBackgroundCommandValidation(t *testing.T) {
 
 func TestRedisRESPOutput(t *testing.T) {
 	response := &redisRESPOutput{output: &boundedDatabaseOutput{}}
-	err := response.UnmarshalRESP(bufio.NewReader(strings.NewReader(
-		"*4\r\n$3\r\nfoo\r\n:42\r\n$-1\r\n*0\r\n",
-	)))
+	err := response.writeResult(
+		[]interface{}{"foo", int64(42), nil, []interface{}{}}, 0,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,26 +136,58 @@ func TestRedisRESPOutput(t *testing.T) {
 	}
 
 	errorResponse := &redisRESPOutput{output: &boundedDatabaseOutput{}}
-	err = errorResponse.UnmarshalRESP(bufio.NewReader(strings.NewReader("-ERR denied\r\n")))
+	err = errorResponse.writeResult(redisTestError("ERR denied"), 0)
 	if err == nil || err.Error() != "ERR denied" || errorResponse.output.String() != "" {
 		t.Fatalf("unexpected Redis error response: output=%q err=%v", errorResponse.output.String(), err)
 	}
 }
 
 func TestRedisExecutorUsesDriver(t *testing.T) {
-	connection := radix.Stub("tcp", "redis", func(command []string) any {
-		if !reflect.DeepEqual(command, []string{"MGET", "first", "second"}) {
-			t.Fatalf("unexpected Redis command %#v", command)
-		}
-		return []string{"one", "two"}
-	})
-	executor := &RedisExecutor{client: connection}
+	executor := &RedisExecutor{client: redisExecutorTestClient{t: t}}
 	defer executor.Close()
 	output, _, err := executor.Execute(
 		context.Background(), "MGET first second", nil,
 	)
 	if err != nil || output != "one\ntwo" {
 		t.Fatalf("unexpected Redis driver result: output=%q err=%v", output, err)
+	}
+}
+
+func TestRedisExecutorIntegration(t *testing.T) {
+	address := os.Getenv("KOKO_REDIS_TEST_ADDR")
+	if address == "" {
+		t.Skip("KOKO_REDIS_TEST_ADDR is not set")
+	}
+	testRedisExecutorIntegration(t, address, false)
+}
+
+func TestRedisClusterExecutorIntegration(t *testing.T) {
+	address := os.Getenv("KOKO_REDIS_CLUSTER_TEST_ADDR")
+	if address == "" {
+		t.Skip("KOKO_REDIS_CLUSTER_TEST_ADDR is not set")
+	}
+	testRedisExecutorIntegration(t, address, true)
+}
+
+func testRedisExecutorIntegration(t *testing.T, address string, clusterMode bool) {
+	host, portValue, err := net.SplitHostPort(address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	executor, err := NewRedisExecutor(context.Background(), DatabaseConfig{
+		Host: host, Port: port, ClusterMode: clusterMode,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer executor.Close()
+	output, _, err := executor.Execute(context.Background(), "PING", nil)
+	if err != nil || output != "PONG" {
+		t.Fatalf("unexpected Redis PING result: output=%q err=%v", output, err)
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
-//
 func proxyRoom(room *Room, ch *redisChannel, userInputCh chan *RoomMessage) {
 	maxIdleTime := time.Minute * 30
 	tick := time.NewTicker(time.Second * 30)
@@ -47,7 +46,7 @@ func proxyRoom(room *Room, ch *redisChannel, userInputCh chan *RoomMessage) {
 				return
 			}
 			var msg RoomMessage
-			if err := json.Unmarshal(redisMsg.Message, &msg); err != nil {
+			if err := json.Unmarshal([]byte(redisMsg.Payload), &msg); err != nil {
 				logger.Errorf("Redis proxy room %s message unmarshal err: %s", ch.roomId, err)
 				continue
 			}
@@ -89,7 +88,7 @@ func proxyUserCon(room *Room, ch *redisChannel) {
 				return
 			}
 			var msg RoomMessage
-			_ = json.Unmarshal(redisMsg.Message, &msg)
+			_ = json.Unmarshal([]byte(redisMsg.Payload), &msg)
 			room.Receive(&msg)
 		}
 	}

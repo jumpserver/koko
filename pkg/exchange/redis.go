@@ -2,17 +2,15 @@ package exchange
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/mediocregopher/radix/v3"
+	"github.com/go-redis/redis/v8"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -73,30 +71,17 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 		cfg.MaxActive = 10
 	}
 
-	var dialOptions []radix.DialOpt
-
-	if cfg.Password != "" {
-		dialOptions = append(dialOptions, radix.DialAuthPass(cfg.Password))
-	}
-
-	if cfg.DialTimeout > 0 {
-		dialOptions = append(dialOptions, radix.DialTimeout(cfg.DialTimeout))
-	}
-
-	if cfg.DBIndex != 0 {
-		dialOptions = append(dialOptions, radix.DialSelectDB(int(cfg.DBIndex)))
-	}
-
+	var tlsCfg *tls.Config
 	if cfg.UseSSL {
-		tlsCfg := tls.Config{}
+		tlsConfig := tls.Config{}
 		if cfg.SSLCert != "" && cfg.SSLKey != "" {
 			cert, err := tls.LoadX509KeyPair(cfg.SSLCert, cfg.SSLKey)
 			if err != nil {
 				return nil, err
 			}
 			logger.Debugf("Load redis SSL cert: %s, key: %s", cfg.SSLCert, cfg.SSLKey)
-			tlsCfg.Certificates = []tls.Certificate{cert}
-			tlsCfg.InsecureSkipVerify = true
+			tlsConfig.Certificates = []tls.Certificate{cert}
+			tlsConfig.InsecureSkipVerify = true
 		}
 		if cfg.SSLCa != "" {
 			certPool := x509.NewCertPool()
@@ -106,26 +91,36 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 			}
 			logger.Debugf("Load redis SSL ca: %s", cfg.SSLCa)
 			certPool.AppendCertsFromPEM(buf)
-			tlsCfg.RootCAs = certPool
-			tlsCfg.InsecureSkipVerify = true
+			tlsConfig.RootCAs = certPool
+			tlsConfig.InsecureSkipVerify = true
 		}
-		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsCfg))
+		tlsCfg = &tlsConfig
 	}
-	var connFunc radix.ConnFunc
-	if len(cfg.Clusters) > 0 {
-		cluster, err := radix.NewCluster(cfg.Clusters)
-		if err != nil {
-			// maybe an
-			// ERR This instance has cluster support disabled
-			return nil, err
-		}
 
-		connFunc = func(network, addr string) (radix.Conn, error) {
-			topo := cluster.Topo()
-			index, _ := rand.Int(rand.Reader, big.NewInt(int64(len(topo))))
-			node := topo[index.Int64()]
-			return radix.Dial(cfg.Network, node.Addr, dialOptions...)
+	var client redis.UniversalClient
+	if len(cfg.Clusters) > 0 {
+		if cfg.DBIndex != 0 {
+			return nil, fmt.Errorf("Redis cluster mode supports only database 0")
 		}
+		client = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:        cfg.Clusters,
+			Password:     cfg.Password,
+			DialTimeout:  cfg.DialTimeout,
+			ReadTimeout:  -1,
+			WriteTimeout: -1,
+			PoolSize:     cfg.MaxActive,
+			MaxRetries:   -1,
+			TLSConfig:    tlsCfg,
+			ClusterSlots: common.RedisClusterSlots(cfg.Clusters, redis.Options{
+				Password:     cfg.Password,
+				DialTimeout:  cfg.DialTimeout,
+				ReadTimeout:  -1,
+				WriteTimeout: -1,
+				PoolSize:     1,
+				MaxRetries:   -1,
+				TLSConfig:    tlsCfg,
+			}),
+		})
 	} else if cfg.SentinelsHost != "" {
 		sentinels := strings.SplitN(cfg.SentinelsHost, "/", 2)
 		if len(sentinels) != 2 {
@@ -133,65 +128,53 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 		}
 		sentinelServiceName := sentinels[0]
 		sentinelHosts := strings.Split(sentinels[1], ",")
-		sentinelOpts := make([]radix.DialOpt, 0, len(dialOptions)+1)
-		sentinelOpts = append(sentinelOpts, dialOptions...)
-		if cfg.SentinelPassword != "" {
-			sentinelOpts = append(sentinelOpts, radix.DialAuthPass(cfg.SentinelPassword))
-		} else {
-			sentinelOpts = append(sentinelOpts, radix.DialAuthUser("", ""))
-		}
-		sentinelConnFunc := func(network, addr string) (radix.Conn, error) {
-			conn, err := radix.Dial(network, addr, sentinelOpts...)
-			if err != nil {
-				logger.Errorf("Redis sentinelConnFunc dial err: %s", err)
-				return nil, err
-			}
-			return conn, nil
-		}
-		serverConnFunc := func(network, addr string) (radix.Conn, error) {
-			logger.Debugf("sentinel pool server addr: %s", addr)
-			return radix.Dial(network, addr, dialOptions...)
-		}
-		poolFunc := func(network, addr string) (radix.Client, error) {
-			return radix.NewPool(network, addr, 4, radix.PoolConnFunc(serverConnFunc))
-		}
-		sentinelClient, err := radix.NewSentinel(sentinelServiceName, sentinelHosts,
-			radix.SentinelConnFunc(sentinelConnFunc), radix.SentinelPoolFunc(poolFunc))
-		if err != nil {
-			logger.Errorf("Redis sentinel client err: %s", err)
-			return nil, err
-		}
-		connFunc = func(network, addr string) (radix.Conn, error) {
-			// 选择一个master
-			masterAddr, _ := sentinelClient.Addrs()
-			return radix.Dial(cfg.Network, masterAddr, dialOptions...)
-		}
+		client = redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:       sentinelServiceName,
+			SentinelAddrs:    sentinelHosts,
+			SentinelPassword: cfg.SentinelPassword,
+			Password:         cfg.Password,
+			DB:               cfg.DBIndex,
+			DialTimeout:      cfg.DialTimeout,
+			ReadTimeout:      -1,
+			WriteTimeout:     -1,
+			PoolSize:         cfg.MaxActive,
+			MaxRetries:       -1,
+			TLSConfig:        tlsCfg,
+		})
 	} else {
-		connFunc = func(network, addr string) (radix.Conn, error) {
-			return radix.Dial(cfg.Network, cfg.Addr, dialOptions...)
-		}
+		client = redis.NewClient(&redis.Options{
+			Network:      cfg.Network,
+			Addr:         cfg.Addr,
+			Password:     cfg.Password,
+			DB:           cfg.DBIndex,
+			DialTimeout:  cfg.DialTimeout,
+			ReadTimeout:  -1,
+			WriteTimeout: -1,
+			PoolSize:     cfg.MaxActive,
+			MaxRetries:   -1,
+			TLSConfig:    tlsCfg,
+		})
 	}
 
-	pubSub, err := radix.PersistentPubSubWithOpts("", "",
-		radix.PersistentPubSubConnFunc(connFunc))
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)
+	defer cancel()
+	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
+		return nil, err
+	}
+	pubSub, redisMsgCh, err := subscribeRedisChannels(
+		client, cfg.DialTimeout, eventsChannel, resultsChannel,
+	)
 	if err != nil {
+		_ = client.Close()
 		logger.Errorf("Redis pubSub err: %s", err)
-		return nil, err
-	}
-	redisMsgCh := make(chan radix.PubSubMessage)
-	err = pubSub.Subscribe(redisMsgCh, eventsChannel, resultsChannel)
-	if err != nil {
-		return nil, err
-	}
-	pool, err := radix.NewPool("", "", cfg.MaxActive, radix.PoolConnFunc(connFunc))
-	if err != nil {
 		return nil, err
 	}
 
 	m := &redisRoomManager{
 		Id:                     common.UUID(),
-		pool:                   pool,
-		connFunc:               connFunc,
+		client:                 client,
+		subscribeTimeout:       cfg.DialTimeout,
 		localRoomCache:         newLocalCache(),
 		remoteRoomCache:        newLocalCache(),
 		pubSub:                 pubSub,
@@ -206,15 +189,28 @@ func newRedisManager(cfg Config) (*redisRoomManager, error) {
 	return m, nil
 }
 
-type redisRoomManager struct {
-	Id              string
-	pool            *radix.Pool
-	connFunc        radix.ConnFunc
-	localRoomCache  *localCache
-	remoteRoomCache *localCache
+func subscribeRedisChannels(
+	client redis.UniversalClient, timeout time.Duration, channels ...string,
+) (*redis.PubSub, <-chan *redis.Message, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	pubSub := client.Subscribe(ctx, channels...)
+	if _, err := pubSub.Receive(ctx); err != nil {
+		_ = pubSub.Close()
+		return nil, nil, err
+	}
+	return pubSub, pubSub.Channel(), nil
+}
 
-	subscribeEventsMsgCh chan radix.PubSubMessage
-	pubSub               radix.PubSubConn
+type redisRoomManager struct {
+	Id               string
+	client           redis.UniversalClient
+	subscribeTimeout time.Duration
+	localRoomCache   *localCache
+	remoteRoomCache  *localCache
+
+	subscribeEventsMsgCh <-chan *redis.Message
+	pubSub               *redis.PubSub
 
 	responseChan chan chan *subscribeResponse
 
@@ -248,18 +244,17 @@ func (m *redisRoomManager) Get(sid string) *Room {
 }
 
 func (m *redisRoomManager) checkRoomExist(roomId string) bool {
-	var countInt int
-	err := m.pool.Do(radix.Cmd(&countInt, "SISMEMBER", globalRoomsKey, roomId))
+	exists, err := m.client.SIsMember(context.Background(), globalRoomsKey, roomId).Result()
 	if err != nil {
 		logger.Errorf("Redis cache check room %s err: %s", roomId, err)
 		return false
 	}
-	return countInt == 1
+	return exists
 }
 
 // 全局 加入room
 func (m *redisRoomManager) storeRoomId(roomId string) {
-	err := m.pool.Do(radix.Cmd(nil, "SADD", globalRoomsKey, roomId))
+	err := m.client.SAdd(context.Background(), globalRoomsKey, roomId).Err()
 	if err != nil {
 		logger.Errorf("Redis Cache store room %s err: %s", roomId, err)
 		return
@@ -269,7 +264,7 @@ func (m *redisRoomManager) storeRoomId(roomId string) {
 
 // 全局 删除room
 func (m *redisRoomManager) removeRoomId(roomId string) {
-	err := m.pool.Do(radix.Cmd(nil, "SREM", globalRoomsKey, roomId))
+	err := m.client.SRem(context.Background(), globalRoomsKey, roomId).Err()
 	if err != nil {
 		logger.Errorf("Redis cache remove room %s err: %s", roomId, err)
 	} else {
@@ -286,8 +281,7 @@ func (m *redisRoomManager) removeRoomId(roomId string) {
 }
 
 func (m *redisRoomManager) publishCommand(channel string, p []byte) error {
-	cmd := radix.FlatCmd(nil, "PUBLISH", channel, p)
-	return m.pool.Do(cmd)
+	return m.client.Publish(context.Background(), channel, p).Err()
 }
 
 func (m *redisRoomManager) run() {
@@ -362,9 +356,12 @@ func (m *redisRoomManager) run() {
 				logger.Debugf("Redis cache send leave event for room %s success", room.Id)
 			}
 
-		case redisMsg := <-m.subscribeEventsMsgCh:
+		case redisMsg, ok := <-m.subscribeEventsMsgCh:
+			if !ok {
+				return
+			}
 			var req subscribeRequest
-			if err := json.Unmarshal(redisMsg.Message, &req); err != nil {
+			if err := json.Unmarshal([]byte(redisMsg.Payload), &req); err != nil {
 				logger.Errorf("Redis cache unmarshal request msg err: %s", err)
 				continue
 			}
@@ -385,20 +382,12 @@ func (m *redisRoomManager) run() {
 					var res subscribeResponse
 					res.Req = &req
 
-					redisCon, err := m.connFunc("", "")
-					if err != nil {
-						logger.Errorf("Redis cache request %s create redis conn err: %s", req.ReqId, err)
-						res.err = err
-						responseChan <- &res
-						continue
-					}
-
-					pubSub := radix.PubSub(redisCon)
-					redisMsgCh := make(chan radix.PubSubMessage)
 					writeChannel := createSessionChannel(fmt.Sprintf("%s.write", req.RoomId))
 					readChannel := createSessionChannel(fmt.Sprintf("%s.read", req.RoomId))
-					if err = pubSub.Subscribe(redisMsgCh, readChannel); err != nil {
-						_ = pubSub.Close()
+					pubSub, redisMsgCh, err := subscribeRedisChannels(
+						m.client, m.subscribeTimeout, readChannel,
+					)
+					if err != nil {
 						logger.Errorf("Redis cache request %s subscribe channel err: %s", req.ReqId, err)
 						res.err = err
 						responseChan <- &res
@@ -457,17 +446,12 @@ func (m *redisRoomManager) run() {
 
 					// 如果是当前节点 KoKo 创建的session
 					if r := m.localRoomCache.Get(req.RoomId); r != nil {
-						redisCon, err := m.connFunc("", "")
-						if err != nil {
-							logger.Errorf("Redis cache create redis conn for request %s err %s", req.ReqId, err)
-							continue
-						}
-						pubSub := radix.PubSub(redisCon)
-						subMsgCh := make(chan radix.PubSubMessage)
 						writeChannel := createSessionChannel(fmt.Sprintf("%s.read", req.RoomId))
 						readChannel := createSessionChannel(fmt.Sprintf("%s.write", req.RoomId))
-						if err = pubSub.Subscribe(subMsgCh, readChannel); err != nil {
-							_ = pubSub.Close()
+						pubSub, subMsgCh, err := subscribeRedisChannels(
+							m.client, m.subscribeTimeout, readChannel,
+						)
+						if err != nil {
 							logger.Errorf("Redis cache create pubSub conn for request %s err: %s", req.ReqId, err)
 							continue
 						}

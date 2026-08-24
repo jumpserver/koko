@@ -1,10 +1,11 @@
 package exchange
 
 import (
+	"context"
 	"io"
 	"sync"
 
-	"github.com/mediocregopher/radix/v3"
+	"github.com/go-redis/redis/v8"
 
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -18,11 +19,11 @@ type redisChannel struct {
 
 	readChannel string
 
-	pubSub radix.PubSubConn
+	pubSub *redis.PubSub
 
 	manager *redisRoomManager
 
-	subMsgCh chan radix.PubSubMessage
+	subMsgCh <-chan *redis.Message
 
 	once sync.Once
 
@@ -52,11 +53,10 @@ func (s *redisChannel) sendMessage(msg *RoomMessage) error {
 
 func (s *redisChannel) Close() error {
 	s.once.Do(func() {
-		if err := s.pubSub.Unsubscribe(s.subMsgCh, s.readChannel); err != nil {
+		if err := s.pubSub.Unsubscribe(context.Background(), s.readChannel); err != nil {
 			logger.Errorf("Redis unsubscribe channel %s err: %s", s.readChannel, err)
 		}
 		s.errMsg = s.pubSub.Close()
-		close(s.subMsgCh)
 		close(s.done)
 		logger.Infof("Redis channel for room %s closed", s.roomId)
 	})
