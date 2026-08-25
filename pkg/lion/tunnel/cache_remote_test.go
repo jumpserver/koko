@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,8 +38,21 @@ func TestRedisCacheIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create Lion Redis cache: %s", err)
 	}
+	t.Cleanup(func() { _ = cache.Close() })
 	if cache.rdb.Options().DB != 9 {
 		t.Fatalf("Redis DB = %d, want 9", cache.rdb.Options().DB)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+	defer cancel()
+	subscribers, err := cache.rdb.PubSubNumSub(ctx,
+		eventsChannel, resultsChannel, sessionEventsChannel).Result()
+	if err != nil {
+		t.Fatalf("query Redis subscriptions: %s", err)
+	}
+	for _, channel := range []string{eventsChannel, resultsChannel, sessionEventsChannel} {
+		if subscribers[channel] < 1 {
+			t.Fatalf("Redis channel %s is not ready", channel)
+		}
 	}
 	if err = cache.Close(); err != nil {
 		t.Fatalf("close Lion Redis cache: %s", err)

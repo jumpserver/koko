@@ -61,6 +61,7 @@ func (m *MonitorCon) readTunnelInstruction() (*guacd.Instruction, error) {
 
 func (m *MonitorCon) Run(ctx context.Context) (err error) {
 	retChan := m.Service.Cache.GetSessionEventChan(m.Id)
+	defer m.Service.Cache.RecycleSessionEventChannel(m.Id, retChan)
 	if m.Meta != nil {
 		var jsonBuilder strings.Builder
 		_ = json.NewEncoder(&jsonBuilder).Encode(m.Meta)
@@ -149,13 +150,18 @@ func (m *MonitorCon) Run(ctx context.Context) (err error) {
 		case <-ctx.Done():
 			logger.Infof("Monitor[%s] done", m.Id)
 			return nil
-		case event := <-retChan.eventCh:
+		case event, ok := <-retChan.eventCh:
+			if !ok {
+				return nil
+			}
 			if m.Meta == nil {
 				logger.Debugf("Monitor[%s] do not need to handle event", m.Id)
 				continue
 			}
-			go m.handleEvent(event)
-			logger.Debugf("Monitor[%s] handle event: %s", m.Id, event.Type)
+			if event != nil {
+				m.handleEvent(event)
+				logger.Debugf("Monitor[%s] handle event: %s", m.Id, event.Type)
+			}
 		}
 	}
 }
