@@ -18,6 +18,8 @@ import (
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
 
+const serverOutputReadBufferSize = 8 * 1024
+
 type SwitchSession struct {
 	ID string
 
@@ -205,21 +207,20 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		var (
 			exitFlag bool
 		)
-		buffer := bytes.NewBuffer(make([]byte, 0, 1024*2))
+		buffer := bytes.NewBuffer(make([]byte, 0, serverOutputReadBufferSize+utf8.UTFMax))
 		/*
-		 这里使用了一个buffer，将用户输入的数据进行了分包，分包的依据是utf8编码的字符。
+		 这里使用 buffer 按 UTF-8 字符边界整理服务端输出，避免把多字节字符拆到不同消息中。
 		*/
-		maxLen := 1024
+		readBuf := make([]byte, serverOutputReadBufferSize)
 		for {
-			buf := make([]byte, maxLen)
-			nr, err2 := srvConn.Read(buf)
-			validBytes := buf[:nr]
+			nr, err2 := srvConn.Read(readBuf)
+			validBytes := readBuf[:nr]
 			if nr > 0 {
 				isZmodem := parser.zmodemParser.IsStartSession()
 				if !isZmodem {
 					bufferLen := buffer.Len()
-					if bufferLen > 0 || nr == maxLen {
-						buffer.Write(buf[:nr])
+					if bufferLen > 0 || nr == len(readBuf) {
+						buffer.Write(readBuf[:nr])
 						validBytes = validBytes[:0]
 					}
 					remainBytes := buffer.Bytes()
@@ -239,8 +240,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 						buffer.Write(remainBytes)
 					}
 				}
+				data := bytes.Clone(validBytes)
 				select {
-				case srvInChan <- validBytes:
+				case srvInChan <- data:
 				case <-done:
 					exitFlag = true
 					logger.Infof("Session[%s] done", s.ID)

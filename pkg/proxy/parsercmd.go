@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/LeeEirc/terminalparser"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -217,7 +218,7 @@ func (s *TerminalParser) TrySrvOutput() string {
 	if s.tmuxParser != nil {
 		output = tmuxBar2Regx.ReplaceAll(output, []byte{})
 	}
-	outputs := terminalparser.ParseOutput(output)
+	outputs := parseCommandOutput(output)
 	var str strings.Builder
 	ps1 := strings.TrimSpace(s.Ps1sStr)
 	for _, o := range outputs {
@@ -233,6 +234,79 @@ func (s *TerminalParser) TrySrvOutput() string {
 		s.srvOutputBuf = bytes.Buffer{}
 	}
 	return str.String()
+}
+
+// parseCommandOutput avoids the terminal emulator for ordinary line-oriented
+// output. The emulator is needed for cursor movement and other control
+// sequences, but its long-line handling is quadratic and can block the SSH to
+// WebSocket path for seconds once the command output buffer reaches its limit.
+func parseCommandOutput(output []byte) []string {
+	plainOutput, ok := normalizePlainCommandOutput(output)
+	if !ok {
+		return terminalparser.ParseOutput(output)
+	}
+
+	lines := bytes.Split(plainOutput, charLF)
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		result = append(result, string(bytes.TrimSuffix(line, charEnter)))
+	}
+	return result
+}
+
+// isPlainCommandOutput accepts printable UTF-8, SGR styling, tabs, line feeds,
+// and CRLF. Cursor movement and other terminal control sequences still require
+// the terminal emulator.
+func isPlainCommandOutput(output []byte) bool {
+	_, ok := normalizePlainCommandOutput(output)
+	return ok
+}
+
+// normalizePlainCommandOutput strips SGR styling while validating that the
+// remaining bytes are line-oriented text. Grep commonly enables SGR colors on
+// a PTY, and styling alone must not force long lines through the slow terminal
+// emulator path.
+func normalizePlainCommandOutput(output []byte) ([]byte, bool) {
+	plainOutput := make([]byte, 0, len(output))
+	for len(output) > 0 {
+		if output[0] < utf8.RuneSelf {
+			switch output[0] {
+			case '\t', '\n':
+			case '\r':
+				if len(output) < 2 || output[1] != '\n' {
+					return nil, false
+				}
+			case '\x1b':
+				if len(output) < 3 || output[1] != '[' {
+					return nil, false
+				}
+				finalIndex := 2
+				for finalIndex < len(output) && output[finalIndex] >= 0x20 && output[finalIndex] <= 0x3f {
+					finalIndex++
+				}
+				if finalIndex == len(output) || output[finalIndex] != 'm' {
+					return nil, false
+				}
+				output = output[finalIndex+1:]
+				continue
+			default:
+				if output[0] < ' ' || output[0] == 0x7f {
+					return nil, false
+				}
+			}
+			plainOutput = append(plainOutput, output[0])
+			output = output[1:]
+			continue
+		}
+
+		r, size := utf8.DecodeRune(output)
+		if (r == utf8.RuneError && size == 1) || !unicode.IsPrint(r) {
+			return nil, false
+		}
+		plainOutput = append(plainOutput, output[:size]...)
+		output = output[size:]
+	}
+	return plainOutput, true
 }
 
 func (s *TerminalParser) TryOutput() string {
