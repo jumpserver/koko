@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -30,6 +31,9 @@ const (
 	sessionEventsChannel = "JUMPSERVER:LION:EVENTS:SESSIONS"
 
 	sessionsChannelPrefix = "JUMPSERVER:LION:SESSIONS"
+
+	redisOperationTimeout = 5 * time.Second
+	redisRequestTimeout   = 20 * time.Second
 )
 
 type Config struct {
@@ -140,16 +144,28 @@ func NewGuaTunnelRedisCache(conf Config) (*GuaTunnelRedisCache, error) {
 	cache := GuaTunnelRedisCache{
 		ID:                  common.UUID(),
 		rdb:                 rdb,
-		requestChan:         make(chan *subscribeRequest),
-		responseChan:        make(chan chan *subscribeResponse),
-		reqCancelChan:       make(chan *subscribeRequest),
+		requests:            make(map[string]chan *subscribeResponse),
+		redisConAddChan:     make(chan *RedisConn),
 		redisProxyExitChan:  make(chan string, 100),
 		redisConExitChan:    make(chan string, 100),
 		done:                make(chan struct{}),
 		runDone:             make(chan struct{}),
 		GuaTunnelLocalCache: NewLocalTunnelLocalCache(),
 	}
-	go cache.run()
+	subscribeCtx, subscribeCancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+	defer subscribeCancel()
+	innerPubSub, err := cache.subscribe(subscribeCtx, eventsChannel, resultsChannel)
+	if err != nil {
+		_ = rdb.Close()
+		return nil, fmt.Errorf("subscribe to Redis control channels: %w", err)
+	}
+	sessionPubSub, err := cache.subscribe(subscribeCtx, sessionEventsChannel)
+	if err != nil {
+		_ = innerPubSub.Close()
+		_ = rdb.Close()
+		return nil, fmt.Errorf("subscribe to Redis session channel: %w", err)
+	}
+	go cache.run(innerPubSub, sessionPubSub)
 	return &cache, nil
 }
 
@@ -159,10 +175,10 @@ type GuaTunnelRedisCache struct {
 	ID  string
 	rdb *redis.Client
 
-	requestChan   chan *subscribeRequest
-	responseChan  chan chan *subscribeResponse
-	reqCancelChan chan *subscribeRequest
+	requestsMu sync.Mutex
+	requests   map[string]chan *subscribeResponse
 
+	redisConAddChan    chan *RedisConn
 	redisProxyExitChan chan string
 	redisConExitChan   chan string
 
@@ -211,47 +227,88 @@ func (r *GuaTunnelRedisCache) GetMonitorTunnelerBySessionId(sid string) Tunneler
 }
 
 func (r *GuaTunnelRedisCache) requestRemoteTunnelerBySessionId(sid string) Tunneler {
-	/*
-		1. 发布请求
-		2. 收到Tunneler结果
-	*/
 	req := r.createEventRequest(sid, channelEventJoin)
-	res, err := r.sendRequest(&req)
+	ctx, cancel := context.WithTimeout(context.Background(), redisRequestTimeout)
+	defer cancel()
+	readChannel := fmt.Sprintf("%s.read", req.Prefix)
+	pubSub, err := r.subscribe(ctx, readChannel)
 	if err != nil {
+		logger.Errorf("Redis cache subscribe session %s read channel: %s", sid, err)
+		return nil
+	}
+	conn := &RedisConn{
+		reqId:            req.ReqId,
+		sessionId:        req.SessionId,
+		readChannelName:  readChannel,
+		writeChannelName: fmt.Sprintf("%s.write", req.Prefix),
+		instructionChan:  make(chan guacd.Instruction, 100),
+		cache:            r,
+		pubSub:           pubSub,
+		done:             make(chan struct{}),
+	}
+	select {
+	case <-r.done:
+		_ = conn.Close()
+		return nil
+	case <-r.runDone:
+		_ = conn.Close()
+		return nil
+	case <-ctx.Done():
+		_ = conn.Close()
+		return nil
+	case r.redisConAddChan <- conn:
+	}
+	go conn.run()
+	res, err := r.sendRequest(ctx, &req)
+	if err != nil {
+		_ = conn.Close()
 		logger.Error(err)
 		return nil
 	}
-	return res.conn
+	conn.uuid = res.Req.UUID
+	return conn
 }
 
-func (r *GuaTunnelRedisCache) sendRequest(req *subscribeRequest) (*subscribeResponse, error) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancelFunc()
-	select {
-	case <-r.done:
-		return nil, errors.New("Redis cache is closed")
-	case r.requestChan <- req:
+func (r *GuaTunnelRedisCache) sendRequest(ctx context.Context, req *subscribeRequest) (*subscribeResponse, error) {
+	resultChan := make(chan *subscribeResponse, 1)
+	r.requestsMu.Lock()
+	if _, ok := r.requests[req.ReqId]; ok {
+		r.requestsMu.Unlock()
+		return nil, fmt.Errorf("Redis cache request %s already exists", req.ReqId)
 	}
-	var resultChan chan *subscribeResponse
-	select {
-	case <-r.done:
-		return nil, errors.New("Redis cache is closed")
-	case resultChan = <-r.responseChan:
-	}
-	select {
-	case <-r.done:
-		return nil, errors.New("Redis cache is closed")
-	case <-ctx.Done():
-		select {
-		case r.reqCancelChan <- req:
+	r.requests[req.ReqId] = resultChan
+	r.requestsMu.Unlock()
+	defer r.deleteRequest(req.ReqId, resultChan)
 
-		case res := <-resultChan:
-			return res, res.err
-		}
+	if err := r.publishRequest(ctx, req); err != nil {
+		return nil, err
+	}
+	logger.Infof("Redis cache publish request %s event %s success", req.ReqId, req.Event)
+	select {
+	case <-r.done:
+		return nil, errors.New("Redis cache is closed")
+	case <-r.runDone:
+		return nil, errors.New("Redis cache subscriber is closed")
+	case <-ctx.Done():
+		return nil, fmt.Errorf("Redis cache send request event %s: %w", req.Event, ctx.Err())
 	case res := <-resultChan:
 		return res, res.err
 	}
-	return nil, fmt.Errorf("Redis cache send request event %s time out ", req.Event)
+}
+
+func (r *GuaTunnelRedisCache) getRequest(reqId string) (chan *subscribeResponse, bool) {
+	r.requestsMu.Lock()
+	defer r.requestsMu.Unlock()
+	responseChan, ok := r.requests[reqId]
+	return responseChan, ok
+}
+
+func (r *GuaTunnelRedisCache) deleteRequest(reqId string, responseChan chan *subscribeResponse) {
+	r.requestsMu.Lock()
+	defer r.requestsMu.Unlock()
+	if current, ok := r.requests[reqId]; ok && current == responseChan {
+		delete(r.requests, reqId)
+	}
 }
 
 func (r *GuaTunnelRedisCache) createEventRequest(sid, event string) subscribeRequest {
@@ -289,28 +346,55 @@ func (r *GuaTunnelRedisCache) uniqueReqId(sid string) string {
 		sid)
 }
 
-func (r *GuaTunnelRedisCache) publishRequest(req *subscribeRequest) error {
+func (r *GuaTunnelRedisCache) publishRequest(ctx context.Context, req *subscribeRequest) error {
 	body, _ := json.Marshal(req)
-	return r.publishCommand(req.Channel, body)
+	return r.publishCommandContext(ctx, req.Channel, body)
 }
 
-func (r *GuaTunnelRedisCache) publishCommand(channel string, p []byte) (err error) {
-	_, err = r.rdb.Publish(context.TODO(), channel, p).Result()
-	return
+func (r *GuaTunnelRedisCache) publishCommand(channel string, p []byte) error {
+	ctx, cancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+	defer cancel()
+	return r.publishCommandContext(ctx, channel, p)
+}
+
+func (r *GuaTunnelRedisCache) publishCommandContext(ctx context.Context, channel string, p []byte) error {
+	return r.rdb.Publish(ctx, channel, p).Err()
+}
+
+func (r *GuaTunnelRedisCache) subscribe(ctx context.Context, channels ...string) (*redis.PubSub, error) {
+	pubSub := r.rdb.Subscribe(ctx, channels...)
+	pending := make(map[string]struct{}, len(channels))
+	for _, channel := range channels {
+		pending[channel] = struct{}{}
+	}
+	for len(pending) > 0 {
+		message, err := pubSub.Receive(ctx)
+		if err != nil {
+			_ = pubSub.Close()
+			return nil, err
+		}
+		subscription, ok := message.(*redis.Subscription)
+		if !ok || subscription.Kind != "subscribe" {
+			_ = pubSub.Close()
+			return nil, fmt.Errorf("unexpected Redis subscription response %T", message)
+		}
+		delete(pending, subscription.Channel)
+	}
+	pubSub.Channel()
+	return pubSub, nil
 }
 
 func (r *GuaTunnelRedisCache) proxyTunnel(tunnelProxy *RedisGuacProxy) {
 	defer func() {
 		r.GuaTunnelLocalCache.RemoveMonitorTunneler(tunnelProxy.sessionId, tunnelProxy.tunnel)
-		r.redisProxyExitChan <- tunnelProxy.reqId
-		if _, err := r.sendRequest(&subscribeRequest{
-			ReqId:     tunnelProxy.reqId,
-			SessionId: tunnelProxy.sessionId,
-			Event:     channelEventExit,
-			Prefix:    tunnelProxy.reqId,
-			Channel:   eventsChannel,
-		}); err != nil {
-			logger.Errorf("Redis guacd proxy pubSub exit event err: %v", err)
+		select {
+		case r.redisProxyExitChan <- tunnelProxy.reqId:
+		case <-r.done:
+		case <-r.runDone:
+		default:
+		}
+		if !tunnelProxy.remoteClosed.Load() {
+			r.publishExit(tunnelProxy.reqId, tunnelProxy.sessionId)
 		}
 		_ = tunnelProxy.Close()
 	}()
@@ -327,26 +411,46 @@ func (r *GuaTunnelRedisCache) proxyTunnel(tunnelProxy *RedisGuacProxy) {
 	}
 }
 
-func (r *GuaTunnelRedisCache) run() {
-	defer close(r.runDone)
-	innerPubSub := r.rdb.Subscribe(context.TODO(), eventsChannel, resultsChannel)
-	defer innerPubSub.Close()
-	subscribeEventsMsgCh := innerPubSub.Channel()
-	sessionPubSub := r.rdb.Subscribe(context.TODO(), sessionEventsChannel)
-	defer sessionPubSub.Close()
-	sessionEventsMsgCh := sessionPubSub.Channel()
-	requestsMap := make(map[string]chan *subscribeResponse)
+func (r *GuaTunnelRedisCache) publishExit(reqId, sessionId string) {
+	select {
+	case <-r.done:
+		return
+	case <-r.runDone:
+		return
+	default:
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+	defer cancel()
+	if err := r.publishRequest(ctx, &subscribeRequest{
+		ReqId:     reqId,
+		SessionId: sessionId,
+		Event:     channelEventExit,
+		Prefix:    reqId,
+		Channel:   eventsChannel,
+	}); err != nil {
+		logger.Errorf("Redis cache publish %s exit event: %s", reqId, err)
+	}
+}
+
+func (r *GuaTunnelRedisCache) run(innerPubSub, sessionPubSub *redis.PubSub) {
 	proxyConnMap := make(map[string]*RedisGuacProxy)
 	localConnMap := make(map[string]*RedisConn)
+	defer func() {
+		for _, connection := range proxyConnMap {
+			_ = connection.Close()
+		}
+		for _, connection := range localConnMap {
+			_ = connection.Close()
+		}
+		_ = innerPubSub.Close()
+		_ = sessionPubSub.Close()
+		close(r.runDone)
+	}()
+	subscribeEventsMsgCh := innerPubSub.Channel()
+	sessionEventsMsgCh := sessionPubSub.Channel()
 	for {
 		select {
 		case <-r.done:
-			for _, connection := range proxyConnMap {
-				_ = connection.Close()
-			}
-			for _, connection := range localConnMap {
-				_ = connection.Close()
-			}
 			return
 		case redisMsg, ok := <-subscribeEventsMsgCh:
 			if !ok {
@@ -362,7 +466,7 @@ func (r *GuaTunnelRedisCache) run() {
 
 			switch redisMsg.Channel {
 			case eventsChannel:
-				if _, ok := requestsMap[req.ReqId]; ok {
+				if _, ok := r.getRequest(req.ReqId); ok {
 					logger.Infof("Redis cache ignore self request %s", req.ReqId)
 					continue
 				}
@@ -379,16 +483,18 @@ func (r *GuaTunnelRedisCache) run() {
 							continue
 						}
 						successReq.UUID = guacdTunnel.UUID()
-						err = r.publishRequest(&successReq)
-						if err != nil {
-							_ = guacdTunnel.Close()
-							logger.Errorf("Redis cache reply request %s join event err %s", req.ReqId, err)
-							continue
-						}
-						logger.Infof("Redis cache reply request %s join event", req.ReqId)
 						writeChannel := fmt.Sprintf("%s.read", req.Prefix)
 						readChannel := fmt.Sprintf("%s.write", req.Prefix)
-						pubSub := r.rdb.Subscribe(context.TODO(), readChannel)
+						subscribeCtx, cancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+						pubSub, subscribeErr := r.subscribe(subscribeCtx, readChannel)
+						cancel()
+						if subscribeErr != nil {
+							_ = guacdTunnel.Close()
+							r.GuaTunnelLocalCache.RemoveMonitorTunneler(req.SessionId, guacdTunnel)
+							logger.Errorf("Redis cache subscribe request %s write channel: %s",
+								req.ReqId, subscribeErr)
+							continue
+						}
 						proxyConn := RedisGuacProxy{
 							reqId:            req.ReqId,
 							sessionId:        req.SessionId,
@@ -399,6 +505,16 @@ func (r *GuaTunnelRedisCache) run() {
 							done:             make(chan struct{}),
 							tunnel:           guacdTunnel,
 						}
+						publishCtx, publishCancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+						err = r.publishRequest(publishCtx, &successReq)
+						publishCancel()
+						if err != nil {
+							_ = proxyConn.Close()
+							r.GuaTunnelLocalCache.RemoveMonitorTunneler(req.SessionId, guacdTunnel)
+							logger.Errorf("Redis cache reply request %s join event err %s", req.ReqId, err)
+							continue
+						}
+						logger.Infof("Redis cache reply request %s join event", req.ReqId)
 						proxyConnMap[req.ReqId] = &proxyConn
 						go proxyConn.run()
 						go r.proxyTunnel(&proxyConn)
@@ -407,58 +523,46 @@ func (r *GuaTunnelRedisCache) run() {
 				case channelEventExit:
 					successReq := r.createResultRequest(req.ReqId, req.SessionId,
 						channelEventExitSuccess)
+					matched := false
 					if proxyConn, ok := proxyConnMap[req.ReqId]; ok {
 						logger.Infof("Redis cache reply %s exit event", req.ReqId)
-						err := r.publishRequest(&successReq)
-						if err != nil {
-							logger.Errorf("Redis cache reply request %s exit event err %s", req.ReqId, err)
-						}
+						matched = true
+						proxyConn.remoteClosed.Store(true)
 						_ = proxyConn.Close()
 					}
 					if redisConn, ok := localConnMap[req.ReqId]; ok {
-						err := r.publishRequest(&successReq)
+						matched = true
+						redisConn.remoteClosed.Store(true)
+						_ = redisConn.Close()
+					}
+					if matched {
+						publishCtx, publishCancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+						err := r.publishRequest(publishCtx, &successReq)
+						publishCancel()
 						if err != nil {
 							logger.Errorf("Redis cache reply request %s exit event err %s", req.ReqId, err)
 						}
-						_ = redisConn.Close()
 					}
 				}
 
 			case resultsChannel:
-				responseChan, ok := requestsMap[req.ReqId]
+				responseChan, ok := r.getRequest(req.ReqId)
 				if !ok {
 					logger.Debugf("Redis cache ignore not self result request %s", req.ReqId)
 					continue
 				}
 				logger.Infof("Redis cache request %s receive result event %s", req.ReqId, req.Event)
-				// 请求结束，移除缓存, 返回请求的结果
-				delete(requestsMap, req.ReqId)
 				switch req.Event {
 				case channelEventJoinSuccess:
-					var res subscribeResponse
-					res.Req = &req
-					writeChannel := fmt.Sprintf("%s.write", req.Prefix)
-					readChannel := fmt.Sprintf("%s.read", req.Prefix)
-					pubSub := r.rdb.Subscribe(context.TODO(), readChannel)
-					conn := RedisConn{
-						uuid:             res.Req.UUID,
-						reqId:            req.ReqId,
-						sessionId:        req.SessionId,
-						readChannelName:  readChannel,
-						writeChannelName: writeChannel,
-						instructionChan:  make(chan guacd.Instruction, 100),
-						cache:            r,
-						pubSub:           pubSub,
-						done:             make(chan struct{}),
+					select {
+					case responseChan <- &subscribeResponse{Req: &req}:
+					default:
 					}
-					res.conn = &conn
-					go conn.run()
-					responseChan <- &res
-					localConnMap[conn.reqId] = &conn
 				case channelEventExitSuccess:
-					var res subscribeResponse
-					res.Req = &req
-					responseChan <- &res
+					select {
+					case responseChan <- &subscribeResponse{Req: &req}:
+					default:
+					}
 				}
 			default:
 				continue
@@ -472,6 +576,10 @@ func (r *GuaTunnelRedisCache) run() {
 				logger.Errorf("Redis cache unmarshal session event msg err: %s", err)
 				continue
 			}
+			if msg.Event == nil {
+				logger.Errorf("Redis cache session event %s has no payload", msg.SessionId)
+				continue
+			}
 			if msg.Id == r.ID {
 				logger.Debugf("Redis cache ignore self session event %s", msg.Event.Type)
 				continue
@@ -480,27 +588,8 @@ func (r *GuaTunnelRedisCache) run() {
 				redisSessionMsg.Channel, msg.Event.Type)
 			r.GuaTunnelLocalCache.BroadcastSessionEvent(msg.SessionId, msg.Event)
 
-		case req := <-r.requestChan:
-			logger.Debugf("Redis cache publish request %s event %s", req.ReqId, req.Event)
-			responseChan := make(chan *subscribeResponse, 1)
-			r.responseChan <- responseChan
-			if err := r.publishRequest(req); err != nil {
-				logger.Errorf("Redis cache publish channel request err: %s", err)
-				delete(requestsMap, req.ReqId)
-				responseChan <- &subscribeResponse{
-					Req:  req,
-					err:  err,
-					conn: nil,
-				}
-				continue
-			}
-			logger.Infof("Redis cache publish request %s event %s success", req.ReqId, req.Event)
-			requestsMap[req.ReqId] = responseChan
-
-		case req := <-r.reqCancelChan:
-			delete(requestsMap, req.ReqId)
-			logger.Debugf("Redis cache cancel request: %s", req.ReqId)
-
+		case conn := <-r.redisConAddChan:
+			localConnMap[conn.reqId] = conn
 		case reqId := <-r.redisProxyExitChan:
 			if _, ok := proxyConnMap[reqId]; ok {
 				logger.Infof("Redis cache recv proxy conn %s exit signal", reqId)
@@ -526,6 +615,7 @@ type RedisConn struct {
 	instructionChan  chan guacd.Instruction
 	cache            *GuaTunnelRedisCache
 	once             sync.Once
+	remoteClosed     atomic.Bool
 	pubSub           *redis.PubSub
 
 	done chan struct{}
@@ -543,16 +633,14 @@ func (r *RedisConn) run() {
 	defer detectTicker.Stop()
 	activeTime := time.Now()
 	defer func() {
-		r.cache.redisConExitChan <- r.reqId
-		_, err := r.cache.sendRequest(&subscribeRequest{
-			ReqId:     r.reqId,
-			SessionId: r.sessionId,
-			Event:     channelEventExit,
-			Prefix:    r.reqId,
-			Channel:   eventsChannel,
-		})
-		if err != nil {
-			logger.Errorf("Redis conn %s send exit event err: %s", r.reqId, err)
+		select {
+		case r.cache.redisConExitChan <- r.reqId:
+		case <-r.cache.done:
+		case <-r.cache.runDone:
+		default:
+		}
+		if !r.remoteClosed.Load() {
+			r.cache.publishExit(r.reqId, r.sessionId)
 		}
 	}()
 	for {
@@ -605,6 +693,7 @@ func (r *RedisConn) Close() error {
 	var err error
 	r.once.Do(func() {
 		logger.Infof("Redis conn %s close", r.reqId)
+		close(r.done)
 		err = r.pubSub.Close()
 	})
 	return err
@@ -627,9 +716,8 @@ type subscribeRequest struct {
 }
 
 type subscribeResponse struct {
-	Req  *subscribeRequest
-	err  error
-	conn *RedisConn
+	Req *subscribeRequest
+	err error
 }
 
 type RedisGuacProxy struct {
@@ -642,7 +730,8 @@ type RedisGuacProxy struct {
 
 	cache *GuaTunnelRedisCache
 
-	done chan struct{}
+	done         chan struct{}
+	remoteClosed atomic.Bool
 
 	tunnel *guacd.Tunnel
 
@@ -655,6 +744,7 @@ func (r *RedisGuacProxy) UUID() string {
 
 func (r *RedisGuacProxy) run() {
 	logger.Infof("Redis guacd proxy %s pubSub run", r.reqId)
+	defer r.Close()
 	redisMsgChan := r.pubSub.Channel()
 	for {
 		select {
@@ -665,6 +755,7 @@ func (r *RedisGuacProxy) run() {
 			}
 			if _, err := r.tunnel.WriteAndFlush([]byte(redisMsg.Payload)); err != nil {
 				logger.Errorf("Redis guacd proxy %s tunnel write err: %s", r.reqId, err)
+				return
 			}
 		case <-r.done:
 			return
