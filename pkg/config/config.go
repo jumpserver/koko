@@ -19,14 +19,20 @@ var (
 )
 
 type Config struct {
-	Name               string `mapstructure:"NAME"`
-	CoreHost           string `mapstructure:"CORE_HOST"`
-	BootstrapToken     string `mapstructure:"BOOTSTRAP_TOKEN"`
-	BindHost           string `mapstructure:"BIND_HOST"`
-	SSHPort            string `mapstructure:"SSHD_PORT"`
-	HTTPPort           string `mapstructure:"HTTPD_PORT"`
-	SSHTimeout         int    `mapstructure:"SSH_TIMEOUT"`
-	HttpRequestTimeout int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
+	Name                     string `mapstructure:"NAME"`
+	CoreHost                 string `mapstructure:"CORE_HOST"`
+	BootstrapToken           string `mapstructure:"BOOTSTRAP_TOKEN"`
+	BindHost                 string `mapstructure:"BIND_HOST"`
+	SSHPort                  string `mapstructure:"SSHD_PORT"`
+	HTTPPort                 string `mapstructure:"HTTPD_PORT"`
+	WebProxyEnabled          bool   `mapstructure:"WEB_PROXY_ENABLED"`
+	WebProxyBindHost         string `mapstructure:"WEB_PROXY_BIND_HOST"`
+	WebProxyPort             string `mapstructure:"WEB_PROXY_PORT"`
+	WebProxyAllowedHosts     string `mapstructure:"WEB_PROXY_ALLOWED_HOSTS"`
+	WebProxyRecordingEnabled bool   `mapstructure:"WEB_PROXY_RECORDING_ENABLED"`
+	WebProxyFFmpegPath       string `mapstructure:"WEB_PROXY_FFMPEG_PATH"`
+	SSHTimeout               int    `mapstructure:"SSH_TIMEOUT"`
+	HttpRequestTimeout       int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
@@ -179,6 +185,9 @@ func getDefaultConfig() Config {
 		SSHTimeout:         15,
 		HttpRequestTimeout: 30,
 		HTTPPort:           "5000",
+		WebProxyBindHost:   "127.0.0.1",
+		WebProxyPort:       "5001",
+		WebProxyFFmpegPath: "ffmpeg",
 		AccessKeyFilePath:  accessKeyFilePath,
 		LogLevel:           "INFO",
 		RootPath:           rootPath,

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/sshd"
 	"github.com/jumpserver/koko/pkg/terminalai"
+	"github.com/jumpserver/koko/pkg/webproxy"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
@@ -25,6 +27,7 @@ type Koko struct {
 	webSrv     *httpd.Server
 	sshSrv     *sshd.Server
 	lion       *lion.Runtime
+	webProxy   *webproxy.Server
 	appContext context.Context
 	cancel     context.CancelFunc
 }
@@ -32,12 +35,18 @@ type Koko struct {
 func (k *Koko) Start() {
 	go k.webSrv.Start()
 	go k.sshSrv.Start()
+	if k.webProxy != nil {
+		go k.webProxy.Start()
+	}
 	k.lion.Start(k.appContext)
 }
 
 func (k *Koko) Stop() {
 	k.webSrv.Stop()
 	k.sshSrv.Stop()
+	if k.webProxy != nil {
+		k.webProxy.Stop()
+	}
 	k.cancel()
 	k.lion.Stop()
 	logger.Info("Quit The KoKo")
@@ -74,11 +83,31 @@ func RunForever(confPath string) {
 	lionRuntime := lion.NewRuntime(jmsService)
 	webSrv := httpd.NewServer(jmsService, lionRuntime)
 	sshSrv := sshd.NewSSHServer(jmsService)
+	var webProxySrv *webproxy.Server
+	if conf := config.GetConf(); conf.WebProxyEnabled {
+		var err error
+		recordingRoot := ""
+		if conf.WebProxyRecordingEnabled {
+			recordingRoot = filepath.Join(conf.ReplayFolderPath, "web")
+		}
+		webProxySrv, err = webproxy.NewServer(
+			conf.WebProxyBindHost,
+			conf.WebProxyPort,
+			conf.WebProxyAllowedHosts,
+			recordingRoot,
+			conf.WebProxyFFmpegPath,
+			jmsService,
+		)
+		if err != nil {
+			logger.Fatalf("Invalid Web proxy configuration: %s", err)
+		}
+	}
 	appContext, cancel := context.WithCancel(context.Background())
 	app := &Koko{
 		webSrv:     webSrv,
 		sshSrv:     sshSrv,
 		lion:       lionRuntime,
+		webProxy:   webProxySrv,
 		appContext: appContext,
 		cancel:     cancel,
 	}
