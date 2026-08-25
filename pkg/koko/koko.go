@@ -38,6 +38,9 @@ func (k *Koko) Start() {
 func (k *Koko) Stop() {
 	k.webSrv.Stop()
 	k.sshSrv.Stop()
+	if err := exchange.Close(); err != nil {
+		logger.Errorf("Close exchange manager failed: %s", err)
+	}
 	k.cancel()
 	k.lion.Stop()
 	logger.Info("Quit The KoKo")

@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync"
 
@@ -30,8 +31,6 @@ type redisChannel struct {
 	errMsg error
 
 	done chan struct{}
-
-	count chan int
 }
 
 func (s *redisChannel) Write(p []byte) (int, error) {
@@ -53,22 +52,18 @@ func (s *redisChannel) sendMessage(msg *RoomMessage) error {
 
 func (s *redisChannel) Close() error {
 	s.once.Do(func() {
-		if err := s.pubSub.Unsubscribe(context.Background(), s.readChannel); err != nil {
-			logger.Errorf("Redis unsubscribe channel %s err: %s", s.readChannel, err)
+		ctx, cancel := context.WithTimeout(context.Background(), redisCloseTimeout)
+		defer cancel()
+		unsubscribeErr := s.pubSub.Unsubscribe(ctx, s.readChannel)
+		if unsubscribeErr != nil {
+			logger.Errorf("Redis unsubscribe channel %s err: %s", s.readChannel, unsubscribeErr)
 		}
-		s.errMsg = s.pubSub.Close()
+		s.errMsg = errors.Join(unsubscribeErr, s.pubSub.Close())
 		close(s.done)
 		logger.Infof("Redis channel for room %s closed", s.roomId)
 	})
 
 	return s.errMsg
-}
-
-func (s *redisChannel) addSubscribeCount(i int) {
-	select {
-	case <-s.done:
-	case s.count <- i:
-	}
 }
 
 func (s *redisChannel) HandleRoomEvent(event string, msg *RoomMessage) {
