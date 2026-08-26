@@ -19,6 +19,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/sshcert"
 )
 
 type Handler interface {
@@ -59,7 +60,7 @@ func (userCon *UserWebsocket) initial() error {
 	userCon.wsParams = &wsParams
 	token := userCon.wsParams.Token
 	if token != "" {
-		connectToken, err := userCon.apiClient.GetConnectTokenInfo(token, true)
+		connectToken, err := sshcert.GetConnectTokenInfo(userCon.apiClient, token, true)
 		if err != nil {
 			logger.Errorf("Get connect token info %s error: %s", token, err)
 			errMsg := "Token invalid"
@@ -71,6 +72,7 @@ func (userCon *UserWebsocket) initial() error {
 		}
 
 		if userCon.user.ID != connectToken.User.ID {
+			connectToken.ClearSSHCertificateCredential()
 			logger.Errorf("No valid auth user found: %s vs %s",
 				userCon.user.String(), connectToken.User.String())
 			errMsg := "no valid auth user found"
@@ -89,6 +91,9 @@ func (userCon *UserWebsocket) Run() {
 	if err := userCon.initial(); err != nil {
 		logger.Errorf("Ws[%s] initial err: %s", userCon.Uuid, err)
 		return
+	}
+	if userCon.ConnectToken != nil {
+		defer userCon.ConnectToken.ClearSSHCertificateCredential()
 	}
 	ctx, cancel := context.WithCancel(userCon.ctx.Request.Context())
 	defer cancel()

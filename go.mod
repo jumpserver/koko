@@ -25,7 +25,7 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jarcoal/httpmock v1.0.4
-	github.com/jumpserver-dev/sdk-go v0.0.0-20260821083952-82cf2e23d207
+	github.com/jumpserver-dev/sdk-go v0.0.0-20260826024103-e9e4992f746b
 	github.com/leonelquinteros/gotext v1.4.0
 	github.com/microsoft/go-mssqldb v1.10.0
 	github.com/olekukonko/tablewriter v0.0.5

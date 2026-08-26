@@ -20,6 +20,7 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
+	"github.com/jumpserver/koko/pkg/sshcert"
 )
 
 type AssetDir struct {
@@ -844,7 +845,7 @@ func (ad *AssetDir) createConnectToken(su *model.PermAccount) (model.ConnectToke
 		logger.Errorf("Create super connect token failed: %s", msg)
 		return model.ConnectToken{}, fmt.Errorf("create super connect token failed: %s", msg)
 	}
-	return ad.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
+	return sshcert.GetConnectTokenInfo(ad.jmsService, tokenInfo.ID, true)
 }
 
 func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
@@ -914,6 +915,7 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 }
 
 func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHClient, error) {
+	defer connectToken.ClearSSHCertificateCredential()
 	asset := connectToken.Asset
 	account := connectToken.Account
 	username := account.Username
@@ -930,6 +932,12 @@ func NewSSHClientWithToken(connectToken *model.ConnectToken, timeout int) (*SSHC
 		} else {
 			logger.Errorf("ssh private key parse failed: %s", err1)
 		}
+	} else if account.IsSSHCertificate() {
+		signer, err := sshcert.NewSigner(account.GetBaseAccount())
+		if err != nil {
+			return nil, err
+		}
+		sshAuthOpts = append(sshAuthOpts, SSHClientPrivateAuth(signer))
 	} else {
 		sshAuthOpts = append(sshAuthOpts, SSHClientPassword(account.Secret))
 	}

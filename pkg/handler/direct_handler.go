@@ -18,6 +18,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshcert"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -178,7 +179,7 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 						RemoteAddr:    addr,
 					}
 					if tokenInfo, err1 := d.jmsService.CreateSuperConnectToken(&req); err1 == nil {
-						if connectToken, err2 := d.jmsService.GetConnectTokenInfo(tokenInfo.ID, true); err2 == nil {
+						if connectToken, err2 := sshcert.GetConnectTokenInfo(d.jmsService, tokenInfo.ID, true); err2 == nil {
 							opts = append(opts, srvconn.WithConnectToken(&connectToken))
 							opts = append(opts, srvconn.WithAssets(nil))
 						}
@@ -471,7 +472,7 @@ func (d *DirectHandler) Proxy(asset model.PermAsset) {
 			return
 		}
 	}
-	connectToken, err := d.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
+	connectToken, err := sshcert.GetConnectTokenInfo(d.jmsService, tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create connect token and auth info failed: %s", err)
 		utils.IgnoreErrWriteString(d.term, lang.T("get connect token err"))
