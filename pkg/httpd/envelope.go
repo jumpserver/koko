@@ -114,14 +114,21 @@ func parseTerminalEnvelopePayload(payload []byte) (uint32, []byte, error) {
 	return terminalID, payload[envelopeTerminalIDSize:], nil
 }
 
-func buildTerminalEnvelopePayload(terminalID uint32, data []byte) ([]byte, error) {
+func buildTerminalOutputEnvelope(terminalID uint32, data []byte) ([]byte, error) {
 	if terminalID == 0 {
 		return nil, errTerminalIDRequired
 	}
-	payload := make([]byte, envelopeTerminalIDSize+len(data))
-	binary.BigEndian.PutUint32(payload[:envelopeTerminalIDSize], terminalID)
-	copy(payload[envelopeTerminalIDSize:], data)
-	return payload, nil
+	payloadLength := envelopeTerminalIDSize + len(data)
+	if payloadLength > envelopeMaxPayload {
+		return nil, errEnvelopeTooLarge
+	}
+	result := make([]byte, envelopeHeaderSize+payloadLength)
+	result[0] = envelopeVersion
+	result[1] = envelopeTerminalOutput
+	binary.BigEndian.PutUint32(result[2:envelopeHeaderSize], uint32(payloadLength))
+	binary.BigEndian.PutUint32(result[envelopeHeaderSize:envelopeHeaderSize+envelopeTerminalIDSize], terminalID)
+	copy(result[envelopeHeaderSize+envelopeTerminalIDSize:], data)
+	return result, nil
 }
 
 func marshalEnvelopeJSON(value any) ([]byte, error) {
@@ -135,11 +142,7 @@ func marshalEnvelopeJSON(value any) ([]byte, error) {
 func encodeMessageEnvelope(msg *Message) ([]byte, error) {
 	switch msg.Type {
 	case TerminalBinary, TerminalK8SBinary:
-		payload, err := buildTerminalEnvelopePayload(msg.TerminalId, msg.Raw)
-		if err != nil {
-			return nil, err
-		}
-		return buildEnvelope(envelopeTerminalOutput, payload)
+		return buildTerminalOutputEnvelope(msg.TerminalId, msg.Raw)
 	case ChatMessage:
 		return buildEnvelope(envelopeChat, []byte(msg.Data))
 	case ERROR, TerminalError:

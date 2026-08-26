@@ -1,13 +1,11 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -212,42 +210,13 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		var (
 			exitFlag bool
 		)
-		buffer := bytes.NewBuffer(make([]byte, 0, 1024*2))
-		/*
-		 这里使用了一个buffer，将用户输入的数据进行了分包，分包的依据是utf8编码的字符。
-		*/
-		maxLen := 1024
+		readBuf := make([]byte, 8*1024)
 		for {
-			buf := make([]byte, maxLen)
-			nr, err2 := srvConn.Read(buf)
-			validBytes := buf[:nr]
+			nr, err2 := srvConn.Read(readBuf)
 			if nr > 0 {
-				isZmodem := parser.zmodemParser.IsStartSession()
-				if !isZmodem {
-					bufferLen := buffer.Len()
-					if bufferLen > 0 || nr == maxLen {
-						buffer.Write(buf[:nr])
-						validBytes = validBytes[:0]
-					}
-					remainBytes := buffer.Bytes()
-					for len(remainBytes) > 0 {
-						r, size := utf8.DecodeRune(remainBytes)
-						if r == utf8.RuneError {
-							// utf8 max 4 bytes
-							if len(remainBytes) <= 3 {
-								break
-							}
-						}
-						validBytes = append(validBytes, remainBytes[:size]...)
-						remainBytes = remainBytes[size:]
-					}
-					buffer.Reset()
-					if len(remainBytes) > 0 {
-						buffer.Write(remainBytes)
-					}
-				}
+				data := append([]byte(nil), readBuf[:nr]...)
 				select {
-				case srvInChan <- validBytes:
+				case srvInChan <- data:
 				case <-done:
 					exitFlag = true
 					logger.Infof("Session[%s] done", s.ID)

@@ -10,17 +10,19 @@ const (
 	ExecutionPTY        = "pty"
 	ExecutionBackground = "background_exec"
 
-	ReActExecute  = "execute"
-	ReActFinish   = "finish"
-	ReActContinue = "continue"
+	ReActExecute       = "execute"
+	ReActFinish        = "finish"
+	ReActContinue      = "continue"
+	ActionLookupSchema = "lookup_schema"
 
-	StepPending    = "pending"
-	StepInProgress = "in_progress"
-	StepReviewing  = "reviewing"
-	StepCompleted  = "completed"
-	StepFailed     = "failed"
-	StepRejected   = "rejected"
-	StepSkipped    = "skipped"
+	StepPending     = "pending"
+	StepInProgress  = "in_progress"
+	StepReviewing   = "reviewing"
+	StepCompleted   = "completed"
+	StepFailed      = "failed"
+	StepInterrupted = "interrupted"
+	StepRejected    = "rejected"
+	StepSkipped     = "skipped"
 )
 
 type ChatMessage struct {
@@ -47,12 +49,40 @@ type Step struct {
 }
 
 type Decision struct {
-	Kind           string           `json:"kind"`
-	Answer         string           `json:"answer"`
-	Summary        string           `json:"summary"`
-	ThoughtSummary string           `json:"thoughtSummary"`
-	Steps          []Step           `json:"steps"`
-	Proposal       *CommandProposal `json:"proposal"`
+	Kind           string                  `json:"kind"`
+	Answer         string                  `json:"answer"`
+	Summary        string                  `json:"summary"`
+	ThoughtSummary string                  `json:"thoughtSummary"`
+	Steps          []Step                  `json:"steps"`
+	Proposal       *CommandProposal        `json:"proposal"`
+	SchemaLookup   *SQLSchemaLookupRequest `json:"schemaLookup"`
+}
+
+type SQLSchemaLookupRequest struct {
+	Tables []string `json:"tables"`
+	Query  string   `json:"query"`
+}
+
+type SQLSchemaColumn struct {
+	Name     string  `json:"name"`
+	Type     string  `json:"type"`
+	Nullable bool    `json:"nullable"`
+	Default  *string `json:"default"`
+	Ordinal  int     `json:"-"`
+}
+
+type SQLTableSchema struct {
+	Database string            `json:"database"`
+	Schema   string            `json:"schema,omitempty"`
+	Table    string            `json:"table"`
+	Columns  []SQLSchemaColumn `json:"columns"`
+}
+
+type SQLSchemaLookupResult struct {
+	Database  string           `json:"database"`
+	Matches   []string         `json:"matches,omitempty"`
+	Tables    []SQLTableSchema `json:"tables"`
+	Truncated bool             `json:"truncated,omitempty"`
 }
 
 type CommandProposal struct {
@@ -122,6 +152,12 @@ type approvalDecision struct {
 type policyUpdate struct {
 	ApprovalThreshold int    `json:"approvalThreshold,omitempty"`
 	ExecutionMode     string `json:"executionMode,omitempty"`
+}
+
+type metadataApprovalDecision struct {
+	ID       string `json:"id"`
+	Digest   string `json:"digest"`
+	Decision string `json:"decision"`
 }
 
 func DecodeChatMessage(value string) (ChatMessage, error) {

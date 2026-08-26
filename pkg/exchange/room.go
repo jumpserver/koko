@@ -4,7 +4,6 @@ import (
 	"container/ring"
 	"encoding/json"
 	"io"
-	"sort"
 	"sync"
 	"time"
 
@@ -12,10 +11,13 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
+const roomSubscriberBufferSize = 32
+
 type RoomManager interface {
 	Add(s *Room)
 	Delete(s *Room)
 	Get(sid string) *Room
+	Close() error
 }
 
 var (
@@ -30,7 +32,6 @@ func CreateRoom(id string, inChan chan *RoomMessage) *Room {
 		broadcastChan:  make(chan *RoomMessage),
 		subscriber:     make(chan *Conn),
 		unSubscriber:   make(chan *Conn),
-		exitSignal:     make(chan struct{}),
 		done:           make(chan struct{}),
 		recentMessages: ring.New(5),
 	}
@@ -41,14 +42,13 @@ type Room struct {
 	Id string
 
 	userInputChan chan *RoomMessage
+	forwardEvents chan *RoomMessage
 
 	broadcastChan chan *RoomMessage
 
 	subscriber chan *Conn
 
 	unSubscriber chan *Conn
-
-	exitSignal chan struct{}
 
 	done chan struct{}
 
@@ -61,7 +61,7 @@ func (r *Room) run() {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	defer r.closeOnce()
-	connMaps := make(map[string]*Conn)
+	connMaps := make(map[string]*roomSubscriber)
 	currentOnlineUsers := make(map[string]MetaMessage)
 	var ZMODEMStatus bool
 	for {
@@ -71,17 +71,15 @@ func (r *Room) run() {
 				logger.Infof("Room %s has no connection now and exit", r.Id)
 				return
 			}
-			select {
-			case <-r.done:
-				for k := range connMaps {
-					_ = connMaps[k].Close()
-				}
-			default:
-			}
 		case con := <-r.subscriber:
-			connMaps[con.Id] = con
+			if subscriber := connMaps[con.Id]; subscriber != nil {
+				subscriber.stop(false)
+			}
+			subscriber := newRoomSubscriber(con)
+			connMaps[con.Id] = subscriber
+			go subscriber.run()
 			if ZMODEMStatus {
-				con.handlerMessage(&RoomMessage{
+				subscriber.send(&RoomMessage{
 					Event: ActionEvent,
 					Body:  []byte(ZmodemStartEvent),
 				})
@@ -90,24 +88,23 @@ func (r *Room) run() {
 				if msg, ok := value.(*RoomMessage); ok {
 					switch msg.Event {
 					case DataEvent:
-						_, _ = con.Write(msg.Body)
+						subscriber.send(msg)
 					}
 				}
 			})
 			body, _ := json.Marshal(currentOnlineUsers)
-			con.handlerMessage(&RoomMessage{
+			subscriber.send(&RoomMessage{
 				Event: ShareUsers,
 				Body:  body,
 			})
 			logger.Debugf("Room %s current connections count: %d", r.Id, len(connMaps))
 		case con := <-r.unSubscriber:
-			delete(connMaps, con.Id)
+			if subscriber := connMaps[con.Id]; subscriber != nil && subscriber.conn == con {
+				delete(connMaps, con.Id)
+				subscriber.stop(false)
+			}
 			logger.Debugf("Room %s current connections count: %d", r.Id, len(connMaps))
 		case msg := <-r.broadcastChan:
-			userCones := make([]*Conn, 0, len(connMaps))
-			for k := range connMaps {
-				userCones = append(userCones, connMaps[k])
-			}
 			switch msg.Event {
 			case DataEvent:
 				r.recentMessages.Value = msg
@@ -118,6 +115,14 @@ func (r *Room) run() {
 			case ShareLeave:
 				key := msg.Meta.User + msg.Meta.Created
 				delete(currentOnlineUsers, key)
+			case ShareUsers:
+				var users map[string]MetaMessage
+				if err := json.Unmarshal(msg.Body, &users); err == nil {
+					if users == nil {
+						users = make(map[string]MetaMessage)
+					}
+					currentOnlineUsers = users
+				}
 			case ActionEvent:
 				switch string(msg.Body) {
 				case ZmodemStartEvent:
@@ -128,26 +133,43 @@ func (r *Room) run() {
 					ZMODEMStatus = false
 				}
 			}
-			r.broadcastMessage(userCones, msg)
+			r.broadcastMessage(connMaps, msg)
 
-		case <-r.exitSignal:
-			for k := range connMaps {
-				_ = connMaps[k].Close()
+		case <-r.done:
+			for _, subscriber := range connMaps {
+				subscriber.stop(true)
 			}
+			return
 		}
 	}
 }
 
 func (r *Room) Subscribe(conn *Conn) {
-	r.subscriber <- conn
-
+	select {
+	case <-r.done:
+	case r.subscriber <- conn:
+	}
 }
 
 func (r *Room) UnSubscribe(conn *Conn) {
-	r.unSubscriber <- conn
+	select {
+	case <-r.done:
+	case r.unSubscriber <- conn:
+	}
 }
 
 func (r *Room) Broadcast(msg *RoomMessage) {
+	if r.forwardEvents != nil && (msg.Event == ShareJoin || msg.Event == ShareLeave) {
+		select {
+		case <-r.done:
+		case r.forwardEvents <- msg:
+		}
+		return
+	}
+	r.broadcast(msg)
+}
+
+func (r *Room) broadcast(msg *RoomMessage) {
 	select {
 	case <-r.done:
 	case r.broadcastChan <- msg:
@@ -161,27 +183,15 @@ func (r *Room) Receive(msg *RoomMessage) {
 	}
 }
 
-func (r *Room) broadcastMessage(conns userConnections, msg *RoomMessage) {
-	// 减少启动goroutine的数量
-	if len(conns) == 0 {
-		return
+func (r *Room) broadcastMessage(conns map[string]*roomSubscriber, msg *RoomMessage) {
+	for id, subscriber := range conns {
+		if subscriber.send(msg) {
+			continue
+		}
+		delete(conns, id)
+		subscriber.stop(true)
+		logger.Errorf("Room %s close slow connection %s", r.Id, id)
 	}
-	if len(conns) == 1 {
-		conns[0].handlerMessage(msg)
-		return
-	}
-
-	// 启动 goroutine 发送消息
-	sort.Sort(conns)
-	var wg sync.WaitGroup
-	for i := range conns {
-		wg.Add(1)
-		go func(con *Conn) {
-			defer wg.Done()
-			con.handlerMessage(msg)
-		}(conns[i])
-	}
-	wg.Wait()
 }
 
 func (r *Room) Done() <-chan struct{} {
@@ -189,11 +199,6 @@ func (r *Room) Done() <-chan struct{} {
 }
 
 func (r *Room) stop() {
-	select {
-	case <-r.done:
-		return
-	case r.exitSignal <- struct{}{}:
-	}
 	r.closeOnce()
 }
 
@@ -205,9 +210,8 @@ func (r *Room) closeOnce() {
 
 func WrapperUserCon(stream Stream) *Conn {
 	return &Conn{
-		Id:      common.UUID(),
-		Stream:  stream,
-		created: time.Now(),
+		Id:     common.UUID(),
+		Stream: stream,
 	}
 }
 
@@ -219,7 +223,57 @@ type Stream interface {
 type Conn struct {
 	Id string
 	Stream
-	created time.Time
+}
+
+type roomSubscriber struct {
+	conn     *Conn
+	messages chan *RoomMessage
+	done     chan struct{}
+	once     sync.Once
+}
+
+func newRoomSubscriber(conn *Conn) *roomSubscriber {
+	return &roomSubscriber{
+		conn:     conn,
+		messages: make(chan *RoomMessage, roomSubscriberBufferSize),
+		done:     make(chan struct{}),
+	}
+}
+
+func (s *roomSubscriber) run() {
+	for {
+		select {
+		case <-s.done:
+			return
+		default:
+		}
+		select {
+		case <-s.done:
+			return
+		case msg := <-s.messages:
+			s.conn.handlerMessage(msg)
+		}
+	}
+}
+
+func (s *roomSubscriber) send(msg *RoomMessage) bool {
+	select {
+	case <-s.done:
+		return false
+	case s.messages <- msg:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *roomSubscriber) stop(closeConn bool) {
+	s.once.Do(func() {
+		close(s.done)
+		if closeConn {
+			_ = s.conn.Close()
+		}
+	})
 }
 
 func (c *Conn) handlerMessage(msg *RoomMessage) {
@@ -231,20 +285,4 @@ func (c *Conn) handlerMessage(msg *RoomMessage) {
 	default:
 		c.HandleRoomEvent(msg.Event, msg)
 	}
-}
-
-var _ sort.Interface = (userConnections)(nil)
-
-type userConnections []*Conn
-
-func (l userConnections) Less(i, j int) bool {
-	return l[i].created.Before(l[j].created)
-}
-
-func (l userConnections) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-
-func (l userConnections) Len() int {
-	return len(l)
 }

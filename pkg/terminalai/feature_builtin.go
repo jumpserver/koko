@@ -39,13 +39,16 @@ func (builtInFeature) NewSession(options SessionOptions) (Session, error) {
 		return nil, fmt.Errorf("terminal AI message emitter is required")
 	}
 	config := options.Config
-	journal := newAuditWriter(
-		options.UserID,
-		options.TerminalID,
-		config.MemoryRoot,
-		config.MemorySessions,
-	)
-	config.Provider.Trace = journal
+	var journal *auditWriter
+	if config.AuditEnabled {
+		journal = newAuditWriter(
+			options.UserID,
+			options.TerminalID,
+			config.MemoryRoot,
+			config.MemorySessions,
+		)
+		config.Provider.Trace = journal
+	}
 	modelClient, err := NewModelClient(config)
 	if err != nil {
 		journal.Close()

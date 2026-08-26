@@ -18,6 +18,7 @@ const (
 
 type Config struct {
 	Provider               provider.Config
+	AuditEnabled           bool
 	MemoryRoot             string
 	MemorySessions         int
 	MaxModelRequests       int
@@ -41,7 +42,8 @@ func NewConfig(modelConfig model.TerminalConfig) Config {
 		ContextSoftLimitPercent: 80, RequestTimeout: 5 * time.Minute,
 	})
 	return Config{
-		Provider: providerConfig,
+		Provider:     providerConfig,
+		AuditEnabled: appconfig.GetConf().TerminalAIAuditEnabled,
 		MemoryRoot: filepath.Join(
 			appconfig.GetConf().DataFolderPath, "terminal_ai", "memory",
 		),

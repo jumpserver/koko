@@ -81,6 +81,7 @@ func (e *SSHExecutor) Execute(
 	go func() {
 		select {
 		case <-ctx.Done():
+			_ = session.Signal(gossh.SIGINT)
 			_ = session.Close()
 		case <-cancelDone:
 		}

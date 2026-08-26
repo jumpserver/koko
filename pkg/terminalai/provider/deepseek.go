@@ -16,7 +16,7 @@ func newDeepSeekProvider(config Config) (Provider, error) {
 		config.BaseURL = deepSeekDefaultBaseURL
 	}
 	if strings.TrimSpace(config.ReasoningEffort) == "" {
-		config.ReasoningEffort = "high"
+		config.ReasoningEffort = "low"
 	}
 	compatible, err := newCompatible(config)
 	if err != nil {

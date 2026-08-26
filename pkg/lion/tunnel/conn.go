@@ -152,6 +152,7 @@ func (t *Connection) Run(ctx *gin.Context) (err error) {
 		return err
 	}
 	eventChan := t.Cache.GetSessionEventChan(t.Sess.ID)
+	defer t.Cache.RecycleSessionEventChannel(t.Sess.ID, eventChan)
 	var jsonBuilder strings.Builder
 	_ = json.NewEncoder(&jsonBuilder).Encode(t.meta)
 	metaJsonStr := jsonBuilder.String()
@@ -340,8 +341,13 @@ func (t *Connection) Run(ctx *gin.Context) (err error) {
 
 	for {
 		select {
-		case event := <-eventChan.eventCh:
-			go t.handleEvent(event)
+		case event, ok := <-eventChan.eventCh:
+			if !ok {
+				return nil
+			}
+			if event != nil {
+				t.handleEvent(event)
+			}
 			continue
 		case err = <-exit:
 			logger.Infof("Session[%s] Connection exit %+v", t, err)

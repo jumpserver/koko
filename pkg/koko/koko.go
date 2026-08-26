@@ -47,6 +47,9 @@ func (k *Koko) Stop() {
 	if k.webProxy != nil {
 		k.webProxy.Stop()
 	}
+	if err := exchange.Close(); err != nil {
+		logger.Errorf("Close exchange manager failed: %s", err)
+	}
 	k.cancel()
 	k.lion.Stop()
 	logger.Info("Quit The KoKo")

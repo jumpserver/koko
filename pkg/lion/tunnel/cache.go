@@ -103,7 +103,7 @@ func NewEventChan(sid string) *EventChan {
 	return &EventChan{
 		id:      common.UUID(),
 		sid:     sid,
-		eventCh: make(chan *Event, 5),
+		eventCh: make(chan *Event, 32),
 	}
 }
 

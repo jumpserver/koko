@@ -29,6 +29,7 @@ type MySQLConfig = DatabaseConfig
 type MySQLExecutor struct {
 	db            *sql.DB
 	sanitizer     ValueSanitizer
+	metadata      *sqlMetadataTool
 	tlsConfigName string
 	closeOnce     sync.Once
 }
@@ -61,6 +62,7 @@ func NewMySQLExecutor(ctx context.Context, config MySQLConfig) (*MySQLExecutor, 
 		return nil, fmt.Errorf("create MySQL connector: %w", err)
 	}
 	executor.db = sql.OpenDB(connector)
+	executor.metadata = newSQLMetadataTool(executor.db, config.Protocol, config.Database)
 	executor.db.SetMaxOpenConns(1)
 	executor.db.SetMaxIdleConns(1)
 	executor.db.SetConnMaxLifetime(30 * time.Minute)
@@ -119,6 +121,9 @@ func (e *MySQLExecutor) Execute(
 	} else {
 		output, err = e.exec(ctx, command)
 	}
+	if err == nil && isSchemaChangingSQL(analysis) {
+		e.metadata.Invalidate()
+	}
 	if output != "" && onOutput != nil {
 		onOutput(output)
 	}
@@ -130,6 +135,20 @@ func (e *MySQLExecutor) Execute(
 		}
 	}
 	return output, nil, err
+}
+
+func (e *MySQLExecutor) SQLMetadataScope() string {
+	return e.metadata.Scope()
+}
+
+func (e *MySQLExecutor) LookupSQLSchema(
+	ctx context.Context, request SQLSchemaLookupRequest,
+) (SQLSchemaLookupResult, error) {
+	return e.metadata.Lookup(ctx, request)
+}
+
+func (e *MySQLExecutor) InvalidateSQLMetadata() {
+	e.metadata.Invalidate()
 }
 
 func (e *MySQLExecutor) query(ctx context.Context, command string) (string, error) {

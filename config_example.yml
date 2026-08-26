@@ -41,6 +41,9 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # Terminal AI 业务加强规则文件，留空时仅使用内置规则，可参考 terminal_ai_rules_example.yml
 # TERMINAL_AI_RULES_FILE: /opt/koko/terminal_ai_rules.yml
 
+# 是否记录 Terminal AI 本地审计日志，默认关闭
+# TERMINAL_AI_AUDIT_ENABLED: false
+
 # 语言 [en,zh]
 # LANGUAGE_CODE: zh
 

@@ -286,7 +286,7 @@ func TestDeepSeekThinkingFallback(t *testing.T) {
 	if result.Content != `{"value":"ok"}` || len(requests) != 2 {
 		t.Fatalf("fallback result = %q, requests = %d", result.Content, len(requests))
 	}
-	if thinkingType(requests[0]) != "enabled" || requests[0]["reasoning_effort"] != "high" {
+	if thinkingType(requests[0]) != "enabled" || requests[0]["reasoning_effort"] != "low" {
 		t.Fatalf("first request did not enable thinking: %#v", requests[0])
 	}
 	if _, exists := requests[0]["temperature"]; exists {

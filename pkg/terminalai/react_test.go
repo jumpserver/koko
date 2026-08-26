@@ -151,6 +151,36 @@ func TestReactContinuationMustStayOnSameTask(t *testing.T) {
 	}
 }
 
+func TestNormalizeReactContinuationKeepsReviewedTask(t *testing.T) {
+	decision := ReActDecision{
+		Kind: ReActExecute,
+		Observation: ObservationReview{
+			StepID: "task-1", Outcome: ReActContinue,
+		},
+		NextStepID: "task-2",
+	}
+	if !normalizeReActContinuation(&decision) || decision.NextStepID != "task-1" {
+		t.Fatalf("normalized next step = %q", decision.NextStepID)
+	}
+}
+
+func TestReactPlanInterruptsActiveWork(t *testing.T) {
+	plan := newReActPlan("plan-1", "Inspect", []Step{
+		{ID: "task-1", Status: StepReviewing},
+		{ID: "task-2", Status: StepPending},
+	})
+	plan.results = []StepResult{{ID: "execution-1", StepID: "task-1", Status: StepReviewing}}
+
+	plan.interrupt("interrupted by user")
+
+	if plan.steps[0].Status != StepInterrupted || plan.steps[1].Status != StepSkipped {
+		t.Fatalf("unexpected interrupted steps: %#v", plan.steps)
+	}
+	if plan.results[0].Status != StepInterrupted || plan.results[0].Summary != "interrupted by user" {
+		t.Fatalf("unexpected interrupted result: %#v", plan.results[0])
+	}
+}
+
 func TestInitialDecisionExecutesBeforeNextModelTurn(t *testing.T) {
 	events := make([]string, 0, 3)
 	messages := make([]ChatMessage, 0, 8)

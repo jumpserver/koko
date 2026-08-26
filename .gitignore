@@ -12,6 +12,7 @@
 *.out
 data/
 log/
+!s6-overlay/services.d/guacd/log/
 .idea/
 vendor/
 config.yml

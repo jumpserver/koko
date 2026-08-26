@@ -22,13 +22,15 @@ type LoopModel interface {
 }
 
 type InitialRequest struct {
-	Question            string
-	History             string
-	Profile             string
-	Snapshot            string
-	Mode                string
-	BackgroundAvailable bool
-	Correction          string
+	Question              string
+	History               string
+	Profile               string
+	Snapshot              string
+	Mode                  string
+	BackgroundAvailable   bool
+	SchemaLookupAvailable bool
+	SchemaContext         string
+	Correction            string
 }
 
 type ReActRequest struct {
