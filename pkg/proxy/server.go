@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/terminalai"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -48,7 +50,6 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	protocol := connOpts.authInfo.Protocol
 	asset := connOpts.authInfo.Asset
 	account := connOpts.authInfo.Account
-	user := connOpts.authInfo.User
 	if err := srvconn.IsSupportedProtocol(protocol); err != nil {
 		logger.Errorf("Conn[%s] checking protocol %s failed: %s", conn.ID(),
 			protocol, err)
@@ -81,22 +82,15 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		assetName = connOpts.k8sContainer.K8sName(asset.Name)
 	}
 
-	apiSession := &model.Session{
-		ID:         common.UUID(),
-		User:       user.String(),
-		Account:    account.String(),
-		LoginFrom:  model.LabelField(conn.LoginFrom()),
-		RemoteAddr: conn.RemoteAddr(),
-		Protocol:   protocol,
-		UserID:     user.ID,
-		Asset:      assetName,
-		AssetID:    asset.ID,
-		AccountID:  account.ID,
-		OrgID:      connOpts.authInfo.OrgId,
-		Type:       model.NORMALType,
-		TokenId:    connOpts.authInfo.Id,
-		LangCode:   connOpts.i18nLang,
-	}
+	apiSession := connOpts.authInfo.CreateSession(
+		conn.RemoteAddr(),
+		model.LabelField(conn.LoginFrom()),
+		model.NORMALType,
+	)
+	apiSession.ID = common.UUID()
+	apiSession.Asset = assetName
+	apiSession.LangCode = connOpts.i18nLang
+	apiSessionRef := &apiSession
 
 	if !connOpts.authInfo.Actions.EnableConnect() {
 		msg := lang.T("You don't have permission login %s")
@@ -105,8 +99,10 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		return nil, ErrPermission
 	}
 
+	commandACLs := cloneCommandACLs(connOpts.authInfo.CommandFilterACLs)
+	sort.Sort(commandACLs)
 	return &Server{
-		ID:            apiSession.ID,
+		ID:            apiSessionRef.ID,
 		UserConn:      conn,
 		jmsService:    jmsService,
 		connOpts:      connOpts,
@@ -114,18 +110,19 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 		suFromAccount: account.SuFrom,
 		terminalConf:  &terminalConf,
 		gateway:       connOpts.authInfo.Gateway,
-		sessionInfo:   apiSession,
+		sessionInfo:   apiSessionRef,
+		commandACLs:   commandACLs,
 		CreateSessionCallback: func() error {
-			apiSession.DateStart = common.NewNowUTCTime()
-			_, err2 := jmsService.CreateSession(*apiSession)
+			apiSessionRef.DateStart = common.NewNowUTCTime()
+			_, err2 := jmsService.CreateSession(*apiSessionRef)
 			return err2
 		},
 		ConnectedFailedCallback: func(err error) error {
-			_, err1 := jmsService.SessionFailed(apiSession.ID, err)
+			_, err1 := jmsService.SessionFailed(apiSessionRef.ID, err)
 			return err1
 		},
 		DisConnectedCallback: func() error {
-			_, err2 := jmsService.SessionDisconnect(apiSession.ID)
+			_, err2 := jmsService.SessionDisconnect(apiSessionRef.ID)
 			return err2
 		},
 	}, nil
@@ -146,6 +143,15 @@ type Server struct {
 	gateway      *model.Gateway
 
 	sessionInfo *model.Session
+	commandACLs model.CommandACLs
+
+	backgroundRecorderMu sync.Mutex
+	backgroundRecorder   *CommandRecorder
+	terminalAIGrantMu    sync.Mutex
+	terminalAIGrant      *terminalAICommandGrant
+	operationPaused      atomic.Bool
+	permissionInvalid    atomic.Bool
+	backgroundActiveAt   atomic.Int64
 
 	cacheSSHConnection *srvconn.SSHConnection
 
@@ -155,7 +161,9 @@ type Server struct {
 
 	keyboardMode int32
 
-	OnSessionInfo func(info *SessionInfo)
+	OnSessionInfo        func(info *SessionInfo)
+	OnSSHClient          func(client *srvconn.SSHClient)
+	OnDatabaseConnection func(info DatabaseConnectionInfo)
 
 	BroadcastEvent func(event *exchange.RoomMessage)
 }
@@ -171,8 +179,197 @@ type SessionInfo struct {
 	ThemeName string `json:"themeName"`
 }
 
+type CommandACLDecision struct {
+	Action    model.CommandAction
+	ACLID     string
+	ItemID    string
+	Name      string
+	Matched   string
+	DetailURL string
+	Reviewers []string
+	Processor string
+	Reviewed  bool
+}
+
+type terminalAICommandGrant struct {
+	command  string
+	decision CommandACLDecision
+	expires  time.Time
+}
+
+func cloneCommandACLs(source []model.CommandACL) model.CommandACLs {
+	result := make(model.CommandACLs, len(source))
+	for index := range source {
+		result[index] = source[index]
+		result[index].CommandGroups = append(
+			[]model.CommandFilterItem(nil), source[index].CommandGroups...,
+		)
+	}
+	return result
+}
+
+func (s *Server) MatchCommandACL(command string) CommandACLDecision {
+	for index := range s.commandACLs {
+		rule := &s.commandACLs[index]
+		item, action, matched := rule.Match(command)
+		if action == model.ActionUnknown {
+			continue
+		}
+		return CommandACLDecision{
+			Action: action, ACLID: rule.ID, ItemID: item.ID,
+			Name: rule.Name, Matched: matched,
+		}
+	}
+	return CommandACLDecision{Action: model.ActionUnknown}
+}
+
+func (s *Server) AuthorizeTerminalAICommand(
+	command string, decision *CommandACLDecision,
+) {
+	if decision == nil || decision.Action == model.ActionUnknown {
+		return
+	}
+	s.terminalAIGrantMu.Lock()
+	s.terminalAIGrant = &terminalAICommandGrant{
+		command: strings.TrimSpace(command), decision: *decision,
+		expires: time.Now().Add(2 * time.Minute),
+	}
+	s.terminalAIGrantMu.Unlock()
+}
+
+func (s *Server) consumeTerminalAICommandGrant(
+	command string,
+) (CommandACLDecision, bool) {
+	s.terminalAIGrantMu.Lock()
+	defer s.terminalAIGrantMu.Unlock()
+	grant := s.terminalAIGrant
+	if grant == nil {
+		return CommandACLDecision{}, false
+	}
+	if time.Now().After(grant.expires) {
+		s.terminalAIGrant = nil
+		return CommandACLDecision{}, false
+	}
+	if strings.TrimSpace(command) != grant.command {
+		return CommandACLDecision{}, false
+	}
+	s.terminalAIGrant = nil
+	return grant.decision, true
+}
+
+func (s *Server) ReviewCommand(
+	ctx context.Context, decision CommandACLDecision, command string,
+) (CommandACLDecision, error) {
+	ticket, err := s.jmsService.SubmitCommandReview(s.ID, decision.ACLID, command)
+	if err != nil {
+		return decision, err
+	}
+	decision.DetailURL = ticket.TicketDetailUrl
+	decision.Reviewers = ticket.Reviewers
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			_ = s.jmsService.CancelConfirmByRequestInfo(ticket.CloseReq)
+			return decision, ctx.Err()
+		case <-ticker.C:
+		}
+		status, checkErr := s.jmsService.CheckConfirmStatusByRequestInfo(ticket.CheckReq)
+		if checkErr != nil {
+			logger.Errorf("Session %s: check terminal AI command review failed: %s", s.ID, checkErr)
+			continue
+		}
+		decision.Processor = status.Processor
+		switch status.State {
+		case model.TicketOpen:
+			continue
+		case model.TicketApproved:
+			decision.Action = model.ActionAccept
+			decision.Reviewed = true
+			return decision, nil
+		case model.TicketRejected, model.TicketClosed:
+			decision.Action = model.ActionReject
+			return decision, nil
+		default:
+			logger.Errorf("Session %s: unknown terminal AI review status %s", s.ID, status.Status)
+		}
+	}
+}
+
+func (s *Server) RecordBackgroundCommand(
+	command, output string, exitCode *int, decision *CommandACLDecision,
+) {
+	riskLevel := int64(model.NormalLevel)
+	aclID, itemID := "", ""
+	if decision != nil {
+		aclID, itemID = decision.ACLID, decision.ItemID
+		switch {
+		case decision.Reviewed:
+			riskLevel = model.ReviewAccept
+		default:
+			switch decision.Action {
+			case model.ActionWarning, model.ActionNotifyAndWarn:
+				riskLevel = model.WarningLevel
+			}
+		}
+	}
+	if exitCode != nil {
+		output = fmt.Sprintf("[exit %d]\n%s", *exitCode, output)
+	}
+	now := time.Now()
+	record := &model.Command{
+		SessionID: s.sessionInfo.ID, OrgID: s.sessionInfo.OrgID,
+		Input: command, Output: output,
+		User: s.sessionInfo.User, Server: s.sessionInfo.Asset,
+		Account: s.sessionInfo.Account, Timestamp: now.Unix(),
+		RiskLevel: riskLevel, CmdFilterAclId: aclID, CmdGroupId: itemID,
+		DateCreated: now.UTC(),
+	}
+	s.backgroundRecorderMu.Lock()
+	if s.backgroundRecorder == nil {
+		s.backgroundRecorder = s.GetCommandRecorder()
+	}
+	recorder := s.backgroundRecorder
+	s.backgroundRecorderMu.Unlock()
+	recorder.Record(record)
+}
+
+func (s *Server) CloseBackgroundRecorder() {
+	s.backgroundRecorderMu.Lock()
+	recorder := s.backgroundRecorder
+	s.backgroundRecorder = nil
+	s.backgroundRecorderMu.Unlock()
+	if recorder != nil {
+		recorder.End()
+	}
+}
+
 func (s *Server) IsKeyboardMode() bool {
 	return atomic.LoadInt32(&s.keyboardMode) == 1
+}
+
+func (s *Server) SupportsBackgroundExecution() bool {
+	if s.suFromAccount != nil {
+		return false
+	}
+	return terminalai.SupportsBackground(
+		terminalai.NewSessionContext(s.connOpts.authInfo),
+	)
+}
+
+func (s *Server) CheckBackgroundExecution() error {
+	switch {
+	case !s.SupportsBackgroundExecution():
+		return errors.New("background execution is unavailable")
+	case s.operationPaused.Load():
+		return errors.New("the terminal session is paused")
+	case s.permissionInvalid.Load(), s.CheckPermissionExpired(time.Now()):
+		return errors.New("the terminal session permission is invalid")
+	default:
+		s.backgroundActiveAt.Store(time.Now().UnixNano())
+		return nil
+	}
 }
 
 func (s *Server) setKeyBoardMode() {
@@ -219,7 +416,7 @@ func (s *Server) ZmodemFileTransferEvent(zinfo *zmodem.ZFileInfo, status bool) {
 	}
 }
 
-func (s *Server) GetFilterParser() *Parser {
+func (s *Server) GetFilterParser() (*Parser, error) {
 	var (
 		enableUpload   bool
 		enableDownload bool
@@ -240,18 +437,21 @@ func (s *Server) GetFilterParser() *Parser {
 	sort.Sort(model.CommandACLs(filterRules))
 	pty := s.UserConn.Pty()
 	parser := Parser{
-		id:             s.ID,
-		protocolType:   protocol,
-		jmsService:     s.jmsService,
-		cmdFilterACLs:  filterRules,
-		enableDownload: enableDownload,
-		enableUpload:   enableUpload,
-		zmodemParser:   zParser,
-		i18nLang:       s.connOpts.i18nLang,
-		platform:       &platform,
+		id:              s.ID,
+		protocolType:    protocol,
+		jmsService:      s.jmsService,
+		cmdFilterACLs:   filterRules,
+		enableDownload:  enableDownload,
+		enableUpload:    enableUpload,
+		zmodemParser:    zParser,
+		i18nLang:        s.connOpts.i18nLang,
+		platform:        &platform,
+		terminalAIGrant: s.consumeTerminalAICommandGrant,
 	}
-	parser.initial(pty.Window.Width, pty.Window.Height)
-	return &parser
+	if err := parser.initial(pty.Window.Width, pty.Window.Height); err != nil {
+		return nil, err
+	}
+	return &parser, nil
 }
 
 func (s *Server) GetReplayRecorder() *ReplyRecorder {
@@ -418,6 +618,9 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 		sshClient.ReleaseSession(sess)
 		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, false
+	}
+	if s.OnSSHClient != nil {
+		s.OnSSHClient(sshClient)
 	}
 	reuseMsg := fmt.Sprintf(lang.T("Reuse SSH connections (%s@%s) [Number of connections: %d]"),
 		loginAccount.Name, asset.Address, sshClient.RefCount())
@@ -711,6 +914,9 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		sshClient.ReleaseSession(sess)
 		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, err
+	}
+	if s.OnSSHClient != nil {
+		s.OnSSHClient(sshClient)
 	}
 	if s.suFromAccount != nil {
 		lang := s.connOpts.getLang()
@@ -1077,6 +1283,7 @@ func (s *Server) Proxy() {
 	}
 
 	logger.Infof("Conn[%s] create session %s success", s.UserConn.ID(), s.ID)
+	s.notifyDatabaseConnection(proxyAddr)
 	if s.OnSessionInfo != nil {
 		actions := s.connOpts.authInfo.Actions
 		tokenConnOpts := s.connOpts.authInfo.ConnectOptions

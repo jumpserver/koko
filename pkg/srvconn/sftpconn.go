@@ -102,7 +102,18 @@ func (u *UserSftpConn) ReadLink(path string) (name string, err error) {
 }
 
 func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
+	return u.rename(oldNamePath, newNamePath, false)
+}
+
+func (u *UserSftpConn) PosixRename(oldNamePath, newNamePath string) (err error) {
+	return u.rename(oldNamePath, newNamePath, true)
+}
+
+func (u *UserSftpConn) rename(oldNamePath, newNamePath string, overwrite bool) (err error) {
 	if u.assetDir != nil {
+		if overwrite {
+			return u.assetDir.PosixRename(oldNamePath, newNamePath)
+		}
 		return u.assetDir.Rename(oldNamePath, newNamePath)
 	}
 	oldFi, oldRestPath := u.ParsePath(oldNamePath)
@@ -110,6 +121,9 @@ func (u *UserSftpConn) Rename(oldNamePath, newNamePath string) (err error) {
 	if oldAssetDir, ok := oldFi.(*AssetDir); ok {
 		if newAssetDir, newOk := newFi.(*AssetDir); newOk {
 			if oldAssetDir == newAssetDir {
+				if overwrite {
+					return oldAssetDir.PosixRename(oldRestPath, newRestPath)
+				}
 				return oldAssetDir.Rename(oldRestPath, newRestPath)
 			}
 		}
@@ -209,6 +223,43 @@ func (u *UserSftpConn) Create(path string) (*SftpFile, error) {
 	return nil, errNoSelectAsset
 }
 
+func (u *UserSftpConn) CreateOverwrite(path string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.CreateOverwrite(path)
+	}
+
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return nil, errNoSelectAsset
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.CreateOverwrite(restPath)
+	}
+
+	return nil, errNoSelectAsset
+}
+
+func (u *UserSftpConn) CreateEditorTemp(path, auditPath string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.CreateEditorTemp(path, auditPath)
+	}
+
+	fi, restPath := u.ParsePath(path)
+	auditFi, auditRestPath := u.ParsePath(auditPath)
+	assetDir, ok := fi.(*AssetDir)
+	if !ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+	if auditAssetDir, auditOk := auditFi.(*AssetDir); !auditOk || auditAssetDir != assetDir {
+		return nil, sftp.ErrSshFxOpUnsupported
+	}
+	return assetDir.CreateEditorTemp(restPath, auditRestPath)
+}
+
 func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
 	if u.assetDir != nil {
 		return u.assetDir.Open(path)
@@ -226,6 +277,64 @@ func (u *UserSftpConn) Open(path string) (*SftpFile, error) {
 	}
 
 	return nil, errNoSelectAsset
+}
+
+// OpenForWrite opens an existing file without truncating it.
+func (u *UserSftpConn) OpenForWrite(path string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.OpenForWrite(path)
+	}
+	fi, restPath := u.ParsePath(path)
+	if _, ok := fi.(*UserSftpConn); ok {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+
+	if _, ok := fi.(*NodeDir); ok {
+		return nil, errNoSelectAsset
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.OpenForWrite(restPath)
+	}
+
+	return nil, errNoSelectAsset
+}
+
+func (u *UserSftpConn) OpenForChecksum(path string) (*SftpFile, error) {
+	if u.assetDir != nil {
+		return u.assetDir.OpenForChecksum(path)
+	}
+	fi, restPath := u.ParsePath(path)
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.OpenForChecksum(restPath)
+	}
+	return nil, sftp.ErrSshFxPermissionDenied
+}
+
+func (u *UserSftpConn) AtomicReplace(sourcePath, targetPath string) error {
+	if u.assetDir != nil {
+		return u.assetDir.AtomicReplace(sourcePath, targetPath)
+	}
+	sourceFi, sourceRestPath := u.ParsePath(sourcePath)
+	targetFi, targetRestPath := u.ParsePath(targetPath)
+	sourceAssetDir, ok := sourceFi.(*AssetDir)
+	if !ok {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	if targetAssetDir, targetOk := targetFi.(*AssetDir); !targetOk || targetAssetDir != sourceAssetDir {
+		return sftp.ErrSshFxOpUnsupported
+	}
+	return sourceAssetDir.AtomicReplace(sourceRestPath, targetRestPath)
+}
+
+func (u *UserSftpConn) DiscardUploadTemp(path string) error {
+	if u.assetDir != nil {
+		return u.assetDir.DiscardUploadTemp(path)
+	}
+	fi, restPath := u.ParsePath(path)
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.DiscardUploadTemp(restPath)
+	}
+	return sftp.ErrSshFxPermissionDenied
 }
 
 func (u *UserSftpConn) Close() {

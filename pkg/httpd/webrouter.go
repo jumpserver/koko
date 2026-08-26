@@ -14,6 +14,7 @@ import (
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -34,22 +35,7 @@ func getStaticFS() http.FileSystem {
 
 }
 
-func getUIAssetFs() http.FileSystem {
-	uiAssetFs, err := fs.Sub(assets.UIFs, "ui/dist/assets")
-	if err != nil {
-		logger.Debugf("Get ui asset fs error: %s", err)
-		return &StaticFSWrapper{
-			FileSystem:   http.Dir("./ui/dist/assets"),
-			FixedModTime: time.Now(),
-		}
-	}
-	return &StaticFSWrapper{
-		FileSystem:   http.FS(uiAssetFs),
-		FixedModTime: time.Now(),
-	}
-}
-
-func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
+func createRouter(jmsService *service.JMService, webSrv *Server, lionRuntime *lion.Runtime) *gin.Engine {
 	if config.GlobalConfig.LogLevel != "DEBUG" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -61,8 +47,6 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		"templates/elfinder/*.html"))
 	eng.SetHTMLTemplate(templ)
 	kokoGroup.StaticFS("/static/", getStaticFS())
-	kokoGroup.StaticFS("/assets", getUIAssetFs())
-	kokoGroup.StaticFileFS("/favicon.ico", "ui/dist/favicon.ico", http.FS(assets.UIFs))
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
 	wsGroup := kokoGroup.Group("/ws/")
 	{
@@ -72,54 +56,15 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		wsGroup.Group("/elfinder").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessElfinderWebsocket)
 
-		wsGroup.Group("/chat/system").Use(
-			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ChatAIWebsocket)
-
 		wsGroup.Group("/sftp").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessSftpWebsocket)
 
 	}
 
-	connectGroup := kokoGroup.Group("/connect")
-	connectGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
+	apiGroup := kokoGroup.Group("/api")
+	apiGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
-		connectGroup.GET("/", func(ctx *gin.Context) {
-			// https://github.com/gin-gonic/gin/issues/2654
-			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
-		})
-	}
-	sftpGroup := kokoGroup.Group("/sftp")
-	sftpGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
-	{
-		sftpGroup.GET("/", func(ctx *gin.Context) {
-			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
-		})
-	}
-	shareGroup := kokoGroup.Group("/share")
-	shareGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
-	{
-		shareGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
-		})
-	}
-
-	monitorGroup := kokoGroup.Group("/monitor")
-	monitorGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
-	{
-		monitorGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
-		})
-	}
-
-	tokenGroup := kokoGroup.Group("/token")
-	{
-		tokenGroup.GET("/", func(ctx *gin.Context) {
-			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
-		})
-
-		tokenGroup.GET("/:id/", func(ctx *gin.Context) {
-			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
-		})
+		apiGroup.POST("/connect-ticket/", webSrv.CreateConnectTicket)
 	}
 	elfinderGroup := kokoGroup.Group("/elfinder")
 	elfinderGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
@@ -139,14 +84,8 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		})
 		elfinderGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}
-
-	k8sGroup := kokoGroup.Group("/k8s")
-	k8sGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
-	{
-		k8sGroup.GET("/", func(ctx *gin.Context) {
-			// https://github.com/gin-gonic/gin/issues/2654
-			ctx.FileFromFS("ui/dist/", http.FS(assets.UIFs))
-		})
+	if lionRuntime != nil {
+		lionRuntime.RegisterRoutes(eng)
 	}
 
 	debugGroup := eng.Group("/debug/pprof")

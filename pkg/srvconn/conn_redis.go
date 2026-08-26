@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -8,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/jumpserver/koko/pkg/localcommand"
 	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/mediocregopher/radix/v3"
 )
 
 const (
@@ -159,42 +160,41 @@ func (opt *sqlOption) RedisCommandArgs() []string {
 }
 
 func checkRedisAccount(args *sqlOption) error {
-	var dialOptions []radix.DialOpt
 	addr := fmt.Sprintf("%s:%s", args.Host, strconv.Itoa(args.Port))
-	if args.Username != "" {
-		dialOptions = append(dialOptions, radix.DialAuthUser(args.Username, args.Password))
-	} else {
-		dialOptions = append(dialOptions, radix.DialAuthPass(args.Password))
-	}
-
+	var tlsConfig *tls.Config
 	if args.UseSSL {
-		tlsConfig := tls.Config{}
+		config := tls.Config{}
 		// 连接使用的是内部地址或者localhost时，跳过证书验证
 		if args.Host == "127.0.0.1" || args.Host == "localhost" {
-			tlsConfig.InsecureSkipVerify = true
+			config.InsecureSkipVerify = true
 		}
 		if args.CaCert != "" {
 			rootCAs := x509.NewCertPool()
 			rootCAs.AppendCertsFromPEM([]byte(args.CaCert))
-			tlsConfig.RootCAs = rootCAs
-			tlsConfig.InsecureSkipVerify = true
+			config.RootCAs = rootCAs
+			config.InsecureSkipVerify = true
 		}
 		if args.CertKey != "" && args.ClientCert != "" {
 			var err error
-			tlsConfig.Certificates = make([]tls.Certificate, 1)
-			tlsConfig.Certificates[0], err = tls.X509KeyPair([]byte(args.ClientCert), []byte(args.CertKey))
+			config.Certificates = make([]tls.Certificate, 1)
+			config.Certificates[0], err = tls.X509KeyPair([]byte(args.ClientCert), []byte(args.CertKey))
 			if err != nil {
 				return err
 			}
 		}
-		dialOptions = append(dialOptions, radix.DialUseTLS(&tlsConfig))
+		tlsConfig = &config
 	}
 
-	conn, err := radix.Dial("tcp", addr, dialOptions...)
-	if err != nil || conn == nil {
-		return err
-	}
-	defer conn.Close()
-	err = conn.Do(radix.Cmd(nil, "PING"))
-	return err
+	client := redis.NewClient(&redis.Options{
+		Addr:         addr,
+		Username:     args.Username,
+		Password:     args.Password,
+		DialTimeout:  10 * time.Second,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		MaxRetries:   -1,
+		TLSConfig:    tlsConfig,
+	})
+	defer client.Close()
+	return client.Ping(context.Background()).Err()
 }

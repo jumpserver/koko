@@ -21,7 +21,7 @@ KOKOLDFLAGS+=-X 'main.Goversion=$(GOVERSION)'
 KOKOLDFLAGS+=-X 'main.Version=$(VERSION)'
 KOKOLDFLAGS+=-X 'github.com/jumpserver/koko/pkg/config.CipherKey=$(CipherKey)'
 
-KOKOBUILD=CGO_ENABLED=0 go build -trimpath -ldflags "$(KOKOLDFLAGS) ${LDFLAGS}"
+KOKOBUILD=CGO_ENABLED=1 go build -trimpath -ldflags "$(KOKOLDFLAGS) ${LDFLAGS}"
 
 UIDIR=ui
 
@@ -40,10 +40,12 @@ define make_artifact_full
 	rm -rf $(BUILDDIR)/$(NAME)-$(VERSION)-$(1)-$(2) $(BUILDDIR)/$(NAME)-$(1)-$(2)
 endef
 
+.PHONY: build
 build:
+	mkdir -p $(BUILDDIR)
 	GOARCH=$(GOARCH) GOOS=$(GOOS) $(KOKOBUILD) -o $(BUILDDIR)/$(NAME) $(KOKOSRCFILE)
 
-all: koko-ui
+all:
 	$(call make_artifact_full,darwin,amd64)
 	$(call make_artifact_full,darwin,arm64)
 	$(call make_artifact_full,linux,amd64)
@@ -54,34 +56,34 @@ all: koko-ui
 	$(call make_artifact_full,linux,riscv64)
 	$(call make_artifact_full,linux,loong64)
 
-local: koko-ui
+local:
 	$(call make_artifact_full,$(shell go env GOOS),$(shell go env GOARCH))
 
-darwin-amd64: koko-ui
+darwin-amd64:
 	$(call make_artifact_full,darwin,amd64)
 
-darwin-arm64: koko-ui
+darwin-arm64:
 	$(call make_artifact_full,darwin,arm64)
 
-linux-amd64: koko-ui
+linux-amd64:
 	$(call make_artifact_full,linux,amd64)
 
-linux-arm64: koko-ui
+linux-arm64:
 	$(call make_artifact_full,linux,arm64)
 
-linux-loong64: koko-ui
+linux-loong64:
 	$(call make_artifact_full,linux,loong64)
 
-linux-mips64le: koko-ui
+linux-mips64le:
 	$(call make_artifact_full,linux,mips64le)
 
-linux-ppc64le: koko-ui
+linux-ppc64le:
 	$(call make_artifact_full,linux,ppc64le)
 
-linux-s390x: koko-ui
+linux-s390x:
 	$(call make_artifact_full,linux,s390x)
 
-linux-riscv64: koko-ui
+linux-riscv64:
 	$(call make_artifact_full,linux,riscv64)
 
 koko-ui:
@@ -103,9 +105,15 @@ clean:
 	-rm -rf $(BUILDDIR)
 	-rm -rf $(UIDIR)/dist/*
 
+.PHONY: libghostty-vt
+libghostty-vt:
+	@./utils/setup-libghostty-vt.sh
+
 .PHONY: run
 run:
-	go run ./cmd/koko/
+	@LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)"; \
+	PKG_CONFIG_PATH="$${LIBGHOSTTY_VT_ROOT}/lib/pkgconfig$${PKG_CONFIG_PATH:+:$${PKG_CONFIG_PATH}}" \
+	CGO_ENABLED=1 go run ./cmd/koko/
 
 .PHONY: run-ui
 run-ui:

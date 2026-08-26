@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"unicode"
 
 	"github.com/LeeEirc/terminalparser"
-	"github.com/jumpserver/koko/pkg/logger"
 )
 
 var terminalDebug = false
@@ -22,14 +20,6 @@ func init() {
 		terminalDebug = true
 	}
 }
-
-const (
-	LinuxScreen = iota + 1
-	UsqlScreen
-	MongoScreen
-	TmuxScreen
-	WindowsScreen
-)
 
 func DefaultEnterKeyPressHandler(p []byte) bool {
 	return bytes.ContainsRune(p, '\r')
@@ -44,15 +34,10 @@ const (
 	OutputState
 )
 
-type ScreenParser interface {
-	Feed([]byte)
-	GetCursorRow() string
-}
-
 type TerminalParser struct {
 	InputBuf bytes.Buffer
 	Ps1sStr  string
-	Screen   *terminalparser.Screen
+	Terminal *terminalparser.TerminalVT
 	state    int
 	once     sync.Once
 	mux      sync.Mutex
@@ -64,36 +49,13 @@ type TerminalParser struct {
 
 	EmitCommands func(cmd, out string)
 
-	tmuxParser *terminalparser.TmuxParser
-	isSubMode  bool
-
 	srvOutputBuf bytes.Buffer
-
-	screenType    int
-	preScreenType int
-	//screenParser ScreenParser
-
-	winScreenParser   *terminalparser.WindowsParser
-	mongoScreenParser *terminalparser.MongoShParser
-	usqlScreenParser  *terminalparser.USqlParser
+	width        uint16
+	height       uint16
 }
 
 func (s *TerminalParser) SetState(state int) {
 	s.state = state
-}
-
-func (s *TerminalParser) CheckSubScreen(b []byte) {
-	if !s.isSubMode && IsEditEnterMode(b) {
-		s.isSubMode = true
-		s.tmuxParser = terminalparser.NewTmuxParser()
-		s.screenType = TmuxScreen
-	}
-	if s.isSubMode && IsEditExitMode(b) {
-		s.isSubMode = false
-		s.tmuxParser = nil
-		s.srvOutputBuf.Reset()
-		s.screenType = s.preScreenType
-	}
 }
 
 func (s *TerminalParser) resetCommand() {
@@ -102,49 +64,15 @@ func (s *TerminalParser) resetCommand() {
 }
 
 func (s *TerminalParser) GetCursorRow() string {
-	switch s.screenType {
-	case LinuxScreen:
-		row := s.Screen.GetCursorRow()
-		return row.String()
-	case UsqlScreen:
-		row := s.usqlScreenParser.TmuxScreen.GetCursorRow()
-		return row.String()
-	case MongoScreen:
-		row := s.mongoScreenParser.TmuxScreen.GetCursorRow()
-		return row.String()
-	case TmuxScreen:
-		row := s.tmuxParser.TmuxScreen.GetCursorRow()
-		return row.String()
-	default:
-		row := s.Screen.GetCursorRow()
-		return row.String()
+	row, err := s.Terminal.CursorRow()
+	if err != nil {
+		return ""
 	}
+	return row
 }
 
 func (s *TerminalParser) feed(p []byte) {
-	defer func() {
-		if r := recover(); r != nil {
-			if terminalDebug {
-				fmt.Printf("Recovered from panic: %s %s\n", r, string(debug.Stack()))
-			}
-		}
-	}()
-
-	switch s.screenType {
-	case UsqlScreen:
-		s.usqlScreenParser.Feed(p)
-	case MongoScreen:
-		s.mongoScreenParser.Feed(p)
-	case TmuxScreen:
-		s.tmuxParser.Feed(p)
-	//case LinuxScreen:
-	//	s.Screen.Feed(p)
-	//	s.ResizeRows()
-	default:
-		// 默认就是 LinuxScreen
-		s.Screen.Feed(p)
-		s.ResizeRows()
-	}
+	s.Terminal.Write(p)
 	if terminalDebug {
 		fmt.Println("---------Feed-------------")
 		fmt.Println(hex.Dump(p))
@@ -154,27 +82,38 @@ func (s *TerminalParser) feed(p []byte) {
 }
 
 func (s *TerminalParser) Feed(p []byte) {
-	defer func() {
-		if r := recover(); r != nil {
-			if terminalDebug {
-				fmt.Printf("Recovered from panic: %s %s\n", r, string(debug.Stack()))
-			}
-		}
-	}()
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	// 检测是否是 tmux 和 screen 的情况
-	s.CheckSubScreen(p)
 
 	s.feed(p)
+	s.processOutput(p)
+}
 
+// FeedScreen only updates VT state. It is used by full-screen editors so
+// alternate-screen transitions remain observable without parsing keystrokes
+// or recording editor repaint data as command output.
+func (s *TerminalParser) FeedScreen(p []byte) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.feed(p)
+}
+
+// ProcessOutput parses command completion after the same bytes have already
+// been applied through FeedScreen.
+func (s *TerminalParser) ProcessOutput(p []byte) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.processOutput(p)
+}
+
+func (s *TerminalParser) processOutput(p []byte) {
 	if s.state == OutputState {
 		// output 且解析出 cmd 才写入 output 减少内存
 		if s.srvOutputBuf.Len() < maxBufSize {
 			s.srvOutputBuf.Write(p)
 		} else {
 			// 长时间输出达到最大值，直接命令结算一次
-			outputBuf := s.TrySrvOutput()
+			outputBuf := s.trySrvOutput()
 			if s.EmitCommands != nil {
 				s.EmitCommands(s.cmd, outputBuf)
 				s.cmd = ""
@@ -187,7 +126,7 @@ func (s *TerminalParser) Feed(p []byte) {
 		rowStr := s.GetCursorRow()
 		// 单行的命令解析
 		if strings.HasPrefix(rowStr, halfPs1) && s.cmd != "" {
-			outputBuf := s.TrySrvOutput()
+			outputBuf := s.trySrvOutput()
 			if s.EmitCommands != nil {
 				s.EmitCommands(s.cmd, outputBuf)
 			}
@@ -208,16 +147,51 @@ func (s *TerminalParser) Feed(p []byte) {
 	}
 }
 
-func (s *TerminalParser) OnSize() {
-
+func (s *TerminalParser) IsScreenAlternate() bool {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	alternate, err := s.Terminal.IsScreenAlternate()
+	return err == nil && alternate
 }
 
-func (s *TerminalParser) TrySrvOutput() string {
-	output := s.srvOutputBuf.Bytes()
-	if s.tmuxParser != nil {
-		output = tmuxBar2Regx.ReplaceAll(output, []byte{})
+func (s *TerminalParser) Resize(width, height int) error {
+	if width <= 0 || height <= 0 || width > 65535 || height > 65535 {
+		return terminalparser.ErrInvalidSize
 	}
-	outputs := terminalparser.ParseOutput(output)
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	if err := s.Terminal.Resize(uint16(width), uint16(height), 0, 0); err != nil {
+		return err
+	}
+	s.width = uint16(width)
+	s.height = uint16(height)
+	return nil
+}
+
+func (s *TerminalParser) Close() error {
+	return s.Terminal.Close()
+}
+
+func (s *TerminalParser) parseSrvOutputRows() []string {
+	output := s.srvOutputBuf.Bytes()
+	output = tmuxBar2Regx.ReplaceAll(output, []byte{})
+	options := []terminalparser.Option{terminalparser.WithMaxScrollback(500)}
+	if s.width > 0 && s.height > 0 {
+		options = append(options, terminalparser.WithSize(s.width, s.height))
+	}
+	outputs, _ := terminalparser.Parse(output, options...)
+	return outputs
+}
+
+func (s *TerminalParser) resetSrvOutput() {
+	s.srvOutputBuf.Reset()
+	if s.srvOutputBuf.Cap() > maxBufSize {
+		s.srvOutputBuf = bytes.Buffer{}
+	}
+}
+
+func (s *TerminalParser) trySrvOutput() string {
+	outputs := s.parseSrvOutputRows()
 	var str strings.Builder
 	ps1 := strings.TrimSpace(s.Ps1sStr)
 	for _, o := range outputs {
@@ -228,44 +202,15 @@ func (s *TerminalParser) TrySrvOutput() string {
 			str.WriteString("\n")
 		}
 	}
-	s.srvOutputBuf.Reset()
-	if s.srvOutputBuf.Cap() > maxBufSize {
-		s.srvOutputBuf = bytes.Buffer{}
-	}
+	s.resetSrvOutput()
 	return str.String()
 }
 
 func (s *TerminalParser) TryOutput() string {
+	s.mux.Lock()
+	defer s.mux.Unlock()
 	s.cmd = ""
-	return s.TrySrvOutput()
-}
-
-func (s *TerminalParser) ResizeRows() {
-	rowsLen := len(s.Screen.Rows)
-	if rowsLen >= 2000 {
-		newRows := make([]*terminalparser.Row, 1000, 2000)
-		oldRows := s.Screen.Rows
-		oldY := s.Screen.Cursor.Y
-		keep := 1000
-		start := rowsLen - keep
-		if start < 0 {
-			start = 0
-		}
-		latestRows := oldRows[start:]
-		copy(newRows, latestRows)
-		s.Screen.Rows = newRows
-		if oldY >= len(latestRows) {
-			s.Screen.Cursor.Y = len(latestRows)
-		}
-		// for gc
-		for i := 0; i < start; i++ {
-			oldRows[i] = nil
-		}
-		// for gc
-		oldRows = nil
-		latestRows = nil
-		logger.Debugf("Resize Y: %d, row Len: %d", s.Screen.Cursor.Y, len(s.Screen.Rows))
-	}
+	return s.trySrvOutput()
 }
 
 func IsPrintable(s string) bool {
@@ -295,7 +240,7 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	})
 
 	// 复制粘贴多行命令执行
-	s.TryMultipleCommands()
+	s.tryMultipleCommands()
 
 	isEnterFunc := DefaultEnterKeyPressHandler
 	if s.IsEnter != nil {
@@ -309,12 +254,6 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	if isEnterFunc(chars) {
 		inputStr := strings.TrimSpace(s.InputBuf.String())
 		s.state = OutputState
-		//if s.isSubMode {
-		//	cmd = s.TryTmuxInput()
-		//} else {
-		//	// 针对多行命令，从最新一行，往前查找到最近一次的 ps1 之间的都是命令
-		//	cmd = s.TryInput()
-		//}
 		cmd := s.TryLastRowInput()
 		if cmd == "" && len(chars) > 1 {
 			//从返回值解析，cmd 为 空的情况下，当前输入的则为
@@ -365,20 +304,6 @@ func (s *TerminalParser) WriteInput(chars []byte) (string, bool) {
 	return "", false
 }
 
-func (s *TerminalParser) TryTmuxInput() string {
-	lastLine := s.tmuxParser.TmuxScreen.GetCursorRow()
-	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-	s.InputBuf.Reset()
-	return strings.TrimSpace(cmd)
-}
-
-func (s *TerminalParser) TryInput() string {
-	lastLine := s.Screen.GetCursorRow()
-	cmd := strings.TrimPrefix(lastLine.String(), s.Ps1sStr)
-	s.InputBuf.Reset()
-	return strings.TrimSpace(cmd)
-}
-
 func (s *TerminalParser) TryLastRowInput() string {
 	rowStr := s.GetCursorRow()
 	cmd := strings.TrimPrefix(rowStr, s.Ps1sStr)
@@ -391,17 +316,16 @@ func (s *TerminalParser) GetPs1() string {
 	return strings.TrimSuffix(rowStr, s.InputBuf.String())
 }
 
-func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
+func (s *TerminalParser) findCommands(rows, cmds []string, startCmd string) {
 	// 从最后一行开始往前查询命令
 	outputs := make([]string, 0, 10)
-	rows := s.Screen.Rows
 	j := len(rows) - 1
 
 	// 去除 startCMd的干扰
-	for j > 0 {
+	for j >= 0 {
 		row := rows[j]
 		j--
-		if strings.Contains(row.String(), startCmd) {
+		if strings.Contains(row, startCmd) {
 			break
 		}
 	}
@@ -416,9 +340,8 @@ func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 		if currentCommand == "" {
 			continue
 		}
-		for j > 0 {
-			row := rows[j]
-			rowStr := row.String()
+		for j >= 0 {
+			rowStr := rows[j]
 			j--
 			if strings.Contains(rowStr, currentCommand) && strings.Contains(rowStr, halfPs1) {
 				// 匹配到 当前的命令，获取下所有的output
@@ -442,11 +365,7 @@ func (s *TerminalParser) FindCommands(cmds []string, startCmd string) {
 	}
 }
 
-func (s *TerminalParser) TryMultipleCommands() {
-	if s.screenType != LinuxScreen {
-		// 仅 linux screen方式支持
-		return
-	}
+func (s *TerminalParser) tryMultipleCommands() {
 	if len(s.commands) >= 1 {
 		commands := s.commands
 
@@ -465,9 +384,17 @@ func (s *TerminalParser) TryMultipleCommands() {
 				fmt.Printf("may be command: `%s`\n", cmd)
 			}
 		}
-		s.FindCommands(commands, startCommand)
+		rows := s.parseSrvOutputRows()
+		s.findCommands(rows, commands, startCommand)
+		s.resetSrvOutput()
 		s.commands = nil
 	}
+}
+
+func (s *TerminalParser) TryMultipleCommands() {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.tryMultipleCommands()
 }
 
 func reverseString(rows []string) string {

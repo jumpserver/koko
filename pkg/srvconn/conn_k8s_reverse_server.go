@@ -2,13 +2,17 @@ package srvconn
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	certutil "k8s.io/client-go/util/cert"
 
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -43,11 +47,36 @@ func NewK8sReverseProxy(port int) *K8sReverseProxy {
 func (k *K8sReverseProxy) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", k.ServeHTTP)
-	k.server = &http.Server{
-		Addr:    ":" + strconv.Itoa(k.Port),
-		Handler: mux,
+	certificate, err := loadK8sReverseProxyCertificate("server.crt", "server.key")
+	if err != nil {
+		return err
 	}
-	return k.server.ListenAndServeTLS("server.crt", "server.key")
+	k.server = &http.Server{
+		Addr:      ":" + strconv.Itoa(k.Port),
+		Handler:   mux,
+		TLSConfig: &tls.Config{Certificates: []tls.Certificate{certificate}},
+	}
+	return k.server.ListenAndServeTLS("", "")
+}
+
+func loadK8sReverseProxyCertificate(certFile, keyFile string) (tls.Certificate, error) {
+	_, certErr := os.Stat(certFile)
+	_, keyErr := os.Stat(keyFile)
+	if os.IsNotExist(certErr) && os.IsNotExist(keyErr) {
+		logger.Info("k8s reverse proxy uses an ephemeral self-signed certificate")
+		return newK8sReverseProxyCertificate()
+	}
+	return tls.LoadX509KeyPair(certFile, keyFile)
+}
+
+func newK8sReverseProxyCertificate() (tls.Certificate, error) {
+	certificatePEM, privateKeyPEM, err := certutil.GenerateSelfSignedCertKey(
+		"127.0.0.1", nil, []string{"localhost"},
+	)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	return tls.X509KeyPair(certificatePEM, privateKeyPEM)
 }
 
 func (k *K8sReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
