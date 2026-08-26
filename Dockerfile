@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20260826_025718 AS stage-build
+FROM jumpserver/koko-base:20260826_052409 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 COPY . .
