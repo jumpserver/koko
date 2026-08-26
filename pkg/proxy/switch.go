@@ -1,13 +1,11 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -55,6 +53,7 @@ func (s *SwitchSession) Terminate(username string) {
 
 func (s *SwitchSession) PauseOperation(username string) {
 	s.pausedStatus.Store(true)
+	s.p.operationPaused.Store(true)
 	s.setOperator(username)
 	logger.Infof("Session[%s] receive pause task from %s", s.ID, username)
 	p, _ := json.Marshal(map[string]string{"user": username})
@@ -66,6 +65,7 @@ func (s *SwitchSession) PauseOperation(username string) {
 
 func (s *SwitchSession) ResumeOperation(username string) {
 	s.pausedStatus.Store(false)
+	s.p.operationPaused.Store(false)
 	s.setOperator(username)
 	logger.Infof("Session[%s] receive resume task from %s", s.ID, username)
 	p, _ := json.Marshal(map[string]string{"user": username})
@@ -80,6 +80,7 @@ func (s *SwitchSession) PermBecomeExpired(code, detail string) {
 		return
 	}
 	s.invalidPerm.Store(true)
+	s.p.permissionInvalid.Store(true)
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
 	s.invalidPermData = p
 	s.invalidPermTime = time.Now()
@@ -92,6 +93,7 @@ func (s *SwitchSession) PermBecomeValid(code, detail string) {
 		return
 	}
 	s.invalidPerm.Store(false)
+	s.p.permissionInvalid.Store(false)
 	s.invalidPermTime = s.MaxSessionTime
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
 	s.invalidPermData = p
@@ -164,7 +166,10 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 
-	parser := s.p.GetFilterParser()
+	parser, err := s.p.GetFilterParser()
+	if err != nil {
+		return err
+	}
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
 	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
@@ -205,42 +210,13 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		var (
 			exitFlag bool
 		)
-		buffer := bytes.NewBuffer(make([]byte, 0, 1024*2))
-		/*
-		 这里使用了一个buffer，将用户输入的数据进行了分包，分包的依据是utf8编码的字符。
-		*/
-		maxLen := 1024
+		readBuf := make([]byte, 8*1024)
 		for {
-			buf := make([]byte, maxLen)
-			nr, err2 := srvConn.Read(buf)
-			validBytes := buf[:nr]
+			nr, err2 := srvConn.Read(readBuf)
 			if nr > 0 {
-				isZmodem := parser.zmodemParser.IsStartSession()
-				if !isZmodem {
-					bufferLen := buffer.Len()
-					if bufferLen > 0 || nr == maxLen {
-						buffer.Write(buf[:nr])
-						validBytes = validBytes[:0]
-					}
-					remainBytes := buffer.Bytes()
-					for len(remainBytes) > 0 {
-						r, size := utf8.DecodeRune(remainBytes)
-						if r == utf8.RuneError {
-							// utf8 max 4 bytes
-							if len(remainBytes) <= 3 {
-								break
-							}
-						}
-						validBytes = append(validBytes, remainBytes[:size]...)
-						remainBytes = remainBytes[size:]
-					}
-					buffer.Reset()
-					if len(remainBytes) > 0 {
-						buffer.Write(remainBytes)
-					}
-				}
+				data := append([]byte(nil), readBuf[:nr]...)
 				select {
-				case srvInChan <- validBytes:
+				case srvInChan <- data:
 				case <-done:
 					exitFlag = true
 					logger.Infof("Session[%s] done", s.ID)
@@ -317,6 +293,12 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 
+			if timestamp := s.p.backgroundActiveAt.Load(); timestamp > 0 {
+				backgroundActive := time.Unix(0, timestamp)
+				if backgroundActive.After(lastActiveTime) {
+					lastActiveTime = backgroundActive
+				}
+			}
 			outTime := lastActiveTime.Add(maxIdleTime)
 			if now.After(outTime) {
 				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
@@ -347,6 +329,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 			_ = srvConn.SetWinSize(win.Width, win.Height)
+			if err := parser.TerminalParser.Resize(win.Width, win.Height); err != nil {
+				logger.Errorf("Session[%s] resize terminal parser failed: %s", s.ID, err)
+			}
 			logger.Infof("Session[%s] Window server change: %d*%d",
 				s.ID, win.Width, win.Height)
 			p, _ := json.Marshal(win)

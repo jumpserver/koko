@@ -1,9 +1,11 @@
 package koko
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -11,44 +13,109 @@ import (
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/httpd"
 	"github.com/jumpserver/koko/pkg/i18n"
+	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/sshd"
+	"github.com/jumpserver/koko/pkg/terminalai"
+	"github.com/jumpserver/koko/pkg/webproxy"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
 )
 
 type Koko struct {
-	webSrv *httpd.Server
-	sshSrv *sshd.Server
+	webSrv     *httpd.Server
+	sshSrv     *sshd.Server
+	lion       *lion.Runtime
+	webProxy   *webproxy.Server
+	appContext context.Context
+	cancel     context.CancelFunc
 }
 
 func (k *Koko) Start() {
 	go k.webSrv.Start()
 	go k.sshSrv.Start()
+	if k.webProxy != nil {
+		go k.webProxy.Start()
+	}
+	k.lion.Start(k.appContext)
 }
 
 func (k *Koko) Stop() {
-	k.sshSrv.Stop()
 	k.webSrv.Stop()
+	k.sshSrv.Stop()
+	if k.webProxy != nil {
+		k.webProxy.Stop()
+	}
+	if err := exchange.Close(); err != nil {
+		logger.Errorf("Close exchange manager failed: %s", err)
+	}
+	k.cancel()
+	k.lion.Stop()
 	logger.Info("Quit The KoKo")
 }
 
 func RunForever(confPath string) {
 	config.Setup(confPath)
 	bootstrap()
+	aiResult, err := terminalai.Configure(
+		context.Background(),
+		terminalai.Configuration{
+			RulesFile: config.GetConf().TerminalAIRulesFile,
+		},
+	)
+	if err != nil {
+		_, _ = terminalai.Configure(
+			context.Background(),
+			terminalai.Configuration{},
+		)
+		logger.Errorf(
+			"Load Terminal AI business rules failed; using built-in rules: %s",
+			err,
+		)
+	} else if aiResult.RuleCount > 0 {
+		logger.Infof(
+			"Loaded %d Terminal AI business rules",
+			aiResult.RuleCount,
+		)
+	}
 	jmsService := MustJMService()
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	bootstrapWithJMService(jmsService)
-	webSrv := httpd.NewServer(jmsService)
+	lionRuntime := lion.NewRuntime(jmsService)
+	webSrv := httpd.NewServer(jmsService, lionRuntime)
 	sshSrv := sshd.NewSSHServer(jmsService)
+	var webProxySrv *webproxy.Server
+	if conf := config.GetConf(); conf.WebProxyEnabled {
+		var err error
+		recordingRoot := ""
+		if conf.WebProxyRecordingEnabled {
+			recordingRoot = filepath.Join(conf.ReplayFolderPath, "web")
+		}
+		webProxySrv, err = webproxy.NewServer(
+			conf.WebProxyBindHost,
+			conf.WebProxyPort,
+			conf.WebProxyAllowedHosts,
+			recordingRoot,
+			conf.WebProxyFFmpegPath,
+			jmsService,
+		)
+		if err != nil {
+			logger.Fatalf("Invalid Web proxy configuration: %s", err)
+		}
+	}
+	appContext, cancel := context.WithCancel(context.Background())
 	app := &Koko{
-		webSrv: webSrv,
-		sshSrv: sshSrv,
+		webSrv:     webSrv,
+		sshSrv:     sshSrv,
+		lion:       lionRuntime,
+		webProxy:   webProxySrv,
+		appContext: appContext,
+		cancel:     cancel,
 	}
 	app.Start()
-	runTasks(jmsService)
+	runTasks(jmsService, lionRuntime)
 	<-gracefulStop
 	app.Stop()
 }
@@ -81,14 +148,14 @@ func updateEncryptConfigValue(jmsService *service.JMService) {
 	}
 }
 
-func runTasks(jmsService *service.JMService) {
+func runTasks(jmsService *service.JMService, lionRuntime *lion.Runtime) {
 	if config.GetConf().UploadFailedReplay {
 		go uploadRemainReplay(jmsService)
 	}
 	if config.GetConf().UploadFailedFTPFile {
 		go uploadRemainFTPFile(jmsService)
 	}
-	go keepHeartbeat(jmsService)
+	go keepHeartbeat(jmsService, lionRuntime)
 
 	go RunConnectTokensCheck(jmsService)
 }

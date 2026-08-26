@@ -1,0 +1,41 @@
+services:
+  koko:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+    image: ${KOKO_IMAGE:-koko:dev}
+    privileged: true
+    environment:
+      CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-PleaseChangeMe}
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      KOKO_PRIVILEGED: ${KOKO_PRIVILEGED:-true}
+      HTTPD_PORT: 5050
+      GUA_HOST: ${GUA_HOST:-guacd}
+      GUA_PORT: ${GUA_PORT:-4822}
+    depends_on:
+      - guacd
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - ${KOKO_SSH_PORT:-2222}:2222
+      - ${HTTPD_PORT:-5050}:5050
+    volumes:
+      - ./data:/opt/koko/data
+    healthcheck:
+      test: [CMD, check, http://127.0.0.1:5050/koko/health/]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+  guacd:
+    image: jumpserver/guacd:1.4.0
+    environment:
+      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-debug}
+    restart: always
+    user: root
+    volumes:
+      - ./data:/opt/koko/data:rw

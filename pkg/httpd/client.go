@@ -12,6 +12,8 @@ import (
 
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/terminalai"
 )
 
 type Client struct {
@@ -22,6 +24,8 @@ type Client struct {
 	pty       ssh.Pty
 
 	sync.Mutex
+	closeOnce sync.Once
+	sessionMu sync.RWMutex
 
 	// 用于防抖处理
 	buffer      bytes.Buffer
@@ -29,9 +33,27 @@ type Client struct {
 	timer       *time.Timer
 
 	KubernetesId string
+	TerminalId   uint32
 	Namespace    string
 	Pod          string
 	Container    string
+	Agent        terminalai.Session
+	SessionInfo  *proxy.SessionInfo
+	inputMu      sync.Mutex
+	inputLocked  bool
+	metrics      clientMetrics
+}
+
+func (c *Client) SetSessionInfo(info *proxy.SessionInfo) {
+	c.sessionMu.Lock()
+	c.SessionInfo = info
+	c.sessionMu.Unlock()
+}
+
+func (c *Client) GetSessionInfo() *proxy.SessionInfo {
+	c.sessionMu.RLock()
+	defer c.sessionMu.RUnlock()
+	return c.SessionInfo
 }
 
 func (c *Client) WinCh() <-chan ssh.Window {
@@ -54,6 +76,9 @@ func (c *Client) Read(p []byte) (n int, err error) {
 
 // 向客户端发送数据进行1毫秒的防抖处理
 func (c *Client) Write(p []byte) (n int, err error) {
+	if c.Agent != nil {
+		c.Agent.Feed(p)
+	}
 	category := ""
 	connectToken := c.Conn.ConnectToken
 	if connectToken != nil {
@@ -81,6 +106,7 @@ func (c *Client) Write(p []byte) (n int, err error) {
 		Id:           c.Conn.Uuid,
 		Type:         messageType,
 		Raw:          p,
+		TerminalId:   c.TerminalId,
 		KubernetesId: c.KubernetesId,
 	}
 	c.Conn.SendMessage(&msg)
@@ -93,9 +119,10 @@ func (c *Client) flushBuffer() {
 
 	if c.buffer.Len() > 0 {
 		msg := Message{
-			Id:   c.Conn.Uuid,
-			Type: TerminalBinary,
-			Raw:  c.buffer.Bytes(),
+			Id:         c.Conn.Uuid,
+			Type:       TerminalBinary,
+			Raw:        c.buffer.Bytes(),
+			TerminalId: c.TerminalId,
 		}
 		c.Conn.SendMessage(&msg)
 		c.buffer.Reset()
@@ -112,9 +139,16 @@ func (c *Client) Pty() ssh.Pty {
 }
 
 func (c *Client) Close() (err error) {
-	_ = c.UserRead.Close()
-	_ = c.UserWrite.Close()
-	c.initPipe()
+	c.closeOnce.Do(func() {
+		_ = c.UserRead.Close()
+		_ = c.UserWrite.Close()
+		if c.Agent != nil {
+			c.Agent.Close()
+			c.Agent = nil
+		}
+		c.stopMetrics()
+		c.initPipe()
+	})
 	return err
 }
 
@@ -125,6 +159,9 @@ func (c *Client) initPipe() {
 }
 
 func (c *Client) SetWinSize(size ssh.Window) {
+	if c.Agent != nil {
+		c.Agent.Resize(size.Width, size.Height)
+	}
 	select {
 	case c.WinChan <- size:
 	default:
@@ -136,7 +173,24 @@ func (c *Client) ID() string {
 }
 
 func (c *Client) WriteData(p []byte) {
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	if c.inputLocked {
+		return
+	}
 	_, _ = c.UserWrite.Write(p)
+}
+
+func (c *Client) WriteAgentData(p []byte) {
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	_, _ = c.UserWrite.Write(p)
+}
+
+func (c *Client) SetInputLocked(locked bool) {
+	c.inputMu.Lock()
+	c.inputLocked = locked
+	c.inputMu.Unlock()
 }
 
 func (c *Client) Context() context.Context {
@@ -199,6 +253,7 @@ func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
 		Id:           c.Conn.Uuid,
 		Type:         msgType,
 		Data:         msgData,
+		TerminalId:   c.TerminalId,
 		KubernetesId: c.KubernetesId,
 	}
 	c.Conn.SendMessage(&msg)

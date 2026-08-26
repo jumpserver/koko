@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/LeeEirc/elfinder"
@@ -22,6 +22,7 @@ import (
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
+	"github.com/jumpserver/koko/pkg/lion"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -103,9 +104,13 @@ var upGrader = websocket.Upgrader{
 	CheckOrigin:     checkOrigin,
 }
 
-func NewServer(jmsService *service.JMService) *Server {
+func NewServer(jmsService *service.JMService, lionRuntimes ...*lion.Runtime) *Server {
+	var lionRuntime *lion.Runtime
+	if len(lionRuntimes) > 0 {
+		lionRuntime = lionRuntimes[0]
+	}
 	srv := &Server{broadCaster: NewBroadcaster(), apiClient: jmsService}
-	eng := createRouter(jmsService, srv)
+	eng := createRouter(jmsService, srv, lionRuntime)
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	srv.Srv = &http.Server{Addr: addr, Handler: eng}
@@ -179,6 +184,7 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 		logger.Errorf(WebsocketErrorf, err)
 		return
 	}
+	userConn.envelopeProtocol = true
 	s.runTTY(userConn)
 }
 
@@ -212,29 +218,6 @@ func (s *Server) ProcessSftpWebsocket(ctx *gin.Context) {
 	userConn.Run()
 }
 
-func (s *Server) ChatAIWebsocket(ctx *gin.Context) {
-	userConn, err := s.UpgradeUserWsConn(ctx)
-	if err != nil {
-		logger.Errorf(WebsocketErrorf, err)
-		return
-	}
-
-	termConf, err := userConn.apiClient.GetTerminalConfig()
-	if err != nil {
-		logger.Errorf("Get terminal config failed: %s", err)
-		return
-	}
-
-	userConn.handler = &chat{
-		ws:            userConn,
-		conversations: sync.Map{},
-		term:          &termConf,
-	}
-	s.broadCaster.EnterUserWebsocket(userConn)
-	defer s.broadCaster.LeaveUserWebsocket(userConn)
-	userConn.Run()
-}
-
 func (s *Server) UpgradeUserWsConn(ctx *gin.Context) (*UserWebsocket, error) {
 	underWsCon, err := upGrader.Upgrade(ctx.Writer, ctx.Request, ctx.Writer.Header())
 	if err != nil {
@@ -244,6 +227,9 @@ func (s *Server) UpgradeUserWsConn(ctx *gin.Context) (*UserWebsocket, error) {
 
 	apiClient := s.apiClient.Copy()
 	langCode := config.GetConf().LanguageCode
+	for key, value := range auth.RequestAuthHeaders(ctx.Request) {
+		apiClient.SetHeader(key, value)
+	}
 	if acceptLang := ctx.GetHeader("Accept-Language"); acceptLang != "" {
 		apiClient.SetHeader("Accept-Language", acceptLang)
 		langCode = ParseAcceptLanguageCode(acceptLang)
@@ -297,6 +283,33 @@ func (s *Server) HealthStatusHandler(ctx *gin.Context) {
 	status["timestamp"] = now.UTC()
 	status["uptime"] = now.Sub(upTime).String()
 	ctx.JSON(http.StatusOK, status)
+}
+
+func (s *Server) CreateConnectTicket(ctx *gin.Context) {
+	var payload struct {
+		TokenID string `json:"token_id"`
+		OrgID   string `json:"org_id"`
+	}
+
+	if err := ctx.ShouldBindJSON(&payload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"detail": fmt.Sprintf("invalid request body: %s", err),
+		})
+		return
+	}
+
+	userValue := ctx.MustGet(auth.ContextKeyUser)
+	currentUser := userValue.(*model.User)
+	headers := auth.RequestAuthHeaders(ctx.Request)
+	ticket := auth.ConnectTickets.Create(currentUser, headers, payload.TokenID, payload.OrgID)
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"ticket":     ticket.ID,
+		"token_id":   ticket.TokenID,
+		"org_id":     ticket.OrgID,
+		"expires_at": ticket.ExpiresAt.UTC(),
+		"expires_in": int(time.Until(ticket.ExpiresAt).Seconds()),
+	})
 }
 
 func (s *Server) GenerateViewMeta(targetId string) (meta ViewPageMata) {

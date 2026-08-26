@@ -140,6 +140,18 @@ func (ad *AssetDir) loadAssetDetail() {
 }
 
 func (ad *AssetDir) Create(path string) (*SftpFile, error) {
+	return ad.create(path, false, path)
+}
+
+func (ad *AssetDir) CreateOverwrite(path string) (*SftpFile, error) {
+	return ad.create(path, true, path)
+}
+
+func (ad *AssetDir) CreateEditorTemp(path, auditPath string) (*SftpFile, error) {
+	return ad.create(path, true, auditPath)
+}
+
+func (ad *AssetDir) create(path string, overwrite bool, auditPath string) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -162,7 +174,30 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	con.IncreaseRef()
-	for !con.IsOverwriteFile() {
+	auditFilename := realPath
+	if auditPath != path {
+		auditPathData := ad.parsePath(auditPath)
+		auditFolderName, auditUnique := ad.IsUniqueSu()
+		if !auditUnique {
+			if len(auditPathData) == 1 && auditPathData[0] == "" {
+				con.DecreaseRef()
+				return nil, sftp.ErrSshFxPermissionDenied
+			}
+			auditFolderName = auditPathData[0]
+			auditPathData = auditPathData[1:]
+		}
+		if auditFolderName != folderName {
+			con.DecreaseRef()
+			return nil, sftp.ErrSshFxOpUnsupported
+		}
+		auditCon, auditRealPath := ad.GetSFTPAndRealPath(su, strings.Join(auditPathData, "/"))
+		if auditCon != con {
+			con.DecreaseRef()
+			return nil, sftp.ErrSshFxOpUnsupported
+		}
+		auditFilename = auditRealPath
+	}
+	for !overwrite && !con.IsOverwriteFile() {
 		if exitFile := IsExistPath(con.client, realPath); !exitFile {
 			break
 		}
@@ -173,15 +208,15 @@ func (ad *AssetDir) Create(path string) (*SftpFile, error) {
 		logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
 	}
 	sf, err := con.client.Create(realPath)
-	filename := realPath
-	isSuccess := false
 	operate := model.OperateUpload
-	if err == nil {
-		isSuccess = true
+	if err != nil {
+		ad.CreateFTPLog(su, operate, auditFilename, false)
+		con.DecreaseRef()
+		return nil, err
 	}
-	ftpLog := ad.CreateFTPLog(su, operate, filename, isSuccess)
+	ftpLog := ad.CreateFTPLog(su, operate, auditFilename, true)
 	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef}
-	return f, err
+	return f, nil
 }
 
 func (ad *AssetDir) MkdirAll(path string) (err error) {
@@ -229,6 +264,19 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 }
 
 func (ad *AssetDir) Open(path string) (*SftpFile, error) {
+	return ad.openFile(path, false, true)
+}
+
+// OpenForWrite opens an existing remote file without truncating it.
+func (ad *AssetDir) OpenForWrite(path string) (*SftpFile, error) {
+	return ad.openFile(path, true, true)
+}
+
+func (ad *AssetDir) OpenForChecksum(path string) (*SftpFile, error) {
+	return ad.openFile(path, false, false)
+}
+
+func (ad *AssetDir) openFile(path string, write, audit bool) (*SftpFile, error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -242,24 +290,41 @@ func (ad *AssetDir) Open(path string) (*SftpFile, error) {
 	if !ok {
 		return nil, errNoAccountUser
 	}
-	if !su.Actions.EnableDownload() {
+	if write && !su.Actions.EnableUpload() {
+		return nil, sftp.ErrSshFxPermissionDenied
+	}
+	if !write && !su.Actions.EnableDownload() {
 		return nil, sftp.ErrSshFxPermissionDenied
 	}
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	if con == nil {
+	if con == nil || con.isClosed {
 		return nil, sftp.ErrSshFxConnectionLost
 	}
 	con.IncreaseRef()
-	sf, err := con.client.Open(realPath)
-	filename := realPath
-	isSuccess := false
-	operate := model.OperateDownload
-	if err == nil {
-		isSuccess = true
+	var (
+		sf      *sftp.File
+		err     error
+		operate = model.OperateDownload
+	)
+	if write {
+		sf, err = con.client.OpenFile(realPath, os.O_RDWR)
+		operate = model.OperateUpload
+	} else {
+		sf, err = con.client.Open(realPath)
 	}
-	ftpLog := ad.CreateFTPLog(su, operate, filename, isSuccess)
+	if err != nil {
+		if audit {
+			ad.CreateFTPLog(su, operate, realPath, false)
+		}
+		con.DecreaseRef()
+		return nil, err
+	}
+	var ftpLog *model.FTPLog
+	if audit {
+		ftpLog = ad.CreateFTPLog(su, operate, realPath, true)
+	}
 	f := &SftpFile{File: sf, FTPLog: ftpLog, cleanupFunc: con.DecreaseRef}
-	return f, err
+	return f, nil
 }
 
 func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
@@ -375,6 +440,14 @@ func (ad *AssetDir) RemoveDirectory(path string) (err error) {
 }
 
 func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
+	return ad.rename(oldNamePath, newNamePath, false)
+}
+
+func (ad *AssetDir) PosixRename(oldNamePath, newNamePath string) (err error) {
+	return ad.rename(oldNamePath, newNamePath, true)
+}
+
+func (ad *AssetDir) rename(oldNamePath, newNamePath string, overwrite bool) (err error) {
 	oldPathData := ad.parsePath(oldNamePath)
 	newPathData := ad.parsePath(newNamePath)
 
@@ -406,7 +479,11 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	defer conn1.DecreaseRef()
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
 	operate := model.OperateRename
-	err = conn1.client.Rename(oldRealPath, newRealPath)
+	if overwrite {
+		err = conn1.client.PosixRename(oldRealPath, newRealPath)
+	} else {
+		err = conn1.client.Rename(oldRealPath, newRealPath)
+	}
 	if err != nil {
 		ad.CreateFTPLog(su, operate, filename, false)
 		return err
@@ -416,6 +493,86 @@ func (ad *AssetDir) Rename(oldNamePath, newNamePath string) (err error) {
 	}
 	ad.CreateFTPLog(su, operate, filename, true)
 	return
+}
+
+func (ad *AssetDir) resolveUploadPath(path string) (*model.PermAccount, *SftpConn, string, error) {
+	pathData := ad.parsePath(path)
+	folderName, ok := ad.IsUniqueSu()
+	if !ok {
+		if len(pathData) == 0 || (len(pathData) == 1 && pathData[0] == "") {
+			return nil, nil, "", sftp.ErrSshFxPermissionDenied
+		}
+		folderName = pathData[0]
+		pathData = pathData[1:]
+	}
+	su, ok := ad.suMaps[folderName]
+	if !ok {
+		return nil, nil, "", errNoAccountUser
+	}
+	if !su.Actions.EnableUpload() {
+		return nil, nil, "", sftp.ErrSshFxPermissionDenied
+	}
+	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
+	if con == nil || con.isClosed {
+		return nil, nil, "", sftp.ErrSshFxConnectionLost
+	}
+	return su, con, realPath, nil
+}
+
+func (ad *AssetDir) AtomicReplace(sourcePath, targetPath string) error {
+	_, sourceConn, sourceRealPath, err := ad.resolveUploadPath(sourcePath)
+	if err != nil {
+		return err
+	}
+	_, targetConn, targetRealPath, err := ad.resolveUploadPath(targetPath)
+	if err != nil {
+		return err
+	}
+	if sourceConn != targetConn {
+		return sftp.ErrSshFxOpUnsupported
+	}
+
+	sourceConn.IncreaseRef()
+	defer sourceConn.DecreaseRef()
+	if targetInfo, err := sourceConn.client.Stat(targetRealPath); err == nil {
+		if err := sourceConn.client.Chmod(sourceRealPath, targetInfo.Mode()); err != nil {
+			logger.Warnf("Preserve mode for editor temp file %s failed: %s", sourceRealPath, err)
+		}
+	}
+	if err := sourceConn.client.PosixRename(sourceRealPath, targetRealPath); err == nil {
+		return nil
+	}
+
+	if _, err := sourceConn.client.Stat(targetRealPath); os.IsNotExist(err) {
+		return sourceConn.client.Rename(sourceRealPath, targetRealPath)
+	} else if err != nil {
+		return err
+	}
+
+	backupPath := filepath.Join(filepath.Dir(targetRealPath), fmt.Sprintf(".jumpserver-backup-%s.tmp", com.UUID()))
+	if err := sourceConn.client.Rename(targetRealPath, backupPath); err != nil {
+		return err
+	}
+	if err := sourceConn.client.Rename(sourceRealPath, targetRealPath); err != nil {
+		if restoreErr := sourceConn.client.Rename(backupPath, targetRealPath); restoreErr != nil {
+			return fmt.Errorf("replace failed: %w; restore failed: %v", err, restoreErr)
+		}
+		return err
+	}
+	if err := sourceConn.client.Remove(backupPath); err != nil {
+		logger.Warnf("Remove editor backup file %s failed: %s", backupPath, err)
+	}
+	return nil
+}
+
+func (ad *AssetDir) DiscardUploadTemp(path string) error {
+	_, con, realPath, err := ad.resolveUploadPath(path)
+	if err != nil {
+		return err
+	}
+	con.IncreaseRef()
+	defer con.DecreaseRef()
+	return con.client.Remove(realPath)
 }
 
 func (ad *AssetDir) Remove(path string) (err error) {
