@@ -1,0 +1,9 @@
+{
+  "ClipboardCopyDenied": "Copying from the terminal is not permitted",
+  "ClipboardPasteDenied": "Pasting into the terminal is not permitted",
+  "ClipboardTextLimitExceeded": "{action} text exceeds the {limit}-character limit",
+  "ZmodemDownloadFailed": "Download failed: the remote file does not exist or the transfer was cancelled",
+  "ZmodemUploadSkipped": "Upload skipped: the remote file was not accepted",
+  "Copy": "Copy",
+  "Paste": "Paste"
+}

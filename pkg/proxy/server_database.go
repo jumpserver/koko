@@ -152,6 +152,9 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 	opts = append(opts, srvconn.SqlCertKey(asset.SecretInfo.ClientKey))
 	opts = append(opts, srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert))
 	opts = append(opts, srvconn.SqlDisableSqlServerEncrypt(disableSQLServerEncrypt))
+	opts = append(opts, srvconn.SqlUseOracleSYSDBA(
+		protocol == srvconn.ProtocolOracle && s.connOpts.authInfo.ConnectOptions.UseSysDBA,
+	))
 	opts = append(opts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,
