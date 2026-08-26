@@ -25,8 +25,46 @@ type Config struct {
 	HistoryCheckpointBytes int
 }
 
+// Settings is the Chat AI payload from JumpServer terminal config.
+type Settings struct {
+	Enabled    *bool  `json:"CHAT_AI_ENABLED"`
+	Method     string `json:"CHAT_AI_METHOD"`
+	Provider   string `json:"CHAT_AI_PROVIDER"`
+	BaseURL    string `json:"CHAT_AI_BASE_URL"`
+	APIKey     string `json:"CHAT_AI_API_KEY"`
+	Proxy      string `json:"CHAT_AI_PROXY"`
+	Model      string `json:"CHAT_AI_MODEL"`
+	ChatAIType string `json:"CHAT_AI_TYPE"`
+	GptBaseUrl string `json:"GPT_BASE_URL"`
+	GptApiKey  string `json:"GPT_API_KEY"`
+	GptProxy   string `json:"GPT_PROXY"`
+	GptModel   string `json:"GPT_MODEL"`
+}
+
 func NewConfig(modelConfig model.TerminalConfig) Config {
-	name := strings.TrimSpace(modelConfig.ChatAIType)
+	return NewConfigFromSettings(Settings{
+		Provider: modelConfig.ChatAIType,
+		BaseURL:  modelConfig.GptBaseUrl,
+		APIKey:   modelConfig.GptApiKey,
+		Proxy:    modelConfig.GptProxy,
+		Model:    modelConfig.GptModel,
+	})
+}
+
+func NewConfigFromSettings(settings Settings) Config {
+	apiKey := firstNonEmpty(settings.APIKey, settings.GptApiKey)
+	modelName := firstNonEmpty(settings.Model, settings.GptModel)
+	baseURL := firstNonEmpty(settings.BaseURL, settings.GptBaseUrl)
+	proxy := firstNonEmpty(settings.Proxy, settings.GptProxy)
+	name := firstNonEmpty(settings.Provider, settings.ChatAIType)
+	if disabledChatAI(settings) {
+		apiKey, modelName, baseURL, proxy, name = "", "", "", "", ""
+	}
+	return newProviderConfig(name, apiKey, baseURL, modelName, proxy)
+}
+
+func newProviderConfig(name, apiKey, baseURL, modelName, proxy string) Config {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		name = strings.TrimSpace(os.Getenv(providerEnvName))
 	}
@@ -34,9 +72,9 @@ func NewConfig(modelConfig model.TerminalConfig) Config {
 		name = provider.NameGPT
 	}
 	providerConfig := provider.NormalizeConfig(provider.Config{
-		Name: name, APIKey: modelConfig.GptApiKey,
-		BaseURL: modelConfig.GptBaseUrl, Model: modelConfig.GptModel,
-		Proxy: modelConfig.GptProxy, ToolCallMode: os.Getenv(toolCallEnvName),
+		Name: name, APIKey: apiKey,
+		BaseURL: baseURL, Model: modelName,
+		Proxy: proxy, ToolCallMode: os.Getenv(toolCallEnvName),
 		ReasoningMode: provider.ReasoningAuto,
 		Store:         false, NativeCompaction: false,
 		ContextSoftLimitPercent: 80, RequestTimeout: 5 * time.Minute,
@@ -50,4 +88,25 @@ func NewConfig(modelConfig model.TerminalConfig) Config {
 		MemorySessions: 10, MaxModelRequests: 30,
 		HistoryCheckpointBytes: 32 * 1024,
 	}
+}
+
+func disabledChatAI(settings Settings) bool {
+	if settings.Enabled != nil && !*settings.Enabled {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(settings.Method)) {
+	case "iframe", "embed":
+		return true
+	default:
+		return false
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
