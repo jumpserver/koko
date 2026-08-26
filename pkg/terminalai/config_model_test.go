@@ -24,6 +24,43 @@ func TestConfigPrefersChatAIType(t *testing.T) {
 	}
 }
 
+func TestConfigPrefersNewChatAISettings(t *testing.T) {
+	enabled := true
+	config := NewConfigFromSettings(Settings{
+		Enabled:   &enabled,
+		Provider:  "openai_compatible",
+		BaseURL:   "https://api.example.com/v1",
+		APIKey:    "new-key",
+		Model:     "gpt-4.1",
+		GptApiKey: "legacy-key",
+		GptModel:  "legacy-model",
+	})
+	if config.Provider.Name != "openai_compatible" || config.Provider.APIKey != "new-key" ||
+		config.Provider.Model != "gpt-4.1" || config.Provider.BaseURL != "https://api.example.com/v1" {
+		t.Fatalf("unexpected new Chat AI config: %#v", config.Provider)
+	}
+}
+
+func TestConfigDisablesChatAI(t *testing.T) {
+	enabled := false
+	config := NewConfigFromSettings(Settings{
+		Enabled: &enabled,
+		APIKey:  "key",
+		Model:   "gpt-4.1",
+	})
+	if config.Provider.APIKey != "" || config.Provider.Model != "" {
+		t.Fatalf("disabled Chat AI should not expose credentials: %#v", config.Provider)
+	}
+	config = NewConfigFromSettings(Settings{
+		Method: "iframe",
+		APIKey: "key",
+		Model:  "gpt-4.1",
+	})
+	if config.Provider.APIKey != "" || config.Provider.Model != "" {
+		t.Fatalf("iframe Chat AI should not expose credentials: %#v", config.Provider)
+	}
+}
+
 func TestConfigEnablesAuditExplicitly(t *testing.T) {
 	previous := appconfig.GlobalConfig
 	appconfig.GlobalConfig = &appconfig.Config{TerminalAIAuditEnabled: true}

@@ -14,6 +14,7 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -423,7 +424,8 @@ func (h *tty) initializeTerminalAI(
 		h.ws.wsParams.TargetType == TargetTypeShare {
 		return
 	}
-	termConfig, err := h.ws.apiClient.GetTerminalConfig()
+	var chatAISettings terminalai.Settings
+	_, err := h.ws.apiClient.Call("GET", service.TerminalConfigURL, nil, &chatAISettings)
 	if err != nil {
 		logger.Errorf("Get terminal AI config failed: %s", err)
 		return
@@ -434,7 +436,7 @@ func (h *tty) initializeTerminalAI(
 		UserID:            connectToken.User.ID,
 		Width:             connectInfo.Cols,
 		Height:            connectInfo.Rows,
-		Config:            terminalai.NewConfig(termConfig),
+		Config:            terminalai.NewConfigFromSettings(chatAISettings),
 		Context:           terminalai.NewSessionContext(connectToken),
 		Language:          h.ws.langCode,
 		WritePTY:          client.WriteAgentData,
