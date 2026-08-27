@@ -22,6 +22,7 @@ const (
 	defaultTmpPath        = "/tmp"
 	maxWebEditorFileSize  = 10 * 1024 * 1024
 	webSftpConflictErrMsg = "remote file changed"
+	webSftpAbsentVersion  = "absent"
 )
 
 var ErrWebSftpFileConflict = errors.New(webSftpConflictErrMsg)
@@ -76,20 +77,20 @@ func webSftpContentVersion(reader io.Reader) (string, error) {
 	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
 }
 
-func (u *UserWebVolume) List(path string) []FileInfo {
+func (u *UserWebVolume) List(path string) ([]FileInfo, string, error) {
 	logger.Debug("Volume List: ", path)
 	files := make([]FileInfo, 0)
 
-	originFiles, err := u.UserSftp.ReadDir(path)
+	originFiles, currentPath, err := u.UserSftp.ReadDirWithCurrentPath(path)
 	if err != nil {
 		logger.Errorf("ReadDir %s failed: %s", path, err)
-		return files
+		return files, currentPath, err
 	}
 
 	for _, info := range originFiles {
 		files = append(files, newWebSftpFileInfo(info))
 	}
-	return files
+	return files, currentPath, nil
 }
 
 func (u *UserWebVolume) Download(path string, isDir bool) (FileData, string, error) {
@@ -221,8 +222,13 @@ func (u *UserWebVolume) GetFile(path string) (fileData FileData, err error) {
 	}
 	size := fileInfo.Size()
 
-	if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf, 0, size); err1 != nil {
-		logger.Errorf("Record file err: %s", err1)
+	if sf.FTPLog != nil {
+		if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf, 0, size); err1 != nil {
+			logger.Errorf("Record file err: %s", err1)
+			u.recorder.DiscardFTPFile(sf.FTPLog.ID)
+		} else {
+			u.recorder.FinishFTPFile(sf.FTPLog.ID)
+		}
 	}
 
 	_, _ = sf.Seek(0, io.SeekStart)
@@ -330,7 +336,18 @@ func (u *UserWebVolume) SaveFile(
 			return result, err
 		}
 	}
-	if err := u.UserSftp.AtomicReplace(tempPath, path); err != nil {
+	createOnly := expectedVersion != nil && !force && *expectedVersion == webSftpAbsentVersion
+	if createOnly {
+		err = u.UserSftp.AtomicCreate(tempPath, path)
+	} else {
+		err = u.UserSftp.AtomicReplace(tempPath, path)
+	}
+	if err != nil {
+		if createOnly {
+			if _, statErr := u.UserSftp.Stat(path); statErr == nil {
+				return result, ErrWebSftpFileConflict
+			}
+		}
 		return result, err
 	}
 	removeTemp = false
@@ -346,6 +363,16 @@ func (u *UserWebVolume) SaveFile(
 
 func (u *UserWebVolume) verifyExpectedVersion(path, expectedVersion string, verifyContent bool) error {
 	info, err := u.UserSftp.Stat(path)
+	if expectedVersion == webSftpAbsentVersion {
+		switch {
+		case err == nil:
+			return ErrWebSftpFileConflict
+		case os.IsNotExist(err):
+			return nil
+		default:
+			return err
+		}
+	}
 	if err != nil {
 		if os.IsNotExist(err) {
 			return ErrWebSftpFileConflict
