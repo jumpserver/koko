@@ -15,15 +15,16 @@ const (
 	Ko     LanguageCode = "ko"
 	Ru     LanguageCode = "ru"
 	Es     LanguageCode = "es"
+	Vi     LanguageCode = "vi"
 )
 
 var (
 	langMap = make(map[LanguageCode]*gotext.Locale)
 
-	allLangCodes = []LanguageCode{ZH, EN, JA, ZHHant, PtBr, Ko, Ru, Es}
+	allLangCodes = []LanguageCode{ZH, EN, JA, ZHHant, PtBr, Ko, Ru, Es, Vi}
 
-	AllLangCodesStr = []string{"English", "中文", "繁體中文", "日本語", "Português", "한국어", "Русский", "Español"}
-	AllCodes        = []LanguageCode{EN, ZH, ZHHant, JA, PtBr, Ko, Ru, Es}
+	AllLangCodesStr = []string{"English", "中文", "繁體中文", "日本語", "Português", "한국어", "Русский", "Español", "Tiếng Việt"}
+	AllCodes        = []LanguageCode{EN, ZH, ZHHant, JA, PtBr, Ko, Ru, Es, Vi}
 )
 
 var i18nCodeMap = map[string]LanguageCode{
@@ -41,6 +42,7 @@ var i18nCodeMap = map[string]LanguageCode{
 	"ru":      Ru,
 	"ko":      Ko,
 	"es":      Es,
+	"vi":      Vi,
 }
 
 // coreLangCodeMap koko 语言代码到 Core 语言代码的映射，仅列出无法直接转换的部分
