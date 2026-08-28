@@ -43,6 +43,13 @@ func (u *UserSftpConn) GetCurrentPath() string {
 	return ""
 }
 
+func (u *UserSftpConn) ValidateFileAIPath(path string) error {
+	if u.assetDir == nil {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	return u.assetDir.ValidateFileAIPath(path)
+}
+
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 	if u.assetDir != nil {
 		return u.assetDir.ReadDir(path)
@@ -60,6 +67,18 @@ func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
 	}
 
 	return nil, errNoSelectAsset
+}
+
+func (u *UserSftpConn) ReadDirWithCurrentPath(path string) (
+	res []os.FileInfo,
+	currentPath string,
+	err error,
+) {
+	if u.assetDir != nil {
+		return u.assetDir.ReadDirWithCurrentPath(path)
+	}
+	res, err = u.ReadDir(path)
+	return res, u.GetCurrentPath(), err
 }
 
 func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
@@ -324,6 +343,22 @@ func (u *UserSftpConn) AtomicReplace(sourcePath, targetPath string) error {
 		return sftp.ErrSshFxOpUnsupported
 	}
 	return sourceAssetDir.AtomicReplace(sourceRestPath, targetRestPath)
+}
+
+func (u *UserSftpConn) AtomicCreate(sourcePath, targetPath string) error {
+	if u.assetDir != nil {
+		return u.assetDir.AtomicCreate(sourcePath, targetPath)
+	}
+	sourceFi, sourceRestPath := u.ParsePath(sourcePath)
+	targetFi, targetRestPath := u.ParsePath(targetPath)
+	sourceAssetDir, ok := sourceFi.(*AssetDir)
+	if !ok {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	if targetAssetDir, targetOk := targetFi.(*AssetDir); !targetOk || targetAssetDir != sourceAssetDir {
+		return sftp.ErrSshFxOpUnsupported
+	}
+	return sourceAssetDir.AtomicCreate(sourceRestPath, targetRestPath)
 }
 
 func (u *UserSftpConn) DiscardUploadTemp(path string) error {

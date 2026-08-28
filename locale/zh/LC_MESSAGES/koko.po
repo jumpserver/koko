@@ -1,131 +1,689 @@
 msgid ""
 msgstr ""
-"Language: \n"
+"Language: zh\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: xgotext\n"
+"X-Generator: JumpServer i18n migration\n"
 
-#. lang.T
-#: pkg/handler/app_database.go:11
-msgid "No Databases"
-msgstr "无数据库"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
 
-#. lang.T
-#: pkg/handler/app_k8s.go:15
-msgid "No kubernetes"
-msgstr "没有kubernetes"
+msgid "%s approved"
+msgstr "%s 审核通过"
 
-#. lang.T
-#: pkg/handler/app_k8s.go:31
-msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
-msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:45
-msgid ""
-"Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
-
-#. lang.T
-#: pkg/handler/app_k8s.go:46
-msgid "Page up: b\tPage down: n"
-msgstr "上一页：b 下一页：n"
-
-#. lang.T
-#: pkg/handler/asset.go:45
-msgid "No Assets"
-msgstr "没有资产"
-
-#. lang.T
-#: pkg/handler/asset.go:57
-msgid "ID"
-msgstr "ID"
-
-#. lang.T
-#: pkg/handler/asset.go:58
-msgid "Name"
-msgstr "名称"
-
-#. lang.T
-#: pkg/handler/asset.go:59
-msgid "Address"
-msgstr "地址"
-
-#. lang.T
-#: pkg/handler/asset.go:60
-msgid "Platform"
-msgstr "平台"
-
-#. lang.T
-#: pkg/handler/asset.go:61
-msgid "Organization"
-msgstr "组织"
-
-#. lang.T
-#: pkg/handler/asset.go:62
-msgid "Comment"
-msgstr "备注"
-
-#. lang.T
-#: pkg/handler/asset.go:176
-msgid "%s protocol client not installed."
-msgstr "%s 协议的客户端未安装"
-
-#. lang.T
-#: pkg/handler/asset.go:179
-msgid ""
-"Terminal does not support protocol %s, please use web terminal to access"
-msgstr "该终端不支持 %s 协议，请使用web终端登录"
-
-#. lang.T
-#: pkg/handler/asset.go:214
-msgid "Core API failed"
-msgstr "Core API 发生错误"
-
-#. lang.T
-#: pkg/handler/asset.go:220
-msgid "ACL reject"
-msgstr "本次登录已拒绝，原因是访问控制策略的限制"
-
-#. lang.T
-#: pkg/handler/asset.go:226
-msgid ""
-"Face ACL is not supported yet. Please use the WebTerminal to connect the "
-"asset."
-msgstr "该终端不支持人脸访问规则，请使用web终端登录"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/asset.go:241 pkg/handler/asset.go:250
-msgid "Unknown error code: %s, detail: %s"
-msgstr "未知错误代码：%s，详情：%s"
-
-#. lang.T
-#: pkg/handler/asset.go:261
-msgid "get connect token err"
-msgstr "获取 connect token 错误"
-
-#. lang.T
-#: pkg/handler/asset_node.go:22
 msgid "%s node has no assets"
 msgstr "%s节点没有资产"
 
-#. lang.T
-#: pkg/handler/banner.go:30
+msgid "%s protocol client not installed."
+msgstr "%s 协议的客户端未安装"
+
+msgid "%s rejected"
+msgstr "%s 审核拒绝"
+
+msgid "ACL reject"
+msgstr "本次登录已拒绝，原因是访问控制策略的限制"
+
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
+msgstr "系统用户<%s>和资产<%s>协议不一致"
+
+msgid "ActionPerm"
+msgstr "操作权限"
+
+msgid "Address"
+msgstr "地址"
+
+msgid "AlreadyExistsPleaseRename"
+msgstr "文件已存在，请重命名"
+
+msgid "Announcement: "
+msgstr "公告："
+
+msgid "Authentication failed"
+msgstr "认证失败（用户名或密码错误）"
+
+msgid "AvailableShortcutKey"
+msgstr "可用快捷键"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "Back: B/b"
+msgstr "返回：B/b"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Cancel confirm"
+msgstr "取消登录复核"
+
+msgid "Cancel to login asset or max 3 retry"
+msgstr "取消登录资产或达到3次重试"
+
+msgid "CancelFileUpload"
+msgstr "取消文件上传"
+
+msgid "CaseSensitive"
+msgstr "区分大小写"
+
+msgid "Clone Connect"
+msgstr "复制窗口"
+
+msgid "Close All Tabs"
+msgstr "关闭所有"
+
+msgid "Close Current Tab"
+msgstr "关闭当前"
+
+msgid "Command `%s` is forbidden"
+msgstr "命令 `%s` 是被禁止的 ..."
+
+msgid "Comment"
+msgstr "备注"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "ConfirmBtn"
+msgstr "确定"
+
+msgid "ConfirmDelete"
+msgstr "您确定要删除该文件吗？"
+
+msgid "Connect"
+msgstr "连接"
+
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr "空闲时间超过%d分钟，断开连接"
+
+msgid "Connect with api server failed"
+msgstr "连接API服务失败"
+
+msgid "Connecting to %s@%s"
+msgstr "开始连接到 %s@%s"
+
+msgid "Connecting to Database %s"
+msgstr "开始连接数据库 %s"
+
+msgid "Connecting to Kubernetes %s"
+msgstr "开始连接Kubernetes %s"
+
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "开始连接Kubernetes %s 容器 %s"
+
+msgid "Connection refused"
+msgstr "网络不通（连接拒绝）"
+
+msgid "CopyLink"
+msgstr "复制链接及验证码"
+
+msgid "CopyShareURLSuccess"
+msgstr "复制分享地址成功"
+
+msgid "Core API failed"
+msgstr "Core API 发生错误"
+
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "可复制审核地址，通知审核人：%s"
+
+msgid "Create k8s client err: %s"
+msgstr "创建 k8s 客户端错误：%s"
+
+msgid "CreateFolder"
+msgstr "创建文件夹"
+
+msgid "CreateLink"
+msgstr "创建链接"
+
+msgid "CreateSuccess"
+msgstr "创建成功"
+
+msgid "CurrentUser"
+msgstr "当前用户"
+
+msgid "Custom Setting"
+msgstr "自定义设置"
+
+msgid "DangerWarning"
+msgstr "这是一个危险的操作"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "DownArrow"
+msgstr "向下箭头"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "DownloadProgress"
+msgstr "下载进度"
+
+msgid "DownloadSuccess"
+msgstr "下载成功"
+
+msgid "Downloading"
+msgstr "正在下载"
+
+msgid "Dynamic"
+msgstr "动态账号"
+
+msgid "EndFileTransfer"
+msgstr "文件传输结束"
+
+msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
+msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
+
+msgid "ExceedTransferSize"
+msgstr "超过最大传输大小"
+
+msgid "Expand"
+msgstr "展开"
+
+msgid "ExpiredTime"
+msgstr "有效期限"
+
+msgid "Face ACL is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "该终端不支持人脸访问规则，请使用web终端登录"
+
+msgid "Face verification is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "该终端不支持人脸识别认证，请使用web终端登录"
+
+msgid "FailedCreateConnection"
+msgstr "创建连接失败"
+
+msgid "File transfer error, file transfer interrupted"
+msgstr "文件传输错误，文件传输已中断"
+
+msgid "FileAlreadyExists"
+msgstr "文件已存在"
+
+msgid "FileListError"
+msgstr "获取文件列表信息失败"
+
+msgid "FileManagement"
+msgstr "文件管理"
+
+msgid "FileManagementExpired"
+msgstr "当前文件管理会话已过期。"
+
+msgid "FileManagerTokenTimeout"
+msgstr "获取文件管理器 Token 超时"
+
+msgid "FileTransferInterrupted"
+msgstr "文件传输中断"
+
+msgid "FileUploadInterrupted"
+msgstr "文件上传中断"
+
+msgid "Format"
+msgstr "格式"
+
+msgid "General"
+msgstr "通用"
+
+msgid "Get auth password failed"
+msgstr "你获取认证令牌失败"
+
+msgid "GetFileManagerTokenTimeOut"
+msgstr "获取文件管理 Token 超时"
+
+msgid "GetShareUser"
+msgstr "输入用户名"
+
+msgid "HandleTask does not support protocol %s, please use web terminal to access"
+msgstr "该终端不支持 %s 协议，请使用web终端登录"
+
+msgid "Hostname"
+msgstr "主机名"
+
+msgid "Hotkeys"
+msgstr "快捷键"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "InputVerifyCode"
+msgstr "请输入验证码"
+
+msgid "Invalid ID"
+msgstr "无效 ID"
+
+msgid "JoinShare"
+msgstr "加入共享"
+
+msgid "JoinedWithSuccess"
+msgstr "已成功加入"
+
+msgid "KubernetesManagement"
+msgstr "Kubernetes 管理"
+
+msgid "LastModified"
+msgstr "最后修改时间"
+
+msgid "LeaveShare"
+msgstr "离开共享"
+
+msgid "LeftArrow"
+msgstr "后退箭头"
+
+msgid "LinkAddr"
+msgstr "链接地址"
+
+msgid "List"
+msgstr "列表"
+
+msgid "Manual"
+msgstr "手动账号"
+
+msgid "MatchWholeWords"
+msgstr "全字匹配"
+
+msgid "Minute"
+msgstr "分钟"
+
+msgid "Minutes"
+msgstr "分"
+
+msgid "Must be auto login account for %s"
+msgstr "必须是自动登录账号 %s"
+
+msgid "Must be unique account for %s"
+msgstr "必须是唯一的账号 %s"
+
+msgid "Must be unique asset for %s"
+msgstr "必须是唯一的资产 %s"
+
+msgid "MustOneFile"
+msgstr "只能选择一个文件"
+
+msgid "MustSelectOneFile"
+msgstr "必须选择一个文件"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Need ACL review, continue? (y/n): "
+msgstr "需要审核，继续？(y/n): "
+
+msgid "Need ticket confirm to execute command, already send email to the reviewers"
+msgstr "需要工单命令执行复核，已发邮件通知审核人"
+
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr "需要工单登录复核，已发邮件通知审核人"
+
+msgid "NewFolder"
+msgstr "新建文件夹"
+
+msgid "No Account found."
+msgstr "未发现账号"
+
+msgid "No Assets"
+msgstr "没有资产"
+
+msgid "No Databases"
+msgstr "无数据库"
+
+msgid "No found asset"
+msgstr "未发现匹配的资产 %s"
+
+msgid "No kubernetes"
+msgstr "没有kubernetes"
+
+msgid "No protocol found."
+msgstr "无协议"
+
+msgid "No route to host"
+msgstr "网络不通（路由不通）"
+
+msgid "NoActiveTerminalTabFound"
+msgstr "未找到活动终端标签页"
+
+msgid "NoData"
+msgstr "无数据"
+
+msgid "NoLink"
+msgstr "无地址"
+
+msgid "NoRunningTerminalFound"
+msgstr "未找到正在运行的终端"
+
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr "节点：[ ID.名称(资产数量) ]"
+
+msgid "OnlineUser"
+msgstr "在线用户"
+
+msgid "OperationSuccessful"
+msgstr "操作成功"
+
+msgid "Organization"
+msgstr "组织"
+
+msgid "Owner"
+msgstr "管理者"
+
+msgid "Page up: b\tPage down: n"
+msgstr "上一页：b 下一页：n"
+
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "页码：%d，每页行数：%d，总页数：%d，总数量：%d"
+
+msgid "Paste"
+msgstr "粘贴"
+
+msgid "PauseSession"
+msgstr "暂停此会话"
+
+msgid "PermissionDenied"
+msgstr "没有权限"
+
+msgid "PermissionExpired"
+msgstr "权限已过期"
+
+msgid "PermissionValid"
+msgstr "权限有效"
+
+msgid "Platform"
+msgstr "平台"
+
+msgid "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D."
+msgstr "请等待审核人复核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
+
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr "等待审核人复核确认，按 q 回车取消登录。"
+
+msgid "PleaseInput"
+msgstr "请输入"
+
+msgid "PleaseInputVerifyCode"
+msgstr "请输入验证码"
+
+msgid "PrimaryUser"
+msgstr "主用户"
+
+msgid "Protocol"
+msgstr "协议"
+
+msgid "ReadOnly"
+msgstr "只读"
+
+msgid "Reconnect"
+msgstr "重新连接"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Refresh done"
+msgstr "刷新完成"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "RemoveShareUser"
+msgstr "你已经被移除共享会话"
+
+msgid "RemoveUser"
+msgstr "移除用户"
+
+msgid "Rename"
+msgstr "重命名"
+
+msgid "ResumeSession"
+msgstr "恢复此会话"
+
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
+
+msgid "RightArrow"
+msgstr "前进箭头"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "Search: %s"
+msgstr "搜索：%s"
+
+msgid "Select account exceed max retry times."
+msgstr "选择账号超过最大重试次数"
+
+msgid "Select protocol exceed max retry times."
+msgstr "选择协议超过最大重试次数"
+
+msgid "SelectAction"
+msgstr "请选择"
+
+msgid "SelectTheme"
+msgstr "请选择主题"
+
+msgid "Self"
+msgstr "我"
+
+msgid "Session max time reached, disconnect"
+msgstr "会话超过最大连接时间，断开连接"
+
+msgid "SessionDetail"
+msgstr "会话详情"
+
+msgid "SessionShare"
+msgstr "会话分享"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Share"
+msgstr "分享"
+
+msgid "ShareLink"
+msgstr "分享链接"
+
+msgid "ShareUser"
+msgstr "分享用户"
+
+msgid "ShareUserHelpText"
+msgstr "未选择用户，即允许所有人加入"
+
+msgid "Size"
+msgstr "大小"
+
+msgid "Start domain gateway failed %s"
+msgstr "启动数据库网关失败%s"
+
+msgid "Switch language successfully"
+msgstr "切换语言成功"
+
+msgid "Switched to %s"
+msgstr "已切换至%s"
+
+msgid "Sync"
+msgstr "同步"
+
+msgid "SyncUserPreferenceFailed"
+msgstr "同步设置失败"
+
+msgid "SyncUserPreferenceSuccess"
+msgstr "同步设置成功"
+
+msgid "Terminal does not support protocol %s, please use web terminal to access"
+msgstr "该终端不支持 %s 协议，请使用web终端登录"
+
+msgid "TerminalInstanceNotFound"
+msgstr "未找到当前选项卡的终端实例"
+
+msgid "TerminalInstanceNotFoundForCurrentTab"
+msgstr "当前标签页未找到终端实例"
+
+msgid "The command '%s' requires review. Continue or not [Y/n]?"
+msgstr "命令 %s 需要复核，是否继续？[Y/N]"
+
+msgid "The command you executed is risky and an alert notification will be sent to the administrator. Do you want to continue?[Y/N]"
+msgstr "您执行的命令存在风险，告警通知将发送给管理员。是否继续？[Y/N]"
+
+msgid "TheCurrentTerminalInstanceWasNotFound"
+msgstr "当前终端实例未找到"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "ThemeColors"
+msgstr "主题颜色"
+
+msgid "ThemeConfig"
+msgstr "主题"
+
+msgid "Ticket Reviewers: %s"
+msgstr "工单审核人：%s "
+
+msgid "Tips: Enter asset[%s] account ID"
+msgstr "提示：输入资产[%s]的账号ID"
+
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
+
+msgid "Tips: Enter protocol ID"
+msgstr "提示：输入协议ID"
+
+msgid "Tips: To set a default language, go to Personal Settings → Preferences on Web"
+msgstr "提示：如需设置默认语言，请前往 Web 端「个人设置 → 偏好设置」"
+
+msgid "Tips: switch language by ID (Current session only)"
+msgstr "提示：输入ID切换语言"
+
+msgid "Transfer"
+msgstr "传输"
+
+msgid "Type"
+msgstr "类型"
+
+msgid "UnableToGenerateWebSocketURL"
+msgstr "无法生成 WebSocket URL, 缺少参数"
+
+msgid "Unknown error code: %s, detail: %s"
+msgstr "未知错误代码：%s，详情：%s"
+
+msgid "Unknown status"
+msgstr "未知状态"
+
+msgid "UpArrow"
+msgstr "向上箭头"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "UploadEnd"
+msgstr "上传已完成，请等待后续处理"
+
+msgid "UploadProgress"
+msgstr "上传进度"
+
+msgid "UploadStart"
+msgstr "上传开始"
+
+msgid "UploadSuccess"
+msgstr "上传成功"
+
+msgid "UploadTips"
+msgstr "将文件拖到此处，或点击上传"
+
+msgid "UploadTitle"
+msgstr "上传文件"
+
+msgid "User"
+msgstr "用户"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "UsingRegularExpressions"
+msgstr "使用正则表达式"
+
+msgid "VerifyCode"
+msgstr "验证码"
+
+msgid "WaitFileTransfer"
+msgstr "等待文件传输结束"
+
+msgid "Warning"
+msgstr "警告"
+
+msgid "WebSocketClosed"
+msgstr "WebSocket 已关闭"
+
+msgid "WebSocketConnectionIsClosedHelpText"
+msgstr "WebSocket 连接已关闭，请刷新页面或重新连接。"
+
 msgid "Welcome to use JumpServer open source fortress system"
 msgstr "欢迎使用JumpServer开源堡垒机系统"
 
-#. lang.T
-#: pkg/handler/banner.go:32
+msgid "Writable"
+msgstr "可写"
+
+msgid "You don't have permission login %s"
+msgstr "你无权限登陆%s"
+
+msgid "You get auth token failed"
+msgstr "你获取认证令牌失败"
+
+msgid "display the assets you have permission"
+msgstr "显示您有权限的资产"
+
+msgid "display the databases that you have permission"
+msgstr "显示您有权限的数据库"
+
+msgid "display the hosts that you have permission"
+msgstr "显示您有权限的主机"
+
+msgid "display the kubernetes that you have permission"
+msgstr "显示您有权限的Kubernetes"
+
+msgid "display the node that you have permission"
+msgstr "显示您有权限的节点"
+
+msgid "exit"
+msgstr "退出"
+
+msgid "get connect token err"
+msgstr "获取 connect token 错误"
+
+msgid "have no permission to download file"
+msgstr "无权限下载文件"
+
+msgid "have no permission to upload file"
+msgstr "无权限上传文件"
+
+msgid "i/o timeout"
+msgstr "网络不通（连接超时）"
+
+msgid "language switch"
+msgstr "语言切换"
+
+msgid "network is unreachable"
+msgstr "网络不通（网络不可达）"
+
+msgid "not found matched username %s"
+msgstr "未发现匹配的用户名 %s"
+
 msgid "part IP, Hostname, Comment"
 msgstr "部分IP，主机名，备注"
 
-#. lang.T
-#: pkg/handler/banner.go:32
+msgid "part IP,, Hostname, Comment"
+msgstr "/ + IP，主机名，备注"
+
+msgid "print help"
+msgstr "显示帮助"
+
+msgid "refresh your assets and nodes"
+msgstr "刷新最新的机器和节点信息"
+
+msgid "select one asset to login"
+msgstr "选择其中一个资产登录"
+
 msgid "to search login if unique"
 msgstr "搜索登录(如果唯一)"
+
+msgid "to search, such as: /192.168"
+msgstr "搜索，如：/192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33
@@ -133,422 +691,9 @@ msgid "/ + IP, Hostname, Comment"
 msgstr "/ + IP，主机名，备注"
 
 #. lang.T
-#: pkg/handler/banner.go:33
-msgid "to search, such as: /192.168"
-msgstr "搜索，如：/192.168"
-
-#. lang.T
-#: pkg/handler/banner.go:34
-msgid "display the assets you have permission"
-msgstr "显示您有权限的资产"
-
-#. lang.T
-#: pkg/handler/banner.go:35
-msgid "display the node that you have permission"
-msgstr "显示您有权限的节点"
-
-#. lang.T
-#: pkg/handler/banner.go:36
-msgid "display the hosts that you have permission"
-msgstr "显示您有权限的主机"
-
-#. lang.T
-#: pkg/handler/banner.go:37
-msgid "display the databases that you have permission"
-msgstr "显示您有权限的数据库"
-
-#. lang.T
-#: pkg/handler/banner.go:38
-msgid "display the kubernetes that you have permission"
-msgstr "显示您有权限的Kubernetes"
-
-#. lang.T
-#: pkg/handler/banner.go:39
-msgid "refresh your assets and nodes"
-msgstr "刷新最新的机器和节点信息"
-
-#. lang.T
-#: pkg/handler/banner.go:40
-msgid "language switch"
-msgstr "语言切换"
-
-#. lang.T
-#: pkg/handler/banner.go:41
-msgid "print help"
-msgstr "显示帮助"
-
-#. lang.T
-#: pkg/handler/banner.go:42
-msgid "exit"
-msgstr "退出"
-
-#. lang.T
-#: pkg/handler/banner.go:60
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
-
-#. lang.T
-#: pkg/handler/banner.go:85
-msgid "Announcement: "
-msgstr "公告："
-
-#. lang.T
-#: pkg/handler/direct_handler.go:272
-msgid "No Account found."
-msgstr "未发现账号"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:282 pkg/handler/direct_handler.go:283
-#: pkg/handler/direct_handler.go:284
-msgid "Username"
-msgstr "用户名"
-
-#. lang.T
-#: pkg/handler/direct_handler.go:313
-msgid "Tips: Enter asset[%s] account ID"
-msgstr "提示：输入资产[%s]的账号ID"
-
-#. lang.T
-#: pkg/handler/direct_handler.go:314
-msgid "Back: B/b"
-msgstr "返回：B/b"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:349 pkg/handler/direct_handler.go:350
-msgid "Hostname"
-msgstr "主机名"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:351 pkg/handler/direct_handler.go:352
-#: pkg/handler/direct_handler.go:381
-msgid "select one asset to login"
-msgstr "选择其中一个资产登录"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:395 pkg/handler/direct_handler.go:400
-msgid "not found matched username %s"
-msgstr "未发现匹配的用户名 %s"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:433 pkg/handler/direct_handler.go:439
-#: pkg/handler/direct_handler.go:445
-msgid ""
-"Face verification is not supported yet. Please use the WebTerminal to "
-"connect the asset."
-msgstr "该终端不支持人脸识别认证，请使用web终端登录"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/direct_handler.go:460 pkg/handler/direct_handler.go:476
-#: pkg/handler/dispatch.go:127 pkg/handler/dispatch.go:128
-#: pkg/handler/dispatch.go:153
-#, fuzzy
-msgid "Tips: switch language by ID (Current session only)"
-msgstr "提示：输入ID切换语言"
-
-#. lang.T
-#: pkg/handler/dispatch.go:154
-msgid ""
-"Tips: To set a default language, go to Personal Settings → Preferences on Web"
-msgstr "提示：如需设置默认语言，请前往 Web 端「个人设置 → 偏好设置」"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/dispatch.go:155 pkg/handler/dispatch.go:183
-msgid "Invalid ID"
-msgstr "无效 ID"
-
-#. lang.T
-#: pkg/handler/dispatch.go:189
-msgid "Switch language successfully"
-msgstr "切换语言成功"
-
-#. lang.T
-#: pkg/handler/dispatch.go:199
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "节点：[ ID.名称(资产数量) ]"
-
-#. lang.T
-#: pkg/handler/dispatch.go:201
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "提示：输入 g+节点ID 显示节点下主机，如: g1"
-
-#. lang.T
-#: pkg/handler/interactive.go:64
-msgid "Connect idle more than %d minutes, disconnect"
-msgstr "空闲时间超过%d分钟，断开连接"
-
-#. lang.T
 #: pkg/handler/interactive.go:198
 msgid "No account found."
 msgstr "未发现账号"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/handler/interactive.go:208 pkg/handler/interactive.go:209
-#: pkg/handler/interactive.go:210 pkg/handler/interactive.go:240
-#: pkg/handler/interactive.go:241 pkg/handler/interactive.go:267
-msgid "Select account exceed max retry times."
-msgstr "选择账号超过最大重试次数"
-
-#. lang.T
-#: pkg/handler/interactive.go:278
-msgid "No protocol found."
-msgstr "无协议"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/interactive.go:287 pkg/handler/interactive.go:288
-msgid "Protocol"
-msgstr "协议"
-
-#. lang.T
-#: pkg/handler/interactive.go:315
-msgid "Tips: Enter protocol ID"
-msgstr "提示：输入协议ID"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/interactive.go:316 pkg/handler/interactive.go:342
-msgid "Select protocol exceed max retry times."
-msgstr "选择协议超过最大重试次数"
-
-#. lang.T
-#: pkg/handler/interactive.go:379
-msgid "Refresh done"
-msgstr "刷新完成"
-
-#. lang.T
-#: pkg/handler/login_confirm.go:38
-msgid "Need ACL review, continue? (y/n): "
-msgstr "需要审核，继续？(y/n): "
-
-#. lang.T
-#: pkg/handler/login_confirm.go:53
-msgid "Cancel to login asset or max 3 retry"
-msgstr "取消登录资产或达到3次重试"
-
-#. lang.T
-#. lang.T
-#: pkg/handler/login_confirm.go:67 pkg/handler/login_confirm.go:98
-msgid "Need ticket confirm to login, already send email to the reviewers"
-msgstr "需要工单登录复核，已发邮件通知审核人"
-
-#. lang.T
-#: pkg/handler/login_confirm.go:99
-msgid "Ticket Reviewers: %s"
-msgstr "工单审核人：%s "
-
-#. lang.T
-#: pkg/handler/login_confirm.go:100
-msgid "Could copy website URL to notify reviewers: %s"
-msgstr "可复制审核地址，通知审核人：%s"
-
-#. lang.T
-#: pkg/handler/login_confirm.go:101
-msgid "Please waiting for the reviewers to confirm, enter q to exit. "
-msgstr "等待审核人复核确认，按 q 回车取消登录。"
-
-#. lang.T
-#: pkg/handler/login_confirm.go:130
-msgid "Unknown status"
-msgstr "未知状态"
-
-#. lang.T
-#: pkg/handler/login_confirm.go:134
-msgid "%s approved"
-msgstr "%s 审核通过"
-
-#. lang.T
-#: pkg/handler/login_confirm.go:139
-msgid "%s rejected"
-msgstr "%s 审核拒绝"
-
-#. lang.T
-#: pkg/handler/login_confirm.go:143
-msgid "Cancel confirm"
-msgstr "取消登录复核"
-
-#. lang.T
-#: pkg/handler/select_handler.go:208
-msgid "Search: %s"
-msgstr "搜索：%s"
-
-#. i18nLang.T
-#: pkg/handler/server_ssh.go:223
-msgid "Must be unique asset for %s"
-msgstr "必须是唯一的资产 %s"
-
-#. i18nLang.T
-#. i18nLang.T
-#: pkg/handler/server_ssh.go:230 pkg/handler/server_ssh.go:252
-msgid "Must be unique account for %s"
-msgstr "必须是唯一的账号 %s"
-
-#. i18nLang.T
-#: pkg/handler/server_ssh.go:260
-msgid "Must be auto login account for %s"
-msgstr "必须是自动登录账号 %s"
-
-#. i18nLang.T
-#. i18nLang.T
-#: pkg/handler/server_ssh.go:682 pkg/handler/server_ssh.go:686
-msgid "No found asset"
-msgstr "未发现匹配的资产 %s"
-
-#. i18nLang.T
-#. i18nLang.T
-#. i18nLang.T
-#. lang.T
-#: pkg/handler/server_ssh.go:716 pkg/handler/server_ssh.go:721
-#: pkg/handler/server_ssh.go:739 pkg/httpd/userwebsocket.go:110
-msgid "Create k8s client err: %s"
-msgstr "创建 k8s 客户端错误：%s"
-
-#. lang.T
-#: pkg/proxy/parser.go:265
-msgid "have no permission to upload file"
-msgstr "无权限上传文件"
-
-#. lang.T
-#: pkg/proxy/parser.go:301
-msgid ""
-"The command you executed is risky and an alert notification will be sent to "
-"the administrator. Do you want to continue?[Y/N]"
-msgstr "您执行的命令存在风险，告警通知将发送给管理员。是否继续？[Y/N]"
-
-#. lang.T
-#: pkg/proxy/parser.go:318
-msgid "The command '%s' requires review. Continue or not [Y/n]?"
-msgstr "命令 %s 需要复核，是否继续？[Y/N]"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/proxy/parser.go:338 pkg/proxy/parser.go:345 pkg/proxy/parser.go:436
-msgid "Command `%s` is forbidden"
-msgstr "命令 `%s` 是被禁止的 ..."
-
-#. lang.T
-#: pkg/proxy/parser.go:503
-msgid "have no permission to download file"
-msgstr "无权限下载文件"
-
-#. lang.T
-#: pkg/proxy/parser.go:572
-msgid ""
-"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
-"or CTRL+D."
-msgstr "请等待审核人复核命令 `%s`，取消按 CTRL+C 或 CTRL+D。"
-
-#. lang.T
-#: pkg/proxy/parser.go:582
-msgid ""
-"Need ticket confirm to execute command, already send email to the reviewers"
-msgstr "需要工单命令执行复核，已发邮件通知审核人"
-
-#. lang.T
-#. lang.T
-#. lang.T
-#. lang.T
-#: pkg/proxy/parser.go:583 pkg/proxy/parser.go:584 pkg/proxy/server.go:58
-#: pkg/proxy/server.go:62
-msgid ""
-"HandleTask does not support protocol %s, please use web terminal to access"
-msgstr "该终端不支持 %s 协议，请使用web终端登录"
-
-#. lang.T
-#: pkg/proxy/server.go:70
-msgid "Account <%s> and asset <%s> protocol are inconsistent."
-msgstr "系统用户<%s>和资产<%s>协议不一致"
-
-#. lang.T
-#: pkg/proxy/server.go:102
-msgid "You don't have permission login %s"
-msgstr "你无权限登陆%s"
-
-#. lang.T
-#: pkg/proxy/server.go:337
-msgid "You get auth token failed"
-msgstr "你获取认证令牌失败"
-
-#. lang.T
-#: pkg/proxy/server.go:348
-msgid "Get auth password failed"
-msgstr "你获取认证令牌失败"
-
-#. lang.T
-#. lang.T
-#: pkg/proxy/server.go:364 pkg/proxy/server.go:421
-msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
-msgstr "复用SSH连接（%s@%s）[连接数量: %d]"
-
-#. lang.T
-#: pkg/proxy/server.go:689
-msgid "Switched to %s"
-msgstr "已切换至%s"
-
-#. lang.T
-#. lang.T
-#: pkg/proxy/server.go:791 pkg/proxy/server.go:936
-msgid "Connect with api server failed"
-msgstr "连接API服务失败"
-
-#. lang.T
-#: pkg/proxy/server.go:997
-msgid "Start domain gateway failed %s"
-msgstr "启动数据库网关失败%s"
-
-#. lang.T
-#. lang.T
-#: pkg/proxy/server.go:1005 pkg/proxy/server_options.go:108
-msgid "Manual"
-msgstr "手动账号"
-
-#. lang.T
-#: pkg/proxy/server_options.go:110
-msgid "Dynamic"
-msgstr "动态账号"
-
-#. lang.T
-#: pkg/proxy/server_options.go:113
-msgid "Connecting to %s@%s"
-msgstr "开始连接到 %s@%s"
-
-#. lang.T
-#: pkg/proxy/server_options.go:117
-msgid "Connecting to Database %s"
-msgstr "开始连接数据库 %s"
-
-#. lang.T
-#: pkg/proxy/server_options.go:119
-msgid "Connecting to Kubernetes %s"
-msgstr "开始连接Kubernetes %s"
-
-#. lang.T
-#: pkg/proxy/server_options.go:121
-msgid "Connecting to Kubernetes %s container %s"
-msgstr "开始连接Kubernetes %s 容器 %s"
-
-#. lang.T
-#: pkg/proxy/switch.go:315
-msgid "Session max time reached, disconnect"
-msgstr "会话超过最大连接时间，断开连接"
 
 #. lang.T
 #. lang.T
@@ -565,31 +710,6 @@ msgstr "%s 管理员终断连接"
 #: pkg/proxy/tools.go:28
 msgid "Deployment permission denied"
 msgstr "部署权限不足"
-
-#. lang.T
-#: pkg/proxy/tools.go:31
-msgid "Authentication failed"
-msgstr "认证失败（用户名或密码错误）"
-
-#. lang.T
-#: pkg/proxy/tools.go:31
-msgid "Connection refused"
-msgstr "网络不通（连接拒绝）"
-
-#. lang.T
-#: pkg/proxy/tools.go:34
-msgid "i/o timeout"
-msgstr "网络不通（连接超时）"
-
-#. lang.T
-#: pkg/proxy/tools.go:37
-msgid "No route to host"
-msgstr "网络不通（路由不通）"
-
-#. lang.T
-#: pkg/proxy/tools.go:40
-msgid "network is unreachable"
-msgstr "网络不通（网络不可达）"
 
 #. lang.T
 #: pkg/proxy/parser.go

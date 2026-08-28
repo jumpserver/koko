@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/jumpserver/koko/pkg/fileai"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 )
@@ -20,6 +21,7 @@ type webSftp struct {
 	done chan struct{}
 
 	volume *UserWebVolume
+	fileAI fileai.Session
 
 	stateMu        sync.Mutex
 	started        bool
@@ -31,22 +33,64 @@ func (h *webSftp) Name() string {
 }
 
 func (h *webSftp) CheckValidation() error {
-	volume, err := SftpCheckValidation(h.ws)
+	volume, fileAISettings, err := SftpCheckValidation(h.ws)
 	if err != nil {
 		return err
 	}
 
 	h.volume = NewUserWebVolume(volume)
+	h.initializeFileAI(fileAISettings)
 	return nil
 }
 
 func (h *webSftp) HandleMessage(msg *Message) {
+	if msg.Type == ChatMessage {
+		h.handleFileAIMessage(msg)
+		return
+	}
 	go h.dispatch(*msg)
 }
 
 func (h *webSftp) CleanUp() {
 	close(h.done)
-	h.volume.Close()
+	fileSession := h.getFileAI()
+	var closeVolume func()
+	if h.volume != nil {
+		closeVolume = h.volume.Close
+	}
+	closeWebSFTPResources(fileSession, closeVolume)
+}
+
+func (h *webSftp) setFileAI(fileSession fileai.Session) {
+	h.stateMu.Lock()
+	h.fileAI = fileSession
+	h.stateMu.Unlock()
+}
+
+func (h *webSftp) getFileAI() fileai.Session {
+	h.stateMu.Lock()
+	defer h.stateMu.Unlock()
+	return h.fileAI
+}
+
+type fileAISessionLifecycle interface {
+	Cancel()
+	Close()
+}
+
+func closeWebSFTPResources(
+	fileSession fileAISessionLifecycle,
+	closeVolume func(),
+) {
+	if fileSession != nil {
+		fileSession.Cancel()
+	}
+	if closeVolume != nil {
+		closeVolume()
+	}
+	if fileSession != nil {
+		fileSession.Close()
+	}
 }
 
 type webSftpRequest struct {
@@ -89,18 +133,7 @@ func (h *webSftp) dispatch(msg Message) {
 		h.ws.SendMessage(&message)
 		return
 	}
-	h.stateMu.Lock()
-	started := h.started
-	trackSessionID := h.trackSessionID
-	if !started {
-		h.started = true
-		if h.ws.ConnectToken != nil {
-			trackSessionID = !notInTokenIds(h.ws.ConnectToken.Id)
-			h.trackSessionID = trackSessionID
-		}
-	}
-	h.stateMu.Unlock()
-	if started && trackSessionID && (h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id)) {
+	if h.sessionExpired() {
 		message.Err = "Session expired or not found"
 		message.Type = CLOSE
 		h.ws.SendMessage(&message)
@@ -165,15 +198,40 @@ func (h *webSftp) dispatch(msg Message) {
 
 }
 
+func (h *webSftp) sessionExpired() bool {
+	h.stateMu.Lock()
+	defer h.stateMu.Unlock()
+	started := h.started
+	if !started {
+		h.started = true
+		if h.ws.ConnectToken != nil {
+			h.trackSessionID = !notInTokenIds(h.ws.ConnectToken.Id)
+		}
+	}
+	return started && h.trackSessionID &&
+		(h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id))
+}
+
+func (h *webSftp) trackedSessionExpired() bool {
+	h.stateMu.Lock()
+	defer h.stateMu.Unlock()
+	return h.started && h.trackSessionID &&
+		(h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id))
+}
+
 func (h *webSftp) handleList(request *webSftpRequest, response *Message) {
-	response.Data, response.CurrentPath = h.list(request.Path)
+	var err error
+	response.Data, response.CurrentPath, err = h.list(request.Path)
+	if err != nil {
+		response.Err = err.Error()
+	}
 	h.ws.SendMessage(response)
 }
 
-func (h *webSftp) list(path string) (string, string) {
-	files := h.volume.List(path)
+func (h *webSftp) list(path string) (string, string, error) {
+	files, currentPath, err := h.volume.List(path)
 	data, _ := json.Marshal(files)
-	return string(data), h.volume.UserSftp.GetCurrentPath()
+	return string(data), currentPath, err
 }
 
 func (h *webSftp) handleDownload(request *webSftpRequest, response *Message) {
