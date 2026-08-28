@@ -16,6 +16,8 @@ import (
 	"github.com/jumpserver/koko/pkg/terminalai"
 )
 
+const sessionReadyIdle = 500 * time.Millisecond
+
 type Client struct {
 	WinChan   chan ssh.Window
 	UserRead  io.ReadCloser
@@ -31,6 +33,11 @@ type Client struct {
 	buffer      bytes.Buffer
 	bufferMutex sync.Mutex
 	timer       *time.Timer
+
+	readyMu    sync.Mutex
+	readyArmed bool
+	readySent  bool
+	readyTimer *time.Timer
 
 	KubernetesId string
 	TerminalId   uint32
@@ -48,6 +55,64 @@ func (c *Client) SetSessionInfo(info *proxy.SessionInfo) {
 	c.sessionMu.Lock()
 	c.SessionInfo = info
 	c.sessionMu.Unlock()
+	c.armSessionReady()
+}
+
+func (c *Client) armSessionReady() {
+	c.readyMu.Lock()
+	defer c.readyMu.Unlock()
+	if c.readySent {
+		return
+	}
+	c.readyArmed = true
+	c.resetSessionReadyTimerLocked()
+}
+
+func (c *Client) noteSessionOutput() {
+	c.readyMu.Lock()
+	defer c.readyMu.Unlock()
+	if !c.readyArmed || c.readySent {
+		return
+	}
+	c.resetSessionReadyTimerLocked()
+}
+
+func (c *Client) resetSessionReadyTimerLocked() {
+	if c.readyTimer != nil {
+		c.readyTimer.Stop()
+	}
+	c.readyTimer = time.AfterFunc(sessionReadyIdle, c.fireSessionReady)
+}
+
+func (c *Client) fireSessionReady() {
+	c.readyMu.Lock()
+	if !c.readyArmed || c.readySent {
+		c.readyMu.Unlock()
+		return
+	}
+	c.readySent = true
+	c.readyArmed = false
+	if c.readyTimer != nil {
+		c.readyTimer.Stop()
+		c.readyTimer = nil
+	}
+	c.readyMu.Unlock()
+	c.Conn.SendMessage(&Message{
+		Id:           c.Conn.Uuid,
+		Type:         TerminalReady,
+		TerminalId:   c.TerminalId,
+		KubernetesId: c.KubernetesId,
+	})
+}
+
+func (c *Client) stopSessionReady() {
+	c.readyMu.Lock()
+	defer c.readyMu.Unlock()
+	c.readyArmed = false
+	if c.readyTimer != nil {
+		c.readyTimer.Stop()
+		c.readyTimer = nil
+	}
 }
 
 func (c *Client) GetSessionInfo() *proxy.SessionInfo {
@@ -110,6 +175,7 @@ func (c *Client) Write(p []byte) (n int, err error) {
 		KubernetesId: c.KubernetesId,
 	}
 	c.Conn.SendMessage(&msg)
+	c.noteSessionOutput()
 	return len(p), nil
 }
 
@@ -126,6 +192,7 @@ func (c *Client) flushBuffer() {
 		}
 		c.Conn.SendMessage(&msg)
 		c.buffer.Reset()
+		c.noteSessionOutput()
 	}
 
 	if c.buffer.Len() == 0 && c.timer != nil {
@@ -140,6 +207,7 @@ func (c *Client) Pty() ssh.Pty {
 
 func (c *Client) Close() (err error) {
 	c.closeOnce.Do(func() {
+		c.stopSessionReady()
 		_ = c.UserRead.Close()
 		_ = c.UserWrite.Close()
 		if c.Agent != nil {
