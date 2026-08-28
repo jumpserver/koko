@@ -43,6 +43,7 @@ const (
 	TerminalBinary  = "TERMINAL_BINARY"
 	TerminalAction  = "TERMINAL_ACTION"
 	TerminalSession = "TERMINAL_SESSION"
+	TerminalReady   = "TERMINAL_READY"
 
 	TerminalSessionPause  = "TERMINAL_SESSION_PAUSE"
 	TerminalSessionResume = "TERMINAL_SESSION_RESUME"
