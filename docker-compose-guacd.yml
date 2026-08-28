@@ -10,4 +10,6 @@ services:
     ports:
       - ${GUA_PORT:-4822}:4822
     volumes:
-      - ./data:/opt/koko/data:rw
+      - type: bind
+        source: ${PWD}/data
+        target: ${PWD}/data
