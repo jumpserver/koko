@@ -13,6 +13,12 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
       KOKO_PRIVILEGED: ${KOKO_PRIVILEGED:-true}
       HTTPD_PORT: 5050
+      WEB_PROXY_ENABLED: ${WEB_PROXY_ENABLED:-true}
+      WEB_PROXY_BIND_HOST: 0.0.0.0
+      WEB_PROXY_PORT: 5001
+      WEB_PROXY_ALLOWED_HOSTS: ${WEB_PROXY_ALLOWED_HOSTS:-localhost,127.0.0.1,host.docker.internal}
+      WEB_PROXY_RECORDING_ENABLED: ${WEB_PROXY_RECORDING_ENABLED:-true}
+      WEB_PROXY_FFMPEG_PATH: ${WEB_PROXY_FFMPEG_PATH:-ffmpeg}
       GUA_HOST: ${GUA_HOST:-guacd}
       GUA_PORT: ${GUA_PORT:-4822}
     depends_on:
@@ -21,7 +27,8 @@ services:
       - host.docker.internal:host-gateway
     ports:
       - ${KOKO_SSH_PORT:-2222}:2222
-      - ${HTTPD_PORT:-5050}:5050
+      - ${KOKO_HTTP_PORT:-5050}:5050
+      - ${KOKO_WEB_PROXY_PORT:-5001}:5001
     volumes:
       - ./data:/opt/koko/data
     healthcheck:

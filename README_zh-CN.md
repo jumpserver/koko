@@ -101,4 +101,4 @@ make docker
 docker compose up --build
 ```
 
-默认连接宿主机的 `http://host.docker.internal:8080`，SSH 端口为 `2222`，HTTP 端口为 `5000`。可通过 `CORE_HOST`、`KOKO_SSH_PORT` 和 `KOKO_HTTP_PORT` 覆盖。
+默认连接宿主机的 `http://host.docker.internal:8080`，SSH 端口为 `2222`，HTTP 端口为 `5050`，Web Proxy 只发布到宿主机的 `127.0.0.1:5001`。可通过 `CORE_HOST`、`KOKO_SSH_PORT`、`KOKO_HTTP_PORT`、`KOKO_WEB_PROXY_BIND_IP` 和 `KOKO_WEB_PROXY_PORT` 覆盖。Compose 中 Web Proxy 的默认白名单仅包含本地开发地址，需要通过 `WEB_PROXY_ALLOWED_HOSTS` 加入可访问的 Website 资产域名。
