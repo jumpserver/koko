@@ -1316,6 +1316,9 @@ func (r *Runtime) execute(
 	inputLocked = false
 	select {
 	case <-execCtx.Done():
+		if errors.Is(execCtx.Err(), context.DeadlineExceeded) {
+			r.writePTY([]byte{3})
+		}
 		r.observer.Cancel()
 		return r.observer.Snapshot(), nil, execCtx.Err()
 	case result := <-resultCh:
