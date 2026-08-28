@@ -1,0 +1,686 @@
+msgid ""
+msgstr ""
+"Language: vi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: JumpServer i18n migration\n"
+
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr "%d) Nhập {{.GreenBoldColor}}%s{{.ColorEnd}} để thực hiện %s.%s"
+
+msgid "%s approved"
+msgstr "%s đã được phê duyệt."
+
+msgid "%s node has no assets"
+msgstr "Tài nguyên trên nút %s không tồn tại"
+
+msgid "%s protocol client not installed."
+msgstr "Chưa cài đặt ứng dụng khách cho giao thức %s."
+
+msgid "%s rejected"
+msgstr "%s đã bị từ chối"
+
+msgid "ACL reject"
+msgstr "Đăng nhập lần này đã bị từ chối vì hạn chế của chính sách kiểm soát truy cập"
+
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
+msgstr "Người dùng hệ thống<%s> và tài sản<%s> không nhất quán"
+
+msgid "ActionPerm"
+msgstr "Quyền hành động"
+
+msgid "Address"
+msgstr "Địa chỉ"
+
+msgid "AlreadyExistsPleaseRename"
+msgstr "Tệp đã tồn tại, vui lòng đổi tên"
+
+msgid "Announcement: "
+msgstr "Thông báo:"
+
+msgid "Authentication failed"
+msgstr "Xác thực thất bại (tên người dùng hoặc mật khẩu không chính xác)"
+
+msgid "AvailableShortcutKey"
+msgstr "Phím tắt có sẵn"
+
+msgid "Back"
+msgstr "Quay lại"
+
+msgid "Back: B/b"
+msgstr "Quay lại: B/b"
+
+msgid "Cancel"
+msgstr "Hủy bỏ"
+
+msgid "Cancel confirm"
+msgstr "Hủy phê duyệt đăng nhập"
+
+msgid "Cancel to login asset or max 3 retry"
+msgstr "Hủy đăng nhập vào tài nguyên hoặc đã đạt 3 lần thử lại"
+
+msgid "CancelFileUpload"
+msgstr "Hủy tải file lên"
+
+msgid "CaseSensitive"
+msgstr "Phân biệt chữ hoa chữ thường"
+
+msgid "Clone Connect"
+msgstr "Sao chép cửa sổ"
+
+msgid "Close All Tabs"
+msgstr "Đóng tất cả"
+
+msgid "Close Current Tab"
+msgstr "Đóng hiện tại"
+
+msgid "Command `%s` is forbidden"
+msgstr "Lệnh `%s` bị cấm ..."
+
+msgid "Comment"
+msgstr "Ghi chú"
+
+msgid "Confirm"
+msgstr "Xác nhận"
+
+msgid "ConfirmBtn"
+msgstr "Đồng ý"
+
+msgid "ConfirmDelete"
+msgstr "Bạn có chắc chắn muốn xóa tệp này không?"
+
+msgid "Connect"
+msgstr "Kết nối"
+
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr "thời gian rảnh rỗi vượt quá %d phút, ngắt kết nối"
+
+msgid "Connect with api server failed"
+msgstr "Kết nối dịch vụ API thất bại"
+
+msgid "Connecting to %s@%s"
+msgstr "bắt đầu kết nối đến %s@%s"
+
+msgid "Connecting to Database %s"
+msgstr "Bắt đầu kết nối với cơ sở dữ liệu %s"
+
+msgid "Connecting to Kubernetes %s"
+msgstr "Bắt đầu kết nối với Kubernetes %s"
+
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "Bắt đầu kết nối với Kubernetes %s Container %s"
+
+msgid "Connection refused"
+msgstr "Mạng không kết nối (kết nối bị từ chối)"
+
+msgid "CopyLink"
+msgstr "Sao chép liên kết và mã xác thực."
+
+msgid "CopyShareURLSuccess"
+msgstr "Sao chép địa chỉ chia sẻ thành công"
+
+msgid "Core API failed"
+msgstr "Lỗi xảy ra tại Core API"
+
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "Địa chỉ kiểm tra có thể sao chép, thông báo cho người kiểm tra: %s"
+
+msgid "Create k8s client err: %s"
+msgstr "Tạo lỗi khách hàng k8s: %s"
+
+msgid "CreateFolder"
+msgstr "Tạo thư mục"
+
+msgid "CreateLink"
+msgstr "Tạo liên kết"
+
+msgid "CreateSuccess"
+msgstr "Tạo thành công"
+
+msgid "CurrentUser"
+msgstr "Người dùng hiện tại"
+
+msgid "Custom Setting"
+msgstr "Cài đặt tùy chỉnh"
+
+msgid "DangerWarning"
+msgstr "Đây là một hành động nguy hiểm"
+
+msgid "Delete"
+msgstr "Xóa"
+
+msgid "DownArrow"
+msgstr "Mũi tên hướng xuống"
+
+msgid "Download"
+msgstr "Tải xuống"
+
+msgid "DownloadProgress"
+msgstr "Tiến độ tải xuống"
+
+msgid "DownloadSuccess"
+msgstr "Tải xuống thành công"
+
+msgid "Downloading"
+msgstr "Đang tải xuống"
+
+msgid "Dynamic"
+msgstr "Tài khoản động"
+
+msgid "EndFileTransfer"
+msgstr "Chuyển file hoàn tất"
+
+msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
+msgstr "Gợi ý: Nhập ID tài sản để đăng nhập trực tiếp, tìm kiếm cấp hai sử dụng // + lĩnh vực, ví dụ: //192"
+
+msgid "ExceedTransferSize"
+msgstr "Vượt quá kích thước truyền tải tối đa"
+
+msgid "Expand"
+msgstr "Mở rộng"
+
+msgid "ExpiredTime"
+msgstr "Thời gian hiệu lực"
+
+msgid "Face ACL is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "Thiết bị này không hỗ trợ quy tắc truy cập bằng khuôn mặt, vui lòng đăng nhập bằng thiết bị web"
+
+msgid "Face verification is not supported yet. Please use the WebTerminal to connect the asset."
+msgstr "Thiết bị đầu cuối này không hỗ trợ xác thực nhận diện khuôn mặt, vui lòng đăng nhập bằng thiết bị đầu cuối web."
+
+msgid "FailedCreateConnection"
+msgstr "Tạo kết nối thất bại"
+
+msgid "File transfer error, file transfer interrupted"
+msgstr "Lỗi truyền tệp, quá trình truyền tệp đã bị gián đoạn"
+
+msgid "FileAlreadyExists"
+msgstr "Tệp đã tồn tại"
+
+msgid "FileListError"
+msgstr "Lấy thông tin danh sách tệp thất bại"
+
+msgid "FileManagement"
+msgstr "Quản lý tập tin"
+
+msgid "FileManagementExpired"
+msgstr "Phiên quản lý tệp hiện tại đã hết hạn."
+
+msgid "FileManagerTokenTimeout"
+msgstr "Lấy Token quản lý tập tin hết thời gian"
+
+msgid "FileTransferInterrupted"
+msgstr "Chuyển tệp bị gián đoạn"
+
+msgid "FileUploadInterrupted"
+msgstr "Tải tệp bị ngắt quãng"
+
+msgid "Format"
+msgstr "Định dạng"
+
+msgid "General"
+msgstr "Chung"
+
+msgid "Get auth password failed"
+msgstr "Bạn đã không thể lấy mã xác thực"
+
+msgid "GetFileManagerTokenTimeOut"
+msgstr "Lấy Token quản lý tập tin hết thời gian"
+
+msgid "GetShareUser"
+msgstr "Nhập tên người dùng"
+
+msgid "HandleTask does not support protocol %s, please use web terminal to access"
+msgstr "Thiết bị này không hỗ trợ giao thức %s, vui lòng đăng nhập bằng thiết bị web"
+
+msgid "Hostname"
+msgstr "Tên máy chủ"
+
+msgid "Hotkeys"
+msgstr "Phím tắt"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "InputVerifyCode"
+msgstr "Xin vui lòng nhập mã xác minh"
+
+msgid "Invalid ID"
+msgstr "ID không hợp lệ"
+
+msgid "JoinShare"
+msgstr "Tham gia chia sẻ"
+
+msgid "JoinedWithSuccess"
+msgstr "Đã tham gia thành công"
+
+msgid "KubernetesManagement"
+msgstr "Quản lý Kubernetes"
+
+msgid "LastModified"
+msgstr "Thời gian chỉnh sửa cuối cùng"
+
+msgid "LeaveShare"
+msgstr "Rời khỏi chia sẻ"
+
+msgid "LeftArrow"
+msgstr "Mũi tên quay lại"
+
+msgid "LinkAddr"
+msgstr "Địa chỉ liên kết"
+
+msgid "List"
+msgstr "Danh sách"
+
+msgid "Manual"
+msgstr "Tài khoản thủ công"
+
+msgid "MatchWholeWords"
+msgstr "Khớp chính xác"
+
+msgid "Minute"
+msgstr "Phút"
+
+msgid "Minutes"
+msgstr "Phút"
+
+msgid "Must be auto login account for %s"
+msgstr "Tài khoản phải là tài khoản đăng nhập tự động %s"
+
+msgid "Must be unique account for %s"
+msgstr "Tài khoản phải là duy nhất %s"
+
+msgid "Must be unique asset for %s"
+msgstr "Phải là tài nguyên duy nhất %s"
+
+msgid "MustOneFile"
+msgstr "Chỉ có thể chọn một tệp"
+
+msgid "MustSelectOneFile"
+msgstr "Phải chọn một tệp"
+
+msgid "Name"
+msgstr "Tên"
+
+msgid "Need ACL review, continue? (y/n): "
+msgstr "cần phê duyệt, tiếp tục? (y/n):"
+
+msgid "Need ticket confirm to execute command, already send email to the reviewers"
+msgstr "Cần lệnh công việc để thực hiện phê duyệt, đã gửi email thông báo cho người phê duyệt"
+
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr "Cần đăng nhập công việc để kiểm tra và đã gửi email thông báo cho người kiểm tra"
+
+msgid "NewFolder"
+msgstr "Thư mục mới"
+
+msgid "No Account found."
+msgstr "Không tìm thấy tài khoản"
+
+msgid "No Assets"
+msgstr "Không có tài sản"
+
+msgid "No Databases"
+msgstr "không có cơ sở dữ liệu"
+
+msgid "No found asset"
+msgstr "Không tìm thấy tài sản phù hợp %s"
+
+msgid "No kubernetes"
+msgstr "Không có Kubernetes"
+
+msgid "No protocol found."
+msgstr "Không có giao thức"
+
+msgid "No route to host"
+msgstr "Mạng không ổn định (đường truyền không thông)"
+
+msgid "NoActiveTerminalTabFound"
+msgstr "Không tìm thấy tab terminal hoạt động"
+
+msgid "NoData"
+msgstr "Không có dữ liệu"
+
+msgid "NoLink"
+msgstr "Không có địa chỉ"
+
+msgid "NoRunningTerminalFound"
+msgstr "Không tìm thấy terminal đang chạy"
+
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr "nút: [ ID.Tên (số lượng tài sản) ]"
+
+msgid "OnlineUser"
+msgstr "Người dùng trực tuyến"
+
+msgid "OperationSuccessful"
+msgstr "Thao tác thành công"
+
+msgid "Organization"
+msgstr "Tổ chức"
+
+msgid "Owner"
+msgstr "Quản lý"
+
+msgid "Page up: b\tPage down: n"
+msgstr "Trang trước: b Trang tiếp theo: n"
+
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "Số trang: %d, số dòng mỗi trang: %d, tổng số trang: %d, tổng số lượng: %d"
+
+msgid "Paste"
+msgstr "Dán vào"
+
+msgid "PauseSession"
+msgstr "Tạm dừng phiên này"
+
+msgid "PermissionDenied"
+msgstr "Không có quyền"
+
+msgid "PermissionExpired"
+msgstr "Quyền đã hết hạn"
+
+msgid "PermissionValid"
+msgstr "Quyền vẫn còn hiệu lực"
+
+msgid "Platform"
+msgstr "Nền tảng"
+
+msgid "Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C or CTRL+D."
+msgstr "Vui lòng chờ người xem xét xem xét lệnh `%s`, hủy bằng CTRL+C hoặc CTRL+D."
+
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr "Đang chờ người kiểm tra xác nhận, nhấn q và Enter để hủy đăng nhập."
+
+msgid "PleaseInput"
+msgstr "Vui lòng nhập"
+
+msgid "PleaseInputVerifyCode"
+msgstr "Vui lòng nhập mã xác thực"
+
+msgid "PrimaryUser"
+msgstr "Người dùng chính"
+
+msgid "Protocol"
+msgstr "Giao thức"
+
+msgid "ReadOnly"
+msgstr "Chỉ đọc"
+
+msgid "Reconnect"
+msgstr "Kết nối lại"
+
+msgid "Refresh"
+msgstr "Làm mới"
+
+msgid "Refresh done"
+msgstr "làm mới hoàn tất"
+
+msgid "Remove"
+msgstr "Gỡ bỏ"
+
+msgid "RemoveShareUser"
+msgstr "Bạn đã bị gỡ khỏi phiên chia sẻ."
+
+msgid "RemoveUser"
+msgstr "Gỡ bỏ người dùng"
+
+msgid "Rename"
+msgstr "Đổi tên"
+
+msgid "ResumeSession"
+msgstr "Khôi phục phiên này"
+
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr "Tái sử dụng kết nối SSH (%s@%s) [Số lượng kết nối: %d]"
+
+msgid "RightArrow"
+msgstr "Mũi tên tiến lên"
+
+msgid "Search"
+msgstr "Tìm kiếm"
+
+msgid "Search: %s"
+msgstr "Tìm kiếm: %s"
+
+msgid "Select account exceed max retry times."
+msgstr "Số tài khoản đã vượt quá số lần thử tối đa"
+
+msgid "Select protocol exceed max retry times."
+msgstr "chọn giao thức vượt quá số lần thử tối đa."
+
+msgid "SelectAction"
+msgstr "Vui lòng chọn"
+
+msgid "SelectTheme"
+msgstr "Chọn chủ đề"
+
+msgid "Self"
+msgstr "Tôi"
+
+msgid "Session max time reached, disconnect"
+msgstr "Phiên đã vượt quá thời gian kết nối tối đa, ngắt kết nối"
+
+msgid "SessionDetail"
+msgstr "Chi tiết phiên hoạt động."
+
+msgid "SessionShare"
+msgstr "Chia sẻ phiên"
+
+msgid "Settings"
+msgstr "Cài đặt"
+
+msgid "Share"
+msgstr "Chia sẻ"
+
+msgid "ShareLink"
+msgstr "Chia sẻ liên kết"
+
+msgid "ShareUser"
+msgstr "Chia sẻ người dùng"
+
+msgid "ShareUserHelpText"
+msgstr "Chưa chọn người dùng, tức là cho phép mọi người tham gia"
+
+msgid "Size"
+msgstr "Kích thước"
+
+msgid "Start domain gateway failed %s"
+msgstr "Không thể khởi động cổng cơ sở dữ liệu%s"
+
+msgid "Switch language successfully"
+msgstr "chuyển ngôn ngữ thành công"
+
+msgid "Switched to %s"
+msgstr "Đã chuyển sang %s"
+
+msgid "Sync"
+msgstr "Đồng bộ"
+
+msgid "SyncUserPreferenceFailed"
+msgstr "Đồng bộ cài đặt thất bại"
+
+msgid "SyncUserPreferenceSuccess"
+msgstr "Cài đặt đồng bộ thành công"
+
+msgid "Terminal does not support protocol %s, please use web terminal to access"
+msgstr "Thiết bị này không hỗ trợ %sprotocol, vui lòng đăng nhập bằng thiết bị web"
+
+msgid "TerminalInstanceNotFound"
+msgstr "Không tìm thấy phiên bản terminal của tab hiện tại"
+
+msgid "TerminalInstanceNotFoundForCurrentTab"
+msgstr "Không tìm thấy phiên bản terminal trong tab hiện tại"
+
+msgid "The command '%s' requires review. Continue or not [Y/n]?"
+msgstr "lệnh %s cần được xem xét, có tiếp tục không? [Y/N]"
+
+msgid "The command you executed is risky and an alert notification will be sent to the administrator. Do you want to continue?[Y/N]"
+msgstr "Lệnh bạn thực hiện có nguy cơ, thông báo cảnh báo sẽ được gửi đến quản lý. Có muốn tiếp tục không? [Y/N]"
+
+msgid "TheCurrentTerminalInstanceWasNotFound"
+msgstr "Không tìm thấy phiên bản terminal hiện tại"
+
+msgid "Theme"
+msgstr "Chủ đề"
+
+msgid "ThemeColors"
+msgstr "Màu sắc chủ đề"
+
+msgid "ThemeConfig"
+msgstr "Chủ đề"
+
+msgid "Ticket Reviewers: %s"
+msgstr "Người xem xét công việc: %s"
+
+msgid "Tips: Enter asset[%s] account ID"
+msgstr "Gợi ý: Nhập ID tài khoản của tài sản [%s]"
+
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr "Ghi chú: Nhập g+ID nút để hiển thị máy chủ dưới nút, ví dụ: g1"
+
+msgid "Tips: Enter protocol ID"
+msgstr "Gợi ý: Nhập ID giao thức"
+
+msgid "Tips: To set a default language, go to Personal Settings → Preferences on Web"
+msgstr "Gợi ý: Để thiết lập ngôn ngữ mặc định, vui lòng truy cập vào trang Web \"Cài đặt cá nhân → Tùy chọn\""
+
+msgid "Tips: switch language by ID (Current session only)"
+msgstr "Gợi ý: Nhập ID để chuyển đổi ngôn ngữ"
+
+msgid "Transfer"
+msgstr "Truyền tải"
+
+msgid "Type"
+msgstr "Loại"
+
+msgid "UnableToGenerateWebSocketURL"
+msgstr "Không thể tạo URL WebSocket, thiếu tham số"
+
+msgid "Unknown error code: %s, detail: %s"
+msgstr "Mã lỗi không xác định: %s, chi tiết: %s"
+
+msgid "Unknown status"
+msgstr "Trạng thái không xác định"
+
+msgid "UpArrow"
+msgstr "Mũi tên lên"
+
+msgid "Upload"
+msgstr "Tải lên"
+
+msgid "UploadEnd"
+msgstr "Tải lên đã hoàn tất, vui lòng chờ xử lý tiếp theo"
+
+msgid "UploadProgress"
+msgstr "Tiến độ tải lên"
+
+msgid "UploadStart"
+msgstr "Bắt đầu tải lên"
+
+msgid "UploadSuccess"
+msgstr "Tải lên thành công"
+
+msgid "UploadTips"
+msgstr "Kéo file đến đây, hoặc nhấp vào tải lên"
+
+msgid "UploadTitle"
+msgstr "Tải lên tệp"
+
+msgid "User"
+msgstr "Người dùng"
+
+msgid "Username"
+msgstr "Tên người dùng"
+
+msgid "UsingRegularExpressions"
+msgstr "Sử dụng biểu thức chính quy"
+
+msgid "VerifyCode"
+msgstr "Mã xác thực"
+
+msgid "WaitFileTransfer"
+msgstr "Chờ đợi kết thúc truyền tệp"
+
+msgid "Warning"
+msgstr "Cảnh báo"
+
+msgid "WebSocketClosed"
+msgstr "WebSocket đã đóng"
+
+msgid "WebSocketConnectionIsClosedHelpText"
+msgstr "Kết nối WebSocket đã bị đóng, vui lòng làm mới trang hoặc kết nối lại."
+
+msgid "Welcome to use JumpServer open source fortress system"
+msgstr "Chào mừng bạn đến với hệ thống JumpServer mã nguồn mở"
+
+msgid "Writable"
+msgstr "Có thể ghi"
+
+msgid "You don't have permission login %s"
+msgstr "Bạn không có quyền đăng nhập vào %s"
+
+msgid "You get auth token failed"
+msgstr "Bạn đã không lấy được mã thông báo xác thực"
+
+msgid "display the assets you have permission"
+msgstr "Hiển thị tài sản mà bạn có quyền truy cập"
+
+msgid "display the databases that you have permission"
+msgstr "hiển thị cơ sở dữ liệu mà bạn có quyền truy cập"
+
+msgid "display the hosts that you have permission"
+msgstr "Hiển thị các máy chủ mà bạn có quyền"
+
+msgid "display the kubernetes that you have permission"
+msgstr "hiển thị các Kubernetes mà bạn có quyền truy cập"
+
+msgid "display the node that you have permission"
+msgstr "Hiển thị các nút mà bạn có quyền truy cập"
+
+msgid "exit"
+msgstr "Thoát"
+
+msgid "get connect token err"
+msgstr "Lỗi lấy mã kết nối"
+
+msgid "have no permission to download file"
+msgstr "Không có quyền tải xuống tệp"
+
+msgid "have no permission to upload file"
+msgstr "Không có quyền tải lên tệp"
+
+msgid "i/o timeout"
+msgstr "Mạng không ổn định (thời gian kết nối đã hết)"
+
+msgid "language switch"
+msgstr "Chuyển đổi ngôn ngữ"
+
+msgid "network is unreachable"
+msgstr "mạng không thông (mạng không thể tiếp cận)"
+
+msgid "not found matched username %s"
+msgstr "Không tìm thấy tên người dùng khớp %s"
+
+msgid "part IP, Hostname, Comment"
+msgstr "Một phần IP, tên máy chủ, ghi chú"
+
+msgid "part IP,, Hostname, Comment"
+msgstr "/ + IP, tên máy chủ, ghi chú"
+
+msgid "print help"
+msgstr "Hiển thị trợ giúp"
+
+msgid "refresh your assets and nodes"
+msgstr "làm mới thông tin máy và nút mới nhất"
+
+msgid "select one asset to login"
+msgstr "Chọn một tài sản để đăng nhập"
+
+msgid "to search login if unique"
+msgstr "Tìm kiếm đăng nhập (nếu duy nhất)"
+
+msgid "to search, such as: /192.168"
+msgstr "tìm kiếm, ví dụ: /192.168"
