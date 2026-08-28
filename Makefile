@@ -109,9 +109,22 @@ clean:
 libghostty-vt:
 	@./utils/setup-libghostty-vt.sh
 
+.PHONY: guacd
+guacd:
+	docker compose -f docker-compose-guacd.yml up -d
+
 .PHONY: run
-run:
-	@LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)"; \
+run: guacd
+	@cleanup() { \
+		status=$$?; \
+		trap - EXIT INT TERM; \
+		docker compose -f docker-compose-guacd.yml down; \
+		exit $$status; \
+	}; \
+	trap cleanup EXIT; \
+	trap 'exit 130' INT; \
+	trap 'exit 143' TERM; \
+	LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)"; \
 	PKG_CONFIG_PATH="$${LIBGHOSTTY_VT_ROOT}/lib/pkgconfig$${PKG_CONFIG_PATH:+:$${PKG_CONFIG_PATH}}" \
 	CGO_ENABLED=1 go run ./cmd/koko/
 

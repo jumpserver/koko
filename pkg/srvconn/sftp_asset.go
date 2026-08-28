@@ -328,6 +328,18 @@ func (ad *AssetDir) openFile(path string, write, audit bool) (*SftpFile, error) 
 }
 
 func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
+	res, currentPath, err := ad.ReadDirWithCurrentPath(path)
+	if currentPath != "" {
+		ad.CurrentPath = currentPath
+	}
+	return res, err
+}
+
+func (ad *AssetDir) ReadDirWithCurrentPath(path string) (
+	res []os.FileInfo,
+	currentPath string,
+	err error,
+) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok && !ad.isFromWebTerminal {
@@ -342,14 +354,14 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 	}
 	su, ok := ad.suMaps[folderName]
 	if !ok {
-		return nil, errNoAccountUser
+		return nil, "", errNoAccountUser
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	ad.CurrentPath = realPath
+	currentPath = realPath
 
 	if con == nil || con.isClosed {
-		return nil, sftp.ErrSshFxConnectionLost
+		return nil, currentPath, sftp.ErrSshFxConnectionLost
 	}
 	con.IncreaseRef()
 	defer con.DecreaseRef()
@@ -373,7 +385,7 @@ func (ad *AssetDir) ReadDir(path string) (res []os.FileInfo, err error) {
 		}
 		fileInfoList = append(fileInfoList, info)
 	}
-	return fileInfoList, err
+	return fileInfoList, currentPath, err
 }
 
 func (ad *AssetDir) ReadLink(path string) (res string, err error) {
@@ -565,6 +577,24 @@ func (ad *AssetDir) AtomicReplace(sourcePath, targetPath string) error {
 	return nil
 }
 
+func (ad *AssetDir) AtomicCreate(sourcePath, targetPath string) error {
+	_, sourceConn, sourceRealPath, err := ad.resolveUploadPath(sourcePath)
+	if err != nil {
+		return err
+	}
+	_, targetConn, targetRealPath, err := ad.resolveUploadPath(targetPath)
+	if err != nil {
+		return err
+	}
+	if sourceConn != targetConn {
+		return sftp.ErrSshFxOpUnsupported
+	}
+
+	sourceConn.IncreaseRef()
+	defer sourceConn.DecreaseRef()
+	return sourceConn.client.Rename(sourceRealPath, targetRealPath)
+}
+
 func (ad *AssetDir) DiscardUploadTemp(path string) error {
 	_, con, realPath, err := ad.resolveUploadPath(path)
 	if err != nil {
@@ -736,6 +766,50 @@ func isSubPath(base, target string) bool {
 	}
 	return rel == "." ||
 		(rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+}
+
+func fileAIPathWithinRoot(root, path string) bool {
+	if strings.IndexByte(path, 0) >= 0 {
+		return false
+	}
+	root = filepath.Clean(root)
+	if !filepath.IsAbs(root) {
+		return false
+	}
+	path = filepath.Clean(path)
+	// The Web SFTP root itself may be represented as "/". Every other
+	// absolute path must use the server-resolved root returned to Luna.
+	if path == "/" {
+		return true
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	return isSubPath(root, path)
+}
+
+func (ad *AssetDir) ValidateFileAIPath(path string) error {
+	if !ad.isFromWebTerminal {
+		return sftp.ErrSshFxPermissionDenied
+	}
+	folderName, ok := ad.IsUniqueSu()
+	if !ok {
+		return errNoAccountUser
+	}
+	su, ok := ad.suMaps[folderName]
+	if !ok {
+		return errNoAccountUser
+	}
+	con, _ := ad.GetSFTPAndRealPath(su, "")
+	if con == nil {
+		return sftp.ErrSshFxConnectionLost
+	}
+	con.IncreaseRef()
+	defer con.DecreaseRef()
+	if !fileAIPathWithinRoot(con.rootDirPath, path) {
+		return fmt.Errorf("file path is outside the configured SFTP root: %w", sftp.ErrSshFxPermissionDenied)
+	}
+	return nil
 }
 
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
