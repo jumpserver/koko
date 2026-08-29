@@ -806,7 +806,7 @@ func (s *Server) getMongoDBConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.
 	return
 }
 
-func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
+func (s *Server) getSSHConn(stopConnecting func()) (srvConn *srvconn.SSHConnection, err error) {
 	loginAccount := s.account.GetBaseAccount()
 	if s.suFromAccount != nil {
 		loginAccount = s.suFromAccount
@@ -842,32 +842,72 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		}
 	}
 
-	password := loginAccount.Secret
-	kb := srvconn.SSHClientKeyboardAuth(func(user, instruction string,
+	password := ""
+	if !loginAccount.IsSSHKey() {
+		password = loginAccount.Secret
+	}
+	var prepareKeyboardPrompt sync.Once
+	var keyboardPrompted bool
+	kb := srvconn.SSHClientKeyboardAuth(func(_ string, instruction string,
 		questions []string, echos []bool) (answers []string, err error) {
 		s.setKeyBoardMode()
+		defer s.resetKeyboardMode()
+
+		prepareKeyboardPrompt.Do(func() {
+			stopConnecting()
+			utils.IgnoreErrWriteString(s.UserConn, "\r\x1b[2K")
+			if msg := strings.TrimSpace(s.connOpts.ConnectMsg()); msg != "" {
+				utils.IgnoreErrWriteString(s.UserConn, msg+"\r\n")
+			}
+		})
+
 		vt := term.NewTerminal(s.UserConn, "")
-		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
+		pty := s.UserConn.Pty()
+		if pty.Window.Width > 0 && pty.Window.Height > 0 {
+			_ = vt.SetSize(pty.Window.Width, pty.Window.Height)
+		}
+		if text := keyboardInteractiveInstruction(instruction); text != "" {
+			utils.IgnoreErrWriteString(vt, text+"\n")
+		}
+
 		ans := make([]string, len(questions))
 		for i := range questions {
 			q := questions[i]
-			vt.SetPrompt(questions[i])
-			logger.Debugf("Conn[%s] keyboard auth question %d [ %s ]", s.UserConn.ID(), i, q)
-			if strings.Contains(strings.ToLower(q), "password") {
-				if password != "" {
-					ans[i] = password
-					continue
-				}
+			echo := keyboardInteractiveEcho(echos, i)
+			logger.Debugf("Conn[%s] keyboard auth question %d [ %s ], echo: %t",
+				s.UserConn.ID(), i, q, echo)
+			if password != "" && isKeyboardInteractivePasswordQuestion(q) {
+				ans[i] = password
+				continue
 			}
-			line, err2 := vt.ReadLine()
+
+			combinedPasswordMFA := password != "" && isKeyboardInteractiveCombinedPasswordMFAQuestion(q)
+			prompt := keyboardInteractivePrompt(q)
+			if combinedPasswordMFA {
+				prompt = "OTP Code: "
+			}
+			keyboardPrompted = true
+			var line string
+			var err2 error
+			if echo {
+				vt.SetPrompt(prompt)
+				line, err2 = vt.ReadLine()
+			} else {
+				line, err2 = vt.ReadPassword(prompt)
+			}
 			if err2 != nil {
 				logger.Errorf("Conn[%s] keyboard auth read err: %s", s.UserConn.ID(), err2)
+				return nil, err2
 			}
-			ans[i] = line
+			if combinedPasswordMFA {
+				ans[i] = password + line
+			} else {
+				ans[i] = line
+			}
 		}
-		s.resetKeyboardMode()
 		return ans, nil
 	})
+	sshAuthOpts = append(sshAuthOpts, srvconn.SSHClientPreferKeyboardInteractive())
 	sshAuthOpts = append(sshAuthOpts, kb)
 	// 获取网关配置
 	proxyArgs := s.getGatewayProxyOptions()
@@ -879,10 +919,21 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		logger.Errorf("Get new ssh client err: %s", err)
 		return nil, err
 	}
-	srvconn.AddClientCache(key, sshClient)
+	cacheSSHClient := !keyboardPrompted
+	if cacheSSHClient {
+		srvconn.AddClientCache(key, sshClient)
+	}
+	releaseSSHClient := func() {
+		if cacheSSHClient {
+			srvconn.ReleaseClientCacheKey(key, sshClient)
+			return
+		}
+		_ = sshClient.Close()
+	}
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
+		releaseSSHClient()
 		return nil, err
 	}
 
@@ -922,7 +973,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if err != nil {
 		_ = sess.Close()
 		sshClient.ReleaseSession(sess)
-		srvconn.ReleaseClientCacheKey(key, sshClient)
+		releaseSSHClient()
 		return nil, err
 	}
 	if s.OnSSHClient != nil {
@@ -941,7 +992,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)
 		logger.Infof("SSH client(%s) shell connection release", sshClient)
-		srvconn.ReleaseClientCacheKey(key, sshClient)
+		releaseSSHClient()
 	}()
 	return sshConn, nil
 }
@@ -1073,15 +1124,26 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.cacheSSHConnection, nil
 	}
 	done := make(chan struct{})
+	stopped := make(chan struct{})
+	var stopOnce sync.Once
+	stopConnecting := func() {
+		stopOnce.Do(func() {
+			close(done)
+			<-stopped
+		})
+	}
 	defer func() {
+		stopConnecting()
 		utils.IgnoreErrWriteString(s.UserConn, "\r\n")
-		close(done)
 	}()
-	go s.sendConnectingMsg(done)
+	go func() {
+		defer close(stopped)
+		s.sendConnectingMsg(done)
+	}()
 	protocol := s.connOpts.authInfo.Protocol
 	switch protocol {
 	case srvconn.ProtocolSSH:
-		return s.getSSHConn()
+		return s.getSSHConn(stopConnecting)
 	case srvconn.ProtocolTELNET:
 		return s.getTelnetConn()
 	case srvconn.ProtocolK8s:
@@ -1102,7 +1164,7 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 	}
 }
 
-func (s *Server) sendConnectingMsg(done chan struct{}) {
+func (s *Server) sendConnectingMsg(done <-chan struct{}) {
 	delay := 0.0
 	maxDelay := 5 * 60.0 // 最多执行五分钟
 	msg := fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
