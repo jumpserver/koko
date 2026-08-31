@@ -53,8 +53,10 @@ type messageCreatedPayload struct {
 }
 
 type runPayload struct {
-	State  string `json:"state"`
-	Reason string `json:"reason,omitempty"`
+	State        string `json:"state"`
+	Reason       string `json:"reason,omitempty"`
+	Partial      bool   `json:"partial,omitempty"`
+	FinishReason string `json:"finish_reason,omitempty"`
 }
 
 type approvalModeChangedPayload struct {
@@ -807,7 +809,10 @@ func (s *agentSession) startRun(runID, messageID string) error {
 	return nil
 }
 
-func (s *agentSession) completeRun(runID, messageID, answer string) error {
+func (s *agentSession) completeRun(
+	runID, messageID string,
+	completion agentruntime.Completion,
+) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
@@ -819,8 +824,15 @@ func (s *agentSession) completeRun(runID, messageID, answer string) error {
 	if s.activeRunID != runID {
 		return nil
 	}
-	if len(answer) > agentapi.MaxMessageBytes ||
-		s.historyBytes+len(answer) > maxSessionHistoryBytes {
+	metadata := map[string]any(nil)
+	if completion.Partial || completion.FinishReason != "" {
+		metadata = map[string]any{
+			"partial":       completion.Partial,
+			"finish_reason": completion.FinishReason,
+		}
+	}
+	if len(completion.Answer) > agentapi.MaxMessageBytes ||
+		s.historyBytes+len(completion.Answer)+messageMetadataSize(metadata) > maxSessionHistoryBytes {
 		_, err := s.appendEventLocked(
 			s.event(agentapi.EventRunFailed, runID, messageID, ""),
 			runPayload{State: agentapi.RunStateFailed, Reason: "agent answer exceeded the history limit"},
@@ -835,17 +847,20 @@ func (s *agentSession) completeRun(runID, messageID, answer string) error {
 	}
 	if _, err := s.appendEventLocked(
 		s.event(agentapi.EventMessageCreated, runID, messageID, ""),
-		messageCreatedPayload{Role: "assistant", Text: answer},
+		messageCreatedPayload{Role: "assistant", Text: completion.Answer, Metadata: metadata},
 	); err != nil {
 		return err
 	}
 	if _, err := s.appendEventLocked(
 		s.event(agentapi.EventRunCompleted, runID, messageID, ""),
-		runPayload{State: agentapi.RunStateCompleted},
+		runPayload{
+			State: agentapi.RunStateCompleted, Partial: completion.Partial,
+			FinishReason: completion.FinishReason,
+		},
 	); err != nil {
 		return err
 	}
-	s.appendHistory(s.runOrder[runID], "assistant", answer, nil)
+	s.appendHistory(s.runOrder[runID], "assistant", completion.Answer, metadata)
 	s.activeRunID = ""
 	s.removePendingRunLocked(runID)
 	s.runState = agentapi.RunStateCompleted
