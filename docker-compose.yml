@@ -13,6 +13,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
       KOKO_PRIVILEGED: ${KOKO_PRIVILEGED:-true}
       HTTPD_PORT: 5050
+      AGENT_HTTPD_PORT: 5003
       GUA_HOST: ${GUA_HOST:-guacd}
       GUA_PORT: ${GUA_PORT:-4822}
     depends_on:
@@ -22,6 +23,7 @@ services:
     ports:
       - ${KOKO_SSH_PORT:-2222}:2222
       - ${HTTPD_PORT:-5050}:5050
+      - ${AGENT_HTTPD_PORT:-5003}:5003
     volumes:
       - ./data:/opt/koko/data
     healthcheck:

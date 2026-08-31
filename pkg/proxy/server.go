@@ -27,7 +27,6 @@ import (
 	"github.com/jumpserver/koko/pkg/session"
 	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/jumpserver/koko/pkg/sshcert"
-	"github.com/jumpserver/koko/pkg/terminalai"
 	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
@@ -148,8 +147,8 @@ type Server struct {
 
 	backgroundRecorderMu sync.Mutex
 	backgroundRecorder   *CommandRecorder
-	terminalAIGrantMu    sync.Mutex
-	terminalAIGrant      *terminalAICommandGrant
+	agentToolGrantMu     sync.Mutex
+	agentToolGrant       *agentToolCommandGrant
 	operationPaused      atomic.Bool
 	permissionInvalid    atomic.Bool
 	backgroundActiveAt   atomic.Int64
@@ -192,7 +191,7 @@ type CommandACLDecision struct {
 	Reviewed  bool
 }
 
-type terminalAICommandGrant struct {
+type agentToolCommandGrant struct {
 	command  string
 	decision CommandACLDecision
 	expires  time.Time
@@ -224,38 +223,47 @@ func (s *Server) MatchCommandACL(command string) CommandACLDecision {
 	return CommandACLDecision{Action: model.ActionUnknown}
 }
 
-func (s *Server) AuthorizeTerminalAICommand(
+func (s *Server) AuthorizeAgentToolCommand(
 	command string, decision *CommandACLDecision,
 ) {
 	if decision == nil || decision.Action == model.ActionUnknown {
 		return
 	}
-	s.terminalAIGrantMu.Lock()
-	s.terminalAIGrant = &terminalAICommandGrant{
+	s.agentToolGrantMu.Lock()
+	s.agentToolGrant = &agentToolCommandGrant{
 		command: strings.TrimSpace(command), decision: *decision,
 		expires: time.Now().Add(2 * time.Minute),
 	}
-	s.terminalAIGrantMu.Unlock()
+	s.agentToolGrantMu.Unlock()
 }
 
-func (s *Server) consumeTerminalAICommandGrant(
+func (s *Server) consumeAgentToolCommandGrant(
 	command string,
 ) (CommandACLDecision, bool) {
-	s.terminalAIGrantMu.Lock()
-	defer s.terminalAIGrantMu.Unlock()
-	grant := s.terminalAIGrant
+	s.agentToolGrantMu.Lock()
+	defer s.agentToolGrantMu.Unlock()
+	grant := s.agentToolGrant
 	if grant == nil {
 		return CommandACLDecision{}, false
 	}
 	if time.Now().After(grant.expires) {
-		s.terminalAIGrant = nil
+		s.agentToolGrant = nil
 		return CommandACLDecision{}, false
 	}
 	if strings.TrimSpace(command) != grant.command {
 		return CommandACLDecision{}, false
 	}
-	s.terminalAIGrant = nil
+	s.agentToolGrant = nil
 	return grant.decision, true
+}
+
+func (s *Server) RevokeAgentToolCommand(command string) {
+	s.agentToolGrantMu.Lock()
+	if s.agentToolGrant != nil &&
+		s.agentToolGrant.command == strings.TrimSpace(command) {
+		s.agentToolGrant = nil
+	}
+	s.agentToolGrantMu.Unlock()
 }
 
 func (s *Server) ReviewCommand(
@@ -278,7 +286,7 @@ func (s *Server) ReviewCommand(
 		}
 		status, checkErr := s.jmsService.CheckConfirmStatusByRequestInfo(ticket.CheckReq)
 		if checkErr != nil {
-			logger.Errorf("Session %s: check terminal AI command review failed: %s", s.ID, checkErr)
+			logger.Errorf("Session %s: check agent tool command review failed: %s", s.ID, checkErr)
 			continue
 		}
 		decision.Processor = status.Processor
@@ -293,7 +301,7 @@ func (s *Server) ReviewCommand(
 			decision.Action = model.ActionReject
 			return decision, nil
 		default:
-			logger.Errorf("Session %s: unknown terminal AI review status %s", s.ID, status.Status)
+			logger.Errorf("Session %s: unknown agent tool review status %s", s.ID, status.Status)
 		}
 	}
 }
@@ -354,21 +362,35 @@ func (s *Server) SupportsBackgroundExecution() bool {
 	if s.suFromAccount != nil {
 		return false
 	}
-	return terminalai.SupportsBackground(
-		terminalai.NewSessionContext(s.connOpts.authInfo),
-	)
+	switch s.connOpts.authInfo.Protocol {
+	case srvconn.ProtocolSSH, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) CheckBackgroundExecution() error {
-	switch {
-	case !s.SupportsBackgroundExecution():
+	if err := s.CheckAgentToolExecution(); err != nil {
+		return err
+	}
+	if !s.SupportsBackgroundExecution() {
 		return errors.New("background execution is unavailable")
+	}
+	s.backgroundActiveAt.Store(time.Now().UnixNano())
+	return nil
+}
+
+func (s *Server) CheckAgentToolExecution() error {
+	switch {
 	case s.operationPaused.Load():
 		return errors.New("the terminal session is paused")
 	case s.permissionInvalid.Load(), s.CheckPermissionExpired(time.Now()):
 		return errors.New("the terminal session permission is invalid")
 	default:
-		s.backgroundActiveAt.Store(time.Now().UnixNano())
 		return nil
 	}
 }
@@ -438,16 +460,16 @@ func (s *Server) GetFilterParser() (*Parser, error) {
 	sort.Sort(model.CommandACLs(filterRules))
 	pty := s.UserConn.Pty()
 	parser := Parser{
-		id:              s.ID,
-		protocolType:    protocol,
-		jmsService:      s.jmsService,
-		cmdFilterACLs:   filterRules,
-		enableDownload:  enableDownload,
-		enableUpload:    enableUpload,
-		zmodemParser:    zParser,
-		i18nLang:        s.connOpts.i18nLang,
-		platform:        &platform,
-		terminalAIGrant: s.consumeTerminalAICommandGrant,
+		id:             s.ID,
+		protocolType:   protocol,
+		jmsService:     s.jmsService,
+		cmdFilterACLs:  filterRules,
+		enableDownload: enableDownload,
+		enableUpload:   enableUpload,
+		zmodemParser:   zParser,
+		i18nLang:       s.connOpts.i18nLang,
+		platform:       &platform,
+		agentToolGrant: s.consumeAgentToolCommandGrant,
 	}
 	if err := parser.initial(pty.Window.Width, pty.Window.Height); err != nil {
 		return nil, err

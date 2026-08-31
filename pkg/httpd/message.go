@@ -9,12 +9,14 @@ import (
 )
 
 type Message struct {
-	Id        string `json:"id"`
-	Type      string `json:"type"`
-	Data      string `json:"data"`
-	Raw       []byte `json:"raw"`
-	Err       string `json:"err"`
-	ErrorCode string `json:"error_code,omitempty"`
+	Id                string `json:"id"`
+	Type              string `json:"type"`
+	Version           int    `json:"version,omitempty"`
+	ResourceSessionID string `json:"resource_session_id,omitempty"`
+	Data              string `json:"data"`
+	Raw               []byte `json:"raw"`
+	Err               string `json:"err"`
+	ErrorCode         string `json:"error_code,omitempty"`
 
 	TerminalId uint32 `json:"terminalId,omitempty"`
 	RequestId  string `json:"requestId,omitempty"`
@@ -82,7 +84,12 @@ const (
 	SFTPBinary = "SFTP_BINARY"
 
 	TerminalCreate = "TERMINAL_CREATE"
-	ChatMessage    = "CHAT_MESSAGE"
+
+	MCPManifest     = "mcp.manifest"
+	MCPRequest      = "mcp.request"
+	MCPResponse     = "mcp.response"
+	MCPCancel       = "mcp.cancel"
+	MCPCancelResult = "mcp.cancel_result"
 )
 
 type WindowSize struct {

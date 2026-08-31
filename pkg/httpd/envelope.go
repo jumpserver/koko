@@ -15,7 +15,6 @@ const (
 	envelopeTerminalOutput  byte = 0x02
 	envelopeTerminalCommand byte = 0x03
 	envelopeError           byte = 0x04
-	envelopeChat            byte = 0x05
 	envelopeTerminalCreate  byte = 0x06
 	envelopeTerminalClose   byte = 0x07
 
@@ -143,8 +142,6 @@ func encodeMessageEnvelope(msg *Message) ([]byte, error) {
 	switch msg.Type {
 	case TerminalBinary, TerminalK8SBinary:
 		return buildTerminalOutputEnvelope(msg.TerminalId, msg.Raw)
-	case ChatMessage:
-		return buildEnvelope(envelopeChat, []byte(msg.Data))
 	case ERROR, TerminalError:
 		payload, err := marshalEnvelopeJSON(errorEnvelope{
 			Code: 500, Message: firstNonEmpty(msg.Err, msg.Data),
@@ -227,8 +224,6 @@ func decodeEnvelopeMessage(frame envelope) (*Message, error) {
 			Type: CLOSE, TerminalId: request.TerminalID,
 			RequestId: request.RequestID, Data: request.Reason,
 		}, nil
-	case envelopeChat:
-		return &Message{Type: ChatMessage, Data: string(frame.Payload)}, nil
 	default:
 		return nil, fmt.Errorf("%w: unsupported type 0x%02x", errEnvelopeMalformed, frame.Type)
 	}

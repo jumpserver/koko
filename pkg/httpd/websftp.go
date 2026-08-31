@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/jumpserver/koko/pkg/fileai"
+	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 )
@@ -20,8 +20,9 @@ type webSftp struct {
 
 	done chan struct{}
 
-	volume *UserWebVolume
-	fileAI fileai.Session
+	volume            *UserWebVolume
+	mcp               *sessiontools.MCPDispatcher
+	resourceSessionID string
 
 	stateMu        sync.Mutex
 	started        bool
@@ -33,19 +34,19 @@ func (h *webSftp) Name() string {
 }
 
 func (h *webSftp) CheckValidation() error {
-	volume, fileAISettings, err := SftpCheckValidation(h.ws)
+	volume, err := SftpCheckValidation(h.ws)
 	if err != nil {
 		return err
 	}
 
 	h.volume = NewUserWebVolume(volume)
-	h.initializeFileAI(fileAISettings)
+	h.initializeFileTools()
 	return nil
 }
 
 func (h *webSftp) HandleMessage(msg *Message) {
-	if msg.Type == ChatMessage {
-		h.handleFileAIMessage(msg)
+	if msg.Type == MCPRequest || msg.Type == MCPCancel {
+		h.handleFileToolMessage(msg)
 		return
 	}
 	go h.dispatch(*msg)
@@ -53,44 +54,29 @@ func (h *webSftp) HandleMessage(msg *Message) {
 
 func (h *webSftp) CleanUp() {
 	close(h.done)
-	fileSession := h.getFileAI()
+	dispatcher := h.getMCP()
 	var closeVolume func()
 	if h.volume != nil {
 		closeVolume = h.volume.Close
 	}
-	closeWebSFTPResources(fileSession, closeVolume)
-}
-
-func (h *webSftp) setFileAI(fileSession fileai.Session) {
-	h.stateMu.Lock()
-	h.fileAI = fileSession
-	h.stateMu.Unlock()
-}
-
-func (h *webSftp) getFileAI() fileai.Session {
-	h.stateMu.Lock()
-	defer h.stateMu.Unlock()
-	return h.fileAI
-}
-
-type fileAISessionLifecycle interface {
-	Cancel()
-	Close()
-}
-
-func closeWebSFTPResources(
-	fileSession fileAISessionLifecycle,
-	closeVolume func(),
-) {
-	if fileSession != nil {
-		fileSession.Cancel()
+	if dispatcher != nil {
+		dispatcher.Close()
 	}
 	if closeVolume != nil {
 		closeVolume()
 	}
-	if fileSession != nil {
-		fileSession.Close()
-	}
+}
+
+func (h *webSftp) setMCP(dispatcher *sessiontools.MCPDispatcher) {
+	h.stateMu.Lock()
+	h.mcp = dispatcher
+	h.stateMu.Unlock()
+}
+
+func (h *webSftp) getMCP() *sessiontools.MCPDispatcher {
+	h.stateMu.Lock()
+	defer h.stateMu.Unlock()
+	return h.mcp
 }
 
 type webSftpRequest struct {

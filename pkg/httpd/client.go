@@ -10,10 +10,10 @@ import (
 
 	"github.com/gliderlabs/ssh"
 
+	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/terminalai"
 )
 
 const sessionReadyIdle = 500 * time.Millisecond
@@ -44,11 +44,15 @@ type Client struct {
 	Namespace    string
 	Pod          string
 	Container    string
-	Agent        terminalai.Session
 	SessionInfo  *proxy.SessionInfo
+	mcpMu        sync.RWMutex
+	mcp          *sessiontools.MCPDispatcher
+	mcpClosed    bool
 	inputMu      sync.Mutex
 	inputLocked  bool
 	metrics      clientMetrics
+	observerMu   sync.RWMutex
+	observer     *sessiontools.TerminalObserver
 }
 
 func (c *Client) SetSessionInfo(info *proxy.SessionInfo) {
@@ -141,8 +145,11 @@ func (c *Client) Read(p []byte) (n int, err error) {
 
 // 向客户端发送数据进行1毫秒的防抖处理
 func (c *Client) Write(p []byte) (n int, err error) {
-	if c.Agent != nil {
-		c.Agent.Feed(p)
+	c.observerMu.RLock()
+	observer := c.observer
+	c.observerMu.RUnlock()
+	if observer != nil {
+		observer.Feed(p)
 	}
 	category := ""
 	connectToken := c.Conn.ConnectToken
@@ -210,10 +217,8 @@ func (c *Client) Close() (err error) {
 		c.stopSessionReady()
 		_ = c.UserRead.Close()
 		_ = c.UserWrite.Close()
-		if c.Agent != nil {
-			c.Agent.Close()
-			c.Agent = nil
-		}
+		c.closeClientMCP()
+		c.closeTerminalObserver()
 		c.stopMetrics()
 		c.initPipe()
 	})
@@ -227,12 +232,52 @@ func (c *Client) initPipe() {
 }
 
 func (c *Client) SetWinSize(size ssh.Window) {
-	if c.Agent != nil {
-		c.Agent.Resize(size.Width, size.Height)
+	c.observerMu.RLock()
+	observer := c.observer
+	c.observerMu.RUnlock()
+	if observer != nil {
+		observer.Resize(int(size.Width), int(size.Height))
 	}
 	select {
 	case c.WinChan <- size:
 	default:
+	}
+}
+
+func (c *Client) setMCP(dispatcher *sessiontools.MCPDispatcher) bool {
+	c.mcpMu.Lock()
+	defer c.mcpMu.Unlock()
+	if c.mcpClosed || c.mcp != nil || dispatcher == nil {
+		return false
+	}
+	c.mcp = dispatcher
+	return true
+}
+
+func (c *Client) getMCP() *sessiontools.MCPDispatcher {
+	c.mcpMu.RLock()
+	defer c.mcpMu.RUnlock()
+	return c.mcp
+}
+
+func (c *Client) closeMCP() {
+	c.mcpMu.Lock()
+	dispatcher := c.mcp
+	c.mcp = nil
+	c.mcpMu.Unlock()
+	if dispatcher != nil {
+		dispatcher.Close()
+	}
+}
+
+func (c *Client) closeClientMCP() {
+	c.mcpMu.Lock()
+	c.mcpClosed = true
+	dispatcher := c.mcp
+	c.mcp = nil
+	c.mcpMu.Unlock()
+	if dispatcher != nil {
+		dispatcher.Close()
 	}
 }
 
@@ -249,16 +294,43 @@ func (c *Client) WriteData(p []byte) {
 	_, _ = c.UserWrite.Write(p)
 }
 
-func (c *Client) WriteAgentData(p []byte) {
+func (c *Client) WriteAgentToolData(p []byte) error {
 	c.inputMu.Lock()
 	defer c.inputMu.Unlock()
-	_, _ = c.UserWrite.Write(p)
+	_, err := c.UserWrite.Write(p)
+	return err
 }
 
 func (c *Client) SetInputLocked(locked bool) {
 	c.inputMu.Lock()
 	c.inputLocked = locked
 	c.inputMu.Unlock()
+}
+
+func (c *Client) setTerminalObserver(observer *sessiontools.TerminalObserver) bool {
+	c.observerMu.Lock()
+	defer c.observerMu.Unlock()
+	if c.observer != nil || observer == nil {
+		return false
+	}
+	c.observer = observer
+	return true
+}
+
+func (c *Client) getTerminalObserver() *sessiontools.TerminalObserver {
+	c.observerMu.RLock()
+	defer c.observerMu.RUnlock()
+	return c.observer
+}
+
+func (c *Client) closeTerminalObserver() {
+	c.observerMu.Lock()
+	observer := c.observer
+	c.observer = nil
+	c.observerMu.Unlock()
+	if observer != nil {
+		_ = observer.Close()
+	}
 }
 
 func (c *Client) Context() context.Context {
