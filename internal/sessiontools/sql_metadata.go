@@ -79,7 +79,7 @@ func (t *sqlMetadataTool) Lookup(
 		appendSQLTableRef(&refs, seen, ref)
 	}
 	result := SQLSchemaLookupResult{Database: t.database, Tables: []SQLTableSchema{}}
-	if request.Query != "" && len(refs) < maxSQLMetadataTables {
+	if (request.Query != "" || len(refs) == 0) && len(refs) < maxSQLMetadataTables {
 		matches, searchErr := t.search(ctx, request.Query)
 		if searchErr != nil {
 			return result, searchErr
@@ -90,14 +90,17 @@ func (t *sqlMetadataTool) Lookup(
 				appendSQLTableRef(&refs, seen, match)
 			}
 		}
+		result.Truncated = len(matches) == maxSQLMetadataMatches
 	}
 	if len(refs) > maxSQLMetadataTables {
 		refs = refs[:maxSQLMetadataTables]
 	}
-	result.Tables, result.Truncated, err = t.describe(ctx, refs)
+	var describeTruncated bool
+	result.Tables, describeTruncated, err = t.describe(ctx, refs)
 	if err != nil {
 		return result, err
 	}
+	result.Truncated = result.Truncated || describeTruncated
 	t.mu.Lock()
 	if len(t.cache) >= maxSQLMetadataCache {
 		clear(t.cache)
@@ -111,6 +114,9 @@ func normalizeSQLSchemaLookupRequest(
 	request SQLSchemaLookupRequest,
 ) (SQLSchemaLookupRequest, error) {
 	request.Query = strings.TrimSpace(request.Query)
+	if request.Query == "*" {
+		request.Query = ""
+	}
 	if len(request.Query) > maxSQLMetadataQuery {
 		return request, fmt.Errorf("SQL metadata search is too long")
 	}
@@ -133,9 +139,6 @@ func normalizeSQLSchemaLookupRequest(
 	}
 	if len(result.Tables) > maxSQLMetadataTables {
 		return request, fmt.Errorf("SQL metadata lookup supports at most %d tables", maxSQLMetadataTables)
-	}
-	if len(result.Tables) == 0 && result.Query == "" {
-		return request, fmt.Errorf("SQL metadata lookup requires a table or search query")
 	}
 	return result, nil
 }

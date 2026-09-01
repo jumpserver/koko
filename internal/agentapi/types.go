@@ -62,9 +62,13 @@ type Principal struct {
 	OrganizationID string `json:"org_id"`
 }
 
-// ContextSnapshot is the explicit, credential-free part of a Koko terminal
+// ContextSnapshot is the explicit, credential-free part of a resource session
 // context that an agent is allowed to retain.
 type ContextSnapshot struct {
+	SessionKind      string `json:"session_kind,omitempty"`
+	InteractionMode  string `json:"interaction_mode,omitempty"`
+	CommandLanguage  string `json:"command_language,omitempty"`
+	Dialect          string `json:"dialect,omitempty"`
 	Protocol         string `json:"protocol"`
 	ConnectionMethod string `json:"connection_method,omitempty"`
 	AssetID          string `json:"asset_id,omitempty"`
@@ -77,6 +81,7 @@ type ContextSnapshot struct {
 	BaseOS           string `json:"base_os,omitempty"`
 	Charset          string `json:"charset,omitempty"`
 	Database         string `json:"database,omitempty"`
+	Schema           string `json:"schema,omitempty"`
 }
 
 type ToolDefinition struct {

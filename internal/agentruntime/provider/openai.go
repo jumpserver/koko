@@ -131,10 +131,13 @@ func (p *openAIProvider) Complete(
 		if storedState {
 			return p.Complete(ctx, request)
 		}
+		request.ToolOutputs = nil
 		return p.completeResponses(ctx, request)
 	}
 	structuredUnsupported := IsKind(err, ErrorStructuredUnsupported)
-	if !IsKind(err, ErrorResponsesUnsupported) && !structuredUnsupported {
+	toolUnsupported := IsKind(err, ErrorToolUnsupported)
+	if !IsKind(err, ErrorResponsesUnsupported) && !structuredUnsupported &&
+		!toolUnsupported {
 		return result, err
 	}
 	p.mu.Lock()
@@ -145,6 +148,8 @@ func (p *openAIProvider) Complete(
 	from := "responses"
 	if structuredUnsupported {
 		from = "responses_structured_output"
+	} else if toolUnsupported {
+		from = "responses_tool_call"
 	}
 	trace(p.config.Trace, "provider_fallback", map[string]any{
 		"provider": p.config.Name, "from": from,
@@ -166,7 +171,9 @@ func (p *openAIProvider) completeResponses(
 	turns := cloneResponseTurns(p.turns)
 	p.mu.Unlock()
 
-	items := responseInput(turns, request.User, useStore && previousID != "")
+	items := responseInput(
+		turns, request.User, request.ToolOutputs, useStore && previousID != "",
+	)
 	params := responses.ResponseNewParams{
 		Model:        shared.ResponsesModel(p.config.Model),
 		Instructions: openai.String(request.System),
@@ -191,15 +198,16 @@ func (p *openAIProvider) completeResponses(
 			Context: shared.ReasoningContextAllTurns,
 		}
 	}
-	if request.Operation == OperationAction && request.Tool != nil {
-		format := responses.ResponseFormatTextConfigParamOfJSONSchema(
-			request.Tool.Name, request.Tool.Parameters,
-		)
-		if format.OfJSONSchema != nil {
-			format.OfJSONSchema.Strict = openai.Bool(true)
-			format.OfJSONSchema.Description = openai.String(request.Tool.Description)
+	if request.Operation == OperationAction && len(request.Tools) > 0 {
+		params.Tools = responseTools(request.Tools)
+		params.ParallelToolCalls = openai.Bool(false)
+		if request.RequiredTool != "" {
+			params.ToolChoice.OfFunctionTool = &responses.ToolChoiceFunctionParam{
+				Name: request.RequiredTool,
+			}
+		} else {
+			params.ToolChoice.OfToolChoiceMode = openai.Opt(responses.ToolChoiceOptionsAuto)
 		}
-		params.Text.Format = format
 	} else if request.Operation == OperationJSON {
 		jsonObject := shared.NewResponseFormatJSONObjectParam()
 		params.Text.Format = responses.ResponseFormatTextConfigUnionParam{
@@ -252,7 +260,34 @@ func (p *openAIProvider) completeResponses(
 			"agent runtime Responses request ended with status %q", response.Status)
 	}
 	result.Content = strings.TrimSpace(response.OutputText())
-	if result.Content == "" {
+	callCount := 0
+	for _, item := range response.Output {
+		if item.Type == "function_call" {
+			callCount++
+		}
+	}
+	if callCount > 1 {
+		return result, NewOutputError(ErrorInvalidOutput,
+			"agent runtime provider %s model %s returned multiple tool calls",
+			p.config.Name, p.config.Model)
+	}
+	if result.ToolCall != nil {
+		if !hasActionTool(request.Tools, result.ToolCall.Name) ||
+			(request.RequiredTool != "" && result.ToolCall.Name != request.RequiredTool) {
+			return result, NewOutputError(ErrorToolUnsupported,
+				"agent runtime provider %s model %s returned an unexpected tool call",
+				p.config.Name, p.config.Model)
+		}
+		if len(result.ToolCall.Arguments) == 0 {
+			return result, NewOutputError(ErrorInvalidOutput,
+				"agent runtime provider %s model %s returned empty tool arguments",
+				p.config.Name, p.config.Model)
+		}
+	} else if request.RequiredTool != "" {
+		return result, NewOutputError(ErrorToolUnsupported,
+			"agent runtime provider %s model %s did not call required tool %q",
+			p.config.Name, p.config.Model, request.RequiredTool)
+	} else if result.Content == "" {
 		return result, NewOutputError(ErrorInvalidOutput,
 			"agent runtime provider %s model %s returned empty content",
 			p.config.Name, p.config.Model)
@@ -282,16 +317,29 @@ func (p *openAIProvider) reasoningEffort() string {
 func responseInput(
 	turns []responseTurn,
 	current string,
+	outputs []ToolOutput,
 	serverChained bool,
 ) []responses.ResponseInputItemUnionParam {
+	toolOutputItems := make([]responses.ResponseInputItemUnionParam, 0, len(outputs))
+	for _, output := range outputs {
+		if output.CallID == "" {
+			continue
+		}
+		toolOutputItems = append(toolOutputItems,
+			responses.ResponseInputItemParamOfFunctionCallOutput(
+				output.CallID, output.Output,
+			),
+		)
+	}
 	if serverChained {
-		return []responses.ResponseInputItemUnionParam{
+		return append(toolOutputItems,
 			responses.ResponseInputItemParamOfMessage(
 				current, responses.EasyInputMessageRoleUser,
 			),
-		}
+		)
 	}
-	items := make([]responses.ResponseInputItemUnionParam, 0, len(turns)*2+1)
+	items := make([]responses.ResponseInputItemUnionParam, 0,
+		len(turns)*2+len(toolOutputItems)+1)
 	for _, turn := range turns {
 		items = append(items, responses.ResponseInputItemParamOfMessage(
 			turn.input, responses.EasyInputMessageRoleUser,
@@ -303,6 +351,7 @@ func responseInput(
 			}
 		}
 	}
+	items = append(items, toolOutputItems...)
 	return append(items, responses.ResponseInputItemParamOfMessage(
 		current, responses.EasyInputMessageRoleUser,
 	))
@@ -329,6 +378,26 @@ func responseResult(response *responses.Response, requestID string) CompletionRe
 		if item.Type == "reasoning" && item.EncryptedContent != "" {
 			result.ReasoningContent += item.EncryptedContent
 		}
+		if item.Type == "function_call" && result.ToolCall == nil {
+			call := item.AsFunctionCall()
+			result.ToolCall = &ToolCall{
+				ID: call.CallID, Name: call.Name,
+				Arguments: json.RawMessage(strings.TrimSpace(call.Arguments)),
+			}
+		}
+	}
+	return result
+}
+
+func responseTools(tools []ActionTool) []responses.ToolUnionParam {
+	result := make([]responses.ToolUnionParam, 0, len(tools))
+	for _, tool := range tools {
+		result = append(result, responses.ToolUnionParam{
+			OfFunction: &responses.FunctionToolParam{
+				Name: tool.Name, Description: openai.String(tool.Description),
+				Parameters: tool.Parameters, Strict: openai.Bool(false),
+			},
+		})
 	}
 	return result
 }

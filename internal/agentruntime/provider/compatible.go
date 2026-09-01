@@ -128,7 +128,7 @@ func (p *compatibleProvider) complete(
 	request CompletionRequest,
 	reasoning bool,
 ) (CompletionResult, error) {
-	if request.Operation == OperationAction && request.Tool != nil {
+	if request.Operation == OperationAction && len(request.Tools) > 0 {
 		return p.completeAction(ctx, request, reasoning)
 	}
 	if request.Operation == OperationJSON {
@@ -149,7 +149,7 @@ func (p *compatibleProvider) completeAction(
 	if !useToolCall {
 		return p.completeActionJSON(ctx, request, reasoning)
 	}
-	result, err := p.completeTool(ctx, request, reasoning)
+	result, err := p.completeTools(ctx, request, reasoning)
 	if err == nil || p.config.ToolCallMode != ToolCallAuto ||
 		!IsKind(err, ErrorToolUnsupported) {
 		return result, err
@@ -170,19 +170,50 @@ func (p *compatibleProvider) completeActionJSON(
 	request CompletionRequest,
 	reasoning bool,
 ) (CompletionResult, error) {
-	schema, err := json.Marshal(request.Tool.Parameters)
-	if err != nil {
-		return CompletionResult{}, fmt.Errorf(
-			"encode agent runtime action %q schema: %w", request.Tool.Name, err,
+	if request.RequiredTool != "" {
+		tool, ok := actionTool(request.Tools, request.RequiredTool)
+		if !ok {
+			return CompletionResult{}, NewOutputError(ErrorInvalidOutput,
+				"required tool %q is not registered", request.RequiredTool)
+		}
+		schema, err := json.Marshal(tool.Parameters)
+		if err != nil {
+			return CompletionResult{}, fmt.Errorf(
+				"encode agent runtime tool %q schema: %w", tool.Name, err,
+			)
+		}
+		request.System = fmt.Sprintf(
+			"%s\nNative tool calling is unavailable. Return only one JSON object "+
+				"containing the arguments for required tool %q. It must match this "+
+				"JSON Schema exactly; object-valued fields must be objects:\n%s",
+			request.System, tool.Name, schema,
 		)
+		result, err := p.completeJSONChat(ctx, request, reasoning)
+		if err != nil {
+			return result, err
+		}
+		result.ToolCall = &ToolCall{
+			Name: tool.Name, Arguments: json.RawMessage(result.Content),
+		}
+		result.Content = ""
+		return result, nil
+	}
+	tools, err := json.Marshal(request.Tools)
+	if err != nil {
+		return CompletionResult{}, fmt.Errorf("encode agent runtime tools: %w", err)
 	}
 	request.System = fmt.Sprintf(
-		"%s\nReturn only one JSON object containing the arguments for action %q. "+
-			"It must match this JSON Schema exactly. Object-valued fields must "+
-			"be JSON objects, never JSON-encoded strings:\n%s",
-		request.System, request.Tool.Name, schema,
+		"%s\nNative tool calling is unavailable. Return only one JSON object "+
+			"with kind, answer, tool_name, and arguments. Use kind answer with a "+
+			"non-empty answer and empty tool_name, or kind tool_call with exactly "+
+			"one listed tool, an empty answer, and an arguments object. Available tools:\n%s",
+		request.System, tools,
 	)
-	return p.completeJSONChat(ctx, request, reasoning)
+	result, err := p.completeJSONChat(ctx, request, reasoning)
+	if err != nil {
+		return result, err
+	}
+	return decodeFallbackAction(result, request.Tools)
 }
 
 func (p *compatibleProvider) completeJSONChat(
@@ -214,7 +245,7 @@ func (p *compatibleProvider) completeJSONChat(
 		openai.ChatCompletionNewParamsResponseFormatUnion{})
 }
 
-func (p *compatibleProvider) completeTool(
+func (p *compatibleProvider) completeTools(
 	ctx context.Context,
 	request CompletionRequest,
 	reasoning bool,
@@ -222,22 +253,20 @@ func (p *compatibleProvider) completeTool(
 	if err := ConsumeRequest(ctx); err != nil {
 		return CompletionResult{}, err
 	}
-	tool := request.Tool
 	params := openai.ChatCompletionNewParams{
 		Model: p.config.Model,
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.SystemMessage(request.System), openai.UserMessage(request.User),
 		},
 		ParallelToolCalls: openai.Bool(false),
-		Tools: []openai.ChatCompletionToolUnionParam{
-			openai.ChatCompletionFunctionTool(shared.FunctionDefinitionParam{
-				Name: tool.Name, Description: openai.String(tool.Description),
-				Parameters: shared.FunctionParameters(tool.Parameters),
-			}),
-		},
-		ToolChoice: openai.ToolChoiceOptionFunctionToolChoice(
-			openai.ChatCompletionNamedToolChoiceFunctionParam{Name: tool.Name},
-		),
+		Tools:             chatCompletionTools(request.Tools),
+	}
+	if request.RequiredTool != "" {
+		params.ToolChoice = openai.ToolChoiceOptionFunctionToolChoice(
+			openai.ChatCompletionNamedToolChoiceFunctionParam{Name: request.RequiredTool},
+		)
+	} else {
+		params.ToolChoice.OfAuto = openai.String("auto")
 	}
 	p.configureChatParams(&params, reasoning)
 	p.traceRequest(request, params, reasoning)
@@ -261,19 +290,108 @@ func (p *compatibleProvider) completeTool(
 			p.config.Name, p.config.Model)
 	}
 	calls := response.Choices[0].Message.ToolCalls
-	if len(calls) != 1 || calls[0].Type != "function" ||
-		calls[0].Function.Name != tool.Name {
+	if len(calls) > 1 {
+		return result, NewOutputError(ErrorInvalidOutput,
+			"agent runtime provider %s model %s returned multiple tool calls",
+			p.config.Name, p.config.Model)
+	}
+	if len(calls) == 0 {
+		result.Content = strings.TrimSpace(response.Choices[0].Message.Content)
+		if request.RequiredTool != "" {
+			return result, NewOutputError(ErrorToolUnsupported,
+				"agent runtime provider %s model %s did not call required tool %q",
+				p.config.Name, p.config.Model, request.RequiredTool)
+		}
+		if result.Content == "" {
+			return result, NewOutputError(ErrorInvalidOutput,
+				"agent runtime provider %s model %s returned empty content",
+				p.config.Name, p.config.Model)
+		}
+		return result, nil
+	}
+	call := calls[0]
+	if call.Type != "function" || !hasActionTool(request.Tools, call.Function.Name) ||
+		(request.RequiredTool != "" && call.Function.Name != request.RequiredTool) {
 		return result, NewOutputError(ErrorToolUnsupported,
 			"agent runtime provider %s model %s returned an unexpected tool call",
 			p.config.Name, p.config.Model)
 	}
-	result.Content = strings.TrimSpace(calls[0].Function.Arguments)
-	if result.Content == "" {
+	arguments := strings.TrimSpace(call.Function.Arguments)
+	if arguments == "" {
 		return result, NewOutputError(ErrorInvalidOutput,
 			"agent runtime provider %s model %s returned empty tool arguments",
 			p.config.Name, p.config.Model)
 	}
+	result.ToolCall = &ToolCall{
+		ID: call.ID, Name: call.Function.Name, Arguments: json.RawMessage(arguments),
+	}
 	return result, nil
+}
+
+func chatCompletionTools(tools []ActionTool) []openai.ChatCompletionToolUnionParam {
+	result := make([]openai.ChatCompletionToolUnionParam, 0, len(tools))
+	for _, tool := range tools {
+		result = append(result, openai.ChatCompletionFunctionTool(
+			shared.FunctionDefinitionParam{
+				Name: tool.Name, Description: openai.String(tool.Description),
+				Parameters: shared.FunctionParameters(tool.Parameters),
+				Strict:     openai.Bool(false),
+			},
+		))
+	}
+	return result
+}
+
+func actionTool(tools []ActionTool, name string) (ActionTool, bool) {
+	for _, tool := range tools {
+		if tool.Name == name {
+			return tool, true
+		}
+	}
+	return ActionTool{}, false
+}
+
+func hasActionTool(tools []ActionTool, name string) bool {
+	_, ok := actionTool(tools, name)
+	return ok
+}
+
+func decodeFallbackAction(
+	result CompletionResult,
+	tools []ActionTool,
+) (CompletionResult, error) {
+	var action struct {
+		Kind      string          `json:"kind"`
+		Answer    string          `json:"answer"`
+		ToolName  string          `json:"tool_name"`
+		Arguments json.RawMessage `json:"arguments"`
+	}
+	if err := json.Unmarshal([]byte(result.Content), &action); err != nil {
+		return result, NewOutputError(ErrorInvalidOutput,
+			"decode fallback agent action: %v", err)
+	}
+	switch action.Kind {
+	case "answer":
+		result.Content = strings.TrimSpace(action.Answer)
+		if result.Content == "" || action.ToolName != "" {
+			return result, NewOutputError(ErrorInvalidOutput,
+				"fallback answer action is invalid")
+		}
+		return result, nil
+	case "tool_call":
+		if !hasActionTool(tools, action.ToolName) || len(action.Arguments) == 0 {
+			return result, NewOutputError(ErrorInvalidOutput,
+				"fallback tool action is invalid")
+		}
+		result.Content = ""
+		result.ToolCall = &ToolCall{
+			Name: action.ToolName, Arguments: action.Arguments,
+		}
+		return result, nil
+	default:
+		return result, NewOutputError(ErrorInvalidOutput,
+			"fallback action kind %q is invalid", action.Kind)
+	}
 }
 
 func (p *compatibleProvider) completeChat(

@@ -73,16 +73,29 @@ type ProviderInfo struct {
 }
 
 type ActionTool struct {
-	Name        string
-	Description string
-	Parameters  map[string]any
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters"`
+}
+
+type ToolCall struct {
+	ID        string
+	Name      string
+	Arguments json.RawMessage
+}
+
+type ToolOutput struct {
+	CallID string
+	Output string
 }
 
 type CompletionRequest struct {
 	Operation     Operation
 	System        string
 	User          string
-	Tool          *ActionTool
+	Tools         []ActionTool
+	RequiredTool  string
+	ToolOutputs   []ToolOutput
 	Tier          ContextTier
 	ReasoningMode string
 }
@@ -98,6 +111,7 @@ type TokenUsage struct {
 
 type CompletionResult struct {
 	Content          string            `json:"content"`
+	ToolCall         *ToolCall         `json:"toolCall,omitempty"`
 	FinishReason     string            `json:"finishReason,omitempty"`
 	IncompleteReason string            `json:"incompleteReason,omitempty"`
 	ResponseID       string            `json:"responseId,omitempty"`

@@ -1,6 +1,7 @@
 package sessiontools
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -8,6 +9,80 @@ import (
 	"github.com/jumpserver/koko/internal/agentapi"
 	"github.com/jumpserver/koko/internal/agentruntime"
 )
+
+func TestPostgreSQLCommandToolContractRejectsShell(t *testing.T) {
+	validator := ProtocolCommandValidator("postgresql")
+	if _, err := validator("free -h"); err == nil || !strings.Contains(err.Error(), "SQL statements only") {
+		t.Fatalf("shell command validation error = %v", err)
+	}
+	if _, err := validator("SELECT current_setting('shared_buffers')"); err != nil {
+		t.Fatalf("valid PostgreSQL statement rejected: %v", err)
+	}
+
+	handler, err := NewCommandTool(MCPCommandToolOptions{
+		Protocol: "postgresql", Validate: validator,
+		Hooks: MCPCommandHooks{PTYExecute: func(
+			context.Context, string, *CommandACLDecision,
+		) (string, *int, error) {
+			return "", nil, nil
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := handler.Definition()
+	if definition.Name != MCPToolExecuteSQL || definition.Title != "Execute PostgreSQL SQL" ||
+		!strings.Contains(definition.Description, "shell commands are unavailable") {
+		t.Fatalf("unexpected PostgreSQL tool presentation: %#v", definition)
+	}
+	properties := definition.InputSchema["properties"].(map[string]any)
+	modes := properties["execution"].(map[string]any)["enum"].([]string)
+	if len(modes) != 2 || modes[0] != MCPExecutionAuto || modes[1] != MCPExecutionPTY {
+		t.Fatalf("execution modes = %#v", modes)
+	}
+}
+
+func TestDatabaseSchemaArgumentsSupportBoundedListing(t *testing.T) {
+	for _, request := range []SQLSchemaLookupRequest{{}, {Query: "*"}} {
+		normalized, err := normalizeSQLSchemaLookupRequest(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if normalized.Query != "" || len(normalized.Tables) != 0 {
+			t.Fatalf("normalized request = %#v", normalized)
+		}
+	}
+}
+
+func TestSessionSpecificToolSelection(t *testing.T) {
+	for protocol, expected := range map[string]string{
+		"ssh":        MCPToolExecuteShell,
+		"k8s":        MCPToolExecuteShell,
+		"postgresql": MCPToolExecuteSQL,
+		"redis":      MCPToolExecuteRedis,
+		"mongodb":    MCPToolExecuteMongoDB,
+	} {
+		if actual := commandToolName(protocol); actual != expected {
+			t.Fatalf("command tool for %s = %s, want %s", protocol, actual, expected)
+		}
+	}
+
+	handlers, err := NewFileToolHandlers(
+		struct{ FileExecutor }{},
+		FileToolCapabilities{ReadText: true},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, 0, len(handlers))
+	for _, handler := range handlers {
+		names = append(names, handler.Definition().Name)
+	}
+	joined := strings.Join(names, ",")
+	if joined != "list_directory,stat,read_text" {
+		t.Fatalf("read-only file tools = %s", joined)
+	}
+}
 
 func TestAgentToolOutputSchemasAndLargeResult(t *testing.T) {
 	schemas := []map[string]any{

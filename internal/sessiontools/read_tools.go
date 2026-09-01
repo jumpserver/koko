@@ -82,6 +82,7 @@ func (t *terminalContextTool) Call(
 func (t *terminalSnapshotTool) Definition() MCPToolDefinition {
 	return MCPToolDefinition{
 		Name:         MCPToolTerminalSnapshot,
+		Title:        "Read terminal snapshot",
 		Description:  "Read the bounded current terminal snapshot for AI analysis on demand",
 		InputSchema:  emptyObjectSchema(),
 		OutputSchema: terminalSnapshotOutputSchema(),
@@ -106,16 +107,23 @@ func (t *terminalSnapshotTool) Call(
 func (t *databaseSchemaTool) Definition() MCPToolDefinition {
 	return MCPToolDefinition{
 		Name:         MCPToolDatabaseSchema,
-		Description:  "Look up bounded schema metadata for the active database resource",
+		Title:        "Inspect database schema",
+		Description:  "List bounded table names with an empty argument object, search table names with a literal query, or describe up to five exact tables in the active database. This reads metadata only, never business rows.",
 		OutputSchema: databaseSchemaOutputSchema(),
 		InputSchema: map[string]any{
 			"type": "object", "additionalProperties": false,
 			"properties": map[string]any{
 				"tables": map[string]any{
-					"type": "array", "items": map[string]any{"type": "string"},
-					"maxItems": maxSQLMetadataTables,
+					"type": "array", "items": map[string]any{
+						"type": "string", "minLength": 1, "maxLength": 256,
+					},
+					"maxItems":    maxSQLMetadataTables,
+					"description": "Exact table names to describe; optionally qualify each name with its schema",
 				},
-				"query": map[string]any{"type": "string", "maxLength": 256},
+				"query": map[string]any{
+					"type": "string", "maxLength": maxSQLMetadataQuery,
+					"description": "Literal case-insensitive table-name substring, not a wildcard; omit to list tables",
+				},
 			},
 		},
 		Annotations: map[string]any{

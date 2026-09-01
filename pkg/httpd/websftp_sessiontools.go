@@ -41,12 +41,18 @@ func (h *webSftp) initializeFileTools() {
 		return
 	}
 	resourceID := h.ws.Uuid
-	contextSnapshot := agentapi.ContextSnapshot{}
+	contextSnapshot := agentapi.ContextSnapshot{
+		SessionKind: "file", InteractionMode: "live",
+		CommandLanguage: "sftp", Protocol: srvconn.ProtocolSFTP,
+	}
 	if token := h.ws.ConnectToken; token != nil {
 		resourceID = token.Id
-		contextSnapshot = agentContextSnapshot(token)
+		contextSnapshot = agentContextSnapshot(token, "file")
 	}
-	handlers, err := sessiontools.NewFileToolHandlers(&webSFTPAgentToolExecutor{
+	canDownload := h.ws.ConnectToken == nil || h.ws.ConnectToken.Actions.EnableDownload()
+	canUpload := h.ws.ConnectToken == nil || h.ws.ConnectToken.Actions.EnableUpload()
+	canDelete := h.ws.ConnectToken == nil || h.ws.ConnectToken.Actions.EnableDelete()
+	executor := &webSFTPAgentToolExecutor{
 		volume:       h.volume,
 		resolvePath:  h.volume.UserSftp.ResolveAgentToolPath,
 		validatePath: h.volume.UserSftp.ValidateAgentToolPath,
@@ -57,18 +63,22 @@ func (h *webSftp) initializeFileTools() {
 			return nil
 		},
 		canDownload: func() bool {
-			return h.ws.ConnectToken == nil ||
-				h.ws.ConnectToken.Actions.EnableDownload()
+			return canDownload
 		},
 		canUpload: func() bool {
-			return h.ws.ConnectToken == nil ||
-				h.ws.ConnectToken.Actions.EnableUpload()
+			return canUpload
 		},
 		canDelete: func() bool {
-			return h.ws.ConnectToken == nil ||
-				h.ws.ConnectToken.Actions.EnableDelete()
+			return canDelete
 		},
-	})
+	}
+	handlers, err := sessiontools.NewFileToolHandlers(
+		executor,
+		sessiontools.FileToolCapabilities{
+			ReadText: canDownload, SaveText: canUpload,
+			Mkdir: canUpload, Rename: canUpload, Delete: canDelete,
+		},
+	)
 	if err != nil {
 		logger.Errorf("SFTP websocket %s MCP file tools unavailable: %s", h.ws.Uuid, err)
 		return

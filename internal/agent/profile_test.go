@@ -10,9 +10,7 @@ func TestScriptRuntimeProfileIsProposalOnly(t *testing.T) {
 	if !ok {
 		t.Fatal("script runtime profile is not registered")
 	}
-	for _, required := range []string{
-		"read_script", "propose_script", "do not call another tool", "Never execute", "Never claim", "approval_required to false",
-	} {
+	for _, required := range []string{"draft-only", "latest revision", "never claim"} {
 		if !strings.Contains(profile.instructions, required) {
 			t.Fatalf("script runtime policy is missing %q", required)
 		}
@@ -24,9 +22,12 @@ func TestSQLRuntimeProfileUsesChenTools(t *testing.T) {
 	if !ok {
 		t.Fatal("SQL runtime profile is missing")
 	}
-	for _, required := range []string{"read_sql_context", "inspect_schema", "propose_sql", "draft-only"} {
+	for _, required := range []string{"draft-only", "verified editor context", "proposal tool", "never claim"} {
 		if !strings.Contains(profile.instructions, required) {
 			t.Fatalf("SQL runtime profile does not contain %q", required)
 		}
+	}
+	if !profile.requiresApproval("inspect_schema") || profile.requiresApproval("validate_sql") {
+		t.Fatal("SQL runtime approval policy is invalid")
 	}
 }

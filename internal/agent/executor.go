@@ -82,7 +82,7 @@ func (s *agentSession) callTool(
 	if err != nil {
 		return agentruntime.ToolObservation{}, err
 	}
-	if s.needsApproval(tool, request.ApprovalRequired) {
+	if s.needsApproval(tool) {
 		digest, _ := agentauth.HashValue(map[string]any{
 			"resource_session_id": s.resourceID,
 			"run_id":              request.RunID, "tool_call_id": toolCallID,

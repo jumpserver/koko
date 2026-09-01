@@ -16,6 +16,14 @@ type mcpToolHandler struct {
 	executor FileExecutor
 }
 
+type FileToolCapabilities struct {
+	ReadText bool
+	SaveText bool
+	Mkdir    bool
+	Rename   bool
+	Delete   bool
+}
+
 type mcpPathArguments struct {
 	Path string `json:"path"`
 }
@@ -48,13 +56,28 @@ type mcpDeleteArguments struct {
 	Recursive       bool   `json:"recursive,omitempty"`
 }
 
-func NewFileToolHandlers(executor FileExecutor) ([]MCPToolHandler, error) {
+func NewFileToolHandlers(
+	executor FileExecutor,
+	capabilities FileToolCapabilities,
+) ([]MCPToolHandler, error) {
 	if executor == nil {
 		return nil, errors.New("file MCP executor is required")
 	}
-	names := []string{
-		ToolListDirectory, ToolStat, ToolReadText, ToolSaveText,
-		ToolMkdir, ToolRename, ToolDelete,
+	names := []string{ToolListDirectory, ToolStat}
+	if capabilities.ReadText {
+		names = append(names, ToolReadText)
+	}
+	if capabilities.SaveText {
+		names = append(names, ToolSaveText)
+	}
+	if capabilities.Mkdir {
+		names = append(names, ToolMkdir)
+	}
+	if capabilities.Rename {
+		names = append(names, ToolRename)
+	}
+	if capabilities.Delete {
+		names = append(names, ToolDelete)
 	}
 	handlers := make([]MCPToolHandler, 0, len(names))
 	for _, name := range names {
@@ -78,9 +101,10 @@ func (h *mcpToolHandler) Definition() MCPToolDefinition {
 	annotations := map[string]any{"readOnlyHint": true}
 	switch h.name {
 	case ToolListDirectory:
-		description = "List a directory through the active SFTP session"
+		description = "List bounded entries in one virtual directory through the active SFTP session"
 		properties["limit"] = map[string]any{
 			"type": "integer", "minimum": 1, "maximum": MaxDirectoryEntries,
+			"description": "Maximum entries to return; omit to use the bounded server maximum",
 		}
 	case ToolStat:
 		description = "Read current path metadata and version"
@@ -95,6 +119,7 @@ func (h *mcpToolHandler) Definition() MCPToolDefinition {
 		}
 		properties["max_bytes"] = map[string]any{
 			"type": "integer", "minimum": 1, "maximum": MaxTextBytes,
+			"description": "Maximum UTF-8 bytes to read; omit to use the bounded server maximum",
 		}
 	case ToolSaveText:
 		annotations["readOnlyHint"] = false
@@ -123,16 +148,41 @@ func (h *mcpToolHandler) Definition() MCPToolDefinition {
 		annotations["destructiveHint"] = true
 		description = "Delete a path with a mandatory version precondition"
 		properties["expected_version"] = stringProperty("Version returned by stat")
-		properties["recursive"] = map[string]any{"type": "boolean"}
+		properties["recursive"] = map[string]any{
+			"type":        "boolean",
+			"description": "Must be true when deleting a directory; ignored for a file",
+		}
 		required = append(required, "expected_version")
 	}
 	return MCPToolDefinition{
-		Name: h.name, Description: description, Annotations: annotations,
+		Name: h.name, Title: fileToolTitle(h.name),
+		Description: description, Annotations: annotations,
 		OutputSchema: fileToolOutputSchema(h.name),
 		InputSchema: map[string]any{
 			"type": "object", "additionalProperties": false,
 			"properties": properties, "required": required,
 		},
+	}
+}
+
+func fileToolTitle(name string) string {
+	switch name {
+	case ToolListDirectory:
+		return "List directory"
+	case ToolStat:
+		return "Inspect path"
+	case ToolReadText:
+		return "Read text file"
+	case ToolSaveText:
+		return "Save text file"
+	case ToolMkdir:
+		return "Create directory"
+	case ToolRename:
+		return "Rename path"
+	case ToolDelete:
+		return "Delete path"
+	default:
+		return name
 	}
 }
 

@@ -2,18 +2,42 @@ package httpd
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/internal/agentapi"
 	"github.com/jumpserver/koko/internal/sessiontools"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-func agentContextSnapshot(token *model.ConnectToken) agentapi.ContextSnapshot {
+func agentContextSnapshot(
+	token *model.ConnectToken,
+	sessionKind string,
+) agentapi.ContextSnapshot {
 	if token == nil {
-		return agentapi.ContextSnapshot{}
+		return agentapi.ContextSnapshot{SessionKind: sessionKind}
+	}
+	protocol := strings.ToLower(strings.TrimSpace(token.Protocol))
+	commandLanguage := protocol
+	dialect := ""
+	switch protocol {
+	case srvconn.ProtocolSSH, srvconn.ProtocolTELNET, srvconn.ProtocolK8s:
+		commandLanguage = "shell"
+	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse:
+		commandLanguage = "sql"
+		dialect = protocol
+	case srvconn.ProtocolSFTP:
+		commandLanguage = "sftp"
+	}
+	if sessionKind == "file" {
+		commandLanguage = "sftp"
 	}
 	return agentapi.ContextSnapshot{
-		Protocol: token.Protocol,
+		SessionKind: sessionKind, InteractionMode: "live",
+		CommandLanguage: commandLanguage, Dialect: dialect,
+		Protocol: protocol,
 		ConnectionMethod: firstNonEmpty(
 			token.ConnectMethod.Value,
 			token.ConnectMethod.Type,

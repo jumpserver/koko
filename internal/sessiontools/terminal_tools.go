@@ -15,7 +15,12 @@ import (
 
 const (
 	MCPToolExecuteCommand    = "execute_command"
+	MCPToolExecuteShell      = "execute_shell"
+	MCPToolExecuteSQL        = "execute_sql"
+	MCPToolExecuteRedis      = "execute_redis"
+	MCPToolExecuteMongoDB    = "execute_mongodb"
 	MCPExecutionModesMetaKey = "com.jumpserver/executionModes"
+	MCPToolKindMetaKey       = "com.jumpserver/toolKind"
 	MCPExecutionAuto         = "auto"
 	MCPExecutionPTY          = "pty"
 	MCPExecutionBackground   = "background"
@@ -69,6 +74,7 @@ type CommandValidator func(string) (CommandConstraints, error)
 type MCPCommandToolOptions struct {
 	Executor CommandExecutor
 	Validate CommandValidator
+	Protocol string
 	Hooks    MCPCommandHooks
 }
 
@@ -90,6 +96,7 @@ type mcpCommandArguments struct {
 type mcpCommandTool struct {
 	executor CommandExecutor
 	validate CommandValidator
+	protocol string
 	hooks    MCPCommandHooks
 	close    sync.Once
 }
@@ -102,11 +109,52 @@ func NewCommandTool(options MCPCommandToolOptions) (MCPToolHandler, error) {
 		return nil, errors.New("connection command validator is required")
 	}
 	return &mcpCommandTool{
-		executor: options.Executor, validate: options.Validate, hooks: options.Hooks,
+		executor: options.Executor, validate: options.Validate,
+		protocol: strings.ToLower(strings.TrimSpace(options.Protocol)), hooks: options.Hooks,
 	}, nil
 }
 
 func (t *mcpCommandTool) Definition() MCPToolDefinition {
+	executionModes := t.executionModes()
+	title, description, commandDescription := commandToolPresentation(t.protocol)
+	executionDescription := "Select how to execute the command; auto chooses the safest available mode"
+	if isSQLProtocol(t.protocol) {
+		executionDescription = "Use auto for SQL; PTY is only for a recognized session-dependent SQL statement"
+	}
+	return MCPToolDefinition{
+		Name: commandToolName(t.protocol), Title: title, Description: description,
+		OutputSchema: commandOutputSchema(),
+		Annotations: map[string]any{
+			"readOnlyHint": false, "openWorldHint": true,
+		},
+		Meta: map[string]any{
+			MCPExecutionModesMetaKey: executionModes,
+			MCPToolKindMetaKey:       "command",
+		},
+		InputSchema: map[string]any{
+			"type": "object", "additionalProperties": false,
+			"properties": map[string]any{
+				"command": map[string]any{
+					"type": "string", "minLength": 1,
+					"maxLength":   maximumMCPCommandSize,
+					"description": commandDescription,
+				},
+				"timeout_seconds": map[string]any{
+					"type": "integer", "minimum": 1,
+					"maximum":     int(maximumMCPCommandTime / time.Second),
+					"description": "Execution timeout in seconds; omit to use the bounded session default",
+				},
+				"execution": map[string]any{
+					"type": "string", "enum": executionModes,
+					"description": executionDescription,
+				},
+			},
+			"required": []string{"command"},
+		},
+	}
+}
+
+func (t *mcpCommandTool) executionModes() []string {
 	executionModes := []string{MCPExecutionAuto}
 	if t.hooks.PTYExecute != nil {
 		executionModes = append(executionModes, MCPExecutionPTY)
@@ -114,35 +162,7 @@ func (t *mcpCommandTool) Definition() MCPToolDefinition {
 	if t.hooks.BackgroundAvailable != nil && t.hooks.BackgroundAvailable() {
 		executionModes = append(executionModes, MCPExecutionBackground)
 	}
-	return MCPToolDefinition{
-		Name:         MCPToolExecuteCommand,
-		Description:  "Execute one bounded command through the active audited resource connection",
-		OutputSchema: commandOutputSchema(),
-		Annotations: map[string]any{
-			"readOnlyHint": false, "openWorldHint": true,
-		},
-		Meta: map[string]any{MCPExecutionModesMetaKey: executionModes},
-		InputSchema: map[string]any{
-			"type": "object", "additionalProperties": false,
-			"properties": map[string]any{
-				"command": map[string]any{
-					"type": "string", "minLength": 1,
-					"maxLength": maximumMCPCommandSize,
-				},
-				"timeout_seconds": map[string]any{
-					"type": "integer", "minimum": 1,
-					"maximum": int(maximumMCPCommandTime / time.Second),
-				},
-				"execution": map[string]any{
-					"type": "string",
-					"enum": []string{
-						MCPExecutionAuto, MCPExecutionPTY, MCPExecutionBackground,
-					},
-				},
-			},
-			"required": []string{"command"},
-		},
-	}
+	return executionModes
 }
 
 func (t *mcpCommandTool) Call(

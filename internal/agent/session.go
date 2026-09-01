@@ -1274,7 +1274,6 @@ func (s *agentSession) tool(name string) (agentapi.ToolDefinition, bool) {
 
 func (s *agentSession) needsApproval(
 	tool agentapi.ToolDefinition,
-	modelRequested bool,
 ) bool {
 	readOnly := tool.Annotations.ReadOnlyHint != nil && *tool.Annotations.ReadOnlyHint
 	switch s.approvalMode {
@@ -1283,11 +1282,15 @@ func (s *agentSession) needsApproval(
 	case "never":
 		return false
 	default:
+		if profile, ok := runtimeProfilePolicyFor(s.profile); ok &&
+			profile.requiresApproval(tool.Name) {
+			return true
+		}
 		destructive := tool.Annotations.DestructiveHint != nil &&
 			*tool.Annotations.DestructiveHint
 		openWorld := tool.Annotations.OpenWorldHint != nil &&
 			*tool.Annotations.OpenWorldHint
-		if destructive || openWorld || modelRequested {
+		if destructive || openWorld {
 			return true
 		}
 		return !readOnly

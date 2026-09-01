@@ -47,7 +47,7 @@ func (p *deepSeekProvider) Complete(
 	reasoning := p.useReasoning(request)
 	var result CompletionResult
 	var err error
-	if reasoning && request.Operation == OperationAction && request.Tool != nil {
+	if reasoning && request.Operation == OperationAction && len(request.Tools) > 0 {
 		result, err = p.completeActionJSON(ctx, request, true)
 	} else {
 		result, err = p.complete(ctx, request, reasoning)

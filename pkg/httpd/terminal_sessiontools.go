@@ -57,7 +57,7 @@ func newTerminalToolController(
 	ctx, cancel := context.WithCancel(client.Context())
 	controller := &terminalToolController{
 		client: client, ws: ws, server: server,
-		context: agentContextSnapshot(token), protocol: token.Protocol,
+		context: agentContextSnapshot(token, "terminal"), protocol: token.Protocol,
 		ctx: ctx, cancel: cancel,
 	}
 	if !terminalBackgroundExecutorExpected(
@@ -153,7 +153,7 @@ func (c *terminalToolController) initialize(
 		executor = nil
 	}
 	commandTool, err := sessiontools.NewCommandTool(sessiontools.MCPCommandToolOptions{
-		Executor: executor,
+		Executor: executor, Protocol: c.protocol,
 		Validate: sessiontools.ProtocolCommandValidator(c.protocol),
 		Hooks: sessiontools.MCPCommandHooks{
 			CommandACLCheck: func(command string) sessiontools.CommandACLDecision {
@@ -176,13 +176,6 @@ func (c *terminalToolController) initialize(
 		logger.Errorf("Terminal %d command tool unavailable: %s", c.client.TerminalId, err)
 		return
 	}
-	contextTool, _ := sessiontools.NewTerminalContextTool(func() any {
-		return map[string]any{
-			"resource_session_id": resourceID,
-			"terminal_id":         c.client.TerminalId,
-			"context":             c.context,
-		}
-	})
 	snapshotTool, _ := sessiontools.NewTerminalSnapshotTool(func() (any, error) {
 		if err := c.server.CheckAgentToolExecution(); err != nil {
 			return nil, err
@@ -195,7 +188,9 @@ func (c *terminalToolController) initialize(
 			"content": observer.Snapshot(), "max_bytes": 64 * 1024,
 		}, nil
 	})
-	handlers := []sessiontools.MCPToolHandler{contextTool, snapshotTool, commandTool}
+	// The immutable resource context is already part of the manifest and model
+	// request, so exposing the same value as a tool only invites a redundant call.
+	handlers := []sessiontools.MCPToolHandler{snapshotTool, commandTool}
 	if metadata, ok := executor.(sessiontools.SQLMetadataProvider); ok {
 		if schemaTool, schemaErr := sessiontools.NewDatabaseSchemaTool(
 			metadata, c.server.CheckBackgroundExecution,
