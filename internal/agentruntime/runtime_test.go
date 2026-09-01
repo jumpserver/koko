@@ -117,3 +117,67 @@ func TestFinalRoundCompletesWithPartialAnswer(t *testing.T) {
 		t.Fatalf("final action kinds = %v", kinds)
 	}
 }
+
+func TestInvalidModelActionIsRetriedAfterToolCall(t *testing.T) {
+	model := &scriptedProvider{results: []string{
+		`{"kind":"tool_call","answer":"","summary":"Inspect","tool_name":"inspect","arguments":{},"approval_required":false,"approval_summary":""}`,
+		`{"kind":"answer","answer":"Done.","summary":"","tool_name":"","arguments":{},"arguments_kind":"object","approval_required":false,"approval_summary":""}`,
+		`{"kind":"answer","answer":"Done.","summary":"","tool_name":"","arguments":{},"approval_required":false,"approval_summary":""}`,
+	}}
+	completed := make(chan Completion, 1)
+	failed := make(chan error, 1)
+	runtime, err := New(
+		Config{
+			Profile: "terminal",
+			Tools: []agentapi.ToolDefinition{{
+				Name: "inspect", InputSchema: json.RawMessage(`{"type":"object","additionalProperties":false}`),
+			}},
+			MaxRounds: 4, MaxModelRequests: 4, RunTimeout: time.Second,
+		},
+		func() (provider.Provider, error) { return model, nil },
+		Callbacks{
+			Started:        func(string, string) error { return nil },
+			History:        func(string) []Message { return nil },
+			EmitModelEvent: func(string, string, string, any) error { return nil },
+			CallTool: func(_ context.Context, request ToolRequest) (ToolObservation, error) {
+				return ToolObservation{
+					ToolCallID: "call-1", ToolName: request.ToolName,
+					Status: "success", Result: json.RawMessage(`{}`),
+				}, nil
+			},
+			Complete: func(_, _ string, completion Completion) error {
+				completed <- completion
+				return nil
+			},
+			Fail: func(_, _ string, err error) error {
+				failed <- err
+				return nil
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Close()
+	if err = runtime.Start("run-1", "message-1", "Inspect", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case completion := <-completed:
+		if completion.Answer != "Done." {
+			t.Fatalf("answer = %q", completion.Answer)
+		}
+	case err = <-failed:
+		t.Fatalf("run failed: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("run did not complete")
+	}
+	if len(model.requests) != 3 {
+		t.Fatalf("model requests = %d, want 3", len(model.requests))
+	}
+	if !strings.Contains(model.requests[2].User, "invalid_action") ||
+		!strings.Contains(model.requests[2].User, "arguments_kind") {
+		t.Fatal("retry request is missing the invalid action feedback")
+	}
+}

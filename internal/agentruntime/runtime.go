@@ -394,19 +394,11 @@ func (r *Runtime) run(
 		if ctx.Err() != nil {
 			return
 		}
-		decision, err := decodeModelDecision(result.Content)
-		if err != nil {
-			if finalRound {
-				complete(Completion{
-					Answer: roundLimitFallbackAnswer, Partial: true,
-					FinishReason: FinishReasonRoundLimit,
-				})
-				return
-			}
-			fail(err)
-			return
+		decision, decodeErr := decodeModelDecision(result.Content)
+		actionErr := decodeErr
+		if actionErr == nil {
+			actionErr = validateModelDecision(decision)
 		}
-		actionErr := validateModelDecision(decision)
 		if actionErr == nil && finalRound && decision.Kind != "answer" {
 			actionErr = fmt.Errorf("the final round must return an answer")
 		}
