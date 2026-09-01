@@ -37,6 +37,14 @@ var (
 	ErrNoAuthInfo      = errors.New("no auth info")
 )
 
+var (
+	addClientCache        = srvconn.AddClientCache
+	releaseClientCacheKey = srvconn.ReleaseClientCacheKey
+	closeSSHClient        = func(client *srvconn.SSHClient) {
+		_ = client.Close()
+	}
+)
+
 const localIP = "127.0.0.1"
 
 func NewServer(conn UserConnection, jmsService *service.JMService, opts ...ConnectionOption) (*Server, error) {
@@ -403,6 +411,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("Cache ssh client new session failed: %s", err)
+		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, false
 	}
 	pty := s.UserConn.Pty()
@@ -666,10 +675,14 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		logger.Errorf("Get new ssh client err: %s", err)
 		return nil, err
 	}
-	srvconn.AddClientCache(key, sshClient)
+	enableReuse := s.checkReuseSSHClient()
+	if enableReuse {
+		addClientCache(key, sshClient)
+	}
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("SSH client(%s) start session err %s", sshClient, err)
+		releaseManagedSSHClient(key, sshClient, enableReuse)
 		return nil, err
 	}
 
@@ -709,7 +722,7 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 	if err != nil {
 		_ = sess.Close()
 		sshClient.ReleaseSession(sess)
-		srvconn.ReleaseClientCacheKey(key, sshClient)
+		releaseManagedSSHClient(key, sshClient, enableReuse)
 		return nil, err
 	}
 	if s.suFromAccount != nil {
@@ -725,9 +738,20 @@ func (s *Server) getSSHConn() (srvConn *srvconn.SSHConnection, err error) {
 		_ = sess.Wait()
 		sshClient.ReleaseSession(sess)
 		logger.Infof("SSH client(%s) shell connection release", sshClient)
-		srvconn.ReleaseClientCacheKey(key, sshClient)
+		releaseManagedSSHClient(key, sshClient, enableReuse)
 	}()
 	return sshConn, nil
+}
+
+func releaseManagedSSHClient(key string, client *srvconn.SSHClient, enableReuse bool) {
+	if client == nil {
+		return
+	}
+	if enableReuse {
+		releaseClientCacheKey(key, client)
+		return
+	}
+	closeSSHClient(client)
 }
 
 func (s *Server) getTelnetConn() (srvConn *srvconn.TelnetConnection, err error) {
