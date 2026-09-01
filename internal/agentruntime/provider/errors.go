@@ -77,8 +77,3 @@ func IsKind(err error, kind ErrorKind) bool {
 	var outputErr *OutputError
 	return errors.As(err, &outputErr) && outputErr.Kind == kind
 }
-
-func IsRetryable(err error) bool {
-	var requestErr *RequestError
-	return errors.As(err, &requestErr) && requestErr.Retryable
-}

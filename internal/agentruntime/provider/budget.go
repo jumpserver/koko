@@ -29,11 +29,3 @@ func ConsumeRequest(ctx context.Context) error {
 	}
 	return ErrRequestBudget
 }
-
-func RequestUsage(ctx context.Context) int {
-	budget, _ := ctx.Value(requestBudgetKey{}).(*requestBudget)
-	if budget == nil {
-		return 0
-	}
-	return int(budget.used.Load())
-}

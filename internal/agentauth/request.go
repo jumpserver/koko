@@ -178,18 +178,3 @@ func (v *SameOriginVerifier) VerifyOrigin(request *http.Request) error {
 func firstForwarded(value string) string {
 	return strings.TrimSpace(strings.Split(value, ",")[0])
 }
-
-type AuthenticatorFunc func(context.Context, *http.Request) (agentapi.Principal, error)
-
-func (f AuthenticatorFunc) Authenticate(
-	ctx context.Context,
-	request *http.Request,
-) (agentapi.Principal, error) {
-	return f(ctx, request)
-}
-
-type OriginVerifierFunc func(*http.Request) error
-
-func (f OriginVerifierFunc) VerifyOrigin(request *http.Request) error {
-	return f(request)
-}

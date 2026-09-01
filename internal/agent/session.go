@@ -1438,10 +1438,6 @@ func (s *agentSession) stop() {
 	})
 }
 
-func (s *agentSession) delete() error {
-	return s.deleteWithArchive(nil)
-}
-
 func (s *agentSession) deleteWithArchive(archives *archiveStore) error {
 	s.mu.Lock()
 	if s.deletePersisted {
@@ -1500,10 +1496,6 @@ func (s *agentSession) deleteWithArchive(archives *archiveStore) error {
 		return reservation.archive(s.events)
 	}
 	return s.events.archiveClosed()
-}
-
-func (s *agentSession) deleteIfIdle(cutoff time.Time) (bool, error) {
-	return s.deleteIfIdleWithArchive(cutoff, nil)
 }
 
 func (s *agentSession) deleteIfIdleWithArchive(

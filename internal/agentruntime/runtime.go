@@ -43,12 +43,6 @@ var ErrRunTimeout = errors.New("agent runtime run timed out")
 
 type ModelFactory func() (provider.Provider, error)
 
-func NewProviderFactory(config provider.Config) ModelFactory {
-	return func() (provider.Provider, error) {
-		return provider.New(config)
-	}
-}
-
 type Config struct {
 	Profile string
 	// TrustedProfileInstructions must come from a server-owned profile policy,
@@ -986,14 +980,6 @@ func isEmptyModelArguments(raw []byte) bool {
 	}
 	var items []json.RawMessage
 	return json.Unmarshal(raw, &items) == nil && len(items) == 0
-}
-
-func validateToolArguments(arguments, inputSchema json.RawMessage, toolName string) error {
-	schema, err := compileSchema(inputSchema)
-	if err != nil {
-		return fmt.Errorf("inputSchema is invalid: %w", err)
-	}
-	return validateToolArgumentsWithSchema(arguments, schema, toolName)
 }
 
 func validateToolArgumentsWithSchema(
