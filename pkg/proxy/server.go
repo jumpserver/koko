@@ -411,6 +411,7 @@ func (s *Server) getCacheSSHConn() (srvConn *srvconn.SSHConnection, ok bool) {
 	sess, err := sshClient.AcquireSession()
 	if err != nil {
 		logger.Errorf("Cache ssh client new session failed: %s", err)
+		srvconn.ReleaseClientCacheKey(key, sshClient)
 		return nil, false
 	}
 	pty := s.UserConn.Pty()
