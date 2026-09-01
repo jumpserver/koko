@@ -4,18 +4,21 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 var errArchiveStoreFull = errors.New("agent archive store reached its quota")
 
 type archiveStore struct {
-	mu       sync.Mutex
-	maxFiles int
-	maxBytes int64
-	files    int
-	bytes    int64
+	mu        sync.Mutex
+	directory string
+	maxFiles  int
+	maxBytes  int64
+	files     int
+	bytes     int64
 }
 
 type archiveReservation struct {
@@ -25,7 +28,7 @@ type archiveReservation struct {
 }
 
 func openArchiveStore(directory string, maxFiles int, maxBytes int64) (*archiveStore, error) {
-	store := &archiveStore{maxFiles: maxFiles, maxBytes: maxBytes}
+	store := &archiveStore{directory: directory, maxFiles: maxFiles, maxBytes: maxBytes}
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return nil, fmt.Errorf("scan agent archive store: %w", err)
@@ -51,6 +54,51 @@ func openArchiveStore(directory string, maxFiles int, maxBytes int64) (*archiveS
 		store.bytes += info.Size()
 	}
 	return store, nil
+}
+
+func pruneClosedLogFiles(directory string, cutoff time.Time) (int, int64, error) {
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return 0, 0, err
+	}
+	removed := 0
+	var removedBytes int64
+	var cleanupErrors []error
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), closedLogSuffix) {
+			continue
+		}
+		info, infoErr := entry.Info()
+		if infoErr != nil {
+			cleanupErrors = append(cleanupErrors, infoErr)
+			continue
+		}
+		if !info.Mode().IsRegular() || info.ModTime().After(cutoff) {
+			continue
+		}
+		if removeErr := os.Remove(filepath.Join(directory, entry.Name())); removeErr != nil {
+			cleanupErrors = append(cleanupErrors, removeErr)
+			continue
+		}
+		removed++
+		removedBytes += info.Size()
+	}
+	return removed, removedBytes, errors.Join(cleanupErrors...)
+}
+
+func (s *archiveStore) pruneClosedBefore(cutoff time.Time) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	removed, removedBytes, err := pruneClosedLogFiles(s.directory, cutoff)
+	s.files -= removed
+	if s.files < 0 {
+		s.files = 0
+	}
+	s.bytes -= removedBytes
+	if s.bytes < 0 {
+		s.bytes = 0
+	}
+	return removed, err
 }
 
 func isRetainedLogName(name string) bool {

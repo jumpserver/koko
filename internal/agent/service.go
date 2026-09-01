@@ -10,22 +10,25 @@ import (
 	"time"
 
 	"github.com/jumpserver/koko/internal/agentapi"
+	"github.com/jumpserver/koko/pkg/logger"
 )
 
 const (
-	defaultEventCapacity   = 512
-	DefaultSessionLimit    = 128
-	MinSessionLimit        = 1
-	MaxSessionLimit        = 4096
-	DefaultArchiveMaxFiles = 10_000
-	MinArchiveMaxFiles     = 1
-	MaxArchiveMaxFiles     = 100_000
-	DefaultArchiveMaxBytes = 10 * 1024 * 1024 * 1024
-	MinArchiveMaxBytes     = maxJSONLFileBytes
-	MaxArchiveMaxBytes     = 1024 * 1024 * 1024 * 1024
-	DefaultIdleSessionTTL  = 30 * time.Minute
-	MinIdleSessionTTL      = time.Minute
-	MaxIdleSessionTTL      = 24 * time.Hour
+	defaultEventCapacity       = 512
+	DefaultSessionLimit        = 128
+	MinSessionLimit            = 1
+	MaxSessionLimit            = 4096
+	DefaultArchiveMaxFiles     = 10_000
+	MinArchiveMaxFiles         = 1
+	MaxArchiveMaxFiles         = 100_000
+	DefaultArchiveMaxBytes     = 10 * 1024 * 1024 * 1024
+	MinArchiveMaxBytes         = maxJSONLFileBytes
+	MaxArchiveMaxBytes         = 1024 * 1024 * 1024 * 1024
+	DefaultIdleSessionTTL      = 30 * time.Minute
+	MinIdleSessionTTL          = time.Minute
+	MaxIdleSessionTTL          = 24 * time.Hour
+	DefaultClosedLogRetention  = 24 * time.Hour
+	archiveMaintenanceInterval = 5 * time.Minute
 )
 
 type Options struct {
@@ -48,13 +51,16 @@ type Service struct {
 	idleSessionTTL time.Duration
 	modelFactory   ModelFactory
 
-	mu             sync.RWMutex
-	sessions       map[string]*agentSession
-	resources      map[string]string
-	sessionRemoved func(agentapi.Principal, string)
-	degraded       int
-	closed         bool
-	stopped        bool
+	mu                  sync.RWMutex
+	sessions            map[string]*agentSession
+	resources           map[string]string
+	sessionRemoved      func(agentapi.Principal, string)
+	degraded            int
+	closed              bool
+	stopped             bool
+	maintenanceStop     chan struct{}
+	maintenanceDone     chan struct{}
+	maintenanceStopOnce sync.Once
 }
 
 func New(options Options) (*Service, error) {
@@ -124,6 +130,11 @@ func New(options Options) (*Service, error) {
 	if err = os.Chmod(eventsDir, 0o700); err != nil {
 		return nil, fmt.Errorf("protect Koko agent event directory: %w", err)
 	}
+	if _, _, cleanupErr := pruneClosedLogFiles(
+		eventsDir, time.Now().Add(-DefaultClosedLogRetention),
+	); cleanupErr != nil {
+		logger.Warnf("Clean expired agent event logs before startup failed: %s", cleanupErr)
+	}
 	archives, err := openArchiveStore(
 		eventsDir, options.ArchiveMaxFiles, options.ArchiveMaxBytes,
 	)
@@ -141,10 +152,52 @@ func New(options Options) (*Service, error) {
 		service.Close()
 		return nil, err
 	}
+	service.startMaintenance()
 	return service, nil
 }
 
+func (s *Service) startMaintenance() {
+	s.maintenanceStop = make(chan struct{})
+	s.maintenanceDone = make(chan struct{})
+	s.runMaintenance(time.Now())
+	go func() {
+		ticker := time.NewTicker(archiveMaintenanceInterval)
+		defer ticker.Stop()
+		defer close(s.maintenanceDone)
+		for {
+			select {
+			case now := <-ticker.C:
+				s.runMaintenance(now)
+			case <-s.maintenanceStop:
+				return
+			}
+		}
+	}()
+}
+
+func (s *Service) stopMaintenance() {
+	if s.maintenanceStop == nil || s.maintenanceDone == nil {
+		return
+	}
+	s.maintenanceStopOnce.Do(func() { close(s.maintenanceStop) })
+	<-s.maintenanceDone
+}
+
+func (s *Service) runMaintenance(now time.Time) {
+	removed, err := s.archives.pruneClosedBefore(now.Add(-DefaultClosedLogRetention))
+	if err != nil {
+		logger.Warnf("Clean expired agent event logs failed: %s", err)
+		s.mu.Lock()
+		s.degraded++
+		s.mu.Unlock()
+	} else if removed > 0 {
+		logger.Infof("Cleaned %d expired agent event log(s)", removed)
+	}
+	s.reapIdleSessions(now, s.maxSessions)
+}
+
 func (s *Service) BeginShutdown() error {
+	s.stopMaintenance()
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
