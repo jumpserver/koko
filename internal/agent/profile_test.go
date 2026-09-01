@@ -18,3 +18,15 @@ func TestScriptRuntimeProfileIsProposalOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestSQLRuntimeProfileUsesChenTools(t *testing.T) {
+	profile, ok := runtimeProfilePolicyFor("sql")
+	if !ok {
+		t.Fatal("SQL runtime profile is missing")
+	}
+	for _, required := range []string{"read_sql_context", "inspect_schema", "propose_sql", "draft-only"} {
+		if !strings.Contains(profile.instructions, required) {
+			t.Fatalf("SQL runtime profile does not contain %q", required)
+		}
+	}
+}
