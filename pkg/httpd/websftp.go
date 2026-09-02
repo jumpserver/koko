@@ -67,6 +67,31 @@ func (h *webSftp) CleanUp() {
 	}
 }
 
+func (h *webSftp) WebsocketCapabilities() map[string]any {
+	var readAllowed, writeAllowed bool
+	if h.ws.ConnectToken != nil {
+		readAllowed = h.ws.ConnectToken.Actions.EnableDownload()
+		writeAllowed = h.ws.ConnectToken.Actions.EnableUpload()
+	}
+
+	return map[string]any{
+		"web_sftp": webSftpCapabilities{
+			SchemaVersion: 1,
+			FileEditor: webSftpFileEditorCapability{
+				Enabled: readAllowed && writeAllowed,
+				Read:    readAllowed,
+				Write:   writeAllowed,
+				Save: webSftpSaveCapability{
+					Version:         1,
+					ExpectedVersion: true,
+					Force:           true,
+					MaxBytes:        maxWebEditorFileSize,
+				},
+			},
+		},
+	}
+}
+
 func (h *webSftp) setMCP(dispatcher *sessiontools.MCPDispatcher) {
 	h.stateMu.Lock()
 	h.mcp = dispatcher
@@ -94,6 +119,25 @@ type webSftpRequest struct {
 	SHA256          string  `json:"sha256"`
 	ConflictPolicy  string  `json:"conflict_policy"`
 	Discard         bool    `json:"discard"`
+}
+
+type webSftpCapabilities struct {
+	SchemaVersion int                         `json:"schema_version"`
+	FileEditor    webSftpFileEditorCapability `json:"file_editor"`
+}
+
+type webSftpFileEditorCapability struct {
+	Enabled bool                  `json:"enabled"`
+	Read    bool                  `json:"read"`
+	Write   bool                  `json:"write"`
+	Save    webSftpSaveCapability `json:"save"`
+}
+
+type webSftpSaveCapability struct {
+	Version         int   `json:"version"`
+	ExpectedVersion bool  `json:"expected_version"`
+	Force           bool  `json:"force"`
+	MaxBytes        int64 `json:"max_bytes"`
 }
 
 func notInTokenIds(target string) bool {

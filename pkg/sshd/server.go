@@ -39,10 +39,10 @@ func (s *Server) Start() {
 		logger.Errorf("Start SSH server failed: %s", err)
 		return
 	}
-	defaultPolicy := func(opts proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
+	usePolicy := func(opt proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
 		return proxyproto.USE, nil
 	}
-	proxyListener := &proxyproto.Listener{Listener: ln, ConnPolicy: defaultPolicy}
+	proxyListener := &proxyproto.Listener{Listener: ln, ConnPolicy: usePolicy}
 	if err = s.Srv.Serve(proxyListener); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		logger.Errorf("SSH server stopped unexpectedly: %s", err)
 	}
