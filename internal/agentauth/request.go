@@ -92,7 +92,7 @@ func (a *CoreAuthenticator) Authenticate(
 	if len(cookies) > 0 && a != nil && a.Cookies != nil {
 		user, err = a.Cookies.CheckUserCookie(cookies, organizationID)
 	}
-	if user == nil && a != nil && a.Headers != nil {
+	if (err != nil || user == nil) && a != nil && a.Headers != nil {
 		headers := requestAuthHeaders(request)
 		if len(headers) > 0 {
 			user, err = a.Headers.CheckUserHeaders(headers, organizationID)
