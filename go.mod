@@ -32,6 +32,7 @@ require (
 	github.com/openai/openai-go/v3 v3.52.0
 	github.com/pires/go-proxyproto v0.15.0
 	github.com/pkg/sftp v1.13.11
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/sirupsen/logrus v1.10.2

@@ -104,13 +104,13 @@ var upGrader = websocket.Upgrader{
 	CheckOrigin:     checkOrigin,
 }
 
-func NewServer(jmsService *service.JMService, lionRuntimes ...*lion.Runtime) *Server {
-	var lionRuntime *lion.Runtime
-	if len(lionRuntimes) > 0 {
-		lionRuntime = lionRuntimes[0]
-	}
+func NewServer(
+	jmsService *service.JMService,
+	lionRuntime *lion.Runtime,
+	agentHandler http.Handler,
+) *Server {
 	srv := &Server{broadCaster: NewBroadcaster(), apiClient: jmsService}
-	eng := createRouter(jmsService, srv, lionRuntime)
+	eng := createRouter(jmsService, srv, lionRuntime, agentHandler)
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	srv.Srv = &http.Server{Addr: addr, Handler: eng}

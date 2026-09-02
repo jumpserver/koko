@@ -220,6 +220,14 @@ func (ad *AssetDir) create(path string, overwrite bool, auditPath string) (*Sftp
 }
 
 func (ad *AssetDir) MkdirAll(path string) (err error) {
+	return ad.mkdir(path, false)
+}
+
+func (ad *AssetDir) MkdirExact(path string) (err error) {
+	return ad.mkdir(path, true)
+}
+
+func (ad *AssetDir) mkdir(path string, exact bool) (err error) {
 	pathData := ad.parsePath(path)
 	folderName, ok := ad.IsUniqueSu()
 	if !ok {
@@ -241,18 +249,26 @@ func (ad *AssetDir) MkdirAll(path string) (err error) {
 	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
-	for !con.IsOverwriteFile() {
-		if exitFile := IsExistPath(con.client, realPath); !exitFile {
-			break
+	if !exact {
+		for !con.IsOverwriteFile() {
+			if exitFile := IsExistPath(con.client, realPath); !exitFile {
+				break
+			}
+			oldPath := realPath
+			realPath = fmt.Sprintf("%s_duplicate__%s", realPath,
+				strconv.FormatInt(time.Now().Unix(), 10))
+			logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
 		}
-		oldPath := realPath
-		realPath = fmt.Sprintf("%s_duplicate__%s", realPath,
-			strconv.FormatInt(time.Now().Unix(), 10))
-		logger.Infof("Change duplicate dir path %s to %s", oldPath, realPath)
 	}
 	con.IncreaseRef()
 	defer con.DecreaseRef()
-	err = con.client.MkdirAll(realPath)
+	if exact {
+		if err = con.client.MkdirAll(filepath.Dir(realPath)); err == nil {
+			err = con.client.Mkdir(realPath)
+		}
+	} else {
+		err = con.client.MkdirAll(realPath)
+	}
 	filename := realPath
 	isSuccess := false
 	operate := model.OperateMkdir
@@ -358,10 +374,16 @@ func (ad *AssetDir) ReadDirWithCurrentPath(path string) (
 	}
 
 	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
-	currentPath = realPath
-
 	if con == nil || con.isClosed {
-		return nil, currentPath, sftp.ErrSshFxConnectionLost
+		return nil, "", sftp.ErrSshFxConnectionLost
+	}
+	currentPath = realPath
+	if ad.isFromWebTerminal {
+		var confined bool
+		currentPath, confined = virtualSFTPPath(con.rootDirPath, realPath)
+		if !confined {
+			return nil, "", sftp.ErrSshFxPermissionDenied
+		}
 	}
 	con.IncreaseRef()
 	defer con.DecreaseRef()
@@ -664,6 +686,31 @@ func (ad *AssetDir) Stat(path string) (res os.FileInfo, err error) {
 	return NewSftpFileInfo(res, isRootAccount, ad.isFromWebTerminal), err
 }
 
+func (ad *AssetDir) Lstat(path string) (res os.FileInfo, err error) {
+	pathData := ad.parsePath(path)
+	if len(pathData) == 1 && pathData[0] == "" {
+		return ad, nil
+	}
+	folderName, ok := ad.IsUniqueSu()
+	if !ok {
+		folderName = pathData[0]
+		pathData = pathData[1:]
+	}
+	su, ok := ad.suMaps[folderName]
+	if !ok {
+		return nil, errNoAccountUser
+	}
+	con, realPath := ad.GetSFTPAndRealPath(su, strings.Join(pathData, "/"))
+	if con == nil || con.isClosed {
+		return nil, sftp.ErrSshFxConnectionLost
+	}
+	con.IncreaseRef()
+	defer con.DecreaseRef()
+	res, err = con.client.Lstat(realPath)
+	isRootAccount := con.token.Account.Username == "root"
+	return NewSftpFileInfo(res, isRootAccount, ad.isFromWebTerminal), err
+}
+
 func (ad *AssetDir) Symlink(oldNamePath, newNamePath string) (err error) {
 	oldPathData := ad.parsePath(oldNamePath)
 	newPathData := ad.parsePath(newNamePath)
@@ -750,11 +797,27 @@ func (ad *AssetDir) checkExpired() {
 func (ad *AssetDir) GetRealPath(sftpSess *SftpSession, path string) string {
 	root := filepath.Clean(sftpSess.rootDirPath)
 	cleanPath := filepath.Clean("/" + path)
-	if ad.isFromWebTerminal && path != "" && isSubPath(root, cleanPath) {
-		return cleanPath
-	}
 	realPath := filepath.Join(root, strings.TrimPrefix(cleanPath, "/"))
 	return realPath
+}
+
+func virtualSFTPPath(root, realPath string) (string, bool) {
+	if strings.IndexByte(realPath, 0) >= 0 {
+		return "", false
+	}
+	root = filepath.Clean(root)
+	realPath = filepath.Clean(realPath)
+	if !filepath.IsAbs(root) || !filepath.IsAbs(realPath) || !isSubPath(root, realPath) {
+		return "", false
+	}
+	relative, err := filepath.Rel(root, realPath)
+	if err != nil {
+		return "", false
+	}
+	if relative == "." {
+		return "/", true
+	}
+	return "/" + filepath.ToSlash(relative), true
 }
 
 func isSubPath(base, target string) bool {
@@ -768,7 +831,7 @@ func isSubPath(base, target string) bool {
 		(rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
-func fileAIPathWithinRoot(root, path string) bool {
+func agentToolPathWithinRoot(root, path string) bool {
 	if strings.IndexByte(path, 0) >= 0 {
 		return false
 	}
@@ -777,18 +840,70 @@ func fileAIPathWithinRoot(root, path string) bool {
 		return false
 	}
 	path = filepath.Clean(path)
-	// The Web SFTP root itself may be represented as "/". Every other
-	// absolute path must use the server-resolved root returned to Luna.
-	if path == "/" {
-		return true
-	}
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(root, path)
 	}
 	return isSubPath(root, path)
 }
 
-func (ad *AssetDir) ValidateFileAIPath(path string) error {
+func canonicalAgentToolPathWithinRoot(
+	root, target string,
+	realPath func(string) (string, error),
+) (string, bool, error) {
+	configuredRoot := filepath.Clean(root)
+	if !filepath.IsAbs(configuredRoot) {
+		return "", false, fmt.Errorf("configured SFTP root is not absolute")
+	}
+	canonicalRoot, err := realPath(configuredRoot)
+	if err != nil {
+		return "", false, err
+	}
+	canonicalRoot = filepath.Clean(canonicalRoot)
+	if !filepath.IsAbs(canonicalRoot) {
+		return "", false, fmt.Errorf("SFTP canonical root is not absolute")
+	}
+	if canonicalRoot != configuredRoot {
+		return "", false, nil
+	}
+
+	probe := filepath.Clean(target)
+	missing := make([]string, 0, 2)
+	for {
+		canonicalTarget, resolveErr := realPath(probe)
+		if resolveErr == nil {
+			canonicalTarget = filepath.Clean(canonicalTarget)
+			if !filepath.IsAbs(canonicalTarget) {
+				return "", false, fmt.Errorf("SFTP canonical path is not absolute")
+			}
+			for i := len(missing) - 1; i >= 0; i-- {
+				canonicalTarget = filepath.Join(canonicalTarget, missing[i])
+			}
+			return canonicalTarget, isSubPath(canonicalRoot, canonicalTarget), nil
+		}
+		if !os.IsNotExist(resolveErr) {
+			return "", false, resolveErr
+		}
+		if probe == filepath.Clean(root) {
+			return "", false, resolveErr
+		}
+		parent := filepath.Dir(probe)
+		if parent == probe || !isSubPath(filepath.Clean(root), parent) {
+			return "", false, resolveErr
+		}
+		missing = append(missing, filepath.Base(probe))
+		probe = parent
+	}
+}
+
+func (ad *AssetDir) ValidateAgentToolPath(path string) error {
+	_, err := ad.ResolveAgentToolPath(path)
+	return err
+}
+
+// ValidateAgentToolConfinement verifies that Koko's virtual root maps to the
+// canonical root fixed when this SFTP connection was created. Each tool call
+// repeats the canonical-path check before accessing the mapped path.
+func (ad *AssetDir) ValidateAgentToolConfinement() error {
 	if !ad.isFromWebTerminal {
 		return sftp.ErrSshFxPermissionDenied
 	}
@@ -800,16 +915,71 @@ func (ad *AssetDir) ValidateFileAIPath(path string) error {
 	if !ok {
 		return errNoAccountUser
 	}
-	con, _ := ad.GetSFTPAndRealPath(su, "")
-	if con == nil {
+	con, mappedRoot := ad.GetSFTPAndRealPath(su, "/")
+	if con == nil || con.isClosed {
 		return sftp.ErrSshFxConnectionLost
 	}
 	con.IncreaseRef()
 	defer con.DecreaseRef()
-	if !fileAIPathWithinRoot(con.rootDirPath, path) {
-		return fmt.Errorf("file path is outside the configured SFTP root: %w", sftp.ErrSshFxPermissionDenied)
+	canonicalRoot, err := con.client.RealPath(mappedRoot)
+	if err != nil {
+		return fmt.Errorf("canonicalize configured SFTP root: %w", err)
+	}
+	if !agentToolVirtualRootIsConfined(con.rootDirPath, mappedRoot, canonicalRoot) {
+		return fmt.Errorf(
+			"virtual root does not map to the configured SFTP root: %w",
+			sftp.ErrSshFxOpUnsupported,
+		)
 	}
 	return nil
+}
+
+func agentToolVirtualRootIsConfined(configuredRoot, mappedRoot, canonicalRoot string) bool {
+	return filepath.IsAbs(configuredRoot) && filepath.IsAbs(mappedRoot) &&
+		filepath.IsAbs(canonicalRoot) &&
+		filepath.Clean(configuredRoot) == filepath.Clean(mappedRoot) &&
+		filepath.Clean(configuredRoot) == filepath.Clean(canonicalRoot)
+}
+
+func (ad *AssetDir) ResolveAgentToolPath(path string) (string, error) {
+	if !ad.isFromWebTerminal {
+		return "", sftp.ErrSshFxPermissionDenied
+	}
+	folderName, ok := ad.IsUniqueSu()
+	if !ok {
+		return "", errNoAccountUser
+	}
+	su, ok := ad.suMaps[folderName]
+	if !ok {
+		return "", errNoAccountUser
+	}
+	con, _ := ad.GetSFTPAndRealPath(su, "")
+	if con == nil || con.isClosed {
+		return "", sftp.ErrSshFxConnectionLost
+	}
+	con.IncreaseRef()
+	defer con.DecreaseRef()
+	targetCon, realPath := ad.GetSFTPAndRealPath(su, path)
+	if targetCon != con {
+		return "", sftp.ErrSshFxConnectionLost
+	}
+	if !agentToolPathWithinRoot(con.rootDirPath, realPath) {
+		return "", fmt.Errorf("mapped file path is outside the configured SFTP root: %w", sftp.ErrSshFxPermissionDenied)
+	}
+	canonicalPath, withinRoot, err := canonicalAgentToolPathWithinRoot(
+		con.rootDirPath, realPath, con.client.RealPath,
+	)
+	if err != nil {
+		return "", fmt.Errorf("canonicalize file tool path: %w", err)
+	}
+	if !withinRoot {
+		return "", fmt.Errorf("file path resolves outside the configured SFTP root: %w", sftp.ErrSshFxPermissionDenied)
+	}
+	virtualPath, confined := virtualSFTPPath(con.rootDirPath, canonicalPath)
+	if !confined {
+		return "", fmt.Errorf("canonical file path is outside the configured SFTP root: %w", sftp.ErrSshFxPermissionDenied)
+	}
+	return virtualPath, nil
 }
 
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
@@ -974,6 +1144,18 @@ func (ad *AssetDir) getNewSftpConn(connectToken *model.ConnectToken,
 			sftpRoot = fmt.Sprintf("/%s", sftpRoot)
 		}
 	}
+	canonicalRoot, err := sftpClient.RealPath(sftpRoot)
+	if err != nil || !filepath.IsAbs(canonicalRoot) {
+		if err == nil {
+			err = fmt.Errorf("SFTP canonical root is not absolute")
+		}
+		logger.Errorf("SSH client sftp (%s) resolve root %s failed: %s", sshClient, sftpRoot, err)
+		_ = sftpClient.Close()
+		sshClient.ReleaseSession(sess)
+		_ = sshClient.Close()
+		return nil, err
+	}
+	sftpRoot = filepath.Clean(canonicalRoot)
 	maxIdleInt := ad.opts.terminalCfg.MaxIdleTime
 	conn = &SftpConn{
 		sshClient:   sshClient,

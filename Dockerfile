@@ -1,4 +1,4 @@
-FROM jumpserver/koko-base:20260826_051349 AS stage-build
+FROM jumpserver/koko-base:20260902_065232 AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
 COPY . .
@@ -72,6 +72,6 @@ VOLUME /opt/koko/data
 
 ENTRYPOINT ["/init"]
 
-EXPOSE 2222
+EXPOSE 2222 5000
 
 STOPSIGNAL SIGQUIT

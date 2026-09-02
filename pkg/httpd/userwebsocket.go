@@ -62,13 +62,13 @@ func (userCon *UserWebsocket) initial() error {
 	if token != "" {
 		connectToken, err := sshcert.GetConnectTokenInfo(userCon.apiClient, token, true)
 		if err != nil {
-			logger.Errorf("Get connect token info %s error: %s", token, err)
+			logger.Error("Get connect token info failed")
 			errMsg := "Token invalid"
 			if connectToken.Detail != "" {
 				errMsg = connectToken.Detail
 			}
 			userCon.SendErrMessage(errMsg)
-			return err
+			return errors.New("connect token lookup failed")
 		}
 
 		if userCon.user.ID != connectToken.User.ID {

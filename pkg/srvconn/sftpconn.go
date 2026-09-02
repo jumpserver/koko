@@ -43,11 +43,23 @@ func (u *UserSftpConn) GetCurrentPath() string {
 	return ""
 }
 
-func (u *UserSftpConn) ValidateFileAIPath(path string) error {
+func (u *UserSftpConn) ValidateAgentToolPath(path string) error {
+	_, err := u.ResolveAgentToolPath(path)
+	return err
+}
+
+func (u *UserSftpConn) ValidateAgentToolConfinement() error {
 	if u.assetDir == nil {
 		return sftp.ErrSshFxPermissionDenied
 	}
-	return u.assetDir.ValidateFileAIPath(path)
+	return u.assetDir.ValidateAgentToolConfinement()
+}
+
+func (u *UserSftpConn) ResolveAgentToolPath(path string) (string, error) {
+	if u.assetDir == nil {
+		return "", sftp.ErrSshFxPermissionDenied
+	}
+	return u.assetDir.ResolveAgentToolPath(path)
 }
 
 func (u *UserSftpConn) ReadDir(path string) (res []os.FileInfo, err error) {
@@ -98,6 +110,24 @@ func (u *UserSftpConn) Stat(path string) (res os.FileInfo, err error) {
 		return assetDir.Stat(restPath)
 	}
 
+	return nil, errNoSelectAsset
+}
+
+func (u *UserSftpConn) Lstat(path string) (res os.FileInfo, err error) {
+	if u.assetDir != nil {
+		return u.assetDir.Lstat(path)
+	}
+
+	fi, restPath := u.ParsePath(path)
+	if rootDir, ok := fi.(*UserSftpConn); ok {
+		return rootDir, nil
+	}
+	if nodeDir, ok := fi.(*NodeDir); ok {
+		return nodeDir, nil
+	}
+	if assetDir, ok := fi.(*AssetDir); ok {
+		return assetDir.Lstat(restPath)
+	}
 	return nil, errNoSelectAsset
 }
 
@@ -188,7 +218,18 @@ func (u *UserSftpConn) Remove(path string) (err error) {
 }
 
 func (u *UserSftpConn) MkdirAll(path string) (err error) {
+	return u.mkdir(path, false)
+}
+
+func (u *UserSftpConn) MkdirExact(path string) (err error) {
+	return u.mkdir(path, true)
+}
+
+func (u *UserSftpConn) mkdir(path string, exact bool) (err error) {
 	if u.assetDir != nil {
+		if exact {
+			return u.assetDir.MkdirExact(path)
+		}
 		return u.assetDir.MkdirAll(path)
 	}
 
@@ -201,6 +242,9 @@ func (u *UserSftpConn) MkdirAll(path string) (err error) {
 		return errNoSelectAsset
 	}
 	if assetDir, ok := fi.(*AssetDir); ok {
+		if exact {
+			return assetDir.MkdirExact(restPath)
+		}
 		return assetDir.MkdirAll(restPath)
 	}
 	return errNoSelectAsset
