@@ -34,7 +34,10 @@ func TestHTTPProxyForwardsAllowedTarget(t *testing.T) {
 	}
 }
 
-func TestWildcardRequiresLoopbackBind(t *testing.T) {
+func TestPublicBindRequiresExplicitAllowlist(t *testing.T) {
+	if _, err := NewServer("0.0.0.0", "5001", "localhost,127.0.0.1,host.docker.internal", "", "", nil); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := NewServer("0.0.0.0", "5001", "*", "", "", nil); err == nil {
 		t.Fatal("expected wildcard configuration to be rejected on a public bind host")
 	}
