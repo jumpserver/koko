@@ -3,6 +3,7 @@ package srvconn
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,6 +23,8 @@ import (
 const (
 	mongodbPrompt = "Enter password:"
 )
+
+var errInvalidMongoProxyURL = errors.New("invalid MongoDB HTTP proxy URL")
 
 var (
 	_ ServerConnection = (*MongoDBConn)(nil)
@@ -245,13 +248,12 @@ type mongoProxyDialer struct {
 func newMongoProxyDialer(proxyURL string) (*mongoProxyDialer, error) {
 	u, err := url.Parse(proxyURL)
 	if err != nil {
-		return nil, err
+		return nil, errInvalidMongoProxyURL
 	}
-	if u.Scheme != "http" {
-		return nil, fmt.Errorf("unsupported mongodb proxy scheme %q", u.Scheme)
-	}
-	if u.Host == "" {
-		return nil, fmt.Errorf("invalid mongodb proxy url %q", proxyURL)
+	if u.Scheme != "http" || u.Host == "" || u.User != nil ||
+		u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" ||
+		(u.Path != "" && u.Path != "/") {
+		return nil, errInvalidMongoProxyURL
 	}
 	return &mongoProxyDialer{proxyAddr: u.Host}, nil
 }

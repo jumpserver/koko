@@ -117,7 +117,7 @@ type Parser struct {
 	currentCmdFilterRule CommandRule
 
 	userInputFilter func([]byte) []byte
-	terminalAIGrant func(string) (CommandACLDecision, bool)
+	agentToolGrant  func(string) (CommandACLDecision, bool)
 
 	disableInputAsCmd bool
 }
@@ -560,8 +560,8 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.sendCommandRecord()
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
-		if decision, ok := p.consumeTerminalAIGrant(currentCmd); ok {
-			p.applyTerminalAIGrant(decision)
+		if decision, ok := p.consumeAgentToolGrant(currentCmd); ok {
+			p.applyAgentToolGrant(decision)
 		} else if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
 			logger.Infof("command_rule_matched session_id=%q command=%q matched_command=%q acl_id=%q acl_name=%q rule_id=%q rule_name=%q action=%q",
 				p.id, currentCmd, cmd, rule.Acl.ID, rule.Acl.Name, rule.Item.ID, rule.Item.Name, rule.Acl.Action)
@@ -602,14 +602,14 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	return b
 }
 
-func (p *Parser) consumeTerminalAIGrant(command string) (CommandACLDecision, bool) {
-	if p.terminalAIGrant == nil {
+func (p *Parser) consumeAgentToolGrant(command string) (CommandACLDecision, bool) {
+	if p.agentToolGrant == nil {
 		return CommandACLDecision{}, false
 	}
-	return p.terminalAIGrant(command)
+	return p.agentToolGrant(command)
 }
 
-func (p *Parser) applyTerminalAIGrant(decision CommandACLDecision) {
+func (p *Parser) applyAgentToolGrant(decision CommandACLDecision) {
 	for index := range p.cmdFilterACLs {
 		rule := &p.cmdFilterACLs[index]
 		if rule.ID != decision.ACLID {

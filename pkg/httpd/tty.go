@@ -1,24 +1,20 @@
 package httpd
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
-	"math"
 	"sync"
-	"time"
 
 	"github.com/jumpserver/koko/pkg/srvconn"
 
 	"github.com/gliderlabs/ssh"
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
-	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
-	"github.com/jumpserver/koko/pkg/terminalai"
 )
 
 var _ Handler = (*tty)(nil)
@@ -86,8 +82,8 @@ func (h *tty) HandleMessage(msg *Message) {
 	case TerminalCreate:
 		h.handleTerminalCreate(msg)
 		return
-	case ChatMessage:
-		h.handleChatMessage(msg)
+	case MCPRequest, MCPCancel:
+		h.handleMCPMessage(msg)
 		return
 	case TerminalInit:
 		if msg.Id != h.ws.Uuid {
@@ -132,62 +128,6 @@ func (h *tty) HandleMessage(msg *Message) {
 	}
 }
 
-func (h *tty) handleChatMessage(msg *Message) {
-	chatMessage, err := terminalai.DecodeChatMessage(msg.Data)
-	if err != nil {
-		h.ws.SendMessage(&Message{Type: TerminalError, Err: err.Error()})
-		return
-	}
-	terminalID := chatTerminalID(chatMessage)
-	client := h.getClient(terminalID)
-	if terminalID == 0 || client == nil || client.Agent == nil {
-		h.sendTerminalAIError(terminalID, "terminal AI is unavailable for this terminal")
-		return
-	}
-	if err = client.Agent.Handle(chatMessage); err != nil {
-		h.sendTerminalAIError(terminalID, err.Error())
-	}
-}
-
-func (h *tty) sendTerminalAIError(terminalID uint32, message string) {
-	chatMessage := terminalai.ChatMessage{
-		ID: common.UUID(), Role: "assistant",
-		Metadata: map[string]any{
-			"terminalId": terminalID, "stage": "final",
-		},
-		Parts: []terminalai.ChatPart{{
-			Type: "data-error", Data: map[string]any{"message": message},
-		}},
-	}
-	data, err := json.Marshal(chatMessage)
-	if err != nil {
-		return
-	}
-	h.ws.SendMessage(&Message{
-		Type: ChatMessage, TerminalId: terminalID, Data: string(data),
-	})
-}
-
-func chatTerminalID(message terminalai.ChatMessage) uint32 {
-	value, ok := message.Metadata["terminalId"]
-	if !ok {
-		return 0
-	}
-	switch terminalID := value.(type) {
-	case float64:
-		if terminalID > 0 && terminalID <= 4294967295 && math.Trunc(terminalID) == terminalID {
-			return uint32(terminalID)
-		}
-	case uint32:
-		return terminalID
-	case int:
-		if terminalID > 0 && uint64(terminalID) <= uint64(^uint32(0)) {
-			return uint32(terminalID)
-		}
-	}
-	return 0
-}
-
 func (h *tty) allocateTerminalID() uint32 {
 	h.clientsMu.Lock()
 	defer h.clientsMu.Unlock()
@@ -196,6 +136,34 @@ func (h *tty) allocateTerminalID() uint32 {
 		h.nextID = 1
 	}
 	return h.nextID
+}
+
+func (h *tty) handleMCPMessage(message *Message) {
+	client := h.getClient(message.TerminalId)
+	if client == nil {
+		sendMCPFrameError(h.ws, message, errors.New("terminal resource is unavailable"))
+		return
+	}
+	dispatcher := client.getMCP()
+	info := client.GetSessionInfo()
+	if dispatcher == nil || info == nil || info.Session == nil ||
+		message.ResourceSessionID != info.Session.ID {
+		sendMCPFrameError(h.ws, message, errors.New("terminal tools are unavailable"))
+		return
+	}
+	if message.Version != sessiontools.MCPProtocolVersion {
+		sendMCPFrameError(h.ws, message, errors.New("unsupported MCP frame version"))
+		return
+	}
+	var err error
+	if message.Type == MCPRequest {
+		err = dispatcher.HandleRequest([]byte(message.Data))
+	} else {
+		err = dispatcher.HandleCancel([]byte(message.Data))
+	}
+	if err != nil {
+		sendMCPFrameError(h.ws, message, err)
+	}
 }
 
 func (h *tty) getClient(terminalID uint32) *Client {
@@ -384,7 +352,6 @@ func (h *tty) handleTerminalInit(
 		KubernetesId: KubernetesId, Namespace: namespace,
 		Pod: pod, Container: container, TerminalId: terminalID,
 	}
-	h.initializeTerminalAI(client, connectInfo)
 	h.clientsMu.Lock()
 	if h.clients == nil {
 		h.clients = make(map[uint32]*Client)
@@ -411,61 +378,6 @@ func (h *tty) handleTerminalInit(
 
 	h.wg.Add(1)
 	go h.proxy(&h.wg, client)
-}
-
-func (h *tty) initializeTerminalAI(
-	client *Client,
-	connectInfo TerminalConnectData,
-) {
-	if client == nil || client.KubernetesId != "" ||
-		h.ws.ConnectToken == nil ||
-		h.ws.ConnectToken.Protocol == srvconn.ProtocolK8s ||
-		h.ws.wsParams.TargetType == TargetTypeMonitor ||
-		h.ws.wsParams.TargetType == TargetTypeShare {
-		return
-	}
-	var chatAISettings terminalai.Settings
-	_, err := h.ws.apiClient.Call("GET", service.TerminalConfigURL, nil, &chatAISettings)
-	if err != nil {
-		logger.Errorf("Get terminal AI config failed: %s", err)
-		return
-	}
-	connectToken := h.ws.ConnectToken
-	session, err := terminalai.NewSession(terminalai.SessionOptions{
-		TerminalID:        client.TerminalId,
-		UserID:            connectToken.User.ID,
-		Width:             connectInfo.Cols,
-		Height:            connectInfo.Rows,
-		Config:            terminalai.NewConfigFromSettings(chatAISettings),
-		Context:           terminalai.NewSessionContext(connectToken),
-		Language:          h.ws.langCode,
-		WritePTY:          client.WriteAgentData,
-		SetInputLocked:    client.SetInputLocked,
-		RequireCommandACL: true,
-		Emit: func(message terminalai.ChatMessage) {
-			data, marshalErr := json.Marshal(message)
-			if marshalErr != nil {
-				return
-			}
-			h.ws.SendMessage(&Message{
-				Type: ChatMessage, TerminalId: client.TerminalId, Data: string(data),
-			})
-		},
-	})
-	if err != nil {
-		logger.Infof("Terminal AI disabled for terminal %d: %s", client.TerminalId, err)
-		return
-	}
-	providerInfo := session.ProviderInfo()
-	logger.Infof(
-		"Terminal AI feature %s provider %s model %s initialized for terminal %d",
-		terminalai.FeatureName(),
-		providerInfo.Name,
-		providerInfo.Model,
-		client.TerminalId,
-	)
-	client.Agent = session
-	client.Agent.AnnounceCapability()
 }
 
 func (h *tty) handleTerminalMessage(msg *Message) {
@@ -769,111 +681,33 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 			h.sendCloseMessage(client.TerminalId)
 			return
 		}
-		agent := client.Agent
-		sessionContext := terminalai.NewSessionContext(connectToken)
-		if agent != nil {
-			if !srv.SupportsBackgroundExecution() {
-				agent.DisableBackground(
-					"background execution is unavailable for this connection",
-				)
-			}
-			agent.Bind(terminalai.SessionHooks{
-				CommandACLCheck: func(command string) terminalai.CommandACLDecision {
-					return terminalAIACLDecision(srv.MatchCommandACL(command))
-				},
-				CommandACLReview: func(
-					ctx context.Context,
-					decision terminalai.CommandACLDecision,
-					command string,
-				) (terminalai.CommandACLDecision, error) {
-					reviewed, reviewErr := srv.ReviewCommand(
-						ctx,
-						proxy.CommandACLDecision{
-							Action: model.CommandAction(decision.Action),
-							ACLID:  decision.ACLID, ItemID: decision.ItemID,
-							Name: decision.Name, Matched: decision.Matched,
-							Reviewed: decision.Reviewed,
-						},
-						command,
-					)
-					return terminalAIACLDecision(reviewed), reviewErr
-				},
-				BackgroundRecord: func(
-					command, output string,
-					exitCode *int,
-					decision *terminalai.CommandACLDecision,
-				) {
-					var aclDecision *proxy.CommandACLDecision
-					if decision != nil {
-						aclDecision = &proxy.CommandACLDecision{
-							Action: model.CommandAction(decision.Action),
-							ACLID:  decision.ACLID, ItemID: decision.ItemID,
-							Name: decision.Name, Matched: decision.Matched,
-							Reviewed: decision.Reviewed,
-						}
-					}
-					srv.RecordBackgroundCommand(command, output, exitCode, aclDecision)
-				},
-				BackgroundGuard: srv.CheckBackgroundExecution,
-				PTYAuthorizer: func(
-					command string,
-					decision *terminalai.CommandACLDecision,
-				) {
-					if decision == nil {
-						return
-					}
-					srv.AuthorizeTerminalAICommand(command, &proxy.CommandACLDecision{
-						Action: model.CommandAction(decision.Action),
-						ACLID:  decision.ACLID, ItemID: decision.ItemID,
-						Name: decision.Name, Matched: decision.Matched,
-						Reviewed: decision.Reviewed,
-					})
-				},
-			})
+		toolController, toolErr := newTerminalToolController(client, h.ws, srv)
+		if toolErr != nil {
+			logger.Errorf("Terminal %d tools unavailable: %s", client.TerminalId, toolErr)
 		}
-		setBackgroundExecutor := func(connection terminalai.BackgroundConnection) {
-			if agent == nil || !srv.SupportsBackgroundExecution() {
-				return
-			}
-			ctx, cancel := context.WithTimeout(client.Context(), 30*time.Second)
-			defer cancel()
-			if initErr := agent.AttachBackground(ctx, connection); initErr != nil {
-				logger.Errorf(
-					"Terminal AI %s background init failed: %s",
-					sessionContext.Protocol, initErr,
-				)
-			}
+		if toolController != nil {
+			defer toolController.Close()
 		}
 		srv.OnSessionInfo = func(info *proxy.SessionInfo) {
 			client.SetSessionInfo(info)
-			data, _ := json.Marshal(info)
-			h.sendSessionMessage(string(data), client.KubernetesId, client.TerminalId)
-			if agent != nil && info.Session != nil {
-				agent.SetSessionID(info.Session.ID)
+			h.sendSessionMessage(
+				marshalTerminalSessionInfo(info), client.KubernetesId, client.TerminalId,
+			)
+			if toolController != nil {
+				toolController.setResourceSession(info)
 			}
 		}
 		client.configureMetrics(srv.SupportsBackgroundExecution(), srv.CheckBackgroundExecution)
 		srv.OnSSHClient = func(sshClient *srvconn.SSHClient) {
 			client.setMetricsSSHClient(sshClient)
-			setBackgroundExecutor(terminalai.BackgroundConnection{SSHClient: sshClient})
+			if toolController != nil {
+				toolController.attachSSH(sshClient)
+			}
 		}
 		srv.OnDatabaseConnection = func(info proxy.DatabaseConnectionInfo) {
-			setBackgroundExecutor(terminalai.BackgroundConnection{
-				Database: &terminalai.DatabaseConfig{
-					Protocol: info.Protocol,
-					Host:     info.Host, Port: info.Port, ServerName: info.ServerName,
-					Username: info.Username, Password: info.Password,
-					Database: info.Database, UseSSL: info.UseSSL,
-					PGSSLMode: info.PGSSLMode,
-					CACert:    info.CACert, ClientCert: info.ClientCert,
-					ClientKey: info.ClientKey, AllowInvalidCert: info.AllowInvalidCert,
-					Encrypt: info.Encrypt, DisableEncrypt: info.DisableEncrypt,
-					ClusterMode: info.ClusterMode,
-					AuthSource:  info.AuthSource, ConnectionOpts: info.ConnectionOpts,
-					ProxyURL:         info.ProxyURL,
-					DataMaskingRules: info.DataMaskingRules,
-				},
-			})
+			if toolController != nil {
+				toolController.attachDatabase(info)
+			}
 		}
 		srv.Proxy()
 		srv.CloseBackgroundRecorder()
@@ -887,15 +721,6 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 	h.removeClient(client.TerminalId)
 	h.sendCloseMessage(client.TerminalId)
 	logger.Info("Ws tty proxy end")
-}
-
-func terminalAIACLDecision(value proxy.CommandACLDecision) terminalai.CommandACLDecision {
-	return terminalai.CommandACLDecision{
-		Action: string(value.Action), ACLID: value.ACLID,
-		ItemID: value.ItemID, Name: value.Name, Matched: value.Matched,
-		DetailURL: value.DetailURL, Reviewers: value.Reviewers,
-		Processor: value.Processor, Reviewed: value.Reviewed,
-	}
 }
 
 func (h *tty) CheckMonitorReadPerm(uerId, roomId string) error {
