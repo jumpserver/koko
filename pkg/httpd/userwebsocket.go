@@ -235,6 +235,11 @@ type websocketConnectInfo struct {
 	Asset           *model.Asset           `json:"asset,omitempty"`
 	Permission      *model.Permission      `json:"permission,omitempty"`
 	ClipboardPolicy *model.ClipboardPolicy `json:"clipboard_policy,omitempty"`
+	Capabilities    map[string]any         `json:"capabilities,omitempty"`
+}
+
+type websocketCapabilitiesProvider interface {
+	WebsocketCapabilities() map[string]any
 }
 
 func (userCon *UserWebsocket) buildConnectInfo() websocketConnectInfo {
@@ -249,6 +254,9 @@ func (userCon *UserWebsocket) buildConnectInfo() websocketConnectInfo {
 		connectInfo.ClipboardPolicy = userCon.ConnectToken.ClipboardPolicy
 	} else {
 		connectInfo.Asset = nil
+	}
+	if provider, ok := userCon.handler.(websocketCapabilitiesProvider); ok {
+		connectInfo.Capabilities = provider.WebsocketCapabilities()
 	}
 	return connectInfo
 }
