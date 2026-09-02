@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -46,12 +45,7 @@ func (k *Koko) Start() {
 		go k.webProxy.Start()
 	}
 	if k.agent != nil {
-		go func() {
-			logger.Infof("Koko agent runtime listening on %s with API prefix /koko/agent/", k.agent.Addr())
-			if err := k.agent.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Errorf("Koko agent runtime stopped: %s", err)
-			}
-		}()
+		logger.Infof("Koko agent runtime is available at /koko/agent/ on %s", k.webSrv.Srv.Addr)
 	}
 	k.lion.Start(k.appContext)
 }
@@ -66,13 +60,6 @@ func (k *Koko) Stop() {
 	k.sshSrv.Stop()
 	if k.webProxy != nil {
 		k.webProxy.Stop()
-	}
-	if k.agent != nil {
-		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
-		if err := k.agent.Shutdown(shutdownCtx); err != nil {
-			logger.Errorf("Stop Koko agent HTTP listener failed: %s", err)
-		}
-		cancelShutdown()
 	}
 	if k.agent != nil {
 		k.agent.Close()
@@ -93,7 +80,8 @@ func RunForever(confPath string) {
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	bootstrapWithJMService(jmsService)
 	lionRuntime := lion.NewRuntime(jmsService)
-	webSrv := httpd.NewServer(jmsService, lionRuntime)
+	agentServer := newAgentServer(jmsService)
+	webSrv := httpd.NewServer(jmsService, lionRuntime, agentServer)
 	sshSrv := sshd.NewSSHServer(jmsService)
 	var webProxySrv *webproxy.Server
 	if conf := config.GetConf(); conf.WebProxyEnabled {
@@ -115,7 +103,6 @@ func RunForever(confPath string) {
 		}
 	}
 	appContext, cancel := context.WithCancel(context.Background())
-	agentServer := newAgentServer(jmsService)
 	app := &Koko{
 		webSrv:     webSrv,
 		sshSrv:     sshSrv,
@@ -156,7 +143,7 @@ func newAgentServer(jmsService *service.JMService) *agenthttp.Server {
 		return nil
 	}
 	server, err := agenthttp.New(agenthttp.Options{
-		Addr:    net.JoinHostPort(conf.BindHost, conf.AgentHTTPPort),
+		Addr:    net.JoinHostPort(conf.BindHost, conf.HTTPPort),
 		Service: agentService,
 		Authenticator: &agentauth.CoreAuthenticator{
 			Cookies: verifier,

@@ -26,7 +26,6 @@ type Config struct {
 	SSHPort                  string `mapstructure:"SSHD_PORT"`
 	HTTPPort                 string `mapstructure:"HTTPD_PORT"`
 	AgentEnabled             bool   `mapstructure:"AGENT_ENABLED"`
-	AgentHTTPPort            string `mapstructure:"AGENT_HTTPD_PORT"`
 	WebProxyEnabled          bool   `mapstructure:"WEB_PROXY_ENABLED"`
 	WebProxyBindHost         string `mapstructure:"WEB_PROXY_BIND_HOST"`
 	WebProxyPort             string `mapstructure:"WEB_PROXY_PORT"`
@@ -127,9 +126,6 @@ func (c *Config) EnsureConfigValid() {
 	if c.LanguageCode == "" {
 		c.LanguageCode = "en"
 	}
-	if c.AgentHTTPPort == "" {
-		c.AgentHTTPPort = "5003"
-	}
 }
 
 func (c *Config) UpdateRedisPassword(val string) {
@@ -152,9 +148,9 @@ func Setup(configPath string) {
 	conf.EnsureConfigValid()
 	GlobalConfig = &conf
 	log.Printf(
-		"Config loaded: name=%q bind=%s ssh_port=%s http_port=%s agent_enabled=%t agent_port=%s share_room_type=%s\n",
+		"Config loaded: name=%q bind=%s ssh_port=%s http_port=%s agent_enabled=%t share_room_type=%s\n",
 		conf.Name, conf.BindHost, conf.SSHPort, conf.HTTPPort,
-		conf.AgentEnabled, conf.AgentHTTPPort, conf.ShareRoomType,
+		conf.AgentEnabled, conf.ShareRoomType,
 	)
 }
 
@@ -188,7 +184,6 @@ func getDefaultConfig() Config {
 		HttpRequestTimeout:       30,
 		HTTPPort:                 "5000",
 		AgentEnabled:             true,
-		AgentHTTPPort:            "5003",
 		WebProxyEnabled:          true,
 		WebProxyBindHost:         "127.0.0.1",
 		WebProxyPort:             "5001",
