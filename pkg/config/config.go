@@ -25,7 +25,6 @@ type Config struct {
 	BindHost                 string `mapstructure:"BIND_HOST"`
 	SSHPort                  string `mapstructure:"SSHD_PORT"`
 	HTTPPort                 string `mapstructure:"HTTPD_PORT"`
-	AgentEnabled             bool   `mapstructure:"AGENT_ENABLED"`
 	WebProxyEnabled          bool   `mapstructure:"WEB_PROXY_ENABLED"`
 	WebProxyBindHost         string `mapstructure:"WEB_PROXY_BIND_HOST"`
 	WebProxyPort             string `mapstructure:"WEB_PROXY_PORT"`
@@ -147,11 +146,8 @@ func Setup(configPath string) {
 	loadConfigFromFile(configPath, &conf)
 	conf.EnsureConfigValid()
 	GlobalConfig = &conf
-	log.Printf(
-		"Config loaded: name=%q bind=%s ssh_port=%s http_port=%s agent_enabled=%t share_room_type=%s\n",
-		conf.Name, conf.BindHost, conf.SSHPort, conf.HTTPPort,
-		conf.AgentEnabled, conf.ShareRoomType,
-	)
+	log.Printf("Config loaded: name=%q bind=%s ssh_port=%s http_port=%s share_room_type=%s\n",
+		conf.Name, conf.BindHost, conf.SSHPort, conf.HTTPPort, conf.ShareRoomType)
 }
 
 func getDefaultConfig() Config {
@@ -183,7 +179,6 @@ func getDefaultConfig() Config {
 		SSHTimeout:               15,
 		HttpRequestTimeout:       30,
 		HTTPPort:                 "5000",
-		AgentEnabled:             true,
 		WebProxyEnabled:          true,
 		WebProxyBindHost:         "127.0.0.1",
 		WebProxyPort:             "5001",

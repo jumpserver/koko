@@ -35,13 +35,6 @@ WEB_PROXY_FFMPEG_PATH: ffmpeg
 # Api Http请求的超时时间 (default 30 seconds)
 # HTTP_REQUEST_TIMEOUT: 30
 
-# Agent Runtime 当前内嵌在 Koko 进程中，通过 Koko HTTP 端口（默认 5000）与 Luna 通信。
-# API 前缀固定为 /koko/agent/；Terminal/File Tool 由 Luna 通过现有 WebSocket 透明转发。
-# SFTP v3 不支持原子目录约束；File Tool 仅在平台配置的 SFTP 根目录等于
-# SFTP 服务端可见命名空间根目录（通常为服务端 chroot 后的 /）时注册，
-# 仅由客户端限制的子目录会 fail-closed 禁用 File Tool。
-# AGENT_ENABLED: true
-
 # 语言 [en,zh]
 # LANGUAGE_CODE: zh
 

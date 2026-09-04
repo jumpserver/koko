@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-
-	"github.com/jumpserver/koko/internal/agentapi"
-	"github.com/jumpserver/koko/internal/agentruntime"
 )
 
 func TestPostgreSQLCommandToolContractRejectsShell(t *testing.T) {
@@ -100,7 +97,7 @@ func TestAgentToolOutputSchemasAndLargeResult(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = agentruntime.ValidateSchema(encoded); err != nil {
+		if err = ValidateSchema(encoded); err != nil {
 			t.Fatalf("invalid output schema: %v", err)
 		}
 	}
@@ -108,7 +105,7 @@ func TestAgentToolOutputSchemasAndLargeResult(t *testing.T) {
 	result, payload := newMCPCallToolResult(map[string]any{
 		"output": strings.Repeat("x", 100*1024),
 	}, nil)
-	if len(payload) == 0 || len(payload) > agentapi.MaxToolResultBytes {
+	if len(payload) == 0 || len(payload) > MaxToolResultBytes {
 		t.Fatalf("large structured result has invalid wire size %d", len(payload))
 	}
 	if result.StructuredContent == nil || len(result.Content) != 1 ||

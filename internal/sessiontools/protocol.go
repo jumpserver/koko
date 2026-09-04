@@ -12,9 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/jumpserver/koko/internal/agentapi"
-	"github.com/jumpserver/koko/internal/agentauth"
 )
 
 const (
@@ -39,23 +36,23 @@ const (
 )
 
 type MCPToolDefinition struct {
-	Name         string              `json:"name"`
-	Title        string              `json:"title,omitempty"`
-	Description  string              `json:"description,omitempty"`
-	Icons        []agentapi.ToolIcon `json:"icons,omitempty"`
-	InputSchema  map[string]any      `json:"inputSchema"`
-	OutputSchema map[string]any      `json:"outputSchema,omitempty"`
-	Annotations  map[string]any      `json:"annotations,omitempty"`
-	Meta         map[string]any      `json:"_meta,omitempty"`
+	Name         string         `json:"name"`
+	Title        string         `json:"title,omitempty"`
+	Description  string         `json:"description,omitempty"`
+	Icons        []ToolIcon     `json:"icons,omitempty"`
+	InputSchema  map[string]any `json:"inputSchema"`
+	OutputSchema map[string]any `json:"outputSchema,omitempty"`
+	Annotations  map[string]any `json:"annotations,omitempty"`
+	Meta         map[string]any `json:"_meta,omitempty"`
 }
 
 type MCPManifest struct {
-	Version           int                      `json:"version"`
-	ResourceSessionID string                   `json:"resource_session_id"`
-	Profile           string                   `json:"profile"`
-	Context           agentapi.ContextSnapshot `json:"context,omitempty"`
-	Revision          int                      `json:"revision"`
-	Tools             []MCPToolDefinition      `json:"tools"`
+	Version           int                 `json:"version"`
+	ResourceSessionID string              `json:"resource_session_id"`
+	Profile           string              `json:"profile"`
+	Context           ContextSnapshot     `json:"context,omitempty"`
+	Revision          int                 `json:"revision"`
+	Tools             []MCPToolDefinition `json:"tools"`
 }
 
 type MCPToolHandler interface {
@@ -154,7 +151,7 @@ type mcpCompletedCall struct {
 type MCPDispatcherOptions struct {
 	ResourceSessionID string
 	Profile           string
-	Context           agentapi.ContextSnapshot
+	Context           ContextSnapshot
 	Handlers          []MCPToolHandler
 	Emit              func(MCPOutbound)
 }
@@ -407,7 +404,7 @@ func (d *MCPDispatcher) execute(
 	result, callErr := handler.Call(ctx, call.request.Params.Arguments)
 	response := MCPResponse{JSONRPC: "2.0", ID: call.request.ID}
 	toolResult, resultPayload := newMCPCallToolResult(result, callErr)
-	if len(resultPayload) == 0 || len(resultPayload) > agentapi.MaxToolResultBytes {
+	if len(resultPayload) == 0 || len(resultPayload) > MaxToolResultBytes {
 		toolResult, resultPayload = newMCPCallToolResult(
 			nil, errors.New("MCP tool result exceeded the response limit"),
 		)
@@ -650,7 +647,7 @@ func normalizeJSSafeNumbers(value any) any {
 }
 
 func requestFingerprint(request mcpRequest) string {
-	value, err := agentauth.HashValue(request)
+	value, err := HashValue(request)
 	if err != nil {
 		return ""
 	}
