@@ -27,6 +27,7 @@ const (
 	defaultMCPCommandTime    = 2 * time.Minute
 	maximumMCPCommandTime    = 10 * time.Minute
 	maximumMCPCommandSize    = 64 * 1024
+	mcpCommandInputPattern   = "^[^\\x00-\\x1F\\x7F-\\x9F\u2028\u2029]*$"
 )
 
 type MCPCommandHooks struct {
@@ -137,7 +138,8 @@ func (t *mcpCommandTool) Definition() MCPToolDefinition {
 				"command": map[string]any{
 					"type": "string", "minLength": 1,
 					"maxLength":   maximumMCPCommandSize,
-					"description": commandDescription,
+					"pattern":     mcpCommandInputPattern,
+					"description": commandDescription + " Use one line without control characters.",
 				},
 				"timeout_seconds": map[string]any{
 					"type": "integer", "minimum": 1,
@@ -178,10 +180,15 @@ func (t *mcpCommandTool) Call(
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return nil, errors.New("command arguments have trailing data")
 	}
+	if len(args.Command) > maximumMCPCommandSize {
+		return nil, fmt.Errorf("command exceeds %d bytes", maximumMCPCommandSize)
+	}
+	if containsCommandLineBreakOrControl(args.Command) {
+		return nil, errors.New("command must not contain line breaks or control characters")
+	}
 	command := strings.TrimSpace(args.Command)
-	if command == "" || len(command) > maximumMCPCommandSize ||
-		containsCommandControl(command) {
-		return nil, errors.New("invalid command")
+	if command == "" {
+		return nil, errors.New("command is required")
 	}
 	constraints, err := t.validate(command)
 	if err != nil {
@@ -280,9 +287,9 @@ func (t *mcpCommandTool) Call(
 	}, nil
 }
 
-func containsCommandControl(command string) bool {
+func containsCommandLineBreakOrControl(command string) bool {
 	for _, value := range command {
-		if unicode.IsControl(value) {
+		if unicode.IsControl(value) || value == '\u2028' || value == '\u2029' {
 			return true
 		}
 	}

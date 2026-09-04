@@ -12,7 +12,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/jumpserver/koko/internal/agentapi"
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/srvconn"
@@ -41,7 +40,7 @@ func (h *webSftp) initializeFileTools() {
 		return
 	}
 	resourceID := h.ws.Uuid
-	contextSnapshot := agentapi.ContextSnapshot{
+	contextSnapshot := sessiontools.ContextSnapshot{
 		SessionKind: "file", InteractionMode: "live",
 		CommandLanguage: "sftp", Protocol: srvconn.ProtocolSFTP,
 	}

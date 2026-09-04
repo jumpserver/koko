@@ -1,4 +1,4 @@
-package agentauth
+package sessiontools
 
 import (
 	"bytes"
@@ -15,32 +15,22 @@ import (
 )
 
 func HashValue(value any) (string, error) {
-	canonical, err := CanonicalJSON(value)
+	canonical, err := canonicalJSON(value)
 	if err != nil {
 		return "", err
 	}
-	return HashBytes(canonical), nil
+	return hashBytes(canonical), nil
 }
 
-func HashRawJSON(value json.RawMessage) (string, error) {
-	if len(bytes.TrimSpace(value)) == 0 {
-		return HashBytes(nil), nil
-	}
-	canonical, err := CanonicalJSON(value)
-	if err != nil {
-		return "", err
-	}
-	return HashBytes(canonical), nil
-}
-
-func HashBytes(value []byte) string {
+func hashBytes(value []byte) string {
 	digest := sha256.Sum256(value)
 	return hex.EncodeToString(digest[:])
 }
 
-// CanonicalJSON uses sorted object keys, normalized numbers and no insignificant
-// whitespace. It rejects trailing JSON instead of hashing an ambiguous prefix.
-func CanonicalJSON(value any) ([]byte, error) {
+// canonicalJSON uses sorted object keys, normalized numbers and no
+// insignificant whitespace. It rejects trailing JSON instead of hashing an
+// ambiguous prefix.
+func canonicalJSON(value any) ([]byte, error) {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
@@ -72,7 +62,7 @@ func writeCanonical(output *bytes.Buffer, value any) error {
 		encoded, _ := json.Marshal(item)
 		output.Write(encoded)
 	case json.Number:
-		normalized, err := normalizeNumber(item.String())
+		normalized, err := normalizeCanonicalNumber(item.String())
 		if err != nil {
 			return err
 		}
@@ -113,7 +103,7 @@ func writeCanonical(output *bytes.Buffer, value any) error {
 	return nil
 }
 
-func normalizeNumber(value string) (string, error) {
+func normalizeCanonicalNumber(value string) (string, error) {
 	number, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return "", fmt.Errorf("invalid JSON number: %w", err)
