@@ -63,11 +63,7 @@ type Config struct {
 	GuaHost    string `mapstructure:"GUA_HOST"`
 	GuaPort    string `mapstructure:"GUA_PORT"`
 
-	DisableAllCopyPaste       bool `mapstructure:"JUMPSERVER_DISABLE_ALL_COPY_PASTE"`
-	DisableAllUpDownload      bool `mapstructure:"JUMPSERVER_DISABLE_ALL_UPLOAD_DOWNLOAD"`
-	EnableRemoteAppUpDownLoad bool `mapstructure:"JUMPSERVER_REMOTE_APP_UPLOAD_DOWNLOAD_ENABLE"`
-	EnableRemoteAPPCopyPaste  bool `mapstructure:"JUMPSERVER_REMOTE_APP_COPY_PASTE_ENABLE"`
-	CleanDriveScheduleTime    int  `mapstructure:"JUMPSERVER_CLEAN_DRIVE_SCHEDULE_TIME"`
+	CleanDriveScheduleTime int `mapstructure:"JUMPSERVER_CLEAN_DRIVE_SCHEDULE_TIME"`
 
 	EnableVideoWorker bool   `mapstructure:"ENABLE_VIDEO_WORKER"`
 	VideoWorkerHost   string `mapstructure:"VIDEO_WORKER_HOST"`

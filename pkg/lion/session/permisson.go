@@ -1,10 +1,6 @@
 package session
 
-import (
-	"github.com/jumpserver/koko/pkg/config"
-
-	"github.com/jumpserver-dev/sdk-go/model"
-)
+import "github.com/jumpserver-dev/sdk-go/model"
 
 type ActionPermission struct {
 	EnableConnect bool `json:"enable_connect"`
@@ -19,7 +15,7 @@ type ActionPermission struct {
 	ClipboardPolicy *model.ClipboardPolicy `json:"clipboard_policy,omitempty"`
 }
 
-func NewActionPermission(perm *model.Permission, connectType string,
+func NewActionPermission(perm *model.Permission,
 	clipboardPolicy *model.ClipboardPolicy) *ActionPermission {
 	action := ActionPermission{
 		EnableConnect:  perm.EnableConnect(),
@@ -28,27 +24,6 @@ func NewActionPermission(perm *model.Permission, connectType string,
 		EnableUpload:   perm.EnableUpload(),
 		EnableDownload: perm.EnableDownload(),
 		EnableShare:    perm.EnableShare(),
-	}
-	globConfig := config.GetConf()
-	switch connectType {
-	case TypeRemoteApp:
-		if globConfig.EnableRemoteAppUpDownLoad {
-			action.EnableDownload = true
-			action.EnableUpload = true
-		}
-		if globConfig.EnableRemoteAPPCopyPaste {
-			action.EnablePaste = true
-			action.EnableCopy = true
-		}
-	case TypeRDP, TypeVNC:
-	}
-	if globConfig.DisableAllUpDownload {
-		action.EnableDownload = false
-		action.EnableUpload = false
-	}
-	if globConfig.DisableAllCopyPaste {
-		action.EnablePaste = false
-		action.EnableCopy = false
 	}
 	action.applyClipboardPolicy(clipboardPolicy)
 	return &action
