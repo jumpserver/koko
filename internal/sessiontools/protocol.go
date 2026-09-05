@@ -515,7 +515,6 @@ func decodeMCPAgentBinding(
 		return binding, errors.New("MCP agent binding metadata is required")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&binding); err != nil {
 		return binding, fmt.Errorf("decode MCP agent binding: %w", err)
 	}

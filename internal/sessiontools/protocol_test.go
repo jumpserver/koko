@@ -156,3 +156,18 @@ func TestMCPAgentBindingRequiresRevision(t *testing.T) {
 		t.Fatal("binding without a toolset revision was accepted")
 	}
 }
+
+func TestMCPAgentBindingIgnoresUnknownFields(t *testing.T) {
+	meta := map[string]json.RawMessage{
+		MCPAgentMetaKey: json.RawMessage(`{"resource_session_id":"resource-1","tool_call_id":"call-1","revision":1,"registration_id":"registration-1","invocation_id":"invocation-1","definition_version":"1","definition_digest":"digest-1"}`),
+		"io.modelcontextprotocol/protocolVersion":    json.RawMessage(`"2026-07-28"`),
+		"io.modelcontextprotocol/clientCapabilities": json.RawMessage(`{}`),
+	}
+	binding, err := decodeMCPAgentBinding(meta, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if binding.ResourceSessionID != "resource-1" || binding.ToolCallID != "call-1" || binding.Revision != 1 {
+		t.Fatalf("unexpected binding: %#v", binding)
+	}
+}
