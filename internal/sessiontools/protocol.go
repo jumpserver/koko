@@ -562,6 +562,11 @@ func newMCPCallToolResult(
 			message = message[:4096]
 		}
 		result.IsError = true
+		if errors.Is(callErr, context.DeadlineExceeded) {
+			result.Meta[MCPAgentMetaKey] = map[string]any{"status": "timeout", "code": "tool_timeout"}
+		} else if errors.Is(callErr, context.Canceled) {
+			result.Meta[MCPAgentMetaKey] = map[string]any{"status": "cancelled", "code": "tool_cancelled"}
+		}
 		result.Content = []MCPTextContent{{Type: "text", Text: message}}
 		payload, _ := json.Marshal(result)
 		return result, payload

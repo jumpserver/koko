@@ -3,6 +3,7 @@ package sessiontools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -169,5 +170,18 @@ func TestMCPAgentBindingIgnoresUnknownFields(t *testing.T) {
 	}
 	if binding.ResourceSessionID != "resource-1" || binding.ToolCallID != "call-1" || binding.Revision != 1 {
 		t.Fatalf("unexpected binding: %#v", binding)
+	}
+}
+
+func TestMCPToolTimeoutAndCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		err    error
+		status string
+	}{{context.DeadlineExceeded, "timeout"}, {context.Canceled, "cancelled"}} {
+		result, payload := newMCPCallToolResult(nil, fmt.Errorf("execute: %w", tc.err))
+		meta, ok := result.Meta[MCPAgentMetaKey].(map[string]any)
+		if !result.IsError || !ok || meta["status"] != tc.status || !json.Valid(payload) {
+			t.Fatalf("missing outcome %s: %+v", tc.status, result)
+		}
 	}
 }
