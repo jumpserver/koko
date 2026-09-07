@@ -3,8 +3,6 @@ package session
 import (
 	"errors"
 	"fmt"
-	"net"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -46,56 +44,6 @@ type Server struct {
 
 	PandaClient        *panda.Client
 	PandaClientFactory func(string) *panda.Client
-}
-
-func (s *Server) pandaClientFor(provider *model.VirtualAppProvider) *panda.Client {
-	if provider != nil && provider.ServiceURL != "" && s.PandaClientFactory != nil {
-		return s.PandaClientFactory(provider.ServiceURL)
-	}
-	return s.PandaClient
-}
-
-func providerSSHTarget(provider *model.VirtualAppProvider) *model.Gateway {
-	return &model.Gateway{
-		ID:        provider.Host.ID,
-		Name:      provider.Name,
-		Address:   provider.Host.Address,
-		Protocols: provider.Host.Protocols,
-		Account:   provider.Account,
-	}
-}
-
-func pandaAPIForwardAddress(serviceURL string) (string, *url.URL, error) {
-	parsed, err := url.Parse(serviceURL)
-	if err != nil || parsed.Hostname() == "" {
-		return "", nil, fmt.Errorf("invalid Panda service URL %q", serviceURL)
-	}
-	port := parsed.Port()
-	if port == "" {
-		if parsed.Scheme == "https" {
-			port = "443"
-		} else {
-			port = "80"
-		}
-	}
-	return net.JoinHostPort("127.0.0.1", port), parsed, nil
-}
-
-func (s *Server) startPandaAPIForward(provider *model.VirtualAppProvider) (*gateway.DomainGateway, string, error) {
-	dstAddr, parsedURL, err := pandaAPIForwardAddress(provider.ServiceURL)
-	if err != nil {
-		return nil, "", err
-	}
-	forwarder := &gateway.DomainGateway{
-		DstAddr:         dstAddr,
-		SelectedGateway: provider.Gateway,
-		Destination:     providerSSHTarget(provider),
-	}
-	if err = forwarder.Start(); err != nil {
-		return nil, "", err
-	}
-	parsedURL.Host = forwarder.GetListenAddr().String()
-	return forwarder, parsedURL.String(), nil
 }
 
 func ParseWidthAndHeight(ctx *gin.Context, connectToken *model.ConnectToken) (int, int) {
@@ -179,7 +127,7 @@ func (s *Server) CreatByToken(ctx *gin.Context, token string) (TunnelSession, er
 		// 替换成 发布机的 platform 信息
 		opts = append(opts, WithPlatform(appletOptions.Platform))
 	case connectVirtualAPP:
-		virtualApp, err1 := s.JmsService.GetConnectTokenVirtualAppOption(token)
+		virtualApp, err1 := s.getVirtualAppOption(token)
 		if err1 != nil {
 			msg := err1.Error()
 			logger.Errorf("Get virtual app err: %s", err1.Error())
@@ -190,27 +138,22 @@ func (s *Server) CreatByToken(ctx *gin.Context, token string) (TunnelSession, er
 		}
 		width, height := ParseWidthAndHeight(ctx, &connectToken)
 		appOpt := model.VirtualAppOption{
-			ImageName:      virtualApp.ImageName,
-			ImageProtocol:  virtualApp.ImageProtocol,
-			ImagePort:      virtualApp.ImagePort,
-			DesktopWidth:   width,
-			DesktopHeight:  height,
-			ConnectionMode: "",
-		}
-		if virtualApp.Provider != nil {
-			appOpt.ConnectionMode = virtualApp.Provider.ConnectionMode
+			ImageName:     virtualApp.ImageName,
+			ImageProtocol: virtualApp.ImageProtocol,
+			ImagePort:     virtualApp.ImagePort,
+			DesktopWidth:  width,
+			DesktopHeight: height,
 		}
 		var pandaAPIGateway *gateway.DomainGateway
 		pandaClient := s.pandaClientFor(virtualApp.Provider)
+		if pandaClient == nil {
+			return TunnelSession{}, fmt.Errorf("%w: Panda client is not configured", ErrPandaAPIService)
+		}
 		if virtualApp.Provider != nil && virtualApp.Provider.ConnectionMode == "ssh" {
 			var forwardedURL string
-			pandaAPIGateway, forwardedURL, err1 = s.startPandaAPIForward(virtualApp.Provider)
+			pandaAPIGateway, forwardedURL, err1 = s.startPandaAPIForward(ctx.Request.Context(), virtualApp.Provider)
 			if err1 != nil {
 				return TunnelSession{}, fmt.Errorf("%w: start Panda API SSH forward: %s", ErrPandaAPIService, err1)
-			}
-			if s.PandaClientFactory == nil {
-				pandaAPIGateway.Stop()
-				return TunnelSession{}, fmt.Errorf("%w: Panda client factory is not configured", ErrPandaAPIService)
 			}
 			pandaClient = s.PandaClientFactory(forwardedURL)
 		}

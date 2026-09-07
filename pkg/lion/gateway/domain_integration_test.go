@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -15,7 +16,7 @@ func TestDomainGatewaySSHForwardIntegration(t *testing.T) {
 	keyFile := os.Getenv("LION_SSH_TEST_KEY_FILE")
 	destination := os.Getenv("LION_SSH_TEST_DESTINATION")
 	if host == "" || keyFile == "" || destination == "" {
-		t.Skip("set LION_SSH_TEST_HOST, LION_SSH_TEST_KEY_FILE and LION_SSH_TEST_DESTINATION")
+		t.Skip("set LION_SSH_TEST_HOST, LION_SSH_TEST_KEY_FILE and LION_SSH_TEST_DESTINATION (TCP echo service)")
 	}
 	port, err := strconv.Atoi(os.Getenv("LION_SSH_TEST_PORT"))
 	if err != nil || port == 0 {
@@ -57,5 +58,17 @@ func TestDomainGatewaySSHForwardIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial forwarded destination: %v", err)
 	}
-	_ = conn.Close()
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	const payload = "koko SSH forwarding integration"
+	if _, err := io.WriteString(conn, payload); err != nil {
+		t.Fatalf("write forwarded destination: %v", err)
+	}
+	buf := make([]byte, len(payload))
+	if _, err := io.ReadFull(conn, buf); err != nil {
+		t.Fatalf("read forwarded destination: %v", err)
+	}
+	if string(buf) != payload {
+		t.Fatalf("forwarded bytes = %q, want %q", buf, payload)
+	}
 }
