@@ -52,7 +52,7 @@ func NewRuntime(jmsService *service.JMService) *Runtime {
 }
 
 func (r *Runtime) RegisterRoutes(engine *gin.Engine) {
-	lionGroup := engine.Group("/lion")
+	lionGroup := engine.Group("/koko/lion")
 	lionGroup.Use(middleware.CORS())
 	lionGroup.OPTIONS("/*path", func(ctx *gin.Context) {
 		ctx.Status(http.StatusNoContent)
