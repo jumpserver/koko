@@ -40,6 +40,36 @@ var upGrader = websocket.Upgrader{
 	CheckOrigin:     middleware.OriginAllowed,
 }
 
+func forwardSession(ctx context.Context, sess *session.TunnelSession, conf *guacd.Configuration) (func(), error) {
+	parameters := [][2]string{{guacd.Hostname, guacd.Port}}
+	if sess.GatewayTarget != nil && conf.GetParameter(guacd.EnableSftp) == session.BoolTrue {
+		parameters = append(parameters, [2]string{guacd.SftpHostname, guacd.SftpPort})
+	}
+	forwarders := make([]*gateway.DomainGateway, 0, len(parameters))
+	stop := func() {
+		for _, forwarder := range forwarders {
+			forwarder.Stop()
+		}
+	}
+	for _, parameter := range parameters {
+		forwarder := &gateway.DomainGateway{
+			DstAddr:         net.JoinHostPort(conf.GetParameter(parameter[0]), conf.GetParameter(parameter[1])),
+			SelectedGateway: sess.Gateway,
+			Destination:     sess.GatewayTarget,
+		}
+		if err := forwarder.StartContext(ctx); err != nil {
+			stop()
+			return nil, err
+		}
+		forwarders = append(forwarders, forwarder)
+		addr := forwarder.GetListenAddr()
+		conf.SetParameter(parameter[0], addr.IP.String())
+		conf.SetParameter(parameter[1], strconv.Itoa(addr.Port))
+		logger.Infof("Start SSH forwarder %s for %s on %s", forwarder.Name(), parameter[0], addr)
+	}
+	return stop, nil
+}
+
 type GuacamoleTunnelServer struct {
 	JmsService     *service.JMService
 	Cache          *GuaTunnelCacheManager
@@ -163,14 +193,8 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 		conf.SetParameter(argName, argValue)
 	}
 	if tunnelSession.Gateway != nil || tunnelSession.GatewayTarget != nil {
-		dstAddr := net.JoinHostPort(conf.GetParameter(guacd.Hostname),
-			conf.GetParameter(guacd.Port))
-		domainGateway := gateway.DomainGateway{
-			DstAddr:         dstAddr,
-			SelectedGateway: tunnelSession.Gateway,
-			Destination:     tunnelSession.GatewayTarget,
-		}
-		if err = domainGateway.Start(); err != nil {
+		stopForwarders, forwardErr := forwardSession(ctx.Request.Context(), &tunnelSession, &conf)
+		if err = forwardErr; err != nil {
 			logger.Errorf("Start domain gateway err: %+v", err)
 			_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrGatewayFailed.String()))
 			if err = tunnelSession.ConnectedFailedCallback(err); err != nil {
@@ -181,12 +205,7 @@ func (g *GuacamoleTunnelServer) Connect(ctx *gin.Context) {
 			}
 			return
 		}
-		defer domainGateway.Stop()
-		localAddr := domainGateway.GetListenAddr()
-		conf.SetParameter(guacd.Hostname, localAddr.IP.String())
-		conf.SetParameter(guacd.Port, strconv.Itoa(localAddr.Port))
-		logger.Infof("Start SSH forwarder %s listen on %s:%d", domainGateway.Name(),
-			localAddr.IP.String(), localAddr.Port)
+		defer stopForwarders()
 	}
 
 	var tunnel *guacd.Tunnel
