@@ -190,6 +190,12 @@ func (p *Parser) WriteData(b []byte) (int, error) {
 func (p *Parser) Parse() string {
 	line := p.buf.String()
 	line = strings.TrimPrefix(line, string(charEnter))
+	line = strings.Map(func(r rune) rune {
+		if r < 0x20 && r != '\t' {
+			return -1
+		}
+		return r
+	}, line)
 	p.buf.Reset()
 	return line
 }
