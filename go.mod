@@ -1,6 +1,6 @@
 module github.com/jumpserver/koko
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/Azure/azure-storage-blob-go v0.15.0
