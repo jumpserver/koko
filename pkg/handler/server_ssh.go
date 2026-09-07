@@ -150,11 +150,28 @@ func (s *Server) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewCha
 		return
 	}
 	vsReq := s.getVSCodeReq(reqId)
+	var (
+		sshClient *srvconn.SSHClient
+		user      *model.User
+	)
 	if vsReq == nil {
-		_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled")
-		return
+		if config.GetConf().ReuseConnection {
+			_ = newChan.Reject(gossh.Prohibited, "port forwarding is disabled")
+			return
+		}
+		var err error
+		sshClient, user, err = s.buildDirectTCPIPSSHClient(ctx)
+		if err != nil {
+			logger.Errorf("Create direct-tcpip SSH client failed: %s", err)
+			_ = newChan.Reject(gossh.ConnectionFailed, err.Error())
+			return
+		}
+		defer sshClient.Close()
+	} else {
+		sshClient = vsReq.client
+		user = vsReq.user
 	}
-	dConn, err := vsReq.client.Dial("tcp", destAddr)
+	dConn, err := sshClient.Dial("tcp", destAddr)
 	if err != nil {
 		_ = newChan.Reject(gossh.ConnectionFailed, err.Error())
 		return
@@ -166,8 +183,8 @@ func (s *Server) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewCha
 		_ = newChan.Reject(gossh.ConnectionFailed, err.Error())
 		return
 	}
-	logger.Infof("User %s start port forwarding from (%s) to (%s)", vsReq.user,
-		vsReq.client, destAddr)
+	logger.Infof("User %s start port forwarding from (%s) to (%s)", user,
+		sshClient, destAddr)
 	defer ch.Close()
 	go gossh.DiscardRequests(reqs)
 	go func() {
@@ -176,8 +193,8 @@ func (s *Server) DirectTCPIPChannelHandler(ctx ssh.Context, newChan gossh.NewCha
 		_, _ = io.Copy(ch, dConn)
 	}()
 	_, _ = io.Copy(dConn, ch)
-	logger.Infof("User %s end port forwarding from (%s) to (%s)", vsReq.user,
-		vsReq.client, destAddr)
+	logger.Infof("User %s end port forwarding from (%s) to (%s)", user,
+		sshClient, destAddr)
 }
 
 func (s *Server) SessionHandler(sess ssh.Session) {
@@ -357,7 +374,11 @@ func (s *Server) proxyTokenInfo(sess ssh.Session, tokenInfo *model.ConnectToken)
 			srvconn.AddClientCache(reusedKey, sshClient)
 		}
 	}
-	//defer sshClient.Close()
+	if len(sess.Command()) != 0 && !enableReused {
+		defer sshClient.Close()
+		s.proxyAssetCommand(sess, sshClient, tokenInfo)
+		return
+	}
 	vsReq := &vscodeReq{
 		reqId:      ctxId,
 		user:       &tokenInfo.User,
@@ -818,13 +839,6 @@ func (s *Server) buildConnectToken(ctx ssh.Context, user *model.User, req *auth.
 }
 
 func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClient, error) {
-	asset := tokenInfo.Asset
-	account := tokenInfo.Account
-	var gateways []model.Gateway
-	if tokenInfo.Gateway != nil {
-		gateways = []model.Gateway{*tokenInfo.Gateway}
-	}
-	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
 	// add reuse ssh client
 	enableReused := config.GetConf().ReuseConnection
 	reusedKey := GenerateSSHTokenResueKey(tokenInfo)
@@ -834,15 +848,61 @@ func (s *Server) buildSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClie
 			return client, nil
 		}
 	}
-	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
+	sshClient, err := buildNewSSHClient(tokenInfo)
 	if err != nil {
-		logger.Errorf("Get SSH Client failed: %s", err)
 		return sshClient, err
 	}
 	if enableReused {
 		srvconn.AddClientCache(reusedKey, sshClient)
 	}
 	return sshClient, nil
+}
+
+func (s *Server) buildDirectTCPIPSSHClient(ctx ssh.Context) (*srvconn.SSHClient, *model.User, error) {
+	user, ok := ctx.Value(auth.ContextKeyUser).(*model.User)
+	if !ok || user.ID == "" {
+		return nil, nil, errors.New("ssh user not found")
+	}
+	directRequest, ok := ctx.Value(auth.ContextKeyDirectLoginFormat).(*auth.DirectLoginAssetReq)
+	if !ok {
+		return nil, user, errors.New("port forwarding requires a direct login request")
+	}
+
+	var (
+		tokenInfo *model.ConnectToken
+		err       error
+	)
+	if directRequest.IsToken() {
+		tokenInfo = directRequest.ConnectToken
+		matchedProtocol := tokenInfo.Protocol == model.ProtocolSSH
+		assetSupportedSSH := tokenInfo.Asset.IsSupportProtocol(model.ProtocolSSH)
+		if !matchedProtocol || !assetSupportedSSH {
+			return nil, user, errors.New("not ssh asset connection token")
+		}
+	} else {
+		tokenInfo, err = s.buildConnectToken(ctx, user, directRequest)
+		if err != nil {
+			return nil, user, err
+		}
+	}
+
+	sshClient, err := buildNewSSHClient(tokenInfo)
+	return sshClient, user, err
+}
+
+func buildNewSSHClient(tokenInfo *model.ConnectToken) (*srvconn.SSHClient, error) {
+	asset := tokenInfo.Asset
+	account := tokenInfo.Account
+	var gateways []model.Gateway
+	if tokenInfo.Gateway != nil {
+		gateways = []model.Gateway{*tokenInfo.Gateway}
+	}
+	sshAuthOpts := buildSSHClientOptions(&asset, &account, gateways)
+	sshClient, err := srvconn.NewSSHClient(sshAuthOpts...)
+	if err != nil {
+		logger.Errorf("Get SSH Client failed: %s", err)
+	}
+	return sshClient, err
 }
 
 func GenerateSSHTokenResueKey(tokenInfo *model.ConnectToken) string {
