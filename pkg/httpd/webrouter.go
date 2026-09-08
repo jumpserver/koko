@@ -39,7 +39,6 @@ func createRouter(
 	jmsService *service.JMService,
 	webSrv *Server,
 	lionRuntime *lion.Runtime,
-	agentHandler http.Handler,
 ) *gin.Engine {
 	if config.GlobalConfig.LogLevel != "DEBUG" {
 		gin.SetMode(gin.ReleaseMode)
@@ -53,9 +52,6 @@ func createRouter(
 	eng.SetHTMLTemplate(templ)
 	kokoGroup.StaticFS("/static/", getStaticFS())
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
-	if agentHandler != nil {
-		kokoGroup.Any("/agent/*path", gin.WrapH(agentHandler))
-	}
 	wsGroup := kokoGroup.Group("/ws/")
 	{
 		wsGroup.Group("/terminal").Use(

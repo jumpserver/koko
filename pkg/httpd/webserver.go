@@ -107,10 +107,9 @@ var upGrader = websocket.Upgrader{
 func NewServer(
 	jmsService *service.JMService,
 	lionRuntime *lion.Runtime,
-	agentHandler http.Handler,
 ) *Server {
 	srv := &Server{broadCaster: NewBroadcaster(), apiClient: jmsService}
-	eng := createRouter(jmsService, srv, lionRuntime, agentHandler)
+	eng := createRouter(jmsService, srv, lionRuntime)
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 	srv.Srv = &http.Server{Addr: addr, Handler: eng}

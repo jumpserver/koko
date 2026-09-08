@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/jumpserver-dev/sdk-go/model"
-	"github.com/jumpserver/koko/internal/agentapi"
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
@@ -13,9 +12,9 @@ import (
 func agentContextSnapshot(
 	token *model.ConnectToken,
 	sessionKind string,
-) agentapi.ContextSnapshot {
+) sessiontools.ContextSnapshot {
 	if token == nil {
-		return agentapi.ContextSnapshot{SessionKind: sessionKind}
+		return sessiontools.ContextSnapshot{SessionKind: sessionKind}
 	}
 	protocol := strings.ToLower(strings.TrimSpace(token.Protocol))
 	commandLanguage := protocol
@@ -34,7 +33,7 @@ func agentContextSnapshot(
 	if sessionKind == "file" {
 		commandLanguage = "sftp"
 	}
-	return agentapi.ContextSnapshot{
+	return sessiontools.ContextSnapshot{
 		SessionKind: sessionKind, InteractionMode: "live",
 		CommandLanguage: commandLanguage, Dialect: dialect,
 		Protocol: protocol,

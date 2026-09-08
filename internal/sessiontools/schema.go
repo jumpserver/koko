@@ -1,4 +1,4 @@
-package agentruntime
+package sessiontools
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-const schemaResourceURL = "https://agent.invalid/tool-schema.json"
+const schemaResourceURL = "https://sessiontools.invalid/tool-schema.json"
 
 type rejectingSchemaLoader struct{}
 
@@ -41,23 +41,11 @@ func compileSchema(raw json.RawMessage) (*jsonschema.Schema, error) {
 }
 
 // ValidateSchema verifies a complete JSON Schema without resolving references
-// outside the schema document. Agentd uses it before accepting a toolset, and
-// Runtime compiles the same contract once for execution-time validation.
+// outside the schema document.
 func ValidateSchema(raw json.RawMessage) error {
 	if len(raw) == 0 {
 		return nil
 	}
 	_, err := compileSchema(raw)
 	return err
-}
-
-func validateJSON(schema *jsonschema.Schema, raw json.RawMessage) error {
-	value, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
-	if err != nil {
-		return fmt.Errorf("decode JSON value: %w", err)
-	}
-	if err = schema.Validate(value); err != nil {
-		return fmt.Errorf("does not match JSON Schema: %w", err)
-	}
-	return nil
 }

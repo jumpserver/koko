@@ -3,14 +3,13 @@ package sessiontools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/jumpserver/koko/internal/agentapi"
-	"github.com/jumpserver/koko/internal/agentruntime"
 )
 
-func TestPostgreSQLCommandToolContractRejectsShell(t *testing.T) {
+func TestPostgreSQLCommandToolContract(t *testing.T) {
 	validator := ProtocolCommandValidator("postgresql")
 	if _, err := validator("free -h"); err == nil || !strings.Contains(err.Error(), "SQL statements only") {
 		t.Fatalf("shell command validation error = %v", err)
@@ -36,6 +35,37 @@ func TestPostgreSQLCommandToolContractRejectsShell(t *testing.T) {
 		t.Fatalf("unexpected PostgreSQL tool presentation: %#v", definition)
 	}
 	properties := definition.InputSchema["properties"].(map[string]any)
+	patternValue := properties["command"].(map[string]any)["pattern"]
+	pattern, ok := patternValue.(string)
+	if !ok {
+		t.Fatalf("command schema pattern = %#v", patternValue)
+	}
+	compiledPattern, err := regexp.Compile(pattern)
+	if err != nil {
+		t.Fatalf("compile command schema pattern: %v", err)
+	}
+	if !compiledPattern.MatchString("SELECT 1") {
+		t.Fatal("command schema rejected a valid single-line command")
+	}
+	for _, command := range []string{
+		"SELECT 1\nSELECT 2",
+		"\tSELECT 1",
+		"SELECT 1\u0085",
+		"SELECT 1\u2028SELECT 2",
+		"SELECT 1\u2029SELECT 2",
+	} {
+		if compiledPattern.MatchString(command) {
+			t.Fatalf("command schema accepted %q", command)
+		}
+		payload, marshalErr := json.Marshal(map[string]string{"command": command})
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if _, callErr := handler.Call(context.Background(), payload); callErr == nil ||
+			!strings.Contains(callErr.Error(), "line breaks or control characters") {
+			t.Fatalf("command %q validation error = %v", command, callErr)
+		}
+	}
 	modes := properties["execution"].(map[string]any)["enum"].([]string)
 	if len(modes) != 2 || modes[0] != MCPExecutionAuto || modes[1] != MCPExecutionPTY {
 		t.Fatalf("execution modes = %#v", modes)
@@ -130,7 +160,7 @@ func TestAgentToolOutputSchemasAndLargeResult(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = agentruntime.ValidateSchema(encoded); err != nil {
+		if err = ValidateSchema(encoded); err != nil {
 			t.Fatalf("invalid output schema: %v", err)
 		}
 	}
@@ -138,7 +168,7 @@ func TestAgentToolOutputSchemasAndLargeResult(t *testing.T) {
 	result, payload := newMCPCallToolResult(map[string]any{
 		"output": strings.Repeat("x", 100*1024),
 	}, nil)
-	if len(payload) == 0 || len(payload) > agentapi.MaxToolResultBytes {
+	if len(payload) == 0 || len(payload) > MaxToolResultBytes {
 		t.Fatalf("large structured result has invalid wire size %d", len(payload))
 	}
 	if result.StructuredContent == nil || len(result.Content) != 1 ||
@@ -155,5 +185,33 @@ func TestMCPAgentBindingRequiresRevision(t *testing.T) {
 	}
 	if _, err := decodeMCPAgentBinding(meta, true); err == nil {
 		t.Fatal("binding without a toolset revision was accepted")
+	}
+}
+
+func TestMCPAgentBindingIgnoresUnknownFields(t *testing.T) {
+	meta := map[string]json.RawMessage{
+		MCPAgentMetaKey: json.RawMessage(`{"resource_session_id":"resource-1","tool_call_id":"call-1","revision":1,"registration_id":"registration-1","invocation_id":"invocation-1","definition_version":"1","definition_digest":"digest-1"}`),
+		"io.modelcontextprotocol/protocolVersion":    json.RawMessage(`"2026-07-28"`),
+		"io.modelcontextprotocol/clientCapabilities": json.RawMessage(`{}`),
+	}
+	binding, err := decodeMCPAgentBinding(meta, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if binding.ResourceSessionID != "resource-1" || binding.ToolCallID != "call-1" || binding.Revision != 1 {
+		t.Fatalf("unexpected binding: %#v", binding)
+	}
+}
+
+func TestMCPToolTimeoutAndCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		err    error
+		status string
+	}{{context.DeadlineExceeded, "timeout"}, {context.Canceled, "cancelled"}} {
+		result, payload := newMCPCallToolResult(nil, fmt.Errorf("execute: %w", tc.err))
+		meta, ok := result.Meta[MCPAgentMetaKey].(map[string]any)
+		if !result.IsError || !ok || meta["status"] != tc.status || !json.Valid(payload) {
+			t.Fatalf("missing outcome %s: %+v", tc.status, result)
+		}
 	}
 }

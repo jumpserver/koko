@@ -19,9 +19,8 @@ import (
 )
 
 const (
-	TypeRDP       = "rdp"
-	TypeVNC       = "vnc"
-	TypeRemoteApp = "remoteapp"
+	TypeRDP = "rdp"
+	TypeVNC = "vnc"
 
 	connectApplet = "applet"
 
@@ -259,23 +258,11 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 	for _, setter := range opts {
 		setter(opt)
 	}
-	var targetType string
 	sessionProtocol := opt.Protocol
-	switch opt.authInfo.ConnectMethod.Type {
-	case connectApplet, connectVirtualAPP:
-		targetType = TypeRemoteApp
-	default:
-		switch opt.Protocol {
-		case TypeRDP:
-			targetType = TypeRDP
-		case TypeVNC:
-			targetType = TypeVNC
-		default:
-			if opt.appletOpt == nil {
-				return TunnelSession{}, fmt.Errorf("%w: %s", ErrUnSupportedProtocol, opt.Protocol)
-			}
-			targetType = TypeRemoteApp
-		}
+	connectMethod := opt.authInfo.ConnectMethod.Type
+	if connectMethod != connectApplet && connectMethod != connectVirtualAPP &&
+		opt.Protocol != TypeRDP && opt.Protocol != TypeVNC && opt.appletOpt == nil {
+		return TunnelSession{}, fmt.Errorf("%w: %s", ErrUnSupportedProtocol, opt.Protocol)
 	}
 	sessionAssetName := opt.Asset.String()
 	sess, err = s.CreateRDPAndVNCSession(opt)
@@ -299,7 +286,7 @@ func (s *Server) Create(ctx *gin.Context, opts ...TunnelOption) (sess TunnelSess
 	sess.ExpireInfo = opt.ExpireInfo
 	sess.Permission = &perm
 	sess.Account = opt.Account
-	sess.ActionPerm = NewActionPermission(&perm, targetType, opt.authInfo.ClipboardPolicy)
+	sess.ActionPerm = NewActionPermission(&perm, opt.authInfo.ClipboardPolicy)
 	jmsSession := model.Session{
 		ID:         sess.ID,
 		User:       sess.User.String(),

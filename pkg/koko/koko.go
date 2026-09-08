@@ -3,18 +3,12 @@ package koko
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/jumpserver/koko/internal/agent"
-	"github.com/jumpserver/koko/internal/agentauth"
-	"github.com/jumpserver/koko/internal/agenthttp"
-	"github.com/jumpserver/koko/internal/agentruntime/provider"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/httpd"
@@ -33,7 +27,6 @@ type Koko struct {
 	sshSrv     *sshd.Server
 	lion       *lion.Runtime
 	webProxy   *webproxy.Server
-	agent      *agenthttp.Server
 	appContext context.Context
 	cancel     context.CancelFunc
 }
@@ -44,25 +37,14 @@ func (k *Koko) Start() {
 	if k.webProxy != nil {
 		go k.webProxy.Start()
 	}
-	if k.agent != nil {
-		logger.Infof("Koko agent runtime is available at /koko/agent/ on %s", k.webSrv.Srv.Addr)
-	}
 	k.lion.Start(k.appContext)
 }
 
 func (k *Koko) Stop() {
-	if k.agent != nil {
-		if err := k.agent.BeginShutdown(); err != nil {
-			logger.Errorf("Persist Koko agent shutdown state failed: %s", err)
-		}
-	}
 	k.webSrv.Stop()
 	k.sshSrv.Stop()
 	if k.webProxy != nil {
 		k.webProxy.Stop()
-	}
-	if k.agent != nil {
-		k.agent.Close()
 	}
 	if err := exchange.Close(); err != nil {
 		logger.Errorf("Close exchange manager failed: %s", err)
@@ -80,8 +62,7 @@ func RunForever(confPath string) {
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	bootstrapWithJMService(jmsService)
 	lionRuntime := lion.NewRuntime(jmsService)
-	agentServer := newAgentServer(jmsService)
-	webSrv := httpd.NewServer(jmsService, lionRuntime, agentServer)
+	webSrv := httpd.NewServer(jmsService, lionRuntime)
 	sshSrv := sshd.NewSSHServer(jmsService)
 	var webProxySrv *webproxy.Server
 	if conf := config.GetConf(); conf.WebProxyEnabled {
@@ -108,7 +89,6 @@ func RunForever(confPath string) {
 		sshSrv:     sshSrv,
 		lion:       lionRuntime,
 		webProxy:   webProxySrv,
-		agent:      agentServer,
 		appContext: appContext,
 		cancel:     cancel,
 	}
@@ -116,49 +96,6 @@ func RunForever(confPath string) {
 	runTasks(jmsService, lionRuntime)
 	<-gracefulStop
 	app.Stop()
-}
-
-func newAgentServer(jmsService *service.JMService) *agenthttp.Server {
-	conf := config.GetConf()
-	if !conf.AgentEnabled {
-		logger.Info("Koko agent runtime is disabled")
-		return nil
-	}
-	verifier := &agentauth.JMServiceVerifier{Service: jmsService}
-	agentService, err := agent.New(agent.Options{
-		DataDir:    filepath.Join(conf.DataFolderPath, "agent"),
-		InstanceID: conf.Name,
-		ModelFactory: func() (provider.Provider, error) {
-			var terminalConfig agent.TerminalConfig
-			if _, callErr := jmsService.Call(
-				"GET", service.TerminalConfigURL, nil, &terminalConfig,
-			); callErr != nil {
-				return nil, fmt.Errorf("load agent model configuration: %w", callErr)
-			}
-			return provider.New(agent.ProviderConfigFromTerminalConfig(terminalConfig))
-		},
-	})
-	if err != nil {
-		logger.Errorf("Initialize Koko agent runtime failed; terminal service remains available: %s", err)
-		return nil
-	}
-	server, err := agenthttp.New(agenthttp.Options{
-		Addr:    net.JoinHostPort(conf.BindHost, conf.HTTPPort),
-		Service: agentService,
-		Authenticator: &agentauth.CoreAuthenticator{
-			Cookies: verifier,
-			Headers: verifier,
-		},
-		OriginVerifier:    &agentauth.SameOriginVerifier{},
-		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       90 * time.Second,
-	})
-	if err != nil {
-		agentService.Close()
-		logger.Errorf("Initialize Koko agent HTTP server failed; terminal service remains available: %s", err)
-		return nil
-	}
-	return server
 }
 
 func bootstrap() {

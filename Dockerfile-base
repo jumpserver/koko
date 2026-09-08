@@ -1,3 +1,5 @@
+FROM ghcr.io/jumpserver-dev/libghostty-vt:ghostty-d4ac93a0395d-zig-0.15.2@sha256:dffb0a53f73862da96df4fadd134dd60ac440a82eb8b9a852d9159b989c86c0c AS libghostty-vt
+
 FROM golang:1.26.3-trixie
 ARG TARGETARCH
 
@@ -63,24 +65,11 @@ RUN set -ex \
             ;; \
     esac
 
-ARG ZIG_VERSION=0.15.2
-ARG GHOSTTY_COMMIT=d4ac93a0395d321b043ee0116dc8a1a384f0fb83
+COPY --from=libghostty-vt /opt/libghostty-vt /opt/libghostty-vt
+
 RUN set -ex \
-    && case "${TARGETARCH}" in \
-        amd64) ZIG_ARCH=x86_64 ;; \
-        arm64) ZIG_ARCH=aarch64 ;; \
-        *) echo "Unsupported libghostty architecture: ${TARGETARCH}"; exit 1 ;; \
-    esac \
     && apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config xz-utils \
-    && wget -O /tmp/zig.tar.xz https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz \
-    && tar -xf /tmp/zig.tar.xz -C /opt \
-    && mv /opt/zig-${ZIG_ARCH}-linux-${ZIG_VERSION} /opt/zig \
-    && wget -O /tmp/ghostty.tar.gz https://github.com/ghostty-org/ghostty/archive/${GHOSTTY_COMMIT}.tar.gz \
-    && tar -xf /tmp/ghostty.tar.gz -C /tmp \
-    && cd /tmp/ghostty-${GHOSTTY_COMMIT} \
-    && /opt/zig/zig build -Demit-lib-vt -Doptimize=ReleaseFast --prefix /opt/libghostty-vt \
-    && rm -rf /opt/zig /tmp/zig.tar.xz /tmp/ghostty.tar.gz /tmp/ghostty-${GHOSTTY_COMMIT} \
+    && apt-get install -y --no-install-recommends pkg-config \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jumpserver-dev/sdk-go/model"
-	"github.com/jumpserver/koko/internal/agentapi"
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -22,7 +21,7 @@ type terminalToolController struct {
 	client   *Client
 	ws       *UserWebsocket
 	server   *proxy.Server
-	context  agentapi.ContextSnapshot
+	context  sessiontools.ContextSnapshot
 	protocol string
 
 	ctx               context.Context
