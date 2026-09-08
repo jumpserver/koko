@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 )
 
@@ -42,6 +44,7 @@ type recordingManager struct {
 type webRecording struct {
 	mu            sync.Mutex
 	id            string
+	sessionID     string
 	dir           string
 	targetURL     string
 	width         int
@@ -71,6 +74,7 @@ type recordingMetadata struct {
 
 type recordingResult struct {
 	ID         string `json:"id"`
+	SessionID  string `json:"-"`
 	Path       string `json:"path"`
 	FrameCount int    `json:"frame_count"`
 	DurationMS int64  `json:"duration_ms"`
@@ -92,17 +96,21 @@ func newRecordingManager(root, ffmpegPath string) (*recordingManager, error) {
 	return manager, nil
 }
 
-func (m *recordingManager) start(targetURL string, width, height int) (*webRecording, error) {
+func (m *recordingManager) start(sessionID, targetURL string, width, height int) (*webRecording, error) {
+	if _, err := uuid.Parse(sessionID); err != nil {
+		return nil, errors.New("invalid Web session ID")
+	}
 	id, err := randomRecordingID()
 	if err != nil {
 		return nil, err
 	}
-	dir := filepath.Join(m.root, id)
+	dir := filepath.Join(m.root, "web", id)
 	if err = os.MkdirAll(filepath.Join(dir, "frames"), 0o700); err != nil {
 		return nil, fmt.Errorf("create Web recording directory: %w", err)
 	}
 	recording := &webRecording{
 		id:        id,
+		sessionID: sessionID,
 		dir:       dir,
 		targetURL: sanitizedRecordingURL(targetURL),
 		width:     width,
@@ -167,18 +175,35 @@ func (m *recordingManager) finish(ctx context.Context, id string, durationMS int
 	if err = m.encode(ctx, recording); err != nil {
 		return recordingResult{}, err
 	}
-	_ = os.RemoveAll(filepath.Join(recording.dir, "frames"))
-	_ = os.Remove(filepath.Join(recording.dir, "frames.ffconcat"))
+	replayDir := filepath.Join(m.root, recording.startedAt.Format("2006-01-02"))
+	if err = os.MkdirAll(replayDir, 0o700); err != nil {
+		return recordingResult{}, fmt.Errorf("create Web replay directory: %w", err)
+	}
+	replayPath := filepath.Join(replayDir, recording.sessionID+model.SuffixReplayMP4)
+	if err = os.Rename(filepath.Join(recording.dir, "recording.mp4"), replayPath); err != nil {
+		return recordingResult{}, fmt.Errorf("store Web replay: %w", err)
+	}
+	_ = os.RemoveAll(recording.dir)
 
 	return recordingResult{
 		ID:         id,
-		Path:       filepath.Join(recording.dir, "recording.mp4"),
+		SessionID:  recording.sessionID,
+		Path:       replayPath,
 		FrameCount: len(metadata.Frames),
 		DurationMS: durationMS,
 	}, nil
 }
 
-func (m *recordingManager) cancel(id string) error {
+func (m *recordingManager) sessionID(id string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if recording := m.sessions[id]; recording != nil {
+		return recording.sessionID
+	}
+	return ""
+}
+
+func (m *recordingManager) cancel(id string) (string, error) {
 	m.mu.Lock()
 	recording := m.sessions[id]
 	if recording != nil {
@@ -186,12 +211,12 @@ func (m *recordingManager) cancel(id string) error {
 	}
 	m.mu.Unlock()
 	if recording == nil {
-		return errors.New("recording not found")
+		return "", errors.New("recording not found")
 	}
 	recording.mu.Lock()
 	recording.closed = true
 	recording.mu.Unlock()
-	return os.RemoveAll(recording.dir)
+	return recording.sessionID, os.RemoveAll(recording.dir)
 }
 
 func (r *webRecording) addFrame(timestampMS int64, frameData []byte) (bool, int, error) {
@@ -292,6 +317,10 @@ func (s *Server) serveRecording(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Web recording is disabled", http.StatusNotFound)
 		return
 	}
+	if s.coreService == nil {
+		http.Error(w, "Core Web session service is disabled", http.StatusServiceUnavailable)
+		return
+	}
 
 	path := strings.Trim(strings.TrimPrefix(r.URL.Path, recordingPathPrefix), "/")
 	parts := strings.Split(path, "/")
@@ -310,8 +339,13 @@ func (s *Server) serveRecording(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) cancelRecording(w http.ResponseWriter, id string) {
-	if err := s.recordings.cancel(id); err != nil {
+	sessionID, err := s.recordings.cancel(id)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if _, err = s.coreService.SessionDisconnect(sessionID); err != nil {
+		http.Error(w, "unable to finish Web session", http.StatusBadGateway)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -319,6 +353,7 @@ func (s *Server) cancelRecording(w http.ResponseWriter, id string) {
 
 func (s *Server) startRecording(w http.ResponseWriter, r *http.Request) {
 	var request struct {
+		SessionID string `json:"session_id"`
 		TargetURL string `json:"target_url"`
 		Width     int    `json:"width"`
 		Height    int    `json:"height"`
@@ -331,7 +366,7 @@ func (s *Server) startRecording(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid recording dimensions", http.StatusBadRequest)
 		return
 	}
-	recording, err := s.recordings.start(request.TargetURL, request.Width, request.Height)
+	recording, err := s.recordings.start(request.SessionID, request.TargetURL, request.Width, request.Height)
 	if err != nil {
 		http.Error(w, "unable to start recording", http.StatusInternalServerError)
 		return
@@ -376,13 +411,61 @@ func (s *Server) finishRecording(w http.ResponseWriter, r *http.Request, id stri
 		http.Error(w, "invalid recording duration", http.StatusBadRequest)
 		return
 	}
+	sessionID := s.recordings.sessionID(id)
+	if sessionID == "" {
+		http.Error(w, "recording not found", http.StatusNotFound)
+		return
+	}
+	if _, err := s.coreService.SessionDisconnect(sessionID); err != nil {
+		http.Error(w, "unable to finish Web session", http.StatusBadGateway)
+		return
+	}
 	result, err := s.recordings.finish(r.Context(), id, request.DurationMS)
 	if err != nil {
+		_, _ = s.coreService.SessionReplayFailed(sessionID, model.SessionReplayErrConvertFailed)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	logger.Infof("Web recording %s generated at %s (%d frames, %d ms)", result.ID, result.Path, result.FrameCount, result.DurationMS)
+	if err = s.uploadRecording(result); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	result.Path = ""
 	writeRecordingJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) uploadRecording(result recordingResult) error {
+	info, err := os.Stat(result.Path)
+	if err != nil {
+		return fmt.Errorf("stat Web replay: %w", err)
+	}
+	s.recordReplayLifecycle(result.SessionID, model.ReplayUploadStart, "")
+	if err = s.coreService.UploadReplay(result.SessionID, result.Path, model.Version4); err != nil {
+		s.recordReplayUploadFailure(result.SessionID, err)
+		return fmt.Errorf("upload Web replay to Core: %w", err)
+	}
+	if _, err = s.coreService.FinishReplyWithSize(result.SessionID, info.Size()); err != nil {
+		s.recordReplayUploadFailure(result.SessionID, err)
+		return fmt.Errorf("finish Core Web replay: %w", err)
+	}
+	s.recordReplayLifecycle(result.SessionID, model.ReplayUploadSuccess, "")
+	if err = os.Remove(result.Path); err != nil {
+		logger.Warnf("Remove uploaded Web replay %s failed: %s", result.Path, err)
+	}
+	logger.Infof("Web recording %s uploaded to Core for session %s", result.ID, result.SessionID)
+	return nil
+}
+
+func (s *Server) recordReplayUploadFailure(sessionID string, err error) {
+	_, _ = s.coreService.SessionReplayFailed(sessionID, model.SessionReplayErrUploadFailed)
+	s.recordReplayLifecycle(sessionID, model.ReplayUploadFailure, strings.ReplaceAll(err.Error(), ",", " "))
+}
+
+func (s *Server) recordReplayLifecycle(sessionID string, event model.LifecycleEvent, reason string) {
+	if err := s.coreService.RecordSessionLifecycleLog(sessionID, event, model.SessionLifecycleLog{Reason: reason}); err != nil {
+		logger.Errorf("Record Web session %s lifecycle %s failed: %s", sessionID, event, err)
+	}
 }
 
 func decodeLimitedJSON(w http.ResponseWriter, r *http.Request, value any) error {

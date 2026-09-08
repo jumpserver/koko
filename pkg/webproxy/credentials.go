@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/logger"
 )
@@ -32,13 +33,19 @@ const (
 	credentialKDFInfo     = "jumpserver-web-autofill-v1"
 )
 
-type connectTokenService interface {
+type webProxyService interface {
 	GetConnectTokenInfo(tokenID string, expireNow bool) (model.ConnectToken, error)
+	CreateSession(session model.Session) (model.Session, error)
+	SessionDisconnect(sessionID string) (model.Session, error)
+	UploadReplay(sessionID, replayPath string, version model.ReplayVersion) error
+	FinishReplyWithSize(sessionID string, size int64) (model.Session, error)
+	SessionReplayFailed(sessionID string, reason model.ReplayError) (model.Session, error)
+	RecordSessionLifecycleLog(sessionID string, event model.LifecycleEvent, log model.SessionLifecycleLog) error
 }
 
 type credentialManager struct {
 	mu           sync.Mutex
-	tokenService connectTokenService
+	tokenService webProxyService
 	sessions     map[string]*credentialSession
 }
 
@@ -60,6 +67,7 @@ type createCredentialSessionRequest struct {
 }
 
 type createCredentialSessionResponse struct {
+	SessionID         string    `json:"session_id"`
 	ID                string    `json:"id,omitempty"`
 	AccessToken       string    `json:"access_token,omitempty"`
 	TargetURL         string    `json:"target_url"`
@@ -77,7 +85,7 @@ type credentialEnvelope struct {
 	Password string `json:"password"`
 }
 
-func newCredentialManager(tokenService connectTokenService) *credentialManager {
+func newCredentialManager(tokenService webProxyService) *credentialManager {
 	return &credentialManager{tokenService: tokenService, sessions: make(map[string]*credentialSession)}
 }
 
@@ -137,7 +145,13 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	response := createCredentialSessionResponse{TargetURL: targetURL, Origin: origin}
+	apiSession := connectToken.CreateSession(remoteHost(r.RemoteAddr), model.LoginFromWeb, model.NORMALType)
+	apiSession.ID = common.UUID()
+	if _, err = s.credentials.tokenService.CreateSession(apiSession); err != nil {
+		http.Error(w, "unable to create Web session", http.StatusBadGateway)
+		return
+	}
+	response := createCredentialSessionResponse{SessionID: apiSession.ID, TargetURL: targetURL, Origin: origin}
 	usernameSelector, passwordSelector, submitSelector, available := credentialSelectors(connectToken)
 	if !available {
 		writeCredentialJSON(w, http.StatusCreated, response)
@@ -173,6 +187,7 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 		assetID: connectToken.Asset.ID, accountID: connectToken.Account.ID, expiresAt: expiresAt,
 	}
 	if err = s.credentials.save(session); err != nil {
+		_, _ = s.credentials.tokenService.SessionDisconnect(apiSession.ID)
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -185,6 +200,14 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 	response.ServerPublicKey = serverPublicKey
 	response.ExpiresAt = expiresAt
 	writeCredentialJSON(w, http.StatusCreated, response)
+}
+
+func remoteHost(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		return ""
+	}
+	return host
 }
 
 func (s *Server) releaseCredentials(w http.ResponseWriter, r *http.Request, sessionID string) {

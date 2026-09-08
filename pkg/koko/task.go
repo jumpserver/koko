@@ -70,15 +70,19 @@ func uploadRemainReplay(jmsService *service.JMService) {
 				absGzPath = absPath + model.SuffixReplayGz
 			case model.Version3:
 				absGzPath = absPath + model.SuffixGz
+			case model.Version4:
+				absGzPath = absPath
 			default:
 				absGzPath = absPath + model.SuffixGz
 			}
 
-			if err = common.CompressToGzipFile(absPath, absGzPath); err != nil {
-				logger.Error(err)
-				continue
+			if absGzPath != absPath {
+				if err = common.CompressToGzipFile(absPath, absGzPath); err != nil {
+					logger.Error(err)
+					continue
+				}
+				_ = os.Remove(absPath)
 			}
-			_ = os.Remove(absPath)
 		}
 		absFileInfo, err := os.Stat(absGzPath)
 		if err != nil {
@@ -356,9 +360,10 @@ func isGzipFile(filename string) bool {
 
 func isReplayFile(filename string) (id string, version model.ReplayVersion, ok bool) {
 	suffixesMap := map[string]model.ReplayVersion{
-		model.SuffixCast:     model.Version3,
-		model.SuffixCastGz:   model.Version3,
-		model.SuffixReplayGz: model.Version2}
+		model.SuffixCast:      model.Version3,
+		model.SuffixCastGz:    model.Version3,
+		model.SuffixReplayGz:  model.Version2,
+		model.SuffixReplayMP4: model.Version4}
 	for suffix := range suffixesMap {
 		if strings.HasSuffix(filename, suffix) {
 			sidName := strings.Split(filename, ".")[0]

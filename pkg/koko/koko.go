@@ -88,7 +88,7 @@ func RunForever(confPath string) {
 		var err error
 		recordingRoot := ""
 		if conf.WebProxyRecordingEnabled {
-			recordingRoot = filepath.Join(conf.ReplayFolderPath, "web")
+			recordingRoot = conf.ReplayFolderPath
 		}
 		webProxySrv, err = webproxy.NewServer(
 			conf.WebProxyBindHost,
