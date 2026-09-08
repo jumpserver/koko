@@ -22,6 +22,7 @@ import (
 
 type fakeConnectTokenService struct {
 	token             model.ConnectToken
+	config            webLoginConfig
 	calls             []bool
 	createdSession    model.Session
 	disconnectedID    string
@@ -31,9 +32,9 @@ type fakeConnectTokenService struct {
 	replaySize        int64
 }
 
-func (f *fakeConnectTokenService) GetConnectTokenInfo(_ string, expireNow bool) (model.ConnectToken, error) {
+func (f *fakeConnectTokenService) GetConnectTokenInfo(_ string, expireNow bool) (webConnectToken, error) {
 	f.calls = append(f.calls, expireNow)
-	return f.token, nil
+	return webConnectToken{ConnectToken: f.token, config: f.config}, nil
 }
 
 func (f *fakeConnectTokenService) CreateSession(session model.Session) (model.Session, error) {

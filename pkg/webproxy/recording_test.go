@@ -86,6 +86,23 @@ func TestWebRecordingLifecycle(t *testing.T) {
 	}
 }
 
+func TestWebRecordingRejectsInvalidSessionID(t *testing.T) {
+	proxy, err := NewServer("127.0.0.1", "0", "*", t.TempDir(), "ffmpeg", &fakeConnectTokenService{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sessionID := range []string{"", "web-proxy-f6d7adcb-b7b6-4994-bd98-b2ee8a2b1c3d"} {
+		body, err := json.Marshal(map[string]any{"session_id": sessionID, "width": 32, "height": 24})
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix, body)
+		if response.Code != http.StatusBadRequest || !bytes.Contains(response.Body.Bytes(), []byte("session_id")) {
+			t.Fatalf("expected session_id validation error for %q, got %d: %s", sessionID, response.Code, response.Body.String())
+		}
+	}
+}
+
 func TestWebRecordingCancellationRemovesPendingFrames(t *testing.T) {
 	root := t.TempDir()
 	manager, err := newRecordingManager(root, "ffmpeg")
