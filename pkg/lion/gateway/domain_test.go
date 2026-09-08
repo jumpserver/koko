@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -45,6 +47,21 @@ func testSSHGateway(t *testing.T, handler sshserver.ChannelHandler) *model.Gatew
 	}
 }
 
+func testSSHForwardRoundTrip(t *testing.T, conn net.Conn) {
+	t.Helper()
+	const payload = "virtual-app SSH forwarding"
+	if _, err := io.WriteString(conn, payload); err != nil {
+		t.Fatalf("write forwarded destination: %v", err)
+	}
+	buf := make([]byte, len(payload))
+	if _, err := io.ReadFull(conn, buf); err != nil {
+		t.Fatalf("read forwarded destination: %v", err)
+	}
+	if string(buf) != payload {
+		t.Fatalf("forwarded bytes = %q, want %q", buf, payload)
+	}
+}
+
 func TestDomainGatewayRoundTripAndCancel(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -77,19 +94,9 @@ func TestDomainGatewayRoundTripAndCancel(t *testing.T) {
 	}
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
-	const payload = "virtual-app SSH forwarding"
-	if _, err := io.WriteString(conn, payload); err != nil {
-		t.Fatal(err)
-	}
-	buf := make([]byte, len(payload))
-	if _, err := io.ReadFull(conn, buf); err != nil {
-		t.Fatal(err)
-	}
-	if string(buf) != payload {
-		t.Fatalf("forwarded bytes = %q", buf)
-	}
+	testSSHForwardRoundTrip(t, conn)
 	cancel()
-	if _, err := conn.Read(buf); err == nil {
+	if _, err := conn.Read(make([]byte, 1)); err == nil {
 		t.Fatal("connection remained open after cancellation")
 	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
 		t.Fatalf("cancellation did not close the connection: %v", err)
@@ -179,4 +186,56 @@ func TestDomainGatewayChannelOpenTimeout(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("jump connection was not closed")
 	}
+}
+
+func TestDomainGatewaySSHForwardIntegration(t *testing.T) {
+	host := os.Getenv("LION_SSH_TEST_HOST")
+	keyFile := os.Getenv("LION_SSH_TEST_KEY_FILE")
+	destination := os.Getenv("LION_SSH_TEST_DESTINATION")
+	if host == "" || keyFile == "" || destination == "" {
+		t.Skip("set LION_SSH_TEST_HOST, LION_SSH_TEST_KEY_FILE and LION_SSH_TEST_DESTINATION (TCP echo service)")
+	}
+	port, err := strconv.Atoi(os.Getenv("LION_SSH_TEST_PORT"))
+	if err != nil || port == 0 {
+		port = 22
+	}
+	secret, err := os.ReadFile(keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sshTarget := func(name, address string, sshPort int) *model.Gateway {
+		return &model.Gateway{
+			Name:      name,
+			Address:   address,
+			Protocols: model.Protocols{{Name: "ssh", Port: sshPort}},
+			Account: model.Account{BaseAccount: model.BaseAccount{
+				Username:   "root",
+				Secret:     string(secret),
+				SecretType: model.LabelValue{Value: "ssh_key"},
+			}},
+		}
+	}
+	forwarder := DomainGateway{
+		DstAddr:     destination,
+		Destination: sshTarget("integration-provider", host, port),
+	}
+	if jumpHost := os.Getenv("LION_SSH_TEST_JUMP_HOST"); jumpHost != "" {
+		jumpPort, err := strconv.Atoi(os.Getenv("LION_SSH_TEST_JUMP_PORT"))
+		if err != nil || jumpPort == 0 {
+			jumpPort = 22
+		}
+		forwarder.SelectedGateway = sshTarget("integration-gateway", jumpHost, jumpPort)
+	}
+	if err := forwarder.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer forwarder.Stop()
+
+	conn, err := net.DialTimeout("tcp", forwarder.GetListenAddr().String(), 5*time.Second)
+	if err != nil {
+		t.Fatalf("dial forwarded destination: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	testSSHForwardRoundTrip(t, conn)
 }
