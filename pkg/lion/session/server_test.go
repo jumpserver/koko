@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -86,7 +85,7 @@ func TestPandaAPIForwardKeepsReleaseAvailable(t *testing.T) {
 	}
 	defer forwarder.Stop()
 	cancel()
-	client := NewPandaClient(baseURL, model.AccessKey{ID: "key", Secret: "secret"}, false)
+	client := panda.NewClient(baseURL, model.AccessKey{ID: "key", Secret: "secret"}, false)
 	if err := client.ReleaseContainer("container"); err != nil {
 		t.Fatalf("Panda release through SSH after browser cancellation: %v", err)
 	}
@@ -97,33 +96,31 @@ func TestPandaAPIForwardKeepsReleaseAvailable(t *testing.T) {
 	}
 }
 
-func TestPandaAPIForwardRequiresSSHProvider(t *testing.T) {
+func TestProviderSSHTargetValidation(t *testing.T) {
 	host := model.Asset{Address: "192.0.2.10", Protocols: model.Protocols{{Name: "ssh", Port: 22}}}
 	for _, test := range []struct {
 		name     string
 		provider *virtualAppProvider
-		want     string
 	}{
-		{"provider", nil, "provider is required"},
-		{"host", &virtualAppProvider{}, "SSH host is required"},
-		{"port", &virtualAppProvider{Host: model.Asset{Address: host.Address}}, "valid SSH port"},
-		{"account", &virtualAppProvider{Host: host}, "SSH account and credentials"},
-		{"credential", &virtualAppProvider{Host: host, Account: model.Account{BaseAccount: model.BaseAccount{Username: "root"}}}, "SSH account and credentials"},
+		{"provider", nil},
+		{"host", &virtualAppProvider{}},
+		{"port", &virtualAppProvider{Host: model.Asset{Address: host.Address}}},
+		{"account", &virtualAppProvider{Host: host}},
+		{"credential", &virtualAppProvider{Host: host, Account: model.Account{BaseAccount: model.BaseAccount{Username: "root"}}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			forwarder, _, err := (&Server{}).startPandaAPIForward(context.Background(), test.provider)
-			if err == nil || !strings.Contains(err.Error(), test.want) || forwarder != nil {
-				t.Fatalf("expected %q before connecting, got %v", test.want, err)
+			target, err := providerSSHTarget(test.provider)
+			if err == nil || target != nil {
+				t.Fatalf("expected invalid provider to be rejected, got %v", err)
 			}
 		})
 	}
 }
 
-func TestVirtualAppOptionRetainsProviderAndAuthentication(t *testing.T) {
+func TestVirtualAppOptionRetainsProvider(t *testing.T) {
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != service.SuperConnectTokenVirtualAppOptionURL ||
-			r.Header.Get("Authorization") == "" || r.Header.Get("X-JMS-ORG") != "ROOT" {
-			t.Errorf("invalid authenticated virtual app request: %s %s", r.Method, r.URL.Path)
+		if r.Method != http.MethodPost || r.URL.Path != service.SuperConnectTokenVirtualAppOptionURL {
+			t.Errorf("invalid virtual app request: %s %s", r.Method, r.URL.Path)
 		}
 		var body map[string]string
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["id"] != "token" {

@@ -16,6 +16,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver-dev/sdk-go/service/panda"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/lion/middleware"
 	"github.com/jumpserver/koko/pkg/lion/session"
@@ -161,14 +162,14 @@ func newGuaTunnelCache() tunnel.GuaTunnelCache {
 	return tunnel.NewLocalTunnelLocalCache()
 }
 
-func newPandaClientFactory(cfg config.Config) func(string) *session.PandaClient {
+func newPandaClientFactory(cfg config.Config) func(string) *panda.Client {
 	var key model.AccessKey
 	if err := key.LoadFromFile(cfg.AccessKeyFilePath); err != nil {
 		logger.Errorf("Create panda client failed: loading access key err %s", err)
 		return nil
 	}
-	return func(pandaHost string) *session.PandaClient {
-		return session.NewPandaClient(pandaHost, key, cfg.IgnoreVerifyCerts)
+	return func(pandaHost string) *panda.Client {
+		return panda.NewClient(pandaHost, key, cfg.IgnoreVerifyCerts)
 	}
 }
 

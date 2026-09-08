@@ -15,6 +15,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver-dev/sdk-go/service/panda"
 	"github.com/jumpserver-dev/sdk-go/storage"
 )
 
@@ -41,7 +42,7 @@ var (
 type Server struct {
 	JmsService *service.JMService
 
-	PandaClientFactory func(string) *PandaClient
+	PandaClientFactory func(string) *panda.Client
 }
 
 func ParseWidthAndHeight(ctx *gin.Context, connectToken *model.ConnectToken) (int, int) {
@@ -252,7 +253,7 @@ func WithVirtualAppOption(virtualAppOpt *model.VirtualAppContainer) TunnelOption
 	}
 }
 
-func WithVirtualAppClient(client *PandaClient) TunnelOption {
+func WithVirtualAppClient(client *panda.Client) TunnelOption {
 	return func(tunnel *tunnelOption) {
 		tunnel.virtualAppClient = client
 	}
@@ -280,7 +281,7 @@ type tunnelOption struct {
 	TerminalConfig       *model.TerminalConfig
 	appletOpt            *model.AppletOption
 	virtualAppOPt        *model.VirtualAppContainer
-	virtualAppClient     *PandaClient
+	virtualAppClient     *panda.Client
 	virtualAppAPIGateway *gateway.DomainGateway
 }
 
