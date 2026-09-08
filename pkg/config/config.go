@@ -68,7 +68,6 @@ type Config struct {
 	EnableVideoWorker bool   `mapstructure:"ENABLE_VIDEO_WORKER"`
 	VideoWorkerHost   string `mapstructure:"VIDEO_WORKER_HOST"`
 	IgnoreVerifyCerts bool   `mapstructure:"IGNORE_VERIFY_CERTS"`
-	PandaHost         string `mapstructure:"PANDA_HOST"`
 	EnablePanda       bool   `mapstructure:"ENABLE_PANDA"`
 
 	ReplayMaxSize         int    `mapstructure:"REPLAY_MAX_SIZE"`
@@ -213,7 +212,6 @@ func getDefaultConfig() Config {
 		GuaHost:                "127.0.0.1",
 		GuaPort:                "4822",
 		CleanDriveScheduleTime: 1,
-		PandaHost:              "http://panda:9001",
 		VideoWorkerHost:        "http://video:9000",
 		ReplayMaxSize:          defaultLionReplayMaxSize,
 		DriveScope:             LionDriveScopeUser,

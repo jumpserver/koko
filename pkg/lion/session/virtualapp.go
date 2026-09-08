@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,23 +10,21 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
-	"github.com/jumpserver-dev/sdk-go/service/panda"
 	"github.com/jumpserver/koko/pkg/lion/gateway"
 )
 
-// Keep provider routing compatible with the published SDK and legacy Core.
+// Include provider SSH routing alongside the published SDK virtual app fields.
 type virtualApp struct {
 	model.VirtualApp
 	Provider *virtualAppProvider `json:"provider"`
 }
 
 type virtualAppProvider struct {
-	Name           string         `json:"name"`
-	ConnectionMode string         `json:"connection_mode"`
-	ServiceURL     string         `json:"service_url"`
-	Host           model.Asset    `json:"host"`
-	Account        model.Account  `json:"account"`
-	Gateway        *model.Gateway `json:"gateway"`
+	Name       string         `json:"name"`
+	ServiceURL string         `json:"service_url"`
+	Host       model.Asset    `json:"host"`
+	Account    model.Account  `json:"account"`
+	Gateway    *model.Gateway `json:"gateway"`
 }
 
 func (s *Server) getVirtualAppOption(token string) (app virtualApp, err error) {
@@ -34,24 +33,26 @@ func (s *Server) getVirtualAppOption(token string) (app virtualApp, err error) {
 	return
 }
 
-func (s *Server) pandaClientFor(provider *virtualAppProvider) *panda.Client {
-	if provider != nil && provider.ServiceURL != "" {
-		if s.PandaClientFactory == nil {
-			return nil
-		}
-		return s.PandaClientFactory(provider.ServiceURL)
+func providerSSHTarget(provider *virtualAppProvider) (*model.Gateway, error) {
+	if provider == nil {
+		return nil, errors.New("virtual app provider is required")
 	}
-	return s.PandaClient
-}
-
-func providerSSHTarget(provider *virtualAppProvider) *model.Gateway {
+	if provider.Host.Address == "" {
+		return nil, errors.New("virtual app provider SSH host is required")
+	}
+	if port := model.Protocols(provider.Host.Protocols).GetProtocolPort("ssh"); port < 1 || port > 65535 {
+		return nil, errors.New("virtual app provider requires a valid SSH port")
+	}
+	if provider.Account.Username == "" || provider.Account.Secret == "" {
+		return nil, errors.New("virtual app provider SSH account and credentials are required")
+	}
 	return &model.Gateway{
 		ID:        provider.Host.ID,
 		Name:      provider.Name,
 		Address:   provider.Host.Address,
 		Protocols: provider.Host.Protocols,
 		Account:   provider.Account,
-	}
+	}, nil
 }
 
 func pandaAPIForwardAddress(serviceURL string) (string, *url.URL, error) {
@@ -71,6 +72,10 @@ func pandaAPIForwardAddress(serviceURL string) (string, *url.URL, error) {
 }
 
 func (s *Server) startPandaAPIForward(ctx context.Context, provider *virtualAppProvider) (*gateway.DomainGateway, string, error) {
+	target, err := providerSSHTarget(provider)
+	if err != nil {
+		return nil, "", err
+	}
 	dstAddr, parsedURL, err := pandaAPIForwardAddress(provider.ServiceURL)
 	if err != nil {
 		return nil, "", err
@@ -78,7 +83,7 @@ func (s *Server) startPandaAPIForward(ctx context.Context, provider *virtualAppP
 	forwarder := &gateway.DomainGateway{
 		DstAddr:         dstAddr,
 		SelectedGateway: provider.Gateway,
-		Destination:     providerSSHTarget(provider),
+		Destination:     target,
 	}
 	// Cancellation must interrupt setup, but the API tunnel must survive a
 	// disconnected browser until ReleaseContainer has finished.

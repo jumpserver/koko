@@ -16,7 +16,6 @@ import (
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
-	"github.com/jumpserver-dev/sdk-go/service/panda"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/lion/middleware"
 	"github.com/jumpserver/koko/pkg/lion/session"
@@ -42,7 +41,6 @@ func NewRuntime(jmsService *service.JMService) *Runtime {
 		JmsService: jmsService,
 		SessionService: &session.Server{
 			JmsService:         jmsService,
-			PandaClient:        pandaClientFactory(config.GetConf().PandaHost),
 			PandaClientFactory: pandaClientFactory,
 		},
 	}
@@ -163,21 +161,17 @@ func newGuaTunnelCache() tunnel.GuaTunnelCache {
 	return tunnel.NewLocalTunnelLocalCache()
 }
 
-func newPandaClient(cfg config.Config) *panda.Client {
-	return newPandaClientFactory(cfg)(cfg.PandaHost)
-}
-
-func newPandaClientFactory(cfg config.Config) func(string) *panda.Client {
+func newPandaClientFactory(cfg config.Config) func(string) *session.PandaClient {
 	if !cfg.EnablePanda {
-		return func(string) *panda.Client { return nil }
+		return nil
 	}
 	var key model.AccessKey
 	if err := key.LoadFromFile(cfg.AccessKeyFilePath); err != nil {
 		logger.Errorf("Create panda client failed: loading access key err %s", err)
-		return func(string) *panda.Client { return nil }
+		return nil
 	}
-	return func(pandaHost string) *panda.Client {
-		return panda.NewClient(pandaHost, key, cfg.IgnoreVerifyCerts)
+	return func(pandaHost string) *session.PandaClient {
+		return session.NewPandaClient(pandaHost, key, cfg.IgnoreVerifyCerts)
 	}
 }
 
