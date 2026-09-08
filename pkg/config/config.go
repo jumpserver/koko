@@ -68,7 +68,6 @@ type Config struct {
 	EnableVideoWorker bool   `mapstructure:"ENABLE_VIDEO_WORKER"`
 	VideoWorkerHost   string `mapstructure:"VIDEO_WORKER_HOST"`
 	IgnoreVerifyCerts bool   `mapstructure:"IGNORE_VERIFY_CERTS"`
-	EnablePanda       bool   `mapstructure:"ENABLE_PANDA"`
 
 	ReplayMaxSize         int    `mapstructure:"REPLAY_MAX_SIZE"`
 	VncClipboardEncoding  string `mapstructure:"VNC_CLIPBOARD_ENCODING"`

@@ -162,9 +162,6 @@ func newGuaTunnelCache() tunnel.GuaTunnelCache {
 }
 
 func newPandaClientFactory(cfg config.Config) func(string) *session.PandaClient {
-	if !cfg.EnablePanda {
-		return nil
-	}
 	var key model.AccessKey
 	if err := key.LoadFromFile(cfg.AccessKeyFilePath); err != nil {
 		logger.Errorf("Create panda client failed: loading access key err %s", err)
