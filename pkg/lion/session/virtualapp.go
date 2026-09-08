@@ -3,10 +3,7 @@ package session
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net"
 	"net/http"
-	"net/url"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
@@ -20,11 +17,10 @@ type virtualApp struct {
 }
 
 type virtualAppProvider struct {
-	Name       string         `json:"name"`
-	ServiceURL string         `json:"service_url"`
-	Host       model.Asset    `json:"host"`
-	Account    model.Account  `json:"account"`
-	Gateway    *model.Gateway `json:"gateway"`
+	Name    string         `json:"name"`
+	Host    model.Asset    `json:"host"`
+	Account model.Account  `json:"account"`
+	Gateway *model.Gateway `json:"gateway"`
 }
 
 func (s *Server) getVirtualAppOption(token string) (app virtualApp, err error) {
@@ -55,33 +51,13 @@ func providerSSHTarget(provider *virtualAppProvider) (*model.Gateway, error) {
 	}, nil
 }
 
-func pandaAPIForwardAddress(serviceURL string) (string, *url.URL, error) {
-	parsed, err := url.Parse(serviceURL)
-	if err != nil || parsed.Hostname() == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.User != nil {
-		return "", nil, fmt.Errorf("invalid Panda service URL %q", serviceURL)
-	}
-	port := parsed.Port()
-	if port == "" {
-		if parsed.Scheme == "https" {
-			port = "443"
-		} else {
-			port = "80"
-		}
-	}
-	return net.JoinHostPort("127.0.0.1", port), parsed, nil
-}
-
 func (s *Server) startPandaAPIForward(ctx context.Context, provider *virtualAppProvider) (*gateway.DomainGateway, string, error) {
 	target, err := providerSSHTarget(provider)
 	if err != nil {
 		return nil, "", err
 	}
-	dstAddr, parsedURL, err := pandaAPIForwardAddress(provider.ServiceURL)
-	if err != nil {
-		return nil, "", err
-	}
 	forwarder := &gateway.DomainGateway{
-		DstAddr:         dstAddr,
+		DstAddr:         "127.0.0.1:9001",
 		SelectedGateway: provider.Gateway,
 		Destination:     target,
 	}
@@ -96,6 +72,5 @@ func (s *Server) startPandaAPIForward(ctx context.Context, provider *virtualAppP
 	if err != nil {
 		return nil, "", err
 	}
-	parsedURL.Host = forwarder.GetListenAddr().String()
-	return forwarder, parsedURL.String(), nil
+	return forwarder, "http://" + forwarder.GetListenAddr().String(), nil
 }
