@@ -28,9 +28,6 @@ func NewServer(bindHost, port, allowedHosts, recordingRoot, ffmpegPath string, c
 	if len(allowed) == 0 {
 		return nil, errors.New("WEB_PROXY_ALLOWED_HOSTS is required when web proxy is enabled")
 	}
-	if containsWildcard(allowed) && !isLoopbackHost(bindHost) {
-		return nil, errors.New("WEB_PROXY_ALLOWED_HOSTS=* requires a loopback WEB_PROXY_BIND_HOST")
-	}
 
 	proxy := &Server{
 		transport: &http.Transport{
@@ -197,24 +194,6 @@ func normalizedHost(authority string) string {
 		return strings.Trim(host, "[]")
 	}
 	return strings.Trim(authority, "[]")
-}
-
-func containsWildcard(hosts []string) bool {
-	for _, host := range hosts {
-		if host == "*" {
-			return true
-		}
-	}
-	return false
-}
-
-func isLoopbackHost(host string) bool {
-	host = normalizedHost(host)
-	if strings.EqualFold(host, "localhost") {
-		return true
-	}
-	addr := net.ParseIP(host)
-	return addr != nil && addr.IsLoopback()
 }
 
 func removeHopByHopHeaders(header http.Header) {

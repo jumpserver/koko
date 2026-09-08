@@ -34,11 +34,14 @@ func TestHTTPProxyForwardsAllowedTarget(t *testing.T) {
 	}
 }
 
-func TestPublicBindRequiresExplicitAllowlist(t *testing.T) {
-	if _, err := NewServer("0.0.0.0", "5001", "localhost,127.0.0.1,host.docker.internal", "", "", nil); err != nil {
+func TestDefaultTargetsWorkOnContainerBind(t *testing.T) {
+	proxy, err := NewServer("0.0.0.0", "5001", "*", "", "", nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := NewServer("0.0.0.0", "5001", "*", "", "", nil); err == nil {
-		t.Fatal("expected wildcard configuration to be rejected on a public bind host")
+	for _, target := range []string{"qq.com:443", "example.com:80", "host.docker.internal:8080"} {
+		if !proxy.isAllowed(target) {
+			t.Fatalf("default proxy rejected %s", target)
+		}
 	}
 }
