@@ -14,19 +14,57 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 )
 
 type fakeConnectTokenService struct {
-	token model.ConnectToken
-	calls []bool
+	token             model.ConnectToken
+	config            webLoginConfig
+	calls             []bool
+	createdSession    model.Session
+	disconnectedID    string
+	uploadedSessionID string
+	uploadedReplay    []byte
+	uploadedVersion   model.ReplayVersion
+	replaySize        int64
 }
 
-func (f *fakeConnectTokenService) GetConnectTokenInfo(_ string, expireNow bool) (model.ConnectToken, error) {
+func (f *fakeConnectTokenService) GetConnectTokenInfo(_ string, expireNow bool) (webConnectToken, error) {
 	f.calls = append(f.calls, expireNow)
-	return f.token, nil
+	return webConnectToken{ConnectToken: f.token, config: f.config}, nil
+}
+
+func (f *fakeConnectTokenService) CreateSession(session model.Session) (model.Session, error) {
+	f.createdSession = session
+	return session, nil
+}
+
+func (f *fakeConnectTokenService) SessionDisconnect(sessionID string) (model.Session, error) {
+	f.disconnectedID = sessionID
+	return model.Session{ID: sessionID}, nil
+}
+
+func (f *fakeConnectTokenService) UploadReplay(sessionID, replayPath string, version model.ReplayVersion) error {
+	f.uploadedSessionID = sessionID
+	f.uploadedVersion = version
+	f.uploadedReplay, _ = os.ReadFile(replayPath)
+	return nil
+}
+
+func (f *fakeConnectTokenService) FinishReplyWithSize(sessionID string, size int64) (model.Session, error) {
+	f.replaySize = size
+	return model.Session{ID: sessionID}, nil
+}
+
+func (f *fakeConnectTokenService) SessionReplayFailed(sessionID string, _ model.ReplayError) (model.Session, error) {
+	return model.Session{ID: sessionID}, nil
+}
+
+func (f *fakeConnectTokenService) RecordSessionLifecycleLog(string, model.LifecycleEvent, model.SessionLifecycleLog) error {
+	return nil
 }
 
 func TestCredentialSessionEncryptsAndReleasesOnce(t *testing.T) {
@@ -71,6 +109,9 @@ func TestCredentialSessionEncryptsAndReleasesOnce(t *testing.T) {
 	}
 	if !session.AutofillAvailable || session.Origin != "https://login.example.com" {
 		t.Fatalf("unexpected session: %+v", session)
+	}
+	if session.SessionID == "" || service.createdSession.ID != session.SessionID || service.createdSession.LoginFrom != model.LoginFromWeb {
+		t.Fatalf("Core Web session was not created: %+v", service.createdSession)
 	}
 	if session.SubmitSelector != "type=submit" {
 		t.Fatalf("unexpected submit selector %q", session.SubmitSelector)
@@ -141,18 +182,20 @@ func TestCredentialSelectorsAllowPasswordOnlyLogin(t *testing.T) {
 
 func testWebConnectToken() model.ConnectToken {
 	return model.ConnectToken{
+		Id:       "token-id",
 		Value:    "token-value",
 		Protocol: "https",
 		Actions:  model.Actions{{Value: model.ActionConnect}},
 		Asset: model.Asset{
 			ID:      "asset-id",
+			Name:    "Website",
 			Address: "https://login.example.com/sign-in?tenant=one#ignored",
 			SpecInfo: model.SpecInfo{
 				Autofill: "basic", UsernameSelector: "name=username", PasswordSelector: "css=input[type=password]", SubmitSelector: "type=submit",
 			},
 		},
 		Account: model.Account{BaseAccount: model.BaseAccount{
-			ID: "account-id", Username: "managed-user", Secret: "managed-password",
+			ID: "account-id", Name: "Account", Username: "managed-user", Secret: "managed-password",
 			SecretType: model.LabelValue{Value: "password"},
 		}},
 	}

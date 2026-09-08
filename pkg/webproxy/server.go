@@ -20,9 +20,10 @@ type Server struct {
 	allowedHosts []string
 	recordings   *recordingManager
 	credentials  *credentialManager
+	coreService  webProxyService
 }
 
-func NewServer(bindHost, port, allowedHosts, recordingRoot, ffmpegPath string, tokenService connectTokenService) (*Server, error) {
+func NewServer(bindHost, port, allowedHosts, recordingRoot, ffmpegPath string, coreService webProxyService) (*Server, error) {
 	allowed := splitAllowedHosts(allowedHosts)
 	if len(allowed) == 0 {
 		return nil, errors.New("WEB_PROXY_ALLOWED_HOSTS is required when web proxy is enabled")
@@ -40,7 +41,8 @@ func NewServer(bindHost, port, allowedHosts, recordingRoot, ffmpegPath string, t
 			ResponseHeaderTimeout: 30 * time.Second,
 		},
 		allowedHosts: allowed,
-		credentials:  newCredentialManager(tokenService),
+		credentials:  newCredentialManager(coreService),
+		coreService:  coreService,
 	}
 	if recordingRoot != "" {
 		manager, err := newRecordingManager(recordingRoot, ffmpegPath)

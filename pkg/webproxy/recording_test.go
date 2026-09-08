@@ -13,10 +13,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/jumpserver-dev/sdk-go/model"
 )
 
 func TestWebRecordingLifecycle(t *testing.T) {
-	proxy, err := NewServer("127.0.0.1", "0", "*", t.TempDir(), "ffmpeg", nil)
+	service := &fakeConnectTokenService{token: testWebConnectToken()}
+	proxy, err := NewServer("127.0.0.1", "0", "*", t.TempDir(), "ffmpeg", service)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +28,7 @@ func TestWebRecordingLifecycle(t *testing.T) {
 	}
 
 	startResponse := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix,
-		[]byte(`{"target_url":"https://example.com/path?token=secret#fragment","width":1280,"height":720}`))
+		[]byte(`{"session_id":"62a7496e-369d-4f3d-b3f9-a20b61a33980","target_url":"https://example.com/path?token=secret#fragment","width":1280,"height":720}`))
 	if startResponse.Code != http.StatusCreated {
 		t.Fatalf("unexpected start status %d: %s", startResponse.Code, startResponse.Body.String())
 	}
@@ -76,15 +79,27 @@ func TestWebRecordingLifecycle(t *testing.T) {
 	if result.FrameCount != 2 || result.DurationMS != 1500 {
 		t.Fatalf("unexpected recording result: %+v", result)
 	}
-	if _, err = os.Stat(result.Path); err != nil {
-		t.Fatalf("recording output not found: %v", err)
+	if result.Path != "" || service.disconnectedID != "62a7496e-369d-4f3d-b3f9-a20b61a33980" ||
+		service.uploadedSessionID != "62a7496e-369d-4f3d-b3f9-a20b61a33980" ||
+		service.uploadedVersion != model.Version4 || string(service.uploadedReplay) != "video" || service.replaySize != 5 {
+		t.Fatalf("recording was not uploaded to Core: %+v", result)
 	}
-	metadata, err := os.ReadFile(filepath.Join(filepath.Dir(result.Path), "recording.json"))
+}
+
+func TestWebRecordingRejectsInvalidSessionID(t *testing.T) {
+	proxy, err := NewServer("127.0.0.1", "0", "*", t.TempDir(), "ffmpeg", &fakeConnectTokenService{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(metadata, []byte("secret")) || !bytes.Contains(metadata, []byte("https://example.com/path")) {
-		t.Fatalf("target URL was not sanitized: %s", metadata)
+	for _, sessionID := range []string{"", "web-proxy-f6d7adcb-b7b6-4994-bd98-b2ee8a2b1c3d"} {
+		body, err := json.Marshal(map[string]any{"session_id": sessionID, "width": 32, "height": 24})
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix, body)
+		if response.Code != http.StatusBadRequest || !bytes.Contains(response.Body.Bytes(), []byte("session_id")) {
+			t.Fatalf("expected session_id validation error for %q, got %d: %s", sessionID, response.Code, response.Body.String())
+		}
 	}
 }
 
@@ -94,11 +109,11 @@ func TestWebRecordingCancellationRemovesPendingFrames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recording, err := manager.start("https://example.com", 32, 24)
+	recording, err := manager.start("62a7496e-369d-4f3d-b3f9-a20b61a33980", "https://example.com", 32, 24)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = manager.cancel(recording.id); err != nil {
+	if _, err = manager.cancel(recording.id); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = os.Stat(recording.dir); !os.IsNotExist(err) {
@@ -143,7 +158,7 @@ func TestWebRecordingGeneratesMP4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recording, err := manager.start("https://example.com", 32, 24)
+	recording, err := manager.start("62a7496e-369d-4f3d-b3f9-a20b61a33980", "https://example.com", 32, 24)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -114,6 +114,36 @@ func TestSessionSpecificToolSelection(t *testing.T) {
 	}
 }
 
+func TestShellCommandToolDeclaresKaelReadOnlyPolicy(t *testing.T) {
+	for _, protocol := range []string{"ssh", "telnet", "k8s", "local-shell"} {
+		handler, err := NewCommandTool(MCPCommandToolOptions{
+			Protocol: protocol, Validate: func(string) (CommandConstraints, error) { return CommandConstraints{}, nil },
+			Hooks: MCPCommandHooks{PTYExecute: func(context.Context, string, *CommandACLDecision) (string, *int, error) {
+				return "", nil, nil
+			}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if handler.Definition().Meta[MCPCommandPolicyMetaKey] != MCPShellReadOnlyPolicy {
+			t.Fatalf("%s command tool did not declare the Kael shell policy", protocol)
+		}
+	}
+
+	handler, err := NewCommandTool(MCPCommandToolOptions{
+		Protocol: "postgresql", Validate: func(string) (CommandConstraints, error) { return CommandConstraints{}, nil },
+		Hooks: MCPCommandHooks{PTYExecute: func(context.Context, string, *CommandACLDecision) (string, *int, error) {
+			return "", nil, nil
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := handler.Definition().Meta[MCPCommandPolicyMetaKey]; ok {
+		t.Fatal("database command tool declared a shell policy")
+	}
+}
+
 func TestAgentToolOutputSchemasAndLargeResult(t *testing.T) {
 	schemas := []map[string]any{
 		commandOutputSchema(), terminalContextOutputSchema(),

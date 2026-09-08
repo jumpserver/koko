@@ -21,6 +21,8 @@ const (
 	MCPToolExecuteMongoDB    = "execute_mongodb"
 	MCPExecutionModesMetaKey = "com.jumpserver/executionModes"
 	MCPToolKindMetaKey       = "com.jumpserver/toolKind"
+	MCPCommandPolicyMetaKey  = "com.jumpserver/commandPolicy"
+	MCPShellReadOnlyPolicy   = "shell-readonly-v1"
 	MCPExecutionAuto         = "auto"
 	MCPExecutionPTY          = "pty"
 	MCPExecutionBackground   = "background"
@@ -118,20 +120,25 @@ func NewCommandTool(options MCPCommandToolOptions) (MCPToolHandler, error) {
 func (t *mcpCommandTool) Definition() MCPToolDefinition {
 	executionModes := t.executionModes()
 	title, description, commandDescription := commandToolPresentation(t.protocol)
+	name := commandToolName(t.protocol)
 	executionDescription := "Select how to execute the command; auto chooses the safest available mode"
 	if isSQLProtocol(t.protocol) {
 		executionDescription = "Use auto for SQL; PTY is only for a recognized session-dependent SQL statement"
 	}
+	meta := map[string]any{
+		MCPExecutionModesMetaKey: executionModes,
+		MCPToolKindMetaKey:       "command",
+	}
+	if name == MCPToolExecuteShell || name == MCPToolExecuteCommand {
+		meta[MCPCommandPolicyMetaKey] = MCPShellReadOnlyPolicy
+	}
 	return MCPToolDefinition{
-		Name: commandToolName(t.protocol), Title: title, Description: description,
+		Name: name, Title: title, Description: description,
 		OutputSchema: commandOutputSchema(),
 		Annotations: map[string]any{
 			"readOnlyHint": false, "openWorldHint": true,
 		},
-		Meta: map[string]any{
-			MCPExecutionModesMetaKey: executionModes,
-			MCPToolKindMetaKey:       "command",
-		},
+		Meta: meta,
 		InputSchema: map[string]any{
 			"type": "object", "additionalProperties": false,
 			"properties": map[string]any{
