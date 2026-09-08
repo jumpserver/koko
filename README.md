@@ -95,7 +95,7 @@ For local development and testing, export the bootstrap token used by JumpServer
 docker compose up --build
 ```
 
-By default, Koko connects to `http://host.docker.internal:8080`, exposes SSH on port `2222`, HTTP on port `5050`, and the Web Proxy on `127.0.0.1:5001`. Set `CORE_HOST`, `KOKO_SSH_PORT`, `KOKO_HTTP_PORT`, `KOKO_WEB_PROXY_BIND_IP`, or `KOKO_WEB_PROXY_PORT` to override them. The Compose Web Proxy allowlist defaults to local development hosts; set `WEB_PROXY_ALLOWED_HOSTS` to the Website asset domains that should be reachable.
+By default, Koko connects to `http://host.docker.internal:8080`, exposes SSH on port `2222`, HTTP on port `5050`, and the Web Proxy on port `5001`. Set `CORE_HOST`, `KOKO_SSH_PORT`, `KOKO_HTTP_PORT`, or `KOKO_WEB_PROXY_PORT` to override them. The Web Proxy allows all target hosts by default (`WEB_PROXY_ALLOWED_HOSTS=*`). Website navigation allowlists belong to individual assets and are enforced by the browser for that session.
 
 ## Acknowledgments
 This project depends on [usql](https://github.com/xo/usql) for database connections. We appreciate their support.
