@@ -311,16 +311,6 @@ func (s *Server) CreateConnectTicket(ctx *gin.Context) {
 	})
 }
 
-func (s *Server) GenerateViewMeta(targetId string) (meta ViewPageMata) {
-	meta.ID = targetId
-	setting, err := s.apiClient.GetPublicSetting()
-	if err != nil {
-		logger.Errorf("Get core api public setting err: %s", err)
-	}
-	meta.IconURL = setting.Interface.Favicon
-	return
-}
-
 func (s *Server) getPublicSetting() model.PublicSetting {
 	setting, err := s.apiClient.GetPublicSetting()
 	if err != nil {
