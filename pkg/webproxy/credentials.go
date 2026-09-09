@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,7 +35,7 @@ const (
 )
 
 type webProxyService interface {
-	GetConnectTokenInfo(tokenID string, expireNow bool) (model.ConnectToken, error)
+	GetConnectTokenInfo(tokenID string, expireNow bool) (webConnectToken, error)
 	CreateSession(session model.Session) (model.Session, error)
 	SessionDisconnect(sessionID string) (model.Session, error)
 	UploadReplay(sessionID, replayPath string, version model.ReplayVersion) error
@@ -50,14 +51,15 @@ type credentialManager struct {
 }
 
 type credentialSession struct {
-	id          string
-	accessToken string
-	origin      string
-	nonce       string
-	ciphertext  string
-	assetID     string
-	accountID   string
-	expiresAt   time.Time
+	id                string
+	accessToken       string
+	origin            string
+	credentialOrigins []string
+	nonce             string
+	ciphertext        string
+	assetID           string
+	accountID         string
+	expiresAt         time.Time
 }
 
 type createCredentialSessionRequest struct {
@@ -67,6 +69,7 @@ type createCredentialSessionRequest struct {
 }
 
 type createCredentialSessionResponse struct {
+	webLoginConfig
 	SessionID         string    `json:"session_id"`
 	ID                string    `json:"id,omitempty"`
 	AccessToken       string    `json:"access_token,omitempty"`
@@ -140,7 +143,12 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	targetURL, origin, err := credentialTarget(connectToken)
+	targetURL, origin, err := credentialTarget(connectToken.ConnectToken)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	config, err := loginConfig(connectToken, origin)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -151,8 +159,18 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "unable to create Web session", http.StatusBadGateway)
 		return
 	}
-	response := createCredentialSessionResponse{SessionID: apiSession.ID, TargetURL: targetURL, Origin: origin}
-	usernameSelector, passwordSelector, submitSelector, available := credentialSelectors(connectToken)
+	response := createCredentialSessionResponse{webLoginConfig: config, SessionID: apiSession.ID, TargetURL: targetURL, Origin: origin}
+	usernameSelector, passwordSelector, submitSelector, available := credentialSelectors(connectToken.ConnectToken)
+	if config.Autofill == "script" {
+		available = true
+		for _, step := range config.Script {
+			if strings.Contains(step.Value, "{SECRET}") && (connectToken.Account.Secret == "" || (connectToken.Account.SecretType.Value != "" && connectToken.Account.SecretType.Value != "password")) {
+				_, _ = s.credentials.tokenService.SessionDisconnect(apiSession.ID)
+				http.Error(w, "script requires a password account", http.StatusBadRequest)
+				return
+			}
+		}
+	}
 	if !available {
 		writeCredentialJSON(w, http.StatusCreated, response)
 		return
@@ -183,7 +201,8 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 	expiresAt := time.Now().UTC().Add(credentialSessionTTL)
 	session := &credentialSession{
 		id: sessionID, accessToken: accessToken, origin: origin,
-		nonce: nonce, ciphertext: ciphertext,
+		credentialOrigins: scriptCredentialOrigins(config, origin),
+		nonce:             nonce, ciphertext: ciphertext,
 		assetID: connectToken.Asset.ID, accountID: connectToken.Account.ID, expiresAt: expiresAt,
 	}
 	if err = s.credentials.save(session); err != nil {
@@ -256,7 +275,7 @@ func (m *credentialManager) take(id, accessToken, origin string) (*credentialSes
 		return nil, http.StatusUnauthorized
 	}
 	requestOrigin, err := normalizedOrigin(origin)
-	if err != nil || requestOrigin != session.origin {
+	if err != nil || !slices.Contains(session.credentialOrigins, requestOrigin) {
 		return nil, http.StatusForbidden
 	}
 	delete(m.sessions, id)

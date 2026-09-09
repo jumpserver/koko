@@ -33,6 +33,8 @@ const (
 	maxRecordingTimeMS  = int64((24 * time.Hour) / time.Millisecond)
 )
 
+var errInvalidWebSessionID = errors.New("invalid Web session_id: create a Web session before starting recording")
+
 type recordingManager struct {
 	mu         sync.Mutex
 	root       string
@@ -98,7 +100,7 @@ func newRecordingManager(root, ffmpegPath string) (*recordingManager, error) {
 
 func (m *recordingManager) start(sessionID, targetURL string, width, height int) (*webRecording, error) {
 	if _, err := uuid.Parse(sessionID); err != nil {
-		return nil, errors.New("invalid Web session ID")
+		return nil, errInvalidWebSessionID
 	}
 	id, err := randomRecordingID()
 	if err != nil {
@@ -368,6 +370,11 @@ func (s *Server) startRecording(w http.ResponseWriter, r *http.Request) {
 	}
 	recording, err := s.recordings.start(request.SessionID, request.TargetURL, request.Width, request.Height)
 	if err != nil {
+		if errors.Is(err, errInvalidWebSessionID) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		logger.Errorf("Start Web recording failed: %s", err)
 		http.Error(w, "unable to start recording", http.StatusInternalServerError)
 		return
 	}

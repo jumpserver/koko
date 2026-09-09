@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -77,7 +76,7 @@ func RunForever(confPath string) {
 			conf.WebProxyAllowedHosts,
 			recordingRoot,
 			conf.WebProxyFFmpegPath,
-			jmsService,
+			webproxy.NewCoreService(jmsService),
 		)
 		if err != nil {
 			logger.Fatalf("Invalid Web proxy configuration: %s", err)
