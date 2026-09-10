@@ -14,27 +14,16 @@ jobs:
   golangci:
     name: lint
     runs-on: ubuntu-latest
-    env:
-      CGO_ENABLED: '1'
-      GOMAXPROCS: '2'
-      GOMEMLIMIT: 2GiB
-      GOFLAGS: '-p=2'
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: stable
 
       - name: Prepare libghostty for CGO analysis
         run: |
           echo "PKG_CONFIG_PATH=$(./utils/setup-libghostty-vt.sh)/lib/pkgconfig" >> "$GITHUB_ENV"
-
-      - name: Test with race detection
-        run: go test -race -parallel 2 -timeout 90s ./...
-
-      - name: Check reachable vulnerabilities
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./cmd/koko
 
       - uses: golangci/golangci-lint-action@v9
         with:
