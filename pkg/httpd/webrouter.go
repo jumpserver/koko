@@ -1,39 +1,15 @@
 package httpd
 
 import (
-	"html/template"
-	"io/fs"
-	"net/http"
 	"net/http/pprof"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/jumpserver-dev/sdk-go/service"
-	assets "github.com/jumpserver/koko"
 	"github.com/jumpserver/koko/pkg/auth"
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/lion"
-	"github.com/jumpserver/koko/pkg/logger"
 )
-
-func getStaticFS() http.FileSystem {
-	staticFs, err := fs.Sub(assets.StaticFs, "static")
-	if err != nil {
-		logger.Debugf("Get static fs error: %s", err)
-		staticDir := http.Dir("./static/")
-		return &StaticFSWrapper{
-			FileSystem:   staticDir,
-			FixedModTime: time.Now(),
-		}
-	}
-	return &StaticFSWrapper{
-		FileSystem:   http.FS(staticFs),
-		FixedModTime: time.Now(),
-	}
-
-}
 
 func createRouter(
 	jmsService *service.JMService,
@@ -47,10 +23,6 @@ func createRouter(
 	eng.Use(gin.Recovery())
 	eng.Use(gin.Logger())
 	kokoGroup := eng.Group("/koko")
-	templ := template.Must(template.New("").ParseFS(assets.TemplateFs,
-		"templates/elfinder/*.html"))
-	eng.SetHTMLTemplate(templ)
-	kokoGroup.StaticFS("/static/", getStaticFS())
 	kokoGroup.GET("/health/", webSrv.HealthStatusHandler)
 	wsGroup := kokoGroup.Group("/ws/")
 	{
@@ -73,19 +45,6 @@ func createRouter(
 	elfinderGroup := kokoGroup.Group("/elfinder")
 	elfinderGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
-		elfinderGroup.GET("/sftp/", func(ctx *gin.Context) {
-			metaData := webSrv.GenerateViewMeta("_")
-			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
-		})
-		elfinderGroup.GET("/sftp/:host/", func(ctx *gin.Context) {
-			hostId := ctx.Param("host")
-			if ok := common.ValidUUIDString(hostId); !ok {
-				ctx.AbortWithStatus(http.StatusBadRequest)
-				return
-			}
-			metaData := webSrv.GenerateViewMeta(hostId)
-			ctx.HTML(http.StatusOK, "file_manager.html", metaData)
-		})
 		elfinderGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}
 	if lionRuntime != nil {

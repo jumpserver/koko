@@ -89,9 +89,7 @@ WEB_PROXY_FFMPEG_PATH: ffmpeg
 # VNC 剪贴板编码。
 # VNC_CLIPBOARD_ENCODING:
 
-# 虚拟应用与录像转换服务。
-# ENABLE_PANDA: false
-# PANDA_HOST: http://panda:9001
+# 录像转换服务。
 # ENABLE_VIDEO_WORKER: false
 # VIDEO_WORKER_HOST: http://video:9000
 # IGNORE_VERIFY_CERTS: false

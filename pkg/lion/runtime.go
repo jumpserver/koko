@@ -36,12 +36,13 @@ type Runtime struct {
 
 func NewRuntime(jmsService *service.JMService) *Runtime {
 	cache := &tunnel.GuaTunnelCacheManager{GuaTunnelCache: newGuaTunnelCache()}
+	pandaClientFactory := newPandaClientFactory(config.GetConf())
 	tunnelService := &tunnel.GuacamoleTunnelServer{
 		Cache:      cache,
 		JmsService: jmsService,
 		SessionService: &session.Server{
-			JmsService:  jmsService,
-			PandaClient: newPandaClient(config.GetConf()),
+			JmsService:         jmsService,
+			PandaClientFactory: pandaClientFactory,
 		},
 	}
 	return &Runtime{
@@ -161,16 +162,15 @@ func newGuaTunnelCache() tunnel.GuaTunnelCache {
 	return tunnel.NewLocalTunnelLocalCache()
 }
 
-func newPandaClient(cfg config.Config) *panda.Client {
-	if !cfg.EnablePanda {
-		return nil
-	}
+func newPandaClientFactory(cfg config.Config) func(string) *panda.Client {
 	var key model.AccessKey
 	if err := key.LoadFromFile(cfg.AccessKeyFilePath); err != nil {
 		logger.Errorf("Create panda client failed: loading access key err %s", err)
 		return nil
 	}
-	return panda.NewClient(cfg.PandaHost, key, cfg.IgnoreVerifyCerts)
+	return func(pandaHost string) *panda.Client {
+		return panda.NewClient(pandaHost, key, cfg.IgnoreVerifyCerts)
+	}
 }
 
 func (r *Runtime) runCleanDrive(ctx context.Context) {

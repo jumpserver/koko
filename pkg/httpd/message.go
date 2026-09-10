@@ -149,11 +149,6 @@ const (
 	WebFolderName = "web_folder"
 )
 
-type ViewPageMata struct {
-	ID      string
-	IconURL string
-}
-
 type WsRequestParams struct {
 	TargetType string `form:"type"`
 	TargetId   string `form:"target_id"`
