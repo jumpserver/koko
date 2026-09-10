@@ -684,3 +684,333 @@ msgstr "Tìm kiếm đăng nhập (nếu duy nhất)"
 
 msgid "to search, such as: /192.168"
 msgstr "tìm kiếm, ví dụ: /192.168"
+
+#. Koko TUI
+msgid "Account"
+msgstr "Tài khoản"
+
+#. Koko TUI
+msgid "All assets"
+msgstr "Tất cả tài sản"
+
+#. Koko TUI
+msgid "All favorites"
+msgstr "Tất cả mục yêu thích"
+
+#. Koko TUI
+msgid "Asset"
+msgstr "Tài sản"
+
+#. Koko TUI
+msgid "Asset groups"
+msgstr "Nhóm tài sản"
+
+#. Koko TUI
+msgid "Assets"
+msgstr "Tài sản"
+
+#. Koko TUI
+msgid "Assets / New connection"
+msgstr "Tài sản / Kết nối mới"
+
+#. Koko TUI
+msgid "Authorization"
+msgstr "Cây phân quyền"
+
+#. Koko TUI
+msgid "Clear search"
+msgstr "Xóa tìm kiếm"
+
+#. Koko TUI
+msgid "Close"
+msgstr "Đóng"
+
+#. Koko TUI
+msgid "Close menu/dialog, go back"
+msgstr "Đóng menu/hộp thoại, quay lại"
+
+#. Koko TUI
+msgid "Close tab"
+msgstr "Đóng tab"
+
+#. Koko TUI
+msgid "Collapse/expand"
+msgstr "Thu gọn/mở rộng"
+
+#. Koko TUI
+msgid "Collapse/expand loaded nodes"
+msgstr "Thu gọn/mở rộng các nút đã tải"
+
+#. Koko TUI
+msgid "Collapse/expand node, scroll table horizontally"
+msgstr "Thu gọn/mở rộng nút, cuộn bảng ngang"
+
+#. Koko TUI
+msgid "Confirm and connect"
+msgstr "Xác nhận và kết nối"
+
+#. Koko TUI
+msgid "Connected terminal"
+msgstr "Terminal đã kết nối"
+
+#. Koko TUI
+msgid "Disconnect and quit"
+msgstr "Ngắt kết nối và thoát"
+
+#. Koko TUI
+msgid "Disconnect session"
+msgstr "Ngắt phiên"
+
+#. Koko TUI
+msgid "Favorites"
+msgstr "Yêu thích"
+
+#. Koko TUI
+msgid "First/last item"
+msgstr "Mục đầu/cuối"
+
+#. Koko TUI
+msgid "Focus"
+msgstr "Chuyển tiêu điểm"
+
+#. Koko TUI
+msgid "Full text"
+msgstr "Nội dung đầy đủ"
+
+#. Koko TUI
+msgid "Full text · scrollable"
+msgstr "Nội dung đầy đủ · có thể cuộn"
+
+#. Koko TUI
+msgid "Help"
+msgstr "Trợ giúp"
+
+#. Koko TUI
+msgid "Keys go to the remote; press Ctrl+] for window controls."
+msgstr "Phím được gửi đến máy từ xa; nhấn Ctrl+] để điều khiển cửa sổ."
+
+#. Koko TUI
+msgid "Language"
+msgstr "Ngôn ngữ"
+
+#. Koko TUI
+msgid "Language · this session"
+msgstr "Ngôn ngữ · phiên hiện tại"
+
+#. Koko TUI
+msgid "Load failed; press R to retry"
+msgstr "Tải thất bại; nhấn R để thử lại"
+
+#. Koko TUI
+msgid "Load more…"
+msgstr "Tải thêm…"
+
+#. Koko TUI
+msgid "Loading assets…"
+msgstr "Đang tải tài sản…"
+
+#. Koko TUI
+msgid "Loading organizations…"
+msgstr "Đang tải tổ chức…"
+
+#. Koko TUI
+msgid "Loading permitted accounts…"
+msgstr "Đang tải tài khoản được phép…"
+
+#. Koko TUI
+msgid "Loading workspace…"
+msgstr "Đang tải không gian làm việc…"
+
+#. Koko TUI
+msgid "Maximum 8 sessions; close one first"
+msgstr "Tối đa 8 phiên; hãy đóng một phiên trước"
+
+#. Koko TUI
+msgid "Move and scroll"
+msgstr "Di chuyển và cuộn"
+
+#. Koko TUI
+msgid "Name, address, comment"
+msgstr "Tên, địa chỉ, ghi chú"
+
+#. Koko TUI
+msgid "Next"
+msgstr "Trang sau"
+
+#. Koko TUI
+msgid "Next/previous window"
+msgstr "Cửa sổ sau/trước"
+
+#. Koko TUI
+msgid "No matching assets"
+msgstr "Không có tài sản phù hợp"
+
+#. Koko TUI
+msgid "No organization memberships"
+msgstr "Chưa thuộc tổ chức nào"
+
+#. Koko TUI
+msgid "No permitted accounts or terminal protocols"
+msgstr "Không có tài khoản hoặc giao thức terminal được phép"
+
+#. Koko TUI
+msgid "Previous"
+msgstr "Trang trước"
+
+#. Koko TUI
+msgid "Quit"
+msgstr "Thoát"
+
+#. Koko TUI
+msgid "Quitting will disconnect all asset sessions."
+msgstr "Thoát sẽ ngắt tất cả phiên kết nối tài sản."
+
+#. Koko TUI
+msgid "Resize terminal to at least 72 × 20"
+msgstr "Mở rộng terminal tối thiểu 72 × 20"
+
+#. Koko TUI
+msgid "Resize tree, or drag the divider"
+msgstr "Đổi độ rộng cây hoặc kéo đường phân cách"
+
+#. Koko TUI
+msgid "Searching…"
+msgstr "Đang tìm…"
+
+#. Koko TUI
+msgid "Select"
+msgstr "Chọn"
+
+#. Koko TUI
+msgid "Select account"
+msgstr "Chọn tài khoản"
+
+#. Koko TUI
+msgid "Send literal Ctrl+]"
+msgstr "Gửi trực tiếp Ctrl+]"
+
+#. Koko TUI
+msgid "Session ended"
+msgstr "Phiên đã kết thúc"
+
+#. Koko TUI
+msgid "Sessions"
+msgstr "Phiên"
+
+#. Koko TUI
+msgid "Show/hide navigation"
+msgstr "Hiện/ẩn vùng điều hướng"
+
+#. Koko TUI
+msgid "Terminal"
+msgstr "Terminal"
+
+#. Koko TUI
+msgid "Tree limit reached; refresh this view"
+msgstr "Đã đạt giới hạn nút; hãy làm mới chế độ xem"
+
+#. Koko TUI
+msgid "Tree view"
+msgstr "Loại cây"
+
+#. Koko TUI
+msgid "Types"
+msgstr "Cây loại"
+
+#. Koko TUI
+msgid "Width"
+msgstr "Độ rộng"
+
+#. Koko TUI
+msgid "Window bar"
+msgstr "Thanh cửa sổ"
+
+msgid "Authorization tree"
+msgstr "Cây phân quyền"
+
+msgid "Type tree"
+msgstr "Cây loại"
+
+msgid "Favorites tree"
+msgstr "Cây yêu thích"
+
+msgid "Load failed"
+msgstr "Tải thất bại"
+
+msgid "Global organization"
+msgstr "Tổ chức toàn cục"
+
+msgid "Asset panel"
+msgstr "Bảng tài sản"
+
+msgid "Mode"
+msgstr "Chế độ"
+
+msgid "Accent color"
+msgstr "Màu nhấn"
+
+msgid "Dark theme"
+msgstr "Giao diện tối"
+
+msgid "Light theme"
+msgstr "Giao diện sáng"
+
+msgid "Teal"
+msgstr "Xanh mòng két"
+
+msgid "Blue"
+msgstr "Xanh dương"
+
+msgid "Green"
+msgstr "Xanh lá"
+
+msgid "Purple"
+msgstr "Tím"
+
+msgid "Rose"
+msgstr "Hồng"
+
+msgid "Amber"
+msgstr "Hổ phách"
+
+msgid "Orange"
+msgstr "Cam"
+
+msgid "Pink"
+msgstr "Hồng"
+
+msgid "Cyan"
+msgstr "Xanh lơ"
+
+msgid "Gray"
+msgstr "Xám"
+
+msgid "Red"
+msgstr "Đỏ"
+
+msgid "Lime"
+msgstr "Xanh chanh"
+
+msgid "Duplicate"
+msgstr "Nhân bản"
+
+msgid "Disconnect"
+msgstr "Ngắt kết nối"
+
+msgid "Duplicate session"
+msgstr "Nhân bản phiên"
+
+msgid "More sessions"
+msgstr "Các phiên khác"
+
+msgid "Fullscreen"
+msgstr "Toàn màn hình"
+
+msgid "Exit fullscreen"
+msgstr "Thoát toàn màn hình"
+
+msgid "Reset accent"
+msgstr "Đặt lại màu nhấn"
+
+msgid "Quit this Koko SSH session?"
+msgstr "Thoát phiên SSH Koko này?"

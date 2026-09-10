@@ -4,3 +4,8 @@ logs/*
 data/*
 release/*
 ui/
+config.yml
+.env
+.env.*
+third_party/
+.DS_Store

@@ -39,5 +39,6 @@ func NewLang(code string) LanguageCode {
 }
 
 func T(s string) string {
-	return gotext.Get(s)
+	// Look up the message without interpreting its placeholders as arguments.
+	return gotext.Get(s, []any{}...)
 }

@@ -1,13 +1,18 @@
-FROM jumpserver/koko-base:20260908_021310 AS stage-build
+FROM jumpserver/koko-base:20260908_021310 AS stage-base
+FROM stage-base AS stage-build
 WORKDIR /opt/koko
 ARG TARGETARCH
+# Honor the minimum patched Go version in go.mod, including with older base images.
+ENV GOTOOLCHAIN=auto
 COPY . .
 
 ARG VERSION
 ENV VERSION=$VERSION
 
 WORKDIR /opt/koko
-RUN make build -s \
+RUN --mount=type=cache,id=koko-go-mod,from=stage-base,source=/go/pkg/mod,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    GOMAXPROCS=2 GOMEMLIMIT=2GiB GOFLAGS=-p=1 make build -s \
     && set -x && ls -al . \
     && mv /opt/koko/build/koko /opt/koko/koko
 
