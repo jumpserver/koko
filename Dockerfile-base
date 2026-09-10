@@ -1,6 +1,7 @@
 FROM ghcr.io/jumpserver-dev/libghostty-vt:ghostty-d4ac93a0395d-zig-0.15.2@sha256:dffb0a53f73862da96df4fadd134dd60ac440a82eb8b9a852d9159b989c86c0c AS libghostty-vt
 
-FROM golang:1.26.3-trixie
+# Keep the Go version aligned with go.mod.
+FROM golang:1.26.8-trixie
 ARG TARGETARCH
 
 WORKDIR /opt

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"golang.org/x/term"
@@ -490,4 +491,48 @@ func GetMatchedAccounts(accounts []model.PermAccount, username string) []model.P
 		}
 	}
 	return matched
+}
+
+func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, sess ssh.Session, checkChan <-chan bool) {
+	maxIdleTime := time.Duration(maxIdleMinutes) * time.Minute
+	tick := time.NewTicker(maxIdleTime)
+	defer tick.Stop()
+	checkStatus := true
+	for {
+		select {
+		case <-tick.C:
+			if checkStatus {
+				lang := i18n.NewLang(langCode)
+				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), maxIdleMinutes)
+				_, _ = io.WriteString(sess, "\r\n"+msg+"\r\n")
+				_ = sess.Close()
+				logger.Infof("User %s input idle more than %d minutes", user.Name, maxIdleMinutes)
+			}
+		case <-sess.Context().Done():
+			logger.Infof("Stop checking user %s input idle time", user.Name)
+			return
+		case checkStatus = <-checkChan:
+			if !checkStatus {
+				logger.Debugf("Stop checking user %s idle time if more than %d minutes", user.Name, maxIdleMinutes)
+				continue
+			}
+			tick.Reset(maxIdleTime)
+			logger.Debugf("Start checking user %s idle time if more than %d minutes", user.Name, maxIdleMinutes)
+		}
+	}
+}
+
+func joinMultiLineString(lines string) string {
+	lines = strings.ReplaceAll(lines, "\r", "\n")
+	lines = strings.ReplaceAll(lines, "\n\n", "\n")
+	lineArray := strings.Split(strings.TrimSpace(lines), "\n")
+	lineSlice := make([]string, 0, len(lineArray))
+	for _, item := range lineArray {
+		cleanLine := strings.TrimSpace(item)
+		if cleanLine == "" {
+			continue
+		}
+		lineSlice = append(lineSlice, strings.ReplaceAll(cleanLine, " ", ","))
+	}
+	return strings.Join(lineSlice, "|")
 }

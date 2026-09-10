@@ -21,6 +21,10 @@ jobs:
         with:
           go-version: stable
 
+      - name: Prepare libghostty for CGO analysis
+        run: |
+          echo "PKG_CONFIG_PATH=$(./utils/setup-libghostty-vt.sh)/lib/pkgconfig" >> "$GITHUB_ENV"
+
       - uses: golangci/golangci-lint-action@v9
         with:
           # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
