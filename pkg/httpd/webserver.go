@@ -120,6 +120,7 @@ type Server struct {
 	broadCaster *broadcaster
 	Srv         *http.Server
 	apiClient   *service.JMService
+	lionMonitor graphicalMonitor
 }
 
 func (s *Server) Start() {

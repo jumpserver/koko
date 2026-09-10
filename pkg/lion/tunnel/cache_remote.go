@@ -226,6 +226,21 @@ func (r *GuaTunnelRedisCache) GetMonitorTunnelerBySessionId(sid string) Tunneler
 	return r.requestRemoteTunnelerBySessionId(sid)
 }
 
+func (r *GuaTunnelRedisCache) HasSession(ctx context.Context, sid string) (bool, error) {
+	if r.GetBySessionId(sid) != nil {
+		return true, nil
+	}
+	// Probe the existing cluster without opening a Guacamole monitor tunnel.
+	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	req := r.createEventRequest(sid, channelEventProbe)
+	_, err := r.sendRequest(probeCtx, &req)
+	if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 func (r *GuaTunnelRedisCache) requestRemoteTunnelerBySessionId(sid string) Tunneler {
 	req := r.createEventRequest(sid, channelEventJoin)
 	ctx, cancel := context.WithTimeout(context.Background(), redisRequestTimeout)
@@ -472,6 +487,15 @@ func (r *GuaTunnelRedisCache) run(innerPubSub, sessionPubSub *redis.PubSub) {
 				}
 				// 创建result channel的req
 				switch req.Event {
+				case channelEventProbe:
+					if r.GetBySessionId(req.SessionId) != nil {
+						response := r.createResultRequest(req.ReqId, req.SessionId, channelEventProbeSuccess)
+						ctx, cancel := context.WithTimeout(context.Background(), redisOperationTimeout)
+						if err := r.publishRequest(ctx, &response); err != nil {
+							logger.Errorf("Redis cache probe response: %s", err)
+						}
+						cancel()
+					}
 				case channelEventJoin:
 					successReq := r.createResultRequest(req.ReqId, req.SessionId,
 						channelEventJoinSuccess)
@@ -553,7 +577,7 @@ func (r *GuaTunnelRedisCache) run(innerPubSub, sessionPubSub *redis.PubSub) {
 				}
 				logger.Infof("Redis cache request %s receive result event %s", req.ReqId, req.Event)
 				switch req.Event {
-				case channelEventJoinSuccess:
+				case channelEventJoinSuccess, channelEventProbeSuccess:
 					select {
 					case responseChan <- &subscribeResponse{Req: &req}:
 					default:
@@ -700,10 +724,12 @@ func (r *RedisConn) Close() error {
 }
 
 const (
-	channelEventJoin        = "Join"
-	channelEventExit        = "Exit"
-	channelEventJoinSuccess = "JoinSuccess"
-	channelEventExitSuccess = "ExitSuccess"
+	channelEventJoin         = "Join"
+	channelEventProbe        = "Probe"
+	channelEventProbeSuccess = "ProbeSuccess"
+	channelEventExit         = "Exit"
+	channelEventJoinSuccess  = "JoinSuccess"
+	channelEventExitSuccess  = "ExitSuccess"
 )
 
 type subscribeRequest struct {

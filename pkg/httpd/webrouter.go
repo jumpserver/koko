@@ -9,6 +9,7 @@ import (
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/lion"
+	"github.com/jumpserver/koko/pkg/lion/middleware"
 )
 
 func createRouter(
@@ -16,6 +17,9 @@ func createRouter(
 	webSrv *Server,
 	lionRuntime *lion.Runtime,
 ) *gin.Engine {
+	if lionRuntime != nil {
+		webSrv.lionMonitor = lionRuntime
+	}
 	if config.GlobalConfig.LogLevel != "DEBUG" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -28,6 +32,8 @@ func createRouter(
 	{
 		wsGroup.Group("/terminal").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessTerminalWebsocket)
+		wsGroup.Group("/monitor").Use(
+			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessMonitorWebsocket)
 
 		wsGroup.Group("/elfinder").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessElfinderWebsocket)
@@ -41,6 +47,7 @@ func createRouter(
 	apiGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
 	{
 		apiGroup.POST("/connect-ticket/", webSrv.CreateConnectTicket)
+		apiGroup.GET("/monitor/:sid/", middleware.CORS(), webSrv.MonitorComponent)
 	}
 	elfinderGroup := kokoGroup.Group("/elfinder")
 	elfinderGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))

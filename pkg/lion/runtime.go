@@ -71,8 +71,6 @@ func (r *Runtime) RegisterRoutes(engine *gin.Engine) {
 	wsGroup := lionGroup.Group("/ws")
 	wsGroup.Group("/connect").Use(
 		middleware.JmsCookieAuth(r.jmsService)).GET("/", r.tunnelService.Connect)
-	wsGroup.Group("/monitor").Use(
-		middleware.JmsCookieAuth(r.jmsService)).GET("/", r.tunnelService.Monitor)
 	wsGroup.Group("/share").Use(
 		middleware.JmsCookieAuth(r.jmsService)).GET("/", r.tunnelService.Share)
 	wsGroup.Group("/token").Use(
@@ -115,6 +113,14 @@ func (r *Runtime) Stop() {
 
 func (r *Runtime) ActiveSessionIDs() []string {
 	return r.tunnelService.Cache.RangeActiveSessionIds()
+}
+
+func (r *Runtime) HasSession(ctx context.Context, sid string) (bool, error) {
+	return r.tunnelService.Cache.HasSession(ctx, sid)
+}
+
+func (r *Runtime) Monitor(ctx *gin.Context) {
+	r.tunnelService.Monitor(ctx)
 }
 
 func (r *Runtime) HandleTask(task *model.TerminalTask) (bool, error) {
