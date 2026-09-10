@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jumpserver/koko/pkg/lion/session"
 )
 
 func TestRedisTLSConfigRejectsInvalidCA(t *testing.T) {
@@ -53,6 +55,20 @@ func TestRedisCacheIntegration(t *testing.T) {
 		if subscribers[channel] < 1 {
 			t.Fatalf("Redis channel %s is not ready", channel)
 		}
+	}
+	peer, err := NewGuaTunnelRedisCache(Config{Addr: address, Password: os.Getenv("LION_TEST_REDIS_PASSWORD"), DBIndex: 9})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = peer.Close() })
+	peer.Lock()
+	peer.Tunnels["probe"] = &Connection{Sess: &session.TunnelSession{ID: "probe"}}
+	peer.Unlock()
+	if found, err := cache.HasSession(ctx, "probe"); err != nil || !found {
+		t.Fatalf("remote graphical session probe: found=%v, err=%v", found, err)
+	}
+	if found, err := cache.HasSession(ctx, "absent"); err != nil || found {
+		t.Fatalf("absent session probe: found=%v, err=%v", found, err)
 	}
 	if err = cache.Close(); err != nil {
 		t.Fatalf("close Lion Redis cache: %s", err)
