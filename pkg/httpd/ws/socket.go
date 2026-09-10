@@ -52,28 +52,24 @@ func (s *Socket) WriteText(body []byte, timeout time.Duration) error {
 }
 
 func (s *Socket) write(body []byte, opCode int, timeout time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if timeout > 0 {
 		if err := s.underConn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 			return err
 		}
 	}
 
-	s.mu.Lock()
-	err := s.underConn.WriteMessage(opCode, body)
-	s.mu.Unlock()
-	return err
-}
-
-func (s *Socket) WritePing(body []byte, timeout time.Duration) error {
-	return s.write(body, gorilla.PingMessage, timeout)
+	return s.underConn.WriteMessage(opCode, body)
 }
 
 func (s *Socket) WritePong(body []byte, timeout time.Duration) error {
-	return s.write(body, gorilla.PongMessage, timeout)
+	return s.underConn.WriteControl(gorilla.PongMessage, body, time.Now().Add(timeout))
 }
 
-func (s *Socket) WriteClose(timeout time.Duration) error {
-	return s.write(nil, gorilla.CloseMessage, timeout)
+func (s *Socket) WriteCloseReason(code int, reason string, timeout time.Duration) error {
+	return s.underConn.WriteControl(gorilla.CloseMessage,
+		gorilla.FormatCloseMessage(code, reason), time.Now().Add(timeout))
 }
 
 func (s *Socket) Close() error {

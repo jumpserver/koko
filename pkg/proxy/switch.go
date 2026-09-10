@@ -403,6 +403,7 @@ func (s *SwitchSession) disconnection(room *exchange.Room, parser *Parser, repla
 }
 
 func (s *SwitchSession) recordSessionFinished(reason model.SessionLifecycleReasonErr) {
+	s.p.SessionEndReason = reason
 	logObj := model.SessionLifecycleLog{Reason: string(reason)}
 	if err := s.p.jmsService.RecordSessionLifecycleLog(s.ID, model.AssetConnectFinished, logObj); err != nil {
 		logger.Errorf("Session[%s] record session asset_connect_finished failed: %s", s.ID, err)

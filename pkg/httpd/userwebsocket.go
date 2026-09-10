@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/i18n"
@@ -47,6 +48,7 @@ type UserWebsocket struct {
 	langCode     string
 
 	envelopeProtocol bool
+	done             <-chan struct{}
 }
 
 func (userCon *UserWebsocket) initial() error {
@@ -84,6 +86,32 @@ func (userCon *UserWebsocket) initial() error {
 }
 
 func (userCon *UserWebsocket) Run() {
+	ctx, cancel := context.WithCancel(userCon.conn.Request().Context())
+	userCon.done = ctx.Done()
+	closeReason := "initialization_failed"
+	validated := false
+	defer func() {
+		if userCon.ConnectToken != nil {
+			defer userCon.ConnectToken.ClearSSHCertificateCredential()
+		}
+		// Stop producers and close the transport before waiting for SSH cleanup.
+		cancel()
+		if closeReason != "" {
+			logger.Infof("Ws[%s] close source=koko reason=%s", userCon.Uuid, closeReason)
+			// A control frame also works when the terminal writer has stopped.
+			if err := userCon.conn.WriteCloseReason(4000, "koko:"+closeReason, 5*time.Second); err != nil {
+				logger.Infof("Ws[%s] close notification failed: %s", userCon.Uuid, err)
+			}
+		}
+		_ = userCon.conn.Close()
+		if validated {
+			userCon.handler.CleanUp()
+		}
+		if userCon.k8sClient != nil {
+			userCon.k8sClient.Close()
+		}
+		logger.Infof("Ws[%s] done", userCon.Uuid)
+	}()
 	lang := i18n.NewLang(userCon.langCode)
 	if userCon.handler == nil {
 		return
@@ -92,25 +120,23 @@ func (userCon *UserWebsocket) Run() {
 		logger.Errorf("Ws[%s] initial err: %s", userCon.Uuid, err)
 		return
 	}
-	if userCon.ConnectToken != nil {
-		defer userCon.ConnectToken.ClearSSHCertificateCredential()
+	type loopResult struct {
+		operation string
+		err       error
 	}
-	ctx, cancel := context.WithCancel(userCon.ctx.Request.Context())
-	defer cancel()
-	errorsChan := make(chan error, 1)
-	go userCon.writeMessageLoop(ctx)
+	errorsChan := make(chan loopResult, 2)
 	go func() {
-		if err := userCon.readMessageLoop(); err != io.EOF {
-			logger.Errorf("Ws[%s] read message err: %s", userCon.Uuid, err)
-			errorsChan <- err
-		}
-		logger.Infof("Ws[%s] read message done", userCon.Uuid)
+		errorsChan <- loopResult{"write", userCon.writeMessageLoop(ctx)}
+	}()
+	go func() {
+		errorsChan <- loopResult{"read", userCon.readMessageLoop()}
 	}()
 	if err := userCon.handler.CheckValidation(); err != nil {
 		logger.Errorf("Ws[%s] check validation err: %s", userCon.Uuid, err)
 		userCon.SendErrMessage(err.Error())
 		return
 	}
+	validated = true
 
 	if userCon.ConnectToken != nil && userCon.ConnectToken.Protocol == srvconn.ProtocolK8s {
 		var err error
@@ -136,93 +162,86 @@ func (userCon *UserWebsocket) Run() {
 	}
 
 	userCon.sendConnectMessage()
-	var errMsg string
+	closeReason = "request_canceled"
 	select {
-	case err := <-errorsChan:
-		if err != nil {
-			errMsg = err.Error()
+	case result := <-errorsChan:
+		if result.err != nil || ctx.Err() == nil {
+			closeReason = websocketErrorReason(result.operation, result.err)
 		}
+		source := "peer_or_transport"
+		if closeReason != "" {
+			source = "koko"
+		}
+		logger.Infof("Ws[%s] %s loop ended source=%s reason=%s err=%v",
+			userCon.Uuid, result.operation, source, closeReason, result.err)
 	case <-ctx.Done():
 	}
-	userCon.handler.CleanUp()
-	if userCon.k8sClient != nil {
-		userCon.k8sClient.Close()
-	}
-
-	logger.Infof("Ws[%s] done with exit %s", userCon.Uuid, errMsg)
 }
 
-func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) {
-	active := time.Now()
-	t := time.NewTicker(time.Minute)
-	maxErrCount := 10
-	errCount := 0
+func websocketErrorReason(operation string, err error) string {
+	var closeErr *gorilla.CloseError
+	if err == nil || errors.As(err, &closeErr) || errors.Is(err, io.EOF) {
+		// A peer close or missing close frame is not evidence of a Koko decision.
+		return ""
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return operation + "_timeout"
+	}
+	if operation == "write" {
+		return "write_failed"
+	}
+	return ""
+}
+
+func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) error {
+	t := time.NewTicker(25 * time.Second)
 	defer t.Stop()
 	for {
-		if errCount >= maxErrCount {
-			logger.Errorf("Ws[%s] send message err count more than %d and exit goroutine",
-				userCon.Uuid, maxErrCount)
-			return
-		}
 		var msg *Message
 		select {
 		case <-ctx.Done():
 			logger.Infof("Ws[%s] end send message", userCon.Uuid)
-			return
-		case tickNow := <-t.C:
-			if tickNow.Before(active.Add(time.Second * 30)) {
-				continue
-			}
-			if tickNow.After(active.Add(maxWriteTimeOut)) {
-				logger.Infof("Ws[%s] inactive more than 5 minutes and close conn", userCon.Uuid)
-				_ = userCon.conn.Close()
-				continue
-			}
+			return nil
+		case <-t.C:
 			msg = &Message{Id: userCon.Uuid, Type: PING}
 		case msg = <-userCon.messageChannel:
-
 		}
-		if userCon.envelopeProtocol {
-			payload, err := encodeMessageEnvelope(msg)
+		var err error
+		switch {
+		case userCon.envelopeProtocol:
+			var payload []byte
+			payload, err = encodeMessageEnvelope(msg)
 			if err != nil {
 				logger.Errorf("Ws[%s] encode %s envelope err: %s", userCon.Uuid, msg.Type, err)
-				errCount++
 				continue
 			}
-			if err = userCon.conn.WriteBinary(payload, maxWriteTimeOut); err != nil {
-				logger.Errorf("Ws[%s] send %s envelope err: %s", userCon.Uuid, msg.Type, err)
-				errCount++
-				continue
-			}
-			errCount = 0
-			active = time.Now()
-			continue
-		}
-		switch msg.Type {
-		case TerminalBinary:
-			err := userCon.conn.WriteBinary(msg.Raw, maxWriteTimeOut)
-			if err != nil {
-				logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
-				errCount++
-				continue
-			}
+			err = userCon.conn.WriteBinary(payload, maxWriteTimeOut)
+		case msg.Type == TerminalBinary:
+			err = userCon.conn.WriteBinary(msg.Raw, maxWriteTimeOut)
 		default:
 			p, _ := json.Marshal(msg)
-			err := userCon.conn.WriteText(p, maxWriteTimeOut)
-			if err != nil {
-				logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
-				errCount++
-				continue
-			}
+			err = userCon.conn.WriteText(p, maxWriteTimeOut)
 		}
-		errCount = 0
-		active = time.Now()
+		if err != nil {
+			logger.Errorf("Ws[%s] send %s message err: %s", userCon.Uuid, msg.Type, err)
+			return err
+		}
+		if msg.Type == CLOSE {
+			logger.Infof("Ws[%s] terminal[%d] sent CLOSE reason=%s", userCon.Uuid, msg.TerminalId, msg.Data)
+		}
 	}
 }
 
 func (userCon *UserWebsocket) SendMessage(msg *Message) {
 	select {
+	case <-userCon.done:
+		return
+	default:
+	}
+	select {
 	case userCon.messageChannel <- msg:
+	case <-userCon.done:
 	case <-userCon.conn.Request().Context().Done():
 		logger.Infof("Ws[%s] ctx done and ignore message type %s",
 			userCon.Uuid, msg.Type)
@@ -299,7 +318,9 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 				continue
 			}
 			switch msg.Type {
-			case PING, PONG:
+			case PING:
+				userCon.SendMessage(&Message{Id: userCon.Uuid, Type: PONG, Data: msg.Data})
+			case PONG:
 			case TerminalK8STree:
 				if userCon.k8sClient == nil {
 					userCon.SendMessage(&Message{
@@ -343,7 +364,10 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			continue
 		}
 		switch msg.Type {
-		case PING, PONG:
+		case PING:
+			userCon.SendMessage(&Message{Id: userCon.Uuid, Type: PONG, Data: msg.Data})
+			continue
+		case PONG:
 			logger.Debugf("Ws[%s] receive %s message", userCon.Uuid, msg.Type)
 			continue
 		case TerminalK8STree:

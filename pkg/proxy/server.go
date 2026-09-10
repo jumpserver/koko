@@ -164,6 +164,8 @@ type Server struct {
 	OnSessionInfo        func(info *SessionInfo)
 	OnSSHClient          func(client *srvconn.SSHClient)
 	OnDatabaseConnection func(info DatabaseConnectionInfo)
+	// SessionEndReason is available after Proxy returns.
+	SessionEndReason model.SessionLifecycleReasonErr
 
 	BroadcastEvent func(event *exchange.RoomMessage)
 }
@@ -1178,6 +1180,7 @@ func (s *Server) getCharset() string {
 }
 
 func (s *Server) Proxy() {
+	s.SessionEndReason = model.ReasonErrConnectFailed
 	defer s.connOpts.authInfo.ClearSSHCertificateCredential()
 	if err := s.checkRequiredAuth(); err != nil {
 		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
