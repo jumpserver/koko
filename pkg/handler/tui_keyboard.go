@@ -11,10 +11,13 @@ import (
 )
 
 type tuiDialog struct {
-	page        string
-	returnFocus tview.Primitive
-	focus       []tview.Primitive
-	shortcuts   []tuiShortcut
+	page             string
+	returnFocus      tview.Primitive
+	focus            []tview.Primitive
+	shortcuts        []tuiShortcut
+	boundedDropdowns bool
+	accountSearch    *tuiAccountSearch
+	defaultButton    *tview.Button
 }
 
 func (h *terminalUI) focusOrder() []tview.Primitive {
@@ -55,6 +58,25 @@ func (h *terminalUI) focusOrder() []tview.Primitive {
 	return order
 }
 
+// Keep all controls available to mouse/shortcut dispatch, but traverse only
+// the visible asset-panel regions with Tab. Dialogs keep their own focus cycle.
+func (h *terminalUI) tabFocusOrder() []tview.Primitive {
+	if h.modal {
+		return h.focusOrder()
+	}
+	if h.activeSession >= 0 {
+		return nil
+	}
+	var order []tview.Primitive
+	if !h.sidebarHidden {
+		if h.organizationsEnabled {
+			order = append(order, h.org)
+		}
+		order = append(order, h.treeKind, h.tree)
+	}
+	return append(order, h.search, h.table)
+}
+
 // A DropDown delegates focus to its internal list while open. Close that list
 // before moving focus, so Tab cannot leave an invisible focused menu behind.
 func (h *terminalUI) closeDropdown() bool {
@@ -69,13 +91,20 @@ func (h *terminalUI) closeDropdown() bool {
 }
 
 func (h *terminalUI) cycleFocus(backward bool) bool {
-	order := h.focusOrder()
+	order := h.tabFocusOrder()
 	if len(order) == 0 { // tview.Modal owns the focus cycle of its buttons.
 		return false
 	}
 	index := -1
 	for i, item := range order {
-		if item.HasFocus() {
+		focused := item.HasFocus()
+		if !h.modal {
+			// A clicked toolbar button belongs to its enclosing region, without
+			// becoming a separate stop in the keyboard cycle.
+			focused = focused || item == h.treeKind && h.treeHead.HasFocus() ||
+				item == h.search && h.assetRefresh.HasFocus() || item == h.table && h.assetPane.HasFocus()
+		}
+		if focused {
 			index = i
 			break
 		}
@@ -108,7 +137,9 @@ func (h *terminalUI) input(ev *tcell.EventKey) *tcell.EventKey {
 	prefix := h.windowPrefix
 	for _, binding := range h.shortcuts() {
 		if binding.matches(ev) {
-			if binding.id != "fullscreen" && binding.id != "window" {
+			switch binding.id {
+			case "fullscreen", "window", "back", "literal-prefix":
+			default:
 				h.setFullscreen(false)
 			}
 			h.windowPrefix = false
@@ -119,6 +150,20 @@ func (h *terminalUI) input(ev *tcell.EventKey) *tcell.EventKey {
 	if prefix {
 		h.windowPrefix = false // Unknown window commands cancel without reaching SSH.
 		return nil
+	}
+	if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
+		if d := h.focusedDropdown(); d != nil && !d.IsOpen() {
+			if ev.Key() == tcell.KeyEnter && h.dialogs[len(h.dialogs)-1].defaultButton != nil {
+				return nil // Enter belongs to the dialog action, even when disabled.
+			}
+			switch ev.Key() {
+			case tcell.KeyEnter, tcell.KeyRune, tcell.KeyUp, tcell.KeyDown, tcell.KeyHome, tcell.KeyEnd, tcell.KeyPgUp, tcell.KeyPgDn:
+				h.openFocusedDropdown()
+				if ev.Key() == tcell.KeyEnter || ev.Key() == tcell.KeyDown {
+					return nil
+				}
+			}
+		}
 	}
 	// Border controls are drawn over their owning panel rather than occupying
 	// a Flex row. Route their native keys explicitly, just like mounted buttons.
@@ -186,6 +231,10 @@ func (h *terminalUI) escape() {
 func (h *terminalUI) openDialog(page string, child tview.Primitive, focus []tview.Primitive) {
 	h.setFullscreen(false)
 	h.closeDropdown()
+	// Replace the current dialog and retain its underlying return focus.
+	for len(h.dialogs) > 0 {
+		h.dismissModal()
+	}
 	// A late account lookup must not open a second dialog over newly opened help.
 	h.detailGeneration++
 	h.dialogs = append(h.dialogs, tuiDialog{page: page, returnFocus: h.app.GetFocus(), focus: focus})
@@ -204,6 +253,10 @@ func (h *terminalUI) showKeyboardHelp() {
 		h.dismissModal()
 		return
 	}
+	h.closeDropdown()
+	for len(h.dialogs) > 0 {
+		h.dismissModal()
+	}
 	// Keep help actionable: commands listed here close help and execute in the
 	// original control. Navigation, Enter and Esc belong to the help itself.
 	var commands []tuiShortcut
@@ -216,14 +269,13 @@ func (h *terminalUI) showKeyboardHelp() {
 	h.windowPrefix = false
 	for _, binding := range available {
 		switch binding.id {
-		case "help", "back", "quit", "focus", "window", "literal-prefix":
+		case "help", "back", "focus", "window", "literal-prefix":
 			continue
 		}
 		if binding.run == nil {
 			continue
 		}
-		// Window bindings also accept arrows and Tab. Inside help those keys
-		// belong to scrolling and focus; retain only the advertised n/b aliases.
+		// Inside help, arrows and Tab belong to scrolling and focus.
 		switch binding.key {
 		case tcell.KeyTab, tcell.KeyBacktab, tcell.KeyLeft, tcell.KeyRight:
 			binding.key = 0
@@ -237,7 +289,7 @@ func (h *terminalUI) showKeyboardHelp() {
 		commands = append(commands, binding)
 	}
 	help := tview.NewTextView().SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetText(h.keyboardHelp(commands)).ScrollToBeginning()
-	tuiBorder(help.Box, h.tr("帮助", "Help"), tui.Accent)
+	help.SetBackgroundColor(tui.Panel)
 	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
 	help.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
@@ -245,41 +297,39 @@ func (h *terminalUI) showKeyboardHelp() {
 		}
 	})
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(help, 0, 1, true).AddItem(close, 1, 0, false)
-	content.SetBackgroundColor(tui.Panel)
+	content.Box = tview.NewBox()
+	tuiDialogBorder(content.Box, h.tr("帮助", "Help"))
 	h.openDialog("help", &tuiOverlay{Box: tview.NewBox(), child: content, width: 94, height: 30}, []tview.Primitive{help, close})
 	h.dialogs[len(h.dialogs)-1].shortcuts = commands
 }
 
 func (h *terminalUI) setWindowHelp() {
-	exitKey := "Ctrl+C"
-	remote := h.popup != nil && h.popup.HasFocus()
-	if h.windowPrefix {
-		exitKey = "q"
-	} else if remote {
-		exitKey = "Ctrl+] q"
-	}
-	h.exitHint = ""
-	if !h.modal {
-		h.exitHint = exitKey + " " + h.tr("退出", "Quit")
-	}
+	remote := !h.modal && h.popup != nil && h.popup.HasFocus()
 	bindings := h.shortcuts()
 	h.refreshShortcutLabels(bindings)
-	// Common hints retain their order and width across focus and dialog changes.
-	// Remote input and the explicit window prefix have their own command sets.
-	hints := []tuiShortcut{
-		{id: "help", label: "h / ?", description: h.tr("帮助", "Help")},
-		{id: "focus", label: "Tab / Shift+Tab", description: h.tr("切换控件", "Focus")},
-		{id: "back", label: "Esc", description: h.tr("返回", "Back")},
-		{id: "control", label: "Enter", description: h.tr("确认", "Confirm")},
-		{id: "full-text", label: "v", description: h.tr("完整内容", "Full text")},
-		{id: "control", label: "↑↓ / PgUp / PgDn", description: h.tr("移动和滚动", "Move and scroll")},
-		{id: "search-results", label: "↓", description: h.tr("资产", "Assets")},
-		{id: "clear-search", label: "Ctrl+U", description: h.tr("清空搜索", "Clear search")},
+	helpKey := "h"
+	if tuiShortcutAvailable(bindings, "help", "Ctrl+] h") {
+		helpKey = "Ctrl+] h"
 	}
-	if h.windowPrefix || remote {
-		hints = nil
+	focusLabel := h.tr("切换区域", "Switch region")
+	if h.modal {
+		focusLabel = h.tr("切换控件", "Focus")
+	}
+	// Keep Help first outside session input. Unavailable keys remain dim;
+	// the full command list is available through Help.
+	hints := []tuiShortcut{
+		{id: "help", label: helpKey, description: h.tr("帮助", "Help")},
+		{id: "focus", label: "Tab", description: focusLabel},
+		{id: "control", label: "Enter", description: h.tr("确认", "Confirm")},
+		{id: "full-text", label: "v", description: h.tr("详情", "Details")},
+		{id: "back", label: "Esc", description: h.tr("返回", "Back")},
+	}
+	if remote && !h.windowPrefix {
+		hints = []tuiShortcut{{id: "window", label: "Ctrl+]", description: h.tr("激活快捷键", "Activate shortcuts")}}
+	} else if h.windowPrefix {
+		hints = hints[:1]
 		for _, binding := range bindings {
-			if binding.compact && binding.label != "" {
+			if binding.compact && binding.label != "" && binding.id != "help" {
 				hints = append(hints, binding)
 			}
 		}
@@ -288,23 +338,27 @@ func (h *terminalUI) setWindowHelp() {
 	}
 	w, _ := h.screen.Size()
 	width := max(1, w-tuiClockWidth-5)
-	lines := []string{tuiKeyText(exitKey, !h.modal) + " " + h.tr("退出", "Quit")}
+	if h.fullscreen {
+		width = max(1, w-2)
+	}
+	var hintsText []string
+	h.helpHint = ""
 	for _, binding := range hints {
-		hint := tuiKeyText(binding.label, tuiShortcutAvailable(bindings, binding.id, binding.label)) + " " + binding.description
-		if tview.TaggedStringWidth(hint) > width {
+		label := binding.label
+		enabled := tuiShortcutAvailable(bindings, binding.id, binding.label)
+		key := strings.ReplaceAll(tuiKeyText(label, enabled), "::bu]", "::u]")
+		hint := key + " " + binding.description
+		joined := strings.Join(append(hintsText, hint), " · ")
+		if tview.TaggedStringWidth(joined) > width {
 			continue
 		}
-		last := len(lines) - 1
-		joined := lines[last] + " · " + hint
-		if tview.TaggedStringWidth(joined) <= width {
-			lines[last] = joined
-		} else if len(lines) < 2 {
-			lines = append(lines, hint)
+		hintsText = append(hintsText, hint)
+		if binding.id == "help" && enabled {
+			h.helpHint = label + " " + binding.description
 		}
 	}
-	text := strings.Join(lines, "\n")
+	text := strings.Join(hintsText, " · ")
 	if h.footer.GetText(false) != text {
 		h.footer.SetText(text)
 	}
-	h.main.ResizeItem(h.footer, max(2, len(lines))+1, 0)
 }

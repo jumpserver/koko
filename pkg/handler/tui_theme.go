@@ -40,9 +40,8 @@ func (h *terminalUI) showAppearance() {
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(mode, 1, 0, true).AddItem(nil, 0, 1, false).
 		AddItem(accent, 1, 0, false).AddItem(nil, 0, 1, false).AddItem(buttons, 1, 0, false)
 	content.Box = tview.NewBox()
-	tuiBorder(content.Box, "◇ "+h.tr("主题", "Theme"), tui.FocusBorder)
-	content.SetBorderPadding(0, 0, 2, 2)
-	h.openDialog("appearance", &tuiOverlay{Box: tview.NewBox(), child: content, width: 56, height: 7}, []tview.Primitive{mode, accent, reset, close})
+	tuiDialogBorder(content.Box, h.tr("主题", "Theme"))
+	h.openDialog("appearance", &tuiOverlay{Box: tview.NewBox(), child: content, width: 56, height: 9}, []tview.Primitive{mode, accent, reset, close})
 }
 
 func (h *terminalUI) changeAppearance(light bool, accent int) {

@@ -40,7 +40,7 @@ func NewTerminal(ctx context.Context, invalidate func()) (t *Terminal, err error
 		ready: make(chan struct{}, 1), winch: make(chan ssh.Window, 1), invalidate: invalidate,
 		width: 80, height: 24}
 	t.SetBackgroundColor(Panel)
-	t.SetBorder(true).SetBorderColor(FocusBorder).SetTitleColor(Accent)
+	t.SetBorder(true).SetBorderColor(FocusBorder).SetTitleColor(Accent).SetBorderPadding(1, 0, 1, 0)
 	RoundedBorder(t.Box)
 	defer func() {
 		if err != nil {
