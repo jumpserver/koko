@@ -28,7 +28,6 @@ type Config struct {
 	WebProxyEnabled          bool   `mapstructure:"WEB_PROXY_ENABLED"`
 	WebProxyBindHost         string `mapstructure:"WEB_PROXY_BIND_HOST"`
 	WebProxyPort             string `mapstructure:"WEB_PROXY_PORT"`
-	WebProxyAllowedHosts     string `mapstructure:"WEB_PROXY_ALLOWED_HOSTS"`
 	WebProxyRecordingEnabled bool   `mapstructure:"WEB_PROXY_RECORDING_ENABLED"`
 	WebProxyFFmpegPath       string `mapstructure:"WEB_PROXY_FFMPEG_PATH"`
 	SSHTimeout               int    `mapstructure:"SSH_TIMEOUT"`
@@ -175,7 +174,6 @@ func getDefaultConfig() Config {
 		WebProxyEnabled:          true,
 		WebProxyBindHost:         "127.0.0.1",
 		WebProxyPort:             "5001",
-		WebProxyAllowedHosts:     "*",
 		WebProxyRecordingEnabled: true,
 		WebProxyFFmpegPath:       "ffmpeg",
 		AccessKeyFilePath:        accessKeyFilePath,

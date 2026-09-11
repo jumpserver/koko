@@ -15,19 +15,15 @@ import (
 const shutdownTimeout = 5 * time.Second
 
 type Server struct {
-	server       *http.Server
-	transport    *http.Transport
-	allowedHosts []string
-	recordings   *recordingManager
-	credentials  *credentialManager
-	coreService  webProxyService
+	server      *http.Server
+	transport   *http.Transport
+	auth        proxyAuth
+	recordings  *recordingManager
+	credentials *credentialManager
+	coreService webProxyService
 }
 
-func NewServer(bindHost, port, allowedHosts, recordingRoot, ffmpegPath string, coreService webProxyService) (*Server, error) {
-	allowed := splitAllowedHosts(allowedHosts)
-	if len(allowed) == 0 {
-		return nil, errors.New("WEB_PROXY_ALLOWED_HOSTS is required when web proxy is enabled")
-	}
+func NewServer(bindHost, port, recordingRoot, ffmpegPath string, coreService webProxyService) (*Server, error) {
 
 	proxy := &Server{
 		transport: &http.Transport{
@@ -37,9 +33,9 @@ func NewServer(bindHost, port, allowedHosts, recordingRoot, ffmpegPath string, c
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: 30 * time.Second,
 		},
-		allowedHosts: allowed,
-		credentials:  newCredentialManager(coreService),
-		coreService:  coreService,
+		auth:        proxyAuth{sessions: make(map[string]*proxySession)},
+		credentials: newCredentialManager(coreService),
+		coreService: coreService,
 	}
 	if recordingRoot != "" {
 		manager, err := newRecordingManager(recordingRoot, ffmpegPath)
@@ -65,6 +61,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
+	s.stopProxySessions()
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if err := s.server.Shutdown(ctx); err != nil {
@@ -83,14 +80,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	target := r.URL.Host
-	if r.Method == http.MethodConnect {
-		target = r.Host
-	}
-	if !s.isAllowed(target) {
-		http.Error(w, "target host is not allowed", http.StatusForbidden)
+	auth := s.authenticateProxy(r)
+	if auth == nil || auth.locked {
+		requireProxyAuth(w)
 		return
 	}
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	stop := context.AfterFunc(auth.ctx, cancel)
+	defer stop()
+	r = r.WithContext(ctx)
 
 	if r.Method == http.MethodConnect {
 		s.serveTunnel(w, r)
@@ -125,7 +124,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) serveTunnel(w http.ResponseWriter, r *http.Request) {
-	upstream, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
+	upstream, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(r.Context(), "tcp", r.Host)
 	if err != nil {
 		http.Error(w, "upstream connection failed", http.StatusBadGateway)
 		logger.Warnf("Web proxy CONNECT to %s failed: %s", r.Host, err)
@@ -145,6 +144,11 @@ func (s *Server) serveTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	defer client.Close()
 	defer upstream.Close()
+	stop := context.AfterFunc(r.Context(), func() {
+		client.Close()
+		upstream.Close()
+	})
+	defer stop()
 
 	if _, err = buffered.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n"); err != nil {
 		return
@@ -158,42 +162,6 @@ func (s *Server) serveTunnel(w http.ResponseWriter, r *http.Request) {
 	go copyTunnel(client, upstream, done)
 	<-done
 	logger.Infof("Web proxy CONNECT %s closed", r.Host)
-}
-
-func (s *Server) isAllowed(authority string) bool {
-	host := normalizedHost(authority)
-	for _, allowed := range s.allowedHosts {
-		switch {
-		case allowed == "*":
-			return true
-		case strings.HasPrefix(allowed, "*."):
-			suffix := strings.TrimPrefix(allowed, "*")
-			if strings.HasSuffix(host, suffix) && host != strings.TrimPrefix(suffix, ".") {
-				return true
-			}
-		case normalizedHost(allowed) == host:
-			return true
-		}
-	}
-	return false
-}
-
-func splitAllowedHosts(value string) []string {
-	var result []string
-	for _, host := range strings.Split(value, ",") {
-		if host = strings.ToLower(strings.TrimSpace(host)); host != "" {
-			result = append(result, host)
-		}
-	}
-	return result
-}
-
-func normalizedHost(authority string) string {
-	authority = strings.ToLower(strings.TrimSpace(authority))
-	if host, _, err := net.SplitHostPort(authority); err == nil {
-		return strings.Trim(host, "[]")
-	}
-	return strings.Trim(authority, "[]")
 }
 
 func removeHopByHopHeaders(header http.Header) {
