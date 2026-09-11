@@ -45,6 +45,7 @@ type terminalUI struct {
 	assetJobs, treeJobs, detailJobs, orgJobs, countJobs chan func()
 	countLoading                                        bool
 	treeLoading                                         bool
+	treeLoadingNode                                     *tview.TreeNode
 	treeRequest                                         uint64
 	lastNavigationWidth                                 int
 	lastAssetWidth                                      int
@@ -53,14 +54,15 @@ type terminalUI struct {
 	organizationsEnabled                                bool
 	organizationsReady                                  bool
 	workspaceGeneration                                 uint64
-	navigation, assetRegion, assetPane                  *tview.Flex
+	navigation                                          *tuiNavigation
+	assetRegion, assetPane                              *tview.Flex
 	orgPane, treePane                                   *tview.Flex
 	body, header, treeTools, treeHead                   *tview.Flex
 	tabRow                                              *tview.Flex
 	headerTools                                         *tview.Flex
 	treeKind                                            *tview.DropDown
 	clock, brand, identity                              *tview.TextView
-	exitHint                                            string
+	helpHint                                            string
 	language                                            *tview.Button
 	appearance                                          *tview.Button
 	treeActions                                         [2]*tview.Button
@@ -78,6 +80,8 @@ type terminalUI struct {
 	main                                                *tview.Flex
 	scope                                               tuiScope
 	assets                                              []model.PermAsset
+	assetsLoading, assetsLoaded                         bool
+	assetNotice                                         string
 	offset, total                                       int
 	viewGeneration, assetGeneration, detailGeneration   uint64
 	treeCount                                           int
@@ -96,7 +100,6 @@ type terminalUI struct {
 	tabsOverflow                                        bool
 	activeSession                                       int
 	windowPrefix                                        bool
-	tabHintUntil                                        time.Time
 	fullscreen                                          bool
 }
 
@@ -123,6 +126,11 @@ func tuiBorder(box *tview.Box, title string, color tcell.Color) {
 	tui.RoundedBorder(box)
 }
 
+func tuiDialogBorder(box *tview.Box, title string) {
+	tuiBorder(box, title, tui.FocusBorder)
+	box.SetTitleColor(tui.Accent).SetBorderPadding(1, 1, 2, 2)
+}
+
 func newTerminalUI(sess ssh.Session, user *model.User, api *service.JMService, conf model.TerminalConfig, screen tcell.Screen) *terminalUI {
 	ctx, cancel := context.WithCancel(sess.Context())
 	h := &terminalUI{session: sess, user: user, conf: conf, screen: screen,
@@ -136,23 +144,22 @@ func newTerminalUI(sess ssh.Session, user *model.User, api *service.JMService, c
 	h.build()
 	h.app.SetRoot(h.main, true).SetFocus(h.tree).SetInputCapture(h.input)
 	h.app.SetBeforeDrawFunc(func(s tcell.Screen) bool {
+		s.HideCursor()
 		cursorStyle := tcell.CursorStyleDefault
 		if h.search.HasFocus() && !h.modal && h.activeSession < 0 {
 			cursorStyle = tcell.CursorStyleBlinkingBar
 		}
 		s.SetCursorStyle(cursorStyle)
 		if h.fullscreen {
-			h.refreshShortcutLabels(h.shortcuts())
+			h.setWindowHelp()
 			return false
 		}
 		h.updateLayout(time.Now())
 		for _, box := range []*tview.Box{h.navigation.Box, h.orgPane.Box, h.treePane.Box, h.assetPane.Box} {
 			box.SetBorderColor(tui.Border).SetTitleColor(tui.Muted)
 		}
-		for _, pane := range []*tview.Flex{h.navigation, h.orgPane, h.treePane, h.assetPane} {
-			if pane.HasFocus() {
-				pane.SetBorderColor(tui.FocusBorder).SetTitleColor(tui.Accent)
-			}
+		if h.assetPane.HasFocus() {
+			h.assetPane.SetBorderColor(tui.FocusBorder).SetTitleColor(tui.Accent)
 		}
 		for _, item := range h.focusOrder() {
 			if box, ok := item.(interface {
@@ -161,6 +168,9 @@ func newTerminalUI(sess ssh.Session, user *model.User, api *service.JMService, c
 				color, titleColor := tui.Border, tui.Muted
 				if item.HasFocus() {
 					color, titleColor = tui.FocusBorder, tui.Accent
+				}
+				if h.modal {
+					titleColor = tui.Accent
 				}
 				box.SetBorderColor(color).SetTitleColor(titleColor)
 			}
@@ -195,6 +205,7 @@ func newTerminalUI(sess ssh.Session, user *model.User, api *service.JMService, c
 	h.main.SetMouseCapture(h.captureRootMouse)
 	h.app.SetAfterDrawFunc(func(s tcell.Screen) {
 		if h.fullscreen {
+			h.drawSessionControls(s)
 			return
 		}
 		h.drawSessionTabs(s)
@@ -235,8 +246,8 @@ func (h *terminalUI) build() {
 	h.identity.SetText(cleanTUIText(name))
 	h.clock = tview.NewTextView().SetTextAlign(tview.AlignRight).SetTextStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetWrap(false)
 	headerControlStyle := tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)
-	h.language = tview.NewButton("").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Underline(true)).SetSelectedFunc(h.showLanguage)
-	h.appearance = tview.NewButton("").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Underline(true)).SetSelectedFunc(h.showAppearance)
+	h.language = tview.NewButton("").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Foreground(tui.Foreground)).SetSelectedFunc(h.showLanguage)
+	h.appearance = tview.NewButton("").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Foreground(tui.Foreground)).SetSelectedFunc(h.showAppearance)
 	divider := tview.NewTextView().SetText(" | ").SetTextStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetWrap(false)
 	themeDivider := tview.NewTextView().SetText(" | ").SetTextStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetWrap(false)
 	h.headerTools = tview.NewFlex().AddItem(nil, 0, 1, false).AddItem(h.language, 10, 0, false).AddItem(themeDivider, 3, 0, false).AddItem(h.appearance, 12, 0, false).AddItem(divider, 3, 0, false).AddItem(h.identity, 28, 0, false)
@@ -251,10 +262,10 @@ func (h *terminalUI) build() {
 	for _, dropdown := range []*tview.DropDown{h.org, h.treeKind} {
 		dropdown.SetFieldBackgroundColor(tui.Panel).
 			SetLabelStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
-			SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel).Underline(true))
+			SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
 	}
 	h.treeTools = tview.NewFlex()
-	for i, label := range []string{"−", "↻"} {
+	for i, label := range []string{"−", "@"} {
 		b := tview.NewButton(label).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected)
 		b.SetSelectedFunc(func() {
 			if i == 0 {
@@ -270,14 +281,7 @@ func (h *terminalUI) build() {
 	h.treeHead = tview.NewFlex().AddItem(h.treeKind, 16, 0, false).AddItem(nil, 0, 1, false).AddItem(h.treeTools, 10, 0, false)
 	h.treeHead.SetBackgroundColor(tui.Panel)
 	h.treeHead.SetDrawFunc(func(s tcell.Screen, x, y, w, ht int) (int, int, int, int) {
-		style := tcell.StyleDefault.Foreground(h.navigation.GetBorderColor()).Background(tui.Panel)
 		h.treeKind.SetFieldTextColor(tui.Foreground)
-		left, _, width, _ := h.navigation.GetRect()
-		for col := left + 1; col < left+width-1; col++ {
-			s.SetContent(col, y+ht-1, '─', nil, style)
-		}
-		s.SetContent(left, y+ht-1, '├', nil, style)
-		s.SetContent(left+width-1, y+ht-1, '┤', nil, style)
 		return x, y, w, min(1, ht)
 	})
 	h.tree = tview.NewTreeView().SetGraphicsColor(tui.Border)
@@ -285,27 +289,38 @@ func (h *terminalUI) build() {
 	h.tree.SetDrawFunc(func(s tcell.Screen, x, y, w, ht int) (int, int, int, int) {
 		if ht > 0 && w > 0 {
 			tview.Print(s, h.tree.GetTitle(), x+w-1, y, 1, tview.AlignLeft, tui.Muted)
+			root := h.tree.GetRoot()
+			empty := root == nil && h.organizationsReady
+			if root != nil {
+				ref, ok := root.GetReference().(*tuiNodeRef)
+				empty = ok && ref.loaded && len(root.GetChildren()) == 0
+			}
+			notice := ""
+			if h.treeLoading && root != nil && root == h.treeLoadingNode && len(root.GetChildren()) == 0 {
+				notice = h.tr("加载中…", "Loading…")
+			} else if empty && !h.treeLoading {
+				notice = h.tr("空", "Empty")
+			}
+			if notice != "" {
+				tview.Print(s, notice, x, y+(ht-1)/2, w, tview.AlignCenter, tui.Muted)
+			}
 		}
 		return h.tree.GetInnerRect()
 	})
 	h.tree.SetSelectedFunc(h.selectNode)
-	h.tree.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
-		switch action {
-		case tview.MouseScrollUp:
-			h.keepTreeSelectionInView(-1)
-		case tview.MouseScrollDown:
-			h.keepTreeSelectionInView(1)
-		}
-		return action, ev
-	})
+	h.tree.SetMouseCapture(h.captureTreeMouse)
 	h.tree.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		node := h.tree.GetCurrentNode()
 		if node == nil {
 			return e
 		}
-		if e.Key() == tcell.KeyHome || e.Key() == tcell.KeyEnd || e.Key() == tcell.KeyRune && (e.Rune() == 'g' || e.Rune() == 'G') {
+		if e.Key() == tcell.KeyRune && e.Rune() == ' ' {
+			h.toggleNode(node)
+			return nil
+		}
+		if e.Key() == tcell.KeyHome || e.Key() == tcell.KeyEnd {
 			step := h.tree.GetRowCount()
-			if e.Key() == tcell.KeyHome || e.Rune() == 'g' {
+			if e.Key() == tcell.KeyHome {
 				step = -step
 			}
 			h.tree.Move(step)
@@ -320,12 +335,7 @@ func (h *terminalUI) build() {
 				h.app.SetFocus(h.table)
 				return nil
 			}
-			if !ref.loaded {
-				h.selectNode(node)
-			} else {
-				node.SetExpanded(true)
-				h.refreshNodeLabel(node)
-			}
+			h.expandNode(node)
 			return nil
 		}
 		if e.Key() == tcell.KeyLeft {
@@ -360,15 +370,18 @@ func (h *terminalUI) build() {
 			h.app.SetFocus(h.table)
 		}
 	})
-	h.assetRefresh = tview.NewButton("↻").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.refreshAssets)
+	h.assetRefresh = tview.NewButton("@").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.refreshAssets)
 	tuiBorder(h.assetRefresh.Box, "", tui.Border)
 	h.assetRefresh.SetTitle("")
 	assetToolbar := tview.NewFlex().AddItem(h.search, 0, 1, false).AddItem(nil, 1, 0, false).AddItem(h.assetRefresh, 8, 0, false)
 	assetToolbar.SetBackgroundColor(tui.Panel)
 	h.table = tview.NewTable().SetSelectable(true, false).SetFixed(1, 0).SetSelectedStyle(tui.Selected)
 	h.table.SetBackgroundColor(tui.Panel)
-	h.table.SetDrawFunc(func(_ tcell.Screen, x, y, w, ht int) (int, int, int, int) {
+	h.table.SetDrawFunc(func(s tcell.Screen, x, y, w, ht int) (int, int, int, int) {
 		h.layoutAssetColumns(w)
+		if h.assetNotice != "" && w > 0 && ht > 0 {
+			tview.Print(s, cleanTUIText(h.assetNotice), x, y+(ht-1)/2, w, tview.AlignCenter, tui.Muted)
+		}
 		return x, y, w, ht
 	})
 	h.table.SetSelectedFunc(func(row, _ int) { h.showAccounts(row) })
@@ -391,21 +404,12 @@ func (h *terminalUI) build() {
 	}
 	bottom := tview.NewFlex().AddItem(h.status, 0, 1, false).AddItem(pager, 16, 0, false)
 	h.assetBottom, h.pager = bottom, pager
-	h.navigation = tview.NewFlex().SetDirection(tview.FlexRow)
+	h.navigation = &tuiNavigation{Flex: tview.NewFlex().SetDirection(tview.FlexRow), drawFrame: h.drawNavigationFrame}
 	tuiBorder(h.navigation.Box, "", tui.Border)
 	h.navigation.SetTitle("")
 	h.orgPane = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(h.org, 1, 0, false)
 	h.orgPane.Box = tview.NewBox()
 	h.orgPane.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, 1, 1)
-	h.orgPane.SetDrawFunc(func(s tcell.Screen, x, y, w, ht int) (int, int, int, int) {
-		style := tcell.StyleDefault.Foreground(h.navigation.GetBorderColor()).Background(tui.Panel)
-		for col := x; col < x+w; col++ {
-			s.SetContent(col, y+ht-1, '─', nil, style)
-		}
-		s.SetContent(x-1, y+ht-1, '├', nil, style)
-		s.SetContent(x+w, y+ht-1, '┤', nil, style)
-		return h.orgPane.GetInnerRect()
-	})
 	h.treePane = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(h.treeHead, 2, 0, false).AddItem(h.tree, 0, 1, true)
 	h.treePane.Box = tview.NewBox()
 	h.treePane.SetBackgroundColor(tui.Panel)
@@ -418,12 +422,12 @@ func (h *terminalUI) build() {
 	h.assetRegion.SetBackgroundColor(tui.Panel)
 	h.body = tview.NewFlex().AddItem(h.navigation, h.sidebarWidth, 0, true).AddItem(nil, 1, 0, false).AddItem(h.assetRegion, 0, 1, false)
 	h.footer = tview.NewTextView().SetDynamicColors(true).SetTextStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))
-	h.footer.SetWrap(true).SetWordWrap(true)
-	h.footer.SetBackgroundColor(tui.Panel).SetBorderPadding(1, 0, 1, tuiClockWidth+2)
+	h.footer.SetWrap(false)
+	h.footer.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, 1, tuiClockWidth+2)
 	h.sessionTabs = tview.NewTable().SetSelectable(false, true).SetSeparator('│').SetBordersColor(tui.Muted)
 	h.sessionTabs.SetBackgroundColor(tui.Panel)
 	h.sessionTabs.SetTitle("").SetBorderPadding(0, 0, 2, 1)
-	h.sessionMore = tview.NewButton("▾").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Underline(true)).SetSelectedFunc(h.showSessionMenu)
+	h.sessionMore = tview.NewButton("▾").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Foreground(tui.Foreground)).SetSelectedFunc(h.showSessionMenu)
 	h.sessionTabs.SetSelectedFunc(func(_, col int) { h.activateSession(col - 1) })
 	h.sessionTabs.SetSelectionChangedFunc(func(_, _ int) { h.scrollSessionTabs() })
 	h.sessionTabs.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
@@ -458,7 +462,7 @@ func (h *terminalUI) build() {
 	h.tabRow.SetBackgroundColor(tui.Panel)
 	h.pages.AddPage("assets", h.body, true, true)
 	h.main = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(h.header, 3, 0, false).AddItem(h.tabRow, 1, 0, false).
-		AddItem(nil, 1, 0, false).AddItem(h.pages, 0, 1, true).AddItem(h.footer, 3, 0, false)
+		AddItem(h.pages, 0, 1, true).AddItem(h.footer, 1, 0, false)
 	h.main.Box = tview.NewBox().SetBackgroundColor(tui.Background).SetBorderPadding(1, 0, 1, 1)
 	for _, layout := range []*tview.Flex{pager, bottom} {
 		layout.SetBackgroundColor(tui.Panel)
@@ -615,6 +619,11 @@ func (h *terminalUI) fail(err error) {
 	h.statusFailed = true
 }
 
+func (h *terminalUI) showAssetNotice(s string) {
+	h.assetNotice = s
+	h.message("")
+}
+
 func (h *terminalUI) loadWorkspace() {
 	h.workspaceGeneration++
 	generation := h.workspaceGeneration
@@ -683,7 +692,7 @@ func (h *terminalUI) loadWorkspace() {
 				h.scope, h.assets, h.total = tuiScope{}, nil, 0
 				h.tree.SetRoot(nil).SetCurrentNode(nil)
 				h.table.Clear()
-				h.message(h.tr("未加入任何组织", "No organization memberships"))
+				h.showAssetNotice(h.tr("未加入任何组织", "No organization memberships"))
 			}
 		})
 	})
@@ -743,6 +752,7 @@ func (h *terminalUI) switchTree(mode int) {
 	h.treeCount = 0
 	h.countLoading = false
 	h.treeLoading = false
+	h.treeLoadingNode = nil
 	h.treeCollapsed = false
 	h.treeActions[0].SetLabel("−")
 	h.treeKind.SetCurrentOption(mode)
@@ -804,6 +814,9 @@ func (h *terminalUI) refreshNodeLabel(node *tview.TreeNode) {
 			suffix = " (?)"
 		}
 	}
+	if h.treeLoading && node == h.treeLoadingNode && (node != h.tree.GetRoot() || len(node.GetChildren()) > 0) {
+		suffix += " · " + h.tr("加载中…", "Loading…")
+	}
 	depth := ref.depth
 	width := max(1, h.navigationWidth()-6-depth*3-tview.TaggedStringWidth(prefix+suffix))
 	label := runewidth.Truncate(ref.scope.Label, width, "…")
@@ -832,15 +845,11 @@ func (h *terminalUI) selectNode(node *tview.TreeNode) {
 		})
 		return
 	}
-	h.scope = ref.scope
-	h.detailGeneration++
-	h.loadAssets(0)
-	if !ref.loaded && h.scope.Mode != 1 {
-		h.loadTree(node, ref.scope, "")
-	} else {
-		node.SetExpanded(!node.IsExpanded())
-		h.refreshNodeLabel(node)
+	if ref.scope == h.scope && (h.assetsLoading || h.assetsLoaded) {
+		return
 	}
+	h.scope = ref.scope
+	h.loadAssets(0)
 }
 
 func (h *terminalUI) loadTree(parent *tview.TreeNode, scope tuiScope, cursor string) {
@@ -849,6 +858,13 @@ func (h *terminalUI) loadTree(parent *tview.TreeNode, scope tuiScope, cursor str
 	h.treeRequest++
 	treeRequest := h.treeRequest
 	h.treeLoading = true
+	previous := h.treeLoadingNode
+	h.treeLoadingNode = parent
+	if previous != nil && previous != parent {
+		h.refreshNodeLabel(previous)
+	}
+	h.refreshNodeLabel(parent)
+	h.dirty.Store(true)
 	ref := parent.GetReference().(*tuiNodeRef)
 	ref.defaultExpand = false
 	ref.request++
@@ -859,6 +875,8 @@ func (h *terminalUI) loadTree(parent *tview.TreeNode, scope tuiScope, cursor str
 		h.update(func() {
 			if treeRequest == h.treeRequest {
 				h.treeLoading = false
+				h.treeLoadingNode = nil
+				h.refreshNodeLabel(parent)
 			}
 			if generation != h.viewGeneration || request != ref.request {
 				return
@@ -938,7 +956,7 @@ func (h *terminalUI) loadTree(parent *tview.TreeNode, scope tuiScope, cursor str
 				}
 				next.Path = next.Label
 				if path := p.GetReference().(*tuiNodeRef).scope.Path; path != "" {
-					next.Path = path + " / " + next.Label
+					next.Path = path + "/" + next.Label
 				}
 				n := h.node(next.Label, &tuiNodeRef{id: item.ID, scope: next, loaded: scope.Mode == 1, count: amount})
 				byID[item.ID] = n
@@ -988,13 +1006,14 @@ func (h *terminalUI) loadAssets(offset int) {
 	h.assetGeneration++
 	h.detailGeneration++
 	generation := h.assetGeneration
+	h.assetsLoading, h.assetsLoaded = true, false
 	// Only Enter commits the input; refresh, paging and node changes retain it.
 	scope, search := h.scope, h.searchQuery
 	h.assets = nil
 	h.table.Clear()
 	h.offset = offset
 	h.total = 0
-	h.message(h.tr("加载资产…", "Loading assets…"))
+	h.showAssetNotice(h.tr("加载资产…", "Loading assets…"))
 	data := h.data
 	h.queue(h.assetJobs, func() {
 		started := time.Now()
@@ -1004,10 +1023,13 @@ func (h *terminalUI) loadAssets(offset int) {
 			if generation != h.assetGeneration {
 				return
 			}
+			h.assetsLoading = false
 			if err != nil {
 				h.fail(err)
+				h.showAssetNotice(h.tr("加载失败", "Load failed"))
 				return
 			}
+			h.assetsLoaded = true
 			h.assets, h.total = page.Data, page.Total
 			h.renderAssets()
 		})
@@ -1015,6 +1037,7 @@ func (h *terminalUI) loadAssets(offset int) {
 }
 
 func (h *terminalUI) renderAssets() {
+	h.assetNotice = ""
 	h.table.Clear()
 	h.lastAssetWidth = 0
 	headings := []string{"#", h.tr("资产名称", "Asset"), h.tr("地址", "Address"), h.tr("平台", "Platform"), h.tr("备注", "Comment")}
@@ -1042,7 +1065,7 @@ func (h *terminalUI) renderAssets() {
 		}
 	}
 	if len(h.assets) == 0 {
-		h.message(h.tr("没有匹配资产", "No matching assets"))
+		h.showAssetNotice(h.tr("没有匹配资产", "No matching assets"))
 		return
 	}
 	h.table.Select(1, 0).ScrollToBeginning()

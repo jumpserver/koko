@@ -4,8 +4,76 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
+func (h *terminalUI) expandNode(node *tview.TreeNode) {
+	ref, ok := node.GetReference().(*tuiNodeRef)
+	if !ok {
+		return
+	}
+	if ref.more {
+		h.selectNode(node)
+	} else if !ref.loaded && ref.scope.Mode != 1 {
+		h.loadTree(node, ref.scope, "")
+	} else {
+		node.SetExpanded(true)
+		h.refreshNodeLabel(node)
+	}
+}
+
+func (h *terminalUI) toggleNode(node *tview.TreeNode) {
+	if node.IsExpanded() {
+		node.SetExpanded(false)
+		h.refreshNodeLabel(node)
+	} else {
+		h.expandNode(node)
+	}
+}
+
+func (h *terminalUI) captureTreeMouse(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+	switch action {
+	case tview.MouseScrollUp:
+		h.keepTreeSelectionInView(-1)
+	case tview.MouseScrollDown:
+		h.keepTreeSelectionInView(1)
+	case tview.MouseLeftClick:
+		x, y := ev.Position()
+		left, top, width, height := h.tree.GetInnerRect()
+		root := h.tree.GetRoot()
+		if root == nil || x < left || x >= left+width || y < top || y >= top+height {
+			break
+		}
+		row := y - top + h.tree.GetScrollOffset()
+		var target *tview.TreeNode
+		root.Walk(func(node, _ *tview.TreeNode) bool {
+			if target != nil {
+				return false
+			}
+			if node == root && h.scope.Mode == 0 {
+				return true
+			}
+			if row == 0 {
+				target = node
+				return false
+			}
+			row--
+			return node.IsExpanded()
+		})
+		if target != nil {
+			ref, ok := target.GetReference().(*tuiNodeRef)
+			// Each level uses tview's connector plus its default two-cell indent.
+			if ok && !ref.more && (!ref.loaded || len(target.GetChildren()) > 0) && x >= left+ref.depth*3 && x < left+ref.depth*3+2 {
+				h.tree.SetCurrentNode(target)
+				h.app.SetFocus(h.tree)
+				h.toggleNode(target)
+				return tview.MouseConsumed, nil
+			}
+		}
+	}
+	return action, ev
+}
 
 // The synthetic container is not an API level, even when displayed as All assets.
 func (h *terminalUI) treeExpansion() (expanded, deeper bool) {

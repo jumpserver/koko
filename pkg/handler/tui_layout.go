@@ -26,6 +26,9 @@ func tuiDropdown() *tview.DropDown {
 // framed surface wide enough to read. Draw last so underlying tree rows cannot
 // bleed through the popup, including when the selected language has long names.
 func (h *terminalUI) drawDropdown(screen tcell.Screen) {
+	if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
+		return // Connection dropdowns render once, within their bounded viewport.
+	}
 	for _, item := range h.focusOrder() {
 		dropdown, ok := item.(*tview.DropDown)
 		if !ok || !dropdown.IsOpen() || !dropdown.HasFocus() {
@@ -49,22 +52,22 @@ func (h *terminalUI) drawDropdown(screen tcell.Screen) {
 			width = max(width, tview.TaggedStringWidth(label)+digits+5)
 		}
 		width = min(width, max(1, sw))
-		rows := min(max(list.GetItemCount()+2, nativeHeight), max(1, sh))
+		rows := min(max(list.GetItemCount()+4, nativeHeight), max(1, sh))
 		x = max(0, min(x, sw-width))
 		y = max(0, min(y, sh-rows))
 		tuiBorder(list.Box, "", tui.FocusBorder)
-		list.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, digits+3, 1)
+		list.SetBackgroundColor(tui.Panel).SetBorderPadding(1, 1, digits+3, 1)
 		list.SetRect(x, y, width, rows)
 		offset, horizontal := list.GetOffset()
-		list.SetOffset(min(offset, max(0, list.GetItemCount()-max(1, rows-2))), horizontal)
+		list.SetOffset(min(offset, max(0, list.GetItemCount()-max(1, rows-4))), horizontal)
 		list.Draw(screen)
 		offset, _ = list.GetOffset()
-		for i := offset; i < min(list.GetItemCount(), offset+rows-2); i++ {
+		for i := offset; i < min(list.GetItemCount(), offset+max(0, rows-4)); i++ {
 			color := tui.Muted
 			if i == list.GetCurrentItem() {
 				color = tui.Foreground
 			}
-			tview.Print(screen, fmt.Sprintf("%*d", digits, i+1), x+2, y+1+i-offset, digits, tview.AlignRight, color)
+			tview.Print(screen, fmt.Sprintf("%*d", digits, i+1), x+2, y+2+i-offset, digits, tview.AlignRight, color)
 		}
 		return
 	}
@@ -90,6 +93,69 @@ func (h *terminalUI) rebuildNavigation() {
 	}
 	h.navigation.AddItem(h.treePane, 0, 1, true)
 	h.tabRow.Clear().AddItem(h.sessionTabs, 0, 1, false)
+}
+
+// Draw the shared frame after its children, before any overlaid dialog. Child
+// backgrounds and focus rendering cannot overwrite individual border segments.
+type tuiNavigation struct {
+	*tview.Flex
+	drawFrame func(tcell.Screen)
+}
+
+func (n *tuiNavigation) Draw(screen tcell.Screen) {
+	n.Flex.Draw(screen)
+	n.drawFrame(screen)
+}
+
+func (h *terminalUI) drawNavigationFrame(screen tcell.Screen) {
+	x, y, width, height := h.navigation.GetRect()
+	if width < 2 || height < 2 {
+		return
+	}
+	right, bottom := x+width-1, y+height-1
+	_, headY, _, headHeight := h.treeHead.GetRect()
+	treeDivider := min(bottom, headY+headHeight-1)
+	orgDivider := y
+	if h.organizationsEnabled {
+		_, row, _, rows := h.orgPane.GetRect()
+		orgDivider = min(bottom, row+rows-1)
+	}
+	focusTop, focusBottom := -1, -1
+	if !h.modal {
+		switch {
+		case h.organizationsEnabled && h.org.HasFocus():
+			focusTop, focusBottom = y, orgDivider
+		case h.treeHead.HasFocus():
+			focusTop, focusBottom = orgDivider, treeDivider
+		case h.tree.HasFocus():
+			focusTop, focusBottom = treeDivider, bottom
+		}
+	}
+	style := func(row int) tcell.Style {
+		color := tui.Border
+		if row >= focusTop && row <= focusBottom {
+			color = tui.FocusBorder
+		}
+		return tcell.StyleDefault.Foreground(color).Background(tui.Panel)
+	}
+	for row := y + 1; row < bottom; row++ {
+		screen.SetContent(x, row, '│', nil, style(row))
+		screen.SetContent(right, row, '│', nil, style(row))
+	}
+	horizontal := func(row int, leftCorner, rightCorner rune) {
+		for col := x + 1; col < right; col++ {
+			screen.SetContent(col, row, '─', nil, style(row))
+		}
+		screen.SetContent(x, row, leftCorner, nil, style(row))
+		screen.SetContent(right, row, rightCorner, nil, style(row))
+	}
+	horizontal(y, '╭', '╮')
+	for _, divider := range []int{orgDivider, treeDivider} {
+		if divider > y && divider < bottom {
+			horizontal(divider, '├', '┤')
+		}
+	}
+	horizontal(bottom, '╰', '╯')
 }
 
 func (h *terminalUI) pagerWidth() int {
@@ -220,6 +286,15 @@ func (h *terminalUI) captureRootMouse(action tview.MouseAction, ev *tcell.EventM
 func (h *terminalUI) captureMouse(ev *tcell.EventMouse, action tview.MouseAction) (*tcell.EventMouse, tview.MouseAction) {
 	h.lastInput = time.Now()
 	x, y := ev.Position()
+	// Connection choices may extend beyond the compact dialog's mouse bounds.
+	if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
+		if dropdown := h.focusedDropdown(); dropdown != nil && dropdown.IsOpen() {
+			if consumed, _ := dropdown.MouseHandler()(action, ev, func(p tview.Primitive) { h.app.SetFocus(p) }); consumed {
+				return nil, tview.MouseConsumed
+			}
+			return nil, action
+		}
+	}
 	if !h.modal {
 		var controls []tview.Primitive
 		if h.activeSession >= 0 {
@@ -242,8 +317,8 @@ func (h *terminalUI) captureMouse(ev *tcell.EventMouse, action tview.MouseAction
 		return ev, action
 	}
 	fx, fy, _, _ := h.footer.GetInnerRect()
-	if action == tview.MouseLeftClick && !h.modal && h.exitHint != "" && y == fy && x >= fx && x < fx+tview.TaggedStringWidth(h.exitHint) {
-		h.quit()
+	if action == tview.MouseLeftClick && !h.modal && h.helpHint != "" && y == fy && x >= fx && x < fx+tview.TaggedStringWidth(h.helpHint) {
+		h.showKeyboardHelp()
 		return nil, tview.MouseConsumed
 	}
 	if h.modal || h.activeSession >= 0 || h.sidebarHidden || h.org.IsOpen() || h.treeKind.IsOpen() {
@@ -325,9 +400,11 @@ func (h *terminalUI) showLanguage() {
 		}
 		return ev
 	})
-	tuiBorder(list.Box, h.tr("语言 · 当前会话", "Language · this session"), tui.FocusBorder)
-	list.SetBorderPadding(1, 1, 1, 1)
-	h.openDialog("language", &tuiOverlay{Box: tview.NewBox(), child: list, width: 46, height: len(i18n.AllCodes) + 4}, []tview.Primitive{list})
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(list, 0, 1, true).AddItem(nil, 1, 0, false).AddItem(close, 1, 0, false)
+	content.Box = tview.NewBox()
+	tuiDialogBorder(content.Box, h.tr("语言 · 当前会话", "Language · this session"))
+	h.openDialog("language", &tuiOverlay{Box: tview.NewBox(), child: content, width: 46, height: len(i18n.AllCodes) + 6}, []tview.Primitive{list, close})
 }
 
 func (h *terminalUI) changeLanguage(code i18n.LanguageCode) {
@@ -354,48 +431,99 @@ func (h *terminalUI) focusedContent() string {
 	if len(h.dialogs) > 0 && h.dialogs[len(h.dialogs)-1].page == "full-text" {
 		return ""
 	}
-	var text string
+	var fields []string
+	field := func(label, value string) {
+		label, value = strings.TrimSpace(label), strings.TrimSpace(value)
+		if value == "" {
+			value = h.tr("空", "Empty")
+		}
+		fields = append(fields, label+h.tr("：", ": ")+value)
+	}
+	optionLabel := h.tr("选项", "Option")
+	if dropdown := h.focusedDropdown(); dropdown != nil {
+		if dropdown == h.org {
+			optionLabel = h.tr("组织", "Organization")
+		} else if dropdown == h.treeKind {
+			optionLabel = h.tr("树类型", "Tree view")
+		} else if label := strings.TrimSpace(tuiPlainMnemonic(dropdown.GetLabel())); label != "" {
+			optionLabel = label
+		}
+	}
+	if h.modal {
+		switch h.dialogs[len(h.dialogs)-1].page {
+		case "language":
+			optionLabel = h.tr("语言", "Language")
+		case "appearance":
+			optionLabel = h.tr("主题", "Theme")
+		}
+	}
 	switch p := h.focusedControl().(type) {
 	case *tview.List:
 		if p.GetItemCount() > 0 {
-			text, _ = p.GetItemText(p.GetCurrentItem())
+			text, _ := p.GetItemText(p.GetCurrentItem())
+			if h.modal && h.dialogs[len(h.dialogs)-1].page == "appearance" && strings.HasPrefix(text, "[#") {
+				if _, name, ok := strings.Cut(text, "]●[-] "); ok {
+					text = "● " + name
+				}
+			}
+			field(optionLabel, text)
 		}
 	case *tview.TreeView:
 		if n := p.GetCurrentNode(); n != nil {
 			ref, ok := n.GetReference().(*tuiNodeRef)
-			if !ok {
+			if !ok || ref.more {
 				break
 			}
-			text = cleanTUIText(ref.scope.Label)
+			field(h.tr("节点名称", "Node name"), cleanTUIText(ref.scope.Label))
+			path := ref.scope.Path
+			if path == "" {
+				path = ref.scope.Label
+			}
+			field(h.tr("路径", "Path"), "/"+cleanTUIText(strings.TrimLeft(path, "/")))
 			if ref.count != nil {
-				text += fmt.Sprintf(" (%d)", *ref.count)
+				field(h.tr("资产数量", "Asset count"), fmt.Sprint(*ref.count))
+			}
+			if h.organizationsEnabled {
+				field(h.tr("组织", "Organization"), cleanTUIText(ref.scope.Org.Name))
 			}
 		}
 	case *tview.DropDown:
-		_, text = p.GetCurrentOption()
+		if index, text := p.GetCurrentOption(); index >= 0 {
+			field(optionLabel, text)
+		}
 	case *tview.Table:
-		row, _ := p.GetSelection()
+		row, col := p.GetSelection()
+		if p == h.sessionTabs {
+			if col >= 0 && col < p.GetColumnCount() {
+				field(h.tr("窗口", "Window"), h.sessionTabLabel(col-1))
+			}
+			break
+		}
 		if row < 0 || row >= p.GetRowCount() || p.GetCell(row, 0).NotSelectable {
 			break
 		}
-		var fields []string
 		for col := 0; col < p.GetColumnCount(); col++ {
-			if cell := p.GetCell(row, col); cell != nil {
-				fields = append(fields, cell.Text)
+			label := strings.TrimSpace(p.GetCell(0, col).Text)
+			if label == "" { // Hidden columns have no header or value.
+				continue
 			}
+			if label == "#" {
+				label = h.tr("序号", "No.")
+			}
+			field(label, p.GetCell(row, col).Text)
 		}
-		text = strings.Join(fields, "\n\n")
 	case *tview.InputField:
-		text = cleanTUIText(p.GetText())
-	case *tview.Button:
-		text = p.GetLabel()
-	}
-	if h.modal && h.dialogs[len(h.dialogs)-1].page == "appearance" && strings.HasPrefix(text, "[#") {
-		if _, name, ok := strings.Cut(text, "]●[-] "); ok {
-			text = "● " + name
+		label := strings.TrimSpace(tuiPlainMnemonic(p.GetLabel()))
+		if p == h.search {
+			label = h.tr("搜索", "Search")
+		} else if label == "" {
+			label = h.tr("内容", "Content")
 		}
+		field(label, cleanTUIText(p.GetText()))
+	case *tview.Button:
+		field(h.tr("操作", "Action"), p.GetLabel())
 	}
-	return tuiPlainMnemonic(text)
+	return tuiPlainMnemonic(strings.Join(fields, "\n\n"))
 }
 
 func (h *terminalUI) showFullText() {
@@ -405,8 +533,7 @@ func (h *terminalUI) showFullText() {
 	}
 	view := tview.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
 		SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetText(tview.Unescape(text))
-	tuiBorder(view.Box, h.tr("完整内容", "Full text"), tui.FocusBorder)
-	view.SetBorderPadding(1, 1, 1, 1)
+	tuiDialogBorder(view.Box, h.tr("完整内容", "Full text"))
 	view.SetDoneFunc(func(k tcell.Key) {
 		if k == tcell.KeyEnter {
 			h.dismissModal()
