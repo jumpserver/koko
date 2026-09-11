@@ -89,6 +89,8 @@ func (s *sessionManager) RangeToken() []string {
 }
 
 func (s *sessionManager) GetSessions() []*Session {
+	s.Lock()
+	defer s.Unlock()
 	sessions := make([]*Session, 0, len(s.data))
 	for _, sess := range s.data {
 		sessions = append(sessions, sess)

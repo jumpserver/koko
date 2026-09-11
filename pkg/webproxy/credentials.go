@@ -52,6 +52,7 @@ type credentialManager struct {
 
 type credentialSession struct {
 	id                string
+	proxySessionID    string
 	accessToken       string
 	origin            string
 	credentialOrigins []string
@@ -71,6 +72,7 @@ type createCredentialSessionRequest struct {
 type createCredentialSessionResponse struct {
 	webLoginConfig
 	SessionID         string    `json:"session_id"`
+	ProxyAuth         string    `json:"proxy_auth"`
 	ID                string    `json:"id,omitempty"`
 	AccessToken       string    `json:"access_token,omitempty"`
 	TargetURL         string    `json:"target_url"`
@@ -96,10 +98,6 @@ func (s *Server) serveCredentials(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if !isLoopbackRemote(r.RemoteAddr) {
-		http.Error(w, "credential control API is loopback-only", http.StatusForbidden)
-		return
-	}
 	if s.credentials == nil || s.credentials.tokenService == nil {
 		http.Error(w, "Web credential service is disabled", http.StatusNotFound)
 		return
@@ -112,6 +110,23 @@ func (s *Server) serveCredentials(w http.ResponseWriter, r *http.Request) {
 		s.createCredentialSession(w, r)
 	case len(parts) == 2 && parts[1] == "credentials" && r.Method == http.MethodPost:
 		s.releaseCredentials(w, r, parts[0])
+	case (len(parts) == 2 && parts[1] == "heartbeat" && r.Method == http.MethodPost) || (len(parts) == 1 && r.Method == http.MethodDelete):
+		auth := s.authenticateProxy(r)
+		if auth == nil {
+			requireProxyAuth(w)
+			return
+		}
+		if auth.id != parts[0] {
+			http.Error(w, "Web session does not belong to this proxy session", http.StatusForbidden)
+			return
+		}
+		if r.Method == http.MethodDelete {
+			if err := s.closeProxySession(auth.id); err != nil {
+				http.Error(w, "unable to finish Web session", http.StatusBadGateway)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		http.Error(w, "credential endpoint not found", http.StatusNotFound)
 	}
@@ -128,18 +143,25 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	ticket, ok := validatedProxyTicket(r, request.TokenID)
+	if !ok {
+		http.Error(w, "connect ticket invalid, expired or token mismatch", http.StatusUnauthorized)
+		return
+	}
 	connectToken, err := s.credentials.tokenService.GetConnectTokenInfo(request.TokenID, false)
-	if err != nil || !secureEqual(connectToken.Value, request.TokenValue) {
-		http.Error(w, "invalid connection token", http.StatusUnauthorized)
+	if err != nil || !secureEqual(connectToken.Value, request.TokenValue) || ticket.User.ID != connectToken.User.ID ||
+		(ticket.OrgID != "" && ticket.OrgID != connectToken.OrgId) {
+		http.Error(w, "invalid connection token or ticket identity", http.StatusUnauthorized)
+		return
+	}
+	if !connectToken.Actions.EnableConnect() || (connectToken.Protocol != "http" && connectToken.Protocol != "https") {
+		http.Error(w, "Web connection permission denied", http.StatusForbidden)
 		return
 	}
 	connectToken, err = s.credentials.tokenService.GetConnectTokenInfo(request.TokenID, true)
-	if err != nil || !secureEqual(connectToken.Value, request.TokenValue) {
+	if err != nil || !secureEqual(connectToken.Value, request.TokenValue) || ticket.User.ID != connectToken.User.ID ||
+		(ticket.OrgID != "" && ticket.OrgID != connectToken.OrgId) || !connectToken.Actions.EnableConnect() {
 		http.Error(w, "invalid connection token", http.StatusUnauthorized)
-		return
-	}
-	if !connectToken.Actions.EnableConnect() {
-		http.Error(w, "connection permission denied", http.StatusForbidden)
 		return
 	}
 
@@ -172,17 +194,19 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	if !available {
-		writeCredentialJSON(w, http.StatusCreated, response)
+		s.writeCreatedWebSession(w, response, &apiSession, ticket.ID)
 		return
 	}
 
 	sessionID, err := randomCredentialValue(16)
 	if err != nil {
+		_, _ = s.credentials.tokenService.SessionDisconnect(apiSession.ID)
 		http.Error(w, "unable to create credential session", http.StatusInternalServerError)
 		return
 	}
 	accessToken, err := randomCredentialValue(32)
 	if err != nil {
+		_, _ = s.credentials.tokenService.SessionDisconnect(apiSession.ID)
 		http.Error(w, "unable to create credential session", http.StatusInternalServerError)
 		return
 	}
@@ -194,16 +218,18 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 	)
 	connectToken.Account.Secret = ""
 	if err != nil {
+		_, _ = s.credentials.tokenService.SessionDisconnect(apiSession.ID)
 		http.Error(w, "invalid client encryption key", http.StatusBadRequest)
 		return
 	}
 
-	expiresAt := time.Now().UTC().Add(credentialSessionTTL)
+	credentialExpiresAt := time.Now().UTC().Add(credentialSessionTTL)
 	session := &credentialSession{
 		id: sessionID, accessToken: accessToken, origin: origin,
+		proxySessionID:    apiSession.ID,
 		credentialOrigins: scriptCredentialOrigins(config, origin),
 		nonce:             nonce, ciphertext: ciphertext,
-		assetID: connectToken.Asset.ID, accountID: connectToken.Account.ID, expiresAt: expiresAt,
+		assetID: connectToken.Asset.ID, accountID: connectToken.Account.ID, expiresAt: credentialExpiresAt,
 	}
 	if err = s.credentials.save(session); err != nil {
 		_, _ = s.credentials.tokenService.SessionDisconnect(apiSession.ID)
@@ -217,7 +243,17 @@ func (s *Server) createCredentialSession(w http.ResponseWriter, r *http.Request)
 	response.PasswordSelector = passwordSelector
 	response.SubmitSelector = submitSelector
 	response.ServerPublicKey = serverPublicKey
-	response.ExpiresAt = expiresAt
+	response.ExpiresAt = credentialExpiresAt
+	s.writeCreatedWebSession(w, response, &apiSession, ticket.ID)
+}
+
+func (s *Server) writeCreatedWebSession(w http.ResponseWriter, response createCredentialSessionResponse, apiSession *model.Session, ticketID string) {
+	if err := s.registerProxySession(apiSession, ticketID); err != nil {
+		_, _ = s.coreService.SessionDisconnect(response.SessionID)
+		http.Error(w, "unable to create proxy authentication session", http.StatusServiceUnavailable)
+		return
+	}
+	response.ProxyAuth = "connect_ticket"
 	writeCredentialJSON(w, http.StatusCreated, response)
 }
 
