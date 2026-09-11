@@ -29,7 +29,7 @@ type SwitchSession struct {
 
 	p *Server
 
-	currentOperator atomic.Value // 终断会话的管理员名称
+	currentOperator atomic.Value // 中断会话的管理员名称
 
 	pausedStatus atomic.Bool // 暂停状态
 

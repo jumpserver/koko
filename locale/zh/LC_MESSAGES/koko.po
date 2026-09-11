@@ -559,7 +559,7 @@ msgstr "授权已过期，断开连接"
 #. lang.T
 #: pkg/proxy/switch.go:341
 msgid "Terminated by admin %s"
-msgstr "%s 管理员终断连接"
+msgstr "%s 管理员中断连接"
 
 #. lang.T
 #: pkg/proxy/tools.go:28
