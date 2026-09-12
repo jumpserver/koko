@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +15,21 @@ import (
 	gorilla "github.com/gorilla/websocket"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
 )
+
+func TestTerminalCloseCancelsOnlyItsContext(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	defer cancelParent()
+	ctx, cancel := context.WithCancel(parent)
+	reader, writer := io.Pipe()
+	client := &Client{ctx: ctx, cancel: cancel, UserRead: reader, UserWrite: writer}
+	_ = client.Close()
+	if client.Context().Err() != context.Canceled {
+		t.Fatal("closing the terminal did not cancel its pending work")
+	}
+	if parent.Err() != nil {
+		t.Fatal("closing one terminal canceled the shared connection")
+	}
+}
 
 func TestWebsocketPingPong(t *testing.T) {
 	for _, protocol := range []string{"json", "envelope"} {

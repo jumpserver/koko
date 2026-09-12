@@ -203,6 +203,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	exchange.Register(room)
 	defer exchange.UnRegister(room)
 	conn := exchange.WrapperUserCon(userConn)
+	conn.Primary = true
 	room.Subscribe(conn)
 	defer room.UnSubscribe(conn)
 	exitSignal := make(chan struct{}, 2)
@@ -281,8 +282,29 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	keepAliveTick := time.NewTicker(keepAliveTime)
 	defer keepAliveTick.Stop()
 	lang := s.p.connOpts.getLang()
+	var pendingOutput *exchange.RoomMessage
 	for {
+		serverOutput := srvOutChan
+		userOutput := userOutChan
+		windows := winCh
+		notifications := s.notifyMsgChan
+		var broadcast chan<- *exchange.RoomMessage
+		if pendingOutput != nil {
+			// Keep only one pending message and continue handling session exit
+			// while the primary subscriber is applying backpressure.
+			serverOutput = nil
+			userOutput = nil
+			windows = nil
+			notifications = nil
+			broadcast = room.BroadcastChan()
+		}
 		select {
+		case broadcast <- pendingOutput:
+			pendingOutput = nil
+			continue
+		case <-room.Done():
+			s.recordSessionFinished(model.ReasonErrConnectDisconnect)
+			return
 		// 检测是否超过最大空闲时间
 		case now := <-tick.C:
 			if s.MaxSessionTime.Before(now) {
@@ -324,7 +346,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			s.recordSessionFinished(model.ReasonErrAdminTerminate)
 			return
 			// 监控窗口大小变化
-		case win, ok := <-winCh:
+		case win, ok := <-windows:
 			if !ok {
 				return
 			}
@@ -339,9 +361,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				Event: exchange.WindowsEvent,
 				Body:  p,
 			}
-			room.Broadcast(&msg)
+			pendingOutput = &msg
 			// 经过parse处理的server数据，发给user
-		case p, ok := <-srvOutChan:
+		case p, ok := <-serverOutput:
 			if !ok {
 				s.recordSessionFinished(model.ReasonErrConnectDisconnect)
 				return
@@ -353,9 +375,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				Event: exchange.DataEvent,
 				Body:  p,
 			}
-			room.Broadcast(&msg)
+			pendingOutput = &msg
 			// 经过parse处理的user数据，发给server
-		case p, ok := <-userOutChan:
+		case p, ok := <-userOutput:
 			if !ok {
 				s.recordSessionFinished(model.ReasonErrUserClose)
 				return
@@ -379,9 +401,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			logger.Debugf("Session[%s] end by exit signal", s.ID)
 			s.recordSessionFinished(model.ReasonErrConnectDisconnect)
 			return
-		case notifyMsg := <-s.notifyMsgChan:
+		case notifyMsg := <-notifications:
 			logger.Infof("Session[%s] notify event: %s", s.ID, notifyMsg.Event)
-			room.Broadcast(notifyMsg)
+			pendingOutput = notifyMsg
 			continue
 		}
 		lastActiveTime = time.Now()
@@ -399,7 +421,11 @@ func (s *SwitchSession) disconnection(room *exchange.Room, parser *Parser, repla
 		roomMessage.Body = append(roomMessage.Body, zmodem.CancelSequence...)
 	}
 
-	room.Broadcast(roomMessage)
+	// A full output queue must not prevent an explicit session shutdown.
+	select {
+	case room.BroadcastChan() <- roomMessage:
+	default:
+	}
 }
 
 func (s *SwitchSession) recordSessionFinished(reason model.SessionLifecycleReasonErr) {
