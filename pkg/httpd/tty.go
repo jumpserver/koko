@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -345,9 +346,11 @@ func (h *tty) handleTerminalInit(
 		Height: connectInfo.Rows,
 	}
 	userR, userW := io.Pipe()
+	ctx, cancel := context.WithCancel(h.ws.ctx.Request.Context())
 	client := &Client{
 		WinChan: make(chan ssh.Window, 100), Conn: h.ws,
 		UserRead: userR, UserWrite: userW,
+		ctx: ctx, cancel: cancel,
 		pty:          ssh.Pty{Term: "xterm", Window: win},
 		KubernetesId: KubernetesId, Namespace: namespace,
 		Pod: pod, Container: container, TerminalId: terminalID,
@@ -661,6 +664,7 @@ func (h *tty) getConnectionParams() *proxy.ConnectionParams {
 
 func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 	defer wg.Done()
+	defer client.cancel()
 	params := h.ws.wsParams
 	closeReason := "session_closed"
 	switch params.TargetType {
