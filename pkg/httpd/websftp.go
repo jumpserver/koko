@@ -41,6 +41,15 @@ func (h *webSftp) CheckValidation() error {
 	}
 
 	h.volume = NewUserWebVolume(volume)
+	if h.volume.UserSftp != nil {
+		h.volume.UserSftp.SetOnSessionClosed(func() {
+			h.ws.SendMessage(&Message{
+				Id:   h.ws.Uuid,
+				Type: CLOSE,
+				Err:  i18n.NewLang(h.ws.langCode).T("FileManagementExpired"),
+			})
+		})
+	}
 	h.initializeFileTools()
 	return nil
 }

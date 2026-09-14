@@ -15,6 +15,7 @@ type SftpSession struct {
 	sess       *model.Session
 	once       sync.Once
 	jmsService *service.JMService
+	onClosed   func()
 }
 
 func (s *SftpSession) CloseWithReason(reason model.SessionLifecycleReasonErr) {
@@ -28,6 +29,9 @@ func (s *SftpSession) CloseWithReason(reason model.SessionLifecycleReasonErr) {
 		logObj := model.SessionLifecycleLog{Reason: reason.String()}
 		if err := s.jmsService.RecordSessionLifecycleLog(s.sess.ID, model.AssetConnectFinished, logObj); err != nil {
 			logger.Errorf("Update session %s lifecycle asset_connect_finished failed: %s", s.sess.ID, err)
+		}
+		if s.onClosed != nil {
+			s.onClosed()
 		}
 	})
 

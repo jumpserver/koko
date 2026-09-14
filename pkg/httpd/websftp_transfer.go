@@ -185,7 +185,7 @@ func (u *UserWebVolume) readTransferChunk(sourcePath, transferID string, offset,
 		return nil, webSftpTransferChunk{}, err
 	}
 	if offset >= info.Size() {
-		return nil, webSftpTransferChunk{Offset: offset, EOF: true}, nil
+		return nil, webSftpTransferChunk{Offset: offset, SHA256: sha256Hex(nil), EOF: true}, nil
 	}
 	remaining := info.Size() - offset
 	if length > remaining {

@@ -36,6 +36,17 @@ type UserSftpConn struct {
 	assetDir *AssetDir
 }
 
+func (u *UserSftpConn) SetOnSessionClosed(fn func()) {
+	if u.assetDir != nil {
+		u.assetDir.onSessionClosed = fn
+	}
+	for _, dir := range u.Dirs {
+		if assetDir, ok := dir.(*AssetDir); ok {
+			assetDir.onSessionClosed = fn
+		}
+	}
+}
+
 func (u *UserSftpConn) GetCurrentPath() string {
 	if u.assetDir != nil {
 		return u.assetDir.CurrentPath

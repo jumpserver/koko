@@ -42,6 +42,7 @@ type AssetDir struct {
 
 	isFromWebTerminal bool
 	CurrentPath       string
+	onSessionClosed   func()
 }
 
 func (ad *AssetDir) Name() string {
@@ -1027,7 +1028,7 @@ func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSess
 		return nil, err1
 	}
 	respSession.TokenId = conn.token.Id
-	sftpSession := &SftpSession{SftpConn: conn, sess: &respSession, jmsService: ad.jmsService}
+	sftpSession := &SftpSession{SftpConn: conn, sess: &respSession, jmsService: ad.jmsService, onClosed: ad.onSessionClosed}
 	terminalFunc := func(task *model.TerminalTask) error {
 		switch task.Name {
 		case model.TaskKillSession:
