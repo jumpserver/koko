@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -17,6 +18,30 @@ import (
 
 	"github.com/jumpserver-dev/sdk-go/model"
 )
+
+func TestWebRecordingRequiresValidLicense(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"invalid", nil, http.StatusForbidden},
+		{"unavailable", errors.New("Core unavailable"), http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeConnectTokenService{licenseInvalid: true, licenseError: tc.err}
+			proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", service)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix,
+				[]byte(`{"session_id":"62a7496e-369d-4f3d-b3f9-a20b61a33980","target_url":"https://example.com","width":1280,"height":720}`))
+			if response.Code != tc.status {
+				t.Fatalf("status = %d: %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
 
 func TestWebRecordingLifecycle(t *testing.T) {
 	service := &fakeConnectTokenService{token: testWebConnectToken()}
@@ -68,6 +93,8 @@ func TestWebRecordingLifecycle(t *testing.T) {
 		t.Fatalf("unexpected second frame status %d: %s", response.Code, response.Body.String())
 	}
 
+	// License expiry must not prevent saving an existing audit recording.
+	service.licenseInvalid = true
 	finishPath := recordingPathPrefix + "/" + id + "/finish"
 	finishResponse := performRecordingRequest(t, proxy, http.MethodPost, finishPath, []byte(`{"duration_ms":1500}`))
 	if finishResponse.Code != http.StatusOK {
