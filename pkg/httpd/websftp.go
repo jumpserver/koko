@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/jumpserver/koko/internal/sessiontools"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/session"
 )
@@ -164,7 +165,7 @@ func (h *webSftp) dispatch(msg Message) {
 		return
 	}
 	if h.sessionExpired() {
-		message.Err = "Session expired or not found"
+		message.Err = i18n.NewLang(h.ws.langCode).T("FileManagementExpired")
 		message.Type = CLOSE
 		h.ws.SendMessage(&message)
 		return
