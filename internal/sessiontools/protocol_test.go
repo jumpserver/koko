@@ -84,6 +84,32 @@ func TestDatabaseSchemaArgumentsSupportBoundedListing(t *testing.T) {
 	}
 }
 
+func TestMongoDBCommandContract(t *testing.T) {
+	validator := ProtocolCommandValidator("mongodb")
+	for _, command := range []string{
+		`db.runCommand({"ping":1})`,
+		`db.runCommand({"find":"logs","filter":{"_id":{"$oid":"507f1f77bcf86cd799439011"}}})`,
+	} {
+		if _, err := validator(command); err != nil {
+			t.Fatalf("valid MongoDB command rejected: %v", err)
+		}
+	}
+	for _, command := range []string{
+		`db.logs.find({})`, `show collections`, `db.runCommand({ping:1})`,
+		`db.runCommand({"find":"logs","filter":{"_id":ObjectId("507f1f77bcf86cd799439011")}})`,
+	} {
+		if _, err := validator(command); err == nil {
+			t.Fatalf("unsupported MongoDB syntax accepted: %s", command)
+		}
+	}
+	_, description, commandDescription := commandToolPresentation("mongodb")
+	if !strings.Contains(description, "every execution mode") ||
+		!strings.Contains(commandDescription, "db.runCommand") ||
+		!strings.Contains(commandDescription, "strict Extended JSON") {
+		t.Fatal("MongoDB tool description does not expose its syntax requirements")
+	}
+}
+
 func TestSessionSpecificToolSelection(t *testing.T) {
 	for protocol, expected := range map[string]string{
 		"ssh":        MCPToolExecuteShell,
