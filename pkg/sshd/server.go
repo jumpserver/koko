@@ -51,6 +51,7 @@ func (s *Server) Start() {
 func (s *Server) Stop() {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
+	s.Handler.StopTerminalUIs()
 	if err := s.Srv.Shutdown(ctx); err != nil {
 		logger.Errorf("Stop SSH server failed: %s", err)
 	}

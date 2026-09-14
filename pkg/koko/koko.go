@@ -73,7 +73,6 @@ func RunForever(confPath string) {
 		webProxySrv, err = webproxy.NewServer(
 			conf.WebProxyBindHost,
 			conf.WebProxyPort,
-			conf.WebProxyAllowedHosts,
 			recordingRoot,
 			conf.WebProxyFFmpegPath,
 			webproxy.NewCoreService(jmsService),

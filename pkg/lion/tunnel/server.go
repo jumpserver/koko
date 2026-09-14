@@ -435,8 +435,8 @@ func (g *GuacamoleTunnelServer) Monitor(ctx *gin.Context) {
 		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrAuthUser.String()))
 		return
 	}
-	sessionId, ok := ctx.GetQuery("SESSION_ID")
-	if !ok {
+	sessionId := ctx.Request.URL.Query().Get("target_id")
+	if sessionId == "" {
 		logger.Error("No session param found")
 		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrBadParams.String()))
 		return

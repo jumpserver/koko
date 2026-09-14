@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"image/jpeg"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -311,8 +310,9 @@ func (m *recordingManager) encodeMP4(ctx context.Context, recording *webRecordin
 func (s *Server) serveRecording(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if !isLoopbackRemote(r.RemoteAddr) {
-		http.Error(w, "recording control API is loopback-only", http.StatusForbidden)
+	auth := s.authenticateProxy(r)
+	if auth == nil {
+		requireProxyAuth(w)
 		return
 	}
 	if s.recordings == nil {
@@ -326,9 +326,14 @@ func (s *Server) serveRecording(w http.ResponseWriter, r *http.Request) {
 
 	path := strings.Trim(strings.TrimPrefix(r.URL.Path, recordingPathPrefix), "/")
 	parts := strings.Split(path, "/")
+	sessionID := auth.id
+	if sessionID == "" || (path != "" && s.recordings.sessionID(parts[0]) != sessionID) {
+		http.Error(w, "recording does not belong to this proxy session", http.StatusForbidden)
+		return
+	}
 	switch {
 	case path == "" && r.Method == http.MethodPost:
-		s.startRecording(w, r)
+		s.startRecording(w, r, sessionID)
 	case len(parts) == 2 && parts[1] == "frames" && r.Method == http.MethodPost:
 		s.addRecordingFrame(w, r, parts[0])
 	case len(parts) == 2 && parts[1] == "finish" && r.Method == http.MethodPost:
@@ -341,19 +346,16 @@ func (s *Server) serveRecording(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) cancelRecording(w http.ResponseWriter, id string) {
-	sessionID, err := s.recordings.cancel(id)
+	_, err := s.recordings.cancel(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if _, err = s.coreService.SessionDisconnect(sessionID); err != nil {
-		http.Error(w, "unable to finish Web session", http.StatusBadGateway)
-		return
-	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) startRecording(w http.ResponseWriter, r *http.Request) {
+func (s *Server) startRecording(w http.ResponseWriter, r *http.Request, sessionID string) {
 	var request struct {
 		SessionID string `json:"session_id"`
 		TargetURL string `json:"target_url"`
@@ -368,7 +370,18 @@ func (s *Server) startRecording(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid recording dimensions", http.StatusBadRequest)
 		return
 	}
+	if request.SessionID != sessionID {
+		http.Error(w, "recording session_id does not belong to this proxy session", http.StatusForbidden)
+		return
+	}
+	s.auth.mu.Lock()
+	if s.auth.sessions[sessionID] == nil {
+		s.auth.mu.Unlock()
+		requireProxyAuth(w)
+		return
+	}
 	recording, err := s.recordings.start(request.SessionID, request.TargetURL, request.Width, request.Height)
+	s.auth.mu.Unlock()
 	if err != nil {
 		if errors.Is(err, errInvalidWebSessionID) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -423,10 +436,7 @@ func (s *Server) finishRecording(w http.ResponseWriter, r *http.Request, id stri
 		http.Error(w, "recording not found", http.StatusNotFound)
 		return
 	}
-	if _, err := s.coreService.SessionDisconnect(sessionID); err != nil {
-		http.Error(w, "unable to finish Web session", http.StatusBadGateway)
-		return
-	}
+
 	result, err := s.recordings.finish(r.Context(), id, request.DurationMS)
 	if err != nil {
 		_, _ = s.coreService.SessionReplayFailed(sessionID, model.SessionReplayErrConvertFailed)
@@ -440,6 +450,35 @@ func (s *Server) finishRecording(w http.ResponseWriter, r *http.Request, id stri
 	}
 	result.Path = ""
 	writeRecordingJSON(w, http.StatusOK, result)
+}
+
+// A revoked or abandoned proxy session cannot send a final authenticated request.
+// Preserve and upload the frames already received when the shared session closes.
+func (s *Server) finishSessionRecordings(sessionID string) {
+	if s.recordings == nil {
+		return
+	}
+	s.recordings.mu.Lock()
+	var ids []string
+	for id, recording := range s.recordings.sessions {
+		if recording.sessionID == sessionID {
+			ids = append(ids, id)
+		}
+	}
+	s.recordings.mu.Unlock()
+	for _, id := range ids {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		result, err := s.recordings.finish(ctx, id, 0)
+		cancel()
+		if err != nil {
+			_, _ = s.coreService.SessionReplayFailed(sessionID, model.SessionReplayErrConvertFailed)
+		} else {
+			err = s.uploadRecording(result)
+		}
+		if err != nil {
+			logger.Errorf("Finish Web recording %s on session close failed: %s", id, err)
+		}
+	}
 }
 
 func (s *Server) uploadRecording(result recordingResult) error {
@@ -508,13 +547,4 @@ func sanitizedRecordingURL(value string) string {
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String()
-}
-
-func isLoopbackRemote(remoteAddr string) bool {
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		return false
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
 }

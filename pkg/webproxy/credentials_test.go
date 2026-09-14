@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/pkg/auth"
 )
 
 type fakeConnectTokenService struct {
@@ -77,18 +78,21 @@ func TestCredentialSessionEncryptsAndReleasesOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := &fakeConnectTokenService{token: testWebConnectToken()}
-	proxy, err := NewServer("127.0.0.1", "0", "*", "", "", service)
+	proxy, err := NewServer("127.0.0.1", "0", "", "", service)
 	if err != nil {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(proxy)
 	defer server.Close()
+	defer proxy.stopProxySessions()
 
 	createBody, _ := json.Marshal(createCredentialSessionRequest{
 		TokenID: "token-id", TokenValue: "token-value",
 		ClientPublicKey: base64.StdEncoding.EncodeToString(clientDER),
 	})
-	response, err := http.Post(server.URL+credentialPathPrefix, "application/json", bytes.NewReader(createBody))
+	request, _ := http.NewRequest(http.MethodPost, server.URL+credentialPathPrefix, bytes.NewReader(createBody))
+	request.Header.Set("X-Koko-Connect-Ticket", testConnectTicket(service.token))
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,14 +151,17 @@ func TestCredentialSessionEncryptsAndReleasesOnce(t *testing.T) {
 
 func TestCredentialSessionRejectsWrongTokenWithoutConsumingIt(t *testing.T) {
 	service := &fakeConnectTokenService{token: testWebConnectToken()}
-	proxy, err := NewServer("127.0.0.1", "0", "*", "", "", service)
+	proxy, err := NewServer("127.0.0.1", "0", "", "", service)
 	if err != nil {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(proxy)
 	defer server.Close()
+	defer proxy.stopProxySessions()
 	body, _ := json.Marshal(createCredentialSessionRequest{TokenID: "token-id", TokenValue: "wrong"})
-	response, err := http.Post(server.URL+credentialPathPrefix, "application/json", bytes.NewReader(body))
+	request, _ := http.NewRequest(http.MethodPost, server.URL+credentialPathPrefix, bytes.NewReader(body))
+	request.Header.Set("X-Koko-Connect-Ticket", testConnectTicket(service.token))
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +170,49 @@ func TestCredentialSessionRejectsWrongTokenWithoutConsumingIt(t *testing.T) {
 		t.Fatalf("unexpected status %d", response.StatusCode)
 	}
 	if len(service.calls) != 1 || service.calls[0] {
-		t.Fatalf("invalid token was consumed: %v", service.calls)
+		t.Fatalf("invalid token disclosed secrets: %v", service.calls)
+	}
+}
+
+func TestCredentialSessionRejectsUnboundTicketWithoutConsumingToken(t *testing.T) {
+	for _, name := range []string{"missing", "deleted", "other-token", "other-user", "other-org"} {
+		t.Run(name, func(t *testing.T) {
+			service := &fakeConnectTokenService{token: testWebConnectToken()}
+			proxy, err := NewServer("127.0.0.1", "0", "", "", service)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(proxy.stopProxySessions)
+			user := service.token.User
+			tokenID, orgID := service.token.Id, service.token.OrgId
+			switch name {
+			case "other-token":
+				tokenID = "other-token"
+			case "other-user":
+				user.ID = "other-user"
+			case "other-org":
+				orgID = "other-org"
+			}
+			ticket := auth.ConnectTickets.Create(&user, nil, tokenID, orgID)
+			t.Cleanup(func() { auth.ConnectTickets.Delete(ticket.ID) })
+			if name == "deleted" {
+				auth.ConnectTickets.Delete(ticket.ID)
+			}
+			request := httptest.NewRequest(http.MethodPost, credentialPathPrefix, bytes.NewBufferString(`{"token_id":"token-id","token_value":"token-value"}`))
+			if name != "missing" {
+				request.Header.Set("X-Koko-Connect-Ticket", ticket.ID)
+			}
+			response := httptest.NewRecorder()
+			proxy.ServeHTTP(response, request)
+			if response.Code != http.StatusUnauthorized || service.createdSession.ID != "" {
+				t.Fatalf("invalid ticket created a session: %d %s", response.Code, response.Body.String())
+			}
+			for _, consumed := range service.calls {
+				if consumed {
+					t.Fatal("invalid ticket consumed connection token")
+				}
+			}
+		})
 	}
 }
 
@@ -183,6 +232,8 @@ func TestCredentialSelectorsAllowPasswordOnlyLogin(t *testing.T) {
 func testWebConnectToken() model.ConnectToken {
 	return model.ConnectToken{
 		Id:       "token-id",
+		User:     model.User{ID: "user-id"},
+		OrgId:    "org-id",
 		Value:    "token-value",
 		Protocol: "https",
 		Actions:  model.Actions{{Value: model.ActionConnect}},
@@ -242,4 +293,8 @@ func decryptTestCredentials(t *testing.T, clientKey *ecdh.PrivateKey, session cr
 		t.Fatal(err)
 	}
 	return credentials
+}
+
+func testConnectTicket(token model.ConnectToken) string {
+	return auth.ConnectTickets.Create(&token.User, nil, token.Id, token.OrgId).ID
 }

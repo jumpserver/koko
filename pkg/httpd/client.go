@@ -24,6 +24,8 @@ type Client struct {
 	UserWrite io.WriteCloser
 	Conn      *UserWebsocket
 	pty       ssh.Pty
+	ctx       context.Context
+	cancel    context.CancelFunc
 
 	sync.Mutex
 	closeOnce sync.Once
@@ -214,6 +216,7 @@ func (c *Client) Pty() ssh.Pty {
 
 func (c *Client) Close() (err error) {
 	c.closeOnce.Do(func() {
+		c.cancel()
 		c.stopSessionReady()
 		_ = c.UserRead.Close()
 		_ = c.UserWrite.Close()
@@ -334,7 +337,7 @@ func (c *Client) closeTerminalObserver() {
 }
 
 func (c *Client) Context() context.Context {
-	return c.Conn.ctx.Request.Context()
+	return c.ctx
 }
 
 func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {

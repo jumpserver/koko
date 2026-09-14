@@ -3,6 +3,7 @@ package webproxy
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"image"
 	"image/color"
@@ -19,7 +20,7 @@ import (
 
 func TestWebRecordingLifecycle(t *testing.T) {
 	service := &fakeConnectTokenService{token: testWebConnectToken()}
-	proxy, err := NewServer("127.0.0.1", "0", "*", t.TempDir(), "ffmpeg", service)
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", service)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +80,7 @@ func TestWebRecordingLifecycle(t *testing.T) {
 	if result.FrameCount != 2 || result.DurationMS != 1500 {
 		t.Fatalf("unexpected recording result: %+v", result)
 	}
-	if result.Path != "" || service.disconnectedID != "62a7496e-369d-4f3d-b3f9-a20b61a33980" ||
+	if result.Path != "" || service.disconnectedID != "" ||
 		service.uploadedSessionID != "62a7496e-369d-4f3d-b3f9-a20b61a33980" ||
 		service.uploadedVersion != model.Version4 || string(service.uploadedReplay) != "video" || service.replaySize != 5 {
 		t.Fatalf("recording was not uploaded to Core: %+v", result)
@@ -87,7 +88,7 @@ func TestWebRecordingLifecycle(t *testing.T) {
 }
 
 func TestWebRecordingRejectsInvalidSessionID(t *testing.T) {
-	proxy, err := NewServer("127.0.0.1", "0", "*", t.TempDir(), "ffmpeg", &fakeConnectTokenService{})
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", &fakeConnectTokenService{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,9 +98,36 @@ func TestWebRecordingRejectsInvalidSessionID(t *testing.T) {
 			t.Fatal(err)
 		}
 		response := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix, body)
-		if response.Code != http.StatusBadRequest || !bytes.Contains(response.Body.Bytes(), []byte("session_id")) {
+		if response.Code != http.StatusForbidden || !bytes.Contains(response.Body.Bytes(), []byte("session_id")) {
 			t.Fatalf("expected session_id validation error for %q, got %d: %s", sessionID, response.Code, response.Body.String())
 		}
+	}
+}
+
+func TestClosingProxySessionUploadsPendingRecording(t *testing.T) {
+	proxy, created := authenticatedTestProxy(t)
+	manager, err := newRecordingManager(t.TempDir(), "ffmpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy.recordings = manager
+	manager.encode = func(_ context.Context, recording *webRecording) error {
+		return os.WriteFile(filepath.Join(recording.dir, "recording.mp4"), []byte("video"), 0o600)
+	}
+	recording, err := manager.start(created.SessionID, "https://example.com", 32, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = manager.frame(recording.id, 1000, []byte{0xff, 0xd8, 0xff, 0x01, 0xff, 0xd9}); err != nil {
+		t.Fatal(err)
+	}
+	if err = proxy.closeProxySession(created.SessionID); err != nil {
+		t.Fatal(err)
+	}
+	service := proxy.coreService.(*fakeConnectTokenService)
+	if manager.sessionID(recording.id) != "" || service.disconnectedID != created.SessionID ||
+		service.uploadedSessionID != created.SessionID || string(service.uploadedReplay) != "video" {
+		t.Fatal("closing proxy session did not finish and upload its pending recording")
 	}
 }
 
@@ -121,8 +149,8 @@ func TestWebRecordingCancellationRemovesPendingFrames(t *testing.T) {
 	}
 }
 
-func TestWebRecordingControlRejectsNonLoopback(t *testing.T) {
-	proxy, err := NewServer("127.0.0.1", "0", "*", t.TempDir(), "ffmpeg", nil)
+func TestWebRecordingControlRequiresAuthentication(t *testing.T) {
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,13 +158,13 @@ func TestWebRecordingControlRejectsNonLoopback(t *testing.T) {
 	request.RemoteAddr = "192.0.2.10:1234"
 	response := httptest.NewRecorder()
 	proxy.ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("expected loopback-only API, got %d", response.Code)
+	if response.Code != http.StatusProxyAuthRequired {
+		t.Fatalf("expected proxy authentication, got %d", response.Code)
 	}
 }
 
 func TestProxyRequestCannotReachRecordingControlAPI(t *testing.T) {
-	proxy, err := NewServer("127.0.0.1", "0", "example.com", t.TempDir(), "ffmpeg", nil)
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,8 +172,8 @@ func TestProxyRequestCannotReachRecordingControlAPI(t *testing.T) {
 	request.RemoteAddr = "127.0.0.1:54321"
 	response := httptest.NewRecorder()
 	proxy.ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("expected proxy allowlist rejection, got %d", response.Code)
+	if response.Code != http.StatusProxyAuthRequired {
+		t.Fatalf("expected proxy authentication, got %d", response.Code)
 	}
 }
 
@@ -185,6 +213,17 @@ func performRecordingRequest(t *testing.T, handler http.Handler, method, path st
 	t.Helper()
 	request := httptest.NewRequest(method, path, bytes.NewReader(body))
 	request.RemoteAddr = "127.0.0.1:54321"
+	proxy := handler.(*Server)
+	const sessionID = "62a7496e-369d-4f3d-b3f9-a20b61a33980"
+	auth := proxy.auth.sessions[sessionID]
+	if auth == nil {
+		if err := proxy.registerProxySession(&model.Session{ID: sessionID}, "test-ticket"); err != nil {
+			t.Fatal(err)
+		}
+		auth = proxy.auth.sessions[sessionID]
+		t.Cleanup(proxy.stopProxySessions)
+	}
+	request.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.id+":"+auth.ticket)))
 	if bytes.Contains([]byte(path), []byte("/frames")) {
 		request.Header.Set("Content-Type", "image/jpeg")
 	} else {

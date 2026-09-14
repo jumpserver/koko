@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"context"
 	"sync"
 
 	"github.com/jumpserver/koko/pkg/lion/guacd"
@@ -80,6 +81,10 @@ func (g *GuaTunnelLocalCache) GetMonitorTunnelerBySessionId(sid string) Tunneler
 		}
 	}
 	return nil
+}
+
+func (g *GuaTunnelLocalCache) HasSession(_ context.Context, sid string) (bool, error) {
+	return g.GetBySessionId(sid) != nil, nil
 }
 
 func (g *GuaTunnelLocalCache) RemoveMonitorTunneler(sid string, monitorTunnel Tunneler) {

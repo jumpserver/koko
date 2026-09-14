@@ -77,13 +77,23 @@ func (l *LoginReviewHandler) WaitReview(ctx context.Context) (bool, error) {
 func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.LoginReviewService) (bool, error) {
 	lang := i18n.NewLang(l.i18nLang)
 	ctx, cancelFunc := context.WithCancel(ctx)
-	vt := term.NewTerminal(l.readWriter, " ")
+	defer cancelFunc()
+	var stream io.ReadWriter = l.readWriter
+	reader, cancellable := l.readWriter.(reviewContextReader)
+	if cancellable {
+		stream = reviewStream{Writer: l.readWriter, reader: reader, ctx: ctx}
+	}
+	vt := term.NewTerminal(stream, " ")
+	readDone, progressDone := make(chan struct{}), make(chan struct{})
 	go func() {
+		defer close(readDone)
 		defer cancelFunc()
-		for {
+		for ctx.Err() == nil {
 			line, err := vt.ReadLine()
 			if err != nil {
-				logger.Errorf("Wait confirm user readLine exit: %s", err.Error())
+				if ctx.Err() == nil {
+					logger.Errorf("Wait confirm user readLine exit: %s", err.Error())
+				}
 				return
 			}
 			switch line {
@@ -106,25 +116,33 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 	utils.IgnoreErrWriteString(vt, detailURLMsg)
 	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 	go func() {
+		defer close(progressDone)
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
 		delay := 0
 		for {
+			delayS := fmt.Sprintf("%ds", delay)
+			data := strings.Repeat("\x08", len(delayS)+len(waitMsg)) + waitMsg + delayS
+			utils.IgnoreErrWriteString(vt, data)
 			select {
 			case <-ctx.Done():
-
 				return
-			default:
-				delayS := fmt.Sprintf("%ds", delay)
-				data := strings.Repeat("\x08", len(delayS)+len(waitMsg)) + waitMsg + delayS
-				utils.IgnoreErrWriteString(vt, data)
-				time.Sleep(time.Second)
-				delay += 1
+			case <-ticker.C:
+				delay++
 			}
 		}
 	}()
 
 	status := srv.WaitLoginConfirm(ctx)
 	cancelFunc()
-	l.readWriter.Close()
+	if !cancellable {
+		// Direct SSH connections close and replace only their read pipe.
+		_ = l.readWriter.Close()
+	} else {
+		// Join the TUI reader before handing its input queue to the proxy.
+		<-readDone
+	}
+	<-progressDone
 	processor := srv.GetProcessor()
 	var success bool
 	statusMsg := lang.T("Unknown status")
@@ -148,3 +166,15 @@ func (l *LoginReviewHandler) WaitTicketReview(ctx context.Context, srv *auth.Log
 	utils.IgnoreErrWriteString(vt, utils.CharNewLine)
 	return success, nil
 }
+
+type reviewContextReader interface {
+	ReadContext(context.Context, []byte) (int, error)
+}
+
+type reviewStream struct {
+	io.Writer
+	reader reviewContextReader
+	ctx    context.Context
+}
+
+func (s reviewStream) Read(p []byte) (int, error) { return s.reader.ReadContext(s.ctx, p) }

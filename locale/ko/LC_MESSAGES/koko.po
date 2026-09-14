@@ -715,3 +715,333 @@ msgstr "배포 권한이 부족합니다"
 #: pkg/proxy/parser.go
 msgid "File exceeds maximum transfer size: %s"
 msgstr "파일이 최대 전송 크기를 초과했습니다: %s"
+
+#. Koko TUI
+msgid "Account"
+msgstr "계정"
+
+#. Koko TUI
+msgid "All assets"
+msgstr "모든 자산"
+
+#. Koko TUI
+msgid "All favorites"
+msgstr "모든 즐겨찾기"
+
+#. Koko TUI
+msgid "Asset"
+msgstr "자산"
+
+#. Koko TUI
+msgid "Asset groups"
+msgstr "자산 그룹"
+
+#. Koko TUI
+msgid "Assets"
+msgstr "자산"
+
+#. Koko TUI
+msgid "Assets / New connection"
+msgstr "자산 / 새 연결"
+
+#. Koko TUI
+msgid "Authorization"
+msgstr "권한 트리"
+
+#. Koko TUI
+msgid "Clear search"
+msgstr "검색 지우기"
+
+#. Koko TUI
+msgid "Close"
+msgstr "닫기"
+
+#. Koko TUI
+msgid "Close menu/dialog, go back"
+msgstr "메뉴/대화상자를 닫고 돌아가기"
+
+#. Koko TUI
+msgid "Close tab"
+msgstr "탭 닫기"
+
+#. Koko TUI
+msgid "Collapse/expand"
+msgstr "접기/펼치기"
+
+#. Koko TUI
+msgid "Collapse/expand loaded nodes"
+msgstr "불러온 노드 접기/펼치기"
+
+#. Koko TUI
+msgid "Collapse/expand node, scroll table horizontally"
+msgstr "노드 접기/펼치기, 표 가로 스크롤"
+
+#. Koko TUI
+msgid "Confirm and connect"
+msgstr "확인 후 연결"
+
+#. Koko TUI
+msgid "Connected terminal"
+msgstr "연결된 터미널"
+
+#. Koko TUI
+msgid "Disconnect and quit"
+msgstr "연결 해제 후 종료"
+
+#. Koko TUI
+msgid "Disconnect session"
+msgstr "세션 연결 해제"
+
+#. Koko TUI
+msgid "Favorites"
+msgstr "즐겨찾기"
+
+#. Koko TUI
+msgid "First/last item"
+msgstr "첫 항목/마지막 항목"
+
+#. Koko TUI
+msgid "Focus"
+msgstr "포커스 이동"
+
+#. Koko TUI
+msgid "Full text"
+msgstr "전체 내용"
+
+#. Koko TUI
+msgid "Full text · scrollable"
+msgstr "전체 내용 · 스크롤 가능"
+
+#. Koko TUI
+msgid "Help"
+msgstr "도움말"
+
+#. Koko TUI
+msgid "Keys go to the remote; press Ctrl+] for window controls."
+msgstr "키는 원격으로 전달됩니다. 창을 조작하려면 Ctrl+]를 먼저 누르세요."
+
+#. Koko TUI
+msgid "Language"
+msgstr "언어"
+
+#. Koko TUI
+msgid "Language · this session"
+msgstr "언어 · 현재 세션"
+
+#. Koko TUI
+msgid "Load failed; press R to retry"
+msgstr "불러오기 실패. R을 눌러 재시도"
+
+#. Koko TUI
+msgid "Load more…"
+msgstr "더 불러오기…"
+
+#. Koko TUI
+msgid "Loading assets…"
+msgstr "자산 불러오는 중…"
+
+#. Koko TUI
+msgid "Loading organizations…"
+msgstr "조직 불러오는 중…"
+
+#. Koko TUI
+msgid "Loading permitted accounts…"
+msgstr "허용된 계정 불러오는 중…"
+
+#. Koko TUI
+msgid "Loading workspace…"
+msgstr "작업 공간 불러오는 중…"
+
+#. Koko TUI
+msgid "Maximum 8 sessions; close one first"
+msgstr "최대 8개 세션입니다. 먼저 하나를 닫으세요"
+
+#. Koko TUI
+msgid "Move and scroll"
+msgstr "이동 및 스크롤"
+
+#. Koko TUI
+msgid "Name, address, comment"
+msgstr "이름, 주소, 설명"
+
+#. Koko TUI
+msgid "Next"
+msgstr "다음"
+
+#. Koko TUI
+msgid "Next/previous window"
+msgstr "다음/이전 창"
+
+#. Koko TUI
+msgid "No matching assets"
+msgstr "일치하는 자산 없음"
+
+#. Koko TUI
+msgid "No organization memberships"
+msgstr "소속 조직 없음"
+
+#. Koko TUI
+msgid "No permitted accounts or terminal protocols"
+msgstr "허용된 계정 또는 터미널 프로토콜 없음"
+
+#. Koko TUI
+msgid "Previous"
+msgstr "이전"
+
+#. Koko TUI
+msgid "Quit"
+msgstr "종료"
+
+#. Koko TUI
+msgid "Quitting will disconnect all asset sessions."
+msgstr "종료하면 모든 자산 세션의 연결이 끊어집니다."
+
+#. Koko TUI
+msgid "Resize terminal to at least 72 × 20"
+msgstr "터미널 크기를 최소 72 × 20으로 조정하세요"
+
+#. Koko TUI
+msgid "Resize tree, or drag the divider"
+msgstr "트리 너비 조정 또는 구분선 드래그"
+
+#. Koko TUI
+msgid "Searching…"
+msgstr "검색 중…"
+
+#. Koko TUI
+msgid "Select"
+msgstr "선택"
+
+#. Koko TUI
+msgid "Select account"
+msgstr "계정 선택"
+
+#. Koko TUI
+msgid "Send literal Ctrl+]"
+msgstr "Ctrl+] 자체 전송"
+
+#. Koko TUI
+msgid "Session ended"
+msgstr "세션 종료됨"
+
+#. Koko TUI
+msgid "Sessions"
+msgstr "세션"
+
+#. Koko TUI
+msgid "Show/hide navigation"
+msgstr "탐색 영역 표시/숨기기"
+
+#. Koko TUI
+msgid "Terminal"
+msgstr "터미널"
+
+#. Koko TUI
+msgid "Tree limit reached; refresh this view"
+msgstr "노드 한도에 도달했습니다. 보기를 새로 고치세요"
+
+#. Koko TUI
+msgid "Tree view"
+msgstr "트리 유형"
+
+#. Koko TUI
+msgid "Types"
+msgstr "유형 트리"
+
+#. Koko TUI
+msgid "Width"
+msgstr "너비"
+
+#. Koko TUI
+msgid "Window bar"
+msgstr "창 표시줄"
+
+msgid "Authorization tree"
+msgstr "권한 트리"
+
+msgid "Type tree"
+msgstr "유형 트리"
+
+msgid "Favorites tree"
+msgstr "즐겨찾기 트리"
+
+msgid "Load failed"
+msgstr "불러오지 못했습니다"
+
+msgid "Global organization"
+msgstr "전체 조직"
+
+msgid "Asset panel"
+msgstr "자산 패널"
+
+msgid "Mode"
+msgstr "모드"
+
+msgid "Accent color"
+msgstr "강조 색상"
+
+msgid "Dark theme"
+msgstr "어두운 테마"
+
+msgid "Light theme"
+msgstr "밝은 테마"
+
+msgid "Teal"
+msgstr "청록"
+
+msgid "Blue"
+msgstr "파랑"
+
+msgid "Green"
+msgstr "초록"
+
+msgid "Purple"
+msgstr "보라"
+
+msgid "Rose"
+msgstr "로즈"
+
+msgid "Amber"
+msgstr "호박색"
+
+msgid "Orange"
+msgstr "주황"
+
+msgid "Pink"
+msgstr "분홍"
+
+msgid "Cyan"
+msgstr "시안"
+
+msgid "Gray"
+msgstr "회색"
+
+msgid "Red"
+msgstr "빨강"
+
+msgid "Lime"
+msgstr "라임"
+
+msgid "Duplicate"
+msgstr "복제"
+
+msgid "Disconnect"
+msgstr "연결 해제"
+
+msgid "Duplicate session"
+msgstr "세션 복제"
+
+msgid "More sessions"
+msgstr "더 많은 세션"
+
+msgid "Fullscreen"
+msgstr "전체 화면"
+
+msgid "Exit fullscreen"
+msgstr "전체 화면 종료"
+
+msgid "Reset accent"
+msgstr "강조 색상 초기화"
+
+msgid "Quit this Koko SSH session?"
+msgstr "현재 Koko SSH 세션을 종료하시겠습니까?"

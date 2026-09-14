@@ -706,3 +706,84 @@ msgstr ""
 #: pkg/proxy/parser.go
 msgid "File exceeds maximum transfer size: %s"
 msgstr "File exceeds maximum transfer size: %s"
+
+msgid "Load failed"
+msgstr "Load failed"
+
+msgid "Global organization"
+msgstr "Global organization"
+
+msgid "Asset panel"
+msgstr "Asset panel"
+
+msgid "Mode"
+msgstr "Mode"
+
+msgid "Accent color"
+msgstr "Accent color"
+
+msgid "Dark theme"
+msgstr "Dark theme"
+
+msgid "Light theme"
+msgstr "Light theme"
+
+msgid "Teal"
+msgstr "Teal"
+
+msgid "Blue"
+msgstr "Blue"
+
+msgid "Green"
+msgstr "Green"
+
+msgid "Purple"
+msgstr "Purple"
+
+msgid "Rose"
+msgstr "Rose"
+
+msgid "Amber"
+msgstr "Amber"
+
+msgid "Orange"
+msgstr "Orange"
+
+msgid "Pink"
+msgstr "Pink"
+
+msgid "Cyan"
+msgstr "Cyan"
+
+msgid "Gray"
+msgstr "Gray"
+
+msgid "Red"
+msgstr "Red"
+
+msgid "Lime"
+msgstr "Lime"
+
+msgid "Duplicate"
+msgstr "Duplicate"
+
+msgid "Disconnect"
+msgstr "Disconnect"
+
+msgid "Duplicate session"
+msgstr "Duplicate session"
+
+msgid "More sessions"
+msgstr "More sessions"
+
+msgid "Fullscreen"
+msgstr "Fullscreen"
+
+msgid "Exit fullscreen"
+msgstr "Exit fullscreen"
+
+msgid "Reset accent"
+msgstr "Reset accent"
+
+msgid "Quit this Koko SSH session?"
+msgstr "Quit this Koko SSH session?"

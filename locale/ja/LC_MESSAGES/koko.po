@@ -715,3 +715,333 @@ msgstr "デプロイ権限が不足しています"
 #: pkg/proxy/parser.go
 msgid "File exceeds maximum transfer size: %s"
 msgstr "ファイルが最大転送サイズを超えています: %s"
+
+#. Koko TUI
+msgid "Account"
+msgstr "アカウント"
+
+#. Koko TUI
+msgid "All assets"
+msgstr "すべての資産"
+
+#. Koko TUI
+msgid "All favorites"
+msgstr "すべてのお気に入り"
+
+#. Koko TUI
+msgid "Asset"
+msgstr "資産"
+
+#. Koko TUI
+msgid "Asset groups"
+msgstr "資産グループ"
+
+#. Koko TUI
+msgid "Assets"
+msgstr "資産"
+
+#. Koko TUI
+msgid "Assets / New connection"
+msgstr "資産 / 新しい接続"
+
+#. Koko TUI
+msgid "Authorization"
+msgstr "権限ツリー"
+
+#. Koko TUI
+msgid "Clear search"
+msgstr "検索をクリア"
+
+#. Koko TUI
+msgid "Close"
+msgstr "閉じる"
+
+#. Koko TUI
+msgid "Close menu/dialog, go back"
+msgstr "メニュー・ダイアログを閉じて戻る"
+
+#. Koko TUI
+msgid "Close tab"
+msgstr "タブを閉じる"
+
+#. Koko TUI
+msgid "Collapse/expand"
+msgstr "折りたたむ/展開"
+
+#. Koko TUI
+msgid "Collapse/expand loaded nodes"
+msgstr "読込済みノードを折りたたむ/展開"
+
+#. Koko TUI
+msgid "Collapse/expand node, scroll table horizontally"
+msgstr "ノードの折りたたみ/展開、表を横スクロール"
+
+#. Koko TUI
+msgid "Confirm and connect"
+msgstr "確定して接続"
+
+#. Koko TUI
+msgid "Connected terminal"
+msgstr "接続中の端末"
+
+#. Koko TUI
+msgid "Disconnect and quit"
+msgstr "切断して終了"
+
+#. Koko TUI
+msgid "Disconnect session"
+msgstr "セッションを切断"
+
+#. Koko TUI
+msgid "Favorites"
+msgstr "お気に入り"
+
+#. Koko TUI
+msgid "First/last item"
+msgstr "最初/最後の項目"
+
+#. Koko TUI
+msgid "Focus"
+msgstr "フォーカス移動"
+
+#. Koko TUI
+msgid "Full text"
+msgstr "全文"
+
+#. Koko TUI
+msgid "Full text · scrollable"
+msgstr "全文 · スクロール可能"
+
+#. Koko TUI
+msgid "Help"
+msgstr "ヘルプ"
+
+#. Koko TUI
+msgid "Keys go to the remote; press Ctrl+] for window controls."
+msgstr "キーは接続先に送信されます。ウィンドウ操作は Ctrl+] を先に押してください。"
+
+#. Koko TUI
+msgid "Language"
+msgstr "言語"
+
+#. Koko TUI
+msgid "Language · this session"
+msgstr "言語 · このセッション"
+
+#. Koko TUI
+msgid "Load failed; press R to retry"
+msgstr "読込に失敗しました。R で再試行"
+
+#. Koko TUI
+msgid "Load more…"
+msgstr "さらに読み込む…"
+
+#. Koko TUI
+msgid "Loading assets…"
+msgstr "資産を読込中…"
+
+#. Koko TUI
+msgid "Loading organizations…"
+msgstr "組織を読込中…"
+
+#. Koko TUI
+msgid "Loading permitted accounts…"
+msgstr "利用可能なアカウントを読込中…"
+
+#. Koko TUI
+msgid "Loading workspace…"
+msgstr "ワークスペースを読込中…"
+
+#. Koko TUI
+msgid "Maximum 8 sessions; close one first"
+msgstr "最大8セッションです。先に1つ閉じてください"
+
+#. Koko TUI
+msgid "Move and scroll"
+msgstr "移動・スクロール"
+
+#. Koko TUI
+msgid "Name, address, comment"
+msgstr "名前、アドレス、コメント"
+
+#. Koko TUI
+msgid "Next"
+msgstr "次へ"
+
+#. Koko TUI
+msgid "Next/previous window"
+msgstr "次/前のウィンドウ"
+
+#. Koko TUI
+msgid "No matching assets"
+msgstr "一致する資産がありません"
+
+#. Koko TUI
+msgid "No organization memberships"
+msgstr "所属する組織がありません"
+
+#. Koko TUI
+msgid "No permitted accounts or terminal protocols"
+msgstr "利用可能なアカウントまたは端末プロトコルがありません"
+
+#. Koko TUI
+msgid "Previous"
+msgstr "前へ"
+
+#. Koko TUI
+msgid "Quit"
+msgstr "終了"
+
+#. Koko TUI
+msgid "Quitting will disconnect all asset sessions."
+msgstr "終了するとすべての資産セッションが切断されます。"
+
+#. Koko TUI
+msgid "Resize terminal to at least 72 × 20"
+msgstr "端末を72列×20行以上に広げてください"
+
+#. Koko TUI
+msgid "Resize tree, or drag the divider"
+msgstr "ツリー幅を変更、または境界線をドラッグ"
+
+#. Koko TUI
+msgid "Searching…"
+msgstr "検索中…"
+
+#. Koko TUI
+msgid "Select"
+msgstr "選択"
+
+#. Koko TUI
+msgid "Select account"
+msgstr "アカウントを選択"
+
+#. Koko TUI
+msgid "Send literal Ctrl+]"
+msgstr "Ctrl+] をそのまま送信"
+
+#. Koko TUI
+msgid "Session ended"
+msgstr "セッション終了"
+
+#. Koko TUI
+msgid "Sessions"
+msgstr "セッション"
+
+#. Koko TUI
+msgid "Show/hide navigation"
+msgstr "ナビゲーションを表示/非表示"
+
+#. Koko TUI
+msgid "Terminal"
+msgstr "端末"
+
+#. Koko TUI
+msgid "Tree limit reached; refresh this view"
+msgstr "ノード数の上限です。この表示を更新してください"
+
+#. Koko TUI
+msgid "Tree view"
+msgstr "ツリー表示"
+
+#. Koko TUI
+msgid "Types"
+msgstr "種類ツリー"
+
+#. Koko TUI
+msgid "Width"
+msgstr "幅"
+
+#. Koko TUI
+msgid "Window bar"
+msgstr "ウィンドウバー"
+
+msgid "Authorization tree"
+msgstr "権限ツリー"
+
+msgid "Type tree"
+msgstr "種類別ツリー"
+
+msgid "Favorites tree"
+msgstr "お気に入りツリー"
+
+msgid "Load failed"
+msgstr "読み込みに失敗しました"
+
+msgid "Global organization"
+msgstr "グローバル組織"
+
+msgid "Asset panel"
+msgstr "資産パネル"
+
+msgid "Mode"
+msgstr "モード"
+
+msgid "Accent color"
+msgstr "アクセントカラー"
+
+msgid "Dark theme"
+msgstr "ダークテーマ"
+
+msgid "Light theme"
+msgstr "ライトテーマ"
+
+msgid "Teal"
+msgstr "ティール"
+
+msgid "Blue"
+msgstr "ブルー"
+
+msgid "Green"
+msgstr "グリーン"
+
+msgid "Purple"
+msgstr "パープル"
+
+msgid "Rose"
+msgstr "ローズ"
+
+msgid "Amber"
+msgstr "アンバー"
+
+msgid "Orange"
+msgstr "オレンジ"
+
+msgid "Pink"
+msgstr "ピンク"
+
+msgid "Cyan"
+msgstr "シアン"
+
+msgid "Gray"
+msgstr "グレー"
+
+msgid "Red"
+msgstr "レッド"
+
+msgid "Lime"
+msgstr "ライム"
+
+msgid "Duplicate"
+msgstr "複製"
+
+msgid "Disconnect"
+msgstr "切断"
+
+msgid "Duplicate session"
+msgstr "セッションを複製"
+
+msgid "More sessions"
+msgstr "他のセッション"
+
+msgid "Fullscreen"
+msgstr "全画面表示"
+
+msgid "Exit fullscreen"
+msgstr "全画面表示を終了"
+
+msgid "Reset accent"
+msgstr "アクセントをリセット"
+
+msgid "Quit this Koko SSH session?"
+msgstr "この Koko SSH セッションを終了しますか？"

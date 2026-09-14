@@ -715,3 +715,333 @@ msgstr "部署权限不足"
 #: pkg/proxy/parser.go
 msgid "File exceeds maximum transfer size: %s"
 msgstr "文件超过最大传输大小：%s"
+
+#. Koko TUI
+msgid "Account"
+msgstr "账号名称"
+
+#. Koko TUI
+msgid "All assets"
+msgstr "全部资产"
+
+#. Koko TUI
+msgid "All favorites"
+msgstr "全部收藏"
+
+#. Koko TUI
+msgid "Asset"
+msgstr "资产名称"
+
+#. Koko TUI
+msgid "Asset groups"
+msgstr "资产分组"
+
+#. Koko TUI
+msgid "Assets"
+msgstr "资产"
+
+#. Koko TUI
+msgid "Assets / New connection"
+msgstr "返回资产 / 新建连接"
+
+#. Koko TUI
+msgid "Authorization"
+msgstr "授权树"
+
+#. Koko TUI
+msgid "Clear search"
+msgstr "清空搜索"
+
+#. Koko TUI
+msgid "Close"
+msgstr "关闭"
+
+#. Koko TUI
+msgid "Close menu/dialog, go back"
+msgstr "关闭菜单/弹窗，返回"
+
+#. Koko TUI
+msgid "Close tab"
+msgstr "关闭此标签"
+
+#. Koko TUI
+msgid "Collapse/expand"
+msgstr "折叠/展开"
+
+#. Koko TUI
+msgid "Collapse/expand loaded nodes"
+msgstr "折叠/展开已加载节点"
+
+#. Koko TUI
+msgid "Collapse/expand node, scroll table horizontally"
+msgstr "折叠/展开节点，水平滚动表格"
+
+#. Koko TUI
+msgid "Confirm and connect"
+msgstr "确认并连接"
+
+#. Koko TUI
+msgid "Connected terminal"
+msgstr "连接中的终端"
+
+#. Koko TUI
+msgid "Disconnect and quit"
+msgstr "断开并退出"
+
+#. Koko TUI
+msgid "Disconnect session"
+msgstr "断开此会话"
+
+#. Koko TUI
+msgid "Favorites"
+msgstr "收藏树"
+
+#. Koko TUI
+msgid "First/last item"
+msgstr "首项/末项"
+
+#. Koko TUI
+msgid "Focus"
+msgstr "切换控件"
+
+#. Koko TUI
+msgid "Full text"
+msgstr "完整内容"
+
+#. Koko TUI
+msgid "Full text · scrollable"
+msgstr "完整内容 · 可滚动"
+
+#. Koko TUI
+msgid "Help"
+msgstr "帮助"
+
+#. Koko TUI
+msgid "Keys go to the remote; press Ctrl+] for window controls."
+msgstr "普通按键交给远端；窗口操作先按 Ctrl+]。"
+
+#. Koko TUI
+msgid "Language"
+msgstr "语言"
+
+#. Koko TUI
+msgid "Language · this session"
+msgstr "语言 · 当前会话"
+
+#. Koko TUI
+msgid "Load failed; press R to retry"
+msgstr "加载失败，按 R 重试"
+
+#. Koko TUI
+msgid "Load more…"
+msgstr "加载更多…"
+
+#. Koko TUI
+msgid "Loading assets…"
+msgstr "加载资产…"
+
+#. Koko TUI
+msgid "Loading organizations…"
+msgstr "正在加载组织…"
+
+#. Koko TUI
+msgid "Loading permitted accounts…"
+msgstr "加载授权账号…"
+
+#. Koko TUI
+msgid "Loading workspace…"
+msgstr "正在加载工作区…"
+
+#. Koko TUI
+msgid "Maximum 8 sessions; close one first"
+msgstr "最多同时保留 8 个会话，请先关闭一个"
+
+#. Koko TUI
+msgid "Move and scroll"
+msgstr "移动和滚动"
+
+#. Koko TUI
+msgid "Name, address, comment"
+msgstr "名称、地址、备注"
+
+#. Koko TUI
+msgid "Next"
+msgstr "下页"
+
+#. Koko TUI
+msgid "Next/previous window"
+msgstr "下一个/上一个窗口"
+
+#. Koko TUI
+msgid "No matching assets"
+msgstr "没有匹配资产"
+
+#. Koko TUI
+msgid "No organization memberships"
+msgstr "未加入任何组织"
+
+#. Koko TUI
+msgid "No permitted accounts or terminal protocols"
+msgstr "没有可用的授权账号或终端协议"
+
+#. Koko TUI
+msgid "Previous"
+msgstr "上页"
+
+#. Koko TUI
+msgid "Quit"
+msgstr "退出"
+
+#. Koko TUI
+msgid "Quitting will disconnect all asset sessions."
+msgstr "退出将断开所有资产会话。"
+
+#. Koko TUI
+msgid "Resize terminal to at least 72 × 20"
+msgstr "请放大终端至至少 72 × 20"
+
+#. Koko TUI
+msgid "Resize tree, or drag the divider"
+msgstr "调整树宽度，也可拖动分隔线"
+
+#. Koko TUI
+msgid "Searching…"
+msgstr "搜索中…"
+
+#. Koko TUI
+msgid "Select"
+msgstr "选择"
+
+#. Koko TUI
+msgid "Select account"
+msgstr "选择账号"
+
+#. Koko TUI
+msgid "Send literal Ctrl+]"
+msgstr "发送原始 Ctrl+]"
+
+#. Koko TUI
+msgid "Session ended"
+msgstr "连接已结束"
+
+#. Koko TUI
+msgid "Sessions"
+msgstr "会话"
+
+#. Koko TUI
+msgid "Show/hide navigation"
+msgstr "显示/隐藏树区域"
+
+#. Koko TUI
+msgid "Terminal"
+msgstr "终端"
+
+#. Koko TUI
+msgid "Tree limit reached; refresh this view"
+msgstr "节点过多，请折叠并刷新视图"
+
+#. Koko TUI
+msgid "Tree view"
+msgstr "树类型"
+
+#. Koko TUI
+msgid "Types"
+msgstr "类型树"
+
+#. Koko TUI
+msgid "Width"
+msgstr "宽度"
+
+#. Koko TUI
+msgid "Window bar"
+msgstr "窗口栏"
+
+msgid "Authorization tree"
+msgstr "授权树"
+
+msgid "Type tree"
+msgstr "类型树"
+
+msgid "Favorites tree"
+msgstr "收藏树"
+
+msgid "Load failed"
+msgstr "加载失败"
+
+msgid "Global organization"
+msgstr "全局组织"
+
+msgid "Asset panel"
+msgstr "资产面板"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Accent color"
+msgstr "强调色"
+
+msgid "Dark theme"
+msgstr "深色主题"
+
+msgid "Light theme"
+msgstr "浅色主题"
+
+msgid "Teal"
+msgstr "青绿"
+
+msgid "Blue"
+msgstr "蓝色"
+
+msgid "Green"
+msgstr "绿色"
+
+msgid "Purple"
+msgstr "紫色"
+
+msgid "Rose"
+msgstr "玫瑰"
+
+msgid "Amber"
+msgstr "琥珀"
+
+msgid "Orange"
+msgstr "橙色"
+
+msgid "Pink"
+msgstr "粉色"
+
+msgid "Cyan"
+msgstr "青蓝"
+
+msgid "Gray"
+msgstr "灰色"
+
+msgid "Red"
+msgstr "红色"
+
+msgid "Lime"
+msgstr "青柠"
+
+msgid "Duplicate"
+msgstr "复制"
+
+msgid "Disconnect"
+msgstr "断开"
+
+msgid "Duplicate session"
+msgstr "复制会话"
+
+msgid "More sessions"
+msgstr "更多会话"
+
+msgid "Fullscreen"
+msgstr "全屏"
+
+msgid "Exit fullscreen"
+msgstr "退出全屏"
+
+msgid "Reset accent"
+msgstr "还原主题色"
+
+msgid "Quit this Koko SSH session?"
+msgstr "确定退出本次 Koko SSH 会话？"

@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -267,9 +268,9 @@ func (h *tty) handleTerminalCreate(msg *Message) {
 	)
 }
 
-func (h *tty) sendCloseMessage(terminalID uint32) {
+func (h *tty) sendCloseMessage(terminalID uint32, reason string) {
 	closedMsg := Message{
-		Id: h.ws.Uuid, Type: CLOSE, TerminalId: terminalID,
+		Id: h.ws.Uuid, Type: CLOSE, TerminalId: terminalID, Data: reason,
 	}
 	h.ws.SendMessage(&closedMsg)
 }
@@ -315,7 +316,7 @@ func (h *tty) validateAndInitSession(msg *Message) (TerminalConnectData, error) 
 		if err2 != nil {
 			logger.Errorf("Ws[%s] terminal initial validate share err: %s",
 				h.ws.Uuid, err2)
-			h.sendCloseMessage(msg.TerminalId)
+			h.sendCloseMessage(msg.TerminalId, "connect_failed")
 			return connectInfo, err2
 		}
 		h.shareInfo = &info
@@ -323,7 +324,7 @@ func (h *tty) validateAndInitSession(msg *Message) (TerminalConnectData, error) 
 		if err3 != nil {
 			logger.Errorf("Ws[%s] terminal get session %s err: %s",
 				h.ws.Uuid, info.Record.Session.ID, err3)
-			h.sendCloseMessage(msg.TerminalId)
+			h.sendCloseMessage(msg.TerminalId, "connect_failed")
 			return connectInfo, err3
 		}
 		sessionInfo := proxy.SessionInfo{
@@ -345,9 +346,11 @@ func (h *tty) handleTerminalInit(
 		Height: connectInfo.Rows,
 	}
 	userR, userW := io.Pipe()
+	ctx, cancel := context.WithCancel(h.ws.ctx.Request.Context())
 	client := &Client{
 		WinChan: make(chan ssh.Window, 100), Conn: h.ws,
 		UserRead: userR, UserWrite: userW,
+		ctx: ctx, cancel: cancel,
 		pty:          ssh.Pty{Term: "xterm", Window: win},
 		KubernetesId: KubernetesId, Namespace: namespace,
 		Pod: pod, Container: container, TerminalId: terminalID,
@@ -661,7 +664,9 @@ func (h *tty) getConnectionParams() *proxy.ConnectionParams {
 
 func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 	defer wg.Done()
+	defer client.cancel()
 	params := h.ws.wsParams
+	closeReason := "session_closed"
 	switch params.TargetType {
 	case TargetTypeMonitor:
 		h.Monitor(h.backendClient, params.TargetId)
@@ -678,7 +683,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 		srv, err := proxy.NewServer(client, h.ws.apiClient, proxyOpts...)
 		if err != nil {
 			logger.Errorf("Create proxy server failed: %s", err)
-			h.sendCloseMessage(client.TerminalId)
+			h.sendCloseMessage(client.TerminalId, "connect_failed")
 			return
 		}
 		toolController, toolErr := newTerminalToolController(client, h.ws, srv)
@@ -710,6 +715,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 			}
 		}
 		srv.Proxy()
+		closeReason = string(srv.SessionEndReason)
 		srv.CloseBackgroundRecorder()
 	}
 
@@ -719,7 +725,7 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 		return
 	}
 	h.removeClient(client.TerminalId)
-	h.sendCloseMessage(client.TerminalId)
+	h.sendCloseMessage(client.TerminalId, closeReason)
 	logger.Info("Ws tty proxy end")
 }
 

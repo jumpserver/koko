@@ -120,6 +120,7 @@ type Server struct {
 	broadCaster *broadcaster
 	Srv         *http.Server
 	apiClient   *service.JMService
+	lionMonitor graphicalMonitor
 }
 
 func (s *Server) Start() {
@@ -245,7 +246,7 @@ func (s *Server) UpgradeUserWsConn(ctx *gin.Context) (*UserWebsocket, error) {
 	})
 	underWsCon.SetPongHandler(func(appData string) error {
 		logger.Debugf("Websocket pong %s", appData)
-		return wsSocket.WritePing([]byte(appData), maxWriteTimeOut)
+		return nil
 	})
 
 	userValue := ctx.MustGet(auth.ContextKeyUser)

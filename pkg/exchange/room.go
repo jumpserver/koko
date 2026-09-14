@@ -62,10 +62,27 @@ func (r *Room) run() {
 	defer ticker.Stop()
 	defer r.closeOnce()
 	connMaps := make(map[string]*roomSubscriber)
+	pending := make(map[string]*roomSubscriber)
+	ready := make(chan struct{}, 1)
+	var pendingMessage *RoomMessage
 	currentOnlineUsers := make(map[string]MetaMessage)
 	var ZMODEMStatus bool
 	for {
+		broadcast := r.broadcastChan
+		if len(pending) > 0 {
+			// Apply backpressure at the room input while keeping subscription
+			// changes and shutdown responsive. Retain only one broadcast.
+			broadcast = nil
+		} else {
+			pendingMessage = nil
+		}
 		select {
+		case <-ready:
+			for id, subscriber := range pending {
+				if subscriber.send(pendingMessage) {
+					delete(pending, id)
+				}
+			}
 		case <-ticker.C:
 			if len(connMaps) == 0 {
 				logger.Infof("Room %s has no connection now and exit", r.Id)
@@ -73,9 +90,10 @@ func (r *Room) run() {
 			}
 		case con := <-r.subscriber:
 			if subscriber := connMaps[con.Id]; subscriber != nil {
+				delete(pending, con.Id)
 				subscriber.stop(false)
 			}
-			subscriber := newRoomSubscriber(con)
+			subscriber := newRoomSubscriber(con, ready)
 			connMaps[con.Id] = subscriber
 			go subscriber.run()
 			if ZMODEMStatus {
@@ -101,10 +119,11 @@ func (r *Room) run() {
 		case con := <-r.unSubscriber:
 			if subscriber := connMaps[con.Id]; subscriber != nil && subscriber.conn == con {
 				delete(connMaps, con.Id)
+				delete(pending, con.Id)
 				subscriber.stop(false)
 			}
 			logger.Debugf("Room %s current connections count: %d", r.Id, len(connMaps))
-		case msg := <-r.broadcastChan:
+		case msg := <-broadcast:
 			switch msg.Event {
 			case DataEvent:
 				r.recentMessages.Value = msg
@@ -133,7 +152,8 @@ func (r *Room) run() {
 					ZMODEMStatus = false
 				}
 			}
-			r.broadcastMessage(connMaps, msg)
+			pendingMessage = msg
+			r.broadcastMessage(connMaps, pending, msg)
 
 		case <-r.done:
 			for _, subscriber := range connMaps {
@@ -169,6 +189,12 @@ func (r *Room) Broadcast(msg *RoomMessage) {
 	r.broadcast(msg)
 }
 
+// BroadcastChan lets the session owner wait for output capacity in its event
+// loop while still handling termination and connection closure.
+func (r *Room) BroadcastChan() chan<- *RoomMessage {
+	return r.broadcastChan
+}
+
 func (r *Room) broadcast(msg *RoomMessage) {
 	select {
 	case <-r.done:
@@ -183,14 +209,23 @@ func (r *Room) Receive(msg *RoomMessage) {
 	}
 }
 
-func (r *Room) broadcastMessage(conns map[string]*roomSubscriber, msg *RoomMessage) {
+func (r *Room) broadcastMessage(conns, pending map[string]*roomSubscriber, msg *RoomMessage) {
 	for id, subscriber := range conns {
 		if subscriber.send(msg) {
 			continue
 		}
+		select {
+		case <-r.done:
+			return
+		default:
+		}
+		if subscriber.conn.Primary {
+			pending[id] = subscriber
+			continue
+		}
 		delete(conns, id)
 		subscriber.stop(true)
-		logger.Errorf("Room %s close slow connection %s", r.Id, id)
+		logger.Errorf("Room %s close slow connection %s (primary=%t)", r.Id, id, subscriber.conn.Primary)
 	}
 }
 
@@ -223,20 +258,24 @@ type Stream interface {
 type Conn struct {
 	Id string
 	Stream
+	// Primary connections apply backpressure instead of being evicted on queue overflow.
+	Primary bool
 }
 
 type roomSubscriber struct {
 	conn     *Conn
 	messages chan *RoomMessage
 	done     chan struct{}
+	ready    chan<- struct{}
 	once     sync.Once
 }
 
-func newRoomSubscriber(conn *Conn) *roomSubscriber {
+func newRoomSubscriber(conn *Conn, ready chan<- struct{}) *roomSubscriber {
 	return &roomSubscriber{
 		conn:     conn,
 		messages: make(chan *RoomMessage, roomSubscriberBufferSize),
 		done:     make(chan struct{}),
+		ready:    ready,
 	}
 }
 
@@ -251,6 +290,12 @@ func (s *roomSubscriber) run() {
 		case <-s.done:
 			return
 		case msg := <-s.messages:
+			if s.conn.Primary {
+				select {
+				case s.ready <- struct{}{}:
+				default:
+				}
+			}
 			s.conn.handlerMessage(msg)
 		}
 	}
@@ -260,6 +305,9 @@ func (s *roomSubscriber) send(msg *RoomMessage) bool {
 	select {
 	case <-s.done:
 		return false
+	default:
+	}
+	select {
 	case s.messages <- msg:
 		return true
 	default:

@@ -715,3 +715,333 @@ msgstr "Permisos de implementación insuficientes"
 #: pkg/proxy/parser.go
 msgid "File exceeds maximum transfer size: %s"
 msgstr "El archivo supera el tamaño máximo de transferencia: %s"
+
+#. Koko TUI
+msgid "Account"
+msgstr "Cuenta"
+
+#. Koko TUI
+msgid "All assets"
+msgstr "Todos los activos"
+
+#. Koko TUI
+msgid "All favorites"
+msgstr "Todos los favoritos"
+
+#. Koko TUI
+msgid "Asset"
+msgstr "Activo"
+
+#. Koko TUI
+msgid "Asset groups"
+msgstr "Grupos de activos"
+
+#. Koko TUI
+msgid "Assets"
+msgstr "Activos"
+
+#. Koko TUI
+msgid "Assets / New connection"
+msgstr "Activos / Nueva conexión"
+
+#. Koko TUI
+msgid "Authorization"
+msgstr "Autorizaciones"
+
+#. Koko TUI
+msgid "Clear search"
+msgstr "Borrar búsqueda"
+
+#. Koko TUI
+msgid "Close"
+msgstr "Cerrar"
+
+#. Koko TUI
+msgid "Close menu/dialog, go back"
+msgstr "Cerrar menú/diálogo y volver"
+
+#. Koko TUI
+msgid "Close tab"
+msgstr "Cerrar pestaña"
+
+#. Koko TUI
+msgid "Collapse/expand"
+msgstr "Contraer/expandir"
+
+#. Koko TUI
+msgid "Collapse/expand loaded nodes"
+msgstr "Contraer/expandir nodos cargados"
+
+#. Koko TUI
+msgid "Collapse/expand node, scroll table horizontally"
+msgstr "Contraer/expandir nodo, desplazar tabla horizontalmente"
+
+#. Koko TUI
+msgid "Confirm and connect"
+msgstr "Confirmar y conectar"
+
+#. Koko TUI
+msgid "Connected terminal"
+msgstr "Terminal conectado"
+
+#. Koko TUI
+msgid "Disconnect and quit"
+msgstr "Desconectar y salir"
+
+#. Koko TUI
+msgid "Disconnect session"
+msgstr "Desconectar sesión"
+
+#. Koko TUI
+msgid "Favorites"
+msgstr "Favoritos"
+
+#. Koko TUI
+msgid "First/last item"
+msgstr "Primer/último elemento"
+
+#. Koko TUI
+msgid "Focus"
+msgstr "Cambiar foco"
+
+#. Koko TUI
+msgid "Full text"
+msgstr "Texto completo"
+
+#. Koko TUI
+msgid "Full text · scrollable"
+msgstr "Texto completo · desplazable"
+
+#. Koko TUI
+msgid "Help"
+msgstr "Ayuda"
+
+#. Koko TUI
+msgid "Keys go to the remote; press Ctrl+] for window controls."
+msgstr "Las teclas se envían al remoto; pulse Ctrl+] para controlar ventanas."
+
+#. Koko TUI
+msgid "Language"
+msgstr "Idioma"
+
+#. Koko TUI
+msgid "Language · this session"
+msgstr "Idioma · esta sesión"
+
+#. Koko TUI
+msgid "Load failed; press R to retry"
+msgstr "Error al cargar; pulse R para reintentar"
+
+#. Koko TUI
+msgid "Load more…"
+msgstr "Cargar más…"
+
+#. Koko TUI
+msgid "Loading assets…"
+msgstr "Cargando activos…"
+
+#. Koko TUI
+msgid "Loading organizations…"
+msgstr "Cargando organizaciones…"
+
+#. Koko TUI
+msgid "Loading permitted accounts…"
+msgstr "Cargando cuentas autorizadas…"
+
+#. Koko TUI
+msgid "Loading workspace…"
+msgstr "Cargando espacio de trabajo…"
+
+#. Koko TUI
+msgid "Maximum 8 sessions; close one first"
+msgstr "Máximo 8 sesiones; cierre una primero"
+
+#. Koko TUI
+msgid "Move and scroll"
+msgstr "Mover y desplazar"
+
+#. Koko TUI
+msgid "Name, address, comment"
+msgstr "Nombre, dirección, comentario"
+
+#. Koko TUI
+msgid "Next"
+msgstr "Siguiente"
+
+#. Koko TUI
+msgid "Next/previous window"
+msgstr "Ventana siguiente/anterior"
+
+#. Koko TUI
+msgid "No matching assets"
+msgstr "No hay activos coincidentes"
+
+#. Koko TUI
+msgid "No organization memberships"
+msgstr "No pertenece a ninguna organización"
+
+#. Koko TUI
+msgid "No permitted accounts or terminal protocols"
+msgstr "No hay cuentas autorizadas ni protocolos de terminal disponibles"
+
+#. Koko TUI
+msgid "Previous"
+msgstr "Anterior"
+
+#. Koko TUI
+msgid "Quit"
+msgstr "Salir"
+
+#. Koko TUI
+msgid "Quitting will disconnect all asset sessions."
+msgstr "Al salir se desconectarán todas las sesiones de activos."
+
+#. Koko TUI
+msgid "Resize terminal to at least 72 × 20"
+msgstr "Amplíe el terminal a un mínimo de 72 × 20"
+
+#. Koko TUI
+msgid "Resize tree, or drag the divider"
+msgstr "Cambiar ancho del árbol o arrastrar el separador"
+
+#. Koko TUI
+msgid "Searching…"
+msgstr "Buscando…"
+
+#. Koko TUI
+msgid "Select"
+msgstr "Seleccionar"
+
+#. Koko TUI
+msgid "Select account"
+msgstr "Seleccionar cuenta"
+
+#. Koko TUI
+msgid "Send literal Ctrl+]"
+msgstr "Enviar Ctrl+] literal"
+
+#. Koko TUI
+msgid "Session ended"
+msgstr "Sesión finalizada"
+
+#. Koko TUI
+msgid "Sessions"
+msgstr "Sesiones"
+
+#. Koko TUI
+msgid "Show/hide navigation"
+msgstr "Mostrar/ocultar navegación"
+
+#. Koko TUI
+msgid "Terminal"
+msgstr "Terminal"
+
+#. Koko TUI
+msgid "Tree limit reached; refresh this view"
+msgstr "Se alcanzó el límite de nodos; actualice esta vista"
+
+#. Koko TUI
+msgid "Tree view"
+msgstr "Tipo de árbol"
+
+#. Koko TUI
+msgid "Types"
+msgstr "Tipos"
+
+#. Koko TUI
+msgid "Width"
+msgstr "Ancho"
+
+#. Koko TUI
+msgid "Window bar"
+msgstr "Barra de ventanas"
+
+msgid "Authorization tree"
+msgstr "Árbol de autorizaciones"
+
+msgid "Type tree"
+msgstr "Árbol de tipos"
+
+msgid "Favorites tree"
+msgstr "Árbol de favoritos"
+
+msgid "Load failed"
+msgstr "Error al cargar"
+
+msgid "Global organization"
+msgstr "Organización global"
+
+msgid "Asset panel"
+msgstr "Panel de activos"
+
+msgid "Mode"
+msgstr "Modo"
+
+msgid "Accent color"
+msgstr "Color de acento"
+
+msgid "Dark theme"
+msgstr "Tema oscuro"
+
+msgid "Light theme"
+msgstr "Tema claro"
+
+msgid "Teal"
+msgstr "Verde azulado"
+
+msgid "Blue"
+msgstr "Azul"
+
+msgid "Green"
+msgstr "Verde"
+
+msgid "Purple"
+msgstr "Morado"
+
+msgid "Rose"
+msgstr "Rosa"
+
+msgid "Amber"
+msgstr "Ámbar"
+
+msgid "Orange"
+msgstr "Naranja"
+
+msgid "Pink"
+msgstr "Rosa"
+
+msgid "Cyan"
+msgstr "Cian"
+
+msgid "Gray"
+msgstr "Gris"
+
+msgid "Red"
+msgstr "Rojo"
+
+msgid "Lime"
+msgstr "Lima"
+
+msgid "Duplicate"
+msgstr "Duplicar"
+
+msgid "Disconnect"
+msgstr "Desconectar"
+
+msgid "Duplicate session"
+msgstr "Duplicar sesión"
+
+msgid "More sessions"
+msgstr "Más sesiones"
+
+msgid "Fullscreen"
+msgstr "Pantalla completa"
+
+msgid "Exit fullscreen"
+msgstr "Salir de pantalla completa"
+
+msgid "Reset accent"
+msgstr "Restablecer color"
+
+msgid "Quit this Koko SSH session?"
+msgstr "¿Salir de esta sesión SSH de Koko?"

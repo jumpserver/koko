@@ -28,7 +28,6 @@ type Config struct {
 	WebProxyEnabled          bool   `mapstructure:"WEB_PROXY_ENABLED"`
 	WebProxyBindHost         string `mapstructure:"WEB_PROXY_BIND_HOST"`
 	WebProxyPort             string `mapstructure:"WEB_PROXY_PORT"`
-	WebProxyAllowedHosts     string `mapstructure:"WEB_PROXY_ALLOWED_HOSTS"`
 	WebProxyRecordingEnabled bool   `mapstructure:"WEB_PROXY_RECORDING_ENABLED"`
 	WebProxyFFmpegPath       string `mapstructure:"WEB_PROXY_FFMPEG_PATH"`
 	SSHTimeout               int    `mapstructure:"SSH_TIMEOUT"`
@@ -40,7 +39,6 @@ type Config struct {
 	LanguageCode        string `mapstructure:"LANGUAGE_CODE"`
 	UploadFailedReplay  bool   `mapstructure:"UPLOAD_FAILED_REPLAY_ON_START"`
 	UploadFailedFTPFile bool   `mapstructure:"UPLOAD_FAILED_FTP_FILE_ON_START"`
-	AssetLoadPolicy     string `mapstructure:"ASSET_LOAD_POLICY"` // all
 	ZipMaxSize          string `mapstructure:"ZIP_MAX_SIZE"`
 	ZipTmpPath          string `mapstructure:"ZIP_TMP_PATH"`
 	ClientAliveInterval int    `mapstructure:"CLIENT_ALIVE_INTERVAL"`
@@ -176,7 +174,6 @@ func getDefaultConfig() Config {
 		WebProxyEnabled:          true,
 		WebProxyBindHost:         "127.0.0.1",
 		WebProxyPort:             "5001",
-		WebProxyAllowedHosts:     "*",
 		WebProxyRecordingEnabled: true,
 		WebProxyFFmpegPath:       "ffmpeg",
 		AccessKeyFilePath:        accessKeyFilePath,
@@ -199,7 +196,6 @@ func getDefaultConfig() Config {
 		UploadFailedFTPFile:    true,
 		ShowHiddenFile:         false,
 		ReuseConnection:        true,
-		AssetLoadPolicy:        "",
 		ZipMaxSize:             "1024M",
 		ZipTmpPath:             "/tmp",
 		ClientAliveInterval:    30,

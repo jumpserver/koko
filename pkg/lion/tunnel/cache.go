@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"context"
 	"sync"
 
 	"github.com/jumpserver-dev/sdk-go/common"
@@ -23,6 +24,7 @@ type GuaTunnelCache interface {
 	RangeActiveSessionIds() []string
 	RangeActiveUserIds() map[string]struct{}
 	GetBySessionId(sid string) *Connection
+	HasSession(ctx context.Context, sid string) (bool, error)
 	GetMonitorTunnelerBySessionId(sid string) Tunneler
 	RemoveMonitorTunneler(sid string, monitorTunnel Tunneler)
 

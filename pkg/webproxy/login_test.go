@@ -86,16 +86,19 @@ func TestScriptCredentialOriginAndOneTimeRelease(t *testing.T) {
 			{Step: 2, Command: "success", Target: "id=dashboard"},
 		},
 	}}
-	proxy, err := NewServer("127.0.0.1", "0", "*", "", "", service)
+	proxy, err := NewServer("127.0.0.1", "0", "", "", service)
 	if err != nil {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(proxy)
 	defer server.Close()
+	defer proxy.stopProxySessions()
 	key, _ := ecdh.X25519().GenerateKey(rand.Reader)
 	publicKey, _ := x509.MarshalPKIXPublicKey(key.PublicKey())
 	request, _ := json.Marshal(createCredentialSessionRequest{TokenID: "token-id", TokenValue: "token-value", ClientPublicKey: base64.StdEncoding.EncodeToString(publicKey)})
-	response, err := http.Post(server.URL+credentialPathPrefix, "application/json", bytes.NewReader(request))
+	httpRequest, _ := http.NewRequest(http.MethodPost, server.URL+credentialPathPrefix, bytes.NewReader(request))
+	httpRequest.Header.Set("X-Koko-Connect-Ticket", testConnectTicket(token))
+	response, err := http.DefaultClient.Do(httpRequest)
 	if err != nil {
 		t.Fatal(err)
 	}

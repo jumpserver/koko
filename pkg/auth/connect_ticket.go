@@ -79,6 +79,12 @@ func (s *ConnectTicketStore) Get(ticketID string) (*ConnectTicket, bool) {
 	return ticket, true
 }
 
+func (s *ConnectTicketStore) Delete(ticketID string) {
+	s.mu.Lock()
+	delete(s.items, ticketID)
+	s.mu.Unlock()
+}
+
 func (s *ConnectTicketStore) runGC() {
 	ticker := time.NewTicker(connectTicketCleanupStep)
 	defer ticker.Stop()

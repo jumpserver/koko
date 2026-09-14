@@ -68,7 +68,7 @@ func (l LanguageCode) CoreCode() string {
 
 func (l LanguageCode) T(s string) string {
 	if lang, ok := langMap[l]; ok {
-		return lang.Get(s)
+		return lang.Get(s, []any{}...)
 	}
 	return s
 }
