@@ -116,7 +116,7 @@ func parseMongoDBCommand(command string) (bson.D, error) {
 	matches := mongoDBRunCommandPattern.FindStringSubmatch(command)
 	if len(matches) != 2 {
 		return nil, fmt.Errorf(
-			"MongoDB background execution requires db.runCommand with strict Extended JSON",
+			"MongoDB command execution requires db.runCommand with strict Extended JSON in every execution mode",
 		)
 	}
 	var document bson.D

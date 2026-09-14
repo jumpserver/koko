@@ -109,8 +109,8 @@ func commandToolPresentation(protocol string) (title, description, commandDescri
 			"Exactly one Redis command using Redis command syntax."
 	case protocol == srvconn.ProtocolMongoDB:
 		return "Execute MongoDB command",
-			"Execute exactly one bounded MongoDB command against the active audited database connection.",
-			"Exactly one MongoDB shell command supported by the active connection."
+			"Execute exactly one bounded db.runCommand call with strict Extended JSON against the active audited MongoDB connection. This syntax is required in every execution mode; arbitrary mongosh JavaScript and shell helpers are unavailable.",
+			"One db.runCommand call containing a non-empty strict Extended JSON document. Double-quote all keys and string values. Use Extended JSON values instead of JavaScript constructors. Collection methods, shell helpers, variables and JavaScript expressions are unsupported."
 	case protocol == srvconn.ProtocolK8s:
 		return "Execute Kubernetes shell command",
 			"Execute one bounded shell command inside the active audited Kubernetes terminal.",
