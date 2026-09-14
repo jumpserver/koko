@@ -35,6 +35,7 @@ const (
 )
 
 type webProxyService interface {
+	GetPublicSetting() (model.PublicSetting, error)
 	GetConnectTokenInfo(tokenID string, expireNow bool) (webConnectToken, error)
 	CreateSession(session model.Session) (model.Session, error)
 	SessionDisconnect(sessionID string) (model.Session, error)

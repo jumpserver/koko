@@ -356,6 +356,15 @@ func (s *Server) cancelRecording(w http.ResponseWriter, id string) {
 }
 
 func (s *Server) startRecording(w http.ResponseWriter, r *http.Request, sessionID string) {
+	setting, err := s.coreService.GetPublicSetting()
+	if err != nil {
+		http.Error(w, "Unable to validate Web recording license", http.StatusServiceUnavailable)
+		return
+	}
+	if !setting.ValidLicense {
+		http.Error(w, "Web recording requires a valid enterprise license", http.StatusForbidden)
+		return
+	}
 	var request struct {
 		SessionID string `json:"session_id"`
 		TargetURL string `json:"target_url"`

@@ -22,6 +22,8 @@ import (
 )
 
 type fakeConnectTokenService struct {
+	licenseInvalid    bool
+	licenseError      error
 	token             model.ConnectToken
 	config            webLoginConfig
 	calls             []bool
@@ -31,6 +33,10 @@ type fakeConnectTokenService struct {
 	uploadedReplay    []byte
 	uploadedVersion   model.ReplayVersion
 	replaySize        int64
+}
+
+func (f *fakeConnectTokenService) GetPublicSetting() (model.PublicSetting, error) {
+	return model.PublicSetting{ValidLicense: !f.licenseInvalid}, f.licenseError
 }
 
 func (f *fakeConnectTokenService) GetConnectTokenInfo(_ string, expireNow bool) (webConnectToken, error) {
