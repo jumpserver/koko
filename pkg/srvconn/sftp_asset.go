@@ -513,6 +513,12 @@ func (ad *AssetDir) rename(oldNamePath, newNamePath string, overwrite bool) (err
 	defer conn1.DecreaseRef()
 	filename := fmt.Sprintf("%s=>%s", oldRealPath, newRealPath)
 	operate := model.OperateRename
+	if !overwrite {
+		if _, statErr := conn1.client.Stat(newRealPath); statErr == nil {
+			ad.CreateFTPLog(su, operate, filename, false)
+			return fmt.Errorf("file already exists")
+		}
+	}
 	if overwrite {
 		err = conn1.client.PosixRename(oldRealPath, newRealPath)
 	} else {
@@ -521,6 +527,10 @@ func (ad *AssetDir) rename(oldNamePath, newNamePath string, overwrite bool) (err
 	if err != nil {
 		ad.CreateFTPLog(su, operate, filename, false)
 		return err
+	}
+	now := time.Now()
+	if chtimesErr := conn1.client.Chtimes(newRealPath, now, now); chtimesErr != nil {
+		logger.Debugf("Set rename mtime %s failed: %s", newRealPath, chtimesErr)
 	}
 	if fileInfo, err1 := conn2.client.Stat(newRealPath); err1 == nil && fileInfo.IsDir() {
 		operate = model.OperateRenameDir

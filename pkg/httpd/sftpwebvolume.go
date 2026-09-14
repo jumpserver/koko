@@ -248,8 +248,13 @@ func (u *UserWebVolume) Rename(oldNamePath, newName string) error {
 
 func (u *UserWebVolume) MakeDir(path string) error {
 	logger.Debug("WebVolume MakeDir")
-	err := u.UserSftp.MkdirAll(filepath.Join(u.basePath, path))
-	return err
+	target := filepath.Join(u.basePath, path)
+	if _, err := u.UserSftp.Stat(target); err == nil {
+		return fmt.Errorf("file already exists")
+	} else if !isTransferStageMissing(err) {
+		return err
+	}
+	return u.UserSftp.MkdirExact(target)
 }
 
 func (u *UserWebVolume) UploadFile(path string, reader io.Reader, totalSize int64) error {
