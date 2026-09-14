@@ -32,6 +32,7 @@ func AccentSwatch(index int) tcell.Color {
 type ThemeScreen struct {
 	tcell.Screen
 	forward, reverse map[tcell.Color]tcell.Color
+	syncPending      bool
 }
 
 func NewThemeScreen(screen tcell.Screen) *ThemeScreen {
@@ -50,6 +51,22 @@ func (s *ThemeScreen) SetPalette(p Palette) {
 	for base, color := range s.forward {
 		s.reverse[color] = base
 	}
+	// Sync clears the terminal before repainting. Use the current palette
+	// rather than exposing the client's default (often white) background.
+	s.Screen.SetStyle(tcell.StyleDefault.Foreground(p.Foreground).Background(p.Background))
+}
+
+// RequestSync repairs client-side IME damage after widgets finish drawing.
+// Repeated requests are coalesced into one complete frame on the UI loop.
+func (s *ThemeScreen) RequestSync() { s.syncPending = true }
+
+func (s *ThemeScreen) Show() {
+	if s.syncPending {
+		s.syncPending = false
+		s.Screen.Sync()
+		return
+	}
+	s.Screen.Show()
 }
 
 func paletteStyle(style tcell.Style, colors map[tcell.Color]tcell.Color) tcell.Style {

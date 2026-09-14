@@ -52,22 +52,27 @@ func (h *terminalUI) drawDropdown(screen tcell.Screen) {
 			width = max(width, tview.TaggedStringWidth(label)+digits+5)
 		}
 		width = min(width, max(1, sw))
-		rows := min(max(list.GetItemCount()+4, nativeHeight), max(1, sh))
+		verticalPadding := 1
+		if dropdown == h.org || dropdown == h.treeKind {
+			verticalPadding = 0
+		}
+		rows := min(max(list.GetItemCount()+2+2*verticalPadding, nativeHeight), max(1, sh))
 		x = max(0, min(x, sw-width))
 		y = max(0, min(y, sh-rows))
 		tuiBorder(list.Box, "", tui.FocusBorder)
-		list.SetBackgroundColor(tui.Panel).SetBorderPadding(1, 1, digits+3, 1)
+		list.SetBackgroundColor(tui.Panel).SetBorderPadding(verticalPadding, verticalPadding, digits+3, 1)
 		list.SetRect(x, y, width, rows)
+		_, row, _, visible := list.GetInnerRect()
 		offset, horizontal := list.GetOffset()
-		list.SetOffset(min(offset, max(0, list.GetItemCount()-max(1, rows-4))), horizontal)
+		list.SetOffset(min(offset, max(0, list.GetItemCount()-max(1, visible))), horizontal)
 		list.Draw(screen)
 		offset, _ = list.GetOffset()
-		for i := offset; i < min(list.GetItemCount(), offset+max(0, rows-4)); i++ {
+		for i := offset; i < min(list.GetItemCount(), offset+visible); i++ {
 			color := tui.Muted
 			if i == list.GetCurrentItem() {
 				color = tui.Foreground
 			}
-			tview.Print(screen, fmt.Sprintf("%*d", digits, i+1), x+2, y+2+i-offset, digits, tview.AlignRight, color)
+			tview.Print(screen, fmt.Sprintf("%*d", digits, i+1), x+2, row+i-offset, digits, tview.AlignRight, color)
 		}
 		return
 	}
@@ -100,11 +105,20 @@ func (h *terminalUI) rebuildNavigation() {
 type tuiNavigation struct {
 	*tview.Flex
 	drawFrame func(tcell.Screen)
+	paste     func(string, func(tview.Primitive)) bool
 }
 
 func (n *tuiNavigation) Draw(screen tcell.Screen) {
 	n.Flex.Draw(screen)
 	n.drawFrame(screen)
+}
+
+func (n *tuiNavigation) PasteHandler() func(string, func(tview.Primitive)) {
+	return func(text string, setFocus func(tview.Primitive)) {
+		if n.paste == nil || !n.paste(text, setFocus) {
+			n.Flex.PasteHandler()(text, setFocus)
+		}
+	}
 }
 
 func (h *terminalUI) drawNavigationFrame(screen tcell.Screen) {
@@ -120,34 +134,22 @@ func (h *terminalUI) drawNavigationFrame(screen tcell.Screen) {
 		_, row, _, rows := h.orgPane.GetRect()
 		orgDivider = min(bottom, row+rows-1)
 	}
-	focusTop, focusBottom := -1, -1
-	if !h.modal {
-		switch {
-		case h.organizationsEnabled && h.org.HasFocus():
-			focusTop, focusBottom = y, orgDivider
-		case h.treeHead.HasFocus():
-			focusTop, focusBottom = orgDivider, treeDivider
-		case h.tree.HasFocus():
-			focusTop, focusBottom = treeDivider, bottom
-		}
+	focused := !h.modal && (h.organizationsEnabled && h.org.HasFocus() || h.treeHead.HasFocus() || h.tree.HasFocus())
+	color := tui.Border
+	if focused {
+		color = tui.FocusBorder
 	}
-	style := func(row int) tcell.Style {
-		color := tui.Border
-		if row >= focusTop && row <= focusBottom {
-			color = tui.FocusBorder
-		}
-		return tcell.StyleDefault.Foreground(color).Background(tui.Panel)
-	}
+	style := tcell.StyleDefault.Foreground(color).Background(tui.Panel)
 	for row := y + 1; row < bottom; row++ {
-		screen.SetContent(x, row, '│', nil, style(row))
-		screen.SetContent(right, row, '│', nil, style(row))
+		screen.SetContent(x, row, '│', nil, style)
+		screen.SetContent(right, row, '│', nil, style)
 	}
 	horizontal := func(row int, leftCorner, rightCorner rune) {
 		for col := x + 1; col < right; col++ {
-			screen.SetContent(col, row, '─', nil, style(row))
+			screen.SetContent(col, row, '─', nil, style)
 		}
-		screen.SetContent(x, row, leftCorner, nil, style(row))
-		screen.SetContent(right, row, rightCorner, nil, style(row))
+		screen.SetContent(x, row, leftCorner, nil, style)
+		screen.SetContent(right, row, rightCorner, nil, style)
 	}
 	horizontal(y, '╭', '╮')
 	for _, divider := range []int{orgDivider, treeDivider} {
@@ -167,7 +169,7 @@ func (h *terminalUI) navigationWidth() int {
 	return min(max(24, h.sidebarWidth), max(24, min(72, w-43)))
 }
 
-func (h *terminalUI) updateLayout(now time.Time) {
+func (h *terminalUI) updateLayout() {
 	h.refreshShortcutLabels(h.shortcuts())
 	h.scrollSessionTabs()
 	w, height := h.screen.Size()
@@ -177,10 +179,6 @@ func (h *terminalUI) updateLayout(now time.Time) {
 	}
 	h.assetPane.ResizeItem(nil, listBottomGap, 0)
 	headerHeight := 3
-	text := now.Format(tuiClockLayout)
-	if h.clock.GetText(false) != text {
-		h.clock.SetText(text)
-	}
 	languageWidth := tview.TaggedStringWidth(h.language.GetLabel()) + 2
 	themeWidth := tview.TaggedStringWidth(h.appearance.GetLabel()) + 2
 	userWidth := min(32, tview.TaggedStringWidth(h.identity.GetText(false)))
@@ -210,13 +208,51 @@ func (h *terminalUI) updateLayout(now time.Time) {
 	h.treeHead.ResizeItem(h.treeKind, labelWidth+fieldWidth, 0)
 }
 
+func (h *terminalUI) clearSearch() {
+	h.search.SetText("")
+	// Reset horizontal scrolling before drawing the now-empty input, so
+	// the first frame already has a visible cursor for IME composition.
+	h.search.InputHandler()(tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone), func(tview.Primitive) {})
+	h.app.SetFocus(h.search)
+}
+
+func (h *terminalUI) configureSearchClear() {
+	const clearLabel = "Clear"
+	h.searchClear = tview.NewButton(clearLabel).
+		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel).Underline(true)).
+		SetActivatedStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel).Underline(true)).
+		SetSelectedFunc(h.clearSearch)
+	drawBorder := h.search.GetDrawFunc()
+	h.search.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		drawBorder(screen, x, y, width, height)
+		// Compute from the outer rectangle: GetInnerRect may still contain
+		// the previous frame's reserved space for the clear button.
+		x, y, width, height = x+2, y+1, max(0, width-4), max(0, height-2)
+		h.searchClear.SetRect(0, 0, 0, 0)
+		const clearWidth = len(clearLabel)
+		if h.search.GetText() != "" && height > 0 && width >= tview.TaggedStringWidth(h.search.GetLabel())+clearWidth+3 {
+			h.searchClear.SetRect(x+width-clearWidth, y, clearWidth, 1)
+			h.searchClear.Draw(screen)
+			width -= clearWidth + 1
+		}
+		return x, y, width, height
+	})
+	h.search.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		if h.search.GetText() != "" && h.searchClear.InRect(ev.Position()) {
+			h.searchClear.MouseHandler()(action, ev, func(tview.Primitive) { h.app.SetFocus(h.search) })
+			return tview.MouseConsumed, nil
+		}
+		return action, ev
+	})
+}
+
 func (h *terminalUI) resizeSidebar(delta int) {
 	if h.sidebarHidden {
 		h.toggleSidebar()
 	}
 	h.sidebarWidth = h.navigationWidth() + delta
 	h.sidebarWidth = h.navigationWidth()
-	h.updateLayout(time.Now())
+	h.updateLayout()
 }
 
 // Size against the visible list, not the longest remark. Narrow terminals keep
@@ -533,11 +569,21 @@ func (h *terminalUI) showFullText() {
 	}
 	view := tview.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
 		SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetText(tview.Unescape(text))
-	tuiDialogBorder(view.Box, h.tr("完整内容", "Full text"))
 	view.SetDoneFunc(func(k tcell.Key) {
 		if k == tcell.KeyEnter {
 			h.dismissModal()
 		}
 	})
-	h.openDialog("full-text", &tuiOverlay{Box: tview.NewBox(), child: view, width: 94, height: 24}, []tview.Primitive{view})
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").
+		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
+		SetActivatedStyle(tui.Selected).
+		SetSelectedFunc(h.dismissModal)
+	content := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(view, 0, 1, true).
+		AddItem(nil, 1, 0, false).
+		AddItem(close, 1, 0, false)
+	content.Box = tview.NewBox()
+	content.SetBackgroundColor(tui.Panel)
+	tuiDialogBorder(content.Box, h.tr("完整内容", "Full text"))
+	h.openDialog("full-text", &tuiOverlay{Box: tview.NewBox(), child: content, width: 94, height: 24}, []tview.Primitive{view, close})
 }

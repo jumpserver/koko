@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
+
+	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 const tuiPageSize = 50
@@ -58,7 +62,7 @@ type tuiScope struct {
 }
 
 type tuiData struct {
-	api          *service.JMService
+	api, userAPI *service.JMService
 	userID, lang string
 }
 
@@ -79,6 +83,35 @@ func (d tuiData) userPath(suffix string) string {
 // internally, then use the org-scoped user list to verify membership. Only
 // verified memberships are exposed to the logged-in user.
 func (d tuiData) organizations(ctx context.Context, first func(tuiOrganization)) ([]tuiOrganization, error) {
+	if d.userAPI != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		var permissions struct {
+			WorkbenchOrganizations []tuiOrganization `json:"workbench_orgs"`
+		}
+		_, err := d.userAPI.Call("GET", "/api/v1/users/profile/permissions/", nil, &permissions)
+		if err != nil {
+			return nil, err
+		}
+		seen := make(map[string]struct{}, len(permissions.WorkbenchOrganizations))
+		orgs := make([]tuiOrganization, 0, len(permissions.WorkbenchOrganizations))
+		for _, org := range permissions.WorkbenchOrganizations {
+			if org.ID == "" || org.ID == tuiGlobalOrganizationID {
+				continue
+			}
+			if _, ok := seen[org.ID]; ok {
+				continue
+			}
+			seen[org.ID] = struct{}{}
+			orgs = append(orgs, org)
+		}
+		if len(orgs) > 0 && first != nil {
+			first(orgs[0])
+		}
+		return orgs, ctx.Err()
+	}
+
 	var orgs []tuiOrganization
 	var firstMember sync.Once
 	c := d.client("ROOT")
@@ -164,13 +197,21 @@ func (d tuiData) tree(scope tuiScope, cursor string) (tuiTreePage, error) {
 	return page, err
 }
 
-func (d tuiData) assets(scope tuiScope, search string, offset int) (model.PaginationResponse, error) {
+func tuiAssetListParams(search string, offset int) map[string]string {
+	return map[string]string{
+		"limit":  strconv.Itoa(tuiPageSize),
+		"offset": strconv.Itoa(offset),
+		"search": search,
+		"order":  "name",
+	}
+}
+
+func (d tuiData) assets(scope tuiScope, search string, offset int) (model.PaginationResponse, map[string]bool, error) {
 	var page model.PaginationResponse
 	if scope.Org.ID == "" {
-		return page, fmt.Errorf("select an organization first")
+		return page, nil, fmt.Errorf("select an organization first")
 	}
-	params := map[string]string{"limit": strconv.Itoa(tuiPageSize), "offset": strconv.Itoa(offset),
-		"search": search, "order": "name", "is_active": "true"}
+	params := tuiAssetListParams(search, offset)
 	path := "assets/"
 	switch scope.Mode {
 	case 0:
@@ -187,7 +228,32 @@ func (d tuiData) assets(scope tuiScope, search string, offset int) (model.Pagina
 		params["folder_id"] = scope.FolderID
 	}
 	_, err := d.client(scope.Org.ID).Call("GET", d.userPath(path), nil, &page, params)
-	return page, err
+	if err != nil || len(page.Data) == 0 {
+		return page, nil, err
+	}
+
+	ids := make([]string, 0, len(page.Data))
+	for _, asset := range page.Data {
+		ids = append(ids, asset.ID)
+	}
+	protocols := srvconn.SupportedProtocols()
+	sort.Strings(protocols)
+	var supported model.PaginationResponse
+	_, err = d.client(scope.Org.ID).Call("GET", d.userPath(path), nil, &supported, map[string]string{
+		"limit":     strconv.Itoa(len(ids)),
+		"offset":    "0",
+		"id__in":    strings.Join(ids, ","),
+		"protocols": strings.Join(protocols, ","),
+	})
+	connectable := make(map[string]bool, len(supported.Data))
+	if err != nil {
+		logger.Errorf("TUI asset protocol support lookup failed: %s", err)
+		return page, connectable, nil
+	}
+	for _, asset := range supported.Data {
+		connectable[asset.ID] = true
+	}
+	return page, connectable, nil
 }
 
 func nextTreeCursor(link string) string {
