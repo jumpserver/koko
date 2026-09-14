@@ -79,7 +79,7 @@ func analyzeSQL(statement string) (sqlAnalysis, error) {
 		"PURGE", "FLUSH", "INSTALL", "UNINSTALL":
 		analysis.kind = sqlWrite
 	case "USE", "SET", "BEGIN", "START", "COMMIT", "ROLLBACK",
-		"SAVEPOINT", "RELEASE", "LOCK", "UNLOCK":
+		"SAVEPOINT", "RELEASE", "LOCK", "UNLOCK", "EXEC", "EXECUTE":
 		analysis.kind = sqlSession
 	default:
 		analysis.kind = sqlUnknown
