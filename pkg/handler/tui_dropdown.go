@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -14,6 +15,131 @@ type tuiAccountSearch struct {
 	picker  *tview.DropDown
 	field   *tview.InputField
 	matches []int
+}
+
+func (s *tuiAccountSearch) handleKey(ev *tcell.EventKey) bool {
+	switch ev.Key() {
+	case tcell.KeyRune, tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyDelete,
+		tcell.KeyLeft, tcell.KeyRight, tcell.KeyCtrlW:
+		s.field.InputHandler()(ev, func(tview.Primitive) {})
+		return true
+	case tcell.KeyCtrlU:
+		s.field.SetText("")
+		return true
+	}
+	return false
+}
+
+type tuiNavigationSearch struct {
+	picker *tview.DropDown
+	field  *tview.InputField
+}
+
+// DropDown's private prefix field handles text without drawing a cursor. Use
+// one visible input field instead, so local IME composition has a caret anchor.
+func (h *terminalUI) navigationSearchFor(d *tview.DropDown) *tview.InputField {
+	if d == nil || d != h.org && d != h.treeKind {
+		return nil
+	}
+	if h.navigationSearch == nil || h.navigationSearch.picker != d {
+		field := tview.NewInputField().SetFieldTextColor(tui.Foreground).
+			SetFieldBackgroundColor(tui.Panel).SetPlaceholderTextColor(tui.Foreground)
+		field.SetBackgroundColor(tui.Panel)
+		field.SetChangedFunc(func(prefix string) {
+			if prefix == "" || !d.IsOpen() {
+				return
+			}
+			d.Focus(func(p tview.Primitive) {
+				list := p.(*tview.List)
+				for index := range list.GetItemCount() {
+					text, _ := list.GetItemText(index)
+					// Navigation labels are escaped; each list item has one
+					// padding space on either side from SetTextOptions.
+					text = tview.Unescape(strings.TrimSuffix(strings.TrimPrefix(text, " "), " "))
+					if strings.HasPrefix(strings.ToLower(text), strings.ToLower(prefix)) {
+						list.SetCurrentItem(index)
+						break
+					}
+				}
+			})
+		})
+		h.navigationSearch = &tuiNavigationSearch{picker: d, field: field}
+	}
+	field := h.navigationSearch.field
+	if !d.IsOpen() {
+		field.SetText("")
+	}
+	return field
+}
+
+func (h *terminalUI) drawNavigationSearch(screen tcell.Screen) {
+	d := h.focusedDropdown()
+	field := h.navigationSearchFor(d)
+	if field == nil {
+		h.navigationSearch = nil
+		return
+	}
+	x, y, width, height := d.GetInnerRect()
+	labelWidth := tview.TaggedStringWidth(d.GetLabel())
+	width = min(width-labelWidth, d.GetFieldWidth())
+	if width < 1 || height < 1 {
+		return
+	}
+	_, selected := d.GetCurrentOption()
+	field.SetPlaceholder(tview.Unescape(selected)).SetRect(x+labelWidth, y, width, 1)
+	field.Focus(nil)
+	field.Draw(screen)
+	field.Blur()
+	screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
+}
+
+func (h *terminalUI) pasteNavigationSearch(text string, setFocus func(tview.Primitive)) bool {
+	field := h.navigationSearchFor(h.focusedDropdown())
+	if field == nil {
+		return false
+	}
+	h.openFocusedDropdown()
+	field.PasteHandler()(text, setFocus)
+	return true
+}
+
+// Keep a dialog dropdown arrow immediately inside its right border, outside
+// the native text area. The dialog fields have a border and one left pad cell.
+func pinDialogDropdownIndicator(d *tview.DropDown) {
+	drawBorder := d.GetDrawFunc()
+	d.SetDrawFunc(func(s tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		if drawBorder != nil {
+			drawBorder(s, x, y, width, height)
+		}
+		innerX, innerY := x+2, y+1
+		innerWidth, innerHeight := max(0, width-4), max(0, height-2)
+		if innerWidth < 3 || innerHeight < 1 {
+			return innerX, innerY, innerWidth, innerHeight
+		}
+		s.SetContent(x+width-3, innerY, '▾', nil, tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
+		return innerX, innerY, innerWidth - 2, innerHeight
+	})
+}
+
+func pinNavigationDropdownIndicator(d *tview.DropDown) {
+	d.SetTextOptions(" ", " ", "", "", " … ")
+	d.SetDrawFunc(func(s tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		if width < 3 || height < 1 {
+			return x, y, width, height
+		}
+		s.SetContent(x+width-1, y, '▾', nil, tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
+		return x, y, width - 2, height
+	})
+	d.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		x, y, width, _ := d.GetRect()
+		mx, my := ev.Position()
+		if !d.IsOpen() && width >= 3 && my == y && mx >= x+width-2 && mx < x+width {
+			// The reserved arrow is outside GetInnerRect. Route its click to
+			// the same native field handler, preserving focus and list routing.
+			ev = tcell.NewEventMouse(x, y, ev.Buttons(), ev.Modifiers())
+		}
+		return action, ev
+	})
 }
 
 func (h *terminalUI) accountSearchFor(d *tview.DropDown) *tuiAccountSearch {
@@ -59,7 +185,7 @@ func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 			labelWidth = max(labelWidth, tview.TaggedStringWidth(picker.GetLabel()))
 		}
 	}
-	frame := tview.NewBox().SetBorderPadding(1, 1, digits+3, 2)
+	frame := tview.NewBox().SetBorderPadding(0, 0, digits+3, 2)
 	tuiBorder(frame, "", tui.FocusBorder)
 	// Flex supplies a transparent Box, so the native, unbounded rectangle is
 	// never cleared. Keep the native input capture and delegated list focus.
@@ -67,19 +193,15 @@ func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 	list.Box = tview.NewFlex().Box
 	list.SetInputCapture(capture)
 	search := h.accountSearchFor(d)
+	topPadding := 0
 	if search != nil {
+		topPadding = 2 // Search row and separator, followed immediately by options.
 		list.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-			switch ev.Key() {
-			case tcell.KeyRune, tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyDelete, tcell.KeyLeft, tcell.KeyRight, tcell.KeyCtrlW:
-				search.field.InputHandler()(ev, func(tview.Primitive) {})
+			if search.handleKey(ev) {
 				return nil
-			case tcell.KeyCtrlU:
-				search.field.SetText("")
+			}
+			if ev.Key() == tcell.KeyEnter && len(search.matches) == 0 {
 				return nil
-			case tcell.KeyEnter:
-				if len(search.matches) == 0 {
-					return nil
-				}
 			}
 			return capture(ev)
 		})
@@ -93,18 +215,25 @@ func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 		w := min(max(width, dw-labelWidth), max(1, sw-2))
 		x := max(0, min(dx+labelWidth, sw-w-1))
 		below, above := max(0, sh-dy-2), max(0, dy-1)
-		height := min(min(list.GetItemCount(), tuiDropdownVisibleItems)+4, max(below, above))
+		height := min(min(list.GetItemCount(), tuiDropdownVisibleItems)+topPadding+2, max(below, above))
 		y := dy + 1
 		if below < height {
 			y = dy - height
 		}
 		list.SetRect(x, y, w, height)
 		digits := len(strconv.Itoa(list.GetItemCount()))
-		frame.SetBorderPadding(1, 1, digits+3, 2)
+		frame.SetBorderPadding(topPadding, 0, digits+3, 2)
 		frame.SetRect(x, y, w, height)
 		frame.SetBackgroundColor(tui.Panel).SetBorderColor(tui.FocusBorder)
 		frame.Draw(screen)
 		if search != nil {
+			separator := tcell.StyleDefault.Foreground(tui.Border).Background(tui.Panel)
+			for col := x + 1; col < x+w-1; col++ {
+				screen.SetContent(col, y+2, '─', nil, separator)
+			}
+			corners := separator.Foreground(tui.FocusBorder)
+			screen.SetContent(x, y+2, '├', nil, corners)
+			screen.SetContent(x+w-1, y+2, '┤', nil, corners)
 			search.field.SetRect(x+2, y+1, max(0, w-4), 1)
 			search.field.Focus(nil)
 			search.field.Draw(screen)
@@ -115,7 +244,7 @@ func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 				list.SetSelectedStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))
 			}
 		}
-		visible := max(0, height-4)
+		_, row, _, visible := frame.GetInnerRect()
 		if visible == 0 {
 			return x, y, 0, 0
 		}
@@ -132,17 +261,17 @@ func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 			if i == current {
 				color = tui.Foreground
 			}
-			tview.Print(screen, fmt.Sprintf("%*d", digits, i+1), x+2, y+2+i-offset, digits, tview.AlignRight, color)
+			tview.Print(screen, fmt.Sprintf("%*d", digits, i+1), x+2, row+i-offset, digits, tview.AlignRight, color)
 		}
 		if count > visible {
 			thumb := max(1, visible*visible/count)
 			start := (visible - thumb) * offset / (count - visible)
-			for row := range visible {
+			for index := range visible {
 				glyph, color := '│', tui.Border
-				if row >= start && row < start+thumb {
+				if index >= start && index < start+thumb {
 					glyph, color = '█', tui.Accent
 				}
-				screen.SetContent(x+w-2, y+2+row, glyph, nil, tcell.StyleDefault.Foreground(color).Background(tui.Panel))
+				screen.SetContent(x+w-2, row+index, glyph, nil, tcell.StyleDefault.Foreground(color).Background(tui.Panel))
 			}
 		}
 		return frame.GetInnerRect()

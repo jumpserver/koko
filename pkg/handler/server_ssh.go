@@ -238,7 +238,15 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 		}
 		defer screen.Fini()
 		logger.Infof("User %s request pty %s", sess.User(), pty.Term)
-		ui := newTerminalUI(sess, user, s.jmsService, termConf, screen)
+		var bearerToken string
+		if client, ok := sess.Context().Value(auth.ContextKeyClient).(*auth.UserAuthClient); ok {
+			bearerToken = client.BearerToken()
+		}
+		userAPI, userAPIErr := newUserAPIClient(bearerToken, getUserDefaultLangCode(user))
+		if userAPIErr != nil {
+			logger.Warnf("Initialize TUI user API: %s", userAPIErr)
+		}
+		ui := newTerminalUI(sess, user, s.jmsService, userAPI, termConf, screen)
 		ui.shutdown = s.tuiShutdown
 		if err = ui.run(); err != nil {
 			logger.Errorf("TUI session %s: %s", sess.User(), err)

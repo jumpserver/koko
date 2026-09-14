@@ -122,12 +122,28 @@ func (h *terminalUI) cycleFocus(backward bool) bool {
 }
 
 func (h *terminalUI) input(ev *tcell.EventKey) *tcell.EventKey {
+	if ev.Key() == tuiWakeKey {
+		h.dirty.Store(false)
+	}
 	h.drainUpdates()
 	if ev.Key() == tuiWakeKey {
+		if h.resyncAfterInput {
+			h.resyncAfterInput = false
+			h.themeScreen.RequestSync()
+		}
 		if !h.dropdownNumberDue.IsZero() && !time.Now().Before(h.dropdownNumberDue) {
 			h.commitDropdownNumber()
 		}
 		return nil
+	}
+	remoteInput := !h.modal && h.popup != nil && h.popup.HasFocus()
+	if ev.Key() == tcell.KeyRune && ev.Rune() > 127 {
+		// Terminal.app may shift cells while composing text locally. The
+		// resulting damage is invisible to tcell's diff buffer. Repair the
+		// completed frame on the next wake, including an active asset session.
+		// The original event still reaches its input field or remote terminal.
+		h.resyncAfterInput = true
+		h.dirty.Store(true)
 	}
 	h.lastInput = time.Now()
 	if ev.Key() != tcell.KeyRune || ev.Rune() < '0' || ev.Rune() > '9' {
@@ -151,17 +167,37 @@ func (h *terminalUI) input(ev *tcell.EventKey) *tcell.EventKey {
 		h.windowPrefix = false // Unknown window commands cancel without reaching SSH.
 		return nil
 	}
+	if d := h.focusedDropdown(); d == h.org || d == h.treeKind {
+		switch ev.Key() {
+		case tcell.KeyEnter, tcell.KeyUp, tcell.KeyDown, tcell.KeyPgUp, tcell.KeyPgDn,
+			tcell.KeyHome, tcell.KeyEnd, tcell.KeyEscape, tcell.KeyTab, tcell.KeyBacktab:
+			// Selection and navigation keep the native dropdown routing.
+		default:
+			field := h.navigationSearchFor(d)
+			h.openFocusedDropdown()
+			field.InputHandler()(ev, func(tview.Primitive) {})
+			return nil
+		}
+	}
 	if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
-		if d := h.focusedDropdown(); d != nil && !d.IsOpen() {
-			if ev.Key() == tcell.KeyEnter && h.dialogs[len(h.dialogs)-1].defaultButton != nil {
-				return nil // Enter belongs to the dialog action, even when disabled.
-			}
-			switch ev.Key() {
-			case tcell.KeyEnter, tcell.KeyRune, tcell.KeyUp, tcell.KeyDown, tcell.KeyHome, tcell.KeyEnd, tcell.KeyPgUp, tcell.KeyPgDn:
-				h.openFocusedDropdown()
-				if ev.Key() == tcell.KeyEnter || ev.Key() == tcell.KeyDown {
-					return nil
+		if d := h.focusedDropdown(); d != nil {
+			if !d.IsOpen() {
+				if ev.Key() == tcell.KeyEnter && h.dialogs[len(h.dialogs)-1].defaultButton != nil {
+					return nil // Enter belongs to the dialog action, even when disabled.
 				}
+				switch ev.Key() {
+				case tcell.KeyEnter, tcell.KeyRune, tcell.KeyUp, tcell.KeyDown, tcell.KeyHome, tcell.KeyEnd, tcell.KeyPgUp, tcell.KeyPgDn:
+					h.openFocusedDropdown()
+					if ev.Key() == tcell.KeyEnter || ev.Key() == tcell.KeyDown {
+						return nil
+					}
+				}
+			}
+			// The account menu owns a visible search field. Consume editing keys
+			// here so the DropDown's hidden native prefix cannot draw the same
+			// query inside the closed account field.
+			if search := h.accountSearchFor(d); search != nil && d.IsOpen() && search.handleKey(ev) {
+				return nil
 			}
 		}
 	}
@@ -173,7 +209,7 @@ func (h *terminalUI) input(ev *tcell.EventKey) *tcell.EventKey {
 			return nil
 		}
 	}
-	if !h.modal && h.popup != nil && h.popup.HasFocus() {
+	if remoteInput {
 		h.popup.InputHandler()(ev, func(tview.Primitive) {})
 		return nil
 	}
@@ -307,25 +343,21 @@ func (h *terminalUI) setWindowHelp() {
 	remote := !h.modal && h.popup != nil && h.popup.HasFocus()
 	bindings := h.shortcuts()
 	h.refreshShortcutLabels(bindings)
-	helpKey := "h"
-	if tuiShortcutAvailable(bindings, "help", "Ctrl+] h") {
-		helpKey = "Ctrl+] h"
-	}
 	focusLabel := h.tr("切换区域", "Switch region")
 	if h.modal {
 		focusLabel = h.tr("切换控件", "Focus")
 	}
-	// Keep Help first outside session input. Unavailable keys remain dim;
-	// the full command list is available through Help.
+	// Keep Help first outside session input. The footer only shows actions that
+	// are available in the current control; Help contains the complete list.
 	hints := []tuiShortcut{
-		{id: "help", label: helpKey, description: h.tr("帮助", "Help")},
+		{id: "help", label: "h", description: h.tr("帮助", "Help")},
 		{id: "focus", label: "Tab", description: focusLabel},
 		{id: "control", label: "Enter", description: h.tr("确认", "Confirm")},
 		{id: "full-text", label: "v", description: h.tr("详情", "Details")},
 		{id: "back", label: "Esc", description: h.tr("返回", "Back")},
 	}
 	if remote && !h.windowPrefix {
-		hints = []tuiShortcut{{id: "window", label: "Ctrl+]", description: h.tr("激活快捷键", "Activate shortcuts")}}
+		hints = []tuiShortcut{{id: "window", label: "Ctrl+]", description: h.tr("窗口栏", "Window bar")}}
 	} else if h.windowPrefix {
 		hints = hints[:1]
 		for _, binding := range bindings {
@@ -336,8 +368,14 @@ func (h *terminalUI) setWindowHelp() {
 	} else if len(h.sessions) > 0 {
 		hints = append(hints, tuiShortcut{id: "window", label: "Ctrl+]", description: h.tr("窗口栏", "Window bar")})
 	}
+	if tuiShortcutAvailable(bindings, "clear-search", "Ctrl+U") {
+		hints = append(hints, tuiShortcut{id: "clear-search", label: "Ctrl+U", description: h.tr("清空搜索", "Clear search")})
+	}
+	if tuiShortcutAvailable(bindings, "quit", "Ctrl+C") {
+		hints = append(hints, tuiShortcut{id: "quit", label: "Ctrl+C", description: h.tr("退出", "Quit")})
+	}
 	w, _ := h.screen.Size()
-	width := max(1, w-tuiClockWidth-5)
+	width := max(1, w-4)
 	if h.fullscreen {
 		width = max(1, w-2)
 	}
@@ -346,9 +384,18 @@ func (h *terminalUI) setWindowHelp() {
 	for _, binding := range hints {
 		label := binding.label
 		enabled := tuiShortcutAvailable(bindings, binding.id, binding.label)
+		if !enabled {
+			continue
+		}
 		key := strings.ReplaceAll(tuiKeyText(label, enabled), "::bu]", "::u]")
 		hint := key + " " + binding.description
 		joined := strings.Join(append(hintsText, hint), " · ")
+		if binding.id == "quit" {
+			for len(hintsText) > 0 && tview.TaggedStringWidth(joined) > width {
+				hintsText = hintsText[:len(hintsText)-1]
+				joined = strings.Join(append(hintsText, hint), " · ")
+			}
+		}
 		if tview.TaggedStringWidth(joined) > width {
 			continue
 		}

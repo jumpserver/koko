@@ -135,31 +135,6 @@ func (h *terminalUI) selectFirstTreeNode() {
 	h.tree.SetCurrentNode(node)
 }
 
-// Reveal the list's scope without selecting a different node or reloading assets.
-func (h *terminalUI) focusAssetNode() {
-	h.focusArea(h.tree)
-	root := h.tree.GetRoot()
-	if root == nil {
-		return
-	}
-	var reveal func(*tview.TreeNode) bool
-	reveal = func(node *tview.TreeNode) bool {
-		if ref, ok := node.GetReference().(*tuiNodeRef); ok && !ref.more && ref.scope == h.scope && (node != root || h.scope.Mode != 0) {
-			h.tree.SetCurrentNode(node)
-			return true
-		}
-		for _, child := range node.GetChildren() {
-			if reveal(child) {
-				node.SetExpanded(true)
-				h.refreshNodeLabel(node)
-				return true
-			}
-		}
-		return false
-	}
-	reveal(root)
-}
-
 // tview scrolls the viewport without moving its cursor, then pulls an off-screen
 // cursor back into view on the next redraw (clock tick, metrics or page load).
 // Keep the navigation cursor at the nearest visible row while the wheel moves;

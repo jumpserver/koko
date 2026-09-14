@@ -59,7 +59,10 @@ func (o *tuiOverlay) PasteHandler() func(string, func(tview.Primitive)) {
 func (o *tuiOverlay) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, func(tview.Primitive)) (bool, tview.Primitive) {
 	return func(a tview.MouseAction, e *tcell.EventMouse, f func(tview.Primitive)) (bool, tview.Primitive) {
 		if handler := o.child.MouseHandler(); handler != nil {
-			handler(a, e, f)
+			_, capture := handler(a, e, f)
+			// Native dropdowns capture the mouse while their list is open. Keep
+			// that capture even when the list extends beyond the dialog bounds.
+			return true, capture
 		}
 		// The underlying asset list must never receive clicks through a modal.
 		return true, nil
@@ -83,6 +86,9 @@ func (h *terminalUI) dismissModal() {
 
 func (h *terminalUI) showAccounts(row int) {
 	if row < 1 || row > len(h.assets) || h.modal || h.popup != nil {
+		return
+	}
+	if !h.assetCanConnect(row - 1) {
 		return
 	}
 	if len(h.sessions) >= maxTUISessions {
@@ -151,12 +157,13 @@ func (h *terminalUI) showAccounts(row int) {
 
 func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermAccount, protocols []string) {
 	accountPicker := tuiDropdown().SetLabel(h.tr("账号", "Account")+" ").
-		SetTextOptions(" ", " ", " ", " ▾", " "+h.tr("请选择账号", "Select account")+" ▾")
+		SetTextOptions(" ", " ", " ", "", " "+h.tr("请选择账号", "Select account"))
 	accountLabels := make([]string, 0, len(accounts))
 	search := &tuiAccountSearch{picker: accountPicker, field: tview.NewInputField().SetLabel(h.tr("搜索", "Search") + " ").
 		SetPlaceholder(h.tr("账号名称 / 用户名", "Account name / username")).
-		SetLabelStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
-		SetFieldStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetPlaceholderTextColor(tui.Muted)}
+		SetLabelStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).
+		SetFieldStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
+		SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))}
 	search.field.SetBackgroundColor(tui.Panel)
 	searchText := make([]string, 0, len(accounts))
 	for i, account := range accounts {
@@ -169,48 +176,54 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 		search.matches = append(search.matches, i)
 	}
 	protocolPicker := tuiDropdown().SetLabel(h.tr("协议", "Protocol")+" ").
-		SetTextOptions(" ", " ", " ", " ▾", " "+h.tr("请选择协议", "Select protocol")+" ▾")
+		SetTextOptions(" ", " ", " ", "", " "+h.tr("请选择协议", "Select protocol"))
 	labelWidth := max(tview.TaggedStringWidth(accountPicker.GetLabel()), tview.TaggedStringWidth(protocolPicker.GetLabel()))
+	closeMouseDown := false
 	for _, picker := range []*tview.DropDown{accountPicker, protocolPicker} {
 		picker.SetLabelWidth(labelWidth)
+		picker.SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
 		tuiBorder(picker.Box, "", tui.Border)
 		picker.SetBorderPadding(0, 0, 1, 1)
+		pinDialogDropdownIndicator(picker)
 		picker.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+			if action == tview.MouseLeftDown {
+				closeMouseDown = false
+			}
 			if !picker.IsOpen() && action == tview.MouseLeftDown && picker.InRect(ev.Position()) {
 				h.app.SetFocus(picker)
 				h.openFocusedDropdown()
 				return tview.MouseConsumed, nil
 			}
-			if picker == accountPicker && picker.IsOpen() {
+			// A captured menu can receive mouse events after focus moves to
+			// another control. Resolve the list owned by this picker.
+			var list *tview.List
+			if picker.IsOpen() {
+				picker.Focus(func(p tview.Primitive) { list = p.(*tview.List) })
+			}
+			if picker == accountPicker && list != nil {
 				if search.field.InRect(ev.Position()) {
 					if consumed, _ := search.field.MouseHandler()(action, ev, func(tview.Primitive) {}); consumed {
 						return tview.MouseConsumed, nil
 					}
 				}
-				if len(search.matches) == 0 && action == tview.MouseLeftDown {
-					if list, ok := h.focusedControl().(*tview.List); ok && list.InRect(ev.Position()) {
-						return tview.MouseConsumed, nil
-					}
+				if len(search.matches) == 0 && action == tview.MouseLeftDown && list.InRect(ev.Position()) {
+					return tview.MouseConsumed, nil
 				}
 			}
-			if picker.IsOpen() && (action == tview.MouseScrollUp || action == tview.MouseScrollDown) {
-				picker.Focus(func(p tview.Primitive) {
-					list := p.(*tview.List)
-					step := 1
-					if action == tview.MouseScrollUp {
-						step = -1
-					}
-					list.SetCurrentItem(max(0, min(list.GetItemCount()-1, list.GetCurrentItem()+step)))
-				})
+			if list != nil && (action == tview.MouseScrollUp || action == tview.MouseScrollDown) {
+				step := 1
+				if action == tview.MouseScrollUp {
+					step = -1
+				}
+				list.SetCurrentItem(max(0, min(list.GetItemCount()-1, list.GetCurrentItem()+step)))
 				return tview.MouseConsumed, nil
 			}
-			if picker.IsOpen() && action == tview.MouseLeftDown {
-				list := h.focusedControl().(*tview.List)
+			if list != nil && action == tview.MouseLeftDown {
 				x, y := ev.Position()
-				lx, ly, lw, _ := list.GetRect()
-				_, _, _, visible := list.GetInnerRect()
-				if visible > 1 && list.GetItemCount() > visible && x == lx+lw-2 && y >= ly+2 && y < ly+2+visible {
-					list.SetCurrentItem((y - ly - 2) * (list.GetItemCount() - 1) / (visible - 1))
+				lx, _, lw, _ := list.GetRect()
+				_, row, _, visible := list.GetInnerRect()
+				if visible > 1 && list.GetItemCount() > visible && x == lx+lw-2 && y >= row && y < row+visible {
+					list.SetCurrentItem((y - row) * (list.GetItemCount() - 1) / (visible - 1))
 					return tview.MouseConsumed, nil
 				}
 			}
@@ -273,15 +286,25 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 	}
 	close := tview.NewButton(h.tr("取消", "Cancel") + " · Esc").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+	close.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		switch action {
+		case tview.MouseLeftDown:
+			closeMouseDown = close.InRect(ev.Position())
+		case tview.MouseLeftClick:
+			if !closeMouseDown {
+				return tview.MouseConsumed, nil
+			}
+			closeMouseDown = false
+		}
+		return action, ev
+	})
 	buttons := tview.NewFlex().AddItem(close, 0, 1, false).AddItem(connect, 0, 1, false)
 	buttons.SetBackgroundColor(tui.Panel)
-	protocolRow := tview.NewFlex().AddItem(protocolPicker, 36, 0, false).AddItem(nil, 0, 1, false)
-	protocolRow.SetBackgroundColor(tui.Panel)
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(accountPicker, 3, 0, true).
-		AddItem(nil, 1, 0, false).AddItem(protocolRow, 3, 0, false).AddItem(nil, 1, 0, false).AddItem(buttons, 1, 0, false)
+		AddItem(nil, 1, 0, false).AddItem(protocolPicker, 3, 0, false).AddItem(nil, 1, 0, false).AddItem(buttons, 1, 0, false)
 	content.Box = tview.NewBox()
-	tuiDialogBorder(content.Box, h.tr("选择账号和协议", "Select account and protocol")+" · "+cleanTUIText(asset.Name))
-	overlay := &tuiOverlay{Box: tview.NewBox(), child: content, width: 76, height: 13}
+	tuiDialogBorder(content.Box, h.tr("选择账号", "Select account")+" · "+cleanTUIText(asset.Name))
+	overlay := &tuiOverlay{Box: tview.NewBox(), child: content, width: 62, height: 13}
 	overlay.paste = func(text string, setFocus func(tview.Primitive)) {
 		if accountPicker.IsOpen() && accountPicker.HasFocus() {
 			search.field.PasteHandler()(text, func(tview.Primitive) {})
@@ -568,7 +591,7 @@ func (h *terminalUI) setFullscreen(enabled bool) {
 		root.SetMouseCapture(h.captureRootMouse)
 		h.app.SetRoot(root, true)
 	} else {
-		h.footer.SetBorderPadding(0, 0, 1, tuiClockWidth+2)
+		h.footer.SetBorderPadding(0, 0, 1, 1)
 		h.app.SetRoot(h.main, true)
 	}
 	h.app.SetFocus(h.popup)

@@ -26,7 +26,8 @@ type UserAuthClient struct {
 
 	authOptions map[string]authOptions
 
-	mfaTypes []string
+	mfaTypes    []string
+	bearerToken string
 }
 
 func (u *UserAuthClient) Authenticate(ctx context.Context) (user model.User, authStatus StatusAuth) {
@@ -71,10 +72,13 @@ func (u *UserAuthClient) Authenticate(ctx context.Context) (user model.User, aut
 		return
 	}
 	if resp.Token != "" {
+		u.bearerToken = resp.Token
 		return resp.User, authSuccess
 	}
 	return
 }
+
+func (u *UserAuthClient) BearerToken() string { return u.bearerToken }
 
 func (u *UserAuthClient) CheckUserOTP(ctx context.Context, MFAType string, code string) (user model.User, authStatus StatusAuth) {
 	authStatus = authFailed

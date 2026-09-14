@@ -220,7 +220,7 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 			add("search-results", "↓", h.tr("资产", "Assets"), tcell.KeyDown, "", func() { h.app.SetFocus(h.table) }, true)
 		}
 		if h.search.HasFocus() && h.search.GetText() != "" {
-			add("clear-search", "Ctrl+U", h.tr("清空搜索", "Clear search"), tcell.KeyCtrlU, "", func() { h.search.SetText("") }, true)
+			add("clear-search", "Ctrl+U", h.tr("清空搜索", "Clear search"), tcell.KeyCtrlU, "", h.clearSearch, true)
 		}
 	}
 	if h.editing() {
@@ -269,8 +269,7 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 			row, col := p.GetSelection()
 			confirm = row > 0 && row < p.GetRowCount() && !p.GetCell(row, col).NotSelectable
 			if p == h.table {
-				confirm = confirm && row <= len(h.assets) && len(h.sessions) < maxTUISessions
-				add("←", h.tr("返回当前节点", "Return to current node"), false)
+				confirm = confirm && row <= len(h.assets) && h.assetCanConnect(row-1) && len(h.sessions) < maxTUISessions
 				add("Shift+← / Shift+→", h.tr("水平滚动", "Horizontal scroll"), false)
 			} else if scroll {
 				add("←→", h.tr("移动和滚动", "Move and scroll"), false)
@@ -282,7 +281,7 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 			add("Space", h.tr("折叠/展开", "Collapse/expand"), false)
 		}
 		if scroll {
-			add("←→", h.tr("折叠/展开；当前范围 → 进入资产", "Collapse/expand; current scope → opens assets"), false)
+			add("←→", h.tr("折叠/展开", "Collapse/expand"), false)
 		}
 	case *tview.List:
 		scroll, confirm = p.GetItemCount() > 1, p.GetItemCount() > 0
@@ -358,8 +357,8 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 	if expanded, _ := h.treeExpansion(); expanded {
 		label = "−"
 	}
-	h.treeActions[0].SetLabel(mnemonic("  "+label, "tree-toggle", "z"))
-	h.treeActions[1].SetLabel(mnemonic("  @", "tree-refresh", "u"))
+	h.treeActions[0].SetLabel(mnemonic(label, "tree-toggle", "z"))
+	h.treeActions[1].SetLabel(mnemonic(tuiRefreshIcon, "tree-refresh", "u"))
 	path := h.scope.Path
 	if path == "" {
 		path = h.scope.Label
@@ -371,11 +370,10 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 	h.assetPane.SetTitle(" " + assetTitle + " ")
 	searchLabel := ""
 	if !h.search.HasFocus() {
-		searchLabel = mnemonic("/", "search-slash", "/") + " " + h.tr("搜索", "Search") + " "
+		searchLabel = "/ " + h.tr("搜索", "Search") + " "
 	}
 	h.search.SetLabel(searchLabel)
-	refresh := mnemonic("@", "refresh", "r")
-	h.assetRefresh.SetLabel(refresh)
+	h.assetRefresh.SetLabel(" " + mnemonic(tuiRefreshIcon, "refresh", "r") + " ")
 	previous, next := h.tr("上页", "Previous"), h.tr("下页", "Next")
 	previous = mnemonic("[", "previous-page", "[") + " " + previous
 	next += " " + mnemonic("]", "next-page", "]")
@@ -384,7 +382,15 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 	if h.assetBottom != nil && h.total > tuiPageSize {
 		h.assetBottom.ResizeItem(h.pager, h.pagerWidth(), 0)
 	}
-	language := strings.ToUpper(i18n.NewLang(h.data.lang).String()) + " ▾"
+	currentLanguage := i18n.NewLang(h.data.lang)
+	language := currentLanguage.String()
+	for index, code := range i18n.AllCodes {
+		if code == currentLanguage {
+			language = i18n.AllLangCodesStr[index]
+			break
+		}
+	}
+	language += " ▾"
 	h.language.SetLabel(language)
 	appearance := h.tr("主题", "Theme") + " ▾"
 	h.appearance.SetLabel(appearance)
@@ -397,12 +403,11 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 			padding = " "
 		}
 		if col == h.activeSession+1 || h.sessionTabs.HasFocus() && col == selectedTab {
-			highlight, rest, _ := strings.Cut(label, " ")
 			color := tui.Foreground
 			if col == h.activeSession+1 {
 				color = tui.Accent
 			}
-			label = "[" + color.String() + "::-]" + highlight + "[-::-] " + rest
+			label = "[" + color.String() + "::-]" + label + "[-::-]"
 		}
 		if showNumbers || h.activeSession < 0 && col > 0 {
 			id, number := "session", fmt.Sprint(col)

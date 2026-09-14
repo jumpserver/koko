@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"io"
+	"runtime"
 	"sync"
 
 	"github.com/gdamore/tcell/v2"
@@ -367,6 +368,7 @@ func (t *Terminal) InputHandler() func(*tcell.EventKey, func(tview.Primitive)) {
 		defer e.Close()
 		e.SetAction(ghostty.KeyActionPress)
 		mods := keyMods(ev.Modifiers())
+		var text string
 		key, known := terminalKeys[ev.Key()]
 		switch {
 		case known:
@@ -377,7 +379,15 @@ func (t *Terminal) InputHandler() func(*tcell.EventKey, func(tview.Primitive)) {
 		case ev.Key() >= tcell.KeyF1 && ev.Key() <= tcell.KeyF12:
 			e.SetKey(ghostty.KeyF1 + ghostty.Key(ev.Key()-tcell.KeyF1))
 		case ev.Key() == tcell.KeyRune:
-			e.SetUTF8(string(ev.Rune()))
+			text = string(ev.Rune())
+			// The SSH screen has already decoded ordinary terminal text into
+			// runes. Forward its UTF-8 bytes exactly so client-side IME text is
+			// not reinterpreted as a physical keyboard event.
+			if ev.Modifiers()&(tcell.ModCtrl|tcell.ModAlt|tcell.ModMeta) == 0 {
+				t.SendInput([]byte(text))
+				return
+			}
+			e.SetUTF8(text)
 			e.SetUnshiftedCodepoint(ev.Rune())
 		case ev.Key() >= 0 && ev.Key() < 32:
 			// Classic terminal control bytes must survive unchanged (including Ctrl-C).
@@ -393,6 +403,8 @@ func (t *Terminal) InputHandler() func(*tcell.EventKey, func(tview.Primitive)) {
 		e.SetMods(mods)
 		t.keys.SetOptFromTerminal(t.vt)
 		b, err := t.keys.Encode(e)
+		// KeyEvent borrows the UTF-8 pointer until Encode returns.
+		runtime.KeepAlive(text)
 		if err == nil {
 			t.SendInput(b)
 		}
