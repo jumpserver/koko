@@ -43,6 +43,7 @@ type AssetDir struct {
 	isFromWebTerminal bool
 	CurrentPath       string
 	onSessionClosed   func()
+	terminated        bool
 }
 
 func (ad *AssetDir) Name() string {
@@ -996,9 +997,16 @@ func (ad *AssetDir) ResolveAgentToolPath(path string) (string, error) {
 func (ad *AssetDir) GetSFTPAndRealPath(su *model.PermAccount, path string) (conn *SftpConn, realPath string) {
 	ad.mu.Lock()
 	defer ad.mu.Unlock()
+	if ad.terminated {
+		return nil, ""
+	}
 	key := su.String()
 	if val, ok := ad.sftpSessions.Load(key); ok {
 		sftpSess := val.(*SftpSession)
+		if sftpSess.isClosed {
+			ad.terminated = true
+			return nil, ""
+		}
 		realPath = ad.GetRealPath(sftpSess, path)
 		return sftpSess.SftpConn, realPath
 	}
@@ -1028,7 +1036,14 @@ func (ad *AssetDir) createSftpSession(su *model.PermAccount) (sftpSess *SftpSess
 		return nil, err1
 	}
 	respSession.TokenId = conn.token.Id
-	sftpSession := &SftpSession{SftpConn: conn, sess: &respSession, jmsService: ad.jmsService, onClosed: ad.onSessionClosed}
+	sftpSession := &SftpSession{SftpConn: conn, sess: &respSession, jmsService: ad.jmsService, onClosed: func() {
+		ad.mu.Lock()
+		ad.terminated = true
+		ad.mu.Unlock()
+		if ad.onSessionClosed != nil {
+			ad.onSessionClosed()
+		}
+	}}
 	terminalFunc := func(task *model.TerminalTask) error {
 		switch task.Name {
 		case model.TaskKillSession:
