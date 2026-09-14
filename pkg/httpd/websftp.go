@@ -241,15 +241,16 @@ func (h *webSftp) dispatch(msg Message) {
 func (h *webSftp) sessionExpired() bool {
 	h.stateMu.Lock()
 	defer h.stateMu.Unlock()
-	started := h.started
-	if !started {
-		h.started = true
-		if h.ws.ConnectToken != nil {
-			h.trackSessionID = !notInTokenIds(h.ws.ConnectToken.Id)
-		}
+	if h.ws.ConnectToken == nil {
+		return h.trackSessionID
 	}
-	return started && h.trackSessionID &&
-		(h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id))
+	alive := !notInTokenIds(h.ws.ConnectToken.Id)
+	if alive {
+		h.started = true
+		h.trackSessionID = true
+		return false
+	}
+	return h.trackSessionID
 }
 
 func (h *webSftp) trackedSessionExpired() bool {
