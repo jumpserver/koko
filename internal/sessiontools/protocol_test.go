@@ -110,6 +110,25 @@ func TestMongoDBCommandContract(t *testing.T) {
 	}
 }
 
+func TestSQLExecuteCommandContract(t *testing.T) {
+	for _, tc := range []struct{ protocol, command string }{
+		{"sqlserver", "EXEC dbo.usp_report @id = 1"},
+		{"sqlserver", "execute sys.sp_executesql N'SELECT 1; SELECT 2;'"},
+		{"postgresql", "EXECUTE prepared_query(42);"},
+		{"mysql", "EXECUTE prepared_statement"},
+	} {
+		constraints, err := ProtocolCommandValidator(tc.protocol)(tc.command)
+		if err != nil || constraints.BackgroundEligible {
+			t.Fatalf("procedure or prepared statement must use the active session: %+v, %v", constraints, err)
+		}
+	}
+	for _, command := range []string{"EXEC dbo.usp_report; SELECT 1", "EXEC ('SELECT 1)", "execfile /tmp/task"} {
+		if _, err := ProtocolCommandValidator("sqlserver")(command); err == nil {
+			t.Fatalf("invalid SQL execution accepted: %s", command)
+		}
+	}
+}
+
 func TestSessionSpecificToolSelection(t *testing.T) {
 	for protocol, expected := range map[string]string{
 		"ssh":        MCPToolExecuteShell,
