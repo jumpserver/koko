@@ -199,6 +199,8 @@ type ZSession struct {
 	zfinBuf          []byte
 	abortSequenceLen int
 	haveEnd          bool
+	allowEarlyFinish bool
+	pendingFinish    bool
 	currentHd        *ZmodemHeader
 
 	ZFileHeaderCallback func(zInfo *ZFileInfo)
@@ -223,14 +225,29 @@ func (s *ZSession) consume(p []byte) {
 		if len(s.zfinBuf) < len(zSessionEnd) {
 			return
 		}
-		s.haveEnd = true
 		if bytes.HasPrefix(s.zfinBuf, zSessionEnd) {
+			if s.pendingFinish {
+				hd := *s.currentHd
+				s.pendingFinish = false
+				s.onHeader(&hd)
+			}
+			s.haveEnd = true
 			if s.endCallback != nil {
 				s.endCallback()
 			}
 			logger.Errorf("Zmodem session %s normally end", s.Type)
 			return
 		}
+		if s.pendingFinish {
+			remain := append([]byte(nil), s.zfinBuf...)
+			s.zfinBuf = s.zfinBuf[:0]
+			s.pendingFinish = false
+			s.currentHd = nil
+			s.consumeHeader(remain)
+			s.consumeSubPacket()
+			return
+		}
+		s.haveEnd = true
 		logger.Infof("Zmodem session %s abnormally finish", s.Type)
 		s.AbnormalFinish = true
 		return
@@ -312,6 +329,17 @@ func (s *ZSession) consumeHeader(p []byte) {
 
 		remain := append([]byte(nil), candidate[remainPos:]...)
 		s.headerBuf = s.headerBuf[:0]
+		if hd.Type == ZFIN && s.transferStatus != TransferStatusFinished && !s.allowEarlyFinish {
+			// A ZFIN-shaped byte sequence can occur in file data. Wait for the
+			// sender's final OO before accepting an early finish.
+			s.currentHd = &hd
+			s.pendingFinish = true
+			s.zfinBuf = s.zfinBuf[:0]
+			if len(remain) > 0 {
+				s.consume(remain)
+			}
+			return
+		}
 		s.onHeader(&hd)
 
 		if s.IsNeedSubPacket() {

@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/gliderlabs/ssh"
@@ -329,7 +332,15 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 
 type tuiAssetConnection struct {
 	*tui.Terminal
-	id, remoteAddr string
+	id, remoteAddr   string
+	screen           *tui.ThemeScreen
+	onPassthroughEnd func()
+	zmodemMu         sync.Mutex
+	zmodemStartBuf   bytes.Buffer
+	zmodemActive     bool
+	zmodemFinishing  bool
+	zmodemDraining   bool
+	zmodemFinish     *time.Timer
 }
 
 var _ proxy.UserConnection = (*tuiAssetConnection)(nil)
@@ -340,7 +351,138 @@ func (c *tuiAssetConnection) RemoteAddr() string { return c.remoteAddr }
 func (c *tuiAssetConnection) Pty() ssh.Pty {
 	return ssh.Pty{Term: "xterm-256color", Window: c.Window()}
 }
-func (c *tuiAssetConnection) HandleRoomEvent(string, *exchange.RoomMessage) {}
+func (c *tuiAssetConnection) HandleRoomEvent(event string, msg *exchange.RoomMessage) {
+	if event != exchange.ActionEvent {
+		return
+	}
+	switch string(msg.Body) {
+	case exchange.ZmodemStartEvent:
+		c.startZmodemPassthrough()
+	case exchange.ZmodemEndEvent:
+		c.finishZmodemPassthroughAfterOutput(false)
+	case exchange.ZmodemAbortEvent:
+		c.finishZmodemPassthroughAfterOutput(true)
+	}
+}
+
+const (
+	zmodemStartFrameLimit     = 64
+	zmodemFinishFallbackDelay = 250 * time.Millisecond
+	zmodemAbortDrainDelay     = 3250 * time.Millisecond
+)
+
+var zmodemHexHeaderPrefix = []byte{0x2a, 0x2a, 0x18, 0x42}
+
+func (c *tuiAssetConnection) startZmodemPassthrough() {
+	c.zmodemMu.Lock()
+	defer c.zmodemMu.Unlock()
+	if c.zmodemActive || c.screen == nil {
+		return
+	}
+	if c.screen.BeginPassthrough(c.Terminal, c.Terminal.SendRawInput) {
+		c.zmodemActive = true
+		c.zmodemFinishing = false
+		c.zmodemDraining = false
+	}
+}
+
+func (c *tuiAssetConnection) finishZmodemPassthroughAfterOutput(draining bool) {
+	c.zmodemMu.Lock()
+	defer c.zmodemMu.Unlock()
+	if !c.zmodemActive || c.zmodemFinishing {
+		return
+	}
+	c.zmodemFinishing = true
+	c.zmodemDraining = draining
+	delay := zmodemFinishFallbackDelay
+	if draining {
+		delay = zmodemAbortDrainDelay
+	}
+	c.zmodemFinish = time.AfterFunc(delay, func() {
+		c.endZmodemPassthrough(!draining)
+	})
+}
+
+func (c *tuiAssetConnection) endZmodemPassthrough(redrawPrompt bool) {
+	c.zmodemMu.Lock()
+	if !c.zmodemActive {
+		c.zmodemMu.Unlock()
+		return
+	}
+	c.zmodemActive = false
+	c.zmodemFinishing = false
+	c.zmodemDraining = false
+	if c.zmodemFinish != nil {
+		c.zmodemFinish.Stop()
+		c.zmodemFinish = nil
+	}
+	c.zmodemStartBuf.Reset()
+	c.screen.EndPassthrough(c.Terminal)
+	c.zmodemMu.Unlock()
+	if redrawPrompt {
+		c.Terminal.SendInput([]byte{'\r'})
+	}
+	if c.onPassthroughEnd != nil {
+		c.onPassthroughEnd()
+	}
+}
+
+func (c *tuiAssetConnection) Write(p []byte) (int, error) {
+	c.zmodemMu.Lock()
+	if c.zmodemActive {
+		data := p
+		if c.zmodemStartBuf.Len() > 0 {
+			data = make([]byte, 0, c.zmodemStartBuf.Len()+len(p))
+			data = append(data, c.zmodemStartBuf.Bytes()...)
+			data = append(data, p...)
+			c.zmodemStartBuf.Reset()
+		}
+		_, err := c.screen.WritePassthrough(c.Terminal, data)
+		finishing := c.zmodemFinishing && !c.zmodemDraining
+		c.zmodemMu.Unlock()
+		if finishing {
+			c.endZmodemPassthrough(true)
+		}
+		return len(p), err
+	}
+
+	visible := c.bufferZmodemStart(p)
+	c.zmodemMu.Unlock()
+	if len(visible) == 0 {
+		return len(p), nil
+	}
+	_, err := c.Terminal.Write(visible)
+	return len(p), err
+}
+
+func (c *tuiAssetConnection) bufferZmodemStart(p []byte) []byte {
+	data := p
+	if c.zmodemStartBuf.Len() > 0 {
+		c.zmodemStartBuf.Write(p)
+		data = bytes.Clone(c.zmodemStartBuf.Bytes())
+		c.zmodemStartBuf.Reset()
+	}
+	if start := bytes.Index(data, zmodemHexHeaderPrefix); start >= 0 {
+		header := data[start:]
+		if bytes.IndexAny(header, "\r\n") < 0 && len(header) <= zmodemStartFrameLimit {
+			c.zmodemStartBuf.Write(header)
+			return bytes.Clone(data[:start])
+		}
+		return data
+	}
+	for size := min(len(data), len(zmodemHexHeaderPrefix)-1); size > 0; size-- {
+		if bytes.Equal(data[len(data)-size:], zmodemHexHeaderPrefix[:size]) {
+			c.zmodemStartBuf.Write(data[len(data)-size:])
+			return bytes.Clone(data[:len(data)-size])
+		}
+	}
+	return data
+}
+
+func (c *tuiAssetConnection) Close() error {
+	c.endZmodemPassthrough(false)
+	return c.Terminal.Close()
+}
 
 const (
 	maxTUISessions               = 9
@@ -473,7 +615,10 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 	x, y, w, ht := h.pages.GetRect()
 	terminal.SetRect(x, y, max(3, w), max(3, ht))
 	remoteAddr, _, _ := net.SplitHostPort(h.session.RemoteAddr().String())
-	conn := &tuiAssetConnection{Terminal: terminal, id: session.page, remoteAddr: remoteAddr}
+	conn := &tuiAssetConnection{
+		Terminal: terminal, id: session.page, remoteAddr: remoteAddr, screen: h.themeScreen,
+		onPassthroughEnd: func() { h.themeScreen.RequestSync(); h.dirty.Store(true) },
+	}
 	api := h.data.client(asset.OrgID)
 	lang := h.data.lang
 	passwordAttemptKey := tuiPasswordAttemptKey(asset, account, protocol)

@@ -31,6 +31,7 @@ type Terminal struct {
 	inputMu       sync.Mutex
 	input         []byte
 	ready         chan struct{}
+	space         chan struct{}
 	winch         chan ssh.Window
 	invalidate    func()
 }
@@ -38,7 +39,7 @@ type Terminal struct {
 func NewTerminal(ctx context.Context, invalidate func()) (t *Terminal, err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	t = &Terminal{Box: tview.NewBox(), ctx: ctx, cancel: cancel,
-		ready: make(chan struct{}, 1), winch: make(chan ssh.Window, 1), invalidate: invalidate,
+		ready: make(chan struct{}, 1), space: make(chan struct{}, 1), winch: make(chan ssh.Window, 1), invalidate: invalidate,
 		width: 80, height: 24}
 	t.SetBackgroundColor(Panel)
 	t.SetBorder(true).SetBorderColor(FocusBorder).SetTitleColor(Accent).SetBorderPadding(1, 0, 1, 0)
@@ -184,6 +185,10 @@ func (t *Terminal) ReadContext(ctx context.Context, p []byte) (int, error) {
 			clear(t.input[len(t.input)-n:])
 			t.input = t.input[:len(t.input)-n]
 			t.inputMu.Unlock()
+			select {
+			case t.space <- struct{}{}:
+			default:
+			}
 			return n, nil
 		}
 		t.inputMu.Unlock()
@@ -214,6 +219,37 @@ func (t *Terminal) SendInput(p []byte) bool {
 	select {
 	case t.ready <- struct{}{}:
 	default:
+	}
+	return true
+}
+
+// SendRawInput applies backpressure instead of closing the asset session when
+// a file-transfer client sends more data than the interactive input buffer can
+// hold at once.
+func (t *Terminal) SendRawInput(p []byte) bool {
+	for len(p) > 0 {
+		if t.ctx.Err() != nil {
+			return false
+		}
+		t.inputMu.Lock()
+		available := maxInputBytes - len(t.input)
+		if available > 0 {
+			n := min(available, len(p))
+			t.input = append(t.input, p[:n]...)
+			p = p[n:]
+			t.inputMu.Unlock()
+			select {
+			case t.ready <- struct{}{}:
+			default:
+			}
+			continue
+		}
+		t.inputMu.Unlock()
+		select {
+		case <-t.space:
+		case <-t.ctx.Done():
+			return false
+		}
 	}
 	return true
 }

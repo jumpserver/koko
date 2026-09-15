@@ -1,6 +1,11 @@
 package tui
 
-import "github.com/gdamore/tcell/v2"
+import (
+	"sync"
+	"sync/atomic"
+
+	"github.com/gdamore/tcell/v2"
+)
 
 type Palette struct {
 	Background, Foreground, Muted, Border  tcell.Color
@@ -39,7 +44,16 @@ func AccentSwatch(index int) tcell.Color {
 type ThemeScreen struct {
 	tcell.Screen
 	forward, reverse map[tcell.Color]tcell.Color
-	syncPending      bool
+	syncPending      atomic.Bool
+	frozen           atomic.Bool
+	passthroughMu    sync.Mutex
+	passthroughOwner *Terminal
+}
+
+type passthroughScreen interface {
+	beginPassthrough(func([]byte) bool) bool
+	endPassthrough()
+	writePassthrough([]byte) (int, error)
 }
 
 func NewThemeScreen(screen tcell.Screen) *ThemeScreen {
@@ -87,15 +101,69 @@ func (s *ThemeScreen) SetPalette(p Palette) {
 
 // RequestSync repairs client-side IME damage after widgets finish drawing.
 // Repeated requests are coalesced into one complete frame on the UI loop.
-func (s *ThemeScreen) RequestSync() { s.syncPending = true }
+func (s *ThemeScreen) RequestSync() { s.syncPending.Store(true) }
 
 func (s *ThemeScreen) Show() {
-	if s.syncPending {
-		s.syncPending = false
+	s.passthroughMu.Lock()
+	defer s.passthroughMu.Unlock()
+	if s.frozen.Load() {
+		return
+	}
+	if s.syncPending.Swap(false) {
 		s.Screen.Sync()
 		return
 	}
 	s.Screen.Show()
+}
+
+func (s *ThemeScreen) Sync() {
+	s.passthroughMu.Lock()
+	defer s.passthroughMu.Unlock()
+	if !s.frozen.Load() {
+		s.Screen.Sync()
+	}
+}
+
+// BeginPassthrough temporarily gives one embedded terminal the raw SSH byte
+// stream. Protocols such as ZMODEM cannot survive the cell-based TUI renderer.
+func (s *ThemeScreen) BeginPassthrough(owner *Terminal, forward func([]byte) bool) bool {
+	raw, ok := s.Screen.(passthroughScreen)
+	if !ok || owner == nil || forward == nil {
+		return false
+	}
+	s.passthroughMu.Lock()
+	defer s.passthroughMu.Unlock()
+	if s.passthroughOwner != nil {
+		return s.passthroughOwner == owner
+	}
+	s.frozen.Store(true)
+	if !raw.beginPassthrough(forward) {
+		s.frozen.Store(false)
+		return false
+	}
+	s.passthroughOwner = owner
+	return true
+}
+
+func (s *ThemeScreen) WritePassthrough(owner *Terminal, p []byte) (int, error) {
+	s.passthroughMu.Lock()
+	defer s.passthroughMu.Unlock()
+	if s.passthroughOwner != owner {
+		return 0, nil
+	}
+	return s.Screen.(passthroughScreen).writePassthrough(p)
+}
+
+func (s *ThemeScreen) EndPassthrough(owner *Terminal) {
+	s.passthroughMu.Lock()
+	defer s.passthroughMu.Unlock()
+	if s.passthroughOwner != owner {
+		return
+	}
+	s.Screen.(passthroughScreen).endPassthrough()
+	s.passthroughOwner = nil
+	s.syncPending.Store(true)
+	s.frozen.Store(false)
 }
 
 func paletteStyle(style tcell.Style, colors map[tcell.Color]tcell.Color) tcell.Style {

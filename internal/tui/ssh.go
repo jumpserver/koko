@@ -18,8 +18,11 @@ type sshTTY struct {
 	reader  *io.PipeReader
 	writer  *io.PipeWriter
 	mu      sync.Mutex
+	output  sync.Mutex
+	route   sync.RWMutex
 	window  ssh.Window
 	resize  func()
+	forward func([]byte) bool
 	start   sync.Once
 	stop    sync.Once
 	done    chan struct{}
@@ -70,7 +73,7 @@ func NewSSHScreen(session ssh.Session, windows <-chan ssh.Window) (tcell.Screen,
 	if cursorReset == "" && (ti.Mouse != "" || ti.XTermLike) {
 		cursorReset = "\x1b[0 q"
 	}
-	return &sshScreen{Screen: screen, output: session, cursorReset: cursorReset}, nil
+	return &sshScreen{Screen: screen, tty: tty, output: tty, cursorReset: cursorReset}, nil
 }
 
 // SetScreen calls Init itself and ignores errors; initialize once explicitly.
@@ -79,6 +82,7 @@ type sshScreen struct {
 	once        sync.Once
 	err         error
 	fini        sync.Once
+	tty         *sshTTY
 	output      io.Writer
 	cursorReset string
 }
@@ -100,16 +104,43 @@ func (t *sshTTY) Start() error {
 	t.start.Do(func() {
 		go func() {
 			buf := make([]byte, 8192)
-			_, err := io.CopyBuffer(t.writer, t.session, buf)
-			_ = t.writer.CloseWithError(err)
+			for {
+				n, err := t.session.Read(buf)
+				if n > 0 {
+					t.route.RLock()
+					forward := t.forward
+					t.route.RUnlock()
+					if forward != nil {
+						forward(buf[:n])
+					} else if _, writeErr := t.writer.Write(buf[:n]); writeErr != nil {
+						err = writeErr
+					}
+				}
+				if err != nil {
+					_ = t.writer.CloseWithError(err)
+					return
+				}
+			}
 		}()
 	})
 	return nil
 }
-func (t *sshTTY) Read(b []byte) (int, error)  { return t.reader.Read(b) }
-func (t *sshTTY) Write(b []byte) (int, error) { return t.session.Write(b) }
-func (t *sshTTY) Drain() error                { return t.reader.Close() }
-func (t *sshTTY) Stop() error                 { return nil }
+func (t *sshTTY) Read(b []byte) (int, error) { return t.reader.Read(b) }
+func (t *sshTTY) Write(b []byte) (int, error) {
+	t.route.RLock()
+	defer t.route.RUnlock()
+	if t.forward != nil {
+		return len(b), nil
+	}
+	return t.writeOutput(b)
+}
+func (t *sshTTY) writeOutput(b []byte) (int, error) {
+	t.output.Lock()
+	defer t.output.Unlock()
+	return t.session.Write(b)
+}
+func (t *sshTTY) Drain() error { return t.reader.Close() }
+func (t *sshTTY) Stop() error  { return nil }
 func (t *sshTTY) Close() error {
 	t.stop.Do(func() { close(t.done) })
 	_ = t.writer.Close()
@@ -120,4 +151,40 @@ func (t *sshTTY) WindowSize() (tcell.WindowSize, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return tcell.WindowSize{Width: min(500, max(1, t.window.Width)), Height: min(200, max(1, t.window.Height))}, nil
+}
+
+func (t *sshTTY) beginPassthrough(forward func([]byte) bool) bool {
+	if forward == nil {
+		return false
+	}
+	t.route.Lock()
+	defer t.route.Unlock()
+	if t.forward != nil {
+		return false
+	}
+	t.forward = forward
+	return true
+}
+
+func (t *sshTTY) endPassthrough() {
+	t.route.Lock()
+	t.forward = nil
+	t.route.Unlock()
+}
+
+func (s *sshScreen) beginPassthrough(forward func([]byte) bool) bool {
+	return s.tty != nil && s.tty.beginPassthrough(forward)
+}
+
+func (s *sshScreen) endPassthrough() {
+	if s.tty != nil {
+		s.tty.endPassthrough()
+	}
+}
+
+func (s *sshScreen) writePassthrough(p []byte) (int, error) {
+	if s.tty == nil {
+		return 0, io.ErrClosedPipe
+	}
+	return s.tty.writeOutput(p)
 }

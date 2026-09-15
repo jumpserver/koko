@@ -55,4 +55,5 @@ const (
 const (
 	ZmodemStartEvent = "ZMODEM_START"
 	ZmodemEndEvent   = "ZMODEM_END"
+	ZmodemAbortEvent = "ZMODEM_ABORT"
 )
