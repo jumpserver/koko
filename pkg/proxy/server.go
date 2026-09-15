@@ -539,6 +539,11 @@ func (s *Server) GenerateCommandItem(user, input, output string, item *ExecutedC
 func (s *Server) getAuthPasswordIfNeed() (err error) {
 	var line string
 	if s.account.Secret == "" {
+		if guard := s.connOpts.passwordInputGuard; guard != nil {
+			if guardErr := guard(); guardErr != nil {
+				return &passwordInputRejectedError{err: guardErr}
+			}
+		}
 		vt := term.NewTerminal(s.UserConn, "password: ")
 		line, err = vt.ReadPassword(fmt.Sprintf("%s's password: ", s.account.String()))
 
@@ -550,6 +555,22 @@ func (s *Server) getAuthPasswordIfNeed() (err error) {
 		logger.Infof("Conn[%s] get password from user input", s.UserConn.ID())
 	}
 	return nil
+}
+
+type passwordInputRejectedError struct {
+	err error
+}
+
+func (e *passwordInputRejectedError) Error() string { return e.err.Error() }
+func (e *passwordInputRejectedError) Unwrap() error { return e.err }
+
+func (s *Server) sendAuthPasswordError(err error) {
+	msg := s.connOpts.getLang().T("Get auth password failed")
+	var rejected *passwordInputRejectedError
+	if errors.As(err, &rejected) {
+		msg = rejected.Error()
+	}
+	utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
 }
 
 func (s *Server) checkRequiredAuth() error {
@@ -571,8 +592,7 @@ func (s *Server) checkRequiredAuth() error {
 		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql,
 		srvconn.ProtocolRedis, srvconn.ProtocolOracle:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
-			msg := utils.WrapperWarn(lang.T("Get auth password failed"))
-			utils.IgnoreErrWriteString(s.UserConn, msg)
+			s.sendAuthPasswordError(err)
 			return fmt.Errorf("get auth password failed: %s", err)
 		}
 	case srvconn.ProtocolSSH:
@@ -587,8 +607,7 @@ func (s *Server) checkRequiredAuth() error {
 
 		if s.account.Secret == "" {
 			if err := s.getAuthPasswordIfNeed(); err != nil {
-				msg := utils.WrapperWarn(lang.T("Get auth password failed"))
-				utils.IgnoreErrWriteString(s.UserConn, msg)
+				s.sendAuthPasswordError(err)
 				return err
 			}
 		}

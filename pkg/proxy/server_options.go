@@ -34,6 +34,12 @@ func ConnectTokenAuthInfo(authInfo *model.ConnectToken) ConnectionOption {
 	}
 }
 
+func ConnectPasswordInputGuard(guard func() error) ConnectionOption {
+	return func(opts *ConnectionOptions) {
+		opts.passwordInputGuard = guard
+	}
+}
+
 type ConnectionOptions struct {
 	authInfo *model.ConnectToken
 
@@ -42,6 +48,8 @@ type ConnectionOptions struct {
 	k8sContainer *ContainerInfo
 
 	params *ConnectionParams
+
+	passwordInputGuard func() error
 }
 
 type ConnectionParams struct {

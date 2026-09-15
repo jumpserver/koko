@@ -342,7 +342,10 @@ func (c *tuiAssetConnection) Pty() ssh.Pty {
 }
 func (c *tuiAssetConnection) HandleRoomEvent(string, *exchange.RoomMessage) {}
 
-const maxTUISessions = 9
+const (
+	maxTUISessions               = 9
+	maxTUIManualPasswordAttempts = 3
+)
 
 func isTUIVirtualAccount(account model.PermAccount) bool {
 	return account.Username == model.InputUser || account.Username == model.DynamicUser
@@ -372,6 +375,10 @@ func tuiAccountPreferenceKey(account model.PermAccount) string {
 		return account.Alias
 	}
 	return account.Username + "\x00" + account.Name
+}
+
+func tuiPasswordAttemptKey(asset model.PermAsset, account model.PermAccount, protocol string) string {
+	return tuiAssetPreferenceKey(asset) + "\x00" + tuiAccountPreferenceKey(account) + "\x00" + protocol
 }
 
 func (h *terminalUI) rememberConnection(asset model.PermAsset, account model.PermAccount, protocol string) {
@@ -469,6 +476,11 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 	conn := &tuiAssetConnection{Terminal: terminal, id: session.page, remoteAddr: remoteAddr}
 	api := h.data.client(asset.OrgID)
 	lang := h.data.lang
+	passwordAttemptKey := tuiPasswordAttemptKey(asset, account, protocol)
+	passwordLimitError := fmt.Errorf(h.tr(
+		"手动密码最多允许输入 %d 次",
+		"Manual password can be entered at most %d times",
+	), maxTUIManualPasswordAttempts)
 	// One goroutine per session; at most eight, including pending approvals and
 	// closing connections. Selecting another tab does not cancel this context.
 	go func() {
@@ -476,7 +488,12 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 		if err := srvconn.IsSupportedProtocol(protocol); err != nil {
 			_, _ = fmt.Fprintf(terminal, "\r\n%s\r\n", err)
 		} else {
-			closeOnFinish = connectSelectedAsset(conn, api, h.user, asset, account, protocol, lang)
+			closeOnFinish = connectSelectedAsset(conn, api, h.user, asset, account, protocol, lang, func() error {
+				if h.manualPasswordAttempts.acquire(passwordAttemptKey) {
+					return nil
+				}
+				return passwordLimitError
+			})
 		}
 		_ = terminal.Close()
 		h.update(func() {
