@@ -7,6 +7,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func TestPostgreSQLCommandToolContract(t *testing.T) {
@@ -84,11 +87,26 @@ func TestDatabaseSchemaArgumentsSupportBoundedListing(t *testing.T) {
 	}
 }
 
+func TestSQLExecutorDefersConnection(t *testing.T) {
+	for _, protocol := range []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "clickhouse"} {
+		t.Run(protocol, func(t *testing.T) {
+			executor, err := NewDatabaseExecutor(context.Background(), DatabaseConfig{
+				Protocol: protocol, Host: "127.0.0.1", Port: 1, Database: "test",
+			})
+			if err != nil {
+				t.Fatalf("initialization should not require a live database: %v", err)
+			}
+			defer executor.Close()
+		})
+	}
+}
+
 func TestMongoDBCommandContract(t *testing.T) {
 	validator := ProtocolCommandValidator("mongodb")
 	for _, command := range []string{
 		`db.runCommand({"ping":1})`,
 		`db.runCommand({"find":"logs","filter":{"_id":{"$oid":"507f1f77bcf86cd799439011"}}})`,
+		`db.runCommand(EJSON.deserialize({"ping":1}, {"relaxed":false}))`,
 	} {
 		if _, err := validator(command); err != nil {
 			t.Fatalf("valid MongoDB command rejected: %v", err)
@@ -97,15 +115,26 @@ func TestMongoDBCommandContract(t *testing.T) {
 	for _, command := range []string{
 		`db.logs.find({})`, `show collections`, `db.runCommand({ping:1})`,
 		`db.runCommand({"find":"logs","filter":{"_id":ObjectId("507f1f77bcf86cd799439011")}})`,
+		`db.runCommand(EJSON.deserialize({"ping":1}, {"relaxed":true}))`,
+		`db.runCommand(EJSON.deserialize({"ping":1}, {"relaxed":false})); db.dropDatabase()`,
 	} {
 		if _, err := validator(command); err == nil {
 			t.Fatalf("unsupported MongoDB syntax accepted: %s", command)
 		}
 	}
+	document, err := parseMongoDBCommand(`db.runCommand(EJSON.deserialize({"find":"logs","filter":{"_id":{"$oid":"507f1f77bcf86cd799439011"},"sequence":{"$numberLong":"9007199254740993"}}}, {"relaxed":false}))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter := document[1].Value.(bson.D)
+	if filter[0].Value.(primitive.ObjectID).Hex() != "507f1f77bcf86cd799439011" || filter[1].Value != int64(9007199254740993) {
+		t.Fatalf("BSON types were not preserved: %#v", filter)
+	}
 	_, description, commandDescription := commandToolPresentation("mongodb")
 	if !strings.Contains(description, "every execution mode") ||
 		!strings.Contains(commandDescription, "db.runCommand") ||
-		!strings.Contains(commandDescription, "strict Extended JSON") {
+		!strings.Contains(commandDescription, "strict Extended JSON") ||
+		!strings.Contains(commandDescription, "EJSON.deserialize") {
 		t.Fatal("MongoDB tool description does not expose its syntax requirements")
 	}
 }
@@ -125,6 +154,73 @@ func TestSQLExecuteCommandContract(t *testing.T) {
 	for _, command := range []string{"EXEC dbo.usp_report; SELECT 1", "EXEC ('SELECT 1)", "execfile /tmp/task"} {
 		if _, err := ProtocolCommandValidator("sqlserver")(command); err == nil {
 			t.Fatalf("invalid SQL execution accepted: %s", command)
+		}
+	}
+}
+
+func TestSQLDialectBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		protocol, command   string
+		background, invalid bool
+	}{
+		{"sqlserver", `SELECT [order; id] FROM dbo.orders`, true, false},
+		{"sqlserver", `SELECT N'C:\'`, true, false},
+		{"sqlserver", `SELECT * FROM #items`, false, false},
+		{"sqlserver", `SELECT * FROM [#items]`, false, false},
+		{"sqlserver", `SELECT * FROM "#items"`, false, false},
+		{"sqlserver", `SELECT * FROM #items; DROP TABLE items`, false, true},
+		{"sqlserver", `SELECT [unclosed`, false, true},
+		{"postgresql", `SELECT $tag$a'; SELECT 2$tag$`, true, false},
+		{"postgresql", `SELECT E'a\';b'`, true, false},
+		{"postgresql", `SELECT 'C:\'`, true, false},
+		{"postgresql", `SELECT 1--comment`, true, false},
+		{"postgresql", `SELECT 1 /* outer /* inner */ outer */`, true, false},
+		{"postgresql", `SELECT 1; $$hidden$$`, false, true},
+		{"postgresql", `SELECT $tag$unclosed`, false, true},
+		{"mysql", `SELECT 1--not-a-comment; SELECT 2`, false, true},
+		{"mysql", `SELECT 1 # ignored; SELECT 2`, true, false},
+		{"mysql", `SELECT 1 /*! INTO OUTFILE '/tmp/data' */`, false, true},
+		{"mysql", `SELECT (1`, false, true},
+		{"oracle", `SELECT q'[a';b]' FROM dual`, true, false},
+		{"oracle", `SELECT q'[unclosed' FROM dual`, false, true},
+		{"clickhouse", `SELECT $tag$a';b$tag$ // comment`, true, false},
+		{"postgresql", `EXEC report`, false, true},
+		{"sqlserver", `PREPARE report FROM 'SELECT 1'`, false, true},
+	} {
+		constraints, err := ProtocolCommandValidator(tc.protocol)(tc.command)
+		if (err != nil) != tc.invalid || (err == nil && constraints.BackgroundEligible != tc.background) {
+			t.Errorf("%s %q: constraints=%+v, error=%v", tc.protocol, tc.command, constraints, err)
+		}
+	}
+}
+
+func TestSQLDialectCommands(t *testing.T) {
+	for _, tc := range []struct {
+		protocol, command string
+		background        bool
+	}{
+		{"mysql", `CALL report(1)`, false},
+		{"mysql", `PREPARE report FROM 'SELECT 1'`, false},
+		{"mariadb", `DEALLOCATE PREPARE report`, false},
+		{"postgresql", `CALL report(1)`, false},
+		{"postgresql", `PREPARE report AS SELECT 1`, false},
+		{"postgresql", `DEALLOCATE report`, false},
+		{"oracle", `CALL report(1)`, false},
+		{"postgresql", `RESET search_path`, false},
+		{"mysql", `RESET REPLICA`, true},
+		{"postgresql", `VALUES (1), (2)`, true},
+		{"postgresql", `CREATE TEMP TABLE items(id int)`, false},
+		{"sqlserver", `DBCC CHECKDB`, false},
+		{"sqlserver", `MERGE items USING src ON items.id=src.id WHEN MATCHED THEN UPDATE SET value=src.value;`, true},
+		{"sqlserver", `INSERT INTO items(id) OUTPUT inserted.id VALUES(1)`, false},
+		{"postgresql", `INSERT INTO items(id) VALUES(1) RETURNING id`, false},
+		{"clickhouse", `EXISTS TABLE items`, true},
+		{"clickhouse", `CHECK TABLE items`, true},
+		{"clickhouse", `SYSTEM FLUSH LOGS`, true},
+	} {
+		constraints, err := ProtocolCommandValidator(tc.protocol)(tc.command)
+		if err != nil || constraints.BackgroundEligible != tc.background {
+			t.Errorf("%s %q: constraints=%+v, error=%v", tc.protocol, tc.command, constraints, err)
 		}
 	}
 }

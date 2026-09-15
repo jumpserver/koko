@@ -23,6 +23,7 @@ import (
 const maxNativeSQLRows = 1000
 
 type NativeSQLExecutor struct {
+	protocol  string
 	db        *sql.DB
 	sanitizer ValueSanitizer
 	metadata  *sqlMetadataTool
@@ -33,18 +34,19 @@ func NewNativeSQLExecutor(
 	ctx context.Context,
 	config DatabaseConfig,
 ) (*NativeSQLExecutor, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	db, err := newNativeSQLDatabase(config)
 	if err != nil {
 		return nil, err
 	}
 	executor := &NativeSQLExecutor{
-		db: db, sanitizer: NewMySQLSanitizer(config.DataMaskingRules),
+		db: db, protocol: config.Protocol, sanitizer: NewMySQLSanitizer(config.DataMaskingRules),
 		metadata: newSQLMetadataTool(db, config.Protocol, config.Database),
 	}
-	if err = db.PingContext(ctx); err != nil {
-		_ = executor.Close()
-		return nil, fmt.Errorf("initialize %s background connection: %w", config.Protocol, err)
-	}
+	// Connect on execution so a transient outage cannot permanently remove the
+	// background capability. database/sql owns connection recovery.
 	return executor, nil
 }
 
@@ -53,7 +55,7 @@ func (e *NativeSQLExecutor) Execute(
 	command string,
 	onOutput func(string),
 ) (string, *int, error) {
-	analysis, err := analyzeSQL(command)
+	analysis, err := analyzeSQL(command, e.protocol)
 	if err != nil {
 		return "", nil, err
 	}

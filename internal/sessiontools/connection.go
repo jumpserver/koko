@@ -38,7 +38,7 @@ func ProtocolCommandValidator(protocol string) CommandValidator {
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 			srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
 			srvconn.ProtocolOracle, srvconn.ProtocolClickHouse:
-			analysis, err := analyzeSQL(command)
+			analysis, err := analyzeSQL(command, protocol)
 			if err != nil {
 				return CommandConstraints{}, err
 			}
@@ -109,8 +109,8 @@ func commandToolPresentation(protocol string) (title, description, commandDescri
 			"Exactly one Redis command using Redis command syntax."
 	case protocol == srvconn.ProtocolMongoDB:
 		return "Execute MongoDB command",
-			"Execute exactly one bounded db.runCommand call with strict Extended JSON against the active audited MongoDB connection. This syntax is required in every execution mode; arbitrary mongosh JavaScript and shell helpers are unavailable.",
-			"One db.runCommand call containing a non-empty strict Extended JSON document. Double-quote all keys and string values. Use Extended JSON values instead of JavaScript constructors. Collection methods, shell helpers, variables and JavaScript expressions are unsupported."
+			"Execute exactly one bounded db.runCommand call with strict Extended JSON against the active audited MongoDB connection. This syntax is required in every execution mode. Use EJSON.deserialize with relaxed=false to preserve BSON types in both PTY and background execution; arbitrary mongosh JavaScript and shell helpers are unavailable.",
+			`One db.runCommand(EJSON.deserialize(document, {"relaxed":false})) call containing a non-empty strict Extended JSON document. Double-quote all keys and string values. Use Extended JSON values instead of JavaScript constructors. A direct db.runCommand(document) is also accepted, but BSON types such as $oid, $date and $numberLong require the EJSON.deserialize wrapper in PTY mode. Collection methods, shell helpers, variables and other JavaScript expressions are unsupported.`
 	case protocol == srvconn.ProtocolK8s:
 		return "Execute Kubernetes shell command",
 			"Execute one bounded shell command inside the active audited Kubernetes terminal.",

@@ -294,8 +294,10 @@ func (c *terminalToolController) executePTY(
 	if err != nil {
 		return "", nil, err
 	}
-	c.client.SetInputLocked(true)
-	defer c.client.SetInputLocked(false)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	c.client.setInputLock(cancel)
+	defer c.client.setInputLock(nil)
 	if decision != nil {
 		value := proxy.CommandACLDecision{
 			Action: model.CommandAction(decision.Action),
