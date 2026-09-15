@@ -248,13 +248,16 @@ func (c *terminalToolController) reviewCommand(
 	ctx context.Context,
 	decision sessiontools.CommandACLDecision,
 	command string,
+	onProgress func(sessiontools.CommandACLDecision),
 ) (sessiontools.CommandACLDecision, error) {
 	reviewed, err := c.server.ReviewCommand(ctx, proxy.CommandACLDecision{
 		Action: model.CommandAction(decision.Action),
 		ACLID:  decision.ACLID, ItemID: decision.ItemID,
 		Name: decision.Name, Matched: decision.Matched,
 		Reviewed: decision.Reviewed,
-	}, command)
+	}, command, func(current proxy.CommandACLDecision) {
+		onProgress(agentToolACLDecision(current))
+	})
 	return agentToolACLDecision(reviewed), err
 }
 

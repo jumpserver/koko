@@ -270,7 +270,11 @@ func (s *Server) RevokeAgentToolCommand(command string) {
 
 func (s *Server) ReviewCommand(
 	ctx context.Context, decision CommandACLDecision, command string,
+	onProgress func(CommandACLDecision),
 ) (CommandACLDecision, error) {
+	if err := ctx.Err(); err != nil {
+		return decision, err
+	}
 	ticket, err := s.jmsService.SubmitCommandReview(s.ID, decision.ACLID, command)
 	if err != nil {
 		return decision, err
@@ -280,6 +284,9 @@ func (s *Server) ReviewCommand(
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
+		if onProgress != nil {
+			onProgress(decision)
+		}
 		select {
 		case <-ctx.Done():
 			_ = s.jmsService.CancelConfirmByRequestInfo(ticket.CloseReq)
@@ -287,6 +294,10 @@ func (s *Server) ReviewCommand(
 		case <-ticker.C:
 		}
 		status, checkErr := s.jmsService.CheckConfirmStatusByRequestInfo(ticket.CheckReq)
+		if err = ctx.Err(); err != nil {
+			_ = s.jmsService.CancelConfirmByRequestInfo(ticket.CloseReq)
+			return decision, err
+		}
 		if checkErr != nil {
 			logger.Errorf("Session %s: check agent tool command review failed: %s", s.ID, checkErr)
 			continue

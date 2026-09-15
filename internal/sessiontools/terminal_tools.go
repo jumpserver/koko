@@ -28,6 +28,7 @@ const (
 	MCPExecutionBackground   = "background"
 	defaultMCPCommandTime    = 2 * time.Minute
 	maximumMCPCommandTime    = 10 * time.Minute
+	maximumMCPReviewTime     = 10 * time.Minute
 	maximumMCPCommandSize    = 64 * 1024
 	mcpCommandInputPattern   = "^[^\\x00-\\x1F\\x7F-\\x9F\u2028\u2029]*$"
 )
@@ -38,6 +39,7 @@ type MCPCommandHooks struct {
 		context.Context,
 		CommandACLDecision,
 		string,
+		func(CommandACLDecision),
 	) (CommandACLDecision, error)
 	BackgroundRecord    func(string, string, *int, *CommandACLDecision)
 	ExecutionGuard      func() error
@@ -257,11 +259,17 @@ func (t *mcpCommandTool) Call(
 	}
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	if err = execCtx.Err(); err != nil {
+		return nil, err
+	}
+	progress := map[string]any{
+		"status": "running", "command": command, "execution": execution,
+		"command_acl": decision,
+	}
+	ReportProgress(execCtx, progress)
 	guardFailure := make(chan error, 1)
 	guardDone := make(chan struct{})
-	if guard != nil {
-		go t.watchGuard(execCtx, cancel, guard, guardFailure, guardDone)
-	}
+	go t.watchGuard(execCtx, cancel, guard, guardFailure, guardDone, progress)
 	var output string
 	var exitCode *int
 	var executeErr error
@@ -367,12 +375,24 @@ func (t *mcpCommandTool) authorize(
 		if t.hooks.CommandACLReview == nil {
 			return nil, errors.New("command ACL review is unavailable")
 		}
-		reviewed, err := t.hooks.CommandACLReview(ctx, decision, command)
+		reviewCtx, cancel := context.WithTimeout(ctx, maximumMCPReviewTime)
+		defer cancel()
+		reviewed, err := t.hooks.CommandACLReview(reviewCtx, decision, command, func(current CommandACLDecision) {
+			ReportProgress(reviewCtx, map[string]any{
+				"status": "awaiting_approval", "command": command, "command_acl": current,
+			})
+		})
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, fmt.Errorf("command review wait expired; command was not executed: %w", err)
+			}
+			return nil, err
+		}
+		if err = reviewCtx.Err(); err != nil {
 			return nil, err
 		}
 		if reviewed.Action != "accept" {
-			return nil, errors.New("command rejected by ACL reviewer")
+			return nil, errors.New("command review was rejected or closed; command was not executed")
 		}
 		return &reviewed, nil
 	case "", "Unknown":
@@ -420,6 +440,7 @@ func (t *mcpCommandTool) watchGuard(
 	guard func() error,
 	failure chan<- error,
 	done <-chan struct{},
+	progress map[string]any,
 ) {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
@@ -430,6 +451,10 @@ func (t *mcpCommandTool) watchGuard(
 		case <-done:
 			return
 		case <-ticker.C:
+			ReportProgress(ctx, progress)
+			if guard == nil {
+				continue
+			}
 			if err := guard(); err != nil {
 				select {
 				case failure <- err:

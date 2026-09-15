@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -194,7 +195,7 @@ func TestCommandToolPTYNormalization(t *testing.T) {
 						}
 						return CommandACLDecision{Action: "review"}
 					},
-					CommandACLReview: func(_ context.Context, decision CommandACLDecision, command string) (CommandACLDecision, error) {
+					CommandACLReview: func(_ context.Context, decision CommandACLDecision, command string, _ func(CommandACLDecision)) (CommandACLDecision, error) {
 						reviewCommand = command
 						decision.Action, decision.Reviewed = "accept", true
 						return decision, nil
@@ -414,6 +415,84 @@ func TestMCPAgentBindingIgnoresUnknownFields(t *testing.T) {
 	}
 	if binding.ResourceSessionID != "resource-1" || binding.ToolCallID != "call-1" || binding.Revision != 1 {
 		t.Fatalf("unexpected binding: %#v", binding)
+	}
+}
+
+func TestCommandReviewProgress(t *testing.T) {
+	for _, action := range []string{"accept", "reject", "cancel"} {
+		t.Run(action, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			approval := make(chan struct{})
+			frames := make(chan MCPOutbound, 4)
+			executor := &commandCaptureExecutor{}
+			handler, err := NewCommandTool(MCPCommandToolOptions{
+				Executor: executor, Validate: ProtocolCommandValidator("ssh"),
+				Hooks: MCPCommandHooks{
+					BackgroundAvailable: func() bool { return true },
+					CommandACLCheck:     func(string) CommandACLDecision { return CommandACLDecision{Action: "review"} },
+					CommandACLReview: func(ctx context.Context, decision CommandACLDecision, _ string, progress func(CommandACLDecision)) (CommandACLDecision, error) {
+						progress(decision)
+						select {
+						case <-approval:
+							decision.Action, decision.Reviewed = action, true
+							if action == "cancel" {
+								decision.Action = "accept"
+							}
+							return decision, nil
+						case <-ctx.Done():
+							return decision, ctx.Err()
+						}
+					},
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			dispatcher, err := NewMCPDispatcher(ctx, MCPDispatcherOptions{
+				ResourceSessionID: "session", Profile: "terminal", Handlers: []MCPToolHandler{handler},
+				Emit: func(frame MCPOutbound) { frames <- frame },
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer dispatcher.Close()
+			request := `{"jsonrpc":"2.0","id":"call","method":"tools/call","params":{"name":"execute_command","arguments":{"command":"ls"},"_meta":{"io.modelcontextprotocol/protocolVersion":"` + MCPWireVersion + `","io.modelcontextprotocol/clientCapabilities":{},"com.jumpserver/agent":{"resource_session_id":"session","tool_call_id":"call","revision":1}}}}`
+			if err = dispatcher.HandleRequest([]byte(request)); err != nil {
+				t.Fatal(err)
+			}
+			receive := func(kind string, sequence uint64) MCPResponse {
+				t.Helper()
+				select {
+				case frame := <-frames:
+					var response MCPResponse
+					if err := json.Unmarshal(frame.Data, &response); err != nil || frame.Type != kind || response.Sequence != sequence {
+						t.Fatalf("unexpected frame: %s %s, %v", frame.Type, frame.Data, err)
+					}
+					return response
+				case <-time.After(time.Second):
+					t.Fatal("missing executor response")
+					return MCPResponse{}
+				}
+			}
+			pending := receive(MCPProgressFrame, 1)
+			if pending.Result.(map[string]any)["status"] != "awaiting_approval" || executor.command != "" {
+				t.Fatal("command must remain unexecuted while review is pending")
+			}
+			if action == "cancel" {
+				cancel()
+			}
+			close(approval)
+			sequence := uint64(2)
+			if action == "accept" {
+				receive(MCPProgressFrame, sequence)
+				sequence++
+			}
+			result := receive(MCPResponseFrame, sequence).Result.(map[string]any)
+			if (executor.command != "") != (action == "accept") || (result["isError"] == true) != (action != "accept") {
+				t.Fatalf("unexpected command review outcome: %q %+v", executor.command, result)
+			}
+		})
 	}
 }
 
