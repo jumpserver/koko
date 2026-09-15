@@ -104,6 +104,7 @@ type terminalUI struct {
 	activeSession                                       int
 	windowPrefix                                        bool
 	fullscreen                                          bool
+	preferences                                         *tuiPreferences
 }
 
 func cleanTUIText(s string) string {
@@ -137,18 +138,29 @@ func tuiDialogBorder(box *tview.Box, title string) {
 	box.SetTitleColor(tui.Accent).SetBorderPadding(1, 1, 2, 2)
 }
 
-func newTerminalUI(sess ssh.Session, user *model.User, api, userAPI *service.JMService, conf model.TerminalConfig, screen tcell.Screen) *terminalUI {
+func newTerminalUI(sess ssh.Session, user *model.User, api, userAPI *service.JMService, conf model.TerminalConfig, screen tcell.Screen, preferences *tuiPreferences) *terminalUI {
 	ctx, cancel := context.WithCancel(sess.Context())
+	language := getUserDefaultLangCode(user)
 	h := &terminalUI{session: sess, user: user, conf: conf, screen: screen,
-		ctx: ctx, cancel: cancel, data: tuiData{api: api, userAPI: userAPI, userID: user.ID, lang: getUserDefaultLangCode(user)},
+		ctx: ctx, cancel: cancel, data: tuiData{api: api, userAPI: userAPI, userID: user.ID, lang: language},
 		updates: make(chan func(), 16), assetJobs: make(chan func(), 1), treeJobs: make(chan func(), 1),
-		detailJobs: make(chan func(), 1), orgJobs: make(chan func(), 1), countJobs: make(chan func(), 1), lastInput: time.Now(), activeSession: -1, sidebarWidth: 40}
+		detailJobs: make(chan func(), 1), orgJobs: make(chan func(), 1), countJobs: make(chan func(), 1), lastInput: time.Now(), activeSession: -1, sidebarWidth: defaultTUISidebarWidth,
+		preferences: preferences}
+	if preferences != nil {
+		h.scope.Mode = preferences.treeMode(user.ID)
+		h.data.lang, h.lightTheme, h.accentColor, h.sidebarWidth, h.sidebarHidden = preferences.display(user.ID, language)
+	}
 	h.themeScreen = tui.NewThemeScreen(screen)
+	h.themeScreen.SetPalette(tui.ThemePalette(h.lightTheme, h.accentColor))
 	h.app = tview.NewApplication().SetScreen(h.themeScreen).EnableMouse(true).EnablePaste(true)
 	h.pages = tview.NewPages()
 	h.pages.SetBackgroundColor(tui.Background)
 	h.build()
-	h.app.SetRoot(h.main, true).SetFocus(h.tree).SetInputCapture(h.input)
+	focus := tview.Primitive(h.tree)
+	if h.sidebarHidden {
+		focus = h.table
+	}
+	h.app.SetRoot(h.main, true).SetFocus(focus).SetInputCapture(h.input)
 	h.app.SetBeforeDrawFunc(func(s tcell.Screen) bool {
 		s.HideCursor()
 		cursorStyle := tcell.CursorStyleDefault
@@ -263,12 +275,22 @@ func (h *terminalUI) build() {
 		pinNavigationDropdownIndicator(dropdown)
 		dropdown.SetFieldBackgroundColor(tui.Panel).
 			SetLabelStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
-			SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
+			SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
+			SetListStyles(
+				tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel),
+				tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel),
+			)
 	}
 	h.treeTools = tview.NewFlex()
 	for i, label := range []string{"−", tuiRefreshIcon} {
 		activatedStyle := tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)
 		b := tview.NewButton(label).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(activatedStyle)
+		b.SetDrawFunc(func(_ tcell.Screen, x, y, width, height int) (int, int, int, int) {
+			if width < 1 {
+				return x, y, 0, height
+			}
+			return x + width - 1, y, 1, height
+		})
 		b.SetSelectedFunc(func() {
 			if i == 0 {
 				h.toggleTreeExpansion()
@@ -374,7 +396,7 @@ func (h *terminalUI) build() {
 		SetSelectedFunc(h.refreshAssets)
 	tuiBorder(h.assetRefresh.Box, "", tui.Border)
 	h.assetRefresh.SetTitle("")
-	assetToolbar := tview.NewFlex().AddItem(h.search, 0, 1, false).AddItem(nil, 1, 0, false).AddItem(h.assetRefresh, 7, 0, false)
+	assetToolbar := tview.NewFlex().AddItem(h.search, 0, 1, false).AddItem(nil, 1, 0, false).AddItem(h.assetRefresh, 5, 0, false)
 	assetToolbar.SetBackgroundColor(tui.Panel)
 	h.table = tview.NewTable().SetSelectable(true, false).SetFixed(1, 0).SetSelectedStyle(tui.Selected)
 	h.table.SetBackgroundColor(tui.Panel)
@@ -414,7 +436,11 @@ func (h *terminalUI) build() {
 	h.assetPane.SetTitle("").SetBorderPadding(1, 0, 1, 1)
 	h.assetRegion = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(assetToolbar, 3, 0, false).AddItem(nil, 1, 0, false).AddItem(h.assetPane, 0, 1, false)
 	h.assetRegion.SetBackgroundColor(tui.Panel)
-	h.body = tview.NewFlex().AddItem(h.navigation, h.sidebarWidth, 0, true).AddItem(nil, 1, 0, false).AddItem(h.assetRegion, 0, 1, false)
+	h.body = tview.NewFlex()
+	if !h.sidebarHidden {
+		h.body.AddItem(h.navigation, h.sidebarWidth, 0, true).AddItem(nil, 1, 0, false)
+	}
+	h.body.AddItem(h.assetRegion, 0, 1, false)
 	h.footer = tview.NewTextView().SetDynamicColors(true).SetTextStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))
 	h.footer.SetWrap(false)
 	h.footer.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, 1, 1)
@@ -709,14 +735,32 @@ func (h *terminalUI) setOrganizations(orgs []tuiOrganization) {
 	if h.scope.Org.ID == "" && len(orgs) > 1 && orgs[0].ID == tuiGlobalOrganizationID {
 		selected = 1
 	}
+	preferred := ""
+	if h.preferences != nil && h.user != nil {
+		preferred = h.preferences.organization(h.user.ID)
+	}
+	preferredIndex := -1
 	for i, org := range orgs {
 		labels[i] = cleanTUIText(org.Name)
 		if org.ID == h.scope.Org.ID {
 			selected = i
 		}
+		if org.ID == preferred {
+			preferredIndex = i
+		}
 	}
+	if preferredIndex >= 0 {
+		selected = preferredIndex
+	}
+	restoring := true
 	h.org.SetOptions(labels, func(_ string, i int) {
-		if i < 0 || i >= len(h.orgs) || h.scope.Org.ID == h.orgs[i].ID {
+		if i < 0 || i >= len(h.orgs) {
+			return
+		}
+		if !restoring && h.organizationsReady && h.preferences != nil && h.user != nil {
+			h.preferences.storeOrganization(h.user.ID, h.orgs[i].ID)
+		}
+		if h.scope.Org.ID == h.orgs[i].ID {
 			return
 		}
 		h.scope.Org = h.orgs[i]
@@ -726,12 +770,17 @@ func (h *terminalUI) setOrganizations(orgs []tuiOrganization) {
 		h.search.SetText("")
 		h.searchQuery = ""
 		h.switchTree(h.scope.Mode)
-	}).SetCurrentOption(selected)
+	})
+	h.org.SetCurrentOption(selected)
+	restoring = false
 }
 
 func (h *terminalUI) switchTree(mode int) {
 	if h.scope.Org.ID == "" {
 		return
+	}
+	if h.preferences != nil && h.user != nil {
+		h.preferences.storeTreeMode(h.user.ID, mode)
 	}
 	h.viewGeneration++
 	h.detailGeneration++

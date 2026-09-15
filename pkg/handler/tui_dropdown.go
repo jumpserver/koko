@@ -43,7 +43,8 @@ func (h *terminalUI) navigationSearchFor(d *tview.DropDown) *tview.InputField {
 	}
 	if h.navigationSearch == nil || h.navigationSearch.picker != d {
 		field := tview.NewInputField().SetFieldTextColor(tui.Foreground).
-			SetFieldBackgroundColor(tui.Panel).SetPlaceholderTextColor(tui.Foreground)
+			SetFieldBackgroundColor(tui.Panel).
+			SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
 		field.SetBackgroundColor(tui.Panel)
 		field.SetChangedFunc(func(prefix string) {
 			if prefix == "" || !d.IsOpen() {

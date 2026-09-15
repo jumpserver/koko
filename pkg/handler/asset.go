@@ -38,7 +38,7 @@ func GetInputUsername(sess io.ReadWriteCloser) (username string, err error) {
 // connectSelectedAsset runs token authorization, approval and auditing inside
 // the selected TUI terminal.
 func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMService,
-	user *model.User, asset model.PermAsset, selectedAccount model.PermAccount, protocol, i18nLang string) {
+	user *model.User, asset model.PermAsset, selectedAccount model.PermAccount, protocol, i18nLang string) (connected bool) {
 	lang := i18n.NewLang(i18nLang)
 	if conn.Context().Err() != nil {
 		return
@@ -131,4 +131,5 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 		return
 	}
 	srv.Proxy()
+	return srv.SessionEndReason != model.ReasonErrConnectFailed
 }

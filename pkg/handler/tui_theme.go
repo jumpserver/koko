@@ -57,5 +57,8 @@ func (h *terminalUI) changeAppearance(light bool, accent int) {
 	}
 	h.lightTheme, h.accentColor = light, accent
 	h.themeScreen.SetPalette(palette)
+	if h.preferences != nil && h.user != nil {
+		h.preferences.storeAppearance(h.user.ID, light, accent)
+	}
 	h.dirty.Store(true)
 }
