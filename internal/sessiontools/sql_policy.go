@@ -16,12 +16,26 @@ const (
 )
 
 type sqlAnalysis struct {
-	kind       sqlKind
-	keyword    string
-	words      []string
-	depths     []int
-	multi      bool
-	incomplete bool
+	kind             sqlKind
+	keyword          string
+	words            []string
+	depths           []int
+	multi            bool
+	incomplete       bool
+	semicolon        bool
+	lineCommentStart int
+}
+
+func (a sqlAnalysis) PTYCommand(statement string) string {
+	if a.semicolon {
+		return statement
+	}
+	offset := len(statement)
+	if a.lineCommentStart >= 0 {
+		// A terminator appended after a line comment would be ignored by usql.
+		offset = len(strings.TrimRightFunc(statement[:a.lineCommentStart], unicode.IsSpace))
+	}
+	return statement[:offset] + ";" + statement[offset:]
 }
 
 func (a sqlAnalysis) BackgroundEligible() bool {
@@ -62,13 +76,14 @@ func (a sqlAnalysis) PTYReason() string {
 
 func analyzeSQL(statement, protocol string) (sqlAnalysis, error) {
 	dialect := dialectForSQL(protocol)
-	words, depths, semicolon, trailingOnly, incomplete, err := scanSQL(statement, dialect)
+	words, depths, semicolon, trailingOnly, incomplete, lineCommentStart, err := scanSQL(statement, dialect)
 	if err != nil {
 		return sqlAnalysis{}, err
 	}
 	analysis := sqlAnalysis{
 		words: words, depths: depths,
 		multi: semicolon && !trailingOnly, incomplete: incomplete,
+		semicolon: semicolon, lineCommentStart: lineCommentStart,
 	}
 	if len(words) == 0 {
 		return analysis, fmt.Errorf("model generated an empty SQL statement")
@@ -119,8 +134,9 @@ func isSchemaChangingSQL(analysis sqlAnalysis) bool {
 }
 
 func scanSQL(statement string, dialect sqlDialect) (
-	words []string, depths []int, semicolon, trailingOnly, incomplete bool, err error,
+	words []string, depths []int, semicolon, trailingOnly, incomplete bool, lineCommentStart int, err error,
 ) {
+	lineCommentStart = -1
 	var word strings.Builder
 	state := byte(0)
 	escapeBackslash := false
@@ -159,6 +175,7 @@ func scanSQL(statement string, dialect sqlDialect) (
 		case '-':
 			if current == '\n' || current == '\r' {
 				state = 0
+				lineCommentStart = -1
 			}
 			continue
 		case '/':
@@ -178,12 +195,14 @@ func scanSQL(statement string, dialect sqlDialect) (
 		}
 		if current == '#' && (dialect.mysql || (dialect.clickhouse && (next == '!' || next == ' '))) {
 			flush()
+			lineCommentStart = index
 			state = '-'
 			continue
 		}
 		if (current == '-' && next == '-' && (!dialect.mysql || mysqlDashComment(statement, index))) ||
 			(dialect.clickhouse && current == '/' && next == '/') {
 			flush()
+			lineCommentStart = index
 			state = '-'
 			index++
 			continue

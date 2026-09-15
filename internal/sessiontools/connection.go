@@ -59,6 +59,7 @@ func ProtocolCommandValidator(protocol string) CommandValidator {
 				)
 			}
 			constraints.BackgroundEligible = analysis.BackgroundEligible()
+			constraints.PTYCommand = analysis.PTYCommand(command)
 		case srvconn.ProtocolRedis:
 			arguments, err := parseRedisCommand(command)
 			if err != nil {
@@ -102,7 +103,7 @@ func commandToolPresentation(protocol string) (title, description, commandDescri
 		}[protocol]
 		return "Execute " + label + " SQL",
 			"Execute exactly one bounded " + label + " SQL statement against the active audited database connection. Operating-system shell commands are unavailable.",
-			"Exactly one " + label + " SQL statement. Do not provide shell syntax or multiple statements."
+			"Exactly one " + label + " SQL statement. Do not provide shell syntax or multiple statements. PTY execution automatically adds a missing statement-ending semicolon."
 	case protocol == srvconn.ProtocolRedis:
 		return "Execute Redis command",
 			"Execute exactly one bounded Redis command against the active audited database connection.",
