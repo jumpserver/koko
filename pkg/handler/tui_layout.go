@@ -253,6 +253,9 @@ func (h *terminalUI) resizeSidebar(delta int) {
 	h.sidebarWidth = h.navigationWidth() + delta
 	h.sidebarWidth = h.navigationWidth()
 	h.updateLayout()
+	if !h.draggingSidebar {
+		h.storeSidebarPreference()
+	}
 }
 
 // Size against the visible list, not the longest remark. Narrow terminals keep
@@ -308,6 +311,13 @@ func (h *terminalUI) toggleSidebar() {
 		h.app.SetFocus(h.table)
 	} else {
 		h.app.SetFocus(h.tree)
+	}
+	h.storeSidebarPreference()
+}
+
+func (h *terminalUI) storeSidebarPreference() {
+	if h.preferences != nil && h.user != nil {
+		h.preferences.storeSidebar(h.user.ID, h.sidebarWidth, h.sidebarHidden)
 	}
 }
 
@@ -377,6 +387,7 @@ func (h *terminalUI) captureMouse(ev *tcell.EventMouse, action tview.MouseAction
 		}
 		if action == tview.MouseLeftUp {
 			h.draggingSidebar = false
+			h.storeSidebarPreference()
 		}
 		return nil, action
 	}
@@ -439,13 +450,16 @@ func (h *terminalUI) showLanguage() {
 	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(list, 0, 1, true).AddItem(nil, 1, 0, false).AddItem(close, 1, 0, false)
 	content.Box = tview.NewBox()
-	tuiDialogBorder(content.Box, h.tr("语言 · 当前会话", "Language · this session"))
+	tuiDialogBorder(content.Box, h.tr("语言", "Language"))
 	h.openDialog("language", &tuiOverlay{Box: tview.NewBox(), child: content, width: 46, height: len(i18n.AllCodes) + 6}, []tview.Primitive{list, close})
 }
 
 func (h *terminalUI) changeLanguage(code i18n.LanguageCode) {
 	for h.modal {
 		h.dismissModal()
+	}
+	if h.preferences != nil && h.user != nil {
+		h.preferences.storeLanguage(h.user.ID, code.String())
 	}
 	if h.data.lang == code.String() {
 		return

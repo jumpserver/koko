@@ -293,7 +293,7 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 			if button := h.dialogs[len(h.dialogs)-1].defaultButton; button != nil {
 				add("↓", h.tr("展开选择", "Open choices"), true)
 				if !button.IsDisabled() {
-					*bindings = append(*bindings, tuiShortcut{id: "control", label: "Enter", description: button.GetLabel(), key: tcell.KeyEnter,
+					*bindings = append(*bindings, tuiShortcut{id: "control", label: "Enter", description: strings.Split(button.GetLabel(), " · ")[0], key: tcell.KeyEnter,
 						run: func() {
 							button.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, 0), func(p tview.Primitive) { h.app.SetFocus(p) })
 						}, compact: true})
@@ -357,8 +357,8 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 	if expanded, _ := h.treeExpansion(); expanded {
 		label = "−"
 	}
-	h.treeActions[0].SetLabel(mnemonic(label, "tree-toggle", "z"))
-	h.treeActions[1].SetLabel(mnemonic(tuiRefreshIcon, "tree-refresh", "u"))
+	h.treeActions[0].SetLabel(label)
+	h.treeActions[1].SetLabel(tuiRefreshIcon)
 	path := h.scope.Path
 	if path == "" {
 		path = h.scope.Label
@@ -373,7 +373,7 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 		searchLabel = "/ " + h.tr("搜索", "Search") + " "
 	}
 	h.search.SetLabel(searchLabel)
-	h.assetRefresh.SetLabel(" " + mnemonic(tuiRefreshIcon, "refresh", "r") + " ")
+	h.assetRefresh.SetLabel(" " + tuiRefreshIcon + " ")
 	previous, next := h.tr("上页", "Previous"), h.tr("下页", "Next")
 	previous = mnemonic("[", "previous-page", "[") + " " + previous
 	next += " " + mnemonic("]", "next-page", "]")

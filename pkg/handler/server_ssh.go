@@ -246,7 +246,7 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 		if userAPIErr != nil {
 			logger.Warnf("Initialize TUI user API: %s", userAPIErr)
 		}
-		ui := newTerminalUI(sess, user, s.jmsService, userAPI, termConf, screen)
+		ui := newTerminalUI(sess, user, s.jmsService, userAPI, termConf, screen, s.tuiPreferences)
 		ui.shutdown = s.tuiShutdown
 		if err = ui.run(); err != nil {
 			logger.Errorf("TUI session %s: %s", sess.User(), err)

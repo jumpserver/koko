@@ -129,6 +129,7 @@ func (h *terminalUI) showAccounts(row int) {
 					accounts = append(accounts, account)
 				}
 			}
+			sortTUIAccounts(accounts)
 			var protocols []string
 			supportedProtocols := srvconn.SupportedProtocols()
 			for _, p := range detail.PermedProtocols {
@@ -178,7 +179,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 	protocolPicker := tuiDropdown().SetLabel(h.tr("协议", "Protocol")+" ").
 		SetTextOptions(" ", " ", " ", "", " "+h.tr("请选择协议", "Select protocol"))
 	labelWidth := max(tview.TaggedStringWidth(accountPicker.GetLabel()), tview.TaggedStringWidth(protocolPicker.GetLabel()))
-	closeMouseDown := false
+	var pressedButton *tview.Button
 	for _, picker := range []*tview.DropDown{accountPicker, protocolPicker} {
 		picker.SetLabelWidth(labelWidth)
 		picker.SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
@@ -187,7 +188,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 		pinDialogDropdownIndicator(picker)
 		picker.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 			if action == tview.MouseLeftDown {
-				closeMouseDown = false
+				pressedButton = nil
 			}
 			if !picker.IsOpen() && action == tview.MouseLeftDown && picker.InRect(ev.Position()) {
 				h.app.SetFocus(picker)
@@ -230,7 +231,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 			return action, ev
 		})
 	}
-	connect := tview.NewButton(h.tr("连接", "Connect")).
+	connect := tview.NewButton(h.tr("连接", "Connect") + " · Enter").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).SetActivatedStyle(tui.Selected).
 		SetDisabledStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetDisabled(true)
 	selectedAccount := -1
@@ -278,26 +279,33 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 			h.app.SetFocus(connect)
 		}
 	})
-	if len(accounts) > 0 {
-		accountPicker.SetCurrentOption(0)
-	}
-	if len(protocols) == 1 {
+	accountOption, protocolOption := h.preferredConnectionOptions(asset, accounts, protocols)
+	accountPicker.SetCurrentOption(accountOption)
+	if protocolOption >= 0 {
+		protocolPicker.SetCurrentOption(protocolOption)
+	} else if len(protocols) == 1 {
 		protocolPicker.SetCurrentOption(0)
 	}
 	close := tview.NewButton(h.tr("取消", "Cancel") + " · Esc").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
-	close.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
-		switch action {
-		case tview.MouseLeftDown:
-			closeMouseDown = close.InRect(ev.Position())
-		case tview.MouseLeftClick:
-			if !closeMouseDown {
-				return tview.MouseConsumed, nil
+	// A click that closes a dropdown must not activate a button underneath it.
+	for _, button := range []*tview.Button{close, connect} {
+		button.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+			if !button.InRect(ev.Position()) {
+				return action, ev
 			}
-			closeMouseDown = false
-		}
-		return action, ev
-	})
+			switch action {
+			case tview.MouseLeftDown:
+				pressedButton = button
+			case tview.MouseLeftClick:
+				if pressedButton != button {
+					return tview.MouseConsumed, nil
+				}
+				pressedButton = nil
+			}
+			return action, ev
+		})
+	}
 	buttons := tview.NewFlex().AddItem(close, 0, 1, false).AddItem(connect, 0, 1, false)
 	buttons.SetBackgroundColor(tui.Panel)
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(accountPicker, 3, 0, true).
@@ -336,6 +344,71 @@ func (c *tuiAssetConnection) HandleRoomEvent(string, *exchange.RoomMessage) {}
 
 const maxTUISessions = 9
 
+func isTUIVirtualAccount(account model.PermAccount) bool {
+	return account.Username == model.InputUser || account.Username == model.DynamicUser
+}
+
+func sortTUIAccounts(accounts []model.PermAccount) {
+	slices.SortStableFunc(accounts, func(a, b model.PermAccount) int {
+		if aVirtual, bVirtual := isTUIVirtualAccount(a), isTUIVirtualAccount(b); aVirtual != bVirtual {
+			if aVirtual {
+				return 1
+			}
+			return -1
+		}
+		if result := strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)); result != 0 {
+			return result
+		}
+		return strings.Compare(strings.ToLower(a.Username), strings.ToLower(b.Username))
+	})
+}
+
+func tuiAssetPreferenceKey(asset model.PermAsset) string {
+	return asset.OrgID + "\x00" + asset.ID
+}
+
+func tuiAccountPreferenceKey(account model.PermAccount) string {
+	if account.Alias != "" {
+		return account.Alias
+	}
+	return account.Username + "\x00" + account.Name
+}
+
+func (h *terminalUI) rememberConnection(asset model.PermAsset, account model.PermAccount, protocol string) {
+	if h.preferences == nil || h.user == nil {
+		return
+	}
+	h.preferences.storeConnection(h.user.ID, tuiAssetPreferenceKey(asset), tuiConnectionPreference{
+		Account: tuiAccountPreferenceKey(account), Protocol: protocol,
+	})
+}
+
+func (h *terminalUI) preferredConnectionOptions(asset model.PermAsset, accounts []model.PermAccount, protocols []string) (int, int) {
+	if h.preferences == nil || h.user == nil {
+		return 0, -1
+	}
+	preference, ok := h.preferences.connection(h.user.ID, tuiAssetPreferenceKey(asset))
+	if !ok {
+		return 0, -1
+	}
+	accountOption := -1
+	for i := range accounts {
+		if tuiAccountPreferenceKey(accounts[i]) == preference.Account {
+			accountOption = i
+			break
+		}
+	}
+	if accountOption < 0 {
+		return 0, -1
+	}
+	for i := range protocols {
+		if protocols[i] == preference.Protocol {
+			return accountOption, i
+		}
+	}
+	return accountOption, -1
+}
+
 type tuiSession struct {
 	terminal      *tui.Terminal
 	controls      []tview.Primitive
@@ -357,6 +430,7 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 	if len(h.sessions) >= maxTUISessions {
 		return
 	}
+	h.rememberConnection(asset, account, protocol)
 	terminal, err := tui.NewTerminal(h.ctx, func() { h.dirty.Store(true) })
 	if err == nil {
 		err = terminal.SetPalette(tui.ThemePalette(h.lightTheme, h.accentColor))
@@ -398,25 +472,30 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 	// One goroutine per session; at most eight, including pending approvals and
 	// closing connections. Selecting another tab does not cancel this context.
 	go func() {
+		closeOnFinish := false
 		if err := srvconn.IsSupportedProtocol(protocol); err != nil {
 			_, _ = fmt.Fprintf(terminal, "\r\n%s\r\n", err)
 		} else {
-			connectSelectedAsset(conn, api, h.user, asset, account, protocol, lang)
+			closeOnFinish = connectSelectedAsset(conn, api, h.user, asset, account, protocol, lang)
 		}
 		_ = terminal.Close()
 		h.update(func() {
-			session.done = true
-			if h.popup == terminal {
-				h.setFullscreen(false)
-			}
-			if session.closing {
-				h.removeSession(session)
-				return
-			}
-			terminal.SetTitle(" " + title + " · " + h.tr("连接已结束", "Session ended") + " ")
-			h.refreshSessionTabs()
+			h.finishSession(session, title, closeOnFinish)
 		})
 	}()
+}
+
+func (h *terminalUI) finishSession(session *tuiSession, title string, closeOnFinish bool) {
+	session.done = true
+	if h.popup == session.terminal {
+		h.setFullscreen(false)
+	}
+	if session.closing || closeOnFinish {
+		h.removeSession(session)
+		return
+	}
+	session.terminal.SetTitle(" " + title + " · " + h.tr("连接已结束", "Session ended") + " ")
+	h.refreshSessionTabs()
 }
 
 func (h *terminalUI) buildSessionControls(session *tuiSession) {

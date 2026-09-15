@@ -14,9 +14,10 @@ import (
 
 func NewServer(termCfg model.TerminalConfig, jmsService *service.JMService) *Server {
 	app := Server{
-		jmsService:    jmsService,
-		vscodeClients: make(map[string]*vscodeReq),
-		tuiShutdown:   make(chan struct{}),
+		jmsService:     jmsService,
+		vscodeClients:  make(map[string]*vscodeReq),
+		tuiPreferences: newTUIPreferences(),
+		tuiShutdown:    make(chan struct{}),
 	}
 	app.UpdateTerminalConfig(termCfg)
 	go app.run()
@@ -28,9 +29,10 @@ type Server struct {
 	jmsService   *service.JMService
 	sync.Mutex
 
-	vscodeClients map[string]*vscodeReq
-	tuiShutdown   chan struct{}
-	tuiStop       sync.Once
+	vscodeClients  map[string]*vscodeReq
+	tuiPreferences *tuiPreferences
+	tuiShutdown    chan struct{}
+	tuiStop        sync.Once
 }
 
 // StopTerminalUIs lets each screen restore its client terminal while the SSH

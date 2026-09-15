@@ -361,6 +361,18 @@ func (t *Terminal) InputHandler() func(*tcell.EventKey, func(tview.Primitive)) {
 		if t.vt == nil || t.ctx.Err() != nil {
 			return
 		}
+		if ev.Modifiers()&tcell.ModShift != 0 {
+			switch ev.Key() {
+			case tcell.KeyPgUp:
+				t.vt.ScrollViewportDelta(-max(1, t.height-1))
+				t.invalidateView()
+				return
+			case tcell.KeyPgDn:
+				t.vt.ScrollViewportDelta(max(1, t.height-1))
+				t.invalidateView()
+				return
+			}
+		}
 		e, err := ghostty.NewKeyEvent()
 		if err != nil {
 			return
@@ -442,6 +454,18 @@ func (t *Terminal) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, fun
 		if t.vt == nil {
 			return true, nil
 		}
+		if action == tview.MouseScrollUp || action == tview.MouseScrollDown {
+			tracking, err := t.vt.MouseTracking()
+			if err == nil && !tracking {
+				delta := 3
+				if action == tview.MouseScrollUp {
+					delta = -delta
+				}
+				t.vt.ScrollViewportDelta(delta)
+				t.invalidateView()
+				return true, nil
+			}
+		}
 		e, err := ghostty.NewMouseEvent()
 		if err != nil {
 			return true, nil
@@ -484,4 +508,10 @@ func (t *Terminal) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, fun
 		}
 		return true, nil
 	})
+}
+
+func (t *Terminal) invalidateView() {
+	if t.invalidate != nil {
+		t.invalidate()
+	}
 }
