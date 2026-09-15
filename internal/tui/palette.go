@@ -5,10 +5,11 @@ import "github.com/gdamore/tcell/v2"
 type Palette struct {
 	Background, Foreground, Muted, Border  tcell.Color
 	Accent, FocusBorder, Raised, Selection tcell.Color
+	ansiAccent                             tcell.Color
 }
 
 func ThemePalette(light bool, accent int) Palette {
-	p := Palette{Background, Foreground, Muted, Border, Accent, FocusBorder, Raised, tcell.NewHexColor(0x3a3a3a)}
+	p := Palette{Background, Foreground, Muted, Border, Accent, FocusBorder, Raised, tcell.NewHexColor(0x3a3a3a), tcell.ColorDefault}
 	accents := [][2]int32{{0x187f63, 0x146b53}, {0x5f87ff, 0x5f87af}, {0x875fff, 0x875faf}, {0xffaf00, 0xaf8700}, {0xff5faf, 0xaf5f87}, {0x00afd7, 0x0087af}, {0x5f8787, 0x5f5f5f}, {0xff5f5f, 0xaf5f5f}, {0x87d700, 0x5f8700}}
 	if light {
 		p.Background, p.Foreground = tcell.NewHexColor(0xffffff), tcell.NewHexColor(0x303030)
@@ -16,8 +17,14 @@ func ThemePalette(light bool, accent int) Palette {
 		p.Raised, p.Selection = tcell.NewHexColor(0xdadada), tcell.NewHexColor(0xd7d7d7)
 		accents = [][2]int32{{0x187f63, 0x146b53}, {0x005faf, 0x5f87af}, {0x5f00af, 0x875faf}, {0xaf5f00, 0xd78700}, {0xaf005f, 0xaf5f87}, {0x005f87, 0x0087af}, {0x444444, 0x878787}, {0xaf0000, 0xd75f5f}, {0x5f8700, 0x87af00}}
 	}
-	colors := accents[max(0, min(accent, len(accents)-1))]
+	index := max(0, min(accent, len(accents)-1))
+	colors := accents[index]
 	p.Accent, p.FocusBorder = tcell.NewHexColor(colors[0]), tcell.NewHexColor(colors[1])
+	p.ansiAccent = [...]tcell.Color{
+		tcell.ColorTeal, tcell.ColorNavy, tcell.ColorPurple,
+		tcell.ColorOlive, tcell.ColorPurple, tcell.ColorTeal,
+		tcell.ColorTeal, tcell.ColorMaroon, tcell.ColorGreen,
+	}[index]
 	return p
 }
 
@@ -56,11 +63,9 @@ func adaptLowColorPalette(p Palette, colors int) Palette {
 	} else {
 		p.Background, p.Border = tcell.ColorSilver, tcell.ColorBlack
 	}
-	focus := tcell.FindColor(p.FocusBorder, ansi8Palette)
-	if focus == p.Background || focus == p.Border {
-		focus = tcell.ColorTeal
+	if p.ansiAccent.Valid() {
+		p.Accent, p.FocusBorder = p.ansiAccent, p.ansiAccent
 	}
-	p.FocusBorder = focus
 	return p
 }
 
