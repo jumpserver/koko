@@ -70,6 +70,8 @@ type CommandExecutor interface {
 type CommandConstraints struct {
 	BackgroundEligible  bool
 	MaxExecutionSeconds int
+	// Optional normalized PTY command, applied before authorization and auditing.
+	PTYCommand string
 }
 
 type CommandValidator func(string) (CommandConstraints, error)
@@ -204,6 +206,12 @@ func (t *mcpCommandTool) Call(
 	execution, err := t.selectExecution(args.Execution, constraints)
 	if err != nil {
 		return nil, err
+	}
+	if execution == MCPExecutionPTY && constraints.PTYCommand != "" {
+		command = constraints.PTYCommand
+		if len(command) > maximumMCPCommandSize {
+			return nil, fmt.Errorf("command exceeds %d bytes after PTY normalization", maximumMCPCommandSize)
+		}
 	}
 	if t.hooks.ExecutionGuard != nil {
 		if err = t.hooks.ExecutionGuard(); err != nil {

@@ -158,6 +158,79 @@ func TestSQLExecuteCommandContract(t *testing.T) {
 	}
 }
 
+type commandCaptureExecutor struct{ command string }
+
+func (e *commandCaptureExecutor) Execute(_ context.Context, command string, _ func(string)) (string, *int, error) {
+	e.command = command
+	return "", nil, nil
+}
+
+func (*commandCaptureExecutor) Close() error { return nil }
+
+func TestCommandToolPTYNormalization(t *testing.T) {
+	for _, tc := range []struct{ protocol, mode, command, want, execution string }{
+		{"postgresql", "pty", "SELECT 1", "SELECT 1;", "pty"},
+		{"postgresql", "pty", "SELECT 1; -- done", "SELECT 1; -- done", "pty"},
+		{"postgresql", "pty", "SELECT ';' -- done;", "SELECT ';'; -- done;", "pty"},
+		{"postgresql", "pty", "SELECT 1 /* ; */", "SELECT 1 /* ; */;", "pty"},
+		{"mysql", "pty", "SELECT 1 # done;", "SELECT 1; # done;", "pty"},
+		{"clickhouse", "pty", "SELECT 1 // done;", "SELECT 1; // done;", "pty"},
+		{"postgresql", "auto", "SET search_path TO public", "SET search_path TO public;", "pty"},
+		{"postgresql", "auto", "SELECT 1", "SELECT 1", "background"},
+		{"postgresql", "background", "SELECT 1", "SELECT 1", "background"},
+		{"ssh", "pty", "pwd", "pwd", "pty"},
+		{"postgresql", "pty", "SELECT 1 --" + strings.Repeat("x", maximumMCPCommandSize-len("SELECT 1 --")), "", ""},
+	} {
+		t.Run(tc.protocol+"/"+tc.mode+"/"+tc.execution, func(t *testing.T) {
+			executor := &commandCaptureExecutor{}
+			var ptyCommand, reviewCommand string
+			handler, err := NewCommandTool(MCPCommandToolOptions{
+				Protocol: tc.protocol, Executor: executor, Validate: ProtocolCommandValidator(tc.protocol),
+				Hooks: MCPCommandHooks{
+					BackgroundAvailable: func() bool { return true },
+					CommandACLCheck: func(command string) CommandACLDecision {
+						if command != tc.want {
+							t.Fatal("ACL checked an unexpected command")
+						}
+						return CommandACLDecision{Action: "review"}
+					},
+					CommandACLReview: func(_ context.Context, decision CommandACLDecision, command string) (CommandACLDecision, error) {
+						reviewCommand = command
+						decision.Action, decision.Reviewed = "accept", true
+						return decision, nil
+					},
+					PTYExecute: func(_ context.Context, command string, _ *CommandACLDecision) (string, *int, error) {
+						ptyCommand = command
+						return "", nil, nil
+					},
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			arguments, _ := json.Marshal(mcpCommandArguments{Command: tc.command, Execution: tc.mode})
+			value, err := handler.Call(context.Background(), arguments)
+			if tc.want == "" {
+				if err == nil || !strings.Contains(err.Error(), "after PTY normalization") {
+					t.Fatalf("expected normalization length error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := value.(MCPCommandResult)
+			executed := executor.command
+			if tc.execution == "pty" {
+				executed = ptyCommand
+			}
+			if executed != tc.want || reviewCommand != tc.want || result.Command != tc.want || result.Execution != tc.execution {
+				t.Fatalf("executed %q, reviewed %q, result %+v", executed, reviewCommand, result)
+			}
+		})
+	}
+}
+
 func TestSQLDialectBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		protocol, command   string
