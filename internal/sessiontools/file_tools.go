@@ -141,13 +141,17 @@ func (h *mcpToolHandler) Definition() MCPToolDefinition {
 		properties["destination_path"] = stringProperty(
 			"Absolute destination in the same directory, or a single basename",
 		)
-		properties["expected_version"] = stringProperty("Version returned by stat")
+		properties["expected_version"] = stringProperty(
+			"Opaque version returned by a fresh stat of this path; copy unchanged. Do not use the read_text content version",
+		)
 		required = append(required, "destination_path", "expected_version")
 	case ToolDelete:
 		annotations["readOnlyHint"] = false
 		annotations["destructiveHint"] = true
 		description = "Delete a path with a mandatory version precondition"
-		properties["expected_version"] = stringProperty("Version returned by stat")
+		properties["expected_version"] = stringProperty(
+			"Opaque version returned by a fresh stat of this path; copy unchanged. Do not use the read_text content version",
+		)
 		properties["recursive"] = map[string]any{
 			"type":        "boolean",
 			"description": "Must be true when deleting a directory; ignored for a file",
@@ -339,7 +343,7 @@ func (h *mcpToolHandler) Call(
 			return nil, err
 		}
 		if entry.Version != action.ExpectedVersion {
-			return nil, errors.New("remote path changed before delete")
+			return nil, errors.New("expected_version does not match the current stat version before delete; call stat again and use its version unchanged")
 		}
 		if entry.IsDir && !action.Recursive {
 			return nil, errors.New("recursive=true is required to delete a directory")
@@ -395,7 +399,7 @@ func (h *mcpToolHandler) checkVersion(
 		return err
 	}
 	if entry.Version != expected {
-		return errors.New("remote path changed before mutation")
+		return errors.New("expected_version does not match the current stat version before mutation; call stat again and use its version unchanged")
 	}
 	return nil
 }

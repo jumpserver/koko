@@ -25,6 +25,10 @@ var mongoDBRunCommandPattern = regexp.MustCompile(
 	`(?s)^\s*db\s*\.\s*runCommand\s*\((.*)\)\s*;?\s*$`,
 )
 
+var mongoDBEJSONPattern = regexp.MustCompile(
+	`(?s)^EJSON\s*\.\s*deserialize\s*\((.*),\s*\{\s*"relaxed"\s*:\s*false\s*\}\s*\)$`,
+)
+
 var errInvalidMongoDBProxyURL = errors.New("invalid MongoDB HTTP proxy URL")
 
 type MongoDBExecutor struct {
@@ -119,8 +123,12 @@ func parseMongoDBCommand(command string) (bson.D, error) {
 			"MongoDB command execution requires db.runCommand with strict Extended JSON in every execution mode",
 		)
 	}
+	payload := strings.TrimSpace(matches[1])
+	if decoded := mongoDBEJSONPattern.FindStringSubmatch(payload); len(decoded) == 2 {
+		payload = strings.TrimSpace(decoded[1])
+	}
 	var document bson.D
-	if err := bson.UnmarshalExtJSON([]byte(strings.TrimSpace(matches[1])), false, &document); err != nil {
+	if err := bson.UnmarshalExtJSON([]byte(payload), false, &document); err != nil {
 		return nil, fmt.Errorf("invalid MongoDB db.runCommand document: %w", err)
 	}
 	if len(document) == 0 {

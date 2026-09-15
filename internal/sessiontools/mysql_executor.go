@@ -27,6 +27,7 @@ const (
 type MySQLConfig = DatabaseConfig
 
 type MySQLExecutor struct {
+	protocol      string
 	db            *sql.DB
 	sanitizer     ValueSanitizer
 	metadata      *sqlMetadataTool
@@ -37,6 +38,9 @@ type MySQLExecutor struct {
 var mysqlTLSSequence atomic.Uint64
 
 func NewMySQLExecutor(ctx context.Context, config MySQLConfig) (*MySQLExecutor, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	driverConfig := mysqlDriver.NewConfig()
 	driverConfig.Net = "tcp"
 	driverConfig.Addr = net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
@@ -47,7 +51,11 @@ func NewMySQLExecutor(ctx context.Context, config MySQLConfig) (*MySQLExecutor, 
 	driverConfig.MultiStatements = false
 	driverConfig.Params = map[string]string{"autocommit": "true"}
 
-	executor := &MySQLExecutor{sanitizer: NewMySQLSanitizer(config.DataMaskingRules)}
+	protocol := config.Protocol
+	if protocol == "" {
+		protocol = "mysql"
+	}
+	executor := &MySQLExecutor{protocol: protocol, sanitizer: NewMySQLSanitizer(config.DataMaskingRules)}
 	if config.UseSSL {
 		tlsName, err := registerMySQLTLS(config)
 		if err != nil {
@@ -66,10 +74,7 @@ func NewMySQLExecutor(ctx context.Context, config MySQLConfig) (*MySQLExecutor, 
 	executor.db.SetMaxOpenConns(1)
 	executor.db.SetMaxIdleConns(1)
 	executor.db.SetConnMaxLifetime(30 * time.Minute)
-	if err = executor.db.PingContext(ctx); err != nil {
-		_ = executor.Close()
-		return nil, fmt.Errorf("initialize MySQL background connection: %w", err)
-	}
+	// Keep the pool available across transient outages; connect on execution.
 	return executor, nil
 }
 
@@ -108,7 +113,7 @@ func registerMySQLTLS(config MySQLConfig) (string, error) {
 func (e *MySQLExecutor) Execute(
 	ctx context.Context, command string, onOutput func(string),
 ) (string, *int, error) {
-	analysis, err := analyzeSQL(command)
+	analysis, err := analyzeSQL(command, e.protocol)
 	if err != nil {
 		return "", nil, err
 	}

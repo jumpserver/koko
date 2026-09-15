@@ -60,8 +60,12 @@ func (a sqlAnalysis) PTYReason() string {
 	}
 }
 
-func analyzeSQL(statement string) (sqlAnalysis, error) {
-	words, depths, semicolon, trailingOnly, incomplete := scanSQL(statement)
+func analyzeSQL(statement, protocol string) (sqlAnalysis, error) {
+	dialect := dialectForSQL(protocol)
+	words, depths, semicolon, trailingOnly, incomplete, err := scanSQL(statement, dialect)
+	if err != nil {
+		return sqlAnalysis{}, err
+	}
 	analysis := sqlAnalysis{
 		words: words, depths: depths,
 		multi: semicolon && !trailingOnly, incomplete: incomplete,
@@ -70,50 +74,56 @@ func analyzeSQL(statement string) (sqlAnalysis, error) {
 		return analysis, fmt.Errorf("model generated an empty SQL statement")
 	}
 	analysis.keyword = rootSQLKeyword(words, depths)
-	switch analysis.keyword {
-	case "SELECT", "SHOW", "DESC", "DESCRIBE", "EXPLAIN":
-		analysis.kind = sqlRead
-	case "INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "ALTER",
-		"DROP", "TRUNCATE", "RENAME", "GRANT", "REVOKE", "ANALYZE",
-		"OPTIMIZE", "REPAIR", "LOAD", "KILL", "SHUTDOWN", "RESET",
-		"PURGE", "FLUSH", "INSTALL", "UNINSTALL":
-		analysis.kind = sqlWrite
-	case "USE", "SET", "BEGIN", "START", "COMMIT", "ROLLBACK",
-		"SAVEPOINT", "RELEASE", "LOCK", "UNLOCK", "EXEC", "EXECUTE":
-		analysis.kind = sqlSession
-	default:
-		analysis.kind = sqlUnknown
+	analysis.kind = dialect.keywordKind(analysis.keyword)
+	if analysis.kind == sqlUnknown {
+		return analysis, nil
 	}
 	if containsSQLSequence(words, "CREATE", "TEMPORARY", "TABLE") ||
+		containsSQLSequence(words, "CREATE", "TEMP", "TABLE") ||
 		containsSQLSequence(words, "DROP", "TEMPORARY", "TABLE") ||
-		containsSQLWord(words, "GET_LOCK") ||
-		containsSQLWord(words, "RELEASE_LOCK") ||
+		(dialect.mysql && (containsSQLWord(words, "GET_LOCK") || containsSQLWord(words, "RELEASE_LOCK"))) ||
 		containsSQLSequence(words, "FOR", "UPDATE") ||
+		containsSQLSequence(words, "FOR", "SHARE") ||
 		containsSQLSequence(words, "LOCK", "IN", "SHARE", "MODE") {
 		analysis.kind = sqlSession
 	}
-	if analysis.keyword == "SELECT" &&
+	for _, word := range words {
+		if (dialect.sqlserver && strings.HasPrefix(word, "#")) ||
+			((dialect.mysql || dialect.sqlserver) && strings.HasPrefix(word, "@")) ||
+			(dialect.postgres && (strings.HasPrefix(word, "PG_ADVISORY_") || strings.HasPrefix(word, "PG_TRY_ADVISORY_"))) {
+			analysis.kind = sqlSession
+		}
+	}
+	if analysis.keyword == "SELECT" && dialect.mysql &&
 		(containsSQLSequence(words, "INTO", "OUTFILE") ||
 			containsSQLSequence(words, "INTO", "DUMPFILE")) {
 		analysis.kind = sqlWrite
+	}
+	if (analysis.kind == sqlWrite && (containsTopLevelSQLWord(words, depths, "RETURNING") ||
+		containsTopLevelSQLWord(words, depths, "OUTPUT"))) ||
+		(analysis.keyword == "SELECT" && (dialect.postgres || dialect.sqlserver) &&
+			containsTopLevelSQLWord(words, depths, "INTO")) {
+		// These statements can produce result sets that ExecContext cannot return.
+		analysis.kind = sqlSession
 	}
 	return analysis, nil
 }
 
 func isSchemaChangingSQL(analysis sqlAnalysis) bool {
 	switch analysis.keyword {
-	case "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME":
+	case "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "ATTACH", "DETACH":
 		return true
 	default:
 		return false
 	}
 }
 
-func scanSQL(statement string) (
-	words []string, depths []int, semicolon, trailingOnly, incomplete bool,
+func scanSQL(statement string, dialect sqlDialect) (
+	words []string, depths []int, semicolon, trailingOnly, incomplete bool, err error,
 ) {
 	var word strings.Builder
 	state := byte(0)
+	escapeBackslash := false
 	blockDepth := 0
 	sqlDepth := 0
 	wordDepth := 0
@@ -133,53 +143,26 @@ func scanSQL(statement string) (
 			next = statement[index+1]
 		}
 		switch state {
-		case '\'':
-			if current == '\\' {
+		case '\'', '"', '`', ']':
+			if current == '\\' && escapeBackslash {
 				index++
 				continue
 			}
-			if current == '\'' {
-				if next == '\'' {
+			if current == state {
+				if next == state {
 					index++
 				} else {
 					state = 0
 				}
-			}
-			continue
-		case '"':
-			if current == '\\' {
-				index++
-				continue
-			}
-			if current == '"' {
-				if next == '"' {
-					index++
-				} else {
-					state = 0
-				}
-			}
-			continue
-		case '`':
-			if current == '`' {
-				if next == '`' {
-					index++
-				} else {
-					state = 0
-				}
-			}
-			continue
-		case '#':
-			if current == '\n' {
-				state = 0
 			}
 			continue
 		case '-':
-			if current == '\n' {
+			if current == '\n' || current == '\r' {
 				state = 0
 			}
 			continue
 		case '/':
-			if current == '/' && next == '*' {
+			if current == '/' && next == '*' && (dialect.postgres || dialect.sqlserver || dialect.clickhouse) {
 				blockDepth++
 				index++
 				continue
@@ -193,23 +176,23 @@ func scanSQL(statement string) (
 			}
 			continue
 		}
-		if current == '\'' || current == '"' || current == '`' {
+		if current == '#' && (dialect.mysql || (dialect.clickhouse && (next == '!' || next == ' '))) {
 			flush()
-			state = current
+			state = '-'
 			continue
 		}
-		if current == '#' {
-			flush()
-			state = '#'
-			continue
-		}
-		if current == '-' && next == '-' && mysqlDashComment(statement, index) {
+		if (current == '-' && next == '-' && (!dialect.mysql || mysqlDashComment(statement, index))) ||
+			(dialect.clickhouse && current == '/' && next == '/') {
 			flush()
 			state = '-'
 			index++
 			continue
 		}
 		if current == '/' && next == '*' {
+			// Executable comments must not hide statements from the execution policy.
+			if dialect.mysql && (strings.HasPrefix(statement[index:], "/*!") || strings.HasPrefix(statement[index:], "/*M!")) {
+				err = fmt.Errorf("executable SQL comments are unsupported")
+			}
 			flush()
 			state = '/'
 			blockDepth = 1
@@ -227,8 +210,57 @@ func scanSQL(statement string) (
 		if semicolon && !unicode.IsSpace(rune(current)) {
 			trailingOnly = false
 		}
+		if current == '$' && word.Len() == 0 && (dialect.postgres || dialect.clickhouse) {
+			if delimiter := sqlDollarDelimiter(statement, index); delimiter != "" {
+				end := strings.Index(statement[index+len(delimiter):], delimiter)
+				if end < 0 {
+					incomplete = true
+					break
+				}
+				index += len(delimiter)*2 + end - 1
+				continue
+			}
+		}
+		if dialect.oracle && word.Len() == 0 && (current == 'q' || current == 'Q') && next == '\'' && index+2 < len(statement) {
+			endQuote := statement[index+2]
+			switch endQuote {
+			case '[':
+				endQuote = ']'
+			case '{':
+				endQuote = '}'
+			case '(':
+				endQuote = ')'
+			case '<':
+				endQuote = '>'
+			}
+			end := strings.Index(statement[index+3:], string(endQuote)+"'")
+			if end < 0 {
+				incomplete = true
+				break
+			}
+			index += end + 4
+			continue
+		}
+		if current == '\'' || current == '"' || current == '`' || (dialect.sqlserver && current == '[') {
+			escapeBackslash = (dialect.mysql && current != '`') || dialect.clickhouse ||
+				(dialect.postgres && current == '\'' && strings.EqualFold(word.String(), "E"))
+			flush()
+			state = current
+			if current == '[' {
+				state = ']'
+			}
+			if dialect.sqlserver && (current == '[' || current == '"') && next == '#' {
+				words = append(words, "#")
+				depths = append(depths, sqlDepth)
+			}
+			if current == '`' && !dialect.mysql && !dialect.clickhouse {
+				incomplete = true
+			}
+			continue
+		}
 		if unicode.IsLetter(rune(current)) || unicode.IsDigit(rune(current)) ||
-			current == '_' || current == '$' {
+			current == '_' || current == '$' || (dialect.sqlserver && current == '#') ||
+			((dialect.mysql || dialect.sqlserver) && current == '@') {
 			if word.Len() == 0 {
 				wordDepth = sqlDepth
 			}
@@ -241,12 +273,14 @@ func scanSQL(statement string) (
 			case ')':
 				if sqlDepth > 0 {
 					sqlDepth--
+				} else {
+					incomplete = true
 				}
 			}
 		}
 	}
 	flush()
-	incomplete = state == '\'' || state == '"' || state == '`' || state == '/'
+	incomplete = incomplete || (state != 0 && state != '-') || sqlDepth != 0
 	return
 }
 
@@ -268,7 +302,7 @@ func rootSQLKeyword(words []string, depths []int) string {
 		}
 		switch word {
 		case "SELECT", "SHOW", "DESC", "DESCRIBE", "EXPLAIN",
-			"INSERT", "UPDATE", "DELETE", "REPLACE":
+			"INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "VALUES", "TABLE":
 			return word
 		}
 	}

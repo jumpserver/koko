@@ -31,6 +31,32 @@ func TestTerminalCloseCancelsOnlyItsContext(t *testing.T) {
 	}
 }
 
+func TestTerminalInputCanInterruptAgentCommand(t *testing.T) {
+	writer, err := os.CreateTemp(t.TempDir(), "terminal-input")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client := &Client{UserWrite: writer}
+	client.setInputLock(cancel)
+	client.WriteData([]byte("unexpected command\r"))
+	if ctx.Err() != nil {
+		t.Fatal("ordinary input interrupted the command")
+	}
+	client.WriteData([]byte{3})
+	if ctx.Err() != context.Canceled {
+		t.Fatal("Ctrl+C did not cancel the agent command")
+	}
+	client.setInputLock(nil)
+	client.WriteData([]byte("next command\r"))
+	data, err := os.ReadFile(writer.Name())
+	if err != nil || string(data) != "next command\r" {
+		t.Fatalf("terminal input after unlock = %q, %v", data, err)
+	}
+}
+
 func TestWebsocketPingPong(t *testing.T) {
 	for _, protocol := range []string{"json", "envelope"} {
 		t.Run(protocol, func(t *testing.T) {

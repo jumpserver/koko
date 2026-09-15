@@ -51,7 +51,7 @@ type Client struct {
 	mcp          *sessiontools.MCPDispatcher
 	mcpClosed    bool
 	inputMu      sync.Mutex
-	inputLocked  bool
+	inputCancel  context.CancelFunc
 	metrics      clientMetrics
 	observerMu   sync.RWMutex
 	observer     *sessiontools.TerminalObserver
@@ -291,7 +291,10 @@ func (c *Client) ID() string {
 func (c *Client) WriteData(p []byte) {
 	c.inputMu.Lock()
 	defer c.inputMu.Unlock()
-	if c.inputLocked {
+	if c.inputCancel != nil {
+		if len(p) == 1 && p[0] == 3 {
+			c.inputCancel()
+		}
 		return
 	}
 	_, _ = c.UserWrite.Write(p)
@@ -304,9 +307,9 @@ func (c *Client) WriteAgentToolData(p []byte) error {
 	return err
 }
 
-func (c *Client) SetInputLocked(locked bool) {
+func (c *Client) setInputLock(cancel context.CancelFunc) {
 	c.inputMu.Lock()
-	c.inputLocked = locked
+	c.inputCancel = cancel
 	c.inputMu.Unlock()
 }
 

@@ -66,7 +66,9 @@ func newWebSftpFileInfo(info os.FileInfo) FileInfo {
 }
 
 func webSftpFileVersion(info os.FileInfo) string {
-	return fmt.Sprintf("%d\x00%d\x00%s", info.Size(), info.ModTime().Unix(), info.Mode().String())
+	// This token crosses JSON and model/tool boundaries. Keep it printable and
+	// distinct from the sha256: content versions used by the text editor.
+	return fmt.Sprintf("stat:%d:%d:%s", info.Size(), info.ModTime().Unix(), info.Mode().String())
 }
 
 func webSftpContentVersion(reader io.Reader) (string, error) {
