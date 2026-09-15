@@ -53,7 +53,8 @@ func (h *terminalUI) drawDropdown(screen tcell.Screen) {
 		}
 		width = min(width, max(1, sw))
 		verticalPadding := 1
-		if dropdown == h.org || dropdown == h.treeKind {
+		if dropdown == h.org || dropdown == h.treeKind ||
+			h.modal && len(h.dialogs) > 0 && h.dialogs[len(h.dialogs)-1].page == "appearance" {
 			verticalPadding = 0
 		}
 		rows := min(max(list.GetItemCount()+2+2*verticalPadding, nativeHeight), max(1, sh))
