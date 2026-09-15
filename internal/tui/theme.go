@@ -8,12 +8,12 @@ import (
 // These colors belong to the xterm 256-color palette, so ordinary SSH clients
 // keep the same neutral surfaces and restrained accents as truecolor clients.
 var (
-	Background       = tcell.NewHexColor(0x121212)
+	Background       = tcell.NewHexColor(0x000000)
 	Panel            = Background // All regions share the page background.
 	Raised           = tcell.NewHexColor(0x262626)
 	Foreground       = tcell.NewHexColor(0xd7d7d7)
 	Muted            = tcell.NewHexColor(0x949494)
-	Border           = tcell.NewHexColor(0x444444)
+	Border           = tcell.NewHexColor(0xb2b2b2)
 	Accent           = tcell.NewHexColor(0x87afaf)
 	FocusBorder      = tcell.NewHexColor(0x5f8787)
 	Selected         = tcell.StyleDefault.Foreground(Foreground).Background(tcell.NewHexColor(0x3a3a3a))
