@@ -20,7 +20,7 @@ RUN mkdir /opt/koko/release \
 
 FROM jumpserver/guacd:1.5.5-trixie
 ARG TARGETARCH
-ENV LANG=en_US.UTF-8
+ENV LANG=C.UTF-8
 
 LABEL org.opencontainers.image.source=https://github.com/jumpserver/koko
 LABEL org.opencontainers.image.description="JumpServer Koko"
