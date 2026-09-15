@@ -25,6 +25,7 @@ const (
 	MCPManifestFrame     = "mcp.manifest"
 	MCPRequestFrame      = "mcp.request"
 	MCPResponseFrame     = "mcp.response"
+	MCPProgressFrame     = "mcp.progress"
 	MCPCancelFrame       = "mcp.cancel"
 	MCPCancelResultFrame = "mcp.cancel_result"
 
@@ -71,10 +72,11 @@ type MCPRPCError struct {
 }
 
 type MCPResponse struct {
-	JSONRPC string       `json:"jsonrpc"`
-	ID      string       `json:"id"`
-	Result  any          `json:"result,omitempty"`
-	Error   *MCPRPCError `json:"error,omitempty"`
+	JSONRPC  string       `json:"jsonrpc"`
+	ID       string       `json:"id"`
+	Sequence uint64       `json:"seq,omitempty"`
+	Result   any          `json:"result,omitempty"`
+	Error    *MCPRPCError `json:"error,omitempty"`
 }
 
 type MCPTextContent struct {
@@ -139,6 +141,16 @@ type mcpActiveCall struct {
 	cancel      context.CancelFunc
 	fingerprint string
 	cancelled   bool
+	sequence    uint64
+}
+
+type mcpProgressKey struct{}
+
+// ReportProgress publishes a nonterminal observation for the current tool call.
+func ReportProgress(ctx context.Context, value any) {
+	if report, ok := ctx.Value(mcpProgressKey{}).(func(any)); ok && ctx.Err() == nil {
+		report(value)
+	}
 }
 
 type mcpCompletedCall struct {
@@ -401,6 +413,25 @@ func (d *MCPDispatcher) execute(
 	handler MCPToolHandler,
 ) {
 	defer d.wg.Done()
+	ctx = context.WithValue(ctx, mcpProgressKey{}, func(value any) {
+		d.emitMu.Lock()
+		defer d.emitMu.Unlock()
+		d.mu.Lock()
+		if d.closed || call.cancelled || d.active[callKey] != call {
+			d.mu.Unlock()
+			return
+		}
+		payload, err := json.Marshal(MCPResponse{
+			JSONRPC: "2.0", ID: call.request.ID, Sequence: call.sequence + 1, Result: value,
+		})
+		if err == nil && len(payload) <= MaxToolResultBytes {
+			call.sequence++
+			d.mu.Unlock()
+			d.emit(MCPOutbound{Type: MCPProgressFrame, Data: payload})
+			return
+		}
+		d.mu.Unlock()
+	})
 	result, callErr := handler.Call(ctx, call.request.Params.Arguments)
 	response := MCPResponse{JSONRPC: "2.0", ID: call.request.ID}
 	toolResult, resultPayload := newMCPCallToolResult(result, callErr)
@@ -410,13 +441,17 @@ func (d *MCPDispatcher) execute(
 		)
 	}
 	response.Result = toolResult
-	payload, err := json.Marshal(response)
-	if err != nil {
-		return
-	}
 	d.emitMu.Lock()
 	defer d.emitMu.Unlock()
 	d.mu.Lock()
+	if call.sequence > 0 {
+		response.Sequence = call.sequence + 1
+	}
+	payload, err := json.Marshal(response)
+	if err != nil {
+		d.mu.Unlock()
+		return
+	}
 	cancelled := call.cancelled
 	delete(d.active, callKey)
 	d.rememberCompletedLocked(callKey, mcpCompletedCall{
