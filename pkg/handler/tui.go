@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode"
@@ -105,6 +106,25 @@ type terminalUI struct {
 	windowPrefix                                        bool
 	fullscreen                                          bool
 	preferences                                         *tuiPreferences
+	manualPasswordAttempts                              tuiManualPasswordAttempts
+}
+
+type tuiManualPasswordAttempts struct {
+	sync.Mutex
+	counts map[string]int
+}
+
+func (a *tuiManualPasswordAttempts) acquire(key string) bool {
+	a.Lock()
+	defer a.Unlock()
+	if a.counts == nil {
+		a.counts = make(map[string]int)
+	}
+	if a.counts[key] >= maxTUIManualPasswordAttempts {
+		return false
+	}
+	a.counts[key]++
+	return true
 }
 
 func cleanTUIText(s string) string {
