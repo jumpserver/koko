@@ -1,0 +1,750 @@
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-08-28 00:00+0000\n"
+"Language-Team: French <fr@li.org>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: JumpServer i18n migration\n"
+
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgstr "\t%2d) Saisissez {{.GreenBoldColor}}%s{{.ColorEnd}} pour %s.%s"
+
+msgid "%s approved"
+msgstr "%s approuvé"
+
+msgid "%s node has no assets"
+msgstr "Le nœud %s ne contient aucun actif"
+
+msgid "%s protocol client not installed."
+msgstr "Le client du protocole %s n'est pas installé."
+
+msgid "%s rejected"
+msgstr "%s rejeté"
+
+msgid "/ + IP, Hostname, Comment"
+msgstr "/ + IP, nom d'hôte, commentaire"
+
+msgid "ACL reject"
+msgstr "ACL rejetée"
+
+msgid "Account <%s> and asset <%s> protocol are inconsistent."
+msgstr "Le compte <%s> et le protocole de l'actif <%s> sont incohérents."
+
+msgid "ActionPerm"
+msgstr "Autorisation d'action"
+
+msgid "Address"
+msgstr "Adresse"
+
+msgid "AlreadyExistsPleaseRename"
+msgstr "Existe déjà, veuillez renommer"
+
+msgid "Announcement: "
+msgstr "Annonce : "
+
+msgid "Authentication failed"
+msgstr "Échec de l'authentification"
+
+msgid "AvailableShortcutKey"
+msgstr "Raccourci clavier disponible"
+
+msgid "Back"
+msgstr "Retour"
+
+msgid "Back: B/b"
+msgstr "Retour : B/b"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Cancel confirm"
+msgstr "Confirmation d'annulation"
+
+msgid "Cancel to login asset or max 3 retry"
+msgstr "Connexion annulée ou nombre maximal de 3 tentatives atteint"
+
+msgid "CancelFileUpload"
+msgstr "Annuler l'envoi du fichier"
+
+msgid "CaseSensitive"
+msgstr "Sensible à la casse"
+
+msgid "Clone Connect"
+msgstr "Cloner la connexion"
+
+msgid "Close All Tabs"
+msgstr "Fermer tous les onglets"
+
+msgid "Close Current Tab"
+msgstr "Fermer l'onglet actuel"
+
+msgid "Command `%s` is forbidden"
+msgstr "La commande « %s » est interdite"
+
+msgid "Comment"
+msgstr "Commentaire"
+
+msgid "Confirm"
+msgstr "Confirmer"
+
+msgid "ConfirmBtn"
+msgstr "Confirmer"
+
+msgid "ConfirmDelete"
+msgstr "Confirmer la suppression"
+
+msgid "Connect"
+msgstr "Connecter"
+
+msgid "Connect idle more than %d minutes, disconnect"
+msgstr "Connexion inactive depuis plus de %d minutes, déconnexion"
+
+msgid "Connect with api server failed"
+msgstr "Échec de la connexion au serveur API"
+
+msgid "Connecting to %s@%s"
+msgstr "Connexion à %s@%s en cours"
+
+msgid "Connecting to Database %s"
+msgstr "Connexion à la base de données %s en cours"
+
+msgid "Connecting to Kubernetes %s"
+msgstr "Connexion à Kubernetes %s en cours"
+
+msgid "Connecting to Kubernetes %s container %s"
+msgstr "Connexion au conteneur %s de Kubernetes %s en cours"
+
+msgid "Connection refused"
+msgstr "Connexion refusée"
+
+msgid "CopyLink"
+msgstr "Copier le lien"
+
+msgid "CopyShareURLSuccess"
+msgstr "URL de partage copiée avec succès"
+
+msgid "Core API failed"
+msgstr "Échec de l'API Core"
+
+msgid "Could copy website URL to notify reviewers: %s"
+msgstr "Copiez cette URL pour notifier les examinateurs : %s"
+
+msgid "Create k8s client err: %s"
+msgstr "Erreur de création du client k8s : %s"
+
+msgid "CreateFolder"
+msgstr "Créer un dossier"
+
+msgid "CreateLink"
+msgstr "Créer un lien"
+
+msgid "CreateSuccess"
+msgstr "Création réussie"
+
+msgid "CurrentUser"
+msgstr "Utilisateur actuel"
+
+msgid "Custom Setting"
+msgstr "Paramètre personnalisé"
+
+msgid "DangerWarning"
+msgstr "Avertissement de danger"
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "DownArrow"
+msgstr "Flèche bas"
+
+msgid "Download"
+msgstr "Télécharger"
+
+msgid "DownloadProgress"
+msgstr "Progression du téléchargement"
+
+msgid "DownloadSuccess"
+msgstr "Téléchargement réussi"
+
+msgid "Downloading"
+msgstr "Téléchargement en cours"
+
+msgid "Dynamic"
+msgstr "Dynamique"
+
+msgid "EndFileTransfer"
+msgstr "Fin du transfert de fichier"
+
+msgid ""
+"Enter ID number directly login, multiple search use // + field, such as: "
+"//16"
+msgstr ""
+"Saisissez directement le numéro d'ID pour vous connecter ; pour une "
+"recherche multiple, utilisez // + champ, par exemple : //16"
+
+msgid "ExceedTransferSize"
+msgstr "Taille de transfert dépassée"
+
+msgid "Expand"
+msgstr "Développer"
+
+msgid "ExpiredTime"
+msgstr "Date d'expiration"
+
+msgid ""
+"Face ACL is not supported yet. Please use the WebTerminal to connect the "
+"asset."
+msgstr ""
+"La vérification faciale via ACL n'est pas encore prise en charge. Veuillez "
+"utiliser le terminal Web pour vous connecter à l'actif."
+
+msgid ""
+"Face verification is not supported yet. Please use the WebTerminal to "
+"connect the asset."
+msgstr ""
+"La vérification faciale n'est pas encore prise en charge. Veuillez utiliser "
+"le terminal Web pour vous connecter à l'actif."
+
+msgid "FailedCreateConnection"
+msgstr "Échec de la création de la connexion"
+
+msgid "File transfer error, file transfer interrupted"
+msgstr "Erreur de transfert, le transfert de fichier a été interrompu"
+
+msgid "FileAlreadyExists"
+msgstr "Le fichier existe déjà"
+
+msgid "FileListError"
+msgstr "Erreur de listage des fichiers"
+
+msgid "FileManagement"
+msgstr "Gestion des fichiers"
+
+msgid "FileManagementExpired"
+msgstr "Session de gestion des fichiers expirée"
+
+msgid "FileManagerTokenTimeout"
+msgstr "Jeton du gestionnaire de fichiers expiré"
+
+msgid "FileTransferInterrupted"
+msgstr "Transfert de fichier interrompu"
+
+msgid "FileUploadInterrupted"
+msgstr "Envoi de fichier interrompu"
+
+msgid "Format"
+msgstr "Format"
+
+msgid "General"
+msgstr "Général"
+
+msgid "Get auth password failed"
+msgstr "Échec de récupération du mot de passe d'authentification"
+
+msgid "GetFileManagerTokenTimeOut"
+msgstr "Délai d'obtention du jeton du gestionnaire de fichiers dépassé"
+
+msgid "GetShareUser"
+msgstr "Obtenir l'utilisateur de partage"
+
+msgid ""
+"HandleTask does not support protocol %s, please use web terminal to access"
+msgstr ""
+"HandleTask ne prend pas en charge le protocole %s, veuillez utiliser le "
+"terminal Web"
+
+msgid "Hostname"
+msgstr "Nom d'hôte"
+
+msgid "Hotkeys"
+msgstr "Raccourcis clavier"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "InputVerifyCode"
+msgstr "Saisir le code de vérification"
+
+msgid "Invalid ID"
+msgstr "ID invalide"
+
+msgid "JoinShare"
+msgstr "Rejoindre le partage"
+
+msgid "JoinedWithSuccess"
+msgstr "Rejoint avec succès"
+
+msgid "KubernetesManagement"
+msgstr "Gestion Kubernetes"
+
+msgid "LastModified"
+msgstr "Dernière modification"
+
+msgid "LeaveShare"
+msgstr "Quitter le partage"
+
+msgid "LeftArrow"
+msgstr "Flèche gauche"
+
+msgid "LinkAddr"
+msgstr "Adresse du lien"
+
+msgid "List"
+msgstr "Liste"
+
+msgid "Manual"
+msgstr "Manuel"
+
+msgid "MatchWholeWords"
+msgstr "Mots entiers uniquement"
+
+msgid "Minute"
+msgstr "Minute"
+
+msgid "Minutes"
+msgstr "Minutes"
+
+msgid "Must be auto login account for %s"
+msgstr "Doit être un compte de connexion automatique pour %s"
+
+msgid "Must be unique account for %s"
+msgstr "Doit être un compte unique pour %s"
+
+msgid "Must be unique asset for %s"
+msgstr "Doit être un actif unique pour %s"
+
+msgid "MustOneFile"
+msgstr "Un seul fichier requis"
+
+msgid "MustSelectOneFile"
+msgstr "Vous devez sélectionner un fichier"
+
+msgid "Name"
+msgstr "Nom"
+
+msgid "Need ACL review, continue? (y/n): "
+msgstr "Une revue ACL est requise, continuer ? (o/n) : "
+
+msgid ""
+"Need ticket confirm to execute command, already send email to the reviewers"
+msgstr ""
+"La confirmation par ticket est requise pour exécuter la commande ; un e-mail"
+" a déjà été envoyé aux examinateurs"
+
+msgid "Need ticket confirm to login, already send email to the reviewers"
+msgstr ""
+"La confirmation par ticket est requise pour se connecter ; un e-mail a déjà "
+"été envoyé aux examinateurs"
+
+msgid "NewFolder"
+msgstr "Nouveau dossier"
+
+msgid "No Account found."
+msgstr "Aucun compte trouvé."
+
+msgid "No Assets"
+msgstr "Aucun actif"
+
+msgid "No Databases"
+msgstr "Aucune base de données"
+
+msgid "No account found."
+msgstr "Aucun compte trouvé."
+
+msgid "No found asset"
+msgstr "Aucun actif trouvé"
+
+msgid "No kubernetes"
+msgstr "Aucun Kubernetes"
+
+msgid "No protocol found."
+msgstr "Aucun protocole trouvé."
+
+msgid "No route to host"
+msgstr "Aucune route vers l'hôte"
+
+msgid "NoActiveTerminalTabFound"
+msgstr "Aucun onglet de terminal actif trouvé"
+
+msgid "NoData"
+msgstr "Aucune donnée"
+
+msgid "NoLink"
+msgstr "Aucun lien"
+
+msgid "NoRunningTerminalFound"
+msgstr "Aucun terminal en cours d'exécution trouvé"
+
+msgid "Node: [ ID.Name(Asset amount) ]"
+msgstr "Nœud : [ ID.Nom(Nombre d'actifs) ]"
+
+msgid "OnlineUser"
+msgstr "Utilisateur en ligne"
+
+msgid "OperationSuccessful"
+msgstr "Opération réussie"
+
+msgid "Organization"
+msgstr "Organisation"
+
+msgid "Owner"
+msgstr "Propriétaire"
+
+msgid "Page up: b\tPage down: n"
+msgstr "Page précédente : b\tPage suivante : n"
+
+msgid "Page: %d, Count: %d, Total Page: %d, Total Count: %d"
+msgstr "Page : %d, Nombre : %d, Total pages : %d, Total : %d"
+
+msgid "Paste"
+msgstr "Coller"
+
+msgid "PauseSession"
+msgstr "Suspendre la session"
+
+msgid "Permission has expired, disconnect"
+msgstr "L'autorisation a expiré, déconnexion"
+
+msgid "PermissionDenied"
+msgstr "Autorisation refusée"
+
+msgid "PermissionExpired"
+msgstr "Autorisation expirée"
+
+msgid "PermissionValid"
+msgstr "Autorisation valide"
+
+msgid "Platform"
+msgstr "Plateforme"
+
+msgid ""
+"Please waiting for the reviewers to confirm command `%s`, cancel by CTRL+C "
+"or CTRL+D."
+msgstr ""
+"En attente de la confirmation de la commande « %s » par les examinateurs, "
+"annulez avec CTRL+C ou CTRL+D."
+
+msgid "Please waiting for the reviewers to confirm, enter q to exit. "
+msgstr ""
+"En attente de la confirmation des examinateurs, saisissez q pour quitter. "
+
+msgid "PleaseInput"
+msgstr "Veuillez saisir"
+
+msgid "PleaseInputVerifyCode"
+msgstr "Veuillez saisir le code de vérification"
+
+msgid "PrimaryUser"
+msgstr "Utilisateur principal"
+
+msgid "Protocol"
+msgstr "Protocole"
+
+msgid "ReadOnly"
+msgstr "Lecture seule"
+
+msgid "Reconnect"
+msgstr "Reconnecter"
+
+msgid "Refresh"
+msgstr "Actualiser"
+
+msgid "Refresh done"
+msgstr "Actualisation terminée"
+
+msgid "Remove"
+msgstr "Retirer"
+
+msgid "RemoveShareUser"
+msgstr "Retirer l'utilisateur du partage"
+
+msgid "RemoveUser"
+msgstr "Retirer l'utilisateur"
+
+msgid "Rename"
+msgstr "Renommer"
+
+msgid "ResumeSession"
+msgstr "Reprendre la session"
+
+msgid "Reuse SSH connections (%s@%s) [Number of connections: %d]"
+msgstr "Réutilisation des connexions SSH (%s@%s) [Nombre de connexions : %d]"
+
+msgid "RightArrow"
+msgstr "Flèche droite"
+
+msgid "Search"
+msgstr "Rechercher"
+
+msgid "Search: %s"
+msgstr "Recherche : %s"
+
+msgid "Select account exceed max retry times."
+msgstr "Nombre maximal de tentatives de sélection de compte dépassé."
+
+msgid "Select protocol exceed max retry times."
+msgstr "Nombre maximal de tentatives de sélection de protocole dépassé."
+
+msgid "SelectAction"
+msgstr "Sélectionner une action"
+
+msgid "SelectTheme"
+msgstr "Sélectionner un thème"
+
+msgid "Self"
+msgstr "Soi-même"
+
+msgid "Session max time reached, disconnect"
+msgstr "Durée maximale de session atteinte, déconnexion"
+
+msgid "SessionDetail"
+msgstr "Détail de la session"
+
+msgid "SessionShare"
+msgstr "Partage de session"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Share"
+msgstr "Partager"
+
+msgid "ShareLink"
+msgstr "Lien de partage"
+
+msgid "ShareUser"
+msgstr "Utilisateur du partage"
+
+msgid "ShareUserHelpText"
+msgstr "Texte d'aide sur l'utilisateur du partage"
+
+msgid "Size"
+msgstr "Taille"
+
+msgid "Start domain gateway failed %s"
+msgstr "Échec du démarrage de la passerelle de domaine %s"
+
+msgid "Switch language successfully"
+msgstr "Changement de langue réussi"
+
+msgid "Switched to %s"
+msgstr "Basculé vers %s"
+
+msgid "Sync"
+msgstr "Synchroniser"
+
+msgid "SyncUserPreferenceFailed"
+msgstr "Échec de la synchronisation des préférences utilisateur"
+
+msgid "SyncUserPreferenceSuccess"
+msgstr "Synchronisation des préférences utilisateur réussie"
+
+msgid ""
+"Terminal does not support protocol %s, please use web terminal to access"
+msgstr ""
+"Le terminal ne prend pas en charge le protocole %s, veuillez utiliser le "
+"terminal Web"
+
+msgid "TerminalInstanceNotFound"
+msgstr "Instance de terminal introuvable"
+
+msgid "TerminalInstanceNotFoundForCurrentTab"
+msgstr "Instance de terminal introuvable pour l'onglet actuel"
+
+msgid "Terminated by admin %s"
+msgstr "Terminé par l'administrateur %s"
+
+msgid "The command '%s' requires review. Continue or not [Y/n]?"
+msgstr "La commande « %s » nécessite une revue. Continuer ? [O/n]"
+
+msgid ""
+"The command you executed is risky and an alert notification will be sent to "
+"the administrator. Do you want to continue?[Y/N]"
+msgstr ""
+"La commande exécutée est risquée, une alerte sera envoyée à "
+"l'administrateur. Voulez-vous continuer ? [O/N]"
+
+msgid "TheCurrentTerminalInstanceWasNotFound"
+msgstr "L'instance de terminal actuelle est introuvable"
+
+msgid "Theme"
+msgstr "Thème"
+
+msgid "ThemeColors"
+msgstr "Couleurs du thème"
+
+msgid "ThemeConfig"
+msgstr "Configuration du thème"
+
+msgid "Ticket Reviewers: %s"
+msgstr "Examinateurs du ticket : %s"
+
+msgid "Tips: Enter asset[%s] account ID"
+msgstr "Astuce : saisissez l'ID du compte de l'actif [%s]"
+
+msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
+msgstr ""
+"Astuce : saisissez g+ID du nœud pour afficher les hôtes de ce nœud, par "
+"exemple g1"
+
+msgid "Tips: Enter protocol ID"
+msgstr "Astuce : saisissez l'ID du protocole"
+
+msgid ""
+"Tips: To set a default language, go to Personal Settings → Preferences on "
+"Web"
+msgstr ""
+"Astuce : pour définir une langue par défaut, allez dans Paramètres "
+"personnels → Préférences sur le Web"
+
+msgid "Tips: switch language by ID (Current session only)"
+msgstr "Astuce : changez de langue par ID (session actuelle uniquement)"
+
+msgid "Transfer"
+msgstr "Transfert"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "UnableToGenerateWebSocketURL"
+msgstr "Impossible de générer l'URL WebSocket"
+
+msgid "Unknown error code: %s, detail: %s"
+msgstr "Code d'erreur inconnu : %s, détail : %s"
+
+msgid "Unknown status"
+msgstr "Statut inconnu"
+
+msgid "UpArrow"
+msgstr "Flèche haut"
+
+msgid "Upload"
+msgstr "Envoyer"
+
+msgid "UploadEnd"
+msgstr "Fin de l'envoi"
+
+msgid "UploadProgress"
+msgstr "Progression de l'envoi"
+
+msgid "UploadStart"
+msgstr "Début de l'envoi"
+
+msgid "UploadSuccess"
+msgstr "Envoi réussi"
+
+msgid "UploadTips"
+msgstr "Astuce d'envoi"
+
+msgid "UploadTitle"
+msgstr "Titre de l'envoi"
+
+msgid "User"
+msgstr "Utilisateur"
+
+msgid "Username"
+msgstr "Nom d'utilisateur"
+
+msgid "UsingRegularExpressions"
+msgstr "Utilisation d'expressions régulières"
+
+msgid "VerifyCode"
+msgstr "Code de vérification"
+
+msgid "WaitFileTransfer"
+msgstr "En attente du transfert de fichier"
+
+msgid "Warning"
+msgstr "Avertissement"
+
+msgid "WebSocketClosed"
+msgstr "WebSocket fermée"
+
+msgid "WebSocketConnectionIsClosedHelpText"
+msgstr "Texte d'aide : la connexion WebSocket est fermée"
+
+msgid "Welcome to use JumpServer open source fortress system"
+msgstr "Bienvenue sur le système de bastion open source JumpServer"
+
+msgid "Writable"
+msgstr "Modifiable"
+
+msgid "You don't have permission login %s"
+msgstr "Vous n'avez pas l'autorisation de vous connecter à %s"
+
+msgid "You get auth token failed"
+msgstr "Échec de l'obtention du jeton d'authentification"
+
+msgid "display the assets you have permission"
+msgstr "afficher les actifs pour lesquels vous avez une autorisation"
+
+msgid "display the databases that you have permission"
+msgstr ""
+"afficher les bases de données pour lesquelles vous avez une autorisation"
+
+msgid "display the hosts that you have permission"
+msgstr "afficher les hôtes pour lesquels vous avez une autorisation"
+
+msgid "display the kubernetes that you have permission"
+msgstr "afficher les Kubernetes pour lesquels vous avez une autorisation"
+
+msgid "display the node that you have permission"
+msgstr "afficher les nœuds pour lesquels vous avez une autorisation"
+
+msgid "exit"
+msgstr "quitter"
+
+msgid "get connect token err"
+msgstr "erreur d'obtention du jeton de connexion"
+
+msgid "have no permission to download file"
+msgstr "aucune autorisation pour télécharger le fichier"
+
+msgid "have no permission to upload file"
+msgstr "aucune autorisation pour envoyer le fichier"
+
+msgid "i/o timeout"
+msgstr "délai d'E/S dépassé"
+
+msgid "language switch"
+msgstr "changement de langue"
+
+msgid "network is unreachable"
+msgstr "réseau inaccessible"
+
+msgid "not found matched username %s"
+msgstr "aucun nom d'utilisateur correspondant trouvé %s"
+
+msgid "part IP, Hostname, Comment"
+msgstr "partie IP, nom d'hôte, commentaire"
+
+msgid "part IP,, Hostname, Comment"
+msgstr "partie IP, nom d'hôte, commentaire"
+
+msgid "print help"
+msgstr "afficher l'aide"
+
+msgid "refresh your assets and nodes"
+msgstr "actualiser vos actifs et nœuds"
+
+msgid "select one asset to login"
+msgstr "sélectionnez un actif pour vous connecter"
+
+msgid "to search login if unique"
+msgstr "pour rechercher une connexion si elle est unique"
+
+msgid "to search, such as: /192.168"
+msgstr "pour rechercher, par exemple : /192.168"
+
+#. lang.T
+#: pkg/proxy/tools.go:28
+msgid "Deployment permission denied"
+msgstr "Autorisation de déploiement refusée"
+
+#. lang.T
+#: pkg/proxy/parser.go
+msgid "File exceeds maximum transfer size: %s"
+msgstr "Le fichier dépasse la taille de transfert maximale : %s"
