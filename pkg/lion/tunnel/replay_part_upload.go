@@ -263,14 +263,36 @@ func (p *PartUploader) GetStorage() storage.ReplayStorage {
 const recordDirTimeFormat = "2006-01-02"
 
 func (p *PartUploader) uploadToStorage(uploadPath string) {
-	// check whether to use ENABLE_VIDEO_WORKER
-	if videoWorkerClient := NewWorkerClient(config.GetConf()); videoWorkerClient != nil {
+	cfg := config.GetConf()
+	p.uploadToStorageWith(uploadPath, cfg, func(sessionID, path string, taskCfg *videoworker.TaskConfig) (string, error) {
+		client := NewWorkerClient(cfg)
+		if client == nil {
+			return "", errors.New("video worker client is unavailable")
+		}
+		return client.CreateReplaySessionTask(sessionID, path, taskCfg)
+	}, p.uploadToOriginalStorage)
+}
+
+func shouldUseVideoWorker(enabled bool, termCfg *model.TerminalConfig) bool {
+	return enabled && termCfg != nil && termCfg.LicenseIsValid
+}
+
+// uploadToStorageWith keeps the edition gate before even constructing a
+// Video Worker client. The injected operations also let tests prove that CE
+// recordings reach the original storage without making network requests.
+func (p *PartUploader) uploadToStorageWith(
+	uploadPath string,
+	cfg config.Config,
+	createTask func(string, string, *videoworker.TaskConfig) (string, error),
+	uploadOriginal func(string),
+) {
+	if shouldUseVideoWorker(cfg.EnableVideoWorker, p.TermCfg) {
 		taskCfg := videoworker.TaskConfig{
 			Width:   p.Info.OptimalScreenWidth,
 			Height:  p.Info.OptimalScreenHeight,
 			Bitrate: 1,
 		}
-		taskId, err := videoWorkerClient.CreateReplaySessionTask(p.SessionId, uploadPath, &taskCfg)
+		taskId, err := createTask(p.SessionId, uploadPath, &taskCfg)
 		if err == nil {
 			logger.Infof("Create replay session VideoWorker task success, task id: %s", taskId)
 			if err = os.RemoveAll(p.RootPath); err != nil {
@@ -281,7 +303,16 @@ func (p *PartUploader) uploadToStorage(uploadPath string) {
 		// videoWorkerClient failed then try to use self storage to upload
 		logger.Errorf("Create replay session task error: %v, try to use self storage", err)
 	}
+	uploadOriginal(uploadPath)
+}
 
+func (p *PartUploader) uploadToOriginalStorage(uploadPath string) {
+	if p.TermCfg == nil {
+		// Without Core's terminal configuration we cannot identify the original
+		// replay backend. Keep local files for a later recovery attempt.
+		logger.Errorf("PartUploader %s cannot upload replay without terminal config; retaining local files", p.SessionId)
+		return
+	}
 	// 上传到存储
 	uploadFiles, err := os.ReadDir(uploadPath)
 	if err != nil {
