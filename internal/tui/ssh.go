@@ -3,6 +3,7 @@ package tui
 
 import (
 	"io"
+	"strings"
 	"sync"
 
 	"github.com/gdamore/tcell/v2"
@@ -30,7 +31,8 @@ type sshTTY struct {
 
 func NewSSHScreen(session ssh.Session, windows <-chan ssh.Window) (tcell.Screen, error) {
 	pty, _, _ := session.Pty()
-	ti, err := terminfo.LookupTerminfo(pty.Term)
+	term := sshTerminfoName(pty.Term, session.Context().ClientVersion())
+	ti, err := terminfo.LookupTerminfo(term)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +76,18 @@ func NewSSHScreen(session ssh.Session, windows <-chan ssh.Window) (tcell.Screen,
 		cursorReset = "\x1b[0 q"
 	}
 	return &sshScreen{Screen: screen, tty: tty, output: tty, cursorReset: cursorReset}, nil
+}
+
+func sshTerminfoName(term, clientVersion string) string {
+	if strings.EqualFold(term, "xterm") && IsXShellClient(clientVersion) {
+		return "xterm-256color"
+	}
+	return term
+}
+
+func IsXShellClient(clientVersion string) bool {
+	clientVersion = strings.ToLower(clientVersion)
+	return strings.Contains(clientVersion, "xshell") || strings.Contains(clientVersion, "netsarang") || strings.Contains(clientVersion, "nsssh")
 }
 
 // SetScreen calls Init itself and ignores errors; initialize once explicitly.

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -70,10 +71,33 @@ func SupportedHostProtocols() []string {
 
 func SupportedProtocols() []string {
 	protocols := make([]string, 0, len(supportedMap))
-	for k := range supportedMap {
-		protocols = append(protocols, k)
+	seen := make(map[string]struct{}, len(supportedMap))
+	for _, protocol := range []string{
+		ProtocolSSH,
+		ProtocolTELNET,
+		ProtocolK8s,
+		ProtocolMySQL,
+		ProtocolPostgresql,
+		ProtocolSQLServer,
+		ProtocolOracle,
+		ProtocolRedis,
+		ProtocolMongoDB,
+		ProtocolMariadb,
+		ProtocolClickHouse,
+	} {
+		if _, ok := supportedMap[protocol]; ok {
+			protocols = append(protocols, protocol)
+			seen[protocol] = struct{}{}
+		}
 	}
-	return protocols
+	extra := make([]string, 0, len(supportedMap)-len(protocols))
+	for protocol := range supportedMap {
+		if _, ok := seen[protocol]; !ok {
+			extra = append(extra, protocol)
+		}
+	}
+	sort.Strings(extra)
+	return append(protocols, extra...)
 }
 
 type ErrNoClient struct {
