@@ -63,7 +63,7 @@ func (h *terminalUI) captureTreeMouse(action tview.MouseAction, ev *tcell.EventM
 		})
 		if target != nil {
 			ref, ok := target.GetReference().(*tuiNodeRef)
-			if ok && !ref.more && (!ref.loaded || len(target.GetChildren()) > 0) && h.treeToggleHit(target, x, y, left) {
+			if ok && !ref.more && (!ref.loaded || len(target.GetChildren()) > 0) && h.treeExpansionHit(target, x, left) {
 				h.tree.SetCurrentNode(target)
 				h.app.SetFocus(h.tree)
 				h.toggleNode(target)
@@ -74,24 +74,16 @@ func (h *terminalUI) captureTreeMouse(action tview.MouseAction, ev *tcell.EventM
 	return action, ev
 }
 
-func (h *terminalUI) treeToggleHit(node *tview.TreeNode, x, y, left int) bool {
-	if h.screen != nil {
-		for column := x; column >= max(0, x-1); column-- {
-			glyph, _, _, _ := h.screen.GetContent(column, y)
-			if glyph == '▸' || glyph == '▾' {
-				return true
-			}
-		}
-	}
+func (h *terminalUI) treeExpansionHit(node *tview.TreeNode, x, left int) bool {
 	// Each visible level uses tview's connector plus its default two-cell
-	// indent. Derive the depth from the rendered hierarchy instead of cached
-	// API metadata so the hit target stays aligned with the tree graphics.
+	// indent. The node label itself also starts with a two-cell expand prefix.
+	// Everything before the node name belongs to the expansion hit area.
 	depth := len(h.tree.GetPath(node)) - 1
 	if h.scope.Mode == 0 {
 		depth-- // The authorization tree hides its synthetic root.
 	}
-	toggleX := left + max(0, depth)*3
-	return x >= toggleX && x < toggleX+2
+	nameX := left + max(0, depth)*3 + 2
+	return x < nameX
 }
 
 // The synthetic container is not an API level, even when displayed as All assets.

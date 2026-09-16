@@ -25,10 +25,11 @@ import (
 // rectangle, recomputed after each outer terminal resize.
 type tuiOverlay struct {
 	*tview.Box
-	child         tview.Primitive
-	width, height int
-	anchor        tview.Primitive
-	paste         func(string, func(tview.Primitive))
+	child          tview.Primitive
+	width, height  int
+	anchor         tview.Primitive
+	paste          func(string, func(tview.Primitive))
+	dismissOutside func()
 }
 
 func (o *tuiOverlay) Draw(s tcell.Screen) {
@@ -61,6 +62,14 @@ func (o *tuiOverlay) PasteHandler() func(string, func(tview.Primitive)) {
 }
 func (o *tuiOverlay) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, func(tview.Primitive)) (bool, tview.Primitive) {
 	return func(a tview.MouseAction, e *tcell.EventMouse, f func(tview.Primitive)) (bool, tview.Primitive) {
+		if o.dismissOutside != nil && a == tview.MouseLeftDown {
+			mx, my := e.Position()
+			x, y, width, height := o.child.GetRect()
+			if mx < x || mx >= x+width || my < y || my >= y+height {
+				o.dismissOutside()
+				return true, o
+			}
+		}
 		if handler := o.child.MouseHandler(); handler != nil {
 			_, capture := handler(a, e, f)
 			// Native dropdowns capture the mouse while their list is open. Keep
@@ -88,10 +97,11 @@ func (h *terminalUI) dismissModal() {
 }
 
 func (h *terminalUI) showAccounts(row int) {
-	if row < 1 || row > len(h.assets) || h.modal || h.popup != nil {
+	assetIndex := row - tuiAssetTableHeaderRows
+	if assetIndex < 0 || assetIndex >= len(h.assets) || h.modal || h.popup != nil {
 		return
 	}
-	if !h.assetCanConnect(row - 1) {
+	if !h.assetCanConnect(assetIndex) {
 		h.showUnsupportedAsset()
 		return
 	}
@@ -99,7 +109,7 @@ func (h *terminalUI) showAccounts(row int) {
 		h.message(h.tr("最多同时保留 8 个会话，请先关闭一个", "Maximum 8 sessions; close one first"))
 		return
 	}
-	asset, scope := h.assets[row-1], h.scope
+	asset, scope := h.assets[assetIndex], h.scope
 	orgID := scope.Org.ID
 	if orgID == tuiGlobalOrganizationID {
 		orgID = asset.OrgID
@@ -837,6 +847,16 @@ func (h *terminalUI) showSessionMenu() {
 	h.openDialog("sessions", &tuiOverlay{Box: tview.NewBox(), child: list, width: 54, height: list.GetItemCount() + 4, anchor: h.sessionTabs}, []tview.Primitive{list})
 }
 
+func (h *terminalUI) showUserMenu() {
+	h.closeDropdown()
+	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
+		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tui.Selected)
+	list.AddItem(h.tr("退出", "Quit"), "", 0, h.quit)
+	tuiDialogBorder(list.Box, h.tr("用户", "User"))
+	width := max(18, min(36, tview.TaggedStringWidth(h.identity.GetLabel())+2))
+	h.openDialog("user", &tuiOverlay{Box: tview.NewBox(), child: list, width: width, height: 5, anchor: h.identity}, []tview.Primitive{list})
+}
+
 // Fullscreen keeps the session border and reserves one bottom row for shortcuts.
 // Its exit button occupies the border, leaving remote output unobstructed.
 func (h *terminalUI) setFullscreen(enabled bool) {
@@ -964,12 +984,12 @@ func (h *terminalUI) removeSession(session *tuiSession) {
 
 func (h *terminalUI) quit() {
 	h.windowPrefix = false
-	message := h.tr("确定退出本次 Koko SSH 会话？", "Quit this Koko SSH session?")
+	message := h.tr("确定退出本次 SSH 会话吗？", "Are you sure you want to quit this SSH session?")
 	if len(h.sessions) > 0 {
-		message += "\n\n" + h.tr("退出将断开所有资产会话。", "Quitting will disconnect all asset sessions.")
+		message += "\n\n" + h.tr("退出后，所有已连接的资产会话都将断开。", "All connected asset sessions will be disconnected.")
 	}
 	dialog := tview.NewModal().SetText(message).
-		AddButtons([]string{h.tr("返回", "Back"), h.tr("断开并退出", "Disconnect and quit")}).
+		AddButtons([]string{h.tr("取消", "Cancel"), h.tr("退出会话", "Quit session")}).
 		SetDoneFunc(func(index int, _ string) {
 			if index == 1 {
 				h.app.Stop()
@@ -981,7 +1001,7 @@ func (h *terminalUI) quit() {
 		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
 		SetBorderColor(tui.FocusBorder)
 	dialog.Box.SetBackgroundColor(tui.Panel)
-	dialog.SetTitle(" " + h.tr("退出确认", "Confirm exit") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
+	dialog.SetTitle(" " + h.tr("退出 SSH 会话", "Quit SSH session") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
 	tui.RoundedBorder(dialog.Box)
 	h.openDialog("quit", dialog, nil)
 }
