@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/jumpserver/koko/internal/tui"
 	"strconv"
 	"strings"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-func (h *terminalUI) expandNode(node *tview.TreeNode) {
+func (h *terminalUI) expandNode(node *tui.TreeNode) {
 	ref, ok := node.GetReference().(*tuiNodeRef)
 	if !ok {
 		return
@@ -23,7 +24,7 @@ func (h *terminalUI) expandNode(node *tview.TreeNode) {
 	}
 }
 
-func (h *terminalUI) toggleNode(node *tview.TreeNode) {
+func (h *terminalUI) toggleNode(node *tui.TreeNode) {
 	if node.IsExpanded() {
 		node.SetExpanded(false)
 		h.refreshNodeLabel(node)
@@ -46,8 +47,8 @@ func (h *terminalUI) captureTreeMouse(action tview.MouseAction, ev *tcell.EventM
 			break
 		}
 		row := y - top + h.tree.GetScrollOffset()
-		var target *tview.TreeNode
-		root.Walk(func(node, _ *tview.TreeNode) bool {
+		var target *tui.TreeNode
+		root.Walk(func(node, _ *tui.TreeNode) bool {
 			if target != nil {
 				return false
 			}
@@ -74,7 +75,7 @@ func (h *terminalUI) captureTreeMouse(action tview.MouseAction, ev *tcell.EventM
 	return action, ev
 }
 
-func (h *terminalUI) treeExpansionHit(node *tview.TreeNode, x, left int) bool {
+func (h *terminalUI) treeExpansionHit(node *tui.TreeNode, x, left int) bool {
 	// Each visible level uses tview's connector plus its default two-cell
 	// indent. The node label itself also starts with a two-cell expand prefix.
 	// Everything before the node name belongs to the expansion hit area.
@@ -90,7 +91,7 @@ func (h *terminalUI) treeExpansionHit(node *tview.TreeNode, x, left int) bool {
 func (h *terminalUI) treeExpansion() (expanded, deeper bool) {
 	root := h.tree.GetRoot()
 	if root != nil {
-		root.Walk(func(n, parent *tview.TreeNode) bool {
+		root.Walk(func(n, parent *tui.TreeNode) bool {
 			if n != root && n.IsExpanded() {
 				expanded = true
 				deeper = deeper || parent != root
@@ -123,7 +124,7 @@ func (h *terminalUI) expandFirstTreeLevel() {
 		return
 	}
 	h.treeCollapsed = false
-	root.Walk(func(n, parent *tview.TreeNode) bool {
+	root.Walk(func(n, parent *tui.TreeNode) bool {
 		ref := n.GetReference().(*tuiNodeRef)
 		first := parent == root && !ref.more
 		n.SetExpanded(n == root || first)
@@ -155,9 +156,9 @@ func (h *terminalUI) keepTreeSelectionInView(step int) {
 	if root == nil {
 		return
 	}
-	var rows []*tview.TreeNode
+	var rows []*tui.TreeNode
 	selected := -1
-	root.Walk(func(n, _ *tview.TreeNode) bool {
+	root.Walk(func(n, _ *tui.TreeNode) bool {
 		if n == root && h.scope.Mode == 0 {
 			return true
 		}
@@ -223,10 +224,10 @@ func (h *terminalUI) advanceTree() {
 	first := h.tree.GetScrollOffset()
 	_, _, _, height := h.tree.GetInnerRect()
 	countEnd := ((first+tuiTreeBatchSize/2)/tuiTreeBatchSize + 1) * tuiTreeBatchSize
-	var counts []*tview.TreeNode
-	var next, parent, expand *tview.TreeNode
+	var counts []*tui.TreeNode
+	var next, parent, expand *tui.TreeNode
 	row := 0
-	root.Walk(func(n, p *tview.TreeNode) bool {
+	root.Walk(func(n, p *tui.TreeNode) bool {
 		if n == root && h.scope.Mode == 0 {
 			return true
 		}
@@ -259,7 +260,7 @@ func (h *terminalUI) advanceTree() {
 
 // Counts have an independent worker and never block tree or asset rendering.
 // Expanding a branch does not fetch the descendants of its collapsed children.
-func (h *terminalUI) loadNodeCounts(nodes []*tview.TreeNode) {
+func (h *terminalUI) loadNodeCounts(nodes []*tui.TreeNode) {
 	ids := make([]string, 0, len(nodes))
 	seen := make(map[string]bool, len(nodes))
 	for _, n := range nodes {
