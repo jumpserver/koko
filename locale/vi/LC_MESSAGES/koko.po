@@ -1014,3 +1014,99 @@ msgstr "Đặt lại màu nhấn"
 
 msgid "Quit this Koko SSH session?"
 msgstr "Thoát phiên SSH Koko này?"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "Các giao thức của tài sản này (%s) không được hỗ trợ nên không thể kết nối"
+
+msgid "Focus the organization selector"
+msgstr "Chuyển tiêu điểm đến bộ chọn tổ chức"
+
+msgid "Focus the asset tree type selector"
+msgstr "Chuyển tiêu điểm đến bộ chọn loại cây tài sản"
+
+msgid "Focus asset tree nodes"
+msgstr "Chuyển tiêu điểm đến các nút cây tài sản"
+
+msgid "Focus the asset list"
+msgstr "Chuyển tiêu điểm đến danh sách tài sản"
+
+msgid "Show or hide the asset tree pane"
+msgstr "Hiện hoặc ẩn vùng cây tài sản"
+
+msgid "Focus the asset search field"
+msgstr "Chuyển tiêu điểm đến ô tìm kiếm tài sản"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "Thu gọn cây tài sản theo từng cấp; khi đã thu gọn hết thì mở rộng các nút cấp đầu"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "Tải lại cây tài sản hiện tại và danh sách tài sản cấp cao nhất, đồng thời đặt lại nút đã chọn"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "Tải lại tổ chức, cây tài sản và danh sách tài sản"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "Thu hẹp vùng cây tài sản 4 cột"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "Mở rộng vùng cây tài sản 4 cột"
+
+msgid "Previous page of the asset list"
+msgstr "Trang trước của danh sách tài sản"
+
+msgid "Next page of the asset list"
+msgstr "Trang sau của danh sách tài sản"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "Làm mới danh sách tài sản của nút hiện tại, giữ nguyên tìm kiếm và trang"
+
+msgid "Scroll the asset list horizontally"
+msgstr "Cuộn danh sách tài sản theo chiều ngang"
+
+msgid "Collapse or expand the current tree node"
+msgstr "Thu gọn hoặc mở rộng nút cây hiện tại"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "Thu gọn nút hiện tại hoặc chuyển đến nút cha / mở rộng nút hiện tại"
+
+msgid "Move to a child / parent node"
+msgstr "Chuyển đến nút con / nút cha"
+
+msgid "Move through visible tree nodes"
+msgstr "Di chuyển giữa các nút cây đang hiển thị"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "Di chuyển lên hoặc xuống một màn hình trong cây tài sản"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "Chuyển đến nút đầu hoặc cuối của cây tài sản"
+
+msgid "Move between asset list rows"
+msgstr "Di chuyển giữa các hàng trong danh sách tài sản"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "Di chuyển lên hoặc xuống một màn hình trong trang tài sản hiện tại"
+
+msgid "Jump to the first or last asset list row"
+msgstr "Chuyển đến hàng đầu hoặc cuối của danh sách tài sản"
+
+msgid "Show assets in the current tree node"
+msgstr "Hiển thị tài sản trong nút cây hiện tại"
+
+msgid "Search assets immediately"
+msgstr "Tìm kiếm tài sản ngay lập tức"
+
+msgid "Connect to the selected asset"
+msgstr "Kết nối tới tài sản đã chọn"
+
+msgid "Focused area controls"
+msgstr "Thao tác trong vùng đang được chọn"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "Phiên \"%s\" đã kết thúc. Đóng thẻ này?"
+
+msgid "Keep tab"
+msgstr "Giữ thẻ"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "Terminal chỉ hỗ trợ các giao thức sau: %s."

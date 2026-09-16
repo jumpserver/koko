@@ -45,6 +45,7 @@ func (h *terminalUI) navigationSearchFor(d *tview.DropDown) *tview.InputField {
 		field := tview.NewInputField().SetFieldTextColor(tui.Foreground).
 			SetFieldBackgroundColor(tui.Panel).
 			SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
+		field.SetAcceptanceFunc(tview.InputFieldMaxLength(tuiSearchMaxLength))
 		field.SetBackgroundColor(tui.Panel)
 		field.SetChangedFunc(func(prefix string) {
 			if prefix == "" || !d.IsOpen() {

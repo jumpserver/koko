@@ -1045,3 +1045,99 @@ msgstr "Restablecer color"
 
 msgid "Quit this Koko SSH session?"
 msgstr "¿Salir de esta sesión SSH de Koko?"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "Los protocolos de este activo (%s) no son compatibles, por lo que no se puede conectar"
+
+msgid "Focus the organization selector"
+msgstr "Enfocar el selector de organizaciones"
+
+msgid "Focus the asset tree type selector"
+msgstr "Enfocar el selector de tipo de árbol de activos"
+
+msgid "Focus asset tree nodes"
+msgstr "Enfocar los nodos del árbol de activos"
+
+msgid "Focus the asset list"
+msgstr "Enfocar la lista de activos"
+
+msgid "Show or hide the asset tree pane"
+msgstr "Mostrar u ocultar el panel del árbol de activos"
+
+msgid "Focus the asset search field"
+msgstr "Enfocar el campo de búsqueda de activos"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "Contraer el árbol de activos por niveles; al estar totalmente contraído, expandir los nodos de primer nivel"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "Recargar el árbol de activos actual y la lista de activos de nivel superior; restablecer el nodo seleccionado"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "Recargar organizaciones, árbol de activos y lista de activos"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "Estrechar el panel del árbol de activos 4 columnas"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "Ensanchar el panel del árbol de activos 4 columnas"
+
+msgid "Previous page of the asset list"
+msgstr "Página anterior de la lista de activos"
+
+msgid "Next page of the asset list"
+msgstr "Página siguiente de la lista de activos"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "Actualizar la lista de activos del nodo actual, conservando la búsqueda y la página"
+
+msgid "Scroll the asset list horizontally"
+msgstr "Desplazarse horizontalmente por la lista de activos"
+
+msgid "Collapse or expand the current tree node"
+msgstr "Contraer o expandir el nodo actual del árbol"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "Contraer el nodo actual o ir al padre / expandir el nodo actual"
+
+msgid "Move to a child / parent node"
+msgstr "Ir a un nodo hijo / padre"
+
+msgid "Move through visible tree nodes"
+msgstr "Moverse entre los nodos visibles del árbol"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "Moverse una pantalla arriba o abajo en el árbol de activos"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "Ir al primer o último nodo del árbol de activos"
+
+msgid "Move between asset list rows"
+msgstr "Moverse entre las filas de la lista de activos"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "Moverse una pantalla arriba o abajo en la página actual de activos"
+
+msgid "Jump to the first or last asset list row"
+msgstr "Ir a la primera o última fila de la lista de activos"
+
+msgid "Show assets in the current tree node"
+msgstr "Mostrar los activos del nodo actual del árbol"
+
+msgid "Search assets immediately"
+msgstr "Buscar activos inmediatamente"
+
+msgid "Connect to the selected asset"
+msgstr "Conectar con el activo seleccionado"
+
+msgid "Focused area controls"
+msgstr "Controles del área enfocada"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "La sesión «%s» ha terminado. ¿Cerrar esta pestaña?"
+
+msgid "Keep tab"
+msgstr "Conservar pestaña"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "Terminal solo admite estos protocolos: %s."

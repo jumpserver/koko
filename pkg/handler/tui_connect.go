@@ -17,6 +17,7 @@ import (
 	"github.com/jumpserver/koko/internal/tui"
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/exchange"
+	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
@@ -44,7 +45,7 @@ func (o *tuiOverlay) Draw(s tcell.Screen) {
 	left, top := x+(w-width)/2, y+(h-height)/2
 	if o.anchor != nil {
 		ax, ay, aw, ah := o.anchor.GetRect()
-		left, top = max(x, ax+aw-width), max(y, ay+ah)
+		left, top = max(x, ax+aw-width), max(0, ay+ah)
 	}
 	o.child.SetRect(left, top, width, height)
 	o.child.Draw(s)
@@ -101,14 +102,6 @@ func (h *terminalUI) showAccounts(row int) {
 	if assetIndex < 0 || assetIndex >= len(h.assets) || h.modal || h.popup != nil {
 		return
 	}
-	if !h.assetCanConnect(assetIndex) {
-		h.showUnsupportedAsset()
-		return
-	}
-	if len(h.sessions) >= maxTUISessions {
-		h.message(h.tr("最多同时保留 8 个会话，请先关闭一个", "Maximum 8 sessions; close one first"))
-		return
-	}
 	asset, scope := h.assets[assetIndex], h.scope
 	orgID := scope.Org.ID
 	if orgID == tuiGlobalOrganizationID {
@@ -119,6 +112,14 @@ func (h *terminalUI) showAccounts(row int) {
 		}
 	}
 	asset.OrgID = orgID
+	if !h.assetCanConnect(assetIndex) {
+		h.showUnavailableAsset(asset)
+		return
+	}
+	if len(h.sessions) >= maxTUISessions {
+		h.message(h.tr("最多同时保留 8 个会话，请先关闭一个", "Maximum 8 sessions; close one first"))
+		return
+	}
 	h.detailGeneration++
 	generation := h.detailGeneration
 	h.message(h.tr("加载授权账号…", "Loading permitted accounts…"))
@@ -170,22 +171,77 @@ func (h *terminalUI) showAccounts(row int) {
 	})
 }
 
-func (h *terminalUI) showUnsupportedAsset() {
-	protocols := srvconn.SupportedProtocols()
-	message := fmt.Sprintf(h.tr(
-		"当前资产不支持通过 Terminal 连接\n\nTerminal 仅支持包含以下协议的资产：%s",
-		"This asset cannot be connected through Terminal\n\nTerminal supports assets with these protocols: %s",
-	), strings.Join(protocols, ", "))
-	dialog := tview.NewModal().SetText(message).
-		AddButtons([]string{h.tr("关闭", "Close")}).
-		SetDoneFunc(func(_ int, _ string) { h.dismissModal() })
-	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
-		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
-		SetBorderColor(tui.FocusBorder)
-	dialog.Box.SetBackgroundColor(tui.Panel)
-	dialog.SetTitle(" " + h.tr("无法连接", "Connection unavailable") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
-	tui.RoundedBorder(dialog.Box)
-	h.openDialog("unsupported-asset", dialog, nil)
+func (h *terminalUI) showUnavailableAsset(asset model.PermAsset) {
+	terminalProtocols := fmt.Sprintf(h.tr("终端仅支持 %s 等协议。", "Terminal supports only these protocols: %s."),
+		strings.Join(srvconn.SupportedProtocols(), ", "))
+	message := func(protocols string) string {
+		return fmt.Sprintf(h.tr("当前资产的协议（%s）不支持，无法连接", "This asset's protocols (%s) are unsupported, so it cannot be connected"), protocols) +
+			"\n\n" + terminalProtocols
+	}
+	initial, height := message(h.tr("加载中…", "Loading…")), 11
+	if !asset.IsActive {
+		initial = h.tr("当前资产已被禁用，无法连接", "This asset is disabled and cannot be connected")
+		height = 7
+	}
+	view := tview.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
+		SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
+		SetTextAlign(tview.AlignLeft).SetText(initial)
+	view.SetDoneFunc(func(k tcell.Key) {
+		if k == tcell.KeyEnter {
+			h.dismissModal()
+		}
+	})
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").
+		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
+		SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+	closeRow := tview.NewFlex().AddItem(nil, 0, 1, false).
+		AddItem(close, tview.TaggedStringWidth(close.GetLabel())+4, 0, false).
+		AddItem(nil, 0, 1, false)
+	closeRow.SetBackgroundColor(tui.Panel)
+	content := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(view, 0, 1, true).AddItem(nil, 1, 0, false).AddItem(closeRow, 1, 0, false)
+	content.Box = tview.NewBox()
+	content.SetBackgroundColor(tui.Panel)
+	tuiDialogBorder(content.Box, h.tr("无法连接", "Connection unavailable")+" · "+cleanTUIText(asset.Name))
+	h.openDialog("unavailable-asset", &tuiOverlay{Box: tview.NewBox(), child: content, width: 68, height: height},
+		[]tview.Primitive{view, close})
+	if !asset.IsActive {
+		return
+	}
+	generation, data := h.detailGeneration, h.data
+	h.queue(h.detailJobs, func() {
+		detail, err := data.client(asset.OrgID).GetUserPermAssetDetailById(h.user.ID, asset.ID)
+		h.update(func() {
+			if generation != h.detailGeneration {
+				return
+			}
+			if err != nil || detail.ID != asset.ID || detail.OrgID != "" && detail.OrgID != asset.OrgID {
+				if err == nil {
+					err = fmt.Errorf("asset detail does not match selected organization")
+				}
+				h.fail(err)
+				view.SetText(message(h.tr("暂时无法获取", "Unavailable")))
+				return
+			}
+			var protocols []string
+			for _, protocol := range detail.PermedProtocols {
+				name := cleanTUIText(strings.TrimSpace(protocol.Name))
+				if name != "" && !slices.Contains(protocols, name) {
+					protocols = append(protocols, name)
+				}
+			}
+			separator := ", "
+			if language := i18n.NewLang(h.data.lang); language == i18n.ZH || language == i18n.ZHHant {
+				separator = "、"
+			}
+			current := h.tr("无可用协议", "No available protocols")
+			if len(protocols) > 0 {
+				current = strings.Join(protocols, separator)
+			}
+			view.SetText(tview.Unescape(message(current)))
+			view.ScrollToBeginning()
+		})
+	})
 }
 
 func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermAccount, protocols []string) {
@@ -197,6 +253,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 		SetLabelStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).
 		SetFieldStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
 		SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))}
+	search.field.SetAcceptanceFunc(tview.InputFieldMaxLength(tuiSearchMaxLength))
 	search.field.SetBackgroundColor(tui.Panel)
 	searchText := make([]string, 0, len(accounts))
 	for i, account := range accounts {
@@ -588,11 +645,12 @@ func (h *terminalUI) preferredConnectionOptions(asset model.PermAsset, accounts 
 }
 
 type tuiSession struct {
-	terminal      *tui.Terminal
-	controls      []tview.Primitive
-	duplicate     func()
-	name, page    string
-	done, closing bool
+	terminal           *tui.Terminal
+	controls           []tview.Primitive
+	duplicate          func()
+	name, page         string
+	done, closing      bool
+	closePromptPending bool
 }
 
 func (h *terminalUI) hasRunningSession() bool {
@@ -681,12 +739,14 @@ func (h *terminalUI) finishSession(session *tuiSession, title string, closeOnFin
 	if h.popup == session.terminal {
 		h.setFullscreen(false)
 	}
-	if session.closing || closeOnFinish {
+	if session.closing {
 		h.removeSession(session)
 		return
 	}
+	session.closePromptPending = closeOnFinish
 	session.terminal.SetTitle(" " + title + " · " + h.tr("连接已结束", "Session ended") + " ")
 	h.refreshSessionTabs()
+	h.confirmCloseFinishedTab(session)
 }
 
 func (h *terminalUI) buildSessionControls(session *tuiSession) {
@@ -852,9 +912,10 @@ func (h *terminalUI) showUserMenu() {
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
 		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tui.Selected)
 	list.AddItem(h.tr("退出", "Quit"), "", 0, h.quit)
-	tuiDialogBorder(list.Box, h.tr("用户", "User"))
+	tuiDialogBorder(list.Box, "")
+	list.SetBorderPadding(0, 0, 2, 2)
 	width := max(18, min(36, tview.TaggedStringWidth(h.identity.GetLabel())+2))
-	h.openDialog("user", &tuiOverlay{Box: tview.NewBox(), child: list, width: width, height: 5, anchor: h.identity}, []tview.Primitive{list})
+	h.openDialog("user", &tuiOverlay{Box: tview.NewBox(), child: list, width: width, height: 3, anchor: h.identity}, []tview.Primitive{list})
 }
 
 // Fullscreen keeps the session border and reserves one bottom row for shortcuts.
@@ -899,6 +960,32 @@ func (h *terminalUI) activateSession(index int) {
 	}
 	h.setWindowHelp()
 	h.refreshSessionTabs()
+	if index >= 0 {
+		h.confirmCloseFinishedTab(h.sessions[index])
+	}
+}
+
+func (h *terminalUI) confirmCloseFinishedTab(session *tuiSession) {
+	if !session.closePromptPending || h.modal || h.popup != session.terminal {
+		return
+	}
+	session.closePromptPending = false
+	message := fmt.Sprintf(h.tr("会话“%s”已结束，是否关闭此标签页？", "Session \"%s\" has ended. Close this tab?"), cleanTUIText(session.name))
+	dialog := tview.NewModal().SetText(message).
+		AddButtons([]string{h.tr("保留标签页", "Keep tab"), h.tr("关闭标签页", "Close tab")}).
+		SetDoneFunc(func(index int, _ string) {
+			h.dismissModal()
+			if index == 1 {
+				h.removeSession(session)
+			}
+		})
+	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
+		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
+		SetBorderColor(tui.FocusBorder)
+	dialog.Box.SetBackgroundColor(tui.Panel)
+	dialog.SetTitle(" " + h.tr("连接已结束", "Session ended") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
+	tui.RoundedBorder(dialog.Box)
+	h.openDialog("session-ended", dialog, nil)
 }
 
 func (h *terminalUI) closeSession(session *tuiSession) {
@@ -1009,7 +1096,14 @@ func (h *terminalUI) quit() {
 // tview handles vertical wheel/PageUp/PageDown and keyboard horizontal scrolling.
 // Add horizontal wheel gestures too; row selection is unchanged while scrolling.
 func enableTableScroll(table *tview.Table) {
+	previousCapture := table.GetMouseCapture()
 	table.SetMouseCapture(func(a tview.MouseAction, e *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		if previousCapture != nil {
+			a, e = previousCapture(a, e)
+			if e == nil {
+				return a, nil
+			}
+		}
 		x, y := e.Position()
 		if !table.InRect(x, y) {
 			return a, e

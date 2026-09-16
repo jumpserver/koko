@@ -1045,3 +1045,99 @@ msgstr "강조 색상 초기화"
 
 msgid "Quit this Koko SSH session?"
 msgstr "현재 Koko SSH 세션을 종료하시겠습니까?"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "현재 자산의 프로토콜(%s)은 지원되지 않아 연결할 수 없습니다"
+
+msgid "Focus the organization selector"
+msgstr "조직 선택 항목으로 포커스 이동"
+
+msgid "Focus the asset tree type selector"
+msgstr "자산 트리 유형 선택 항목으로 포커스 이동"
+
+msgid "Focus asset tree nodes"
+msgstr "자산 트리 노드로 포커스 이동"
+
+msgid "Focus the asset list"
+msgstr "자산 목록으로 포커스 이동"
+
+msgid "Show or hide the asset tree pane"
+msgstr "자산 트리 영역 표시 또는 숨기기"
+
+msgid "Focus the asset search field"
+msgstr "자산 검색창으로 포커스 이동"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "자산 트리를 단계별로 접기. 모두 접혔으면 첫 번째 수준의 노드 펼치기"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "현재 자산 트리와 최상위 자산 목록을 다시 불러오고 선택한 노드 초기화"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "조직, 자산 트리 및 자산 목록 다시 불러오기"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "자산 트리 영역을 4열 좁히기"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "자산 트리 영역을 4열 넓히기"
+
+msgid "Previous page of the asset list"
+msgstr "자산 목록의 이전 페이지"
+
+msgid "Next page of the asset list"
+msgstr "자산 목록의 다음 페이지"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "검색 조건과 페이지를 유지하며 현재 노드의 자산 목록 새로고침"
+
+msgid "Scroll the asset list horizontally"
+msgstr "자산 목록을 가로로 스크롤"
+
+msgid "Collapse or expand the current tree node"
+msgstr "현재 트리 노드 접기 또는 펼치기"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "현재 노드를 접거나 부모로 이동 / 현재 노드 펼치기"
+
+msgid "Move to a child / parent node"
+msgstr "자식 / 부모 노드로 이동"
+
+msgid "Move through visible tree nodes"
+msgstr "표시된 트리 노드 사이 이동"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "자산 트리에서 한 화면 위아래로 이동"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "자산 트리의 첫 번째 또는 마지막 노드로 이동"
+
+msgid "Move between asset list rows"
+msgstr "자산 목록의 행 사이 이동"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "현재 자산 페이지에서 한 화면 위아래로 이동"
+
+msgid "Jump to the first or last asset list row"
+msgstr "자산 목록의 첫 번째 또는 마지막 행으로 이동"
+
+msgid "Show assets in the current tree node"
+msgstr "현재 트리 노드의 자산 표시"
+
+msgid "Search assets immediately"
+msgstr "즉시 자산 검색"
+
+msgid "Connect to the selected asset"
+msgstr "선택한 자산에 연결"
+
+msgid "Focused area controls"
+msgstr "현재 포커스 영역의 조작"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "세션 \"%s\"이(가) 종료되었습니다. 이 탭을 닫으시겠습니까?"
+
+msgid "Keep tab"
+msgstr "탭 유지"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "Terminal은 다음 프로토콜만 지원합니다: %s."

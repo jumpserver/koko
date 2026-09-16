@@ -1045,3 +1045,99 @@ msgstr "還原主題色"
 
 msgid "Quit this Koko SSH session?"
 msgstr "確定結束本次 Koko SSH 工作階段？"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "目前資產的協定（%s）不受支援，無法連線"
+
+msgid "Focus the organization selector"
+msgstr "聚焦組織選擇框"
+
+msgid "Focus the asset tree type selector"
+msgstr "聚焦資產樹類型選擇框"
+
+msgid "Focus asset tree nodes"
+msgstr "聚焦資產樹節點"
+
+msgid "Focus the asset list"
+msgstr "聚焦資產列表"
+
+msgid "Show or hide the asset tree pane"
+msgstr "顯示或隱藏資產樹區域"
+
+msgid "Focus the asset search field"
+msgstr "聚焦資產搜尋框"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "逐級收合資產樹；完全收合時展開第一層節點"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "重新載入目前資產樹及頂層資產列表，並重設選取的節點"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "重新載入組織、資產樹及資產列表"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "將資產樹區域縮窄 4 欄"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "將資產樹區域加寬 4 欄"
+
+msgid "Previous page of the asset list"
+msgstr "資產列表上一頁"
+
+msgid "Next page of the asset list"
+msgstr "資產列表下一頁"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "重新整理目前節點的資產列表，保留搜尋條件及頁碼"
+
+msgid "Scroll the asset list horizontally"
+msgstr "水平捲動資產列表"
+
+msgid "Collapse or expand the current tree node"
+msgstr "收合或展開目前樹節點"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "收合目前節點或移至父節點 / 展開目前節點"
+
+msgid "Move to a child / parent node"
+msgstr "移至子節點 / 父節點"
+
+msgid "Move through visible tree nodes"
+msgstr "在可見的樹節點之間移動"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "在資產樹中向上或向下移動一個畫面"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "定位到資產樹的第一個或最後一個節點"
+
+msgid "Move between asset list rows"
+msgstr "在資產列表的資料列之間移動"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "在目前資產頁面內向上或向下移動一個畫面"
+
+msgid "Jump to the first or last asset list row"
+msgstr "定位到資產列表的第一列或最後一列"
+
+msgid "Show assets in the current tree node"
+msgstr "顯示目前樹節點的資產"
+
+msgid "Search assets immediately"
+msgstr "立即搜尋資產"
+
+msgid "Connect to the selected asset"
+msgstr "連線至選取的資產"
+
+msgid "Focused area controls"
+msgstr "目前區域操作"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "工作階段「%s」已結束，是否關閉此分頁？"
+
+msgid "Keep tab"
+msgstr "保留分頁"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "終端僅支援 %s 等協定。"

@@ -120,11 +120,11 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 	}
 	areas := func() {
 		if h.organizationsEnabled {
-			add("organization-area", "o", h.tr("组织", "Organization"), 0, "o", func() { h.focusArea(h.org) }, false)
+			add("organization-area", "o", h.tr("聚焦组织选择框", "Focus the organization selector"), 0, "o", func() { h.focusArea(h.org) }, false)
 		}
-		add("tree-area", "t", h.tr("树类型", "Tree view"), 0, "t", func() { h.focusArea(h.treeKind) }, false)
-		add("tree-nodes", "e", h.tr("节点", "Nodes"), 0, "e", func() { h.focusArea(h.tree) }, false)
-		add("assets-area", "a", h.tr("资产", "Assets"), 0, "a", func() { h.focusArea(h.table) }, false)
+		add("tree-area", "t", h.tr("聚焦资产树类型选择框", "Focus the asset tree type selector"), 0, "t", func() { h.focusArea(h.treeKind) }, false)
+		add("tree-nodes", "e", h.tr("聚焦资产树节点", "Focus asset tree nodes"), 0, "e", func() { h.focusArea(h.tree) }, false)
+		add("assets-area", "a", h.tr("聚焦资产列表", "Focus the asset list"), 0, "a", func() { h.focusArea(h.table) }, false)
 		if h.popup != nil {
 			add("fullscreen", "f", fullscreenLabel, 0, "f", func() { h.closeDropdown(); h.setFullscreen(!h.fullscreen) }, true)
 			session := h.sessions[h.activeSession]
@@ -215,7 +215,7 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 		return bindings
 	}
 	if h.activeSession < 0 {
-		add("sidebar", "Ctrl+B", h.tr("显示/隐藏树区域", "Show/hide navigation"), tcell.KeyCtrlB, "", h.toggleSidebar, false)
+		add("sidebar", "Ctrl+B", h.tr("显示或隐藏资产树区域", "Show or hide the asset tree pane"), tcell.KeyCtrlB, "", h.toggleSidebar, false)
 		if h.search.HasFocus() {
 			add("search-results", "↓", h.tr("资产", "Assets"), tcell.KeyDown, "", func() { h.app.SetFocus(h.table) }, true)
 		}
@@ -231,26 +231,32 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 		return bindings
 	}
 	sessions()
-	add("search-slash", "/", h.tr("搜索", "Search"), 0, "/", func() { h.app.SetFocus(h.search) }, false)
+	add("search-slash", "/", h.tr("聚焦资产搜索框", "Focus the asset search field"), 0, "/", func() { h.app.SetFocus(h.search) }, false)
 	if !h.sidebarHidden && h.tree.GetRowCount() > 0 {
-		add("tree-toggle", "z", h.tr("折叠/展开", "Collapse/expand"), 0, "z", h.toggleTreeExpansion, false)
+		add("tree-toggle", "z", h.tr("逐级收起资产树；完全收起时展开一级节点", "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"), 0, "z", h.toggleTreeExpansion, false)
 	}
 	if !h.sidebarHidden {
-		add("tree-refresh", "u", h.tr("刷新", "Refresh"), 0, "u", h.refreshView, false)
+		treeRefreshDescription := h.tr("重载当前资产树和顶层资产列表，并重置选中节点", "Reload the current asset tree and top-level asset list, resetting the selected node")
+		if !h.organizationsReady || h.scope.Org.ID == "" {
+			treeRefreshDescription = h.tr("重新加载组织、资产树和资产列表", "Reload organizations, asset tree, and asset list")
+		}
+		add("tree-refresh", "u", treeRefreshDescription, 0, "u", h.refreshView, false)
 	}
-	add("narrow-tree", "<", h.tr("调整树宽度，也可拖动分隔线", "Resize tree, or drag the divider"), 0, "<", func() { h.resizeSidebar(-4) }, false)
-	add("widen-tree", ">", h.tr("调整树宽度，也可拖动分隔线", "Resize tree, or drag the divider"), 0, ">", func() { h.resizeSidebar(4) }, false)
+	add("narrow-tree", "<", h.tr("缩窄资产树区域（每次 4 列）", "Narrow the asset tree pane by 4 columns"), 0, "<", func() { h.resizeSidebar(-4) }, false)
+	add("widen-tree", ">", h.tr("加宽资产树区域（每次 4 列）", "Widen the asset tree pane by 4 columns"), 0, ">", func() { h.resizeSidebar(4) }, false)
 	if h.offset > 0 {
-		add("previous-page", "[", h.tr("上页", "Previous"), 0, "[", func() { h.changePage(-1) }, false)
+		add("previous-page", "[", h.tr("资产列表上一页", "Previous page of the asset list"), 0, "[", func() { h.changePage(-1) }, false)
 	}
 	if h.offset+tuiPageSize < h.total {
-		add("next-page", "]", h.tr("下页", "Next"), 0, "]", func() { h.changePage(1) }, false)
+		add("next-page", "]", h.tr("资产列表下一页", "Next page of the asset list"), 0, "]", func() { h.changePage(1) }, false)
 	}
 	refresh := h.refreshAssets
-	if !h.organizationsReady {
+	refreshDescription := h.tr("刷新当前节点的资产列表，保留搜索条件和页码", "Refresh the current node's asset list, keeping search and page")
+	if !h.organizationsReady || h.scope.Org.ID == "" {
 		refresh = h.refreshView
+		refreshDescription = h.tr("重新加载组织、资产树和资产列表", "Reload organizations, asset tree, and asset list")
 	}
-	add("refresh", "r", h.tr("刷新", "Refresh"), 0, "r", refresh, false)
+	add("refresh", "r", refreshDescription, 0, "r", refresh, false)
 	return bindings
 }
 
@@ -259,6 +265,7 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 		*bindings = append(*bindings, tuiShortcut{id: "control", label: keys, description: description, compact: compact})
 	}
 	scroll, confirm := false, false
+	treeControls, assetControls := false, false
 	switch p := h.focusedControl().(type) {
 	case *tview.Table:
 		if p == h.sessionTabs {
@@ -269,20 +276,23 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 			row, col := p.GetSelection()
 			confirm = row > 0 && row < p.GetRowCount() && !p.GetCell(row, col).NotSelectable
 			if p == h.table {
+				assetControls = true
 				assetIndex := row - tuiAssetTableHeaderRows
 				confirm = confirm && assetIndex >= 0 && assetIndex < len(h.assets) && h.assetCanConnect(assetIndex) && len(h.sessions) < maxTUISessions
-				add("Shift+← / Shift+→", h.tr("水平滚动", "Horizontal scroll"), false)
+				add("← / →", h.tr("横向滚动资产列表", "Scroll the asset list horizontally"), false)
 			} else if scroll {
 				add("←→", h.tr("移动和滚动", "Move and scroll"), false)
 			}
 		}
 	case *tview.TreeView:
+		treeControls = true
 		scroll, confirm = p.GetRowCount() > 1, p.GetCurrentNode() != nil
 		if confirm {
-			add("Space", h.tr("折叠/展开", "Collapse/expand"), false)
+			add("Space", h.tr("折叠或展开当前树节点", "Collapse or expand the current tree node"), false)
 		}
 		if scroll {
-			add("←→", h.tr("折叠/展开", "Collapse/expand"), false)
+			add("← / →", h.tr("收起当前节点或移至父节点 / 展开当前节点", "Collapse the current node or move to its parent / expand the current node"), false)
+			add("J / K", h.tr("移动到子节点 / 父节点", "Move to a child / parent node"), false)
 		}
 	case *tview.List:
 		scroll, confirm = p.GetItemCount() > 1, p.GetItemCount() > 0
@@ -317,23 +327,36 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 		}
 	}
 	if scroll {
-		add("↑↓ / PgUp / PgDn", h.tr("移动和滚动", "Move and scroll"), true)
-		add("Home / End", h.tr("首项/末项", "First/last item"), false)
+		switch {
+		case treeControls:
+			add("↑↓ / j / k", h.tr("在可见树节点间移动", "Move through visible tree nodes"), true)
+			add("PgUp / PgDn", h.tr("在资产树中向上或向下移动一屏", "Move one screen up or down in the asset tree"), false)
+			add("Home / End / g / G", h.tr("定位到资产树首个或末个节点", "Jump to the first or last asset tree node"), false)
+		case assetControls:
+			add("↑↓ / j / k", h.tr("在资产列表的行间移动", "Move between asset list rows"), true)
+			add("PgUp / PgDn", h.tr("在当前页内向上或向下移动一屏", "Move one screen up or down within the current asset page"), false)
+			add("Home / End / g / G", h.tr("定位到资产列表首行或末行", "Jump to the first or last asset list row"), false)
+		default:
+			add("↑↓ / PgUp / PgDn", h.tr("移动和滚动", "Move and scroll"), true)
+			add("Home / End", h.tr("首项/末项", "First/last item"), false)
+		}
 	}
 	if confirm {
 		description := h.tr("确认", "Confirm")
 		switch p := h.focusedControl().(type) {
 		case *tview.TreeView:
-			description = h.tr("查看资产", "View assets")
+			description = h.tr("显示当前节点的资产", "Show assets in the current tree node")
 		case *tview.InputField:
-			description = h.tr("搜索", "Search")
+			if p == h.search {
+				description = h.tr("立即搜索资产", "Search assets immediately")
+			}
 		case *tview.TextView:
 			description = h.tr("关闭", "Close")
 		case *tview.Button:
 			description = strings.Split(p.GetLabel(), " · ")[0]
 		case *tview.Table:
 			if p == h.table {
-				description = h.tr("连接", "Connect")
+				description = h.tr("连接选中的资产", "Connect to the selected asset")
 			}
 		}
 		add("Enter", description, true)

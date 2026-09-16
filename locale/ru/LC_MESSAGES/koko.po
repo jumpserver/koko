@@ -1045,3 +1045,99 @@ msgstr "Сбросить цвет"
 
 msgid "Quit this Koko SSH session?"
 msgstr "Выйти из этого SSH-сеанса Koko?"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "Протоколы этого актива (%s) не поддерживаются, поэтому подключение невозможно"
+
+msgid "Focus the organization selector"
+msgstr "Перейти к выбору организации"
+
+msgid "Focus the asset tree type selector"
+msgstr "Перейти к выбору типа дерева активов"
+
+msgid "Focus asset tree nodes"
+msgstr "Перейти к узлам дерева активов"
+
+msgid "Focus the asset list"
+msgstr "Перейти к списку активов"
+
+msgid "Show or hide the asset tree pane"
+msgstr "Показать или скрыть панель дерева активов"
+
+msgid "Focus the asset search field"
+msgstr "Перейти к полю поиска активов"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "Пошагово свернуть дерево активов; когда всё свернуто, развернуть узлы первого уровня"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "Перезагрузить текущее дерево активов и список активов верхнего уровня, сбросив выбранный узел"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "Перезагрузить организации, дерево активов и список активов"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "Сузить панель дерева активов на 4 столбца"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "Расширить панель дерева активов на 4 столбца"
+
+msgid "Previous page of the asset list"
+msgstr "Предыдущая страница списка активов"
+
+msgid "Next page of the asset list"
+msgstr "Следующая страница списка активов"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "Обновить список активов текущего узла, сохранив поиск и страницу"
+
+msgid "Scroll the asset list horizontally"
+msgstr "Прокрутить список активов по горизонтали"
+
+msgid "Collapse or expand the current tree node"
+msgstr "Свернуть или развернуть текущий узел дерева"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "Свернуть текущий узел или перейти к родителю / развернуть текущий узел"
+
+msgid "Move to a child / parent node"
+msgstr "Перейти к дочернему / родительскому узлу"
+
+msgid "Move through visible tree nodes"
+msgstr "Перемещаться между видимыми узлами дерева"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "Переместиться на один экран вверх или вниз по дереву активов"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "Перейти к первому или последнему узлу дерева активов"
+
+msgid "Move between asset list rows"
+msgstr "Перемещаться между строками списка активов"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "Переместиться на один экран вверх или вниз в текущей странице активов"
+
+msgid "Jump to the first or last asset list row"
+msgstr "Перейти к первой или последней строке списка активов"
+
+msgid "Show assets in the current tree node"
+msgstr "Показать активы текущего узла дерева"
+
+msgid "Search assets immediately"
+msgstr "Сразу выполнить поиск активов"
+
+msgid "Connect to the selected asset"
+msgstr "Подключиться к выбранному активу"
+
+msgid "Focused area controls"
+msgstr "Действия в области с фокусом"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "Сеанс «%s» завершён. Закрыть эту вкладку?"
+
+msgid "Keep tab"
+msgstr "Оставить вкладку"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "Terminal поддерживает только следующие протоколы: %s."

@@ -8,9 +8,9 @@ import (
 )
 
 type Palette struct {
-	Background, Foreground, Muted, Disabled, DisabledSurface, Border tcell.Color
-	Accent, FocusBorder, Raised, Selection                           tcell.Color
-	ansiAccent                                                       tcell.Color
+	Background, Foreground, AssetMetadata, Muted, Disabled, Border tcell.Color
+	Accent, FocusBorder, Raised, Selection                         tcell.Color
+	ansiAccent                                                     tcell.Color
 }
 
 type ColorProfile int
@@ -20,28 +20,28 @@ const (
 	ColorProfileXShell
 )
 
-var macDarkThemeAccents = [][2]int32{
-	{0x1ea782, 0x1ea782}, {0x60a5fa, 0x3b82f6}, {0xa78bfa, 0x8b5cf6},
-	{0xfb923c, 0xf97316}, {0xf472b6, 0xec4899}, {0x22d3ee, 0x06b6d4},
-	{0x94a3b8, 0x64748b}, {0xf87171, 0xef4444}, {0xa3e635, 0x84cc16},
+var macDarkThemeAccents = []int32{
+	0x1ea782, 0x60a5fa, 0xa78bfa,
+	0xfb923c, 0xf472b6, 0x22d3ee,
+	0x94a3b8, 0xf87171, 0xa3e635,
 }
 
-var macLightThemeAccents = [][2]int32{
-	{0x1ea782, 0x1ea782}, {0x1d4ed8, 0x1d4ed8}, {0x6d28d9, 0x6d28d9},
-	{0xc2410c, 0xc2410c}, {0xbe185d, 0xbe185d}, {0x0e7490, 0x0e7490},
-	{0x475569, 0x475569}, {0xb91c1c, 0xb91c1c}, {0x4d7c0f, 0x4d7c0f},
+var macLightThemeAccents = []int32{
+	0x1ea782, 0x315da0, 0x7051a6,
+	0xae5222, 0xa33666, 0x167f8d,
+	0x4e5d62, 0xaf3f37, 0x5c7828,
 }
 
-var xshellDarkThemeAccents = [][2]int32{
-	{0x1ea782, 0x1ea782}, {0x6ea8fe, 0x4c8ee8}, {0xb197fc, 0x9775e6},
-	{0xff9f43, 0xe98528}, {0xf783ac, 0xdc6892}, {0x3bc9db, 0x20adbf},
-	{0xadb5bd, 0x868e96}, {0xff6b6b, 0xe55252}, {0x94d82d, 0x74b816},
+var xshellDarkThemeAccents = []int32{
+	0x1ea782, 0x6ea8fe, 0xb197fc,
+	0xff9f43, 0xf783ac, 0x3bc9db,
+	0xadb5bd, 0xff6b6b, 0x94d82d,
 }
 
-var xshellLightThemeAccents = [][2]int32{
-	{0x1ea782, 0x1ea782}, {0x2457a6, 0x2457a6}, {0x6f42c1, 0x6f42c1},
-	{0xb54708, 0xb54708}, {0xad1457, 0xad1457}, {0x007c91, 0x007c91},
-	{0x3f4d5a, 0x3f4d5a}, {0xb42318, 0xb42318}, {0x4f6f00, 0x4f6f00},
+var xshellLightThemeAccents = []int32{
+	0x1ea782, 0x2457a6, 0x6f42c1,
+	0xb54708, 0xad1457, 0x007c91,
+	0x3f4d5a, 0xb42318, 0x4f6f00,
 }
 
 var darkANSIAccents = []tcell.Color{
@@ -62,8 +62,8 @@ func ThemePalette(light bool, accent int) Palette {
 
 func ThemePaletteForProfile(light bool, accent int, profile ColorProfile) Palette {
 	p := Palette{
-		Background: Background, Foreground: Foreground, Muted: Muted, Disabled: Disabled,
-		DisabledSurface: DisabledSurface, Border: Border,
+		Background: Background, Foreground: Foreground, AssetMetadata: AssetMetadata, Muted: Muted, Disabled: Disabled,
+		Border: Border,
 		Accent: Accent, FocusBorder: FocusBorder, Raised: Raised, Selection: tcell.NewHexColor(0x3a3a3a),
 		ansiAccent: tcell.ColorDefault,
 	}
@@ -73,20 +73,37 @@ func ThemePaletteForProfile(light bool, accent int, profile ColorProfile) Palett
 	}
 	if light {
 		p.Background, p.Foreground = tcell.NewHexColor(0xffffff), tcell.NewHexColor(0x1c1c1c)
-		p.Muted, p.Disabled, p.DisabledSurface = tcell.NewHexColor(0x000000), tcell.NewHexColor(0x5f6368), tcell.NewHexColor(0xf1f3f4)
+		p.Muted, p.Disabled = tcell.NewHexColor(0x000000), tcell.NewHexColor(0x5f6368)
 		p.Border = tcell.NewHexColor(0x585858)
 		p.Raised, p.Selection = tcell.NewHexColor(0xdadada), tcell.NewHexColor(0xd7d7d7)
 		accents, ansiAccents = macLightThemeAccents, lightANSIAccents
 		if profile == ColorProfileXShell {
 			accents = xshellLightThemeAccents
-			p.Disabled, p.DisabledSurface = tcell.NewHexColor(0x4f5963), tcell.NewHexColor(0xe9edf1)
+			p.Disabled = tcell.NewHexColor(0x4f5963)
+		} else {
+			// Terminal.app can redefine ANSI white; xterm color 231 is fixed white.
+			p.Background = tcell.Color231
+			p.Foreground = tcell.NewHexColor(0x242a28)
+			p.Muted, p.Disabled = tcell.NewHexColor(0x505d56), tcell.NewHexColor(0x58635c)
+			p.Border = tcell.NewHexColor(0x9aa9a0)
+			p.Raised, p.Selection = tcell.NewHexColor(0xd8e1db), tcell.NewHexColor(0xb2d5c2)
 		}
+		p.AssetMetadata = p.Muted
 	}
 	index := max(0, min(accent, len(accents)-1))
-	colors := accents[index]
-	p.Accent, p.FocusBorder = tcell.NewHexColor(colors[0]), tcell.NewHexColor(colors[1])
+	p.Accent = tcell.NewHexColor(accents[index])
+	p.FocusBorder = p.Accent
+	if light {
+		p.Selection = accentSelectionSurface(p.Background, p.Accent)
+	}
 	p.ansiAccent = ansiAccents[index]
 	return p
+}
+
+func accentSelectionSurface(background, accent tcell.Color) tcell.Color {
+	br, bg, bb := background.RGB()
+	ar, ag, ab := accent.RGB()
+	return tcell.NewRGBColor((9*br+ar)/10, (9*bg+ag)/10, (9*bb+ab)/10)
 }
 
 func AccentSwatch(profile ColorProfile, light bool, index, terminalColors int) tcell.Color {
@@ -131,8 +148,7 @@ func adaptLowColorPalette(p Palette, colors int) Palette {
 		p.Background, p.Border = tcell.ColorBlack, tcell.ColorSilver
 	} else {
 		p.Background, p.Border = tcell.ColorSilver, tcell.ColorBlack
-		p.Foreground, p.Muted, p.Disabled = tcell.ColorBlack, tcell.ColorBlack, tcell.ColorBlack
-		p.DisabledSurface = p.Background
+		p.Foreground, p.AssetMetadata, p.Muted, p.Disabled = tcell.ColorBlack, tcell.ColorBlack, tcell.ColorBlack, tcell.ColorBlack
 	}
 	if p.ansiAccent.Valid() {
 		p.Accent, p.FocusBorder = p.ansiAccent, p.ansiAccent
@@ -143,9 +159,8 @@ func adaptLowColorPalette(p Palette, colors int) Palette {
 func (s *ThemeScreen) SetPalette(p Palette) {
 	p = adaptLowColorPalette(p, s.Screen.Colors())
 	s.forward = map[tcell.Color]tcell.Color{
-		Background: p.Background, Foreground: p.Foreground, Muted: p.Muted, Disabled: p.Disabled,
-		DisabledSurface: p.DisabledSurface,
-		Border:          p.Border, Accent: p.Accent, FocusBorder: p.FocusBorder,
+		Background: p.Background, Foreground: p.Foreground, AssetMetadata: p.AssetMetadata, Muted: p.Muted, Disabled: p.Disabled,
+		Border: p.Border, Accent: p.Accent, FocusBorder: p.FocusBorder,
 		Raised: p.Raised, tcell.NewHexColor(0x3a3a3a): p.Selection,
 	}
 	s.reverse = make(map[tcell.Color]tcell.Color, len(s.forward))
