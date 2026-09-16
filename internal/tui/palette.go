@@ -67,6 +67,13 @@ func ThemePaletteForProfile(light bool, accent int, profile ColorProfile) Palett
 		Accent: Accent, FocusBorder: FocusBorder, Raised: Raised, Selection: tcell.NewHexColor(0x3a3a3a),
 		ansiAccent: tcell.ColorDefault,
 	}
+	p.Background = tcell.NewHexColor(0x10141c)
+	p.Foreground = tcell.NewHexColor(0xe2e8f0)
+	p.AssetMetadata = tcell.NewHexColor(0xa7b3c5)
+	p.Muted = tcell.NewHexColor(0x8794a8)
+	p.Border = tcell.NewHexColor(0x344155)
+	p.Raised = tcell.NewHexColor(0x202b3b)
+	p.Selection = tcell.NewHexColor(0x243b43)
 	accents, ansiAccents := macDarkThemeAccents, darkANSIAccents
 	if profile == ColorProfileXShell {
 		accents = xshellDarkThemeAccents

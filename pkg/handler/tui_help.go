@@ -12,7 +12,7 @@ import (
 // Keep the help text itself focused so its native keyboard and wheel scrolling
 // still work. The last column is a position indicator for long shortcut lists.
 type tuiHelpTextView struct {
-	*tview.TextView
+	*tui.TextView
 }
 
 func (v *tuiHelpTextView) Draw(screen tcell.Screen) {
