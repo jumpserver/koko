@@ -214,7 +214,9 @@ func (opt *sqlOption) Envs() []string {
 		extraArgs = append(extraArgs, fmt.Sprintf("--default-character-set=%s", charset))
 	}
 
-	envs := make([]string, 0, 6)
+	envs := make([]string, 0, 7)
+	// 普通连接也需要终端类型，保持与 namespace 脚本一致。
+	envs = append(envs, "TERM=xterm")
 	// 设置下系统环境的语言, 中文输入问题
 	envLang := os.Getenv("LANG")
 	if envLang == "" {
