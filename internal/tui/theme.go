@@ -12,9 +12,9 @@ var (
 	Panel            = Background // All regions share the page background.
 	Raised           = tcell.NewHexColor(0x262626)
 	Foreground       = tcell.NewHexColor(0xd7d7d7)
+	AssetMetadata    = tcell.NewHexColor(0xc6c6c6)
 	Muted            = tcell.NewHexColor(0x949494)
 	Disabled         = tcell.NewHexColor(0x7c7c7c)
-	DisabledSurface  = tcell.NewHexColor(0x171717)
 	Border           = tcell.NewHexColor(0xb2b2b2)
 	Accent           = tcell.NewHexColor(0x87afaf)
 	FocusBorder      = tcell.NewHexColor(0x5f8787)

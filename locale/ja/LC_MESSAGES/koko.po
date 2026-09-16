@@ -1045,3 +1045,99 @@ msgstr "アクセントをリセット"
 
 msgid "Quit this Koko SSH session?"
 msgstr "この Koko SSH セッションを終了しますか？"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "この資産のプロトコル（%s）はサポートされていないため、接続できません"
+
+msgid "Focus the organization selector"
+msgstr "組織選択欄にフォーカス"
+
+msgid "Focus the asset tree type selector"
+msgstr "資産ツリーの種類の選択欄にフォーカス"
+
+msgid "Focus asset tree nodes"
+msgstr "資産ツリーのノードにフォーカス"
+
+msgid "Focus the asset list"
+msgstr "資産一覧にフォーカス"
+
+msgid "Show or hide the asset tree pane"
+msgstr "資産ツリー領域の表示を切り替え"
+
+msgid "Focus the asset search field"
+msgstr "資産検索欄にフォーカス"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "資産ツリーを段階的に折りたたむ。すべて折りたたまれたら第1階層を展開"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "現在の資産ツリーと最上位の資産一覧を再読み込みし、選択ノードをリセット"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "組織、資産ツリー、資産一覧を再読み込み"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "資産ツリー領域を4列狭める"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "資産ツリー領域を4列広げる"
+
+msgid "Previous page of the asset list"
+msgstr "資産一覧の前のページ"
+
+msgid "Next page of the asset list"
+msgstr "資産一覧の次のページ"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "検索条件とページを維持して現在のノードの資産一覧を更新"
+
+msgid "Scroll the asset list horizontally"
+msgstr "資産一覧を横方向にスクロール"
+
+msgid "Collapse or expand the current tree node"
+msgstr "現在のツリーノードを折りたたむ／展開する"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "現在のノードを折りたたむか親へ移動／現在のノードを展開"
+
+msgid "Move to a child / parent node"
+msgstr "子ノード／親ノードへ移動"
+
+msgid "Move through visible tree nodes"
+msgstr "表示中のツリーノード間を移動"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "資産ツリー内で1画面分上下に移動"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "資産ツリーの先頭／末尾のノードへ移動"
+
+msgid "Move between asset list rows"
+msgstr "資産一覧の行間を移動"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "現在の資産ページ内で1画面分上下に移動"
+
+msgid "Jump to the first or last asset list row"
+msgstr "資産一覧の先頭／末尾の行へ移動"
+
+msgid "Show assets in the current tree node"
+msgstr "現在のツリーノードの資産を表示"
+
+msgid "Search assets immediately"
+msgstr "資産をすぐに検索"
+
+msgid "Connect to the selected asset"
+msgstr "選択した資産に接続"
+
+msgid "Focused area controls"
+msgstr "フォーカス中の領域の操作"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "セッション「%s」は終了しました。このタブを閉じますか？"
+
+msgid "Keep tab"
+msgstr "タブを残す"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "Terminal がサポートするプロトコルは %s のみです。"

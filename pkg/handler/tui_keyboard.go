@@ -300,7 +300,7 @@ func (h *terminalUI) showKeyboardHelp() {
 	}
 	// Keep help actionable: commands listed here close help and execute in the
 	// original control. Navigation, Enter and Esc belong to the help itself.
-	var commands []tuiShortcut
+	var commands, controlHints []tuiShortcut
 	remote := !h.modal && h.popup != nil && h.popup.HasFocus()
 	// Show the actual window commands in help opened from a remote terminal.
 	if remote {
@@ -310,10 +310,18 @@ func (h *terminalUI) showKeyboardHelp() {
 	h.windowPrefix = false
 	for _, binding := range available {
 		switch binding.id {
-		case "help", "back", "focus", "window", "literal-prefix":
+		case "help", "back", "window", "literal-prefix":
+			continue
+		case "focus", "previous-focus":
+			if binding.label != "" {
+				controlHints = append(controlHints, binding)
+			}
 			continue
 		}
 		if binding.run == nil {
+			if binding.id == "control" && binding.label != "" {
+				controlHints = append(controlHints, binding)
+			}
 			continue
 		}
 		// Inside help, arrows and Tab belong to scrolling and focus.
@@ -329,8 +337,13 @@ func (h *terminalUI) showKeyboardHelp() {
 		binding.compact = false
 		commands = append(commands, binding)
 	}
-	help := tview.NewTextView().SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetText(h.keyboardHelp(commands)).ScrollToBeginning()
-	help.SetBackgroundColor(tui.Panel)
+	helpText := h.keyboardHelp(commands)
+	if len(controlHints) > 0 {
+		helpText += "\n\n" + h.tr("当前区域操作", "Focused area controls") + "\n\n" + h.keyboardHelp(controlHints)
+	}
+	help := &tuiHelpTextView{TextView: tview.NewTextView()}
+	help.SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetWrap(true).SetWordWrap(true).SetScrollable(true).SetText(helpText).ScrollToBeginning()
+	help.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, 0, 2)
 	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
 	help.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
@@ -340,7 +353,7 @@ func (h *terminalUI) showKeyboardHelp() {
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(help, 0, 1, true).AddItem(close, 1, 0, false)
 	content.Box = tview.NewBox()
 	tuiDialogBorder(content.Box, h.tr("帮助", "Help"))
-	h.openDialog("help", &tuiOverlay{Box: tview.NewBox(), child: content, width: 94, height: 30}, []tview.Primitive{help, close})
+	h.openDialog("help", &tuiOverlay{Box: tview.NewBox(), child: content, width: 94, height: 30}, []tview.Primitive{help.TextView, close})
 	h.dialogs[len(h.dialogs)-1].shortcuts = commands
 }
 

@@ -1045,3 +1045,99 @@ msgstr "Restaurar cor"
 
 msgid "Quit this Koko SSH session?"
 msgstr "Sair desta sessão SSH do Koko?"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "Os protocolos deste ativo (%s) não são compatíveis, portanto não é possível conectar"
+
+msgid "Focus the organization selector"
+msgstr "Focar o seletor de organizações"
+
+msgid "Focus the asset tree type selector"
+msgstr "Focar o seletor de tipo de árvore de ativos"
+
+msgid "Focus asset tree nodes"
+msgstr "Focar os nós da árvore de ativos"
+
+msgid "Focus the asset list"
+msgstr "Focar a lista de ativos"
+
+msgid "Show or hide the asset tree pane"
+msgstr "Mostrar ou ocultar o painel da árvore de ativos"
+
+msgid "Focus the asset search field"
+msgstr "Focar o campo de busca de ativos"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "Recolher a árvore de ativos por etapas; quando estiver toda recolhida, expandir os nós do primeiro nível"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "Recarregar a árvore de ativos atual e a lista de ativos do nível superior, redefinindo o nó selecionado"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "Recarregar organizações, árvore de ativos e lista de ativos"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "Estreitar o painel da árvore de ativos em 4 colunas"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "Alargar o painel da árvore de ativos em 4 colunas"
+
+msgid "Previous page of the asset list"
+msgstr "Página anterior da lista de ativos"
+
+msgid "Next page of the asset list"
+msgstr "Próxima página da lista de ativos"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "Atualizar a lista de ativos do nó atual, mantendo a busca e a página"
+
+msgid "Scroll the asset list horizontally"
+msgstr "Rolar a lista de ativos horizontalmente"
+
+msgid "Collapse or expand the current tree node"
+msgstr "Recolher ou expandir o nó atual da árvore"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "Recolher o nó atual ou ir para o pai / expandir o nó atual"
+
+msgid "Move to a child / parent node"
+msgstr "Ir para um nó filho / pai"
+
+msgid "Move through visible tree nodes"
+msgstr "Mover-se entre os nós visíveis da árvore"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "Mover uma tela para cima ou para baixo na árvore de ativos"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "Ir para o primeiro ou último nó da árvore de ativos"
+
+msgid "Move between asset list rows"
+msgstr "Mover-se entre as linhas da lista de ativos"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "Mover uma tela para cima ou para baixo na página atual de ativos"
+
+msgid "Jump to the first or last asset list row"
+msgstr "Ir para a primeira ou última linha da lista de ativos"
+
+msgid "Show assets in the current tree node"
+msgstr "Mostrar os ativos do nó atual da árvore"
+
+msgid "Search assets immediately"
+msgstr "Buscar ativos imediatamente"
+
+msgid "Connect to the selected asset"
+msgstr "Conectar ao ativo selecionado"
+
+msgid "Focused area controls"
+msgstr "Controles da área em foco"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "A sessão \"%s\" terminou. Fechar esta aba?"
+
+msgid "Keep tab"
+msgstr "Manter aba"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "O Terminal oferece suporte apenas a estes protocolos: %s."

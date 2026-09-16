@@ -284,9 +284,7 @@ func (h *terminalUI) resizeSidebar(delta int) {
 	h.sidebarWidth = h.navigationWidth() + delta
 	h.sidebarWidth = h.navigationWidth()
 	h.updateLayout()
-	if !h.draggingSidebar {
-		h.storeSidebarPreference()
-	}
+	h.storeSidebarPreference()
 }
 
 // Size against the visible list, not the longest remark. Narrow terminals keep
@@ -373,6 +371,14 @@ func (h *terminalUI) captureRootMouse(action tview.MouseAction, ev *tcell.EventM
 func (h *terminalUI) captureMouse(ev *tcell.EventMouse, action tview.MouseAction) (*tcell.EventMouse, tview.MouseAction) {
 	h.lastInput = time.Now()
 	x, y := ev.Position()
+	// The user menu sits above the asset pages, so route its mouse events before
+	// the root layout rejects clicks outside the pages' rectangle.
+	if h.modal && len(h.dialogs) > 0 && h.dialogs[len(h.dialogs)-1].page == "user" {
+		if overlay, ok := h.pages.GetPage("user").(*tuiOverlay); ok {
+			overlay.MouseHandler()(action, ev, func(p tview.Primitive) { h.app.SetFocus(p) })
+			return nil, tview.MouseConsumed
+		}
+	}
 	// Connection choices may extend beyond the compact dialog's mouse bounds.
 	if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
 		if dropdown := h.focusedDropdown(); dropdown != nil && dropdown.IsOpen() {
@@ -409,28 +415,12 @@ func (h *terminalUI) captureMouse(ev *tcell.EventMouse, action tview.MouseAction
 		return nil, tview.MouseConsumed
 	}
 	if h.modal || h.activeSession >= 0 || h.sidebarHidden || h.org.IsOpen() || h.treeKind.IsOpen() {
-		h.draggingSidebar = false
 		return ev, action
 	}
-	nx, ny, nw, nh := h.navigation.GetRect()
 	treeX, treeY, treeWidth, _ := h.tree.GetRect()
 	if action == tview.MouseLeftClick && y == treeY && x == treeX+treeWidth-1 {
 		h.app.SetFocus(h.tree)
 		return nil, tview.MouseConsumed
-	}
-	if action == tview.MouseLeftDown && x >= nx+nw-1 && x <= nx+nw && y >= ny && y < ny+nh {
-		h.draggingSidebar = true
-		return nil, action
-	}
-	if h.draggingSidebar {
-		if action == tview.MouseMove {
-			h.resizeSidebar(x - nx - h.navigationWidth())
-		}
-		if action == tview.MouseLeftUp {
-			h.draggingSidebar = false
-			h.storeSidebarPreference()
-		}
-		return nil, action
 	}
 	return ev, action
 }

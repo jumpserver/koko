@@ -787,3 +787,102 @@ msgstr "Reset accent"
 
 msgid "Quit this Koko SSH session?"
 msgstr "Quit this Koko SSH session?"
+
+msgid "This asset's protocols (%s) are unsupported, so it cannot be connected"
+msgstr "This asset's protocols (%s) are unsupported, so it cannot be connected"
+
+msgid "Focus the organization selector"
+msgstr "Focus the organization selector"
+
+msgid "Focus the asset tree type selector"
+msgstr "Focus the asset tree type selector"
+
+msgid "Focus asset tree nodes"
+msgstr "Focus asset tree nodes"
+
+msgid "Focus the asset list"
+msgstr "Focus the asset list"
+
+msgid "Show or hide the asset tree pane"
+msgstr "Show or hide the asset tree pane"
+
+msgid "Focus the asset search field"
+msgstr "Focus the asset search field"
+
+msgid "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+msgstr "Collapse the asset tree in stages; expand top-level nodes when fully collapsed"
+
+msgid "Reload the current asset tree and top-level asset list, resetting the selected node"
+msgstr "Reload the current asset tree and top-level asset list, resetting the selected node"
+
+msgid "Reload organizations, asset tree, and asset list"
+msgstr "Reload organizations, asset tree, and asset list"
+
+msgid "Narrow the asset tree pane by 4 columns"
+msgstr "Narrow the asset tree pane by 4 columns"
+
+msgid "Widen the asset tree pane by 4 columns"
+msgstr "Widen the asset tree pane by 4 columns"
+
+msgid "Previous page of the asset list"
+msgstr "Previous page of the asset list"
+
+msgid "Next page of the asset list"
+msgstr "Next page of the asset list"
+
+msgid "Refresh the current node's asset list, keeping search and page"
+msgstr "Refresh the current node's asset list, keeping search and page"
+
+msgid "Scroll the asset list horizontally"
+msgstr "Scroll the asset list horizontally"
+
+msgid "Collapse or expand the current tree node"
+msgstr "Collapse or expand the current tree node"
+
+msgid "Collapse the current node or move to its parent / expand the current node"
+msgstr "Collapse the current node or move to its parent / expand the current node"
+
+msgid "Move to a child / parent node"
+msgstr "Move to a child / parent node"
+
+msgid "Move through visible tree nodes"
+msgstr "Move through visible tree nodes"
+
+msgid "Move one screen up or down in the asset tree"
+msgstr "Move one screen up or down in the asset tree"
+
+msgid "Jump to the first or last asset tree node"
+msgstr "Jump to the first or last asset tree node"
+
+msgid "Move between asset list rows"
+msgstr "Move between asset list rows"
+
+msgid "Move one screen up or down within the current asset page"
+msgstr "Move one screen up or down within the current asset page"
+
+msgid "Jump to the first or last asset list row"
+msgstr "Jump to the first or last asset list row"
+
+msgid "Show assets in the current tree node"
+msgstr "Show assets in the current tree node"
+
+msgid "Search assets immediately"
+msgstr "Search assets immediately"
+
+msgid "Connect to the selected asset"
+msgstr "Connect to the selected asset"
+
+msgid "Focused area controls"
+msgstr "Focused area controls"
+
+msgid "Session \"%s\" has ended. Close this tab?"
+msgstr "Session \"%s\" has ended. Close this tab?"
+
+msgid "Keep tab"
+msgstr "Keep tab"
+
+msgid "Close tab"
+msgstr "Close tab"
+
+msgid "Terminal supports only these protocols: %s."
+msgstr "Terminal supports only these protocols: %s."

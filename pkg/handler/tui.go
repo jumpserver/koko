@@ -28,6 +28,8 @@ const tuiRefreshIcon = "↻"
 
 const tuiAssetTableHeaderRows = 2
 
+const tuiSearchMaxLength = 256
+
 type terminalUI struct {
 	app                                                 *tview.Application
 	screen                                              tcell.Screen
@@ -73,7 +75,7 @@ type terminalUI struct {
 	appearance                                          *tview.Button
 	treeActions                                         [2]*tview.Button
 	sidebarWidth                                        int
-	sidebarHidden, draggingSidebar, treeCollapsed       bool
+	sidebarHidden, treeCollapsed                        bool
 	assetBottom, pager                                  *tview.Flex
 	tree                                                *tview.TreeView
 	pagerButtons                                        [2]*tview.Button
@@ -231,14 +233,21 @@ func newTerminalUI(sess ssh.Session, user *model.User, api, userAPI *service.JMS
 				}
 			}
 		}
-		h.table.SetSelectedStyle(tui.InactiveSelected)
+		selected := tui.Selected.Foreground(tui.Accent)
+		inactiveSelected := tui.InactiveSelected.Foreground(tui.Accent)
+		assetInactiveSelected := inactiveSelected
+		if h.lightTheme {
+			inactiveSelected = inactiveSelected.Background(tui.Panel)
+			assetInactiveSelected = selected
+		}
+		h.table.SetSelectedStyle(assetInactiveSelected)
 		if h.table.HasFocus() {
-			h.table.SetSelectedStyle(tui.Selected)
+			h.table.SetSelectedStyle(selected)
 		}
 		if node := h.tree.GetCurrentNode(); node != nil {
-			node.SetSelectedTextStyle(tui.InactiveSelected)
+			node.SetSelectedTextStyle(inactiveSelected)
 			if h.tree.HasFocus() {
-				node.SetSelectedTextStyle(tui.Selected)
+				node.SetSelectedTextStyle(selected)
 			}
 		}
 		h.setWindowHelp()
@@ -267,6 +276,11 @@ func newTerminalUI(sess ssh.Session, user *model.User, api, userAPI *service.JMS
 		h.drawDropdown(s)
 		h.drawNavigationSearch(s)
 		h.advanceTree()
+		if h.modal && len(h.dialogs) > 0 && h.dialogs[len(h.dialogs)-1].page == "user" {
+			if menu := h.pages.GetPage("user"); menu != nil {
+				menu.Draw(s)
+			}
+		}
 	})
 	return h
 }
@@ -416,7 +430,7 @@ func (h *terminalUI) build() {
 	h.search = tview.NewInputField().SetFieldBackgroundColor(tui.Panel).
 		SetFieldTextColor(tui.Foreground).SetLabelStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).SetPlaceholder(h.tr("名称、地址、备注", "Name, address, comment")).
 		SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))
-	h.search.SetAcceptanceFunc(func(s string, _ rune) bool { return len([]rune(s)) <= 256 })
+	h.search.SetAcceptanceFunc(tview.InputFieldMaxLength(tuiSearchMaxLength))
 	h.search.SetChangedFunc(h.searchChanged)
 	tuiBorder(h.search.Box, "", tui.Border)
 	h.search.SetTitle("").SetBorderPadding(0, 0, 1, 1)
@@ -446,6 +460,18 @@ func (h *terminalUI) build() {
 			tview.Print(s, cleanTUIText(h.assetNotice), x, y+(ht-1)/2, w, tview.AlignCenter, tui.Muted)
 		}
 		return x, y, w, ht
+	})
+	h.table.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		if action == tview.MouseLeftClick || action == tview.MouseLeftDoubleClick {
+			x, y := event.Position()
+			if h.table.InRect(x, y) {
+				row, column := h.table.CellAt(x, y)
+				if row < tuiAssetTableHeaderRows || row >= tuiAssetTableHeaderRows+len(h.assets) || column < 0 {
+					return tview.MouseConsumed, nil
+				}
+			}
+		}
+		return action, event
 	})
 	h.table.SetSelectedFunc(func(row, _ int) { h.showAccounts(row) })
 	enableTableScroll(h.table)
@@ -1158,11 +1184,13 @@ func (h *terminalUI) renderAssets() {
 			fullValue := tview.Unescape(cleanTUIText(value))
 			cell := tview.NewTableCell(tview.Escape(" " + fullValue + " ")).SetReference(fullValue).SetTextColor(tui.Foreground)
 			if !connectable {
-				cell.SetTextColor(tui.Disabled).SetBackgroundColor(tui.DisabledSurface).SetSelectedStyle(
-					tcell.StyleDefault.Foreground(tui.Disabled).Background(tui.Raised),
+				cell.SetTextColor(tui.Disabled).SetBackgroundColor(tui.Panel).SetSelectedStyle(
+					tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel),
 				)
-			} else if col != 1 && col != 2 {
+			} else if col == 0 {
 				cell.SetTextColor(tui.Muted)
+			} else if col >= 3 {
+				cell.SetTextColor(tui.AssetMetadata)
 			}
 			h.table.SetCell(row+tuiAssetTableHeaderRows, col, cell)
 		}
