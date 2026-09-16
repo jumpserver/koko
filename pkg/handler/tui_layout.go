@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 
 	"github.com/jumpserver/koko/internal/tui"
@@ -182,7 +183,7 @@ func (h *terminalUI) updateLayout() {
 	headerHeight := 3
 	languageWidth := tview.TaggedStringWidth(h.language.GetLabel()) + 2
 	themeWidth := tview.TaggedStringWidth(h.appearance.GetLabel()) + 2
-	userWidth := min(32, tview.TaggedStringWidth(h.identity.GetText(false)))
+	userWidth := min(34, tview.TaggedStringWidth(h.identity.GetLabel())+2)
 	sideWidth := themeWidth + languageWidth + 6 + userWidth
 	h.headerTools.ResizeItem(h.appearance, themeWidth, 0).ResizeItem(h.language, languageWidth, 0).ResizeItem(h.identity, userWidth, 0)
 	h.header.Clear()
@@ -215,6 +216,35 @@ func (h *terminalUI) clearSearch() {
 	// the first frame already has a visible cursor for IME composition.
 	h.search.InputHandler()(tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone), func(tview.Primitive) {})
 	h.app.SetFocus(h.search)
+}
+
+const tuiSearchDebounce = 300 * time.Millisecond
+
+func (h *terminalUI) searchChanged(query string) {
+	h.searchQuery = query
+	h.stopSearchDebounce()
+	if query == "" {
+		h.loadAssets(0)
+		return
+	}
+	generation := h.searchDebounceGeneration
+	h.searchDebounceTimer = time.AfterFunc(tuiSearchDebounce, func() {
+		h.update(func() {
+			if generation != h.searchDebounceGeneration {
+				return
+			}
+			h.searchDebounceTimer = nil
+			h.loadAssets(0)
+		})
+	})
+}
+
+func (h *terminalUI) stopSearchDebounce() {
+	h.searchDebounceGeneration++
+	if h.searchDebounceTimer != nil {
+		h.searchDebounceTimer.Stop()
+		h.searchDebounceTimer = nil
+	}
 }
 
 func (h *terminalUI) configureSearchClear() {
@@ -295,7 +325,17 @@ func (h *terminalUI) layoutAssetColumns(width int) {
 		text := strings.TrimRight(header.Text, " ")
 		header.SetText(text + strings.Repeat(" ", max(0, cellWidth-tview.TaggedStringWidth(text))))
 		for row := 0; row < h.table.GetRowCount(); row++ {
-			h.table.GetCell(row, col).SetMaxWidth(cellWidth)
+			cell := h.table.GetCell(row, col).SetMaxWidth(cellWidth)
+			if row < tuiAssetTableHeaderRows {
+				continue
+			}
+			if fullValue, ok := cell.GetReference().(string); ok {
+				text := " " + fullValue + " "
+				if runewidth.StringWidth(text) > cellWidth {
+					text = runewidth.Truncate(text, cellWidth, "…")
+				}
+				cell.SetText(tview.Escape(text))
+			}
 		}
 	}
 }
@@ -561,7 +601,12 @@ func (h *terminalUI) focusedContent() string {
 			if label == "#" {
 				label = h.tr("序号", "No.")
 			}
-			field(label, p.GetCell(row, col).Text)
+			cell := p.GetCell(row, col)
+			value := cell.Text
+			if fullValue, ok := cell.GetReference().(string); ok {
+				value = cleanTUIText(fullValue)
+			}
+			field(label, value)
 		}
 	case *tview.InputField:
 		label := strings.TrimSpace(tuiPlainMnemonic(p.GetLabel()))
@@ -582,6 +627,20 @@ func (h *terminalUI) showFullText() {
 	if text == "" {
 		return
 	}
+	title := h.tr("完整内容", "Full text")
+	width, height := 94, 24
+	switch focused := h.focusedControl().(type) {
+	case *tview.TreeView:
+		title = h.tr("节点详情", "Node details")
+		width = 68
+		height = min(14, max(10, strings.Count(text, "\n")+8))
+	case *tview.Table:
+		if focused == h.table {
+			title = h.tr("资产详情", "Asset details")
+			width = 68
+			height = min(18, max(10, strings.Count(text, "\n")+8))
+		}
+	}
 	view := tview.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
 		SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetText(tview.Unescape(text))
 	view.SetDoneFunc(func(k tcell.Key) {
@@ -599,6 +658,6 @@ func (h *terminalUI) showFullText() {
 		AddItem(close, 1, 0, false)
 	content.Box = tview.NewBox()
 	content.SetBackgroundColor(tui.Panel)
-	tuiDialogBorder(content.Box, h.tr("完整内容", "Full text"))
-	h.openDialog("full-text", &tuiOverlay{Box: tview.NewBox(), child: content, width: 94, height: 24}, []tview.Primitive{view, close})
+	tuiDialogBorder(content.Box, title)
+	h.openDialog("full-text", &tuiOverlay{Box: tview.NewBox(), child: content, width: width, height: height}, []tview.Primitive{view, close})
 }

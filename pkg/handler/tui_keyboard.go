@@ -31,7 +31,7 @@ func (h *terminalUI) focusOrder() []tview.Primitive {
 	if h.tabsOverflow {
 		order = append(order, h.sessionMore)
 	}
-	order = append(order, h.language, h.appearance)
+	order = append(order, h.language, h.appearance, h.identity)
 	if h.organizationsEnabled && h.activeSession < 0 && !h.sidebarHidden {
 		order = append(order, h.org)
 	}
@@ -273,6 +273,11 @@ func (h *terminalUI) openDialog(page string, child tview.Primitive, focus []tvie
 	}
 	// A late account lookup must not open a second dialog over newly opened help.
 	h.detailGeneration++
+	if overlay, ok := child.(*tuiOverlay); ok {
+		overlay.dismissOutside = h.dismissModal
+	} else {
+		child = &tuiOverlay{Box: tview.NewBox(), child: child, dismissOutside: h.dismissModal}
+	}
 	h.dialogs = append(h.dialogs, tuiDialog{page: page, returnFocus: h.app.GetFocus(), focus: focus})
 	h.modal = true
 	h.pages.AddPage(page, child, true, true)

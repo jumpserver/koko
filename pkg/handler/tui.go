@@ -26,6 +26,8 @@ const tuiWakeKey tcell.Key = -100
 
 const tuiRefreshIcon = "↻"
 
+const tuiAssetTableHeaderRows = 2
+
 type terminalUI struct {
 	app                                                 *tview.Application
 	screen                                              tcell.Screen
@@ -64,7 +66,8 @@ type terminalUI struct {
 	tabRow                                              *tview.Flex
 	headerTools                                         *tview.Flex
 	treeKind                                            *tview.DropDown
-	brand, identity                                     *tview.TextView
+	brand                                               *tview.TextView
+	identity                                            *tview.Button
 	helpHint                                            string
 	language                                            *tview.Button
 	appearance                                          *tview.Button
@@ -91,6 +94,8 @@ type terminalUI struct {
 	viewGeneration, assetGeneration, detailGeneration   uint64
 	treeCount                                           int
 	searchQuery                                         string
+	searchDebounceGeneration                            uint64
+	searchDebounceTimer                                 *time.Timer
 	dropdownNumber                                      string
 	dropdownNumberDue                                   time.Time
 	dropdownNumberTarget                                *tview.DropDown
@@ -280,9 +285,17 @@ func (h *terminalUI) build() {
 	if h.user.Username != "" {
 		name += "(" + h.user.Username + ")"
 	}
-	h.identity = tview.NewTextView().SetDynamicColors(true).SetTextStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetWrap(false).SetTextAlign(tview.AlignRight)
-	h.identity.SetText(cleanTUIText(name))
 	headerControlStyle := tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)
+	h.identity = tview.NewButton(cleanTUIText(name) + " ▾").SetStyle(headerControlStyle).
+		SetActivatedStyle(headerControlStyle.Foreground(tui.Foreground)).SetSelectedFunc(h.showUserMenu)
+	h.identity.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		color := tui.Muted
+		if h.identity.HasFocus() {
+			color = tui.Foreground
+		}
+		tview.Print(screen, h.identity.GetLabel(), x, y+height/2, width, tview.AlignRight, color)
+		return x, y, 0, height
+	})
 	h.language = tview.NewButton("").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Foreground(tui.Foreground)).SetSelectedFunc(h.showLanguage)
 	h.appearance = tview.NewButton("").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Foreground(tui.Foreground)).SetSelectedFunc(h.showAppearance)
 	divider := tview.NewTextView().SetText(" | ").SetTextStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetWrap(false)
@@ -369,9 +382,11 @@ func (h *terminalUI) build() {
 			h.toggleNode(node)
 			return nil
 		}
-		if e.Key() == tcell.KeyHome || e.Key() == tcell.KeyEnd {
+		first := e.Key() == tcell.KeyHome || e.Key() == tcell.KeyRune && e.Rune() == 'g'
+		last := e.Key() == tcell.KeyEnd || e.Key() == tcell.KeyRune && e.Rune() == 'G'
+		if first || last {
 			step := h.tree.GetRowCount()
-			if e.Key() == tcell.KeyHome {
+			if first {
 				step = -step
 			}
 			h.tree.Move(step)
@@ -402,6 +417,7 @@ func (h *terminalUI) build() {
 		SetFieldTextColor(tui.Foreground).SetLabelStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).SetPlaceholder(h.tr("名称、地址、备注", "Name, address, comment")).
 		SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))
 	h.search.SetAcceptanceFunc(func(s string, _ rune) bool { return len([]rune(s)) <= 256 })
+	h.search.SetChangedFunc(h.searchChanged)
 	tuiBorder(h.search.Box, "", tui.Border)
 	h.search.SetTitle("").SetBorderPadding(0, 0, 1, 1)
 	h.configureSearchClear()
@@ -422,7 +438,7 @@ func (h *terminalUI) build() {
 	h.assetRefresh.SetTitle("")
 	assetToolbar := tview.NewFlex().AddItem(h.search, 0, 1, false).AddItem(nil, 1, 0, false).AddItem(h.assetRefresh, 5, 0, false)
 	assetToolbar.SetBackgroundColor(tui.Panel)
-	h.table = tview.NewTable().SetSelectable(true, false).SetFixed(1, 0).SetSelectedStyle(tui.Selected)
+	h.table = tview.NewTable().SetSelectable(true, false).SetFixed(tuiAssetTableHeaderRows, 0).SetSelectedStyle(tui.Selected)
 	h.table.SetBackgroundColor(tui.Panel)
 	h.table.SetDrawFunc(func(s tcell.Screen, x, y, w, ht int) (int, int, int, int) {
 		h.layoutAssetColumns(w)
@@ -557,6 +573,7 @@ func (h *terminalUI) queue(ch chan func(), job func()) {
 func (h *terminalUI) run() error {
 	defer h.cancel()
 	defer h.clearDropdownNumber()
+	defer h.stopSearchDebounce()
 	defer func() {
 		for _, session := range h.sessions {
 			session.terminal.Dispose()
@@ -1066,11 +1083,11 @@ func (h *terminalUI) loadAssets(offset int) {
 	if h.scope.Org.ID == "" {
 		return
 	}
+	h.stopSearchDebounce()
 	h.assetGeneration++
 	h.detailGeneration++
 	generation := h.assetGeneration
 	h.assetsLoading, h.assetsLoaded = true, false
-	// Only Enter commits the input; refresh, paging and node changes retain it.
 	scope, search := h.scope, h.searchQuery
 	h.assets = nil
 	h.assetConnectable = nil
@@ -1094,10 +1111,18 @@ func (h *terminalUI) loadAssets(offset int) {
 				return
 			}
 			h.assetsLoaded = true
-			h.assets, h.total = page.Data, page.Total
-			h.assetConnectable = make([]bool, len(page.Data))
-			for i, asset := range page.Data {
-				h.assetConnectable[i] = asset.IsActive && connectable[asset.ID]
+			h.total = page.Total
+			h.assets = make([]model.PermAsset, 0, len(page.Data))
+			h.assetConnectable = make([]bool, 0, len(page.Data))
+			for _, enabled := range []bool{true, false} {
+				for _, asset := range page.Data {
+					canConnect := asset.IsActive && connectable[asset.ID]
+					if canConnect != enabled {
+						continue
+					}
+					h.assets = append(h.assets, asset)
+					h.assetConnectable = append(h.assetConnectable, canConnect)
+				}
 			}
 			h.renderAssets()
 		})
@@ -1119,6 +1144,7 @@ func (h *terminalUI) renderAssets() {
 			continue
 		}
 		h.table.SetCell(0, col, tview.NewTableCell(" "+title+" ").SetSelectable(false).SetTextColor(tui.Muted).SetBackgroundColor(tui.Panel))
+		h.table.SetCell(1, col, tview.NewTableCell("").SetSelectable(false).SetBackgroundColor(tui.Panel))
 	}
 	for row, asset := range h.assets {
 		connectable := h.assetCanConnect(row)
@@ -1129,7 +1155,8 @@ func (h *terminalUI) renderAssets() {
 			if !connectable && col == 1 {
 				value = "⊘ " + value
 			}
-			cell := tview.NewTableCell(" " + cleanTUIText(value) + " ").SetTextColor(tui.Foreground)
+			fullValue := tview.Unescape(cleanTUIText(value))
+			cell := tview.NewTableCell(tview.Escape(" " + fullValue + " ")).SetReference(fullValue).SetTextColor(tui.Foreground)
 			if !connectable {
 				cell.SetTextColor(tui.Disabled).SetBackgroundColor(tui.DisabledSurface).SetSelectedStyle(
 					tcell.StyleDefault.Foreground(tui.Disabled).Background(tui.Raised),
@@ -1137,14 +1164,14 @@ func (h *terminalUI) renderAssets() {
 			} else if col != 1 && col != 2 {
 				cell.SetTextColor(tui.Muted)
 			}
-			h.table.SetCell(row+1, col, cell)
+			h.table.SetCell(row+tuiAssetTableHeaderRows, col, cell)
 		}
 	}
 	if len(h.assets) == 0 {
 		h.showAssetNotice(h.tr("没有匹配资产", "No matching assets"))
 		return
 	}
-	h.table.Select(1, 0).ScrollToBeginning()
+	h.table.Select(tuiAssetTableHeaderRows, 0).ScrollToBeginning()
 	h.showAssetStatus()
 }
 

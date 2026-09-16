@@ -265,11 +265,12 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 			add("←→", h.tr("选择", "Select"), true)
 			confirm = p.GetColumnCount() > 0
 		} else {
-			scroll = p.GetRowCount() > 2
+			scroll = p.GetRowCount() > tuiAssetTableHeaderRows+1
 			row, col := p.GetSelection()
 			confirm = row > 0 && row < p.GetRowCount() && !p.GetCell(row, col).NotSelectable
 			if p == h.table {
-				confirm = confirm && row <= len(h.assets) && h.assetCanConnect(row-1) && len(h.sessions) < maxTUISessions
+				assetIndex := row - tuiAssetTableHeaderRows
+				confirm = confirm && assetIndex >= 0 && assetIndex < len(h.assets) && h.assetCanConnect(assetIndex) && len(h.sessions) < maxTUISessions
 				add("Shift+← / Shift+→", h.tr("水平滚动", "Horizontal scroll"), false)
 			} else if scroll {
 				add("←→", h.tr("移动和滚动", "Move and scroll"), false)

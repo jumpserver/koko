@@ -31,7 +31,8 @@ type sshTTY struct {
 
 func NewSSHScreen(session ssh.Session, windows <-chan ssh.Window) (tcell.Screen, error) {
 	pty, _, _ := session.Pty()
-	term := sshTerminfoName(pty.Term, session.Context().ClientVersion())
+	clientVersion := session.Context().ClientVersion()
+	term := sshTerminfoName(pty.Term, clientVersion)
 	ti, err := terminfo.LookupTerminfo(term)
 	if err != nil {
 		return nil, err
@@ -43,6 +44,19 @@ func NewSSHScreen(session ssh.Session, windows <-chan ssh.Window) (tcell.Screen,
 	// cursor/style change (notably VT100). Do not mutate shared terminfo entries.
 	networkInfo := *ti
 	networkInfo.PadChar = ""
+	if IsXShellClient(clientVersion) {
+		// Xshell obeys DEC cursor blinking mode independently from DECSCUSR.
+		// xterm's ShowCursor disables that mode, leaving its configured green
+		// block fixed over the character even after requesting a blinking bar.
+		networkInfo.ShowCursor = "\x1b[?12h\x1b[?25h"
+		networkInfo.CursorDefault = "\x1b[0 q"
+		networkInfo.CursorBlinkingBlock = "\x1b[1 q"
+		networkInfo.CursorSteadyBlock = "\x1b[2 q"
+		networkInfo.CursorBlinkingUnderline = "\x1b[3 q"
+		networkInfo.CursorSteadyUnderline = "\x1b[4 q"
+		networkInfo.CursorBlinkingBar = "\x1b[5 q"
+		networkInfo.CursorSteadyBar = "\x1b[6 q"
+	}
 	r, w := io.Pipe()
 	tty := &sshTTY{session: session, reader: r, writer: w, window: pty.Window, done: make(chan struct{})}
 	screen, err := tcell.NewTerminfoScreenFromTtyTerminfo(tty, &networkInfo)
@@ -71,7 +85,10 @@ func NewSSHScreen(session ssh.Session, windows <-chan ssh.Window) (tcell.Screen,
 			}
 		}
 	}()
-	cursorReset := ti.CursorDefault
+	cursorReset := networkInfo.CursorDefault
+	if IsXShellClient(clientVersion) {
+		cursorReset += "\x1b[?12l"
+	}
 	if cursorReset == "" && (ti.Mouse != "" || ti.XTermLike) {
 		cursorReset = "\x1b[0 q"
 	}
