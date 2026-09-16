@@ -454,6 +454,7 @@ func (h *terminalUI) build() {
 	assetToolbar.SetBackgroundColor(tui.Panel)
 	h.table = tview.NewTable().SetSelectable(true, false).SetFixed(tuiAssetTableHeaderRows, 0).SetSelectedStyle(tui.Selected)
 	h.table.SetBackgroundColor(tui.Panel)
+	h.table.SetBordersColor(tui.Panel)
 	h.table.SetDrawFunc(func(s tcell.Screen, x, y, w, ht int) (int, int, int, int) {
 		h.layoutAssetColumns(w)
 		if h.assetNotice != "" && w > 0 && ht > 0 {
