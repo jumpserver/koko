@@ -21,7 +21,7 @@ func tuiMnemonic(label, key string) string {
 func tuiKeyText(key string, enabled bool) string {
 	prefix := "[" + tui.Accent.String() + "::bu]"
 	if !enabled {
-		prefix = "[" + tui.Muted.String() + "::-][::U]"
+		prefix = "[" + tui.Disabled.String() + "::-][::U]"
 	}
 	return prefix + key + "[::U][-::-]"
 }
@@ -56,7 +56,7 @@ func tuiMnemonicState(label, key string, enabled bool) string {
 }
 
 func tuiPlainMnemonic(label string) string {
-	return strings.NewReplacer("["+tui.Accent.String()+"::bu]", "", "["+tui.Accent.String()+"::b]", "", "["+tui.Accent.String()+"::u]", "", "["+tui.Accent.String()+"::-]", "", "["+tui.Muted.String()+"::-][::U]", "", "[::U][-::-]", "", "[-::-]", "").Replace(label)
+	return strings.NewReplacer("["+tui.Accent.String()+"::bu]", "", "["+tui.Accent.String()+"::b]", "", "["+tui.Accent.String()+"::u]", "", "["+tui.Accent.String()+"::-]", "", "["+tui.Disabled.String()+"::-][::U]", "", "[::U][-::-]", "", "[-::-]", "").Replace(label)
 }
 
 func tuiShortcutAvailable(bindings []tuiShortcut, id, key string) bool {

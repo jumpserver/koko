@@ -30,6 +30,7 @@ type terminalUI struct {
 	app                                                 *tview.Application
 	screen                                              tcell.Screen
 	themeScreen                                         *tui.ThemeScreen
+	colorProfile                                        tui.ColorProfile
 	lightTheme                                          bool
 	accentColor                                         int
 	pages                                               *tview.Pages
@@ -161,17 +162,20 @@ func tuiDialogBorder(box *tview.Box, title string) {
 func newTerminalUI(sess ssh.Session, user *model.User, api, userAPI *service.JMService, conf model.TerminalConfig, screen tcell.Screen, preferences *tuiPreferences) *terminalUI {
 	ctx, cancel := context.WithCancel(sess.Context())
 	language := getUserDefaultLangCode(user)
-	h := &terminalUI{session: sess, user: user, conf: conf, screen: screen,
+	h := &terminalUI{session: sess, user: user, conf: conf, screen: screen, colorProfile: tui.ColorProfileMac,
 		ctx: ctx, cancel: cancel, data: tuiData{api: api, userAPI: userAPI, userID: user.ID, lang: language},
 		updates: make(chan func(), 16), assetJobs: make(chan func(), 1), treeJobs: make(chan func(), 1),
 		detailJobs: make(chan func(), 1), orgJobs: make(chan func(), 1), countJobs: make(chan func(), 1), lastInput: time.Now(), activeSession: -1, sidebarWidth: defaultTUISidebarWidth,
 		preferences: preferences}
+	if tui.IsXShellClient(sess.Context().ClientVersion()) {
+		h.colorProfile = tui.ColorProfileXShell
+	}
 	if preferences != nil {
 		h.scope.Mode = preferences.treeMode(user.ID)
 		h.data.lang, h.lightTheme, h.accentColor, h.sidebarWidth, h.sidebarHidden = preferences.display(user.ID, language)
 	}
 	h.themeScreen = tui.NewThemeScreen(screen)
-	h.themeScreen.SetPalette(tui.ThemePalette(h.lightTheme, h.accentColor))
+	h.themeScreen.SetPalette(tui.ThemePaletteForProfile(h.lightTheme, h.accentColor, h.colorProfile))
 	h.app = tview.NewApplication().SetScreen(h.themeScreen).EnableMouse(true).EnablePaste(true)
 	h.pages = tview.NewPages()
 	h.pages.SetBackgroundColor(tui.Background)
@@ -1122,10 +1126,13 @@ func (h *terminalUI) renderAssets() {
 			if hidden[columns[col]] && !isBuiltinFields(columns[col]) {
 				continue
 			}
+			if !connectable && col == 1 {
+				value = "⊘ " + value
+			}
 			cell := tview.NewTableCell(" " + cleanTUIText(value) + " ").SetTextColor(tui.Foreground)
 			if !connectable {
-				cell.SetTextColor(tui.Muted).SetSelectedStyle(
-					tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised),
+				cell.SetTextColor(tui.Disabled).SetBackgroundColor(tui.DisabledSurface).SetSelectedStyle(
+					tcell.StyleDefault.Foreground(tui.Disabled).Background(tui.Raised),
 				)
 			} else if col != 1 && col != 2 {
 				cell.SetTextColor(tui.Muted)

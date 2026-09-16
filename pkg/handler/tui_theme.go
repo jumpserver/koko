@@ -21,13 +21,21 @@ func (h *terminalUI) showAppearance() {
 		selected = 1
 	}
 	mode.SetCurrentOption(selected)
-	colors := []string{h.tr("青绿", "Teal"), h.tr("蓝色", "Blue"), h.tr("紫色", "Purple"), h.tr("橙色", "Orange"), h.tr("粉色", "Pink"), h.tr("青蓝", "Cyan"), h.tr("灰色", "Gray"), h.tr("红色", "Red"), h.tr("青柠", "Lime")}
-	for i, label := range colors {
-		colors[i] = fmt.Sprintf("[#%06x]●[-] %s", tui.AccentSwatch(i).Hex(), label)
+	accentNames := []string{h.tr("青绿", "Teal"), h.tr("蓝色", "Blue"), h.tr("紫色", "Purple"), h.tr("橙色", "Orange"), h.tr("粉色", "Pink"), h.tr("青蓝", "Cyan"), h.tr("灰色", "Gray"), h.tr("红色", "Red"), h.tr("青柠", "Lime")}
+	setAccentOptions := func(light bool) {
+		colors := make([]string, len(accentNames))
+		for i, label := range accentNames {
+			color := tui.AccentSwatch(h.colorProfile, light, i, h.themeScreen.Colors())
+			colors[i] = fmt.Sprintf("[#%06x]●[-] %s", color.Hex(), label)
+		}
+		accent.SetOptions(colors, func(_ string, i int) { h.changeAppearance(h.lightTheme, i) }).SetCurrentOption(h.accentColor)
 	}
-	accent.SetOptions(colors, nil).SetCurrentOption(h.accentColor)
-	mode.SetSelectedFunc(func(_ string, i int) { h.changeAppearance(i == 1, h.accentColor) })
-	accent.SetSelectedFunc(func(_ string, i int) { h.changeAppearance(h.lightTheme, i) })
+	setAccentOptions(h.lightTheme)
+	mode.SetSelectedFunc(func(_ string, i int) {
+		light := i == 1
+		h.changeAppearance(light, h.accentColor)
+		setAccentOptions(light)
+	})
 	labelWidth := max(tview.TaggedStringWidth(mode.GetLabel()), tview.TaggedStringWidth(accent.GetLabel())) + 1
 	for _, dropdown := range []*tview.DropDown{mode, accent} {
 		dropdown.SetLabelWidth(labelWidth).SetFieldWidth(0).
@@ -48,7 +56,7 @@ func (h *terminalUI) changeAppearance(light bool, accent int) {
 	if light == h.lightTheme && accent == h.accentColor {
 		return
 	}
-	palette := tui.ThemePalette(light, accent)
+	palette := tui.ThemePaletteForProfile(light, accent, h.colorProfile)
 	for _, session := range h.sessions {
 		if err := session.terminal.SetPalette(palette); err != nil {
 			h.fail(err)

@@ -92,6 +92,7 @@ func (h *terminalUI) showAccounts(row int) {
 		return
 	}
 	if !h.assetCanConnect(row - 1) {
+		h.showUnsupportedAsset()
 		return
 	}
 	if len(h.sessions) >= maxTUISessions {
@@ -135,8 +136,8 @@ func (h *terminalUI) showAccounts(row int) {
 			sortTUIAccounts(accounts)
 			var protocols []string
 			supportedProtocols := srvconn.SupportedProtocols()
-			for _, p := range detail.PermedProtocols {
-				for _, supported := range supportedProtocols {
+			for _, supported := range supportedProtocols {
+				for _, p := range detail.PermedProtocols {
 					if strings.EqualFold(p.Name, supported) {
 						if !slices.Contains(protocols, supported) {
 							protocols = append(protocols, supported)
@@ -157,6 +158,24 @@ func (h *terminalUI) showAccounts(row int) {
 			h.accountDialog(asset, accounts, protocols)
 		})
 	})
+}
+
+func (h *terminalUI) showUnsupportedAsset() {
+	protocols := srvconn.SupportedProtocols()
+	message := fmt.Sprintf(h.tr(
+		"当前资产不支持通过 Terminal 连接\n\nTerminal 仅支持包含以下协议的资产：%s",
+		"This asset cannot be connected through Terminal\n\nTerminal supports assets with these protocols: %s",
+	), strings.Join(protocols, ", "))
+	dialog := tview.NewModal().SetText(message).
+		AddButtons([]string{h.tr("关闭", "Close")}).
+		SetDoneFunc(func(_ int, _ string) { h.dismissModal() })
+	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
+		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
+		SetBorderColor(tui.FocusBorder)
+	dialog.Box.SetBackgroundColor(tui.Panel)
+	dialog.SetTitle(" " + h.tr("无法连接", "Connection unavailable") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
+	tui.RoundedBorder(dialog.Box)
+	h.openDialog("unsupported-asset", dialog, nil)
 }
 
 func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermAccount, protocols []string) {
@@ -582,7 +601,7 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 	h.rememberConnection(asset, account, protocol)
 	terminal, err := tui.NewTerminal(h.ctx, func() { h.dirty.Store(true) })
 	if err == nil {
-		err = terminal.SetPalette(tui.ThemePalette(h.lightTheme, h.accentColor))
+		err = terminal.SetPalette(tui.ThemePaletteForProfile(h.lightTheme, h.accentColor, h.colorProfile))
 		if err != nil {
 			terminal.Dispose()
 		}
@@ -863,6 +882,33 @@ func (h *terminalUI) activateSession(index int) {
 }
 
 func (h *terminalUI) closeSession(session *tuiSession) {
+	if !session.done {
+		h.confirmDisconnect(session)
+		return
+	}
+	h.disconnectSession(session)
+}
+
+func (h *terminalUI) confirmDisconnect(session *tuiSession) {
+	message := fmt.Sprintf(h.tr("确定断开会话“%s”？", "Disconnect session \"%s\"?"), cleanTUIText(session.name))
+	dialog := tview.NewModal().SetText(message).
+		AddButtons([]string{h.tr("返回", "Back"), h.tr("断开", "Disconnect")}).
+		SetDoneFunc(func(index int, _ string) {
+			h.dismissModal()
+			if index == 1 {
+				h.disconnectSession(session)
+			}
+		})
+	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
+		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
+		SetBorderColor(tui.FocusBorder)
+	dialog.Box.SetBackgroundColor(tui.Panel)
+	dialog.SetTitle(" " + h.tr("断开确认", "Confirm disconnect") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
+	tui.RoundedBorder(dialog.Box)
+	h.openDialog("disconnect", dialog, nil)
+}
+
+func (h *terminalUI) disconnectSession(session *tuiSession) {
 	session.closing = true
 	session.terminal.Dispose()
 	if h.popup == session.terminal {
