@@ -49,7 +49,6 @@ type terminalCreateEnvelope struct {
 		Rows       int    `json:"rows"`
 		Cols       int    `json:"cols"`
 		Type       string `json:"type,omitempty"`
-		Code       string `json:"code,omitempty"`
 		Kubernetes struct {
 			ID        string `json:"id,omitempty"`
 			Namespace string `json:"namespace,omitempty"`

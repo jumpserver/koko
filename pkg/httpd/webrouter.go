@@ -19,6 +19,7 @@ func createRouter(
 ) *gin.Engine {
 	if lionRuntime != nil {
 		webSrv.lionMonitor = lionRuntime
+		webSrv.lionShare = lionRuntime
 	}
 	if config.GlobalConfig.LogLevel != "DEBUG" {
 		gin.SetMode(gin.ReleaseMode)
@@ -34,6 +35,8 @@ func createRouter(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessTerminalWebsocket)
 		wsGroup.Group("/monitor").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessMonitorWebsocket)
+		wsGroup.Group("/share").Use(
+			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessShareWebsocket)
 
 		wsGroup.Group("/elfinder").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessElfinderWebsocket)

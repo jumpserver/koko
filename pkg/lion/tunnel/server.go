@@ -10,12 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/lion/gateway"
 	"github.com/jumpserver/koko/pkg/lion/guacd"
@@ -509,96 +509,32 @@ func (g *GuacamoleTunnelServer) CreateShare(ctx *gin.Context) {
 	}
 }
 
-func (g *GuacamoleTunnelServer) GetShare(ctx *gin.Context) {
-	var params struct {
-		Code string `json:"code"`
-	}
-	if err := ctx.BindJSON(&params); err != nil {
-		logger.Errorf("Bind share params err: %s", err)
-		ctx.JSON(http.StatusBadRequest, ErrorResponse(err))
-		return
-	}
-	shareId := ctx.Param("id")
+func (g *GuacamoleTunnelServer) Share(ctx *gin.Context) {
 	userItem, ok := ctx.Get(config.GinCtxUserKey)
 	if !ok {
-		err1 := fmt.Errorf("not auth user")
-		ctx.JSON(http.StatusBadRequest, ErrorResponse(err1))
+		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	user := userItem.(*model.User)
-	data := model.SharePostData{
-		ShareId:    shareId,
-		Code:       params.Code,
-		UserId:     user.ID,
-		RemoteAddr: ctx.ClientIP(),
-	}
-	apiClient := g.JmsService.Copy()
-	if acceptLang := ctx.GetHeader("Accept-Language"); acceptLang != "" {
-		apiClient.SetHeader("Accept-Language", acceptLang)
-	}
-	if cookieLang, err2 := ctx.Cookie("django_language"); err2 == nil {
-		apiClient.SetCookie("django_language", cookieLang)
-	}
-	recordRet, err := apiClient.JoinShareRoom(data)
-	if err != nil {
-		logger.Errorf("Validate join session err: %s", err)
-		errResponse := ErrorResponse(err)
-		if recordRet.Err != nil {
-			logger.Errorf("Join share room err: %s", recordRet.Err)
-			msg := fmt.Errorf("%+v", recordRet.Err)
-			errResponse = ErrorResponse(msg)
-		}
-		ctx.JSON(http.StatusBadRequest, errResponse)
-		return
-	}
-	if recordRet.Err != nil {
-		logger.Errorf("Join share room err: %s", recordRet.Err)
-		ctx.JSON(http.StatusBadRequest, recordRet.Err)
-		return
-	}
-	ctx.JSON(http.StatusOK, recordRet)
-}
-
-func (g *GuacamoleTunnelServer) Share(ctx *gin.Context) {
 	ws, err := upGrader.Upgrade(ctx.Writer, ctx.Request, ctx.Writer.Header())
 	if err != nil {
 		logger.Errorf("Websocket Upgrade err: %+v", err)
-		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	defer ws.Close()
-	userItem, ok := ctx.Get(config.GinCtxUserKey)
-	if !ok {
-		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrAuthUser.String()))
+	record, err := auth.JoinShareRoom(ctx, g.JmsService)
+	if err != nil {
+		instruction := NewJMSGuacamoleError(1006, err.Error())
+		_ = ws.WriteMessage(websocket.TextMessage, []byte(instruction.String()))
 		return
 	}
-	user := userItem.(*model.User)
-	if user.ID == "" {
-		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrAuthUser.String()))
-		return
-	}
-	shareId, ok := ctx.GetQuery("SHARE_ID")
-	if !ok {
-		logger.Error("No share id params")
-		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrBadParams.String()))
-		return
-	}
-	recordId, ok := ctx.GetQuery("RECORD_ID")
-	if !ok {
-		logger.Error("No record id params")
-		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrBadParams.String()))
-		return
-	}
-	sessionId, ok := ctx.GetQuery("SESSION_ID")
-	if !ok {
-		logger.Error("No SESSION_ID found")
-		_ = ws.WriteMessage(websocket.TextMessage, []byte(ErrBadParams.String()))
-		return
-	}
-	writable := false
-	writePem, _ := ctx.GetQuery("Writable")
-	writable = strings.EqualFold(writePem, "true")
+	defer func() {
+		if err := g.JmsService.FinishShareRoom(record.ID); err != nil {
+			logger.Errorf("Finish share room err: %s", err)
+		}
+	}()
 
+	sessionId, shareId := record.Session.ID, record.Sharing.ID
 	logger.Debugf("User %s start to share session %s", user, sessionId)
 	tunnelCon := g.Cache.GetMonitorTunnelerBySessionId(sessionId)
 	if tunnelCon == nil {
@@ -623,7 +559,7 @@ func (g *GuacamoleTunnelServer) Share(ctx *gin.Context) {
 		Created:    time.Now().UTC().String(),
 		RemoteAddr: ctx.ClientIP(),
 		Primary:    false,
-		Writable:   writable,
+		Writable:   record.Writeable(),
 	}
 	conn := MonitorCon{
 		Id:          sessionId,
@@ -637,9 +573,6 @@ func (g *GuacamoleTunnelServer) Share(ctx *gin.Context) {
 	_ = conn.Run(ctx.Request.Context())
 	g.Cache.RemoveMonitorTunneler(sessionId, tunnelCon)
 	logger.Infof("User %s stop to share session %s", user, sessionId)
-	if err1 := g.JmsService.FinishShareRoom(recordId); err1 != nil {
-		logger.Errorf("Finish share room err: %s", err1)
-	}
 }
 
 func (g *GuacamoleTunnelServer) DeleteShare(ctx *gin.Context) {

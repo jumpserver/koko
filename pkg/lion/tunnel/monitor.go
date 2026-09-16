@@ -59,6 +59,18 @@ func (m *MonitorCon) readTunnelInstruction() (*guacd.Instruction, error) {
 	return &instruction, nil
 }
 
+func (m *MonitorCon) acceptsClientInstruction(opcode string) bool {
+	if !m.lockedStatus.Load() && (m.Meta == nil || m.Meta.Writable) {
+		return true
+	}
+	switch opcode {
+	case guacd.InstructionClientSync, guacd.InstructionClientNop, guacd.InstructionStreamingAck:
+		return true
+	default:
+		return false
+	}
+}
+
 func (m *MonitorCon) Run(ctx context.Context) (err error) {
 	retChan := m.Service.Cache.GetSessionEventChan(m.Id)
 	defer m.Service.Cache.RecycleSessionEventChannel(m.Id, retChan)
@@ -110,27 +122,12 @@ func (m *MonitorCon) Run(ctx context.Context) (err error) {
 					}
 					continue
 				}
-				if t.lockedStatus.Load() {
-					switch ret.Opcode {
-					case guacd.InstructionClientSync,
-						guacd.InstructionClientNop,
-						guacd.InstructionStreamingAck:
-					default:
-						logger.Infof("Session[%s] in locked status drop receive web client message opcode[%s]",
-							t.Id, ret.Opcode)
-						continue
-					}
-					_, err4 := t.writeTunnelMessage(message)
-					if err4 != nil {
-						logger.Errorf("Session[%s] guacamole server write err: %+v", t.Id, err2)
-						exit <- err4
-						break
-					}
-					logger.Debugf("Session[%s] send guacamole server message when locked status", t.Id)
+				if !t.acceptsClientInstruction(ret.Opcode) {
 					continue
 				}
 			} else {
 				logger.Errorf("Monitor[%s] parse instruction err %s", t.Id, err2)
+				continue
 			}
 			_, err3 := t.writeTunnelMessage(message)
 			if err3 != nil {
