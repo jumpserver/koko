@@ -598,7 +598,9 @@ func (h *tty) getShareUserInfo(terminalID uint32, query GetUserParams) {
 }
 
 func (h *tty) handleShareRequest(data *ShareRequestParams) (res ShareResponse, err error) {
-	shareResp, err := h.ws.apiClient.CreateShareRoom(data.SharingSessionRequest)
+	client := h.ws.apiClient.Copy()
+	client.SetHeader("X-JMS-SHARE-COMPONENT", "koko")
+	shareResp, err := client.CreateShareRoom(data.SharingSessionRequest)
 	if err != nil {
 		logger.Error(err)
 		return res, err

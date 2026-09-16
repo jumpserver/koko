@@ -501,7 +501,9 @@ func (g *GuacamoleTunnelServer) CreateShare(ctx *gin.Context) {
 		ActionPerm: params.ActionPerm,
 	}
 	logger.Debugf("Create share room %v", shareReq)
-	if resp, err := g.JmsService.CreateShareRoom(shareReq); err != nil {
+	client := g.JmsService.Copy()
+	client.SetHeader("X-JMS-SHARE-COMPONENT", "lion")
+	if resp, err := client.CreateShareRoom(shareReq); err != nil {
 		logger.Errorf("Create share room err: %s", err)
 		ctx.JSON(http.StatusBadRequest, ErrorResponse(err))
 	} else {
