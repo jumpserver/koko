@@ -121,6 +121,7 @@ type Server struct {
 	Srv         *http.Server
 	apiClient   *service.JMService
 	lionMonitor graphicalMonitor
+	lionShare   graphicalShare
 }
 
 func (s *Server) Start() {

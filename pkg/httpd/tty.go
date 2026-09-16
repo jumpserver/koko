@@ -13,6 +13,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/internal/sessiontools"
+	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
@@ -69,7 +70,10 @@ func (h *tty) CheckValidation() error {
 	case TargetTypeMonitor:
 		return h.CheckMonitorReadPerm(h.ws.user.ID, params.TargetId)
 	case TargetTypeShare:
-		return h.CheckEnableShare()
+		if _, ok := h.ws.ctx.Get(auth.ContextKeyShareRecord); !ok {
+			return ErrPermissionDenied
+		}
+		return nil
 	default:
 		if h.ws.ConnectToken == nil {
 			return errors.New("connect token is nil")
@@ -250,7 +254,7 @@ func (h *tty) handleTerminalCreate(msg *Message) {
 		h.initialed = true
 	}
 	connectInfo := TerminalConnectData{
-		Rows: request.Params.Rows, Cols: request.Params.Cols, Code: request.Params.Code,
+		Rows: request.Params.Rows, Cols: request.Params.Cols,
 	}
 	if h.ws.wsParams.TargetType == TargetTypeShare {
 		data, _ := json.Marshal(connectInfo)
@@ -311,20 +315,18 @@ func (h *tty) validateAndInitSession(msg *Message) (TerminalConnectData, error) 
 	params := h.ws.wsParams
 
 	if params.TargetType == TargetTypeShare {
-		code := connectInfo.Code
-		info, err2 := h.ValidateShareParams(params.TargetId, code)
-		if err2 != nil {
-			logger.Errorf("Ws[%s] terminal initial validate share err: %s",
-				h.ws.Uuid, err2)
+		value, ok := h.ws.ctx.Get(auth.ContextKeyShareRecord)
+		if !ok {
 			h.sendCloseMessage(msg.TerminalId, "connect_failed")
-			return connectInfo, err2
+			return connectInfo, ErrPermissionDenied
 		}
-		h.shareInfo = &info
-		sessionDetail, err3 := h.ws.apiClient.GetSessionById(info.Record.Session.ID)
+		h.shareInfo = &ShareInfo{Record: value.(model.ShareRecord)}
+		sessionDetail, err3 := h.ws.apiClient.GetSessionById(h.shareInfo.Record.Session.ID)
 		if err3 != nil {
 			logger.Errorf("Ws[%s] terminal get session %s err: %s",
-				h.ws.Uuid, info.Record.Session.ID, err3)
-			h.sendCloseMessage(msg.TerminalId, "connect_failed")
+				h.ws.Uuid, h.shareInfo.Record.Session.ID, err3)
+			h.ws.SendErrMessage(err3.Error())
+			_ = h.ws.conn.Close()
 			return connectInfo, err3
 		}
 		sessionInfo := proxy.SessionInfo{
@@ -596,7 +598,9 @@ func (h *tty) getShareUserInfo(terminalID uint32, query GetUserParams) {
 }
 
 func (h *tty) handleShareRequest(data *ShareRequestParams) (res ShareResponse, err error) {
-	shareResp, err := h.ws.apiClient.CreateShareRoom(data.SharingSessionRequest)
+	client := h.ws.apiClient.Copy()
+	client.SetHeader("X-JMS-SHARE-COMPONENT", "koko")
+	shareResp, err := client.CreateShareRoom(data.SharingSessionRequest)
 	if err != nil {
 		logger.Error(err)
 		return res, err
@@ -604,35 +608,6 @@ func (h *tty) handleShareRequest(data *ShareRequestParams) (res ShareResponse, e
 	res.ShareId = shareResp.ID
 	res.Code = shareResp.Code
 	return
-}
-
-func (h *tty) ValidateShareParams(shareId, code string) (info ShareInfo, err error) {
-	data := model.SharePostData{
-		ShareId:    shareId,
-		Code:       code,
-		UserId:     h.ws.user.ID,
-		RemoteAddr: h.ws.ClientIP(),
-	}
-
-	recordRes, err := h.ws.apiClient.JoinShareRoom(data)
-	if err != nil {
-		logger.Errorf("Conn[%s] Validate Share err: %s", h.ws.Uuid, err)
-		var errMsg string
-		switch v := recordRes.Err.(type) {
-		case string:
-			errMsg = v
-		default:
-			errBytes, _ := json.Marshal(v)
-			errMsg = string(errBytes)
-		}
-		h.ws.SendMessage(&Message{
-			Id:   h.ws.Uuid,
-			Type: TerminalError,
-			Err:  errMsg,
-		})
-		return
-	}
-	return ShareInfo{recordRes}, nil
 }
 
 func (h *tty) getK8sContainerInfo(client *Client) *proxy.ContainerInfo {
@@ -741,18 +716,6 @@ func (h *tty) CheckMonitorReadPerm(uerId, roomId string) error {
 	return nil
 }
 
-func (h *tty) CheckEnableShare() error {
-	termConf, err := h.ws.apiClient.GetTerminalConfig()
-	if err != nil {
-		logger.Errorf("Get terminal config failed: %s", err)
-		return err
-	}
-	if !termConf.EnableSessionShare {
-		return ErrDisableShare
-	}
-	return nil
-}
-
 /*
 	1. ask join room id (session id)
 	2. room receive msg send to client
@@ -760,6 +723,7 @@ func (h *tty) CheckEnableShare() error {
 */
 
 func (h *tty) JoinRoom(c *Client, roomID string) {
+	defer h.ws.conn.Close()
 	user := h.ws.user
 	writable := h.shareInfo.Record.Writeable()
 	meta := exchange.MetaMessage{
@@ -802,9 +766,8 @@ func (h *tty) JoinRoom(c *Client, roomID string) {
 		})
 		h.ws.RecordLifecycleLog(roomID, model.UserLeaveSession, logObj)
 		logger.Infof("Conn[%s] user read end", c.ID())
-		if err := h.ws.apiClient.FinishShareRoom(h.shareInfo.Record.ID); err != nil {
-			logger.Infof("Conn[%s] finish share room err: %s", c.ID(), err)
-		}
+	} else {
+		h.ws.SendErrMessage("Shared session is unavailable")
 	}
 }
 

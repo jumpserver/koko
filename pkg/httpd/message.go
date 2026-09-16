@@ -98,9 +98,8 @@ type WindowSize struct {
 }
 
 type TerminalConnectData struct {
-	Cols int    `json:"cols"`
-	Rows int    `json:"rows"`
-	Code string `json:"code"`
+	Cols int `json:"cols"`
+	Rows int `json:"rows"`
 }
 
 type ShareRequestMeta struct {

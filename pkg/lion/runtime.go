@@ -71,8 +71,6 @@ func (r *Runtime) RegisterRoutes(engine *gin.Engine) {
 	wsGroup := lionGroup.Group("/ws")
 	wsGroup.Group("/connect").Use(
 		middleware.JmsCookieAuth(r.jmsService)).GET("/", r.tunnelService.Connect)
-	wsGroup.Group("/share").Use(
-		middleware.JmsCookieAuth(r.jmsService)).GET("/", r.tunnelService.Share)
 	wsGroup.Group("/token").Use(
 		middleware.SessionAuth(r.jmsService)).GET("/", r.tunnelService.Connect)
 
@@ -82,7 +80,6 @@ func (r *Runtime) RegisterRoutes(engine *gin.Engine) {
 	apiGroup.POST("/tunnels/:tid/streams/:index/:filename", r.tunnelService.UploadFile)
 	apiGroup.POST("/share/", r.tunnelService.CreateShare)
 	apiGroup.POST("/share/remove/", r.tunnelService.DeleteShare)
-	apiGroup.POST("/share/:id/", r.tunnelService.GetShare)
 }
 
 func (r *Runtime) Start(parent context.Context) {
@@ -121,6 +118,10 @@ func (r *Runtime) HasSession(ctx context.Context, sid string) (bool, error) {
 
 func (r *Runtime) Monitor(ctx *gin.Context) {
 	r.tunnelService.Monitor(ctx)
+}
+
+func (r *Runtime) Share(ctx *gin.Context) {
+	r.tunnelService.Share(ctx)
 }
 
 func (r *Runtime) HandleTask(task *model.TerminalTask) (bool, error) {

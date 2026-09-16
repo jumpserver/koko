@@ -422,7 +422,6 @@ func (userCon *UserWebsocket) SendErrMessage(errMsg string) {
 
 var (
 	ErrAssetIdInvalid   = errors.New("asset id invalid")
-	ErrDisableShare     = errors.New("disable share")
 	ErrPermissionDenied = errors.New("permission denied")
 )
 
