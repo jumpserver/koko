@@ -5,7 +5,7 @@
 
 KoKo is a connector of JumpServer for secure connections using character protocols, supporting SSH, Telnet, Kubernetes, SFTP and database protocols
 
-Koko is implemented using Golang and Vue, and the name comes from a Dota hero [Kunkka](https://www.dota2.com.cn/hero/kunkka)。
+Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](https://www.dota2.com.cn/hero/kunkka)。
 
 ## Features
 
@@ -16,52 +16,18 @@ Koko is implemented using Golang and Vue, and the name comes from a Dota hero [K
 - Web File Management
 
 
-## Installation
+## Setup development environment
 
 1. Clone the project
 
 ```shell
 git clone https://github.com/jumpserver/koko.git
+cd koko
 ```
 
-2. Build the application
+2. Run the backend server
 
-Build the application in the koko project.
-```shell
-make
-```
-> If the build is successful, the build folder will be automatically generated under the project, which contains compressed packages of various architectures of the current branch.
-
-## Usage (for Linux amd64 server)
-
-1. Copy the compressed package file to the corresponding server
-
-```
-Build the default compressed package through make, the file name is as follows:
-koko-[branch name]-[commit]-linux-amd64.tar.gz
-```
-
-2. Unzip the compiled compressed package
-```shell
-tar xzvf koko-[branch name]-[commit]-linux-amd64.tar.gz
-```
-
-3. Create the file `config.yml`, refer to [config_example.yml](https://github.com/jumpserver/koko/blob/master/config_example.yml)
-```shell
-touch config.yml
-```
-
-4. run koko
-```shell
-cd koko-[branch name]-[commit]-linux-amd64
-
-./koko
-```
-
-
-## Setup development environment
-
-1. Run the backend server
+`make run` requires Docker Compose to start guacd and stops it on exit.
 
 ```shell
 
@@ -74,16 +40,8 @@ $ make run # 3. Run; the prebuilt libghostty-vt is downloaded on first use
 ```
 
 
-2. Run the ui frontend
-
-```shell
-$ cd ui 
-$ yarn install
-$ npm run serve
-```
-
 ## Docker
-To build multi-platform images using Docker Buildx, you need to install Docker version 19.03 or higher and enable the Docker Buildx plugin.
+Use Docker Buildx to build the image and load it into the local Docker image store:
 
 ```shell
 make docker
