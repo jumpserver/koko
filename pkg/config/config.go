@@ -19,14 +19,19 @@ var (
 )
 
 type Config struct {
-	Name               string `mapstructure:"NAME"`
-	CoreHost           string `mapstructure:"CORE_HOST"`
-	BootstrapToken     string `mapstructure:"BOOTSTRAP_TOKEN"`
-	BindHost           string `mapstructure:"BIND_HOST"`
-	SSHPort            string `mapstructure:"SSHD_PORT"`
-	HTTPPort           string `mapstructure:"HTTPD_PORT"`
-	SSHTimeout         int    `mapstructure:"SSH_TIMEOUT"`
-	HttpRequestTimeout int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
+	Name                     string `mapstructure:"NAME"`
+	CoreHost                 string `mapstructure:"CORE_HOST"`
+	BootstrapToken           string `mapstructure:"BOOTSTRAP_TOKEN"`
+	BindHost                 string `mapstructure:"BIND_HOST"`
+	SSHPort                  string `mapstructure:"SSHD_PORT"`
+	HTTPPort                 string `mapstructure:"HTTPD_PORT"`
+	WebProxyEnabled          bool   `mapstructure:"WEB_PROXY_ENABLED"`
+	WebProxyBindHost         string `mapstructure:"WEB_PROXY_BIND_HOST"`
+	WebProxyPort             string `mapstructure:"WEB_PROXY_PORT"`
+	WebProxyRecordingEnabled bool   `mapstructure:"WEB_PROXY_RECORDING_ENABLED"`
+	WebProxyFFmpegPath       string `mapstructure:"WEB_PROXY_FFMPEG_PATH"`
+	SSHTimeout               int    `mapstructure:"SSH_TIMEOUT"`
+	HttpRequestTimeout       int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
@@ -34,7 +39,6 @@ type Config struct {
 	LanguageCode        string `mapstructure:"LANGUAGE_CODE"`
 	UploadFailedReplay  bool   `mapstructure:"UPLOAD_FAILED_REPLAY_ON_START"`
 	UploadFailedFTPFile bool   `mapstructure:"UPLOAD_FAILED_FTP_FILE_ON_START"`
-	AssetLoadPolicy     string `mapstructure:"ASSET_LOAD_POLICY"` // all
 	ZipMaxSize          string `mapstructure:"ZIP_MAX_SIZE"`
 	ZipTmpPath          string `mapstructure:"ZIP_TMP_PATH"`
 	ClientAliveInterval int    `mapstructure:"CLIENT_ALIVE_INTERVAL"`
@@ -52,6 +56,21 @@ type Config struct {
 	RedisSentinelPassword string `mapstructure:"REDIS_SENTINEL_PASSWORD"`
 	RedisSentinelHosts    string `mapstructure:"REDIS_SENTINEL_HOSTS"`
 	RedisUseSSL           bool   `mapstructure:"REDIS_USE_SSL"`
+
+	GuacdAddrs string `mapstructure:"GUACD_ADDRS"`
+	GuaHost    string `mapstructure:"GUA_HOST"`
+	GuaPort    string `mapstructure:"GUA_PORT"`
+
+	CleanDriveScheduleTime int `mapstructure:"JUMPSERVER_CLEAN_DRIVE_SCHEDULE_TIME"`
+
+	EnableVideoWorker bool   `mapstructure:"ENABLE_VIDEO_WORKER"`
+	VideoWorkerHost   string `mapstructure:"VIDEO_WORKER_HOST"`
+	IgnoreVerifyCerts bool   `mapstructure:"IGNORE_VERIFY_CERTS"`
+
+	ReplayMaxSize         int    `mapstructure:"REPLAY_MAX_SIZE"`
+	VncClipboardEncoding  string `mapstructure:"VNC_CLIPBOARD_ENCODING"`
+	DisableKeyboardRecord bool   `mapstructure:"DISABLE_KEYBOARD_RECORD"`
+	DriveScope            string `mapstructure:"LION_DRIVE_SCOPE"`
 
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 	EnableVscodeSupport    bool `mapstructure:"ENABLE_VSCODE_SUPPORT"`
@@ -85,6 +104,13 @@ type Config struct {
 	ReplayFolderPath  string
 	FTPFileFolderPath string
 	CertsFolderPath   string
+
+	// Lion compatibility paths. RecordPath and FTPFilePath intentionally point
+	// at Koko's existing replay and FTP directories.
+	DrivePath         string
+	RecordPath        string
+	FTPFilePath       string
+	SessionFolderPath string
 }
 
 func (c *Config) EnsureConfigValid() {
@@ -112,7 +138,8 @@ func Setup(configPath string) {
 	loadConfigFromFile(configPath, &conf)
 	conf.EnsureConfigValid()
 	GlobalConfig = &conf
-	log.Printf("%+v\n", GlobalConfig)
+	log.Printf("Config loaded: name=%q bind=%s ssh_port=%s http_port=%s share_room_type=%s\n",
+		conf.Name, conf.BindHost, conf.SSHPort, conf.HTTPPort, conf.ShareRoomType)
 }
 
 func getDefaultConfig() Config {
@@ -121,52 +148,68 @@ func getDefaultConfig() Config {
 	dataFolderPath := filepath.Join(rootPath, "data")
 	replayFolderPath := filepath.Join(dataFolderPath, "replays")
 	ftpFileFolderPath := filepath.Join(dataFolderPath, "ftp_files")
+	driveFolderPath := filepath.Join(dataFolderPath, "drive")
+	sessionFolderPath := filepath.Join(dataFolderPath, "sessions")
 	LogDirPath := filepath.Join(dataFolderPath, "logs")
 	keyFolderPath := filepath.Join(dataFolderPath, "keys")
 	CertsFolderPath := filepath.Join(dataFolderPath, "certs")
 	accessKeyFilePath := filepath.Join(keyFolderPath, ".access_key")
 
-	folders := []string{dataFolderPath, replayFolderPath,
-		keyFolderPath, LogDirPath, CertsFolderPath}
+	folders := []string{dataFolderPath, replayFolderPath, driveFolderPath,
+		sessionFolderPath, keyFolderPath, LogDirPath, CertsFolderPath}
 	for i := range folders {
 		if err := EnsureDirExist(folders[i]); err != nil {
 			log.Fatalf("Create folder failed: %s", err)
 		}
 	}
 	return Config{
-		Name:               defaultName,
-		CoreHost:           "http://localhost:8080",
-		BootstrapToken:     "",
-		BindHost:           "0.0.0.0",
-		SSHPort:            "2222",
-		SSHTimeout:         15,
-		HttpRequestTimeout: 30,
-		HTTPPort:           "5000",
-		AccessKeyFilePath:  accessKeyFilePath,
-		LogLevel:           "INFO",
-		RootPath:           rootPath,
-		DataFolderPath:     dataFolderPath,
-		LogDirPath:         LogDirPath,
-		KeyFolderPath:      keyFolderPath,
-		ReplayFolderPath:   replayFolderPath,
-		FTPFileFolderPath:  ftpFileFolderPath,
-		CertsFolderPath:    CertsFolderPath,
-		LanguageCode:       "en",
+		Name:                     defaultName,
+		CoreHost:                 "http://localhost:8080",
+		BootstrapToken:           "",
+		BindHost:                 "0.0.0.0",
+		SSHPort:                  "2222",
+		SSHTimeout:               15,
+		HttpRequestTimeout:       30,
+		HTTPPort:                 "5000",
+		WebProxyEnabled:          true,
+		WebProxyBindHost:         "127.0.0.1",
+		WebProxyPort:             "5001",
+		WebProxyRecordingEnabled: true,
+		WebProxyFFmpegPath:       "ffmpeg",
+		AccessKeyFilePath:        accessKeyFilePath,
+		LogLevel:                 "INFO",
+		RootPath:                 rootPath,
+		DataFolderPath:           dataFolderPath,
+		LogDirPath:               LogDirPath,
+		KeyFolderPath:            keyFolderPath,
+		ReplayFolderPath:         replayFolderPath,
+		FTPFileFolderPath:        ftpFileFolderPath,
+		CertsFolderPath:          CertsFolderPath,
+		DrivePath:                driveFolderPath,
+		RecordPath:               replayFolderPath,
+		FTPFilePath:              ftpFileFolderPath,
+		SessionFolderPath:        sessionFolderPath,
+		LanguageCode:             "en",
 
-		Comment:             "KOKO",
-		UploadFailedReplay:  true,
-		UploadFailedFTPFile: true,
-		ShowHiddenFile:      false,
-		ReuseConnection:     true,
-		AssetLoadPolicy:     "",
-		ZipMaxSize:          "1024M",
-		ZipTmpPath:          "/tmp",
-		ClientAliveInterval: 30,
-		RetryAliveCountMax:  3,
-		ShareRoomType:       "local",
-		RedisHost:           "127.0.0.1",
-		RedisPort:           "6379",
-		RedisPassword:       "",
+		Comment:                "KOKO",
+		UploadFailedReplay:     true,
+		UploadFailedFTPFile:    true,
+		ShowHiddenFile:         false,
+		ReuseConnection:        true,
+		ZipMaxSize:             "1024M",
+		ZipTmpPath:             "/tmp",
+		ClientAliveInterval:    30,
+		RetryAliveCountMax:     3,
+		ShareRoomType:          "local",
+		RedisHost:              "127.0.0.1",
+		RedisPort:              "6379",
+		RedisPassword:          "",
+		GuaHost:                "127.0.0.1",
+		GuaPort:                "4822",
+		CleanDriveScheduleTime: 1,
+		VideoWorkerHost:        "http://video:9000",
+		ReplayMaxSize:          defaultLionReplayMaxSize,
+		DriveScope:             LionDriveScopeUser,
 
 		EnableLocalPortForward: false,
 		EnableVscodeSupport:    false,

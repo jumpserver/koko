@@ -1,13 +1,11 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jumpserver-dev/sdk-go/common"
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -55,6 +53,7 @@ func (s *SwitchSession) Terminate(username string) {
 
 func (s *SwitchSession) PauseOperation(username string) {
 	s.pausedStatus.Store(true)
+	s.p.operationPaused.Store(true)
 	s.setOperator(username)
 	logger.Infof("Session[%s] receive pause task from %s", s.ID, username)
 	p, _ := json.Marshal(map[string]string{"user": username})
@@ -66,6 +65,7 @@ func (s *SwitchSession) PauseOperation(username string) {
 
 func (s *SwitchSession) ResumeOperation(username string) {
 	s.pausedStatus.Store(false)
+	s.p.operationPaused.Store(false)
 	s.setOperator(username)
 	logger.Infof("Session[%s] receive resume task from %s", s.ID, username)
 	p, _ := json.Marshal(map[string]string{"user": username})
@@ -80,6 +80,7 @@ func (s *SwitchSession) PermBecomeExpired(code, detail string) {
 		return
 	}
 	s.invalidPerm.Store(true)
+	s.p.permissionInvalid.Store(true)
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
 	s.invalidPermData = p
 	s.invalidPermTime = time.Now()
@@ -92,6 +93,7 @@ func (s *SwitchSession) PermBecomeValid(code, detail string) {
 		return
 	}
 	s.invalidPerm.Store(false)
+	s.p.permissionInvalid.Store(false)
 	s.invalidPermTime = s.MaxSessionTime
 	p, _ := json.Marshal(map[string]string{"code": code, "detail": detail})
 	s.invalidPermData = p
@@ -164,7 +166,10 @@ func (s *SwitchSession) generateCommandResult(item *ExecutedCommand) *model.Comm
 // Bridge 桥接两个链接
 func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerConnection) (err error) {
 
-	parser := s.p.GetFilterParser()
+	parser, err := s.p.GetFilterParser()
+	if err != nil {
+		return err
+	}
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
 	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
@@ -198,6 +203,7 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	exchange.Register(room)
 	defer exchange.UnRegister(room)
 	conn := exchange.WrapperUserCon(userConn)
+	conn.Primary = true
 	room.Subscribe(conn)
 	defer room.UnSubscribe(conn)
 	exitSignal := make(chan struct{}, 2)
@@ -205,42 +211,13 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		var (
 			exitFlag bool
 		)
-		buffer := bytes.NewBuffer(make([]byte, 0, 1024*2))
-		/*
-		 这里使用了一个buffer，将用户输入的数据进行了分包，分包的依据是utf8编码的字符。
-		*/
-		maxLen := 1024
+		readBuf := make([]byte, 8*1024)
 		for {
-			buf := make([]byte, maxLen)
-			nr, err2 := srvConn.Read(buf)
-			validBytes := buf[:nr]
+			nr, err2 := srvConn.Read(readBuf)
 			if nr > 0 {
-				isZmodem := parser.zmodemParser.IsStartSession()
-				if !isZmodem {
-					bufferLen := buffer.Len()
-					if bufferLen > 0 || nr == maxLen {
-						buffer.Write(buf[:nr])
-						validBytes = validBytes[:0]
-					}
-					remainBytes := buffer.Bytes()
-					for len(remainBytes) > 0 {
-						r, size := utf8.DecodeRune(remainBytes)
-						if r == utf8.RuneError {
-							// utf8 max 4 bytes
-							if len(remainBytes) <= 3 {
-								break
-							}
-						}
-						validBytes = append(validBytes, remainBytes[:size]...)
-						remainBytes = remainBytes[size:]
-					}
-					buffer.Reset()
-					if len(remainBytes) > 0 {
-						buffer.Write(remainBytes)
-					}
-				}
+				data := append([]byte(nil), readBuf[:nr]...)
 				select {
-				case srvInChan <- validBytes:
+				case srvInChan <- data:
 				case <-done:
 					exitFlag = true
 					logger.Infof("Session[%s] done", s.ID)
@@ -305,8 +282,29 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 	keepAliveTick := time.NewTicker(keepAliveTime)
 	defer keepAliveTick.Stop()
 	lang := s.p.connOpts.getLang()
+	var pendingOutput *exchange.RoomMessage
 	for {
+		serverOutput := srvOutChan
+		userOutput := userOutChan
+		windows := winCh
+		notifications := s.notifyMsgChan
+		var broadcast chan<- *exchange.RoomMessage
+		if pendingOutput != nil {
+			// Keep only one pending message and continue handling session exit
+			// while the primary subscriber is applying backpressure.
+			serverOutput = nil
+			userOutput = nil
+			windows = nil
+			notifications = nil
+			broadcast = room.BroadcastChan()
+		}
 		select {
+		case broadcast <- pendingOutput:
+			pendingOutput = nil
+			continue
+		case <-room.Done():
+			s.recordSessionFinished(model.ReasonErrConnectDisconnect)
+			return
 		// 检测是否超过最大空闲时间
 		case now := <-tick.C:
 			if s.MaxSessionTime.Before(now) {
@@ -317,6 +315,12 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				return
 			}
 
+			if timestamp := s.p.backgroundActiveAt.Load(); timestamp > 0 {
+				backgroundActive := time.Unix(0, timestamp)
+				if backgroundActive.After(lastActiveTime) {
+					lastActiveTime = backgroundActive
+				}
+			}
 			outTime := lastActiveTime.Add(maxIdleTime)
 			if now.After(outTime) {
 				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), s.MaxIdleTime)
@@ -342,11 +346,14 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			s.recordSessionFinished(model.ReasonErrAdminTerminate)
 			return
 			// 监控窗口大小变化
-		case win, ok := <-winCh:
+		case win, ok := <-windows:
 			if !ok {
 				return
 			}
 			_ = srvConn.SetWinSize(win.Width, win.Height)
+			if err := parser.TerminalParser.Resize(win.Width, win.Height); err != nil {
+				logger.Errorf("Session[%s] resize terminal parser failed: %s", s.ID, err)
+			}
 			logger.Infof("Session[%s] Window server change: %d*%d",
 				s.ID, win.Width, win.Height)
 			p, _ := json.Marshal(win)
@@ -354,9 +361,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				Event: exchange.WindowsEvent,
 				Body:  p,
 			}
-			room.Broadcast(&msg)
+			pendingOutput = &msg
 			// 经过parse处理的server数据，发给user
-		case p, ok := <-srvOutChan:
+		case p, ok := <-serverOutput:
 			if !ok {
 				s.recordSessionFinished(model.ReasonErrConnectDisconnect)
 				return
@@ -368,9 +375,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 				Event: exchange.DataEvent,
 				Body:  p,
 			}
-			room.Broadcast(&msg)
+			pendingOutput = &msg
 			// 经过parse处理的user数据，发给server
-		case p, ok := <-userOutChan:
+		case p, ok := <-userOutput:
 			if !ok {
 				s.recordSessionFinished(model.ReasonErrUserClose)
 				return
@@ -394,9 +401,9 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 			logger.Debugf("Session[%s] end by exit signal", s.ID)
 			s.recordSessionFinished(model.ReasonErrConnectDisconnect)
 			return
-		case notifyMsg := <-s.notifyMsgChan:
+		case notifyMsg := <-notifications:
 			logger.Infof("Session[%s] notify event: %s", s.ID, notifyMsg.Event)
-			room.Broadcast(notifyMsg)
+			pendingOutput = notifyMsg
 			continue
 		}
 		lastActiveTime = time.Now()
@@ -414,10 +421,15 @@ func (s *SwitchSession) disconnection(room *exchange.Room, parser *Parser, repla
 		roomMessage.Body = append(roomMessage.Body, zmodem.CancelSequence...)
 	}
 
-	room.Broadcast(roomMessage)
+	// A full output queue must not prevent an explicit session shutdown.
+	select {
+	case room.BroadcastChan() <- roomMessage:
+	default:
+	}
 }
 
 func (s *SwitchSession) recordSessionFinished(reason model.SessionLifecycleReasonErr) {
+	s.p.SessionEndReason = reason
 	logObj := model.SessionLifecycleLog{Reason: string(reason)}
 	if err := s.p.jmsService.RecordSessionLifecycleLog(s.ID, model.AssetConnectFinished, logObj); err != nil {
 		logger.Errorf("Session[%s] record session asset_connect_finished failed: %s", s.ID, err)

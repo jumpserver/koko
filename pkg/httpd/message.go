@@ -9,15 +9,17 @@ import (
 )
 
 type Message struct {
-	Id   string `json:"id"`
-	Type string `json:"type"`
-	Data string `json:"data"`
-	Raw  []byte `json:"raw"`
-	Err  string `json:"err"`
+	Id                string `json:"id"`
+	Type              string `json:"type"`
+	Version           int    `json:"version,omitempty"`
+	ResourceSessionID string `json:"resource_session_id,omitempty"`
+	Data              string `json:"data"`
+	Raw               []byte `json:"raw"`
+	Err               string `json:"err"`
+	ErrorCode         string `json:"error_code,omitempty"`
 
-	//Chat AI
-	Prompt    string `json:"prompt"`
-	Interrupt bool   `json:"interrupt"`
+	TerminalId uint32 `json:"terminalId,omitempty"`
+	RequestId  string `json:"requestId,omitempty"`
 
 	//K8s
 	KubernetesId string `json:"k8s_id"`
@@ -43,6 +45,7 @@ const (
 	TerminalBinary  = "TERMINAL_BINARY"
 	TerminalAction  = "TERMINAL_ACTION"
 	TerminalSession = "TERMINAL_SESSION"
+	TerminalReady   = "TERMINAL_READY"
 
 	TerminalSessionPause  = "TERMINAL_SESSION_PAUSE"
 	TerminalSessionResume = "TERMINAL_SESSION_RESUME"
@@ -59,6 +62,12 @@ const (
 	TerminalShareUserRemove = "TERMINAL_SHARE_USER_REMOVE"
 
 	TerminalSyncUserPreference = "TERMINAL_SYNC_USER_PREFERENCE"
+	TerminalMetricsSubscribe   = "TERMINAL_METRICS_SUBSCRIBE"
+	TerminalMetricsUnsubscribe = "TERMINAL_METRICS_UNSUBSCRIBE"
+	TerminalMetricsUpdate      = "TERMINAL_METRICS_UPDATE"
+	TerminalMetricsStatus      = "TERMINAL_METRICS_STATUS"
+	TerminalLatencyPing        = "TERMINAL_LATENCY_PING"
+	TerminalLatencyPong        = "TERMINAL_LATENCY_PONG"
 
 	TerminalError = "TERMINAL_ERROR"
 
@@ -73,6 +82,14 @@ const (
 
 	SFTPData   = "SFTP_DATA"
 	SFTPBinary = "SFTP_BINARY"
+
+	TerminalCreate = "TERMINAL_CREATE"
+
+	MCPManifest     = "mcp.manifest"
+	MCPRequest      = "mcp.request"
+	MCPResponse     = "mcp.response"
+	MCPCancel       = "mcp.cancel"
+	MCPCancelResult = "mcp.cancel_result"
 )
 
 type WindowSize struct {
@@ -81,9 +98,8 @@ type WindowSize struct {
 }
 
 type TerminalConnectData struct {
-	Cols int    `json:"cols"`
-	Rows int    `json:"rows"`
-	Code string `json:"code"`
+	Cols int `json:"cols"`
+	Rows int `json:"rows"`
 }
 
 type ShareRequestMeta struct {
@@ -130,13 +146,7 @@ const (
 const (
 	TTYName       = "terminal"
 	WebFolderName = "web_folder"
-	ChatName      = "chat"
 )
-
-type ViewPageMata struct {
-	ID      string
-	IconURL string
-}
 
 type WsRequestParams struct {
 	TargetType string `form:"type"`
@@ -152,36 +162,4 @@ type WsRequestParams struct {
 
 	// mysql database
 	DisableAutoHash string `form:"disableautohash"`
-}
-
-type OpenAIParam struct {
-	AuthToken string
-	BaseURL   string
-	Proxy     string
-	Model     string
-	Prompt    string
-	Type      string
-}
-
-type QARecord struct {
-	Question string
-	Answer   string
-}
-
-type AIConversation struct {
-	Id                   string
-	Prompt               string
-	Question             string
-	Model                string
-	Context              []QARecord
-	InterruptCurrentChat bool
-}
-
-type ChatGPTMessage struct {
-	ID          string    `json:"id"`
-	Content     string    `json:"content"`
-	CreateTime  time.Time `json:"create_time,omitempty"`
-	Type        string    `json:"type"`
-	Role        string    `json:"role"`
-	IsReasoning bool      `json:"is_reasoning"`
 }

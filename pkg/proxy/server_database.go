@@ -2,8 +2,10 @@ package proxy
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
+	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
@@ -17,6 +19,101 @@ var usqlProtocolAlias = map[string]string{
 }
 
 var errUnknownProtocol = errors.New("unknown protocol")
+
+type DatabaseConnectionInfo struct {
+	Protocol         string
+	Host             string
+	Port             int
+	ServerName       string
+	Username         string
+	Password         string
+	Database         string
+	UseSSL           bool
+	PGSSLMode        string
+	CACert           string
+	ClientCert       string
+	ClientKey        string
+	AllowInvalidCert bool
+	Encrypt          bool
+	DisableEncrypt   bool
+	ClusterMode      bool
+	AuthSource       string
+	ConnectionOpts   string
+	ProxyURL         string
+	DataMaskingRules []model.DataMaskingRule
+}
+
+func (s *Server) notifyDatabaseConnection(localTunnelAddr *net.TCPAddr) {
+	if s.OnDatabaseConnection == nil || !s.SupportsBackgroundExecution() {
+		return
+	}
+	protocol := s.connOpts.authInfo.Protocol
+	if !isDatabaseProtocol(protocol) {
+		return
+	}
+	asset := s.connOpts.authInfo.Asset
+	host := asset.Address
+	port := asset.ProtocolPort(protocol)
+	proxyURL := ""
+	if localTunnelAddr != nil && protocol == srvconn.ProtocolMongoDB {
+		proxyURL = fmt.Sprintf("http://%s", localTunnelAddr.String())
+	} else if localTunnelAddr != nil {
+		host = "127.0.0.1"
+		port = localTunnelAddr.Port
+	}
+	username := s.account.Username
+	var (
+		encrypt        bool
+		disableEncrypt bool
+		clusterMode    bool
+		authSource     string
+		connectionOpts string
+	)
+	if platformProtocol, ok := s.connOpts.authInfo.Platform.GetProtocolSetting(protocol); ok {
+		setting := platformProtocol.GetSetting()
+		encrypt = protocol == srvconn.ProtocolSQLServer && setting.Encrypt
+		disableEncrypt = protocol == srvconn.ProtocolSQLServer && !setting.Encrypt
+		clusterMode = setting.EnableClusterMode
+		authSource = setting.AuthSource
+		connectionOpts = setting.ConnectionOpts
+		if protocol == srvconn.ProtocolRedis {
+			if raw, exists := platformProtocol.Setting["enable_cluster_mode"]; exists {
+				clusterMode = parseBoolValue(raw)
+			}
+			if s.account.IsNull() || !setting.AuthUsername {
+				username = ""
+			}
+		}
+	}
+	info := DatabaseConnectionInfo{
+		Protocol: protocol, Host: host, Port: port, ServerName: asset.Address,
+		Username: username, Password: s.account.Secret,
+		Database: asset.SpecInfo.DBName,
+		UseSSL:   asset.SpecInfo.UseSSL, PGSSLMode: asset.SpecInfo.PgSSLMode,
+		CACert:     asset.SecretInfo.CaCert,
+		ClientCert: asset.SecretInfo.ClientCert, ClientKey: asset.SecretInfo.ClientKey,
+		AllowInvalidCert: asset.SpecInfo.AllowInvalidCert,
+		Encrypt:          encrypt, DisableEncrypt: disableEncrypt,
+		ClusterMode: clusterMode,
+		AuthSource:  authSource, ConnectionOpts: connectionOpts, ProxyURL: proxyURL,
+		DataMaskingRules: append(
+			[]model.DataMaskingRule(nil), s.connOpts.authInfo.DataMaskingRules...,
+		),
+	}
+	go s.OnDatabaseConnection(info)
+}
+
+func isDatabaseProtocol(protocol string) bool {
+	switch protocol {
+	case srvconn.ProtocolRedis, srvconn.ProtocolMongoDB,
+		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
+		srvconn.ProtocolClickHouse, srvconn.ProtocolOracle:
+		return true
+	default:
+		return false
+	}
+}
 
 func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQLConn, err error) {
 
@@ -55,6 +152,9 @@ func (s *Server) getUSQLConn(localTunnelAddr *net.TCPAddr) (srvConn *srvconn.USQ
 	opts = append(opts, srvconn.SqlCertKey(asset.SecretInfo.ClientKey))
 	opts = append(opts, srvconn.SqlAllowInvalidCert(asset.SpecInfo.AllowInvalidCert))
 	opts = append(opts, srvconn.SqlDisableSqlServerEncrypt(disableSQLServerEncrypt))
+	opts = append(opts, srvconn.SqlUseOracleSYSDBA(
+		protocol == srvconn.ProtocolOracle && s.connOpts.authInfo.ConnectOptions.UseSysDBA,
+	))
 	opts = append(opts, srvconn.SqlPtyWin(srvconn.Windows{
 		Width:  s.UserConn.Pty().Window.Width,
 		Height: s.UserConn.Pty().Window.Height,

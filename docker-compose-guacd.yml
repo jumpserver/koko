@@ -1,0 +1,15 @@
+name: koko-guacd
+
+services:
+  guacd:
+    image: jumpserver/guacd:1.4.0
+    environment:
+      GUACD_LOG_LEVEL: ${GUACD_LOG_LEVEL:-debug}
+    restart: always
+    user: root
+    ports:
+      - ${GUA_PORT:-4822}:4822
+    volumes:
+      - type: bind
+        source: ${PWD}/data
+        target: ${PWD}/data

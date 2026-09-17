@@ -3,7 +3,6 @@ package proxy
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 
 	"strings"
@@ -58,7 +57,7 @@ const (
 	zmodemFinishTimeout        = 2 * time.Second
 	zmodemPromptRedrawDelay    = 500 * time.Millisecond
 	zmodemMaxTransferSize      = int64(500 * 1024 * 1024)
-	zmodemMaxTransferSizeLabel = "500 MiB"
+	zmodemMaxTransferSizeLabel = "500 MB"
 	zmodemInterruptCtrlC       = byte(0x03)
 )
 
@@ -78,7 +77,8 @@ type Parser struct {
 
 	inVimState bool
 	once       sync.Once
-	lock       sync.RWMutex
+	modeLock   sync.RWMutex
+	outputLock sync.Mutex
 
 	command       string
 	output        string
@@ -90,6 +90,7 @@ type Parser struct {
 	confirmStatus commandConfirmStatus
 
 	zmodemParser          *zmodem.ZmodemParser
+	zmodemStartBuf        bytes.Buffer
 	enableDownload        bool
 	enableUpload          bool
 	abortedFileTransfer   bool
@@ -116,6 +117,7 @@ type Parser struct {
 	currentCmdFilterRule CommandRule
 
 	userInputFilter func([]byte) []byte
+	agentToolGrant  func(string) (CommandACLDecision, bool)
 
 	disableInputAsCmd bool
 }
@@ -140,38 +142,28 @@ func (p *Parser) resetCurrentCmdFilterRule() {
 	p.currentCmdFilterRule = CommandRule{}
 }
 
-func (p *Parser) CurrentScreenType() int {
-	if isWindows(p.platform) {
-		return WindowsScreen
+func (p *Parser) initial(w, h int) error {
+	if w <= 0 || h <= 0 || w > 65535 || h > 65535 {
+		return fmt.Errorf("create terminal parser: %w", terminalparser.ErrInvalidSize)
 	}
-	switch p.protocolType {
-	case srvconn.ProtocolMongoDB:
-		return MongoScreen
-	case srvconn.ProtocolMySQL,
-		srvconn.ProtocolMariadb,
-		srvconn.ProtocolPostgresql,
-		srvconn.ProtocolClickHouse,
-		srvconn.ProtocolOracle,
-		srvconn.ProtocolSQLServer:
-		return UsqlScreen
-	default:
+	terminal, err := terminalparser.New(
+		terminalparser.WithSize(uint16(w), uint16(h)),
+		terminalparser.WithMaxScrollback(0),
+	)
+	if err != nil {
+		return fmt.Errorf("create terminal parser: %w", err)
 	}
-	return LinuxScreen
-}
-
-func (p *Parser) initial(w, h int) {
-	screenType := p.CurrentScreenType()
-	p.TerminalParser = &TerminalParser{IsEnter: p.isEnterKeyPress,
-		EmitCommands:      p.EmitCommandEvent,
-		usqlScreenParser:  terminalparser.NewUSqlParser(),
-		winScreenParser:   terminalparser.NewWindowsParser(),
-		mongoScreenParser: terminalparser.NewMongoShParser(),
-		screenType:        screenType,
-		preScreenType:     screenType,
-		Screen:            terminalparser.NewScreen(h, w)}
+	p.TerminalParser = &TerminalParser{
+		IsEnter:      p.isEnterKeyPress,
+		EmitCommands: p.EmitCommandEvent,
+		Terminal:     terminal,
+		width:        uint16(w),
+		height:       uint16(h),
+	}
 	p.closed = make(chan struct{})
 	p.cmdRecordChan = make(chan *ExecutedCommand, 1024)
 	p.disableInputAsCmd = config.GetConf().DisableInputAsCommand
+	return nil
 }
 
 func (p *Parser) SetUserInputFilter(filter func([]byte) []byte) {
@@ -195,6 +187,9 @@ func (p *Parser) ParseStream(userInChan chan *exchange.RoomMessage, srvInChan <-
 			}
 			// 会话结束，结算命令结果
 			p.sendCommandRecord()
+			if err := p.TerminalParser.Close(); err != nil {
+				logger.Errorf("Session %s: close terminal parser failed: %s", p.id, err)
+			}
 			close(p.cmdRecordChan)
 			close(p.userOutputChan)
 			close(p.srvOutputChan)
@@ -316,7 +311,13 @@ func (p *Parser) isEnterKeyPress(b []byte) bool {
 	if bytes.ContainsRune(b, '\r') {
 		return true
 	}
-	if p.TerminalParser != nil && p.TerminalParser.screenType == UsqlScreen {
+	switch p.protocolType {
+	case srvconn.ProtocolMySQL,
+		srvconn.ProtocolMariadb,
+		srvconn.ProtocolPostgresql,
+		srvconn.ProtocolClickHouse,
+		srvconn.ProtocolOracle,
+		srvconn.ProtocolSQLServer:
 		// terminal 右键粘贴时，没有 \r 只有 \n
 		if bytes.ContainsRune(b, '\n') && bytes.ContainsRune(b, ';') {
 			return true
@@ -559,7 +560,9 @@ func (p *Parser) parseInputState(b []byte) []byte {
 		p.sendCommandRecord()
 		p.command = currentCmd
 		p.cmdCreateDate = time.Now()
-		if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
+		if decision, ok := p.consumeAgentToolGrant(currentCmd); ok {
+			p.applyAgentToolGrant(decision)
+		} else if rule, cmd, ok := p.IsMatchCommandRule(currentCmd); ok {
 			logger.Infof("command_rule_matched session_id=%q command=%q matched_command=%q acl_id=%q acl_name=%q rule_id=%q rule_name=%q action=%q",
 				p.id, currentCmd, cmd, rule.Acl.ID, rule.Acl.Name, rule.Item.ID, rule.Item.Name, rule.Acl.Action)
 			switch rule.Acl.Action {
@@ -599,6 +602,38 @@ func (p *Parser) parseInputState(b []byte) []byte {
 	return b
 }
 
+func (p *Parser) consumeAgentToolGrant(command string) (CommandACLDecision, bool) {
+	if p.agentToolGrant == nil {
+		return CommandACLDecision{}, false
+	}
+	return p.agentToolGrant(command)
+}
+
+func (p *Parser) applyAgentToolGrant(decision CommandACLDecision) {
+	for index := range p.cmdFilterACLs {
+		rule := &p.cmdFilterACLs[index]
+		if rule.ID != decision.ACLID {
+			continue
+		}
+		for itemIndex := range rule.CommandGroups {
+			item := &rule.CommandGroups[itemIndex]
+			if item.ID == decision.ItemID {
+				p.setCurrentCmdFilterRule(CommandRule{Acl: rule, Item: item})
+				break
+			}
+		}
+		break
+	}
+	if decision.Reviewed {
+		p.setCurrentCmdStatusLevel(model.ReviewAccept)
+		return
+	}
+	switch decision.Action {
+	case model.ActionWarning, model.ActionNotifyAndWarn:
+		p.setCurrentCmdStatusLevel(model.WarningLevel)
+	}
+}
+
 func (p *Parser) zmodemPermissionDeniedMessage(status string) string {
 	lang := i18n.NewLang(p.i18nLang)
 	if status == zmodem.ZParserStatusSend {
@@ -615,7 +650,6 @@ func (p *Parser) zmodemFileRejectMessage(status string) string {
 	} else if !p.enableUpload {
 		return p.zmodemPermissionDeniedMessage(status)
 	}
-
 	if !p.zmodemFileTooLarge() {
 		return ""
 	}
@@ -767,8 +801,8 @@ func (p *Parser) supportMultiCmd() bool {
 }
 
 func (p *Parser) IsNeedParse() bool {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.modeLock.RLock()
+	defer p.modeLock.RUnlock()
 	if p.inVimState {
 		return false
 	}
@@ -794,42 +828,129 @@ func (p *Parser) ParseUserInput(b []byte) []byte {
 	return nb
 }
 
-// parseZmodemState 解析数据，查看是不是处于zmodem状态
-// 处于zmodem状态不会再解析命令
-func (p *Parser) parseZmodemState(b []byte) {
-	p.zmodemParser.Parse(b)
-}
+const maxZmodemStartFrameSize = 64
 
-// parseVimState 解析vim的状态，处于vim状态中，里面输入的命令不再记录
-func (p *Parser) parseVimState(b []byte) {
-	if !p.isEditMode && IsEditEnterMode(b) {
-		p.isEditMode = true
-		logger.Debugf("Session %s enter edit mode", p.id)
+// filterZmodemStart 返回可以安全送入终端解析器的数据。可能被拆包的 rz/sz
+// 启动帧会被短暂缓存；原始数据仍由 splitCmdStream 原样转发给终端用户。
+func (p *Parser) filterZmodemStart(b []byte) []byte {
+	data := b
+	if p.zmodemStartBuf.Len() > 0 {
+		p.zmodemStartBuf.Write(b)
+		data = bytes.Clone(p.zmodemStartBuf.Bytes())
+		p.zmodemStartBuf.Reset()
 	}
-	if p.isEditMode {
-		//if !p.inVimState && !p.isScreenMode {
-		//	fmt.Println("-----------hexdump---------")
-		//	fmt.Println(hex.Dump(b))
-		//}
-		if !p.isScreenMode && isNewScreen(b) {
-			p.isScreenMode = true
-			p.inVimState = false
-			logger.Debugf("Session %s In screen state: true", p.id)
-		}
-		if !p.isScreenMode && !p.inVimState && matchMark(b, vimMarks) {
-			p.inVimState = true
-			logger.Debugf("Session %s In vim state: true", p.id)
-			if terminalDebug {
-				fmt.Println("-----------vim hexdump---------")
-				fmt.Println(hex.Dump(b))
+
+	prefix := zmodem.HexHeaderPrefix
+	start := bytes.Index(data, prefix)
+	if start < 0 {
+		maxPrefix := min(len(data), len(prefix)-1)
+		for size := maxPrefix; size > 0; size-- {
+			if bytes.Equal(data[len(data)-size:], prefix[:size]) {
+				p.zmodemStartBuf.Write(data[len(data)-size:])
+				return data[:len(data)-size]
 			}
 		}
+		return data
 	}
-	if p.isEditMode && IsEditExitMode(b) {
+
+	header := data[start:]
+	if bytes.IndexAny(header, "\r\n") < 0 {
+		if len(header) <= maxZmodemStartFrameSize {
+			p.zmodemStartBuf.Write(header)
+			return data[:start]
+		}
+		return data
+	}
+
+	p.zmodemParser.Parse(header)
+	if p.zmodemParser.IsStartSession() {
+		return data[:start]
+	}
+	return data
+}
+
+// updateTerminalMode combines the VT alternate-screen state with the command
+// that entered it. Vim-like programs update the screen but suspend command
+// parsing; tmux/screen continue normal command parsing inside the multiplexer.
+func (p *Parser) updateTerminalMode(b []byte) {
+	alternate := p.TerminalParser.IsScreenAlternate()
+	p.modeLock.Lock()
+	defer p.modeLock.Unlock()
+	if !alternate {
 		p.isEditMode = false
 		p.inVimState = false
 		p.isScreenMode = false
-		logger.Debugf("Session %s exit ( edit | vim | screen) mode", p.id)
+		return
+	}
+
+	p.isEditMode = true
+	if IsEditExitMode(b) && p.inVimState {
+		// Exiting an editor nested inside tmux restores the tmux alternate
+		// screen, so alternate may remain true here.
+		p.inVimState = false
+		return
+	}
+	if IsEditEnterMode(b) && isTerminalEditorCommand(p.command) {
+		p.inVimState = true
+		return
+	}
+	if isTerminalMultiplexerCommand(p.command) || isNewScreen(b) {
+		p.isScreenMode = true
+		p.inVimState = false
+		return
+	}
+	if !p.isScreenMode && !p.inVimState && matchMark(b, vimMarks) {
+		// Compatibility fallback for editors launched by shell wrappers that
+		// hide the executable name. It is only evaluated after VT confirms that
+		// the alternate screen is active.
+		p.inVimState = true
+	}
+}
+
+func terminalCommandName(command string) string {
+	fields := strings.Fields(command)
+	for len(fields) > 0 {
+		field := strings.Trim(fields[0], "'\"")
+		fields = fields[1:]
+		if strings.Contains(field, "=") || field == "sudo" || field == "env" ||
+			field == "command" || field == "exec" {
+			continue
+		}
+		if index := strings.LastIndexByte(field, '/'); index >= 0 {
+			field = field[index+1:]
+		}
+		return field
+	}
+	return ""
+}
+
+func isTerminalMultiplexerCommand(command string) bool {
+	switch terminalCommandName(command) {
+	case "tmux", "screen":
+		return true
+	default:
+		return false
+	}
+}
+
+func isTerminalEditorCommand(command string) bool {
+	switch terminalCommandName(command) {
+	case "vi", "view", "vim", "vimdiff", "nvim", "nano", "emacs",
+		"less", "more", "man", "top", "htop":
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Parser) consumeTerminalOutput(b []byte) {
+	if len(b) == 0 {
+		return
+	}
+	p.TerminalParser.FeedScreen(b)
+	p.updateTerminalMode(b)
+	if p.IsNeedParse() {
+		p.TerminalParser.ProcessOutput(b)
 	}
 }
 
@@ -842,6 +963,7 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		}
 	}
 
+	original := b
 	lang := i18n.NewLang(p.i18nLang)
 	if p.zmodemParser.IsStartSession() {
 		p.zmodemParser.MarkActive()
@@ -877,24 +999,30 @@ func (p *Parser) splitCmdStream(b []byte) []byte {
 		}
 		return b
 	} else {
-		p.parseVimState(b)
-		if p.inVimState {
+		// Editor repaint data may contain arbitrary control bytes. Continue to
+		// update TerminalVT, but don't interpret it as zmodem or command output.
+		if !p.IsNeedParse() {
+			p.consumeTerminalOutput(b)
+			return original
+		}
+		parseBytes := p.filterZmodemStart(b)
+		if p.zmodemParser.IsStartSession() {
+			p.consumeTerminalOutput(parseBytes)
+			logger.Infof("Zmodem start session %s", p.zmodemParser.Status())
+			if p.rejectOversizedZmodemDownloadOffer() {
+				return nil
+			}
+			return original
+		}
+		b = parseBytes
+		if p.zmodemParser.ConsumeLastAbort() {
+			b = sanitizeZmodemAbortOutput(b)
+			p.consumeTerminalOutput(b)
 			return b
 		}
-		p.parseZmodemState(b)
-		if p.rejectOversizedZmodemDownloadOffer() {
-			return nil
-		}
-		if p.zmodemParser.ConsumeLastAbort() {
-			return sanitizeZmodemAbortOutput(b)
-		}
 	}
-	if p.zmodemParser.IsStartSession() {
-		logger.Infof("Zmodem start session %s", p.zmodemParser.Status())
-		return b
-	}
-	p.TerminalParser.Feed(b)
-	return b
+	p.consumeTerminalOutput(b)
+	return original
 }
 
 // sanitizeZmodemAbortOutput removes protocol frames while preserving remote errors and the shell prompt.
@@ -961,8 +1089,8 @@ func sanitizeZmodemAbortOutput(b []byte) []byte {
 
 // ParseServerOutput 解析服务器输出
 func (p *Parser) ParseServerOutput(b []byte) []byte {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.outputLock.Lock()
+	defer p.outputLock.Unlock()
 	return p.splitCmdStream(b)
 }
 

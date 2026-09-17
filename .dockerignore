@@ -3,4 +3,9 @@ build/*
 logs/*
 data/*
 release/*
-ui/node_modules/
+ui/
+config.yml
+.env
+.env.*
+third_party/
+.DS_Store

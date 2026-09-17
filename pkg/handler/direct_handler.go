@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gliderlabs/ssh"
 	"golang.org/x/term"
@@ -18,6 +19,7 @@ import (
 	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/sshcert"
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
@@ -178,7 +180,7 @@ func (d *DirectHandler) NewSFTPHandler() *SftpHandler {
 						RemoteAddr:    addr,
 					}
 					if tokenInfo, err1 := d.jmsService.CreateSuperConnectToken(&req); err1 == nil {
-						if connectToken, err2 := d.jmsService.GetConnectTokenInfo(tokenInfo.ID, true); err2 == nil {
+						if connectToken, err2 := sshcert.GetConnectTokenInfo(d.jmsService, tokenInfo.ID, true); err2 == nil {
 							opts = append(opts, srvconn.WithConnectToken(&connectToken))
 							opts = append(opts, srvconn.WithAssets(nil))
 						}
@@ -471,7 +473,7 @@ func (d *DirectHandler) Proxy(asset model.PermAsset) {
 			return
 		}
 	}
-	connectToken, err := d.jmsService.GetConnectTokenInfo(tokenInfo.ID, true)
+	connectToken, err := sshcert.GetConnectTokenInfo(d.jmsService, tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("Create connect token and auth info failed: %s", err)
 		utils.IgnoreErrWriteString(d.term, lang.T("get connect token err"))
@@ -489,4 +491,48 @@ func GetMatchedAccounts(accounts []model.PermAccount, username string) []model.P
 		}
 	}
 	return matched
+}
+
+func checkMaxIdleTime(maxIdleMinutes int, langCode string, user *model.User, sess ssh.Session, checkChan <-chan bool) {
+	maxIdleTime := time.Duration(maxIdleMinutes) * time.Minute
+	tick := time.NewTicker(maxIdleTime)
+	defer tick.Stop()
+	checkStatus := true
+	for {
+		select {
+		case <-tick.C:
+			if checkStatus {
+				lang := i18n.NewLang(langCode)
+				msg := fmt.Sprintf(lang.T("Connect idle more than %d minutes, disconnect"), maxIdleMinutes)
+				_, _ = io.WriteString(sess, "\r\n"+msg+"\r\n")
+				_ = sess.Close()
+				logger.Infof("User %s input idle more than %d minutes", user.Name, maxIdleMinutes)
+			}
+		case <-sess.Context().Done():
+			logger.Infof("Stop checking user %s input idle time", user.Name)
+			return
+		case checkStatus = <-checkChan:
+			if !checkStatus {
+				logger.Debugf("Stop checking user %s idle time if more than %d minutes", user.Name, maxIdleMinutes)
+				continue
+			}
+			tick.Reset(maxIdleTime)
+			logger.Debugf("Start checking user %s idle time if more than %d minutes", user.Name, maxIdleMinutes)
+		}
+	}
+}
+
+func joinMultiLineString(lines string) string {
+	lines = strings.ReplaceAll(lines, "\r", "\n")
+	lines = strings.ReplaceAll(lines, "\n\n", "\n")
+	lineArray := strings.Split(strings.TrimSpace(lines), "\n")
+	lineSlice := make([]string, 0, len(lineArray))
+	for _, item := range lineArray {
+		cleanLine := strings.TrimSpace(item)
+		if cleanLine == "" {
+			continue
+		}
+		lineSlice = append(lineSlice, strings.ReplaceAll(cleanLine, " ", ","))
+	}
+	return strings.Join(lineSlice, "|")
 }

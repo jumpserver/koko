@@ -13,6 +13,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/sshcert"
 )
 
 var authErr = errors.New("auth failed")
@@ -296,11 +297,22 @@ func parseJMSTokenLoginReq(jmsService *service.JMService, ctx ssh.Context) (*Dir
 		token := strings.TrimPrefix(ctx.User(), tokenPrefix)
 		key := cache.CreateAddrCacheKey(ctx.RemoteAddr(), token)
 		if connectToken := cache.TokenCacheInstance.Get(key); connectToken != nil {
-			req := DirectLoginAssetReq{ConnectToken: connectToken,
-				Protocol: connectToken.Protocol}
-			return &req, true
+			// A certificate key pair belongs to one SSH connection. Never reuse
+			// it from the connection-token cache; reusable tokens ask Core for a
+			// fresh certificate instead.
+			if !connectToken.Account.IsSSHCertificate() {
+				req := DirectLoginAssetReq{ConnectToken: connectToken,
+					Protocol: connectToken.Protocol}
+				return &req, true
+			}
 		}
-		if connectToken, err := jmsService.GetConnectTokenInfo(token, true); err == nil {
+		if connectToken, err := sshcert.GetConnectTokenInfo(jmsService, token, true); err == nil {
+			if connectToken.Account.IsSSHCertificate() {
+				go func() {
+					<-ctx.Done()
+					connectToken.ClearSSHCertificateCredential()
+				}()
+			}
 			req := DirectLoginAssetReq{ConnectToken: &connectToken,
 				Protocol: connectToken.Protocol}
 			return &req, true

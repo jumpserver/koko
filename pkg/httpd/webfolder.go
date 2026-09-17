@@ -46,7 +46,9 @@ func (h *webFolder) GetVolume() *UserVolume {
 	}
 }
 
-func SftpCheckValidation(ws *UserWebsocket) (*UserVolume, error) {
+func SftpCheckValidation(
+	ws *UserWebsocket,
+) (*UserVolume, error) {
 	apiClient := ws.apiClient
 	user := ws.CurrentUser()
 	terminalCfg, err := ws.apiClient.GetTerminalConfig()
@@ -73,7 +75,7 @@ func SftpCheckValidation(ws *UserWebsocket) (*UserVolume, error) {
 		if common.ValidUUIDString(assetId) {
 			detailAsset, err1 := apiClient.GetUserPermAssetDetailById(user.ID, assetId)
 			if err1 != nil {
-				logger.Errorf("Get user asset %s error: %s", assetId, err)
+				logger.Errorf("Get user asset %s error: %s", assetId, err1)
 				return uv, ErrAssetIdInvalid
 			}
 			permAsset := &model.PermAsset{

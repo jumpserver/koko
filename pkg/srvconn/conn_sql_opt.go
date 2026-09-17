@@ -21,6 +21,7 @@ type sqlOption struct {
 	AllowInvalidCert bool
 
 	SQLServerDisableEncrypt bool // for sqlserver 2008
+	OracleUseSYSDBA         bool
 
 	ClusterMode bool
 
@@ -141,6 +142,12 @@ func SqlProxyURL(proxyURL string) SqlOption {
 func SqlDisableSqlServerEncrypt(disbale bool) SqlOption {
 	return func(args *sqlOption) {
 		args.SQLServerDisableEncrypt = disbale
+	}
+}
+
+func SqlUseOracleSYSDBA(use bool) SqlOption {
+	return func(args *sqlOption) {
+		args.OracleUseSYSDBA = use
 	}
 }
 

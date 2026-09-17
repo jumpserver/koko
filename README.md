@@ -70,7 +70,7 @@ $ vim config.yml  # 2. Modify the configuration file, edit the address and boots
 CORE_HOST: http://127.0.0.1:8080
 BOOTSTRAP_TOKEN: PleaseChangeMe <change to the same as core>
 
-$ go run ./cmd/koko/ # 3. Run, running requires go if not, download and install from go.dev
+$ make run # 3. Run; the prebuilt libghostty-vt is downloaded on first use
 ```
 
 
@@ -88,6 +88,14 @@ To build multi-platform images using Docker Buildx, you need to install Docker v
 ```shell
 make docker
 ```
+
+For local development and testing, export the bootstrap token used by JumpServer Core and start Koko with Docker Compose:
+
+```shell
+docker compose up --build
+```
+
+By default, Koko connects to `http://host.docker.internal:8080`, exposes SSH on port `2222`, HTTP on port `5050`, and the Web Proxy on port `5001`. Set `CORE_HOST`, `KOKO_SSH_PORT`, `KOKO_HTTP_PORT`, or `KOKO_WEB_PROXY_PORT` to override them. The Web Proxy accepts all target hosts after establishing a session with the existing Koko connect ticket and Core connection token. Unauthenticated HTTP and CONNECT requests receive 407; the deployment host allowlist has been removed. Established Web sessions use the shared Koko session registry for permission checks and administrative tasks.
 
 ## Acknowledgments
 This project depends on [usql](https://github.com/xo/usql) for database connections. We appreciate their support.

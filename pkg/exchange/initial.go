@@ -63,3 +63,10 @@ func UnRegister(r *Room) {
 func GetRoom(roomId string) *Room {
 	return manager.Get(roomId)
 }
+
+func Close() error {
+	if manager == nil {
+		return nil
+	}
+	return manager.Close()
+}

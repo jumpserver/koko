@@ -10,9 +10,13 @@ import (
 
 	"github.com/gliderlabs/ssh"
 
+	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/exchange"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/proxy"
 )
+
+const sessionReadyIdle = 500 * time.Millisecond
 
 type Client struct {
 	WinChan   chan ssh.Window
@@ -20,18 +24,107 @@ type Client struct {
 	UserWrite io.WriteCloser
 	Conn      *UserWebsocket
 	pty       ssh.Pty
+	ctx       context.Context
+	cancel    context.CancelFunc
 
 	sync.Mutex
+	closeOnce sync.Once
+	sessionMu sync.RWMutex
 
 	// 用于防抖处理
 	buffer      bytes.Buffer
 	bufferMutex sync.Mutex
 	timer       *time.Timer
 
+	readyMu    sync.Mutex
+	readyArmed bool
+	readySent  bool
+	readyTimer *time.Timer
+
 	KubernetesId string
+	TerminalId   uint32
 	Namespace    string
 	Pod          string
 	Container    string
+	SessionInfo  *proxy.SessionInfo
+	mcpMu        sync.RWMutex
+	mcp          *sessiontools.MCPDispatcher
+	mcpClosed    bool
+	inputMu      sync.Mutex
+	inputCancel  context.CancelFunc
+	metrics      clientMetrics
+	observerMu   sync.RWMutex
+	observer     *sessiontools.TerminalObserver
+}
+
+func (c *Client) SetSessionInfo(info *proxy.SessionInfo) {
+	c.sessionMu.Lock()
+	c.SessionInfo = info
+	c.sessionMu.Unlock()
+	c.armSessionReady()
+}
+
+func (c *Client) armSessionReady() {
+	c.readyMu.Lock()
+	defer c.readyMu.Unlock()
+	if c.readySent {
+		return
+	}
+	c.readyArmed = true
+	c.resetSessionReadyTimerLocked()
+}
+
+func (c *Client) noteSessionOutput() {
+	c.readyMu.Lock()
+	defer c.readyMu.Unlock()
+	if !c.readyArmed || c.readySent {
+		return
+	}
+	c.resetSessionReadyTimerLocked()
+}
+
+func (c *Client) resetSessionReadyTimerLocked() {
+	if c.readyTimer != nil {
+		c.readyTimer.Stop()
+	}
+	c.readyTimer = time.AfterFunc(sessionReadyIdle, c.fireSessionReady)
+}
+
+func (c *Client) fireSessionReady() {
+	c.readyMu.Lock()
+	if !c.readyArmed || c.readySent {
+		c.readyMu.Unlock()
+		return
+	}
+	c.readySent = true
+	c.readyArmed = false
+	if c.readyTimer != nil {
+		c.readyTimer.Stop()
+		c.readyTimer = nil
+	}
+	c.readyMu.Unlock()
+	c.Conn.SendMessage(&Message{
+		Id:           c.Conn.Uuid,
+		Type:         TerminalReady,
+		TerminalId:   c.TerminalId,
+		KubernetesId: c.KubernetesId,
+	})
+}
+
+func (c *Client) stopSessionReady() {
+	c.readyMu.Lock()
+	defer c.readyMu.Unlock()
+	c.readyArmed = false
+	if c.readyTimer != nil {
+		c.readyTimer.Stop()
+		c.readyTimer = nil
+	}
+}
+
+func (c *Client) GetSessionInfo() *proxy.SessionInfo {
+	c.sessionMu.RLock()
+	defer c.sessionMu.RUnlock()
+	return c.SessionInfo
 }
 
 func (c *Client) WinCh() <-chan ssh.Window {
@@ -54,6 +147,12 @@ func (c *Client) Read(p []byte) (n int, err error) {
 
 // 向客户端发送数据进行1毫秒的防抖处理
 func (c *Client) Write(p []byte) (n int, err error) {
+	c.observerMu.RLock()
+	observer := c.observer
+	c.observerMu.RUnlock()
+	if observer != nil {
+		observer.Feed(p)
+	}
 	category := ""
 	connectToken := c.Conn.ConnectToken
 	if connectToken != nil {
@@ -81,9 +180,11 @@ func (c *Client) Write(p []byte) (n int, err error) {
 		Id:           c.Conn.Uuid,
 		Type:         messageType,
 		Raw:          p,
+		TerminalId:   c.TerminalId,
 		KubernetesId: c.KubernetesId,
 	}
 	c.Conn.SendMessage(&msg)
+	c.noteSessionOutput()
 	return len(p), nil
 }
 
@@ -93,12 +194,14 @@ func (c *Client) flushBuffer() {
 
 	if c.buffer.Len() > 0 {
 		msg := Message{
-			Id:   c.Conn.Uuid,
-			Type: TerminalBinary,
-			Raw:  c.buffer.Bytes(),
+			Id:         c.Conn.Uuid,
+			Type:       TerminalBinary,
+			Raw:        c.buffer.Bytes(),
+			TerminalId: c.TerminalId,
 		}
 		c.Conn.SendMessage(&msg)
 		c.buffer.Reset()
+		c.noteSessionOutput()
 	}
 
 	if c.buffer.Len() == 0 && c.timer != nil {
@@ -112,9 +215,16 @@ func (c *Client) Pty() ssh.Pty {
 }
 
 func (c *Client) Close() (err error) {
-	_ = c.UserRead.Close()
-	_ = c.UserWrite.Close()
-	c.initPipe()
+	c.closeOnce.Do(func() {
+		c.cancel()
+		c.stopSessionReady()
+		_ = c.UserRead.Close()
+		_ = c.UserWrite.Close()
+		c.closeClientMCP()
+		c.closeTerminalObserver()
+		c.stopMetrics()
+		c.initPipe()
+	})
 	return err
 }
 
@@ -125,9 +235,52 @@ func (c *Client) initPipe() {
 }
 
 func (c *Client) SetWinSize(size ssh.Window) {
+	c.observerMu.RLock()
+	observer := c.observer
+	c.observerMu.RUnlock()
+	if observer != nil {
+		observer.Resize(int(size.Width), int(size.Height))
+	}
 	select {
 	case c.WinChan <- size:
 	default:
+	}
+}
+
+func (c *Client) setMCP(dispatcher *sessiontools.MCPDispatcher) bool {
+	c.mcpMu.Lock()
+	defer c.mcpMu.Unlock()
+	if c.mcpClosed || c.mcp != nil || dispatcher == nil {
+		return false
+	}
+	c.mcp = dispatcher
+	return true
+}
+
+func (c *Client) getMCP() *sessiontools.MCPDispatcher {
+	c.mcpMu.RLock()
+	defer c.mcpMu.RUnlock()
+	return c.mcp
+}
+
+func (c *Client) closeMCP() {
+	c.mcpMu.Lock()
+	dispatcher := c.mcp
+	c.mcp = nil
+	c.mcpMu.Unlock()
+	if dispatcher != nil {
+		dispatcher.Close()
+	}
+}
+
+func (c *Client) closeClientMCP() {
+	c.mcpMu.Lock()
+	c.mcpClosed = true
+	dispatcher := c.mcp
+	c.mcp = nil
+	c.mcpMu.Unlock()
+	if dispatcher != nil {
+		dispatcher.Close()
 	}
 }
 
@@ -136,11 +289,58 @@ func (c *Client) ID() string {
 }
 
 func (c *Client) WriteData(p []byte) {
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	if c.inputCancel != nil {
+		if len(p) == 1 && p[0] == 3 {
+			c.inputCancel()
+		}
+		return
+	}
 	_, _ = c.UserWrite.Write(p)
 }
 
+func (c *Client) WriteAgentToolData(p []byte) error {
+	c.inputMu.Lock()
+	defer c.inputMu.Unlock()
+	_, err := c.UserWrite.Write(p)
+	return err
+}
+
+func (c *Client) setInputLock(cancel context.CancelFunc) {
+	c.inputMu.Lock()
+	c.inputCancel = cancel
+	c.inputMu.Unlock()
+}
+
+func (c *Client) setTerminalObserver(observer *sessiontools.TerminalObserver) bool {
+	c.observerMu.Lock()
+	defer c.observerMu.Unlock()
+	if c.observer != nil || observer == nil {
+		return false
+	}
+	c.observer = observer
+	return true
+}
+
+func (c *Client) getTerminalObserver() *sessiontools.TerminalObserver {
+	c.observerMu.RLock()
+	defer c.observerMu.RUnlock()
+	return c.observer
+}
+
+func (c *Client) closeTerminalObserver() {
+	c.observerMu.Lock()
+	observer := c.observer
+	c.observer = nil
+	c.observerMu.Unlock()
+	if observer != nil {
+		_ = observer.Close()
+	}
+}
+
 func (c *Client) Context() context.Context {
-	return c.Conn.ctx.Request.Context()
+	return c.ctx
 }
 
 func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
@@ -199,6 +399,7 @@ func (c *Client) HandleRoomEvent(event string, roomMsg *exchange.RoomMessage) {
 		Id:           c.Conn.Uuid,
 		Type:         msgType,
 		Data:         msgData,
+		TerminalId:   c.TerminalId,
 		KubernetesId: c.KubernetesId,
 	}
 	c.Conn.SendMessage(&msg)

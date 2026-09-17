@@ -1,0 +1,306 @@
+package webproxy
+
+import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/ecdh"
+	"crypto/hkdf"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver/koko/pkg/auth"
+)
+
+type fakeConnectTokenService struct {
+	licenseInvalid    bool
+	licenseError      error
+	token             model.ConnectToken
+	config            webLoginConfig
+	calls             []bool
+	createdSession    model.Session
+	disconnectedID    string
+	uploadedSessionID string
+	uploadedReplay    []byte
+	uploadedVersion   model.ReplayVersion
+	replaySize        int64
+}
+
+func (f *fakeConnectTokenService) GetPublicSetting() (model.PublicSetting, error) {
+	return model.PublicSetting{ValidLicense: !f.licenseInvalid}, f.licenseError
+}
+
+func (f *fakeConnectTokenService) GetConnectTokenInfo(_ string, expireNow bool) (webConnectToken, error) {
+	f.calls = append(f.calls, expireNow)
+	return webConnectToken{ConnectToken: f.token, config: f.config}, nil
+}
+
+func (f *fakeConnectTokenService) CreateSession(session model.Session) (model.Session, error) {
+	f.createdSession = session
+	return session, nil
+}
+
+func (f *fakeConnectTokenService) SessionDisconnect(sessionID string) (model.Session, error) {
+	f.disconnectedID = sessionID
+	return model.Session{ID: sessionID}, nil
+}
+
+func (f *fakeConnectTokenService) UploadReplay(sessionID, replayPath string, version model.ReplayVersion) error {
+	f.uploadedSessionID = sessionID
+	f.uploadedVersion = version
+	f.uploadedReplay, _ = os.ReadFile(replayPath)
+	return nil
+}
+
+func (f *fakeConnectTokenService) FinishReplyWithSize(sessionID string, size int64) (model.Session, error) {
+	f.replaySize = size
+	return model.Session{ID: sessionID}, nil
+}
+
+func (f *fakeConnectTokenService) SessionReplayFailed(sessionID string, _ model.ReplayError) (model.Session, error) {
+	return model.Session{ID: sessionID}, nil
+}
+
+func (f *fakeConnectTokenService) RecordSessionLifecycleLog(string, model.LifecycleEvent, model.SessionLifecycleLog) error {
+	return nil
+}
+
+func TestCredentialSessionEncryptsAndReleasesOnce(t *testing.T) {
+	clientKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientDER, err := x509.MarshalPKIXPublicKey(clientKey.PublicKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &fakeConnectTokenService{token: testWebConnectToken()}
+	proxy, err := NewServer("127.0.0.1", "0", "", "", service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(proxy)
+	defer server.Close()
+	defer proxy.stopProxySessions()
+
+	createBody, _ := json.Marshal(createCredentialSessionRequest{
+		TokenID: "token-id", TokenValue: "token-value",
+		ClientPublicKey: base64.StdEncoding.EncodeToString(clientDER),
+	})
+	request, _ := http.NewRequest(http.MethodPost, server.URL+credentialPathPrefix, bytes.NewReader(createBody))
+	request.Header.Set("X-Koko-Connect-Ticket", testConnectTicket(service.token))
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("unexpected create status %d: %s", response.StatusCode, body)
+	}
+	if bytes.Contains(body, []byte("managed-password")) || bytes.Contains(body, []byte("managed-user")) {
+		t.Fatal("credential leaked in session response")
+	}
+	if len(service.calls) != 2 || service.calls[0] || !service.calls[1] {
+		t.Fatalf("token must be validated before it is consumed: %v", service.calls)
+	}
+	var session createCredentialSessionResponse
+	if err = json.Unmarshal(body, &session); err != nil {
+		t.Fatal(err)
+	}
+	if !session.AutofillAvailable || session.Origin != "https://login.example.com" {
+		t.Fatalf("unexpected session: %+v", session)
+	}
+	if session.SessionID == "" || service.createdSession.ID != session.SessionID || service.createdSession.LoginFrom != model.LoginFromWeb {
+		t.Fatalf("Core Web session was not created: %+v", service.createdSession)
+	}
+	if session.SubmitSelector != "type=submit" {
+		t.Fatalf("unexpected submit selector %q", session.SubmitSelector)
+	}
+
+	wrongOrigin := releaseCredentialRequest(t, server.URL, session, "https://evil.example.com")
+	if wrongOrigin.StatusCode != http.StatusForbidden {
+		t.Fatalf("unexpected wrong-origin status %d", wrongOrigin.StatusCode)
+	}
+	_ = wrongOrigin.Body.Close()
+
+	released := releaseCredentialRequest(t, server.URL, session, session.Origin)
+	releasedBody, _ := io.ReadAll(released.Body)
+	_ = released.Body.Close()
+	if released.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected release status %d: %s", released.StatusCode, releasedBody)
+	}
+	var encrypted map[string]string
+	if err = json.Unmarshal(releasedBody, &encrypted); err != nil {
+		t.Fatal(err)
+	}
+	credentials := decryptTestCredentials(t, clientKey, session, encrypted)
+	if credentials.Username != "managed-user" || credentials.Password != "managed-password" {
+		t.Fatal("decrypted credential does not match")
+	}
+
+	second := releaseCredentialRequest(t, server.URL, session, session.Origin)
+	if second.StatusCode != http.StatusNotFound {
+		t.Fatalf("credential session was reusable: %d", second.StatusCode)
+	}
+	_ = second.Body.Close()
+}
+
+func TestCredentialSessionRejectsWrongTokenWithoutConsumingIt(t *testing.T) {
+	service := &fakeConnectTokenService{token: testWebConnectToken()}
+	proxy, err := NewServer("127.0.0.1", "0", "", "", service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(proxy)
+	defer server.Close()
+	defer proxy.stopProxySessions()
+	body, _ := json.Marshal(createCredentialSessionRequest{TokenID: "token-id", TokenValue: "wrong"})
+	request, _ := http.NewRequest(http.MethodPost, server.URL+credentialPathPrefix, bytes.NewReader(body))
+	request.Header.Set("X-Koko-Connect-Ticket", testConnectTicket(service.token))
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unexpected status %d", response.StatusCode)
+	}
+	if len(service.calls) != 1 || service.calls[0] {
+		t.Fatalf("invalid token disclosed secrets: %v", service.calls)
+	}
+}
+
+func TestCredentialSessionRejectsUnboundTicketWithoutConsumingToken(t *testing.T) {
+	for _, name := range []string{"missing", "deleted", "other-token", "other-user", "other-org"} {
+		t.Run(name, func(t *testing.T) {
+			service := &fakeConnectTokenService{token: testWebConnectToken()}
+			proxy, err := NewServer("127.0.0.1", "0", "", "", service)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(proxy.stopProxySessions)
+			user := service.token.User
+			tokenID, orgID := service.token.Id, service.token.OrgId
+			switch name {
+			case "other-token":
+				tokenID = "other-token"
+			case "other-user":
+				user.ID = "other-user"
+			case "other-org":
+				orgID = "other-org"
+			}
+			ticket := auth.ConnectTickets.Create(&user, nil, tokenID, orgID)
+			t.Cleanup(func() { auth.ConnectTickets.Delete(ticket.ID) })
+			if name == "deleted" {
+				auth.ConnectTickets.Delete(ticket.ID)
+			}
+			request := httptest.NewRequest(http.MethodPost, credentialPathPrefix, bytes.NewBufferString(`{"token_id":"token-id","token_value":"token-value"}`))
+			if name != "missing" {
+				request.Header.Set("X-Koko-Connect-Ticket", ticket.ID)
+			}
+			response := httptest.NewRecorder()
+			proxy.ServeHTTP(response, request)
+			if response.Code != http.StatusUnauthorized || service.createdSession.ID != "" {
+				t.Fatalf("invalid ticket created a session: %d %s", response.Code, response.Body.String())
+			}
+			for _, consumed := range service.calls {
+				if consumed {
+					t.Fatal("invalid ticket consumed connection token")
+				}
+			}
+		})
+	}
+}
+
+func TestCredentialSelectorsAllowPasswordOnlyLogin(t *testing.T) {
+	token := testWebConnectToken()
+	token.Asset.SpecInfo.UsernameSelector = ""
+	token.Account.Username = ""
+	username, password, submit, available := credentialSelectors(token)
+	if !available {
+		t.Fatal("expected password-only autofill to be available")
+	}
+	if username != "" || password != "css=input[type=password]" || submit != "type=submit" {
+		t.Fatalf("unexpected selectors %q %q %q", username, password, submit)
+	}
+}
+
+func testWebConnectToken() model.ConnectToken {
+	return model.ConnectToken{
+		Id:       "token-id",
+		User:     model.User{ID: "user-id"},
+		OrgId:    "org-id",
+		Value:    "token-value",
+		Protocol: "https",
+		Actions:  model.Actions{{Value: model.ActionConnect}},
+		Asset: model.Asset{
+			ID:      "asset-id",
+			Name:    "Website",
+			Address: "https://login.example.com/sign-in?tenant=one#ignored",
+			SpecInfo: model.SpecInfo{
+				Autofill: "basic", UsernameSelector: "name=username", PasswordSelector: "css=input[type=password]", SubmitSelector: "type=submit",
+			},
+		},
+		Account: model.Account{BaseAccount: model.BaseAccount{
+			ID: "account-id", Name: "Account", Username: "managed-user", Secret: "managed-password",
+			SecretType: model.LabelValue{Value: "password"},
+		}},
+	}
+}
+
+func releaseCredentialRequest(t *testing.T, serverURL string, session createCredentialSessionResponse, origin string) *http.Response {
+	t.Helper()
+	body, _ := json.Marshal(map[string]string{"origin": origin})
+	request, _ := http.NewRequest(http.MethodPost, serverURL+credentialPathPrefix+"/"+session.ID+"/credentials", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer "+session.AccessToken)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return response
+}
+
+func decryptTestCredentials(t *testing.T, clientKey *ecdh.PrivateKey, session createCredentialSessionResponse, envelope map[string]string) credentialEnvelope {
+	t.Helper()
+	serverDER, _ := base64.StdEncoding.DecodeString(session.ServerPublicKey)
+	parsed, err := x509.ParsePKIXPublicKey(serverDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sharedSecret, err := clientKey.ECDH(parsed.(*ecdh.PublicKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := hkdf.Key(sha256.New, sharedSecret, nil, credentialKDFInfo, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, _ := aes.NewCipher(key)
+	gcm, _ := cipher.NewGCM(block)
+	nonce, _ := base64.StdEncoding.DecodeString(envelope["nonce"])
+	ciphertext, _ := base64.StdEncoding.DecodeString(envelope["ciphertext"])
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, []byte(session.ID+"\n"+session.Origin))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var credentials credentialEnvelope
+	if err = json.Unmarshal(plaintext, &credentials); err != nil {
+		t.Fatal(err)
+	}
+	return credentials
+}
+
+func testConnectTicket(token model.ConnectToken) string {
+	return auth.ConnectTickets.Create(&token.User, nil, token.Id, token.OrgId).ID
+}

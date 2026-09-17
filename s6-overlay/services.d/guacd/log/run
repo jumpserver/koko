@@ -1,0 +1,5 @@
+#!/command/with-contenv sh
+
+set -eu
+
+exec s6-log -b n10 s52428800 T /opt/koko/data/logs/guacd

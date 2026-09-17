@@ -242,6 +242,9 @@ func (z *ZmodemParser) SessionType() string {
 func (z *ZmodemParser) SetAbortMark() {
 	// 不记录中断的文件
 	z.abortMark = true
+	if z.currentSession != nil {
+		z.currentSession.allowEarlyFinish = true
+	}
 }
 
 func (z *ZmodemParser) OnHeader(hd *ZmodemHeader) {

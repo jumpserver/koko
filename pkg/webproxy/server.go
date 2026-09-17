@@ -1,0 +1,192 @@
+package webproxy
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/jumpserver/koko/pkg/logger"
+)
+
+const shutdownTimeout = 5 * time.Second
+
+type Server struct {
+	server      *http.Server
+	transport   *http.Transport
+	auth        proxyAuth
+	recordings  *recordingManager
+	credentials *credentialManager
+	coreService webProxyService
+}
+
+func NewServer(bindHost, port, recordingRoot, ffmpegPath string, coreService webProxyService) (*Server, error) {
+
+	proxy := &Server{
+		transport: &http.Transport{
+			Proxy:                 nil,
+			DialContext:           (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+			ForceAttemptHTTP2:     true,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+		auth:        proxyAuth{sessions: make(map[string]*proxySession)},
+		credentials: newCredentialManager(coreService),
+		coreService: coreService,
+	}
+	if recordingRoot != "" {
+		manager, err := newRecordingManager(recordingRoot, ffmpegPath)
+		if err != nil {
+			return nil, err
+		}
+		proxy.recordings = manager
+	}
+	proxy.server = &http.Server{
+		Addr:              net.JoinHostPort(bindHost, port),
+		Handler:           proxy,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       90 * time.Second,
+	}
+	return proxy, nil
+}
+
+func (s *Server) Start() {
+	logger.Infof("Start Web proxy server at %s", s.server.Addr)
+	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Errorf("Web proxy server stopped unexpectedly: %s", err)
+	}
+}
+
+func (s *Server) Stop() {
+	s.stopProxySessions()
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	if err := s.server.Shutdown(ctx); err != nil {
+		logger.Errorf("Stop Web proxy server failed: %s", err)
+	}
+	s.transport.CloseIdleConnections()
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, credentialPathPrefix) && !r.URL.IsAbs() {
+		s.serveCredentials(w, r)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, recordingPathPrefix) && !r.URL.IsAbs() {
+		s.serveRecording(w, r)
+		return
+	}
+
+	auth := s.authenticateProxy(r)
+	if auth == nil || auth.locked {
+		requireProxyAuth(w)
+		return
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	stop := context.AfterFunc(auth.ctx, cancel)
+	defer stop()
+	r = r.WithContext(ctx)
+
+	if r.Method == http.MethodConnect {
+		s.serveTunnel(w, r)
+		return
+	}
+	s.serveHTTP(w, r)
+}
+
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Scheme != "http" && r.URL.Scheme != "https" {
+		http.Error(w, "unsupported target scheme", http.StatusBadRequest)
+		return
+	}
+
+	outbound := r.Clone(r.Context())
+	outbound.RequestURI = ""
+	removeHopByHopHeaders(outbound.Header)
+
+	response, err := s.transport.RoundTrip(outbound)
+	if err != nil {
+		http.Error(w, "upstream request failed", http.StatusBadGateway)
+		logger.Warnf("Web proxy request to %s failed: %s", r.URL.Host, err)
+		return
+	}
+	defer response.Body.Close()
+
+	removeHopByHopHeaders(response.Header)
+	copyHeaders(w.Header(), response.Header)
+	w.WriteHeader(response.StatusCode)
+	_, _ = io.Copy(w, response.Body)
+	logger.Infof("Web proxy %s %s -> %d", r.Method, r.URL.Host, response.StatusCode)
+}
+
+func (s *Server) serveTunnel(w http.ResponseWriter, r *http.Request) {
+	upstream, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(r.Context(), "tcp", r.Host)
+	if err != nil {
+		http.Error(w, "upstream connection failed", http.StatusBadGateway)
+		logger.Warnf("Web proxy CONNECT to %s failed: %s", r.Host, err)
+		return
+	}
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		upstream.Close()
+		http.Error(w, "connection hijacking is unavailable", http.StatusInternalServerError)
+		return
+	}
+	client, buffered, err := hijacker.Hijack()
+	if err != nil {
+		upstream.Close()
+		return
+	}
+	defer client.Close()
+	defer upstream.Close()
+	stop := context.AfterFunc(r.Context(), func() {
+		client.Close()
+		upstream.Close()
+	})
+	defer stop()
+
+	if _, err = buffered.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n"); err != nil {
+		return
+	}
+	if err = buffered.Flush(); err != nil {
+		return
+	}
+
+	done := make(chan struct{}, 2)
+	go copyTunnel(upstream, buffered, done)
+	go copyTunnel(client, upstream, done)
+	<-done
+	logger.Infof("Web proxy CONNECT %s closed", r.Host)
+}
+
+func removeHopByHopHeaders(header http.Header) {
+	for _, value := range header.Values("Connection") {
+		for _, name := range strings.Split(value, ",") {
+			header.Del(strings.TrimSpace(name))
+		}
+	}
+	for _, name := range []string{
+		"Connection", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization", "Proxy-Connection",
+		"TE", "Trailer", "Transfer-Encoding", "Upgrade",
+	} {
+		header.Del(name)
+	}
+}
+
+func copyHeaders(dst, src http.Header) {
+	for name, values := range src {
+		for _, value := range values {
+			dst.Add(name, value)
+		}
+	}
+}
+
+func copyTunnel(dst io.Writer, src io.Reader, done chan<- struct{}) {
+	_, _ = io.Copy(dst, src)
+	done <- struct{}{}
+}

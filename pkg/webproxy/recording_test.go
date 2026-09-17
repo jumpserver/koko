@@ -1,0 +1,277 @@
+package webproxy
+
+import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/jumpserver-dev/sdk-go/model"
+)
+
+func TestWebRecordingRequiresValidLicense(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"invalid", nil, http.StatusForbidden},
+		{"unavailable", errors.New("Core unavailable"), http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			service := &fakeConnectTokenService{licenseInvalid: true, licenseError: tc.err}
+			proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", service)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix,
+				[]byte(`{"session_id":"62a7496e-369d-4f3d-b3f9-a20b61a33980","target_url":"https://example.com","width":1280,"height":720}`))
+			if response.Code != tc.status {
+				t.Fatalf("status = %d: %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestWebRecordingLifecycle(t *testing.T) {
+	service := &fakeConnectTokenService{token: testWebConnectToken()}
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy.recordings.encode = func(_ context.Context, recording *webRecording) error {
+		return os.WriteFile(filepath.Join(recording.dir, "recording.mp4"), []byte("video"), 0o600)
+	}
+
+	startResponse := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix,
+		[]byte(`{"session_id":"62a7496e-369d-4f3d-b3f9-a20b61a33980","target_url":"https://example.com/path?token=secret#fragment","width":1280,"height":720}`))
+	if startResponse.Code != http.StatusCreated {
+		t.Fatalf("unexpected start status %d: %s", startResponse.Code, startResponse.Body.String())
+	}
+	var started map[string]string
+	if err = json.Unmarshal(startResponse.Body.Bytes(), &started); err != nil {
+		t.Fatal(err)
+	}
+	id := started["id"]
+	if id == "" {
+		t.Fatal("missing recording ID")
+	}
+
+	firstJPEG := []byte{0xff, 0xd8, 0xff, 0x01, 0xff, 0xd9}
+	framePath := recordingPathPrefix + "/" + id + "/frames?timestamp_ms=0"
+	frameResponse := performRecordingRequest(t, proxy, http.MethodPost, framePath, firstJPEG)
+	if frameResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected frame status %d: %s", frameResponse.Code, frameResponse.Body.String())
+	}
+
+	duplicatePath := recordingPathPrefix + "/" + id + "/frames?timestamp_ms=500"
+	duplicateResponse := performRecordingRequest(t, proxy, http.MethodPost, duplicatePath, firstJPEG)
+	var duplicateResult struct {
+		Accepted   bool `json:"accepted"`
+		FrameCount int  `json:"frame_count"`
+	}
+	if err = json.Unmarshal(duplicateResponse.Body.Bytes(), &duplicateResult); err != nil {
+		t.Fatal(err)
+	}
+	if duplicateResult.Accepted || duplicateResult.FrameCount != 1 {
+		t.Fatalf("expected duplicate frame to be discarded: %+v", duplicateResult)
+	}
+
+	secondJPEG := []byte{0xff, 0xd8, 0xff, 0x02, 0xff, 0xd9}
+	secondPath := recordingPathPrefix + "/" + id + "/frames?timestamp_ms=1000"
+	if response := performRecordingRequest(t, proxy, http.MethodPost, secondPath, secondJPEG); response.Code != http.StatusOK {
+		t.Fatalf("unexpected second frame status %d: %s", response.Code, response.Body.String())
+	}
+
+	// License expiry must not prevent saving an existing audit recording.
+	service.licenseInvalid = true
+	finishPath := recordingPathPrefix + "/" + id + "/finish"
+	finishResponse := performRecordingRequest(t, proxy, http.MethodPost, finishPath, []byte(`{"duration_ms":1500}`))
+	if finishResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected finish status %d: %s", finishResponse.Code, finishResponse.Body.String())
+	}
+	var result recordingResult
+	if err = json.Unmarshal(finishResponse.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.FrameCount != 2 || result.DurationMS != 1500 {
+		t.Fatalf("unexpected recording result: %+v", result)
+	}
+	if result.Path != "" || service.disconnectedID != "" ||
+		service.uploadedSessionID != "62a7496e-369d-4f3d-b3f9-a20b61a33980" ||
+		service.uploadedVersion != model.Version4 || string(service.uploadedReplay) != "video" || service.replaySize != 5 {
+		t.Fatalf("recording was not uploaded to Core: %+v", result)
+	}
+}
+
+func TestWebRecordingRejectsInvalidSessionID(t *testing.T) {
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", &fakeConnectTokenService{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sessionID := range []string{"", "web-proxy-f6d7adcb-b7b6-4994-bd98-b2ee8a2b1c3d"} {
+		body, err := json.Marshal(map[string]any{"session_id": sessionID, "width": 32, "height": 24})
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := performRecordingRequest(t, proxy, http.MethodPost, recordingPathPrefix, body)
+		if response.Code != http.StatusForbidden || !bytes.Contains(response.Body.Bytes(), []byte("session_id")) {
+			t.Fatalf("expected session_id validation error for %q, got %d: %s", sessionID, response.Code, response.Body.String())
+		}
+	}
+}
+
+func TestClosingProxySessionUploadsPendingRecording(t *testing.T) {
+	proxy, created := authenticatedTestProxy(t)
+	manager, err := newRecordingManager(t.TempDir(), "ffmpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy.recordings = manager
+	manager.encode = func(_ context.Context, recording *webRecording) error {
+		return os.WriteFile(filepath.Join(recording.dir, "recording.mp4"), []byte("video"), 0o600)
+	}
+	recording, err := manager.start(created.SessionID, "https://example.com", 32, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = manager.frame(recording.id, 1000, []byte{0xff, 0xd8, 0xff, 0x01, 0xff, 0xd9}); err != nil {
+		t.Fatal(err)
+	}
+	if err = proxy.closeProxySession(created.SessionID); err != nil {
+		t.Fatal(err)
+	}
+	service := proxy.coreService.(*fakeConnectTokenService)
+	if manager.sessionID(recording.id) != "" || service.disconnectedID != created.SessionID ||
+		service.uploadedSessionID != created.SessionID || string(service.uploadedReplay) != "video" {
+		t.Fatal("closing proxy session did not finish and upload its pending recording")
+	}
+}
+
+func TestWebRecordingCancellationRemovesPendingFrames(t *testing.T) {
+	root := t.TempDir()
+	manager, err := newRecordingManager(root, "ffmpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	recording, err := manager.start("62a7496e-369d-4f3d-b3f9-a20b61a33980", "https://example.com", 32, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = manager.cancel(recording.id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(recording.dir); !os.IsNotExist(err) {
+		t.Fatalf("pending recording was not removed: %v", err)
+	}
+}
+
+func TestWebRecordingControlRequiresAuthentication(t *testing.T) {
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, recordingPathPrefix, bytes.NewReader([]byte(`{}`)))
+	request.RemoteAddr = "192.0.2.10:1234"
+	response := httptest.NewRecorder()
+	proxy.ServeHTTP(response, request)
+	if response.Code != http.StatusProxyAuthRequired {
+		t.Fatalf("expected proxy authentication, got %d", response.Code)
+	}
+}
+
+func TestProxyRequestCannotReachRecordingControlAPI(t *testing.T) {
+	proxy, err := NewServer("127.0.0.1", "0", t.TempDir(), "ffmpeg", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "http://blocked.invalid"+recordingPathPrefix, bytes.NewReader([]byte(`{}`)))
+	request.RemoteAddr = "127.0.0.1:54321"
+	response := httptest.NewRecorder()
+	proxy.ServeHTTP(response, request)
+	if response.Code != http.StatusProxyAuthRequired {
+		t.Fatalf("expected proxy authentication, got %d", response.Code)
+	}
+}
+
+func TestWebRecordingGeneratesMP4(t *testing.T) {
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	manager, err := newRecordingManager(t.TempDir(), ffmpegPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recording, err := manager.start("62a7496e-369d-4f3d-b3f9-a20b61a33980", "https://example.com", 32, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = manager.frame(recording.id, 0, solidJPEG(t, color.RGBA{R: 255, A: 255})); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = manager.frame(recording.id, 500, solidJPEG(t, color.RGBA{B: 255, A: 255})); err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.finish(context.Background(), recording.id, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(result.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() == 0 {
+		t.Fatal("generated MP4 is empty")
+	}
+}
+
+func performRecordingRequest(t *testing.T, handler http.Handler, method, path string, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	request := httptest.NewRequest(method, path, bytes.NewReader(body))
+	request.RemoteAddr = "127.0.0.1:54321"
+	proxy := handler.(*Server)
+	const sessionID = "62a7496e-369d-4f3d-b3f9-a20b61a33980"
+	auth := proxy.auth.sessions[sessionID]
+	if auth == nil {
+		if err := proxy.registerProxySession(&model.Session{ID: sessionID}, "test-ticket"); err != nil {
+			t.Fatal(err)
+		}
+		auth = proxy.auth.sessions[sessionID]
+		t.Cleanup(proxy.stopProxySessions)
+	}
+	request.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth.id+":"+auth.ticket)))
+	if bytes.Contains([]byte(path), []byte("/frames")) {
+		request.Header.Set("Content-Type", "image/jpeg")
+	} else {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	return response
+}
+
+func solidJPEG(t *testing.T, fill color.Color) []byte {
+	t.Helper()
+	imageData := image.NewRGBA(image.Rect(0, 0, 32, 24))
+	for y := 0; y < imageData.Bounds().Dy(); y++ {
+		for x := 0; x < imageData.Bounds().Dx(); x++ {
+			imageData.Set(x, y, fill)
+		}
+	}
+	var buffer bytes.Buffer
+	if err := jpeg.Encode(&buffer, imageData, &jpeg.Options{Quality: 70}); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
+}

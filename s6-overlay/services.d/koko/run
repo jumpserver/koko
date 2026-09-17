@@ -1,0 +1,7 @@
+#!/command/with-contenv sh
+
+set -eu
+
+cd /opt/koko
+exec 2>&1
+exec /opt/koko/koko

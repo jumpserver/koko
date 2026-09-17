@@ -367,6 +367,18 @@ func (r *FTPFileRecorder) FinishFTPFile(id string) {
 	go r.UploadFile(3, id)
 }
 
+func (r *FTPFileRecorder) DiscardFTPFile(id string) {
+	info := r.getFTPFile(id)
+	if info == nil {
+		return
+	}
+	_ = info.Close()
+	if err := os.Remove(info.absFilePath); err != nil && !os.IsNotExist(err) {
+		logger.Errorf("Remove incomplete FTP file %s failed: %s", id, err)
+	}
+	r.removeFTPFile(id)
+}
+
 func (r *FTPFileRecorder) Record(ftpLog *model.FTPLog, reader io.Reader) (err error) {
 	if r.isNullStorage() {
 		return
@@ -391,6 +403,10 @@ func (r *FTPFileRecorder) ChunkedRecord(ftpLog *model.FTPLog, readerAt io.Reader
 		return
 	}
 	info := r.getFTPFile(ftpLog.ID)
+	if info == nil && totalSize >= r.MaxFileSize {
+		logger.Errorf("FTP file %s is exceeds the max limit and discard it", ftpLog.ID)
+		return nil
+	}
 	if info == nil {
 		info, err = r.CreateFTPFileInfo(ftpLog)
 	}
@@ -403,8 +419,9 @@ func (r *FTPFileRecorder) ChunkedRecord(ftpLog *model.FTPLog, readerAt io.Reader
 		return nil
 	}
 
-	if err1 := common.ChunkedFileTransfer(info.fd, readerAt, offset, totalSize); err1 != nil {
-		logger.Errorf("FTP file %s write err: %s", ftpLog.ID, err1)
+	if err := common.ChunkedFileTransfer(info.fd, readerAt, offset, totalSize); err != nil {
+		logger.Errorf("FTP file %s write err: %s", ftpLog.ID, err)
+		return err
 	}
 	return
 }

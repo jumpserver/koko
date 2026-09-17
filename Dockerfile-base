@@ -1,17 +1,8 @@
-FROM golang:1.26.3-trixie AS stage-go-build
+FROM ghcr.io/jumpserver-dev/libghostty-vt:ghostty-d4ac93a0395d-zig-0.15.2@sha256:dffb0a53f73862da96df4fadd134dd60ac440a82eb8b9a852d9159b989c86c0c AS libghostty-vt
 
-FROM node:20-trixie
-COPY --from=stage-go-build /usr/local/go/ /usr/local/go/
-COPY --from=stage-go-build /go/ /go/
-ENV GOPATH=/go
-ENV PATH=/go/bin:/usr/local/go/bin:$PATH
+# Keep the Go version aligned with go.mod.
+FROM golang:1.26.8-trixie
 ARG TARGETARCH
-ARG NPM_REGISTRY="https://registry.npmmirror.com"
-ENV NPM_REGISTY=$NPM_REGISTRY
-
-RUN set -ex \
-    && npm config set registry ${NPM_REGISTRY} \
-    && yarn config set registry ${NPM_REGISTRY}
 
 WORKDIR /opt
 
@@ -35,6 +26,17 @@ RUN set -ex \
     && chmod 755 /opt/koko/bin/* \
     && chown root:root /opt/koko/bin/* \
     && rm -f *.tar.gz *.tar.bz2
+
+ARG S6_OVERLAY_VERSION=3.2.2.0
+RUN set -ex \
+    && case "${TARGETARCH}" in \
+        amd64) s6_arch="x86_64" ;; \
+        arm64) s6_arch="aarch64" ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && mkdir -p /opt/s6-overlay \
+    && wget -O /opt/s6-overlay/s6-overlay-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
+    && wget -O /opt/s6-overlay/s6-overlay-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${s6_arch}.tar.xz"
 
 WORKDIR /opt/koko
 
@@ -64,16 +66,18 @@ RUN set -ex \
             ;; \
     esac
 
-WORKDIR /opt/koko/ui
+COPY --from=libghostty-vt /opt/libghostty-vt /opt/libghostty-vt
 
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=koko \
-    --mount=type=bind,source=ui/package.json,target=package.json \
-    --mount=type=bind,source=ui/yarn.lock,target=yarn.lock \
-    yarn install
+RUN set -ex \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/koko/
 
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
+ENV PKG_CONFIG_PATH=/opt/libghostty-vt/share/pkgconfig
 ENV GO111MODULE=on
 
 COPY go.mod go.sum ./
