@@ -25,6 +25,13 @@ type Terminal struct {
 	cells         *ghostty.RenderStateRowCells
 	keys          *ghostty.KeyEncoder
 	mouse         *ghostty.MouseEncoder
+	selection     *ghostty.SelectionGesture
+	selecting     bool
+	hasSelection  bool
+	copySelection func([]byte)
+	sessionInfo   string
+	foreground    tcell.Color
+	background    tcell.Color
 	width, height int
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -36,13 +43,13 @@ type Terminal struct {
 	invalidate    func()
 }
 
-func NewTerminal(ctx context.Context, invalidate func()) (t *Terminal, err error) {
+func NewTerminal(ctx context.Context, invalidate func(), copySelection func([]byte)) (t *Terminal, err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	t = &Terminal{Box: tview.NewBox(), ctx: ctx, cancel: cancel,
 		ready: make(chan struct{}, 1), space: make(chan struct{}, 1), winch: make(chan ssh.Window, 1), invalidate: invalidate,
-		width: 80, height: 24}
+		width: 80, height: 24, copySelection: copySelection, foreground: Foreground, background: Panel}
 	t.SetBackgroundColor(Panel)
-	t.SetBorder(true).SetBorderColor(FocusBorder).SetTitleColor(Accent).SetBorderPadding(1, 0, 1, 0)
+	t.SetBorder(true).SetBorderColor(FocusBorder).SetTitleColor(Accent).SetBorderPadding(0, 0, 1, 0)
 	RoundedBorder(t.Box)
 	defer func() {
 		if err != nil {
@@ -89,10 +96,42 @@ func NewTerminal(ctx context.Context, invalidate func()) (t *Terminal, err error
 		return
 	}
 	t.mouse, err = ghostty.NewMouseEncoder()
+	if err != nil {
+		return
+	}
+	t.selection, err = ghostty.NewSelectionGesture()
 	return
 }
 
 func (t *Terminal) Context() context.Context { return t.ctx }
+
+func (t *Terminal) CopySelection() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if !t.hasSelection {
+		return false
+	}
+	t.hasSelection = t.copySelectionLocked()
+	return t.hasSelection
+}
+
+func (t *Terminal) CopySelectionShortcut(ev *tcell.EventKey) bool {
+	mods := ev.Modifiers()
+	if mods&tcell.ModAlt != 0 {
+		return false
+	}
+	if ev.Key() == tcell.KeyCtrlC || ev.Key() == tcell.KeyRune &&
+		(ev.Rune() == 'c' || ev.Rune() == 'C') && mods&(tcell.ModCtrl|tcell.ModMeta) != 0 {
+		return t.CopySelection()
+	}
+	return false
+}
+
+func (t *Terminal) SetSessionInfo(text string) {
+	t.mu.Lock()
+	t.sessionInfo = text
+	t.mu.Unlock()
+}
 
 // Only change the terminal defaults; explicit remote ANSI colors stay intact.
 func (t *Terminal) SetPalette(p Palette) error {
@@ -109,6 +148,7 @@ func (t *Terminal) SetPalette(p Palette) error {
 			return err
 		}
 	}
+	t.foreground, t.background = p.Foreground, p.Background
 	return nil
 }
 func (t *Terminal) WinCh() <-chan ssh.Window { return t.winch }
@@ -125,6 +165,10 @@ func (t *Terminal) Dispose() {
 	_ = t.Close()
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if t.selection != nil {
+		t.selection.Close(t.vt)
+		t.selection = nil
+	}
 	if t.mouse != nil {
 		t.mouse.Close()
 		t.mouse = nil
@@ -294,22 +338,29 @@ func rgb(c ghostty.ColorRGB) tcell.Color {
 
 func (t *Terminal) Draw(screen tcell.Screen) {
 	t.Box.DrawForSubclass(screen, t)
-	if themed, ok := screen.(*ThemeScreen); ok {
-		screen = themed.Screen
-	}
 	x, y, width, height := t.GetInnerRect()
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if t.sessionInfo != "" {
+		boxX, boxY, boxWidth, boxHeight := t.GetRect()
+		if boxWidth > 2 && boxHeight >= 2 {
+			tview.Print(screen, " "+t.sessionInfo+" ", boxX+1, boxY+boxHeight-1, boxWidth-2, tview.AlignRight, Muted)
+		}
+	}
+	if themed, ok := screen.(*ThemeScreen); ok {
+		screen = themed.Screen
+	}
 	if t.vt == nil || t.state.Update(t.vt) != nil || t.state.RowIterator(t.rows) != nil {
 		return
 	}
-	fg, _ := t.state.ColorForeground()
-	bg, _ := t.state.ColorBackground()
-	base := tcell.StyleDefault.Foreground(rgb(fg)).Background(rgb(bg))
+	// Preserve indexed theme colors; converting them to RGB can change the
+	// session background on clients without truecolor support.
+	base := tcell.StyleDefault.Foreground(t.foreground).Background(t.background)
 	var glyphs []uint32
 	var styling ghostty.RenderCellStyle
 	var combining []rune
 	for row := 0; row < height && t.rows.Next(); row++ {
+		selected, _ := t.rows.Selection()
 		if t.rows.Cells(t.cells) != nil {
 			break
 		}
@@ -335,6 +386,9 @@ func (t *Terminal) Draw(screen tcell.Screen) {
 				}
 				style = style.Bold(styling.Bold).Dim(styling.Faint).Italic(styling.Italic).
 					Underline(styling.Underline).StrikeThrough(styling.Strikethrough).Reverse(styling.Inverse)
+			}
+			if selected != nil && col >= int(selected.StartX) && col <= int(selected.EndX) {
+				style = style.Reverse(true)
 			}
 			glyphs, _ = t.cells.GraphemesInto(glyphs[:0])
 			r := ' '
@@ -481,13 +535,38 @@ func (t *Terminal) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, fun
 	return t.WrapMouseHandler(func(action tview.MouseAction, ev *tcell.EventMouse, focus func(tview.Primitive)) (bool, tview.Primitive) {
 		px, py := ev.Position()
 		x, y, w, h := t.GetInnerRect()
-		if px < x || py < y || px >= x+w || py >= y+h {
+		inside := px >= x && py >= y && px < x+w && py < y+h
+		if !inside && !t.selecting {
 			return false, nil
 		}
-		focus(t)
+		if inside {
+			focus(t)
+		}
 		t.mu.Lock()
 		defer t.mu.Unlock()
 		if t.vt == nil {
+			return true, nil
+		}
+		if t.selecting && (action == tview.MouseMove || action == tview.MouseLeftUp) {
+			t.updateSelection(action, px-x, py-y, w, h)
+			if action == tview.MouseLeftUp {
+				t.selecting = false
+				return true, nil
+			}
+			return true, t
+		}
+		if action == tview.MouseLeftDown && inside {
+			tracking, err := t.vt.MouseTracking()
+			if err == nil && (!tracking || ev.Modifiers()&tcell.ModShift != 0) {
+				t.selection.Reset(t.vt)
+				t.selecting = true
+				t.hasSelection = false
+				_ = t.vt.SetSelection(nil)
+				t.updateSelection(action, px-x, py-y, w, h)
+				return true, t
+			}
+		}
+		if !inside {
 			return true, nil
 		}
 		if action == tview.MouseScrollUp || action == tview.MouseScrollDown {
@@ -544,6 +623,76 @@ func (t *Terminal) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, fun
 		}
 		return true, nil
 	})
+}
+
+// A local drag selects emulator cells while preserving mouse reports for
+// applications that request them. Shift overrides application mouse tracking.
+func (t *Terminal) updateSelection(action tview.MouseAction, col, row, width, height int) {
+	if t.selection == nil || t.vt == nil || width <= 0 || height <= 0 {
+		return
+	}
+	col, row = min(max(col, 0), width-1), min(max(row, 0), height-1)
+	ref, err := t.vt.GridRef(ghostty.Point{Tag: ghostty.PointTagViewport, X: uint16(col), Y: uint32(row)})
+	if err != nil {
+		return
+	}
+	var kind ghostty.SelectionGestureEventType
+	switch action {
+	case tview.MouseLeftDown:
+		kind = ghostty.SelectionGestureEventTypePress
+	case tview.MouseMove:
+		kind = ghostty.SelectionGestureEventTypeDrag
+	case tview.MouseLeftUp:
+		kind = ghostty.SelectionGestureEventTypeRelease
+	default:
+		return
+	}
+	e, err := ghostty.NewSelectionGestureEvent(kind)
+	if err != nil {
+		return
+	}
+	defer e.Close()
+	if e.SetRef(ref) != nil {
+		return
+	}
+	if kind != ghostty.SelectionGestureEventTypeRelease {
+		if e.SetPosition(ghostty.SurfacePosition{X: float64(col) + 0.5, Y: float64(row) + 0.5}) != nil {
+			return
+		}
+	}
+	if kind == ghostty.SelectionGestureEventTypeDrag {
+		if e.SetGeometry(ghostty.SelectionGestureGeometry{Columns: uint32(width), CellWidth: 1, ScreenHeight: uint32(height)}) != nil {
+			return
+		}
+	}
+	sel, err := t.selection.Event(t.vt, e)
+	if err != nil {
+		return
+	}
+	if sel != nil {
+		_ = t.vt.SetSelection(sel)
+	}
+	t.invalidateView()
+	if kind == ghostty.SelectionGestureEventTypeRelease {
+		dragged, _ := t.selection.Dragged(t.vt)
+		if dragged {
+			t.hasSelection = t.copySelectionLocked()
+		}
+	}
+}
+
+func (t *Terminal) copySelectionLocked() bool {
+	if t.vt == nil || t.copySelection == nil {
+		return false
+	}
+	// Bound both formatted text and the OSC 52 payload sent to the SSH client.
+	buf := make([]byte, 1024*1024)
+	n, err := t.vt.SelectionFormatBuf(buf, ghostty.WithSelectionTrim(true), ghostty.WithSelectionUnwrap(true))
+	if err != nil || n == 0 {
+		return false
+	}
+	t.copySelection(buf[:n])
+	return true
 }
 
 func (t *Terminal) invalidateView() {

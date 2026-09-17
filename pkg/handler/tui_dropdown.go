@@ -55,9 +55,7 @@ func (h *terminalUI) navigationSearchFor(d *tview.DropDown) *tview.InputField {
 				list := p.(*tview.List)
 				for index := range list.GetItemCount() {
 					text, _ := list.GetItemText(index)
-					// Navigation labels are escaped; each list item has one
-					// padding space on either side from SetTextOptions.
-					text = tview.Unescape(strings.TrimSuffix(strings.TrimPrefix(text, " "), " "))
+					text = tview.Unescape(text)
 					if strings.HasPrefix(strings.ToLower(text), strings.ToLower(prefix)) {
 						list.SetCurrentItem(index)
 						break
@@ -123,16 +121,22 @@ func pinDialogDropdownIndicator(d *tview.DropDown) {
 	})
 }
 
-func pinNavigationDropdownIndicator(d *tview.DropDown) {
-	d.SetTextOptions(" ", " ", "", "", " … ")
+func pinNavigationDropdownIndicator(d *tview.DropDown, showIndicator func() bool) {
+	d.SetTextOptions("", "", "", "", " … ")
 	d.SetDrawFunc(func(s tcell.Screen, x, y, width, height int) (int, int, int, int) {
 		if width < 3 || height < 1 {
+			return x, y, width, height
+		}
+		if showIndicator != nil && !showIndicator() {
 			return x, y, width, height
 		}
 		s.SetContent(x+width-1, y, '▾', nil, tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
 		return x, y, width - 2, height
 	})
 	d.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
+		if showIndicator != nil && !showIndicator() {
+			return action, ev
+		}
 		x, y, width, _ := d.GetRect()
 		mx, my := ev.Position()
 		if !d.IsOpen() && width >= 3 && my == y && mx >= x+width-2 && mx < x+width {
@@ -187,7 +191,7 @@ func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 			labelWidth = max(labelWidth, tview.TaggedStringWidth(picker.GetLabel()))
 		}
 	}
-	frame := tview.NewBox().SetBorderPadding(0, 0, digits+3, 2)
+	frame := tview.NewBox().SetBorderPadding(0, 0, digits+2, 2)
 	tuiBorder(frame, "", tui.FocusBorder)
 	// Flex supplies a transparent Box, so the native, unbounded rectangle is
 	// never cleared. Keep the native input capture and delegated list focus.
@@ -224,7 +228,7 @@ func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 		}
 		list.SetRect(x, y, w, height)
 		digits := len(strconv.Itoa(list.GetItemCount()))
-		frame.SetBorderPadding(topPadding, 0, digits+3, 2)
+		frame.SetBorderPadding(topPadding, 0, digits+2, 2)
 		frame.SetRect(x, y, w, height)
 		frame.SetBackgroundColor(tui.Panel).SetBorderColor(tui.FocusBorder)
 		frame.Draw(screen)

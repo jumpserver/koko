@@ -21,7 +21,7 @@ func tuiMnemonic(label, key string) string {
 func tuiKeyText(key string, enabled bool) string {
 	prefix := "[" + tui.Accent.String() + "::bu]"
 	if !enabled {
-		prefix = "[" + tui.Disabled.String() + "::-][::U]"
+		prefix = "[" + tui.Disabled.String() + ":" + tui.Panel.String() + ":-][::U]"
 	}
 	return prefix + key + "[::U][-::-]"
 }
@@ -56,7 +56,7 @@ func tuiMnemonicState(label, key string, enabled bool) string {
 }
 
 func tuiPlainMnemonic(label string) string {
-	return strings.NewReplacer("["+tui.Accent.String()+"::bu]", "", "["+tui.Accent.String()+"::b]", "", "["+tui.Accent.String()+"::u]", "", "["+tui.Accent.String()+"::-]", "", "["+tui.Disabled.String()+"::-][::U]", "", "[::U][-::-]", "", "[-::-]", "").Replace(label)
+	return strings.NewReplacer("["+tui.Accent.String()+"::bu]", "", "["+tui.Accent.String()+"::b]", "", "["+tui.Accent.String()+"::u]", "", "["+tui.Accent.String()+"::-]", "", "["+tui.Disabled.String()+":"+tui.Panel.String()+":-][::U]", "", "[::U][-::-]", "", "[-::-]", "").Replace(label)
 }
 
 func tuiShortcutAvailable(bindings []tuiShortcut, id, key string) bool {
@@ -144,6 +144,7 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 			}
 			if h.popup != nil {
 				add("literal-prefix", "Ctrl+]", h.tr("发送原始 Ctrl+]", "Send literal Ctrl+]"), tcell.KeyCtrlRightSq, "", func() { h.popup.SendInput([]byte{29}) }, false)
+				add("copy-selection", "c", h.tr("复制选中文本", "Copy selected text"), 0, "c", func() { h.popup.CopySelection() }, true)
 			}
 			add("help", "h", h.tr("帮助", "Help"), 0, "h", h.showKeyboardHelp, true)
 			add("quit", "Ctrl+C", h.tr("退出", "Quit"), tcell.KeyCtrlC, "", h.quit, false)
@@ -163,6 +164,7 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 				add("duplicate-session", "Ctrl+] d", h.tr("复制会话", "Duplicate session"), 0, "", nil, false)
 			}
 			add("close-session", "Ctrl+] x", h.tr("关闭", "Close"), 0, "", nil, false)
+			add("copy-selection", "Ctrl+] c", h.tr("复制选中文本", "Copy selected text"), 0, "", nil, false)
 			return bindings
 		}
 	}
@@ -372,17 +374,15 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 		h.status.SetText(" " + h.tr("加载失败", "Load failed") + " · " + mnemonic("r", "refresh", "r") + " " + h.tr("刷新", "Refresh"))
 	}
 	h.orgPane.SetTitle("")
-	h.org.SetLabel(mnemonic("o", "organization-area", "o") + " ")
+	if h.organizationsEnabled {
+		h.org.SetLabel(mnemonic("o", "organization-area", "o") + " ")
+	} else {
+		h.org.SetLabel(h.tr("组织", "Org") + " ")
+	}
 	h.sessionTabs.SetTitle("")
 	h.treePane.SetTitle("")
 	h.treeKind.SetLabel(mnemonic("t", "tree-area", "t") + " ")
 	h.tree.SetTitle(mnemonic("e", "tree-nodes", "e"))
-	label := "+"
-	if expanded, _ := h.treeExpansion(); expanded {
-		label = "−"
-	}
-	h.treeActions[0].SetLabel(label)
-	h.treeActions[1].SetLabel(tuiRefreshIcon)
 	path := h.scope.Path
 	if path == "" {
 		path = h.scope.Label
@@ -391,7 +391,7 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 		path = h.tr("资产", "Assets")
 	}
 	assetTitle := mnemonic("a", "assets-area", "a") + " · /" + cleanTUIText(strings.TrimLeft(path, "/"))
-	h.assetPane.SetTitle(" " + assetTitle + " ")
+	h.assetPane.SetTitle("  " + assetTitle + " ")
 	searchLabel := ""
 	if !h.search.HasFocus() {
 		searchLabel = "/ " + h.tr("搜索", "Search") + " "

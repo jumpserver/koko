@@ -157,7 +157,7 @@ func adaptLowColorPalette(p Palette, colors int) Palette {
 }
 
 func (s *ThemeScreen) SetPalette(p Palette) {
-	p = adaptLowColorPalette(p, s.Screen.Colors())
+	p = s.AdaptPalette(p)
 	s.forward = map[tcell.Color]tcell.Color{
 		Background: p.Background, Foreground: p.Foreground, AssetMetadata: p.AssetMetadata, Muted: p.Muted, Disabled: p.Disabled,
 		Border: p.Border, Accent: p.Accent, FocusBorder: p.FocusBorder,
@@ -170,6 +170,11 @@ func (s *ThemeScreen) SetPalette(p Palette) {
 	// Sync clears the terminal before repainting. Use the current palette
 	// rather than exposing the client's default (often white) background.
 	s.Screen.SetStyle(tcell.StyleDefault.Foreground(p.Foreground).Background(p.Background))
+}
+
+// AdaptPalette returns the same effective colors used by the outer screen.
+func (s *ThemeScreen) AdaptPalette(p Palette) Palette {
+	return adaptLowColorPalette(p, s.Screen.Colors())
 }
 
 // RequestSync repairs client-side IME damage after widgets finish drawing.

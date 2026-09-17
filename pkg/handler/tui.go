@@ -30,6 +30,9 @@ const tuiAssetTableHeaderRows = 2
 
 const tuiSearchMaxLength = 256
 
+// Action controls use the theme surface in every state; focus changes text only.
+var tuiButtonFocusedStyle = tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)
+
 type terminalUI struct {
 	app                                                 *tview.Application
 	screen                                              tcell.Screen
@@ -73,7 +76,7 @@ type terminalUI struct {
 	helpHint                                            string
 	language                                            *tview.Button
 	appearance                                          *tview.Button
-	treeActions                                         [2]*tview.Button
+	treeRefresh                                         *tview.Button
 	sidebarWidth                                        int
 	sidebarHidden, treeCollapsed                        bool
 	assetBottom, pager                                  *tview.Flex
@@ -162,6 +165,9 @@ func tuiBorder(box *tview.Box, title string, color tcell.Color) {
 }
 
 func tuiDialogBorder(box *tview.Box, title string) {
+	if title != "" {
+		title = " " + title
+	}
 	tuiBorder(box, title, tui.FocusBorder)
 	box.SetTitleColor(tui.Accent).SetBorderPadding(1, 1, 2, 2)
 }
@@ -187,11 +193,7 @@ func newTerminalUI(sess ssh.Session, user *model.User, api, userAPI *service.JMS
 	h.pages = tview.NewPages()
 	h.pages.SetBackgroundColor(tui.Background)
 	h.build()
-	focus := tview.Primitive(h.tree)
-	if h.sidebarHidden {
-		focus = h.table
-	}
-	h.app.SetRoot(h.main, true).SetFocus(focus).SetInputCapture(h.input)
+	h.app.SetRoot(h.main, true).SetFocus(h.search).SetInputCapture(h.input)
 	h.app.SetBeforeDrawFunc(func(s tcell.Screen) bool {
 		s.HideCursor()
 		cursorStyle := tcell.CursorStyleDefault
@@ -317,13 +319,22 @@ func (h *terminalUI) build() {
 	h.headerTools = tview.NewFlex().AddItem(nil, 0, 1, false).AddItem(h.language, 10, 0, false).AddItem(themeDivider, 3, 0, false).AddItem(h.appearance, 12, 0, false).AddItem(divider, 3, 0, false).AddItem(h.identity, 28, 0, false)
 	h.headerTools.SetBackgroundColor(tui.Panel)
 	h.header = tview.NewFlex()
-	h.header.Box = tview.NewBox()
-	tuiBorder(h.header.Box, "", tui.Border)
-	h.header.SetTitle("").SetBorderPadding(0, 0, 1, 1)
+	h.header.Box = tview.NewBox().SetBackgroundColor(tui.Panel).SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		if height > 0 {
+			style := tcell.StyleDefault.Foreground(tui.Border).Background(tui.Panel)
+			for col := x + 1; col < x+width-1; col++ {
+				screen.SetContent(col, y+height-1, '─', nil, style)
+			}
+		}
+		return x + 1, y, max(0, width-2), max(0, height-1)
+	})
 	h.org = tuiDropdown()
 	h.treeKind = tuiDropdown()
+	h.org.SetDisabled(true)
+	h.org.SetDisabledStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
+	pinNavigationDropdownIndicator(h.org, func() bool { return h.organizationsEnabled })
+	pinNavigationDropdownIndicator(h.treeKind, nil)
 	for _, dropdown := range []*tview.DropDown{h.org, h.treeKind} {
-		pinNavigationDropdownIndicator(dropdown)
 		dropdown.SetFieldBackgroundColor(tui.Panel).
 			SetLabelStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
 			SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
@@ -332,31 +343,19 @@ func (h *terminalUI) build() {
 				tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel),
 			)
 	}
-	h.treeTools = tview.NewFlex()
-	for i, label := range []string{"−", tuiRefreshIcon} {
-		activatedStyle := tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)
-		b := tview.NewButton(label).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(activatedStyle)
-		b.SetDrawFunc(func(_ tcell.Screen, x, y, width, height int) (int, int, int, int) {
-			if width < 1 {
-				return x, y, 0, height
-			}
-			return x + width - 1, y, 1, height
-		})
-		b.SetSelectedFunc(func() {
-			if i == 0 {
-				h.toggleTreeExpansion()
-			} else {
-				h.refreshView()
-			}
-		})
-		h.treeActions[i] = b
-		if i == 1 {
-			h.treeTools.AddItem(nil, 1, 0, false)
+	activatedStyle := tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)
+	h.treeRefresh = tview.NewButton(tuiRefreshIcon).
+		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
+		SetActivatedStyle(activatedStyle).SetSelectedFunc(h.refreshView)
+	h.treeRefresh.SetDrawFunc(func(_ tcell.Screen, x, y, width, height int) (int, int, int, int) {
+		if width < 1 {
+			return x, y, 0, height
 		}
-		h.treeTools.AddItem(b, 3, 0, false)
-	}
+		return x + width - 1, y, 1, height
+	})
+	h.treeTools = tview.NewFlex().AddItem(nil, 1, 0, false).AddItem(h.treeRefresh, 3, 0, false)
 	h.treeTools.SetBackgroundColor(tui.Panel)
-	h.treeHead = tview.NewFlex().AddItem(h.treeKind, 16, 0, false).AddItem(nil, 0, 1, false).AddItem(h.treeTools, 7, 0, false)
+	h.treeHead = tview.NewFlex().AddItem(h.treeKind, 16, 0, false).AddItem(nil, 0, 1, false).AddItem(h.treeTools, 4, 0, false)
 	h.treeHead.SetBackgroundColor(tui.Panel)
 	h.treeHead.SetDrawFunc(func(s tcell.Screen, x, y, w, ht int) (int, int, int, int) {
 		h.treeKind.SetFieldTextColor(tui.Foreground)
@@ -433,7 +432,7 @@ func (h *terminalUI) build() {
 	h.search.SetAcceptanceFunc(tview.InputFieldMaxLength(tuiSearchMaxLength))
 	h.search.SetChangedFunc(h.searchChanged)
 	tuiBorder(h.search.Box, "", tui.Border)
-	h.search.SetTitle("").SetBorderPadding(0, 0, 1, 1)
+	h.search.SetTitle("").SetBorderPadding(0, 0, 2, 1)
 	h.configureSearchClear()
 	h.search.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
@@ -480,7 +479,7 @@ func (h *terminalUI) build() {
 	h.status.SetWrap(false).SetBackgroundColor(tui.Panel)
 	pager := tview.NewFlex()
 	for i, label := range []string{"[ " + h.tr("上页", "Previous"), h.tr("下页", "Next") + " ]"} {
-		button := tview.NewButton(label).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected)
+		button := tview.NewButton(label).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tuiButtonFocusedStyle)
 		button.SetSelectedFunc(func() { h.changePage(i*2 - 1) })
 		h.pagerButtons[i] = button
 		pager.AddItem(button, 0, 1, false)
@@ -493,7 +492,7 @@ func (h *terminalUI) build() {
 	h.orgPane = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(h.org, 1, 0, false)
 	h.orgPane.Box = tview.NewBox()
 	h.orgPane.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, 1, 1)
-	h.treePane = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(h.treeHead, 2, 0, false).AddItem(h.tree, 0, 1, true)
+	h.treePane = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(h.treeHead, 1, 0, false).AddItem(nil, 1, 0, false).AddItem(h.tree, 0, 1, true)
 	h.treePane.Box = tview.NewBox()
 	h.treePane.SetBackgroundColor(tui.Panel)
 	h.treePane.SetTitle("").SetBorderPadding(0, 1, 1, 1)
@@ -513,7 +512,7 @@ func (h *terminalUI) build() {
 	h.footer.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, 1, 1)
 	h.sessionTabs = tview.NewTable().SetSelectable(false, true).SetSeparator('│').SetBordersColor(tui.Muted)
 	h.sessionTabs.SetBackgroundColor(tui.Panel)
-	h.sessionTabs.SetTitle("").SetBorderPadding(0, 0, 2, 1)
+	h.sessionTabs.SetTitle("").SetBorderPadding(0, 0, 1, 1)
 	h.sessionMore = tview.NewButton("▾").SetStyle(headerControlStyle).SetActivatedStyle(headerControlStyle.Foreground(tui.Foreground)).SetSelectedFunc(h.showSessionMenu)
 	h.sessionTabs.SetSelectedFunc(func(_, col int) { h.activateSession(col - 1) })
 	h.sessionTabs.SetSelectionChangedFunc(func(_, _ int) { h.scrollSessionTabs() })
@@ -734,6 +733,7 @@ func (h *terminalUI) loadWorkspace() {
 		update(func() {
 			h.organizationsEnabled = organizationsEnabled
 			h.organizationsReady = !organizationsEnabled
+			h.org.SetDisabled(!organizationsEnabled)
 			h.rebuildNavigation()
 			h.refreshLabels()
 			if h.organizationsEnabled {
@@ -742,9 +742,9 @@ func (h *terminalUI) loadWorkspace() {
 
 			h.setWindowHelp()
 			if !h.organizationsEnabled {
-				// Community Core uses the default scope internally, but it has no
-				// organization UI or membership enumeration on the login path.
-				h.scope.Org = tuiOrganization{ID: tuiDefaultOrganizationID}
+				// Community Core has one fixed organization and no membership lookup.
+				h.org.SetOptions([]string{"DEFAULT"}, nil).SetCurrentOption(0)
+				h.scope.Org = tuiOrganization{ID: tuiDefaultOrganizationID, Name: "DEFAULT"}
 				h.switchTree(h.scope.Mode)
 			}
 		})
@@ -861,7 +861,6 @@ func (h *terminalUI) switchTree(mode int) {
 	h.treeLoading = false
 	h.treeLoadingNode = nil
 	h.treeCollapsed = false
-	h.treeActions[0].SetLabel("−")
 	h.treeKind.SetCurrentOption(mode)
 
 	depth, topLevel := 0, 0
@@ -875,7 +874,7 @@ func (h *terminalUI) switchTree(mode int) {
 	h.selectFirstTreeNode()
 	h.loadTree(root, h.scope, "")
 	h.loadAssets(0)
-	if !h.sidebarHidden && h.activeSession < 0 {
+	if !h.sidebarHidden && h.activeSession < 0 && !h.search.HasFocus() {
 		h.app.SetFocus(h.tree)
 	}
 }
