@@ -14,8 +14,8 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 )
 
-func tuiDropdown() *tui.DropDown {
-	d := tui.NewDropDown().SetFieldTextColor(tui.Foreground).SetFieldBackgroundColor(tui.Panel).
+func tuiDropdown() *tview.DropDown {
+	d := tview.NewDropDown().SetFieldTextColor(tui.Foreground).SetFieldBackgroundColor(tui.Panel).
 		SetLabelStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).
 		SetListStyles(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel), tui.Selected).
 		SetFocusedStyle(tui.Selected).SetUseStyleTags(true).SetTextOptions(" ", " ", " ", " ▾", " … ")
@@ -27,22 +27,19 @@ func tuiDropdown() *tui.DropDown {
 // framed surface wide enough to read. Draw last so underlying tree rows cannot
 // bleed through the popup, including when the selected language has long names.
 func (h *terminalUI) drawDropdown(screen tcell.Screen) {
+	if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
+		return // Connection dropdowns render once, within their bounded viewport.
+	}
 	for _, item := range h.focusOrder() {
-		dropdown, ok := item.(*tui.DropDown)
+		dropdown, ok := item.(*tview.DropDown)
 		if !ok || !dropdown.IsOpen() || !dropdown.HasFocus() {
 			continue
 		}
 		// An open DropDown delegates focus to its list. Resolve that delegate
 		// without calling Application.GetFocus while Draw holds the app lock.
-		var list *tui.List
-		dropdown.Focus(func(p tview.Primitive) { list, _ = p.(*tui.List) })
+		var list *tview.List
+		dropdown.Focus(func(p tview.Primitive) { list, _ = p.(*tview.List) })
 		if list == nil {
-			continue
-		}
-		if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
-			// Paint the bounded menu after all dialog fields and buttons, which
-			// otherwise cover its options and search row as the layout draws.
-			list.Draw(screen)
 			continue
 		}
 		sw, sh := screen.Size()
@@ -108,7 +105,7 @@ func (h *terminalUI) rebuildNavigation() {
 // Draw the shared frame after its children, before any overlaid dialog. Child
 // backgrounds and focus rendering cannot overwrite individual border segments.
 type tuiNavigation struct {
-	*tui.Flex
+	*tview.Flex
 	drawFrame func(tcell.Screen)
 	paste     func(string, func(tview.Primitive)) bool
 }
@@ -190,7 +187,7 @@ func (h *terminalUI) updateLayout() {
 	sideWidth := themeWidth + languageWidth + 6 + userWidth
 	h.headerTools.ResizeItem(h.appearance, themeWidth, 0).ResizeItem(h.language, languageWidth, 0).ResizeItem(h.identity, userWidth, 0)
 	h.header.Clear()
-	if w-6 >= sideWidth+tview.TaggedStringWidth(h.brand.GetText(false))+7 {
+	if w-6 >= sideWidth+tview.TaggedStringWidth(h.brand.GetText(false))+2 {
 		h.header.SetDirection(tview.FlexColumn).AddItem(h.brand, 0, 1, false).AddItem(h.headerTools, sideWidth, 0, false)
 		h.main.ResizeItem(h.header, headerHeight, 0)
 	} else {
@@ -201,14 +198,13 @@ func (h *terminalUI) updateLayout() {
 	if h.lastNavigationWidth != h.navigationWidth() {
 		h.lastNavigationWidth = h.navigationWidth()
 		if root := h.tree.GetRoot(); root != nil {
-			root.Walk(func(n, _ *tui.TreeNode) bool { h.refreshNodeLabel(n); return true })
+			root.Walk(func(n, _ *tview.TreeNode) bool { h.refreshNodeLabel(n); return true })
 		}
 	}
 	h.org.SetFieldWidth(max(1, h.navigationWidth()-4-tview.TaggedStringWidth(h.org.GetLabel())))
 	labelWidth := tview.TaggedStringWidth(h.treeKind.GetLabel())
 	_, treeLabel := h.treeKind.GetCurrentOption()
-	toolsWidth := tview.TaggedStringWidth(h.treeRefresh.GetLabel()) + 2
-	fieldWidth := min(tview.TaggedStringWidth(treeLabel)+2, max(1, h.navigationWidth()-7-toolsWidth-labelWidth))
+	fieldWidth := min(tview.TaggedStringWidth(treeLabel)+2, max(1, h.navigationWidth()-14-labelWidth))
 	h.treeKind.SetLabelWidth(labelWidth)
 	h.treeKind.SetFieldWidth(fieldWidth)
 	h.treeHead.ResizeItem(h.treeKind, labelWidth+fieldWidth, 0)
@@ -253,7 +249,7 @@ func (h *terminalUI) stopSearchDebounce() {
 
 func (h *terminalUI) configureSearchClear() {
 	const clearLabel = "Clear"
-	h.searchClear = tui.NewButton(clearLabel).
+	h.searchClear = tview.NewButton(clearLabel).
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel).Underline(true)).
 		SetActivatedStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel).Underline(true)).
 		SetSelectedFunc(h.clearSearch)
@@ -404,7 +400,7 @@ func (h *terminalUI) captureMouse(ev *tcell.EventMouse, action tview.MouseAction
 			controls = append(append([]tview.Primitive{}, controls...), h.sessionMore)
 		}
 		for _, control := range controls {
-			if control.(*tui.Button).InRect(x, y) {
+			if control.(*tview.Button).InRect(x, y) {
 				control.MouseHandler()(action, ev, func(p tview.Primitive) { h.app.SetFocus(p) })
 				return nil, tview.MouseConsumed
 			}
@@ -415,14 +411,14 @@ func (h *terminalUI) captureMouse(ev *tcell.EventMouse, action tview.MouseAction
 	}
 	fx, fy, _, _ := h.footer.GetInnerRect()
 	if action == tview.MouseLeftClick && !h.modal && h.helpHint != "" && y == fy && x >= fx && x < fx+tview.TaggedStringWidth(h.helpHint) {
-		h.toggleShortcutHints()
+		h.showKeyboardHelp()
 		return nil, tview.MouseConsumed
 	}
 	if h.modal || h.activeSession >= 0 || h.sidebarHidden || h.org.IsOpen() || h.treeKind.IsOpen() {
 		return ev, action
 	}
 	treeX, treeY, treeWidth, _ := h.tree.GetRect()
-	if action == tview.MouseLeftClick && h.hintsVisible() && y == treeY && x == treeX+treeWidth-1 {
+	if action == tview.MouseLeftClick && y == treeY && x == treeX+treeWidth-1 {
 		h.app.SetFocus(h.tree)
 		return nil, tview.MouseConsumed
 	}
@@ -439,11 +435,16 @@ func (h *terminalUI) refreshView() {
 
 func (h *terminalUI) expandTree(expand bool) {
 	h.treeCollapsed = !expand
+	label := "−"
+	if !expand {
+		label = "+"
+	}
+	h.treeActions[0].SetLabel(label)
 	root := h.tree.GetRoot()
 	if root == nil {
 		return
 	}
-	root.Walk(func(n, _ *tui.TreeNode) bool {
+	root.Walk(func(n, _ *tview.TreeNode) bool {
 		n.SetExpanded(expand && len(n.GetChildren()) > 0)
 		h.refreshNodeLabel(n)
 		return true
@@ -459,7 +460,7 @@ func (h *terminalUI) showLanguage() {
 	if len(h.dialogs) > 0 && h.dialogs[len(h.dialogs)-1].page == "language" {
 		return
 	}
-	list := tui.NewList().ShowSecondaryText(false).
+	list := tview.NewList().ShowSecondaryText(false).
 		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
 		SetSelectedStyle(tui.Selected.Bold(true)).SetHighlightFullLine(true)
 	list.SetBackgroundColor(tui.Panel)
@@ -477,8 +478,8 @@ func (h *terminalUI) showLanguage() {
 		}
 		return ev
 	})
-	close := tui.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
-	content := tui.NewFlex().SetDirection(tview.FlexRow).AddItem(list, 0, 1, true).AddItem(nil, 1, 0, false).AddItem(close, 1, 0, false)
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(list, 0, 1, true).AddItem(nil, 1, 0, false).AddItem(close, 1, 0, false)
 	content.Box = tview.NewBox()
 	tuiDialogBorder(content.Box, h.tr("语言", "Language"))
 	h.openDialog("language", &tuiOverlay{Box: tview.NewBox(), child: content, width: 46, height: len(i18n.AllCodes) + 6}, []tview.Primitive{list, close})
@@ -538,7 +539,7 @@ func (h *terminalUI) focusedContent() string {
 		}
 	}
 	switch p := h.focusedControl().(type) {
-	case *tui.List:
+	case *tview.List:
 		if p.GetItemCount() > 0 {
 			text, _ := p.GetItemText(p.GetCurrentItem())
 			if h.modal && h.dialogs[len(h.dialogs)-1].page == "appearance" && strings.HasPrefix(text, "[#") {
@@ -548,7 +549,7 @@ func (h *terminalUI) focusedContent() string {
 			}
 			field(optionLabel, text)
 		}
-	case *tui.TreeView:
+	case *tview.TreeView:
 		if n := p.GetCurrentNode(); n != nil {
 			ref, ok := n.GetReference().(*tuiNodeRef)
 			if !ok || ref.more {
@@ -567,11 +568,11 @@ func (h *terminalUI) focusedContent() string {
 				field(h.tr("组织", "Organization"), cleanTUIText(ref.scope.Org.Name))
 			}
 		}
-	case *tui.DropDown:
+	case *tview.DropDown:
 		if index, text := p.GetCurrentOption(); index >= 0 {
 			field(optionLabel, text)
 		}
-	case *tui.Table:
+	case *tview.Table:
 		row, col := p.GetSelection()
 		if p == h.sessionTabs {
 			if col >= 0 && col < p.GetColumnCount() {
@@ -597,7 +598,7 @@ func (h *terminalUI) focusedContent() string {
 			}
 			field(label, value)
 		}
-	case *tui.InputField:
+	case *tview.InputField:
 		label := strings.TrimSpace(tuiPlainMnemonic(p.GetLabel()))
 		if p == h.search {
 			label = h.tr("搜索", "Search")
@@ -605,7 +606,7 @@ func (h *terminalUI) focusedContent() string {
 			label = h.tr("内容", "Content")
 		}
 		field(label, cleanTUIText(p.GetText()))
-	case *tui.Button:
+	case *tview.Button:
 		field(h.tr("操作", "Action"), p.GetLabel())
 	}
 	return tuiPlainMnemonic(strings.Join(fields, "\n\n"))
@@ -619,29 +620,29 @@ func (h *terminalUI) showFullText() {
 	title := h.tr("完整内容", "Full text")
 	width, height := 94, 24
 	switch focused := h.focusedControl().(type) {
-	case *tui.TreeView:
+	case *tview.TreeView:
 		title = h.tr("节点详情", "Node details")
 		width = 68
 		height = min(14, max(10, strings.Count(text, "\n")+8))
-	case *tui.Table:
+	case *tview.Table:
 		if focused == h.table {
 			title = h.tr("资产详情", "Asset details")
 			width = 68
 			height = min(18, max(10, strings.Count(text, "\n")+8))
 		}
 	}
-	view := tui.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
+	view := tview.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
 		SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetText(tview.Unescape(text))
 	view.SetDoneFunc(func(k tcell.Key) {
 		if k == tcell.KeyEnter {
 			h.dismissModal()
 		}
 	})
-	close := tui.NewButton(h.tr("关闭", "Close") + " · Esc").
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
 		SetActivatedStyle(tui.Selected).
 		SetSelectedFunc(h.dismissModal)
-	content := tui.NewFlex().SetDirection(tview.FlexRow).
+	content := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(view, 0, 1, true).
 		AddItem(nil, 1, 0, false).
 		AddItem(close, 1, 0, false)

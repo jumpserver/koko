@@ -95,7 +95,7 @@ func (h *terminalUI) focusedControl() tview.Primitive {
 		if !p.HasFocus() {
 			continue
 		}
-		if d, ok := p.(*tui.DropDown); ok && d.IsOpen() {
+		if d, ok := p.(*tview.DropDown); ok && d.IsOpen() {
 			d.Focus(func(list tview.Primitive) { p = list })
 		}
 		return p
@@ -103,34 +103,10 @@ func (h *terminalUI) focusedControl() tview.Primitive {
 	return nil
 }
 
-func (h *terminalUI) hintsVisible() bool {
-	return !h.modal && (h.windowPrefix || h.shortcutHints && !(h.popup != nil && h.popup.HasFocus()))
-}
-
-func (h *terminalUI) toggleShortcutHints() {
-	if h.popup != nil && h.popup.HasFocus() && !h.modal {
-		h.windowPrefix = !h.windowPrefix
-		return
-	}
-	h.shortcutHints = !h.shortcutHints
-}
-
 func (h *terminalUI) shortcuts() []tuiShortcut {
 	var bindings []tuiShortcut
 	add := func(id, label, description string, key tcell.Key, runes string, run func(), compact bool) {
 		bindings = append(bindings, tuiShortcut{id: id, label: label, description: description, key: key, runes: runes, run: run, compact: compact})
-	}
-	remote := !h.modal && h.popup != nil && h.popup.HasFocus()
-	if !remote || h.windowPrefix {
-		add("help", "F10", h.tr("帮助", "Help"), tcell.KeyF10, "", h.showKeyboardHelp, false)
-	}
-	if !h.modal && (!remote || h.windowPrefix) {
-		// Keep the entry clickable while typing; a literal ? still reaches the field.
-		runes := "?"
-		if h.editing() && !h.windowPrefix {
-			runes = ""
-		}
-		add("hints", "?", h.tr("快捷键", "Shortcuts"), 0, runes, h.toggleShortcutHints, true)
 	}
 	fullscreenLabel := h.tr("全屏", "Fullscreen")
 	if h.fullscreen {
@@ -291,7 +267,7 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 	scroll, confirm := false, false
 	treeControls, assetControls := false, false
 	switch p := h.focusedControl().(type) {
-	case *tui.Table:
+	case *tview.Table:
 		if p == h.sessionTabs {
 			add("←→", h.tr("选择", "Select"), true)
 			confirm = p.GetColumnCount() > 0
@@ -308,7 +284,7 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 				add("←→", h.tr("移动和滚动", "Move and scroll"), false)
 			}
 		}
-	case *tui.TreeView:
+	case *tview.TreeView:
 		treeControls = true
 		scroll, confirm = p.GetRowCount() > 1, p.GetCurrentNode() != nil
 		if confirm {
@@ -318,12 +294,12 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 			add("← / →", h.tr("收起当前节点或移至父节点 / 展开当前节点", "Collapse the current node or move to its parent / expand the current node"), false)
 			add("J / K", h.tr("移动到子节点 / 父节点", "Move to a child / parent node"), false)
 		}
-	case *tui.List:
+	case *tview.List:
 		scroll, confirm = p.GetItemCount() > 1, p.GetItemCount() > 0
 		if h.modal && h.dialogs[len(h.dialogs)-1].page == "language" {
 			add("1–9", h.tr("选择", "Select"), true)
 		}
-	case *tui.DropDown:
+	case *tview.DropDown:
 		if h.modal && !h.editing() {
 			if button := h.dialogs[len(h.dialogs)-1].defaultButton; button != nil {
 				add("↓", h.tr("展开选择", "Open choices"), true)
@@ -337,11 +313,11 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 			}
 		}
 		scroll, confirm = p.GetOptionCount() > 1, p.GetOptionCount() > 0
-	case *tui.InputField:
+	case *tview.InputField:
 		confirm = true
-	case *tui.Button:
+	case *tview.Button:
 		confirm = !p.IsDisabled() && (p != h.pagerButtons[0] || h.offset > 0) && (p != h.pagerButtons[1] || h.offset+tuiPageSize < h.total)
-	case *tui.TextView:
+	case *tview.TextView:
 		_, _, _, height := p.GetInnerRect()
 		scroll, confirm = height > 0 && p.GetWrappedLineCount() > height, true
 	default:
@@ -368,17 +344,17 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 	if confirm {
 		description := h.tr("确认", "Confirm")
 		switch p := h.focusedControl().(type) {
-		case *tui.TreeView:
+		case *tview.TreeView:
 			description = h.tr("显示当前节点的资产", "Show assets in the current tree node")
-		case *tui.InputField:
+		case *tview.InputField:
 			if p == h.search {
 				description = h.tr("立即搜索资产", "Search assets immediately")
 			}
-		case *tui.TextView:
+		case *tview.TextView:
 			description = h.tr("关闭", "Close")
-		case *tui.Button:
+		case *tview.Button:
 			description = strings.Split(p.GetLabel(), " · ")[0]
-		case *tui.Table:
+		case *tview.Table:
 			if p == h.table {
 				description = h.tr("连接选中的资产", "Connect to the selected asset")
 			}
@@ -388,34 +364,25 @@ func (h *terminalUI) addControlHints(bindings *[]tuiShortcut) {
 }
 
 func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
-	// Hidden hints do not reserve label space.
+	// Labels keep their text and width; only availability changes their style.
 	mnemonic := func(label, id, key string) string {
-		text := tuiMnemonicState(label, key, tuiShortcutAvailable(bindings, id, key))
-		if !h.hintsVisible() {
-			if label == key {
-				return ""
-			}
-			return label
-		}
-		return text
+		return tuiMnemonicState(label, key, tuiShortcutAvailable(bindings, id, key))
 	}
 	if h.statusFailed {
 		h.status.SetText(" " + h.tr("加载失败", "Load failed") + " · " + mnemonic("r", "refresh", "r") + " " + h.tr("刷新", "Refresh"))
 	}
 	h.orgPane.SetTitle("")
-	h.org.SetLabel(mnemonic("o", "organization-area", "o"))
+	h.org.SetLabel(mnemonic("o", "organization-area", "o") + " ")
 	h.sessionTabs.SetTitle("")
 	h.treePane.SetTitle("")
-	h.treeKind.SetLabel(mnemonic("t", "tree-area", "t"))
+	h.treeKind.SetLabel(mnemonic("t", "tree-area", "t") + " ")
 	h.tree.SetTitle(mnemonic("e", "tree-nodes", "e"))
-	if h.hintsVisible() {
-		h.org.SetLabel(h.org.GetLabel() + " ")
-		h.treeKind.SetLabel(h.treeKind.GetLabel() + " ")
-		h.tree.SetBorderPadding(0, 0, 0, 2)
-	} else {
-		h.tree.SetBorderPadding(0, 0, 0, 0)
+	label := "+"
+	if expanded, _ := h.treeExpansion(); expanded {
+		label = "−"
 	}
-	h.treeRefresh.SetLabel(strings.TrimSpace(tuiRefreshIcon + " " + mnemonic("u", "tree-refresh", "u")))
+	h.treeActions[0].SetLabel(label)
+	h.treeActions[1].SetLabel(tuiRefreshIcon)
 	path := h.scope.Path
 	if path == "" {
 		path = h.scope.Label
@@ -423,27 +390,19 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 	if path == "" {
 		path = h.tr("资产", "Assets")
 	}
-	separator := "/"
-	if h.hintsVisible() {
-		separator = " · /"
-	}
-	assetTitle := mnemonic("a", "assets-area", "a") + separator + cleanTUIText(strings.TrimLeft(path, "/"))
+	assetTitle := mnemonic("a", "assets-area", "a") + " · /" + cleanTUIText(strings.TrimLeft(path, "/"))
 	h.assetPane.SetTitle(" " + assetTitle + " ")
 	searchLabel := ""
 	if !h.search.HasFocus() {
 		searchLabel = "/ " + h.tr("搜索", "Search") + " "
 	}
 	h.search.SetLabel(searchLabel)
-	h.assetRefresh.SetLabel(strings.TrimSpace(tuiRefreshIcon + " " + mnemonic("r", "refresh", "r")))
-	h.assetToolbar.ResizeItem(h.assetRefresh, tview.TaggedStringWidth(h.assetRefresh.GetLabel())+5, 0)
-	refreshWidth := tview.TaggedStringWidth(h.treeRefresh.GetLabel()) + 2
-	h.treeTools.ResizeItem(h.treeRefresh, refreshWidth, 0)
-	h.treeHead.ResizeItem(h.treeTools, refreshWidth, 0)
+	h.assetRefresh.SetLabel(" " + tuiRefreshIcon + " ")
 	previous, next := h.tr("上页", "Previous"), h.tr("下页", "Next")
 	previous = mnemonic("[", "previous-page", "[") + " " + previous
 	next += " " + mnemonic("]", "next-page", "]")
-	h.pagerButtons[0].SetLabel(strings.TrimSpace(previous))
-	h.pagerButtons[1].SetLabel(strings.TrimSpace(next))
+	h.pagerButtons[0].SetLabel(previous)
+	h.pagerButtons[1].SetLabel(next)
 	if h.assetBottom != nil && h.total > tuiPageSize {
 		h.assetBottom.ResizeItem(h.pager, h.pagerWidth(), 0)
 	}
@@ -474,7 +433,7 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 			}
 			label = "[" + color.String() + "::-]" + label + "[-::-]"
 		}
-		if showNumbers || h.hintsVisible() && h.activeSession < 0 && col > 0 {
+		if showNumbers || h.activeSession < 0 && col > 0 {
 			id, number := "session", fmt.Sprint(col)
 			if col == 0 {
 				id = "asset-index"
@@ -482,19 +441,16 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 			key := strings.ReplaceAll(tuiKeyText(number, tuiShortcutAvailable(bindings, id, number)), "::bu]", "::u]")
 			label = padding + key + " " + label + " "
 		} else {
-			label = padding + label + " "
+			label = padding + label + "   "
 		}
 		style := tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)
 		h.sessionTabs.GetCell(0, col).SetText(label).SetStyle(style).SetSelectedStyle(style)
 	}
 	compactMnemonic := func(label, id, key string) string {
-		text := tuiMnemonicState(label, key, tuiShortcutAvailable(bindings, id, key))
+		text := mnemonic(label, id, key)
 		keyText := tuiKeyText(key, tuiShortcutAvailable(bindings, id, key))
 		if strings.HasSuffix(text, " "+keyText) {
 			text = strings.TrimSuffix(text, " "+keyText) + keyText
-		}
-		if !h.hintsVisible() {
-			return label
 		}
 		return strings.ReplaceAll(text, "::bu]", "::u]")
 	}
@@ -502,16 +458,16 @@ func (h *terminalUI) refreshShortcutLabels(bindings []tuiShortcut) {
 		if len(session.controls) == 0 {
 			continue
 		}
-		session.controls[0].(*tui.Button).SetLabel(compactMnemonic(h.tr("复制", "Duplicate"), "duplicate-session", "d")).SetDisabled(session.duplicate == nil || len(h.sessions) >= maxTUISessions)
+		session.controls[0].(*tview.Button).SetLabel(compactMnemonic(h.tr("复制", "Duplicate"), "duplicate-session", "d")).SetDisabled(session.duplicate == nil || len(h.sessions) >= maxTUISessions)
 		closeLabel := h.tr("断开", "Disconnect")
 		if session.done {
 			closeLabel = h.tr("关闭", "Close")
 		}
-		session.controls[1].(*tui.Button).SetLabel(compactMnemonic(closeLabel, "close-session", "x"))
+		session.controls[1].(*tview.Button).SetLabel(compactMnemonic(closeLabel, "close-session", "x"))
 		fullscreenLabel := h.tr("全屏", "Fullscreen")
 		if h.fullscreen && session.terminal == h.popup {
 			fullscreenLabel = h.tr("退出全屏", "Exit fullscreen")
 		}
-		session.controls[2].(*tui.Button).SetLabel(compactMnemonic(fullscreenLabel, "fullscreen", "f"))
+		session.controls[2].(*tview.Button).SetLabel(compactMnemonic(fullscreenLabel, "fullscreen", "f"))
 	}
 }
