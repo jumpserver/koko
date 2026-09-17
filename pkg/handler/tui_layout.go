@@ -18,7 +18,7 @@ func tuiDropdown() *tview.DropDown {
 	d := tview.NewDropDown().SetFieldTextColor(tui.Foreground).SetFieldBackgroundColor(tui.Panel).
 		SetLabelStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).
 		SetListStyles(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel), tui.Selected).
-		SetFocusedStyle(tui.Selected).SetUseStyleTags(true).SetTextOptions(" ", " ", " ", " ▾", " … ")
+		SetFocusedStyle(tui.Selected).SetUseStyleTags(true).SetTextOptions("", "", " ", " ▾", " … ")
 	d.SetBackgroundColor(tui.Panel)
 	return d
 }
@@ -62,7 +62,7 @@ func (h *terminalUI) drawDropdown(screen tcell.Screen) {
 		x = max(0, min(x, sw-width))
 		y = max(0, min(y, sh-rows))
 		tuiBorder(list.Box, "", tui.FocusBorder)
-		list.SetBackgroundColor(tui.Panel).SetBorderPadding(verticalPadding, verticalPadding, digits+3, 1)
+		list.SetBackgroundColor(tui.Panel).SetBorderPadding(verticalPadding, verticalPadding, digits+2, 1)
 		list.SetRect(x, y, width, rows)
 		_, row, _, visible := list.GetInnerRect()
 		offset, horizontal := list.GetOffset()
@@ -95,9 +95,7 @@ func (h *terminalUI) refreshLabels() {
 
 func (h *terminalUI) rebuildNavigation() {
 	h.navigation.Clear()
-	if h.organizationsEnabled {
-		h.navigation.AddItem(h.orgPane, 2, 0, false)
-	}
+	h.navigation.AddItem(h.orgPane, 2, 0, false)
 	h.navigation.AddItem(h.treePane, 0, 1, true)
 	h.tabRow.Clear().AddItem(h.sessionTabs, 0, 1, false)
 }
@@ -129,13 +127,10 @@ func (h *terminalUI) drawNavigationFrame(screen tcell.Screen) {
 		return
 	}
 	right, bottom := x+width-1, y+height-1
+	_, row, _, rows := h.orgPane.GetRect()
+	orgDivider := min(bottom, row+rows-1)
 	_, headY, _, headHeight := h.treeHead.GetRect()
-	treeDivider := min(bottom, headY+headHeight-1)
-	orgDivider := y
-	if h.organizationsEnabled {
-		_, row, _, rows := h.orgPane.GetRect()
-		orgDivider = min(bottom, row+rows-1)
-	}
+	treeDivider := min(bottom, headY+headHeight)
 	focused := !h.modal && (h.organizationsEnabled && h.org.HasFocus() || h.treeHead.HasFocus() || h.tree.HasFocus())
 	color := tui.Border
 	if focused {
@@ -154,10 +149,11 @@ func (h *terminalUI) drawNavigationFrame(screen tcell.Screen) {
 		screen.SetContent(right, row, rightCorner, nil, style)
 	}
 	horizontal(y, '╭', '╮')
-	for _, divider := range []int{orgDivider, treeDivider} {
-		if divider > y && divider < bottom {
-			horizontal(divider, '├', '┤')
-		}
+	if orgDivider > y && orgDivider < bottom {
+		horizontal(orgDivider, '├', '┤')
+	}
+	if treeDivider > orgDivider && treeDivider < bottom {
+		horizontal(treeDivider, '├', '┤')
 	}
 	horizontal(bottom, '╰', '╯')
 }
@@ -180,14 +176,14 @@ func (h *terminalUI) updateLayout() {
 		listBottomGap = 0
 	}
 	h.assetPane.ResizeItem(nil, listBottomGap, 0)
-	headerHeight := 3
+	headerHeight := 2
 	languageWidth := tview.TaggedStringWidth(h.language.GetLabel()) + 2
 	themeWidth := tview.TaggedStringWidth(h.appearance.GetLabel()) + 2
 	userWidth := min(34, tview.TaggedStringWidth(h.identity.GetLabel())+2)
 	sideWidth := themeWidth + languageWidth + 6 + userWidth
 	h.headerTools.ResizeItem(h.appearance, themeWidth, 0).ResizeItem(h.language, languageWidth, 0).ResizeItem(h.identity, userWidth, 0)
 	h.header.Clear()
-	if w-6 >= sideWidth+tview.TaggedStringWidth(h.brand.GetText(false))+2 {
+	if w-4 >= sideWidth+tview.TaggedStringWidth(h.brand.GetText(false))+2 {
 		h.header.SetDirection(tview.FlexColumn).AddItem(h.brand, 0, 1, false).AddItem(h.headerTools, sideWidth, 0, false)
 		h.main.ResizeItem(h.header, headerHeight, 0)
 	} else {
@@ -258,7 +254,7 @@ func (h *terminalUI) configureSearchClear() {
 		drawBorder(screen, x, y, width, height)
 		// Compute from the outer rectangle: GetInnerRect may still contain
 		// the previous frame's reserved space for the clear button.
-		x, y, width, height = x+2, y+1, max(0, width-4), max(0, height-2)
+		x, y, width, height = x+3, y+1, max(0, width-5), max(0, height-2)
 		h.searchClear.SetRect(0, 0, 0, 0)
 		const clearWidth = len(clearLabel)
 		if h.search.GetText() != "" && height > 0 && width >= tview.TaggedStringWidth(h.search.GetLabel())+clearWidth+3 {
@@ -435,11 +431,6 @@ func (h *terminalUI) refreshView() {
 
 func (h *terminalUI) expandTree(expand bool) {
 	h.treeCollapsed = !expand
-	label := "−"
-	if !expand {
-		label = "+"
-	}
-	h.treeActions[0].SetLabel(label)
 	root := h.tree.GetRoot()
 	if root == nil {
 		return
@@ -478,7 +469,7 @@ func (h *terminalUI) showLanguage() {
 		}
 		return ev
 	})
-	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tuiButtonFocusedStyle).SetSelectedFunc(h.dismissModal)
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(list, 0, 1, true).AddItem(nil, 1, 0, false).AddItem(close, 1, 0, false)
 	content.Box = tview.NewBox()
 	tuiDialogBorder(content.Box, h.tr("语言", "Language"))
@@ -640,7 +631,7 @@ func (h *terminalUI) showFullText() {
 	})
 	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
-		SetActivatedStyle(tui.Selected).
+		SetActivatedStyle(tuiButtonFocusedStyle).
 		SetSelectedFunc(h.dismissModal)
 	content := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(view, 0, 1, true).

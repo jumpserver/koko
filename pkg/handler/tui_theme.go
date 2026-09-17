@@ -41,8 +41,8 @@ func (h *terminalUI) showAppearance() {
 		dropdown.SetLabelWidth(labelWidth).SetFieldWidth(0).
 			SetLabelStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))
 	}
-	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
-	reset := tview.NewButton(h.tr("还原主题色", "Reset accent")).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tuiButtonFocusedStyle).SetSelectedFunc(h.dismissModal)
+	reset := tview.NewButton(h.tr("还原主题色", "Reset accent")).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tuiButtonFocusedStyle).
 		SetSelectedFunc(func() { accent.SetCurrentOption(0) })
 	buttons := tview.NewFlex().AddItem(reset, 0, 1, false).AddItem(close, 0, 1, false)
 	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(mode, 1, 0, true).AddItem(nil, 0, 1, false).
@@ -56,7 +56,7 @@ func (h *terminalUI) changeAppearance(light bool, accent int) {
 	if light == h.lightTheme && accent == h.accentColor {
 		return
 	}
-	palette := tui.ThemePaletteForProfile(light, accent, h.colorProfile)
+	palette := h.themeScreen.AdaptPalette(tui.ThemePaletteForProfile(light, accent, h.colorProfile))
 	for _, session := range h.sessions {
 		if err := session.terminal.SetPalette(palette); err != nil {
 			h.fail(err)

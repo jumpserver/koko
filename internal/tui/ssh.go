@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"encoding/base64"
 	"io"
 	"strings"
 	"sync"
@@ -129,6 +130,18 @@ func (s *sshScreen) Fini() {
 			_, _ = io.WriteString(s.output, s.cursorReset)
 		}
 	})
+}
+
+func (s *sshScreen) SetClipboard(data []byte) {
+	if len(data) == 0 {
+		return
+	}
+	// Terminfo may omit clipboard support even when the SSH client accepts OSC 52.
+	encoded := make([]byte, 0, base64.StdEncoding.EncodedLen(len(data))+9)
+	encoded = append(encoded, "\x1b]52;c;"...)
+	encoded = base64.StdEncoding.AppendEncode(encoded, data)
+	encoded = append(encoded, "\x1b\\"...)
+	_, _ = s.output.Write(encoded)
 }
 
 func (t *sshTTY) Start() error {

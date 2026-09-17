@@ -193,7 +193,7 @@ func (h *terminalUI) showUnavailableAsset(asset model.PermAsset) {
 	})
 	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
-		SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+		SetActivatedStyle(tuiButtonFocusedStyle).SetSelectedFunc(h.dismissModal)
 	closeRow := tview.NewFlex().AddItem(nil, 0, 1, false).
 		AddItem(close, tview.TaggedStringWidth(close.GetLabel())+4, 0, false).
 		AddItem(nil, 0, 1, false)
@@ -246,7 +246,7 @@ func (h *terminalUI) showUnavailableAsset(asset model.PermAsset) {
 
 func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermAccount, protocols []string) {
 	accountPicker := tuiDropdown().SetLabel(h.tr("账号", "Account")+" ").
-		SetTextOptions(" ", " ", " ", "", " "+h.tr("请选择账号", "Select account"))
+		SetTextOptions("", "", " ", "", " "+h.tr("请选择账号", "Select account"))
 	accountLabels := make([]string, 0, len(accounts))
 	search := &tuiAccountSearch{picker: accountPicker, field: tview.NewInputField().SetLabel(h.tr("搜索", "Search") + " ").
 		SetPlaceholder(h.tr("账号名称 / 用户名", "Account name / username")).
@@ -266,7 +266,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 		search.matches = append(search.matches, i)
 	}
 	protocolPicker := tuiDropdown().SetLabel(h.tr("协议", "Protocol")+" ").
-		SetTextOptions(" ", " ", " ", "", " "+h.tr("请选择协议", "Select protocol"))
+		SetTextOptions("", "", " ", "", " "+h.tr("请选择协议", "Select protocol"))
 	labelWidth := max(tview.TaggedStringWidth(accountPicker.GetLabel()), tview.TaggedStringWidth(protocolPicker.GetLabel()))
 	var pressedButton *tview.Button
 	for _, picker := range []*tview.DropDown{accountPicker, protocolPicker} {
@@ -321,7 +321,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 		})
 	}
 	connect := tview.NewButton(h.tr("连接", "Connect") + " · Enter").
-		SetStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).SetActivatedStyle(tui.Selected).
+		SetStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).SetActivatedStyle(tuiButtonFocusedStyle).
 		SetDisabledStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetDisabled(true)
 	selectedAccount := -1
 	connect.SetSelectedFunc(func() {
@@ -376,7 +376,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 		protocolPicker.SetCurrentOption(0)
 	}
 	close := tview.NewButton(h.tr("取消", "Cancel") + " · Esc").
-		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tuiButtonFocusedStyle).SetSelectedFunc(h.dismissModal)
 	// A click that closes a dropdown must not activate a button underneath it.
 	for _, button := range []*tview.Button{close, connect} {
 		button.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
@@ -667,9 +667,9 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 		return
 	}
 	h.rememberConnection(asset, account, protocol)
-	terminal, err := tui.NewTerminal(h.ctx, func() { h.dirty.Store(true) })
+	terminal, err := tui.NewTerminal(h.ctx, func() { h.dirty.Store(true) }, h.themeScreen.SetClipboard)
 	if err == nil {
-		err = terminal.SetPalette(tui.ThemePaletteForProfile(h.lightTheme, h.accentColor, h.colorProfile))
+		err = terminal.SetPalette(h.themeScreen.AdaptPalette(tui.ThemePaletteForProfile(h.lightTheme, h.accentColor, h.colorProfile)))
 		if err != nil {
 			terminal.Dispose()
 		}
@@ -679,7 +679,7 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 		return
 	}
 	title := cleanTUIText(account.Username + " @ " + asset.Name + " · " + protocol)
-	terminal.SetTitle(" " + title + " ").SetTitleAlign(tview.AlignLeft)
+	terminal.SetSessionInfo(title)
 	session := &tuiSession{terminal: terminal, name: asset.Name, page: common.UUID()}
 	for n := 2; ; n++ {
 		found := false
@@ -744,7 +744,7 @@ func (h *terminalUI) finishSession(session *tuiSession, title string, closeOnFin
 		return
 	}
 	session.closePromptPending = closeOnFinish
-	session.terminal.SetTitle(" " + title + " · " + h.tr("连接已结束", "Session ended") + " ")
+	session.terminal.SetSessionInfo(title + " · " + h.tr("连接已结束", "Session ended"))
 	h.refreshSessionTabs()
 	h.confirmCloseFinishedTab(session)
 }
@@ -760,7 +760,7 @@ func (h *terminalUI) buildSessionControls(session *tuiSession) {
 		func() { h.closeSession(session) },
 		func() { h.setFullscreen(!h.fullscreen) },
 	} {
-		session.controls = append(session.controls, tview.NewButton("").SetStyle(style).SetActivatedStyle(style.Foreground(tui.Foreground)).SetDisabledStyle(style.Dim(true)).SetSelectedFunc(action))
+		session.controls = append(session.controls, tview.NewButton("").SetStyle(style).SetActivatedStyle(style.Foreground(tui.Foreground)).SetDisabledStyle(style.Foreground(tui.Disabled)).SetSelectedFunc(action))
 	}
 }
 
@@ -837,7 +837,7 @@ func (h *terminalUI) scrollSessionTabs() {
 	selected = max(0, min(selected, count-1))
 	first = max(0, min(first, selected))
 	w, _ := h.screen.Size()
-	available, used := w-5, 0
+	available, used := w-4, 0
 	available = max(1, available)
 	width := func(col int) int {
 		cell := h.sessionTabs.GetCell(0, col)
@@ -857,7 +857,7 @@ func (h *terminalUI) scrollSessionTabs() {
 		available = max(1, available-3)
 		padding += 3
 	}
-	h.sessionTabs.SetBorderPadding(0, 0, 2, padding)
+	h.sessionTabs.SetBorderPadding(0, 0, 1, padding)
 	for col := first; col <= selected; col++ {
 		used += width(col)
 	}
@@ -891,7 +891,7 @@ func (h *terminalUI) sessionTabLabel(index int) string {
 func (h *terminalUI) showSessionMenu() {
 	h.closeDropdown()
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
-		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tui.Selected)
+		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tuiButtonFocusedStyle)
 	for i := -1; i < len(h.sessions); i++ {
 		list.AddItem(fmt.Sprintf("%d %s", i+1, strings.TrimSpace(h.sessionTabLabel(i))), "", 0, func() { h.activateSession(i) })
 	}
@@ -910,7 +910,7 @@ func (h *terminalUI) showSessionMenu() {
 func (h *terminalUI) showUserMenu() {
 	h.closeDropdown()
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
-		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tui.Selected)
+		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tuiButtonFocusedStyle)
 	list.AddItem(h.tr("退出", "Quit"), "", 0, h.quit)
 	tuiDialogBorder(list.Box, "")
 	list.SetBorderPadding(0, 0, 2, 2)
@@ -980,10 +980,10 @@ func (h *terminalUI) confirmCloseFinishedTab(session *tuiSession) {
 			}
 		})
 	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
-		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
+		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetButtonActivatedStyle(tuiButtonFocusedStyle).
 		SetBorderColor(tui.FocusBorder)
 	dialog.Box.SetBackgroundColor(tui.Panel)
-	dialog.SetTitle(" " + h.tr("连接已结束", "Session ended") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
+	dialog.SetTitle("  " + h.tr("连接已结束", "Session ended") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
 	tui.RoundedBorder(dialog.Box)
 	h.openDialog("session-ended", dialog, nil)
 }
@@ -1007,10 +1007,10 @@ func (h *terminalUI) confirmDisconnect(session *tuiSession) {
 			}
 		})
 	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
-		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
+		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetButtonActivatedStyle(tuiButtonFocusedStyle).
 		SetBorderColor(tui.FocusBorder)
 	dialog.Box.SetBackgroundColor(tui.Panel)
-	dialog.SetTitle(" " + h.tr("断开确认", "Confirm disconnect") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
+	dialog.SetTitle("  " + h.tr("断开确认", "Confirm disconnect") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
 	tui.RoundedBorder(dialog.Box)
 	h.openDialog("disconnect", dialog, nil)
 }
@@ -1085,10 +1085,10 @@ func (h *terminalUI) quit() {
 			}
 		})
 	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
-		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Raised)).SetButtonActivatedStyle(tui.Selected).
+		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetButtonActivatedStyle(tuiButtonFocusedStyle).
 		SetBorderColor(tui.FocusBorder)
 	dialog.Box.SetBackgroundColor(tui.Panel)
-	dialog.SetTitle(" " + h.tr("退出 SSH 会话", "Quit SSH session") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
+	dialog.SetTitle("  " + h.tr("退出 SSH 会话", "Quit SSH session") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
 	tui.RoundedBorder(dialog.Box)
 	h.openDialog("quit", dialog, nil)
 }

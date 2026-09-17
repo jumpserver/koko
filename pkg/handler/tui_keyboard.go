@@ -46,9 +46,7 @@ func (h *terminalUI) focusOrder() []tview.Primitive {
 	}
 	if !h.sidebarHidden {
 		order = append(order, h.treeKind, h.tree)
-		for _, b := range h.treeActions {
-			order = append(order, b)
-		}
+		order = append(order, h.treeRefresh)
 	}
 	order = append(order, h.search, h.assetRefresh, h.table)
 
@@ -137,6 +135,10 @@ func (h *terminalUI) input(ev *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 	remoteInput := !h.modal && h.popup != nil && h.popup.HasFocus()
+	if remoteInput && h.popup.CopySelectionShortcut(ev) {
+		h.windowPrefix = false
+		return nil
+	}
 	if ev.Key() == tcell.KeyRune && ev.Rune() > 127 {
 		// Terminal.app may shift cells while composing text locally. The
 		// resulting damage is invisible to tcell's diff buffer. Repair the
@@ -154,7 +156,7 @@ func (h *terminalUI) input(ev *tcell.EventKey) *tcell.EventKey {
 	for _, binding := range h.shortcuts() {
 		if binding.matches(ev) {
 			switch binding.id {
-			case "fullscreen", "window", "back", "literal-prefix":
+			case "fullscreen", "window", "back", "literal-prefix", "copy-selection":
 			default:
 				h.setFullscreen(false)
 			}
@@ -344,7 +346,7 @@ func (h *terminalUI) showKeyboardHelp() {
 	help := &tuiHelpTextView{TextView: tview.NewTextView()}
 	help.SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetWrap(true).SetWordWrap(true).SetScrollable(true).SetText(helpText).ScrollToBeginning()
 	help.SetBackgroundColor(tui.Panel).SetBorderPadding(0, 0, 0, 2)
-	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tuiButtonFocusedStyle).SetSelectedFunc(h.dismissModal)
 	help.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			h.dismissModal()
