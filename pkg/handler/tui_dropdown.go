@@ -12,8 +12,8 @@ import (
 )
 
 type tuiAccountSearch struct {
-	picker  *tui.DropDown
-	field   *tui.InputField
+	picker  *tview.DropDown
+	field   *tview.InputField
 	matches []int
 }
 
@@ -31,28 +31,28 @@ func (s *tuiAccountSearch) handleKey(ev *tcell.EventKey) bool {
 }
 
 type tuiNavigationSearch struct {
-	picker *tui.DropDown
-	field  *tui.InputField
+	picker *tview.DropDown
+	field  *tview.InputField
 }
 
 // DropDown's private prefix field handles text without drawing a cursor. Use
 // one visible input field instead, so local IME composition has a caret anchor.
-func (h *terminalUI) navigationSearchFor(d *tui.DropDown) *tui.InputField {
+func (h *terminalUI) navigationSearchFor(d *tview.DropDown) *tview.InputField {
 	if d == nil || d != h.org && d != h.treeKind {
 		return nil
 	}
 	if h.navigationSearch == nil || h.navigationSearch.picker != d {
-		field := tui.NewInputField().SetFieldTextColor(tui.Foreground).
+		field := tview.NewInputField().SetFieldTextColor(tui.Foreground).
 			SetFieldBackgroundColor(tui.Panel).
 			SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
-		field.SetMaxLength(tuiSearchMaxLength)
+		field.SetAcceptanceFunc(tview.InputFieldMaxLength(tuiSearchMaxLength))
 		field.SetBackgroundColor(tui.Panel)
 		field.SetChangedFunc(func(prefix string) {
 			if prefix == "" || !d.IsOpen() {
 				return
 			}
 			d.Focus(func(p tview.Primitive) {
-				list := p.(*tui.List)
+				list := p.(*tview.List)
 				for index := range list.GetItemCount() {
 					text, _ := list.GetItemText(index)
 					// Navigation labels are escaped; each list item has one
@@ -107,7 +107,7 @@ func (h *terminalUI) pasteNavigationSearch(text string, setFocus func(tview.Prim
 
 // Keep a dialog dropdown arrow immediately inside its right border, outside
 // the native text area. The dialog fields have a border and one left pad cell.
-func pinDialogDropdownIndicator(d *tui.DropDown) {
+func pinDialogDropdownIndicator(d *tview.DropDown) {
 	drawBorder := d.GetDrawFunc()
 	d.SetDrawFunc(func(s tcell.Screen, x, y, width, height int) (int, int, int, int) {
 		if drawBorder != nil {
@@ -123,7 +123,7 @@ func pinDialogDropdownIndicator(d *tui.DropDown) {
 	})
 }
 
-func pinNavigationDropdownIndicator(d *tui.DropDown) {
+func pinNavigationDropdownIndicator(d *tview.DropDown) {
 	d.SetTextOptions(" ", " ", "", "", " … ")
 	d.SetDrawFunc(func(s tcell.Screen, x, y, width, height int) (int, int, int, int) {
 		if width < 3 || height < 1 {
@@ -144,7 +144,7 @@ func pinNavigationDropdownIndicator(d *tui.DropDown) {
 	})
 }
 
-func (h *terminalUI) accountSearchFor(d *tui.DropDown) *tuiAccountSearch {
+func (h *terminalUI) accountSearchFor(d *tview.DropDown) *tuiAccountSearch {
 	if h.modal {
 		search := h.dialogs[len(h.dialogs)-1].accountSearch
 		if search != nil && search.picker == d {
@@ -154,9 +154,9 @@ func (h *terminalUI) accountSearchFor(d *tui.DropDown) *tuiAccountSearch {
 	return nil
 }
 
-func (h *terminalUI) focusedDropdown() *tui.DropDown {
+func (h *terminalUI) focusedDropdown() *tview.DropDown {
 	for _, item := range h.focusOrder() {
-		if d, ok := item.(*tui.DropDown); ok && d.HasFocus() {
+		if d, ok := item.(*tview.DropDown); ok && d.HasFocus() {
 			return d
 		}
 	}
@@ -167,7 +167,7 @@ func (h *terminalUI) openFocusedDropdown() {
 	if d := h.focusedDropdown(); d != nil && !d.IsOpen() && d.GetOptionCount() > 0 {
 		d.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, 0), func(p tview.Primitive) { h.app.SetFocus(p) })
 		if h.modal && h.dialogs[len(h.dialogs)-1].boundedDropdowns {
-			d.Focus(func(p tview.Primitive) { h.limitDialogDropdown(d, p.(*tui.List)) })
+			d.Focus(func(p tview.Primitive) { h.limitDialogDropdown(d, p.(*tview.List)) })
 		}
 	}
 }
@@ -176,14 +176,14 @@ const tuiDropdownVisibleItems = 8
 
 // Bound the native list before it paints or adjusts its scroll offset. Drawing
 // a second, smaller list afterward leaves oversized remnants and resets scroll.
-func (h *terminalUI) limitDialogDropdown(d *tui.DropDown, list *tui.List) {
+func (h *terminalUI) limitDialogDropdown(d *tview.DropDown, list *tview.List) {
 	digits, width, labelWidth := len(strconv.Itoa(list.GetItemCount())), 0, 0
 	for i := range list.GetItemCount() {
 		label, _ := list.GetItemText(i)
 		width = max(width, tview.TaggedStringWidth(label)+digits+6)
 	}
 	for _, item := range h.focusOrder() {
-		if picker, ok := item.(*tui.DropDown); ok {
+		if picker, ok := item.(*tview.DropDown); ok {
 			labelWidth = max(labelWidth, tview.TaggedStringWidth(picker.GetLabel()))
 		}
 	}
@@ -192,7 +192,7 @@ func (h *terminalUI) limitDialogDropdown(d *tui.DropDown, list *tui.List) {
 	// Flex supplies a transparent Box, so the native, unbounded rectangle is
 	// never cleared. Keep the native input capture and delegated list focus.
 	capture, focused := list.GetInputCapture(), list.HasFocus()
-	list.Box = tui.NewFlex().Box
+	list.Box = tview.NewFlex().Box
 	list.SetInputCapture(capture)
 	search := h.accountSearchFor(d)
 	topPadding := 0
@@ -287,7 +287,7 @@ func (h *terminalUI) clearDropdownNumber() {
 	h.dropdownNumber, h.dropdownNumberTarget, h.dropdownNumberDue = "", nil, time.Time{}
 }
 
-func (h *terminalUI) selectDropdownNumber(d *tui.DropDown, digit rune) {
+func (h *terminalUI) selectDropdownNumber(d *tview.DropDown, digit rune) {
 	if h.dropdownNumberTarget != d {
 		h.clearDropdownNumber()
 	}
@@ -301,7 +301,7 @@ func (h *terminalUI) selectDropdownNumber(d *tui.DropDown, digit rune) {
 		h.clearDropdownNumber()
 		return
 	}
-	d.Focus(func(p tview.Primitive) { p.(*tui.List).SetCurrentItem(index - 1) })
+	d.Focus(func(p tview.Primitive) { p.(*tview.List).SetCurrentItem(index - 1) })
 	if index*10 > d.GetOptionCount() {
 		h.commitDropdownNumber()
 		return

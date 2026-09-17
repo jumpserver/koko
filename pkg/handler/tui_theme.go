@@ -37,15 +37,15 @@ func (h *terminalUI) showAppearance() {
 		setAccentOptions(light)
 	})
 	labelWidth := max(tview.TaggedStringWidth(mode.GetLabel()), tview.TaggedStringWidth(accent.GetLabel())) + 1
-	for _, dropdown := range []*tui.DropDown{mode, accent} {
+	for _, dropdown := range []*tview.DropDown{mode, accent} {
 		dropdown.SetLabelWidth(labelWidth).SetFieldWidth(0).
 			SetLabelStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))
 	}
-	close := tui.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
-	reset := tui.NewButton(h.tr("还原主题色", "Reset accent")).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
+	reset := tview.NewButton(h.tr("还原主题色", "Reset accent")).SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).
 		SetSelectedFunc(func() { accent.SetCurrentOption(0) })
-	buttons := tui.NewFlex().AddItem(reset, 0, 1, false).AddItem(close, 0, 1, false)
-	content := tui.NewFlex().SetDirection(tview.FlexRow).AddItem(mode, 1, 0, true).AddItem(nil, 0, 1, false).
+	buttons := tview.NewFlex().AddItem(reset, 0, 1, false).AddItem(close, 0, 1, false)
+	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(mode, 1, 0, true).AddItem(nil, 0, 1, false).
 		AddItem(accent, 1, 0, false).AddItem(nil, 0, 1, false).AddItem(buttons, 1, 0, false)
 	content.Box = tview.NewBox()
 	tuiDialogBorder(content.Box, h.tr("主题", "Theme"))

@@ -183,7 +183,7 @@ func (h *terminalUI) showUnavailableAsset(asset model.PermAsset) {
 		initial = h.tr("当前资产已被禁用，无法连接", "This asset is disabled and cannot be connected")
 		height = 7
 	}
-	view := tui.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
+	view := tview.NewTextView().SetDynamicColors(false).SetWrap(true).SetWordWrap(true).
 		SetTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
 		SetTextAlign(tview.AlignLeft).SetText(initial)
 	view.SetDoneFunc(func(k tcell.Key) {
@@ -191,14 +191,14 @@ func (h *terminalUI) showUnavailableAsset(asset model.PermAsset) {
 			h.dismissModal()
 		}
 	})
-	close := tui.NewButton(h.tr("关闭", "Close") + " · Esc").
+	close := tview.NewButton(h.tr("关闭", "Close") + " · Esc").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
 		SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
-	closeRow := tui.NewFlex().AddItem(nil, 0, 1, false).
+	closeRow := tview.NewFlex().AddItem(nil, 0, 1, false).
 		AddItem(close, tview.TaggedStringWidth(close.GetLabel())+4, 0, false).
 		AddItem(nil, 0, 1, false)
 	closeRow.SetBackgroundColor(tui.Panel)
-	content := tui.NewFlex().SetDirection(tview.FlexRow).
+	content := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(view, 0, 1, true).AddItem(nil, 1, 0, false).AddItem(closeRow, 1, 0, false)
 	content.Box = tview.NewBox()
 	content.SetBackgroundColor(tui.Panel)
@@ -248,12 +248,12 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 	accountPicker := tuiDropdown().SetLabel(h.tr("账号", "Account")+" ").
 		SetTextOptions(" ", " ", " ", "", " "+h.tr("请选择账号", "Select account"))
 	accountLabels := make([]string, 0, len(accounts))
-	search := &tuiAccountSearch{picker: accountPicker, field: tui.NewInputField().SetLabel(h.tr("搜索", "Search") + " ").
+	search := &tuiAccountSearch{picker: accountPicker, field: tview.NewInputField().SetLabel(h.tr("搜索", "Search") + " ").
 		SetPlaceholder(h.tr("账号名称 / 用户名", "Account name / username")).
 		SetLabelStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).
 		SetFieldStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).
 		SetPlaceholderStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel))}
-	search.field.SetMaxLength(tuiSearchMaxLength)
+	search.field.SetAcceptanceFunc(tview.InputFieldMaxLength(tuiSearchMaxLength))
 	search.field.SetBackgroundColor(tui.Panel)
 	searchText := make([]string, 0, len(accounts))
 	for i, account := range accounts {
@@ -268,8 +268,8 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 	protocolPicker := tuiDropdown().SetLabel(h.tr("协议", "Protocol")+" ").
 		SetTextOptions(" ", " ", " ", "", " "+h.tr("请选择协议", "Select protocol"))
 	labelWidth := max(tview.TaggedStringWidth(accountPicker.GetLabel()), tview.TaggedStringWidth(protocolPicker.GetLabel()))
-	var pressedButton *tui.Button
-	for _, picker := range []*tui.DropDown{accountPicker, protocolPicker} {
+	var pressedButton *tview.Button
+	for _, picker := range []*tview.DropDown{accountPicker, protocolPicker} {
 		picker.SetLabelWidth(labelWidth)
 		picker.SetFocusedStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel))
 		tuiBorder(picker.Box, "", tui.Border)
@@ -286,9 +286,9 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 			}
 			// A captured menu can receive mouse events after focus moves to
 			// another control. Resolve the list owned by this picker.
-			var list *tui.List
+			var list *tview.List
 			if picker.IsOpen() {
-				picker.Focus(func(p tview.Primitive) { list = p.(*tui.List) })
+				picker.Focus(func(p tview.Primitive) { list = p.(*tview.List) })
 			}
 			if picker == accountPicker && list != nil {
 				if search.field.InRect(ev.Position()) {
@@ -320,7 +320,7 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 			return action, ev
 		})
 	}
-	connect := tui.NewButton(h.tr("连接", "Connect") + " · Enter").
+	connect := tview.NewButton(h.tr("连接", "Connect") + " · Enter").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Accent).Background(tui.Panel)).SetActivatedStyle(tui.Selected).
 		SetDisabledStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetDisabled(true)
 	selectedAccount := -1
@@ -375,10 +375,10 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 	} else if len(protocols) == 1 {
 		protocolPicker.SetCurrentOption(0)
 	}
-	close := tui.NewButton(h.tr("取消", "Cancel") + " · Esc").
+	close := tview.NewButton(h.tr("取消", "Cancel") + " · Esc").
 		SetStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).SetActivatedStyle(tui.Selected).SetSelectedFunc(h.dismissModal)
 	// A click that closes a dropdown must not activate a button underneath it.
-	for _, button := range []*tui.Button{close, connect} {
+	for _, button := range []*tview.Button{close, connect} {
 		button.SetMouseCapture(func(action tview.MouseAction, ev *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 			if !button.InRect(ev.Position()) {
 				return action, ev
@@ -395,9 +395,9 @@ func (h *terminalUI) accountDialog(asset model.PermAsset, accounts []model.PermA
 			return action, ev
 		})
 	}
-	buttons := tui.NewFlex().AddItem(close, 0, 1, false).AddItem(connect, 0, 1, false)
+	buttons := tview.NewFlex().AddItem(close, 0, 1, false).AddItem(connect, 0, 1, false)
 	buttons.SetBackgroundColor(tui.Panel)
-	content := tui.NewFlex().SetDirection(tview.FlexRow).AddItem(accountPicker, 3, 0, true).
+	content := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(accountPicker, 3, 0, true).
 		AddItem(nil, 1, 0, false).AddItem(protocolPicker, 3, 0, false).AddItem(nil, 1, 0, false).AddItem(buttons, 1, 0, false)
 	content.Box = tview.NewBox()
 	tuiDialogBorder(content.Box, h.tr("选择账号", "Select account")+" · "+cleanTUIText(asset.Name))
@@ -760,7 +760,7 @@ func (h *terminalUI) buildSessionControls(session *tuiSession) {
 		func() { h.closeSession(session) },
 		func() { h.setFullscreen(!h.fullscreen) },
 	} {
-		session.controls = append(session.controls, tui.NewButton("").SetStyle(style).SetActivatedStyle(style.Foreground(tui.Foreground)).SetDisabledStyle(style.Dim(true)).SetSelectedFunc(action))
+		session.controls = append(session.controls, tview.NewButton("").SetStyle(style).SetActivatedStyle(style.Foreground(tui.Foreground)).SetDisabledStyle(style.Dim(true)).SetSelectedFunc(action))
 	}
 }
 
@@ -777,7 +777,7 @@ func (h *terminalUI) drawSessionControls(screen tcell.Screen) {
 	right := x + w - 3
 	tview.Print(screen, " ", right, y, 1, tview.AlignLeft, tui.Muted)
 	for i := len(controls) - 1; i >= 0; i-- {
-		button := controls[i].(*tui.Button)
+		button := controls[i].(*tview.Button)
 		width := min(tview.TaggedStringWidth(button.GetLabel()), max(1, (w-5-3*(len(controls)-1))/len(controls)))
 		right -= width
 		button.SetRect(right, y, width, 1)
@@ -800,15 +800,29 @@ func (h *terminalUI) refreshSessionTabs() {
 	}
 	_, offset := h.sessionTabs.GetOffset()
 	h.sessionTabs.Clear().SetOffset(0, offset)
-	h.sessionTabs.SetCell(0, 0, tui.NewTableCell(h.sessionTabLabel(-1)).SetTextColor(tui.Muted).SetClickedFunc(func() bool { h.activateSession(-1); return true }))
+	h.sessionTabs.SetCell(0, 0, tview.NewTableCell(h.sessionTabLabel(-1)).SetTextColor(tui.Muted).SetClickedFunc(func() bool { h.activateSession(-1); return true }))
 	for i := range h.sessions {
-		h.sessionTabs.SetCell(0, i+1, tui.NewTableCell(h.sessionTabLabel(i)).SetMaxWidth(36).SetTextColor(tui.Muted).SetClickedFunc(func() bool { h.activateSession(i); return true }))
+		h.sessionTabs.SetCell(0, i+1, tview.NewTableCell(h.sessionTabLabel(i)).SetMaxWidth(36).SetTextColor(tui.Muted).SetClickedFunc(func() bool { h.activateSession(i); return true }))
 	}
 	h.sessionTabs.Select(0, selected)
 }
 
+// Restore inline icon/key colors after Table's selected-cell recoloring pass.
 func (h *terminalUI) drawSessionTabs(screen tcell.Screen) {
-	h.drawCharmTabs(screen)
+	_, selected := h.sessionTabs.GetSelection()
+	if selected < 0 || selected >= h.sessionTabs.GetColumnCount() {
+		return
+	}
+	cell := h.sessionTabs.GetCell(0, selected)
+	x, y, width := cell.GetLastPosition()
+	// Off-screen cells retain their previous coordinates after scrolling.
+	if row, col := h.sessionTabs.CellAt(x, y); row != 0 || col != selected || width <= 0 {
+		return
+	}
+	tview.Print(screen, cell.Text, x, y, width, tview.AlignLeft, tui.Muted)
+	if tview.TaggedStringWidth(cell.Text) > width {
+		tview.Print(screen, "…", x+width-1, y, 1, tview.AlignLeft, tui.Muted)
+	}
 }
 
 // Keep the selected label fully visible, rather than truncating the active tab
@@ -823,7 +837,7 @@ func (h *terminalUI) scrollSessionTabs() {
 	selected = max(0, min(selected, count-1))
 	first = max(0, min(first, selected))
 	w, _ := h.screen.Size()
-	available, used := w-4, 0
+	available, used := w-5, 0
 	available = max(1, available)
 	width := func(col int) int {
 		cell := h.sessionTabs.GetCell(0, col)
@@ -843,7 +857,7 @@ func (h *terminalUI) scrollSessionTabs() {
 		available = max(1, available-3)
 		padding += 3
 	}
-	h.sessionTabs.SetBorderPadding(0, 0, 1, padding)
+	h.sessionTabs.SetBorderPadding(0, 0, 2, padding)
 	for col := first; col <= selected; col++ {
 		used += width(col)
 	}
@@ -859,7 +873,7 @@ func (h *terminalUI) scrollSessionTabs() {
 }
 
 func (h *terminalUI) sessionTabLabel(index int) string {
-	label := "▦ " + h.tr("资产面板", "Asset panel")
+	label := "# " + h.tr("资产面板", "Asset panel")
 	if index >= 0 && index < len(h.sessions) {
 		session := h.sessions[index]
 		state := "●"
@@ -876,7 +890,7 @@ func (h *terminalUI) sessionTabLabel(index int) string {
 
 func (h *terminalUI) showSessionMenu() {
 	h.closeDropdown()
-	list := tui.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
+	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
 		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tui.Selected)
 	for i := -1; i < len(h.sessions); i++ {
 		list.AddItem(fmt.Sprintf("%d %s", i+1, strings.TrimSpace(h.sessionTabLabel(i))), "", 0, func() { h.activateSession(i) })
@@ -895,7 +909,7 @@ func (h *terminalUI) showSessionMenu() {
 
 func (h *terminalUI) showUserMenu() {
 	h.closeDropdown()
-	list := tui.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
+	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
 		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tui.Selected)
 	list.AddItem(h.tr("退出", "Quit"), "", 0, h.quit)
 	tuiDialogBorder(list.Box, "")
@@ -913,7 +927,7 @@ func (h *terminalUI) setFullscreen(enabled bool) {
 	h.fullscreen = enabled
 	if enabled {
 		h.footer.SetBorderPadding(0, 0, 1, 1)
-		root := tui.NewFlex().SetDirection(tview.FlexRow).AddItem(h.popup, 0, 1, true).AddItem(h.footer, 1, 0, false)
+		root := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(h.popup, 0, 1, true).AddItem(h.footer, 1, 0, false)
 		root.SetBackgroundColor(tui.Background)
 		root.SetMouseCapture(h.captureRootMouse)
 		h.app.SetRoot(root, true)
@@ -957,7 +971,7 @@ func (h *terminalUI) confirmCloseFinishedTab(session *tuiSession) {
 	}
 	session.closePromptPending = false
 	message := fmt.Sprintf(h.tr("会话“%s”已结束，是否关闭此标签页？", "Session \"%s\" has ended. Close this tab?"), cleanTUIText(session.name))
-	dialog := tui.NewModal().SetText(message).
+	dialog := tview.NewModal().SetText(message).
 		AddButtons([]string{h.tr("保留标签页", "Keep tab"), h.tr("关闭标签页", "Close tab")}).
 		SetDoneFunc(func(index int, _ string) {
 			h.dismissModal()
@@ -984,7 +998,7 @@ func (h *terminalUI) closeSession(session *tuiSession) {
 
 func (h *terminalUI) confirmDisconnect(session *tuiSession) {
 	message := fmt.Sprintf(h.tr("确定断开会话“%s”？", "Disconnect session \"%s\"?"), cleanTUIText(session.name))
-	dialog := tui.NewModal().SetText(message).
+	dialog := tview.NewModal().SetText(message).
 		AddButtons([]string{h.tr("返回", "Back"), h.tr("断开", "Disconnect")}).
 		SetDoneFunc(func(index int, _ string) {
 			h.dismissModal()
@@ -1061,7 +1075,7 @@ func (h *terminalUI) quit() {
 	if len(h.sessions) > 0 {
 		message += "\n\n" + h.tr("退出后，所有已连接的资产会话都将断开。", "All connected asset sessions will be disconnected.")
 	}
-	dialog := tui.NewModal().SetText(message).
+	dialog := tview.NewModal().SetText(message).
 		AddButtons([]string{h.tr("取消", "Cancel"), h.tr("退出会话", "Quit session")}).
 		SetDoneFunc(func(index int, _ string) {
 			if index == 1 {
@@ -1081,7 +1095,7 @@ func (h *terminalUI) quit() {
 
 // tview handles vertical wheel/PageUp/PageDown and keyboard horizontal scrolling.
 // Add horizontal wheel gestures too; row selection is unchanged while scrolling.
-func enableTableScroll(table *tui.Table) {
+func enableTableScroll(table *tview.Table) {
 	previousCapture := table.GetMouseCapture()
 	table.SetMouseCapture(func(a tview.MouseAction, e *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
 		if previousCapture != nil {
