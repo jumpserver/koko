@@ -436,8 +436,7 @@ func (h *terminalUI) build() {
 	h.configureSearchClear()
 	h.search.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
-			h.searchQuery = h.search.GetText()
-			h.loadAssets(0)
+			h.app.SetFocus(h.table)
 		}
 		if key == tcell.KeyEscape {
 			h.app.SetFocus(h.table)
