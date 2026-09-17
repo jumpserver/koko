@@ -20,6 +20,7 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/zmodem"
 )
 
 // tuiOverlay confines every child (including its mouse hit area) to a centered
@@ -462,14 +463,20 @@ var zmodemHexHeaderPrefix = []byte{0x2a, 0x2a, 0x18, 0x42}
 func (c *tuiAssetConnection) startZmodemPassthrough() {
 	c.zmodemMu.Lock()
 	defer c.zmodemMu.Unlock()
+	c.startZmodemPassthroughLocked()
+}
+
+func (c *tuiAssetConnection) startZmodemPassthroughLocked() bool {
 	if c.zmodemActive || c.screen == nil {
-		return
+		return c.zmodemActive
 	}
 	if c.screen.BeginPassthrough(c.Terminal, c.Terminal.SendRawInput) {
 		c.zmodemActive = true
 		c.zmodemFinishing = false
 		c.zmodemDraining = false
+		return true
 	}
+	return false
 }
 
 func (c *tuiAssetConnection) finishZmodemPassthroughAfterOutput(draining bool) {
@@ -506,7 +513,7 @@ func (c *tuiAssetConnection) endZmodemPassthrough(redrawPrompt bool) {
 	c.screen.EndPassthrough(c.Terminal)
 	c.zmodemMu.Unlock()
 	if redrawPrompt {
-		c.Terminal.SendInput([]byte{'\r'})
+		c.Terminal.SendRawInput([]byte{'\r'})
 	}
 	if c.onPassthroughEnd != nil {
 		c.onPassthroughEnd()
@@ -532,7 +539,12 @@ func (c *tuiAssetConnection) Write(p []byte) (int, error) {
 		return len(p), err
 	}
 
-	visible := c.bufferZmodemStart(p)
+	visible, start := c.bufferZmodemStart(p)
+	if start && c.startZmodemPassthroughLocked() {
+		_, err := c.screen.WritePassthrough(c.Terminal, visible)
+		c.zmodemMu.Unlock()
+		return len(p), err
+	}
 	c.zmodemMu.Unlock()
 	if len(visible) == 0 {
 		return len(p), nil
@@ -541,7 +553,7 @@ func (c *tuiAssetConnection) Write(p []byte) (int, error) {
 	return len(p), err
 }
 
-func (c *tuiAssetConnection) bufferZmodemStart(p []byte) []byte {
+func (c *tuiAssetConnection) bufferZmodemStart(p []byte) ([]byte, bool) {
 	data := p
 	if c.zmodemStartBuf.Len() > 0 {
 		c.zmodemStartBuf.Write(p)
@@ -552,17 +564,21 @@ func (c *tuiAssetConnection) bufferZmodemStart(p []byte) []byte {
 		header := data[start:]
 		if bytes.IndexAny(header, "\r\n") < 0 && len(header) <= zmodemStartFrameLimit {
 			c.zmodemStartBuf.Write(header)
-			return bytes.Clone(data[:start])
+			return bytes.Clone(data[:start]), false
 		}
-		return data
+		if frame, _, ok := zmodem.DecodeHexFrameHeader(header); ok &&
+			(frame.Type == zmodem.ZRQINIT || frame.Type == zmodem.ZRINIT) {
+			return data, true
+		}
+		return data, false
 	}
 	for size := min(len(data), len(zmodemHexHeaderPrefix)-1); size > 0; size-- {
 		if bytes.Equal(data[len(data)-size:], zmodemHexHeaderPrefix[:size]) {
 			c.zmodemStartBuf.Write(data[len(data)-size:])
-			return bytes.Clone(data[:len(data)-size])
+			return bytes.Clone(data[:len(data)-size]), false
 		}
 	}
-	return data
+	return data, false
 }
 
 func (c *tuiAssetConnection) Close() error {

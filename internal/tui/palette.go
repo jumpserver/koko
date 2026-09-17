@@ -214,9 +214,18 @@ func (s *ThemeScreen) BeginPassthrough(owner *Terminal, forward func([]byte) boo
 	if s.passthroughOwner != nil {
 		return s.passthroughOwner == owner
 	}
+	// Mouse motion and bracketed-paste reports are ordinary terminal input.
+	// Disable them before exposing the raw stream so they cannot corrupt a
+	// ZMODEM transfer while the TUI is frozen.
+	s.Screen.DisableMouse()
+	s.Screen.DisablePaste()
+	s.Screen.Show()
 	s.frozen.Store(true)
 	if !raw.beginPassthrough(forward) {
 		s.frozen.Store(false)
+		s.Screen.EnableMouse()
+		s.Screen.EnablePaste()
+		s.Screen.Show()
 		return false
 	}
 	s.passthroughOwner = owner
@@ -239,6 +248,8 @@ func (s *ThemeScreen) EndPassthrough(owner *Terminal) {
 		return
 	}
 	s.Screen.(passthroughScreen).endPassthrough()
+	s.Screen.EnableMouse()
+	s.Screen.EnablePaste()
 	s.passthroughOwner = nil
 	s.syncPending.Store(true)
 	s.frozen.Store(false)
