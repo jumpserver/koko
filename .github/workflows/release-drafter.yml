@@ -10,29 +10,15 @@ jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go_version: [ 'stable' ]
-        node_version: [ '20' ]
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.TAG }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            ~/.cache
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-build-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-build-
 
       - name: Get version
         id: get_version
         run: |
-          TAG=$(basename ${GITHUB_REF})
-          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Create Release
         id: create_release
@@ -44,21 +30,38 @@ jobs:
           version: ${{ steps.get_version.outputs.TAG }}
           tag: ${{ steps.get_version.outputs.TAG }}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node_version }}
+  build:
+    name: Build ${{ matrix.target }}
+    needs: create-release
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-14
+          - target: linux-amd64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go_version }}
-          cache: false
+          go-version-file: go.mod
+
+      - name: Prepare libghostty for CGO build
+        run: |
+          LIBGHOSTTY_VT_ROOT=$(./utils/setup-libghostty-vt.sh)
+          echo "PKG_CONFIG_PATH=${LIBGHOSTTY_VT_ROOT}/lib/pkgconfig" >> "$GITHUB_ENV"
 
       - name: Make Build
         id: make_build
         run: |
-         make all -s && ls build
+          make "${{ matrix.target }}" -s && ls build
         env:
-          VERSION: ${{ steps.get_version.outputs.TAG }}
+          VERSION: ${{ needs.create-release.outputs.version }}
 
       - name: Release Upload Assets
         uses: softprops/action-gh-release@v2
