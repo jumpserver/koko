@@ -99,3 +99,7 @@ By default, Koko connects to `http://host.docker.internal:8080`, exposes SSH on 
 
 ## Acknowledgments
 This project depends on [usql](https://github.com/xo/usql) for database connections. We appreciate their support.
+
+## License
+
+This project is licensed under the GNU General Public License version 3 (GPLv3), consistent with the [JumpServer main repository](https://github.com/jumpserver/jumpserver). See [LICENSE](LICENSE) for the full license text.

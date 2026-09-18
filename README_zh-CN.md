@@ -102,3 +102,7 @@ docker compose up --build
 ```
 
 默认连接宿主机的 `http://host.docker.internal:8080`，SSH 端口为 `2222`，HTTP 端口为 `5050`，Web Proxy 端口为 `5001`。可通过 `CORE_HOST`、`KOKO_SSH_PORT`、`KOKO_HTTP_PORT` 和 `KOKO_WEB_PROXY_PORT` 覆盖。Web Proxy 通过现有 Koko connect ticket 和 Core 连接令牌建立会话后允许所有目标地址；未认证的 HTTP 和 CONNECT 请求返回 407，不再使用部署级主机白名单。建立后的 Web 会话由 Koko 公共 session 管理执行权限检查和管理任务。
+
+## 许可证
+
+本项目采用 GNU General Public License version 3（GPLv3），与 [JumpServer 主库](https://github.com/jumpserver/jumpserver)保持一致。完整许可条款见 [LICENSE](LICENSE)。
