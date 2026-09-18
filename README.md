@@ -36,7 +36,7 @@ $ vim config.yml  # 2. Modify the configuration file, edit the address and boots
 CORE_HOST: http://127.0.0.1:8080
 BOOTSTRAP_TOKEN: PleaseChangeMe <change to the same as core>
 
-$ make run # 3. Run; the prebuilt libghostty-vt is downloaded on first use
+$ make run # 3. Run; prebuilt libghostty-vt and usql are downloaded on first use
 ```
 
 

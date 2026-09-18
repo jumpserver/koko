@@ -24,6 +24,7 @@ build/
 release
 /.cache/libghostty-vt/
 /third_party/libghostty-vt/
+/third_party/usql/
 !config_example.yml
 
 .DS_Store

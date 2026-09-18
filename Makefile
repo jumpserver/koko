@@ -109,6 +109,10 @@ clean:
 libghostty-vt:
 	@./utils/setup-libghostty-vt.sh
 
+.PHONY: usql
+usql:
+	@./utils/setup-usql.sh
+
 .PHONY: guacd
 guacd:
 	docker compose -f docker-compose-guacd.yml up -d
@@ -124,7 +128,9 @@ run: guacd
 	trap cleanup EXIT; \
 	trap 'exit 130' INT; \
 	trap 'exit 143' TERM; \
-	LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)"; \
+	LIBGHOSTTY_VT_ROOT="$$(./utils/setup-libghostty-vt.sh)" || exit $$?; \
+	USQL_BIN_DIR="$$(./utils/setup-usql.sh)" || exit $$?; \
+	PATH="$${USQL_BIN_DIR}:$${PATH}" \
 	PKG_CONFIG_PATH="$${LIBGHOSTTY_VT_ROOT}/lib/pkgconfig$${PKG_CONFIG_PATH:+:$${PKG_CONFIG_PATH}}" \
 	CGO_ENABLED=1 go run ./cmd/koko/
 
