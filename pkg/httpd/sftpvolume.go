@@ -1,530 +1,206 @@
 package httpd
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
-	"time"
-
-	"github.com/LeeEirc/elfinder"
-	"github.com/pkg/sftp"
+	"sync/atomic"
 
 	"github.com/jumpserver-dev/sdk-go/model"
-	"github.com/jumpserver-dev/sdk-go/service"
-	"github.com/jumpserver/koko/pkg/common"
-	"github.com/jumpserver/koko/pkg/logger"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
-type volumeOption struct {
-	addr         string
-	user         *model.User
-	asset        *model.PermAsset
-	connectToken *model.ConnectToken
-	terminalCfg  *model.TerminalConfig
-}
-type VolumeOption func(*volumeOption)
-
-func WithUser(user *model.User) VolumeOption {
-	return func(opts *volumeOption) {
-		opts.user = user
-	}
-}
-
-func WithAddr(addr string) VolumeOption {
-	return func(opts *volumeOption) {
-		opts.addr = addr
-	}
-}
-
-func WithAsset(asset *model.PermAsset) VolumeOption {
-	return func(opts *volumeOption) {
-		opts.asset = asset
-	}
+// sftpFileSystem is the remote I/O boundary shared by browser and file tools.
+type sftpFileSystem interface {
+	ReadDir(string) ([]os.FileInfo, error)
+	ReadDirWithCurrentPath(string) ([]os.FileInfo, string, error)
+	Stat(string) (os.FileInfo, error)
+	Lstat(string) (os.FileInfo, error)
+	MkdirExact(string) error
+	Rename(string, string) error
+	Remove(string) error
+	RemoveDirectory(string) error
+	Create(string) (*srvconn.SftpFile, error)
+	CreateEditorTemp(string, string) (*srvconn.SftpFile, error)
+	Open(string) (*srvconn.SftpFile, error)
+	OpenUploadTemp(string, bool) (*srvconn.SftpFile, error)
+	CommitUploadTemp(string, string, bool) (*model.FTPLog, error)
+	OpenForChecksum(string) (*srvconn.SftpFile, error)
+	AtomicCreate(string, string) error
+	AtomicReplace(string, string) error
+	DiscardUploadTemp(string) error
+	ResolveAgentToolPath(string) (string, error)
+	ValidateAgentToolConfinement() error
+	SetOnSessionClosed(func())
+	Close()
 }
 
-func WithConnectToken(connectToken *model.ConnectToken) VolumeOption {
-	return func(opts *volumeOption) {
-		opts.connectToken = connectToken
-	}
+// sftpVolume owns remote files and auditing for one WebSFTP connection.
+// All paths use UserSftpConn's namespace; there is no UI-specific base path.
+type sftpVolume struct {
+	conn      sftpFileSystem
+	recorder  *proxy.FTPFileRecorder
+	lock      sync.Mutex
+	uploads   map[int]*sftpUpload
+	closed    atomic.Bool
+	closeOnce sync.Once
 }
 
-func WithTerminalCfg(cfg *model.TerminalConfig) VolumeOption {
-	return func(opts *volumeOption) {
-		opts.terminalCfg = cfg
-	}
-
+type sftpUpload struct {
+	path string
+	file *srvconn.SftpFile
 }
 
-func NewUserVolume(jmsService *service.JMService, opts ...VolumeOption) *UserVolume {
-	var volOpts volumeOption
-	for _, opt := range opts {
-		opt(&volOpts)
-	}
-	homeName := "Home"
-	basePath := "/"
-	asset := volOpts.asset
-	if asset != nil {
-		folderName := asset.Name
-		if strings.Contains(folderName, "/") {
-			folderName = strings.ReplaceAll(folderName, "/", "_")
-		}
-		homeName = folderName
-		basePath = filepath.Join("/", homeName)
-	}
-	sftpOpts := make([]srvconn.UserSftpOption, 0, 5)
-	if volOpts.connectToken != nil {
-		sftpOpts = append(sftpOpts, srvconn.WithConnectToken(volOpts.connectToken))
-	}
-	if volOpts.asset != nil {
-		sftpOpts = append(sftpOpts, srvconn.WithAssets([]model.PermAsset{*volOpts.asset}))
-	}
-	sftpOpts = append(sftpOpts, srvconn.WithUser(volOpts.user))
-	sftpOpts = append(sftpOpts, srvconn.WithRemoteAddr(volOpts.addr))
-	sftpOpts = append(sftpOpts, srvconn.WithLoginFrom(model.LoginFromWeb))
-	sftpOpts = append(sftpOpts, srvconn.WithTerminalCfg(volOpts.terminalCfg))
-	userSftp := srvconn.NewUserSftpConn(jmsService, sftpOpts...)
-	rawID := fmt.Sprintf("%s@%s", volOpts.user.Username, volOpts.addr)
-
-	recorder := proxy.GetFTPFileRecorder(jmsService)
-	uVolume := &UserVolume{
-		Uuid:          elfinder.GenerateID(rawID),
-		UserSftp:      userSftp,
-		HomeName:      homeName,
-		basePath:      basePath,
-		chunkFilesMap: make(map[int]*sftp.File),
-		lock:          new(sync.Mutex),
-		recorder:      recorder,
-		ftpLogMap:     make(map[int]*model.FTPLog),
-	}
-	return uVolume
+type fileMutationOptions struct {
+	expectedVersion *string
+	force           bool
+	confined        bool
 }
 
-type UserVolume struct {
-	Uuid     string
-	UserSftp *srvconn.UserSftpConn
-	HomeName string
-	basePath string
-
-	chunkFilesMap map[int]*sftp.File
-	ftpLogMap     map[int]*model.FTPLog
-	lock          *sync.Mutex
-
-	recorder *proxy.FTPFileRecorder
+func newSFTPVolume(conn sftpFileSystem, recorder *proxy.FTPFileRecorder) *sftpVolume {
+	return &sftpVolume{conn: conn, recorder: recorder, uploads: make(map[int]*sftpUpload)}
 }
 
-func (u *UserVolume) ID() string {
-	return u.Uuid
-}
-
-func (u *UserVolume) Info(path string) (elfinder.FileDir, error) {
-	logger.Debug("Volume Info: ", path)
-	var rest elfinder.FileDir
-	if path == "/" {
-		return u.RootFileDir(), nil
-	}
-	originFileInfo, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
-	if err != nil {
-		return rest, err
-	}
-	dirPath := filepath.Dir(path)
-	filename := filepath.Base(path)
-	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
-	if filename != originFileInfo.Name() {
-		rest.Read, rest.Write = 1, 1
-		logger.Debug("Info filename no equal")
-	}
-	if filename == "." {
-		filename = originFileInfo.Name()
-	}
-	rest.Name = filename
-	rest.Hash = hashPath(u.Uuid, path)
-	rest.Phash = hashPath(u.Uuid, dirPath)
-	if rest.Hash == rest.Phash {
-		rest.Phash = ""
-	}
-	rest.Size = originFileInfo.Size()
-	rest.Ts = originFileInfo.ModTime().Unix()
-	rest.Volumeid = u.Uuid
-	if originFileInfo.IsDir() {
-		rest.Mime = "directory"
-		rest.Dirs = 1
-	} else {
-		rest.Mime = "file"
-		rest.Dirs = 0
-	}
-	return rest, err
-}
-
-func (u *UserVolume) List(path string) []elfinder.FileDir {
-	dirs := make([]elfinder.FileDir, 0)
-	logger.Debug("Volume List: ", path)
-	originFileInfolist, err := u.UserSftp.ReadDir(filepath.Join(u.basePath, path))
-	if err != nil {
-		return dirs
-	}
-	for i := 0; i < len(originFileInfolist); i++ {
-		if originFileInfolist[i].Mode()&os.ModeSymlink != 0 {
-			linkInfo := NewElfinderFileInfo(u.Uuid, path, originFileInfolist[i])
-			_, err := u.UserSftp.ReadDir(filepath.Join(u.basePath, path, originFileInfolist[i].Name()))
-			if err != nil {
-				logger.Errorf("link file %s is not dir err: %s", originFileInfolist[i].Name(), err)
-			} else {
-				logger.Infof("link file %s is dir", originFileInfolist[i].Name())
-				linkInfo.Mime = "directory"
-				linkInfo.Dirs = 1
-			}
-			dirs = append(dirs, linkInfo)
-			continue
-		}
-
-		dirs = append(dirs, NewElfinderFileInfo(u.Uuid, path, originFileInfolist[i]))
-	}
-	return dirs
-}
-
-func (u *UserVolume) Parents(path string, dep int) []elfinder.FileDir {
-	logger.Debug("volume Parents: ", path)
-	dirs := make([]elfinder.FileDir, 0)
-	dirPath := path
-	for {
-		tmps, err := u.UserSftp.ReadDir(filepath.Join(u.basePath, dirPath))
-		if err != nil {
-			return dirs
-		}
-
-		for i := 0; i < len(tmps); i++ {
-			if tmps[i].Mode()&os.ModeSymlink != 0 {
-				linkInfo := NewElfinderFileInfo(u.Uuid, dirPath, tmps[i])
-				_, err2 := u.UserSftp.ReadDir(filepath.Join(u.basePath, dirPath, tmps[i].Name()))
-				if err2 != nil {
-					logger.Errorf("link file %s is not dir err: %s", tmps[i].Name(), err2)
-				} else {
-					logger.Infof("link file %s is dir", tmps[i].Name())
-					linkInfo.Mime = "directory"
-					linkInfo.Dirs = 1
-				}
-				dirs = append(dirs, linkInfo)
-				continue
-			}
-
-			dirs = append(dirs, NewElfinderFileInfo(u.Uuid, dirPath, tmps[i]))
-		}
-
-		if dirPath == "/" {
-			break
-		}
-		dirPath = filepath.Dir(dirPath)
-	}
-	return dirs
-}
-
-func (u *UserVolume) GetFile(path string) (fileData elfinder.FileData, err error) {
-	logger.Debug("GetFile path: ", path)
-	var rest elfinder.FileData
-	sf, err := u.UserSftp.Open(filepath.Join(u.basePath, TrimPrefix(path)))
-	if err != nil {
-		return rest, err
-	}
-
-	fileInfo, err := sf.Stat()
-	if err != nil {
-		return rest, err
-	}
-
-	if err1 := u.recorder.Record(sf.FTPLog, sf); err1 != nil {
-		logger.Errorf("Record file err: %s", err1)
-	}
-	_, _ = sf.Seek(0, io.SeekStart)
-	// 屏蔽 sftp*File 的 WriteTo 方法，防止调用 sftp stat 命令
-	fileData = elfinder.FileData{Reader: sf, Size: fileInfo.Size()}
-	return fileData, nil
-}
-
-func (u *UserVolume) UploadFile(dirPath, uploadPath, filename string, reader io.Reader, totalSize int64) (elfinder.FileDir, error) {
-	var path string
-	switch {
-	case strings.Contains(uploadPath, filename):
-		path = filepath.Join(dirPath, TrimPrefix(uploadPath))
-	case uploadPath != "":
-		path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
-	default:
-		path = filepath.Join(dirPath, filename)
-
-	}
-	logger.Debug("Volume upload file path: ", path, "|", filename, "|", uploadPath)
-	var rest elfinder.FileDir
-	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
-	if err != nil {
-		return rest, err
-	}
-	defer fd.Close()
-
-	readerAt, ok := reader.(io.ReaderAt)
-	if !ok {
-		return rest, fmt.Errorf("the provided reader does not implement io.ReaderAt")
-	}
-
-	if err1 := u.recorder.Record(fd.FTPLog, reader); err1 != nil {
-		logger.Errorf("Record file err: %s", err1)
-	}
-
-	err = common.ChunkedFileTransfer(fd, readerAt, 0, totalSize)
-	if err != nil {
-		return rest, err
-	}
-	return u.Info(filepath.Join(filepath.Dir(path), filepath.Base(fd.FTPLog.Path)))
-}
-
-func (u *UserVolume) UploadChunk(cid int, dirPath, uploadPath, filename string, rangeData elfinder.ChunkRange, reader io.Reader) error {
-	var err error
-	var path string
-	u.lock.Lock()
-	fd, ok := u.chunkFilesMap[cid]
-	ftpLog := u.ftpLogMap[cid]
-	u.lock.Unlock()
-	if !ok {
-		switch {
-		case strings.Contains(uploadPath, filename):
-			path = filepath.Join(dirPath, TrimPrefix(uploadPath))
-		case uploadPath != "":
-			path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
-		default:
-			path = filepath.Join(dirPath, filename)
-
-		}
-		f, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
-		if err != nil {
-			return err
-		}
-		fd = f.File
-		ftpLog = f.FTPLog
-		_, err = fd.Seek(rangeData.Offset, 0)
-		if err != nil {
-			return err
-		}
+func (u *sftpVolume) Close() {
+	u.closeOnce.Do(func() {
+		u.closed.Store(true)
+		// Closing the transport releases operations blocked in remote I/O.
+		u.conn.Close()
 		u.lock.Lock()
-		u.chunkFilesMap[cid] = fd
-		u.ftpLogMap[cid] = ftpLog
-		u.lock.Unlock()
-	}
-
-	fileSize := rangeData.Length
-	offset := rangeData.Offset
-	readerAt, ok := reader.(io.ReaderAt)
-	if !ok {
-		return fmt.Errorf("the provided reader does not implement io.ReaderAt")
-	}
-
-	if err2 := u.recorder.ChunkedRecord(ftpLog, readerAt, offset, fileSize); err2 != nil {
-		logger.Errorf("Record file err: %s", err2)
-	}
-
-	err = common.ChunkedFileTransfer(fd, readerAt, offset, fileSize)
-
-	if err != nil {
-		_ = fd.Close()
-		u.lock.Lock()
-		delete(u.chunkFilesMap, cid)
-		delete(u.ftpLogMap, cid)
-		u.lock.Unlock()
-	}
-	return err
+		defer u.lock.Unlock()
+		for id, upload := range u.uploads {
+			_ = upload.file.Close()
+			u.discardFileRecord(upload.file)
+			delete(u.uploads, id)
+		}
+	})
 }
 
-func (u *UserVolume) MergeChunk(cid, total int, dirPath, uploadPath, filename string) (elfinder.FileDir, error) {
-	var path string
-	switch {
-	case strings.Contains(uploadPath, filename):
-		path = filepath.Join(dirPath, TrimPrefix(uploadPath))
-	case uploadPath != "":
-		path = filepath.Join(dirPath, TrimPrefix(uploadPath), filename)
-	default:
-		path = filepath.Join(dirPath, filename)
-
+func (u *sftpVolume) check(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	logger.Debug("Merge chunk path: ", path)
+	if u.closed.Load() {
+		return os.ErrClosed
+	}
+	return nil
+}
+
+func (u *sftpVolume) Stat(path string) (FileInfo, error) {
+	if u.closed.Load() {
+		return FileInfo{}, os.ErrClosed
+	}
+	info, err := u.conn.Stat(path)
+	if err != nil {
+		return FileInfo{}, err
+	}
+	return newWebSftpFileInfo(info), nil
+}
+
+// Resolve mutations under the operation lock. Resolving the parent retains
+// the directory entry itself when the target is a symlink.
+func (u *sftpVolume) mutationPaths(ctx context.Context, confined bool, paths ...string) ([]string, error) {
+	if err := u.check(ctx); err != nil {
+		return nil, err
+	}
+	if !confined {
+		return paths, nil
+	}
+	resolved := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if _, err := u.conn.ResolveAgentToolPath(path); err != nil {
+			return nil, err
+		}
+		parent, err := u.conn.ResolveAgentToolPath(filepath.Dir(path))
+		if err != nil {
+			return nil, err
+		}
+		resolved = append(resolved, filepath.Join(parent, filepath.Base(path)))
+	}
+	return resolved, nil
+}
+
+func (u *sftpVolume) MakeDir(ctx context.Context, path string, options fileMutationOptions) error {
 	u.lock.Lock()
-	if fd, ok := u.chunkFilesMap[cid]; ok {
-		_ = fd.Close()
-		ftpLog := u.ftpLogMap[cid]
-		delete(u.chunkFilesMap, cid)
-		u.recorder.FinishFTPFile(ftpLog.ID)
-		delete(u.ftpLogMap, cid)
-	}
-	u.lock.Unlock()
-	return u.Info(path)
-}
-
-func (u *UserVolume) MakeDir(dir, newDirname string) (elfinder.FileDir, error) {
-	logger.Debug("Volume Make Dir: ", newDirname)
-	path := filepath.Join(dir, TrimPrefix(newDirname))
-	var rest elfinder.FileDir
-	err := u.UserSftp.MkdirAll(filepath.Join(u.basePath, path))
-	if err != nil {
-		return rest, err
-	}
-	return u.Info(path)
-}
-
-func (u *UserVolume) MakeFile(dir, newFilename string) (elfinder.FileDir, error) {
-	logger.Debug("Volume MakeFile")
-
-	path := filepath.Join(dir, newFilename)
-	var rest elfinder.FileDir
-	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
-
-	if err != nil {
-		return rest, err
-	}
-
-	fileInfo, err := fd.Stat()
-	if err != nil {
-		return rest, err
-	}
-
-	if err1 := u.recorder.ChunkedRecord(fd.FTPLog, fd, 0, fileInfo.Size()); err1 != nil {
-		logger.Errorf("Record file err: %s", err1)
-	}
-
-	_, _ = fd.Seek(0, io.SeekStart)
-	_ = fd.Close()
-	res, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
-
-	return NewElfinderFileInfo(u.Uuid, dir, res), err
-}
-
-func (u *UserVolume) Rename(oldNamePath, newName string) (elfinder.FileDir, error) {
-
-	logger.Debug("Volume Rename")
-	var rest elfinder.FileDir
-	newNamePath := filepath.Join(filepath.Dir(oldNamePath), newName)
-	err := u.UserSftp.Rename(filepath.Join(u.basePath, oldNamePath), filepath.Join(u.basePath, newNamePath))
-	if err != nil {
-		return rest, err
-	}
-	return u.Info(newNamePath)
-}
-
-func (u *UserVolume) Remove(path string) error {
-
-	logger.Debug("Volume remove", path)
-	var res os.FileInfo
-	var err error
-	res, err = u.UserSftp.Stat(filepath.Join(u.basePath, path))
+	defer u.lock.Unlock()
+	paths, err := u.mutationPaths(ctx, options.confined, path)
 	if err != nil {
 		return err
 	}
-	if res.IsDir() {
-		return u.UserSftp.RemoveDirectory(filepath.Join(u.basePath, path))
+	if _, err := u.conn.Stat(paths[0]); err == nil {
+		return os.ErrExist
+	} else if !isSftpNotExist(err) {
+		return err
 	}
-	return u.UserSftp.Remove(filepath.Join(u.basePath, path))
+	if err := u.check(ctx); err != nil {
+		return err
+	}
+	return u.conn.MkdirExact(paths[0])
 }
 
-func (u *UserVolume) Paste(dir, filename, suffix string, fileData elfinder.FileData) (elfinder.FileDir, error) {
-	reader := fileData.Reader
-	totalSize := fileData.Size
-	defer reader.Close()
-	var rest elfinder.FileDir
-	path := filepath.Join(dir, filename)
-	_, err := u.UserSftp.Stat(filepath.Join(u.basePath, path))
-	if err == nil {
-		path += suffix
-	}
-	fd, err := u.UserSftp.Create(filepath.Join(u.basePath, path))
-	logger.Debug("volume paste: ", path, err)
+func (u *sftpVolume) Rename(ctx context.Context, source, destination string, options fileMutationOptions) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	paths, err := u.mutationPaths(ctx, options.confined, source, destination)
 	if err != nil {
-		return rest, err
+		return err
 	}
-	defer fd.Close()
-
-	readerAt, ok := reader.(io.ReaderAt)
-	if !ok {
-		return rest, fmt.Errorf("the provided reader does not implement io.ReaderAt")
+	if options.expectedVersion != nil {
+		if err := u.verifyExpectedVersion(paths[0], *options.expectedVersion, true); err != nil {
+			return err
+		}
 	}
+	if _, err := u.conn.Stat(paths[1]); err == nil {
+		return os.ErrExist
+	} else if !isSftpNotExist(err) {
+		return err
+	}
+	if err := u.check(ctx); err != nil {
+		return err
+	}
+	return u.conn.Rename(paths[0], paths[1])
+}
 
-	err = common.ChunkedFileTransfer(fd, readerAt, 0, totalSize)
+func (u *sftpVolume) Remove(ctx context.Context, path string, recursive bool, options fileMutationOptions) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	paths, err := u.mutationPaths(ctx, options.confined, path)
 	if err != nil {
-		return rest, err
+		return err
 	}
-	return u.Info(path)
-}
-
-func (u *UserVolume) RootFileDir() elfinder.FileDir {
-	logger.Debug("Root File Dir")
-	var (
-		size int64
-	)
-	tz := time.Now().UnixNano()
-	readPem := byte(1)
-	writePem := byte(0)
-	if fInfo, err := u.UserSftp.Stat(u.basePath); err == nil {
-		size = fInfo.Size()
-		tz = fInfo.ModTime().Unix()
-		readPem, writePem = elfinder.ReadWritePem(fInfo.Mode())
+	path = paths[0]
+	if options.expectedVersion != nil {
+		if err := u.verifyExpectedVersion(path, *options.expectedVersion, true); err != nil {
+			return err
+		}
 	}
-	var rest elfinder.FileDir
-	rest.Name = u.HomeName
-	rest.Hash = hashPath(u.Uuid, "/")
-	rest.Size = size
-	rest.Volumeid = u.Uuid
-	rest.Mime = "directory"
-	rest.Dirs = 1
-	rest.Read, rest.Write = readPem, writePem
-	rest.Locked = 1
-	rest.Ts = tz
-	return rest
-}
-
-func (u *UserVolume) Close() {
-	u.UserSftp.Close()
-	logger.Infof("User %s's volume close", u.UserSftp.User.Name)
-}
-
-func (u *UserVolume) Search(path, key string, mimes ...string) (res []elfinder.FileDir, err error) {
-	originFileInfolist, err := u.UserSftp.Search(key)
+	info, err := u.conn.Lstat(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	res = make([]elfinder.FileDir, 0, len(originFileInfolist))
-	searchPath := fmt.Sprintf("/%s", srvconn.SearchFolderName)
-	for i := 0; i < len(originFileInfolist); i++ {
-		res = append(res, NewElfinderFileInfo(u.Uuid, searchPath, originFileInfolist[i]))
-
+	if err := u.check(ctx); err != nil {
+		return err
 	}
-	return
+	if info.Mode()&os.ModeSymlink == 0 && info.IsDir() {
+		if !recursive {
+			return fmt.Errorf("recursive=true is required to delete a directory")
+		}
+		return u.conn.RemoveDirectory(path)
+	}
+	return u.conn.Remove(path)
 }
 
-func NewElfinderFileInfo(id, dirPath string, originFileInfo os.FileInfo) elfinder.FileDir {
-	var rest elfinder.FileDir
-	rest.Name = originFileInfo.Name()
-	rest.Hash = hashPath(id, filepath.Join(dirPath, originFileInfo.Name()))
-	rest.Phash = hashPath(id, dirPath)
-	if rest.Hash == rest.Phash {
-		rest.Phash = ""
+func (u *sftpVolume) discardFileRecord(file *srvconn.SftpFile) {
+	if u.recorder != nil && file.FTPLog != nil {
+		u.recorder.DiscardFTPFile(file.FTPLog.ID)
 	}
-	rest.Size = originFileInfo.Size()
-	rest.Volumeid = id
-	if originFileInfo.IsDir() {
-		rest.Mime = "directory"
-		rest.Dirs = 1
-	} else {
-		rest.Mime = "file"
-		rest.Dirs = 0
-	}
-	rest.Ts = originFileInfo.ModTime().Unix()
-	rest.Read, rest.Write = elfinder.ReadWritePem(originFileInfo.Mode())
-	return rest
 }
 
-func hashPath(id, path string) string {
-	return elfinder.CreateHash(id, path)
-}
-
-func TrimPrefix(path string) string {
-	return strings.TrimPrefix(path, "/")
+func (u *sftpVolume) finishFileRecord(file *srvconn.SftpFile) {
+	if u.recorder != nil && file.FTPLog != nil {
+		u.recorder.FinishFTPFile(file.FTPLog.ID)
+	}
 }

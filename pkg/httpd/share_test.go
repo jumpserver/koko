@@ -46,8 +46,7 @@ func TestShareConnectionLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := Server{
-		apiClient:   client,
-		broadCaster: &broadcaster{enterChannel: make(chan *UserWebsocket, 3), leavingChannel: make(chan *UserWebsocket, 3)},
+		apiClient: client,
 		lionShare: &tunnel.GuacamoleTunnelServer{
 			JmsService: client, Cache: &tunnel.GuaTunnelCacheManager{GuaTunnelCache: tunnel.NewLocalTunnelLocalCache()},
 		},

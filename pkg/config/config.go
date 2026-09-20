@@ -39,8 +39,6 @@ type Config struct {
 	LanguageCode        string `mapstructure:"LANGUAGE_CODE"`
 	UploadFailedReplay  bool   `mapstructure:"UPLOAD_FAILED_REPLAY_ON_START"`
 	UploadFailedFTPFile bool   `mapstructure:"UPLOAD_FAILED_FTP_FILE_ON_START"`
-	ZipMaxSize          string `mapstructure:"ZIP_MAX_SIZE"`
-	ZipTmpPath          string `mapstructure:"ZIP_TMP_PATH"`
 	ClientAliveInterval int    `mapstructure:"CLIENT_ALIVE_INTERVAL"`
 	RetryAliveCountMax  int    `mapstructure:"RETRY_ALIVE_COUNT_MAX"`
 	ShowHiddenFile      bool   `mapstructure:"SFTP_SHOW_HIDDEN_FILE"`
@@ -196,8 +194,6 @@ func getDefaultConfig() Config {
 		UploadFailedFTPFile:    true,
 		ShowHiddenFile:         false,
 		ReuseConnection:        true,
-		ZipMaxSize:             "1024M",
-		ZipTmpPath:             "/tmp",
 		ClientAliveInterval:    30,
 		RetryAliveCountMax:     3,
 		ShareRoomType:          "local",

@@ -8,11 +8,9 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/LeeEirc/elfinder"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
@@ -108,7 +106,7 @@ func NewServer(
 	jmsService *service.JMService,
 	lionRuntime *lion.Runtime,
 ) *Server {
-	srv := &Server{broadCaster: NewBroadcaster(), apiClient: jmsService}
+	srv := &Server{apiClient: jmsService}
 	eng := createRouter(jmsService, srv, lionRuntime)
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
@@ -117,7 +115,6 @@ func NewServer(
 }
 
 type Server struct {
-	broadCaster *broadcaster
 	Srv         *http.Server
 	apiClient   *service.JMService
 	lionMonitor graphicalMonitor
@@ -125,7 +122,6 @@ type Server struct {
 }
 
 func (s *Server) Start() {
-	go s.broadCaster.Start()
 	logger.Info("Start HTTP Server at ", s.Srv.Addr)
 	log.Print(s.Srv.ListenAndServe())
 }
@@ -138,47 +134,6 @@ func (s *Server) Stop() {
 	}
 }
 
-func (s *Server) SftpHostConnectorView(ctx *gin.Context) {
-	var params struct {
-		Sid string `form:"sid"`
-	}
-	switch ctx.Request.Method {
-	case http.MethodGet, http.MethodPost:
-		if err := ctx.ShouldBind(&params); err != nil {
-			logger.Errorf("Invalid elfinder request url %s from ip %s",
-				ctx.Request.URL, ctx.ClientIP())
-			ctx.String(http.StatusBadRequest, "invalid elfinder request")
-			return
-		}
-	default:
-		ctx.AbortWithStatus(http.StatusMethodNotAllowed)
-		return
-	}
-	var userV *UserVolume
-	if wsCon := s.broadCaster.GetUserWebsocket(params.Sid); wsCon != nil {
-		handler := wsCon.GetHandler()
-		switch handler.Name() {
-		case WebFolderName:
-			userV = handler.(*webFolder).GetVolume()
-		}
-	}
-	if userV == nil {
-		logger.Errorf("Ws(%s) already closed request url %s from ip %s",
-			params.Sid, ctx.Request.URL, ctx.ClientIP())
-		ctx.String(http.StatusBadRequest, "ws already disconnected")
-		return
-	}
-	logger.Infof("Elfinder ws %s connected again.", params.Sid)
-	conf := config.GetConf()
-	maxSize := common.ConvertSizeToBytes(conf.ZipMaxSize)
-	options := map[string]string{
-		"ZipMaxSize": strconv.Itoa(maxSize),
-		"ZipTmpPath": conf.ZipTmpPath,
-	}
-	conn := elfinder.NewElFinderConnectorWithOption([]elfinder.Volume{userV}, options)
-	conn.ServeHTTP(ctx.Writer, ctx.Request)
-}
-
 func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 	userConn, err := s.UpgradeUserWsConn(ctx)
 	if err != nil {
@@ -189,33 +144,13 @@ func (s *Server) ProcessTerminalWebsocket(ctx *gin.Context) {
 	s.runTTY(userConn)
 }
 
-func (s *Server) ProcessElfinderWebsocket(ctx *gin.Context) {
-	userConn, err := s.UpgradeUserWsConn(ctx)
-	if err != nil {
-		logger.Errorf(WebsocketErrorf, err)
-		return
-	}
-	userConn.handler = &webFolder{
-		ws:   userConn,
-		done: make(chan struct{}),
-	}
-	s.broadCaster.EnterUserWebsocket(userConn)
-	defer s.broadCaster.LeaveUserWebsocket(userConn)
-	userConn.Run()
-}
-
 func (s *Server) ProcessSftpWebsocket(ctx *gin.Context) {
 	userConn, err := s.UpgradeUserWsConn(ctx)
 	if err != nil {
 		logger.Errorf(WebsocketErrorf, err)
 		return
 	}
-	userConn.handler = &webSftp{
-		ws:   userConn,
-		done: make(chan struct{}),
-	}
-	s.broadCaster.EnterUserWebsocket(userConn)
-	defer s.broadCaster.LeaveUserWebsocket(userConn)
+	userConn.handler = newWebSFTP(userConn)
 	userConn.Run()
 }
 
@@ -271,8 +206,6 @@ func (s *Server) runTTY(userConn *UserWebsocket) {
 		ws: userConn,
 	}
 	userConn.handler = ttyHandler
-	s.broadCaster.EnterUserWebsocket(userConn)
-	defer s.broadCaster.LeaveUserWebsocket(userConn)
 	userConn.Run()
 }
 

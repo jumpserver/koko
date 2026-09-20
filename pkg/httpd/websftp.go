@@ -2,16 +2,19 @@ package httpd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/jumpserver/koko/internal/sessiontools"
 	"github.com/jumpserver/koko/pkg/i18n"
-	"github.com/jumpserver/koko/pkg/logger"
-	"github.com/jumpserver/koko/pkg/session"
 )
 
 var _ Handler = (*webSftp)(nil)
@@ -21,61 +24,97 @@ type webSftp struct {
 
 	done chan struct{}
 
-	volume            *UserWebVolume
+	volume            *sftpVolume
 	mcp               *sessiontools.MCPDispatcher
 	resourceSessionID string
 
-	stateMu        sync.Mutex
-	started        bool
-	trackSessionID bool
+	stateMu  sync.Mutex
+	ready    chan struct{}
+	closed   bool
+	expired  atomic.Bool
+	requests chan struct{}
+	pending  sync.WaitGroup
 }
 
-func (h *webSftp) Name() string {
-	return WebFolderName
+func newWebSFTP(ws *UserWebsocket) *webSftp {
+	return &webSftp{
+		ws: ws, done: make(chan struct{}), ready: make(chan struct{}),
+		requests: make(chan struct{}, 4),
+	}
 }
 
 func (h *webSftp) CheckValidation() error {
-	volume, err := SftpCheckValidation(h.ws)
+	volume, err := newWebSFTPVolume(h.ws)
 	if err != nil {
 		return err
 	}
-
-	h.volume = NewUserWebVolume(volume)
-	if h.volume.UserSftp != nil {
-		h.volume.UserSftp.SetOnSessionClosed(func() {
-			h.ws.SendMessage(&Message{
-				Id:   h.ws.Uuid,
-				Type: CLOSE,
-				Err:  i18n.NewLang(h.ws.langCode).T("FileManagementExpired"),
-			})
-		})
-	}
+	h.volume = volume
+	volume.conn.SetOnSessionClosed(func() {
+		h.expired.Store(true)
+		h.ws.SendMessage(&Message{Id: h.ws.Uuid, Type: CLOSE, Err: i18n.NewLang(h.ws.langCode).T("FileManagementExpired")})
+	})
 	h.initializeFileTools()
+	close(h.ready)
 	return nil
 }
 
 func (h *webSftp) HandleMessage(msg *Message) {
+	select {
+	case <-h.ready:
+	case <-h.done:
+		return
+	case <-h.ws.done:
+		return
+	}
 	if msg.Type == MCPRequest || msg.Type == MCPCancel {
 		h.handleFileToolMessage(msg)
 		return
 	}
-	go h.dispatch(*msg)
+	// Apply backpressure before spawning; at most four file requests run at once.
+	select {
+	case h.requests <- struct{}{}:
+	case <-h.done:
+		return
+	case <-h.ws.done:
+		return
+	}
+	h.stateMu.Lock()
+	if h.closed {
+		h.stateMu.Unlock()
+		<-h.requests
+		return
+	}
+	h.pending.Add(1)
+	h.stateMu.Unlock()
+	go func() {
+		defer h.pending.Done()
+		defer func() { <-h.requests }()
+		h.dispatch(*msg)
+	}()
 }
 
 func (h *webSftp) CleanUp() {
+	h.stateMu.Lock()
+	if h.closed {
+		h.stateMu.Unlock()
+		return
+	}
+	h.closed = true
 	close(h.done)
-	dispatcher := h.getMCP()
-	var closeVolume func()
+	dispatcher := h.mcp
+	h.stateMu.Unlock()
 	if h.volume != nil {
-		closeVolume = h.volume.Close
+		h.volume.Close()
 	}
 	if dispatcher != nil {
 		dispatcher.Close()
 	}
-	if closeVolume != nil {
-		closeVolume()
-	}
+	h.pending.Wait()
 }
+
+func (h *webSftp) sessionExpired() bool { return h.expired.Load() }
+
+func (h *webSftp) requestContext() context.Context { return h.ws.ctx.Request.Context() }
 
 func (h *webSftp) WebsocketCapabilities() map[string]any {
 	var readAllowed, writeAllowed bool
@@ -150,15 +189,6 @@ type webSftpSaveCapability struct {
 	MaxBytes        int64 `json:"max_bytes"`
 }
 
-func notInTokenIds(target string) bool {
-	for _, item := range session.GetAliveSessionTokenIds() {
-		if item == target {
-			return false
-		}
-	}
-	return true
-}
-
 func (h *webSftp) dispatch(msg Message) {
 	message := Message{
 		Id:   msg.Id,
@@ -179,52 +209,23 @@ func (h *webSftp) dispatch(msg Message) {
 		h.ws.SendMessage(&message)
 		return
 	}
+	if err := h.checkPermission(msg.Cmd); err != nil {
+		h.sendError(&message, err)
+		return
+	}
 	switch msg.Cmd {
 	case "list":
 		h.handleList(request, &message)
 	case "download":
-		if h.ws.ConnectToken.Actions.EnableDownload() {
-			h.handleDownload(request, &message)
-		} else {
-			message.Err = "Permission denied"
-			h.ws.SendMessage(&message)
-			return
-		}
-
+		h.handleDownload(request, &message)
 	case "upload":
-		if h.ws.ConnectToken.Actions.EnableUpload() {
-			h.handleUpload(request, &msg, &message)
-		} else {
-			message.Err = "Permission denied"
-			h.ws.SendMessage(&message)
-			return
-		}
+		h.handleUpload(request, &msg, &message)
 	case "transfer_read":
-		if h.ws.ConnectToken.Actions.EnableDownload() {
-			h.handleTransferRead(request, &message)
-		} else {
-			message.Err = "Permission denied"
-			h.ws.SendMessage(&message)
-			return
-		}
+		h.handleTransferRead(request, &message)
 	case "transfer_prepare", "transfer_write", "transfer_status", "transfer_commit", "transfer_cancel":
-		if h.ws.ConnectToken.Actions.EnableUpload() {
-			h.handleTransferMutation(request, &msg, &message)
-		} else {
-			message.Err = "Permission denied"
-			h.ws.SendMessage(&message)
-			return
-		}
-
+		h.handleTransferMutation(request, &msg, &message)
 	case "save":
-		if h.ws.ConnectToken.Actions.EnableUpload() {
-			h.handleSave(request, &msg, &message)
-		} else {
-			message.Err = "Permission denied"
-			h.ws.SendMessage(&message)
-			return
-		}
-
+		h.handleSave(request, &msg, &message)
 	case "rm":
 		h.handleAction(h.rm, request, &message)
 	case "rename":
@@ -232,92 +233,97 @@ func (h *webSftp) dispatch(msg Message) {
 	case "mkdir":
 		h.handleAction(h.mkdir, request, &message)
 	default:
-		message.Err = "Unknown command"
-		h.ws.SendMessage(&message)
+		h.sendError(&message, fmt.Errorf("Unknown command"))
 	}
-
 }
 
-func (h *webSftp) sessionExpired() bool {
-	h.stateMu.Lock()
-	defer h.stateMu.Unlock()
-	if h.ws.ConnectToken == nil {
-		return h.trackSessionID
+func (h *webSftp) checkPermission(command string) error {
+	token := h.ws.ConnectToken
+	if token == nil {
+		return nil
+	} // Per-account permissions are checked by UserSftpConn.
+	allowed := true
+	switch command {
+	case "download", "transfer_read":
+		allowed = token.Actions.EnableDownload()
+	case "upload", "save", "mkdir", "rename", "transfer_prepare", "transfer_write", "transfer_status", "transfer_commit", "transfer_cancel":
+		allowed = token.Actions.EnableUpload()
+	case "rm":
+		allowed = token.Actions.EnableDelete()
 	}
-	alive := !notInTokenIds(h.ws.ConnectToken.Id)
-	if alive {
-		h.started = true
-		h.trackSessionID = true
-		return false
-	}
-	return h.trackSessionID
+	return requireFilePermission(allowed)
 }
 
-func (h *webSftp) trackedSessionExpired() bool {
-	h.stateMu.Lock()
-	defer h.stateMu.Unlock()
-	return h.started && h.trackSessionID &&
-		(h.ws.ConnectToken == nil || notInTokenIds(h.ws.ConnectToken.Id))
-}
-
-func (h *webSftp) handleList(request *webSftpRequest, response *Message) {
-	var err error
-	response.Data, response.CurrentPath, err = h.list(request.Path)
-	if err != nil {
-		response.Err = err.Error()
+func (h *webSftp) sendError(response *Message, err error) {
+	response.Err = err.Error()
+	switch {
+	case errors.Is(err, ErrWebSftpFileConflict):
+		response.ErrorCode = "sftp_file_conflict"
+	case errors.Is(err, os.ErrExist):
+		response.ErrorCode = "sftp_file_exists"
+	case isSftpNotExist(err):
+		response.ErrorCode = "sftp_path_not_found"
 	}
 	h.ws.SendMessage(response)
 }
 
-func (h *webSftp) list(path string) (string, string, error) {
-	files, currentPath, err := h.volume.List(path)
+func (h *webSftp) handleList(request *webSftpRequest, response *Message) {
+	files, currentPath, err := h.volume.List(request.Path)
 	data, _ := json.Marshal(files)
-	return string(data), currentPath, err
+	response.Data, response.CurrentPath = string(data), currentPath
+	if err != nil {
+		h.sendError(response, err)
+		return
+	}
+	h.ws.SendMessage(response)
 }
 
 func (h *webSftp) handleDownload(request *webSftpRequest, response *Message) {
 	file, filename, err := h.volume.Download(request.Path, request.IsDir)
 	if err != nil {
-		response.Err = err.Error()
-		h.ws.SendMessage(response)
+		h.sendError(response, err)
 		return
 	}
 
-	if file.Reader != nil {
-		defer file.Reader.Close()
-	}
+	defer file.Close()
 
-	h.streamFileContent(file, response)
+	if err := h.streamFileContent(file, response); err != nil {
+		h.sendError(response, err)
+		return
+	}
 	response.Data = filename
 	response.Type = SFTPData
 	h.ws.SendMessage(response)
 }
 
-func (h *webSftp) streamFileContent(file FileData, response *Message) {
-	response.Type = SFTPBinary
-	buf := make([]byte, 1024*1024*2)
+func (h *webSftp) streamFileContent(reader io.Reader, response *Message) error {
+	buf := make([]byte, transferChunkMaxSize)
 	for {
-		responseCopy := *response
-		n, err := file.Reader.Read(buf)
-		if err != nil {
-			if err != io.EOF {
-				logger.Errorf("Error reading file: %s", err)
-				responseCopy.Err = err.Error()
-				h.ws.SendMessage(&responseCopy)
-			}
-			responseCopy.Raw = append([]byte{}, buf[:n]...)
-			h.ws.SendMessage(&responseCopy)
-			return
+		select {
+		case <-h.done:
+			return context.Canceled
+		case <-h.ws.done:
+			return context.Canceled
+		default:
 		}
-
-		responseCopy.Raw = append([]byte{}, buf[:n]...)
-		h.ws.SendMessage(&responseCopy)
+		n, err := reader.Read(buf)
+		if n > 0 {
+			part := *response
+			part.Type = SFTPBinary
+			part.Raw = append([]byte(nil), buf[:n]...)
+			h.ws.SendMessage(&part)
+		}
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 	}
 }
 
 func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *Message) {
 	reader := bytes.NewReader(msg.Raw)
-	var readerAt io.ReaderAt = reader
 
 	id, idErr := strconv.Atoi(msg.Id)
 	if idErr != nil {
@@ -330,15 +336,14 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 		err = h.volume.MergeChunk(id, request.Path)
 		response.Data = "ok"
 	} else if request.Chunk {
-		err = h.volume.UploadChunk(id, request.Path, request.OffSet, int64(reader.Len()), readerAt)
+		err = h.volume.UploadChunk(id, request.Path, request.OffSet, int64(reader.Len()), reader)
 		response.Data = request.Path
 	} else {
 		err = h.volume.UploadFile(request.Path, reader, request.Size)
 		response.Data = "ok"
 	}
 	if err != nil {
-		response.Err = err.Error()
-		h.ws.SendMessage(response)
+		h.sendError(response, err)
 		return
 	}
 	h.ws.SendMessage(response)
@@ -346,18 +351,13 @@ func (h *webSftp) handleUpload(request *webSftpRequest, msg *Message, response *
 
 func (h *webSftp) handleSave(request *webSftpRequest, msg *Message, response *Message) {
 	entry, err := h.volume.SaveFile(
-		request.Path,
+		h.requestContext(), request.Path,
 		bytes.NewReader(msg.Raw),
 		request.Size,
-		request.ExpectedVersion,
-		request.Force,
+		fileMutationOptions{expectedVersion: request.ExpectedVersion, force: request.Force},
 	)
 	if err != nil {
-		response.Err = err.Error()
-		if errors.Is(err, ErrWebSftpFileConflict) {
-			response.ErrorCode = "sftp_file_conflict"
-		}
-		h.ws.SendMessage(response)
+		h.sendError(response, err)
 		return
 	}
 	data, _ := json.Marshal(entry)
@@ -368,23 +368,23 @@ func (h *webSftp) handleSave(request *webSftpRequest, msg *Message, response *Me
 func (h *webSftp) handleAction(action func(*webSftpRequest) error, request *webSftpRequest, response *Message) {
 	err := action(request)
 	if err != nil {
-		response.Err = err.Error()
-	} else {
-		response.Data = "ok"
+		h.sendError(response, err)
+		return
 	}
+	response.Data = "ok"
 	h.ws.SendMessage(response)
 }
 
 func (h *webSftp) rm(request *webSftpRequest) error {
-	return h.volume.Remove(request.Path)
+	return h.volume.Remove(h.requestContext(), request.Path, true, fileMutationOptions{})
 }
 
 func (h *webSftp) rename(request *webSftpRequest) error {
 	oldNamePath := request.Path
 	newName := request.NewName
-	return h.volume.Rename(oldNamePath, newName)
+	return h.volume.Rename(h.requestContext(), oldNamePath, filepath.Join(filepath.Dir(oldNamePath), newName), fileMutationOptions{})
 }
 
 func (h *webSftp) mkdir(request *webSftpRequest) error {
-	return h.volume.MakeDir(request.Path)
+	return h.volume.MakeDir(h.requestContext(), request.Path, fileMutationOptions{})
 }
