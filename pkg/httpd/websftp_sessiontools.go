@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -18,21 +17,19 @@ import (
 )
 
 type webSFTPAgentToolExecutor struct {
-	volume       *UserWebVolume
-	guard        func() error
-	resolvePath  func(string) (string, error)
-	validatePath func(string) error
-	canDownload  func() bool
-	canUpload    func() bool
-	canDelete    func() bool
+	volume      *sftpVolume
+	guard       func() error
+	canDownload bool
+	canUpload   bool
+	canDelete   bool
 }
 
 func (h *webSftp) initializeFileTools() {
-	if h.volume == nil || h.volume.UserSftp == nil {
+	if h.volume == nil || h.volume.conn == nil {
 		logger.Errorf("SFTP websocket %s MCP file tools unavailable: SFTP resource is unavailable", h.ws.Uuid)
 		return
 	}
-	if err := h.volume.UserSftp.ValidateAgentToolConfinement(); err != nil {
+	if err := h.volume.conn.ValidateAgentToolConfinement(); err != nil {
 		logger.Infof(
 			"SFTP websocket %s MCP file tools disabled: %s",
 			h.ws.Uuid, err,
@@ -52,24 +49,16 @@ func (h *webSftp) initializeFileTools() {
 	canUpload := h.ws.ConnectToken == nil || h.ws.ConnectToken.Actions.EnableUpload()
 	canDelete := h.ws.ConnectToken == nil || h.ws.ConnectToken.Actions.EnableDelete()
 	executor := &webSFTPAgentToolExecutor{
-		volume:       h.volume,
-		resolvePath:  h.volume.UserSftp.ResolveAgentToolPath,
-		validatePath: h.volume.UserSftp.ValidateAgentToolPath,
+		volume: h.volume,
 		guard: func() error {
 			if h.sessionExpired() {
 				return fmt.Errorf("session expired or not found")
 			}
 			return nil
 		},
-		canDownload: func() bool {
-			return canDownload
-		},
-		canUpload: func() bool {
-			return canUpload
-		},
-		canDelete: func() bool {
-			return canDelete
-		},
+		canDownload: canDownload,
+		canUpload:   canUpload,
+		canDelete:   canDelete,
 	}
 	handlers, err := sessiontools.NewFileToolHandlers(
 		executor,
@@ -108,7 +97,7 @@ func (h *webSftp) initializeFileTools() {
 }
 
 func (h *webSftp) handleFileToolMessage(msg *Message) {
-	if h.trackedSessionExpired() {
+	if h.sessionExpired() {
 		h.ws.SendMessage(&Message{Id: h.ws.Uuid, Type: CLOSE})
 		return
 	}
@@ -139,14 +128,14 @@ func (e *webSFTPAgentToolExecutor) ListDirectory(
 	limit int,
 ) (sessiontools.DirectoryResult, error) {
 	var result sessiontools.DirectoryResult
-	resolved, err := e.resolvePaths(ctx, path)
+	resolved, err := e.resolvePath(ctx, path)
 	if err != nil {
 		return result, err
 	}
 	if limit <= 0 || limit > sessiontools.MaxDirectoryEntries {
 		limit = sessiontools.MaxDirectoryEntries
 	}
-	entries, err := e.volume.UserSftp.ReadDir(resolved[0])
+	entries, _, err := e.volume.List(resolved)
 	if err != nil {
 		return result, err
 	}
@@ -162,7 +151,7 @@ func (e *webSFTPAgentToolExecutor) ListDirectory(
 		}
 		result.Entries = append(
 			result.Entries,
-			agentToolFileEntry(filepath.Join(path, entry.Name()), entry),
+			agentToolFileEntry(filepath.Join(path, entry.Name), entry),
 		)
 	}
 	return result, nil
@@ -172,11 +161,11 @@ func (e *webSFTPAgentToolExecutor) Stat(
 	ctx context.Context,
 	path string,
 ) (sessiontools.FileEntry, error) {
-	resolved, err := e.resolvePaths(ctx, path)
+	resolved, err := e.resolvePath(ctx, path)
 	if err != nil {
 		return sessiontools.FileEntry{}, err
 	}
-	entry, err := e.volume.UserSftp.Stat(resolved[0])
+	entry, err := e.volume.Stat(resolved)
 	if err != nil {
 		return sessiontools.FileEntry{}, err
 	}
@@ -192,11 +181,11 @@ func (e *webSFTPAgentToolExecutor) ReadText(
 	if err := requireFilePermission(e.canDownload); err != nil {
 		return result, err
 	}
-	resolved, err := e.resolvePaths(ctx, path)
+	resolved, err := e.resolvePath(ctx, path)
 	if err != nil {
 		return result, err
 	}
-	info, err := e.volume.UserSftp.Stat(resolved[0])
+	info, err := e.volume.Stat(resolved)
 	if err != nil {
 		return result, err
 	}
@@ -210,15 +199,12 @@ func (e *webSFTPAgentToolExecutor) ReadText(
 	if entry.Size > limit {
 		return result, fmt.Errorf("file exceeds the agent tool text limit")
 	}
-	file, _, err := e.volume.Download(resolved[0], false)
+	file, err := e.volume.GetFile(resolved)
 	if err != nil {
 		return result, err
 	}
-	if file.Reader == nil {
-		return result, fmt.Errorf("remote file has no readable content")
-	}
-	defer file.Reader.Close()
-	data, err := io.ReadAll(io.LimitReader(file.Reader, limit+1))
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
 	if err != nil {
 		return result, err
 	}
@@ -254,8 +240,7 @@ func (e *webSFTPAgentToolExecutor) SaveText(
 		strings.IndexByte(content, 0) >= 0 {
 		return sessiontools.FileEntry{}, fmt.Errorf("invalid file tool text content")
 	}
-	resolved, err := e.resolveMutationPaths(ctx, path)
-	if err != nil {
+	if err := e.check(ctx); err != nil {
 		return sessiontools.FileEntry{}, err
 	}
 	volumeExpectedVersion := expectedVersion
@@ -263,160 +248,62 @@ func (e *webSFTPAgentToolExecutor) SaveText(
 		volumeExpectedVersion = webSftpAbsentVersion
 	}
 	entry, err := e.volume.SaveFile(
-		resolved[0],
+		ctx, path,
 		bytes.NewReader([]byte(content)),
 		int64(len(content)),
-		&volumeExpectedVersion,
-		false,
+		fileMutationOptions{expectedVersion: &volumeExpectedVersion, confined: true},
 	)
 	if err != nil {
 		return sessiontools.FileEntry{}, err
 	}
-	size := int64(len(content))
-	if parsed, parseErr := parseFileInfoSize(entry.Size); parseErr == nil {
-		size = parsed
-	}
-	return sessiontools.FileEntry{
-		Name: entry.Name, Path: path, Exists: true, Size: size, Perm: entry.Perm,
-		ModTime: parseFileInfoModTime(entry.ModTime), IsDir: entry.IsDir,
-		Version: entry.Version,
-	}, nil
+	return agentToolFileEntry(path, entry), nil
 }
 
 func (e *webSFTPAgentToolExecutor) Mkdir(ctx context.Context, path string) error {
 	if err := requireFilePermission(e.canUpload); err != nil {
 		return err
 	}
-	if _, err := e.resolveMutationPaths(ctx, path); err != nil {
+	if err := e.check(ctx); err != nil {
 		return err
 	}
-	if e.volume == nil {
-		return fmt.Errorf("SFTP volume is unavailable")
-	}
-	e.volume.lock.Lock()
-	defer e.volume.lock.Unlock()
-	resolved, err := e.resolveMutationPaths(ctx, path)
-	if err != nil {
-		return err
-	}
-	remotePath := resolved[0]
-	if _, err := e.volume.UserSftp.Stat(remotePath); err == nil {
-		return ErrWebSftpFileConflict
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	return e.volume.UserSftp.MkdirExact(remotePath)
+	return e.volume.MakeDir(ctx, path, fileMutationOptions{confined: true})
 }
 
-func (e *webSFTPAgentToolExecutor) Rename(
-	ctx context.Context,
-	path, destinationPath, expectedVersion string,
-) error {
+func (e *webSFTPAgentToolExecutor) Rename(ctx context.Context, path, destinationPath, expectedVersion string) error {
 	if err := requireFilePermission(e.canUpload); err != nil {
 		return err
 	}
-	if _, err := e.resolveMutationPaths(ctx, path, destinationPath); err != nil {
+	if err := e.check(ctx); err != nil {
 		return err
 	}
 	if filepath.Clean(filepath.Dir(path)) != filepath.Clean(filepath.Dir(destinationPath)) {
 		return fmt.Errorf("rename destination must remain in the same directory")
 	}
-	if e.volume == nil {
-		return fmt.Errorf("SFTP volume is unavailable")
-	}
-	e.volume.lock.Lock()
-	defer e.volume.lock.Unlock()
-	resolved, err := e.resolveMutationPaths(ctx, path, destinationPath)
-	if err != nil {
-		return err
-	}
-	remotePath := resolved[0]
-	remoteDestination := resolved[1]
-	if err := verifyAgentToolVersion(
-		e.volume.UserSftp, remotePath, expectedVersion,
-	); err != nil {
-		return err
-	}
-	if _, err := e.volume.UserSftp.Stat(remoteDestination); err == nil {
-		return ErrWebSftpFileConflict
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	// The SFTP v3 rename primitive is no-overwrite. Unlike PosixRename, a
-	// destination created after the check causes this operation to fail.
-	return e.volume.UserSftp.Rename(remotePath, remoteDestination)
+	return e.volume.Rename(ctx, path, destinationPath, fileMutationOptions{expectedVersion: &expectedVersion, confined: true})
 }
 
-func (e *webSFTPAgentToolExecutor) Delete(
-	ctx context.Context,
-	path, expectedVersion string,
-	recursive bool,
-) error {
+func (e *webSFTPAgentToolExecutor) Delete(ctx context.Context, path, expectedVersion string, recursive bool) error {
 	if err := requireFilePermission(e.canDelete); err != nil {
 		return err
 	}
-	if _, err := e.resolveMutationPaths(ctx, path); err != nil {
+	if err := e.check(ctx); err != nil {
 		return err
 	}
-	if e.volume == nil {
-		return fmt.Errorf("SFTP volume is unavailable")
-	}
-	e.volume.lock.Lock()
-	defer e.volume.lock.Unlock()
-	resolved, err := e.resolveMutationPaths(ctx, path)
-	if err != nil {
-		return err
-	}
-	remotePath := resolved[0]
-	info, err := e.volume.UserSftp.Stat(remotePath)
-	if err != nil {
-		return err
-	}
-	if webSftpFileVersion(info) != expectedVersion {
-		return ErrWebSftpFileConflict
-	}
-	entryInfo, err := e.volume.UserSftp.Lstat(remotePath)
-	if err != nil {
-		return err
-	}
-	if entryInfo.Mode()&os.ModeSymlink != 0 {
-		return e.volume.UserSftp.Remove(remotePath)
-	}
-	if entryInfo.IsDir() {
-		if !recursive {
-			return fmt.Errorf("recursive=true is required to delete a directory")
-		}
-		return e.volume.UserSftp.RemoveDirectory(remotePath)
-	}
-	// Use the file-only primitive selected from the approved, revalidated
-	// object. A later file-to-directory swap fails instead of becoming a
-	// recursive deletion.
-	return e.volume.UserSftp.Remove(remotePath)
+	return e.volume.Remove(ctx, path, recursive, fileMutationOptions{expectedVersion: &expectedVersion, confined: true})
 }
 
-func verifyAgentToolVersion(
-	userSFTP *srvconn.UserSftpConn,
-	path, expectedVersion string,
-) error {
-	info, err := userSFTP.Stat(path)
-	if err != nil {
-		return err
-	}
-	if webSftpFileVersion(info) != expectedVersion {
-		return ErrWebSftpFileConflict
-	}
-	return nil
-}
-
-func requireFilePermission(check func() bool) error {
-	if check != nil && !check() {
+func requireFilePermission(allowed bool) error {
+	if !allowed {
 		return fmt.Errorf("permission denied")
 	}
 	return nil
 }
 
 func (e *webSFTPAgentToolExecutor) check(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
+	if e.volume == nil {
+		return fmt.Errorf("SFTP volume is unavailable")
+	}
+	if err := e.volume.check(ctx); err != nil {
 		return err
 	}
 	if e.guard != nil {
@@ -425,76 +312,16 @@ func (e *webSFTPAgentToolExecutor) check(ctx context.Context) error {
 	return nil
 }
 
-func (e *webSFTPAgentToolExecutor) resolvePaths(
-	ctx context.Context,
-	paths ...string,
-) ([]string, error) {
+func (e *webSFTPAgentToolExecutor) resolvePath(ctx context.Context, path string) (string, error) {
 	if err := e.check(ctx); err != nil {
-		return nil, err
+		return "", err
 	}
-	resolve := e.resolvePath
-	if resolve == nil && e.volume != nil && e.volume.UserSftp != nil {
-		resolve = e.volume.UserSftp.ResolveAgentToolPath
-	}
-	validate := e.validatePath
-	if validate == nil && e.volume != nil && e.volume.UserSftp != nil {
-		validate = e.volume.UserSftp.ValidateAgentToolPath
-	}
-	if resolve == nil && validate == nil {
-		return nil, fmt.Errorf("file tool path resolver is unavailable")
-	}
-	resolved := make([]string, 0, len(paths))
-	for _, path := range paths {
-		if resolve != nil {
-			value, err := resolve(path)
-			if err != nil {
-				return nil, err
-			}
-			resolved = append(resolved, value)
-			continue
-		}
-		if err := validate(path); err != nil {
-			return nil, err
-		}
-		resolved = append(resolved, path)
-	}
-	return resolved, nil
+	return e.volume.conn.ResolveAgentToolPath(path)
 }
 
-func (e *webSFTPAgentToolExecutor) resolveMutationPaths(
-	ctx context.Context,
-	paths ...string,
-) ([]string, error) {
-	resolved := make([]string, 0, len(paths))
-	for _, value := range paths {
-		if _, err := e.resolvePaths(ctx, value); err != nil {
-			return nil, err
-		}
-		parent, err := e.resolvePaths(ctx, filepath.Dir(value))
-		if err != nil {
-			return nil, err
-		}
-		resolved = append(resolved, filepath.Join(parent[0], filepath.Base(value)))
-	}
-	return resolved, nil
-}
-
-func agentToolFileEntry(path string, info os.FileInfo) sessiontools.FileEntry {
+func agentToolFileEntry(path string, info FileInfo) sessiontools.FileEntry {
 	return sessiontools.FileEntry{
-		Name: info.Name(), Path: path, Exists: true, Size: info.Size(),
-		Perm: info.Mode().String(), ModTime: info.ModTime().Unix(),
-		IsDir: info.IsDir(), Version: webSftpFileVersion(info),
+		Name: info.Name, Path: path, Exists: true, Size: info.Size,
+		Perm: info.Perm, ModTime: info.ModTime, IsDir: info.IsDir, Version: info.Version,
 	}
-}
-
-func parseFileInfoSize(value string) (int64, error) {
-	var size int64
-	_, err := fmt.Sscan(value, &size)
-	return size, err
-}
-
-func parseFileInfoModTime(value string) int64 {
-	var timestamp int64
-	_, _ = fmt.Sscan(value, &timestamp)
-	return timestamp
 }

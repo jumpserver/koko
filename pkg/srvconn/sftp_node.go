@@ -58,6 +58,8 @@ func (nd *NodeDir) loadSubNodeTree() {
 }
 
 func (nd *NodeDir) close() {
+	// Wait for an in-flight load, or prevent any future lazy initialization.
+	nd.once.Do(func() {})
 	for _, dir := range nd.subDirs {
 		if nodeDir, ok := dir.(*NodeDir); ok {
 			nodeDir.close()

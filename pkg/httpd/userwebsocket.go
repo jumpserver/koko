@@ -24,7 +24,6 @@ import (
 )
 
 type Handler interface {
-	Name() string
 	CheckValidation() error
 	HandleMessage(*Message)
 	CleanUp()
@@ -388,10 +387,6 @@ func (userCon *UserWebsocket) readMessageLoop() error {
 			userCon.handler.HandleMessage(&msg)
 		}
 	}
-}
-
-func (userCon *UserWebsocket) GetHandler() Handler {
-	return userCon.handler
 }
 
 func (userCon *UserWebsocket) ClientIP() string {

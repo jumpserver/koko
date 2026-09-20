@@ -5,7 +5,6 @@ go 1.26.8
 require (
 	github.com/Azure/azure-storage-blob-go v0.15.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
-	github.com/LeeEirc/elfinder v0.0.15
 	github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d
 	github.com/LeeEirc/terminalparser v0.0.0-20260807075323-d7ea2731c61e
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible

@@ -38,9 +38,6 @@ func createRouter(
 		wsGroup.Group("/share").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessShareWebsocket)
 
-		wsGroup.Group("/elfinder").Use(
-			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessElfinderWebsocket)
-
 		wsGroup.Group("/sftp").Use(
 			auth.HTTPMiddleSessionAuth(jmsService)).GET("/", webSrv.ProcessSftpWebsocket)
 
@@ -51,11 +48,6 @@ func createRouter(
 	{
 		apiGroup.POST("/connect-ticket/", webSrv.CreateConnectTicket)
 		apiGroup.GET("/monitor/:sid/", middleware.CORS(), webSrv.MonitorComponent)
-	}
-	elfinderGroup := kokoGroup.Group("/elfinder")
-	elfinderGroup.Use(auth.HTTPMiddleSessionAuth(jmsService))
-	{
-		elfinderGroup.Any("/connector/:host/", webSrv.SftpHostConnectorView)
 	}
 	if lionRuntime != nil {
 		lionRuntime.RegisterRoutes(eng)

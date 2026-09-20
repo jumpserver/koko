@@ -3,23 +3,22 @@ package httpd
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/logger"
+	"github.com/jumpserver/koko/pkg/srvconn"
 )
 
 const (
-	defaultZipMaxSize     = 1024 * 1024 * 1024 // 1G
-	defaultTmpPath        = "/tmp"
 	maxWebEditorFileSize  = 10 * 1024 * 1024
 	webSftpConflictErrMsg = "remote file changed"
 	webSftpAbsentVersion  = "absent"
@@ -29,37 +28,20 @@ var ErrWebSftpFileConflict = errors.New(webSftpConflictErrMsg)
 
 type FileInfo struct {
 	Name    string `json:"name"`
-	Size    string `json:"size"`
+	Size    int64  `json:"size,string"`
 	Perm    string `json:"perm"`
-	ModTime string `json:"mod_time"`
+	ModTime int64  `json:"mod_time,string"`
 	Type    string `json:"type"`
 	IsDir   bool   `json:"is_dir"`
 	Version string `json:"version"`
 }
 
-type FileData struct {
-	Reader io.ReadCloser
-	Size   int64
-	IsDir  bool
-}
-
-func NewUserWebVolume(userVolume *UserVolume) *UserWebVolume {
-	uVolume := &UserWebVolume{
-		userVolume,
-	}
-	return uVolume
-}
-
-type UserWebVolume struct {
-	*UserVolume
-}
-
 func newWebSftpFileInfo(info os.FileInfo) FileInfo {
 	return FileInfo{
 		Name:    info.Name(),
-		Size:    strconv.FormatInt(info.Size(), 10),
+		Size:    info.Size(),
 		Perm:    info.Mode().String(),
-		ModTime: strconv.FormatInt(info.ModTime().Unix(), 10),
+		ModTime: info.ModTime().Unix(),
 		IsDir:   info.IsDir(),
 		Version: webSftpFileVersion(info),
 	}
@@ -79,11 +61,14 @@ func webSftpContentVersion(reader io.Reader) (string, error) {
 	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
 }
 
-func (u *UserWebVolume) List(path string) ([]FileInfo, string, error) {
+func (u *sftpVolume) List(path string) ([]FileInfo, string, error) {
+	if u.closed.Load() {
+		return nil, "", os.ErrClosed
+	}
 	logger.Debug("Volume List: ", path)
 	files := make([]FileInfo, 0)
 
-	originFiles, currentPath, err := u.UserSftp.ReadDirWithCurrentPath(path)
+	originFiles, currentPath, err := u.conn.ReadDirWithCurrentPath(path)
 	if err != nil {
 		logger.Errorf("ReadDir %s failed: %s", path, err)
 		return files, currentPath, err
@@ -95,58 +80,60 @@ func (u *UserWebVolume) List(path string) ([]FileInfo, string, error) {
 	return files, currentPath, nil
 }
 
-func (u *UserWebVolume) Download(path string, isDir bool) (FileData, string, error) {
+func (u *sftpVolume) Download(path string, isDir bool) (io.ReadCloser, string, error) {
+	if u.closed.Load() {
+		return nil, "", os.ErrClosed
+	}
 	logger.Debug("WebVolume Download: ", path)
-	var rest FileData
 	fileName := filepath.Base(path)
 	if !isDir {
 		file, err := u.GetFile(path)
 		if err != nil {
 			logger.Errorf("Download file failed: %s", err)
-			return rest, fileName, err
+			return nil, fileName, err
 		}
 		return file, fileName, nil
 	}
 
 	filename := fmt.Sprintf("%s-%s.zip",
 		filepath.Base(path), time.Now().UTC().Format("20060102150405"))
-	zipTmpPath := filepath.Join(defaultTmpPath, filename)
-
-	dstFd, err := os.Create(zipTmpPath)
+	file, err := os.CreateTemp("", "koko-download-*.zip")
 	if err != nil {
-		return rest, fileName, err
+		return nil, fileName, err
 	}
-	defer dstFd.Close()
-
-	zipWriter := zip.NewWriter(dstFd)
-	defer zipWriter.Close()
-
-	if err := u.zipFolder(zipWriter, path, ""); err != nil {
-		logger.Errorf("Zip folder failed: %s", err)
-		return rest, fileName, err
+	archive := &temporaryDownload{File: file}
+	complete := false
+	defer func() {
+		if !complete {
+			_ = archive.Close()
+		}
+	}()
+	writer := zip.NewWriter(file)
+	if err := u.zipFolder(writer, path, ""); err != nil {
+		return nil, fileName, err
 	}
-
-	file, err := os.Open(zipTmpPath)
-	if err != nil {
-		logger.Errorf("Open zip file failed: %s", err)
-		return rest, fileName, err
+	if err := writer.Close(); err != nil {
+		return nil, fileName, err
 	}
-
-	fileInfo, err := file.Stat()
-	if err != nil {
-		logger.Errorf("Get zip file stat failed: %s", err)
-		return rest, fileName, err
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, fileName, err
 	}
-
-	return FileData{
-		Reader: file,
-		Size:   fileInfo.Size(),
-		IsDir:  false,
-	}, filename, nil
+	complete = true
+	return archive, filename, nil
 }
 
-func (u *UserWebVolume) zipFolder(zipWriter *zip.Writer, remotePath, basePath string) error {
-	entries, err := u.UserSftp.ReadDir(remotePath)
+// The returned download owns the archive, including deletion on Close.
+type temporaryDownload struct{ *os.File }
+
+func (f *temporaryDownload) Close() error {
+	return errors.Join(f.File.Close(), os.Remove(f.Name()))
+}
+
+func (u *sftpVolume) zipFolder(zipWriter *zip.Writer, remotePath, basePath string) error {
+	if u.closed.Load() {
+		return os.ErrClosed
+	}
+	entries, err := u.conn.ReadDir(remotePath)
 	if err != nil {
 		return fmt.Errorf("failed to read remote directory: %v", err)
 	}
@@ -182,8 +169,8 @@ func (u *UserWebVolume) zipFolder(zipWriter *zip.Writer, remotePath, basePath st
 	return nil
 }
 
-func (u *UserWebVolume) zipFile(zipWriter *zip.Writer, remotePath, zipPath string) error {
-	remoteFile, err := u.UserSftp.Open(remotePath)
+func (u *sftpVolume) zipFile(zipWriter *zip.Writer, remotePath, zipPath string) error {
+	remoteFile, err := u.conn.Open(remotePath)
 	if err != nil {
 		return fmt.Errorf("failed to open remote file: %v", err)
 	}
@@ -209,87 +196,61 @@ func (u *UserWebVolume) zipFile(zipWriter *zip.Writer, remotePath, zipPath strin
 	return nil
 }
 
-func (u *UserWebVolume) GetFile(path string) (fileData FileData, err error) {
+func (u *sftpVolume) GetFile(path string) (io.ReadCloser, error) {
+	if u.closed.Load() {
+		return nil, os.ErrClosed
+	}
 	logger.Debug("WebVolume GetFile path: ", path)
-	var rest FileData
-	sf, err := u.UserSftp.Open(path)
+	sf, err := u.conn.Open(path)
 	if err != nil {
-		return rest, err
+		return nil, err
 	}
 
 	fileInfo, err := sf.Stat()
 	if err != nil {
 		_ = sf.Close()
-		return rest, err
+		return nil, err
 	}
 	size := fileInfo.Size()
 
-	if sf.FTPLog != nil {
-		if err1 := u.recorder.ChunkedRecord(sf.FTPLog, sf, 0, size); err1 != nil {
-			logger.Errorf("Record file err: %s", err1)
-			u.recorder.DiscardFTPFile(sf.FTPLog.ID)
-		} else {
-			u.recorder.FinishFTPFile(sf.FTPLog.ID)
-		}
-	}
+	u.recordFileChunk(sf, sf, 0, size)
+	u.finishFileRecord(sf)
 
 	_, _ = sf.Seek(0, io.SeekStart)
-	fileData = FileData{sf, size, fileInfo.IsDir()}
-	return fileData, nil
+	return sf, nil
 }
 
-func (u *UserWebVolume) Rename(oldNamePath, newName string) error {
-	logger.Debug("WebVolume Rename")
-	newNamePath := filepath.Join(filepath.Dir(oldNamePath), newName)
-	err := u.UserSftp.Rename(
-		filepath.Join(u.basePath, oldNamePath),
-		filepath.Join(u.basePath, newNamePath),
-	)
-	return err
-}
-
-func (u *UserWebVolume) MakeDir(path string) error {
-	logger.Debug("WebVolume MakeDir")
-	target := filepath.Join(u.basePath, path)
-	if _, err := u.UserSftp.Stat(target); err == nil {
-		return fmt.Errorf("file already exists")
-	} else if !isTransferStageMissing(err) {
-		return err
+func (u *sftpVolume) UploadFile(path string, reader *bytes.Reader, totalSize int64) error {
+	if totalSize < 0 || int64(reader.Len()) != totalSize {
+		return fmt.Errorf("invalid file size")
 	}
-	return u.UserSftp.MkdirExact(target)
-}
-
-func (u *UserWebVolume) UploadFile(path string, reader io.Reader, totalSize int64) error {
-	logger.Debug("WebVolume upload file path: ", path)
-	fd, err := u.UserSftp.Create(filepath.Join(path))
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if u.closed.Load() {
+		return os.ErrClosed
+	}
+	file, err := u.conn.Create(path)
 	if err != nil {
 		return err
 	}
-	defer fd.Close()
-
-	if err1 := u.recorder.Record(fd.FTPLog, reader); err1 != nil {
-		logger.Errorf("Record file err: %s", err1)
-	}
-
-	readerAt, ok := reader.(io.ReaderAt)
-	if !ok {
-		logger.Debug("reader is not io.ReaderAt, use io.SeekStart")
-		return fmt.Errorf("reader is not io.ReaderAt")
-	}
-
-	err = common.ChunkedFileTransfer(fd, readerAt, 0, totalSize)
-	if err != nil {
+	if err := common.ChunkedFileTransfer(file, reader, 0, totalSize); err != nil {
+		_ = file.Close()
 		return err
 	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	u.recordFileChunk(file, reader, 0, totalSize)
+	u.finishFileRecord(file)
 	return nil
 }
 
-func (u *UserWebVolume) SaveFile(
+func (u *sftpVolume) SaveFile(
+	ctx context.Context,
 	path string,
 	reader *bytes.Reader,
 	totalSize int64,
-	expectedVersion *string,
-	force bool,
+	options fileMutationOptions,
 ) (FileInfo, error) {
 	var result FileInfo
 	if totalSize < 0 || int64(reader.Len()) != totalSize {
@@ -305,9 +266,14 @@ func (u *UserWebVolume) SaveFile(
 
 	u.lock.Lock()
 	defer u.lock.Unlock()
+	paths, err := u.mutationPaths(ctx, options.confined, path)
+	if err != nil {
+		return result, err
+	}
+	path = paths[0]
 
-	if expectedVersion != nil && !force {
-		if err := u.verifyExpectedVersion(path, *expectedVersion, false); err != nil {
+	if options.expectedVersion != nil && !options.force {
+		if err := u.verifyExpectedVersion(path, *options.expectedVersion, false); err != nil {
 			return result, err
 		}
 	}
@@ -318,17 +284,14 @@ func (u *UserWebVolume) SaveFile(
 		if !removeTemp {
 			return
 		}
-		if err := u.UserSftp.DiscardUploadTemp(tempPath); err != nil && !os.IsNotExist(err) {
+		if err := u.conn.DiscardUploadTemp(tempPath); err != nil && !isSftpNotExist(err) {
 			logger.Warnf("Discard editor temp file %s failed: %s", tempPath, err)
 		}
 	}()
 
-	fd, err := u.UserSftp.CreateEditorTemp(tempPath, path)
+	fd, err := u.conn.CreateEditorTemp(tempPath, path)
 	if err != nil {
 		return result, err
-	}
-	if err := u.recorder.Record(fd.FTPLog, reader); err != nil {
-		logger.Errorf("Record file err: %s", err)
 	}
 	if err := common.ChunkedFileTransfer(fd, reader, 0, totalSize); err != nil {
 		_ = fd.Close()
@@ -338,28 +301,33 @@ func (u *UserWebVolume) SaveFile(
 		return result, err
 	}
 
-	if expectedVersion != nil && !force {
-		if err := u.verifyExpectedVersion(path, *expectedVersion, true); err != nil {
+	if options.expectedVersion != nil && !options.force {
+		if err := u.verifyExpectedVersion(path, *options.expectedVersion, true); err != nil {
 			return result, err
 		}
 	}
-	createOnly := expectedVersion != nil && !force && *expectedVersion == webSftpAbsentVersion
+	if err := u.check(ctx); err != nil {
+		return result, err
+	}
+	createOnly := options.expectedVersion != nil && !options.force && *options.expectedVersion == webSftpAbsentVersion
 	if createOnly {
-		err = u.UserSftp.AtomicCreate(tempPath, path)
+		err = u.conn.AtomicCreate(tempPath, path)
 	} else {
-		err = u.UserSftp.AtomicReplace(tempPath, path)
+		err = u.conn.AtomicReplace(tempPath, path)
 	}
 	if err != nil {
 		if createOnly {
-			if _, statErr := u.UserSftp.Stat(path); statErr == nil {
+			if _, statErr := u.conn.Stat(path); statErr == nil {
 				return result, ErrWebSftpFileConflict
 			}
 		}
 		return result, err
 	}
 	removeTemp = false
+	u.recordFileChunk(fd, reader, 0, totalSize)
+	u.finishFileRecord(fd)
 
-	info, err := u.UserSftp.Stat(path)
+	info, err := u.conn.Stat(path)
 	if err != nil {
 		return result, err
 	}
@@ -368,20 +336,20 @@ func (u *UserWebVolume) SaveFile(
 	return result, nil
 }
 
-func (u *UserWebVolume) verifyExpectedVersion(path, expectedVersion string, verifyContent bool) error {
-	info, err := u.UserSftp.Stat(path)
+func (u *sftpVolume) verifyExpectedVersion(path, expectedVersion string, verifyContent bool) error {
+	info, err := u.conn.Stat(path)
 	if expectedVersion == webSftpAbsentVersion {
 		switch {
 		case err == nil:
 			return ErrWebSftpFileConflict
-		case os.IsNotExist(err):
+		case isSftpNotExist(err):
 			return nil
 		default:
 			return err
 		}
 	}
 	if err != nil {
-		if os.IsNotExist(err) {
+		if isSftpNotExist(err) {
 			return ErrWebSftpFileConflict
 		}
 		return err
@@ -398,7 +366,7 @@ func (u *UserWebVolume) verifyExpectedVersion(path, expectedVersion string, veri
 	if info.IsDir() || info.Size() > maxWebEditorFileSize {
 		return ErrWebSftpFileConflict
 	}
-	file, err := u.UserSftp.OpenForChecksum(path)
+	file, err := u.conn.OpenForChecksum(path)
 	if err != nil {
 		return err
 	}
@@ -413,58 +381,65 @@ func (u *UserWebVolume) verifyExpectedVersion(path, expectedVersion string, veri
 	return nil
 }
 
-func (u *UserWebVolume) UploadChunk(cid int, path string, offset, dataSize int64, readerAt io.ReaderAt) error {
-	logger.Debug("WebVolume upload chunk file path: ", path)
-	var err error
-	u.lock.Lock()
-	fd, ok := u.chunkFilesMap[cid]
-	ftpLog := u.ftpLogMap[cid]
-	u.lock.Unlock()
-	if !ok {
-		f, err := u.UserSftp.Create(path)
-		if err != nil {
-			return err
-		}
-		fd = f.File
-		ftpLog = f.FTPLog
-		_, err = fd.Seek(offset, 0)
-		if err != nil {
-			return err
-		}
-		u.lock.Lock()
-		u.chunkFilesMap[cid] = fd
-		u.ftpLogMap[cid] = ftpLog
-		u.lock.Unlock()
-	}
-
-	if err2 := u.recorder.ChunkedRecord(ftpLog, readerAt, offset, dataSize); err2 != nil {
-		logger.Errorf("Record file err: %s", err2)
-	}
-
-	err = common.ChunkedFileTransfer(fd, readerAt, offset, dataSize)
-
-	if err != nil {
-		_ = fd.Close()
-		u.lock.Lock()
-		delete(u.chunkFilesMap, cid)
-		delete(u.ftpLogMap, cid)
-		u.lock.Unlock()
-	}
-	return err
-}
-
-func (u *UserWebVolume) MergeChunk(cid int, path string) error {
-	logger.Debug("WebVolume merge chunk path: ", path)
+func (u *sftpVolume) UploadChunk(cid int, path string, offset, dataSize int64, readerAt io.ReaderAt) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
-	fd, ok := u.chunkFilesMap[cid]
+	if u.closed.Load() {
+		return os.ErrClosed
+	}
+	if offset < 0 || dataSize < 0 {
+		return fmt.Errorf("invalid file range")
+	}
+	upload, ok := u.uploads[cid]
+	if ok && upload.path != path {
+		return fmt.Errorf("upload path does not match")
+	}
+	if !ok {
+		file, err := u.conn.Create(path)
+		if err != nil {
+			return err
+		}
+		upload = &sftpUpload{path: path, file: file}
+		u.uploads[cid] = upload
+	}
+	if err := common.ChunkedFileTransfer(upload.file, readerAt, offset, dataSize); err != nil {
+		_ = upload.file.Close()
+		u.discardFileRecord(upload.file)
+		delete(u.uploads, cid)
+		return err
+	}
+	u.recordFileChunk(upload.file, readerAt, offset, dataSize)
+	return nil
+}
+
+func (u *sftpVolume) MergeChunk(cid int, path string) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if u.closed.Load() {
+		return os.ErrClosed
+	}
+	upload, ok := u.uploads[cid]
 	if !ok {
 		return fmt.Errorf("chunk file not found %d", cid)
 	}
-	_ = fd.Close()
-	ftpLog := u.ftpLogMap[cid]
-	delete(u.chunkFilesMap, cid)
-	u.recorder.FinishFTPFile(ftpLog.ID)
-	delete(u.ftpLogMap, cid)
+	if upload.path != path {
+		return fmt.Errorf("upload path does not match")
+	}
+	delete(u.uploads, cid)
+	if err := upload.file.Close(); err != nil {
+		u.discardFileRecord(upload.file)
+		return err
+	}
+	u.finishFileRecord(upload.file)
 	return nil
+}
+
+func (u *sftpVolume) recordFileChunk(file *srvconn.SftpFile, reader io.ReaderAt, offset, size int64) {
+	if u.recorder == nil || file.FTPLog == nil {
+		return
+	}
+	if err := u.recorder.ChunkedRecord(file.FTPLog, reader, offset, size); err != nil {
+		logger.Errorf("Record file err: %s", err)
+		u.discardFileRecord(file)
+	}
 }

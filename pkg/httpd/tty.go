@@ -43,10 +43,6 @@ type metricsSubscribeParams struct {
 	IntervalSeconds int `json:"intervalSeconds"`
 }
 
-func (h *tty) Name() string {
-	return TTYName
-}
-
 func (h *tty) CleanUp() {
 	h.clientsMu.Lock()
 	clients := make([]*Client, 0, len(h.clients))

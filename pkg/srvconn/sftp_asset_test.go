@@ -3,7 +3,43 @@ package srvconn
 import (
 	"os"
 	"testing"
+
+	"github.com/jumpserver-dev/sdk-go/model"
 )
+
+func TestClosedAssetCannotCreateSession(t *testing.T) {
+	asset := &AssetDir{}
+	asset.close()
+	if connection, _ := asset.GetSFTPAndRealPath(&model.PermAccount{}, "/"); connection != nil {
+		t.Fatal("closed asset created a new connection")
+	}
+}
+
+func TestNodeCloseWithLazyAssets(t *testing.T) {
+	asset := &AssetDir{}
+	started, release, loaded, closed := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
+	node := NewNodeDir(WithSubFoldersLoadFunc(func() map[string]os.FileInfo {
+		close(started)
+		<-release
+		return map[string]os.FileInfo{"asset": asset}
+	}))
+	go func() { node.loadSubNodeTree(); close(loaded) }()
+	<-started
+	go func() { node.close(); close(closed) }()
+	close(release)
+	<-loaded
+	<-closed
+	if connection, _ := asset.GetSFTPAndRealPath(&model.PermAccount{}, "/"); connection != nil {
+		t.Fatal("an asset initialized during close remained connectable")
+	}
+
+	unloaded := NewNodeDir(WithSubFoldersLoadFunc(func() map[string]os.FileInfo {
+		t.Error("closed node started loading new assets")
+		return nil
+	}))
+	unloaded.close()
+	unloaded.loadSubNodeTree()
+}
 
 func TestAgentToolPathWithinRoot(t *testing.T) {
 	tests := []struct {

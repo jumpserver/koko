@@ -31,8 +31,6 @@ github.com/ClickHouse/ch-go v0.74.0 h1:uYs2m4wIt0ZHSM1E72rg0maCfzhR2V3xWb/vZEgpe
 github.com/ClickHouse/ch-go v0.74.0/go.mod h1:sZ/r+8ttZMjyrP9PuFbgoVbth1ywIu2LIQNA2vgko6M=
 github.com/ClickHouse/clickhouse-go/v2 v2.48.0 h1:auzd4VkapQYhQF8F2Gog7s3x78Bi1JZmByxGbrw3C+4=
 github.com/ClickHouse/clickhouse-go/v2 v2.48.0/go.mod h1:lBjUCPRG6RpRQdMbkXq+JV8rY0/O5lw+Z7jShgReFjM=
-github.com/LeeEirc/elfinder v0.0.15 h1:ZnBJqkcbyt6zUgcGzhPHwsa88k0lhbNOa5rVsoJTG9s=
-github.com/LeeEirc/elfinder v0.0.15/go.mod h1:d1bMAAydkZSBxSN/EuQjBg6B0xcPP3boHuYEpzEHYTs=
 github.com/LeeEirc/httpsig v1.2.1 h1:GGmCc2Bug3KeCchlZHwrfyjyAnw+JlzMjKDobPypirs=
 github.com/LeeEirc/httpsig v1.2.1/go.mod h1:aoLZLXCSNDgkzsH2sGLWn3hlVbF+Voe8fCArxLt9nWA=
 github.com/LeeEirc/tclientlib v0.0.3-0.20230803101925-fb52a90cb08d h1:4qUSGc/34IALiDs2kBrjbCKfx7zvAt16K+gTRzNN8Fo=

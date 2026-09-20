@@ -143,11 +143,6 @@ const (
 	maxWriteTimeOut = 5 * time.Minute
 )
 
-const (
-	TTYName       = "terminal"
-	WebFolderName = "web_folder"
-)
-
 type WsRequestParams struct {
 	TargetType string `form:"type"`
 	TargetId   string `form:"target_id"`
