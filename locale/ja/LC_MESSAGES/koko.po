@@ -247,6 +247,9 @@ msgstr "ID"
 msgid "Number"
 msgstr "番号"
 
+msgid "Sequence"
+msgstr "番号"
+
 msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
 msgstr "二次検索：// + IP、ホスト名、またはコメント（例：//192）"
 
@@ -269,10 +272,10 @@ msgid "Favorite path: %s"
 msgstr "お気に入りパス：%s"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "検索：/ IP、ホスト名、コメント（全体）  // IP、ホスト名、コメント（絞り込み）"
+msgstr "検索ヒント：// + キーワード（絞り込み） · / + キーワード（全体を再検索） · IP/ホスト名/コメント"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "検索：/ IP、ホスト名、コメント（全体）  // IP、ホスト名、コメント（現在の範囲）"
+msgstr "検索ヒント：// + キーワード（現在の範囲） · / + キーワード（全体） · IP/ホスト名/コメント"
 
 msgid "Current search: %s"
 msgstr "現在の検索：%s"
@@ -525,6 +528,9 @@ msgstr "検索"
 
 msgid "Search: %s"
 msgstr "検索：%s"
+
+msgid "Search tip: %s"
+msgstr "検索ヒント：%s"
 
 msgid "Select account exceed max retry times."
 msgstr "アカウントの選択が最大リトライ回数を超えました。"

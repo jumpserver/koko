@@ -49,9 +49,14 @@ func (u *UserSelectHandler) displayResult(_ string, labels, fields []string,
 	searchSummary := currentSearchSummary(u.searchKeys, "")
 	currentSearchTip := ""
 	if searchSummary != "" {
-		currentSearchTip = fmt.Sprintf(lang.T("Current search: %s"), searchSummary)
+		currentSearchTip = fmt.Sprintf(lang.T("Search: %s"), searchSummary)
 	}
-	info := compactClassicHintRows(width, u.scopePathHint(lang), currentSearchTip)
+	statusParts := make([]string, 0, 3)
+	if u.TotalPage() > 1 {
+		statusParts = append(statusParts, fmt.Sprintf("%d-%d/%d", start, end, u.TotalCount()))
+	}
+	statusParts = append(statusParts, currentSearchTip, u.scopePathHint(lang))
+	statusTip := combineClassicHints(statusParts...)
 	actionParts := make([]string, 0, 4)
 	if u.HasPrev() {
 		actionParts = append(actionParts, fmt.Sprintf("[b] %s", lang.T("Previous")))
@@ -62,52 +67,28 @@ func (u *UserSelectHandler) displayResult(_ string, labels, fields []string,
 	actionParts = append(actionParts,
 		fmt.Sprintf("[%s] %s", lang.T("Number"), lang.T("Connect")),
 		fmt.Sprintf("[?] %s", lang.T("Help")))
-	if u.TotalPage() > 1 {
-		pageInfo := fmt.Sprintf(lang.T("Asset range: %s  [b] Previous page  [n/Enter] Next page"),
-			fmt.Sprintf("%d-%d/%d", start, end, u.TotalCount()))
-		if shortcutPos := strings.Index(pageInfo, "  [b]"); shortcutPos >= 0 {
-			pageInfo = strings.TrimSpace(pageInfo[:shortcutPos])
-		}
-		info = append(info, pageInfo)
+	hints := make([]string, 0, 3)
+	if statusTip != "" {
+		hints = append(hints, statusTip)
 	}
-	hints := append(info, searchTip)
-	hints = append(hints, compactClassicHintRows(width, actionParts...)...)
+	hints = append(hints, searchTip, combineClassicHints(actionParts...))
 	_, _ = vt.Write([]byte(utils.CharClear))
 	_, _ = vt.Write([]byte(table.Display()))
 	utils.IgnoreErrWriteString(vt, classicHintPanel(hints, width))
 }
 
-type classicHint struct {
-	label string
-	value string
-}
-
-func splitClassicHint(text string) classicHint {
-	separator := strings.IndexAny(text, ":：")
-	if separator < 0 {
-		return classicHint{value: strings.TrimSpace(text)}
-	}
-	separatorSize := 1
-	if strings.HasPrefix(text[separator:], "：") {
-		separatorSize = len("：")
-	}
-	return classicHint{
-		label: strings.TrimSpace(text[:separator]),
-		value: strings.TrimSpace(text[separator+separatorSize:]),
-	}
-}
-
 func classicHintLine(text string, width int) string {
-	hint := splitClassicHint(text)
-	if hint.label == "" {
-		return highlightClassicShortcuts(runewidth.Truncate(hint.value, width, "…"))
+	return highlightClassicShortcuts(runewidth.Truncate(strings.TrimSpace(text), width, "…"))
+}
+
+func combineClassicHints(texts ...string) string {
+	filtered := make([]string, 0, len(texts))
+	for _, text := range texts {
+		if text = strings.TrimSpace(text); text != "" {
+			filtered = append(filtered, text)
+		}
 	}
-	available := width - runewidth.StringWidth(hint.label) - 2
-	if available <= 0 {
-		return runewidth.Truncate(hint.label, width, "…")
-	}
-	hint.value = runewidth.Truncate(hint.value, available, "…")
-	return hint.label + "  " + highlightClassicShortcuts(hint.value)
+	return strings.Join(filtered, "  ·  ")
 }
 
 func compactClassicHintRows(width int, texts ...string) []string {
@@ -151,7 +132,7 @@ func classicHintPanel(texts []string, width int) string {
 func highlightClassicShortcuts(value string) string {
 	searchSyntax := strings.Contains(value, "IP") && strings.Contains(value, "/")
 	highlightNumber := strings.Contains(value, "Enter") || strings.Contains(value, "回车")
-	numberTokens := []string{"number", "编号", "編號", "番号", "번호", "número", "номер", "số"}
+	numberTokens := []string{"number", "序号", "序號", "编号", "編號", "番号", "번호", "número", "номер", "số"}
 	var result strings.Builder
 	for i := 0; i < len(value); {
 		if value[i] == '[' {
@@ -241,11 +222,14 @@ func (u *UserSelectHandler) displayNoResultMsg(_ string, tips string) {
 	searchSummary := currentSearchSummary(u.searchKeys, "")
 	currentSearchTip := ""
 	if searchSummary != "" {
-		currentSearchTip = fmt.Sprintf(lang.T("Current search: %s"), searchSummary)
+		currentSearchTip = fmt.Sprintf(lang.T("Search: %s"), searchSummary)
 	}
 	utils.IgnoreErrWriteString(u.h.term, utils.WrapperString(tips, utils.Red))
 	utils.IgnoreErrWriteString(u.h.term, utils.CharNewLine)
-	hints := compactClassicHintRows(width, u.scopePathHint(lang), currentSearchTip)
+	hints := make([]string, 0, 3)
+	if statusTip := combineClassicHints(currentSearchTip, u.scopePathHint(lang)); statusTip != "" {
+		hints = append(hints, statusTip)
+	}
 	hints = append(hints, searchTip, fmt.Sprintf("[?] %s", lang.T("Help")))
 	utils.IgnoreErrWriteString(u.h.term, classicHintPanel(hints, width))
 }
@@ -268,8 +252,7 @@ func (u *UserSelectHandler) searchSyntaxHint(lang i18n.LanguageCode) string {
 		return lang.T("Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)")
 	}
 	if currentSearchSummary(u.searchKeys, "") == "" {
-		syntax := strings.Replace(lang.T("/ + IP, Hostname, Comment"), "/ + ", "/ ", 1)
-		return fmt.Sprintf("%s: %s", lang.T("Search"), syntax)
+		return fmt.Sprintf(lang.T("Search tip: %s"), lang.T("/ + IP, Hostname, Comment"))
 	}
 	return lang.T("Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)")
 }

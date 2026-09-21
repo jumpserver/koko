@@ -173,7 +173,7 @@ msgid "EndFileTransfer"
 msgstr "文件传输结束"
 
 msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr "提示：输入资产编号直接登录，二级搜索使用 // + 字段，如：//192"
+msgstr "提示：输入资产序号直接登录，二级搜索使用 // + 字段，如：//192"
 
 msgid "ExceedTransferSize"
 msgstr "超过最大传输大小"
@@ -245,13 +245,16 @@ msgid "ID"
 msgstr "ID"
 
 msgid "Number"
-msgstr "编号"
+msgstr "序号"
+
+msgid "Sequence"
+msgstr "序号"
 
 msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
 msgstr "二级搜索：// + IP、主机名或备注，例如 //192"
 
 msgid "Connect asset: enter number and press Enter"
-msgstr "连接资产：输入编号并回车"
+msgstr "连接资产：输入序号并回车"
 
 msgid "Show help: enter ? and press Enter"
 msgstr "显示帮助：输入 ? 并回车"
@@ -269,10 +272,10 @@ msgid "Favorite path: %s"
 msgstr "收藏路径：%s"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "搜索：/ IP、主机名、备注（全局）  // IP、主机名、备注（多级）"
+msgstr "搜索指南：// + 关键词（继续筛选） · / + 关键词（重新全局搜索） · IP/主机名/备注"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "搜索：/ IP、主机名、备注（全局）  // IP、主机名、备注（当前范围）"
+msgstr "搜索指南：// + 关键词（当前范围） · / + 关键词（全局） · IP/主机名/备注"
 
 msgid "Current search: %s"
 msgstr "当前搜索：%s"
@@ -281,16 +284,16 @@ msgid "Current asset: %s"
 msgstr "当前资产：%s"
 
 msgid "Select account: enter number and press Enter"
-msgstr "选择账号：输入编号并回车"
+msgstr "选择账号：输入序号并回车"
 
 msgid "Back: [b] + Enter"
 msgstr "返回：[b] + 回车"
 
 msgid "Select language: enter number and press Enter; the choice is saved"
-msgstr "选择语言：输入编号并回车，选择会保存"
+msgstr "选择语言：输入序号并回车，选择会保存"
 
 msgid "Select protocol: enter number and press Enter"
-msgstr "选择协议：输入编号并回车"
+msgstr "选择协议：输入序号并回车"
 
 msgid "Tree progress: %d/%d"
 msgstr "树进度：%d/%d"
@@ -299,7 +302,7 @@ msgid "Browse tree: [Enter] next line  [Space] next page"
 msgstr "浏览树：[Enter] 下一行  [Space] 下一页"
 
 msgid "View assets: [%c + number] + Enter"
-msgstr "查看资产：[%c + 编号] + 回车"
+msgstr "查看资产：[%c + 序号] + 回车"
 
 msgid "Refresh authorization tree: [r] + Enter"
 msgstr "刷新授权树：[r] + 回车"
@@ -320,10 +323,10 @@ msgid "favorite tree"
 msgstr "查看收藏树"
 
 msgid "Type: [ Number.Name(Asset amount) ]"
-msgstr "类型：[ 编号.名称(资产数量) ]"
+msgstr "类型：[ 序号.名称(资产数量) ]"
 
 msgid "Favorite: [ Number.Name(Asset amount) ]"
-msgstr "收藏：[ 编号.名称(资产数量) ]"
+msgstr "收藏：[ 序号.名称(资产数量) ]"
 
 msgid "InputVerifyCode"
 msgstr "请输入验证码"
@@ -431,7 +434,7 @@ msgid "NoRunningTerminalFound"
 msgstr "未找到正在运行的终端"
 
 msgid "Node: [ Number.Name(Asset amount) ]"
-msgstr "节点：[ 编号.名称(资产数量) ]"
+msgstr "节点：[ 序号.名称(资产数量) ]"
 
 msgid "OnlineUser"
 msgstr "在线用户"
@@ -525,6 +528,9 @@ msgstr "搜索"
 
 msgid "Search: %s"
 msgstr "搜索：%s"
+
+msgid "Search tip: %s"
+msgstr "搜索指南：%s"
 
 msgid "Select account exceed max retry times."
 msgstr "选择账号超过最大重试次数"

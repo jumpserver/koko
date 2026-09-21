@@ -14,6 +14,8 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
+const classicEnterRepeatWindow = 750 * time.Millisecond
+
 func (h *InteractiveHandler) Dispatch() terminalMode {
 	done := make(chan struct{})
 	defer close(done)
@@ -28,6 +30,7 @@ func (h *InteractiveHandler) Dispatch() terminalMode {
 	defer logger.Infof("Request %s: User %s stop classic text mode", h.sess.ID(), h.user.Name)
 
 	var initialized bool
+	var suppressEnterUntil time.Time
 	for {
 		h.resizeTerminal()
 		if !h.setIdle(idleState, true) {
@@ -50,13 +53,22 @@ func (h *InteractiveHandler) Dispatch() terminalMode {
 			return terminalModeTUI
 		}
 		if line == "" {
-			if !initialized {
+			if initialized {
+				now := time.Now()
+				if now.Before(suppressEnterUntil) {
+					suppressEnterUntil = now.Add(classicEnterRepeatWindow)
+					continue
+				}
+				h.selectHandler.MoveNextPage()
+				suppressEnterUntil = time.Now().Add(classicEnterRepeatWindow)
+			} else {
 				h.selectHandler.SetSelectType(TypeAsset)
 				h.selectHandler.Search("")
 			}
 			initialized = true
 			continue
 		}
+		suppressEnterUntil = time.Time{}
 		if isClassicHelpCommand(line) {
 			h.displayHelp()
 			initialized = false
@@ -242,7 +254,7 @@ func (h *InteractiveHandler) watchIdle(done <-chan struct{}, state <-chan bool) 
 func (h *InteractiveHandler) ChangeLang() {
 	lang := i18n.NewLang(h.i18nLang)
 	language := h.i18nLang
-	labels := []string{lang.T("ID"), lang.T("Name")}
+	labels := []string{lang.T("Number"), lang.T("Name")}
 	fields := []string{"ID", "Name"}
 	data := make([]map[string]string, len(i18n.AllLangCodesStr))
 	for i, name := range i18n.AllLangCodesStr {
@@ -255,7 +267,7 @@ func (h *InteractiveHandler) ChangeLang() {
 	}
 	table.Initial()
 	h.resizeTerminal()
-	h.term.SetPrompt("ID> ")
+	h.term.SetPrompt("[Language]> ")
 	hints := compactClassicHintRows(width,
 		fmt.Sprintf("[%s] %s", lang.T("Number"), lang.T("Select")),
 		fmt.Sprintf("[b] %s", lang.T("Back")))
@@ -397,7 +409,7 @@ func (h *InteractiveHandler) displayClassicTreeRows(rows []string, selectKey byt
 		actionHints := make([]string, 0, 3)
 		if len(rows) > 0 {
 			actionHints = append(actionHints,
-				fmt.Sprintf("[%c+%s] %s", selectKey, lang.T("Number"), lang.T("Assets")))
+				fmt.Sprintf("[%c%s] %s", selectKey, lang.T("Sequence"), lang.T("Assets")))
 		}
 		if allowRefresh {
 			actionHints = append(actionHints, fmt.Sprintf("[r] %s", lang.T("Refresh")))
@@ -427,13 +439,13 @@ func (h *InteractiveHandler) displayClassicTreeRows(rows []string, selectKey byt
 			return classicTreeDisplayRefresh
 		case classicTreePagerSelect:
 			if !selectItem(action.itemNumber) {
-				message := fmt.Sprintf(h.tr("%s编号无效", "Invalid %s number"), h.tr(itemZH, itemEN))
+				message := fmt.Sprintf(h.tr("%s序号无效", "Invalid %s number"), h.tr(itemZH, itemEN))
 				utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(message)+utils.CharNewLine)
 				continue
 			}
 			return classicTreeDisplayDone
 		case classicTreePagerInvalid:
-			message := fmt.Sprintf(h.tr("请输入 %c+编号并回车", "Enter %c+number and press Enter"), selectKey)
+			message := fmt.Sprintf(h.tr("请输入 %c序号并回车", "Enter %cnumber and press Enter"), selectKey)
 			utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(message)+utils.CharNewLine)
 		case classicTreePagerLine:
 			if end < len(rows) {

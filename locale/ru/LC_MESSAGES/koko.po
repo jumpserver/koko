@@ -247,6 +247,9 @@ msgstr "ID"
 msgid "Number"
 msgstr "№"
 
+msgid "Sequence"
+msgstr "номер"
+
 msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
 msgstr "Расширенный поиск: // + IP, имя хоста или комментарий, например //192"
 
@@ -269,10 +272,10 @@ msgid "Favorite path: %s"
 msgstr "Путь избранного: %s"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Поиск: / IP, хост, комментарий (глобально)  // IP, хост, комментарий (уточнить)"
+msgstr "Подсказка поиска: // + запрос (уточнить) · / + запрос (новый глобальный) · IP/хост/комментарий"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Поиск: / IP, хост, комментарий (глобально)  // IP, хост, комментарий (текущая область)"
+msgstr "Подсказка поиска: // + запрос (текущая область) · / + запрос (глобально) · IP/хост/комментарий"
 
 msgid "Current search: %s"
 msgstr "Текущий поиск: %s"
@@ -525,6 +528,9 @@ msgstr "Поиск"
 
 msgid "Search: %s"
 msgstr "Поиск: %s"
+
+msgid "Search tip: %s"
+msgstr "Подсказка поиска: %s"
 
 msgid "Select account exceed max retry times."
 msgstr "Превышено максимальное число попыток выбора УЗ"

@@ -247,6 +247,9 @@ msgstr "ID"
 msgid "Number"
 msgstr "STT"
 
+msgid "Sequence"
+msgstr "số"
+
 msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
 msgstr "Tìm kiếm cấp hai: // + IP, tên máy chủ hoặc ghi chú, ví dụ //192"
 
@@ -269,10 +272,10 @@ msgid "Favorite path: %s"
 msgstr "Đường dẫn yêu thích: %s"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Tìm kiếm: / IP, máy chủ, ghi chú (toàn cục)  // IP, máy chủ, ghi chú (lọc thêm)"
+msgstr "Gợi ý tìm kiếm: // + từ khóa (lọc thêm) · / + từ khóa (toàn cục mới) · IP/máy chủ/ghi chú"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Tìm kiếm: / IP, máy chủ, ghi chú (toàn cục)  // IP, máy chủ, ghi chú (phạm vi hiện tại)"
+msgstr "Gợi ý tìm kiếm: // + từ khóa (phạm vi hiện tại) · / + từ khóa (toàn cục) · IP/máy chủ/ghi chú"
 
 msgid "Current search: %s"
 msgstr "Tìm kiếm hiện tại: %s"
@@ -525,6 +528,9 @@ msgstr "Tìm kiếm"
 
 msgid "Search: %s"
 msgstr "Tìm kiếm: %s"
+
+msgid "Search tip: %s"
+msgstr "Gợi ý tìm kiếm: %s"
 
 msgid "Select account exceed max retry times."
 msgstr "Số tài khoản đã vượt quá số lần thử tối đa"

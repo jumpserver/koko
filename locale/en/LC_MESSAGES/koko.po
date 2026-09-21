@@ -250,6 +250,9 @@ msgstr "ID"
 msgid "Number"
 msgstr "No."
 
+msgid "Sequence"
+msgstr "number"
+
 msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
 msgstr "Secondary search: // + IP, hostname, or comment, e.g. //192"
 
@@ -272,10 +275,10 @@ msgid "Favorite path: %s"
 msgstr "Favorite path: %s"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Search: / IP, hostname, comment (global)  // IP, hostname, comment (refine)"
+msgstr "Search tip: // + keyword (refine) · / + keyword (new global) · IP/hostname/comment"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Search: / IP, hostname, comment (global)  // IP, hostname, comment (current scope)"
+msgstr "Search tip: // + keyword (current scope) · / + keyword (global) · IP/hostname/comment"
 
 msgid "Current search: %s"
 msgstr "Current search: %s"
@@ -534,6 +537,9 @@ msgstr "Search"
 
 msgid "Search: %s"
 msgstr "Search: %s"
+
+msgid "Search tip: %s"
+msgstr "Search tip: %s"
 
 msgid "Select account exceed max retry times."
 msgstr "Account selection exceeded maximum retry count"

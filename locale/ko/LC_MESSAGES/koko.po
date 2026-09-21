@@ -247,6 +247,9 @@ msgstr "아이디"
 msgid "Number"
 msgstr "번호"
 
+msgid "Sequence"
+msgstr "번호"
+
 msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
 msgstr "2차 검색: // + IP, 호스트 이름 또는 설명(예: //192)"
 
@@ -269,10 +272,10 @@ msgid "Favorite path: %s"
 msgstr "즐겨찾기 경로: %s"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "검색: / IP, 호스트 이름, 설명(전체)  // IP, 호스트 이름, 설명(상세)"
+msgstr "검색 안내: // + 키워드(계속 필터링) · / + 키워드(전체 재검색) · IP/호스트 이름/설명"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "검색: / IP, 호스트 이름, 설명(전체)  // IP, 호스트 이름, 설명(현재 범위)"
+msgstr "검색 안내: // + 키워드(현재 범위) · / + 키워드(전체) · IP/호스트 이름/설명"
 
 msgid "Current search: %s"
 msgstr "현재 검색: %s"
@@ -525,6 +528,9 @@ msgstr "검색"
 
 msgid "Search: %s"
 msgstr "검색: %s"
+
+msgid "Search tip: %s"
+msgstr "검색 안내: %s"
 
 msgid "Select account exceed max retry times."
 msgstr "계정 선택이 최대 재시도 횟수를 초과했습니다"

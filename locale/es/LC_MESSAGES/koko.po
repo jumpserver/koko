@@ -247,6 +247,9 @@ msgstr "ID"
 msgid "Number"
 msgstr "N.º"
 
+msgid "Sequence"
+msgstr "número"
+
 msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
 msgstr "Búsqueda secundaria: // + IP, nombre de host o comentario, p. ej. //192"
 
@@ -269,10 +272,10 @@ msgid "Favorite path: %s"
 msgstr "Ruta de favoritos: %s"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Búsqueda: / IP, host, comentario (global)  // IP, host, comentario (refinar)"
+msgstr "Consejo de búsqueda: // + término (refinar) · / + término (nueva global) · IP/host/comentario"
 
 msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Búsqueda: / IP, host, comentario (global)  // IP, host, comentario (ámbito actual)"
+msgstr "Consejo de búsqueda: // + término (ámbito actual) · / + término (global) · IP/host/comentario"
 
 msgid "Current search: %s"
 msgstr "Búsqueda actual: %s"
@@ -525,6 +528,9 @@ msgstr "Buscar"
 
 msgid "Search: %s"
 msgstr "Buscar: %s"
+
+msgid "Search tip: %s"
+msgstr "Consejo de búsqueda: %s"
 
 msgid "Select account exceed max retry times."
 msgstr "Se ha superado el número máximo de intentos de selección de cuenta"
