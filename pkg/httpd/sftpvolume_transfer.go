@@ -88,12 +88,115 @@ func (u *sftpVolume) closeTransferWriteLocked() {
 	u.transferWrite = nil
 }
 
+func (u *sftpVolume) retainReadLocked() {
+	if u.transferRead != nil {
+		u.transferRead.inUse++
+	}
+}
+
+func (u *sftpVolume) retainWriteLocked() {
+	if u.transferWrite != nil {
+		u.transferWrite.inUse++
+	}
+}
+
+func (u *sftpVolume) releaseReadLocked(closeAfter bool) {
+	if u.transferRead == nil {
+		return
+	}
+	if u.transferRead.inUse > 0 {
+		u.transferRead.inUse--
+	}
+	if closeAfter {
+		u.transferRead.closing = true
+	}
+	if u.transferRead.closing && u.transferRead.inUse == 0 {
+		u.closeTransferReadLocked()
+	}
+	u.writeIdle.Broadcast()
+}
+
+func (u *sftpVolume) releaseWriteLocked(closeAfter bool, committed *int64) {
+	if u.transferWrite == nil {
+		return
+	}
+	if committed != nil {
+		u.transferWrite.committed = *committed
+	}
+	if u.transferWrite.inUse > 0 {
+		u.transferWrite.inUse--
+	}
+	if closeAfter {
+		u.transferWrite.closing = true
+	}
+	if u.transferWrite.closing && u.transferWrite.inUse == 0 {
+		u.closeTransferWriteLocked()
+	}
+}
+
+func (u *sftpVolume) finishRead(cached, closeAfter bool) {
+	if !cached {
+		return
+	}
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	u.releaseReadLocked(closeAfter)
+}
+
+func (u *sftpVolume) finishWrite(cached, closeAfter bool, committed *int64) {
+	if !cached {
+		return
+	}
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	u.releaseWriteLocked(closeAfter, committed)
+}
+
+func (c *cachedTransferFile) nextAccept() int64 {
+	pos := c.committed
+	for {
+		if n, ok := c.inFlight[pos]; ok {
+			pos += n
+			continue
+		}
+		if data, ok := c.done[pos]; ok {
+			pos += int64(len(data))
+			continue
+		}
+		return pos
+	}
+}
+
+func (c *cachedTransferFile) drainCommitted() {
+	for {
+		data, ok := c.done[c.committed]
+		if !ok {
+			return
+		}
+		delete(c.done, c.committed)
+		if c.digest != nil {
+			_, _ = c.digest.Write(data)
+			c.digested += int64(len(data))
+		}
+		c.committed += int64(len(data))
+	}
+}
+
+func newCachedTransferFile(id, path string, file transferIO, committed int64) *cachedTransferFile {
+	return &cachedTransferFile{
+		id: id, path: path, file: file, committed: committed,
+		inFlight: make(map[int64]int64),
+		done:     make(map[int64][]byte),
+		digest:   sha256.New(),
+	}
+}
+
 func (u *sftpVolume) cacheWriteLocked(transferID, path string, file transferIO, committed int64) {
 	u.closeTransferWriteLocked()
 	if transferID == "" {
 		return
 	}
-	u.transferWrite = &cachedTransferFile{id: transferID, path: path, file: file, committed: committed}
+	u.transferWrite = newCachedTransferFile(transferID, path, file, committed)
 }
 
 func isSftpNotExist(err error) bool {
@@ -225,28 +328,38 @@ func (u *sftpVolume) prepareTransfer(transferID, targetPath string, totalSize in
 }
 
 func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, length int64) ([]byte, sftpTransferChunk, error) {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-	if u.closed.Load() {
-		return nil, sftpTransferChunk{}, os.ErrClosed
-	}
 	if offset < 0 || length <= 0 || length > transferChunkMaxSize {
 		return nil, sftpTransferChunk{}, fmt.Errorf("invalid file transfer range")
 	}
+	u.lock.Lock()
+	if u.closed.Load() {
+		u.lock.Unlock()
+		return nil, sftpTransferChunk{}, os.ErrClosed
+	}
 	file, cached, err := u.readHandleLocked(transferID, sourcePath)
 	if err != nil {
+		u.lock.Unlock()
 		return nil, sftpTransferChunk{}, err
 	}
-	if !cached {
-		defer file.Close()
+	if cached {
+		u.retainReadLocked()
 	}
+	u.lock.Unlock()
+
+	closeUncached := !cached
+	defer func() {
+		if closeUncached {
+			_ = file.Close()
+		}
+	}()
+
 	info, err := file.Stat()
 	if err != nil {
-		u.closeTransferReadLocked()
+		u.finishRead(cached, true)
 		return nil, sftpTransferChunk{}, err
 	}
 	if offset >= info.Size() {
-		u.closeTransferReadLocked()
+		u.finishRead(cached, true)
 		return nil, sftpTransferChunk{Offset: offset, SHA256: sha256Hex(nil), EOF: true}, nil
 	}
 	remaining := info.Size() - offset
@@ -256,14 +369,12 @@ func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, le
 	data := make([]byte, length)
 	n, readErr := file.ReadAt(data, offset)
 	if readErr != nil && readErr != io.EOF {
-		u.closeTransferReadLocked()
+		u.finishRead(cached, true)
 		return nil, sftpTransferChunk{}, readErr
 	}
 	data = data[:n]
 	eof := offset+int64(n) == info.Size()
-	if eof {
-		u.closeTransferReadLocked()
-	}
+	u.finishRead(cached, eof)
 	return data, sftpTransferChunk{
 		Offset: offset,
 		SHA256: sha256Hex(data),
@@ -274,6 +385,9 @@ func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, le
 func (u *sftpVolume) readHandleLocked(transferID, path string) (file transferIO, cached bool, err error) {
 	if transferID != "" && u.transferRead != nil && u.transferRead.id == transferID && u.transferRead.path == path {
 		return u.transferRead.file, true, nil
+	}
+	for u.transferRead != nil && u.transferRead.inUse > 0 {
+		u.writeIdle.Wait()
 	}
 	u.closeTransferReadLocked()
 	file, err = u.openTransferRead(path)
@@ -288,11 +402,6 @@ func (u *sftpVolume) readHandleLocked(transferID, path string) (file transferIO,
 }
 
 func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize, offset int64, expectedSHA256 string, data []byte) (result sftpTransferResult, err error) {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-	if u.closed.Load() {
-		return sftpTransferResult{}, os.ErrClosed
-	}
 	if totalSize < 0 || offset < 0 || offset > totalSize || len(data) == 0 || len(data) > transferChunkMaxSize || int64(len(data)) > totalSize-offset || !strings.EqualFold(expectedSHA256, sha256Hex(data)) {
 		return sftpTransferResult{}, fmt.Errorf("invalid file transfer chunk")
 	}
@@ -300,47 +409,112 @@ func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
+	length := int64(len(data))
+
+	u.lock.Lock()
+	if u.closed.Load() {
+		u.lock.Unlock()
+		return sftpTransferResult{}, os.ErrClosed
+	}
 	file, committedBytes, cached, err := u.writeHandleLocked(transferID, stagePath, offset)
 	if err != nil {
+		u.lock.Unlock()
 		return sftpTransferResult{}, err
 	}
-	if !cached {
-		defer func() {
+	if committedBytes > totalSize {
+		u.lock.Unlock()
+		return sftpTransferResult{}, fmt.Errorf("file transfer chunk offset is out of order")
+	}
+	duplicate := offset < committedBytes
+	if !duplicate {
+		next := committedBytes
+		if cached && u.transferWrite != nil {
+			next = u.transferWrite.nextAccept()
+			if len(u.transferWrite.inFlight) >= 2 {
+				u.lock.Unlock()
+				return sftpTransferResult{}, fmt.Errorf("file transfer write pipeline full")
+			}
+		}
+		if offset != next {
+			u.lock.Unlock()
+			return sftpTransferResult{}, fmt.Errorf("file transfer chunk offset is out of order")
+		}
+		if cached && u.transferWrite != nil {
+			u.transferWrite.inFlight[offset] = length
+		}
+	}
+	if cached {
+		u.retainWriteLocked()
+	}
+	u.lock.Unlock()
+
+	closeUncached := !cached
+	defer func() {
+		if closeUncached {
 			if closeErr := file.Close(); err == nil && closeErr != nil {
 				result, err = sftpTransferResult{}, closeErr
 			}
-		}()
-	}
-	if committedBytes > totalSize || offset > committedBytes {
-		return sftpTransferResult{}, fmt.Errorf("file transfer chunk offset is out of order")
-	}
-	if offset < committedBytes {
+		}
+	}()
+
+	if duplicate {
 		existing := make([]byte, len(data))
 		n, readErr := file.ReadAt(existing, offset)
 		if readErr != nil && readErr != io.EOF {
+			u.finishWrite(cached, false, nil)
 			return sftpTransferResult{}, readErr
 		}
 		if n != len(data) || !strings.EqualFold(sha256Hex(existing), expectedSHA256) {
+			u.finishWrite(cached, false, nil)
 			return sftpTransferResult{}, fmt.Errorf("file transfer duplicate chunk does not match")
 		}
+		u.finishWrite(cached, false, nil)
 		return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready", Duplicate: true}, nil
 	}
-	if n, writeErr := file.WriteAt(data, offset); writeErr != nil {
-		if cached {
-			u.closeTransferWriteLocked()
-		}
-		return sftpTransferResult{}, writeErr
-	} else if n != len(data) {
-		if cached {
-			u.closeTransferWriteLocked()
-		}
-		return sftpTransferResult{}, io.ErrShortWrite
+	n, writeErr := file.WriteAt(data, offset)
+	if writeErr == nil && n != len(data) {
+		writeErr = io.ErrShortWrite
 	}
-	committedBytes = offset + int64(len(data))
-	if cached {
-		u.transferWrite.committed = committedBytes
+	committedBytes, err = u.completeWrite(cached, offset, length, data, writeErr)
+	if err != nil {
+		return sftpTransferResult{}, err
 	}
 	return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready"}, nil
+}
+
+func (u *sftpVolume) completeWrite(cached bool, offset, length int64, data []byte, writeErr error) (int64, error) {
+	if !cached {
+		if writeErr != nil {
+			return 0, writeErr
+		}
+		return offset + length, nil
+	}
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if u.transferWrite != nil {
+		delete(u.transferWrite.inFlight, offset)
+		if writeErr == nil {
+			u.transferWrite.done[offset] = data
+			u.transferWrite.drainCommitted()
+		}
+	}
+	if writeErr != nil {
+		u.releaseWriteLocked(true, nil)
+		u.writeIdle.Broadcast()
+		return 0, writeErr
+	}
+	end := offset + length
+	for u.transferWrite != nil && u.transferWrite.committed < end && !u.closed.Load() && !u.transferWrite.closing {
+		u.writeIdle.Wait()
+	}
+	if u.transferWrite == nil || u.transferWrite.committed < end {
+		u.releaseWriteLocked(true, nil)
+		u.writeIdle.Broadcast()
+		return 0, fmt.Errorf("file transfer write aborted")
+	}
+	u.releaseWriteLocked(false, nil)
+	u.writeIdle.Broadcast()
+	return end, nil
 }
 
 func (u *sftpVolume) writeHandleLocked(transferID, path string, offset int64) (file transferIO, committed int64, cached bool, err error) {
@@ -371,7 +545,7 @@ func (u *sftpVolume) writeHandleLocked(transferID, path string, offset int64) (f
 	if transferID == "" {
 		return file, committed, false, nil
 	}
-	u.transferWrite = &cachedTransferFile{id: transferID, path: path, file: file, committed: committed}
+	u.transferWrite = newCachedTransferFile(transferID, path, file, committed)
 	return file, committed, true, nil
 }
 
@@ -414,43 +588,53 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize int
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
+	var runningSum string
+	var hashedAll bool
 	if u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == stagePath {
+		hashedAll = u.transferWrite.digest != nil && u.transferWrite.digested == totalSize
+		if hashedAll {
+			runningSum = hex.EncodeToString(u.transferWrite.digest.Sum(nil))
+		}
 		u.closeTransferWriteLocked()
 	}
-	file, err := u.conn.OpenUploadTemp(stagePath, false)
-	if err != nil {
-		return sftpTransferResult{}, err
-	}
-	closed := false
-	defer func() {
-		if !closed {
-			_ = file.Close()
+	if hashedAll {
+		if !strings.EqualFold(runningSum, expectedSHA256) {
+			return sftpTransferResult{}, fmt.Errorf("file transfer checksum mismatch")
 		}
-	}()
-	info, err := file.Stat()
-	if err != nil {
-		return sftpTransferResult{}, err
-	}
-	if info.Size() != totalSize {
-		return sftpTransferResult{}, fmt.Errorf("file transfer is incomplete")
-	}
-	hash := sha256.New()
-	if _, err = io.CopyN(hash, file, totalSize); err != nil {
-		return sftpTransferResult{}, err
-	}
-	if info, err = file.Stat(); err != nil {
-		return sftpTransferResult{}, err
-	} else if info.Size() != totalSize {
-		return sftpTransferResult{}, fmt.Errorf("file transfer size changed during commit")
-	}
-	if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedSHA256) {
-		return sftpTransferResult{}, fmt.Errorf("file transfer checksum mismatch")
-	}
-	// Some servers cannot rename an open file. Release the verification handle
-	// before committing, and never turn a completed upload into a close failure.
-	closed = true
-	if err := file.Close(); err != nil {
-		return sftpTransferResult{}, err
+	} else {
+		file, err := u.conn.OpenUploadTemp(stagePath, false)
+		if err != nil {
+			return sftpTransferResult{}, err
+		}
+		closed := false
+		defer func() {
+			if !closed {
+				_ = file.Close()
+			}
+		}()
+		info, err := file.Stat()
+		if err != nil {
+			return sftpTransferResult{}, err
+		}
+		if info.Size() != totalSize {
+			return sftpTransferResult{}, fmt.Errorf("file transfer is incomplete")
+		}
+		hash := sha256.New()
+		if _, err = io.CopyN(hash, file, totalSize); err != nil {
+			return sftpTransferResult{}, err
+		}
+		if info, err = file.Stat(); err != nil {
+			return sftpTransferResult{}, err
+		} else if info.Size() != totalSize {
+			return sftpTransferResult{}, fmt.Errorf("file transfer size changed during commit")
+		}
+		if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedSHA256) {
+			return sftpTransferResult{}, fmt.Errorf("file transfer checksum mismatch")
+		}
+		closed = true
+		if err := file.Close(); err != nil {
+			return sftpTransferResult{}, err
+		}
 	}
 	var ftpLog *model.FTPLog
 	if conflictPolicy == "keep_both" {
@@ -535,18 +719,22 @@ func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.Reader
 }
 
 func (u *sftpVolume) cancelTransfer(transferID, targetPath string, discard bool) (sftpTransferResult, error) {
+	stagePath, err := transferStagePath(targetPath, transferID)
+	if err != nil {
+		return sftpTransferResult{}, err
+	}
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	if u.closed.Load() {
 		return sftpTransferResult{}, os.ErrClosed
 	}
-	stagePath, err := transferStagePath(targetPath, transferID)
-	if err != nil {
-		return sftpTransferResult{}, err
+	for u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.inUse > 0 {
+		u.writeIdle.Wait()
 	}
 	if u.transferWrite != nil && u.transferWrite.id == transferID {
 		u.closeTransferWriteLocked()
 	}
+	u.writeIdle.Broadcast()
 	if discard {
 		if err = u.conn.DiscardUploadTemp(stagePath); err != nil && !isSftpNotExist(err) {
 			return sftpTransferResult{}, err

@@ -3,6 +3,7 @@ package httpd
 import (
 	"context"
 	"fmt"
+	"hash"
 	"os"
 	"path/filepath"
 	"sync"
@@ -44,6 +45,7 @@ type sftpVolume struct {
 	conn      sftpFileSystem
 	recorder  *proxy.FTPFileRecorder
 	lock      sync.Mutex
+	writeIdle *sync.Cond
 	uploads   map[int]*sftpUpload
 	closed    atomic.Bool
 	closeOnce sync.Once
@@ -71,6 +73,12 @@ type cachedTransferFile struct {
 	id, path  string
 	file      transferIO
 	committed int64
+	inUse     int
+	closing   bool
+	inFlight  map[int64]int64
+	done      map[int64][]byte
+	digest    hash.Hash
+	digested  int64
 }
 
 type fileMutationOptions struct {
@@ -80,7 +88,9 @@ type fileMutationOptions struct {
 }
 
 func newSFTPVolume(conn sftpFileSystem, recorder *proxy.FTPFileRecorder) *sftpVolume {
-	return &sftpVolume{conn: conn, recorder: recorder, uploads: make(map[int]*sftpUpload)}
+	u := &sftpVolume{conn: conn, recorder: recorder, uploads: make(map[int]*sftpUpload)}
+	u.writeIdle = sync.NewCond(&u.lock)
+	return u
 }
 
 func (u *sftpVolume) Close() {
@@ -92,6 +102,7 @@ func (u *sftpVolume) Close() {
 		defer u.lock.Unlock()
 		u.closeTransferReadLocked()
 		u.closeTransferWriteLocked()
+		u.writeIdle.Broadcast()
 		for id, upload := range u.uploads {
 			_ = upload.file.Close()
 			u.discardFileRecord(upload.file)

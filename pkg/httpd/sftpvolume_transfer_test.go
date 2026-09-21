@@ -2,12 +2,14 @@ package httpd
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/httpd/ws"
 	"github.com/jumpserver/koko/pkg/proxy"
+	"github.com/jumpserver/koko/pkg/srvconn"
 	"github.com/pkg/sftp"
 )
 
@@ -352,5 +355,398 @@ func TestWebsocketCapabilitiesAdvertiseTransferBinary(t *testing.T) {
 	caps, ok := newWebSFTP(&UserWebsocket{}).WebsocketCapabilities()["web_sftp"].(webSftpCapabilities)
 	if !ok || !caps.TransferBinary {
 		t.Fatalf("transfer_binary missing: %+v", caps)
+	}
+}
+
+type gateTransferFile struct {
+	bufferTransferFile
+	started chan struct{}
+	release chan struct{}
+}
+
+func (f *gateTransferFile) ReadAt(p []byte, off int64) (int, error) {
+	if f.started != nil {
+		select {
+		case <-f.started:
+		default:
+			close(f.started)
+		}
+	}
+	if f.release != nil {
+		<-f.release
+	}
+	return f.bufferTransferFile.ReadAt(p, off)
+}
+
+func (f *gateTransferFile) WriteAt(p []byte, off int64) (int, error) {
+	if f.started != nil {
+		select {
+		case <-f.started:
+		default:
+			close(f.started)
+		}
+	}
+	if f.release != nil {
+		<-f.release
+	}
+	return f.bufferTransferFile.WriteAt(p, off)
+}
+
+func TestTransferReadDoesNotBlockWrite(t *testing.T) {
+	readStarted := make(chan struct{})
+	readRelease := make(chan struct{})
+	writeStarted := make(chan struct{})
+	readFile := &gateTransferFile{
+		bufferTransferFile: bufferTransferFile{data: bytes.Repeat([]byte("a"), 8)},
+		started:            readStarted,
+		release:            readRelease,
+	}
+	writeFile := &gateTransferFile{started: writeStarted}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openRead = func(string) (transferIO, error) { return readFile, nil }
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		writeFile.closed = false
+		return writeFile, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 5, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+
+	readDone := make(chan error, 1)
+	go func() {
+		_, _, err := volume.readTransferChunk("tid", "/source.bin", 0, 4)
+		readDone <- err
+	}()
+	<-readStarted
+
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := volume.writeTransferChunk("tid", "/target.bin", 5, 0, sum, chunk)
+		writeDone <- err
+	}()
+	select {
+	case <-writeStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("write blocked behind read")
+	}
+	close(readRelease)
+	if err := <-readDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-writeDone; err != nil {
+		t.Fatal(err)
+	}
+}
+
+type offsetGateFile struct {
+	bufferTransferFile
+	firstStarted  chan struct{}
+	firstRelease  chan struct{}
+	secondStarted chan struct{}
+	failFirst     error
+}
+
+func (f *offsetGateFile) WriteAt(p []byte, off int64) (int, error) {
+	if off == 0 {
+		select {
+		case <-f.firstStarted:
+		default:
+			close(f.firstStarted)
+		}
+		<-f.firstRelease
+		if f.failFirst != nil {
+			return 0, f.failFirst
+		}
+	} else {
+		select {
+		case <-f.secondStarted:
+		default:
+			close(f.secondStarted)
+		}
+	}
+	return f.bufferTransferFile.WriteAt(p, off)
+}
+
+func TestTransferWritesOverlap(t *testing.T) {
+	firstStarted := make(chan struct{})
+	firstRelease := make(chan struct{})
+	secondStarted := make(chan struct{})
+	file := &offsetGateFile{
+		firstStarted:  firstStarted,
+		firstRelease:  firstRelease,
+		secondStarted: secondStarted,
+	}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		file.closed = false
+		return file, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 10, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := volume.writeTransferChunk("tid", "/target.bin", 10, 0, sum, chunk)
+		firstDone <- err
+	}()
+	<-firstStarted
+
+	secondDone := make(chan error, 1)
+	go func() {
+		_, err := volume.writeTransferChunk("tid", "/target.bin", 10, 5, sum, chunk)
+		secondDone <- err
+	}()
+	select {
+	case <-secondStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second write blocked behind first")
+	}
+	close(firstRelease)
+	if err := <-firstDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-secondDone; err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(file.data, []byte("hellohello")) {
+		t.Fatalf("data = %q", file.data)
+	}
+}
+
+func TestTransferWritePredecessorErrorUnblocksPipeline(t *testing.T) {
+	firstStarted := make(chan struct{})
+	firstRelease := make(chan struct{})
+	secondStarted := make(chan struct{})
+	file := &offsetGateFile{
+		firstStarted:  firstStarted,
+		firstRelease:  firstRelease,
+		secondStarted: secondStarted,
+		failFirst:     io.ErrClosedPipe,
+	}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		file.closed = false
+		return file, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 10, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := volume.writeTransferChunk("tid", "/target.bin", 10, 0, sum, chunk)
+		firstDone <- err
+	}()
+	<-firstStarted
+
+	secondDone := make(chan error, 1)
+	go func() {
+		_, err := volume.writeTransferChunk("tid", "/target.bin", 10, 5, sum, chunk)
+		secondDone <- err
+	}()
+	select {
+	case <-secondStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second write blocked behind first")
+	}
+	close(firstRelease)
+	select {
+	case err := <-firstDone:
+		if err == nil {
+			t.Fatal("first write succeeded")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("first write hung")
+	}
+	select {
+	case err := <-secondDone:
+		if err == nil {
+			t.Fatal("second write succeeded")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second write hung")
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := volume.cancelTransfer("tid", "/target.bin", true)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("cancel hung")
+	}
+}
+
+func TestTransferRejectsOutOfOrderWrite(t *testing.T) {
+	firstStarted := make(chan struct{})
+	firstRelease := make(chan struct{})
+	file := &offsetGateFile{firstStarted: firstStarted, firstRelease: firstRelease, secondStarted: make(chan struct{})}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		file.closed = false
+		return file, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 15, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		_, _ = volume.writeTransferChunk("tid", "/target.bin", 15, 0, sum, chunk)
+	}()
+	<-firstStarted
+	if _, err := volume.writeTransferChunk("tid", "/target.bin", 15, 10, sum, chunk); err == nil {
+		t.Fatal("expected out of order write to fail")
+	}
+	close(firstRelease)
+}
+
+type commitFS struct {
+	missingStatFS
+	opened    bool
+	committed bool
+}
+
+func (f *commitFS) OpenUploadTemp(string, bool) (*srvconn.SftpFile, error) {
+	f.opened = true
+	return nil, errors.New("should not re-read")
+}
+func (f *commitFS) CommitUploadTemp(string, string, bool) (*model.FTPLog, error) {
+	f.committed = true
+	return &model.FTPLog{ID: "log"}, nil
+}
+
+func TestTransferCommitUsesRunningDigest(t *testing.T) {
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	fileSum := sha256Hex([]byte("hellohello"))
+	for _, tc := range []struct {
+		name    string
+		sha     string
+		wantErr string
+	}{
+		{name: "match", sha: fileSum},
+		{name: "mismatch", sha: "deadbeef", wantErr: "checksum mismatch"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := &commitFS{}
+			file := &bufferTransferFile{}
+			volume := newSFTPVolume(fs, nil)
+			volume.openWrite = func(string, bool) (transferIO, error) {
+				file.closed = false
+				return file, nil
+			}
+			if _, err := volume.prepareTransfer("tid", "/target.bin", 10, "overwrite"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := volume.writeTransferChunk("tid", "/target.bin", 10, 0, sum, chunk); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := volume.writeTransferChunk("tid", "/target.bin", 10, 5, sum, chunk); err != nil {
+				t.Fatal(err)
+			}
+			_, err := volume.commitTransfer("tid", "/target.bin", 10, tc.sha, "overwrite")
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if fs.opened {
+					t.Fatal("commit re-read the file")
+				}
+				if !fs.committed {
+					t.Fatal("commit did not rename")
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v", err)
+			}
+			if fs.opened || fs.committed {
+				t.Fatal("mismatch still touched storage")
+			}
+		})
+	}
+}
+
+func TestTransferWriteDigestMatchesContent(t *testing.T) {
+	file := &bufferTransferFile{}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		file.closed = false
+		return file, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 10, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := volume.writeTransferChunk("tid", "/target.bin", 10, 0, sum, chunk); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := volume.writeTransferChunk("tid", "/target.bin", 10, 5, sum, chunk); err != nil {
+		t.Fatal(err)
+	}
+	if volume.transferWrite == nil || volume.transferWrite.digested != 10 {
+		t.Fatalf("digested = %d", volume.transferWrite.digested)
+	}
+	got := hex.EncodeToString(volume.transferWrite.digest.Sum(nil))
+	want := sha256Hex([]byte("hellohello"))
+	if got != want {
+		t.Fatalf("digest = %s, want %s", got, want)
+	}
+}
+
+func TestTransferCancelWaitsForInFlightWrite(t *testing.T) {
+	writeStarted := make(chan struct{})
+	writeRelease := make(chan struct{})
+	file := &gateTransferFile{started: writeStarted, release: writeRelease}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		file.closed = false
+		return file, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 5, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := volume.writeTransferChunk("tid", "/target.bin", 5, 0, sum, chunk)
+		writeDone <- err
+	}()
+	<-writeStarted
+
+	cancelDone := make(chan error, 1)
+	go func() {
+		_, err := volume.cancelTransfer("tid", "/target.bin", true)
+		cancelDone <- err
+	}()
+	select {
+	case err := <-cancelDone:
+		t.Fatalf("cancel returned while write in flight: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(writeRelease)
+	if err := <-writeDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-cancelDone; err != nil {
+		t.Fatal(err)
+	}
+	if !file.closed {
+		t.Fatal("handle not closed after cancel")
 	}
 }
