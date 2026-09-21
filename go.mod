@@ -38,6 +38,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/viper v1.21.0
+	github.com/xlab/treeprint v1.1.0
 	go.mitchellh.com/libghostty v0.0.0-20260710165742-102a50836ce6
 	go.mongodb.org/mongo-driver v1.17.9
 	golang.org/x/crypto v0.56.0

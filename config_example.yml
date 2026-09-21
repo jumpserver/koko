@@ -43,6 +43,9 @@ WEB_PROXY_FFMPEG_PATH: ffmpeg
 # 是否复用和用户后端资产已建立的连接(用户不会复用其他用户的连接)
 # REUSE_CONNECTION: true
 
+# 资产加载策略，可根据资产规模自行调整。默认从服务端搜索并分页；设置为 all 时全量加载后在本地搜索分页。
+# ASSET_LOAD_POLICY:
+
 # 向 SSH Client 连接发送心跳的时间间隔 (单位: 秒)，默认为30, 0则表示不发送
 # CLIENT_ALIVE_INTERVAL: 30
 

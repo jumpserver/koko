@@ -7,8 +7,8 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} 进行%s.%s"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "\t%d) 输入 {{.GreenBoldColor}}%s{{.ColorEnd}} %s%s"
 
 msgid "%s approved"
 msgstr "%s 审核通过"
@@ -173,7 +173,7 @@ msgid "EndFileTransfer"
 msgstr "文件传输结束"
 
 msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr "提示：输入资产ID直接登录，二级搜索使用 // + 字段，如：//192"
+msgstr "提示：输入资产编号直接登录，二级搜索使用 // + 字段，如：//192"
 
 msgid "ExceedTransferSize"
 msgstr "超过最大传输大小"
@@ -243,6 +243,87 @@ msgstr "快捷键"
 
 msgid "ID"
 msgstr "ID"
+
+msgid "Number"
+msgstr "编号"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "二级搜索：// + IP、主机名或备注，例如 //192"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "连接资产：输入编号并回车"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "显示帮助：输入 ? 并回车"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "资产范围：%s  [b] 上一页  [n/Enter] 下一页"
+
+msgid "Node path: %s"
+msgstr "节点路径：%s"
+
+msgid "Asset type: %s"
+msgstr "资产类型：%s"
+
+msgid "Favorite path: %s"
+msgstr "收藏路径：%s"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
+msgstr "搜索：/ IP、主机名、备注（全局）  // IP、主机名、备注（多级）"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
+msgstr "搜索：/ IP、主机名、备注（全局）  // IP、主机名、备注（当前范围）"
+
+msgid "Current search: %s"
+msgstr "当前搜索：%s"
+
+msgid "Current asset: %s"
+msgstr "当前资产：%s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "选择账号：输入编号并回车"
+
+msgid "Back: [b] + Enter"
+msgstr "返回：[b] + 回车"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "选择语言：输入编号并回车，选择会保存"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "选择协议：输入编号并回车"
+
+msgid "Tree progress: %d/%d"
+msgstr "树进度：%d/%d"
+
+msgid "Browse tree: [Enter] next line  [Space] next page"
+msgstr "浏览树：[Enter] 下一行  [Space] 下一页"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "查看资产：[%c + 编号] + 回车"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "刷新授权树：[r] + 回车"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP、主机名、备注"
+
+msgid "search within the current tree scope"
+msgstr "在当前树范围内搜索"
+
+msgid "authorization tree"
+msgstr "查看授权树"
+
+msgid "type tree"
+msgstr "查看类型树"
+
+msgid "favorite tree"
+msgstr "查看收藏树"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "类型：[ 编号.名称(资产数量) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "收藏：[ 编号.名称(资产数量) ]"
 
 msgid "InputVerifyCode"
 msgstr "请输入验证码"
@@ -349,8 +430,8 @@ msgstr "无地址"
 msgid "NoRunningTerminalFound"
 msgstr "未找到正在运行的终端"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "节点：[ ID.名称(资产数量) ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "节点：[ 编号.名称(资产数量) ]"
 
 msgid "OnlineUser"
 msgstr "在线用户"
@@ -626,7 +707,7 @@ msgid "You get auth token failed"
 msgstr "你获取认证令牌失败"
 
 msgid "display the assets you have permission"
-msgstr "显示您有权限的资产"
+msgstr "查看授权的资产"
 
 msgid "display the databases that you have permission"
 msgstr "显示您有权限的数据库"
@@ -656,7 +737,7 @@ msgid "i/o timeout"
 msgstr "网络不通（连接超时）"
 
 msgid "language switch"
-msgstr "语言切换"
+msgstr "切换语言"
 
 msgid "network is unreachable"
 msgstr "网络不通（网络不可达）"
@@ -866,7 +947,7 @@ msgstr "名称、地址、备注"
 
 #. Koko TUI
 msgid "Next"
-msgstr "下页"
+msgstr "下一页"
 
 #. Koko TUI
 msgid "Next/previous window"
@@ -886,7 +967,7 @@ msgstr "没有可用的授权账号或终端协议"
 
 #. Koko TUI
 msgid "Previous"
-msgstr "上页"
+msgstr "上一页"
 
 #. Koko TUI
 msgid "Quit"

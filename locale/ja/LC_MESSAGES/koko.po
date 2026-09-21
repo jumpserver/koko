@@ -7,8 +7,8 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "%d) {{.GreenBoldColor}}%s{{.ColorEnd}} を入力して%s.%sを実行してください。"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "%d) {{.GreenBoldColor}}%s{{.ColorEnd}} を入力して%sを実行してください%s"
 
 msgid "%s approved"
 msgstr "%s 承認されました"
@@ -244,6 +244,87 @@ msgstr "ショートカットキー"
 msgid "ID"
 msgstr "ID"
 
+msgid "Number"
+msgstr "番号"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "二次検索：// + IP、ホスト名、またはコメント（例：//192）"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "資産に接続：番号を入力して Enter"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "ヘルプ表示：? を入力して Enter"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "資産範囲：%s  [b] 前のページ  [n/Enter] 次のページ"
+
+msgid "Node path: %s"
+msgstr "ノードパス：%s"
+
+msgid "Asset type: %s"
+msgstr "資産タイプ：%s"
+
+msgid "Favorite path: %s"
+msgstr "お気に入りパス：%s"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
+msgstr "検索：/ IP、ホスト名、コメント（全体）  // IP、ホスト名、コメント（絞り込み）"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
+msgstr "検索：/ IP、ホスト名、コメント（全体）  // IP、ホスト名、コメント（現在の範囲）"
+
+msgid "Current search: %s"
+msgstr "現在の検索：%s"
+
+msgid "Current asset: %s"
+msgstr "現在の資産：%s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "アカウント選択：番号を入力して Enter"
+
+msgid "Back: [b] + Enter"
+msgstr "戻る：[b] + Enter"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "言語を選択：番号を入力して Enter、選択内容は保存されます"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "プロトコルを選択：番号を入力して Enter"
+
+msgid "Tree progress: %d/%d"
+msgstr "ツリー進捗：%d/%d"
+
+msgid "Browse tree: [Enter] next line  [Space] next page"
+msgstr "ツリーを閲覧：[Enter] 次の行  [Space] 次のページ"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "資産を表示：[%c + 番号] + Enter"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "認可ツリーを更新：[r] + Enter"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP、ホスト名、コメント"
+
+msgid "search within the current tree scope"
+msgstr "現在のツリー範囲内を検索"
+
+msgid "authorization tree"
+msgstr "認可ツリーを表示"
+
+msgid "type tree"
+msgstr "タイプツリーを表示"
+
+msgid "favorite tree"
+msgstr "お気に入りツリーを表示"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "タイプ：[ 番号.名前(資産数) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "お気に入り：[ 番号.名前(資産数) ]"
+
 msgid "InputVerifyCode"
 msgstr "認証コードを入力してください"
 
@@ -349,8 +430,8 @@ msgstr "住所なし"
 msgid "NoRunningTerminalFound"
 msgstr "実行中のターミナルが見つかりませんでした"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "ノード：[ ID.名前（資産数） ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "ノード：[ 番号.名前（資産数） ]"
 
 msgid "OnlineUser"
 msgstr "オンラインユーザー"

@@ -7,8 +7,8 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "%d) Digite {{.GreenBoldColor}}%s{{.ColorEnd}} para %s.%s"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "%d) Digite {{.GreenBoldColor}}%s{{.ColorEnd}} para %s%s"
 
 msgid "%s approved"
 msgstr "%s Revisão aprovada."
@@ -244,6 +244,87 @@ msgstr "Atalhos"
 msgid "ID"
 msgstr "ID"
 
+msgid "Number"
+msgstr "Nº"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "Pesquisa secundária: // + IP, nome do host ou comentário, ex.: //192"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "Conectar ativo: insira o número e pressione Enter"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "Mostrar ajuda: insira ? e pressione Enter"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "Intervalo de ativos: %s  [b] Página anterior  [n/Enter] Próxima página"
+
+msgid "Node path: %s"
+msgstr "Caminho do nó: %s"
+
+msgid "Asset type: %s"
+msgstr "Tipo de ativo: %s"
+
+msgid "Favorite path: %s"
+msgstr "Caminho dos favoritos: %s"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
+msgstr "Pesquisa: / IP, host, comentário (global)  // IP, host, comentário (refinar)"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
+msgstr "Pesquisa: / IP, host, comentário (global)  // IP, host, comentário (escopo atual)"
+
+msgid "Current search: %s"
+msgstr "Pesquisa atual: %s"
+
+msgid "Current asset: %s"
+msgstr "Ativo atual: %s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "Selecionar conta: insira o número e pressione Enter"
+
+msgid "Back: [b] + Enter"
+msgstr "Voltar: [b] + Enter"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "Selecionar idioma: digite o número e pressione Enter; a escolha será salva"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "Selecionar protocolo: digite o número e pressione Enter"
+
+msgid "Tree progress: %d/%d"
+msgstr "Progresso da árvore: %d/%d"
+
+msgid "Browse tree: [Enter] next line  [Space] next page"
+msgstr "Navegar na árvore: [Enter] próxima linha  [Space] próxima página"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "Ver ativos: [%c + número] + Enter"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "Atualizar árvore de autorização: [r] + Enter"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP, nome do host, comentário"
+
+msgid "search within the current tree scope"
+msgstr "pesquisar no escopo atual da árvore"
+
+msgid "authorization tree"
+msgstr "exibir a árvore de autorizações"
+
+msgid "type tree"
+msgstr "exibir a árvore de tipos"
+
+msgid "favorite tree"
+msgstr "exibir a árvore de favoritos"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "Tipo: [ Número.Nome(Quantidade de ativos) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "Favorito: [ Número.Nome(Quantidade de ativos) ]"
+
 msgid "InputVerifyCode"
 msgstr "Por favor, insira o código de verificação"
 
@@ -349,8 +430,8 @@ msgstr "Sem endereço"
 msgid "NoRunningTerminalFound"
 msgstr "Terminal em execução não encontrado"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "Nós: [ ID.Nome(Quantidade de ativos) ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "Nós: [ Número.Nome(Quantidade de ativos) ]"
 
 msgid "OnlineUser"
 msgstr "Usuários online"

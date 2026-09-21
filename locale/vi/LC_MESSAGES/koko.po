@@ -7,8 +7,8 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "%d) Nhập {{.GreenBoldColor}}%s{{.ColorEnd}} để thực hiện %s.%s"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "%d) Nhập {{.GreenBoldColor}}%s{{.ColorEnd}} để thực hiện %s%s"
 
 msgid "%s approved"
 msgstr "%s đã được phê duyệt."
@@ -244,6 +244,87 @@ msgstr "Phím tắt"
 msgid "ID"
 msgstr "ID"
 
+msgid "Number"
+msgstr "STT"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "Tìm kiếm cấp hai: // + IP, tên máy chủ hoặc ghi chú, ví dụ //192"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "Kết nối tài sản: nhập số và nhấn Enter"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "Hiển thị trợ giúp: nhập ? và nhấn Enter"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "Phạm vi tài sản: %s  [b] Trang trước  [n/Enter] Trang sau"
+
+msgid "Node path: %s"
+msgstr "Đường dẫn nút: %s"
+
+msgid "Asset type: %s"
+msgstr "Loại tài sản: %s"
+
+msgid "Favorite path: %s"
+msgstr "Đường dẫn yêu thích: %s"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
+msgstr "Tìm kiếm: / IP, máy chủ, ghi chú (toàn cục)  // IP, máy chủ, ghi chú (lọc thêm)"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
+msgstr "Tìm kiếm: / IP, máy chủ, ghi chú (toàn cục)  // IP, máy chủ, ghi chú (phạm vi hiện tại)"
+
+msgid "Current search: %s"
+msgstr "Tìm kiếm hiện tại: %s"
+
+msgid "Current asset: %s"
+msgstr "Tài sản hiện tại: %s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "Chọn tài khoản: nhập số và nhấn Enter"
+
+msgid "Back: [b] + Enter"
+msgstr "Quay lại: [b] + Enter"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "Chọn ngôn ngữ: nhập số và nhấn Enter; lựa chọn sẽ được lưu"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "Chọn giao thức: nhập số và nhấn Enter"
+
+msgid "Tree progress: %d/%d"
+msgstr "Tiến độ cây: %d/%d"
+
+msgid "Browse tree: [Enter] next line  [Space] next page"
+msgstr "Duyệt cây: [Enter] dòng tiếp theo  [Space] trang tiếp theo"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "Xem tài sản: [%c + số] + Enter"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "Làm mới cây phân quyền: [r] + Enter"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP, tên máy chủ, ghi chú"
+
+msgid "search within the current tree scope"
+msgstr "tìm trong phạm vi cây hiện tại"
+
+msgid "authorization tree"
+msgstr "hiển thị cây phân quyền"
+
+msgid "type tree"
+msgstr "hiển thị cây loại"
+
+msgid "favorite tree"
+msgstr "hiển thị cây yêu thích"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "Loại: [ Số.Tên(Số lượng tài sản) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "Yêu thích: [ Số.Tên(Số lượng tài sản) ]"
+
 msgid "InputVerifyCode"
 msgstr "Xin vui lòng nhập mã xác minh"
 
@@ -349,8 +430,8 @@ msgstr "Không có địa chỉ"
 msgid "NoRunningTerminalFound"
 msgstr "Không tìm thấy terminal đang chạy"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "nút: [ ID.Tên (số lượng tài sản) ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "nút: [ Số.Tên (số lượng tài sản) ]"
 
 msgid "OnlineUser"
 msgstr "Người dùng trực tuyến"
