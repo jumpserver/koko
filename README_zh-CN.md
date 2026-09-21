@@ -28,6 +28,7 @@ cd koko
 2. 运行 server 后端
 
 `make run` 需要 Docker Compose，用于启动 guacd，并在退出时停止它。
+使用 `make dev` 运行 Koko 时不会启动或停止 guacd，无需 Docker Compose。
 
 ```shell
 

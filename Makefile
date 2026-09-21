@@ -86,12 +86,16 @@ usql:
 guacd:
 	docker compose -f docker-compose-guacd.yml up -d
 
-.PHONY: run
+.PHONY: run dev
 run: guacd
+
+run dev:
 	@cleanup() { \
 		status=$$?; \
 		trap - EXIT INT TERM; \
-		docker compose -f docker-compose-guacd.yml down; \
+		if [ "$@" = "run" ]; then \
+			docker compose -f docker-compose-guacd.yml down; \
+		fi; \
 		exit $$status; \
 	}; \
 	trap cleanup EXIT; \
