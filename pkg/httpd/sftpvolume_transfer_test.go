@@ -3,6 +3,7 @@ package httpd
 import (
 	"bytes"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
 	"github.com/jumpserver/koko/pkg/config"
+	"github.com/jumpserver/koko/pkg/httpd/ws"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/pkg/sftp"
 )
@@ -138,5 +140,217 @@ func TestUploadRecordingMatchesCommittedBytes(t *testing.T) {
 				t.Fatal("verified recording was not finalized")
 			}
 		})
+	}
+}
+
+type missingStatFS struct{ sftpFileSystem }
+
+func (f *missingStatFS) Stat(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+func (f *missingStatFS) DiscardUploadTemp(string) error   { return nil }
+
+type bufferTransferFile struct {
+	data   []byte
+	closed bool
+	fail   error
+}
+
+func (f *bufferTransferFile) ReadAt(p []byte, off int64) (int, error) {
+	if off >= int64(len(f.data)) {
+		return 0, io.EOF
+	}
+	n := copy(p, f.data[off:])
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+func (f *bufferTransferFile) WriteAt(p []byte, off int64) (int, error) {
+	if f.fail != nil {
+		return 0, f.fail
+	}
+	end := int(off) + len(p)
+	if end > len(f.data) {
+		next := make([]byte, end)
+		copy(next, f.data)
+		f.data = next
+	}
+	copy(f.data[off:], p)
+	return len(p), nil
+}
+
+func (f *bufferTransferFile) Stat() (os.FileInfo, error) {
+	return bufferInfo{size: int64(len(f.data))}, nil
+}
+func (f *bufferTransferFile) Close() error { f.closed = true; return nil }
+
+type bufferInfo struct{ size int64 }
+
+func (bufferInfo) Name() string       { return "part" }
+func (i bufferInfo) Size() int64      { return i.size }
+func (bufferInfo) Mode() os.FileMode  { return 0o600 }
+func (bufferInfo) ModTime() time.Time { return time.Time{} }
+func (bufferInfo) IsDir() bool        { return false }
+func (bufferInfo) Sys() any           { return nil }
+
+func TestTransferReusesWriteHandle(t *testing.T) {
+	opens := 0
+	file := &bufferTransferFile{}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		opens++
+		file.closed = false
+		return file, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 10, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := volume.writeTransferChunk("tid", "/target.bin", 10, 0, sum, chunk); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := volume.writeTransferChunk("tid", "/target.bin", 10, 5, sum, chunk); err != nil {
+		t.Fatal(err)
+	}
+	if opens != 1 {
+		t.Fatalf("opens = %d", opens)
+	}
+	if file.closed {
+		t.Fatal("handle closed between chunks")
+	}
+	if _, err := volume.cancelTransfer("tid", "/target.bin", true); err != nil {
+		t.Fatal(err)
+	}
+	if !file.closed {
+		t.Fatal("handle not closed on cancel")
+	}
+}
+
+func TestTransferReusesReadHandle(t *testing.T) {
+	opens := 0
+	file := &bufferTransferFile{data: bytes.Repeat([]byte("a"), 8)}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openRead = func(string) (transferIO, error) {
+		opens++
+		file.closed = false
+		return file, nil
+	}
+	if _, _, err := volume.readTransferChunk("tid", "/source.bin", 0, 4); err != nil {
+		t.Fatal(err)
+	}
+	if _, meta, err := volume.readTransferChunk("tid", "/source.bin", 4, 4); err != nil {
+		t.Fatal(err)
+	} else if !meta.EOF {
+		t.Fatal("expected eof")
+	}
+	if opens != 1 {
+		t.Fatalf("opens = %d", opens)
+	}
+	if !file.closed {
+		t.Fatal("handle not closed on eof")
+	}
+}
+
+func TestTransferWriteErrorReopensHandle(t *testing.T) {
+	opens := 0
+	file := &bufferTransferFile{fail: io.ErrClosedPipe}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		opens++
+		file.closed = false
+		return file, nil
+	}
+	chunk := []byte("hello")
+	sum := sha256Hex(chunk)
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 5, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := volume.writeTransferChunk("tid", "/target.bin", 5, 0, sum, chunk); err == nil {
+		t.Fatal("expected write error")
+	}
+	if !file.closed {
+		t.Fatal("failed write left the handle open")
+	}
+	file.fail = nil
+	if _, err := volume.writeTransferChunk("tid", "/target.bin", 5, 0, sum, chunk); err != nil {
+		t.Fatal(err)
+	}
+	if opens != 2 {
+		t.Fatalf("opens = %d", opens)
+	}
+}
+
+func TestTransferReadHonorsBinaryFlag(t *testing.T) {
+	user := &UserWebsocket{
+		conn:           ws.NewSocket(nil, httptest.NewRequest("GET", "/", nil)),
+		messageChannel: make(chan *Message, 2),
+	}
+	handler := newWebSFTP(user)
+	file := &bufferTransferFile{data: []byte("abc")}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openRead = func(string) (transferIO, error) { return file, nil }
+	handler.volume = volume
+	handler.handleTransferRead(&webSftpRequest{TransferID: "tid", Path: "/f", OffSet: 0, Length: 3, Binary: true}, &Message{Id: "bin"})
+	handler.handleTransferRead(&webSftpRequest{TransferID: "tid", Path: "/f", OffSet: 0, Length: 3}, &Message{Id: "json"})
+	first := <-user.messageChannel
+	second := <-user.messageChannel
+	if first.Type != SFTPTransferBinary || !bytes.Equal(first.Raw, []byte("abc")) {
+		t.Fatalf("binary response = %+v", first)
+	}
+	if second.Type != SFTPBinary {
+		t.Fatalf("json response type = %s", second.Type)
+	}
+}
+
+func TestHandleMessageBinaryTransferWrite(t *testing.T) {
+	user := &UserWebsocket{
+		conn:           ws.NewSocket(nil, httptest.NewRequest("GET", "/", nil)),
+		messageChannel: make(chan *Message, 2),
+	}
+	handler := newWebSFTP(user)
+	file := &bufferTransferFile{}
+	volume := newSFTPVolume(&missingStatFS{}, nil)
+	volume.openWrite = func(string, bool) (transferIO, error) {
+		file.closed = false
+		return file, nil
+	}
+	handler.volume = volume
+	close(handler.ready)
+	chunk := []byte("hello")
+	if _, err := volume.prepareTransfer("tid", "/target.bin", 5, "overwrite"); err != nil {
+		t.Fatal(err)
+	}
+	frame, err := encodeSftpBinaryFrame(&Message{
+		Id:   "req-write",
+		Type: SFTPData,
+		Cmd:  "transfer_write",
+		Data: `{"transfer_id":"tid","path":"/target.bin","size":5,"offset":0,"sha256":"` + sha256Hex(chunk) + `"}`,
+		Raw:  chunk,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.HandleMessage(&Message{Type: TerminalBinary, Raw: frame})
+	select {
+	case msg := <-user.messageChannel:
+		if msg.Err != "" {
+			t.Fatalf("write failed: %s", msg.Err)
+		}
+		if msg.Type != SFTPData || msg.Cmd != "transfer_write" {
+			t.Fatalf("ack = %+v", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("binary transfer_write produced no acknowledgement")
+	}
+	if !bytes.Equal(file.data, chunk) {
+		t.Fatalf("volume wrote %q", file.data)
+	}
+}
+
+func TestWebsocketCapabilitiesAdvertiseTransferBinary(t *testing.T) {
+	caps, ok := newWebSFTP(&UserWebsocket{}).WebsocketCapabilities()["web_sftp"].(webSftpCapabilities)
+	if !ok || !caps.TransferBinary {
+		t.Fatalf("transfer_binary missing: %+v", caps)
 	}
 }

@@ -218,6 +218,12 @@ func (userCon *UserWebsocket) writeMessageLoop(ctx context.Context) error {
 			err = userCon.conn.WriteBinary(payload, maxWriteTimeOut)
 		case msg.Type == TerminalBinary:
 			err = userCon.conn.WriteBinary(msg.Raw, maxWriteTimeOut)
+		case msg.Type == SFTPTransferBinary:
+			var payload []byte
+			payload, err = encodeSftpBinaryFrame(msg)
+			if err == nil {
+				err = userCon.conn.WriteBinary(payload, maxWriteTimeOut)
+			}
 		default:
 			p, _ := json.Marshal(msg)
 			err = userCon.conn.WriteText(p, maxWriteTimeOut)
