@@ -24,7 +24,7 @@ func agentContextSnapshot(
 		commandLanguage = "shell"
 	case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse:
+		srvconn.ProtocolOracle, srvconn.ProtocolDameng, srvconn.ProtocolClickHouse:
 		commandLanguage = "sql"
 		dialect = protocol
 	case srvconn.ProtocolSFTP:

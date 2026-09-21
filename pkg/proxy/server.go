@@ -378,7 +378,7 @@ func (s *Server) SupportsBackgroundExecution() bool {
 	switch s.connOpts.authInfo.Protocol {
 	case srvconn.ProtocolSSH, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
-		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse,
+		srvconn.ProtocolOracle, srvconn.ProtocolDameng, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
 		return true
 	default:
@@ -601,7 +601,7 @@ func (s *Server) checkRequiredAuth() error {
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolSQLServer, srvconn.ProtocolPostgresql,
-		srvconn.ProtocolRedis, srvconn.ProtocolOracle:
+		srvconn.ProtocolRedis, srvconn.ProtocolOracle, srvconn.ProtocolDameng:
 		if err := s.getAuthPasswordIfNeed(); err != nil {
 			s.sendAuthPasswordError(err)
 			return fmt.Errorf("get auth password failed: %s", err)
@@ -1149,7 +1149,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		srvconn.ProtocolPostgresql,
 		srvconn.ProtocolSQLServer,
 		srvconn.ProtocolClickHouse,
-		srvconn.ProtocolOracle:
+		srvconn.ProtocolOracle,
+		srvconn.ProtocolDameng:
 		return s.getUSQLConn(proxyAddr)
 	default:
 		return nil, ErrUnMatchProtocol

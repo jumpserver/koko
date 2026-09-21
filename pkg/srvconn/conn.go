@@ -46,6 +46,7 @@ const (
 	ProtocolSQLServer  = "sqlserver"
 	ProtocolPostgresql = "postgresql"
 	ProtocolOracle     = "oracle"
+	ProtocolDameng     = "dameng"
 )
 
 func SupportedDBProtocols() []string {
@@ -56,6 +57,7 @@ func SupportedDBProtocols() []string {
 		ProtocolMySQL,
 		ProtocolMariadb,
 		ProtocolOracle,
+		ProtocolDameng,
 		ProtocolSQLServer,
 		ProtocolPostgresql,
 		ProtocolClickHouse,
@@ -80,6 +82,7 @@ func SupportedProtocols() []string {
 		ProtocolPostgresql,
 		ProtocolSQLServer,
 		ProtocolOracle,
+		ProtocolDameng,
 		ProtocolRedis,
 		ProtocolMongoDB,
 		ProtocolMariadb,
@@ -142,6 +145,7 @@ var supportedMap = map[string]supportedChecker{
 	ProtocolPostgresql: usqlSupportedChecker(ProtocolPostgresql),
 	ProtocolClickHouse: usqlSupportedChecker(ProtocolClickHouse),
 	ProtocolOracle:     usqlSupportedChecker(ProtocolOracle),
+	ProtocolDameng:     usqlSupportedChecker(ProtocolDameng),
 }
 
 func IsSupportedProtocol(p string) error {
@@ -204,13 +208,14 @@ var once sync.Once
 
 func ensureUSQLSupported() {
 	once.Do(func() {
-		checkLine := "usql -c '\\drivers'"
-		cmd := exec.Command("bash", "-c", checkLine)
-		out, err := cmd.CombinedOutput()
-		if err != nil && len(out) == 0 {
-			return
+		for _, args := range [][]string{{"--drivers"}, {"-c", `\drivers`}} {
+			cmd := exec.Command("usql", args...)
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				usqlSupportedProtocols = string(bytes.TrimSpace(out))
+				return
+			}
 		}
-		usqlSupportedProtocols = string(bytes.TrimSpace(out))
 	})
 }
 
