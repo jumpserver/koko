@@ -80,3 +80,12 @@ func TestNotifyDatabaseConnectionPreservesProtocolSettings(t *testing.T) {
 		})
 	}
 }
+
+func TestDamengUsesUSQLAndDatabaseSessionPaths(t *testing.T) {
+	if got := usqlProtocolAlias[srvconn.ProtocolDameng]; got != "dameng" {
+		t.Fatalf("unexpected Dameng USQL scheme: %q", got)
+	}
+	if !isDatabaseProtocol(srvconn.ProtocolDameng) {
+		t.Fatal("Dameng is not recognized as a database protocol")
+	}
+}
