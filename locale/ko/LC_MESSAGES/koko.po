@@ -7,8 +7,8 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "%d) {{.GreenBoldColor}}%s{{.ColorEnd}}를 입력하여 %s.%s 진행"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "%d) {{.GreenBoldColor}}%s{{.ColorEnd}}를 입력하여 %s 진행%s"
 
 msgid "%s approved"
 msgstr "%s 검토 통과"
@@ -244,6 +244,90 @@ msgstr "단축키"
 msgid "ID"
 msgstr "아이디"
 
+msgid "Number"
+msgstr "번호"
+
+msgid "Sequence"
+msgstr "번호"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "2차 검색: // + IP, 호스트 이름 또는 설명(예: //192)"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "자산 연결: 번호 입력 후 Enter"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "도움말 표시: ? 입력 후 Enter"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "자산 범위: %s  [b] 이전 페이지  [n/Enter] 다음 페이지"
+
+msgid "Node path: %s"
+msgstr "노드 경로: %s"
+
+msgid "Asset type: %s"
+msgstr "자산 유형: %s"
+
+msgid "Favorite path: %s"
+msgstr "즐겨찾기 경로: %s"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
+msgstr "검색 안내: // + 키워드(계속 필터링) · / + 키워드(전체 재검색) · IP/호스트 이름/설명"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
+msgstr "검색 안내: // + 키워드(현재 범위) · / + 키워드(전체) · IP/호스트 이름/설명"
+
+msgid "Current search: %s"
+msgstr "현재 검색: %s"
+
+msgid "Current asset: %s"
+msgstr "현재 자산: %s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "계정 선택: 번호 입력 후 Enter"
+
+msgid "Back: [b] + Enter"
+msgstr "돌아가기: [b] + Enter"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "언어 선택: 번호를 입력하고 Enter를 누르면 선택이 저장됩니다"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "프로토콜 선택: 번호를 입력하고 Enter를 누르세요"
+
+msgid "Tree progress: %d/%d"
+msgstr "트리 진행률: %d/%d"
+
+msgid "Browse tree: [Enter] next line  [Space] next page"
+msgstr "트리 탐색: [Enter] 다음 줄  [Space] 다음 페이지"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "자산 보기: [%c + 번호] + Enter"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "권한 트리 새로 고침: [r] + Enter"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP, 호스트 이름, 설명"
+
+msgid "search within the current tree scope"
+msgstr "현재 트리 범위 내 검색"
+
+msgid "authorization tree"
+msgstr "권한 트리 표시"
+
+msgid "type tree"
+msgstr "유형 트리 표시"
+
+msgid "favorite tree"
+msgstr "즐겨찾기 트리 표시"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "유형: [ 번호.이름(자산 수) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "즐겨찾기: [ 번호.이름(자산 수) ]"
+
 msgid "InputVerifyCode"
 msgstr "인증 코드를 입력하세요"
 
@@ -349,8 +433,8 @@ msgstr "주소 없음"
 msgid "NoRunningTerminalFound"
 msgstr "실행 중인 터미널을 찾을 수 없습니다"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "노드: [ ID.이름(자산 수량) ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "노드: [ 번호.이름(자산 수량) ]"
 
 msgid "OnlineUser"
 msgstr "온라인 사용자"
@@ -444,6 +528,9 @@ msgstr "검색"
 
 msgid "Search: %s"
 msgstr "검색: %s"
+
+msgid "Search tip: %s"
+msgstr "검색 안내: %s"
 
 msgid "Select account exceed max retry times."
 msgstr "계정 선택이 최대 재시도 횟수를 초과했습니다"

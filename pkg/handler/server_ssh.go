@@ -20,7 +20,6 @@ import (
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
 
-	"github.com/jumpserver/koko/internal/tui"
 	"github.com/jumpserver/koko/pkg/auth"
 	"github.com/jumpserver/koko/pkg/cache"
 	"github.com/jumpserver/koko/pkg/config"
@@ -210,47 +209,8 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 
-		select {
-		case <-s.tuiShutdown:
-			return
-		default:
-		}
-		screen, err := tui.NewSSHScreen(sess, winChan)
-		if err != nil {
-			logger.Warnf("TUI terminal %q unavailable: %s", pty.Term, err)
-			msg := "This terminal cannot run the TUI. Use a terminal with cursor positioning support, such as xterm-256color.\r\n"
-			if strings.HasPrefix(getUserDefaultLangCode(user), "zh") {
-				msg = "当前终端不支持 TUI，请使用支持光标定位的终端（如 xterm-256color）重新连接。\r\n"
-			}
-			utils.IgnoreErrWriteString(sess, msg)
-			_ = sess.Exit(1)
-			return
-		}
-		if err = screen.Init(); err != nil {
-			logger.Errorf("Initialize TUI: %s", err)
-			msg := "Unable to initialize TUI. Please reconnect.\r\n"
-			if strings.HasPrefix(getUserDefaultLangCode(user), "zh") {
-				msg = "TUI 初始化失败，请重新连接。\r\n"
-			}
-			utils.IgnoreErrWriteString(sess, msg)
-			_ = sess.Exit(1)
-			return
-		}
-		defer screen.Fini()
 		logger.Infof("User %s request pty %s", sess.User(), pty.Term)
-		var bearerToken string
-		if client, ok := sess.Context().Value(auth.ContextKeyClient).(*auth.UserAuthClient); ok {
-			bearerToken = client.BearerToken()
-		}
-		userAPI, userAPIErr := newUserAPIClient(bearerToken, getUserDefaultLangCode(user))
-		if userAPIErr != nil {
-			logger.Warnf("Initialize TUI user API: %s", userAPIErr)
-		}
-		ui := newTerminalUI(sess, user, s.jmsService, userAPI, termConf, screen, s.tuiPreferences)
-		ui.shutdown = s.tuiShutdown
-		if err = ui.run(); err != nil {
-			logger.Errorf("TUI session %s: %s", sess.User(), err)
-		}
+		s.runTerminalModes(sess, user, termConf, winChan)
 		utils.IgnoreErrWriteWindowTitle(sess, termConf.HeaderTitle)
 		return
 	}

@@ -7,8 +7,8 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 
 msgid "%s approved"
 msgstr "%s approved"
@@ -247,6 +247,90 @@ msgstr "Hotkeys"
 msgid "ID"
 msgstr "ID"
 
+msgid "Number"
+msgstr "No."
+
+msgid "Sequence"
+msgstr "number"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "Secondary search: // + IP, hostname, or comment, e.g. //192"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "Connect asset: enter number and press Enter"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "Show help: enter ? and press Enter"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+
+msgid "Node path: %s"
+msgstr "Node path: %s"
+
+msgid "Asset type: %s"
+msgstr "Asset type: %s"
+
+msgid "Favorite path: %s"
+msgstr "Favorite path: %s"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
+msgstr "Search tip: // + keyword (refine) · / + keyword (new global) · IP/hostname/comment"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
+msgstr "Search tip: // + keyword (current scope) · / + keyword (global) · IP/hostname/comment"
+
+msgid "Current search: %s"
+msgstr "Current search: %s"
+
+msgid "Current asset: %s"
+msgstr "Current asset: %s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "Select account: enter number and press Enter"
+
+msgid "Back: [b] + Enter"
+msgstr "Back: [b] + Enter"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "Select language: enter number and press Enter; the choice is saved"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "Select protocol: enter number and press Enter"
+
+msgid "Tree progress: %d/%d"
+msgstr "Tree progress: %d/%d"
+
+msgid "Browse tree: [Enter] next line  [Space] next page"
+msgstr "Browse tree: [Enter] next line  [Space] next page"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "View assets: [%c + number] + Enter"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "Refresh authorization tree: [r] + Enter"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP, Hostname, Comment"
+
+msgid "search within the current tree scope"
+msgstr "search within the current tree scope"
+
+msgid "authorization tree"
+msgstr "display the authorization tree"
+
+msgid "type tree"
+msgstr "display the type tree"
+
+msgid "favorite tree"
+msgstr "display the favorite tree"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "Type: [ Number.Name(Asset amount) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "Favorite: [ Number.Name(Asset amount) ]"
+
 msgid "InputVerifyCode"
 msgstr "Input Verify Code"
 
@@ -355,8 +439,8 @@ msgstr "No Link"
 msgid "NoRunningTerminalFound"
 msgstr "No running terminal found"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "Node: [ ID.Name(Asset amount) ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "Node: [ Number.Name(Asset amount) ]"
 
 msgid "OnlineUser"
 msgstr "Online User"
@@ -453,6 +537,9 @@ msgstr "Search"
 
 msgid "Search: %s"
 msgstr "Search: %s"
+
+msgid "Search tip: %s"
+msgstr "Search tip: %s"
 
 msgid "Select account exceed max retry times."
 msgstr "Account selection exceeded maximum retry count"

@@ -13,8 +13,9 @@ import (
 	"github.com/gliderlabs/ssh"
 )
 
-// sshTTY owns the only reader of the login channel. Draining the screen releases
-// tcell's reader without closing the SSH channel before it restores terminal modes.
+// sshTTY owns the active TUI reader. Draining the screen releases tcell's reader
+// without closing the SSH channel before it restores terminal modes; callers may
+// route that reader through a longer-lived session when switching interfaces.
 type sshTTY struct {
 	session ssh.Session
 	reader  *io.PipeReader
@@ -123,10 +124,17 @@ func (s *sshScreen) Init() error { s.once.Do(func() { s.err = s.Screen.Init() })
 
 func (s *sshScreen) Fini() {
 	s.fini.Do(func() {
+		if s.err != nil {
+			// tcell may leave its quit channel uninitialized when Init fails,
+			// making Screen.Fini unsafe. Still stop our SSH input and resize
+			// goroutines so a line-oriented fallback can take ownership.
+			_ = s.tty.Close()
+			return
+		}
 		s.Screen.Fini()
 		// tcell may not emit a pending default style after hiding the cursor.
 		// Restore it while the SSH channel is still writable.
-		if s.err == nil && s.cursorReset != "" {
+		if s.cursorReset != "" {
 			_, _ = io.WriteString(s.output, s.cursorReset)
 		}
 	})

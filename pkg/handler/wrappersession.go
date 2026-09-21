@@ -19,6 +19,7 @@ type WrapperSession struct {
 	inWriter  io.WriteCloser
 	outReader io.ReadCloser
 	mux       *sync.RWMutex
+	winMux    sync.RWMutex
 
 	closed chan struct{}
 
@@ -97,11 +98,21 @@ func (w *WrapperSession) WinCh() (winch <-chan ssh.Window) {
 }
 
 func (w *WrapperSession) SetWin(win ssh.Window) {
+	w.winMux.Lock()
+	w.currentWin = win
+	w.winMux.Unlock()
 	select {
 	case w.winch <- win:
 	default:
+		select {
+		case <-w.winch:
+		default:
+		}
+		select {
+		case w.winch <- win:
+		default:
+		}
 	}
-	w.currentWin = win
 }
 
 func (w *WrapperSession) LoginFrom() string {
@@ -115,8 +126,10 @@ func (w *WrapperSession) RemoteAddr() string {
 
 func (w *WrapperSession) Pty() ssh.Pty {
 	pty, _, _ := w.Sess.Pty()
+	w.winMux.RLock()
 	termWin := w.currentWin
-	if w.currentWin.Width == 0 || w.currentWin.Height == 0 {
+	w.winMux.RUnlock()
+	if termWin.Width == 0 || termWin.Height == 0 {
 		termWin = pty.Window
 	}
 	return ssh.Pty{
@@ -130,10 +143,12 @@ func (w *WrapperSession) ID() string {
 }
 
 func NewWrapperSession(sess ssh.Session) *WrapperSession {
+	pty, _, _ := sess.Pty()
 	w := &WrapperSession{
-		Sess:  sess,
-		mux:   new(sync.RWMutex),
-		winch: make(chan ssh.Window),
+		Sess:       sess,
+		mux:        new(sync.RWMutex),
+		winch:      make(chan ssh.Window, 1),
+		currentWin: pty.Window,
 	}
 	w.initial()
 	return w

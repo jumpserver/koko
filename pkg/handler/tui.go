@@ -42,6 +42,7 @@ type terminalUI struct {
 	accentColor                                         int
 	pages                                               *tview.Pages
 	session                                             ssh.Session
+	nextMode                                            terminalMode
 	user                                                *model.User
 	data                                                tuiData
 	conf                                                model.TerminalConfig

@@ -33,9 +33,11 @@ type tuiTreeNode struct {
 		Category  string `json:"category"`
 		AssetType string `json:"_type"`
 		Data      struct {
-			ID   string `json:"id"`
-			Key  string `json:"key"`
-			Root bool   `json:"is_root"`
+			ID           string `json:"id"`
+			Key          string `json:"key"`
+			Value        string `json:"value"`
+			Root         bool   `json:"is_root"`
+			AssetsAmount *int   `json:"assets_amount"`
 		} `json:"data"`
 	} `json:"meta"`
 }
@@ -197,6 +199,47 @@ func (d tuiData) tree(scope tuiScope, cursor string) (tuiTreePage, error) {
 	return page, err
 }
 
+func (d tuiData) authorizationNodes() (model.NodeList, error) {
+	client := newLangAPIClient(d.api, d.lang)
+	permittedNodes, err := client.GetUserNodes(d.userID)
+	if err != nil {
+		return nil, err
+	}
+	nodes := make(model.NodeList, 0, len(permittedNodes))
+	for _, node := range permittedNodes {
+		if node.ID == "favorite" || node.Key == "favorite" {
+			continue
+		}
+		if node.ID == "" || node.Key == "" {
+			return nil, fmt.Errorf("authorization node response is missing id or key")
+		}
+		node.Name = strings.TrimSpace(node.Name)
+		if node.Name == "" {
+			node.Name = strings.TrimSpace(node.Value)
+		}
+		if node.Name == "" {
+			return nil, fmt.Errorf("authorization node response is missing name")
+		}
+		node.AssetsAmount = 0
+		nodes = append(nodes, node)
+	}
+	ids := make([]string, len(nodes))
+	for i := range nodes {
+		ids[i] = nodes[i].ID
+	}
+	for start := 0; start < len(ids); start += tuiTreeBatchSize {
+		end := min(start+tuiTreeBatchSize, len(ids))
+		counts, countErr := d.nodeCounts("", 0, ids[start:end])
+		if countErr != nil {
+			return nil, countErr
+		}
+		for i := start; i < end; i++ {
+			nodes[i].AssetsAmount = counts[nodes[i].ID]
+		}
+	}
+	return nodes, nil
+}
+
 func tuiAssetListParams(search string, offset int) map[string]string {
 	return map[string]string{
 		"limit":  strconv.Itoa(tuiPageSize),
@@ -279,7 +322,12 @@ func (d tuiData) nodeCounts(org string, mode int, ids []string) (map[string]int,
 	if mode == 2 {
 		tree = "favorite"
 	}
-	_, err := d.client(org).Call("POST", d.userPath("tree-metrics/"), map[string]any{"tree": tree, "resources": resources}, &response)
+	client := newLangAPIClient(d.api, d.lang)
+	if org != "" {
+		client.SetHeader("X-JMS-ORG", org)
+	}
+	client.SetHeader("Connection", "close")
+	_, err := client.Call("POST", d.userPath("tree-metrics/"), map[string]any{"tree": tree, "resources": resources}, &response)
 	counts := make(map[string]int, len(response.Results))
 	for _, item := range response.Results {
 		if item.Count >= 0 {

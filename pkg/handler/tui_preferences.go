@@ -31,6 +31,7 @@ type tuiConnectionPreference struct {
 type tuiUserPreference struct {
 	Organization  string                             `json:"organization,omitempty"`
 	TreeMode      int                                `json:"tree_mode,omitempty"`
+	TextMode      bool                               `json:"text_mode,omitempty"`
 	Language      string                             `json:"language,omitempty"`
 	LightTheme    bool                               `json:"light_theme,omitempty"`
 	AccentColor   int                                `json:"accent_color,omitempty"`
@@ -174,6 +175,36 @@ func (p *tuiPreferences) storeTreeMode(userID string, mode int) {
 		return
 	}
 	p.userLocked(userID).TreeMode = mode
+	p.saveLocked()
+}
+
+func (p *tuiPreferences) terminalMode(userID string) terminalMode {
+	p.Lock()
+	defer p.Unlock()
+	if preference := p.users[userID]; preference != nil && preference.TextMode {
+		return terminalModeText
+	}
+	return terminalModeTUI
+}
+
+func (p *tuiPreferences) storeTerminalMode(userID string, mode terminalMode) {
+	if mode != terminalModeTUI && mode != terminalModeText {
+		return
+	}
+	textMode := mode == terminalModeText
+	p.Lock()
+	defer p.Unlock()
+	preference := p.users[userID]
+	if preference == nil {
+		if !textMode {
+			return
+		}
+		preference = p.userLocked(userID)
+	}
+	if preference.TextMode == textMode {
+		return
+	}
+	preference.TextMode = textMode
 	p.saveLocked()
 }
 

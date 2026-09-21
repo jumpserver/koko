@@ -21,6 +21,7 @@ type WrapperTable struct {
 	Data        []map[string]string
 	TotalSize   int
 	TruncPolicy int
+	RowColors   [][]tablewriter.Colors
 
 	totalSize   int
 	paddingSize int
@@ -170,6 +171,7 @@ func (t *WrapperTable) Display() string {
 	tableString := strings.Builder{}
 	table := tablewriter.NewWriter(&tableString)
 	table.SetBorder(false)
+	table.SetAutoFormatHeaders(false)
 	table.SetHeader(t.Labels)
 	colors := make([]tablewriter.Colors, len(t.Fields))
 	for i := 0; i < len(t.Fields); i++ {
@@ -177,7 +179,17 @@ func (t *WrapperTable) Display() string {
 	}
 	table.SetHeaderColor(colors...)
 	data := t.convertDataToSlice()
-	table.AppendBulk(data)
+	if len(t.RowColors) == len(data) {
+		for i, row := range data {
+			if len(t.RowColors[i]) == len(row) {
+				table.Rich(row, t.RowColors[i])
+			} else {
+				table.Append(row)
+			}
+		}
+	} else {
+		table.AppendBulk(data)
+	}
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	for i, j := range t.Fields {

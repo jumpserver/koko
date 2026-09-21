@@ -7,8 +7,8 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
-msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s.%s"
-msgstr "%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} 進行%s.%s"
+msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
+msgstr "%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} %s%s"
 
 msgid "%s approved"
 msgstr "%s 審核通過"
@@ -173,7 +173,7 @@ msgid "EndFileTransfer"
 msgstr "文件傳輸結束"
 
 msgid "Enter ID number directly login, multiple search use // + field, such as: //16"
-msgstr "提示：輸入資產ID直接登錄，二級搜索使用 // + 欄位，如：//192"
+msgstr "提示：輸入資產序號直接登錄，二級搜尋使用 // + 欄位，如：//192"
 
 msgid "ExceedTransferSize"
 msgstr "超過最大傳輸大小"
@@ -243,6 +243,90 @@ msgstr "快速鍵"
 
 msgid "ID"
 msgstr "ID"
+
+msgid "Number"
+msgstr "序號"
+
+msgid "Sequence"
+msgstr "序號"
+
+msgid "Secondary search: // + IP, hostname, or comment, e.g. //192"
+msgstr "二級搜尋：// + IP、主機名稱或備註，例如 //192"
+
+msgid "Connect asset: enter number and press Enter"
+msgstr "連線資產：輸入序號並按 Enter"
+
+msgid "Show help: enter ? and press Enter"
+msgstr "顯示說明：輸入 ? 並按 Enter"
+
+msgid "Asset range: %s  [b] Previous page  [n/Enter] Next page"
+msgstr "資產範圍：%s  [b] 上一頁  [n/Enter] 下一頁"
+
+msgid "Node path: %s"
+msgstr "節點路徑：%s"
+
+msgid "Asset type: %s"
+msgstr "資產類型：%s"
+
+msgid "Favorite path: %s"
+msgstr "收藏路徑：%s"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
+msgstr "搜尋指南：// + 關鍵字（繼續篩選） · / + 關鍵字（重新全域搜尋） · IP/主機名稱/備註"
+
+msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
+msgstr "搜尋指南：// + 關鍵字（目前範圍） · / + 關鍵字（全域） · IP/主機名稱/備註"
+
+msgid "Current search: %s"
+msgstr "目前搜尋：%s"
+
+msgid "Current asset: %s"
+msgstr "目前資產：%s"
+
+msgid "Select account: enter number and press Enter"
+msgstr "選擇帳號：輸入序號並按 Enter"
+
+msgid "Back: [b] + Enter"
+msgstr "返回：[b] + Enter"
+
+msgid "Select language: enter number and press Enter; the choice is saved"
+msgstr "選擇語言：輸入序號並按 Enter，選擇會儲存"
+
+msgid "Select protocol: enter number and press Enter"
+msgstr "選擇協議：輸入序號並按 Enter"
+
+msgid "Tree progress: %d/%d"
+msgstr "樹進度：%d/%d"
+
+msgid "Browse tree: [Enter] next line  [Space] next page"
+msgstr "瀏覽樹：[Enter] 下一行  [Space] 下一頁"
+
+msgid "View assets: [%c + number] + Enter"
+msgstr "查看資產：[%c + 序號] + Enter"
+
+msgid "Refresh authorization tree: [r] + Enter"
+msgstr "重新整理授權樹：[r] + Enter"
+
+msgid "// + IP, Hostname, Comment"
+msgstr "// + IP、主機名稱、備註"
+
+msgid "search within the current tree scope"
+msgstr "在目前樹狀範圍內搜尋"
+
+msgid "authorization tree"
+msgstr "查看授權樹"
+
+msgid "type tree"
+msgstr "查看類型樹"
+
+msgid "favorite tree"
+msgstr "查看收藏樹"
+
+msgid "Type: [ Number.Name(Asset amount) ]"
+msgstr "類型：[ 序號.名稱(資產數量) ]"
+
+msgid "Favorite: [ Number.Name(Asset amount) ]"
+msgstr "收藏：[ 序號.名稱(資產數量) ]"
 
 msgid "InputVerifyCode"
 msgstr "請輸入驗證碼"
@@ -349,8 +433,8 @@ msgstr "無地址"
 msgid "NoRunningTerminalFound"
 msgstr "未找到正在運行的終端"
 
-msgid "Node: [ ID.Name(Asset amount) ]"
-msgstr "節點：[ ID.名稱(資產數量) ]"
+msgid "Node: [ Number.Name(Asset amount) ]"
+msgstr "節點：[ 序號.名稱(資產數量) ]"
 
 msgid "OnlineUser"
 msgstr "在線用戶"
@@ -443,7 +527,10 @@ msgid "Search"
 msgstr "搜尋"
 
 msgid "Search: %s"
-msgstr "搜索：%s"
+msgstr "搜尋：%s"
+
+msgid "Search tip: %s"
+msgstr "搜尋指南：%s"
 
 msgid "Select account exceed max retry times."
 msgstr "選擇賬號超過最大重試次數"
@@ -626,7 +713,7 @@ msgid "You get auth token failed"
 msgstr "您獲取認證令牌失敗"
 
 msgid "display the assets you have permission"
-msgstr "顯示您有權限的資產"
+msgstr "查看授權的資產"
 
 msgid "display the databases that you have permission"
 msgstr "顯示您有權限的數據庫"
@@ -656,7 +743,7 @@ msgid "i/o timeout"
 msgstr "網絡不通（連接超時）"
 
 msgid "language switch"
-msgstr "語言切換"
+msgstr "切換語言"
 
 msgid "network is unreachable"
 msgstr "網絡不通（網絡不可達）"
@@ -866,7 +953,7 @@ msgstr "名稱、位址、備註"
 
 #. Koko TUI
 msgid "Next"
-msgstr "下頁"
+msgstr "下一頁"
 
 #. Koko TUI
 msgid "Next/previous window"
@@ -886,7 +973,7 @@ msgstr "沒有可用的授權帳號或終端協定"
 
 #. Koko TUI
 msgid "Previous"
-msgstr "上頁"
+msgstr "上一頁"
 
 #. Koko TUI
 msgid "Quit"

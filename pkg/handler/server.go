@@ -35,8 +35,8 @@ type Server struct {
 	tuiStop        sync.Once
 }
 
-// StopTerminalUIs lets each screen restore its client terminal while the SSH
-// transport is still open. The SSH server then waits for the handlers to exit.
+// StopTerminalUIs lets each interactive handler exit while the SSH transport is
+// still open, including restoring any active TUI screen.
 func (s *Server) StopTerminalUIs() {
 	s.tuiStop.Do(func() {
 		if s.tuiShutdown != nil {
