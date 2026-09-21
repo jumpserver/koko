@@ -58,6 +58,44 @@ func sha256Hex(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func (u *sftpVolume) openTransferRead(path string) (transferIO, error) {
+	if u.openRead != nil {
+		return u.openRead(path)
+	}
+	return u.conn.Open(path)
+}
+
+func (u *sftpVolume) openTransferWrite(path string, create bool) (transferIO, error) {
+	if u.openWrite != nil {
+		return u.openWrite(path, create)
+	}
+	return u.conn.OpenUploadTemp(path, create)
+}
+
+func (u *sftpVolume) closeTransferReadLocked() {
+	if u.transferRead == nil {
+		return
+	}
+	_ = u.transferRead.file.Close()
+	u.transferRead = nil
+}
+
+func (u *sftpVolume) closeTransferWriteLocked() {
+	if u.transferWrite == nil {
+		return
+	}
+	_ = u.transferWrite.file.Close()
+	u.transferWrite = nil
+}
+
+func (u *sftpVolume) cacheWriteLocked(transferID, path string, file transferIO, committed int64) {
+	u.closeTransferWriteLocked()
+	if transferID == "" {
+		return
+	}
+	u.transferWrite = &cachedTransferFile{id: transferID, path: path, file: file, committed: committed}
+}
+
 func isSftpNotExist(err error) bool {
 	if errors.Is(err, os.ErrNotExist) || errors.Is(err, sftp.ErrSSHFxNoSuchFile) {
 		return true
@@ -154,6 +192,11 @@ func (u *sftpVolume) prepareTransfer(transferID, targetPath string, totalSize in
 		if info.Size() > totalSize {
 			return sftpTransferResult{}, fmt.Errorf("file transfer stage exceeds expected size")
 		}
+		file, openErr := u.openTransferWrite(stagePath, false)
+		if openErr != nil {
+			return sftpTransferResult{}, openErr
+		}
+		u.cacheWriteLocked(transferID, stagePath, file, info.Size())
 		return sftpTransferResult{TransferID: transferID, CommittedBytes: info.Size(), TotalBytes: totalSize, State: "ready"}, nil
 	} else if !isSftpNotExist(statErr) {
 		return sftpTransferResult{}, statErr
@@ -173,33 +216,37 @@ func (u *sftpVolume) prepareTransfer(transferID, targetPath string, totalSize in
 		return sftpTransferResult{}, statErr
 	}
 
-	file, err := u.conn.OpenUploadTemp(stagePath, true)
+	file, err := u.openTransferWrite(stagePath, true)
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
-	if err = file.Close(); err != nil {
-		return sftpTransferResult{}, err
-	}
+	u.cacheWriteLocked(transferID, stagePath, file, 0)
 	return sftpTransferResult{TransferID: transferID, TotalBytes: totalSize, State: "ready"}, nil
 }
 
-func (u *sftpVolume) readTransferChunk(sourcePath string, offset, length int64) ([]byte, sftpTransferChunk, error) {
+func (u *sftpVolume) readTransferChunk(transferID, sourcePath string, offset, length int64) ([]byte, sftpTransferChunk, error) {
+	u.lock.Lock()
+	defer u.lock.Unlock()
 	if u.closed.Load() {
 		return nil, sftpTransferChunk{}, os.ErrClosed
 	}
 	if offset < 0 || length <= 0 || length > transferChunkMaxSize {
 		return nil, sftpTransferChunk{}, fmt.Errorf("invalid file transfer range")
 	}
-	file, err := u.conn.Open(sourcePath)
+	file, cached, err := u.readHandleLocked(transferID, sourcePath)
 	if err != nil {
 		return nil, sftpTransferChunk{}, err
 	}
-	defer file.Close()
+	if !cached {
+		defer file.Close()
+	}
 	info, err := file.Stat()
 	if err != nil {
+		u.closeTransferReadLocked()
 		return nil, sftpTransferChunk{}, err
 	}
 	if offset >= info.Size() {
+		u.closeTransferReadLocked()
 		return nil, sftpTransferChunk{Offset: offset, SHA256: sha256Hex(nil), EOF: true}, nil
 	}
 	remaining := info.Size() - offset
@@ -209,14 +256,35 @@ func (u *sftpVolume) readTransferChunk(sourcePath string, offset, length int64) 
 	data := make([]byte, length)
 	n, readErr := file.ReadAt(data, offset)
 	if readErr != nil && readErr != io.EOF {
+		u.closeTransferReadLocked()
 		return nil, sftpTransferChunk{}, readErr
 	}
 	data = data[:n]
+	eof := offset+int64(n) == info.Size()
+	if eof {
+		u.closeTransferReadLocked()
+	}
 	return data, sftpTransferChunk{
 		Offset: offset,
 		SHA256: sha256Hex(data),
-		EOF:    offset+int64(n) == info.Size(),
+		EOF:    eof,
 	}, nil
+}
+
+func (u *sftpVolume) readHandleLocked(transferID, path string) (file transferIO, cached bool, err error) {
+	if transferID != "" && u.transferRead != nil && u.transferRead.id == transferID && u.transferRead.path == path {
+		return u.transferRead.file, true, nil
+	}
+	u.closeTransferReadLocked()
+	file, err = u.openTransferRead(path)
+	if err != nil {
+		return nil, false, err
+	}
+	if transferID == "" {
+		return file, false, nil
+	}
+	u.transferRead = &cachedTransferFile{id: transferID, path: path, file: file}
+	return file, true, nil
 }
 
 func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize, offset int64, expectedSHA256 string, data []byte) (result sftpTransferResult, err error) {
@@ -232,30 +300,16 @@ func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
-	file, err := u.conn.OpenUploadTemp(stagePath, false)
-	// Some SFTP servers do not retain a just-created zero-byte file between
-	// separate requests. The first chunk can safely recreate it; subsequent
-	// chunks must keep failing so a resumable transfer never skips data.
-	created := false
-	if err != nil && offset == 0 && isSftpNotExist(err) {
-		file, err = u.conn.OpenUploadTemp(stagePath, true)
-		created = err == nil
-	}
+	file, committedBytes, cached, err := u.writeHandleLocked(transferID, stagePath, offset)
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
-	defer func() {
-		if closeErr := file.Close(); err == nil && closeErr != nil {
-			result, err = sftpTransferResult{}, closeErr
-		}
-	}()
-	committedBytes := int64(0)
-	if !created {
-		info, statErr := file.Stat()
-		if statErr != nil {
-			return sftpTransferResult{}, statErr
-		}
-		committedBytes = info.Size()
+	if !cached {
+		defer func() {
+			if closeErr := file.Close(); err == nil && closeErr != nil {
+				result, err = sftpTransferResult{}, closeErr
+			}
+		}()
 	}
 	if committedBytes > totalSize || offset > committedBytes {
 		return sftpTransferResult{}, fmt.Errorf("file transfer chunk offset is out of order")
@@ -272,11 +326,53 @@ func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize
 		return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready", Duplicate: true}, nil
 	}
 	if n, writeErr := file.WriteAt(data, offset); writeErr != nil {
+		if cached {
+			u.closeTransferWriteLocked()
+		}
 		return sftpTransferResult{}, writeErr
 	} else if n != len(data) {
+		if cached {
+			u.closeTransferWriteLocked()
+		}
 		return sftpTransferResult{}, io.ErrShortWrite
 	}
-	return sftpTransferResult{TransferID: transferID, CommittedBytes: offset + int64(len(data)), TotalBytes: totalSize, State: "ready"}, nil
+	committedBytes = offset + int64(len(data))
+	if cached {
+		u.transferWrite.committed = committedBytes
+	}
+	return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready"}, nil
+}
+
+func (u *sftpVolume) writeHandleLocked(transferID, path string, offset int64) (file transferIO, committed int64, cached bool, err error) {
+	if transferID != "" && u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == path {
+		return u.transferWrite.file, u.transferWrite.committed, true, nil
+	}
+	u.closeTransferWriteLocked()
+	file, err = u.openTransferWrite(path, false)
+	created := false
+	// Some SFTP servers do not retain a just-created zero-byte file between
+	// separate requests. The first chunk can safely recreate it; subsequent
+	// chunks must keep failing so a resumable transfer never skips data.
+	if err != nil && offset == 0 && isSftpNotExist(err) {
+		file, err = u.openTransferWrite(path, true)
+		created = err == nil
+	}
+	if err != nil {
+		return nil, 0, false, err
+	}
+	if !created {
+		info, statErr := file.Stat()
+		if statErr != nil {
+			_ = file.Close()
+			return nil, 0, false, statErr
+		}
+		committed = info.Size()
+	}
+	if transferID == "" {
+		return file, committed, false, nil
+	}
+	u.transferWrite = &cachedTransferFile{id: transferID, path: path, file: file, committed: committed}
+	return file, committed, true, nil
 }
 
 func (u *sftpVolume) transferStatus(transferID, targetPath string, totalSize int64) (sftpTransferResult, error) {
@@ -317,6 +413,9 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize int
 	stagePath, err := transferStagePath(targetPath, transferID)
 	if err != nil {
 		return sftpTransferResult{}, err
+	}
+	if u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == stagePath {
+		u.closeTransferWriteLocked()
 	}
 	file, err := u.conn.OpenUploadTemp(stagePath, false)
 	if err != nil {
@@ -444,6 +543,9 @@ func (u *sftpVolume) cancelTransfer(transferID, targetPath string, discard bool)
 	stagePath, err := transferStagePath(targetPath, transferID)
 	if err != nil {
 		return sftpTransferResult{}, err
+	}
+	if u.transferWrite != nil && u.transferWrite.id == transferID {
+		u.closeTransferWriteLocked()
 	}
 	if discard {
 		if err = u.conn.DiscardUploadTemp(stagePath); err != nil && !isSftpNotExist(err) {

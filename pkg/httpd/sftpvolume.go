@@ -47,11 +47,30 @@ type sftpVolume struct {
 	uploads   map[int]*sftpUpload
 	closed    atomic.Bool
 	closeOnce sync.Once
+
+	transferRead  *cachedTransferFile
+	transferWrite *cachedTransferFile
+
+	openRead  func(string) (transferIO, error)
+	openWrite func(string, bool) (transferIO, error)
 }
 
 type sftpUpload struct {
 	path string
 	file *srvconn.SftpFile
+}
+
+type transferIO interface {
+	ReadAt([]byte, int64) (int, error)
+	WriteAt([]byte, int64) (int, error)
+	Stat() (os.FileInfo, error)
+	Close() error
+}
+
+type cachedTransferFile struct {
+	id, path  string
+	file      transferIO
+	committed int64
 }
 
 type fileMutationOptions struct {
@@ -71,6 +90,8 @@ func (u *sftpVolume) Close() {
 		u.conn.Close()
 		u.lock.Lock()
 		defer u.lock.Unlock()
+		u.closeTransferReadLocked()
+		u.closeTransferWriteLocked()
 		for id, upload := range u.uploads {
 			_ = upload.file.Close()
 			u.discardFileRecord(upload.file)

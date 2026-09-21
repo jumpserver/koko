@@ -125,6 +125,59 @@ func TestWebsocketCloseReason(t *testing.T) {
 	}
 }
 
+func TestWebsocketWritesSftpTransferBinaryFrame(t *testing.T) {
+	started := make(chan *UserWebsocket, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upGrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+		ctx, cancel := context.WithCancel(r.Context())
+		defer cancel()
+		userCon := &UserWebsocket{
+			conn:           ws.NewSocket(conn, r),
+			messageChannel: make(chan *Message, 1),
+		}
+		errCh := make(chan error, 1)
+		go func() { errCh <- userCon.writeMessageLoop(ctx) }()
+		started <- userCon
+		<-errCh
+	}))
+	defer server.Close()
+	conn, _, err := gorilla.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	userCon := <-started
+	userCon.SendMessage(&Message{
+		Id:   "read-1",
+		Type: SFTPTransferBinary,
+		Data: `{"offset":0,"sha256":"x","eof":true}`,
+		Raw:  []byte("abc"),
+	})
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	opcode, data, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opcode != gorilla.BinaryMessage {
+		t.Fatalf("opcode = %d", opcode)
+	}
+	parsed, err := parseSftpBinaryFrame(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Type != SFTPBinary {
+		t.Fatalf("header type = %q", parsed.Type)
+	}
+	if parsed.Type == SFTPTransferBinary || string(parsed.Raw) != "abc" {
+		t.Fatalf("frame = %+v", parsed)
+	}
+}
+
 func TestWebsocketDoesNotQueueAfterClose(t *testing.T) {
 	done := make(chan struct{})
 	close(done)

@@ -66,6 +66,14 @@ func (h *webSftp) HandleMessage(msg *Message) {
 	case <-h.ws.done:
 		return
 	}
+	if msg.Type == TerminalBinary {
+		parsed, err := parseSftpBinaryFrame(msg.Raw)
+		if err != nil {
+			h.ws.SendMessage(&Message{Type: ERROR, Err: err.Error()})
+			return
+		}
+		msg = parsed
+	}
 	if msg.Type == MCPRequest || msg.Type == MCPCancel {
 		h.handleFileToolMessage(msg)
 		return
@@ -125,7 +133,8 @@ func (h *webSftp) WebsocketCapabilities() map[string]any {
 
 	return map[string]any{
 		"web_sftp": webSftpCapabilities{
-			SchemaVersion: 1,
+			SchemaVersion:  1,
+			TransferBinary: true,
 			FileEditor: webSftpFileEditorCapability{
 				Enabled: readAllowed && writeAllowed,
 				Read:    readAllowed,
@@ -168,11 +177,13 @@ type webSftpRequest struct {
 	SHA256          string  `json:"sha256"`
 	ConflictPolicy  string  `json:"conflict_policy"`
 	Discard         bool    `json:"discard"`
+	Binary          bool    `json:"binary"`
 }
 
 type webSftpCapabilities struct {
-	SchemaVersion int                         `json:"schema_version"`
-	FileEditor    webSftpFileEditorCapability `json:"file_editor"`
+	SchemaVersion  int                         `json:"schema_version"`
+	TransferBinary bool                        `json:"transfer_binary"`
+	FileEditor     webSftpFileEditorCapability `json:"file_editor"`
 }
 
 type webSftpFileEditorCapability struct {

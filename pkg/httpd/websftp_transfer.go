@@ -3,7 +3,7 @@ package httpd
 import "encoding/json"
 
 func (h *webSftp) handleTransferRead(request *webSftpRequest, response *Message) {
-	data, metadata, err := h.volume.readTransferChunk(request.Path, request.OffSet, request.Length)
+	data, metadata, err := h.volume.readTransferChunk(request.TransferID, request.Path, request.OffSet, request.Length)
 	if err != nil {
 		h.sendError(response, err)
 		return
@@ -13,9 +13,13 @@ func (h *webSftp) handleTransferRead(request *webSftpRequest, response *Message)
 		h.sendError(response, err)
 		return
 	}
-	response.Type = SFTPBinary
 	response.Data = string(payload)
 	response.Raw = data
+	if request.Binary {
+		response.Type = SFTPTransferBinary
+	} else {
+		response.Type = SFTPBinary
+	}
 	h.ws.SendMessage(response)
 }
 
