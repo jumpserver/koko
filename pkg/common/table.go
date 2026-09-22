@@ -171,6 +171,7 @@ func (t *WrapperTable) Display() string {
 	tableString := strings.Builder{}
 	table := tablewriter.NewWriter(&tableString)
 	table.SetBorder(false)
+	table.SetAutoWrapText(false)
 	table.SetAutoFormatHeaders(false)
 	table.SetHeader(t.Labels)
 	colors := make([]tablewriter.Colors, len(t.Fields))
