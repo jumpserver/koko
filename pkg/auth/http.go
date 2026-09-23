@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -36,11 +37,11 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 
 func HTTPMiddleDebugAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		switch ctx.ClientIP() {
-		case "127.0.0.1", "localhost", "::1":
-			return
-		default:
-			_ = ctx.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid host %s", ctx.ClientIP()))
+		host, _, err := net.SplitHostPort(ctx.Request.RemoteAddr)
+		if err != nil || !net.ParseIP(host).IsLoopback() ||
+			ctx.GetHeader("X-Forwarded-For") != "" || ctx.GetHeader("X-Real-IP") != "" ||
+			ctx.GetHeader("Forwarded") != "" {
+			ctx.AbortWithStatus(http.StatusForbidden)
 			return
 		}
 	}
