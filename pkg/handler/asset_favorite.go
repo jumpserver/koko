@@ -180,6 +180,8 @@ func (u *UserSelectHandler) retrieveRemoteFavoriteAsset(reqParam model.Paginatio
 	_, err := u.h.jmsService.Call("GET", path, nil, &response, params)
 	if err != nil {
 		logger.Errorf("Get user %s favorite assets failed: %s", u.user.Name, err)
+		u.loadErr = err
+		return nil
 	}
 	if loadAll && err == nil {
 		all := append([]model.PermAsset(nil), response.Data...)
@@ -187,7 +189,8 @@ func (u *UserSelectHandler) retrieveRemoteFavoriteAsset(reqParam model.Paginatio
 			response, err = u.h.jmsService.GetNextURLPermAssets(response.NextURL)
 			if err != nil {
 				logger.Errorf("Get user %s next favorite assets failed: %s", u.user.Name, err)
-				break
+				u.loadErr = err
+				return nil
 			}
 			all = append(all, response.Data...)
 		}

@@ -7,14 +7,164 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
+msgid "End session"
+msgstr "Завершить сеанс"
+
+msgid "Koko session ended."
+msgstr "Сеанс Koko завершён."
+
+msgid "Connection failed"
+msgstr "Не удалось подключиться"
+
+msgid "⊘ Cannot connect"
+msgstr "⊘ Нет подключения"
+
+msgid "No assets in this node"
+msgstr "В этом узле нет активов"
+
+msgid "[number] Select"
+msgstr "[номер] Выбрать актив"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "Для актива %s нет доступного разрешённого протокола подключения. Проверьте протоколы актива и правила доступа."
+
+msgid "Asset %s has no available login account."
+msgstr "Для актива %s нет доступной учётной записи для входа."
+
+msgid "Cannot connect to this asset."
+msgstr "Не удаётся подключиться к этому активу."
+
+msgid "Cannot connect: asset disabled."
+msgstr "Подключение невозможно: актив отключён."
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "Подключение невозможно: протокол (%s) не поддерживается."
+
+msgid "Cannot connect: no supported protocol."
+msgstr "Подключение невозможно: нет поддерживаемого протокола."
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "Дерево разрешений недоступно. Введите r для повтора."
+
+msgid "Assets unavailable. Return and retry."
+msgstr "Не удалось загрузить активы. Вернитесь и повторите попытку."
+
+msgid "Invalid number"
+msgstr "Недопустимый номер"
+
+msgid "No nodes"
+msgstr "Нет узлов"
+
+msgid "Switch to TUI mode"
+msgstr "Перейти в режим TUI"
+
+msgid "View all assets"
+msgstr "Показать все активы"
+
+msgid "View authorization tree"
+msgstr "Показать дерево доступа"
+
+msgid "View type tree"
+msgstr "Показать дерево типов"
+
+msgid "View favorites tree"
+msgstr "Показать дерево избранного"
+
+msgid "Back to assets"
+msgstr "Назад к активам"
+
+msgid "Back to protocols"
+msgstr "Назад к протоколам"
+
+msgid "Back to help"
+msgstr "Назад к справке"
+
+msgid "Back to authorization tree"
+msgstr "Назад к дереву доступа"
+
+msgid "Back to type tree"
+msgstr "Назад к дереву типов"
+
+msgid "Back to favorites tree"
+msgstr "Назад к дереву избранного"
+
+msgid "Invalid input."
+msgstr "Недопустимый ввод."
+
+msgid "Choose a number on this page."
+msgstr "Выберите номер с текущей страницы."
+
+msgid "Select 1-%d"
+msgstr "Выберите 1-%d"
+
+msgid "[number] View assets"
+msgstr "[номер] Показать активы"
+
+msgid "Enter a search term"
+msgstr "Введите поисковый запрос."
+
+msgid "Failed to load type tree. Try again."
+msgstr "Не удалось загрузить дерево типов. Повторите попытку."
+
+msgid "Enter {key} to view all assets"
+msgstr "Введите {key}, чтобы посмотреть все активы"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "Введите {key}, чтобы открыть дерево доступа"
+
+msgid "Enter {key} to view the type tree"
+msgstr "Введите {key}, чтобы открыть дерево типов"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "Введите {key}, чтобы открыть дерево избранного"
+
+msgid "Enter {key} to change the interface language"
+msgstr "Введите {key}, чтобы сменить язык интерфейса"
+
+msgid "Enter {key} to switch to TUI mode"
+msgstr "Введите {key}, чтобы перейти в режим TUI"
+
+msgid "Enter {key} to view help"
+msgstr "Введите {key}, чтобы открыть справку"
+
+msgid "Enter {key} to end this session"
+msgstr "Введите {key}, чтобы завершить сеанс"
+
+msgid "[number] Select an asset"
+msgstr "[номер] Выбрать актив"
+
+msgid "[number] View assets in this node"
+msgstr "[номер] Показать активы этого узла"
+
+msgid "Refresh authorization tree"
+msgstr "Обновить дерево доступа"
+
+msgid "Enter 1-%d to change language"
+msgstr "Введите 1-%d, чтобы сменить язык"
+
+msgid "Enter 1-%d to choose an account"
+msgstr "Введите 1-%d, чтобы выбрать учётную запись"
+
+msgid "Enter 1-%d to choose a protocol"
+msgstr "Введите 1-%d, чтобы выбрать протокол"
+
+msgid "Previous page"
+msgstr "Предыдущая страница"
+
+msgid "Next page"
+msgstr "Следующая страница"
+
+msgid "View help"
+msgstr "Открыть справку"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "Не удалось загрузить дерево избранного. Повторите попытку."
+
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "\t%d) Введите {{.GreenBoldColor}}%s{{.ColorEnd}} чтобы %s%s"
 
 msgid "%s approved"
 msgstr "%s одобрено"
-
-msgid "%s node has no assets"
-msgstr "В папке %s нет активов"
 
 msgid "%s protocol client not installed."
 msgstr "Клиент протокола %s не установлен"
@@ -625,9 +775,6 @@ msgstr "Утверждающий заявки: %s"
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "Подсказка: Введите ID учетной записи актива [%s]"
 
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "Подсказка: введите g+ID папки, чтобы показать хосты внутри, например: g1"
-
 msgid "Tips: Enter protocol ID"
 msgstr "Подсказка: введите ID протокола"
 
@@ -769,8 +916,8 @@ msgstr "выберите один из активов для входа"
 msgid "to search login if unique"
 msgstr "найти подключение (если результат уникальный)"
 
-msgid "to search, such as: /192.168"
-msgstr "выполнить поиск, например: /192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "Введите {key} для поиска, например: /192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33

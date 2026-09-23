@@ -1,22 +1,18 @@
 package handler
 
 import (
-	"fmt"
 	"io"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/xlab/treeprint"
 	"golang.org/x/term"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/jumpserver-dev/sdk-go/service"
 
-	"github.com/jumpserver/koko/pkg/common"
 	"github.com/jumpserver/koko/pkg/config"
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/logger"
@@ -55,6 +51,7 @@ type InteractiveHandler struct {
 
 	selectHandler   *UserSelectHandler
 	nodes           model.NodeList
+	nodeLoadErr     error
 	typeNodes       []classicTypeNode
 	favoriteNodes   []classicFavoriteNode
 	assetLoadPolicy string
@@ -66,6 +63,12 @@ type InteractiveHandler struct {
 	preferences     *tuiPreferences
 	shutdown        <-chan struct{}
 	manualPasswords tuiManualPasswordAttempts
+	classicView     classicView
+	helpReturnView  classicView
+	treeOrigin      selectType
+	treeSelected    bool
+	idleState       chan bool
+	exitRequested   bool
 }
 
 func (h *InteractiveHandler) Initial() {
@@ -83,8 +86,10 @@ func (h *InteractiveHandler) Initial() {
 		allAssets, err := h.jmsService.GetAllUserPermsAssets(h.user.ID)
 		if err != nil {
 			logger.Errorf("Get all user perms assets failed: %s", err)
+			h.assetLoadPolicy = "remote"
+		} else {
+			h.selectHandler.SetAllLocalData(allAssets)
 		}
-		h.selectHandler.SetAllLocalData(allAssets)
 	}
 	h.firstLoadData()
 }
@@ -115,9 +120,83 @@ func (h *InteractiveHandler) firstLoadData() {
 }
 
 func (h *InteractiveHandler) displayHelp() {
+	h.classicView = classicViewHelp
 	h.term.SetPrompt("Opt> ")
 	h.displayBanner(h.sess, h.user.Name, h.terminalConf)
 	h.displayAnnouncement(h.sess, h.publicSetting)
+	if h.helpReturnView == classicViewList {
+		utils.IgnoreErrWriteString(h.term, utils.WrapperTitle("[b]")+" "+i18n.NewLang(h.i18nLang).T("Back to assets")+utils.CharNewLine)
+	}
+}
+
+type classicView uint8
+
+const (
+	classicViewHelp classicView = iota
+	classicViewList
+)
+
+func (h *InteractiveHandler) readClassicLine() (string, error) {
+	if !h.setIdle(h.idleState, true) {
+		return "", io.EOF
+	}
+	line, err := h.term.ReadLine()
+	if !h.setIdle(h.idleState, false) {
+		return "", io.EOF
+	}
+	line = strings.TrimSpace(line)
+	if err == nil && line == "exit" {
+		h.requestClassicExit()
+		return "", io.EOF
+	}
+	return line, err
+}
+
+func (h *InteractiveHandler) requestClassicExit() {
+	if h.exitRequested {
+		return
+	}
+	h.exitRequested = true
+	message := i18n.NewLang(h.i18nLang).T("Koko session ended.")
+	utils.IgnoreErrWriteString(h.term, message+utils.CharNewLine)
+}
+
+func classicChoiceNumber(input string, count int) (int, bool) {
+	if input == "" {
+		return 0, false
+	}
+	for _, digit := range input {
+		if digit < '0' || digit > '9' {
+			return 0, false
+		}
+	}
+	number, err := strconv.Atoi(input)
+	return number, err == nil && number > 0 && number <= count
+}
+
+func (h *InteractiveHandler) readClassicChoice(table string, hints []string, width int,
+	prompt string, count int) (number int, back bool, err error) {
+	h.resizeTerminal()
+	h.term.SetPrompt(prompt)
+	utils.IgnoreErrWriteString(h.term, table)
+	utils.IgnoreErrWriteString(h.term, classicHintPanel(hints, width))
+	for {
+		line, readErr := h.readClassicLine()
+		if readErr != nil {
+			return 0, false, readErr
+		}
+		if line == "b" {
+			return 0, true, nil
+		}
+		if line == "" {
+			continue
+		}
+		if number, ok := classicChoiceNumber(line, count); ok {
+			return number, false, nil
+		}
+		message := i18n.NewLang(h.i18nLang).T("Invalid input.")
+		utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(message))
+	}
 }
 
 func (h *InteractiveHandler) WatchWinSizeChange(winChan <-chan ssh.Window) {
@@ -171,121 +250,13 @@ func (h *InteractiveHandler) tr(zh, en string) string {
 	return lang.T(en)
 }
 
-func (h *InteractiveHandler) chooseAccount(permAccounts []model.PermAccount) (account model.PermAccount, ok, back bool) {
-	lang := i18n.NewLang(h.i18nLang)
-	switch len(permAccounts) {
-	case 0:
-		_, _ = io.WriteString(h.term, lang.T("No account found.")+"\n\r")
-		return account, false, false
-	case 1:
-		return permAccounts[0], true, false
-	}
-	displayAccounts := model.PermAccountList(permAccounts)
-	sort.Sort(displayAccounts)
-	labels := []string{lang.T("Number"), lang.T("Name"), lang.T("Username")}
-	fields := []string{"ID", "Name", "Username"}
-	data := make([]map[string]string, len(displayAccounts))
-	for i, account := range displayAccounts {
-		data[i] = map[string]string{
-			"ID": strconv.Itoa(i + 1), "Name": account.Name, "Username": account.Username,
-		}
-	}
-	width, _ := h.GetPtySize()
-	table := common.WrapperTable{
-		Fields: fields, Labels: labels,
-		FieldsSize: map[string][3]int{"ID": {0, 0, 5}, "Name": {0, 8, 0}, "Username": {0, 10, 0}},
-		Data:       data, TotalSize: width, TruncPolicy: common.TruncMiddle,
-	}
-	table.Initial()
-	h.resizeTerminal()
-	h.term.SetPrompt("[Account]> ")
-	accountHints := []string{fmt.Sprintf(lang.T("Current asset: %s"), h.selectHandler.selectedAsset.String())}
-	accountHints = append(accountHints, compactClassicHintRows(width,
-		fmt.Sprintf("[%s] %s", lang.T("Number"), lang.T("Select")),
-		fmt.Sprintf("[b] %s", lang.T("Back")))...)
-	for range 3 {
-		utils.IgnoreErrWriteString(h.term, table.Display())
-		utils.IgnoreErrWriteString(h.term, classicHintPanel(accountHints, width))
-		line, err := h.term.ReadLine()
-		if err != nil {
-			logger.Errorf("select account err: %s", err)
-			return account, false, false
-		}
-		line = strings.TrimSpace(line)
-		switch strings.ToLower(line) {
-		case "q", "b", "quit", "exit", "back":
-			logger.Info("select account cancel")
-			return account, false, true
-		case "":
-			continue
-		}
-		if num, err := strconv.Atoi(line); err == nil && num > 0 && num <= len(displayAccounts) {
-			return displayAccounts[num-1], true, false
-		}
-	}
-	utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(lang.T("Select account exceed max retry times.")))
-	utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
-	return account, false, false
-}
-
-func (h *InteractiveHandler) chooseAssetProtocol(protocols []string) (string, bool) {
-	lang := i18n.NewLang(h.i18nLang)
-	switch len(protocols) {
-	case 0:
-		_, _ = io.WriteString(h.term, lang.T("No protocol found.")+"\n\r")
-		return "", false
-	case 1:
-		return protocols[0], true
-	}
-	data := make([]map[string]string, len(protocols))
-	for i, protocol := range protocols {
-		data[i] = map[string]string{"ID": strconv.Itoa(i + 1), "Protocol": protocol}
-	}
-	width, _ := h.GetPtySize()
-	table := common.WrapperTable{
-		Fields: []string{"ID", "Protocol"}, Labels: []string{lang.T("ID"), lang.T("Protocol")},
-		FieldsSize: map[string][3]int{"ID": {0, 0, 5}, "Protocol": {0, 8, 0}},
-		Data:       data, TotalSize: width, TruncPolicy: common.TruncMiddle,
-	}
-	table.Initial()
-	h.resizeTerminal()
-	h.term.SetPrompt("ID> ")
-	hints := []string{fmt.Sprintf(lang.T("Current asset: %s"), h.selectHandler.selectedAsset.String())}
-	hints = append(hints, compactClassicHintRows(width,
-		fmt.Sprintf("[%s] %s", lang.T("Number"), lang.T("Select")),
-		fmt.Sprintf("[b] %s", lang.T("Back")))...)
-	for range 3 {
-		utils.IgnoreErrWriteString(h.term, table.Display())
-		utils.IgnoreErrWriteString(h.term, classicHintPanel(hints, width))
-		line, err := h.term.ReadLine()
-		if err != nil {
-			logger.Errorf("select protocol err: %s", err)
-			return "", false
-		}
-		line = strings.TrimSpace(line)
-		switch strings.ToLower(line) {
-		case "q", "b", "quit", "exit", "back":
-			logger.Info("select account cancel")
-			return "", false
-		case "":
-			continue
-		}
-		if num, err := strconv.Atoi(line); err == nil && num > 0 && num <= len(protocols) {
-			return protocols[num-1], true
-		}
-	}
-	utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(lang.T("Select protocol exceed max retry times.")))
-	utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
-	time.Sleep(500 * time.Millisecond)
-	return "", false
-}
-
 func (h *InteractiveHandler) refreshAuthorizationTreeCache() bool {
 	h.wg.Wait()
 	_, err := h.jmsService.GetUserPermsAssets(h.user.ID, model.PaginationParam{PageSize: 1, Refresh: true})
 	if err != nil {
 		logger.Errorf("Rebuild user authorization tree error: %s", err)
-		utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(i18n.NewLang(h.i18nLang).T("Core API failed")))
+		h.nodeLoadErr = err
+		utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(userFacingErrorMessage(i18n.NewLang(h.i18nLang).T("Core API failed"), err)))
 		return false
 	}
 	nodes, err := (tuiData{
@@ -293,10 +264,12 @@ func (h *InteractiveHandler) refreshAuthorizationTreeCache() bool {
 	}).authorizationNodes()
 	if err != nil {
 		logger.Errorf("Refresh user authorization tree error: %s", err)
-		utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(i18n.NewLang(h.i18nLang).T("Core API failed")))
+		h.nodeLoadErr = err
+		utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(userFacingErrorMessage(i18n.NewLang(h.i18nLang).T("Core API failed"), err)))
 		return false
 	}
 	h.nodes = nodes
+	h.nodeLoadErr = nil
 	if _, err := io.WriteString(h.term, i18n.NewLang(h.i18nLang).T("Refresh done")+"\n\r"); err != nil {
 		logger.Error("refresh authorization tree err:", err)
 	}
@@ -309,33 +282,35 @@ func (h *InteractiveHandler) loadUserNodes() {
 	}).authorizationNodes()
 	if err != nil {
 		logger.Errorf("Get user nodes error: %s", err)
+		h.nodeLoadErr = err
 		return
 	}
 	h.nodes = nodes
+	h.nodeLoadErr = nil
 }
 
-func (h *InteractiveHandler) loadUserTypeNodes() bool {
+func (h *InteractiveHandler) loadUserTypeNodes() error {
 	types, err := (tuiData{
 		api: h.jmsService, userID: h.user.ID, lang: h.i18nLang,
 	}).typeNodes()
 	if err != nil {
 		logger.Errorf("Get user type tree error: %s", err)
-		return false
+		return err
 	}
 	h.typeNodes = types
-	return true
+	return nil
 }
 
-func (h *InteractiveHandler) loadUserFavoriteNodes() bool {
+func (h *InteractiveHandler) loadUserFavoriteNodes() error {
 	favorites, err := (tuiData{
 		api: h.jmsService, userID: h.user.ID, lang: h.i18nLang,
 	}).favoriteNodes()
 	if err != nil {
 		logger.Errorf("Get user favorite tree error: %s", err)
-		return false
+		return err
 	}
 	h.favoriteNodes = favorites
-	return true
+	return nil
 }
 
 func getPageSize(h *InteractiveHandler, termConf *model.TerminalConfig) int {
@@ -352,86 +327,3 @@ func getPageSize(h *InteractiveHandler, termConf *model.TerminalConfig) int {
 	}
 	return max(1, pageSize)
 }
-
-func ConstructNodeTree(assetNodes []model.Node) (treeprint.Tree, []model.Node) {
-	model.SortNodesByKey(assetNodes)
-	rootTree := treeprint.New()
-	newNodes := make([]model.Node, 0, len(assetNodes))
-	newNodes = constructDisplayTree(rootTree, convertToDisplayTrees(assetNodes), newNodes)
-	return rootTree, newNodes
-}
-
-func constructNodeTreeRows(assetNodes []model.Node) ([]string, []model.Node) {
-	model.SortNodesByKey(assetNodes)
-	prefixes := make([]string, 0, len(assetNodes))
-	ordered := make([]model.Node, 0, len(assetNodes))
-	constructDisplayRows(convertToDisplayTrees(assetNodes), "", &prefixes, &ordered)
-	return prefixes, ordered
-}
-
-func constructDisplayRows(nodes []*displayTree, prefix string, prefixes *[]string, ordered *[]model.Node) {
-	for i, item := range nodes {
-		last := i == len(nodes)-1
-		edge := string(treeprint.EdgeTypeMid)
-		childPrefix := prefix + string(treeprint.EdgeTypeLink) + strings.Repeat(" ", treeprint.IndentSize)
-		if last {
-			edge = string(treeprint.EdgeTypeEnd)
-			childPrefix = prefix + strings.Repeat(" ", treeprint.IndentSize+1)
-		}
-		*prefixes = append(*prefixes, prefix+edge+" ")
-		*ordered = append(*ordered, item.node)
-		if len(item.subTrees) > 0 {
-			sort.Sort(nodeTrees(item.subTrees))
-			constructDisplayRows(item.subTrees, childPrefix, prefixes, ordered)
-		}
-	}
-}
-
-func constructDisplayTree(tree treeprint.Tree, rootNodes []*displayTree, newNodes []model.Node) []model.Node {
-	for _, rootNode := range rootNodes {
-		subTree := tree.AddBranch(fmt.Sprintf("%d.%s(%s)", len(newNodes)+1, rootNode.node.Name,
-			strconv.Itoa(rootNode.node.AssetsAmount)))
-		newNodes = append(newNodes, rootNode.node)
-		if len(rootNode.subTrees) > 0 {
-			sort.Sort(nodeTrees(rootNode.subTrees))
-			newNodes = constructDisplayTree(subTree, rootNode.subTrees, newNodes)
-		}
-	}
-	return newNodes
-}
-
-func convertToDisplayTrees(assetNodes []model.Node) []*displayTree {
-	var rootNodeTrees []*displayTree
-	nodeTreeMap := make(map[string]*displayTree)
-	for i := range assetNodes {
-		currentTree := displayTree{Key: assetNodes[i].Key, node: assetNodes[i]}
-		separator := strings.LastIndex(assetNodes[i].Key, ":")
-		if separator < 0 {
-			rootNodeTrees = append(rootNodeTrees, &currentTree)
-			nodeTreeMap[assetNodes[i].Key] = &currentTree
-			continue
-		}
-		nodeTreeMap[assetNodes[i].Key] = &currentTree
-		parentTree, ok := nodeTreeMap[assetNodes[i].Key[:separator]]
-		if !ok {
-			rootNodeTrees = append(rootNodeTrees, &currentTree)
-			continue
-		}
-		parentTree.AddSubNode(&currentTree)
-	}
-	return rootNodeTrees
-}
-
-type displayTree struct {
-	Key      string
-	node     model.Node
-	subTrees []*displayTree
-}
-
-func (t *displayTree) AddSubNode(sub *displayTree) { t.subTrees = append(t.subTrees, sub) }
-
-type nodeTrees []*displayTree
-
-func (l nodeTrees) Len() int           { return len(l) }
-func (l nodeTrees) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
-func (l nodeTrees) Less(i, j int) bool { return l[i].node.Name < l[j].node.Name }

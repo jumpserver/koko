@@ -75,7 +75,7 @@ func NewServer(conn UserConnection, jmsService *service.JMService, opts ...Conne
 	}
 	terminalConf, err := jmsService.GetTerminalConfig()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrAPIFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrAPIFailed, err)
 	}
 	assetName := asset.String()
 	if connOpts.k8sContainer != nil {
@@ -166,6 +166,10 @@ type Server struct {
 	OnDatabaseConnection func(info DatabaseConnectionInfo)
 	// SessionEndReason is available after Proxy returns.
 	SessionEndReason model.SessionLifecycleReasonErr
+	// ConnectionError retains the cause when setup fails before a session starts.
+	ConnectionError error
+	// ConnectionErrorShown reports that Proxy already wrote the cause to the terminal.
+	ConnectionErrorShown bool
 
 	BroadcastEvent func(event *exchange.RoomMessage)
 }
@@ -1214,6 +1218,7 @@ func (s *Server) Proxy() {
 	s.SessionEndReason = model.ReasonErrConnectFailed
 	defer s.connOpts.authInfo.ClearSSHCertificateCredential()
 	if err := s.checkRequiredAuth(); err != nil {
+		s.ConnectionError = err
 		logger.Errorf("Conn[%s]: check basic auth failed: %s", s.UserConn.ID(), err)
 		return
 	}
@@ -1238,9 +1243,11 @@ func (s *Server) Proxy() {
 		MaxSessionTime: maxSessionTime,
 	}
 	if err := s.CreateSessionCallback(); err != nil {
-		msg := lang.T("Connect with api server failed")
+		s.ConnectionError = err
+		msg := fmt.Sprintf("%s: %s", lang.T("Connect with api server failed"), err)
 		msg = utils.WrapperWarn(msg)
 		utils.IgnoreErrWriteString(s.UserConn, msg)
+		s.ConnectionErrorShown = true
 		logger.Errorf("Conn[%s] submit session %s to core server err: %s %s",
 			s.UserConn.ID(), s.ID, msg, err)
 		return
@@ -1300,9 +1307,11 @@ func (s *Server) Proxy() {
 			dHTTP := s.createAvailableHTTPGateWay()
 			err := dHTTP.Start()
 			if err != nil {
+				s.ConnectionError = err
 				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				s.ConnectionErrorShown = true
 				logger.Error(msg)
 				return
 			}
@@ -1311,17 +1320,21 @@ func (s *Server) Proxy() {
 		default:
 			dGateway, err := s.createAvailableGateWay()
 			if err != nil {
+				s.ConnectionError = err
 				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				s.ConnectionErrorShown = true
 				logger.Error(msg)
 				return
 			}
 			err = dGateway.Start()
 			if err != nil {
+				s.ConnectionError = err
 				msg := lang.T("Start domain gateway failed %s")
 				msg = fmt.Sprintf(msg, err)
 				utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+				s.ConnectionErrorShown = true
 				logger.Error(msg)
 				return
 			}
@@ -1331,6 +1344,7 @@ func (s *Server) Proxy() {
 	}
 	srvCon, err := s.getServerConn(proxyAddr)
 	if err != nil {
+		s.ConnectionError = err
 		logger.Error(err)
 		s.sendConnectErrorMsg(err)
 		if err2 := s.ConnectedFailedCallback(err); err2 != nil {
@@ -1379,11 +1393,14 @@ func (s *Server) Proxy() {
 }
 
 func (s *Server) sendConnectErrorMsg(err error) {
-	msg := fmt.Sprintf("%s error: %s", s.connOpts.ConnectMsg(),
-		s.ConvertErrorToReadableMsg(err))
+	readable := s.ConvertErrorToReadableMsg(err)
+	if detail := err.Error(); detail != readable {
+		readable += ": " + detail
+	}
+	msg := fmt.Sprintf("%s: %s", s.connOpts.getLang().T("Connection failed"), readable)
 
-	utils.IgnoreErrWriteString(s.UserConn, msg)
-	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
+	utils.IgnoreErrWriteString(s.UserConn, utils.WrapperWarn(msg))
+	s.ConnectionErrorShown = true
 	logger.Error(msg)
 
 	protocol := s.connOpts.authInfo.Protocol

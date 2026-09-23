@@ -20,51 +20,71 @@ type MenuItem struct {
 
 type Menu []MenuItem
 
-type ColorMeta struct {
-	GreenBoldColor string
-	ColorEnd       string
-}
-
 func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, termConf *model.TerminalConfig) {
 	lang := i18n.NewLang(h.i18nLang)
-	defaultTitle := utils.WrapperTitle(lang.T("Welcome to use JumpServer open source fortress system"))
+	defaultTitle := lang.T("Welcome to use JumpServer open source fortress system")
 	menu := Menu{
-		{instruct: lang.T("/ + IP, Hostname, Comment"), helpText: lang.T("to search, such as: /192.168")},
-		{instruct: "p", helpText: lang.T("display the assets you have permission")},
-		{instruct: "g", helpText: lang.T("authorization tree")},
-		{instruct: "c", helpText: lang.T("type tree")},
-		{instruct: "f", helpText: lang.T("favorite tree")},
-		{instruct: "s", helpText: lang.T("language switch")},
-		{instruct: "t", helpText: h.tr("切换到 TUI 模式", "switch to TUI mode")},
-		{instruct: "?", helpText: lang.T("print help")},
-		{instruct: "q", helpText: lang.T("exit")},
+		{instruct: lang.T("/ + IP, Hostname, Comment"), helpText: lang.T("Enter {key} to search, such as: /192.168")},
+		{instruct: "p", helpText: lang.T("Enter {key} to view all assets")},
+		{instruct: "g", helpText: lang.T("Enter {key} to view the authorization tree")},
+		{instruct: "c", helpText: lang.T("Enter {key} to view the type tree")},
+		{instruct: "f", helpText: lang.T("Enter {key} to view the favorites tree")},
+		{instruct: "s", helpText: lang.T("Enter {key} to change the interface language")},
+		{instruct: "t", helpText: lang.T("Enter {key} to switch to TUI mode")},
+		{instruct: "?", helpText: lang.T("Enter {key} to view help")},
+		{instruct: "q", helpText: lang.T("Enter {key} to end this session")},
 	}
 
 	title := defaultTitle
 	if termConf.HeaderTitle != "" {
 		title = termConf.HeaderTitle
 	}
+	width, _ := h.GetPtySize()
+	if width < 60 {
+		utils.IgnoreErrWriteString(sess, utils.CharClear)
+		for _, line := range classicHintLines(user+",", width) {
+			utils.IgnoreErrWriteString(sess, utils.WrapperTitle(line)+utils.CharNewLine)
+		}
+		for _, line := range classicHintLines(title, width) {
+			if termConf.HeaderTitle == "" {
+				line = utils.WrapperTitle(line)
+			}
+			utils.IgnoreErrWriteString(sess, line+utils.CharNewLine)
+		}
+		utils.IgnoreErrWriteString(sess, utils.CharNewLine)
+		for i, item := range menu {
+			prefix := fmt.Sprintf(" %d) ", i+1)
+			message := strings.ReplaceAll(item.helpText, "{key}", item.instruct)
+			for _, line := range classicIndentedLines(prefix, message, width) {
+				if i == 0 {
+					line = strings.ReplaceAll(line, "/", utils.WrapperTitle("/"))
+				} else {
+					line = strings.Replace(line, " "+item.instruct, " "+utils.WrapperTitle(item.instruct), 1)
+				}
+				utils.IgnoreErrWriteString(sess, line+utils.CharNewLine)
+			}
+		}
+		return
+	}
 
 	prefix := utils.CharClear + utils.CharTab + utils.CharTab
 	suffix := utils.CharNewLine + utils.CharNewLine
-	welcomeMsg := prefix + utils.WrapperTitle(user+",") + "  " + title + suffix
+	styledTitle := title
+	if termConf.HeaderTitle == "" {
+		styledTitle = utils.WrapperTitle(title)
+	}
+	welcomeMsg := prefix + utils.WrapperTitle(user+",") + "  " + styledTitle + suffix
 	if _, err := io.WriteString(sess, welcomeMsg); err != nil {
 		logger.Errorf("Send to client error, %s", err)
 		return
 	}
-	cm := ColorMeta{GreenBoldColor: "\033[1;32m", ColorEnd: "\033[0m"}
-	lineFormat := alignClassicMenuIndex(lang.T("\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"))
 	for i, item := range menu {
-		line := fmt.Sprintf(lineFormat, i+1, item.instruct, item.helpText, "\r\n")
-		tmpl := template.Must(template.New("item").Parse(line))
-		if err := tmpl.Execute(sess, cm); err != nil {
+		key := utils.WrapperTitle(item.instruct)
+		line := strings.ReplaceAll(item.helpText, "{key}", key)
+		if _, err := fmt.Fprintf(sess, "\t%2d) %s\r\n", i+1, line); err != nil {
 			logger.Error(err)
 		}
 	}
-}
-
-func alignClassicMenuIndex(format string) string {
-	return strings.Replace(format, "%d)", "%2d)", 1)
 }
 
 func (h *InteractiveHandler) displayAnnouncement(sess io.ReadWriter, setting *model.PublicSetting) {
@@ -80,6 +100,17 @@ func (h *InteractiveHandler) displayAnnouncement(sess io.ReadWriter, setting *mo
 		return
 	}
 	lang := i18n.NewLang(h.i18nLang)
+	width, _ := h.GetPtySize()
+	if width < 60 {
+		message := lang.T("Announcement: ") + setting.Announcement.Subject + "\n" + setting.Announcement.Content
+		for _, section := range strings.Split(PrettyContent(message), utils.CharNewLine) {
+			for _, line := range classicHintLines(section, width) {
+				utils.IgnoreErrWriteString(sess, utils.WrapperTitle(line)+utils.CharNewLine)
+			}
+		}
+		utils.IgnoreErrWriteString(sess, utils.CharNewLine)
+		return
+	}
 	announcement := Announcement{
 		GreenBoldColor: "\033[1;32m",
 		ColorEnd:       "\033[0m",

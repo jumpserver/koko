@@ -7,14 +7,29 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
+msgid "End session"
+msgstr "End session"
+
+msgid "Koko session ended."
+msgstr "Koko session ended."
+
+msgid "Previous page"
+msgstr "Previous page"
+
+msgid "Next page"
+msgstr "Next page"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+
+msgid "Connection failed"
+msgstr "Connection failed"
+
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 
 msgid "%s approved"
 msgstr "%s approved"
-
-msgid "%s node has no assets"
-msgstr "%s node has no assets"
 
 msgid "%s protocol client not installed."
 msgstr "The %s protocol client is not installed"
@@ -104,7 +119,7 @@ msgid "Connect with api server failed"
 msgstr "Failed to connect to API service"
 
 msgid "Connecting to %s@%s"
-msgstr "Starting connection to %s@%s"
+msgstr "Connecting to %s@%s…"
 
 msgid "Connecting to Database %s"
 msgstr "Starting connection to database %s"
@@ -637,9 +652,6 @@ msgstr "Work order reviewer: %s "
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "Hint: Enter the account ID for asset [%s]"
 
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "Hint: Enter g+node ID to list hosts under the node, e.g., g1"
-
 msgid "Tips: Enter protocol ID"
 msgstr "Hint: Enter protocol ID"
 
@@ -743,7 +755,7 @@ msgid "exit"
 msgstr "Logout"
 
 msgid "get connect token err"
-msgstr "Error obtaining connect token"
+msgstr "Failed to obtain connection token"
 
 msgid "have no permission to download file"
 msgstr "No permission to download files"
@@ -755,7 +767,7 @@ msgid "i/o timeout"
 msgstr "Network not accessible (connection timeout)"
 
 msgid "language switch"
-msgstr "Switch Language"
+msgstr "Switch language"
 
 msgid "network is unreachable"
 msgstr "Network not accessible (network unreachable)"
@@ -781,8 +793,8 @@ msgstr "Select one asset to log in"
 msgid "to search login if unique"
 msgstr "Search and log in (if unique)"
 
-msgid "to search, such as: /192.168"
-msgstr "Search, e.g., /192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "Enter {key} to search, e.g., /192.168"
 
 #. lang.T
 #: pkg/proxy/tools.go:28

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/jumpserver-dev/sdk-go/model"
@@ -13,6 +12,8 @@ func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationPar
 	res, err := u.h.jmsService.GetUserNodeAssets(u.user.ID, u.selectedNode.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user %s node assets failed %s", u.user.Name, err)
+		u.loadErr = err
+		return nil
 	}
 	assets := u.updateRemotePageData(reqParam, res)
 	return u.prepareAssetPage(assets, u.assetListPath())
@@ -21,7 +22,7 @@ func (u *UserSelectHandler) retrieveRemoteNodeAsset(reqParam model.PaginationPar
 func (u *UserSelectHandler) displayNodeAssetResult(searchHeader string) {
 	lang := i18n.NewLang(u.h.i18nLang)
 	if len(u.currentResult) == 0 {
-		u.displayNoResultMsg(searchHeader, fmt.Sprintf(lang.T("%s node has no assets"), u.selectedNode.Name))
+		u.displayNoResultMsg(searchHeader, lang.T("No assets in this node"))
 		return
 	}
 	u.displayAssets(searchHeader)

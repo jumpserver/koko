@@ -7,14 +7,164 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
+msgid "End session"
+msgstr "Finalizar sesión"
+
+msgid "Koko session ended."
+msgstr "Sesión de Koko finalizada."
+
+msgid "Connection failed"
+msgstr "Error de conexión"
+
+msgid "⊘ Cannot connect"
+msgstr "⊘ Sin conexión"
+
+msgid "No assets in this node"
+msgstr "Este nodo no tiene activos"
+
+msgid "[number] Select"
+msgstr "[número] Seleccionar activo"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "No hay un protocolo de conexión autorizado disponible para el activo %s. Revise los protocolos del activo y las reglas de autorización."
+
+msgid "Asset %s has no available login account."
+msgstr "El activo %s no tiene una cuenta de acceso disponible."
+
+msgid "Cannot connect to this asset."
+msgstr "No se puede conectar a este activo."
+
+msgid "Cannot connect: asset disabled."
+msgstr "No se puede conectar: activo deshabilitado."
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "No se puede conectar: protocolo no compatible (%s)."
+
+msgid "Cannot connect: no supported protocol."
+msgstr "No se puede conectar: no hay protocolos compatibles."
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "Árbol de autorizaciones no disponible. Escribe r para reintentar."
+
+msgid "Assets unavailable. Return and retry."
+msgstr "No se pudieron cargar los activos. Vuelve e inténtalo de nuevo."
+
+msgid "Invalid number"
+msgstr "Número no válido"
+
+msgid "No nodes"
+msgstr "No hay nodos"
+
+msgid "Switch to TUI mode"
+msgstr "Cambiar al modo TUI"
+
+msgid "View all assets"
+msgstr "Ver todos los activos"
+
+msgid "View authorization tree"
+msgstr "Ver el árbol de autorizaciones"
+
+msgid "View type tree"
+msgstr "Ver el árbol de tipos"
+
+msgid "View favorites tree"
+msgstr "Ver el árbol de favoritos"
+
+msgid "Back to assets"
+msgstr "Volver a activos"
+
+msgid "Back to protocols"
+msgstr "Volver a protocolos"
+
+msgid "Back to help"
+msgstr "Volver a ayuda"
+
+msgid "Back to authorization tree"
+msgstr "Volver al árbol de autorizaciones"
+
+msgid "Back to type tree"
+msgstr "Volver al árbol de tipos"
+
+msgid "Back to favorites tree"
+msgstr "Volver al árbol de favoritos"
+
+msgid "Invalid input."
+msgstr "Entrada no válida."
+
+msgid "Choose a number on this page."
+msgstr "Elige un número de esta página."
+
+msgid "Select 1-%d"
+msgstr "Elige 1-%d"
+
+msgid "[number] View assets"
+msgstr "[número] Ver activos"
+
+msgid "Enter a search term"
+msgstr "Introduce un término de búsqueda."
+
+msgid "Failed to load type tree. Try again."
+msgstr "No se pudo cargar el árbol de tipos. Inténtalo de nuevo."
+
+msgid "Enter {key} to view all assets"
+msgstr "Escribe {key} para ver todos los activos"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "Escribe {key} para ver el árbol de autorizaciones"
+
+msgid "Enter {key} to view the type tree"
+msgstr "Escribe {key} para ver el árbol de tipos"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "Escribe {key} para ver el árbol de favoritos"
+
+msgid "Enter {key} to change the interface language"
+msgstr "Escribe {key} para cambiar el idioma de la interfaz"
+
+msgid "Enter {key} to switch to TUI mode"
+msgstr "Escribe {key} para cambiar al modo TUI"
+
+msgid "Enter {key} to view help"
+msgstr "Escribe {key} para ver la ayuda"
+
+msgid "Enter {key} to end this session"
+msgstr "Escribe {key} para cerrar esta sesión"
+
+msgid "[number] Select an asset"
+msgstr "[número] Seleccionar un activo"
+
+msgid "[number] View assets in this node"
+msgstr "[número] Ver los activos de este nodo"
+
+msgid "Refresh authorization tree"
+msgstr "Actualizar el árbol de autorizaciones"
+
+msgid "Enter 1-%d to change language"
+msgstr "Introduce 1-%d para cambiar el idioma"
+
+msgid "Enter 1-%d to choose an account"
+msgstr "Introduce 1-%d para elegir una cuenta"
+
+msgid "Enter 1-%d to choose a protocol"
+msgstr "Introduce 1-%d para elegir un protocolo"
+
+msgid "Previous page"
+msgstr "Página anterior"
+
+msgid "Next page"
+msgstr "Página siguiente"
+
+msgid "View help"
+msgstr "Ver ayuda"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "No se pudo cargar el árbol de favoritos. Inténtalo de nuevo."
+
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "%d) Introduzca {{.GreenBoldColor}}%s{{.ColorEnd}} para %s%s"
 
 msgid "%s approved"
 msgstr "%s Aprobado en la revisión."
-
-msgid "%s node has no assets"
-msgstr "El nodo %s no tiene activos"
 
 msgid "%s protocol client not installed."
 msgstr "El cliente del protocolo %s no está instalado"
@@ -101,7 +251,7 @@ msgid "Connect with api server failed"
 msgstr "Fallo en la conexión con el servicio API"
 
 msgid "Connecting to %s@%s"
-msgstr "Comenzando a conectar a %s@%s"
+msgstr "Conectando a %s@%s…"
 
 msgid "Connecting to Database %s"
 msgstr "Comenzando a conectar a la base de datos %s"
@@ -625,9 +775,6 @@ msgstr "Revisor del ticket: %s"
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "Sugerencia: Introduzca la ID de cuenta de los activos [%s]"
 
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "Sugerencia: ingrese g+ID del nodo para mostrar los hosts bajo el nodo, por ejemplo: g1"
-
 msgid "Tips: Enter protocol ID"
 msgstr "Sugerencia: Introduzca el ID del protocolo"
 
@@ -769,8 +916,8 @@ msgstr "Selecciona uno de los activos para iniciar sesión"
 msgid "to search login if unique"
 msgstr "Buscar inicio de sesión (si es único)"
 
-msgid "to search, such as: /192.168"
-msgstr "Buscar, por ejemplo: /192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "Escribe {key} para buscar, por ejemplo: /192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33

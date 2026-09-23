@@ -7,14 +7,164 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
+msgid "End session"
+msgstr "結束會話"
+
+msgid "Koko session ended."
+msgstr "Koko 會話已結束。"
+
+msgid "Connection failed"
+msgstr "連線失敗"
+
+msgid "⊘ Cannot connect"
+msgstr "⊘ 無法連線"
+
+msgid "No assets in this node"
+msgstr "此節點暫無資產"
+
+msgid "[number] Select"
+msgstr "[序號] 選擇資產"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "目前使用者沒有資產 %s 可用的授權連線協定，請檢查資產協定與授權規則。"
+
+msgid "Asset %s has no available login account."
+msgstr "資產 %s 沒有可用的登入帳號。"
+
+msgid "Cannot connect to this asset."
+msgstr "無法連線至此資產。"
+
+msgid "Cannot connect: asset disabled."
+msgstr "資產已停用，無法連線。"
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "協定（%s）不受支援，無法連線。"
+
+msgid "Cannot connect: no supported protocol."
+msgstr "沒有支援的協定，無法連線。"
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "授權樹載入失敗，輸入 r 重試。"
+
+msgid "Assets unavailable. Return and retry."
+msgstr "資產載入失敗。返回後重試。"
+
+msgid "Invalid number"
+msgstr "序號無效"
+
+msgid "No nodes"
+msgstr "暫無節點"
+
+msgid "Switch to TUI mode"
+msgstr "切換為 TUI 模式"
+
+msgid "View all assets"
+msgstr "查看全部資產"
+
+msgid "View authorization tree"
+msgstr "查看授權樹"
+
+msgid "View type tree"
+msgstr "查看類型樹"
+
+msgid "View favorites tree"
+msgstr "查看收藏樹"
+
+msgid "Back to assets"
+msgstr "返回資產列表"
+
+msgid "Back to protocols"
+msgstr "返回協定列表"
+
+msgid "Back to help"
+msgstr "返回說明頁"
+
+msgid "Back to authorization tree"
+msgstr "返回授權樹"
+
+msgid "Back to type tree"
+msgstr "返回類型樹"
+
+msgid "Back to favorites tree"
+msgstr "返回收藏樹"
+
+msgid "Invalid input."
+msgstr "輸入無效。"
+
+msgid "Choose a number on this page."
+msgstr "請選擇目前頁面顯示的序號。"
+
+msgid "Select 1-%d"
+msgstr "輸入 1-%d 選擇"
+
+msgid "[number] View assets"
+msgstr "[序號] 查看資產"
+
+msgid "Enter a search term"
+msgstr "請輸入搜尋詞。"
+
+msgid "Failed to load type tree. Try again."
+msgstr "類型樹載入失敗，請重試。"
+
+msgid "Enter {key} to view all assets"
+msgstr "輸入 {key} 查看全部資產"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "輸入 {key} 查看授權樹"
+
+msgid "Enter {key} to view the type tree"
+msgstr "輸入 {key} 查看類型樹"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "輸入 {key} 查看收藏樹"
+
+msgid "Enter {key} to change the interface language"
+msgstr "輸入 {key} 切換介面語言"
+
+msgid "Enter {key} to switch to TUI mode"
+msgstr "輸入 {key} 切換為 TUI 模式"
+
+msgid "Enter {key} to view help"
+msgstr "輸入 {key} 查看說明"
+
+msgid "Enter {key} to end this session"
+msgstr "輸入 {key} 結束目前連線"
+
+msgid "[number] Select an asset"
+msgstr "[序號] 選擇要連線的資產"
+
+msgid "[number] View assets in this node"
+msgstr "[序號] 查看該節點資產"
+
+msgid "Refresh authorization tree"
+msgstr "重新整理授權樹"
+
+msgid "Enter 1-%d to change language"
+msgstr "輸入 1-%d 切換介面語言"
+
+msgid "Enter 1-%d to choose an account"
+msgstr "輸入 1-%d 選擇登入帳號"
+
+msgid "Enter 1-%d to choose a protocol"
+msgstr "輸入 1-%d 選擇連線協定"
+
+msgid "Previous page"
+msgstr "上一頁"
+
+msgid "Next page"
+msgstr "下一頁"
+
+msgid "View help"
+msgstr "查看說明"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "收藏樹載入失敗，請重試。"
+
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "%d) 輸入 {{.GreenBoldColor}}%s{{.ColorEnd}} %s%s"
 
 msgid "%s approved"
 msgstr "%s 審核通過"
-
-msgid "%s node has no assets"
-msgstr "%s節點沒有資產"
 
 msgid "%s protocol client not installed."
 msgstr "%s 協議的客戶端未安裝"
@@ -101,7 +251,7 @@ msgid "Connect with api server failed"
 msgstr "連接API服務失敗"
 
 msgid "Connecting to %s@%s"
-msgstr "開始連接到 %s@%s"
+msgstr "正在連線至 %s@%s…"
 
 msgid "Connecting to Database %s"
 msgstr "開始連接數據庫 %s"
@@ -625,9 +775,6 @@ msgstr "工單審核人：%s"
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "提示：輸入資產[%s]的帳號ID"
 
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "提示：輸入 g+節點ID 顯示節點下主機，如： g1"
-
 msgid "Tips: Enter protocol ID"
 msgstr "提示：輸入協議ID"
 
@@ -731,7 +878,7 @@ msgid "exit"
 msgstr "退出"
 
 msgid "get connect token err"
-msgstr "獲取連接令牌錯誤"
+msgstr "取得連線權杖失敗"
 
 msgid "have no permission to download file"
 msgstr "無權限下載文件"
@@ -769,8 +916,8 @@ msgstr "選擇其中一個資產登錄"
 msgid "to search login if unique"
 msgstr "搜索登錄（如果唯一）"
 
-msgid "to search, such as: /192.168"
-msgstr "搜尋，如：/192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "輸入 {key} 搜尋，如：/192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33

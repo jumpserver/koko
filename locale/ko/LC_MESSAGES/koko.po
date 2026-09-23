@@ -7,14 +7,164 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
+msgid "End session"
+msgstr "세션 종료"
+
+msgid "Koko session ended."
+msgstr "Koko 세션이 종료되었습니다."
+
+msgid "Connection failed"
+msgstr "연결에 실패했습니다"
+
+msgid "⊘ Cannot connect"
+msgstr "⊘ 연결 불가"
+
+msgid "No assets in this node"
+msgstr "이 노드에 자산이 없습니다"
+
+msgid "[number] Select"
+msgstr "[번호] 자산 선택"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "자산 %s에 사용 가능한 허가된 연결 프로토콜이 없습니다. 자산 프로토콜과 권한 규칙을 확인하세요."
+
+msgid "Asset %s has no available login account."
+msgstr "자산 %s에 사용할 수 있는 로그인 계정이 없습니다."
+
+msgid "Cannot connect to this asset."
+msgstr "이 자산에 연결할 수 없습니다."
+
+msgid "Cannot connect: asset disabled."
+msgstr "자산이 비활성화되어 연결할 수 없습니다."
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "지원하지 않는 프로토콜(%s)로 연결할 수 없습니다."
+
+msgid "Cannot connect: no supported protocol."
+msgstr "지원되는 프로토콜이 없어 연결할 수 없습니다."
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "권한 트리를 불러오지 못했습니다. r을 입력해 다시 시도하세요."
+
+msgid "Assets unavailable. Return and retry."
+msgstr "자산을 불러오지 못했습니다. 돌아가서 다시 시도하세요."
+
+msgid "Invalid number"
+msgstr "잘못된 번호"
+
+msgid "No nodes"
+msgstr "노드 없음"
+
+msgid "Switch to TUI mode"
+msgstr "TUI 모드로 전환"
+
+msgid "View all assets"
+msgstr "모든 자산 보기"
+
+msgid "View authorization tree"
+msgstr "권한 트리 보기"
+
+msgid "View type tree"
+msgstr "유형 트리 보기"
+
+msgid "View favorites tree"
+msgstr "즐겨찾기 트리 보기"
+
+msgid "Back to assets"
+msgstr "자산 목록으로 돌아가기"
+
+msgid "Back to protocols"
+msgstr "프로토콜 목록으로 돌아가기"
+
+msgid "Back to help"
+msgstr "도움말로 돌아가기"
+
+msgid "Back to authorization tree"
+msgstr "권한 트리로 돌아가기"
+
+msgid "Back to type tree"
+msgstr "유형 트리로 돌아가기"
+
+msgid "Back to favorites tree"
+msgstr "즐겨찾기 트리로 돌아가기"
+
+msgid "Invalid input."
+msgstr "잘못된 입력입니다."
+
+msgid "Choose a number on this page."
+msgstr "현재 페이지에 표시된 번호를 선택하세요."
+
+msgid "Select 1-%d"
+msgstr "1-%d 입력해 선택"
+
+msgid "[number] View assets"
+msgstr "[번호] 자산 보기"
+
+msgid "Enter a search term"
+msgstr "검색어를 입력하세요."
+
+msgid "Failed to load type tree. Try again."
+msgstr "유형 트리를 불러오지 못했습니다. 다시 시도하세요."
+
+msgid "Enter {key} to view all assets"
+msgstr "{key}를 입력해 모든 자산 보기"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "{key}를 입력해 권한 트리 보기"
+
+msgid "Enter {key} to view the type tree"
+msgstr "{key}를 입력해 유형 트리 보기"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "{key}를 입력해 즐겨찾기 트리 보기"
+
+msgid "Enter {key} to change the interface language"
+msgstr "{key}를 입력해 화면 언어 변경"
+
+msgid "Enter {key} to switch to TUI mode"
+msgstr "{key}를 입력해 TUI 모드로 전환"
+
+msgid "Enter {key} to view help"
+msgstr "{key}를 입력해 도움말 보기"
+
+msgid "Enter {key} to end this session"
+msgstr "{key}를 입력해 현재 세션 종료"
+
+msgid "[number] Select an asset"
+msgstr "[번호] 연결할 자산 선택"
+
+msgid "[number] View assets in this node"
+msgstr "[번호] 이 노드의 자산 보기"
+
+msgid "Refresh authorization tree"
+msgstr "권한 트리 새로 고침"
+
+msgid "Enter 1-%d to change language"
+msgstr "1-%d를 입력해 화면 언어 변경"
+
+msgid "Enter 1-%d to choose an account"
+msgstr "1-%d를 입력해 로그인 계정 선택"
+
+msgid "Enter 1-%d to choose a protocol"
+msgstr "1-%d를 입력해 연결 프로토콜 선택"
+
+msgid "Previous page"
+msgstr "이전 페이지"
+
+msgid "Next page"
+msgstr "다음 페이지"
+
+msgid "View help"
+msgstr "도움말 보기"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "즐겨찾기 트리를 불러오지 못했습니다. 다시 시도하세요."
+
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "%d) {{.GreenBoldColor}}%s{{.ColorEnd}}를 입력하여 %s 진행%s"
 
 msgid "%s approved"
 msgstr "%s 검토 통과"
-
-msgid "%s node has no assets"
-msgstr "%s 노드에는 자산이 없습니다"
 
 msgid "%s protocol client not installed."
 msgstr "%s 프로토콜의 클라이언트가 설치되어 있지 않음"
@@ -101,7 +251,7 @@ msgid "Connect with api server failed"
 msgstr "API 서비스 연결 실패"
 
 msgid "Connecting to %s@%s"
-msgstr "%s@%s에 연결을 시작합니다"
+msgstr "%s@%s에 연결 중…"
 
 msgid "Connecting to Database %s"
 msgstr "데이터베이스 %s에 연결 중"
@@ -625,9 +775,6 @@ msgstr "작업 검토자: %s"
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "안내: 자산 [%s]의 계정 ID를 입력하세요"
 
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "안내: 노드 아래의 호스트를 표시하려면 g+노드 ID를 입력하세요(예: g1)"
-
 msgid "Tips: Enter protocol ID"
 msgstr "안내: 프로토콜 ID를 입력하세요"
 
@@ -769,8 +916,8 @@ msgstr "하나의 자산을 선택하여 로그인합니다"
 msgid "to search login if unique"
 msgstr "로그인 검색(유일한 경우)"
 
-msgid "to search, such as: /192.168"
-msgstr "검색, 예: /192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "{key}를 입력해 검색하세요. 예: /192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33

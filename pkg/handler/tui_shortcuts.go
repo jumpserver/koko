@@ -142,6 +142,7 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 				add("literal-prefix", "Ctrl+]", h.tr("发送原始 Ctrl+]", "Send literal Ctrl+]"), tcell.KeyCtrlRightSq, "", func() { h.popup.SendInput([]byte{29}) }, false)
 				add("copy-selection", "c", h.tr("复制选中文本", "Copy selected text"), 0, "c", func() { h.popup.CopySelection() }, true)
 			}
+			add("text-mode", "m", h.tr("切换到纯文本模式", "Switch to text mode"), 0, "m", h.switchToTextMode, false)
 			add("help", "h", h.tr("帮助", "Help"), 0, "h", h.showKeyboardHelp, true)
 			add("quit", "Ctrl+C", h.tr("退出", "Quit"), tcell.KeyCtrlC, "", h.quit, false)
 			add("back", "Esc", h.tr("返回", "Back"), tcell.KeyEscape, "", func() {}, true)
@@ -154,6 +155,7 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 		if h.popup != nil && h.popup.HasFocus() {
 			// These are two-key chords. Bare letters and all function keys go
 			// unchanged to SSH; the prefix enables the matching actions above.
+			add("text-mode", "Ctrl+] m", h.tr("切换到纯文本模式", "Switch to text mode"), 0, "", nil, false)
 			add("asset-index", "Ctrl+] 0", h.tr("资产面板", "Asset panel"), 0, "", nil, false)
 			add("fullscreen", "Ctrl+] f", fullscreenLabel, 0, "", nil, true)
 			if h.sessions[h.activeSession].duplicate != nil && len(h.sessions) < maxTUISessions {
@@ -163,6 +165,7 @@ func (h *terminalUI) shortcuts() []tuiShortcut {
 			add("copy-selection", "Ctrl+] c", h.tr("复制选中文本", "Copy selected text"), 0, "", nil, false)
 			return bindings
 		}
+		add("text-mode", "Ctrl+T", h.tr("切换到纯文本模式", "Switch to text mode"), tcell.KeyCtrlT, "", h.switchToTextMode, false)
 	}
 
 	if dropdown := h.focusedDropdown(); dropdown != nil && dropdown.GetOptionCount() > 0 && (dropdown.IsOpen() || h.modal) && !(dropdown.IsOpen() && h.accountSearchFor(dropdown) != nil) {
