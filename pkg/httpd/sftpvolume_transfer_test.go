@@ -612,6 +612,49 @@ func TestTransferRejectsOutOfOrderWrite(t *testing.T) {
 	close(firstRelease)
 }
 
+// countingReaderAt only supports random access, so any sequential io.Copy or
+// io.ReadFull fallback fails to compile-time satisfy the caller and any
+// per-chunk read shows up in reads.
+type countingReaderAt struct {
+	data  []byte
+	reads int
+}
+
+func (r *countingReaderAt) ReadAt(p []byte, off int64) (int, error) {
+	r.reads++
+	if off >= int64(len(r.data)) {
+		return 0, io.EOF
+	}
+	n := copy(p, r.data[off:])
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+func TestHashReaderAtReadsInBlocks(t *testing.T) {
+	data := bytes.Repeat([]byte("jumpserver"), 64*1024) // 640KB
+	reader := &countingReaderAt{data: data}
+	sum, err := hashReaderAt(reader, int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum != sha256Hex(data) {
+		t.Fatalf("sum = %s", sum)
+	}
+	// One 2MB block covers 640KB; a 32KB/64KB sequential loop would need 10+.
+	if reader.reads != 1 {
+		t.Fatalf("ReadAt calls = %d, want 1", reader.reads)
+	}
+}
+
+func TestHashReaderAtRejectsShortFile(t *testing.T) {
+	reader := &countingReaderAt{data: []byte("short")}
+	if _, err := hashReaderAt(reader, 64); err == nil {
+		t.Fatal("truncated file hashed without error")
+	}
+}
+
 type commitFS struct {
 	missingStatFS
 	opened    bool
