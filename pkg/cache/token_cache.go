@@ -51,12 +51,12 @@ func (c *ConnectTokenCache) Save(key string, token *model.ConnectToken) {
 	defer c.lock.Unlock()
 	if item, ok := c.data[key]; ok {
 		item.refInc()
-		logger.Infof("Cache key %s ref: %d", key, item.Ref)
+		logger.Infof("Cached connection ref: %d", item.Ref)
 		return
 	}
 	item := NewConnectTokenItem(token)
 	c.data[key] = item
-	logger.Infof("New cache key %s ref: %d", key, item.Ref)
+	logger.Infof("New cached connection ref: %d", item.Ref)
 }
 
 func (c *ConnectTokenCache) Recycle(key string) {
@@ -64,9 +64,9 @@ func (c *ConnectTokenCache) Recycle(key string) {
 	defer c.lock.Unlock()
 	if item, ok := c.data[key]; ok {
 		item.refDec()
-		logger.Infof("Recycle cache key %s ref: %d", key, item.Ref)
+		logger.Infof("Recycle cached connection ref: %d", item.Ref)
 	} else {
-		logger.Warnf("Recycle cache key %s not found", key)
+		logger.Warn("Connection to recycle not found in cache")
 	}
 }
 
@@ -88,7 +88,7 @@ func (c *ConnectTokenCache) GC() {
 	}
 	for _, k := range readyDelete {
 		delete(c.data, k)
-		logger.Infof("ConnectToken %s is expired, recycled", k)
+		logger.Info("Expired connection token recycled")
 	}
 	c.lock.Unlock()
 }
