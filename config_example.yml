@@ -20,6 +20,9 @@ BOOTSTRAP_TOKEN: <PleasgeChangeSameWithJumpserver>
 # 设置日志级别 [DEBUG, INFO, WARN, ERROR, FATAL, CRITICAL]
 # LOG_LEVEL: INFO
 
+# 是否启用 pprof 调试路由，默认关闭；修改后需重启
+# DEBUG: false
+
 # SSH连接超时时间 (default 15 seconds)
 # SSH_TIMEOUT: 15
 

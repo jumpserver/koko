@@ -29,6 +29,7 @@ type Config struct {
 	HttpRequestTimeout int    `mapstructure:"HTTP_REQUEST_TIMEOUT"`
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
+	Debug    bool   `mapstructure:"DEBUG"`
 
 	Comment             string `mapstructure:"COMMENT"`
 	LanguageCode        string `mapstructure:"LANGUAGE_CODE"`
@@ -139,6 +140,7 @@ func getDefaultConfig() Config {
 		HTTPPort:           "5000",
 		AccessKeyFilePath:  accessKeyFilePath,
 		LogLevel:           "INFO",
+		Debug:              false,
 		RootPath:           rootPath,
 		DataFolderPath:     dataFolderPath,
 		LogDirPath:         LogDirPath,

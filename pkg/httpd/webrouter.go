@@ -149,9 +149,9 @@ func createRouter(jmsService *service.JMService, webSrv *Server) *gin.Engine {
 		})
 	}
 
-	debugGroup := eng.Group("/debug/pprof")
-	debugGroup.Use(auth.HTTPMiddleDebugAuth())
-	{
+	if config.GlobalConfig.Debug {
+		debugGroup := eng.Group("/debug/pprof")
+		debugGroup.Use(auth.HTTPMiddleDebugAuth())
 		debugGroup.GET("/", gin.WrapF(pprof.Index))
 		debugGroup.GET("/cmdline", gin.WrapF(pprof.Cmdline))
 		debugGroup.GET("/profile", gin.WrapF(pprof.Profile))
