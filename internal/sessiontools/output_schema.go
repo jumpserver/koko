@@ -24,32 +24,6 @@ func commandOutputSchema() map[string]any {
 	)
 }
 
-func terminalContextOutputSchema() map[string]any {
-	return objectOutputSchema(map[string]any{
-		"resource_session_id": map[string]any{"type": "string"},
-		"terminal_id":         map[string]any{"type": "integer"},
-		"context": objectOutputSchema(map[string]any{
-			"session_kind":      map[string]any{"type": "string"},
-			"interaction_mode":  map[string]any{"type": "string"},
-			"command_language":  map[string]any{"type": "string"},
-			"dialect":           map[string]any{"type": "string"},
-			"protocol":          map[string]any{"type": "string"},
-			"connection_method": map[string]any{"type": "string"},
-			"asset_id":          map[string]any{"type": "string"},
-			"asset_name":        map[string]any{"type": "string"},
-			"asset_address":     map[string]any{"type": "string"},
-			"platform_id":       map[string]any{"type": "integer"},
-			"platform_category": map[string]any{"type": "string"},
-			"platform_type":     map[string]any{"type": "string"},
-			"platform_name":     map[string]any{"type": "string"},
-			"base_os":           map[string]any{"type": "string"},
-			"charset":           map[string]any{"type": "string"},
-			"database":          map[string]any{"type": "string"},
-			"schema":            map[string]any{"type": "string"},
-		}, "protocol"),
-	}, "resource_session_id", "terminal_id", "context")
-}
-
 func terminalSnapshotOutputSchema() map[string]any {
 	return objectOutputSchema(map[string]any{
 		"content":   map[string]any{"type": "string"},

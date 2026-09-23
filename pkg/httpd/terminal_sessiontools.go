@@ -358,27 +358,6 @@ func (c *terminalToolController) recheckPTYACL(
 	return nil
 }
 
-func (c *terminalToolController) handle(message *Message) {
-	if message.Version != sessiontools.MCPProtocolVersion {
-		sendMCPFrameError(c.ws, message, fmt.Errorf("unsupported MCP frame version"))
-		return
-	}
-	dispatcher := c.client.getMCP()
-	if dispatcher == nil || message.ResourceSessionID != c.resourceSessionID {
-		sendMCPFrameError(c.ws, message, fmt.Errorf("MCP resource is unavailable"))
-		return
-	}
-	var err error
-	if message.Type == MCPRequest {
-		err = dispatcher.HandleRequest([]byte(message.Data))
-	} else {
-		err = dispatcher.HandleCancel([]byte(message.Data))
-	}
-	if err != nil {
-		sendMCPFrameError(c.ws, message, err)
-	}
-}
-
 func (c *terminalToolController) Close() {
 	c.mu.Lock()
 	if c.closed {

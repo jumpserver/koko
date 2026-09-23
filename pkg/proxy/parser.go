@@ -76,7 +76,6 @@ type Parser struct {
 	isEditMode   bool
 
 	inVimState bool
-	once       sync.Once
 	modeLock   sync.RWMutex
 	outputLock sync.Mutex
 
@@ -790,17 +789,6 @@ func (p *Parser) scheduleZmodemPromptRedraw() {
 	}
 }
 
-func (p *Parser) supportMultiCmd() bool {
-	switch p.protocolType {
-	case model.ProtocolSSH,
-		model.ProtocolTelnet,
-		model.ProtocolK8S:
-		return true
-	default:
-		return false
-	}
-}
-
 func (p *Parser) IsNeedParse() bool {
 	p.modeLock.RLock()
 	defer p.modeLock.RUnlock()
@@ -1333,11 +1321,10 @@ func matchMark(p []byte, marks [][]byte) bool {
 */
 
 const (
-	h3c     = "h3c"
-	huawei  = "huawei"
-	cisco   = "cisco"
-	linux   = "linux"
-	windows = "windows"
+	h3c    = "h3c"
+	huawei = "huawei"
+	cisco  = "cisco"
+	linux  = "linux"
 
 	mfaAuth = "mfa"
 )
@@ -1356,10 +1343,6 @@ func isCisco(p *model.Platform) bool {
 
 func isLinux(p *model.Platform) bool {
 	return isPlatform(p, linux)
-}
-
-func isWindows(p *model.Platform) bool {
-	return isPlatform(p, windows)
 }
 
 func isPlatform(p *model.Platform, platform string) bool {
