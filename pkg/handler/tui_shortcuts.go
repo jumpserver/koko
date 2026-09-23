@@ -12,12 +12,6 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 )
 
-// Prefer the first letter of a word. Translations without that Latin letter
-// keep a compact mnemonic beside the name; SSH chords always remain explicit.
-func tuiMnemonic(label, key string) string {
-	return tuiMnemonicState(label, key, true)
-}
-
 func tuiKeyText(key string, enabled bool) string {
 	prefix := "[" + tui.Accent.String() + "::bu]"
 	if !enabled {
@@ -26,6 +20,8 @@ func tuiKeyText(key string, enabled bool) string {
 	return prefix + key + "[::U][-::-]"
 }
 
+// Prefer the first letter of a word. Translations without that Latin letter
+// keep a compact mnemonic beside the name; SSH chords always remain explicit.
 func tuiMnemonicState(label, key string, enabled bool) string {
 	if key == "" {
 		return label

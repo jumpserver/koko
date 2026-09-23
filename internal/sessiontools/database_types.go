@@ -57,30 +57,6 @@ type SQLSchemaLookupResult struct {
 	Truncated bool             `json:"truncated,omitempty"`
 }
 
-type commandProposal struct {
-	RiskLevel          int
-	RiskReason         string
-	ApprovalRequired   bool
-	BackgroundEligible bool
-}
-
-func normalizeRisk(level int, reason string) (int, string) {
-	if level < 1 || level > 4 {
-		level = 2
-	}
-	if strings.TrimSpace(reason) == "" {
-		reason = "risk classified by the connection executor"
-	}
-	return level, reason
-}
-
-func raiseRisk(level int, reason string, minimum int, cause string) (int, string) {
-	if level < minimum {
-		return minimum, cause
-	}
-	return level, reason
-}
-
 func headTailPrompt(value string, limit int) string {
 	value = strings.ToValidUTF8(value, "\uFFFD")
 	if limit <= 0 {

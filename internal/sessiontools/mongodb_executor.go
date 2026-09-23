@@ -137,32 +137,6 @@ func parseMongoDBCommand(command string) (bson.D, error) {
 	return document, nil
 }
 
-func classifyMongoDBProposal(document bson.D, proposal *commandProposal) {
-	command := strings.ToLower(document[0].Key)
-	switch command {
-	case "find", "count", "distinct", "listcollections", "listdatabases",
-		"listindexes", "collstats", "dbstats", "explain", "ping", "hello",
-		"ismaster", "buildinfo", "serverstatus", "currentop", "getmore":
-		return
-	case "drop", "dropdatabase", "shutdown", "renamecollection", "killop",
-		"compact", "repairdatabase", "fsync", "fsyncunlock",
-		"createuser", "updateuser", "dropuser", "grantrolestouser",
-		"revokerolesfromuser", "createrole", "updaterole", "droprole",
-		"grantprivilegestorole", "revokeprivilegesfromrole", "setparameter",
-		"replsetreconfig", "replsetstepdown":
-		proposal.RiskLevel, proposal.RiskReason = raiseRisk(
-			proposal.RiskLevel, proposal.RiskReason, 4,
-			"backend rule detected a destructive or administrative MongoDB command",
-		)
-	default:
-		proposal.RiskLevel, proposal.RiskReason = raiseRisk(
-			proposal.RiskLevel, proposal.RiskReason, 2,
-			"backend rule detected a potentially data-changing MongoDB command",
-		)
-	}
-	proposal.ApprovalRequired = true
-}
-
 func mongoDBBackgroundEligible(document bson.D) bool {
 	if len(document) == 0 {
 		return false
