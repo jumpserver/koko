@@ -1081,21 +1081,6 @@ func (s *Server) sendConnectErrorMsg(err error) {
 	utils.IgnoreErrWriteString(s.UserConn, msg)
 	utils.IgnoreErrWriteString(s.UserConn, utils.CharNewLine)
 	logger.Error(msg)
-	protocol := s.connOpts.authInfo.Protocol
-	password := s.account.Secret
-	if password != "" {
-		passwordLen := len(s.account.Secret)
-		showLen := passwordLen / 2
-		hiddenLen := passwordLen - showLen
-		var msg2 string
-		if protocol == srvconn.ProtocolK8s {
-			msg2 = fmt.Sprintf("Try token: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
-		} else {
-			msg2 = fmt.Sprintf("Try password: %s", password[:showLen]+strings.Repeat("*", hiddenLen))
-		}
-		logger.Error(msg2)
-	}
-
 }
 
 func ParseUrlHostAndPort(clusterAddr string) (host string, port int, err error) {
