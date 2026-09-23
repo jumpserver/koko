@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -25,13 +26,15 @@ func (u *UserSelectHandler) retrieveRemoteAsset(reqParam model.PaginationParam) 
 	res, err := u.h.jmsService.GetUserPermsAssets(u.user.ID, reqParam)
 	if err != nil {
 		logger.Errorf("Get user perm assets failed: %s", err.Error())
+		u.loadErr = err
+		return nil
 	}
 	assets := u.updateRemotePageData(reqParam, res)
 	return u.prepareAssetPage(assets, u.assetListPath())
 }
 
 func (u *UserSelectHandler) searchLocalAsset(searches ...string) []model.PermAsset {
-	allFields := []string{"name", "address", "platform", "comment"}
+	allFields := []string{"name", "address", "comment"}
 	fields := make(map[string]struct{}, len(allFields))
 	for i := range allFields {
 		if u.isHiddenField(allFields[i]) {
@@ -145,13 +148,15 @@ func (u *UserSelectHandler) displayAssets(searchHeader string) {
 }
 
 func (u *UserSelectHandler) showUnavailableAsset(asset model.PermAsset) {
-	message := u.h.tr("当前资产不支持 Terminal 连接", "This asset does not support Terminal connections")
+	lang := i18n.NewLang(u.h.i18nLang)
+	message := lang.T("Cannot connect to this asset.")
 	if !asset.IsActive {
-		message = u.h.tr("当前资产已被禁用，无法连接", "This asset is disabled and cannot be connected")
+		message = lang.T("Cannot connect: asset disabled.")
 	} else {
 		detail, err := u.h.assetClient(asset.OrgID).GetUserPermAssetDetailById(u.user.ID, asset.ID)
 		if err != nil {
 			logger.Errorf("Get unavailable asset detail failed: %s", err)
+			message = userFacingErrorMessage(lang.T("Core API failed"), err)
 		} else {
 			current := make([]string, 0, len(detail.PermedProtocols))
 			for _, protocol := range detail.PermedProtocols {
@@ -159,14 +164,11 @@ func (u *UserSelectHandler) showUnavailableAsset(asset model.PermAsset) {
 					current = append(current, name)
 				}
 			}
-			currentText := u.h.tr("无可用协议", "No available protocols")
 			if len(current) > 0 {
-				currentText = strings.Join(current, ", ")
+				message = fmt.Sprintf(lang.T("Cannot connect: unsupported protocol (%s)."), strings.Join(current, ", "))
+			} else {
+				message = lang.T("Cannot connect: no supported protocol.")
 			}
-			message = fmt.Sprintf(u.h.tr(
-				"当前资产的协议（%s）不支持，无法连接。Terminal 支持：%s",
-				"This asset's protocols (%s) are unsupported. Terminal supports: %s",
-			), currentText, strings.Join(srvconn.SupportedProtocols(), ", "))
 		}
 	}
 	utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(message))
@@ -193,10 +195,10 @@ func GetInputUsername(sess io.ReadWriteCloser) (username string, err error) {
 // the selected terminal.
 func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMService,
 	user *model.User, asset model.PermAsset, selectedAccount model.PermAccount, protocol, i18nLang string,
-	passwordInputGuard func() error) (connected bool) {
+	passwordInputGuard func() error) (bool, string, bool) {
 	lang := i18n.NewLang(i18nLang)
 	if conn.Context().Err() != nil {
-		return
+		return false, "", false
 	}
 	req := service.SuperConnectTokenReq{
 		UserId:        user.ID,
@@ -211,31 +213,29 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 		inputUsername, err1 := GetInputUsername(conn)
 		if err1 != nil {
 			logger.Errorf("Get input username err: %s", err1)
-			return
+			return false, err1.Error(), false
 		}
 		req.InputUsername = inputUsername
 	}
-
 	tokenInfo, err := jmsService.CreateSuperConnectToken(&req)
 	if err != nil {
 		if tokenInfo.Code == "" {
 			logger.Errorf("Create connect token and auth info failed: %s", err)
-			utils.IgnoreErrWriteString(conn, lang.T("Core API failed"))
-			return
+			return false, userFacingErrorMessage(lang.T("Core API failed"), err), false
 		}
 		switch tokenInfo.Code {
 		case model.ACLReject:
 			logger.Errorf("Create connect token and auth info failed: %s", tokenInfo.Detail)
-			utils.IgnoreErrWriteString(conn, utils.WrapperWarn(lang.T("ACL reject")))
-			utils.IgnoreErrWriteString(conn, utils.CharNewLine)
-			return
+			msg := lang.T("ACL reject")
+			if tokenInfo.Detail != "" {
+				msg = userFacingMessageDetail(msg, tokenInfo.Detail)
+			}
+			return false, msg, false
 		case model.ACLFaceVerify, model.ACLFaceOnline, model.ACLFaceOnlineNotSupported:
 			// todo: 需要人脸验证 后续需要发站内信通知用户，并且等待用户人脸验证通过
 			logger.Errorf("Create connect token and auth info failed: %s %s", tokenInfo.Code, tokenInfo.Detail)
 			msg := lang.T("Face ACL is not supported yet. Please use the WebTerminal to connect the asset.")
-			utils.IgnoreErrWriteString(conn, utils.WrapperWarn(msg))
-			utils.IgnoreErrWriteString(conn, utils.CharNewLine)
-			return
+			return false, msg, false
 		case model.ACLReview:
 			reviewHandler := LoginReviewHandler{
 				readWriter: conn,
@@ -246,32 +246,28 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 			}
 			ok2, err2 := reviewHandler.WaitReview(conn.Context())
 			if err2 != nil {
-				logger.Errorf("Wait login review failed: %s", err)
-				utils.IgnoreErrWriteString(conn, lang.T("Core API failed"))
-				return
+				logger.Errorf("Wait login review failed: %s", err2)
+				return false, userFacingErrorMessage(lang.T("Core API failed"), err2), false
 			}
 			if !ok2 {
 				logger.Error("Wait login review failed")
-				return
+				return false, lang.T("Cancel confirm"), false
 			}
 			tokenInfo = reviewHandler.tokenInfo
 		default:
 			msg := lang.T("Unknown error code: %s, detail: %s")
-			utils.IgnoreErrWriteString(conn, fmt.Sprintf(msg, tokenInfo.Code, tokenInfo.Detail))
-			utils.IgnoreErrWriteString(conn, utils.CharNewLine)
 			logger.Errorf("Create connect token and auth info failed: %s %s", tokenInfo.Code, tokenInfo.Detail)
-			return
+			return false, fmt.Sprintf(msg, tokenInfo.Code, tokenInfo.Detail), false
 		}
 	}
 
 	if conn.Context().Err() != nil {
-		return
+		return false, "", false
 	}
 	connectToken, err := sshcert.GetConnectTokenInfo(jmsService, tokenInfo.ID, true)
 	if err != nil {
 		logger.Errorf("connect token err: %s", err)
-		utils.IgnoreErrWriteString(conn, lang.T("get connect token err"))
-		return
+		return false, userFacingErrorMessage(lang.T("get connect token err"), err), false
 	}
 	defer connectToken.ClearSSHCertificateCredential()
 	proxyOpts := make([]proxy.ConnectionOption, 0, 10)
@@ -279,34 +275,66 @@ func connectSelectedAsset(conn proxy.UserConnection, jmsService *service.JMServi
 	proxyOpts = append(proxyOpts, proxy.ConnectI18nLang(i18nLang))
 	proxyOpts = append(proxyOpts, proxy.ConnectPasswordInputGuard(passwordInputGuard))
 	if conn.Context().Err() != nil {
-		return
+		return false, "", false
 	}
 	srv, err := proxy.NewServer(conn, jmsService, proxyOpts...)
 	if err != nil {
 		logger.Errorf("create proxy server err: %s", err)
-		return
+		return false, userFacingErrorMessage(lang.T("Connection failed"), err), false
 	}
 	srv.Proxy()
-	return srv.SessionEndReason != model.ReasonErrConnectFailed
+	if srv.SessionEndReason == model.ReasonErrConnectFailed {
+		msg := lang.T("Connection failed")
+		if srv.ConnectionError != nil {
+			msg = userFacingErrorMessage(msg, srv.ConnectionError)
+		}
+		return false, msg, srv.ConnectionErrorShown
+	}
+	return true, "", false
 }
 
-func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
+// The SDK includes request URLs in HTTP errors. Keep the status and response
+// detail visible without displaying the connection-token URL itself.
+func userFacingErrorDetail(err error) string {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return urlErr.Err.Error()
+	}
+	message := err.Error()
+	const marker = " failed, get code: "
+	if index := strings.Index(message, marker); index >= 0 {
+		return "HTTP " + strings.TrimSpace(message[index+len(marker):])
+	}
+	const decodeMarker = " failed, json unmarshal failed: "
+	if index := strings.Index(message, decodeMarker); index >= 0 {
+		return "JSON: " + strings.TrimSpace(message[index+len(decodeMarker):])
+	}
+	return message
+}
+
+func userFacingErrorMessage(summary string, err error) string {
+	return userFacingMessageDetail(summary, userFacingErrorDetail(err))
+}
+
+func userFacingMessageDetail(summary, detail string) string {
+	if strings.HasSuffix(summary, ".") || strings.HasSuffix(summary, "。") {
+		return summary + " (" + detail + ")"
+	}
+	return summary + ": " + detail
+}
+
+func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (string, bool) {
 	u.selectedAsset = &asset
 	client := u.h.assetClient(asset.OrgID)
 	permAssetDetail, err := client.GetUserPermAssetDetailById(u.user.ID, asset.ID)
 	if err != nil {
 		logger.Errorf("Get asset accounts err: %s", err)
-		lang := i18n.NewLang(u.h.i18nLang)
-		utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(lang.T("Core API failed")))
-		utils.IgnoreErrWriteString(u.h.term, utils.CharNewLine)
-		return
+		return userFacingErrorMessage(i18n.NewLang(u.h.i18nLang).T("Core API failed"), err), true
 	}
 	if permAssetDetail.ID != asset.ID || permAssetDetail.OrgID != "" && asset.OrgID != "" &&
 		asset.OrgID != tuiGlobalOrganizationID && permAssetDetail.OrgID != asset.OrgID {
 		logger.Errorf("Classic text mode asset detail does not match selected asset %s", asset.ID)
-		utils.IgnoreErrWriteString(u.h.term, u.h.tr("资产信息不匹配", "Asset details do not match the selected asset"))
-		utils.IgnoreErrWriteString(u.h.term, utils.CharNewLine)
-		return
+		return u.h.tr("资产信息不匹配", "Asset details do not match the selected asset"), true
 	}
 	if permAssetDetail.OrgID != "" {
 		if permAssetDetail.OrgID != asset.OrgID {
@@ -330,50 +358,79 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset) {
 			protocols = append(protocols, permAssetDetail.PermedProtocols[i].Name)
 		}
 	}
-	protocol, ok := u.h.chooseAssetProtocol(protocols)
-	if !ok {
-		logger.Info("Not select protocol")
-		return
-	}
 	i18nLang := u.h.i18nLang
 	lang := i18n.NewLang(i18nLang)
-	if err = srvconn.IsSupportedProtocol(protocol); err != nil {
-		var errMsg string
-		switch {
-		case errors.As(err, &srvconn.ErrNoClient{}):
-			errMsg = fmt.Sprintf(lang.T("%s protocol client not installed."), protocol)
-		default:
-			errMsg = fmt.Sprintf(lang.T("Terminal does not support protocol %s, please use web terminal to access"), protocol)
-		}
-		utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(errMsg))
-		return
+	if len(protocols) == 0 {
+		return fmt.Sprintf(lang.T("No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."), asset.Name), true
 	}
 	supportAccounts := u.filterValidAccount(permAssetDetail.PermedAccounts)
-	selectedAccount, ok, back := u.h.chooseAccount(supportAccounts)
-	if !ok {
-		logger.Info("Not select account")
-		if back {
-			u.DisplayCurrentResult()
-		}
-		return
+	if autoOnly && !hasSingleConnectionChoice(protocols, supportAccounts) {
+		return "", false
 	}
-	u.selectedAccount = &selectedAccount
-	if u.h.preferences != nil {
-		u.h.preferences.storeConnection(u.user.ID, tuiAssetPreferenceKey(asset), tuiConnectionPreference{
-			Account: tuiAccountPreferenceKey(selectedAccount), Protocol: protocol,
-		})
-	}
-	passwordKey := tuiPasswordAttemptKey(asset, selectedAccount, protocol)
-	passwordLimitError := fmt.Errorf(u.h.tr(
-		"手动密码最多允许输入 %d 次",
-		"Manual password can be entered at most %d times",
-	), maxTUIManualPasswordAttempts)
-	connectSelectedAsset(u.h.sess, client, u.user, asset, selectedAccount, protocol, i18nLang, func() error {
-		if u.h.manualPasswords.acquire(passwordKey) {
-			return nil
+	var protocol string
+	var selectedAccount model.PermAccount
+	for {
+		var ok bool
+		protocol, ok = u.h.chooseAssetProtocol(protocols)
+		if !ok {
+			if !u.h.exitRequested {
+				logger.Info("Not select protocol")
+			}
+			return "", true
 		}
-		return passwordLimitError
-	})
+		if err = srvconn.IsSupportedProtocol(protocol); err != nil {
+			var errMsg string
+			switch {
+			case errors.As(err, &srvconn.ErrNoClient{}):
+				errMsg = fmt.Sprintf(lang.T("%s protocol client not installed."), protocol)
+			default:
+				errMsg = fmt.Sprintf(lang.T("Terminal does not support protocol %s, please use web terminal to access"), protocol)
+			}
+			return errMsg, true
+		}
+		if len(supportAccounts) == 0 {
+			return fmt.Sprintf(lang.T("Asset %s has no available login account."), asset.Name), true
+		}
+		retry := false
+		accountPage := 0
+		for {
+			var back bool
+			selectedAccount, ok, back = u.h.chooseAccount(supportAccounts, protocol, len(protocols) > 1, retry, &accountPage)
+			if !ok {
+				if back && len(protocols) > 1 {
+					break
+				}
+				if !u.h.exitRequested {
+					logger.Info("Not select account")
+				}
+				return "", true
+			}
+			retry = true
+			u.selectedAccount = &selectedAccount
+			if u.h.preferences != nil {
+				u.h.preferences.storeConnection(u.user.ID, tuiAssetPreferenceKey(asset), tuiConnectionPreference{
+					Account: tuiAccountPreferenceKey(selectedAccount), Protocol: protocol,
+				})
+			}
+			passwordKey := tuiPasswordAttemptKey(asset, selectedAccount, protocol)
+			passwordLimitError := fmt.Errorf(u.h.tr(
+				"手动密码最多允许输入 %d 次",
+				"Manual password can be entered at most %d times",
+			), maxTUIManualPasswordAttempts)
+			_, failure, shown := connectSelectedAsset(u.h.sess, client, u.user, asset, selectedAccount, protocol, i18nLang, func() error {
+				if u.h.manualPasswords.acquire(passwordKey) {
+					return nil
+				}
+				return passwordLimitError
+			})
+			if failure == "" {
+				return "", true
+			}
+			if !shown {
+				utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(failure))
+			}
+		}
+	}
 }
 
 func (h *InteractiveHandler) assetClient(orgID string) *service.JMService {
@@ -403,4 +460,8 @@ func (u *UserSelectHandler) filterValidAccount(accounts []model.PermAccount) []m
 		ret = append(ret, accounts[i])
 	}
 	return ret
+}
+
+func hasSingleConnectionChoice(protocols []string, accounts []model.PermAccount) bool {
+	return len(protocols) == 1 && len(accounts) == 1
 }

@@ -20,83 +20,9 @@ import (
 	"github.com/jumpserver/koko/pkg/i18n"
 	"github.com/jumpserver/koko/pkg/proxy"
 	"github.com/jumpserver/koko/pkg/srvconn"
+	"github.com/jumpserver/koko/pkg/utils"
 	"github.com/jumpserver/koko/pkg/zmodem"
 )
-
-// tuiOverlay confines every child (including its mouse hit area) to a centered
-// rectangle, recomputed after each outer terminal resize.
-type tuiOverlay struct {
-	*tview.Box
-	child          tview.Primitive
-	width, height  int
-	anchor         tview.Primitive
-	paste          func(string, func(tview.Primitive))
-	dismissOutside func()
-}
-
-func (o *tuiOverlay) Draw(s tcell.Screen) {
-	x, y, w, h := o.GetRect()
-	width, height := min(o.width, max(1, w-4)), min(o.height, max(1, h-2))
-	if o.width == 0 {
-		width = max(1, w-4)
-	}
-	if o.height == 0 {
-		height = max(1, h-2)
-	}
-	left, top := x+(w-width)/2, y+(h-height)/2
-	if o.anchor != nil {
-		ax, ay, aw, ah := o.anchor.GetRect()
-		left, top = max(x, ax+aw-width), max(0, ay+ah)
-	}
-	o.child.SetRect(left, top, width, height)
-	o.child.Draw(s)
-}
-func (o *tuiOverlay) Focus(f func(tview.Primitive)) { f(o.child) }
-func (o *tuiOverlay) HasFocus() bool                { return o.child.HasFocus() }
-func (o *tuiOverlay) InputHandler() func(*tcell.EventKey, func(tview.Primitive)) {
-	return o.child.InputHandler()
-}
-func (o *tuiOverlay) PasteHandler() func(string, func(tview.Primitive)) {
-	if o.paste != nil {
-		return o.paste
-	}
-	return o.child.PasteHandler()
-}
-func (o *tuiOverlay) MouseHandler() func(tview.MouseAction, *tcell.EventMouse, func(tview.Primitive)) (bool, tview.Primitive) {
-	return func(a tview.MouseAction, e *tcell.EventMouse, f func(tview.Primitive)) (bool, tview.Primitive) {
-		if o.dismissOutside != nil && a == tview.MouseLeftDown {
-			mx, my := e.Position()
-			x, y, width, height := o.child.GetRect()
-			if mx < x || mx >= x+width || my < y || my >= y+height {
-				o.dismissOutside()
-				return true, o
-			}
-		}
-		if handler := o.child.MouseHandler(); handler != nil {
-			_, capture := handler(a, e, f)
-			// Native dropdowns capture the mouse while their list is open. Keep
-			// that capture even when the list extends beyond the dialog bounds.
-			return true, capture
-		}
-		// The underlying asset list must never receive clicks through a modal.
-		return true, nil
-	}
-}
-
-func (h *terminalUI) dismissModal() {
-	if len(h.dialogs) == 0 {
-		return
-	}
-	h.detailGeneration++
-	last := h.dialogs[len(h.dialogs)-1]
-	h.pages.RemovePage(last.page)
-	h.dialogs = h.dialogs[:len(h.dialogs)-1]
-	h.modal = len(h.dialogs) > 0
-	if last.returnFocus != nil {
-		h.app.SetFocus(last.returnFocus)
-	}
-	h.setWindowHelp()
-}
 
 func (h *terminalUI) showAccounts(row int) {
 	assetIndex := row - tuiAssetTableHeaderRows
@@ -736,12 +662,17 @@ func (h *terminalUI) connectPopup(asset model.PermAsset, account model.PermAccou
 		if err := srvconn.IsSupportedProtocol(protocol); err != nil {
 			_, _ = fmt.Fprintf(terminal, "\r\n%s\r\n", err)
 		} else {
-			closeOnFinish = connectSelectedAsset(conn, api, h.user, asset, account, protocol, lang, func() error {
+			var failure string
+			var shown bool
+			closeOnFinish, failure, shown = connectSelectedAsset(conn, api, h.user, asset, account, protocol, lang, func() error {
 				if h.manualPasswordAttempts.acquire(passwordAttemptKey) {
 					return nil
 				}
 				return passwordLimitError
 			})
+			if failure != "" && !shown {
+				utils.IgnoreErrWriteString(conn, utils.WrapperWarn(failure))
+			}
 		}
 		_ = terminal.Close()
 		h.update(func() {
@@ -923,55 +854,6 @@ func (h *terminalUI) showSessionMenu() {
 	h.openDialog("sessions", &tuiOverlay{Box: tview.NewBox(), child: list, width: 54, height: list.GetItemCount() + 4, anchor: h.sessionTabs}, []tview.Primitive{list})
 }
 
-func (h *terminalUI) showUserMenu() {
-	h.closeDropdown()
-	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true).
-		SetMainTextStyle(tcell.StyleDefault.Foreground(tui.Foreground).Background(tui.Panel)).SetSelectedStyle(tuiButtonFocusedStyle)
-	textModeLabel := h.tr("切换到纯文本交互模式 →", "Switch to text interaction mode →")
-	quitLabel := h.tr("退出", "Quit")
-	list.AddItem(textModeLabel, "", 0, h.switchToTextMode)
-	list.AddItem(quitLabel, "", 0, h.quit)
-	tuiDialogBorder(list.Box, "")
-	list.SetBorderPadding(0, 0, 2, 2)
-	width := max(18, min(46, max(tview.TaggedStringWidth(h.identity.GetLabel())+2,
-		tview.TaggedStringWidth(textModeLabel)+6, tview.TaggedStringWidth(quitLabel)+6)))
-	h.openDialog("user", &tuiOverlay{Box: tview.NewBox(), child: list, width: width, height: 4, anchor: h.identity}, []tview.Primitive{list})
-}
-
-func (h *terminalUI) switchToTextMode() {
-	h.windowPrefix = false
-	switchMode := func() {
-		if h.preferences != nil && h.user != nil {
-			h.preferences.storeTerminalMode(h.user.ID, terminalModeText)
-		}
-		h.nextMode = terminalModeText
-		h.app.Stop()
-	}
-	if len(h.sessions) == 0 {
-		switchMode()
-		return
-	}
-	dialog := tview.NewModal().
-		SetText(h.tr("切换模式会断开所有已连接的资产会话，是否继续？",
-			"Switching modes will disconnect all connected asset sessions. Continue?")).
-		AddButtons([]string{h.tr("取消", "Cancel"), h.tr("切换模式", "Switch mode")}).
-		SetDoneFunc(func(index int, _ string) {
-			if index == 1 {
-				switchMode()
-			} else {
-				h.dismissModal()
-			}
-		})
-	dialog.SetBackgroundColor(tui.Panel).SetTextColor(tui.Foreground).
-		SetButtonStyle(tcell.StyleDefault.Foreground(tui.Muted).Background(tui.Panel)).
-		SetButtonActivatedStyle(tuiButtonFocusedStyle).SetBorderColor(tui.FocusBorder)
-	dialog.Box.SetBackgroundColor(tui.Panel)
-	dialog.SetTitle("  " + h.tr("切换交互模式", "Switch interaction mode") + " ").
-		SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
-	tui.RoundedBorder(dialog.Box)
-	h.openDialog("switch-mode", dialog, nil)
-}
-
 // Fullscreen keeps the session border and reserves one bottom row for shortcuts.
 // Its exit button occupies the border, leaving remote output unobstructed.
 func (h *terminalUI) setFullscreen(enabled bool) {
@@ -1145,51 +1027,4 @@ func (h *terminalUI) quit() {
 	dialog.SetTitle("  " + h.tr("退出 SSH 会话", "Quit SSH session") + " ").SetTitleAlign(tview.AlignLeft).SetTitleColor(tui.Accent)
 	tui.RoundedBorder(dialog.Box)
 	h.openDialog("quit", dialog, nil)
-}
-
-// tview handles vertical wheel/PageUp/PageDown and keyboard horizontal scrolling.
-// Add horizontal wheel gestures too; row selection is unchanged while scrolling.
-func enableTableScroll(table *tview.Table) {
-	previousCapture := table.GetMouseCapture()
-	table.SetMouseCapture(func(a tview.MouseAction, e *tcell.EventMouse) (tview.MouseAction, *tcell.EventMouse) {
-		if previousCapture != nil {
-			a, e = previousCapture(a, e)
-			if e == nil {
-				return a, nil
-			}
-		}
-		x, y := e.Position()
-		if !table.InRect(x, y) {
-			return a, e
-		}
-		if a == tview.MouseLeftDoubleClick {
-			row, col := table.CellAt(x, y)
-			if row > 0 {
-				table.Select(row, col)
-				table.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, 0), func(tview.Primitive) {})
-			}
-			return tview.MouseConsumed, nil
-		}
-		delta := 0
-		if a == tview.MouseScrollLeft {
-			delta = -1
-		}
-		if a == tview.MouseScrollRight {
-			delta = 1
-		}
-		if e.Modifiers()&tcell.ModShift != 0 {
-			if a == tview.MouseScrollUp {
-				delta = -1
-			}
-			if a == tview.MouseScrollDown {
-				delta = 1
-			}
-		}
-		if delta != 0 {
-			row, col := table.GetOffset()
-			table.SetOffset(row, min(max(0, table.GetColumnCount()-1), max(0, col+delta)))
-			return tview.MouseConsumed, nil
-		}
-		return a, e
-	})
 }

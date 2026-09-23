@@ -21,6 +21,11 @@ const (
 	terminalModeText
 )
 
+const (
+	minTUIWidth  = 72
+	minTUIHeight = 20
+)
+
 // routedSSHSession keeps WrapperSession as the only reader of the SSH channel.
 // TUI readers can then be detached without losing the login session, allowing
 // the same connection to return to the line-oriented interface.
@@ -90,6 +95,11 @@ func (s *Server) runTerminalUI(sess ssh.Session, input *WrapperSession, user *mo
 	if s.tuiPreferences != nil {
 		language, _, _, _, _ = s.tuiPreferences.display(user.ID, language)
 	}
+	if window := input.Pty().Window; window.Width > 0 && window.Height > 0 &&
+		(window.Width < minTUIWidth || window.Height < minTUIHeight) {
+		writeTUISmallScreenNotice(sess, language)
+		return terminalModeText
+	}
 	routed := &routedSSHSession{Session: sess, input: input}
 	screen, err := tui.NewSSHScreen(routed, input.WinCh())
 	if err != nil {
@@ -129,6 +139,14 @@ func writeTUIFallbackNotice(sess io.Writer, language string) {
 	message := "TUI is unavailable; switched to text mode."
 	if strings.HasPrefix(strings.ToLower(language), "zh") {
 		message = "当前终端无法运行 TUI，已切换到纯文本模式。"
+	}
+	utils.IgnoreErrWriteString(sess, message+"\r\n")
+}
+
+func writeTUISmallScreenNotice(sess io.Writer, language string) {
+	message := "Terminal is smaller than 72 × 20; switched to text mode."
+	if strings.HasPrefix(strings.ToLower(language), "zh") {
+		message = "终端小于 72 × 20，已切换到纯文本模式。"
 	}
 	utils.IgnoreErrWriteString(sess, message+"\r\n")
 }

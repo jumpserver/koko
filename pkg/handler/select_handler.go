@@ -24,10 +24,10 @@ const (
 type prompt string
 
 const (
-	promptAsset    prompt = "[Asset]> "
-	promptHost     prompt = "[Host]> "
-	promptK8s      prompt = "[K8S]> "
-	promptDatabase prompt = "[DB]> "
+	promptAsset    prompt = "Asset> "
+	promptHost     prompt = "Host> "
+	promptK8s      prompt = "K8S> "
+	promptDatabase prompt = "DB> "
 )
 
 type selectType int
@@ -62,6 +62,7 @@ type UserSelectHandler struct {
 	selectedPath     string
 	currentResult    []model.PermAsset
 	connectable      []bool
+	loadErr          error
 
 	*pageInfo
 
@@ -78,7 +79,6 @@ func (u *UserSelectHandler) SetSelectType(selection selectType) {
 	case TypeAsset:
 		if u.h.assetLoadPolicy == "all" {
 			u.SetLoadPolicy(loadingFromLocal)
-			u.AutoCompletion()
 		}
 		u.promptStr = promptAsset
 	case TypeNodeAsset:
@@ -93,36 +93,6 @@ func (u *UserSelectHandler) SetSelectType(selection selectType) {
 		u.promptStr = promptDatabase
 	}
 	u.h.term.SetPrompt(string(u.promptStr))
-}
-
-func (u *UserSelectHandler) AutoCompletion() {
-	assets := u.Retrieve(0, 0, "")
-	suggests := make([]string, 0, len(assets))
-	for _, asset := range assets {
-		suggests = append(suggests, asset.Name)
-	}
-	sort.Strings(suggests)
-	u.h.term.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
-		if key == 9 {
-			termWidth, _ := u.h.GetPtySize()
-			if len(line) >= 1 {
-				matches := utils.FilterPrefix(suggests, line)
-				if len(matches) >= 1 {
-					commonPrefix := utils.LongestCommonPrefix(matches)
-					switch u.currentType {
-					case TypeAsset, TypeNodeAsset, TypeTypeAsset, TypeFavoriteAsset:
-						fmt.Fprintf(u.h.term, "%s%s\n%s\n", promptAsset, line, utils.Pretty(matches, termWidth))
-					case TypeK8s:
-						fmt.Fprintf(u.h.term, "%s%s\n%s\n", promptK8s, line, utils.Pretty(matches, termWidth))
-					case TypeDatabase:
-						fmt.Fprintf(u.h.term, "%s%s\n%s\n", promptDatabase, line, utils.Pretty(matches, termWidth))
-					}
-					return commonPrefix, len(commonPrefix), true
-				}
-			}
-		}
-		return newLine, newPos, false
-	}
 }
 
 func (u *UserSelectHandler) SetNode(node model.Node) {
@@ -173,14 +143,29 @@ func previousPageOffset(currentOffset, currentCount, pageSize int) int {
 }
 
 func (u *UserSelectHandler) Search(key string) {
+	u.search(key, false)
+}
+
+func (u *UserSelectHandler) SearchAndConnectSingle(key string) {
+	u.search(key, true)
+}
+
+func (u *UserSelectHandler) search(key string, autoConnect bool) {
 	key = normalizeClassicSearchKey(key)
-	pageSize := u.resultPageSize()
 	u.searchKeys = nil
 	if key != "" {
 		u.searchKeys = []string{key}
 	}
+	pageSize := u.resultPageSize()
 	u.currentResult = u.Retrieve(pageSize, 0, u.searchKeys...)
+	if autoConnect && u.canAutoConnectSearchResult() && u.proxy(u.currentResult[0], true) {
+		return
+	}
 	u.DisplayCurrentResult()
+}
+
+func (u *UserSelectHandler) canAutoConnectSearchResult() bool {
+	return u.loadErr == nil && u.TotalCount() == 1 && len(u.currentResult) == 1 && u.assetCanConnect(0)
 }
 
 func (u *UserSelectHandler) SearchAgain(key string) {
@@ -193,11 +178,7 @@ func (u *UserSelectHandler) SearchAgain(key string) {
 }
 
 func normalizeClassicSearchKey(key string) string {
-	key = strings.TrimSpace(key)
-	if strings.HasPrefix(key, "+") {
-		key = strings.TrimSpace(key[1:])
-	}
-	return key
+	return strings.TrimSpace(key)
 }
 
 func (u *UserSelectHandler) resultPageSize() int {
@@ -205,24 +186,30 @@ func (u *UserSelectHandler) resultPageSize() int {
 	if pageSize <= 1 {
 		return pageSize
 	}
+	width, height := u.h.GetPtySize()
 	configured := u.h.terminalConf.AssetListPageSize
-	if configured == "all" {
-		return pageSize
+	if width >= 60 {
+		if configured == "all" {
+			return pageSize
+		}
+		if _, err := strconv.Atoi(configured); err == nil {
+			return pageSize
+		}
 	}
-	if _, err := strconv.Atoi(configured); err == nil {
-		return pageSize
+	// Reserve the wrapped footer, two table header lines, and the input prompt.
+	availableRows := height - u.assetFooterRows(width) - 4
+	if width < 32 {
+		availableRows /= 6
+	} else if width < 60 {
+		availableRows /= 4
 	}
-	hintCount := 4
-	if u.currentType == TypeNodeAsset || u.currentType == TypeTypeAsset || u.currentType == TypeFavoriteAsset {
-		hintCount++
-	}
-	_, height := u.h.GetPtySize()
-	// Keep the context lines, compact action panel, two asset-table header lines, and input prompt visible.
-	availableRows := height - hintCount - 4
 	return max(1, min(pageSize, availableRows))
 }
 
 func (u *UserSelectHandler) SelectResult(key string) bool {
+	if u.loadErr != nil {
+		return false
+	}
 	index, ok := u.currentResultIndex(key)
 	if !ok {
 		return false
@@ -236,8 +223,8 @@ func (u *UserSelectHandler) SelectResult(key string) bool {
 }
 
 func (u *UserSelectHandler) currentResultIndex(key string) (int, bool) {
-	number, err := strconv.Atoi(key)
-	if err != nil || len(u.currentResult) == 0 {
+	number, ok := classicChoiceNumber(key, u.TotalCount())
+	if !ok || len(u.currentResult) == 0 {
 		return 0, false
 	}
 	firstNumber, _ := resultDisplayRange(u.CurrentOffSet(), len(u.currentResult), u.TotalCount())
@@ -249,6 +236,15 @@ func (u *UserSelectHandler) HasPrev() bool { return u.hasPre }
 func (u *UserSelectHandler) HasNext() bool { return u.hasNext }
 
 func (u *UserSelectHandler) DisplayCurrentResult() {
+	u.h.classicView = classicViewList
+	u.h.term.SetPrompt(string(u.promptStr))
+	if u.loadErr != nil {
+		u.hasPre, u.hasNext = false, false
+		u.currentResult = nil
+		message := i18n.NewLang(u.h.i18nLang).T("Assets unavailable. Return and retry.")
+		u.displayNoResultMsg("", userFacingErrorMessage(message, u.loadErr))
+		return
+	}
 	searchHeader := fmt.Sprintf(i18n.NewLang(u.h.i18nLang).T("Search: %s"), strings.Join(u.searchKeys, " "))
 	switch u.currentType {
 	case TypeDatabase:
@@ -267,11 +263,27 @@ func (u *UserSelectHandler) DisplayCurrentResult() {
 }
 
 func (u *UserSelectHandler) Proxy(target model.PermAsset) {
-	u.proxyAsset(target)
+	u.proxy(target, false)
+}
+
+func (u *UserSelectHandler) proxy(target model.PermAsset, autoOnly bool) bool {
+	notice, selected := u.proxyAsset(target, autoOnly)
+	if !selected {
+		return false
+	}
+	if u.h.exitRequested {
+		return true
+	}
 	u.h.term.SetPrompt(string(u.promptStr))
+	u.DisplayCurrentResult()
+	if notice != "" {
+		utils.IgnoreErrWriteString(u.h.term, utils.WrapperWarn(notice))
+	}
+	return true
 }
 
 func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []model.PermAsset {
+	u.loadErr = nil
 	if u.loadingPolicy == loadingFromLocal {
 		return u.retrieveFromLocal(pageSize, offset, searches...)
 	}
@@ -407,6 +419,8 @@ func (u *UserSelectHandler) prepareAssetPage(assets []model.PermAsset, path stri
 	})
 	if err != nil {
 		logger.Errorf("Classic text asset protocol support lookup failed: %s", err)
+		u.loadErr = err
+		return assets
 	}
 	supportedIDs := make(map[string]struct{}, len(supported.Data))
 	for _, asset := range supported.Data {
@@ -453,22 +467,26 @@ func containKeysInMapItemFields(item map[string]interface{}, searchFields map[st
 	if len(matchedKeys) == 0 || len(matchedKeys) == 1 && matchedKeys[0] == "" {
 		return true
 	}
-	for key, value := range item {
-		if _, ok := searchFields[key]; !ok {
-			continue
+	for _, matchedKey := range matchedKeys {
+		matchedKey = strings.ToLower(matchedKey)
+		found := false
+		for key, value := range item {
+			if _, ok := searchFields[key]; !ok {
+				continue
+			}
+			switch result := value.(type) {
+			case string:
+				found = strings.Contains(strings.ToLower(result), matchedKey)
+			case map[string]interface{}:
+				found = containKeysInMapItemFields(result, searchFields, matchedKey)
+			}
+			if found {
+				break
+			}
 		}
-		switch result := value.(type) {
-		case string:
-			for _, matchedKey := range matchedKeys {
-				if strings.Contains(result, matchedKey) {
-					return true
-				}
-			}
-		case map[string]interface{}:
-			if containKeysInMapItemFields(result, searchFields, matchedKeys...) {
-				return true
-			}
+		if !found {
+			return false
 		}
 	}
-	return false
+	return true
 }

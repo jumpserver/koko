@@ -7,14 +7,164 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
+msgid "End session"
+msgstr "Kết thúc phiên"
+
+msgid "Koko session ended."
+msgstr "Phiên Koko đã kết thúc."
+
+msgid "Connection failed"
+msgstr "Kết nối thất bại"
+
+msgid "⊘ Cannot connect"
+msgstr "⊘ Không thể kết nối"
+
+msgid "No assets in this node"
+msgstr "Nút này chưa có tài sản"
+
+msgid "[number] Select"
+msgstr "[số] Chọn tài sản"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "Không có giao thức kết nối được cấp quyền nào dùng được cho tài sản %s. Hãy kiểm tra giao thức tài sản và quy tắc phân quyền."
+
+msgid "Asset %s has no available login account."
+msgstr "Tài sản %s không có tài khoản đăng nhập khả dụng."
+
+msgid "Cannot connect to this asset."
+msgstr "Không thể kết nối tới tài sản này."
+
+msgid "Cannot connect: asset disabled."
+msgstr "Không thể kết nối: tài sản đã bị vô hiệu hóa."
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "Không thể kết nối: giao thức không được hỗ trợ (%s)."
+
+msgid "Cannot connect: no supported protocol."
+msgstr "Không thể kết nối: không có giao thức được hỗ trợ."
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "Không tải được cây quyền. Nhập r để thử lại."
+
+msgid "Assets unavailable. Return and retry."
+msgstr "Không tải được tài sản. Quay lại và thử lại."
+
+msgid "Invalid number"
+msgstr "Số không hợp lệ"
+
+msgid "No nodes"
+msgstr "Không có nút"
+
+msgid "Switch to TUI mode"
+msgstr "Chuyển sang chế độ TUI"
+
+msgid "View all assets"
+msgstr "Xem tất cả tài sản"
+
+msgid "View authorization tree"
+msgstr "Xem cây phân quyền"
+
+msgid "View type tree"
+msgstr "Xem cây loại"
+
+msgid "View favorites tree"
+msgstr "Xem cây yêu thích"
+
+msgid "Back to assets"
+msgstr "Quay lại danh sách tài sản"
+
+msgid "Back to protocols"
+msgstr "Quay lại danh sách giao thức"
+
+msgid "Back to help"
+msgstr "Quay lại trợ giúp"
+
+msgid "Back to authorization tree"
+msgstr "Quay lại cây phân quyền"
+
+msgid "Back to type tree"
+msgstr "Quay lại cây loại"
+
+msgid "Back to favorites tree"
+msgstr "Quay lại cây yêu thích"
+
+msgid "Invalid input."
+msgstr "Đầu vào không hợp lệ."
+
+msgid "Choose a number on this page."
+msgstr "Chọn số hiển thị trên trang này."
+
+msgid "Select 1-%d"
+msgstr "Nhập 1-%d để chọn"
+
+msgid "[number] View assets"
+msgstr "[số] Xem tài sản"
+
+msgid "Enter a search term"
+msgstr "Nhập từ khóa tìm kiếm."
+
+msgid "Failed to load type tree. Try again."
+msgstr "Không tải được cây loại. Hãy thử lại."
+
+msgid "Enter {key} to view all assets"
+msgstr "Nhập {key} để xem tất cả tài sản"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "Nhập {key} để xem cây phân quyền"
+
+msgid "Enter {key} to view the type tree"
+msgstr "Nhập {key} để xem cây loại"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "Nhập {key} để xem cây yêu thích"
+
+msgid "Enter {key} to change the interface language"
+msgstr "Nhập {key} để đổi ngôn ngữ giao diện"
+
+msgid "Enter {key} to switch to TUI mode"
+msgstr "Nhập {key} để chuyển sang chế độ TUI"
+
+msgid "Enter {key} to view help"
+msgstr "Nhập {key} để xem trợ giúp"
+
+msgid "Enter {key} to end this session"
+msgstr "Nhập {key} để kết thúc phiên này"
+
+msgid "[number] Select an asset"
+msgstr "[số] Chọn tài sản để kết nối"
+
+msgid "[number] View assets in this node"
+msgstr "[số] Xem tài sản trong nút này"
+
+msgid "Refresh authorization tree"
+msgstr "Làm mới cây phân quyền"
+
+msgid "Enter 1-%d to change language"
+msgstr "Nhập 1-%d để đổi ngôn ngữ"
+
+msgid "Enter 1-%d to choose an account"
+msgstr "Nhập 1-%d để chọn tài khoản"
+
+msgid "Enter 1-%d to choose a protocol"
+msgstr "Nhập 1-%d để chọn giao thức"
+
+msgid "Previous page"
+msgstr "Trang trước"
+
+msgid "Next page"
+msgstr "Trang tiếp"
+
+msgid "View help"
+msgstr "Xem trợ giúp"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "Không tải được cây yêu thích. Hãy thử lại."
+
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "%d) Nhập {{.GreenBoldColor}}%s{{.ColorEnd}} để thực hiện %s%s"
 
 msgid "%s approved"
 msgstr "%s đã được phê duyệt."
-
-msgid "%s node has no assets"
-msgstr "Tài nguyên trên nút %s không tồn tại"
 
 msgid "%s protocol client not installed."
 msgstr "Chưa cài đặt ứng dụng khách cho giao thức %s."
@@ -101,7 +251,7 @@ msgid "Connect with api server failed"
 msgstr "Kết nối dịch vụ API thất bại"
 
 msgid "Connecting to %s@%s"
-msgstr "bắt đầu kết nối đến %s@%s"
+msgstr "Đang kết nối tới %s@%s…"
 
 msgid "Connecting to Database %s"
 msgstr "Bắt đầu kết nối với cơ sở dữ liệu %s"
@@ -625,9 +775,6 @@ msgstr "Người xem xét công việc: %s"
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "Gợi ý: Nhập ID tài khoản của tài sản [%s]"
 
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "Ghi chú: Nhập g+ID nút để hiển thị máy chủ dưới nút, ví dụ: g1"
-
 msgid "Tips: Enter protocol ID"
 msgstr "Gợi ý: Nhập ID giao thức"
 
@@ -769,8 +916,8 @@ msgstr "Chọn một tài sản để đăng nhập"
 msgid "to search login if unique"
 msgstr "Tìm kiếm đăng nhập (nếu duy nhất)"
 
-msgid "to search, such as: /192.168"
-msgstr "tìm kiếm, ví dụ: /192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "Nhập {key} để tìm kiếm, ví dụ: /192.168"
 
 #. Koko TUI
 msgid "Account"

@@ -394,10 +394,21 @@ func (h *terminalUI) setWindowHelp() {
 	if tuiShortcutAvailable(bindings, "quit", "Ctrl+C") {
 		hints = append(hints, tuiShortcut{id: "quit", label: "Ctrl+C", description: h.tr("退出", "Quit")})
 	}
+	textMode := tuiShortcut{id: "text-mode", label: "Ctrl+T", description: h.tr("纯文本模式", "Text mode")}
+	if remote && !h.windowPrefix {
+		textMode.label = "Ctrl+] m"
+	} else if h.windowPrefix {
+		textMode.label = "m"
+	}
 	w, _ := h.screen.Size()
 	width := max(1, w-4)
 	if h.fullscreen {
 		width = max(1, w-2)
+	}
+	textModeHint := ""
+	if tuiShortcutAvailable(bindings, textMode.id, textMode.label) {
+		textModeHint = strings.ReplaceAll(tuiKeyText(textMode.label, true), "::bu]", "::u]") + " " + textMode.description
+		width = max(1, width-tview.TaggedStringWidth(textModeHint)-3)
 	}
 	var hintsText []string
 	h.helpHint = ""
@@ -423,6 +434,9 @@ func (h *terminalUI) setWindowHelp() {
 		if binding.id == "help" && enabled {
 			h.helpHint = label + " " + binding.description
 		}
+	}
+	if textModeHint != "" {
+		hintsText = append(hintsText, textModeHint)
 	}
 	text := strings.Join(hintsText, " · ")
 	if h.footer.GetText(false) != text {

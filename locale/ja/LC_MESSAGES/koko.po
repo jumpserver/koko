@@ -7,14 +7,164 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: JumpServer i18n migration\n"
 
+msgid "End session"
+msgstr "セッションを終了"
+
+msgid "Koko session ended."
+msgstr "Koko セッションを終了しました。"
+
+msgid "Connection failed"
+msgstr "接続に失敗しました"
+
+msgid "⊘ Cannot connect"
+msgstr "⊘ 接続不可"
+
+msgid "No assets in this node"
+msgstr "このノードに資産はありません"
+
+msgid "[number] Select"
+msgstr "[番号] 資産を選択"
+
+msgid "No permitted connection protocol is available for asset %s. Check its protocols and authorization rules."
+msgstr "資産 %s に利用可能な許可済み接続プロトコルがありません。資産のプロトコルと認可ルールを確認してください。"
+
+msgid "Asset %s has no available login account."
+msgstr "資産 %s に利用可能なログインアカウントがありません。"
+
+msgid "Cannot connect to this asset."
+msgstr "この資産には接続できません。"
+
+msgid "Cannot connect: asset disabled."
+msgstr "資産が無効のため接続できません。"
+
+msgid "Cannot connect: unsupported protocol (%s)."
+msgstr "非対応のプロトコル（%s）のため接続できません。"
+
+msgid "Cannot connect: no supported protocol."
+msgstr "対応プロトコルがないため接続できません。"
+
+msgid "Authorization tree unavailable. Type r to retry."
+msgstr "認可ツリーを読み込めません。r を入力して再試行してください。"
+
+msgid "Assets unavailable. Return and retry."
+msgstr "資産を読み込めません。戻って再試行してください。"
+
+msgid "Invalid number"
+msgstr "番号が無効です"
+
+msgid "No nodes"
+msgstr "ノードがありません"
+
+msgid "Switch to TUI mode"
+msgstr "TUI モードに切り替える"
+
+msgid "View all assets"
+msgstr "すべての資産を表示"
+
+msgid "View authorization tree"
+msgstr "権限ツリーを表示"
+
+msgid "View type tree"
+msgstr "種類別ツリーを表示"
+
+msgid "View favorites tree"
+msgstr "お気に入りツリーを表示"
+
+msgid "Back to assets"
+msgstr "資産一覧に戻る"
+
+msgid "Back to protocols"
+msgstr "プロトコル一覧に戻る"
+
+msgid "Back to help"
+msgstr "ヘルプに戻る"
+
+msgid "Back to authorization tree"
+msgstr "権限ツリーに戻る"
+
+msgid "Back to type tree"
+msgstr "種類別ツリーに戻る"
+
+msgid "Back to favorites tree"
+msgstr "お気に入りツリーに戻る"
+
+msgid "Invalid input."
+msgstr "入力が無効です。"
+
+msgid "Choose a number on this page."
+msgstr "このページに表示された番号を選択してください。"
+
+msgid "Select 1-%d"
+msgstr "1～%d を入力して選択"
+
+msgid "[number] View assets"
+msgstr "[番号] 資産を表示"
+
+msgid "Enter a search term"
+msgstr "検索語を入力してください。"
+
+msgid "Failed to load type tree. Try again."
+msgstr "種類ツリーを読み込めません。再試行してください。"
+
+msgid "Enter {key} to view all assets"
+msgstr "{key} を入力してすべての資産を表示"
+
+msgid "Enter {key} to view the authorization tree"
+msgstr "{key} を入力して権限ツリーを表示"
+
+msgid "Enter {key} to view the type tree"
+msgstr "{key} を入力して種類別ツリーを表示"
+
+msgid "Enter {key} to view the favorites tree"
+msgstr "{key} を入力してお気に入りツリーを表示"
+
+msgid "Enter {key} to change the interface language"
+msgstr "{key} を入力して表示言語を切り替え"
+
+msgid "Enter {key} to switch to TUI mode"
+msgstr "{key} を入力して TUI モードに切り替え"
+
+msgid "Enter {key} to view help"
+msgstr "{key} を入力してヘルプを表示"
+
+msgid "Enter {key} to end this session"
+msgstr "{key} を入力してこのセッションを終了"
+
+msgid "[number] Select an asset"
+msgstr "[番号] 接続する資産を選択"
+
+msgid "[number] View assets in this node"
+msgstr "[番号] このノードの資産を表示"
+
+msgid "Refresh authorization tree"
+msgstr "権限ツリーを更新"
+
+msgid "Enter 1-%d to change language"
+msgstr "1～%d を入力して表示言語を切り替え"
+
+msgid "Enter 1-%d to choose an account"
+msgstr "1～%d を入力してログインアカウントを選択"
+
+msgid "Enter 1-%d to choose a protocol"
+msgstr "1～%d を入力して接続プロトコルを選択"
+
+msgid "Previous page"
+msgstr "前のページ"
+
+msgid "Next page"
+msgstr "次のページ"
+
+msgid "View help"
+msgstr "ヘルプを表示"
+
+msgid "Failed to load favorites tree. Try again."
+msgstr "お気に入りツリーを読み込めません。再試行してください。"
+
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "%d) {{.GreenBoldColor}}%s{{.ColorEnd}} を入力して%sを実行してください%s"
 
 msgid "%s approved"
 msgstr "%s 承認されました"
-
-msgid "%s node has no assets"
-msgstr "%sノードに資産がありません"
 
 msgid "%s protocol client not installed."
 msgstr "%s プロトコルのクライアントがインストールされていません。"
@@ -101,7 +251,7 @@ msgid "Connect with api server failed"
 msgstr "APIサービスに接続に失敗しました"
 
 msgid "Connecting to %s@%s"
-msgstr "%s@%s への接続を開始中"
+msgstr "%s@%s に接続中…"
 
 msgid "Connecting to Database %s"
 msgstr "データベース %s への接続を開始します。"
@@ -625,9 +775,6 @@ msgstr "チケットレビュアー：%s"
 msgid "Tips: Enter asset[%s] account ID"
 msgstr "ヒント：資産[%s]のアカウント ID を入力してください"
 
-msgid "Tips: Enter g+NodeID to display the host under the node, such as g1"
-msgstr "ヒント：g+ノードIDを入力すると、そのノードに属するホストが表示されます。例：g1"
-
 msgid "Tips: Enter protocol ID"
 msgstr "ヒント：プロトコルIDを入力してください"
 
@@ -769,8 +916,8 @@ msgstr "資産のいずれかを選択してログイン"
 msgid "to search login if unique"
 msgstr "ログイン検索（唯一の場合）"
 
-msgid "to search, such as: /192.168"
-msgstr "検索：/192.168"
+msgid "Enter {key} to search, such as: /192.168"
+msgstr "{key} を入力して検索。例：/192.168"
 
 #. lang.T
 #: pkg/handler/banner.go:33
