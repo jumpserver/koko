@@ -24,7 +24,7 @@ func HTTPMiddleSessionAuth(jmsService *service.JMService) gin.HandlerFunc {
 		}
 		user, err = jmsService.CheckUserCookie(cookies)
 		if err != nil {
-			logger.Errorf("Check user cookie failed: %+v %s", cookies, err.Error())
+			logger.Error("Check user cookie failed")
 			loginUrl := fmt.Sprintf("/core/auth/login/?next=%s", url.QueryEscape(ctx.Request.URL.RequestURI()))
 			ctx.Redirect(http.StatusFound, loginUrl)
 			ctx.Abort()
