@@ -20,6 +20,52 @@ import (
 
 const transferChunkMaxSize = 2 * 1024 * 1024
 
+// Whole-file verification reads block by block so pkg/sftp can fan a block out
+// into concurrent 32KB packets. Sequential io.Copy/io.ReadFull would pay one
+// round trip per packet and blow past the client's request timeout.
+const transferVerifyBlockSize = 2 * 1024 * 1024
+
+// Audit recording keeps its original 64KB chunk sequence.
+const transferRecordChunkSize = 64 * 1024
+
+func readFullAt(reader io.ReaderAt, buffer []byte, offset int64) error {
+	n, err := reader.ReadAt(buffer, offset)
+	if n == len(buffer) {
+		return nil
+	}
+	if err == nil || err == io.EOF {
+		return io.ErrUnexpectedEOF
+	}
+	return err
+}
+
+// readsPastSize reports whether the file still has data after size.
+func readsPastSize(reader io.ReaderAt, size int64) (bool, error) {
+	var extra [1]byte
+	n, err := reader.ReadAt(extra[:], size)
+	if n > 0 {
+		return true, nil
+	}
+	if err == nil || err == io.EOF {
+		return false, nil
+	}
+	return false, err
+}
+
+func hashReaderAt(reader io.ReaderAt, size int64) (string, error) {
+	hash := sha256.New()
+	buffer := make([]byte, min(int64(transferVerifyBlockSize), max(size, 1)))
+	for offset := int64(0); offset < size; {
+		block := buffer[:min(int64(len(buffer)), size-offset)]
+		if err := readFullAt(reader, block, offset); err != nil {
+			return "", err
+		}
+		_, _ = hash.Write(block)
+		offset += int64(len(block))
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
 // transferKeepBothCommitMu 保证当前进程内所有 WebSocket 会话的后缀选取与最终重命名连续执行。
 var transferKeepBothCommitMu sync.Mutex
 
@@ -619,16 +665,16 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize int
 		if info.Size() != totalSize {
 			return sftpTransferResult{}, fmt.Errorf("file transfer is incomplete")
 		}
-		hash := sha256.New()
-		if _, err = io.CopyN(hash, file, totalSize); err != nil {
-			return sftpTransferResult{}, err
+		sum, hashErr := hashReaderAt(file, totalSize)
+		if hashErr != nil {
+			return sftpTransferResult{}, hashErr
 		}
 		if info, err = file.Stat(); err != nil {
 			return sftpTransferResult{}, err
 		} else if info.Size() != totalSize {
 			return sftpTransferResult{}, fmt.Errorf("file transfer size changed during commit")
 		}
-		if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedSHA256) {
+		if !strings.EqualFold(sum, expectedSHA256) {
 			return sftpTransferResult{}, fmt.Errorf("file transfer checksum mismatch")
 		}
 		closed = true
@@ -675,7 +721,7 @@ func (u *sftpVolume) recordUploadedFile(path string, size int64, expectedSHA256 
 
 // Hash exactly the bytes saved to the recording. A target replaced or modified
 // after commit must never associate different contents with this upload's log.
-func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.Reader, size int64, expectedSHA256 string) (err error) {
+func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.ReaderAt, size int64, expectedSHA256 string) (err error) {
 	if u.recorder == nil || ftpLog == nil || size >= u.recorder.MaxFileSize {
 		return nil
 	}
@@ -687,28 +733,37 @@ func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.Reader
 	if size < 0 {
 		return fmt.Errorf("invalid upload recording size")
 	}
-	buffer := make([]byte, 64*1024)
+	// Read in large blocks so the transport can overlap packets, but keep the
+	// recorded chunk sequence at its original size.
+	buffer := make([]byte, min(int64(transferVerifyBlockSize), max(size, 1)))
 	hash := sha256.New()
 	for offset := int64(0); ; {
-		length := min(int64(len(buffer)), size-offset)
-		chunk := buffer[:length]
-		if _, err := io.ReadFull(reader, chunk); err != nil {
-			return fmt.Errorf("read upload recording: %w", err)
+		block := buffer[:min(int64(len(buffer)), size-offset)]
+		if len(block) > 0 {
+			if readErr := readFullAt(reader, block, offset); readErr != nil {
+				return fmt.Errorf("read upload recording: %w", readErr)
+			}
 		}
-		_, _ = hash.Write(chunk)
-		if err := u.recorder.ChunkedRecord(ftpLog, bytes.NewReader(chunk), offset, length); err != nil {
-			return err
+		for cursor := int64(0); ; {
+			length := min(int64(transferRecordChunkSize), int64(len(block))-cursor)
+			chunk := block[cursor : cursor+length]
+			_, _ = hash.Write(chunk)
+			if err := u.recorder.ChunkedRecord(ftpLog, bytes.NewReader(chunk), offset+cursor, length); err != nil {
+				return err
+			}
+			cursor += length
+			if cursor >= int64(len(block)) {
+				break
+			}
 		}
-		offset += length
+		offset += int64(len(block))
 		if offset == size {
 			break
 		}
 	}
-	var extra [1]byte
-	if _, err := io.ReadFull(reader, extra[:]); err != io.EOF {
-		if err != nil {
-			return fmt.Errorf("read upload recording end: %w", err)
-		}
+	if extra, readErr := readsPastSize(reader, size); readErr != nil {
+		return fmt.Errorf("read upload recording end: %w", readErr)
+	} else if extra {
 		return fmt.Errorf("upload recording exceeds expected size")
 	}
 	if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedSHA256) {
