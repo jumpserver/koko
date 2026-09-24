@@ -175,6 +175,7 @@ type webSftpRequest struct {
 	TransferID      string  `json:"transfer_id"`
 	Length          int64   `json:"length"`
 	SHA256          string  `json:"sha256"`
+	ChunkSize       int64   `json:"chunk_size"`
 	ConflictPolicy  string  `json:"conflict_policy"`
 	Discard         bool    `json:"discard"`
 	Binary          bool    `json:"binary"`

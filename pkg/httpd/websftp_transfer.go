@@ -36,7 +36,7 @@ func (h *webSftp) handleTransferMutation(request *webSftpRequest, msg *Message, 
 	case "transfer_status":
 		result, err = h.volume.transferStatus(request.TransferID, request.Path, request.Size)
 	case "transfer_commit":
-		result, err = h.volume.commitTransfer(request.TransferID, request.Path, request.Size, request.SHA256, request.ConflictPolicy)
+		result, err = h.volume.commitTransfer(request.TransferID, request.Path, request.Size, request.ChunkSize, request.SHA256, request.ConflictPolicy)
 	case "transfer_cancel":
 		result, err = h.volume.cancelTransfer(request.TransferID, request.Path, request.Discard)
 	}
