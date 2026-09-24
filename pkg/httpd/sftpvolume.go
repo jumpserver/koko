@@ -3,7 +3,6 @@ package httpd
 import (
 	"context"
 	"fmt"
-	"hash"
 	"os"
 	"path/filepath"
 	"sync"
@@ -69,6 +68,11 @@ type transferIO interface {
 	Close() error
 }
 
+type doneTransferChunk struct {
+	length int64
+	sum    [32]byte
+}
+
 type cachedTransferFile struct {
 	id, path  string
 	file      transferIO
@@ -76,8 +80,8 @@ type cachedTransferFile struct {
 	inUse     int
 	closing   bool
 	inFlight  map[int64]int64
-	done      map[int64][]byte
-	digest    hash.Hash
+	done      map[int64]doneTransferChunk
+	chain     checksumChain
 	digested  int64
 }
 

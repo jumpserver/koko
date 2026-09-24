@@ -20,11 +20,6 @@ import (
 
 const transferChunkMaxSize = 2 * 1024 * 1024
 
-// Whole-file verification reads block by block so pkg/sftp can fan a block out
-// into concurrent 32KB packets. Sequential io.Copy/io.ReadFull would pay one
-// round trip per packet and blow past the client's request timeout.
-const transferVerifyBlockSize = 2 * 1024 * 1024
-
 // Audit recording keeps its original 64KB chunk sequence.
 const transferRecordChunkSize = 64 * 1024
 
@@ -50,20 +45,6 @@ func readsPastSize(reader io.ReaderAt, size int64) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-func hashReaderAt(reader io.ReaderAt, size int64) (string, error) {
-	hash := sha256.New()
-	buffer := make([]byte, min(int64(transferVerifyBlockSize), max(size, 1)))
-	for offset := int64(0); offset < size; {
-		block := buffer[:min(int64(len(buffer)), size-offset)]
-		if err := readFullAt(reader, block, offset); err != nil {
-			return "", err
-		}
-		_, _ = hash.Write(block)
-		offset += int64(len(block))
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // transferKeepBothCommitMu 保证当前进程内所有 WebSocket 会话的后缀选取与最终重命名连续执行。
@@ -102,6 +83,49 @@ func transferStagePath(targetPath, transferID string) (string, error) {
 func sha256Hex(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+// checksumChain folds per-chunk digests instead of re-hashing every byte:
+//
+//	state[0] = 32 zero bytes
+//	state[i] = SHA256(state[i-1] || SHA256(chunk[i]))
+//
+// Chunk digests are already computed to validate each write, so the whole-file
+// witness costs one 64-byte hash per chunk on both ends. The browser pays the
+// same, which is the point: a hand written incremental SHA256 over every byte
+// was the client's CPU cost.
+type checksumChain struct {
+	state [sha256.Size]byte
+}
+
+func (c *checksumChain) push(chunkSum [sha256.Size]byte) {
+	hash := sha256.New()
+	_, _ = hash.Write(c.state[:])
+	_, _ = hash.Write(chunkSum[:])
+	hash.Sum(c.state[:0])
+}
+
+func (c *checksumChain) hex() string {
+	return hex.EncodeToString(c.state[:])
+}
+
+// chainReaderAt rebuilds the chain from stored bytes, used when the running
+// chain does not cover the whole file (resume) and for audit recording.
+func chainReaderAt(reader io.ReaderAt, size, chunkSize int64) (string, error) {
+	if chunkSize <= 0 || chunkSize > transferChunkMaxSize {
+		return "", fmt.Errorf("invalid file transfer chunk size")
+	}
+	var chain checksumChain
+	buffer := make([]byte, min(chunkSize, max(size, 1)))
+	for offset := int64(0); offset < size; {
+		block := buffer[:min(chunkSize, size-offset)]
+		if err := readFullAt(reader, block, offset); err != nil {
+			return "", err
+		}
+		chain.push(sha256.Sum256(block))
+		offset += int64(len(block))
+	}
+	return chain.hex(), nil
 }
 
 func (u *sftpVolume) openTransferRead(path string) (transferIO, error) {
@@ -205,8 +229,8 @@ func (c *cachedTransferFile) nextAccept() int64 {
 			pos += n
 			continue
 		}
-		if data, ok := c.done[pos]; ok {
-			pos += int64(len(data))
+		if entry, ok := c.done[pos]; ok {
+			pos += entry.length
 			continue
 		}
 		return pos
@@ -215,16 +239,14 @@ func (c *cachedTransferFile) nextAccept() int64 {
 
 func (c *cachedTransferFile) drainCommitted() {
 	for {
-		data, ok := c.done[c.committed]
+		entry, ok := c.done[c.committed]
 		if !ok {
 			return
 		}
 		delete(c.done, c.committed)
-		if c.digest != nil {
-			_, _ = c.digest.Write(data)
-			c.digested += int64(len(data))
-		}
-		c.committed += int64(len(data))
+		c.chain.push(entry.sum)
+		c.digested += entry.length
+		c.committed += entry.length
 	}
 }
 
@@ -232,8 +254,7 @@ func newCachedTransferFile(id, path string, file transferIO, committed int64) *c
 	return &cachedTransferFile{
 		id: id, path: path, file: file, committed: committed,
 		inFlight: make(map[int64]int64),
-		done:     make(map[int64][]byte),
-		digest:   sha256.New(),
+		done:     make(map[int64]doneTransferChunk),
 	}
 }
 
@@ -448,7 +469,8 @@ func (u *sftpVolume) readHandleLocked(transferID, path string) (file transferIO,
 }
 
 func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize, offset int64, expectedSHA256 string, data []byte) (result sftpTransferResult, err error) {
-	if totalSize < 0 || offset < 0 || offset > totalSize || len(data) == 0 || len(data) > transferChunkMaxSize || int64(len(data)) > totalSize-offset || !strings.EqualFold(expectedSHA256, sha256Hex(data)) {
+	chunkSum := sha256.Sum256(data)
+	if totalSize < 0 || offset < 0 || offset > totalSize || len(data) == 0 || len(data) > transferChunkMaxSize || int64(len(data)) > totalSize-offset || !strings.EqualFold(expectedSHA256, hex.EncodeToString(chunkSum[:])) {
 		return sftpTransferResult{}, fmt.Errorf("invalid file transfer chunk")
 	}
 	stagePath, err := transferStagePath(targetPath, transferID)
@@ -521,14 +543,14 @@ func (u *sftpVolume) writeTransferChunk(transferID, targetPath string, totalSize
 	if writeErr == nil && n != len(data) {
 		writeErr = io.ErrShortWrite
 	}
-	committedBytes, err = u.completeWrite(cached, offset, length, data, writeErr)
+	committedBytes, err = u.completeWrite(cached, offset, length, chunkSum, writeErr)
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
 	return sftpTransferResult{TransferID: transferID, CommittedBytes: committedBytes, TotalBytes: totalSize, State: "ready"}, nil
 }
 
-func (u *sftpVolume) completeWrite(cached bool, offset, length int64, data []byte, writeErr error) (int64, error) {
+func (u *sftpVolume) completeWrite(cached bool, offset, length int64, chunkSum [32]byte, writeErr error) (int64, error) {
 	if !cached {
 		if writeErr != nil {
 			return 0, writeErr
@@ -540,7 +562,7 @@ func (u *sftpVolume) completeWrite(cached bool, offset, length int64, data []byt
 	if u.transferWrite != nil {
 		delete(u.transferWrite.inFlight, offset)
 		if writeErr == nil {
-			u.transferWrite.done[offset] = data
+			u.transferWrite.done[offset] = doneTransferChunk{length: length, sum: chunkSum}
 			u.transferWrite.drainCommitted()
 		}
 	}
@@ -621,7 +643,7 @@ func (u *sftpVolume) transferStatus(transferID, targetPath string, totalSize int
 	return sftpTransferResult{TransferID: transferID, CommittedBytes: info.Size(), TotalBytes: totalSize, State: "ready"}, nil
 }
 
-func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize int64, expectedSHA256, conflictPolicy string) (sftpTransferResult, error) {
+func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize, chunkSize int64, expectedSHA256, conflictPolicy string) (sftpTransferResult, error) {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	if u.closed.Load() {
@@ -634,12 +656,15 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize int
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
+	if chunkSize <= 0 || chunkSize > transferChunkMaxSize {
+		return sftpTransferResult{}, fmt.Errorf("invalid file transfer chunk size")
+	}
 	var runningSum string
 	var hashedAll bool
 	if u.transferWrite != nil && u.transferWrite.id == transferID && u.transferWrite.path == stagePath {
-		hashedAll = u.transferWrite.digest != nil && u.transferWrite.digested == totalSize
+		hashedAll = u.transferWrite.digested == totalSize
 		if hashedAll {
-			runningSum = hex.EncodeToString(u.transferWrite.digest.Sum(nil))
+			runningSum = u.transferWrite.chain.hex()
 		}
 		u.closeTransferWriteLocked()
 	}
@@ -665,7 +690,7 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize int
 		if info.Size() != totalSize {
 			return sftpTransferResult{}, fmt.Errorf("file transfer is incomplete")
 		}
-		sum, hashErr := hashReaderAt(file, totalSize)
+		sum, hashErr := chainReaderAt(file, totalSize, chunkSize)
 		if hashErr != nil {
 			return sftpTransferResult{}, hashErr
 		}
@@ -698,11 +723,11 @@ func (u *sftpVolume) commitTransfer(transferID, targetPath string, totalSize int
 	if err != nil {
 		return sftpTransferResult{}, err
 	}
-	u.recordUploadedFile(targetPath, totalSize, expectedSHA256, ftpLog)
+	u.recordUploadedFile(targetPath, totalSize, chunkSize, expectedSHA256, ftpLog)
 	return sftpTransferResult{TransferID: transferID, CommittedBytes: totalSize, TotalBytes: totalSize, State: "completed"}, nil
 }
 
-func (u *sftpVolume) recordUploadedFile(path string, size int64, expectedSHA256 string, ftpLog *model.FTPLog) {
+func (u *sftpVolume) recordUploadedFile(path string, size, chunkSize int64, expectedSHA256 string, ftpLog *model.FTPLog) {
 	if u.recorder == nil || ftpLog == nil || size >= u.recorder.MaxFileSize {
 		return
 	}
@@ -711,7 +736,7 @@ func (u *sftpVolume) recordUploadedFile(path string, size int64, expectedSHA256 
 		logger.Errorf("Open completed upload for recording: %s", err)
 		return
 	}
-	if err := u.recordUploadContents(ftpLog, file, size, expectedSHA256); err != nil {
+	if err := u.recordUploadContents(ftpLog, file, size, chunkSize, expectedSHA256); err != nil {
 		logger.Errorf("Record completed upload: %s", err)
 	}
 	if err := file.Close(); err != nil {
@@ -721,7 +746,7 @@ func (u *sftpVolume) recordUploadedFile(path string, size int64, expectedSHA256 
 
 // Hash exactly the bytes saved to the recording. A target replaced or modified
 // after commit must never associate different contents with this upload's log.
-func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.ReaderAt, size int64, expectedSHA256 string) (err error) {
+func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.ReaderAt, size, chunkSize int64, expectedSHA256 string) (err error) {
 	if u.recorder == nil || ftpLog == nil || size >= u.recorder.MaxFileSize {
 		return nil
 	}
@@ -733,21 +758,25 @@ func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.Reader
 	if size < 0 {
 		return fmt.Errorf("invalid upload recording size")
 	}
-	// Read in large blocks so the transport can overlap packets, but keep the
-	// recorded chunk sequence at its original size.
-	buffer := make([]byte, min(int64(transferVerifyBlockSize), max(size, 1)))
-	hash := sha256.New()
+	if chunkSize <= 0 || chunkSize > transferChunkMaxSize {
+		return fmt.Errorf("invalid upload recording chunk size")
+	}
+	// Read one transfer chunk at a time so the transport can overlap packets and
+	// the chain matches what the client verified, but keep the recorded chunk
+	// sequence at its original size.
+	buffer := make([]byte, min(chunkSize, max(size, 1)))
+	var chain checksumChain
 	for offset := int64(0); ; {
-		block := buffer[:min(int64(len(buffer)), size-offset)]
+		block := buffer[:min(chunkSize, size-offset)]
 		if len(block) > 0 {
 			if readErr := readFullAt(reader, block, offset); readErr != nil {
 				return fmt.Errorf("read upload recording: %w", readErr)
 			}
+			chain.push(sha256.Sum256(block))
 		}
 		for cursor := int64(0); ; {
 			length := min(int64(transferRecordChunkSize), int64(len(block))-cursor)
 			chunk := block[cursor : cursor+length]
-			_, _ = hash.Write(chunk)
 			if err := u.recorder.ChunkedRecord(ftpLog, bytes.NewReader(chunk), offset+cursor, length); err != nil {
 				return err
 			}
@@ -766,7 +795,7 @@ func (u *sftpVolume) recordUploadContents(ftpLog *model.FTPLog, reader io.Reader
 	} else if extra {
 		return fmt.Errorf("upload recording exceeds expected size")
 	}
-	if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedSHA256) {
+	if !strings.EqualFold(chain.hex(), expectedSHA256) {
 		return fmt.Errorf("upload recording checksum mismatch")
 	}
 	u.recorder.FinishFTPFile(ftpLog.ID)
