@@ -392,10 +392,9 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 			return fmt.Sprintf(lang.T("Asset %s has no available login account."), asset.Name), true
 		}
 		retry := false
-		accountPage := 0
 		for {
 			var back bool
-			selectedAccount, ok, back = u.h.chooseAccount(supportAccounts, protocol, len(protocols) > 1, retry, &accountPage)
+			selectedAccount, ok, back = u.h.chooseAccount(supportAccounts, protocol, len(protocols) > 1, retry)
 			if !ok {
 				if back && len(protocols) > 1 {
 					break

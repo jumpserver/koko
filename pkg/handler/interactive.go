@@ -38,7 +38,7 @@ func newInteractiveHandler(sess *WrapperSession, user *model.User, jmsService *s
 	handler := &InteractiveHandler{
 		sess: sess, user: user, term: term.NewTerminal(sess, "Opt> "), jmsService: api,
 		terminalConf: &termConfig, i18nLang: language, publicSetting: &publicSetting,
-		preferences: preferences, shutdown: shutdown,
+		preferences: preferences, shutdown: shutdown, pendingMode: terminalModeText,
 	}
 	handler.Initial()
 	return handler
@@ -49,26 +49,29 @@ type InteractiveHandler struct {
 	user *model.User
 	term *term.Terminal
 
-	selectHandler   *UserSelectHandler
-	nodes           model.NodeList
-	nodeLoadErr     error
-	typeNodes       []classicTypeNode
-	favoriteNodes   []classicFavoriteNode
-	assetLoadPolicy string
-	wg              sync.WaitGroup
-	jmsService      *service.JMService
-	terminalConf    *model.TerminalConfig
-	publicSetting   *model.PublicSetting
-	i18nLang        string
-	preferences     *tuiPreferences
-	shutdown        <-chan struct{}
-	manualPasswords tuiManualPasswordAttempts
-	classicView     classicView
-	helpReturnView  classicView
-	treeOrigin      selectType
-	treeSelected    bool
-	idleState       chan bool
-	exitRequested   bool
+	selectHandler     *UserSelectHandler
+	nodes             model.NodeList
+	nodeLoadErr       error
+	typeNodes         []classicTypeNode
+	favoriteNodes     []classicFavoriteNode
+	assetLoadPolicy   string
+	wg                sync.WaitGroup
+	jmsService        *service.JMService
+	terminalConf      *model.TerminalConfig
+	publicSetting     *model.PublicSetting
+	i18nLang          string
+	preferences       *tuiPreferences
+	shutdown          <-chan struct{}
+	manualPasswords   tuiManualPasswordAttempts
+	classicView       classicView
+	helpReturnView    classicView
+	helpBackTarget    string
+	treeOrigin        selectType
+	treeSelected      bool
+	idleState         chan bool
+	exitRequested     bool
+	classicNavigation bool
+	pendingMode       terminalMode
 }
 
 func (h *InteractiveHandler) Initial() {
@@ -124,8 +127,12 @@ func (h *InteractiveHandler) displayHelp() {
 	h.term.SetPrompt("Opt> ")
 	h.displayBanner(h.sess, h.user.Name, h.terminalConf)
 	h.displayAnnouncement(h.sess, h.publicSetting)
-	if h.helpReturnView == classicViewList {
-		utils.IgnoreErrWriteString(h.term, utils.WrapperTitle("[b]")+" "+i18n.NewLang(h.i18nLang).T("Back to assets")+utils.CharNewLine)
+	backTarget := h.helpBackTarget
+	if backTarget == "" && h.helpReturnView == classicViewList {
+		backTarget = "Back to assets"
+	}
+	if backTarget != "" {
+		utils.IgnoreErrWriteString(h.term, utils.WrapperTitle("[b]")+" "+i18n.NewLang(h.i18nLang).T(backTarget)+utils.CharNewLine)
 	}
 }
 
@@ -145,11 +152,19 @@ func (h *InteractiveHandler) readClassicLine() (string, error) {
 		return "", io.EOF
 	}
 	line = strings.TrimSpace(line)
-	if err == nil && line == "exit" {
+	if err == nil && classicShortcut(line) == "exit" {
 		h.requestClassicExit()
 		return "", io.EOF
 	}
 	return line, err
+}
+
+func classicShortcut(input string) string {
+	value := strings.TrimSpace(input)
+	if value == "？" {
+		return "?"
+	}
+	return strings.ToLower(value)
 }
 
 func (h *InteractiveHandler) requestClassicExit() {
@@ -162,6 +177,7 @@ func (h *InteractiveHandler) requestClassicExit() {
 }
 
 func classicChoiceNumber(input string, count int) (int, bool) {
+	input = strings.TrimSpace(input)
 	if input == "" {
 		return 0, false
 	}
@@ -174,8 +190,9 @@ func classicChoiceNumber(input string, count int) (int, bool) {
 	return number, err == nil && number > 0 && number <= count
 }
 
-func (h *InteractiveHandler) readClassicChoice(table string, hints []string, width int,
-	prompt string, count int) (number int, back bool, err error) {
+func (h *InteractiveHandler) readClassicChoice(table string, hints []classicHintRow, width int,
+	prompt string, count int, helpBackTarget string,
+	resume func() (string, []classicHintRow, int)) (number int, back bool, err error) {
 	h.resizeTerminal()
 	h.term.SetPrompt(prompt)
 	utils.IgnoreErrWriteString(h.term, table)
@@ -185,8 +202,19 @@ func (h *InteractiveHandler) readClassicChoice(table string, hints []string, wid
 		if readErr != nil {
 			return 0, false, readErr
 		}
-		if line == "b" {
+		if classicShortcut(line) == "b" {
 			return 0, true, nil
+		}
+		if classicShortcut(line) == "?" {
+			if !h.showClassicHelpOverlay(helpBackTarget) {
+				return 0, false, io.EOF
+			}
+			h.term.SetPrompt(prompt)
+			table, hints, width = resume()
+			utils.IgnoreErrWriteString(h.term, utils.CharClear)
+			utils.IgnoreErrWriteString(h.term, table)
+			utils.IgnoreErrWriteString(h.term, classicHintPanel(hints, width))
+			continue
 		}
 		if line == "" {
 			continue

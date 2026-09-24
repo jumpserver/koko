@@ -23,7 +23,7 @@ var (
 
 	allLangCodes = []LanguageCode{ZH, EN, JA, ZHHant, PtBr, Ko, Ru, Es, Vi}
 
-	AllLangCodesStr = []string{"English", "中文", "繁體中文", "日本語", "Português", "한국어", "Русский", "Español", "Tiếng Việt"}
+	AllLangCodesStr = []string{"English", "简体中文", "繁體中文", "日本語", "Português", "한국어", "Русский", "Español", "Tiếng Việt"}
 	AllCodes        = []LanguageCode{EN, ZH, ZHHant, JA, PtBr, Ko, Ru, Es, Vi}
 )
 

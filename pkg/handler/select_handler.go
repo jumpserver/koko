@@ -168,13 +168,21 @@ func (u *UserSelectHandler) canAutoConnectSearchResult() bool {
 	return u.loadErr == nil && u.TotalCount() == 1 && len(u.currentResult) == 1 && u.assetCanConnect(0)
 }
 
-func (u *UserSelectHandler) SearchAgain(key string) {
-	if key = normalizeClassicSearchKey(key); key != "" {
-		u.searchKeys = append(u.searchKeys, key)
+func (u *UserSelectHandler) SearchAgain(key string) bool {
+	key = normalizeClassicSearchKey(key)
+	if key == "" {
+		return false
 	}
+	for _, existing := range u.searchKeys {
+		if existing == key {
+			return false
+		}
+	}
+	u.searchKeys = append(u.searchKeys, key)
 	pageSize := u.resultPageSize()
 	u.currentResult = u.Retrieve(pageSize, 0, u.searchKeys...)
 	u.DisplayCurrentResult()
+	return true
 }
 
 func normalizeClassicSearchKey(key string) string {
@@ -271,7 +279,7 @@ func (u *UserSelectHandler) proxy(target model.PermAsset, autoOnly bool) bool {
 	if !selected {
 		return false
 	}
-	if u.h.exitRequested {
+	if u.h.exitRequested || u.h.classicNavigation {
 		return true
 	}
 	u.h.term.SetPrompt(string(u.promptStr))

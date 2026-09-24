@@ -19,23 +19,16 @@ func (u *UserSelectHandler) displayResult(_ string, labels, fields []string,
 	vt := u.h.term
 	width, _ := u.h.GetPtySize()
 	start, end := resultDisplayRange(u.CurrentOffSet(), len(u.currentResult), u.TotalCount())
-	searchHints := u.searchSyntaxHints(lang, width)
 	pageTip := ""
 	if u.TotalPage() > 1 {
 		pageTip = fmt.Sprintf("%d-%d / %d", start, end, u.TotalCount())
 	}
-	statusParts := []string{u.currentSearchTip(lang), u.scopePathHint(lang)}
-	for _, connectable := range u.connectable {
-		if !connectable {
-			statusParts = append(statusParts, lang.T("⊘ Cannot connect"))
-			break
-		}
-	}
-	statusLines := classicAssetStatusLines(statusParts, pageTip, width)
-	hints := make([]string, 0, 3)
+	statusLines, searchHints := u.assetStatusAndSearchHints(lang, pageTip, width)
+	hints := make([]classicHintRow, 0, 3)
 	hints = append(hints, statusLines...)
 	hints = append(hints, searchHints...)
-	hints = append(hints, u.assetActionHints(lang, width, u.HasPrev(), u.HasNext())...)
+	hints = append(hints, classicHintRows(classicHintShortcut,
+		u.assetActionHints(lang, width, u.HasPrev(), u.HasNext()))...)
 	_, _ = vt.Write([]byte(utils.CharClear))
 	if width < 60 {
 		utils.IgnoreErrWriteString(vt, classicCompactAssetRows(fields, labels, data, width))
@@ -112,6 +105,19 @@ func classicAssetStatusLines(parts []string, page string, width int) []string {
 	return append(lines, strings.Repeat(" ", width-pageWidth)+page)
 }
 
+func (u *UserSelectHandler) assetStatusAndSearchHints(lang i18n.LanguageCode, page string, width int) ([]classicHintRow, []classicHintRow) {
+	searchHints := u.searchSyntaxHints(lang)
+	searchTip := u.currentSearchTip(lang)
+	scope := u.scopePathHint(lang)
+	if searchTip == "" && len(searchHints) > 0 {
+		if scope != "" {
+			return classicHintRows(classicHintPlain, classicAssetStatusLines([]string{scope}, page, width)), searchHints
+		}
+		return classicHintRows(searchHints[0].style, classicRightAlignedHintLines(searchHints[0].text, page, width)), searchHints[1:]
+	}
+	return classicHintRows(classicHintPlain, classicAssetStatusLines([]string{searchTip, scope}, page, width)), searchHints
+}
+
 func (u *UserSelectHandler) currentSearchTip(lang i18n.LanguageCode) string {
 	if summary := currentSearchSummary(u.searchKeys, ""); summary != "" {
 		return fmt.Sprintf(lang.T("Search: %s"), summary)
@@ -136,13 +142,12 @@ func (u *UserSelectHandler) assetActionHints(lang i18n.LanguageCode, width int, 
 
 func (u *UserSelectHandler) assetFooterRows(width int) int {
 	lang := i18n.NewLang(u.h.i18nLang)
-	parts := []string{u.currentSearchTip(lang), u.scopePathHint(lang), lang.T("⊘ Cannot connect")}
-	hints := classicAssetStatusLines(parts, "1-99999 / 99999", width)
-	hints = append(hints, u.searchSyntaxHints(lang, width)...)
-	hints = append(hints, u.assetActionHints(lang, width, true, true)...)
+	hints, searchHints := u.assetStatusAndSearchHints(lang, "1-99999 / 99999", width)
+	hints = append(hints, searchHints...)
+	hints = append(hints, classicHintRows(classicHintShortcut, u.assetActionHints(lang, width, true, true))...)
 	rows := 1 // Separator.
 	for _, hint := range hints {
-		rows += len(classicHintLines(hint, width))
+		rows += len(classicHintLines(hint.text, width))
 	}
 	return rows
 }
@@ -179,16 +184,17 @@ func (u *UserSelectHandler) displayNoResultMsg(_ string, tips string) {
 	}
 	width, _ := u.h.GetPtySize()
 	utils.IgnoreErrWriteString(u.h.term, utils.CharClear)
-	searchHints := u.searchSyntaxHints(lang, width)
+	searchHints := u.searchSyntaxHints(lang)
 	for _, line := range classicHintLines(tips, width) {
 		utils.IgnoreErrWriteString(u.h.term, utils.WrapperString(line, utils.Red)+utils.CharNewLine)
 	}
-	hints := make([]string, 0, 3)
-	hints = append(hints, compactClassicHintRows(width, u.currentSearchTip(lang), u.scopePathHint(lang))...)
+	hints := make([]classicHintRow, 0, 3)
+	hints = append(hints, classicHintRows(classicHintPlain,
+		compactClassicHintRows(width, u.currentSearchTip(lang), u.scopePathHint(lang)))...)
 	hints = append(hints, searchHints...)
-	hints = append(hints, compactClassicHintRows(width,
+	hints = append(hints, classicHintRows(classicHintShortcut, compactClassicHintRows(width,
 		fmt.Sprintf("[b] %s", u.classicBackTarget(lang)), fmt.Sprintf("[?] %s", lang.T("View help")),
-		classicExitHint(lang))...)
+		classicExitHint(lang)))...)
 	utils.IgnoreErrWriteString(u.h.term, classicAssetHintPanel(hints, width))
 }
 
@@ -218,14 +224,16 @@ func (u *UserSelectHandler) scopePathHint(lang i18n.LanguageCode) string {
 	}
 }
 
-func (u *UserSelectHandler) searchSyntaxHints(lang i18n.LanguageCode, width int) []string {
-	if u.currentType == TypeNodeAsset || u.currentType == TypeTypeAsset || u.currentType == TypeFavoriteAsset {
-		return compactClassicHintRows(width, strings.Split(lang.T(
-			"Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"), " · ")...)
+func (u *UserSelectHandler) searchSyntaxHints(lang i18n.LanguageCode) []classicHintRow {
+	if u.currentType != TypeNodeAsset && u.currentType != TypeTypeAsset &&
+		u.currentType != TypeFavoriteAsset && currentSearchSummary(u.searchKeys, "") == "" {
+		return []classicHintRow{{
+			text:  fmt.Sprintf(lang.T("Search tip: %s"), lang.T("/ + IP, Hostname, Comment")),
+			style: classicHintSearchTip,
+		}}
 	}
-	if currentSearchSummary(u.searchKeys, "") == "" {
-		return []string{fmt.Sprintf(lang.T("Search tip: %s"), lang.T("/ + IP, Hostname, Comment"))}
-	}
-	return compactClassicHintRows(width, strings.Split(lang.T(
-		"Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"), " · ")...)
+	return []classicHintRow{{
+		text:  lang.T("Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"),
+		style: classicHintSearchGuide,
+	}}
 }

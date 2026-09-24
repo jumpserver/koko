@@ -27,6 +27,7 @@ func (h *InteractiveHandler) Dispatch() terminalMode {
 	defer logger.Infof("Request %s: User %s stop classic text mode", h.sess.ID(), h.user.Name)
 
 	for {
+		h.classicNavigation = false
 		h.resizeTerminal()
 		line, err := h.readClassicLine()
 		if err != nil {
@@ -36,6 +37,9 @@ func (h *InteractiveHandler) Dispatch() terminalMode {
 		if mode := h.dispatchClassicInput(line, idleState); mode != terminalModeText {
 			return mode
 		}
+		if h.pendingMode != terminalModeText {
+			return h.pendingMode
+		}
 		if h.exitRequested {
 			return terminalModeExit
 		}
@@ -43,12 +47,14 @@ func (h *InteractiveHandler) Dispatch() terminalMode {
 }
 
 func (h *InteractiveHandler) dispatchClassicInput(line string, idleState chan bool) terminalMode {
+	line = strings.TrimSpace(line)
 	if line == "" && h.classicView != classicViewList {
 		return terminalModeText
 	}
-	if line == "?" {
+	if classicShortcut(line) == "?" {
 		if h.classicView == classicViewList {
 			h.helpReturnView = classicViewList
+			h.helpBackTarget = ""
 		}
 		h.displayHelp()
 		return terminalModeText
@@ -60,7 +66,9 @@ func (h *InteractiveHandler) dispatchClassicInput(line string, idleState chan bo
 }
 
 func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan bool) terminalMode {
-	switch line {
+	line = strings.TrimSpace(line)
+	shortcut := classicShortcut(line)
+	switch shortcut {
 	case "b":
 		if h.helpReturnView == classicViewList {
 			h.selectHandler.DisplayCurrentResult()
@@ -71,7 +79,7 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 		return terminalModeText
 	case "g", "c", "f":
 		kind := TypeNodeAsset
-		switch line {
+		switch shortcut {
 		case "c":
 			kind = TypeTypeAsset
 		case "f":
@@ -86,7 +94,12 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 		if h.exitRequested {
 			return terminalModeExit
 		}
-		h.displayHelp()
+		if h.pendingMode != terminalModeText {
+			return h.pendingMode
+		}
+		if h.classicView == classicViewHelp {
+			h.displayHelp()
+		}
 		return terminalModeText
 	case "t":
 		if h.preferences != nil {
@@ -94,7 +107,7 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 		}
 		return terminalModeTUI
 	case "q":
-		logger.Infof("user %s enter %s to exit", h.user.Name, line)
+		logger.Infof("user %s enter %s to exit", h.user.Name, shortcut)
 		return terminalModeExit
 	}
 	if strings.HasPrefix(line, "/") && !strings.HasPrefix(line, "//") {
@@ -105,14 +118,49 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 	return terminalModeText
 }
 
+func (h *InteractiveHandler) showClassicHelpOverlay(backTarget string) bool {
+	previousView, previousReturn, previousTarget := h.classicView, h.helpReturnView, h.helpBackTarget
+	h.helpReturnView = classicViewHelp
+	h.helpBackTarget = backTarget
+	h.displayHelp()
+	for {
+		line, err := h.readClassicLine()
+		if err != nil {
+			h.pendingMode = terminalModeExit
+			h.classicNavigation = true
+			return false
+		}
+		switch classicShortcut(line) {
+		case "b":
+			h.classicView = previousView
+			h.helpReturnView = previousReturn
+			h.helpBackTarget = previousTarget
+			return true
+		case "?":
+			h.displayHelp()
+			continue
+		}
+		mode := h.dispatchClassicHelp(line, h.idleState)
+		if mode != terminalModeText {
+			h.pendingMode = mode
+		}
+		if mode != terminalModeText || h.classicView != classicViewHelp {
+			h.classicNavigation = true
+			h.helpBackTarget = ""
+			return false
+		}
+	}
+}
+
 func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan bool) terminalMode {
+	line = strings.TrimSpace(line)
 	if line == "" {
 		if h.selectHandler.HasNext() {
 			h.selectHandler.MoveNextPage()
 		}
 		return terminalModeText
 	}
-	switch line {
+	switch classicShortcut(line) {
 	case "b":
 		if !h.backClassicView(idleState) {
 			return terminalModeExit
@@ -131,7 +179,10 @@ func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan boo
 	}
 	if strings.HasPrefix(line, "//") {
 		if term := strings.TrimSpace(line[2:]); term != "" {
-			h.selectHandler.SearchAgain(term)
+			if !h.selectHandler.SearchAgain(term) {
+				message := i18n.NewLang(h.i18nLang).T("Search condition already included: %s")
+				utils.IgnoreErrWriteString(h.term, fmt.Sprintf(message, term)+utils.CharNewLine)
+			}
 		} else {
 			h.warnClassicEmptySearch()
 		}
@@ -223,7 +274,7 @@ func (h *InteractiveHandler) openClassicTree(kind selectType, idleState chan boo
 	default:
 		return true
 	}
-	if !h.treeSelected && !h.exitRequested {
+	if !h.treeSelected && !h.exitRequested && !h.classicNavigation && h.pendingMode == terminalModeText {
 		h.redrawClassicView(source)
 	}
 	return ok

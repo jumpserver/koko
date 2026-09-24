@@ -11,6 +11,28 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
+type classicHintStyle uint8
+
+const (
+	classicHintPlain classicHintStyle = iota
+	classicHintShortcut
+	classicHintSearchGuide
+	classicHintSearchTip
+)
+
+type classicHintRow struct {
+	text  string
+	style classicHintStyle
+}
+
+func classicHintRows(style classicHintStyle, texts []string) []classicHintRow {
+	rows := make([]classicHintRow, 0, len(texts))
+	for _, text := range texts {
+		rows = append(rows, classicHintRow{text: text, style: style})
+	}
+	return rows
+}
+
 func classicExitHint(lang i18n.LanguageCode) string {
 	return "[exit] " + lang.T("End session")
 }
@@ -100,7 +122,7 @@ func compactClassicHintRows(width int, texts ...string) []string {
 	rows := make([]string, 0, len(filtered))
 	current := filtered[0]
 	for _, text := range filtered[1:] {
-		combined := current + "  ·  " + text
+		combined := current + " · " + text
 		if width > 0 && runewidth.StringWidth(combined) > width {
 			rows = append(rows, current)
 			current = text
@@ -111,26 +133,72 @@ func compactClassicHintRows(width int, texts ...string) []string {
 	return append(rows, current)
 }
 
-func classicHintPanel(texts []string, width int) string {
-	return classicHintPanelWithRule(texts, width, strings.Repeat("─", max(1, width)))
+func classicRightAlignedHintLines(hint, count string, width int) []string {
+	if count == "" {
+		return classicHintLines(hint, width)
+	}
+	countWidth := runewidth.StringWidth(count)
+	if countWidth > width {
+		if hint == "" {
+			return classicHintLines(count, width)
+		}
+		return append(classicHintLines(hint, width), classicHintLines(count, width)...)
+	}
+	if hint == "" {
+		return []string{strings.Repeat(" ", width-countWidth) + count}
+	}
+	if hintWidth := runewidth.StringWidth(hint); hintWidth <= width && hintWidth+2+countWidth > width {
+		return []string{hint, strings.Repeat(" ", width-countWidth) + count}
+	}
+	if width-countWidth-2 >= 16 {
+		lines := classicHintLines(hint, width-countWidth-2)
+		if gap := width - runewidth.StringWidth(lines[0]) - countWidth; gap >= 2 {
+			lines[0] += strings.Repeat(" ", gap) + count
+			return lines
+		}
+	}
+	lines := classicHintLines(hint, width)
+	last := len(lines) - 1
+	if runewidth.StringWidth(lines[last])+2+countWidth <= width {
+		lines[last] += strings.Repeat(" ", width-runewidth.StringWidth(lines[last])-countWidth) + count
+	} else {
+		lines = append(lines, strings.Repeat(" ", width-countWidth)+count)
+	}
+	return lines
 }
 
-func classicAssetHintPanel(texts []string, width int) string {
+func classicHintPanel(rows []classicHintRow, width int) string {
+	return classicHintPanelWithRule(rows, width, strings.Repeat("─", max(1, width)))
+}
+
+func classicAssetHintPanel(rows []classicHintRow, width int) string {
 	width = max(1, width)
 	rule := strings.Repeat("-", width)
-	return classicHintPanelWithRule(texts, width, rule)
+	return classicHintPanelWithRule(rows, width, rule)
 }
 
-func classicHintPanelWithRule(texts []string, width int, rule string) string {
-	if len(texts) == 0 {
+func classicHintPanelWithRule(rows []classicHintRow, width int, rule string) string {
+	if len(rows) == 0 {
 		return ""
 	}
 	var result strings.Builder
 	result.WriteString(rule)
 	result.WriteString(utils.CharNewLine)
-	for _, text := range texts {
-		for _, line := range classicHintLines(text, width) {
-			result.WriteString(highlightClassicShortcuts(line))
+	for _, row := range rows {
+		var searchTokens []string
+		if row.style == classicHintSearchGuide {
+			searchTokens = classicSearchGuideTokens(row.text)
+		}
+		for _, line := range classicHintLines(row.text, width) {
+			switch row.style {
+			case classicHintShortcut:
+				line = highlightClassicShortcuts(line)
+			case classicHintSearchGuide:
+				line = highlightClassicSearchGuide(line, searchTokens)
+			case classicHintSearchTip:
+				line = highlightClassicSearchTip(line)
+			}
+			result.WriteString(line)
 			result.WriteString(utils.CharNewLine)
 		}
 	}
@@ -138,9 +206,6 @@ func classicHintPanelWithRule(texts []string, width int, rule string) string {
 }
 
 func highlightClassicShortcuts(value string) string {
-	searchSyntax := strings.Contains(value, "IP") && strings.Contains(value, "/")
-	highlightNumber := strings.Contains(value, "Enter") || strings.Contains(value, "回车")
-	numberTokens := []string{"number", "序号", "序號", "编号", "編號", "番号", "번호", "número", "номер", "số"}
 	var result strings.Builder
 	for i := 0; i < len(value); {
 		if value[i] == '[' {
@@ -151,49 +216,57 @@ func highlightClassicShortcuts(value string) string {
 				continue
 			}
 		}
-		if searchSyntax && value[i] == '/' {
-			end := i + 1
-			if end < len(value) && value[end] == '/' {
-				end++
-			}
-			result.WriteString(utils.WrapperString(value[i:end], utils.Green, true))
-			i = end
-			continue
-		}
-		if value[i] == '?' {
-			result.WriteString(utils.WrapperString("?", utils.Green, true))
-			i++
-			continue
-		}
-		if highlightNumber {
-			matched := false
-			for _, token := range numberTokens {
-				if strings.HasPrefix(value[i:], token) {
-					result.WriteString(utils.WrapperString(token, utils.Green, true))
-					i += len(token)
-					matched = true
-					break
-				}
-			}
-			if matched {
-				continue
-			}
-		}
-		matchedShortcut := false
-		for _, token := range []string{"Enter", "回车"} {
-			if strings.HasPrefix(value[i:], token) {
-				result.WriteString(utils.WrapperString(token, utils.Green, true))
-				i += len(token)
-				matchedShortcut = true
-				break
-			}
-		}
-		if matchedShortcut {
-			continue
-		}
 		_, size := utf8.DecodeRuneInString(value[i:])
 		result.WriteString(value[i : i+size])
 		i += size
 	}
 	return result.String()
+}
+
+func classicSearchGuideTokens(value string) []string {
+	parts := strings.SplitN(value, " · ", 3)
+	tokens := make([]string, 0, 2)
+	for _, part := range parts[:min(2, len(parts))] {
+		start := strings.IndexByte(part, '/')
+		if start < 0 {
+			continue
+		}
+		command := part[start:]
+		if end := strings.IndexAny(command, "(（"); end >= 0 {
+			command = command[:end]
+		}
+		if command = strings.TrimSpace(command); command != "" {
+			tokens = append(tokens, command)
+		}
+	}
+	return tokens
+}
+
+func highlightClassicSearchGuide(line string, tokens []string) string {
+	var result strings.Builder
+	for i := 0; i < len(line); {
+		matched := false
+		for _, token := range tokens {
+			if strings.HasPrefix(line[i:], token) {
+				result.WriteString(utils.WrapperString(token, utils.Green, true))
+				i += len(token)
+				matched = true
+				break
+			}
+		}
+		if matched {
+			continue
+		}
+		_, size := utf8.DecodeRuneInString(line[i:])
+		result.WriteString(line[i : i+size])
+		i += size
+	}
+	return result.String()
+}
+
+func highlightClassicSearchTip(line string) string {
+	if index := strings.Index(line, "/ +"); index >= 0 {
+		return line[:index] + utils.WrapperString("/", utils.Green, true) + line[index+1:]
+	}
+	return line
 }
