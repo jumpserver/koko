@@ -76,6 +76,12 @@ msgstr "Volver a activos"
 msgid "Back to protocols"
 msgstr "Volver a protocolos"
 
+msgid "Back to account list"
+msgstr "Volver a la lista de cuentas"
+
+msgid "Back to language selection"
+msgstr "Volver a la selección de idioma"
+
 msgid "Back to help"
 msgstr "Volver a ayuda"
 
@@ -102,6 +108,9 @@ msgstr "[número] Ver activos"
 
 msgid "Enter a search term"
 msgstr "Introduce un término de búsqueda."
+
+msgid "Search condition already included: %s"
+msgstr "Criterio de búsqueda ya incluido: %s"
 
 msgid "Failed to load type tree. Try again."
 msgstr "No se pudo cargar el árbol de tipos. Inténtalo de nuevo."
@@ -139,14 +148,14 @@ msgstr "[número] Ver los activos de este nodo"
 msgid "Refresh authorization tree"
 msgstr "Actualizar el árbol de autorizaciones"
 
-msgid "Enter 1-%d to change language"
-msgstr "Introduce 1-%d para cambiar el idioma"
+msgid "[number] Switch language"
+msgstr "[número] Cambiar idioma"
 
-msgid "Enter 1-%d to choose an account"
-msgstr "Introduce 1-%d para elegir una cuenta"
+msgid "[number] Select an account"
+msgstr "[número] Seleccionar cuenta"
 
-msgid "Enter 1-%d to choose a protocol"
-msgstr "Introduce 1-%d para elegir un protocolo"
+msgid "[number] Select a protocol"
+msgstr "[número] Seleccionar protocolo"
 
 msgid "Previous page"
 msgstr "Página anterior"
@@ -421,11 +430,8 @@ msgstr "Tipo de activo: %s"
 msgid "Favorite path: %s"
 msgstr "Ruta de favoritos: %s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Consejo de búsqueda: // + término (refinar) · / + término (nueva global) · IP/host/comentario"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Consejo de búsqueda: // + término (ámbito actual) · / + término (global) · IP/host/comentario"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "Búsqueda: //término (refinar) · /término (nueva búsqueda global) · IP/host/comentario"
 
 msgid "Current search: %s"
 msgstr "Búsqueda actual: %s"
@@ -448,8 +454,8 @@ msgstr "Seleccionar protocolo: introduce el número y pulsa Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Progreso del árbol: %d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "Explorar árbol: [Enter] línea siguiente  [Space] página siguiente"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "Árbol: [Enter] línea siguiente · [Space] página siguiente"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Ver activos: [%c + número] + Enter"

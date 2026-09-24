@@ -10,6 +10,21 @@ msgstr ""
 msgid "End session"
 msgstr "End session"
 
+msgid "[number] Switch language"
+msgstr "[number] Switch language"
+
+msgid "[number] Select an account"
+msgstr "[number] Select an account"
+
+msgid "[number] Select a protocol"
+msgstr "[number] Select a protocol"
+
+msgid "Back to account list"
+msgstr "Back to account list"
+
+msgid "Back to language selection"
+msgstr "Back to language selection"
+
 msgid "Koko session ended."
 msgstr "Koko session ended."
 
@@ -24,6 +39,9 @@ msgstr "No permitted connection protocol is available for asset %s. Check its pr
 
 msgid "Connection failed"
 msgstr "Connection failed"
+
+msgid "Search condition already included: %s"
+msgstr "Search condition already included: %s"
 
 msgid "\t%2d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
 msgstr "\t%d) Enter {{.GreenBoldColor}}%s{{.ColorEnd}} to %s%s"
@@ -289,11 +307,8 @@ msgstr "Asset type: %s"
 msgid "Favorite path: %s"
 msgstr "Favorite path: %s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Search tip: // + keyword (refine) · / + keyword (new global) · IP/hostname/comment"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Search tip: // + keyword (current scope) · / + keyword (global) · IP/hostname/comment"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "Search: //keyword (refine) · /keyword (new global) · IP/host/comment"
 
 msgid "Current search: %s"
 msgstr "Current search: %s"
@@ -316,8 +331,8 @@ msgstr "Select protocol: enter number and press Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Tree progress: %d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "Browse tree: [Enter] next line  [Space] next page"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "Tree: [Enter] next line · [Space] next page"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "View assets: [%c + number] + Enter"

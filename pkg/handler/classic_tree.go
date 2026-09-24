@@ -5,6 +5,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/jumpserver-dev/sdk-go/model"
 	"github.com/mattn/go-runewidth"
@@ -16,20 +18,23 @@ import (
 
 func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList, idleState chan bool) bool {
 	for {
-		lang := i18n.NewLang(h.i18nLang)
 		prefixes, orderedNodes := constructNodeTreeRows(nodes)
 		h.nodes = orderedNodes
-		_, _ = io.WriteString(h.term, "\n\r"+lang.T("Node: [ Number.Name(Asset amount) ]")+utils.CharNewLine)
-		if h.nodeLoadErr != nil {
-			message := lang.T("Authorization tree unavailable. Type r to retry.")
-			utils.IgnoreErrWriteString(h.term, utils.WrapperWarn(userFacingErrorMessage(message, h.nodeLoadErr)))
+		header := func() string {
+			lang := i18n.NewLang(h.i18nLang)
+			text := "\n\r" + lang.T("Node: [ Number.Name(Asset amount) ]") + utils.CharNewLine
+			if h.nodeLoadErr != nil {
+				message := lang.T("Authorization tree unavailable. Type r to retry.")
+				text += utils.WrapperWarn(userFacingErrorMessage(message, h.nodeLoadErr))
+			}
+			return text
 		}
 		rows := make([]string, len(h.nodes))
 		width, _ := h.GetPtySize()
 		for i := range h.nodes {
 			rows[i] = classicTreeRow(prefixes[i], i+1, h.nodes[i].Name, h.nodes[i].AssetsAmount, width)
 		}
-		result := h.displayClassicTreeRows(rows, true, idleState, func(number int) bool {
+		result := h.displayClassicTreeRows(rows, header, "Back to authorization tree", true, idleState, func(number int) bool {
 			if number <= 0 || number > len(h.nodes) {
 				return false
 			}
@@ -55,16 +60,17 @@ func (h *InteractiveHandler) displayNodeTree(nodes model.NodeList, idleState cha
 }
 
 func (h *InteractiveHandler) displayTypeTree(nodes []classicTypeNode, idleState chan bool) bool {
-	lang := i18n.NewLang(h.i18nLang)
 	prefixes, orderedNodes := constructTypeTreeRows(nodes)
 	h.typeNodes = orderedNodes
-	_, _ = io.WriteString(h.term, "\n\r"+lang.T("Type: [ Number.Name(Asset amount) ]")+utils.CharNewLine)
+	header := func() string {
+		return "\n\r" + i18n.NewLang(h.i18nLang).T("Type: [ Number.Name(Asset amount) ]") + utils.CharNewLine
+	}
 	rows := make([]string, len(h.typeNodes))
 	width, _ := h.GetPtySize()
 	for i := range h.typeNodes {
 		rows[i] = classicTreeRow(prefixes[i], i+1, h.typeNodes[i].Name, h.typeNodes[i].AssetsAmount, width)
 	}
-	return h.displayClassicTreeRows(rows, false, idleState, func(number int) bool {
+	return h.displayClassicTreeRows(rows, header, "Back to type tree", false, idleState, func(number int) bool {
 		if number <= 0 || number > len(h.typeNodes) {
 			return false
 		}
@@ -85,13 +91,15 @@ func (h *InteractiveHandler) displayFavoriteTree(nodes []classicFavoriteNode, id
 	}
 	prefixes, orderedNodes := constructFavoriteTreeRows(nodes)
 	h.favoriteNodes = orderedNodes
-	_, _ = io.WriteString(h.term, "\n\r"+lang.T("Favorite: [ Number.Name(Asset amount) ]")+utils.CharNewLine)
+	header := func() string {
+		return "\n\r" + i18n.NewLang(h.i18nLang).T("Favorite: [ Number.Name(Asset amount) ]") + utils.CharNewLine
+	}
 	rows := make([]string, len(h.favoriteNodes))
 	width, _ := h.GetPtySize()
 	for i := range h.favoriteNodes {
 		rows[i] = classicTreeRow(prefixes[i], i+1, h.favoriteNodes[i].Name, h.favoriteNodes[i].AssetsAmount, width)
 	}
-	return h.displayClassicTreeRows(rows, false, idleState, func(number int) bool {
+	return h.displayClassicTreeRows(rows, header, "Back to favorites tree", false, idleState, func(number int) bool {
 		if number <= 0 || number > len(h.favoriteNodes) {
 			return false
 		}
@@ -111,7 +119,7 @@ func classicTreeRow(prefix string, number int, name string, count, width int) st
 	return fmt.Sprintf("%s%d.%s(%d)%s", prefix, number, name, count, utils.CharNewLine)
 }
 
-func (h *InteractiveHandler) displayClassicTreeRows(rows []string,
+func (h *InteractiveHandler) displayClassicTreeRows(rows []string, header func() string, helpBackTarget string,
 	allowRefresh bool, idleState chan bool, selectItem func(int) bool) classicTreeDisplayResult {
 	width, height := h.GetPtySize()
 	lang := i18n.NewLang(h.i18nLang)
@@ -119,19 +127,27 @@ func (h *InteractiveHandler) displayClassicTreeRows(rows []string,
 	pageRows := max(1, height-strings.Count(footer, utils.CharNewLine)-3)
 	end := classicTreePageEnd(rows, 0, pageRows, width)
 	errorTip := ""
-	writeClassicTreeRows(h.term, rows[:end], width)
-	if len(rows) == 0 {
-		utils.IgnoreErrWriteString(h.term, i18n.NewLang(h.i18nLang).T("No nodes")+utils.CharNewLine)
+	render := func(clear bool) {
+		if clear {
+			utils.IgnoreErrWriteString(h.term, utils.CharClear)
+		}
+		utils.IgnoreErrWriteString(h.term, header())
+		writeClassicTreeRows(h.term, rows[:end], width)
+		if len(rows) == 0 {
+			utils.IgnoreErrWriteString(h.term, i18n.NewLang(h.i18nLang).T("No nodes")+utils.CharNewLine)
+		}
 	}
+	render(false)
 	for {
 		lang := i18n.NewLang(h.i18nLang)
 		pager := classicHintPanel(classicTreeHints(lang, width, end, len(rows), allowRefresh), width)
-		utils.IgnoreErrWriteString(h.term, pager)
-		prompt := "Tree> "
 		if errorTip != "" {
-			prompt = errorTip + "  " + prompt
+			for _, line := range classicHintLines(errorTip, width) {
+				pager += utils.WrapperString(line, utils.Red) + utils.CharNewLine
+			}
 		}
-		utils.IgnoreErrWriteString(h.term, prompt)
+		utils.IgnoreErrWriteString(h.term, pager)
+		utils.IgnoreErrWriteString(h.term, "Tree> ")
 		if !h.setIdle(idleState, true) {
 			return classicTreeDisplayExit
 		}
@@ -145,6 +161,12 @@ func (h *InteractiveHandler) displayClassicTreeRows(rows []string,
 			return classicTreeDisplayExit
 		}
 		switch action.kind {
+		case classicTreePagerHelp:
+			if !h.showClassicHelpOverlay(helpBackTarget) {
+				return classicTreeDisplayDone
+			}
+			render(true)
+			errorTip = ""
 		case classicTreePagerExit:
 			h.requestClassicExit()
 			return classicTreeDisplayExit
@@ -178,12 +200,7 @@ func (h *InteractiveHandler) displayClassicTreeRows(rows []string,
 	}
 }
 
-func classicTreeHints(lang i18n.LanguageCode, width, end, total int, allowRefresh bool) []string {
-	var hints []string
-	if end < total {
-		hints = compactClassicHintRows(width, fmt.Sprintf(lang.T("Tree progress: %d/%d"), end, total),
-			lang.T("Browse tree: [Enter] next line  [Space] next page"))
-	}
+func classicTreeHints(lang i18n.LanguageCode, width, end, total int, allowRefresh bool) []classicHintRow {
 	var actions []string
 	if total > 0 {
 		actions = append(actions, lang.T("[number] View assets in this node"))
@@ -192,8 +209,15 @@ func classicTreeHints(lang i18n.LanguageCode, width, end, total int, allowRefres
 		actions = append(actions, fmt.Sprintf("[r] %s", lang.T("Refresh authorization tree")))
 	}
 	actions = append(actions, fmt.Sprintf("[b] %s", lang.T("Back to help")))
-	actions = append(actions, classicExitHint(lang))
-	return append(hints, compactClassicHintRows(width, actions...)...)
+	actions = append(actions, fmt.Sprintf("[?] %s", lang.T("View help")), classicExitHint(lang))
+	actionLine := strings.Join(actions, " · ")
+	progress := fmt.Sprintf("%d / %d", end, total)
+	if end < total {
+		browse := lang.T("Browse tree: [Enter] next line · [Space] next page")
+		hints := classicRightAlignedHintLines(browse, progress, width)
+		return classicHintRows(classicHintShortcut, append(hints, classicHintLines(actionLine, width)...))
+	}
+	return classicHintRows(classicHintShortcut, classicRightAlignedHintLines(actionLine, progress, width))
 }
 
 func classicTreePageEnd(rows []string, start, budget, width int) int {
@@ -246,6 +270,7 @@ const (
 	classicTreePagerExit
 	classicTreePagerSelect
 	classicTreePagerRefresh
+	classicTreePagerHelp
 	classicTreePagerInvalid
 )
 
@@ -264,35 +289,75 @@ func writeClassicTreeRows(writer io.Writer, rows []string, width int) {
 
 func readClassicTreePagerAction(reader io.Reader, writer io.Writer, canAdvance, allowRefresh bool) (classicTreePagerAction, error) {
 	var input [1]byte
-	var command strings.Builder
-	invalid := false
-	appendKey := func(key byte) {
-		if command.Len() >= 32 {
-			invalid = true
-			return
-		}
-		command.WriteByte(key)
-		_, _ = writer.Write([]byte{key})
-	}
+	command := classicTreeCommand{writer: writer}
+	var escape []byte
+	var multibyte []byte
 	for {
 		n, readErr := reader.Read(input[:])
 		for _, key := range input[:n] {
-			switch key {
-			case '\r', '\n':
-				value := command.String()
-				if invalid {
-					return classicTreePagerAction{kind: classicTreePagerInvalid}, nil
+			if len(escape) > 0 {
+				if len(escape) != 1 || key == '[' || key == 'O' {
+					escape = append(escape, key)
+					if key >= 'A' && key <= 'Z' || key >= 'a' && key <= 'z' || key == '~' {
+						switch key {
+						case 'C':
+							command.moveTo(command.cursor + 1)
+						case 'D':
+							command.moveTo(command.cursor - 1)
+						case 'H':
+							command.moveTo(0)
+						case 'F':
+							command.moveTo(len(command.value))
+						case '~':
+							if string(escape) == "\x1b[3~" {
+								command.deleteAt()
+							}
+						}
+						escape = nil
+					} else if len(escape) >= 12 || key == '\r' || key == '\n' {
+						escape = nil
+					} else {
+						continue
+					}
+					if key != '\r' && key != '\n' {
+						continue
+					}
+				} else {
+					escape = nil
 				}
+			}
+			if len(multibyte) > 0 || key >= utf8.RuneSelf {
+				multibyte = append(multibyte, key)
+				if !utf8.FullRune(multibyte) {
+					continue
+				}
+				r, _ := utf8.DecodeRune(multibyte)
+				multibyte = nil
+				switch {
+				case r == '？':
+					command.insert('?')
+				case unicode.IsSpace(r):
+					command.insert(' ')
+				}
+				continue
+			}
+			switch key {
+			case '\x1b':
+				escape = []byte{key}
+			case '\r', '\n':
+				value := classicShortcut(string(command.value))
 				switch value {
 				case "":
 					if canAdvance {
 						return classicTreePagerAction{kind: classicTreePagerLine}, nil
 					}
-					return classicTreePagerAction{kind: classicTreePagerInvalid}, nil
+					continue
 				case "b":
 					return classicTreePagerAction{kind: classicTreePagerQuit}, nil
 				case "exit":
 					return classicTreePagerAction{kind: classicTreePagerExit}, nil
+				case "?":
+					return classicTreePagerAction{kind: classicTreePagerHelp}, nil
 				case "r":
 					if allowRefresh {
 						return classicTreePagerAction{kind: classicTreePagerRefresh}, nil
@@ -310,25 +375,22 @@ func readClassicTreePagerAction(reader io.Reader, writer io.Writer, canAdvance, 
 				}
 				return classicTreePagerAction{kind: classicTreePagerSelect, itemNumber: number}, nil
 			case ' ':
-				if command.Len() == 0 {
+				if len(command.value) == 0 {
 					if canAdvance {
 						return classicTreePagerAction{kind: classicTreePagerPage}, nil
 					}
-					return classicTreePagerAction{kind: classicTreePagerInvalid}, nil
+					continue
 				}
-				appendKey(key)
+				command.insert(key)
 			case '\b', 127:
-				value := command.String()
-				if len(value) > 0 {
-					command.Reset()
-					command.WriteString(value[:len(value)-1])
-					_, _ = io.WriteString(writer, "\b \b")
-				}
+				command.backspace()
+			case 1:
+				command.moveTo(0)
+			case 5:
+				command.moveTo(len(command.value))
 			default:
 				if key >= 32 && key < 127 {
-					appendKey(key)
-				} else {
-					invalid = true
+					command.insert(key)
 				}
 			}
 		}
@@ -336,4 +398,53 @@ func readClassicTreePagerAction(reader io.Reader, writer io.Writer, canAdvance, 
 			return classicTreePagerAction{}, readErr
 		}
 	}
+}
+
+type classicTreeCommand struct {
+	value  []byte
+	cursor int
+	writer io.Writer
+}
+
+func (c *classicTreeCommand) moveTo(position int) {
+	position = max(0, min(position, len(c.value)))
+	if position < c.cursor {
+		_, _ = fmt.Fprintf(c.writer, "\x1b[%dD", c.cursor-position)
+	} else if position > c.cursor {
+		_, _ = fmt.Fprintf(c.writer, "\x1b[%dC", position-c.cursor)
+	}
+	c.cursor = position
+}
+
+func (c *classicTreeCommand) insert(key byte) {
+	if len(c.value) >= 32 {
+		return
+	}
+	c.value = append(c.value, 0)
+	copy(c.value[c.cursor+1:], c.value[c.cursor:])
+	c.value[c.cursor] = key
+	_, _ = c.writer.Write(c.value[c.cursor:])
+	if trailing := len(c.value) - c.cursor - 1; trailing > 0 {
+		_, _ = fmt.Fprintf(c.writer, "\x1b[%dD", trailing)
+	}
+	c.cursor++
+}
+
+func (c *classicTreeCommand) deleteAt() {
+	if c.cursor >= len(c.value) {
+		return
+	}
+	copy(c.value[c.cursor:], c.value[c.cursor+1:])
+	c.value = c.value[:len(c.value)-1]
+	_, _ = c.writer.Write(c.value[c.cursor:])
+	_, _ = io.WriteString(c.writer, " ")
+	_, _ = fmt.Fprintf(c.writer, "\x1b[%dD", len(c.value)-c.cursor+1)
+}
+
+func (c *classicTreeCommand) backspace() {
+	if c.cursor == 0 {
+		return
+	}
+	c.moveTo(c.cursor - 1)
+	c.deleteAt()
 }

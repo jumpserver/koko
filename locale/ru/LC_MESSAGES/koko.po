@@ -76,6 +76,12 @@ msgstr "Назад к активам"
 msgid "Back to protocols"
 msgstr "Назад к протоколам"
 
+msgid "Back to account list"
+msgstr "Назад к списку учётных записей"
+
+msgid "Back to language selection"
+msgstr "Назад к выбору языка"
+
 msgid "Back to help"
 msgstr "Назад к справке"
 
@@ -102,6 +108,9 @@ msgstr "[номер] Показать активы"
 
 msgid "Enter a search term"
 msgstr "Введите поисковый запрос."
+
+msgid "Search condition already included: %s"
+msgstr "Условие поиска уже добавлено: %s"
 
 msgid "Failed to load type tree. Try again."
 msgstr "Не удалось загрузить дерево типов. Повторите попытку."
@@ -139,14 +148,14 @@ msgstr "[номер] Показать активы этого узла"
 msgid "Refresh authorization tree"
 msgstr "Обновить дерево доступа"
 
-msgid "Enter 1-%d to change language"
-msgstr "Введите 1-%d, чтобы сменить язык"
+msgid "[number] Switch language"
+msgstr "[номер] Сменить язык"
 
-msgid "Enter 1-%d to choose an account"
-msgstr "Введите 1-%d, чтобы выбрать учётную запись"
+msgid "[number] Select an account"
+msgstr "[номер] Выбрать учётную запись"
 
-msgid "Enter 1-%d to choose a protocol"
-msgstr "Введите 1-%d, чтобы выбрать протокол"
+msgid "[number] Select a protocol"
+msgstr "[номер] Выбрать протокол"
 
 msgid "Previous page"
 msgstr "Предыдущая страница"
@@ -421,11 +430,8 @@ msgstr "Тип ресурса: %s"
 msgid "Favorite path: %s"
 msgstr "Путь избранного: %s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Подсказка поиска: // + запрос (уточнить) · / + запрос (новый глобальный) · IP/хост/комментарий"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Подсказка поиска: // + запрос (текущая область) · / + запрос (глобально) · IP/хост/комментарий"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "Поиск: //запрос (уточнить) · /запрос (заново по всем) · IP/хост/комментарий"
 
 msgid "Current search: %s"
 msgstr "Текущий поиск: %s"
@@ -448,8 +454,8 @@ msgstr "Выбор протокола: введите номер и нажмит
 msgid "Tree progress: %d/%d"
 msgstr "Прогресс дерева: %d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "Просмотр дерева: [Enter] следующая строка  [Space] следующая страница"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "Дерево: [Enter] следующая строка · [Space] следующая страница"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Показать активы: [%c + номер] + Enter"

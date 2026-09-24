@@ -76,6 +76,12 @@ msgstr "資産一覧に戻る"
 msgid "Back to protocols"
 msgstr "プロトコル一覧に戻る"
 
+msgid "Back to account list"
+msgstr "アカウント一覧に戻る"
+
+msgid "Back to language selection"
+msgstr "言語選択に戻る"
+
 msgid "Back to help"
 msgstr "ヘルプに戻る"
 
@@ -102,6 +108,9 @@ msgstr "[番号] 資産を表示"
 
 msgid "Enter a search term"
 msgstr "検索語を入力してください。"
+
+msgid "Search condition already included: %s"
+msgstr "検索条件は追加済みです：%s"
 
 msgid "Failed to load type tree. Try again."
 msgstr "種類ツリーを読み込めません。再試行してください。"
@@ -139,14 +148,14 @@ msgstr "[番号] このノードの資産を表示"
 msgid "Refresh authorization tree"
 msgstr "権限ツリーを更新"
 
-msgid "Enter 1-%d to change language"
-msgstr "1～%d を入力して表示言語を切り替え"
+msgid "[number] Switch language"
+msgstr "[番号] 言語を切り替え"
 
-msgid "Enter 1-%d to choose an account"
-msgstr "1～%d を入力してログインアカウントを選択"
+msgid "[number] Select an account"
+msgstr "[番号] アカウントを選択"
 
-msgid "Enter 1-%d to choose a protocol"
-msgstr "1～%d を入力して接続プロトコルを選択"
+msgid "[number] Select a protocol"
+msgstr "[番号] プロトコルを選択"
 
 msgid "Previous page"
 msgstr "前のページ"
@@ -421,11 +430,8 @@ msgstr "資産タイプ：%s"
 msgid "Favorite path: %s"
 msgstr "お気に入りパス：%s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "検索ヒント：// + キーワード（絞り込み） · / + キーワード（全体を再検索） · IP/ホスト名/コメント"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "検索ヒント：// + キーワード（現在の範囲） · / + キーワード（全体） · IP/ホスト名/コメント"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "検索ガイド：//キーワード（絞り込み） · /キーワード（全体を再検索） · IP/ホスト名/備考"
 
 msgid "Current search: %s"
 msgstr "現在の検索：%s"
@@ -448,8 +454,8 @@ msgstr "プロトコルを選択：番号を入力して Enter"
 msgid "Tree progress: %d/%d"
 msgstr "ツリー進捗：%d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "ツリーを閲覧：[Enter] 次の行  [Space] 次のページ"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "ツリー：[Enter] 次の行 · [Space] 次のページ"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "資産を表示：[%c + 番号] + Enter"

@@ -76,6 +76,12 @@ msgstr "Voltar aos ativos"
 msgid "Back to protocols"
 msgstr "Voltar aos protocolos"
 
+msgid "Back to account list"
+msgstr "Voltar à lista de contas"
+
+msgid "Back to language selection"
+msgstr "Voltar à seleção de idioma"
+
 msgid "Back to help"
 msgstr "Voltar à ajuda"
 
@@ -102,6 +108,9 @@ msgstr "[número] Ver ativos"
 
 msgid "Enter a search term"
 msgstr "Digite um termo de busca."
+
+msgid "Search condition already included: %s"
+msgstr "Critério de busca já incluído: %s"
 
 msgid "Failed to load type tree. Try again."
 msgstr "Falha ao carregar a árvore de tipos. Tente novamente."
@@ -139,14 +148,14 @@ msgstr "[número] Ver os ativos deste nó"
 msgid "Refresh authorization tree"
 msgstr "Atualizar a árvore de autorizações"
 
-msgid "Enter 1-%d to change language"
-msgstr "Digite 1-%d para alterar o idioma"
+msgid "[number] Switch language"
+msgstr "[número] Mudar idioma"
 
-msgid "Enter 1-%d to choose an account"
-msgstr "Digite 1-%d para escolher uma conta"
+msgid "[number] Select an account"
+msgstr "[número] Selecionar conta"
 
-msgid "Enter 1-%d to choose a protocol"
-msgstr "Digite 1-%d para escolher um protocolo"
+msgid "[number] Select a protocol"
+msgstr "[número] Selecionar protocolo"
 
 msgid "Previous page"
 msgstr "Página anterior"
@@ -421,11 +430,8 @@ msgstr "Tipo de ativo: %s"
 msgid "Favorite path: %s"
 msgstr "Caminho dos favoritos: %s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Dica de pesquisa: // + termo (refinar) · / + termo (nova global) · IP/host/comentário"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Dica de pesquisa: // + termo (escopo atual) · / + termo (global) · IP/host/comentário"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "Busca: //termo (refinar) · /termo (nova busca global) · IP/host/comentário"
 
 msgid "Current search: %s"
 msgstr "Pesquisa atual: %s"
@@ -448,8 +454,8 @@ msgstr "Selecionar protocolo: digite o número e pressione Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Progresso da árvore: %d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "Navegar na árvore: [Enter] próxima linha  [Space] próxima página"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "Árvore: [Enter] linha seguinte · [Space] página seguinte"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Ver ativos: [%c + número] + Enter"

@@ -11,31 +11,35 @@ import (
 )
 
 func (h *InteractiveHandler) ChangeLang() {
-	lang := i18n.NewLang(h.i18nLang)
 	language := h.i18nLang
-	width, _ := h.GetPtySize()
-	tableText := ""
-	if width < 50 {
-		tableText = classicCompactChoiceRows(i18n.AllLangCodesStr, width)
-	} else {
-		data := make([]map[string]string, len(i18n.AllLangCodesStr))
-		for i, name := range i18n.AllLangCodesStr {
-			data[i] = map[string]string{"ID": strconv.Itoa(i + 1), "Name": name}
+	render := func() (string, []classicHintRow, int) {
+		lang := i18n.NewLang(h.i18nLang)
+		width, _ := h.GetPtySize()
+		tableText := ""
+		if width < 50 {
+			tableText = classicCompactChoiceRows(i18n.AllLangCodesStr, width)
+		} else {
+			data := make([]map[string]string, len(i18n.AllLangCodesStr))
+			for i, name := range i18n.AllLangCodesStr {
+				data[i] = map[string]string{"ID": strconv.Itoa(i + 1), "Name": name}
+			}
+			table := common.WrapperTable{
+				Fields: []string{"ID", "Name"}, Labels: []string{lang.T("Number"), lang.T("Name")},
+				FieldsSize: map[string][3]int{"ID": {0, 0, 5}, "Name": {0, 8, 0}},
+				Data:       data, TotalSize: width, TruncPolicy: common.TruncMiddle,
+			}
+			table.Initial()
+			tableText = table.Display()
 		}
-		table := common.WrapperTable{
-			Fields: []string{"ID", "Name"}, Labels: []string{lang.T("Number"), lang.T("Name")},
-			FieldsSize: map[string][3]int{"ID": {0, 0, 5}, "Name": {0, 8, 0}},
-			Data:       data, TotalSize: width, TruncPolicy: common.TruncMiddle,
-		}
-		table.Initial()
-		tableText = table.Display()
+		hints := classicHintRows(classicHintShortcut, compactClassicHintRows(width,
+			lang.T("[number] Switch language"),
+			fmt.Sprintf("[b] %s", lang.T("Back to help")), fmt.Sprintf("[?] %s", lang.T("View help")), classicExitHint(lang)))
+		return tableText, hints, width
 	}
-	hints := compactClassicHintRows(width,
-		fmt.Sprintf(lang.T("Enter 1-%d to change language"), len(i18n.AllCodes)),
-		fmt.Sprintf("[b] %s", lang.T("Back to help")), classicExitHint(lang))
-	number, back, err := h.readClassicChoice(tableText, hints, width, "Language> ", len(i18n.AllCodes))
+	tableText, hints, width := render()
+	number, back, err := h.readClassicChoice(tableText, hints, width, "Language> ", len(i18n.AllCodes), "Back to language selection", render)
 	if err != nil {
-		if !h.exitRequested {
+		if !h.exitRequested && !h.classicNavigation {
 			logger.Errorf("User %s switch language err %s", h.user.Name, err)
 		}
 		return
@@ -43,7 +47,7 @@ func (h *InteractiveHandler) ChangeLang() {
 	if back {
 		return
 	}
-	lang = i18n.AllCodes[number-1]
+	lang := i18n.AllCodes[number-1]
 	language = lang.String()
 	if language != h.i18nLang {
 		setAPIClientLang(h.jmsService, language)

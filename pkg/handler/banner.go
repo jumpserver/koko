@@ -55,9 +55,13 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 		for i, item := range menu {
 			prefix := fmt.Sprintf(" %d) ", i+1)
 			message := strings.ReplaceAll(item.helpText, "{key}", item.instruct)
+			searchKeyHighlighted := false
 			for _, line := range classicIndentedLines(prefix, message, width) {
 				if i == 0 {
-					line = strings.ReplaceAll(line, "/", utils.WrapperTitle("/"))
+					if !searchKeyHighlighted && strings.Contains(line, "/") {
+						line = strings.Replace(line, "/", utils.WrapperTitle("/"), 1)
+						searchKeyHighlighted = true
+					}
 				} else {
 					line = strings.Replace(line, " "+item.instruct, " "+utils.WrapperTitle(item.instruct), 1)
 				}
@@ -80,6 +84,9 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 	}
 	for i, item := range menu {
 		key := utils.WrapperTitle(item.instruct)
+		if i == 0 {
+			key = utils.WrapperTitle("/") + strings.TrimPrefix(item.instruct, "/")
+		}
 		line := strings.ReplaceAll(item.helpText, "{key}", key)
 		if _, err := fmt.Fprintf(sess, "\t%2d) %s\r\n", i+1, line); err != nil {
 			logger.Error(err)

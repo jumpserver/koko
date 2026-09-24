@@ -76,6 +76,12 @@ msgstr "返回资产列表"
 msgid "Back to protocols"
 msgstr "返回协议列表"
 
+msgid "Back to account list"
+msgstr "返回账号列表"
+
+msgid "Back to language selection"
+msgstr "返回语言切换页"
+
 msgid "Back to help"
 msgstr "返回帮助页"
 
@@ -102,6 +108,9 @@ msgstr "[序号] 查看资产"
 
 msgid "Enter a search term"
 msgstr "请输入搜索词。"
+
+msgid "Search condition already included: %s"
+msgstr "已包含搜索条件：%s"
 
 msgid "Failed to load type tree. Try again."
 msgstr "类型树加载失败，请重试。"
@@ -131,22 +140,22 @@ msgid "Enter {key} to end this session"
 msgstr "输入 {key} 退出当前会话"
 
 msgid "[number] Select an asset"
-msgstr "[序号] 选择要连接的资产"
+msgstr "[序号] 选择资产"
 
 msgid "[number] View assets in this node"
-msgstr "[序号] 查看该节点资产"
+msgstr "[序号] 查看节点资产"
 
 msgid "Refresh authorization tree"
 msgstr "刷新授权树"
 
-msgid "Enter 1-%d to change language"
-msgstr "输入 1-%d 切换界面语言"
+msgid "[number] Switch language"
+msgstr "[序号] 切换语言"
 
-msgid "Enter 1-%d to choose an account"
-msgstr "输入 1-%d 选择登录账号"
+msgid "[number] Select an account"
+msgstr "[序号] 选择账号"
 
-msgid "Enter 1-%d to choose a protocol"
-msgstr "输入 1-%d 选择连接协议"
+msgid "[number] Select a protocol"
+msgstr "[序号] 选择协议"
 
 msgid "Previous page"
 msgstr "上一页"
@@ -421,11 +430,8 @@ msgstr "资产类型：%s"
 msgid "Favorite path: %s"
 msgstr "收藏路径：%s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "搜索指南：// + 关键词（继续筛选） · / + 关键词（重新全局搜索） · IP/主机名/备注"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "搜索指南：// + 关键词（当前范围） · / + 关键词（全局） · IP/主机名/备注"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "搜索指南：//关键词（继续筛选） · /关键词（重新全局搜索） · IP/主机名/备注"
 
 msgid "Current search: %s"
 msgstr "当前搜索：%s"
@@ -448,8 +454,8 @@ msgstr "选择协议：输入序号并回车"
 msgid "Tree progress: %d/%d"
 msgstr "树进度：%d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "浏览树：[Enter] 下一行  [Space] 下一页"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "浏览树：[Enter] 下一行 · [Space] 下一页"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "查看资产：[%c + 序号] + 回车"

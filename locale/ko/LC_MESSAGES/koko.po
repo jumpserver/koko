@@ -76,6 +76,12 @@ msgstr "자산 목록으로 돌아가기"
 msgid "Back to protocols"
 msgstr "프로토콜 목록으로 돌아가기"
 
+msgid "Back to account list"
+msgstr "계정 목록으로 돌아가기"
+
+msgid "Back to language selection"
+msgstr "언어 선택으로 돌아가기"
+
 msgid "Back to help"
 msgstr "도움말로 돌아가기"
 
@@ -102,6 +108,9 @@ msgstr "[번호] 자산 보기"
 
 msgid "Enter a search term"
 msgstr "검색어를 입력하세요."
+
+msgid "Search condition already included: %s"
+msgstr "이미 포함된 검색 조건: %s"
 
 msgid "Failed to load type tree. Try again."
 msgstr "유형 트리를 불러오지 못했습니다. 다시 시도하세요."
@@ -139,14 +148,14 @@ msgstr "[번호] 이 노드의 자산 보기"
 msgid "Refresh authorization tree"
 msgstr "권한 트리 새로 고침"
 
-msgid "Enter 1-%d to change language"
-msgstr "1-%d를 입력해 화면 언어 변경"
+msgid "[number] Switch language"
+msgstr "[번호] 언어 변경"
 
-msgid "Enter 1-%d to choose an account"
-msgstr "1-%d를 입력해 로그인 계정 선택"
+msgid "[number] Select an account"
+msgstr "[번호] 계정 선택"
 
-msgid "Enter 1-%d to choose a protocol"
-msgstr "1-%d를 입력해 연결 프로토콜 선택"
+msgid "[number] Select a protocol"
+msgstr "[번호] 프로토콜 선택"
 
 msgid "Previous page"
 msgstr "이전 페이지"
@@ -421,11 +430,8 @@ msgstr "자산 유형: %s"
 msgid "Favorite path: %s"
 msgstr "즐겨찾기 경로: %s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "검색 안내: // + 키워드(계속 필터링) · / + 키워드(전체 재검색) · IP/호스트 이름/설명"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "검색 안내: // + 키워드(현재 범위) · / + 키워드(전체) · IP/호스트 이름/설명"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "검색 안내: //키워드(추가 필터) · /키워드(전체 재검색) · IP/호스트/설명"
 
 msgid "Current search: %s"
 msgstr "현재 검색: %s"
@@ -448,8 +454,8 @@ msgstr "프로토콜 선택: 번호를 입력하고 Enter를 누르세요"
 msgid "Tree progress: %d/%d"
 msgstr "트리 진행률: %d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "트리 탐색: [Enter] 다음 줄  [Space] 다음 페이지"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "트리: [Enter] 다음 줄 · [Space] 다음 페이지"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "자산 보기: [%c + 번호] + Enter"

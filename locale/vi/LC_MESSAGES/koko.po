@@ -76,6 +76,12 @@ msgstr "Quay lại danh sách tài sản"
 msgid "Back to protocols"
 msgstr "Quay lại danh sách giao thức"
 
+msgid "Back to account list"
+msgstr "Quay lại danh sách tài khoản"
+
+msgid "Back to language selection"
+msgstr "Quay lại chọn ngôn ngữ"
+
 msgid "Back to help"
 msgstr "Quay lại trợ giúp"
 
@@ -102,6 +108,9 @@ msgstr "[số] Xem tài sản"
 
 msgid "Enter a search term"
 msgstr "Nhập từ khóa tìm kiếm."
+
+msgid "Search condition already included: %s"
+msgstr "Điều kiện tìm kiếm đã có: %s"
 
 msgid "Failed to load type tree. Try again."
 msgstr "Không tải được cây loại. Hãy thử lại."
@@ -139,14 +148,14 @@ msgstr "[số] Xem tài sản trong nút này"
 msgid "Refresh authorization tree"
 msgstr "Làm mới cây phân quyền"
 
-msgid "Enter 1-%d to change language"
-msgstr "Nhập 1-%d để đổi ngôn ngữ"
+msgid "[number] Switch language"
+msgstr "[số] Đổi ngôn ngữ"
 
-msgid "Enter 1-%d to choose an account"
-msgstr "Nhập 1-%d để chọn tài khoản"
+msgid "[number] Select an account"
+msgstr "[số] Chọn tài khoản"
 
-msgid "Enter 1-%d to choose a protocol"
-msgstr "Nhập 1-%d để chọn giao thức"
+msgid "[number] Select a protocol"
+msgstr "[số] Chọn giao thức"
 
 msgid "Previous page"
 msgstr "Trang trước"
@@ -421,11 +430,8 @@ msgstr "Loại tài sản: %s"
 msgid "Favorite path: %s"
 msgstr "Đường dẫn yêu thích: %s"
 
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search)"
-msgstr "Gợi ý tìm kiếm: // + từ khóa (lọc thêm) · / + từ khóa (toàn cục mới) · IP/máy chủ/ghi chú"
-
-msgid "Search syntax: / + IP, hostname, comment (global search)  // + IP, hostname, comment (multi-level search within current scope)"
-msgstr "Gợi ý tìm kiếm: // + từ khóa (phạm vi hiện tại) · / + từ khóa (toàn cục) · IP/máy chủ/ghi chú"
+msgid "Search guide: //keyword (refine) · /keyword (new global search) · IP/hostname/comment"
+msgstr "Tìm kiếm: //từ khóa (lọc thêm) · /từ khóa (tìm lại toàn bộ) · IP/tên máy/ghi chú"
 
 msgid "Current search: %s"
 msgstr "Tìm kiếm hiện tại: %s"
@@ -448,8 +454,8 @@ msgstr "Chọn giao thức: nhập số và nhấn Enter"
 msgid "Tree progress: %d/%d"
 msgstr "Tiến độ cây: %d/%d"
 
-msgid "Browse tree: [Enter] next line  [Space] next page"
-msgstr "Duyệt cây: [Enter] dòng tiếp theo  [Space] trang tiếp theo"
+msgid "Browse tree: [Enter] next line · [Space] next page"
+msgstr "Cây: [Enter] dòng tiếp · [Space] trang tiếp"
 
 msgid "View assets: [%c + number] + Enter"
 msgstr "Xem tài sản: [%c + số] + Enter"
