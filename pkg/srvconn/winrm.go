@@ -74,11 +74,20 @@ func NewWinRMClient(config WinRMConfig) (*WinRMClient, error) {
 		transport.WithTLSConfig(tlsConfig), transport.WithProxy("direct"))
 	// Bound each SOAP response before authentication or XML decoding reads it.
 	base := tr.Client().Transport.(*http.Transport)
-	base.DialContext = (&net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}).DialContext
 	username, domain := splitWinRMUsername(config.Username)
 	ntlm, err := ntlmssp.NewClient(ntlmssp.SetUserInfo(username, config.Password, nil), ntlmssp.SetDomain(domain))
 	if err != nil {
 		return nil, err
+	}
+	dialer := &net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}
+	base.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		exchange, _ := ctx.Value(winRMExchangeKey{}).(*winRMExchange)
+		if ntlm.Complete() && (exchange == nil || !exchange.probe) {
+			// No TCP connection or SOAP bytes have been sent. The cached NTLM
+			// context belongs to a connection that has expired.
+			return nil, errWinRMReconnect
+		}
+		return dialer.DialContext(ctx, network, address)
 	}
 	innerHTTP := &http.Client{Transport: base, Timeout: 75 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -88,11 +97,9 @@ func NewWinRMClient(config WinRMConfig) (*WinRMClient, error) {
 	}
 	resetAuth := func() { ntlm.Reset(); base.CloseIdleConnections() }
 	innerHTTP.Transport = &winRMBoundedTransport{Transport: base, authenticated: ntlm.Complete}
-	tr.Client().Transport = &winRMTransport{RoundTripper: &winRMEncryptedTransport{http: innerHTTP, ntlm: ntlm}, resetAuth: resetAuth,
+	encrypted := &winRMTransport{RoundTripper: &winRMEncryptedTransport{http: innerHTTP, ntlm: ntlm}, resetAuth: resetAuth,
+		authenticated: ntlm.Complete,
 		authenticate: func(req *http.Request) error {
-			if ntlm.Complete() {
-				return nil
-			}
 			// Establish the HTTP security context with empty POSTs before sealing
 			// SOAP. A Type 3 request carrying SOAP can be rejected by WinRM.
 			exchange := &winRMExchange{probe: true}
@@ -116,6 +123,7 @@ func NewWinRMClient(config WinRMConfig) (*WinRMClient, error) {
 			}
 			return nil
 		}}
+	tr.Client().Transport = encrypted
 	tr.Client().CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	scheme := "http"
 	if config.UseSSL {
@@ -186,9 +194,6 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 			return err
 		}
 	}
-	// Start each command on a fresh authenticated connection. An idle NTLM
-	// connection can expire independently of the PowerShell runspace.
-	c.resetAuth()
 	// Out-String formats objects on the target, using PowerShell's normal table
 	// and list formatting. Dot sourcing retains the user's runspace variables.
 	encoded := base64.StdEncoding.EncodeToString([]byte(command))
@@ -226,9 +231,6 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 	}
 	// Cleanup must still reach the target when the command context was cancelled.
 	defer func() {
-		if err != nil {
-			c.resetAuth()
-		}
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer closeCancel()
 		if bridge, ok := reader.(*powershell.WSManTransport); ok {
@@ -425,7 +427,10 @@ func (c *WinRMClient) Close() error {
 
 type winRMExchangeKey struct{}
 
-var errWinRMAuthentication = errors.New("WinRM authentication failed before sending SOAP")
+var (
+	errWinRMAuthentication = errors.New("WinRM authentication failed before sending SOAP")
+	errWinRMReconnect      = errors.New("WinRM connection requires authentication before sending SOAP")
+)
 
 type winRMExchange struct {
 	authenticated bool
@@ -528,8 +533,9 @@ func (t *winRMEncryptedTransport) RoundTrip(req *http.Request) (*http.Response, 
 
 type winRMTransport struct {
 	http.RoundTripper
-	resetAuth    func()
-	authenticate func(*http.Request) error
+	resetAuth     func()
+	authenticate  func(*http.Request) error
+	authenticated func() bool
 }
 
 func (t *winRMTransport) RoundTrip(req *http.Request) (response *http.Response, err error) {
@@ -546,24 +552,53 @@ func (t *winRMTransport) RoundTrip(req *http.Request) (response *http.Response, 
 			t.resetAuth()
 		}
 	}()
-	if t.authenticate != nil {
-		authErr := t.authenticate(req)
-		var networkErr *net.OpError
-		if authErr != nil && req.Context().Err() == nil && (errors.Is(authErr, io.EOF) || errors.As(authErr, &networkErr)) {
-			// Only empty authentication POSTs are safe to retry.
-			t.resetAuth()
-			authErr = t.authenticate(req)
+	original := req.Clone(req.Context())
+	for attempt := 0; attempt < 2; attempt++ {
+		if t.authenticate != nil && (t.authenticated == nil || !t.authenticated()) {
+			if err := t.authenticateRequest(req); err != nil {
+				return nil, err
+			}
 		}
-		if authErr != nil {
+		exchange = &winRMExchange{}
+		wire := req.Clone(context.WithValue(req.Context(), winRMExchangeKey{}, exchange))
+		wire.GetBody = nil // Never let net/http replay an authenticated POST.
+		response, err = t.RoundTripper.RoundTrip(wire)
+		if attempt != 0 || !errors.Is(err, errWinRMReconnect) || original.GetBody == nil {
+			return response, err
+		}
+		// The dial guard rejected this request before opening a new connection.
+		// Authenticate that connection and seal the original SOAP body once.
+		t.resetAuth()
+		req = original.Clone(original.Context())
+		req.Body, err = original.GetBody()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return response, err
+}
+
+func (t *winRMTransport) authenticateRequest(req *http.Request) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = errors.New("invalid WinRM authentication response")
+		}
+		if err != nil {
 			if req.Body != nil {
 				_ = req.Body.Close()
 			}
-			return nil, fmt.Errorf("%w: %w", errWinRMAuthentication, authErr)
+			t.resetAuth()
+			err = fmt.Errorf("%w: %w", errWinRMAuthentication, err)
 		}
+	}()
+	err = t.authenticate(req)
+	var networkErr *net.OpError
+	if err != nil && req.Context().Err() == nil && (errors.Is(err, io.EOF) || errors.As(err, &networkErr)) {
+		// Only empty authentication POSTs are safe to retry.
+		t.resetAuth()
+		err = t.authenticate(req)
 	}
-	req = req.Clone(context.WithValue(req.Context(), winRMExchangeKey{}, exchange))
-	req.GetBody = nil // Do not let net/http replay an authenticated POST either.
-	return t.RoundTripper.RoundTrip(req)
+	return err
 }
 
 func (t *winRMTransport) CloseIdleConnections() { t.resetAuth() }
@@ -577,7 +612,7 @@ func (t *winRMBoundedTransport) RoundTrip(req *http.Request) (*http.Response, er
 	authenticated := t.authenticated()
 	probe := false
 	if exchange, ok := req.Context().Value(winRMExchangeKey{}).(*winRMExchange); ok {
-		if exchange.authenticated {
+		if exchange.authenticated && !exchange.probe {
 			return nil, errors.New("WinRM authenticated request replay blocked; command outcome may be unknown")
 		}
 		exchange.authenticated = authenticated

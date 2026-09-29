@@ -179,15 +179,71 @@ func TestWinRMAuthenticationProbeCannotSendSOAP(t *testing.T) {
 	inner := &winRMBoundedTransport{Transport: base, authenticated: func() bool { return true }}
 	req, _ := http.NewRequest(http.MethodPost, server.URL, strings.NewReader("SOAP command"))
 	req = req.WithContext(context.WithValue(req.Context(), winRMExchangeKey{}, &winRMExchange{probe: true}))
-	response, err := inner.RoundTrip(req)
-	if err != nil {
-		t.Fatal(err)
+	for range 2 {
+		response, err := inner.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
 	}
-	response.Body.Close()
 	// The plaintext exception applies only to the empty authentication probe.
 	req, _ = http.NewRequest(http.MethodPost, server.URL, strings.NewReader("SOAP command"))
 	if _, err := inner.RoundTrip(req); err == nil {
 		t.Fatal("unencrypted SOAP was accepted")
+	}
+}
+
+func TestWinRMReusesAuthenticatedTransport(t *testing.T) {
+	authenticated, attempts, sends := false, 0, 0
+	outer := &winRMTransport{resetAuth: func() {}, authenticated: func() bool { return authenticated },
+		authenticate: func(*http.Request) error {
+			attempts++
+			authenticated = true
+			return nil
+		}, RoundTripper: winRMTestRoundTripper(func(*http.Request) (*http.Response, error) {
+			sends++
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+		})}
+	for range 3 {
+		req, _ := http.NewRequest(http.MethodPost, "http://winrm/wsman", strings.NewReader("SOAP command"))
+		response, err := outer.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+	}
+	if attempts != 1 || sends != 3 {
+		t.Fatalf("authentication was not reused: attempts=%d sends=%d", attempts, sends)
+	}
+}
+
+func TestWinRMReconnectsOnlyBeforeSendingSOAP(t *testing.T) {
+	authenticated, attempts, sends, handshakes := true, 0, 0, 0
+	outer := &winRMTransport{resetAuth: func() { authenticated = false }, authenticated: func() bool { return authenticated },
+		authenticate: func(*http.Request) error { handshakes++; authenticated = true; return nil },
+		RoundTripper: winRMTestRoundTripper(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			body, _ := io.ReadAll(req.Body)
+			req.Body.Close()
+			if string(body) != "SOAP command" || req.Header.Get("Content-Type") != "application/soap+xml" || req.GetBody != nil {
+				t.Fatal("reconnect changed SOAP or enabled HTTP replay")
+			}
+			if attempts == 1 {
+				req.Header.Set("Content-Type", winRMEncryptedType)
+				return nil, errWinRMReconnect // Dial refused before any wire bytes.
+			}
+			sends++
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+		})}
+	req, _ := http.NewRequest(http.MethodPost, "http://winrm/wsman", strings.NewReader("SOAP command"))
+	req.Header.Set("Content-Type", "application/soap+xml")
+	response, err := outer.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if attempts != 2 || sends != 1 || handshakes != 1 {
+		t.Fatalf("unsafe reconnect: attempts=%d sends=%d handshakes=%d", attempts, sends, handshakes)
 	}
 }
 
