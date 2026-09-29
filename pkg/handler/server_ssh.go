@@ -209,10 +209,8 @@ func (s *Server) SessionHandler(sess ssh.Session) {
 			return
 		}
 
-		interactiveSrv := NewInteractiveHandler(sess, user, s.jmsService, termConf)
 		logger.Infof("User %s request pty %s", sess.User(), pty.Term)
-		go interactiveSrv.WatchWinSizeChange(winChan)
-		interactiveSrv.Dispatch()
+		s.runTerminalModes(sess, user, termConf, winChan)
 		utils.IgnoreErrWriteWindowTitle(sess, termConf.HeaderTitle)
 		return
 	}

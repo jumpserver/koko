@@ -21,6 +21,11 @@ import (
 
 func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *service.JMService,
 	termConfig model.TerminalConfig) *InteractiveHandler {
+	return newInteractiveHandler(NewWrapperSession(sess), user, jmsService, termConfig, true)
+}
+
+func newInteractiveHandler(sess *WrapperSession, user *model.User, jmsService *service.JMService,
+	termConfig model.TerminalConfig, initialize bool) *InteractiveHandler {
 	language := getUserDefaultLangCode(user)
 	api := newLangAPIClient(jmsService, language)
 	publicSetting, err := api.GetPublicSetting()
@@ -28,11 +33,13 @@ func NewInteractiveHandler(sess ssh.Session, user *model.User, jmsService *servi
 		logger.Errorf("Get public setting error: %s", err)
 	}
 	handler := &InteractiveHandler{
-		sess: NewWrapperSession(sess), user: user, jmsService: api,
+		sess: sess, user: user, jmsService: api,
 		terminalConf: &termConfig, i18nLang: language, publicSetting: &publicSetting,
 	}
 	handler.term = term.NewTerminal(handler.sess, "Opt> ")
-	handler.Initial()
+	if initialize {
+		handler.Initial()
+	}
 	return handler
 }
 
@@ -61,12 +68,18 @@ type InteractiveHandler struct {
 	idleState         chan bool
 	exitRequested     bool
 	classicNavigation bool
+	switchTUI         bool
 }
 
 func (h *InteractiveHandler) Initial() {
+	h.displayHelp()
+	h.initializeAssetSelector()
+	h.firstLoadData()
+}
+
+func (h *InteractiveHandler) initializeAssetSelector() {
 	conf := config.GetConf()
 	h.assetLoadPolicy = strings.ToLower(conf.AssetLoadPolicy)
-	h.displayHelp()
 	hiddenFields := make(map[string]struct{}, len(conf.HiddenFields))
 	for _, field := range conf.HiddenFields {
 		hiddenFields[strings.ToLower(strings.TrimSpace(field))] = struct{}{}
@@ -83,7 +96,6 @@ func (h *InteractiveHandler) Initial() {
 			h.selectHandler.SetAllLocalData(allAssets)
 		}
 	}
-	h.firstLoadData()
 }
 
 func (h *InteractiveHandler) GetPtySize() (int, int) {

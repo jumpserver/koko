@@ -13,6 +13,7 @@ import (
 )
 
 func (h *InteractiveHandler) Dispatch() {
+	h.switchTUI = false
 	done := make(chan struct{})
 	defer close(done)
 	go h.watchSession(done)
@@ -37,7 +38,7 @@ func (h *InteractiveHandler) Dispatch() {
 		if !h.dispatchClassicInput(line, idleState) {
 			return
 		}
-		if h.exitRequested {
+		if h.exitRequested || h.switchTUI {
 			return
 		}
 	}
@@ -66,6 +67,9 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 	line = strings.TrimSpace(line)
 	shortcut := classicShortcut(line)
 	switch shortcut {
+	case "t":
+		h.switchTUI = true
+		return false
 	case "b":
 		if h.helpReturnView == classicViewList {
 			h.selectHandler.DisplayCurrentResult()

@@ -30,6 +30,7 @@ func (h *InteractiveHandler) displayBanner(sess io.ReadWriter, user string, term
 		{instruct: "c", helpText: lang.T("Enter {key} to view the type tree")},
 		{instruct: "f", helpText: lang.T("Enter {key} to view the favorites tree")},
 		{instruct: "s", helpText: lang.T("Enter {key} to change the interface language")},
+		{instruct: "t", helpText: h.tr("输入 {key} 切换到 TUI 模式", "Enter {key} to switch to TUI mode")},
 		{instruct: "?", helpText: lang.T("Enter {key} to view help")},
 		{instruct: "q", helpText: lang.T("Enter {key} to end this session")},
 	}
