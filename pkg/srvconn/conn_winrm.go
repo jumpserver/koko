@@ -55,6 +55,7 @@ func NewWinRMConnection(config WinRMConfig) (*WinRMConnection, error) {
 		output: reader, writer: writer, ctx: ctx, cancel: cancel, done: make(chan struct{})}
 	c.resetTerminal()
 	client.OnLocation = c.setLocation
+	client.OutputWidth = c.outputWidth
 	// Initialize the prompt from this runspace before accepting user input.
 	promptCtx, promptCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer promptCancel()
@@ -110,7 +111,7 @@ func (c *WinRMConnection) Start(handle func(context.Context, string, string, io.
 				c.activeCancel = nil
 				c.activeMu.Unlock()
 				if err != nil {
-					_, _ = io.WriteString(c.terminal, err.Error()+"\n")
+					_, _ = io.WriteString(c.terminal, err.Error()+"\n\n")
 				}
 			}
 		}()
@@ -215,6 +216,15 @@ func (c *WinRMConnection) Prompt() string {
 	c.terminalMu.Lock()
 	defer c.terminalMu.Unlock()
 	return c.prompt
+}
+
+func (c *WinRMConnection) outputWidth() int {
+	c.terminalMu.Lock()
+	defer c.terminalMu.Unlock()
+	if c.width == 0 {
+		return 120
+	}
+	return c.width
 }
 
 func (c *WinRMConnection) setLocation(ctx context.Context, path string) {

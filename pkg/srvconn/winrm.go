@@ -1,6 +1,7 @@
 package srvconn
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -41,6 +43,7 @@ type WinRMConfig struct {
 type WinRMClient struct {
 	ExecutionGuard func() error
 	OnLocation     func(context.Context, string)
+	OutputWidth    func() int
 	backend        *powershell.WSManBackend
 	pool           *runspace.Pool
 	http           *http.Client
@@ -79,13 +82,40 @@ func NewWinRMClient(config WinRMConfig) (*WinRMClient, error) {
 	}
 	innerHTTP := &http.Client{Transport: base, Timeout: 75 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	roundTripper, err := ntlmhttp.NewClient(innerHTTP, ntlm, ntlmhttp.Encryption(true), ntlmhttp.SendCBT(config.UseSSL))
+	authClient, err := ntlmhttp.NewClient(innerHTTP, ntlm, ntlmhttp.SendCBT(config.UseSSL))
 	if err != nil {
 		return nil, err
 	}
 	resetAuth := func() { ntlm.Reset(); base.CloseIdleConnections() }
 	innerHTTP.Transport = &winRMBoundedTransport{Transport: base, authenticated: ntlm.Complete}
-	tr.Client().Transport = &winRMTransport{RoundTripper: roundTripper, resetAuth: resetAuth}
+	tr.Client().Transport = &winRMTransport{RoundTripper: &winRMEncryptedTransport{http: innerHTTP, ntlm: ntlm}, resetAuth: resetAuth,
+		authenticate: func(req *http.Request) error {
+			if ntlm.Complete() {
+				return nil
+			}
+			// Establish the HTTP security context with empty POSTs before sealing
+			// SOAP. A Type 3 request carrying SOAP can be rejected by WinRM.
+			exchange := &winRMExchange{probe: true}
+			defer func() {
+				if exchange.body != nil {
+					_ = exchange.body.Close()
+				}
+			}()
+			probe := req.Clone(context.WithValue(req.Context(), winRMExchangeKey{}, exchange))
+			probe.Body, probe.ContentLength, probe.GetBody = http.NoBody, 0, nil
+			response, err := authClient.RoundTrip(probe)
+			if err != nil {
+				return fmt.Errorf("WinRM authentication: %w", err)
+			}
+			defer response.Body.Close()
+			if _, err := io.Copy(io.Discard, response.Body); err != nil {
+				return err
+			}
+			if response.StatusCode != http.StatusOK || !ntlm.Complete() {
+				return fmt.Errorf("WinRM authentication: HTTP %d", response.StatusCode)
+			}
+			return nil
+		}}
 	tr.Client().CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	scheme := "http"
 	if config.UseSSL {
@@ -164,7 +194,13 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 	encoded := base64.StdEncoding.EncodeToString([]byte(command))
 	// A per-command marker separates runspace location metadata from user output.
 	locationPrefix := "__JMS_LOCATION_" + uuid.NewString() + "__"
-	script := `try { . ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('` + encoded + `')))) | Out-String -Stream } finally { '` + locationPrefix + `' + (Microsoft.PowerShell.Management\Get-Location).Path }`
+	width := 120
+	if c.OutputWidth != nil {
+		// ponytail: cap table padding at 4096 columns; raise this with the
+		// response budget if wider terminal formatting is needed.
+		width = max(2, min(4096, c.OutputWidth()))
+	}
+	script := `try { . ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('` + encoded + `')))) | Out-String -Stream -Width ` + strconv.Itoa(width) + ` } finally { '` + locationPrefix + `' + (Microsoft.PowerShell.Management\Get-Location).Path }`
 	pl, err := c.pool.CreatePipeline(script)
 	if err != nil {
 		return err
@@ -181,8 +217,11 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 	if err != nil {
 		pl.Fail(err)
 		// A lost Command response may leave a running pipeline with no returned
-		// command ID. Close the session so backend cleanup can terminate it.
-		c.cancel()
+		// command ID. An authentication failure sent no SOAP and leaves the
+		// runspace usable; other failures require session cleanup.
+		if !errors.Is(err, errWinRMAuthentication) {
+			c.cancel()
+		}
 		return err
 	}
 	// Cleanup must still reach the target when the command context was cancelled.
@@ -385,20 +424,117 @@ func (c *WinRMClient) Close() error {
 }
 
 type winRMExchangeKey struct{}
+
+var errWinRMAuthentication = errors.New("WinRM authentication failed before sending SOAP")
+
 type winRMExchange struct {
 	authenticated bool
+	probe         bool
 	body          io.ReadCloser
+}
+
+const winRMEncryptedType = `multipart/encrypted;protocol="application/HTTP-SPNEGO-session-encrypted";boundary="Encrypted Boundary"`
+const winRMMessageHeader = "--Encrypted Boundary\r\n\tContent-Type: application/HTTP-SPNEGO-session-encrypted\r\n\tOriginalContent: type="
+const winRMBinaryHeader = "\r\n--Encrypted Boundary\r\n\tContent-Type: application/octet-stream\r\n"
+const winRMMessageEnd = "--Encrypted Boundary--\r\n"
+
+// MS-WSMV uses binary framing rather than ordinary MIME line processing.
+// Preserve every ciphertext byte, including CRLF and header-like sequences.
+func encodeWinRMMessage(sealed, signature []byte, contentType string, length int) []byte {
+	var body bytes.Buffer
+	fmt.Fprintf(&body, "%s%s;Length=%d%s", winRMMessageHeader, contentType, length, winRMBinaryHeader)
+	_ = binary.Write(&body, binary.LittleEndian, uint32(len(signature)))
+	body.Write(signature)
+	body.Write(sealed)
+	body.WriteString(winRMMessageEnd)
+	return body.Bytes()
+}
+
+func decodeWinRMMessage(body []byte, contentType string) (sealed, signature []byte, originalType string, length int, err error) {
+	mediaType, params, parseErr := mime.ParseMediaType(contentType)
+	if parseErr != nil || mediaType != "multipart/encrypted" || params["protocol"] != "application/HTTP-SPNEGO-session-encrypted" || params["boundary"] != "Encrypted Boundary" {
+		return nil, nil, "", 0, errors.New("invalid WinRM encrypted content type")
+	}
+	header, data, ok := bytes.Cut(body, []byte(winRMBinaryHeader))
+	if !ok || len(header) > 4096 || !bytes.HasSuffix(data, []byte(winRMMessageEnd)) {
+		return nil, nil, "", 0, errors.New("invalid WinRM encrypted framing")
+	}
+	original, ok := strings.CutPrefix(string(header), winRMMessageHeader)
+	if !ok {
+		return nil, nil, "", 0, errors.New("invalid WinRM original content header")
+	}
+	index := strings.LastIndex(original, ";Length=")
+	if index < 0 {
+		return nil, nil, "", 0, errors.New("missing WinRM original content length")
+	}
+	length, parseErr = strconv.Atoi(original[index+8:])
+	if parseErr != nil || length < 0 || length > 2*1024*1024 {
+		return nil, nil, "", 0, errors.New("invalid WinRM original content length")
+	}
+	data = data[:len(data)-len(winRMMessageEnd)]
+	if len(data) < 20 || binary.LittleEndian.Uint32(data[:4]) != 16 {
+		return nil, nil, "", 0, errors.New("invalid WinRM NTLM signature length")
+	}
+	return data[20:], data[4:20], original[:index], length, nil
+}
+
+type winRMEncryptedTransport struct {
+	http *http.Client
+	ntlm *ntlmssp.Client
+}
+
+func (t *winRMEncryptedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	defer req.Body.Close()
+	plain, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	sealed, signature, err := t.ntlm.SecuritySession().Wrap(plain)
+	if err != nil {
+		return nil, err
+	}
+	body := encodeWinRMMessage(sealed, signature, req.Header.Get("Content-Type"), len(plain))
+	req.Body, req.ContentLength = io.NopCloser(bytes.NewReader(body)), int64(len(body))
+	req.Header.Set("Content-Type", winRMEncryptedType)
+	response, err := t.http.Do(req) // Send the authenticated SOAP request exactly once.
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode >= 300 && response.StatusCode != http.StatusInternalServerError {
+		return response, nil
+	}
+	defer response.Body.Close()
+	body, err = io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	sealed, signature, originalType, length, err := decodeWinRMMessage(body, response.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, err
+	}
+	plain, err = t.ntlm.SecuritySession().Unwrap(sealed, signature)
+	if err != nil {
+		return nil, err
+	}
+	if len(plain) != length {
+		return nil, errors.New("WinRM decrypted content length mismatch")
+	}
+	response.Body = io.NopCloser(bytes.NewReader(plain))
+	response.ContentLength = int64(len(plain))
+	response.Header.Set("Content-Type", originalType)
+	response.Header.Set("Content-Length", strconv.Itoa(len(plain)))
+	return response, nil
 }
 
 type winRMTransport struct {
 	http.RoundTripper
-	resetAuth func()
+	resetAuth    func()
+	authenticate func(*http.Request) error
 }
 
 func (t *winRMTransport) RoundTrip(req *http.Request) (response *http.Response, err error) {
 	exchange := &winRMExchange{}
-	// The authentication library decodes server-controlled MIME and signature
-	// lengths. Contain malformed responses at the network boundary.
+	// Contain malformed server-controlled NTLM challenges at the network boundary.
 	defer func() {
 		if recover() != nil {
 			response, err = nil, errors.New("invalid WinRM authentication response; command outcome may be unknown")
@@ -410,6 +546,21 @@ func (t *winRMTransport) RoundTrip(req *http.Request) (response *http.Response, 
 			t.resetAuth()
 		}
 	}()
+	if t.authenticate != nil {
+		authErr := t.authenticate(req)
+		var networkErr *net.OpError
+		if authErr != nil && req.Context().Err() == nil && (errors.Is(authErr, io.EOF) || errors.As(authErr, &networkErr)) {
+			// Only empty authentication POSTs are safe to retry.
+			t.resetAuth()
+			authErr = t.authenticate(req)
+		}
+		if authErr != nil {
+			if req.Body != nil {
+				_ = req.Body.Close()
+			}
+			return nil, fmt.Errorf("%w: %w", errWinRMAuthentication, authErr)
+		}
+	}
 	req = req.Clone(context.WithValue(req.Context(), winRMExchangeKey{}, exchange))
 	req.GetBody = nil // Do not let net/http replay an authenticated POST either.
 	return t.RoundTripper.RoundTrip(req)
@@ -424,15 +575,17 @@ type winRMBoundedTransport struct {
 
 func (t *winRMBoundedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	authenticated := t.authenticated()
+	probe := false
 	if exchange, ok := req.Context().Value(winRMExchangeKey{}).(*winRMExchange); ok {
 		if exchange.authenticated {
 			return nil, errors.New("WinRM authenticated request replay blocked; command outcome may be unknown")
 		}
 		exchange.authenticated = authenticated
+		probe = exchange.probe
 	}
-	if !authenticated {
-		// Negotiate authentication with empty POSTs. The library retains the SOAP
-		// body for the final encrypted request; never send commands in plaintext.
+	if probe || !authenticated {
+		// Authentication probes must stay empty, including the final Type 3 POST.
+		// Never send SOAP commands in plaintext.
 		if req.Body != nil {
 			_ = req.Body.Close()
 		}
@@ -451,7 +604,7 @@ func (t *winRMBoundedTransport) RoundTrip(req *http.Request) (*http.Response, er
 		if response.StatusCode == http.StatusUnauthorized {
 			err = validateWinRMChallenge(response.Header)
 		} else if response.StatusCode < 300 || response.StatusCode == http.StatusInternalServerError {
-			if !t.authenticated() || !strings.HasPrefix(response.Header.Get("Content-Type"), "multipart/encrypted") {
+			if !t.authenticated() || (!probe && !strings.HasPrefix(response.Header.Get("Content-Type"), "multipart/encrypted")) {
 				err = errors.New("WinRM requires NTLM authentication and encrypted responses")
 			}
 		}

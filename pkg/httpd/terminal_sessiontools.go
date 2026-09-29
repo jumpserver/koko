@@ -383,7 +383,7 @@ func (c *terminalToolController) executeWinRMPTY(
 		err = writeErr
 	}
 	if err != nil {
-		_, _ = c.winRM.WriteOutput(ctx, []byte(err.Error()+"\n"))
+		_, _ = c.winRM.WriteOutput(ctx, []byte(err.Error()+"\n\n"))
 	}
 	return output, exitCode, err
 }

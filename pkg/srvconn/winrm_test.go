@@ -22,6 +22,21 @@ import (
 	"github.com/investigato/go-psrpcore/serialization"
 )
 
+func TestWinRMEncryptedFramingPreservesBinary(t *testing.T) {
+	sealed := []byte("\r\nHeader: binary\r\n\r\n--Encrypted Boundary\r\n\x00\xff\r\n")
+	signature := bytes.Repeat([]byte{0x2a}, 16)
+	body := encodeWinRMMessage(sealed, signature, "application/soap+xml;charset=UTF-8", 123)
+	got, sig, original, length, err := decodeWinRMMessage(body, winRMEncryptedType)
+	if err != nil || !bytes.Equal(got, sealed) || !bytes.Equal(sig, signature) || original != "application/soap+xml;charset=UTF-8" || length != 123 {
+		t.Fatalf("encrypted binary changed during framing: %v", err)
+	}
+	for _, corrupt := range [][]byte{body[:len(body)-1], encodeWinRMMessage(sealed, signature[:1], "application/soap+xml", 123)} {
+		if _, _, _, _, err := decodeWinRMMessage(corrupt, winRMEncryptedType); err == nil {
+			t.Fatal("invalid encrypted framing was accepted")
+		}
+	}
+}
+
 func TestWinRMFragmentedOutput(t *testing.T) {
 	ctx := context.Background()
 	id := uuid.New()
@@ -148,6 +163,56 @@ func TestWinRMNeverReplaysAuthenticatedRequest(t *testing.T) {
 	}
 	if sends != 1 {
 		t.Fatalf("authenticated request sent %d times", sends)
+	}
+}
+
+func TestWinRMAuthenticationProbeCannotSendSOAP(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		body, _ := io.ReadAll(req.Body)
+		if len(body) != 0 {
+			t.Errorf("authentication probe disclosed %d bytes", len(body))
+		}
+	}))
+	defer server.Close()
+	base := http.DefaultTransport.(*http.Transport).Clone()
+	defer base.CloseIdleConnections()
+	inner := &winRMBoundedTransport{Transport: base, authenticated: func() bool { return true }}
+	req, _ := http.NewRequest(http.MethodPost, server.URL, strings.NewReader("SOAP command"))
+	req = req.WithContext(context.WithValue(req.Context(), winRMExchangeKey{}, &winRMExchange{probe: true}))
+	response, err := inner.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	// The plaintext exception applies only to the empty authentication probe.
+	req, _ = http.NewRequest(http.MethodPost, server.URL, strings.NewReader("SOAP command"))
+	if _, err := inner.RoundTrip(req); err == nil {
+		t.Fatal("unencrypted SOAP was accepted")
+	}
+}
+
+func TestWinRMOnlyRetriesAuthentication(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		attempts, sends := 0, 0
+		outer := &winRMTransport{resetAuth: func() {}, authenticate: func(*http.Request) error {
+			attempts++
+			if fail || attempts == 1 {
+				return io.EOF
+			}
+			return nil
+		}, RoundTripper: winRMTestRoundTripper(func(*http.Request) (*http.Response, error) {
+			sends++
+			return nil, io.EOF
+		})}
+		req, _ := http.NewRequest(http.MethodPost, "http://winrm/wsman", strings.NewReader("SOAP command"))
+		_, err := outer.RoundTrip(req)
+		wantSends := 1
+		if fail {
+			wantSends = 0
+		}
+		if attempts != 2 || sends != wantSends || errors.Is(err, errWinRMAuthentication) != fail {
+			t.Fatalf("unsafe retry: attempts=%d SOAP sends=%d err=%v", attempts, sends, err)
+		}
 	}
 }
 
