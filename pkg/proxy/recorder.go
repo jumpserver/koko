@@ -159,7 +159,7 @@ func NewReplayRecord(sid string, jmsService *service.JMService,
 	options = append(options, asciinema.WithHeight(info.Height))
 	options = append(options, asciinema.WithWidth(info.Width))
 	options = append(options, asciinema.WithTimestamp(info.TimeStamp))
-	recorder.Writer = asciinema.NewWriter(recorder.file, options...)
+	recorder.Writer = asciinema.NewWriter(newReplayWriter(recorder.file, sid), options...)
 	return recorder, nil
 }
 
