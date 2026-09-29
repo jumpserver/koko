@@ -489,7 +489,7 @@ type winRMEncryptedTransport struct {
 }
 
 func (t *winRMEncryptedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	defer req.Body.Close()
+	defer func(body io.Closer) { _ = body.Close() }(req.Body)
 	plain, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err

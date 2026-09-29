@@ -386,6 +386,13 @@ func (t *mcpCommandTool) authorize(
 	switch decision.Action {
 	case "reject":
 		return &decision, fmt.Errorf("command rejected by ACL %q", decision.Name)
+	case "notify_and_warn":
+		if t.protocol == srvconn.ProtocolWinRM {
+			// ponytail: AI has no user-bound ACL warning confirmation channel.
+			// Refuse until that handshake exists; the terminal supports y/N.
+			return &decision, errors.New("command requires risk confirmation in the terminal; command was not executed")
+		}
+		return &decision, nil
 	case "review":
 		if t.hooks.CommandACLReview == nil {
 			return &decision, errors.New("command ACL review is unavailable")

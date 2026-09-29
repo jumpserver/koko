@@ -318,7 +318,10 @@ func (c *terminalToolController) executePTY(
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	c.client.setInputLock(cancel)
+	if !c.client.setInputLock(cancel) {
+		observer.Cancel()
+		return "", nil, fmt.Errorf("another PTY tool call is active")
+	}
 	defer c.client.setInputLock(nil)
 	if decision != nil {
 		value := proxy.CommandACLDecision{
@@ -363,7 +366,9 @@ func (c *terminalToolController) executeWinRMPTY(
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	c.client.setInputLock(cancel)
+	if !c.client.setInputLock(cancel) {
+		return "", nil, fmt.Errorf("another PTY tool call is active")
+	}
 	defer c.client.setInputLock(nil)
 	if _, err := c.winRM.WriteOutput(ctx, []byte(c.winRM.Prompt()+command+"\n")); err != nil {
 		return "", nil, err

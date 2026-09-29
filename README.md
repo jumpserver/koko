@@ -23,7 +23,7 @@ Koko opens a persistent PowerShell runspace using PSRP over WinRM and password-b
 
 The terminal supports complete PowerShell commands or scripts on one line, line editing, command history, Ctrl-C cancellation and Ctrl-D disconnect. Variables and the working directory are shared with the AI command executor. AI Auto and PTY modes display commands and streamed output in the current terminal and session recording; Background mode returns output only to AI. All modes execute through PSRP and retain command auditing. Interactive host prompts and full-screen console programs are unsupported. Terminal commands are limited to 4095 characters; AI commands to 64 KiB and ten minutes. PSRP reports pipeline state, so AI results do not invent an OS exit code.
 
-Submitted commands and bounded output use JumpServer's command auditing, ACL review and warning notification paths. Terminal activity uses the existing session recording and permission lifecycle. Authenticated WinRM requests are never automatically replayed after a transport failure; a lost response can leave the command outcome unknown.
+Submitted commands and bounded output use JumpServer's command auditing, ACL review and warning notification paths. AI commands matching a notify-and-warn ACL are refused. Execute and confirm such commands manually in the terminal; AI task approval does not replace that risk confirmation. Terminal activity uses the existing session recording and permission lifecycle. Authenticated WinRM requests are never automatically replayed after a transport failure; a lost response can leave the command outcome unknown.
 
 
 ## Setup development environment

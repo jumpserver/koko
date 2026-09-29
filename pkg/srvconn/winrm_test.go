@@ -224,7 +224,7 @@ func TestWinRMReconnectsOnlyBeforeSendingSOAP(t *testing.T) {
 		RoundTripper: winRMTestRoundTripper(func(req *http.Request) (*http.Response, error) {
 			attempts++
 			body, _ := io.ReadAll(req.Body)
-			req.Body.Close()
+			_ = req.Body.Close()
 			if string(body) != "SOAP command" || req.Header.Get("Content-Type") != "application/soap+xml" || req.GetBody != nil {
 				t.Fatal("reconnect changed SOAP or enabled HTTP replay")
 			}
@@ -346,8 +346,8 @@ func newWinRMTestTerminal(t *testing.T) *WinRMConnection {
 	c := &WinRMConnection{input: make(chan winRMInput, 16), interrupt: make(chan struct{}, 1),
 		output: reader, writer: writer, ctx: ctx, cancel: cancel, done: make(chan struct{})}
 	c.resetTerminal()
-	go io.Copy(io.Discard, reader)
-	t.Cleanup(func() { cancel(); reader.Close(); writer.Close(); <-c.done })
+	go func() { _, _ = io.Copy(io.Discard, reader) }()
+	t.Cleanup(func() { cancel(); _ = reader.Close(); _ = writer.Close(); <-c.done })
 	return c
 }
 

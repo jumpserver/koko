@@ -339,6 +339,13 @@ func (s *Server) RecordBackgroundCommand(
 			switch decision.Action {
 			case model.ActionReject:
 				riskLevel = model.RejectLevel
+				// The ACL snapshot retains the review origin after its decision becomes reject.
+				for _, rule := range s.commandACLs {
+					if rule.ID == decision.ACLID && rule.Action == model.ActionReview {
+						riskLevel = model.ReviewReject
+						break
+					}
+				}
 			case model.ActionReview:
 				riskLevel = model.ReviewCancel
 			case model.ActionWarning, model.ActionNotifyAndWarn:

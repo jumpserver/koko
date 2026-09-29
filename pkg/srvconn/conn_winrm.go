@@ -71,7 +71,7 @@ func (c *WinRMConnection) Start(handle func(context.Context, string, string, io.
 		c.isStarted.Store(true)
 		go func() {
 			defer close(c.done)
-			defer c.writer.Close()
+			defer func() { _ = c.writer.Close() }()
 			for c.ctx.Err() == nil {
 				c.readBudget = 64 * 1024
 				c.inputOverflow = false

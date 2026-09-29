@@ -56,3 +56,31 @@ func TestWinRMRejectedCommandIsAudited(t *testing.T) {
 		t.Fatalf("incomplete command audit: %+v", record)
 	}
 }
+
+func TestCommandReviewAuditLevels(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		rule     model.CommandAction
+		decision model.CommandAction
+		reviewed bool
+		risk     int64
+	}{
+		{"reject", model.ActionReject, model.ActionReject, false, model.RejectLevel},
+		{"review reject", model.ActionReview, model.ActionReject, false, model.ReviewReject},
+		{"review cancel", model.ActionReview, model.ActionReview, false, model.ReviewCancel},
+		{"review accept", model.ActionReview, model.ActionAccept, true, model.ReviewAccept},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := &CommandRecorder{queue: make(chan *model.Command, 1)}
+			server := &Server{sessionInfo: &model.Session{ID: "session"}, backgroundRecorder: recorder,
+				commandACLs: model.CommandACLs{{ID: "acl", Action: tc.rule}}}
+			server.RecordBackgroundCommand("Get-Location", "audit output", nil, &CommandACLDecision{
+				Action: tc.decision, ACLID: "acl", ItemID: "group", Reviewed: tc.reviewed,
+			})
+			record := <-recorder.queue
+			if record.RiskLevel != tc.risk || record.CmdFilterAclId != "acl" || record.CmdGroupId != "group" {
+				t.Fatalf("incorrect ACL audit: %+v", record)
+			}
+		})
+	}
+}

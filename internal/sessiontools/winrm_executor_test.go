@@ -36,6 +36,40 @@ func TestWinRMToolAuditsRejectedCommand(t *testing.T) {
 	}
 }
 
+func TestWinRMToolRequiresRiskConfirmation(t *testing.T) {
+	for _, mode := range []string{MCPExecutionAuto, MCPExecutionPTY, MCPExecutionBackground} {
+		t.Run(mode, func(t *testing.T) {
+			audits, executions := 0, 0
+			tool, err := NewCommandTool(MCPCommandToolOptions{Protocol: srvconn.ProtocolWinRM,
+				Executor: NewWinRMExecutor(nil), Validate: ProtocolCommandValidator(srvconn.ProtocolWinRM),
+				Hooks: MCPCommandHooks{
+					BackgroundAvailable: func() bool { return true },
+					CommandACLCheck: func(string) CommandACLDecision {
+						return CommandACLDecision{Action: "notify_and_warn", ACLID: "acl", ItemID: "group"}
+					},
+					PTYExecute: func(context.Context, string, *CommandACLDecision) (string, *int, error) {
+						executions++
+						return "", nil, nil
+					},
+					BackgroundRecord: func(input, output string, exit *int, decision *CommandACLDecision) {
+						audits++
+						if input != "Get-Location" || !strings.Contains(output, "risk confirmation") || exit != nil ||
+							decision.ACLID != "acl" || decision.ItemID != "group" || decision.Action != "notify_and_warn" {
+							t.Fatalf("incomplete warning audit: %s %s %+v", input, output, decision)
+						}
+					},
+				}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = tool.Call(context.Background(), json.RawMessage(`{"command":"Get-Location","execution":"`+mode+`"}`))
+			if err == nil || audits != 1 || executions != 0 {
+				t.Fatalf("unconfirmed warning executed: %v, executions=%d audits=%d", err, executions, audits)
+			}
+		})
+	}
+}
+
 func TestWinRMForegroundModesAndAudit(t *testing.T) {
 	for _, mode := range []string{MCPExecutionAuto, MCPExecutionPTY} {
 		for _, failed := range []bool{false, true} {
