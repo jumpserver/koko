@@ -145,13 +145,14 @@ type Server struct {
 	sessionInfo *model.Session
 	commandACLs model.CommandACLs
 
-	backgroundRecorderMu sync.Mutex
-	backgroundRecorder   *CommandRecorder
-	agentToolGrantMu     sync.Mutex
-	agentToolGrant       *agentToolCommandGrant
-	operationPaused      atomic.Bool
-	permissionInvalid    atomic.Bool
-	backgroundActiveAt   atomic.Int64
+	backgroundRecorderMu     sync.Mutex
+	backgroundRecorder       *CommandRecorder
+	backgroundRecorderClosed bool
+	agentToolGrantMu         sync.Mutex
+	agentToolGrant           *agentToolCommandGrant
+	operationPaused          atomic.Bool
+	permissionInvalid        atomic.Bool
+	backgroundActiveAt       atomic.Int64
 
 	cacheSSHConnection *srvconn.SSHConnection
 
@@ -164,6 +165,7 @@ type Server struct {
 	OnSessionInfo        func(info *SessionInfo)
 	OnSSHClient          func(client *srvconn.SSHClient)
 	OnDatabaseConnection func(info DatabaseConnectionInfo)
+	OnWinRMConnection    func(conn *srvconn.WinRMConnection)
 	// SessionEndReason is available after Proxy returns.
 	SessionEndReason model.SessionLifecycleReasonErr
 	// ConnectionError retains the cause when setup fails before a session starts.
@@ -335,6 +337,10 @@ func (s *Server) RecordBackgroundCommand(
 			riskLevel = model.ReviewAccept
 		default:
 			switch decision.Action {
+			case model.ActionReject:
+				riskLevel = model.RejectLevel
+			case model.ActionReview:
+				riskLevel = model.ReviewCancel
 			case model.ActionWarning, model.ActionNotifyAndWarn:
 				riskLevel = model.WarningLevel
 			}
@@ -342,6 +348,9 @@ func (s *Server) RecordBackgroundCommand(
 	}
 	if exitCode != nil {
 		output = fmt.Sprintf("[exit %d]\n%s", *exitCode, output)
+	}
+	if len(output) > maxBufSize {
+		output = output[:maxBufSize]
 	}
 	now := time.Now()
 	record := &model.Command{
@@ -352,17 +361,27 @@ func (s *Server) RecordBackgroundCommand(
 		RiskLevel: riskLevel, CmdFilterAclId: aclID, CmdGroupId: itemID,
 		DateCreated: now.UTC(),
 	}
+	s.recordBackgroundCommand(record)
+}
+
+func (s *Server) recordBackgroundCommand(record *model.Command) {
 	s.backgroundRecorderMu.Lock()
+	defer s.backgroundRecorderMu.Unlock()
 	if s.backgroundRecorder == nil {
 		s.backgroundRecorder = s.GetCommandRecorder()
 	}
-	recorder := s.backgroundRecorder
-	s.backgroundRecorderMu.Unlock()
-	recorder.Record(record)
+	s.backgroundRecorder.Record(record)
+	// A cancelled AI call can finish after the terminal has disconnected.
+	// Flush its final audit rather than leave a new recorder running forever.
+	if s.backgroundRecorderClosed {
+		s.backgroundRecorder.End()
+		s.backgroundRecorder = nil
+	}
 }
 
 func (s *Server) CloseBackgroundRecorder() {
 	s.backgroundRecorderMu.Lock()
+	s.backgroundRecorderClosed = true
 	recorder := s.backgroundRecorder
 	s.backgroundRecorder = nil
 	s.backgroundRecorderMu.Unlock()
@@ -380,7 +399,7 @@ func (s *Server) SupportsBackgroundExecution() bool {
 		return false
 	}
 	switch s.connOpts.authInfo.Protocol {
-	case srvconn.ProtocolSSH, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+	case srvconn.ProtocolSSH, srvconn.ProtocolWinRM, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolOracle, srvconn.ProtocolDameng, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
@@ -600,7 +619,7 @@ func (s *Server) checkRequiredAuth() error {
 			utils.IgnoreErrWriteString(s.UserConn, msg)
 			return errors.New("no auth token")
 		}
-	case srvconn.ProtocolTELNET, srvconn.ProtocolClickHouse,
+	case srvconn.ProtocolTELNET, srvconn.ProtocolWinRM, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolMongoDB,
 
 		srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
@@ -1142,6 +1161,8 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 		return s.getSSHConn()
 	case srvconn.ProtocolTELNET:
 		return s.getTelnetConn()
+	case srvconn.ProtocolWinRM:
+		return s.getWinRMConn(proxyAddr)
 	case srvconn.ProtocolK8s:
 		return s.getK8sConConn(proxyAddr)
 	case srvconn.ProtocolRedis:
@@ -1215,6 +1236,7 @@ func (s *Server) getCharset() string {
 }
 
 func (s *Server) Proxy() {
+	defer s.CloseBackgroundRecorder()
 	s.SessionEndReason = model.ReasonErrConnectFailed
 	defer s.connOpts.authInfo.ClearSSHCertificateCredential()
 	if err := s.checkRequiredAuth(); err != nil {

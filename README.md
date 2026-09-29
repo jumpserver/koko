@@ -3,7 +3,7 @@
 
 **English** · [简体中文](./README_zh-CN.md)
 
-KoKo is a connector of JumpServer for secure connections using character protocols, supporting SSH, Telnet, Kubernetes, SFTP and database protocols
+KoKo is a connector of JumpServer for secure connections using character protocols, supporting SSH, Telnet, WinRM, Kubernetes, SFTP and database protocols
 
 Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](https://www.dota2.com.cn/hero/kunkka)。
 
@@ -14,6 +14,16 @@ Koko is implemented using Golang, and the name comes from a Dota hero [Kunkka](h
 - SFTP
 - Web Terminal
 - Web File Management
+
+## Windows PowerShell over WinRM
+
+Windows assets with an authorized, public `winrm` protocol can use Koko's Web CLI in Luna's web and desktop clients. Update JumpServer Core and Luna alongside Koko and apply the `assets.0031_winrm_terminal_access` migration to expose existing WinRM platform protocols.
+
+Koko opens a persistent PowerShell runspace using PSRP over WinRM and password-based NTLM authentication. Configure the asset's WinRM listener port (usually 5985 for HTTP or 5986 for HTTPS) and the platform's `use_ssl` setting. NTLM message encryption is required on both transports. HTTPS verifies the target certificate by default; configure a trusted CA or explicitly enable `allow_invalid_cert` on the platform when needed. The account must have permission to use the Windows PowerShell remoting endpoint.
+
+The terminal supports complete PowerShell commands or scripts on one line, line editing, command history, Ctrl-C cancellation and Ctrl-D disconnect. Variables and the working directory are shared with the AI command executor. AI Auto and PTY modes display commands and streamed output in the current terminal and session recording; Background mode returns output only to AI. All modes execute through PSRP and retain command auditing. Interactive host prompts and full-screen console programs are unsupported. Terminal commands are limited to 4095 characters; AI commands to 64 KiB and ten minutes. PSRP reports pipeline state, so AI results do not invent an OS exit code.
+
+Submitted commands and bounded output use JumpServer's command auditing, ACL review and warning notification paths. Terminal activity uses the existing session recording and permission lifecycle. Authenticated WinRM requests are never automatically replayed after a transport failure; a lost response can leave the command outcome unknown.
 
 
 ## Setup development environment

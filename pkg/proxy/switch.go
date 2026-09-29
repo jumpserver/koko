@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sync/atomic"
 	"time"
 
@@ -171,6 +172,13 @@ func (s *SwitchSession) Bridge(userConn UserConnection, srvConn srvconn.ServerCo
 		return err
 	}
 	logger.Infof("Conn[%s] create ParseEngine success", userConn.ID())
+	if conn, ok := srvConn.(*srvconn.WinRMConnection); ok {
+		// WinRM audits complete submitted commands, without inferring them from VT output.
+		parser.winRMConnection = conn
+		conn.Start(func(ctx context.Context, command, user string, output io.Writer) error {
+			return s.p.executeWinRMCommand(conn, ctx, command, user, output)
+		})
+	}
 	replayRecorder := s.p.GetReplayRecorder()
 	logger.Infof("Conn[%s] create replay success", userConn.ID())
 	srvInChan := make(chan []byte, 1)

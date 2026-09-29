@@ -35,6 +35,8 @@ func ProtocolCommandValidator(protocol string) CommandValidator {
 		switch protocol {
 		case srvconn.ProtocolSSH:
 			constraints.BackgroundEligible = !isInteractiveCommand(command)
+		case srvconn.ProtocolWinRM:
+			constraints.BackgroundEligible = true
 		case srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 			srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
 			srvconn.ProtocolOracle, srvconn.ProtocolClickHouse:
@@ -95,6 +97,10 @@ func isSQLProtocol(protocol string) bool {
 func commandToolPresentation(protocol string) (title, description, commandDescription string) {
 	protocol = strings.ToLower(strings.TrimSpace(protocol))
 	switch {
+	case protocol == srvconn.ProtocolWinRM:
+		return "Execute PowerShell command",
+			"Execute a bounded PowerShell command in the active audited Windows runspace. Variables and the working directory are shared with the terminal. Console programs requiring interactive input are unsupported.",
+			"One complete PowerShell command or script on one line. Use PowerShell syntax, not POSIX shell syntax."
 	case isSQLProtocol(protocol):
 		label := map[string]string{
 			srvconn.ProtocolMySQL: "MySQL", srvconn.ProtocolMariadb: "MariaDB",
@@ -143,7 +149,7 @@ func commandToolName(protocol string) string {
 func ProtocolSupportsBackgroundExecutor(protocol string) bool {
 	protocol = strings.ToLower(strings.TrimSpace(protocol))
 	switch protocol {
-	case srvconn.ProtocolSSH, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
+	case srvconn.ProtocolSSH, srvconn.ProtocolWinRM, srvconn.ProtocolMySQL, srvconn.ProtocolMariadb,
 		srvconn.ProtocolPostgresql, srvconn.ProtocolSQLServer,
 		srvconn.ProtocolOracle, srvconn.ProtocolClickHouse,
 		srvconn.ProtocolRedis, srvconn.ProtocolMongoDB:
