@@ -685,6 +685,11 @@ func (h *tty) proxy(wg *sync.WaitGroup, client *Client) {
 				toolController.attachDatabase(info)
 			}
 		}
+		srv.OnWinRMConnection = func(conn *srvconn.WinRMConnection) {
+			if toolController != nil {
+				toolController.attachWinRM(conn)
+			}
+		}
 		srv.Proxy()
 		closeReason = string(srv.SessionEndReason)
 		srv.CloseBackgroundRecorder()

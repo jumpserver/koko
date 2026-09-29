@@ -35,6 +35,7 @@ const (
 	ProtocolSSH    = "ssh"
 	ProtocolSFTP   = "sftp"
 	ProtocolTELNET = "telnet"
+	ProtocolWinRM  = "winrm"
 	ProtocolK8s    = "k8s"
 
 	ProtocolRedis      = "redis"
@@ -68,6 +69,7 @@ func SupportedHostProtocols() []string {
 	return []string{
 		ProtocolSSH,
 		ProtocolTELNET,
+		ProtocolWinRM,
 	}
 }
 
@@ -77,6 +79,7 @@ func SupportedProtocols() []string {
 	for _, protocol := range []string{
 		ProtocolSSH,
 		ProtocolTELNET,
+		ProtocolWinRM,
 		ProtocolK8s,
 		ProtocolMySQL,
 		ProtocolPostgresql,
@@ -134,6 +137,7 @@ type supportedChecker func() error
 var supportedMap = map[string]supportedChecker{
 	ProtocolSSH:    builtinSupported,
 	ProtocolTELNET: builtinSupported,
+	ProtocolWinRM:  builtinSupported,
 	ProtocolK8s:    kubectlSupported,
 
 	ProtocolRedis:   redisSupported,

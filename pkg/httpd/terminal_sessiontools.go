@@ -31,6 +31,7 @@ type terminalToolController struct {
 	starting          bool
 	resourceSessionID string
 	factory           commandExecutorFactory
+	winRM             *srvconn.WinRMConnection
 }
 
 func newTerminalToolController(
@@ -70,7 +71,7 @@ func newTerminalToolController(
 }
 
 func terminalBackgroundExecutorExpected(protocol string, backgroundEnabled bool) bool {
-	if protocol == srvconn.ProtocolSSH {
+	if protocol == srvconn.ProtocolSSH || protocol == srvconn.ProtocolWinRM {
 		return true
 	}
 	return backgroundEnabled && sessiontools.ProtocolSupportsBackgroundExecutor(protocol)
@@ -95,6 +96,18 @@ func (c *terminalToolController) attachSSH(client *srvconn.SSHClient) {
 	c.attach(func(context.Context) (sessiontools.CommandExecutor, error) {
 		return sessiontools.NewSSHExecutor(client), nil
 	})
+}
+
+func (c *terminalToolController) attachWinRM(conn *srvconn.WinRMConnection) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.closed && c.factory == nil && conn != nil {
+		c.winRM = conn
+		c.factory = func(context.Context) (sessiontools.CommandExecutor, error) {
+			return sessiontools.NewWinRMExecutor(conn.Client), nil
+		}
+		c.startLocked()
+	}
 }
 
 func (c *terminalToolController) attachDatabase(info proxy.DatabaseConnectionInfo) {
@@ -151,6 +164,12 @@ func (c *terminalToolController) initialize(
 		)
 		executor = nil
 	}
+	ptyExecute := c.executePTY
+	if c.protocol == srvconn.ProtocolWinRM {
+		ptyExecute = func(ctx context.Context, command string, decision *sessiontools.CommandACLDecision) (string, *int, error) {
+			return c.executeWinRMPTY(ctx, command, decision, executor)
+		}
+	}
 	commandTool, err := sessiontools.NewCommandTool(sessiontools.MCPCommandToolOptions{
 		Executor: executor, Protocol: c.protocol,
 		Validate: sessiontools.ProtocolCommandValidator(c.protocol),
@@ -165,7 +184,7 @@ func (c *terminalToolController) initialize(
 			BackgroundAvailable: func() bool {
 				return executor != nil && c.server.SupportsBackgroundExecution()
 			},
-			PTYExecute: c.executePTY,
+			PTYExecute: ptyExecute,
 		},
 	})
 	if err != nil {
@@ -299,7 +318,10 @@ func (c *terminalToolController) executePTY(
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	c.client.setInputLock(cancel)
+	if !c.client.setInputLock(cancel) {
+		observer.Cancel()
+		return "", nil, fmt.Errorf("another PTY tool call is active")
+	}
 	defer c.client.setInputLock(nil)
 	if decision != nil {
 		value := proxy.CommandACLDecision{
@@ -327,6 +349,48 @@ func (c *terminalToolController) executePTY(
 		}
 		return observed.Output, nil, nil
 	}
+}
+
+func (c *terminalToolController) executeWinRMPTY(
+	ctx context.Context, command string, decision *sessiontools.CommandACLDecision,
+	executor sessiontools.CommandExecutor,
+) (string, *int, error) {
+	if c.winRM == nil || executor == nil {
+		return "", nil, fmt.Errorf("WinRM terminal executor is unavailable")
+	}
+	if err := c.server.CheckAgentToolExecution(); err != nil {
+		return "", nil, err
+	}
+	if err := c.recheckPTYACL(command, decision); err != nil {
+		return "", nil, err
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if !c.client.setInputLock(cancel) {
+		return "", nil, fmt.Errorf("another PTY tool call is active")
+	}
+	defer c.client.setInputLock(nil)
+	if _, err := c.winRM.WriteOutput(ctx, []byte(c.winRM.Prompt()+command+"\n")); err != nil {
+		return "", nil, err
+	}
+	var writeErr error
+	// Execute in the existing PSRP runspace and mirror output into the terminal.
+	// Completion comes from PSRP, so output containing a prompt cannot end the call early.
+	output, exitCode, err := executor.Execute(ctx, command, func(chunk string) {
+		if writeErr == nil {
+			_, writeErr = c.winRM.WriteOutput(ctx, []byte(chunk))
+			if writeErr != nil {
+				cancel()
+			}
+		}
+	})
+	if writeErr != nil {
+		err = writeErr
+	}
+	if err != nil {
+		_, _ = c.winRM.WriteOutput(ctx, []byte(err.Error()+"\n\n"))
+	}
+	return output, exitCode, err
 }
 
 func (c *terminalToolController) recheckPTYACL(
