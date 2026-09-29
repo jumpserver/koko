@@ -2,8 +2,10 @@ package handler
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -22,8 +24,18 @@ const tuiSearchMaxLength = 256
 const tuiDoubleClickInterval = 500 * time.Millisecond
 
 const (
-	tuiHeaderStyle           = "\x1b[1;38;5;255;48;5;238m"
-	tuiSelectedProtocolStyle = "\x1b[7m"
+	tuiCursorMarkerPrefix = "\x1b]99;koko-cursor;"
+	tuiCursorMarkerEnd    = "\x07"
+	tuiEnterAltScreen     = "\x1b[?1049h"
+	tuiExitAltScreen      = "\x1b[?1049l"
+	tuiShowCursor         = "\x1b[?25h"
+	tuiHideCursor         = "\x1b[?25l"
+)
+
+const (
+	tuiSelectedStyle         = "\x1b[7m"
+	tuiHeaderStyle           = tuiSelectedStyle
+	tuiSelectedProtocolStyle = tuiSelectedStyle
 	tuiStyleReset            = "\x1b[0m"
 )
 
@@ -118,7 +130,11 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = width, height
 		m.pageSize = m.assetRows()
 		if oldPageSize != m.pageSize && !m.loading {
-			return m, m.loadPage(m.offset)
+			offset := m.offset
+			if !m.hasPagination() {
+				offset = 0
+			}
+			return m, m.loadPage(offset)
 		}
 	case assetPageMsg:
 		m.loading = false
@@ -133,13 +149,19 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.offset, m.total = msg.offset, msg.total
 		m.hasPrev, m.hasNext = msg.hasPrev, msg.hasNext
 		m.cursor = 0
+		desiredPageSize := m.assetRows()
+		if msg.pageSize != desiredPageSize {
+			m.pageSize = desiredPageSize
+			offset := m.offset
+			if !m.hasPagination() {
+				offset = 0
+			}
+			return m, m.loadPage(offset)
+		}
 		if len(m.assets) == 0 {
 			m.status = m.tr("没有匹配的资产", "No matching assets")
 		} else {
 			m.status = ""
-		}
-		if msg.pageSize != m.pageSize {
-			return m, m.loadPage(m.offset)
 		}
 	case assetChoicesMsg:
 		m.loadingChoices = false
@@ -209,6 +231,22 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searching = true
 				m.searchInput = []rune(m.query)
 				m.status = m.tr("输入关键字，回车搜索，Esc 取消", "Type a keyword, Enter to search, Esc to cancel")
+			case 'k':
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case 'j':
+				if m.cursor+1 < len(m.assets) {
+					m.cursor++
+				}
+			case 'h':
+				if m.hasPrev {
+					return m, m.loadPage(max(0, m.offset-m.pageSize))
+				}
+			case 'l':
+				if m.hasNext {
+					return m, m.loadPage(m.offset + len(m.assets))
+				}
 			case 't', 'T':
 				m.switchText = true
 				return m, tea.Quit
@@ -230,8 +268,6 @@ func (m *assetTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *assetTUI) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
-	case tea.KeyCtrlC:
-		return m, tea.Quit
 	case tea.KeyEsc:
 		m.searching = false
 		m.searchInput = nil
@@ -398,8 +434,28 @@ func (m *assetTUI) updateDialogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyEnter:
 		return m.chooseDialogConnection()
 	case tea.KeyRunes:
-		if len(msg.Runes) == 1 && msg.Runes[0] == '/' {
+		if len(msg.Runes) != 1 {
+			return m, nil
+		}
+		switch msg.Runes[0] {
+		case '/':
 			dialog.searchingAccount = true
+		case 'h':
+			if dialog.protocolIndex > 0 {
+				dialog.protocolIndex--
+			}
+		case 'l':
+			if dialog.protocolIndex+1 < len(dialog.protocols) {
+				dialog.protocolIndex++
+			}
+		case 'k':
+			if dialog.accountIndex > 0 {
+				dialog.accountIndex--
+			}
+		case 'j':
+			if dialog.accountIndex+1 < len(dialog.accountMatches) {
+				dialog.accountIndex++
+			}
 		}
 	}
 	return m, nil
@@ -489,7 +545,7 @@ func (m *assetTUI) updateMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	row := event.Y - 2
-	if row < 0 || row >= len(m.assets) || row >= m.height-4 {
+	if row < 0 || row >= len(m.assets) || row >= m.visibleAssetRows() {
 		return m, nil
 	}
 	m.cursor = row
@@ -511,35 +567,68 @@ func (m *assetTUI) View() string {
 	}
 	if m.height == 1 {
 		lines[0] = m.footerLine()
-		return strings.Join(lines, "\n")
+		return m.viewWithCursor(lines)
 	}
 	lines[0] = m.searchLine()
 	if m.height == 2 {
 		lines[1] = m.footerLine()
-		return strings.Join(lines, "\n")
+		return m.viewWithCursor(lines)
 	}
-	lines[m.height-2] = tuiRightAlign(m.pageLine(), m.width)
 	lines[m.height-1] = m.footerLine()
 	if m.height == 3 {
-		return strings.Join(lines, "\n")
+		lines[1] = tuiRightAlign(m.pageLine(), m.width)
+		return m.viewWithCursor(lines)
 	}
 
 	columns := m.columns()
 	lines[1] = tuiHeaderStyle + m.renderColumns(columns, nil, -1) + tuiStyleReset
-	rowCount := min(len(m.assets), m.height-4)
+	rowCount := min(len(m.assets), m.visibleAssetRows())
 	for i := 0; i < rowCount; i++ {
 		row := m.renderColumns(columns, &m.assets[i], i)
 		if i == m.cursor {
-			row = "\x1b[7m" + row + tuiStyleReset
+			row = tuiSelectedStyle + row + tuiStyleReset
 		} else if i >= len(m.connectable) || !m.connectable[i] {
 			row = "\x1b[2m" + row + tuiStyleReset
 		}
 		lines[i+2] = row
 	}
+	if m.hasPagination() {
+		lines[rowCount+2] = tuiRightAlign(m.pageLine(), m.width)
+	}
 	if m.dialog != nil {
 		m.renderDialog(lines)
 	}
-	return strings.Join(lines, "\n")
+	return m.viewWithCursor(lines)
+}
+
+func (m *assetTUI) viewWithCursor(lines []string) string {
+	x, y, visible := m.terminalCursor()
+	return fmt.Sprintf("%s%d;%d;%d%s", tuiCursorMarkerPrefix, boolInt(visible), x, y, tuiCursorMarkerEnd) +
+		strings.Join(lines, "\n")
+}
+
+func (m *assetTUI) terminalCursor() (x, y int, visible bool) {
+	if m.dialog != nil {
+		geometry := m.dialogGeometry()
+		if !m.dialog.searchingAccount || geometry.width < 36 || geometry.height < 10 ||
+			geometry.y < 0 || geometry.y+geometry.height > max(1, m.height) {
+			return 0, 0, false
+		}
+		_, cursor := tuiSearchField(m.tr("账号", "Account"), m.dialog.accountSearch, geometry.width-4)
+		return geometry.x + 3 + cursor, geometry.y + 5, true
+	}
+	if !m.searching || m.height < 2 {
+		return 0, 0, false
+	}
+	_, cursor := tuiSearchField(m.tr("我的资产", "My Assets"), m.searchInput, m.width)
+	return cursor, 0, true
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 type assetTUIDialogGeometry struct {
@@ -570,12 +659,11 @@ func (m *assetTUI) renderDialog(lines []string) {
 	popup[3] = "│  " + protocols + "│"
 	search := m.tr("账号", "Account")
 	if len(dialog.accountSearch) > 0 || dialog.searchingAccount {
-		search = m.tr("账号: ", "Account: ") + string(dialog.accountSearch)
-		if dialog.searchingAccount {
-			search += "█"
-		}
+		search, _ = tuiSearchField(m.tr("账号", "Account"), dialog.accountSearch, geometry.width-4)
+		popup[5] = "│  " + search + "│"
+	} else {
+		popup[5] = "│" + tuiDialogLeft(search, geometry.width-2) + "│"
 	}
-	popup[5] = "│" + tuiDialogLeft(search, geometry.width-2) + "│"
 	accountStart := tuiDialogListStart(dialog.accountIndex, len(dialog.accountMatches), geometry.rows)
 	for row := 0; row < geometry.rows; row++ {
 		account := ""
@@ -598,8 +686,8 @@ func (m *assetTUI) renderDialog(lines []string) {
 	hint := m.tr("↑/↓ 账号  ·  ←/→ 协议  ·  / 搜索  ·  Enter 连接  ·  Esc 取消",
 		"↑/↓ Account  ·  ←/→ Protocol  ·  / Search  ·  Enter Connect  ·  Esc Cancel")
 	popup[geometry.height-2] = "│" + tuiDialogLeft(hint, geometry.width-2) + "│"
-	maskX := max(0, geometry.x-2)
-	maskRight := min(m.width, geometry.x+geometry.width+2)
+	maskX := max(0, geometry.x-4)
+	maskRight := min(m.width, geometry.x+geometry.width+4)
 	maskWidth := maskRight - maskX
 	for row := max(0, geometry.y-2); row < geometry.y; row++ {
 		lines[row] = tuiOverlayLine(lines[row], strings.Repeat(" ", maskWidth), maskWidth, maskX, m.width)
@@ -616,7 +704,7 @@ func (m *assetTUI) renderDialog(lines []string) {
 
 func tuiOverlayLine(background, foreground string, foregroundWidth, x, width int) string {
 	style := ""
-	for _, candidate := range []string{tuiHeaderStyle, "\x1b[7m", "\x1b[2m"} {
+	for _, candidate := range []string{tuiSelectedStyle, "\x1b[2m"} {
 		if strings.HasPrefix(background, candidate) {
 			style = candidate
 			background = strings.TrimPrefix(background, candidate)
@@ -783,16 +871,32 @@ func (m *assetTUI) updateDialogMouse(event tea.MouseEvent) (tea.Model, tea.Cmd) 
 }
 
 func (m *assetTUI) searchLine() string {
-	label := m.tr("搜索: ", "Search: ")
+	label := m.tr("我的资产", "My Assets")
 	if !m.searching {
-		return tuiFit(label+m.query, m.width)
+		if m.query == "" {
+			return tuiFit(label, m.width)
+		}
+		return tuiFit(label+": "+m.query, m.width)
 	}
-	available := max(0, m.width-runewidth.StringWidth(label)-1)
-	input := runewidth.TruncatePrefix(string(m.searchInput), available, "")
-	return tuiFit(label+input+"█", m.width)
+	line, _ := tuiSearchField(label, m.searchInput, m.width)
+	return line
+}
+
+func tuiSearchField(label string, input []rune, width int) (string, int) {
+	if width <= 0 {
+		return "", 0
+	}
+	prompt := label + ": "
+	available := max(0, width-runewidth.StringWidth(prompt)-1)
+	visibleInput := runewidth.TruncatePrefix(string(input), available, "")
+	cursor := min(width-1, runewidth.StringWidth(prompt)+runewidth.StringWidth(visibleInput))
+	return tuiFit(prompt+visibleInput, width), max(0, cursor)
 }
 
 func (m *assetTUI) pageLine() string {
+	if !m.hasPagination() {
+		return ""
+	}
 	if m.total == 0 {
 		return "0-0/0"
 	}
@@ -800,6 +904,11 @@ func (m *assetTUI) pageLine() string {
 }
 
 func (m *assetTUI) footerLine() string {
+	if m.searching {
+		shortcuts := m.tr("Enter 搜索  Esc 取消  Backspace/Delete 删除  Ctrl+U 清空",
+			"Enter Search  Esc Cancel  Backspace/Delete Delete  Ctrl+U Clear")
+		return tuiFit(shortcuts, m.width)
+	}
 	shortcuts := m.tr("/ 搜索  t 纯文本  ↑/↓ 选择  双击/Enter 连接  ←/→ 翻页  q 退出",
 		"/ Search  t Text mode  ↑/↓ Select  Double-click/Enter Connect  ←/→ Page  q Quit")
 	if m.status != "" {
@@ -809,7 +918,19 @@ func (m *assetTUI) footerLine() string {
 }
 
 func (m *assetTUI) assetRows() int {
-	return max(1, m.height-4)
+	return max(1, m.visibleAssetRows())
+}
+
+func (m *assetTUI) visibleAssetRows() int {
+	rows := max(0, m.height-3)
+	if m.hasPagination() {
+		rows = max(0, rows-1)
+	}
+	return rows
+}
+
+func (m *assetTUI) hasPagination() bool {
+	return m.total > max(1, m.height-3)
 }
 
 type assetTUIColumn struct {
@@ -1009,9 +1130,10 @@ func (s *Server) runTerminalModes(sess ssh.Session, user *model.User, termConf m
 }
 
 func runAssetTUI(handler *InteractiveHandler, model *assetTUI) error {
+	output := &assetTUICursorWriter{output: handler.sess}
 	program := tea.NewProgram(model,
 		tea.WithInput(handler.sess),
-		tea.WithOutput(handler.sess),
+		tea.WithOutput(output),
 		tea.WithAltScreen(),
 		tea.WithContext(handler.sess.Context()),
 		tea.WithoutSignalHandler(),
@@ -1033,4 +1155,74 @@ func runAssetTUI(handler *InteractiveHandler, model *assetTUI) error {
 	}()
 	_, err := program.Run()
 	return err
+}
+
+type assetTUICursorWriter struct {
+	output io.Writer
+	mu     sync.Mutex
+
+	altScreen bool
+	visible   bool
+	x, y      int
+}
+
+func (w *assetTUICursorWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	output := w.consumeCursorMarker(string(p))
+	if strings.Contains(output, tuiEnterAltScreen) {
+		w.altScreen = true
+	}
+	if strings.Contains(output, tuiExitAltScreen) {
+		w.altScreen = false
+	}
+	if err := writeTUIOutput(w.output, output); err != nil {
+		return 0, err
+	}
+	if !w.altScreen {
+		return len(p), nil
+	}
+
+	cursor := tuiHideCursor
+	if w.visible {
+		cursor = fmt.Sprintf("\x1b[%d;%dH%s", w.y+1, w.x+1, tuiShowCursor)
+	}
+	if err := writeTUIOutput(w.output, cursor); err != nil {
+		return len(p), err
+	}
+	return len(p), nil
+}
+
+func (w *assetTUICursorWriter) consumeCursorMarker(output string) string {
+	for {
+		start := strings.Index(output, tuiCursorMarkerPrefix)
+		if start < 0 {
+			return output
+		}
+		valueStart := start + len(tuiCursorMarkerPrefix)
+		end := strings.Index(output[valueStart:], tuiCursorMarkerEnd)
+		if end < 0 {
+			return output
+		}
+		end += valueStart
+		var visible, x, y int
+		if _, err := fmt.Sscanf(output[valueStart:end], "%d;%d;%d", &visible, &x, &y); err != nil {
+			return output
+		}
+		w.visible = visible == 1
+		w.x, w.y = max(0, x), max(0, y)
+		output = output[:start] + output[end+len(tuiCursorMarkerEnd):]
+	}
+}
+
+func writeTUIOutput(output io.Writer, value string) error {
+	written, err := io.WriteString(output, value)
+	if err != nil {
+		return err
+	}
+	if written != len(value) {
+		return io.ErrShortWrite
+	}
+	return nil
 }
