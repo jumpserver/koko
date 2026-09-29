@@ -32,14 +32,16 @@ func TestWinRMFragmentedOutput(t *testing.T) {
 	serializer := serialization.NewSerializer()
 	defer serializer.Close()
 	text := "中文 output with PS> and _x000D_"
-	data, err := serializer.Serialize(text)
-	if err != nil {
-		t.Fatal(err)
+	var outputMessages []*messages.Message
+	for _, line := range []string{"", text, "", "next line", "", ""} {
+		data, err := serializer.Serialize(line)
+		if err != nil {
+			t.Fatal(err)
+		}
+		outputMessages = append(outputMessages, messages.NewPipelineOutput(id, pl.ID(), data))
 	}
-	for _, msg := range []*messages.Message{
-		messages.NewPipelineOutput(id, pl.ID(), data),
-		messages.NewPipelineState(id, pl.ID(), messages.PipelineStateCompleted, []byte("<I32>4</I32>")),
-	} {
+	outputMessages = append(outputMessages, messages.NewPipelineState(id, pl.ID(), messages.PipelineStateCompleted, []byte("<I32>4</I32>")))
+	for _, msg := range outputMessages {
 		encoded, err := msg.Encode()
 		if err != nil {
 			t.Fatal(err)
@@ -56,14 +58,14 @@ func TestWinRMFragmentedOutput(t *testing.T) {
 			wire.Write(encoded)
 		}
 	}
-	if err = receiveWinRMPipeline(&wire, pl); err != nil {
+	if err := receiveWinRMPipeline(&wire, pl); err != nil {
 		t.Fatal(err)
 	}
 	streams := []<-chan *messages.Message{pl.Output(), pl.Error(), pl.Warning(), pl.Verbose(), pl.Debug(), pl.Progress(), pl.Information()}
-	if err = consumeWinRMStreams(ctx, streams, &output); err != nil {
+	if err := consumeWinRMStreams(ctx, streams, &output); err != nil {
 		t.Fatal(err)
 	}
-	if output.String() != text+"\n" || pl.Wait() != nil {
+	if output.String() != "\n"+text+"\n\nnext line\n" || pl.Wait() != nil {
 		t.Fatalf("unexpected PowerShell output: %q", output.String())
 	}
 }

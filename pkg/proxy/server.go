@@ -1185,8 +1185,9 @@ func (s *Server) getServerConn(proxyAddr *net.TCPAddr) (srvconn.ServerConnection
 func (s *Server) sendConnectingMsg(done chan struct{}) {
 	delay := 0.0
 	maxDelay := 5 * 60.0 // 最多执行五分钟
-	msg := fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
+	msg := fmt.Sprintf("%s  %.1fs", s.connOpts.ConnectMsg(), delay)
 	utils.IgnoreErrWriteString(s.UserConn, msg)
+	previousDelay := fmt.Sprintf("%.1fs", delay)
 	var activeFlag bool
 	for delay < maxDelay {
 		select {
@@ -1199,14 +1200,16 @@ func (s *Server) sendConnectingMsg(done chan struct{}) {
 			}
 			if activeFlag {
 				utils.IgnoreErrWriteString(s.UserConn, utils.CharClear)
-				msg = fmt.Sprintf("%s  %.1f", s.connOpts.ConnectMsg(), delay)
+				msg = fmt.Sprintf("%s  %.1fs", s.connOpts.ConnectMsg(), delay)
 				utils.IgnoreErrWriteString(s.UserConn, msg)
+				previousDelay = fmt.Sprintf("%.1fs", delay)
 				activeFlag = false
 				break
 			}
-			delayS := fmt.Sprintf("%.1f", delay)
-			data := strings.Repeat("\x08", len(delayS)) + delayS
+			delayS := fmt.Sprintf("%.1fs", delay)
+			data := strings.Repeat("\x08", len(previousDelay)) + delayS
 			utils.IgnoreErrWriteString(s.UserConn, data)
+			previousDelay = delayS
 		}
 		time.Sleep(100 * time.Millisecond)
 		delay += 0.1

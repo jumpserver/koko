@@ -286,6 +286,7 @@ func receiveWinRMPipeline(reader io.Reader, pl *pipeline.Pipeline) error {
 
 func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message, output io.Writer) error {
 	out, errs, warn, verbose, debug, progress, info := streams[0], streams[1], streams[2], streams[3], streams[4], streams[5], streams[6]
+	pendingEmptyLines := 0
 	for out != nil || errs != nil || warn != nil || verbose != nil || debug != nil || progress != nil || info != nil {
 		var msg *messages.Message
 		var ok bool
@@ -332,6 +333,21 @@ func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message
 			return err
 		}
 		for _, value := range values {
+			// Out-String emits empty rows after formatted tables. Delay them so
+			// interior spacing is preserved without adding blank rows before PS>.
+			if text, ok := value.(string); ok && text == "" {
+				pendingEmptyLines++
+				continue
+			}
+			for pendingEmptyLines > 0 {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintln(output); err != nil {
+					return err
+				}
+				pendingEmptyLines--
+			}
 			if _, err := fmt.Fprintln(output, value); err != nil {
 				return err
 			}
