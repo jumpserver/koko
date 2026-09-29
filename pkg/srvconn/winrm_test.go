@@ -33,7 +33,8 @@ func TestWinRMFragmentedOutput(t *testing.T) {
 	defer serializer.Close()
 	text := "中文 output with PS> and _x000D_"
 	var outputMessages []*messages.Message
-	for _, line := range []string{"", text, "", "next line", "", ""} {
+	locationPrefix := "__JMS_LOCATION_test__"
+	for _, line := range []string{"", text, "", "next line", "", "", locationPrefix + `C:\Windows`} {
 		data, err := serializer.Serialize(line)
 		if err != nil {
 			t.Fatal(err)
@@ -62,11 +63,47 @@ func TestWinRMFragmentedOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	streams := []<-chan *messages.Message{pl.Output(), pl.Error(), pl.Warning(), pl.Verbose(), pl.Debug(), pl.Progress(), pl.Information()}
-	if err := consumeWinRMStreams(ctx, streams, &output); err != nil {
+	var location string
+	if err := consumeWinRMStreams(ctx, streams, &output, locationPrefix, func(_ context.Context, path string) { location = path }); err != nil {
 		t.Fatal(err)
 	}
-	if output.String() != "\n"+text+"\n\nnext line\n" || pl.Wait() != nil {
+	if output.String() != "\n"+text+"\n\nnext line\n\n" || pl.Wait() != nil || location != `C:\Windows` {
 		t.Fatalf("unexpected PowerShell output: %q", output.String())
+	}
+}
+
+func TestWinRMOutputSpacing(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		lines    []string
+		expected string
+	}{
+		{"plain", []string{"result"}, "result\n\n"},
+		{"empty", nil, ""},
+		{"blank", []string{"", ""}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := make(chan *messages.Message, len(tc.lines))
+			serializer := serialization.NewSerializer()
+			defer serializer.Close()
+			for _, line := range tc.lines {
+				data, err := serializer.Serialize(line)
+				if err != nil {
+					t.Fatal(err)
+				}
+				out <- &messages.Message{Data: data}
+			}
+			close(out)
+			streams := make([]<-chan *messages.Message, 7)
+			streams[0] = out
+			var output bytes.Buffer
+			if err := consumeWinRMStreams(context.Background(), streams, &output, "", nil); err != nil {
+				t.Fatal(err)
+			}
+			if output.String() != tc.expected {
+				t.Fatalf("unexpected spacing: %q", output.String())
+			}
+		})
 	}
 }
 
@@ -148,6 +185,14 @@ func TestWinRMTerminalEditsAndInterruptsInput(t *testing.T) {
 	}
 	// AI output goes through the terminal stream without becoming input or changing a typed command.
 	_, _ = c.WriteInput([]byte("Get-"), "shared user")
+	c.setLocation(context.Background(), `C:\Windows`)
+	if c.Prompt() != `PS C:\Windows> ` {
+		t.Fatalf("prompt did not follow the runspace location: %q", c.Prompt())
+	}
+	c.setLocation(context.Background(), "C:\\Windows\nforged prompt")
+	if c.Prompt() != `PS C:\Windows> ` {
+		t.Fatal("prompt accepted a control character")
+	}
 	if _, err := c.WriteOutput(context.Background(), []byte("PS> Write-Output 'AI'\nAI-PTY-OK\n")); err != nil {
 		t.Fatal(err)
 	}

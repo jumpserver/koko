@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/term"
@@ -31,6 +32,7 @@ type WinRMConnection struct {
 	cancel        context.CancelFunc
 	activeMu      sync.Mutex
 	terminalMu    sync.Mutex
+	prompt        string
 	width, height int
 	readBudget    int
 	inputOverflow bool
@@ -52,6 +54,14 @@ func NewWinRMConnection(config WinRMConfig) (*WinRMConnection, error) {
 	c := &WinRMConnection{Client: client, input: make(chan winRMInput, 16), interrupt: make(chan struct{}, 1),
 		output: reader, writer: writer, ctx: ctx, cancel: cancel, done: make(chan struct{})}
 	c.resetTerminal()
+	client.OnLocation = c.setLocation
+	// Initialize the prompt from this runspace before accepting user input.
+	promptCtx, promptCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer promptCancel()
+	if err := client.Execute(promptCtx, "", io.Discard); err != nil {
+		_ = c.Close()
+		return nil, err
+	}
 	return c, nil
 }
 
@@ -117,7 +127,7 @@ func (c *WinRMConnection) Confirm(ctx context.Context, prompt string) bool {
 	defer stop()
 	c.readBudget = 64 * 1024
 	c.terminal.SetPrompt(prompt + " [y/N] ")
-	defer c.terminal.SetPrompt("PS> ")
+	defer func() { c.terminal.SetPrompt(c.Prompt()) }()
 	answer, err := c.terminal.ReadLine()
 	if errors.Is(err, errWinRMInterrupt) {
 		c.resetTerminal()
@@ -186,7 +196,10 @@ func (c *WinRMConnection) SetWinSize(width, height int) error {
 func (c *WinRMConnection) resetTerminal() {
 	c.terminalMu.Lock()
 	defer c.terminalMu.Unlock()
-	c.terminal = term.NewTerminal(&winRMTerminalIO{c}, "PS> ")
+	if c.prompt == "" {
+		c.prompt = "PS> "
+	}
+	c.terminal = term.NewTerminal(&winRMTerminalIO{c}, c.prompt)
 	c.terminal.AutoCompleteCallback = func(line string, pos int, key rune) (string, int, bool) {
 		if key >= 32 && utf8.RuneCountInString(line) >= 4096 {
 			c.inputOverflow = true
@@ -195,6 +208,25 @@ func (c *WinRMConnection) resetTerminal() {
 	}
 	if c.width > 0 && c.height > 0 {
 		_ = c.terminal.SetSize(c.width, c.height)
+	}
+}
+
+func (c *WinRMConnection) Prompt() string {
+	c.terminalMu.Lock()
+	defer c.terminalMu.Unlock()
+	return c.prompt
+}
+
+func (c *WinRMConnection) setLocation(ctx context.Context, path string) {
+	if path == "" || len(path) > 32768 || strings.ContainsFunc(path, unicode.IsControl) {
+		return
+	}
+	c.terminalMu.Lock()
+	c.prompt = "PS " + path + "> "
+	c.terminal.SetPrompt(c.prompt)
+	c.terminalMu.Unlock()
+	if c.isStarted.Load() {
+		_, _ = c.WriteOutput(ctx, nil)
 	}
 }
 func (c *WinRMConnection) KeepAlive() error { return c.ctx.Err() }

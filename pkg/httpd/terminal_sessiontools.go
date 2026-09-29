@@ -365,7 +365,7 @@ func (c *terminalToolController) executeWinRMPTY(
 	defer cancel()
 	c.client.setInputLock(cancel)
 	defer c.client.setInputLock(nil)
-	if _, err := c.winRM.WriteOutput(ctx, []byte("PS> "+command+"\n")); err != nil {
+	if _, err := c.winRM.WriteOutput(ctx, []byte(c.winRM.Prompt()+command+"\n")); err != nil {
 		return "", nil, err
 	}
 	var writeErr error

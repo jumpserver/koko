@@ -40,6 +40,7 @@ type WinRMConfig struct {
 // the working directory belong to the same PowerShell session.
 type WinRMClient struct {
 	ExecutionGuard func() error
+	OnLocation     func(context.Context, string)
 	backend        *powershell.WSManBackend
 	pool           *runspace.Pool
 	http           *http.Client
@@ -161,7 +162,9 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 	// Out-String formats objects on the target, using PowerShell's normal table
 	// and list formatting. Dot sourcing retains the user's runspace variables.
 	encoded := base64.StdEncoding.EncodeToString([]byte(command))
-	script := `. ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('` + encoded + `')))) | Out-String -Stream`
+	// A per-command marker separates runspace location metadata from user output.
+	locationPrefix := "__JMS_LOCATION_" + uuid.NewString() + "__"
+	script := `try { . ([scriptblock]::Create([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('` + encoded + `')))) | Out-String -Stream } finally { '` + locationPrefix + `' + (Microsoft.PowerShell.Management\Get-Location).Path }`
 	pl, err := c.pool.CreatePipeline(script)
 	if err != nil {
 		return err
@@ -203,7 +206,7 @@ func (c *WinRMClient) Execute(ctx context.Context, command string, output io.Wri
 	done := make(chan error, 1)
 	go func() { done <- receiveWinRMPipeline(reader, pl) }()
 	streams := []<-chan *messages.Message{pl.Output(), pl.Error(), pl.Warning(), pl.Verbose(), pl.Debug(), pl.Progress(), pl.Information()}
-	consumeErr := consumeWinRMStreams(ctx, streams, output)
+	consumeErr := consumeWinRMStreams(ctx, streams, output, locationPrefix, c.OnLocation)
 	if consumeErr != nil {
 		cancel()
 		pl.Cancel() // Wake any receive loop blocked on a full output channel.
@@ -284,9 +287,10 @@ func receiveWinRMPipeline(reader io.Reader, pl *pipeline.Pipeline) error {
 	}
 }
 
-func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message, output io.Writer) error {
+func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message, output io.Writer, locationPrefix string, onLocation func(context.Context, string)) error {
 	out, errs, warn, verbose, debug, progress, info := streams[0], streams[1], streams[2], streams[3], streams[4], streams[5], streams[6]
 	pendingEmptyLines := 0
+	wroteOutput := false
 	for out != nil || errs != nil || warn != nil || verbose != nil || debug != nil || progress != nil || info != nil {
 		var msg *messages.Message
 		var ok bool
@@ -333,8 +337,14 @@ func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message
 			return err
 		}
 		for _, value := range values {
-			// Out-String emits empty rows after formatted tables. Delay them so
-			// interior spacing is preserved without adding blank rows before PS>.
+			if text, ok := value.(string); ok && locationPrefix != "" && strings.HasPrefix(text, locationPrefix) {
+				if onLocation != nil {
+					onLocation(ctx, strings.TrimPrefix(text, locationPrefix))
+				}
+				continue
+			}
+			// Delay Out-String's empty rows to preserve interior spacing and
+			// normalize the trailing spacing to one blank row before PS>.
 			if text, ok := value.(string); ok && text == "" {
 				pendingEmptyLines++
 				continue
@@ -351,7 +361,12 @@ func consumeWinRMStreams(ctx context.Context, streams []<-chan *messages.Message
 			if _, err := fmt.Fprintln(output, value); err != nil {
 				return err
 			}
+			wroteOutput = true
 		}
+	}
+	if wroteOutput {
+		_, err := fmt.Fprintln(output)
+		return err
 	}
 	return nil
 }
