@@ -383,7 +383,7 @@ func (u *UserSelectHandler) assetListPath() string {
 	if u.user == nil {
 		return ""
 	}
-	data := tuiData{userID: u.user.ID}
+	data := classicData{userID: u.user.ID}
 	if u.currentType == TypeFavoriteAsset {
 		return data.userPath("nodes/favorite/assets/")
 	}

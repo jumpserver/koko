@@ -21,11 +21,11 @@ type classicFavoriteNode struct {
 	Path         string
 }
 
-func (d tuiData) favoriteNodes() ([]classicFavoriteNode, error) {
+func (d classicData) favoriteNodes() ([]classicFavoriteNode, error) {
 	client := newLangAPIClient(d.api, d.lang)
 	path := d.userPath("favorite-tree/")
-	fetchChildren := func(parentID string) ([]tuiTreeNode, error) {
-		var page tuiTreePage
+	fetchChildren := func(parentID string) ([]classicTreeNode, error) {
+		var page classicTreePage
 		_, err := client.Call("GET", path, nil, &page, map[string]string{
 			"include_assets": "false",
 			"parent_id":      parentID,
@@ -34,7 +34,7 @@ func (d tuiData) favoriteNodes() ([]classicFavoriteNode, error) {
 	}
 
 	type frame struct {
-		children []tuiTreeNode
+		children []classicTreeNode
 		next     int
 	}
 	root, err := fetchChildren("")
@@ -95,12 +95,12 @@ func (d tuiData) favoriteNodes() ([]classicFavoriteNode, error) {
 	for i := range nodes {
 		ids[i] = nodes[i].ID
 	}
-	for start := 0; start < len(ids); start += tuiTreeBatchSize {
-		counts, countErr := d.nodeCounts("ROOT", 2, ids[start:min(start+tuiTreeBatchSize, len(ids))])
+	for start := 0; start < len(ids); start += classicTreeBatchSize {
+		counts, countErr := d.nodeCounts("ROOT", 2, ids[start:min(start+classicTreeBatchSize, len(ids))])
 		if countErr != nil {
 			return nil, countErr
 		}
-		for i := start; i < min(start+tuiTreeBatchSize, len(nodes)); i++ {
+		for i := start; i < min(start+classicTreeBatchSize, len(nodes)); i++ {
 			nodes[i].AssetsAmount = counts[nodes[i].ID]
 		}
 	}
@@ -176,7 +176,7 @@ func (u *UserSelectHandler) retrieveRemoteFavoriteAsset(reqParam model.Paginatio
 		params["search"] = strings.Join(searches, ",")
 	}
 	var response model.PaginationResponse
-	path := tuiData{userID: u.user.ID}.userPath("nodes/favorite/assets/")
+	path := classicData{userID: u.user.ID}.userPath("nodes/favorite/assets/")
 	_, err := u.h.jmsService.Call("GET", path, nil, &response, params)
 	if err != nil {
 		logger.Errorf("Get user %s favorite assets failed: %s", u.user.Name, err)

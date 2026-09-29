@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/xlab/treeprint"
@@ -18,8 +19,8 @@ type classicTypeNode struct {
 	Path         string
 }
 
-func (d tuiData) typeNodes() ([]classicTypeNode, error) {
-	var page tuiTreePage
+func (d classicData) typeNodes() ([]classicTypeNode, error) {
+	var page classicTreePage
 	client := newLangAPIClient(d.api, d.lang)
 	_, err := client.Call("GET", d.userPath("nodes/children-with-assets/category/tree/"), nil, &page,
 		map[string]string{"include_assets": "false"})
@@ -35,7 +36,7 @@ func (d tuiData) typeNodes() ([]classicTypeNode, error) {
 		if kind != "category" && kind != "type" {
 			continue
 		}
-		name, amount := typeTreeAmount(item.Name)
+		name, amount := classicTreeAmount(item.Name)
 		node := classicTypeNode{
 			ID: item.ID, Parent: item.Parent, Name: strings.TrimSpace(name), Kind: kind,
 			Category: item.Meta.Category, AssetsAmount: 0,
@@ -60,6 +61,18 @@ func (d tuiData) typeNodes() ([]classicTypeNode, error) {
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
+}
+
+// Lina's type tree takes category/type counts from the trailing label amount.
+func classicTreeAmount(label string) (string, *int) {
+	text := strings.TrimSpace(label)
+	start := strings.LastIndex(text, "(")
+	if start >= 0 && strings.HasSuffix(text, ")") {
+		if count, err := strconv.Atoi(text[start+1 : len(text)-1]); err == nil && count >= 0 {
+			return strings.TrimSpace(text[:start]), &count
+		}
+	}
+	return label, nil
 }
 
 func constructTypeTreeRows(nodes []classicTypeNode) ([]string, []classicTypeNode) {

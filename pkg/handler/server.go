@@ -14,10 +14,8 @@ import (
 
 func NewServer(termCfg model.TerminalConfig, jmsService *service.JMService) *Server {
 	app := Server{
-		jmsService:     jmsService,
-		vscodeClients:  make(map[string]*vscodeReq),
-		tuiPreferences: newTUIPreferences(),
-		tuiShutdown:    make(chan struct{}),
+		jmsService:    jmsService,
+		vscodeClients: make(map[string]*vscodeReq),
 	}
 	app.UpdateTerminalConfig(termCfg)
 	go app.run()
@@ -29,20 +27,7 @@ type Server struct {
 	jmsService   *service.JMService
 	sync.Mutex
 
-	vscodeClients  map[string]*vscodeReq
-	tuiPreferences *tuiPreferences
-	tuiShutdown    chan struct{}
-	tuiStop        sync.Once
-}
-
-// StopTerminalUIs lets each interactive handler exit while the SSH transport is
-// still open, including restoring any active TUI screen.
-func (s *Server) StopTerminalUIs() {
-	s.tuiStop.Do(func() {
-		if s.tuiShutdown != nil {
-			close(s.tuiShutdown)
-		}
-	})
+	vscodeClients map[string]*vscodeReq
 }
 
 func (s *Server) run() {

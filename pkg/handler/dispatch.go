@@ -12,7 +12,7 @@ import (
 	"github.com/jumpserver/koko/pkg/utils"
 )
 
-func (h *InteractiveHandler) Dispatch() terminalMode {
+func (h *InteractiveHandler) Dispatch() {
 	done := make(chan struct{})
 	defer close(done)
 	go h.watchSession(done)
@@ -32,24 +32,21 @@ func (h *InteractiveHandler) Dispatch() terminalMode {
 		line, err := h.readClassicLine()
 		if err != nil {
 			logger.Debugf("User %s close connect %s", h.user.Name, err)
-			return terminalModeExit
+			return
 		}
-		if mode := h.dispatchClassicInput(line, idleState); mode != terminalModeText {
-			return mode
-		}
-		if h.pendingMode != terminalModeText {
-			return h.pendingMode
+		if !h.dispatchClassicInput(line, idleState) {
+			return
 		}
 		if h.exitRequested {
-			return terminalModeExit
+			return
 		}
 	}
 }
 
-func (h *InteractiveHandler) dispatchClassicInput(line string, idleState chan bool) terminalMode {
+func (h *InteractiveHandler) dispatchClassicInput(line string, idleState chan bool) bool {
 	line = strings.TrimSpace(line)
 	if line == "" && h.classicView != classicViewList {
-		return terminalModeText
+		return true
 	}
 	if classicShortcut(line) == "?" {
 		if h.classicView == classicViewList {
@@ -57,7 +54,7 @@ func (h *InteractiveHandler) dispatchClassicInput(line string, idleState chan bo
 			h.helpBackTarget = ""
 		}
 		h.displayHelp()
-		return terminalModeText
+		return true
 	}
 	if h.classicView == classicViewHelp {
 		return h.dispatchClassicHelp(line, idleState)
@@ -65,18 +62,18 @@ func (h *InteractiveHandler) dispatchClassicInput(line string, idleState chan bo
 	return h.dispatchClassicList(line, idleState)
 }
 
-func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan bool) terminalMode {
+func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan bool) bool {
 	line = strings.TrimSpace(line)
 	shortcut := classicShortcut(line)
 	switch shortcut {
 	case "b":
 		if h.helpReturnView == classicViewList {
 			h.selectHandler.DisplayCurrentResult()
-			return terminalModeText
+			return true
 		}
 	case "p":
 		h.showAllClassicAssets()
-		return terminalModeText
+		return true
 	case "g", "c", "f":
 		kind := TypeNodeAsset
 		switch shortcut {
@@ -86,36 +83,28 @@ func (h *InteractiveHandler) dispatchClassicHelp(line string, idleState chan boo
 			kind = TypeFavoriteAsset
 		}
 		if !h.openClassicTree(kind, idleState) {
-			return terminalModeExit
+			return false
 		}
-		return terminalModeText
+		return true
 	case "s":
 		h.ChangeLang()
 		if h.exitRequested {
-			return terminalModeExit
-		}
-		if h.pendingMode != terminalModeText {
-			return h.pendingMode
+			return false
 		}
 		if h.classicView == classicViewHelp {
 			h.displayHelp()
 		}
-		return terminalModeText
-	case "t":
-		if h.preferences != nil {
-			h.preferences.storeTerminalMode(h.user.ID, terminalModeTUI)
-		}
-		return terminalModeTUI
+		return true
 	case "q":
 		logger.Infof("user %s enter %s to exit", h.user.Name, shortcut)
-		return terminalModeExit
+		return false
 	}
 	if strings.HasPrefix(line, "/") && !strings.HasPrefix(line, "//") {
 		h.searchClassicAssets(line[1:])
-		return terminalModeText
+		return true
 	}
 	h.warnClassicInvalidCommand()
-	return terminalModeText
+	return true
 }
 
 func (h *InteractiveHandler) showClassicHelpOverlay(backTarget string) bool {
@@ -126,7 +115,6 @@ func (h *InteractiveHandler) showClassicHelpOverlay(backTarget string) bool {
 	for {
 		line, err := h.readClassicLine()
 		if err != nil {
-			h.pendingMode = terminalModeExit
 			h.classicNavigation = true
 			return false
 		}
@@ -140,11 +128,7 @@ func (h *InteractiveHandler) showClassicHelpOverlay(backTarget string) bool {
 			h.displayHelp()
 			continue
 		}
-		mode := h.dispatchClassicHelp(line, h.idleState)
-		if mode != terminalModeText {
-			h.pendingMode = mode
-		}
-		if mode != terminalModeText || h.classicView != classicViewHelp {
+		if !h.dispatchClassicHelp(line, h.idleState) || h.classicView != classicViewHelp {
 			h.classicNavigation = true
 			h.helpBackTarget = ""
 			return false
@@ -152,29 +136,29 @@ func (h *InteractiveHandler) showClassicHelpOverlay(backTarget string) bool {
 	}
 }
 
-func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan bool) terminalMode {
+func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan bool) bool {
 	line = strings.TrimSpace(line)
 	if line == "" {
 		if h.selectHandler.HasNext() {
 			h.selectHandler.MoveNextPage()
 		}
-		return terminalModeText
+		return true
 	}
 	switch classicShortcut(line) {
 	case "b":
 		if !h.backClassicView(idleState) {
-			return terminalModeExit
+			return false
 		}
-		return terminalModeText
+		return true
 	case "p":
 		if h.selectHandler.HasPrev() {
 			h.selectHandler.MovePrePage()
-			return terminalModeText
+			return true
 		}
 	case "n":
 		if h.selectHandler.HasNext() {
 			h.selectHandler.MoveNextPage()
-			return terminalModeText
+			return true
 		}
 	}
 	if strings.HasPrefix(line, "//") {
@@ -186,11 +170,11 @@ func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan boo
 		} else {
 			h.warnClassicEmptySearch()
 		}
-		return terminalModeText
+		return true
 	}
 	if strings.HasPrefix(line, "/") {
 		h.searchClassicAssets(line[1:])
-		return terminalModeText
+		return true
 	}
 	if !h.selectHandler.SelectResult(line) {
 		if _, err := strconv.Atoi(line); err == nil {
@@ -199,7 +183,7 @@ func (h *InteractiveHandler) dispatchClassicList(line string, idleState chan boo
 			h.warnClassicInvalidCommand()
 		}
 	}
-	return terminalModeText
+	return true
 }
 
 func (h *InteractiveHandler) searchClassicAssets(term string) {
@@ -274,7 +258,7 @@ func (h *InteractiveHandler) openClassicTree(kind selectType, idleState chan boo
 	default:
 		return true
 	}
-	if !h.treeSelected && !h.exitRequested && !h.classicNavigation && h.pendingMode == terminalModeText {
+	if !h.treeSelected && !h.exitRequested && !h.classicNavigation {
 		h.redrawClassicView(source)
 	}
 	return ok
@@ -287,8 +271,6 @@ func (h *InteractiveHandler) setIdle(state chan bool, active bool) bool {
 	select {
 	case state <- active:
 		return true
-	case <-h.shutdown:
-		return false
 	case <-h.sess.Context().Done():
 		return false
 	}

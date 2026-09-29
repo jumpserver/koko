@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mattn/go-runewidth"
 	"golang.org/x/term"
@@ -332,7 +333,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 		return userFacingErrorMessage(i18n.NewLang(u.h.i18nLang).T("Core API failed"), err), true
 	}
 	if permAssetDetail.ID != asset.ID || permAssetDetail.OrgID != "" && asset.OrgID != "" &&
-		asset.OrgID != tuiGlobalOrganizationID && permAssetDetail.OrgID != asset.OrgID {
+		asset.OrgID != globalOrganizationID && permAssetDetail.OrgID != asset.OrgID {
 		logger.Errorf("Classic text mode asset detail does not match selected asset %s", asset.ID)
 		return u.h.tr("资产信息不匹配", "Asset details do not match the selected asset"), true
 	}
@@ -406,16 +407,11 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 			}
 			retry = true
 			u.selectedAccount = &selectedAccount
-			if u.h.preferences != nil {
-				u.h.preferences.storeConnection(u.user.ID, tuiAssetPreferenceKey(asset), tuiConnectionPreference{
-					Account: tuiAccountPreferenceKey(selectedAccount), Protocol: protocol,
-				})
-			}
-			passwordKey := tuiPasswordAttemptKey(asset, selectedAccount, protocol)
+			passwordKey := manualPasswordAttemptKey(asset, selectedAccount, protocol)
 			passwordLimitError := fmt.Errorf(u.h.tr(
 				"手动密码最多允许输入 %d 次",
 				"Manual password can be entered at most %d times",
-			), maxTUIManualPasswordAttempts)
+			), maxManualPasswordAttempts)
 			_, failure, shown := connectSelectedAsset(u.h.sess, client, u.user, asset, selectedAccount, protocol, i18nLang, func() error {
 				if u.h.manualPasswords.acquire(passwordKey) {
 					return nil
@@ -434,7 +430,7 @@ func (u *UserSelectHandler) proxyAsset(asset model.PermAsset, autoOnly bool) (st
 
 func (h *InteractiveHandler) assetClient(orgID string) *service.JMService {
 	client := newLangAPIClient(h.jmsService, h.i18nLang)
-	if orgID != "" && orgID != tuiGlobalOrganizationID {
+	if orgID != "" && orgID != globalOrganizationID {
 		client.SetHeader("X-JMS-ORG", orgID)
 	}
 	client.SetHeader("Connection", "close")
@@ -447,6 +443,46 @@ func (u *UserSelectHandler) isHiddenField(field string) bool {
 		return false
 	}
 	_, ok := u.hiddenFields[fieldName]
+	return ok
+}
+
+const maxManualPasswordAttempts = 3
+
+type manualPasswordAttempts struct {
+	sync.Mutex
+	counts map[string]int
+}
+
+func (a *manualPasswordAttempts) acquire(key string) bool {
+	a.Lock()
+	defer a.Unlock()
+	if a.counts == nil {
+		a.counts = make(map[string]int)
+	}
+	if a.counts[key] >= maxManualPasswordAttempts {
+		return false
+	}
+	a.counts[key]++
+	return true
+}
+
+func manualPasswordAttemptKey(asset model.PermAsset, account model.PermAccount, protocol string) string {
+	accountKey := account.Alias
+	if accountKey == "" {
+		accountKey = account.Username + "\x00" + account.Name
+	}
+	return asset.OrgID + "\x00" + asset.ID + "\x00" + accountKey + "\x00" + protocol
+}
+
+var builtinFields = map[string]struct{}{
+	"id":      {},
+	"name":    {},
+	"address": {},
+	"comment": {},
+}
+
+func isBuiltinFields(field string) bool {
+	_, ok := builtinFields[strings.ToLower(field)]
 	return ok
 }
 

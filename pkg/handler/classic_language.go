@@ -51,9 +51,6 @@ func (h *InteractiveHandler) ChangeLang() {
 	language = lang.String()
 	if language != h.i18nLang {
 		setAPIClientLang(h.jmsService, language)
-		if h.preferences != nil {
-			h.preferences.storeLanguage(h.user.ID, language)
-		}
 		utils.IgnoreErrWriteString(h.term, utils.WrapperString(lang.T("Switch language successfully"), utils.Green))
 		utils.IgnoreErrWriteString(h.term, utils.CharNewLine)
 	}
